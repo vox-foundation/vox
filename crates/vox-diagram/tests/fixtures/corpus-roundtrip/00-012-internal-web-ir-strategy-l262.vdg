@@ -1,0 +1,18 @@
+graph {
+    direction: right
+    node voxSource: "VoxSource"
+    node astLayer: "AstLayer"
+    node hirLayer: "HirLayer"
+    node webIrLayer: "WebIrLayer"
+    node validateLayer: "WebIrValidate"
+    node reactEmit: "ReactTanStackEmitter"
+    node ssgEmit: "SsgHtmlEmitter"
+    node futureEmit: "FutureEmitter"
+    voxSource -> astLayer
+    astLayer -> hirLayer
+    hirLayer -> webIrLayer
+    webIrLayer -> validateLayer
+    validateLayer -> reactEmit
+    validateLayer -> ssgEmit
+    validateLayer -> futureEmit
+}

@@ -1,0 +1,194 @@
+{
+  "kind": "graph",
+  "direction": "right",
+  "nodes": [
+    [
+      ".vox source",
+      "rect",
+      []
+    ],
+    [
+      "Android and iOS artifacts",
+      "rect",
+      []
+    ],
+    [
+      "Axum local server with embedded SPA",
+      "rect",
+      []
+    ],
+    [
+      "Desktop installers",
+      "rect",
+      []
+    ],
+    [
+      "Generated src-tauri project",
+      "rect",
+      []
+    ],
+    [
+      "cargo tauri build",
+      "rect",
+      []
+    ],
+    [
+      "desktop and mobile targets",
+      "rect",
+      []
+    ],
+    [
+      "native-binary target",
+      "rect",
+      []
+    ],
+    [
+      "runtime-capabilities projection",
+      "rect",
+      []
+    ],
+    [
+      "tauri.conf.json and permissions",
+      "rect",
+      []
+    ],
+    [
+      "vox compile",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        ".vox source",
+        "rect",
+        []
+      ],
+      [
+        "vox compile",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Generated src-tauri project",
+        "rect",
+        []
+      ],
+      [
+        "cargo tauri build",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "cargo tauri build",
+        "rect",
+        []
+      ],
+      [
+        "Android and iOS artifacts",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "cargo tauri build",
+        "rect",
+        []
+      ],
+      [
+        "Desktop installers",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "desktop and mobile targets",
+        "rect",
+        []
+      ],
+      [
+        "Generated src-tauri project",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "desktop and mobile targets",
+        "rect",
+        []
+      ],
+      [
+        "runtime-capabilities projection",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "native-binary target",
+        "rect",
+        []
+      ],
+      [
+        "Axum local server with embedded SPA",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "runtime-capabilities projection",
+        "rect",
+        []
+      ],
+      [
+        "tauri.conf.json and permissions",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "vox compile",
+        "rect",
+        []
+      ],
+      [
+        "desktop and mobile targets",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "vox compile",
+        "rect",
+        []
+      ],
+      [
+        "native-binary target",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

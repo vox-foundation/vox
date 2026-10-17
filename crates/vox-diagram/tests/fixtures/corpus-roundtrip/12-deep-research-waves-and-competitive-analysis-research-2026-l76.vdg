@@ -1,0 +1,31 @@
+graph {
+    node UserQuery: "User Query"
+    node LeadAgent: "Lead Researcher (Supervisor Agent)"
+    node Decomp: "Task Decomposition & Router (Claude Haiku)"
+    node Subagent1: "Worker Subagent 1: Topic A"
+    node Subagent2: "Worker Subagent 2: Topic B"
+    node SubagentN: "Worker Subagent N: Topic C"
+    node VFS1: "Write Notes to Virtual Filesystem"
+    node VFS2: "Write Notes to Virtual Filesystem"
+    node VFS3: "Write Notes to Virtual Filesystem"
+    node Distill: "Subagents Distill Structured Findings"
+    node Reflection: "Gaps / Contradictions Found?" { shape: diamond }
+    node SpawnSpecialist: "Spawn Specialist Subagent (Tie-Breaker)"
+    node FinalReport: "Synthesize Comprehensive Report (Claude Opus/Sonnet)"
+    UserQuery -> LeadAgent
+    LeadAgent -> Decomp
+    Decomp -> Subagent1
+    Decomp -> Subagent2
+    Decomp -> SubagentN
+    Subagent1 -> VFS1
+    Subagent2 -> VFS2
+    SubagentN -> VFS3
+    VFS1 -> Distill
+    VFS2 -> Distill
+    VFS3 -> Distill
+    Distill -> LeadAgent
+    LeadAgent -> Reflection
+    Reflection -> SpawnSpecialist: "Yes"
+    SpawnSpecialist -> Distill
+    Reflection -> FinalReport: "No"
+}

@@ -1,0 +1,10 @@
+flowchart TD
+    benchmark["StrengthenBenchmarksAndMetrics"]
+    retrieval["AddRepoAwareRetrievalForCodegen"]
+    constraint["PrototypeGrammarConstrainedDecoding"]
+    semantic["PrototypeSemanticBenchmarkSubset"]
+    customGate["RevisitCustomModelDecision"]
+    benchmark --> retrieval
+    retrieval --> constraint
+    constraint --> semantic
+    semantic --> customGate

@@ -1,0 +1,220 @@
+{
+  "kind": "graph",
+  "direction": "right",
+  "nodes": [
+    [
+      "AppContract",
+      "rect",
+      []
+    ],
+    [
+      "ContractIR",
+      "rect",
+      []
+    ],
+    [
+      "External React app",
+      "rect",
+      []
+    ],
+    [
+      "Generated Axum binary",
+      "rect",
+      []
+    ],
+    [
+      "HIR",
+      "rect",
+      []
+    ],
+    [
+      "OpenAPI emit",
+      "rect",
+      []
+    ],
+    [
+      "Rust Axum emit",
+      "rect",
+      []
+    ],
+    [
+      "VoxSource",
+      "rect",
+      []
+    ],
+    [
+      "schemas.ts emit",
+      "rect",
+      []
+    ],
+    [
+      "vox-client.ts emit",
+      "rect",
+      []
+    ],
+    [
+      "vox-tanstack-query.tsx emit",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "ContractIR",
+        "rect",
+        []
+      ],
+      [
+        "OpenAPI emit",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "ContractIR",
+        "rect",
+        []
+      ],
+      [
+        "schemas.ts emit",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "ContractIR",
+        "rect",
+        []
+      ],
+      [
+        "vox-client.ts emit",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "HIR",
+        "rect",
+        []
+      ],
+      [
+        "AppContract",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "HIR",
+        "rect",
+        []
+      ],
+      [
+        "ContractIR",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "HIR",
+        "rect",
+        []
+      ],
+      [
+        "Rust Axum emit",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "HIR",
+        "rect",
+        []
+      ],
+      [
+        "vox-tanstack-query.tsx emit",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "OpenAPI emit",
+        "rect",
+        []
+      ],
+      [
+        "External React app",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Rust Axum emit",
+        "rect",
+        []
+      ],
+      [
+        "Generated Axum binary",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "VoxSource",
+        "rect",
+        []
+      ],
+      [
+        "HIR",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "vox-client.ts emit",
+        "rect",
+        []
+      ],
+      [
+        "External React app",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "vox-tanstack-query.tsx emit",
+        "rect",
+        []
+      ],
+      [
+        "External React app",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

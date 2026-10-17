@@ -1,0 +1,24 @@
+graph {
+    direction: right
+    node VoxSource: ".vox source"
+    node Compile: "vox compile"
+    node NativeBinary: "native-binary target"
+    node AppTargets: "desktop and mobile targets"
+    node AxumServer: "Axum local server with embedded SPA"
+    node TauriProject: "Generated src-tauri project"
+    node TauriBuild: "cargo tauri build"
+    node DesktopBundle: "Desktop installers"
+    node MobileBundle: "Android and iOS artifacts"
+    node CapabilityProjection: "runtime-capabilities projection"
+    node TauriConfig: "tauri.conf.json and permissions"
+    VoxSource -> Compile
+    Compile -> NativeBinary
+    Compile -> AppTargets
+    NativeBinary -> AxumServer
+    AppTargets -> TauriProject
+    TauriProject -> TauriBuild
+    TauriBuild -> DesktopBundle
+    TauriBuild -> MobileBundle
+    AppTargets -> CapabilityProjection
+    CapabilityProjection -> TauriConfig
+}

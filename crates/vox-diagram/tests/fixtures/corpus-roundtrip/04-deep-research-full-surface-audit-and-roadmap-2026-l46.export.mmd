@@ -1,0 +1,34 @@
+flowchart TD
+    UserQuery["Research Query (Topic, Scope, Max Sources)"]
+    CacheCheck{"Cache Short-Circuit (Exact FNV-1a)"}
+    ReturnCached["Return Cached ResearchResult"]
+    ModelRes["Resolve Research Models (Planner, Claim, Synth, Judge)"]
+    CreateSession["vox-db: create_research_session (status: planning)"]
+    Stage1["Stage 1: Decompose Query (3-6 Subqueries via LLM)"]
+    Stage2["Stage 2: Gather Hits (Local Tantivy/Mem + Web Multi-Hop CRAG)"]
+    Stage3["Stage 3: Diagnostics (Coverage %, Hit Rate, Domain Diversity)"]
+    Stage4["Stage 4: Claim Extraction (vox-scientia or LLM)"]
+    Stage5["Stage 5: Claim Verification (SelfCheckGPT 3x Resampling NLI)"]
+    Stage6["Stage 6: Confidence Gate (Citation, Support, Diversity, Hit Scores)"]
+    Stage7["Stage 7: Answer Synthesis (Dense Markdown + [N] Citations)"]
+    Stage8["Stage 8: Quality Judge (Factual, Density, Coverage 0-100)"]
+    Stage9["Stage 9: CoVE Self-Verification (If DeepResearch Tier)"]
+    Stage10["Stage 10: Citation Audit #amp; Corroboration Count"]
+    PersistArtifact["Persist Artifact #amp; Report to vox-db"]
+    SetCompleted["update_research_session_status: completed"]
+    UserQuery --> CacheCheck
+    CacheCheck -->|"Hit"| ReturnCached
+    CacheCheck -->|"Miss"| ModelRes
+    ModelRes --> CreateSession
+    CreateSession --> Stage1
+    Stage1 --> Stage2
+    Stage2 --> Stage3
+    Stage3 --> Stage4
+    Stage4 --> Stage5
+    Stage5 --> Stage6
+    Stage6 --> Stage7
+    Stage7 --> Stage8
+    Stage8 --> Stage9
+    Stage9 --> Stage10
+    Stage10 --> PersistArtifact
+    PersistArtifact --> SetCompleted

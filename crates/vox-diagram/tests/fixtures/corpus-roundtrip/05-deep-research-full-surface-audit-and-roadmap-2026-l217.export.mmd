@@ -1,0 +1,10 @@
+flowchart LR
+    subgraph Current ["Current Monolithic Stage Model"]
+        S["Stage Request"]
+        Primary{"decide() Primary"}
+        ExecPrimary["Run Entire Stage on Primary Model"]
+        Cascade["Local Ollama -#gt; OpenRouter Free Floor -#gt; OpenRouter Configured"]
+    end
+    S --> Primary
+    Primary -->|"Success"| ExecPrimary
+    Primary -->|"None/Fail"| Cascade

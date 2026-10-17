@@ -1,0 +1,140 @@
+{
+  "kind": "graph",
+  "direction": "right",
+  "nodes": [
+    [
+      "@tool / @resource in .vox",
+      "rect",
+      []
+    ],
+    [
+      "TOOL_REGISTRY",
+      "rect",
+      []
+    ],
+    [
+      "WorkspaceMcpLoader",
+      "rect",
+      []
+    ],
+    [
+      "WorkspaceMcpSurface",
+      "rect",
+      []
+    ],
+    [
+      "installed skills",
+      "rect",
+      []
+    ],
+    [
+      "operations/catalog",
+      "rect",
+      []
+    ],
+    [
+      "resources/read",
+      "rect",
+      []
+    ],
+    [
+      "tools/list + dispatch",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "@tool / @resource in .vox",
+        "rect",
+        []
+      ],
+      [
+        "WorkspaceMcpLoader",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "TOOL_REGISTRY",
+        "rect",
+        []
+      ],
+      [
+        "tools/list + dispatch",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "WorkspaceMcpLoader",
+        "rect",
+        []
+      ],
+      [
+        "WorkspaceMcpSurface",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "WorkspaceMcpSurface",
+        "rect",
+        []
+      ],
+      [
+        "resources/read",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "WorkspaceMcpSurface",
+        "rect",
+        []
+      ],
+      [
+        "tools/list + dispatch",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "installed skills",
+        "rect",
+        []
+      ],
+      [
+        "tools/list + dispatch",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "operations/catalog",
+        "rect",
+        []
+      ],
+      [
+        "TOOL_REGISTRY",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

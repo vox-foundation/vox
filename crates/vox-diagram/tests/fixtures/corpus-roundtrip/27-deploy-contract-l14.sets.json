@@ -1,0 +1,117 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "Fetch logs & artifact",
+      "rect",
+      []
+    ],
+    [
+      "Push to main",
+      "rect",
+      []
+    ],
+    [
+      "deploy-coolify",
+      "rect",
+      []
+    ],
+    [
+      "health-check",
+      "rect",
+      []
+    ],
+    [
+      "notify",
+      "rect",
+      []
+    ],
+    [
+      "smoke-ci",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Fetch logs & artifact",
+        "rect",
+        []
+      ],
+      [
+        "notify",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Push to main",
+        "rect",
+        []
+      ],
+      [
+        "smoke-ci",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "deploy-coolify",
+        "rect",
+        []
+      ],
+      [
+        "Fetch logs & artifact",
+        "rect",
+        []
+      ],
+      "Failure"
+    ],
+    [
+      [
+        "deploy-coolify",
+        "rect",
+        []
+      ],
+      [
+        "health-check",
+        "rect",
+        []
+      ],
+      "Poll & verify"
+    ],
+    [
+      [
+        "health-check",
+        "rect",
+        []
+      ],
+      [
+        "notify",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "smoke-ci",
+        "rect",
+        []
+      ],
+      [
+        "deploy-coolify",
+        "rect",
+        []
+      ],
+      "Success or skipped"
+    ]
+  ],
+  "containers": []
+}

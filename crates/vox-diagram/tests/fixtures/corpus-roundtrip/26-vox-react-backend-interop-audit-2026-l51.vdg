@@ -1,0 +1,26 @@
+graph {
+    direction: right
+    node voxSource: "VoxSource"
+    node hir: "HIR"
+    node contractIr: "ContractIR"
+    node appContract: "AppContract"
+    node openapiEmit: "OpenAPI emit"
+    node voxClient: "vox-client.ts emit"
+    node zodEmit: "schemas.ts emit"
+    node rustHttp: "Rust Axum emit"
+    node tanstackQuery: "vox-tanstack-query.tsx emit"
+    node axumServer: "Generated Axum binary"
+    node reactApp: "External React app"
+    voxSource -> hir
+    hir -> contractIr
+    hir -> appContract
+    contractIr -> openapiEmit
+    contractIr -> voxClient
+    contractIr -> zodEmit
+    hir -> rustHttp
+    hir -> tanstackQuery
+    rustHttp -> axumServer
+    voxClient -> reactApp
+    openapiEmit -> reactApp
+    tanstackQuery -> reactApp
+}

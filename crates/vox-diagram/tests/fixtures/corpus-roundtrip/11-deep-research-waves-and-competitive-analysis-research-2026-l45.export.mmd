@@ -1,0 +1,22 @@
+flowchart TD
+    UserQuery["User Prompt"]
+    PlanPhase["Collaborative Plan Formulation"]
+    UserApproval{"User Approves Plan?"}
+    LoopStart["Start Recursive Agent Loop"]
+    GenQueries["Generate 3-8 Subqueries"]
+    GoogleSearch["Google Search Ingestion"]
+    IngestPages["Ingest Full HTML Pages (up to 1M tokens)"]
+    GapAnalysis{"Information Gap or Contradiction Detected?"}
+    RefineQueries["Formulate Refined / Follow-up Queries"]
+    LongSynthesis["Synthesize 10-25 Page Report with Citations"]
+    UserQuery --> PlanPhase
+    PlanPhase --> UserApproval
+    UserApproval -->|"No"| PlanPhase
+    UserApproval -->|"Yes"| LoopStart
+    LoopStart --> GenQueries
+    GenQueries --> GoogleSearch
+    GoogleSearch --> IngestPages
+    IngestPages --> GapAnalysis
+    GapAnalysis -->|"Yes (Iter #lt; Max)"| RefineQueries
+    RefineQueries --> GoogleSearch
+    GapAnalysis -->|"No or Iter == Max"| LongSynthesis

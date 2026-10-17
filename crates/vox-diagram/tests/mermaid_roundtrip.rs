@@ -5,10 +5,12 @@ mod support;
 
 use std::fs;
 
-use support::roundtrip::{assert_golden, canon_graph, fixtures, sets_json, stems};
+use std::path::Path;
+use support::roundtrip::{assert_golden, canon_graph, canon_sequence, fixtures, sets_json, stems};
 use vox_diagram::ir::Ir;
 use vox_diagram::limits::MAX_SOURCE_BYTES;
-use vox_diagram::mermaid::{ImportOpts, Unsupported, export, import};
+
+use vox_diagram::mermaid::{ImportOpts, Unsupported, export, export_sequence, import};
 use vox_diagram::{check, fmt};
 
 fn unsupported(line: u32, construct: &str) -> Unsupported {
@@ -99,50 +101,130 @@ fn tracer_minimal_export_text() {
     );
 }
 
-#[test]
-fn import_cases_roundtrip() {
-    let root = fixtures();
-    let inputs = stems(&root.join("import-cases"), "mmd");
-    assert!(!inputs.is_empty(), "no import-cases fixtures");
-    let out = root.join("import-cases-roundtrip");
+/// Outcome of one `roundtrip_dir` pass.
+struct Round {
+    /// Stems that imported and have goldens.
+    done: Vec<String>,
+    /// Stems that wrote a `.vdg` (graph and state blocks, not sequences).
+    with_vdg: usize,
+    /// `(stem, unsupported)` for every refused block.
+    refused: Vec<(String, Vec<Unsupported>)>,
+}
+
+/// Import every `<input>/*.mmd`; assert the goldens under `output` (`.vdg`, `.export.mmd`,
+/// `.sets.json`, and `unsupported.json` only when something was refused) and reject orphans.
+fn roundtrip_dir(input: &Path, output: &Path) -> Round {
+    let inputs = stems(input, "mmd");
+    assert!(!inputs.is_empty(), "no fixtures in {}", input.display());
+    let mut round = Round {
+        done: Vec::new(),
+        with_vdg: 0,
+        refused: Vec::new(),
+    };
     for stem in &inputs {
-        let path = root.join(format!("import-cases/{stem}.mmd"));
+        let path = input.join(format!("{stem}.mmd"));
         let Ok(block) = fs::read_to_string(&path) else {
             panic!("cannot read {}", path.display());
         };
         let report = import(&block, ImportOpts::default());
-        assert!(
-            report.unsupported.is_empty(),
-            "{stem}: {:?}",
-            report.unsupported
-        );
-        let Some(src) = report.source else {
-            panic!("{stem}: no source");
-        };
-        assert_eq!(
-            fmt(&src).as_deref(),
-            Some(src.as_str()),
-            "{stem}: not a fmt fixed point"
-        );
-        let Some(Ir::Graph(g)) = check(&src).ir else {
-            panic!("{stem}: imported source does not check");
-        };
-        let ir = Ir::Graph(g.clone());
-        assert_golden(&out.join(format!("{stem}.vdg")), &src);
-        assert_golden(&out.join(format!("{stem}.export.mmd")), &export(&ir));
-        assert_golden(
-            &out.join(format!("{stem}.sets.json")),
-            &sets_json(&canon_graph(&g)),
-        );
-    }
-    // Every golden has a source input.
-    for ext in ["vdg", "mmd", "json"] {
-        for stem in stems(&out, ext) {
-            let base = stem.trim_end_matches(".export").trim_end_matches(".sets");
-            assert!(
-                inputs.iter().any(|i| i == base),
-                "orphan golden {stem}.{ext}"
+        if !report.unsupported.is_empty() {
+            round.refused.push((stem.clone(), report.unsupported));
+            continue;
+        }
+        let out = |ext: &str| output.join(format!("{stem}.{ext}"));
+        if let Some(seq) = report.sequence {
+            assert_golden(&out("export.mmd"), &export_sequence(&seq));
+            assert_golden(&out("sets.json"), &sets_json(&canon_sequence(&seq)));
+        } else {
+            let Some(src) = report.source else {
+                panic!("{stem}: no source and no sequence");
+            };
+            assert_eq!(
+                fmt(&src).as_deref(),
+                Some(src.as_str()),
+                "{stem}: not a fmt fixed point"
             );
+            let Some(Ir::Graph(g)) = check(&src).ir else {
+                panic!("{stem}: imported source does not check");
+            };
+            assert_golden(&out("vdg"), &src);
+            assert_golden(&out("export.mmd"), &export(&Ir::Graph(g.clone())));
+            assert_golden(&out("sets.json"), &sets_json(&canon_graph(&g)));
+            round.with_vdg += 1;
+        }
+        round.done.push(stem.clone());
+    }
+    let list = output.join("unsupported.json");
+    if round.refused.is_empty() {
+        assert!(!list.exists(), "orphan {}", list.display());
+    } else {
+        let entries: Vec<serde_json::Value> = round
+            .refused
+            .iter()
+            .map(|(file, u)| serde_json::json!({"file": file, "unsupported": u}))
+            .collect();
+        assert_golden(&list, &sets_json(&serde_json::Value::Array(entries)));
+    }
+    for ext in ["vdg", "mmd", "json"] {
+        for stem in stems(output, ext) {
+            let base = stem.trim_end_matches(".export").trim_end_matches(".sets");
+            let ok =
+                round.done.iter().any(|d| d == base) || (stem == "unsupported" && ext == "json");
+            assert!(ok, "orphan golden {stem}.{ext}");
         }
     }
+    round
+}
+
+#[test]
+fn import_cases_roundtrip() {
+    let root = fixtures();
+    let round = roundtrip_dir(
+        &root.join("import-cases"),
+        &root.join("import-cases-roundtrip"),
+    );
+    assert!(round.refused.is_empty(), "refused: {:?}", round.refused);
+}
+
+/// ROADMAP SC3: 31 of the 33 frozen blocks round-trip; the gantt block and the markdown-string
+/// block are the only refusals.
+#[test]
+fn corpus_roundtrip() {
+    let root = fixtures();
+    let round = roundtrip_dir(&root.join("corpus"), &root.join("corpus-roundtrip"));
+    assert_eq!(round.done.len(), 31, "round-tripped: {:?}", round.done);
+    assert_eq!(round.with_vdg, 30, "sequence blocks have no .vdg");
+    let manifest = fs::read_to_string(root.join("corpus/MANIFEST.json")).unwrap_or_default();
+    let Ok(serde_json::Value::Array(entries)) = serde_json::from_str(&manifest) else {
+        panic!("corpus/MANIFEST.json unreadable");
+    };
+    let key = |stem: &str| -> (String, u64) {
+        let want = format!("{stem}.mmd");
+        let e = entries.iter().find(|e| e["fixture"] == want.as_str());
+        let Some(e) = e else {
+            panic!("{stem} not in the manifest");
+        };
+        (
+            e["source"].as_str().unwrap_or_default().to_owned(),
+            e["open_line"].as_u64().unwrap_or(0),
+        )
+    };
+    // One construct name per refused block (the markdown-string block lists three lines).
+    let mut got: Vec<((String, u64), &str)> = round
+        .refused
+        .iter()
+        .map(|(stem, u)| {
+            let first = u[0].construct.as_str();
+            assert!(u.iter().all(|x| x.construct == first), "{stem}: {u:?}");
+            (key(stem), first)
+        })
+        .collect();
+    got.sort();
+    let gantt = "docs/src/architecture/deep-research-full-surface-audit-and-roadmap-2026.md";
+    let md = "docs/src/how-to/how-to-rust-crate-imports.md";
+    let want = vec![
+        ((gantt.to_owned(), 485), "header:gantt"),
+        ((md.to_owned(), 53), "markdown-string"),
+    ];
+    assert_eq!(got, want);
 }

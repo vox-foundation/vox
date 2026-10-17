@@ -1,0 +1,68 @@
+{
+  "kind": "graph",
+  "direction": "right",
+  "nodes": [
+    [
+      "CDP page viewport 1280x800",
+      "rect",
+      []
+    ],
+    [
+      "Frame click clientX/clientY",
+      "rect",
+      []
+    ],
+    [
+      "mapClickToViewport",
+      "rect",
+      []
+    ],
+    [
+      "vox_browser_click_xy",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Frame click clientX/clientY",
+        "rect",
+        []
+      ],
+      [
+        "mapClickToViewport",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "mapClickToViewport",
+        "rect",
+        []
+      ],
+      [
+        "vox_browser_click_xy",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "vox_browser_click_xy",
+        "rect",
+        []
+      ],
+      [
+        "CDP page viewport 1280x800",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

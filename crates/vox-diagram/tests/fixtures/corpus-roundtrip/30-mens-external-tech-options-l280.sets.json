@@ -1,0 +1,86 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "AddRepoAwareRetrievalForCodegen",
+      "rect",
+      []
+    ],
+    [
+      "PrototypeGrammarConstrainedDecoding",
+      "rect",
+      []
+    ],
+    [
+      "PrototypeSemanticBenchmarkSubset",
+      "rect",
+      []
+    ],
+    [
+      "RevisitCustomModelDecision",
+      "rect",
+      []
+    ],
+    [
+      "StrengthenBenchmarksAndMetrics",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "AddRepoAwareRetrievalForCodegen",
+        "rect",
+        []
+      ],
+      [
+        "PrototypeGrammarConstrainedDecoding",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "PrototypeGrammarConstrainedDecoding",
+        "rect",
+        []
+      ],
+      [
+        "PrototypeSemanticBenchmarkSubset",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "PrototypeSemanticBenchmarkSubset",
+        "rect",
+        []
+      ],
+      [
+        "RevisitCustomModelDecision",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "StrengthenBenchmarksAndMetrics",
+        "rect",
+        []
+      ],
+      [
+        "AddRepoAwareRetrievalForCodegen",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

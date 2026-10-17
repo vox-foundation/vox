@@ -1,0 +1,12 @@
+graph {
+    direction: right
+    container Current: "Current Monolithic Stage Model" {
+        node S: "Stage Request"
+        node Primary: "decide() Primary" { shape: diamond }
+        node ExecPrimary: "Run Entire Stage on Primary Model"
+        node Cascade: "Local Ollama -> OpenRouter Free Floor -> OpenRouter Configured"
+        S -> Primary
+        Primary -> ExecPrimary: "Success"
+        Primary -> Cascade: "None/Fail"
+    }
+}

@@ -1,0 +1,22 @@
+flowchart LR
+    subgraph ResearchRun ["Active Research Run"]
+        FetchPages["Scrape #amp; Gather Web Pages"]
+        SynthReport["Synthesize Research Report"]
+    end
+    subgraph StorageLoop ["Deep Research Storage #amp; Indexing"]
+        StoreDocs["Upsert into search_documents #amp; chunks"]
+        StoreFTS["Index into SQLite FTS5 #amp; Tantivy"]
+        StoreVec["Compute Local Embeddings -#gt; Qdrant/MemoryHybrid"]
+        StoreKB["Create Knowledge Nodes #amp; Claim Edges"]
+    end
+    subgraph FutureRetrieval ["Subsequent Queries #amp; Chat"]
+        NewQuery["New Chat Turn or Research Query"]
+        HybridSearch["Hybrid Search (BM25 + Dense Vector)"]
+        PriorKnowledge["Retrieve Past Research Evidence #amp; Reports"]
+    end
+    StoreDocs --> StoreVec
+    NewQuery --> HybridSearch
+    HybridSearch --> PriorKnowledge
+    FetchPages --> StoreDocs
+    SynthReport --> StoreFTS
+    SynthReport --> StoreKB

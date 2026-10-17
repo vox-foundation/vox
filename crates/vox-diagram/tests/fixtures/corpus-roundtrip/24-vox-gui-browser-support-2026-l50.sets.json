@@ -1,0 +1,135 @@
+{
+  "kind": "graph",
+  "direction": "right",
+  "nodes": [
+    [
+      "Agent live view + controls",
+      "rect",
+      []
+    ],
+    [
+      "Loquela chat",
+      "rect",
+      []
+    ],
+    [
+      "Operator input",
+      "rect",
+      []
+    ],
+    [
+      "vox-orchestrator-d",
+      "rect",
+      []
+    ],
+    [
+      "vox-plugin-browser CDP",
+      "rect",
+      []
+    ],
+    [
+      "vox://browser-frame",
+      "rect",
+      []
+    ],
+    [
+      "vox_browser_* tools",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Agent live view + controls",
+        "rect",
+        []
+      ],
+      [
+        "vox-orchestrator-d",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Loquela chat",
+        "rect",
+        []
+      ],
+      [
+        "vox-orchestrator-d",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Operator input",
+        "rect",
+        []
+      ],
+      [
+        "Agent live view + controls",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "vox-orchestrator-d",
+        "rect",
+        []
+      ],
+      [
+        "vox_browser_* tools",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "vox-plugin-browser CDP",
+        "rect",
+        []
+      ],
+      [
+        "vox://browser-frame",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "vox://browser-frame",
+        "rect",
+        []
+      ],
+      [
+        "Agent live view + controls",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "vox_browser_* tools",
+        "rect",
+        []
+      ],
+      [
+        "vox-plugin-browser CDP",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

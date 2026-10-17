@@ -1,0 +1,14 @@
+graph {
+    node A: "Push to main"
+    node B: "smoke-ci"
+    node D: "deploy-coolify"
+    node E: "health-check"
+    node F: "notify"
+    node G: "Fetch logs & artifact"
+    A -> B
+    B -> D: "Success or skipped"
+    D -> E: "Poll & verify"
+    E -> F
+    D -> G: "Failure"
+    G -> F
+}

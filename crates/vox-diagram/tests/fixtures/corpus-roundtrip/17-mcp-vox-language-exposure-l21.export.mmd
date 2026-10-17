@@ -1,0 +1,16 @@
+flowchart LR
+    Vox["@tool / @resource in .vox"]
+    Loader["WorkspaceMcpLoader"]
+    Surface["WorkspaceMcpSurface"]
+    Catalog["operations/catalog"]
+    Static["TOOL_REGISTRY"]
+    Merge["tools/list + dispatch"]
+    Skills["installed skills"]
+    ResRead["resources/read"]
+    Vox --> Loader
+    Loader --> Surface
+    Catalog --> Static
+    Surface --> Merge
+    Static --> Merge
+    Skills --> Merge
+    Surface --> ResRead

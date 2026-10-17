@@ -1,0 +1,148 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "Community Review Harvester (Reddit, RTINGS, forum sentiment)",
+      "rect",
+      []
+    ],
+    [
+      "Decision Engine (Best Overall, Best Budget, Known Flaws)",
+      "rect",
+      []
+    ],
+    [
+      "Merchant & Price Scraper (Current prices, stock, retailers)",
+      "rect",
+      []
+    ],
+    [
+      "Product Comparison Synthesizer",
+      "rect",
+      []
+    ],
+    [
+      "Product Entity Extractor (Identify Top 3-5 Candidate Models)",
+      "rect",
+      []
+    ],
+    [
+      "Shopping Query: 'Best noise-canceling headphones under $300'",
+      "rect",
+      []
+    ],
+    [
+      "Spec Matrix Gatherer (Manufacturer specs, battery, weight, codecs)",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Community Review Harvester (Reddit, RTINGS, forum sentiment)",
+        "rect",
+        []
+      ],
+      [
+        "Product Comparison Synthesizer",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Merchant & Price Scraper (Current prices, stock, retailers)",
+        "rect",
+        []
+      ],
+      [
+        "Product Comparison Synthesizer",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Product Comparison Synthesizer",
+        "rect",
+        []
+      ],
+      [
+        "Decision Engine (Best Overall, Best Budget, Known Flaws)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Product Entity Extractor (Identify Top 3-5 Candidate Models)",
+        "rect",
+        []
+      ],
+      [
+        "Community Review Harvester (Reddit, RTINGS, forum sentiment)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Product Entity Extractor (Identify Top 3-5 Candidate Models)",
+        "rect",
+        []
+      ],
+      [
+        "Merchant & Price Scraper (Current prices, stock, retailers)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Product Entity Extractor (Identify Top 3-5 Candidate Models)",
+        "rect",
+        []
+      ],
+      [
+        "Spec Matrix Gatherer (Manufacturer specs, battery, weight, codecs)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Shopping Query: 'Best noise-canceling headphones under $300'",
+        "rect",
+        []
+      ],
+      [
+        "Product Entity Extractor (Identify Top 3-5 Candidate Models)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Spec Matrix Gatherer (Manufacturer specs, battery, weight, codecs)",
+        "rect",
+        []
+      ],
+      [
+        "Product Comparison Synthesizer",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

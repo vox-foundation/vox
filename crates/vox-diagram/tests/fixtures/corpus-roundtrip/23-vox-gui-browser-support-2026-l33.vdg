@@ -1,0 +1,10 @@
+graph {
+    direction: right
+    node BrowserView: "BrowserView Preview tab"
+    node preview_start: "preview_start IPC"
+    node ViteGuard: "OrchestratedViteGuard"
+    node iframe: "iframe localhost URL"
+    BrowserView -> preview_start
+    preview_start -> ViteGuard
+    ViteGuard -> iframe
+}

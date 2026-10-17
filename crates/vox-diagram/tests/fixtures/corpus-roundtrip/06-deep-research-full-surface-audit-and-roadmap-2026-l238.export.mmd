@@ -1,0 +1,25 @@
+flowchart TD
+    UserQuery["UserQuery"]
+    WebSearch["Web / Local Search Retrieval"]
+    subgraph LocalModels ["Local Models: MENS / Ollama / Candle Metal / CUDA"]
+        L1["Query Normalization #amp; Synonym Expansion"]
+        L2["Fast Snippet Relevance Scoring #amp; De-duplication"]
+        L3["Atomic Claim Extraction from Search Snippets"]
+        L4["First-Pass NLI Filter (Eliminate obvious Non-Entailment)"]
+        L5["Local Vector Embeddings #amp; Indexing"]
+    end
+    subgraph OpenRouter ["OpenRouter / Frontier Cloud Models"]
+        C1["Complex Strategic Multi-Hop Planning (when ambiguous)"]
+        C2["Multi-Source Long-Form Synthesis with Grounded Citations"]
+        C3["Nuanced Contradiction Arbitration (resolving conflicting claims)"]
+        C4["Quality Evaluation #amp; Rubric Scoring (LLM Judge)"]
+        C5["CoVE Adversarial Verification Question Generation"]
+    end
+    L2 --> L3
+    L3 --> L4
+    C2 --> C4
+    C4 --> C5
+    UserQuery --> L1
+    L1 --> WebSearch
+    WebSearch --> L2
+    L4 --> C2

@@ -1,0 +1,226 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "Atomic Claim Extraction from Search Snippets",
+      "rect",
+      [
+        "Local Models: MENS / Ollama / Candle Metal / CUDA"
+      ]
+    ],
+    [
+      "CoVE Adversarial Verification Question Generation",
+      "rect",
+      [
+        "OpenRouter / Frontier Cloud Models"
+      ]
+    ],
+    [
+      "Complex Strategic Multi-Hop Planning (when ambiguous)",
+      "rect",
+      [
+        "OpenRouter / Frontier Cloud Models"
+      ]
+    ],
+    [
+      "Fast Snippet Relevance Scoring & De-duplication",
+      "rect",
+      [
+        "Local Models: MENS / Ollama / Candle Metal / CUDA"
+      ]
+    ],
+    [
+      "First-Pass NLI Filter (Eliminate obvious Non-Entailment)",
+      "rect",
+      [
+        "Local Models: MENS / Ollama / Candle Metal / CUDA"
+      ]
+    ],
+    [
+      "Local Vector Embeddings & Indexing",
+      "rect",
+      [
+        "Local Models: MENS / Ollama / Candle Metal / CUDA"
+      ]
+    ],
+    [
+      "Multi-Source Long-Form Synthesis with Grounded Citations",
+      "rect",
+      [
+        "OpenRouter / Frontier Cloud Models"
+      ]
+    ],
+    [
+      "Nuanced Contradiction Arbitration (resolving conflicting claims)",
+      "rect",
+      [
+        "OpenRouter / Frontier Cloud Models"
+      ]
+    ],
+    [
+      "Quality Evaluation & Rubric Scoring (LLM Judge)",
+      "rect",
+      [
+        "OpenRouter / Frontier Cloud Models"
+      ]
+    ],
+    [
+      "Query Normalization & Synonym Expansion",
+      "rect",
+      [
+        "Local Models: MENS / Ollama / Candle Metal / CUDA"
+      ]
+    ],
+    [
+      "UserQuery",
+      "rect",
+      []
+    ],
+    [
+      "Web / Local Search Retrieval",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Atomic Claim Extraction from Search Snippets",
+        "rect",
+        [
+          "Local Models: MENS / Ollama / Candle Metal / CUDA"
+        ]
+      ],
+      [
+        "First-Pass NLI Filter (Eliminate obvious Non-Entailment)",
+        "rect",
+        [
+          "Local Models: MENS / Ollama / Candle Metal / CUDA"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "Fast Snippet Relevance Scoring & De-duplication",
+        "rect",
+        [
+          "Local Models: MENS / Ollama / Candle Metal / CUDA"
+        ]
+      ],
+      [
+        "Atomic Claim Extraction from Search Snippets",
+        "rect",
+        [
+          "Local Models: MENS / Ollama / Candle Metal / CUDA"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "First-Pass NLI Filter (Eliminate obvious Non-Entailment)",
+        "rect",
+        [
+          "Local Models: MENS / Ollama / Candle Metal / CUDA"
+        ]
+      ],
+      [
+        "Multi-Source Long-Form Synthesis with Grounded Citations",
+        "rect",
+        [
+          "OpenRouter / Frontier Cloud Models"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "Multi-Source Long-Form Synthesis with Grounded Citations",
+        "rect",
+        [
+          "OpenRouter / Frontier Cloud Models"
+        ]
+      ],
+      [
+        "Quality Evaluation & Rubric Scoring (LLM Judge)",
+        "rect",
+        [
+          "OpenRouter / Frontier Cloud Models"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "Quality Evaluation & Rubric Scoring (LLM Judge)",
+        "rect",
+        [
+          "OpenRouter / Frontier Cloud Models"
+        ]
+      ],
+      [
+        "CoVE Adversarial Verification Question Generation",
+        "rect",
+        [
+          "OpenRouter / Frontier Cloud Models"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "Query Normalization & Synonym Expansion",
+        "rect",
+        [
+          "Local Models: MENS / Ollama / Candle Metal / CUDA"
+        ]
+      ],
+      [
+        "Web / Local Search Retrieval",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "UserQuery",
+        "rect",
+        []
+      ],
+      [
+        "Query Normalization & Synonym Expansion",
+        "rect",
+        [
+          "Local Models: MENS / Ollama / Candle Metal / CUDA"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "Web / Local Search Retrieval",
+        "rect",
+        []
+      ],
+      [
+        "Fast Snippet Relevance Scoring & De-duplication",
+        "rect",
+        [
+          "Local Models: MENS / Ollama / Candle Metal / CUDA"
+        ]
+      ],
+      ""
+    ]
+  ],
+  "containers": [
+    [
+      "Local Models: MENS / Ollama / Candle Metal / CUDA"
+    ],
+    [
+      "OpenRouter / Frontier Cloud Models"
+    ]
+  ]
+}
