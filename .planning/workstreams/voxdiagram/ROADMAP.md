@@ -214,7 +214,18 @@ Plans:
   3. A developer can run `vox diagram check|fmt|render|export|import` on files or stdin with exit codes that reflect diagnostics, with catalog rows, needles, and `cli.md` updated and no `vox-cli -> vox-diagram` edge.
   4. The grammar card (<=~600 tokens by measurement, with examples that each pass `check`) is in agent authoring guidance, and `AGENTS.md` directs new docs diagrams to ```` ```vox-diagram ````.
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+**Wave 1**
+- [ ] 88-01-PLAN.md — `vox_validate_diagram` end to end: shared `vox_diagram::validate` envelope (from_mermaid, emit, goldens), MCP handler, the one ledgered edge, catalog row + projections, read-role/profile, grammar card in the advertised description with a measured token budget (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 88-02-PLAN.md — `vox diagram check|fmt|render|export|import` over the `vox_doc_pipeline::diagram` re-export: exit codes 0/1/2, `--json` = MCP envelope, catalog rows, `cli.md`, surface registry, paths baseline (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 88-03-PLAN.md — finalized graph + sequence grammar card, `docs/src/reference/vox-diagram.md`, AGENTS.md directive, where-things-live rows, final regeneration and phase gates (wave 3)
+
 **Research flag**: standard patterns (follow the ~10-artifact catalog fan-out checklist).
 **Folded decisions**: `profile-parity` for new public MCP tools; coordinate catalog regeneration with the `unified` milestone, which also edits the catalog.
 **Parallelism**: can run in parallel with Phase 89.
