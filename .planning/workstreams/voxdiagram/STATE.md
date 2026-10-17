@@ -4,18 +4,18 @@ milestone: v1.7
 milestone_name: VoxDiagram
 current_phase: 86
 current_phase_name: Sequence Kind
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed 86-02-PLAN.md
-last_updated: "2026-10-17T15:16:56.226Z"
+stopped_at: Completed 86-03-PLAN.md
+last_updated: "2026-10-17T16:04:21.919Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 86 execution started
-state_head: e43ea423a76df0a437b7bd07245fd08a0fc32230
+state_head: e1b63240a4a4183fe800a4fc020ec5a655f10c38
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 21
-  completed_plans: 19
+  completed_plans: 20
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -30,7 +30,7 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 ## Current Position
 
 Phase: 86 (Sequence Kind) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 86 execution started
 
@@ -39,7 +39,7 @@ Progress: [███░░░░░░░] 33% (0/9 phases)
 ## Progress
 
 **Phases Complete:** 0
-**Current Plan:** 3
+**Current Plan:** 4
 
 ## Key Decisions (milestone-level)
 
@@ -64,9 +64,9 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-10-17T15:16:56.198Z
+**Last session:** 2026-10-17T16:04:21.676Z
 
-**Stopped At:** Completed 86-02-PLAN.md
+**Stopped At:** Completed 86-03-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -92,6 +92,7 @@ None yet.
 | Phase 85 P05 | 70min | 3 tasks | 18 files |
 | Phase 86 P01 | 1 session | 2 tasks | 38 files |
 | Phase 86 P02 | one session | 3 tasks | 19 files |
+| Phase 86 P03 | 45min | 3 tasks | 15 files |
 
 ## Decisions
 
@@ -127,3 +128,4 @@ None yet.
 - [Phase 86]: 86-01: sequence geometry runs in i64 half-pixels and fails closed past a 100000 px canvas (RenderError::Geometry)
 - [Phase 86]: 86-02: undeclared sequence actors are declared after the last actor line (insert_decl when the closing brace shares it), once per id, keeping first-mention lane order
 - [Phase 86]: 86-02: Mermaid --> in a sequence rewrites to 'reply a -> b' like -->>; other Mermaid links and side notes are reported without a fix
+- [Phase 86]: 86-03: note text soft-wraps at 60 cells like messages; REND-05 left open for 86-04 (corpus block + browser review)

@@ -160,7 +160,7 @@ Plans:
   2. A `sequence` diagram renders to SVG with lane widths driven by the longest message label, so 80+ character messages neither overlap nor clip; output goes through the same safe writer and is byte-identical across runs and platforms.
   3. The corpus sequence block (1 at committed HEAD on 2026-10-16) imports (Phase 84), prints as DSL, re-parses to the same IR, renders, and re-exports to Mermaid accepted by the pinned real Mermaid parser.
 
-**Plans**: 2/4 plans executed in 3 waves
+**Plans**: 3/4 plans executed in 3 waves
 
 Plans:
 **Wave 1**
@@ -168,7 +168,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [x] 86-02-PLAN.md — check/fmt parity: undeclared-actor declare fix, reserved ids, caps, all-errors, Mermaid-isms with rewrites, corpus repair cross-check, S1-S4 properties (wave 2)
-- [ ] 86-03-PLAN.md — Render hardening: 60-char soft wrap, self-message/note geometry, independent geometry oracle + property, render caps, IR validation, hostile text, determinism, goldens (wave 2, parallel with 02)
+- [x] 86-03-PLAN.md — Render hardening: 60-char soft wrap, self-message/note geometry, independent geometry oracle + property, render caps, IR validation, hostile text, determinism, goldens (wave 2, parallel with 02)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 86-04-PLAN.md — Corpus round trip (import → DSL → re-parse → render → export, Node oracle), `ImportReport.source` for sequences, docs rows, API page, closing gates, visual review (wave 3)
@@ -263,7 +263,7 @@ Phases execute in numeric order, with the parallel opportunities noted under Ove
 | 83. Core Crate - Parser, IR & Diagnostics | 7/7 | Complete    | 2026-10-16 |
 | 84. Mermaid Emitter & Strict Importer | 5/5 | Complete    | 2026-10-16 |
 | 85. Graph Layout & Deterministic SVG | 5/5 | Complete    | 2026-10-17 |
-| 86. Sequence Kind | 2/4 | In Progress | - |
+| 86. Sequence Kind | 3/4 | In Progress | - |
 | 87. Doc-Pipeline Consumer & Legacy-Mermaid Ratchet | 0/TBD | Not started | - |
 | 88. MCP Tool, CLI & Agent Guidance | 0/TBD | Not started | - |
 | 89. Docs-Astro Integration | 0/TBD | Not started | - |
