@@ -208,6 +208,57 @@ fn shapes_case_has_one_polygon() {
     assert_eq!(svg.matches("class=\"vd-node-shape\"").count(), 6);
 }
 
+fn case_svg(stem: &str) -> String {
+    let path = fixtures().join(format!("svg/cases/{stem}.svg"));
+    fs::read_to_string(&path).unwrap_or_default()
+}
+
+#[test]
+fn edges_case_draws_every_edge_and_label() {
+    let src = fs::read_to_string(fixtures().join("svg/cases/10-edges.vdg")).unwrap_or_default();
+    let Ir::Graph(g) = ir_of(&src);
+    let labelled = g.edges.iter().filter(|e| e.label.is_some()).count();
+    let svg = case_svg("10-edges");
+    assert_eq!(svg.matches("class=\"vd-edge\"").count(), g.edges.len());
+    assert_eq!(svg.matches("class=\"vd-edge-label-bg\"").count(), labelled);
+    assert_eq!(svg.matches("class=\"vd-edge-label\"").count(), labelled);
+    for rect in svg.split("<rect class=\"vd-edge-label-bg\"").skip(1) {
+        let tag = rect.split("/>").next().unwrap_or_default();
+        assert!(tag.contains("fill:var(--vd-bg,#fff)"), "{tag}");
+    }
+    assert!(svg.contains("fill:var(--vd-muted,#57606a)"));
+    assert_eq!(
+        svg.matches("marker-end=\"url(#vd-arrow)\"").count(),
+        g.edges.len()
+    );
+    // Edge labels are drawn after the nodes.
+    let nodes_at = svg.find("class=\"vd-nodes\"").unwrap_or(usize::MAX);
+    let labels_at = svg.find("class=\"vd-edge-labels\"").unwrap_or(0);
+    assert!(nodes_at < labels_at);
+}
+
+#[test]
+fn edges_case_rounds_corners_with_quadratics() {
+    assert!(case_svg("10-edges").contains('Q'));
+}
+
+#[test]
+fn labelled_edge_renders_ok() {
+    let mut e = edge("a", "b");
+    e.label = Some("go".to_owned());
+    let ir = graph(vec![node("a"), node("b")], vec![e]);
+    assert!(render(&ir, &SvgOpts::default()).is_ok());
+}
+
+#[test]
+fn every_direction_has_a_golden_with_all_edges() {
+    for stem in ["10-edges", "11-right", "12-up", "13-left"] {
+        let svg = case_svg(stem);
+        assert!(svg.contains("class=\"vd-edge\""), "{stem}");
+        assert!(svg.contains("class=\"vd-edge-label\""), "{stem}");
+    }
+}
+
 #[test]
 fn svg_cases() {
     let dir = fixtures().join("svg/cases");

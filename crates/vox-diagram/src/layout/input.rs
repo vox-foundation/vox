@@ -3,11 +3,29 @@
 
 use std::collections::BTreeMap;
 
-use super::text::{node_size, wrap};
-use super::{LEdge, LNode, LayoutInput};
+use super::text::{LINE_H, measure, node_size, wrap};
+use super::{Half, LEdge, LLabel, LNode, LayoutInput};
 use crate::ir::GraphIr;
 use crate::limits::{MAX_RENDER_EDGES, MAX_RENDER_NODES};
 use crate::svg::RenderError;
+
+/// Padding around an edge label's text block on each side: 4 px.
+const EDGE_LABEL_PAD: Half = 8;
+
+/// The wrapped label box of an edge; a missing, empty or blank label draws nothing.
+fn edge_label(label: Option<&str>) -> Option<LLabel> {
+    let lines = wrap(label?);
+    if lines.is_empty() {
+        return None;
+    }
+    let tw = lines.iter().map(|l| measure(l)).max().unwrap_or(0);
+    let th = Half::try_from(lines.len()).unwrap_or(0) * LINE_H * 2;
+    Some(LLabel {
+        lines,
+        w: tw + 2 * EDGE_LABEL_PAD,
+        h: th + 2 * EDGE_LABEL_PAD,
+    })
+}
 
 /// Validate `g` against the render caps and build the layout input.
 pub(crate) fn build(g: &GraphIr) -> Result<LayoutInput, RenderError> {
@@ -18,13 +36,7 @@ pub(crate) fn build(g: &GraphIr) -> Result<LayoutInput, RenderError> {
             edges: g.edges.len(),
         });
     }
-    // Plans 85-02 and 85-03 own edge labels and containers; until then refuse rather than
-    // silently drop what would be drawn.
-    if let Some(i) = g.edges.iter().position(|e| e.label.is_some()) {
-        return Err(RenderError::InvalidIr(format!(
-            "edge {i}: labels are not drawn yet"
-        )));
-    }
+    // Plan 85-03 owns containers; until then refuse rather than silently drop what would be drawn.
     if !g.containers.is_empty() {
         return Err(RenderError::InvalidIr(
             "container 0: containers are not drawn yet".into(),
@@ -44,7 +56,11 @@ pub(crate) fn build(g: &GraphIr) -> Result<LayoutInput, RenderError> {
                 "edge {i}: unknown endpoint"
             )));
         };
-        edges.push(LEdge { from, to });
+        edges.push(LEdge {
+            from,
+            to,
+            label: edge_label(e.label.as_deref()),
+        });
     }
     let nodes = g
         .nodes
@@ -115,6 +131,33 @@ mod tests {
         let Ok(input) = build(&graph(vec![node("a"), node("b")], vec![e])) else {
             panic!("build failed");
         };
-        assert_eq!(input.edges, vec![LEdge { from: 1, to: 0 }]);
+        assert_eq!(
+            input.edges,
+            vec![LEdge {
+                from: 1,
+                to: 0,
+                label: None
+            }]
+        );
+    }
+
+    #[test]
+    fn blank_edge_labels_draw_nothing() {
+        for blank in [None, Some(""), Some("  \t "), Some("\n\n")] {
+            assert_eq!(edge_label(blank), None, "{blank:?}");
+        }
+    }
+
+    #[test]
+    fn an_edge_label_box_is_the_text_block_plus_4px_each_side() {
+        let Some(one) = edge_label(Some("go")) else {
+            panic!("no label");
+        };
+        assert_eq!(one.lines, vec!["go".to_owned()]);
+        assert_eq!((one.w, one.h), (measure("go") + 16, 36 + 16));
+        let Some(two) = edge_label(Some("a\nbb")) else {
+            panic!("no label");
+        };
+        assert_eq!((two.w, two.h), (measure("bb") + 16, 72 + 16));
     }
 }

@@ -2,6 +2,7 @@
 //! single writer in [`writer`]; every paint is a `var(--vd-NAME,FALLBACK)` built from
 //! [`THEME_VARS`]; no attribute value is derived from a label.
 
+mod paths;
 mod shapes;
 pub(crate) mod writer;
 
@@ -166,28 +167,11 @@ fn render_graph(engine: &dyn Engine, g: &GraphIr, opts: &SvgOpts) -> Result<Stri
     w.empty("path", &[("d", "M0 0L10 5L0 10z"), ("style", &arrow_style)]);
     w.close("marker");
     w.close("defs");
-    write_edges(&mut w, &placed, &arrow_id);
+    paths::write_edges(&mut w, &input, &placed, &arrow_id);
     write_nodes(&mut w, &input, &placed);
+    paths::write_edge_labels(&mut w, &input, &placed);
     w.close("svg");
     Ok(w.finish())
-}
-
-fn write_edges(w: &mut Writer, placed: &Placed, arrow_id: &str) {
-    let style = format!("fill:none;stroke:{};stroke-width:1.5", paint("--vd-edge"));
-    let marker = format!("url(#{arrow_id})");
-    w.open("g", &[("class", "vd-edges"), ("style", &style)]);
-    for e in &placed.edges {
-        let mut d = String::new();
-        for (i, (x, y)) in e.points.iter().enumerate() {
-            d.push_str(if i == 0 { "M" } else { "L" });
-            d.push_str(&format!("{} {}", num(*x), num(*y)));
-        }
-        w.empty(
-            "path",
-            &[("class", "vd-edge"), ("d", &d), ("marker-end", &marker)],
-        );
-    }
-    w.close("g");
 }
 
 fn write_nodes(w: &mut Writer, input: &LayoutInput, placed: &Placed) {

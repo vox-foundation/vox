@@ -2,6 +2,7 @@
 //! runs it and reads every coordinate back as an unjudged `Option`; judging is `lay_out`'s job.
 
 use dagre::graph::{Graph, GraphOptions};
+use dagre::layout::types::LabelPos;
 use dagre::{EdgeLabel, LayoutOptions, NodeLabel, RankDir};
 
 use super::{Engine, LayoutError, LayoutInput, RawBox, RawEdge, RawLayout, Separations};
@@ -41,10 +42,19 @@ impl Engine for DagreEngine {
         }
         for (i, e) in input.edges.iter().enumerate() {
             let name = format!("e{i}");
+            let label = e
+                .label
+                .as_ref()
+                .map_or_else(EdgeLabel::default, |l| EdgeLabel {
+                    width: px(l.w),
+                    height: px(l.h),
+                    labelpos: LabelPos::Center,
+                    ..EdgeLabel::default()
+                });
             g.set_edge(
                 format!("n{}", e.from),
                 format!("n{}", e.to),
-                Some(EdgeLabel::default()),
+                Some(label),
                 Some(&name),
             );
         }
@@ -82,6 +92,7 @@ impl Engine for DagreEngine {
                 RawEdge {
                     points: found
                         .map_or_else(Vec::new, |l| l.points.iter().map(|p| (p.x, p.y)).collect()),
+                    label: e.label.as_ref().and(found).map(|l| (l.x, l.y)),
                 }
             })
             .collect();
@@ -93,7 +104,7 @@ impl Engine for DagreEngine {
 mod tests {
     use super::*;
     use crate::ir::Shape;
-    use crate::layout::{LEdge, LNode, RUNGS};
+    use crate::layout::{LEdge, LLabel, LNode, RUNGS};
 
     fn node() -> LNode {
         LNode {
@@ -109,7 +120,11 @@ mod tests {
         let input = LayoutInput {
             direction: Direction::Down,
             nodes: vec![node(), node()],
-            edges: vec![LEdge { from: 0, to: 1 }],
+            edges: vec![LEdge {
+                from: 0,
+                to: 1,
+                label: None,
+            }],
         };
         let Ok(raw) = DagreEngine.solve(&input, RUNGS[0]) else {
             panic!("solve failed");
@@ -119,5 +134,32 @@ mod tests {
         };
         assert!(b > a, "{a} {b}");
         assert!(!raw.edges[0].points.is_empty());
+    }
+
+    #[test]
+    fn a_labelled_edge_reports_a_label_centre() {
+        let label = LLabel {
+            lines: vec!["go".into()],
+            w: 60,
+            h: 52,
+        };
+        let edge = |label| LEdge {
+            from: 0,
+            to: 1,
+            label,
+        };
+        let input = LayoutInput {
+            direction: Direction::Down,
+            nodes: vec![node(), node()],
+            edges: vec![edge(Some(label)), edge(None)],
+        };
+        let Ok(raw) = DagreEngine.solve(&input, RUNGS[0]) else {
+            panic!("solve failed");
+        };
+        let Some((Some(x), Some(y))) = raw.edges[0].label else {
+            panic!("no label centre: {:?}", raw.edges[0]);
+        };
+        assert!(x.is_finite() && y.is_finite());
+        assert_eq!(raw.edges[1].label, None);
     }
 }

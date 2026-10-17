@@ -61,11 +61,20 @@ pub(crate) struct LNode {
     pub h: Half,
 }
 
+/// A wrapped edge label and its box (text block plus padding), half-pixels.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct LLabel {
+    pub lines: Vec<String>,
+    pub w: Half,
+    pub h: Half,
+}
+
 /// An edge between two node indices.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LEdge {
     pub from: usize,
     pub to: usize,
+    pub label: Option<LLabel>,
 }
 
 /// Everything an engine needs.
@@ -89,6 +98,8 @@ pub(crate) struct RawBox {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct RawEdge {
     pub points: Vec<(f64, f64)>,
+    /// Label centre `(x, y)`, present only for a labelled edge.
+    pub label: Option<(Option<f64>, Option<f64>)>,
 }
 
 /// Raw engine output, one entry per input node and edge.
@@ -141,6 +152,8 @@ pub(crate) fn quantize(v: Option<f64>) -> Result<Half, LayoutError> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PlacedEdge {
     pub points: Vec<(Half, Half)>,
+    /// The label box, present only for a labelled edge.
+    pub label: Option<Rect>,
 }
 
 /// Final geometry, shifted so the minimum of everything drawn sits at the margin.
@@ -157,11 +170,11 @@ fn top_left(centre: Option<f64>, size: Option<f64>) -> Option<f64> {
     Some(centre? - size? / 2.0)
 }
 
-/// Lay `input` out through `engine` and quantize the result.
-pub(crate) fn lay_out(engine: &dyn Engine, input: &LayoutInput) -> Result<Placed, RenderError> {
-    let raw = guarded(|| engine.solve(input, RUNGS[0]))??;
+/// Quantize one raw engine layout into [`Placed`], shifted so everything drawn starts at the
+/// margin. Fails closed on a missing, non-finite or huge coordinate or a wrong item count.
+fn place(input: &LayoutInput, raw: &RawLayout) -> Result<Placed, LayoutError> {
     if raw.nodes.len() != input.nodes.len() || raw.edges.len() != input.edges.len() {
-        return Err(LayoutError::Missing.into());
+        return Err(LayoutError::Missing);
     }
     let mut nodes = Vec::with_capacity(raw.nodes.len());
     for b in &raw.nodes {
@@ -173,22 +186,39 @@ pub(crate) fn lay_out(engine: &dyn Engine, input: &LayoutInput) -> Result<Placed
         });
     }
     let mut edges = Vec::with_capacity(raw.edges.len());
-    for e in &raw.edges {
+    for (e, le) in raw.edges.iter().zip(&input.edges) {
         if e.points.is_empty() {
-            return Err(LayoutError::Missing.into());
+            return Err(LayoutError::Missing);
         }
         let mut points = Vec::with_capacity(e.points.len());
         for &(x, y) in &e.points {
             points.push((quantize(Some(x))?, quantize(Some(y))?));
         }
-        edges.push(PlacedEdge { points });
+        let label = match &le.label {
+            None => None,
+            Some(l) => {
+                let (cx, cy) = e.label.ok_or(LayoutError::Missing)?;
+                Some(Rect {
+                    x: quantize(top_left(cx, Some(f64::from(l.w) / 2.0)))?,
+                    y: quantize(top_left(cy, Some(f64::from(l.h) / 2.0)))?,
+                    w: l.w,
+                    h: l.h,
+                })
+            }
+        };
+        edges.push(PlacedEdge { points, label });
     }
+    let labels = edges.iter().filter_map(|e| e.label);
     let xs = nodes
         .iter()
+        .copied()
+        .chain(labels.clone())
         .flat_map(|r| [r.x, r.x + r.w])
         .chain(edges.iter().flat_map(|e| e.points.iter().map(|p| p.0)));
     let ys = nodes
         .iter()
+        .copied()
+        .chain(labels)
         .flat_map(|r| [r.y, r.y + r.h])
         .chain(edges.iter().flat_map(|e| e.points.iter().map(|p| p.1)));
     let (min_x, max_x) = bounds(xs);
@@ -198,8 +228,14 @@ pub(crate) fn lay_out(engine: &dyn Engine, input: &LayoutInput) -> Result<Placed
         r.x += dx;
         r.y += dy;
     }
-    for p in edges.iter_mut().flat_map(|e| e.points.iter_mut()) {
-        *p = (p.0 + dx, p.1 + dy);
+    for e in &mut edges {
+        for p in &mut e.points {
+            *p = (p.0 + dx, p.1 + dy);
+        }
+        if let Some(r) = &mut e.label {
+            r.x += dx;
+            r.y += dy;
+        }
     }
     Ok(Placed {
         width: max_x + dx + MARGIN,
@@ -207,6 +243,12 @@ pub(crate) fn lay_out(engine: &dyn Engine, input: &LayoutInput) -> Result<Placed
         nodes,
         edges,
     })
+}
+
+/// Lay `input` out through `engine` and quantize the result.
+pub(crate) fn lay_out(engine: &dyn Engine, input: &LayoutInput) -> Result<Placed, RenderError> {
+    let raw = guarded(|| engine.solve(input, RUNGS[0]))??;
+    Ok(place(input, &raw)?)
 }
 
 /// Minimum and maximum of `it`, `(0, 0)` when empty.

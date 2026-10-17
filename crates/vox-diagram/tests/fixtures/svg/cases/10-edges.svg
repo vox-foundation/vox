@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 470 734" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<title id="vd-title">Diagram</title>
+<desc id="vd-desc">8 nodes, 12 edges: Alpha → Beta; Beta → Alpha; Beta → Beta; Pivot → Peer; Pivot → Peer; Pivot → Peer; Alpha → Left; Left → Decide?; Alpha → Decide?; Decide? → Yes; Decide? → No; Yes → Pivot</desc>
+<defs>
+<marker id="vd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M234 54L164 93.5Q157 97 151 102L108.5 140" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M71.5 140L41 103Q36 97 43.5 95L234 44" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M119.5 151.5L163.5 141Q169 140 175 140L175 140Q181 140 184 145L189.5 152.5Q193.5 159 189.5 165.5L184 173Q181 178 175 178L175 178Q169 178 163.5 177L119.5 166.5" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M344.5 594L409.5 633Q416 637 409.5 641L346.5 680" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M313.5 594L313.5 629Q313.5 637 313.5 645L315 680" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M281.5 593.5L212.5 633Q206 637 212.5 640.5L283.5 681" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M301 48.5L415 94.5Q422 97 422 105L422 140" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M422 178L422 213Q422 221 417.5 227L383 272.5" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M280 54L304.5 90.5Q309 97 309 105L309 159L309 213Q309 221 313.5 227L347.5 272.5" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M349 320L318 364.5Q313.5 371 313.5 379L313.5 414" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M382 320L413 364.5Q417.5 371 417.5 379L417.5 414" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M313.5 452L313.5 504L313.5 556" marker-end="url(#vd-arrow)"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="234" y="16" width="67" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="267.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="267.5" dy="0">Alpha</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="55.5" y="140" width="64" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="87.5" y="164" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="87.5" dy="0">Beta</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="281.5" y="556" width="64" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="313.5" y="580" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="313.5" dy="0">Pivot</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="283.5" y="680" width="64" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="315.5" y="704" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="315.5" dy="0">Peer</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="390" y="140" width="64" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="422" y="164" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="422" dy="0">Left</tspan></text>
+</g>
+<g class="vd-node">
+<polygon class="vd-node-shape" points="365.5,264 435,296 365.5,328 296,296" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="365.5" y="301" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="365.5" dy="0">Decide?</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="281.5" y="414" width="64" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="313.5" y="438" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="313.5" dy="0">Yes</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="385.5" y="414" width="64" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="417.5" y="438" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="417.5" dy="0">No</tspan></text>
+</g>
+</g>
+<g class="vd-edge-labels">
+<rect class="vd-edge-label-bg" x="144.5" y="84" width="25" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="157" y="102" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="157" dy="0">go</tspan></text>
+<rect class="vd-edge-label-bg" x="16" y="84" width="40" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="36" y="102" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="36" dy="0">back</tspan></text>
+<rect class="vd-edge-label-bg" x="174.5" y="146" width="38.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="193.5" y="164" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="193.5" dy="0">retry</tspan></text>
+<rect class="vd-edge-label-bg" x="399.5" y="624" width="33.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="416" y="642" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="416" dy="0">one</tspan></text>
+<rect class="vd-edge-label-bg" x="297.5" y="624" width="32" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="313.5" y="642" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="313.5" dy="0">two</tspan></text>
+<rect class="vd-edge-label-bg" x="185" y="624" width="42.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="206" y="642" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="206" dy="0">three</tspan></text>
+<rect class="vd-edge-label-bg" x="412" y="208" width="20" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="422" y="226" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="422" dy="0">in</tspan></text>
+<rect class="vd-edge-label-bg" x="283" y="146" width="52" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="309" y="164" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="309" dy="0">also in</tspan></text>
+<rect class="vd-edge-label-bg" x="297.5" y="358" width="32" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="313.5" y="376" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="313.5" dy="0">yes</tspan></text>
+<rect class="vd-edge-label-bg" x="405" y="358" width="25" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="417.5" y="376" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="417.5" dy="0">no</tspan></text>
+<rect class="vd-edge-label-bg" x="276.5" y="482" width="74" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="313.5" y="500" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="313.5" dy="0">a label on</tspan><tspan x="313.5" dy="18">two lines</tspan></text>
+</g>
+</svg>

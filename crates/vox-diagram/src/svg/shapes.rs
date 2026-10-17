@@ -70,7 +70,7 @@ pub(crate) fn write_node(w: &mut Writer, n: &LNode, r: Rect) {
             );
         }
     }
-    label(w, &n.lines, r);
+    label(w, &n.lines, r, "vd-label", "--vd-text");
     w.close("g");
 }
 
@@ -88,19 +88,20 @@ fn rect(w: &mut Writer, [x, y, bw, bh]: [&str; 4], extra: &[(&'static str, &str)
     w.empty("rect", &attrs);
 }
 
-/// Centred label, one `tspan` per line, first baseline `cy - (n-1)*9 + 5` px; nothing when empty.
-fn label(w: &mut Writer, lines: &[String], r: Rect) {
+/// Centred label of class `class` painted with theme variable `fill`, one `tspan` per line,
+/// first baseline `cy - (n-1)*9 + 5` px; nothing when empty.
+pub(super) fn label(w: &mut Writer, lines: &[String], r: Rect, class: &'static str, fill: &str) {
     if lines.is_empty() {
         return;
     }
-    let style = format!("fill:{};stroke:none", paint("--vd-text"));
+    let style = format!("fill:{};stroke:none", paint(fill));
     let cx = num(r.x + r.w / 2);
     let count = Half::try_from(lines.len()).unwrap_or(1);
     let first = num(r.y + r.h / 2 - (count - 1) * 18 + 10);
     w.start(
         "text",
         &[
-            ("class", "vd-label"),
+            ("class", class),
             ("x", &cx),
             ("y", &first),
             ("text-anchor", "middle"),
