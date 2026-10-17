@@ -76,12 +76,16 @@ test('canon: sequenceDiagram actors, messages and notes in order', async () => {
   });
 });
 
-/** One test per fixture; a directory is skipped only when absent and fails when it holds nothing. */
-function family(dir, suffix, body) {
-  if (!existsSync(join(FIXTURES, dir))) return;
-  const names = stems(dir, suffix);
-  if (names.length === 0) test(`${dir}: has fixtures`, () => assert.fail(`${dir} exists but has no ${suffix} fixtures`));
-  for (const stem of names) test(`${dir}/${stem}`, () => body(stem));
+/** One test per fixture. A missing or thin directory FAILS: the families are the only independent
+ *  check of the exporter, so deleting one must not leave the run green. */
+function family(dir, suffix, minCount, body) {
+  const present = existsSync(join(FIXTURES, dir));
+  test(`${dir}: exists with at least ${minCount} ${suffix} fixtures`, () => {
+    assert.ok(present, `${dir} is missing`);
+    assert.ok(stems(dir, suffix).length >= minCount, `${dir} has fewer than ${minCount} ${suffix} fixtures`);
+  });
+  if (!present) return;
+  for (const stem of stems(dir, suffix)) test(`${dir}/${stem}`, () => body(stem));
 }
 
 /** Three-way assertions shared by every family that starts from an original block. */
@@ -92,7 +96,7 @@ async function threeWay(original, exported, rust) {
   sameSets(await canon(exported), await canon(original), 'C(E) == C(B)');
 }
 
-family('import-cases-roundtrip', '.sets.json', async (stem) => {
+family('import-cases-roundtrip', '.sets.json', 10, async (stem) => {
   await threeWay(
     read('import-cases', `${stem}.mmd`),
     read('import-cases-roundtrip', `${stem}.export.mmd`),
@@ -101,7 +105,12 @@ family('import-cases-roundtrip', '.sets.json', async (stem) => {
 });
 
 // Frozen corpus (plan 84-05 writes corpus-roundtrip/): every block is either round-tripped or
-// listed in unsupported.json, never both.
+// listed in unsupported.json, never both. Absence of the directory, or a thinner corpus, fails.
+test('corpus-roundtrip: exists with the frozen corpus', () => {
+  assert.ok(existsSync(join(FIXTURES, 'corpus-roundtrip')), 'corpus-roundtrip is missing');
+  assert.ok(stems('corpus-roundtrip', '.sets.json').length >= 31, 'fewer than 31 round-tripped corpus blocks');
+  assert.ok(stems('corpus', '.mmd').length >= 33, 'fewer than 33 frozen corpus blocks');
+});
 if (existsSync(join(FIXTURES, 'corpus-roundtrip'))) {
   const listed = new Map(
     JSON.parse(read('corpus-roundtrip', 'unsupported.json')).map((e) => [e.file.replace(/\.mmd$/, ''), e.unsupported]),
@@ -123,7 +132,7 @@ if (existsSync(join(FIXTURES, 'corpus-roundtrip'))) {
 }
 
 // Hostile exporter inputs (plan 84-02 writes export-hostile/): the export alone is judged.
-family('export-hostile', '.sets.json', async (stem) => {
+family('export-hostile', '.sets.json', 21, async (stem) => {
   const exported = read('export-hostile', `${stem}.export.mmd`);
   assert.equal(await accepts(exported), true, 'exported text must be accepted by Mermaid');
   sameSets(await canon(exported), JSON.parse(read('export-hostile', `${stem}.sets.json`)), 'C(E) == R(IR)');
