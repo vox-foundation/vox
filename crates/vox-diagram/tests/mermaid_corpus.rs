@@ -88,3 +88,98 @@ fn corpus_manifest_matches_fixtures() {
         );
     }
 }
+
+const GANTT: (&str, u64) = (
+    "docs/src/architecture/deep-research-full-surface-audit-and-roadmap-2026.md",
+    485,
+);
+const MARKDOWN: (&str, u64) = ("docs/src/how-to/how-to-rust-crate-imports.md", 53);
+const STATE: (&str, u64) = ("docs/src/reference/populi.md", 211);
+const SEQUENCE: (&str, u64) = (
+    "docs/src/architecture/scientia-automated-research-historical-extension-research-2026.md",
+    112,
+);
+const DIRECTIONS: (&str, u64) = (
+    "docs/src/architecture/deep-research-full-surface-audit-and-roadmap-2026.md",
+    238,
+);
+
+/// 84-03 expectations: 29 of the 30 flowchart blocks import; the non-flowchart blocks report
+/// their header until plan 84-04; the markdown-string block is rejected by the real parser.
+#[test]
+fn corpus_blocks_import_or_fail_closed_as_expected() {
+    use vox_diagram::mermaid::{ImportOpts, import};
+    use vox_diagram::{check, fmt};
+    let dir = fixtures().join("corpus");
+    let Ok(raw) = fs::read_to_string(dir.join("MANIFEST.json")) else {
+        panic!("corpus/MANIFEST.json is missing");
+    };
+    let Ok(Value::Array(entries)) = serde_json::from_str::<Value>(&raw) else {
+        panic!("MANIFEST.json is not a JSON array");
+    };
+    let mut failed_closed = 0;
+    for e in &entries {
+        let key = (
+            text(e, "source"),
+            e.get("open_line").and_then(Value::as_u64).unwrap_or(0),
+        );
+        let fixture = text(e, "fixture");
+        let Ok(body) = fs::read_to_string(dir.join(fixture)) else {
+            panic!("cannot read {fixture}");
+        };
+        let report = import(&body, ImportOpts::default());
+        let got: Vec<(u32, &str)> = report
+            .unsupported
+            .iter()
+            .map(|u| (u.line, u.construct.as_str()))
+            .collect();
+        let want_header = [
+            (GANTT, "header:gantt"),
+            (STATE, "header:stateDiagram-v2"),
+            (SEQUENCE, "header:sequenceDiagram"),
+        ]
+        .into_iter()
+        .find(|(k, _)| *k == key);
+        if let Some((_, header)) = want_header {
+            assert_eq!(got, vec![(1, header)], "{fixture}");
+            assert_eq!((&report.source, &report.sequence), (&None, &None));
+            failed_closed += 1;
+        } else if key == MARKDOWN {
+            assert!(
+                !got.is_empty(),
+                "{fixture}: expected markdown-string entries"
+            );
+            assert!(
+                got.iter().all(|(_, c)| *c == "markdown-string"),
+                "{fixture}: {got:?}"
+            );
+            assert_eq!(report.source, None);
+            failed_closed += 1;
+        } else {
+            assert!(got.is_empty(), "{fixture}: {got:?}");
+            let Some(src) = report.source else {
+                panic!("{fixture}: no source");
+            };
+            assert_eq!(
+                fmt(&src).as_deref(),
+                Some(src.as_str()),
+                "{fixture}: not a fixed point"
+            );
+            assert!(
+                check(&src).valid,
+                "{fixture}: imported source does not check"
+            );
+        }
+        let dropped: Vec<&str> = report
+            .dropped
+            .iter()
+            .map(|d| d.construct.as_str())
+            .collect();
+        if key == DIRECTIONS {
+            assert_eq!(dropped, vec!["subgraph-direction"; 2], "{fixture}");
+        } else {
+            assert!(dropped.is_empty(), "{fixture}: {dropped:?}");
+        }
+    }
+    assert_eq!(failed_closed, 4, "exactly four blocks fail closed");
+}

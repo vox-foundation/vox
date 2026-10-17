@@ -124,6 +124,17 @@ impl Builder {
         });
     }
 
+    /// `direction X` is only legal in a subgraph, and only when it repeats the diagram's own.
+    fn direction(&mut self, line: u32, d: Direction) {
+        if self.stack.is_empty() {
+            self.err(line, "direction");
+        } else if d == self.g.direction {
+            self.dropped.push((line, "subgraph-direction".to_owned()));
+        } else {
+            self.err(line, "subgraph-direction");
+        }
+    }
+
     fn close(&mut self, line: u32) {
         let Some(f) = self.stack.pop() else {
             self.err(line, "stray-end");
@@ -166,6 +177,7 @@ pub(super) fn build(direction: Direction, items: Vec<(u32, Stmt)>) -> Built {
             Stmt::Subgraph { id, title } => b.open(line, Some(id), title),
             Stmt::End => b.close(line),
             Stmt::BadOpen => b.open(line, None, None),
+            Stmt::Direction(d) => b.direction(line, d),
         }
     }
     let open: Vec<u32> = b.stack.iter().map(|f| f.line).collect();

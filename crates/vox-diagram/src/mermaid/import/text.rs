@@ -9,6 +9,8 @@ use crate::resolve::RESERVED;
 
 /// Characters Mermaid's parser rejects in unquoted node, title and pipe-edge text.
 pub(super) const NODE_SPECIAL: &str = "()[]{}|\"@";
+/// Only the quote is rejected in unquoted `-- text -->` edge text.
+pub(super) const DASH_SPECIAL: &str = "\"";
 
 /// `Ok` when `s` is a legal DSL id; otherwise the construct name.
 pub(super) fn valid_id(s: &str) -> Result<(), &'static str> {
