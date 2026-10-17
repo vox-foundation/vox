@@ -1,8 +1,8 @@
 //! `vox diagram` — the VoxDiagram CLI over the shared validation envelope.
 //!
 //! The core is reached only through `vox_doc_pipeline::diagram` (the Phase 87 re-export), so
-//! vox-cli needs no crate edge of its own. `--json` (the global flag) prints exactly the envelope
-//! the `vox_validate_diagram` MCP tool returns.
+//! vox-cli needs no crate edge of its own. `--json` (the global flag) prints the bare envelope; the
+//! `vox_validate_diagram` MCP tool returns the same envelope in its `data` field.
 //!
 //! Exit codes: 0 valid, 1 diagnostics (any Error, non-canonical `fmt --check`, unsupported import
 //! lines, a failed render), 2 usage / I/O failure.
@@ -12,8 +12,11 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, bail};
 use vox_doc_pipeline::diagram::{
-    Emit, ValidateOpts, Validation, limits::MAX_SOURCE_BYTES, validate,
+    Emit, ValidateOpts, Validation, diag::Severity, limits::MAX_SOURCE_BYTES, validate,
 };
+
+mod write;
+use write::{ensure_not_input, write_atomic};
 
 /// Subcommands of `vox diagram`.
 #[derive(clap::Subcommand, Debug, Clone)]
@@ -125,6 +128,9 @@ fn go(
     if write && input == "-" {
         bail!("fmt --write needs a file, not stdin");
     }
+    if let Some(path) = dest {
+        ensure_not_input(path, input)?;
+    }
     let label = if input == "-" { "<stdin>" } else { input };
     let src = read_source(input, stdin).with_context(|| label.to_owned())?;
     let v = validate(&src, opts);
@@ -147,10 +153,12 @@ fn go(
         if src == payload {
             return Ok(0);
         }
-        writeln!(
-            err,
-            "{label}: not canonical; run `vox diagram fmt --write {label}`"
-        )?;
+        let fix = if input == "-" {
+            "`vox diagram fmt -` to print the canonical form".to_owned()
+        } else {
+            format!("`vox diagram fmt --write {label}`")
+        };
+        writeln!(err, "{label}: not canonical; run {fix}")?;
         return Ok(1);
     }
     if write {
@@ -160,7 +168,7 @@ fn go(
         return Ok(0);
     }
     match dest {
-        Some(path) => std::fs::write(path, payload).with_context(|| path.display().to_string())?,
+        Some(path) => write_atomic(path, payload)?,
         None => out.write_all(payload.as_bytes())?,
     }
     Ok(0)
@@ -176,9 +184,13 @@ fn emit(e: Emit) -> ValidateOpts {
 /// Diagnostics, importer refusals and drops, then a render failure, all as `label:...` lines.
 fn print_findings(label: &str, v: &Validation, err: &mut dyn Write) -> std::io::Result<()> {
     for d in &v.diagnostics {
+        let severity = match d.severity {
+            Severity::Error => "error",
+            Severity::Warning => "warning",
+        };
         writeln!(
             err,
-            "{label}:{}:{}: {}: {}",
+            "{label}:{}:{}: {severity}: {}: {}",
             d.span.line, d.span.col, d.code, d.message
         )?;
     }
@@ -209,28 +221,7 @@ fn read_source(input: &str, stdin: &mut dyn Read) -> anyhow::Result<String> {
         // Rejected by the size limit whatever the bytes are; a cut multibyte tail must not mask that.
         return Ok(String::from_utf8_lossy(&buf).into_owned());
     }
-    Ok(String::from_utf8(buf).context("input is not valid UTF-8")?)
-}
-
-/// Sibling temp file + rename, so a failed write never truncates the original.
-/// ponytail: a symlinked target is replaced by a regular file; resolve it first if that matters.
-fn write_atomic(path: &Path, data: &str) -> anyhow::Result<()> {
-    let name = path
-        .file_name()
-        .context("not a file path")?
-        .to_string_lossy();
-    let tmp = path.with_file_name(format!(".{name}.{}.tmp", std::process::id()));
-    let result = (|| {
-        let perms = std::fs::metadata(path)?.permissions();
-        std::fs::write(&tmp, data)?;
-        std::fs::set_permissions(&tmp, perms)?;
-        std::fs::rename(&tmp, path)
-    })();
-    if let Err(e) = result {
-        let _ = std::fs::remove_file(&tmp);
-        return Err(e).with_context(|| path.display().to_string());
-    }
-    Ok(())
+    String::from_utf8(buf).context("input is not valid UTF-8")
 }
 
 #[cfg(test)]
@@ -272,7 +263,7 @@ mod tests {
             .iter()
             .map(|d| {
                 format!(
-                    "<stdin>:{}:{}: {}: {}",
+                    "<stdin>:{}:{}: error: {}: {}",
                     d.span.line, d.span.col, d.code, d.message
                 )
             })

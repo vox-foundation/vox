@@ -64,7 +64,7 @@ fn check_file_reports_every_error_and_exits_1() {
         .iter()
         .map(|d| {
             format!(
-                "{path}:{}:{}: {}: {}",
+                "{path}:{}:{}: error: {}: {}",
                 d.span.line, d.span.col, d.code, d.message
             )
         })
@@ -96,11 +96,16 @@ fn check_warning_only_exits_0() {
     let o = vox(&["diagram", "check", "-"], Some(SHADOWED));
     assert_eq!(o.code, 0, "warnings must not fail: {}", o.stderr);
     assert!(o.stderr.starts_with("<stdin>:"), "{}", o.stderr);
-    assert!(o.stderr.contains(": diagram/shadowed-id: "), "{}", o.stderr);
+    assert!(
+        o.stderr.contains(": warning: diagram/shadowed-id: "),
+        "{}",
+        o.stderr
+    );
 }
 
+/// The MCP tool wraps this envelope as `{success, data}`; the CLI prints the bare envelope.
 #[test]
-fn check_json_prints_the_mcp_envelope() {
+fn check_json_prints_the_envelope() {
     let want = envelope(BROKEN, ValidateOpts::default());
     for args in [
         &["--json", "diagram", "check", "-"][..],
