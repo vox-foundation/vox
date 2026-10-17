@@ -27,6 +27,8 @@ pub mod fence;
 pub mod ir;
 /// Named input caps.
 pub mod limits;
+/// Mermaid export (verified against a pinned real Mermaid parser) and strict, fail-closed Mermaid import.
+pub mod mermaid;
 /// Sequence diagram IR types (parser arrives in Phase 86).
 pub mod sequence_ir;
 /// Byte spans and line/col locations.

@@ -57,8 +57,13 @@ fn trailing(out: &mut String, c: Option<&Comment>) {
 }
 
 fn label(out: &mut String, l: &Label) {
+    push_quoted(out, &l.value);
+}
+
+/// Append `s` as a quoted DSL label, escaping `\`, `"` and newlines.
+pub(crate) fn push_quoted(out: &mut String, s: &str) {
     out.push('"');
-    for c in l.value.chars() {
+    for c in s.chars() {
         match c {
             '\\' => out.push_str("\\\\"),
             '"' => out.push_str("\\\""),
@@ -164,6 +169,13 @@ mod tests {
         let noisy = "graph {  \n  node a: \"A\"  \n  node b: \"B\"\n  a -> b\n}";
         let want = "graph {\n    node a: \"A\"\n    node b: \"B\"\n    a -> b\n}\n";
         assert_eq!(fmt(noisy).as_deref(), Some(want));
+    }
+
+    #[test]
+    fn push_quoted_escapes_backslash_quote_and_newline() {
+        let mut out = String::new();
+        push_quoted(&mut out, "a\\b\"c\nd");
+        assert_eq!(out, "\"a\\\\b\\\"c\\nd\"");
     }
 
     #[test]

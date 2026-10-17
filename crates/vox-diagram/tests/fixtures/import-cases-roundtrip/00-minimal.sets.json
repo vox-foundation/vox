@@ -1,0 +1,32 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "a",
+      "rect",
+      []
+    ],
+    [
+      "b",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "a",
+        "rect",
+        []
+      ],
+      [
+        "b",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}
