@@ -21,7 +21,7 @@
     {
       "number": "86",
       "name": "Sequence Kind",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "87",
@@ -54,5 +54,5 @@
     "label": "Advance to the next step",
     "reason": "Phase 86 of 9 · executing"
   },
-  "updated_at": "2026-10-17T14:55:18.217Z"
+  "updated_at": "2026-10-17T15:16:50.365Z"
 }
