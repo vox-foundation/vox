@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use super::flow::{GEdge, GNode, Graph};
 use super::ids::{StateAt, state_id};
 use super::lines::{id_run, styling_head};
-use super::{entries, finish, text};
+use super::{entries, finish, split_directions, text};
 use crate::ir::{Direction, Shape};
 use crate::limits::{MAX_EDGES, MAX_NODES};
 use crate::mermaid::{ImportOpts, ImportReport};
@@ -211,7 +211,7 @@ impl Nodes {
 }
 
 pub(super) fn state(body: Vec<(u32, &str)>, opts: ImportOpts) -> ImportReport {
-    let mut errors = Vec::new();
+    let mut errors = split_directions(&body);
     let mut dropped = Vec::new();
     let mut ns = Nodes {
         nodes: Vec::new(),

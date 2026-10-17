@@ -160,6 +160,14 @@ fn edge_text(raw: &str, quoted: bool, special: &str) -> Res<Option<String>> {
     Ok((!label.is_empty()).then_some(label))
 }
 
+/// Mermaid rejects zero-length quoted and pipe text (`""`, `||`) as a parse error.
+fn non_empty(raw: &str) -> Res<&str> {
+    if raw.is_empty() {
+        return bad("edge-label");
+    }
+    Ok(raw)
+}
+
 fn arrow(cur: &mut &str) -> Res<Option<String>> {
     let s = *cur;
     if let Some(r) = s.strip_prefix("-->") {
@@ -171,11 +179,11 @@ fn arrow(cur: &mut &str) -> Res<Option<String>> {
         if let Some(q) = p.strip_prefix('"') {
             let end = q.find('"').ok_or("edge-label")?;
             *cur = q[end + 1..].strip_prefix('|').ok_or("edge-label")?;
-            return edge_text(&q[..end], true, "");
+            return edge_text(non_empty(&q[..end])?, true, "");
         }
         let end = p.find('|').ok_or("edge-label")?;
         *cur = &p[end + 1..];
-        return edge_text(&p[..end], false, NODE_SPECIAL);
+        return edge_text(non_empty(&p[..end])?, false, NODE_SPECIAL);
     }
     if let Some(r) = s
         .strip_prefix("--")
@@ -186,11 +194,17 @@ fn arrow(cur: &mut &str) -> Res<Option<String>> {
             let end = q.find('"').ok_or("edge-label")?;
             let after = q[end + 1..].trim_start().strip_prefix("-->");
             *cur = after.ok_or("edge-label")?;
-            return edge_text(&q[..end], true, "");
+            return edge_text(non_empty(&q[..end])?, true, "");
         }
         let end = t.find("-->").ok_or("edge-label")?;
         *cur = &t[end + 3..];
-        return edge_text(&t[..end], false, DASH_SPECIAL);
+        // Unquoted text ends at its first `--` (Mermaid reads the rest as another link), cannot
+        // end in `-` (`a--->` is a `--->` link), and cannot be blank.
+        let raw = &t[..end];
+        if raw.trim().is_empty() || raw.contains("--") || raw.ends_with('-') {
+            return bad("edge-label");
+        }
+        return edge_text(raw, false, DASH_SPECIAL);
     }
     if let Some(t) = LINKS.iter().find(|t| s.starts_with(*t)) {
         return bad(format!("edge-type:{t}"));
@@ -202,10 +216,15 @@ fn arrow(cur: &mut &str) -> Res<Option<String>> {
 fn group(cur: &mut &str, cx: &mut Cx) -> Res<Vec<Ref>> {
     let mut refs = vec![reference(cur, cx)?];
     loop {
+        let spaced = cur.starts_with(char::is_whitespace);
         *cur = cur.trim_start();
         let Some(r) = cur.strip_prefix('&') else {
             return Ok(refs);
         };
+        // Mermaid reads `b&c` as one id and rejects `b &c` and `b& c`: only ` & ` fans out.
+        if !spaced || !r.starts_with(char::is_whitespace) {
+            return bad("statement");
+        }
         *cur = r.trim_start();
         refs.push(reference(cur, cx)?);
     }

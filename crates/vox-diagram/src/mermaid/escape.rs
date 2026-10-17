@@ -21,22 +21,25 @@ const KEYWORDS: [&str; 14] = [
     "direction",
 ];
 
+/// Mermaid's direction words, lowercase.
+const DIRECTION_WORDS: [&str; 5] = ["tb", "td", "lr", "rl", "bt"];
+
+fn is_space(c: char) -> bool {
+    c.is_whitespace() || c == '\u{feff}'
+}
+
 /// Byte offsets of the `d` of every `direction` that Mermaid's flowchart/state lexer reads as a
 /// direction statement: `direction`, whitespace, then `TB`, `TD`, `LR`, `RL` or `BT`. The lexer
 /// swallows the whole line, quoted label or not. Compared case-insensitively (a deliberate
 /// superset). Shared by the exporter (defuse) and the importer (refuse).
 pub(crate) fn direction_traps(s: &str) -> Vec<usize> {
     let lower = s.to_ascii_lowercase();
-    let space = |c: char| c.is_whitespace() || c == '\u{feff}';
     lower
         .match_indices("direction")
         .filter(|(i, w)| {
             let tail = &lower[i + w.len()..];
-            let rest = tail.trim_start_matches(space);
-            rest.len() < tail.len()
-                && ["tb", "td", "lr", "rl", "bt"]
-                    .iter()
-                    .any(|t| rest.starts_with(t))
+            let rest = tail.trim_start_matches(is_space);
+            rest.len() < tail.len() && DIRECTION_WORDS.iter().any(|t| rest.starts_with(t))
         })
         .map(|(i, _)| i)
         .collect()
@@ -45,6 +48,14 @@ pub(crate) fn direction_traps(s: &str) -> Vec<usize> {
 /// True when `s` holds a [`direction_traps`] hit.
 pub(crate) fn has_direction_trap(s: &str) -> bool {
     !direction_traps(s).is_empty()
+}
+
+/// True when `line` ends in `direction` and `next` (the next non-blank line) starts with a
+/// direction word: the lexer's whitespace runs over the newline, so it is one statement.
+pub(crate) fn direction_spans_lines(line: &str, next: &str) -> bool {
+    let end = line.trim_end_matches(is_space).to_ascii_lowercase();
+    let start = next.trim_start_matches(is_space).to_ascii_lowercase();
+    end.ends_with("direction") && DIRECTION_WORDS.iter().any(|t| start.starts_with(t))
 }
 
 /// Shared encoder. `seq` adds the sequence-diagram rules: `;` ends a statement there, and a text

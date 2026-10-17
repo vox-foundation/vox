@@ -5,6 +5,7 @@ use std::collections::BTreeSet;
 
 use super::{ImportOpts, ImportReport, Unsupported};
 use crate::limits::MAX_SOURCE_BYTES;
+use crate::mermaid::escape::direction_spans_lines;
 use crate::{fmt, ir::Direction};
 
 mod build;
@@ -53,9 +54,18 @@ fn entries(list: Vec<(u32, String)>) -> Vec<Unsupported> {
         .collect()
 }
 
+/// Lines that end in `direction` just before a line starting with a direction word (Mermaid's
+/// lexer reads the pair as one statement), as refusals at the first line.
+fn split_directions(body: &[(u32, &str)]) -> Vec<(u32, String)> {
+    body.windows(2)
+        .filter(|w| direction_spans_lines(w[0].1, w[1].1))
+        .map(|w| (w[0].0, "direction-in-text".to_owned()))
+        .collect()
+}
+
 /// The flowchart body: every line is scanned (no early exit), then the semantic pass runs.
 fn flowchart(dir: Direction, body: Vec<(u32, &str)>, opts: ImportOpts) -> ImportReport {
-    let mut errors = Vec::new();
+    let mut errors = split_directions(&body);
     let mut dropped = Vec::new();
     let mut stmts = Vec::new();
     for (n, text) in body {
