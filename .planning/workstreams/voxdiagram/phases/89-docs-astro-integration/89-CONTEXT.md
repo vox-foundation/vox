@@ -27,6 +27,14 @@ Requirements: DOCS-03, DOCS-04.
 - Checks: no duplicate ids per page; every `<text>` bbox inside its box under two font stacks (system-ui and a wide Verdana/DejaVu stack); axe contrast passes in light + dark; forced-colors screenshot legible.
 - Carried from Phase 86 + font policy: the executor captures light/dark Playwright screenshots of graph and sequence diagrams (incl. multi-hop message labels) into the review bundle and inspects them (Read the PNGs); confirm the Phase 85 static-width-table font policy or propose a wider slack if any text overflows (proposal only — changing slack re-blesses goldens).
 
+### Post-research decisions (user, 2026-10-17)
+- Font fit: add a minimum horizontal padding floor for message labels, edge labels and node labels in the Rust layout, sized so ~20% wider fonts (Verdana/DejaVu class) fit; keep the static width table. Re-bless affected goldens (review diffs). This is a Rust change in `crates/vox-diagram` and must keep determinism + all geometry oracles green.
+- No axe dependency: contrast is verified by the researched Playwright WCAG computation (mutation-proven to fail a bad palette). CONTEXT's "axe contrast" check is replaced by this.
+- Wide diagrams: scale down to 0.6 minimum, then keep that size and let the figure scroll horizontally (keyboard-focusable, `tabindex="0"`, labelled region); set `--vd-w:<viewBox width>px` so small diagrams don't stretch.
+- Stress fixtures (long labels, containers, unicode, multi-hop sequence) are added as documented examples on `docs/src/reference/vox-diagram.md` (no hidden page).
+- Research-driven implementation facts (locked by evidence): retype the mdast node to a custom type (not `code`+hName) to avoid the `<pre>` wrapper; `shiki.langAlias {'vox-diagram':'text'}`; hard failure via an inline Astro integration at `astro:build:start` (remark throws don't fail `.md` builds); plugin registered with `strict: command === 'build'` + `addWatchFile`; manifest `digest` passed in plugin options to invalidate Astro's data-store; wrapper script clears the data-store in dev; render once with prefix `vd` and re-prefix ids to `vd-<slug>-<n>` in JS; emit a `<details><pre><code class="language-vox-diagram">` source block and `starlightLlmsTxt({customSelectors:{all:['svg.vd-diagram']}})` so llms-full keeps the fence source; JS normalizer uses `/\p{White_Space}+$/u`.
+- CI: `docs-quality.yml` needs `playwright install` for the new spec; path filters add `crates/vox-diagram/**` to deploy push and quality push + pull_request; the pre-render wrapper sets cwd to the repo root.
+
 ### Carried forward
 - Rust side: deterministic, no new crate edges (vox-doc-pipeline already depends on vox-diagram), files < 400 lines, tests first.
 - docs-astro is a JS/MJS package (existing convention `.mjs`); pnpm 11 with `--frozen-lockfile` in CI; any new npm dependency (e.g. a hast helper or axe) requires user approval — prefer already-installed packages.
