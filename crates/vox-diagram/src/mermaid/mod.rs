@@ -44,13 +44,17 @@ pub struct Unsupported {
     pub construct: String,
 }
 
-/// Result of [`import`]. `unsupported` is non-empty iff both `source` and `sequence` are
-/// `None`; otherwise exactly one of them is `Some`.
+/// Result of [`import`]. Invariant, for every diagram kind: `source.is_some()` exactly when
+/// `unsupported` is empty (the import failed closed otherwise, and `sequence` is `None` too).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ImportReport {
-    /// Canonical VoxDiagram source for a graph or state block.
+    /// Canonical VoxDiagram source (a `fmt` fixed point) for an imported graph, state or
+    /// `sequenceDiagram` block.
     pub source: Option<String>,
-    /// IR for a `sequenceDiagram` block (there is no sequence DSL yet).
+    /// For a `sequenceDiagram` block only: the same diagram as IR, with spans located in the
+    /// Mermaid block. Kept next to `source` on purpose: the IR of `source` carries spans into
+    /// the DSL text, so only this field lets a caller migrating a fence point back at the
+    /// original block's line numbers. Re-checking `source` yields the same IR, spans aside.
     pub sequence: Option<SequenceIr>,
     /// Every line the importer refused; the import failed closed when non-empty.
     pub unsupported: Vec<Unsupported>,

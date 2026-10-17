@@ -26,9 +26,9 @@ Pure VoxDiagram core: graph DSL lexer, error-recovering parser, resolved IR, dia
 
 ## Crate Overview
 
-VoxDiagram core: graph DSL lexer, error-recovering parser, resolved IR, `diagram/*`
-diagnostics with machine-applicable fixes, canonical formatter, markdown fence scanner,
-graph layout and deterministic SVG rendering.
+VoxDiagram core: graph and sequence DSL lexer, error-recovering parser, resolved IR,
+`diagram/*` diagnostics with machine-applicable fixes, canonical formatter, markdown fence
+scanner, graph layout and deterministic SVG rendering of both kinds.
 Pure and synchronous: no I/O, no async runtime, no workspace dependencies.
 
 ```text
@@ -53,9 +53,9 @@ a -> b
 | `ir` | Resolved serialisable diagram IR. |
 | `limits` | Named input caps. |
 | `mermaid` | Mermaid export (verified against a pinned real Mermaid parser) and strict, fail-closed Mermaid import. |
-| `sequence_ir` | Sequence diagram IR types (parser arrives in Phase 86). |
+| `sequence_ir` | Sequence diagram IR types, the payload of `Ir::Sequence`. |
 | `span` | Byte spans and line/col locations. |
-| `svg` | Deterministic, injection-safe, themeable SVG rendering of graph diagrams (layout through the dagre adapter). |
+| `svg` | Deterministic, injection-safe, themeable SVG rendering of graph and sequence diagrams (graph layout through the dagre adapter). |
 
 ### Constants
 
