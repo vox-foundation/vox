@@ -5,3 +5,8 @@
   committed registry already advertises (`vox_gamify_{companions,discovery_record,due_actions,leaderboard,profile,record_event}`,
   `vox_gui_run_{start,finish}`, `vox_hopper_{cancel,mark_done,reprioritize,submit}`, `vox_plan_node_upsert`, `vox_plan_nodes_approve`).
   Plan 88-01 added exactly `vox_validate_diagram` to both sides; the remaining 14-tool diff is unrelated. Out of scope; not fixed.
+
+- `vox ci profile-parity` (plan 88-03 Task 3): `lean: forbidden crate vox-gamify present in lean build`. vox-gamify reaches the lean
+  `vox-cli` tree through `vox-cli-core` (optional `db` feature, unchanged since `82b24d2d4`), `vox-lsp` and `vox-orchestrator`;
+  `cargo tree -p vox-diagram` contains no gamify, and the phase's only manifest change is `vox-orchestrator-mcp -> vox-diagram`
+  (a leaf crate). Not caused by phase 88; not fixed.

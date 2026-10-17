@@ -5,17 +5,17 @@ milestone_name: VoxDiagram
 current_phase: 88
 current_phase_name: MCP Tool, CLI & Agent Guidance
 current_plan: 3
-status: executing
-stopped_at: Completed 88-02-PLAN.md
-last_updated: "2026-10-17T20:32:45.358Z"
+status: verifying
+stopped_at: Completed 88-03-PLAN.md
+last_updated: "2026-10-17T20:48:53.692Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 88 execution started
-state_head: 6047fc158cc7934313eb50fd167f5f7106bdeb0e
+state_head: 910d8a08c3f56374afcb70fa14e3553dc9f9c063
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 27
-  completed_plans: 26
+  completed_plans: 27
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -31,7 +31,7 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 
 Phase: 88 (MCP Tool, CLI & Agent Guidance) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-17 — Phase 88 execution started
 
 Progress: [██████░░░░] 56% (0/9 phases)
@@ -64,9 +64,9 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-10-17T20:32:45.312Z
+**Last session:** 2026-10-17T20:48:53.644Z
 
-**Stopped At:** Completed 88-02-PLAN.md
+**Stopped At:** Completed 88-03-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -99,6 +99,7 @@ None yet.
 | Phase 87 P03 | 40min | 2 tasks | 8 files |
 | Phase 88 P01 | 75min | 3 tasks | 40 files |
 | Phase 88 P02 | 70min | 2 tasks | 22 files |
+| Phase 88 P03 | 50min | 3 tasks | 8 files |
 
 ## Decisions
 
@@ -141,6 +142,7 @@ None yet.
 - [Phase 87]: 87-03: capability-index staleness (no crate.vox-diagram row) predates the plan; left to hosted-CI ssot-autoregen, not hand-committed
 - [Phase 88]: 88-01: vox_validate_diagram envelope is vox_diagram::validate serialized as-is; Mermaid input validates the converted DSL; only edge vox-orchestrator-mcp -> vox-diagram (user-authorized 2026-10-16)
 - [Phase 88]: 88-02: vox diagram CLI rows carry side_effect_class (writes_files / read_only) so the side-effect ratchet stays untouched
+- [Phase 88]: 88-03: grammar card covers graph and sequence (2101 bytes); reference page publishes it verbatim, guarded by reference_page_publishes_the_card_verbatim
 
 ## Pending Todos (voxdiagram)
 
