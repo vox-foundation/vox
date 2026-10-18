@@ -1,0 +1,89 @@
+[
+  { "name": "plain backtick fence", "md": "```vox-diagram\ngraph {}\n```\n", "keys": ["graph {}"] },
+  { "name": "tilde fence", "md": "~~~vox-diagram\ngraph {}\n~~~\n", "keys": ["graph {}"] },
+  {
+    "name": "inner fence inside a four-backtick md fence is not a fence",
+    "md": "````md\n```vox-diagram\ngraph {}\n```\n````\n",
+    "keys": []
+  },
+  {
+    "name": "four-backtick vox-diagram fence keeps a triple-backtick line in its body",
+    "md": "````vox-diagram\na\n```\nb\n````\n",
+    "keys": ["a\n```\nb"]
+  },
+  {
+    "name": "fence in an unordered list item",
+    "md": "- item\n\n  ```vox-diagram\n  graph {\n    a\n  }\n  ```\n",
+    "keys": ["graph {\n  a\n}"]
+  },
+  {
+    "name": "fence in a nested list",
+    "md": "- a\n  - b\n\n    ```vox-diagram\n    x\n      y\n    ```\n",
+    "keys": ["x\n  y"]
+  },
+  {
+    "name": "fence in an ordered list item",
+    "md": "1. item\n\n   ```vox-diagram\n   x\n   ```\n",
+    "keys": ["x"]
+  },
+  { "name": "fence in a blockquote", "md": "> ```vox-diagram\n> x\n> y\n> ```\n", "keys": ["x\ny"] },
+  { "name": "CRLF line endings", "md": "```vox-diagram\r\nx\r\ny\r\n```\r\n", "keys": ["x\ny"] },
+  {
+    "name": "trailing spaces kept on inner lines, trailing blank lines dropped",
+    "md": "```vox-diagram\nx  \ny   \n\n\n```\n",
+    "keys": ["x  \ny"]
+  },
+  { "name": "leading blank line is kept", "md": "```vox-diagram\n\nx\n```\n", "keys": ["\nx"] },
+  {
+    "name": "tab-indented body lines",
+    "md": "```vox-diagram\n\tx\n\t\ty\n```\n",
+    "keys": ["\tx\n\t\ty"]
+  },
+  {
+    "name": "CJK and accented Latin",
+    "md": "```vox-diagram\n節点 \"日本語\"\ncafé é\n```\n",
+    "keys": ["節点 \"日本語\"\ncafé é"]
+  },
+  {
+    "name": "last line ending in U+3000 is trimmed",
+    "md": "```vox-diagram\nx　\n```\n",
+    "keys": ["x"]
+  },
+  {
+    "name": "last line ending in U+0085 is trimmed",
+    "md": "```vox-diagram\nx\u0085\n```\n",
+    "keys": ["x"]
+  },
+  {
+    "name": "last line ending in U+FEFF is kept (not White_Space)",
+    "md": "```vox-diagram\nx﻿\n```\n",
+    "keys": ["x﻿"]
+  },
+  { "name": "empty body", "md": "```vox-diagram\n```\n", "keys": [""] },
+  {
+    "name": "YAML frontmatter before the fence",
+    "md": "---\ntitle: T\n---\n\n```vox-diagram\nx\n```\n",
+    "keys": ["x"]
+  },
+  {
+    "name": "Starlight aside around a fence",
+    "md": ":::note\n```vox-diagram\nx\n```\n:::\n",
+    "keys": ["x"]
+  },
+  {
+    "name": "two fences in one document, backtick then tilde",
+    "md": "```vox-diagram\na\n```\n\ntext\n\n~~~vox-diagram\nb\n~~~\n",
+    "keys": ["a", "b"]
+  },
+  {
+    "name": "three-space indented opener strips up to three spaces per line",
+    "md": "   ```vox-diagram\n   x\n    y\n   ```\n",
+    "keys": ["x\n y"]
+  },
+  { "name": "unclosed fence runs to end of document", "md": "```vox-diagram\nx\ny", "keys": ["x\ny"] },
+  {
+    "name": "near-miss info string is not extracted",
+    "md": "```vox-diagram title=\"x\"\na\n```\n",
+    "keys": []
+  }
+]

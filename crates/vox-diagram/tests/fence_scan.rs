@@ -100,3 +100,31 @@ fn mdx_frontmatter_and_import() {
 fn normalize_examples() {
     assert_eq!(normalize("a\r\nb\r\n\r\n"), "a\nb");
 }
+
+/// The manifest key of every fence is `normalize(extract(..).body)`. `fence-keys.json` is
+/// hand-authored from CommonMark rules and shared with the remark plugin's parity test
+/// (docs-astro, Phase 89 D-19); a mismatch is investigated against CommonMark, never blessed.
+#[test]
+fn manifest_keys_match_the_shared_corpus() {
+    let path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/fence-keys.json");
+    let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+    let cases: serde_json::Value = serde_json::from_str(&text).expect("fence-keys.json parses");
+    let cases = cases.as_array().expect("corpus is an array");
+    assert!(cases.len() >= 18, "corpus shrank to {} cases", cases.len());
+    for case in cases {
+        let name = case["name"].as_str().expect("case name");
+        let md = case["md"].as_str().expect("case md");
+        let want: Vec<&str> = case["keys"]
+            .as_array()
+            .expect("case keys")
+            .iter()
+            .map(|k| k.as_str().expect("key is a string"))
+            .collect();
+        let got: Vec<String> = extract(md, INFO)
+            .iter()
+            .map(|f| normalize(&f.body))
+            .collect();
+        assert_eq!(got, want, "case {name:?}");
+    }
+}
