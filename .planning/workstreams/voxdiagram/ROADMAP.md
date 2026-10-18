@@ -241,11 +241,11 @@ Plans:
   2. Playwright against the built site shows no duplicate ids on a page with several diagrams, every `<text>` within its box under two font stacks, and contrast passing in both light and dark themes (forced-colors stays legible), exercised on fixture diagrams covering both kinds.
   3. The docs deploy and quality workflows run the pre-render step before `pnpm build` and trigger on `crates/vox-diagram/**` changes.
 
-**Plans**: 4 plans in 3 waves
+**Plans**: 1/4 plans executed in 3 waves
 
 Plans:
 **Wave 1**
-- [ ] 89-01-PLAN.md — Tracer (`--render-diagrams` manifest → wrapper → remark plugin → inline figure on the built reference page) + production pre-render, fence-key parity corpus, `pnpm diagrams`/`predev`/`prebuild`, docs-deploy/docs-quality path filters and pre-render step (wave 1)
+- [x] 89-01-PLAN.md — Tracer (`--render-diagrams` manifest → wrapper → remark plugin → inline figure on the built reference page) + production pre-render, fence-key parity corpus, `pnpm diagrams`/`predev`/`prebuild`, docs-deploy/docs-quality path filters and pre-render step (wave 1)
 - [ ] 89-02-PLAN.md — Rust horizontal padding floor (~21% wider fonts fit) on every padded text box, deliberate golden re-bless, oracles and determinism green, font policy updated (wave 1, parallel with 01)
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -301,7 +301,7 @@ Phases execute in numeric order, with the parallel opportunities noted under Ove
 | 86. Sequence Kind | 4/4 | Complete    | 2026-10-17 |
 | 87. Doc-Pipeline Consumer & Legacy-Mermaid Ratchet | 3/3 | Complete    | 2026-10-17 |
 | 88. MCP Tool, CLI & Agent Guidance | 3/3 | Complete    | 2026-10-17 |
-| 89. Docs-Astro Integration | 0/4 | Planned | - |
+| 89. Docs-Astro Integration | 1/4 | In Progress | - |
 | 90. Corpus Migration & Gate Tightening | 0/TBD | Not started | - |
 | 91. Measurement Harness & Advisory Closure | 0/TBD | Not started | - |
 
