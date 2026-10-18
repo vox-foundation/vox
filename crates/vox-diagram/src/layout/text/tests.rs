@@ -114,6 +114,29 @@ fn node_size_formulas_for_a_wide_label() {
     assert_eq!(node_size(Shape::End, &wide), (tw + 80, 76));
 }
 
+#[test]
+fn pad_x_keeps_the_base_for_short_text() {
+    for b in [0, 8, 20, 28] {
+        assert_eq!(pad_x(0, b), b);
+        let edge = Half::try_from(200 * i64::from(b) / 12).unwrap_or(0);
+        assert_eq!(pad_x(edge, b), b, "base {b} edge {edge}");
+    }
+    assert_eq!(pad_x(-5, 8), 8);
+}
+
+#[test]
+fn pad_x_fits_a_font_21_percent_wider_than_the_table() {
+    for b in [0, 8, 20, 28] {
+        let mut prev = 0;
+        for tw in 0..=6000 {
+            let p = pad_x(tw, b);
+            assert!((tw + 2 * p) * 100 >= tw * 112, "tw {tw} base {b} pad {p}");
+            assert!(p >= b && p >= prev, "tw {tw} base {b} pad {p} prev {prev}");
+            prev = p;
+        }
+    }
+}
+
 fn label() -> impl Strategy<Value = String> {
     let ch = prop_oneof![
         4 => any::<char>(),

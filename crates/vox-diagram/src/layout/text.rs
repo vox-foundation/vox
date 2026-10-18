@@ -60,6 +60,18 @@ pub(crate) fn measure(line: &str) -> Half {
     Half::try_from(scaled.div_ceil(100_000)).unwrap_or(Half::MAX)
 }
 
+/// Minimum total horizontal padding of a text box, in percent of the measured width. `measure`
+/// already carries the 8% slack, so 1.12 x measured = 1.21 x the Arimo table: a font up to ~21%
+/// wider (Verdana measured 1.186) still fits.
+pub(crate) const WIDE_FONT_PCT: Half = 12;
+
+/// Padding per side of a text box `tw` wide: `base`, or half of [`WIDE_FONT_PCT`] of `tw` rounded
+/// up when that is more. The one place the formula lives; every padded box goes through it.
+pub(crate) fn pad_x(tw: Half, base: Half) -> Half {
+    let tw = tw.max(0);
+    base.max(tw.saturating_mul(WIDE_FONT_PCT).saturating_add(199) / 200)
+}
+
 /// Cells per wrapped line.
 pub(crate) const WRAP_CELLS: usize = 28;
 

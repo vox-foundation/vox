@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1709.5 512" role="img" aria-labelledby="vd-seq-title vd-seq-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1809.5 512" role="img" aria-labelledby="vd-seq-title vd-seq-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
 <title id="vd-seq-title">Diagram</title>
 <desc id="vd-seq-desc">8 actors, 8 messages, 1 note: CodingAgent → vox_research_shim; vox_research_shim → OpenRouter; vox_research_shim → vox_search; vox_search → Tavily; vox_research_shim → vox_scientia; vox_scientia → Researcher; Researcher → vox_scientia; vox_scientia → NanoPub_Zenodo_Manuscri…</desc>
 <defs>
@@ -9,12 +9,12 @@
 <g class="vd-lifelines" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1;stroke-dasharray:4 4">
 <path class="vd-lifeline" d="M73.5 54L73.5 496"/>
 <path class="vd-lifeline" d="M234.5 54L234.5 496"/>
-<path class="vd-lifeline" d="M459.5 54L459.5 496"/>
-<path class="vd-lifeline" d="M684.5 54L684.5 496"/>
-<path class="vd-lifeline" d="M909.5 54L909.5 496"/>
-<path class="vd-lifeline" d="M1134.5 54L1134.5 496"/>
-<path class="vd-lifeline" d="M1355.5 54L1355.5 496"/>
-<path class="vd-lifeline" d="M1576.5 54L1576.5 496"/>
+<path class="vd-lifeline" d="M476.5 54L476.5 496"/>
+<path class="vd-lifeline" d="M718.5 54L718.5 496"/>
+<path class="vd-lifeline" d="M960.5 54L960.5 496"/>
+<path class="vd-lifeline" d="M1202.5 54L1202.5 496"/>
+<path class="vd-lifeline" d="M1439.5 54L1439.5 496"/>
+<path class="vd-lifeline" d="M1676.5 54L1676.5 496"/>
 </g>
 <g class="vd-nodes">
 <g class="vd-node">
@@ -26,60 +26,60 @@
 <text class="vd-label" x="234.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="234.5" dy="0">vox_research_shim</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="407" y="16" width="105.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="459.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="459.5" dy="0">vox_search</tspan></text>
+<rect class="vd-node-shape" x="424" y="16" width="105.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="476.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="476.5" dy="0">vox_search</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="629.5" y="16" width="110.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="684.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="684.5" dy="0">OpenRouter</tspan></text>
+<rect class="vd-node-shape" x="663.5" y="16" width="110.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="718.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="718.5" dy="0">OpenRouter</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="876" y="16" width="67.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="909.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="909.5" dy="0">Tavily</tspan></text>
+<rect class="vd-node-shape" x="927" y="16" width="67.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="960.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="960.5" dy="0">Tavily</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="1079" y="16" width="111.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="1134.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1134.5" dy="0">vox_scientia</tspan></text>
+<rect class="vd-node-shape" x="1147" y="16" width="111.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1202.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1202.5" dy="0">vox_scientia</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="1302.5" y="16" width="106.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="1355.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1355.5" dy="0">Researcher</tspan></text>
+<rect class="vd-node-shape" x="1386.5" y="16" width="106.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1439.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1439.5" dy="0">Researcher</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="1460" y="16" width="233.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="1576.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1576.5" dy="0">NanoPub_Zenodo_Manuscript</tspan></text>
+<rect class="vd-node-shape" x="1560" y="16" width="233.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1676.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1676.5" dy="0">NanoPub_Zenodo_Manuscript</tspan></text>
 </g>
 </g>
 <g class="vd-notes">
-<rect class="vd-note" x="218.5" y="304" width="932" height="38" rx="3" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
-<text class="vd-note-label" x="684.5" y="328" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="684.5" dy="0">FindingCandidate mesh emission not wired</tspan></text>
+<rect class="vd-note" x="218.5" y="304" width="1000" height="38" rx="3" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-note-label" x="718.5" y="328" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="718.5" dy="0">FindingCandidate mesh emission not wired</tspan></text>
 </g>
 <g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
 <path class="vd-edge" d="M73.5 104L234.5 104" marker-end="url(#vd-seq-arrow)"/>
-<path class="vd-edge" d="M234.5 150L684.5 150" marker-end="url(#vd-seq-arrow)"/>
-<path class="vd-edge" d="M234.5 196L459.5 196" marker-end="url(#vd-seq-arrow)"/>
-<path class="vd-edge" d="M459.5 242L909.5 242" marker-end="url(#vd-seq-arrow)"/>
-<path class="vd-edge" d="M234.5 288L1134.5 288" marker-end="url(#vd-seq-arrow)"/>
-<path class="vd-edge" d="M1134.5 388L1355.5 388" marker-end="url(#vd-seq-arrow)"/>
-<path class="vd-edge" d="M1355.5 434L1134.5 434" marker-end="url(#vd-seq-arrow)"/>
-<path class="vd-edge" d="M1134.5 480L1576.5 480" marker-end="url(#vd-seq-arrow)"/>
+<path class="vd-edge" d="M234.5 150L718.5 150" marker-end="url(#vd-seq-arrow)"/>
+<path class="vd-edge" d="M234.5 196L476.5 196" marker-end="url(#vd-seq-arrow)"/>
+<path class="vd-edge" d="M476.5 242L960.5 242" marker-end="url(#vd-seq-arrow)"/>
+<path class="vd-edge" d="M234.5 288L1202.5 288" marker-end="url(#vd-seq-arrow)"/>
+<path class="vd-edge" d="M1202.5 388L1439.5 388" marker-end="url(#vd-seq-arrow)"/>
+<path class="vd-edge" d="M1439.5 434L1202.5 434" marker-end="url(#vd-seq-arrow)"/>
+<path class="vd-edge" d="M1202.5 480L1676.5 480" marker-end="url(#vd-seq-arrow)"/>
 </g>
 <g class="vd-edge-labels">
-<rect class="vd-edge-label-bg" x="93.5" y="74" width="121" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<rect class="vd-edge-label-bg" x="90.5" y="74" width="127" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
 <text class="vd-edge-label" x="154" y="92" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="154" dy="0">vox research run</tspan></text>
-<rect class="vd-edge-label-bg" x="273.5" y="120" width="147.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
-<text class="vd-edge-label" x="347" y="138" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="347" dy="0">planner + synthesize</tspan></text>
-<rect class="vd-edge-label-bg" x="288" y="166" width="118.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
-<text class="vd-edge-label" x="347" y="184" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="347" dy="0">CRAG multi-hop</tspan></text>
-<rect class="vd-edge-label-bg" x="497.5" y="212" width="149.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
-<text class="vd-edge-label" x="572" y="230" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="572" dy="0">Tier4 search optional</tspan></text>
-<rect class="vd-edge-label-bg" x="467.5" y="258" width="209" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
-<text class="vd-edge-label" x="572" y="276" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="572" dy="0">claim_extractor optional paths</tspan></text>
-<rect class="vd-edge-label-bg" x="1165" y="358" width="160.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
-<text class="vd-edge-label" x="1245" y="376" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="1245" dy="0">discovery inbox review</tspan></text>
-<rect class="vd-edge-label-bg" x="1190" y="404" width="110" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
-<text class="vd-edge-label" x="1245" y="422" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="1245" dy="0">ApprovalToken</tspan></text>
-<rect class="vd-edge-label-bg" x="1142.5" y="450" width="205" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
-<text class="vd-edge-label" x="1245" y="468" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="1245" dy="0">nanopub / archive / syndicate</tspan></text>
+<rect class="vd-edge-label-bg" x="277.5" y="120" width="156.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="355.5" y="138" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="355.5" dy="0">planner + synthesize</tspan></text>
+<rect class="vd-edge-label-bg" x="293.5" y="166" width="124.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="355.5" y="184" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="355.5" dy="0">CRAG multi-hop</tspan></text>
+<rect class="vd-edge-label-bg" x="518.5" y="212" width="158.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="597.5" y="230" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="597.5" dy="0">Tier4 search optional</tspan></text>
+<rect class="vd-edge-label-bg" x="484.5" y="258" width="226" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="597.5" y="276" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="597.5" dy="0">claim_extractor optional paths</tspan></text>
+<rect class="vd-edge-label-bg" x="1235.5" y="358" width="171.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="1321" y="376" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="1321" dy="0">discovery inbox review</tspan></text>
+<rect class="vd-edge-label-bg" x="1263.5" y="404" width="115" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="1321" y="422" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="1321" dy="0">ApprovalToken</tspan></text>
+<rect class="vd-edge-label-bg" x="1210.5" y="450" width="221" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="1321" y="468" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="1321" dy="0">nanopub / archive / syndicate</tspan></text>
 </g>
 </svg>

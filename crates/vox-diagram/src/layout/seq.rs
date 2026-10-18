@@ -12,7 +12,7 @@
 use std::collections::BTreeMap;
 
 use super::input::check_label;
-use super::text::{LINE_H, PAD_X, PAD_Y, measure, node_size, wrap, wrap_at};
+use super::text::{LINE_H, PAD_X, PAD_Y, measure, node_size, pad_x, wrap, wrap_at};
 use super::{Half, Rect};
 use crate::ir::Shape;
 use crate::limits::{MAX_RENDER_ACTORS, MAX_RENDER_EVENTS};
@@ -113,6 +113,12 @@ fn widest(lines: &[String]) -> W {
     lines.iter().map(|l| W::from(measure(l))).max().unwrap_or(0)
 }
 
+/// [`pad_x`] on `W` values (saturating at the `Half` range).
+fn hpad(tw: W, base: W) -> W {
+    let h = |v: W| Half::try_from(v).unwrap_or(if v < 0 { Half::MIN } else { Half::MAX });
+    W::from(pad_x(h(tw), h(base)))
+}
+
 /// The height of `n` text lines.
 fn block(n: usize) -> W {
     count(n) * px(W::from(LINE_H))
@@ -124,8 +130,9 @@ fn label_box(text: &str) -> Option<Lbl> {
     if lines.is_empty() {
         return None;
     }
+    let tw = widest(&lines);
     let (w, h) = (
-        widest(&lines) + 2 * LABEL_PAD,
+        tw + 2 * hpad(tw, LABEL_PAD),
         block(lines.len()) + 2 * LABEL_PAD,
     );
     Some(Lbl { lines, w, h })

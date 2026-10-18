@@ -169,3 +169,12 @@ fn a_note_widens_the_gaps_beside_it() {
         "{xs:?} {side}"
     );
 }
+
+#[test]
+fn a_long_message_label_box_fits_a_wide_font() {
+    let text = "m".repeat(60);
+    let Some(l) = label_box(&text) else {
+        panic!("no label box");
+    };
+    assert!(l.w * 100 >= widest(&l.lines) * 112, "{} {:?}", l.w, l.lines);
+}
