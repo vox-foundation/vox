@@ -94,15 +94,25 @@ export function svgToHast(svg) {
   return root;
 }
 
-/** Slug of the page a markdown file becomes (Astro entry slug), as `[a-z0-9-]+`. */
-export function pageSlug(filePath) {
+/** Path relative to the docs tree (`reference/x.md`), or null when the file is outside it. */
+function docsRel(filePath) {
   const p = (filePath || '').replace(/\\/g, '/');
-  let rel;
   for (const marker of ['/src/content/docs/', '/docs/src/']) {
     const at = p.lastIndexOf(marker);
-    if (at >= 0) { rel = p.slice(at + marker.length); break; }
+    if (at >= 0) return p.slice(at + marker.length);
   }
-  rel ??= p.split('/').slice(-2).join('/');
+  return null;
+}
+
+/** Repo-relative docs path for messages: `docs/src/<rel>`, else the path as given. */
+export function docsPath(filePath) {
+  const rel = docsRel(filePath);
+  return rel === null ? filePath || '<unknown file>' : `docs/src/${rel}`;
+}
+
+/** Slug of the page a markdown file becomes (Astro entry slug), as `[a-z0-9-]+`. */
+export function pageSlug(filePath) {
+  const rel = docsRel(filePath) ?? (filePath || '').replace(/\\/g, '/').split('/').slice(-2).join('/');
   const slug = docSlug(rel).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   return slug || 'index';
 }
@@ -156,6 +166,24 @@ function loadManifest(manifestPath) {
   return map;
 }
 
+const MISSES = Symbol.for('vox-diagram.misses');
+const RENDER_HINT = 'Run: pnpm diagrams (cargo run -p vox-doc-pipeline -- --render-diagrams from the repo root)';
+// Astro loads the config and the markdown pipeline in different module graphs: share via globalThis.
+const misses = () => (globalThis[MISSES] ??= []);
+
+/** Forget recorded misses (tests; a fresh build starts empty anyway). */
+export function resetMisses() {
+  globalThis[MISSES] = [];
+}
+
+/** Throw one Error naming every recorded miss and the command that fixes it; no-op when empty. */
+export function assertNoMisses() {
+  const all = misses();
+  if (!all.length) return;
+  const lines = all.map((m) => `  ${m.file} fence ${m.n}`).join('\n');
+  throw new Error(`remark-vox-diagram: ${all.length} diagram fence(s) have no pre-rendered SVG:\n${lines}\n${RENDER_HINT}`);
+}
+
 function visit(tree, type, fn) {
   if (tree.type === type) fn(tree);
   if (Array.isArray(tree.children)) for (const c of tree.children) visit(c, type, fn);
@@ -164,20 +192,24 @@ function visit(tree, type, fn) {
 const el = (tagName, properties, ...children) => ({ type: 'element', tagName, properties, children });
 const txt = (value) => ({ type: 'text', value });
 
-function figureChildren(svgEl, source) {
-  const details = el(
+function sourceDetails(source) {
+  return el(
     'details', { className: ['vd-source'] },
     el('summary', {}, txt('Diagram source')),
     el('pre', {}, el('code', { className: ['language-vox-diagram'] }, txt(source))),
   );
-  return [svgEl, details];
+}
+
+function missingChildren(source) {
+  const notice = el('p', {}, txt('Diagram not rendered. Run '), el('code', {}, txt('pnpm diagrams')), txt('.'));
+  return [notice, sourceDetails(source)];
 }
 
 /**
  * Remark plugin factory. `strict` and `digest` are carried in the options so the build guard and
  * Astro's data-store invalidation (digest changes with the manifest) hang off one registration.
  */
-export function remarkVoxDiagram({ manifestPath } = {}) {
+export function remarkVoxDiagram({ manifestPath, strict = false } = {}) {
   const manifest = loadManifest(manifestPath);
   const parsed = new Map();
   const parse = (svg) => {
@@ -194,9 +226,21 @@ export function remarkVoxDiagram({ manifestPath } = {}) {
       const source = normalizeSource(node.value);
       const svg = manifest.get(source);
       if (svg === undefined) {
-        throw new Error(
-          `remark-vox-diagram: diagram ${n} on page ${page} (${file.path}) is not in the manifest. Run \`pnpm diagrams\`.`,
-        );
+        const file_ = docsPath(file.path);
+        misses().push({ file: file_, n });
+        if (strict) {
+          throw new Error(`remark-vox-diagram: ${file_} fence ${n} has no pre-rendered SVG. ${RENDER_HINT}`);
+        }
+        node.type = 'vdFigure';
+        delete node.value;
+        delete node.lang;
+        delete node.meta;
+        node.data = {
+          hName: 'figure',
+          hProperties: { className: ['vd-figure', 'vd-missing'], role: 'note' },
+          hChildren: missingChildren(source),
+        };
+        return;
       }
       const prefix = `vd-${page}-${n}`;
       if (!PREFIX_RE.test(prefix)) throw new Error(`remark-vox-diagram: bad id prefix ${prefix}`);
@@ -219,7 +263,7 @@ export function remarkVoxDiagram({ manifestPath } = {}) {
           role: 'region',
           ariaLabelledBy: `${prefix}-title`,
         },
-        hChildren: figureChildren(svgEl, source),
+        hChildren: [svgEl, sourceDetails(source)],
       };
     });
   };

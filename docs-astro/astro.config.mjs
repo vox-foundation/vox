@@ -10,7 +10,7 @@ import { voxGrammar } from './src/plugins/vox-grammar.mjs';
 import { getSidebar } from './src/utils/sidebar.mjs';
 import { remarkVoxInclude } from './src/plugins/remark-vox-include.mjs';
 import { remarkDocLinks } from './src/plugins/remark-doc-links.mjs';
-import { remarkVoxDiagram } from './src/plugins/remark-vox-diagram.mjs';
+import { remarkVoxDiagram, assertNoMisses } from './src/plugins/remark-vox-diagram.mjs';
 import { listDocPages, noindexRoutes, internalsDocIds } from './src/utils/page-index.mjs';
 
 const docsSrc = new URL('../docs/src', import.meta.url).pathname;
@@ -52,6 +52,10 @@ export default defineConfig({
             },
           });
         },
+        // md pages render during content sync before this hook, and a remark throw does not fail
+        // an md build, so this is what fails it; the done hook catches any miss recorded later.
+        'astro:build:start': () => assertNoMisses(),
+        'astro:build:done': () => assertNoMisses(),
       },
     },
     sitemap({
