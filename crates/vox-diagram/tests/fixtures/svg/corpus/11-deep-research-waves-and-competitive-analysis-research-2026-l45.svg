@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 559.5 1066" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 562.5 1066" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
 <title id="vd-title">Diagram</title>
 <desc id="vd-desc">10 nodes, 11 edges: User Prompt → Collaborative Plan Form…; Collaborative Plan Form… → User Approves Plan?; User Approves Plan? → Collaborative Plan Form…; User Approves Plan? → Start Recursive Agent L…; Start Recursive Agent L… → Generate 3-8 Subqueries; Generate 3-8 Subqueries → Google Search Ing…</desc>
 <defs>
@@ -7,54 +7,54 @@
 </marker>
 </defs>
 <g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
-<path class="vd-edge" d="M344.5 54L344.5 84L344.5 114" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M327.5 170L306.5 206.5Q302.5 213 306 220L328.5 259.5" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M360 259.5L382.5 220Q386 213 382 206.5L361 170" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M344.5 320L344.5 363L344.5 406" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M344.5 444L344.5 474L344.5 504" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M344.5 542L344.5 572L344.5 602" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M299.5 640L235.5 667Q228.5 670 228.5 678L228.5 700" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M228.5 756L228.5 786L228.5 816" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M274 896L341.5 946.5Q347.5 951 354 955L417.5 994" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M488 994L522 956.5Q527 951 527 943L527 862L527 786L527 728L527 678Q527 670 519.5 668L415 640" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M190 897.5L138.5 946Q133 951 133 959L133 994" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M347.5 54L347.5 84L347.5 114" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M330.5 170L309.5 206.5Q305.5 213 309 220L331.5 259.5" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M363 259.5L385.5 220Q389 213 385 206.5L364 170" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M347.5 320L347.5 363L347.5 406" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M347.5 444L347.5 474L347.5 504" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M347.5 542L347.5 572L347.5 602" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M302.5 640L238.5 667Q231.5 670 231.5 678L231.5 700" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M231.5 756L231.5 786L231.5 816" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M277 896L344.5 946.5Q350.5 951 357 955L420.5 994" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M491.5 994L526.5 956.5Q531.5 951 531.5 943L531.5 862L531.5 786L531.5 728L531.5 678Q531.5 670 524 668L418.5 640" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M192 897.5L138.5 946Q133 951 133 959L133 994" marker-end="url(#vd-arrow)"/>
 </g>
 <g class="vd-nodes">
 <g class="vd-node">
-<rect class="vd-node-shape" x="288" y="16" width="113" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="344.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="344.5" dy="0">User Prompt</tspan></text>
+<rect class="vd-node-shape" x="291" y="16" width="113" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="347.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="347.5" dy="0">User Prompt</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="269" y="114" width="151" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="344.5" y="138" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="344.5" dy="0">Collaborative Plan</tspan><tspan x="344.5" dy="18">Formulation</tspan></text>
+<rect class="vd-node-shape" x="272" y="114" width="151" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="347.5" y="138" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="347.5" dy="0">Collaborative Plan</tspan><tspan x="347.5" dy="18">Formulation</tspan></text>
 </g>
 <g class="vd-node">
-<polygon class="vd-node-shape" points="344.5,256 501.5,288 344.5,320 187.5,288" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="344.5" y="293" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="344.5" dy="0">User Approves Plan?</tspan></text>
+<polygon class="vd-node-shape" points="347.5,256 504.5,288 347.5,320 190.5,288" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="347.5" y="293" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="347.5" dy="0">User Approves Plan?</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="238" y="406" width="213" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="344.5" y="430" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="344.5" dy="0">Start Recursive Agent Loop</tspan></text>
+<rect class="vd-node-shape" x="241" y="406" width="213" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="347.5" y="430" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="347.5" dy="0">Start Recursive Agent Loop</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="245.5" y="504" width="198" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="344.5" y="528" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="344.5" dy="0">Generate 3-8 Subqueries</tspan></text>
+<rect class="vd-node-shape" x="248.5" y="504" width="198" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="347.5" y="528" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="347.5" dy="0">Generate 3-8 Subqueries</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="247" y="602" width="194.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="344" y="626" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="344" dy="0">Google Search Ingestion</tspan></text>
+<rect class="vd-node-shape" x="250" y="602" width="194.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="347" y="626" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="347" dy="0">Google Search Ingestion</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="120.5" y="700" width="216.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="228.5" y="724" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="228.5" dy="0">Ingest Full HTML Pages (up</tspan><tspan x="228.5" dy="18">to 1M tokens)</tspan></text>
+<rect class="vd-node-shape" x="123.5" y="700" width="216.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="231.5" y="724" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="231.5" dy="0">Ingest Full HTML Pages (up</tspan><tspan x="231.5" dy="18">to 1M tokens)</tspan></text>
 </g>
 <g class="vd-node">
-<polygon class="vd-node-shape" points="228.5,816 405,862 228.5,908 52,862" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="228.5" y="858" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="228.5" dy="0">Information Gap or</tspan><tspan x="228.5" dy="18">Contradiction Detected?</tspan></text>
+<polygon class="vd-node-shape" points="231.5,816 408,862 231.5,908 55,862" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="231.5" y="858" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="231.5" dy="0">Information Gap or</tspan><tspan x="231.5" dy="18">Contradiction Detected?</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="382.5" y="994" width="161" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="463" y="1018" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="463" dy="0">Formulate Refined /</tspan><tspan x="463" dy="18">Follow-up Queries</tspan></text>
+<rect class="vd-node-shape" x="385.5" y="994" width="161" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="466" y="1018" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="466" dy="0">Formulate Refined /</tspan><tspan x="466" dy="18">Follow-up Queries</tspan></text>
 </g>
 <g class="vd-node">
 <rect class="vd-node-shape" x="16" y="994" width="234" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
@@ -62,13 +62,13 @@
 </g>
 </g>
 <g class="vd-edge-labels">
-<rect class="vd-edge-label-bg" x="372.5" y="200" width="27.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
-<text class="vd-edge-label" x="386" y="218" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="386" dy="0">No</tspan></text>
-<rect class="vd-edge-label-bg" x="327" y="350" width="34.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
-<text class="vd-edge-label" x="344" y="368" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="344" dy="0">Yes</tspan></text>
-<rect class="vd-edge-label-bg" x="289.5" y="938" width="116" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
-<text class="vd-edge-label" x="347.5" y="956" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="347.5" dy="0">Yes (Iter &lt; Max)</tspan></text>
-<rect class="vd-edge-label-bg" x="70" y="938" width="126" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<rect class="vd-edge-label-bg" x="375.5" y="200" width="27.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="389" y="218" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="389" dy="0">No</tspan></text>
+<rect class="vd-edge-label-bg" x="330" y="350" width="34.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="347" y="368" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="347" dy="0">Yes</tspan></text>
+<rect class="vd-edge-label-bg" x="290" y="938" width="121" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="350.5" y="956" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="350.5" dy="0">Yes (Iter &lt; Max)</tspan></text>
+<rect class="vd-edge-label-bg" x="66.5" y="938" width="133" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
 <text class="vd-edge-label" x="133" y="956" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="133" dy="0">No or Iter == Max</tspan></text>
 </g>
 </svg>

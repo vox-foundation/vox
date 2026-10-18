@@ -151,7 +151,7 @@ pub(crate) fn wrap_at(label: &str, limit: usize) -> Vec<String> {
 pub(crate) fn node_size(shape: Shape, lines: &[String]) -> (Half, Half) {
     let tw = lines.iter().map(|l| measure(l)).max().unwrap_or(0);
     let th = Half::try_from(lines.len()).unwrap_or(0) * LINE_H * 2;
-    let (px, py) = (PAD_X * 2, PAD_Y * 2);
+    let (px, py) = (pad_x(tw, PAD_X * 2), PAD_Y * 2);
     // (w, h, min w px, min h px)
     let (w, h, min_w, min_h) = match shape {
         Shape::Rect | Shape::Rounded => (tw + 2 * px, th + 2 * py, 64, 38),

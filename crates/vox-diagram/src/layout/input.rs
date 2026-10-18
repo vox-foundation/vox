@@ -3,7 +3,7 @@
 
 use std::collections::BTreeMap;
 
-use super::text::{LINE_H, measure, node_size, wrap};
+use super::text::{LINE_H, measure, node_size, pad_x, wrap};
 use super::{Half, LContainer, LEdge, LLabel, LNode, LayoutInput};
 use crate::ir::GraphIr;
 use crate::limits::{MAX_DEPTH, MAX_LABEL_CHARS, MAX_RENDER_EDGES, MAX_RENDER_NODES};
@@ -28,7 +28,7 @@ fn edge_label(label: Option<&str>) -> Option<LLabel> {
     let th = Half::try_from(lines.len()).unwrap_or(0) * LINE_H * 2;
     Some(LLabel {
         lines,
-        w: tw + 2 * EDGE_LABEL_PAD,
+        w: tw + 2 * pad_x(tw, EDGE_LABEL_PAD),
         h: th + 2 * EDGE_LABEL_PAD,
     })
 }
@@ -83,7 +83,7 @@ fn containers(g: &GraphIr) -> Result<(Vec<LContainer>, BTreeMap<&str, usize>), R
             parent: parents.get(i).copied().flatten(),
             depth: u32::try_from(depth).unwrap_or(u32::MAX),
             title_lines,
-            strut_w: (widest + 2 * TITLE_PAD).min(MAX_STRUT),
+            strut_w: (widest + 2 * pad_x(widest, TITLE_PAD)).min(MAX_STRUT),
         });
     }
     Ok((out, index))
@@ -236,6 +236,29 @@ mod tests {
             panic!("no label");
         };
         assert_eq!((two.w, two.h), (measure("bb") + 16, 72 + 16));
+    }
+
+    #[test]
+    fn a_long_edge_label_box_fits_a_wide_font() {
+        let Some(l) = edge_label(Some(&"m".repeat(28))) else {
+            panic!("no label");
+        };
+        let tw = measure(&"m".repeat(28));
+        assert!(l.w * 100 >= tw * 112, "{} for {tw}", l.w);
+    }
+
+    #[test]
+    fn a_long_title_strut_uses_the_padding_floor() {
+        let title = "m".repeat(16);
+        let tw = measure(&title);
+        let mut g = graph(vec![], vec![]);
+        g.containers = vec![boxed("a", None, &title)];
+        let Ok(input) = build(&g) else {
+            panic!("build failed");
+        };
+        let w = input.containers[0].strut_w;
+        assert_eq!(w, tw + 2 * pad_x(tw, TITLE_PAD));
+        assert!(w * 100 >= tw * 112 && w < MAX_STRUT, "{w} for {tw}");
     }
 
     #[test]

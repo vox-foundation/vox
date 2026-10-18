@@ -2,13 +2,14 @@
 //! message labels and self-message loops inside it, and the overhang of the notes beside it.
 
 use super::{
-    ACTOR_GAP, LANE_CLEAR, NOTE_MIN_W, NOTE_OVERHANG, PAD_X, SELF_LABEL_GAP, SELF_W, Step, W, px,
+    ACTOR_GAP, LANE_CLEAR, NOTE_MIN_W, NOTE_OVERHANG, PAD_X, SELF_LABEL_GAP, SELF_W, Step, W, hpad,
+    px,
 };
 
 /// The width of a note whose lanes are `span` apart: its text, at least [`NOTE_MIN_W`], and
 /// [`NOTE_OVERHANG`] past the outermost lanes.
 pub(super) fn note_w(text_w: W, span: W) -> W {
-    (text_w + 2 * px(W::from(PAD_X)))
+    (text_w + 2 * hpad(text_w, px(W::from(PAD_X))))
         .max(NOTE_MIN_W)
         .max(span + 2 * NOTE_OVERHANG)
 }

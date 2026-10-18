@@ -106,10 +106,13 @@ fn node_size_minimums() {
 fn node_size_formulas_for_a_wide_label() {
     let wide = owned(&["W".repeat(40).as_str()]);
     let tw = measure(&wide[0]);
-    assert_eq!(node_size(Shape::Rect, &wide), (tw + 56, 76));
-    assert_eq!(node_size(Shape::Rounded, &wide), (tw + 56, 76));
-    assert_eq!(node_size(Shape::Diamond, &wide), (2 * (tw + 28), 128));
-    assert_eq!(node_size(Shape::Cylinder, &wide), (tw + 56, 108));
+    // The padding floor is active at this width: pad_x(tw, 28) is more than the 14 px base.
+    let p = pad_x(tw, 28);
+    assert!(p > 28, "{p}");
+    assert_eq!(node_size(Shape::Rect, &wide), (tw + 2 * p, 76));
+    assert_eq!(node_size(Shape::Rounded, &wide), (tw + 2 * p, 76));
+    assert_eq!(node_size(Shape::Diamond, &wide), (2 * (tw + p), 128));
+    assert_eq!(node_size(Shape::Cylinder, &wide), (tw + 2 * p, 108));
     assert_eq!(node_size(Shape::Start, &wide), (tw + 80, 76));
     assert_eq!(node_size(Shape::End, &wide), (tw + 80, 76));
 }
@@ -135,6 +138,25 @@ fn pad_x_fits_a_font_21_percent_wider_than_the_table() {
             prev = p;
         }
     }
+}
+
+#[test]
+fn node_boxes_fit_a_wide_font() {
+    let wide = owned(&["m".repeat(28).as_str()]);
+    let tw = measure(&wide[0]);
+    for shape in [Shape::Rect, Shape::Rounded, Shape::Cylinder] {
+        let (w, _) = node_size(shape, &wide);
+        assert!(
+            w * 100 >= tw * 112 && w >= tw + 4 * PAD_X,
+            "{shape:?} {w} for {tw}"
+        );
+    }
+    let (w, h) = node_size(Shape::Diamond, &wide);
+    let th = 36;
+    assert!(
+        (tw * 112 / 100) * h + th * w <= w * h,
+        "diamond {w}x{h} for {tw}"
+    );
 }
 
 fn label() -> impl Strategy<Value = String> {

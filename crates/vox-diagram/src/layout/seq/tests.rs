@@ -178,3 +178,13 @@ fn a_long_message_label_box_fits_a_wide_font() {
     };
     assert!(l.w * 100 >= widest(&l.lines) * 112, "{} {:?}", l.w, l.lines);
 }
+
+#[test]
+fn a_long_note_is_as_wide_as_a_wide_font_needs() {
+    let tw = widest(&wrap_at(&"m".repeat(60), 60));
+    assert!(
+        note_w(tw, 0) * 100 >= tw * 112,
+        "{} for {tw}",
+        note_w(tw, 0)
+    );
+}
