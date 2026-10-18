@@ -7,6 +7,7 @@ on:
       - 'docs/**'
       - 'docs-astro/**'
       - 'crates/vox-doc-pipeline/**'
+      - 'crates/vox-diagram/**'
       - 'examples/**'
       - '.github/workflows/docs-deploy.yml'
       # 20-09: repo Markdown mounted at /repo/<route>/ (contracts/documentation/site-mounted-repo-docs.v1.json)
@@ -91,6 +92,9 @@ jobs:
         run: cargo run -p vox-doc-pipeline
         env:
           SOURCE_DATE_EPOCH: ${{ github.event.head_commit.timestamp }}
+
+      - name: Pre-render VoxDiagram fences
+        run: cargo run -p vox-doc-pipeline -- --render-diagrams
 
       - uses: pnpm/action-setup@v6
         with:

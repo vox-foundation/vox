@@ -12,8 +12,8 @@ on:
       - 'crates/vox-cli/**'
       - 'crates/vox-compiler/**'
       - 'crates/vox-runtime/**'
-      # 84: tests/unit/mermaid-oracle.test.mjs reads these fixtures
-      - 'crates/vox-diagram/tests/fixtures/**'
+      # 84: tests/unit/mermaid-oracle.test.mjs reads the crate's fixtures; 89: the site renders diagrams from the crate
+      - 'crates/vox-diagram/**'
       - 'scripts/docs/**'
       - 'docs-astro/**'
       - '.git-blame-ignore-revs'
@@ -40,8 +40,8 @@ on:
       - 'crates/vox-cli/**'
       - 'crates/vox-compiler/**'
       - 'crates/vox-runtime/**'
-      # 84: tests/unit/mermaid-oracle.test.mjs reads these fixtures
-      - 'crates/vox-diagram/tests/fixtures/**'
+      # 84: tests/unit/mermaid-oracle.test.mjs reads the crate's fixtures; 89: the site renders diagrams from the crate
+      - 'crates/vox-diagram/**'
       - 'scripts/docs/**'
       - 'docs-astro/**'
       - '.git-blame-ignore-revs'
@@ -147,6 +147,9 @@ jobs:
       - name: Install docs-astro deps
         working-directory: docs-astro
         run: pnpm install --frozen-lockfile
+
+      - name: Pre-render VoxDiagram fences
+        run: cargo run -p vox-doc-pipeline -- --render-diagrams
 
       - name: Build Starlight
         id: starlight_build

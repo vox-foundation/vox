@@ -3,9 +3,10 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "predev": "node scripts/setup-content.mjs",
+    "diagrams": "node scripts/render-diagrams.mjs",
+    "predev": "node scripts/render-diagrams.mjs --dev && node scripts/setup-content.mjs",
     "dev": "astro dev",
-    "prebuild": "node scripts/setup-content.mjs",
+    "prebuild": "node scripts/render-diagrams.mjs && node scripts/setup-content.mjs",
     "build": "astro build",
     "preview": "astro preview",
     "check": "astro check"
