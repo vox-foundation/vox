@@ -33,8 +33,18 @@ async fn main() {
         .with_writer(std::io::stderr)
         .try_init();
 
+    // Register process-global telemetry recorder for GUI surfaces (`TELEM-01`).
+    let gui_telem_db = vox_db::connect_workspace_journey_optional_at(
+        vox_db::DbConnectSurface::Runtime,
+        None,
+        false,
+    )
+    .await;
+    vox_db::telemetry_sink::init_process_telemetry(gui_telem_db);
+
     // Whisper STT reaches vox-plugin-speech through the plugin host (loaded lazily on first use).
     commands::speech_plugin_backend::register();
+    vox_db::telemetry_sink::init_process_telemetry(None);
 
     let args: Vec<String> = std::env::args().collect();
     if args.iter().any(|arg| arg == "--drive-headless") {
@@ -414,6 +424,13 @@ async fn main() {
             commands::browser::browser_screenshot_frame,
             commands::browser::browser_session_status,
             commands::browser::browser_validate_playwright,
+            commands::browser::browser_act,
+            commands::browser::browser_extract,
+            commands::browser::browser_extract_json,
+            commands::browser::browser_click_ref,
+            commands::browser::browser_fill_ref,
+            commands::browser::browser_wait_for,
+            commands::browser::browser_read_dom,
             commands::signing::signing_key_status,
             commands::signing::rotate_signing_key,
             commands::mesh::list_trusted_nodes,

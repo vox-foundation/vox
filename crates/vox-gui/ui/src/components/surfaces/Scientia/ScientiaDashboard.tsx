@@ -58,7 +58,8 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
     fetchingRef.current = true;
     setLoading(true);
     try {
-      setSnap(await invoke<QueueSnapshot>('scientia_dashboard_snapshot'));
+      const nextSnap = await invoke<QueueSnapshot | null>('scientia_dashboard_snapshot');
+      setSnap(nextSnap && typeof nextSnap === 'object' && 'candidates' in nextSnap ? nextSnap : null);
       // Cost rollup is an independent producer (`vox scientia cost`); a failure
       // here must not blank the queue snapshot above.
       try {
@@ -123,8 +124,13 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
 
       {/* Snapshot region: refetched on a 10s interval + event ping, so announce
           updates politely to assistive tech. */}
-      <div aria-live="polite">
-        {!snap && <div className="font-mono text-xs text-text-muted">Loading queue snapshot…</div>}
+      <div aria-live="polite" className="space-y-3">
+        {loading && !snap && <div className="font-mono text-xs text-text-muted">Loading queue snapshot…</div>}
+        {!loading && !snap && (
+          <div className="rounded-xl border border-dashed border-border-subtle bg-overlay-subtle p-4 font-mono text-xs text-text-secondary">
+            Queue snapshot unavailable — click Refresh to retry.
+          </div>
+        )}
 
         {snap && (
           <>

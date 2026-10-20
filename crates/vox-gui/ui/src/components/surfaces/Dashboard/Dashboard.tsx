@@ -395,7 +395,7 @@ export function Dashboard({
           <AttentionBudgetMeter budget={attention_budget} />
         </div>
       )}
-      <div className="absolute right-5 top-2 z-20 flex items-center gap-2">
+      <div className="mb-3 flex items-center justify-end gap-2 px-5">
         {customizeMode && (
           <>
             <button
@@ -448,7 +448,7 @@ export function Dashboard({
         </div>
         {!sandboxCollapsed && (
           <div className="h-[250px] relative">
-            <LudusSandbox />
+            <LudusSandbox energy={80} maxEnergy={100} />
           </div>
         )}
       </div>

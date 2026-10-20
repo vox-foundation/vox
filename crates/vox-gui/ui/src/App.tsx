@@ -89,7 +89,7 @@ import { recordGamifyGuiEvent, setGamifyGuiEventResultListener } from './lib/gam
 import { AchievementToast } from './components/gamify/AchievementToast';
 import { installedSkillToCatalogEntry } from './lib/installedSkills';
 import { handleSubmitTaskAction } from './lib/commandPaletteActions';
-import { DashboardData, Agent, StreamItem, LudusAlert } from './types/dashboard';
+import { DashboardData, Agent, StreamItem, LudusAlert, Peer } from './types/dashboard';
 import type {
   ActiveSkill,
   ChatPayload,
@@ -334,6 +334,17 @@ function mapAlert(a: RawLudusAlert): LudusAlert {
     level: a.level,
     title: titleStr,
     body: bodyStr,
+  };
+}
+
+function mapPeer(p: Peer & { status?: string; gpu_summary?: string | null }): Peer {
+  return {
+    id: String(p.id ?? ''),
+    name: String(p.name ?? p.id ?? ''),
+    backend: String(p.backend ?? p.gpu_summary ?? 'mesh'),
+    online: typeof p.online === 'boolean' ? p.online : p.status === 'online',
+    vram_gb: p.vram_gb,
+    tok_per_sec: p.tok_per_sec,
   };
 }
 
@@ -771,7 +782,7 @@ export default function App() {
       agents,
       stream: stream.length > 0 ? stream : prev.stream,
       alerts,
-      peers: (status.peers ?? []).length > 0 ? status.peers : prev.peers,
+      peers: (status.peers ?? []).length > 0 ? (status.peers ?? []).map(mapPeer) : prev.peers,
       kpis: {
         ...prev.kpis,
         budgetBurn: {

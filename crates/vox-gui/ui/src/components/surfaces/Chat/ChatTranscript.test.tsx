@@ -138,5 +138,21 @@ describe('ChatTranscript verbosity control', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Quiet' }));
     expect(screen.getByTestId('chat-trace-steps')).not.toBeVisible();
   });
+
+  it('renders structured Markdown code blocks, inline code, file:line links, and the session brief deck (v1.9)', () => {
+    render(
+      <ChatTranscript
+        messages={[
+          msg({
+            text: '# Heading\nSee `vox check` at crates/vox-cli/src/main.rs:42\n```rust\nfn main() {}\n```',
+          }),
+        ]}
+      />,
+    );
+    expect(screen.getByTestId('chat-code-block')).toHaveTextContent('fn main() {}');
+    expect(screen.getByTestId('chat-inline-code')).toHaveTextContent('vox check');
+    expect(screen.getByTestId('chat-file-link')).toHaveTextContent('crates/vox-cli/src/main.rs:42');
+    expect(screen.getByTestId('chat-session-brief-deck')).toBeInTheDocument();
+  });
 });
 

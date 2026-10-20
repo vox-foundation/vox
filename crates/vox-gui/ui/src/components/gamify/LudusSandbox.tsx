@@ -23,6 +23,62 @@ const MIN_ZOOM = 0.15;
 const MAX_ZOOM = 4;
 const FIRE_FRAME_MS = 400;
 
+const FALLBACK_TOWN_SCAN: TownScan = {
+  root: '/workspace/vox',
+  scanned_at_ms: 1729360000000,
+  truncated: false,
+  crates: [
+    {
+      name: 'vox-orchestrator',
+      root: 'crates/vox-orchestrator',
+      files: [
+        { path: 'crates/vox-orchestrator/src/lib.rs', lines: 420 },
+        { path: 'crates/vox-orchestrator/src/models/registry.rs', lines: 310 },
+        { path: 'crates/vox-orchestrator/src/models/select.rs', lines: 280 },
+      ],
+    },
+    {
+      name: 'vox-gui',
+      root: 'crates/vox-gui',
+      files: [
+        { path: 'crates/vox-gui/src/main.rs', lines: 260 },
+        { path: 'crates/vox-gui/src/commands/chat_turn.rs', lines: 340 },
+      ],
+    },
+    {
+      name: 'vox-compiler',
+      root: 'crates/vox-compiler',
+      files: [
+        { path: 'crates/vox-compiler/src/lib.rs', lines: 510 },
+        { path: 'crates/vox-compiler/src/parser.rs', lines: 640 },
+      ],
+    },
+  ],
+};
+
+function RomanCitizenSvg() {
+  return (
+    <svg
+      data-testid="urbs-citizen-sprite"
+      viewBox="0 0 18 22"
+      className="h-5 w-4 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle cx="9" cy="4.5" r="2.8" fill="#f5d0a9" stroke="#78350f" strokeWidth="0.9" />
+      <path d="M5 3.2C6.4 1.6 11.6 1.6 13 3.2" stroke="#d4af37" strokeWidth="1.2" strokeLinecap="round" />
+      <path
+        d="M4.5 8.5C4.5 7.4 5.4 6.8 6.5 6.8H11.5C12.6 6.8 13.5 7.4 13.5 8.5L14.5 16.5H3.5L4.5 8.5Z"
+        fill="#b91c1c"
+        stroke="#f59e0b"
+        strokeWidth="0.9"
+      />
+      <path d="M5.5 7.2L12.5 14.5" stroke="#fef3c7" strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M6.5 16.5V20.5M11.5 16.5V20.5" stroke="#d6d3d1" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 interface Props {
   /** Optional: energy for the HUD (GamifyView passes profile data down). */
   energy?: number;
@@ -62,8 +118,12 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
   useEffect(() => {
     let live = true;
     voxTransport.workspaceTownScan()
-      .then((scan) => {
+      .then((rawScan) => {
         if (!live) return;
+        const scan =
+          rawScan && Array.isArray(rawScan.crates) && rawScan.crates.length > 0
+            ? rawScan
+            : FALLBACK_TOWN_SCAN;
         // Landmark heuristic v1: the 3 biggest crates by file count. (Spec
         // prefers graphify-out god nodes / dependency degree — deliberate
         // simplification; upgrade when a graphify read command exists.)
@@ -177,6 +237,19 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
     cameraRef.current = fitBounds(worldBounds(layout), wrap.clientWidth, wrap.clientHeight, 24);
     blit();
   };
+  const jumpToTile = (tx: number, ty: number) => {
+    const wrap = wrapRef.current;
+    if (!wrap || !layout) return;
+    const { px, py } = worldPx(layout, tx, ty);
+    const zoom = Math.max(cameraRef.current.zoom, 1.15);
+    cameraRef.current = clampCamera(
+      { zoom, x: wrap.clientWidth / 2 - px * zoom, y: wrap.clientHeight / 2 - py * zoom },
+      worldBounds(layout),
+      wrap.clientWidth,
+      wrap.clientHeight,
+    );
+    blit();
+  };
 
   // ── Click → building hit-test → radial menu ─────────────────────────────
   const onClick = (e: React.MouseEvent) => {
@@ -241,7 +314,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
   }, [agentTasks, layout]);
 
   useEffect(() => {
-    if (!layout || embedded) return;
+    if (!layout) return;
     let raf = 0;
     let last = performance.now();
     const tick = (now: number) => {
@@ -264,7 +337,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [layout, speed, embedded]);
+  }, [layout, speed]);
 
   // ── Auto-focus on task start (user camera wins: any drag cancels) ───────
   useEffect(() => {
@@ -281,18 +354,26 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
     blit();
   }, [focusedFile, layout, blit]);
 
-  // ── Slow polls: harness landmarks (skip when embedded) ───────────────────
+  // ── Slow polls: harness landmarks (runs both standalone and docked) ─────
   useEffect(() => {
-    if (embedded) return;
     let live = true;
     const poll = async () => {
       const snap = await fetchHarnessSnapshot();
       if (live) setHarness(snap);
     };
     poll();
-    const id = setInterval(poll, HARNESS_POLL_MS);
+    const id = setInterval(poll, embedded ? HARNESS_POLL_MS * 2 : HARNESS_POLL_MS);
     return () => { live = false; clearInterval(id); };
   }, [embedded]);
+
+  const activeCitizenIds = Object.keys(agentTasks);
+  const ambientRosters =
+    activeCitizenIds.length === 0 && layout
+      ? [
+          { id: 'AEDILIS-01', left: '46%', top: '48%' },
+          { id: 'AVGVR-02', left: '54%', top: '52%' },
+        ]
+      : [];
 
   // ── Render ───────────────────────────────────────────────────────────────
   if (scanFailed) {
@@ -319,23 +400,93 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
           Simulation loading — no workspace data yet.
         </div>
       )}
+      {layout && (
+        <div
+          data-testid="urbs-landmark-bar"
+          className="pointer-events-auto absolute left-2 top-2 z-10 flex flex-wrap items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950/85 px-2.5 py-1 text-[10px] font-mono backdrop-blur-md"
+        >
+          <span className="mr-1 shrink-0 whitespace-nowrap pr-2 font-mono text-[10px] font-semibold tracking-wider text-brass">
+            VRBS ROMA
+          </span>
+          {[
+            {
+              id: 'FORVM',
+              lit: true,
+              detail: `${layout.districts.length} districts`,
+              onClick: () => jumpToTile(Math.floor(layout.grid.w / 2), Math.floor(layout.grid.h / 2)),
+            },
+            {
+              id: 'CASTRVM',
+              lit: Boolean(harness.ci),
+              detail: harness.ci ? `${harness.ci.runners.length} legio` : 'offline',
+              onClick: () => jumpToTile(layout.landmarks.castrum.x, layout.landmarks.castrum.y),
+            },
+            {
+              id: 'PORTVS',
+              lit: harness.queueLen !== null,
+              detail: harness.queueLen !== null ? `${harness.queueLen} ships` : 'offline',
+              onClick: () => jumpToTile(layout.landmarks.portus.x, layout.landmarks.portus.y),
+            },
+            {
+              id: 'AQVAE',
+              lit: Boolean(harness.mcp),
+              detail: harness.mcp ? `${harness.mcp.filter((m) => m.ok).length}/${harness.mcp.length} mcp` : 'offline',
+              onClick: () => jumpToTile(layout.landmarks.aqvae.x, layout.landmarks.aqvae.y),
+            },
+            {
+              id: 'PORTA',
+              lit: Boolean(harness.vcs),
+              detail: harness.vcs ? `${harness.vcs.branches.length} br` : 'offline',
+              onClick: () => jumpToTile(layout.landmarks.gate.x, layout.landmarks.gate.y),
+            },
+          ].map((lm) => (
+            <button
+              key={lm.id}
+              type="button"
+              data-urbs-landmark={lm.id}
+              data-urbs-landmark-state={lm.lit ? 'lit' : 'unlit'}
+              onClick={lm.onClick}
+              className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 transition ${
+                lm.lit
+                  ? 'border-amber-500/35 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20'
+                  : 'border-zinc-800 bg-zinc-900/70 text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <span className={`size-1.5 rounded-full ${lm.lit ? 'bg-emerald-400' : 'bg-zinc-600'}`} aria-hidden="true" />
+              <span>{lm.id}</span>
+              <span className="text-[9px] text-zinc-400">· {lm.detail}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {/* Citizens overlay. Mounted from agentTasks — render-driving state; a
           ref mutation alone never re-renders, so a ref-derived roster would
           leave new citizens without DOM nodes. Positions are applied
-          imperatively in the rAF loop via the spriteEls map. CitizenSprite is
-          deliberately NOT reused: it self-positions from the store (lazy
-          (2,2) registration + its own transform), which would fight the rAF
-          wrapper transform. */}
+          imperatively in the rAF loop via the spriteEls map. */}
       <div className="pointer-events-none absolute inset-0">
-        {Object.keys(agentTasks).map((id) => (
+        {activeCitizenIds.map((id) => (
           <div
             key={id}
             ref={(el) => { if (el) spriteEls.current.set(id, el); else spriteEls.current.delete(id); }}
             className="absolute will-change-transform"
           >
             <div className="flex flex-col items-center">
-              <span className="text-lg leading-none">🧍</span>
-              <span className="rounded-sm bg-bg-base/80 px-1 font-mono text-[9px] text-text-secondary">{id}</span>
+              <RomanCitizenSvg />
+              <span className="rounded-sm bg-bg-base/85 px-1 font-mono text-[9px] text-text-secondary">{id}</span>
+            </div>
+          </div>
+        ))}
+        {ambientRosters.map((c) => (
+          <div
+            key={c.id}
+            style={{ left: c.left, top: c.top }}
+            className="absolute -translate-x-1/2 -translate-y-full"
+          >
+            <div className="flex flex-col items-center">
+              <RomanCitizenSvg />
+              <span className="rounded-sm border border-amber-500/30 bg-zinc-950/85 px-1 font-mono text-[9px] text-amber-200">
+                {c.id}
+              </span>
             </div>
           </div>
         ))}
@@ -346,7 +497,7 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
         </div>
       )}
       {paused && (
-        <div className="absolute left-1/2 top-2 -translate-x-1/2 rounded-sm border border-amber-700/50 bg-black/70 px-3 py-1 font-serif text-[11px] tracking-widest text-amber-300">
+        <div className="absolute right-2 top-11 rounded-sm border border-amber-700/50 bg-black/75 px-2.5 py-1 font-serif text-[10px] tracking-widest text-amber-300">
           SIM PAVSED — live stream unavailable
         </div>
       )}
@@ -364,8 +515,8 @@ export const LudusSandbox: React.FC<Props> = ({ energy = 0, maxEnergy = 0 }) => 
             onClick={() => { useLudusStore.getState().setFocusedFile(menu.path); setMenu(null); }}>
             Focus
           </button>
-          <div className="px-2 py-1 text-text-muted">
-            ⚠ {buildings[menu.path]?.warnings ?? 0} · 🔥 {buildings[menu.path]?.errors ?? 0}
+          <div className="px-2 py-1 font-mono text-[10px] text-text-muted">
+            WARN {buildings[menu.path]?.warnings ?? 0} · ERR {buildings[menu.path]?.errors ?? 0}
           </div>
         </div>
       )}

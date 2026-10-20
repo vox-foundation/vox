@@ -1173,6 +1173,357 @@ pub async fn browser_validate_playwright(
         .map_err(|e| format!("spawn_blocking: {e}"))?
 }
 
+#[derive(serde::Deserialize)]
+pub struct BrowserActInput {
+    pub instruction: String,
+    pub page_id: Option<String>,
+}
+
+#[tauri::command]
+pub async fn browser_act(
+    browser_state: tauri::State<'_, Arc<BrowserState>>,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    input: BrowserActInput,
+) -> Result<serde_json::Value, String> {
+    let instruction = input.instruction.trim().to_string();
+    if instruction.is_empty() {
+        return Err("instruction is required".to_string());
+    }
+    let page_id = if let Some(p) = input
+        .page_id
+        .as_ref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+    {
+        p.to_string()
+    } else {
+        let session = browser_state.session.lock().await;
+        session
+            .selected_page_id
+            .clone()
+            .ok_or_else(|| "no selected page; open or attach first".to_string())?
+    };
+    let result = mcp_tool_call(
+        &daemon,
+        "vox_browser_act",
+        serde_json::json!({
+            "page_id": page_id,
+            "instruction": instruction,
+            "actor": "human",
+        }),
+    )
+    .await?;
+    let data = mcp_data(&result)?;
+    let mut session = browser_state.session.lock().await;
+    push_action_log(&mut session, format!("songhand act: {instruction}"));
+    log_needs_human(&mut session, &result);
+    Ok(data)
+}
+
+#[derive(serde::Deserialize)]
+pub struct BrowserExtractInput {
+    pub instruction: String,
+    pub page_id: Option<String>,
+    pub temperature: Option<f32>,
+}
+
+#[tauri::command]
+pub async fn browser_extract(
+    browser_state: tauri::State<'_, Arc<BrowserState>>,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    input: BrowserExtractInput,
+) -> Result<serde_json::Value, String> {
+    let instruction = input.instruction.trim().to_string();
+    if instruction.is_empty() {
+        return Err("instruction is required".to_string());
+    }
+    let page_id = if let Some(p) = input
+        .page_id
+        .as_ref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+    {
+        p.to_string()
+    } else {
+        let session = browser_state.session.lock().await;
+        session
+            .selected_page_id
+            .clone()
+            .ok_or_else(|| "no selected page; open or attach first".to_string())?
+    };
+    let result = mcp_tool_call(
+        &daemon,
+        "vox_browser_extract",
+        serde_json::json!({
+            "page_id": page_id,
+            "instruction": instruction,
+            "temperature": input.temperature,
+        }),
+    )
+    .await?;
+    let data = mcp_data(&result)?;
+    let mut session = browser_state.session.lock().await;
+    push_action_log(&mut session, format!("songhand extract: {instruction}"));
+    Ok(data)
+}
+
+#[derive(serde::Deserialize)]
+pub struct BrowserExtractJsonInput {
+    pub instruction: String,
+    pub schema_json: String,
+    pub page_id: Option<String>,
+    pub temperature: Option<f32>,
+}
+
+#[tauri::command]
+pub async fn browser_extract_json(
+    browser_state: tauri::State<'_, Arc<BrowserState>>,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    input: BrowserExtractJsonInput,
+) -> Result<serde_json::Value, String> {
+    let instruction = input.instruction.trim().to_string();
+    let schema_json = input.schema_json.trim().to_string();
+    if instruction.is_empty() {
+        return Err("instruction is required".to_string());
+    }
+    if schema_json.is_empty() {
+        return Err("schema_json is required".to_string());
+    }
+    let page_id = if let Some(p) = input
+        .page_id
+        .as_ref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+    {
+        p.to_string()
+    } else {
+        let session = browser_state.session.lock().await;
+        session
+            .selected_page_id
+            .clone()
+            .ok_or_else(|| "no selected page; open or attach first".to_string())?
+    };
+    let result = mcp_tool_call(
+        &daemon,
+        "vox_browser_extract_json",
+        serde_json::json!({
+            "page_id": page_id,
+            "instruction": instruction,
+            "schema_json": schema_json,
+            "temperature": input.temperature,
+        }),
+    )
+    .await?;
+    let data = mcp_data(&result)?;
+    let mut session = browser_state.session.lock().await;
+    push_action_log(
+        &mut session,
+        format!("songhand extract_json: {instruction}"),
+    );
+    Ok(data)
+}
+
+#[derive(serde::Deserialize)]
+pub struct BrowserClickRefInput {
+    pub ref_id: String,
+    pub page_id: Option<String>,
+}
+
+#[tauri::command]
+pub async fn browser_click_ref(
+    browser_state: tauri::State<'_, Arc<BrowserState>>,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    input: BrowserClickRefInput,
+) -> Result<serde_json::Value, String> {
+    let ref_id = input.ref_id.trim().to_string();
+    if ref_id.is_empty() {
+        return Err("ref_id is required".to_string());
+    }
+    let page_id = if let Some(p) = input
+        .page_id
+        .as_ref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+    {
+        p.to_string()
+    } else {
+        let session = browser_state.session.lock().await;
+        session
+            .selected_page_id
+            .clone()
+            .ok_or_else(|| "no selected page; open or attach first".to_string())?
+    };
+    let result = mcp_tool_call(
+        &daemon,
+        "vox_browser_click_ref",
+        serde_json::json!({
+            "page_id": page_id,
+            "ref": ref_id,
+            "actor": "human",
+        }),
+    )
+    .await?;
+    let data = mcp_data(&result)?;
+    let mut session = browser_state.session.lock().await;
+    push_action_log(&mut session, format!("click_ref [{ref_id}]"));
+    log_needs_human(&mut session, &result);
+    Ok(data)
+}
+
+#[derive(serde::Deserialize)]
+pub struct BrowserFillRefInput {
+    pub ref_id: String,
+    pub value: String,
+    pub page_id: Option<String>,
+}
+
+#[tauri::command]
+pub async fn browser_fill_ref(
+    browser_state: tauri::State<'_, Arc<BrowserState>>,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    input: BrowserFillRefInput,
+) -> Result<serde_json::Value, String> {
+    let ref_id = input.ref_id.trim().to_string();
+    if ref_id.is_empty() {
+        return Err("ref_id is required".to_string());
+    }
+    let page_id = if let Some(p) = input
+        .page_id
+        .as_ref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+    {
+        p.to_string()
+    } else {
+        let session = browser_state.session.lock().await;
+        session
+            .selected_page_id
+            .clone()
+            .ok_or_else(|| "no selected page; open or attach first".to_string())?
+    };
+    let result = mcp_tool_call(
+        &daemon,
+        "vox_browser_fill_ref",
+        serde_json::json!({
+            "page_id": page_id,
+            "ref": ref_id,
+            "value": input.value,
+            "actor": "human",
+        }),
+    )
+    .await?;
+    let data = mcp_data(&result)?;
+    let mut session = browser_state.session.lock().await;
+    push_action_log(&mut session, format!("fill_ref [{ref_id}]"));
+    log_needs_human(&mut session, &result);
+    Ok(data)
+}
+
+#[derive(serde::Deserialize)]
+pub struct BrowserWaitForInput {
+    pub target: String,
+    pub timeout_secs: Option<u64>,
+    pub page_id: Option<String>,
+}
+
+#[tauri::command]
+pub async fn browser_wait_for(
+    browser_state: tauri::State<'_, Arc<BrowserState>>,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    input: BrowserWaitForInput,
+) -> Result<serde_json::Value, String> {
+    let target = input.target.trim().to_string();
+    if target.is_empty() {
+        return Err("target selector is required".to_string());
+    }
+    let page_id = if let Some(p) = input
+        .page_id
+        .as_ref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+    {
+        p.to_string()
+    } else {
+        let session = browser_state.session.lock().await;
+        session
+            .selected_page_id
+            .clone()
+            .ok_or_else(|| "no selected page; open or attach first".to_string())?
+    };
+    let result = mcp_tool_call(
+        &daemon,
+        "vox_browser_wait_for",
+        serde_json::json!({
+            "page_id": page_id,
+            "target": target,
+            "timeout_secs": input.timeout_secs.unwrap_or(15),
+        }),
+    )
+    .await?;
+    let data = mcp_data(&result)?;
+    let mut session = browser_state.session.lock().await;
+    push_action_log(&mut session, format!("wait_for {target}"));
+    Ok(data)
+}
+
+#[derive(serde::Deserialize)]
+pub struct BrowserReadDomInput {
+    pub target: Option<String>,
+    pub html: Option<bool>,
+    pub page_id: Option<String>,
+}
+
+#[tauri::command]
+pub async fn browser_read_dom(
+    browser_state: tauri::State<'_, Arc<BrowserState>>,
+    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    input: BrowserReadDomInput,
+) -> Result<serde_json::Value, String> {
+    let page_id = if let Some(p) = input
+        .page_id
+        .as_ref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+    {
+        p.to_string()
+    } else {
+        let session = browser_state.session.lock().await;
+        session
+            .selected_page_id
+            .clone()
+            .ok_or_else(|| "no selected page; open or attach first".to_string())?
+    };
+    let target = input.target.unwrap_or_default().trim().to_string();
+    let use_html = input.html.unwrap_or(false);
+    let (tool, args) = if use_html {
+        (
+            "vox_browser_html",
+            serde_json::json!({ "page_id": page_id, "target": target }),
+        )
+    } else {
+        let selector = if target.is_empty() {
+            "body".to_string()
+        } else {
+            target.clone()
+        };
+        (
+            "vox_browser_text",
+            serde_json::json!({ "page_id": page_id, "target": selector, "actor": "human" }),
+        )
+    };
+    let result = mcp_tool_call(&daemon, tool, args).await?;
+    let data = mcp_data(&result)?;
+    let mut session = browser_state.session.lock().await;
+    push_action_log(
+        &mut session,
+        format!(
+            "read_dom (html={use_html}) target={}",
+            if target.is_empty() { "body" } else { &target }
+        ),
+    );
+    Ok(data)
+}
+
 /// Blocking helper: install Chromium (idempotent) then run the preview spec.
 fn run_playwright_validate(
     ui_dir: &std::path::Path,

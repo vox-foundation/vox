@@ -15,6 +15,7 @@ import { renderRiverFrame } from './riverCanvasRenderer';
 import { WaveformTierStrip } from './WaveformTierStrip';
 import { AgentTrajectoryBraid } from './AgentTrajectoryBraid';
 import { VerificationFunnelFooter } from './VerificationFunnelFooter';
+import { LudusSandbox } from '../../gamify/LudusSandbox';
 import type { HarnessTierId } from './riverTypes';
 
 function readStoredModelOverride(): string | null {
@@ -58,6 +59,7 @@ export function HarnessRiverPanel({
   const [busModelOverride, setBusModelOverride] = useState<string | null>(
     () => getLatestModelOverride() ?? readStoredModelOverride(),
   );
+  const [viewMode, setViewMode] = useState<'river' | 'urbs' | 'split'>('river');
   useEffect(() => subscribeControlState(setBusControl), []);
   useEffect(() => subscribeModelOverride(setBusModelOverride), []);
 
@@ -193,6 +195,36 @@ export function HarnessRiverPanel({
           </span>
         </div>
         <div className="flex items-center gap-1.5">
+          {gamifyEnabled && (
+            <div
+              role="group"
+              aria-label="Harness visualization mode"
+              className="flex items-center rounded border border-white/15 bg-white/5 p-0.5 text-[10px]"
+            >
+              {(
+                [
+                  { id: 'river', label: 'River' },
+                  { id: 'urbs', label: 'Urbs Civilization' },
+                  { id: 'split', label: 'Split' },
+                ] as const
+              ).map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  data-testid={`harness-mode-${m.id}`}
+                  aria-pressed={viewMode === m.id}
+                  onClick={() => setViewMode(m.id)}
+                  className={`rounded px-1.5 py-0.5 transition ${
+                    viewMode === m.id
+                      ? 'bg-amber-500/20 text-amber-200 border border-amber-500/40'
+                      : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          )}
           {onOpenRouting && (
             <button
               type="button"
@@ -221,21 +253,33 @@ export function HarnessRiverPanel({
         onSelectTier={canNavigateTier ? handleSelectTier : undefined}
       />
 
-      {/* Zone B: Center Alluvial Particle Bundle + Singularity Chokepoint + Sweeping Laser */}
-      <div className="relative overflow-hidden rounded-lg border border-white/10 bg-[#070709]">
-        <div className="flex items-center justify-between border-b border-white/10 px-3 py-1 font-mono text-[9px] uppercase tracking-wider text-text-muted">
-          <span>SOURCE WORKTREES & AST HASHES</span>
-          <span className="text-cyan">INTERCEPTOR SINGULARITY</span>
-          <span>VERIFIED PATCH TARGETS</span>
-        </div>
-        <div className={condensed ? 'h-[210px] w-full' : 'h-[270px] w-full'}>
-          <canvas
-            ref={canvasRef}
-            data-testid="harness-river-canvas"
-            className="h-full w-full block"
-            aria-label="Live alluvial particle stream and phase scanner"
-          />
-        </div>
+      {/* Zone B: Center Alluvial Particle Bundle / Urbs Civilization */}
+      <div className={viewMode === 'split' ? 'grid grid-cols-1 gap-2.5 lg:grid-cols-2' : 'block'}>
+        {viewMode !== 'urbs' && (
+          <div className="relative overflow-hidden rounded-lg border border-white/10 bg-[#070709]">
+            <div className="flex items-center justify-between border-b border-white/10 px-3 py-1 font-mono text-[9px] uppercase tracking-wider text-text-muted">
+              <span>SOURCE WORKTREES & AST HASHES</span>
+              <span className="text-cyan">INTERCEPTOR SINGULARITY</span>
+              <span>VERIFIED PATCH TARGETS</span>
+            </div>
+            <div className={condensed ? 'h-[210px] w-full' : 'h-[270px] w-full'}>
+              <canvas
+                ref={canvasRef}
+                data-testid="harness-river-canvas"
+                className="h-full w-full block"
+                aria-label="Live alluvial particle stream and phase scanner"
+              />
+            </div>
+          </div>
+        )}
+        {viewMode !== 'river' && (
+          <div
+            data-testid="harness-urbs-embed"
+            className={condensed ? 'h-[240px] w-full' : 'h-[300px] w-full'}
+          >
+            <LudusSandbox energy={80} maxEnergy={100} />
+          </div>
+        )}
       </div>
 
       {/* Zone C: 8-Slice Agent Role Trajectory Braid (full mode only) */}

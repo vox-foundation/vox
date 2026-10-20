@@ -1,0 +1,347 @@
+{
+  "ssotVersion": "2026.10.19-v3.5",
+  "ssotSha256": "d2432a2df998b5e9ccb30f4b5ae9d9b637e08d5bb6788ac0b89e5f2aeaf03fca",
+  "stage": "after",
+  "evaluatedAt": "2026-10-20T04:41:54.275Z",
+  "beforeSurfaces": {
+    "chat-default": {
+      "surfaceId": "chat-default",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/chat-default-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 87.8,
+        "luminanceContrast": 14.5,
+        "noiseFloor": 5.3,
+        "meanLuminance": 15.2
+      },
+      "domAudit": {
+        "surfaceId": "chat-default",
+        "outerOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 2,
+        "controlHeightSpreadPx": 6,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.859,
+        "axeViolations": 1
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.785,
+        "promptAdherence": 0.86,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.92,
+        "styleConsistency": 0.66
+      },
+      "weightedRubricScore": 0.8503
+    },
+    "loquela-knobs": {
+      "surfaceId": "loquela-knobs",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/loquela-knobs-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 93.4,
+        "luminanceContrast": 15,
+        "noiseFloor": 5.4,
+        "meanLuminance": 15.6
+      },
+      "domAudit": {
+        "surfaceId": "loquela-knobs",
+        "outerOverflowPx": 0,
+        "clippedInteractiveCount": 1,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 2,
+        "controlHeightSpreadPx": 6,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.859,
+        "axeViolations": 1
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.808,
+        "promptAdherence": 0.86,
+        "anatomicalAccuracy": 0.82,
+        "compositionQuality": 0.92,
+        "styleConsistency": 0.66
+      },
+      "weightedRubricScore": 0.828
+    },
+    "chat-dock-multi": {
+      "surfaceId": "chat-dock-multi",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/chat-dock-multi-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 95.1,
+        "luminanceContrast": 15.6,
+        "noiseFloor": 5.5,
+        "meanLuminance": 15.8
+      },
+      "domAudit": {
+        "surfaceId": "chat-dock-multi",
+        "outerOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 2,
+        "controlHeightSpreadPx": 6,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [
+          "terminal",
+          "urbs"
+        ],
+        "viewportCoverageRatio": 0.859,
+        "axeViolations": 1
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.818,
+        "promptAdherence": 0.66,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.92,
+        "styleConsistency": 0.66
+      },
+      "weightedRubricScore": 0.7985
+    },
+    "urbs-civilization": {
+      "surfaceId": "urbs-civilization",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/urbs-civilization-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 79.5,
+        "luminanceContrast": 17.3,
+        "noiseFloor": 5.1,
+        "meanLuminance": 16.4
+      },
+      "domAudit": {
+        "surfaceId": "urbs-civilization",
+        "outerOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 2,
+        "unlitLandmarkCount": 2,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.859,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.779,
+        "promptAdherence": 0.74,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.92,
+        "styleConsistency": 0.76
+      },
+      "weightedRubricScore": 0.8228
+    }
+  },
+  "afterSurfaces": {
+    "chat-default": {
+      "surfaceId": "chat-default",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/chat-default-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 20.4,
+        "noiseFloor": 6.3,
+        "meanLuminance": 0.0982
+      },
+      "domAudit": {
+        "surfaceId": "chat-default",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7975,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9184
+    },
+    "loquela-knobs": {
+      "surfaceId": "loquela-knobs",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/loquela-knobs-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 22.6,
+        "noiseFloor": 6.7,
+        "meanLuminance": 0.0991
+      },
+      "domAudit": {
+        "surfaceId": "loquela-knobs",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.803,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9197
+    },
+    "chat-dock-multi": {
+      "surfaceId": "chat-dock-multi",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/chat-dock-multi-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 21.4,
+        "noiseFloor": 6.4,
+        "meanLuminance": 0.0962
+      },
+      "domAudit": {
+        "surfaceId": "chat-dock-multi",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.919
+    },
+    "urbs-civilization": {
+      "surfaceId": "urbs-civilization",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/urbs-civilization-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 19.9,
+        "noiseFloor": 6.3,
+        "meanLuminance": 0.0708
+      },
+      "domAudit": {
+        "surfaceId": "urbs-civilization",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7962,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.918
+    }
+  },
+  "verdicts": {
+    "chat-default": {
+      "surfaceId": "chat-default",
+      "passNumber": 1,
+      "visualBeforeScore": 0.8502,
+      "visualAfterScore": 0.9184,
+      "visualDelta": 0.0682,
+      "edgeSharpnessDeltaPct": 12.8,
+      "contrastDeltaPct": 40.7,
+      "noiseReductionPct": -18.9,
+      "estimatedPsnrDb": 38.1,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "loquela-knobs": {
+      "surfaceId": "loquela-knobs",
+      "passNumber": 1,
+      "visualBeforeScore": 0.828,
+      "visualAfterScore": 0.9197,
+      "visualDelta": 0.0917,
+      "edgeSharpnessDeltaPct": 6,
+      "contrastDeltaPct": 50.7,
+      "noiseReductionPct": -24.1,
+      "estimatedPsnrDb": 38.12,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "chat-dock-multi": {
+      "surfaceId": "chat-dock-multi",
+      "passNumber": 1,
+      "visualBeforeScore": 0.7985,
+      "visualAfterScore": 0.919,
+      "visualDelta": 0.1205,
+      "edgeSharpnessDeltaPct": 4.1,
+      "contrastDeltaPct": 37.2,
+      "noiseReductionPct": -16.4,
+      "estimatedPsnrDb": 38.11,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "urbs-civilization": {
+      "surfaceId": "urbs-civilization",
+      "passNumber": 1,
+      "visualBeforeScore": 0.8228,
+      "visualAfterScore": 0.918,
+      "visualDelta": 0.0952,
+      "edgeSharpnessDeltaPct": 24.5,
+      "contrastDeltaPct": 15,
+      "noiseReductionPct": -23.5,
+      "estimatedPsnrDb": 38.1,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    }
+  }
+}

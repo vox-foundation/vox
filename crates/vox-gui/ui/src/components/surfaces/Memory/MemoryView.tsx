@@ -342,10 +342,16 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
     });
   };
 
-  const corpora = MEM_CORPORA.map((c) => ({
-    ...c,
-    entries: memStatus?.corpus_counts?.[c.id] ?? 0,
-  }));
+  const corpora = MEM_CORPORA.map((c) => {
+    const counts = memStatus?.corpus_counts;
+    let entries = counts?.[c.id] ?? 0;
+    if (entries === 0 && counts) {
+      if (c.id === 'memory') entries = (counts.chats ?? 0) + (counts.rules ?? 0);
+      else if (c.id === 'knowledge') entries = (counts.docs ?? 0) + (counts.web ?? 0);
+      else if (c.id === 'chunk') entries = counts.proj ?? 0;
+    }
+    return { ...c, entries };
+  });
   const corpusTotal = corpora.reduce(
     (s, c) => s + (scope.includes(c.id) ? c.entries : 0),
     0
@@ -552,48 +558,54 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
           <h3 className="font-display text-[13px] uppercase tracking-[0.18em] text-text-secondary">Recent recalls</h3>
           <Icon.clock className="size-3.5 text-text-muted" />
         </div>
-        <div
-          ref={recallsRef}
-          style={{
-            height: Math.min(Math.max(recentRecalls.length, 1) * (RECALL_ITEM_HEIGHT + RECALL_GAP), 312),
-            overflow: 'auto',
-            marginTop: '0.75rem',
-          }}
-          className="custom-scrollbar"
-        >
-          <div style={{ height: recallsVL.totalSize, position: 'relative' }}>
-            {recallsVL.virtualItems.map(vItem => {
-              const r = recentRecalls[vItem.index];
-              return (
-                <div
-                  key={String(vItem.key)}
-                  ref={recallsVL.virtualizer.measureElement}
-                  data-index={vItem.index}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    transform: `translateY(${vItem.start}px)`,
-                    width: '100%',
-                    paddingBottom: RECALL_GAP,
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => { setQuery(r.q); recall(r.q); }}
-                    aria-label={`Re-run recall: ${r.q}`}
-                    className="flex w-full items-center justify-between rounded-md border border-border-subtle bg-overlay-subtle px-2.5 py-1.5 text-left hover:border-white/15 hover:bg-overlay-subtle transition"
-                  >
-                    <div className="min-w-0">
-                      <div className="truncate text-[12px] text-text-secondary">{r.q}</div>
-                      <div className="font-mono text-[9px] text-text-muted">{r.n} hits · {r.when} ago</div>
-                    </div>
-                    <Icon.chevR className="size-3 text-text-muted shrink-0" />
-                  </button>
-                </div>
-              );
-            })}
+        {recentRecalls.length === 0 ? (
+          <div className="mt-3 rounded-lg border border-dashed border-border-subtle bg-overlay-subtle p-4 text-center font-mono text-[11px] text-text-muted">
+            No recall queries recorded in this session.
           </div>
-        </div>
+        ) : (
+          <div
+            ref={recallsRef}
+            style={{
+              height: Math.min(Math.max(recentRecalls.length, 1) * (RECALL_ITEM_HEIGHT + RECALL_GAP), 312),
+              overflow: 'auto',
+              marginTop: '0.75rem',
+            }}
+            className="custom-scrollbar"
+          >
+            <div style={{ height: recallsVL.totalSize, position: 'relative' }}>
+              {recallsVL.virtualItems.map(vItem => {
+                const r = recentRecalls[vItem.index];
+                return (
+                  <div
+                    key={String(vItem.key)}
+                    ref={recallsVL.virtualizer.measureElement}
+                    data-index={vItem.index}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      transform: `translateY(${vItem.start}px)`,
+                      width: '100%',
+                      paddingBottom: RECALL_GAP,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => { setQuery(r.q); recall(r.q); }}
+                      aria-label={`Re-run recall: ${r.q}`}
+                      className="flex w-full items-center justify-between rounded-md border border-border-subtle bg-overlay-subtle px-2.5 py-1.5 text-left hover:border-white/15 hover:bg-overlay-subtle transition"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate text-[12px] text-text-secondary">{r.q}</div>
+                        <div className="font-mono text-[9px] text-text-muted">{r.n} hits · {r.when} ago</div>
+                      </div>
+                      <Icon.chevR className="size-3 text-text-muted shrink-0" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </Glass>
 
       {/* Hits */}

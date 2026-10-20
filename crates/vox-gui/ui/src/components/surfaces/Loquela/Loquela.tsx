@@ -27,7 +27,16 @@ import {
   type ProviderStatus,
 } from '../../../lib/modelPicker';
 import { ModelPickerSearch } from '../Chat/ModelPickerSearch';
-import type { ActiveSkill, CatalogEntry, ChatPayload, Toast } from '../../../types/tauri';
+import type {
+  ActiveSkill,
+  CatalogEntry,
+  ChatPayload,
+  ComposerAgentRef,
+  ComposerInteractionMode,
+  KbScopeMode,
+  OversightLevelId,
+  Toast,
+} from '../../../types/tauri';
 import {
   isAppSlashCommand,
   resolveInternalModeSlash,
@@ -86,9 +95,18 @@ interface ChipData {
   meta?: string;
 }
 
+const CHIP_ICON_MAP: Record<ChipData['kind'], React.ComponentType<{ className?: string }>> = {
+  file: Icon.file,
+  skill: Icon.bolt,
+  agent: Icon.users,
+  branch: Icon.branch,
+  url: Icon.link,
+  image: Icon.eye,
+  term: Icon.terminal,
+};
+
 function Chip({ chip, onRemove }: { chip: ChipData; onRemove: (c: ChipData) => void }) {
-  const iconKey = { file: "file", skill: "bolt", agent: "agent", branch: "git", url: "link", image: "image", term: "terminal" }[chip.kind] || "file";
-  const IconCmp = (Icon as any)[iconKey] || Icon.file;
+  const IconCmp = CHIP_ICON_MAP[chip.kind] ?? Icon.file;
   // "file" chips used to render as border-cyan-400/text-cyan-300 — the same
   // stray blue reported against the mind-map's Planning/Active tones (see
   // Pill.tsx, tokens.ts, visualTokens.ts). Recolored to amber, keeping this
@@ -111,21 +129,6 @@ function Chip({ chip, onRemove }: { chip: ChipData; onRemove: (c: ChipData) => v
   );
 }
 
-function MiniSlider({ label, value, setValue, min, max, step, fmt, accent = 'rgb(var(--brass))' }: any) {
-  const pct = ((value - min) / (max - min)) * 100;
-  return (
-    <label className="group flex items-center gap-2 cursor-pointer">
-      <span className="font-display text-[11px] uppercase tracking-[0.13em] text-text-muted">{label}</span>
-      <input type="range" min={min} max={max} step={step} value={value}
-        onChange={e => setValue(parseFloat(e.target.value))}
-        className="vox-range w-24 h-1 appearance-none rounded-full overflow-hidden" 
-        style={{ background: `linear-gradient(to right, ${accent} ${pct}%, rgba(255,255,255,0.08) ${pct}%)` } as any} 
-      />
-      <span className="w-10 font-mono text-[11px] tabular-nums text-text-secondary">{fmt(value)}</span>
-    </label>
-  );
-}
-
 export interface SessionBudgetDisplay {
   spent: number;
   cap: number;
@@ -144,7 +147,7 @@ interface LoquelaProps {
   setActiveSkill: (s: ActiveSkill | null) => void;
   skills: CatalogEntry[];
   toast?: (t: Toast) => void;
-  agents?: any[];
+  agents?: ComposerAgentRef[];
   sessionBudget?: SessionBudgetDisplay;
   /** When true, the slash command was handled and should not be inserted into the composer. */
   onSlashCommand?: (cmd: string, ctx: SlashCommandContext) => boolean | Promise<boolean>;
@@ -213,17 +216,24 @@ export function Loquela({
 }: LoquelaProps) {
   const embedded = useIsEmbeddedSurface();
   const [text, setText] = useState("");
-  const [mode, setMode] = useState("act");
+  const [mode, setMode] = useState<ComposerInteractionMode>("act");
   const [tier, setTier] = useState("auto");
   const [tierQuery, setTierQuery] = useState('');
-  const [oversightLevel, setOversightLevel] = useState<
-    'relaxed' | 'guided' | 'balanced' | 'cautious' | 'strict'
-  >('balanced');
-  const [kbScope, setKbScope] = useState<'auto' | 'verified' | 'off'>('auto');
+  const [oversightLevel, setOversightLevel] = useState<OversightLevelId>('balanced');
+  const [kbScope, setKbScope] = useState<KbScopeMode>('auto');
   const [control, setControl] = useState<ControlState>(defaultControl);
   useEffect(() => {
     publishControlState(control);
   }, [control]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('vox:kb-scope-change', {
+          detail: { kbScope, oversightLevel },
+        }),
+      );
+    }
+  }, [kbScope, oversightLevel]);
   useEffect(() => {
     const onAtlasMention = (ev: Event) => {
       const custom = ev as CustomEvent<{ token?: string }>;
@@ -235,6 +245,31 @@ export function Loquela({
     window.addEventListener('vox:atlas-mention', onAtlasMention);
     return () => window.removeEventListener('vox:atlas-mention', onAtlasMention);
   }, []);
+  useEffect(() => {
+    const onBrowserContext = (ev: Event) => {
+      const custom = ev as CustomEvent<{
+        url?: string;
+        pageId?: string;
+        refCount?: number;
+        summary?: string;
+        token?: string;
+      }>;
+      const detail = custom.detail;
+      if (!detail) return;
+      const chipId = `browser-${detail.pageId ?? 'active'}`;
+      const label = detail.url ?? detail.pageId ?? 'browser-session';
+      const meta =
+        typeof detail.refCount === 'number'
+          ? `${detail.refCount} refs`
+          : 'songhand';
+      setChips((prev) => {
+        const filtered = prev.filter((c) => c.id !== chipId);
+        return [...filtered, { id: chipId, kind: 'url', label, meta }];
+      });
+    };
+    window.addEventListener('vox:browser-context', onBrowserContext);
+    return () => window.removeEventListener('vox:browser-context', onBrowserContext);
+  }, [setChips]);
   useEffect(() => {
     const pinned = selectedModelId ?? (isRoutingTierId(tier) ? null : tier);
     publishModelOverride(pinned);
@@ -285,7 +320,9 @@ export function Loquela({
         userTouchedControlRef.current = true;
         setControl(c => ({ ...c, risk: risk as RiskId }));
       },
-      setMode,
+      setMode: (nextMode: string) => {
+        setMode(nextMode === 'plan' || nextMode === 'verify' ? nextMode : 'act');
+      },
       setDryRun: () => undefined,
       setExecution: (execution: DriveExecution) => {
         setExecutionMode(execution === 'background' ? 'task' : execution === 'plan' ? 'plan' : 'chat');
@@ -690,7 +727,7 @@ export function Loquela({
     // Internal mode slashes (/plan, /verify, …) flip the composer mode.
     const internalMode = resolveInternalModeSlash(cmd);
     if (internalMode) {
-      setMode(internalMode);
+      setMode(internalMode === 'plan' || internalMode === 'verify' ? internalMode : 'act');
       setText('');
       setSlashOpen(false);
       setIntellisenseForceOpen(false);
@@ -710,9 +747,9 @@ export function Loquela({
     setIntellisenseForceOpen(false);
     taRef.current?.focus();
   };
-  const insertAt = (agent: any) => {
+  const insertAt = (agent: ComposerAgentRef) => {
     setText(t => t.replace(/@[^\s]*$/, `@${agent.id} `));
-    setChips(cs => cs.find(c => c.id === "agent-" + agent.id) ? cs : [...cs, { id: "agent-" + agent.id, kind: "agent", label: `${agent.id} · ${agent.codename}`, meta: agent.phase }]);
+    setChips(cs => cs.find(c => c.id === "agent-" + agent.id) ? cs : [...cs, { id: "agent-" + agent.id, kind: "agent", label: `${agent.id} · ${agent.codename ?? agent.id}`, meta: agent.phase }]);
     setAtOpen(false); setIntellisenseForceOpen(false); taRef.current?.focus();
   };
 
@@ -827,7 +864,7 @@ export function Loquela({
       );
     }
 
-    const payload = {
+    const payload: ChatPayload = {
       description: desc,
       priority: effortToPriority(intent.effort),
       active_skill: activeSkill?.id,
@@ -837,13 +874,15 @@ export function Loquela({
       dry_run: false,
       clutch: control.clutch,
       risk: control.risk,
+      oversight_level: oversightLevel,
+      kb_scope: kbScope,
       context: [...chips.map(c => ({ kind: c.kind, ref: c.label })), ...extraContext],
       // Emitted explicitly for BOTH toggle positions: `buildChatTurn` maps it
       // to `execution`, and both go to the same `chat_turn` command. Never
       // derived from the absence of a sentinel -- the old
       // `task_category: 'chat' | undefined` encoding is gone.
       execution_mode: executionMode,
-    };
+    } as ChatPayload & { context: Array<{ kind: string; ref: string }> };
     onSubmit(payload);
     setHistory(h => [text.trim(), ...h].slice(0, COMPOSER_HISTORY_CAP));
     setHistIdx(-1);
@@ -978,7 +1017,7 @@ export function Loquela({
               onFocus={() => setFocused(true)}
               onBlur={() => setTimeout(() => setFocused(false), 120)}
               rows={1}
-              placeholder="Describe a task — e.g. ‘harden cryptographic invariants’. / for commands, @ for agents or files"
+              placeholder="Describe a task — e.g. ‘harden cryptographic invariants’ (/ commands, @ context)"
               className={`min-h-[36px] ${expanded ? "max-h-[360px]" : "max-h-[160px]"} w-full resize-none bg-transparent py-1.5 text-[14px] leading-relaxed text-text-primary placeholder:text-text-muted outline-hidden`}
             />
 
@@ -996,6 +1035,21 @@ export function Loquela({
             />
           </div>
 
+          {agentPaused && currentAgent && !taskInProgress && (
+            <Tooltip content={`Paused agent (${currentAgent.id}) — click to resume`} side="top">
+              <button
+                type="button"
+                data-testid="loquela-agent-paused-banner"
+                onClick={() => onResume?.(currentAgent)}
+                aria-label="Resume"
+                className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-(--color-status-warn)/40 bg-(--color-status-warn)/10 px-2.5 text-(--color-status-warn) transition hover:bg-(--color-status-warn)/18"
+              >
+                <Icon.play className="size-3" />
+                <span className="font-display text-[10px] uppercase tracking-[0.11em]">Resume</span>
+              </button>
+            </Tooltip>
+          )}
+
           {taskInProgress ? (
             <button
               type="button"
@@ -1007,16 +1061,6 @@ export function Loquela({
               <span className="font-display text-[11px] uppercase tracking-[0.13em]">Stop</span>
               <kbd className="rounded-sm border border-current px-1 text-[11px] opacity-75">↵</kbd>
             </button>
-          ) : agentPaused && currentAgent ? (
-            <button
-              type="button"
-              onClick={() => onResume?.(currentAgent)}
-              aria-label="Resume"
-              className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-(--color-status-fail)/45 bg-(--color-status-fail)/12 px-3 text-(--color-status-fail) transition hover:bg-(--color-status-fail)/18"
-            >
-              <Icon.play className="size-3.5" />
-              <span className="font-display text-[11px] uppercase tracking-[0.13em]">Resume</span>
-            </button>
           ) : (
             <Tooltip content="Run prompt (Enter; Shift+Enter for new line)" side="top">
               <button
@@ -1024,7 +1068,7 @@ export function Loquela({
                 onClick={() => void send()}
                 disabled={!canSend}
                 aria-label="Run (Enter)"
-                className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.13em] transition ${canSend ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-sm" : "border-white/5 bg-white/2 text-text-muted cursor-not-allowed"}`}
+                className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 font-display text-[11px] uppercase tracking-[0.13em] transition ${canSend ? "border-brass/40 bg-brass/15 text-brass hover:bg-brass/25 shadow-sm" : "border-border-subtle bg-overlay-subtle text-text-muted cursor-not-allowed"}`}
               >
                 <Icon.send className="size-3.5" />
                 Run
@@ -1038,21 +1082,22 @@ export function Loquela({
           <IntentPanel intent={intent} onChange={(p) => setIntent((i) => ({ ...i, ...p }))} showEffort={executionMode === 'task'} />
         )}
 
-        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-white/5 pt-1.5 text-[11px]">
-          <div className="flex items-center gap-1.5">
+        <div className="loquela-bar mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 border-t border-white/5 pt-1.5 text-[11px]">
+          <div className="flex items-center gap-1">
             <Tooltip content="Attach local file(s) to context" side="top">
-              <button type="button" aria-label="Attach local file(s) to context" onClick={attachContext} className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25 transition">
+              <button type="button" data-loquela-toolbar-item="true" aria-label="Attach local file(s) to context" onClick={attachContext} className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25 transition">
                 <Icon.plus className="size-3.5" aria-hidden="true" />
               </button>
             </Tooltip>
             <Tooltip content="Attach a URL to context" side="top">
-              <button type="button" aria-label="Attach a URL to context" onClick={attachUrl} className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25 transition">
+              <button type="button" data-loquela-toolbar-item="true" aria-label="Attach a URL to context" onClick={attachUrl} className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-primary hover:border-white/25 transition">
                 <Icon.link className="size-3.5" aria-hidden="true" />
               </button>
             </Tooltip>
             <Tooltip content={transcribing ? 'Transcribing…' : recording ? 'Stop recording & transcribe' : 'Voice input — record & transcribe'} side="top">
               <button
                 type="button"
+                data-loquela-toolbar-item="true"
                 aria-label="Voice input"
                 onClick={toggleMic}
                 disabled={transcribing}
@@ -1070,7 +1115,7 @@ export function Loquela({
             </Tooltip>
           </div>
 
-          <span className="h-5 w-px bg-white/10" aria-hidden="true" />
+          <span className="h-4 w-px bg-white/10" aria-hidden="true" />
 
           <DriveConsole
             control={control}
@@ -1088,16 +1133,16 @@ export function Loquela({
               type="button"
               onClick={onOpenTasks}
               title="Open task list"
-              className="flex items-center gap-1 rounded-full border border-brass/25 bg-brass/10 px-2 py-0.5 font-mono text-[11px] text-brass hover:bg-brass/20 focus:outline-hidden focus:ring-1 focus:ring-brass/40"
+              className="inline-flex h-7 items-center gap-1 rounded-full border border-brass/25 bg-brass/10 px-2 font-mono text-[11px] text-brass hover:bg-brass/20 focus:outline-hidden focus:ring-1 focus:ring-brass/40"
             >
               {queueDepth} queued
             </button>
           )}
 
           <Tooltip content="Structured task intent and goal declaration" side="top">
-            <button type="button" aria-label="Structured intent" aria-expanded={intentOpen}
+            <button type="button" data-loquela-toolbar-item="true" aria-label="Structured intent" aria-expanded={intentOpen}
               onClick={() => setIntentOpen((o) => !o)}
-              className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 transition ${
+              className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 transition ${
                 hasIntent(intent) || intentOpen
                   ? 'border-brass/40 bg-brass/10 text-brass'
                   : 'border-border-subtle bg-overlay-subtle text-text-secondary hover:border-white/20'
@@ -1108,7 +1153,7 @@ export function Loquela({
 
           <div className="relative flex items-center gap-1.5" ref={tierRootRef}>
             <Tooltip content="Select which model tier to run on" side="top">
-              <button type="button" aria-expanded={tierOpen} aria-label="Choose model tier" onClick={() => { setTierOpen(o => !o); setSkillOpen(false); setModeOpen(false); if (!tierOpen) setTierQuery(''); }} className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary hover:border-white/20">
+              <button type="button" data-loquela-toolbar-item="true" aria-expanded={tierOpen} aria-label="Choose model tier" onClick={() => { setTierOpen(o => !o); setSkillOpen(false); setModeOpen(false); if (!tierOpen) setTierQuery(''); }} className="inline-flex h-7 items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 text-text-secondary hover:border-white/20">
                 <Icon.cpu className="size-3 text-(--color-status-info)" /><span className="text-text-muted">Run on</span> <span className="text-text-primary">{triggerLabel}</span>
                 <Icon.chevR className="size-2.5 text-text-muted rotate-90" />
               </button>
@@ -1158,7 +1203,7 @@ export function Loquela({
 
           <div className="relative">
             <Tooltip content="Select specialized agent skill or auto" side="top">
-              <button type="button" aria-expanded={skillOpen} aria-label="Choose skill" onClick={() => { setSkillOpen(o => !o); setTierOpen(false); setModeOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-brass/25 bg-brass/6 px-2 py-1 text-brass hover:bg-brass/12">
+              <button type="button" data-loquela-toolbar-item="true" aria-expanded={skillOpen} aria-label="Choose skill" onClick={() => { setSkillOpen(o => !o); setTierOpen(false); setModeOpen(false); }} className="inline-flex h-7 items-center gap-1 rounded-md border border-brass/25 bg-brass/6 px-2 text-brass hover:bg-brass/12">
                 <Icon.bolt className="size-3" /><span className="text-brass">Skill</span> <span>{activeSkill ? (activeSkill.name ?? activeSkill.command ?? activeSkill.id) : "auto"}</span>
                 <Icon.chevR className="size-2.5 text-brass rotate-90" />
               </button>
@@ -1179,7 +1224,7 @@ export function Loquela({
 
           <div className="relative">
             <Tooltip content="Choose send mode (Plan, Act, Verify, etc.)" side="top">
-              <button type="button" aria-expanded={modeOpen} aria-label="Choose send mode" onClick={() => { setModeOpen(o => !o); setTierOpen(false); setSkillOpen(false); }} className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary hover:border-white/20">
+              <button type="button" data-loquela-toolbar-item="true" aria-expanded={modeOpen} aria-label="Choose send mode" onClick={() => { setModeOpen(o => !o); setTierOpen(false); setSkillOpen(false); }} className="inline-flex h-7 items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 text-text-secondary hover:border-white/20">
                 <Icon.bolt className="size-3" /><span>{SEND_MODES.find(m => m.id === executionMode)?.label}</span>
                 <Icon.chevR className="size-2.5 text-text-muted rotate-90" />
               </button>
@@ -1199,52 +1244,64 @@ export function Loquela({
           {executionMode === 'task' && (
             <span
               aria-label="Interaction mode"
-              className="inline-flex items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-secondary"
+              className="inline-flex h-7 items-center gap-1 rounded-md border border-border-subtle bg-overlay-subtle px-2 text-text-secondary"
             >
               {mode === 'verify' ? 'Verify' : 'Act'}
             </span>
           )}
 
-          {/* Phase 18: Unified Oversight 1..5 Composer Control */}
-          <select
-            aria-label="Oversight level"
-            data-testid="loquela-oversight-select"
-            value={oversightLevel}
-            onChange={(e) => {
-              const next = e.target.value as
-                | 'relaxed'
-                | 'guided'
-                | 'balanced'
-                | 'cautious'
-                | 'strict';
-              setOversightLevel(next);
-              invoke('invoke_mcp_tool', {
-                tool: 'orch.oversight_set',
-                args: { level: next },
-                permissionMode: null,
-              }).catch(() => {});
-            }}
-            className="rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] text-text-secondary hover:border-white/20"
-          >
-            <option value="relaxed">Oversight 1: Relaxed</option>
-            <option value="guided">Oversight 2: Guided</option>
-            <option value="balanced">Oversight 3: Balanced</option>
-            <option value="cautious">Oversight 4: Cautious</option>
-            <option value="strict">Oversight 5: Strict</option>
-          </select>
+          {/* Phase 18: Unified Oversight 1..5 Composer Control (VS Code-grade custom pill wrapper) */}
+          <div className="relative inline-flex items-center">
+            <select
+              aria-label="Oversight level"
+              data-testid="loquela-oversight-select"
+              data-unified-knob="true"
+              data-loquela-toolbar-item="true"
+              value={oversightLevel}
+              onChange={(e) => {
+                const next = e.target.value as OversightLevelId;
+                setOversightLevel(next);
+                invoke('invoke_mcp_tool', {
+                  tool: 'orch.oversight_set',
+                  args: { level: next },
+                  permissionMode: null,
+                }).catch((err) => {
+                  toast?.({
+                    tone: 'warn',
+                    title: 'Oversight sync deferred',
+                    body: sanitizeErrorForToast(err),
+                    cause: 'backend-error',
+                  });
+                });
+              }}
+              className="h-7 cursor-pointer appearance-none rounded-md border border-border-subtle bg-overlay-subtle pl-2 pr-5 font-mono text-[11px] text-text-secondary transition hover:border-white/20 hover:text-text-primary focus:outline-hidden focus:ring-1 focus:ring-brass/40"
+            >
+              <option value="relaxed">Ovs 1: Relaxed</option>
+              <option value="guided">Ovs 2: Guided</option>
+              <option value="balanced">Ovs 3: Balanced</option>
+              <option value="cautious">Ovs 4: Cautious</option>
+              <option value="strict">Ovs 5: Strict</option>
+            </select>
+            <Icon.chevR className="pointer-events-none absolute right-1.5 size-2.5 rotate-90 text-text-muted" aria-hidden="true" />
+          </div>
 
-          {/* Phase 44: @kb Context Scope Control */}
-          <select
-            aria-label="KB context scope"
-            data-testid="loquela-kb-scope-select"
-            value={kbScope}
-            onChange={(e) => setKbScope(e.target.value as 'auto' | 'verified' | 'off')}
-            className="rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] text-text-secondary hover:border-white/20"
-          >
-            <option value="auto">@kb:auto</option>
-            <option value="verified">@kb:verified</option>
-            <option value="off">@kb:off</option>
-          </select>
+          {/* Phase 44: @kb Context Scope Control (VS Code-grade custom pill wrapper) */}
+          <div className="relative inline-flex items-center">
+            <select
+              aria-label="KB context scope"
+              data-testid="loquela-kb-scope-select"
+              data-unified-knob="true"
+              data-loquela-toolbar-item="true"
+              value={kbScope}
+              onChange={(e) => setKbScope(e.target.value as KbScopeMode)}
+              className="h-7 cursor-pointer appearance-none rounded-md border border-border-subtle bg-overlay-subtle pl-2 pr-5 font-mono text-[11px] text-text-secondary transition hover:border-white/20 hover:text-text-primary focus:outline-hidden focus:ring-1 focus:ring-brass/40"
+            >
+              <option value="auto">@kb:auto</option>
+              <option value="verified">@kb:verified</option>
+              <option value="off">@kb:off</option>
+            </select>
+            <Icon.chevR className="pointer-events-none absolute right-1.5 size-2.5 rotate-90 text-text-muted" aria-hidden="true" />
+          </div>
 
           {Math.max(tokens, contextTokens) > 24_000 && (
             <button
@@ -1252,7 +1309,7 @@ export function Loquela({
               data-testid="loquela-compact-context-chip"
               onClick={() => void onSlashCommand?.('/compact', { setText })}
               title="Summarize and compact context window to save ~60–80% tokens on subsequent turns"
-              className="inline-flex items-center gap-1 rounded-full border border-(--color-status-pass)/35 bg-(--color-status-pass)/10 px-2 py-0.5 font-mono text-[11px] text-(--color-status-pass) hover:bg-(--color-status-pass)/20"
+              className="inline-flex h-7 items-center gap-1 rounded-full border border-(--color-status-pass)/35 bg-(--color-status-pass)/10 px-2 font-mono text-[11px] text-(--color-status-pass) hover:bg-(--color-status-pass)/20"
             >
               Compact Context (~{Math.round(Math.max(tokens, contextTokens) / 1000)}k tok)
             </button>

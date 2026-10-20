@@ -21,6 +21,7 @@ export function WaveformTierStrip({
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2">
         <div className="flex items-center gap-2">
           <div
+            role="img"
             aria-label="Token throughput waveform"
             className="flex h-6 items-end gap-[2px] rounded bg-black/60 px-1.5 py-1 border border-white/5"
           >

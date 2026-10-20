@@ -1,0 +1,2767 @@
+{
+  "ssotVersion": "2026.10.19-v3.5",
+  "ssotSha256": "d2432a2df998b5e9ccb30f4b5ae9d9b637e08d5bb6788ac0b89e5f2aeaf03fca",
+  "surfaceCount": 32,
+  "evaluatedAt": "2026-10-20T04:45:57.710Z",
+  "beforeSurfaces": {
+    "activity": {
+      "surfaceId": "activity",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/activity.png",
+      "pixelSignals": {
+        "edgeSharpness": 88.8,
+        "luminanceContrast": 13.7,
+        "noiseFloor": 4.8,
+        "meanLuminance": 0.0672
+      },
+      "domAudit": {
+        "surfaceId": "activity",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.745,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9052
+    },
+    "browser": {
+      "surfaceId": "browser",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/browser.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 29.4,
+        "noiseFloor": 5.8,
+        "meanLuminance": 0.1005
+      },
+      "domAudit": {
+        "surfaceId": "browser",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.82,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.924
+    },
+    "chat": {
+      "surfaceId": "chat",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/chat.png",
+      "pixelSignals": {
+        "edgeSharpness": 92.8,
+        "luminanceContrast": 13,
+        "noiseFloor": 5.6,
+        "meanLuminance": 0.0769
+      },
+      "domAudit": {
+        "surfaceId": "chat",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 4,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 8,
+        "rawEmojiCount": 2,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [
+          "terminal",
+          "urbs"
+        ],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7573,
+        "promptAdherence": 0.72,
+        "anatomicalAccuracy": 0.78,
+        "compositionQuality": 0.6,
+        "styleConsistency": 0.53
+      },
+      "weightedRubricScore": 0.7043
+    },
+    "coderabbit": {
+      "surfaceId": "coderabbit",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/coderabbit.png",
+      "pixelSignals": {
+        "edgeSharpness": 83.4,
+        "luminanceContrast": 15.5,
+        "noiseFloor": 4.8,
+        "meanLuminance": 0.0661
+      },
+      "domAudit": {
+        "surfaceId": "coderabbit",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 5,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7306,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.7
+      },
+      "weightedRubricScore": 0.8766
+    },
+    "console": {
+      "surfaceId": "console",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/console.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 14.1,
+        "noiseFloor": 6.9,
+        "meanLuminance": 0.0664
+      },
+      "domAudit": {
+        "surfaceId": "console",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7817,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9144
+    },
+    "dashboard": {
+      "surfaceId": "dashboard",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/dashboard.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 18.5,
+        "noiseFloor": 7.6,
+        "meanLuminance": 0.0746
+      },
+      "domAudit": {
+        "surfaceId": "dashboard",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 1,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7927,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.88,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9012
+    },
+    "flow": {
+      "surfaceId": "flow",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/flow.png",
+      "pixelSignals": {
+        "edgeSharpness": 94.9,
+        "luminanceContrast": 15.2,
+        "noiseFloor": 4.8,
+        "meanLuminance": 0.0912
+      },
+      "domAudit": {
+        "surfaceId": "flow",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7702,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9115
+    },
+    "harness": {
+      "surfaceId": "harness",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/harness.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 33.7,
+        "noiseFloor": 16.6,
+        "meanLuminance": 0.0705
+      },
+      "domAudit": {
+        "surfaceId": "harness",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8307,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.9224
+      },
+      "weightedRubricScore": 0.9239
+    },
+    "mercatus": {
+      "surfaceId": "mercatus",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/mercatus.png",
+      "pixelSignals": {
+        "edgeSharpness": 63.7,
+        "luminanceContrast": 12,
+        "noiseFloor": 4.8,
+        "meanLuminance": 0.062
+      },
+      "domAudit": {
+        "surfaceId": "mercatus",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.32,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.653,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.84,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.8642
+    },
+    "mesh": {
+      "surfaceId": "mesh",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/mesh.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 13.6,
+        "noiseFloor": 5.4,
+        "meanLuminance": 0.0783
+      },
+      "domAudit": {
+        "surfaceId": "mesh",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7805,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9141
+    },
+    "needs-you": {
+      "surfaceId": "needs-you",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/needs-you.png",
+      "pixelSignals": {
+        "edgeSharpness": 83.4,
+        "luminanceContrast": 12,
+        "noiseFloor": 5.1,
+        "meanLuminance": 0.0656
+      },
+      "domAudit": {
+        "surfaceId": "needs-you",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7219,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.8995
+    },
+    "policies": {
+      "surfaceId": "policies",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/policies.png",
+      "pixelSignals": {
+        "edgeSharpness": 91.7,
+        "luminanceContrast": 12.2,
+        "noiseFloor": 5,
+        "meanLuminance": 0.0828
+      },
+      "domAudit": {
+        "surfaceId": "policies",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7514,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9069
+    },
+    "publications": {
+      "surfaceId": "publications",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/publications.png",
+      "pixelSignals": {
+        "edgeSharpness": 88.6,
+        "luminanceContrast": 12.6,
+        "noiseFloor": 4.8,
+        "meanLuminance": 0.0666
+      },
+      "domAudit": {
+        "surfaceId": "publications",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 140,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.3916,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.61,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.7644
+    },
+    "runs": {
+      "surfaceId": "runs",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/runs.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 15.3,
+        "noiseFloor": 6.3,
+        "meanLuminance": 0.0731
+      },
+      "domAudit": {
+        "surfaceId": "runs",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.38,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7847,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.84,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.8972
+    },
+    "sub-agents": {
+      "surfaceId": "sub-agents",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/sub-agents.png",
+      "pixelSignals": {
+        "edgeSharpness": 67.4,
+        "luminanceContrast": 12,
+        "noiseFloor": 4.7,
+        "meanLuminance": 0.0624
+      },
+      "domAudit": {
+        "surfaceId": "sub-agents",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.34,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.6659,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.84,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.8675
+    },
+    "tasks": {
+      "surfaceId": "tasks",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/tasks.png",
+      "pixelSignals": {
+        "edgeSharpness": 79.6,
+        "luminanceContrast": 12,
+        "noiseFloor": 4.8,
+        "meanLuminance": 0.066
+      },
+      "domAudit": {
+        "surfaceId": "tasks",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7086,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.8961
+    },
+    "harness-health": {
+      "surfaceId": "harness-health",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/harness-health.png",
+      "pixelSignals": {
+        "edgeSharpness": 68.3,
+        "luminanceContrast": 12,
+        "noiseFloor": 4.7,
+        "meanLuminance": 0.0624
+      },
+      "domAudit": {
+        "surfaceId": "harness-health",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.6691,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.8863
+    },
+    "catalog": {
+      "surfaceId": "catalog",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/catalog.png",
+      "pixelSignals": {
+        "edgeSharpness": 87.2,
+        "luminanceContrast": 12.8,
+        "noiseFloor": 5,
+        "meanLuminance": 0.0665
+      },
+      "domAudit": {
+        "surfaceId": "catalog",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7372,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9033
+    },
+    "settings": {
+      "surfaceId": "settings",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/settings.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 19,
+        "noiseFloor": 6.3,
+        "meanLuminance": 0.0961
+      },
+      "domAudit": {
+        "surfaceId": "settings",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 1,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.794,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.87,
+        "styleConsistency": 0.86
+      },
+      "weightedRubricScore": 0.895
+    },
+    "vox-search": {
+      "surfaceId": "vox-search",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/vox-search.png",
+      "pixelSignals": {
+        "edgeSharpness": 70.5,
+        "luminanceContrast": 12,
+        "noiseFloor": 4.8,
+        "meanLuminance": 0.0627
+      },
+      "domAudit": {
+        "surfaceId": "vox-search",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.35,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.6767,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.84,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.8702
+    },
+    "explorer": {
+      "surfaceId": "explorer",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/explorer-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 31.7,
+        "noiseFloor": 7.4,
+        "meanLuminance": 0.0958
+      },
+      "domAudit": {
+        "surfaceId": "explorer",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8257,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9254
+    },
+    "gamify": {
+      "surfaceId": "gamify",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/gamify.png",
+      "pixelSignals": {
+        "edgeSharpness": 94.6,
+        "luminanceContrast": 17.1,
+        "noiseFloor": 5.2,
+        "meanLuminance": 0.0656
+      },
+      "domAudit": {
+        "surfaceId": "gamify",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 2,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7738,
+        "promptAdherence": 0.85,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.8794
+    },
+    "memory": {
+      "surfaceId": "memory",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/memory.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 16.6,
+        "noiseFloor": 5.4,
+        "meanLuminance": 0.0901
+      },
+      "domAudit": {
+        "surfaceId": "memory",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.788,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.916
+    },
+    "mens": {
+      "surfaceId": "mens",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/mens.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 14.3,
+        "noiseFloor": 5.6,
+        "meanLuminance": 0.0758
+      },
+      "domAudit": {
+        "surfaceId": "mens",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7822,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9145
+    },
+    "models": {
+      "surfaceId": "models",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/models.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 16.9,
+        "noiseFloor": 5.9,
+        "meanLuminance": 0.0856
+      },
+      "domAudit": {
+        "surfaceId": "models",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 2,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7887,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.78,
+        "styleConsistency": 0.77
+      },
+      "weightedRubricScore": 0.8712
+    },
+    "populi": {
+      "surfaceId": "populi",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/populi.png",
+      "pixelSignals": {
+        "edgeSharpness": 86.6,
+        "luminanceContrast": 12,
+        "noiseFloor": 4.9,
+        "meanLuminance": 0.0666
+      },
+      "domAudit": {
+        "surfaceId": "populi",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7331,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9023
+    },
+    "repository": {
+      "surfaceId": "repository",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/repository.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 14.9,
+        "noiseFloor": 5.2,
+        "meanLuminance": 0.0754
+      },
+      "domAudit": {
+        "surfaceId": "repository",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7837,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9149
+    },
+    "research": {
+      "surfaceId": "research",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/research.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 13.5,
+        "noiseFloor": 6.3,
+        "meanLuminance": 0.0717
+      },
+      "domAudit": {
+        "surfaceId": "research",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7802,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.914
+    },
+    "scientia": {
+      "surfaceId": "scientia",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/scientia.png",
+      "pixelSignals": {
+        "edgeSharpness": 92,
+        "luminanceContrast": 14.2,
+        "noiseFloor": 4.9,
+        "meanLuminance": 0.0734
+      },
+      "domAudit": {
+        "surfaceId": "scientia",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7575,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9084
+    },
+    "approvals": {
+      "surfaceId": "approvals",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/approvals.png",
+      "pixelSignals": {
+        "edgeSharpness": 79.4,
+        "luminanceContrast": 12,
+        "noiseFloor": 4.8,
+        "meanLuminance": 0.0648
+      },
+      "domAudit": {
+        "surfaceId": "approvals",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7079,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.896
+    },
+    "skills": {
+      "surfaceId": "skills",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/skills.png",
+      "pixelSignals": {
+        "edgeSharpness": 84.8,
+        "luminanceContrast": 12.4,
+        "noiseFloor": 4.9,
+        "meanLuminance": 0.071
+      },
+      "domAudit": {
+        "surfaceId": "skills",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7278,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.901
+    },
+    "oratio": {
+      "surfaceId": "oratio",
+      "stage": "before",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/e2e/screens/oratio.png",
+      "pixelSignals": {
+        "edgeSharpness": 87.2,
+        "luminanceContrast": 12,
+        "noiseFloor": 4.9,
+        "meanLuminance": 0.0668
+      },
+      "domAudit": {
+        "surfaceId": "oratio",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7352,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9028
+    }
+  },
+  "afterSurfaces": {
+    "activity": {
+      "surfaceId": "activity",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/activity-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 17.9,
+        "noiseFloor": 4.9,
+        "meanLuminance": 0.0767
+      },
+      "domAudit": {
+        "surfaceId": "activity",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7912,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9168
+    },
+    "browser": {
+      "surfaceId": "browser",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/browser-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 18.1,
+        "noiseFloor": 5,
+        "meanLuminance": 0.0759
+      },
+      "domAudit": {
+        "surfaceId": "browser",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7917,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9169
+    },
+    "chat": {
+      "surfaceId": "chat",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/chat-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 20.4,
+        "noiseFloor": 6.3,
+        "meanLuminance": 0.0983
+      },
+      "domAudit": {
+        "surfaceId": "chat",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7975,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9184
+    },
+    "coderabbit": {
+      "surfaceId": "coderabbit",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/coderabbit-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 16.3,
+        "noiseFloor": 4.9,
+        "meanLuminance": 0.0713
+      },
+      "domAudit": {
+        "surfaceId": "coderabbit",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7872,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9158
+    },
+    "console": {
+      "surfaceId": "console",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/console-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 17.8,
+        "noiseFloor": 7.4,
+        "meanLuminance": 0.0698
+      },
+      "domAudit": {
+        "surfaceId": "console",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.791,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9168
+    },
+    "dashboard": {
+      "surfaceId": "dashboard",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/dashboard-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 19.9,
+        "noiseFloor": 7.8,
+        "meanLuminance": 0.0758
+      },
+      "domAudit": {
+        "surfaceId": "dashboard",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7962,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.918
+    },
+    "flow": {
+      "surfaceId": "flow",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/flow-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 16.4,
+        "noiseFloor": 5.5,
+        "meanLuminance": 0.0935
+      },
+      "domAudit": {
+        "surfaceId": "flow",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7875,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9159
+    },
+    "harness": {
+      "surfaceId": "harness",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/harness-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 34.3,
+        "noiseFloor": 18.5,
+        "meanLuminance": 0.0714
+      },
+      "domAudit": {
+        "surfaceId": "harness",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8322,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.911
+      },
+      "weightedRubricScore": 0.9232
+    },
+    "mercatus": {
+      "surfaceId": "mercatus",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/mercatus-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 15.4,
+        "noiseFloor": 5.5,
+        "meanLuminance": 0.0747
+      },
+      "domAudit": {
+        "surfaceId": "mercatus",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.785,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9153
+    },
+    "mesh": {
+      "surfaceId": "mesh",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/mesh-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 13.6,
+        "noiseFloor": 5.4,
+        "meanLuminance": 0.0783
+      },
+      "domAudit": {
+        "surfaceId": "mesh",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7805,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9141
+    },
+    "needs-you": {
+      "surfaceId": "needs-you",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/needs-you-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 19.1,
+        "noiseFloor": 7,
+        "meanLuminance": 0.0837
+      },
+      "domAudit": {
+        "surfaceId": "needs-you",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7942,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9175
+    },
+    "policies": {
+      "surfaceId": "policies",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/policies-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 13.3,
+        "noiseFloor": 5.1,
+        "meanLuminance": 0.0834
+      },
+      "domAudit": {
+        "surfaceId": "policies",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7797,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9139
+    },
+    "publications": {
+      "surfaceId": "publications",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/publications-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 16.2,
+        "noiseFloor": 5,
+        "meanLuminance": 0.0723
+      },
+      "domAudit": {
+        "surfaceId": "publications",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.787,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9157
+    },
+    "runs": {
+      "surfaceId": "runs",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/runs-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 15.3,
+        "noiseFloor": 6.3,
+        "meanLuminance": 0.0698
+      },
+      "domAudit": {
+        "surfaceId": "runs",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7847,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9152
+    },
+    "sub-agents": {
+      "surfaceId": "sub-agents",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/sub-agents-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 95.8,
+        "luminanceContrast": 13.6,
+        "noiseFloor": 4.9,
+        "meanLuminance": 0.08
+      },
+      "domAudit": {
+        "surfaceId": "sub-agents",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7693,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9113
+    },
+    "tasks": {
+      "surfaceId": "tasks",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/tasks-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 24.1,
+        "noiseFloor": 7.2,
+        "meanLuminance": 0.0829
+      },
+      "domAudit": {
+        "surfaceId": "tasks",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8067,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9207
+    },
+    "harness-health": {
+      "surfaceId": "harness-health",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/harness-health-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 18.4,
+        "noiseFloor": 6.4,
+        "meanLuminance": 0.0768
+      },
+      "domAudit": {
+        "surfaceId": "harness-health",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7925,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9171
+    },
+    "catalog": {
+      "surfaceId": "catalog",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/catalog-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 15.3,
+        "noiseFloor": 5.1,
+        "meanLuminance": 0.0711
+      },
+      "domAudit": {
+        "surfaceId": "catalog",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7847,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9152
+    },
+    "settings": {
+      "surfaceId": "settings",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/settings-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 19,
+        "noiseFloor": 6.4,
+        "meanLuminance": 0.0962
+      },
+      "domAudit": {
+        "surfaceId": "settings",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.794,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9175
+    },
+    "vox-search": {
+      "surfaceId": "vox-search",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/vox-search-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 21.2,
+        "noiseFloor": 5.7,
+        "meanLuminance": 0.0772
+      },
+      "domAudit": {
+        "surfaceId": "vox-search",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7995,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9189
+    },
+    "explorer": {
+      "surfaceId": "explorer",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/explorer-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 31.7,
+        "noiseFloor": 7.4,
+        "meanLuminance": 0.0958
+      },
+      "domAudit": {
+        "surfaceId": "explorer",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.8257,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9254
+    },
+    "gamify": {
+      "surfaceId": "gamify",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/gamify-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 19.9,
+        "noiseFloor": 6.3,
+        "meanLuminance": 0.0708
+      },
+      "domAudit": {
+        "surfaceId": "gamify",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7962,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.918
+    },
+    "memory": {
+      "surfaceId": "memory",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/memory-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 17.2,
+        "noiseFloor": 5.5,
+        "meanLuminance": 0.0909
+      },
+      "domAudit": {
+        "surfaceId": "memory",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7895,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9164
+    },
+    "mens": {
+      "surfaceId": "mens",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/mens-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 17.9,
+        "noiseFloor": 6.2,
+        "meanLuminance": 0.0813
+      },
+      "domAudit": {
+        "surfaceId": "mens",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7912,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9168
+    },
+    "models": {
+      "surfaceId": "models",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/models-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 18.9,
+        "noiseFloor": 5.7,
+        "meanLuminance": 0.0875
+      },
+      "domAudit": {
+        "surfaceId": "models",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7937,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9174
+    },
+    "populi": {
+      "surfaceId": "populi",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/populi-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 15.8,
+        "noiseFloor": 5,
+        "meanLuminance": 0.0723
+      },
+      "domAudit": {
+        "surfaceId": "populi",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.786,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9155
+    },
+    "repository": {
+      "surfaceId": "repository",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/repository-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 14.8,
+        "noiseFloor": 5,
+        "meanLuminance": 0.0753
+      },
+      "domAudit": {
+        "surfaceId": "repository",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7835,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9149
+    },
+    "research": {
+      "surfaceId": "research",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/research-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 14.4,
+        "noiseFloor": 5.7,
+        "meanLuminance": 0.0732
+      },
+      "domAudit": {
+        "surfaceId": "research",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7825,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9146
+    },
+    "scientia": {
+      "surfaceId": "scientia",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/scientia-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 15.6,
+        "noiseFloor": 5.4,
+        "meanLuminance": 0.0885
+      },
+      "domAudit": {
+        "surfaceId": "scientia",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7855,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9154
+    },
+    "approvals": {
+      "surfaceId": "approvals",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/approvals-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 96.1,
+        "luminanceContrast": 15.1,
+        "noiseFloor": 5.1,
+        "meanLuminance": 0.0694
+      },
+      "domAudit": {
+        "surfaceId": "approvals",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7741,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9125
+    },
+    "skills": {
+      "surfaceId": "skills",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/skills-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 18.2,
+        "noiseFloor": 5.6,
+        "meanLuminance": 0.1025
+      },
+      "domAudit": {
+        "surfaceId": "skills",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.792,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.917
+    },
+    "oratio": {
+      "surfaceId": "oratio",
+      "stage": "after",
+      "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/oratio-after.png",
+      "pixelSignals": {
+        "edgeSharpness": 99,
+        "luminanceContrast": 16.1,
+        "noiseFloor": 5,
+        "meanLuminance": 0.0725
+      },
+      "domAudit": {
+        "surfaceId": "oratio",
+        "outerOverflowPx": 0,
+        "scrollHostOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "lightThemeContrastLeakCount": 0,
+        "iconIssueCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.826,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.7867,
+        "promptAdherence": 0.96,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.96,
+        "styleConsistency": 0.95
+      },
+      "weightedRubricScore": 0.9157
+    }
+  },
+  "verdicts": {
+    "activity": {
+      "surfaceId": "activity",
+      "passNumber": 1,
+      "visualBeforeScore": 0.9052,
+      "visualAfterScore": 0.9168,
+      "visualDelta": 0.0116,
+      "edgeSharpnessDeltaPct": 11.5,
+      "contrastDeltaPct": 30.7,
+      "noiseReductionPct": -2.1,
+      "estimatedPsnrDb": 38.08,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "browser": {
+      "surfaceId": "browser",
+      "passNumber": 1,
+      "visualBeforeScore": 0.924,
+      "visualAfterScore": 0.9169,
+      "visualDelta": -0.0071,
+      "edgeSharpnessDeltaPct": 0,
+      "contrastDeltaPct": -38.4,
+      "noiseReductionPct": 13.8,
+      "estimatedPsnrDb": 39.19,
+      "flywheelConverged": false,
+      "promoteToGoldenBaseline": false,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "chat": {
+      "surfaceId": "chat",
+      "passNumber": 1,
+      "visualBeforeScore": 0.7043,
+      "visualAfterScore": 0.9184,
+      "visualDelta": 0.2141,
+      "edgeSharpnessDeltaPct": 6.7,
+      "contrastDeltaPct": 56.9,
+      "noiseReductionPct": -12.5,
+      "estimatedPsnrDb": 38.1,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "coderabbit": {
+      "surfaceId": "coderabbit",
+      "passNumber": 1,
+      "visualBeforeScore": 0.8766,
+      "visualAfterScore": 0.9158,
+      "visualDelta": 0.0392,
+      "edgeSharpnessDeltaPct": 18.7,
+      "contrastDeltaPct": 5.2,
+      "noiseReductionPct": -2.1,
+      "estimatedPsnrDb": 38.07,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "console": {
+      "surfaceId": "console",
+      "passNumber": 1,
+      "visualBeforeScore": 0.9144,
+      "visualAfterScore": 0.9168,
+      "visualDelta": 0.0024,
+      "edgeSharpnessDeltaPct": 0,
+      "contrastDeltaPct": 26.2,
+      "noiseReductionPct": -7.2,
+      "estimatedPsnrDb": 38.08,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "dashboard": {
+      "surfaceId": "dashboard",
+      "passNumber": 1,
+      "visualBeforeScore": 0.9012,
+      "visualAfterScore": 0.918,
+      "visualDelta": 0.0168,
+      "edgeSharpnessDeltaPct": 0,
+      "contrastDeltaPct": 7.6,
+      "noiseReductionPct": -2.6,
+      "estimatedPsnrDb": 38.1,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "flow": {
+      "surfaceId": "flow",
+      "passNumber": 1,
+      "visualBeforeScore": 0.9115,
+      "visualAfterScore": 0.9159,
+      "visualDelta": 0.0044,
+      "edgeSharpnessDeltaPct": 4.3,
+      "contrastDeltaPct": 7.9,
+      "noiseReductionPct": -14.6,
+      "estimatedPsnrDb": 38.07,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "harness": {
+      "surfaceId": "harness",
+      "passNumber": 1,
+      "visualBeforeScore": 0.9239,
+      "visualAfterScore": 0.9232,
+      "visualDelta": -0.0007,
+      "edgeSharpnessDeltaPct": 0,
+      "contrastDeltaPct": 1.8,
+      "noiseReductionPct": -11.4,
+      "estimatedPsnrDb": 38.16,
+      "flywheelConverged": false,
+      "promoteToGoldenBaseline": false,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "mercatus": {
+      "surfaceId": "mercatus",
+      "passNumber": 1,
+      "visualBeforeScore": 0.8642,
+      "visualAfterScore": 0.9153,
+      "visualDelta": 0.0511,
+      "edgeSharpnessDeltaPct": 55.4,
+      "contrastDeltaPct": 28.3,
+      "noiseReductionPct": -14.6,
+      "estimatedPsnrDb": 38.07,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "mesh": {
+      "surfaceId": "mesh",
+      "passNumber": 1,
+      "visualBeforeScore": 0.9141,
+      "visualAfterScore": 0.9141,
+      "visualDelta": 0,
+      "edgeSharpnessDeltaPct": 0,
+      "contrastDeltaPct": 0,
+      "noiseReductionPct": 0,
+      "estimatedPsnrDb": 38.06,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "needs-you": {
+      "surfaceId": "needs-you",
+      "passNumber": 1,
+      "visualBeforeScore": 0.8995,
+      "visualAfterScore": 0.9175,
+      "visualDelta": 0.018,
+      "edgeSharpnessDeltaPct": 18.7,
+      "contrastDeltaPct": 59.2,
+      "noiseReductionPct": -37.3,
+      "estimatedPsnrDb": 38.09,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "policies": {
+      "surfaceId": "policies",
+      "passNumber": 1,
+      "visualBeforeScore": 0.9069,
+      "visualAfterScore": 0.9139,
+      "visualDelta": 0.007,
+      "edgeSharpnessDeltaPct": 8,
+      "contrastDeltaPct": 9,
+      "noiseReductionPct": -2,
+      "estimatedPsnrDb": 38.05,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "publications": {
+      "surfaceId": "publications",
+      "passNumber": 1,
+      "visualBeforeScore": 0.7644,
+      "visualAfterScore": 0.9157,
+      "visualDelta": 0.1513,
+      "edgeSharpnessDeltaPct": 11.7,
+      "contrastDeltaPct": 28.6,
+      "noiseReductionPct": -4.2,
+      "estimatedPsnrDb": 38.07,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "runs": {
+      "surfaceId": "runs",
+      "passNumber": 1,
+      "visualBeforeScore": 0.8972,
+      "visualAfterScore": 0.9152,
+      "visualDelta": 0.018,
+      "edgeSharpnessDeltaPct": 0,
+      "contrastDeltaPct": 0,
+      "noiseReductionPct": 0,
+      "estimatedPsnrDb": 38.07,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "sub-agents": {
+      "surfaceId": "sub-agents",
+      "passNumber": 1,
+      "visualBeforeScore": 0.8675,
+      "visualAfterScore": 0.9113,
+      "visualDelta": 0.0438,
+      "edgeSharpnessDeltaPct": 42.1,
+      "contrastDeltaPct": 13.3,
+      "noiseReductionPct": -4.3,
+      "estimatedPsnrDb": 38.02,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "tasks": {
+      "surfaceId": "tasks",
+      "passNumber": 1,
+      "visualBeforeScore": 0.8961,
+      "visualAfterScore": 0.9207,
+      "visualDelta": 0.0246,
+      "edgeSharpnessDeltaPct": 24.4,
+      "contrastDeltaPct": 100.8,
+      "noiseReductionPct": -50,
+      "estimatedPsnrDb": 38.13,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "harness-health": {
+      "surfaceId": "harness-health",
+      "passNumber": 1,
+      "visualBeforeScore": 0.8863,
+      "visualAfterScore": 0.9171,
+      "visualDelta": 0.0308,
+      "edgeSharpnessDeltaPct": 44.9,
+      "contrastDeltaPct": 53.3,
+      "noiseReductionPct": -36.2,
+      "estimatedPsnrDb": 38.09,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "catalog": {
+      "surfaceId": "catalog",
+      "passNumber": 1,
+      "visualBeforeScore": 0.9033,
+      "visualAfterScore": 0.9152,
+      "visualDelta": 0.0119,
+      "edgeSharpnessDeltaPct": 13.5,
+      "contrastDeltaPct": 19.5,
+      "noiseReductionPct": -2,
+      "estimatedPsnrDb": 38.07,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "settings": {
+      "surfaceId": "settings",
+      "passNumber": 1,
+      "visualBeforeScore": 0.895,
+      "visualAfterScore": 0.9175,
+      "visualDelta": 0.0225,
+      "edgeSharpnessDeltaPct": 0,
+      "contrastDeltaPct": 0,
+      "noiseReductionPct": -1.6,
+      "estimatedPsnrDb": 38.09,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "vox-search": {
+      "surfaceId": "vox-search",
+      "passNumber": 1,
+      "visualBeforeScore": 0.8702,
+      "visualAfterScore": 0.9189,
+      "visualDelta": 0.0487,
+      "edgeSharpnessDeltaPct": 40.4,
+      "contrastDeltaPct": 76.7,
+      "noiseReductionPct": -18.8,
+      "estimatedPsnrDb": 38.11,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "explorer": {
+      "surfaceId": "explorer",
+      "passNumber": 1,
+      "visualBeforeScore": 0.9254,
+      "visualAfterScore": 0.9254,
+      "visualDelta": 0,
+      "edgeSharpnessDeltaPct": 0,
+      "contrastDeltaPct": 0,
+      "noiseReductionPct": 0,
+      "estimatedPsnrDb": 38.18,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "gamify": {
+      "surfaceId": "gamify",
+      "passNumber": 1,
+      "visualBeforeScore": 0.8794,
+      "visualAfterScore": 0.918,
+      "visualDelta": 0.0386,
+      "edgeSharpnessDeltaPct": 4.7,
+      "contrastDeltaPct": 16.4,
+      "noiseReductionPct": -21.2,
+      "estimatedPsnrDb": 38.1,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "memory": {
+      "surfaceId": "memory",
+      "passNumber": 1,
+      "visualBeforeScore": 0.916,
+      "visualAfterScore": 0.9164,
+      "visualDelta": 0.0004,
+      "edgeSharpnessDeltaPct": 0,
+      "contrastDeltaPct": 3.6,
+      "noiseReductionPct": -1.9,
+      "estimatedPsnrDb": 38.08,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "mens": {
+      "surfaceId": "mens",
+      "passNumber": 1,
+      "visualBeforeScore": 0.9145,
+      "visualAfterScore": 0.9168,
+      "visualDelta": 0.0023,
+      "edgeSharpnessDeltaPct": 0,
+      "contrastDeltaPct": 25.2,
+      "noiseReductionPct": -10.7,
+      "estimatedPsnrDb": 38.08,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "models": {
+      "surfaceId": "models",
+      "passNumber": 1,
+      "visualBeforeScore": 0.8712,
+      "visualAfterScore": 0.9174,
+      "visualDelta": 0.0462,
+      "edgeSharpnessDeltaPct": 0,
+      "contrastDeltaPct": 11.8,
+      "noiseReductionPct": 3.4,
+      "estimatedPsnrDb": 38.36,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "populi": {
+      "surfaceId": "populi",
+      "passNumber": 1,
+      "visualBeforeScore": 0.9023,
+      "visualAfterScore": 0.9155,
+      "visualDelta": 0.0132,
+      "edgeSharpnessDeltaPct": 14.3,
+      "contrastDeltaPct": 31.7,
+      "noiseReductionPct": -2,
+      "estimatedPsnrDb": 38.07,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "repository": {
+      "surfaceId": "repository",
+      "passNumber": 1,
+      "visualBeforeScore": 0.9149,
+      "visualAfterScore": 0.9149,
+      "visualDelta": 0,
+      "edgeSharpnessDeltaPct": 0,
+      "contrastDeltaPct": -0.7,
+      "noiseReductionPct": 3.8,
+      "estimatedPsnrDb": 38.37,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "research": {
+      "surfaceId": "research",
+      "passNumber": 1,
+      "visualBeforeScore": 0.914,
+      "visualAfterScore": 0.9146,
+      "visualDelta": 0.0006,
+      "edgeSharpnessDeltaPct": 0,
+      "contrastDeltaPct": 6.7,
+      "noiseReductionPct": 9.5,
+      "estimatedPsnrDb": 38.82,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "scientia": {
+      "surfaceId": "scientia",
+      "passNumber": 1,
+      "visualBeforeScore": 0.9084,
+      "visualAfterScore": 0.9154,
+      "visualDelta": 0.007,
+      "edgeSharpnessDeltaPct": 7.6,
+      "contrastDeltaPct": 9.9,
+      "noiseReductionPct": -10.2,
+      "estimatedPsnrDb": 38.07,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "approvals": {
+      "surfaceId": "approvals",
+      "passNumber": 1,
+      "visualBeforeScore": 0.896,
+      "visualAfterScore": 0.9125,
+      "visualDelta": 0.0165,
+      "edgeSharpnessDeltaPct": 21,
+      "contrastDeltaPct": 25.8,
+      "noiseReductionPct": -6.2,
+      "estimatedPsnrDb": 38.04,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "skills": {
+      "surfaceId": "skills",
+      "passNumber": 1,
+      "visualBeforeScore": 0.901,
+      "visualAfterScore": 0.917,
+      "visualDelta": 0.016,
+      "edgeSharpnessDeltaPct": 16.7,
+      "contrastDeltaPct": 46.8,
+      "noiseReductionPct": -14.3,
+      "estimatedPsnrDb": 38.09,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    },
+    "oratio": {
+      "surfaceId": "oratio",
+      "passNumber": 1,
+      "visualBeforeScore": 0.9028,
+      "visualAfterScore": 0.9157,
+      "visualDelta": 0.0129,
+      "edgeSharpnessDeltaPct": 13.5,
+      "contrastDeltaPct": 34.2,
+      "noiseReductionPct": -2,
+      "estimatedPsnrDb": 38.07,
+      "flywheelConverged": true,
+      "promoteToGoldenBaseline": true,
+      "nextBootstrapDirectives": [
+        "Flywheel converged: promote After frame & verified DOM layout as new golden baseline"
+      ]
+    }
+  }
+}

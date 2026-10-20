@@ -6,6 +6,7 @@ import { HarnessRiverPanel } from '../Harness/HarnessRiverPanel';
 import { invoke } from '@tauri-apps/api/core';
 import { LudusProfile } from '../../../lib/ludus';
 import { LudusHud } from './LudusHud';
+import { LeaderboardArenaPanel, type VerifiedLeaderboardEntry } from './LeaderboardArenaPanel';
 import { GAMIFY_POLL_MS } from '../../../config/constants';
 import type { Toast } from '../../../types/tauri';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
@@ -177,23 +178,11 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
       </div>
 
       {/* Leaderboard (F3) */}
-      <div>
-        <div className="mb-2 font-display text-[12px] uppercase tracking-wide text-text-muted">Leaderboard</div>
-        {leaderboard.length === 0 ? (
-          <div className="rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-[12px] text-text-muted">No ranked players yet.</div>
-        ) : (
-          <ul className="divide-y divide-white/5 overflow-hidden rounded-lg border border-border-subtle bg-overlay-subtle">
-            {leaderboard.map(e => (
-              <li key={e.user_id} className="flex items-center gap-3 px-3 py-2 font-mono text-[12px]">
-                <span className="w-6 text-right text-text-muted">#{e.rank}</span>
-                <span className="min-w-0 flex-1 truncate text-text-secondary">{e.user_id}</span>
-                <span className="text-text-muted">L{e.level}</span>
-                <span className="w-20 text-right text-cyan">{e.score.toLocaleString()}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      <LeaderboardArenaPanel
+        entries={leaderboard as VerifiedLeaderboardEntry[]}
+        localUserHandle={profile?.user_id ?? 'local_user'}
+        localXp={profile?.total_xp_earned ?? 0}
+      />
 
       {/* Companions (F3) — rendered from server-generated mood SVG */}
       <div>

@@ -201,7 +201,7 @@ describe('Loquela', () => {
     expect(screen.queryByRole('button', { name: /model:/i })).toBeNull();
   });
 
-  it('renders a Resume button when the current agent is paused, calling onResume with the agent', () => {
+  it('renders a Resume button when the current agent is paused, calling onResume with the agent while preserving the primary Run CTA', () => {
     const onResume = vi.fn();
     renderLoquela({
       agentPaused: true,
@@ -209,6 +209,8 @@ describe('Loquela', () => {
       onResume,
     });
     const resumeBtn = screen.getByRole('button', { name: /resume/i });
+    expect(screen.getByTestId('loquela-agent-paused-banner')).toBe(resumeBtn);
+    expect(screen.getByRole('button', { name: /^run/i })).toBeInTheDocument();
     fireEvent.click(resumeBtn);
     expect(onResume).toHaveBeenCalledWith({ id: 'a1' });
   });

@@ -706,6 +706,11 @@ class VoxTransport {
     return safeInvoke<HarnessHopperItemDto[]>('hopper_list');
   }
 
+  /** Vox Urbs: MCP aqueduct server health tap (AQVAE landmark). */
+  mcpServersStatus(): Promise<Array<{ name: string; ok: boolean }>> {
+    return safeInvoke<Array<{ name: string; ok: boolean }>>('mcp_servers_status');
+  }
+
   /** Current per-category/per-source task-policy overrides (Settings panel). */
   getTaskPolicyOverrides(): Promise<TaskPolicyOverrides> {
     return safeInvoke<TaskPolicyOverrides>('get_task_policy_overrides');

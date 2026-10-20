@@ -63,9 +63,9 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
           {loading ? 'Loading…' : 'Refresh'}
         </button>
       </div>
-      <div className="flex gap-3 overflow-x-auto pb-3 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.15)_transparent]">
+      <div className="grid grid-cols-2 gap-2.5 pb-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
         {PUBLICATION_STAGES.map(stage => (
-          <div key={stage} className="w-44 shrink-0">
+          <div key={stage} className="min-w-0">
             <div className="mb-2 flex items-center justify-between">
               <span className="font-mono text-[10px] uppercase tracking-wide text-text-muted">{stage.replace(/_/g, ' ')}</span>
               <span className="rounded-full bg-overlay-subtle px-1.5 font-mono text-[9px] text-text-muted">{groups[stage].length}</span>
@@ -90,12 +90,51 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
         ))}
       </div>
 
-      {selected && (
+      {selected ? (
         <PublicationDetail
           manifest={selected}
           onClose={() => setSelected(null)}
           pushToast={pushToast}
         />
+      ) : (
+        <div
+          data-testid="publications-pipeline-overview"
+          className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-3"
+        >
+          <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+            <div className="flex items-center justify-between">
+              <span className="font-display text-[10px] tracking-widest text-brass uppercase">IMRaD &amp; LaTeX</span>
+              <span className="rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 font-mono text-[9px] text-brass">
+                {manifests.length} manifests
+              </span>
+            </div>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+              Select any card above to preview its generated IMRaD manuscript, compile LaTeX source, or inspect extracted epistemic claims.
+            </p>
+          </div>
+          <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+            <div className="flex items-center justify-between">
+              <span className="font-display text-[10px] tracking-widest text-cyan uppercase">Claim Verification</span>
+              <span className="rounded border border-cyan/30 bg-cyan/10 px-1.5 py-0.5 font-mono text-[9px] text-cyan">
+                MiniCheck
+              </span>
+            </div>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+              Every candidate paper undergoes automated claim extraction (<code className="text-brass">vox scientia claims</code>) and confidence scoring before approval.
+            </p>
+          </div>
+          <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+            <div className="flex items-center justify-between">
+              <span className="font-display text-[10px] tracking-widest text-text-primary uppercase">Archival Deposit</span>
+              <span className="font-mono text-[10px] text-emerald-300">
+                DOI + SWHID
+              </span>
+            </div>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+              Tracks Zenodo DOI reservation, ORCID attribution, and Software Heritage (SWHID) source archival across 7 lifecycle stages.
+            </p>
+          </div>
+        </div>
       )}
     </section>
   );

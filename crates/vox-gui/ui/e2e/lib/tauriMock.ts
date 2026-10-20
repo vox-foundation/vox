@@ -136,9 +136,142 @@ export function installTauriMock(viewKey: string): void {
         .map(({ resolved: _r, ...a }) => a);
       return { success: true, data: { approvals: pending } };
     }
-    if (tool.includes('feedback_list')) return { success: true, data: { needs_you: [], withheld: [] } };
+    if (tool.includes('feedback_list')) {
+      return {
+        success: true,
+        data: {
+          needs_you: [
+            {
+              id: 'FB-204',
+              feedback_id: 'FB-204',
+              kind: 'clarification',
+              prompt: 'Confirm target crate boundary for transport-provider lockfile verification?',
+              options: ['vox-arch-check (Recommended)', 'vox-code-audit'],
+              gates: [101],
+              doubted_task_id: null,
+              surface: 'needs_you',
+              info_gain_bits: 0.84,
+            },
+            {
+              id: 'FB-205',
+              feedback_id: 'FB-205',
+              kind: 'doubt',
+              prompt: 'Agent-3 flagged potential non-idempotent migration in schema_v4 — overrule or verify?',
+              options: [],
+              gates: [102],
+              doubted_task_id: 102,
+              surface: 'needs_you',
+              info_gain_bits: 0.91,
+            },
+          ],
+          withheld: [
+            {
+              id: 'FB-201',
+              feedback_id: 'FB-201',
+              kind: 'clarification',
+              prompt: 'Prefer compact or verbose log timestamps in local test output?',
+              options: ['Compact', 'ISO-8601'],
+              gates: [],
+              doubted_task_id: null,
+              surface: 'withheld',
+              info_gain_bits: 0.08,
+            },
+          ],
+        },
+      };
+    }
     if (tool.includes('git_diff')) return { success: true, data: 'diff --git a/README.md b/README.md\n' };
+    if (tool === 'vox_skill_list') {
+      return {
+        success: true,
+        data: [
+          {
+            id: 'superpowers:test-driven-development',
+            name: 'test-driven-development',
+            version: '2.4.0',
+            category: 'engineering',
+            description: 'Enforces red-green-refactor verification loops before implementation code.',
+            tools: ['vox_test', 'vox_check'],
+            source: '.agents/skills/test-driven-development',
+            permissions: ['fs:read', 'exec:test'],
+            tags: ['tdd', 'verification', 'superpowers'],
+          },
+          {
+            id: 'superpowers:systematic-debugging',
+            name: 'systematic-debugging',
+            version: '2.4.0',
+            category: 'diagnostics',
+            description: 'Root-cause hypothesis testing and binary-search fault isolation across crates.',
+            tools: ['vox_audit', 'vox_search_query'],
+            source: '.agents/skills/systematic-debugging',
+            permissions: ['fs:read'],
+            tags: ['debugging', 'root-cause', 'superpowers'],
+          },
+          {
+            id: 'vox:cv-flywheel-audit',
+            name: 'cv-flywheel-audit',
+            version: '1.9.0',
+            category: 'gui-quality',
+            description: 'Sobel/RMS pixel contrast + axe-core WCAG 2.2 AA & layout bounds convergence.',
+            tools: ['browser_snapshot', 'browser_validate_playwright'],
+            source: '.vox/skills/cv-flywheel-audit',
+            permissions: ['browser:control'],
+            tags: ['cv', 'playwright', 'wcag'],
+          },
+        ],
+      };
+    }
+    if (tool === 'vox_plugin_list') {
+      return {
+        success: true,
+        data: [
+          {
+            id: 'vox-plugin-superpowers',
+            version: '2.4.0',
+            payload_kind: 'skill-bundle',
+            install_dir: 'crates/vox-skills/skills/superpowers',
+          },
+          {
+            id: 'vox-plugin-browser-songhand',
+            version: '1.2.0',
+            payload_kind: 'mcp-bridge',
+            install_dir: 'crates/vox-browser',
+          },
+        ],
+      };
+    }
     if (tool.includes('skill') || tool.includes('plugin')) return { skills: [{ id: 'superpowers', name: 'Superpowers', enabled: true }], plugins: [{ id: 'design', name: 'Design' }] };
+    if (tool.includes('vox_search_status')) {
+      return {
+        success: true,
+        data: {
+          default_corpus_id: 'workspace-code',
+          ttl_days: 7,
+          ttl_days_contract: 7,
+          ttl_days_env_forced: false,
+          corpora: [
+            {
+              corpus_id: 'workspace-code',
+              title: 'Workspace Code & AST Graph',
+              is_fresh: true,
+              node_count: 14820,
+              edge_count: 42310,
+              built_at: new Date(Date.now() - 3600_000).toISOString(),
+              stale_reasons: [],
+            },
+            {
+              corpus_id: 'architecture-ssot',
+              title: 'Architecture & KB Docs',
+              is_fresh: true,
+              node_count: 3420,
+              edge_count: 8910,
+              built_at: new Date(Date.now() - 7200_000).toISOString(),
+              stale_reasons: [],
+            },
+          ],
+        },
+      };
+    }
     return { ok: true };
   };
 
@@ -235,6 +368,37 @@ export function installTauriMock(viewKey: string): void {
           { id: 'pol-2', domain: 'ci', group: 'runner', title: 'Self-hosted default', severity: 'warn', blocking: false, protected: false },
         ];
         case 'list_branches': return [{ branch: 'main', path: '.', isCurrent: true }];
+        case 'mercatus_load_config': return {
+          _meta: {
+            sources: {
+              openrouter: { enabled: true, costUsd: 0.002, cadenceHours: 6, tier: 'live' },
+              vast_ai: { enabled: true, costUsd: 0.005, cadenceHours: 12, tier: 'spot' },
+              runpod: { enabled: true, costUsd: 0.004, cadenceHours: 12, tier: 'spot' },
+            },
+          },
+          watchlist: [
+            {
+              id: 'rtx-4090-24gb',
+              role: 'MENS QLoRA trainer',
+              model: 'NVIDIA RTX 4090 24GB',
+              sources: ['vast_ai', 'runpod'],
+              ids: { vast_ai: 'gpu-4090', runpod: 'rtx4090' },
+              target_usd: 0.39,
+            },
+            {
+              id: 'claude-sonnet-4',
+              role: 'Frontier verifier',
+              model: 'anthropic/claude-sonnet',
+              sources: ['openrouter'],
+              ids: { openrouter: 'anthropic/claude-sonnet' },
+              target_usd: 3.0,
+            },
+          ],
+        };
+        case 'list_subagent_tree': return [
+          { task_id: 101, agent_id: 1, parent_agent_id: null, reason: 'Coordinate CV Flywheel & Chat Dock audit' },
+          { task_id: 102, agent_id: 2, parent_agent_id: 1, reason: 'Verify WCAG 2.2 AA contrast & DOM bounds' },
+        ];
         case 'policy_status': return [
           { id: 'pol-1', branch: 'main', status: 'pass', hits: 0 },
           { id: 'pol-2', branch: 'main', status: 'warn', hits: 2 },
@@ -382,6 +546,40 @@ export function installTauriMock(viewKey: string): void {
           ],
         };
         case 'list_publication_manifests': return manifests;
+        case 'scientia_dashboard_snapshot': return queueSnapshot;
+        case 'scientia_cost_rollup':
+          return {
+            this_quarter: {
+              extraction_usd: 1.42,
+              critic_usd: 0.88,
+              novelty_retrieval_usd: 0.54,
+              scholarly_submission_usd: 0.36,
+              total_usd: 3.20,
+            },
+            per_finding_average_usd: 0.23,
+            by_provider: [
+              { provider: 'anthropic', usd: 2.10 },
+              { provider: 'openrouter', usd: 1.10 },
+            ],
+          };
+        case 'coderabbit_token_present':
+          return true;
+        case 'coderabbit_report':
+          return {
+            run_state: { chunks: [{ name: 'crate_vox_db', pr_number: 7, status: 'completed' }] },
+            db_status: { findings: 3 },
+          };
+        case 'coderabbit_plan':
+          return {
+            baseline_branch: 'cr-baseline',
+            total_files: 3,
+            chunks: [
+              { order: 1, name: 'crate_vox_db', files: ['a.rs', 'b.rs'] },
+              { order: 2, name: '06_docs_src', files: ['x.md'] },
+            ],
+          };
+        case 'coderabbit_run_async':
+          return { status: 'running' };
         case 'get_memory_status': return {
           corpus_counts: { proj: 1280, docs: 540, chats: 96, rules: 210, web: 60 },
           shards: [
@@ -660,8 +858,12 @@ export function installTauriMock(viewKey: string): void {
           if (p === 'scientia claims' || p === 'scientia publication-extract-claims')
             return { exit_code: 0, stdout: JSON.stringify({ claims: Array.from({ length: 5 }, (_, i) => ({ claim_id: `c${i}`, text: 'Provider X shows 3% regression under load', verdict: ['Supported', 'Contested', 'Abstain', 'Supported', 'Contradicted'][i], confidence: 0.8 - i * 0.1, verifiability_score: 0.7, numeric: true, verifier_model: 'minicheck' })) }), stderr: '' };
           if (path[0] === 'research') return { exit_code: 0, stdout: 'SearXNG: ok\nDDG: ok\nTavily: ok', stderr: '' };
+          if (p === 'mens models') return { exit_code: 0, stdout: 'mens-8b (Q6_K · 6.4 GB) | mens/e2e-smoke-metal (FP16 · 1.2 GB)', stderr: '' };
+          if (p === 'mens probe') return { exit_code: 0, stdout: 'GPU backend: Metal/CUDA ready | VRAM: 24.0 GB free | Candle kernel: ok', stderr: '' };
           if (path[0] === 'mens') return { exit_code: 0, stdout: 'training idle | 2 local models | GPU: RTX 4090 (24GB)', stderr: '' };
+          if (p === 'populi registry-snapshot') return { exit_code: 0, stdout: 'node-a (online · 24GB VRAM) | node-b (online · 12GB VRAM) | quorum: 2/2', stderr: '' };
           if (path[0] === 'populi') return { exit_code: 0, stdout: 'mesh: 2 nodes online | overlay healthy', stderr: '' };
+          if (p === 'oratio status') return { exit_code: 0, stdout: 'session: idle | sample_rate: 16kHz | VAD: silero-v5 ready', stderr: '' };
           if (path[0] === 'oratio') return { exit_code: 0, stdout: 'oratio runtime ok | backend: whisper-local', stderr: '' };
           return { exit_code: 0, stdout: 'ok', stderr: '' };
         }
@@ -696,6 +898,74 @@ export function installTauriMock(viewKey: string): void {
           return filtered.slice(0, lim);
         }
         case 'list_orchestrator_tasks': return [];
+        case 'workspace_town_scan':
+          return {
+            root: '/workspace/vox',
+            scanned_at_ms: 1729360000000,
+            truncated: false,
+            crates: [
+              {
+                name: 'vox-orchestrator',
+                root: 'crates/vox-orchestrator',
+                files: [
+                  { path: 'crates/vox-orchestrator/src/lib.rs', lines: 420 },
+                  { path: 'crates/vox-orchestrator/src/models/registry.rs', lines: 310 },
+                  { path: 'crates/vox-orchestrator/src/models/select.rs', lines: 280 },
+                  { path: 'crates/vox-orchestrator/src/events.rs', lines: 195 },
+                ],
+              },
+              {
+                name: 'vox-gui',
+                root: 'crates/vox-gui',
+                files: [
+                  { path: 'crates/vox-gui/src/main.rs', lines: 260 },
+                  { path: 'crates/vox-gui/src/commands/chat_turn.rs', lines: 340 },
+                  { path: 'crates/vox-gui/src/commands/urbs.rs', lines: 180 },
+                ],
+              },
+              {
+                name: 'vox-compiler',
+                root: 'crates/vox-compiler',
+                files: [
+                  { path: 'crates/vox-compiler/src/lib.rs', lines: 510 },
+                  { path: 'crates/vox-compiler/src/parser.rs', lines: 640 },
+                  { path: 'crates/vox-compiler/src/typeck.rs', lines: 720 },
+                ],
+              },
+              {
+                name: 'vox-crypto',
+                root: 'crates/vox-crypto',
+                files: [
+                  { path: 'crates/vox-crypto/src/lib.rs', lines: 210 },
+                  { path: 'crates/vox-crypto/src/aead.rs', lines: 145 },
+                ],
+              },
+            ],
+          };
+        case 'harness_ci_fleet_status':
+          return {
+            runners: [
+              { name: 'legio-mac-01', online: true, busy: true },
+              { name: 'legio-linux-02', online: true, busy: false },
+              { name: 'legio-win-03', online: true, busy: false },
+            ],
+            queued: 1,
+          };
+        case 'vcs_town_status':
+          return {
+            branches: [
+              { name: 'main', is_head: true, track: '[ahead 2]' },
+              { name: 'feat/cv-flywheel', is_head: false, track: '[ahead 1]' },
+            ],
+            prs: [{ number: 108, title: 'Unify Loquela knobs & Urbs Civilization HUD', head_ref: 'feat/cv-flywheel' }],
+            prs_available: true,
+          };
+        case 'mcp_servers_status':
+          return [
+            { name: 'vox-mcp-core', ok: true },
+            { name: 'lean-ctx', ok: true },
+            { name: 'gemini-api-docs', ok: true },
+          ];
         case 'hopper_list':
           return ((window as any).__MOCK_HOPPER__ as any[]).map(t => ({ ...t }));
         case 'hopper_submit': {
@@ -739,6 +1009,105 @@ export function installTauriMock(viewKey: string): void {
         }
         case 'get_archive_status': return { swhid: null, swh_task_id: null, swh_task_status: null, zenodo_doi: null, zenodo_state: null };
         case 'get_completion_report': return { score: 100, warnings: [], is_complete: true };
+        case 'harness_eval_history':
+          return [
+            {
+              run_id: 'eval-2026-1019-nightly',
+              git_sha: '9f4a21c',
+              triggered_by: 'ci-nightly',
+              pass_count: 24,
+              fail_count: 1,
+              skip_count: 0,
+              total_cost_usd: 0.0842,
+              started_at_ms: 1729360000000,
+              category_breakdown: [
+                { category: 'chat', pass_count: 8, fail_count: 0 },
+                { category: 'privacy', pass_count: 5, fail_count: 0 },
+                { category: 'tool-calling', pass_count: 6, fail_count: 1 },
+                { category: 'compaction', pass_count: 5, fail_count: 0 },
+              ],
+            },
+            {
+              run_id: 'eval-2026-1018-smoke',
+              git_sha: '7c3e10b',
+              triggered_by: 'local-cli',
+              pass_count: 25,
+              fail_count: 0,
+              skip_count: 0,
+              total_cost_usd: 0.0615,
+              started_at_ms: 1729273600000,
+              category_breakdown: [
+                { category: 'chat', pass_count: 8, fail_count: 0 },
+                { category: 'privacy', pass_count: 5, fail_count: 0 },
+                { category: 'tool-calling', pass_count: 7, fail_count: 0 },
+                { category: 'compaction', pass_count: 5, fail_count: 0 },
+              ],
+            },
+            {
+              run_id: 'eval-2026-1017-mens',
+              git_sha: '4d91a0e',
+              triggered_by: 'mens-gate',
+              pass_count: 22,
+              fail_count: 2,
+              skip_count: 1,
+              total_cost_usd: 0.0,
+              started_at_ms: 1729187200000,
+              category_breakdown: [
+                { category: 'chat', pass_count: 7, fail_count: 1 },
+                { category: 'privacy', pass_count: 5, fail_count: 0 },
+                { category: 'tool-calling', pass_count: 5, fail_count: 1 },
+                { category: 'compaction', pass_count: 5, fail_count: 0 },
+              ],
+            },
+          ];
+        case 'harness_eval_regressions':
+          return [
+            {
+              kind: 'CategoryFlip',
+              previous_run_id: 'eval-2026-1018-smoke',
+              current_run_id: 'eval-2026-1019-nightly',
+              previous_git_sha: '7c3e10b',
+              current_git_sha: '9f4a21c',
+              changed_files: ['crates/vox-orchestrator-mcp/src/dispatch.rs'],
+              flipped_task_ids: ['tool-schema-strict-04'],
+              detail: 'tool-calling pass rate shifted 7/7 -> 6/7 (+1 schema retry)',
+            },
+          ];
+        case 'activity_query':
+          return [
+            {
+              id: 501,
+              ts_ms: 1729363200000,
+              kind: 'WorkflowStarted',
+              agent_id: 'agent-1 (Aquila)',
+              summary: 'Started CV Flywheel 32-surface visual & DOM convergence pass',
+              detail_json: '{}',
+            },
+            {
+              id: 502,
+              ts_ms: 1729363215000,
+              kind: 'TaskCompleted',
+              agent_id: 'agent-2 (Bellona)',
+              summary: 'Verified WCAG 2.2 AA contrast & 0px overflow across Chat Dock',
+              detail_json: '{}',
+            },
+            {
+              id: 503,
+              ts_ms: 1729363230000,
+              kind: 'CostIncurred',
+              agent_id: 'agent-1 (Aquila)',
+              summary: 'Cost incurred: $0.0142 (anthropic/claude-sonnet · 4.1k tok)',
+              detail_json: '{"CostIncurred":{"cost_usd":0.0142}}',
+            },
+            {
+              id: 504,
+              ts_ms: 1729363245000,
+              kind: 'BudgetAlert',
+              agent_id: 'agent-4 (Drusus)',
+              summary: 'Attention budget batching active: 2 low-entropy questions withheld by policy',
+              detail_json: '{}',
+            },
+          ];
         case 'discovery_suggest': {
           const raw = String(args?.typed ?? '').trim();
           const query = raw.replace(/^vox\s*/, '').toLowerCase();
@@ -761,6 +1130,95 @@ export function installTauriMock(viewKey: string): void {
           };
         }
         case 'discovery_record': return null;
+        case 'browser_session_status':
+          return {
+            connected: true,
+            url: 'http://127.0.0.1:1420',
+            title: 'Vox Workbench · Playwright & Songhand Harness',
+            viewport: { width: 1280, height: 800 },
+            page_id: 'page-vox-1',
+            page_count: 1,
+          };
+        case 'browser_list_pages':
+          return [
+            {
+              page_id: 'page-vox-1',
+              url: 'http://127.0.0.1:1420',
+              title: 'Vox Workbench · Playwright & Songhand Harness',
+            },
+          ];
+        case 'browser_page_info':
+          return {
+            page_id: 'page-vox-1',
+            url: 'http://127.0.0.1:1420',
+            title: 'Vox Workbench · Playwright & Songhand Harness',
+            viewport_width: 1280,
+            viewport_height: 800,
+          };
+        case 'browser_snapshot':
+          return {
+            page_id: 'page-vox-1',
+            url: 'http://127.0.0.1:1420',
+            title: 'Vox Workbench · Playwright & Songhand Harness',
+            tree_text: '[e1] button "Run Songhand"\n[e2] textbox "Instruction"',
+            refs: [
+              {
+                ref_id: 'e1',
+                role: 'button',
+                name: 'Run Songhand',
+                tag: 'button',
+                bbox: { x: 120, y: 180, width: 140, height: 32 },
+              },
+              {
+                ref_id: 'e2',
+                role: 'textbox',
+                name: 'Instruction',
+                tag: 'input',
+                bbox: { x: 280, y: 180, width: 360, height: 32 },
+              },
+            ],
+          };
+        case 'browser_act':
+          return {
+            ok: true,
+            steps_taken: 2,
+            final_note: `Executed Songhand instruction: ${String(args?.instruction ?? '')}`,
+            transcript: ['snapshot(1) -> [e1] button', 'click_ref(e1) -> ok'],
+          };
+        case 'browser_extract':
+          return {
+            ok: true,
+            result: `Extracted summary for: ${String(args?.instruction ?? '')}`,
+          };
+        case 'browser_extract_json':
+          return {
+            ok: true,
+            valid_json: true,
+            schema_satisfied: true,
+            data: { title: 'Vox Workbench', status: 'healthy', refs: 2 },
+          };
+        case 'browser_click_ref':
+        case 'browser_fill_ref':
+        case 'browser_wait_for':
+          return { ok: true, ref_id: args?.refId ?? 'e1' };
+        case 'browser_read_dom':
+          return {
+            mode: args?.mode ?? 'text',
+            target: args?.target ?? 'body',
+            content: 'Vox Workbench Playwright & Songhand Harness Ready',
+          };
+        case 'browser_validate_playwright':
+          return {
+            passed: 6,
+            failed: 0,
+            skipped: 0,
+            duration_ms: 1420,
+            tests: [
+              { title: 'cv-flywheel: 32 surfaces pass WCAG 2.2 AA & layout bounds', file: 'e2e/review/cv-flywheel.spec.ts', status: 'passed', duration_ms: 820, error: null },
+              { title: 'browser-harness: Songhand act & extract_json roundtrip', file: 'e2e/review/capture.spec.ts', status: 'passed', duration_ms: 600, error: null },
+            ],
+            raw_error: null,
+          };
         default: {
           const ev = shared.eventPluginResponse(cmd, args);
           if (ev !== undefined) return ev;

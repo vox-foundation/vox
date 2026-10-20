@@ -34,10 +34,64 @@ interface EvalLocalReportDto {
   placeholder_event_rate: number;
 }
 
+interface SpokeScoreRowDto {
+  spoke: string;
+  total_cases: number;
+  before_pass_at_1: number;
+  mid_pass_at_1: number;
+  pass_at_1: number;
+  pass_at_k: number;
+  delta_pass_at_1: number;
+  syntax_validity_rate: number;
+  semantic_validity_rate: number;
+  execution_success_rate: number;
+  curriculum_weight: number;
+}
+
+interface MensSpokeScorecardDto {
+  schema_version: string;
+  total_cases: number;
+  before_overall_pass_at_1: number;
+  mid_overall_pass_at_1: number;
+  overall_pass_at_1: number;
+  overall_pass_at_k: number;
+  overall_delta_pass_at_1: number;
+  monotonic_improvement_verified: boolean;
+  promotion_gate_passed: boolean;
+  promoted_model_id: string;
+  promoted_adapter_uri: string;
+  spokes: SpokeScoreRowDto[];
+}
+
+interface OrganicSpokeRowDto {
+  spoke: string;
+  total_cases: number;
+  search_recall_at_5: number;
+  mean_reciprocal_rank: number;
+  mean_grounding_ratio: number;
+  syntax_validity_rate: number;
+  semantic_validity_rate: number;
+  compilation_pass_rate: number;
+  end_to_end_pass_at_1: number;
+}
+
+interface OrganicSearchSpokeScorecardDto {
+  schema_version: string;
+  total_cases: number;
+  overall_search_recall_at_5: number;
+  overall_mrr: number;
+  overall_grounding_ratio: number;
+  overall_compilation_pass_rate: number;
+  overall_end_to_end_pass_at_1: number;
+  spokes: OrganicSpokeRowDto[];
+}
+
 interface MensRunReportsDto {
   eval_local: EvalLocalReportDto | null;
   gate_receipt: GateReceiptDto | null;
   collateral_damage: CollateralDamageReportDto | null;
+  spoke_scorecard?: MensSpokeScorecardDto | null;
+  organic_scorecard?: OrganicSearchSpokeScorecardDto | null;
 }
 
 /**
@@ -88,8 +142,20 @@ function MensRunReportsPanel({ pushToast }: { pushToast: (item: Toast) => void }
 
   return (
     <Glass className="p-4 space-y-3">
-      <div className="font-display text-[11px] tracking-[0.2em] uppercase text-text-muted">
-        Run Reports
+      <div className="flex items-center justify-between">
+        <div className="font-display text-[11px] tracking-[0.2em] uppercase text-text-muted">
+          Run Reports &amp; 5-Spoke Scorecard
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setRunDir('workspace');
+            void loadReports('workspace');
+          }}
+          className="rounded border border-border-subtle px-2 py-0.5 font-mono text-[10px] text-text-primary hover:border-text-muted"
+        >
+          Load 5-Spoke Benchmark
+        </button>
       </div>
       <label className="flex flex-col gap-1 text-[10px] uppercase tracking-widest text-text-muted">
         Run directory
@@ -99,12 +165,12 @@ function MensRunReportsPanel({ pushToast }: { pushToast: (item: Toast) => void }
           value={runDir}
           onChange={(e) => setRunDir(e.target.value)}
           onBlur={() => loadReports(runDir)}
-          placeholder="/path/to/mens/run/dir"
+          placeholder="/path/to/mens/run/dir or workspace"
           className="rounded-lg border border-border-subtle bg-transparent px-2 py-1.5 font-mono text-xs text-text-primary"
         />
       </label>
       {reports && (
-        <div className="space-y-1 font-mono text-[11px]">
+        <div className="space-y-2 font-mono text-[11px]">
           {reports.gate_receipt ? (
             (() => {
               const tone = gateTone(reports.gate_receipt);
@@ -136,6 +202,71 @@ function MensRunReportsPanel({ pushToast }: { pushToast: (item: Toast) => void }
           {reports.eval_local && (
             <div className="text-text-muted">
               eval-local anti-stub {(reports.eval_local.anti_stub_task_success * 100).toFixed(0)}%
+            </div>
+          )}
+          {reports.spoke_scorecard && (
+            <div data-testid="mens-spoke-scorecard" className="space-y-2 pt-2 border-t border-border-subtle">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className={reports.spoke_scorecard.promotion_gate_passed ? TONE_CLASS.pass : TONE_CLASS.warn}>
+                  5-Spoke pass@1: {(reports.spoke_scorecard.before_overall_pass_at_1 * 100).toFixed(0)}% →{' '}
+                  {(reports.spoke_scorecard.mid_overall_pass_at_1 * 100).toFixed(0)}% →{' '}
+                  {(reports.spoke_scorecard.overall_pass_at_1 * 100).toFixed(0)}% (+
+                  {(reports.spoke_scorecard.overall_delta_pass_at_1 * 100).toFixed(0)}%)
+                </span>
+                <span className="text-text-muted text-[10px]">
+                  {reports.spoke_scorecard.promoted_model_id} ({reports.spoke_scorecard.total_cases} cases)
+                </span>
+              </div>
+              <div className="grid grid-cols-5 gap-1 text-[10px] text-text-muted uppercase">
+                <span>Spoke</span>
+                <span>Before</span>
+                <span>After</span>
+                <span>Delta</span>
+                <span>Curriculum w</span>
+              </div>
+              {reports.spoke_scorecard.spokes.map((s) => (
+                <div key={s.spoke} className="grid grid-cols-5 gap-1 text-[11px] text-text-primary">
+                  <span>{s.spoke}</span>
+                  <span>{(s.before_pass_at_1 * 100).toFixed(0)}%</span>
+                  <span className={s.pass_at_1 >= 1.0 ? TONE_CLASS.pass : TONE_CLASS.warn}>
+                    {(s.pass_at_1 * 100).toFixed(0)}%
+                  </span>
+                  <span className={TONE_CLASS.pass}>+{(s.delta_pass_at_1 * 100).toFixed(0)}%</span>
+                  <span>{s.curriculum_weight.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {reports.organic_scorecard && (
+            <div data-testid="mens-organic-scorecard" className="space-y-2 pt-2 border-t border-border-subtle">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className={reports.organic_scorecard.overall_end_to_end_pass_at_1 >= 1.0 ? TONE_CLASS.pass : TONE_CLASS.warn}>
+                  Organic Search → Compilation: Recall@5 {(reports.organic_scorecard.overall_search_recall_at_5 * 100).toFixed(0)}% | MRR {reports.organic_scorecard.overall_mrr.toFixed(2)} | Grounding {(reports.organic_scorecard.overall_grounding_ratio * 100).toFixed(0)}% | Compile {(reports.organic_scorecard.overall_compilation_pass_rate * 100).toFixed(0)}% | E2E {(reports.organic_scorecard.overall_end_to_end_pass_at_1 * 100).toFixed(0)}%
+                </span>
+                <span className="text-text-muted text-[10px]">
+                  {reports.organic_scorecard.total_cases} organic cases
+                </span>
+              </div>
+              <div className="grid grid-cols-5 gap-1 text-[10px] text-text-muted uppercase">
+                <span>Spoke</span>
+                <span>Recall@5</span>
+                <span>MRR</span>
+                <span>Compile</span>
+                <span>E2E pass@1</span>
+              </div>
+              {reports.organic_scorecard.spokes.map((s) => (
+                <div key={s.spoke} className="grid grid-cols-5 gap-1 text-[11px] text-text-primary">
+                  <span>{s.spoke}</span>
+                  <span>{(s.search_recall_at_5 * 100).toFixed(0)}%</span>
+                  <span>{s.mean_reciprocal_rank.toFixed(2)}</span>
+                  <span className={s.compilation_pass_rate >= 1.0 ? TONE_CLASS.pass : TONE_CLASS.warn}>
+                    {(s.compilation_pass_rate * 100).toFixed(0)}%
+                  </span>
+                  <span className={s.end_to_end_pass_at_1 >= 1.0 ? TONE_CLASS.pass : TONE_CLASS.warn}>
+                    {(s.end_to_end_pass_at_1 * 100).toFixed(0)}%
+                  </span>
+                </div>
+              ))}
             </div>
           )}
         </div>

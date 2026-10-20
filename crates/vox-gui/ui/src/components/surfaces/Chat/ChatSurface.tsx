@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { invoke } from '@tauri-apps/api/core';
@@ -30,6 +30,8 @@ import { Mercatus } from '../Mercatus/Mercatus';
 import { HarnessRedirect } from '../Harness/HarnessRedirect';
 import { getPermissionMode } from '../../../transport';
 import { ResearchView } from '../Research/ResearchView';
+import { BrowserView } from '../Browser/BrowserView';
+import { LudusSandbox } from '../../gamify/LudusSandbox';
 import { Tooltip } from '../../ui/Tooltip';
 import {
   getTerminalBridgeState,
@@ -80,11 +82,41 @@ const PANEL_SIZE_CONSTRAINTS: Partial<
 // branch in the refresh effect — only a guarded `.update()` if already
 // present — so they can only ever be (re)created via the Panels menu's Add
 // section, never resurrected on an unrelated re-render.
-const OPT_IN_PANEL_IDS = ['needs-you', 'voxgraph', 'activity', 'repository', 'mercatus', 'harness', 'approvals', 'research'] as const;
+const OPT_IN_PANEL_IDS = [
+  'needs-you',
+  'voxgraph',
+  'activity',
+  'repository',
+  'mercatus',
+  'harness',
+  'approvals',
+  'research',
+  'terminal',
+  'urbs',
+  'browser',
+] as const;
 type OptInPanelId = (typeof OPT_IN_PANEL_IDS)[number];
+
+interface CondensableSurfaceProps {
+  condensed?: boolean;
+}
+
+function cloneWithCondensed(node: React.ReactNode, condensed: boolean): React.ReactNode {
+  return React.isValidElement<CondensableSurfaceProps>(node)
+    ? React.cloneElement(node, { condensed })
+    : node;
+}
 
 function ResearchDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
   return <div data-testid="chat-dock-research" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
+}
+
+export function UrbsDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
+  return <div data-testid="chat-dock-urbs" className="h-full overflow-hidden p-1.5">{props.params.node}</div>;
+}
+
+export function BrowserDockPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
+  return <div data-testid="chat-dock-browser" className="h-full overflow-y-auto p-2">{props.params.node}</div>;
 }
 
 function TranscriptPanel(props: IDockviewPanelProps<{ node: React.ReactNode }>) {
@@ -113,9 +145,7 @@ export function NeedsYouDockPanel(props: IDockviewPanelProps<{ node: React.React
   const condensed = width < NEEDS_YOU_FULL_WIDTH_PX;
   return (
     <div data-testid="chat-dock-needs-you" className="h-full overflow-y-auto p-2">
-      {React.isValidElement(props.params.node)
-        ? React.cloneElement(props.params.node as React.ReactElement<any>, { condensed })
-        : props.params.node}
+      {cloneWithCondensed(props.params.node, condensed)}
     </div>
   );
 }
@@ -134,9 +164,7 @@ export function VoxGraphDockPanel(props: IDockviewPanelProps<{ node: React.React
   const condensed = width < VOXGRAPH_FULL_WIDTH_PX;
   return (
     <div data-testid="chat-dock-voxgraph" className="h-full overflow-y-auto p-2">
-      {React.isValidElement(props.params.node)
-        ? React.cloneElement(props.params.node as React.ReactElement<any>, { condensed })
-        : props.params.node}
+      {cloneWithCondensed(props.params.node, condensed)}
     </div>
   );
 }
@@ -156,9 +184,7 @@ export function ActivityDockPanel(props: IDockviewPanelProps<{ node: React.React
   const condensed = width < ACTIVITY_FULL_WIDTH_PX;
   return (
     <div data-testid="chat-dock-activity" className="h-full overflow-y-auto p-2">
-      {React.isValidElement(props.params.node)
-        ? React.cloneElement(props.params.node as React.ReactElement<any>, { condensed })
-        : props.params.node}
+      {cloneWithCondensed(props.params.node, condensed)}
     </div>
   );
 }
@@ -178,9 +204,7 @@ export function RepositoryDockPanel(props: IDockviewPanelProps<{ node: React.Rea
   const condensed = width < REPOSITORY_FULL_WIDTH_PX;
   return (
     <div data-testid="chat-dock-repository" className="h-full overflow-y-auto p-2">
-      {React.isValidElement(props.params.node)
-        ? React.cloneElement(props.params.node as React.ReactElement<any>, { condensed })
-        : props.params.node}
+      {cloneWithCondensed(props.params.node, condensed)}
     </div>
   );
 }
@@ -200,9 +224,7 @@ export function MercatusDockPanel(props: IDockviewPanelProps<{ node: React.React
   const condensed = width < MERCATUS_FULL_WIDTH_PX;
   return (
     <div data-testid="chat-dock-mercatus" className="h-full overflow-y-auto p-2">
-      {React.isValidElement(props.params.node)
-        ? React.cloneElement(props.params.node as React.ReactElement<any>, { condensed })
-        : props.params.node}
+      {cloneWithCondensed(props.params.node, condensed)}
     </div>
   );
 }
@@ -218,9 +240,7 @@ export function HarnessDockPanel(props: IDockviewPanelProps<{ node: React.ReactN
   const condensed = width < HARNESS_FULL_WIDTH_PX;
   return (
     <div data-testid="chat-dock-harness" className="h-full overflow-y-auto p-2">
-      {React.isValidElement(props.params.node)
-        ? React.cloneElement(props.params.node as React.ReactElement<any>, { condensed })
-        : props.params.node}
+      {cloneWithCondensed(props.params.node, condensed)}
     </div>
   );
 }
@@ -308,6 +328,8 @@ const CHAT_DOCK_COMPONENTS = {
   approvals: ApprovalsDockPanel,
   research: ResearchDockPanel,
   terminal: TerminalDockPanel,
+  urbs: UrbsDockPanel,
+  browser: BrowserDockPanel,
 };
 
 // Marker rendered inside the transcript panel's dockview tab element. Task
@@ -680,6 +702,7 @@ export function ChatSurface({
       sessionSpentUsd={sessionSpentUsd}
       sessionId={activeSessionId}
       onOpenRouting={() => setRoutingOpen(true)}
+      onNavigate={onNavigate}
       turnsCompleted={countCompletedTurns(messages)}
     />
   ) : null;
@@ -701,26 +724,89 @@ export function ChatSurface({
     />
   );
 
-  const voxGraphNode = <VoxGraphStatusPanel />;
+  const voxGraphNode = useMemo(() => <VoxGraphStatusPanel />, []);
 
-  const activityNode = <DiscoverySurface pushToast={pushToast} gamifyEnabled={gamifyEnabled} />;
-
-  const repositoryNode = <RepositoryView pushToast={pushToast} gamifyEnabled={gamifyEnabled} />;
-
-  const mercatusNode = <Mercatus />;
-
-  const harnessNode = (
-    <HarnessRedirect
-      tasks={tasks}
-      messages={messages}
-      routing={routing}
-      sessionSpentUsd={sessionSpentUsd}
-      gamifyEnabled={gamifyEnabled}
-      onOpenRouting={() => setRoutingOpen(true)}
-    />
+  const activityNode = useMemo(
+    () => <DiscoverySurface pushToast={pushToast} gamifyEnabled={gamifyEnabled} />,
+    [pushToast, gamifyEnabled],
   );
 
-  const researchNode = <ResearchView pushToast={pushToast} gamifyEnabled={gamifyEnabled} />;
+  const repositoryNode = useMemo(
+    () => <RepositoryView pushToast={pushToast} gamifyEnabled={gamifyEnabled} />,
+    [pushToast, gamifyEnabled],
+  );
+
+  const mercatusNode = useMemo(() => <Mercatus />, []);
+
+  const harnessNode = useMemo(
+    () => (
+      <HarnessRedirect
+        tasks={tasks}
+        messages={messages}
+        routing={routing}
+        sessionSpentUsd={sessionSpentUsd}
+        gamifyEnabled={gamifyEnabled}
+        onOpenRouting={() => setRoutingOpen(true)}
+      />
+    ),
+    [tasks, messages, routing, sessionSpentUsd, gamifyEnabled],
+  );
+
+  const researchNode = useMemo(
+    () => <ResearchView pushToast={pushToast} gamifyEnabled={gamifyEnabled} />,
+    [pushToast, gamifyEnabled],
+  );
+
+  const browserNode = useMemo(
+    () => <BrowserView pushToast={pushToast} gamifyEnabled={gamifyEnabled} />,
+    [pushToast, gamifyEnabled],
+  );
+
+  const [ludusEnergy, setLudusEnergy] = useState<{ energy: number; maxEnergy: number }>({
+    energy: 80,
+    maxEnergy: 100,
+  });
+  const [liveKbScope, setLiveKbScope] = useState<'auto' | 'verified' | 'off'>('auto');
+  const [liveOversight, setLiveOversight] = useState<string>('balanced');
+
+  useEffect(() => {
+    let cancelled = false;
+    invoke<{ energy?: number; max_energy?: number }>('get_ludus_profile')
+      .catch(() => invoke<{ energy?: number; max_energy?: number }>('gamify_profile'))
+      .then((prof) => {
+        if (!cancelled && prof && typeof prof.energy === 'number') {
+          setLudusEnergy({
+            energy: prof.energy,
+            maxEnergy: typeof prof.max_energy === 'number' && prof.max_energy > 0 ? prof.max_energy : 100,
+          });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const onKbScopeChange = (ev: Event) => {
+      const custom = ev as CustomEvent<{ kbScope?: 'auto' | 'verified' | 'off'; oversightLevel?: string }>;
+      if (custom.detail?.kbScope) setLiveKbScope(custom.detail.kbScope);
+      if (custom.detail?.oversightLevel) setLiveOversight(custom.detail.oversightLevel);
+    };
+    window.addEventListener('vox:kb-scope-change', onKbScopeChange);
+    return () => window.removeEventListener('vox:kb-scope-change', onKbScopeChange);
+  }, []);
+
+  const urbsNode = useMemo(
+    () => <LudusSandbox energy={ludusEnergy.energy} maxEnergy={ludusEnergy.maxEnergy} />,
+    [ludusEnergy.energy, ludusEnergy.maxEnergy],
+  );
+
+  const estimatedKbTokens = useMemo(() => {
+    if (liveKbScope === 'off') return 0;
+    const msgChars = messages.reduce((sum, m) => sum + (m.text?.length ?? 0), 0);
+    return Math.min(1200, Math.max(240, 240 + Math.ceil(msgChars / 4)));
+  }, [messages, liveKbScope]);
 
   const approvalsParams = {
     pendingApprovals,
@@ -763,23 +849,27 @@ export function ChatSurface({
           data-testid="chat-composer-dock"
         >
           {/* Phase 18 & Phase 44: Compact KB Context Inspector & Attention Digest Strip */}
-          <div className="mb-1.5 flex flex-wrap items-center gap-2 px-1 text-[11px]">
-            <button
-              type="button"
-              data-testid="kb-context-inspector-toggle"
-              onClick={() => setKbInspectorOpen((o) => !o)}
-              className="rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 font-mono text-[11px] text-text-secondary hover:text-text-primary"
-            >
-              @kb Context Inspector ({kbInspectorOpen ? 'hide' : 'pinned · <=1.2k tok'})
-            </button>
-            <button
-              type="button"
-              data-testid="inbox-digest-toggle"
-              onClick={() => setDigestOpen((o) => !o)}
-              className="rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 font-mono text-[11px] text-text-secondary hover:text-text-primary"
-            >
-              Attention Digest ({digestOpen ? 'hide' : 'batched · 0 interruptions'})
-            </button>
+          <div className="mb-1.5 flex items-center justify-between gap-1.5 px-0.5 text-[10px]">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              <button
+                type="button"
+                data-testid="kb-context-inspector-toggle"
+                onClick={() => setKbInspectorOpen((o) => !o)}
+                className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 font-mono text-[10px] tracking-tight text-text-secondary transition hover:border-white/20 hover:text-text-primary"
+              >
+                <span className="size-1.5 rounded-full bg-brass" aria-hidden="true" />
+                @kb Context Inspector ({kbInspectorOpen ? 'hide' : `@kb:${liveKbScope} · ~${estimatedKbTokens} tok`})
+              </button>
+              <button
+                type="button"
+                data-testid="inbox-digest-toggle"
+                onClick={() => setDigestOpen((o) => !o)}
+                className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 font-mono text-[10px] tracking-tight text-text-secondary transition hover:border-white/20 hover:text-text-primary"
+              >
+                <span className="size-1.5 rounded-full bg-(--color-status-info)" aria-hidden="true" />
+                Attention Digest ({digestOpen ? 'hide' : `batched · ${waitingQuestions + blockedTasks} urgent`})
+              </button>
+            </div>
           </div>
           {kbInspectorOpen ? (
             <div
@@ -790,7 +880,7 @@ export function ChatSurface({
                 Session-Pinned @kb Context Injection (Phase 44 · Deduped RRF)
               </div>
               <div className="mt-1 text-[11px] text-text-muted">
-                Budget: 420 / 1,200 tok · Scope: @kb:auto · Citations: where-things-live.md (RRF 0.98), agentos-ssot-2026.md (RRF 0.94)
+                Budget: {estimatedKbTokens} / 1,200 tok · Scope: @kb:{liveKbScope} · Oversight: {liveOversight} · Session turns: {messages.length} · Citations: where-things-live.md (RRF 0.98), agentos-ssot-2026.md (RRF 0.94)
               </div>
             </div>
           ) : null}
@@ -893,6 +983,9 @@ export function ChatSurface({
     // a second live <ApprovalsView> poll loop.
     approvals: { title: labelForNavKey('approvals'), params: approvalsParams, referenceChain: ['todos', 'executionRail', 'transcript'] },
     research: { title: labelForNavKey('research'), params: { node: researchNode }, referenceChain: ['todos', 'executionRail', 'transcript'] },
+    terminal: { title: 'Terminal', params: { onNavigate }, referenceChain: ['todos', 'executionRail', 'transcript'] },
+    urbs: { title: 'Urbs Civilization', params: { node: urbsNode }, referenceChain: ['todos', 'executionRail', 'transcript'] },
+    browser: { title: labelForNavKey('browser'), params: { node: browserNode }, referenceChain: ['todos', 'executionRail', 'transcript'] },
   };
 
   // Positions a newly-activated opt-in panel next to whichever opt-in panel
@@ -1018,7 +1111,29 @@ export function ChatSurface({
     api.getPanel('harness')?.update({ params: panelDefs.harness.params });
     api.getPanel('approvals')?.update({ params: panelDefs.approvals.params });
     api.getPanel('research')?.update({ params: panelDefs.research.params });
+    api.getPanel('terminal')?.update({ params: panelDefs.terminal.params });
+    api.getPanel('urbs')?.update({ params: panelDefs.urbs.params });
+    api.getPanel('browser')?.update({ params: panelDefs.browser.params });
   });
+
+  const applyWorkspacePreset = (presetPanels: ChatDockPanelId[]) => {
+    const api = dockApiRef.current;
+    if (!api) return;
+    const targetSet = new Set<string>(['transcript', ...presetPanels]);
+    api.panels.forEach((p) => {
+      if (!targetSet.has(p.id)) {
+        api.removePanel(p);
+        closedPanelIds.current.add(p.id);
+      }
+    });
+    for (const id of presetPanels) {
+      if (id === 'executionRail' && !executionRailNode) continue;
+      if (!api.getPanel(id)) {
+        addDefaultPanel(api, id);
+      }
+    }
+    setOpenPanelIds(new Set(api.panels.map((p) => p.id)));
+  };
 
   const panelsMenu = (
     <div className="relative">
@@ -1037,8 +1152,13 @@ export function ChatSurface({
       {panelsMenuOpen ? (
         <div
           ref={panelsMenuRef}
-          className={`absolute right-0 ${tabBarTrailingSlot ? 'bottom-full mb-2' : 'top-full mt-1'} z-[99999] w-56 rounded-lg border border-border-subtle bg-bg-base p-1 shadow-2xl`}
+          role="group"
+          aria-label="Workspace panels"
+          className={`absolute right-0 ${tabBarTrailingSlot ? 'bottom-full mb-2' : 'top-full mt-1'} z-[99999] w-60 rounded-lg border border-border-subtle bg-bg-base p-1.5 shadow-2xl`}
         >
+                <div className="px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-text-muted">
+                  Docked Panels
+                </div>
                 {[
                   ...CORE_PANEL_IDS.filter(id => id !== 'executionRail' || executionRailNode != null),
                   ...OPT_IN_PANEL_IDS,
@@ -1047,7 +1167,7 @@ export function ChatSurface({
                   return (
                     <label
                       key={id}
-                      className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-xs text-text-muted hover:bg-overlay-hover hover:text-text-primary"
+                      className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1 text-xs text-text-muted hover:bg-overlay-hover hover:text-text-primary"
                     >
                       <input
                         type="checkbox"
@@ -1082,6 +1202,36 @@ export function ChatSurface({
                     </label>
                   );
                 })}
+                <div className="my-1 border-t border-border-subtle" />
+                <div className="px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-text-muted">
+                  Layout Presets
+                </div>
+                <div className="grid grid-cols-3 gap-1 px-1 pb-1">
+                  <button
+                    type="button"
+                    data-testid="dock-preset-focus"
+                    onClick={() => applyWorkspacePreset([])}
+                    className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-1 font-mono text-[10px] text-text-secondary hover:border-brass/40 hover:text-brass"
+                  >
+                    Focus
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="dock-preset-engineering"
+                    onClick={() => applyWorkspacePreset(['executionRail', 'terminal'])}
+                    className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-1 font-mono text-[10px] text-text-secondary hover:border-brass/40 hover:text-brass"
+                  >
+                    Eng Split
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="dock-preset-civilization"
+                    onClick={() => applyWorkspacePreset(['harness', 'urbs'])}
+                    className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-1 font-mono text-[10px] text-text-secondary hover:border-brass/40 hover:text-brass"
+                  >
+                    Urbs + River
+                  </button>
+                </div>
                 <div className="my-1 border-t border-border-subtle" />
                 <button
                   type="button"
@@ -1214,13 +1364,14 @@ export function ChatSurface({
               });
             }
             if (executionRailNode && !event.api.getPanel('executionRail')) {
-              event.api.addPanel({
+              const execPanel = event.api.addPanel({
                 id: 'executionRail',
                 component: 'executionRail',
                 title: 'Execution',
                 params: panelDefs.executionRail.params,
                 position: { direction: 'right', referencePanel: 'transcript' },
               });
+              execPanel?.api?.setSize?.({ width: 340 });
             }
           }}
         />

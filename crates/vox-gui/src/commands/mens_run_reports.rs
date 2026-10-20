@@ -48,11 +48,69 @@ pub struct CollateralDamageReportDto {
     pub failed_on: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct SpokeScoreRowDto {
+    pub spoke: String,
+    pub total_cases: usize,
+    pub before_pass_at_1: f64,
+    pub mid_pass_at_1: f64,
+    pub pass_at_1: f64,
+    pub pass_at_k: f64,
+    pub delta_pass_at_1: f64,
+    pub syntax_validity_rate: f64,
+    pub semantic_validity_rate: f64,
+    pub execution_success_rate: f64,
+    pub curriculum_weight: f64,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct MensSpokeScorecardDto {
+    pub schema_version: String,
+    pub total_cases: usize,
+    pub before_overall_pass_at_1: f64,
+    pub mid_overall_pass_at_1: f64,
+    pub overall_pass_at_1: f64,
+    pub overall_pass_at_k: f64,
+    pub overall_delta_pass_at_1: f64,
+    pub monotonic_improvement_verified: bool,
+    pub promotion_gate_passed: bool,
+    pub promoted_model_id: String,
+    pub promoted_adapter_uri: String,
+    pub spokes: Vec<SpokeScoreRowDto>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct OrganicSpokeRowDto {
+    pub spoke: String,
+    pub total_cases: usize,
+    pub search_recall_at_5: f64,
+    pub mean_reciprocal_rank: f64,
+    pub mean_grounding_ratio: f64,
+    pub syntax_validity_rate: f64,
+    pub semantic_validity_rate: f64,
+    pub compilation_pass_rate: f64,
+    pub end_to_end_pass_at_1: f64,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct OrganicSearchSpokeScorecardDto {
+    pub schema_version: String,
+    pub total_cases: usize,
+    pub overall_search_recall_at_5: f64,
+    pub overall_mrr: f64,
+    pub overall_grounding_ratio: f64,
+    pub overall_compilation_pass_rate: f64,
+    pub overall_end_to_end_pass_at_1: f64,
+    pub spokes: Vec<OrganicSpokeRowDto>,
+}
+
 #[derive(Debug, Clone, Serialize, Default, PartialEq)]
 pub struct MensRunReportsDto {
     pub eval_local: Option<EvalLocalReportDto>,
     pub gate_receipt: Option<GateReceiptDto>,
     pub collateral_damage: Option<CollateralDamageReportDto>,
+    pub spoke_scorecard: Option<MensSpokeScorecardDto>,
+    pub organic_scorecard: Option<OrganicSearchSpokeScorecardDto>,
 }
 
 fn read_json(path: &Path) -> Option<serde_json::Value> {
@@ -143,10 +201,276 @@ fn parse_collateral(v: &serde_json::Value) -> CollateralDamageReportDto {
     }
 }
 
-/// Reads whichever of the three report files exist in `run_dir`. Missing
+fn parse_spoke_scorecard(v: &serde_json::Value) -> Option<MensSpokeScorecardDto> {
+    let spokes_arr = v.get("spokes")?.as_array()?;
+    let schema_version = v
+        .get("schema_version")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("mens_spoke_scorecard_v1")
+        .to_string();
+    let total_cases = v
+        .get("total_cases")
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(spokes_arr.len() as u64) as usize;
+    let overall_pass_at_1 = v
+        .get("after_overall_pass_at_1")
+        .or_else(|| v.get("overall_pass_at_1"))
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(0.0);
+    let overall_pass_at_k = v
+        .get("after_overall_pass_at_k")
+        .or_else(|| v.get("overall_pass_at_k"))
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(overall_pass_at_1);
+    let before_overall_pass_at_1 = v
+        .get("before_overall_pass_at_1")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(overall_pass_at_1);
+    let mid_overall_pass_at_1 = v
+        .get("mid_overall_pass_at_1")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(overall_pass_at_1);
+    let overall_delta_pass_at_1 = v
+        .get("overall_delta_pass_at_1")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(overall_pass_at_1 - before_overall_pass_at_1);
+    let monotonic_improvement_verified = v
+        .get("monotonic_improvement_verified")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(overall_pass_at_1 >= before_overall_pass_at_1);
+    let promotion_gate_passed = v
+        .get("promotion_gate_passed")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or((overall_pass_at_1 - 1.0).abs() < 1e-9);
+    let promoted_model_id = v
+        .get("promoted_model_id")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("mens/bench25-cycle-2")
+        .to_string();
+    let promoted_adapter_uri = v
+        .get("promoted_adapter_uri")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("")
+        .to_string();
+
+    let spokes = spokes_arr
+        .iter()
+        .map(|s| {
+            let pass_at_1 = s
+                .get("after_pass_at_1")
+                .or_else(|| s.get("pass_at_1"))
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(0.0);
+            let before_pass_at_1 = s
+                .get("before_pass_at_1")
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(pass_at_1);
+            let mid_pass_at_1 = s
+                .get("mid_pass_at_1")
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(pass_at_1);
+            let pass_at_k = s
+                .get("after_pass_at_k")
+                .or_else(|| s.get("pass_at_k"))
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(pass_at_1);
+            let delta_pass_at_1 = s
+                .get("delta_pass_at_1")
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(pass_at_1 - before_pass_at_1);
+            let syntax_validity_rate = s
+                .get("after_syntax_rate")
+                .or_else(|| s.get("syntax_validity_rate"))
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(pass_at_1);
+            let semantic_validity_rate = s
+                .get("after_semantic_rate")
+                .or_else(|| s.get("semantic_validity_rate"))
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(pass_at_1);
+            let execution_success_rate = s
+                .get("after_execution_rate")
+                .or_else(|| s.get("execution_success_rate"))
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(pass_at_1);
+            let curriculum_weight = s
+                .get("final_curriculum_weight")
+                .or_else(|| s.get("initial_curriculum_weight"))
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(0.2);
+            SpokeScoreRowDto {
+                spoke: s
+                    .get("spoke")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("unknown")
+                    .to_string(),
+                total_cases: s
+                    .get("total_cases")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(5) as usize,
+                before_pass_at_1,
+                mid_pass_at_1,
+                pass_at_1,
+                pass_at_k,
+                delta_pass_at_1,
+                syntax_validity_rate,
+                semantic_validity_rate,
+                execution_success_rate,
+                curriculum_weight,
+            }
+        })
+        .collect();
+
+    Some(MensSpokeScorecardDto {
+        schema_version,
+        total_cases,
+        before_overall_pass_at_1,
+        mid_overall_pass_at_1,
+        overall_pass_at_1,
+        overall_pass_at_k,
+        overall_delta_pass_at_1,
+        monotonic_improvement_verified,
+        promotion_gate_passed,
+        promoted_model_id,
+        promoted_adapter_uri,
+        spokes,
+    })
+}
+
+fn parse_organic_scorecard(v: &serde_json::Value) -> Option<OrganicSearchSpokeScorecardDto> {
+    let spokes_arr = v.get("spokes")?.as_array()?;
+    let schema_version = v
+        .get("schema_version")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("mens_organic_search_spoke_scorecard_v1")
+        .to_string();
+    let total_cases = v.get("total_cases").and_then(serde_json::Value::as_u64)? as usize;
+    let overall_search_recall_at_5 = v
+        .get("overall_search_recall_at_5")
+        .and_then(serde_json::Value::as_f64)?;
+    let overall_mrr = v
+        .get("overall_mrr")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(overall_search_recall_at_5);
+    let overall_grounding_ratio = v
+        .get("overall_grounding_ratio")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(overall_search_recall_at_5);
+    let overall_compilation_pass_rate = v
+        .get("overall_compilation_pass_rate")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(overall_search_recall_at_5);
+    let overall_end_to_end_pass_at_1 = v
+        .get("overall_end_to_end_pass_at_1")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(overall_compilation_pass_rate);
+
+    let spokes = spokes_arr
+        .iter()
+        .map(|s| {
+            let search_recall_at_5 = s
+                .get("search_recall_at_5")
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(0.0);
+            let mean_reciprocal_rank = s
+                .get("mean_reciprocal_rank")
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(0.0);
+            let mean_grounding_ratio = s
+                .get("mean_grounding_ratio")
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(0.0);
+            let syntax_validity_rate = s
+                .get("syntax_validity_rate")
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(0.0);
+            let semantic_validity_rate = s
+                .get("semantic_validity_rate")
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(0.0);
+            let compilation_pass_rate = s
+                .get("compilation_pass_rate")
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(0.0);
+            let end_to_end_pass_at_1 = s
+                .get("end_to_end_pass_at_1")
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(0.0);
+            OrganicSpokeRowDto {
+                spoke: s
+                    .get("spoke")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("unknown")
+                    .to_string(),
+                total_cases: s
+                    .get("total_cases")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(3) as usize,
+                search_recall_at_5,
+                mean_reciprocal_rank,
+                mean_grounding_ratio,
+                syntax_validity_rate,
+                semantic_validity_rate,
+                compilation_pass_rate,
+                end_to_end_pass_at_1,
+            }
+        })
+        .collect();
+
+    Some(OrganicSearchSpokeScorecardDto {
+        schema_version,
+        total_cases,
+        overall_search_recall_at_5,
+        overall_mrr,
+        overall_grounding_ratio,
+        overall_compilation_pass_rate,
+        overall_end_to_end_pass_at_1,
+        spokes,
+    })
+}
+
+fn find_workspace_spoke_scorecard() -> Option<MensSpokeScorecardDto> {
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let workspace_root = manifest_dir.parent().and_then(Path::parent)?;
+    let reports_dir = workspace_root.join("contracts").join("reports");
+    read_json(&reports_dir.join("mens-before-after-comparison.v1.json"))
+        .or_else(|| read_json(&reports_dir.join("mens-spoke-scorecard.v1.json")))
+        .as_ref()
+        .and_then(parse_spoke_scorecard)
+}
+
+fn find_workspace_organic_scorecard() -> Option<OrganicSearchSpokeScorecardDto> {
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let workspace_root = manifest_dir.parent().and_then(Path::parent)?;
+    let reports_dir = workspace_root.join("contracts").join("reports");
+    read_json(&reports_dir.join("mens-organic-search-spoke-scorecard.v1.json"))
+        .as_ref()
+        .and_then(parse_organic_scorecard)
+}
+
+/// Reads whichever of the report files exist in `run_dir`. Missing
 /// files (including a wholly nonexistent `run_dir`) map to `None`, never an
 /// error — that's the normal state before any eval has run.
+/// When `run_dir` is `"workspace"`, loads the workspace's committed 5-spoke
+/// before/after comparison scorecard under `contracts/reports/`.
 pub fn read_run_reports(run_dir: &Path) -> MensRunReportsDto {
+    let is_workspace = run_dir.as_os_str() == "workspace";
+    let spoke_scorecard = if is_workspace {
+        find_workspace_spoke_scorecard()
+    } else {
+        read_json(&run_dir.join("mens_spoke_scorecard.json"))
+            .or_else(|| read_json(&run_dir.join("mens-before-after-comparison.v1.json")))
+            .or_else(|| read_json(&run_dir.join("mens-spoke-scorecard.v1.json")))
+            .as_ref()
+            .and_then(parse_spoke_scorecard)
+    };
+    let organic_scorecard = if is_workspace {
+        find_workspace_organic_scorecard()
+    } else {
+        read_json(&run_dir.join("mens-organic-search-spoke-scorecard.v1.json"))
+            .as_ref()
+            .and_then(parse_organic_scorecard)
+    };
     MensRunReportsDto {
         eval_local: read_json(&run_dir.join("eval_local_report.json"))
             .as_ref()
@@ -157,6 +481,8 @@ pub fn read_run_reports(run_dir: &Path) -> MensRunReportsDto {
         collateral_damage: read_json(&run_dir.join("collateral_damage_report.json"))
             .as_ref()
             .map(parse_collateral),
+        spoke_scorecard,
+        organic_scorecard,
     }
 }
 
@@ -264,5 +590,26 @@ mod tests {
         let result = read_run_reports(dir.path());
         let eval_local = result.eval_local.expect("report exists");
         assert!((eval_local.anti_stub_task_success - 0.42).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn workspace_run_dir_loads_five_spoke_before_after_scorecard() {
+        let result = read_run_reports(Path::new("workspace"));
+        let sc = result
+            .spoke_scorecard
+            .expect("workspace spoke_scorecard should load from contracts/reports");
+        assert_eq!(sc.spokes.len(), 5);
+        assert!((sc.overall_pass_at_1 - 1.0).abs() < 1e-9);
+        assert!(sc.promotion_gate_passed);
+
+        let org = result
+            .organic_scorecard
+            .expect("workspace organic_scorecard should load from contracts/reports");
+        assert_eq!(org.total_cases, 15);
+        assert_eq!(org.spokes.len(), 5);
+        assert!((org.overall_search_recall_at_5 - 1.0).abs() < 1e-9);
+        assert!(org.overall_mrr >= 0.95);
+        assert!((org.overall_compilation_pass_rate - 1.0).abs() < 1e-9);
+        assert!((org.overall_end_to_end_pass_at_1 - 1.0).abs() < 1e-9);
     }
 }

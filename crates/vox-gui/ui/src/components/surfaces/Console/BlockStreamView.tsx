@@ -85,7 +85,7 @@ export function BlockStreamView({
       className="flex max-h-[340px] shrink-0 flex-col gap-2 overflow-y-auto border-b border-white/10 px-3 py-2 text-xs scroll-smooth"
     >
       {blocks.length === 0 ? (
-        <div className="py-2 text-center text-[11px] text-zinc-500 font-mono">
+        <div className="py-2 text-center text-[11px] text-zinc-400 font-mono">
           No command blocks recorded yet. Enter a command below.
         </div>
       ) : (
@@ -158,7 +158,7 @@ export function BlockStreamView({
                   >
                     {statusLabel}
                   </span>
-                  {durationMs && <span className="text-zinc-500">{durationMs}</span>}
+                  {durationMs && <span className="text-zinc-400">{durationMs}</span>}
                 </div>
               </div>
               {displayOutput && (

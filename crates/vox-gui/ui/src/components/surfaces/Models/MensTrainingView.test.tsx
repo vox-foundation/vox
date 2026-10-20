@@ -179,4 +179,102 @@ describe('MensTrainingView', () => {
     expect(status.textContent).not.toBe('Gate passed (1 substantive gates)');
     expect(status.textContent).toMatch(/1 substantive/i);
   });
+
+  it('loads and renders the 5-spoke before/after scorecard when Load 5-Spoke Benchmark is clicked', async () => {
+    invokeMock.mockImplementation((cmd: string) => {
+      if (cmd === 'get_active_model') return Promise.resolve('Qwen/Qwen3-8B');
+      if (cmd === 'execute_command') {
+        return Promise.resolve({ exit_code: 0, stdout: '', stderr: '' });
+      }
+      if (cmd === 'mens_serve_status') {
+        return Promise.resolve({ running: false, port: null, default_port: 11435 });
+      }
+      if (cmd === 'inference_provider_status') return Promise.resolve([]);
+      if (cmd === 'mens_run_reports') {
+        return Promise.resolve({
+          eval_local: null,
+          gate_receipt: null,
+          collateral_damage: null,
+          spoke_scorecard: {
+            schema_version: 'mens_before_after_comparison_v1',
+            total_cases: 25,
+            before_overall_pass_at_1: 0.24,
+            mid_overall_pass_at_1: 0.72,
+            overall_pass_at_1: 1.0,
+            overall_pass_at_k: 1.0,
+            overall_delta_pass_at_1: 0.76,
+            monotonic_improvement_verified: true,
+            promotion_gate_passed: true,
+            promoted_model_id: 'mens/bench25-cycle-2',
+            promoted_adapter_uri: 'trusty://mens-adapter/abc',
+            spokes: [
+              {
+                spoke: 'vox_lang',
+                total_cases: 5,
+                before_pass_at_1: 0.4,
+                mid_pass_at_1: 0.8,
+                pass_at_1: 1.0,
+                pass_at_k: 1.0,
+                delta_pass_at_1: 0.6,
+                syntax_validity_rate: 1.0,
+                semantic_validity_rate: 1.0,
+                execution_success_rate: 1.0,
+                curriculum_weight: 0.2,
+              },
+              {
+                spoke: 'agent_harness',
+                total_cases: 5,
+                before_pass_at_1: 0.2,
+                mid_pass_at_1: 0.6,
+                pass_at_1: 1.0,
+                pass_at_k: 1.0,
+                delta_pass_at_1: 0.8,
+                syntax_validity_rate: 1.0,
+                semantic_validity_rate: 1.0,
+                execution_success_rate: 1.0,
+                curriculum_weight: 0.2,
+              },
+            ],
+          },
+          organic_scorecard: {
+            schema_version: 'mens_organic_search_spoke_scorecard_v1',
+            total_cases: 15,
+            overall_search_recall_at_5: 1.0,
+            overall_mrr: 1.0,
+            overall_grounding_ratio: 1.0,
+            overall_compilation_pass_rate: 1.0,
+            overall_end_to_end_pass_at_1: 1.0,
+            spokes: [
+              {
+                spoke: 'vox_lang',
+                total_cases: 3,
+                search_recall_at_5: 1.0,
+                mean_reciprocal_rank: 1.0,
+                mean_grounding_ratio: 1.0,
+                syntax_validity_rate: 1.0,
+                semantic_validity_rate: 1.0,
+                compilation_pass_rate: 1.0,
+                end_to_end_pass_at_1: 1.0,
+              },
+            ],
+          },
+        });
+      }
+      return Promise.resolve(null);
+    });
+
+    render(<MensTrainingView pushToast={noop} />);
+    const btn = await screen.findByRole('button', { name: /load 5-spoke benchmark/i });
+    fireEvent.click(btn);
+
+    const card = await screen.findByTestId('mens-spoke-scorecard');
+    expect(card.textContent).toMatch(/24% → 72% → 100% \(\+76%\)/);
+    expect(card.textContent).toMatch(/vox_lang/);
+    expect(card.textContent).toMatch(/agent_harness/);
+
+    const organicCard = await screen.findByTestId('mens-organic-scorecard');
+    expect(organicCard.textContent).toMatch(/Organic Search → Compilation/i);
+    expect(organicCard.textContent).toMatch(/Recall@5 100%/i);
+    expect(organicCard.textContent).toMatch(/15 organic cases/i);
+  });
 });

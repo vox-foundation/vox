@@ -50,16 +50,20 @@
   --dv-tabs-container-scrollbar-color: rgba(255, 255, 255, 0.12);
 }
 
+.dockview-theme-vox .dv-tabs-and-actions-container {
+  height: 26px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
 .dockview-theme-vox .dv-tab {
   font-family: ui-monospace, monospace;
   font-size: 10px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
+  padding-inline: 10px;
+  transition: background-color 120ms ease, color 120ms ease;
 }
 
-.dockview-theme-vox .dv-tabs-and-actions-container {
-  height: 22px;
-}
-.dockview-theme-vox .dv-tab {
-  font-size: 9px;
+.dockview-theme-vox .dv-tab.dv-active-tab {
+  box-shadow: inset 0 2px 0 rgba(212, 175, 55, 0.75);
 }
