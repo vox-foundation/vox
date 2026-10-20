@@ -569,7 +569,7 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
                 "schema_version": "vox_dogfood_v1",
             });
             let agent_str = params.sender_id.to_string();
-            let _ = vox_gamify::db::insert_event(
+            let _ = vox_db::ops_agent_telemetry::insert_event(
                 db,
                 &agent_str,
                 "a2a_trace",

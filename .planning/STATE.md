@@ -1,48 +1,46 @@
 ---
-gsd_state_version: "1.0"
-milestone: v1.6
-milestone_name: "Production Stability, Zero-Mock Surface Reality & Mens Continuous Training Flywheel"
-status: Complete
-stopped_at: "Completed Milestone v1.6 (Phases 77-88: all 12 phases and 25 plans complete and verified)"
-last_updated: "2026-10-16T18:15:00.000Z"
-last_activity: 2026-10-16
-last_activity_desc: "Completed Phases 77-88 (v1.6 + v1.6-mens converged), closed all review items, and archived Milestone v1.6"
-state_head: 2593f1ae236ee21248709f012a8db9e288927dbd
+gsd_state_version: 1.0
+milestone: v2.0
+milestone_name: "Persistent Organic Multi-Spoke Search-to-Compilation Benchmark, Live Execution Oracles & Longitudinal Evaluation Flywheel"
+status: completed
+last_updated: "2026-10-20T04:36:00Z"
+last_activity: "2026-10-19 — Completed Milestone v2.0 (Phases 108–111) autonomously via /gsd-autonomous (ORG-SEARCH-01..04, COMP-ORACLE-01..04, PERSIST-BENCH-01..04, SURFACE-BENCH-01..04)"
 progress:
-  total_phases: 12
-  completed_phases: 12
-  total_plans: 25
-  completed_plans: 25
-  percent: 100
+  total_phases: 4
+  completed_phases: 4
+  total_plans: 4
+  completed_plans: 4
 ---
 
-# Project State: Unified Stream (`unified`)
+# Project State: Unified Workstream (`v2.0`)
 
 ## Project Reference
 
-See: `.planning/PROJECT.md` (updated 2026-10-16)
+See: `.planning/PROJECT.md` (updated 2026-10-19)
+Architecture SSOT: `docs/src/architecture/organic-multi-spoke-search-to-compilation-benchmark-2026.md`
+Contract SSOT: `contracts/reports/mens-organic-search-spoke-scorecard.v1.json`
 
-**Core value:** The compiler, orchestrator, runtime, knowledge base, and public documentation site (`voxlang.org`) stay continuously verified, self-organizing, and build-green from a single unified worktree (`/Users/brbrainerd/dev/vox`).
-**Current focus:** **v1.6 Production Stability, Zero-Mock Surface Reality & Mens Continuous Training Flywheel (`Phases 77–88`) — COMPLETE (`100%`)**.
+**Core value:** Local-first AI-native full-stack programming language and toolchain with a verified 5-spoke MENS model (`vox_lang`, `rust_workspace`, `structured_shell`, `mcp_tool_chain`, `agent_harness`), organic workspace search-to-compilation evaluation (`100.0%` Recall@5, `1.000` MRR, `100.0%` compilation pass@1), dynamic 32-surface `@ngi/platform-ssot` CV Flywheel visual/DOM/WCAG 2.2 AA verification, and longitudinal `VoxDb` benchmark persistence.
+**Current focus:** Milestone `v2.0` (`Phases 108–111`) — Completed (`4/4` phases, `4/4` plans, `16/16` requirements verified).
 
 ## Current Position
 
-Phase: 88 — Full-Loop Autonomous Burn-In, Cross-Spoke Benchmark Proof & Milestone Closure (Complete)
-Plan: 88-02 (Complete)
-Status: Complete
-Last activity: 2026-10-16 — Completed and verified Phases 77–88 (`77-VERIFICATION.md`..`88-VERIFICATION.md`).
+Phase: 111 of 111 (`Phase 111: CLI, MCP & Axis GUI Longitudinal Scorecard Surface`)
+Plan: `111-01` (completed)
+Status: Completed — all 4 phases (`108–111`) and all 16 requirements (`ORG-SEARCH-01..04`, `COMP-ORACLE-01..04`, `PERSIST-BENCH-01..04`, `SURFACE-BENCH-01..04`) executed and verified.
+Last activity: 2026-10-19 — Completed Milestone `v2.0` (`Phases 108–111`) via `/gsd-autonomous`.
 
-## Accumulated Context
+Progress: [██████████] 100% (4/4 phases complete)
 
-- Full decision log in `.planning/PROJECT.md` (`D15`–`D22`).
-- Zero open blockers or deferred items (`audit-open` and `88-REVIEW.md` 6/6 clear).
+## Phase Matrix (`v2.0`)
 
-## Session Continuity
+| Phase | Name | Plans | Status |
+|---|---|---|---|
+| **108** | Organic Search-to-Spoke Retrieval & Contamination-Free Holdout Expansion | `108-01` | **Complete (`ORG-SEARCH-01..04` verified)** |
+| **109** | Deep Compilation & Functional Runtime Oracles Across All 5 Spokes | `109-01` | **Complete (`COMP-ORACLE-01..04` verified)** |
+| **110** | Persistent Longitudinal Benchmark Time-Series in `VoxDb` & Multi-Metric Regression Ratchet | `110-01` | **Complete (`PERSIST-BENCH-01..04` verified)** |
+| **111** | CLI (`vox model eval --organic-search-spokes`), MCP & Axis GUI Longitudinal Scorecard Surface | `111-01` | **Complete (`SURFACE-BENCH-01..04` verified)** |
 
-Last session: 2026-10-16T18:15:00.000Z
-Stopped at: Milestone `v1.6` complete (`Phases 77–88`, `25/25` plans verified).
-Resume file: `.planning/ROADMAP.md` and `.planning/REQUIREMENTS.md`
+## Next Action
 
-## Operator Next Steps
-
-- Run `/gsd-new-milestone` when ready for `v1.7`.
+Milestone `v2.0` is complete (`100%`). Ready for `/gsd-code-review`, `/gsd-complete-milestone`, or `/gsd-new-milestone`.

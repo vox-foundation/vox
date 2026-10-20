@@ -1970,3 +1970,190 @@ mod family_inheritance_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod multi_surface_model_router_and_db_shape_audit {
+    use crate::models::{
+        ModelRegistry, SelectionAxisKind, SelectionIntent, SelectionPolicy, SelectionStep,
+        install_active_policy, install_base_routing_priority, select,
+    };
+    use crate::types::TaskCategory;
+
+    #[tokio::test]
+    async fn multi_surface_model_router_and_db_shape_audit() {
+        let db = vox_db::VoxDb::in_memory().await.expect("in-memory VoxDb");
+        let sink = vox_db::telemetry_sink::ResearchMetricsSink::new(db.clone());
+
+        let registry = ModelRegistry::new();
+        assert!(
+            !registry.list_models().is_empty(),
+            "ModelRegistry must populate default models"
+        );
+
+        // 1. CLI / Orchestrator surface (ROUTER-01): default selection across CodeGen, Research, Debugging, Review
+        for cat in [
+            TaskCategory::CodeGen,
+            TaskCategory::Research,
+            TaskCategory::Debugging,
+            TaskCategory::Review,
+        ] {
+            let intent = SelectionIntent::for_task(cat);
+            let chosen = select(&intent, &registry).expect("router must select a model");
+            assert!(!chosen.model_id.is_empty());
+            sink.record_async(&vox_telemetry::TelemetryEvent::SelectionDecision(
+                vox_telemetry::SelectionDecisionEvent {
+                    intent_caller: None,
+                    task: format!("{cat:?}").to_lowercase(),
+                    axes: (34, 33, 33),
+                    chosen_model: chosen.model_id.clone(),
+                    reason: "scored".into(),
+                    premium_alias_key: None,
+                    repository_id: Some("repo-router".into()),
+                },
+            ))
+            .await
+            .expect("record SelectionDecision");
+        }
+
+        // 2. MCP / Flywheel Telemetry surface (ROUTER-03): ModelCall, ModelPrompt, ModelBenchCase, TrainingThroughput, DomainMisguidance
+        sink.record_async(&vox_telemetry::TelemetryEvent::ModelCall(
+            vox_telemetry::ModelCallEvent {
+                model: "mens-qwen35".into(),
+                provider: "ollama".into(),
+                route_profile: Some("local".into()),
+                selection_rationale: None,
+                prompt_tokens: 100,
+                completion_tokens: 50,
+                cache_read_input_tokens: None,
+                cache_creation_input_tokens: None,
+                latency_ms: 120,
+                cost_usd: 0.0,
+                cost_source: "local".into(),
+                error_class: None,
+                retry_attempt: 0,
+                task_id: Some(1),
+                parent_task_id: None,
+                trace_id: None,
+                caller_agent_id: None,
+            },
+        ))
+        .await
+        .expect("record ModelCall");
+        sink.record_async(&vox_telemetry::TelemetryEvent::ModelPrompt(
+            vox_telemetry::ModelPromptEvent {
+                canonical_model_id: "local_ollama".into(),
+                profile_variant_id: "confirmed_v1".into(),
+                task_category: "coding".into(),
+                quality_bucket: "excellent".into(),
+            },
+        ))
+        .await
+        .expect("record ModelPrompt");
+        sink.record_async(&vox_telemetry::TelemetryEvent::ModelBenchCase(
+            vox_telemetry::ModelBenchCaseEvent {
+                model_id: "mens-qwen35".into(),
+                fixture_id: "spoke_vox_01".into(),
+                task_category: "codegen".into(),
+                passed: true,
+                latency_ms: 95,
+            },
+        ))
+        .await
+        .expect("record ModelBenchCase");
+        sink.record_async(&vox_telemetry::TelemetryEvent::TrainingThroughput(
+            vox_telemetry::TrainingThroughputEvent {
+                gpu_vendor: "apple_metal".into(),
+                vram_bucket: "24_to_48gb".into(),
+                seq_len_bucket: "512_to_2k".into(),
+                tok_per_sec_bucket: "50_to_200".into(),
+                success: true,
+            },
+        ))
+        .await
+        .expect("record TrainingThroughput");
+        sink.record_async(&vox_telemetry::TelemetryEvent::DomainMisguidance(
+            vox_telemetry::DomainMisguidanceEvent {
+                culprit_domain: "docs.example.org".into(),
+                domain_category: "official_docs".into(),
+                defect_class: "hallucinated_api".into(),
+            },
+        ))
+        .await
+        .expect("record DomainMisguidance");
+
+        // 3. GUI / Daemon surface: persisted routing_priority + SelectionPolicy JSON round-trip
+        db.set_user_preference(
+            "local_user",
+            "routing_priority",
+            "quality=60,latency=25,cost=15",
+        )
+        .await
+        .expect("set routing_priority");
+        let csv = db
+            .get_user_preference("local_user", "routing_priority")
+            .await
+            .expect("get routing_priority")
+            .expect("routing_priority present");
+        let axes = vox_config::AutoRoutingPriority::try_parse_csv(&csv)
+            .expect("parse routing_priority csv");
+        install_base_routing_priority(Some(axes));
+
+        let policy = SelectionPolicy {
+            steps: vec![SelectionStep::EmphasizeAxis {
+                axis: SelectionAxisKind::Intelligence,
+                weight: 80,
+            }],
+        };
+        let policy_json = serde_json::to_string(&policy).expect("serialize SelectionPolicy");
+        db.set_user_preference("local_user", "selection_policy", &policy_json)
+            .await
+            .expect("set selection_policy");
+        let loaded_json = db
+            .get_user_preference("local_user", "selection_policy")
+            .await
+            .expect("get selection_policy")
+            .expect("selection_policy present");
+        let decoded_policy =
+            SelectionPolicy::from_json(&loaded_json).expect("SelectionPolicy::from_json");
+        assert_eq!(decoded_policy.steps.len(), 1);
+        install_active_policy(Some(decoded_policy));
+
+        let policy_pick = select(&SelectionIntent::for_task(TaskCategory::CodeGen), &registry)
+            .expect("router must select under SelectionPolicy");
+        assert!(!policy_pick.model_id.is_empty());
+
+        // Reset global policy / priority after test
+        install_active_policy(None);
+        install_base_routing_priority(None);
+
+        // 4. DBAUDIT-02: Verify clean shape audit + negative malformed metadata detection
+        let report = db
+            .audit_research_metric_shapes("")
+            .await
+            .expect("audit_research_metric_shapes");
+        assert!(
+            report.total_rows_checked >= 9,
+            "expected >=9 persisted rows, got {}",
+            report.total_rows_checked
+        );
+        assert_eq!(report.valid_typed_rows, report.total_rows_checked);
+        assert!(report.is_clean(), "expected clean report, got {report:?}");
+
+        // Negative detection: insert malformed JSON metadata row
+        db.append_research_metric(
+            "telemetry:malformed:test",
+            vox_telemetry::METRIC_TYPE_SELECTION_DECISION,
+            None,
+            Some("{invalid-json"),
+        )
+        .await
+        .expect("insert malformed row");
+        let neg_report = db
+            .audit_research_metric_shapes("telemetry:malformed:")
+            .await
+            .expect("negative audit");
+        assert_eq!(neg_report.total_rows_checked, 1);
+        assert_eq!(neg_report.malformed_metadata_rows.len(), 1);
+        assert!(!neg_report.is_clean());
+    }
+}

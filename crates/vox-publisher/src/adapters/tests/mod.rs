@@ -32,18 +32,3 @@ pub fn config_fixture(base_url: Option<String>) -> PublisherConfig {
         ..PublisherConfig::default()
     }
 }
-
-#[cfg(test)]
-mod bluesky;
-#[cfg(test)]
-mod discord;
-#[cfg(test)]
-mod linkedin;
-#[cfg(test)]
-mod mastodon;
-#[cfg(test)]
-mod opencollective;
-#[cfg(all(test, feature = "scientia-reddit"))]
-mod reddit;
-#[cfg(test)]
-mod twitter;

@@ -333,6 +333,12 @@ pub enum TelemetryEvent {
     DefaultDecision(DefaultDecisionEvent),
     /// Outcome of per-model prompt-profile injection (Track F).
     ModelPrompt(ModelPromptEvent),
+    /// Per-fixture model benchmark outcome (Phase 89 community flywheel).
+    ModelBenchCase(ModelBenchCaseEvent),
+    /// Local/cloud QLoRA training throughput observation (Phase 89 community flywheel).
+    TrainingThroughput(TrainingThroughputEvent),
+    /// Domain misguidance / hallucination root-cause observation (Phase 89 community flywheel).
+    DomainMisguidance(DomainMisguidanceEvent),
 }
 
 /// Payload aligned with `contracts/telemetry/fixture-model-intent-resolved.v1.schema.json`.
@@ -1158,7 +1164,7 @@ pub struct DefaultDecisionEvent {
 ///
 /// Aligned with `contracts/telemetry/collection-taxonomy.v1.json#model_prompt`.
 /// All fields are enum strings — no raw prompt text, no model-specific secrets.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct ModelPromptEvent {
     /// Canonical model family bucket (e.g. "claude_sonnet_4", "gemini_flash_2").
     pub canonical_model_id: String,
@@ -1169,6 +1175,463 @@ pub struct ModelPromptEvent {
     /// Outcome quality bucket (set retroactively on task completion).
     #[serde(default)]
     pub quality_bucket: String,
+}
+
+// ── Track E/F & Phase 89 flywheel metric_type constants ──────────────────
+
+/// S1 — Top-level CLI command usage (`TelemetryEvent::CommandUsage`).
+pub const METRIC_TYPE_COMMAND_USAGE: &str = "vox.command.usage";
+/// S1 — Skill activation at MCP/CLI/GUI surface (`TelemetryEvent::SkillActivation`).
+pub const METRIC_TYPE_SKILL_ACTIVATION: &str = "vox.skill.activation";
+/// S1 — File-mutation edit pattern (`TelemetryEvent::EditPattern`).
+pub const METRIC_TYPE_EDIT_PATTERN: &str = "vox.edit.pattern";
+/// S1 — MCP tool-call harness shape (`TelemetryEvent::HarnessUsage`).
+pub const METRIC_TYPE_HARNESS_USAGE: &str = "vox.harness.usage";
+/// S1 — Subsystem error class at MCP dispatch boundary (`TelemetryEvent::ErrorSurface`).
+pub const METRIC_TYPE_ERROR_SURFACE: &str = "vox.error.surface";
+/// S1 — Tunable-constant decision and observed outcome (`TelemetryEvent::DefaultDecision`).
+pub const METRIC_TYPE_DEFAULT_DECISION: &str = "vox.default.decision";
+/// S1 — Per-model prompt-profile injection outcome (`TelemetryEvent::ModelPrompt`).
+pub const METRIC_TYPE_MODEL_PROMPT: &str = "vox.model.prompt";
+/// S1 — Per-fixture model benchmark outcome (`TelemetryEvent::ModelBenchCase`).
+pub const METRIC_TYPE_MODEL_BENCH_CASE: &str = "vox.model.bench_case";
+/// S1 — Training throughput observation (`TelemetryEvent::TrainingThroughput`).
+pub const METRIC_TYPE_TRAINING_THROUGHPUT: &str = "vox.mens.training_throughput";
+/// S1 — Domain misguidance observation (`TelemetryEvent::DomainMisguidance`).
+pub const METRIC_TYPE_DOMAIN_MISGUIDANCE: &str = "vox.research.domain_misguidance";
+
+/// Per-fixture model benchmark outcome (Phase 89, category=`model_bench_case`).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct ModelBenchCaseEvent {
+    /// Raw model identifier (salted-hashed into `model_id_hash` before OTLP projection).
+    pub model_id: String,
+    /// Benchmark fixture identifier (salted-hashed into `fixture_id_hash` before OTLP projection).
+    pub fixture_id: String,
+    /// Task category slug (`codegen`, `debugging`, `refactoring`, `planning`, `review`, `research`, `syntax_k`, `humaneval`, `unknown`).
+    pub task_category: String,
+    /// Whether the benchmark fixture passed.
+    pub passed: bool,
+    /// Observed wall-clock latency in milliseconds (bucketed into `duration_bucket` on OTLP projection).
+    pub latency_ms: u64,
+}
+
+/// Training throughput observation (Phase 89, category=`training_throughput`).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct TrainingThroughputEvent {
+    /// GPU vendor slug (`nvidia`, `amd`, `apple_metal`, `intel`, `cpu`, `unknown`).
+    pub gpu_vendor: String,
+    /// VRAM bucket slug (`lt8gb`, `8_to_16gb`, `16_to_24gb`, `24_to_48gb`, `48_to_80gb`, `gt80gb`, `unknown`).
+    pub vram_bucket: String,
+    /// Sequence length bucket (`lt512`, `512_to_2k`, `2k_to_8k`, `8k_to_32k`, `gt32k`).
+    pub seq_len_bucket: String,
+    /// Throughput bucket (`lt10`, `10_to_50`, `50_to_200`, `200_to_1000`, `gt1000`).
+    pub tok_per_sec_bucket: String,
+    /// Whether the training step/epoch completed without OOM or failure.
+    pub success: bool,
+}
+
+/// Domain misguidance / hallucination root-cause observation (Phase 89, category=`domain_misguidance`).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct DomainMisguidanceEvent {
+    /// Registrable domain or doc source identifier (salted-hashed into `domain_hash` before OTLP projection).
+    pub culprit_domain: String,
+    /// Domain category (`official_docs`, `package_registry`, `code_host`, `qa_forum`, `blog_tutorial`, `academic`, `unknown`).
+    pub domain_category: String,
+    /// Defect class (`hallucinated_api`, `deprecated_syntax`, `contradictory_claim`, `broken_example`, `stale_version`, `other`).
+    pub defect_class: String,
+}
+
+// ── Strongly-typed telemetry taxonomy enums & SaltedHashHex (`TYPING-01`) ──
+
+/// Validated 64-character lowercase ASCII hex string representing a salted SHA-256 digest.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+#[serde(transparent)]
+pub struct SaltedHashHex(String);
+
+impl SaltedHashHex {
+    /// Validate that `hex` is an exact 64-character lowercase ASCII hex digest.
+    pub fn try_new(hex: impl Into<String>) -> Result<Self, &'static str> {
+        let s = hex.into();
+        if s.len() == 64 && s.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f')) {
+            Ok(Self(s))
+        } else {
+            Err("SaltedHashHex must be exactly 64 lowercase hexadecimal characters")
+        }
+    }
+
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for SaltedHashHex {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Self::try_new(s).map_err(serde::de::Error::custom)
+    }
+}
+
+/// Latency / duration bucket aligned with `collection-taxonomy.v1.json`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum DurationBucket {
+    #[serde(rename = "lt1s")]
+    Lt1s,
+    #[serde(rename = "1_to_5s")]
+    S1To5,
+    #[serde(rename = "5_to_30s")]
+    S5To30,
+    #[serde(rename = "30s_to_5m")]
+    S30To5m,
+    #[serde(rename = "gt5m")]
+    Gt5m,
+}
+
+impl DurationBucket {
+    #[must_use]
+    pub const fn from_ms(ms: u64) -> Self {
+        match ms {
+            0..=999 => Self::Lt1s,
+            1_000..=4_999 => Self::S1To5,
+            5_000..=29_999 => Self::S5To30,
+            30_000..=299_999 => Self::S30To5m,
+            _ => Self::Gt5m,
+        }
+    }
+
+    #[must_use]
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            Self::Lt1s => "lt1s",
+            Self::S1To5 => "1_to_5s",
+            Self::S5To30 => "5_to_30s",
+            Self::S30To5m => "30s_to_5m",
+            Self::Gt5m => "gt5m",
+        }
+    }
+}
+
+/// Token count bucket aligned with `collection-taxonomy.v1.json`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum TokenBucket {
+    #[serde(rename = "lt512")]
+    Lt512,
+    #[serde(rename = "512_to_2k")]
+    Tok512To2k,
+    #[serde(rename = "2k_to_8k")]
+    Tok2kTo8k,
+    #[serde(rename = "8k_to_32k")]
+    Tok8kTo32k,
+    #[serde(rename = "gt32k")]
+    Gt32k,
+}
+
+impl TokenBucket {
+    #[must_use]
+    pub const fn from_tokens(tokens: u64) -> Self {
+        match tokens {
+            0..=511 => Self::Lt512,
+            512..=2_047 => Self::Tok512To2k,
+            2_048..=8_191 => Self::Tok2kTo8k,
+            8_192..=32_767 => Self::Tok8kTo32k,
+            _ => Self::Gt32k,
+        }
+    }
+
+    #[must_use]
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            Self::Lt512 => "lt512",
+            Self::Tok512To2k => "512_to_2k",
+            Self::Tok2kTo8k => "2k_to_8k",
+            Self::Tok8kTo32k => "8k_to_32k",
+            Self::Gt32k => "gt32k",
+        }
+    }
+}
+
+/// Child-call / subagent count bucket aligned with `collection-taxonomy.v1.json`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum CountBucket {
+    #[serde(rename = "0")]
+    Zero,
+    #[serde(rename = "1_to_3")]
+    OneToThree,
+    #[serde(rename = "4_to_9")]
+    FourToNine,
+    #[serde(rename = "10_to_24")]
+    TenToTwentyFour,
+    #[serde(rename = "gte25")]
+    Gte25,
+}
+
+impl CountBucket {
+    #[must_use]
+    pub const fn from_count(n: usize) -> Self {
+        match n {
+            0 => Self::Zero,
+            1..=3 => Self::OneToThree,
+            4..=9 => Self::FourToNine,
+            10..=24 => Self::TenToTwentyFour,
+            _ => Self::Gte25,
+        }
+    }
+
+    #[must_use]
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            Self::Zero => "0",
+            Self::OneToThree => "1_to_3",
+            Self::FourToNine => "4_to_9",
+            Self::TenToTwentyFour => "10_to_24",
+            Self::Gte25 => "gte25",
+        }
+    }
+}
+
+/// Edit line-count size bucket aligned with `collection-taxonomy.v1.json#edit_pattern`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum SizeBucket {
+    #[serde(rename = "lt10_lines")]
+    Lt10Lines,
+    #[serde(rename = "10_to_50_lines")]
+    Lines10To50,
+    #[serde(rename = "50_to_200_lines")]
+    Lines50To200,
+    #[serde(rename = "gt200_lines")]
+    Gt200Lines,
+}
+
+impl SizeBucket {
+    #[must_use]
+    pub const fn from_lines(lines: usize) -> Self {
+        match lines {
+            0..=9 => Self::Lt10Lines,
+            10..=50 => Self::Lines10To50,
+            51..=200 => Self::Lines50To200,
+            _ => Self::Gt200Lines,
+        }
+    }
+
+    #[must_use]
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            Self::Lt10Lines => "lt10_lines",
+            Self::Lines10To50 => "10_to_50_lines",
+            Self::Lines50To200 => "50_to_200_lines",
+            Self::Gt200Lines => "gt200_lines",
+        }
+    }
+}
+
+/// CLI command exit outcome class (`collection-taxonomy.v1.json#command_usage`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CommandExitClass {
+    Success,
+    UserError,
+    InternalError,
+    Cancelled,
+    Timeout,
+}
+
+/// Edit operation type (`collection-taxonomy.v1.json#edit_pattern`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EditOpType {
+    Insert,
+    Replace,
+    Delete,
+    Create,
+    Unknown,
+}
+
+/// File extension class (`collection-taxonomy.v1.json#edit_pattern`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EditFileKind {
+    Rust,
+    Typescript,
+    Javascript,
+    Python,
+    Toml,
+    Yaml,
+    Json,
+    Markdown,
+    Vox,
+    Other,
+}
+
+/// Broad MCP tool call class (`collection-taxonomy.v1.json#harness_usage`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HarnessToolCallKind {
+    Read,
+    Write,
+    Edit,
+    Search,
+    Run,
+    McpInfer,
+    TaskLifecycle,
+    AgentDispatch,
+    SkillImport,
+    Unknown,
+}
+
+/// Harness execution mode (`collection-taxonomy.v1.json#harness_usage`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HarnessMode {
+    Interactive,
+    Headless,
+    Plan,
+    Auto,
+    Unknown,
+}
+
+/// Skill activation trigger source (`collection-taxonomy.v1.json#skill_activation`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SkillTriggerSource {
+    Pinned,
+    Catalog,
+    UserExplicit,
+    AutoSuggested,
+    Continuation,
+}
+
+/// Surface that triggered skill activation (`collection-taxonomy.v1.json#skill_activation`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SkillSurface {
+    Cli,
+    Gui,
+    Mcp,
+    Api,
+    Unknown,
+}
+
+/// Subsystem tag for `errors` / `error_surface` (`collection-taxonomy.v1.json`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ErrorSubsystem {
+    LlmHttp,
+    LlmBridge,
+    ToolDispatch,
+    TaskLifecycle,
+    Db,
+    Plugin,
+    Build,
+    Audit,
+    Unknown,
+}
+
+/// Error class tag for `errors` / `error_surface` (`collection-taxonomy.v1.json`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TelemetryErrorClass {
+    RateLimited,
+    ServerError,
+    ClientError,
+    TransportError,
+    DecodeError,
+    Timeout,
+    AuthError,
+    NotFound,
+    Validation,
+    Internal,
+    Unknown,
+}
+
+/// Hardware accelerator vendor (`collection-taxonomy.v1.json#training_throughput`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GpuVendor {
+    Nvidia,
+    Amd,
+    AppleMetal,
+    Intel,
+    Cpu,
+    Unknown,
+}
+
+/// VRAM capacity bucket (`collection-taxonomy.v1.json#training_throughput`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum VramBucket {
+    #[serde(rename = "lt8gb")]
+    Lt8gb,
+    #[serde(rename = "8_to_16gb")]
+    Gb8To16,
+    #[serde(rename = "16_to_24gb")]
+    Gb16To24,
+    #[serde(rename = "24_to_48gb")]
+    Gb24To48,
+    #[serde(rename = "48_to_80gb")]
+    Gb48To80,
+    #[serde(rename = "gt80gb")]
+    Gt80gb,
+    #[serde(rename = "unknown")]
+    Unknown,
+}
+
+/// Tokens-per-second throughput bucket (`collection-taxonomy.v1.json#training_throughput`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum TokPerSecBucket {
+    #[serde(rename = "lt10")]
+    Lt10,
+    #[serde(rename = "10_to_50")]
+    Tps10To50,
+    #[serde(rename = "50_to_200")]
+    Tps50To200,
+    #[serde(rename = "200_to_1000")]
+    Tps200To1000,
+    #[serde(rename = "gt1000")]
+    Gt1000,
+}
+
+impl TokPerSecBucket {
+    #[must_use]
+    pub fn from_tok_per_sec(tps: f64) -> Self {
+        if tps < 10.0 {
+            Self::Lt10
+        } else if tps < 50.0 {
+            Self::Tps10To50
+        } else if tps < 200.0 {
+            Self::Tps50To200
+        } else if tps < 1000.0 {
+            Self::Tps200To1000
+        } else {
+            Self::Gt1000
+        }
+    }
+}
+
+/// Domain category for misguidance attribution (`collection-taxonomy.v1.json#domain_misguidance`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DomainCategory {
+    OfficialDocs,
+    PackageRegistry,
+    CodeHost,
+    QaForum,
+    BlogTutorial,
+    Academic,
+    Unknown,
+}
+
+/// Defect class for domain misguidance (`collection-taxonomy.v1.json#domain_misguidance`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DomainDefectClass {
+    HallucinatedApi,
+    DeprecatedSyntax,
+    ContradictoryClaim,
+    BrokenExample,
+    StaleVersion,
+    Other,
 }
 
 #[cfg(test)]
@@ -1728,5 +2191,63 @@ mod tests {
             attrs.get("gen_ai.response.error"),
             Some(&"rate-limited".to_string())
         );
+    }
+
+    #[test]
+    fn phase_89_flywheel_events_and_enums_round_trip() {
+        for mt in [
+            METRIC_TYPE_COMMAND_USAGE,
+            METRIC_TYPE_SKILL_ACTIVATION,
+            METRIC_TYPE_EDIT_PATTERN,
+            METRIC_TYPE_HARNESS_USAGE,
+            METRIC_TYPE_ERROR_SURFACE,
+            METRIC_TYPE_DEFAULT_DECISION,
+            METRIC_TYPE_MODEL_PROMPT,
+            METRIC_TYPE_MODEL_BENCH_CASE,
+            METRIC_TYPE_TRAINING_THROUGHPUT,
+            METRIC_TYPE_DOMAIN_MISGUIDANCE,
+        ] {
+            assert!(
+                validate_research_metric_row("sess:test", mt, None).is_ok(),
+                "{mt} failed validation"
+            );
+        }
+
+        let bench = TelemetryEvent::ModelBenchCase(ModelBenchCaseEvent {
+            model_id: "qwen3.5-4b".into(),
+            fixture_id: "vox_http_route_01".into(),
+            task_category: "codegen".into(),
+            passed: true,
+            latency_ms: 420,
+        });
+        let json = serde_json::to_string(&bench).expect("ser");
+        let back: TelemetryEvent = serde_json::from_str(&json).expect("de");
+        assert!(matches!(back, TelemetryEvent::ModelBenchCase(_)));
+
+        let tp = TelemetryEvent::TrainingThroughput(TrainingThroughputEvent {
+            gpu_vendor: "apple_metal".into(),
+            vram_bucket: "24_to_48gb".into(),
+            seq_len_bucket: "512_to_2k".into(),
+            tok_per_sec_bucket: "50_to_200".into(),
+            success: true,
+        });
+        let json = serde_json::to_string(&tp).expect("ser");
+        let back: TelemetryEvent = serde_json::from_str(&json).expect("de");
+        assert!(matches!(back, TelemetryEvent::TrainingThroughput(_)));
+
+        let dm = TelemetryEvent::DomainMisguidance(DomainMisguidanceEvent {
+            culprit_domain: "docs.example.com".into(),
+            domain_category: "official_docs".into(),
+            defect_class: "hallucinated_api".into(),
+        });
+        let json = serde_json::to_string(&dm).expect("ser");
+        let back: TelemetryEvent = serde_json::from_str(&json).expect("de");
+        assert!(matches!(back, TelemetryEvent::DomainMisguidance(_)));
+
+        let valid_hash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        let h = SaltedHashHex::try_new(valid_hash).expect("valid 64-hex");
+        assert_eq!(h.as_str(), valid_hash);
+        assert!(SaltedHashHex::try_new("short").is_err());
+        assert!(SaltedHashHex::try_new(&"G".repeat(64)).is_err());
     }
 }

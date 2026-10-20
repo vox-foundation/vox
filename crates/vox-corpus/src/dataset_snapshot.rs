@@ -380,4 +380,43 @@ mod tests {
             .collect();
         assert_eq!(parsed, recs);
     }
+
+    #[cfg(feature = "database")]
+    #[test]
+    fn snapshot_persists_and_rehydrates_from_voxdb() {
+        fn block_on_spin<F: std::future::Future>(fut: F) -> F::Output {
+            let waker = std::task::Waker::noop();
+            let mut cx = std::task::Context::from_waker(waker);
+            let mut pinned = std::pin::pin!(fut);
+            loop {
+                if let std::task::Poll::Ready(val) = pinned.as_mut().poll(&mut cx) {
+                    return val;
+                }
+                std::thread::yield_now();
+            }
+        }
+
+        block_on_spin(async {
+            let db = vox_db::VoxDb::in_memory().await.expect("in-memory VoxDb");
+            let recs = sample_records();
+            let split = SplitPolicy {
+                train_fraction: 0.9,
+                eval_fraction: 0.1,
+                seed: 42,
+            };
+            let snap = persist_snapshot_to_db(&db, "snap-voxdb-1", &recs, split)
+                .await
+                .expect("persist snapshot");
+            assert!(snap.trusty_uri.starts_with("trusty://vox-dataset/"));
+            let (loaded_snap, loaded_recs) = load_snapshot_from_db(&db, "snap-voxdb-1")
+                .await
+                .expect("load snapshot by id");
+            assert_eq!(loaded_snap.trusty_uri, snap.trusty_uri);
+            assert_eq!(loaded_recs, recs);
+            let (loaded_by_uri, _) = load_snapshot_from_db(&db, &snap.trusty_uri)
+                .await
+                .expect("load snapshot by trusty uri");
+            assert_eq!(loaded_by_uri.snapshot_id, "snap-voxdb-1");
+        });
+    }
 }

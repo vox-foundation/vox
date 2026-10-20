@@ -2,7 +2,7 @@
   "ssotVersion": "2026.10.19-v3.5",
   "ssotSha256": "d2432a2df998b5e9ccb30f4b5ae9d9b637e08d5bb6788ac0b89e5f2aeaf03fca",
   "surfaceCount": 32,
-  "evaluatedAt": "2026-10-20T04:45:57.710Z",
+  "evaluatedAt": "2026-10-20T05:34:42.745Z",
   "beforeSurfaces": {
     "activity": {
       "surfaceId": "activity",
@@ -1380,9 +1380,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/harness-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 34.3,
-        "noiseFloor": 18.5,
-        "meanLuminance": 0.0714
+        "luminanceContrast": 34,
+        "noiseFloor": 18.4,
+        "meanLuminance": 0.0712
       },
       "domAudit": {
         "surfaceId": "harness",
@@ -1401,13 +1401,13 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.8322,
+        "technicalQuality": 0.8315,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
-        "styleConsistency": 0.911
+        "styleConsistency": 0.9116
       },
-      "weightedRubricScore": 0.9232
+      "weightedRubricScore": 0.923
     },
     "mercatus": {
       "surfaceId": "mercatus",
@@ -1940,9 +1940,9 @@
       "screenshotPath": "/Users/brbrainerd/dev/vox/crates/vox-gui/ui/artifacts/cv-flywheel/surfaces/mens-after.png",
       "pixelSignals": {
         "edgeSharpness": 99,
-        "luminanceContrast": 17.9,
-        "noiseFloor": 6.2,
-        "meanLuminance": 0.0813
+        "luminanceContrast": 15.1,
+        "noiseFloor": 6.5,
+        "meanLuminance": 0.0856
       },
       "domAudit": {
         "surfaceId": "mens",
@@ -1961,13 +1961,13 @@
         "axeViolations": 0
       },
       "vlmRubric": {
-        "technicalQuality": 0.7912,
+        "technicalQuality": 0.7842,
         "promptAdherence": 0.96,
         "anatomicalAccuracy": 0.96,
         "compositionQuality": 0.96,
         "styleConsistency": 0.95
       },
-      "weightedRubricScore": 0.9168
+      "weightedRubricScore": 0.9151
     },
     "models": {
       "surfaceId": "models",
@@ -2367,12 +2367,12 @@
       "surfaceId": "harness",
       "passNumber": 1,
       "visualBeforeScore": 0.9239,
-      "visualAfterScore": 0.9232,
-      "visualDelta": -0.0007,
+      "visualAfterScore": 0.923,
+      "visualDelta": -0.0009,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 1.8,
-      "noiseReductionPct": -11.4,
-      "estimatedPsnrDb": 38.16,
+      "contrastDeltaPct": 0.9,
+      "noiseReductionPct": -10.8,
+      "estimatedPsnrDb": 38.15,
       "flywheelConverged": false,
       "promoteToGoldenBaseline": false,
       "nextBootstrapDirectives": [
@@ -2623,12 +2623,12 @@
       "surfaceId": "mens",
       "passNumber": 1,
       "visualBeforeScore": 0.9145,
-      "visualAfterScore": 0.9168,
-      "visualDelta": 0.0023,
+      "visualAfterScore": 0.9151,
+      "visualDelta": 0.0006,
       "edgeSharpnessDeltaPct": 0,
-      "contrastDeltaPct": 25.2,
-      "noiseReductionPct": -10.7,
-      "estimatedPsnrDb": 38.08,
+      "contrastDeltaPct": 5.6,
+      "noiseReductionPct": -16.1,
+      "estimatedPsnrDb": 38.07,
       "flywheelConverged": true,
       "promoteToGoldenBaseline": true,
       "nextBootstrapDirectives": [

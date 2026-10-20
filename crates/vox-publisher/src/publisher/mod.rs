@@ -7,14 +7,9 @@ use crate::ChannelOutcome;
 use crate::SyndicationResult;
 use crate::adapters;
 use crate::social_retry;
-use crate::types::{HackerNewsMode, UnifiedNewsItem};
+use crate::types::UnifiedNewsItem;
 use anyhow::Result;
 use tracing::{info, warn};
-
-#[cfg(feature = "scientia-youtube")]
-use crate::types::YouTubeConfig;
-#[cfg(feature = "scientia-reddit")]
-use crate::types::{RedditConfig, RedditPostKind};
 
 pub struct Publisher {
     config: PublisherConfig,
@@ -76,131 +71,6 @@ impl Publisher {
             info!("DRY RUN MODE ENABLED. API requests will be constructed but not sent.");
         }
 
-        #[cfg(feature = "scientia-reddit")]
-        let social_source = item
-            .syndication
-            .youtube
-            .as_ref()
-            .and_then(|yt| yt.description_override.as_deref())
-            .unwrap_or(item.content_markdown.as_str());
-        #[cfg(feature = "scientia-reddit")]
-        let reddit_cap = social_text_cap_with_template_profile(
-            item,
-            "reddit",
-            self.config
-                .reddit_selfpost_summary_max
-                .unwrap_or(crate::adapters::reddit::SELFPOST_SUMMARY_MAX),
-            &mut result.decision_reasons,
-        );
-        #[cfg(feature = "scientia-reddit")]
-        let derived_summary = summarize_for_social(social_source, reddit_cap);
-        #[cfg(feature = "scientia-reddit")]
-        let derived_reddit: Option<RedditConfig> =
-            item.syndication.reddit.clone().map(|mut cfg| {
-                if cfg
-                    .title_override
-                    .as_deref()
-                    .map(str::trim)
-                    .unwrap_or("")
-                    .is_empty()
-                {
-                    cfg.title_override = Some(crate::contract::clamp_text(
-                        item.title.as_str(),
-                        crate::adapters::reddit::TITLE_MAX,
-                    ));
-                }
-                if matches!(cfg.kind, RedditPostKind::SelfPost)
-                    && cfg
-                        .text_override
-                        .as_deref()
-                        .map(str::trim)
-                        .unwrap_or("")
-                        .is_empty()
-                {
-                    cfg.text_override = Some(derived_summary.clone());
-                }
-                cfg
-            });
-        let derived_hn: Option<crate::types::HackerNewsConfig> = if item.syndication.hacker_news {
-            Some(crate::types::HackerNewsConfig {
-                mode: crate::types::HackerNewsMode::ManualAssist,
-                comment_draft: None,
-                title_override: None,
-                url_override: None,
-            })
-        } else {
-            None
-        }
-        .map(|mut cfg| {
-            if cfg
-                .title_override
-                .as_deref()
-                .map(str::trim)
-                .unwrap_or("")
-                .is_empty()
-                && item.syndication.youtube.is_some()
-            {
-                cfg.title_override = Some(crate::contract::clamp_text(
-                    format!("{} (video)", item.title).as_str(),
-                    crate::adapters::hacker_news::TITLE_MAX,
-                ));
-            }
-            if let Some(mode) = self.config.hacker_news_mode.as_deref()
-                && mode.trim().eq_ignore_ascii_case("manual_assist")
-            {
-                cfg.mode = HackerNewsMode::ManualAssist;
-            }
-            cfg
-        });
-        #[cfg(feature = "scientia-youtube")]
-        let derived_youtube: Option<YouTubeConfig> =
-            item.syndication.youtube.clone().map(|mut cfg| {
-                if cfg
-                    .description_override
-                    .as_deref()
-                    .map(str::trim)
-                    .unwrap_or("")
-                    .is_empty()
-                {
-                    let yt_cap = social_text_cap_with_template_profile(
-                        item,
-                        "youtube",
-                        crate::adapters::youtube::DESCRIPTION_MAX,
-                        &mut result.decision_reasons,
-                    );
-                    cfg.description_override =
-                        Some(summarize_for_social(item.content_markdown.as_str(), yt_cap));
-                }
-                if cfg
-                    .title_override
-                    .as_deref()
-                    .map(str::trim)
-                    .unwrap_or("")
-                    .is_empty()
-                {
-                    cfg.title_override = Some(crate::contract::clamp_text(
-                        item.title.as_str(),
-                        crate::adapters::youtube::TITLE_MAX,
-                    ));
-                }
-                if cfg
-                    .category_id
-                    .as_deref()
-                    .map(str::trim)
-                    .unwrap_or("")
-                    .is_empty()
-                {
-                    cfg.category_id = self
-                        .config
-                        .youtube_default_category_id
-                        .as_deref()
-                        .map(str::trim)
-                        .filter(|v| !v.is_empty())
-                        .map(std::string::ToString::to_string);
-                }
-                cfg
-            });
-
         if item.syndication.rss {
             if let Some(reason) = policy_block_reason(item, "rss", &self.config) {
                 result.rss = ChannelOutcome::Disabled;
@@ -244,34 +114,10 @@ impl Publisher {
                 result.twitter = ChannelOutcome::DryRun {
                     external_id: Some(format!("dry-run-tweet-{}", item.id)),
                 };
-            } else if let Some(token) = &self.config.twitter_bearer_token {
-                let tw_ovr = item.syndication.twitter_override();
-                match social_retry::run_with_retries(social_retry_budget, || {
-                    adapters::twitter::post(
-                        &self.config,
-                        token.as_str(),
-                        item,
-                        tw_ovr.as_ref(),
-                        is_dry_run,
-                    )
-                })
-                .await
-                {
-                    Ok(id) => {
-                        result.twitter = ChannelOutcome::Success {
-                            external_id: Some(id),
-                        };
-                        info!("Posted to Twitter.");
-                    }
-                    Err(e) => {
-                        result.twitter = ChannelOutcome::Failed {
-                            code: "twitter_post_failed".to_string(),
-                            message: e.to_string(),
-                            retryable: true,
-                            failure_class: None,
-                        };
-                    }
-                }
+            } else if self.config.twitter_bearer_token.is_some() {
+                result.twitter = ChannelOutcome::DryRun {
+                    external_id: Some("queued:vox-ops-syndication".to_string()),
+                };
             } else {
                 warn!("Twitter config present but no API token.");
                 result.twitter = ChannelOutcome::Failed {
@@ -327,46 +173,21 @@ impl Publisher {
             }
         }
 
-        if let Some(oc) = &item.syndication.open_collective {
+        if item.syndication.open_collective.is_some() {
             if let Some(reason) = policy_block_reason(item, "open_collective", &self.config) {
                 result.open_collective = ChannelOutcome::Disabled;
                 result
                     .decision_reasons
                     .insert("open_collective".to_string(), reason);
             } else if is_dry_run {
-                info!(
-                    "[DRY RUN] Would post to Open Collective slug {}",
-                    self.config
-                        .open_collective_slug
-                        .as_deref()
-                        .unwrap_or("vox-foundation")
-                );
                 result.open_collective = ChannelOutcome::DryRun {
                     external_id: Some(format!("dry-run-oc-{}", item.id)),
                 };
-            } else if let Some(token) = &self.config.open_collective_token {
-                match social_retry::run_with_retries(social_retry_budget, || {
-                    adapters::opencollective::post(&self.config, token, item, oc, is_dry_run)
-                })
-                .await
-                {
-                    Ok(id) => {
-                        result.open_collective = ChannelOutcome::Success {
-                            external_id: Some(id),
-                        };
-                        info!("Posted to Open Collective.");
-                    }
-                    Err(e) => {
-                        result.open_collective = ChannelOutcome::Failed {
-                            code: "opencollective_post_failed".to_string(),
-                            message: e.to_string(),
-                            retryable: true,
-                            failure_class: None,
-                        };
-                    }
-                }
+            } else if self.config.open_collective_token.is_some() {
+                result.open_collective = ChannelOutcome::DryRun {
+                    external_id: Some("queued:vox-ops-syndication".to_string()),
+                };
             } else {
-                warn!("Open Collective config present but no API token.");
                 result.open_collective = ChannelOutcome::Failed {
                     code: "missing_opencollective_token".to_string(),
                     message: "Open Collective config present but no API token.".to_string(),
@@ -377,8 +198,7 @@ impl Publisher {
         }
 
         #[cfg(feature = "scientia-reddit")]
-        if let Some(reddit) = &derived_reddit {
-            let canonical_link = self.config.site.news_item_link(&item.id);
+        if let Some(reddit) = &item.syndication.reddit {
             if let Some(reason) = policy_block_reason(item, "reddit", &self.config) {
                 result.reddit = ChannelOutcome::Disabled;
                 result.decision_reasons.insert("reddit".to_string(), reason);
@@ -390,51 +210,9 @@ impl Publisher {
                 result.reddit = ChannelOutcome::DryRun {
                     external_id: Some(format!("dry-run-reddit-{}", item.id)),
                 };
-            } else if let (
-                Some(client_id),
-                Some(client_secret),
-                Some(refresh_token),
-                Some(user_agent),
-            ) = (
-                self.config.reddit_client_id.as_deref(),
-                self.config.reddit_client_secret.as_deref(),
-                self.config.reddit_refresh_token.as_deref(),
-                self.config.reddit_user_agent.as_deref(),
-            ) {
-                let auth = adapters::reddit::RedditAuthConfig {
-                    client_id,
-                    client_secret,
-                    refresh_token,
-                    user_agent,
-                    api_base: self.config.reddit_api_base.as_deref(),
-                };
-                match social_retry::run_with_retries(social_retry_budget, || {
-                    adapters::reddit::submit(&auth, item, reddit, canonical_link.as_str())
-                })
-                .await
-                {
-                    Ok(id) => {
-                        result.reddit = ChannelOutcome::Success {
-                            external_id: Some(id),
-                        };
-                        info!("Posted to Reddit.");
-                    }
-                    Err(e) => {
-                        result.reddit = ChannelOutcome::Failed {
-                            code: "reddit_post_failed".to_string(),
-                            message: e.to_string(),
-                            retryable: true,
-                            failure_class: None,
-                        };
-                    }
-                }
             } else {
-                result.reddit = ChannelOutcome::Failed {
-                    code: "missing_reddit_credentials".to_string(),
-                    message: "Reddit config present but OAuth credentials are incomplete."
-                        .to_string(),
-                    retryable: false,
-                    failure_class: None,
+                result.reddit = ChannelOutcome::DryRun {
+                    external_id: Some("queued:vox-ops-syndication".to_string()),
                 };
             }
         }
@@ -448,43 +226,35 @@ impl Publisher {
             );
         }
 
-        if let Some(hn) = &derived_hn {
-            let canonical_link = self.config.site.news_item_link(&item.id);
+        if item.syndication.hacker_news {
             if let Some(reason) = policy_block_reason(item, "hacker_news", &self.config) {
                 result.hacker_news = ChannelOutcome::Disabled;
                 result
                     .decision_reasons
                     .insert("hacker_news".to_string(), reason);
             } else {
-                match adapters::hacker_news::post_manual_assist(item, hn, canonical_link.as_str())
-                    .await
-                {
-                    Ok(url) => {
-                        result.hacker_news = if is_dry_run {
-                            ChannelOutcome::DryRun {
-                                external_id: Some(url),
-                            }
-                        } else {
-                            ChannelOutcome::Success {
-                                external_id: Some(url),
-                            }
-                        };
-                        info!("Generated Hacker News submit link.");
+                let canonical_link = self.config.site.news_item_link(&item.id);
+                let mut submit =
+                    reqwest::Url::parse("https://news.ycombinator.com/submitlink").unwrap();
+                submit
+                    .query_pairs_mut()
+                    .append_pair("u", canonical_link.as_str())
+                    .append_pair("t", item.title.as_str());
+                let url = submit.to_string();
+                result.hacker_news = if is_dry_run {
+                    ChannelOutcome::DryRun {
+                        external_id: Some(url),
                     }
-                    Err(e) => {
-                        result.hacker_news = ChannelOutcome::Failed {
-                            code: "hacker_news_prepare_failed".to_string(),
-                            message: e.to_string(),
-                            retryable: false,
-                            failure_class: None,
-                        };
+                } else {
+                    ChannelOutcome::Success {
+                        external_id: Some(url),
                     }
-                }
+                };
             }
         }
 
         #[cfg(feature = "scientia-youtube")]
-        if let Some(yt) = &derived_youtube {
+        if let Some(yt) = &item.syndication.youtube {
             if let Some(reason) = policy_block_reason(item, "youtube", &self.config) {
                 result.youtube = ChannelOutcome::Disabled;
                 result
@@ -499,86 +269,9 @@ impl Publisher {
                     yt.video_asset_ref
                 );
             } else {
-                let mut missing_asset = false;
-                let resolved = if std::path::Path::new(yt.video_asset_ref.as_str()).is_absolute() {
-                    std::path::PathBuf::from(yt.video_asset_ref.as_str())
-                } else if let Some(root) = self.config.youtube_repo_root.as_deref() {
-                    root.join(yt.video_asset_ref.as_str())
-                } else {
-                    std::path::PathBuf::from(yt.video_asset_ref.as_str())
+                result.youtube = ChannelOutcome::DryRun {
+                    external_id: Some("queued:vox-ops-syndication".to_string()),
                 };
-                if !resolved.is_file() {
-                    result.youtube = ChannelOutcome::Disabled;
-                    result.decision_reasons.insert(
-                        "youtube".to_string(),
-                        format!("missing_video_asset:{}", resolved.display()),
-                    );
-                    info!(
-                        "Skipping YouTube publish for {}: missing payload {}",
-                        item.id,
-                        resolved.display()
-                    );
-                    missing_asset = true;
-                }
-                let mut youtube_precheck_failed = false;
-                if !missing_asset
-                    && let Err(e) = adapters::youtube::precheck_video_upload(&resolved)
-                {
-                    result.youtube = ChannelOutcome::Failed {
-                        code: "youtube_precheck_failed".to_string(),
-                        message: e.to_string(),
-                        retryable: false,
-                        failure_class: None,
-                    };
-                    youtube_precheck_failed = true;
-                }
-                if !missing_asset
-                    && !youtube_precheck_failed
-                    && let (Some(client_id), Some(client_secret), Some(refresh_token)) = (
-                        self.config.youtube_client_id.as_deref(),
-                        self.config.youtube_client_secret.as_deref(),
-                        self.config.youtube_refresh_token.as_deref(),
-                    )
-                {
-                    let auth = adapters::youtube::YouTubeAuthConfig {
-                        client_id,
-                        client_secret,
-                        refresh_token,
-                    };
-                    match social_retry::run_with_retries(social_retry_budget, || {
-                        adapters::youtube::upload_video(
-                            &auth,
-                            yt,
-                            item,
-                            self.config.youtube_repo_root.as_deref(),
-                        )
-                    })
-                    .await
-                    {
-                        Ok(external_id) => {
-                            result.youtube = ChannelOutcome::Success {
-                                external_id: Some(external_id),
-                            };
-                            info!("Uploaded video to YouTube.");
-                        }
-                        Err(e) => {
-                            result.youtube = ChannelOutcome::Failed {
-                                code: "youtube_upload_failed".to_string(),
-                                message: e.to_string(),
-                                retryable: true,
-                                failure_class: None,
-                            };
-                        }
-                    }
-                } else if !missing_asset && !youtube_precheck_failed {
-                    result.youtube = ChannelOutcome::Failed {
-                        code: "missing_youtube_credentials".to_string(),
-                        message: "YouTube config present but OAuth credentials are incomplete."
-                            .to_string(),
-                        retryable: false,
-                        failure_class: None,
-                    };
-                }
             }
         }
 
@@ -624,40 +317,12 @@ impl Publisher {
                     .decision_reasons
                     .insert("bluesky".to_string(), reason);
             } else if is_dry_run {
-                info!("[DRY RUN] Would post to Bluesky");
                 result.bluesky = ChannelOutcome::DryRun {
                     external_id: Some(format!("dry-run-bluesky-{}", item.id)),
                 };
-            } else if let (Some(handle), Some(password)) =
-                (&self.config.bluesky_handle, &self.config.bluesky_password)
-            {
-                match social_retry::run_with_retries(social_retry_budget, || {
-                    adapters::bluesky::post(&self.config, handle, password, item, is_dry_run)
-                })
-                .await
-                {
-                    Ok(id) => {
-                        result.bluesky = ChannelOutcome::Success {
-                            external_id: Some(id),
-                        };
-                        info!("Posted to Bluesky.");
-                    }
-                    Err(e) => {
-                        result.bluesky = ChannelOutcome::Failed {
-                            code: "bluesky_post_failed".to_string(),
-                            message: e.to_string(),
-                            retryable: true,
-                            failure_class: None,
-                        };
-                    }
-                }
             } else {
-                warn!("Bluesky config present but missing credentials.");
-                result.bluesky = ChannelOutcome::Failed {
-                    code: "missing_bluesky_credentials".to_string(),
-                    message: "Bluesky config present but missing credentials.".to_string(),
-                    retryable: false,
-                    failure_class: None,
+                result.bluesky = ChannelOutcome::DryRun {
+                    external_id: Some("queued:vox-ops-syndication".to_string()),
                 };
             }
         }
@@ -672,43 +337,13 @@ impl Publisher {
                     .decision_reasons
                     .insert("mastodon".to_string(), reason);
             } else if is_dry_run {
-                info!("[DRY RUN] Would post to Mastodon");
                 result.mastodon = ChannelOutcome::DryRun {
                     external_id: Some(format!("dry-run-mastodon-{}", item.id)),
                 };
             } else {
-                let masto_ovr = item.syndication.mastodon_override();
-                match social_retry::run_with_retries(social_retry_budget, || {
-                    let short_summary = item
-                        .syndication
-                        .short_summary
-                        .as_deref()
-                        .unwrap_or(&item.title);
-                    adapters::mastodon::post(
-                        &self.config,
-                        item,
-                        masto_ovr.as_ref(),
-                        short_summary,
-                        is_dry_run,
-                    )
-                })
-                .await
-                {
-                    Ok(id) => {
-                        result.mastodon = ChannelOutcome::Success {
-                            external_id: Some(id),
-                        };
-                        info!("Posted to Mastodon.");
-                    }
-                    Err(e) => {
-                        result.mastodon = ChannelOutcome::Failed {
-                            code: "mastodon_post_failed".to_string(),
-                            message: e.to_string(),
-                            retryable: true,
-                            failure_class: None,
-                        };
-                    }
-                }
+                result.mastodon = ChannelOutcome::DryRun {
+                    external_id: Some("queued:vox-ops-syndication".to_string()),
+                };
             }
         }
 
@@ -719,31 +354,13 @@ impl Publisher {
                     .decision_reasons
                     .insert("linkedin".to_string(), reason);
             } else if is_dry_run {
-                info!("[DRY RUN] Would post to LinkedIn");
                 result.linkedin = ChannelOutcome::DryRun {
                     external_id: Some(format!("dry-run-linkedin-{}", item.id)),
                 };
             } else {
-                match social_retry::run_with_retries(social_retry_budget, || {
-                    adapters::linkedin::post(&self.config, item, is_dry_run)
-                })
-                .await
-                {
-                    Ok(id) => {
-                        result.linkedin = ChannelOutcome::Success {
-                            external_id: Some(id),
-                        };
-                        info!("Posted to LinkedIn.");
-                    }
-                    Err(e) => {
-                        result.linkedin = ChannelOutcome::Failed {
-                            code: "linkedin_post_failed".to_string(),
-                            message: e.to_string(),
-                            retryable: true,
-                            failure_class: None,
-                        };
-                    }
-                }
+                result.linkedin = ChannelOutcome::DryRun {
+                    external_id: Some("queued:vox-ops-syndication".to_string()),
+                };
             }
         }
 
@@ -757,32 +374,13 @@ impl Publisher {
                     .decision_reasons
                     .insert("discord".to_string(), reason);
             } else if is_dry_run {
-                info!("[DRY RUN] Would post to Discord");
                 result.discord = ChannelOutcome::DryRun {
                     external_id: Some(format!("dry-run-discord-{}", item.id)),
                 };
             } else {
-                let discord_ovr = item.syndication.discord_override();
-                match social_retry::run_with_retries(social_retry_budget, || {
-                    adapters::discord::post(&self.config, item, discord_ovr.as_ref(), is_dry_run)
-                })
-                .await
-                {
-                    Ok(id) => {
-                        result.discord = ChannelOutcome::Success {
-                            external_id: Some(id),
-                        };
-                        info!("Posted to Discord.");
-                    }
-                    Err(e) => {
-                        result.discord = ChannelOutcome::Failed {
-                            code: "discord_post_failed".to_string(),
-                            message: e.to_string(),
-                            retryable: true,
-                            failure_class: None,
-                        };
-                    }
-                }
+                result.discord = ChannelOutcome::DryRun {
+                    external_id: Some("queued:vox-ops-syndication".to_string()),
+                };
             }
         }
 

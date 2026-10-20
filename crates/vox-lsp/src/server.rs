@@ -2,9 +2,7 @@
 
 use std::collections::HashMap;
 use std::sync::Mutex;
-// Arc/OnceLock are only used by the db-gated Ludus project-DB cache below.
-#[cfg(feature = "db")]
-use std::sync::{Arc, OnceLock};
+// Arc/OnceLock unused after shadow telemetry removal.
 use tower_lsp_server::jsonrpc::Result;
 use tower_lsp_server::ls_types::*;
 use tower_lsp_server::{Client, LanguageServer, LspService, Server};
@@ -12,34 +10,6 @@ use tracing::info;
 
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
-
-#[cfg(feature = "db")]
-static LUDUS_PROJECT_DB: OnceLock<Mutex<Option<Arc<vox_db::VoxDb>>>> = OnceLock::new();
-
-#[cfg(feature = "db")]
-fn ludus_lsp_events_disabled() -> bool {
-    matches!(
-        std::env::var("VOX_LSP_LUDUS_EVENTS")
-            .unwrap_or_default()
-            .to_lowercase()
-            .as_str(),
-        "0" | "false" | "no" | "off"
-    )
-}
-
-#[cfg(feature = "db")]
-async fn cached_project_db() -> Option<Arc<vox_db::VoxDb>> {
-    let cell = LUDUS_PROJECT_DB.get_or_init(|| Mutex::new(None));
-    let need_open = cell.lock().ok()?.is_none();
-    if need_open && let Ok(db) = vox_db::open_project_db().await {
-        let mut g = cell.lock().ok()?;
-        if g.is_none() {
-            *g = Some(Arc::new(db));
-        }
-    }
-    let g = cell.lock().ok()?;
-    g.as_ref().map(Arc::clone)
-}
 
 #[derive(Debug)]
 struct Backend {
@@ -311,38 +281,9 @@ impl Backend {
 
         let diagnostics = crate::validate_document_with_hir(&text);
 
-        // Diagnostic counts feed only the db-gated Ludus telemetry side channel.
-        #[cfg(feature = "db")]
-        let err_n = diagnostics
-            .iter()
-            .filter(|d| d.severity == Some(DiagnosticSeverity::ERROR))
-            .count();
-        #[cfg(feature = "db")]
-        let warn_n = diagnostics
-            .iter()
-            .filter(|d| d.severity == Some(DiagnosticSeverity::WARNING))
-            .count();
-
         self.client
             .publish_diagnostics(uri.clone(), diagnostics, None)
             .await;
-
-        #[cfg(feature = "db")]
-        if !ludus_lsp_events_disabled() {
-            let uri_s = uri.as_str().to_owned();
-            tokio::spawn(async move {
-                let Some(db) = cached_project_db().await else {
-                    return;
-                };
-                vox_gamify::lsp_telemetry::after_diagnostic_publish(
-                    db.as_ref(),
-                    &uri_s,
-                    err_n,
-                    warn_n,
-                )
-                .await;
-            });
-        }
     }
 }
 

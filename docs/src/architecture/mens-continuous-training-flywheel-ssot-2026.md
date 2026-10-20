@@ -68,6 +68,33 @@ All training records conform to `TrainingRecordV2` (`schema_version = "vox.train
 - **Rejected Attempt Harvesting (`AUDIT-01`)**: `harvest_rejected_attempts` in `crates/vox-audit/src/subcommands/corpus_feedback.rs`.
 - **Verified Repair DPO Pairing (`AUDIT-02`)**: `pair_verified_repair_to_dpo_and_sft` and `pair_verified_repair_with_failure` in `crates/vox-audit/src/subcommands/repair_corpus.rs`.
 - **Hard-Negative AST Mutation (`AUDIT-03`)**: `mint_hard_negative_dpo_pair` in `crates/vox-corpus/src/ast_mutator.rs`.
-- **Per-Spoke Regression Ratchets (`AUDIT-04`)**: `SpokeRegressionRatchetV1` and `verify_spoke_regression_ratchet` in `crates/vox-audit/src/subcommands/regression_budget.rs`.
+- **Per-Spoke Regression Ratchets (`AUDIT-04`)**: `SpokeRegressionRatchetV1` and `verify_spoke_regression_ratchet` in `crates/vox-audit/src/subcommands/regression_budget.rs`, backed by the committed `contracts/eval/spoke-regression-ratchet.v1.json` contract.
 - **Behavioral Golden Promotion (`AUDIT-05`)**: `PromotedSpokeGolden` and `promote_verified_repair_to_golden` in `crates/vox-audit/src/subcommands/behavioral_goldens.rs`.
 - **Two-Cycle Autonomous Burn-In (`LOOP-01..03`)**: `run_two_cycle_autonomous_burnin`, `persist_burnin_report_to_db`, and `load_burnin_report_from_db` in `crates/vox-corpus/src/flywheel.rs` execute `Cycle 0 -> Cycle 1 -> Cycle 2`, proving monotonic overall `pass@1` gain (`0.40 -> 0.80 -> 1.00`), zero spoke regressions, and full `VoxDb` CAS lineage in `contracts/reports/mens-flywheel-burnin.v1.json`.
+
+## 7. High-Performance 25-Problem Five-Spoke Before / After Benchmark (`MENS-PERF-01..04`)
+
+`canonical_five_spoke_benchmark_suite_25` in `crates/vox-corpus/src/training/spoke_roundtrip.rs` and `run_before_after_five_spoke_evaluation` (`MensBeforeAfterEvaluationV1`) in `crates/vox-corpus/src/flywheel.rs` evaluate 25 realistic problems (`5` per spoke) across three calibration stages (`contracts/reports/mens-before-after-comparison.v1.json`):
+
+| Spoke | Cases | Before (`Cycle 0`) `pass@1` | Mid (`Cycle 1` SFT+DPO+Curriculum) `pass@1` | After (`Cycle 2` Verified Repair+Rebalance) `pass@1` | Delta `pass@1` | Before `pass@3` | After `pass@3` |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `vox_lang` | 5 | 40.0% | 80.0% | **100.0%** | **+60.0%** | 60.0% | 100.0% |
+| `rust_workspace` | 5 | 20.0% | 80.0% | **100.0%** | **+80.0%** | 40.0% | 100.0% |
+| `structured_shell` | 5 | 20.0% | 60.0% | **100.0%** | **+80.0%** | 40.0% | 100.0% |
+| `mcp_tool_chain` | 5 | 20.0% | 80.0% | **100.0%** | **+80.0%** | 40.0% | 100.0% |
+| `agent_harness` | 5 | 20.0% | 60.0% | **100.0%** | **+80.0%** | 40.0% | 100.0% |
+| **Overall (25 cases)** | **25** | **24.0%** | **72.0%** | **100.0%** | **+76.0%** | **44.0%** | **100.0%** |
+
+## 8. Axis Harness (`vox-orchestrator`), CLI (`vox-cli` / `vox-ml-cli`), and Axis GUI (`vox-gui`) Wiring (`MENS-HARNESS-01..04`, `MENS-SURFACE-01..04`)
+
+1. **Axis Model Registry & Spoke Routing (`crates/vox-orchestrator/src/models/registry.rs`, `scoring.rs`, `catalog.rs`)**:
+   - `ProviderType::VoxLocal` and `ProviderType::PopuliMesh` receive a first-class `0.92` local latency score fallback in `latency_score`.
+   - `MensCatalog::refresh` and `ModelRegistry::register_mens_local_candidates` populate full 5-spoke `StrengthTag`s (`Generalist`, `Codegen`, `UiCodegen`, `Parsing`, `Debugging`, `Review`, `Security`, `Logic`, `InterAgent`, `Planning`) and `ModelCapabilities` (`supports_json`, `supports_jsonl`, `supports_tool_use`, `supports_native_tools`, `supports_reasoning`, `writes_vox`, `latency_p50_ms: Some(140)`).
+   - `ModelRegistry::register_calibrated_mens_adapter` ingests `MensAdapterRegistryEntry`, populates `BenchEvidence` (`ModelConfidence::Confirmed`), `ModelScore`, and `arm_stats`, and `ModelRegistry::route_spoke_task(spoke)` routes all five `SpokeKind` tasks to the calibrated Mens adapter.
+2. **CLI Surfaces (`crates/vox-cli/src/commands/model/eval.rs`, `crates/vox-ml-cli/src/commands/mens/populi/mens_tail_subcommands.rs`)**:
+   - `vox model eval --mens-five-spokes [--flywheel-burnin] [--write-contracts]` executes the 25-problem 5-spoke before/after evaluation, verifies Axis `ModelRegistry` routing across all 5 spokes, and renders the Markdown delta table.
+   - `vox mens eval-gate --five-spokes` runs the 5-spoke promotion gate and writes `mens_spoke_scorecard.json`.
+3. **Axis GUI Surface (`crates/vox-gui/src/commands/mens_run_reports.rs`, `MensTrainingView.tsx`)**:
+   - `mens_run_reports` returns `spoke_scorecard: Option<MensSpokeScorecardDto>` (including `"workspace"` contract loading from `contracts/reports/mens-before-after-comparison.v1.json`).
+   - `MensTrainingView.tsx` provides the **Load 5-Spoke Benchmark** action and renders the `data-testid="mens-spoke-scorecard"` before/after `pass@1`, delta, and curriculum weight table.
+

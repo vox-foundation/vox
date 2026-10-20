@@ -30,7 +30,6 @@ pub mod ingest; // toestub-ignore(unwired/module)
 pub mod kpi; // toestub-ignore(unwired/module)
 pub mod leaderboard; // toestub-ignore(unwired/module)
 pub mod lex_pack; // toestub-ignore(unwired/module)
-pub mod lsp_telemetry; // toestub-ignore(unwired/module)
 pub mod mcp_privacy; // toestub-ignore(unwired/module)
 pub mod notifications; // toestub-ignore(unwired/module)
 pub mod output_policy; // toestub-ignore(unwired/module)
@@ -48,6 +47,7 @@ pub mod sprite_svg; // toestub-ignore(unwired/module)
 pub mod streak; // toestub-ignore(unwired/module)
 pub mod teaching; // toestub-ignore(unwired/module)
 pub mod util; // toestub-ignore(unwired/module)
+pub mod verified_leaderboard; // toestub-ignore(unwired/module)
 
 // Re-export key types for ergonomic access.
 pub use achievement::{Achievement, AchievementTracker};
@@ -56,7 +56,7 @@ pub use battle::{Battle, BugType};
 pub use challenge::{Challenge, ChallengeManager, ChallengeType};
 pub use companion::{Companion, Interaction, Mood};
 pub use cost::{CostAggregator, CostSummary};
-pub use db::{ArenaEvent, CostRecord, PlayerRankEntry, leaderboard, lumens_leaderboard};
+pub use db::{CostRecord, PlayerRankEntry, leaderboard, lumens_leaderboard};
 pub use feedback::{AiFeedback, DAILY_FEEDBACK_CAP, xp_for_feedback};
 pub use leaderboard::{Leaderboard, LeaderboardMetric};
 pub use lex_pack::{LexGlyph, LexPack, LumensWeight, load_lex_pack, save_lex_pack};

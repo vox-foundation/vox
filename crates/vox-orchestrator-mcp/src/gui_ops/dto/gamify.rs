@@ -88,6 +88,18 @@ pub struct LeaderboardEntryDto {
     pub user_id: String,
     pub level: u64,
     pub score: i64,
+    #[serde(default)]
+    pub rank_delta: i32,
+    #[serde(default)]
+    pub tier_title: String,
+    #[serde(default)]
+    pub lumens: i64,
+    #[serde(default)]
+    pub row_chain_hash_hex: String,
+    #[serde(default)]
+    pub proof_digest_sha3_256: String,
+    #[serde(default)]
+    pub signature_verified: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

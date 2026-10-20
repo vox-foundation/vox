@@ -224,6 +224,7 @@ pub(super) fn latency_score(m: &ModelSpec) -> f64 {
 
     match m.provider_type {
         ProviderType::Ollama => 0.95,
+        ProviderType::VoxLocal | ProviderType::PopuliMesh => 0.92,
         ProviderType::Groq => 0.95,
         ProviderType::Cerebras => 0.95,
         ProviderType::GoogleDirect => 0.8,

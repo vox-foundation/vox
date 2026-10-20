@@ -79,6 +79,7 @@ pub mod schema;
 pub mod schema_extensions;
 /// Legacy import/export planning and verification for greenfield Codex releases.
 pub mod store;
+pub use store::ops_agent_telemetry;
 pub mod telemetry_sink;
 
 /// Canonical Codex storage policy (`vox.db` vs project store vs training sidecar).

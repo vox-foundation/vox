@@ -1,5 +1,23 @@
 # Project Retrospective
 
+## Milestone: v1.7 — Centralized Postgres Telemetry, Private `vox-ops` Extraction, Ludus 3-Way SoC, Zero-Cheating Leaderboard, Codebase/History Scrub, Live Helios Deployment & 5-Spoke MENS Safetensors Evaluation
+
+**Shipped:** 2026-10-19
+**Phases:** 9 (`Phases 89–97`) | **Plans:** 18
+
+### What Was Built
+- **Phase 89:** 26-variant strongly-typed telemetry (`vox-telemetry`), `VoxDb::audit_research_metric_shapes` (`TypedResearchMetricRow`), batched OTLP HTTP uploader (`<= 100` records / `<= 256 KiB`) + `vox telemetry preview`, removal of prototype `server/telemetry/`, and multi-surface model router verification across CLI, daemon, MCP, and GUI.
+- **Phase 90:** Private 6-crate `~/dev/vox-ops` workspace (`vox-ops-db`, `vox-ops-ingest`, `vox-ops-syndication`, `vox-ops-ludus`, `vox-ops-intelligence`, `vox-ops-server`) and three-role fenced PostgreSQL 17 (`vox_ops_owner`, `vox_ingest_app`, `vox_ops_app`) on live `helios-postgres` (`q40ck888ggkkcsosgcwgc0oo`), verified with privilege vector `t|f|f|t|f|f|t`.
+- **Phase 91:** 9-adapter social syndication extraction (`vox-ops-syndication` + `SyndicationHandoffPayloadV1`), 3-way Ludus SoC split (`ops_agent_telemetry.rs` in `vox-db`, multi-user Ludus in `vox-ops-ludus`, solo progression + FSRS offline in `vox-gamify`), elimination of shadow telemetry (`hint_telemetry.rs`, `lsp_telemetry.rs`), and zero-cheating `BLAKE3` + `Ed25519` `VerifiedLeaderboardSnapshotV1` surfaces on `voxlang.org` (`VoxLeaderboardArena.astro`) and `vox-gui` (`LeaderboardArenaPanel.tsx`).
+- **Phase 92:** Ed25519-signed $k \ge 20$ `CommunityIntelligenceBundleV1` + Empirical Bayes prior blending (`\pm 15\%` clamp) in `vox-orchestrator`, live `vox-ops-server` deployment on `helios` (`127.0.0.1:8420`), and working-tree/history scrub contracts (`contracts/ci/moved-data-scrub-manifest.v1.json`, `contracts/ci/git-history-scrub.v1.json`, `scripts/verify-history-scrub.vox`).
+- **Phases 93–97:** 5-spoke MENS gap closure, 25-problem before/after benchmark (`24.0% -> 72.0% -> 100.0% pass@1`), Axis harness `ModelRegistry` routing, `MensTrainingView.tsx` scorecard, and live `.safetensors` QLoRA evaluation.
+
+### What Worked
+- **Three-Role PostgreSQL Privilege Fencing (`D23`):** Verifying the exact 7-column privilege vector (`t|f|f|t|f|f|t`) live on `helios-postgres` proved that the public ingest pool (`vox_ingest_app`) can never `SELECT` from raw telemetry tables (`telemetry_ingest.events`).
+- **Static Signed Snapshots for Offline Sovereignty (`D25`, `D31`):** Both `VerifiedLeaderboardSnapshotV1` and `CommunityIntelligenceBundleV1` use `Ed25519` signatures and `#[serde(deny_unknown_fields)]` with zero penalty when offline or disabled.
+
+---
+
 ## Milestone: v1.5 — Unified Holistic Stream
 
 **Shipped:** 2026-10-16
@@ -38,3 +56,5 @@
 | **v1.0** | 2026-09-30 | 6 | 23 | Architectural Housekeeping & Dead-Crate Disposal |
 | **v1.3** | 2026-10-13 | 6 | 33 | Self-Maintaining Public Docs & Deterministic Drift Gate |
 | **v1.5** | 2026-10-16 | 74 | 241 | Unified Holistic Stream (Waves 0–6: KB, Discoverability, OpenWiki, Autonomy, Atlas, Trials, Terminal, Scientia, Runtime, Clavis, Mens, Mesh, Humane UX) |
+| **v1.6** | 2026-10-16 | 12 | 25 | Production Stability, Zero-Mock Surface Reality & Mens Continuous Training Flywheel |
+| **v1.7** | 2026-10-19 | 9 | 18 | Centralized Postgres Telemetry, Private `vox-ops` Extraction, Ludus 3-Way SoC, Zero-Cheating Leaderboard, Codebase/History Scrub, Live Helios Deployment & 5-Spoke MENS Safetensors Evaluation |

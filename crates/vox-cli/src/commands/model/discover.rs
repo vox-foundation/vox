@@ -146,6 +146,11 @@ pub async fn run(args: DiscoverArgs) -> anyhow::Result<()> {
                     category: "general".to_string(),
                     no_write_back: false,
                     output: None,
+                    mens_five_spokes: false,
+                    organic_search_spokes: false,
+                    flywheel_burnin: false,
+                    write_contracts: false,
+                    run_dir: None,
                 })
                 .await?;
             } else {

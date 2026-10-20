@@ -388,6 +388,14 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
       }, surfaceId);
       await page.waitForTimeout(220);
 
+      if (surfaceId === 'mens') {
+        const loadBtn = page.getByRole('button', { name: /load 5-spoke benchmark/i });
+        if ((await loadBtn.count()) > 0) {
+          await loadBtn.first().click();
+          await page.waitForTimeout(120);
+        }
+      }
+
       const afterPngPath = join(SURFACES_OUT_DIR, `${surfaceId}-after.png`);
       const afterBuf = await page.screenshot({ path: afterPngPath, animations: 'disabled' });
       const afterPixels = await decodePngRgbaInPage(page, afterBuf);

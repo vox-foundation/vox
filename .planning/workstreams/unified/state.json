@@ -1,43 +1,12 @@
 {
   "contract": "1.0.0",
   "flavor": "core",
-  "milestone": "v1.6 — Mens Continuous Training, Data Flywheel & End-to-End Evaluation",
-  "phases": [
-    {
-      "number": "77",
-      "name": "Multi-Spoke Training Schema, Hygiene & `VoxDb` Ingestion",
-      "status": "pending"
-    },
-    {
-      "number": "78",
-      "name": "End-to-End Text-In / Text-Out Spoke Verification Harness",
-      "status": "pending"
-    },
-    {
-      "number": "79",
-      "name": "Native Mens QLoRA + DPO Pipeline, Curriculum & Hot-Swap",
-      "status": "pending"
-    },
-    {
-      "number": "80",
-      "name": "Multi-Spoke Empirical Evaluation Suite & Promotion Gates",
-      "status": "pending"
-    },
-    {
-      "number": "81",
-      "name": "Continuous Audit-to-Corpus Flywheel & Regression Ratchets",
-      "status": "pending"
-    },
-    {
-      "number": "82",
-      "name": "Full-Loop Autonomous Burn-In & Cross-Spoke Proof",
-      "status": "pending"
-    }
-  ],
+  "milestone": "v1.7",
+  "phases": [],
   "next": {
     "command": "/gsd-discuss-phase",
     "label": "Discuss the first phase",
     "reason": "Project initialized — plan your first phase"
   },
-  "updated_at": "2026-10-16T13:32:55.656Z"
+  "updated_at": "2026-10-19T21:15:30.185Z"
 }

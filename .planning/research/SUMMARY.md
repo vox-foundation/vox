@@ -1,41 +1,46 @@
-# Research Summary: v1.1 Research Trial Flywheel
+# Project Research Summary: Milestone v1.7 — Centralized Postgres Telemetry, Private `vox-ops` Extraction & Community Intelligence Flywheel
 
-**Researched:** 2026-10-01
-**Inputs:** [TRIAL-DESIGN.md](TRIAL-DESIGN.md), [QUALITY-EVAL.md](QUALITY-EVAL.md), [OBSERVABILITY.md](OBSERVABILITY.md), [KNOWLEDGE.md](KNOWLEDGE.md)
+**Date:** 2026-10-19
+**Canonical Architecture SSOT:** [`docs/src/architecture/centralized-postgres-telemetry-vox-ops-ssot-2026.md`](../../docs/src/architecture/centralized-postgres-telemetry-vox-ops-ssot-2026.md)
 
-## Bottom line
+## Key Findings
 
-The building blocks exist (preregistration signing, the claim verifier and citation audit, `pareto.rs` dominance, `vox-eval` statistics, the LLM response metrics, and the search stack), but none of them is wired into a trial loop, and several are measurably wrong today. A baseline captured on the current tree would be untrustworthy, so Phase 7 must fix identity, metering, and evaluator correctness *before* recording the baseline.
+### 1. Stack & Datastore Consolidation (`helios-postgres` over ClickHouse)
+- **Replace ClickHouse with Shared Postgres 17 (`helios-postgres`):** The June 2026 `server/telemetry/` prototype used `clickhouse = "0.13.3"`. Across all production services on `helios` (`ramada` ADR-0008, `ngi.video`, `brFinancier`, `gigme`), the house standard is **one shared PostgreSQL 17 instance (`q40ck888ggkkcsosgcwgc0oo`, `pgvector/pgvector:pg17`)** (~7 MB marginal disk, ~0 extra RAM vs. 150–250 MB RSS for a separate database container).
+- **Three-Role Privilege Fencing (`vox_ops` database):**
+  - `vox_ops_owner` (`NOLOGIN`): owns schemas `telemetry`, `community`, `syndication`, all base tables (`telemetry.events_raw`, `community.intelligence_snapshots`, `syndication.outbox`, `syndication.attempt_ledger`), and all `SECURITY DEFINER` views.
+  - `vox_ingest_app` (`LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS CONNECTION LIMIT 10`, `statement_timeout = '5s'`): `INSERT`-only on `telemetry.events_raw`; zero `SELECT`/`UPDATE`/`DELETE`/`TRUNCATE` privileges anywhere.
+  - `vox_ops_app` (`LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS CONNECTION LIMIT 15`, `statement_timeout = '15s'`): reads telemetry exclusively through owner-owned `SECURITY DEFINER` (`security_barrier = true`) views enforcing `HAVING count(DISTINCT install_id) >= 20` (`k_anonymity = 20`), with `INSERT/UPDATE/DELETE` revoked on views (closing the `ramada` D-36 auto-updatable view gap), plus read/write grants on `syndication.*` and `community.*`.
+  - Provisioned idempotently via `deploy/helios/vox-ops-db-setup` using client-side `scram-verifier.py` (`SCRAM-SHA-256`, `SET log_min_error_statement = panic`), `REVOKE CONNECT, TEMPORARY ON DATABASE vox_ops FROM PUBLIC`, Coolify runtime-only `DATABASE_URL` injection via `php artisan tinker`, and a terminal privilege-verification row (`t|f|f|...`).
 
-## Defects that change scope
+### 2. Telemetry Surface Audit Across `vox`
+- **`vox-telemetry-otlp::upload::upload_pending_otlp`** (`crates/vox-telemetry-otlp/src/upload.rs`) is currently a stub (`Ok(0)`). Must be wired to batch pending redacted OTLP JSON files into `/v1/logs` with `governor` rate limiting and Clavis-backed URL/token resolution.
+- **`vox-orchestrator-d` and `vox-gui` missing recorder registration:** `set_global_recorder` is only invoked in `vox-cli` (`crates/vox-cli/src/lib.rs:808`), leaving all daemon and desktop GUI telemetry emissions as silent no-ops.
+- **`ResearchMetricsSink` incomplete variant mapping:** `crates/vox-db/src/telemetry_sink.rs` only persists 6 of 21 `TelemetryEvent` variants locally, dropping all Track E/F product and autonomic events (`CommandUsage`, `SkillActivation`, `EditPattern`, `HarnessUsage`, `ErrorSurface`, `DefaultDecision`, `ModelPrompt`, `LintFinding`, `RepairAttempt`, `RepairOutcome`, `AuditRun`, `SelectionDecision`, `ModelDiscovery`, `ModelClassification`, `ConfidencePromotion`, `DoctorProjectCheck`).
+- **Server DDL/Ingest column drop:** `server/telemetry/src/ingest.rs` (`EventRow`) hardcoded 19 fields and silently dropped 20+ taxonomy-allowlisted columns. The new Postgres DDL and `sqlx`/`tokio-postgres` ingest in `~/dev/vox-ops` will be 100% generated/verified against `contracts/telemetry/collection-taxonomy.v1.json`.
+- **Transparency & Control UX:** Add `vox telemetry preview` (inspect exact outgoing OTLP payload without network IO) and GUI telemetry transparency/consent controls in `SettingsView.tsx` so users can inspect, toggle, or completely disable telemetry at any time.
 
-| Defect | Evidence | Requirement |
-|--------|----------|-------------|
-| Prereg gate has no production caller and accepts any embedded signing key | TRIAL-DESIGN §1 | TRIAL-05 |
-| `trusty_uri.rs` imports `sha2` directly; canonicalization sorts only top-level keys | TRIAL-DESIGN §1 | TRIAL-05 |
-| Session IDs collide (`INSERT OR IGNORE` + `last_insert_rowid()`); fresh `trace_id` per LLM call; `anon-session` turn records | OBSERVABILITY §2, TRIAL-DESIGN §2 | TELEM-02 |
-| No telemetry key allowlist; bridge contract allows extra properties | OBSERVABILITY §1 | TELEM-01 |
-| Tokens/cost/TTFT/tool calls dropped in research stages; run duration undercounts | OBSERVABILITY §3, QUALITY-EVAL §5 | METER-01 |
-| No-evidence answers score as abstentions (precision 1.0); zero-citation answers score 1.0; groundedness negation-blind; schema-violating output | QUALITY-EVAL §1 | SCORE-04 |
-| Result cache, verdict cache, and learned search policy leak across arms | TRIAL-DESIGN §2, OBSERVABILITY §4 | RACE-02 |
-| `BudgetManager` is fail-open, tokens-only, in-memory, double-counts | TRIAL-DESIGN §3 | RACE-03 |
-| `persist_fact` is fire-and-forget; lookup scans 500 rows; campaign keys collide at cache cap | KNOWLEDGE §1 | KNOW-02 |
-| `ingest_markdown_tree` would ingest `docs/src/archive/`; chunk search has no scope filter | KNOWLEDGE §2 | KNOW-03, KNOW-04 |
-| `vox-spool` and a Tier C blob store do not exist; the only CAS stores blobs inline | OBSERVABILITY §4 | STORE-03 |
+### 3. Private Repo Split (`~/dev/vox-ops` / `brbrainerd/vox-ops`)
+- **Remove `server/telemetry/` from public `vox`** (`Cargo.toml` exclude list + directory removal).
+- **Extract live social media syndication & community automation** (`vox-publisher` social adapters: X/Twitter, Reddit, YouTube, Discord, Bluesky, Mastodon, LinkedIn, Hacker News, OpenCollective + `social_retry.rs` + scheduled syndication outbox/workers) into `~/dev/vox-ops`, backed by Postgres `syndication.outbox` (`FOR UPDATE SKIP LOCKED`) and `syndication.attempt_ledger`.
+- **Retain local scholarly/academic manifest tooling in public `vox`:** `CITATION.cff`, BibTeX, Crossref/Zenodo/arXiv/OpenReview local bundle preparation remain in `vox-publisher`, with an optional non-blocking webhook/HTTP handoff to `vox-ops` when configured via Clavis.
 
-## Recommended approach
+### 4. Community-Collated Intelligence Flywheel (Offline-First)
+- `vox-ops` publishes an Ed25519-signed `CommunityIntelligenceBundleV1` (`GET /v1/intelligence/bundle.json`) derived strictly from $k \ge 20$ views: empirical model latency/error-rate/cost priors, OpenRouter free-tier slug liveness, empirical `default_decision` recommended constants, and council-approved `Confirmed` `ModelPromptProfile` segments.
+- `vox` clients operate 100% standalone/offline using compiled-in SSOT defaults and local `VoxDb`. When online and allowed (`VOX_COMMUNITY_INTEL != off` and `is_master_enabled()`), `vox` optionally fetches, Ed25519-verifies (`vox-crypto`), and caches `~/.vox/cache/community-intelligence.v1.json` to enrich routing and prompt selection without ever blocking or failing when offline.
 
-- **Statistics:** paired sign-flip test per query, Lan–DeMets incremental alpha spending, Holm across arms, fixed-sequence across metrics, Wilson and seeded (`rand_chacha`) bootstrap intervals; failed attempts count as worst score. About 300 LoC, no heavy dependencies.
-- **Scoring:** `research-quality-metrics.v1` (18 directed metrics, explicit NotApplicable/Missing/Abstained), then validity, hard gates, a CI-conservative N-axis Pareto frontier, and Holm-corrected confirmatory tests. Weighted views are display-only.
-- **Spend:** durable vox-db reservation ledger with one conditional update inside the run-row transaction; worst cases multiplied by cascade fan-out.
-- **Knowledge:** authoritative scientia findings, citations, append-only status events, a projection-state ledger, and signed per-arm manifests with allowlist-scoped retrieval.
-- **Hermetic tests:** frozen archetype outputs scored with recorded judge verdicts; about 45 red tests across the four files.
+## Implications for Roadmap
 
-## Decisions needed from the user
+- **Phase 89 (`TELEM-AUDIT`):** Complete the client-side telemetry audit fixes in `vox` (`ResearchMetricsSink` 21-variant coverage, `vox-orchestrator-d` + `vox-gui` recorder registration, `vox-telemetry-otlp::upload` implementation, `vox telemetry preview` & GUI transparency controls) and remove `server/telemetry/` from public `vox`.
+- **Phase 90 (`PG-FENCE`):** Bootstrap `~/dev/vox-ops` (`brbrainerd/vox-ops`) and implement the three-role fenced PostgreSQL 17 schema (`vox_ops_owner`, `vox_ingest_app`, `vox_ops_app`), taxonomy-driven DDL + `SECURITY DEFINER` $k \ge 20$ views, OTLP `/v1/logs` ingest server, and `deploy/helios/vox-ops-db-setup` SCRAM provisioning + Coolify pull-timer deployment.
+- **Phase 91 (`SOCIAL-OPS`):** Extract live social media publication & community automation adapters from `vox-publisher` into `~/dev/vox-ops` with a Postgres-backed durable syndication outbox (`FOR UPDATE SKIP LOCKED`), keeping local scholarly/academic manifest prep and optional webhook handoff in public `vox`.
+- **Phase 92 (`COMM-INTEL`):** Ship the Ed25519-signed `CommunityIntelligenceBundleV1` endpoint in `vox-ops` and the strictly offline-safe, non-blocking client hydration in `vox-orchestrator` / `vox-config` / `vox-cli` (`vox telemetry intelligence status|sync|inspect`), plus end-to-end verification and CI gate closure.
 
-1. **Tier A placement:** new active domain (ruling G22) or scientia extension (KNOWLEDGE recommendation), at baseline 95 with a shared-DB stamping guard.
-2. **Tier C evidence storage:** owner, hash, retention/tombstones, encryption/access, reference shape, and whether trial events use the metrics table now or wait for `vox-spool`.
-3. **New crate:** a dedicated trial-engine crate (`vox-research-shim` is ~11.4k LoC against an 8k budget) needs a layer assignment and crate-edge exceptions.
-4. **Crate edge:** `vox-cli-research` → `vox-eval` for the statistics and gate template.
+## Sources
 
-Items 3 and 4 are USER-AUTHORIZED-ONLY under AGENTS.md §Dependency Discipline.
+- [`docs/src/architecture/centralized-postgres-telemetry-vox-ops-ssot-2026.md`](../../docs/src/architecture/centralized-postgres-telemetry-vox-ops-ssot-2026.md)
+- [`docs/src/architecture/telemetry-trust-ssot.md`](../../docs/src/architecture/telemetry-trust-ssot.md)
+- [`docs/src/adr/023-optional-telemetry-remote-upload.md`](../../docs/src/adr/023-optional-telemetry-remote-upload.md)
+- [`contracts/telemetry/collection-taxonomy.v1.json`](../../contracts/telemetry/collection-taxonomy.v1.json)
+- `~/dev/ramada/docs/decisions/0008-one-shared-postgres-two-roles-per-app.md`
+- `~/dev/ngi.video/deploy/helios/ngi-video-db-setup` & `sql/ngi_video_early_access.sql`

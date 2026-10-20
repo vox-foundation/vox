@@ -19,6 +19,9 @@ pub enum PopuliMensTail {
         /// Policy file (default: mens/config/eval-gates.yaml)
         #[arg(long)]
         policy: Option<PathBuf>,
+        /// Run the 25-problem 5-spoke Mens before/after verification gate and write `mens_spoke_scorecard.json`.
+        #[arg(long, default_value_t = false)]
+        five_spokes: bool,
     },
 
     /// Capture a base-model BFCL baseline so the beat-base eval gate has a real

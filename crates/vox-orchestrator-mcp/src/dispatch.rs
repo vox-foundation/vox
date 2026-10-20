@@ -632,7 +632,7 @@ async fn dispatch_tool_call(
                 payload["trace_id"] = serde_json::Value::String(tid.clone());
             }
             let agent_str = agent_id.unwrap_or("0");
-            let _ = vox_gamify::db::insert_event(
+            let _ = vox_db::ops_agent_telemetry::insert_event(
                 db,
                 agent_str,
                 "tool_call",

@@ -348,10 +348,52 @@ pub(crate) fn scan_workspace(root: &Path) -> Result<Vec<Violation>, String> {
                 }
             }
         }
-        let ratchet = SpokeRegressionRatchetV1::canonical_five_spoke_floors(1.0);
+        let ratchet_path = root
+            .join("contracts")
+            .join("eval")
+            .join("spoke-regression-ratchet.v1.json");
+        let ratchet = if ratchet_path.exists() {
+            let r_raw = std::fs::read_to_string(&ratchet_path)
+                .map_err(|e| format!("cannot read {}: {e}", ratchet_path.display()))?;
+            serde_json::from_str::<SpokeRegressionRatchetV1>(&r_raw)
+                .map_err(|e| format!("cannot parse {}: {e}", ratchet_path.display()))?
+        } else {
+            SpokeRegressionRatchetV1::canonical_five_spoke_floors(1.0)
+        };
         if verify_spoke_regression_ratchet(&ratchet, &observed).is_err() {
             all.push(Violation {
                 file: scorecard_path.to_string_lossy().into_owned(),
+                line: 1,
+                kind: ViolationKind::SpokeRatchetRegression,
+            });
+        }
+    }
+
+    // 5. Organic search-to-compilation ratchet (`PERSIST-BENCH-03`) when organic scorecard is present
+    let organic_path = root
+        .join("contracts")
+        .join("reports")
+        .join("mens-organic-search-spoke-scorecard.v1.json");
+    if organic_path.exists() {
+        let raw = std::fs::read_to_string(&organic_path)
+            .map_err(|e| format!("cannot read {}: {e}", organic_path.display()))?;
+        let val: serde_json::Value = serde_json::from_str(&raw)
+            .map_err(|e| format!("cannot parse {}: {e}", organic_path.display()))?;
+        let ratchet_path = root
+            .join("contracts")
+            .join("eval")
+            .join("spoke-regression-ratchet.v1.json");
+        let ratchet = if ratchet_path.exists() {
+            let r_raw = std::fs::read_to_string(&ratchet_path)
+                .map_err(|e| format!("cannot read {}: {e}", ratchet_path.display()))?;
+            serde_json::from_str::<SpokeRegressionRatchetV1>(&r_raw)
+                .map_err(|e| format!("cannot parse {}: {e}", ratchet_path.display()))?
+        } else {
+            SpokeRegressionRatchetV1::canonical_five_spoke_floors(1.0)
+        };
+        if verify_organic_search_ratchet(&ratchet, &val).is_err() {
+            all.push(Violation {
+                file: organic_path.to_string_lossy().into_owned(),
                 line: 1,
                 kind: ViolationKind::SpokeRatchetRegression,
             });
@@ -804,6 +846,9 @@ pub fn real_fn() {}\n\
         let ratchet = SpokeRegressionRatchetV1 {
             schema_version: "vox.spoke_regression_ratchet.v1".to_string(),
             spoke_pass_at_1_floors: floors,
+            organic_search_recall_at_5_floor: 1.0,
+            organic_mrr_floor: 0.95,
+            organic_compilation_pass_rate_floor: 1.0,
         };
 
         let mut passing_observed = std::collections::BTreeMap::new();
@@ -816,15 +861,83 @@ pub fn real_fn() {}\n\
         regressed_observed.insert("rust_workspace".to_string(), 0.80);
         assert!(verify_spoke_regression_ratchet(&ratchet, &regressed_observed).is_err());
     }
+
+    #[test]
+    fn committed_spoke_ratchet_and_scorecard_contracts_pass_verification() {
+        let root = workspace_root();
+        let ratchet_path = root
+            .join("contracts")
+            .join("eval")
+            .join("spoke-regression-ratchet.v1.json");
+        let scorecard_path = root
+            .join("contracts")
+            .join("reports")
+            .join("mens-spoke-scorecard.v1.json");
+        let organic_path = root
+            .join("contracts")
+            .join("reports")
+            .join("mens-organic-search-spoke-scorecard.v1.json");
+        let ratchet_raw =
+            std::fs::read_to_string(&ratchet_path).expect("read spoke-regression-ratchet.v1.json");
+        let ratchet: SpokeRegressionRatchetV1 =
+            serde_json::from_str(&ratchet_raw).expect("parse spoke-regression-ratchet.v1.json");
+        assert_eq!(ratchet.schema_version, "vox.spoke_regression_ratchet.v1");
+        assert_eq!(ratchet.spoke_pass_at_1_floors.len(), 5);
+        assert!((ratchet.organic_search_recall_at_5_floor - 1.0).abs() < 1e-9);
+        assert!(ratchet.organic_mrr_floor >= 0.95);
+        assert!((ratchet.organic_compilation_pass_rate_floor - 1.0).abs() < 1e-9);
+
+        let scorecard_raw =
+            std::fs::read_to_string(&scorecard_path).expect("read mens-spoke-scorecard.v1.json");
+        let val: serde_json::Value =
+            serde_json::from_str(&scorecard_raw).expect("parse mens-spoke-scorecard.v1.json");
+        let mut observed = std::collections::BTreeMap::new();
+        for s in val
+            .get("spokes")
+            .and_then(|v| v.as_array())
+            .expect("spokes array")
+        {
+            let name = s.get("spoke").and_then(|v| v.as_str()).expect("spoke name");
+            let pass1 = s
+                .get("pass_at_1")
+                .and_then(|v| v.as_f64())
+                .expect("pass_at_1");
+            observed.insert(name.to_string(), pass1);
+        }
+        assert!(verify_spoke_regression_ratchet(&ratchet, &observed).is_ok());
+
+        let organic_raw = std::fs::read_to_string(&organic_path)
+            .expect("read mens-organic-search-spoke-scorecard.v1.json");
+        let organic_val: serde_json::Value = serde_json::from_str(&organic_raw)
+            .expect("parse mens-organic-search-spoke-scorecard.v1.json");
+        assert!(verify_organic_search_ratchet(&ratchet, &organic_val).is_ok());
+    }
 }
 
-/// Per-spoke non-decreasing `pass@1` regression ratchet (`AUDIT-04`).
+fn default_one() -> f64 {
+    1.0
+}
+
+fn default_mrr_floor() -> f64 {
+    0.95
+}
+
+/// Per-spoke non-decreasing `pass@1` and organic search-to-compilation regression ratchet (`AUDIT-04`, `PERSIST-BENCH-03`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SpokeRegressionRatchetV1 {
     /// Schema discriminator (`"vox.spoke_regression_ratchet.v1"`).
     pub schema_version: String,
     /// Minimum required `pass@1` floor per spoke.
     pub spoke_pass_at_1_floors: std::collections::BTreeMap<String, f64>,
+    /// Minimum required organic search `Recall@5` floor (`1.0`).
+    #[serde(default = "default_one")]
+    pub organic_search_recall_at_5_floor: f64,
+    /// Minimum required organic search `MRR` floor (`0.95`).
+    #[serde(default = "default_mrr_floor")]
+    pub organic_mrr_floor: f64,
+    /// Minimum required organic compilation pass rate floor (`1.0`).
+    #[serde(default = "default_one")]
+    pub organic_compilation_pass_rate_floor: f64,
 }
 
 impl SpokeRegressionRatchetV1 {
@@ -838,7 +951,64 @@ impl SpokeRegressionRatchetV1 {
         Self {
             schema_version: "vox.spoke_regression_ratchet.v1".to_string(),
             spoke_pass_at_1_floors,
+            organic_search_recall_at_5_floor: 1.0,
+            organic_mrr_floor: 0.95,
+            organic_compilation_pass_rate_floor: 1.0,
         }
+    }
+}
+
+/// Verify that an organic search-to-compilation scorecard JSON satisfies the ratchet floors (`PERSIST-BENCH-03`).
+pub fn verify_organic_search_ratchet(
+    ratchet: &SpokeRegressionRatchetV1,
+    organic_scorecard_json: &serde_json::Value,
+) -> Result<(), Vec<String>> {
+    let mut violations = Vec::new();
+    let recall = organic_scorecard_json
+        .get("overall_search_recall_at_5")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
+    let mrr = organic_scorecard_json
+        .get("overall_mrr")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
+    let comp = organic_scorecard_json
+        .get("overall_compilation_pass_rate")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
+    let e2e = organic_scorecard_json
+        .get("overall_end_to_end_pass_at_1")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
+
+    if recall + 1e-9 < ratchet.organic_search_recall_at_5_floor {
+        violations.push(format!(
+            "organic_search_recall_at_5 regressed: {recall:.4} < floor {:.4}",
+            ratchet.organic_search_recall_at_5_floor
+        ));
+    }
+    if mrr + 1e-9 < ratchet.organic_mrr_floor {
+        violations.push(format!(
+            "organic_mrr regressed: {mrr:.4} < floor {:.4}",
+            ratchet.organic_mrr_floor
+        ));
+    }
+    if comp + 1e-9 < ratchet.organic_compilation_pass_rate_floor {
+        violations.push(format!(
+            "organic_compilation_pass_rate regressed: {comp:.4} < floor {:.4}",
+            ratchet.organic_compilation_pass_rate_floor
+        ));
+    }
+    if e2e + 1e-9 < ratchet.organic_compilation_pass_rate_floor {
+        violations.push(format!(
+            "organic_end_to_end_pass_at_1 regressed: {e2e:.4} < floor {:.4}",
+            ratchet.organic_compilation_pass_rate_floor
+        ));
+    }
+    if violations.is_empty() {
+        Ok(())
+    } else {
+        Err(violations)
     }
 }
 
@@ -866,6 +1036,9 @@ pub fn verify_spoke_regression_ratchet(
         Ok(SpokeRegressionRatchetV1 {
             schema_version: ratchet.schema_version.clone(),
             spoke_pass_at_1_floors: updated,
+            organic_search_recall_at_5_floor: ratchet.organic_search_recall_at_5_floor,
+            organic_mrr_floor: ratchet.organic_mrr_floor,
+            organic_compilation_pass_rate_floor: ratchet.organic_compilation_pass_rate_floor,
         })
     } else {
         Err(violations)

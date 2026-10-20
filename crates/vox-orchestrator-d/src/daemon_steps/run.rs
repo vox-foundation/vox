@@ -20,12 +20,14 @@ pub(super) fn step_db(ctx: &mut DaemonBootCtx) -> StepFuture<'_> {
         )
         .await
         .ok_or_else(|| "workspace journey store unavailable".to_string())?;
+        vox_db::telemetry_sink::init_process_telemetry(Some(db.clone()));
         let db = Arc::new(db);
         if let Err(e) = ctx.orch.init_db(db.clone()).await {
             tracing::warn!(error = %e, "orchestrator init_db failed; continuing without persisted Codex");
             return Err(format!("orchestrator init_db failed: {e}"));
         }
         tracing::info!("Codex attached and orchestrator schema synced");
+        vox_db::telemetry_sink::init_process_telemetry(Some((*db).clone()));
         ctx.db = Some(db);
         Ok(())
     })

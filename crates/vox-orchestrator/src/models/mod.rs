@@ -8,6 +8,7 @@ pub mod discovery_pipeline;
 pub mod family;
 pub mod generated;
 pub mod health;
+pub mod intelligence_bundle;
 pub mod key_guard;
 pub mod leaderboard;
 #[cfg(feature = "populi-transport")]

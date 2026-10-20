@@ -1,0 +1,52 @@
+# Plan 20-09 Summary: Single-Source Repo Markdown Mounts
+
+## What was built
+- **Mount Contract (`contracts/documentation/site-mounted-repo-docs.v1.json`)**:
+  - Defined `x-vox-version: 1`, `always_mount: ["AGENTS.md", "CLAUDE.md", "GEMINI.md"]`, and `never_mount_prefixes: ["docs/superpowers/", "docs/ci/", "apps/", "tree-sitter-vox/"]`.
+  - Excludes internal planning (`docs/superpowers/**`) and non-crate tooling directories (`docs/ci/**`, `apps/**`, `tree-sitter-vox/**`) which link to unmounted or internal assets.
+- **Mount Discovery & Route Derivation (`docs-astro/src/utils/repo-mounts.mjs`)**:
+  - `mountRoute(repoPath)`: generates clean lower-case slug with `/`, `.`, `_` replaced by hyphens (e.g. `AGENTS.md` -> `agents-md`, `crates/vox-cli/README.md` -> `crates-vox-cli-readme-md`).
+  - `discoverMounts({repoRoot, docsSrc, contract})`: scans all non-archive docs pages for relative links pointing outside `docs/src` into the repo, filters against `never_mount_prefixes`, unions with `always_mount`, and inspects each file for frontmatter title.
+- **Content Mirror Extension (`docs-astro/scripts/setup-content.mjs`)**:
+  - Extended marker-guarded mirror to populate `src/content/docs/repo/`.
+  - Mount count: **22 repo docs** mounted (**11 symlinked**, **11 wrapped** with generated frontmatter).
+  - Un-titled documents get wrapped frontmatter with title derived from contract or first `# ` heading, `mounted_from: <repoPath>`, `status: current`, and first heading stripped to prevent duplicate H1 tags.
+  - Guarded against shadowing: throws if `docs/src` ever contains a top-level `repo` entry.
+  - Windows platform support: on win32 or when symlinks are unsupported, falls back to copying files directly with note logged.
+- **Content Schema (`docs-astro/src/content.config.ts`)**:
+  - Added `mounted_from: z.string().optional()` to Starlight docs collection schema.
+- **Link Rewriting Plugin Support (`docs-astro/src/plugins/remark-doc-links.mjs`)**:
+  - Integrated `mountsMap` and `routeToRepoMap`.
+  - Out-of-tree links targeting mounted files resolve to `/repo/<route>/`.
+  - Pages with `mounted_from` frontmatter resolve relative links from their original repository source rather than the mirror directory.
+  - Relative images in mounted pages rewrite to `https://github.com/vox-foundation/vox/raw/main/<path>`.
+- **Route Data Middleware (`docs-astro/src/routeData.ts`)**:
+  - Mounted pages resolve true disk path via `mounted_from` or `realpathSync`.
+  - GitHub edit URLs for mounted pages point to true repo source `https://github.com/vox-foundation/vox/edit/main/<source>`.
+  - Git dates lookup includes mounted repo paths alongside `docs/src`.
+  - Restored `lastUpdated: true` in `astro.config.mjs`.
+- **Agent Policy Entry Points & LLMS Indexes**:
+  - Updated `docs/src/.well-known/llms.txt` and `llms-full.txt` to point to `/repo/agents-md/`, `/repo/gemini-md/`, `/repo/claude-md/`.
+  - Updated `docs-astro/tests/build-output/llms.spec.ts` to assert that every `https://voxlang.org/...` URL in both `.well-known` files maps to an existing file in `dist/`.
+- **Workflow Path Filters (`.github/workflows/docs-deploy.yml`, `.github/workflows/docs-quality.yml`)**:
+  - Added path filters for all root mounted sources (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `LANGUAGE_DESIGN_PRIORITIES.md`, `CHANGELOG.md`, `README.md`, `.github/copilot-instructions.md`), crate READMEs (`crates/**/README.md`), script READMEs (`scripts/**/README.md`), `contracts/**`, `examples/**`, `.git-blame-ignore-revs`, and `.lycheeignore`.
+
+## Verification & Metrics
+- Discovered and mounted docs: **22** (11 symlinked, 11 wrapped).
+- Playwright specs passing:
+  - `tests/build-output/repo-docs.spec.ts`: 6/6 pass (AGENTS.md renders at `/repo/agents-md/`, scoped `/agents/` retained, edit links point to GitHub source, git date matches git history).
+  - `tests/build-output/links.spec.ts`: 4/4 pass (0 relative `.md` hrefs, 0 escaping hrefs, 2,141 valid GitHub repo links).
+  - `tests/build-output/dates.spec.ts`: 3/3 pass (Page date coverage 99.6% across 695 pages).
+  - `tests/build-output/llms.spec.ts`: 4/4 pass (all well-known URLs resolve in `dist/`).
+  - `tests/build-output/archive.spec.ts`: 4/4 pass.
+- Unit tests:
+  - `tests/unit/repo-mounts.test.mjs`: 2/2 pass.
+  - `tests/unit/remark-doc-links.test.mjs`: 14/14 pass.
+- Mutation tests:
+  - Task 2: Removing `mounted_from` base-path resolution caused wrapper relative link unit test to fail; restored.
+  - Task 3: Removing `AGENTS.md` from `docs-deploy.yml` caused the path coverage verification script to output `UNCOVERED docs-deploy.yml push AGENTS.md` and exit 1; restored and re-verified.
+- CI Workflow Guards:
+  - `actionlint .github/workflows/docs-deploy.yml .github/workflows/docs-quality.yml`: passed.
+  - `vox ci workflow-concurrency-guard`: passed.
+  - `vox ci yaml-parse-check .github/workflows/docs-deploy.yml .github/workflows/docs-quality.yml`: passed.
+  - Path coverage script passed with `COVERED` across all 3 workflow events.

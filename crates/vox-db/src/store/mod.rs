@@ -45,6 +45,7 @@ mod open;
 mod ops;
 mod ops_a2a;
 pub mod ops_activity;
+pub mod ops_agent_telemetry;
 mod ops_agents;
 pub mod ops_build;
 mod ops_cas;

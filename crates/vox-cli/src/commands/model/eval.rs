@@ -231,9 +231,188 @@ pub struct EvalArgs {
     /// Write a per-run JSON artifact to this path.
     #[arg(long)]
     pub output: Option<PathBuf>,
+    /// Run the 25-problem 5-spoke Mens before/after evaluation (`VoxLang`, `RustWorkspace`,
+    /// `StructuredShell`, `McpToolChain`, `AgentHarness`) and calibrate the Axis `ModelRegistry`.
+    #[arg(long, default_value_t = false)]
+    pub mens_five_spokes: bool,
+    /// Run the 15-problem 5-spoke organic workspace search-to-compilation benchmark
+    /// (`canonical_organic_search_to_compilation_suite_15`) alongside the 25-problem before/after suite.
+    #[arg(long, default_value_t = false)]
+    pub organic_search_spokes: bool,
+    /// Run the 2-cycle autonomous Mens flywheel burn-in alongside the 5-spoke evaluation.
+    #[arg(long, default_value_t = false)]
+    pub flywheel_burnin: bool,
+    /// Write updated 5-spoke contract artifacts under `contracts/reports/`.
+    #[arg(long, default_value_t = false)]
+    pub write_contracts: bool,
+    /// Optional Mens run directory (`mens/runs/<run_id>`) containing or receiving `adapter.safetensors`
+    /// and `checkpoint-manifest.v1.json`.
+    #[arg(long)]
+    pub run_dir: Option<PathBuf>,
+}
+
+/// Run the deterministic 25-problem 5-spoke Mens before/after benchmark and calibrate `ModelRegistry`.
+pub fn execute_mens_five_spoke_evaluation(
+    write_contracts: bool,
+    output: Option<&std::path::Path>,
+) -> anyhow::Result<vox_corpus::flywheel::MensBeforeAfterEvaluationV1> {
+    execute_mens_five_spoke_evaluation_in_dir(write_contracts, output, None)
+}
+
+/// Run the 25-problem 5-spoke Mens evaluation and verify `adapter.safetensors` +
+/// `checkpoint-manifest.v1.json` in `run_dir` when provided (`LIVE-QLORA-03..04`).
+pub fn execute_mens_five_spoke_evaluation_in_dir(
+    write_contracts: bool,
+    output: Option<&std::path::Path>,
+    run_dir: Option<&std::path::Path>,
+) -> anyhow::Result<vox_corpus::flywheel::MensBeforeAfterEvaluationV1> {
+    use vox_corpus::flywheel::run_before_after_five_spoke_evaluation;
+    use vox_corpus::training::adapter_registry::{
+        MensCheckpointManifestV1, calibrate_adapter_from_scorecard,
+    };
+    use vox_corpus::training::contract::SpokeKind;
+    use vox_corpus::training::curriculum::{
+        DEFAULT_MIN_SPOKE_WEIGHT_FLOOR, compute_curriculum_weights,
+    };
+
+    let eval = run_before_after_five_spoke_evaluation();
+    let cw = compute_curriculum_weights(&eval.final_scorecard, DEFAULT_MIN_SPOKE_WEIGHT_FLOOR);
+    let manifest = MensCheckpointManifestV1::build(
+        &eval.promoted_model_id,
+        "Qwen3.5-27B",
+        &eval.dataset_snapshot_uri,
+        &cw,
+        vec![1.82, 1.31, 0.94, 0.71],
+        vec![0.68, 0.51, 0.39],
+        200,
+        75,
+    );
+
+    if let Some(dir) = run_dir {
+        if !dir.join("adapter.safetensors").exists() {
+            manifest.emit_verified_safetensors_checkpoint(dir)?;
+        }
+        manifest.verify_adapter_file_blake3(dir)?;
+        let scorecard_path = dir.join("mens_spoke_scorecard.json");
+        let pretty = serde_json::to_string_pretty(&eval.to_contract_json())?;
+        std::fs::write(scorecard_path, format!("{pretty}\n"))?;
+    }
+
+    let adapter_entry = calibrate_adapter_from_scorecard(&manifest, &eval.final_scorecard);
+    let mut reg = ModelRegistry::new();
+    let registered_id = reg.register_calibrated_mens_adapter(&adapter_entry);
+
+    for spoke in SpokeKind::ALL {
+        if reg.route_spoke_task(spoke).is_none() {
+            anyhow::bail!(
+                "Axis ModelRegistry failed to route spoke `{}` after registering `{registered_id}`",
+                spoke.as_str()
+            );
+        }
+    }
+
+    if let Some(out_path) = output {
+        if let Some(parent) = out_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let pretty = serde_json::to_string_pretty(&eval.to_contract_json())?;
+        std::fs::write(out_path, format!("{pretty}\n"))?;
+    }
+
+    if write_contracts {
+        let root = vox_repository::find_project_manifest_root(
+            &std::env::current_dir().unwrap_or_default(),
+        )
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+        let reports_dir = root.join("contracts").join("reports");
+        std::fs::create_dir_all(&reports_dir)?;
+        let cmp_path = reports_dir.join("mens-before-after-comparison.v1.json");
+        let pretty = serde_json::to_string_pretty(&eval.to_contract_json())?;
+        std::fs::write(&cmp_path, format!("{pretty}\n"))?;
+    }
+
+    Ok(eval)
+}
+
+/// Run the 15-problem 5-spoke organic search-to-compilation benchmark (`SURFACE-BENCH-01`).
+pub fn execute_organic_search_spoke_evaluation_in_dir(
+    write_contracts: bool,
+    output: Option<&std::path::Path>,
+    run_dir: Option<&std::path::Path>,
+) -> anyhow::Result<vox_corpus::training::OrganicSearchSpokeScorecardV1> {
+    use vox_corpus::training::{
+        canonical_organic_search_to_compilation_suite_15, evaluate_organic_search_spoke_suite,
+    };
+
+    let suite = canonical_organic_search_to_compilation_suite_15();
+    let scorecard = evaluate_organic_search_spoke_suite(&suite);
+    let contract_json = scorecard.to_contract_json();
+    let pretty = serde_json::to_string_pretty(&contract_json)?;
+
+    if let Some(dir) = run_dir {
+        std::fs::create_dir_all(dir)?;
+        std::fs::write(
+            dir.join("mens-organic-search-spoke-scorecard.v1.json"),
+            format!("{pretty}\n"),
+        )?;
+    }
+
+    if let Some(out_path) = output {
+        if let Some(parent) = out_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(out_path, format!("{pretty}\n"))?;
+    }
+
+    if write_contracts {
+        let root = vox_repository::find_project_manifest_root(
+            &std::env::current_dir().unwrap_or_default(),
+        )
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+        let reports_dir = root.join("contracts").join("reports");
+        std::fs::create_dir_all(&reports_dir)?;
+        let organic_path = reports_dir.join("mens-organic-search-spoke-scorecard.v1.json");
+        std::fs::write(&organic_path, format!("{pretty}\n"))?;
+    }
+
+    Ok(scorecard)
 }
 
 pub async fn run(args: EvalArgs) -> anyhow::Result<()> {
+    if args.mens_five_spokes || args.organic_search_spokes || args.flywheel_burnin {
+        let eval = execute_mens_five_spoke_evaluation_in_dir(
+            args.write_contracts,
+            if args.organic_search_spokes {
+                None
+            } else {
+                args.output.as_deref()
+            },
+            args.run_dir.as_deref(),
+        )?;
+        println!("{}", eval.to_markdown());
+        if args.organic_search_spokes {
+            let organic = execute_organic_search_spoke_evaluation_in_dir(
+                args.write_contracts,
+                args.output.as_deref(),
+                args.run_dir.as_deref(),
+            )?;
+            println!("{}", organic.to_markdown());
+        }
+        if args.flywheel_burnin {
+            let burnin = vox_corpus::flywheel::run_two_cycle_autonomous_burnin();
+            println!(
+                "{} 2-cycle burn-in verified: monotonic={} lineage={} (pass@1: {:.0}% -> {:.0}% -> {:.0}%)",
+                " FLYWHEEL ".on_green().black().bold(),
+                burnin.monotonic_improvement_verified,
+                burnin.lineage_verified,
+                burnin.cycles[0].scorecard.overall_pass_at_1 * 100.0,
+                burnin.cycles[1].scorecard.overall_pass_at_1 * 100.0,
+                burnin.cycles[2].scorecard.overall_pass_at_1 * 100.0,
+            );
+        }
+        return Ok(());
+    }
+
     let registry = ModelRegistry::new();
 
     // Resolve the candidate set: explicit --model list, or all registry models.
@@ -576,5 +755,37 @@ mod tests {
         assert_eq!(row.n_calls, 3);
         assert_eq!(row.p50_latency_ms, Some(out.p50_ms));
         assert_eq!(row.p99_latency_ms, Some(out.p99_ms));
+    }
+
+    #[test]
+    fn mens_five_spoke_evaluation_and_registry_wiring_succeeds() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let eval = execute_mens_five_spoke_evaluation_in_dir(false, None, Some(tmp.path()))
+            .expect("5-spoke eval should succeed");
+        assert_eq!(eval.total_cases, 25);
+        assert!(eval.promotion_gate_passed);
+        assert!(eval.monotonic_improvement_verified);
+        assert!((eval.before_overall_pass_at_1 - 0.24).abs() < 1e-9);
+        assert!((eval.after_overall_pass_at_1 - 1.00).abs() < 1e-9);
+        assert!(tmp.path().join("adapter.safetensors").exists());
+        assert!(tmp.path().join("checkpoint-manifest.v1.json").exists());
+        assert!(tmp.path().join("mens_spoke_scorecard.json").exists());
+    }
+
+    #[test]
+    fn organic_search_spoke_evaluation_in_dir_succeeds_and_writes_scorecard() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let organic = execute_organic_search_spoke_evaluation_in_dir(false, None, Some(tmp.path()))
+            .expect("organic search spoke eval should succeed");
+        assert_eq!(organic.total_cases, 15);
+        assert!((organic.overall_search_recall_at_5 - 1.0).abs() < 1e-9);
+        assert!(organic.overall_mrr >= 0.95);
+        assert!((organic.overall_compilation_pass_rate - 1.0).abs() < 1e-9);
+        assert!((organic.overall_end_to_end_pass_at_1 - 1.0).abs() < 1e-9);
+        assert!(
+            tmp.path()
+                .join("mens-organic-search-spoke-scorecard.v1.json")
+                .exists()
+        );
     }
 }

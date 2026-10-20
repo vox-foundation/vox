@@ -1,5 +1,45 @@
 # Milestones
 
+## v2.0 Persistent Organic Multi-Spoke Search-to-Compilation Benchmark, Live Execution Oracles & Longitudinal Evaluation Flywheel (Shipped: 2026-10-19)
+
+**Phases completed:** 4 phases (`Phases 108–111`), 4 plans, 16/16 requirements verified (`100%`)
+**Archive:** [`milestones/v2.0-ROADMAP.md`](milestones/v2.0-ROADMAP.md) | [`milestones/v2.0-REQUIREMENTS.md`](milestones/v2.0-REQUIREMENTS.md)
+
+**Key accomplishments:**
+
+- **15-Task 5-Spoke Organic Search-to-Compilation Suite & Decontamination Guard (`Phase 108`):** Shipped `canonical_organic_search_to_compilation_suite_15` (`3` organic developer search-to-compilation tasks per spoke across `VoxLang`, `RustWorkspace`, `StructuredShell`, `McpToolChain`, `AgentHarness`), `discover_workspace_evidence`, `verify_organic_benchmark_decontamination`, and `contracts/reports/mens-organic-search-spoke-scorecard.v1.json` (`100.0%` Recall@5, `1.000` MRR, `100.0%` Grounding, `100.0%` Compilation, `100.0%` E2E `pass@1`).
+- **Deep Compilation & Functional Runtime Oracles Across All 5 Spokes (`Phase 109`):** Upgraded `verify_deep_compilation_for_spoke` with `vox_compiler` (`lex -> parse -> HIR -> typeck -> fmt -> Interpreter::run_module`) for `VoxLang`, `syn::parse_file` + `quote::ToTokens` + policy detectors for `RustWorkspace`, live directory inventory verification for `StructuredShell`, `vox-mcp-registry` + inline `vox_compiler::pipeline::check_file` (`0` errors) for `McpToolChain`, and `TaskPlanEnvelope` file existence + `classify_shell_safety_floor` gate verification for `AgentHarness`.
+- **Longitudinal `VoxDb` Persistence, `ModelBenchCase` Telemetry & Multi-Metric Ratchets (`Phase 110`):** Shipped `persist_organic_scorecard_to_db`, `load_organic_scorecard_from_db`, `list_organic_scorecard_history_from_db`, `verify_organic_scorecard_non_decreasing_trend`, `record_organic_scorecard_telemetry_to_db` (`vox.model.bench_case` verified via `VoxDb::audit_research_metric_shapes`), and expanded `contracts/eval/spoke-regression-ratchet.v1.json` + `verify_organic_search_ratchet` in `vox-audit`.
+- **CLI & Axis GUI Longitudinal Scorecard Surfaces (`Phase 111`):** Added `vox model eval --organic-search-spokes` (`execute_organic_search_spoke_evaluation_in_dir`), `OrganicSearchSpokeScorecardDto` in `vox-gui` (`mens_run_reports.rs`), and `data-testid="mens-organic-scorecard"` in `MensTrainingView.tsx`.
+
+---
+
+## v1.9 Chat Default Surfaces CV & Code Audit Remediation, Progressive-Disclosure Composer, Rich Markdown Transcript, Full-Height Execution Rail & CV Flywheel Convergence (Shipped: 2026-10-19)
+
+**Phases completed:** 4 phases (`Phases 104–107`), 4 plans, 14/14 requirements verified (`100%`)
+
+---
+
+## v1.8 Shared-Package CV Flywheel, Chat/Loquela Knob & Datatype Unification, VS Code Multi-Panel Docking, Urbs Civilization Live Taps, Browser Songhand/Playwright Harness & `ngi.video` Marketing Copy/Screenshot CV Flywheel Promotion (Shipped: 2026-10-19)
+
+**Phases completed:** 6 phases (`Phases 98–103`), 6 plans, 32/32 requirements verified (`100%`)
+
+---
+
+## v1.7 Centralized Postgres Telemetry, Private `vox-ops` Extraction, Ludus 3-Way SoC, Zero-Cheating Leaderboard, Codebase/History Scrub, Live Helios Deployment & 5-Spoke MENS Safetensors Evaluation (Shipped: 2026-10-19)
+
+**Phases completed:** 9 phases (Phases 89–97), 18 plans, 70/70 requirements verified (`100%`)
+
+**Key accomplishments:**
+
+- **Telemetry Surface Audit Remediation, Strong Typing, Multi-Surface Model Router & Local `VoxDb` Shape Audit (`Phase 89`):** Wired `init_process_telemetry` across `vox-orchestrator-d` and `vox-gui`, expanded `ResearchMetricsSink` to all 26 `TelemetryEvent` variants with `VoxDb::audit_research_metric_shapes` (`TypedResearchMetricRow`), implemented batched OTLP HTTP uploader `upload_pending_otlp` (`<= 100` records / `<= 256 KiB`) + `vox telemetry preview`, removed prototype `server/telemetry/`, and verified the model router across CLI, daemon, MCP, and GUI surfaces.
+- **Private `vox-ops` Repository & Three-Role Fenced Postgres on Live `helios-postgres` (`Phase 90`):** Bootstrapped the 6-crate `~/dev/vox-ops` workspace (`vox-ops-db`, `vox-ops-ingest`, `vox-ops-syndication`, `vox-ops-ludus`, `vox-ops-intelligence`, `vox-ops-server`) and provisioned the three-role fenced PostgreSQL 17 database (`vox_ops_owner`, `vox_ingest_app`, `vox_ops_app`) on live `helios-postgres` (`q40ck888ggkkcsosgcwgc0oo`), verified with privilege vector `t|f|f|t|f|f|t` and $k \ge 20$ `SECURITY DEFINER` analytical views.
+- **Social Media Syndication, Multi-User Ludus Extraction, 3-Way Gamification SoC Split & Zero-Cheating Leaderboard Surfaces (`Phase 91`):** Extracted all 9 live social media adapters to `vox-ops-syndication` (`syndication.outbox`), added `SyndicationHandoffPayloadV1` (`contracts/scientia/syndication-handoff.v1.schema.json`), moved Tier 1 operational `agent_telemetry` (`agent_events`, `cost_records`, `agent_sessions`) to `crates/vox-db/src/store/ops_agent_telemetry.rs`, eliminated shadow telemetry (`hint_telemetry.rs`, `lsp_telemetry.rs`), extracted multi-user Ludus to `vox-ops-ludus`, and shipped `VerifiedLeaderboardSnapshotV1` (`BLAKE3` receipt hash chain + `Ed25519` envelope signature) with `VoxLeaderboardArena.astro` (`voxlang.org`) and `LeaderboardArenaPanel.tsx` (`vox-gui`).
+- **Community Intelligence Flywheel, Live Helios Deployment & Git History Scrub (`Phase 92`):** Shipped `CommunityIntelligenceBundleV1` (`#[serde(deny_unknown_fields)]`, `Ed25519` verification via `vox_crypto::verify_signature_hex`, Empirical Bayes prior blending clamped to $\pm 15\%$ in `ModelRegistry::apply_community_intelligence_bundle`), `vox telemetry intelligence {status,sync,inspect}` CLI + GUI Settings controls, deployed container `vox-ops-server` live on `helios` (`127.0.0.1:8420`, verified live `GET /healthz`, `POST /v1/logs` -> `HTTP 202 Accepted` as `vox_ingest_app`, `GET /v1/intelligence/manifest.json`, and `GET /v1/ludus/leaderboard`), and verified working-tree/history scrub compliance via `scripts/verify-history-scrub.vox`.
+- **5-Spoke MENS Gap Closure, 25-Problem Benchmark, Axis Harness Routing, GUI Scorecard & Live QLoRA Safetensors Evaluation (`Phases 93–97`):** Closed `88-REVIEW.md` findings (`MENS-GAP-01..04`), expanded the 5-spoke benchmark to 25 problems (`24.0% -> 72.0% -> 100.0% pass@1`), wired `ModelRegistry::register_calibrated_mens_adapter` + `route_spoke_task` + `vox model eval --mens-five-spokes`, added `MensSpokeScorecardDto` in `MensTrainingView.tsx`, and verified live `.safetensors` adapter checkpoints across all 25 problems (`LIVE-QLORA-01..04`).
+
+---
+
 ## v1.6 Production Stability, Zero-Mock Surface Reality & Mens Continuous Training Flywheel (Shipped: 2026-10-16)
 
 **Phases completed:** 12 phases (Phases 77–88), 25 plans, 100% requirements verified

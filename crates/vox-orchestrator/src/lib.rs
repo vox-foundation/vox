@@ -132,6 +132,8 @@ pub mod handoff;
 pub mod legacy;
 /// Unified orchestrator policy façade composing all D1–D10.
 pub mod orchestrator_policy;
+/// Polyglot cross-repo Platform SSOT v2.1 (synced from ngi.video/packages/platform-ssot).
+pub mod platform_ssot_generated;
 /// Sensitivity classifier and privacy-level-aware routing (D8).
 pub mod privacy_classifier;
 pub mod process_util;

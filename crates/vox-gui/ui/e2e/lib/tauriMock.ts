@@ -1219,6 +1219,69 @@ export function installTauriMock(viewKey: string): void {
             ],
             raw_error: null,
           };
+        case 'mens_run_reports':
+          return {
+            eval_local: {
+              anti_stub_task_success: 1.0,
+              pass_rate_at_k: 1.0,
+              placeholder_event_rate: 0.0,
+            },
+            gate_receipt: {
+              overall_passed: true,
+              substantive_gate_count: 5,
+              failed_gates: [],
+              gates: [
+                { name: 'pass_at_k', passed: true, message: '1.00 >= 0.85' },
+                { name: 'rust_compile_rate', passed: true, message: '1.00 >= 0.95' },
+                { name: 'organic_search_recall_at_5', passed: true, message: '1.00 >= 1.00' },
+                { name: 'organic_mrr', passed: true, message: '1.00 >= 0.95' },
+                { name: 'organic_compilation_pass_rate', passed: true, message: '1.00 >= 1.00' },
+              ],
+            },
+            collateral_damage: {
+              status: 'pass',
+              failed_on: null,
+            },
+            spoke_scorecard: {
+              schema_version: 'mens_before_after_comparison_v1',
+              total_cases: 25,
+              before_overall_pass_at_1: 0.24,
+              mid_overall_pass_at_1: 0.72,
+              overall_pass_at_1: 1.0,
+              overall_pass_at_k: 1.0,
+              overall_delta_pass_at_1: 0.76,
+              monotonic_improvement_verified: true,
+              promotion_gate_passed: true,
+              promoted_model_id: 'mens/bench25-cycle-2',
+              promoted_adapter_uri: 'trusty://mens-adapter/2c9a68b2f0b7',
+              spokes: [
+                { spoke: 'vox_lang', total_cases: 5, before_pass_at_1: 0.4, mid_pass_at_1: 0.8, pass_at_1: 1.0, pass_at_k: 1.0, delta_pass_at_1: 0.6, syntax_validity_rate: 1.0, semantic_validity_rate: 1.0, execution_success_rate: 1.0, curriculum_weight: 0.2 },
+                { spoke: 'rust_workspace', total_cases: 5, before_pass_at_1: 0.2, mid_pass_at_1: 0.8, pass_at_1: 1.0, pass_at_k: 1.0, delta_pass_at_1: 0.8, syntax_validity_rate: 1.0, semantic_validity_rate: 1.0, execution_success_rate: 1.0, curriculum_weight: 0.2 },
+                { spoke: 'structured_shell', total_cases: 5, before_pass_at_1: 0.2, mid_pass_at_1: 0.6, pass_at_1: 1.0, pass_at_k: 1.0, delta_pass_at_1: 0.8, syntax_validity_rate: 1.0, semantic_validity_rate: 1.0, execution_success_rate: 1.0, curriculum_weight: 0.2 },
+                { spoke: 'mcp_tool_chain', total_cases: 5, before_pass_at_1: 0.2, mid_pass_at_1: 0.8, pass_at_1: 1.0, pass_at_k: 1.0, delta_pass_at_1: 0.8, syntax_validity_rate: 1.0, semantic_validity_rate: 1.0, execution_success_rate: 1.0, curriculum_weight: 0.2 },
+                { spoke: 'agent_harness', total_cases: 5, before_pass_at_1: 0.2, mid_pass_at_1: 0.6, pass_at_1: 1.0, pass_at_k: 1.0, delta_pass_at_1: 0.8, syntax_validity_rate: 1.0, semantic_validity_rate: 1.0, execution_success_rate: 1.0, curriculum_weight: 0.2 },
+              ],
+            },
+            organic_scorecard: {
+              schema_version: 'mens_organic_search_spoke_scorecard_v1',
+              total_cases: 15,
+              overall_search_recall_at_5: 1.0,
+              overall_mrr: 1.0,
+              overall_grounding_ratio: 1.0,
+              overall_compilation_pass_rate: 1.0,
+              overall_end_to_end_pass_at_1: 1.0,
+              spokes: [
+                { spoke: 'vox_lang', total_cases: 3, search_recall_at_5: 1.0, mean_reciprocal_rank: 1.0, mean_grounding_ratio: 1.0, syntax_validity_rate: 1.0, semantic_validity_rate: 1.0, compilation_pass_rate: 1.0, end_to_end_pass_at_1: 1.0 },
+                { spoke: 'rust_workspace', total_cases: 2, search_recall_at_5: 1.0, mean_reciprocal_rank: 1.0, mean_grounding_ratio: 1.0, syntax_validity_rate: 1.0, semantic_validity_rate: 1.0, compilation_pass_rate: 1.0, end_to_end_pass_at_1: 1.0 },
+                { spoke: 'structured_shell', total_cases: 2, search_recall_at_5: 1.0, mean_reciprocal_rank: 1.0, mean_grounding_ratio: 1.0, syntax_validity_rate: 1.0, semantic_validity_rate: 1.0, compilation_pass_rate: 1.0, end_to_end_pass_at_1: 1.0 },
+                { spoke: 'mcp_tool_chain', total_cases: 2, search_recall_at_5: 1.0, mean_reciprocal_rank: 1.0, mean_grounding_ratio: 1.0, syntax_validity_rate: 1.0, semantic_validity_rate: 1.0, compilation_pass_rate: 1.0, end_to_end_pass_at_1: 1.0 },
+                { spoke: 'agent_harness', total_cases: 2, search_recall_at_5: 1.0, mean_reciprocal_rank: 1.0, mean_grounding_ratio: 1.0, syntax_validity_rate: 1.0, semantic_validity_rate: 1.0, compilation_pass_rate: 1.0, end_to_end_pass_at_1: 1.0 },
+                { spoke: 'speech_to_code', total_cases: 1, search_recall_at_5: 1.0, mean_reciprocal_rank: 1.0, mean_grounding_ratio: 1.0, syntax_validity_rate: 1.0, semantic_validity_rate: 1.0, compilation_pass_rate: 1.0, end_to_end_pass_at_1: 1.0 },
+                { spoke: 'populi_mesh', total_cases: 1, search_recall_at_5: 1.0, mean_reciprocal_rank: 1.0, mean_grounding_ratio: 1.0, syntax_validity_rate: 1.0, semantic_validity_rate: 1.0, compilation_pass_rate: 1.0, end_to_end_pass_at_1: 1.0 },
+                { spoke: 'skill_creation', total_cases: 2, search_recall_at_5: 1.0, mean_reciprocal_rank: 1.0, mean_grounding_ratio: 1.0, syntax_validity_rate: 1.0, semantic_validity_rate: 1.0, compilation_pass_rate: 1.0, end_to_end_pass_at_1: 1.0 },
+              ],
+            },
+          };
         default: {
           const ev = shared.eventPluginResponse(cmd, args);
           if (ev !== undefined) return ev;

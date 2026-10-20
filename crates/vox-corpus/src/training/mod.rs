@@ -22,12 +22,21 @@ pub use curriculum::{
 #[cfg(feature = "database")]
 pub use curriculum::{load_checkpoint_from_db, persist_checkpoint_to_db};
 pub use spoke_roundtrip::{
-    AgentHarnessSpec, McpToolSpec, MensSpokeScorecardV1, SpokeEvalTask, SpokeRoundtripCase,
-    SpokeRoundtripReceipt, SpokeScorecardEntry, TaskPlanEnvelope,
-    canonical_five_spoke_golden_suite, evaluate_multi_spoke_suite, evaluate_spoke_case,
-    strip_code_fences, verify_agent_harness_roundtrip, verify_mcp_roundtrip, verify_rust_roundtrip,
-    verify_rust_workspace_roundtrip, verify_shell_roundtrip, verify_structured_shell_roundtrip,
-    verify_voxlang_roundtrip,
+    AgentHarnessSpec, McpToolSpec, MensSpokeScorecardV1, OrganicSearchSpokeCase,
+    OrganicSearchSpokeReceipt, OrganicSearchSpokeScorecardV1, OrganicSpokeScorecardEntry,
+    SpokeEvalTask, SpokeRoundtripCase, SpokeRoundtripReceipt, SpokeScorecardEntry,
+    TaskPlanEnvelope, canonical_five_spoke_benchmark_suite_25, canonical_five_spoke_golden_suite,
+    canonical_organic_search_to_compilation_suite_15, evaluate_multi_spoke_suite,
+    evaluate_organic_search_spoke_case, evaluate_organic_search_spoke_suite, evaluate_spoke_case,
+    strip_code_fences, verify_agent_harness_roundtrip, verify_mcp_roundtrip,
+    verify_organic_benchmark_decontamination, verify_organic_scorecard_non_decreasing_trend,
+    verify_rust_roundtrip, verify_rust_workspace_roundtrip, verify_shell_roundtrip,
+    verify_structured_shell_roundtrip, verify_voxlang_roundtrip,
+};
+#[cfg(feature = "database")]
+pub use spoke_roundtrip::{
+    list_organic_scorecard_history_from_db, load_organic_scorecard_from_db,
+    persist_organic_scorecard_to_db, record_organic_scorecard_telemetry_to_db,
 };
 
 /// Default directory for merged `train.jsonl` (matches corpus merge output).

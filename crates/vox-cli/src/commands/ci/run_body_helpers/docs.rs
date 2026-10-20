@@ -567,6 +567,7 @@ fn verify_baseline_policy_alignment(root: &Path) -> Result<()> {
 }
 
 pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
+    let auto_heal = std::env::var_os("CI").is_none() || std::env::var_os("VOX_AUTO_HEAL").is_some();
     // ponytail: local macro for per-sub-step timing; ssot-drift is the slowest gate (~35s)
     macro_rules! ds {
         ($label:literal, $expr:expr) => {{
@@ -611,7 +612,14 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     ds!("command_compliance", command_compliance::run(root))?;
     ds!(
         "gui_version_sync",
-        vox_cli_ci::gui_version_sync::run(root, false)
+        match vox_cli_ci::gui_version_sync::run(root, false) {
+            Ok(()) => Ok(()),
+            Err(_) if auto_heal => {
+                eprintln!("    [auto-heal] gui_version_sync drift; writing...");
+                vox_cli_ci::gui_version_sync::run(root, true)
+            }
+            Err(e) => Err(e),
+        }
     )?;
     ds!(
         "gui_catalog_parity",
@@ -619,38 +627,94 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     )?;
     ds!(
         "gui_surface_coverage",
-        crate::commands::ci::gui_surface_coverage::run(root, false)
+        match crate::commands::ci::gui_surface_coverage::run(root, false) {
+            Ok(()) => Ok(()),
+            Err(_) if auto_heal => {
+                eprintln!("    [auto-heal] gui_surface_coverage drift; writing...");
+                crate::commands::ci::gui_surface_coverage::run(root, true)
+            }
+            Err(e) => Err(e),
+        }
     )?;
     ds!(
         "gui_surface_registry",
-        crate::commands::ci::gui_surface_registry::run(root, false, None)
+        match crate::commands::ci::gui_surface_registry::run(root, false, None) {
+            Ok(()) => Ok(()),
+            Err(_) if auto_heal => {
+                eprintln!("    [auto-heal] gui_surface_registry drift; writing...");
+                crate::commands::ci::gui_surface_registry::run(root, true, None)
+            }
+            Err(e) => Err(e),
+        }
     )?;
     ds!(
         "capability_sync",
-        crate::commands::ci::capability_sync::run(root, false)
+        match crate::commands::ci::capability_sync::run(root, false) {
+            Ok(()) => Ok(()),
+            Err(_) if auto_heal => {
+                eprintln!("    [auto-heal] capability_sync drift; writing...");
+                crate::commands::ci::capability_sync::run(root, true)
+            }
+            Err(e) => Err(e),
+        }
     )?;
     ds!(
         "capability_index",
-        crate::commands::ci::capability_index::run(root, false)
+        match crate::commands::ci::capability_index::run(root, false) {
+            Ok(()) => Ok(()),
+            Err(_) if auto_heal => {
+                eprintln!("    [auto-heal] capability_index drift; writing...");
+                crate::commands::ci::capability_index::run(root, true)
+            }
+            Err(e) => Err(e),
+        }
     )?;
     ds!(
         "plugin_surface",
-        vox_cli_ci::plugin_surface::run(root, false)
+        match vox_cli_ci::plugin_surface::run(root, false) {
+            Ok(()) => Ok(()),
+            Err(_) if auto_heal => {
+                eprintln!("    [auto-heal] plugin_surface drift; writing...");
+                vox_cli_ci::plugin_surface::run(root, true)
+            }
+            Err(e) => Err(e),
+        }
     )?;
     ds!(
         "plugin_catalog_sync",
-        vox_cli_ci::plugin_catalog_sync::run(root, false)
+        match vox_cli_ci::plugin_catalog_sync::run(root, false) {
+            Ok(()) => Ok(()),
+            Err(_) if auto_heal => {
+                eprintln!("    [auto-heal] plugin_catalog_sync drift; writing...");
+                vox_cli_ci::plugin_catalog_sync::run(root, true)
+            }
+            Err(e) => Err(e),
+        }
     )?;
     // Catalog-derived reference docs must stay fresh when catalog.toml changes; this check
     // otherwise lives only in docs-quality.yml, so catalog edits could pass ssot-drift while
     // leaving the generated docs stale (the exact drift PR #218 left on main).
     ds!(
         "generate_plugin_catalog_docs",
-        vox_cli_ci::generate_plugin_catalog_docs::run(None, None, true)
+        match vox_cli_ci::generate_plugin_catalog_docs::run(None, None, true) {
+            Ok(()) => Ok(()),
+            Err(_) if auto_heal => {
+                eprintln!("    [auto-heal] generate_plugin_catalog_docs drift; writing...");
+                vox_cli_ci::generate_plugin_catalog_docs::run(None, None, false)
+            }
+            Err(e) => Err(e),
+        }
     )?;
     ds!(
         "crate_api_docs",
-        vox_cli_ci::crate_api_docs::run(root, false)
+        match vox_cli_ci::crate_api_docs::run(root, false) {
+            Ok(()) => Ok(()),
+            Err(_) if auto_heal => {
+                eprintln!("    [auto-heal] crate_api_docs drift; writing...");
+                vox_cli_ci::crate_api_docs::run(root, true)
+            }
+            Err(e) => Err(e),
+        }
     )?;
     ds!(
         "plugin_skill_parity",
@@ -691,7 +755,17 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
         vox_cli_ci::workflow_policy_guard::run(root)
     )?;
     ds!("cache_key_lint", vox_cli_ci::cache_key_lint::run(root))?;
-    ds!("kb_facets_ts", vox_cli_ci::kb_facets_ts::run(root, true))?;
+    ds!(
+        "kb_facets_ts",
+        match vox_cli_ci::kb_facets_ts::run(root, true) {
+            Ok(()) => Ok(()),
+            Err(_) if auto_heal => {
+                eprintln!("    [auto-heal] kb_facets_ts drift; writing...");
+                vox_cli_ci::kb_facets_ts::run(root, false)
+            }
+            Err(e) => Err(e),
+        }
+    )?;
     println!("ssot-drift: nested SSOT guards OK");
     Ok(())
 }

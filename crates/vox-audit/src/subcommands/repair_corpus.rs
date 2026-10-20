@@ -292,11 +292,16 @@ pub struct VerifiedRepairDpoRecord {
     pub rejected_response: String,
     /// Oracle receipt proving the post-repair candidate passed verification.
     pub oracle_passed: bool,
+    /// Canonical `vox_dpo_v2` preference pair minted from this repair (`AUDIT-02`).
+    pub dpo_pair: MintedDpoPairV2,
+    /// Canonical `vox.training_record.v2` positive SFT record minted from this repair (`AUDIT-02`).
+    pub sft_record: MintedSftRecordV2,
 }
 
-/// Pair a verified post-repair candidate with its pre-repair failing attempt as a DPO record (`AUDIT-02`).
+/// Pair a verified post-repair candidate with its pre-repair failing attempt as a DPO + SFT record (`AUDIT-02`).
 ///
-/// Thin convenience wrapper over [`pair_verified_repair_to_dpo_and_sft`].
+/// Delegates to [`pair_verified_repair_to_dpo_and_sft`] so every repair session yields both
+/// a `vox_dpo_v2` preference pair and a `vox.training_record.v2` SFT record with shared digests.
 pub fn pair_verified_repair_with_failure(
     spoke: &str,
     prompt: &str,
@@ -318,14 +323,16 @@ pub fn pair_verified_repair_with_failure(
         vec!["pre-repair failure".to_string()],
         "repair_session",
     );
-    let (dpo, _sft) = pair_verified_repair_to_dpo_and_sft(&rejected, chosen_after, "repair_after")?;
+    let (dpo, sft) = pair_verified_repair_to_dpo_and_sft(&rejected, chosen_after, "repair_after")?;
     Ok(VerifiedRepairDpoRecord {
         schema_version: "vox.verified_repair_dpo.v1".to_string(),
         spoke: dpo.spoke.as_str().to_string(),
-        prompt: dpo.prompt,
-        chosen_response: dpo.chosen,
-        rejected_response: dpo.rejected,
+        prompt: dpo.prompt.clone(),
+        chosen_response: dpo.chosen.clone(),
+        rejected_response: dpo.rejected.clone(),
         oracle_passed: true,
+        dpo_pair: dpo,
+        sft_record: sft,
     })
 }
 

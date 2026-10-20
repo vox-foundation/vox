@@ -1474,8 +1474,13 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         if vox_gamify::config_gate::is_enabled() {
             let _ = vox_gamify::event_router::route_event_auto_user(db, &payload).await;
         } else {
-            let _ =
-                vox_gamify::db::insert_event(db, "0", "llm_turn", Some(&payload.to_string())).await;
+            let _ = vox_db::ops_agent_telemetry::insert_event(
+                db,
+                "0",
+                "llm_turn",
+                Some(&payload.to_string()),
+            )
+            .await;
         }
     }
 
