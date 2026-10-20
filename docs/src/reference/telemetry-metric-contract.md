@@ -106,6 +106,16 @@ Producers should prefix `session_id` so rollups and dashboards can group without
 | `audit.route.run.failed` | `audit:<run_id>` | Optional | `vox audit effort-route` run lifecycle: routing failed before completion (`METRIC_TYPE_AUDIT_ROUTE_RUN_FAILED`). |
 | `audit.route.cluster.decided` | `audit:<run_id>` | Optional | `vox audit effort-route`: one cluster-and-route decision recorded (`METRIC_TYPE_AUDIT_ROUTE_CLUSTER_DECIDED`). |
 | `audit.effort.run.failed` | `audit:<run_id>` | Optional | `vox audit effort` run lifecycle: scan failed before completion (`METRIC_TYPE_AUDIT_EFFORT_RUN_FAILED`). |
+| `vox.command.usage` | `cli:` / `mcp:` / `gui:` | Optional | CLI / MCP / GUI command invocation audit row (`METRIC_TYPE_COMMAND_USAGE`). |
+| `vox.skill.activation` | `skill:<id>` | Optional | Agent skill discovery/invocation observation (`METRIC_TYPE_SKILL_ACTIVATION`). |
+| `vox.edit.pattern` | `edit:<session_id>` | Optional | Source edit pattern / tool telemetry (`METRIC_TYPE_EDIT_PATTERN`). |
+| `vox.harness.usage` | `harness:<id>` | Optional | Agent harness turn / session telemetry (`METRIC_TYPE_HARNESS_USAGE`). |
+| `vox.error.surface` | producer-defined | Optional | Surface-level diagnostic / error telemetry (`METRIC_TYPE_ERROR_SURFACE`). |
+| `vox.default.decision` | producer-defined | Optional | Default configuration / routing fallback decision (`METRIC_TYPE_DEFAULT_DECISION`). |
+| `vox.model.prompt` | `route:<repository_id>` | Optional | Prompt template / token budget observation (`METRIC_TYPE_MODEL_PROMPT`). |
+| `vox.model.bench_case` | `bench:<repository_id>` | Optional | Per-case model evaluation benchmark result (`METRIC_TYPE_MODEL_BENCH_CASE`). |
+| `vox.mens.training_throughput` | `mens:<repository_id>` | Optional | MENS QLoRA / DPO training throughput observation (`METRIC_TYPE_TRAINING_THROUGHPUT`). |
+| `vox.research.domain_misguidance` | `scientia:<session_id>` | Optional | Domain misguidance / retrieval correction signal (`METRIC_TYPE_DOMAIN_MISGUIDANCE`). |
 
 ### `socrates_surface` aggregate metadata (`record_socrates_eval_summary`)
 

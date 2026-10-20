@@ -74,7 +74,7 @@ pre-push:
     # workspace-wide drift-check --fail-on warning here — that dumps every
     # pre-existing finding and blocks unrelated pushes.
     pre-push:
-      run: vox ci pre-push || (vox run scripts/fmt.vox -- --all && vox ci line-endings --autofix && vox ci sync-ignore-files && vox ci pre-push)
+      run: vox ci pre-push || (vox run scripts/fmt.vox -- --all && vox ci line-endings --autofix && vox ci sync-ignore-files && vox ci gui-surface-coverage --write && vox ci gui-surface-registry --write && vox ci capability-index --write && vox ci capability-sync --write && vox ci plugin-surface-sync --write && vox ci plugin-catalog-sync --write && vox ci generate-plugin-catalog-docs && vox ci crate-api-sync --write && vox ci pre-push)
       # Advisory locally: the installed vox is usually a few commits older than the tree, and
       # hosted CI (which builds vox fresh) is the authoritative gate, so skip the freshness refusal.
       # git passes the pushed refs on stdin; local pre-push auto-heals and allows main pushes.
