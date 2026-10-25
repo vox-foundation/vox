@@ -109,6 +109,8 @@ pub mod conflicts;
 pub mod context;
 /// Canonical context envelope contract for cross-surface context payloads.
 pub mod context_envelope;
+/// Structured 5-strategy cross-agent context handoff (`T3-HANDOFF-MCP-01`).
+pub mod context_handoff;
 /// Context envelope ingest validation, merge policy, and lifecycle hooks.
 pub mod context_lifecycle;
 /// Continuation strategies when tasks pause or hand off.
@@ -118,6 +120,8 @@ pub mod contract;
 /// Agent activity events and pub/sub bus.
 pub mod events;
 pub mod events_severity;
+/// External AI session scanner & importer (`~/.claude`, `~/.codex`, `~/.cursor`) (`T3-WEBHOOK-IMPORT-03`).
+pub mod external_importer;
 /// Developer mental fatigue monitoring and cognitive pacing.
 pub mod fatigue_monitor;
 /// Pre/post task gates (including TOESTUB quality checks).
@@ -407,6 +411,21 @@ pub use orchestrator_policy::{
 
 pub mod preregistration;
 pub mod secretary;
+
+/// Dedicated `CommandOutputHub` & `\r` terminal progress-bar normalization.
+pub mod command_output_hub;
+/// Reasoning tag parser (`<think>`, `<thinking>`, `<reason>`, `<reasoning>`), `<WebSearch>` compactor & prompt-token sanitizer.
+pub mod context_sanitizer;
+/// Host-moderated Live Guest Share (`GuestShareService` & `GuestShareDecider`).
+pub mod guest_share;
+/// Deterministic Entity ID Allocator (`VoxIdAllocatorV2` — `{ allocate, derive }`).
+pub mod id_allocator;
+/// Per-thread run queue, mid-turn `promote_to_steer`, `LimitRecoveryState` & `awaited: bool` settlement.
+pub mod thread_run_queue;
+/// Forward-compatible discriminated union envelope (`ForwardCompatibleEnvelope<T>`).
+pub mod wire_compat;
+/// Wire Snapshot & Event Stream Compression (`WireIdTableInterner`, `LiveBodyDeduper`, and `omit_idle_subagents`).
+pub mod wire_compression;
 
 #[cfg(test)]
 mod tests {
