@@ -1,0 +1,20 @@
+{
+  "schema_version": "transfer_budget_ci_v1",
+  "source": "vox-orchestrator-mcp/tests/transfer_budget.rs",
+  "ceilings": {
+    "max_cold_open_snapshot_bytes": 122880,
+    "max_cold_open_snapshot_rows": 75,
+    "max_turn_wire_delta_bytes": 7168,
+    "max_cold_open_sql_statements": 8,
+    "max_per_turn_sql_statements": 12,
+    "max_dom_snapshot_bytes": 20480
+  },
+  "sample": {
+    "cold_open_snapshot_bytes": 48000,
+    "cold_open_snapshot_rows": 60,
+    "turn_wire_delta_bytes": 512,
+    "cold_open_sql_statements": 4,
+    "event_store_command_output_deltas": 0
+  },
+  "ok": true
+}

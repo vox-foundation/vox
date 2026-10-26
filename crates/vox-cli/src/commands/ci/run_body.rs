@@ -691,6 +691,20 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 Err(anyhow!("affected-crates exited with code {code}"))
             }
         }
+        CiCmd::TransferBudgetReport {
+            write,
+            out,
+            check,
+            baseline,
+        } => vox_cli_ci::transfer_budget_report::run(
+            &root,
+            vox_cli_ci::transfer_budget_report::TransferBudgetArgs {
+                write,
+                out,
+                check,
+                baseline,
+            },
+        ),
         CiCmd::CheckChanged {
             base,
             dry_run,

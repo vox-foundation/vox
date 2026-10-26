@@ -945,6 +945,23 @@ pub enum CiCmd {
         #[arg(long)]
         exclude: Vec<String>,
     },
+    /// Emit / ratchet the transfer-budget CI artifact
+    /// (`contracts/reports/transfer-budget-ci.v1.json`) from orchestrator-mcp ceilings.
+    #[command(name = "transfer-budget-report")]
+    TransferBudgetReport {
+        /// Write the report to `--out` (default contracts/reports/transfer-budget-ci.v1.json).
+        #[arg(long)]
+        write: bool,
+        /// Output path (relative to repo root unless absolute).
+        #[arg(long, default_value = "contracts/reports/transfer-budget-ci.v1.json")]
+        out: std::path::PathBuf,
+        /// Compare in-process sample against the committed baseline (ratchet).
+        #[arg(long)]
+        check: bool,
+        /// Baseline path used with `--check`.
+        #[arg(long, default_value = "contracts/reports/transfer-budget-ci.v1.json")]
+        baseline: std::path::PathBuf,
+    },
     /// Plan (and short-circuit) CI gates for the merge-base diff using
     /// `contracts/ci/changed-path-owners.v1.yaml` (t3code `check:changed` analog).
     /// Inert-only diffs exit 0 without spawning cargo.

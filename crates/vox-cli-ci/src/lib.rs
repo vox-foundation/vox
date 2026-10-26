@@ -47,6 +47,7 @@ pub use helpers::{
 };
 pub mod affected_cmd;
 pub mod check_changed;
+pub mod transfer_budget_report;
 pub mod agentskills_compliance;
 pub mod ai_fixtures_coverage;
 pub mod attention_ledger_parity;

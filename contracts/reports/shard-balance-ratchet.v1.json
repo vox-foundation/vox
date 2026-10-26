@@ -1,0 +1,12 @@
+{
+  "schema_version": "shard_balance_ratchet_v1",
+  "description": "Ratchet for weighted test sharding vs hash-only partitions. imbalance_ratio = max_shard_weight / mean_shard_weight.",
+  "weights_contract": "contracts/ci/shard-weights.v1.json",
+  "shards": 3,
+  "baseline": {
+    "method": "longest_processing_time_greedy",
+    "max_imbalance_ratio": 1.35,
+    "notes": "Measured against seeded weights for the heavy crates listed in shard-weights.v1.json; hash sharding historically left vox-compiler+vox-gui on one shard."
+  },
+  "usage": "vox ci affected-crates --changed <list> --shards 3  (crate_weight loads contracts/ci/shard-weights.v1.json when present)"
+}

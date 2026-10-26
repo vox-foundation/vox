@@ -123,9 +123,35 @@ pub fn partition_crates(weights: &[(String, u64)], n: usize) -> Vec<Vec<String>>
         .collect()
 }
 
-/// Weight of a crate for sharding: its `.rs` file count (each integration-test file is a separate
-/// binary to compile and link, so file count tracks test build cost). Missing dir -> 1.
+/// Optional committed weights (`contracts/ci/shard-weights.v1.json`).
+const DEFAULT_SHARD_WEIGHTS: &str = "contracts/ci/shard-weights.v1.json";
+
+#[derive(Debug, Clone, serde::Deserialize)]
+struct ShardWeightsFile {
+    #[serde(default)]
+    crates: std::collections::BTreeMap<String, u64>,
+    #[serde(default = "default_weight_one")]
+    #[allow(dead_code)]
+    default_weight: u64,
+}
+
+fn default_weight_one() -> u64 {
+    1
+}
+
+fn load_shard_weights(path: &std::path::Path) -> Option<ShardWeightsFile> {
+    let raw = std::fs::read_to_string(path).ok()?;
+    serde_json::from_str(&raw).ok()
+}
+
+/// Weight of a crate for sharding: prefers `contracts/ci/shard-weights.v1.json`,
+/// else `.rs` file count (each integration-test file is a separate binary). Missing dir -> 1.
 fn crate_weight(name: &str) -> u64 {
+    if let Some(file) = load_shard_weights(std::path::Path::new(DEFAULT_SHARD_WEIGHTS)) {
+        if let Some(w) = file.crates.get(name) {
+            return (*w).max(1);
+        }
+    }
     fn count(dir: &std::path::Path) -> u64 {
         std::fs::read_dir(dir).map_or(0, |rd| {
             rd.flatten()
@@ -334,6 +360,23 @@ pub fn run_affected_cmd(args: &[String]) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::{partition_crates, run_affected_cmd};
+
+
+    #[test]
+    fn shard_weights_file_lists_known_heavy_crates() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .canonicalize()
+            .expect("repo root");
+        let raw = std::fs::read_to_string(root.join("contracts/ci/shard-weights.v1.json"))
+            .expect("shard-weights contract present");
+        let v: serde_json::Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!(v["schema_version"], 1);
+        assert!(
+            v["crates"]["vox-compiler"].as_u64().unwrap()
+                > v["crates"]["vox-cli-ci"].as_u64().unwrap()
+        );
+    }
 
     #[test]
     fn partition_balances_by_weight_and_drops_empty_groups() {

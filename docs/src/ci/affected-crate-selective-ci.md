@@ -81,6 +81,18 @@ Shadow exits `1` on miss; CI shadow step uses `continue-on-error: true` until F1
 - **F4:** Complete `pr_scope` on all CI checks.
 - **F5:** Update `rcicd-coverage-cost-matrix-2026.md`.
 
+
+## Weighted sharding (`--shards`)
+
+`vox ci affected-crates --shards N` partitions crates with longest-processing-time
+greedy balancing. Weights prefer `contracts/ci/shard-weights.v1.json` (seeded
+duration/size units); crates absent from that file fall back to `.rs` file-count.
+Ratchet: `contracts/reports/shard-balance-ratchet.v1.json`.
+
+Transfer-budget CI artifact: `vox ci transfer-budget-report` writes
+`contracts/reports/transfer-budget-ci.v1.json`; trusted PR comments come from
+`.github/workflows/thread-transfer-report.yml` (default-branch publisher only).
+
 ## Local parity
 
 - `vox ci affected-crates --changed <file>` — same closure as CI.

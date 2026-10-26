@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "description": "Seeded duration/size weights for vox ci affected-crates --shards (t3code shardWeights analog). Values are relative units; missing crates fall back to .rs file-count heuristic in crate_weight.",
+  "default_weight": 1,
+  "crates": {
+    "vox-compiler": 120,
+    "vox-codegen": 90,
+    "vox-cli": 80,
+    "vox-orchestrator": 70,
+    "vox-orchestrator-mcp": 55,
+    "vox-gui": 100,
+    "vox-actor-runtime": 45,
+    "vox-corpus": 60,
+    "vox-code-audit": 40,
+    "vox-db": 35,
+    "vox-doc-pipeline": 30,
+    "vox-eval": 25,
+    "vox-cli-ci": 20,
+    "vox-plugin-host": 20,
+    "vox-search": 18,
+    "vox-runtime": 15
+  }
+}

@@ -1,0 +1,104 @@
+# Trusted publisher for transfer-budget CI artifacts (t3code thread-transfer-report pattern).
+# workflow_run has a write-capable token even for fork PRs. Only load the publisher
+# from the trusted default branch and never execute PR code when posting.
+name: Thread Transfer Report
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+concurrency:
+  group: thread-transfer-report-${{ github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.id }}
+  cancel-in-progress: true
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+
+jobs:
+  publish:
+    name: Publish transfer-budget PR comment
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout trusted publisher
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: |
+            contracts/reports
+            .github/workflows
+
+      - name: Resolve PR and post advisory comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const prs = context.payload.workflow_run.pull_requests || [];
+            if (!prs.length) {
+              core.info("No linked PR; skipping.");
+              return;
+            }
+            const pr = prs[0];
+            const reportPath = path.join(
+              process.cwd(),
+              "contracts/reports/transfer-budget-ci.v1.json"
+            );
+            let body;
+            if (fs.existsSync(reportPath)) {
+              const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+              const c = report.ceilings || {};
+              const s = report.sample || {};
+              body = [
+                "<!-- vox-transfer-budget-report -->",
+                "### Transfer budget (trusted baseline)",
+                "",
+                `Source run: [${context.payload.workflow_run.id}](${context.payload.workflow_run.html_url})`,
+                `Conclusion: \`${context.payload.workflow_run.conclusion}\``,
+                "",
+                `| Metric | Sample | Ceiling |`,
+                `|---|---:|---:|`,
+                `| Cold-open snapshot bytes | ${s.cold_open_snapshot_bytes ?? "?"} | ${c.max_cold_open_snapshot_bytes ?? "?"} |`,
+                `| Cold-open rows | ${s.cold_open_snapshot_rows ?? "?"} | ${c.max_cold_open_snapshot_rows ?? "?"} |`,
+                `| Turn wire delta bytes | ${s.turn_wire_delta_bytes ?? "?"} | ${c.max_turn_wire_delta_bytes ?? "?"} |`,
+                `| Command-output deltas | ${s.event_store_command_output_deltas ?? "?"} | 0 |`,
+                "",
+                `\`ok\`: **${report.ok === true}** — regenerate with \`vox ci transfer-budget-report --write\`.`,
+              ].join("\n");
+            } else {
+              body = [
+                "<!-- vox-transfer-budget-report -->",
+                "### Transfer budget",
+                "",
+                "Baseline artifact missing on default branch (`contracts/reports/transfer-budget-ci.v1.json`).",
+              ].join("\n");
+            }
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              per_page: 100,
+            });
+            const existing = comments.find((c) =>
+              (c.body || "").includes("<!-- vox-transfer-budget-report -->")
+            );
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                body,
+              });
+            }

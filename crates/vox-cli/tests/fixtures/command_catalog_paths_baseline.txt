@@ -1,3 +1,4 @@
+[lean-ctx] no compression applied (mode=aggressive): output was not smaller than the file — returning full content (3241 tok)
 [lean-ctx] no compression applied (mode=aggressive): output was not smaller than the file — returning full content (3206 tok)
 add
 ars
@@ -203,6 +204,7 @@ ci/toestub-scoped
 ci/toestub-self-apply
 ci/toolchain-ssot
 ci/toolchain-workflow-lint
+ci/transfer-budget-report
 ci/turso-import-guard
 ci/vox-parse-check
 ci/watch-run

@@ -6,7 +6,7 @@
 
 ---
 
-## v5.4 Requirements (4/24 Complete Across Phases 301–306)
+## v5.4 Requirements (8/24 Complete Across Phases 301–306)
 
 ### 1. Phase 301: Change-Gated CI Path Map & `vox ci check-changed` (`T3-CI-CHANGED`)
 
@@ -17,10 +17,10 @@
 
 ### 2. Phase 302: Transfer-Budget Artifacts, PR Comments & Weighted Test Sharding (`T3-CI-BUDGET`)
 
-- [ ] **T3-CI-BUDGET-01**: Emit a machine-readable transfer/turn-budget CI artifact from existing `vox-orchestrator-mcp` transfer-budget tests (promote beyond unit-only) comparable to t3code `thread-transfer-results`.
-- [ ] **T3-CI-BUDGET-02**: Add a trusted-default-branch PR comment publisher (workflow_run pattern from t3code `thread-transfer-report.yml`) that never executes PR code when posting budget deltas vs main baseline.
-- [ ] **T3-CI-BUDGET-03**: Introduce weighted duration test sharding (seeded weights file akin to t3code `shardWeights.json`) for nextest/`vox-gui` e2e partitions so slow suites stop dominating one shard.
-- [ ] **T3-CI-BUDGET-04**: Publish before/after shard-balance + budget-delta report under `contracts/reports/` and gate regressions with a ratchet.
+- [x] **T3-CI-BUDGET-01**: Emit a machine-readable transfer/turn-budget CI artifact from existing `vox-orchestrator-mcp` transfer-budget tests (promote beyond unit-only) comparable to t3code `thread-transfer-results`.
+- [x] **T3-CI-BUDGET-02**: Add a trusted-default-branch PR comment publisher (workflow_run pattern from t3code `thread-transfer-report.yml`) that never executes PR code when posting budget deltas vs main baseline.
+- [x] **T3-CI-BUDGET-03**: Introduce weighted duration test sharding (seeded weights file akin to t3code `shardWeights.json`) for nextest/`vox-gui` e2e partitions so slow suites stop dominating one shard.
+- [x] **T3-CI-BUDGET-04**: Publish before/after shard-balance + budget-delta report under `contracts/reports/` and gate regressions with a ratchet.
 
 ### 3. Phase 303: Knip Dual Gate, PR Size Labels & Evidence-Asset Ban (`T3-CI-HYGIENE`)
 
@@ -65,7 +65,7 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | `T3-CI-CHANGED-01..04` | Phase 301 | Complete |
-| `T3-CI-BUDGET-01..04` | Phase 302 | Pending |
+| `T3-CI-BUDGET-01..04` | Phase 302 | Complete |
 | `T3-CI-HYGIENE-01..04` | Phase 303 | Pending |
 | `T3-AGENT-OPS-01..04` | Phase 304 | Pending |
 | `T3-TOESTUB-ENF-01..04` | Phase 305 | Pending |

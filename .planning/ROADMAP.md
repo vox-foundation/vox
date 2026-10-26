@@ -336,7 +336,7 @@
 3. Weighted shard file measurably reduces max-shard wall time vs hash-only partitions.
 4. Ratchet report lands under `contracts/reports/`.
 **Plans:**
-- [ ] `302-01`: Budget artifact + trusted comment workflow + weighted sharding + ratchet
+- [x] `302-01`: Budget artifact + trusted comment workflow + weighted sharding + ratchet
 
 ### Phase 303: Knip Dual Gate, PR Size Labels & Evidence-Asset Ban (`T3-CI-HYGIENE-01..04`)
 
@@ -393,7 +393,7 @@
 | Phase | Title | Plans | Status |
 |---|---|---|---|
 | **Phase 301** | Change-Gated CI Path Map & `vox ci check-changed` | `1/1` | Complete |
-| **Phase 302** | Transfer-Budget Artifacts, PR Comments & Weighted Test Sharding | `0/1` | Pending |
+| **Phase 302** | Transfer-Budget Artifacts, PR Comments & Weighted Test Sharding | `1/1` | Complete |
 | **Phase 303** | Knip Dual Gate, PR Size Labels & Evidence-Asset Ban | `0/1` | Pending |
 | **Phase 304** | Agent-Ops Kill-Safety, Hit-Every-Surface Checklist & Worktree Isolation | `0/1` | Pending |
 | **Phase 305** | TOESTUB Thin-Transport, Suppression Review Gate & Snapshot Interning | `0/1` | Pending |
