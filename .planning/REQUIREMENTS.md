@@ -1,3 +1,59 @@
+# Requirements: Vox Milestone v5.6 — Reasoning Where the Lane Needs It
+
+**Defined:** 2026-10-26
+**Core Value (`v5.6`):** Keep real chain-of-thought on the hub and agent spokes, keep codegen spokes in non-thinking mode, and refuse an adapter that gets worse on a fixed before/after.
+**Evidence:** `.planning/research/SUMMARY.md`; `docs/src/architecture/mens-reasoning-preservation-research-2026-09-21.md`; in-tree `vox_eval::qwen_reasoning`, `reasoning_eval`, and `eval_collateral`.
+
+## v5.6 Requirements
+
+### Lane policy (`LANE`)
+
+- [ ] **LANE-01**: A codegen request is served with the non-thinking prefix (` /no_think` and the empty `<think>\n\n</think>\n\n` block), and a hub or agent request is served with the bare thinking-mode prefix (ends at `assistant\n`, no `/no_think`). A test locks both strings.
+- [ ] **LANE-02**: A codegen direct-answer training row uses that same non-thinking prefix, and the empty think block is outside the loss. A row that already contains a non-empty think body keeps the thinking-mode entry and is not rewritten with `/no_think`.
+
+### Before/after set (`BENCH`)
+
+- [ ] **BENCH-01**: The same checked-in GSM8K slice and MATH-500 slice are scored for the base model and for an adapter. Accuracy and think-initiation are stored as separate keys.
+- [ ] **BENCH-02**: A held-out Vox slice with checkable answers is scored the same way. Its items are not the fixed three-line Plan / Syntax / Implementation template.
+- [ ] **BENCH-03**: A missing model or a failed load writes no passing score. The report records how many items were scored.
+
+### Serve gate (`GATE`)
+
+- [ ] **GATE-01**: Serve refuses an adapter when the collateral report is missing, or when accuracy or think-initiation on the lane benches drops past the configured threshold.
+- [ ] **GATE-02**: The report says these benches are slices, so the 5% relative bar is not read as a full GSM8K or MATH-500 result.
+
+## Future Requirements
+
+- Swap the pinned Qwen3-8B base for a newer checkpoint, only after this before/after exists.
+- Try a new training technique (replay, self-distill, KL anchor) only if the gate shows a drop the lane prefix does not fix.
+
+## Out of Scope (v5.6)
+
+| Feature | Reason |
+|---|---|
+| New base model | Confounds the before/after. Deferred until measurement exists. |
+| Oct 2026 training recipes and the Unsloth 75% mix | The 75% figure is a vendor heuristic. Policy and measurement come first. |
+| Re-scoring adapters trained before 2026-10-26 as if they used the new prefix | Those runs did not. |
+| Full GSM8K and MATH-500 on every serve | Too slow for the gate. The checked-in slices are the bar, and they are labeled as slices. |
+
+## Traceability
+
+| Requirement | Phase | Status |
+|---|---|---|
+| `LANE-01` | — | Pending |
+| `LANE-02` | — | Pending |
+| `BENCH-01` | — | Pending |
+| `BENCH-02` | — | Pending |
+| `BENCH-03` | — | Pending |
+| `GATE-01` | — | Pending |
+| `GATE-02` | — | Pending |
+
+**Coverage:** 7 v5.6 requirements, unmapped until the roadmap.
+
+---
+
+## Prior milestones (archived headers live below)
+
 # Requirements: Vox Milestone v5.5 (`Phases 307–312`) — T3 CI/TOESTUB Deep Enforcement
 **Defined:** 2026-10-25
 **Core Value (`v5.5`):** Go deeper than v5.4's change-gated CI / knip / thin-transport / path-label fingerprint by extracting t3code's next tier — contributor vouch trust, privileged preview trust-split, **live** transfer-budget measurement + job-matrix outputs, wall-clock/real-wait/test-in-loop/frame-wait detectors, host-runtime + schema-hoist + DOM-env discipline, and true sidecar fingerprint hashing — without redoing shipped v5.4 gates or Effect-only oxlint rules.
