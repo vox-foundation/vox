@@ -14,10 +14,19 @@
   1. A codegen serve prompt contains ` /no_think` and ends with the empty think block.
   2. A hub or agent serve prompt ends at a bare `assistant` turn and does not contain `/no_think`.
   3. A codegen direct-answer training row keeps the empty think block outside the loss, and a row that already has a non-empty think body is not rewritten with `/no_think`.
-**Plans**: 1 plan
+**Plans**: 4 plans
 
 Plans:
-- [ ] `313-01`: Bind each spoke to the matching Qwen prefix in train and serve
+
+**Wave 1**
+- [ ] `313-01`: Tracer: raw `/generate` carries `lane` through to the plugin payload, and an unknown lane is a 400 before any worker call
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] `313-02`: CUDA and Metal `assemble_prompt` wrap raw prompts by lane through one shared builder
+- [ ] `313-03`: Chat completions accept `lane` and flatten the last user turn plus the assistant opener
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] `313-04`: Lock the existing codegen training fusion with tests only
 
 ### Phase 314: Held-out Reasoning Set (`BENCH-02`, `BENCH-03`)
 **Goal:** The same GSM8K, MATH-500, and Vox items exist for a before/after, and a missing model cannot write a passing score.
@@ -62,7 +71,7 @@ Plans:
 
 | Phase | Name | Plans | Status |
 |---|---|---|---|
-| **Phase 313** | Lane Prefix | `0/1` | Not started |
+| **Phase 313** | Lane Prefix | `0/4` | Not started |
 | **Phase 314** | Held-out Reasoning Set | `0/1` | Not started |
 | **Phase 315** | Serve Gate | `0/1` | Not started |
 | **Phase 316** | Before/After Comparison | `0/1` | Not started |
