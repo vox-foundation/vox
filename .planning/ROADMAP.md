@@ -3,7 +3,7 @@
 # Roadmap: v5.6 — Reasoning Where the Lane Needs It
 
 **Milestone:** v5.6
-**Status:** Phase 313 complete — ready to discuss phase 314
+**Status:** Phase 314 planned — ready to execute
 **Updated:** 2026-10-26
 
 ### Phase 313: Lane Prefix (`LANE-01`, `LANE-02`)
@@ -36,7 +36,7 @@ Plans:
   1. A checked-in Vox slice has a checkable answer on every item and does not reuse the fixed Plan / Syntax / Implementation template.
   2. The GSM8K and MATH-500 slices used for the comparison are the checked-in files, not a new sample.
   3. A reasoning eval that cannot load the model writes no passing score and records how many items were scored.
-**Plans**: 1 plan
+**Plans**: 2 plans
 
 Plans:
 - [ ] `314-01` (Wave 1): Check in the gsm8k_think, math500_think, and vox_think 32-item slices with a pinned loader and an interpreter oracle for Vox golds
@@ -73,7 +73,7 @@ Plans:
 | Phase | Name | Plans | Status |
 |---|---|---|---|
 | **Phase 313** | Lane Prefix | `4/4` | Complete |
-| **Phase 314** | Held-out Reasoning Set | `0/1` | Not started |
+| **Phase 314** | Held-out Reasoning Set | `0/2` | Planned |
 | **Phase 315** | Serve Gate | `0/1` | Not started |
 | **Phase 316** | Before/After Comparison | `0/1` | Not started |
 
