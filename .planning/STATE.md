@@ -7,7 +7,7 @@ current_phase_name: Held-out Reasoning Set
 status: verifying
 last_updated: "2026-10-26T23:41:08.000Z"
 last_activity: 2026-10-26
-last_activity_desc: Phase 314 code review recorded; WR-01 fix in progress
+last_activity_desc: Phase 314 WR-01 fixed; verifier next
 state_head: 0da0d1fcbd298c382564ac4690f3c0decbf64210
 progress:
   total_phases: 4
@@ -23,7 +23,7 @@ progress:
 
 Phase: 314 (Held-out Reasoning Set) — verification in progress
 Plan: 2/2 summaries committed
-Status: Code review recorded (0 critical, 3 warning, 4 info). WR-01 open; WR-02 and WR-03 deferred.
+Status: WR-01 fixed in 3bbaf52db. WR-02 and WR-03 deferred. Verifier next.
 Last activity: 2026-10-26 — Phase 314 security report written
 
 ## Milestone History (Recent)
@@ -41,7 +41,7 @@ Last activity: 2026-10-26 — Phase 314 security report written
 
 ## Next Step
 
-Fix WR-01, then the verifier, for phase 314. Phases 315 and 316 are not started.
+Verifier for phase 314. Phases 315 and 316 are not started.
 
 ## v5.5 Autonomous Progress (2026-10-25 America/Phoenix)
 

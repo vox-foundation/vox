@@ -5,7 +5,7 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Token cap is not recorded and a bad value silently falls back to 2048"
   - id: WR-02
     severity: warning
@@ -31,7 +31,7 @@ findings:
     severity: info
     disposition: skipped
     title: "Reasoning-bench routing depends on the process working directory"
-open: 1
+open: 0
 total: 7
 recorded: 2026-10-26T23:55:00Z
 ---
@@ -40,7 +40,7 @@ recorded: 2026-10-26T23:55:00Z
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | Fix in progress: a set but unparseable `VOX_REASONING_EVAL_MAX_TOKENS` must not silently become 2048. Unset still defaults to 2048. Values below 1 stay raised to 1, matching the registry text. |
+| WR-01 | warning | fixed | `3bbaf52db`. A set but non-integer cap writes NotScored and returns Err. Unset stays 2048. Values below 1 stay 1. |
 | WR-02 | warning | deferred | The reviewer asked for a report marker, not a grading change. Phase 314 reuses `grade_final_answer` unchanged. An unclosed think already yields no answer. A truncation count belongs with the phase 316 comparison, not this slice check-in. |
 | WR-03 | warning | deferred | MATH-500 content and the grader are locked. Equivalent surface forms are a known ceiling on the 32-item slice, not a fail-closed hole. |
 | IN-01 | info | skipped | Operator-controlled path. The non-reasoning branch already joins the bench name. Below the fix scope. |
