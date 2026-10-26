@@ -6,7 +6,7 @@
 
 ---
 
-## v5.4 Requirements (12/24 Complete Across Phases 301–306)
+## v5.4 Requirements (16/24 Complete Across Phases 301–306)
 
 ### 1. Phase 301: Change-Gated CI Path Map & `vox ci check-changed` (`T3-CI-CHANGED`)
 
@@ -31,10 +31,10 @@
 
 ### 4. Phase 304: Agent-Ops Kill-Safety, Hit-Every-Surface Checklist & Worktree Isolation (`T3-AGENT-OPS`)
 
-- [ ] **T3-AGENT-OPS-01**: Codify t3code's kill-safety triad in `AGENTS.md` / `docs/agents/governance.md`: never pattern-kill; never write the live userdata/home; never bake localhost origins into bundles — with Vox-specific paths (`VOX_*` homes, Tauri/Vite proxies).
-- [ ] **T3-AGENT-OPS-02**: Add a mandatory "hit every surface" checklist for harness/GUI changes (entry points, clients, providers/adapters, MCP/agent reachability, contracts, reverse states, connection modes, docs) and a `vox ci`/`vox doctor` advisory that surfaces when a PR touches one surface class without acknowledging others.
-- [ ] **T3-AGENT-OPS-03**: Worktree setup markers + isolated home (t3code worktree setup script pattern): each git worktree gets a stamped setup marker and isolated config/home so agents cannot clobber the primary install.
-- [ ] **T3-AGENT-OPS-04**: Suppression / `# toestub-ignore` / lint-disable PRs require human review label or CODEOWNERS gate (t3code `require-suppression-reason` + vouch culture) before merge.
+- [x] **T3-AGENT-OPS-01**: Codify t3code's kill-safety triad in `AGENTS.md` / `docs/agents/governance.md`: never pattern-kill; never write the live userdata/home; never bake localhost origins into bundles — with Vox-specific paths (`VOX_*` homes, Tauri/Vite proxies).
+- [x] **T3-AGENT-OPS-02**: Add a mandatory "hit every surface" checklist for harness/GUI changes (entry points, clients, providers/adapters, MCP/agent reachability, contracts, reverse states, connection modes, docs) and a `vox ci`/`vox doctor` advisory that surfaces when a PR touches one surface class without acknowledging others.
+- [x] **T3-AGENT-OPS-03**: Worktree setup markers + isolated home (t3code worktree setup script pattern): each git worktree gets a stamped setup marker and isolated config/home so agents cannot clobber the primary install.
+- [x] **T3-AGENT-OPS-04**: Suppression / `# toestub-ignore` / lint-disable PRs require human review label or CODEOWNERS gate (t3code `require-suppression-reason` + vouch culture) before merge.
 
 ### 5. Phase 305: TOESTUB Thin-Transport, Suppression Review Gate & Snapshot Interning (`T3-TOESTUB-ENF`)
 
@@ -67,7 +67,7 @@
 | `T3-CI-CHANGED-01..04` | Phase 301 | Complete |
 | `T3-CI-BUDGET-01..04` | Phase 302 | Complete |
 | `T3-CI-HYGIENE-01..04` | Phase 303 | Complete |
-| `T3-AGENT-OPS-01..04` | Phase 304 | Pending |
+| `T3-AGENT-OPS-01..04` | Phase 304 | Complete |
 | `T3-TOESTUB-ENF-01..04` | Phase 305 | Pending |
 | `T3-CI-CLOSE-01..04` | Phase 306 | Pending |
 

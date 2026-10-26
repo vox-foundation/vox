@@ -30,3 +30,6 @@
 
 # Apps (editor, experimental tooling).
 /apps/                     @vox-foundation/maintainers
+
+# TOESTUB suppressions require human review (v5.4 Phase 304).
+/contracts/toestub/          @vox-foundation/maintainers

@@ -50,6 +50,8 @@ pub mod check_changed;
 pub mod transfer_budget_report;
 pub mod evidence_asset_ban;
 pub mod knip_gui;
+pub mod hit_every_surface;
+pub mod suppression_review_gate;
 pub mod agentskills_compliance;
 pub mod ai_fixtures_coverage;
 pub mod attention_ledger_parity;

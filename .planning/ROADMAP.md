@@ -360,7 +360,7 @@
 3. Worktree setup marker + isolated home documented and scripted via `.vox`.
 4. Suppression-only PRs cannot merge without human-review label/CODEOWNERS.
 **Plans:**
-- [ ] `304-01`: Policy docs + checklist advisory + worktree isolation + suppression review gate
+- [x] `304-01`: Policy docs + checklist advisory + worktree isolation + suppression review gate
 
 ### Phase 305: TOESTUB Thin-Transport, Suppression Review Gate & Snapshot Interning (`T3-TOESTUB-ENF-01..04`)
 
@@ -395,7 +395,7 @@
 | **Phase 301** | Change-Gated CI Path Map & `vox ci check-changed` | `1/1` | Complete |
 | **Phase 302** | Transfer-Budget Artifacts, PR Comments & Weighted Test Sharding | `1/1` | Complete |
 | **Phase 303** | Knip Dual Gate, PR Size Labels & Evidence-Asset Ban | `1/1` | Complete |
-| **Phase 304** | Agent-Ops Kill-Safety, Hit-Every-Surface Checklist & Worktree Isolation | `0/1` | Pending |
+| **Phase 304** | Agent-Ops Kill-Safety, Hit-Every-Surface Checklist & Worktree Isolation | `1/1` | Complete |
 | **Phase 305** | TOESTUB Thin-Transport, Suppression Review Gate & Snapshot Interning | `0/1` | Pending |
 | **Phase 306** | Tauri Fingerprint Advisory, GUI Cache Layers, Surface Graph Refresh & Scorecard | `0/1` | Pending |
 

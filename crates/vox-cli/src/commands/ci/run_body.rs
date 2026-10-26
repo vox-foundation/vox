@@ -691,6 +691,16 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 Err(anyhow!("affected-crates exited with code {code}"))
             }
         }
+        CiCmd::HitEverySurface { base, paths, strict } => vox_cli_ci::hit_every_surface::run(
+            &root,
+            vox_cli_ci::hit_every_surface::HitEverySurfaceArgs { base, paths, strict },
+        ),
+        CiCmd::SuppressionReviewGate { base, paths, strict } => {
+            vox_cli_ci::suppression_review_gate::run(
+                &root,
+                vox_cli_ci::suppression_review_gate::SuppressionReviewArgs { base, paths, strict },
+            )
+        }
         CiCmd::EvidenceAssetBan { allowlist, paths } => {
             vox_cli_ci::evidence_asset_ban::run(
                 &root,

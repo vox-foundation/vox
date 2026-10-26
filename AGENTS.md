@@ -401,6 +401,14 @@ In Vox, tests are not just regression catchers — they are training data for th
 
 **Fix companion:** [`docs/src/contributors/toestub-contributor-guide.md`](docs/src/contributors/toestub-contributor-guide.md) has rule-by-rule fix patterns.
 
+## Kill-safety triad & hit-every-surface (Agent Ops)
+
+1. **Never pattern-kill** (`pkill -f` / name-matched PIDs). Prefer scoped `vox ci free-binary` / `kill-stuck-tests`.
+2. **Never write the live userdata/home** from a secondary worktree — stamp isolation with `vox run scripts/worktree-setup.vox` (see `docs/agents/worktree-isolation.md`).
+3. **Never bake localhost origins** into Tauri/Vite bundles.
+
+Harness/GUI PRs: complete the checklist in `docs/agents/kill-safety-and-hit-every-surface.md` (`vox ci hit-every-surface`). Suppression-only PRs need `needs-human-review` (`vox ci suppression-review-gate`).
+
 ## PR Hygiene (Size Labels & Evidence Assets)
 
 - PRs receive a `size:XS`–`size:XXL` label from `.github/workflows/pr-size.yml` based on **non-test** LOC.

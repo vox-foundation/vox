@@ -945,6 +945,26 @@ pub enum CiCmd {
         #[arg(long)]
         exclude: Vec<String>,
     },
+    /// Advisory multi-surface checklist for harness/GUI diffs.
+    #[command(name = "hit-every-surface")]
+    HitEverySurface {
+        #[arg(long, default_value = "origin/main")]
+        base: String,
+        #[arg(long)]
+        paths: Option<std::path::PathBuf>,
+        #[arg(long)]
+        strict: bool,
+    },
+    /// Advisory gate: suppression-only PRs need needs-human-review.
+    #[command(name = "suppression-review-gate")]
+    SuppressionReviewGate {
+        #[arg(long, default_value = "origin/main")]
+        base: String,
+        #[arg(long)]
+        paths: Option<std::path::PathBuf>,
+        #[arg(long)]
+        strict: bool,
+    },
     /// Ban committed GUI evidence/screenshot binaries outside the allowlist.
     #[command(name = "evidence-asset-ban")]
     EvidenceAssetBan {
