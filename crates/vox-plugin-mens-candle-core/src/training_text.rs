@@ -336,4 +336,27 @@ mod tests {
         );
         assert!(!stripped.contains("<think>"));
     }
+
+    #[test]
+    fn message_rows_leave_a_reasoning_turn_unrewritten() {
+        let cfg = ChatmlConfig::default();
+        let answer = "<think>\nplan\n</think>\n\ncode";
+        let turns = vec![turn("user", "U"), turn("assistant", answer)];
+        let full = chatml_turns_text(&turns, &cfg);
+        let prefix = chatml_turns_prefix_open_assistant(&turns, &cfg);
+        for text in [&full, &prefix] {
+            assert!(!text.contains("/no_think"), "{text}");
+            assert!(text.contains("<|im_start|>user\nU<|im_end|>\n"), "{text}");
+        }
+        assert!(prefix.ends_with("<|im_start|>assistant\n"), "{prefix}");
+        assert!(full.contains("<think>\nplan\n</think>"), "{full}");
+    }
+
+    #[test]
+    fn supervised_prefix_adds_no_second_flag() {
+        let cfg = ChatmlConfig::default();
+        let prefix = chatml_prefix_open_assistant("S", "U /no_think", "code", &cfg);
+        assert_eq!(prefix.matches("/no_think").count(), 1, "{prefix}");
+        assert!(prefix.ends_with(QWEN_EMPTY_THINK));
+    }
 }
