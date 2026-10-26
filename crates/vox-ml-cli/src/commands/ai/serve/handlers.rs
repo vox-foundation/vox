@@ -633,6 +633,55 @@ mod chat_completions_tests {
     }
 
     #[tokio::test]
+    async fn unknown_lane_on_generate_is_400_before_the_worker() {
+        for bad in ["bogus", "Hub", ""] {
+            let (state, captured) = capturing_app_state("never used");
+            let req: GenerateRequest =
+                serde_json::from_value(serde_json::json!({"prompt": "hi", "lane": bad})).unwrap();
+            let (status, Json(resp)) = do_generate(State(state), Json(req)).await;
+            assert_eq!(status, StatusCode::BAD_REQUEST, "lane {bad:?}");
+            assert!(!resp.valid, "lane {bad:?}");
+            assert!(!resp.errors.is_empty(), "lane {bad:?}");
+            for name in ["codegen", "hub", "agent"] {
+                assert!(resp.text.contains(name), "{:?} must name {name}", resp.text);
+            }
+            assert_eq!(resp.tokens_generated, 0);
+            assert_eq!(
+                captured.lock().unwrap().len(),
+                0,
+                "lane {bad:?} must not reach the worker"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn do_generate_repair_retries_keep_the_lane() {
+        // strict_json is validated by do_generate; a non-JSON reply forces the repair loop.
+        let (state, captured) = capturing_app_state("this is not json");
+        let req: GenerateRequest = serde_json::from_value(serde_json::json!({
+            "prompt": "hi",
+            "lane": "hub",
+            "output_mode": "strict_json",
+            "max_retries": 3
+        }))
+        .unwrap();
+        let (status, Json(resp)) = do_generate(State(state), Json(req)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(!resp.valid);
+        let seen = captured.lock().unwrap();
+        assert!(
+            seen.len() >= 2,
+            "expected repair retries, got {}",
+            seen.len()
+        );
+        assert!(
+            seen.iter()
+                .all(|r| r.lane == vox_eval::qwen_reasoning::Lane::Hub),
+            "every retry must carry the request's lane"
+        );
+    }
+
+    #[tokio::test]
     async fn do_chat_completions_emits_tool_calls_for_a_schema_valid_offered_tool() {
         let state = fake_app_state(r#"{"name":"get_weather","arguments":{"city":"nyc"}}"#);
         let req = ChatCompletionRequest {
