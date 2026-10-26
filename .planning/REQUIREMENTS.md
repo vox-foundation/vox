@@ -6,7 +6,7 @@
 
 ---
 
-## v5.4 Requirements (16/24 Complete Across Phases 301–306)
+## v5.4 Requirements (20/24 Complete Across Phases 301–306)
 
 ### 1. Phase 301: Change-Gated CI Path Map & `vox ci check-changed` (`T3-CI-CHANGED`)
 
@@ -38,10 +38,10 @@
 
 ### 5. Phase 305: TOESTUB Thin-Transport, Suppression Review Gate & Snapshot Interning (`T3-TOESTUB-ENF`)
 
-- [ ] **T3-TOESTUB-ENF-01**: New `vox-code-audit` detector for thin-transport / no-rpc-permission-bypass beyond MCP (t3code `no-rpc-permission-bypass`): raw RPC/client guard installs only in allowlisted boundary files.
-- [ ] **T3-TOESTUB-ENF-02**: Extend suppression detectors so every ignore carries a linked reason + issue, and CI fails on unreasoned suppressions introduced in the PR diff (ratchet on Wave-3 `unreasoned_suppression`).
-- [ ] **T3-TOESTUB-ENF-03**: Wire snapshot / message-ID interning leftover from Wave 2 into the live harness path with tests proving duplicate IDs collapse.
-- [ ] **T3-TOESTUB-ENF-04**: Map remaining high-value oxlint-plugin-t3code rules not yet covered (`no-low-value-comments`, `no-frame-waits-in-browser-tests`, `no-polling-loop-in-tests`, `require-disposable-render` analogs) into TOESTUB rules or explicit Out-of-Scope ledger rows with owners.
+- [x] **T3-TOESTUB-ENF-01**: New `vox-code-audit` detector for thin-transport / no-rpc-permission-bypass beyond MCP (t3code `no-rpc-permission-bypass`): raw RPC/client guard installs only in allowlisted boundary files.
+- [x] **T3-TOESTUB-ENF-02**: Extend suppression detectors so every ignore carries a linked reason + issue, and CI fails on unreasoned suppressions introduced in the PR diff (ratchet on Wave-3 `unreasoned_suppression`).
+- [x] **T3-TOESTUB-ENF-03**: Wire snapshot / message-ID interning leftover from Wave 2 into the live harness path with tests proving duplicate IDs collapse.
+- [x] **T3-TOESTUB-ENF-04**: Map remaining high-value oxlint-plugin-t3code rules not yet covered (`no-low-value-comments`, `no-frame-waits-in-browser-tests`, `no-polling-loop-in-tests`, `require-disposable-render` analogs) into TOESTUB rules or explicit Out-of-Scope ledger rows with owners.
 
 ### 6. Phase 306: Tauri Fingerprint Advisory, GUI Cache Layers, Surface Graph Refresh & Scorecard (`T3-CI-CLOSE`)
 
@@ -68,7 +68,7 @@
 | `T3-CI-BUDGET-01..04` | Phase 302 | Complete |
 | `T3-CI-HYGIENE-01..04` | Phase 303 | Complete |
 | `T3-AGENT-OPS-01..04` | Phase 304 | Complete |
-| `T3-TOESTUB-ENF-01..04` | Phase 305 | Pending |
+| `T3-TOESTUB-ENF-01..04` | Phase 305 | Complete |
 | `T3-CI-CLOSE-01..04` | Phase 306 | Pending |
 
 **Coverage:** 24 v5.4 requirements → 6 phases → 0 unmapped

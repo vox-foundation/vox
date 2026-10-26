@@ -372,7 +372,7 @@
 3. Snapshot/message-ID interning is live-path covered by tests.
 4. Remaining oxlint rules are either detectors or explicit deferred ledger rows.
 **Plans:**
-- [ ] `305-01`: Detectors + suppression ratchet + interning + oxlint mapping ledger
+- [x] `305-01`: Detectors + suppression ratchet + interning + oxlint mapping ledger
 
 ### Phase 306: Tauri Fingerprint Advisory, GUI Cache Layers, Surface Graph Refresh & Scorecard (`T3-CI-CLOSE-01..04`)
 
@@ -396,7 +396,7 @@
 | **Phase 302** | Transfer-Budget Artifacts, PR Comments & Weighted Test Sharding | `1/1` | Complete |
 | **Phase 303** | Knip Dual Gate, PR Size Labels & Evidence-Asset Ban | `1/1` | Complete |
 | **Phase 304** | Agent-Ops Kill-Safety, Hit-Every-Surface Checklist & Worktree Isolation | `1/1` | Complete |
-| **Phase 305** | TOESTUB Thin-Transport, Suppression Review Gate & Snapshot Interning | `0/1` | Pending |
+| **Phase 305** | TOESTUB Thin-Transport, Suppression Review Gate & Snapshot Interning | `1/1` | Complete |
 | **Phase 306** | Tauri Fingerprint Advisory, GUI Cache Layers, Surface Graph Refresh & Scorecard | `0/1` | Pending |
 
 
