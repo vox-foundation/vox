@@ -162,4 +162,91 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         assert!(load_slice(&dir.path().join("absent.jsonl"), SLICE_SIZE).is_err());
     }
+
+    // ---- Task 2: refusal rules ----
+
+    #[test]
+    fn wrong_count_is_refused() {
+        for n in [31usize, 33] {
+            let (_d, p) = write_tmp(rows(n).as_bytes());
+            let err = load_slice(&p, SLICE_SIZE).expect_err("wrong count must fail");
+            assert!(
+                err.contains(&format!("found {n}")) && err.contains("expected 32"),
+                "{err}"
+            );
+        }
+        let (_d, p) = write_tmp(rows(32).as_bytes());
+        assert_eq!(load_slice(&p, SLICE_SIZE).expect("32 ok").len(), 32);
+    }
+
+    #[test]
+    fn duplicate_id_is_refused() {
+        let mut s = rows(31);
+        s.push_str("{\"id\":\"t-0000\",\"question\":\"q\",\"answer\":\"1\"}\n");
+        let (_d, p) = write_tmp(s.as_bytes());
+        let err = load_slice(&p, SLICE_SIZE).expect_err("duplicate id must fail");
+        assert!(err.contains("duplicate id"), "{err}");
+    }
+
+    #[test]
+    fn empty_inputs_are_refused() {
+        let bad = [
+            "".to_string(),
+            "{\"id\":\"a\",\"question\":\"  \\t\",\"answer\":\"1\"}\n".to_string(),
+            "{\"id\":\"a\",\"question\":\"q\",\"answer\":\"\"}\n".to_string(),
+            "{\"id\":\"a\",\"question\":\"q\",\"answer\":\"  \"}\n".to_string(),
+            "{\"question\":\"q\",\"answer\":\"1\"}\n".to_string(),
+            "{\"id\":\"\",\"question\":\"q\",\"answer\":\"1\"}\n".to_string(),
+        ];
+        for (i, content) in bad.iter().enumerate() {
+            let (_d, p) = write_tmp(content.as_bytes());
+            assert!(load_slice(&p, 1).is_err(), "case {i} should be refused");
+        }
+        // empty file with expected_n 32 is also refused (count mismatch)
+        let (_d, p) = write_tmp(b"");
+        assert!(load_slice(&p, SLICE_SIZE).is_err());
+    }
+
+    #[test]
+    fn blank_lines_are_skipped() {
+        let s: String = rows(32).lines().map(|l| format!("{l}\n\n   \n")).collect();
+        let (_d, p) = write_tmp(s.as_bytes());
+        assert_eq!(
+            load_slice(&p, SLICE_SIZE).expect("blank lines ok").len(),
+            32
+        );
+    }
+
+    #[test]
+    fn items_come_back_in_file_order() {
+        let (_d, p) = write_tmp(rows(32).as_bytes());
+        let ids: Vec<String> = load_slice(&p, SLICE_SIZE)
+            .expect("loads")
+            .into_iter()
+            .map(|i| i.id)
+            .collect();
+        let want: Vec<String> = (0..32).map(|i| format!("t-{i:04}")).collect();
+        assert_eq!(ids, want);
+    }
+
+    #[test]
+    fn malformed_json_names_the_line() {
+        let s = format!("{}not json\n", rows(2));
+        let (_d, p) = write_tmp(s.as_bytes());
+        let err = load_slice(&p, 3).expect_err("malformed must fail");
+        assert!(
+            err.contains(":3:") && err.contains("reasoning.jsonl"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn size_cap_boundary() {
+        let over = vec![b'x'; (MAX_SLICE_BYTES + 1) as usize];
+        let (_d, p) = write_tmp(&over);
+        let err = load_slice(&p, SLICE_SIZE).expect_err("oversize must fail");
+        assert!(err.contains("size cap"), "{err}");
+        let (_d2, ok) = write_tmp(rows(32).as_bytes());
+        assert!(load_slice(&ok, SLICE_SIZE).is_ok());
+    }
 }
