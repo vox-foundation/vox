@@ -30,6 +30,17 @@ Vox is a mature, actively-developed cross-platform Rust workspace (138+ crates) 
 
 The compiler, orchestrator, runtime, knowledge base, and public documentation site (`voxlang.org`) that everything else depends on must keep building, staying verified, and passing CI from a single unified worktree (`/Users/brbrainerd/dev/vox`), while remaining **100% functional offline/standalone** with zero dependency on `vox-ops` and **100% transparent, disableable, strongly-typed telemetry**.
 
+## Current Milestone: v5.6 Reasoning Where the Lane Needs It
+
+**Goal:** Keep real chain-of-thought on the hub and agent spokes, keep codegen spokes in non-thinking mode, and refuse an adapter that gets worse on a fixed before/after.
+
+**Target features:**
+- Lane policy: codegen uses `/no_think` and the empty think block; hub and agent spokes stay in thinking mode
+- One before/after set: base model versus adapter on the same GSM8K, MATH-500, and Vox items, recording accuracy and whether a real `<think>` block opened
+- A persisted report for each run, and a serve gate that blocks an adapter whose reasoning or task score drops past the line
+
+**Out of this milestone:** swapping the base model, and trying Oct 2026 training techniques. Those wait until this measurement exists.
+
 ## Completed Milestone: v5.5 — T3 CI/TOESTUB Deep Enforcement (`Phases 307–312`, `24/24` requirements, shipped 2026-10-25)
 
 **Goal:** Deeper t3code extraction beyond v5.4 — contributor vouch, privileged preview trust-split, live transfer-budget + job-matrix CI, test wall-clock/real-wait/loop/frame detectors, host-runtime + schema-hoist + knip dual + DOM-env, sidecar fingerprint hashing.
@@ -272,6 +283,10 @@ The compiler, orchestrator, runtime, knowledge base, and public documentation si
 
 ### Active
 
+- [ ] **Lane policy (`v5.6`):** codegen spokes train and serve with `/no_think` plus the empty think block; hub and agent spokes stay in thinking mode
+- [ ] **Before/after set (`v5.6`):** base model versus adapter on the same GSM8K, MATH-500, and Vox items, with accuracy and think-initiation rate
+- [ ] **Serve gate (`v5.6`):** each run writes a persisted report, and serve refuses an adapter that drops reasoning or task score past the line
+
 - [x] **Shared-Package CV Flywheel (`@ngi/platform-ssot`) & Chat/Harness Baseline Audit (`CV-FLYWHEEL-01..04`, Phase 98 — `v1.8`):** Sync `platformSsot.generated.ts` (`runUniversalCvFlywheelPass`, `evaluateBeforeAfterCvFlywheel`) into `crates/vox-gui/ui/src/lib/`, build `cvFlywheel.ts` pixel/DOM analyzer (Sobel edge sharpness, RMS luminance contrast, high-frequency noise floor, PSNR, overflow/clipping/emoji checks), and run automated `BEFORE` baseline CV audits across Chat, Loquela, Docking, and Urbs Civilization surfaces.
 - [x] **Chat GUI Knob Unification & End-to-End Strong Datatypes (`CHAT-KNOBS-01..04`, `CHAT-TYPES-01..04`, Phase 99 — `v1.8`):** Unify fragmented composer/drive/governance controls (`DriveConsole.tsx` + `Loquela.tsx` + `ChatSurface.tsx`) into a cohesive single-height VS Code-grade control strip (`Intent`, `Run Tier`, `Governance: Risk + Oversight 1..5 + @kb Scope + Grounding`), wire `kb_scope` and `oversight_level` into `ChatPayload` (`buildChatTurn.ts` / `types/tauri.ts`), and eliminate all `any` / loose `string` states across `Loquela.tsx` and `ChatSurface.tsx`.
 - [x] **VS Code-Grade Docking & `terminal` / `urbs` Dock Panel Registration (`DOCK-UX-01..04`, Phase 100 — `v1.8`):** Register the unreachable `terminal` dock panel and new `urbs` (Civilization Map) dock panel in `OPT_IN_PANEL_IDS` and `panelDefs`, add one-click workspace layout presets (`Focus Chat`, `Engineering Split`, `Civilization & Harness`, `Reset Layout`) to `DockWorkspaceShell.tsx`, and upgrade `.dockview-theme-vox` tab chrome to VS Code visual quality.
@@ -313,6 +328,7 @@ The compiler, orchestrator, runtime, knowledge base, and public documentation si
 | **D31: Server-Authoritative Zero-Cheating Leaderboard & v0 / Claude Design Surfaces (`v1.7`)** | Eliminate client-trusted XP/Lumens leaderboard queries in favor of `vox-ops-ludus` `ludus_community.verified_contributions` (append-only `BLAKE3` hash chain of HMAC-verified GitHub contributions and signed 5-spoke benchmark receipts, enforced by `AntiCheatPolicyV1` and signed with Ed25519 into `VerifiedLeaderboardSnapshotV1`), and surface dynamic 4-lens leaderboards with cryptographic proof drawers on both `voxlang.org` (`VoxLeaderboardArena.astro`) and `vox-gui` (`LeaderboardArenaPanel.tsx`) using the v0 / Claude Design system. | ✓ Good — Astro + React surfaces verified (`Phase 91`) |
 | **D32: Dual-Tier 5-Spoke Evaluation — Hermetic CI Contract + Live Safetensors QLoRA Burn-In (`v1.7`)** | Maintain the `<3s` hermetic 25-problem before/mid/after benchmark (`MensBeforeAfterEvaluationV1`) for every CI commit while adding `Phase 97` (`LIVE-QLORA-01..04`) to execute real Candle/QLoRA tensor training (`vox mens train`), materialize `.safetensors` adapter weights + `mens_checkpoint_manifest.json` under `mens/runs/`, and score live token generation across all 25 5-spoke problems. | ✓ Good — 100.0% 5-spoke pass@1 verified (`Phases 93–97`) |
 | **D33: Shared-Package CV Flywheel (`@ngi/platform-ssot`) & VS Code-Grade Chat/Dock/Urbs Harness (`v1.8`)** | Sync `@ngi/platform-ssot` (`runUniversalCvFlywheelPass`, `evaluateBeforeAfterCvFlywheel`) into `vox-gui/ui`, unify `Loquela` + `DriveConsole` composer knobs with strict TypeScript types (`kb_scope`, `oversight_level` wired end-to-end), expose `terminal` and `urbs` dock panels with layout presets in `DockWorkspaceShell`, unfreeze embedded `LudusSandbox` with SVG Roman citizen sprites and live `AQVAE` MCP telemetry, and gate on zero-glitch `BEFORE -> AFTER` CV convergence (`Phases 98–101`). | ✓ Complete (`Phases 98–101`) |
+| **D34: Measure reasoning before changing the model (`v5.6`)** | Hub and agent spokes need real chain-of-thought; codegen spokes do not. Prove retention on a fixed before/after before any base-model swap or new training technique. | — Pending |
 
 ## Workstreams (Unified into `unified`)
 
@@ -342,4 +358,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-25 after starting v5.4 milestone (`T3 CI/TOESTUB Enforcement Deep-Extraction`) (`Universal Repo-Agnostic Codebase Civilization Simulator & Attention-Weighted Developer Control Surface`)*
+*Last updated: 2026-10-26 after starting v5.6 milestone (Reasoning Where the Lane Needs It)*
