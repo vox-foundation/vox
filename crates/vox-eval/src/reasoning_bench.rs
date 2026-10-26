@@ -113,6 +113,21 @@ pub enum BenchOutcome {
 }
 
 impl BenchOutcome {
+    /// Turn a graded batch into an outcome. `Scored` only when at least one item was
+    /// requested and every requested item was graded (`score.n == n_requested`);
+    /// the empty-batch tuple `{0.0, 0.0, 0}` and any partial count are `NotScored`.
+    #[must_use]
+    pub fn from_score(score: ReasoningScore, n_requested: usize) -> BenchOutcome {
+        if n_requested >= 1 && score.n == n_requested {
+            BenchOutcome::Scored(score)
+        } else {
+            BenchOutcome::NotScored {
+                reason: format!("scored {} of {n_requested} items", score.n),
+                n_requested,
+            }
+        }
+    }
+
     /// JSON body for `reasoning_report.json`. `NotScored` carries `status`, `n`
     /// (always 0), `n_requested` and `reason` only: the `accuracy` and
     /// `think_initiation_rate` keys are absent, never null or zero.
@@ -427,6 +442,78 @@ mod tests {
             !obj.contains_key("think_initiation_rate"),
             "think_initiation_rate key must be absent"
         );
+    }
+
+    #[test]
+    fn from_score_requires_every_requested_item() {
+        let full = ReasoningScore {
+            accuracy: 1.0,
+            think_initiation_rate: 1.0,
+            n: 32,
+        };
+        assert_eq!(
+            BenchOutcome::from_score(full, 32),
+            BenchOutcome::Scored(full)
+        );
+        for n in [0usize, 31] {
+            let partial = ReasoningScore {
+                accuracy: 0.0,
+                think_initiation_rate: 0.0,
+                n,
+            };
+            match BenchOutcome::from_score(partial, 32) {
+                BenchOutcome::NotScored {
+                    reason,
+                    n_requested,
+                } => {
+                    assert_eq!(n_requested, 32);
+                    assert!(
+                        reason.contains(&format!("scored {n} of 32 items")),
+                        "reason was: {reason}"
+                    );
+                }
+                other => panic!("n={n} must be NotScored, got {other:?}"),
+            }
+        }
+        // The empty-batch tuple can never be Scored, even when nothing was requested.
+        let empty = crate::qwen_reasoning::score_completions(std::iter::empty());
+        assert_eq!(empty.n, 0);
+        assert!(matches!(
+            BenchOutcome::from_score(empty, 0),
+            BenchOutcome::NotScored { .. }
+        ));
+        assert!(matches!(
+            BenchOutcome::from_score(empty, 32),
+            BenchOutcome::NotScored { .. }
+        ));
+    }
+
+    #[test]
+    fn scored_json_carries_n_and_exact_accuracy() {
+        let owned: Vec<(String, String)> = (0..32)
+            .map(|i| {
+                let completion = if i < 3 {
+                    format!("\\boxed{{{i}}}")
+                } else {
+                    "\\boxed{999999}".to_string()
+                };
+                (completion, i.to_string())
+            })
+            .collect();
+        let score = crate::qwen_reasoning::score_completions(
+            owned.iter().map(|(c, g)| (c.as_str(), g.as_str())),
+        );
+        assert_eq!(score.accuracy, 3.0 / 32.0);
+        let outcome = BenchOutcome::from_score(score, 32);
+        assert!(matches!(outcome, BenchOutcome::Scored(_)));
+        let v = outcome.to_json();
+        assert_eq!(v["status"], "scored");
+        assert_eq!(v["n"], 32);
+        assert_eq!(v["accuracy"].as_f64(), Some(3.0 / 32.0));
+        let text = serde_json::to_string(&v).expect("serialize");
+        let back: serde_json::Value = serde_json::from_str(&text).expect("parse");
+        assert_eq!(back["accuracy"].as_f64(), Some(3.0 / 32.0));
+        assert_eq!(back["n"], 32);
     }
 
     #[test]

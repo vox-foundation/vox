@@ -6,14 +6,15 @@
 //! Think-initiation rate is recorded beside accuracy.
 //!
 //! The scorer fails closed: a slice that does not load, a model that does not
-//! load, or any per-item failure writes a `not_scored` report (`n` 0, no score
-//! keys) when the adapter directory exists, and always returns `Err`. A score is
-//! recorded only for a full slice, with `n` stored beside it.
-//! `VOX_REASONING_EVAL_MAX_TOKENS` overrides the 2048-token generation cap.
+//! load, or any per-item failure (inference error, unparseable response, empty
+//! text) writes a `not_scored` report (`n` 0, no score keys) when the adapter
+//! directory exists, and always returns `Err`. A failing item is never graded as
+//! a wrong answer. A score is recorded only for a full slice, with `n` stored
+//! beside it. `VOX_REASONING_EVAL_MAX_TOKENS` overrides the 2048-token cap.
 use anyhow::{Context, Result};
 use std::path::Path;
 use vox_eval::qwen_reasoning;
-use vox_eval::reasoning_bench::{BenchOutcome, SLICE_SIZE, load_slice};
+use vox_eval::reasoning_bench::{BenchOutcome, ReasoningItem, SLICE_SIZE, load_slice};
 
 /// Accuracy and think-initiation for one reasoning bench.
 #[derive(Debug, Clone, Copy)]
@@ -31,7 +32,8 @@ pub(crate) struct ReasoningReport {
 /// `(id, completion, correct, opened_think)` for one generated item.
 type Row = (String, String, bool, bool);
 
-/// Score one reasoning bench. `Ok` only for a full, error-free run.
+/// Score one reasoning bench. `Ok` only for a full, error-free run. This is the
+/// only place a [`ReasoningReport`] is built, and only from `BenchOutcome::Scored`.
 pub(crate) fn score_reasoning_file(
     bench: &str,
     items_path: &Path,
@@ -55,13 +57,7 @@ pub(crate) fn score_reasoning_file(
             ));
         }
     };
-    let max_tokens = std::env::var("VOX_REASONING_EVAL_MAX_TOKENS")
-        .ok()
-        .and_then(|v| v.trim().parse::<usize>().ok())
-        .unwrap_or(2048)
-        .max(1);
-
-    let (outcome, rows) = match generate_all(bench, &items, adapter, max_tokens) {
+    let (outcome, rows) = match run_backend(bench, &items, adapter) {
         Ok(done) => done,
         Err(e) => {
             return Err(fail_closed(bench, adapter, &format!("{e:#}"), items.len()));
@@ -95,13 +91,21 @@ fn fail_closed(bench: &str, adapter: &Path, detail: &str, n_requested: usize) ->
     }
 }
 
-/// Load the backend plugin and adapter, then generate and grade every item.
+/// Generation token cap: `VOX_REASONING_EVAL_MAX_TOKENS`, default 2048, at least 1.
+fn max_tokens() -> usize {
+    std::env::var("VOX_REASONING_EVAL_MAX_TOKENS")
+        .ok()
+        .and_then(|v| v.trim().parse::<usize>().ok())
+        .unwrap_or(2048)
+        .max(1)
+}
+
+/// Load the backend plugin and adapter, then score every item through it.
 /// `Err` means the model never loaded.
-fn generate_all(
+fn run_backend(
     bench: &str,
-    items: &[vox_eval::reasoning_bench::ReasoningItem],
+    items: &[ReasoningItem],
     adapter: &Path,
-    max_tokens: usize,
 ) -> Result<(BenchOutcome, Vec<Row>)> {
     let plugin_id = vox_populi::mens::select_mens_backend(
         vox_populi::mens::DeviceKind::Best,
@@ -120,7 +124,42 @@ fn generate_all(
         .into_result()
         .map_err(|e| anyhow::anyhow!("load_model({}): {e}", adapter.display()))?;
 
-    let mut rows: Vec<Row> = Vec::with_capacity(items.len());
+    let mut infer = |prompt_json: &str| -> Result<String> {
+        backend
+            .run_inference(&handle, prompt_json.into())
+            .into_result()
+            .map(|resp| resp.as_str().to_string())
+            .map_err(|e| anyhow::anyhow!("{e}"))
+    };
+    let done = score_loaded(bench, items, &mut infer);
+    // `loaded` is a cache reference and must outlive `handle`; it drops here
+    // with the other locals, which is after the last inference.
+    let _plugin = loaded;
+    Ok(done)
+}
+
+/// `generated_text` of a response, only when it parses and is non-empty.
+fn usable_text(resp: &str) -> Option<String> {
+    serde_json::from_str::<serde_json::Value>(resp)
+        .ok()?
+        .get("generated_text")?
+        .as_str()
+        .filter(|t| !t.trim().is_empty())
+        .map(str::to_string)
+}
+
+/// Generate and grade every item through `infer` (prompt JSON in, raw response
+/// out). The first inference error, unparseable response, or empty text stops the
+/// run as `NotScored`; that item is neither graded nor counted. Grading rules are
+/// the unchanged `qwen_reasoning` ones.
+fn score_loaded(
+    bench: &str,
+    items: &[ReasoningItem],
+    infer: &mut dyn FnMut(&str) -> Result<String>,
+) -> (BenchOutcome, Vec<Row>) {
+    let n = items.len();
+    let max_tokens = max_tokens();
+    let mut rows: Vec<Row> = Vec::with_capacity(n);
     for (i, item) in items.iter().enumerate() {
         let prompt = qwen_reasoning::thinking_mode_prompt(&item.question);
         let prompt_json = serde_json::json!({
@@ -130,42 +169,39 @@ fn generate_all(
             "seed": 0,
         })
         .to_string();
-        let completion = match backend
-            .run_inference(&handle, prompt_json.as_str().into())
-            .into_result()
-        {
-            Ok(resp) => serde_json::from_str::<serde_json::Value>(resp.as_str())
-                .ok()
-                .and_then(|v| {
-                    v.get("generated_text")
-                        .and_then(|x| x.as_str())
-                        .map(str::to_string)
-                })
-                .unwrap_or_default(),
-            Err(e) => {
-                eprintln!("  {bench} {} inference error: {e}", item.id);
-                String::new()
-            }
+        let detail = match infer(&prompt_json) {
+            Ok(resp) => match usable_text(&resp) {
+                Some(completion) => {
+                    let correct = qwen_reasoning::grade_final_answer(&completion, &item.answer);
+                    let thinking = qwen_reasoning::opened_nonempty_think(&completion);
+                    eprintln!(
+                        "  {bench} {}/{n} {} correct={correct} think={thinking}",
+                        i + 1,
+                        item.id
+                    );
+                    rows.push((item.id.clone(), completion, correct, thinking));
+                    continue;
+                }
+                None => "response had no non-empty generated_text".to_string(),
+            },
+            Err(e) => format!("inference error: {e:#}"),
         };
-        let correct = qwen_reasoning::grade_final_answer(&completion, &item.answer);
-        let thinking = qwen_reasoning::opened_nonempty_think(&completion);
-        eprintln!(
-            "  {bench} {}/{} {} correct={correct} think={thinking}",
-            i + 1,
-            items.len(),
-            item.id
+        eprintln!("  {bench} {} failed: {detail}", item.id);
+        let reason = format!("item {}: {detail}; scored 0 of {n} items", item.id);
+        return (
+            BenchOutcome::NotScored {
+                reason,
+                n_requested: n,
+            },
+            rows,
         );
-        rows.push((item.id.clone(), completion, correct, thinking));
     }
-    // `loaded` is a cache reference and must outlive `handle`; it drops here
-    // with the other locals after the loop, which is after the last inference.
-    let _plugin = loaded;
     let scored = qwen_reasoning::score_completions(
         rows.iter()
             .zip(items.iter())
             .map(|((_, completion, _, _), item)| (completion.as_str(), item.answer.as_str())),
     );
-    Ok((BenchOutcome::Scored(scored), rows))
+    (BenchOutcome::from_score(scored, n), rows)
 }
 
 /// Write `reasoning_report.json` for any outcome. The adapter directory must
@@ -249,5 +285,141 @@ mod tests {
             .expect_err("a missing adapter cannot be scored");
         assert!(format!("{err:#}").contains("scored 0 of 32"));
         assert!(!adapter.exists(), "the adapter path must not be created");
+    }
+
+    fn synthetic_items(n: usize) -> Vec<ReasoningItem> {
+        (0..n)
+            .map(|i| ReasoningItem {
+                id: format!("syn-{i:04}"),
+                question: format!("what is {i}?"),
+                answer: i.to_string(),
+            })
+            .collect()
+    }
+
+    /// Gold the prompt asks about: the synthetic question is `what is {i}?`.
+    fn gold_from_prompt(prompt_json: &str) -> String {
+        let v: serde_json::Value = serde_json::from_str(prompt_json).expect("prompt json");
+        let prompt = v["prompt"].as_str().expect("prompt");
+        let after = prompt.split("what is ").nth(1).expect("question in prompt");
+        after.split('?').next().expect("number").to_string()
+    }
+
+    fn boxed_response(gold: &str) -> String {
+        serde_json::json!({
+            "generated_text": format!("<think>\nx\n</think>\n\n\\boxed{{{gold}}}")
+        })
+        .to_string()
+    }
+
+    #[test]
+    fn every_answer_correct_scores_32() {
+        let items = synthetic_items(32);
+        let mut infer = |p: &str| -> Result<String> { Ok(boxed_response(&gold_from_prompt(p))) };
+        let (outcome, rows) = score_loaded("syn", &items, &mut infer);
+        match outcome {
+            BenchOutcome::Scored(s) => {
+                assert_eq!(s.n, 32);
+                assert_eq!(s.accuracy, 1.0);
+                assert_eq!(s.think_initiation_rate, 1.0);
+            }
+            other => panic!("expected Scored, got {other:?}"),
+        }
+        let ids: Vec<&str> = rows.iter().map(|r| r.0.as_str()).collect();
+        let want: Vec<String> = items.iter().map(|i| i.id.clone()).collect();
+        assert_eq!(ids, want.iter().map(String::as_str).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn three_of_32_correct_stores_exact_accuracy() {
+        let items = synthetic_items(32);
+        let mut infer = |p: &str| -> Result<String> {
+            let gold: usize = gold_from_prompt(p).parse().expect("number");
+            Ok(boxed_response(&if gold < 3 {
+                gold.to_string()
+            } else {
+                "999999".to_string()
+            }))
+        };
+        let (outcome, rows) = score_loaded("syn", &items, &mut infer);
+        assert_eq!(rows.len(), 32);
+        match outcome {
+            BenchOutcome::Scored(s) => {
+                assert_eq!(s.accuracy, 3.0 / 32.0);
+                assert_eq!(s.n, 32);
+            }
+            other => panic!("expected Scored, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn an_inference_error_on_any_item_is_not_scored() {
+        let items = synthetic_items(32);
+        for bad in [0usize, 31] {
+            let mut calls = 0usize;
+            let mut infer = |p: &str| -> Result<String> {
+                let i = calls;
+                calls += 1;
+                if i == bad {
+                    anyhow::bail!("backend exploded");
+                }
+                Ok(boxed_response(&gold_from_prompt(p)))
+            };
+            let (outcome, rows) = score_loaded("syn", &items, &mut infer);
+            match outcome {
+                BenchOutcome::NotScored {
+                    reason,
+                    n_requested,
+                } => {
+                    assert_eq!(n_requested, 32);
+                    assert!(
+                        reason.contains(&format!("syn-{bad:04}")),
+                        "reason must name the item: {reason}"
+                    );
+                    assert!(reason.contains("scored 0 of 32 items"), "{reason}");
+                }
+                other => panic!("bad={bad}: expected NotScored, got {other:?}"),
+            }
+            assert_eq!(rows.len(), bad, "the failing item is not graded or counted");
+        }
+    }
+
+    #[test]
+    fn empty_missing_or_unparseable_text_is_not_scored() {
+        let items = synthetic_items(32);
+        let bodies = [
+            r#"{"generated_text": ""}"#,
+            r#"{"generated_text": "   "}"#,
+            r#"{"other": "x"}"#,
+            r#"{"generated_text": 7}"#,
+            "not json",
+        ];
+        for body in bodies {
+            let mut calls = 0usize;
+            let mut infer = |p: &str| -> Result<String> {
+                calls += 1;
+                if calls == 5 {
+                    Ok(body.to_string())
+                } else {
+                    Ok(boxed_response(&gold_from_prompt(p)))
+                }
+            };
+            let (outcome, rows) = score_loaded("syn", &items, &mut infer);
+            match outcome {
+                BenchOutcome::NotScored { reason, .. } => {
+                    assert!(reason.contains("syn-0004"), "{body}: {reason}");
+                }
+                other => panic!("{body}: expected NotScored, got {other:?}"),
+            }
+            assert_eq!(rows.len(), 4);
+        }
+    }
+
+    #[test]
+    fn an_empty_slice_is_never_scored() {
+        let mut infer = |_: &str| -> Result<String> { Ok(boxed_response("1")) };
+        let (outcome, rows) = score_loaded("syn", &[], &mut infer);
+        assert!(matches!(outcome, BenchOutcome::NotScored { .. }));
+        assert!(rows.is_empty());
     }
 }
