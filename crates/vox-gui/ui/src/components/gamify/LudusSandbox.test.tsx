@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 // crates/vox-gui/ui/src/components/gamify/LudusSandbox.test.tsx  (full replacement)
 // The pragma above is REQUIRED as line 1: vitest.config.ts sets no global
 // environment, so render()/screen crash under the default node env without it.

@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest';
 import { scrollAndFocusAnchor } from './anchorFocus';
 

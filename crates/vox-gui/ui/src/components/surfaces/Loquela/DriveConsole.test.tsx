@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { render, fireEvent, screen } from '@testing-library/react';
 import { within } from '@testing-library/react';
@@ -139,6 +138,24 @@ describe('DriveConsole vocabulary (plan 3a)', () => {
     expect(screen.getByTestId('drive-console-spend')).toHaveTextContent('Spend$12.34 / $50.00');
     rerender(<DriveConsole {...base} spentUsd={12.34} budgetUsd={0} />);
     expect(screen.getByTestId('drive-console-spend').textContent).toBe('Spend$12.34');
+  });
+
+  it('renders 80% soft downgrade and 95% hard halt gate markers and Risk <-> Attention coupling badges', () => {
+    const { rerender } = render(<DriveConsole {...base} spentUsd={10} budgetUsd={50} />);
+    expect(screen.getByTestId('drive-console-downgrade-marker')).toBeInTheDocument();
+    expect(screen.getByTestId('drive-console-halt-marker')).toBeInTheDocument();
+    expect(screen.getByTestId('drive-console-spend')).toHaveAttribute('data-spend-gate', 'normal');
+
+    rerender(<DriveConsole {...base} spentUsd={42} budgetUsd={50} />);
+    expect(screen.getByTestId('drive-console-spend')).toHaveAttribute('data-spend-gate', 'downgrade');
+
+    rerender(<DriveConsole {...base} spentUsd={48} budgetUsd={50} />);
+    expect(screen.getByTestId('drive-console-spend')).toHaveAttribute('data-spend-gate', 'halt');
+
+    fireEvent.click(screen.getByRole('button', { name: /risk: moderate/i }));
+    expect(screen.getByTestId('risk-attention-coupling-low')).toHaveTextContent('Strict review · 1.5× safety budget');
+    expect(screen.getByTestId('risk-attention-coupling-moderate')).toHaveTextContent('Standard checks · 1.0× budget');
+    expect(screen.getByTestId('risk-attention-coupling-high')).toHaveTextContent('Fastest · minimal prompts');
   });
 });
 

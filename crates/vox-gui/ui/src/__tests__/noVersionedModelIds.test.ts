@@ -14,6 +14,7 @@ const EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.mjs', '.json']);
 const SKIP_DIRS = new Set(['node_modules', 'screens', 'fixtures']);
 const RECORDED_TRACE_TESTS = new Set([
   'src/components/surfaces/Chat/ResearchTracePanel.test.tsx',
+  'src/lib/platformSsot.generated.ts',
   'e2e/research-trace-panel.spec.ts',
   'e2e/models-leaderboard.spec.ts',
 ]);

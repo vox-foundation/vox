@@ -4,6 +4,7 @@
   "phases": "307-312",
   "generated_at": "2026-10-25",
   "prior_milestone": "v5.4",
+  "status": "Complete",
   "gems": [
     {
       "id": "pr-vouch-workflow",
@@ -35,22 +36,22 @@
     },
     {
       "id": "live-transfer-budget-sample-json",
-      "status": "Partial",
-      "anchor": "vox ci transfer-budget-report --sample-json (live CI upload wiring still advisory; fixture remains ceiling baseline)",
+      "status": "Shipped",
+      "anchor": "vox ci transfer-budget-report --measure + ci.yml upload thread-transfer-results + thread-transfer-report prefers live artifact",
       "phase": 309,
-      "req": "T3-LIVE-CI-01..02"
+      "req": "T3-LIVE-CI-01..02..04"
     },
     {
       "id": "ci-changes-job-matrix",
       "status": "Shipped",
-      "anchor": "vox ci ci-changes (per-job booleans; PR job skip wiring documented, not yet required in ci.yml)",
+      "anchor": "vox ci ci-changes in ci.yml linux (GITHUB_OUTPUT + summary); ui/nextest flags exported",
       "phase": 309,
       "req": "T3-LIVE-CI-03"
     },
     {
       "id": "test-wall-clock-detector",
       "status": "Shipped",
-      "anchor": "vox/test/wall-clock (Instant/Date/sleep/waitForTimeout)",
+      "anchor": "vox/test/wall-clock",
       "phase": 310,
       "req": "T3-TEST-DET-01..02..04"
     },
@@ -71,35 +72,35 @@
     {
       "id": "inline-schema-compile",
       "status": "Shipped",
-      "anchor": "vox/schema/inline-compile (Info severity; hoist guidance)",
+      "anchor": "vox/schema/inline-compile",
       "phase": 311,
       "req": "T3-HOST-SCHEMA-02"
     },
     {
       "id": "knip-dual-deepen",
-      "status": "Partial",
-      "anchor": "knip-gui retained; dual files+deps + schema preprocessor backlog documented",
+      "status": "Shipped",
+      "anchor": "knip@5.50.0 pinned; dual files+dependencies then exports (exports warn); ui CI + vox ci knip-gui --check",
       "phase": 311,
       "req": "T3-HOST-SCHEMA-03"
     },
     {
       "id": "dom-test-env-ban",
-      "status": "Partial",
-      "anchor": "vox ci dom-test-env-ban (advisory default; --strict fail-closed; ~230 legacy @vitest-environment pragmas remain)",
+      "status": "Shipped",
+      "anchor": "vitest environment jsdom project-wide; 230 per-file pragmas removed; vox ci dom-test-env-ban strict default + linux CI",
       "phase": 311,
       "req": "T3-HOST-SCHEMA-04"
     },
     {
       "id": "sidecar-fingerprint-hash",
       "status": "Shipped",
-      "anchor": ".github/workflows/gui-sidecar-fingerprint.yml content hash + native-sidecar-hash-drift label",
+      "anchor": ".github/workflows/gui-sidecar-fingerprint.yml content hash",
       "phase": 312,
       "req": "T3-FP-GRAPH-01"
     },
     {
       "id": "surface-graph-regen",
-      "status": "Partial",
-      "anchor": "contracts/reports/t3-ecosystem-surface-graph.v1.json (inventory.vox compile regen still deferred; SHAs from v5.4)",
+      "status": "Shipped",
+      "anchor": "contracts/reports/t3-ecosystem-surface-graph.v1.json milestone v5.5; SHAs verified against ~/dev clones; inventory.vox verifier green",
       "phase": 312,
       "req": "T3-FP-GRAPH-02"
     },
@@ -113,10 +114,7 @@
   ],
   "honest_residuals": [
     "ManagePullRequest / Cursor GitHub app missing \u2014 open PR manually",
-    "Live transfer-budget CI artifact upload not yet a required ci.yml step",
-    "ci-changes not yet driving required job if: conditions in ci.yml",
-    "t3-surface-inventory.vox compile regen still deferred",
-    "knip dual + Effect schema preprocessor backlog",
-    "dom-test-env-ban: migrate GUI unit tests off per-file @vitest-environment then enable --strict in CI"
+    "Effect-schema knip preprocessor (t3code scripts/knip-schemas.ts) still backlog \u2014 not required for dual-pass ship",
+    "ci-changes flags exported; full per-job if: short-circuit beyond existing affected-crates remains optional hardening"
   ]
 }

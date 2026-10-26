@@ -13,3 +13,6 @@
 
 ## Deferred
 - Full `scripts/t3-surface-inventory.vox` regen.
+
+## Closure (full)
+- Surface graph milestone v5.5; SHAs verified vs ~/dev clones; scorecard all Shipped.

@@ -5,6 +5,7 @@ const full = {
   description: 'harden the crypto invariants',
   priority: 'urgent', active_skill: 'ponytail', tier: 'cloud',
   dry_run: true, clutch: 'genius', risk: 'low', mode: 'act',
+  oversight_level: '3', kb_scope: 'docs',
   context: [
     { kind: 'file', ref: 'crates/vox-crypto/src/lib.rs' },
     { kind: 'agent', ref: 'A-01' },
@@ -32,6 +33,8 @@ describe('buildChatTurn', () => {
     expect(out.context_files).toEqual(['crates/vox-crypto/src/lib.rs']);
     // Bug 1: mode (plan/act/verify) must reach the wire.
     expect(out.mode).toBe('act');
+    expect(out.oversight_level).toBe('3');
+    expect(out.kb_scope).toBe('docs');
     // Bug 2: priority/dry_run must reach the wire (priority asserted above).
     expect(out.dry_run).toBe(true);
     // Bug 3: the real originating session, not the (possibly synthetic)
@@ -39,6 +42,61 @@ describe('buildChatTurn', () => {
     expect(out.chat_session_id).toBe('real-chat-session');
     expect(out.trace_id).toBeTruthy();
     expect(out.turn_id).toBeTruthy();
+  });
+
+  it('preserves full knob matrix across all execution modes, tiers, clutches, risks, modes, oversight levels, and kb scopes', () => {
+    const executionModes = [
+      { mode: 'chat' as const, expected: 'sync' },
+      { mode: 'task' as const, expected: 'background' },
+      { mode: 'plan' as const, expected: 'plan' },
+    ];
+    const interactionModes = ['plan', 'act', 'verify'];
+    const tiers = ['local', 'mesh', 'cloud', 'auto'];
+    const clutches = ['free', 'efficiency', 'balanced', 'genius'];
+    const risks = ['high', 'moderate', 'low'];
+    const oversights = ['1', '2', '3', '4', '5'];
+    const kbScopes = ['auto', 'docs', 'code', 'memory', 'off'];
+
+    let combinationsTested = 0;
+    for (const exec of executionModes) {
+      for (const mode of interactionModes) {
+        for (const tier of tiers) {
+          for (const clutch of clutches) {
+            for (const risk of risks) {
+              const oversight = oversights[combinationsTested % oversights.length];
+              const kbScope = kbScopes[combinationsTested % kbScopes.length];
+              const out = buildChatTurn(
+                {
+                  description: `test-${combinationsTested}`,
+                  execution_mode: exec.mode,
+                  mode,
+                  tier,
+                  clutch,
+                  risk,
+                  oversight_level: oversight,
+                  kb_scope: kbScope,
+                  dry_run: combinationsTested % 2 === 0,
+                  priority: combinationsTested % 3 === 0 ? 'urgent' : 'normal',
+                },
+                {
+                  sessionId: 'matrix-session',
+                  groundingCheckEnabled: combinationsTested % 2 === 1,
+                },
+              );
+              expect(out.execution).toBe(exec.expected);
+              expect(out.mode).toBe(mode);
+              expect(out.tier).toBe(tier);
+              expect(out.clutch).toBe(clutch);
+              expect(out.risk).toBe(risk);
+              expect(out.oversight_level).toBe(oversight);
+              expect(out.kb_scope).toBe(kbScope);
+              combinationsTested += 1;
+            }
+          }
+        }
+      }
+    }
+    expect(combinationsTested).toBe(3 * 3 * 4 * 4 * 3); // 432 combinations
   });
 
   it('uses pre-minted correlation ids when provided', () => {

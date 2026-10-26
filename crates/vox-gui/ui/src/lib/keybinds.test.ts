@@ -17,7 +17,6 @@ describe('keybinds', () => {
 });
 
 import { formatChord, isEditableTarget, isShortcutHelpKey, paletteActionRows, isMacPlatform } from './keybinds';
-// @vitest-environment jsdom is not set here: build elements via a tiny stub where DOM is not needed.
 const key = (over: Record<string, unknown>) => ({ key: '?', metaKey: false, ctrlKey: false, altKey: false, defaultPrevented: false, target: { tagName: 'DIV', isContentEditable: false, closest: () => null }, ...over }) as any;
 
 describe('show-shortcuts action (D-11)', () => {

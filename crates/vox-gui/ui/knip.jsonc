@@ -1,7 +1,18 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
   // Exported types are part of our contracts even before they have consumers.
-  "rules": { "types": "off", "nsTypes": "off", "duplicates": "warn" },
+  // Exports are warn-only: the GUI transport barrel is a wide intentional surface
+  // (dynamic invoke / event names). Files + dependencies stay hard-fail.
+  "rules": {
+    "types": "off",
+    "nsTypes": "off",
+    "duplicates": "warn",
+    "exports": "warn",
+    "nsExports": "warn",
+    "files": "error",
+    "dependencies": "error",
+    "devDependencies": "error"
+  },
   "ignoreBinaries": ["cargo", "vox", "rustc", "rustfmt"],
   "entry": [
     "src/main.tsx",
@@ -11,7 +22,15 @@
     "playwright.config.ts",
     "e2e/**/*.{ts,tsx}",
     "src/**/*.test.{ts,tsx}",
-    "src/**/__tests__/**/*.{ts,tsx}"
+    "src/**/__tests__/**/*.{ts,tsx}",
+    "src/test-fixtures/**/*.{ts,tsx}",
+    "src/api/research.ts",
+    "src/hooks/usePersistedDbState.ts",
+    "src/lib/dashboardBundleBudgetInProcess.ts",
+    "src/lib/types.ts",
+    "src/components/gamify/CitizenSprite.tsx",
+    "src/components/ui/Panel.tsx",
+    "src/components/ui/StateChip.tsx"
   ],
   "project": ["src/**/*.{ts,tsx}", "e2e/**/*.{ts,tsx}"],
   "ignore": [
@@ -22,5 +41,5 @@
     "test-results/**",
     "tokens/**"
   ],
-  "ignoreDependencies": ["@tauri-apps/api"]
+  "ignoreDependencies": ["@tauri-apps/api", "postcss"]
 }

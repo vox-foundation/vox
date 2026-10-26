@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { buildPaletteItems, DocEntryLike, parsePaletteQuery, SurfaceEntryLike } from './paletteSources';
 import { SettingEntry } from '../surfaces/Settings/settingsIndex';

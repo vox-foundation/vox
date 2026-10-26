@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
@@ -101,5 +100,47 @@ describe('PlanPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /discard/i }));
     expect(onDiscard).toHaveBeenCalledTimes(1);
     expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it('allows adding a standalone to-do step even when planSessionId starts null and toggling/removing steps', () => {
+    render(<PlanPanel planSessionId={null} planVersion={null} nodes={[]} />);
+    expect(screen.getByText(/no to-dos yet/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /\+ add step/i }));
+    const input = screen.getByPlaceholderText(/new step/i);
+    fireEvent.change(input, { target: { value: 'local standalone step' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(screen.getByDisplayValue('local standalone step')).toBeInTheDocument();
+    expect(invoke).toHaveBeenCalledWith('hopper_submit', {
+      intent: 'local standalone step',
+      affinity: [],
+    });
+  });
+
+  it('allows explicit inline editing of an in_progress step via its edit button and syncs status/remove to hopper IPC', () => {
+    render(<PlanPanel planSessionId="ps1" planVersion={3} nodes={nodes} />);
+    expect(screen.getByTestId('plan-panel-cas-rev')).toHaveTextContent(/Synced · v\d+/);
+    expect(screen.getByTestId('plan-panel-progress-svg')).toBeInTheDocument();
+
+    // Click explicit edit button on in_progress step n2
+    fireEvent.click(screen.getByTestId('plan-node-edit-n2'));
+    const editInput = screen.getByDisplayValue('second step');
+    fireEvent.change(editInput, { target: { value: 'second step refined' } });
+    fireEvent.blur(editInput);
+    expect(invoke).toHaveBeenCalledWith('update_plan_node', {
+      input: {
+        plan_session_id: 'ps1',
+        plan_version: 3,
+        node_id: 'n2',
+        description: 'second step refined',
+      },
+    });
+
+    // Toggle n3 (pending) to completed -> calls hopper_mark_done with { itemId: 'n3' }
+    fireEvent.click(screen.getByTestId('plan-node-toggle-n3'));
+    expect(invoke).toHaveBeenCalledWith('hopper_mark_done', { itemId: 'n3' });
+
+    // Remove n1 -> calls hopper_cancel with { itemId: 'n1' }
+    fireEvent.click(screen.getByTestId('plan-node-remove-n1'));
+    expect(invoke).toHaveBeenCalledWith('hopper_cancel', { itemId: 'n1' });
   });
 });

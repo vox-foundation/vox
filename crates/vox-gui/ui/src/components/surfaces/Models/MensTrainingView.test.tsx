@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, waitFor, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
@@ -238,10 +237,13 @@ describe('MensTrainingView', () => {
           },
           organic_scorecard: {
             schema_version: 'mens_organic_search_spoke_scorecard_v1',
-            total_cases: 15,
+            total_cases: 24,
             overall_search_recall_at_5: 1.0,
             overall_mrr: 1.0,
+            overall_unbiased_search_recall_at_5: 1.0,
+            overall_unbiased_mrr: 0.98,
             overall_grounding_ratio: 1.0,
+            overall_distractor_resilience_rate: 1.0,
             overall_compilation_pass_rate: 1.0,
             overall_end_to_end_pass_at_1: 1.0,
             spokes: [
@@ -250,7 +252,24 @@ describe('MensTrainingView', () => {
                 total_cases: 3,
                 search_recall_at_5: 1.0,
                 mean_reciprocal_rank: 1.0,
+                unbiased_search_recall_at_5: 1.0,
+                unbiased_mrr: 1.0,
                 mean_grounding_ratio: 1.0,
+                distractor_resilience_rate: 1.0,
+                syntax_validity_rate: 1.0,
+                semantic_validity_rate: 1.0,
+                compilation_pass_rate: 1.0,
+                end_to_end_pass_at_1: 1.0,
+              },
+              {
+                spoke: 'speech_to_code',
+                total_cases: 3,
+                search_recall_at_5: 1.0,
+                mean_reciprocal_rank: 1.0,
+                unbiased_search_recall_at_5: 1.0,
+                unbiased_mrr: 0.95,
+                mean_grounding_ratio: 1.0,
+                distractor_resilience_rate: 1.0,
                 syntax_validity_rate: 1.0,
                 semantic_validity_rate: 1.0,
                 compilation_pass_rate: 1.0,
@@ -274,7 +293,9 @@ describe('MensTrainingView', () => {
 
     const organicCard = await screen.findByTestId('mens-organic-scorecard');
     expect(organicCard.textContent).toMatch(/Organic Search → Compilation/i);
-    expect(organicCard.textContent).toMatch(/Recall@5 100%/i);
-    expect(organicCard.textContent).toMatch(/15 organic cases/i);
+    expect(organicCard.textContent).toMatch(/Recall@5 100% \(Unbiased 100%\)/i);
+    expect(organicCard.textContent).toMatch(/Distractor 100%/i);
+    expect(organicCard.textContent).toMatch(/24 organic cases/i);
+    expect(organicCard.textContent).toMatch(/speech_to_code/i);
   });
 });

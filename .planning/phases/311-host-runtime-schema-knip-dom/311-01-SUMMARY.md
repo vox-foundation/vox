@@ -15,3 +15,6 @@
 
 ## Deferred
 - Knip dual pass + local pin; DOM pragma migration.
+
+## Closure (full)
+- knip@5.50.0 pinned; dual pass; DOM pragmas stripped; strict default + linux gate.

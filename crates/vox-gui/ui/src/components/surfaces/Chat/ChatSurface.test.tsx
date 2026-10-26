@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -1730,9 +1729,23 @@ describe('session hydration ownership (F18: redundant double hydrate per session
 
     const kbToggle = await screen.findByTestId('kb-context-inspector-toggle');
     fireEvent.click(kbToggle);
-    expect(await screen.findByTestId('kb-context-inspector-drawer')).toHaveTextContent(
-      /Session-Pinned @kb Context Injection/i,
-    );
+    const drawer = await screen.findByTestId('kb-context-inspector-drawer');
+    expect(drawer).toHaveTextContent(/Session-Pinned @kb Context Injection/i);
+
+    // Edit scope, budget cap, and pinned citations inside @kb Context Inspector
+    fireEvent.click(screen.getByTestId('kb-inspector-scope-verified'));
+    expect(drawer).toHaveTextContent(/Scope: @kb:verified/i);
+
+    fireEvent.click(screen.getByTestId('kb-inspector-pin-edit-ctx-1'));
+    const pinEdit = screen.getByTestId('kb-inspector-pin-edit-input');
+    fireEvent.change(pinEdit, { target: { value: '@kb:layers.toml' } });
+    fireEvent.keyDown(pinEdit, { key: 'Enter' });
+    expect(drawer).toHaveTextContent('@kb:layers.toml');
+
+    const addPin = screen.getByTestId('kb-inspector-add-pin-input');
+    fireEvent.change(addPin, { target: { value: 'docs/src/architecture/telemetry-trust-ssot.md' } });
+    fireEvent.click(screen.getByTestId('kb-inspector-add-pin-btn'));
+    expect(drawer).toHaveTextContent('docs/src/architecture/telemetry-trust-ssot.md');
 
     const digestToggle = await screen.findByTestId('inbox-digest-toggle');
     fireEvent.click(digestToggle);

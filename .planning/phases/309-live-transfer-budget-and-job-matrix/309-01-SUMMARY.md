@@ -13,3 +13,7 @@
 
 ## Deferred
 - Required `ci.yml` step to emit/upload live transfer artifact and drive job skips from `ci-changes`.
+
+## Closure (full)
+- `--measure` live wire_compression sample; ci.yml upload + ratchet; thread-transfer prefers artifact.
+- `ci-changes` step on linux with GITHUB_OUTPUT.

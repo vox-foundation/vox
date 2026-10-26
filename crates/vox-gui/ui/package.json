@@ -14,7 +14,9 @@
     "review:capture": "playwright test e2e/review/capture.spec.ts --project=chromium --project=firefox-review --workers=4",
     "review:all": "pnpm review:cv-flywheel && VOX_REVIEW_CAPTURE=1 pnpm review:capture",
     "lint": "tsc --noEmit && vite build",
-    "knip": "knip --config knip.jsonc"
+    "knip": "knip --config knip.jsonc",
+    "knip:files": "knip --config knip.jsonc --include files,dependencies",
+    "knip:exports": "knip --config knip.jsonc --include exports"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -58,7 +60,8 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^5.0.2",
     "vite": "^8.2.2",
-    "vitest": "^3.2.6"
+    "vitest": "^3.2.6",
+    "knip": "5.50.0"
   },
   "pnpm": {
     "overrides": {

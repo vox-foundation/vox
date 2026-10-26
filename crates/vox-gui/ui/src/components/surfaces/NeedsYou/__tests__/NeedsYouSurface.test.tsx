@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
@@ -65,6 +64,10 @@ describe('NeedsYouSurface', () => {
   it('renders an Approvals section from the shared inbox and resolves inline', async () => {
     render(<LanguageProvider><NeedsYouSurface onOpenContext={() => {}} pushToast={() => {}} attention={attention} /></LanguageProvider>);
     expect(await screen.findByText('rm -rf build')).toBeTruthy();
+    expect(screen.getByTestId('needs-you-kpi-strip')).toBeTruthy();
+    expect(screen.getByTestId('needs-you-live-dag')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('needs-you-inspect-diff-A-1'));
+    expect(await screen.findByTestId('needs-you-diff-preview-A-1')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /approve rm -rf build|^approve$/i }));
     await waitFor(() => expect(attention.resolveApproval).toHaveBeenCalledWith('A-1', 'approved'));
   });

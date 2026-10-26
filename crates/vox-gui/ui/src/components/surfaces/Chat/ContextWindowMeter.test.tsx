@@ -1,7 +1,6 @@
-// @vitest-environment jsdom
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import { ContextWindowMeter } from './ContextWindowMeter';
 
 describe('ContextWindowMeter', () => {
@@ -89,5 +88,43 @@ describe('ContextWindowMeter', () => {
       />
     );
     expect(screen.getByText('0%')).toBeInTheDocument();
+  });
+
+  it('renders BPE token slice breakdown, KV prefix-cache badge, and interactive segmented strategy buttons', () => {
+    const onStrategyChange = vi.fn();
+    render(
+      <ContextWindowMeter
+        usedTokens={64_000}
+        maxTokens={128_000}
+        thresholdTokens={102_400}
+        strategy="balanced"
+        onStrategyChange={onStrategyChange}
+      />
+    );
+    const slices = screen.getByTestId('context-meter-bpe-slices');
+    expect(slices).toBeInTheDocument();
+    expect(slices.tagName.toLowerCase()).toBe('svg');
+    expect(screen.getByTestId('context-meter-kv-cache')).toHaveTextContent('86% cached');
+
+    fireEvent.click(screen.getByTestId('context-meter-strategy-conservative'));
+    expect(onStrategyChange).toHaveBeenCalledWith('conservative');
+  });
+
+  it('renders 1-click surgical Clear Tools action button and reclaimed token counter (CONTEXT-SURGERY-03)', () => {
+    const onClearToolOutputs = vi.fn();
+    render(
+      <ContextWindowMeter
+        usedTokens={64_000}
+        maxTokens={128_000}
+        thresholdTokens={102_400}
+        strategy="balanced"
+        reclaimedToolTokens={1_420}
+        onClearToolOutputs={onClearToolOutputs}
+      />
+    );
+    const clearBtn = screen.getByTestId('context-meter-clear-tools-btn');
+    expect(clearBtn).toHaveTextContent('Clear Tools (-1,420)');
+    fireEvent.click(clearBtn);
+    expect(onClearToolOutputs).toHaveBeenCalledTimes(1);
   });
 });

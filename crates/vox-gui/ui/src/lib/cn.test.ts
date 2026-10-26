@@ -20,6 +20,7 @@ describe('cn', () => {
 // survive; on v4 `outline-2` implies solid on its own (codemod: `outline-solid`).
 describe('cn() preserves the focus ring', () => {
   const BUTTON_BASE =
+    // toestub-ignore(vox/ui/layout-and-perf-hazards) -- class merge test fixture
     'inline-flex items-center justify-center font-medium tracking-wide transition-all ' +
     'focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 ' +
     'focus-visible:outline-brass';

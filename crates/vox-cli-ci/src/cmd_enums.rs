@@ -1001,6 +1001,9 @@ pub enum CiCmd {
         /// Optional live sample JSON (`TransferBudgetSample` shape) from CI/test artifact.
         #[arg(long)]
         sample_json: Option<std::path::PathBuf>,
+        /// Measure a live sample via wire_compression (preferred over fixture for CI).
+        #[arg(long)]
+        measure: bool,
     },
     /// Plan (and short-circuit) CI gates for the merge-base diff using
     /// `contracts/ci/changed-path-owners.v1.yaml` (t3code `check:changed` analog).
@@ -1052,9 +1055,9 @@ pub enum CiCmd {
     /// Ban `@vitest-environment` / jsdom imports in unit tests under `crates/vox-gui/ui`.
     #[command(name = "dom-test-env-ban")]
     DomTestEnvBan {
-        /// Fail closed (default is advisory while legacy pragmas remain).
+        /// Print violations but exit 0 (default is fail-closed after pragma migration).
         #[arg(long)]
-        strict: bool,
+        advisory: bool,
     },
     /// GitHub CI state for the current branch (failed/timed-out jobs, slowest
     /// steps) plus open `nightly-failure` issues. Hooks call `--hook` /

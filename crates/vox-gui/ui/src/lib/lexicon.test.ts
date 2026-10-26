@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { LEXICON, pick, labelFor } from './lexicon';
 import { SURFACE_REGISTRY } from '../generated/surfaceRegistry.generated';

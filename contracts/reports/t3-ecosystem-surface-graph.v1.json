@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-10-26T01:21:08Z",
-  "milestone": "v5.4",
-  "phase": 306,
+  "generated_at": "2026-10-26T03:49:52Z",
+  "milestone": "v5.5",
+  "phase": 312,
   "repositories": [
     {
       "id": "t3code",
@@ -346,5 +346,6 @@
   ],
   "notes": [
     "Phase 306: SHAs refreshed from ~/dev clones; inventory.vox regen deferred if compile blockers remain."
-  ]
+  ],
+  "regen_note": "v5.5 Phase 312: SHAs verified against local ~/dev clones (no drift); inventory.vox remains verifier."
 }

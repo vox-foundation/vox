@@ -726,6 +726,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             check,
             baseline,
             sample_json,
+            measure,
         } => vox_cli_ci::transfer_budget_report::run(
             &root,
             vox_cli_ci::transfer_budget_report::TransferBudgetArgs {
@@ -734,6 +735,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 check,
                 baseline,
                 sample_json,
+                measure,
             },
         ),
         CiCmd::VouchedParse { path } => vox_cli_ci::vouched_parse::run(
@@ -762,9 +764,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 github_output,
             },
         ),
-        CiCmd::DomTestEnvBan { strict } => vox_cli_ci::dom_test_env_ban::run(
+        CiCmd::DomTestEnvBan { advisory } => vox_cli_ci::dom_test_env_ban::run(
             &root,
-            vox_cli_ci::dom_test_env_ban::DomTestEnvBanArgs { strict },
+            vox_cli_ci::dom_test_env_ban::DomTestEnvBanArgs { advisory },
         ),
         CiCmd::CheckChanged {
             base,

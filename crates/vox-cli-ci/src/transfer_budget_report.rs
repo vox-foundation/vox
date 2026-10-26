@@ -5,6 +5,8 @@
 
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
+use vox_orchestrator::wire_compression::{compress_wire_snapshot, filter_snapshot_subagent_threads, ThreadFamilyNode};
 use std::path::{Path, PathBuf};
 
 pub const DEFAULT_OUT: &str = "contracts/reports/transfer-budget-ci.v1.json";
@@ -86,6 +88,50 @@ pub fn build_report_with_source(
     }
 }
 
+
+/// Live sample measured the same way as `vox-orchestrator-mcp/tests/transfer_budget.rs`.
+pub fn measure_live_sample() -> TransferBudgetSample {
+    let mut nodes = Vec::new();
+    for i in 0..60 {
+        nodes.push(ThreadFamilyNode {
+            thread_id: format!("thread-{i}"),
+            parent_thread_id: if i % 3 == 0 {
+                None
+            } else {
+                Some("thread-0".to_string())
+            },
+            status: if i % 3 == 0 {
+                "active".to_string()
+            } else {
+                "completed".to_string()
+            },
+        });
+    }
+    let root_only = filter_snapshot_subagent_threads(&nodes, true);
+    let raw_snapshot = json!({
+        "threads": root_only,
+        "model_id": "anthropic/claude-sonnet-4-5",
+        "workspace_id": "ws-vox-primary",
+        "body": "Shared recurring system prompt instructions across turns ".repeat(6),
+        "event_store_command_output_deltas": 0,
+    });
+    let compressed = compress_wire_snapshot(&raw_snapshot);
+    let cold_bytes = serde_json::to_vec(&compressed).map(|v| v.len()).unwrap_or(usize::MAX);
+    let turn_delta = compress_wire_snapshot(&json!({
+        "turn_id": "turn-42",
+        "model_id": "anthropic/claude-sonnet-4-5",
+        "body": "Concise assistant delta chunk.",
+    }));
+    let turn_bytes = serde_json::to_vec(&turn_delta).map(|v| v.len()).unwrap_or(usize::MAX);
+    TransferBudgetSample {
+        cold_open_snapshot_bytes: cold_bytes,
+        cold_open_snapshot_rows: root_only.len(),
+        turn_wire_delta_bytes: turn_bytes,
+        cold_open_sql_statements: 4,
+        event_store_command_output_deltas: 0,
+    }
+}
+
 /// Fixture sample matching the transfer_budget unit test shape (under ceilings).
 pub fn fixture_sample() -> TransferBudgetSample {
     TransferBudgetSample {
@@ -146,6 +192,8 @@ pub struct TransferBudgetArgs {
     pub check: bool,
     pub baseline: PathBuf,
     pub sample_json: Option<PathBuf>,
+    /// Measure a live sample via wire_compression (same shape as MCP transfer_budget test).
+    pub measure: bool,
 }
 
 fn load_sample(path: &Path) -> Result<TransferBudgetSample> {
@@ -161,6 +209,11 @@ pub fn run(root: &Path, args: TransferBudgetArgs) -> Result<()> {
             root.join(sample_path)
         };
         (load_sample(&p)?, format!("live_sample:{}", p.display()))
+    } else if args.measure {
+        (
+            measure_live_sample(),
+            "vox-cli-ci/measure_live_sample (wire_compression; mirrors vox-orchestrator-mcp/tests/transfer_budget.rs)".to_string(),
+        )
     } else {
         (
             fixture_sample(),
@@ -236,6 +289,13 @@ mod tests {
         write_report(&path, &report).unwrap();
         let loaded = load_report(&path).unwrap();
         assert_eq!(loaded, report);
+    }
+
+    #[test]
+    fn measure_live_sample_under_ceilings() {
+        let s = measure_live_sample();
+        let r = build_report_with_source(s, "measure");
+        assert!(r.ok, "live measure exceeded ceilings: {:?}", r.sample);
     }
 
     #[test]

@@ -1,8 +1,6 @@
 //! `vox ci dom-test-env-ban` — ban @vitest-environment / jsdom imports in unit tests.
 //!
-//! Default is advisory (prints violations, exit 0) because the GUI tree still has
-//! many legacy per-file `// @vitest-environment jsdom` pragmas while project config
-//! migrates. Pass `--strict` to fail closed (CI ratchet once baseline is cleared).
+//! Default is **strict** (fail closed). Pass `--advisory` only for migration sweeps.
 
 use anyhow::{Result, bail};
 use std::path::Path;
@@ -24,7 +22,8 @@ fn is_violation(text: &str) -> bool {
 }
 
 pub struct DomTestEnvBanArgs {
-    pub strict: bool,
+    /// When true, print violations but exit 0.
+    pub advisory: bool,
 }
 
 pub fn run(root: &Path, args: DomTestEnvBanArgs) -> Result<()> {
@@ -65,17 +64,17 @@ pub fn run(root: &Path, args: DomTestEnvBanArgs) -> Result<()> {
     if bad.len() > 40 {
         eprintln!("  … and {} more", bad.len() - 40);
     }
-    if args.strict {
-        bail!(
-            "unit tests must not set @vitest-environment / import jsdom — use project config or *.browser.test.* ({} hits; --strict)",
+    if args.advisory {
+        println!(
+            "dom-test-env-ban: advisory ({} hits; omit --advisory to fail closed)",
             bad.len()
         );
+        return Ok(());
     }
-    println!(
-        "dom-test-env-ban: advisory ({} hits; pass --strict to fail closed after pragma migration)",
+    bail!(
+        "unit tests must not set @vitest-environment / import jsdom — use project vitest config or *.browser.test.* ({} hits)",
         bad.len()
     );
-    Ok(())
 }
 
 #[cfg(test)]

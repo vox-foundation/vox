@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, expect, it, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useOnboardingGate } from './useOnboardingGate';

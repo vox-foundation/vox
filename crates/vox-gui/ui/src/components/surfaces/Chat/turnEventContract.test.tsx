@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
@@ -35,6 +34,7 @@ function example(kind: string): TurnEventDto {
 
 function without(event: TurnEventDto, field: string): TurnEventDto {
   const copy: TurnEventDto = { ...event };
+  // toestub-ignore(vox/ui/layout-and-perf-hazards) -- shallow-clone key removal (not V8 dictionary-mode hot path)
   delete copy[field];
   return copy;
 }

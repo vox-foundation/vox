@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import React from 'react';
@@ -345,5 +344,17 @@ describe('Sidebar hide and restore button', () => {
     fireEvent.click(restoreBtn);
     expect(setMode).toHaveBeenCalledWith('default');
     expect(screen.getByRole('navigation', { name: 'Primary navigation' })).toBeInTheDocument();
+  });
+
+  it('groups top-level navigation under the 5 v4.0 domain headers and collapses non-chat child list visually by default (NAV-CONSOLIDATE-01..02)', () => {
+    renderSidebar({ mode: 'default', view: 'dashboard' });
+    expect(screen.getByTestId('sidebar-domain-group-operate-chat')).toBeInTheDocument();
+    expect(screen.getByTestId('sidebar-domain-group-agents-runs')).toBeInTheDocument();
+    expect(screen.getByTestId('sidebar-domain-group-workspace')).toBeInTheDocument();
+    expect(screen.getByTestId('sidebar-domain-group-knowledge')).toBeInTheDocument();
+    expect(screen.getByTestId('sidebar-domain-group-compute-system')).toBeInTheDocument();
+
+    const childList = screen.getByTestId('sidebar-child-list');
+    expect(childList.className).toContain('sr-only');
   });
 });

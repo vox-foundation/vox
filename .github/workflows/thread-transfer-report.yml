@@ -32,6 +32,15 @@ jobs:
             contracts/reports
             .github/workflows
 
+      - name: Download live transfer-budget artifact (preferred)
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: thread-transfer-results
+          path: /tmp/thread-transfer
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
       - name: Resolve PR and post advisory comment
         uses: actions/github-script@v7
         with:
@@ -44,10 +53,12 @@ jobs:
               return;
             }
             const pr = prs[0];
-            const reportPath = path.join(
+            const livePath = "/tmp/thread-transfer/thread-transfer-results.json";
+            const baselinePath = path.join(
               process.cwd(),
               "contracts/reports/transfer-budget-ci.v1.json"
             );
+            const reportPath = fs.existsSync(livePath) ? livePath : baselinePath;
             let body;
             if (fs.existsSync(reportPath)) {
               const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
