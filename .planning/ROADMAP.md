@@ -39,7 +39,8 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] `314-01`: Add the Vox slice and fail closed when the model does not load
+- [ ] `314-01` (Wave 1): Check in the gsm8k_think, math500_think, and vox_think 32-item slices with a pinned loader and an interpreter oracle for Vox golds
+- [ ] `314-02` (Wave 2, after 314-01): Fail closed when the model does not load or any inference error occurs; write `not_scored` with `n: 0`, and commit the scorer
 
 ### Phase 315: Serve Gate (`GATE-01`, `GATE-02`)
 **Goal:** Serve refuses an adapter whose collateral report is missing or worse on accuracy or think-initiation, and the report labels the benches as slices.
