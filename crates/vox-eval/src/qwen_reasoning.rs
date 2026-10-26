@@ -429,4 +429,19 @@ mod tests {
         assert!((s.accuracy - 1.0).abs() < f64::EPSILON);
         assert!((s.think_initiation_rate - 0.5).abs() < f64::EPSILON);
     }
+
+    #[test]
+    fn assistant_body_does_not_double_the_empty_think_block() {
+        let body = assistant_body(&format!("{QWEN_EMPTY_THINK}x"));
+        assert!(body.starts_with(QWEN_EMPTY_THINK));
+        assert!(!body[QWEN_EMPTY_THINK.len()..].starts_with(QWEN_EMPTY_THINK));
+        assert_eq!(body.matches("<think>").count(), 1, "{body:?}");
+    }
+
+    #[test]
+    fn codegen_user_with_an_existing_flag_gets_no_second_flag() {
+        for user in ["a /no_think", "a /think"] {
+            assert_eq!(user_for_mode(user, false), user);
+        }
+    }
 }
