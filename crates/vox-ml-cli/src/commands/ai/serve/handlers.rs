@@ -260,6 +260,7 @@ fn tool_def_description(tool: &serde_json::Value) -> Option<&str> {
 fn flatten_chat_messages(
     messages: &[ChatCompletionMessage],
     tools: Option<&[serde_json::Value]>,
+    lane: vox_eval::qwen_reasoning::Lane,
 ) -> String {
     let mut catalog = String::new();
     if let Some(tools) = tools.filter(|t| !t.is_empty()) {
@@ -283,7 +284,7 @@ fn flatten_chat_messages(
     for (i, message) in messages.iter().enumerate() {
         let mut content = message.content.clone().unwrap_or_default();
         if Some(i) == last_user {
-            content = vox_eval::qwen_reasoning::user_for_mode(&content, false);
+            content = vox_eval::qwen_reasoning::user_for_lane(&content, lane);
         }
         let prefix = if Some(i) == catalog_idx {
             catalog.as_str()
@@ -295,9 +296,11 @@ fn flatten_chat_messages(
             message.role
         ));
     }
-    // Direct-answer generation, matching QLoRA training: prefilled empty think.
+    // The opener depends on the lane: codegen is direct-answer generation,
+    // matching QLoRA training (prefilled empty think); hub/agent leave the
+    // assistant turn open so the model thinks.
     out.push_str("<|im_start|>assistant\n");
-    out.push_str(vox_eval::qwen_reasoning::QWEN_EMPTY_THINK);
+    out.push_str(vox_eval::qwen_reasoning::assistant_opener_for_lane(lane));
     out
 }
 
@@ -321,7 +324,12 @@ pub async fn do_chat_completions(
     Json(req): Json<ChatCompletionRequest>,
 ) -> (StatusCode, Json<ChatCompletionResponse>) {
     let has_tools = req.tools.as_ref().is_some_and(|t| !t.is_empty());
-    let prompt = flatten_chat_messages(&req.messages, req.tools.as_deref());
+    // Task 1 interim: Task 2 of plan 313-03 replaces this with the parsed lane.
+    let prompt = flatten_chat_messages(
+        &req.messages,
+        req.tools.as_deref(),
+        vox_eval::qwen_reasoning::Lane::Codegen,
+    );
 
     let generate_req = GenerateRequest {
         prompt,
@@ -526,7 +534,11 @@ mod chat_completions_tests {
             "type": "function",
             "function": {"name": "get_weather", "description": "looks up the weather"}
         })];
-        let flattened = flatten_chat_messages(&messages, Some(&tools));
+        let flattened = flatten_chat_messages(
+            &messages,
+            Some(&tools),
+            vox_eval::qwen_reasoning::Lane::Codegen,
+        );
         assert!(flattened.contains("get_weather"));
         assert!(flattened.contains("looks up the weather"));
         assert!(flattened.starts_with("<|im_start|>system\nAvailable tools"));
@@ -541,12 +553,86 @@ mod chat_completions_tests {
             role: "user".to_string(),
             content: Some("hi".to_string()),
         }];
-        let flattened = flatten_chat_messages(&messages, None);
+        let flattened =
+            flatten_chat_messages(&messages, None, vox_eval::qwen_reasoning::Lane::Codegen);
         assert!(!flattened.contains("Available tools"));
         assert_eq!(
             flattened,
             "<|im_start|>user\nhi /no_think<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
         );
+    }
+
+    fn chat_msg(role: &str, content: &str) -> ChatCompletionMessage {
+        ChatCompletionMessage {
+            role: role.to_string(),
+            content: Some(content.to_string()),
+        }
+    }
+
+    #[test]
+    fn flatten_chat_messages_hub_and_agent_open_a_bare_thinking_turn() {
+        use vox_eval::qwen_reasoning::Lane;
+        let messages = vec![chat_msg("user", "hi")];
+        for lane in [Lane::Hub, Lane::Agent] {
+            assert_eq!(
+                flatten_chat_messages(&messages, None, lane),
+                "<|im_start|>user\nhi<|im_end|>\n<|im_start|>assistant\n",
+                "lane {lane:?}"
+            );
+        }
+        // Codegen stays today's literal.
+        assert_eq!(
+            flatten_chat_messages(&messages, None, Lane::Codegen),
+            "<|im_start|>user\nhi /no_think<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
+        );
+    }
+
+    #[test]
+    fn flatten_chat_messages_hub_strips_no_think_from_the_last_user_turn_only() {
+        use vox_eval::qwen_reasoning::Lane;
+        // Lane wins over user text: a trailing /no_think cannot flip hub to the direct-answer prefix.
+        let with = flatten_chat_messages(&[chat_msg("user", "hi /no_think")], None, Lane::Hub);
+        let without = flatten_chat_messages(&[chat_msg("user", "hi")], None, Lane::Hub);
+        assert_eq!(with, without);
+        // /think is kept.
+        let think = flatten_chat_messages(&[chat_msg("user", "hi /think")], None, Lane::Hub);
+        assert!(
+            think.contains("<|im_start|>user\nhi /think<|im_end|>"),
+            "{think}"
+        );
+
+        // Multi-turn: only the last user turn and the opener depend on the lane.
+        let convo = vec![
+            chat_msg("system", "S"),
+            chat_msg("user", "a /no_think"),
+            chat_msg("assistant", "b"),
+            chat_msg("user", "c"),
+        ];
+        let marker = "<|im_start|>user\nc";
+        let outs: Vec<String> = [Lane::Codegen, Lane::Hub, Lane::Agent]
+            .into_iter()
+            .map(|l| flatten_chat_messages(&convo, None, l))
+            .collect();
+        let heads: Vec<&str> = outs
+            .iter()
+            .map(|o| &o[..o.rfind(marker).expect("last user turn present")])
+            .collect();
+        assert_eq!(heads[0], heads[1]);
+        assert_eq!(heads[1], heads[2]);
+        assert!(outs[1].contains("<|im_start|>user\na /no_think<|im_end|>"));
+        assert!(outs[1].ends_with("<|im_start|>assistant\n"));
+        assert!(outs[0].ends_with("<think>\n\n</think>\n\n"));
+    }
+
+    #[test]
+    fn flatten_chat_messages_codegen_keeps_user_think_and_the_empty_think_opener() {
+        use vox_eval::qwen_reasoning::Lane;
+        let out = flatten_chat_messages(&[chat_msg("user", "hi /think")], None, Lane::Codegen);
+        assert!(
+            out.contains("<|im_start|>user\nhi /think<|im_end|>"),
+            "{out}"
+        );
+        assert!(out.ends_with("<think>\n\n</think>\n\n"));
     }
 
     /// Spawn a fake worker thread that replies with a fixed string to every
@@ -698,6 +784,7 @@ mod chat_completions_tests {
                 "type": "function",
                 "function": {"name": "get_weather", "description": "looks up the weather"}
             })]),
+            lane: None,
         };
         let (status, Json(resp)) = do_chat_completions(State(state), Json(req)).await;
         assert_eq!(status, StatusCode::OK);
@@ -734,6 +821,7 @@ mod chat_completions_tests {
                 "type": "function",
                 "function": {"name": "get_weather"}
             })]),
+            lane: None,
         };
         let (_status, Json(resp)) = do_chat_completions(State(state), Json(req)).await;
         let message = &resp.choices[0].message;
@@ -759,6 +847,7 @@ mod chat_completions_tests {
             seed: None,
             top_p: None,
             tools: None,
+            lane: None,
         };
         let (status, Json(resp)) = do_chat_completions(State(state), Json(req)).await;
         assert_eq!(status, StatusCode::OK);
