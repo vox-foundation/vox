@@ -12,6 +12,7 @@ pub mod corpus_stats;
 pub mod mens;
 pub mod provenance;
 pub mod qwen_reasoning;
+pub mod reasoning_bench;
 pub mod report;
 pub mod trial_flywheel;
 
