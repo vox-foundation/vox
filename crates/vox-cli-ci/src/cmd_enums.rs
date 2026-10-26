@@ -98,6 +98,13 @@ pub enum CiCmd {
         #[arg(long)]
         write: bool,
     },
+    /// Generate or verify OpenWiki L0–L5 and domain subsystem architecture hubs under docs/src/architecture/subsystems/.
+    #[command(name = "wiki-sync")]
+    WikiSync {
+        /// Write generated subsystem hub pages. Without this flag, verify only.
+        #[arg(long)]
+        write: bool,
+    },
     /// Generate or verify machine-readable GUI coverage classification report.
     #[command(name = "gui-surface-coverage")]
     GuiSurfaceCoverage {
@@ -938,6 +945,27 @@ pub enum CiCmd {
         #[arg(long)]
         exclude: Vec<String>,
     },
+    /// Plan (and short-circuit) CI gates for the merge-base diff using
+    /// `contracts/ci/changed-path-owners.v1.yaml` (t3code `check:changed` analog).
+    /// Inert-only diffs exit 0 without spawning cargo.
+    #[command(name = "check-changed")]
+    CheckChanged {
+        /// Compare against merge-base with this ref (default `origin/main`).
+        #[arg(long, default_value = "origin/main")]
+        base: String,
+        /// Print the owner/gate plan only; never spawn cargo.
+        #[arg(long)]
+        dry_run: bool,
+        /// Newline-delimited changed paths (skip git). Relative to repo root.
+        #[arg(long)]
+        changed: Option<std::path::PathBuf>,
+        /// Override path-owners contract.
+        #[arg(long)]
+        owners: Option<std::path::PathBuf>,
+        /// Write `inert` / `owners` / `file_count` for GitHub Actions `$GITHUB_OUTPUT`.
+        #[arg(long)]
+        github_output: Option<std::path::PathBuf>,
+    },
     /// GitHub CI state for the current branch (failed/timed-out jobs, slowest
     /// steps) plus open `nightly-failure` issues. Hooks call `--hook` /
     /// `--changed-only`; agents never need to run it by hand.
@@ -999,7 +1027,7 @@ pub enum CiCmd {
     /// Install the local Git pre-commit hook to automate line-ending enforcement.
     #[command(name = "install-hooks")]
     InstallHooks,
-    /// Check VoxScript hygiene: run `vox check` on all `.vox` files in `scripts/`.
+    /// Check VoxLang hygiene: run `vox check` on all `.vox` files in `scripts/`.
     ScriptHygiene {
         /// Scan for retired patterns in script bodies.
         #[arg(long)]

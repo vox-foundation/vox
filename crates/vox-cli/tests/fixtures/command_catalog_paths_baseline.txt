@@ -1,3 +1,4 @@
+[lean-ctx] no compression applied (mode=aggressive): output was not smaller than the file — returning full content (3206 tok)
 add
 ars
 ars/share
@@ -58,6 +59,7 @@ ci/canonical-map-verify
 ci/capability-index
 ci/capability-snapshot
 ci/capability-sync
+ci/check-changed
 ci/check-codex-ssot
 ci/check-docs-ssot
 ci/check-links

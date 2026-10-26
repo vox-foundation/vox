@@ -120,6 +120,13 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::GuiCatalogParity => super::gui_catalog_parity::run(&root),
         CiCmd::GuiVersionSync { write } => vox_cli_ci::gui_version_sync::run(&root, write),
         CiCmd::CrateApiSync { write } => vox_cli_ci::crate_api_docs::run(&root, write),
+        CiCmd::WikiSync { write } => {
+            vox_doc_pipeline::pipeline::openwiki::generate_subsystem_hubs(&root, write)
+                .map(|paths| {
+                    println!("wiki-sync OK ({} subsystem hub files)", paths.len());
+                })
+                .map_err(|e| anyhow!(e))
+        }
         CiCmd::GuiSurfaceCoverage { write } => super::gui_surface_coverage::run(&root, write),
         CiCmd::GuiSurfaceRegistry {
             write,
@@ -684,6 +691,22 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 Err(anyhow!("affected-crates exited with code {code}"))
             }
         }
+        CiCmd::CheckChanged {
+            base,
+            dry_run,
+            changed,
+            owners,
+            github_output,
+        } => vox_cli_ci::check_changed::run(
+            &root,
+            vox_cli_ci::check_changed::CheckChangedArgs {
+                base,
+                dry_run,
+                changed,
+                owners_file: owners,
+                github_output,
+            },
+        ),
         CiCmd::Status { hook, changed_only } => {
             super::status::run(super::status::StatusArgs { hook, changed_only })
         }

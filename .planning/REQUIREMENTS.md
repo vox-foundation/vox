@@ -6,14 +6,14 @@
 
 ---
 
-## v5.4 Requirements (0/24 Complete Across Phases 301–306)
+## v5.4 Requirements (4/24 Complete Across Phases 301–306)
 
 ### 1. Phase 301: Change-Gated CI Path Map & `vox ci check-changed` (`T3-CI-CHANGED`)
 
-- [ ] **T3-CI-CHANGED-01**: Port t3code's affected-path decision table (INERT paths + EXTRA_OWNERS / package ownership map) into a Vox contract (`contracts/ci/changed-path-owners.v1.yaml` or equivalent) covering Rust crates, `crates/vox-gui/ui`, workflows, and contracts.
-- [ ] **T3-CI-CHANGED-02**: Ship `vox ci check-changed` (or `scripts/check-changed.vox`) that diffs against merge-base with `origin/main`, runs only the fmt/lint/typecheck/tests mapped to changed owners, and caches a content-addressed pass key like t3code `check:changed`.
-- [ ] **T3-CI-CHANGED-03**: Wire change-gating into GitHub PR `linux`/`ui` jobs so inert doc-only / planning-only diffs skip heavy cargo/playwright work without weakening required contexts.
-- [ ] **T3-CI-CHANGED-04**: Document the owner map + local invocation in `docs/src/ci/runner-contract.md` and add a unit/integration fixture proving an inert path set exits 0 with zero cargo invocations.
+- [x] **T3-CI-CHANGED-01**: Port t3code's affected-path decision table (INERT paths + EXTRA_OWNERS / package ownership map) into a Vox contract (`contracts/ci/changed-path-owners.v1.yaml` or equivalent) covering Rust crates, `crates/vox-gui/ui`, workflows, and contracts.
+- [x] **T3-CI-CHANGED-02**: Ship `vox ci check-changed` (or `scripts/check-changed.vox`) that diffs against merge-base with `origin/main`, runs only the fmt/lint/typecheck/tests mapped to changed owners, and caches a content-addressed pass key like t3code `check:changed`.
+- [x] **T3-CI-CHANGED-03**: Wire change-gating into GitHub PR `linux`/`ui` jobs so inert doc-only / planning-only diffs skip heavy cargo/playwright work without weakening required contexts.
+- [x] **T3-CI-CHANGED-04**: Document the owner map + local invocation in `docs/src/ci/runner-contract.md` and add a unit/integration fixture proving an inert path set exits 0 with zero cargo invocations.
 
 ### 2. Phase 302: Transfer-Budget Artifacts, PR Comments & Weighted Test Sharding (`T3-CI-BUDGET`)
 
@@ -64,7 +64,7 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| `T3-CI-CHANGED-01..04` | Phase 301 | Pending |
+| `T3-CI-CHANGED-01..04` | Phase 301 | Complete |
 | `T3-CI-BUDGET-01..04` | Phase 302 | Pending |
 | `T3-CI-HYGIENE-01..04` | Phase 303 | Pending |
 | `T3-AGENT-OPS-01..04` | Phase 304 | Pending |

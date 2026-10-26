@@ -1,0 +1,43 @@
+# Path ownership map for `vox ci check-changed` (t3code check:changed analog).
+# Inert paths never force cargo/playwright. Owners name logical gate groups;
+# gates list optional check-targets.v1.yaml ids for documentation / planning.
+schema_version: 1
+
+# Paths matching these prefixes (after normalizing to forward slashes) are inert
+# when EVERY changed file matches at least one inert rule AND no non-inert rule.
+inert_prefixes:
+  - ".planning/"
+  - "docs/src/archive/"
+  - "crates/vox-gui/ui/review-bundle/"
+  - "crates/vox-gui/ui/artifacts/"
+
+# Extra ownership: first matching rule wins (ordered). Globs use `*` = one path
+# segment, `**` = any depth. Owners are logical groups consumed by check-changed.
+owners:
+  - glob: "crates/vox-gui/**"
+    owners: [gui]
+    gates: [gui-coverage-gate]
+  - glob: ".github/workflows/**"
+    owners: [workflows, rust]
+    gates: [workflow-concurrency-guard]
+  - glob: "contracts/**"
+    owners: [contracts, rust]
+    gates: [ssot-drift]
+  - glob: "crates/**"
+    owners: [rust]
+    gates: [fmt, clippy]
+  - glob: "docs/src/**"
+    owners: [docs]
+    gates: [doc-frontmatter]
+  - glob: "scripts/**"
+    owners: [scripts, rust]
+    gates: []
+  - glob: "Cargo.toml"
+    owners: [rust]
+    gates: [fmt]
+  - glob: "Cargo.lock"
+    owners: [rust]
+    gates: [fmt]
+  - glob: "**/*"
+    owners: [misc]
+    gates: []

@@ -324,7 +324,7 @@
 3. PR jobs skip heavy work for inert path sets while required contexts remain honest.
 4. Docs in `runner-contract.md` show the local command and ownership rules.
 **Plans:**
-- [ ] `301-01`: Define owner map + implement `check-changed` + CI wiring + docs/tests
+- [x] `301-01`: Define owner map + implement `check-changed` + CI wiring + docs/tests
 
 ### Phase 302: Transfer-Budget Artifacts, PR Comments & Weighted Test Sharding (`T3-CI-BUDGET-01..04`)
 
@@ -392,7 +392,7 @@
 
 | Phase | Title | Plans | Status |
 |---|---|---|---|
-| **Phase 301** | Change-Gated CI Path Map & `vox ci check-changed` | `0/1` | Pending |
+| **Phase 301** | Change-Gated CI Path Map & `vox ci check-changed` | `1/1` | Complete |
 | **Phase 302** | Transfer-Budget Artifacts, PR Comments & Weighted Test Sharding | `0/1` | Pending |
 | **Phase 303** | Knip Dual Gate, PR Size Labels & Evidence-Asset Ban | `0/1` | Pending |
 | **Phase 304** | Agent-Ops Kill-Safety, Hit-Every-Surface Checklist & Worktree Isolation | `0/1` | Pending |

@@ -46,6 +46,7 @@ pub use helpers::{
     resolve_tool,
 };
 pub mod affected_cmd;
+pub mod check_changed;
 pub mod agentskills_compliance;
 pub mod ai_fixtures_coverage;
 pub mod attention_ledger_parity;
