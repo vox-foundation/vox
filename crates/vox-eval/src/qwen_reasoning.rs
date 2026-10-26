@@ -146,13 +146,18 @@ pub fn thinking_mode_prompt(question: &str) -> String {
     format!("<|im_start|>user\n{question}<|im_end|>\n<|im_start|>assistant\n")
 }
 
-/// Text after the last `</think>`, or the whole completion when there is none.
+/// Text after the last `</think>`. A completion that opens `<think>` and never
+/// closes it (truncated reasoning) has no final answer, so the region is empty.
+/// A completion that does not open a think tag is returned trimmed.
 #[must_use]
 pub fn answer_region(completion: &str) -> &str {
-    completion
-        .rfind("</think>")
-        .map(|i| completion[i + "</think>".len()..].trim())
-        .unwrap_or(completion.trim())
+    if let Some(i) = completion.rfind("</think>") {
+        return completion[i + "</think>".len()..].trim();
+    }
+    if completion.trim_start().starts_with("<think>") {
+        return "";
+    }
+    completion.trim()
 }
 
 /// Grade a completion against a gold final answer.
@@ -247,17 +252,31 @@ fn parse_number(s: &str) -> Option<f64> {
     t.parse::<f64>().ok().filter(|n| n.is_finite())
 }
 
+/// True when the comma at `comma` is a thousands separator: exactly three
+/// digits follow it and no further digit after those.
+fn is_thousands_group(bytes: &[u8], comma: usize) -> bool {
+    let group = bytes.get(comma + 1..comma + 4);
+    group.is_some_and(|g| g.iter().all(u8::is_ascii_digit))
+        && !bytes.get(comma + 4).is_some_and(u8::is_ascii_digit)
+}
+
 fn last_number(s: &str) -> Option<f64> {
     let mut last: Option<f64> = None;
     let bytes = s.as_bytes();
     let mut i = 0;
     while i < bytes.len() {
         let start = i;
-        if bytes[i] == b'-' && i + 1 < bytes.len() && bytes[i + 1].is_ascii_digit() {
+        let signed = bytes[i] == b'-'
+            && i + 1 < bytes.len()
+            && bytes[i + 1].is_ascii_digit()
+            && !(i > 0 && bytes[i - 1].is_ascii_alphanumeric());
+        if signed {
             i += 1;
         }
         if i < bytes.len() && bytes[i].is_ascii_digit() {
-            while i < bytes.len() && (bytes[i].is_ascii_digit() || bytes[i] == b',') {
+            while i < bytes.len()
+                && (bytes[i].is_ascii_digit() || (bytes[i] == b',' && is_thousands_group(bytes, i)))
+            {
                 i += 1;
             }
             if i < bytes.len() && bytes[i] == b'.' {
@@ -443,5 +462,56 @@ mod tests {
         for user in ["a /no_think", "a /think"] {
             assert_eq!(user_for_mode(user, false), user);
         }
+    }
+
+    #[test]
+    fn unterminated_think_grades_as_no_answer() {
+        assert_eq!(answer_region("<think>\n... so 42"), "");
+        assert_eq!(answer_region("  \n<think>\nstill going 42"), "");
+        assert!(!grade_final_answer("<think>\n... so 42", "42"));
+        assert!(!grade_final_answer("<think>\nplan\nanswer", "answer"));
+    }
+
+    #[test]
+    fn closed_think_and_plain_completions_keep_their_answer_region() {
+        assert_eq!(answer_region("<think>\nplan\n</think>\n\n 42 \n"), "42");
+        assert_eq!(answer_region("<think>a</think> x <think>b</think> 7"), "7");
+        assert_eq!(answer_region("  just 42  "), "just 42");
+        assert!(grade_final_answer("<think>\nplan\n</think>\n\n42", "42"));
+        assert!(grade_final_answer("so 42", "42"));
+    }
+
+    #[test]
+    fn last_number_does_not_glue_comma_lists() {
+        assert_eq!(last_number("the answers are 1,2,3"), Some(3.0));
+        assert_eq!(last_number("5,6"), Some(6.0));
+        assert_eq!(last_number("1,2345"), Some(2345.0));
+        assert!(!grade_final_answer("the answers are 1,2,3", "123"));
+        assert!(grade_final_answer("the answers are 1,2,3", "3"));
+    }
+
+    #[test]
+    fn last_number_keeps_thousands_separators() {
+        assert_eq!(last_number("1,234"), Some(1234.0));
+        assert_eq!(last_number("total 1,234,567 units"), Some(1_234_567.0));
+        assert_eq!(last_number("1,234.5"), Some(1234.5));
+        assert!(grade_final_answer("it costs $1,234", "1234"));
+    }
+
+    #[test]
+    fn last_number_hyphen_inside_a_token_is_not_a_sign() {
+        assert_eq!(last_number("2024-05-01"), Some(1.0));
+        assert_eq!(last_number("3-4"), Some(4.0));
+        assert_eq!(last_number("x-5"), Some(5.0));
+        assert!(!grade_final_answer("3-4", "-4"));
+        assert!(grade_final_answer("3-4", "4"));
+    }
+
+    #[test]
+    fn last_number_leading_minus_is_still_a_sign() {
+        assert_eq!(last_number("-5"), Some(-5.0));
+        assert_eq!(last_number("temp is -5"), Some(-5.0));
+        assert_eq!(last_number("(-5)"), Some(-5.0));
+        assert!(grade_final_answer("the result is -12", "-12"));
     }
 }
