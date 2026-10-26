@@ -17,10 +17,8 @@ struct AllowFile {
 struct AllowEntry {
     workflow: String,
     #[serde(default)]
-    #[allow(dead_code)]
     owner: String,
     #[serde(default)]
-    #[allow(dead_code)]
     reason: String,
 }
 
@@ -50,6 +48,17 @@ pub fn run(root: &Path, args: PreviewTrustArgs) -> Result<()> {
     let allow: AllowFile = serde_yaml::from_str(&raw)?;
     if allow.schema_version != 1 {
         bail!("unsupported schema_version {}", allow.schema_version);
+    }
+    for e in &allow.allowlist {
+        if e.workflow.trim().is_empty() {
+            bail!("preview-trust allowlist entry missing workflow");
+        }
+        if e.owner.trim().is_empty() || e.reason.trim().is_empty() {
+            bail!(
+                "preview-trust allowlist entry for '{}' requires non-empty owner and reason",
+                e.workflow
+            );
+        }
     }
     let allowed: std::collections::BTreeSet<_> =
         allow.allowlist.iter().map(|e| e.workflow.clone()).collect();

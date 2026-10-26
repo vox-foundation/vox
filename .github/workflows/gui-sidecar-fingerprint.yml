@@ -59,13 +59,25 @@ jobs:
           fi
 
           # Content hash of stable fingerprint inputs (head vs base) — t3code fingerprint:generate analog.
+          # Hash blob *contents* (not just path names). Prefer grep over rg (not on ubuntu-latest by default).
           hash_tree() {
             local ref="$1"
             {
-              git show "$ref:Cargo.lock" 2>/dev/null | rg -n 'name = "(vox-gui|vox-cli|tauri)"' -A2 || true
-              git show "$ref:crates/vox-gui/tauri.conf.json" 2>/dev/null || true
-              git show "$ref:crates/vox-gui/Cargo.toml" 2>/dev/null || true
-              git ls-tree -r --name-only "$ref" -- crates/vox-gui/src crates/vox-gui/capabilities 2>/dev/null || true
+              echo "ref:${ref}"
+              git show "$ref:Cargo.lock" 2>/dev/null | grep -E -A2 'name = "(vox-gui|vox-cli|tauri)"' || true
+              for p in \
+                crates/vox-gui/tauri.conf.json \
+                crates/vox-gui/Cargo.toml \
+                crates/vox-cli/Cargo.toml \
+                scripts/gui-build.vox \
+                .github/workflows/gui-sidecar-fingerprint.yml
+              do
+                echo "=== ${p} ==="
+                git show "${ref}:${p}" 2>/dev/null || true
+              done
+              # Include sorted blob ids for gui src/capabilities so renames/edits drift the hash.
+              git ls-tree -r "$ref" -- crates/vox-gui/src crates/vox-gui/capabilities crates/vox-gui/ui/src 2>/dev/null \
+                | awk '{print $3, $4}' || true
             } | shasum -a 256 | awk '{print $1}'
           }
           head_hash=$(hash_tree HEAD)

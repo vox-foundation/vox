@@ -63,12 +63,33 @@ impl DetectionRule for TestWallClockDetector {
         if !scan {
             return out;
         }
+        // Scope wall-clock checks to test paths, or to `#[cfg(test)]` modules only
+        // (brace-depth bounded — do not leave the flag sticky for the rest of the file).
         let mut in_cfg_test = in_test_path(&path);
+        let mut cfg_test_depth: i32 = 0;
+        let mut awaiting_cfg_test_block = false;
         for (idx, line) in file.lines.iter().enumerate() {
             let line_num = idx + 1;
             let trimmed = line.trim();
             if trimmed.contains("#[cfg(test)]") {
+                awaiting_cfg_test_block = true;
+            }
+            if awaiting_cfg_test_block
+                && (trimmed.starts_with("mod ")
+                    || trimmed.starts_with("fn ")
+                    || trimmed.contains("{"))
+            {
                 in_cfg_test = true;
+                awaiting_cfg_test_block = false;
+                cfg_test_depth = 0;
+            }
+            if in_cfg_test && !in_test_path(&path) {
+                cfg_test_depth += trimmed.chars().filter(|c| *c == '{').count() as i32;
+                cfg_test_depth -= trimmed.chars().filter(|c| *c == '}').count() as i32;
+                if cfg_test_depth <= 0 && trimmed.contains('}') {
+                    in_cfg_test = false;
+                    cfg_test_depth = 0;
+                }
             }
             if !in_cfg_test && !in_test_path(&path) {
                 continue;
@@ -135,5 +156,22 @@ mod tests {
             "await page.waitForTimeout(500);\n".to_string(),
         );
         assert!(!d.detect(&f, None).is_empty());
+    }
+
+    #[test]
+    fn does_not_flag_production_after_cfg_test_module() {
+        let d = TestWallClockDetector::new();
+        let src = concat!(
+            "#[cfg(test)]\n",
+            "mod tests {\n",
+            "  #[test] fn t() {}\n",
+            "}\n",
+            "pub fn prod() { let _ = Instant::now(); }\n",
+        );
+        let f = SourceFile::new(PathBuf::from("crates/foo/src/lib.rs"), src.to_string());
+        assert!(
+            d.detect(&f, None).is_empty(),
+            "Instant::now after closed #[cfg(test)] mod must not be flagged"
+        );
     }
 }

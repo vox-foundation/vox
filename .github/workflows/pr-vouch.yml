@@ -91,6 +91,7 @@ jobs:
         with:
           user: ${{ matrix.target.user }}
           allow-fail: true
+          vouched-file: .github/VOUCHED.td
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

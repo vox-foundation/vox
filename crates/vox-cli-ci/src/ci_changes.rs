@@ -41,6 +41,13 @@ fn git_names(root: &Path, base: &str) -> Result<Vec<String>> {
         ])
         .output()
         .context("git diff")?;
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        anyhow::bail!(
+            "git diff --name-only {base} failed (status={}): {stderr}",
+            out.status
+        );
+    }
     Ok(String::from_utf8_lossy(&out.stdout)
         .lines()
         .filter(|l| !l.is_empty())
@@ -67,7 +74,7 @@ pub fn run(root: &Path, args: CiChangesArgs) -> Result<()> {
             .filter(|l| !l.is_empty())
             .collect::<Vec<_>>()
     } else {
-        git_names(root, &args.base).unwrap_or_default()
+        git_names(root, &args.base)?
     };
 
     let mut flags: BTreeMap<&str, bool> = [
