@@ -3,7 +3,7 @@
 # Roadmap: v5.6 — Reasoning Where the Lane Needs It
 
 **Milestone:** v5.6
-**Status:** Phase 314 planned — ready to execute
+**Status:** Phase 314 complete — ready for phase 315
 **Updated:** 2026-10-26
 
 ### Phase 313: Lane Prefix (`LANE-01`, `LANE-02`)
@@ -39,8 +39,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] `314-01` (Wave 1): Check in the gsm8k_think, math500_think, and vox_think 32-item slices with a pinned loader and an interpreter oracle for Vox golds
-- [ ] `314-02` (Wave 2, after 314-01): Fail closed when the model does not load or any inference error occurs; write `not_scored` with `n: 0`, and commit the scorer
+- [x] `314-01` (Wave 1): Check in the gsm8k_think, math500_think, and vox_think 32-item slices with a pinned loader and an interpreter oracle for Vox golds (completed 2026-10-26)
+- [x] `314-02` (Wave 2, after 314-01): Fail closed when the model does not load or any inference error occurs; write `not_scored` with `n: 0`, and commit the scorer (completed 2026-10-26)
 
 ### Phase 315: Serve Gate (`GATE-01`, `GATE-02`)
 **Goal:** Serve refuses an adapter whose collateral report is missing or worse on accuracy or think-initiation, and the report labels the benches as slices.
@@ -73,7 +73,7 @@ Plans:
 | Phase | Name | Plans | Status |
 |---|---|---|---|
 | **Phase 313** | Lane Prefix | `4/4` | Complete |
-| **Phase 314** | Held-out Reasoning Set | `0/2` | Planned |
+| **Phase 314** | Held-out Reasoning Set | `2/2` | Complete |
 | **Phase 315** | Serve Gate | `0/1` | Not started |
 | **Phase 316** | Before/After Comparison | `0/1` | Not started |
 

@@ -14,8 +14,8 @@
 ### Before/after set (`BENCH`)
 
 - [ ] **BENCH-01**: The same checked-in GSM8K slice and MATH-500 slice are scored for the base model and for an adapter. Accuracy and think-initiation are stored as separate keys.
-- [ ] **BENCH-02**: A held-out Vox slice with checkable answers is scored the same way. Its items are not the fixed three-line Plan / Syntax / Implementation template.
-- [ ] **BENCH-03**: A missing model or a failed load writes no passing score. The report records how many items were scored.
+- [x] **BENCH-02**: A held-out Vox slice with checkable answers is scored the same way. Its items are not the fixed three-line Plan / Syntax / Implementation template.
+- [x] **BENCH-03**: A missing model or a failed load writes no passing score. The report records how many items were scored.
 
 ### Serve gate (`GATE`)
 
@@ -43,8 +43,8 @@
 | `LANE-01` | Phase 313 | Complete |
 | `LANE-02` | Phase 313 | Complete |
 | `BENCH-01` | Phase 316 | Pending |
-| `BENCH-02` | Phase 314 | Pending |
-| `BENCH-03` | Phase 314 | Pending |
+| `BENCH-02` | Phase 314 | Complete |
+| `BENCH-03` | Phase 314 | Complete |
 | `GATE-01` | Phase 315 | Pending |
 | `GATE-02` | Phase 315 | Pending |
 

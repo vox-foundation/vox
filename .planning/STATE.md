@@ -2,29 +2,29 @@
 gsd_state_version: "1.0"
 milestone: v5.6
 milestone_name: Reasoning Where the Lane Needs It
-current_phase: 314
-current_phase_name: Held-out Reasoning Set
-status: verifying
+current_phase: 315
+current_phase_name: Serve Gate
+status: ready
 last_updated: "2026-10-26T23:41:08.000Z"
 last_activity: 2026-10-26
-last_activity_desc: Phase 314 WR-01 fixed; verifier next
+last_activity_desc: Phase 314 verified passed; phase 315 ready to discuss
 state_head: 0da0d1fcbd298c382564ac4690f3c0decbf64210
 progress:
   total_phases: 4
-  completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
-  percent: 25
+  completed_phases: 2
+  total_plans: 8
+  completed_plans: 6
+  percent: 50
 ---
 
 # Project State: Unified Workstream
 
 ## Current Position
 
-Phase: 314 (Held-out Reasoning Set) — verification in progress
-Plan: 2/2 summaries committed
-Status: WR-01 fixed in 3bbaf52db. WR-02 and WR-03 deferred. Verifier next.
-Last activity: 2026-10-26 — Phase 314 security report written
+Phase: 315 (Serve Gate) — ready to discuss
+Plan: not started
+Status: Phase 314 verified passed (8/8). No model score was written.
+Last activity: 2026-10-26 — Phase 314 marked complete
 
 ## Milestone History (Recent)
 
@@ -41,7 +41,7 @@ Last activity: 2026-10-26 — Phase 314 security report written
 
 ## Next Step
 
-Verifier for phase 314. Phases 315 and 316 are not started.
+Discuss phase 315 grey areas, then research. Phase 316 is not started.
 
 ## v5.5 Autonomous Progress (2026-10-25 America/Phoenix)
 
