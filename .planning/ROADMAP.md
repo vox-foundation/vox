@@ -1,5 +1,55 @@
 # Roadmap: Vox Unified Workstream
 
+# Roadmap: v5.5 — T3 CI/TOESTUB Deep Enforcement (`Phases 307–312`)
+
+**Milestone:** v5.5
+**Status:** Planning complete — ready for `/gsd-plan-phase 307`
+**Updated:** 2026-10-26T01:59:06Z
+
+### Phase 307: PR Vouch & Contributor Trust Gate (`T3-TRUST-01..04`)
+**Directory:** `phases/307-pr-vouch-and-contributor-trust/`
+**Goal:** Add `.github/VOUCHED.td` (or `contracts/ci/vouched.v1.yaml`) SSOT for trusted/denounced GitHub logins, documented in AGE…
+- [ ] `307-01`: Implement T3-TRUST requirements
+
+### Phase 308: Preview/Privileged Workflow Trust-Split Policy (`T3-PREVIEW-01..04`)
+**Directory:** `phases/308-preview-trust-split-policy/`
+**Goal:** Author `docs/src/ci/privileged-preview-trust-split.md` capturing t3code relay pattern: deploy may run PR code only under…
+- [ ] `308-01`: Implement T3-PREVIEW requirements
+
+### Phase 309: Live Transfer-Budget Measurement & Job-Matrix Change Detector (`T3-LIVE-CI-01..04`)
+**Directory:** `phases/309-live-transfer-budget-and-job-matrix/`
+**Goal:** Replace fixture-only `transfer-budget-report` CI path with artifact emission from real `vox-orchestrator-mcp` transfer-b…
+- [ ] `309-01`: Implement T3-LIVE-CI requirements
+
+### Phase 310: TOESTUB Test-Discipline Detectors (Wall-Clock, Real-Wait, Loop, Frame) (`T3-TEST-DET-01..04`)
+**Directory:** `phases/310-test-discipline-detectors/`
+**Goal:** Extend `test_clock_and_skip` (or new detector) to flag wall-clock reads in tests: `Instant::now`, `SystemTime::now`, `Da…
+- [ ] `310-01`: Implement T3-TEST-DET requirements
+
+### Phase 311: Host-Runtime Boundary, Schema Hoist, Knip Dual & DOM-Env Discipline (`T3-HOST-SCHEMA-01..04`)
+**Directory:** `phases/311-host-runtime-schema-knip-dom/`
+**Goal:** New detector banning direct host platform/arch probes outside allowlisted host crates (`std::env::consts::{OS,ARCH}`, `p…
+- [ ] `311-01`: Implement T3-HOST-SCHEMA requirements
+
+### Phase 312: Sidecar Fingerprint Hash Compare, Surface Graph Regen & v5.5 Scorecard (`T3-FP-GRAPH-01..04`)
+**Directory:** `phases/312-fingerprint-hash-graph-scorecard/`
+**Goal:** Upgrade `gui-sidecar-fingerprint.yml` from path-diff labeling to content hash of native/sidecar inputs (Cargo.lock subse…
+- [ ] `312-01`: Implement T3-FP-GRAPH requirements
+
+### Progress
+
+| Phase | Name | Plans | Status |
+|---|---|---|---|
+| **Phase 307** | PR Vouch & Contributor Trust Gate | `0/1` | Pending |
+| **Phase 308** | Preview/Privileged Workflow Trust-Split Policy | `0/1` | Pending |
+| **Phase 309** | Live Transfer-Budget Measurement & Job-Matrix Change Detector | `0/1` | Pending |
+| **Phase 310** | TOESTUB Test-Discipline Detectors (Wall-Clock, Real-Wait, Loop, Frame) | `0/1` | Pending |
+| **Phase 311** | Host-Runtime Boundary, Schema Hoist, Knip Dual & DOM-Env Discipline | `0/1` | Pending |
+| **Phase 312** | Sidecar Fingerprint Hash Compare, Surface Graph Regen & v5.5 Scorecard | `0/1` | Pending |
+
+---
+
+
 ## Milestones
 
 - ✅ **v5.3 (`Phases 295–300`, `24/24` requirements — Complete 2026-10-25; CV residual):** Photorealistic Edge-Softening, Continuous Monumental Aqueduct-to-Sewer Architecture, Sub-Surface Ground Integration & CV Flywheel Score Maximization — [Requirements](REQUIREMENTS.md) | [Architecture Spec](../docs/src/architecture/urbs-photorealistic-edge-softening-and-cv-maximization-spec-2026.md)

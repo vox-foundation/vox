@@ -30,63 +30,18 @@ Vox is a mature, actively-developed cross-platform Rust workspace (138+ crates) 
 
 The compiler, orchestrator, runtime, knowledge base, and public documentation site (`voxlang.org`) that everything else depends on must keep building, staying verified, and passing CI from a single unified worktree (`/Users/brbrainerd/dev/vox`), while remaining **100% functional offline/standalone** with zero dependency on `vox-ops` and **100% transparent, disableable, strongly-typed telemetry**.
 
-## Current Milestone: v5.4 — T3 CI/TOESTUB Enforcement Deep-Extraction & Harness Policy Hardening (`Phases 301–306`)
+## Current Milestone: v5.5 — T3 CI/TOESTUB Deep Enforcement (`Phases 307–312`)
 
-**Goal:** Close the remaining t3code/t3.chat extraction gap by porting change-gated CI, transfer-budget reporting, knip/PR-size/evidence hygiene, agent-ops kill-safety + multi-surface checklists, and TOESTUB/oxlint-parity detectors into Vox's harness gates — without redoing v3.9/v4.5–v5.1 runtime extractions.
+**Goal:** Deeper t3code extraction beyond v5.4 — contributor vouch, privileged preview trust-split, live transfer-budget + job-matrix CI, test wall-clock/real-wait/loop/frame detectors, host-runtime + schema-hoist + knip dual + DOM-env, sidecar fingerprint hashing.
 
 **Target features:**
-- Change-gated local/CI checks (`check:changed` + INERT/EXTRA_OWNERS path map) matching t3code's affected-package matrix
-- Transfer-budget CI artifacts + trusted-branch PR comments; weighted test sharding
-- Knip unused-export dual gate for `vox-gui/ui`; PR size labels (non-test LOC); ban committed PR evidence/screenshots
-- AGENTS.md kill-safety triad + hit-every-surface checklist; worktree setup markers + isolated home
-- TOESTUB: thin-transport / no-rpc-permission-bypass beyond MCP; suppression PRs require human review; wire snapshot ID interning
-- Tauri native fingerprint advisory; Vite+/pnpm layered GUI CI cache; refresh `t3-ecosystem-surface-graph.v1.json` + extraction scorecard
+- PR vouch / VOUCHED trust labels (`mitchellh/vouch` pattern)
+- Preview deploy vs cleanup trust-split policy + CI audit
+- Live transfer-budget artifacts (not fixture theater) + per-job change outputs
+- TOESTUB: wall-clock, real-time waits, test-in-loop, frame waits
+- Host platform/arch boundary + inline schema hoist + knip dual deepen + Vitest env discipline
+- Content-hash sidecar fingerprint + surface-graph regen + v5.5 scorecard
 
-**Evidence / graph:** `~/dev/t3code` (primary), `contracts/reports/t3-ecosystem-surface-graph.v1.json`, store briefs `internal/t3-milestone-gems-brief-2026-10-25.md` + `internal/t3code-ci-lint-gems-audit-2026-10-25.md`
-
-**Planned Phases in `v5.4` (`Phases 301–306`, `24` requirements):**
-- **Change-Gated CI Path Map & `vox ci check-changed` (`Phase 301` — `T3-CI-CHANGED-01..04`)**
-- **Transfer-Budget Artifacts, PR Comments & Weighted Test Sharding (`Phase 302` — `T3-CI-BUDGET-01..04`)**
-- **Knip Dual Gate, PR Size Labels & Evidence-Asset Ban (`Phase 303` — `T3-CI-HYGIENE-01..04`)**
-- **Agent-Ops Kill-Safety, Hit-Every-Surface Checklist & Worktree Isolation (`Phase 304` — `T3-AGENT-OPS-01..04`)**
-- **TOESTUB Thin-Transport, Suppression Review Gate & Snapshot Interning (`Phase 305` — `T3-TOESTUB-ENF-01..04`)**
-- **Tauri Fingerprint Advisory, GUI Cache Layers, Surface Graph Refresh & Scorecard (`Phase 306` — `T3-CI-CLOSE-01..04`)**
-
-## Completed Milestone: v5.3 — Photorealistic Edge-Softening, Continuous Monumental Aqueduct-to-Sewer Architecture, Sub-Surface Ground Integration & CV Flywheel Score Maximization (`Phases 295–300`, `24/24` requirements — Complete 2026-10-25)
-
-**Goal:** Eliminate every remaining sharp polygon cutout, axis-aligned saw-tooth wall crenellation, overlapping street alpha seam, rooftop-crossing screen-space line, and 1px Laplacian PBR noise floor penalty in `VRBS ROMA` (`pbrMaterials.ts`, `lightingAndFx.ts`, `hydraulicNetwork.ts`, `worldRenderer.ts`) while maximizing `@ngi/platform-ssot` CV Flywheel visual scoring (`docs/src/architecture/urbs-photorealistic-edge-softening-and-cv-maximization-spec-2026.md`).
-
-**Planned Phases in `v5.3` (`Phases 295–300`, `24` requirements):**
-- **Feathered Coastal Bathymetry, Smooth Macro-Shaded PBR Materials & Laplacian Noise Suppression (`Phase 295` — `URBS-EDGE-PBR-01..04`)**
-- **True Isometric Molded Curtain Walls, Seamless `Via Silicea` Street Grid & Coffered `Opus Sectile` Forums (`Phase 296` — `URBS-TERRACE-CRAFT-01..04`)**
-- **Cylindrical & Coffered 3D Architectural Realism for Wonders & `T0`–`T3` Insulae (`Phase 297` — `URBS-ARCH-REALISM-01..04`)**
-- **Continuous 3D Monumental `Aqua Claudia` Viaduct & Ground-Integrated Beveled Hydraulic/Sewer Grid (`Phase 298` — `URBS-PLUMBING-3D-01..04`)**
-- **Illuminated Halo-Backed Shape+Color Activity Particles & Interactive Conduit Semiotics (`Phase 299` — `URBS-FLOW-SEMIOTICS-01..04`)**
-- **Comprehensive Unit Tests, Semiotic Critique Audit & Playwright CV Flywheel Score Maximization (`Phase 300` — `URBS-CV-MAX-01..04`)**
-
-## Completed Milestone: v5.2 — Smooth Physically-Grounded Lighting, High-Detail Vitruvian Architecture & Grounds, Integrated Roman Hydraulic/Sewer Grid (`Aquaeductus`, `Fistulae` & `Cloaca Maxima`) & Animated Shape+Color Activity Conduits (`Phases 289–294`, `24/24` requirements)
-
-**Goal:** Eliminate alpha-overlay lighting artifacts and repeating water tile seams, enrich terrace ground architecture (`Cardo`/`Decumanus` street grid, `Opus Sectile` marble forum plazas, vaulted `Substructio` cliff retaining arcades) and `T0`–`T3` building massing (rusticated ground-floor `Fornices` arcades, inter-story `Marcapiano` belt cornices, atrium `Impluvium` rainwater basins, and rooftop `Acroteria` + hypocaust chimneys), integrate the `AQVAE MCP` aqueduct into a city-wide SimCity-style Roman hydraulic supply (`Castellum Divisorium`, pressurized `Fistulae` pipes, bronze sluice valves) and `Cloaca Maxima` sewer/drainage trench network (`hydraulicNetwork.ts`), and animate live activities in progress using multi-channel Color + Geometric Shape flow tokens (`docs/src/architecture/urbs-hydraulic-plumbing-and-detailed-architecture-spec-2026.md`).
-
-**Planned Phases in `v5.2` (`Phases 289–294`, `24` requirements):**
-- **Smooth Ground-Plane-Recessed Lighting, 2D-Feathered Elliptical Sun-Shafts & Periodic Seamless Sea Synthesis (`Phase 289` — `URBS-SMOOTH-LIGHT-01..04`)**
-- **High-Detail Terrace Grounds: Orthogonal `Cardo`/`Decumanus` Streets, `Opus Sectile` Marble Plazas, Vaulted `Substructio` Cliff Arcades & Balustrades (`Phase 290` — `URBS-GROUNDS-01..04`)**
-- **High-Detail Vitruvian Building Architecture (`T0`–`T3`): Rusticated Ground Arcades (`Fornices`), Belt Cornices, Atrium `Impluvia` & `Acroteria` Roofs (`Phase 291` — `URBS-ARCH-DETAIL-01..04`)**
-- **Integrated Roman Hydraulic Plumbing & Sewer Network (`hydraulicNetwork.ts`): `Aquaeductus` Trunk, `Castellum Divisorium`, `Fistulae` Supply Pipes & `Cloaca Maxima` Sewer Trenches/Outfalls (`Phase 292` — `URBS-HYDRAULIC-01..04`)**
-- **Multi-Channel Color + Geometric Shape Animated Activity Conduits (`AQUA PURA` Chevrons, `IGNIS OPERIS` Diamonds, `CLOACA FAULT` Triangles & `VIA VICTORIAE` Seals) (`Phase 293` — `URBS-CONDUIT-ANIM-01..04`)**
-- **Diegetic Hydraulic Sluice-Gate Callouts, Semiotic Consistency Audit, Unit Test Suite & Playwright CV Flywheel Convergence (`Phase 294` — `URBS-SEMIOTICS-CV-01..04`)**
-
-## Completed Parallel Milestone: v5.1 — T3 Ecosystem Wave 5 Deep Review & End-to-End Parity Closure (`Phases 283–288`, `24/24` requirements — Complete 2026-10-25)
-
-**Goal:** Close all 6 defect clusters (`Cluster 1..6` documented in [`docs/src/architecture/t3-vox-wave5-deep-review-and-parity-closure-2026.md`](../docs/src/architecture/t3-vox-wave5-deep-review-and-parity-closure-2026.md)) uncovered by the adversarial deep review of Vox's T3 implementation against `t3code`, `t3router`, `pi-t3chat`, `NotT3Chat`, `t3-chat-tomdoestech`, and `t3-cloneathon`: (1) Prompt Variable Target Fix, Sanitizer Tag Completeness, `ToolRefusalDetector` & Lazy MCP Meta-Tools, (2) Sequenced `ResumableTurnStreamRegistry`, `ThreadRunQueue` Follow-Up/Limit-Recovery Draining, Real `ModelSpec` Cost Ledger & `SessionPrivacyPosture` Enforcement, (3) Worktree Async `tokio::sync::Mutex` Lock Fix, Monotonic Sparse Git Checkpoints, Clean Restore & Real `MultiVariantWorktreePool`, (4) UTF-8 Boundary Safety, Multi-Provider Consensus Synthesizer, Recursive External Session Discovery & Real Guest Share/Diagnostics, (5) Unified `message_id` Correlation Across Tauri & MCP, Live Transcript Edit/Regenerate/Compact, Mid-Turn Steer Composer & `streamWatchdog.ts`, and (6) `vox-code-audit` T3 Detector Catalog Registration, `oxlint-plugin-t3code` Rule Parity & 43-Violation Workspace Remediation.
-
-**Completed Phases in `v5.1` (`Phases 283–288`, `24/24` requirements):**
-- **System Prompt `$variable` Interpolation Fix, Sanitizer Tag Completeness (`<tool_call>`, `<think>`, `<WebFetch>`), `pi-t3chat` `ToolRefusalDetector` (`[SYSTEM TOOL CORRECTION]`), Search Circuit Breaker & `LazyMcpGroupRegistry` (`Phase 283` — `T3-PROMPT-LOOP-01..04`)**
-- **Sequenced `ResumableTurnStreamRegistry`, Full `ThreadRunQueue` (`pop_next_follow_up`, Background Settlement & 429 Recovery), Real `ModelSpec` Cost Accounting (`4h`/Monthly Windows) & `SessionPrivacyPosture` Disk Gate (`Phase 284` — `T3-STREAM-QUEUE-01..04`)**
-- **`DelegationWorktree::create` Async Lock Fix, Persistent `WebhookDedupeAndRateGate`, Monotonic Sparse Git Checkpoints + Clean Restore, Real `MultiVariantWorktreePool` & Compact Snapshot Fix (`Phase 285` — `T3-WORKTREE-CKPT-01..04`)**
-- **UTF-8 Boundary Safety, Multi-Provider Consensus Synthesizer, Depth-4 External Session Discovery (`~/.claude`, `~/.codex`, `~/.cursor`), Real Guest Share Submit/Redeem & Live Diagnostics (`Phase 286` — `T3-TOOLS-HARDENING-01..04`)**
-- **Unified `message_id` & Telemetry Across Tauri/MCP, Live User+Assistant Edit / Executing Regenerate / `✂ Compact Here`, Mid-Turn `[⚡ Steer]` Composer & `streamWatchdog.ts` + `resumeChatStream` (`Phase 287` — `T3-GUI-PIPELINE-01..04`)**
-- **`vox-code-audit` T3 Detector Catalog Registration (`ALL_KNOWN_IDS`), `oxlint-plugin-t3code` Rule Completeness & Zero-Violation Workspace Remediation (`Phase 288` — `T3-AUDIT-PARITY-01..04`)**
 
 ## Active Parallel Milestone: v5.0 — Photorealistic Vitruvian Material, Depth-Shading, Atmospheric Lighting & FX Engine (`Phases 277–282`, `24` requirements)
 

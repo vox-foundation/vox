@@ -1,5 +1,22 @@
 # Milestones
 
+## v5.5 T3 CI/TOESTUB Deep Enforcement — Trust Gates, Live Budgets, Host/Test Detectors & Fingerprint Hashing (Planning: 2026-10-25)
+
+**Phases:** 307–312 · **Requirements:** 0/24
+
+**Goal:** Extract the next tier of t3code CI/oxlint/agent-ops gems beyond v5.4 — PR vouch trust, privileged preview trust-split, live transfer-budget measurement + job-matrix outputs, wall-clock/real-wait/test-in-loop/frame-wait detectors, host-runtime + schema-hoist + knip dual deepen + DOM-env discipline, and true sidecar fingerprint hashing.
+
+**Key deliverables (planned):**
+- **Trust (`Phase 307`):** VOUCHED SSOT + pr-vouch labels
+- **Preview policy (`Phase 308`):** deploy-vs-cleanup trust-split CI audit
+- **Live CI (`Phase 309`):** real transfer artifacts + per-job change outputs
+- **Test detectors (`Phase 310`):** wall-clock / real-wait / loop / frame-wait
+- **Host/schema (`Phase 311`):** process/host boundary, schema hoist, knip dual, DOM-env
+- **Closure (`Phase 312`):** fingerprint hash compare, surface-graph regen, scorecard
+
+---
+
+
 ## v5.4 T3 CI/TOESTUB Enforcement Deep-Extraction & Harness Policy Hardening (Shipped: 2026-10-25)
 
 **Phases planned:** 6 phases (`Phases 301–306`), 24 requirements
