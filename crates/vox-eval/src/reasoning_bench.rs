@@ -9,6 +9,8 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::path::Path;
 
+use crate::qwen_reasoning::ReasoningScore;
+
 /// Number of items in every held-out slice.
 pub const SLICE_SIZE: usize = 32;
 
@@ -93,6 +95,47 @@ pub fn load_slice(path: &Path, expected_n: usize) -> Result<Vec<ReasoningItem>, 
         ));
     }
     Ok(items)
+}
+
+/// Result of one reasoning-bench run: a measured score, or an explicit refusal to
+/// report one. There is no numeric stand-in for "not scored".
+#[derive(Debug, Clone, PartialEq)]
+pub enum BenchOutcome {
+    /// Every requested item was generated and graded.
+    Scored(ReasoningScore),
+    /// The run could not produce a full, error-free score.
+    NotScored {
+        /// Why no score exists (names the failing item or load step).
+        reason: String,
+        /// Number of items the run was supposed to score.
+        n_requested: usize,
+    },
+}
+
+impl BenchOutcome {
+    /// JSON body for `reasoning_report.json`. `NotScored` carries `status`, `n`
+    /// (always 0), `n_requested` and `reason` only: the `accuracy` and
+    /// `think_initiation_rate` keys are absent, never null or zero.
+    #[must_use]
+    pub fn to_json(&self) -> serde_json::Value {
+        match self {
+            BenchOutcome::Scored(s) => serde_json::json!({
+                "status": "scored",
+                "n": s.n,
+                "accuracy": s.accuracy,
+                "think_initiation_rate": s.think_initiation_rate,
+            }),
+            BenchOutcome::NotScored {
+                reason,
+                n_requested,
+            } => serde_json::json!({
+                "status": "not_scored",
+                "n": 0,
+                "n_requested": n_requested,
+                "reason": reason,
+            }),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -363,6 +406,27 @@ mod tests {
                 "vox-think-{i:04} duplicates another program"
             );
         }
+    }
+
+    // ---- 314-02: BenchOutcome ----
+
+    #[test]
+    fn not_scored_json_has_no_score_keys() {
+        let o = BenchOutcome::NotScored {
+            reason: "load failed".to_string(),
+            n_requested: SLICE_SIZE,
+        };
+        let v = o.to_json();
+        assert_eq!(v["status"], "not_scored");
+        assert_eq!(v["n"], 0);
+        assert_eq!(v["n_requested"], 32);
+        assert_eq!(v["reason"], "load failed");
+        let obj = v.as_object().expect("object");
+        assert!(!obj.contains_key("accuracy"), "accuracy key must be absent");
+        assert!(
+            !obj.contains_key("think_initiation_rate"),
+            "think_initiation_rate key must be absent"
+        );
     }
 
     #[test]

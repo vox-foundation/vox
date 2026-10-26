@@ -3189,6 +3189,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_REASONING_EVAL_MAX_TOKENS"
+    owner_crate: "vox-ml-cli"
+    kind: "int"
+    required: false
+    introduced_in: "0.6.0"
+    description: "Generation token cap for thinking-mode reasoning bench scoring in mens collateral-damage evaluation (default 2048; values below 1 are raised to 1)."
   - name: "VOX_REGISTRY_TOKEN"
     owner_crate: "vox-secrets"
     kind: "string"

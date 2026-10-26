@@ -111,6 +111,29 @@ pub fn run_collateral_damage(pre_score_path: PathBuf, post_adapter_path: PathBuf
     Ok(())
 }
 
+fn cached_reasoning_report(
+    bench: &str,
+    items: &Path,
+    adapter: &Path,
+) -> Result<super::reasoning_eval::ReasoningReport> {
+    use std::sync::Mutex;
+    static CACHE: Mutex<Vec<(String, super::reasoning_eval::ReasoningReport)>> =
+        Mutex::new(Vec::new());
+    let key = format!("{}::{bench}", adapter.display());
+    {
+        let guard = CACHE.lock().unwrap_or_else(|err| err.into_inner());
+        if let Some((_, report)) = guard.iter().find(|(k, _)| k == &key) {
+            return Ok(*report);
+        }
+    }
+    let report = super::reasoning_eval::score_reasoning_file(bench, items, adapter)?;
+    CACHE
+        .lock()
+        .unwrap_or_else(|err| err.into_inner())
+        .push((key, report));
+    Ok(report)
+}
+
 /// Score one benchmark against the adapter by running the existing
 /// `vox mens eval-local` harness over `mens/data/<bench>` and reading back its
 /// pass@1. Reusing that harness is deliberate: the post-training score must come
@@ -118,6 +141,19 @@ pub fn run_collateral_damage(pre_score_path: PathBuf, post_adapter_path: PathBuf
 /// what performs the `MlBackend` plugin dispatch and loads the adapter — so an
 /// adapter that cannot be loaded surfaces here as an `Err`, never as a score.
 fn score_bench(bench: &str, adapter: &Path) -> Result<f64> {
+    let (dir_name, want_think_rate) = match bench.strip_suffix("_init") {
+        Some(base) => (base, true),
+        None => (bench, false),
+    };
+    let reasoning = Path::new(BENCH_ROOT).join(dir_name).join("reasoning.jsonl");
+    if reasoning.is_file() {
+        let report = cached_reasoning_report(dir_name, &reasoning, adapter)?;
+        return Ok(if want_think_rate {
+            report.think_initiation_rate
+        } else {
+            report.accuracy
+        });
+    }
     let bench_root = Path::new(BENCH_ROOT).join(bench);
     if !bench_root.join("manifest.json").exists() {
         anyhow::bail!(
