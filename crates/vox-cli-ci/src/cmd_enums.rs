@@ -945,6 +945,23 @@ pub enum CiCmd {
         #[arg(long)]
         exclude: Vec<String>,
     },
+    /// Ban committed GUI evidence/screenshot binaries outside the allowlist.
+    #[command(name = "evidence-asset-ban")]
+    EvidenceAssetBan {
+        /// Override allowlist contract.
+        #[arg(long, default_value = "contracts/ci/evidence-asset-allowlist.v1.yaml")]
+        allowlist: std::path::PathBuf,
+        /// Optional newline-delimited path list (skip git ls-files).
+        #[arg(long)]
+        paths: Option<std::path::PathBuf>,
+    },
+    /// Run knip unused-export gate for `crates/vox-gui/ui`.
+    #[command(name = "knip-gui")]
+    KnipGui {
+        /// Fail when pnpm/knip is unavailable (CI).
+        #[arg(long)]
+        check: bool,
+    },
     /// Emit / ratchet the transfer-budget CI artifact
     /// (`contracts/reports/transfer-budget-ci.v1.json`) from orchestrator-mcp ceilings.
     #[command(name = "transfer-budget-report")]

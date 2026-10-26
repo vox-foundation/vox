@@ -1,5 +1,3 @@
-[lean-ctx] no compression applied (mode=aggressive): output was not smaller than the file — returning full content (3241 tok)
-[lean-ctx] no compression applied (mode=aggressive): output was not smaller than the file — returning full content (3206 tok)
 add
 ars
 ars/share
@@ -105,6 +103,7 @@ ci/doctest-md
 ci/eval-matrix
 ci/eval-matrix/run
 ci/eval-matrix/verify
+ci/evidence-asset-ban
 ci/exec-policy-contract
 ci/fan-in-budget
 ci/feature-matrix
@@ -129,6 +128,7 @@ ci/job-timings
 ci/json-parse-check
 ci/k-complexity-budget
 ci/kill-stuck-tests
+ci/knip-gui
 ci/line-endings
 ci/manifest
 ci/mcp-vox-surface-parity

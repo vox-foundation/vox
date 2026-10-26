@@ -1,0 +1,162 @@
+# Label PRs by effective non-test LOC (t3code pr-size.yml adapted for Vox).
+name: PR Size
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+
+concurrency:
+  group: pr-size-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  prepare-config:
+    name: Prepare PR size config
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      labels_json: ${{ steps.config.outputs.labels_json }}
+    steps:
+      - id: config
+        name: Build PR size label config
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const managedLabels = [
+              { name: "size:XS", color: "0e8a16", description: "0-9 effective changed lines (tests excluded)." },
+              { name: "size:S", color: "5ebd3e", description: "10-29 effective changed lines (tests excluded)." },
+              { name: "size:M", color: "fbca04", description: "30-99 effective changed lines (tests excluded)." },
+              { name: "size:L", color: "fe7d37", description: "100-499 effective changed lines (tests excluded)." },
+              { name: "size:XL", color: "d93f0b", description: "500-999 effective changed lines (tests excluded)." },
+              { name: "size:XXL", color: "b60205", description: "1,000+ effective changed lines (tests excluded)." },
+            ];
+            core.setOutput("labels_json", JSON.stringify(managedLabels));
+
+  label:
+    name: Label PR size
+    needs: prepare-config
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      # pull_request_target: fetch untrusted PR commits only as passive git data.
+      # Do not install deps / run build scripts here.
+      - name: Checkout base repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync PR size label
+        uses: actions/github-script@v7
+        env:
+          PR_SIZE_LABELS_JSON: ${{ needs.prepare-config.outputs.labels_json }}
+        with:
+          script: |
+            const { execFileSync } = require("node:child_process");
+            const issueNumber = context.payload.pull_request.number;
+            const baseSha = context.payload.pull_request.base.sha;
+            const headSha = context.payload.pull_request.head.sha;
+            const managedLabels = JSON.parse(process.env.PR_SIZE_LABELS_JSON ?? "[]");
+            const managedLabelNames = new Set(managedLabels.map((l) => l.name));
+            const testExcludePathspecs = [
+              ":(glob,exclude)**/__tests__/**",
+              ":(glob,exclude)**/test/**",
+              ":(glob,exclude)**/tests/**",
+              ":(glob,exclude)**/e2e/**",
+              ":(glob,exclude)**/*.test.*",
+              ":(glob,exclude)**/*.spec.*",
+              ":(glob,exclude)**/*_test.rs",
+              ":(glob,exclude)**/fixtures/**",
+            ];
+
+            const sumNumstat = (text) =>
+              text
+                .split("\n")
+                .filter(Boolean)
+                .reduce((total, line) => {
+                  const [insRaw = "0", delRaw = "0"] = line.split("\t");
+                  const additions = insRaw === "-" ? 0 : Number.parseInt(insRaw, 10) || 0;
+                  const deletions = delRaw === "-" ? 0 : Number.parseInt(delRaw, 10) || 0;
+                  return total + additions + deletions;
+                }, 0);
+
+            const resolveSizeLabel = (n) => {
+              if (n < 10) return "size:XS";
+              if (n < 30) return "size:S";
+              if (n < 100) return "size:M";
+              if (n < 500) return "size:L";
+              if (n < 1000) return "size:XL";
+              return "size:XXL";
+            };
+
+            execFileSync("git", ["fetch", "--no-tags", "origin", baseSha], { stdio: "inherit" });
+            execFileSync(
+              "git",
+              ["fetch", "--no-tags", "origin", `pull/${issueNumber}/head:refs/remotes/pr-size/${issueNumber}`],
+              { stdio: "inherit" }
+            );
+            const headRef = `refs/remotes/pr-size/${issueNumber}`;
+            const numstat = execFileSync(
+              "git",
+              ["diff", "--numstat", "-M", `${baseSha}...${headRef}`, "--", ".", ...testExcludePathspecs],
+              { encoding: "utf8" }
+            );
+            const total = sumNumstat(numstat);
+            const desired = resolveSizeLabel(total);
+            core.info(`Effective non-test LOC: ${total} → ${desired}`);
+
+            for (const label of managedLabels) {
+              try {
+                await github.rest.issues.getLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: label.name,
+                });
+              } catch (error) {
+                if (error.status === 404) {
+                  await github.rest.issues.createLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    name: label.name,
+                    color: label.color,
+                    description: label.description,
+                  });
+                } else {
+                  throw error;
+                }
+              }
+            }
+
+            const { data: current } = await github.rest.issues.listLabelsOnIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+            });
+            const toRemove = current
+              .map((l) => l.name)
+              .filter((n) => managedLabelNames.has(n) && n !== desired);
+            if (toRemove.length) {
+              for (const name of toRemove) {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  name,
+                });
+              }
+            }
+            if (!current.some((l) => l.name === desired)) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                labels: [desired],
+              });
+            }

@@ -200,7 +200,7 @@ See: [`docs/src/architecture/cryptography-ssot-2026.md`](docs/src/architecture/c
 
 The unified `vox audit` umbrella hosts:
 
-- `vox audit code` — `vox-code-audit` source-policy detectors
+- `vox audit code` — `vox-code-audit` source-policy detectors (see [`docs/src/architecture/t3-vox-toestub-rules-and-enforcement-research-2026.md`](docs/src/architecture/t3-vox-toestub-rules-and-enforcement-research-2026.md) for T3-adapted static detectors, wire/SQL transfer budget gates, and V8/CSS/process hygiene rules)
 - `vox audit arch` — `vox-arch-check`
 - `vox audit retirement` — `vox ci retirement-audit` (planned per CR-L6)
 - `vox audit effort` — AI-judged commit history audit (vox-effort-audit)
@@ -239,7 +239,7 @@ Vox skills are [agentskills.io](https://agentskills.io/specification)-format `SK
 
 See: research [`docs/src/architecture/skill-ecosystem-interop-research-2026-06-12.md`](docs/src/architecture/skill-ecosystem-interop-research-2026-06-12.md); plan [`docs/superpowers/plans/2026-06-12-skill-ecosystem-interop-and-awareness.md`](docs/superpowers/plans/2026-06-12-skill-ecosystem-interop-and-awareness.md).
 
-## VoxScript-First Glue Code (Required)
+## VoxLang-First Glue Code (Required)
 
 All project automation — CI prep, corpus transforms, training pipelines, install helpers, data migrations — MUST be written as `.vox` files and executed via `vox run`. Do **not** introduce new `.ps1`, `.sh`, or `.py` glue scripts.
 
@@ -364,7 +364,7 @@ you are about to query as "rebuild first". Snapshots are pruned with `vox graph 
 
 ## Cross-Platform Shell Discipline (Stable Rules)
 
-> **Scope of the PowerShell preference.** The PS-first stance below is a **host-side allowlisting and output-parsing** preference, not a claim that agents produce better code in PowerShell than Bash. Project automation is **Vox** (see §VoxScript-First Glue Code). See [`docs/src/architecture/terminal-exec-policy-ssot.md`](docs/src/architecture/terminal-exec-policy-ssot.md) for what this policy does and does not claim.
+> **Scope of the PowerShell preference.** The PS-first stance below is a **host-side allowlisting and output-parsing** preference, not a claim that agents produce better code in PowerShell than Bash. Project automation is **Vox** (see §VoxLang-First Glue Code). See [`docs/src/architecture/terminal-exec-policy-ssot.md`](docs/src/architecture/terminal-exec-policy-ssot.md) for what this policy does and does not claim.
 
 - **PowerShell 7 (`pwsh`) when available:** On any host where `pwsh` is installed, prefer it for the **two retained launcher files** and for interactive terminal work, so behavior matches [`contracts/terminal/exec-policy.v1.yaml`](contracts/terminal/exec-policy.v1.yaml) and [`vox shell check`](docs/src/reference/cli.md). On Windows, PowerShell is the default expectation even when only Windows PowerShell 5.1 (`powershell.exe`) is present.
 - **CI vs local:** Repository CI jobs often run under **bash** on Linux self-hosted runners ([`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md)); that does not override the **local/agent** preference for `pwsh` when you have it.
@@ -375,7 +375,7 @@ you are about to query as "rebuild first". Snapshots are pruned with `vox graph 
 - Keep commands decomposed into clear steps when safety or portability is at risk.
 
 Environment-specific overlays (for example Antigravity on Windows) add stricter command-shape rules on top of this base; see [`GEMINI.md`](GEMINI.md). If Claude Code is in use, also see [`CLAUDE.md`](CLAUDE.md) for Claude-specific additions.
-For Cursor-specific rules see [`.cursor/rules/`](.cursor/rules/) — nine `.mdc` rule files covering build environment, CI runner conventions, CLI command registry, cross-platform source hygiene, data storage policy, documentation policy, retired surfaces, secrets policy, and VoxScript-first automation.
+For Cursor-specific rules see [`.cursor/rules/`](.cursor/rules/) — nine `.mdc` rule files covering build environment, CI runner conventions, CLI command registry, cross-platform source hygiene, data storage policy, documentation policy, retired surfaces, secrets policy, and VoxLang-first automation.
 
 Live SSOT (scoped claim + evidence): [`docs/src/architecture/terminal-exec-policy-ssot.md`](docs/src/architecture/terminal-exec-policy-ssot.md). **Vox stdlib vs shells:** [`docs/src/architecture/vox-shell-stdlib-ssot-2026.md`](docs/src/architecture/vox-shell-stdlib-ssot-2026.md) — `std.fs` / `std.process` are argv‑first Rust builtins; they do not lower to PowerShell/bash. Optional A/B eval design (not run, not required): [`docs/src/architecture/agent-shell-fluency-eval-design-2026.md`](docs/src/architecture/agent-shell-fluency-eval-design-2026.md). Archived 2026-Q1 background research is under `docs/src/archive/research-2026-q1/` — do not ingest autonomously per §Archival Protocol.
 
@@ -400,6 +400,12 @@ In Vox, tests are not just regression catchers — they are training data for th
 - **Override:** `// toestub-ignore(skeleton/untested-pub-api) — <reason>` on the line above the `pub fn`, or a structured entry in `contracts/toestub/suppressions.v1.json` with `owner` and `reason`. Suppress only when refactoring is impractical, not to avoid the work.
 
 **Fix companion:** [`docs/src/contributors/toestub-contributor-guide.md`](docs/src/contributors/toestub-contributor-guide.md) has rule-by-rule fix patterns.
+
+## PR Hygiene (Size Labels & Evidence Assets)
+
+- PRs receive a `size:XS`–`size:XXL` label from `.github/workflows/pr-size.yml` based on **non-test** LOC.
+- Do **not** commit GUI review screenshots / `review-bundle` binaries. Approved evidence paths are listed in `contracts/ci/evidence-asset-allowlist.v1.yaml`; enforce with `vox ci evidence-asset-ban`.
+- Unused TS exports: `crates/vox-gui/ui/knip.jsonc` via `vox ci knip-gui` (requires pnpm + knip).
 
 ## Local CI Gate Tiers (SSOT)
 
@@ -596,7 +602,7 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 | `vox-lexer`, `vox-parser`, `vox-hir`, `vox-typeck` | `vox-compiler` (monolith) |
 | `@component fn Name()` | `component Name() {}` |
 | `@endpoint(kind: server\|query\|mutation) fn` (removed v0.6.0) | `server name(...) to T` / `query name(...) to T` / `mutation name(...) to T` (bare-keyword, no `fn`; the at-prefixed forms became hard parse errors 2026-06-30, `cd7cc96874`) |
-| `@py.import` (Python interop) | Removed — Python is no longer a Vox glue surface (see §VoxScript-First Glue Code) |
+| `@py.import` (Python interop) | Removed — Python is no longer a Vox glue surface (see §VoxLang-First Glue Code) |
 | `@native` (decorator) | `@place(native)` |
 | `TURSO_URL` / `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | `VOX_DB_URL` / `VOX_DB_TOKEN` |
 | `recall()` / `recall_async()` (deprecated memory reads) | `MemoryManager::lookup_fact_by_key` (async) or RAG / retrieval bundle — see `crates/vox-orchestrator/src/memory/manager.rs` |
@@ -614,7 +620,7 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 | `ProbeOnlyExecutor` | `InterpExecutor` |
 | `MicroVmRuntime` / `Tier::MicroVm` | interpreter isolation (ADR-048); planner error-path stays |
 | `VoxMeshExecPolicy` (SecretId) | receiver-imposed `--caps` (placement config key survives) |
-| `exec_bundle_b64` | VoxScript source on the mesh stream |
+| `exec_bundle_b64` | VoxLang source on the mesh stream |
 
 Memory-write APIs are not a simple retirement pair: for writing facts, use `MemoryManager::persist_fact`; `sync_to_db()` bulk-syncs `MEMORY.md` → DB only and is **not** a drop-in replacement for `persist_fact`.
 

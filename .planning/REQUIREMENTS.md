@@ -6,7 +6,7 @@
 
 ---
 
-## v5.4 Requirements (8/24 Complete Across Phases 301–306)
+## v5.4 Requirements (12/24 Complete Across Phases 301–306)
 
 ### 1. Phase 301: Change-Gated CI Path Map & `vox ci check-changed` (`T3-CI-CHANGED`)
 
@@ -24,10 +24,10 @@
 
 ### 3. Phase 303: Knip Dual Gate, PR Size Labels & Evidence-Asset Ban (`T3-CI-HYGIENE`)
 
-- [ ] **T3-CI-HYGIENE-01**: Add knip (or equivalent unused-export) dual gate for `crates/vox-gui/ui` with workspace schema mirroring t3code `knip.jsonc` (exported types off, entry allowlist, ignoreBinaries).
-- [ ] **T3-CI-HYGIENE-02**: Ship PR size labeler (XS–XXL) that counts effective non-test LOC (exclude `**/*.{test,spec}.*`, `**/tests/**`, e2e fixtures) via `pull_request_target` + managed labels.
-- [ ] **T3-CI-HYGIENE-03**: Ban committing PR evidence / screenshot / review-bundle binary assets outside approved artifact paths; enforce via `vox ci` detector or git attribute + CI check (t3code pattern: no screenshot spam in PRs).
-- [ ] **T3-CI-HYGIENE-04**: Add CONTRIBUTING/AGENTS guidance for size labels + evidence paths; verify with intentional mutation tests that each gate fails closed.
+- [x] **T3-CI-HYGIENE-01**: Add knip (or equivalent unused-export) dual gate for `crates/vox-gui/ui` with workspace schema mirroring t3code `knip.jsonc` (exported types off, entry allowlist, ignoreBinaries).
+- [x] **T3-CI-HYGIENE-02**: Ship PR size labeler (XS–XXL) that counts effective non-test LOC (exclude `**/*.{test,spec}.*`, `**/tests/**`, e2e fixtures) via `pull_request_target` + managed labels.
+- [x] **T3-CI-HYGIENE-03**: Ban committing PR evidence / screenshot / review-bundle binary assets outside approved artifact paths; enforce via `vox ci` detector or git attribute + CI check (t3code pattern: no screenshot spam in PRs).
+- [x] **T3-CI-HYGIENE-04**: Add CONTRIBUTING/AGENTS guidance for size labels + evidence paths; verify with intentional mutation tests that each gate fails closed.
 
 ### 4. Phase 304: Agent-Ops Kill-Safety, Hit-Every-Surface Checklist & Worktree Isolation (`T3-AGENT-OPS`)
 
@@ -66,7 +66,7 @@
 |-------------|-------|--------|
 | `T3-CI-CHANGED-01..04` | Phase 301 | Complete |
 | `T3-CI-BUDGET-01..04` | Phase 302 | Complete |
-| `T3-CI-HYGIENE-01..04` | Phase 303 | Pending |
+| `T3-CI-HYGIENE-01..04` | Phase 303 | Complete |
 | `T3-AGENT-OPS-01..04` | Phase 304 | Pending |
 | `T3-TOESTUB-ENF-01..04` | Phase 305 | Pending |
 | `T3-CI-CLOSE-01..04` | Phase 306 | Pending |

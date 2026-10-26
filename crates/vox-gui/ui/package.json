@@ -13,7 +13,8 @@
     "review:cv-flywheel": "playwright test e2e/review/cv-flywheel.spec.ts --project=chromium",
     "review:capture": "playwright test e2e/review/capture.spec.ts --project=chromium --project=firefox-review --workers=4",
     "review:all": "pnpm review:cv-flywheel && VOX_REVIEW_CAPTURE=1 pnpm review:capture",
-    "lint": "tsc --noEmit && vite build"
+    "lint": "tsc --noEmit && vite build",
+    "knip": "knip --config knip.jsonc"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

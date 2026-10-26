@@ -1,0 +1,26 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  // Exported types are part of our contracts even before they have consumers.
+  "rules": { "types": "off", "nsTypes": "off", "duplicates": "warn" },
+  "ignoreBinaries": ["cargo", "vox", "rustc", "rustfmt"],
+  "entry": [
+    "src/main.tsx",
+    "src/App.tsx",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "playwright.config.ts",
+    "e2e/**/*.{ts,tsx}",
+    "src/**/*.test.{ts,tsx}",
+    "src/**/__tests__/**/*.{ts,tsx}"
+  ],
+  "project": ["src/**/*.{ts,tsx}", "e2e/**/*.{ts,tsx}"],
+  "ignore": [
+    "dist/**",
+    "artifacts/**",
+    "review-bundle/**",
+    "playwright-report/**",
+    "test-results/**",
+    "tokens/**"
+  ],
+  "ignoreDependencies": ["@tauri-apps/api"]
+}

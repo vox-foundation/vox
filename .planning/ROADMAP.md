@@ -348,7 +348,7 @@
 3. Committing a disallowed evidence binary fails the hygiene gate.
 4. Mutation tests prove each gate fails closed; AGENTS/CONTRIBUTING updated.
 **Plans:**
-- [ ] `303-01`: Knip config + PR size workflow + evidence ban + docs/mutation tests
+- [x] `303-01`: Knip config + PR size workflow + evidence ban + docs/mutation tests
 
 ### Phase 304: Agent-Ops Kill-Safety, Hit-Every-Surface Checklist & Worktree Isolation (`T3-AGENT-OPS-01..04`)
 
@@ -394,7 +394,7 @@
 |---|---|---|---|
 | **Phase 301** | Change-Gated CI Path Map & `vox ci check-changed` | `1/1` | Complete |
 | **Phase 302** | Transfer-Budget Artifacts, PR Comments & Weighted Test Sharding | `1/1` | Complete |
-| **Phase 303** | Knip Dual Gate, PR Size Labels & Evidence-Asset Ban | `0/1` | Pending |
+| **Phase 303** | Knip Dual Gate, PR Size Labels & Evidence-Asset Ban | `1/1` | Complete |
 | **Phase 304** | Agent-Ops Kill-Safety, Hit-Every-Surface Checklist & Worktree Isolation | `0/1` | Pending |
 | **Phase 305** | TOESTUB Thin-Transport, Suppression Review Gate & Snapshot Interning | `0/1` | Pending |
 | **Phase 306** | Tauri Fingerprint Advisory, GUI Cache Layers, Surface Graph Refresh & Scorecard | `0/1` | Pending |

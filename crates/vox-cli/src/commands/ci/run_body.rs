@@ -691,6 +691,13 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 Err(anyhow!("affected-crates exited with code {code}"))
             }
         }
+        CiCmd::EvidenceAssetBan { allowlist, paths } => {
+            vox_cli_ci::evidence_asset_ban::run(
+                &root,
+                vox_cli_ci::evidence_asset_ban::EvidenceAssetBanArgs { allowlist, paths },
+            )
+        }
+        CiCmd::KnipGui { check } => vox_cli_ci::knip_gui::run(&root, check),
         CiCmd::TransferBudgetReport {
             write,
             out,
