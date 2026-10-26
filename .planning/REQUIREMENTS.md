@@ -8,8 +8,8 @@
 
 ### Lane policy (`LANE`)
 
-- [ ] **LANE-01**: A codegen request is served with the non-thinking prefix (` /no_think` and the empty `<think>\n\n</think>\n\n` block), and a hub or agent request is served with the bare thinking-mode prefix (ends at `assistant\n`, no `/no_think`). A test locks both strings.
-- [ ] **LANE-02**: A codegen direct-answer training row uses that same non-thinking prefix, and the empty think block is outside the loss. A row that already contains a non-empty think body keeps the thinking-mode entry and is not rewritten with `/no_think`.
+- [x] **LANE-01**: A codegen request is served with the non-thinking prefix (` /no_think` and the empty `<think>\n\n</think>\n\n` block), and a hub or agent request is served with the bare thinking-mode prefix (ends at `assistant\n`, no `/no_think`). A test locks both strings.
+- [x] **LANE-02**: A codegen direct-answer training row uses that same non-thinking prefix, and the empty think block is outside the loss. A row that already contains a non-empty think body keeps the thinking-mode entry and is not rewritten with `/no_think`.
 
 ### Before/after set (`BENCH`)
 
@@ -40,8 +40,8 @@
 
 | Requirement | Phase | Status |
 |---|---|---|
-| `LANE-01` | Phase 313 | Pending |
-| `LANE-02` | Phase 313 | Pending |
+| `LANE-01` | Phase 313 | Complete |
+| `LANE-02` | Phase 313 | Complete |
 | `BENCH-01` | Phase 316 | Pending |
 | `BENCH-02` | Phase 314 | Pending |
 | `BENCH-03` | Phase 314 | Pending |

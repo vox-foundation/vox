@@ -3,7 +3,7 @@
 # Roadmap: v5.6 — Reasoning Where the Lane Needs It
 
 **Milestone:** v5.6
-**Status:** Planning — ready for `/gsd-plan-phase 313`
+**Status:** Phase 313 complete — ready to discuss phase 314
 **Updated:** 2026-10-26
 
 ### Phase 313: Lane Prefix (`LANE-01`, `LANE-02`)
@@ -19,14 +19,14 @@
 Plans:
 
 **Wave 1**
-- [ ] `313-01`: Tracer: raw `/generate` carries `lane` through to the plugin payload, and an unknown lane is a 400 before any worker call
+- [x] `313-01`: Tracer: raw `/generate` carries `lane` through to the plugin payload, and an unknown lane is a 400 before any worker call (completed 2026-10-26)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] `313-02`: CUDA and Metal `assemble_prompt` wrap raw prompts by lane through one shared builder
-- [ ] `313-03`: Chat completions accept `lane` and flatten the last user turn plus the assistant opener
+- [x] `313-02`: CUDA and Metal `assemble_prompt` wrap raw prompts by lane through one shared builder (completed 2026-10-26)
+- [x] `313-03`: Chat completions accept `lane` and flatten the last user turn plus the assistant opener (completed 2026-10-26)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] `313-04`: Lock the existing codegen training fusion with tests only
+- [x] `313-04`: Lock the existing codegen training fusion with tests only (completed 2026-10-26)
 
 ### Phase 314: Held-out Reasoning Set (`BENCH-02`, `BENCH-03`)
 **Goal:** The same GSM8K, MATH-500, and Vox items exist for a before/after, and a missing model cannot write a passing score.
@@ -71,7 +71,7 @@ Plans:
 
 | Phase | Name | Plans | Status |
 |---|---|---|---|
-| **Phase 313** | Lane Prefix | `0/4` | Not started |
+| **Phase 313** | Lane Prefix | `4/4` | Complete |
 | **Phase 314** | Held-out Reasoning Set | `0/1` | Not started |
 | **Phase 315** | Serve Gate | `0/1` | Not started |
 | **Phase 316** | Before/After Comparison | `0/1` | Not started |
