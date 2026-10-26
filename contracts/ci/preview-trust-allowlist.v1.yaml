@@ -1,0 +1,5 @@
+schema_version: 1
+description: >
+  Workflows intentionally allowed to combine privileged triggers with PR code
+  under documented controls. Empty by default — Vox has no relay-preview yet.
+allowlist: []
