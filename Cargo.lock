@@ -18223,6 +18223,7 @@ dependencies = [
  "tokio",
  "tracing",
  "vox-db",
+ "vox-eval",
  "vox-hf-layout",
  "vox-tensor",
  "workspace-hack",
