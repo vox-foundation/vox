@@ -1,6 +1,75 @@
 # Roadmap: Vox Unified Workstream
 
-# Roadmap: v5.5 — T3 CI/TOESTUB Deep Enforcement (`Phases 307–312`)
+# Roadmap: v5.6 — Reasoning Where the Lane Needs It
+
+**Milestone:** v5.6
+**Status:** Planning — ready for `/gsd-plan-phase 313`
+**Updated:** 2026-10-26
+
+### Phase 313: Lane Prefix (`LANE-01`, `LANE-02`)
+**Goal:** Codegen requests and codegen training rows use the non-thinking prefix, and hub and agent requests use the bare thinking-mode prefix.
+**Depends on**: Nothing (first phase of v5.6)
+**Requirements**: LANE-01, LANE-02
+**Success Criteria** (what must be TRUE):
+  1. A codegen serve prompt contains ` /no_think` and ends with the empty think block.
+  2. A hub or agent serve prompt ends at a bare `assistant` turn and does not contain `/no_think`.
+  3. A codegen direct-answer training row keeps the empty think block outside the loss, and a row that already has a non-empty think body is not rewritten with `/no_think`.
+**Plans**: 1 plan
+
+Plans:
+- [ ] `313-01`: Bind each spoke to the matching Qwen prefix in train and serve
+
+### Phase 314: Held-out Reasoning Set (`BENCH-02`, `BENCH-03`)
+**Goal:** The same GSM8K, MATH-500, and Vox items exist for a before/after, and a missing model cannot write a passing score.
+**Depends on**: Phase 313
+**Requirements**: BENCH-02, BENCH-03
+**Success Criteria** (what must be TRUE):
+  1. A checked-in Vox slice has a checkable answer on every item and does not reuse the fixed Plan / Syntax / Implementation template.
+  2. The GSM8K and MATH-500 slices used for the comparison are the checked-in files, not a new sample.
+  3. A reasoning eval that cannot load the model writes no passing score and records how many items were scored.
+**Plans**: 1 plan
+
+Plans:
+- [ ] `314-01`: Add the Vox slice and fail closed when the model does not load
+
+### Phase 315: Serve Gate (`GATE-01`, `GATE-02`)
+**Goal:** Serve refuses an adapter whose collateral report is missing or worse on accuracy or think-initiation, and the report labels the benches as slices.
+**Depends on**: Phase 314
+**Requirements**: GATE-01, GATE-02
+**Success Criteria** (what must be TRUE):
+  1. Serve refuses to bind an adapter when the collateral report is missing.
+  2. Serve refuses when accuracy or think-initiation on the reasoning keys drops past the configured threshold.
+  3. The report states that the benches are slices and records the item count, so the 5% bar is not read as a full GSM8K or MATH-500 result.
+**Plans**: 1 plan
+
+Plans:
+- [ ] `315-01`: Point the collateral serve gate at the reasoning keys and record the slice size
+
+### Phase 316: Before/After Comparison (`BENCH-01`)
+**Goal:** Base and adapter are scored on the same slices when the weights exist, and no score is invented when they do not.
+**Depends on**: Phase 315
+**Requirements**: BENCH-01
+**Success Criteria** (what must be TRUE):
+  1. When the pinned Qwen3-8B snapshot and an adapter are on disk, one report holds accuracy and think-initiation for the GSM8K slice, the MATH-500 slice, and the Vox slice on both sides.
+  2. When the snapshot is absent, the run records that fact and does not write numeric scores.
+  3. Both sides use the checked-in items.
+**Plans**: 1 plan
+
+Plans:
+- [ ] `316-01`: Run the before/after on the checked-in slices, or record that the snapshot is absent
+
+### Progress
+
+| Phase | Name | Plans | Status |
+|---|---|---|---|
+| **Phase 313** | Lane Prefix | `0/1` | Not started |
+| **Phase 314** | Held-out Reasoning Set | `0/1` | Not started |
+| **Phase 315** | Serve Gate | `0/1` | Not started |
+| **Phase 316** | Before/After Comparison | `0/1` | Not started |
+
+---
+
+# Roadmap: v5.5 — T3 CI/TOESTUB Deep Enforcement (`Phases 307–312`) — SHIPPED
 
 **Milestone:** v5.5
 **Status:** Planning complete — ready for `/gsd-plan-phase 307`

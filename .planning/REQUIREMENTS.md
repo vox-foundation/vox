@@ -40,15 +40,15 @@
 
 | Requirement | Phase | Status |
 |---|---|---|
-| `LANE-01` | — | Pending |
-| `LANE-02` | — | Pending |
-| `BENCH-01` | — | Pending |
-| `BENCH-02` | — | Pending |
-| `BENCH-03` | — | Pending |
-| `GATE-01` | — | Pending |
-| `GATE-02` | — | Pending |
+| `LANE-01` | Phase 313 | Pending |
+| `LANE-02` | Phase 313 | Pending |
+| `BENCH-01` | Phase 316 | Pending |
+| `BENCH-02` | Phase 314 | Pending |
+| `BENCH-03` | Phase 314 | Pending |
+| `GATE-01` | Phase 315 | Pending |
+| `GATE-02` | Phase 315 | Pending |
 
-**Coverage:** 7 v5.6 requirements, unmapped until the roadmap.
+**Coverage:** 7 v5.6 requirements → 4 phases → 0 unmapped
 
 ---
 
