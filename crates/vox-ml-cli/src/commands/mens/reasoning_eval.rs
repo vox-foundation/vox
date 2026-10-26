@@ -10,7 +10,8 @@
 //! text) writes a `not_scored` report (`n` 0, no score keys) when the adapter
 //! directory exists, and always returns `Err`. A failing item is never graded as
 //! a wrong answer. A score is recorded only for a full slice, with `n` stored
-//! beside it. `VOX_REASONING_EVAL_MAX_TOKENS` overrides the 2048-token cap.
+//! beside it. `VOX_REASONING_EVAL_MAX_TOKENS` overrides the 2048-token cap; a
+//! value that is set but not an integer is a `not_scored` failure, not 2048.
 use anyhow::{Context, Result};
 use std::path::Path;
 use vox_eval::qwen_reasoning;
@@ -39,6 +40,17 @@ pub(crate) fn score_reasoning_file(
     items_path: &Path,
     adapter: &Path,
 ) -> Result<ReasoningReport> {
+    score_reasoning_file_with(bench, items_path, adapter, max_tokens_env().as_deref())
+}
+
+/// [`score_reasoning_file`] with the raw token-cap value passed in, so callers
+/// and tests do not depend on the process environment.
+fn score_reasoning_file_with(
+    bench: &str,
+    items_path: &Path,
+    adapter: &Path,
+    raw_max_tokens: Option<&str>,
+) -> Result<ReasoningReport> {
     if !adapter.is_dir() {
         anyhow::bail!(
             "reasoning bench '{bench}': adapter {} is not an existing directory; \
@@ -46,6 +58,12 @@ pub(crate) fn score_reasoning_file(
             adapter.display()
         );
     }
+    let max_tokens = match parse_max_tokens(raw_max_tokens) {
+        Ok(n) => n,
+        Err(e) => {
+            return Err(fail_closed(bench, adapter, &format!("{e:#}"), SLICE_SIZE));
+        }
+    };
     let items = match load_slice(items_path, SLICE_SIZE) {
         Ok(items) => items,
         Err(e) => {
@@ -57,7 +75,7 @@ pub(crate) fn score_reasoning_file(
             ));
         }
     };
-    let (outcome, rows) = match run_backend(bench, &items, adapter) {
+    let (outcome, rows) = match run_backend(bench, &items, adapter, max_tokens) {
         Ok(done) => done,
         Err(e) => {
             return Err(fail_closed(bench, adapter, &format!("{e:#}"), items.len()));
@@ -91,13 +109,24 @@ fn fail_closed(bench: &str, adapter: &Path, detail: &str, n_requested: usize) ->
     }
 }
 
-/// Generation token cap: `VOX_REASONING_EVAL_MAX_TOKENS`, default 2048, at least 1.
-fn max_tokens() -> usize {
-    std::env::var("VOX_REASONING_EVAL_MAX_TOKENS")
-        .ok()
-        .and_then(|v| v.trim().parse::<usize>().ok())
-        .unwrap_or(2048)
-        .max(1)
+/// Generation token cap from a raw `VOX_REASONING_EVAL_MAX_TOKENS` value.
+/// `None` (unset) is 2048; an integer below 1 is raised to 1. A value that is
+/// set but not an integer after trimming is an error, never the default: the
+/// run must not be scored under a cap the caller did not ask for.
+fn parse_max_tokens(raw: Option<&str>) -> Result<usize> {
+    let Some(raw) = raw else {
+        return Ok(2048);
+    };
+    let n: i64 = raw
+        .trim()
+        .parse()
+        .map_err(|_| anyhow::anyhow!("VOX_REASONING_EVAL_MAX_TOKENS={raw:?} is not an integer"))?;
+    Ok(usize::try_from(n.max(1)).unwrap_or(usize::MAX))
+}
+
+/// The raw `VOX_REASONING_EVAL_MAX_TOKENS` value; a non-UTF-8 value counts as set.
+fn max_tokens_env() -> Option<String> {
+    std::env::var_os("VOX_REASONING_EVAL_MAX_TOKENS").map(|v| v.to_string_lossy().into_owned())
 }
 
 /// Load the backend plugin and adapter, then score every item through it.
@@ -106,6 +135,7 @@ fn run_backend(
     bench: &str,
     items: &[ReasoningItem],
     adapter: &Path,
+    max_tokens: usize,
 ) -> Result<(BenchOutcome, Vec<Row>)> {
     let plugin_id = vox_populi::mens::select_mens_backend(
         vox_populi::mens::DeviceKind::Best,
@@ -131,7 +161,7 @@ fn run_backend(
             .map(|resp| resp.as_str().to_string())
             .map_err(|e| anyhow::anyhow!("{e}"))
     };
-    let done = score_loaded(bench, items, &mut infer);
+    let done = score_loaded(bench, items, max_tokens, &mut infer);
     // `loaded` is a cache reference and must outlive `handle`; it drops here
     // with the other locals, which is after the last inference.
     let _plugin = loaded;
@@ -155,10 +185,10 @@ fn usable_text(resp: &str) -> Option<String> {
 fn score_loaded(
     bench: &str,
     items: &[ReasoningItem],
+    max_tokens: usize,
     infer: &mut dyn FnMut(&str) -> Result<String>,
 ) -> (BenchOutcome, Vec<Row>) {
     let n = items.len();
-    let max_tokens = max_tokens();
     let mut rows: Vec<Row> = Vec::with_capacity(n);
     for (i, item) in items.iter().enumerate() {
         let prompt = qwen_reasoning::thinking_mode_prompt(&item.question);
@@ -265,7 +295,7 @@ mod tests {
     #[test]
     fn an_adapter_dir_without_a_loadable_model_writes_not_scored() {
         let adapter = tempfile::tempdir().expect("tempdir");
-        let err = score_reasoning_file("gsm8k_think", &gsm8k_slice(), adapter.path())
+        let err = score_reasoning_file_with("gsm8k_think", &gsm8k_slice(), adapter.path(), None)
             .expect_err("an empty adapter dir cannot be scored");
         let msg = format!("{err:#}");
         assert!(msg.contains("scored 0 of 32"), "message was: {msg}");
@@ -281,7 +311,7 @@ mod tests {
     fn a_missing_adapter_path_is_err_and_not_created() {
         let root = tempfile::tempdir().expect("tempdir");
         let adapter = root.path().join("no-such-adapter");
-        let err = score_reasoning_file("gsm8k_think", &gsm8k_slice(), &adapter)
+        let err = score_reasoning_file_with("gsm8k_think", &gsm8k_slice(), &adapter, None)
             .expect_err("a missing adapter cannot be scored");
         assert!(format!("{err:#}").contains("scored 0 of 32"));
         assert!(!adapter.exists(), "the adapter path must not be created");
@@ -316,7 +346,7 @@ mod tests {
     fn every_answer_correct_scores_32() {
         let items = synthetic_items(32);
         let mut infer = |p: &str| -> Result<String> { Ok(boxed_response(&gold_from_prompt(p))) };
-        let (outcome, rows) = score_loaded("syn", &items, &mut infer);
+        let (outcome, rows) = score_loaded("syn", &items, 2048, &mut infer);
         match outcome {
             BenchOutcome::Scored(s) => {
                 assert_eq!(s.n, 32);
@@ -341,7 +371,7 @@ mod tests {
                 "999999".to_string()
             }))
         };
-        let (outcome, rows) = score_loaded("syn", &items, &mut infer);
+        let (outcome, rows) = score_loaded("syn", &items, 2048, &mut infer);
         assert_eq!(rows.len(), 32);
         match outcome {
             BenchOutcome::Scored(s) => {
@@ -365,7 +395,7 @@ mod tests {
                 }
                 Ok(boxed_response(&gold_from_prompt(p)))
             };
-            let (outcome, rows) = score_loaded("syn", &items, &mut infer);
+            let (outcome, rows) = score_loaded("syn", &items, 2048, &mut infer);
             match outcome {
                 BenchOutcome::NotScored {
                     reason,
@@ -404,7 +434,7 @@ mod tests {
                     Ok(boxed_response(&gold_from_prompt(p)))
                 }
             };
-            let (outcome, rows) = score_loaded("syn", &items, &mut infer);
+            let (outcome, rows) = score_loaded("syn", &items, 2048, &mut infer);
             match outcome {
                 BenchOutcome::NotScored { reason, .. } => {
                     assert!(reason.contains("syn-0004"), "{body}: {reason}");
@@ -418,7 +448,7 @@ mod tests {
     #[test]
     fn an_empty_slice_is_never_scored() {
         let mut infer = |_: &str| -> Result<String> { Ok(boxed_response("1")) };
-        let (outcome, rows) = score_loaded("syn", &[], &mut infer);
+        let (outcome, rows) = score_loaded("syn", &[], 2048, &mut infer);
         assert!(matches!(outcome, BenchOutcome::NotScored { .. }));
         assert!(rows.is_empty());
     }
@@ -460,7 +490,7 @@ mod tests {
             .collect();
         std::fs::write(&slice, rows).expect("write slice");
         let adapter = tempfile::tempdir().expect("tempdir");
-        let err = score_reasoning_file("gsm8k_think", &slice, adapter.path())
+        let err = score_reasoning_file_with("gsm8k_think", &slice, adapter.path(), None)
             .expect_err("a 31-row slice must not be scored");
         let msg = format!("{err:#}");
         assert!(msg.contains("scored 0 of 32"), "message was: {msg}");
@@ -469,5 +499,55 @@ mod tests {
         assert_eq!(v["n"], 0);
         assert_eq!(v["n_requested"], 32);
         assert!(!v.as_object().expect("object").contains_key("accuracy"));
+    }
+
+    #[test]
+    fn max_tokens_parse_rules() {
+        assert_eq!(parse_max_tokens(None).expect("unset"), 2048);
+        assert_eq!(parse_max_tokens(Some("4096")).expect("4096"), 4096);
+        assert_eq!(parse_max_tokens(Some(" 512\n")).expect("trimmed"), 512);
+        assert_eq!(parse_max_tokens(Some("1")).expect("1"), 1);
+        assert_eq!(parse_max_tokens(Some("0")).expect("0"), 1);
+        assert_eq!(parse_max_tokens(Some("-7")).expect("negative"), 1);
+        for bad in ["4k", "", "  ", "1.5", "abc", "0x10", "4 096"] {
+            assert!(
+                parse_max_tokens(Some(bad)).is_err(),
+                "{bad:?} must not parse"
+            );
+        }
+    }
+
+    #[test]
+    fn an_unparseable_max_tokens_is_not_scored_and_never_2048() {
+        let adapter = tempfile::tempdir().expect("tempdir");
+        let err =
+            score_reasoning_file_with("gsm8k_think", &gsm8k_slice(), adapter.path(), Some("4k"))
+                .expect_err("a non-integer cap must not be scored");
+        let msg = format!("{err:#}");
+        assert!(
+            msg.contains("VOX_REASONING_EVAL_MAX_TOKENS"),
+            "message was: {msg}"
+        );
+        assert!(msg.contains("scored 0 of 32"), "message was: {msg}");
+        let v = read_report(adapter.path(), "gsm8k_think");
+        assert_eq!(v["status"], "not_scored");
+        assert_eq!(v["n"], 0);
+        let obj = v.as_object().expect("object");
+        assert!(!obj.contains_key("accuracy"));
+        assert!(!obj.contains_key("think_initiation_rate"));
+        assert!(!obj.contains_key("items"));
+    }
+
+    #[test]
+    fn the_token_cap_reaches_the_prompt() {
+        let items = synthetic_items(1);
+        let mut seen = Vec::new();
+        let mut infer = |p: &str| -> Result<String> {
+            let v: serde_json::Value = serde_json::from_str(p).expect("prompt json");
+            seen.push(v["max_tokens"].as_u64().expect("max_tokens"));
+            Ok(boxed_response(&gold_from_prompt(p)))
+        };
+        let _ = score_loaded("syn", &items, 77, &mut infer);
+        assert_eq!(seen, vec![77]);
     }
 }
