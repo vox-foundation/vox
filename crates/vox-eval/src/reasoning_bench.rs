@@ -249,4 +249,141 @@ mod tests {
         let (_d2, ok) = write_tmp(rows(32).as_bytes());
         assert!(load_slice(&ok, SLICE_SIZE).is_ok());
     }
+
+    // ---- Task 3: vox_think shape, template, and golden-copy guards ----
+
+    const FINAL_LINE: &str = "Give the final integer alone on the last line.";
+
+    fn raw_rows(name: &str) -> Vec<serde_json::Value> {
+        std::fs::read_to_string(repo_slice(name))
+            .expect("read slice")
+            .lines()
+            .filter(|l| !l.trim().is_empty())
+            .map(|l| serde_json::from_str(l).expect("json row"))
+            .collect()
+    }
+
+    fn squash(s: &str) -> String {
+        s.split_whitespace().collect::<Vec<_>>().join(" ")
+    }
+
+    #[test]
+    fn vox_think_shape() {
+        let items = load_slice(&repo_slice("vox_think"), SLICE_SIZE).expect("vox_think loads");
+        let raw = raw_rows("vox_think");
+        assert_eq!(items.len(), 32);
+        let mut kinds: HashMap<String, usize> = HashMap::new();
+        for (i, (item, row)) in items.iter().zip(&raw).enumerate() {
+            assert_eq!(item.id, format!("vox-think-{i:04}"));
+            let kind = row["kind"].as_str().unwrap_or("").to_string();
+            assert!(
+                ["trace", "debug", "plan-check"].contains(&kind.as_str()),
+                "{}: bad kind {kind:?}",
+                item.id
+            );
+            *kinds.entry(kind).or_default() += 1;
+            assert!(
+                item.answer.parse::<i64>().is_ok(),
+                "{}: gold not i64",
+                item.id
+            );
+            assert_eq!(row["source"].as_str(), Some("hand-authored"), "{}", item.id);
+            assert!(
+                row["program"]
+                    .as_str()
+                    .is_some_and(|p| !p.trim().is_empty()),
+                "{}: missing program",
+                item.id
+            );
+            let last = item.question.lines().rev().find(|l| !l.trim().is_empty());
+            assert_eq!(last, Some(FINAL_LINE), "{}: final-answer line", item.id);
+        }
+        for k in ["trace", "debug", "plan-check"] {
+            assert!(
+                kinds.get(k).copied().unwrap_or(0) >= 8,
+                "kind {k}: {kinds:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn vox_think_avoids_the_template() {
+        for item in load_slice(&repo_slice("vox_think"), SLICE_SIZE).expect("loads") {
+            let q = item.question.to_lowercase();
+            for marker in [
+                "plan:",
+                "syntax considerations",
+                "implementation:",
+                "construct in vox",
+            ] {
+                assert!(
+                    !q.contains(marker),
+                    "{}: template marker {marker:?}",
+                    item.id
+                );
+            }
+        }
+    }
+
+    fn collect_vox(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
+        for entry in std::fs::read_dir(dir).expect("read_dir") {
+            let p = entry.expect("entry").path();
+            if p.is_dir() {
+                collect_vox(&p, out);
+            } else if p.extension().is_some_and(|e| e == "vox") {
+                out.push(p);
+            }
+        }
+    }
+
+    #[test]
+    fn vox_think_is_not_a_golden_copy() {
+        let golden_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/golden");
+        let mut files = Vec::new();
+        collect_vox(&golden_dir, &mut files);
+        assert!(
+            !files.is_empty(),
+            "no golden examples found at {}",
+            golden_dir.display()
+        );
+        let golden: Vec<String> = files
+            .iter()
+            .map(|p| squash(&std::fs::read_to_string(p).unwrap_or_default()))
+            .collect();
+        let mut seen = std::collections::HashSet::new();
+        for (i, row) in raw_rows("vox_think").iter().enumerate() {
+            let program = squash(row["program"].as_str().unwrap_or(""));
+            assert!(!program.is_empty(), "row {i}: empty program");
+            assert!(
+                golden.iter().all(|g| !g.contains(&program)),
+                "vox-think-{i:04} is a verbatim golden example"
+            );
+            assert!(
+                seen.insert(program),
+                "vox-think-{i:04} duplicates another program"
+            );
+        }
+    }
+
+    #[test]
+    fn every_gold_round_trips_through_the_grader() {
+        use crate::qwen_reasoning::grade_final_answer;
+        let mut total = 0;
+        for name in SLICE_NAMES {
+            for item in load_slice(&repo_slice(name), SLICE_SIZE).expect("loads") {
+                total += 1;
+                assert!(
+                    grade_final_answer(&format!("\\boxed{{{}}}", item.answer), &item.answer),
+                    "{}: boxed gold must grade true",
+                    item.id
+                );
+                assert!(
+                    !grade_final_answer("\\boxed{999999}", &item.answer),
+                    "{}: boxed 999999 must grade false",
+                    item.id
+                );
+            }
+        }
+        assert_eq!(total, 96);
+    }
 }
