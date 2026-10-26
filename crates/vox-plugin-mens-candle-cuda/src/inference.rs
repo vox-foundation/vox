@@ -16,6 +16,7 @@ use qlora_rs::QuantizedLinear;
 use safetensors::Dtype;
 use safetensors::SafeTensors;
 use tokenizers::Tokenizer;
+use vox_eval::qwen_reasoning::Lane;
 
 use crate::hf_layout::HfArchitecture;
 use crate::model::{
@@ -455,6 +456,8 @@ impl InferenceEngine {
     ///     entropy-seeded)
     ///   - `"output_mode"`: optional structured-output label — see
     ///     `check_output_mode` for what this plugin does and does not enforce.
+    ///   - `"lane"`: optional serving lane — `codegen` (default), `hub` or `agent`;
+    ///     see `resolve_lane`.
     pub fn generate_from_json(&mut self, prompt_json: &str) -> Result<String> {
         #[derive(serde::Deserialize)]
         struct PromptRequest {
@@ -475,6 +478,9 @@ impl InferenceEngine {
             seed: Option<u64>,
             #[serde(default)]
             output_mode: Option<String>,
+            /// Serving lane (`codegen` default, `hub`, `agent`); see `resolve_lane`.
+            #[serde(default)]
+            lane: Option<String>,
         }
         fn default_max_tokens() -> usize {
             256
@@ -487,8 +493,9 @@ impl InferenceEngine {
             .map_err(|e| anyhow::anyhow!("parse prompt_json: {e}"))?;
 
         check_output_mode(req.output_mode.as_deref())?;
+        let lane = resolve_lane(req.lane.as_deref())?;
 
-        let prompt = assemble_prompt(req.system.as_deref(), &req.prompt);
+        let prompt = assemble_prompt(req.system.as_deref(), &req.prompt, lane);
 
         let generated = self.generate(
             &prompt,
@@ -821,11 +828,23 @@ fn sample_next_token(
     ranked[0].0 as u32
 }
 
-/// Build the ChatML prompt the adapter was trained on (`chatml_prefix_open_assistant`
-/// in `vox-plugin-mens-candle-core::training_text`): system turn, user turn, open
-/// assistant turn. A prompt that is already ChatML (eval-local, chat completions) is
-/// kept as-is, gaining the system turn only if it has none.
-fn assemble_prompt(system: Option<&str>, prompt: &str) -> String {
+/// Map the request's optional `lane` to a [`Lane`]. Absent means codegen. The
+/// host validates the value before it reaches the plugin; an unknown value is
+/// rejected here too, before any token is generated.
+fn resolve_lane(lane: Option<&str>) -> Result<Lane> {
+    match lane {
+        None => Ok(Lane::Codegen),
+        Some(s) => Lane::parse(s).map_err(|e| anyhow::anyhow!(e)),
+    }
+}
+
+/// Build the ChatML prompt for a serving lane (`chatml_prefix_for_lane` in
+/// `vox-plugin-mens-candle-core::training_text`): system turn, user turn, open
+/// assistant turn. Codegen matches what the adapter was trained on; hub and agent
+/// open a bare thinking turn. A prompt that is already ChatML (eval-local, chat
+/// completions) is kept as-is for every lane, gaining the system turn only if it
+/// has none.
+fn assemble_prompt(system: Option<&str>, prompt: &str, lane: Lane) -> String {
     let system = system.filter(|s| !s.is_empty());
     let system_turn = |s: &str| format!("<|im_start|>system\n{s}<|im_end|>\n");
     if prompt.starts_with("<|im_start|>") {
@@ -836,10 +855,26 @@ fn assemble_prompt(system: Option<&str>, prompt: &str) -> String {
             _ => prompt.to_string(),
         };
     }
-    format!(
-        "{}<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n",
-        system.map(system_turn).unwrap_or_default()
-    )
+    // Codegen uses the non-thinking prefix training supervises (`/no_think` plus a
+    // prefilled empty think block); hub and agent leave the assistant turn open.
+    // An already-ChatML prompt (thinking-mode eval, chat completions) is returned
+    // above unchanged.
+    let cfg = vox_plugin_mens_candle_core::config::ChatmlConfig::default();
+    let wrapped = vox_plugin_mens_candle_core::training_text::chatml_prefix_for_lane(
+        system.unwrap_or(""),
+        prompt,
+        lane,
+        &cfg,
+    );
+    if system.is_none() {
+        let empty_system = "<|im_start|>system\n<|im_end|>\n";
+        wrapped
+            .strip_prefix(empty_system)
+            .unwrap_or(&wrapped)
+            .to_string()
+    } else {
+        wrapped
+    }
 }
 
 /// Entry point called from `backend.rs` `run_inference`.
@@ -856,8 +891,10 @@ pub fn run(model_dir: &str, prompt_json: &str) -> Result<String> {
 mod tests {
     use super::{
         assemble_prompt, check_output_mode, compute_dtype_for_device, generation_rng,
-        ranked_logits, resolve_adapter_manifest_path, sample_next_token, weight_sources,
+        ranked_logits, resolve_adapter_manifest_path, resolve_lane, sample_next_token,
+        weight_sources,
     };
+    use vox_eval::qwen_reasoning::Lane;
     use vox_plugin_mens_candle_core::weight_resolution::adapter_deltas_must_be_folded;
 
     /// A tiny `LoraFactors` whose delta is `alpha` everywhere.
@@ -1227,31 +1264,75 @@ mod tests {
 
     #[test]
     fn assemble_prompt_wraps_in_training_chatml() {
-        let out = assemble_prompt(Some("YOU ARE VOX"), "hello");
+        let out = assemble_prompt(Some("YOU ARE VOX"), "hello", Lane::Codegen);
         assert_eq!(
             out,
-            "<|im_start|>system\nYOU ARE VOX<|im_end|>\n<|im_start|>user\nhello<|im_end|>\n<|im_start|>assistant\n"
+            "<|im_start|>system\nYOU ARE VOX<|im_end|>\n<|im_start|>user\nhello /no_think<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
         );
     }
 
     #[test]
     fn assemble_prompt_without_system_still_opens_assistant_turn() {
         assert_eq!(
-            assemble_prompt(None, "hello"),
-            "<|im_start|>user\nhello<|im_end|>\n<|im_start|>assistant\n"
+            assemble_prompt(None, "hello", Lane::Codegen),
+            "<|im_start|>user\nhello /no_think<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
         );
     }
 
     #[test]
     fn assemble_prompt_keeps_prewrapped_chatml_and_adds_missing_system() {
         let wrapped = "<|im_start|>user\nhi<|im_end|>\n<|im_start|>assistant\n";
-        assert_eq!(assemble_prompt(None, wrapped), wrapped);
+        assert_eq!(assemble_prompt(None, wrapped, Lane::Codegen), wrapped);
         assert_eq!(
-            assemble_prompt(Some("S"), wrapped),
+            assemble_prompt(Some("S"), wrapped, Lane::Codegen),
             format!("<|im_start|>system\nS<|im_end|>\n{wrapped}")
         );
         let with_sys = format!("<|im_start|>system\nX<|im_end|>\n{wrapped}");
-        assert_eq!(assemble_prompt(Some("S"), &with_sys), with_sys);
+        assert_eq!(
+            assemble_prompt(Some("S"), &with_sys, Lane::Codegen),
+            with_sys
+        );
+    }
+
+    #[test]
+    fn assemble_prompt_hub_and_agent_open_a_bare_thinking_turn() {
+        for lane in [Lane::Hub, Lane::Agent] {
+            assert_eq!(
+                assemble_prompt(None, "hello", lane),
+                "<|im_start|>user\nhello<|im_end|>\n<|im_start|>assistant\n"
+            );
+            assert_eq!(
+                assemble_prompt(Some("YOU ARE VOX"), "hello", lane),
+                "<|im_start|>system\nYOU ARE VOX<|im_end|>\n<|im_start|>user\nhello<|im_end|>\n<|im_start|>assistant\n"
+            );
+            let out = assemble_prompt(None, "hello /no_think", lane);
+            assert!(!out.contains("/no_think"), "{out}");
+            assert!(!out.contains("<think>"), "{out}");
+        }
+    }
+
+    #[test]
+    fn assemble_prompt_keeps_prewrapped_chatml_for_every_lane() {
+        let wrapped = "<|im_start|>user\nhi<|im_end|>\n<|im_start|>assistant\n";
+        for sys in [None, Some("S")] {
+            let codegen = assemble_prompt(sys, wrapped, Lane::Codegen);
+            assert_eq!(assemble_prompt(sys, wrapped, Lane::Hub), codegen);
+            assert_eq!(assemble_prompt(sys, wrapped, Lane::Agent), codegen);
+        }
+    }
+
+    #[test]
+    fn resolve_lane_rejects_unknown_values() {
+        assert_eq!(resolve_lane(None).unwrap(), Lane::Codegen);
+        assert_eq!(resolve_lane(Some("codegen")).unwrap(), Lane::Codegen);
+        assert_eq!(resolve_lane(Some("hub")).unwrap(), Lane::Hub);
+        assert_eq!(resolve_lane(Some("agent")).unwrap(), Lane::Agent);
+        let err = resolve_lane(Some("bogus"))
+            .expect_err("unknown lane must error")
+            .to_string();
+        for want in ["codegen", "hub", "agent"] {
+            assert!(err.contains(want), "{err}");
+        }
     }
 
     #[test]
