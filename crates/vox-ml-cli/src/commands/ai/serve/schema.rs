@@ -41,6 +41,13 @@ pub struct GenerateRequest {
     /// the JSON body at all) unaffected.
     #[serde(default)]
     pub system_prompt: Option<String>,
+    /// Serving lane: `codegen`, `hub` or `agent`. Absent (or `null`) means
+    /// `codegen`. An unknown value is rejected with a JSON 400 before any
+    /// worker call. Kept as a `String` (not a serde enum) so a bad value
+    /// reaches `do_generate` and gets the JSON error shape instead of axum's
+    /// plain-text 422.
+    #[serde(default)]
+    pub lane: Option<String>,
 }
 
 #[cfg(feature = "execution-api")]
@@ -212,6 +219,22 @@ mod tests {
         assert_eq!(req.system_prompt, None);
         assert_eq!(req.prompt, "hello");
         assert_eq!(req.max_tokens, 64);
+    }
+
+    #[test]
+    fn generate_request_lane_defaults_to_none_and_keeps_the_raw_string() {
+        let none: GenerateRequest = serde_json::from_str(r#"{"prompt": "hi"}"#).unwrap();
+        assert_eq!(none.lane, None);
+        let null: GenerateRequest =
+            serde_json::from_str(r#"{"prompt": "hi", "lane": null}"#).unwrap();
+        assert_eq!(null.lane, None);
+        let hub: GenerateRequest =
+            serde_json::from_str(r#"{"prompt": "hi", "lane": "hub"}"#).unwrap();
+        assert_eq!(hub.lane.as_deref(), Some("hub"));
+        // An unknown lane still deserializes; do_generate turns it into a JSON 400.
+        let bogus: GenerateRequest =
+            serde_json::from_str(r#"{"prompt": "hi", "lane": "bogus"}"#).unwrap();
+        assert_eq!(bogus.lane.as_deref(), Some("bogus"));
     }
 
     #[test]

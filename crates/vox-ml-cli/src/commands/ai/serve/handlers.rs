@@ -100,6 +100,28 @@ pub async fn do_generate(
             }),
         );
     }
+    let lane = match req.lane.as_deref() {
+        None => vox_eval::qwen_reasoning::Lane::Codegen,
+        Some(raw) => match vox_eval::qwen_reasoning::Lane::parse(raw) {
+            Ok(parsed) => parsed,
+            Err(msg) => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(GenerateResponse {
+                        text: msg.clone(),
+                        code: msg.clone(),
+                        tokens_generated: 0,
+                        model: state.model_name.to_string(),
+                        object: "text_completion",
+                        choices: vec![],
+                        repair_attempts: None,
+                        valid: false,
+                        errors: vec![msg],
+                    }),
+                );
+            }
+        },
+    };
     let output_mode = req.output_mode.as_deref().and_then(parse_output_mode_label);
     let max_retries = req.max_retries.max(1);
     let schema = req.schema.as_ref();
@@ -139,6 +161,7 @@ pub async fn do_generate(
             top_k: 40,
             output_mode: output_mode.map(String::from),
             system_prompt: req.system_prompt.clone(),
+            lane,
             reply: reply_tx,
         };
         let tx = state.tx.clone();
@@ -255,9 +278,13 @@ fn flatten_chat_messages(
         .iter()
         .position(|m| m.role == "system")
         .or_else(|| messages.iter().position(|m| m.role == "user"));
+    let last_user = messages.iter().rposition(|m| m.role == "user");
     let mut out = String::new();
     for (i, message) in messages.iter().enumerate() {
-        let content = message.content.as_deref().unwrap_or("");
+        let mut content = message.content.clone().unwrap_or_default();
+        if Some(i) == last_user {
+            content = vox_eval::qwen_reasoning::user_for_mode(&content, false);
+        }
         let prefix = if Some(i) == catalog_idx {
             catalog.as_str()
         } else {
@@ -268,7 +295,9 @@ fn flatten_chat_messages(
             message.role
         ));
     }
+    // Direct-answer generation, matching QLoRA training: prefilled empty think.
     out.push_str("<|im_start|>assistant\n");
+    out.push_str(vox_eval::qwen_reasoning::QWEN_EMPTY_THINK);
     out
 }
 
@@ -309,6 +338,8 @@ pub async fn do_chat_completions(
         // own yet (messages[] already carries a "system" role entry, flattened
         // into the prompt above) — no per-request override to thread here.
         system_prompt: None,
+        // Plan 313-03 forwards the chat route's lane here.
+        lane: None,
     };
 
     let (status, Json(gen_resp)) = do_generate(State(state), Json(generate_req)).await;
@@ -500,8 +531,8 @@ mod chat_completions_tests {
         assert!(flattened.contains("looks up the weather"));
         assert!(flattened.starts_with("<|im_start|>system\nAvailable tools"));
         assert!(flattened.contains("be helpful<|im_end|>"));
-        assert!(flattened.contains("<|im_start|>user\nwhat's the weather?<|im_end|>"));
-        assert!(flattened.ends_with("<|im_start|>assistant\n"));
+        assert!(flattened.contains("<|im_start|>user\nwhat's the weather? /no_think<|im_end|>"));
+        assert!(flattened.ends_with("<|im_start|>assistant\n<think>\n\n</think>\n\n"));
     }
 
     #[test]
@@ -514,7 +545,7 @@ mod chat_completions_tests {
         assert!(!flattened.contains("Available tools"));
         assert_eq!(
             flattened,
-            "<|im_start|>user\nhi<|im_end|>\n<|im_start|>assistant\n"
+            "<|im_start|>user\nhi /no_think<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
         );
     }
 
@@ -534,6 +565,71 @@ mod chat_completions_tests {
             model_name: std::sync::Arc::from("test-model"),
             ready: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
         }
+    }
+
+    /// Like `fake_app_state`, but records every `InferenceRequest` it receives
+    /// (before replying) so a test can assert on the lane and the payload.
+    fn capturing_app_state(
+        reply: &'static str,
+    ) -> (
+        AppState,
+        std::sync::Arc<std::sync::Mutex<Vec<InferenceRequest>>>,
+    ) {
+        let captured = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let sink = std::sync::Arc::clone(&captured);
+        let (tx, rx) = std::sync::mpsc::sync_channel::<InferenceRequest>(8);
+        std::thread::spawn(move || {
+            while let Ok(mut req) = rx.recv() {
+                let (dummy, _) = tokio::sync::oneshot::channel();
+                let reply_tx = std::mem::replace(&mut req.reply, dummy);
+                sink.lock().unwrap().push(req);
+                let _ = reply_tx.send(Ok(reply.to_string()));
+            }
+        });
+        let state = AppState {
+            tx,
+            model_name: std::sync::Arc::from("test-model"),
+            ready: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
+        };
+        (state, captured)
+    }
+
+    #[tokio::test]
+    async fn do_generate_hub_lane_reaches_the_worker_payload() {
+        let (state, captured) = capturing_app_state("a plain answer");
+        let req: GenerateRequest =
+            serde_json::from_value(serde_json::json!({"prompt": "hi", "lane": "hub"})).unwrap();
+        let (status, Json(resp)) = do_generate(State(state), Json(req)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(resp.valid);
+        let seen = captured.lock().unwrap();
+        assert_eq!(seen.len(), 1);
+        assert_eq!(seen[0].lane, vox_eval::qwen_reasoning::Lane::Hub);
+        assert_eq!(
+            seen[0].prompt, "hi",
+            "the raw prompt is not wrapped host-side"
+        );
+        let v: serde_json::Value = serde_json::from_str(
+            &crate::commands::ai::serve::worker::inference_payload("S", &seen[0]),
+        )
+        .unwrap();
+        assert_eq!(v["lane"], "hub");
+    }
+
+    #[tokio::test]
+    async fn do_generate_without_a_lane_serializes_codegen() {
+        let (state, captured) = capturing_app_state("ok");
+        let req: GenerateRequest =
+            serde_json::from_value(serde_json::json!({"prompt": "hi"})).unwrap();
+        let (status, _) = do_generate(State(state), Json(req)).await;
+        assert_eq!(status, StatusCode::OK);
+        let seen = captured.lock().unwrap();
+        assert_eq!(seen[0].lane, vox_eval::qwen_reasoning::Lane::Codegen);
+        let v: serde_json::Value = serde_json::from_str(
+            &crate::commands::ai::serve::worker::inference_payload("S", &seen[0]),
+        )
+        .unwrap();
+        assert_eq!(v["lane"], "codegen");
     }
 
     #[tokio::test]
