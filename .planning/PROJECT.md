@@ -30,7 +30,7 @@ Vox is a mature, actively-developed cross-platform Rust workspace (138+ crates) 
 
 The compiler, orchestrator, runtime, knowledge base, and public documentation site (`voxlang.org`) that everything else depends on must keep building, staying verified, and passing CI from a single unified worktree (`/Users/brbrainerd/dev/vox`), while remaining **100% functional offline/standalone** with zero dependency on `vox-ops` and **100% transparent, disableable, strongly-typed telemetry**.
 
-## Current Milestone: v5.5 — T3 CI/TOESTUB Deep Enforcement (`Phases 307–312`)
+## Completed Milestone: v5.5 — T3 CI/TOESTUB Deep Enforcement (`Phases 307–312`, `24/24` requirements, shipped 2026-10-25)
 
 **Goal:** Deeper t3code extraction beyond v5.4 — contributor vouch, privileged preview trust-split, live transfer-budget + job-matrix CI, test wall-clock/real-wait/loop/frame detectors, host-runtime + schema-hoist + knip dual + DOM-env, sidecar fingerprint hashing.
 
