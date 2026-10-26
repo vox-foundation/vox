@@ -1,9 +1,9 @@
 ---
 phase: "314"
 slug: "held-out-reasoning-set-bench-02-bench-03"
-status: draft
+status: validated
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 created: "2026-10-26"
 ---
 
@@ -40,29 +40,31 @@ created: "2026-10-26"
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 314-01-01 | 01 | 0 | BENCH-02 | — | `vox_think` has 32 rows, unique ids, non-empty question and answer | unit | `cargo test -p vox-eval --lib reasoning_bench` | ❌ Wave 0 | ⬜ pending |
-| 314-01-02 | 01 | 0 | BENCH-02 | — | No Vox question uses the Plan / Syntax / Implementation template | unit | `cargo test -p vox-eval --lib reasoning_bench` | ❌ Wave 0 | ⬜ pending |
-| 314-01-03 | 01 | 0 | BENCH-02 | — | Every `vox_think` program returns its gold answer | integration | `cargo test -p vox-compiler --test vox_think_oracle_test` | ❌ Wave 0 | ⬜ pending |
-| 314-01-04 | 01 | 0 | BENCH-02 | — | GSM8K and MATH-500 slices are 32 tracked rows | unit | `cargo test -p vox-eval --lib reasoning_bench` | ❌ Wave 0 | ⬜ pending |
-| 314-01-05 | 01 | 0 | BENCH-02 | — | The three jsonl files are not gitignored | shell | `git check-ignore -q mens/data/vox_think/reasoning.jsonl` exits 1 | ❌ Wave 0 | ⬜ pending |
-| 314-01-06 | 01 | 0 | BENCH-02 | — | All 96 golds round-trip through `grade_final_answer` | unit | `cargo test -p vox-eval --lib reasoning_bench` | ❌ Wave 0 | ⬜ pending |
-| 314-02-01 | 02 | 1 | BENCH-03 | — | `NotScored` JSON has `n: 0` and no accuracy or think-initiation key | unit | `cargo test -p vox-eval --lib reasoning_bench` | ❌ Wave 0 | ⬜ pending |
-| 314-02-02 | 02 | 1 | BENCH-03 | — | `Scored` cannot be built from an empty batch | unit | `cargo test -p vox-eval --lib reasoning_bench` | ❌ Wave 0 | ⬜ pending |
-| 314-02-03 | 02 | 1 | BENCH-03 | — | A 31-row or 33-row slice is refused | unit | `cargo test -p vox-eval --lib reasoning_bench` | ❌ Wave 0 | ⬜ pending |
-| 314-02-04 | 02 | 1 | BENCH-03 | — | A not-scored write replaces a stale scored report | unit | `cargo test -p vox-ml-cli --features gpu --lib -- reasoning_eval` | ❌ Wave 0 | ⬜ pending |
-| 314-02-05 | 02 | 1 | BENCH-03 | — | A missing adapter path returns an error and is not created | unit | `cargo test -p vox-ml-cli --features gpu --lib -- reasoning_eval` | ❌ Wave 0 | ⬜ pending |
-| 314-02-06 | 02 | 1 | BENCH-03 | — | A scorer error writes no collateral report | unit | `cargo test -p vox-ml-cli --features gpu --lib -- eval_collateral` | ✅ | ⬜ pending |
+| 314-01-01 | 01 | 0 | BENCH-02 | — | `vox_think` has 32 rows, unique ids, non-empty question and answer | unit | `cargo test -p vox-eval --lib reasoning_bench` | ✅ | ✅ green |
+| 314-01-02 | 01 | 0 | BENCH-02 | — | No Vox question uses the Plan / Syntax / Implementation template | unit | `cargo test -p vox-eval --lib reasoning_bench` | ✅ | ✅ green |
+| 314-01-03 | 01 | 0 | BENCH-02 | — | Every `vox_think` program returns its gold answer | integration | `cargo test -p vox-compiler --test vox_think_oracle_test` | ✅ | ✅ green |
+| 314-01-04 | 01 | 0 | BENCH-02 | — | GSM8K and MATH-500 slices are 32 tracked rows | unit | `cargo test -p vox-eval --lib reasoning_bench` | ✅ | ✅ green |
+| 314-01-05 | 01 | 0 | BENCH-02 | — | The three jsonl files are not gitignored | shell | `git check-ignore -q mens/data/vox_think/reasoning.jsonl` exits 1 | ✅ | ✅ green |
+| 314-01-06 | 01 | 0 | BENCH-02 | — | All 96 golds round-trip through `grade_final_answer` | unit | `cargo test -p vox-eval --lib reasoning_bench` | ✅ | ✅ green |
+| 314-02-01 | 02 | 1 | BENCH-03 | — | `NotScored` JSON has `n: 0` and no accuracy or think-initiation key | unit | `cargo test -p vox-eval --lib reasoning_bench` | ✅ | ✅ green |
+| 314-02-02 | 02 | 1 | BENCH-03 | — | `Scored` cannot be built from an empty batch | unit | `cargo test -p vox-eval --lib reasoning_bench` | ✅ | ✅ green |
+| 314-02-03 | 02 | 1 | BENCH-03 | — | A 31-row or 33-row slice is refused | unit | `cargo test -p vox-eval --lib reasoning_bench` | ✅ | ✅ green |
+| 314-02-04 | 02 | 1 | BENCH-03 | — | A not-scored write replaces a stale scored report | unit | `cargo test -p vox-ml-cli --features gpu --lib -- reasoning_eval` | ✅ | ✅ green |
+| 314-02-05 | 02 | 1 | BENCH-03 | — | A missing adapter path returns an error and is not created | unit | `cargo test -p vox-ml-cli --features gpu --lib -- reasoning_eval` | ✅ | ✅ green |
+| 314-02-06 | 02 | 1 | BENCH-03 | — | A scorer error writes no collateral report | unit | `cargo test -p vox-ml-cli --features gpu --lib -- eval_collateral` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
+
+Re-run on 2026-10-26 after both plans: `cargo test -p vox-eval --lib reasoning_bench` 17 passed; `cargo test -p vox-compiler --test vox_think_oracle_test` 3 passed; `cargo test -p vox-ml-cli --features gpu --lib -- reasoning_eval` 9 passed; `cargo test -p vox-ml-cli --features gpu --lib -- eval_collateral` 4 passed. `git check-ignore -q` on the three slice files exits 1. A green test is not a model score.
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `crates/vox-eval/src/reasoning_bench.rs` and `pub mod reasoning_bench` in `lib.rs`
-- [ ] `crates/vox-compiler/tests/vox_think_oracle_test.rs`
-- [ ] Tests in `crates/vox-ml-cli/src/commands/mens/reasoning_eval.rs`
-- [ ] A `.gitignore` negation so the three `reasoning.jsonl` files can be committed
+- [x] `crates/vox-eval/src/reasoning_bench.rs` and `pub mod reasoning_bench` in `lib.rs`
+- [x] `crates/vox-compiler/tests/vox_think_oracle_test.rs`
+- [x] Tests in `crates/vox-ml-cli/src/commands/mens/reasoning_eval.rs`
+- [x] A `.gitignore` negation so the three `reasoning.jsonl` files can be committed
 
 New tests are written inside the tasks that need them. No framework install.
 
@@ -88,4 +90,12 @@ All other phase behaviors have automated verification. A green run is not a mode
 - [x] Feedback latency < 120s
 - [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** validated 2026-10-26
+
+## Validation Audit 2026-10-26
+
+| Metric | Count |
+|---|---|
+| Gaps found | 0 |
+| Resolved | 12 |
+| Escalated | 0 |
