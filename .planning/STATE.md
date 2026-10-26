@@ -4,10 +4,10 @@ milestone: v5.6
 milestone_name: Reasoning Where the Lane Needs It
 current_phase: 314
 current_phase_name: Held-out Reasoning Set
-status: ready
-last_updated: "2026-10-26T20:05:06.969Z"
+status: verifying
+last_updated: "2026-10-26T23:41:08.000Z"
 last_activity: 2026-10-26
-last_activity_desc: Phase 314 research and validation recorded
+last_activity_desc: Phase 314 plans executed; security verified; code review next
 state_head: 0da0d1fcbd298c382564ac4690f3c0decbf64210
 progress:
   total_phases: 4
@@ -21,10 +21,10 @@ progress:
 
 ## Current Position
 
-Phase: 314 (Held-out Reasoning Set) — READY TO DISCUSS
-Plan: not started
-Status: Phase 314 context and research recorded
-Last activity: 2026-10-26 — Phase 314 research committed
+Phase: 314 (Held-out Reasoning Set) — verification in progress
+Plan: 2/2 summaries committed
+Status: Security verified (threats_open 0). Code review next.
+Last activity: 2026-10-26 — Phase 314 security report written
 
 ## Milestone History (Recent)
 
@@ -41,7 +41,7 @@ Last activity: 2026-10-26 — Phase 314 research committed
 
 ## Next Step
 
-Run `/gsd-autonomous --from 313` for phases 313-316.
+Code review, then the verifier, for phase 314. Phases 315 and 316 are not started.
 
 ## v5.5 Autonomous Progress (2026-10-25 America/Phoenix)
 
