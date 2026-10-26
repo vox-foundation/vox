@@ -42,4 +42,4 @@ None.
 
 ## Next Step
 
-Milestone v5.4 complete. Ready for milestone audit / archive.
+Milestone v5.4 complete. Code review `--fix` applied (see `phases/306-…/306-REVIEW.md` + `306-REVIEW-FIX.md`). Ready for PR / merge when GitHub app available.

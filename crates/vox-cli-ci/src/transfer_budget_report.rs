@@ -69,7 +69,7 @@ pub fn build_report(sample: TransferBudgetSample) -> TransferBudgetReport {
         && sample.event_store_command_output_deltas == 0;
     TransferBudgetReport {
         schema_version: "transfer_budget_ci_v1".to_string(),
-        source: "vox-orchestrator-mcp/tests/transfer_budget.rs".to_string(),
+        source: "vox-cli-ci/fixture_sample (ceilings mirrored from vox-orchestrator-mcp/tests/transfer_budget.rs)".to_string(),
         ceilings,
         sample,
         ok,
@@ -99,10 +99,9 @@ pub fn write_report(path: &Path, report: &TransferBudgetReport) -> Result<()> {
 }
 
 pub fn load_report(path: &Path) -> Result<TransferBudgetReport> {
-    let raw = std::fs::read_to_string(path)
-        .with_context(|| format!("read {}", path.display()))?;
-    let report: TransferBudgetReport = serde_json::from_str(&raw)
-        .with_context(|| format!("parse {}", path.display()))?;
+    let raw = std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+    let report: TransferBudgetReport =
+        serde_json::from_str(&raw).with_context(|| format!("parse {}", path.display()))?;
     if report.schema_version != "transfer_budget_ci_v1" {
         bail!(
             "unsupported schema_version {} in {}",

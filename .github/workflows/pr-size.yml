@@ -49,7 +49,7 @@ jobs:
       # pull_request_target: fetch untrusted PR commits only as passive git data.
       # Do not install deps / run build scripts here.
       - name: Checkout base repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 

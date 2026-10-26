@@ -1,6 +1,6 @@
 {
   "schema_version": "transfer_budget_ci_v1",
-  "source": "vox-orchestrator-mcp/tests/transfer_budget.rs",
+  "source": "vox-cli-ci/fixture_sample (ceilings mirrored from vox-orchestrator-mcp/tests/transfer_budget.rs)",
   "ceilings": {
     "max_cold_open_snapshot_bytes": 122880,
     "max_cold_open_snapshot_rows": 75,

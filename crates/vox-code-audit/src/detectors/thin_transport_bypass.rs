@@ -20,9 +20,8 @@ const ALLOWLIST_SUFFIXES: &[&str] = &[
 
 fn is_allowlisted(path: &str) -> bool {
     let p = path.replace('\\', "/");
-    ALLOWLIST_SUFFIXES
-        .iter()
-        .any(|s| p.ends_with(s) || p.contains(s))
+    // Suffix-only: substring contains would let near-miss paths bypass.
+    ALLOWLIST_SUFFIXES.iter().any(|s| p.ends_with(s))
 }
 
 pub struct ThinTransportBypassDetector {
@@ -159,5 +158,18 @@ mod tests {
             "fn install_permission_guard() {}\n".to_string(),
         );
         assert!(d.detect(&f, None).is_empty());
+    }
+
+    #[test]
+    fn substring_near_miss_is_not_allowlisted() {
+        let d = ThinTransportBypassDetector::new();
+        let f = SourceFile::new(
+            PathBuf::from("crates/vox-gui/src/remote/gate.rs.bak"),
+            "fn install_permission_guard() {}\n".to_string(),
+        );
+        assert!(!d.detect(&f, None).is_empty());
+        assert!(!is_allowlisted(
+            "crates/vox-gui/src/evil/rpc/mod.rs_extra.ts"
+        ));
     }
 }

@@ -12,14 +12,14 @@
     },
     {
       "id": "transfer-budget-artifact",
-      "status": "Shipped",
-      "anchor": "vox ci transfer-budget-report + contracts/reports/transfer-budget-ci.v1.json",
+      "status": "Partial",
+      "anchor": "vox ci transfer-budget-report + contracts/reports/transfer-budget-ci.v1.json (fixture sample + mirrored ceilings; live orchestrator delta deferred)",
       "phase": 302
     },
     {
       "id": "trusted-budget-pr-comment",
       "status": "Partial",
-      "anchor": ".github/workflows/thread-transfer-report.yml (baseline comment; full delta vs live PR artifact deferred)",
+      "anchor": ".github/workflows/thread-transfer-report.yml (posts fixture/ceiling baseline; live PR delta deferred)",
       "phase": 302
     },
     {

@@ -125,9 +125,7 @@ pub fn plan_for_files(owners: &PathOwnersFile, files: &[String]) -> ChangePlan {
             files,
         };
     }
-    let all_inert = files
-        .iter()
-        .all(|f| is_inert(f, &owners.inert_prefixes));
+    let all_inert = files.iter().all(|f| is_inert(f, &owners.inert_prefixes));
     if all_inert {
         return ChangePlan {
             inert: true,
@@ -165,9 +163,7 @@ fn git_changed_files(root: &Path, base_ref: &str) -> Result<Vec<String>> {
         .output()
         .context("git merge-base")?;
     if !mb.status.success() {
-        bail!(
-            "check-changed: no merge base with {base_ref}. Fetch the remote or pass --base."
-        );
+        bail!("check-changed: no merge base with {base_ref}. Fetch the remote or pass --base.");
     }
     let base = String::from_utf8_lossy(&mb.stdout).trim().to_string();
     let out = Command::new("git")
@@ -296,7 +292,8 @@ fn write_github_output(path: Option<&Path>, inert: bool, plan: &ChangePlan) -> R
         plan.files.len()
     );
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).ok();
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("create parent dir {}", parent.display()))?;
     }
     std::fs::write(path, body).with_context(|| format!("write {}", path.display()))?;
     Ok(())
@@ -401,7 +398,10 @@ mod tests {
         // Fixture: inert-only should stay inert against the real contract
         let plan = plan_for_files(
             &loaded,
-            &[".planning/REQUIREMENTS.md".into(), ".planning/phases/x.md".into()],
+            &[
+                ".planning/REQUIREMENTS.md".into(),
+                ".planning/phases/x.md".into(),
+            ],
         );
         assert!(plan.inert);
     }

@@ -22,15 +22,17 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
-          fetch-depth: 2
+          fetch-depth: 0
 
       - id: changes
         name: Detect sidecar / native fingerprint inputs
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          base_sha=$(git rev-parse HEAD^1)
+          base_sha="${BASE_SHA}"
           echo "base_sha=$base_sha" >> "$GITHUB_OUTPUT"
           paths=$(git diff --no-renames --name-only "$base_sha" HEAD -- \
             crates/vox-gui/ \

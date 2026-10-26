@@ -26,6 +26,21 @@ fn glob_match(pattern: &str, path: &str) -> bool {
     let path = normalize(path);
     let path_s = path.as_str();
 
+    // `**/review-bundle/**/*.{png,...}` first — must beat `split_once("/**/")`
+    // which would otherwise treat left as the literal `**/review-bundle`.
+    if let Some(rest) = pat.strip_prefix("**/") {
+        if let Some((mid, file_pat)) = rest.split_once("/**/") {
+            if !path_has_segment(path_s, mid) {
+                return false;
+            }
+            let name = path_s.rsplit('/').next().unwrap_or(path_s);
+            return match_file_pat(name, file_pat);
+        }
+        if let Some(prefix) = rest.strip_suffix("/**") {
+            return path_has_segment(path_s, prefix);
+        }
+    }
+
     // Prefix directory allow/ban: `foo/bar/**`
     if let Some(prefix) = pat.strip_suffix("/**") {
         return path_s == prefix || path_s.starts_with(&format!("{prefix}/"));
@@ -40,25 +55,22 @@ fn glob_match(pattern: &str, path: &str) -> bool {
         return match_file_pat(name, right);
     }
 
-    // `**/review-bundle/**/*.{png,...}`
-    if let Some(rest) = pat.strip_prefix("**/") {
-        if let Some((mid, file_pat)) = rest.split_once("/**/") {
-            if !path_s.contains(mid) {
-                return false;
-            }
-            let name = path_s.rsplit('/').next().unwrap_or(path_s);
-            return match_file_pat(name, file_pat);
-        }
-        if let Some(prefix) = rest.strip_suffix("/**") {
-            return path_s.contains(prefix);
-        }
-    }
-
     if !pat.contains('*') {
         return path_s == pat;
     }
     let name = path_s.rsplit('/').next().unwrap_or(path_s);
     match_file_pat(name, &pat)
+}
+
+/// True when `mid` appears as a full path segment (or the whole path).
+fn path_has_segment(path: &str, mid: &str) -> bool {
+    if mid.is_empty() {
+        return false;
+    }
+    path == mid
+        || path.starts_with(&format!("{mid}/"))
+        || path.ends_with(&format!("/{mid}"))
+        || path.contains(&format!("/{mid}/"))
 }
 
 fn match_file_pat(name: &str, file_pat: &str) -> bool {
@@ -158,10 +170,7 @@ pub fn run(root: &Path, args: EvidenceAssetBanArgs) -> Result<()> {
             DEFAULT_ALLOWLIST
         );
     }
-    println!(
-        "evidence-asset-ban: ok ({} paths checked)",
-        files.len()
-    );
+    println!("evidence-asset-ban: ok ({} paths checked)", files.len());
     Ok(())
 }
 
@@ -209,5 +218,17 @@ mod tests {
             &cfg.banned_globs,
             &cfg.allowlist
         ));
+    }
+
+    #[test]
+    fn segment_bound_rejects_substring() {
+        let banned = vec!["**/review-bundle/**/*.{png,webp}".into()];
+        let allow: Vec<String> = vec![];
+        assert!(!is_banned(
+            "docs/my-review-bundle-notes.png",
+            &banned,
+            &allow
+        ));
+        assert!(is_banned("tmp/review-bundle/shot.png", &banned, &allow));
     }
 }

@@ -25,7 +25,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout trusted publisher
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.repository.default_branch }}
           sparse-checkout: |
@@ -55,7 +55,7 @@ jobs:
               const s = report.sample || {};
               body = [
                 "<!-- vox-transfer-budget-report -->",
-                "### Transfer budget (trusted baseline)",
+                "### Transfer budget (fixture ceilings; not a live PR measurement)",
                 "",
                 `Source run: [${context.payload.workflow_run.id}](${context.payload.workflow_run.html_url})`,
                 `Conclusion: \`${context.payload.workflow_run.conclusion}\``,
