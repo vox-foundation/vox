@@ -384,7 +384,7 @@
 3. Surface graph regenerates from current clone SHAs; inventory script compiles.
 4. Scorecard + architecture note list every gem as Shipped/Partial/Deferred with anchors.
 **Plans:**
-- [ ] `306-01`: Fingerprint workflow + cache layers + graph regen + scorecard/docs
+- [x] `306-01`: Fingerprint workflow + cache layers + graph regen + scorecard/docs
 
 ---
 
@@ -397,7 +397,7 @@
 | **Phase 303** | Knip Dual Gate, PR Size Labels & Evidence-Asset Ban | `1/1` | Complete |
 | **Phase 304** | Agent-Ops Kill-Safety, Hit-Every-Surface Checklist & Worktree Isolation | `1/1` | Complete |
 | **Phase 305** | TOESTUB Thin-Transport, Suppression Review Gate & Snapshot Interning | `1/1` | Complete |
-| **Phase 306** | Tauri Fingerprint Advisory, GUI Cache Layers, Surface Graph Refresh & Scorecard | `0/1` | Pending |
+| **Phase 306** | Tauri Fingerprint Advisory, GUI Cache Layers, Surface Graph Refresh & Scorecard | `1/1` | Complete |
 
 
 ## Phases (`v5.3` — Photorealistic Edge-Softening, Continuous Monumental Aqueduct-to-Sewer Architecture, Sub-Surface Ground Integration & CV Flywheel Score Maximization)

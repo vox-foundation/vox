@@ -1,0 +1,116 @@
+{
+  "schema_version": "t3_vox_ci_enforcement_scorecard_v1",
+  "milestone": "v5.4",
+  "phases": "301-306",
+  "generated_at": "2026-10-25",
+  "gems": [
+    {
+      "id": "check-changed",
+      "status": "Shipped",
+      "anchor": "vox ci check-changed + contracts/ci/changed-path-owners.v1.yaml",
+      "phase": 301
+    },
+    {
+      "id": "transfer-budget-artifact",
+      "status": "Shipped",
+      "anchor": "vox ci transfer-budget-report + contracts/reports/transfer-budget-ci.v1.json",
+      "phase": 302
+    },
+    {
+      "id": "trusted-budget-pr-comment",
+      "status": "Partial",
+      "anchor": ".github/workflows/thread-transfer-report.yml (baseline comment; full delta vs live PR artifact deferred)",
+      "phase": 302
+    },
+    {
+      "id": "weighted-sharding",
+      "status": "Shipped",
+      "anchor": "contracts/ci/shard-weights.v1.json + partition_crates",
+      "phase": 302
+    },
+    {
+      "id": "knip-gui",
+      "status": "Partial",
+      "anchor": "crates/vox-gui/ui/knip.jsonc + vox ci knip-gui (dlx/local; lockfile pin deferred)",
+      "phase": 303
+    },
+    {
+      "id": "pr-size-labels",
+      "status": "Shipped",
+      "anchor": ".github/workflows/pr-size.yml",
+      "phase": 303
+    },
+    {
+      "id": "evidence-asset-ban",
+      "status": "Shipped",
+      "anchor": "vox ci evidence-asset-ban + contracts/ci/evidence-asset-allowlist.v1.yaml",
+      "phase": 303
+    },
+    {
+      "id": "kill-safety-triad",
+      "status": "Shipped",
+      "anchor": "AGENTS.md + docs/agents/kill-safety-and-hit-every-surface.md",
+      "phase": 304
+    },
+    {
+      "id": "hit-every-surface",
+      "status": "Shipped",
+      "anchor": "vox ci hit-every-surface (advisory)",
+      "phase": 304
+    },
+    {
+      "id": "worktree-isolation",
+      "status": "Shipped",
+      "anchor": "scripts/worktree-setup.vox + docs/agents/worktree-isolation.md",
+      "phase": 304
+    },
+    {
+      "id": "suppression-human-review",
+      "status": "Partial",
+      "anchor": "CODEOWNERS contracts/toestub/ + vox ci suppression-review-gate (advisory)",
+      "phase": 304
+    },
+    {
+      "id": "thin-transport-bypass",
+      "status": "Shipped",
+      "anchor": "vox/transport/thin-transport-bypass",
+      "phase": 305
+    },
+    {
+      "id": "unreasoned-suppression-ratchet",
+      "status": "Shipped",
+      "anchor": "vox/lint/unreasoned-suppression + PR-diff unit ratchet",
+      "phase": 305
+    },
+    {
+      "id": "snapshot-id-interning",
+      "status": "Shipped",
+      "anchor": "vox-orchestrator wire_compression WireIdTableInterner",
+      "phase": 305
+    },
+    {
+      "id": "oxlint-mapping-ledger",
+      "status": "Shipped",
+      "anchor": "contracts/reports/t3-oxlint-toestub-mapping-ledger.v1.json",
+      "phase": 305
+    },
+    {
+      "id": "sidecar-fingerprint-advisory",
+      "status": "Shipped",
+      "anchor": ".github/workflows/gui-sidecar-fingerprint.yml",
+      "phase": 306
+    },
+    {
+      "id": "gui-cache-main-only",
+      "status": "Shipped",
+      "anchor": "docs/src/ci/gui-cache-layers.md + existing ci.yml package-manager-cache: false",
+      "phase": 306
+    },
+    {
+      "id": "surface-graph-refresh",
+      "status": "Partial",
+      "anchor": "contracts/reports/t3-ecosystem-surface-graph.v1.json (SHAs refreshed; inventory.vox compile regen deferred)",
+      "phase": 306
+    }
+  ]
+}

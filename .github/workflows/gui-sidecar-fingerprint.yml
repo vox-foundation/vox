@@ -1,0 +1,109 @@
+# Advisory Tauri/sidecar fingerprint check (t3code mobile-fingerprint-check analog).
+# Always green; the "native-sidecar-change" label is the signal.
+name: GUI Sidecar Fingerprint
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+concurrency:
+  group: gui-sidecar-fingerprint-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  fingerprint:
+    name: Sidecar / native input fingerprint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+
+      - id: changes
+        name: Detect sidecar / native fingerprint inputs
+        run: |
+          base_sha=$(git rev-parse HEAD^1)
+          echo "base_sha=$base_sha" >> "$GITHUB_OUTPUT"
+          paths=$(git diff --no-renames --name-only "$base_sha" HEAD -- \
+            crates/vox-gui/ \
+            crates/vox-cli/ \
+            Cargo.toml \
+            Cargo.lock \
+            .cargo/ \
+            scripts/gui-build.vox \
+            .github/workflows/gui-sidecar-fingerprint.yml \
+            || true)
+          if [[ -n "$paths" ]]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Sidecar fingerprint inputs changed"
+              echo ""
+              echo '```'
+              echo "$paths"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+            echo "No sidecar/native fingerprint inputs changed." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Label PR (advisory; check always green)
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          RELEVANT: ${{ steps.changes.outputs.relevant }}
+        with:
+          script: |
+            const label = "native-sidecar-change";
+            const relevant = process.env.RELEVANT === "true";
+            const issue_number = context.payload.pull_request.number;
+            try {
+              await github.rest.issues.getLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: label,
+              });
+            } catch (e) {
+              if (e.status === 404) {
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: label,
+                  color: "5319e7",
+                  description: "PR changes Tauri/sidecar/native inputs — batch before OTA/sidecar reuse.",
+                });
+              } else {
+                throw e;
+              }
+            }
+            const { data: current } = await github.rest.issues.listLabelsOnIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+            });
+            const has = current.some((l) => l.name === label);
+            if (relevant && !has) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number,
+                labels: [label],
+              });
+            }
+            if (!relevant && has) {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number,
+                name: label,
+              });
+            }
+            core.info(`advisory fingerprint: relevant=${relevant}; check stays green`);

@@ -1,0 +1,350 @@
+{
+  "schema_version": "1.0.0",
+  "generated_at": "2026-10-26T01:21:08Z",
+  "milestone": "v5.4",
+  "phase": 306,
+  "repositories": [
+    {
+      "id": "t3code",
+      "repo": "pingdotgg/t3code",
+      "local_path": "~/dev/t3code",
+      "commit_sha": "80455376f01f19c10a06dc08b0629486c017bf79",
+      "role": "Official T3 Code multi-provider coding agent harness (Web/Desktop/Mobile/Server/CLI)",
+      "stack": [
+        "TypeScript",
+        "Effect-TS",
+        "Bun",
+        "SQLite (statev2.sqlite)",
+        "React 19",
+        "Electron",
+        "Expo Mobile",
+        "WebSockets",
+        "JSON-RPC 2.0",
+        "ACP",
+        "Connect-RPC"
+      ],
+      "workspace_packages_count": 25,
+      "apps_count": 5,
+      "docs_count": 67,
+      "workspace_packages": [
+        "packages/client-runtime",
+        "packages/contracts",
+        "packages/effect-acp",
+        "packages/effect-codex-app-server",
+        "packages/provider-acp",
+        "packages/provider-acp-registry",
+        "packages/provider-core",
+        "packages/provider-cursor",
+        "packages/provider-grok",
+        "packages/provider-muse",
+        "packages/provider-opencode",
+        "packages/provider-pi",
+        "packages/provider-testing",
+        "packages/shared",
+        "packages/source-control-azure-devops",
+        "packages/source-control-bitbucket",
+        "packages/source-control-core",
+        "packages/source-control-definitions",
+        "packages/source-control-forgejo",
+        "packages/source-control-gitcafe",
+        "packages/source-control-github",
+        "packages/source-control-gitlab",
+        "packages/source-control-testing",
+        "packages/ssh",
+        "packages/tailscale"
+      ],
+      "apps": [
+        "apps/server",
+        "apps/web",
+        "apps/desktop",
+        "apps/mobile",
+        "apps/marketing"
+      ],
+      "provider_drivers": [
+        "codex",
+        "claude",
+        "acp-registry",
+        "antigravity",
+        "grok",
+        "cursor",
+        "opencode",
+        "muse",
+        "pi"
+      ],
+      "source_control_forges": [
+        "github",
+        "gitlab",
+        "gitcafe",
+        "forgejo",
+        "bitbucket",
+        "azure-devops"
+      ],
+      "orchestration_v2_stats": {
+        "protocol_version": 2,
+        "public_commands_count": 55,
+        "internal_commands_count": 8,
+        "domain_events_count": 45,
+        "turn_item_variants_count": 24,
+        "ws_rpc_methods_count": 18,
+        "http_endpoints_count": 5,
+        "mcp_toolkits_count": 14,
+        "orchestrator_mcp_tools_count": 18,
+        "thread_mcp_tools_count": 17
+      }
+    },
+    {
+      "id": "t3router",
+      "repo": "vibheksoni/t3router",
+      "local_path": "~/dev/t3router",
+      "commit_sha": "5314bbbf0af66e724e3e07ffd458ef5919d1eed1",
+      "role": "Rust SDK, CLI, and interactive REPL for t3.chat with Chrome 136 TLS impersonation and dynamic JS bundle model/pricing scraper",
+      "stack": [
+        "Rust 2021",
+        "rquest 5.1 (Chrome136 BoringSSL/JA3/JA4/HTTP2)",
+        "tokio",
+        "serde_json",
+        "regex",
+        "uuid"
+      ],
+      "modules": [
+        "src/lib.rs",
+        "src/bin/t3chat.rs",
+        "src/t3/mod.rs",
+        "src/t3/config.rs",
+        "src/t3/models.rs",
+        "src/t3/client.rs",
+        "src/t3/usage.rs",
+        "src/t3/session.rs",
+        "src/t3/history.rs",
+        "src/t3/message.rs",
+        "src/t3/repl.rs"
+      ],
+      "examples": [
+        "examples/basic_chat.rs",
+        "examples/check_credits.rs",
+        "examples/conversation_history.rs",
+        "examples/generate_image.rs",
+        "examples/list_models.rs",
+        "examples/model_benchmarks.rs",
+        "examples/model_status.rs",
+        "examples/reasoning_effort.rs",
+        "examples/save_and_resume.rs",
+        "examples/streaming.rs",
+        "examples/web_search.rs"
+      ],
+      "trpc_endpoints": [
+        "POST https://t3.chat/api/chat",
+        "GET https://t3.chat/api/trpc/auth.getActiveSessions",
+        "GET https://t3.chat/api/trpc/getCustomerData",
+        "GET https://t3.chat/api/trpc/getSubscriptionData",
+        "GET https://t3.chat/api/trpc/getPricingProducts",
+        "GET https://t3.chat/api/trpc/getModelStatuses",
+        "GET https://t3.chat/api/trpc/getAllModelBenchmarks"
+      ]
+    },
+    {
+      "id": "pi-t3chat",
+      "repo": "vibheksoni/pi-t3chat",
+      "local_path": "~/dev/pi-t3chat",
+      "commit_sha": "b39873245362c33f68a9a3e044423f69769069f9",
+      "role": "TypeScript coding-agent bridge and localhost OpenAI-compatible proxy for t3.chat with prompt-engineered tool calling, refusal auto-correction, and lazy MCP wrapper grouping",
+      "stack": [
+        "TypeScript",
+        "Node.js http",
+        "Playwright",
+        "Pi Coding Agent Extension API"
+      ],
+      "modules": [
+        "index.ts",
+        "auth.ts",
+        "catalog.ts",
+        "models.ts",
+        "config.ts",
+        "chat.ts",
+        "sse.ts",
+        "tools.ts",
+        "mcp.ts",
+        "proxy.ts",
+        "tokens.ts",
+        "usage.ts",
+        "log.ts"
+      ]
+    },
+    {
+      "id": "thom-chat",
+      "repo": "TGlide/thom-chat",
+      "local_path": "~/dev/thom-chat",
+      "commit_sha": "062193d792303007b500e35c0c50ea4ceefeff2d",
+      "role": "SvelteKit 5 + Convex + OpenRouter T3 Chat web clone with server-detached resumable streaming, 2-tier cost reconciliation, prompt enhancement, and @rule mentions",
+      "stack": [
+        "SvelteKit 5",
+        "Convex",
+        "Better-Auth",
+        "OpenRouter API",
+        "Tailwind CSS 4"
+      ],
+      "api_routes": [
+        "src/routes/api/generate-message/+server.ts",
+        "src/routes/api/cancel-generation/+server.ts",
+        "src/routes/api/enhance-prompt/+server.ts"
+      ],
+      "convex_tables": [
+        "conversations",
+        "messages",
+        "user_keys",
+        "user_settings",
+        "user_enabled_models",
+        "user_rules"
+      ]
+    },
+    {
+      "id": "helioschat",
+      "repo": "helioschat/app",
+      "local_path": "~/dev/helioschat",
+      "commit_sha": "08e2c3fc784c4ed5bf58b38516182387f218bf26",
+      "role": "Local-first browser-direct SvelteKit 5 + IndexedDB v3 T3 Chat web clone with 4 provider SDKs, multiplexed reasoning/event streams, 10-round client tool loop, and 5-point zero-retention temporary mode",
+      "stack": [
+        "SvelteKit 5",
+        "IndexedDB v3 (llmchat)",
+        "OpenAI/Anthropic/Google/OpenRouter Browser SDKs",
+        "Exa JS",
+        "mathjs"
+      ],
+      "indexeddb_stores": [
+        "threads",
+        "messages",
+        "attachments",
+        "folders",
+        "memories"
+      ],
+      "client_tools": [
+        "manage_memories",
+        "search_memories",
+        "exa_web_search",
+        "math_evaluate"
+      ]
+    },
+    {
+      "id": "t3-cloneathon",
+      "repo": "lulkebit/t3-cloneathon",
+      "local_path": "~/dev/t3-cloneathon",
+      "commit_sha": "99eb9ab16c9349e9973138b5b71b0af5e9d70b8b",
+      "role": "Next.js 15 + Supabase PostgreSQL + OpenRouter T3 Chat Cloneathon entry featuring Multi-Model Consensus SSE streaming and heuristic ResponseQualityAnalyzer",
+      "stack": [
+        "Next.js 15.3.8",
+        "React 19",
+        "Supabase Auth/PostgreSQL/Storage",
+        "OpenRouter API",
+        "Tailwind CSS 4",
+        "Framer Motion 12"
+      ],
+      "api_routes": [
+        "src/app/api/chat/route.ts",
+        "src/app/api/chat/consensus/route.ts",
+        "src/app/api/conversations/route.ts",
+        "src/app/api/conversations/[id]/messages/route.ts",
+        "src/app/api/conversations/[id]/messages/[messageId]/route.ts",
+        "src/app/api/generate-title/route.ts",
+        "src/app/api/profile/route.ts",
+        "src/app/api/profile/create/route.ts",
+        "src/app/api/quality-analytics/route.ts",
+        "src/app/api/upload/route.ts"
+      ],
+      "postgres_tables": [
+        "profiles",
+        "conversations",
+        "messages",
+        "attachments",
+        "message_quality_metrics"
+      ]
+    },
+    {
+      "id": "omnichat",
+      "repo": "guitaripod/omnichat",
+      "local_path": "~/dev/omnichat",
+      "commit_sha": "b864415e55ba3e4bb3489b06919e405031b8bb8a",
+      "role": "3rd Place T3 Cloneathon Champion built on Next.js 15 Edge + Cloudflare Workers/D1/R2 with Battery Unit (BU) pay-per-use token ledger, tree branching with divergence-point comparison, dual-mode Ollama, and Go CLI API validator",
+      "stack": [
+        "Next.js 15.3.3 Edge",
+        "Cloudflare Workers/D1/R2",
+        "Drizzle ORM",
+        "Clerk + Apple Sign-In JWT",
+        "Stripe",
+        "Zustand 5",
+        "Go CLI Validator"
+      ],
+      "d1_tables": [
+        "users",
+        "conversations",
+        "messages",
+        "attachments",
+        "subscription_plans",
+        "user_subscriptions",
+        "user_battery",
+        "battery_transactions",
+        "api_usage",
+        "daily_usage_summary",
+        "audit_logs",
+        "auth_providers",
+        "refresh_tokens",
+        "api_keys"
+      ]
+    },
+    {
+      "id": "nott3chat",
+      "repo": "shaltielshmid/NotT3Chat",
+      "local_path": "~/dev/NotT3Chat",
+      "commit_sha": "913afaaea495a63076bf085d66597ca0f98a7b04",
+      "role": "Single-file 1,147-LoC C# 12 / .NET 10 ASP.NET Core + SignalR + LlmTornado T3 Chat clone with SemaphoreSlim(1) atomic mid-stream multi-tab join and 1024-slot n-gram RepetitionGuard",
+      "stack": [
+        "C# 12 / .NET 10.0",
+        "ASP.NET Core SignalR",
+        "EF Core SQLite",
+        "LlmTornado 3.8.26 (10 providers)",
+        "Exa API",
+        "React 19",
+        "Streamdown 1.4.0"
+      ],
+      "signalr_hub_methods": [
+        "ChooseChat",
+        "NewMessage",
+        "RegenerateMessage",
+        "StopGenerating"
+      ],
+      "signalr_client_events": [
+        "ConversationHistory",
+        "UserMessage",
+        "BeginAssistantMessage",
+        "NewAssistantPart",
+        "EndAssistantMessage",
+        "RegenerateMessage",
+        "ChatTitle",
+        "NewConversation",
+        "DeleteConversation"
+      ]
+    },
+    {
+      "id": "t3-chat-tomdoestech",
+      "repo": "TomDoesTech/t3-chat",
+      "local_path": "~/dev/t3-chat-tomdoestech",
+      "commit_sha": "4cc8fac3ec947e7b9889588ff292d66862b0c5b0",
+      "role": "Taxonomic control case: 2022 create-t3-app (T3 Stack) Next.js 12 + tRPC v9 WebSocket human multi-user chat room tutorial (non-AI)",
+      "stack": [
+        "Next.js 12.2.1",
+        "tRPC v9 (httpBatchLink + wsLink)",
+        "ws.Server (:3001)",
+        "Prisma 4 SQLite",
+        "NextAuth.js 4"
+      ],
+      "trpc_procedures": [
+        "room.send-message",
+        "room.onSendMessage",
+        "auth.getSession",
+        "auth.getSecretMessage"
+      ]
+    }
+  ],
+  "notes": [
+    "Phase 306: SHAs refreshed from ~/dev clones; inventory.vox regen deferred if compile blockers remain."
+  ]
+}

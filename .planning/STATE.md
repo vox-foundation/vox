@@ -2,25 +2,25 @@
 gsd_state_version: "1.0"
 milestone: v5.4
 milestone_name: T3 CI/TOESTUB Enforcement Deep-Extraction & Harness Policy Hardening
-status: executing
+status: complete
 last_updated: "2026-10-26T00:49:50.064Z"
 last_activity: 2026-10-25
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 6
-  completed_plans: 5
-  percent: 83
+  completed_plans: 6
+  percent: 100
 ---
 
 # Project State: Unified Workstream
 
 ## Current Position
 
-Phase: 306 (next) — Agent-Ops Kill-Safety, Hit-Every-Surface Checklist & Worktree Isolation
+Phase: 306 — Complete — Agent-Ops Kill-Safety, Hit-Every-Surface Checklist & Worktree Isolation
 Plan: —
-Status: Phase 305 complete; continuing autonomous execution
-Last activity: 2026-10-25 — Phase 305 complete (thin-transport detector + oxlint ledger)
+Status: Milestone v5.4 complete (6/6 phases, 24/24 requirements)
+Last activity: 2026-10-25 — Phase 306 complete; v5.4 CI/TOESTUB enforcement milestone closed
 
 ## Milestone History (Recent)
 
@@ -41,4 +41,4 @@ None.
 
 ## Next Step
 
-CV flywheel gates closed: noiseFloor 4.4 (<5.1), visualAfterScore 0.942, 32-surface DOM clean.
+Milestone v5.4 complete. Ready for milestone audit / archive.

@@ -6,7 +6,7 @@
 
 ---
 
-## v5.4 Requirements (20/24 Complete Across Phases 301–306)
+## v5.4 Requirements (24/24 Complete Across Phases 301–306)
 
 ### 1. Phase 301: Change-Gated CI Path Map & `vox ci check-changed` (`T3-CI-CHANGED`)
 
@@ -45,10 +45,10 @@
 
 ### 6. Phase 306: Tauri Fingerprint Advisory, GUI Cache Layers, Surface Graph Refresh & Scorecard (`T3-CI-CLOSE`)
 
-- [ ] **T3-CI-CLOSE-01**: Advisory Tauri/native fingerprint (or `crates/vox-gui` sidecar/native input hash) PR label when a change would break OTA/sidecar reuse — modeled on t3code `mobile-fingerprint-check.yml` (always green; label is the signal).
-- [ ] **T3-CI-CLOSE-02**: Layer Vite+/pnpm caches for GUI CI jobs under the main-only save policy (`vox ci cache-key-lint` compliant) so `ui` jobs restore node+vite artifacts without poisoning PR cache scope.
-- [ ] **T3-CI-CLOSE-03**: Repair `scripts/t3-surface-inventory.vox` compile blockers; regenerate `contracts/reports/t3-ecosystem-surface-graph.v1.json` from current `~/dev/{t3code,t3router,pi-t3chat,thom-chat,helioschat}` SHAs.
-- [ ] **T3-CI-CLOSE-04**: Publish `contracts/reports/t3-vox-ci-enforcement-scorecard.v1.json` + architecture note listing each gem as Shipped / Partial / Deferred with file anchors; update extraction ledger without duplicating v3.9 runtime rows.
+- [x] **T3-CI-CLOSE-01**: Advisory Tauri/native fingerprint (or `crates/vox-gui` sidecar/native input hash) PR label when a change would break OTA/sidecar reuse — modeled on t3code `mobile-fingerprint-check.yml` (always green; label is the signal).
+- [x] **T3-CI-CLOSE-02**: Layer Vite+/pnpm caches for GUI CI jobs under the main-only save policy (`vox ci cache-key-lint` compliant) so `ui` jobs restore node+vite artifacts without poisoning PR cache scope.
+- [x] **T3-CI-CLOSE-03**: Repair `scripts/t3-surface-inventory.vox` compile blockers; regenerate `contracts/reports/t3-ecosystem-surface-graph.v1.json` from current `~/dev/{t3code,t3router,pi-t3chat,thom-chat,helioschat}` SHAs.
+- [x] **T3-CI-CLOSE-04**: Publish `contracts/reports/t3-vox-ci-enforcement-scorecard.v1.json` + architecture note listing each gem as Shipped / Partial / Deferred with file anchors; update extraction ledger without duplicating v3.9 runtime rows.
 
 ## Out of Scope (v5.4)
 
@@ -69,7 +69,7 @@
 | `T3-CI-HYGIENE-01..04` | Phase 303 | Complete |
 | `T3-AGENT-OPS-01..04` | Phase 304 | Complete |
 | `T3-TOESTUB-ENF-01..04` | Phase 305 | Complete |
-| `T3-CI-CLOSE-01..04` | Phase 306 | Pending |
+| `T3-CI-CLOSE-01..04` | Phase 306 | Complete |
 
 **Coverage:** 24 v5.4 requirements → 6 phases → 0 unmapped
 
