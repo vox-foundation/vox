@@ -1,5 +1,240 @@
 # Milestones
 
+## v5.4 T3 CI/TOESTUB Enforcement Deep-Extraction & Harness Policy Hardening (Planning: 2026-10-25)
+
+**Phases planned:** 6 phases (`Phases 301–306`), 24 requirements
+**Status:** Planning — requirements & roadmap defined; not yet executing
+
+**Goal:** Extract the remaining t3code CI/oxlint/agent-ops gems (change-gated checks, transfer-budget PR reporting, knip, PR size/evidence hygiene, kill-safety + multi-surface checklist, thin-transport TOESTUB, fingerprint/cache/graph closure) into Vox harness enforcement without redoing shipped v3.9/Wave runtime features.
+
+**Key planned accomplishments:**
+
+- **Change-gated CI (`Phase 301`):** Owner map + `vox ci check-changed` + inert-path job skipping
+- **Transfer budgets & shard weights (`Phase 302`):** CI artifacts, trusted PR comments, weighted nextest/e2e shards
+- **Hygiene (`Phase 303`):** Knip dual gate, PR size labels, evidence-asset ban
+- **Agent-ops (`Phase 304`):** Kill-safety triad, hit-every-surface checklist, worktree isolation, suppression review
+- **TOESTUB (`Phase 305`):** Thin-transport detector, suppression ratchet, snapshot interning, oxlint mapping
+- **Closure (`Phase 306`):** Tauri fingerprint advisory, GUI cache layers, surface-graph regen, scorecard
+
+---
+
+## v4.7 Universal Repo-Agnostic Codebase Civilization Simulator & Attention-Weighted Developer Control Surface (Shipped: 2026-10-25)
+
+**Phases completed:** 6 phases (`Phases 259–264`), 6 plans, 24/24 requirements verified (`100%`)
+**Archive:** [`milestones/v4.7-ROADMAP.md`](milestones/v4.7-ROADMAP.md) | [`milestones/v4.7-REQUIREMENTS.md`](milestones/v4.7-REQUIREMENTS.md) | [`.planning/v4.7-MILESTONE-AUDIT.md`](v4.7-MILESTONE-AUDIT.md)
+
+**Key accomplishments:**
+
+- **Polyglot Repository Scanner (`workspace_town.rs`) + Live Git Diff (`+LoC / -LoC`) Enrichment (`Phase 259`):** Decoupled `workspace_town.rs` from Cargo-only prefixes to partition any repo structure (Cargo `crates/*`, TypeScript `packages/*`/`apps/*`/`services/*`, Go `cmd/*`/`internal/*`, Python `src/<pkg>`, single-app directory layouts) and enriched `TownScanDto`, `TownCrateDto`, and `TownFileDto` with live git working-tree diff telemetry (`git_status`, `diff_added_lines`, `diff_deleted_lines`, `dirty_file_count`, `total_churn_lines`, `primary_language`).
+- **Zero-Hardcoding Graph Topology & Structural Archetype Classifier (`Phase 260`):** Implemented `computeTopologicalLayers` (Kahn's algorithm + Tarjan SCCs), `classifyDistrictArchetype`, `deriveCivicTitle`, and `computeBlastRadius` in `topology.ts`, eliminating all hardcoded `vox-*` crate name conditionals and static title lookups across `layout.ts`, `worldRenderer.ts`, and `LudusSandbox.tsx`.
+- **Attention-Weighted Dynamic Real-Estate Layout (`Phase 261`):** Implemented `computeAttentionMultiplier` in `layout.ts` to inflate active, dirty, failing, and blast-radius districts (`1.0x`–`3.2x`) while compacting dormant modules (`0.55x`), allocated `>= 65%` of worksite interior plot footprint to modified/active files as interactive file slabs, and wired Real-Estate Focus Mode (`Attention-Weighted (Auto)` | `Worksite Only` | `Proportional Raw LoC`).
+- **Interactive Foreground Worksite Cards & Priority Dock (`Phase 262`):** Rendered Live File Diff Slabs with `+added / -deleted` proportion bars, status badges (`M`/`A`/`U`), and agent owner badges in `worldRenderer.ts`, Diagnostic Siege Cards with 1-click dispatch actions (`[Fix Error]`, `[Re-run Test]`, `[Open File]`), and added the top-left Live Developer Priority Dock (`data-testid="urbs-priority-dock"`) in `LudusSandbox.tsx`.
+- **Dependency Blast-Radius Illumination & Polyglot Architecture Inspector (`Phase 263`):** Wired `computeBlastRadius` to illuminate Upstream Providers (`Teal`) and Downstream Blast Radius (`Amber/Crimson`) with `BLAST RADIUS` warning pills on the canvas, and upgraded `ImperiumInspector.tsx` with repo-agnostic `DEPENDENCY & BLAST-RADIUS DAG`, per-file diff badges, and one-click `Test Impacted`, `Fix Error`, and `Open File` actions.
+- **Multi-Repo Simulation Presets & Visual Quality Closure (`Phase 264`):** Added `repoPresets.ts` and Repo Preset Switcher (`data-testid="urbs-repo-preset-select"`) in `LudusSandbox.tsx` supporting `Current Workspace (Live)`, `TypeScript Full-Stack Monorepo`, `Python FastAPI + ML Service`, and `Go Distributed Microservices`, and verified all gates: Vitest (`73/73` passed), typecheck (`0` errors), `vox-code-audit` sweep (`1/1` passed), `vox-arch-check` (`0` errors), and `vox-doc-pipeline` (`0` errors).
+
+---
+
+## v4.6 T3 Wave 3 Live Surface & Daemon RPC Wiring, Router/DPO Quality-Prior Flywheel & Workspace-Wide TOESTUB Remediation (Shipped: 2026-10-25)
+
+**Phases completed:** 6 phases (`Phases 253–258`), 6 plans, 24/24 requirements verified (`100%`)
+**Archive:** [`milestones/v4.6-ROADMAP.md`](milestones/v4.6-ROADMAP.md) | [`milestones/v4.6-REQUIREMENTS.md`](milestones/v4.6-REQUIREMENTS.md) | [`.planning/v4.6-MILESTONE-AUDIT.md`](v4.6-MILESTONE-AUDIT.md)
+
+**Key accomplishments:**
+
+- **Workspace-Wide TOESTUB & `vox-arch-check` Remediation Sweep (`Phases 253–254`):** Enhanced `UnreasonedSuppressionDetector`, `TestClockAndSkipDetector`, `McpAccessAndErrorSafetyDetector`, and `UiPerfHazardsDetector` in `crates/vox-code-audit`, remediated all surfaced lint/arch findings across `vox-orchestrator`, `vox-orchestrator-mcp`, `vox-arch-check`, and `vox-gui/ui`, and added the 53-file regression test `crates/vox-code-audit/tests/t3_wave3_workspace_sweep.rs`.
+- **Live MCP Tool Registry, `dispatch.rs`, `input_schemas.rs` & Frontend RPC Wiring (`Phase 255`):** Implemented and wired all 12 Wave 3 MCP tools (`vox_consensus_run`, `vox_context_handoff`, `vox_checkpoint_capture`, `vox_checkpoint_list`, `vox_checkpoint_restore`, `vox_muse_pool_spawn`, `vox_muse_pool_adopt`, `vox_guest_share_mint`, `vox_guest_share_moderate`, `vox_session_import_external`, `vox_session_export_bundle`, `vox_session_import_bundle`) in `crates/vox-orchestrator-mcp/src/t3_wave3_tools.rs`, `dispatch.rs`, and `input_schemas.rs`, plus typed RPC helpers in `crates/vox-gui/ui/src/transport/t3Wave3Rpc.ts`.
+- **Live Chat Transcript, Multi-Model Consensus, LCA Branch Comparison, Chunked Loader & Composer History (`Phase 256`):** Wired `<ConsensusGridView />`, `<BranchComparisonModal />`, `computeChunkedThreadWindow` (`CHUNK_SIZE = 16`), `shouldPersistThreadMutation`, and `evaluateHighlightBudget` into `ChatTranscript.tsx` and `ArenaComparisonCard.tsx`, and wired `PromptHistoryController` (`MAX_PROMPT_HISTORY = 100`) into `Loquela.tsx`.
+- **Live Git Checkpoints Timeline, External CLI Session Interop Modal & 6-Tier `ConnectionRouteRacer` (`Phase 257`):** Created `SessionInteropModal.tsx` (`~/.claude`, `~/.codex`, `~/.cursor` + portable JSON bundles) and wired it alongside the live **Git Checkpoints** timeline (`refs/vox/checkpoints/`) and `ConnectionRouteRacer` status badge into `ChatExecutionRail.tsx`.
+- **Live `ModelSelectionEngine` Multi-Benchmark Priors & Quality-Gated Auto-DPO Flywheel (`Phase 258`):** Blended `ExternalBenchmarkPrior::composite_routing_prior()` (`SweBench`, `LiveBench`, `ArtificialAnalysis`, `SkateBench`, `SnitchBench`) and `response_quality_ema` into `ModelScore` (`registry.rs`) and `scoreboard_feedback_boost` (`scoring.rs`), and wired `evaluate_turn_quality_and_gate_dpo` into `agent_loop.rs` and `batch_and_eval_gate.rs`.
+
+---
+
+## v4.5 T3 Ecosystem Wave 2 Full-Stack Harness, Router, VCS, Client & TOESTUB Enforcement Wiring + Legacy Code Retirement (Shipped: 2026-10-25)
+
+**Phases completed:** 11 phases (`Phases 242–252`), 11 plans, 44/44 requirements verified (`100%`)
+**Archive:** [`milestones/v4.5-ROADMAP.md`](milestones/v4.5-ROADMAP.md) | [`milestones/v4.5-REQUIREMENTS.md`](milestones/v4.5-REQUIREMENTS.md)
+
+**Key accomplishments:**
+
+- **Deterministic Entity IDs (`VoxIdAllocatorV2`), `ForwardCompatibleEnvelope` & Multi-Tab Atomic Stream Resumption (`Phases 242–243`):** Added deterministic entity IDs, wire ID/body deduplication, atomic mid-stream multi-tab resumption with `SemaphoreSlim` pattern, and `ThreadRunQueue`.
+- **O(1) Ring-Buffer `RepetitionGuard`, Battery Ledger & Multi-Model Consensus Fan-Out (`Phases 244–246`):** Implemented 1024-slot ring buffer repetition detector, `1 BU = $0.001` battery pre-flight gate, multi-benchmark priors, consensus SSE fan-out, and deterministic Flesch-Kincaid `ResponseQualityAnalyzer`.
+- **Windows Junction-Safe Worktrees, Git Plumbing Checkpoints, Handoff & Chunked Lazy Loader (`Phases 247–249`):** Shipped junction-safe worktrees, `refs/vox/checkpoints/` plumbing, cross-provider `ContextHandoffService`, DPoP, `McpAppModelContext`, and chunked local-first loading.
+- **Dynamic Rules, Webhook Ingress, CLI Session Importer & TOESTUB Enforcement Detectors (`Phases 250–252`):** Wired `@rule` rules, webhook ingress, external CLI session importing, and built four `vox-code-audit` static enforcement detectors (`unreasoned_suppression`, `test_clock_and_skip`, `mcp_access_and_error_safety`, `ui_perf_hazards`).
+
+---
+
+## v4.4 Concept-Art Pixel & Structural Convergence, Live Animated Roman Civilization Simulator (`VRBS ROMA`), Interactive DAG/Diff Workbench & Before/After Visual Proof (Shipped: 2026-10-25)
+
+**Phases completed:** 6 phases (`Phases 236–241`), 6 plans, 24/24 requirements verified (`100%`)
+
+**Key accomplishments:**
+
+- **Monumental Roman Wonders (`colosseum`, `praetorium`, `rotunda`), Multi-Arch `AQVAE` Aqueduct & Rich District Callout Cards (`Phase 236`):** Added parametric sprite drawers for `'colosseum'` (`AMPHITHEATRVM GUI` oval Roman Colosseum with 3 stories of glowing amber arched arcades), `'praetorium'` (`PRAETORIVM ORCHESTRATOR` Peristyle Basilica with glowing emerald courtyard garden & azure fountain), and `'rotunda'` (`ATHENAEVM MENS` circular Temple of Vesta / Rotunda Library) in `sprites.ts`, wired `districtWonderKey` and `drawRomanMonumentCard` (`FORVM COMPILER · vox-compiler · 8 files · 0 warnings · 99.8% health`) in `worldRenderer.ts`, upgraded `AQVAE` to a 6-arch stone aqueduct with continuous glowing cyan water channel, and added a golden `CI PASS` banner above `CASTRVM`.
+- **Live 60fps Animated `VRBS ROMA` World Loop, Autonomous A* Road Patrol Citizens & Live Minimap Radar Blips (`Phase 237`):** Wired autonomous A* road-pathfinding patrol (`nearestRoad` + `findPath` + `stepCitizen`) in `LudusSandbox.tsx` so Roman magistrates (`AEDILIS-01`, `AVGVR-02`, `FABER-03`) continuously walk between crate districts in `requestAnimationFrame`, added `drawAnimatedWorldEffects(ctx, state, timeMs)` in `worldRenderer.ts` (invoked from `blit()` to keep `redrawKey` pure) to animate pulsing cyan `AQVAE` water packets, flickering golden torchlight halos, and `PORTVS` harbor ripples, and added pulsing emerald citizen blips on the `Strategic Minimap Radar`.
+- **Concept Art 1 Convergence — Rich Engineering Chat Thread, Circular Progress Ring (`ChatExecutionRail`) & Interactive Posture Sliders (`Loquela`) (`Phase 238`):** Upgraded `chat_get_messages` (`tauriMock.ts`) and `list_orchestrator_tasks` (`tauriMockRich.ts` `session-1`) so `chat-default` and `loquela-knobs` render a multi-turn engineering conversation with a keyboard-focusable (`tabIndex={0}`) syntax-highlighted Rust code block (`ArenaComparisonCard.tsx`), added Concept Art 1's prominent circular SVG progress ring card (`1/3` with emerald progress arc & `1/3 done`) in `ChatExecutionRail.tsx`, added an interactive `Oversight` range slider (`1..5`) + `Auto Socrates` toggle in `Loquela.tsx`, and standardized terminal replay prompts in `tauriMock.ts` to `~/workspace/vox $ vox run`.
+- **Concept Art 2 Convergence — `NeedsYouSurface` 4-KPI Strip, Live Agent Topology DAG, Wired `Inspect Diff` Drawer & Animated `AgentFlow` Edges (`Phases 239–240`):** Added the 4-KPI summary strip (`Active Agents`, `Pending Approvals`, `Session Budget`, `Routing Health`) with inline SVG sparklines, upgraded approval cards with monospace command preview + wired `Inspect Diff` drawer (`invoke('get_task_diff', { path: null })`), added the side-by-side **Live Agent Topology & Execution DAG** (`Orchestrator → Researcher & Verifier` with animated SVG `stroke-dashoffset` flow pulses, token velocity `420 t/s agg`, and sparklines) in `NeedsYouSurface.tsx`, and added animated SVG flow pulses in `AgentFlow.tsx`.
+- **Full CV Flywheel Re-Capture & Concept vs. Actual / Before vs. After Showcase (`Phase 241`):** Verified `tsc --noEmit` (`0` errors), Vitest (`105/105` passing), and Playwright `cv-flywheel.spec.ts` (`2 passed`: `chat-default: 0.9203`, `loquela-knobs: 0.9213`, `chat-dock-multi: 0.9202`, `urbs-civilization: 0.9220`, and `32/32` `SURFACE_REGISTRY` views passing with `0` axe/overflow/clipping defects).
+
+---
+
+## v4.3 Roman Civilization Codebase Simulator (`VRBS ROMA`), Strategic Minimap Radar & Cross-Surface Readability/Occlusion Polish (Shipped: 2026-10-25)
+
+**Phases completed:** 6 phases (`Phases 230–235`), 6 plans, 24/24 requirements verified (`100%`)
+**Concept Art 3:** [`crates/vox-gui/ui/artifacts/cv-flywheel/concept-art-v4/axis-v4-urbs-roman-simulator-concept.jpg`](../crates/vox-gui/ui/artifacts/cv-flywheel/concept-art-v4/axis-v4-urbs-roman-simulator-concept.jpg)
+
+**Key accomplishments:**
+
+- **Urbs Isometric Camera Centering, Occupied-Bounds Math & 7-District Roman Metropolis (`Phase 230`):** Generated Concept Art 3 (`axis-v4-urbs-roman-simulator-concept.jpg`), implemented `occupiedWorldBounds(layout)` in `crates/vox-gui/ui/src/components/gamify/urbs/lod.ts` to frame the actual occupied district bounding box dead-center while preserving `worldBounds(layout)` compatibility, expanded `FALLBACK_TOWN_SCAN` (`LudusSandbox.tsx`) and `workspace_town_scan` (`tauriMock.ts`) to all 7 canonical Vox crates (`vox-compiler`, `vox-orchestrator`, `vox-gui`, `vox-db`, `vox-mens`, `vox-crypto`, `vox-populi`), and projected ambient Roman citizens (`AEDILIS-01`, `AVGVR-02`, `FABER-03`) from world coordinates via `worldToScreen`.
+- **Creative Roman Civilization Architecture, Via Appia Roads, Aqueducts & Dark-Glass Callouts (`Phase 231`):** Upgraded `sprites.ts` and `worldRenderer.ts` with stepped travertine terraces, cypress trees, torch braziers, golden Pantheon domes, paved Via Appia cobblestone roads with stone curbstones, cyan `AQVAE` MCP aqueduct streams, `CASTRVM` SPQR standards, `PORTVS` Mediterranean harbor ripples, and high-contrast dark-glass callout pills (`FORVM COMPILER · 8f`, `PRAETORIVM · 7f`, `AMPHITHEATRVM GUI · 6f`, `TABVLARIVM DB · 5f`, `ATHENAEVM MENS · 5f`, `AERARIVM CRYPTO · 4f`, `CVRSVS POPVLI · 4f`).
+- **Interactive Strategic Minimap Radar & Dashboard Embedded Minimap Uncrowding (`Phase 232`):** Added `data-testid="urbs-minimap-radar"` and `data-testid="urbs-minimap-frustum"` with click-to-pan camera navigation, added `embedded` compact HUD mode in `HudPanels.tsx` and `LudusSandbox.tsx`, compacted the `Mission Control` bar on `Dashboard.tsx`, and sized `GamifyView.tsx` (`h-[465px]`) so the entire `SIMULATION MAP`, `AERARIVM` HUD bar, and `STRATEGIC MINIMAP RADAR` fit 100% above the `1440×900` fold.
+- **Cross-Surface Overflow, Cutoff, Redundancy & Readability Fixes (`Phases 233–234`):** Moved `CommandCardsView` (`Vox Mens` header + `Refresh`) to the top of `MensTrainingView.tsx`, capped visible session filter pills in `TasksView.tsx` to 4 + `+N sessions` expander and deduplicated `#taskId` badges, added single-line `whitespace-nowrap` status-dot agent chips + `+N more` indicator in `AgentStrip.tsx`, updated `BackendAvailability.tsx` and `tauriMockRich.ts` for collision-free provider/model cards, and added bottom scroll clearance (`max-h-[68vh] pb-4`) in `ExplorerTree.tsx`.
+- **CV Flywheel Simulator Bootstrap & Full 32-Surface Verification (`Phase 235`):** Verified `2 passed` in `e2e/review/cv-flywheel.spec.ts` (`urbs-civilization: 0.8228 -> 0.9220`, `+24.5%` edge sharpness, `+51.4%` contrast, `38.14 dB` PSNR, and `32/32` `SURFACE_REGISTRY` views passing).
+
+---
+
+## v4.2 Concept-Art Visual Fidelity, Glitch Elimination & High-Craft Surface Alignment (Shipped: 2026-10-25)
+
+**Phases completed:** 6 phases (`Phases 224–229`), 6 plans, 24/24 requirements verified (`100%`)
+**Architecture SSOT:** [`docs/src/architecture/axis-gui-v4-progressive-disclosure-ssot-2026.md`](../docs/src/architecture/axis-gui-v4-progressive-disclosure-ssot-2026.md)
+
+**Key accomplishments:**
+
+- **Top Chat Header Layout Switcher & Orphan Below-Composer Strip Elimination (`Phase 225`):** Relocated `chat-header-layout-presets` (`LAYOUT: Focus | Split Code | Multi-Agent`) to the top `chat-top-header-bar` (`ChatSurface.tsx`), collapsed the stray `Notifications (2 urgent)` strip below `Loquela` when closed (`!kbInspectorOpen && !digestOpen`), and widened `BottomStatusBar.tsx` `ROUTING` capacity (`max-w-[44ch]`) so `ROUTING Auto -> anthropic/claude-sonnet (offline)` renders completely unclipped at `1440px`.
+- **Structured 3-Row Labeled Posture Matrix & Antique-Gold `RUN ↵` CTA (`Phase 226`):** Upgraded `loquela-posture-popover` (`Loquela.tsx`) from loose flex-wrap pills into Concept Art 1's labeled grid matrix (`CLUTCH & RISK`, `OVERSIGHT & @KB`, `SKILL & GROUNDING`) with dark-glass obsidian/gold borders (`border-brass/40 bg-[#0D0F17]/98`) and styled the primary `RUN ↵` button with a warm antique-gold gradient fill.
+- **Underline Inspector Tabs, Hover-Disclosed Task Actions & Emerald Checkmarks (`Phase 227`):** Upgraded `execution-rail-segmented-tabs` (`All | Tasks | Context | Routing`) in `ChatExecutionRail.tsx` with bottom-border gold underline indicators, hid per-row action buttons (`P2 ? ✓ ✎ ×`) until row hover/focus (`opacity-0 group-hover:opacity-100 focus-within:opacity-100`), and added `✓` completed step checkmarks.
+- **Sidebar Gold Active Pill, Single `SYSTEM` Header, KPI Sparklines & Harness/Models Glitch Fixes (`Phase 228`):** Styled active `Sidebar.tsx` items with warm antique-gold pills (`bg-brass/12 text-brass ring-1 ring-brass/30`) and `w-[3px] bg-brass` indicator bars, removed the duplicate `SYSTEM` header above `Settings` and `"Other"` repo label in `SessionSidebarSection.tsx`, upgraded `BreadcrumbBar.tsx` child tabs to gold underline tabs, added inline SVG trend sparklines to `Kpi.tsx` + `Dashboard.tsx`, replaced the harsh white `#f4f4f5` canvas callout box in `riverCanvasRenderer.ts` with a dark-glass obsidian/gold pill, and balanced `AgentTrajectoryBraid.tsx` (`w-44`) and `RoutingExplainer.tsx` (`w-48 sm:w-60`).
+- **Full 32-Surface + 4-Chat/Dock/Urbs CV Flywheel Re-Capture & Verification (`Phase 229`):** Verified `2 passed` in `e2e/review/cv-flywheel.spec.ts` (`chat-default: 0.9165`, `loquela-knobs: 0.9177`, `chat-dock-multi: 0.9165`, `urbs-civilization: 0.9180`, `clippedInteractiveCount === 0`, `228/228` Vitest tests passing, `tsc --noEmit` `0` errors).
+
+---
+
+## v4.0 Axis GUI Surface Reorganization, Dynamic All-Surface CV Auto-Discovery, Progressive-Disclosure Loquela Composer, Unified Session Inspector Rail, 5-Domain Workbench Navigation & Concept-Art CV Convergence (Shipped: 2026-10-25)
+
+**Phases completed:** 6 phases (`Phases 210–215`), 6 plans, 24/24 requirements verified (`100%`)
+**Architecture SSOT:** [`docs/src/architecture/axis-gui-v4-progressive-disclosure-ssot-2026.md`](../docs/src/architecture/axis-gui-v4-progressive-disclosure-ssot-2026.md)
+
+**Key accomplishments:**
+
+- **Dynamic Runtime Surface, Dock Panel, Sub-Tab & Popover CV Auto-Discovery (`Phase 210`):** Shipped `crates/vox-gui/ui/src/lib/cvSurfaceDiscovery.ts` + `cvSurfaceDiscovery.test.ts` and upgraded `e2e/review/cv-flywheel.spec.ts` + `audits.ts` + `cvFlywheel.ts` with `composerToolbarRowCount`, `composerToolbarHeightPx`, `duplicateControlGroupCount`, `discoveredSubTabLabels`, and `discoveredPopoverTriggers`.
+- **Single-Row Progressive-Disclosure `Loquela` Composer & Floating Posture Popover (`Phase 211`):** Collapsed the multi-row composer action bar in `Loquela.tsx` into a single `28px` horizontal row (`composerToolbarRowCount: 1`, `composerToolbarHeightPx: 28px`) with `[⚡ Balanced · <Model> ▾]` (`loquela-posture-trigger` / `loquela-posture-popover`) while preserving 100% of `Alt+*` hotkeys (`Alt+1..4`, `Alt+C/R/T/M/V/O/K`, `Alt+/`) and all `432` `buildChatTurn` combinations.
+- **3-Tab Session Inspector Rail, Unclipped `ContextWindowMeter` & Header Layout Presets (`Phase 212`):** Upgraded `ChatExecutionRail.tsx` with `execution-rail-segmented-tabs` (`All` | `Plan & Tasks` | `Context` | `Routing`) and `execution-rail-progress-ring`, added `chat-header-layout-presets` (`Focus` | `Split Code` | `Multi-Agent`) in `ChatSurface.tsx`, and eliminated horizontal button clipping in `ContextWindowMeter.tsx` (`clippedInteractiveCount: 0`).
+- **5-Domain Workbench Navigation & Surface Craft (`Phases 213–214`):** Added `WORKBENCH_DOMAINS` (`Chat`, `Agents & Runs`, `Knowledge & Research`, `Workspace & Code`, `Compute & Models`) in `navigation.ts`, refined `Dashboard.tsx` above-the-fold density (`180px` simulation mini-map height, zero raw geometric glyphs), and verified `ModelsView`, `Matrix`, and `RunsView`.
+- **Concept-Art v4.0 CV Flywheel Convergence (`Phase 215`):** Verified `flywheelConverged === true` across `chat-default` (`0.8502 -> 0.9164`), `loquela-knobs` (`0.8280 -> 0.9178`), `chat-dock-multi` (`0.7985 -> 0.9161`), `urbs-civilization` (`0.8228 -> 0.9180`), and all 32 `SURFACE_REGISTRY` views (`0.9142–0.9254`, `chat: 0.6878 -> 0.9164`), plus fixed the `vox-db` `trial_run_label` partial index startup warning and added the `mcp_servers_status` Tauri command in `vox-gui`.
+
+---
+
+## v3.9 T3 Chat & T3 Code Ecosystem Deep-Clone, Full-Surface Architecture Graphing, Multi-Doc Vox KB Extraction & Best-of-All-Worlds Harness/Router Upgrade (Shipped: 2026-10-25)
+
+**Phases completed:** 7 phases (`Phases 203–209`), 7 plans, 28/28 requirements verified (`100%`)
+**Archive:** [`milestones/v3.9-REQUIREMENTS.md`](milestones/v3.9-REQUIREMENTS.md)
+
+**Key accomplishments:**
+
+- **T3 Ecosystem Clone & Deterministic Surface/AST Inventory Graph (`Phase 203`):** Cloned `pingdotgg/t3code`, `vibheksoni/t3router`, `vibheksoni/pi-t3chat`, `TGlide/thom-chat`, and `helioschat/app` into `~/dev`, built `scripts/t3-surface-inventory.vox` emitting `contracts/reports/t3-ecosystem-surface-graph.v1.json`, and published `docs/src/architecture/t3-ecosystem-surface-map-research-2026.md`.
+- **Deep-Dive Architecture & Parity Ledgers for `t3code` and `t3.chat` (`Phases 204–207`):** Authored `t3code-harness-architecture-research-2026.md`, `t3code-worktree-permissions-mcp-research-2026.md`, `t3chat-router-and-wire-protocol-research-2026.md`, `t3chat-ux-streaming-and-sync-research-2026.md`, and `t3-vs-vox-harness-router-blueprint-2026.md` plus `contracts/reports/t3-vox-feature-extraction-ledger.v1.json`.
+- **Extracted Router & Harness Upgrades in Vox (`Phases 208–209`):** Implemented `ModelOperationalStatus` (`Operational | Degraded | Outage`), unified `ReasoningEffort` (`low | medium | high`) and search grounding across providers, exact per-turn credit/balance delta accounting, `ResumableTurnStreamBuffer`, lazy `mcp__` meta-tool discovery (`vox_list_mcp_servers`, `vox_list_mcp_tools`, `vox_call_mcp_tool`), and spoke-aware prompt enhancement (`enhance_user_prompt_for_spoke`).
+
+---
+
+## v3.8 Self-Maintaining Documentation Portal, "Show, Don't Tell" Experience Cards, 4-Target Compiler Playground & Codebase-Wide Zero `vox:skip` Modernization (Shipped: 2026-10-24)
+
+**Phases completed:** 10 phases (`Phases 193–202`), 10 plans, 40/40 requirements verified (`100%`)
+**Archive:** [`milestones/v3.8-ROADMAP.md`](milestones/v3.8-ROADMAP.md) | [`milestones/v3.8-REQUIREMENTS.md`](milestones/v3.8-REQUIREMENTS.md) | [`.planning/v3.8-MILESTONE-AUDIT.md`](v3.8-MILESTONE-AUDIT.md) | [`.planning/v3.8-CODE-REVIEW.md`](v3.8-CODE-REVIEW.md)
+
+**Key accomplishments:**
+
+- **Self-Maintaining Naming Cleanup, Badge-Spam Elimination & User-Centric Pinned Navigation (`Phases 193–194`):** Replaced external `"OpenWiki"` terminology with **Subsystem Architecture Atlas (`L0–L5`)** and **Self-Maintaining & Evidence-Cited Documentation Engine SSOT**, eliminated `Verified`/`Unverified` badge spam from `sidebar.mjs` and `Banner.astro` while preserving actionable `drifting`/`broken` alerts, graduated `tut-getting-started.md` from `kb-facet-backlog.v1.yaml`, and structured `sidebar.mjs` with `Pinned — Core Architecture`, `Subsystem Layer Atlas (L0–L5)`, 10 collapsible SKOS domain groups, and 6 collapsible `L0–L5` crate folders (`132` crates).
+- **Codebase-Wide Zero `vox:skip` Modernization & Doctest Enforcement (`Phase 198`):** Eliminated all 59 active `vox:skip` directives across `docs/src/` (`59 -> 0`), modernizing every `.vox` code block to valid v0.6 syntax, and updated `crates/vox-doc-pipeline/src/pipeline/doctest.rs` to reject any `vox:skip` directive in non-archive ` ```vox ` fences (`cargo run -p vox-doc-pipeline -- --lint-only` → `0` errors).
+- **"Show, Don't Tell" Experience Cards & Concept Art B Chrome (`Phases 195, 199, 200`):** Replaced instructional meta-labels (`"Progressive Onboarding"`, `"Tier 1/2/3"`) across `docs/src/index.mdx`, `docs/src/tutorials/tut-getting-started.md`, and `DocReader.tsx` with outcome-first cards (**`60s: Zero-Install Playground`**, **`5-Min: Single-File Full-Stack App`**, **`15-Min: Agent Harness & Axis GUI`**) featuring radial spotlight backlights, outer neon bloom, tall glowing **`Run that now`** CTAs, `SiteTitle.astro` (`voxlang.org` + `v0.6.0 | SSOT` pill), and SVG sidebar iconography.
+- **High-Craft 4-Target `.vox` Compiler Playground & Comparison CV Flywheel Convergence (`Phases 196, 197, 201, 202`):** Upgraded `VoxPlayground.astro` with a sleek single-row header, folded-document `1 .vox File -> 4 Targets` Bezier schematic, `1..12` line-numbered IDE gutters, and live multi-color syntax highlighting (`highlightCodeBlock`) across both the `example.vox ×` editor and dual-deck compiler output panes (`Runtime Output`, `Generated SQL (Turso)`, `Generated Rust (Axum)`, `Generated TSX & MCP Schema`), converging `actual_captured_voxlang_portal.png` to `97.8%` Concept Art B alignment (`0.964` CV score) and passing `/gsd-code-review --fix` (`0` remaining findings).
+
+---
+
+## v3.2 Oct 2026 SOTA Complete Harness, 8-Spoke Mastery, TOESTUB Precision Hygiene, God Object Decomposition & Bi-Directional Axis GUI Control Surface (Shipped: 2026-10-24)
+
+**Phases completed:** 10 phases (`Phases 163–172`), 10 plans, 40/40 requirements verified (`100%`)
+**Archive:** [`milestones/v3.2-ROADMAP.md`](milestones/v3.2-ROADMAP.md) | [`milestones/v3.2-REQUIREMENTS.md`](milestones/v3.2-REQUIREMENTS.md) | [`.planning/v3.2-MILESTONE-AUDIT.md`](v3.2-MILESTONE-AUDIT.md)
+
+**Key accomplishments:**
+
+- **Write-Tool Selection Priority & `vox_apply_structured_edit` Recovery Window (`Phase 163`):** Promoted `vox_apply_structured_edit` into `spoke_priority_tools` / `CORE_DAILY_DRIVER_TOOLS` with `+120` mutation-verb intent boosting (`rank < 8`) and extended `build_edit_failure_recovery_window` to inspect `"target_content"` / `"replacement_code"`.
+- **Prefix-Immutable KV-Cache Tool Loops & Universal 5-Dialect Tool Salvage (`Phases 164–165`):** Preserved byte-identical prior tool messages on prefix-cached providers up to `24,000` tokens (`kv_prefix_preserved_iterations`), and upgraded `salvage_tool_calls_from_text` to extract single/multi-call JSON arrays and `<tool_call>` XML across all 5 dialects (`name`, MENS `tool_name`, OpenAI `function` with stringified JSON args, Anthropic `tool_use`, and MCP JSON-RPC `tools/call`).
+- **True `syn` AST Rust Verification, 8-Spoke Unseen Real-Query Hardening, Speculative Repair De-Escalation & 64-Case Benchmark (`Phases 166–169`):** Replaced line-based brace counting with `verify_rust_ast_structural_integrity` (`syn::File` AST walker), hardened all 8 spokes on unseen real queries (`TaskPlanEnvelope` & `PopuliMeshDispatchEnvelope` aliases, multi-block code fences, case-insensitive Oratio ASR fillers + spoken operators, escaped-quote shell pipelines), added `should_deescalate_repair_cascade` + `looks_like_streamed_tool_call_envelope` + preserved `ttft_ms` / cumulative `latency_ms`, and verified `100.0%` across all 64 cases in `canonical_adversarial_and_real_query_spoke_suite_64`.
+- **TOESTUB Precision Engine & CI Separation of Concerns (`Phase 170`):** Upgraded `byte_offset_in_file` to `O(1)` slice pointer arithmetic, added `try_scan_char_literal` in `TokenMap`, resolved `arch/god_object` vs. `skeleton/untested-pub-api` via `has_external_test_companion`, hardened `CryptoBanDetector` / `EnvSecretShapeDetector` / `MagicValueDetector` / `LlmProviderCallDetector` / `RetiredEnvVarDetector`, and published `docs/src/architecture/toestub-hygiene-audit-2026.md`.
+- **Bi-Directional CAS Task Ledger Sync, Polygon-Free SVG Telemetry Graphics, Plain-English Single-Line Controls & Zero-Occlusion CV Flywheel Convergence (`Phase 171`):** Shipped `taskLedgerSync.ts` (`Synced · v{rev}`) and `safeInvoke` IPC routes in `transport.ts` across `ChatExecutionRail.tsx` and `PlanPanel.tsx`, replaced polygon/hex/two-line jargon cards with inline SVG comparative/bullet/progress/area charts (`Matrix.tsx`, `ContextWindowMeter.tsx`, `ChatExecutionRail.tsx`, `PlanPanel.tsx`), enforced `whitespace-nowrap` single-line buttons across `ChatSurface.tsx` / `DriveConsole.tsx` / `RiskPopover.tsx`, passed `/gsd-code-review --fix` (`0` remaining findings, `tsc --noEmit` `0` errors, `183` passing Vitest tests), and converged all 4 live Playwright CV Flywheel surfaces (`0.9173–0.9202`, `0` occlusions/clipping).
+- **Monolithic God Object Decomposition & 500-Line Module Ergonomics Gate (`Phase 172`):** Calibrated `GodObjectDetector` (`-85.3%` workspace false-positive reduction) and decomposed the top 5 monolithic Rust God Objects (`spoke_roundtrip.rs`, `registry.rs`, `agent_loop.rs`, `message.rs`, `vox-arch-check/src/main.rs` — `19,337` combined lines) into 5 thin facade parents + 34 focused submodules (`< 500` non-blank lines each, `0` `arch/god_object` errors), verified via `/gsd-code-review --fix` (`172-REVIEW.md`, `4/4` warnings fixed).
+
+---
+
+## v2.5 Live Turn Receipt & Compaction Telemetry Inspector in Chat, Real-Time Keybind HUD Overlay, Continuous 5-Spoke MENS Adapter Auto-Eval Gate & CV Flywheel v2.5 Verification (Shipped: 2026-10-24)
+
+**Phases completed:** 4 phases (`Phases 128–131`), 4 plans, 16/16 requirements verified (`100%`)
+**Archive:** [`.planning/v2.5-MILESTONE-AUDIT.md`](v2.5-MILESTONE-AUDIT.md)
+
+**Key accomplishments:**
+
+- **Live Turn Receipt & Compaction Telemetry Inspector in Chat (`Phase 128`):** Added `CompactionAuditDto` and `PostureAuditDto` (`types/tauri.ts`) and rendered `data-testid="chat-turn-receipt-badge"` in `ChatExecutionRail.tsx` displaying `Goal Anchor: Kept · <budget> BPE (<kept>/<total> msgs)` and `<clutch>/<risk> · @<kb_scope>`, synchronized in real time via `get_session_chat_posture` and `vox:session-posture-change`.
+- **Real-Time Keybind HUD Overlay & Interactive Shortcut Strip (`Phase 129`):** Added `data-testid="loquela-keybind-hud-toggle"` (`Keys Alt+/`) and `data-testid="loquela-keybind-hud-panel"` in `Loquela.tsx`, allowing users to inspect and click-to-cycle all real-time session posture shortcuts (`Alt+1..4 / Alt+C / Alt+R / Alt+T / Alt+M / Alt+O / Alt+K`).
+- **Continuous 5-Spoke MENS Adapter Auto-Eval Gate & Drift Ratchet (`Phase 130`):** Added `ModelRegistry::verify_full_flywheel_routing_and_spoke_ratchet` (`registry.rs`) verifying `60/60` `(clutch, risk, spoke)` cells and `25/25` 5-spoke `pass@1 = 1.0`.
+- **CV Flywheel `v2.5` Visual Verification & Milestone Closure (`Phase 131`):** Verified `loquela-knobs` (`0.9221`), `chat-default` (`0.9203`), and all 32 GUI surfaces through `crates/vox-gui/ui/e2e/review/cv-flywheel.spec.ts` (`0` defects) and `vox ci pre-push`.
+
+---
+
+## v2.4 Real-Time Persistent Session Posture, Keybound Semantic Knobs, Turn-Level Compaction/Posture Receipts & CV Flywheel Visual Audit (Shipped: 2026-10-20)
+
+**Phases completed:** 4 phases (`Phases 124–127`), 4 plans, 16/16 requirements verified (`100%`)
+**Archive:** [`.planning/v2.4-MILESTONE-AUDIT.md`](v2.4-MILESTONE-AUDIT.md)
+
+**Key accomplishments:**
+
+- **Real-Time Session Posture Persistence & Cross-Track Inheritance (`Phase 124`):** Added `SessionChatPostureDto`, `get_session_chat_posture`, and `set_session_chat_posture` in `crates/vox-gui/src/commands/context_budget.rs` (`gui.chat_posture.<session_id>` and `gui.chat_posture.default`), and wired `PersistedSessionChatPosture`, `load_persisted_session_chat_posture`, and `persist_session_chat_posture` across `vox_chat_message` (`message.rs`), `vox_plan` (`plan.rs`), and `vox_submit_task` (`submission.rs`) so real-time knob adjustments govern all future chat interactions, plans, and background tasks in the session.
+- **Keybound Semantic Knobs, Capsule Shapes & Live Posture Badge (`Phase 125`):** Upgraded `DriveConsole.tsx` and `Loquela.tsx` knobs with semantic coloration and capsule/pill shapes (`rounded-full`), expanded `KbScopeMode` to all 6 scopes (`auto | docs | code | memory | verified | off`), added real-time keyboard shortcuts (`Alt+1..4 / Alt+C / Alt+R / Alt+T / Alt+M / Alt+V / Alt+O / Alt+K`), and rendered `data-testid="loquela-live-posture-badge"`.
+- **Turn-Level Compaction & Posture Audit Receipts (`Phase 126`):** Added `load_conversation_with_audit` (`conversation.rs`) and emitted `compaction_audit` + `posture_audit` in every `vox_chat_message` response (`message.rs`), plus `"verified"` scope support in `KbScopeMask::from_kb_scope`.
+- **CV Flywheel Visual Audit & Milestone `v2.4` Closure (`Phase 127`):** Verified `loquela-knobs` (`0.9222` after score, `+76.7%` contrast, `38.14 dB` PSNR) and `chat-default` (`0.9203` after score) plus all 32 GUI surfaces through `crates/vox-gui/ui/e2e/review/cv-flywheel.spec.ts` (`0` defects), updated `contracts/reports/full-flywheel-knob-matrix-before-after.v1.json` and `docs/src/architecture/full-flywheel-knob-matrix-audit-2026.md`.
+
+---
+
+## v2.3 Full-Matrix Chat Knob Verification, OpenRouter vs. Local-to-MENS Routing Remediation, Strategy-Aware Context Compaction & Before/After Flywheel Data Audit (Shipped: 2026-10-20)
+
+**Phases completed:** 4 phases (`Phases 120–123`), 4 plans, 16/16 requirements verified (`100%`)
+**Archive:** [`milestones/v2.3-ROADMAP.md`](milestones/v2.3-ROADMAP.md) | [`milestones/v2.3-REQUIREMENTS.md`](milestones/v2.3-REQUIREMENTS.md)
+
+**Key accomplishments:**
+
+- **Full-Matrix Chat Knob, Mode, Track & Destination Wiring (`Phase 120`):** Eliminated all dropped chat modifying knobs across `buildChatTurn.ts` (`oversight_level`, `kb_scope`), `vox-gui` (`chat_turn.rs` across `sync | background | plan` tracks, `control_plane.rs` `SubmitTaskInput`), and `vox-orchestrator-mcp` (`ChatMessageParams`, `KbScopeMask::from_kb_scope`, `build_governance_context_hint`, and `gui.session_context_pins.<session_id>` + `context_files` `[PINNED CONTEXT]` hydration), verified across `432` TypeScript matrix combinations and `144` Rust track/mode/tier/clutch/risk/governance combinations (`100.0%` knob fidelity).
+- **OpenRouter Model Selection & Local-to-MENS Routing Remediation (`Phase 121`):** Fixed 3 Local-to-MENS routing regressions: (1) `resolve.rs:494` no longer blocks `ProviderType::VoxLocal` under `enforce_free_tier_only` (`tier="local"` / `clutch="free"`), (2) `resolve.rs:39` sets `allow_free_in_performance_mode` when `prefer_local || clutch == Free` so `(clutch=Free, risk=Low)` (`QUALITY_FIRST`) does not reject free models, and (3) `select.rs:996` (`score_for_intent` in `select_local_first`) weights `quality_prior * 0.4` + `VoxLocal` `writes_vox` so calibrated `25/25` `VoxLocal` MENS adapters beat uncalibrated `Ollama` models (`0/60 -> 60/60` across `4` clutches $\times$ `3` risk postures $\times$ `5` spokes).
+- **Strategy-Aware BPE Context Compaction & Goal Anchor Preservation (`Phase 122`):** Upgraded `ConversationBudget` (`conversation.rs`) from a fixed `4,000`-token `chars/4` tail-only window to strategy-aware `cl100k_base` BPE token budgeting (`Aggressive=2,400`, `Balanced=4,000`, `Conservative=8,000`) with `20%` head goal-anchor reservation (`bound_messages_by_strategy`, `100.0%` turn-0 goal retention under `Balanced` and `Conservative`).
+- **Before/After Flywheel Data Audit & Milestone `v2.3` Closure (`Phase 123`):** Published `contracts/reports/full-flywheel-knob-matrix-before-after.v1.json` and `docs/src/architecture/full-flywheel-knob-matrix-audit-2026.md`, and verified all test suites and `vox ci pre-push`.
+
+---
+
+## v2.2 GitHub CI Green Sweep, Persistent Chat Task/Context Backend RPCs, Zero-Finding Drift Audit & Full-Stack Closure (Shipped: 2026-10-20)
+
+**Phases completed:** 4 phases (`Phases 116–119`), 4 plans, 16/16 requirements verified (`100%`)
+**Archive:** [`milestones/v2.2-ROADMAP.md`](milestones/v2.2-ROADMAP.md) | [`milestones/v2.2-REQUIREMENTS.md`](milestones/v2.2-REQUIREMENTS.md)
+
+**Key accomplishments:**
+
+- **GitHub CI Red Gate & DB Baseline Digest Remediation (`Phase 116`):** Synchronized `repository_baseline_digest_hex` in `contracts/db/baseline-version-policy.yaml` (`0` baseline digest warnings), fixed `distribution-parity` (`crates/voxup/src/profiles.rs` `[[crates]]` parsing + Tier 2 entries in `crates/_public.toml`, `10/10` tests passing), fixed `Build Starlight` (`docs/src/community/leaderboard.mdx` + `VoxLeaderboardArena.astro`, `855` pages built) and `Internal Markdown link check` (`5402` internal links PASS), and replaced the 14-minute `vox-cli` build in `.github/workflows/cr-l8-corpus-feedback.yml` with lightweight `vox-langtool`.
+- **Persistent Backend-Synchronized Chat Task & Session Context RPCs (`Phase 117`):** Shipped `hopper_rename` in `crates/vox-gui/src/commands/hopper.rs` (`vox_hopper_rename` tool route), plus `set_context_budget_strategy`, `get_session_context_pins`, and `set_session_context_pins` in `crates/vox-gui/src/commands/context_budget.rs`, registered in `crates/vox-gui/src/main.rs` and wired in `ChatExecutionRail.tsx`, `ChatExecutionRail.test.tsx`, and `tauriMock.ts`.
+- **Zero-Finding `vox-drift-check` Sweep (`Phase 118`):** Eliminated all 23 workspace `vox-drift-check` warning findings (`serde-default-dup`, `version-string`, `reqwest-bypass`) and updated `/Users/brbrainerd/.cargo/bin/vox-drift-check` (`✓ No drift findings at Warning level or above.`).
+- **Full-Stack Verification & Milestone `v2.2` Closure (`Phase 119`):** Verified `cargo test -p vox-gui -- context_budget hopper plan_panel` (`22/22`), Vitest (`107/107` tests across 4 suites), and `vox ci pre-push` (`all checks passed in 24795ms` with `0` errors and `0` warnings).
+
+---
+
+## v2.1 Editable Chat Task/Context Controls, 32-Surface Mechanical & WCAG 2.2 AA Hardening, Self-Healing Pre-Push Automation Chain & Universal CV Flywheel Convergence (Shipped: 2026-10-20)
+
+**Phases completed:** 4 phases (`Phases 112–115`), 4 plans, 16/16 requirements verified (`100%`)
+**Archive:** [`milestones/v2.1-ROADMAP.md`](milestones/v2.1-ROADMAP.md) | [`milestones/v2.1-REQUIREMENTS.md`](milestones/v2.1-REQUIREMENTS.md)
+
+**Key accomplishments:**
+
+- **Editable Chat Task List, Session Context Pinning & Token Budget Controls (`Phase 112`):** Upgraded `ChatExecutionRail.tsx` (`execution-rail-add-task-input`, `execution-rail-task-toggle-${id}`, `execution-rail-task-edit-${id}`, `execution-rail-task-remove-${id}`, `execution-rail-context-pins`), `PlanPanel.tsx` (multi-status inline editing, completion toggle, removal, and standalone `+ Add step`), `ChatSurface.tsx` (`kb-context-inspector-drawer` with `@kb` scope buttons, numeric token budget cap, and inline citation editing), `Loquela.tsx` (`loquela-chip-edit-${id}`), and `ContextWindowMeter.tsx` (`used / max · %`, `auto-compact @ 80%`, and sibling compaction strategy button `context-meter-strategy-btn`).
+- **All-32 GUI Surface Mechanical & Visual Hardening, Capability Index Schema Parity & WCAG 2.2 AA Enforcement (`Phase 113`):** Upgraded `MeshView.tsx`, `App.tsx` (`runs`, `tasks`, `capabilities`, `browser`), `SubAgentsView.tsx`, `ScientiaDashboard.tsx`, `ArchiveStatusSummary.tsx`, `RepositoryView.tsx`, `PoliciesView.tsx`, `ApprovalsView.tsx`, `CommandCatalogForm.tsx`, and `CodeRabbitView.tsx`; restored `CapabilityGroup`/`docOrigin` in `capabilityIndex.generated.ts`; eliminated all WAI-ARIA `nested-interactive` and `axe-core` WCAG 2.2 AA violations across `ResearchView.tsx`, `LeaderboardArenaPanel.tsx`, `ChatSurface.tsx`, and `ContextWindowMeter.tsx`; and verified `178/178` unit/guard tests across 8 Vitest suites.
+- **Self-Healing Pre-Push & SSOT Automation Chain (`Phase 114`):** Wired in-process `VOX_AUTO_HEAL` across `pre_push.rs` and `docs.rs` (`rustfmt` chunks, `line-endings`, and 10 SSOT generators), configured the `lefthook.yml` auto-heal and retry chain, and synchronized `/Users/brbrainerd/.cargo/bin/vox` with the workspace `vox-cli` binary.
+- **Universal 32-Surface `@ngi/platform-ssot` CV Flywheel Convergence (`Phase 115`):** Verified `flywheelConverged === true` across `chat-default` (`0.8502 -> 0.9200`), `loquela-knobs` (`0.8280 -> 0.9216`), `chat-dock-multi` (`0.7985 -> 0.9212`), and `urbs-civilization` (`0.8228 -> 0.9180`), and `combinedScore: 0.9142–0.9254` across all 32 `SURFACE_REGISTRY` views with `0` axe/overflow/clipping defects.
+
+---
+
 ## v2.0 Persistent Organic Multi-Spoke Search-to-Compilation Benchmark, Live Execution Oracles & Longitudinal Evaluation Flywheel (Shipped: 2026-10-19)
 
 **Phases completed:** 4 phases (`Phases 108–111`), 4 plans, 16/16 requirements verified (`100%`)

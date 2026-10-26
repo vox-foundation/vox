@@ -1,43 +1,12 @@
 {
   "contract": "1.0.0",
   "flavor": "core",
-  "milestone": null,
-  "phases": [
-    {
-      "number": "1",
-      "name": "Dead Crate Cleanup — Remove & Confirm",
-      "status": "complete"
-    },
-    {
-      "number": "2",
-      "name": "Wire Up & Reclassify Dormant Crates",
-      "status": "complete"
-    },
-    {
-      "number": "3",
-      "name": "Extract Misplaced Crates to Plugin Architecture",
-      "status": "complete"
-    },
-    {
-      "number": "4",
-      "name": "GUI/Dashboard Architecture Consolidation",
-      "status": "complete"
-    },
-    {
-      "number": "5",
-      "name": "Multi-Agent Coordination & Trust Hardening",
-      "status": "complete"
-    },
-    {
-      "number": "6",
-      "name": "Model Routing Transparency & ML Dependency Health",
-      "status": "complete"
-    }
-  ],
+  "milestone": "v5.4",
+  "phases": [],
   "next": {
-    "command": "/gsd-progress",
-    "label": "Show progress",
-    "reason": "Unsure of state — showing progress"
+    "command": "/gsd-discuss-phase",
+    "label": "Discuss the first phase",
+    "reason": "Project initialized — plan your first phase"
   },
-  "updated_at": "2026-10-01T06:45:46.779Z"
+  "updated_at": "2026-10-26T00:49:50.066Z"
 }

@@ -12,20 +12,285 @@ Vox is a mature, actively-developed cross-platform Rust workspace (138+ crates) 
 - **v1.8 (Shared-Package CV Flywheel, Chat/Loquela Knob & Datatype Unification, VS Code Multi-Panel Docking, Urbs Civilization Live Taps, Browser Songhand/Playwright Harness & `ngi.video` Marketing Copy/Screenshot CV Flywheel Promotion, shipped 2026-10-19):** Completed Phases 98–103 (6 phases, 6 plans, 32/32 requirements) delivering dynamic 32-surface `@ngi/platform-ssot` CV Flywheel verification (`CV-FLYWHEEL`), `Loquela`/`DriveConsole` knob & strong datatype unification (`CHAT-KNOBS`, `CHAT-TYPES`), `DockWorkspaceShell` layout presets + `terminal`/`urbs`/`browser` dock panels (`DOCK-UX`), live `LudusSandbox` Roman SVG citizens + `AQVAE` MCP taps (`URBS-VIS`), Playwright + Songhand `vox_browser_*` harness (`BROWSER-HARNESS`), and CV-verified `ngi.video` portfolio screenshot & copy promotion (`NGI-VOX-COPY`).
 - **v1.9 (Chat Default Surfaces CV & Code Audit Remediation, Progressive-Disclosure Composer, Rich Markdown Transcript, Full-Height Execution Rail & CV Flywheel Convergence, shipped 2026-10-19):** Completed Phases 104–107 (4 phases, 4 plans, 14/14 requirements) remediating all 11 visual/CV (`CV-01..05`) and code/architectural (`CODE-01..06`) defects across `chat-default`, `loquela-knobs`, and `chat-dock-multi` (`+37.2%` to `+48.7%` luminance contrast gain, `visualAfterScore: 0.9184–0.9195`, `166/166` Vitest tests passing).
 - **v2.0 (Persistent Organic Multi-Spoke Search-to-Compilation Benchmark, Live Execution Oracles & Longitudinal Evaluation Flywheel, shipped 2026-10-19):** Completed Phases 108–111 (4 phases, 4 plans, 16/16 requirements) delivering the 15-task organic search-to-compilation suite (`canonical_organic_search_to_compilation_suite_15`, `100.0%` Recall@5, `1.000` MRR, `100.0%` Grounding, `100.0%` Compilation, `100.0%` E2E `pass@1`), deep compilation/runtime oracles across all 5 spokes (`verify_deep_compilation_for_spoke`), `VoxDb` longitudinal history + `ModelBenchCase` telemetry (`record_organic_scorecard_telemetry_to_db`) + multi-metric regression ratchets (`verify_organic_search_ratchet`), and `vox model eval --organic-search-spokes` + Axis GUI `MensTrainingView.tsx` (`mens-organic-scorecard`).
+- **v2.1 (Editable Chat Task/Context Controls, 32-Surface Mechanical & WCAG 2.2 AA Hardening, Self-Healing Pre-Push Automation Chain & Universal CV Flywheel Convergence, shipped 2026-10-20):** Completed Phases 112–115 (4 phases, 4 plans, 16/16 requirements) delivering inline editable session task lists (`ChatExecutionRail.tsx`, `PlanPanel.tsx`), bidirectional session context pinning & inline citation/chip editing (`ChatSurface.tsx` `@kb` Context Inspector, `Loquela.tsx`), interactive token budget & compaction strategy controls (`ContextWindowMeter.tsx`), high-signal mechanical & WCAG 2.2 AA hardening across all 32 GUI surfaces (`Mesh`, `Runs`, `Sub-Agents`, `Scientia`, `Repository`, `Policies`, `Approvals`, `Catalog`, `CodeRabbit`), `VOX_AUTO_HEAL` self-healing pre-push & SSOT automation chain (`pre_push.rs`, `docs.rs`, `lefthook.yml`), and universal 32-surface `@ngi/platform-ssot` CV Flywheel convergence (`0.9142–0.9254`, `0` axe/overflow/clipping defects, `178/178` unit/guard tests).
+- **v2.2 (GitHub CI Green Sweep, Persistent Chat Task/Context Backend RPCs, Zero-Finding Drift Audit & Full-Stack Closure, shipped 2026-10-20):** Completed Phases 116–119 (4 phases, 4 plans, 16/16 requirements) remediating all GitHub CI red/timed-out gates (`baseline-version-policy.yaml`, `distribution-parity`, `Build Starlight`, `Internal Markdown link check`, and `vox-langtool` in `cr-l8-corpus-feedback.yml`), shipping daemon-persisted Chat task rename (`hopper_rename`), compaction strategy (`set_context_budget_strategy`), and session context pins (`get_session_context_pins`, `set_session_context_pins`) in `vox-gui`, eliminating all 23 `vox-drift-check` warning findings (`23 -> 0`), and verifying `vox ci pre-push` (`all checks passed in 24795ms` with `0` warnings).
+- **v2.3 (Full-Matrix Chat Knob Verification, OpenRouter vs. Local-to-MENS Routing Remediation, Strategy-Aware Context Compaction & Before/After Flywheel Data Audit, shipped 2026-10-20):** Completed Phases 120–123 (4 phases, 4 plans, 16/16 requirements) wiring all chat modifying knobs end-to-end across `buildChatTurn.ts`, `vox-gui` (`sync | background | plan` tracks), and `vox-orchestrator-mcp` (`432`/`144`-cell matrices, `56.25% -> 100.0%` knob fidelity), remediating all 3 Local-to-MENS vs. OpenRouter routing regressions across `4` clutches $\times$ `3` risk postures $\times$ `5` spokes (`0/60 -> 60/60`), upgrading `load_conversation` to strategy-aware `cl100k_base` BPE token budgeting (`2,400 / 4,000 / 8,000` tokens with `20%` turn-0 goal anchor preservation and `KbScopeMask` retrieval leg filtering), and publishing `contracts/reports/full-flywheel-knob-matrix-before-after.v1.json` + `docs/src/architecture/full-flywheel-knob-matrix-audit-2026.md`.
+- **v2.4 (Real-Time Persistent Session Posture, Keybound Semantic Knobs, Turn-Level Compaction/Posture Receipts & CV Flywheel Visual Audit, shipped 2026-10-20):** Completed Phases 124–127 (4 phases, 4 plans, 16/16 requirements) adding `get_session_chat_posture` / `set_session_chat_posture` Tauri RPCs and cross-track server inheritance (`vox_chat_message`, `vox_plan`, `vox_submit_task`), upgrading `DriveConsole.tsx` and `Loquela.tsx` with semantic capsule coloration and 11 real-time shortcuts (`Alt+1..4 / Alt+C / Alt+R / Alt+T / Alt+M / Alt+V / Alt+O / Alt+K`) plus `loquela-live-posture-badge`, emitting `compaction_audit` and `posture_audit` on every chat turn, and achieving `0.9222` (`loquela-knobs`) and `0.9203` (`chat-default`) CV Flywheel convergence across all 32 GUI surfaces.
+- **v2.5 (Live Turn Receipt & Compaction Telemetry Inspector in Chat, Real-Time Keybind HUD Overlay, Continuous 5-Spoke MENS Adapter Auto-Eval Gate & CV Flywheel v2.5 Verification, shipped 2026-10-24):** Completed Phases 128–131 (4 phases, 4 plans, 16/16 requirements) adding `CompactionAuditDto`/`PostureAuditDto` and `chat-turn-receipt-badge` (`ChatExecutionRail.tsx`), adding the interactive `Keys Alt+/` Keybind HUD (`loquela-keybind-hud-toggle` / `loquela-keybind-hud-panel` in `Loquela.tsx`), wiring `ModelRegistry::verify_full_flywheel_routing_and_spoke_ratchet` (`60/60` cells + `25/25` 5-spoke `pass@1 = 1.0`), and verifying all 32 GUI surfaces via the CV Flywheel and `vox ci pre-push`.
+- **v2.6 (Everyday Human Conversational Intent Routing, Multi-Turn Context Carryover, Automatic Self-Repair Escalation & 40-Case Decoupled 8-Spoke Evaluation, shipped 2026-10-24):** Completed Phases 133–136 (4 phases, 4 plans, 16/16 requirements) upgrading `ModelRegistry::score_conversational_turn_across_spokes` and `route_conversational_turn_with_context` to route natural-language human utterances across all 8 spokes without internal struct jargon, adding multi-turn `prior_spoke` anaphora/context carryover and automatic `SelectionIntent::repair_loop()` escalation on conversational repair turns (`execute_extended_human_conversation_session`), fixing parallel `rustc` temp-file races in `verify_rust_snippet_with_rustc`, decoupling all 24 benchmark queries from `spoke_roundtrip.rs`, and expanding per-spoke sample depth to $n = 5$ (`canonical_organic_search_to_compilation_suite_40`).
+- **v2.7 (SOTA Agent Harness: Spoke-Ranked Tool Selection, Sub-50ms Multi-Language Inline Verification, Speculative Local-to-Repair Cascade, Parallel Read-Tool Execution, KV-Stable Artifact Memory & Live Auto-DPO Flywheel, shipped 2026-10-24):** Completed Phases 137–141 (5 phases, 5 plans, 20/20 requirements) replacing blind alphabetical 40-tool truncation with spoke-conditioned BM25 + lexical tool ranking (`select_tools_for_turn_ranked`, `100%` recall on late-alphabet tools across all 8 spokes at `50%` lower schema token budget), upgrading `post_verification::verify_and_attach` with inline `.vox` Grammar Unification enforcement, `.rs` `syn::parse_file` + policy + `rustc --emit=metadata` borrow/type checking, and `SKILL.md` frontmatter + `.vox` doctest compilation, adding synchronous `[HARNESS REPAIR INTERVENTION]` + dynamic `temperature = 0.1` repair escalation + `futures_util::future::join_all` parallel read-only tool batches + live intra-turn Auto-DPO harvesting in `run_agent_turn`, implementing `SessionWorkingMemory` + SWE-agent-style `blake3` observation masking in `CompactionEngine`, and publishing `SotaHarnessScorecardV1` (`contracts/reports/sota-harness-before-after.v1.json`).
+- **v2.8 (Oct 2026 SOTA Live-Path Closure: Single-Pass SSE `delta.tool_calls` Streaming, KV-Cache-Aligned Multi-Turn Wire Assembly, Live `SessionWorkingMemory` Compaction, AST Symbol-Skeleton Context Packing & Real Intra-Turn Repair Model Cascade, shipped 2026-10-24):** Completed Phases 142–146 (5 phases, 5 plans, 20/20 requirements) upgrading `vox_openai::sse` + `vox_llm_egress::wire::stream_events_once` + `stream_final_answer` to parse SSE `delta.tool_calls` in a single HTTP pass (eliminating the 2x duplicate HTTP POST penalty on tool-calling turns), mapping all 8 provider families (`Groq`, `Cerebras`, `DeepSeek`, `SambaNova`, `Mistral`, `PopuliMesh`, `HuggingFaceRouter`, `OpenRouter`/`Ollama`/`GoogleDirect`/`Anthropic`/`VoxLocal`) and `cognitive_profile` into `try_run_agent_turn`, wiring structured `prior_conversation` messages + `DEFAULT_RANKED_MAX_TOOLS = 20` + raw-utterance tool ranking on the live `message.rs` -> `agent_loop.rs` path, wiring `SessionWorkingMemory` + `blake3` observation masking into `conversation.rs` (`bound_messages_by_strategy`), adding sub-10ms AST symbol-skeleton extraction (`extract_compact_symbol_skeleton` + `extract_symbol_span`, `~72%` token reduction on files `> 120` lines), and adding real intra-turn `SelectionIntent::repair_loop()` model escalation + persistent `VoxDb` live Auto-DPO harvesting (`live_harness_auto_repair_dpo`).
+
+- **v2.9 (Oct 2026 SOTA Zero-Overhead Turn Pipeline: Day-Stable KV-Cache System Prompt, Wire-Level Usage & Cache-Read Accounting, Intent-Gated Retrieval Preamble, Intra-Turn Tool Output Budgeting & Two-Tier Progressive Tool Schemas, shipped 2026-10-24):** Completed Phases 147–151 (5 phases, 5 plans, 20/20 requirements) making `system_prompt` 100% invariant within a calendar day (moving `session_ts` to turn-local `context_parts`, deduplicating `ANTI_LAZINESS_RIDER`, caching `VOX.md`/`MEMORY.md` by `(path, mtime, len)`, and capping the tier-1 skill catalog to 24), parsing final-chunk SSE `usage` (`prompt_tokens`, `completion_tokens`, `cache_read_tokens`, `cost_usd`) in `vox-openai` and threading it through `AgentTurnOutcome`/`AgentTurnResult` to `VoxDb` `LlmSurfaceTelemetry`, adding `should_run_auto_chat_preamble` to bypass 5-leg retrieval on phatic greetings and self-contained `@mention`/`selected_text` edits, adding intra-turn tool output capping (`cap_and_summarize_tool_output`), stale tool observation masking (`mask_stale_intraturn_tool_messages`), and persisted `[TURN TOOL LEDGER: ...]` history summaries, and implementing two-tier progressive tool schema compression (`compact_tool_def_for_rank`, `>= 38%` schema byte reduction on secondary tools `rank >= 8`).
+- **v3.0 (Oct 2026 SOTA Wire-Level Prompt-Cache Breakpoints, `stream_options.include_usage`, Cache- & TTFT/TPOT-Aware Model Router, Intra-Turn Read-Tool Deduplication & Workspace-Aware Rust Structural Verification, shipped 2026-10-24):** Completed Phases 152–156 (5 phases, 5 plans, 20/20 requirements) adding `stream_options: {"include_usage": true}` and Anthropic `cache_control: {"type": "ephemeral"}` breakpoints on `system` + penultimate history turn in `vox-llm-egress::wire`, closing the end-to-end telemetry loop (`prompt_tokens`, `completion_tokens`, `ttft_ms`, `tpot_ms`, spoke-derived `TaskCategory`, and `compute_turn_cost_usd` discounting `cache_read_tokens` at `cache_read_cost_per_1k`), upgrading `ModelSelectionEngine` (`efficiency_score_with_cache` + `scoreboard_feedback_boost` using `p95_ttft_ms`, `p95_tpot_ms`, and `goodput_tokens_per_sec`), adding zero-latency intra-turn read-only tool memoization with write invalidation (`read_tool_memo`), and adding sub-5ms workspace-aware `.rs` structural/module-graph verification (`verify_rust_module_structural_integrity`).
+- **v3.1 (Oct 2026 SOTA Holistic Closure: 8-Spoke Adversarial & Real-Query Hardening, Rolling Intra-Turn Prompt-Cache Breakpoints, Live Context-Fill & Spoke-Conditioned Router Wiring, Path-Scoped Read-Memo Invalidation + Edit-Window Recovery & 48-Case 8-Spoke Benchmark, shipped 2026-10-24):** Completed Phases 157–162 (6 phases, 6 plans, 24/24 requirements) hardening all 8 spoke verifiers and natural-language router signals against real-world/adversarial developer queries (`strip_code_fences` prose extraction, mid-stream ASR disfluency + spoken-punctuation normalization in `normalize_asr_transcript_for_vox`, OpenAI `{"type":"function"}` MCP unwrapping, `has_top_level_shell_chaining`, workspace-crate `.rs` fallback, and multi-block `SKILL.md` verification), adding rolling 3-breakpoint intra-turn tool-loop + tool-schema prefix `cache_control` in `vox-llm-egress::wire`, wiring live `context_fill_ratio`, `cacheable_workload`, and spoke-classified `(TaskCategory, u8)` through `SelectionIntent` / `resolve.rs` / `message.rs`, upgrading `read_tool_memo` in `agent_loop.rs` with canonical JSON keys (`canonicalize_tool_args_json`), path-scoped write invalidation (`invalidate_read_memo_for_write`), and automatic `[TARGET FILE CONTEXT WINDOW]` edit-failure recovery, adding spoke-aware `SpeechToCode`/inline-code preamble skipping + 750ms bounded retrieval timeout in `message.rs`, and verifying `100.0%` `pass@1`, compilation, and spoke routing across `canonical_adversarial_and_real_query_spoke_suite_48`.
+- **v3.2 (Oct 2026 SOTA Complete Harness, 8-Spoke Mastery, TOESTUB Precision Hygiene & Bi-Directional Axis GUI Control Surface, shipped 2026-10-24):** Completed Phases 163–171 (9 phases, 9 plans, 36/36 requirements) promoting `vox_apply_structured_edit` into `spoke_priority_tools`/`CORE_DAILY_DRIVER_TOOLS` + `+120` mutation-verb boost into `rank < 8` and extending `build_edit_failure_recovery_window` to `"vox_apply_structured_edit"` / `"target_content"`, preserving byte-identical prior tool messages on prefix-cached providers (`provider_uses_prefix_kv_cache`) up to `24,000` tokens (`kv_prefix_preserved_iterations`), upgrading `salvage_tool_calls_from_text` to extract single/multi-call arrays and `<tool_call>` XML across all 5 dialects (OpenAI `function` with stringified JSON args, Anthropic `tool_use`, MENS `tool_name`, MCP JSON-RPC `tools/call`, and wire aliases), replacing line-based `brace_depth` scanning with `verify_rust_ast_structural_integrity` (`syn::File` AST walker), hardening all 8 spokes on unseen real queries (`TaskPlanEnvelope` & `PopuliMeshDispatchEnvelope` aliases, multi-block code fences, case-insensitive ASR fillers + spoken operators, escaped-quote shell pipelines), adding `should_deescalate_repair_cascade` + `looks_like_streamed_tool_call_envelope` + cumulative `latency_ms`/first-iteration `ttft_ms`, verifying `100.0%` across all 64 cases in `canonical_adversarial_and_real_query_spoke_suite_64`, shipping the TOESTUB precision engine (`Phase 170`), and delivering the bi-directional CAS task ledger (`taskLedgerSync.ts`), polygon-free SVG telemetry graphics (`Matrix.tsx`, `ContextWindowMeter.tsx`, `ChatExecutionRail.tsx`, `PlanPanel.tsx`), plain-English single-line buttons, and zero-occlusion Playwright CV Flywheel convergence (`0.9173–0.9202`, `Phase 171`).
 
 ## Core Value
 
 The compiler, orchestrator, runtime, knowledge base, and public documentation site (`voxlang.org`) that everything else depends on must keep building, staying verified, and passing CI from a single unified worktree (`/Users/brbrainerd/dev/vox`), while remaining **100% functional offline/standalone** with zero dependency on `vox-ops` and **100% transparent, disableable, strongly-typed telemetry**.
 
-## Current State: v2.0 Shipped (2026-10-19) — Ready for `/gsd-new-milestone` (`v2.1`)
+## Current Milestone: v5.4 — T3 CI/TOESTUB Enforcement Deep-Extraction & Harness Policy Hardening (`Phases 301–306`)
 
-**Shipped in `v2.0` (`Phases 108–111`):**
-- **Organic Search-to-Spoke Retrieval & Contamination-Free Holdout Expansion (`Phase 108` — `ORG-SEARCH-01..04`)**
-- **Deep Compilation & Functional Runtime Oracles Across All 5 Spokes (`Phase 109` — `COMP-ORACLE-01..04`)**
-- **Persistent Longitudinal Benchmark Time-Series in `VoxDb` & Multi-Metric Regression Ratchet (`Phase 110` — `PERSIST-BENCH-01..04`)**
-- **CLI (`vox model eval --organic-search-spokes`), MCP & Axis GUI Longitudinal Scorecard Surface (`Phase 111` — `SURFACE-BENCH-01..04`)**
+**Goal:** Close the remaining t3code/t3.chat extraction gap by porting change-gated CI, transfer-budget reporting, knip/PR-size/evidence hygiene, agent-ops kill-safety + multi-surface checklists, and TOESTUB/oxlint-parity detectors into Vox's harness gates — without redoing v3.9/v4.5–v5.1 runtime extractions.
 
-**Archived `v2.0` Artifacts:** [`.planning/milestones/v2.0-ROADMAP.md`](milestones/v2.0-ROADMAP.md) | [`.planning/milestones/v2.0-REQUIREMENTS.md`](milestones/v2.0-REQUIREMENTS.md) | [`.planning/v2.0-MILESTONE-AUDIT.md`](v2.0-MILESTONE-AUDIT.md)
+**Target features:**
+- Change-gated local/CI checks (`check:changed` + INERT/EXTRA_OWNERS path map) matching t3code's affected-package matrix
+- Transfer-budget CI artifacts + trusted-branch PR comments; weighted test sharding
+- Knip unused-export dual gate for `vox-gui/ui`; PR size labels (non-test LOC); ban committed PR evidence/screenshots
+- AGENTS.md kill-safety triad + hit-every-surface checklist; worktree setup markers + isolated home
+- TOESTUB: thin-transport / no-rpc-permission-bypass beyond MCP; suppression PRs require human review; wire snapshot ID interning
+- Tauri native fingerprint advisory; Vite+/pnpm layered GUI CI cache; refresh `t3-ecosystem-surface-graph.v1.json` + extraction scorecard
+
+**Evidence / graph:** `~/dev/t3code` (primary), `contracts/reports/t3-ecosystem-surface-graph.v1.json`, store briefs `internal/t3-milestone-gems-brief-2026-10-25.md` + `internal/t3code-ci-lint-gems-audit-2026-10-25.md`
+
+**Planned Phases in `v5.4` (`Phases 301–306`, `24` requirements):**
+- **Change-Gated CI Path Map & `vox ci check-changed` (`Phase 301` — `T3-CI-CHANGED-01..04`)**
+- **Transfer-Budget Artifacts, PR Comments & Weighted Test Sharding (`Phase 302` — `T3-CI-BUDGET-01..04`)**
+- **Knip Dual Gate, PR Size Labels & Evidence-Asset Ban (`Phase 303` — `T3-CI-HYGIENE-01..04`)**
+- **Agent-Ops Kill-Safety, Hit-Every-Surface Checklist & Worktree Isolation (`Phase 304` — `T3-AGENT-OPS-01..04`)**
+- **TOESTUB Thin-Transport, Suppression Review Gate & Snapshot Interning (`Phase 305` — `T3-TOESTUB-ENF-01..04`)**
+- **Tauri Fingerprint Advisory, GUI Cache Layers, Surface Graph Refresh & Scorecard (`Phase 306` — `T3-CI-CLOSE-01..04`)**
+
+## Completed Milestone: v5.3 — Photorealistic Edge-Softening, Continuous Monumental Aqueduct-to-Sewer Architecture, Sub-Surface Ground Integration & CV Flywheel Score Maximization (`Phases 295–300`, `24/24` requirements — Complete 2026-10-25)
+
+**Goal:** Eliminate every remaining sharp polygon cutout, axis-aligned saw-tooth wall crenellation, overlapping street alpha seam, rooftop-crossing screen-space line, and 1px Laplacian PBR noise floor penalty in `VRBS ROMA` (`pbrMaterials.ts`, `lightingAndFx.ts`, `hydraulicNetwork.ts`, `worldRenderer.ts`) while maximizing `@ngi/platform-ssot` CV Flywheel visual scoring (`docs/src/architecture/urbs-photorealistic-edge-softening-and-cv-maximization-spec-2026.md`).
+
+**Planned Phases in `v5.3` (`Phases 295–300`, `24` requirements):**
+- **Feathered Coastal Bathymetry, Smooth Macro-Shaded PBR Materials & Laplacian Noise Suppression (`Phase 295` — `URBS-EDGE-PBR-01..04`)**
+- **True Isometric Molded Curtain Walls, Seamless `Via Silicea` Street Grid & Coffered `Opus Sectile` Forums (`Phase 296` — `URBS-TERRACE-CRAFT-01..04`)**
+- **Cylindrical & Coffered 3D Architectural Realism for Wonders & `T0`–`T3` Insulae (`Phase 297` — `URBS-ARCH-REALISM-01..04`)**
+- **Continuous 3D Monumental `Aqua Claudia` Viaduct & Ground-Integrated Beveled Hydraulic/Sewer Grid (`Phase 298` — `URBS-PLUMBING-3D-01..04`)**
+- **Illuminated Halo-Backed Shape+Color Activity Particles & Interactive Conduit Semiotics (`Phase 299` — `URBS-FLOW-SEMIOTICS-01..04`)**
+- **Comprehensive Unit Tests, Semiotic Critique Audit & Playwright CV Flywheel Score Maximization (`Phase 300` — `URBS-CV-MAX-01..04`)**
+
+## Completed Milestone: v5.2 — Smooth Physically-Grounded Lighting, High-Detail Vitruvian Architecture & Grounds, Integrated Roman Hydraulic/Sewer Grid (`Aquaeductus`, `Fistulae` & `Cloaca Maxima`) & Animated Shape+Color Activity Conduits (`Phases 289–294`, `24/24` requirements)
+
+**Goal:** Eliminate alpha-overlay lighting artifacts and repeating water tile seams, enrich terrace ground architecture (`Cardo`/`Decumanus` street grid, `Opus Sectile` marble forum plazas, vaulted `Substructio` cliff retaining arcades) and `T0`–`T3` building massing (rusticated ground-floor `Fornices` arcades, inter-story `Marcapiano` belt cornices, atrium `Impluvium` rainwater basins, and rooftop `Acroteria` + hypocaust chimneys), integrate the `AQVAE MCP` aqueduct into a city-wide SimCity-style Roman hydraulic supply (`Castellum Divisorium`, pressurized `Fistulae` pipes, bronze sluice valves) and `Cloaca Maxima` sewer/drainage trench network (`hydraulicNetwork.ts`), and animate live activities in progress using multi-channel Color + Geometric Shape flow tokens (`docs/src/architecture/urbs-hydraulic-plumbing-and-detailed-architecture-spec-2026.md`).
+
+**Planned Phases in `v5.2` (`Phases 289–294`, `24` requirements):**
+- **Smooth Ground-Plane-Recessed Lighting, 2D-Feathered Elliptical Sun-Shafts & Periodic Seamless Sea Synthesis (`Phase 289` — `URBS-SMOOTH-LIGHT-01..04`)**
+- **High-Detail Terrace Grounds: Orthogonal `Cardo`/`Decumanus` Streets, `Opus Sectile` Marble Plazas, Vaulted `Substructio` Cliff Arcades & Balustrades (`Phase 290` — `URBS-GROUNDS-01..04`)**
+- **High-Detail Vitruvian Building Architecture (`T0`–`T3`): Rusticated Ground Arcades (`Fornices`), Belt Cornices, Atrium `Impluvia` & `Acroteria` Roofs (`Phase 291` — `URBS-ARCH-DETAIL-01..04`)**
+- **Integrated Roman Hydraulic Plumbing & Sewer Network (`hydraulicNetwork.ts`): `Aquaeductus` Trunk, `Castellum Divisorium`, `Fistulae` Supply Pipes & `Cloaca Maxima` Sewer Trenches/Outfalls (`Phase 292` — `URBS-HYDRAULIC-01..04`)**
+- **Multi-Channel Color + Geometric Shape Animated Activity Conduits (`AQUA PURA` Chevrons, `IGNIS OPERIS` Diamonds, `CLOACA FAULT` Triangles & `VIA VICTORIAE` Seals) (`Phase 293` — `URBS-CONDUIT-ANIM-01..04`)**
+- **Diegetic Hydraulic Sluice-Gate Callouts, Semiotic Consistency Audit, Unit Test Suite & Playwright CV Flywheel Convergence (`Phase 294` — `URBS-SEMIOTICS-CV-01..04`)**
+
+## Completed Parallel Milestone: v5.1 — T3 Ecosystem Wave 5 Deep Review & End-to-End Parity Closure (`Phases 283–288`, `24/24` requirements — Complete 2026-10-25)
+
+**Goal:** Close all 6 defect clusters (`Cluster 1..6` documented in [`docs/src/architecture/t3-vox-wave5-deep-review-and-parity-closure-2026.md`](../docs/src/architecture/t3-vox-wave5-deep-review-and-parity-closure-2026.md)) uncovered by the adversarial deep review of Vox's T3 implementation against `t3code`, `t3router`, `pi-t3chat`, `NotT3Chat`, `t3-chat-tomdoestech`, and `t3-cloneathon`: (1) Prompt Variable Target Fix, Sanitizer Tag Completeness, `ToolRefusalDetector` & Lazy MCP Meta-Tools, (2) Sequenced `ResumableTurnStreamRegistry`, `ThreadRunQueue` Follow-Up/Limit-Recovery Draining, Real `ModelSpec` Cost Ledger & `SessionPrivacyPosture` Enforcement, (3) Worktree Async `tokio::sync::Mutex` Lock Fix, Monotonic Sparse Git Checkpoints, Clean Restore & Real `MultiVariantWorktreePool`, (4) UTF-8 Boundary Safety, Multi-Provider Consensus Synthesizer, Recursive External Session Discovery & Real Guest Share/Diagnostics, (5) Unified `message_id` Correlation Across Tauri & MCP, Live Transcript Edit/Regenerate/Compact, Mid-Turn Steer Composer & `streamWatchdog.ts`, and (6) `vox-code-audit` T3 Detector Catalog Registration, `oxlint-plugin-t3code` Rule Parity & 43-Violation Workspace Remediation.
+
+**Completed Phases in `v5.1` (`Phases 283–288`, `24/24` requirements):**
+- **System Prompt `$variable` Interpolation Fix, Sanitizer Tag Completeness (`<tool_call>`, `<think>`, `<WebFetch>`), `pi-t3chat` `ToolRefusalDetector` (`[SYSTEM TOOL CORRECTION]`), Search Circuit Breaker & `LazyMcpGroupRegistry` (`Phase 283` — `T3-PROMPT-LOOP-01..04`)**
+- **Sequenced `ResumableTurnStreamRegistry`, Full `ThreadRunQueue` (`pop_next_follow_up`, Background Settlement & 429 Recovery), Real `ModelSpec` Cost Accounting (`4h`/Monthly Windows) & `SessionPrivacyPosture` Disk Gate (`Phase 284` — `T3-STREAM-QUEUE-01..04`)**
+- **`DelegationWorktree::create` Async Lock Fix, Persistent `WebhookDedupeAndRateGate`, Monotonic Sparse Git Checkpoints + Clean Restore, Real `MultiVariantWorktreePool` & Compact Snapshot Fix (`Phase 285` — `T3-WORKTREE-CKPT-01..04`)**
+- **UTF-8 Boundary Safety, Multi-Provider Consensus Synthesizer, Depth-4 External Session Discovery (`~/.claude`, `~/.codex`, `~/.cursor`), Real Guest Share Submit/Redeem & Live Diagnostics (`Phase 286` — `T3-TOOLS-HARDENING-01..04`)**
+- **Unified `message_id` & Telemetry Across Tauri/MCP, Live User+Assistant Edit / Executing Regenerate / `✂ Compact Here`, Mid-Turn `[⚡ Steer]` Composer & `streamWatchdog.ts` + `resumeChatStream` (`Phase 287` — `T3-GUI-PIPELINE-01..04`)**
+- **`vox-code-audit` T3 Detector Catalog Registration (`ALL_KNOWN_IDS`), `oxlint-plugin-t3code` Rule Completeness & Zero-Violation Workspace Remediation (`Phase 288` — `T3-AUDIT-PARITY-01..04`)**
+
+## Active Parallel Milestone: v5.0 — Photorealistic Vitruvian Material, Depth-Shading, Atmospheric Lighting & FX Engine (`Phases 277–282`, `24` requirements)
+
+**Goal:** Eliminate flat solid-color polygon fills, hard cartoon black strokes, missing cast shadows, and HUD badge clutter in `VRBS` (`worldRenderer.ts` & `LudusSandbox.tsx`) by implementing the 6-subsystem Photorealistic Vitruvian Rendering Architecture (`docs/src/architecture/urbs-photorealistic-lighting-and-materials-spec-2026.md`): (1) Procedural Natural Surface Material Synthesis (`pbrMaterials.ts`), (2) Projected Directional Cast Shadows, Contact Ambient Occlusion & Specular Chamfer Bevels, (3) Sculpted Coastal Bathymetry, Stratified Cliff Geology & Cobblestone Plazas, (4) Dual-Key Golden-Hour/Twilight Atmospheric Lighting, Crepuscular God-Rays, Elevation Mist & Additive GI Pools (`lightingAndFx.ts`), (5) Deterministic Live Particle FX Engine (Forge Embers, Smoke Plumes, Waterfall Spray & Chisel Sparks), and (6) Diegetic Cliff-Apron Architrave Plaques & Architecture-First HUD Decluttering.
+
+**Planned Phases in `v5.0` (`Phases 277–282`, `24` requirements):**
+- **Procedural Natural Surface Material Synthesis (`pbrMaterials.ts`): Pitted Roman Travertine Ashlar, Scalloped Terracotta Roof Tiles, Opus Incertum Flagstone Plazas, Stratified Basalt Cliffs & Anisotropic Hammered Bronze (`Phase 277` — `URBS-MAT-01..04`)**
+- **True Isometric Directional Cast Shadows, Contact Ambient Occlusion & Specular Chamfer Bevels (`drawIsoBox`, `drawIsoPitchedRoof` & Wonders) (`Phase 278` — `URBS-DEPTH-01..04`)**
+- **Sculpted Coastal Bathymetry, Surf Foam Ribbons, Craggy Cliff Geology, Cobblestone Terraces & Waterfall Caustics (`Phase 279` — `URBS-TERRAIN-01..04`)**
+- **Golden-Hour & Twilight Dual-Key Atmospheric Lighting, Volumetric Crepuscular God-Rays, Elevation Mist & Additive Point-Light GI Pools (`lightingAndFx.ts`) (`Phase 280` — `URBS-LIGHT-01..04`)**
+- **Live Particle FX Engine: Rising Forge Embers, Volumetric Smoke Plumes, Waterfall Mist Spray & Mason Chisel Sparks (`Phase 281` — `URBS-FX-01..04`)**
+- **Diegetic Cliff-Apron Architrave Plaques, Architecture-First HUD Decluttering & Playwright CV Flywheel Convergence (`Phase 282` — `URBS-DIEGETIC-01..04`)**
+
+## Completed Milestone: v4.9 — Vitruvian Roman Tactical Developer Controller: Zero-Hop Diff/Diagnostic Loupe, Multi-Agent Write-Set Collision Cones, Clickable Viaduct Contract Inspector, Hard Agent Scope Quarantine Fencing, Milestone Road Turn Time-Scrubber & Split-Dock Workbench Integration (`Phases 271–276`, `24/24` requirements)
+
+**Goal:** Elevate `VRBS` from an architectural observability view into a zero-hop interactive tactical developer controller (`docs/src/architecture/urbs-tactical-developer-controller-spec-2026.md`) across 6 Vitruvian mechanisms: (1) Zero-Hop Inline Diff & Compiler Diagnostic Loupe (*Speculum Codicis*), (2) Multi-Agent Write-Set Collision & Blast-Radius Cone Radar (*Concursus Legionum*), (3) Clickable Viaduct Cross-Module Contract & Layer-Inversion Inspector (*Pons Foederis*), (4) Hard Agent Scope Quarantine Fencing (*Clausura Ferrea*) enforced in `agent_loop.rs`, (5) Interactive Milestone Road Turn Time-Scrubber (*Via Temporis* Visual `git bisect`), and (6) 1-Click Split-Dock Tactical Map Workbench Integration (*Tabula Praetoria `⌘M`*).
+
+**Planned Phases in `v4.9` (`Phases 271–276`, `24` requirements):**
+- **Zero-Hop Inline Diff & Compiler Diagnostic Loupe (*Speculum Codicis*): `workspace_file_diff_and_diagnostics` Tauri RPC + Floating Bronze & Obsidian Loupe with `[✓ Stage File]`, `[↺ Revert File]` & `[⚒ Fix Exact Error]` (`Phase 271` — `URBS-LOUPE-01..04`)**
+- **Multi-Agent Write-Set Collision & Blast-Radius Cone Radar (*Concursus Legionum*): `collisionRadar.ts`, Intersecting Surveyor Cones, Crossed-Swords Collision Standard & 1-Click `[⇄ Serialize Agents]` / `[🌿 Split Worktree]` (`Phase 272` — `URBS-COLLISION-01..04`)**
+- **Clickable Viaduct Cross-Module Contract & Layer-Inversion Inspector (*Pons Foederis*): `TownDependencyEdge` Scanner, Viaduct Hit-Testing, Cracked Red Keystone on `layers.toml` Inversions & `PONS CONTRACTVS` Inspector (`Phase 273` — `URBS-VIADUCT-01..04`)**
+- **Hard Agent Scope Quarantine Fencing (*Clausura Ferrea*): `ServerState` `quarantined_paths`, `vox_quarantine_set` / `vox_quarantine_list` MCP Tools, Pre-Execution Write Guard in `agent_loop.rs` & Wrought-Iron Perimeter Portcullis (`Phase 274` — `URBS-QUARANTINE-01..04`)**
+- **Interactive Milestone Road Turn Time-Scrubber (*Via Temporis* Visual `git bisect`): `vcs_checkpoint_diff_summary` RPC, `ViaTemporisScrubber.tsx` Sundial Scrubber, Per-Turn Diff/Test-Shield Preview & 1-Click Rollback (`Phase 275` — `URBS-SCRUBBER-01..04`)**
+- **Split-Dock Tactical Map Workbench Integration (*Tabula Praetoria `⌘M`*): `urbs-tactical-map` Dock Panel, Bi-Directional Chat/Review District Filter & Real-Time Tool-Call Mechanism Animation (`Phase 276` — `URBS-DOCK-01..04`)**
+
+## Active Parallel Milestone: v4.8 — T3 Wave 4 Live Pipeline End-to-End Closure: Real LLM Consensus, Stateful Session/Guest/Checkpoint Persistence, Live Agent-Loop Guards & Tauri/MCP Envelope Unwrapping (`Phases 265–270`, `24` requirements)
+
+**Goal:** Close all 10 live-pipeline integration gaps (`GAP-01..10` documented in [`docs/src/architecture/t3-vox-wave4-gap-closure-and-live-pipeline-audit-2026.md`](../docs/src/architecture/t3-vox-wave4-gap-closure-and-live-pipeline-audit-2026.md)) between the T3 Wave 1–3 domain primitives and the live `vox_chat_message`, `agent_loop`, `t3_wave3_tools`, `agy_worktree`, `webhook_intake`, and Tauri IPC execution paths.
+
+**Planned Phases in `v4.8` (`Phases 265–270`, `24` requirements):**
+- **`tool:<name>` Fence Salvage Fix, Live `@rule:<name>` Mention Resolution & `$variable` System Prompt Interpolation in `vox_chat_message` (`Phase 265` — `T3-SALVAGE-RULES-01..04`)**
+- **Live `context_sanitizer` History Stripping, `vox_chat_compact_up_to` Anchor Compaction, `BatteryCostLedger` Pre-Flight/Post-Turn Accounting, `VoxIdAllocatorV2` Message IDs & Real `ResponseQualityAnalyzer` Telemetry (`Phase 266` — `T3-HIST-BATTERY-01..04`)**
+- **Live `agent_loop` Integration: `CommandOutputHub` `\r` Normalization, `20 KiB` DOM Snapshot Shedding, Pre-Write Sparse Git Checkpoints (`should_sparse_checkpoint`), `ResumableTurnStreamRegistry` (`vox_chat_stream_resume`) & Mid-Turn `ThreadRunQueue` Steer Draining (`Phase 267` — `T3-LOOP-CHECKPOINT-01..04`)**
+- **Stateful `t3_wave3_tools.rs`: Concurrent `join_all` LLM Consensus Fan-Out, Live Transcript Hydration/Persistence for `vox_context_handoff` & `vox_session_*`, Real `~/.claude`/`~/.codex`/`~/.cursor` File Scanning & Persistent `ServerState` `GuestShareService` (`Phase 268` — `T3-STATEFUL-TOOLS-01..04`)**
+- **`vox_chat_regenerate` & `vox_chat_edit_message_in_place` Backend MCP Tools, `DelegationWorktree` `WorkspaceLeaseMap` + `.env` Provisioning, `submit_webhook_events` `WebhookDedupeAndRateGate` & Compact `vox_orchestrator_status` Wire Budget (`Phase 269` — `T3-REGEN-WORKTREE-01..04`)**
+- **`t3Wave3Rpc.ts` Nested Tauri `{ is_error, result: { success, data } }` Envelope Unwrapping, Live `ChatTranscript.tsx` In-Place Edit & Posture-Aware Regeneration & Full-Stack Verification (`Phase 270` — `T3-GUI-ENVELOPE-01..04`)**
+
+**Shipped in `v4.7` (`Phases 259–264`, `24/24` requirements — [Archive](milestones/v4.7-ROADMAP.md) | [Requirements](milestones/v4.7-REQUIREMENTS.md) | [Audit](v4.7-MILESTONE-AUDIT.md)):**
+- **Polyglot Repository Scanner (`workspace_town.rs`): Cargo, npm/pnpm/TS, Python, Go, C/C++ & Single-Package Directory Partitioning + Live Git Diff (`+LoC / -LoC`) Enrichment (`Phase 259` — `URBS-POLYGLOT-SCAN-01..04`)**
+- **Zero-Hardcoding Graph Topology & Structural Archetype Classifier (`topology.ts`, `layout.ts`, `worldRenderer.ts`) (`Phase 260` — `URBS-TOPO-ARCHETYPE-01..04`)**
+- **Attention-Weighted Dynamic Real-Estate Layout: Inflating Active Worksites, Git Diffs, Errors & Decision Gates while Compacting Dormant Modules (`Phase 261` — `URBS-ATTENTION-LAYOUT-01..04`)**
+- **Interactive Foreground Worksite Cards: Live File Diffs (`+LoC / -LoC`), Compiler/Test Diagnostic Siege Cards & `Needs You` Decision Gates (`Phase 262` — `URBS-WORKSITE-HUD-01..04`)**
+- **Dependency Blast-Radius Illumination, Stale-Test Propagation & Polyglot Architecture Inspector (`ImperiumInspector.tsx`) (`Phase 263` — `URBS-BLAST-INSPECTOR-01..04`)**
+- **Multi-Repo Simulation Presets, Playwright CV Flywheel Verification & End-to-End Verification (`Phase 264` — `URBS-CV-CLOSURE-01..04`)**
+
+**Shipped in `v4.6` (`Phases 253–258`, `24/24` requirements — [Archive](milestones/v4.6-ROADMAP.md) | [Requirements](milestones/v4.6-REQUIREMENTS.md) | [Audit](v4.6-MILESTONE-AUDIT.md)):**
+- **Workspace-Wide TOESTUB (`unreasoned-suppression`, `flaky-wait-and-unreasoned-skip`) & `vox-arch-check` Remediation Sweep (`Phase 253` — `T3-AUDIT-SWEEP-01..04`)**
+- **Workspace-Wide MCP Error Sanitization (`access-and-error-safety`), UI Layout/V8 Hazard (`layout-and-perf-hazards`) & Doc/Typecheck Gate Closure (`Phase 254` — `T3-MCP-UI-SWEEP-01..04`)**
+- **Live MCP Tool Registry & `dispatch.rs` Wiring for `ConsensusFanOutEngine`, `GitPlumbingCheckpointStore`, `MultiVariantWorktreePool`, `ContextHandoffService`, `GuestShareService` & `AgentSessionImporter` (`Phase 255` — `T3-MCP-RPC-WIRE-01..04`)**
+- **`ChatTranscript.tsx`, `ArenaComparisonCard.tsx` & `Loquela.tsx` Integration: Multi-Model Consensus Mode Toggle (`ConsensusGridView`), LCA Branch Switcher (`BranchComparisonModal`), Chunked Thread Loader (`CHUNK_SIZE = 16`), Deferred Highlighting & 100-Entry `PromptHistoryController` (`Phase 256` — `T3-CHAT-UI-WIRE-01..04`)**
+- **Live Git Checkpoint Timeline & Restore Bar, External Session Import Modal (`~/.claude`, `~/.codex`, `~/.cursor` + JSON Bundle) & 6-Tier `ConnectionRouteRacer` Transport Wiring in `vox-gui` (`Phase 257` — `T3-VCS-IMPORT-UI-01..04`)**
+- **Live `ModelSelectionEngine` (`registry.rs` / `scoring.rs`) Integration of `ExternalBenchmarkPrior` (`SweBench`/`LiveBench`/`SkateBench`/`SnitchBench`) + `ResponseQualityAnalyzer` (`0..=100` Flesch-Kincaid Score) & Quality-Gated Auto-DPO Preference Harvesting (`Phase 258` — `T3-ROUTER-DPO-FLY-01..04`)**
+
+**Shipped in `v4.5` (`Phases 242–252`, `44/44` requirements — [Archive](milestones/v4.5-ROADMAP.md) | [Requirements](milestones/v4.5-REQUIREMENTS.md)):**
+- **Deterministic Entity IDs (`VoxIdAllocatorV2`), `ForwardCompatibleEnvelope` & Wire ID/Body Deduplication (`Phase 242` — `T3-WIRE-ID-01..04`)**
+- **Atomic Mid-Stream Multi-Tab Resumption (`SemaphoreSlim` Pattern), `CommandOutputHub` `\r` Normalization, Live Guest Share & `ThreadRunQueue` (`Phase 243` — `T3-STREAM-GUEST-01..04`)**
+- **O(1) 1024-Slot Ring-Buffer `RepetitionGuard`, `ToolRefusalDetector` Auto-Retry & MCP Tool-Search Cache-Write Guard (`Phase 244` — `T3-GUARD-REFUSAL-01..04`)**
+- **Battery Unit (`1 BU = $0.001`) Pre-Flight Gate, 3-Tier Cost Ledger, Multi-Benchmark Priors (`SnitchBench`/`SkateBench`/`SweBench`), `up_to` Compaction & Context Sanitization (`Phase 245` — `T3-BATTERY-LEDGER-01..04`)**
+- **Multi-Model Consensus SSE Fan-Out & Deterministic Flesch-Kincaid `ResponseQualityAnalyzer` (`Phase 246` — `T3-CONSENSUS-QA-01..04`)**
+- **Windows NTFS Junction-Safe Worktrees, `WorkspaceLease`, Git Plumbing Checkpoints (`refs/vox/checkpoints/`), Muse Pool & PR Sync/Watch/Review-Guide Reactors (`Phase 247` — `T3-WORKTREE-VCS-01..04`)**
+- **Cross-Provider `ContextHandoffService` (`16K` Token / `64KB` Budget), `McpToolAccess` Capability Gates, DPoP, `McpAppModelContext` & 20KB DOM Shedding (`Phase 248` — `T3-HANDOFF-MCP-01..04`)**
+- **Local-First Chunked Lazy Loading (`CHUNK_SIZE = 16`), Write Suppression & Tree Branch `divergencePoint` Comparison UI (`Phase 249` — `T3-CLIENT-BRANCH-01..04`)**
+- **`@rule` User Rules (`Manual`/`Always`), `$variable` Dynamic System Prompts, Regenerate-with-Posture vs. In-Place Edit, 100-Entry `promptHistory` & 3-Mode Fuzzy/Trigram Search (`Phase 250` — `T3-RULES-SEARCH-01..04`)**
+- **Signed/Filtered Webhook Ingress, Cron Scheduled Tasks, External CLI Agent Session Importer (`~/.claude`/`~/.codex`/`~/.cursor`) & 6-Tier Staggered Route Racing (`Phase 251` — `T3-WEBHOOK-IMPORT-01..04`)**
+- **TOESTUB (`vox-code-audit`) Enforcement Detectors (`unreasoned_suppression`, `test_clock_and_skip`, `mcp_access_and_error_safety`, `ui_perf_hazards`), Wire/SQL Transfer Budget CI Gate & Operational Rules (`Phase 252` — `T3-TOESTUB-RULES-01..04`)**
+
+**Shipped in `v4.4` (`Phases 236–241`, `24/24` requirements):**
+- **Distinct Monumental Roman Wonders, Multi-Arch `AQVAE` Aqueducts & Rich District Callout Cards (`Phase 236` — `URBS-WONDER-01..04`)**
+- **Fully Animated 60fps `VRBS ROMA` Simulation Loop: Live A* Citizens, Aqueduct Flow & Torchlight (`Phase 237` — `URBS-ANIM-01..04`)**
+- **Concept Art 1 Convergence: Rich Hydrated Chat Thread, Circular Progress Ring & Wired Popover Controls (`Phase 238` — `CHAT-CONCEPT-01..04`)**
+- **Concept Art 2 Convergence: `NeedsYou` KPI Strip, Live Agent Topology DAG & Wired `Inspect Diff` (`Phase 239` — `WORKBENCH-CONCEPT-01..04`)**
+- **Animated SVG Flow Edges, Live Console Prompt Hydration & Zero-Paper-Code Wiring (`Phase 240` — `FLOW-CONSOLE-WIRE-01..04`)**
+- **CV Flywheel Re-Capture, Before/After Archiving & Concept-vs-Actual Showcase (`Phase 241` — `CV-SHOWCASE-01..04`)**
+
+**Shipped in `v4.3` (`Phases 230–235`, `24/24` requirements):**
+- **Urbs Isometric Camera Centering, Occupied-Bounds Math & Concept Art 3 Blueprint (`Phase 230` — `URBS-CENTER-01..04`)**
+- **Creative Roman Civilization Architecture, Via Appia Roads, Aqueducts & Dark-Glass Callouts (`Phase 231` — `URBS-CIV-ART-01..04`)**
+- **Interactive Strategic Minimap Radar & Dashboard Embedded Minimap Uncrowding (`Phase 232` — `URBS-MINIMAP-01..04`)**
+- **`MensTrainingView`, `TasksView` & `Console` Layout, Overflow & Readability Fixes (`Phase 233` — `SURFACE-FIX-A-01..04`)**
+- **`ModelsView`, `BackendAvailability`, `ExplorerView` & `Dashboard` Readability Polish (`Phase 234` — `SURFACE-FIX-B-01..04`)**
+- **CV Flywheel Simulator Bootstrap, Centering Detectors & Full 32-Surface Verification (`Phase 235` — `URBS-CV-GATE-01..04`)**
+
+**Shipped in `v4.2` (`Phases 224–229`, `24/24` requirements):**
+- **Concept-Art Fidelity & Visual Glitch Audit Matrix (`Phase 224` — `CONCEPT-AUDIT-01..04`)**
+- **Top Chat Header Layout Switcher & Orphan Below-Composer Strip Removal (`Phase 225` — `CHAT-HEADER-CONCEPT-01..04`)**
+- **Structured 4-Row Posture & Routing Popover Matrix & Antique-Gold Send CTA (`Phase 226` — `LOQUELA-POPOVER-CRAFT-01..04`)**
+- **Session Inspector Rail Underline Tabs, Step Checkmarks & Hover-Disclosed Row Actions (`Phase 227` — `RAIL-CONCEPT-CRAFT-01..04`)**
+- **Sidebar Gold Active Pill, Single System Header, KPI Sparklines & Harness/Models Glitch Fixes (`Phase 228` — `SHELL-WORKBENCH-CRAFT-01..04`)**
+- **Full 32-Surface + 4-Chat/Dock/Urbs Playwright CV Flywheel Re-Capture & Visual Verification (`Phase 229` — `CONCEPT-CV-CONVERGENCE-01..04`)**
+
+**Shipped in `v4.0` (`Phases 210–215`, `24/24` requirements):**
+- **Dynamic Auto-Discovering GUI Surface, Sub-Tab, Dock & Popover CV Scanner (`Phase 210` — `CV-AUTO-DISCOVER-01..04`)**
+- **Loquela Composer Progressive Disclosure, Single-Row Toolbar & Floating Posture Popover (`Phase 211` — `LOQUELA-CLEANUP-01..04`)**
+- **Chat Session Inspector Rail Deduplication, Unified Plan/Task Checklist & Header Layout Switcher (`Phase 212` — `RAIL-UNIFY-01..04`)**
+- **AppShell 5-Domain Sidebar Consolidation, Top Workbench Tab Bar & Status Bar Streamlining (`Phase 213` — `NAV-CONSOLIDATE-01..04`)**
+- **Workbench Surface Styling, Above-the-Fold KPI Strip & Density Standardization (`Phase 214` — `SURFACE-CRAFT-01..04`)**
+- **Concept Art v4.0 Comparison CV Flywheel Convergence & Zero-Regression Gate (`Phase 215` — `CV-CONCEPT-GATE-01..04`)**
+
+**Shipped in `v3.9` (`Phases 203–209`, `28/28` requirements):**
+- **Clone T3 Ecosystem Repos into `~/dev` & Build Deterministic Surface/AST Inventory Graph (`Phase 203` — `T3-CLONE-GRAPH-01..04`)**
+- **Deep-Dive & Document `pingdotgg/t3code` Agent Harness Control Surface (`Phase 204` — `T3-CODE-HARNESS-01..04`)**
+- **Deep-Dive & Document `t3.chat` Router, Model Discovery, Operational Status, Benchmark Feeds & Credit/Usage Accounting (`Phase 205` — `T3-ROUTER-SURFACE-01..04`)**
+- **Deep-Dive & Document `t3.chat` Chat UX, Resumable Server Streams, Prompt Enhancement, Branching & Attachment Pipelines (`Phase 206` — `T3-CHAT-UX-01..04`)**
+- **Synthesize the "Best-of-All-Worlds" Vox Gap Matrix & Architecture Blueprint (`Phase 207` — `T3-VOX-BLUEPRINT-01..04`)**
+- **Implement Extracted Router Upgrades in Vox (`Phase 208` — `VOX-ROUTER-T3-01..04`)**
+- **Implement Extracted Harness Upgrades in Vox (`Phase 209` — `VOX-HARNESS-T3-01..04`)**
+
+**Shipped in `v3.8` (`Phases 199–202`, `16/16` requirements):**
+- **"Show, Don't Tell" Hero & Experience Cards (`Phase 199` — `SHOW-DONT-TELL-01..04`)**
+- **Concept Art B Chrome, Faceted Brand Header & SVG Icon Sidebar (`Phase 200` — `CONCEPT-CHROME-01..04`)**
+- **High-Craft `.vox` Compiler Playground — Folded-Doc Schematic, Line-Numbered IDE Gutter & Live Syntax Highlighting (`Phase 201` — `PLAYGROUND-CRAFT-01..04`)**
+- **Iterative Comparison CV Flywheel Convergence & Side-by-Side Visual Verification (`Phase 202` — `CV-CONVERGENCE-01..04`)**
+
+**Shipped in `v3.7` (`Phases 193–198`, `24/24` requirements):**
+- **Self-Maintaining Naming Cleanup, Badge-Spam Elimination & Freshness/Facet Sync (`Phase 193` — `DOCS-PROD-DB-01..04`)**
+- **User-Centric Pinned Navigation, L0–L5 Crate Grouping & SKOS Domain Hierarchy (`Phase 194` — `DOCS-PROD-TAXONOMY-01..04`)**
+- **Concept Art B 3-Tier Progressive Onboarding & Zero-Contradiction Quickstart (`Phase 195` — `DOCS-PROD-ONBOARD-01..04`)**
+- **Functional 4-Target `.vox` Compiler Playground & Concept Art B Visual Polish (`Phase 196` — `DOCS-PROD-GUI-ART-01..04`)**
+- **Live Captured Output vs. Concept Art B Comparison CV Flywheel & E2E Gate (`Phase 197` — `DOCS-PROD-GATE-01..04`)**
+- **Codebase-Wide Zero `vox:skip` Doctest Enforcement & Latest `.vox` Syntax Modernization (`Phase 198` — `DOCS-PROD-VOX-SYNTAX-01..04`)**
+
+**Shipped in `v3.6` (`Phases 188–192`, `20/20` requirements):**
+- **Recursive Deep Crate Symbol Extraction, `#Lstart-Lend` Source Anchors, Reverse Dependents & Validated Mermaid Dependency Graphs (`Phase 188` — `OPENWIKI-API-01..04`)**
+- **Materialized L0–L5 & Domain Subsystem Architecture Wiki Hubs (`vox ci wiki-sync`) & Starlight Sidebar Integration (`Phase 189` — `OPENWIKI-HUBS-01..04`)**
+- **Zero-Deficit Freshness Baseline Ratchet (`baseline.v1.json` `7 -> 0`), Duplicate Cluster Consolidation & `ssot-drift` Ledger Sync (`Phase 190` — `OPENWIKI-FRESH-01..04`)**
+- **Live CLI Evidence-Cited LLM Claim Verifier (`vox audit docs --verify-llm` & `--eval-golden-drift`) & Content-Hash Cache (`Phase 191` — `OPENWIKI-VERIFY-01..04`)**
+- **Guarded Self-Healing Doc Bot (`vox ci doc-self-heal`, `scripts/docs-fix-drafts.vox`, `docs-self-heal.yml`) & End-to-End OpenWiki Integration Suite (`Phase 192` — `OPENWIKI-BOT-01..04`)**
+
+**Shipped in `v3.5` (`Phases 183–187`, `20/20` requirements):**
+- **Call-Graph Reachability & "Paper Code" Detector (`Phase 183` — `PAPER-GUARD-01..04`)**
+- **Sub-Millisecond Hollow-Body, Stub & Placeholder Gate (`Phase 184` — `HOLLOW-GATE-01..04`)**
+- **Dynamic Programming Enforcer — Magic-Value & Benchmark Special-Casing Detector (`Phase 185` — `DYNAMIC-CODE-01..04`)**
+- **Anti-Reward-Hacking Test-Integrity Ratchet (`Phase 186` — `TEST-RATCHET-01..04`)**
+- **Turn `Stop` Hook Live-Wiring Audit & Symbol Grounding Gate (`Phase 187` — `STOP-VERIFY-01..04`)**
+
+**Shipped in `v3.4` (`Phases 178–182`, `20/20` requirements):**
+- **Prefix-Locked Two-Tier Tool Architecture (`Phase 178` — `CACHE-PREFIX-01..04`)**
+- **AST Symbol-Slice Read/Edit & Skeleton Folding (`Phase 179` — `AST-SLICE-01..04`)**
+- **Pre-Edit Cross-Crate Grounding & Write-Time Repo Guards (`Phase 180` — `PREFLIGHT-GROUND-01..04`)**
+- **Speculative Streaming Tool Prefetch (`Phase 181` — `STREAM-EXEC-01..04`)**
+- **Workspace Test Canonicalizer, FIFO `FakeBackend` & SOTA Architecture SSOT (`Phase 182` — `FAST-APPLY-01..04`)**
+
+**Shipped in `v3.3` (`Phases 173–177`, `20/20` requirements):**
+- **Centralized Telemetry Sync, Live `CommunityIntelligenceBundleV1` Hydration & Bradley-Terry / Contextual Bandit Auto-Improving Router (`Phase 173` — `ROUTE-LEARN-01..04`)**
+- **Side-by-Side Arena Turn Comparison, Pairwise Preference Voting & Centralized Telemetry / Auto-DPO Flywheel (`Phase 174` — `ARENA-COMPARE-01..04`)**
+- **Conversation Branching (`fork_from_message_id`), Jujutsu (`vox-vcs`) Turn Checkpoints & 1-Click Code+Chat Rewind (`Phase 175` — `BRANCH-REWIND-01..04`)**
+- **Sub-Transcript Tool-Result Clearing & Context Window Surgery (`Phase 176` — `CONTEXT-SURGERY-01..04`)**
+- **Deterministic `.vox` Lifecycle Hooks (`PreToolUse` / `PostToolBatch` / `Stop`), `vox_oracle_consult` Escalation & Milestone `v3.3` Verification (`Phase 177` — `HOOKS-ORACLE-01..04`)**
+
+**Shipped in `v3.2` (`Phases 163–172`, `40/40` requirements — [Archive](milestones/v3.2-ROADMAP.md) | [Requirements](milestones/v3.2-REQUIREMENTS.md) | [Audit](v3.2-MILESTONE-AUDIT.md)):**
+- **Write-Tool Selection Priority & `vox_apply_structured_edit` Recovery Window (`Phase 163` — `SOTA-WRITE-PRIORITY-01..04`)**
+- **Prefix-Immutable KV-Cache Tool Loops & Insertion-Time Output Bounding (`Phase 164` — `SOTA-PREFIX-IMMUTABLE-01..04`)**
+- **Universal Multi-Format & Multi-Call Tool Salvage (`salvage_tool_calls_from_text`) (`Phase 165` — `SOTA-UNIVERSAL-SALVAGE-01..04`)**
+- **True `syn` AST Structural Verification for Rust Edits (`Phase 166` — `SOTA-SYN-STRUCT-01..04`)**
+- **8-Spoke Unseen Real-Query Hardening (`Phase 167` — `SOTA-SPOKE-UNSEEN-01..04`)**
+- **Speculative Repair De-Escalation, Streamed Tool-JSON Suppression & Cumulative Turn Latency/TTFT Accounting (`Phase 168` — `SOTA-CASCADE-DEESC-01..04`)**
+- **64-Case 8-Spoke Real-Query & Adversarial Benchmark (`canonical_adversarial_and_real_query_spoke_suite_64`) & `v3.2` SOTA Harness Scorecard (`Phase 169` — `SOTA-BENCH64-01..04`)**
+- **TOESTUB Precision Engine, CI Separation of Concerns & Zero-Error Workspace Hygiene Gate (`Phase 170` — `SOTA-TOESTUB-HYGIENE-01..04`)**
+- **Bi-Directional CAS Task Ledger Sync, Polygon-Free SVG Telemetry Charts, Single-Line Plain-English Controls & Zero-Occlusion CV Flywheel Convergence (`Phase 171` — `SOTA-GUI-AXIS-01..04`)**
+- **Monolithic God Object Decomposition & 500-Line Module Ergonomics Gate (`Phase 172` — `SOTA-GOD-OBJECT-01..04`)**
+
+**Shipped in `v3.1` (`Phases 157–162`, `24/24` requirements):**
+- **8-Spoke Real-Query Router & Verifier Hardening: Prose-Wrapped Fences, Oratio Mid-Stream ASR Normalization, OpenAI MCP Envelopes & Workspace-Crate Rust Oracles (`Phase 157` — `SOTA-SPOKE-HARDEN-01..04`)**
+- **Rolling Multi-Iteration Tool-Loop Cache Breakpoints & Tool-Schema Prefix Caching (`Phase 158` — `SOTA-WIRE-LOOP-01..04`)**
+- **Live `context_fill_ratio`, `cacheable_workload` & Spoke-Conditioned `TaskCategory` Wiring in `select::decide` and `try_run_agent_turn` (`Phase 159` — `SOTA-LIVE-ROUTE-01..04`)**
+- **Path-Scoped Read-Memo Invalidation, Canonical JSON Arg Keys & Edit-Failure Line-Window Recovery (`Phase 160` — `SOTA-PATH-MEMO-01..04`)**
+- **Spoke-Aware Autonomous Retrieval Preamble Gating & Bounded Latency Fast-Path (`Phase 161` — `SOTA-FAST-PREAMBLE-01..04`)**
+- **48-Case Real-Query & Adversarial 8-Spoke Benchmark (`canonical_adversarial_and_real_query_spoke_suite_48`) & `v3.1` SOTA Harness Scorecard (`Phase 162` — `SOTA-BENCH48-01..04`)**
+
+**Shipped in `v3.0` (`Phases 152–156`, `20/20` requirements):**
+- **Outbound Wire `stream_options.include_usage` & Prompt-Cache `cache_control` Breakpoints (`Phase 152` — `SOTA-WIRE-BP-01..04`)**
+- **End-to-End `prompt_tokens`, `ttft_ms`, `tpot_ms`, Spoke `TaskCategory` & Spec-Fallback Cost Accounting (`Phase 153` — `SOTA-TELEM-CLOSE-01..04`)**
+- **Cache-Read Pricing & Observed `p95_ttft_ms` / `p95_tpot_ms` Goodput Scoring in `ModelSelectionEngine` (`Phase 154` — `SOTA-GOODPUT-ROUTE-01..04`)**
+- **Zero-Latency Intra-Turn Read-Only Tool Memoization & Write-Invalidated Deduplication (`Phase 155` — `SOTA-TOOL-DEDUP-01..04`)**
+- **Sub-5ms Workspace-Aware `.rs` Structural & Module-Graph Verification (`syn` Duplicate-Symbol / Missing-Submodule / Stub Gate) & `v3.0` Scorecard (`Phase 156` — `SOTA-RS-STRUCT-01..04`)**
+
+**Shipped in `v2.9` (`Phases 147–151`, `20/20` requirements):**
+- **Day-Stable System Prompt KV-Cache Prefix, Rider Deduplication & Spoke-Ranked Skill Catalog (`Phase 147` — `SOTA-KVCACHE-01..04`)**
+- **Streaming SSE `usage` / `cache_read_tokens` Wire Parsing & End-to-End Cache-Hit Telemetry (`Phase 148` — `SOTA-WIRECACHE-01..04`)**
+- **Sub-Millisecond Intent-Gated Autonomous Retrieval Preamble (`should_run_auto_chat_preamble`) (`Phase 149` — `SOTA-PREAMBLE-01..04`)**
+- **Intra-Turn Tool Output Budgeting, Stale Iteration Masking & Persisted Turn Tool Ledger (`Phase 150` — `SOTA-INTRATURN-01..04`)**
+- **Two-Tier Progressive Tool Schema Compression & `v2.9` SOTA Harness Benchmark Scorecard (`Phase 151` — `SOTA-SCHEMA-01..04`)**
+
+**Shipped in `v2.8` (`Phases 142–146`, `20/20` requirements):**
+- **Zero-Waste Single-Pass SSE `delta.tool_calls` Streaming & Universal Provider Tool Mapping (`Phase 142` — `SOTA-STREAM-01..04`)**
+- **KV-Cache-Aligned Multi-Turn Wire Messages & Raw-Utterance `DEFAULT_RANKED_MAX_TOOLS = 20` Selection (`Phase 143` — `SOTA-PROMPT-01..04`)**
+- **Live Wire-Up of `SessionWorkingMemory` & `blake3` Observation Masking in `conversation.rs` (`Phase 144` — `SOTA-MEMORY-01..04`)**
+- **Sub-10ms AST Symbol-Skeleton Context Packing & Targeted Symbol Read/Edit Fast-Path (`Phase 145` — `SOTA-SLICE-01..04`)**
+- **Real Intra-Turn Model Switching (`SelectionIntent::repair_loop`) & Persistent `VoxDb` Live Auto-DPO Flywheel (`Phase 146` — `SOTA-LIVE-DPO-01..04`)**
+
+**Shipped in `v2.7` (`Phases 137–141` — SOTA Agent Harness):**
+- **Spoke-Conditioned BM25 + Intent Tool Ranking & Schema Token Compression (`Phase 137` — `SOTA-TOOLS-01..04`)**
+- **Sub-50ms Multi-Spoke Inline Post-Write Verification for `.vox`, `.rs` (`rustc`), and `SKILL.md` (`Phase 138` — `SOTA-VERIFY-01..04`)**
+- **Dynamic Intra-Turn Speculative Model Cascade & Synchronous Doom-Loop Repair Intervention (`Phase 139` — `SOTA-CASCADE-01..04`)**
+- **Parallel Read-Only Tool Batch Execution, Observation Masking & KV-Prefix-Stable `SessionWorkingMemory` (`Phase 140` — `SOTA-SPEED-01..04`)**
+- **Live Intra-Turn Auto-DPO Trajectory Harvesting & Before/After SOTA Harness Benchmark Scorecard (`Phase 141` — `SOTA-FLYWHEEL-01..04`)**
+
+**Shipped in `v2.6` (`Phases 133–136`):**
+- **Everyday Natural-Language Spoke Classification, Signal Telemetry & Full Grammar Unification Gate (`Phase 133` — `CONV-INTENT-01..04`)**
+- **Multi-Turn Conversational State, Anaphora/Context Carryover & Native 8-Spoke Provenance (`Phase 134` — `CONV-STATE-01..04`)**
+- **Automatic Conversational Self-Repair Escalation (`SelectionIntent::repair_loop`) & DPO Contrast Emission (`Phase 135` — `CONV-REPAIR-01..04`)**
+- **Extended 12-Turn Human Conversation Harness & 40-Case Decoupled 8-Spoke Evaluation (`Phase 136` — `CONV-BENCH-01..04`)**
+
+**Archived `v2.5` Artifacts:** [`.planning/v2.5-MILESTONE-AUDIT.md`](v2.5-MILESTONE-AUDIT.md)
 
 ## Requirements
 
@@ -122,4 +387,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-19 after v1.7 milestone completion (`Phases 89–97` shipped and archived)*
+*Last updated: 2026-10-25 after starting v5.4 milestone (`T3 CI/TOESTUB Enforcement Deep-Extraction`) (`Universal Repo-Agnostic Codebase Civilization Simulator & Attention-Weighted Developer Control Surface`)*
