@@ -291,21 +291,27 @@ This catches golds the grader cannot match (for example a gold the normalizer st
 | A5 | Registering `VOX_REASONING_EVAL_*` in `env-vars.v1.yaml` is the right policy path versus deleting the LIMIT override | Pitfall 7 | Low. Either satisfies the policy; the planner picks. |
 | A6 | Treating any per-item inference error as `NotScored` is the desired strictness | Pitfall 5 | Medium. CONTEXT only locks the load-failure case. Stricter is safer for a gate; looser keeps a partial datapoint. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **How to commit the uncommitted scorer without sweeping unrelated edits.**
+RESOLVED: stage the scorer by explicit path and confirm the commit shows only those files. The plans do this.
+RESOLVED: any per-item inference error makes the whole run NotScored. The plans do this.
+RESOLVED: leakage checks are the in-repo template-marker and golden-copy guards. Corpus-wide screening stays optional and local.
+DEFERRED to phase 315: refusing non-finite baseline values in `eval_collateral_damage`. Not required by BENCH-02 or BENCH-03.
+
+
+1. **How to commit the uncommitted scorer without sweeping unrelated edits.** RESOLVED: stage by path.
    - What we know: `reasoning_eval.rs` is untracked; `mod.rs` and `eval_collateral.rs` have uncommitted hunks that belong to it; other modified files in the tree are not this phase's.
    - What's unclear: whether `eval_collateral.rs` has unrelated uncommitted hunks beyond the 36 added lines. The diff read this session shows only the `cached_reasoning_report` and `score_bench` additions.
    - Recommendation: stage by path, and `git diff --cached --stat` before committing; expect three files.
 
-2. **Strictness on per-item inference errors (A6).**
+2. **Strictness on per-item inference errors (A6).** RESOLVED: any error is NotScored.
    - Recommendation: any error makes the whole run `NotScored` with `reason` naming the first failing item id. Report `n_requested` and `n_inference_errors` for diagnosis.
 
-3. **Should the phase add a leakage check of `vox_think` against the training corpus?**
+3. **Should the phase add a leakage check of `vox_think` against the training corpus?** RESOLVED: in-repo guards only.
    - What we know: `mens/data/train.jsonl` and `synthetic.jsonl` are gitignored, so CI cannot rely on them. `eval_gate::leakage` already checks `heldout_bench` answers against corpus completions.
    - Recommendation: required in-repo checks are (a) no question contains the three template markers and (b) no `program` is byte-identical to a file under `examples/golden/`. Corpus-wide n-gram screening is optional and local-only.
 
-4. **Does the `eval_collateral_damage` pre-score validator need to refuse non-finite baseline values?**
+4. **Does the `eval_collateral_damage` pre-score validator need to refuse non-finite baseline values?** DEFERRED to phase 315.
    - Not required by BENCH-02/03. `run_collateral_damage_with` already refuses a missing or empty `benchmarks` object. Leave for 315 unless the planner wants a one-line guard.
 
 ## Environment Availability
