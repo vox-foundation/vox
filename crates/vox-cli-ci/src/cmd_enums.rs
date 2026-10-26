@@ -998,6 +998,9 @@ pub enum CiCmd {
         /// Baseline path used with `--check`.
         #[arg(long, default_value = "contracts/reports/transfer-budget-ci.v1.json")]
         baseline: std::path::PathBuf,
+        /// Optional live sample JSON (`TransferBudgetSample` shape) from CI/test artifact.
+        #[arg(long)]
+        sample_json: Option<std::path::PathBuf>,
     },
     /// Plan (and short-circuit) CI gates for the merge-base diff using
     /// `contracts/ci/changed-path-owners.v1.yaml` (t3code `check:changed` analog).
@@ -1019,6 +1022,39 @@ pub enum CiCmd {
         /// Write `inert` / `owners` / `file_count` for GitHub Actions `$GITHUB_OUTPUT`.
         #[arg(long)]
         github_output: Option<std::path::PathBuf>,
+    },
+    /// Fail-closed parse of `.github/VOUCHED.td` (t3code vouch trust list).
+    #[command(name = "vouched-parse")]
+    VouchedParse {
+        /// Path to VOUCHED.td (relative to repo root unless absolute).
+        #[arg(long, default_value = ".github/VOUCHED.td")]
+        path: std::path::PathBuf,
+    },
+    /// Audit workflows for privileged `pull_request_target` + PR-head + secrets shapes.
+    #[command(name = "preview-trust-audit")]
+    PreviewTrustAudit {
+        #[arg(long, default_value = "contracts/ci/preview-trust-allowlist.v1.yaml")]
+        allowlist: std::path::PathBuf,
+        #[arg(long, default_value = ".github/workflows")]
+        workflows_dir: std::path::PathBuf,
+    },
+    /// Emit per-job boolean change flags (t3code `ci-changes.cjs` analog).
+    #[command(name = "ci-changes")]
+    CiChanges {
+        #[arg(long, default_value = "origin/main")]
+        base: String,
+        /// Optional newline-delimited path list (skip git).
+        #[arg(long)]
+        paths: Option<std::path::PathBuf>,
+        #[arg(long)]
+        github_output: Option<std::path::PathBuf>,
+    },
+    /// Ban `@vitest-environment` / jsdom imports in unit tests under `crates/vox-gui/ui`.
+    #[command(name = "dom-test-env-ban")]
+    DomTestEnvBan {
+        /// Fail closed (default is advisory while legacy pragmas remain).
+        #[arg(long)]
+        strict: bool,
     },
     /// GitHub CI state for the current branch (failed/timed-out jobs, slowest
     /// steps) plus open `nightly-failure` issues. Hooks call `--hook` /

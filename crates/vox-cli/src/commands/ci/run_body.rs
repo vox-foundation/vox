@@ -691,28 +691,41 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 Err(anyhow!("affected-crates exited with code {code}"))
             }
         }
-        CiCmd::HitEverySurface { base, paths, strict } => vox_cli_ci::hit_every_surface::run(
+        CiCmd::HitEverySurface {
+            base,
+            paths,
+            strict,
+        } => vox_cli_ci::hit_every_surface::run(
             &root,
-            vox_cli_ci::hit_every_surface::HitEverySurfaceArgs { base, paths, strict },
+            vox_cli_ci::hit_every_surface::HitEverySurfaceArgs {
+                base,
+                paths,
+                strict,
+            },
         ),
-        CiCmd::SuppressionReviewGate { base, paths, strict } => {
-            vox_cli_ci::suppression_review_gate::run(
-                &root,
-                vox_cli_ci::suppression_review_gate::SuppressionReviewArgs { base, paths, strict },
-            )
-        }
-        CiCmd::EvidenceAssetBan { allowlist, paths } => {
-            vox_cli_ci::evidence_asset_ban::run(
-                &root,
-                vox_cli_ci::evidence_asset_ban::EvidenceAssetBanArgs { allowlist, paths },
-            )
-        }
+        CiCmd::SuppressionReviewGate {
+            base,
+            paths,
+            strict,
+        } => vox_cli_ci::suppression_review_gate::run(
+            &root,
+            vox_cli_ci::suppression_review_gate::SuppressionReviewArgs {
+                base,
+                paths,
+                strict,
+            },
+        ),
+        CiCmd::EvidenceAssetBan { allowlist, paths } => vox_cli_ci::evidence_asset_ban::run(
+            &root,
+            vox_cli_ci::evidence_asset_ban::EvidenceAssetBanArgs { allowlist, paths },
+        ),
         CiCmd::KnipGui { check } => vox_cli_ci::knip_gui::run(&root, check),
         CiCmd::TransferBudgetReport {
             write,
             out,
             check,
             baseline,
+            sample_json,
         } => vox_cli_ci::transfer_budget_report::run(
             &root,
             vox_cli_ci::transfer_budget_report::TransferBudgetArgs {
@@ -720,7 +733,38 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 out,
                 check,
                 baseline,
+                sample_json,
             },
+        ),
+        CiCmd::VouchedParse { path } => vox_cli_ci::vouched_parse::run(
+            &root,
+            vox_cli_ci::vouched_parse::VouchedParseArgs { path },
+        ),
+        CiCmd::PreviewTrustAudit {
+            allowlist,
+            workflows_dir,
+        } => vox_cli_ci::preview_trust_audit::run(
+            &root,
+            vox_cli_ci::preview_trust_audit::PreviewTrustArgs {
+                allowlist,
+                workflows_dir,
+            },
+        ),
+        CiCmd::CiChanges {
+            base,
+            paths,
+            github_output,
+        } => vox_cli_ci::ci_changes::run(
+            &root,
+            vox_cli_ci::ci_changes::CiChangesArgs {
+                base,
+                paths,
+                github_output,
+            },
+        ),
+        CiCmd::DomTestEnvBan { strict } => vox_cli_ci::dom_test_env_ban::run(
+            &root,
+            vox_cli_ci::dom_test_env_ban::DomTestEnvBanArgs { strict },
         ),
         CiCmd::CheckChanged {
             base,

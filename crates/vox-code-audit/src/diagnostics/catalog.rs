@@ -281,6 +281,18 @@ pub const MCP_ACCESS_AND_ERROR_SAFETY: &str = "vox/mcp/access-and-error-safety";
 /// UI layout thrashing (`transition-all`, unthrottled `new ResizeObserver`, bare `:has(`) or V8 dictionary-mode `delete obj[k]`.
 pub const UI_LAYOUT_AND_PERF_HAZARDS: &str = "vox/ui/layout-and-perf-hazards";
 
+/// Wall-clock / real-time wait in tests (t3code no-wall-clock / no-real-time-wait / frame-waits).
+pub const TEST_WALL_CLOCK: &str = "vox/test/wall-clock";
+
+/// Test declaration nested inside a for-loop (t3code no-test-in-loop).
+pub const TEST_IN_LOOP: &str = "vox/test/in-loop";
+
+/// Direct host OS/ARCH probe outside allowlisted host crates.
+pub const HOST_RUNTIME_PROBE: &str = "vox/host/runtime-probe";
+
+/// Inline schema compile/parse inside hot function bodies.
+pub const INLINE_SCHEMA_COMPILE: &str = "vox/schema/inline-compile";
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -369,6 +381,10 @@ pub const ALL_KNOWN_IDS: &[&str] = &[
     TEST_FLAKY_WAIT_AND_UNREASONED_SKIP,
     MCP_ACCESS_AND_ERROR_SAFETY,
     UI_LAYOUT_AND_PERF_HAZARDS,
+    TEST_WALL_CLOCK,
+    TEST_IN_LOOP,
+    HOST_RUNTIME_PROBE,
+    INLINE_SCHEMA_COMPILE,
 ];
 
 /// Find the explain URL for a given diagnostic ID.

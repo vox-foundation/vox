@@ -61,6 +61,16 @@ impl Default for TransferBudgetCeilings {
 /// Build a report from ceilings + a conservative in-process sample that mirrors
 /// the unit-test fixture shape (no live orchestrator required for CI artifact emit).
 pub fn build_report(sample: TransferBudgetSample) -> TransferBudgetReport {
+    build_report_with_source(
+        sample,
+        "vox-cli-ci/fixture_sample (ceilings mirrored from vox-orchestrator-mcp/tests/transfer_budget.rs)",
+    )
+}
+
+pub fn build_report_with_source(
+    sample: TransferBudgetSample,
+    source: &str,
+) -> TransferBudgetReport {
     let ceilings = TransferBudgetCeilings::default();
     let ok = sample.cold_open_snapshot_bytes <= ceilings.max_cold_open_snapshot_bytes
         && sample.cold_open_snapshot_rows <= ceilings.max_cold_open_snapshot_rows
@@ -69,7 +79,7 @@ pub fn build_report(sample: TransferBudgetSample) -> TransferBudgetReport {
         && sample.event_store_command_output_deltas == 0;
     TransferBudgetReport {
         schema_version: "transfer_budget_ci_v1".to_string(),
-        source: "vox-cli-ci/fixture_sample (ceilings mirrored from vox-orchestrator-mcp/tests/transfer_budget.rs)".to_string(),
+        source: source.to_string(),
         ceilings,
         sample,
         ok,
@@ -135,10 +145,30 @@ pub struct TransferBudgetArgs {
     pub out: PathBuf,
     pub check: bool,
     pub baseline: PathBuf,
+    pub sample_json: Option<PathBuf>,
+}
+
+fn load_sample(path: &Path) -> Result<TransferBudgetSample> {
+    let raw = std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+    serde_json::from_str(&raw).with_context(|| format!("parse sample {}", path.display()))
 }
 
 pub fn run(root: &Path, args: TransferBudgetArgs) -> Result<()> {
-    let report = build_report(fixture_sample());
+    let (sample, source) = if let Some(ref sample_path) = args.sample_json {
+        let p = if sample_path.is_absolute() {
+            sample_path.clone()
+        } else {
+            root.join(sample_path)
+        };
+        (load_sample(&p)?, format!("live_sample:{}", p.display()))
+    } else {
+        (
+            fixture_sample(),
+            "vox-cli-ci/fixture_sample (ceilings mirrored from vox-orchestrator-mcp/tests/transfer_budget.rs)"
+                .to_string(),
+        )
+    };
+    let report = build_report_with_source(sample, &source);
     let out = if args.out.is_absolute() {
         args.out.clone()
     } else {
@@ -206,5 +236,13 @@ mod tests {
         write_report(&path, &report).unwrap();
         let loaded = load_report(&path).unwrap();
         assert_eq!(loaded, report);
+    }
+
+    #[test]
+    fn live_sample_json_marks_source() {
+        let s = fixture_sample();
+        let r = build_report_with_source(s, "live_sample:/tmp/sample.json");
+        assert!(r.source.starts_with("live_sample:"));
+        assert!(r.ok);
     }
 }
