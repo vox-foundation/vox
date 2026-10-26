@@ -1,9 +1,9 @@
 # Milestones
 
-## v5.4 T3 CI/TOESTUB Enforcement Deep-Extraction & Harness Policy Hardening (Planning: 2026-10-25)
+## v5.4 T3 CI/TOESTUB Enforcement Deep-Extraction & Harness Policy Hardening (Shipped: 2026-10-25)
 
 **Phases planned:** 6 phases (`Phases 301–306`), 24 requirements
-**Status:** Planning — requirements & roadmap defined; not yet executing
+**Status:** Shipped — 6/6 phases, 24/24 requirements verified
 
 **Goal:** Extract the remaining t3code CI/oxlint/agent-ops gems (change-gated checks, transfer-budget PR reporting, knip, PR size/evidence hygiene, kill-safety + multi-surface checklist, thin-transport TOESTUB, fingerprint/cache/graph closure) into Vox harness enforcement without redoing shipped v3.9/Wave runtime features.
 

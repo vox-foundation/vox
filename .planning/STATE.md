@@ -17,13 +17,14 @@ progress:
 
 ## Current Position
 
-Phase: 306 — Complete — Agent-Ops Kill-Safety, Hit-Every-Surface Checklist & Worktree Isolation
+Phase: 306 — Complete — Tauri Fingerprint Advisory, GUI Cache Layers, Surface Graph Refresh & Scorecard
 Plan: —
 Status: Milestone v5.4 complete (6/6 phases, 24/24 requirements)
 Last activity: 2026-10-25 — Phase 306 complete; v5.4 CI/TOESTUB enforcement milestone closed
 
 ## Milestone History (Recent)
 
+- ✅ **v5.4 (`Phases 301–306`, `24/24` requirements — Complete 2026-10-25):** T3 CI/TOESTUB Enforcement Deep-Extraction & Harness Policy Hardening ([Requirements](REQUIREMENTS.md))
 - ✅ **v5.3 (`Phases 295–300`, `24/24` requirements — Complete 2026-10-25; CV residual):** Photorealistic Edge-Softening, Continuous Monumental Aqueduct-to-Sewer Architecture, Sub-Surface Ground Integration & CV Flywheel Score Maximization ([Requirements](REQUIREMENTS.md))
 - ✅ **v5.2 (`Phases 289–294`, `24/24` requirements — Complete 2026-10-25):** Smooth Physically-Grounded Lighting, High-Detail Vitruvian Architecture & Grounds, Integrated Roman Hydraulic/Sewer Grid (`Aquaeductus`, `Castellum Divisorium`, `Fistulae` & `Cloaca Maxima`) & Animated Shape+Color Activity Conduits ([Requirements](REQUIREMENTS.md) | [Architecture Spec](../docs/src/architecture/urbs-hydraulic-plumbing-and-detailed-architecture-spec-2026.md))
 - ✅ **v5.1 (`Phases 283–288`, `24/24` requirements — Complete 2026-10-25):** T3 Ecosystem Wave 5 Deep Review & End-to-End Parity Closure ([Requirements](REQUIREMENTS.md) | [Architecture Audit](../docs/src/architecture/t3-vox-wave5-deep-review-and-parity-closure-2026.md))
