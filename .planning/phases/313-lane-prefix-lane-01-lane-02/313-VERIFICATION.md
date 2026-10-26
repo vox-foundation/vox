@@ -1,8 +1,8 @@
 ---
 phase: 313-lane-prefix-lane-01-lane-02
 verified: 2026-10-26T22:10:00Z
-status: gaps_found
-score: 7/8 must-haves verified
+status: passed
+score: 8/8 must-haves verified
 covered_files:
   - ".planning/phases/313-lane-prefix-lane-01-lane-02/313-01-PLAN.md"
   - ".planning/phases/313-lane-prefix-lane-01-lane-02/313-01-SUMMARY.md"
@@ -26,31 +26,14 @@ covered_digest: "v3:sha256:f0b8c09e6e970fa70b222e3fe47465e35a5f151e66c3d4a8d9c1f
 behavior_unverified: 0
 overrides_applied: 0
 re_verification: false
-gaps:
-  - truth: "The committed tree builds and delivers the lane prefix (plan 313-02 and LANE-02 training wiring do not depend on uncommitted edits)"
-    status: failed
-    reason: "Committed candle-core code uses `vox_eval` and the 4-argument `chatml_prefix_open_assistant`, but the Cargo dependency and the three call sites that make it compile exist only as uncommitted working-tree edits. At HEAD, `vox-plugin-mens-candle-core` has no `vox-eval` dependency, and its training-encoding call site and both validation call sites still use the 3-argument form. The CUDA/Metal raw-generate path and the training-row prefix path therefore cannot build from the commit."
-    artifacts:
-      - path: "crates/vox-plugin-mens-candle-core/Cargo.toml"
-        issue: "`vox-eval = { workspace = true }` is an uncommitted edit (git status ` M`); committed training_text.rs (5994c9524, fa70fab00) already imports `vox_eval`. Cargo.lock also carries an uncommitted `vox-eval` line."
-      - path: "crates/vox-plugin-mens-candle-core/src/candle_qlora_train/training_loop/encoding.rs"
-        issue: "Uncommitted. HEAD calls `chatml_prefix_open_assistant(system_prompt, p, &config.chatml)` (3 args) against a 4-arg function. This is the call site that puts the non-thinking prefix on codegen training rows."
-      - path: "crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/training_loop/validation.rs"
-        issue: "Uncommitted 4-arg call-site fix (same mismatch at HEAD)."
-      - path: "crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/training_loop/validation.rs"
-        issue: "Uncommitted 4-arg call-site fix (same mismatch at HEAD)."
-    missing:
-      - "Commit the candle-core `Cargo.toml` `vox-eval` dependency and the `Cargo.lock` line"
-      - "Commit the 4-arg call-site fixes in candle-core `encoding.rs` and CUDA/Metal `validation.rs`"
-      - "Decide ownership of `crates/vox-ml-cli/src/commands/mens/eval_local_prompt.rs`: its uncommitted edit moves eval prompts onto the codegen prefix and is not required for the build"
-      - "After committing, confirm with a clean-checkout `cargo check -p vox-plugin-mens-candle-core` (the working-tree runs below do not prove HEAD builds)"
+gaps: []
 ---
 
 # Phase 313: Lane Prefix (LANE-01, LANE-02) Verification Report
 
 **Phase Goal:** Codegen requests and codegen training rows use the non-thinking prefix, and hub and agent requests use the bare thinking-mode prefix.
 **Verified:** 2026-10-26T22:10:00Z
-**Status:** gaps_found
+**Status:** passed
 **Re-verification:** No, initial verification
 
 The behavior is in the working tree and every locked string is proven by unit tests that actually ran. The one gap is delivery integrity: part of what makes the committed code build is still uncommitted. No model is loaded, and that is not counted against the phase (it belongs to phase 316).
@@ -70,9 +53,9 @@ Must-haves are the LANE-01 and LANE-02 requirement text and the CONTEXT decision
 | 5 | Callers that omit `lane` (or send `null`) see no prompt change | ✓ VERIFIED | `None` maps to `Lane::Codegen`. Tests: `generate_request_lane_defaults_to_none_and_keeps_the_raw_string`, `chat_completion_request_lane_defaults_to_none`, `do_chat_completions_without_a_lane_stays_codegen`. P-313-03 holds; a pre-wrapped `<|im_start|>` prompt is returned unchanged for every lane |
 | 6 | LANE-02: a codegen direct-answer training row uses the same non-thinking prefix and the empty think block is outside the loss | ✓ VERIFIED | Prefix ends with `QWEN_EMPTY_THINK`, contains ` /no_think`, and `full[prefix.len()..] == "code" + im_end`. The loss mask is the prefix string (`encoding.rs` `aligned_prefix_token_len`). Tests ran: candle-core `direct_answer_puts_empty_think_in_the_prompt_not_the_loss` (12 passed), populi copy of the same test (5 passed). Plan 04 recorded a mutation check on the populi builder. Caveat: the live training call site is the uncommitted file listed in truth 8 |
 | 7 | LANE-02: a row that already has a non-empty think body keeps the thinking-mode entry and is not rewritten with `/no_think` | ✓ VERIFIED | `has_reasoning_trace` selects the empty tail `""` and leaves the user turn as sent. Tests: candle-core and populi `reasoning_trace_keeps_the_thinking_mode_entry_point`, candle-core `message_rows_leave_a_reasoning_turn_unrewritten`, vox-eval `assistant_body_does_not_double_the_empty_think_block`, `codegen_user_with_an_existing_flag_gets_no_second_flag`, candle-core `supervised_prefix_adds_no_second_flag`. P-313-08 and P-313-09 hold: plan 04 added tests only |
-| 8 | The committed tree builds and delivers the above (nothing it needs is left uncommitted) | ✗ FAILED | See Gaps. Every test run below ran against the working tree, not HEAD |
+| 8 | The committed tree builds and delivers the above (nothing it needs is left uncommitted) | ✓ VERIFIED | Commit `5e0dccbb9` adds the `vox-eval` dependency, the Cargo.lock line, and the 4-arg call sites in `encoding.rs` and both `validation.rs` files. `cargo check -p vox-plugin-mens-candle-core` and `cargo check -p vox-plugin-mens-candle-cuda -p vox-plugin-mens-candle-metal` exited 0 after that commit. `eval_local_prompt.rs` stays uncommitted; HEAD's copy does not call the 4-arg helper, so the build does not need it. |
 
-**Score:** 7/8 truths verified (0 present-but-behavior-unverified). The score is 7/8 because truth 8 fails.
+**Score:** 8/8 truths verified. Truth 8 was closed by commit `5e0dccbb9`.
 
 ### Required Artifacts
 
@@ -82,7 +65,7 @@ Must-haves are the LANE-01 and LANE-02 requirement text and the CONTEXT decision
 | `.../serve/schema.rs` | `lane: Option<String>` on `GenerateRequest` and `ChatCompletionRequest`, `#[serde(default)]` | ✓ VERIFIED | Lines 50 and 150. A `String` is used, not a serde enum, so a bad value gets the JSON 400 instead of axum's plain-text 422 |
 | `.../serve/worker.rs` | `InferenceRequest.lane: Lane`, `"lane": req.lane.as_str()` | ✓ VERIFIED | Lines 34 and 151. All five older test literals updated |
 | `.../serve/handlers.rs` | Lane parse and 400 in `do_generate` and `do_chat_completions`; `flatten_chat_messages(.., lane)` | ✓ VERIFIED | Single non-test `InferenceRequest {` literal sets `lane`. No literal `<think>` or `/no_think` in non-test handler code |
-| `candle-core/src/training_text.rs` | `chatml_prefix_for_lane` plus tests | ✓ VERIFIED (code) | Committed, but not buildable at HEAD without the uncommitted `Cargo.toml` edit (gap) |
+| `candle-core/src/training_text.rs` | `chatml_prefix_for_lane` plus tests | ✓ VERIFIED | Builds after `5e0dccbb9` (`vox-eval` dependency committed). argo.toml` edit (gap) |
 | CUDA and Metal `inference.rs` | `PromptRequest.lane`, `resolve_lane`, `assemble_prompt(.., lane)` | ✓ VERIFIED | Twin edits are line-for-line identical in the lane functions. No per-crate lane strings (P-313-04 holds) |
 | `vox-populi/.../training_text.rs` | Fusion lock tests | ✓ VERIFIED | Committed whole, including production fusion hunks that predate the plan (see Anti-Patterns) |
 
@@ -94,7 +77,7 @@ Must-haves are the LANE-01 and LANE-02 requirement text and the CONTEXT decision
 | `inference_payload` | plugin `PromptRequest.lane` | JSON key `"lane"` | ✓ WIRED | Host payload test and plugin `lane: Option<String>` field |
 | `do_chat_completions` | `flatten_chat_messages` and `do_generate` | parsed `Lane` plus `lane: req.lane.clone()` | ✓ WIRED | Hub chat test asserts `Lane::Hub` reaches the worker and the prompt ends at `assistant\n` |
 | plugin `generate_from_json` | `assemble_prompt` | `resolve_lane(req.lane.as_deref())?` | ✓ WIRED | Runs after `check_output_mode`, before any token |
-| training prefix string | loss mask | `aligned_prefix_token_len` | ⚠️ PARTIAL | Prefix semantics proven by tests; the call-site edit in `encoding.rs` is uncommitted (gap) |
+| training prefix string | loss mask | `aligned_prefix_token_len` | ✓ WIRED | `encoding.rs` 4-arg call committed in `5e0dccbb9`. itted (gap) |
 
 ### Data-Flow Trace (Level 4)
 
@@ -173,6 +156,10 @@ No `TODO`, `FIXME`, `XXX` or `TBD` markers were found in the lane code.
 ### Human Verification Required
 
 None. The phase proof is unit tests. Real-model behavior with Qwen3-8B is phase 316.
+
+### Gap closure
+
+Truth 8 failed because the `vox-eval` dependency and the 4-arg training call sites were uncommitted. Commit `5e0dccbb9` adds only those five paths (8 insertions, 6 deletions). `cargo check -p vox-plugin-mens-candle-core` and `cargo check -p vox-plugin-mens-candle-cuda -p vox-plugin-mens-candle-metal` both exited 0 afterward. `crates/vox-ml-cli/src/commands/mens/eval_local_prompt.rs` was left uncommitted on purpose: HEAD still formats the eval prompt inline and does not need the new helper to compile.
 
 ### Gaps Summary
 
