@@ -422,4 +422,52 @@ mod tests {
         assert!(matches!(outcome, BenchOutcome::NotScored { .. }));
         assert!(rows.is_empty());
     }
+
+    #[test]
+    fn a_not_scored_write_replaces_a_stale_scored_report() {
+        use vox_eval::qwen_reasoning::ReasoningScore;
+        let adapter = tempfile::tempdir().expect("tempdir");
+        let scored = BenchOutcome::Scored(ReasoningScore {
+            accuracy: 0.9,
+            think_initiation_rate: 1.0,
+            n: 32,
+        });
+        write_outcome("gsm8k_think", adapter.path(), &scored, &[]).expect("write scored");
+        let before = read_report(adapter.path(), "gsm8k_think");
+        assert_eq!(before["status"], "scored");
+        assert_eq!(before["accuracy"].as_f64(), Some(0.9));
+
+        let not_scored = BenchOutcome::NotScored {
+            reason: "scored 0 of 32 items: model went away".to_string(),
+            n_requested: 32,
+        };
+        write_outcome("gsm8k_think", adapter.path(), &not_scored, &[]).expect("write not scored");
+        let after = read_report(adapter.path(), "gsm8k_think");
+        assert_eq!(after["status"], "not_scored");
+        assert_eq!(after["n"], 0);
+        let obj = after.as_object().expect("object");
+        assert!(!obj.contains_key("accuracy"), "stale accuracy survived");
+        assert!(!obj.contains_key("think_initiation_rate"));
+        assert!(!obj.contains_key("items"));
+    }
+
+    #[test]
+    fn a_wrong_size_slice_is_not_scored() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let slice = dir.path().join("reasoning.jsonl");
+        let rows: String = (0..31)
+            .map(|i| format!("{{\"id\":\"w-{i:04}\",\"question\":\"q{i}\",\"answer\":\"{i}\"}}\n"))
+            .collect();
+        std::fs::write(&slice, rows).expect("write slice");
+        let adapter = tempfile::tempdir().expect("tempdir");
+        let err = score_reasoning_file("gsm8k_think", &slice, adapter.path())
+            .expect_err("a 31-row slice must not be scored");
+        let msg = format!("{err:#}");
+        assert!(msg.contains("scored 0 of 32"), "message was: {msg}");
+        let v = read_report(adapter.path(), "gsm8k_think");
+        assert_eq!(v["status"], "not_scored");
+        assert_eq!(v["n"], 0);
+        assert_eq!(v["n_requested"], 32);
+        assert!(!v.as_object().expect("object").contains_key("accuracy"));
+    }
 }
