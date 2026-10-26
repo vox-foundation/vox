@@ -55,7 +55,7 @@ jobs:
               const s = report.sample || {};
               body = [
                 "<!-- vox-transfer-budget-report -->",
-                "### Transfer budget (fixture ceilings; not a live PR measurement)",
+                "### Transfer budget",
                 "",
                 `Source run: [${context.payload.workflow_run.id}](${context.payload.workflow_run.html_url})`,
                 `Conclusion: \`${context.payload.workflow_run.conclusion}\``,
