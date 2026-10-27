@@ -5,15 +5,16 @@ milestone_name: Reasoning Where the Lane Needs It
 current_phase: 316
 current_phase_name: Before/After Comparison
 status: ready
-last_updated: "2026-10-26T23:41:08.000Z"
+stopped_at: Completed 316-01-PLAN.md
+last_updated: "2026-10-27T05:02:08.906Z"
 last_activity: 2026-10-26
 last_activity_desc: Phase 316 planned (1 plan, 3 tasks); plan check passed
-state_head: 0da0d1fcbd298c382564ac4690f3c0decbf64210
+state_head: 2b4721d295a7aa4458e3c9af874dfe8e09470a58
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 9
-  completed_plans: 8
+  completed_plans: 9
   percent: 33
 ---
 
@@ -48,3 +49,19 @@ Execute phase 316, then plan phase 317.
 - Phases **307–312** executed on `cursor/t3-deeper-extraction-v55-510f`.
 - 24 REQs checked in REQUIREMENTS.md; scorecard marks honest Partials for live CI upload wiring, knip dual, DOM pragma migration, surface-graph `inventory.vox` regen.
 - PR create via ManagePullRequest may still fail (GitHub app); push branch + manual PR URL.
+
+## Performance Metrics
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 316 P01 | 52min | 3 tasks | 9 files |
+
+## Decisions
+
+- [Phase 316]: eval-reasoning-compare --base resolves a Qwen3 size name through train_bases to exactly one pin; unknown or ambiguous input is recorded as pin_unverifiable, never a fallback revision
+
+## Session
+
+**Last session:** 2026-10-27T05:02:08.872Z
+**Stopped at:** Completed 316-01-PLAN.md
+**Resume file:** None

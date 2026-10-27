@@ -13,7 +13,7 @@
 
 ### Before/after set (`BENCH`)
 
-- [ ] **BENCH-01**: The same checked-in GSM8K slice and MATH-500 slice are scored for the base model and for an adapter. Accuracy and think-initiation are stored as separate keys.
+- [x] **BENCH-01**: The same checked-in GSM8K slice and MATH-500 slice are scored for the base model and for an adapter. Accuracy and think-initiation are stored as separate keys.
 - [x] **BENCH-02**: A held-out Vox slice with checkable answers is scored the same way. Its items are not the fixed three-line Plan / Syntax / Implementation template.
 - [x] **BENCH-03**: A missing model or a failed load writes no passing score. The report records how many items were scored.
 
@@ -73,6 +73,7 @@
 ## Prior milestones (archived headers live below)
 
 # Requirements: Vox Milestone v5.5 (`Phases 307–312`) — T3 CI/TOESTUB Deep Enforcement
+
 **Defined:** 2026-10-25
 **Core Value (`v5.5`):** Go deeper than v5.4's change-gated CI / knip / thin-transport / path-label fingerprint by extracting t3code's next tier — contributor vouch trust, privileged preview trust-split, **live** transfer-budget measurement + job-matrix outputs, wall-clock/real-wait/test-in-loop/frame-wait detectors, host-runtime + schema-hoist + DOM-env discipline, and true sidecar fingerprint hashing — without redoing shipped v5.4 gates or Effect-only oxlint rules.
 **Evidence:** `~/dev/t3code` (`pr-vouch.yml`, `VOUCHED.td`, `relay-preview{,-cleanup}.yml`, `ci.yml` transfer artifacts, `ci-changes.cjs`, `mobile-fingerprint-check.yml`, `oxlint-plugin-t3code/rules/{no-wall-clock,no-real-time-wait,no-test-in-loop,no-global-process-runtime,no-inline-schema-compile,no-dom-test-environment,no-frame-waits}*`); graph `contracts/reports/t3-ecosystem-surface-graph.v1.json`; store report `docs/t3-deeper-extraction-v5.5.md`.
@@ -80,42 +81,49 @@
 ## v5.5 Requirements (0/24 Complete Across Phases 307–312)
 
 ### Phase 307: PR Vouch & Contributor Trust Gate (`T3-TRUST`)
+
 - [x] **T3-TRUST-01**: Add `.github/VOUCHED.td` (or `contracts/ci/vouched.v1.yaml`) SSOT for trusted/denounced GitHub logins, documented in AGENTS/contributors.
 - [x] **T3-TRUST-02**: Add `.github/workflows/pr-vouch.yml` using mitchellh/vouch (or documented equivalent) on `pull_request_target` + `/recheck-vouch` comments; manage `vouch:trusted|unvouched|denounced` labels.
 - [x] **T3-TRUST-03**: Wire required/advisory context so unvouched authors are visibly labeled without granting fork PRs write beyond label sync (match t3code trust model).
 - [x] **T3-TRUST-04**: Mutation tests: vouch status → label transitions; denounced blocks merge guidance; VOUCHED.td parse fails closed on syntax errors.
 
 ### Phase 308: Preview/Privileged Workflow Trust-Split Policy (`T3-PREVIEW`)
+
 - [x] **T3-PREVIEW-01**: Author `docs/src/ci/privileged-preview-trust-split.md` capturing t3code relay pattern: deploy may run PR code only under environment approval; cleanup uses `pull_request_target` + default-branch checkout and never executes PR code.
 - [x] **T3-PREVIEW-02**: Add `vox ci preview-trust-audit` (or workflow-policy-guard extension) that flags new workflows which combine `pull_request_target` + PR-ref checkout + secrets without an allowlisted trust-split shape.
 - [x] **T3-PREVIEW-03**: Enumerate existing Vox privileged workflows (if any) against the policy; file suppressions with owner+reason only when intentional.
 - [x] **T3-PREVIEW-04**: Contract/tests: intentional mutation introducing unsafe `pull_request_target`+PR-code+secret combo fails the audit.
 
 ### Phase 309: Live Transfer-Budget Measurement & Job-Matrix Change Detector (`T3-LIVE-CI`)
+
 - [x] **T3-LIVE-CI-01**: Replace fixture-only `transfer-budget-report` CI path with artifact emission from real `vox-orchestrator-mcp` transfer-budget tests (or nextest junit/sidecar JSON), uploaded as `thread-transfer-results`-shaped artifact.
 - [x] **T3-LIVE-CI-02**: Update `thread-transfer-report.yml` to prefer live CI artifact over committed fixture; keep fixture as ceiling baseline only; honest `source` field.
 - [x] **T3-LIVE-CI-03**: Extend `check-changed` / new `vox ci ci-changes` to emit per-job booleans (fmt/clippy/ui/docs/…) from path owners — t3code `ci-changes.cjs` analog — and document wiring into PR jobs.
 - [x] **T3-LIVE-CI-04**: Ratchet: CI fails when live sample exceeds ceilings or when required transfer artifact is missing on non-inert PRs.
 
 ### Phase 310: TOESTUB Test-Discipline Detectors (Wall-Clock, Real-Wait, Loop, Frame) (`T3-TEST-DET`)
+
 - [x] **T3-TEST-DET-01**: Extend `test_clock_and_skip` (or new detector) to flag wall-clock reads in tests: `Instant::now`, `SystemTime::now`, `Date.now`, `performance.now` (t3code `no-wall-clock-in-tests`).
 - [x] **T3-TEST-DET-02**: Add real-time wait detector for async timers / `tokio::time::sleep` / Promise timers in tests without TestClock/mock time (t3code `no-real-time-wait-in-tests`).
 - [x] **T3-TEST-DET-03**: Add `no-test-in-loop` analog: `#[test]`/`it(`/`test(` nested under for/for-of in test files; prefer parameterized tables.
 - [x] **T3-TEST-DET-04**: Promote `no-frame-waits-in-browser-tests` from deferred: fail on `waitForTimeout` / bare `page.waitForTimeout` in Playwright e2e under `crates/vox-gui/ui/e2e`.
 
 ### Phase 311: Host-Runtime Boundary, Schema Hoist, Knip Dual & DOM-Env Discipline (`T3-HOST-SCHEMA`)
+
 - [x] **T3-HOST-SCHEMA-01**: New detector banning direct host platform/arch probes outside allowlisted host crates (`std::env::consts::{OS,ARCH}`, `process.platform`/`process.arch`) — t3code `no-global-process-runtime` analog.
 - [x] **T3-HOST-SCHEMA-02**: New detector/hoist lint for hot-path inline schema compile/parse (serde Schema / vox-schema generate call sites rebuilt inside loops/handlers) — t3code `no-inline-schema-compile` analog.
 - [x] **T3-HOST-SCHEMA-03**: Deepen knip: pin local knip version in `vox-gui/ui`, dual `files+dependencies` then exports pass; document schema/unused-export preprocessor backlog.
 - [x] **T3-HOST-SCHEMA-04**: Ban per-file `@vitest-environment` / jsdom imports in unit tests; require project-level env config (t3code `no-dom-test-environment`).
 
 ### Phase 312: Sidecar Fingerprint Hash Compare, Surface Graph Regen & v5.5 Scorecard (`T3-FP-GRAPH`)
+
 - [x] **T3-FP-GRAPH-01**: Upgrade `gui-sidecar-fingerprint.yml` from path-diff labeling to content hash of native/sidecar inputs (Cargo.lock subset, tauri.conf, sidecar binary manifest) comparing PR head vs base — t3code expo fingerprint:generate analog.
 - [x] **T3-FP-GRAPH-02**: Repair `scripts/t3-surface-inventory.vox` compile blockers; regenerate `contracts/reports/t3-ecosystem-surface-graph.v1.json` from current ~/dev clone SHAs.
 - [x] **T3-FP-GRAPH-03**: Publish `contracts/reports/t3-vox-ci-enforcement-scorecard.v1.json` v5.5 rows for TRUST/PREVIEW/LIVE-CI/TEST-DET/HOST-SCHEMA/FP-GRAPH gems.
 - [x] **T3-FP-GRAPH-04**: Docs: architecture closure note + oxlint mapping ledger updates for newly shipped rules; mark prior Partials resolved or still deferred with owners.
 
 ## Out of Scope (v5.5)
+
 | Feature | Reason |
 |---|---|
 | Re-shipping v5.4 check-changed / knip-gui / thin-transport / path-label fingerprint | Already complete; deepen only |
@@ -125,6 +133,7 @@
 | CSS `no-unscoped-has` / outset indicators / scroll gutter | GUI polish backlog |
 
 ## Traceability
+
 | Requirement | Phase | Status |
 |---|---|---|
 | `T3-TRUST-01..04` | Phase 307 | Pending |
@@ -216,7 +225,6 @@
 **Coverage:** 24 v5.4 requirements → 6 phases → 0 unmapped
 
 ---
-
 
 # Requirements: Vox Milestones v5.4 (`Phases 301–306`), v5.3 (`Phases 295–300`), v5.2 (`Phases 289–294`), v5.1 (`Phases 283–288`), v5.0 (`Phases 277–282`), v4.9 (`Phases 271–276`) & v4.8 (`Phases 265–270`)
 

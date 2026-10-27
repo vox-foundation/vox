@@ -7,6 +7,7 @@
 **Updated:** 2026-10-26
 
 ### Phase 313: Lane Prefix (`LANE-01`, `LANE-02`)
+
 **Goal:** Codegen requests and codegen training rows use the non-thinking prefix, and hub and agent requests use the bare thinking-mode prefix.
 **Depends on**: Nothing (first phase of v5.6)
 **Requirements**: LANE-01, LANE-02
@@ -14,6 +15,7 @@
   1. A codegen serve prompt contains ` /no_think` and ends with the empty think block.
   2. A hub or agent serve prompt ends at a bare `assistant` turn and does not contain `/no_think`.
   3. A codegen direct-answer training row keeps the empty think block outside the loss, and a row that already has a non-empty think body is not rewritten with `/no_think`.
+
 **Plans**: 4 plans
 
 Plans:
@@ -29,6 +31,7 @@ Plans:
 - [x] `313-04`: Lock the existing codegen training fusion with tests only (completed 2026-10-26)
 
 ### Phase 314: Held-out Reasoning Set (`BENCH-02`, `BENCH-03`)
+
 **Goal:** The same GSM8K, MATH-500, and Vox items exist for a before/after, and a missing model cannot write a passing score.
 **Depends on**: Phase 313
 **Requirements**: BENCH-02, BENCH-03
@@ -36,6 +39,7 @@ Plans:
   1. A checked-in Vox slice has a checkable answer on every item and does not reuse the fixed Plan / Syntax / Implementation template.
   2. The GSM8K and MATH-500 slices used for the comparison are the checked-in files, not a new sample.
   3. A reasoning eval that cannot load the model writes no passing score and records how many items were scored.
+
 **Plans**: 2 plans
 
 Plans:
@@ -43,6 +47,7 @@ Plans:
 - [x] `314-02` (Wave 2, after 314-01): Fail closed when the model does not load or any inference error occurs; write `not_scored` with `n: 0`, and commit the scorer (completed 2026-10-26)
 
 ### Phase 315: Serve Gate (`GATE-01`, `GATE-02`)
+
 **Goal:** Serve refuses an adapter whose collateral report is missing or worse on accuracy or think-initiation, and the report labels the benches as slices.
 **Depends on**: Phase 314
 **Requirements**: GATE-01, GATE-02
@@ -50,6 +55,7 @@ Plans:
   1. Serve refuses to bind an adapter when the collateral report is missing.
   2. Serve refuses when accuracy or think-initiation on the reasoning keys drops past the configured threshold.
   3. The report states that the benches are slices and records the item count, so the 5% bar is not read as a full GSM8K or MATH-500 result.
+
 **Plans**: 2 plans
 
 Plans:
@@ -57,6 +63,7 @@ Plans:
 - [x] `315-02` (Wave 2, after 315-01): Serve re-validates the on-disk report and the per-slice reasoning reports and refuses a missing, stale, edited, or unscored one (completed 2026-10-26)
 
 ### Phase 316: Before/After Comparison (`BENCH-01`)
+
 **Goal:** A pinned Qwen3 base of any ladder size and its adapter are scored on the same slices when the weights exist, and no score is invented when they do not.
 **Depends on**: Phase 315
 **Requirements**: BENCH-01
@@ -64,21 +71,26 @@ Plans:
   1. When the requested pinned Qwen3 snapshot (default `Qwen/Qwen3-8B`) and an adapter trained on it are on disk, one report holds accuracy and think-initiation for the GSM8K slice, the MATH-500 slice, and the Vox slice on both sides.
   2. When the snapshot is absent, the run records that fact and does not write numeric scores.
   3. Both sides use the checked-in items.
-**Plans**: 1 plan
+
+**Plans**: 1/1 plans executed
 
 Plans:
+- [x] 316-01-PLAN.md
 - [ ] `316-01`: Run the before/after on the checked-in slices, or record that the snapshot is absent
 
 ### Phase 317: Size Ladder (`SIZE-01`)
+
 **Goal:** Every Qwen3 dense size is a pinned, licensed rung that the trainer and the harness can name.
 **Depends on**: Phase 316
 **Requirements**: SIZE-01
 **Success Criteria** (what must be TRUE):
   1. The ladder has Qwen3-0.6B, 1.7B, 4B, 8B, 14B, and 32B, each pinned to a real Hugging Face commit and carrying a license.
   2. A rung whose memory floor has not been measured on hardware says so.
+
 **Plans**: TBD
 
 ### Phase 318: Live VRAM Selector (`SIZE-02`)
+
 **Goal:** One selector reads current free memory, titrates to the largest Qwen3 size that fits, and picks the hub and its spokes together. Training, local serve, and chat all use it.
 **Depends on**: Phase 317
 **Requirements**: SIZE-02
@@ -87,9 +99,11 @@ Plans:
   2. If free memory drops between the pick and the load, it steps down a size and says why, instead of loading and running out of memory.
   3. Every spoke's base and preset follow the picked size. An explicit size overrides the pick, and a size that does not fit is refused rather than silently shrunk.
   4. The inference auto-selector and the training base pick both use this selector. The old fixed tiers that point at run directories that do not exist are gone.
+
 **Plans**: TBD
 
 ### Phase 319: Mesh-Wide Selection (`MESH-01`)
+
 **Goal:** Across a mesh, the selector picks the largest size that fits on any node's current free memory and routes the work there.
 **Depends on**: Phase 318
 **Requirements**: MESH-01
@@ -97,18 +111,22 @@ Plans:
   1. Node heartbeats carry current free accelerator memory, not only total VRAM.
   2. The mesh pick chooses the largest size that fits on some node, routes the job to that node, and titrates down when no node fits the larger size.
   3. A stale or missing node reading is not treated as free memory, and the local fallback still works with no mesh.
+
 **Plans**: TBD
 
 ### Phase 320: Train the Sizes (`SIZE-03`)
+
 **Goal:** Each Qwen3 size that fits this Mac is trained with the lane prefix, and each size that does not is recorded as not trained.
 **Depends on**: Phase 319
 **Requirements**: SIZE-03
 **Success Criteria** (what must be TRUE):
   1. Each size that fits produces a Metal QLoRA adapter whose manifest names its pinned base.
   2. A size that does not fit has a record with the measured memory and no adapter.
+
 **Plans**: TBD
 
 ### Phase 321: Harness Before/After (`HARN-01`, `BENCH-04`)
+
 **Goal:** The harness serves a chosen size, and one report shows before and after reasoning and intelligence scores for every trained size.
 **Depends on**: Phase 320
 **Requirements**: HARN-01, BENCH-04
@@ -116,6 +134,7 @@ Plans:
   1. The harness serves a chosen size's base or adapter through the existing serve path, behind the collateral gate.
   2. For every trained size, the report holds base and adapter reasoning accuracy and think-initiation on the three slices, plus an intelligence score on a codegen or agent bench, with n recorded.
   3. At least two sizes have real trained scores. Sizes without them are listed as not trained, with no numbers.
+
 **Plans**: TBD
 
 ### Progress
@@ -141,31 +160,37 @@ Plans:
 **Updated:** 2026-10-26T01:59:06Z
 
 ### Phase 307: PR Vouch & Contributor Trust Gate (`T3-TRUST-01..04`)
+
 **Directory:** `phases/307-pr-vouch-and-contributor-trust/`
 **Goal:** Add `.github/VOUCHED.td` (or `contracts/ci/vouched.v1.yaml`) SSOT for trusted/denounced GitHub logins, documented in AGE…
 - [x] `307-01`: Implement T3-TRUST requirements
 
 ### Phase 308: Preview/Privileged Workflow Trust-Split Policy (`T3-PREVIEW-01..04`)
+
 **Directory:** `phases/308-preview-trust-split-policy/`
 **Goal:** Author `docs/src/ci/privileged-preview-trust-split.md` capturing t3code relay pattern: deploy may run PR code only under…
 - [x] `308-01`: Implement T3-PREVIEW requirements
 
 ### Phase 309: Live Transfer-Budget Measurement & Job-Matrix Change Detector (`T3-LIVE-CI-01..04`)
+
 **Directory:** `phases/309-live-transfer-budget-and-job-matrix/`
 **Goal:** Replace fixture-only `transfer-budget-report` CI path with artifact emission from real `vox-orchestrator-mcp` transfer-b…
 - [x] `309-01`: Implement T3-LIVE-CI requirements
 
 ### Phase 310: TOESTUB Test-Discipline Detectors (Wall-Clock, Real-Wait, Loop, Frame) (`T3-TEST-DET-01..04`)
+
 **Directory:** `phases/310-test-discipline-detectors/`
 **Goal:** Extend `test_clock_and_skip` (or new detector) to flag wall-clock reads in tests: `Instant::now`, `SystemTime::now`, `Da…
 - [x] `310-01`: Implement T3-TEST-DET requirements
 
 ### Phase 311: Host-Runtime Boundary, Schema Hoist, Knip Dual & DOM-Env Discipline (`T3-HOST-SCHEMA-01..04`)
+
 **Directory:** `phases/311-host-runtime-schema-knip-dom/`
 **Goal:** New detector banning direct host platform/arch probes outside allowlisted host crates (`std::env::consts::{OS,ARCH}`, `p…
 - [x] `311-01`: Implement T3-HOST-SCHEMA requirements
 
 ### Phase 312: Sidecar Fingerprint Hash Compare, Surface Graph Regen & v5.5 Scorecard (`T3-FP-GRAPH-01..04`)
+
 **Directory:** `phases/312-fingerprint-hash-graph-scorecard/`
 **Goal:** Upgrade `gui-sidecar-fingerprint.yml` from path-diff labeling to content hash of native/sidecar inputs (Cargo.lock subse…
 - [x] `312-01`: Implement T3-FP-GRAPH requirements
@@ -182,7 +207,6 @@ Plans:
 | **Phase 312** | Sidecar Fingerprint Hash Compare, Surface Graph Regen & v5.5 Scorecard | `1/1` | Complete (Partials) |
 
 ---
-
 
 ## Milestones
 
@@ -495,7 +519,6 @@ Plans:
 
 ---
 
-
 ## Phases (`v5.4` — T3 CI/TOESTUB Enforcement Deep-Extraction & Harness Policy Hardening)
 
 ### Phase 301: Change-Gated CI Path Map & `vox ci check-changed` (`T3-CI-CHANGED-01..04`)
@@ -507,6 +530,7 @@ Plans:
 2. `vox ci check-changed` (or `vox run scripts/check-changed.vox`) exits 0 on inert planning-only diffs without invoking cargo.
 3. PR jobs skip heavy work for inert path sets while required contexts remain honest.
 4. Docs in `runner-contract.md` show the local command and ownership rules.
+
 **Plans:**
 - [x] `301-01`: Define owner map + implement `check-changed` + CI wiring + docs/tests
 
@@ -519,6 +543,7 @@ Plans:
 2. Comment publisher runs from default-branch code only and posts delta vs main.
 3. Weighted shard file measurably reduces max-shard wall time vs hash-only partitions.
 4. Ratchet report lands under `contracts/reports/`.
+
 **Plans:**
 - [x] `302-01`: Budget artifact + trusted comment workflow + weighted sharding + ratchet
 
@@ -531,6 +556,7 @@ Plans:
 2. PRs receive exactly one size:* label from the XS–XXL set based on non-test LOC.
 3. Committing a disallowed evidence binary fails the hygiene gate.
 4. Mutation tests prove each gate fails closed; AGENTS/CONTRIBUTING updated.
+
 **Plans:**
 - [x] `303-01`: Knip config + PR size workflow + evidence ban + docs/mutation tests
 
@@ -543,6 +569,7 @@ Plans:
 2. Checklist is referenced from PR template or `vox doctor` advisory for multi-surface diffs.
 3. Worktree setup marker + isolated home documented and scripted via `.vox`.
 4. Suppression-only PRs cannot merge without human-review label/CODEOWNERS.
+
 **Plans:**
 - [x] `304-01`: Policy docs + checklist advisory + worktree isolation + suppression review gate
 
@@ -555,6 +582,7 @@ Plans:
 2. Unreasoned suppressions in a PR diff fail CI.
 3. Snapshot/message-ID interning is live-path covered by tests.
 4. Remaining oxlint rules are either detectors or explicit deferred ledger rows.
+
 **Plans:**
 - [x] `305-01`: Detectors + suppression ratchet + interning + oxlint mapping ledger
 
@@ -567,6 +595,7 @@ Plans:
 2. GUI jobs restore layered pnpm/vite caches without PR cache saves.
 3. Surface graph regenerates from current clone SHAs; inventory script compiles.
 4. Scorecard + architecture note list every gem as Shipped/Partial/Deferred with anchors.
+
 **Plans:**
 - [x] `306-01`: Fingerprint workflow + cache layers + graph regen + scorecard/docs
 
@@ -582,7 +611,6 @@ Plans:
 | **Phase 304** | Agent-Ops Kill-Safety, Hit-Every-Surface Checklist & Worktree Isolation | `1/1` | Complete |
 | **Phase 305** | TOESTUB Thin-Transport, Suppression Review Gate & Snapshot Interning | `1/1` | Complete |
 | **Phase 306** | Tauri Fingerprint Advisory, GUI Cache Layers, Surface Graph Refresh & Scorecard | `1/1` | Complete |
-
 
 ## Phases (`v5.3` — Photorealistic Edge-Softening, Continuous Monumental Aqueduct-to-Sewer Architecture, Sub-Surface Ground Integration & CV Flywheel Score Maximization)
 
