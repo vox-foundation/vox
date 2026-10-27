@@ -1,14 +1,15 @@
 schema_version: 1
 corpus: diagram-authoring
-# Tasks that exist now; 91-03 completes the set to 200 (184 graph, 16 sequence).
-corpus_size: 151
+# The complete set (user decision 2026-10-27): 200 tasks, 184 graph and 16 sequence. Gated by
+# eval_diagram_tasks::counts_match_the_manifest; the hard-case quotas by eval_diagram_tasks::quotas.
+corpus_size: 200
 kinds:
-  graph: 142
-  sequence: 9
+  graph: 184
+  sequence: 16
 # BLAKE3 of every frozen input (eval_diagram::file_hash). The offline gate
-# eval_diagram_tasks::manifest_pins_the_frozen_files fails when one changes without this file.
+# eval_diagram_frozen::manifest_pins_the_frozen_files fails when one changes without this file.
 files:
-  tasks.v1.jsonl: blake3:805c53a9fa2410405f9207988f576fd77f99009a6f752b31a2f4199dcbf9cd4d
+  tasks.v1.jsonl: blake3:5c633f7ab9e020b3a74d6335a78d354929c09853d76d07f3770bb6251f484be8
   cards/voxdiagram.txt: blake3:01fe9d19d568b29bdc24dce44611249d249b9494b33232f287ded957af34f285
   cards/mermaid.txt: blake3:acba1d9c624720703f4219f7a98d6ae3b4c96398f8d95573ddfc569c626ffe6e
   prompt-template.txt: blake3:b1b055f4e7a7ace435ff11ab05326f6846aefeff4343764db84a856dc405412d

@@ -29,8 +29,11 @@ real Mermaid parser for Mermaid.
   words subgraph, container, flowchart, mermaid, vox, node, actor, participant.
 - Labels have no line breaks; references check clean; prompts are unique.
 - Tasks are hand-authored data. Never derive a prompt or a reference from a model's output.
+- The set holds 200 tasks (184 graph, 16 sequence), equal to the manifest's counts, and meets the
+  hard-case quotas. `quotas` measures them from `reference-outputs.jsonl` (the oracle's canonical
+  sets), never from tags, and prints every count.
 
-About a third of the graph references are adapted from the Phase 84 docs-corpus fixtures
+50 of the 184 graph references (g011-g060) are adapted from the Phase 84 docs-corpus fixtures
 (`crates/vox-diagram/tests/fixtures/corpus-roundtrip/`) and the export-hostile fixtures. That corpus
 was public Mermaid until Phase 90, so memorisation can only favour the Mermaid arm: the findings
 report lists this among its limitations.
@@ -43,7 +46,8 @@ attempts + reference-outputs -> oracle-inputs (Rust) -> oracle-outputs (Node)
 attempts + oracle-outputs -> tallies.json + tables.md (Rust)
 ```
 
-- Rust half: `crates/vox-cli/tests/it/eval_diagram_rescore.rs` and `eval_diagram_tasks.rs`, run by
+- Rust half: `crates/vox-cli/tests/it/eval_diagram_rescore.rs`, `eval_diagram_tasks.rs` and
+  `eval_diagram_frozen.rs` (cards, template, manifest hashes), run by
   `ci.yml` job `tests` (nextest on affected crates; a `contracts/` change runs the full suite).
 - Node half: `docs-astro/tests/unit/diagram-authoring-rescore.test.mjs`, run by
   `docs-quality.yml` job `docs-quality`, step "Docs unit tests".

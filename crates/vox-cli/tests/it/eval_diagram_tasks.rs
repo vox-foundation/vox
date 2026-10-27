@@ -1,8 +1,9 @@
 //! Offline gates over the tasks of the frozen diagram-authoring dataset
 //! (`contracts/eval/diagram-authoring/`): every task follows the authoring rules (labels quoted
 //! verbatim from the real Mermaid parser's canonical sets of the reference, direction stated in
-//! words, no syntax named outside quoted labels), and the hard-case quotas are measured from the
-//! oracle's canonical sets. Cards, template and manifest hashes are gated in `eval_diagram_frozen`.
+//! words, no syntax named outside quoted labels), the task counts equal the manifest's, and the
+//! hard-case quotas, measured from the oracle's canonical sets, hold. Cards, template and manifest
+//! hashes are gated in `eval_diagram_frozen`.
 
 use std::path::{Path, PathBuf};
 
@@ -250,7 +251,7 @@ fn per_task_gate_rejects_bad_prompts() {
 }
 
 /// Hard-case quotas, in `features` order: the first seven are graph cases, the last three
-/// sequence cases (CONTEXT: Task set).
+/// sequence cases (CONTEXT: Task set). `QUOTA_MINIMA` is the number of tasks each needs.
 const QUOTAS: [&str; 10] = [
     "punctuation",
     "nesting",
@@ -263,6 +264,7 @@ const QUOTAS: [&str; 10] = [
     "replies",
     "self_messages",
 ];
+const QUOTA_MINIMA: [usize; 10] = [60, 30, 80, 20, 30, 30, 15, 10, 10, 4];
 
 /// The hard cases one canonical-set document contains. Punctuation: any label with one of
 /// `()"':/#&<>;[]{}|` or a non-ASCII character; nesting: a group path of depth 2 or more; fan: a
@@ -330,14 +332,40 @@ fn quota_counts_measure_the_canonical_sets() {
 }
 
 #[test]
-fn quota_totals_cover_every_task() {
+fn quotas() {
     let tasks: Vec<Task> = read_jsonl(&read("tasks.v1.jsonl")).expect("tasks");
     let outputs: Vec<OracleOutput> =
         read_jsonl(&read("reference-outputs.jsonl")).expect("reference-outputs.jsonl");
     let sets: Vec<Value> = outputs.into_iter().map(|o| o.sets).collect();
     let (counted, totals) = quota_counts(&sets);
     assert_eq!(counted, tasks.len(), "every task contributes a count row");
-    for (name, n) in QUOTAS.iter().zip(totals) {
-        println!("quota {name}: {n}");
+    let mut short = Vec::new();
+    for ((name, min), n) in QUOTAS.iter().zip(QUOTA_MINIMA).zip(totals) {
+        println!("quota {name}: {n} (minimum {min})");
+        if n < min {
+            short.push(format!("{name}: {n} < {min}"));
+        }
     }
+    assert!(short.is_empty(), "quotas short:\n{}", short.join("\n"));
+}
+
+#[test]
+fn counts_match_the_manifest() {
+    let manifest: serde_yaml::Value =
+        serde_yaml::from_str(&read("manifest.v1.yaml")).expect("manifest.v1.yaml");
+    let tasks: Vec<Task> = read_jsonl(&read("tasks.v1.jsonl")).expect("tasks");
+    let kind = |k: &str| tasks.iter().filter(|t| t.kind == k).count() as u64;
+    let counts = (tasks.len() as u64, kind("graph"), kind("sequence"));
+    assert_eq!(counts, (200, 184, 16), "tasks (total, graph, sequence)");
+    let recorded = |v: &serde_yaml::Value| v.as_u64().unwrap_or_default();
+    let m = &manifest;
+    let pinned = (
+        recorded(&m["corpus_size"]),
+        recorded(&m["kinds"]["graph"]),
+        recorded(&m["kinds"]["sequence"]),
+    );
+    assert_eq!(
+        pinned, counts,
+        "manifest corpus_size and kinds vs tasks.v1.jsonl"
+    );
 }
