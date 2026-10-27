@@ -138,5 +138,5 @@ All data and scripts to reproduce this benchmark are committed in the Vox reposi
   vox model eval-compare --corpus contracts/eval/repair-corpus/ --seed 42 --max-turns 3 --output contracts/reports/vox-vs-ts-benchmark-2026.json
   ```
 - **Lineage Card**: [`contracts/reports/cr-l-ga-baseline.v1.json`](../../../contracts/reports/cr-l-ga-baseline.v1.json)
-- **Feedback Registry**: [`crates/vox-corpus/src/flywheel.rs`](file:///Users/brbrainerd/dev/vox/crates/vox-corpus/src/flywheel.rs)
+- **Feedback Registry**: [`crates/vox-corpus/src/flywheel.rs`](../../../crates/vox-corpus/src/flywheel.rs)
 - **Repair Corpus Fixtures**: [`contracts/eval/repair-corpus/`](../../../contracts/eval/repair-corpus/)
