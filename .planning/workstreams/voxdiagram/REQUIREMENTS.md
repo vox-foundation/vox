@@ -52,7 +52,7 @@
 ### Measurement (EVAL)
 
 - [ ] **EVAL-01**: A paired NL→diagram harness (≥60 tasks, Wilson CIs, deterministic parser as oracle, models selected via `vox_actor_runtime::llm`, none pinned) reports VoxDiagram vs Mermaid first-pass validity and validity after the bounded repair loop
-- [ ] **EVAL-02**: The advisory's unsourced error-rate table is annotated as unsourced and linked to the measured EVAL-01 result
+- [x] **EVAL-02**: The advisory's unsourced error-rate table is annotated as unsourced and linked to the measured EVAL-01 result
 
 ## Future Requirements
 
@@ -102,7 +102,7 @@
 | TOOL-02 | Phase 88 | Complete |
 | TOOL-03 | Phase 88 | Complete |
 | EVAL-01 | Phase 91 | Pending |
-| EVAL-02 | Phase 91 | Pending |
+| EVAL-02 | Phase 91 | Complete |
 
 **Coverage:** v1.7 requirements: 25 total — mapped: 25 — unmapped: 0 ✓
 

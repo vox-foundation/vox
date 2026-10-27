@@ -292,13 +292,13 @@ Plans:
   2. The report states which of non-inferior, inconclusive, or inferior the data supports under a decision rule fixed before the run, is committed under `docs/src/architecture/` with valid frontmatter, and re-scoring the recorded model outputs reproduces the tallies deterministically.
   3. The advisory's error-rate table is annotated as unsourced and links to the measured result.
 
-**Plans**: 3/5 plans executed in 5 sequential waves
+**Plans**: 4/5 plans executed in 5 sequential waves
 
 Plans:
 - [x] 91-01-PLAN.md — Tracer: offline re-score chain (Rust scorer + Node batch Mermaid oracle) proven on a synthetic recording; `vox-eval::paired_ni` (Newcombe method 10, NI verdict) test-first; full tallies and recording checks (wave 1)
 - [x] 91-02-PLAN.md — Comparable Mermaid card, shared prompt template, hash-pinned manifest, per-task gates, MENS isolation recorded, and the first 102 tasks (g001-g100, s001-s002) with references and oracle-derived expected sets (wave 2)
 - [x] 91-03-PLAN.md — Complete the set to 200 (184 graph / 16 sequence) with quotas measured from the oracle's sets and count/quota gates, final manifest (wave 3)
-- [ ] 91-04-PLAN.md — Run loop with enforced $25 cap counting earlier runs and a probe ledger (stub-tested); live wiring (CloudOnly registry selection, probes, facade + Node backends, pre-registration verified in code via read-only git, ignored live test, fail-closed proven three ways); pre-registration commit; advisory annotation (EVAL-02) (wave 4)
+- [x] 91-04-PLAN.md — Run loop with enforced $25 cap counting earlier runs and a probe ledger (stub-tested); live wiring (CloudOnly registry selection, probes, facade + Node backends, pre-registration verified in code via read-only git, ignored live test, fail-closed proven three ways); pre-registration commit; advisory annotation (EVAL-02) (wave 4)
 - [ ] 91-05-PLAN.md — The one live run (recording and probe ledger committed, re-scores byte-for-byte in both runtimes, or a stop for a human), findings report with the measured verdict under the unchanged rule (wave 5)
 
 **Research flag**: DEEP. Harness design, task-set construction, power for the CIs, and the non-inferiority rule.
@@ -320,7 +320,7 @@ Phases execute in numeric order, with the parallel opportunities noted under Ove
 | 88. MCP Tool, CLI & Agent Guidance | 3/3 | Complete    | 2026-10-17 |
 | 89. Docs-Astro Integration | 4/4 | Complete    | 2026-10-27 |
 | 90. Corpus Migration & Gate Tightening | 6/6 | Complete    | 2026-10-27 |
-| 91. Measurement Harness & Advisory Closure | 3/5 | In Progress | - |
+| 91. Measurement Harness & Advisory Closure | 4/5 | In Progress | - |
 
 ---
 *Roadmap created: 2026-10-16*
