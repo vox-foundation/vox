@@ -4,18 +4,18 @@ milestone: v1.7
 milestone_name: VoxDiagram
 current_phase: 89
 current_phase_name: Docs-Astro Integration
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed 89-02-PLAN.md
-last_updated: "2026-10-18T00:33:21.114Z"
+stopped_at: Completed 89-03-PLAN.md
+last_updated: "2026-10-27T04:32:42.328Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 89 execution started
-state_head: 63c4693832202248e6cba47bfce36127f811aee6
+state_head: f8637d78fa64f008af362268b3169c6a6759f068
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 31
-  completed_plans: 29
+  completed_plans: 30
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -30,7 +30,7 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 ## Current Position
 
 Phase: 89 (Docs-Astro Integration) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 89 execution started
 
@@ -39,7 +39,7 @@ Progress: [███████░░░] 67% (0/9 phases)
 ## Progress
 
 **Phases Complete:** 0
-**Current Plan:** 3
+**Current Plan:** 4
 
 ## Key Decisions (milestone-level)
 
@@ -64,9 +64,9 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-10-18T00:33:21.052Z
+**Last session:** 2026-10-27T04:32:42.252Z
 
-**Stopped At:** Completed 89-02-PLAN.md
+**Stopped At:** Completed 89-03-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -102,6 +102,7 @@ None yet.
 | Phase 88 P03 | 50min | 3 tasks | 8 files |
 | Phase 89 P01 | 35min | 3 tasks | 12 files |
 | Phase 89 P02 | 40min | 2 tasks | 7 files |
+| Phase 89 P03 | resumed | 3 tasks | 8 files |
 
 ## Decisions
 
@@ -148,6 +149,7 @@ None yet.
 - [Phase 89]: 89-01: dedupe tracks tried keys so a failing diagram source is reported once, from the first file holding it
 - [Phase 89]: 89-01: built-page source block is verified via data-language=vox-diagram; the language-vox-diagram class only appears in llms-full (plan 89-03)
 - [Phase 89]: 89-02: horizontal padding floor pad_x (box >= 112% of measured width) shared by every padded text box; table and 8% slack unchanged
+- [Phase 89]: 89-03: dev content refresh via refreshContent() on astro:server:setup instead of deleting Astro's data store (store is .astro/data-store.json; deleting it under a running dev server 404s every page)
 
 ## Pending Todos (voxdiagram)
 

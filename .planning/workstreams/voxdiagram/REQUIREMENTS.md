@@ -40,7 +40,7 @@
 
 - [x] **DOCS-01**: Doc lint rejects any *new* ```` ```mermaid ```` fence in `docs/src` (excluding `archive/`) via a shrink-only ratchet seeded at the fence count present at implementation time (33/21 at committed HEAD 2026-10-16), landed before migration
 - [x] **DOCS-02**: Doc lint validates every ```` ```vox-diagram ```` fence; the `vox` doctest runner never compiles it
-- [ ] **DOCS-03**: The docs build pre-renders every ```` ```vox-diagram ```` fence to SVG (Rust pre-render → gitignored manifest) and inlines it via a remark plugin (MDX-safe), failing the build on a missing render
+- [x] **DOCS-03**: The docs build pre-renders every ```` ```vox-diagram ```` fence to SVG (Rust pre-render → gitignored manifest) and inlines it via a remark plugin (MDX-safe), failing the build on a missing render
 - [ ] **DOCS-04**: Rendered diagrams on voxlang.org pass Playwright checks: no duplicate ids, labels fit their boxes under two font stacks, contrast passes in both themes
 
 ### Agent & CLI Surface (TOOL)
@@ -96,7 +96,7 @@
 | MIG-04 | Phase 90 | Pending |
 | DOCS-01 | Phase 87 | Complete |
 | DOCS-02 | Phase 87 | Complete |
-| DOCS-03 | Phase 89 | Pending |
+| DOCS-03 | Phase 89 | Complete |
 | DOCS-04 | Phase 89 | Pending |
 | TOOL-01 | Phase 88 | Complete |
 | TOOL-02 | Phase 88 | Complete |
