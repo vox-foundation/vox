@@ -66,7 +66,8 @@ pub enum PopuliMensTail {
         /// Adapter run directory trained on that base
         #[arg(long)]
         adapter: Option<PathBuf>,
-        /// Hugging Face hub cache root (default: HF_HUB_CACHE, HF_HOME/hub, ~/.cache/huggingface/hub)
+        /// Hugging Face hub cache root (default, hf-hub order: HF_HUB_CACHE, HUGGINGFACE_HUB_CACHE,
+        /// HF_HOME/hub, XDG_CACHE_HOME/huggingface/hub, ~/.cache/huggingface/hub)
         #[arg(long)]
         hub_root: Option<PathBuf>,
         /// Directory holding the `<slice>/reasoning.jsonl` files

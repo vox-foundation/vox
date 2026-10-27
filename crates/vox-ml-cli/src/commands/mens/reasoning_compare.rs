@@ -10,7 +10,6 @@
 
 mod detect;
 
-use std::ffi::OsString;
 use std::path::{Component, Path, PathBuf};
 
 use anyhow::{Context, Result};
@@ -301,7 +300,7 @@ fn backend_scores(
 /// The single entry: resolve the pin and hub root, guard `--out`, detect, write.
 pub(crate) fn run_eval_reasoning_compare_with(
     args: CompareArgs,
-    env_hub: (Option<OsString>, Option<OsString>, Option<PathBuf>),
+    env_hub: detect::HubEnv,
     runs_root: &Path,
     overlay_root: &Path,
     score_side: SideScorer<'_>,
@@ -310,8 +309,7 @@ pub(crate) fn run_eval_reasoning_compare_with(
         .context("loading train_bases from mens/config/gpu-specs.yaml")?;
     let pin = detect::resolve_base_pin(args.base.as_deref(), &overlay);
     let label = BaseLabel::from_pin(&pin);
-    let (hf_hub_cache, hf_home, home) = env_hub;
-    let hub_root = detect::resolve_hub_root(args.hub_root.as_deref(), hf_hub_cache, hf_home, home)
+    let hub_root = detect::resolve_hub_root(args.hub_root.as_deref(), env_hub)
         .ok_or_else(|| anyhow::anyhow!("no Hugging Face hub root found; pass --hub-root <dir>"))?;
     let out = args.out.clone().unwrap_or_else(|| {
         runs_root
@@ -332,11 +330,6 @@ pub(crate) fn run_eval_reasoning_compare_with(
 
 /// CLI wrapper: real environment, `mens/runs` as the runs root, the real scorer.
 pub(crate) fn run_eval_reasoning_compare(args: CompareArgs) -> Result<()> {
-    let env_hub = (
-        std::env::var_os("HF_HUB_CACHE"),
-        std::env::var_os("HF_HOME"),
-        dirs::home_dir(),
-    );
     let overlay_root = std::env::current_dir()?;
     let max_tokens = reasoning_eval::parse_max_tokens(reasoning_eval::max_tokens_env().as_deref())?;
     let mut score = |_side: Side, dir: &Path, slices: &[(&'static str, Vec<ReasoningItem>)]| {
@@ -344,7 +337,7 @@ pub(crate) fn run_eval_reasoning_compare(args: CompareArgs) -> Result<()> {
     };
     run_eval_reasoning_compare_with(
         args,
-        env_hub,
+        detect::HubEnv::from_process(),
         Path::new("mens/runs"),
         &overlay_root,
         &mut score,
@@ -372,7 +365,7 @@ mod tests {
     }
 
     fn run(a: CompareArgs, runs_root: &Path, score: SideScorer<'_>) -> Result<RunStatus> {
-        run_eval_reasoning_compare_with(a, (None, None, None), runs_root, &repo_root(), score)
+        run_eval_reasoning_compare_with(a, Default::default(), runs_root, &repo_root(), score)
     }
 
     fn panicking_scorer() -> impl FnMut(

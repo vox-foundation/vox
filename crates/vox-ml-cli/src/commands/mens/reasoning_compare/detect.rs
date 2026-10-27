@@ -30,21 +30,54 @@ pub(crate) enum Detected {
     NotCompared(AbsenceRecord),
 }
 
-/// Hub cache root: `--hub-root`, then `HF_HUB_CACHE`, then `HF_HOME/hub`, then
-/// `<home>/.cache/huggingface/hub`. Values are passed in so tests never touch
-/// the process environment; empty values are skipped.
-pub(crate) fn resolve_hub_root(
-    explicit: Option<&Path>,
-    hf_hub_cache: Option<OsString>,
-    hf_home: Option<OsString>,
-    home: Option<PathBuf>,
-) -> Option<PathBuf> {
+/// The variables hf-hub 1.0 reads for its cache dir, captured once so tests
+/// never touch the process environment.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct HubEnv {
+    pub hf_hub_cache: Option<OsString>,
+    pub huggingface_hub_cache: Option<OsString>,
+    pub hf_home: Option<OsString>,
+    pub xdg_cache_home: Option<OsString>,
+    pub home: Option<PathBuf>,
+}
+
+impl HubEnv {
+    /// The current process environment.
+    pub(crate) fn from_process() -> Self {
+        Self {
+            hf_hub_cache: std::env::var_os("HF_HUB_CACHE"),
+            huggingface_hub_cache: std::env::var_os("HUGGINGFACE_HUB_CACHE"),
+            hf_home: std::env::var_os("HF_HOME"),
+            xdg_cache_home: std::env::var_os("XDG_CACHE_HOME"),
+            home: dirs::home_dir(),
+        }
+    }
+}
+
+/// Hub cache root: `--hub-root`, else hf-hub 1.0 `resolve_cache_dir` order (the
+/// client `vox mens download` writes through): `HF_HUB_CACHE`,
+/// `HUGGINGFACE_HUB_CACHE`, then `<hf home>/hub` where hf home is `HF_HOME`,
+/// `XDG_CACHE_HOME/huggingface`, or `<home>/.cache/huggingface`. Empty values
+/// are skipped.
+pub(crate) fn resolve_hub_root(explicit: Option<&Path>, env: HubEnv) -> Option<PathBuf> {
     let set = |v: Option<OsString>| v.filter(|v| !v.is_empty()).map(PathBuf::from);
+    let HubEnv {
+        hf_hub_cache,
+        huggingface_hub_cache,
+        hf_home,
+        xdg_cache_home,
+        home,
+    } = env;
     explicit
         .map(Path::to_path_buf)
         .or_else(|| set(hf_hub_cache))
-        .or_else(|| set(hf_home).map(|h| h.join("hub")))
-        .or_else(|| home.map(|h| h.join(".cache/huggingface/hub")))
+        .or_else(|| set(huggingface_hub_cache))
+        .or_else(|| {
+            set(hf_home)
+                .or_else(|| set(xdg_cache_home).map(|x| x.join("huggingface")))
+                .or_else(|| home.map(|h| h.join(".cache/huggingface")))
+                .map(|h| h.join("hub"))
+        })
 }
 
 /// The pin to compare. `None` is [`vox_populi::mens::DEFAULT_MODEL_ID`]; a
@@ -510,26 +543,37 @@ pub(crate) mod tests {
         );
     }
 
+    /// Same order as hf-hub 1.0 `resolve_cache_dir`, which `vox mens download` uses.
     #[test]
     fn hub_root_order() {
         let os = |s: &str| Some(OsString::from(s));
-        let home = Some(PathBuf::from("/home/u"));
+        let full = || HubEnv {
+            hf_hub_cache: os("/c"),
+            huggingface_hub_cache: os("/legacy"),
+            hf_home: os("/h"),
+            xdg_cache_home: os("/xdg"),
+            home: Some(PathBuf::from("/home/u")),
+        };
+        let root = |explicit: Option<&str>, env: HubEnv| {
+            resolve_hub_root(explicit.map(Path::new), env).map(|p| p.display().to_string())
+        };
+        assert_eq!(root(Some("/x"), full()).as_deref(), Some("/x"));
+        assert_eq!(root(None, full()).as_deref(), Some("/c"));
+        let mut env = full();
+        env.hf_hub_cache = os("");
+        assert_eq!(root(None, env.clone()).as_deref(), Some("/legacy"));
+        env.huggingface_hub_cache = None;
+        assert_eq!(root(None, env.clone()).as_deref(), Some("/h/hub"));
+        env.hf_home = None;
         assert_eq!(
-            resolve_hub_root(Some(Path::new("/x")), os("/c"), os("/h"), home.clone()),
-            Some(PathBuf::from("/x"))
+            root(None, env.clone()).as_deref(),
+            Some("/xdg/huggingface/hub")
         );
+        env.xdg_cache_home = os("");
         assert_eq!(
-            resolve_hub_root(None, os("/c"), os("/h"), home.clone()),
-            Some(PathBuf::from("/c"))
+            root(None, env).as_deref(),
+            Some("/home/u/.cache/huggingface/hub")
         );
-        assert_eq!(
-            resolve_hub_root(None, None, os("/h"), home.clone()),
-            Some(PathBuf::from("/h/hub"))
-        );
-        assert_eq!(
-            resolve_hub_root(None, os(""), os(""), home.clone()),
-            Some(PathBuf::from("/home/u/.cache/huggingface/hub"))
-        );
-        assert_eq!(resolve_hub_root(None, None, None, None), None);
+        assert_eq!(root(None, HubEnv::default()), None);
     }
 }
