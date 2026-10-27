@@ -4091,6 +4091,30 @@ operations:
     requires:
     - browser
   cli: null
+- id: browser.events
+  title: Browser Events
+  description: Read buffered console messages, uncaught page exceptions, network requests, and any open JavaScript dialog for a browser page_id. Use it to debug a web page or find out why an action stalled; poll incrementally with since_seq set to the previous next_seq.
+  description_human: null
+  product_lane: interop
+  intent_tags:
+  - browser
+  - debugging
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_browser_events
+    http_read_role_eligible: false
+    exposure: public
+    requires:
+    - browser
+  cli: null
 - id: browser.extract
   title: Browser Extract
   description: Use configured chat model + visible page text to answer an extraction instruction.
@@ -4220,6 +4244,29 @@ operations:
   latin_aliases: null
   mcp:
     name: vox_browser_goto
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - browser
+  cli: null
+- id: browser.handle.dialog
+  title: Browser Handle Dialog
+  description: Accept or dismiss the open JavaScript alert, confirm, or prompt dialog on a browser page_id, optionally entering prompt_text. A pending dialog blocks every other action on the page until it is handled; vox_browser_events reports it.
+  description_human: null
+  product_lane: interop
+  intent_tags:
+  - browser
+  side_effect_class: remote_mutation
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_browser_handle_dialog
     http_read_role_eligible: false
     exposure: operator
     requires:
@@ -10400,6 +10447,152 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
+- id: computer.act
+  title: Computer Act
+  description: 'Perform one input action in a native desktop app (Finder, Mail, Notes, Calculator, System Settings, or any other non-browser app): click, double_click, right_click, press, set_value, type, key (chord like cmd+s), scroll, move, drag, or focus. Target an element by ref from vox_computer_snapshot (preferred) or by x/y in the last vox_computer_screenshot. Runs in the background without taking focus unless tier is activate. For web pages use the vox_browser_* tools instead. Refuses password managers and secure text fields; check data.ok and data.reason.'
+  description_human: null
+  product_lane: interop
+  intent_tags:
+  - computer-use
+  - desktop
+  - automation
+  side_effect_class: destructive
+  scope_kind: null
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: true
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_computer_act
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - computer
+  cli: null
+- id: computer.list.apps
+  title: Computer List Apps
+  description: List the running desktop applications (name, bundle id, pid, frontmost) to choose the app or pid for the other vox_computer_* tools.
+  description_human: null
+  product_lane: interop
+  intent_tags:
+  - computer-use
+  - desktop
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_computer_list_apps
+    http_read_role_eligible: false
+    exposure: public
+    requires:
+    - computer
+  cli: null
+- id: computer.list.windows
+  title: Computer List Windows
+  description: List visible desktop windows with their owner app, pid, title, and screen bounds, optionally filtered by app or pid. Titles of password-manager windows are hidden.
+  description_human: null
+  product_lane: interop
+  intent_tags:
+  - computer-use
+  - desktop
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_computer_list_windows
+    http_read_role_eligible: false
+    exposure: public
+    requires:
+    - computer
+  cli: null
+- id: computer.permissions
+  title: Computer Permissions
+  description: Check whether desktop computer use is available on this machine (platform support, Accessibility and Screen Recording permission state) and how to grant what is missing. Call it when a vox_computer_* tool returns accessibility_denied or screen_recording_denied.
+  description_human: null
+  product_lane: interop
+  intent_tags:
+  - computer-use
+  - desktop
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_computer_permissions
+    http_read_role_eligible: false
+    exposure: public
+    requires:
+    - computer
+  cli: null
+- id: computer.screenshot
+  title: Computer Screenshot
+  description: Capture a PNG of a native desktop app's main window, or of the whole main display when no app is given; pass region to zoom into part of the previous capture. Use it when vox_computer_snapshot does not expose the element (canvas, games, custom-drawn UI); x/y in the image can be passed to vox_computer_act.
+  description_human: null
+  product_lane: interop
+  intent_tags:
+  - computer-use
+  - desktop
+  - screenshot
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_computer_screenshot
+    http_read_role_eligible: false
+    exposure: public
+    requires:
+    - computer
+  cli: null
+- id: computer.snapshot
+  title: Computer Snapshot
+  description: Read a native desktop app's accessibility tree as indented text with [ref=eN] element handles for vox_computer_act. Start every desktop-app task here; it is cheaper and more precise than a screenshot. Target by app name, bundle id, or pid from vox_computer_list_apps.
+  description_human: null
+  product_lane: interop
+  intent_tags:
+  - computer-use
+  - desktop
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_computer_snapshot
+    http_read_role_eligible: false
+    exposure: public
+    requires:
+    - computer
+  cli: null
 - id: config
   title: Config
   description: CLI operation `vox config`

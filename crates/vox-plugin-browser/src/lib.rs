@@ -5,11 +5,15 @@
 //! `crates/vox-browser/src/engine.rs`; the original crate remains in-tree
 //! for transitional consumers that haven't yet migrated to the plugin host.
 
+mod actionability;
 mod browser;
 mod engine;
+mod events;
 mod host;
 mod hosts;
 mod input;
+#[cfg(test)]
+mod live_tests;
 mod policy;
 mod ref_actions;
 mod resolve;

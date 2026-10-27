@@ -17,9 +17,9 @@ This Single Source of Truth (SSOT) establishes the architectural specifications 
 
 ### Codebase Ground Truth
 1. **The Plugin ABI Trait**:
-   In `crates/vox-plugin-api/src/extensions/browser_automation.rs:10-106`, the `BrowserAutomation` FFI ABI trait (revision 4) defines 25 primitives covering tab management, navigation, form manipulation, evaluation, and media:
+   In `crates/vox-plugin-api/src/extensions/browser_automation.rs:10-106`, the `BrowserAutomation` FFI ABI trait (revision 5 as of 2026-10; originally revision 4 with 25 primitives) defines the primitives covering tab management, navigation, form manipulation, evaluation, and media:
    ```rust
-   pub const BROWSER_AUTOMATION_REVISION: u32 = 4;
+   pub const BROWSER_AUTOMATION_REVISION: u32 = 5;
 
    #[sabi_trait]
    pub trait BrowserAutomation: Send + Sync {
@@ -33,7 +33,7 @@ This Single Source of Truth (SSOT) establishes the architectural specifications 
    While this contract provides complete primitive execution, its input targeting historically expected brittle CSS selectors or XPath expressions.
 
 2. **The Uncompacted AX-Tree Bottleneck**:
-   In `crates/vox-plugin-browser/src/engine.rs:602-611`, `ax_tree` directly executes the Chrome DevTools Protocol (CDP) `Accessibility.getFullAXTree` command and serializes raw CDP nodes:
+   In `crates/vox-plugin-browser/src/resolve.rs:163` (formerly `engine.rs:602`), `ax_tree` directly executes the Chrome DevTools Protocol (CDP) `Accessibility.getFullAXTree` command and serializes raw CDP nodes:
    ```rust
    pub async fn ax_tree(&self, page_id: &str) -> Result<serde_json::Value, String> {
        let page = self.page_ref(page_id).await?;
@@ -85,7 +85,7 @@ Empirical evaluations were performed using headless Chromium (version 128+) mana
 | ID | Claim Statement | Empirical Verdict | Confidence | Evidence Source |
 | :--- | :--- | :--- | :--- | :--- |
 | `CLAIM-AX-01` | Compact AX snapshots reduce LLM token overhead by >90% compared to raw HTML DOM dumps. | Supported | 0.99 | Benchmark Suite (1,150 vs 38,400 tokens) |
-| `CLAIM-AX-02` | Raw CDP `getFullAXTree` serialization without filtering overwhelms context windows on complex apps. | Supported | 0.98 | `crates/vox-plugin-browser/src/engine.rs:602` |
+| `CLAIM-AX-02` | Raw CDP `getFullAXTree` serialization without filtering overwhelms context windows on complex apps. | Supported | 0.98 | `crates/vox-plugin-browser/src/resolve.rs:163` |
 | `CLAIM-AX-03` | Monotonic index references (`@target="12"`) eliminate CSS selector hallucination. | Supported | 0.95 | Action grounding empirical runs (94.8% success) |
 | `CLAIM-AX-04` | Coordinate-only vision navigation fails on responsive resizing and dynamic viewport scrolling. | Supported | 0.92 | Cross-viewport click failure analysis |
 | `CLAIM-AX-05` | Shadow DOM boundaries must be pierced during AX-tree collection for Web Components. | Supported | 0.93 | Web Components empirical fixture suite |

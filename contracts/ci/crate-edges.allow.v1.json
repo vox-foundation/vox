@@ -1530,6 +1530,10 @@
       "vox-plugin-api"
     ],
     [
+      "vox-plugin-computer",
+      "vox-plugin-api"
+    ],
+    [
       "vox-plugin-host",
       "vox-plugin-api"
     ],

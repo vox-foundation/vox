@@ -39,6 +39,10 @@ pub struct EvalTurnResult {
     pub selection_reason: String,
     pub latency_ms: u64,
     pub cost_usd: f64,
+    /// The first tool the model called. Set only by the first-tool-choice probe
+    /// ([`TOOL_TRIGGER_CATEGORY`] tasks), which records the choice without dispatching it;
+    /// full turns leave it `None` for the reasons above.
+    pub first_tool: Option<String>,
 }
 
 /// How a [`LiveEvalTask`] is scored.
@@ -119,9 +123,63 @@ pub enum LiveTaskOutcome {
 /// already-completed ones, if exceeded mid-run.
 pub const LIVE_EVAL_COST_CEILING_USD: f64 = 0.50;
 
-/// The initial live-eval golden task corpus (design spec §6.1): 12 tasks spanning plain chat,
+/// Category of the first-tool-choice tasks generated from
+/// `vox_orchestrator_mcp::llm_bridge::tool_selection::TRIGGER_CASES`. These turns are probed,
+/// not run: the model sees the real offered tools and its first tool call is recorded without
+/// being dispatched, so a nightly run never drives a real browser or desktop.
+pub const TOOL_TRIGGER_CATEGORY: &str = "tool_trigger";
+
+/// One live task per labelled trigger case: a positive case passes when the model's first
+/// tool belongs to the expected family; a negative case passes when it reaches for neither
+/// the browser nor the desktop.
+fn tool_trigger_tasks() -> Vec<LiveEvalTask> {
+    use vox_orchestrator_mcp::llm_bridge::tool_selection::TRIGGER_CASES;
+    TRIGGER_CASES
+        .iter()
+        .map(|case| LiveEvalTask {
+            id: case.id,
+            category: TOOL_TRIGGER_CATEGORY,
+            prompt: case.prompt,
+            checker: Checker::Deterministic(match case.family {
+                Some("browser") => first_tool_is_browser,
+                Some("computer") => first_tool_is_computer,
+                _ => first_tool_is_neither,
+            }),
+        })
+        .collect()
+}
+
+fn first_tool_in_family(r: &EvalTurnResult, prefix: &str) -> Result<(), String> {
+    match r.first_tool.as_deref() {
+        Some(tool) if tool.starts_with(prefix) => Ok(()),
+        Some(tool) => Err(format!("first tool was {tool}, expected a {prefix}* tool")),
+        None => Err(format!("model called no tool, expected a {prefix}* tool")),
+    }
+}
+
+fn first_tool_is_browser(r: &EvalTurnResult) -> Result<(), String> {
+    first_tool_in_family(r, "vox_browser_")
+}
+
+fn first_tool_is_computer(r: &EvalTurnResult) -> Result<(), String> {
+    first_tool_in_family(r, "vox_computer_")
+}
+
+fn first_tool_is_neither(r: &EvalTurnResult) -> Result<(), String> {
+    match r.first_tool.as_deref() {
+        Some(tool) if tool.starts_with("vox_browser_") || tool.starts_with("vox_computer_") => {
+            Err(format!(
+                "first tool was {tool} on a request that needs neither the browser nor the desktop"
+            ))
+        }
+        _ => Ok(()),
+    }
+}
+
+/// The live-eval golden task corpus (design spec §6.1): 12 tasks spanning plain chat,
 /// tool-calling, privacy-mode, and cost-tier scenarios. Each `prompt` is sent through the real
 /// chat harness (`chat_message`); each `checker` scores the real observed `EvalTurnResult`.
+/// Followed by one probed [`TOOL_TRIGGER_CATEGORY`] task per labelled trigger case.
 pub fn live_golden_tasks() -> Vec<LiveEvalTask> {
     vec![
         // --- Plain chat replies: checkable factual answers ---
@@ -299,6 +357,9 @@ pub fn live_golden_tasks() -> Vec<LiveEvalTask> {
             }),
         },
     ]
+    .into_iter()
+    .chain(tool_trigger_tasks())
+    .collect()
 }
 
 /// Real, observable ground truth shared by the three `tool_calling` checkers below: the process's
@@ -484,7 +545,12 @@ pub async fn run_live(
                 break;
             }
             let turn_start = Instant::now();
-            match run_one_turn(&state, task.prompt).await {
+            let turn = if task.category == TOOL_TRIGGER_CATEGORY {
+                run_tool_choice_probe(&state, task.prompt).await
+            } else {
+                run_one_turn(&state, task.prompt).await
+            };
+            match turn {
                 Ok(turn) => {
                     total_cost_usd += turn.cost_usd;
                     task_cost_usd += turn.cost_usd;
@@ -689,6 +755,41 @@ async fn run_one_turn(
         selection_reason,
         latency_ms,
         cost_usd,
+        first_tool: None,
+    })
+}
+
+/// One first-tool-choice probe for a [`TOOL_TRIGGER_CATEGORY`] task. Cost is derived from the
+/// routed model's registry spec exactly as in [`run_one_turn`].
+async fn run_tool_choice_probe(
+    state: &vox_orchestrator_mcp::server_state::ServerState,
+    prompt: &str,
+) -> anyhow::Result<EvalTurnResult> {
+    use vox_orchestrator_mcp::chat_tools::chat::tool_choice_probe::probe_first_tool_choice;
+
+    let started = Instant::now();
+    let choice = probe_first_tool_choice(state, prompt)
+        .await
+        .map_err(|e| anyhow::anyhow!("first-tool probe failed: {e}"))?;
+    let registry_handle = state.orchestrator.models_handle();
+    let spec = {
+        let registry = registry_handle
+            .read()
+            .map_err(|_| anyhow::anyhow!("model registry lock poisoned"))?;
+        registry
+            .get(&choice.model)
+            .ok_or_else(|| anyhow::anyhow!("routed model {} not in registry", choice.model))?
+    };
+    let blended = vox_orchestrator::models::blended_cost_per_1k(&spec);
+    let tokens = u64::from(choice.prompt_tokens) + u64::from(choice.completion_tokens);
+    Ok(EvalTurnResult {
+        reply_text: String::new(),
+        model_id: choice.model,
+        cost_tier: vox_orchestrator::models::cost_tier_for_blended(spec.is_free, blended),
+        selection_reason: format!("offered {} tools", choice.offered.len()),
+        latency_ms: started.elapsed().as_millis() as u64,
+        cost_usd: (tokens as f64 / 1000.0) * blended,
+        first_tool: choice.tool,
     })
 }
 
@@ -891,6 +992,7 @@ mod tests {
             selection_reason: String::new(),
             latency_ms: 100,
             cost_usd: 0.0001,
+            first_tool: None,
         };
         assert!(checker(&turn).is_ok());
     }
@@ -903,6 +1005,7 @@ mod tests {
             selection_reason: String::new(),
             latency_ms: 100,
             cost_usd: 0.0001,
+            first_tool: None,
         }
     }
 
@@ -997,5 +1100,55 @@ mod tests {
             cost_tier_for_blended(spec.is_free, blended),
             cost_tier_for(&spec)
         );
+    }
+
+    fn probed(first_tool: Option<&str>) -> EvalTurnResult {
+        EvalTurnResult {
+            first_tool: first_tool.map(str::to_string),
+            ..fixture_turn("")
+        }
+    }
+
+    #[test]
+    fn every_trigger_case_becomes_a_live_task_with_a_family_checker() {
+        use vox_orchestrator_mcp::llm_bridge::tool_selection::TRIGGER_CASES;
+        let tasks = live_golden_tasks();
+        for case in TRIGGER_CASES {
+            let task = tasks
+                .iter()
+                .find(|t| t.id == case.id)
+                .unwrap_or_else(|| panic!("no live task for trigger case {}", case.id));
+            assert_eq!(task.category, TOOL_TRIGGER_CATEGORY);
+            let Checker::Deterministic(check) = &task.checker else {
+                panic!("trigger task {} must be deterministic", case.id);
+            };
+            let right = match case.family {
+                Some("browser") => Some("vox_browser_snapshot"),
+                Some("computer") => Some("vox_computer_snapshot"),
+                _ => None,
+            };
+            assert!(
+                check(&probed(right)).is_ok(),
+                "{} rejected its own family",
+                case.id
+            );
+            let wrong = match case.family {
+                Some("browser") => Some("vox_computer_snapshot"),
+                _ => Some("vox_browser_open"),
+            };
+            assert!(
+                check(&probed(wrong)).is_err(),
+                "{} accepted the wrong family",
+                case.id
+            );
+        }
+    }
+
+    #[test]
+    fn positive_trigger_fails_when_the_model_calls_no_tool() {
+        assert!(first_tool_is_browser(&probed(None)).is_err());
+        assert!(first_tool_is_computer(&probed(None)).is_err());
+        assert!(first_tool_is_neither(&probed(None)).is_ok());
+        assert!(first_tool_is_neither(&probed(Some("vox_repo_status"))).is_ok());
     }
 }

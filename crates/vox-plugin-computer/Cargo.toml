@@ -1,0 +1,33 @@
+[package]
+name = "vox-plugin-computer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Desktop computer-use plugin: accessibility snapshots, window capture, and background mouse/keyboard input."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+vox-plugin-api = { workspace = true }
+abi_stable = { workspace = true }
+base64 = { workspace = true }
+png = "0.18"
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+block2 = "0.6"
+objc2 = "0.6"
+objc2-foundation = "0.3"
+objc2-core-foundation = "0.3"
+objc2-core-graphics = "0.3"
+objc2-app-kit = "0.3"
+objc2-application-services = "0.3"
+objc2-screen-capture-kit = "0.3"
+
+[lints]
+workspace = true

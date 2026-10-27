@@ -660,6 +660,11 @@ pub struct BrowserRefParams {
     #[serde(default)]
     #[schemars(length(max = 32))]
     pub actor: Option<String>,
+    /// Max milliseconds to wait for the element to become actionable (visible, stable,
+    /// enabled, unobscured). Plugin default 5000, clamped to 30000. Revision 6+.
+    #[serde(default)]
+    #[schemars(range(min = 0, max = 30000))]
+    pub timeout_ms: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -672,6 +677,55 @@ pub struct BrowserFillRefParams {
     pub ref_id: String,
     #[schemars(length(min = 1, max = 131072))]
     pub value: String,
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub actor: Option<String>,
+    /// Max milliseconds to wait for the element to become actionable (visible, stable,
+    /// enabled, unobscured). Plugin default 5000, clamped to 30000. Revision 6+.
+    #[serde(default)]
+    #[schemars(range(min = 0, max = 30000))]
+    pub timeout_ms: Option<u64>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserEventsParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    /// Only return events with a sequence number greater than this (pass the previous
+    /// response's `next_seq` to poll incrementally).
+    #[serde(default)]
+    pub since_seq: Option<u64>,
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 500))]
+    pub limit: Option<u32>,
+    /// Subset of `console` (includes uncaught exceptions) and `network`; omitted means both.
+    /// The open dialog, if any, is always reported.
+    #[serde(default)]
+    pub kinds: Option<Vec<String>>,
+    /// Console level filter, e.g. `error`.
+    #[serde(default)]
+    #[schemars(length(max = 16))]
+    pub level: Option<String>,
+    #[serde(default)]
+    #[schemars(length(max = 512))]
+    pub url_contains: Option<String>,
+    /// Drop the returned events from the buffer.
+    #[serde(default)]
+    pub clear: bool,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserDialogParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    /// `true` presses OK/Accept, `false` presses Cancel/Dismiss.
+    pub accept: bool,
+    /// Text to enter into a `prompt()` dialog before accepting.
+    #[serde(default)]
+    #[schemars(length(max = 4096))]
+    pub prompt_text: Option<String>,
     #[serde(default)]
     #[schemars(length(max = 32))]
     pub actor: Option<String>,
@@ -1240,4 +1294,148 @@ impl From<McpFeedbackAction> for vox_orchestrator::feedback::FeedbackAction {
 pub struct ResolveFeedbackParams {
     pub feedback_id: String,
     pub action: McpFeedbackAction,
+}
+
+/// `vox_computer_list_windows`: optional app filter.
+#[derive(Debug, Default, Deserialize, Serialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct ComputerWindowsParams {
+    /// App name, bundle id, or unique name prefix (e.g. "Safari", "com.apple.finder").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(length(min = 1, max = 256))]
+    pub app: Option<String>,
+    /// Process id from `vox_computer_list_apps` / `vox_computer_list_windows`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pid: Option<i64>,
+}
+
+/// `vox_computer_snapshot`: accessibility tree of one app.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct ComputerSnapshotParams {
+    /// App name, bundle id, or unique name prefix. One of `app` / `pid` is required.
+    #[serde(default)]
+    #[schemars(length(min = 1, max = 256))]
+    pub app: Option<String>,
+    #[serde(default)]
+    pub pid: Option<i64>,
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 64))]
+    pub max_depth: Option<u32>,
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 5000))]
+    pub max_nodes: Option<u32>,
+    /// Only list actionable elements (buttons, fields, menu items...).
+    #[serde(default)]
+    pub interactive_only: bool,
+}
+
+/// `vox_computer_screenshot`: one app's main window, or the main display when no target.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct ComputerScreenshotParams {
+    #[serde(default)]
+    #[schemars(length(min = 1, max = 256))]
+    pub app: Option<String>,
+    #[serde(default)]
+    pub pid: Option<i64>,
+    /// Zoom into `[x, y, width, height]` in pixels of the previous full screenshot of the
+    /// same target; the zoom does not change the coordinate frame `vox_computer_act` uses.
+    #[serde(default)]
+    pub region: Option<[f64; 4]>,
+    /// Downscale so the longer edge is at most this many pixels (default 1568).
+    #[serde(default)]
+    #[schemars(range(min = 256, max = 4096))]
+    pub max_long_edge: Option<u32>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ComputerActionKind {
+    Click,
+    DoubleClick,
+    RightClick,
+    Press,
+    SetValue,
+    Type,
+    Key,
+    Scroll,
+    Move,
+    Drag,
+    Focus,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ComputerActionTier {
+    /// Accessibility action when the element supports it, else background events.
+    Auto,
+    /// Accessibility actions only; refuse rather than synthesize input.
+    Ax,
+    /// Synthesized input posted to the app's process without focusing it.
+    Event,
+    /// Bring the app to the front, act, then restore the previous app and cursor.
+    Activate,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ComputerCoords {
+    /// Pixels of the most recent full `vox_computer_screenshot` of the target.
+    Screenshot,
+    /// Global screen points.
+    Screen,
+}
+
+/// `vox_computer_act`: one input action on a native app.
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+#[serde(deny_unknown_fields)]
+pub struct ComputerActParams {
+    /// App name, bundle id, or unique name prefix. One of `app` / `pid` is required.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(length(min = 1, max = 256))]
+    pub app: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pid: Option<i64>,
+    pub kind: ComputerActionKind,
+    /// `snapshot_id` returned with the ref; defaults to the app's latest snapshot.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(length(max = 32))]
+    pub snapshot_id: Option<String>,
+    /// Element ref like `e12` from `vox_computer_snapshot`. Prefer refs over coordinates.
+    #[serde(default, rename = "ref", skip_serializing_if = "Option::is_none")]
+    #[schemars(length(min = 1, max = 16))]
+    pub ref_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub x: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub y: Option<f64>,
+    /// Drag destination.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub to_x: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub to_y: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub coords: Option<ComputerCoords>,
+    /// Text for `type` / `set_value`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(length(max = 65536))]
+    pub text: Option<String>,
+    /// Key chord for `key`, e.g. "cmd+s", "ctrl+shift+t", "Return", "Page_Down".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(length(min = 1, max = 64))]
+    pub key: Option<String>,
+    /// Scroll lines (positive = right / down).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(range(min = -100, max = 100))]
+    pub dx: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(range(min = -100, max = 100))]
+    pub dy: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tier: Option<ComputerActionTier>,
+    /// Refuse instead of falling back to anything that would take focus.
+    #[serde(default)]
+    pub require_background: bool,
 }

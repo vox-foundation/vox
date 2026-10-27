@@ -134,6 +134,20 @@ impl BrowserAutomation for DummyBrowser {
     ) -> RResult<(), RBoxError> {
         RResult::RErr(RBoxError::new(std::io::Error::other("not_implemented")))
     }
+    fn page_events(
+        &self,
+        _page_id: RStr<'_>,
+        _options_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError> {
+        RResult::ROk(RString::from("{}"))
+    }
+    fn handle_dialog(
+        &self,
+        _page_id: RStr<'_>,
+        _options_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError> {
+        RResult::ROk(RString::from("{}"))
+    }
 }
 
 #[test]
@@ -143,9 +157,9 @@ fn dummy_browser_constructs() {
 }
 
 #[test]
-fn revision_constant_is_five() {
+fn revision_constant_is_six() {
     assert_eq!(
         vox_plugin_api::extensions::browser_automation::BROWSER_AUTOMATION_REVISION,
-        5
+        6
     );
 }

@@ -2,7 +2,7 @@
 # Source of truth: crates/vox-plugin-api/src/extensions/*.rs (+ the VoxPlugin accessors
 # in crates/vox-plugin-api/src/abi.rs). Do NOT hand-edit — regenerate instead.
 schema_version: 1
-abi_version: 13
+abi_version: 14
 extension_points:
 - name: AudioCapture
   module: audio_capture
@@ -16,7 +16,7 @@ extension_points:
   - stop_capture
 - name: BrowserAutomation
   module: browser_automation
-  revision: 5
+  revision: 6
   accessor: as_browser_automation
   methods:
   - ax_tree
@@ -31,10 +31,12 @@ extension_points:
   - fill_ref
   - forward
   - goto
+  - handle_dialog
   - html
   - list_pages
   - open
   - open_ex
+  - page_events
   - page_info
   - press
   - reload
@@ -61,6 +63,18 @@ extension_points:
   - provider_id
   - revision
   - upload
+- name: ComputerControl
+  module: computer_control
+  revision: 1
+  accessor: as_computer_control
+  methods:
+  - act
+  - list_apps
+  - list_windows
+  - permissions
+  - revision
+  - screenshot
+  - snapshot
 - name: HardwareProbe
   module: hardware_probe
   revision: 1

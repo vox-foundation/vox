@@ -359,6 +359,7 @@ Don't depend on `vox-orchestrator` or `vox-cli` from a plugin.
 | Plugin crate | Provides |
 |---|---|
 | [`vox-plugin-browser`](../../../crates/vox-plugin-browser/) | Browser automation plugin (chromiumoxide CDP). |
+| [`vox-plugin-computer`](../../../crates/vox-plugin-computer/) | Desktop computer-use plugin (`ComputerControl`: accessibility snapshots, window capture, background input; macOS). |
 | `vox-plugin-gamify` _(planned)_ | Gamification cdylib plugin: implements the `Gamification` extension point trait (quests/battles/XP/companions). Loaded dynamically by `vox-cli-core`; not a compile-time dep. See the crate-build disentanglement suite (`docs/superpowers/plans/2026-06-19-crate-build-disentanglement-suite-index.md`). |
 | `vox-plugin-cloud` _(planned)_ | CloudSync plugin stub: HF Hub / S3 model artifact sync. |
 | [`vox-plugin-mens-candle-cuda`](../../../crates/vox-plugin-mens-candle-cuda/) | ML training backend plugin: Candle + CUDA. Implements MlBackend. |

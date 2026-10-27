@@ -9,6 +9,7 @@ pub mod mermaid_repair;
 pub(crate) mod message;
 pub mod research_intent;
 pub mod research_turn;
+pub mod tool_choice_probe;
 mod turn_events;
 
 pub use history::chat_history;

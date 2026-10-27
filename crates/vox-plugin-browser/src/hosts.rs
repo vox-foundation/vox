@@ -7,6 +7,7 @@ use futures::StreamExt;
 use tracing::debug;
 
 use crate::engine::BrowserEngine;
+use crate::events::PageEvents;
 use crate::host::{HostInner, ViewportMetrics};
 use crate::policy::{
     BrowserLaunchMode, BrowserLaunchOptions, is_loopback_cdp_url, parse_profile_id,
@@ -93,9 +94,16 @@ impl HostRegistry {
             .collect()
     }
 
-    pub(crate) fn insert_page(&mut self, key: HostKey, page_id: String, page: chromiumoxide::Page) {
+    pub(crate) fn insert_page(
+        &mut self,
+        key: HostKey,
+        page_id: String,
+        page: chromiumoxide::Page,
+        events: PageEvents,
+    ) {
         if let Some(host) = self.hosts.get_mut(&key) {
             host.pages.insert(page_id.clone(), page);
+            host.page_events.insert(page_id.clone(), events);
             host.viewports
                 .insert(page_id.clone(), ViewportMetrics::default());
         }
@@ -112,6 +120,7 @@ impl HostRegistry {
             let page = host.pages.remove(page_id)?;
             host.viewports.remove(page_id);
             host.ref_maps.remove(page_id);
+            host.page_events.remove(page_id);
             (page, host.pages.is_empty())
         };
         let dropped = if empty { self.hosts.remove(&key) } else { None };
@@ -238,11 +247,12 @@ impl BrowserEngine {
                 .await
                 .map_err(|e| format!("new_page: {e}"))?
         };
+        let events = PageEvents::attach(&page).await?;
         page.goto(url)
             .await
             .map_err(|e| format!("goto {url}: {e}"))?;
         let id = format!("page-{}", uuid::Uuid::new_v4());
-        guard.insert_page(key, id.clone(), page);
+        guard.insert_page(key, id.clone(), page, events);
         Ok(id)
     }
 
@@ -266,11 +276,12 @@ impl BrowserEngine {
                 .await
                 .map_err(|e| format!("new_page: {e}"))?
         };
+        let events = PageEvents::attach(&page).await?;
         page.goto(url)
             .await
             .map_err(|e| format!("goto {url}: {e}"))?;
         let id = format!("page-{}", uuid::Uuid::new_v4());
-        guard.insert_page(key, id.clone(), page);
+        guard.insert_page(key, id.clone(), page, events);
         Ok(id)
     }
 

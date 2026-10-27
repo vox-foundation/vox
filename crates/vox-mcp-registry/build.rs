@@ -202,6 +202,7 @@ const SUBSYSTEM_DEPS: &[(&str, &[&str])] = &[
     ("compiler", &[]),
     ("browser", &[]),
     ("speech", &[]),
+    ("computer", &[]),
 ];
 
 fn exposure_rank(s: &str) -> u8 {

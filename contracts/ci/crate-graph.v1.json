@@ -649,6 +649,10 @@
     "vox-plugin-catalog": [
       "workspace-hack"
     ],
+    "vox-plugin-computer": [
+      "vox-plugin-api",
+      "workspace-hack"
+    ],
     "vox-plugin-host": [
       "vox-config",
       "vox-plugin-api",

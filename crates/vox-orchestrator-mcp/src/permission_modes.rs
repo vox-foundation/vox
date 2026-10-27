@@ -85,6 +85,12 @@ pub const RISK_CLASSES: &[RiskClass] = &[
         always_requires_approval: false,
     },
     RiskClass {
+        tool: "vox_computer_act",
+        class: SafetyClass::Destructive,
+        reversible: false,
+        always_requires_approval: false,
+    },
+    RiskClass {
         tool: "vox_deploy",
         class: SafetyClass::Destructive,
         reversible: false,

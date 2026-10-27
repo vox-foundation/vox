@@ -4,6 +4,7 @@
 pub mod audio_capture;
 pub mod browser_automation;
 pub mod cloud_sync;
+pub mod computer_control;
 pub mod hardware_probe;
 pub mod http_listener;
 pub mod mesh_driver;

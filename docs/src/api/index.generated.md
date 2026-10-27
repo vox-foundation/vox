@@ -22,7 +22,7 @@ status: current
 
 **Intended readers:** Platform engineers, crate contributors, and developers integrating with Vox internal and external crates.
 
-**Total Workspace Crates:** 129
+**Total Workspace Crates:** 130
 
 | Crate | Version | Description |
 |---|---|---|
@@ -102,6 +102,7 @@ status: current
 | [`vox-plugin-api`](./vox-plugin-api.generated.md) | `0.6.0` | Shared API surface for Vox plugins: ABI version, traits, manifest types, error types. |
 | [`vox-plugin-browser`](./vox-plugin-browser.generated.md) | `0.6.0` | Browser automation plugin (chromiumoxide CDP). |
 | [`vox-plugin-catalog`](./vox-plugin-catalog.generated.md) | `0.6.0` | SSOT catalog of all first-party Vox plugins and distribution bundles. |
+| [`vox-plugin-computer`](./vox-plugin-computer.generated.md) | `0.6.0` | Desktop computer-use plugin: accessibility snapshots, window capture, and background mouse/keyboard input. |
 | [`vox-plugin-host`](./vox-plugin-host.generated.md) | `0.6.0` | Vox host-side plugin discovery, loading, and registry. |
 | [`vox-plugin-mens-candle-core`](./vox-plugin-mens-candle-core.generated.md) | `0.6.0` | Shared Candle QLoRA training/inference code for the Metal and CUDA mens plugins (device-agnostic; no cdylib entry point of its own). |
 | [`vox-plugin-mens-candle-cuda`](./vox-plugin-mens-candle-cuda.generated.md) | `0.6.0` | ML training backend plugin: Candle + CUDA. Implements MlBackend. |

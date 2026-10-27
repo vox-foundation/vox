@@ -43,6 +43,7 @@ unknown subsystems, or a tool whose `requires` is not covered by the profile's s
 | `repo-read` | Read-only git/VCS/repo-index/snapshot views | — | public |
 | `browser` | `vox_browser_*` (never a bundle default) | `browser`, `llm_facade` | operator |
 | `speech` | `vox_oratio_*`, `vox_speech_to_code` | `speech`, `llm_facade` | operator |
+| `computer` | `vox_computer_*` desktop control (never a bundle default; `vox_computer_act` needs approval outside `accept_all`) | `computer` | operator |
 
 The authoritative tool list for each profile is its manifest. A few catalog constraints the
 manifests encode: `attention` stays DB-free and excludes `vox_attention_summary` and
@@ -122,7 +123,7 @@ same order as before profiles existed.
 |---|---|---|
 | `db` | `db` | Opens the workspace journey store and syncs the orchestrator schema. |
 | `model_registry` | `model_registry`, `routing_preferences` | Persisted routing preferences need `db`; without it the scorer defaults stand. |
-| `llm_facade`, `search_index`, `memory`, `compiler`, `browser`, `speech` | one step each | Initialised lazily per call; the step declares them available. |
+| `llm_facade`, `search_index`, `memory`, `compiler`, `browser`, `speech`, `computer` | one step each | Initialised lazily per call; the step declares them available. |
 | `sessions` | `sessions` | |
 | `agent_fleet` | `agent_fleet` | Still honours `VOX_MCP_AGENT_FLEET`. |
 | `mesh` | `populi_federation_poller`, `a2a_remote_result_poller`, `a2a_remote_worker_poller` | |

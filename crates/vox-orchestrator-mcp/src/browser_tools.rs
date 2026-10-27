@@ -8,11 +8,11 @@ use crate::caller_role::{CallerRole, trusted_caller_role};
 use crate::llm_bridge::call_llm;
 use crate::params::{
     BrowserActParams, BrowserClickPointParams, BrowserControlLockParams,
-    BrowserCookiesImportParams, BrowserExtractJsonParams, BrowserExtractParams, BrowserFillParams,
-    BrowserFillRefParams, BrowserGotoParams, BrowserHtmlParams, BrowserKeyParams,
-    BrowserOpenExParams, BrowserOpenParams, BrowserPageParams, BrowserRefParams,
-    BrowserScreenshotParams, BrowserScrollParams, BrowserSnapshotParams, BrowserTargetParams,
-    BrowserTypeParams, BrowserViewportParams, BrowserWaitParams, ToolResult,
+    BrowserCookiesImportParams, BrowserDialogParams, BrowserEventsParams, BrowserExtractJsonParams,
+    BrowserExtractParams, BrowserFillParams, BrowserFillRefParams, BrowserGotoParams,
+    BrowserHtmlParams, BrowserKeyParams, BrowserOpenExParams, BrowserOpenParams, BrowserPageParams,
+    BrowserRefParams, BrowserScreenshotParams, BrowserScrollParams, BrowserSnapshotParams,
+    BrowserTargetParams, BrowserTypeParams, BrowserViewportParams, BrowserWaitParams, ToolResult,
 };
 use crate::server_state::ServerState;
 use serde::Deserialize;
@@ -398,12 +398,9 @@ pub async fn browser_click_ref(_state: &ServerState, p: BrowserRefParams) -> Str
     }
     let page_id = p.page_id.clone();
     let ref_id = p.ref_id.clone();
-    let options_json = serde_json::json!({
-        "respect_sensitive": trusted_caller_role() != CallerRole::Human,
-    })
-    .to_string();
+    let (options_json, min_revision) = ref_action_request_options(p.timeout_ms);
     match tokio::task::spawn_blocking(move || {
-        let plugin = require_browser_revision(5)?;
+        let plugin = require_browser_revision(min_revision)?;
         let b = backend!(plugin);
         let raw = b
             .click_ref(
@@ -431,12 +428,9 @@ pub async fn browser_fill_ref(_state: &ServerState, p: BrowserFillRefParams) -> 
     let page_id = p.page_id.clone();
     let ref_id = p.ref_id.clone();
     let value = p.value.clone();
-    let options_json = serde_json::json!({
-        "respect_sensitive": trusted_caller_role() != CallerRole::Human,
-    })
-    .to_string();
+    let (options_json, min_revision) = ref_action_request_options(p.timeout_ms);
     match tokio::task::spawn_blocking(move || {
-        let plugin = require_browser_revision(5)?;
+        let plugin = require_browser_revision(min_revision)?;
         let b = backend!(plugin);
         let raw = b
             .fill_ref(
@@ -449,6 +443,90 @@ pub async fn browser_fill_ref(_state: &ServerState, p: BrowserFillRefParams) -> 
             .map(|s| s.into_string())
             .map_err(|e| anyhow::anyhow!("browser fill_ref: {e}"))?;
         parse_backend_json(raw).map_err(|e| anyhow::anyhow!("browser fill_ref: {e}"))
+    })
+    .await
+    {
+        Ok(Ok(result)) => ToolResult::ok(result).to_json(),
+        Ok(Err(e)) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
+    }
+}
+
+/// Plugin options for `click_ref` / `fill_ref` and the minimum plugin revision they need:
+/// `timeout_ms` is a revision-6 option, so older plugins are only reachable without it.
+fn ref_action_request_options(timeout_ms: Option<u64>) -> (String, u32) {
+    let mut options = serde_json::json!({
+        "respect_sensitive": trusted_caller_role() != CallerRole::Human,
+    });
+    let min_revision = match timeout_ms {
+        Some(ms) => {
+            options["timeout_ms"] = serde_json::json!(ms);
+            6
+        }
+        None => 5,
+    };
+    (options.to_string(), min_revision)
+}
+
+pub async fn browser_events(_state: &ServerState, p: BrowserEventsParams) -> String {
+    let page_id = p.page_id.clone();
+    let mut query = serde_json::Map::new();
+    if let Some(seq) = p.since_seq {
+        query.insert("since_seq".into(), seq.into());
+    }
+    if let Some(limit) = p.limit {
+        query.insert("limit".into(), limit.into());
+    }
+    if let Some(kinds) = p.kinds {
+        query.insert("kinds".into(), kinds.into());
+    }
+    if let Some(level) = p.level {
+        query.insert("level".into(), level.into());
+    }
+    if let Some(url) = p.url_contains {
+        query.insert("url_contains".into(), url.into());
+    }
+    if p.clear {
+        query.insert("clear".into(), true.into());
+    }
+    let options_json = serde_json::Value::Object(query).to_string();
+    match tokio::task::spawn_blocking(move || {
+        let plugin = require_browser_revision(6)?;
+        let b = backend!(plugin);
+        let raw = b
+            .page_events(page_id.as_str().into(), options_json.as_str().into())
+            .into_result()
+            .map(|s| s.into_string())
+            .map_err(|e| anyhow::anyhow!("browser page_events: {e}"))?;
+        parse_backend_json(raw).map_err(|e| anyhow::anyhow!("browser page_events: {e}"))
+    })
+    .await
+    {
+        Ok(Ok(result)) => ToolResult::ok(result).to_json(),
+        Ok(Err(e)) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
+    }
+}
+
+pub async fn browser_handle_dialog(_state: &ServerState, p: BrowserDialogParams) -> String {
+    if let Err(e) = ensure_control_lock(&p.page_id).await {
+        return ToolResult::<serde_json::Value>::err(e).to_json();
+    }
+    let page_id = p.page_id.clone();
+    let mut options = serde_json::json!({ "accept": p.accept });
+    if let Some(text) = p.prompt_text {
+        options["prompt_text"] = text.into();
+    }
+    let options_json = options.to_string();
+    match tokio::task::spawn_blocking(move || {
+        let plugin = require_browser_revision(6)?;
+        let b = backend!(plugin);
+        let raw = b
+            .handle_dialog(page_id.as_str().into(), options_json.as_str().into())
+            .into_result()
+            .map(|s| s.into_string())
+            .map_err(|e| anyhow::anyhow!("browser handle_dialog: {e}"))?;
+        parse_backend_json(raw).map_err(|e| anyhow::anyhow!("browser handle_dialog: {e}"))
     })
     .await
     {
@@ -1078,10 +1156,7 @@ fn snapshot_tree_needs_captcha_pause(tree: &str) -> bool {
 }
 
 fn ref_action_options_json() -> String {
-    serde_json::json!({
-        "respect_sensitive": trusted_caller_role() != CallerRole::Human,
-    })
-    .to_string()
+    ref_action_request_options(None).0
 }
 
 fn dispatch_click_ref(page_id: String, ref_id: String) -> anyhow::Result<serde_json::Value> {

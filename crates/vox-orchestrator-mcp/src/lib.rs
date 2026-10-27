@@ -67,6 +67,8 @@ pub mod code_validator;
 pub mod codex_tools;
 /// `cargo`/LSP validation helpers (`vox_validate_file`, `vox_run_tests`, ...).
 pub mod compiler_tools;
+/// Desktop computer use through the `computer` code plugin (`vox_computer_*`).
+pub mod computer_tools;
 /// Codex schema digest + sample row tools for `.vox` modules.
 pub mod db_tools;
 pub mod dispatch;

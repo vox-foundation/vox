@@ -24,7 +24,7 @@ status: current
 
 Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../contracts/mcp/tool-registry.canonical.yaml).
 
-**Total tools:** 375
+**Total tools:** 383
 
 | Tool | Product Lane | Tier | HTTP Read Eligible | Description |
 |---|---|---|---|---|
@@ -72,12 +72,14 @@ Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../con
 | `vox_browser_close` | interop |  | No | Close a browser tab by page_id and shut down the host when no tabs remain. |
 | `vox_browser_cookies_export` | interop |  | No | Export cookies to a file under the browser profiles directory. Returns count and path only — cookie values never appear in the MCP payload. |
 | `vox_browser_cookies_import` | interop |  | No | Import cookies from a cookies.json file jailed under the browser profiles directory. MCP result has no cookie values. |
+| `vox_browser_events` | interop |  | No | Read buffered console messages, uncaught page exceptions, network requests, and any open JavaScript dialog for a browser page_id. Use it to debug a web page or find out why an action stalled; poll incrementally with since_seq set to the previous next_seq. |
 | `vox_browser_extract` | ai |  | No | Use configured chat model + visible page text to answer an extraction instruction. |
 | `vox_browser_extract_json` | ai |  | No | Like vox_browser_extract but forces a JSON object matching a JSON Schema description string. |
 | `vox_browser_fill` | interop |  | No | Focus an input and type text (CSS selector or xpath:/…). |
 | `vox_browser_fill_ref` | interop |  | No | Fill an element by ref from the latest accessibility snapshot; use snapshot refs, not CSS selectors. Callers must check data.ok and data.needs_human because sensitive refs return data.ok=false. |
 | `vox_browser_forward` | interop |  | No | Navigate to the next history entry for page_id. |
 | `vox_browser_goto` | interop |  | No | Navigate an existing tab to a URL. |
+| `vox_browser_handle_dialog` | interop |  | No | Accept or dismiss the open JavaScript alert, confirm, or prompt dialog on a browser page_id, optionally entering prompt_text. A pending dialog blocks every other action on the page until it is handled; vox_browser_events reports it. |
 | `vox_browser_html` | interop |  | No | Read HTML for the full document (empty target) or a fragment selector. |
 | `vox_browser_list_pages` | interop |  | No | List all currently open browser sessions with page_id, URL, and title. |
 | `vox_browser_open` | interop |  | No | Open a Chromium tab at URL via CD (chromiumoxide). Returns page_id for follow-up tools. |
@@ -120,6 +122,12 @@ Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../con
 | `vox_compaction_status` | ai |  | No | Get current context token usage and whether compaction is recommended. |
 | `vox_compiler::ast_inspect` | app |  | No | Parse a .vox file and return its AST as a JSON tree. Argument: path (relative to repo root). |
 | `vox_complete_task` | ai |  | No | Mark a task as completed, releasing its file locks. |
+| `vox_computer_act` | interop |  | No | Perform one input action in a native desktop app (Finder, Mail, Notes, Calculator, System Settings, or any other non-browser app): click, double_click, right_click, press, set_value, type, key (chord like cmd+s), scroll, move, drag, or focus. Target an element by ref from vox_computer_snapshot (preferred) or by x/y in the last vox_computer_screenshot. Runs in the background without taking focus unless tier is activate. For web pages use the vox_browser_* tools instead. Refuses password managers and secure text fields; check data.ok and data.reason. |
+| `vox_computer_list_apps` | interop |  | No | List the running desktop applications (name, bundle id, pid, frontmost) to choose the app or pid for the other vox_computer_* tools. |
+| `vox_computer_list_windows` | interop |  | No | List visible desktop windows with their owner app, pid, title, and screen bounds, optionally filtered by app or pid. Titles of password-manager windows are hidden. |
+| `vox_computer_permissions` | interop |  | No | Check whether desktop computer use is available on this machine (platform support, Accessibility and Screen Recording permission state) and how to grant what is missing. Call it when a vox_computer_* tool returns accessibility_denied or screen_recording_denied. |
+| `vox_computer_screenshot` | interop |  | No | Capture a PNG of a native desktop app's main window, or of the whole main display when no app is given; pass region to zoom into part of the previous capture. Use it when vox_computer_snapshot does not expose the element (canvas, games, custom-drawn UI); x/y in the image can be passed to vox_computer_act. |
+| `vox_computer_snapshot` | interop |  | No | Read a native desktop app's accessibility tree as indented text with [ref=eN] element handles for vox_computer_act. Start every desktop-app task here; it is cheaper and more precise than a screenshot. Target by app name, bundle id, or pid from vox_computer_list_apps. |
 | `vox_config_get` | platform |  | No | Get the current runtime orchestrator and toolchain configuration (wire aliases: vox_get_config). |
 | `vox_config_set` | platform |  | No | Update the orchestrator configuration dynamically (wire alias: vox_set_config). |
 | `vox_conflict_diff` | ai |  | No | Show the N-way diff of a conflict. |

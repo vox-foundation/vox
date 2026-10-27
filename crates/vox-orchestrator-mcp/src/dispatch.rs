@@ -1994,6 +1994,40 @@ fn handle_tool_call_inner<'a>(
                 Ok(browser_tools::browser_fill_ref(state, serde_json::from_value(args)?).await)
             }
             #[cfg(feature = "heavy-browser")]
+            "vox_browser_events" => {
+                Ok(browser_tools::browser_events(state, serde_json::from_value(args)?).await)
+            }
+            #[cfg(feature = "heavy-browser")]
+            "vox_browser_handle_dialog" => Ok(browser_tools::browser_handle_dialog(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await),
+            "vox_computer_permissions" => {
+                Ok(crate::computer_tools::computer_permissions(state, args).await)
+            }
+            "vox_computer_list_apps" => {
+                Ok(crate::computer_tools::computer_list_apps(state, args).await)
+            }
+            "vox_computer_list_windows" => Ok(crate::computer_tools::computer_list_windows(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await),
+            "vox_computer_snapshot" => Ok(crate::computer_tools::computer_snapshot(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await),
+            "vox_computer_screenshot" => Ok(crate::computer_tools::computer_screenshot(
+                state,
+                serde_json::from_value(args)?,
+            )
+            .await),
+            "vox_computer_act" => {
+                Ok(crate::computer_tools::computer_act(state, serde_json::from_value(args)?).await)
+            }
+            #[cfg(feature = "heavy-browser")]
             "vox_browser_cookies_export" => Ok(browser_tools::browser_cookies_export(
                 state,
                 serde_json::from_value(args)?,
@@ -2415,6 +2449,15 @@ mod registry_dispatch_tests {
         "vox_browser_fill_ref",
         "vox_browser_cookies_export",
         "vox_browser_cookies_import",
+        "vox_browser_events",
+        "vox_browser_handle_dialog",
+        // Desktop control: a live probe would hit the real OS (screen capture, input).
+        "vox_computer_permissions",
+        "vox_computer_list_apps",
+        "vox_computer_list_windows",
+        "vox_computer_snapshot",
+        "vox_computer_screenshot",
+        "vox_computer_act",
         // T0.3: always_requires_approval — parks unconditionally under every
         // PermissionMode (including accept_all) and is never satisfied by
         // the persisted allowlist (see permission_modes::RISK_CLASSES /

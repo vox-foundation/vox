@@ -1645,7 +1645,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
 
 #[cfg(test)]
 #[allow(unsafe_code)] // test-only std::env::set_var (unsafe on edition 2024); serialized via #[serial]
-mod tests {
+pub(super) mod tests {
     use super::*;
     use serial_test::serial;
     use std::path::PathBuf;
@@ -1671,7 +1671,7 @@ mod tests {
     // must hold the same crate-wide lock.
     use super::super::agent_loop::CHAT_MESSAGE_ENV_LOCK;
 
-    fn test_state() -> ServerState {
+    pub(in crate::chat_tools::chat) fn test_state() -> ServerState {
         let cfg = OrchestratorConfig::for_testing();
         let orch_cfg = cfg.clone();
         let groups = AffinityGroupRegistry::new(vec![]);
@@ -1707,7 +1707,10 @@ mod tests {
         )
     }
 
-    fn model_spec(provider_type: ProviderType, id: &str) -> ModelSpec {
+    pub(in crate::chat_tools::chat) fn model_spec(
+        provider_type: ProviderType,
+        id: &str,
+    ) -> ModelSpec {
         ModelSpec {
             id: id.to_string(),
             canonical_slug: id.to_string(),

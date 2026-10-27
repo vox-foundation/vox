@@ -169,6 +169,7 @@ mod tests {
     const FIRST_WAVE: &[&str] = &[
         "attention",
         "browser",
+        "computer",
         "knowledge",
         "lang",
         "mesh",
@@ -247,6 +248,23 @@ mod tests {
     fn browser_profile_is_only_browser_tools() {
         let b = ActiveProfile::resolve(&["browser"]).expect("browser");
         assert!(b.tools.iter().all(|t| t.starts_with("vox_browser_")));
+    }
+
+    #[test]
+    fn computer_profile_is_exactly_the_desktop_tools() {
+        let c = ActiveProfile::resolve(&["computer"]).expect("computer");
+        let want: BTreeSet<&str> = [
+            "vox_computer_act",
+            "vox_computer_list_apps",
+            "vox_computer_list_windows",
+            "vox_computer_permissions",
+            "vox_computer_screenshot",
+            "vox_computer_snapshot",
+        ]
+        .into();
+        assert_eq!(c.tools.iter().copied().collect::<BTreeSet<_>>(), want);
+        assert_eq!(c.subsystems, BTreeSet::from([Subsystem::Computer]));
+        assert_eq!(c.max_exposure, Exposure::Operator);
     }
 
     #[test]

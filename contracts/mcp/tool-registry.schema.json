@@ -41,7 +41,7 @@
             "uniqueItems": true,
             "items": {
               "type": "string",
-              "enum": ["db", "sessions", "agent_fleet", "model_registry", "llm_facade", "search_index", "memory", "research", "mesh", "attention", "clarification", "flywheel", "compiler", "browser", "speech"]
+              "enum": ["db", "sessions", "agent_fleet", "model_registry", "llm_facade", "search_index", "memory", "research", "mesh", "attention", "clarification", "flywheel", "compiler", "browser", "speech", "computer"]
             },
             "description": "Subsystems that must be booted for the tool (vox_mcp_registry::Subsystem); [] when none."
           }

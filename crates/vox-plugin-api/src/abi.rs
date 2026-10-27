@@ -9,6 +9,7 @@
 use crate::extensions::audio_capture::AudioCapture_TO;
 use crate::extensions::browser_automation::BrowserAutomation_TO;
 use crate::extensions::cloud_sync::CloudSync_TO;
+use crate::extensions::computer_control::ComputerControl_TO;
 use crate::extensions::hardware_probe::HardwareProbe_TO;
 use crate::extensions::http_listener::HttpListener_TO;
 use crate::extensions::mesh_driver::MeshDriver_TO;
@@ -97,6 +98,12 @@ pub trait VoxPlugin: Send + Sync {
     /// Optional accessor: if this plugin provides a BrowserAutomation implementation,
     /// return Some(trait object). Default impl returns None.
     fn as_browser_automation(&self) -> ROption<BrowserAutomation_TO<'static, RBox<()>>> {
+        ROption::RNone
+    }
+
+    /// Optional accessor: if this plugin provides a ComputerControl implementation,
+    /// return Some(trait object). Default impl returns None.
+    fn as_computer_control(&self) -> ROption<ComputerControl_TO<'static, RBox<()>>> {
         ROption::RNone
     }
 
@@ -197,6 +204,12 @@ mod semcov_wave5_tests {
     fn default_as_browser_automation_returns_rnone() {
         let p = MinimalPlugin;
         assert!(p.as_browser_automation().is_rnone());
+    }
+
+    #[test]
+    fn default_as_computer_control_returns_rnone() {
+        let p = MinimalPlugin;
+        assert!(p.as_computer_control().is_rnone());
     }
 
     #[test]

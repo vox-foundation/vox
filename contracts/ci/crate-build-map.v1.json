@@ -517,9 +517,9 @@
     {
       "crate": "vox-plugin-api",
       "compile_s": 3.3,
-      "dependents": 61,
+      "dependents": 62,
       "blast_s": 592.0,
-      "fan_in": 16
+      "fan_in": 17
     },
     {
       "crate": "vox-plugin-browser",
@@ -534,6 +534,13 @@
       "dependents": 8,
       "blast_s": 232.0,
       "fan_in": 4
+    },
+    {
+      "crate": "vox-plugin-computer",
+      "compile_s": 0.0,
+      "dependents": 0,
+      "blast_s": 0.0,
+      "fan_in": 0
     },
     {
       "crate": "vox-plugin-host",
@@ -622,7 +629,7 @@
     {
       "crate": "vox-plugin-types",
       "compile_s": 0.9,
-      "dependents": 64,
+      "dependents": 65,
       "blast_s": 594.0,
       "fan_in": 8
     },
@@ -909,9 +916,9 @@
     {
       "crate": "workspace-hack",
       "compile_s": 0.6,
-      "dependents": 119,
+      "dependents": 120,
       "blast_s": 653.0,
-      "fan_in": 116
+      "fan_in": 117
     }
   ],
   "measured_on": "x86_64-pc-windows-msvc (cargo check)"

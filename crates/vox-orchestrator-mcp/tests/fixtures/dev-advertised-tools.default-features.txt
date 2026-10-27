@@ -58,6 +58,12 @@ vox_code_audit_findings_upsert
 vox_compaction_status
 vox_compiler::ast_inspect
 vox_complete_task
+vox_computer_act
+vox_computer_list_apps
+vox_computer_list_windows
+vox_computer_permissions
+vox_computer_screenshot
+vox_computer_snapshot
 vox_config_get
 vox_config_set
 vox_conflict_diff

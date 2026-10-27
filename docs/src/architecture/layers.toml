@@ -257,6 +257,7 @@ vox-plugin-catalog      = { layer = 3 }
 # Note: Skill-only plugins (e.g., vox-plugin-skill-git) have no Cargo.toml and are
 # exempt from this file. They are validated separately.
 vox-plugin-browser           = { layer = 4, kind = "plugin" }
+vox-plugin-computer          = { layer = 4, kind = "plugin" }
 vox-plugin-mens-candle-cuda  = { layer = 4, kind = "plugin", sibling_of = ["vox-plugin-mens-candle-metal", "vox-populi"] }  # vendor-split GPU backends; populi held the legacy MENS tensor copy mid-migration
 vox-plugin-mens-candle-metal = { layer = 4, kind = "plugin", sibling_of = ["vox-plugin-mens-candle-cuda", "vox-populi"] }  # vendor-split GPU backends; populi held the legacy MENS tensor copy mid-migration
 vox-plugin-mens-candle-core  = { layer = 4, sibling_of = ["vox-plugin-mens-candle-cuda", "vox-plugin-mens-candle-metal", "vox-populi"] }  # rlib, not a cdylib: device-agnostic Candle QLoRA code linked ONLY by the two L4 plugins above (vox-populi keeps its own model_card copy, no edge). L4, not L3: unconditional candle-core/candle-nn deps must stay out of CORE L0-L3 (Phase 3 SC#4, D-09)

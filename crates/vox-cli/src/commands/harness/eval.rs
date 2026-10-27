@@ -113,6 +113,16 @@ fn golden_tasks() -> Vec<GoldenTask> {
             run: privacy_filter_blocks_live_routing_task,
             skip_if: None,
         },
+        GoldenTask {
+            name: "tool-families-trigger-on-relevant-turns",
+            run: tool_families_trigger_on_relevant_turns_task,
+            skip_if: None,
+        },
+        GoldenTask {
+            name: "computer-act-requires-approval",
+            run: computer_act_requires_approval_task,
+            skip_if: None,
+        },
     ]
 }
 
@@ -258,6 +268,8 @@ fn tool_cap_never_exceeds_cap_task() -> Result<()> {
         max_tools: DEFAULT_MAX_TOOLS,
         exclude_name_prefixes: vec!["vox_chat_"],
         pin_names: vec![],
+        query: None,
+        available: None,
     };
     let reg = new_registry_arc_for_eval();
     let selected = select_tools_for_turn(TOOL_REGISTRY, &reg, &ctx);
@@ -309,6 +321,106 @@ fn agent_loop_terminates_task() -> Result<()> {
 fn privacy_filter_blocks_live_routing_task() -> Result<()> {
     vox_orchestrator_mcp::llm_bridge::local_health::eval_gate_privacy_filter_check()
         .map_err(|e| anyhow::anyhow!(e))
+}
+
+/// Golden task 8: browser and desktop tools must be offered on the turns that ask
+/// for them and only those. Runs the shared trigger corpus through the agent loop's
+/// own selection configuration (lanes, pins, exclusions); a family that stops
+/// triggering is a capability silently going dark, one that over-triggers bloats
+/// every coding turn's tool list.
+fn tool_families_trigger_on_relevant_turns_task() -> Result<()> {
+    use vox_mcp_registry::TOOL_REGISTRY;
+    use vox_orchestrator_mcp::llm_bridge::tool_selection::{
+        CHAT_TURN_PINS, INTENT_FAMILIES, TRIGGER_CASES, TurnContext, new_registry_arc_for_eval,
+        select_tools_for_turn,
+    };
+
+    let reg = new_registry_arc_for_eval();
+    let mut failures = Vec::new();
+    for case in TRIGGER_CASES {
+        let ctx = TurnContext {
+            pin_names: CHAT_TURN_PINS.to_vec(),
+            exclude_name_prefixes: vec!["vox_chat_"],
+            query: Some(case.prompt.to_string()),
+            ..TurnContext::default()
+        };
+        let names: Vec<&str> = select_tools_for_turn(TOOL_REGISTRY, &reg, &ctx)
+            .iter()
+            .map(|t| t.name)
+            .collect();
+        if let Some(pin) = CHAT_TURN_PINS.iter().find(|p| !names.contains(p)) {
+            failures.push(format!("{pin} not offered for {:?}", case.prompt));
+        }
+        for family in INTENT_FAMILIES {
+            let want = case.family == Some(family.id);
+            let missing: Vec<&str> = family
+                .core_tools
+                .iter()
+                .copied()
+                .filter(|t| !names.contains(t))
+                .collect();
+            let leaked: Vec<&str> = family
+                .core_tools
+                .iter()
+                .copied()
+                .filter(|t| names.contains(t))
+                .collect();
+            if want && !missing.is_empty() {
+                failures.push(format!(
+                    "{:?}: {} missing {missing:?}",
+                    case.prompt, family.id
+                ));
+            }
+            if !want && !leaked.is_empty() {
+                failures.push(format!(
+                    "{:?}: {} offered {leaked:?}",
+                    case.prompt, family.id
+                ));
+            }
+        }
+    }
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        bail!("{}", failures.join("; "))
+    }
+}
+
+/// Golden task 9: a desktop action must park for human approval in every mode except
+/// the explicit `accept_all` opt-in, and the read-only desktop tools must stay ungated
+/// so an agent can look before it asks.
+fn computer_act_requires_approval_task() -> Result<()> {
+    use vox_orchestrator_mcp::permission_modes::{
+        PermissionMode, is_gated_tool, mode_auto_approves,
+    };
+
+    if !is_gated_tool("vox_computer_act") {
+        bail!("vox_computer_act is not gated");
+    }
+    for mode in [
+        PermissionMode::Ask,
+        PermissionMode::AcceptEdits,
+        PermissionMode::Plan,
+    ] {
+        if mode_auto_approves(mode, "vox_computer_act") {
+            bail!("{mode:?} auto-approves vox_computer_act");
+        }
+    }
+    if !mode_auto_approves(PermissionMode::AcceptAll, "vox_computer_act") {
+        bail!("accept_all must run desktop actions unattended");
+    }
+    for read_only in [
+        "vox_computer_snapshot",
+        "vox_computer_screenshot",
+        "vox_computer_list_apps",
+        "vox_computer_list_windows",
+        "vox_computer_permissions",
+    ] {
+        if is_gated_tool(read_only) {
+            bail!("{read_only} is gated but only reads");
+        }
+    }
+    Ok(())
 }
 
 /// Result of running (or skipping) one golden task.
@@ -369,6 +481,17 @@ pub async fn run(args: EvalArgs) -> anyhow::Result<()> {
             run.skip_count,
             run.total_cost_usd
         );
+        for result in task_results.iter().filter(|r| r.status != "pass") {
+            println!(
+                "  [{}] {} — {}",
+                result.status.to_uppercase(),
+                result.task_id,
+                result
+                    .failure_detail
+                    .as_deref()
+                    .unwrap_or("no detail recorded")
+            );
+        }
 
         let db = vox_db::open_project_db().await?;
         // `changed_files` is left empty by `run_live` (which has no DB handle); compute it here

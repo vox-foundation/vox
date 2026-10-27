@@ -50484,6 +50484,49 @@
       }
     },
     {
+      "id": "mcp.vox_browser_events",
+      "kind": "mcp_tool",
+      "title": "Browser Events",
+      "summary": "Read buffered console messages, uncaught page exceptions, network requests, and any open JavaScript dialog for a browser page_id. Use it to debug a web page or find out why an action stalled; poll incrementally with since_seq set to the previous next_seq.",
+      "op_id": "browser.events",
+      "status": null,
+      "domain": "skills",
+      "product_lane": "interop",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_browser_events"
+      },
+      "gui": {
+        "view_key": "browser",
+        "nav_label": "Browser",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
       "id": "mcp.vox_browser_extract",
       "kind": "mcp_tool",
       "title": "Browser Extract",
@@ -50712,6 +50755,49 @@
       "cli": null,
       "mcp": {
         "name": "vox_browser_goto"
+      },
+      "gui": {
+        "view_key": "browser",
+        "nav_label": "Browser",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_browser_handle_dialog",
+      "kind": "mcp_tool",
+      "title": "Browser Handle Dialog",
+      "summary": "Accept or dismiss the open JavaScript alert, confirm, or prompt dialog on a browser page_id, optionally entering prompt_text. A pending dialog blocks every other action on the page until it is handled; vox_browser_events reports it.",
+      "op_id": "browser.handle.dialog",
+      "status": null,
+      "domain": "skills",
+      "product_lane": "interop",
+      "side_effect_class": "remote_mutation",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_browser_handle_dialog"
       },
       "gui": {
         "view_key": "browser",
@@ -52487,6 +52573,234 @@
       "skills": [
         "skill.skill-orchestrator"
       ],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_computer_act",
+      "kind": "mcp_tool",
+      "title": "Computer Act",
+      "summary": "Perform one input action in a native desktop app (Finder, Mail, Notes, Calculator, System Settings, or any other non-browser app): click, double_click, right_click, press, set_value, type, key (chord like cmd+s), scroll, move, drag, or focus. Target an element by ref from vox_computer_snapshot (preferred) or by x/y in the last vox_computer_screenshot. Runs in the background without taking focus unless tier is activate. For web pages use the vox_browser_* tools instead. Refuses password managers and secure text fields; check data.ok and data.reason.",
+      "op_id": "computer.act",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "interop",
+      "side_effect_class": "destructive",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_computer_act"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_computer_list_apps",
+      "kind": "mcp_tool",
+      "title": "Computer List Apps",
+      "summary": "List the running desktop applications (name, bundle id, pid, frontmost) to choose the app or pid for the other vox_computer_* tools.",
+      "op_id": "computer.list.apps",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "interop",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_computer_list_apps"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_computer_list_windows",
+      "kind": "mcp_tool",
+      "title": "Computer List Windows",
+      "summary": "List visible desktop windows with their owner app, pid, title, and screen bounds, optionally filtered by app or pid. Titles of password-manager windows are hidden.",
+      "op_id": "computer.list.windows",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "interop",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_computer_list_windows"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_computer_permissions",
+      "kind": "mcp_tool",
+      "title": "Computer Permissions",
+      "summary": "Check whether desktop computer use is available on this machine (platform support, Accessibility and Screen Recording permission state) and how to grant what is missing. Call it when a vox_computer_* tool returns accessibility_denied or screen_recording_denied.",
+      "op_id": "computer.permissions",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "interop",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_computer_permissions"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_computer_screenshot",
+      "kind": "mcp_tool",
+      "title": "Computer Screenshot",
+      "summary": "Capture a PNG of a native desktop app's main window, or of the whole main display when no app is given; pass region to zoom into part of the previous capture. Use it when vox_computer_snapshot does not expose the element (canvas, games, custom-drawn UI); x/y in the image can be passed to vox_computer_act.",
+      "op_id": "computer.screenshot",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "interop",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_computer_screenshot"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_computer_snapshot",
+      "kind": "mcp_tool",
+      "title": "Computer Snapshot",
+      "summary": "Read a native desktop app's accessibility tree as indented text with [ref=eN] element handles for vox_computer_act. Start every desktop-app task here; it is cheaper and more precise than a screenshot. Target by app name, bundle id, or pid from vox_computer_list_apps.",
+      "op_id": "computer.snapshot",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "interop",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_computer_snapshot"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
       "equivalents": [],
       "refs": [],
       "coverage": {
@@ -64329,12 +64643,14 @@
         "mcp.vox_browser_close",
         "mcp.vox_browser_cookies_export",
         "mcp.vox_browser_cookies_import",
+        "mcp.vox_browser_events",
         "mcp.vox_browser_extract",
         "mcp.vox_browser_extract_json",
         "mcp.vox_browser_fill",
         "mcp.vox_browser_fill_ref",
         "mcp.vox_browser_forward",
         "mcp.vox_browser_goto",
+        "mcp.vox_browser_handle_dialog",
         "mcp.vox_browser_html",
         "mcp.vox_browser_list_pages",
         "mcp.vox_browser_open",
@@ -68385,6 +68701,37 @@
       "coverage": null
     },
     {
+      "id": "crate.vox-plugin-computer",
+      "kind": "crate",
+      "title": "vox-plugin-computer",
+      "summary": "Desktop computer-use plugin: accessibility snapshots, window capture, and background mouse/keyboard input.",
+      "op_id": null,
+      "status": null,
+      "domain": "platform",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": {
+        "crate": "vox-plugin-computer",
+        "layer": 4,
+        "rule": "self"
+      },
+      "source_path": "crates/vox-plugin-computer/",
+      "docs": [
+        {
+          "path": "docs/src/architecture/where-things-live.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
       "id": "crate.vox-plugin-host",
       "kind": "crate",
       "title": "vox-plugin-host",
@@ -70144,6 +70491,33 @@
       "coverage": null
     },
     {
+      "id": "skill.browser-automation",
+      "kind": "skill",
+      "title": "browser-automation",
+      "summary": "Use when the user wants something done on a web page — log in, fill a form, click through a flow, check that a page works. Snapshot, act on refs, wait for the result, read console and network events when something fails. For read-and-cite research use browser-research; for native desktop apps use computer-use.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/browser-automation",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
       "id": "skill.browser-research",
       "kind": "skill",
       "title": "browser-research",
@@ -70213,6 +70587,33 @@
       "gui": null,
       "owner": null,
       "source_path": "assets/skills/claude-api",
+      "docs": [
+        {
+          "path": "docs/src/reference/plugin-catalog.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "skill.computer-use",
+      "kind": "skill",
+      "title": "computer-use",
+      "summary": "Use when the user wants something done in a native desktop app (Finder, System Settings, Calculator, Notes, any non-browser window). Snapshot the app's accessibility tree, act on refs in the background, verify with a fresh snapshot or screenshot. Not for web pages — use the browser tools there.",
+      "op_id": null,
+      "status": null,
+      "domain": "skills",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": null,
+      "source_path": "assets/skills/computer-use",
       "docs": [
         {
           "path": "docs/src/reference/plugin-catalog.generated.md",
