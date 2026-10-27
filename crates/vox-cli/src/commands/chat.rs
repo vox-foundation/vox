@@ -222,7 +222,7 @@ pub async fn run(args: ChatArgs) -> Result<()> {
             }
             routed
         } else {
-            let mut cfg = resolve_chat_config(&effective_model_arg);
+            let mut cfg = resolve_chat_config(&effective_model_arg)?;
             cfg.telemetry_task_category = Some("cli-chat".to_string());
             vec![(
                 cfg,
@@ -560,8 +560,8 @@ fn is_connection_error(err: &str) -> bool {
         || lower.contains("os error 10061")
 }
 
-pub(crate) fn resolve_chat_config(model: &str) -> LlmConfig {
-    if model == "auto-local"
+pub(crate) fn resolve_chat_config(model: &str) -> anyhow::Result<LlmConfig> {
+    let cfg = if model == "auto-local"
         || model.starts_with("vox-mens-")
         || model.starts_with("mens/")
         || model.starts_with("voxlocal")
@@ -571,8 +571,8 @@ pub(crate) fn resolve_chat_config(model: &str) -> LlmConfig {
         let effective_model = if model == "auto-local" {
             // Discrete-GPU VRAM comes from the nvml-probe plugin, if installed.
             vox_orchestrator_mcp::server_state::vram_probe::register_nvml_vram_probe();
-            let is_apple_silicon = vox_orchestrator::models::auto_select::is_host_apple_silicon();
-            vox_orchestrator::models::auto_select::select_optimal_local_model(is_apple_silicon)
+            vox_orchestrator::models::auto_select::select_optimal_local_model_for_host()
+                .map_err(|e| anyhow::anyhow!("auto-local: {e}"))?
                 .selected_model_id
         } else {
             model.to_string()
@@ -612,7 +612,8 @@ pub(crate) fn resolve_chat_config(model: &str) -> LlmConfig {
         LlmConfig::ollama(model)
     } else {
         LlmConfig::openrouter(model)
-    }
+    };
+    Ok(cfg)
 }
 
 #[cfg(test)]
@@ -648,19 +649,19 @@ mod tests {
 
     #[test]
     fn chat_routing_ollama_vs_openrouter() {
-        let local_qwen = resolve_chat_config("qwen3:8b");
+        let local_qwen = resolve_chat_config("qwen3:8b").unwrap();
         assert_eq!(local_qwen.provider, "ollama");
 
-        let openrouter_qwen = resolve_chat_config("qwen/qwen3-32b-instruct");
+        let openrouter_qwen = resolve_chat_config("qwen/qwen3-32b-instruct").unwrap();
         assert_eq!(openrouter_qwen.provider, "openrouter");
 
-        let catalog_local_qwen = resolve_chat_config("qwen/qwen-3-8b");
+        let catalog_local_qwen = resolve_chat_config("qwen/qwen-3-8b").unwrap();
         assert_eq!(catalog_local_qwen.provider, "voxlocal");
 
-        let local_qwen25 = resolve_chat_config("qwen2.5-coder:7b");
+        let local_qwen25 = resolve_chat_config("qwen2.5-coder:7b").unwrap();
         assert_eq!(local_qwen25.provider, "ollama");
 
-        let openrouter_qwen25 = resolve_chat_config("qwen/qwen2.5-coder-32b-instruct");
+        let openrouter_qwen25 = resolve_chat_config("qwen/qwen2.5-coder-32b-instruct").unwrap();
         assert_eq!(openrouter_qwen25.provider, "openrouter");
     }
 
@@ -671,16 +672,20 @@ mod tests {
 
     #[test]
     fn chat_routing_auto_and_mens() {
-        let auto_cfg = resolve_chat_config("auto-local");
-        assert_eq!(auto_cfg.provider, "voxlocal");
-        assert!(auto_cfg.base_url.unwrap().contains("11434"));
-        assert!(!auto_cfg.model.is_empty());
+        match resolve_chat_config("auto-local") {
+            Ok(auto_cfg) => {
+                assert_eq!(auto_cfg.provider, "voxlocal");
+                assert!(auto_cfg.base_url.unwrap().contains("11434"));
+                assert_eq!(auto_cfg.model.split('@').nth(1).map(str::len), Some(40));
+            }
+            Err(e) => assert!(e.to_string().contains("free"), "{e}"),
+        }
 
-        let mens_cfg = resolve_chat_config("mens/runs/qwen3_27b_metal_check/quant_q8_0");
+        let mens_cfg = resolve_chat_config("mens/runs/qwen3_27b_metal_check/quant_q8_0").unwrap();
         assert_eq!(mens_cfg.provider, "voxlocal");
         assert_eq!(mens_cfg.model, "mens/runs/qwen3_27b_metal_check/quant_q8_0");
 
-        let vox_mens_cfg = resolve_chat_config("vox-mens-8b-v0.6");
+        let vox_mens_cfg = resolve_chat_config("vox-mens-8b-v0.6").unwrap();
         assert_eq!(vox_mens_cfg.provider, "voxlocal");
         assert_eq!(vox_mens_cfg.model, "vox-mens-8b-v0.6");
     }
