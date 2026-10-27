@@ -176,6 +176,15 @@ pub(crate) static VRAM_PROBE_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex:
 /// all mean "no signal". That is the expected path on non-NVIDIA hardware, so
 /// it is logged at debug, never as an error.
 pub(crate) fn free_vram_mb_from_probe() -> Option<u64> {
+    device_free_mb_from_probe()?
+        .into_iter()
+        .map(|(_, mb)| mb)
+        .min()
+}
+
+/// Per-device `(NVML index, free MiB)` from the registered probe; `None` as for
+/// [`free_vram_mb_from_probe`].
+pub(crate) fn device_free_mb_from_probe() -> Option<Vec<(u32, u64)>> {
     let Some(probe) = registered_vram_probe() else {
         tracing::debug!(
             target: "vox.orchestrator.vram",
@@ -184,7 +193,7 @@ pub(crate) fn free_vram_mb_from_probe() -> Option<u64> {
         return None;
     };
     match (probe.device_metrics_json)() {
-        Ok(json) => parse_min_free_mb(&json),
+        Ok(json) => parse_device_free_mb(&json),
         Err(e) => {
             tracing::debug!(
                 target: "vox.orchestrator.vram",
@@ -203,16 +212,22 @@ pub fn refresh_free_vram_hint_from_nvml() {
     set_free_vram_mb_hint(free_vram_mb_from_probe());
 }
 
-/// Parses `device_metrics()`'s `{"metrics":[{"memory_free_mb": ..., ...}]}`
-/// JSON and returns the minimum `memory_free_mb` across devices, or `None` if
-/// the report is empty/unparseable.
-fn parse_min_free_mb(json: &str) -> Option<u64> {
+/// Parses `device_metrics()`'s `{"metrics":[{"index": .., "memory_free_mb": ..}]}`
+/// JSON into `(index, memory_free_mb)` per device (the position stands in for a
+/// missing `index`), or `None` if the report is empty/unparseable.
+fn parse_device_free_mb(json: &str) -> Option<Vec<(u32, u64)>> {
     let v: serde_json::Value = serde_json::from_str(json).ok()?;
     let metrics = v.get("metrics")?.as_array()?;
-    metrics
+    let devices: Vec<(u32, u64)> = metrics
         .iter()
-        .filter_map(|m| m.get("memory_free_mb")?.as_u64())
-        .min()
+        .enumerate()
+        .filter_map(|(pos, m)| {
+            let index = m.get("index").and_then(serde_json::Value::as_u64);
+            let index = u32::try_from(index.unwrap_or(pos as u64)).ok()?;
+            Some((index, m.get("memory_free_mb")?.as_u64()?))
+        })
+        .collect();
+    (!devices.is_empty()).then_some(devices)
 }
 
 #[cfg(test)]
@@ -280,18 +295,21 @@ mod tests {
     }
 
     #[test]
-    fn parse_min_free_mb_picks_minimum_across_devices() {
+    fn parse_device_free_mb_reads_every_device() {
         let json = r#"{"metrics":[
             {"index":0,"utilization_pct":10.0,"memory_used_mb":100,"memory_free_mb":20000,"temperature_c":50.0,"power_usage_w":100.0,"fan_speed_pct":null},
             {"index":1,"utilization_pct":10.0,"memory_used_mb":100,"memory_free_mb":6000,"temperature_c":50.0,"power_usage_w":100.0,"fan_speed_pct":null}
         ]}"#;
-        assert_eq!(parse_min_free_mb(json), Some(6000));
+        assert_eq!(
+            parse_device_free_mb(json),
+            Some(vec![(0, 20_000), (1, 6_000)])
+        );
     }
 
     #[test]
-    fn parse_min_free_mb_empty_metrics_is_none() {
+    fn parse_device_free_mb_empty_metrics_is_none() {
         let json = r#"{"metrics":[]}"#;
-        assert_eq!(parse_min_free_mb(json), None);
+        assert_eq!(parse_device_free_mb(json), None);
     }
 
     fn fake_summary() -> Result<String, String> {

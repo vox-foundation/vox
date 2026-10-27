@@ -26,11 +26,12 @@ pub struct AutoModelSelection {
 }
 
 /// Live free memory: the registered NVML probe's CUDA free memory (minimum
-/// device, x0.88) where a host registered one, otherwise vox-populi's Metal or
-/// nvidia-smi reading. `None` when nothing can be read.
+/// across the GPUs `CUDA_VISIBLE_DEVICES` exposes, x0.88, read the way training
+/// reads nvidia-smi) where a host registered one and it reads above 0, otherwise
+/// vox-populi's Metal or nvidia-smi reading. `None` when nothing can be read.
 fn host_free_memory() -> Option<FreeMemory> {
-    crate::models::vram::free_vram_mb_from_probe()
-        .map(FreeMemory::cuda)
+    crate::models::vram::device_free_mb_from_probe()
+        .and_then(|d| size_select::cuda_free_memory(&d))
         .or_else(size_select::read_free_memory)
 }
 
@@ -80,6 +81,32 @@ mod tests {
         let free = host_free_memory();
         clear_vram_probe_for_test();
         assert_eq!(free.map(|f| f.mb), Some(17_600), "minimum device, x0.88");
+    }
+
+    /// WR-02: NVML reports 0 for a device it cannot read; that is no reading, so
+    /// the next source (Metal or nvidia-smi) is tried instead of refusing on 0 MB.
+    #[test]
+    fn a_zero_probe_reading_falls_through_to_the_next_source() {
+        use crate::models::vram::{
+            VRAM_PROBE_TEST_LOCK, VramProbe, clear_vram_probe_for_test, register_vram_probe,
+        };
+        fn summary() -> Result<String, String> {
+            Err("unused".into())
+        }
+        fn metrics() -> Result<String, String> {
+            Ok(r#"{"metrics":[{"index":0,"memory_free_mb":0},{"index":1,"memory_free_mb":30000}]}"#.into())
+        }
+        let _g = VRAM_PROBE_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        register_vram_probe(VramProbe {
+            probe_summary_json: summary,
+            device_metrics_json: metrics,
+        });
+        let free = host_free_memory();
+        clear_vram_probe_for_test();
+        // Not the probe's 0 MB: the next source's reading, or none.
+        assert!(free.is_none_or(|f| f.mb > 0), "{free:?}");
     }
 
     #[test]

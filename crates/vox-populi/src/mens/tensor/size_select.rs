@@ -73,9 +73,41 @@ pub fn read_free_memory() -> Option<FreeMemory> {
     // Not `query_accel_budget` here: off macOS it reads `get_system_vram_info`,
     // which includes the override and a total-as-free fallback.
     #[cfg(not(target_os = "macos"))]
-    let free = crate::mens::tensor::vram_autodetect::query_nvidia_smi_vram()
-        .map(|v| FreeMemory::cuda((v.free_gb as f64 * 1024.0) as u64));
+    let free = crate::mens::tensor::vram_autodetect::query_nvidia_smi_free_mb()
+        .and_then(|d| cuda_free_memory(&d));
     free.filter(|f| f.mb > 0)
+}
+
+/// CUDA free memory from per-device `(index, free MiB)` readings in nvidia-smi /
+/// NVML order: the minimum across the GPUs this process can use, x0.88. Training
+/// and chat both read it this way.
+pub fn cuda_free_memory(devices: &[(u32, u64)]) -> Option<FreeMemory> {
+    let visible = std::env::var("CUDA_VISIBLE_DEVICES").ok();
+    let order = std::env::var("CUDA_DEVICE_ORDER").ok();
+    visible_min_free_mb(devices, visible.as_deref(), order.as_deref()).map(FreeMemory::cuda)
+}
+
+/// The minimum free MiB across the devices `CUDA_VISIBLE_DEVICES` names. Its
+/// indices match nvidia-smi / NVML (PCI bus order) only under
+/// `CUDA_DEVICE_ORDER=PCI_BUS_ID`. Without that, with UUID entries, or when the
+/// variable is unset, every device counts, which is never more than the visible
+/// minimum. A minimum of 0 (NVML reports 0 when it cannot read a device) is no
+/// reading, so the caller tries its next source.
+fn visible_min_free_mb(
+    devices: &[(u32, u64)],
+    visible: Option<&str>,
+    order: Option<&str>,
+) -> Option<u64> {
+    // The indices CUDA will use; `None` means every device.
+    let wanted: Option<Vec<u32>> = visible
+        .filter(|_| order.is_some_and(|o| o.trim() == "PCI_BUS_ID"))
+        .and_then(|v| v.split(',').map(|s| s.trim().parse().ok()).collect());
+    devices
+        .iter()
+        .filter(|(i, _)| wanted.as_ref().is_none_or(|w| w.contains(i)))
+        .map(|&(_, mb)| mb)
+        .min()
+        .filter(|&mb| mb > 0)
 }
 
 /// One size of the Qwen3 ladder, judged by its QLoRA rung.
@@ -404,6 +436,33 @@ mod tests {
             metal_reading(13_926 * 1_048_576, true).map(|f| f.mb),
             Some(13_926)
         );
+    }
+
+    /// WR-02: read the GPUs CUDA will use, take the minimum, and treat 0 as no reading.
+    #[test]
+    fn cuda_free_memory_is_the_visible_minimum() {
+        let two = [(0, 48_000), (1, 2_400)];
+        let pci = Some("PCI_BUS_ID");
+        for (visible, order, want) in [
+            (None, None, Some(2_400)),
+            (Some("0"), pci, Some(48_000)),
+            (Some("1"), pci, Some(2_400)),
+            (Some("1,0"), pci, Some(2_400)),
+            // CUDA's default order may not be nvidia-smi's: count every device.
+            (Some("0"), None, Some(2_400)),
+            (Some("GPU-8f3c"), pci, Some(2_400)),
+        ] {
+            assert_eq!(
+                visible_min_free_mb(&two, visible, order),
+                want,
+                "{visible:?} {order:?}"
+            );
+        }
+        assert_eq!(
+            visible_min_free_mb(&[(0, 0), (1, 20_000)], None, None),
+            None
+        );
+        assert_eq!(visible_min_free_mb(&[], None, None), None);
     }
 
     #[test]
