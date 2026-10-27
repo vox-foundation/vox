@@ -65,11 +65,24 @@ vox mens eval-collateral-damage \
   --post-adapter mens/runs/qwen35-08b-metal-e2e
 ```
 
+The baseline file is a JSON object whose `benchmarks` object must hold all six
+reasoning keys: `gsm8k_think`, `gsm8k_think_init`, `math500_think`,
+`math500_think_init`, `vox_think`, and `vox_think_init`. Each slice has an
+accuracy key and a think-initiation key (the `_init` partner). A baseline
+missing any of the six is a hard error and no report is written. Accuracy and
+think-initiation are compared separately, and a drop past 5% on either one
+fails the check.
+
 Copy `tokenizer.json` and `config.json` from the Hugging Face snapshot into the
 run directory. Update `adapter_manifest.json` `base_model` to the **local
 snapshot directory** (the Metal serve plugin does not download hub ids).
 
-The serve command refuses a missing or non-passing collateral report:
+The serve command refuses a missing or non-passing collateral report. It also
+re-checks the 32-item slice block in the report (`scope_note`, `slice_size`,
+and each slice's `n`) and each `collateral_eval/<slice>/reasoning_report.json`
+(status `scored`, `n` of 32), and it recomputes the per-slice drops from the
+stored numbers. It does not trust status alone, so a hand-edited or
+old-format `pass` is refused. A quick first look at the stored status:
 
 ```bash
 jq '.status' mens/runs/qwen35-08b-metal-e2e/collateral_damage_report.json
