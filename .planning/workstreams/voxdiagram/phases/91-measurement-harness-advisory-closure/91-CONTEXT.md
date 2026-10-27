@@ -64,3 +64,11 @@ Requirements: EVAL-01, EVAL-02.
 - Comparing against D2/PlantUML.
 
 </deferred>
+
+## User decisions (2026-10-27, after research)
+
+- **Spend cap:** $25 for the live run; the harness stops calling models when it is reached and records that it stopped.
+- **Decision rule (pre-registered):** primary endpoint = first-pass validity on the first selected model; paired difference VoxDiagram − Mermaid with Newcombe method-10 95% interval; margin 10 points. Non-inferior if lower bound > −0.10, inferior if upper bound < −0.10, else inconclusive. 200 tasks (184 graph, 16 sequence).
+- **Model scope:** registry selection restricted to cloud models (a scope, not a pin); resolved ids recorded.
+- **Placement:** `vox-cli` (research §2): no new crate edge.
+- **MENS holdout (Claude's default):** if the MENS corpus ingests the task/recording location, list the tasks as held out; otherwise place them where it does not read.
