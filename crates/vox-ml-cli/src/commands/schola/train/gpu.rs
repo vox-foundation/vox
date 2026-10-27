@@ -52,6 +52,7 @@ pub(super) async fn run_gpu_training(
     opts: super::TrainRunOpts,
 ) -> Result<Option<vox_populi::mens::tensor::size_select::SizePick>> {
     use owo_colors::OwoColorize;
+    use vox_corpus::training::preflight::check_heldout_contamination;
     use vox_populi::mens::tensor::spoke_base_resolver::floor_notes;
 
     let workspace_root = vox_corpus::training::contract::find_workspace_root();
@@ -91,6 +92,8 @@ pub(super) async fn run_gpu_training(
         workspace_root.as_deref(),
     )?;
     tracing::debug!(path = %resolved.path.display(), source = ?resolved.source, "Preflight resolved train input");
+    let heldout = check_heldout_contamination(&resolved.path, workspace_root.as_deref())?;
+    eprintln!("  {} held-out check: {heldout}", "ℹ".cyan());
 
     // One re-read right before the download (D-05); the post-download `plan_for`
     // refusal below remains the backstop. An explicit `--preset` still wins.
@@ -236,6 +239,7 @@ pub(super) async fn run_gpu_training(
             &resolved,
             license_class.clone(),
             workspace_root.as_deref(),
+            heldout,
         )?;
         println!("{}", plan.render(opts.json));
         return Ok(final_pick);
@@ -466,6 +470,9 @@ pub(super) async fn run_gpu_training(
             skip_mix,
             &resolved.path,
         )?;
+    if train_file_path != resolved.path {
+        check_heldout_contamination(&train_file_path, workspace_root.as_deref())?;
+    }
 
     let run_id = vox_corpus::training::timestamp_string();
     let git_sha = option_env!("VOX_GIT_HASH").unwrap_or("unknown").to_string();

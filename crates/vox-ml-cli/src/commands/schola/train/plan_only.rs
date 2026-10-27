@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use vox_corpus::training::preflight::ResolvedTrainInput;
+use vox_corpus::training::preflight::{HeldoutCheck, ResolvedTrainInput};
 use vox_populi::mens::tensor::preset_schema::TrainPresetProfile;
 use vox_populi::mens::tensor::size_select::{FreeMemory, SizePick};
 
@@ -27,6 +27,7 @@ pub(super) struct TrainPlan {
     corpus_rows: usize,
     license_class: Option<String>,
     floor_notes: Vec<String>,
+    contamination: HeldoutCheck,
 }
 
 impl TrainPlan {
@@ -43,6 +44,7 @@ impl TrainPlan {
         corpus: &ResolvedTrainInput,
         license_class: Option<String>,
         workspace_root: Option<&Path>,
+        contamination: HeldoutCheck,
     ) -> anyhow::Result<Self> {
         use vox_populi::mens::tensor::spoke_base_resolver::floor_notes;
         Ok(Self {
@@ -67,6 +69,7 @@ impl TrainPlan {
                 Some(m) => floor_notes(workspace_root, m)?,
                 None => Vec::new(),
             },
+            contamination,
         })
     }
 
@@ -101,6 +104,7 @@ impl TrainPlan {
             format!("corpus: {} ({} rows)", self.corpus_path, self.corpus_rows),
             format!("license class: {}", or_none(&self.license_class)),
         ];
+        out.push(format!("held-out check: {}", self.contamination));
         out.extend(self.floor_notes.iter().map(|n| format!("floor note: {n}")));
         out.join("\n")
     }
@@ -108,7 +112,7 @@ impl TrainPlan {
 
 #[cfg(test)]
 mod tests {
-    use super::TrainPlan;
+    use super::{HeldoutCheck, TrainPlan};
 
     fn plan(free: Option<(u64, &'static str)>) -> TrainPlan {
         TrainPlan {
@@ -130,6 +134,12 @@ mod tests {
             corpus_rows: 100,
             license_class: Some("apache-2.0".into()),
             floor_notes: vec!["floor estimated".into()],
+            contamination: HeldoutCheck {
+                status: "clean",
+                slices: 3,
+                heldout_questions: 96,
+                rows_checked: 100,
+            },
         }
     }
 
@@ -156,11 +166,14 @@ mod tests {
             "corpus_rows",
             "license_class",
             "floor_notes",
+            "contamination",
         ] {
             assert!(v.get(key).is_some(), "missing {key}: {v}");
         }
         assert_eq!(v["free_mb"], 9000);
         assert_eq!(v["corpus_rows"], 100);
+        assert_eq!(v["contamination"]["status"], "clean");
+        assert_eq!(v["contamination"]["heldout_questions"], 96);
     }
 
     #[test]
