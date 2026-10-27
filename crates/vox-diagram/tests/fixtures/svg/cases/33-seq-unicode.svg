@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 887 400" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 887 400" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,Arimo,Arial,Liberation Sans,Helvetica,sans-serif);font-size:14px">
 <title id="vd-title">Diagram</title>
 <desc id="vd-desc">3 actors, 5 messages, 1 note: 注文 → サーバー 🚀; サーバー 🚀 → Café Ünïcode; Café Ünïcode → サーバー 🚀; Café Ünïcode → Café Ünïcode; サーバー 🚀 → 注文</desc>
 <defs>

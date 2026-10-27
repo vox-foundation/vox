@@ -83,7 +83,11 @@ pub const THEME_VARS: [(&str, &str); 9] = [
     ("--vd-container-fill", "#f6f8fa"),
     ("--vd-container-stroke", "#848d97"),
     ("--vd-bg", "#fff"),
-    ("--vd-font", "system-ui,sans-serif"),
+    // Arimo is the font layout/text.rs measures; Arial and Liberation Sans share its metrics.
+    (
+        "--vd-font",
+        "Arimo,Arial,Liberation Sans,Helvetica,sans-serif",
+    ),
 ];
 
 /// `var(NAME,FALLBACK)` for a name in [`THEME_VARS`].

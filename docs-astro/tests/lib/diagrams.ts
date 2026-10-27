@@ -14,7 +14,7 @@ export function figureRoutes(): string[] {
     .sort();
 }
 
-/** Font stacks the fit check runs under. `site` leaves the site's own `--vd-font` (system-ui) alone. */
+/** Font stacks the fit check runs under. `site` leaves the site's own `--vd-font` (self-hosted Arimo) alone. */
 export const FONT_STACKS = {
   site: null,
   narrow: '"Liberation Sans", Arimo, Arial, Helvetica, sans-serif',

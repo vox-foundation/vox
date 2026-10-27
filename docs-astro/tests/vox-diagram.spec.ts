@@ -53,6 +53,37 @@ test('fonts: the wide stack is measurably wider', async ({ page }) => {
   expect(widths.wide / widths.narrow, 'wide and narrow stacks resolved to the same font').toBeGreaterThanOrEqual(1.05);
 });
 
+test('fonts: figures load the self-hosted Arimo, metric-identical to its fallbacks', async ({ page }) => {
+  const fetched: string[] = [];
+  page.on('response', (r) => { if (r.url().includes('/fonts/arimo/') && r.ok()) fetched.push(r.url()); });
+  await open(page, REFERENCE);
+  const res = await page.evaluate(() => {
+    const probe = 'The quick brown fox jumps over the lazy dog 0123456789 Illinois';
+    const measure = (family: string): number => {
+      const span = document.createElement('span');
+      span.style.cssText = `position:absolute;white-space:nowrap;font-size:14px;font-family:${family}`;
+      span.textContent = probe;
+      document.body.append(span);
+      const w = span.getBoundingClientRect().width;
+      span.remove();
+      return w;
+    };
+    const text = document.querySelector('svg.vd-diagram text');
+    return {
+      family: text ? getComputedStyle(text).fontFamily : '',
+      loaded: document.fonts.check('14px "Vox Arimo"', 'A'),
+      arimo: measure('"Vox Arimo"'),
+      arial: measure('Arial, "Liberation Sans"'),
+    };
+  });
+  expect(res.family, 'diagram text font').toMatch(/^"?Vox Arimo"?,/);
+  expect(res.loaded, 'Vox Arimo face loaded').toBe(true);
+  expect(fetched.some((u) => u.endsWith('arimo-latin-400-normal.woff2')), 'latin subset fetched').toBe(true);
+  expect(fetched.some((u) => u.includes('cyrillic')), 'unused subsets are not fetched').toBe(false);
+  // A reader whose webfont has not arrived sees the same layout: the fallback has Arimo's metrics.
+  expect(Math.abs(res.arimo - res.arial) / res.arial, `arimo ${res.arimo} vs arial ${res.arial}`).toBeLessThan(0.005);
+});
+
 for (const route of ROUTES) {
   test(`ids: unique and every reference resolves (${route})`, async ({ page }) => {
     await open(page, route);

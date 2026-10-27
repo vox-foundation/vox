@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 942.5 382" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 942.5 382" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,Arimo,Arial,Liberation Sans,Helvetica,sans-serif);font-size:14px">
 <title id="vd-title">Diagram</title>
 <desc id="vd-desc">11 nodes, 12 edges: VoxSource → HIR; HIR → ContractIR; HIR → AppContract; ContractIR → OpenAPI emit; ContractIR → vox-client.ts emit; ContractIR → schemas.ts emit; HIR → Rust Axum emit; HIR → vox-tanstack-query.tsx …; Rust Axum emit → Generated Axum binary; vox-client.ts emit → External React app; …</desc>
 <defs>

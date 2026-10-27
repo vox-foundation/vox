@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 534.5 2052" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 534.5 2052" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,Arimo,Arial,Liberation Sans,Helvetica,sans-serif);font-size:14px">
 <title id="vd-title">Diagram</title>
 <desc id="vd-desc">17 nodes, 16 edges: Research Query (Topic, … → Cache Short-Circuit (Ex…; Cache Short-Circuit (Ex… → Return Cached ResearchR…; Cache Short-Circuit (Ex… → Resolve Research Models…; Resolve Research Models… → vox-db: create_research…; vox-db: create_research… → Stage 1: Decompose Quer…; Stage 1: Decom…</desc>
 <defs>

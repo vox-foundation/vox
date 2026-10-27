@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1157.5 1071" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1157.5 1071" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,Arimo,Arial,Liberation Sans,Helvetica,sans-serif);font-size:14px">
 <title id="vd-title">Diagram</title>
 <desc id="vd-desc">11 nodes, 11 edges: ChatModelPicker → deriveTierCascade(); DriveConsole → deriveTierCascade(); RailRouting → deriveTierCascade(); vox://agent-events → deriveRiverSnapshot(); ChatMessage.events → deriveRiverSnapshot(); deriveTierCascade() → Zone A: WaveformTierStr…; deriveTierCascade() → Zone B: Riv…</desc>
 <defs>

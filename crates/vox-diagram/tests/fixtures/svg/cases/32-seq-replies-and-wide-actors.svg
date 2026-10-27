@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1064.5 430" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1064.5 430" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,Arimo,Arial,Liberation Sans,Helvetica,sans-serif);font-size:14px">
 <title id="vd-title">Diagram</title>
 <desc id="vd-desc">3 actors, 7 messages: A very long actor label… → Server; Server → The persistent relation…; The persistent relation… → Server; Server → A very long actor label…; A very long actor label… → Server; Server → A very long actor label…; A very long actor label… → The persistent relation…</desc>
 <defs>

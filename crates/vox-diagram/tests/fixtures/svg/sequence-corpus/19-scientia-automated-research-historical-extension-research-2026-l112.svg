@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1809.5 512" role="img" aria-labelledby="vd-seq-title vd-seq-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1809.5 512" role="img" aria-labelledby="vd-seq-title vd-seq-desc" class="vd-diagram" style="font-family:var(--vd-font,Arimo,Arial,Liberation Sans,Helvetica,sans-serif);font-size:14px">
 <title id="vd-seq-title">Diagram</title>
 <desc id="vd-seq-desc">8 actors, 8 messages, 1 note: CodingAgent → vox_research_shim; vox_research_shim → OpenRouter; vox_research_shim → vox_search; vox_search → Tavily; vox_research_shim → vox_scientia; vox_scientia → Researcher; Researcher → vox_scientia; vox_scientia → NanoPub_Zenodo_Manuscri…</desc>
 <defs>

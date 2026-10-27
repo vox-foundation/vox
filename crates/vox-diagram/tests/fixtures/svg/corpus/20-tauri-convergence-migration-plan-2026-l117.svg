@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1312 262" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1312 262" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,Arimo,Arial,Liberation Sans,Helvetica,sans-serif);font-size:14px">
 <title id="vd-title">Diagram</title>
 <desc id="vd-desc">11 nodes, 10 edges: .vox source → vox compile; vox compile → native-binary target; vox compile → desktop and mobile targ…; native-binary target → Axum local server with …; desktop and mobile targ… → Generated src-tauri pro…; Generated src-tauri pro… → cargo tauri build; cargo tauri build → Desktop …</desc>
 <defs>
