@@ -87,7 +87,10 @@ Plans:
   1. The ladder has Qwen3-0.6B, 1.7B, 4B, 8B, 14B, and 32B, each pinned to a real Hugging Face commit and carrying a license.
   2. A rung whose memory floor has not been measured on hardware says so.
 
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] `317-01`: Pin the 1.7B and 4B rungs, mark every floor `floor_measured: false`, and report `floor unmeasured` from the compare harness and at train start
 
 ### Phase 318: Live VRAM Selector (`SIZE-02`)
 
@@ -145,7 +148,7 @@ Plans:
 | **Phase 314** | Held-out Reasoning Set | `2/2` | Complete |
 | **Phase 315** | Serve Gate | `2/2` | Complete |
 | **Phase 316** | Before/After Comparison | `1/1` | Complete |
-| **Phase 317** | Size Ladder | `0/0` | Not started |
+| **Phase 317** | Size Ladder | `0/1` | Planned |
 | **Phase 318** | Live VRAM Selector | `0/0` | Not started |
 | **Phase 319** | Mesh-Wide Selection | `0/0` | Not started |
 | **Phase 320** | Train the Sizes | `0/0` | Not started |
