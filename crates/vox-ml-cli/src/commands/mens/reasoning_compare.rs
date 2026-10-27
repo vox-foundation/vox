@@ -222,7 +222,8 @@ pub(crate) fn run_before_after_with(
                 .iter()
                 .map(|n| (*n, pick(&base_out, n), pick(&adapter_out, n)))
                 .collect();
-            let (report, compared) = compared_report_json(&base, &rows);
+            let adapter_dir = adapter.canonicalize().unwrap_or(adapter);
+            let (report, compared) = compared_report_json(&base, &adapter_dir, &rows);
             write_report(out, &report)?;
             if compared {
                 return Ok(RunStatus::Compared);
@@ -685,6 +686,8 @@ mod tests {
         let status = run(p.args(None), p.runs.path(), &mut score).expect("compared");
         assert_eq!(status, RunStatus::Compared);
         let v = read_json(&p.out());
+        let canonical = p.adapter.canonicalize().expect("adapter");
+        assert_eq!(v["adapter"]["dir"], canonical.display().to_string());
         assert_eq!(v["status"], "compared");
         assert_eq!(v["gate_input"], false);
         for name in SLICE_NAMES {

@@ -303,10 +303,13 @@ impl AbsenceRecord {
 /// whether it is `compared`: every slice in [`SLICE_NAMES`] present exactly once
 /// with both sides `Scored`. Anything else is `incomplete`. Each entry is
 /// [`BenchOutcome::to_json`] verbatim, so accuracy and think-initiation stay
-/// separate keys. No delta, verdict, or threshold; not a serve-gate input.
+/// separate keys. `adapter_dir` is recorded as `adapter.dir` so the "after"
+/// side names what it scored. No delta, verdict, or threshold; not a
+/// serve-gate input.
 #[must_use]
 pub fn compared_report_json(
     base: &BaseLabel,
+    adapter_dir: &Path,
     slices: &[(&str, BenchOutcome, BenchOutcome)],
 ) -> (serde_json::Value, bool) {
     let scored = |o: &BenchOutcome| matches!(o, BenchOutcome::Scored(_));
@@ -332,6 +335,7 @@ pub fn compared_report_json(
         "base_requested": base.requested,
         "base_model": base.repo_id,
         "base_revision": base.revision,
+        "adapter": { "dir": adapter_dir.display().to_string() },
         "gate_input": false,
         "slices": entries,
     });
@@ -852,7 +856,8 @@ mod tests {
             .iter()
             .map(|n| (*n, scored(0.25), scored(0.75)))
             .collect();
-        let (v, compared) = compared_report_json(&BaseLabel::from_pin(PIN_8B), &rows);
+        let (v, compared) =
+            compared_report_json(&BaseLabel::from_pin(PIN_8B), Path::new("/runs/v1"), &rows);
         assert!(compared);
         assert_eq!(v["schema"], BEFORE_AFTER_SCHEMA);
         assert_eq!(v["status"], "compared");
@@ -863,6 +868,7 @@ mod tests {
         assert_eq!(v["slice_size"], 32);
         assert_eq!(v["gate_input"], false);
         assert_eq!(v["base_model"], "Qwen/Qwen3-8B");
+        assert_eq!(v["adapter"]["dir"], "/runs/v1");
         for name in SLICE_NAMES {
             for (side, acc) in [("base", 0.25), ("adapter", 0.75)] {
                 let e = &v["slices"][name][side];
@@ -891,7 +897,8 @@ mod tests {
             reason: "model went away".to_string(),
             n_requested: 32,
         };
-        let (v, compared) = compared_report_json(&BaseLabel::from_pin(PIN_8B), &rows);
+        let (v, compared) =
+            compared_report_json(&BaseLabel::from_pin(PIN_8B), Path::new("/runs/v1"), &rows);
         assert!(!compared);
         assert_eq!(v["status"], "incomplete");
         let e = v["slices"]["math500_think"]["adapter"]
@@ -900,7 +907,11 @@ mod tests {
         assert_eq!(e["status"], "not_scored");
         assert!(!e.contains_key("accuracy") && !e.contains_key("think_initiation_rate"));
         // A missing slice is incomplete too.
-        let (v, compared) = compared_report_json(&BaseLabel::from_pin(PIN_8B), &rows[..1]);
+        let (v, compared) = compared_report_json(
+            &BaseLabel::from_pin(PIN_8B),
+            Path::new("/runs/v1"),
+            &rows[..1],
+        );
         assert!(!compared);
         assert_eq!(v["status"], "incomplete");
     }
