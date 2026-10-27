@@ -85,7 +85,7 @@ Legend: **Real** = works end-to-end · **Stub** = placeholder on the path ·
 | Novelty verdict (vox-scientia `AtomicNoveltyScorer`) | **Orphaned, single-signal, SPECTER2 stub** | [`novelty.rs`](../../../crates/vox-scientia/src/inspect_bridge/novelty.rs) |
 | Micro-publication (nanopub) | **Orphaned + publish stub + non-spec identity + Ed25519** | [`nanopub/`](../../../crates/vox-scientia/src/nanopub/), `network.rs` (retired 2026-06-07: dead publish_stub + vox-nanopub removed, spec.rs is SSOT) |
 | Short-form social (Scientia) | **Orphaned truncation stub; excludes Twitter; UTF-8 panic** | [`publication_format.rs`](../../../crates/vox-research-events/src/publication_format.rs) |
-| Social syndication (vox-publisher) | **Real adapters incl. Twitter/X** | [`adapters/twitter.rs`](../../../crates/vox-publisher/src/adapters/twitter.rs) — driven by RSS/news, not claims |
+| Social syndication (vox-publisher) | **Handoff only; social adapters moved out of the public crate** | [`handoff.rs`](../../../crates/vox-publisher/src/handoff.rs) exports a digest-bound `SyndicationHandoffPayloadV1`; OAuth/webhook posting (incl. Twitter/X) runs server-side in `vox-ops-syndication` — driven by RSS/news, not claims |
 | `EvidenceConflict` / `ChronoFilter` | **Built, unwired** | [`conflict.rs`](../../../crates/vox-scientia/src/inspect_bridge/conflict.rs), [`chronofact.rs`](../../../crates/vox-scientia/src/inspect_bridge/chronofact.rs) |
 | GUI surface registry | **Real, contract-backed, CI-gated** | [`gui_surface_registry.rs`](../../../crates/vox-cli/src/commands/ci/gui_surface_registry.rs), `contracts/gui/surface-registry.v1.schema.json`, `crates/vox-gui/ui/src/components/surfaces/` |
 
