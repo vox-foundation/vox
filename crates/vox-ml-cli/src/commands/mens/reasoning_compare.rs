@@ -287,11 +287,9 @@ pub(crate) fn run_eval_reasoning_compare_with(
     overlay_root: &Path,
     score_side: SideScorer<'_>,
 ) -> Result<RunStatus> {
-    let _ = overlay_root;
-    let pin = args
-        .base
-        .clone()
-        .unwrap_or_else(|| vox_populi::mens::DEFAULT_MODEL_ID.to_string());
+    let overlay = vox_populi::mens::tensor::spoke_base_resolver::load_overlay(overlay_root)
+        .context("loading train_bases from mens/config/gpu-specs.yaml")?;
+    let pin = detect::resolve_base_pin(args.base.as_deref(), &overlay);
     let label = BaseLabel::from_pin(&pin);
     let (hf_hub_cache, hf_home, home) = env_hub;
     let hub_root = detect::resolve_hub_root(args.hub_root.as_deref(), hf_hub_cache, hf_home, home)
@@ -753,6 +751,35 @@ mod tests {
             gate_files_under(dir, &mut found);
         }
         assert!(found.is_empty(), "gate files created: {found:?}");
+    }
+
+    // ---- Task 3: the base is an input ----
+
+    #[test]
+    fn cli_entry_records_the_resolved_pin() {
+        let (hub, runs) = (
+            tempfile::tempdir().expect("hub"),
+            tempfile::tempdir().expect("runs"),
+        );
+        let mut a = args(hub.path(), None, None);
+        a.base = Some("Qwen3-0.6B".to_string());
+        let mut score = panicking_scorer();
+        let status = run(a, runs.path(), &mut score).expect("absent branch is Ok");
+        assert_eq!(
+            status,
+            RunStatus::NotCompared(AbsenceReason::BaseSnapshotAbsent)
+        );
+        let v = read_json(
+            &runs
+                .path()
+                .join("reasoning_compare/Qwen3-0.6B-c1899de289a0.json"),
+        );
+        assert_eq!(v["base_model"], "Qwen/Qwen3-0.6B");
+        assert_eq!(
+            v["base_revision"],
+            "c1899de289a04d12100db370d81485cdf75e47ca"
+        );
+        assert_eq!(v["base_requested"], super::detect::tests::PIN_0_6B);
     }
 
     #[test]
