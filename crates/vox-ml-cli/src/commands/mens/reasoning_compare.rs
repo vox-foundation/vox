@@ -14,8 +14,8 @@ use std::path::{Component, Path, PathBuf};
 
 use anyhow::{Context, Result};
 use vox_eval::reasoning_bench::{
-    AbsenceReason, BaseLabel, BenchOutcome, ReasoningItem, SLICE_NAMES, SLICE_SIZE,
-    compared_report_json, load_slice,
+    AbsenceReason, BEFORE_AFTER_SCHEMA, BaseLabel, BenchOutcome, ReasoningItem, SLICE_NAMES,
+    SLICE_SIZE, compared_report_json, load_slice,
 };
 
 use super::reasoning_eval;
@@ -93,8 +93,13 @@ fn resolved(p: &Path) -> Result<PathBuf> {
 }
 
 /// Refuse an `--out` that serve could read, that is a symlink, or that resolves
-/// into the hub root or the adapter dir.
-pub(crate) fn check_out_path(out: &Path, hub_root: &Path, adapter: Option<&Path>) -> Result<()> {
+/// into the hub root, the adapter dir, or the bench root.
+pub(crate) fn check_out_path(
+    out: &Path,
+    hub_root: &Path,
+    adapter: Option<&Path>,
+    bench_root: &Path,
+) -> Result<()> {
     if std::fs::symlink_metadata(out).is_ok_and(|m| m.file_type().is_symlink()) {
         anyhow::bail!("--out {} is a symlink; refusing", out.display());
     }
@@ -116,8 +121,9 @@ pub(crate) fn check_out_path(out: &Path, hub_root: &Path, adapter: Option<&Path>
             );
         }
     }
-    for (what, root) in
-        std::iter::once(("hub root", hub_root)).chain(adapter.map(|a| ("adapter dir", a)))
+    for (what, root) in [("hub root", hub_root), ("bench root", bench_root)]
+        .into_iter()
+        .chain(adapter.map(|a| ("adapter dir", a)))
     {
         if abs.starts_with(resolved(root)?) {
             anyhow::bail!(
@@ -140,7 +146,30 @@ fn write_report(out: &Path, value: &serde_json::Value) -> Result<()> {
         .with_context(|| format!("writing {}", out.display()))
 }
 
-/// Remove any stale file at `out`, then write either the absence record or the
+/// Remove a prior `reasoning_before_after.v1` record at `out`. Anything else
+/// already there (another file, a directory, unparseable JSON) is refused and
+/// left as it is: a mistyped `--out` must not delete data.
+fn remove_stale_record(out: &Path) -> Result<()> {
+    let meta = match std::fs::symlink_metadata(out) {
+        Ok(m) => m,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(e).with_context(|| format!("inspecting {}", out.display())),
+    };
+    let is_record = meta.file_type().is_file()
+        && vox_bounded_fs::read_utf8_path_capped(out)
+            .ok()
+            .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+            .is_some_and(|v| v["schema"] == BEFORE_AFTER_SCHEMA);
+    if !is_record {
+        anyhow::bail!(
+            "--out {} exists and is not a {BEFORE_AFTER_SCHEMA} record; refusing to replace it",
+            out.display()
+        );
+    }
+    std::fs::remove_file(out).with_context(|| format!("removing stale {}", out.display()))
+}
+
+/// Remove a stale record at `out`, then write either the absence record or the
 /// comparison. The absent branch never calls `score_side`.
 pub(crate) fn run_before_after_with(
     detected: Detected,
@@ -148,11 +177,7 @@ pub(crate) fn run_before_after_with(
     out: &Path,
     score_side: SideScorer<'_>,
 ) -> Result<RunStatus> {
-    match std::fs::remove_file(out) {
-        Ok(()) => {}
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-        Err(e) => return Err(e).with_context(|| format!("removing stale {}", out.display())),
-    }
+    remove_stale_record(out)?;
     match detected {
         Detected::NotCompared(record) => {
             write_report(out, &record.to_json())?;
@@ -316,7 +341,7 @@ pub(crate) fn run_eval_reasoning_compare_with(
             .join(REASONING_COMPARE_SUBDIR)
             .join(label.report_file_name())
     });
-    check_out_path(&out, &hub_root, args.adapter.as_deref())?;
+    check_out_path(&out, &hub_root, args.adapter.as_deref(), &args.bench_root)?;
     let detected = detect::detect_inputs(&hub_root, &label, args.adapter.as_deref());
     let status = run_before_after_with(detected, &args.bench_root, &out, score_side)?;
     match status {
@@ -461,7 +486,11 @@ mod tests {
             tempfile::tempdir().expect("runs"),
         );
         let out = runs.path().join("rec.json");
-        std::fs::write(&out, r#"{"status":"compared"}"#).expect("seed stale");
+        std::fs::write(
+            &out,
+            r#"{"schema":"reasoning_before_after.v1","status":"compared"}"#,
+        )
+        .expect("seed stale");
         let mut score = panicking_scorer();
         run(
             args(hub.path(), Some(out.clone()), None),
@@ -472,6 +501,47 @@ mod tests {
         let v = read_json(&out);
         assert_eq!(v["status"], "not_compared");
         assert_eq!(v["reason"], "base_snapshot_absent");
+    }
+
+    #[test]
+    fn existing_file_that_is_not_a_prior_record_is_refused_and_kept() {
+        let (hub, runs) = (
+            tempfile::tempdir().expect("hub"),
+            tempfile::tempdir().expect("runs"),
+        );
+        for (name, body) in [
+            ("notes.txt", "precious"),
+            ("other.json", r#"{"schema":"something_else.v1"}"#),
+        ] {
+            let out = runs.path().join(name);
+            std::fs::write(&out, body).expect("seed");
+            let mut score = panicking_scorer();
+            assert!(
+                run(
+                    args(hub.path(), Some(out.clone()), None),
+                    runs.path(),
+                    &mut score
+                )
+                .is_err(),
+                "{name} must be refused"
+            );
+            assert_eq!(std::fs::read_to_string(&out).expect("kept"), body);
+        }
+    }
+
+    #[test]
+    fn out_under_the_bench_root_is_refused() {
+        let (hub, runs, bench) = (
+            tempfile::tempdir().expect("hub"),
+            tempfile::tempdir().expect("runs"),
+            tempfile::tempdir().expect("bench"),
+        );
+        let out = bench.path().join("gsm8k_think").join("cmp.json");
+        let mut a = args(hub.path(), Some(out.clone()), None);
+        a.bench_root = bench.path().to_path_buf();
+        let mut score = panicking_scorer();
+        assert!(run(a, runs.path(), &mut score).is_err());
+        assert!(!out.exists(), "{} was created", out.display());
     }
 
     #[test]
