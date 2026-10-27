@@ -21,11 +21,11 @@
 <text class="vd-container-label" x="102" y="194" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="102" dy="0">Innermost layer</tspan></text>
 </g>
 <g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
-<path class="vd-edge" d="M477 759L558.5 759L588.5 759L618.5 759" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M674.5 564L744 382Q746.5 375 754.5 375L789 375L831.5 375L875 375" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M153.5 257L194.5 257L239 257Q247 257 247.5 264.5L298.5 751.5Q299 759 307 759L380.5 759" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M670 740L745.5 206.5Q746.5 199 754.5 199L789 199L831.5 199L872 199" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M474.5 583L558.5 583L588.5 583L629.5 583" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M477 759L618.5 759" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M705.5 580L723.5 580Q731.5 580 735 573.5L843 381.5Q846.5 375 854.5 375L875 375" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M153.5 257L239 257Q247 257 248 264.5L313 751.5Q314 759 322 759L380.5 759" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M716.5 756L724 756Q731.5 756 732 749L788.5 206.5Q789 199 797 199L872 199" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M474.5 583L629.5 583" marker-end="url(#vd-arrow)"/>
 </g>
 <g class="vd-nodes">
 <g class="vd-node">

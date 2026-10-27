@@ -11,26 +11,26 @@
 <text class="vd-container-label" x="137.5" y="319" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="137.5" dy="0">Autonomous Multi-Wave DAG</tspan><tspan x="137.5" dy="16">Engine</tspan></text>
 </g>
 <g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
-<path class="vd-edge" d="M350 448L350 478L350 508" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M350 564L350 594L350 624" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M350 448L350 508" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M350 564L350 624" marker-end="url(#vd-arrow)"/>
 <path class="vd-edge" d="M379 683.5L433.5 734.5Q439 740 439 748L439 792" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M439 848L439 878L439 908" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M439 964L439 994L439 1024" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M439 848L439 908" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M439 964L439 1024" marker-end="url(#vd-arrow)"/>
 <path class="vd-edge" d="M460.5 1083L501.5 1134Q506.5 1140 506.5 1148L506.5 1192" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M506.5 1266L506.5 1309L506.5 1352" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M506.5 1408L506.5 1430Q506.5 1438 499 1440L405 1468" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M296.5 679.5L169 737Q162 740 162 748L162 820L162 878L162 936L162 994L162 1056L162 1140L162 1229L162 1309L162 1380L162 1430Q162 1438 169 1440.5L238.5 1468" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M404 1080.5L325 1135.5Q318.5 1140 318.5 1148L318.5 1229L318.5 1309L318.5 1380L318.5 1430Q318.5 1438 317.5 1446L314 1468" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M522.5 54L522.5 84L522.5 114" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M628 159.5L1081.5 220Q1089 221 1089 229L1089 264L1089 294" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M599.5 164.5L824.5 219.5Q832 221 832 229L832 264L832 294" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M547.5 173.5L587 215.5Q592.5 221 592.5 229L592.5 264L592.5 322L592.5 372Q592.5 380 585 381.5L444 410" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M470 168.5L357 218Q350 221 350 229L350 264L350 322L350 380L350 410" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M310 1524L310 1554L310 1584L310 1614" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M310 1670L310 1700L310 1730" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M310 1804L310 1834L310 1864" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M310 1920L310 1950L310 1980" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M310 2036L310 2066L310 2096" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M506.5 1266L506.5 1352" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M506.5 1408L506.5 1415.5Q506.5 1423 499.5 1424.5L399 1451.5Q392 1453 392 1460.5L392 1468" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M296.5 679.5L169 737Q162 740 162 748L162 1048Q162 1056 163 1063.5L227.5 1446Q228.5 1453 228.5 1460.5L228.5 1468" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M404 1080.5L325 1135.5Q318.5 1140 318.5 1148L318.5 1468" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M522.5 54L522.5 114" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M628 159.5L1081.5 220Q1089 221 1089 229L1089 294" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M599.5 164.5L824.5 219.5Q832 221 832 229L832 294" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M547.5 173.5L587 215.5Q592.5 221 592.5 229L592.5 314Q592.5 322 585.5 325L440.5 392Q434 395 434 402.5L434 410" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M470 168.5L357 218Q350 221 350 229L350 410" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M310 1524L310 1614" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M310 1670L310 1730" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M310 1804L310 1864" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M310 1920L310 1980" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M310 2036L310 2096" marker-end="url(#vd-arrow)"/>
 </g>
 <g class="vd-nodes">
 <g class="vd-node">

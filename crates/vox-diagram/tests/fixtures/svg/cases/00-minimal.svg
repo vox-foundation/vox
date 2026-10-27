@@ -7,7 +7,7 @@
 </marker>
 </defs>
 <g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
-<path class="vd-edge" d="M48 54L48 84L48 114" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M48 54L48 114" marker-end="url(#vd-arrow)"/>
 </g>
 <g class="vd-nodes">
 <g class="vd-node">

@@ -7,11 +7,11 @@
 </marker>
 </defs>
 <g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
-<path class="vd-edge" d="M437.5 74L399 88.5Q391.5 91 383.5 91L345 91" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M272 91L250 91Q242 91 235 88L212 77" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M212 43L235 32Q242 29 250 29L308.5 29L383.5 29Q391.5 29 399 31.5L437.5 46" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M437.5 63L430 63Q422.5 63 417 68L397 86Q391.5 91 383.5 91L345 91" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M272 91L264.5 91Q257 91 252 86L232 68Q227 63 219.5 63L212 63" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M212 57L219.5 57Q227 57 234 55L301 31.5Q308.5 29 316 30.5L415.5 55.5Q422.5 57 430 57L437.5 57" marker-end="url(#vd-arrow)"/>
 <path class="vd-edge" d="M325 110L343.5 132Q345 133.5 345 136L345 136.5Q345 139 342.5 139L316.5 144Q308.5 145 300.5 144L274.5 139Q272 139 272 136.5L272 136Q272 133.5 273.5 132L292 110" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M140 60L110 60L80 60" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M140 60L80 60" marker-end="url(#vd-arrow)"/>
 <path class="vd-edge" d="M61 79L78.5 105Q80 107.5 80 111L80 111.5Q80 115 77 115.5L55.5 120.5Q48 122 40.5 120.5L19 115.5Q16 115 16 111.5L16 111Q16 107.5 17.5 105L35 79" marker-end="url(#vd-arrow)"/>
 </g>
 <g class="vd-nodes">

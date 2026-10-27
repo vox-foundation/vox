@@ -7,16 +7,16 @@
 </marker>
 </defs>
 <g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
-<path class="vd-edge" d="M121.5 131L151.5 131L181.5 131" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M254 150L314 212.5Q319.5 218 327.5 218L376 218" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M272 112L312.5 91Q319.5 87.5 327.5 87.5L349.5 87.5" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M533.5 218L589.5 218L634 218" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M513.5 106.5L582 129Q589.5 131 597.5 131L619.5 131" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M827.5 131L857.5 131L895.5 131" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M1015 150L1062 167.5Q1069.5 170 1077.5 170L1124 170" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M1015 112L1062 94.5Q1069.5 92 1077.5 92L1099.5 92" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M513.5 68.5L582 46Q589.5 44 597.5 44L644.5 44" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M803 44L857.5 44L887.5 44" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M121.5 131L181.5 131" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M289.5 134L297 134Q304.5 134 307 141L332 210.5Q334.5 218 342.5 218L376 218" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M289.5 128L297 128Q304.5 128 309 122L330 93.5Q334.5 87.5 342 87.5L349.5 87.5" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M533.5 218L634 218" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M559.5 90.5L567 90.5Q574.5 90.5 579 96.5L600 125Q604.5 131 612 131L619.5 131" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M827.5 131L895.5 131" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1031.5 134L1046.5 134Q1054.5 134 1059.5 140L1079.5 164Q1084.5 170 1092.5 170L1124 170" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1031.5 128L1046.5 128Q1054.5 128 1059.5 122L1080 97.5Q1084.5 92 1092 92L1099.5 92" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M559.5 84.5L567 84.5Q574.5 84.5 579 78.5L600 50Q604.5 44 612.5 44L644.5 44" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M803 44L887.5 44" marker-end="url(#vd-arrow)"/>
 </g>
 <g class="vd-nodes">
 <g class="vd-node">

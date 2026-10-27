@@ -13,14 +13,14 @@
 <text class="vd-container-label" x="154.5" y="892" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="154.5" dy="0">OpenRouter / Frontier Cloud</tspan><tspan x="154.5" dy="16">Models</tspan></text>
 </g>
 <g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
-<path class="vd-edge" d="M383 508L383 538L383 568" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M383 624L383 654L383 684" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M383 1046L383 1076L383 1106" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M383 1162L383 1192L383 1222" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M502 54L545.5 80Q552 84 552 92L552 114L552 161L552 200Q552 208 547 214L526 238" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M502 294L502 316Q502 324 509.5 325L662.5 354" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M664.5 392L515.5 420.5Q508 422 501 425L443 452" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M440.5 758L481 784Q487.5 788 487.5 796L487.5 818L487.5 848L487.5 895L487.5 934Q487.5 942 481 946L440.5 972" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M383 508L383 568" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M383 624L383 684" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M383 1046L383 1106" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M383 1162L383 1222" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M505.5 54L505.5 61.5Q505.5 69 507.5 76L550 216Q552 223 552 230.5L552 238" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M502 294L502 301.5Q502 309 509 310L661 338Q668 339 668 346.5L668 354" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M668 392L668 399.5Q668 407 661 408L471 436Q464 437 464 444.5L464 452" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M448 758L448 765.5Q448 773 448.5 780L464.5 950Q465 957 465 964.5L465 972" marker-end="url(#vd-arrow)"/>
 </g>
 <g class="vd-nodes">
 <g class="vd-node">

@@ -7,6 +7,7 @@ mod support;
 use std::fmt::Write as _;
 use std::fs;
 
+use support::clearance::clearance;
 use support::roundtrip::{assert_golden, fixtures, stems};
 use support::svgcheck::check as check_svg;
 use support::theme::{Theme, pane_css};
@@ -132,6 +133,49 @@ fn corpus_words_are_never_split() {
         longest > 28,
         "the corpus must exercise a word longer than one line"
     );
+}
+
+/// `(stem, ir)` of every graph case under `svg/cases` (sequence cases are skipped).
+fn case_graphs() -> Vec<(String, Ir)> {
+    let dir = fixtures().join("svg/cases");
+    stems(&dir, "vdg")
+        .into_iter()
+        .filter_map(|stem| {
+            let src = fs::read_to_string(dir.join(format!("{stem}.vdg"))).ok()?;
+            let ir = check(&src).ir?;
+            matches!(ir, Ir::Graph(_)).then_some((stem, ir))
+        })
+        .collect()
+}
+
+/// Phase 90 review CR-01: no edge runs through a node it does not join and none ends on a corner
+/// of its own node. Corpus 18 drew the "1960s-80s" edge out of a box side, through the corner of
+/// the "2018-2023" box beside it, so it read as leaving that box.
+#[test]
+fn corpus_edges_clear_foreign_nodes() {
+    let graphs = corpus_graphs().into_iter().chain(case_graphs());
+    let (mut defects, mut grazing, mut drawn) = (Vec::new(), 0, 0);
+    for (stem, ir) in graphs {
+        let svg = render_ok(&stem, &ir, "vd");
+        let Ok(parsed) = check_svg(&svg, "vd") else {
+            panic!("{stem}: svg outside the allowlist");
+        };
+        let c = clearance(graph(&ir), &parsed);
+        drawn += 1;
+        grazing += c.grazing.len();
+        if !c.through.is_empty() || !c.corners.is_empty() {
+            defects.push(format!(
+                "{stem}: through {:?}, at a corner {:?}",
+                c.through, c.corners
+            ));
+        }
+    }
+    println!(
+        "{drawn} graphs: {} with a defect, {grazing} edges grazing a node",
+        defects.len()
+    );
+    assert!(drawn > 40, "only {drawn} graphs read");
+    assert!(defects.is_empty(), "{}", defects.join("\n"));
 }
 
 #[test]

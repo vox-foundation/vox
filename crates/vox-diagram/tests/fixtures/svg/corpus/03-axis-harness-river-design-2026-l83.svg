@@ -17,17 +17,17 @@
 <text class="vd-container-label" x="826" y="102.5" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="826" dy="0">HarnessRiverPanel (Dockable</tspan><tspan x="826" dy="16">+ Full Surface)</tspan></text>
 </g>
 <g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
-<path class="vd-edge" d="M219 110L265.5 110L295.5 110L317.5 110Q325.5 110 332 114L414 164.5" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M206.5 206L265.5 206L295.5 206L317.5 206Q325.5 206 333.5 206L378 204.5" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M211 311L265.5 311L295.5 311L317.5 311Q325.5 311 331.5 306.5L423.5 238.5" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M206 541L265.5 541L295.5 541L317.5 541Q325.5 541 333 542L355.5 546.5" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M235.5 682L265.5 682L295.5 682L317.5 682Q325.5 682 331.5 677.5L414.5 613" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M541 164.5L615 123.5Q622 120 630 120L652 120L674 120Q682 120 689 123L781.5 162.5" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M512.5 238.5L616.5 338Q622 343.5 630 343.5L652 343.5L674 343.5Q682 343.5 689.5 345.5L740 359" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M502 521L618 330Q622 323.5 630 323.5L652 323.5L674 323.5Q682 323.5 687.5 318L806.5 200.5" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M521.5 521L616.5 429.5Q622 424 630 424L652 424L674 424Q682 424 689.5 422L740 407" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M592 575L614 576.5Q622 577 630 577L652 577L682 577L712 577" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M528.5 613L616 686Q622 691 630 691L652 691L682 691L729 691" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M219 110L242.5 110Q250.5 110 256.5 114.5L334.5 176Q340.5 180.5 348.5 180.5L378 180.5" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M206.5 206L378 206" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M211 311L242.5 311Q250.5 311 256 305.5L335 228Q340.5 222.5 348.5 222.5L378 222.5" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M206 541L355.5 541" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M235.5 682L243 682Q250.5 682 255.5 677L335.5 602Q340.5 597 348 597L355.5 597" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M570 180.5L599 180.5Q607 180.5 615 180.5L689 178.5Q697 178.5 705 178.5L720.5 178.5" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M570 222.5L599 222.5Q607 222.5 611 229L693 354Q697 360.5 705 360.5L740 360.5" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M592 537L599.5 537Q607 537 608.5 530L695.5 192Q697 184.5 705 184.5L720.5 184.5" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M592 549L599.5 549Q607 549 610.5 543L693 409Q697 402.5 705 402.5L740 402.5" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M592 577L712 577" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M592 597L599.5 597Q607 597 612 602L691.5 685.5Q697 691 705 691L729 691" marker-end="url(#vd-arrow)"/>
 </g>
 <g class="vd-nodes">
 <g class="vd-node">

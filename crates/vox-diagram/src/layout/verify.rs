@@ -1,9 +1,9 @@
 //! Hard-invariant geometry check on quantized integer geometry: exact comparisons, no epsilon.
-//! A layout that fails is never drawn. Soft defects (an edge crossing a non-endpoint node, a
-//! label merely touching a node) are deliberately not checked; dagre does not route around nodes.
-//! An edge label sharing interior area with a node, a title box or another label is hard. An edge
-//! through a title box is checked separately ([`title_crossing`]): it escalates the rung but does
-//! not reject the last one.
+//! A layout that fails is never drawn. A label merely touching a node is fine. An edge label
+//! sharing interior area with a node, a title box or another label is hard. An edge through a
+//! title box or through a node it does not join is checked separately ([`title_crossing`],
+//! [`node_crossing`]): it escalates the rung but does not reject the last one, since dagre does
+//! not route around boxes. An edge end on a node corner ([`port_at_corner`]) is a test metric.
 
 use std::fmt;
 
@@ -39,6 +39,11 @@ pub(crate) enum Violation {
     LabelOnNode(usize, usize),
     /// Two edge label boxes share interior area (earlier edge, later edge).
     LabelOnLabel(usize, usize),
+    /// An edge segment passes through a node the edge does not join (edge, node).
+    EdgeThroughNode(usize, usize),
+    /// An edge ends within [`CORNER_CLEAR`] of a corner of its node (edge, node).
+    #[cfg(test)]
+    PortAtCorner(usize, usize),
 }
 
 impl fmt::Display for Violation {
@@ -187,6 +192,58 @@ pub(crate) fn title_crossing(placed: &Placed) -> Result<(), Violation> {
         for (k, c) in placed.containers.iter().enumerate() {
             if edge.points.windows(2).any(|s| crosses(s[0], s[1], c.title)) {
                 return Err(Violation::EdgeThroughTitle(e, k));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// The first edge segment through a node the edge does not join, if any. Soft like
+/// [`title_crossing`]: the ports keep an edge's ends clear of its own rank, but dagre's straight
+/// segments between ranks can still cut a node, so the caller prefers a rung without one.
+pub(crate) fn node_crossing(input: &LayoutInput, placed: &Placed) -> Result<(), Violation> {
+    for (e, (le, pe)) in input.edges.iter().zip(&placed.edges).enumerate() {
+        for (n, r) in placed.nodes.iter().enumerate() {
+            if n != le.from && n != le.to && pe.points.windows(2).any(|s| crosses(s[0], s[1], *r)) {
+                return Err(Violation::EdgeThroughNode(e, n));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// An endpoint closer than this to a corner of its node on both axes is on the corner: 12 px.
+#[cfg(test)]
+pub(crate) const CORNER_CLEAR: Half = 24;
+
+/// The first edge end within [`CORNER_CLEAR`] of a corner of its own node, self-loops and
+/// diamonds aside (a diamond end is drawn on its outline, far from the box corners). A metric for
+/// tests, not a rung criterion: the ports put every end at least that far in, and a wider spacing
+/// would not move an end the ports leave alone.
+#[cfg(test)]
+pub(crate) fn port_at_corner(input: &LayoutInput, placed: &Placed) -> Result<(), Violation> {
+    let near = |r: Rect, p: (Half, Half)| {
+        [r.x, r.x + r.w]
+            .iter()
+            .any(|&x| (p.0 - x).abs() < CORNER_CLEAR)
+            && [r.y, r.y + r.h]
+                .iter()
+                .any(|&y| (p.1 - y).abs() < CORNER_CLEAR)
+    };
+    for (e, (le, pe)) in input.edges.iter().zip(&placed.edges).enumerate() {
+        if le.from == le.to {
+            continue;
+        }
+        for (n, p) in [(le.from, pe.points.first()), (le.to, pe.points.last())] {
+            let diamond = input
+                .nodes
+                .get(n)
+                .is_some_and(|x| x.shape == Shape::Diamond);
+            if let (Some(&r), Some(&p)) = (placed.nodes.get(n), p)
+                && !diamond
+                && near(r, p)
+            {
+                return Err(Violation::PortAtCorner(e, n));
             }
         }
     }

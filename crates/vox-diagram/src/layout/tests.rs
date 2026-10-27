@@ -303,6 +303,70 @@ fn the_public_path_is_guarded_too() {
     ));
 }
 
+/// Three nodes in a column; the edge from the top one to the bottom one runs through the middle one
+/// on the first `crossed` rungs and beside it after.
+struct EdgeThroughNode {
+    crossed: usize,
+    calls: Cell<usize>,
+}
+
+impl Engine for EdgeThroughNode {
+    fn solve(&self, _: &LayoutInput, _: Separations) -> Result<RawLayout, LayoutError> {
+        self.calls.set(self.calls.get() + 1);
+        let via = if self.calls.get() <= self.crossed {
+            100.0
+        } else {
+            160.0
+        };
+        let at = |cy| RawBox {
+            cx: Some(100.0),
+            cy: Some(cy),
+            w: Some(64.0),
+            h: Some(38.0),
+        };
+        Ok(RawLayout {
+            nodes: vec![at(30.0), at(120.0), at(210.0)],
+            titles: vec![],
+            edges: vec![RawEdge {
+                points: vec![(100.0, 49.0), (via, 120.0), (100.0, 191.0)],
+                label: None,
+            }],
+        })
+    }
+}
+
+#[test]
+fn an_edge_through_a_node_escalates_the_rung_and_never_rejects_the_diagram() {
+    let mut input = two_nodes();
+    input.nodes.push(input.nodes[0].clone());
+    input.edges = vec![LEdge {
+        from: 0,
+        to: 2,
+        label: None,
+    }];
+    let once = EdgeThroughNode {
+        crossed: 1,
+        calls: Cell::new(0),
+    };
+    let Ok(p) = lay_out(&once, &input) else {
+        panic!("lay_out failed");
+    };
+    assert_eq!(once.calls.get(), 2);
+    assert_eq!(verify::node_crossing(&input, &p), Ok(()));
+    let always = EdgeThroughNode {
+        crossed: 3,
+        calls: Cell::new(0),
+    };
+    let Ok(p) = lay_out(&always, &input) else {
+        panic!("an edge through a node must not reject the diagram");
+    };
+    assert_eq!(always.calls.get(), 3);
+    assert_eq!(
+        verify::node_crossing(&input, &p),
+        Err(verify::Violation::EdgeThroughNode(0, 1))
+    );
+}
+
 mod containers;
 mod coords;
 mod feeds;

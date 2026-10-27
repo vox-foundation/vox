@@ -317,3 +317,52 @@ fn an_edge_through_a_title_box_is_reported_apart_from_the_hard_rules() {
     p.edges[0].points = vec![(10, 10), (10, 100)];
     assert_eq!(title_crossing(&p), Ok(()));
 }
+
+/// A, B side by side and C below A; one edge A -> C.
+fn three(points: Vec<(Half, Half)>) -> (LayoutInput, Placed) {
+    let mut i = two();
+    i.nodes.push(node(Shape::Rect, "C", 128, 76));
+    i.edges = vec![crate::layout::LEdge {
+        from: 0,
+        to: 2,
+        label: None,
+    }];
+    let nodes = vec![
+        rect(32, 32, 128, 76),
+        rect(200, 32, 128, 76),
+        rect(32, 200, 128, 76),
+    ];
+    let edge = PlacedEdge {
+        points,
+        label: None,
+    };
+    (i, placed(nodes, vec![edge]))
+}
+
+#[test]
+fn an_edge_through_a_node_it_does_not_join_is_reported() {
+    let (i, p) = three(vec![(160, 70), (300, 150), (96, 200)]);
+    assert_eq!(node_crossing(&i, &p), Err(Violation::EdgeThroughNode(0, 1)));
+    let (i, p) = three(vec![(96, 108), (96, 200)]);
+    assert_eq!(node_crossing(&i, &p), Ok(()));
+}
+
+#[test]
+fn an_end_within_12px_of_a_corner_of_its_node_is_reported() {
+    let (i, p) = three(vec![(160, 100), (96, 200)]);
+    assert_eq!(port_at_corner(&i, &p), Err(Violation::PortAtCorner(0, 0)));
+    let (i, p) = three(vec![(96, 108), (137, 200)]);
+    assert_eq!(port_at_corner(&i, &p), Err(Violation::PortAtCorner(0, 2)));
+    let (i, p) = three(vec![(96, 108), (136, 200)]);
+    assert_eq!(port_at_corner(&i, &p), Ok(()));
+    let (mut i, p) = three(vec![(160, 100), (96, 200)]);
+    i.nodes[0].shape = Shape::Diamond;
+    assert_eq!(
+        port_at_corner(&i, &p),
+        Ok(()),
+        "a diamond end is drawn on its outline"
+    );
+    let (mut i, p) = three(vec![(160, 100), (32, 32)]);
+    i.edges[0].to = 0;
+    assert_eq!(port_at_corner(&i, &p), Ok(()), "a self-loop is not judged");
+}

@@ -11,9 +11,9 @@
 <text class="vd-container-label" x="93" y="162" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="93" dy="0">Backend services</tspan></text>
 </g>
 <g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
-<path class="vd-edge" d="M157.5 268L157.5 311L157.5 354" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M182.5 54L216 79.5Q222 84 222 92L222 114L222 157L222 192Q222 200 216 204.5L182.5 230" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M157.5 408L157.5 438L157.5 481L157.5 524" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M157.5 268L157.5 354" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M175 54L175 61.5Q175 69 178.5 75.5L218.5 150Q222 157 217 163L178 209.5Q173.5 215 173.5 222.5L173.5 230" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M157.5 408L157.5 524" marker-end="url(#vd-arrow)"/>
 </g>
 <g class="vd-nodes">
 <g class="vd-node">

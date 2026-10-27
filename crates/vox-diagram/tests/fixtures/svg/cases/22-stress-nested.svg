@@ -17,11 +17,11 @@
 <text class="vd-container-label" x="1004.5" y="58" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1004.5" dy="0">Persistence layer</tspan></text>
 </g>
 <g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
-<path class="vd-edge" d="M99.5 144L158.5 144L217.5 144L263.5 144" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M368 144L482 144L580.5 144L615.5 144" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M713.5 134L770 122.5Q777.5 121 785.5 121L836.5 121L866.5 121L937 121" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M1072 121L1142.5 121L1195 121L1247 121" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M713.5 154L770 165.5Q777.5 167 779 174.5L835 395.5Q836.5 403 844.5 403L866.5 403L966 403" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M99.5 144L263.5 144" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M368 144L615.5 144" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M713.5 141L725 141Q733 141 740 138L770.5 124Q777.5 121 785.5 121L937 121" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1072 121L1247 121" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M713.5 147L725 147Q733 147 740 150L770.5 164Q777.5 167 780.5 174L878.5 396Q881.5 403 889.5 403L966 403" marker-end="url(#vd-arrow)"/>
 </g>
 <g class="vd-nodes">
 <g class="vd-node">

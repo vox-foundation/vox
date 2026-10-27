@@ -10,6 +10,7 @@ use std::cell::Cell;
 
 use proptest::prelude::*;
 use proptest::test_runner::{Config, TestRunner};
+use support::clearance::{clearance, through};
 use support::svgcheck::{Shape, Svg, check as check_svg};
 use support::{model_graph, noise, noisy_source};
 use unicode_width::UnicodeWidthStr;
@@ -80,6 +81,12 @@ const MIN_DRAWN: usize = 96;
 /// Ceiling on drawn cases with an edge through a container title, out of 128 (measured rate about
 /// 0.5%, so more than 6 is a regression, not noise).
 const MAX_CROSSED: usize = 6;
+
+/// Ceilings on drawn cases with an edge through a node it does not join, and on edge ends within
+/// 12 px of a node corner, out of 128. With the ports both measured 0 of 1024 cases; without them
+/// 110 cases and 875 ends.
+const MAX_THROUGH: usize = 2;
+const MAX_CORNERS: usize = 4;
 
 fn fail<T>(m: String) -> Result<T, TestCaseError> {
     Err(TestCaseError::fail(m))
@@ -234,26 +241,6 @@ fn edge_labels_clear(g: &GraphIr, s: &Svg) -> Result<(), TestCaseError> {
     Ok(())
 }
 
-/// Whether segment `a`-`b` passes through the interior of `r`: the extents overlap and the line
-/// through the segment splits the corners.
-fn through(a: (i64, i64), b: (i64, i64), r: &Shape) -> bool {
-    if a.0.max(b.0) <= r.x
-        || a.0.min(b.0) >= right(r)
-        || a.1.max(b.1) <= r.y
-        || a.1.min(b.1) >= bottom(r)
-    {
-        return false;
-    }
-    let side = |x: i64, y: i64| (b.0 - a.0) * (y - a.1) - (b.1 - a.1) * (x - a.0);
-    let s = [
-        side(r.x, r.y),
-        side(right(r), r.y),
-        side(r.x, bottom(r)),
-        side(right(r), bottom(r)),
-    ];
-    !(s.iter().all(|&v| v >= 0) || s.iter().all(|&v| v <= 0))
-}
-
 /// No edge path strikes through a container title.
 fn titles_clear(g: &GraphIr, s: &Svg) -> Result<(), TestCaseError> {
     for (k, t) in bands(g, s).iter().enumerate() {
@@ -328,13 +315,15 @@ fn labels_hold(s: &Svg) -> Result<(), TestCaseError> {
     Ok(())
 }
 
-/// Counts of rejected (`Err(Geometry)`) and drawn (`Ok`) renders, and drawn ones with an edge
-/// through a title.
+/// Counts of rejected (`Err(Geometry)`) and drawn (`Ok`) renders, drawn ones with an edge through
+/// a title or through a node it does not join, and edge ends on a corner of their node.
 #[derive(Default)]
 struct Tally {
     rejected: Cell<usize>,
     drawn: Cell<usize>,
     crossed: Cell<usize>,
+    through: Cell<usize>,
+    corners: Cell<usize>,
 }
 
 fn hold(ir: &Ir, tally: &Tally) -> Result<(), TestCaseError> {
@@ -360,6 +349,11 @@ fn hold(ir: &Ir, tally: &Tally) -> Result<(), TestCaseError> {
     if titles_clear(g, &parsed).is_err() {
         tally.crossed.set(tally.crossed.get() + 1);
     }
+    let c = clearance(g, &parsed);
+    tally
+        .through
+        .set(tally.through.get() + usize::from(!c.through.is_empty()));
+    tally.corners.set(tally.corners.get() + c.corners.len());
     view_box_holds(&parsed)?;
     labels_hold(&parsed)
 }
@@ -376,9 +370,13 @@ fn geometry_holds() {
         }
     });
     let (rejected, drawn) = (tally.rejected.get(), tally.drawn.get());
-    let crossed = tally.crossed.get();
+    let (crossed, through, corners) = (
+        tally.crossed.get(),
+        tally.through.get(),
+        tally.corners.get(),
+    );
     println!(
-        "geometry_holds: {rejected} Err(Geometry), {drawn} drawn of 128 cases, {crossed} with an edge through a title"
+        "geometry_holds: {rejected} Err(Geometry), {drawn} drawn of 128 cases, {crossed} with an edge through a title, {through} through a node, {corners} edge ends on a corner"
     );
     if let Err(e) = result {
         panic!("{e}");
@@ -389,9 +387,14 @@ fn geometry_holds() {
         "only {drawn} of 128 cases rendered ({rejected} rejected)"
     );
     // Dagre routes straight segments between ranks, so an edge can still clip a title box when every
-    // rung does; the renderer then draws the first valid rung. Measured 5 of 1024 cases.
+    // rung does; the renderer then draws the first valid rung. Measured 5 of 1024 cases before
+    // the ports, 0 after.
     assert!(
         crossed <= MAX_CROSSED,
         "{crossed} of {drawn} drawn cases have an edge through a title"
+    );
+    assert!(
+        through <= MAX_THROUGH && corners <= MAX_CORNERS,
+        "{through} drawn cases have an edge through a node, {corners} edge ends sit on a corner"
     );
 }

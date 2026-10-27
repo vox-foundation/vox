@@ -4,6 +4,7 @@
 pub(crate) mod dagre_impl;
 pub(crate) mod finish;
 pub(crate) mod input;
+pub(crate) mod ports;
 pub(crate) mod seq;
 pub(crate) mod text;
 pub(crate) mod verify;
@@ -221,9 +222,10 @@ fn rect(b: &RawBox) -> Result<Rect, LayoutError> {
     })
 }
 
-/// Quantize one raw engine layout into [`Placed`], shifted so everything drawn starts at the
-/// margin. Fails closed on a missing, non-finite or huge coordinate or a wrong item count.
-fn place(input: &LayoutInput, raw: &RawLayout) -> Result<Placed, LayoutError> {
+/// Quantize one raw engine layout, laid out with `sep`, into [`Placed`], shifted so everything
+/// drawn starts at the margin. Fails closed on a missing, non-finite or huge coordinate or a wrong
+/// item count.
+fn place(input: &LayoutInput, raw: &RawLayout, sep: Separations) -> Result<Placed, LayoutError> {
     if raw.nodes.len() != input.nodes.len()
         || raw.titles.len() != input.containers.len()
         || raw.edges.len() != input.edges.len()
@@ -255,6 +257,7 @@ fn place(input: &LayoutInput, raw: &RawLayout) -> Result<Placed, LayoutError> {
         };
         edges.push(PlacedEdge { points, label });
     }
+    ports::route(input, &nodes, &titles, sep.ranksep, &mut edges);
     let mut containers = finish::frames(input, &nodes, &titles, &edges);
     let labels = edges.iter().filter_map(|e| e.label);
     let xs = nodes
@@ -303,17 +306,20 @@ fn place(input: &LayoutInput, raw: &RawLayout) -> Result<Placed, LayoutError> {
 }
 
 /// Lay `input` out through `engine`: try each [`RUNGS`] separation in order and return the first
-/// quantized layout that passes [`verify::verify`] with no edge through a title box, else the
-/// first that passes [`verify::verify`]. An engine failure is final (no further rung is tried); a
-/// layout failing [`verify::verify`] on every rung is [`RenderError::Geometry`], never drawn.
+/// quantized layout that passes [`verify::verify`] with no edge through a title box or a node it
+/// does not join, else the first that passes [`verify::verify`]. An engine failure is final (no
+/// further rung is tried); a layout failing [`verify::verify`] on every rung is
+/// [`RenderError::Geometry`], never drawn.
 pub(crate) fn lay_out(engine: &dyn Engine, input: &LayoutInput) -> Result<Placed, RenderError> {
     let (mut last, mut fallback) = (None, None);
     for sep in RUNGS {
         let raw = guarded(|| engine.solve(input, sep))??;
-        let placed = place(input, &raw)?;
+        let placed = place(input, &raw, sep)?;
         if let Err(v) = verify::verify(input, &placed) {
             last = Some(v);
-        } else if verify::title_crossing(&placed).is_ok() {
+        } else if verify::title_crossing(&placed).is_ok()
+            && verify::node_crossing(input, &placed).is_ok()
+        {
             return Ok(placed);
         } else {
             fallback.get_or_insert(placed);
