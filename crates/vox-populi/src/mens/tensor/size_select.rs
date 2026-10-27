@@ -145,7 +145,7 @@ pub fn select_size(
 ) -> anyhow::Result<Selection> {
     let ladder = size_ladder(overlay)?;
     if let Some(req) = explicit {
-        return match resolve_base_pin(Some(req), overlay) {
+        return match resolve_base_pin(req, overlay) {
             Ok(pin) => match ladder.iter().find(|r| r.hf_id == pin) {
                 Some(rung) => Ok(Selection::Size(explicit_pick(rung, free, force)?)),
                 None => Ok(Selection::PassThrough(pin)),
@@ -211,18 +211,14 @@ pub fn recheck_before_load(
     })
 }
 
-/// The pin for a requested base. `None` is [`crate::mens::DEFAULT_MODEL_ID`]; a
-/// `repo@<40 hex>` pin passes through; a size name (`Qwen3-8B`) or bare repo id
+/// The pin for a requested base. A `repo@<40 hex>` pin passes through; a size name (`Qwen3-8B`) or bare repo id
 /// (`Qwen/Qwen3-8B`) resolves to the single distinct pinned `hf_id` across all
 /// `train_bases` tags. Unknown or ambiguous input is an error that lists the
 /// known sizes: it is an operator typo, and there is no fallback revision.
 pub fn resolve_base_pin(
-    requested: Option<&str>,
+    requested: &str,
     overlay: &HashMap<String, Vec<TrainBase>>,
 ) -> anyhow::Result<String> {
-    let Some(requested) = requested else {
-        return Ok(crate::mens::DEFAULT_MODEL_ID.to_string());
-    };
     if split_pin(requested).1.is_some() {
         return Ok(requested.to_string());
     }
@@ -600,13 +596,13 @@ mod tests {
         }
     }
 
-    fn ok_pin(requested: Option<&str>, overlay: &HashMap<String, Vec<TrainBase>>) -> String {
+    fn ok_pin(requested: &str, overlay: &HashMap<String, Vec<TrainBase>>) -> String {
         resolve_base_pin(requested, overlay).expect("resolves")
     }
 
     #[test]
-    fn base_resolution_default_is_the_pinned_8b() {
-        assert_eq!(ok_pin(None, &repo_overlay()), PIN_8B);
+    fn base_resolution_8b_is_the_pinned_default() {
+        assert_eq!(ok_pin("Qwen3-8B", &repo_overlay()), PIN_8B);
         assert_eq!(
             PIN_8B,
             "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
@@ -620,18 +616,18 @@ mod tests {
             PIN_0_6B,
             "someone/Other-Model@0123456789abcdef0123456789abcdef01234567",
         ] {
-            assert_eq!(ok_pin(Some(pin), &overlay), pin);
+            assert_eq!(ok_pin(pin, &overlay), pin);
         }
     }
 
     #[test]
     fn base_resolution_size_name_uses_train_bases() {
         let overlay = repo_overlay();
-        assert_eq!(ok_pin(Some("Qwen3-8B"), &overlay), PIN_8B);
-        assert_eq!(ok_pin(Some("Qwen/Qwen3-8B"), &overlay), PIN_8B);
-        assert_eq!(ok_pin(Some("Qwen3-0.6B"), &overlay), PIN_0_6B);
-        assert_eq!(ok_pin(Some("Qwen3-4B"), &overlay), PIN_4B);
-        assert_eq!(ok_pin(Some("Qwen/Qwen3-4B"), &overlay), PIN_4B);
+        assert_eq!(ok_pin("Qwen3-8B", &overlay), PIN_8B);
+        assert_eq!(ok_pin("Qwen/Qwen3-8B", &overlay), PIN_8B);
+        assert_eq!(ok_pin("Qwen3-0.6B", &overlay), PIN_0_6B);
+        assert_eq!(ok_pin("Qwen3-4B", &overlay), PIN_4B);
+        assert_eq!(ok_pin("Qwen/Qwen3-4B", &overlay), PIN_4B);
     }
 
     #[test]
@@ -647,8 +643,8 @@ mod tests {
             ("Qwen3-14B", "40c069824f4251a91eefaf281ebe4c544efd3e18"),
             ("Qwen3-32B", "9216db5781bf21249d130ec9da846c4624c16137"),
         ] {
-            let pin = ok_pin(Some(name), &overlay);
-            assert_eq!(pin, ok_pin(Some(&format!("Qwen/{name}")), &overlay));
+            let pin = ok_pin(name, &overlay);
+            assert_eq!(pin, ok_pin(&format!("Qwen/{name}"), &overlay));
             assert_eq!(pin, format!("Qwen/{name}@{sha}"), "{name}");
             assert!(split_pin(&pin).1.is_some(), "{pin}");
             assert!(ladder.iter().any(|b| b.hf_id == pin), "{pin}");
@@ -666,7 +662,7 @@ mod tests {
         ] {
             let msg = format!(
                 "{:#}",
-                resolve_base_pin(Some(requested), &overlay).expect_err(requested)
+                resolve_base_pin(requested, &overlay).expect_err(requested)
             );
             assert!(
                 msg.contains(requested) && msg.contains("Qwen3-8B") && msg.contains("Qwen3-0.6B"),
@@ -681,7 +677,7 @@ mod tests {
             )],
         );
         ambiguous.insert("b".to_string(), vec![base(PIN_8B)]);
-        assert!(resolve_base_pin(Some("Qwen3-8B"), &ambiguous).is_err());
+        assert!(resolve_base_pin("Qwen3-8B", &ambiguous).is_err());
     }
 
     fn explicit(req: &str, free_mb: Option<u64>, force: bool) -> anyhow::Result<Selection> {

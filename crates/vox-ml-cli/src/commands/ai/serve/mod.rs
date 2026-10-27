@@ -211,7 +211,7 @@ fn serve_fit_note(
         return Ok(None);
     };
     // A name the ladder cannot resolve (`custom-base`) is not a size either.
-    if size_select::resolve_base_pin(Some(base), overlay).is_err() {
+    if size_select::resolve_base_pin(base, overlay).is_err() {
         return Ok(None);
     }
     match size_select::select_size(overlay, free, Some(base), force)? {

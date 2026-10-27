@@ -440,7 +440,7 @@ pub(crate) mod tests {
         vox_populi::mens::tensor::spoke_base_resolver::load_overlay(&root).expect("overlay")
     }
 
-    fn ok_pin(requested: Option<&str>, overlay: &HashMap<String, Vec<TrainBase>>) -> String {
+    fn ok_pin(requested: &str, overlay: &HashMap<String, Vec<TrainBase>>) -> String {
         resolve_base_pin(requested, overlay).expect("resolves")
     }
 
@@ -450,12 +450,13 @@ pub(crate) mod tests {
         let snap = fake_snapshot(hub.path(), PIN_0_6B);
         let adapter = hub.path().join("adapter");
         fake_adapter(&adapter, &snap);
-        let small = BaseLabel::from_pin(&ok_pin(Some("Qwen3-0.6B"), &repo_overlay()));
+        let small = BaseLabel::from_pin(&ok_pin("Qwen3-0.6B", &repo_overlay()));
         assert!(matches!(
             detect_inputs(hub.path(), &small, Some(&adapter)),
             Detected::Ready { .. }
         ));
-        let default = BaseLabel::from_pin(&ok_pin(None, &repo_overlay()));
+        let default =
+            BaseLabel::from_pin(&ok_pin(vox_populi::mens::DEFAULT_MODEL_ID, &repo_overlay()));
         assert_eq!(
             reason(&detect_inputs(hub.path(), &default, Some(&adapter))),
             Some(AbsenceReason::BaseSnapshotAbsent)

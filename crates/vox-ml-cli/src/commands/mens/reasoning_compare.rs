@@ -337,7 +337,12 @@ pub(crate) fn run_eval_reasoning_compare_with(
 ) -> Result<RunStatus> {
     let overlay = vox_populi::mens::tensor::spoke_base_resolver::load_overlay(overlay_root)
         .context("loading train_bases from mens/config/gpu-specs.yaml")?;
-    let pin = detect::resolve_base_pin(args.base.as_deref(), &overlay)?;
+    // No --base means the 8B default; the size selector itself has no default size.
+    let requested = args
+        .base
+        .as_deref()
+        .unwrap_or(vox_populi::mens::DEFAULT_MODEL_ID);
+    let pin = detect::resolve_base_pin(requested, &overlay)?;
     let rungs = vox_populi::mens::tensor::spoke_base_resolver::rungs_for_hf_id(&overlay, &pin);
     for rung in &rungs {
         eprintln!("base {pin}: {}", rung.floor_label());
