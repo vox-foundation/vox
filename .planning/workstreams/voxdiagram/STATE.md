@@ -4,18 +4,18 @@ milestone: v1.7
 milestone_name: VoxDiagram
 current_phase: 91
 current_phase_name: Measurement Harness & Advisory Closure
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 91-01-PLAN.md
-last_updated: "2026-10-27T17:25:26.985Z"
+stopped_at: Completed 91-02-PLAN.md
+last_updated: "2026-10-27T20:38:59.429Z"
 last_activity: 2026-10-27
 last_activity_desc: Phase 91 execution started
-state_head: 9d75435904994e3993328afce6e0c7d0887aa83d
+state_head: 71808fc629060472d7c485b7247ac1d1d1294d15
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 42
-  completed_plans: 38
+  completed_plans: 39
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -30,7 +30,7 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 ## Current Position
 
 Phase: 91 (Measurement Harness & Advisory Closure) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-10-27 — Phase 91 execution started
 
@@ -39,7 +39,7 @@ Progress: [█████████░] 89% (0/9 phases)
 ## Progress
 
 **Phases Complete:** 0
-**Current Plan:** 2
+**Current Plan:** 3
 
 ## Key Decisions (milestone-level)
 
@@ -64,9 +64,9 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-10-27T17:25:26.789Z
+**Last session:** 2026-10-27T20:38:59.282Z
 
-**Stopped At:** Completed 91-01-PLAN.md
+**Stopped At:** Completed 91-02-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -104,6 +104,7 @@ None yet.
 | Phase 89 P02 | 40min | 2 tasks | 7 files |
 | Phase 89 P03 | resumed | 3 tasks | 8 files |
 | Phase 89 P04 | 1 session | 3 tasks | 7 files |
+| Phase 91 P02 | 189min | 2 tasks | 15 files |
 
 ## Decisions
 
@@ -152,6 +153,8 @@ None yet.
 - [Phase 89]: 89-02: horizontal padding floor pad_x (box >= 112% of measured width) shared by every padded text box; table and 8% slack unchanged
 - [Phase 89]: 89-03: dev content refresh via refreshContent() on astro:server:setup instead of deleting Astro's data store (store is .astro/data-store.json; deleting it under a running dev server 404s every page)
 - [Phase 89]: 89-04: browser checks discover figure pages from dist/; review bundle holds shipped and natural-size PNGs
+- [Phase 91]: 91-02: every quoted span of a task prompt must be a text of the expected sets; banned syntax words match whole words and plurals
+- [Phase 91]: 91-02: Rust rescore parses the decision rule only once a run exists (the rule lands in the dataset manifest in 91-04)
 
 ## Pending Todos (voxdiagram)
 
