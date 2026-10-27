@@ -20,6 +20,7 @@
 pub mod oracle;
 pub mod prompt;
 pub mod render;
+pub mod run;
 pub mod score;
 pub mod stats;
 pub mod tally;
