@@ -3,7 +3,7 @@
 # Roadmap: v5.6 — Reasoning Where the Lane Needs It
 
 **Milestone:** v5.6
-**Status:** Phase 316 complete — ready for phase 317. Extended 2026-10-26: not complete until at least two Qwen3 sizes have real trained before/after scores.
+**Status:** Phase 317 complete — ready for phase 318. Extended 2026-10-26: not complete until at least two Qwen3 sizes have real trained before/after scores.
 **Updated:** 2026-10-26
 
 ### Phase 313: Lane Prefix (`LANE-01`, `LANE-02`)
@@ -90,7 +90,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] `317-01`: Pin the 1.7B and 4B rungs, mark every floor `floor_measured: false`, and report `floor unmeasured` from the compare harness and at train start
+- [x] `317-01`: Pin the 1.7B and 4B rungs, mark every floor `floor_measured: false`, and report `floor unmeasured` from the compare harness and at train start (completed 2026-10-27)
 
 ### Phase 318: Live VRAM Selector (`SIZE-02`)
 
@@ -148,7 +148,7 @@ Plans:
 | **Phase 314** | Held-out Reasoning Set | `2/2` | Complete |
 | **Phase 315** | Serve Gate | `2/2` | Complete |
 | **Phase 316** | Before/After Comparison | `1/1` | Complete |
-| **Phase 317** | Size Ladder | `0/1` | Planned |
+| **Phase 317** | Size Ladder | `1/1` | Complete |
 | **Phase 318** | Live VRAM Selector | `0/0` | Not started |
 | **Phase 319** | Mesh-Wide Selection | `0/0` | Not started |
 | **Phase 320** | Train the Sizes | `0/0` | Not started |
