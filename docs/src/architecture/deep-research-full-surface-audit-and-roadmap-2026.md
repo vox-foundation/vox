@@ -360,14 +360,24 @@ Currently, Vox research treats all queries uniformly as academic/encyclopedic qu
 
 Shopping research requires structured tabular comparisons, merchant price verification, and review sentiment de-biasing.
 
-```mermaid
-flowchart TD
-    ShopQuery["Shopping Query: 'Best noise-canceling headphones under $300'"] --> EntityExtract["Product Entity Extractor (Identify Top 3-5 Candidate Models)"]
-    EntityExtract --> SpecGather["Spec Matrix Gatherer (Manufacturer specs, battery, weight, codecs)"]
-    EntityExtract --> MerchantGather["Merchant & Price Scraper (Current prices, stock, retailers)"]
-    EntityExtract --> ReviewGather["Community Review Harvester (Reddit, RTINGS, forum sentiment)"]
-    SpecGather & MerchantGather & ReviewGather --> MatrixSynthesis["Product Comparison Synthesizer"]
-    MatrixSynthesis --> Verdicts["Decision Engine (Best Overall, Best Budget, Known Flaws)"]
+```vox-diagram
+graph {
+    node ShopQuery: "Shopping Query: 'Best noise-canceling headphones under $300'"
+    node EntityExtract: "Product Entity Extractor (Identify Top 3-5 Candidate Models)"
+    node SpecGather: "Spec Matrix Gatherer (Manufacturer specs, battery, weight, codecs)"
+    node MerchantGather: "Merchant & Price Scraper (Current prices, stock, retailers)"
+    node ReviewGather: "Community Review Harvester (Reddit, RTINGS, forum sentiment)"
+    node MatrixSynthesis: "Product Comparison Synthesizer"
+    node Verdicts: "Decision Engine (Best Overall, Best Budget, Known Flaws)"
+    ShopQuery -> EntityExtract
+    EntityExtract -> SpecGather
+    EntityExtract -> MerchantGather
+    EntityExtract -> ReviewGather
+    SpecGather -> MatrixSynthesis
+    MerchantGather -> MatrixSynthesis
+    ReviewGather -> MatrixSynthesis
+    MatrixSynthesis -> Verdicts
+}
 ```
 
 #### Key Capabilities Required
@@ -388,13 +398,22 @@ flowchart TD
 
 Code generation research requires understanding programming language ecosystems, verifying API signatures, checking compatibility, and analyzing the local workspace.
 
-```mermaid
-flowchart TD
-    CodeGenQuery["Code Query: 'Implement async distributed worker queue in Rust'"] --> LocalRepoCheck["Local Codebase Scan (Existing crates, Cargo.lock, patterns)"]
-    CodeGenQuery --> EcosystemCheck["Ecosystem Discovery (crates.io/npm stars, downloads, maintenance)"]
-    CodeGenQuery --> DocsFetch["Official Spec & Docs Extractor (docs.rs signatures, API contracts)"]
-    EcosystemCheck & DocsFetch --> SandboxedCheck["Sandbox Typecheck & Syntax Validator (vox check / cargo check)"]
-    SandboxedCheck & LocalRepoCheck --> CodeGenSynthesis["Grounded Code & Architecture Plan"]
+```vox-diagram
+graph {
+    node CodeGenQuery: "Code Query: 'Implement async distributed worker queue in Rust'"
+    node LocalRepoCheck: "Local Codebase Scan (Existing crates, Cargo.lock, patterns)"
+    node EcosystemCheck: "Ecosystem Discovery (crates.io/npm stars, downloads, maintenance)"
+    node DocsFetch: "Official Spec & Docs Extractor (docs.rs signatures, API contracts)"
+    node SandboxedCheck: "Sandbox Typecheck & Syntax Validator (vox check / cargo check)"
+    node CodeGenSynthesis: "Grounded Code & Architecture Plan"
+    CodeGenQuery -> LocalRepoCheck
+    CodeGenQuery -> EcosystemCheck
+    CodeGenQuery -> DocsFetch
+    EcosystemCheck -> SandboxedCheck
+    DocsFetch -> SandboxedCheck
+    SandboxedCheck -> CodeGenSynthesis
+    LocalRepoCheck -> CodeGenSynthesis
+}
 ```
 
 #### Key Capabilities Required
@@ -427,29 +446,31 @@ Currently, deep research executes in a vacuum:
 
 ### The Required Persistent Research Loop
 
-```mermaid
-flowchart LR
-    subgraph ResearchRun [Active Research Run]
-        FetchPages["Scrape & Gather Web Pages"]
-        SynthReport["Synthesize Research Report"]
-    end
-
-    subgraph StorageLoop [Deep Research Storage & Indexing]
-        StoreDocs["Upsert into search_documents & chunks"]
-        StoreFTS["Index into SQLite FTS5 & Tantivy"]
-        StoreVec["Compute Local Embeddings -> Qdrant/MemoryHybrid"]
-        StoreKB["Create Knowledge Nodes & Claim Edges"]
-    end
-
-    subgraph FutureRetrieval [Subsequent Queries & Chat]
-        NewQuery["New Chat Turn or Research Query"] --> HybridSearch["Hybrid Search (BM25 + Dense Vector)"]
-        HybridSearch --> PriorKnowledge["Retrieve Past Research Evidence & Reports"]
-    end
-
-    FetchPages --> StoreDocs
-    StoreDocs --> StoreVec
-    SynthReport --> StoreFTS
-    SynthReport --> StoreKB
+```vox-diagram
+graph {
+    direction: right
+    container ResearchRun: "Active Research Run" {
+        node FetchPages: "Scrape & Gather Web Pages"
+        node SynthReport: "Synthesize Research Report"
+    }
+    container StorageLoop: "Deep Research Storage & Indexing" {
+        node StoreDocs: "Upsert into search_documents & chunks"
+        node StoreFTS: "Index into SQLite FTS5 & Tantivy"
+        node StoreVec: "Compute Local Embeddings -> Qdrant/MemoryHybrid"
+        node StoreKB: "Create Knowledge Nodes & Claim Edges"
+        StoreDocs -> StoreVec
+    }
+    container FutureRetrieval: "Subsequent Queries & Chat" {
+        node NewQuery: "New Chat Turn or Research Query"
+        node HybridSearch: "Hybrid Search (BM25 + Dense Vector)"
+        node PriorKnowledge: "Retrieve Past Research Evidence & Reports"
+        NewQuery -> HybridSearch
+        HybridSearch -> PriorKnowledge
+    }
+    ResearchRun.FetchPages -> StorageLoop.StoreDocs
+    ResearchRun.SynthReport -> StorageLoop.StoreFTS
+    ResearchRun.SynthReport -> StorageLoop.StoreKB
+}
 ```
 
 1. **Automatic Evidence Ingestion**:
