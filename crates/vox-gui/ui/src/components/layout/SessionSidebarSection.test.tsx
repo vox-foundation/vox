@@ -50,6 +50,17 @@ describe('SessionSidebarSection', () => {
     expect(tabs[1]).toHaveTextContent('Old');
   });
 
+  it('exposes Archive as a real button, outside the tab, that archives without selecting the session', () => {
+    const onArchiveSession = vi.fn();
+    const onSessionChange = vi.fn();
+    render(<SessionSidebarSection {...baseProps} sessions={[session({ session_id: 'a', title: 'A' })]} onArchiveSession={onArchiveSession} onSessionChange={onSessionChange} />);
+    const archive = screen.getByRole('button', { name: 'Archive' });
+    expect(screen.getByRole('tab').contains(archive)).toBe(false);
+    fireEvent.click(archive);
+    expect(onArchiveSession).toHaveBeenCalledWith('a');
+    expect(onSessionChange).not.toHaveBeenCalled();
+  });
+
   it('truncates each repo group independently at 5, with its own Show more', () => {
     const sessions = Array.from({ length: 7 }, (_, i) => session({ session_id: `v${i}`, title: `Session ${i}`, repository_id: 'vox', updated_at: `2026-01-0${i + 1}T00:00:00Z` }));
     render(<SessionSidebarSection {...baseProps} sessions={sessions} />);
