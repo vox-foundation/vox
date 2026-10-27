@@ -184,18 +184,25 @@ test('pageSlug', () => {
   }
 });
 
-test('near-miss info strings are left alone', () => {
+test('near-miss info strings: another language is left alone, extra words fail a build', () => {
   resetMisses();
-  const tree = {
+  const tree = () => ({
     type: 'root',
     children: [
-      { type: 'code', lang: 'vox-diagram', meta: 'title="x"', value: 'a' },
       { type: 'code', lang: 'vox-diagram,x', meta: null, value: 'b' },
+      { type: 'code', lang: 'vox-diagram', meta: 'title="x"', value: 'a' },
     ],
-  };
-  remarkVoxDiagram({ manifestPath: NO_MANIFEST, strict: true })(tree, { path: '/r/docs/src/a.md' });
-  assert.deepEqual(tree.children.map((c) => c.type), ['code', 'code']);
+  });
+  const dev = tree();
+  remarkVoxDiagram({ manifestPath: NO_MANIFEST, strict: false })(dev, { path: '/r/docs/src/a.md' });
+  assert.deepEqual(dev.children.map((c) => c.type), ['code', 'code']);
   assert.doesNotThrow(() => assertNoMisses());
+  assert.throws(
+    () => remarkVoxDiagram({ manifestPath: NO_MANIFEST, strict: true })(tree(), { path: '/r/docs/src/a.md' }),
+    /docs\/src\/a\.md fence 1 has an info string other than exactly vox-diagram/,
+  );
+  assert.throws(() => assertNoMisses(), /docs\/src\/a\.md fence 1/);
+  resetMisses();
 });
 
 test('two identical fences get distinct prefixes; figure shape', () => {

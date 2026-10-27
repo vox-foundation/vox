@@ -66,6 +66,8 @@ export default defineConfig({
           description: 'Vox is a pre-1.0 (0.6.0) AI-native full-stack language that compiles a .vox file to a database schema, type-safe server, and browser UI. Build from source; see https://voxlang.org/reference/stability/ for maturity. Current syntax uses bare table / query / mutation / server / tool — not @endpoint.',
           exclude: internalsExcluded,
           // The SVG's <desc> and labels are noise for LLMs; its fence source stays (details > pre).
+          // Backstop only: 89-03 found llms-full.txt unchanged without it; kept so a later change
+          // (here or in starlight-llms-txt) cannot leak the svg text into it.
           customSelectors: { all: ['svg.vd-diagram'] },
         }),
       ],

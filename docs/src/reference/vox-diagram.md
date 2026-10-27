@@ -107,7 +107,7 @@ sequence {
 
 ## Layout stress examples
 
-These diagrams exercise long labels, every node shape, nested containers, non-ASCII text and a wide sequence, and the site's browser tests check them on every build. The width model is close for accented Latin and CJK text but under-measures arrows, symbols and emoji, so labels that use those may overflow their boxes.
+These diagrams exercise long labels, every node shape, nested containers, non-ASCII text and a wide sequence, and the site's browser tests check them in the docs-quality workflow. The width model is close for accented Latin and CJK text but under-measures arrows, symbols and emoji, so labels that use those may overflow their boxes.
 
 Every node shape, with labels that wrap and edge labels near the wrap width:
 

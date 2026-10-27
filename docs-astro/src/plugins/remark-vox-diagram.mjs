@@ -232,7 +232,14 @@ export function remarkVoxDiagram({ manifestPath, strict = false } = {}) {
     let heading = '';
     visit(tree, (node) => {
       if (node.type === 'heading') heading = plain(node).replace(/\s+/g, ' ').trim();
-      if (node.type !== 'code' || node.lang !== 'vox-diagram' || node.meta) return;
+      if (node.type !== 'code' || node.lang !== 'vox-diagram') return;
+      if (node.meta) {
+        // Rust's pre-render rejects this as diagram-fence-info; a bare `astro build` must too (IN-02).
+        if (!strict) return;
+        const file_ = docsPath(file.path, file.data?.astro?.frontmatter?.mounted_from);
+        misses().push({ file: file_, n: n + 1 });
+        throw new Error(`remark-vox-diagram: ${file_} fence ${n + 1} has an info string other than exactly vox-diagram`);
+      }
       n += 1;
       const source = normalizeSource(node.value);
       const svg = manifest.get(source);
@@ -254,6 +261,7 @@ export function remarkVoxDiagram({ manifestPath, strict = false } = {}) {
         return;
       }
       const prefix = `vd-${page}-${n}`;
+      // pageSlug already reduces the slug to [a-z0-9-]; this only catches a future change to it.
       if (!PREFIX_RE.test(prefix)) throw new Error(`remark-vox-diagram: bad id prefix ${prefix}`);
       const svgEl = reprefix(parse(svg), prefix);
       // The writer titles every diagram "Diagram"; a page-unique name keeps several figures, and
