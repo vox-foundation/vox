@@ -103,7 +103,13 @@ Plans:
   3. Every spoke's base and preset follow the picked size. An explicit size overrides the pick, and a size that does not fit is refused rather than silently shrunk.
   4. The inference auto-selector and the training base pick both use this selector. The old fixed tiers that point at run directories that do not exist are gone.
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] `318-01` (wave 1): Selector core in `vox-populi` `mens::tensor::size_select` — live free-memory reading, six-size ladder with presets (new `qwen3_6g`, `qwen3_12g`), automatic pick, explicit sizes (`resolve_base_pin` moved here), re-check before load
+- [ ] `318-02` (wave 2): Training — one pick in `run_train`, re-check before the download in `gpu.rs`, live mode for pipeline and `--domain` spokes, Metal default-base path deleted, how-to
+- [ ] `318-03` (wave 2): Inference — orchestrator auto-select on the selector (fake tiers and registry candidates deleted), `vox chat --model auto-local`, `vox mens serve` pre-load fit check
+- [ ] `318-04` (wave 3): GUI recommendation command, TypeScript type and e2e mock in the new shape; how-to for serve and auto-local
 
 ### Phase 319: Mesh-Wide Selection (`MESH-01`)
 
@@ -149,7 +155,7 @@ Plans:
 | **Phase 315** | Serve Gate | `2/2` | Complete |
 | **Phase 316** | Before/After Comparison | `1/1` | Complete |
 | **Phase 317** | Size Ladder | `1/1` | Complete |
-| **Phase 318** | Live VRAM Selector | `0/0` | Not started |
+| **Phase 318** | Live VRAM Selector | `0/4` | Planned |
 | **Phase 319** | Mesh-Wide Selection | `0/0` | Not started |
 | **Phase 320** | Train the Sizes | `0/0` | Not started |
 | **Phase 321** | Harness Before/After | `0/0` | Not started |
