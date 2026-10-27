@@ -1,7 +1,7 @@
 ---
 phase: 90-corpus-migration-gate-tightening
 verified: 2026-10-27T10:25:00Z
-status: human_needed
+status: passed
 score: 9/9 must-haves verified
 covered_files:
   - ".planning/workstreams/voxdiagram/phases/90-corpus-migration-gate-tightening/90-01-PLAN.md"
@@ -65,7 +65,7 @@ covered_files:
   - "docs/src/reference/mens-measurement-gap-analysis.md"
   - "docs/src/reference/populi.md"
   - "docs/src/reference/vox-diagram.md"
-covered_digest: "v3:sha256:03e585813a2a4c37b4b5d121087817cf19fe8f1295f114dd451377590922a4ac"
+covered_digest: "v3:sha256:8fa5ef1d3d319e7bdf46c66b60b7dcd3c49db76fa1c11727a22ded363957d51e"
 behavior_unverified: 0
 overrides_applied: 0
 human_verification:
@@ -158,7 +158,7 @@ No requirement mapped to Phase 90 is orphaned.
 | File | Line | Pattern | Severity | Impact |
 |---|---|---|---|---|
 | (all phase files) | - | TBD/FIXME/XXX | none found | - |
-| `crates/vox-diagram/tests/svg_geometry_props.rs` | 400 lines | CONTEXT says "files < 400 lines", and this file is at exactly 400 (it was 397) | Info | At the boundary; not a goal blocker |
+| `crates/vox-diagram/tests/svg_geometry_props.rs` | 400 lines | CONTEXT says "files < 400 lines", and was at exactly 400 | Info | Fixed: 399 lines after merging the `use` groups |
 | `90-VALIDATION.md` | frontmatter | `status: draft`, `nyquist_compliant: false` | Info | validate-phase has not run; optional |
 
 No new crate edges or dependency changes: `Cargo.toml` and `contracts/ci` are unchanged since the phase base.
@@ -185,3 +185,10 @@ There are no gaps. The corpus is migrated faithfully: 32 fences pass the fidelit
 
 _Verified: 2026-10-27_
 _Verifier: Claude (gsd-verifier)_
+
+## Re-verification (2026-10-27, orchestrator)
+
+- By-eye review of CR-01 and WR-01 done on the review-fix contact sheets for stems 03, 12, 13 and 18: edges clear foreign nodes, arrowheads are distinct, titles sit on their content. Stem 03's tall "Pure Correlation Layer" frame matches the Mermaid original's shape; stem 12's back-edge crossing is readable. Accepted.
+- `svg_geometry_props.rs` trimmed to 399 lines (`use` groups merged); `cargo fmt --check` and `cargo check --tests` clean.
+- Hosted CI (docs-quality, docs-deploy, Linux font lane) is carried to the milestone PR, as for Phase 89.
+- Status set to `passed`; fingerprint recomputed.

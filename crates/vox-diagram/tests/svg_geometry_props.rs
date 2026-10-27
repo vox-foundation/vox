@@ -6,10 +6,9 @@
 
 mod support;
 
-use std::cell::Cell;
-
 use proptest::prelude::*;
 use proptest::test_runner::{Config, TestRunner};
+use std::cell::Cell;
 use support::clearance::{clearance, through};
 use support::svgcheck::{Shape, Svg, check as check_svg};
 use support::{model_graph, noise, noisy_source};
