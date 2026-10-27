@@ -136,7 +136,7 @@ regex = { version = "1" }
 regex-automata = { version = "0.4" }
 regex-syntax = { version = "0.8" }
 reqwest-594e8ee84c453af0 = { package = "reqwest", version = "0.13", features = ["blocking", "json", "multipart", "native-tls", "query", "rustls-no-provider", "socks", "stream"] }
-reqwest-5ef9efb8ec2df382 = { package = "reqwest", version = "0.12", default-features = false, features = ["blocking", "default-tls", "gzip", "json", "multipart", "rustls-tls", "stream"] }
+reqwest-5ef9efb8ec2df382 = { package = "reqwest", version = "0.12", default-features = false, features = ["blocking", "json", "multipart", "rustls-tls", "stream"] }
 rsa = { version = "0.9", features = ["sha2"] }
 rustc-demangle = { version = "0.1", default-features = false, features = ["std"] }
 rustls = { version = "0.23", default-features = false, features = ["logging", "ring", "std", "tls12"] }
@@ -145,7 +145,6 @@ schemars-c38e5c1d305a1b54 = { package = "schemars", version = "0.8", features = 
 schemars-dff4ba8e3ae991db = { package = "schemars", version = "1", features = ["chrono04"] }
 semver = { version = "1", features = ["serde"] }
 serde = { version = "1", features = ["alloc", "derive", "rc"] }
-serde_bytes = { version = "0.11", features = ["alloc"] }
 serde_core = { version = "1", features = ["alloc", "rc"] }
 serde_json = { version = "1", features = ["alloc", "preserve_order", "raw_value", "unbounded_depth"] }
 serde_spanned = { version = "1" }
@@ -327,7 +326,7 @@ regex = { version = "1" }
 regex-automata = { version = "0.4" }
 regex-syntax = { version = "0.8" }
 reqwest-594e8ee84c453af0 = { package = "reqwest", version = "0.13", features = ["blocking", "json", "multipart", "native-tls", "query", "rustls-no-provider", "socks", "stream"] }
-reqwest-5ef9efb8ec2df382 = { package = "reqwest", version = "0.12", default-features = false, features = ["blocking", "default-tls", "gzip", "json", "multipart", "rustls-tls", "stream"] }
+reqwest-5ef9efb8ec2df382 = { package = "reqwest", version = "0.12", default-features = false, features = ["blocking", "json", "multipart", "rustls-tls", "stream"] }
 rsa = { version = "0.9", features = ["sha2"] }
 rustc-demangle = { version = "0.1", default-features = false, features = ["std"] }
 rustls = { version = "0.23", default-features = false, features = ["logging", "ring", "std", "tls12"] }
@@ -336,7 +335,6 @@ schemars-c38e5c1d305a1b54 = { package = "schemars", version = "0.8", features = 
 schemars-dff4ba8e3ae991db = { package = "schemars", version = "1", features = ["chrono04"] }
 semver = { version = "1", features = ["serde"] }
 serde = { version = "1", features = ["alloc", "derive", "rc"] }
-serde_bytes = { version = "0.11", features = ["alloc"] }
 serde_core = { version = "1", features = ["alloc", "rc"] }
 serde_json = { version = "1", features = ["alloc", "preserve_order", "raw_value", "unbounded_depth"] }
 serde_spanned = { version = "1" }
@@ -407,7 +405,6 @@ hyper-util = { version = "0.1", default-features = false, features = ["client-pr
 ipnet = { version = "2", features = ["serde"] }
 linux-raw-sys = { version = "0.12", default-features = false, features = ["auxvec", "elf", "errno", "general", "if_ether", "io_uring", "ioctl", "net", "netlink", "no_std", "prctl", "xdp"] }
 mio = { version = "1", features = ["net", "os-ext"] }
-moka = { version = "0.12", features = ["future", "sync"] }
 native-tls = { version = "0.2", features = ["alpn"] }
 nix = { version = "0.31", default-features = false, features = ["fs", "poll", "signal"] }
 object-d736d0ac4424f0f1 = { package = "object", version = "0.37", default-features = false, features = ["read", "std"] }
@@ -418,7 +415,7 @@ spin = { version = "0.9" }
 tokio-rustls = { version = "0.26", default-features = false, features = ["aws-lc-rs", "early-data", "tls12"] }
 toml = { version = "0.8" }
 tower = { version = "0.5", default-features = false, features = ["retry", "timeout"] }
-tower-http = { version = "0.6", default-features = false, features = ["decompression-gzip", "follow-redirect"] }
+tower-http = { version = "0.6", default-features = false, features = ["follow-redirect"] }
 whoami = { version = "2" }
 
 [target.x86_64-unknown-linux-gnu.build-dependencies]
@@ -432,7 +429,6 @@ hyper-util = { version = "0.1", default-features = false, features = ["client-pr
 ipnet = { version = "2", features = ["serde"] }
 linux-raw-sys = { version = "0.12", default-features = false, features = ["auxvec", "elf", "errno", "general", "if_ether", "io_uring", "ioctl", "net", "netlink", "no_std", "prctl", "xdp"] }
 mio = { version = "1", features = ["net", "os-ext"] }
-moka = { version = "0.12", features = ["future", "sync"] }
 native-tls = { version = "0.2", features = ["alpn"] }
 nix = { version = "0.31", default-features = false, features = ["fs", "poll", "signal"] }
 object-d736d0ac4424f0f1 = { package = "object", version = "0.37", default-features = false, features = ["read", "std"] }
@@ -444,7 +440,7 @@ syn-dff4ba8e3ae991db = { package = "syn", version = "1", features = ["extra-trai
 tokio-rustls = { version = "0.26", default-features = false, features = ["aws-lc-rs", "early-data", "tls12"] }
 toml = { version = "0.8" }
 tower = { version = "0.5", default-features = false, features = ["retry", "timeout"] }
-tower-http = { version = "0.6", default-features = false, features = ["decompression-gzip", "follow-redirect"] }
+tower-http = { version = "0.6", default-features = false, features = ["follow-redirect"] }
 whoami = { version = "2" }
 
 [target.aarch64-apple-darwin.dependencies]
@@ -461,12 +457,12 @@ hyper-util = { version = "0.1", default-features = false, features = ["client-pr
 ipnet = { version = "2", features = ["serde"] }
 itertools = { version = "0.13" }
 mio = { version = "1", features = ["net", "os-ext"] }
-moka = { version = "0.12", features = ["future", "sync"] }
 native-tls = { version = "0.2", features = ["alpn"] }
 nix = { version = "0.31", default-features = false, features = ["fs", "poll", "signal"] }
 objc2 = { version = "0.6", features = ["disable-encoding-assertions", "exception"] }
-objc2-app-kit = { version = "0.3", default-features = false, features = ["NSAccessibilityProtocols", "NSAlert", "NSAnimation", "NSAppearance", "NSApplication", "NSAttributedString", "NSButton", "NSCell", "NSColor", "NSControl", "NSDragging", "NSEvent", "NSGraphics", "NSImage", "NSMenu", "NSMenuItem", "NSOpenGLView", "NSOpenPanel", "NSPanel", "NSPasteboard", "NSPopover", "NSPrintInfo", "NSPrintOperation", "NSResponder", "NSRunningApplication", "NSSavePanel", "NSScreen", "NSTextFinder", "NSTextView", "NSUserActivity", "NSUserInterfaceItemIdentification", "NSUserInterfaceValidation", "NSView", "NSVisualEffectView", "NSWindow", "block2", "objc2-core-foundation", "std"] }
+objc2-app-kit = { version = "0.3" }
 objc2-core-foundation = { version = "0.3", features = ["CFBase"] }
+objc2-core-graphics = { version = "0.3" }
 objc2-foundation = { version = "0.3" }
 objc2-metal = { version = "0.3" }
 objc2-system-configuration = { version = "0.3" }
@@ -476,7 +472,7 @@ rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", 
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["aws-lc-rs", "early-data", "tls12"] }
 tower = { version = "0.5", default-features = false, features = ["retry", "timeout"] }
-tower-http = { version = "0.6", default-features = false, features = ["decompression-gzip", "follow-redirect"] }
+tower-http = { version = "0.6", default-features = false, features = ["follow-redirect"] }
 whoami = { version = "2" }
 
 [target.aarch64-apple-darwin.build-dependencies]
@@ -493,12 +489,12 @@ hyper-util = { version = "0.1", default-features = false, features = ["client-pr
 ipnet = { version = "2", features = ["serde"] }
 itertools = { version = "0.13" }
 mio = { version = "1", features = ["net", "os-ext"] }
-moka = { version = "0.12", features = ["future", "sync"] }
 native-tls = { version = "0.2", features = ["alpn"] }
 nix = { version = "0.31", default-features = false, features = ["fs", "poll", "signal"] }
 objc2 = { version = "0.6", features = ["disable-encoding-assertions", "exception"] }
-objc2-app-kit = { version = "0.3", default-features = false, features = ["NSAccessibilityProtocols", "NSAlert", "NSAnimation", "NSAppearance", "NSApplication", "NSAttributedString", "NSButton", "NSCell", "NSColor", "NSControl", "NSDragging", "NSEvent", "NSGraphics", "NSImage", "NSMenu", "NSMenuItem", "NSOpenGLView", "NSOpenPanel", "NSPanel", "NSPasteboard", "NSPopover", "NSPrintInfo", "NSPrintOperation", "NSResponder", "NSRunningApplication", "NSSavePanel", "NSScreen", "NSTextFinder", "NSTextView", "NSUserActivity", "NSUserInterfaceItemIdentification", "NSUserInterfaceValidation", "NSView", "NSVisualEffectView", "NSWindow", "block2", "objc2-core-foundation", "std"] }
+objc2-app-kit = { version = "0.3" }
 objc2-core-foundation = { version = "0.3", features = ["CFBase"] }
+objc2-core-graphics = { version = "0.3" }
 objc2-foundation = { version = "0.3" }
 objc2-metal = { version = "0.3" }
 objc2-system-configuration = { version = "0.3" }
@@ -508,7 +504,7 @@ rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", 
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["aws-lc-rs", "early-data", "tls12"] }
 tower = { version = "0.5", default-features = false, features = ["retry", "timeout"] }
-tower-http = { version = "0.6", default-features = false, features = ["decompression-gzip", "follow-redirect"] }
+tower-http = { version = "0.6", default-features = false, features = ["follow-redirect"] }
 whoami = { version = "2" }
 
 [target.x86_64-pc-windows-msvc.dependencies]
@@ -520,14 +516,13 @@ hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc
 hyper-tls = { version = "0.6", default-features = false, features = ["alpn"] }
 hyper-util = { version = "0.1", default-features = false, features = ["client-proxy", "client-proxy-system"] }
 ipnet = { version = "2", features = ["serde"] }
-moka = { version = "0.12", features = ["future", "sync"] }
 native-tls = { version = "0.2", features = ["alpn"] }
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "aws_lc_rs"] }
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs"] }
 spin = { version = "0.9" }
 tokio-rustls = { version = "0.26", default-features = false, features = ["aws-lc-rs", "early-data", "tls12"] }
 tower = { version = "0.5", default-features = false, features = ["retry", "timeout"] }
-tower-http = { version = "0.6", default-features = false, features = ["decompression-gzip", "follow-redirect"] }
+tower-http = { version = "0.6", default-features = false, features = ["follow-redirect"] }
 winapi = { version = "0.3", default-features = false, features = ["cfg", "consoleapi", "errhandlingapi", "evntrace", "fileapi", "handleapi", "impl-debug", "impl-default", "in6addr", "inaddr", "knownfolders", "libloaderapi", "minwinbase", "minwindef", "namedpipeapi", "ntsecapi", "objbase", "processenv", "processthreadsapi", "profileapi", "securitybaseapi", "shlobj", "std", "synchapi", "timezoneapi", "winbase", "windef", "winerror", "winioctl", "winnt", "winreg", "winsock2", "winuser"] }
 windows-7625e418397b3a5d = { package = "windows", version = "0.62", features = ["Wdk_System_SystemInformation", "Wdk_System_SystemServices", "Wdk_System_Threading", "Win32_NetworkManagement_IpHelper", "Win32_NetworkManagement_Ndis", "Win32_NetworkManagement_NetManagement", "Win32_Networking_WinSock", "Win32_Security_Authentication_Identity", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_System_Diagnostics_Debug", "Win32_System_Diagnostics_ToolHelp", "Win32_System_IO", "Win32_System_Ioctl", "Win32_System_JobObjects", "Win32_System_Kernel", "Win32_System_Memory", "Win32_System_Ole", "Win32_System_Performance", "Win32_System_Power", "Win32_System_ProcessStatus", "Win32_System_Registry", "Win32_System_RemoteDesktop", "Win32_System_Rpc", "Win32_System_SystemInformation", "Win32_System_SystemServices", "Win32_System_Threading", "Win32_System_Variant", "Win32_System_WindowsProgramming", "Win32_System_Wmi", "Win32_UI_Shell"] }
 windows-core-7625e418397b3a5d = { package = "windows-core", version = "0.62" }
@@ -548,14 +543,13 @@ hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc
 hyper-tls = { version = "0.6", default-features = false, features = ["alpn"] }
 hyper-util = { version = "0.1", default-features = false, features = ["client-proxy", "client-proxy-system"] }
 ipnet = { version = "2", features = ["serde"] }
-moka = { version = "0.12", features = ["future", "sync"] }
 native-tls = { version = "0.2", features = ["alpn"] }
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "aws_lc_rs"] }
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs"] }
 spin = { version = "0.9" }
 tokio-rustls = { version = "0.26", default-features = false, features = ["aws-lc-rs", "early-data", "tls12"] }
 tower = { version = "0.5", default-features = false, features = ["retry", "timeout"] }
-tower-http = { version = "0.6", default-features = false, features = ["decompression-gzip", "follow-redirect"] }
+tower-http = { version = "0.6", default-features = false, features = ["follow-redirect"] }
 winapi = { version = "0.3", default-features = false, features = ["cfg", "consoleapi", "errhandlingapi", "evntrace", "fileapi", "handleapi", "impl-debug", "impl-default", "in6addr", "inaddr", "knownfolders", "libloaderapi", "minwinbase", "minwindef", "namedpipeapi", "ntsecapi", "objbase", "processenv", "processthreadsapi", "profileapi", "securitybaseapi", "shlobj", "std", "synchapi", "timezoneapi", "winbase", "windef", "winerror", "winioctl", "winnt", "winreg", "winsock2", "winuser"] }
 windows-7625e418397b3a5d = { package = "windows", version = "0.62", features = ["Wdk_System_SystemInformation", "Wdk_System_SystemServices", "Wdk_System_Threading", "Win32_NetworkManagement_IpHelper", "Win32_NetworkManagement_Ndis", "Win32_NetworkManagement_NetManagement", "Win32_Networking_WinSock", "Win32_Security_Authentication_Identity", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_System_Diagnostics_Debug", "Win32_System_Diagnostics_ToolHelp", "Win32_System_IO", "Win32_System_Ioctl", "Win32_System_JobObjects", "Win32_System_Kernel", "Win32_System_Memory", "Win32_System_Ole", "Win32_System_Performance", "Win32_System_Power", "Win32_System_ProcessStatus", "Win32_System_Registry", "Win32_System_RemoteDesktop", "Win32_System_Rpc", "Win32_System_SystemInformation", "Win32_System_SystemServices", "Win32_System_Threading", "Win32_System_Variant", "Win32_System_WindowsProgramming", "Win32_System_Wmi", "Win32_UI_Shell"] }
 windows-core-7625e418397b3a5d = { package = "windows-core", version = "0.62" }
