@@ -14,10 +14,11 @@
 //! active-skill allowlist -> name exclusion, then ordering (pins, intent-triggered
 //! families, lane-selected tools) and the cap. See [`select_tools_for_turn`].
 
-use vox_mcp_registry::McpToolRegistryEntry;
+use vox_mcp_registry::{McpToolRegistryEntry, SideEffectClass};
 use vox_skills::SkillRegistry;
 
 use crate::skill_permissions::check_skill_tool_permission;
+use crate::tool_search::{score_entry, turn_terms};
 
 /// Thin re-export of `vox_skills::new_registry_arc` so `vox-cli`'s
 /// `tool-cap-never-exceeds-cap` golden task (`vox harness eval`) can build a
@@ -37,6 +38,13 @@ pub fn new_registry_arc_for_eval() -> std::sync::Arc<SkillRegistry> {
 /// [`check_skill_tool_permission`] never filters out. 40 sits comfortably
 /// inside that range without hugging its upper edge.
 pub const DEFAULT_MAX_TOOLS: usize = 40;
+
+/// Most read-only tools from outside `ctx.lanes` that relevance may pull into one turn.
+pub const MAX_OFF_LANE_RELEVANT: usize = 3;
+
+/// Lowest relevance score at which a tool outside `ctx.lanes` may be offered: one
+/// exact tool-name segment hit (see `tool_search::score_entry`).
+const OFF_LANE_MIN_SCORE: u32 = 8;
 
 /// Tools every agent chat turn pins inside the cap: the delegation tools, which sit
 /// past the alphabetical cut, and `vox_tool_search`, the progressive-disclosure hatch
@@ -158,7 +166,7 @@ impl TurnContext {
 ///    `ctx.exclude_name_prefixes` (no-op if empty).
 /// 5. Ordering — pinned tools first, then the core tools of every
 ///    [`IntentFamily`] `ctx.query` triggers (in family order), then the
-///    remaining survivors whose `product_lane` is in `ctx.lanes`, in registry
+///    remaining survivors whose `product_lane` is in `ctx.lanes`, by relevance then registry
 ///    order. The lane filter applies only to that last group: a triggered
 ///    family is an explicit relevance signal, the lane list a default.
 ///    When `ctx.query` is set, that last group also skips tools owned (by
@@ -169,10 +177,17 @@ impl TurnContext {
 /// Every filter runs BEFORE the cap: excluded or unavailable tools never consume
 /// a cap slot, and pinned and triggered tools are always inside it.
 ///
-/// Apart from pins and intent families, the lane group is a plain truncation
-/// over registry (alphabetical) order, not a relevance ranking. Tools outside
-/// the offered set stay reachable through `vox_tool_search` (see
-/// [`admit_discovered_tools`]).
+/// Apart from pins and intent families, the lane group is ranked by relevance to
+/// `ctx.query`: each candidate is scored with the `vox_tool_search` scorer
+/// (`crate::tool_search::score_entry`) over the turn's terms
+/// (`crate::tool_search::turn_terms`), best first, ties and zero scores in
+/// registry (alphabetical) order. So a turn with no signal keeps the plain lane
+/// order, and one about files or repositories is offered the tools that name
+/// them instead of whatever sorts first. Up to [`MAX_OFF_LANE_RELEVANT`]
+/// read-only tools outside `ctx.lanes` whose *name* matches a turn term join the
+/// ranking (e.g. `vox_repo_query_file`, lane `platform`, for "does the file X
+/// exist"). Tools outside the offered set stay reachable through `vox_tool_search`
+/// (see [`admit_discovered_tools`]).
 #[must_use]
 pub fn select_tools_for_turn(
     registry: &'static [McpToolRegistryEntry],
@@ -214,13 +229,44 @@ pub fn select_tools_for_turn(
             push(entry);
         }
     }
-    for entry in candidates.iter().filter(|e| {
-        ctx.lane_allowed(e.product_lane)
-            && !untriggered_prefixes.iter().any(|p| e.name.starts_with(p))
-    }) {
+    // Relevance: score every candidate the request leaves in play against the
+    // turn's terms, so the cap cuts the least relevant tools instead of the
+    // alphabetically last. A tool outside `ctx.lanes` is admitted only when it
+    // names a term outright, is read-only, and ranks within the top
+    // `MAX_OFF_LANE_RELEVANT` such tools. Zero scores keep registry order.
+    let terms = ctx.query.as_deref().map(turn_terms).unwrap_or_default();
+    let mut ranked: Vec<(u32, &'static McpToolRegistryEntry)> = Vec::new();
+    let mut off_lane: Vec<(u32, &'static McpToolRegistryEntry)> = Vec::new();
+    for entry in candidates
+        .iter()
+        .filter(|e| !untriggered_prefixes.iter().any(|p| e.name.starts_with(p)))
+    {
+        let score = score_entry(&terms, entry);
+        if ctx.lane_allowed(entry.product_lane) {
+            ranked.push((score, entry));
+        } else if score >= OFF_LANE_MIN_SCORE
+            && entry.side_effect_class == SideEffectClass::ReadOnly
+        {
+            off_lane.push((score, entry));
+        }
+    }
+    off_lane.sort_by_key(|(score, _)| std::cmp::Reverse(*score));
+    off_lane.truncate(MAX_OFF_LANE_RELEVANT);
+    ranked.extend(off_lane);
+    ranked.sort_by_key(|(score, _)| std::cmp::Reverse(*score));
+    for (_, entry) in ranked {
         push(entry);
     }
     out
+}
+
+/// Whether a tool name is acceptable on a provider wire (`[A-Za-z0-9_-]{1,128}`).
+/// One bad name fails the entire request, so such tools are never offered.
+fn is_wire_safe_name(name: &str) -> bool {
+    (1..=128).contains(&name.len())
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
 }
 
 /// Every filter except lanes and the cap: the conditions under which a tool may be
@@ -230,7 +276,8 @@ fn admissible(
     ctx: &TurnContext,
     entry: &McpToolRegistryEntry,
 ) -> bool {
-    (!ctx.is_read_only() || entry.http_read_role_eligible)
+    is_wire_safe_name(entry.name)
+        && (!ctx.is_read_only() || entry.http_read_role_eligible)
         && ctx
             .available
             .as_ref()
@@ -1003,5 +1050,152 @@ mod tests {
     fn trigger_case_ids_are_unique() {
         let ids: HashSet<&str> = TRIGGER_CASES.iter().map(|c| c.id).collect();
         assert_eq!(ids.len(), TRIGGER_CASES.len());
+    }
+
+    fn offered_names(query: &str) -> Vec<&'static str> {
+        let reg = new_registry_arc();
+        select_tools_for_turn(TOOL_REGISTRY, &reg, &chat_turn(query))
+            .iter()
+            .map(|t| t.name)
+            .collect()
+    }
+
+    /// Turns that ask about a file's existence or contents must be offered a
+    /// read-only tool that can answer them. Before relevance ranking the offered
+    /// set was the alphabetical head of the `ai`/`app` lanes, and
+    /// `vox_repo_query_file` (lane `platform`) was never in it.
+    #[test]
+    fn file_questions_are_offered_a_file_reading_tool() {
+        for prompt in [
+            "does the file Cargo.toml exist in the repo root?",
+            "how many lines are in crates/vox-cli/Cargo.toml?",
+            "Use a tool to check whether Cargo.toml exists in the current directory, then report the result.",
+            "Use a tool to read Cargo.toml in the current directory and report how many lines it has.",
+        ] {
+            let names = offered_names(prompt);
+            assert!(
+                names.contains(&"vox_repo_query_file"),
+                "no file-reading tool offered for {prompt:?}: {names:?}"
+            );
+        }
+    }
+
+    /// Relevance ranking must not disturb the guarantees around it: the cap, the
+    /// pins and the family withholding all still hold for a file question.
+    #[test]
+    fn file_question_selection_keeps_cap_pins_and_family_gating() {
+        let names = offered_names("does the file Cargo.toml exist in the repo root?");
+        assert!(names.len() <= DEFAULT_MAX_TOOLS);
+        for pin in CHAT_TURN_PINS {
+            assert!(names.contains(pin), "pin {pin} lost: {names:?}");
+        }
+        assert!(
+            !names.iter().any(|n| n.starts_with("vox_browser_")
+                || n.starts_with("vox_computer_")
+                || n.starts_with("vox_chat_")),
+            "{names:?}"
+        );
+    }
+
+    /// An off-lane tool may be pulled in by relevance only if it is read-only, and
+    /// only a handful of them: a turn must not turn into a platform-wide dump.
+    #[test]
+    fn relevance_admits_only_a_few_read_only_off_lane_tools() {
+        for prompt in [
+            "does the file Cargo.toml exist in the repo root?",
+            "how many lines are in crates/vox-cli/Cargo.toml?",
+            "read the file and the path and the repo and the history and the status",
+        ] {
+            let names = offered_names(prompt);
+            let off_lane: Vec<&McpToolRegistryEntry> = TOOL_REGISTRY
+                .iter()
+                .filter(|e| names.contains(&e.name))
+                .filter(|e| !["ai", "app"].contains(&e.product_lane))
+                .filter(|e| !CHAT_TURN_PINS.contains(&e.name))
+                .collect();
+            assert!(
+                off_lane.len() <= MAX_OFF_LANE_RELEVANT,
+                "{prompt:?}: {:?}",
+                off_lane.iter().map(|e| e.name).collect::<Vec<_>>()
+            );
+            assert!(
+                off_lane
+                    .iter()
+                    .all(|e| e.side_effect_class == vox_mcp_registry::SideEffectClass::ReadOnly),
+                "{prompt:?}: {:?}",
+                off_lane.iter().map(|e| e.name).collect::<Vec<_>>()
+            );
+        }
+    }
+
+    /// A turn with no signal keeps the plain lane order: same set as an empty turn.
+    #[test]
+    fn unrelated_turns_keep_the_plain_lane_selection() {
+        let plain = offered_names("");
+        for prompt in ["hello", "thanks!", "good morning, how are you?"] {
+            assert_eq!(offered_names(prompt), plain, "{prompt:?}");
+        }
+    }
+
+    #[test]
+    fn turn_terms_drop_filler_and_expand_paths() {
+        let terms =
+            crate::tool_search::turn_terms("How many lines are in crates/vox-cli/Cargo.toml?");
+        assert!(terms.contains(&"file".to_string()), "{terms:?}");
+        assert!(terms.contains(&"line".to_string()), "{terms:?}");
+        for filler in ["how", "many", "are", "in", "vox"] {
+            assert!(
+                !terms.contains(&filler.to_string()),
+                "{filler} in {terms:?}"
+            );
+        }
+    }
+
+    /// The file tool must rank near the top of the offered set, not merely scrape
+    /// in at the cap: a model weighs earlier tools, and a looser cap would hide it.
+    #[test]
+    fn file_tool_ranks_near_the_front_of_the_offered_set() {
+        let names = offered_names("how many lines are in crates/vox-cli/Cargo.toml?");
+        let pos = names
+            .iter()
+            .position(|n| *n == "vox_repo_query_file")
+            .expect("offered");
+        assert!(pos < CHAT_TURN_PINS.len() + 12, "ranked {pos}: {names:?}");
+    }
+
+    #[test]
+    fn path_like_turns_do_not_pull_in_graph_path_tools() {
+        let names = offered_names("how many lines are in crates/vox-cli/Cargo.toml?");
+        assert!(!names.contains(&"vox_search_path"), "{names:?}");
+    }
+
+    /// Providers (Bedrock via OpenRouter) reject a whole request when any tool name
+    /// is outside `[A-Za-z0-9_-]{1,128}`. `vox_compiler::ast_inspect` is such a
+    /// name; relevance ranking would otherwise surface it for any turn that talks
+    /// about parsing a file.
+    #[test]
+    fn offered_tools_always_have_provider_safe_names() {
+        let reg = new_registry_arc();
+        let mut prompts: Vec<&str> = TRIGGER_CASES.iter().map(|c| c.prompt).collect();
+        prompts.extend([
+            "parse the .vox file and show me its AST to inspect the compiler tree",
+            "does the file Cargo.toml exist in the repo root?",
+            "What is 17 times 23?",
+        ]);
+        for prompt in prompts {
+            for name in offered_names(prompt) {
+                assert!(is_wire_safe_name(name), "{name} offered for {prompt:?}");
+            }
+        }
+        let admitted = admit_discovered_tools(
+            TOOL_REGISTRY,
+            &reg,
+            &chat_turn("x"),
+            &["vox_compiler::ast_inspect", "vox_git_status"],
+            &[],
+            10,
+        );
+        let names: Vec<&str> = admitted.iter().map(|t| t.name).collect();
+        assert_eq!(names, ["vox_git_status"]);
     }
 }

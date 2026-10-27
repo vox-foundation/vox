@@ -237,9 +237,35 @@ fn remote_descriptor(
     }
 }
 
+/// The catalog of a workspace that declares none: the workspace itself, as one
+/// local entry. A repo that has not opted into a polyrepo manifest can still be
+/// queried for its own files; other repositories still need an explicit
+/// `.vox/repositories.yaml` (no ambient scan).
+fn implicit_workspace_catalog(workspace_root: &Path) -> RepoCatalog {
+    let display_name = workspace_root.file_name().map_or_else(
+        || "workspace".to_string(),
+        |n| n.to_string_lossy().into_owned(),
+    );
+    RepoCatalog {
+        schema_version: REPO_CATALOG_SCHEMA_VERSION,
+        primary_repository_id: None,
+        repositories: vec![RepositoryDescriptor {
+            display_name,
+            root_path: Some(".".to_string()),
+            access_mode: RepoAccessMode::Local,
+            ..RepositoryDescriptor::default()
+        }],
+    }
+}
+
 pub fn resolve_repo_catalog(repo_root: &Path) -> Result<ResolvedRepoCatalog, RepoCatalogError> {
     let workspace = crate::discover_repository_or_fallback(repo_root);
-    let catalog = load_repo_catalog_from_repo(&workspace.root)?;
+    let catalog = match load_repo_catalog_from_repo(&workspace.root) {
+        Err(RepoCatalogError::MissingManifest { .. }) => {
+            implicit_workspace_catalog(&workspace.root)
+        }
+        other => other?,
+    };
     let manifest_path = repo_catalog_manifest_path(&workspace.root);
     let mut repositories = Vec::with_capacity(catalog.repositories.len());
 
@@ -346,4 +372,25 @@ pub fn refresh_repo_catalog(
         snapshot_path: snapshot_path.display().to_string(),
         catalog,
     })
+}
+
+#[cfg(test)]
+mod catalog_unit_tests {
+    use super::*;
+
+    #[test]
+    fn implicit_catalog_is_one_local_entry_at_the_workspace_root() {
+        let catalog = implicit_workspace_catalog(Path::new("/work/demo"));
+        assert_eq!(catalog.repositories.len(), 1);
+        let repo = &catalog.repositories[0];
+        assert_eq!(repo.display_name, "demo");
+        assert_eq!(repo.root_path.as_deref(), Some("."));
+        assert_eq!(repo.access_mode, RepoAccessMode::Local);
+    }
+
+    #[test]
+    fn manifest_path_lives_under_dot_vox() {
+        let path = repo_catalog_manifest_path(Path::new("/work/demo"));
+        assert!(path.ends_with(Path::new(".vox").join(REPO_CATALOG_BASENAME)));
+    }
 }
