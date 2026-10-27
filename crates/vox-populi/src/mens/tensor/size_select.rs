@@ -146,8 +146,19 @@ pub fn select_size(
     let ladder = size_ladder(overlay)?;
     if let Some(req) = explicit {
         return match resolve_base_pin(req, overlay) {
-            Ok(pin) => match ladder.iter().find(|r| r.hf_id == pin) {
-                Some(rung) => Ok(Selection::Size(explicit_pick(rung, free, force)?)),
+            // Matched by repo id: another revision of a size keeps its revision
+            // but is judged by that size's floor and gets its preset.
+            Ok(pin) => match ladder
+                .iter()
+                .find(|r| split_pin(&r.hf_id).0 == split_pin(&pin).0)
+            {
+                Some(rung) => {
+                    let rung = SizeRung {
+                        hf_id: pin,
+                        ..rung.clone()
+                    };
+                    Ok(Selection::Size(explicit_pick(&rung, free, force)?))
+                }
                 None => Ok(Selection::PassThrough(pin)),
             },
             // Not a size name (`gpt2`, a local dir, another repo): no floor to
@@ -707,6 +718,21 @@ mod tests {
         let p = sized(explicit("Qwen3-14B", Some(13_000), true).expect("forced"));
         assert_eq!(p.rung.size, "14B");
         assert!(p.note.contains("forced"), "{}", p.note);
+    }
+
+    /// IN-03: another revision of a ladder size keeps its revision but is still
+    /// judged by that size's floor and gets its preset.
+    #[test]
+    fn another_revision_of_a_ladder_size_is_still_a_size() {
+        let other = "Qwen/Qwen3-32B@0123456789abcdef0123456789abcdef01234567";
+        let msg = format!(
+            "{:#}",
+            explicit(other, Some(13_000), false).expect_err("32B does not fit")
+        );
+        assert!(msg.contains("60000"), "{msg}");
+        let p = sized(explicit(other, Some(200_000), false).expect("fits"));
+        assert_eq!(p.rung.hf_id, other);
+        assert_eq!((p.rung.size.as_str(), p.rung.preset), ("32B", "qwen3_96g"));
     }
 
     #[test]
