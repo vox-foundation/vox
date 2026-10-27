@@ -5,17 +5,17 @@ milestone_name: VoxDiagram
 current_phase: 89
 current_phase_name: Docs-Astro Integration
 current_plan: 4
-status: executing
-stopped_at: Completed 89-03-PLAN.md
-last_updated: "2026-10-27T04:32:42.328Z"
+status: verifying
+stopped_at: Completed 89-04-PLAN.md
+last_updated: "2026-10-27T04:53:59.419Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 89 execution started
-state_head: f8637d78fa64f008af362268b3169c6a6759f068
+state_head: 183bc9ad8a49da46fe3c3b3931f9aee16b8eb335
 progress:
   total_phases: 9
   completed_phases: 6
   total_plans: 31
-  completed_plans: 30
+  completed_plans: 31
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -31,7 +31,7 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 
 Phase: 89 (Docs-Astro Integration) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-17 — Phase 89 execution started
 
 Progress: [███████░░░] 67% (0/9 phases)
@@ -64,9 +64,9 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-10-27T04:32:42.252Z
+**Last session:** 2026-10-27T04:53:59.350Z
 
-**Stopped At:** Completed 89-03-PLAN.md
+**Stopped At:** Completed 89-04-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -103,6 +103,7 @@ None yet.
 | Phase 89 P01 | 35min | 3 tasks | 12 files |
 | Phase 89 P02 | 40min | 2 tasks | 7 files |
 | Phase 89 P03 | resumed | 3 tasks | 8 files |
+| Phase 89 P04 | 1 session | 3 tasks | 7 files |
 
 ## Decisions
 
@@ -150,6 +151,7 @@ None yet.
 - [Phase 89]: 89-01: built-page source block is verified via data-language=vox-diagram; the language-vox-diagram class only appears in llms-full (plan 89-03)
 - [Phase 89]: 89-02: horizontal padding floor pad_x (box >= 112% of measured width) shared by every padded text box; table and 8% slack unchanged
 - [Phase 89]: 89-03: dev content refresh via refreshContent() on astro:server:setup instead of deleting Astro's data store (store is .astro/data-store.json; deleting it under a running dev server 404s every page)
+- [Phase 89]: 89-04: browser checks discover figure pages from dist/; review bundle holds shipped and natural-size PNGs
 
 ## Pending Todos (voxdiagram)
 
