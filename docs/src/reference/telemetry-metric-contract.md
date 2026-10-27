@@ -54,6 +54,16 @@ Producers should prefix `session_id` so rollups and dashboards can group without
 ## Metric types (non-exhaustive)
 
 | `metric_type` | Session prefix | Scalar semantics | Notes |
+| `vox.command.usage` | `cli:command_usage` | None | Phase 89 flywheel S1: one top-level CLI command invocation (`METRIC_TYPE_COMMAND_USAGE`). |
+| `vox.skill.activation` | `mcp:skill_activation` | `1.0` accepted / `0.0` rejected | Phase 89 flywheel S1: skill activation at an MCP/CLI/GUI surface (`METRIC_TYPE_SKILL_ACTIVATION`). |
+| `vox.edit.pattern` | `mcp:edit_pattern` | None | Phase 89 flywheel S1: one file-mutation edit pattern (`METRIC_TYPE_EDIT_PATTERN`). |
+| `vox.harness.usage` | `mcp:harness_usage` | None | Phase 89 flywheel S1: MCP tool-call harness shape (`METRIC_TYPE_HARNESS_USAGE`). |
+| `vox.error.surface` | `mcp:error_surface` | `1.0` unrecoverable / `0.0` recoverable | Phase 89 flywheel S1: subsystem error class at the MCP dispatch boundary (`METRIC_TYPE_ERROR_SURFACE`). |
+| `vox.default.decision` | `config:default_decision` | Optional magnitude bucket | Phase 89 flywheel S1: tunable-constant decision and observed outcome (`METRIC_TYPE_DEFAULT_DECISION`). |
+| `vox.model.prompt` | `mcp:model_prompt` | None | Phase 89 flywheel S1: per-model prompt-profile injection outcome (`METRIC_TYPE_MODEL_PROMPT`). |
+| `vox.model.bench_case` | `bench:model_bench_case` | Latency (ms) | Phase 89 flywheel S1: per-fixture model benchmark outcome (`METRIC_TYPE_MODEL_BENCH_CASE`). |
+| `vox.mens.training_throughput` | `mens:training_throughput` | `1.0` success / `0.0` failure | Phase 89 flywheel S1: training throughput observation (`METRIC_TYPE_TRAINING_THROUGHPUT`). |
+| `vox.research.domain_misguidance` | `socrates:domain_misguidance` | `1.0` | Phase 89 flywheel S1: domain misguidance observation (`METRIC_TYPE_DOMAIN_MISGUIDANCE`). |
 |---------------|----------------|------------------|-------|
 | `benchmark_event` | `bench:<repository_id>` | Optional; unit in metadata `metric_value_unit` | CLI build timings use **`seconds`** for wall time. |
 | `syntax_k_event` | `syntaxk:<repository_id>` | Optional ratio / timing | Fixture id in metadata; optional `support_metrics` (representability / LLM surface / runtime projection summaries per `contracts/eval/syntax-k-event.schema.json`). |
@@ -106,6 +116,16 @@ Producers should prefix `session_id` so rollups and dashboards can group without
 | `audit.route.run.failed` | `audit:<run_id>` | Optional | `vox audit effort-route` run lifecycle: routing failed before completion (`METRIC_TYPE_AUDIT_ROUTE_RUN_FAILED`). |
 | `audit.route.cluster.decided` | `audit:<run_id>` | Optional | `vox audit effort-route`: one cluster-and-route decision recorded (`METRIC_TYPE_AUDIT_ROUTE_CLUSTER_DECIDED`). |
 | `audit.effort.run.failed` | `audit:<run_id>` | Optional | `vox audit effort` run lifecycle: scan failed before completion (`METRIC_TYPE_AUDIT_EFFORT_RUN_FAILED`). |
+| `vox.command.usage` | `cli:command_usage` | None | Phase 89 flywheel S1: one top-level CLI command invocation (`METRIC_TYPE_COMMAND_USAGE`). |
+| `vox.skill.activation` | `mcp:skill_activation` | `1.0` accepted / `0.0` rejected | Phase 89 flywheel S1: skill activation at an MCP/CLI/GUI surface (`METRIC_TYPE_SKILL_ACTIVATION`). |
+| `vox.edit.pattern` | `mcp:edit_pattern` | None | Phase 89 flywheel S1: one file-mutation edit pattern (`METRIC_TYPE_EDIT_PATTERN`). |
+| `vox.harness.usage` | `mcp:harness_usage` | None | Phase 89 flywheel S1: MCP tool-call harness shape (`METRIC_TYPE_HARNESS_USAGE`). |
+| `vox.error.surface` | `mcp:error_surface` | `1.0` unrecoverable / `0.0` recoverable | Phase 89 flywheel S1: subsystem error class at the MCP dispatch boundary (`METRIC_TYPE_ERROR_SURFACE`). |
+| `vox.default.decision` | `config:default_decision` | Optional magnitude bucket | Phase 89 flywheel S1: tunable-constant decision and observed outcome (`METRIC_TYPE_DEFAULT_DECISION`). |
+| `vox.model.prompt` | `mcp:model_prompt` | None | Phase 89 flywheel S1: per-model prompt-profile injection outcome (`METRIC_TYPE_MODEL_PROMPT`). |
+| `vox.model.bench_case` | `bench:model_bench_case` | Latency (ms) | Phase 89 flywheel S1: per-fixture model benchmark outcome (`METRIC_TYPE_MODEL_BENCH_CASE`). |
+| `vox.mens.training_throughput` | `mens:training_throughput` | `1.0` success / `0.0` failure | Phase 89 flywheel S1: training throughput observation (`METRIC_TYPE_TRAINING_THROUGHPUT`). |
+| `vox.research.domain_misguidance` | `socrates:domain_misguidance` | `1.0` | Phase 89 flywheel S1: domain misguidance observation (`METRIC_TYPE_DOMAIN_MISGUIDANCE`). |
 
 ### `socrates_surface` aggregate metadata (`record_socrates_eval_summary`)
 
