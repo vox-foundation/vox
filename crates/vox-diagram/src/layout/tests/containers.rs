@@ -14,7 +14,7 @@ const SINGLE: &str = include_str!("../../../tests/fixtures/svg/cases/20-containe
 /// the title box's own text padding, with room to spare. The pre-fix layout left 70 to 120 px.
 const MAX_GAP: Half = 48;
 
-fn laid(src: &str) -> (LayoutInput, Placed) {
+pub(super) fn laid(src: &str) -> (LayoutInput, Placed) {
     let Some(Ir::Graph(g)) = crate::check(src).ir else {
         panic!("not a graph: {src}");
     };

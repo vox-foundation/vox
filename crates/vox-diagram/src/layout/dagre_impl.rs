@@ -46,8 +46,9 @@ impl Item {
 /// The invisible edges that rank each container's title box before its content in a top-down or
 /// bottom-up layout, so dagre keeps the title clear of nodes and routes edges beside it: from the
 /// title to every child container's title and to each own node that no edge reaches from inside
-/// the container (every own node when a cycle leaves none). Bottom-up points them the other way,
-/// so a title still lands on top of its content.
+/// the container (every own node when a cycle leaves none), plus one from each outside node that
+/// feeds such an entry node to the title, so the title is never in its feeder's rank. Bottom-up
+/// points them the other way, so a title still lands on top of its content.
 fn title_links(input: &LayoutInput) -> Vec<(Item, Item)> {
     let reverse = input.direction == Direction::Up;
     let mut out = Vec::new();
@@ -70,6 +71,22 @@ fn title_links(input: &LayoutInput) -> Vec<(Item, Item)> {
         if firsts.is_empty() {
             firsts = own;
         }
+        // Nodes outside feeding those entry nodes: the title ranks after them too, or it shares
+        // their rank and dagre sets the two containers side by side across the flow.
+        let mut feeders: Vec<usize> = input
+            .edges
+            .iter()
+            .filter_map(|e| {
+                let (near, far) = if reverse {
+                    (e.from, e.to)
+                } else {
+                    (e.to, e.from)
+                };
+                (firsts.contains(&near) && !inside(far)).then_some(far)
+            })
+            .collect();
+        feeders.sort_unstable();
+        feeders.dedup();
         let subs = (0..input.containers.len()).filter(|&c| input.containers[c].parent == Some(k));
         for to in subs
             .map(Item::Title)
@@ -79,6 +96,13 @@ fn title_links(input: &LayoutInput) -> Vec<(Item, Item)> {
                 (to, Item::Title(k))
             } else {
                 (Item::Title(k), to)
+            });
+        }
+        for far in feeders.into_iter().map(Item::Node) {
+            out.push(if reverse {
+                (Item::Title(k), far)
+            } else {
+                (far, Item::Title(k))
             });
         }
     }
@@ -289,12 +313,18 @@ mod tests {
         let (t, n) = (Item::Title, Item::Node);
         assert_eq!(
             title_links(&input),
-            vec![(t(0), t(1)), (t(0), n(0)), (t(1), n(2))]
+            vec![(t(0), t(1)), (t(0), n(0)), (t(1), n(2)), (n(3), t(1))]
         );
         input.direction = Direction::Up;
         assert_eq!(
             title_links(&input),
             vec![(t(1), t(0)), (n(1), t(0)), (n(2), t(1))]
+        );
+        // Bottom-up, an edge points at the node above it: n1 (the top of container 0) feeds n3.
+        input.edges = vec![edge(0, 1), edge(1, 3)];
+        assert_eq!(
+            title_links(&input),
+            vec![(t(1), t(0)), (n(1), t(0)), (t(0), n(3)), (n(2), t(1))]
         );
         // A cycle leaves no entry, so the title links to every own node.
         input.direction = Direction::Down;

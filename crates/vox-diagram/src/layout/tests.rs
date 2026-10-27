@@ -305,3 +305,4 @@ fn the_public_path_is_guarded_too() {
 
 mod containers;
 mod coords;
+mod feeds;
