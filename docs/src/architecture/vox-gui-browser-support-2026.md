@@ -30,15 +30,17 @@ Playwright is a **validation harness** for preview URLs, not the agent automatio
 
 ## Preview flow
 
-```mermaid
-flowchart LR
-  BrowserView[BrowserView Preview tab]
-  preview_start[preview_start IPC]
-  ViteGuard[OrchestratedViteGuard]
-  iframe[iframe localhost URL]
-
-  BrowserView --> preview_start --> ViteGuard
-  ViteGuard --> iframe
+```vox-diagram
+graph {
+    direction: right
+    node BrowserView: "BrowserView Preview tab"
+    node preview_start: "preview_start IPC"
+    node ViteGuard: "OrchestratedViteGuard"
+    node iframe: "iframe localhost URL"
+    BrowserView -> preview_start
+    preview_start -> ViteGuard
+    ViteGuard -> iframe
+}
 ```
 
 - **Direct URL:** pass `url` to `preview_start` — no child process.
@@ -47,19 +49,24 @@ flowchart LR
 
 ## Agent live view + control flow
 
-```mermaid
-flowchart LR
-  Loquela[Loquela chat]
-  User[Operator input]
-  Daemon[vox-orchestrator-d]
-  Mcp[vox_browser_* tools]
-  Plugin[vox-plugin-browser CDP]
-  FrameStream[vox://browser-frame]
-  AgentTab[Agent live view + controls]
-
-  Loquela --> Daemon --> Mcp --> Plugin
-  User --> AgentTab --> Daemon
-  Plugin --> FrameStream --> AgentTab
+```vox-diagram
+graph {
+    direction: right
+    node Loquela: "Loquela chat"
+    node User: "Operator input"
+    node Daemon: "vox-orchestrator-d"
+    node Mcp: "vox_browser_* tools"
+    node Plugin: "vox-plugin-browser CDP"
+    node FrameStream: "vox://browser-frame"
+    node AgentTab: "Agent live view + controls"
+    Loquela -> Daemon
+    Daemon -> Mcp
+    Mcp -> Plugin
+    User -> AgentTab
+    AgentTab -> Daemon
+    Plugin -> FrameStream
+    FrameStream -> AgentTab
+}
 ```
 
 - GUI can also open sessions via `browser_open_session` (ephemeral wraps `vox_browser_open`; Named / Connect Chrome wrap `vox_browser_open_ex`).
@@ -89,14 +96,17 @@ Cookie export/import return a **count** and a profile-relative path, never cooki
 
 **Accepted v1 gaps (once):** no Vox `Browser.*` builtins for refs (CSS-only); no cross-origin iframe AX merge; no SPA `MutationObserver` invalidation; no NeedsYou rows (`needs_human` is MCP JSON + GUI toast / `action_log`).
 
-```mermaid
-flowchart LR
-  Click[Frame click clientX/clientY]
-  Map[mapClickToViewport]
-  Cmd[vox_browser_click_xy]
-  Page[CDP page viewport 1280x800]
-
-  Click --> Map --> Cmd --> Page
+```vox-diagram
+graph {
+    direction: right
+    node Click: "Frame click clientX/clientY"
+    node Map: "mapClickToViewport"
+    node Cmd: "vox_browser_click_xy"
+    node Page: "CDP page viewport 1280x800"
+    Click -> Map
+    Map -> Cmd
+    Cmd -> Page
+}
 ```
 
 ## Playwright role
