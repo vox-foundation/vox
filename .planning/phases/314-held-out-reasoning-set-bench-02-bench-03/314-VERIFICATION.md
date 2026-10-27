@@ -1,6 +1,6 @@
 ---
 phase: 314-held-out-reasoning-set-bench-02-bench-03
-verified: 2026-10-26T17:05:00Z
+verified: 2026-10-26T21:10:00Z
 status: passed
 score: 8/8 must-haves verified
 covered_files:
@@ -19,7 +19,7 @@ covered_files:
   - "mens/data/gsm8k_think/reasoning.jsonl"
   - "mens/data/math500_think/reasoning.jsonl"
   - "mens/data/vox_think/reasoning.jsonl"
-covered_digest: "v3:sha256:e03569faa7432678e8223a29148a5222ee5f5dacbbaef4a25a0de7bd9b3842c1"
+covered_digest: "v3:sha256:e78965e3f4caca6b105a45c1364e5b502e385e09b3974aa8c25ea5c6a746257b"
 behavior_unverified: 0
 overrides_applied: 0
 deferred:
@@ -34,11 +34,23 @@ deferred:
 # Phase 314: Held-out Reasoning Set Verification Report
 
 **Phase Goal:** The same GSM8K, MATH-500, and Vox items exist for a before/after, and a missing model cannot write a passing score.
-**Verified:** 2026-10-26
+**Verified:** 2026-10-26 (re-verified after phase 315)
 **Status:** passed
-**Re-verification:** No, initial verification
+**Re-verification:** Yes. The prior report went stale when phase 315 commits 6600e61a6, b31d48077, 5c0006c88, 3d9e9a467 and 84711c6c7 touched covered files. All 8 truths were re-checked on the current tree (HEAD 733bbb4e7).
 
 No model was run and no numeric baseline exists. That is the phase contract. A green test here is not a model score.
+
+## Re-verification Notes (after phase 315)
+
+What 315 changed in 314-covered files, from `git diff 3bbaf52db HEAD` (3bbaf52db was the last 314 commit to these files):
+
+- `reasoning_eval.rs`: a doc comment on `ReasoningReport.n` only (the `#[allow(dead_code)]` came off because the collateral writer now reads `n`). No logic change. `fail_closed`, `score_reasoning_file_with` (non-directory adapter bails before any write; bad cap, slice load and backend errors go through `fail_closed`), `ReasoningReport {` built in the one `Scored` arm, and `parse_max_tokens` are as verified before.
+- `eval_collateral.rs`: +508 lines. `score_bench` still routes reasoning benches through `cached_reasoning_report`; the cache stores only `Ok` reports and `?` propagates any Err, so a failed or missing model still yields no score and (new in 315) no report file. 315 adds a stricter `report.n != SLICE_SIZE` bail and six-key reporting. This strengthens truth 5 and does not weaken it. `an_unloadable_adapter_fails_loudly_and_writes_no_passing_report` and `a_stale_passing_report_is_removed_when_scoring_fails` are present.
+- `vox-eval/src/lib.rs`: +1 line, `pub mod reasoning_slice;` (315 code). `reasoning_bench.rs`, `mod.rs`, `env-vars.v1.yaml`, `.gitignore`, the three slices and the oracle test: no diff since 314.
+
+Re-run this session: `cargo test -p vox-compiler --test vox_think_oracle_test` gives 3 passed. Slice files are tracked, 32 rows each, and match HEAD. `VOX_REASONING_EVAL_LIMIT` has 0 hits; `VOX_REASONING_EVAL_MAX_TOKENS` is registered once. No TBD/FIXME/XXX in the reasoning files.
+
+Caveat: `cargo nextest run -p vox-ml-cli reasoning_eval eval_collateral` does not compile in this worktree. `crates/vox-code-audit/src/detectors/mod.rs:159` declares `pub mod ui_perf_hazards;` (added by commit 5164b5263, phase 305), and that file is not tracked in any commit. It exists only as an untracked file in the main checkout. This is unrelated to 314 or 315, but it blocks the vox-ml-cli test build here. So the vox-ml-cli test results below are by test-presence inspection, not a fresh run. The 12 named 314 tests are all present in `reasoning_eval.rs` and `reasoning_bench.rs`. The 315 verification records those suites passing.
 
 ## Goal Achievement
 
@@ -104,7 +116,7 @@ The phase's runtime transitions (load failure, per-item error, stale overwrite) 
 |----------|---------|--------|--------|
 | Interpreter returns each gold | `cargo test -p vox-compiler --test vox_think_oracle_test` (run by me) | 3 passed | ✓ PASS |
 | Slice shape, ids, ignore rules, template markers | `jq`, `rg`, `git ls-files`, `git check-ignore` (run by me) | Match the plan's pinned values | ✓ PASS |
-| Scorer, collateral, qwen_reasoning, reasoning_bench | Reported by the orchestrator this session (not re-run): `reasoning_eval` 12, `eval_collateral` 4, `qwen_reasoning` 19, `reasoning_bench` 17 | All exit 0 | ✓ PASS (reported) |
+| Scorer, collateral, qwen_reasoning, reasoning_bench | Not re-run by me: vox-ml-cli test build is blocked by the untracked `ui_perf_hazards.rs` (see notes). Earlier reported counts: `reasoning_eval` 12, `eval_collateral` 4 (now more after 315), `qwen_reasoning` 19, `reasoning_bench` 17 | Tests present; static inspection of the code paths matches | ? NOT RE-RUN (not a gap) |
 
 ### Probe Execution
 
@@ -135,5 +147,5 @@ Advisory items, not blocking: WR-02 and WR-03 are deferred per the disposition. 
 
 ---
 
-_Verified: 2026-10-26_
+_Verified: 2026-10-26 (re-verification)_
 _Verifier: Claude (gsd-verifier)_
