@@ -1039,6 +1039,7 @@ mod render_verdict_tests {
             working_set_bytes: 115_448_725_504,
             max_alloc_bytes: 86_587_244_544,
             source: BudgetSource::Metal,
+            working_set_is_live: true,
         }
     }
 

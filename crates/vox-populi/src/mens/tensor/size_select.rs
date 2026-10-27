@@ -53,12 +53,23 @@ impl FreeMemory {
     }
 }
 
+/// The Metal working set as a reading. Without `vm_stat` it is only the static
+/// `recommendedMaxWorkingSetSize` ceiling, not a live reading, so there is none
+/// (D-01).
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+fn metal_reading(working_set_bytes: u64, live: bool) -> Option<FreeMemory> {
+    if !live {
+        return None;
+    }
+    Some(FreeMemory::metal(working_set_bytes))
+}
+
 /// Live free accelerator memory, or `None` when nothing can be read. Never total
 /// VRAM, an override, or a registry fallback.
 pub fn read_free_memory() -> Option<FreeMemory> {
     #[cfg(target_os = "macos")]
     let free = crate::mens::tensor::accel_budget::query_accel_budget()
-        .map(|b| FreeMemory::metal(b.working_set_bytes));
+        .and_then(|b| metal_reading(b.working_set_bytes, b.working_set_is_live));
     // Not `query_accel_budget` here: off macOS it reads `get_system_vram_info`,
     // which includes the override and a total-as-free fallback.
     #[cfg(not(target_os = "macos"))]
@@ -371,6 +382,16 @@ mod tests {
     #[test]
     fn metal_reading_has_no_extra_margin() {
         assert_eq!(FreeMemory::metal(13_926 * 1_048_576).mb, 13_926);
+    }
+
+    #[test]
+    fn metal_working_set_without_vm_stat_is_no_reading() {
+        // CR-01: no vm_stat means the static driver ceiling alone; D-01 refuses it.
+        assert_eq!(metal_reading(98_000 * 1_048_576, false), None);
+        assert_eq!(
+            metal_reading(13_926 * 1_048_576, true).map(|f| f.mb),
+            Some(13_926)
+        );
     }
 
     #[test]
