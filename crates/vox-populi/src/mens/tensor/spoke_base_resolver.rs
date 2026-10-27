@@ -188,7 +188,8 @@ pub fn load_overlay(root: &std::path::Path) -> anyhow::Result<HashMap<String, Ve
     let p = root.join("mens/config/gpu-specs.yaml");
     match std::fs::read_to_string(&p) {
         Ok(s) => parse_overlay(&s),
-        Err(_) => load_embedded_overlay(),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => load_embedded_overlay(),
+        Err(e) => Err(anyhow::anyhow!("read {}: {e}", p.display())),
     }
 }
 
@@ -1070,5 +1071,11 @@ mod tests {
             floor_notes(Some(absent.path()), PIN_4B).expect("absent file uses the embedded copy"),
             ["qlora floor 9800 MB is an estimate (floor unmeasured)"]
         );
+
+        // Present but unreadable (here: a directory) is an error, not a silent fallback.
+        let unreadable = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir_all(unreadable.path().join("mens/config/gpu-specs.yaml"))
+            .expect("mkdir");
+        load_overlay(unreadable.path()).expect_err("an unreadable overlay must not fall back");
     }
 }

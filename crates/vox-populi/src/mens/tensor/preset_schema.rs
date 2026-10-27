@@ -89,11 +89,12 @@ fn detect_qwen_size_class(model_hint: Option<&str>) -> Option<QwenSizeClass> {
     // Classify on the model name only. A revision's hex can contain 8b/14b/32b
     // (the 1.7B and 4B pins both contain 8b), whether it follows `@` or is an
     // HF-cache `models--Org--Name/snapshots/<rev>` path segment. Hex never
-    // contains "qwen", so the last segment naming qwen is the model name.
-    let repo = hint.rsplit_once('@').map_or(hint, |(repo, _)| repo);
-    let name = repo
+    // contains "qwen", so the last segment naming qwen is the model name; strip
+    // `@rev` from that segment only, since a parent directory may contain `@`.
+    let segment = hint
         .rsplit(['/', '\\'])
         .find(|s| s.to_ascii_lowercase().contains("qwen"))?;
+    let name = segment.split_once('@').map_or(segment, |(name, _)| name);
     let params = crate::mens::tensor::memory_budget::params_b_from_model_hint(name);
     let near = |b: f64| params.is_some_and(|p| (p - b).abs() < 0.05);
     Some(if near(32.0) {
@@ -912,6 +913,10 @@ mod qwen3_preset_tests {
             (
                 "/models/qwen3-0.6b-finetune/checkpoint-32b",
                 QwenSizeClass::S0p6,
+            ),
+            (
+                "/home/a@b/hf/models--Qwen--Qwen3-14B/snapshots/8b00000000000000000000000000000000000000",
+                QwenSizeClass::S14,
             ),
         ] {
             assert_eq!(
