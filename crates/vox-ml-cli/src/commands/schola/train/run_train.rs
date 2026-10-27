@@ -213,7 +213,7 @@ pub async fn run_train(
     curriculum_schedule: Option<vox_populi::mens::tensor::training_config::CurriculumSchedule>,
     chatml: vox_populi::mens::tensor::training_config::ChatmlConfig,
     mix_config: Option<PathBuf>,
-) -> Result<()> {
+) -> Result<Option<vox_populi::mens::tensor::size_select::SizePick>> {
     use owo_colors::OwoColorize;
 
     super::super::process_priority::apply(&process_priority);
@@ -569,7 +569,7 @@ pub async fn run_train(
         eprintln!();
         eprintln!("  Canonical QLoRA (when `gpu` is enabled): `vox mens train --backend qlora …`");
         eprintln!("  See docs/src/reference/mens-training.md");
-        Ok(())
+        Ok(None)
     }
 }
 

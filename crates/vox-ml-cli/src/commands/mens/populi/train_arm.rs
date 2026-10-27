@@ -608,14 +608,14 @@ pub async fn run_train(
         }
     }
 
-    if train_res.is_ok() {
+    if let Ok(final_pick) = &train_res {
         use owo_colors::OwoColorize;
         let repo_root = workspace_root
             .clone()
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
         let meta = LocalCardMeta {
             base_model: card_model,
-            preset: card_preset,
+            preset: trained_preset(card_preset, final_pick.as_ref()),
             rank: rank.unwrap_or(16) as u32,
             alpha: alpha.unwrap_or(32.0),
             seed,
@@ -640,7 +640,17 @@ pub async fn run_train(
         }
     }
 
-    train_res
+    train_res.map(|_| ())
+}
+
+/// The preset the run trained with, which the card records as `base_rung` and
+/// `preset_version`: an explicit `--preset`, else the run's final size pick's
+/// preset (after any D-05 step-down).
+fn trained_preset(
+    cli_preset: Option<String>,
+    pick: Option<&vox_populi::mens::tensor::size_select::SizePick>,
+) -> Option<String> {
+    cli_preset.or_else(|| pick.map(|p| p.rung.preset.to_string()))
 }
 
 /// Host-side facts the card needs that the run directory does not carry.
@@ -1152,6 +1162,44 @@ mod local_card_tests {
         assert_eq!(card.training_syntax_fingerprint, fp);
         assert_eq!(card.syntax_fingerprint_kind, kind);
         assert_eq!(kind, "ebnf-sha256");
+    }
+
+    /// CR-03: a local `--domain` run without `--preset` records the picked size's
+    /// preset, not `"local"`, so vLLM provenance and BFCL per-rung gates match.
+    #[test]
+    fn local_card_records_the_auto_pick_preset_as_base_rung() {
+        use vox_populi::mens::tensor::size_select::{self, FreeMemory, Selection};
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let overlay = size_select::load_ladder_overlay(Some(&root)).unwrap();
+        let free = FreeMemory {
+            mb: 21_000,
+            source: "test",
+        };
+        let Selection::Size(pick) = size_select::select_size(&overlay, Some(&free), None, false)
+            .expect("14B fits 21000 MB")
+        else {
+            panic!("an auto pick is a size");
+        };
+        assert_eq!(pick.rung.preset, "qwen3_24g");
+
+        let (d, adapter, _train) = fixture("Qwen/Qwen3-14B@abc123");
+        let meta = LocalCardMeta {
+            preset: super::trained_preset(None, Some(&pick)),
+            ..meta()
+        };
+        write_local_adapter_card(d.path(), None, &meta).unwrap();
+        let card = vox_populi::mens::tensor::adapter_card::AdapterCard::read_sidecar(&adapter)
+            .unwrap()
+            .unwrap();
+        assert_eq!(card.base_rung, pick.rung.preset);
+        assert_eq!(card.preset_version, pick.rung.preset);
+
+        // An explicit --preset still wins over the pick's preset.
+        assert_eq!(
+            super::trained_preset(Some("qwen3_16g".into()), Some(&pick)).as_deref(),
+            Some("qwen3_16g")
+        );
+        assert_eq!(super::trained_preset(None, None), None);
     }
 
     #[test]

@@ -49,7 +49,7 @@ pub(super) async fn run_gpu_training(
     curriculum_schedule: Option<vox_populi::mens::tensor::training_config::CurriculumSchedule>,
     chatml: vox_populi::mens::tensor::training_config::ChatmlConfig,
     mix_config: Option<PathBuf>,
-) -> Result<()> {
+) -> Result<Option<vox_populi::mens::tensor::size_select::SizePick>> {
     use owo_colors::OwoColorize;
     use vox_populi::mens::tensor::spoke_base_resolver::floor_notes;
 
@@ -93,6 +93,8 @@ pub(super) async fn run_gpu_training(
 
     // One re-read right before the download (D-05); the post-download `plan_for`
     // refusal below remains the backstop. An explicit `--preset` still wins.
+    // The final pick goes back to the caller for the adapter card (CR-03).
+    let mut final_pick = None;
     if let Some(pick) = size_pick {
         let pick =
             super::run_train::recheck_size_pick(pick, workspace_root.as_deref(), device_kind)?;
@@ -104,6 +106,7 @@ pub(super) async fn run_gpu_training(
         };
         model = Some(pick.rung.hf_id.clone());
         preset = preset.or(Some(pick.rung.preset.to_string()));
+        final_pick = Some(pick);
     }
 
     // The old VRAM-tiered `auto_preset` lookup that used to pick `final_preset`
@@ -538,7 +541,7 @@ pub(super) async fn run_gpu_training(
             .await;
     }
 
-    Ok(())
+    Ok(final_pick)
 }
 
 /// Outcome of attempting to auto-size against the real per-host memory
