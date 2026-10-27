@@ -354,22 +354,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             let manifest_path = model.join("training_manifest.json");
             let adapter_path = model.join("candle_qlora_adapter.safetensors");
             if manifest_path.exists() || adapter_path.exists() {
-                let report_path = model.join("collateral_damage_report.json");
-                if !report_path.exists() {
-                    anyhow::bail!(
-                        "eval_collateral_damage check not found! Run `vox mens eval-collateral-damage --pre-score <baseline.json> --post-adapter <adapter>` before serving this adapter."
-                    );
-                }
-
-                let report_raw = std::fs::read_to_string(&report_path)?;
-                let report_json: serde_json::Value = serde_json::from_str(&report_raw)?;
-                let status = report_json.get("status").and_then(|s| s.as_str());
-                if status != Some("pass") {
-                    anyhow::bail!(
-                        "eval_collateral_damage check FAILED. The adapter degraded performance beyond acceptable thresholds and cannot be served."
-                    );
-                }
-
+                assert_collateral_gate(&model)?;
                 assert_serve_preconditions(&model)?;
             }
 
@@ -807,6 +792,81 @@ fn export_gguf_not_implemented_message(
     )
 }
 
+/// Serve-boundary check of an adapter's collateral evidence. Reads only files on
+/// disk (`collateral_damage_report.json` and each
+/// `collateral_eval/<slice>/reasoning_report.json`); it never loads or runs a
+/// model and never writes. The stored `status` alone is not trusted: the
+/// per-slice drops are recomputed from the stored numbers.
+#[cfg(feature = "gpu")]
+fn assert_collateral_gate(model: &std::path::Path) -> Result<()> {
+    use anyhow::Context;
+    use vox_eval::reasoning_bench::{SLICE_NAMES, SLICE_SIZE};
+    let report_path = model.join("collateral_damage_report.json");
+    if !report_path.exists() {
+        anyhow::bail!(
+            "eval_collateral_damage check not found! Run `vox mens eval-collateral-damage --pre-score <baseline.json> --post-adapter <adapter>` before serving this adapter."
+        );
+    }
+    let report: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&report_path).with_context(|| {
+            format!(
+                "eval_collateral_damage report {} is unreadable",
+                report_path.display()
+            )
+        })?)
+        .with_context(|| {
+            format!(
+                "eval_collateral_damage report {} is not valid JSON",
+                report_path.display()
+            )
+        })?;
+    if report.get("status").and_then(|s| s.as_str()) != Some("pass") {
+        anyhow::bail!(
+            "eval_collateral_damage check FAILED. The adapter degraded performance beyond acceptable thresholds and cannot be served."
+        );
+    }
+    vox_eval::reasoning_slice::verify_reasoning_slices(
+        &report,
+        &vox_eval::CollateralDamageConfig::default(),
+    )
+    .map_err(|e| {
+        anyhow::anyhow!(
+            "eval_collateral_damage check refused: {e}. Re-run vox mens eval-collateral-damage for this adapter."
+        )
+    })?;
+    for name in SLICE_NAMES {
+        let path = model
+            .join("collateral_eval")
+            .join(name)
+            .join("reasoning_report.json");
+        let slice: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).with_context(|| {
+                format!(
+                    "eval_collateral_damage check refused: {name} has no readable {}",
+                    path.display()
+                )
+            })?)
+            .with_context(|| {
+                format!(
+                    "eval_collateral_damage check refused: {name} {} is not valid JSON",
+                    path.display()
+                )
+            })?;
+        let status = slice.get("status").and_then(|s| s.as_str());
+        anyhow::ensure!(
+            status == Some("scored"),
+            "eval_collateral_damage check refused: {name} reasoning report status is {}, expected scored",
+            status.unwrap_or("missing")
+        );
+        let n = slice.get("n").and_then(|n| n.as_u64());
+        anyhow::ensure!(
+            n == Some(SLICE_SIZE as u64),
+            "eval_collateral_damage check refused: {name} reasoning report n is {n:?}, expected {SLICE_SIZE}"
+        );
+    }
+    Ok(())
+}
+
 /// Refuse to serve a model whose `gate_receipt.json` says `overall_passed: true`
 /// while every individual gate inside it actually verified nothing (all
 /// "not applicable" / "skipped" / "missing" messages). `eval_gate` has
@@ -962,6 +1022,87 @@ mod serve_preconditions_tests {
             .unwrap_err()
             .to_string();
         assert!(err.contains("eval-gate did not pass"), "got: {err}");
+    }
+}
+
+#[cfg(all(test, feature = "gpu"))]
+mod collateral_gate_tests {
+    use super::*;
+    use crate::commands::mens::eval_collateral::{BenchScore, run_collateral_damage_with};
+    use std::path::Path;
+    use vox_eval::reasoning_bench::SLICE_NAMES;
+
+    /// The six reasoning keys at 20/32 (0.625) accuracy and think-initiation.
+    const SIX: &str = r#""gsm8k_think":0.625,"gsm8k_think_init":0.625,"math500_think":0.625,"math500_think_init":0.625,"vox_think":0.625,"vox_think_init":0.625"#;
+
+    fn slice_file(dir: &Path, slice: &str) -> std::path::PathBuf {
+        dir.join("collateral_eval")
+            .join(slice)
+            .join("reasoning_report.json")
+    }
+
+    /// An adapter dir as the real writer leaves it: a passing collateral report
+    /// from `run_collateral_damage_with`, plus one scored report per slice.
+    fn valid_adapter_dir() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        let pre = dir.path().join("pre.json");
+        std::fs::write(&pre, format!(r#"{{"benchmarks":{{{SIX}}}}}"#)).unwrap();
+        let mut scorer = |_: &str| {
+            Ok(BenchScore {
+                value: 0.625,
+                n: Some(32),
+            })
+        };
+        let code = run_collateral_damage_with(&pre, dir.path(), &mut scorer).unwrap();
+        assert_eq!(code, 0, "the fixture baseline must pass");
+        for name in SLICE_NAMES {
+            let path = slice_file(dir.path(), name);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(
+                path,
+                format!(
+                    r#"{{"benchmark":"{name}","status":"scored","n":32,"accuracy":0.625,"think_initiation_rate":0.625}}"#
+                ),
+            )
+            .unwrap();
+        }
+        dir
+    }
+
+    fn report_path(dir: &Path) -> std::path::PathBuf {
+        dir.join("collateral_damage_report.json")
+    }
+
+    fn gate_err(dir: &Path) -> String {
+        assert_collateral_gate(dir)
+            .expect_err("the gate must refuse")
+            .to_string()
+    }
+
+    #[test]
+    fn a_report_written_by_the_writer_is_accepted() {
+        let dir = valid_adapter_dir();
+        assert!(!dir.path().join("gate_receipt.json").exists());
+        assert_collateral_gate(dir.path()).unwrap();
+    }
+
+    #[test]
+    fn a_missing_report_is_refused() {
+        let dir = tempfile::tempdir().unwrap();
+        let e = gate_err(dir.path());
+        assert!(e.contains("eval_collateral_damage check not found"), "{e}");
+    }
+
+    #[test]
+    fn an_old_format_passing_report_is_refused() {
+        let dir = valid_adapter_dir();
+        std::fs::write(
+            report_path(dir.path()),
+            r#"{"status":"pass","failed_on":null,"threshold":0.05,"reports":[]}"#,
+        )
+        .unwrap();
+        let e = gate_err(dir.path());
+        assert!(e.contains("reasoning_slices"), "{e}");
     }
 }
 

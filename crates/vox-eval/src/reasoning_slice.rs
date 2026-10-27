@@ -184,6 +184,92 @@ pub fn reasoning_slices_json(verdicts: &[ReasoningSliceVerdict]) -> serde_json::
     })
 }
 
+/// One stored number of one slice, read defensively. serde_json writes a
+/// non-finite float as `null`, so a missing or non-numeric value covers it.
+fn stored_f64(bench: &serde_json::Value, slice: &str, pointer: &str) -> Result<f64, String> {
+    bench
+        .pointer(pointer)
+        .and_then(serde_json::Value::as_f64)
+        .ok_or_else(|| format!("{slice}: stored {pointer} is missing or not a finite number"))
+}
+
+/// Re-validate a stored collateral report without trusting its verdict fields.
+///
+/// Requires the report threshold to equal `config`, the slice label (`scope_note`,
+/// `slice_size`, per-slice `n`), and every name in [`SLICE_NAMES`] with all four
+/// stored numbers. Each slice is recomputed with [`eval_reasoning_slice`] from the
+/// stored `pre`/`post` values; the stored `degradation_rate`, `exceeds_threshold`
+/// and top-level `status` are ignored. A drop past the bar on either metric is an `Err`.
+pub fn verify_reasoning_slices(
+    report: &serde_json::Value,
+    config: &CollateralDamageConfig,
+) -> Result<Vec<ReasoningSliceVerdict>, String> {
+    let threshold = report
+        .get("threshold")
+        .and_then(serde_json::Value::as_f64)
+        .ok_or("report has no numeric threshold")?;
+    if threshold != config.max_degradation_rate {
+        return Err(format!(
+            "stored threshold {threshold} is not the required {}",
+            config.max_degradation_rate
+        ));
+    }
+    let block = report
+        .get("reasoning_slices")
+        .filter(|b| b.is_object())
+        .ok_or("report has no reasoning_slices block (written by an older or edited run)")?;
+    if block.get("scope_note").and_then(serde_json::Value::as_str)
+        != Some(REASONING_SLICE_SCOPE_NOTE)
+    {
+        return Err("reasoning_slices.scope_note is missing or not the expected label".into());
+    }
+    if block.get("slice_size").and_then(serde_json::Value::as_u64) != Some(SLICE_SIZE as u64) {
+        return Err(format!(
+            "reasoning_slices.slice_size is missing or not {SLICE_SIZE}"
+        ));
+    }
+    let benches = block
+        .get("benches")
+        .filter(|b| b.is_object())
+        .ok_or("reasoning_slices.benches is missing")?;
+    let mut verdicts = Vec::with_capacity(SLICE_NAMES.len());
+    for name in SLICE_NAMES {
+        let bench = benches
+            .get(name)
+            .ok_or_else(|| format!("reasoning_slices.benches is missing {name}"))?;
+        let n = bench
+            .get("n")
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|n| usize::try_from(n).ok())
+            .ok_or_else(|| format!("{name}: stored n is missing or not a count"))?;
+        let accuracy = (
+            stored_f64(bench, name, "/accuracy/pre")?,
+            stored_f64(bench, name, "/accuracy/post")?,
+        );
+        let think = (
+            stored_f64(bench, name, "/think_initiation/pre")?,
+            stored_f64(bench, name, "/think_initiation/post")?,
+        );
+        let verdict = eval_reasoning_slice(name, accuracy, think, n, config)?;
+        if let Some(key) = verdict.failed_key() {
+            let r = if verdict.accuracy.exceeds_threshold {
+                &verdict.accuracy
+            } else {
+                &verdict.think_initiation
+            };
+            return Err(format!(
+                "{key} dropped {:.4} (pre {} post {}), past the {} bar",
+                r.degradation_rate,
+                r.pre_training_score,
+                r.post_training_score,
+                config.max_degradation_rate
+            ));
+        }
+        verdicts.push(verdict);
+    }
+    Ok(verdicts)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -330,5 +416,49 @@ mod tests {
     #[test]
     fn an_unknown_slice_name_is_refused() {
         refused("gsm8k", (0.625, 0.625), (0.625, 0.625), 32);
+    }
+
+    /// A report as the writer emits it: three slices at 0.625 on both metrics.
+    fn good_report() -> serde_json::Value {
+        let verdicts: Vec<_> = SLICE_NAMES
+            .iter()
+            .map(|s| eval_reasoning_slice(s, (0.625, 0.625), (0.625, 0.625), 32, &cfg()).unwrap())
+            .collect();
+        serde_json::json!({
+            "status": "pass",
+            "failed_on": null,
+            "threshold": 0.05,
+            "reports": [],
+            "reasoning_slices": reasoning_slices_json(&verdicts),
+        })
+    }
+
+    #[test]
+    fn a_stored_report_in_the_writer_shape_is_accepted() {
+        let verdicts = verify_reasoning_slices(&good_report(), &cfg()).unwrap();
+        assert_eq!(verdicts.len(), 3);
+        assert!(verdicts.iter().all(|v| v.n == 32));
+    }
+
+    #[test]
+    fn a_report_without_a_reasoning_slices_block_is_refused() {
+        let mut r = good_report();
+        r.as_object_mut().unwrap().remove("reasoning_slices");
+        let e = verify_reasoning_slices(&r, &cfg()).unwrap_err();
+        assert!(e.contains("reasoning_slices"), "{e}");
+    }
+
+    #[test]
+    fn a_stored_pass_over_a_degraded_accuracy_is_recomputed_and_refused() {
+        let mut r = good_report();
+        let base = "/reasoning_slices/benches/gsm8k_think/accuracy";
+        *r.pointer_mut(&format!("{base}/pre")).unwrap() = serde_json::json!(0.5);
+        *r.pointer_mut(&format!("{base}/post")).unwrap() = serde_json::json!(0.46875);
+        assert_eq!(
+            r.pointer(&format!("{base}/exceeds_threshold")),
+            Some(&serde_json::json!(false))
+        );
+        let e = verify_reasoning_slices(&r, &cfg()).unwrap_err();
+        assert!(e.contains("gsm8k_think"), "{e}");
     }
 }
