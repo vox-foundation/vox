@@ -124,7 +124,6 @@ Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 | `benchmark_tools` | Benchmark telemetry query tools (`research_metrics`). |
 | `browser_tools` | Chromium CDP browser automation (`vox_browser_*`). |
 | `caller_role` | Trusted caller role for browser control-lock authorization. |
-| `computer_tools` | Desktop computer use through the `computer` code plugin (`vox_computer_*`). |
 | `capability_tools` | `vox_capability_explain` / `vox_capability_features`: answers from the embedded capability index. |
 | `chat_hop` | — |
 | `chat_model_resolve` | Shared LLM model resolution for chat tools. |
@@ -133,6 +132,7 @@ Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 | `code_validator` | Structured .vox diagnostics and repair tools. |
 | `codex_tools` | Codex relational V17/V16 helpers over connected `VoxDb`. |
 | `compiler_tools` | `cargo`/LSP validation helpers (`vox_validate_file`, `vox_run_tests`, ...). |
+| `computer_tools` | Desktop computer use through the `computer` code plugin (`vox_computer_*`). |
 | `db_tools` | Codex schema digest + sample row tools for `.vox` modules. |
 | `dispatch` | — |
 | `dispatch_timeout` | T4.3: per-tool-call execution timeout table (outer `tokio::time::timeout` wrapping actual tool dispatch — independent of the HITL approval-wait). |

@@ -134,7 +134,7 @@ Extends: `vox-fullstack`
 - `populi-mesh` — Populi mesh transport (HTTP control plane, A2A dispatch) + agent skill.
 - `oratio` — Audio capture + speech-to-text (Candle Whisper). Extracted from vox-speech in Unit 4.
 - `browser` — Chrome DevTools Protocol browser automation via chromiumoxide.
-- `computer` — Desktop computer use: accessibility snapshots, window capture, and background mouse/keyboard input targeted at one app (macOS; opt-in via the computer profile).
+- `computer` — Desktop computer use: accessibility snapshots, window capture, and background mouse/keyboard input targeted at one app.
 - `webhook` — Inbound webhook HTTP listener with HMAC signature verification (GitHub, generic; GitLab deprecated).
 
 ### `vox-mobile`
