@@ -269,7 +269,16 @@ Plans:
   2. The legacy-Mermaid baseline is tightened to exactly the allowlist (the Gantt plus any block MIG-01 cannot convert, each listed with a reason), so doc lint now fails if a non-allowlisted fence appears or the list grows.
   3. `git diff` over `docs/src/archive/` is empty, every migrated diagram renders on the built site, and the Phase 89 Playwright suite passes over the full migrated corpus.
 
-**Plans**: TBD
+**Plans**: 6 plans in 6 sequential waves (10 batch commits)
+
+Plans:
+- [ ] 90-01-PLAN.md — Tracer: per-fence fidelity report (`migration_fidelity`, ignored test) and before/after contact-sheet generator (Playwright, skipped by default), proven on batch 1 (graphify); batch 2 (four single-fence files) (wave 1)
+- [ ] 90-02-PLAN.md — Batch 3 (incl. the populi state diagram); backtick-stripped how-to block as an oracle-checked import case, then batch 4 (wave 2)
+- [ ] 90-03-PLAN.md — Batch 5 (vox-gui-browser-support x3, react interop, unified workstream); batch 6 (scientia flowchart + the only sequence diagram) (wave 3)
+- [ ] 90-04-PLAN.md — Batch 7 (axis-harness left-to-right containers, vox-compiler); batch 8 (deep-research-waves x4, the largest graph) (wave 4)
+- [ ] 90-05-PLAN.md — Batches 9-10: the six convertible deep-research-full-surface fences; only the Gantt remains (wave 5)
+- [ ] 90-06-PLAN.md — Allowlist-only baseline (no-op tighten), reason recorded, growth mutation proof, archive diff; closing gate: build, per-page figure count, diagram Playwright specs, doc lint, oracle, invariants, SSOT drift (wave 6)
+
 **Research flag**: standard patterns.
 **Folded decisions**: the Gantt allowlist entry is already user-decided; any further allowlist entry needs user sign-off.
 
@@ -302,7 +311,7 @@ Phases execute in numeric order, with the parallel opportunities noted under Ove
 | 87. Doc-Pipeline Consumer & Legacy-Mermaid Ratchet | 3/3 | Complete    | 2026-10-17 |
 | 88. MCP Tool, CLI & Agent Guidance | 3/3 | Complete    | 2026-10-17 |
 | 89. Docs-Astro Integration | 4/4 | Complete    | 2026-10-27 |
-| 90. Corpus Migration & Gate Tightening | 0/TBD | Not started | - |
+| 90. Corpus Migration & Gate Tightening | 0/6 | Not started | - |
 | 91. Measurement Harness & Advisory Closure | 0/TBD | Not started | - |
 
 ---
