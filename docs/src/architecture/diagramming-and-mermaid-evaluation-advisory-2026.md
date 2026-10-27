@@ -138,11 +138,13 @@ To determine if a superior format exists, we evaluated four major candidates acr
 | Dimension | Mermaid.js | D2 (Terrastruct) | PlantUML | Graphviz (DOT) | Schema IR (JSON/YAML) |
 |---|---|---|---|---|---|
 | **Grammar Coherence** | Poor (15+ Jison parsers) | Excellent (Single recursive spec) | Moderate (Older domain DSL) | Excellent (Strict BNF) | Perfect (JSON Schema) |
-| **LLM Syntax Error Rate** | **High (18–35%)** | **Low (4–8%)** | Low (5–10%) | Very Low (2–5%) | **Near Zero (<1%)** |
+| **LLM Syntax Error Rate** (unsourced, see note) | **High (18–35%)** | **Low (4–8%)** | Low (5–10%) | Very Low (2–5%) | **Near Zero (<1%)** |
 | **Layout Quality** | Poor (Dagre hairballs) | Superior (TALA / ELK engines) | Good (Graphviz-backed) | Excellent (Mathematical) | N/A (Delegated) |
 | **GitHub Native Rendering** | Yes (Built-in) | No (Requires Action/SVG) | No (Requires Action/SVG) | No (Requires Action/SVG) | No (Requires renderer) |
 | **Runtime Dependencies** | JavaScript (Browser/Node) | Go binary or WASM | Java VM / Graphviz | C binary / WebAssembly | Zero (Pure Rust/JS) |
 | **AST Tooling in Rust** | Regex / Ad-hoc | Rust parser exists | External CLI | `layout-rs` / Graphviz | Native `serde` |
+
+> **Unsourced row.** The "LLM Syntax Error Rate" figures above cite no measurement and should not be read as evidence. For a measured comparison of VoxDiagram and Mermaid authoring validity, see [VoxDiagram authoring reliability findings](voxdiagram-authoring-reliability-findings-2026.md).
 
 ### Detailed Findings by Candidate:
 
