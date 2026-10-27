@@ -299,6 +299,45 @@ impl AbsenceRecord {
     }
 }
 
+/// The before/after report for `(slice, base outcome, adapter outcome)` rows, and
+/// whether it is `compared`: every slice in [`SLICE_NAMES`] present exactly once
+/// with both sides `Scored`. Anything else is `incomplete`. Each entry is
+/// [`BenchOutcome::to_json`] verbatim, so accuracy and think-initiation stay
+/// separate keys. No delta, verdict, or threshold; not a serve-gate input.
+#[must_use]
+pub fn compared_report_json(
+    base: &BaseLabel,
+    slices: &[(&str, BenchOutcome, BenchOutcome)],
+) -> (serde_json::Value, bool) {
+    let scored = |o: &BenchOutcome| matches!(o, BenchOutcome::Scored(_));
+    let compared = slices.len() == SLICE_NAMES.len()
+        && SLICE_NAMES
+            .iter()
+            .all(|n| slices.iter().filter(|(s, _, _)| s == n).count() == 1)
+        && slices.iter().all(|(_, b, a)| scored(b) && scored(a));
+    let entries: serde_json::Map<String, serde_json::Value> = slices
+        .iter()
+        .map(|(name, b, a)| {
+            (
+                (*name).to_string(),
+                serde_json::json!({ "base": b.to_json(), "adapter": a.to_json() }),
+            )
+        })
+        .collect();
+    let report = serde_json::json!({
+        "schema": BEFORE_AFTER_SCHEMA,
+        "status": if compared { "compared" } else { "incomplete" },
+        "scope_note": crate::reasoning_slice::REASONING_SLICE_SCOPE_NOTE,
+        "slice_size": SLICE_SIZE,
+        "base_requested": base.requested,
+        "base_model": base.repo_id,
+        "base_revision": base.revision,
+        "gate_input": false,
+        "slices": entries,
+    });
+    (report, compared)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -797,6 +836,73 @@ mod tests {
         let unpinned = record("Qwen/Qwen3-8B@main", AbsenceReason::PinUnverifiable);
         assert_eq!(unpinned["base_model"], "Qwen/Qwen3-8B");
         assert!(unpinned["base_revision"].is_null());
+    }
+
+    fn scored(accuracy: f64) -> BenchOutcome {
+        BenchOutcome::Scored(ReasoningScore {
+            accuracy,
+            think_initiation_rate: 0.5,
+            n: 32,
+        })
+    }
+
+    #[test]
+    fn compared_report_has_separate_keys_per_slice_and_side() {
+        let rows: Vec<(&str, BenchOutcome, BenchOutcome)> = SLICE_NAMES
+            .iter()
+            .map(|n| (*n, scored(0.25), scored(0.75)))
+            .collect();
+        let (v, compared) = compared_report_json(&BaseLabel::from_pin(PIN_8B), &rows);
+        assert!(compared);
+        assert_eq!(v["schema"], BEFORE_AFTER_SCHEMA);
+        assert_eq!(v["status"], "compared");
+        assert_eq!(
+            v["scope_note"],
+            crate::reasoning_slice::REASONING_SLICE_SCOPE_NOTE
+        );
+        assert_eq!(v["slice_size"], 32);
+        assert_eq!(v["gate_input"], false);
+        assert_eq!(v["base_model"], "Qwen/Qwen3-8B");
+        for name in SLICE_NAMES {
+            for (side, acc) in [("base", 0.25), ("adapter", 0.75)] {
+                let e = &v["slices"][name][side];
+                assert_eq!(e["accuracy"].as_f64(), Some(acc), "{name} {side}");
+                assert_eq!(
+                    e["think_initiation_rate"].as_f64(),
+                    Some(0.5),
+                    "{name} {side}"
+                );
+                assert_eq!(e["status"], "scored");
+            }
+        }
+        let obj = v.as_object().expect("object");
+        for banned in ["benchmarks", "delta", "verdict", "max_tokens"] {
+            assert!(!obj.contains_key(banned), "{banned}");
+        }
+    }
+
+    #[test]
+    fn one_not_scored_entry_makes_the_report_incomplete() {
+        let mut rows: Vec<(&str, BenchOutcome, BenchOutcome)> = SLICE_NAMES
+            .iter()
+            .map(|n| (*n, scored(0.25), scored(0.75)))
+            .collect();
+        rows[1].2 = BenchOutcome::NotScored {
+            reason: "model went away".to_string(),
+            n_requested: 32,
+        };
+        let (v, compared) = compared_report_json(&BaseLabel::from_pin(PIN_8B), &rows);
+        assert!(!compared);
+        assert_eq!(v["status"], "incomplete");
+        let e = v["slices"]["math500_think"]["adapter"]
+            .as_object()
+            .expect("entry");
+        assert_eq!(e["status"], "not_scored");
+        assert!(!e.contains_key("accuracy") && !e.contains_key("think_initiation_rate"));
+        // A missing slice is incomplete too.
+        let (v, compared) = compared_report_json(&BaseLabel::from_pin(PIN_8B), &rows[..1]);
+        assert!(!compared);
+        assert_eq!(v["status"], "incomplete");
     }
 
     #[test]

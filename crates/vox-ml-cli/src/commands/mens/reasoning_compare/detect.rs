@@ -19,7 +19,11 @@ pub(crate) const ADAPTER_MANIFEST: &str = "adapter_manifest.json";
 #[derive(Debug)]
 pub(crate) enum Detected {
     /// The pinned snapshot and a matching adapter are both on disk.
-    Ready { snapshot: PathBuf, adapter: PathBuf },
+    Ready {
+        base: BaseLabel,
+        snapshot: PathBuf,
+        adapter: PathBuf,
+    },
     /// Something is missing; this record is written instead of any score.
     NotCompared(AbsenceRecord),
 }
@@ -80,17 +84,77 @@ pub(crate) fn detect_inputs(
     if !snap.is_dir() {
         return absent(AbsenceReason::BaseSnapshotAbsent);
     }
+    if !snapshot_complete(snap) {
+        return absent(AbsenceReason::BaseSnapshotIncomplete);
+    }
     let (Some(adapter), Some(pair)) = (adapter, pair) else {
         return absent(AbsenceReason::AdapterAbsent);
     };
     match pair {
-        (false, false) => absent(AbsenceReason::AdapterAbsent),
-        (true, true) => Detected::Ready {
-            snapshot: snap.clone(),
-            adapter: adapter.to_path_buf(),
-        },
-        _ => absent(AbsenceReason::AdapterIncomplete),
+        (false, false) => return absent(AbsenceReason::AdapterAbsent),
+        (true, true) => {}
+        _ => return absent(AbsenceReason::AdapterIncomplete),
     }
+    let Some(manifest) = read_json(&adapter.join(ADAPTER_MANIFEST)) else {
+        return absent(AbsenceReason::AdapterIncomplete);
+    };
+    let base_model = manifest
+        .get("base_model")
+        .and_then(serde_json::Value::as_str)
+        .map(Path::new);
+    if !base_model.is_some_and(|b| b.is_dir() && same_dir(b, snap)) {
+        return absent(AbsenceReason::AdapterBaseNotPinnedSnapshot);
+    }
+    Detected::Ready {
+        base: label.clone(),
+        snapshot: snap.clone(),
+        adapter: adapter.to_path_buf(),
+    }
+}
+
+/// Size-capped read and parse; any failure is `None`.
+fn read_json(path: &Path) -> Option<serde_json::Value> {
+    let text = vox_bounded_fs::read_utf8_path_capped(path).ok()?;
+    serde_json::from_str(&text).ok()
+}
+
+/// Both paths canonicalize to the same directory.
+fn same_dir(a: &Path, b: &Path) -> bool {
+    matches!((a.canonicalize(), b.canonicalize()), (Ok(x), Ok(y)) if x == y)
+}
+
+/// `config.json`, `tokenizer.json`, and every weight shard are files. With a
+/// `model.safetensors.index.json`, every distinct `weight_map` value must be a
+/// plain file name present in the snapshot; otherwise `model.safetensors` must be.
+/// A dangling symlink is not a file, so a partial download is incomplete.
+fn snapshot_complete(snap: &Path) -> bool {
+    if !(snap.join("config.json").is_file() && snap.join("tokenizer.json").is_file()) {
+        return false;
+    }
+    let index = snap.join("model.safetensors.index.json");
+    if std::fs::symlink_metadata(&index).is_err() {
+        return snap.join("model.safetensors").is_file();
+    }
+    let Some(v) = read_json(&index) else {
+        return false;
+    };
+    let Some(map) = v.get("weight_map").and_then(serde_json::Value::as_object) else {
+        return false;
+    };
+    let Some(shards) = map
+        .values()
+        .map(serde_json::Value::as_str)
+        .collect::<Option<std::collections::BTreeSet<&str>>>()
+    else {
+        return false;
+    };
+    let plain = |s: &str| {
+        matches!(
+            Path::new(s).components().collect::<Vec<_>>().as_slice(),
+            [std::path::Component::Normal(_)]
+        )
+    };
+    !shards.is_empty() && shards.iter().all(|s| plain(s) && snap.join(s).is_file())
 }
 
 #[cfg(test)]
@@ -177,6 +241,155 @@ pub(crate) mod tests {
             let d = detect_inputs(hub.path(), &BaseLabel::from_pin(pin), None);
             assert_eq!(reason(&d), Some(AbsenceReason::PinUnverifiable), "{pin}");
         }
+    }
+
+    /// Pinned 8B snapshot plus an adapter whose manifest points at it.
+    fn present(hub: &Path) -> (PathBuf, PathBuf) {
+        let snap = fake_snapshot(hub, PIN_8B);
+        let adapter = hub.join("adapter");
+        fake_adapter(&adapter, &snap);
+        (snap, adapter)
+    }
+
+    fn detect_8b(hub: &Path, adapter: &Path) -> Option<AbsenceReason> {
+        reason(&detect_inputs(
+            hub,
+            &BaseLabel::from_pin(PIN_8B),
+            Some(adapter),
+        ))
+    }
+
+    fn write_index(snap: &Path, shards: &[&str]) {
+        let map: serde_json::Map<String, serde_json::Value> = shards
+            .iter()
+            .enumerate()
+            .map(|(i, s)| (format!("layer.{i}.weight"), serde_json::json!(s)))
+            .collect();
+        let index = serde_json::json!({ "metadata": {}, "weight_map": map });
+        std::fs::write(snap.join("model.safetensors.index.json"), index.to_string())
+            .expect("write index");
+        std::fs::remove_file(snap.join("model.safetensors")).expect("drop single file");
+    }
+
+    const SHARDS: [&str; 2] = [
+        "model-00001-of-00002.safetensors",
+        "model-00002-of-00002.safetensors",
+    ];
+
+    #[test]
+    fn snapshot_missing_tokenizer_is_incomplete() {
+        let hub = tempfile::tempdir().expect("tempdir");
+        let (snap, adapter) = present(hub.path());
+        std::fs::remove_file(snap.join("tokenizer.json")).expect("rm tokenizer");
+        assert_eq!(
+            detect_8b(hub.path(), &adapter),
+            Some(AbsenceReason::BaseSnapshotIncomplete)
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn snapshot_with_dangling_shard_link_is_incomplete() {
+        let hub = tempfile::tempdir().expect("tempdir");
+        let (snap, adapter) = present(hub.path());
+        write_index(&snap, &SHARDS);
+        std::fs::write(snap.join(SHARDS[0]), b"").expect("shard 1");
+        std::os::unix::fs::symlink(hub.path().join("blobs/missing"), snap.join(SHARDS[1]))
+            .expect("dangling link");
+        assert_eq!(
+            detect_8b(hub.path(), &adapter),
+            Some(AbsenceReason::BaseSnapshotIncomplete)
+        );
+    }
+
+    #[test]
+    fn snapshot_with_all_indexed_shards_is_present() {
+        let hub = tempfile::tempdir().expect("tempdir");
+        let (snap, adapter) = present(hub.path());
+        write_index(&snap, &[SHARDS[0], SHARDS[1], SHARDS[1]]);
+        std::fs::write(snap.join(SHARDS[0]), b"").expect("shard 1");
+        assert_eq!(
+            detect_8b(hub.path(), &adapter),
+            Some(AbsenceReason::BaseSnapshotIncomplete),
+            "one shard still missing"
+        );
+        std::fs::write(snap.join(SHARDS[1]), b"").expect("shard 2");
+        assert_eq!(detect_8b(hub.path(), &adapter), None);
+        // An index entry that escapes the snapshot never counts.
+        write_index_keep(&snap, &["../escape.safetensors"]);
+        std::fs::write(snap.join("../escape.safetensors"), b"").expect("outside file");
+        assert_eq!(
+            detect_8b(hub.path(), &adapter),
+            Some(AbsenceReason::BaseSnapshotIncomplete)
+        );
+    }
+
+    fn write_index_keep(snap: &Path, shards: &[&str]) {
+        std::fs::write(snap.join("model.safetensors"), b"").expect("restore single file");
+        write_index(snap, shards);
+    }
+
+    #[test]
+    fn snapshot_with_single_safetensors_is_present() {
+        let hub = tempfile::tempdir().expect("tempdir");
+        let (snap, adapter) = present(hub.path());
+        match detect_inputs(hub.path(), &BaseLabel::from_pin(PIN_8B), Some(&adapter)) {
+            Detected::Ready {
+                base,
+                snapshot,
+                adapter: a,
+            } => {
+                assert_eq!(base, BaseLabel::from_pin(PIN_8B));
+                assert_eq!(snapshot, snap);
+                assert_eq!(a, adapter);
+            }
+            other => panic!("expected Ready, got {other:?}"),
+        }
+        std::fs::remove_file(snap.join("model.safetensors")).expect("rm weights");
+        assert_eq!(
+            detect_8b(hub.path(), &adapter),
+            Some(AbsenceReason::BaseSnapshotIncomplete)
+        );
+    }
+
+    #[test]
+    fn adapter_manifest_base_must_be_the_pinned_snapshot() {
+        let hub = tempfile::tempdir().expect("tempdir");
+        let (snap, adapter) = present(hub.path());
+        let manifest = adapter.join(ADAPTER_MANIFEST);
+        let other = hub.path().join("other-base");
+        std::fs::create_dir_all(&other).expect("mkdir other");
+        for body in [
+            serde_json::json!({ "base_model": other.display().to_string() }).to_string(),
+            serde_json::json!({ "base_model": "Qwen/Qwen3-8B" }).to_string(),
+            serde_json::json!({ "base_model": 7 }).to_string(),
+            serde_json::json!({ "rank": 16 }).to_string(),
+        ] {
+            std::fs::write(&manifest, &body).expect("write manifest");
+            assert_eq!(
+                detect_8b(hub.path(), &adapter),
+                Some(AbsenceReason::AdapterBaseNotPinnedSnapshot),
+                "{body}"
+            );
+        }
+        std::fs::write(&manifest, "{not json").expect("write manifest");
+        assert_eq!(
+            detect_8b(hub.path(), &adapter),
+            Some(AbsenceReason::AdapterIncomplete)
+        );
+        let sha = snap
+            .file_name()
+            .expect("sha")
+            .to_string_lossy()
+            .into_owned();
+        let roundabout = snap.join("..").join("..").join("snapshots").join(sha);
+        fake_adapter(&adapter, &roundabout);
+        assert_eq!(detect_8b(hub.path(), &adapter), None);
+        std::fs::remove_file(adapter.join(ADAPTER_WEIGHTS)).expect("rm weights");
+        assert_eq!(
+            detect_8b(hub.path(), &adapter),
+            Some(AbsenceReason::AdapterIncomplete)
+        );
     }
 
     #[test]

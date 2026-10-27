@@ -112,7 +112,7 @@ fn fail_closed(bench: &str, adapter: &Path, detail: &str, n_requested: usize) ->
 /// `None` (unset) is 2048; an integer below 1 is raised to 1. A value that is
 /// set but not an integer after trimming is an error, never the default: the
 /// run must not be scored under a cap the caller did not ask for.
-fn parse_max_tokens(raw: Option<&str>) -> Result<usize> {
+pub(crate) fn parse_max_tokens(raw: Option<&str>) -> Result<usize> {
     let Some(raw) = raw else {
         return Ok(2048);
     };
@@ -124,7 +124,7 @@ fn parse_max_tokens(raw: Option<&str>) -> Result<usize> {
 }
 
 /// The raw `VOX_REASONING_EVAL_MAX_TOKENS` value; a non-UTF-8 value counts as set.
-fn max_tokens_env() -> Option<String> {
+pub(crate) fn max_tokens_env() -> Option<String> {
     std::env::var_os("VOX_REASONING_EVAL_MAX_TOKENS").map(|v| v.to_string_lossy().into_owned())
 }
 
@@ -181,7 +181,7 @@ fn usable_text(resp: &str) -> Option<String> {
 /// out). The first inference error, unparseable response, or empty text stops the
 /// run as `NotScored`; that item is neither graded nor counted. Grading rules are
 /// the unchanged `qwen_reasoning` ones.
-fn score_loaded(
+pub(crate) fn score_loaded(
     bench: &str,
     items: &[ReasoningItem],
     max_tokens: usize,
