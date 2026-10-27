@@ -93,10 +93,12 @@ jq '.status' mens/runs/qwen35-08b-metal-e2e/collateral_damage_report.json
 To compare a base with its adapter, `vox mens eval-reasoning-compare --adapter
 <run dir>` scores the pinned base (default `Qwen/Qwen3-8B`, or `--base <size or
 hf_id@sha>`) and the adapter on the three 32-item slices into
-`mens/runs/reasoning_compare/<size>-<revision>.json`, one file per base. When
-the pinned snapshot or a matching adapter is not on disk, it writes a
-`not_compared` record with no score keys and prints `NOT COMPARED`. The file is
-not a serve-gate input.
+`mens/runs/reasoning_compare/<size>-<first 12 hex of revision>.json`, one file
+per base. When the pinned snapshot or a matching adapter is not on disk, it
+writes a `not_compared` record with no score keys and prints `NOT COMPARED`. An
+unknown `--base` is an error. The command needs a `vox-ml-cli` built with
+`--features gpu`; without it, it exits with an error. The file is not a
+serve-gate input.
 
 ## Serve and pin from Drive
 
