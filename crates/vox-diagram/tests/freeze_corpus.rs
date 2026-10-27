@@ -1,7 +1,10 @@
-//! One-shot freezer for the Mermaid corpus. This is the only code in the crate allowed to read
-//! `docs/`: it snapshots every live ```` ```mermaid ```` fence into `tests/fixtures/corpus/`
+//! One-shot freezer for the Mermaid corpus. This is the only code in the crate allowed to write
+//! from `docs/`: it snapshots every live ```` ```mermaid ```` fence into `tests/fixtures/corpus/`
 //! with a `MANIFEST.json` of provenance. Run by hand, then commit:
 //! `cargo nextest run -p vox-diagram --run-ignored only -E 'binary(freeze_corpus)'`.
+//! The second reader of `docs/` is `migration_fidelity`: read-only and ignored, it checks the
+//! frozen fences against the docs during the Phase 90 migration. Do not re-run the freezer
+//! mid-migration: it would freeze the migrated docs and drop the Mermaid originals.
 
 use std::fs;
 use std::path::Path;

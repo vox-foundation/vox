@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { contrastRatio, figureRoutes, FONT_STACKS, type StackName } from './lib/diagrams';
+import { contrastRatio, figureRoutes, FONT_STACKS, NATURAL_CSS, type StackName } from './lib/diagrams';
 
 /*
  * Browser checks for the inline VoxDiagram figures (DOCS-04). Pages are discovered from
@@ -210,7 +210,7 @@ test('review bundle: every reference figure in light, dark and forced colors', a
       await figures.nth(i).screenshot({ path: join(BUNDLE, `${n}-${mode}.png`) });
     }
     // Natural size (no 0.6 floor, no scroll clipping): lifted over the page so the whole diagram is captured.
-    await page.addStyleTag({ content: '.vd-figure.vd-natural { position: fixed; left: 0; top: 0; z-index: 9999; width: max-content; max-width: none; overflow: visible; margin: 0; padding: 8px; background: var(--sl-color-bg); } body :is(header, nav, aside, .sidebar-pane, .right-sidebar-container) { visibility: hidden !important; } .vd-figure.vd-natural > svg { width: var(--vd-w); max-width: none; min-width: 0; }' });
+    await page.addStyleTag({ content: NATURAL_CSS });
     for (let i = 0; i < count; i += 1) {
       const n = String(i + 1).padStart(2, '0');
       await figures.nth(i).evaluate((el) => el.classList.add('vd-natural'));

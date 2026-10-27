@@ -36,3 +36,11 @@ export function contrastRatio(a: string, b: string): number {
   const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
   return (hi + 0.05) / (lo + 0.05);
 }
+
+/**
+ * Lifts a `figure.vd-figure.vd-natural` over the page at its natural width (no 0.6 floor, no scroll
+ * clipping) so a screenshot captures the whole diagram. Shared by the review bundle and the
+ * migration contact-sheet generator.
+ */
+export const NATURAL_CSS =
+  '.vd-figure.vd-natural { position: fixed; left: 0; top: 0; z-index: 9999; width: max-content; max-width: none; overflow: visible; margin: 0; padding: 8px; background: var(--sl-color-bg); } body :is(header, nav, aside, .sidebar-pane, .right-sidebar-container) { visibility: hidden !important; } .vd-figure.vd-natural > svg { width: var(--vd-w); max-width: none; min-width: 0; }';
