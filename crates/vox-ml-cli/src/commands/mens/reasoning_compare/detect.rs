@@ -5,12 +5,10 @@
 //! matched. Detection uses `is_dir`/`is_file` only and never opens a weight file
 //! or loads a model.
 
-use std::collections::HashMap;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use vox_eval::reasoning_bench::{AbsenceReason, AbsenceRecord, BaseLabel};
-use vox_populi::mens::tensor::spoke_base_resolver::TrainBase;
 
 /// Adapter weights file the candle QLoRA trainer writes.
 pub(crate) const ADAPTER_WEIGHTS: &str = "candle_qlora_adapter.safetensors";
@@ -80,47 +78,9 @@ pub(crate) fn resolve_hub_root(explicit: Option<&Path>, env: HubEnv) -> Option<P
         })
 }
 
-/// The pin to compare. `None` is [`vox_populi::mens::DEFAULT_MODEL_ID`]; a
-/// `repo@<40 hex>` pin passes through; a size name (`Qwen3-8B`) or bare repo id
-/// (`Qwen/Qwen3-8B`) resolves to the single distinct pinned `hf_id` across all
-/// `train_bases` tags. Unknown or ambiguous input is an error that lists the
-/// known sizes: it is an operator typo, not an absent snapshot, and there is no
-/// fallback revision.
-pub(crate) fn resolve_base_pin(
-    requested: Option<&str>,
-    overlay: &HashMap<String, Vec<TrainBase>>,
-) -> anyhow::Result<String> {
-    let Some(requested) = requested else {
-        return Ok(vox_populi::mens::DEFAULT_MODEL_ID.to_string());
-    };
-    if BaseLabel::from_pin(requested).revision.is_some() {
-        return Ok(requested.to_string());
-    }
-    let pinned: Vec<BaseLabel> = overlay
-        .values()
-        .flatten()
-        .map(|b| BaseLabel::from_pin(&b.hf_id))
-        .filter(|l| l.revision.is_some())
-        .collect();
-    let suffix = format!("/{requested}");
-    let pins: std::collections::BTreeSet<&str> = pinned
-        .iter()
-        .filter(|l| l.repo_id == requested || l.repo_id.ends_with(&suffix))
-        .map(|l| l.requested.as_str())
-        .collect();
-    if let [only] = pins.into_iter().collect::<Vec<_>>().as_slice() {
-        return Ok((*only).to_string());
-    }
-    let sizes: std::collections::BTreeSet<&str> = pinned
-        .iter()
-        .filter_map(|l| l.repo_id.rsplit('/').next())
-        .collect();
-    anyhow::bail!(
-        "--base {requested} does not resolve to exactly one pinned base; known sizes: {}; \
-         or pass owner/name@<40-hex sha>",
-        sizes.into_iter().collect::<Vec<_>>().join(", ")
-    )
-}
+/// The pin to compare; size-name resolution lives in the live size selector
+/// (Phase 318, D-04).
+pub(crate) use vox_populi::mens::tensor::size_select::resolve_base_pin;
 
 /// The exact snapshot directory for the pinned revision; `None` without one.
 pub(crate) fn snapshot_dir(hub_root: &Path, label: &BaseLabel) -> Option<PathBuf> {
@@ -237,6 +197,8 @@ fn snapshot_complete(snap: &Path) -> bool {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use std::collections::HashMap;
+    use vox_populi::mens::tensor::spoke_base_resolver::TrainBase;
 
     pub(crate) const PIN_8B: &str = vox_populi::mens::DEFAULT_MODEL_ID;
     pub(crate) const PIN_0_6B: &str = "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca";
@@ -470,108 +432,16 @@ pub(crate) mod tests {
         );
     }
 
-    // ---- Task 3: base resolution ----
+    // ---- Task 3: base resolution (the resolution tests moved to
+    // vox-populi `size_select` with `resolve_base_pin`, Phase 318) ----
 
     fn repo_overlay() -> HashMap<String, Vec<TrainBase>> {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         vox_populi::mens::tensor::spoke_base_resolver::load_overlay(&root).expect("overlay")
     }
 
-    fn base(hf_id: &str) -> TrainBase {
-        TrainBase {
-            hf_id: hf_id.to_string(),
-            floor_mb: 1,
-            methods: Vec::new(),
-            license: None,
-            attribution_required: false,
-            floor_measured: false,
-            measured_on: None,
-            peak_mb: None,
-        }
-    }
-
-    #[test]
-    fn base_resolution_default_is_the_pinned_8b() {
-        assert_eq!(ok_pin(None, &repo_overlay()), PIN_8B);
-        assert_eq!(
-            PIN_8B,
-            "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
-        );
-    }
-
-    #[test]
-    fn base_resolution_full_pin_passes_through() {
-        let overlay = repo_overlay();
-        for pin in [
-            PIN_0_6B,
-            "someone/Other-Model@0123456789abcdef0123456789abcdef01234567",
-        ] {
-            assert_eq!(ok_pin(Some(pin), &overlay), pin);
-        }
-    }
-
-    #[test]
-    fn base_resolution_size_name_uses_train_bases() {
-        let overlay = repo_overlay();
-        assert_eq!(ok_pin(Some("Qwen3-8B"), &overlay), PIN_8B);
-        assert_eq!(ok_pin(Some("Qwen/Qwen3-8B"), &overlay), PIN_8B);
-        assert_eq!(ok_pin(Some("Qwen3-0.6B"), &overlay), PIN_0_6B);
-        assert_eq!(ok_pin(Some("Qwen3-4B"), &overlay), PIN_4B);
-        assert_eq!(ok_pin(Some("Qwen/Qwen3-4B"), &overlay), PIN_4B);
-    }
-
-    #[test]
-    fn base_resolution_resolves_every_ladder_size() {
-        let overlay = repo_overlay();
-        let ladder = &overlay["qwen3_code"];
-        // The ls-remote pins (2026-10-27), so a changed pin in the YAML fails here.
-        for (name, sha) in [
-            ("Qwen3-0.6B", "c1899de289a04d12100db370d81485cdf75e47ca"),
-            ("Qwen3-1.7B", "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"),
-            ("Qwen3-4B", "1cfa9a7208912126459214e8b04321603b3df60c"),
-            ("Qwen3-8B", "b968826d9c46dd6066d109eabc6255188de91218"),
-            ("Qwen3-14B", "40c069824f4251a91eefaf281ebe4c544efd3e18"),
-            ("Qwen3-32B", "9216db5781bf21249d130ec9da846c4624c16137"),
-        ] {
-            let pin = ok_pin(Some(name), &overlay);
-            assert_eq!(pin, ok_pin(Some(&format!("Qwen/{name}")), &overlay));
-            assert_eq!(pin, format!("Qwen/{name}@{sha}"), "{name}");
-            assert!(BaseLabel::from_pin(&pin).revision.is_some(), "{pin}");
-            assert!(ladder.iter().any(|b| b.hf_id == pin), "{pin}");
-        }
-    }
-
     fn ok_pin(requested: Option<&str>, overlay: &HashMap<String, Vec<TrainBase>>) -> String {
         resolve_base_pin(requested, overlay).expect("resolves")
-    }
-
-    #[test]
-    fn base_resolution_unknown_or_ambiguous_is_an_error() {
-        let overlay = repo_overlay();
-        for requested in [
-            "Qwen3-1234B",
-            "Qwen3-8b",
-            "Qwen/Qwen3-8B@main",
-            "Qwen/Qwen3-8B@B968826D9C46DD6066D109EABC6255188DE91218",
-        ] {
-            let msg = format!(
-                "{:#}",
-                resolve_base_pin(Some(requested), &overlay).expect_err(requested)
-            );
-            assert!(
-                msg.contains(requested) && msg.contains("Qwen3-8B") && msg.contains("Qwen3-0.6B"),
-                "{msg}"
-            );
-        }
-        let mut ambiguous = HashMap::new();
-        ambiguous.insert(
-            "a".to_string(),
-            vec![base(
-                "Qwen/Qwen3-8B@0123456789abcdef0123456789abcdef01234567",
-            )],
-        );
-        ambiguous.insert("b".to_string(), vec![base(PIN_8B)]);
-        assert!(resolve_base_pin(Some("Qwen3-8B"), &ambiguous).is_err());
     }
 
     #[test]

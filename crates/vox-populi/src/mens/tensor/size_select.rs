@@ -7,7 +7,7 @@
 //! (D-06) is the caller's job. Without a live reading, or when nothing fits, an
 //! automatic pick is refused: there is no default size.
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
 
 use anyhow::bail;
@@ -102,7 +102,15 @@ pub fn select_size(
 ) -> anyhow::Result<Selection> {
     let ladder = size_ladder(overlay)?;
     if let Some(req) = explicit {
-        bail!("explicit size {req} (force {force}): explicit sizes land in Task 2");
+        return match resolve_base_pin(Some(req), overlay) {
+            Ok(pin) => match ladder.iter().find(|r| r.hf_id == pin) {
+                Some(rung) => Ok(Selection::Size(explicit_pick(rung, free, force)?)),
+                None => Ok(Selection::PassThrough(pin)),
+            },
+            // A concrete id or path, not a size name: no floor to check.
+            Err(_) if req.contains(['/', '\\']) => Ok(Selection::PassThrough(req.to_string())),
+            Err(e) => Err(e),
+        };
     }
     let Some(free) = free else {
         bail!("{NO_READING}")
@@ -117,6 +125,50 @@ pub fn select_size(
         explicit: false,
         note,
     }))
+}
+
+/// The pin for a requested base. `None` is [`crate::mens::DEFAULT_MODEL_ID`]; a
+/// `repo@<40 hex>` pin passes through; a size name (`Qwen3-8B`) or bare repo id
+/// (`Qwen/Qwen3-8B`) resolves to the single distinct pinned `hf_id` across all
+/// `train_bases` tags. Unknown or ambiguous input is an error that lists the
+/// known sizes: it is an operator typo, and there is no fallback revision.
+pub fn resolve_base_pin(
+    requested: Option<&str>,
+    overlay: &HashMap<String, Vec<TrainBase>>,
+) -> anyhow::Result<String> {
+    let Some(requested) = requested else {
+        return Ok(crate::mens::DEFAULT_MODEL_ID.to_string());
+    };
+    if split_pin(requested).1.is_some() {
+        return Ok(requested.to_string());
+    }
+    // (repo id, full pin) of every pinned rung.
+    let pinned: Vec<(&str, &str)> = overlay
+        .values()
+        .flatten()
+        .filter_map(|b| match split_pin(&b.hf_id) {
+            (repo, Some(_)) => Some((repo, b.hf_id.as_str())),
+            _ => None,
+        })
+        .collect();
+    let suffix = format!("/{requested}");
+    let pins: BTreeSet<&str> = pinned
+        .iter()
+        .filter(|(repo, _)| *repo == requested || repo.ends_with(&suffix))
+        .map(|(_, pin)| *pin)
+        .collect();
+    if let [only] = pins.into_iter().collect::<Vec<_>>().as_slice() {
+        return Ok((*only).to_string());
+    }
+    let sizes: BTreeSet<&str> = pinned
+        .iter()
+        .filter_map(|(repo, _)| repo.rsplit('/').next())
+        .collect();
+    bail!(
+        "size {requested} does not resolve to exactly one pinned base; known sizes: {}; \
+         or pass owner/name@<40-hex sha>",
+        sizes.into_iter().collect::<Vec<_>>().join(", ")
+    )
 }
 
 /// `Some(root)` reads `<root>/mens/config/gpu-specs.yaml`; `None` the embedded copy.
@@ -140,7 +192,7 @@ fn size_ladder(overlay: &HashMap<String, Vec<TrainBase>>) -> anyhow::Result<Vec<
         .iter()
         .filter(|b| b.methods.iter().any(|m| m == "qlora"))
     {
-        let repo = b.hf_id.split_once('@').map_or(b.hf_id.as_str(), |(r, _)| r);
+        let repo = split_pin(&b.hf_id).0;
         let name = repo.rsplit('/').next().unwrap_or(repo);
         let size = name.strip_prefix("Qwen3-").unwrap_or(name);
         let Some(&(_, preset)) = SIZE_PRESETS.iter().find(|(s, _)| *s == size) else {
@@ -159,6 +211,60 @@ fn size_ladder(overlay: &HashMap<String, Vec<TrainBase>>) -> anyhow::Result<Vec<
 
 fn fits(rung: &SizeRung, free: &FreeMemory) -> bool {
     u64::from(rung.floor_mb) <= free.mb
+}
+
+/// A size the operator named: kept when it fits or cannot be checked, refused
+/// (never shrunk) when it does not fit unless `force`.
+fn explicit_pick(
+    rung: &SizeRung,
+    free: Option<&FreeMemory>,
+    force: bool,
+) -> anyhow::Result<SizePick> {
+    let (size, floor) = (&rung.size, rung.floor_mb);
+    let note = match free {
+        None => format!("{size} (explicit): no live free-memory reading; fit not checked"),
+        Some(f) if fits(rung, f) => format!(
+            "{size} (explicit): floor {floor} MB fits {} MB free ({})",
+            f.mb, f.source
+        ),
+        Some(f) => {
+            if !force {
+                bail!(
+                    "explicit size {size} needs {floor} MB but {} MB is free ({}); refusing \
+                     rather than shrinking. Choose a smaller size (training: \
+                     VOX_MENS_FORCE_TRAIN=1 overrides)",
+                    f.mb,
+                    f.source
+                );
+            }
+            format!(
+                "{size} (explicit): floor {floor} MB does not fit {} MB free ({}); forced",
+                f.mb, f.source
+            )
+        }
+    };
+    Ok(SizePick {
+        rung: rung.clone(),
+        explicit: true,
+        note,
+    })
+}
+
+// vox:defactored-from vox-eval 2026-10-27
+/// `(repo id, Some(revision))` when the part after the last `@` is exactly 40
+/// lowercase hex characters, else `(repo id, None)`; same rule as vox-eval's
+/// `BaseLabel::from_pin`, which this `mens`-gated module cannot depend on.
+fn split_pin(pin: &str) -> (&str, Option<&str>) {
+    let (repo, rev) = match pin.rsplit_once('@') {
+        Some((repo, rev)) => (repo, Some(rev)),
+        None => (pin, None),
+    };
+    let hex = |r: &&str| {
+        r.len() == 40
+            && r.bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    };
+    (repo, rev.filter(hex))
 }
 
 /// The largest rung that fits, or an error naming the smallest floor.
@@ -181,9 +287,10 @@ fn largest_fit<'a>(ladder: &'a [SizeRung], free: &FreeMemory) -> anyhow::Result<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::Path;
 
-    const PIN_8B: &str = "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218";
+    const PIN_8B: &str = crate::mens::DEFAULT_MODEL_ID;
+    const PIN_0_6B: &str = "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca";
+    const PIN_4B: &str = "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c";
 
     fn repo_root() -> std::path::PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -345,5 +452,170 @@ mod tests {
             size_ladder(&embedded).expect("embedded ladder"),
             size_ladder(&repo_overlay()).expect("repo ladder")
         );
+    }
+
+    // ---- explicit sizes (D-04); the base_resolution_* tests moved here from
+    // vox-ml-cli reasoning_compare/detect.rs with resolve_base_pin ----
+
+    fn base(hf_id: &str) -> TrainBase {
+        TrainBase {
+            hf_id: hf_id.to_string(),
+            floor_mb: 1,
+            methods: Vec::new(),
+            license: None,
+            attribution_required: false,
+            floor_measured: false,
+            measured_on: None,
+            peak_mb: None,
+        }
+    }
+
+    fn ok_pin(requested: Option<&str>, overlay: &HashMap<String, Vec<TrainBase>>) -> String {
+        resolve_base_pin(requested, overlay).expect("resolves")
+    }
+
+    #[test]
+    fn base_resolution_default_is_the_pinned_8b() {
+        assert_eq!(ok_pin(None, &repo_overlay()), PIN_8B);
+        assert_eq!(
+            PIN_8B,
+            "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
+        );
+    }
+
+    #[test]
+    fn base_resolution_full_pin_passes_through() {
+        let overlay = repo_overlay();
+        for pin in [
+            PIN_0_6B,
+            "someone/Other-Model@0123456789abcdef0123456789abcdef01234567",
+        ] {
+            assert_eq!(ok_pin(Some(pin), &overlay), pin);
+        }
+    }
+
+    #[test]
+    fn base_resolution_size_name_uses_train_bases() {
+        let overlay = repo_overlay();
+        assert_eq!(ok_pin(Some("Qwen3-8B"), &overlay), PIN_8B);
+        assert_eq!(ok_pin(Some("Qwen/Qwen3-8B"), &overlay), PIN_8B);
+        assert_eq!(ok_pin(Some("Qwen3-0.6B"), &overlay), PIN_0_6B);
+        assert_eq!(ok_pin(Some("Qwen3-4B"), &overlay), PIN_4B);
+        assert_eq!(ok_pin(Some("Qwen/Qwen3-4B"), &overlay), PIN_4B);
+    }
+
+    #[test]
+    fn base_resolution_resolves_every_ladder_size() {
+        let overlay = repo_overlay();
+        let ladder = &overlay["qwen3_code"];
+        // The ls-remote pins (2026-10-27), so a changed pin in the YAML fails here.
+        for (name, sha) in [
+            ("Qwen3-0.6B", "c1899de289a04d12100db370d81485cdf75e47ca"),
+            ("Qwen3-1.7B", "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"),
+            ("Qwen3-4B", "1cfa9a7208912126459214e8b04321603b3df60c"),
+            ("Qwen3-8B", "b968826d9c46dd6066d109eabc6255188de91218"),
+            ("Qwen3-14B", "40c069824f4251a91eefaf281ebe4c544efd3e18"),
+            ("Qwen3-32B", "9216db5781bf21249d130ec9da846c4624c16137"),
+        ] {
+            let pin = ok_pin(Some(name), &overlay);
+            assert_eq!(pin, ok_pin(Some(&format!("Qwen/{name}")), &overlay));
+            assert_eq!(pin, format!("Qwen/{name}@{sha}"), "{name}");
+            assert!(split_pin(&pin).1.is_some(), "{pin}");
+            assert!(ladder.iter().any(|b| b.hf_id == pin), "{pin}");
+        }
+    }
+
+    #[test]
+    fn base_resolution_unknown_or_ambiguous_is_an_error() {
+        let overlay = repo_overlay();
+        for requested in [
+            "Qwen3-1234B",
+            "Qwen3-8b",
+            "Qwen/Qwen3-8B@main",
+            "Qwen/Qwen3-8B@B968826D9C46DD6066D109EABC6255188DE91218",
+        ] {
+            let msg = format!(
+                "{:#}",
+                resolve_base_pin(Some(requested), &overlay).expect_err(requested)
+            );
+            assert!(
+                msg.contains(requested) && msg.contains("Qwen3-8B") && msg.contains("Qwen3-0.6B"),
+                "{msg}"
+            );
+        }
+        let mut ambiguous = HashMap::new();
+        ambiguous.insert(
+            "a".to_string(),
+            vec![base(
+                "Qwen/Qwen3-8B@0123456789abcdef0123456789abcdef01234567",
+            )],
+        );
+        ambiguous.insert("b".to_string(), vec![base(PIN_8B)]);
+        assert!(resolve_base_pin(Some("Qwen3-8B"), &ambiguous).is_err());
+    }
+
+    fn explicit(req: &str, free_mb: Option<u64>, force: bool) -> anyhow::Result<Selection> {
+        let f = free_mb.map(free);
+        select_size(&repo_overlay(), f.as_ref(), Some(req), force)
+    }
+
+    #[test]
+    fn explicit_size_that_fits_is_kept() {
+        for req in ["Qwen3-8B", "Qwen/Qwen3-8B", PIN_8B] {
+            let p = sized(explicit(req, Some(13_000), false).expect(req));
+            assert!(p.explicit, "{req}");
+            assert_eq!(p.rung.hf_id, PIN_8B, "{req}");
+            assert_eq!(p.rung.size, "8B", "{req}");
+        }
+    }
+
+    #[test]
+    fn explicit_size_that_does_not_fit_is_refused_not_shrunk() {
+        let msg = format!(
+            "{:#}",
+            explicit("Qwen3-14B", Some(13_000), false).expect_err("14B does not fit")
+        );
+        for part in ["14B", "20000", "13000", "refusing"] {
+            assert!(msg.contains(part), "{part}: {msg}");
+        }
+        let p = sized(explicit("Qwen3-14B", Some(13_000), true).expect("forced"));
+        assert_eq!(p.rung.size, "14B");
+        assert!(p.note.contains("forced"), "{}", p.note);
+    }
+
+    #[test]
+    fn explicit_size_without_a_reading_is_kept_unchecked() {
+        let p = sized(explicit("Qwen3-32B", None, false).expect("kept"));
+        assert_eq!(p.rung.size, "32B");
+        assert!(p.explicit);
+        assert!(p.note.contains("fit not checked"), "{}", p.note);
+    }
+
+    #[test]
+    fn concrete_ids_off_the_ladder_pass_through() {
+        for free_mb in [Some(13_000), None] {
+            for id in [
+                "org/Manual",
+                "Qwen/Qwen2.5-Coder-0.5B-Instruct",
+                "someone/Other-Model@0123456789abcdef0123456789abcdef01234567",
+                "/models/qwen3-0.6b-finetune",
+            ] {
+                match explicit(id, free_mb, false).expect(id) {
+                    Selection::PassThrough(got) => assert_eq!(got, id),
+                    other => panic!("{id}: expected pass-through, got {other:?}"),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn unknown_bare_size_name_is_an_error() {
+        let msg = format!(
+            "{:#}",
+            explicit("Qwen3-1234B", Some(13_000), false).expect_err("unknown size")
+        );
+        for part in ["Qwen3-1234B", "Qwen3-8B", "Qwen3-0.6B"] {
+            assert!(msg.contains(part), "{part}: {msg}");
+        }
     }
 }
