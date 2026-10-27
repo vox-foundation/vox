@@ -108,8 +108,8 @@ Plans:
 Plans:
 - [ ] `318-01` (wave 1): Selector core in `vox-populi` `mens::tensor::size_select` — live free-memory reading, six-size ladder with presets (new `qwen3_6g`, `qwen3_12g`), automatic pick, explicit sizes (`resolve_base_pin` moved here), re-check before load
 - [ ] `318-02` (wave 2): Training — one pick in `run_train`, re-check before the download in `gpu.rs`, live mode for pipeline and `--domain` spokes, Metal default-base path deleted, how-to
-- [ ] `318-03` (wave 2): Inference — orchestrator auto-select on the selector (fake tiers and registry candidates deleted), `vox chat --model auto-local`, `vox mens serve` pre-load fit check
-- [ ] `318-04` (wave 3): GUI recommendation command, TypeScript type and e2e mock in the new shape; how-to for serve and auto-local
+- [ ] `318-03` (wave 2): Inference — orchestrator auto-select on the selector with its `vox chat --model auto-local` and GUI-command consumers in the same commit (fake tiers and registry candidates deleted), `vox mens serve` pre-load fit check
+- [ ] `318-04` (wave 3): GUI recommendation TypeScript type and e2e mock in the new shape; how-to for serve (conservative fit check) and auto-local
 
 ### Phase 319: Mesh-Wide Selection (`MESH-01`)
 
