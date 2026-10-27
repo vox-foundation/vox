@@ -100,20 +100,26 @@ impl Default for GuestShareService {
     }
 }
 
+/// The configured secret hashed to a key, or a fresh random key when none is configured.
+fn signing_key_from_secret(secret: Option<&str>) -> [u8; 32] {
+    match secret {
+        Some(s) => vox_crypto::secure_hash(s.as_bytes()),
+        None => vox_crypto::signing_key_to_bytes(&vox_crypto::generate_signing_keypair().0),
+    }
+}
+
+/// Byte equality whose running time does not depend on where the inputs first differ.
+fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    a.len() == b.len() && a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
+}
+
 impl GuestShareService {
     /// Construct a `GuestShareService` resolving its signing key via `vox_secrets::resolve_secret`
-    /// and deriving a 32-byte key with `vox_crypto::secure_hash`.
+    /// and deriving a 32-byte key with `vox_crypto::secure_hash`. Without a configured secret the
+    /// key is random per process, so invites never verify against a publicly known key.
     pub fn new_from_clavis() -> Self {
         let resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::WebhookSigningSecret);
-        let seed = resolved
-            .expose()
-            .unwrap_or("vox-default-ephemeral-guest-share-key");
-        let signing_key = vox_crypto::secure_hash(seed.as_bytes());
-        Self {
-            signing_key,
-            invites: HashMap::new(),
-            pending_messages: Vec::new(),
-        }
+        Self::with_signing_key(signing_key_from_secret(resolved.expose()))
     }
 
     /// Construct with an explicit 32-byte key for deterministic unit tests.
@@ -171,7 +177,7 @@ impl GuestShareService {
             &existing.thread_id,
             existing.expires_at_ms,
         );
-        if expected_sig != signature_hex {
+        if !constant_time_eq(expected_sig.as_bytes(), signature_hex.as_bytes()) {
             return Err(GuestShareError::InvalidSignature);
         }
         if now_ms > existing.expires_at_ms {
@@ -274,8 +280,20 @@ impl GuestShareService {
 mod tests {
     use super::{
         GUEST_PENDING_MESSAGE_LIMIT, GUEST_SHARE_TTL_MS, GuestMessageModerationStatus,
-        GuestShareError, GuestShareService,
+        GuestShareError, GuestShareService, constant_time_eq, signing_key_from_secret,
     };
+
+    #[test]
+    fn missing_secret_yields_a_random_key_and_signatures_compare_exactly() {
+        assert_ne!(signing_key_from_secret(None), signing_key_from_secret(None));
+        assert_eq!(
+            signing_key_from_secret(Some("s")),
+            signing_key_from_secret(Some("s"))
+        );
+        assert!(constant_time_eq(b"abcd", b"abcd"));
+        assert!(!constant_time_eq(b"abcd", b"abce"));
+        assert!(!constant_time_eq(b"abc", b"abcd"));
+    }
 
     #[test]
     fn guest_share_enforces_single_browser_redemption_and_pending_limit() {
