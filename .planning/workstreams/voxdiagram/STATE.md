@@ -4,18 +4,18 @@ milestone: v1.7
 milestone_name: VoxDiagram
 current_phase: 91
 current_phase_name: Measurement Harness & Advisory Closure
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed 91-02-PLAN.md
-last_updated: "2026-10-27T20:38:59.429Z"
+stopped_at: Completed 91-03-PLAN.md
+last_updated: "2026-10-27T21:29:37.604Z"
 last_activity: 2026-10-27
 last_activity_desc: Phase 91 execution started
-state_head: 71808fc629060472d7c485b7247ac1d1d1294d15
+state_head: 8d5d137fed560163667ccfe027f8f8fab3217098
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 42
-  completed_plans: 39
+  completed_plans: 40
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -30,7 +30,7 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 ## Current Position
 
 Phase: 91 (Measurement Harness & Advisory Closure) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-10-27 — Phase 91 execution started
 
@@ -39,7 +39,7 @@ Progress: [█████████░] 89% (0/9 phases)
 ## Progress
 
 **Phases Complete:** 0
-**Current Plan:** 3
+**Current Plan:** 4
 
 ## Key Decisions (milestone-level)
 
@@ -64,9 +64,9 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-10-27T20:38:59.282Z
+**Last session:** 2026-10-27T21:29:37.379Z
 
-**Stopped At:** Completed 91-02-PLAN.md
+**Stopped At:** Completed 91-03-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -105,6 +105,7 @@ None yet.
 | Phase 89 P03 | resumed | 3 tasks | 8 files |
 | Phase 89 P04 | 1 session | 3 tasks | 7 files |
 | Phase 91 P02 | 189min | 2 tasks | 15 files |
+| Phase 91 P03 | 48min | 2 tasks | 8 files |
 
 ## Decisions
 
@@ -155,6 +156,7 @@ None yet.
 - [Phase 89]: 89-04: browser checks discover figure pages from dist/; review bundle holds shipped and natural-size PNGs
 - [Phase 91]: 91-02: every quoted span of a task prompt must be a text of the expected sets; banned syntax words match whole words and plurals
 - [Phase 91]: 91-02: Rust rescore parses the decision rule only once a run exists (the rule lands in the dataset manifest in 91-04)
+- [Phase 91]: Hard-case quotas are measured per task from the oracle's canonical sets (reference-outputs.jsonl), never from tags; card/template/manifest-hash gates live in eval_diagram_frozen.rs
 
 ## Pending Todos (voxdiagram)
 
