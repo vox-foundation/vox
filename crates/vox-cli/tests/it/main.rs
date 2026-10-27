@@ -19,6 +19,7 @@ mod db_migrate_semantics_test;
 mod db_schema_coverage_integration;
 mod effort_pricing_parity;
 mod emit_client_mkdir;
+mod eval_diagram_frozen;
 mod eval_diagram_rescore;
 mod eval_diagram_tasks;
 mod frontend_dependency_policy_test;

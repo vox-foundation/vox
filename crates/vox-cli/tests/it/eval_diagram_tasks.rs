@@ -1,17 +1,15 @@
-//! Offline gates over the frozen diagram-authoring dataset (`contracts/eval/diagram-authoring/`):
-//! every task follows the authoring rules (labels quoted verbatim from the real Mermaid parser's
-//! canonical sets of the reference, direction stated in words, no syntax named outside quoted
-//! labels), the two grammar cards are of comparable size, the shared template differs between the
-//! arms only in its slots, and the manifest pins every frozen file by hash. The count and quota
-//! gates are added with the rest of the set (91-03).
+//! Offline gates over the tasks of the frozen diagram-authoring dataset
+//! (`contracts/eval/diagram-authoring/`): every task follows the authoring rules (labels quoted
+//! verbatim from the real Mermaid parser's canonical sets of the reference, direction stated in
+//! words, no syntax named outside quoted labels), and the hard-case quotas are measured from the
+//! oracle's canonical sets. Cards, template and manifest hashes are gated in `eval_diagram_frozen`.
 
 use std::path::{Path, PathBuf};
 
 use serde_json::Value;
-use vox_cli::commands::model::eval_diagram::prompt::{arm_slots, parse_template, render_messages};
-use vox_cli::commands::model::eval_diagram::{Arm, OracleOutput, Task, file_hash, read_jsonl};
+use vox_cli::commands::model::eval_diagram::{OracleOutput, Task, read_jsonl};
+use vox_doc_pipeline::diagram::check;
 use vox_doc_pipeline::diagram::ir::Ir;
-use vox_doc_pipeline::diagram::{GRAMMAR_CARD, check};
 
 /// Direction of the canonical sets and the only phrase a prompt may use for it.
 const DIRECTIONS: [(&str, &str); 4] = [
@@ -36,11 +34,11 @@ const BANNED_WORDS: [&str; 8] = [
 /// Arrow and bracket tokens of either language.
 const BANNED_TOKENS: [&str; 11] = ["->", "<-", "=>", "--", "|", "{", "}", "[", "]", "%%", "//"];
 
-fn dataset() -> PathBuf {
+pub(crate) fn dataset() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../contracts/eval/diagram-authoring")
 }
 
-fn read(name: &str) -> String {
+pub(crate) fn read(name: &str) -> String {
     let path = dataset().join(name);
     std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
 }
@@ -251,124 +249,95 @@ fn per_task_gate_rejects_bad_prompts() {
     );
 }
 
-fn words(text: &str) -> usize {
-    text.split_whitespace().count()
+/// Hard-case quotas, in `features` order: the first seven are graph cases, the last three
+/// sequence cases (CONTEXT: Task set).
+const QUOTAS: [&str; 10] = [
+    "punctuation",
+    "nesting",
+    "edge_labels",
+    "self_loops",
+    "fan",
+    "shapes",
+    "hostile",
+    "notes",
+    "replies",
+    "self_messages",
+];
+
+/// The hard cases one canonical-set document contains. Punctuation: any label with one of
+/// `()"':/#&<>;[]{}|` or a non-ASCII character; nesting: a group path of depth 2 or more; fan: a
+/// node with three or more outgoing or incoming edges; shapes: not `rect`; hostile: a node label
+/// `end`, or one alphanumeric word starting with o or x (case-insensitive).
+fn features(sets: &Value) -> [bool; 10] {
+    let list = |key: &str| sets[key].as_array().cloned().unwrap_or_default();
+    let (nodes, edges, events) = (list("nodes"), list("edges"), list("events"));
+    let punct = |t: &String| {
+        t.chars()
+            .any(|c| !c.is_ascii() || "()\"':/#&<>;[]{}|".contains(c))
+    };
+    let hostile = |l: String| {
+        l == "end" || l.starts_with(['o', 'x']) && l.chars().all(|c| c.is_ascii_alphanumeric())
+    };
+    let fan = |n: &Value| (0..2).any(|k| edges.iter().filter(|e| e[k] == *n).count() >= 3);
+    let message = |e: &Value| str_of(&e[0]) == "message";
+    [
+        str_of(&sets["kind"]) == "graph" && set_texts(sets).iter().any(punct),
+        list("containers")
+            .iter()
+            .any(|p| p.as_array().is_some_and(|p| p.len() >= 2)),
+        edges.iter().any(|e| !str_of(&e[2]).is_empty()),
+        edges.iter().any(|e| e[0] == e[1]),
+        nodes.iter().any(fan),
+        nodes.iter().any(|n| str_of(&n[1]) != "rect"),
+        nodes.iter().any(|n| hostile(str_of(&n[0]).to_lowercase())),
+        events.iter().any(|e| str_of(&e[0]) == "note"),
+        events.iter().any(|e| message(e) && e[3] == true),
+        events.iter().any(|e| message(e) && e[1] == e[2]),
+    ]
 }
 
-fn within_ten_percent(a: usize, b: usize) -> bool {
-    a.abs_diff(b) * 10 <= b
-}
-
-#[test]
-fn grammar_cards_are_comparable() {
-    let vd = read("cards/voxdiagram.txt");
-    let mm = read("cards/mermaid.txt");
-    assert_eq!(
-        vd, GRAMMAR_CARD,
-        "cards/voxdiagram.txt is not the VoxDiagram grammar card"
-    );
-    assert!(
-        within_ten_percent(mm.len(), vd.len()),
-        "bytes: mermaid {} vs voxdiagram {}",
-        mm.len(),
-        vd.len()
-    );
-    assert!(
-        within_ten_percent(words(&mm), words(&vd)),
-        "words: mermaid {} vs voxdiagram {}",
-        words(&mm),
-        words(&vd)
-    );
-    let first = mm.lines().next().unwrap_or_default();
-    assert!(
-        first.contains("flowchart") && first.contains("sequenceDiagram"),
-        "{first}"
-    );
-    assert!(first.contains("mermaid fenced block"), "{first}");
-    let paragraphs: Vec<&str> = mm.split("\n\n").collect();
-    for head in ["flowchart ", "sequenceDiagram"] {
-        assert_eq!(
-            paragraphs.iter().filter(|p| p.starts_with(head)).count(),
-            1,
-            "one {head:?} example paragraph"
-        );
-    }
-    assert_eq!(
-        mm.lines().last(),
-        Some("Run the parser; fix the reported line; repeat until it parses.")
-    );
-    assert!(within_ten_percent(105, 100) && !within_ten_percent(111, 100));
-}
-
-#[test]
-fn template_differs_between_arms_only_in_its_slots() {
-    let template = parse_template(&read("prompt-template.txt")).expect("prompt-template.txt");
-    let tasks: Vec<Task> = read_jsonl(&read("tasks.v1.jsonl")).expect("tasks");
-    let history = vec![
-        (
-            "```\nfirst try\n```".to_string(),
-            "line 3: unexpected token".to_string(),
-        ),
-        ("second try".to_string(), "[{\"code\":\"x\"}]".to_string()),
-    ];
-    for task in &tasks {
-        let masked = |arm: Arm, card_file: &str| -> Vec<(String, String)> {
-            let card = read(card_file);
-            let s = arm_slots(arm);
-            let messages = render_messages(&template, &card, arm, &task.prompt, &history);
-            assert_eq!(messages[0].content, card);
-            assert!(
-                messages[1].content.contains(&task.prompt),
-                "{}: prompt not verbatim",
-                task.id
-            );
-            messages
-                .into_iter()
-                .map(|m| {
-                    let content = m
-                        .content
-                        .replace(&card, "<CARD>")
-                        .replace(&task.prompt, "<PROMPT>")
-                        .replace(s.fence, "<FENCE>")
-                        .replace(s.lang, "<LANG>")
-                        .replace(s.validator, "<VALIDATOR>");
-                    (m.role, content)
-                })
-                .collect()
-        };
-        let vd = masked(Arm::Voxdiagram, "cards/voxdiagram.txt");
-        assert_eq!(vd, masked(Arm::Mermaid, "cards/mermaid.txt"), "{}", task.id);
-        assert!(vd[1].1.contains("<PROMPT>"), "{}", task.id);
-    }
-}
-
-#[test]
-fn manifest_pins_the_frozen_files() {
-    let manifest: serde_yaml::Value =
-        serde_yaml::from_str(&read("manifest.v1.yaml")).expect("manifest.v1.yaml");
-    let tasks: Vec<Task> = read_jsonl(&read("tasks.v1.jsonl")).expect("tasks");
-    assert_eq!(manifest["corpus"].as_str(), Some("diagram-authoring"));
-    assert_eq!(manifest["corpus_size"].as_u64(), Some(tasks.len() as u64));
-    assert_eq!(manifest["mens"]["ingested"].as_bool(), Some(false));
-    let files = manifest["files"].as_mapping().expect("files mapping");
-    let pinned = [
-        "tasks.v1.jsonl",
-        "cards/voxdiagram.txt",
-        "cards/mermaid.txt",
-        "prompt-template.txt",
-    ];
-    assert_eq!(files.len(), pinned.len(), "files: {files:?}");
-    let mut stale = Vec::new();
-    for name in pinned {
-        let recorded = files.get(name).and_then(|v| v.as_str());
-        let actual = file_hash(&dataset().join(name)).expect("hash");
-        if recorded != Some(actual.as_str()) {
-            stale.push(format!("  {name}: {actual}"));
+/// Per-quota task counts over canonical-set documents (the oracle's, never self-declared tags),
+/// and how many documents were counted: one of neither kind contributes nothing, so a caller can
+/// prove no task was skipped.
+fn quota_counts(sets: &[Value]) -> (usize, [usize; 10]) {
+    let mut totals = [0; 10];
+    let known = sets
+        .iter()
+        .filter(|s| matches!(str_of(&s["kind"]), "graph" | "sequence"));
+    let counted = known.inspect(|s| {
+        for (total, has) in totals.iter_mut().zip(features(s)) {
+            *total += usize::from(has);
         }
+    });
+    (counted.count(), totals)
+}
+
+#[test]
+fn quota_counts_measure_the_canonical_sets() {
+    let docs = [
+        r#"{"kind":"graph","direction":"down","nodes":[["Start","start",[]],["B","rect",["Outer","Inner"]],["C","rect",[]],["x-ray","rect",[]]],"edges":[[["Start","start",[]],["B","rect",["Outer","Inner"]],"go"],[["Start","start",[]],["C","rect",[]],""],[["Start","start",[]],["x-ray","rect",[]],""],[["B","rect",["Outer","Inner"]],["B","rect",["Outer","Inner"]],""]],"containers":[["Outer"],["Outer","Inner"]]}"#,
+        r#"{"kind":"graph","direction":"left","nodes":[["Parse: main.rs","rect",[]],["Order","rounded",["Box"]],["Endpoint","rect",[]]],"edges":[[["Parse: main.rs","rect",[]],["Order","rounded",["Box"]],""],[["Order","rounded",["Box"]],["Endpoint","rect",[]],""]],"containers":[["Box"]]}"#,
+        r#"{"kind":"sequence","actors":["A","B"],"events":[["message",0,1,false,"hi"],["message",1,0,true,"ok"],["note",[0],"n"]]}"#,
+        r#"{"kind":"sequence","actors":["A"],"events":[["message",0,0,false,"tick"],["note",[0],"t"]]}"#,
+    ];
+    let sets: Vec<Value> = docs
+        .iter()
+        .map(|d| serde_json::from_str(d).unwrap())
+        .collect();
+    assert_eq!(quota_counts(&sets), (4, [1, 1, 1, 1, 1, 2, 1, 2, 1, 1]));
+    let other = [serde_json::json!({"kind": "unsupported"})];
+    assert_eq!(quota_counts(&other), (0, [0; 10]));
+}
+
+#[test]
+fn quota_totals_cover_every_task() {
+    let tasks: Vec<Task> = read_jsonl(&read("tasks.v1.jsonl")).expect("tasks");
+    let outputs: Vec<OracleOutput> =
+        read_jsonl(&read("reference-outputs.jsonl")).expect("reference-outputs.jsonl");
+    let sets: Vec<Value> = outputs.into_iter().map(|o| o.sets).collect();
+    let (counted, totals) = quota_counts(&sets);
+    assert_eq!(counted, tasks.len(), "every task contributes a count row");
+    for (name, n) in QUOTAS.iter().zip(totals) {
+        println!("quota {name}: {n}");
     }
-    assert!(
-        stale.is_empty(),
-        "frozen files changed without the manifest; after reviewing the change, set files to:\n{}",
-        stale.join("\n")
-    );
 }
