@@ -155,15 +155,16 @@ fn parse_overlay(raw: &str) -> anyhow::Result<HashMap<String, Vec<TrainBase>>> {
                 .is_some_and(|s| !s.trim().is_empty());
             let has_peak = b.peak_mb.is_some();
             let ok = if b.floor_measured {
-                has_host && has_peak
+                // pick_base trusts floor_mb, so the measured peak must fit under it.
+                has_host && b.peak_mb.is_some_and(|p| p > 0 && p <= b.floor_mb)
             } else {
                 b.measured_on.is_none() && !has_peak
             };
             if !ok {
                 anyhow::bail!(
                     "train_bases.{tag} rung {}: floor_measured is {} but measured_on/peak_mb \
-                     disagree; a measured floor needs both measured_on and peak_mb, an \
-                     estimate carries neither",
+                     disagree; a measured floor needs measured_on and a peak_mb in \
+                     1..=floor_mb, an estimate carries neither",
                     b.hf_id,
                     b.floor_measured
                 );
@@ -959,6 +960,9 @@ mod tests {
             "floor_measured: true, measured_on: m4-max-metal",
             "floor_measured: true, peak_mb: 6900, measured_on: \"  \"",
             "floor_measured: false, peak_mb: 6900",
+            // A measured peak must be real and must fit under the floor it backs.
+            "floor_measured: true, measured_on: m4-max-metal, peak_mb: 0",
+            "floor_measured: true, measured_on: m4-max-metal, peak_mb: 7401",
         ] {
             let msg = format!("{:#}", parse_overlay(&yaml(bad)).expect_err(bad));
             assert!(
@@ -975,6 +979,14 @@ mod tests {
                 .floor_label()
                 .contains("measured on m4-max-metal")
         );
+        parse_overlay(&yaml(
+            "floor_measured: true, measured_on: m4-max-metal, peak_mb: 7400",
+        ))
+        .expect("a peak equal to the floor loads");
+        parse_overlay(&yaml(
+            "floor_measured: true, measured_on: m4-max-metal, peak_mb: 1",
+        ))
+        .expect("the smallest real peak loads");
     }
 
     #[test]
