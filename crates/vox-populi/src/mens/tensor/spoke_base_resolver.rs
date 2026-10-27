@@ -1,7 +1,7 @@
 //! Resolve a spoke capability tag -> concrete fine-tunable base that fits VRAM.
 //! Overlay source: `train_bases:` in mens/config/gpu-specs.yaml. Pure core +
 //! a thin disk loader; reuses vram_autodetect for the live VRAM number.
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Preset names accepted by `--preset` / planner normalization.
@@ -37,7 +37,7 @@ pub const KNOWN_PRESETS: &[&str] = &[
     "qwen3_96g",     // Qwen3-32B QLoRA r64 (96GB)
 ];
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct TrainBase {
     pub hf_id: String,
     pub floor_mb: u32,
@@ -54,6 +54,54 @@ pub struct TrainBase {
     /// must carry an attribution notice per the base's license terms.
     #[serde(default)]
     pub attribution_required: bool,
+    /// True only after `floor_mb` was measured on hardware; otherwise it is an
+    /// estimate. Deliberately has no serde default: a rung without the key
+    /// fails to load.
+    pub floor_measured: bool,
+    /// Host and accelerator of the measurement; present only when `floor_measured`.
+    #[serde(default)]
+    pub measured_on: Option<String>,
+    /// Measured peak memory (MB); present only when `floor_measured`.
+    #[serde(default)]
+    pub peak_mb: Option<u32>,
+}
+
+impl TrainBase {
+    /// One-line floor report, e.g. `qlora floor 7400 MB is an estimate (floor unmeasured)`.
+    pub fn floor_label(&self) -> String {
+        let methods = self.methods.join("+");
+        if !self.floor_measured {
+            return format!(
+                "{methods} floor {} MB is an estimate (floor unmeasured)",
+                self.floor_mb
+            );
+        }
+        format!(
+            "{methods} floor {} MB measured on {} (peak {} MB)",
+            self.floor_mb,
+            self.measured_on.as_deref().unwrap_or("?"),
+            self.peak_mb
+                .map_or_else(|| "?".to_string(), |p| p.to_string())
+        )
+    }
+}
+
+/// Every rung whose `hf_id` equals `hf_id` exactly (a different revision or a
+/// bare repo id matches nothing), across all tags, sorted by `(floor_mb,
+/// methods)`. Only fully equal rungs are deduped, so an inconsistent copy of a
+/// repeated rung stays visible.
+pub fn rungs_for_hf_id<'a>(
+    overlay: &'a HashMap<String, Vec<TrainBase>>,
+    hf_id: &str,
+) -> Vec<&'a TrainBase> {
+    let mut rungs: Vec<&TrainBase> = overlay
+        .values()
+        .flatten()
+        .filter(|b| b.hf_id == hf_id)
+        .collect();
+    rungs.sort_by(|a, b| (a.floor_mb, &a.methods).cmp(&(b.floor_mb, &b.methods)));
+    rungs.dedup_by(|a, b| a == b);
+    rungs
 }
 
 /// Largest candidate for `tag` whose `floor_mb <= vram_mb`. Errors if the tag is
@@ -299,6 +347,9 @@ mod tests {
                     methods: vec!["qlora".into()],
                     license: Some("apache-2.0".into()),
                     attribution_required: false,
+                    floor_measured: false,
+                    measured_on: None,
+                    peak_mb: None,
                 },
                 TrainBase {
                     hf_id: "big".into(),
@@ -306,6 +357,9 @@ mod tests {
                     methods: vec!["qlora".into()],
                     license: None,
                     attribution_required: false,
+                    floor_measured: false,
+                    measured_on: None,
+                    peak_mb: None,
                 },
             ],
         );
@@ -759,6 +813,88 @@ mod tests {
             attribution_required,
             "an unrecognized, non-permissive license override on an unmapped base must \
              default to attribution_required = true, not silently false"
+        );
+    }
+
+    // ---- Phase 317 (SIZE-01): floor evidence ----
+
+    const PIN_4B: &str = "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c";
+
+    fn qlora_rung(floor_mb: u32) -> TrainBase {
+        TrainBase {
+            hf_id: PIN_4B.into(),
+            floor_mb,
+            methods: vec!["qlora".into()],
+            license: Some("apache-2.0".into()),
+            attribution_required: false,
+            floor_measured: false,
+            measured_on: None,
+            peak_mb: None,
+        }
+    }
+
+    #[test]
+    fn floor_label_says_floor_unmeasured_for_an_estimate() {
+        let mut rung = qlora_rung(7400);
+        assert_eq!(
+            rung.floor_label(),
+            "qlora floor 7400 MB is an estimate (floor unmeasured)"
+        );
+        rung.floor_measured = true;
+        rung.measured_on = Some("m4-max-metal".into());
+        rung.peak_mb = Some(6900);
+        assert_eq!(
+            rung.floor_label(),
+            "qlora floor 7400 MB measured on m4-max-metal (peak 6900 MB)"
+        );
+    }
+
+    #[test]
+    fn overlay_rung_without_floor_measured_is_rejected() {
+        let raw =
+            "train_bases:\n  t:\n    - { hf_id: \"org/M@x\", floor_mb: 1, methods: [qlora] }\n";
+        let e = parse_overlay(raw).expect_err("a rung without floor_measured must not load");
+        assert!(format!("{e:#}").contains("floor_measured"), "{e:#}");
+    }
+
+    #[test]
+    fn rungs_for_hf_id_dedupes_repeats_across_tags() {
+        let overlay = load_overlay(workspace_root()).expect("load overlay");
+        let floors = |id: &str| -> Vec<u32> {
+            rungs_for_hf_id(&overlay, id)
+                .iter()
+                .map(|b| b.floor_mb)
+                .collect()
+        };
+        assert_eq!(
+            floors("Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"),
+            [12000]
+        );
+        assert_eq!(
+            floors("Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18"),
+            [20000, 44000]
+        );
+        assert_eq!(
+            floors("Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137"),
+            [60000, 100000]
+        );
+        assert!(floors("Qwen/Qwen3-8B@0123456789abcdef0123456789abcdef01234567").is_empty());
+        assert!(floors("Qwen/Qwen3-8B").is_empty());
+    }
+
+    #[test]
+    fn qwen3_code_4b_rung_is_pinned_and_says_its_floor_is_unmeasured() {
+        let overlay = load_overlay(workspace_root()).expect("load overlay");
+        let base = pick_base(&overlay, "qwen3_code", 8000).expect("4B fits at 8000 MB");
+        assert_eq!(base.hf_id, PIN_4B);
+        assert_eq!(base.floor_mb, 7400);
+        assert_eq!(base.license.as_deref(), Some("apache-2.0"));
+        assert!(base.floor_label().contains("floor unmeasured"));
+        assert_eq!(
+            pick_base(&overlay, "qwen3_code", 12000)
+                .expect("8B fits")
+                .hf_id,
+            "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
         );
     }
 }

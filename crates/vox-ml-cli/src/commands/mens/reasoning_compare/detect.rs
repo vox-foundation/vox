@@ -240,6 +240,7 @@ pub(crate) mod tests {
 
     pub(crate) const PIN_8B: &str = vox_populi::mens::DEFAULT_MODEL_ID;
     pub(crate) const PIN_0_6B: &str = "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca";
+    pub(crate) const PIN_4B: &str = "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c";
 
     /// A complete fake snapshot: empty config, tokenizer, and single weights file.
     pub(crate) fn fake_snapshot(hub: &Path, pin: &str) -> PathBuf {
@@ -483,6 +484,9 @@ pub(crate) mod tests {
             methods: Vec::new(),
             license: None,
             attribution_required: false,
+            floor_measured: false,
+            measured_on: None,
+            peak_mb: None,
         }
     }
 
@@ -512,6 +516,8 @@ pub(crate) mod tests {
         assert_eq!(ok_pin(Some("Qwen3-8B"), &overlay), PIN_8B);
         assert_eq!(ok_pin(Some("Qwen/Qwen3-8B"), &overlay), PIN_8B);
         assert_eq!(ok_pin(Some("Qwen3-0.6B"), &overlay), PIN_0_6B);
+        assert_eq!(ok_pin(Some("Qwen3-4B"), &overlay), PIN_4B);
+        assert_eq!(ok_pin(Some("Qwen/Qwen3-4B"), &overlay), PIN_4B);
     }
 
     fn ok_pin(requested: Option<&str>, overlay: &HashMap<String, Vec<TrainBase>>) -> String {

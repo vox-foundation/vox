@@ -164,8 +164,11 @@ fn gpu_specs_agentic_default_qwen3_hf_ids_have_real_sha_format() {
 /// - `Qwen/Qwen3.8-27B`: `docs/superpowers/specs/2026-09-10-qwen38-27b-hub-design.md`
 ///   §4.1 — measured NF4 weights 12.97 GiB = 13,281.28 MiB; at 0.5 bytes/param
 ///   (4-bit NF4) that is the ~27.856B params used below.
+/// - `Qwen/Qwen3-4B`: HF `safetensors.total` 4,022,468,096 at the pinned
+///   revision (Phase 317), recorded nominal like the other rows.
 const KNOWN_PARAMS_B: &[(&str, f64)] = &[
     ("Qwen/Qwen3-0.6B", 0.6),
+    ("Qwen/Qwen3-4B", 4.0),
     ("Qwen/Qwen3-8B", 8.0),
     ("Qwen/Qwen3-14B", 14.0),
     ("Qwen/Qwen3-32B", 32.0),

@@ -4,7 +4,9 @@
 //! The command writes exactly one file, `--out` (default
 //! `mens/runs/reasoning_compare/<size>-<rev12>.json`), and nothing else. Detection
 //! never loads a model. When the pinned snapshot or a matching adapter is not on
-//! disk it writes a `not_compared` record with no score keys. The report is never
+//! disk it writes a `not_compared` record with no score keys. The record also
+//! names the base's ladder rungs (`base_rungs`) and whether each floor was
+//! measured, and stderr says `floor unmeasured` for an estimate. The report is never
 //! a serve-gate input: the out guard refuses every file name and directory that
 //! `vox mens serve` reads.
 
@@ -170,17 +172,21 @@ fn remove_stale_record(out: &Path) -> Result<()> {
 }
 
 /// Remove a stale record at `out`, then write either the absence record or the
-/// comparison. The absent branch never calls `score_side`.
+/// comparison. The absent branch never calls `score_side`. Both carry
+/// `base_rungs`, the base's ladder rungs (empty off the ladder).
 pub(crate) fn run_before_after_with(
     detected: Detected,
     bench_root: &Path,
     out: &Path,
+    base_rungs: &serde_json::Value,
     score_side: SideScorer<'_>,
 ) -> Result<RunStatus> {
     remove_stale_record(out)?;
     match detected {
         Detected::NotCompared(record) => {
-            write_report(out, &record.to_json())?;
+            let mut value = record.to_json();
+            value["base_rungs"] = base_rungs.clone();
+            write_report(out, &value)?;
             Ok(RunStatus::NotCompared(record.reason))
         }
         Detected::Ready {
@@ -223,7 +229,8 @@ pub(crate) fn run_before_after_with(
                 .map(|n| (*n, pick(&base_out, n), pick(&adapter_out, n)))
                 .collect();
             let adapter_dir = adapter.canonicalize().unwrap_or(adapter);
-            let (report, compared) = compared_report_json(&base, &adapter_dir, &rows);
+            let (mut report, compared) = compared_report_json(&base, &adapter_dir, &rows);
+            report["base_rungs"] = base_rungs.clone();
             write_report(out, &report)?;
             if compared {
                 return Ok(RunStatus::Compared);
@@ -331,6 +338,11 @@ pub(crate) fn run_eval_reasoning_compare_with(
     let overlay = vox_populi::mens::tensor::spoke_base_resolver::load_overlay(overlay_root)
         .context("loading train_bases from mens/config/gpu-specs.yaml")?;
     let pin = detect::resolve_base_pin(args.base.as_deref(), &overlay)?;
+    let rungs = vox_populi::mens::tensor::spoke_base_resolver::rungs_for_hf_id(&overlay, &pin);
+    for rung in &rungs {
+        eprintln!("base {pin}: {}", rung.floor_label());
+    }
+    let base_rungs = serde_json::to_value(&rungs).context("serializing the base's ladder rungs")?;
     let label = BaseLabel::from_pin(&pin);
     let hub_root = detect::resolve_hub_root(args.hub_root.as_deref(), env_hub)
         .ok_or_else(|| anyhow::anyhow!("no Hugging Face hub root found; pass --hub-root <dir>"))?;
@@ -341,7 +353,7 @@ pub(crate) fn run_eval_reasoning_compare_with(
     });
     check_out_path(&out, &hub_root, args.adapter.as_deref(), &args.bench_root)?;
     let detected = detect::detect_inputs(&hub_root, &label, args.adapter.as_deref());
-    let status = run_before_after_with(detected, &args.bench_root, &out, score_side)?;
+    let status = run_before_after_with(detected, &args.bench_root, &out, &base_rungs, score_side)?;
     match status {
         RunStatus::NotCompared(reason) => {
             eprintln!("NOT COMPARED: {} ({})", reason.as_str(), out.display());
@@ -687,6 +699,11 @@ mod tests {
         assert_eq!(v["adapter"]["dir"], canonical.display().to_string());
         assert_eq!(v["status"], "compared");
         assert_eq!(v["gate_input"], false);
+        assert!(
+            v["base_rungs"].as_array().is_some_and(|r| !r.is_empty()),
+            "compared report must carry base_rungs: {}",
+            v["base_rungs"]
+        );
         for name in SLICE_NAMES {
             for (key, side) in [("base", Side::Base), ("adapter", Side::Adapter)] {
                 let e = &v["slices"][name][key];
@@ -932,6 +949,41 @@ mod tests {
             "c1899de289a04d12100db370d81485cdf75e47ca"
         );
         assert_eq!(v["base_requested"], super::detect::tests::PIN_0_6B);
+    }
+
+    #[test]
+    fn record_reports_the_base_rung_floor_status() {
+        let (hub, runs) = (
+            tempfile::tempdir().expect("hub"),
+            tempfile::tempdir().expect("runs"),
+        );
+        let mut a = args(hub.path(), None, None);
+        a.base = Some("Qwen3-4B".to_string());
+        let mut score = panicking_scorer();
+        let status = run(a, runs.path(), &mut score).expect("absent branch is Ok");
+        assert_eq!(
+            status,
+            RunStatus::NotCompared(AbsenceReason::BaseSnapshotAbsent)
+        );
+        let v = read_json(
+            &runs
+                .path()
+                .join("reasoning_compare/Qwen3-4B-1cfa9a720891.json"),
+        );
+        assert_eq!(v["base_model"], "Qwen/Qwen3-4B");
+        let rungs = v["base_rungs"].as_array().expect("base_rungs array");
+        assert_eq!(rungs.len(), 1, "{rungs:?}");
+        assert_eq!(rungs[0]["hf_id"], super::detect::tests::PIN_4B);
+        assert_eq!(rungs[0]["floor_mb"], 7400);
+        assert_eq!(rungs[0]["floor_measured"], false);
+        assert_eq!(rungs[0]["license"], "apache-2.0");
+
+        let out = runs.path().join("off-ladder.json");
+        let mut a = args(hub.path(), Some(out.clone()), None);
+        a.base = Some("someone/Other-Model@0123456789abcdef0123456789abcdef01234567".to_string());
+        let mut score = panicking_scorer();
+        run(a, runs.path(), &mut score).expect("absent branch is Ok");
+        assert_eq!(read_json(&out)["base_rungs"], serde_json::json!([]));
     }
 
     #[test]
