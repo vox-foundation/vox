@@ -317,9 +317,6 @@ fn backend_scores(
     if let Err(e) = backend.unload_model(&handle).into_result() {
         eprintln!("warning: unload_model({}): {e}", model_dir.display());
     }
-    // `loaded` is a cache reference and must outlive `handle`; it drops here
-    // with the other locals, which is after the unload.
-    let _plugin = loaded;
     Ok(outcomes)
 }
 
