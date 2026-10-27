@@ -37,7 +37,7 @@ Syndication / scientia publishing surfaces (Reddit, YouTube, scholarly external 
 | `live-api-canary` | — |
 | `scholarly-external-jobs` | dep:vox-db |
 | `scientia-bluesky` | — |
-| `scientia-bluesky-sdk` | dep:bsky-sdk, dep:atrium-api |
+| `scientia-bluesky-sdk` | — |
 | `scientia-discord` | — |
 | `scientia-linkedin` | — |
 | `scientia-mastodon` | — |
@@ -107,5 +107,6 @@ Syndication / scientia publishing surfaces (Reddit, YouTube, scholarly external 
 | `zenodo_api_types` | — |
 | `zenodo_metadata` | — |
 | `adapter_health` | — |
+| `handoff` | — |
 | `syndicate` | — |
 
