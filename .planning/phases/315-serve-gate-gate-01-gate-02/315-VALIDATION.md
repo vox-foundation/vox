@@ -46,7 +46,8 @@ created: "2026-10-26"
 | 315-01-04 | 01 | 0 | GATE-01 | — | Generic zero-pre behavior for non-reasoning benches stays | unit | `cargo test -p vox-eval --lib collateral_damage_zero_pre_score_avoids_divide_by_zero` | ✅ | ⬜ pending |
 | 315-01-05 | 01 | 0 | GATE-01 | — | A missing partner key, zero reasoning pre, bad `n`, or failed score writes no report | unit | `cargo test -p vox-ml-cli --features gpu --lib -- eval_collateral` | ✅ | ⬜ pending |
 | 315-01-06 | 01 | 0 | GATE-01 | — | A pre-seeded passing report is removed when scoring fails | unit | `cargo test -p vox-ml-cli --features gpu --lib -- eval_collateral` | ❌ Wave 0 | ⬜ pending |
-| 315-01-07 | 01 | 0 | GATE-01 | — | Serve refuses a missing report, a fail status, a hand-edited pass, a missing slice, `not_scored`, and `n` 31 | unit | `cargo test -p vox-ml-cli --features gpu --lib -- collateral_gate` | ❌ Wave 0 | ⬜ pending |
+| 315-02-01 | 02 | 2 | GATE-01 | — | Serve refuses a missing report, a fail status, a hand-edited pass, a missing slice, `not_scored`, and `n` 31 | unit | `cargo test -p vox-ml-cli --features gpu --lib -- collateral_gate` | ❌ Wave 0 | ⬜ pending |
+| 315-02-02 | 02 | 2 | GATE-01 | — | Serve mutation checks and scoped clippy stay red when a guard is dropped, then green when restored | unit | `cargo test -p vox-ml-cli --features gpu --lib -- collateral_gate` | ❌ Wave 0 | ⬜ pending |
 | 315-01-08 | 01 | 0 | GATE-02 | — | The report says 32-item slices, not a full set, and records `n` on pass and fail | unit | `cargo test -p vox-ml-cli --features gpu --lib -- eval_collateral` | ❌ Wave 0 | ⬜ pending |
 | 315-01-09 | 01 | 0 | GATE-02 | — | A non-reasoning bench keeps one score and has no slice field | unit | `cargo test -p vox-ml-cli --features gpu --lib -- eval_collateral` | ❌ Wave 0 | ⬜ pending |
 
