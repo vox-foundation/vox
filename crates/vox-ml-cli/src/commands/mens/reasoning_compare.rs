@@ -307,7 +307,7 @@ pub(crate) fn run_eval_reasoning_compare_with(
 ) -> Result<RunStatus> {
     let overlay = vox_populi::mens::tensor::spoke_base_resolver::load_overlay(overlay_root)
         .context("loading train_bases from mens/config/gpu-specs.yaml")?;
-    let pin = detect::resolve_base_pin(args.base.as_deref(), &overlay);
+    let pin = detect::resolve_base_pin(args.base.as_deref(), &overlay)?;
     let label = BaseLabel::from_pin(&pin);
     let hub_root = detect::resolve_hub_root(args.hub_root.as_deref(), env_hub)
         .ok_or_else(|| anyhow::anyhow!("no Hugging Face hub root found; pass --hub-root <dir>"))?;
@@ -862,6 +862,24 @@ mod tests {
             "c1899de289a04d12100db370d81485cdf75e47ca"
         );
         assert_eq!(v["base_requested"], super::detect::tests::PIN_0_6B);
+    }
+
+    #[test]
+    fn unresolvable_base_is_an_error_and_writes_nothing() {
+        let (hub, runs) = (
+            tempfile::tempdir().expect("hub"),
+            tempfile::tempdir().expect("runs"),
+        );
+        for base in ["Qwen3-8b", "Qwen3-1234B", "Qwen/Qwen3-8B@main"] {
+            let mut a = args(hub.path(), None, None);
+            a.base = Some(base.to_string());
+            let mut score = panicking_scorer();
+            assert!(run(a, runs.path(), &mut score).is_err(), "{base}");
+        }
+        assert!(
+            !runs.path().join(REASONING_COMPARE_SUBDIR).exists(),
+            "a record was written for an unresolvable base"
+        );
     }
 
     #[test]

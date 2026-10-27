@@ -83,33 +83,43 @@ pub(crate) fn resolve_hub_root(explicit: Option<&Path>, env: HubEnv) -> Option<P
 /// The pin to compare. `None` is [`vox_populi::mens::DEFAULT_MODEL_ID`]; a
 /// `repo@<40 hex>` pin passes through; a size name (`Qwen3-8B`) or bare repo id
 /// (`Qwen/Qwen3-8B`) resolves to the single distinct pinned `hf_id` across all
-/// `train_bases` tags. Unknown or ambiguous input comes back unchanged, so
-/// detection records `pin_unverifiable`; there is no fallback revision.
+/// `train_bases` tags. Unknown or ambiguous input is an error that lists the
+/// known sizes: it is an operator typo, not an absent snapshot, and there is no
+/// fallback revision.
 pub(crate) fn resolve_base_pin(
     requested: Option<&str>,
     overlay: &HashMap<String, Vec<TrainBase>>,
-) -> String {
+) -> anyhow::Result<String> {
     let Some(requested) = requested else {
-        return vox_populi::mens::DEFAULT_MODEL_ID.to_string();
+        return Ok(vox_populi::mens::DEFAULT_MODEL_ID.to_string());
     };
     if BaseLabel::from_pin(requested).revision.is_some() {
-        return requested.to_string();
+        return Ok(requested.to_string());
     }
-    let suffix = format!("/{requested}");
-    let pins: std::collections::BTreeSet<&str> = overlay
+    let pinned: Vec<BaseLabel> = overlay
         .values()
         .flatten()
-        .map(|b| b.hf_id.as_str())
-        .filter(|id| {
-            let label = BaseLabel::from_pin(id);
-            label.revision.is_some()
-                && (label.repo_id == requested || label.repo_id.ends_with(&suffix))
-        })
+        .map(|b| BaseLabel::from_pin(&b.hf_id))
+        .filter(|l| l.revision.is_some())
         .collect();
-    match pins.into_iter().collect::<Vec<_>>().as_slice() {
-        [only] => (*only).to_string(),
-        _ => requested.to_string(),
+    let suffix = format!("/{requested}");
+    let pins: std::collections::BTreeSet<&str> = pinned
+        .iter()
+        .filter(|l| l.repo_id == requested || l.repo_id.ends_with(&suffix))
+        .map(|l| l.requested.as_str())
+        .collect();
+    if let [only] = pins.into_iter().collect::<Vec<_>>().as_slice() {
+        return Ok((*only).to_string());
     }
+    let sizes: std::collections::BTreeSet<&str> = pinned
+        .iter()
+        .filter_map(|l| l.repo_id.rsplit('/').next())
+        .collect();
+    anyhow::bail!(
+        "--base {requested} does not resolve to exactly one pinned base; known sizes: {}; \
+         or pass owner/name@<40-hex sha>",
+        sizes.into_iter().collect::<Vec<_>>().join(", ")
+    )
 }
 
 /// The exact snapshot directory for the pinned revision; `None` without one.
@@ -478,7 +488,7 @@ pub(crate) mod tests {
 
     #[test]
     fn base_resolution_default_is_the_pinned_8b() {
-        assert_eq!(resolve_base_pin(None, &repo_overlay()), PIN_8B);
+        assert_eq!(ok_pin(None, &repo_overlay()), PIN_8B);
         assert_eq!(
             PIN_8B,
             "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
@@ -492,37 +502,49 @@ pub(crate) mod tests {
             PIN_0_6B,
             "someone/Other-Model@0123456789abcdef0123456789abcdef01234567",
         ] {
-            assert_eq!(resolve_base_pin(Some(pin), &overlay), pin);
+            assert_eq!(ok_pin(Some(pin), &overlay), pin);
         }
     }
 
     #[test]
     fn base_resolution_size_name_uses_train_bases() {
         let overlay = repo_overlay();
-        assert_eq!(resolve_base_pin(Some("Qwen3-8B"), &overlay), PIN_8B);
-        assert_eq!(resolve_base_pin(Some("Qwen/Qwen3-8B"), &overlay), PIN_8B);
-        assert_eq!(resolve_base_pin(Some("Qwen3-0.6B"), &overlay), PIN_0_6B);
+        assert_eq!(ok_pin(Some("Qwen3-8B"), &overlay), PIN_8B);
+        assert_eq!(ok_pin(Some("Qwen/Qwen3-8B"), &overlay), PIN_8B);
+        assert_eq!(ok_pin(Some("Qwen3-0.6B"), &overlay), PIN_0_6B);
+    }
+
+    fn ok_pin(requested: Option<&str>, overlay: &HashMap<String, Vec<TrainBase>>) -> String {
+        resolve_base_pin(requested, overlay).expect("resolves")
     }
 
     #[test]
-    fn base_resolution_unknown_or_ambiguous_is_unverifiable() {
-        let hub = tempfile::tempdir().expect("tempdir");
-        let unknown = resolve_base_pin(Some("Qwen3-1234B"), &repo_overlay());
-        assert_eq!(unknown, "Qwen3-1234B");
-        let mut overlay = HashMap::new();
-        overlay.insert(
+    fn base_resolution_unknown_or_ambiguous_is_an_error() {
+        let overlay = repo_overlay();
+        for requested in [
+            "Qwen3-1234B",
+            "Qwen3-8b",
+            "Qwen/Qwen3-8B@main",
+            "Qwen/Qwen3-8B@B968826D9C46DD6066D109EABC6255188DE91218",
+        ] {
+            let msg = format!(
+                "{:#}",
+                resolve_base_pin(Some(requested), &overlay).expect_err(requested)
+            );
+            assert!(
+                msg.contains(requested) && msg.contains("Qwen3-8B") && msg.contains("Qwen3-0.6B"),
+                "{msg}"
+            );
+        }
+        let mut ambiguous = HashMap::new();
+        ambiguous.insert(
             "a".to_string(),
             vec![base(
                 "Qwen/Qwen3-8B@0123456789abcdef0123456789abcdef01234567",
             )],
         );
-        overlay.insert("b".to_string(), vec![base(PIN_8B)]);
-        let ambiguous = resolve_base_pin(Some("Qwen3-8B"), &overlay);
-        assert_eq!(ambiguous, "Qwen3-8B");
-        for pin in [unknown, ambiguous] {
-            let d = detect_inputs(hub.path(), &BaseLabel::from_pin(&pin), None);
-            assert_eq!(reason(&d), Some(AbsenceReason::PinUnverifiable), "{pin}");
-        }
+        ambiguous.insert("b".to_string(), vec![base(PIN_8B)]);
+        assert!(resolve_base_pin(Some("Qwen3-8B"), &ambiguous).is_err());
     }
 
     #[test]
@@ -531,12 +553,12 @@ pub(crate) mod tests {
         let snap = fake_snapshot(hub.path(), PIN_0_6B);
         let adapter = hub.path().join("adapter");
         fake_adapter(&adapter, &snap);
-        let small = BaseLabel::from_pin(&resolve_base_pin(Some("Qwen3-0.6B"), &repo_overlay()));
+        let small = BaseLabel::from_pin(&ok_pin(Some("Qwen3-0.6B"), &repo_overlay()));
         assert!(matches!(
             detect_inputs(hub.path(), &small, Some(&adapter)),
             Detected::Ready { .. }
         ));
-        let default = BaseLabel::from_pin(&resolve_base_pin(None, &repo_overlay()));
+        let default = BaseLabel::from_pin(&ok_pin(None, &repo_overlay()));
         assert_eq!(
             reason(&detect_inputs(hub.path(), &default, Some(&adapter))),
             Some(AbsenceReason::BaseSnapshotAbsent)
