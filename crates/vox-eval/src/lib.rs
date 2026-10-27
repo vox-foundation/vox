@@ -10,6 +10,7 @@ pub mod compare;
 pub mod corpus_score;
 pub mod corpus_stats;
 pub mod mens;
+pub mod paired_ni;
 pub mod provenance;
 pub mod report;
 
