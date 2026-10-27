@@ -3,7 +3,7 @@
 # Roadmap: v5.6 — Reasoning Where the Lane Needs It
 
 **Milestone:** v5.6
-**Status:** Phase 314 complete — ready for phase 315
+**Status:** Phase 315 complete — ready for phase 316
 **Updated:** 2026-10-26
 
 ### Phase 313: Lane Prefix (`LANE-01`, `LANE-02`)
@@ -53,8 +53,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] `315-01` (Wave 1): Strict per-slice evaluator in vox-eval; eval-collateral-damage requires all six reasoning keys, removes a stale report, and labels the slices with n
-- [ ] `315-02` (Wave 2, after 315-01): Serve re-validates the on-disk report and the per-slice reasoning reports and refuses a missing, stale, edited, or unscored one
+- [x] `315-01` (Wave 1): Strict per-slice evaluator in vox-eval; eval-collateral-damage requires all six reasoning keys, removes a stale report, and labels the slices with n (completed 2026-10-26)
+- [x] `315-02` (Wave 2, after 315-01): Serve re-validates the on-disk report and the per-slice reasoning reports and refuses a missing, stale, edited, or unscored one (completed 2026-10-26)
 
 ### Phase 316: Before/After Comparison (`BENCH-01`)
 **Goal:** Base and adapter are scored on the same slices when the weights exist, and no score is invented when they do not.
@@ -75,7 +75,7 @@ Plans:
 |---|---|---|---|
 | **Phase 313** | Lane Prefix | `4/4` | Complete |
 | **Phase 314** | Held-out Reasoning Set | `2/2` | Complete |
-| **Phase 315** | Serve Gate | `0/2` | Not started |
+| **Phase 315** | Serve Gate | `2/2` | Complete |
 | **Phase 316** | Before/After Comparison | `0/1` | Not started |
 
 ---

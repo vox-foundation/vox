@@ -19,8 +19,8 @@
 
 ### Serve gate (`GATE`)
 
-- [ ] **GATE-01**: Serve refuses an adapter when the collateral report is missing, or when accuracy or think-initiation on the lane benches drops past the configured threshold.
-- [ ] **GATE-02**: The report says these benches are slices, so the 5% relative bar is not read as a full GSM8K or MATH-500 result.
+- [x] **GATE-01**: Serve refuses an adapter when the collateral report is missing, or when accuracy or think-initiation on the lane benches drops past the configured threshold.
+- [x] **GATE-02**: The report says these benches are slices, so the 5% relative bar is not read as a full GSM8K or MATH-500 result.
 
 ## Future Requirements
 
@@ -45,8 +45,8 @@
 | `BENCH-01` | Phase 316 | Pending |
 | `BENCH-02` | Phase 314 | Complete |
 | `BENCH-03` | Phase 314 | Complete |
-| `GATE-01` | Phase 315 | Pending |
-| `GATE-02` | Phase 315 | Pending |
+| `GATE-01` | Phase 315 | Complete |
+| `GATE-02` | Phase 315 | Complete |
 
 **Coverage:** 7 v5.6 requirements → 4 phases → 0 unmapped
 
