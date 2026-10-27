@@ -338,13 +338,15 @@ pub(crate) fn detect_inputs(hub_root: &Path, pin: &str, adapter: Option<&Path>) 
 | A3 | Exit code 0 for the absent branch is the right operator behavior | Open Questions | A script that treats exit 0 as "compared" would misread it; mitigated by `status: "not_compared"` in the file and a stderr line. |
 | A4 | A new `vox mens` tail subcommand needs no `contracts/operations/catalog.v1.yaml` row | Open Questions | `vox ci command-compliance` could fail. Precedent: `eval-collateral-damage` is in the same enum and has no registry row (rg found none). |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does `vox ci command-compliance` require a catalog/registry row for a new `vox mens` tail subcommand?**
    - What we know: `mens eval-gate` and `mens eval-local` have rows in `contracts/cli/command-registry.yaml` and `contracts/operations/catalog.v1.yaml`; `mens eval-collateral-damage`, in the same `PopuliMensTail` enum, has none (rg over `contracts/`). The cli-command-registry rule says to add the catalog projection and run `vox ci operations-sync`.
    - What's unclear: whether compliance enforces it for this enum. Not run here (needs a `vox-cli` build).
    - Recommendation: after adding the variant run `cargo run -p vox-cli -- ci command-compliance`; if it fails, add the projection per `.cursor/rules/cli-command-registry.mdc`. Regenerated docs are handled by the `ssot-autoregen` bot; do not hand-edit generated files.
+   - RESOLVED: follow the `eval-collateral-damage` precedent and add no row up front. The plan runs `vox ci command-compliance` after adding the variant; only a failure there adds the projection per `.cursor/rules/cli-command-registry.mdc`.
 2. **Exit code on the absent branch.** Recommendation: exit 0 and print `NOT COMPARED: <reason>` to stderr, because absence is a correctly recorded expected state on this checkout, while `incomplete` (a scorer failure) returns `Err`. If the user prefers fail-closed everywhere, flip it to `Err`; the record is written either way.
+   - RESOLVED: exit 0 on the absent branch with `status: "not_compared"` in the record and a `NOT COMPARED: <reason>` stderr line. A scorer failure partway returns `Err`. The record is not a serve-gate input, so exit 0 cannot pass an adapter.
 
 ## Environment Availability
 
