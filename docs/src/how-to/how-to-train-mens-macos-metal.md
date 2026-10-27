@@ -102,8 +102,22 @@ serve-gate input.
 
 `--base` accepts `Qwen3-0.6B`, `Qwen3-1.7B`, `Qwen3-4B`, `Qwen3-8B`,
 `Qwen3-14B` or `Qwen3-32B`, each resolved to its pinned revision in
-`mens/config/gpu-specs.yaml` `train_bases.qwen3_code`. `vox mens train
---model` takes the same `hf_id@sha` pin, which also resolves the license.
+`mens/config/gpu-specs.yaml` `train_bases.qwen3_code`.
+
+`vox mens train --model` accepts the same size names or a pin; either is an
+explicit size. Without `--model` (and without `VOX_MENS_DEFAULT_MODEL`), a
+QLoRA run reads current free accelerator memory (the Metal working set on
+macOS; `nvidia-smi` free memory times 0.88 on CUDA) and trains the largest size
+whose `floor_mb` fits, with that size's preset: 0.6B `qwen3_dev_cpu`, 1.7B
+`qwen3_6g`, 4B `qwen3_12g`, 8B `qwen3_16g`, 14B `qwen3_24g`, 32B `qwen3_96g`.
+`--preset` still overrides. The trainer re-reads free memory once just before
+the download and, if memory fell, steps down to a smaller size and says why. An
+explicit size is never stepped down: one that does not fit is refused
+(`VOX_MENS_FORCE_TRAIN=1` overrides). With `--device cpu`, or without a Metal or
+NVIDIA reading, the automatic pick refuses; name a size. A `--domain` or
+pipeline run makes the same single pick; the spoke's `base.model` and
+`base.preset` no longer choose the size for local training.
+
 Every rung's `floor_mb` is an estimate until it is measured on hardware
 (`floor_measured: false`). For such a rung the compare command and
 `vox mens train` print `floor unmeasured` on stderr, and the compare record
