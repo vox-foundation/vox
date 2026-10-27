@@ -143,10 +143,16 @@ conservative: `floor_mb` is the size's QLoRA training floor, used here as the
 inference footprint, so serve can refuse a base that would load for inference
 alone. On such a host, set `VOX_MENS_FORCE_TRAIN=1` (the same override
 training uses) to serve it anyway, or serve on a machine with more free memory.
-`vox chat --model
-auto-local` and the GUI's local-model recommendation use the same pick as
-training: the largest Qwen3 size whose floor fits free memory, or an error
-saying why none can be picked.
+
+`vox chat --model auto-local` and the GUI's local-model recommendation report
+the pick training would make: the largest Qwen3 size whose floor fits free
+memory, or an error saying why none can be picked. This is advice only.
+auto-local cannot complete a chat turn yet. It sends the picked base pin
+(`Qwen/Qwen3-8B@<sha>`) as the model name to `VOX_LOCAL_ENDPOINT` (default
+`:11434`). Ollama has no model by that name, and `vox mens serve` answers 409
+because it names its model after the checkpoint file. To chat with a served
+run, set `VOX_LOCAL_ENDPOINT` to the serve port and pass the id its
+`/v1/models` lists: `vox chat --model mens/<id>`.
 
 When **`VOX_LOCAL_ENDPOINT`** is unset, Axis and the GUI probe `:11434` then
 `:11435` and pick the first server whose `/health` reports
