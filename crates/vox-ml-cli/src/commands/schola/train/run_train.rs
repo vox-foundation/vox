@@ -106,6 +106,12 @@ fn live_free_memory(
     }
 }
 
+/// The run's explicit size (D-04): `--model`, else a non-blank
+/// `VOX_MENS_DEFAULT_MODEL`.
+fn explicit_model(cli: Option<String>, env: Option<String>) -> Option<String> {
+    cli.or_else(|| env.map(|s| s.trim().to_string()).filter(|s| !s.is_empty()))
+}
+
 /// The run's one size pick (D-06): the largest Qwen3 size that fits live free
 /// memory, or the operator's explicit size (D-04).
 pub(super) fn pick_train_size(
@@ -258,12 +264,7 @@ pub async fn run_train(
         train_backend,
         vox_populi::mens::PopuliTrainBackend::CandleQlora
     ) {
-        let explicit = model.take().or_else(|| {
-            std::env::var("VOX_MENS_DEFAULT_MODEL")
-                .ok()
-                .map(|s| s.trim().to_string())
-                .filter(|s| !s.is_empty())
-        });
+        let explicit = explicit_model(model.take(), std::env::var("VOX_MENS_DEFAULT_MODEL").ok());
         match pick_train_size(explicit.as_deref(), workspace_root.as_deref(), device_kind)? {
             vox_populi::mens::tensor::size_select::Selection::Size(pick) => {
                 eprintln!("  {} size: {}", "ℹ".cyan(), pick.note);
@@ -575,13 +576,27 @@ pub async fn run_train(
 
 #[cfg(test)]
 mod tests {
-    use super::{force_train_env, live_free_memory, pick_train_size, recheck_size_pick};
+    use super::{
+        explicit_model, force_train_env, live_free_memory, pick_train_size, recheck_size_pick,
+    };
     use std::path::{Path, PathBuf};
     use vox_populi::mens::DeviceKind;
     use vox_populi::mens::tensor::size_select::{self, FreeMemory, Selection};
 
     fn root() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+    }
+
+    /// WR-05: `--model` beats `VOX_MENS_DEFAULT_MODEL`; a blank env value is unset.
+    #[test]
+    fn cli_model_beats_the_default_model_env() {
+        let s = |v: &str| Some(v.to_string());
+        assert_eq!(explicit_model(s("Qwen3-4B"), s("Qwen3-14B")), s("Qwen3-4B"));
+        assert_eq!(explicit_model(None, s(" Qwen3-14B ")), s("Qwen3-14B"));
+        for blank in ["", "   "] {
+            assert_eq!(explicit_model(None, s(blank)), None, "{blank:?}");
+        }
+        assert_eq!(explicit_model(None, None), None);
     }
 
     #[test]

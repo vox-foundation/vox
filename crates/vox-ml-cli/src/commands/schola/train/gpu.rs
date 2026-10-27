@@ -98,14 +98,13 @@ pub(super) async fn run_gpu_training(
     if let Some(pick) = size_pick {
         let pick =
             super::run_train::recheck_size_pick(pick, workspace_root.as_deref(), device_kind)?;
+        adopt_size_pick(&pick, &mut model, &mut preset);
         // The profile's size-ladder floors read VOX_BASE_MODEL (set by run_train).
         // SAFETY: CLI process; set before any training thread starts.
         #[allow(unsafe_code)]
-        unsafe {
-            std::env::set_var("VOX_BASE_MODEL", &pick.rung.hf_id)
-        };
-        model = Some(pick.rung.hf_id.clone());
-        preset = preset.or(Some(pick.rung.preset.to_string()));
+        if let Some(m) = &model {
+            unsafe { std::env::set_var("VOX_BASE_MODEL", m) };
+        }
         final_pick = Some(pick);
     }
 
@@ -544,6 +543,20 @@ pub(super) async fn run_gpu_training(
     Ok(final_pick)
 }
 
+/// Point the run at a re-checked size pick (D-05): its pin becomes the model
+/// (and `VOX_BASE_MODEL`), and its preset fills an unset `--preset`; an explicit
+/// `--preset` still wins.
+fn adopt_size_pick(
+    pick: &vox_populi::mens::tensor::size_select::SizePick,
+    model: &mut Option<String>,
+    preset: &mut Option<String>,
+) {
+    *model = Some(pick.rung.hf_id.clone());
+    if preset.is_none() {
+        *preset = Some(pick.rung.preset.to_string());
+    }
+}
+
 /// Outcome of attempting to auto-size against the real per-host memory
 /// model. Distinguishes two genuinely different cases the caller must NOT
 /// treat the same way:
@@ -806,6 +819,65 @@ fn apply_auto_size_outcome(
              reduce --seq-len/--batch-size, pick a smaller model, or set \
              VOX_MENS_FORCE_TRAIN=1 to proceed anyway."
         )),
+    }
+}
+
+#[cfg(test)]
+mod size_pick_tests {
+    use super::adopt_size_pick;
+    use vox_populi::mens::tensor::size_select::{self, FreeMemory, Selection, SizePick};
+
+    fn overlay() -> std::collections::HashMap<
+        String,
+        Vec<vox_populi::mens::tensor::spoke_base_resolver::TrainBase>,
+    > {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        size_select::load_ladder_overlay(Some(&root)).expect("overlay")
+    }
+
+    fn free(mb: u64) -> FreeMemory {
+        FreeMemory { mb, source: "test" }
+    }
+
+    /// An auto 14B pick (21000 MB free) re-checked at 13000 MB free: steps down to 8B.
+    fn stepped_down() -> (SizePick, SizePick) {
+        let overlay = overlay();
+        let Selection::Size(first) =
+            size_select::select_size(&overlay, Some(&free(21_000)), None, false).expect("pick")
+        else {
+            panic!("an auto pick is a size");
+        };
+        let down =
+            size_select::recheck_before_load(first.clone(), &overlay, Some(&free(13_000)), false)
+                .expect("8B still fits");
+        (first, down)
+    }
+
+    /// WR-05: after a step-down the run must train (and download) the smaller
+    /// size with the smaller size's preset, not the original size.
+    #[test]
+    fn a_stepped_down_pick_replaces_the_model_and_fills_the_preset() {
+        let (first, down) = stepped_down();
+        assert_eq!(
+            (first.rung.size.as_str(), down.rung.size.as_str()),
+            ("14B", "8B")
+        );
+        let mut model = Some(first.rung.hf_id.clone());
+        let mut preset = None;
+        adopt_size_pick(&down, &mut model, &mut preset);
+        assert_eq!(model.as_deref(), Some(down.rung.hf_id.as_str()));
+        assert!(model.as_deref().unwrap().starts_with("Qwen/Qwen3-8B@"));
+        assert_eq!(preset.as_deref(), Some("qwen3_16g"));
+    }
+
+    #[test]
+    fn an_explicit_preset_survives_the_pick() {
+        let (_, down) = stepped_down();
+        let mut model = None;
+        let mut preset = Some("qwen3_24g".to_string());
+        adopt_size_pick(&down, &mut model, &mut preset);
+        assert_eq!(model.as_deref(), Some(down.rung.hf_id.as_str()));
+        assert_eq!(preset.as_deref(), Some("qwen3_24g"));
     }
 }
 
