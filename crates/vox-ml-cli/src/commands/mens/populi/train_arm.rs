@@ -66,7 +66,11 @@ pub async fn run_train(
     data_mode: TrainDataModeCli,
     fast_corpus: bool,
     #[cfg_attr(not(feature = "cloud"), allow(unused_variables))] persistent: bool,
+    opts: train::TrainRunOpts,
 ) -> anyhow::Result<()> {
+    if opts.plan_only && cloud != "local" {
+        anyhow::bail!("--plan-only is local-only (got --cloud {cloud})");
+    }
     if cloud != "local" {
         #[cfg(feature = "cloud")]
         {
@@ -325,6 +329,8 @@ pub async fn run_train(
     });
 
     // Never clear a user-set `VOX_TRAIN_SKIP_CORPUS_MIX`: the flag only adds the opt-out.
+    // Plan-only runs no refresh or mix (D-02).
+    let fast_corpus = fast_corpus || opts.plan_only;
     let skip_mix = vox_corpus::training::mix_prepare::corpus_mix_skipped(fast_corpus);
     if fast_corpus {
         // SAFETY: single-threaded CLI setup; read later by the trainer's mix step.
@@ -579,8 +585,12 @@ pub async fn run_train(
         effective_curriculum_schedule,
         effective_chatml,
         effective_mix_config,
+        opts,
     )
     .await;
+    if opts.plan_only {
+        return train_res.map(|_| ());
+    }
 
     if train_res.is_ok()
         && let Some(ref r) = workspace_root

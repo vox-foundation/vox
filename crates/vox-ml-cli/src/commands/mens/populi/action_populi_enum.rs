@@ -202,6 +202,11 @@ pub enum PopuliAction {
         #[cfg(feature = "gpu")]
         #[arg(long, default_value_t = false)]
         fast_corpus: bool,
+        /// Resolve the run (size pick, preset, corpus, contamination) and print it, then exit
+        /// before downloading or training. Add --json for one JSON object on stdout.
+        #[cfg(feature = "gpu")]
+        #[arg(long, default_value_t = false, conflicts_with_all = ["background", "log_dir"])]
+        plan_only: bool,
         /// Provenance: coarse family label for upstream lineage (e.g. `kimi-k2.5`, `qwen2.5`).
         #[arg(long)]
         base_model_family: Option<String>,

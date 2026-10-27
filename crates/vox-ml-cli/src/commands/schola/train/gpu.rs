@@ -49,6 +49,7 @@ pub(super) async fn run_gpu_training(
     curriculum_schedule: Option<vox_populi::mens::tensor::training_config::CurriculumSchedule>,
     chatml: vox_populi::mens::tensor::training_config::ChatmlConfig,
     mix_config: Option<PathBuf>,
+    opts: super::TrainRunOpts,
 ) -> Result<Option<vox_populi::mens::tensor::size_select::SizePick>> {
     use owo_colors::OwoColorize;
     use vox_populi::mens::tensor::spoke_base_resolver::floor_notes;
@@ -95,9 +96,11 @@ pub(super) async fn run_gpu_training(
     // refusal below remains the backstop. An explicit `--preset` still wins.
     // The final pick goes back to the caller for the adapter card (CR-03).
     let mut final_pick = None;
+    let mut reading = None;
     if let Some(pick) = size_pick {
-        let pick =
+        let (pick, live) =
             super::run_train::recheck_size_pick(pick, workspace_root.as_deref(), device_kind)?;
+        reading = live;
         adopt_size_pick(&pick, &mut model, &mut preset);
         // The profile's size-ladder floors read VOX_BASE_MODEL (set by run_train).
         // SAFETY: CLI process; set before any training thread starts.
@@ -203,6 +206,39 @@ pub(super) async fn run_gpu_training(
             auto_large = gc_auto_large,
             "activation/gradient checkpointing ENABLED for this run"
         );
+    }
+
+    // Resolve license_class from the base's `gpu-specs.yaml` `train_bases` entry;
+    // `--license-class` (already collected as `license_class` above) is an
+    // override, not the only source. Hard error (never a silent apache-2.0
+    // fallback) when neither the base nor an override provides one.
+    let (license_class, attribution_required) =
+        vox_populi::mens::tensor::spoke_base_resolver::resolve_license_class(
+            workspace_root.as_deref(),
+            model.as_deref(),
+            license_class,
+        )
+        .map(|(lic, attr)| (Some(lic), attr || attribution_required))?;
+    if let Some(id) = model.as_deref() {
+        for note in floor_notes(workspace_root.as_deref(), id)? {
+            eprintln!("  {} base {id}: {note}", "ℹ".cyan());
+        }
+    }
+
+    if opts.plan_only {
+        let plan = super::plan_only::TrainPlan::new(
+            model.as_deref(),
+            final_pick.as_ref(),
+            reading.or_else(|| super::run_train::live_free_memory(device_kind)),
+            &device,
+            preset.as_deref(),
+            &profile,
+            &resolved,
+            license_class.clone(),
+            workspace_root.as_deref(),
+        )?;
+        println!("{}", plan.render(opts.json));
+        return Ok(final_pick);
     }
 
     let mut base_model_paths = None::<(Vec<std::path::PathBuf>, std::path::PathBuf)>;
@@ -438,23 +474,6 @@ pub(super) async fn run_gpu_training(
     } else {
         gpu_info.model_name.clone()
     };
-
-    // Resolve license_class from the base's `gpu-specs.yaml` `train_bases` entry;
-    // `--license-class` (already collected as `license_class` above) is an
-    // override, not the only source. Hard error (never a silent apache-2.0
-    // fallback) when neither the base nor an override provides one.
-    let (license_class, attribution_required) =
-        vox_populi::mens::tensor::spoke_base_resolver::resolve_license_class(
-            workspace_root.as_deref(),
-            model.as_deref(),
-            license_class,
-        )
-        .map(|(lic, attr)| (Some(lic), attr || attribution_required))?;
-    if let Some(id) = model.as_deref() {
-        for note in floor_notes(workspace_root.as_deref(), id)? {
-            eprintln!("  {} base {id}: {note}", "ℹ".cyan());
-        }
-    }
 
     let config = vox_populi::mens::LoraTrainingConfig {
         base_model: model,

@@ -135,6 +135,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 None,               // curriculum_schedule
                 Default::default(), // chatml_config
                 None,               // mix_config
+                crate::commands::schola::train::TrainRunOpts::default(),
             )
             .await?;
             Ok(())
@@ -199,6 +200,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             optimizer_experiment_mode,
             data_mode,
             fast_corpus,
+            plan_only,
             persistent,
         } => {
             // The plugin self-heal preflight (run_train.rs, cuda path) reads this
@@ -279,6 +281,10 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 data_mode,
                 fast_corpus,
                 persistent,
+                crate::commands::schola::train::TrainRunOpts {
+                    plan_only,
+                    json: _global_json,
+                },
             )
             .await
         }

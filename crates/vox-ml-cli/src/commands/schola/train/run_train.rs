@@ -97,7 +97,7 @@ mod corpus_threshold_tests {
 
 /// Live free accelerator memory for this run's device. A CPU run has no
 /// accelerator reading (D-01).
-fn live_free_memory(
+pub(super) fn live_free_memory(
     device_kind: vox_populi::mens::DeviceKind,
 ) -> Option<vox_populi::mens::tensor::size_select::FreeMemory> {
     match device_kind {
@@ -131,22 +131,23 @@ pub(super) fn pick_train_size(
 
 /// Re-read free memory once right before the download (D-05): an automatic
 /// pick that no longer fits steps down; an explicit size is never stepped down.
+/// Returns the reading it used, for `--plan-only`.
 pub(super) fn recheck_size_pick(
     pick: vox_populi::mens::tensor::size_select::SizePick,
     workspace_root: Option<&Path>,
     device_kind: vox_populi::mens::DeviceKind,
-) -> Result<vox_populi::mens::tensor::size_select::SizePick> {
+) -> Result<(
+    vox_populi::mens::tensor::size_select::SizePick,
+    Option<vox_populi::mens::tensor::size_select::FreeMemory>,
+)> {
     use owo_colors::OwoColorize;
     use vox_populi::mens::tensor::size_select;
     let overlay = size_select::load_ladder_overlay(workspace_root)?;
-    let pick = size_select::recheck_before_load(
-        pick,
-        &overlay,
-        live_free_memory(device_kind).as_ref(),
-        force_train_env(),
-    )?;
+    let reading = live_free_memory(device_kind);
+    let pick =
+        size_select::recheck_before_load(pick, &overlay, reading.as_ref(), force_train_env())?;
     eprintln!("  {} size: {}", "ℹ".cyan(), pick.note);
-    Ok(pick)
+    Ok((pick, reading))
 }
 
 /// `VOX_MENS_FORCE_TRAIN=1`/`true` — the registered operator override
@@ -220,6 +221,7 @@ pub async fn run_train(
     curriculum_schedule: Option<vox_populi::mens::tensor::training_config::CurriculumSchedule>,
     chatml: vox_populi::mens::tensor::training_config::ChatmlConfig,
     mix_config: Option<PathBuf>,
+    opts: super::TrainRunOpts,
 ) -> Result<Option<vox_populi::mens::tensor::size_select::SizePick>> {
     use owo_colors::OwoColorize;
 
@@ -305,21 +307,6 @@ pub async fn run_train(
                  Rebuild: `cargo build -p vox-ml-cli --features gpu,mens-candle-cuda` (or `cargo vox-cuda-release`).\n\
                  On Windows use a VS Developer shell so `nvcc` can find MSVC."
             );
-        }
-        // Make sure the plugin the selector will dispatch to is installed and
-        // loadable, self-healing a missing/stale one (opt out with
-        // `--no-auto-heal` / VOX_MENS_NO_AUTO_HEAL). Same selector the training
-        // dispatch in vox-populi uses, so they can't disagree. Skip the heal
-        // where no release asset exists for this platform (it would try a
-        // download that can't succeed); dispatch then fails at load with a
-        // build-from-source hint.
-        #[cfg(feature = "gpu")]
-        {
-            let plugin_id =
-                vox_populi::mens::select_mens_backend(device_kind, &vox_plugin_host::probe());
-            if vox_populi::mens::has_prebuilt_artifact(plugin_id) {
-                crate::commands::mens::plugin_heal::ensure_plugin(plugin_id, true)?;
-            }
         }
     }
 
@@ -432,6 +419,29 @@ pub async fn run_train(
 
     check_corpus_threshold(&data_dir)?;
 
+    // Make sure the plugin the selector will dispatch to is installed and
+    // loadable, self-healing a missing/stale one (opt out with
+    // `--no-auto-heal` / VOX_MENS_NO_AUTO_HEAL). Same selector the training
+    // dispatch in vox-populi uses, so they can't disagree. Skip the heal
+    // where no release asset exists for this platform (it would try a
+    // download that can't succeed); dispatch then fails at load with a
+    // build-from-source hint. Runs after the corpus check, so a missing corpus
+    // is refused the same way with or without --plan-only, whatever state the
+    // installed plugin is in. The heal can download a release asset; plan-only
+    // never runs it (D-02).
+    #[cfg(feature = "gpu")]
+    if matches!(
+        train_backend,
+        vox_populi::mens::PopuliTrainBackend::CandleQlora
+    ) && !opts.plan_only
+    {
+        let plugin_id =
+            vox_populi::mens::select_mens_backend(device_kind, &vox_plugin_host::probe());
+        if vox_populi::mens::has_prebuilt_artifact(plugin_id) {
+            crate::commands::mens::plugin_heal::ensure_plugin(plugin_id, true)?;
+        }
+    }
+
     eprintln!("{}", "╔══════════════════════════════════════════╗".cyan());
     eprintln!("{}", "║   VoxMens — native fine-tuning (QLoRA)  ║".cyan());
     eprintln!("{}", "╚══════════════════════════════════════════╝".cyan());
@@ -510,6 +520,7 @@ pub async fn run_train(
             curriculum_schedule,
             chatml,
             mix_config,
+            opts,
         )
         .await
     }
@@ -562,6 +573,7 @@ pub async fn run_train(
             trajectory_quality_floor,
             trajectory_quality_boost,
             optimizer_experiment_mode,
+            opts,
         );
         eprintln!(
             "  {} LoRA training requires the 'gpu' feature.",
