@@ -2,20 +2,21 @@
 gsd_state_version: "1.0"
 milestone: v1.7
 milestone_name: VoxDiagram
-current_phase: 90
-current_phase_name: Corpus Migration & Gate Tightening
+current_phase: 91
+current_phase_name: Measurement Harness & Advisory Closure
 current_plan: 6
-status: verifying
-stopped_at: Phase 89 complete, ready to plan Phase 90
-last_updated: "2026-10-27T08:54:06.566Z"
+status: planning
+stopped_at: Phase 90 complete, ready to plan Phase 91
+last_updated: "2026-10-27T10:20:32.321Z"
 last_activity: 2026-10-27
-last_activity_desc: Phase 90 execution started
-state_head: 4a02aa69bcc23c7bd852dd5a0534454741c303c5
+last_activity_desc: Phase 90 complete, transitioned to Phase 91
+state_head: f74b38403331f9645a604442dc6ad78b29b0288e
 progress:
   total_phases: 9
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 37
   completed_plans: 37
+  percent: 89
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -29,12 +30,12 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 
 ## Current Position
 
-Phase: 90 (Corpus Migration & Gate Tightening) — EXECUTING
-Plan: 6 of 6
-Status: Phase complete — ready for verification
-Last activity: 2026-10-27 — Phase 90 execution started
+Phase: 91 — Measurement Harness & Advisory Closure
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-10-27 — Phase 90 complete, transitioned to Phase 91
 
-Progress: [████████░░] 78% (0/9 phases)
+Progress: [█████████░] 89% (0/9 phases)
 
 ## Progress
 
@@ -66,7 +67,7 @@ None yet.
 
 **Last session:** 2026-10-27T04:53:59.350Z
 
-**Stopped At:** Phase 89 complete, ready to plan Phase 90
+**Stopped At:** Phase 90 complete, ready to plan Phase 91
 **Resume File:** None
 
 ## Performance Metrics

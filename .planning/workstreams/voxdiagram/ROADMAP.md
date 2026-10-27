@@ -44,7 +44,7 @@ v1.7 retires Mermaid as the primary diagram *authoring* format. A new pure L2 cr
 - [x] **Phase 87: Doc-Pipeline Consumer & Legacy-Mermaid Ratchet** - Doc lint validates `vox-diagram` fences and rejects new Mermaid fences via a shrink-only baseline; first authorized crate edge (completed 2026-10-17)
 - [x] **Phase 88: MCP Tool, CLI & Agent Guidance** - `vox_validate_diagram`, `vox diagram` CLI, and the grammar card agents author from; second authorized crate edge (completed 2026-10-17)
 - [x] **Phase 89: Docs-Astro Integration** - Pre-render to manifest, remark inline, Playwright proof of ids, label fit and contrast (completed 2026-10-27)
-- [ ] **Phase 90: Corpus Migration & Gate Tightening** - Migrate all convertible live fences in small reviewed batches, then tighten the baseline to the allowlist
+- [x] **Phase 90: Corpus Migration & Gate Tightening** - Migrate all convertible live fences in small reviewed batches, then tighten the baseline to the allowlist (completed 2026-10-27)
 - [ ] **Phase 91: Measurement Harness & Advisory Closure** - Paired NL-to-diagram harness with CIs; annotate the advisory's unsourced table
 
 ## Phase Details
@@ -269,7 +269,7 @@ Plans:
   2. The legacy-Mermaid baseline is tightened to exactly the allowlist (the Gantt plus any block MIG-01 cannot convert, each listed with a reason), so doc lint now fails if a non-allowlisted fence appears or the list grows.
   3. `git diff` over `docs/src/archive/` is empty, every migrated diagram renders on the built site, and the Phase 89 Playwright suite passes over the full migrated corpus.
 
-**Plans**: 6/6 plans executed in 6 sequential waves (10 batch commits)
+**Plans**: 6/6 plans complete in 6 sequential waves (10 batch commits)
 
 Plans:
 - [x] 90-01-PLAN.md — Tracer: per-fence fidelity report (`migration_fidelity`, ignored test) and before/after contact-sheet generator (Playwright, skipped by default), proven on batch 1 (graphify); batch 2 (four single-fence files) (wave 1)
@@ -311,7 +311,7 @@ Phases execute in numeric order, with the parallel opportunities noted under Ove
 | 87. Doc-Pipeline Consumer & Legacy-Mermaid Ratchet | 3/3 | Complete    | 2026-10-17 |
 | 88. MCP Tool, CLI & Agent Guidance | 3/3 | Complete    | 2026-10-17 |
 | 89. Docs-Astro Integration | 4/4 | Complete    | 2026-10-27 |
-| 90. Corpus Migration & Gate Tightening | 6/6 | In Progress | - |
+| 90. Corpus Migration & Gate Tightening | 6/6 | Complete    | 2026-10-27 |
 | 91. Measurement Harness & Advisory Closure | 0/TBD | Not started | - |
 
 ---

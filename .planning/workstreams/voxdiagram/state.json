@@ -41,7 +41,7 @@
     {
       "number": "90",
       "name": "Corpus Migration & Gate Tightening",
-      "status": "pending"
+      "status": "complete"
     },
     {
       "number": "91",
@@ -51,8 +51,8 @@
   ],
   "next": {
     "command": "/gsd:progress --next",
-    "label": "Advance to the next step (verify)",
-    "reason": "Phase 90 of 9 · ready to verify"
+    "label": "Advance to the next step (plan phase 91)",
+    "reason": "Phase 91 of 9 — needs a plan"
   },
-  "updated_at": "2026-10-27T08:54:06.588Z"
+  "updated_at": "2026-10-27T10:20:32.331Z"
 }
