@@ -69,6 +69,12 @@ pub struct CheckpointState {
     /// (`#[serde(default)]` keeps old checkpoint files loadable).
     #[serde(default)]
     pub data_fingerprint: Option<String>,
+    /// The base model (`owner/name@<revision>`) the adapter was trained on
+    /// (`LoraTrainingConfig::base_model`). Resume refuses a different base. `None`
+    /// for checkpoints written before this field existed; those resume with a
+    /// warning.
+    #[serde(default)]
+    pub base_model: Option<String>,
 }
 
 /// Content fingerprint for a training data file (`train.jsonl` / `train_mixed.jsonl`),
@@ -201,6 +207,7 @@ mod tests {
             wall_seconds_elapsed: 120.5,
             saved_at_utc: CheckpointState::now_utc(),
             data_fingerprint: Some("abc123".to_string()),
+            base_model: Some("Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218".to_string()),
         };
         state.save(&dir).unwrap();
         let loaded = CheckpointState::load(&dir).expect("should load back");
@@ -210,6 +217,10 @@ mod tests {
         assert_eq!(loaded.shuffled_indices, vec![4, 1, 3, 2, 0]);
         assert_eq!(loaded.rng_seed, 42);
         assert_eq!(loaded.data_fingerprint.as_deref(), Some("abc123"));
+        assert_eq!(
+            loaded.base_model.as_deref(),
+            Some("Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218")
+        );
         CheckpointState::delete(&dir);
         assert!(CheckpointState::load(&dir).is_none());
         let _ = std::fs::remove_dir_all(&dir);
@@ -252,6 +263,7 @@ mod tests {
             wall_seconds_elapsed: 0.0,
             saved_at_utc: String::new(),
             data_fingerprint: None,
+            base_model: None,
         };
         let path = CheckpointState::path_in(&dir);
         std::fs::write(&path, serde_json::to_string(&state).unwrap()).unwrap();
@@ -282,6 +294,7 @@ mod tests {
         std::fs::write(CheckpointState::path_in(&dir), raw.to_string()).unwrap();
         let loaded = CheckpointState::load(&dir).expect("old-format checkpoint must still load");
         assert_eq!(loaded.data_fingerprint, None);
+        assert_eq!(loaded.base_model, None);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

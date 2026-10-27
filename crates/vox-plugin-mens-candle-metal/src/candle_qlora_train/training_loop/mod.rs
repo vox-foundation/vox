@@ -85,6 +85,7 @@ fn checkpoint_and_bail_on_oom(
         wall_seconds_elapsed: run_start_inst.elapsed().as_secs_f64(),
         saved_at_utc: crate::checkpoint_state::CheckpointState::now_utc(),
         data_fingerprint: config.data_fingerprint.clone(),
+        base_model: config.base_model.clone(),
     };
     if let Err(e) = state.save(out) {
         train_log::warn(&format!("OOM CheckpointState save failed: {e}"));
@@ -640,6 +641,7 @@ pub fn run_training_loop(
                     wall_seconds_elapsed: run_start_inst.elapsed().as_secs_f64(),
                     saved_at_utc: crate::checkpoint_state::CheckpointState::now_utc(),
                     data_fingerprint: config.data_fingerprint.clone(),
+                    base_model: config.base_model.clone(),
                 };
                 state.save(out).context("save CheckpointState on pause")?;
                 let wall_secs = run_start_inst.elapsed().as_secs_f64();

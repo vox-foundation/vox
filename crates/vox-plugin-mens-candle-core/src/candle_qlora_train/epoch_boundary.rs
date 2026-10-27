@@ -64,6 +64,7 @@ pub fn finish_epoch(
         wall_seconds_elapsed: progress_anchor_time.elapsed().as_secs_f64(),
         saved_at_utc: CheckpointState::now_utc(),
         data_fingerprint: config.data_fingerprint.clone(),
+        base_model: config.base_model.clone(),
     };
     epoch_state
         .save(out)
