@@ -28,12 +28,14 @@ test.describe('Vox Dashboard', () => {
       await page.waitForSelector('nav', { timeout: 15_000 });
       await expect(activeSurface).toHaveAttribute('data-view', 'repository');
       await page.getByRole('button', { name: 'Workspace status' }).click();
-      await expect(page.getByText('ok')).toBeVisible();
+      // The mock's `vox status` run returns stdout 'ok'; assert it in the command-output pane, not anywhere on the page.
+      await expect(page.getByLabel('Command output')).toHaveText('ok');
 
-      // Harness tab redirects to Loquela composer (legacy surface retained for deep links).
+      // Harness deep link renders the Axis Harness River HUD (HarnessRedirect), which keeps the composer-focus action.
       await page.goto('/#view=harness');
       await page.waitForSelector('nav', { timeout: 15_000 });
-      await expect(page.getByText('Quick Harness lives in the composer')).toBeVisible();
+      await expect(page.getByText('AXIS HARNESS RIVER')).toBeVisible();
+      await expect(page.getByTestId('harness-waveform-tier-strip')).toBeVisible();
       await page.getByRole('button', { name: 'Focus composer' }).click();
 
       // Runs view under Review parent nav.
