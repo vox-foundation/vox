@@ -105,6 +105,98 @@ sequence {
 }
 ```
 
+## Layout stress examples
+
+These diagrams exercise long labels, every node shape, nested containers, non-ASCII text and a wide sequence, and the site's browser tests check them on every build. The width model is close for accented Latin and CJK text but under-measures arrows, symbols and emoji, so labels that use those may overflow their boxes.
+
+Every node shape, with labels that wrap and edge labels near the wrap width:
+
+```vox-diagram
+graph {
+    direction: down
+
+    node s: "Nightly ingest of the customer export files begins" { shape: start }
+    node r: "Validate every incoming record against the published schema before staging it"
+    node ro: "Rounded step that normalises addresses, phone numbers and names" { shape: rounded }
+    node d: "Is the batch complete and consistent with yesterday?" { shape: diamond }
+    node c: "Staging warehouse for the validated customer batches" { shape: cylinder }
+    node e: "Report published to the operations channel" { shape: end }
+
+    s -> r: "files arrive on the shared drop location before six"
+    r -> ro: "records that pass the schema check continue to cleaning"
+    ro -> d: "cleaned batch handed over for the consistency review"
+    d -> c: "complete and consistent, so the batch is loaded now"
+    d -> r: "incomplete, so the batch is sent back for another pass"
+    c -> e: "load finished, publish the summary for the morning shift"
+}
+```
+
+Nested containers, one with a long title, and edges into nested nodes:
+
+```vox-diagram
+graph {
+    direction: right
+
+    node user: "Browser"
+
+    container platform: "Platform services" {
+        node edge: "Edge proxy"
+        container core: "Core runtime" {
+            node api: "Public API"
+            container store: "Persistence layer" {
+                node log: "Write-ahead log"
+                node tables: "Task tables"
+            }
+        }
+    }
+    container ops: "Operations and observability tooling for the whole production fleet, including the on-call dashboards" {
+        node metrics: "Metrics"
+    }
+
+    user -> platform.edge: "HTTPS"
+    platform.edge -> platform.core.api: "routes the request"
+    platform.core.api -> platform.core.store.log: "append"
+    platform.core.store.log -> platform.core.store.tables: "apply"
+    platform.core.api -> ops.metrics: "emit"
+}
+```
+
+Accented Latin and CJK labels:
+
+```vox-diagram
+graph {
+    direction: right
+
+    node a: "Café Ünïcode"
+    node b: "注文を確認します"
+    node c: "Élève à l'école, naïve résumé"
+    node d: "受け取りました、ありがとうございます"
+
+    a -> b: "Zürich, São Paulo, Kraków"
+    b -> c: "確認が終わったら次に進みます"
+    c -> d: "très bien, merci beaucoup"
+}
+```
+
+A wide sequence with multi-hop messages, a long note, a reply and a self-message:
+
+```vox-diagram
+sequence {
+    actor client: "Client"
+    actor gateway: "Gateway"
+    actor billing: "Billing"
+    actor stock: "Stock"
+    actor mail: "Mailer"
+
+    client -> gateway: "Place the order and pay with the saved card"
+    client -> stock: "Cancel the reservation as soon as the payment fails three times in a row"
+    gateway -> mail: "Send the receipt once the whole basket is confirmed and paid for"
+    note over gateway, stock: "The gateway keeps the reservation alive for the whole fifteen minute checkout window, then releases every line item back to the shared pool"
+    billing -> billing: "retry the charge with exponential backoff"
+    reply stock -> client: "reservation released"
+}
+```
+
 ## Validate from an agent: vox_validate_diagram
 
 `vox_validate_diagram` checks one diagram and returns everything needed to repair it in one round trip. It is deterministic, makes no model calls, and writes nothing. It is in the `lang` capability profile and is eligible for the read role.

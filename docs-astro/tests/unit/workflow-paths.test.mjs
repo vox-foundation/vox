@@ -159,3 +159,17 @@ test('both docs workflows pre-render from the repo root before Build Starlight',
     assert.ok(!/working-directory:/.test(all[render]), `${name} pre-render runs from the repo root`);
   }
 });
+
+test('docs-quality installs Chromium before the browser specs', () => {
+  const all = steps('docs-quality.yml');
+  const at = (re) => all.findIndex((s) => re.test(s));
+  const install = at(/^\s+run:.*playwright install chromium --with-deps/m);
+  const reader = at(/^\s+run:.*tests\/reader-layout\.spec\.ts/m);
+  const diagram = at(/^\s+run:.*tests\/vox-diagram\.spec\.ts/m);
+  const upload = at(/- name: Upload reader layout review bundle/);
+  assert.ok(install >= 0, 'docs-quality installs Chromium');
+  assert.ok(reader >= 0 && diagram >= 0 && upload >= 0, 'both browser specs and the bundle upload exist');
+  assert.ok(install < reader, 'Chromium is installed before the reader-layout spec');
+  assert.ok(install < diagram, 'Chromium is installed before the diagram spec');
+  assert.ok(diagram < upload, 'the diagram spec runs before the review bundle upload');
+});
