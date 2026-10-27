@@ -37,6 +37,8 @@ mod pipeline;
 #[cfg(feature = "gpu")]
 pub mod plugin_heal;
 #[cfg(feature = "gpu")]
+pub(crate) mod reasoning_compare;
+#[cfg(feature = "gpu")]
 pub(crate) mod reasoning_eval;
 #[cfg(feature = "mens-base")]
 pub(crate) mod training_selection;

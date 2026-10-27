@@ -56,6 +56,27 @@ pub enum PopuliMensTail {
         post_adapter: PathBuf,
     },
 
+    /// Score a pinned base and its adapter on the 32-item reasoning slices; writes an absence record when either is not on disk. Not a serve-gate input.
+    #[command(name = "eval-reasoning-compare")]
+    EvalReasoningCompare {
+        /// Base: a Qwen3 size name (resolved through gpu-specs `train_bases`) or `hf_id@<40-hex sha>`
+        /// (default: the pinned Qwen/Qwen3-8B)
+        #[arg(long)]
+        base: Option<String>,
+        /// Adapter run directory trained on that base
+        #[arg(long)]
+        adapter: Option<PathBuf>,
+        /// Hugging Face hub cache root (default: HF_HUB_CACHE, HF_HOME/hub, ~/.cache/huggingface/hub)
+        #[arg(long)]
+        hub_root: Option<PathBuf>,
+        /// Directory holding the `<slice>/reasoning.jsonl` files
+        #[arg(long, default_value = "mens/data")]
+        bench_root: PathBuf,
+        /// Report path (default: mens/runs/reasoning_compare/<size>-<rev12>.json)
+        #[arg(long)]
+        out: Option<PathBuf>,
+    },
+
     /// Benchmark FIM completion server latency
     BenchCompletion {
         /// URL of the completions API Endpoint
