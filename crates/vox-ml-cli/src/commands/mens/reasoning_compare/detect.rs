@@ -524,17 +524,18 @@ pub(crate) mod tests {
     fn base_resolution_resolves_every_ladder_size() {
         let overlay = repo_overlay();
         let ladder = &overlay["qwen3_code"];
-        for name in [
-            "Qwen3-0.6B",
-            "Qwen3-1.7B",
-            "Qwen3-4B",
-            "Qwen3-8B",
-            "Qwen3-14B",
-            "Qwen3-32B",
+        // The ls-remote pins (2026-10-27), so a changed pin in the YAML fails here.
+        for (name, sha) in [
+            ("Qwen3-0.6B", "c1899de289a04d12100db370d81485cdf75e47ca"),
+            ("Qwen3-1.7B", "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"),
+            ("Qwen3-4B", "1cfa9a7208912126459214e8b04321603b3df60c"),
+            ("Qwen3-8B", "b968826d9c46dd6066d109eabc6255188de91218"),
+            ("Qwen3-14B", "40c069824f4251a91eefaf281ebe4c544efd3e18"),
+            ("Qwen3-32B", "9216db5781bf21249d130ec9da846c4624c16137"),
         ] {
             let pin = ok_pin(Some(name), &overlay);
             assert_eq!(pin, ok_pin(Some(&format!("Qwen/{name}")), &overlay));
-            assert!(pin.starts_with(&format!("Qwen/{name}@")), "{name}: {pin}");
+            assert_eq!(pin, format!("Qwen/{name}@{sha}"), "{name}");
             assert!(BaseLabel::from_pin(&pin).revision.is_some(), "{pin}");
             assert!(ladder.iter().any(|b| b.hf_id == pin), "{pin}");
         }
