@@ -63,45 +63,64 @@ pub(crate) type SideScorer<'a> = &'a mut dyn FnMut(
     &[(&'static str, Vec<ReasoningItem>)],
 ) -> Vec<(&'static str, BenchOutcome)>;
 
-/// `p` made absolute with `.` and `..` removed lexically.
-fn normalized(p: &Path) -> Result<PathBuf> {
+/// `p` where the filesystem will put it: absolute, each existing prefix
+/// canonicalized (symlinks, `..`, on-disk letter case), and `..` after a missing
+/// directory popped, as `create_dir_all` then `write` would resolve it. A path
+/// entry that exists but does not canonicalize (a dangling symlink) is refused,
+/// since writing through it would create its target.
+fn resolved(p: &Path) -> Result<PathBuf> {
     let abs = std::path::absolute(p).with_context(|| format!("resolving {}", p.display()))?;
-    let mut out = PathBuf::new();
+    let mut cur = PathBuf::new();
     for c in abs.components() {
         match c {
             Component::CurDir => {}
             Component::ParentDir => {
-                out.pop();
+                cur.pop();
             }
-            other => out.push(other),
+            other => {
+                cur.push(other);
+                match cur.canonicalize() {
+                    Ok(real) => cur = real,
+                    Err(_) if std::fs::symlink_metadata(&cur).is_ok() => anyhow::bail!(
+                        "{} exists but does not resolve (dangling symlink?); refusing",
+                        cur.display()
+                    ),
+                    Err(_) => {}
+                }
+            }
         }
     }
-    Ok(out)
+    Ok(cur)
 }
 
-/// Refuse an `--out` that serve could read or that sits in a model directory.
+/// Refuse an `--out` that serve could read, that is a symlink, or that resolves
+/// into the hub root or the adapter dir.
 pub(crate) fn check_out_path(out: &Path, hub_root: &Path, adapter: Option<&Path>) -> Result<()> {
-    let name = out.file_name().and_then(|n| n.to_str()).unwrap_or_default();
-    if GATE_FILE_NAMES.iter().any(|g| g.eq_ignore_ascii_case(name)) {
-        anyhow::bail!(
-            "--out {} is a serve-gate file name; refusing",
-            out.display()
-        );
+    if std::fs::symlink_metadata(out).is_ok_and(|m| m.file_type().is_symlink()) {
+        anyhow::bail!("--out {} is a symlink; refusing", out.display());
     }
-    if out
-        .components()
-        .any(|c| c.as_os_str().eq_ignore_ascii_case("collateral_eval"))
-    {
-        anyhow::bail!(
-            "--out {} is inside a collateral_eval dir; refusing",
-            out.display()
-        );
+    let abs = resolved(out)?;
+    for p in [out, abs.as_path()] {
+        let name = p.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+        if GATE_FILE_NAMES.iter().any(|g| g.eq_ignore_ascii_case(name)) {
+            anyhow::bail!(
+                "--out {} is a serve-gate file name; refusing",
+                out.display()
+            );
+        }
+        if p.components()
+            .any(|c| c.as_os_str().eq_ignore_ascii_case("collateral_eval"))
+        {
+            anyhow::bail!(
+                "--out {} is inside a collateral_eval dir; refusing",
+                out.display()
+            );
+        }
     }
-    let abs = normalized(out)?;
     for (what, root) in
         std::iter::once(("hub root", hub_root)).chain(adapter.map(|a| ("adapter dir", a)))
     {
-        if abs.starts_with(normalized(root)?) {
+        if abs.starts_with(resolved(root)?) {
             anyhow::bail!(
                 "--out {} is inside the {what} {}; refusing",
                 out.display(),
@@ -715,6 +734,76 @@ mod tests {
             v["slices"]["gsm8k_think"]["adapter"]["accuracy"].as_f64(),
             Some(accuracy_for(Side::Adapter, "gsm8k_think"))
         );
+    }
+
+    /// Each `out` must be refused and leave every snapshot file byte-identical.
+    fn assert_refused_and_untouched(p: &Present, outs: &[PathBuf]) {
+        std::fs::write(p.snapshot.join("config.json"), b"original").expect("seed config");
+        for out in outs {
+            let mut score =
+                |side: Side, _: &Path, slices: &[(&'static str, Vec<ReasoningItem>)]| {
+                    named_scores(side, slices)
+                };
+            let a = args(p.hub.path(), Some(out.clone()), Some(p.adapter.clone()));
+            assert!(
+                run(a, p.runs.path(), &mut score).is_err(),
+                "{} must be refused",
+                out.display()
+            );
+            for (f, want) in [("config.json", &b"original"[..]), ("tokenizer.json", b"")] {
+                assert_eq!(
+                    std::fs::read(p.snapshot.join(f)).expect("snapshot file kept"),
+                    want,
+                    "{f} changed via {}",
+                    out.display()
+                );
+            }
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn out_through_a_symlink_into_the_snapshot_is_refused() {
+        let p = present();
+        let links = p.runs.path().join("linkparent");
+        std::fs::create_dir_all(&links).expect("mkdir links");
+        let snap_link = links.join("snap");
+        std::os::unix::fs::symlink(&p.snapshot, &snap_link).expect("dir link");
+        let file_link = p.runs.path().join("file-link.json");
+        std::os::unix::fs::symlink(p.snapshot.join("tokenizer.json"), &file_link)
+            .expect("file link");
+        let sha = p.snapshot.file_name().expect("sha").to_owned();
+        assert_refused_and_untouched(
+            &p,
+            &[
+                // A directory symlink as a parent.
+                snap_link.join("config.json"),
+                // `..` after a symlink: lexically under runs, really under snapshots.
+                snap_link.join("..").join(&sha).join("config.json"),
+                // `..` after a missing directory below the symlink.
+                snap_link.join("new").join("..").join("config.json"),
+                // `--out` itself is a symlink.
+                file_link,
+            ],
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn out_with_a_case_variant_of_the_hub_root_is_refused() {
+        let p = present();
+        let hub = p.hub.path();
+        let name = hub
+            .file_name()
+            .expect("name")
+            .to_string_lossy()
+            .to_uppercase();
+        let upper = hub.parent().expect("parent").join(name);
+        if !upper.is_dir() {
+            return; // case-sensitive volume: no alias to test
+        }
+        let rel = p.snapshot.strip_prefix(hub).expect("snapshot under hub");
+        assert_refused_and_untouched(&p, &[upper.join(rel).join("tokenizer.json")]);
     }
 
     fn gate_files_under(dir: &Path, found: &mut Vec<PathBuf>) {
