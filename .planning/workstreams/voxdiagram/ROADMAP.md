@@ -292,7 +292,14 @@ Plans:
   2. The report states which of non-inferior, inconclusive, or inferior the data supports under a decision rule fixed before the run, is committed under `docs/src/architecture/` with valid frontmatter, and re-scoring the recorded model outputs reproduces the tallies deterministically.
   3. The advisory's error-rate table is annotated as unsourced and links to the measured result.
 
-**Plans**: TBD
+**Plans**: 4 plans in 4 sequential waves
+
+Plans:
+- [ ] 91-01-PLAN.md — Tracer: offline re-score chain (Rust scorer + Node batch Mermaid oracle) proven on a synthetic recording; `vox-eval::paired_ni` (Newcombe method 10, NI verdict) test-first; full tallies and recording checks (wave 1)
+- [ ] 91-02-PLAN.md — Frozen 200-task set (184 graph / 16 sequence) with references and oracle-derived expected sets, comparable Mermaid card, shared prompt template, manifest hashes, computed quota gates, MENS isolation recorded (wave 2)
+- [ ] 91-03-PLAN.md — Run loop with enforced $25 spend cap (stub-tested), live wiring (CloudOnly registry selection, probes, facade + Node backends, ignored live test, fail-closed proven), pre-registration commit, advisory annotation (EVAL-02) (wave 3)
+- [ ] 91-04-PLAN.md — The one live run (recording committed, re-scores byte-for-byte in both runtimes, or a stop for a human), findings report with the measured verdict under the unchanged rule (wave 4)
+
 **Research flag**: DEEP. Harness design, task-set construction, power for the CIs, and the non-inferiority rule.
 **Folded decisions**: the harness must not add a crate edge beyond the two authorized (`vox-orchestrator-mcp` already depends on `vox-actor-runtime` and, after Phase 88, `vox-diagram`; a `.vox` script is the alternative per VoxScript-first glue); the result is reported, not a go/no-go on migration.
 **Parallelism**: can run in parallel with Phases 89 and 90.
@@ -312,7 +319,7 @@ Phases execute in numeric order, with the parallel opportunities noted under Ove
 | 88. MCP Tool, CLI & Agent Guidance | 3/3 | Complete    | 2026-10-17 |
 | 89. Docs-Astro Integration | 4/4 | Complete    | 2026-10-27 |
 | 90. Corpus Migration & Gate Tightening | 6/6 | Complete    | 2026-10-27 |
-| 91. Measurement Harness & Advisory Closure | 0/TBD | Not started | - |
+| 91. Measurement Harness & Advisory Closure | 0/4 | Not started | - |
 
 ---
 *Roadmap created: 2026-10-16*
