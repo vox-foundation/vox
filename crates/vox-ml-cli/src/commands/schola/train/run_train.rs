@@ -299,15 +299,14 @@ pub async fn run_train(
     if matches!(
         train_backend,
         vox_populi::mens::PopuliTrainBackend::CandleQlora
-    ) {
-        if matches!(device_kind, vox_populi::mens::DeviceKind::Cuda) {
-            #[cfg(not(feature = "mens-candle-cuda"))]
-            anyhow::bail!(
-                "`--device cuda` for Candle QLoRA requires a CUDA-enabled build.\n\
-                 Rebuild: `cargo build -p vox-ml-cli --features gpu,mens-candle-cuda` (or `cargo vox-cuda-release`).\n\
-                 On Windows use a VS Developer shell so `nvcc` can find MSVC."
-            );
-        }
+    ) && matches!(device_kind, vox_populi::mens::DeviceKind::Cuda)
+    {
+        #[cfg(not(feature = "mens-candle-cuda"))]
+        anyhow::bail!(
+            "`--device cuda` for Candle QLoRA requires a CUDA-enabled build.\n\
+             Rebuild: `cargo build -p vox-ml-cli --features gpu,mens-candle-cuda` (or `cargo vox-cuda-release`).\n\
+             On Windows use a VS Developer shell so `nvcc` can find MSVC."
+        );
     }
 
     tracing::debug!(
