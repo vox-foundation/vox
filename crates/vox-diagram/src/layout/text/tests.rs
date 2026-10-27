@@ -218,7 +218,10 @@ proptest! {
     fn wrapped_lines_are_short_clean_and_lossless(s in label()) {
         let lines = wrap(&s);
         for l in &lines {
-            prop_assert!(cells(l) <= WORD_CELLS, "{l:?}");
+            // A line holding several words fits the line width; only a single narrow word may
+            // run to the identifier allowance (Phase 90 review WR-04).
+            let one_narrow_word = !l.contains(' ') && l.chars().all(|c| cell(c) <= 1);
+            prop_assert!(cells(l) <= WRAP_CELLS || (one_narrow_word && cells(l) <= WORD_CELLS), "{l:?}");
             prop_assert!(!l.is_empty() && !l.starts_with(' ') && !l.ends_with(' ') && !l.contains("  "), "{l:?}");
         }
         prop_assert_eq!(payload(&lines.concat()), payload(&s));
