@@ -534,6 +534,7 @@ pub(super) async fn run_gpu_training(
         reward_hook: None,
         launch_argv: std::env::args().collect(),
         gradient_checkpointing,
+        max_runtime_secs: opts.max_runtime_secs,
     };
     let model_name_for_stats = config
         .base_model

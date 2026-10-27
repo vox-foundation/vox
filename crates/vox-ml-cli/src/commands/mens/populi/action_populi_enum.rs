@@ -247,7 +247,9 @@ pub enum PopuliAction {
         /// HF Hub repo to upload the trained adapter
         #[arg(long)]
         adapter_upload_hf: Option<String>,
-        /// Absolute hard cap for runtime in seconds
+        /// Hard cap on run time in seconds. Cloud: the job's limit. Local Metal: training stops
+        /// at the first optimizer step after this many seconds of training (model load excluded)
+        /// and writes the adapter with `capped: true` in run_summary.json.
         #[arg(long)]
         max_runtime_secs: Option<u64>,
         /// Transition cloud deployments to long-lived mesh nodes after training.

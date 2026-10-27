@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use candle_core::Device;
@@ -293,7 +293,8 @@ pub fn run_training_loop(
     // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
     let peak_sampler = super::PeakSampler::start(device, std::time::Duration::from_millis(200));
     let run_start_inst = Instant::now();
-    for epoch in start_epoch..=config.epochs {
+    let mut capped = false;
+    'epochs: for epoch in start_epoch..=config.epochs {
         let shuffled_indices = checkpoint::build_epoch_shuffled_indices(
             epoch,
             start_epoch,
@@ -675,6 +676,20 @@ pub fn run_training_loop(
                 last_loss_val,
                 run_start_inst,
             )?;
+
+            capped = runtime_cap_reached(
+                config.max_runtime_secs,
+                run_start_inst.elapsed(),
+                optimizer_step_count,
+                global_step.is_multiple_of(grad_accum),
+            );
+            if capped {
+                train_log::info(&format!(
+                    "run cap reached after {} s at optimizer step {optimizer_step_count}; finalizing",
+                    run_start_inst.elapsed().as_secs()
+                ));
+                break 'epochs;
+            }
         }
 
         let (val_loss_sum, val_steps) = validation::run_validation_pass(
@@ -731,8 +746,47 @@ pub fn run_training_loop(
             skip_short_seq,
             skip_curriculum,
             skip_token_id_oob,
+            capped,
         },
         run_start_inst,
         peak_metal_bytes,
     )
+}
+
+/// The local run cap fires only right after an optimizer step, never before the first.
+fn runtime_cap_reached(
+    cap_secs: Option<u64>,
+    elapsed: Duration,
+    optimizer_steps: u32,
+    at_optimizer_boundary: bool,
+) -> bool {
+    if optimizer_steps == 0 || !at_optimizer_boundary {
+        return false;
+    }
+    cap_secs.is_some_and(|c| elapsed.as_secs() >= c)
+}
+
+#[cfg(test)]
+mod cap_tests {
+    fn cap(c: Option<u64>, secs: u64, steps: u32, boundary: bool) -> bool {
+        super::runtime_cap_reached(c, super::Duration::from_secs(secs), steps, boundary)
+    }
+
+    #[test]
+    fn no_cap_never_stops() {
+        assert!(!cap(None, 36_000, 100, true));
+    }
+    #[test]
+    fn cap_waits_for_the_first_optimizer_step() {
+        assert!(!cap(Some(60), 120, 0, true));
+    }
+    #[test]
+    fn cap_stops_only_at_an_optimizer_boundary() {
+        assert!(!cap(Some(60), 120, 3, false));
+        assert!(cap(Some(60), 120, 3, true));
+    }
+    #[test]
+    fn cap_not_reached_before_its_time() {
+        assert!(!cap(Some(60), 59, 3, true));
+    }
 }

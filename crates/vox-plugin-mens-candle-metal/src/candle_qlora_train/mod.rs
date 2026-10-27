@@ -177,6 +177,8 @@ pub(super) struct TrainingLoopStats {
     pub skip_short_seq: u64,
     pub skip_curriculum: u64,
     pub skip_token_id_oob: u64,
+    /// Training ended at the `--max-runtime-secs` cap, not after the last epoch.
+    pub capped: bool,
 }
 
 /// Calculate cosine learning rate with linear warmup.

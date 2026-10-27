@@ -19,4 +19,6 @@ pub struct TrainRunOpts {
     pub plan_only: bool,
     /// Render the plan as one JSON object on stdout instead of text.
     pub json: bool,
+    /// `--max-runtime-secs`: local run cap, forwarded to the trainer config.
+    pub max_runtime_secs: Option<u64>,
 }

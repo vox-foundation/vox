@@ -209,6 +209,7 @@ pub(super) fn finalize_training_run(
             "final_adapter": final_path.display().to_string(),
             "run_id": run_id,
             "peak_metal_allocated_bytes": peak_metal_bytes,
+            "capped": stats.capped,
         }),
     )?;
 
@@ -253,6 +254,7 @@ pub(super) fn finalize_training_run(
             "avg_val_loss_last_epoch": last_avg_val_loss,
             "total_tokens": total_tokens,
             "peak_metal_allocated_bytes": peak_metal_bytes,
+            "capped": stats.capped,
             "artifacts": {
                 "final_adapter": final_path.display().to_string(),
                 "training_skip_stats": out.join("training_skip_stats.json").display().to_string(),

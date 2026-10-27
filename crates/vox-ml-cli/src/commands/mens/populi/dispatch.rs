@@ -284,6 +284,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 crate::commands::schola::train::TrainRunOpts {
                     plan_only,
                     json: _global_json,
+                    max_runtime_secs,
                 },
             )
             .await
