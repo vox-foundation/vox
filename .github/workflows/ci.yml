@@ -46,6 +46,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: workspace
+          add-job-id-key: false   # one key per workspace cache so PR jobs restore what cache-seed saved
           save-if: false   # nightly.yml on main is the only writer (default-branch caches are shared)
       - uses: taiki-e/install-action@v2
         with:
@@ -182,6 +183,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: workspace
+          add-job-id-key: false   # one key per workspace cache so PR jobs restore what cache-seed saved
           save-if: false   # cache-seed.yml on main is the writer (default-branch caches are shared)
       - uses: taiki-e/install-action@v2
         with:
@@ -289,6 +291,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: workspace-windows
+          add-job-id-key: false   # one key per workspace cache so PR jobs restore what cache-seed saved
           save-if: false   # nightly.yml windows-cache-seed on main is the only writer
       - run: cargo check --workspace --exclude vox-gui --all-targets --locked
 
@@ -360,6 +363,7 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           shared-key: workspace
+          add-job-id-key: false   # one key per workspace cache so PR jobs restore what cache-seed saved
           save-if: false
       - name: Build vox CLI
         # Same build the linux gate verifies with (ci_workflow_contract pins it).

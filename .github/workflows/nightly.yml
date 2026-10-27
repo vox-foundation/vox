@@ -1896,6 +1896,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: workspace
+          add-job-id-key: false   # one key per workspace cache so PR jobs restore what cache-seed saved
           save-if: ${{ github.ref == 'refs/heads/main' }}
           # This job is the SOLE writer of the `workspace` cache that ci.yml's
           # PR `linux` leg restores. Its steps run sequentially, so without
@@ -1953,6 +1954,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: workspace-windows
+          add-job-id-key: false   # one key per workspace cache so PR jobs restore what cache-seed saved
           save-if: ${{ github.ref == 'refs/heads/main' }}
           # Same reasoning as the `full` job: sole writer, so a failed
           # `cargo check` must still refresh the seed.
@@ -2027,6 +2029,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: workspace
+          add-job-id-key: false   # one key per workspace cache so PR jobs restore what cache-seed saved
           save-if: false   # restore-only: cache-seed.yml on main writes the shared `workspace` cache
       - name: Install system deps (dbus/GTK/WebKit)
         run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev

@@ -36,6 +36,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: workspace
+          add-job-id-key: false   # one key per workspace cache so PR jobs restore what cache-seed saved
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - uses: taiki-e/install-action@v2
         with:
