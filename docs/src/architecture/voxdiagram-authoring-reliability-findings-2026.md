@@ -12,7 +12,7 @@ authorship_model: "claude-opus-5-5"
 # VoxDiagram Authoring Reliability Findings (2026)
 
 <!-- kb:summary -->
-This pre-registered study asks whether agents author VoxDiagram at least as reliably as Mermaid. The same model receives 200 paired natural-language diagram tasks (184 graph, 16 sequence) in both languages, with grammar cards of comparable size and one shared prompt template. Deterministic parsers judge every reply. The primary endpoint is first-pass validity; validity after up to two repair turns is secondary. The decision rule below was committed before any live model call. Results are pending: the live run has not taken place.
+This pre-registered study asks whether agents author VoxDiagram at least as reliably as Mermaid. The same 200 natural-language diagram tasks (184 graph, 16 sequence) went to both languages, with grammar cards of comparable size, and deterministic parsers judged every reply. On the primary endpoint, first-pass validity of model A (deepseek/deepseek-v4.1-flash-1017), VoxDiagram scored 98.0% and Mermaid 96.0%. The paired difference is +2.0 points with a 95% interval of [-1.7, +5.9], so VoxDiagram is non-inferior under the 10-point margin fixed before the run. The replication model B (xiaomi/mimo-v2.6-pro) gave -0.5 points [-4.0, +2.9], also within the margin.
 <!-- /kb:summary -->
 
 ## Question
@@ -76,6 +76,22 @@ split by runtime: Rust re-derives the oracle inputs, `tallies.json` and `tables.
 the Mermaid oracle outputs. The Rust half runs in the `tests` job of `ci.yml`, the Node half in the
 `docs-quality` job of `docs-quality.yml`.
 
+**The run.** One live run, `runs/2026-10-27`, started on 2026-10-27 at 22:33 UTC against the
+pre-registration commit `f1ef3bb50d0e934244bedd63608ca0a77f2a9155`, and ended complete with no stop
+line.
+
+- Model A: `deepseek/deepseek-v4.1-flash-1017` (vendor organisation deepseek), the registry's CodeGen
+  selection.
+- Model B: `xiaomi/mimo-v2.6-pro` (vendor organisation xiaomi), the highest-ranked answering cloud
+  model of another vendor organisation.
+- Two model families were measured. Both were reached through the OpenRouter gateway. Each answered
+  its single probe, so no probe failed.
+- Every recorded call resolved to the requested model id; the tally flags no model drift.
+- The run made 835 calls (827 recorded attempts plus 8 transport retries). Total spend was $0.2849:
+  $0.2849 for attempts and $0.00002 for the 2 probes, against the $25 cap.
+- Exclusions: none for model A. For model B, task g056 is excluded from both arms because one call
+  still failed in transport after its retries (the response body could not be decoded).
+
 ## Decision rule
 
 <!-- prereg:begin -->
@@ -108,12 +124,94 @@ the Mermaid oracle outputs. The Rust half runs in the `tests` job of `ci.yml`, t
 ## Results
 
 <!-- eval-diagram:tables:begin -->
-Results pending: the live run has not taken place.
+### Model A
+
+Resolved model ids: deepseek/deepseek-v4.1-flash-1017
+
+| Arm | First pass | 95% CI | After repair | 95% CI | Fidelity (of valid) | Fidelity (of scored) | Attempts | Prompt tokens | Completion tokens | Cost (USD) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| mermaid | 192/200 (96.0%) | [92.3, 98.0] | 198/200 (99.0%) | [96.4, 99.7] | 172/198 (86.9%) | 172/200 (86.0%) | 212 | 168814 | 141002 | 0.0906 |
+| voxdiagram | 196/200 (98.0%) | [95.0, 99.2] | 200/200 (100.0%) | [98.1, 100.0] | 193/200 (96.5%) | 193/200 (96.5%) | 204 | 148423 | 89615 | 0.0564 |
+
+### Model B
+
+Resolved model ids: xiaomi/mimo-v2.6-pro
+
+| Arm | First pass | 95% CI | After repair | 95% CI | Fidelity (of valid) | Fidelity (of scored) | Attempts | Prompt tokens | Completion tokens | Cost (USD) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| mermaid | 195/199 (98.0%) | [94.9, 99.2] | 198/199 (99.5%) | [97.2, 99.9] | 140/198 (70.7%) | 140/199 (70.4%) | 206 | 157055 | 69452 | 0.0730 |
+| voxdiagram | 194/199 (97.5%) | [94.3, 98.9] | 199/199 (100.0%) | [98.1, 100.0] | 182/199 (91.5%) | 182/199 (91.5%) | 205 | 149235 | 48422 | 0.0649 |
+
+### Paired difference (VoxDiagram minus Mermaid)
+
+| Endpoint | Model | a | b | c | d | Δ (points) | Newcombe 95% CI | Verdict | McNemar p |
+|---|---|---|---|---|---|---|---|---|---|
+| first pass | A | 188 | 8 | 4 | 0 | +2.0 | [-1.7, +5.9] | non-inferior | 0.3877 |
+| first pass | B | 190 | 4 | 5 | 0 | -0.5 | [-4.0, +2.9] | non-inferior | 1.0000 |
+| after repair | A | 198 | 2 | 0 | 0 | +1.0 | [-1.0, +3.6] | non-inferior | 0.5000 |
+| after repair | B | 198 | 1 | 0 | 0 | +0.5 | [-1.4, +2.8] | non-inferior | 1.0000 |
+
+### Per kind
+
+| Model | Kind | Arm | n | First pass | After repair |
+|---|---|---|---|---|---|
+| A | graph | mermaid | 184 | 176/184 (95.7%) | 182/184 (98.9%) |
+| A | graph | voxdiagram | 184 | 180/184 (97.8%) | 184/184 (100.0%) |
+| A | sequence | mermaid | 16 | 16/16 (100.0%) | 16/16 (100.0%) |
+| A | sequence | voxdiagram | 16 | 16/16 (100.0%) | 16/16 (100.0%) |
+| B | graph | mermaid | 183 | 179/183 (97.8%) | 182/183 (99.5%) |
+| B | graph | voxdiagram | 183 | 178/183 (97.3%) | 183/183 (100.0%) |
+| B | sequence | mermaid | 16 | 16/16 (100.0%) | 16/16 (100.0%) |
+| B | sequence | voxdiagram | 16 | 16/16 (100.0%) | 16/16 (100.0%) |
+
+Completeness, model A: complete; 200 scored, 0 excluded for transport errors, 0 missing.
+Completeness, model B: complete; 199 scored, 1 excluded for transport errors (g056), 0 missing.
+
+Primary endpoint verdict (model A, first pass): non-inferior
 <!-- eval-diagram:tables:end -->
 
 ## Verdict
 
-Pending. The verdict will be the one the decision rule above assigns to the recorded data.
+Primary verdict: non-inferior.
+
+On the primary endpoint, first-pass validity of model A (`deepseek/deepseek-v4.1-flash-1017`),
+VoxDiagram was valid on 196 of 200 tasks (98.0%, Wilson 95% CI [95.0, 99.2]) and Mermaid on 192 of
+200 (96.0%, [92.3, 98.0]).
+
+- Paired, both arms were valid on 188 tasks. Only VoxDiagram was valid on 8, only Mermaid on 4, and
+  neither on 0.
+- Δ = +2.0 points with a Newcombe 95% interval [L, U] = [-1.7, +5.9].
+- L = -1.7 is above the margin of -10 points, so the pre-registered rule assigns "non-inferior".
+- No descriptive flag applies: L is not above 0 ("superior"), and U is not below 0 ("worse but within
+  margin").
+
+This is a measured result, not a decision to migrate the documentation corpus.
+
+**Secondary results (reported without a decision).**
+
+- **After repair, model A:** VoxDiagram 200/200 (100.0%, [98.1, 100.0]) and Mermaid 198/200 (99.0%,
+  [96.4, 99.7]). Δ = +1.0 points, interval [-1.0, +3.6].
+- **Exact McNemar p, model A:** 0.3877 for first pass and 0.5000 after repair. Neither difference is
+  significant.
+- **Structural fidelity, model A:** among valid replies, VoxDiagram matched the task's expected sets
+  on 193/200 (96.5%) and Mermaid on 172/198 (86.9%). Over all scored tasks the figures are 96.5% and
+  86.0%.
+- **Per kind:** every first-pass failure of either model was on a graph task. Both arms were valid on
+  all 16 sequence tasks at both endpoints. For model A's graph tasks, VoxDiagram went from 180/184 to
+  184/184 after repair and Mermaid from 176/184 to 182/184.
+- **Cost and tokens, model A:** VoxDiagram used 204 attempts, 89,615 completion tokens and $0.0564.
+  Mermaid used 212 attempts, 141,002 completion tokens and $0.0906.
+
+**Model B as a replication** (`xiaomi/mimo-v2.6-pro`, never pooled with model A). Model B was scored
+on 199 tasks, with g056 excluded.
+
+- **First pass:** VoxDiagram 194/199 (97.5%, [94.3, 98.9]) and Mermaid 195/199 (98.0%, [94.9,
+  99.2]). Δ = -0.5 points, interval [-4.0, +2.9], McNemar p 1.0000. Under the same rule this is
+  non-inferior.
+- **After repair:** VoxDiagram 199/199 (100.0%) and Mermaid 198/199 (99.5%). Δ = +0.5 points,
+  interval [-1.4, +2.8].
+- **Fidelity among valid replies:** VoxDiagram 182/199 (91.5%) and Mermaid 140/198 (70.7%).
+- **Cost:** VoxDiagram $0.0649 and Mermaid $0.0730.
 
 ## Limitations known in advance
 
@@ -130,6 +228,23 @@ Pending. The verdict will be the one the decision rule above assigns to the reco
   fail on purpose.
 - `cost_usd`, and so the spend cap, may be an estimate from the model's `cost_per_1k` price when the
   provider omits the cost (`vox_actor_runtime` llm/chat.rs:174).
+
+## Limitations observed in the run
+
+- **Empty replies count as invalid.** 17 of the 827 recorded attempts returned an empty reply: 15 in
+  the Mermaid arm and 2 in the VoxDiagram arm. Ten of them used the full 4096-token output limit.
+  The rule scores the whole trimmed reply when there is no fenced block, so an empty reply is
+  invalid.
+  - For model A at turn 0, 6 of the 8 Mermaid failures and 2 of the 4 VoxDiagram failures were empty
+    replies rather than parse errors.
+  - The first-pass endpoint therefore measures failures to produce any output as well as syntax
+    errors. The verdict stands as the rule assigns it.
+- **Both arms sit near the ceiling.** First-pass validity was 96 to 98%, so model A's paired
+  comparison rests on 12 discordant tasks. The narrow interval reflects how rarely the arms disagreed.
+- **Two inexpensive models.** The registry selected two low-cost models, and the whole run cost under
+  $0.30. Larger or different models were not measured.
+- **One exclusion.** Model B lost task g056 to a transport error, which is within the 5% allowance.
+  Model A had none.
 
 ## Reproduce
 

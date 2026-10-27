@@ -107,3 +107,86 @@ fn synthetic_dataset_rescores() {
 fn diagram_authoring_dataset_rescores() {
     rescore(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../contracts/eval/diagram-authoring"));
 }
+
+/// The findings report quotes the latest live run: its results block is that run's `tables.md`, it
+/// names every model id the run used, states the tallied primary verdict once, and quotes no task.
+#[test]
+fn diagram_authoring_report_matches_run() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let dataset = root.join("contracts/eval/diagram-authoring");
+    let report =
+        read(&root.join("docs/src/architecture/voxdiagram-authoring-reliability-findings-2026.md"));
+    let mut runs: Vec<PathBuf> = std::fs::read_dir(dataset.join("runs"))
+        .expect("runs/")
+        .map(|e| e.expect("dir entry").path())
+        .collect();
+    runs.sort();
+    let mut ids = Vec::new();
+    for run in &runs {
+        let lines: Vec<Line> = read_jsonl(&read(&run.join("attempts.jsonl"))).expect("attempts");
+        ids.clear();
+        for line in lines {
+            match line {
+                Line::Run(h) => {
+                    assert!(!h.synthetic, "{}: not a live run", run.display());
+                    ids.extend(h.models.into_iter().map(|m| m.requested_id));
+                }
+                Line::Attempt(a) => ids.extend(a.resolved_model),
+                Line::Stop(_) => {}
+            }
+        }
+    }
+    let run = runs.last().expect("at least one live run");
+
+    let (begin, end) = (
+        "<!-- eval-diagram:tables:begin -->",
+        "<!-- eval-diagram:tables:end -->",
+    );
+    let start = report.find(begin).expect("tables begin marker") + begin.len();
+    let stop = report.find(end).expect("tables end marker");
+    assert_eq!(
+        report[start..stop].trim(),
+        read(&run.join("tables.md")).trim(),
+        "the report's results block differs from {}/tables.md",
+        run.display()
+    );
+
+    ids.sort();
+    ids.dedup();
+    for id in &ids {
+        assert!(
+            report.contains(id.as_str()),
+            "the report does not name model id {id}"
+        );
+    }
+
+    let tallies: serde_json::Value =
+        serde_json::from_str(&read(&run.join("tallies.json"))).expect("tallies.json");
+    let key = tallies["primary"]["verdict"]
+        .as_str()
+        .expect("primary verdict");
+    let verdict = format!(
+        "Primary verdict: {}.",
+        key.replace("non_inferior", "non-inferior")
+            .replace('_', " ")
+    );
+    assert_eq!(
+        report.lines().filter(|l| *l == verdict).count(),
+        1,
+        "the report must state `{verdict}` once, on its own line"
+    );
+
+    let tasks: Vec<Task> = read_jsonl(&read(&dataset.join("tasks.v1.jsonl"))).expect("tasks");
+    for t in &tasks {
+        assert!(
+            !report.contains(t.prompt.as_str()),
+            "the report quotes {}'s prompt",
+            t.id
+        );
+        assert!(
+            !report.contains(t.reference.trim()),
+            "the report quotes {}'s reference",
+            t.id
+        );
+    }
+}
