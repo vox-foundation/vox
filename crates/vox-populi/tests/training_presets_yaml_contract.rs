@@ -375,14 +375,13 @@ fn gpu_specs_qwen3_code_ladder_pins_all_six_dense_sizes() {
     let mut by_key: std::collections::HashMap<(&str, u32, &Vec<String>), _> =
         std::collections::HashMap::new();
     for b in &all {
-        if !b.floor_measured {
-            assert!(
-                b.floor_label().contains("floor unmeasured"),
-                "{}: {}",
-                b.hf_id,
-                b.floor_label()
-            );
-        }
+        // No floor has been measured yet; Phase 320 measures them and updates
+        // this assertion alongside the YAML.
+        assert!(
+            !b.floor_measured,
+            "{} claims a measured floor before Phase 320",
+            b.hf_id
+        );
         if b.hf_id.contains("Qwen3") {
             let rev = b.hf_id.rsplit_once('@').map(|(_, r)| r).unwrap_or("");
             assert!(is_lower_hex_40(rev), "unpinned Qwen3 rung {}", b.hf_id);
