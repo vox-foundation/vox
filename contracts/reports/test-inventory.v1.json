@@ -2,12 +2,12 @@
   "schema_version": 1,
   "summary": {
     "workspace_crate_count": 132,
-    "rust_files_scanned": 4426,
-    "cargo_unit_test_functions": 12493,
-    "cargo_integration_test_functions": 3653,
+    "rust_files_scanned": 4427,
+    "cargo_unit_test_functions": 12509,
+    "cargo_integration_test_functions": 3654,
     "cargo_bench_functions": 0,
     "cargo_ignored_test_functions": 96,
-    "cargo_test_functions_total": 16146,
+    "cargo_test_functions_total": 16163,
     "webir_related_ignored_tests": 1,
     "webir_ignored_tests_likely_retired_note": 0
   },
@@ -261,8 +261,8 @@
       "integration_rs_files": 0
     },
     "vox-diagram": {
-      "unit_tests": 207,
-      "integration_tests": 375,
+      "unit_tests": 214,
+      "integration_tests": 376,
       "bench_tests": 0,
       "ignored_tests": 3,
       "has_integration_dir": true,
@@ -277,7 +277,7 @@
       "integration_rs_files": 0
     },
     "vox-doc-pipeline": {
-      "unit_tests": 97,
+      "unit_tests": 106,
       "integration_tests": 2,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -1073,7 +1073,7 @@
     "benches": 4,
     "integration_tests": 872,
     "other": 27,
-    "unit_src": 3523
+    "unit_src": 3524
   },
   "zero_test_crates": [
     "vox-cli-contracts",
