@@ -928,9 +928,15 @@ mod tests {
     #[test]
     fn qwen3_code_4b_rung_is_pinned_and_says_its_floor_is_unmeasured() {
         let overlay = load_overlay(workspace_root()).expect("load overlay");
-        let base = pick_base(&overlay, "qwen3_code", 8000).expect("4B fits at 8000 MB");
+        let base = pick_base(&overlay, "qwen3_code", 10_000).expect("4B fits at 10000 MB");
         assert_eq!(base.hf_id, PIN_4B);
-        assert_eq!(base.floor_mb, 7400);
+        assert_eq!(base.floor_mb, 9800);
+        assert_eq!(
+            pick_base(&overlay, "qwen3_code", 8000)
+                .expect("1.7B fits at 8000 MB")
+                .hf_id,
+            "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"
+        );
         assert_eq!(base.license.as_deref(), Some("apache-2.0"));
         assert!(base.floor_label().contains("floor unmeasured"));
         assert_eq!(
@@ -1007,7 +1013,7 @@ mod tests {
         );
         assert_eq!(
             floor_notes(None, PIN_4B).expect("embedded overlay loads"),
-            ["qlora floor 7400 MB is an estimate (floor unmeasured)"]
+            ["qlora floor 9800 MB is an estimate (floor unmeasured)"]
         );
         assert!(
             floor_notes(
@@ -1049,7 +1055,7 @@ mod tests {
         let absent = tempfile::tempdir().expect("tempdir");
         assert_eq!(
             floor_notes(Some(absent.path()), PIN_4B).expect("absent file uses the embedded copy"),
-            ["qlora floor 7400 MB is an estimate (floor unmeasured)"]
+            ["qlora floor 9800 MB is an estimate (floor unmeasured)"]
         );
     }
 }

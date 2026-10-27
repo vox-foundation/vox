@@ -166,8 +166,10 @@ fn gpu_specs_agentic_default_qwen3_hf_ids_have_real_sha_format() {
 ///   (4-bit NF4) that is the ~27.856B params used below.
 /// - `Qwen/Qwen3-4B`: HF `safetensors.total` 4,022,468,096 at the pinned
 ///   revision (Phase 317), recorded nominal like the other rows.
-/// - `Qwen/Qwen3-1.7B`: HF `safetensors.total` 2,031,739,904 at the pinned
-///   revision (Phase 317), recorded nominal like the other rows.
+/// - `Qwen/Qwen3-1.7B`: 1,720,574,976 params at the pinned revision (Phase 317;
+///   tied embeddings), recorded nominal like the other rows. The HF
+///   `safetensors.total` of 2,031,739,904 also counts a redundant
+///   `lm_head.weight` copy of the embedding.
 const KNOWN_PARAMS_B: &[(&str, f64)] = &[
     ("Qwen/Qwen3-0.6B", 0.6),
     ("Qwen/Qwen3-1.7B", 1.7),
