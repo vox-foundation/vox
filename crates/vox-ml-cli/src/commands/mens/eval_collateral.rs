@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use serde_json::json;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use vox_eval::reasoning_bench::SLICE_NAMES;
+use vox_eval::reasoning_bench::{SLICE_NAMES, SLICE_SIZE};
 use vox_eval::reasoning_slice::{
     THINK_INIT_SUFFIX, eval_reasoning_slice, reasoning_slice_of, reasoning_slices_json,
     require_reasoning_keys,
@@ -50,6 +50,18 @@ pub(crate) fn run_collateral_damage_with(
     run_dir: &Path,
     score_bench: &mut dyn FnMut(&str) -> Result<BenchScore>,
 ) -> Result<i32> {
+    // A report from an earlier run must not survive a run that fails: serve
+    // would read the old pass. Removed before anything else can fail.
+    let report_path = run_dir.join("collateral_damage_report.json");
+    match std::fs::remove_file(&report_path) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => {
+            return Err(e).with_context(|| {
+                format!("could not remove stale report {}", report_path.display())
+            });
+        }
+    }
     let pre_file: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(pre_score_path).with_context(|| {
             format!("Failed to read pre-score from {}", pre_score_path.display())
@@ -94,9 +106,13 @@ pub(crate) fn run_collateral_damage_with(
     for name in SLICE_NAMES {
         let init = format!("{name}{THINK_INIT_SUFFIX}");
         let (acc, think) = (post[name], post[init.as_str()]);
-        let n = acc
-            .n
-            .ok_or_else(|| anyhow::anyhow!("{name}: scorer returned no item count"))?;
+        let n = match (acc.n, think.n) {
+            (Some(a), Some(t)) if a == t => a,
+            (Some(a), Some(t)) => {
+                anyhow::bail!("{name}: item counts differ ({name}: {a}, {init}: {t})")
+            }
+            _ => anyhow::bail!("{name}: scorer returned no item count for {name} or {init}"),
+        };
         verdicts.push(
             eval_reasoning_slice(
                 name,
@@ -209,6 +225,12 @@ fn score_bench(bench: &str, adapter: &Path) -> Result<BenchScore> {
     let reasoning = Path::new(BENCH_ROOT).join(dir_name).join("reasoning.jsonl");
     if reasoning.is_file() {
         let report = cached_reasoning_report(dir_name, &reasoning, adapter)?;
+        if report.n != SLICE_SIZE {
+            anyhow::bail!(
+                "reasoning bench '{dir_name}': scored {} items, expected {SLICE_SIZE}",
+                report.n
+            );
+        }
         let value = if want_think_rate {
             report.think_initiation_rate
         } else {
@@ -437,5 +459,257 @@ mod tests {
             "error must say there was nothing to score: {err}"
         );
         assert!(!dir.path().join("collateral_damage_report.json").exists());
+    }
+
+    const SIX_KEYS: [&str; 6] = [
+        "gsm8k_think",
+        "gsm8k_think_init",
+        "math500_think",
+        "math500_think_init",
+        "vox_think",
+        "vox_think_init",
+    ];
+
+    /// Write a baseline of the six reasoning keys at 0.625, minus `drop`, with
+    /// `set` overriding or adding entries (for example `general_bench`).
+    fn write_baseline(dir: &Path, drop: &[&str], set: &[(&str, f64)]) -> PathBuf {
+        let mut m: BTreeMap<String, f64> = SIX_KEYS
+            .iter()
+            .filter(|k| !drop.contains(k))
+            .map(|k| (k.to_string(), 0.625))
+            .collect();
+        for (k, v) in set {
+            m.insert(k.to_string(), *v);
+        }
+        let path = dir.join("pre.json");
+        std::fs::write(&path, json!({ "benchmarks": m }).to_string()).unwrap();
+        path
+    }
+
+    /// A scorer that returns `flat` for every key except the `over` entries.
+    fn scorer_over<'a>(
+        over: &'a [(&'a str, BenchScore)],
+        calls: &'a mut usize,
+    ) -> impl FnMut(&str) -> Result<BenchScore> + 'a {
+        move |bench: &str| {
+            *calls += 1;
+            Ok(over
+                .iter()
+                .find(|(k, _)| *k == bench)
+                .map(|(_, s)| *s)
+                .unwrap_or_else(|| flat(bench, 0.84)))
+        }
+    }
+
+    fn score(value: f64, n: Option<usize>) -> BenchScore {
+        BenchScore { value, n }
+    }
+
+    fn no_report(dir: &Path) {
+        assert!(
+            !dir.join("collateral_damage_report.json").exists(),
+            "a refused run must leave no report"
+        );
+    }
+
+    #[test]
+    fn a_baseline_missing_a_think_initiation_key_is_a_hard_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let pre = write_baseline(dir.path(), &["gsm8k_think_init"], &[]);
+        let mut calls = 0;
+        let err = {
+            let mut scorer = scorer_over(&[], &mut calls);
+            run_collateral_damage_with(&pre, dir.path(), &mut scorer)
+                .unwrap_err()
+                .to_string()
+        };
+        assert!(err.contains("gsm8k_think_init"), "{err}");
+        assert_eq!(
+            calls, 0,
+            "the scorer must never run on an incomplete baseline"
+        );
+        no_report(dir.path());
+    }
+
+    #[test]
+    fn a_baseline_missing_a_whole_slice_is_a_hard_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let pre = write_baseline(dir.path(), &["vox_think", "vox_think_init"], &[]);
+        let mut calls = 0;
+        let mut scorer = scorer_over(&[], &mut calls);
+        let err = run_collateral_damage_with(&pre, dir.path(), &mut scorer)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("vox_think, vox_think_init"), "{err}");
+        no_report(dir.path());
+    }
+
+    #[test]
+    fn a_zero_reasoning_baseline_refuses_and_writes_no_report() {
+        let dir = tempfile::tempdir().unwrap();
+        let pre = write_baseline(dir.path(), &[], &[("math500_think", 0.0)]);
+        let mut calls = 0;
+        let mut scorer = scorer_over(&[], &mut calls);
+        let err = run_collateral_damage_with(&pre, dir.path(), &mut scorer)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("no relative bar"), "{err}");
+        no_report(dir.path());
+    }
+
+    #[test]
+    fn a_non_finite_reasoning_score_refuses_and_writes_no_report() {
+        let dir = tempfile::tempdir().unwrap();
+        let pre = write_baseline(dir.path(), &[], &[]);
+        let over = [("vox_think_init", score(f64::NAN, Some(32)))];
+        let mut calls = 0;
+        let mut scorer = scorer_over(&over, &mut calls);
+        let err = run_collateral_damage_with(&pre, dir.path(), &mut scorer)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("non-finite"), "{err}");
+        no_report(dir.path());
+    }
+
+    #[test]
+    fn a_reasoning_score_without_an_item_count_refuses() {
+        let dir = tempfile::tempdir().unwrap();
+        let pre = write_baseline(dir.path(), &[], &[]);
+        let over = [("gsm8k_think", score(0.625, None))];
+        let mut calls = 0;
+        let mut scorer = scorer_over(&over, &mut calls);
+        assert!(run_collateral_damage_with(&pre, dir.path(), &mut scorer).is_err());
+        no_report(dir.path());
+    }
+
+    #[test]
+    fn a_reasoning_score_with_31_items_refuses() {
+        let dir = tempfile::tempdir().unwrap();
+        let pre = write_baseline(dir.path(), &[], &[]);
+        let over = [
+            ("gsm8k_think", score(0.625, Some(31))),
+            ("gsm8k_think_init", score(0.625, Some(31))),
+        ];
+        let mut calls = 0;
+        let mut scorer = scorer_over(&over, &mut calls);
+        let err = run_collateral_damage_with(&pre, dir.path(), &mut scorer)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("expected 32"), "{err}");
+        no_report(dir.path());
+    }
+
+    #[test]
+    fn mismatched_item_counts_between_a_slice_and_its_init_key_refuse() {
+        let dir = tempfile::tempdir().unwrap();
+        let pre = write_baseline(dir.path(), &[], &[]);
+        let over = [
+            ("math500_think", score(0.625, Some(32))),
+            ("math500_think_init", score(0.625, Some(31))),
+        ];
+        let mut calls = 0;
+        let mut scorer = scorer_over(&over, &mut calls);
+        assert!(run_collateral_damage_with(&pre, dir.path(), &mut scorer).is_err());
+        no_report(dir.path());
+    }
+
+    #[test]
+    fn a_stale_passing_report_is_removed_when_scoring_fails() {
+        let dir = tempfile::tempdir().unwrap();
+        let pre = write_baseline(dir.path(), &[], &[]);
+        std::fs::write(
+            dir.path().join("collateral_damage_report.json"),
+            r#"{"status":"pass"}"#,
+        )
+        .unwrap();
+        let mut scorer = |_: &str| anyhow::bail!("adapter not found");
+        assert!(run_collateral_damage_with(&pre, dir.path(), &mut scorer).is_err());
+        no_report(dir.path());
+    }
+
+    #[test]
+    fn a_stale_passing_report_is_removed_when_the_baseline_is_incomplete() {
+        let dir = tempfile::tempdir().unwrap();
+        let pre = write_baseline(dir.path(), &["vox_think_init"], &[]);
+        std::fs::write(
+            dir.path().join("collateral_damage_report.json"),
+            r#"{"status":"pass"}"#,
+        )
+        .unwrap();
+        let mut calls = 0;
+        let mut scorer = scorer_over(&[], &mut calls);
+        assert!(run_collateral_damage_with(&pre, dir.path(), &mut scorer).is_err());
+        no_report(dir.path());
+    }
+
+    fn assert_labelled(report: &serde_json::Value) {
+        let note = report["reasoning_slices"]["scope_note"].as_str().unwrap();
+        assert!(
+            note.contains("32-item") && note.contains("not full"),
+            "{note}"
+        );
+        assert_eq!(report["reasoning_slices"]["slice_size"], 32);
+        for name in SLICE_NAMES {
+            assert_eq!(
+                report["reasoning_slices"]["benches"][name]["n"], 32,
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn an_accuracy_only_drop_fails_and_names_the_slice() {
+        let dir = tempfile::tempdir().unwrap();
+        let pre = write_baseline(dir.path(), &[], &[]);
+        let over = [("gsm8k_think", score(0.5625, Some(32)))];
+        let mut calls = 0;
+        let mut scorer = scorer_over(&over, &mut calls);
+        let code = run_collateral_damage_with(&pre, dir.path(), &mut scorer).unwrap();
+        assert_eq!(code, 1);
+        let report = read_report(dir.path());
+        assert_eq!(report["status"], "fail");
+        assert_eq!(report["failed_on"], "gsm8k_think");
+        assert_labelled(&report);
+        let reports = report["reports"].as_array().unwrap();
+        assert_eq!(reports.len(), 1);
+        assert_eq!(reports[0]["slice"], true);
+        assert_eq!(reports[0]["n"], 32);
+    }
+
+    #[test]
+    fn a_think_initiation_only_drop_fails_and_names_the_init_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let pre = write_baseline(dir.path(), &[], &[("vox_think_init", 0.5)]);
+        let over = [("vox_think_init", score(0.46875, Some(32)))];
+        let mut calls = 0;
+        let mut scorer = scorer_over(&over, &mut calls);
+        let code = run_collateral_damage_with(&pre, dir.path(), &mut scorer).unwrap();
+        assert_eq!(code, 1);
+        let report = read_report(dir.path());
+        assert_eq!(report["status"], "fail");
+        assert_eq!(report["failed_on"], "vox_think_init");
+        assert_labelled(&report);
+    }
+
+    #[test]
+    fn a_non_reasoning_bench_keeps_one_score_and_no_slice_field() {
+        let dir = tempfile::tempdir().unwrap();
+        let pre = write_baseline(dir.path(), &[], &[("general_bench", 0.85)]);
+        let mut calls = 0;
+        let mut scorer = scorer_over(&[], &mut calls);
+        assert_eq!(
+            run_collateral_damage_with(&pre, dir.path(), &mut scorer).unwrap(),
+            0
+        );
+        let report = read_report(dir.path());
+        let entry = report["reports"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|r| r["benchmark"] == "general_bench")
+            .unwrap();
+        assert!(entry.get("slice").is_none() && entry.get("n").is_none());
+        assert_eq!(entry["pre"], 0.85);
+        assert_eq!(entry["post"], 0.84);
     }
 }

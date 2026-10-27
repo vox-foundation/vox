@@ -24,9 +24,8 @@ pub(crate) struct ReasoningReport {
     pub(crate) accuracy: f64,
     /// Fraction of completions that opened a non-empty `<think>` block.
     pub(crate) think_initiation_rate: f64,
-    /// Items actually generated. Written into the JSON report; the gate reads
-    /// accuracy and think rate off this struct.
-    #[allow(dead_code)]
+    /// Items actually generated. The collateral writer reads it and refuses any
+    /// count other than `SLICE_SIZE`.
     pub(crate) n: usize,
 }
 
