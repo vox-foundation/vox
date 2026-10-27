@@ -1,0 +1,279 @@
+{
+  "synthetic": false,
+  "corpus_size": 200,
+  "rule": {
+    "primary_endpoint": "first_pass_validity_slot_a",
+    "interval": "newcombe_method_10",
+    "confidence": 0.95,
+    "margin": 0.1,
+    "max_repair_turns": 2,
+    "max_infra_rate": 0.05
+  },
+  "stopped": null,
+  "slots": {
+    "A": {
+      "resolved_models": [
+        "deepseek/deepseek-v4.1-flash-1017"
+      ],
+      "model_drift": false,
+      "scored_tasks": 200,
+      "excluded": [],
+      "missing": [],
+      "complete": true,
+      "incomplete_reason": null,
+      "arms": {
+        "mermaid": {
+          "first_pass": {
+            "valid": 192,
+            "n": 200,
+            "ci": {
+              "point": 0.96,
+              "low": 0.923067931799067,
+              "high": 0.9795943679338477
+            }
+          },
+          "after_repair": {
+            "valid": 198,
+            "n": 200,
+            "ci": {
+              "point": 0.99,
+              "low": 0.9642782382838231,
+              "high": 0.9972533418664554
+            }
+          },
+          "fidelity": {
+            "matched": 172,
+            "valid": 198,
+            "scored": 200
+          },
+          "attempts": 212,
+          "prompt_tokens": 168814,
+          "completion_tokens": 141002,
+          "cost_usd": 0.09062160395999999
+        },
+        "voxdiagram": {
+          "first_pass": {
+            "valid": 196,
+            "n": 200,
+            "ci": {
+              "point": 0.98,
+              "low": 0.9497129130941735,
+              "high": 0.9921955735836506
+            }
+          },
+          "after_repair": {
+            "valid": 200,
+            "n": 200,
+            "ci": {
+              "point": 1.0,
+              "low": 0.9811546736227333,
+              "high": 1.0
+            }
+          },
+          "fidelity": {
+            "matched": 193,
+            "valid": 200,
+            "scored": 200
+          },
+          "attempts": 204,
+          "prompt_tokens": 148423,
+          "completion_tokens": 89615,
+          "cost_usd": 0.056398355360000006
+        }
+      },
+      "paired": {
+        "after_repair": {
+          "a": 198,
+          "b": 2,
+          "c": 0,
+          "d": 0,
+          "ci": {
+            "point": 0.010000000000000009,
+            "low": -0.010193001126563066,
+            "high": 0.035721761716176914
+          },
+          "verdict": "non_inferior",
+          "superior": false,
+          "worse_within_margin": false,
+          "mcnemar_p": 0.5
+        },
+        "first_pass": {
+          "a": 188,
+          "b": 8,
+          "c": 4,
+          "d": 0,
+          "ci": {
+            "point": 0.020000000000000018,
+            "low": -0.01654939074283958,
+            "high": 0.05922980997105901
+          },
+          "verdict": "non_inferior",
+          "superior": false,
+          "worse_within_margin": false,
+          "mcnemar_p": 0.3876953125000002
+        }
+      },
+      "per_kind": {
+        "graph": {
+          "mermaid": {
+            "n": 184,
+            "first_pass": 176,
+            "after_repair": 182
+          },
+          "voxdiagram": {
+            "n": 184,
+            "first_pass": 180,
+            "after_repair": 184
+          }
+        },
+        "sequence": {
+          "mermaid": {
+            "n": 16,
+            "first_pass": 16,
+            "after_repair": 16
+          },
+          "voxdiagram": {
+            "n": 16,
+            "first_pass": 16,
+            "after_repair": 16
+          }
+        }
+      }
+    },
+    "B": {
+      "resolved_models": [
+        "xiaomi/mimo-v2.6-pro"
+      ],
+      "model_drift": false,
+      "scored_tasks": 199,
+      "excluded": [
+        "g056"
+      ],
+      "missing": [],
+      "complete": true,
+      "incomplete_reason": null,
+      "arms": {
+        "mermaid": {
+          "first_pass": {
+            "valid": 195,
+            "n": 199,
+            "ci": {
+              "point": 0.9798994974874372,
+              "low": 0.9494658790228638,
+              "high": 0.9921562188976524
+            }
+          },
+          "after_repair": {
+            "valid": 198,
+            "n": 199,
+            "ci": {
+              "point": 0.9949748743718593,
+              "low": 0.9720894591976937,
+              "high": 0.9991123904899589
+            }
+          },
+          "fidelity": {
+            "matched": 140,
+            "valid": 198,
+            "scored": 199
+          },
+          "attempts": 206,
+          "prompt_tokens": 157055,
+          "completion_tokens": 69452,
+          "cost_usd": 0.0730075406
+        },
+        "voxdiagram": {
+          "first_pass": {
+            "valid": 194,
+            "n": 199,
+            "ci": {
+              "point": 0.9748743718592965,
+              "low": 0.9425410290483589,
+              "high": 0.989221151616445
+            }
+          },
+          "after_repair": {
+            "valid": 199,
+            "n": 199,
+            "ci": {
+              "point": 1.0,
+              "low": 0.9810617669433649,
+              "high": 0.9999999999999998
+            }
+          },
+          "fidelity": {
+            "matched": 182,
+            "valid": 199,
+            "scored": 199
+          },
+          "attempts": 205,
+          "prompt_tokens": 149235,
+          "completion_tokens": 48422,
+          "cost_usd": 0.06487618993000002
+        }
+      },
+      "paired": {
+        "after_repair": {
+          "a": 198,
+          "b": 1,
+          "c": 0,
+          "d": 0,
+          "ci": {
+            "point": 0.005025125628140725,
+            "low": -0.014359809526121755,
+            "high": 0.02791054080230626
+          },
+          "verdict": "non_inferior",
+          "superior": false,
+          "worse_within_margin": false,
+          "mcnemar_p": 1.0
+        },
+        "first_pass": {
+          "a": 190,
+          "b": 4,
+          "c": 5,
+          "d": 0,
+          "ci": {
+            "point": -0.005025125628140725,
+            "low": -0.03986614476287978,
+            "high": 0.028917677553163705
+          },
+          "verdict": "non_inferior",
+          "superior": false,
+          "worse_within_margin": false,
+          "mcnemar_p": 1.0
+        }
+      },
+      "per_kind": {
+        "graph": {
+          "mermaid": {
+            "n": 183,
+            "first_pass": 179,
+            "after_repair": 182
+          },
+          "voxdiagram": {
+            "n": 183,
+            "first_pass": 178,
+            "after_repair": 183
+          }
+        },
+        "sequence": {
+          "mermaid": {
+            "n": 16,
+            "first_pass": 16,
+            "after_repair": 16
+          },
+          "voxdiagram": {
+            "n": 16,
+            "first_pass": 16,
+            "after_repair": 16
+          }
+        }
+      }
+    }
+  },
+  "primary": {
+    "verdict": "non_inferior",
+    "reason": null
+  }
+}
