@@ -63,9 +63,12 @@ jobs:
       - name: Run live harness eval
         env:
           VOX_HARNESS_EVAL_TRIGGERED_BY: ci-nightly
-          # Confirm the real secret name(s) in Step 1 — this assumes an OPENROUTER_API_KEY
-          # secret already exists for other live-calling automation; verify before relying on it.
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          # Unpinned, routing prefers the VoxLocal model at 127.0.0.1:11434, which the runner
+          # does not serve, so every task fails (#584). Pin one served OpenRouter model so each
+          # night evaluates the same model. It must stay Cheap or Free (blended <= $0.002/1k,
+          # see cost_tier.rs) for the cost-tier tasks to pass. Privacy tasks skip under a pin.
+          VOX_MODEL_FORCE_CHAT: anthropic/claude-haiku-5.5
         run: ./target/release/vox harness eval --live --samples 3
 
       - name: Publish results to git-tracked history
