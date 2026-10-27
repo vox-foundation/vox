@@ -36,9 +36,17 @@ fn host_free_memory() -> Option<FreeMemory> {
 }
 
 /// The largest ladder size that fits `free`, or the selector's refusal (no
-/// reading, nothing fits, or a broken ladder).
+/// reading, nothing fits, or a broken ladder). Judged against the workspace's
+/// `gpu-specs.yaml`, as training and serve are, else the embedded copy.
 pub fn select_for_free_memory(free: Option<&FreeMemory>) -> Result<AutoModelSelection, String> {
-    let overlay = load_ladder_overlay(None).map_err(|e| format!("{e:#}"))?;
+    select_with_ladder_from(vox_repository::find_cargo_workspace_root().as_deref(), free)
+}
+
+fn select_with_ladder_from(
+    workspace_root: Option<&std::path::Path>,
+    free: Option<&FreeMemory>,
+) -> Result<AutoModelSelection, String> {
+    let overlay = load_ladder_overlay(workspace_root).map_err(|e| format!("{e:#}"))?;
     match select_size(&overlay, free, None, false).map_err(|e| format!("{e:#}"))? {
         Selection::Size(pick) => Ok(AutoModelSelection {
             selected_model_id: pick.rung.hf_id,
@@ -124,6 +132,37 @@ mod tests {
         assert_eq!(sel.floor_mb, 12_000);
         assert_eq!(sel.free_mb, 13_000);
         assert!(!sel.reason.is_empty());
+    }
+
+    /// WR-06: an edited workspace `gpu-specs.yaml` (Phase 320 measured floors)
+    /// changes chat's pick the same way it changes training's, without a rebuild.
+    #[test]
+    fn auto_selection_reads_the_workspace_ladder() {
+        let repo = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let yaml = std::fs::read_to_string(repo.join("mens/config/gpu-specs.yaml")).unwrap();
+        let pin_8b = "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218\",   floor_mb: 12000";
+        assert!(yaml.contains(pin_8b), "8B rung moved; update this test");
+        let raised = yaml.replace(pin_8b, &pin_8b.replace("12000", "14000"));
+        let root =
+            std::env::temp_dir().join(format!("vox-auto-select-ladder-{}", std::process::id()));
+        std::fs::create_dir_all(root.join("mens/config")).unwrap();
+        std::fs::write(root.join("mens/config/gpu-specs.yaml"), raised).unwrap();
+
+        let free = FreeMemory {
+            mb: 13_000,
+            source: "test",
+        };
+        let sel = select_with_ladder_from(Some(&root), Some(&free));
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(sel.expect("4B fits").size, "4B", "8B now needs 14000 MB");
+        let missing = root.join("no-such-dir");
+        assert_eq!(
+            select_with_ladder_from(Some(&missing), Some(&free))
+                .expect("embedded")
+                .size,
+            "8B",
+            "no workspace file falls back to the embedded ladder"
+        );
     }
 
     #[test]
