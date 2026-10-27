@@ -5,17 +5,17 @@ milestone_name: VoxDiagram
 current_phase: 91
 current_phase_name: Measurement Harness & Advisory Closure
 current_plan: 5
-status: executing
-stopped_at: Completed 91-04-PLAN.md
-last_updated: "2026-10-27T22:30:58.534Z"
+status: verifying
+stopped_at: Completed 91-05-PLAN.md
+last_updated: "2026-10-27T23:51:58.311Z"
 last_activity: 2026-10-27
 last_activity_desc: Phase 91 execution started
-state_head: 47140095130fee4ff010bb37de58b5ed2ed08c7e
+state_head: bfafe4912153dc3e1cfaf467a045078d63686b23
 progress:
   total_phases: 9
   completed_phases: 8
   total_plans: 42
-  completed_plans: 41
+  completed_plans: 42
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -31,7 +31,7 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 
 Phase: 91 (Measurement Harness & Advisory Closure) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-27 — Phase 91 execution started
 
 Progress: [█████████░] 89% (0/9 phases)
@@ -64,9 +64,9 @@ None yet.
 
 ## Session Continuity
 
-**Last session:** 2026-10-27T22:30:58.286Z
+**Last session:** 2026-10-27T23:51:58.228Z
 
-**Stopped At:** Completed 91-04-PLAN.md
+**Stopped At:** Completed 91-05-PLAN.md
 **Resume File:** None
 
 ## Performance Metrics
@@ -107,6 +107,7 @@ None yet.
 | Phase 91 P02 | 189min | 2 tasks | 15 files |
 | Phase 91 P03 | 48min | 2 tasks | 8 files |
 | Phase 91 P04 | 55min | 3 tasks | 13 files |
+| Phase 91 P05 | 79min | 2 tasks | 8 files |
 
 ## Decisions
 
@@ -162,6 +163,7 @@ None yet.
 - [Phase 91]: 91-04: a negative, non-finite or missing reply cost stops the run (cost_unknown); the unpriced reply is still recorded
 - [Phase 91]: 91-04: pre-registration commit f1ef3bb50; the live run refuses unless its freeze commit is that commit, an ancestor of HEAD, with dataset and report unchanged (vox_git::read_only)
 - [Phase 91]: 91-04: oracle-outputs.jsonl is written with Node's own bytes; the Backend's Mermaid batch is JSONL in, JSONL out
+- [Phase 91]: EVAL-01 primary verdict (pre-registered rule, run 2026-10-27): non-inferior; model A deepseek/deepseek-v4.1-flash-1017 first-pass delta +2.0 points, Newcombe 95% [-1.7, +5.9]; model B xiaomi/mimo-v2.6-pro -0.5 [-4.0, +2.9]; spend 0.285 USD of 25
 
 ## Pending Todos (voxdiagram)
 
