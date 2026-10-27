@@ -86,29 +86,27 @@ enum QwenSizeClass {
 
 fn detect_qwen_size_class(model_hint: Option<&str>) -> Option<QwenSizeClass> {
     let hint = model_hint?;
-    // A pinned revision's hex can contain 8b/14b/32b (the 1.7B and 4B pins both contain 8b).
-    let m = hint
-        .rsplit_once('@')
-        .map_or(hint, |(repo, _)| repo)
-        .to_ascii_lowercase();
-    if !m.contains("qwen") {
-        return None;
-    }
-    // Order matters: match the larger, more specific tokens first so "14b" is not
-    // shadowed by a substring match, and so "0.6b" is not mistaken for "6b".
-    if m.contains("32b") {
-        return Some(QwenSizeClass::S32);
-    }
-    if m.contains("14b") {
-        return Some(QwenSizeClass::S14);
-    }
-    if m.contains("0.6b") {
-        return Some(QwenSizeClass::S0p6);
-    }
-    if m.contains("8b") {
-        return Some(QwenSizeClass::S8);
-    }
-    Some(QwenSizeClass::Other)
+    // Classify on the model name only. A revision's hex can contain 8b/14b/32b
+    // (the 1.7B and 4B pins both contain 8b), whether it follows `@` or is an
+    // HF-cache `models--Org--Name/snapshots/<rev>` path segment. Hex never
+    // contains "qwen", so the last segment naming qwen is the model name.
+    let repo = hint.rsplit_once('@').map_or(hint, |(repo, _)| repo);
+    let name = repo
+        .rsplit(['/', '\\'])
+        .find(|s| s.to_ascii_lowercase().contains("qwen"))?;
+    let params = crate::mens::tensor::memory_budget::params_b_from_model_hint(name);
+    let near = |b: f64| params.is_some_and(|p| (p - b).abs() < 0.05);
+    Some(if near(32.0) {
+        QwenSizeClass::S32
+    } else if near(14.0) {
+        QwenSizeClass::S14
+    } else if near(8.0) {
+        QwenSizeClass::S8
+    } else if near(0.6) {
+        QwenSizeClass::S0p6
+    } else {
+        QwenSizeClass::Other
+    })
 }
 
 fn apply_qwen_size_ladder_policy(
@@ -891,6 +889,28 @@ mod qwen3_preset_tests {
             ),
             (
                 "Qwen/Qwen3-0.6B@32b0000000000000000000000000000000000000",
+                QwenSizeClass::S0p6,
+            ),
+            // HF-cache snapshot paths: the revision is a path segment, and both
+            // real pins contain `8b`.
+            (
+                "/hf/hub/models--Qwen--Qwen3-1.7B/snapshots/70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+                QwenSizeClass::Other,
+            ),
+            (
+                "/hf/hub/models--Qwen--Qwen3-4B/snapshots/1cfa9a7208912126459214e8b04321603b3df60c",
+                QwenSizeClass::Other,
+            ),
+            (
+                "/hf/hub/models--Qwen--Qwen3-8B/snapshots/14b32b0000000000000000000000000000000000",
+                QwenSizeClass::S8,
+            ),
+            (
+                r"C:\hf\hub\models--Qwen--Qwen3-14B\snapshots\8b00000000000000000000000000000000000000",
+                QwenSizeClass::S14,
+            ),
+            (
+                "/models/qwen3-0.6b-finetune/checkpoint-32b",
                 QwenSizeClass::S0p6,
             ),
         ] {
