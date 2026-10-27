@@ -54,7 +54,7 @@
 |---|---|---|
 | `LANE-01` | Phase 313 | Complete |
 | `LANE-02` | Phase 313 | Complete |
-| `BENCH-01` | Phase 316 | Pending |
+| `BENCH-01` | Phase 316 | Complete |
 | `BENCH-02` | Phase 314 | Complete |
 | `BENCH-03` | Phase 314 | Complete |
 | `SIZE-01` | Phase 317 | Pending |

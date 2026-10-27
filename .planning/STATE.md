@@ -2,8 +2,8 @@
 gsd_state_version: "1.0"
 milestone: v5.6
 milestone_name: Reasoning Where the Lane Needs It
-current_phase: 316
-current_phase_name: Before/After Comparison
+current_phase: 317
+current_phase_name: Size Ladder
 status: ready
 stopped_at: Completed 316-01-PLAN.md
 last_updated: "2026-10-27T05:02:08.906Z"
@@ -12,19 +12,19 @@ last_activity_desc: Phase 316 planned (1 plan, 3 tasks); plan check passed
 state_head: 2b4721d295a7aa4458e3c9af874dfe8e09470a58
 progress:
   total_phases: 9
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 9
   completed_plans: 9
-  percent: 33
+  percent: 44
 ---
 
 # Project State: Unified Workstream
 
 ## Current Position
 
-Phase: 316 (Before/After Comparison) — planned, ready to execute
-Plan: 0/1 executed (316-01, 3 tasks)
-Status: Phase 315 verified passed (9/9). v5.6 extended to phases 317–321 (six Qwen3 sizes, live-VRAM selector locally and across a mesh, trained on this Mac); not done until two sizes have real trained scores.
+Phase: 317 (Size Ladder) — not started, needs discuss + plan
+Plan: 0/0
+Status: Phase 316 verified passed (8/9; the real scored run is carried to Phase 321 SC-3). v5.6 extended to phases 317–321 (six Qwen3 sizes, live-VRAM selector locally and across a mesh, trained on this Mac); not done until two sizes have real trained scores.
 Last activity: 2026-10-26 — Phase 316 plan verified after two revisions
 
 ## Milestone History (Recent)

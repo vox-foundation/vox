@@ -1,7 +1,8 @@
 ---
 phase: 316-before-after-comparison-bench-01
 verified: 2026-10-27T06:30:00Z
-status: human_needed
+status: passed
+human_validation: "2026-10-27: user accepted; real scored run carried to Phase 321 (its SC-3), after Phase 320 trains the sizes"
 score: 8/9 must-haves verified
 covered_files:
   - .planning/phases/316-before-after-comparison-bench-01/316-01-PLAN.md
