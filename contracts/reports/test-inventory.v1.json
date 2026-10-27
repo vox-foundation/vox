@@ -2,7 +2,7 @@
   "schema_version": 1,
   "summary": {
     "workspace_crate_count": 131,
-    "rust_files_scanned": 4310,
+    "rust_files_scanned": 4309,
     "cargo_unit_test_functions": 12531,
     "cargo_integration_test_functions": 3277,
     "cargo_bench_functions": 0,
@@ -770,7 +770,7 @@
       "bench_tests": 0,
       "ignored_tests": 0,
       "has_integration_dir": true,
-      "integration_rs_files": 15
+      "integration_rs_files": 14
     },
     "vox-quantize": {
       "unit_tests": 62,
@@ -1063,7 +1063,7 @@
   },
   "rust_files_by_kind": {
     "benches": 4,
-    "integration_tests": 807,
+    "integration_tests": 806,
     "other": 27,
     "unit_src": 3472
   },
