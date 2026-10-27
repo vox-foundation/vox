@@ -1,0 +1,23 @@
+schema_version: 1
+corpus: diagram-authoring
+# Tasks that exist now; 91-03 completes the set to 200 (184 graph, 16 sequence).
+corpus_size: 12
+kinds:
+  graph: 10
+  sequence: 2
+# BLAKE3 of every frozen input (eval_diagram::file_hash). The offline gate
+# eval_diagram_tasks::manifest_pins_the_frozen_files fails when one changes without this file.
+files:
+  tasks.v1.jsonl: blake3:e844be02dead20be97dfe2d4fa66273e3aa4986f27688f24cc2e2df89a1dda5e
+  cards/voxdiagram.txt: blake3:01fe9d19d568b29bdc24dce44611249d249b9494b33232f287ded957af34f285
+  cards/mermaid.txt: blake3:acba1d9c624720703f4219f7a98d6ae3b4c96398f8d95573ddfc569c626ffe6e
+  prompt-template.txt: blake3:b1b055f4e7a7ace435ff11ab05326f6846aefeff4343764db84a856dc405412d
+oracles:
+  voxdiagram: "vox-diagram check (vox_doc_pipeline::diagram::validate, the version in this tree)"
+  mermaid: "mermaid 11.17.2 parse via docs-astro/tests/lib/mermaid-batch.mjs"
+mens:
+  ingested: false
+  evidence: >-
+    contracts/eval/** is not a root of mens/config/vox-source-pool.yaml (listed there as
+    deliberately not a root; the pool reads .vox files only), and the docs extractor
+    (vox-corpus extract_docs) walks docs/src only. No task id needs a held_out_for_training list.

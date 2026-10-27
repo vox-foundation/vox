@@ -1,0 +1,8 @@
+[user]
+Draw this as a {LANG} diagram. {PROMPT}
+Reply with only one fenced {FENCE} block.
+
+[repair]
+The {LANG} {VALIDATOR} rejected it:
+{FEEDBACK}
+Reply with only the corrected diagram in one fenced {FENCE} block.

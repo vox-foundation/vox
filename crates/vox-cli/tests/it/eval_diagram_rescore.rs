@@ -45,12 +45,16 @@ fn node_output(path: &Path) -> Option<String> {
     None
 }
 
-fn rescore(dataset: &Path) {
-    let manifest = parse_manifest(&read(&dataset.join("manifest.v1.yaml"))).expect("manifest");
+/// Re-derive (or bless) every derived file of `dataset`; returns the number of runs re-scored. A
+/// dataset without `runs/` (the task set before its live run) checks the reference chain only, and
+/// its manifest's decision rule is read only once a run needs scoring.
+fn rescore(dataset: &Path) -> usize {
+    let manifest_text = read(&dataset.join("manifest.v1.yaml"));
+    let manifest: serde_yaml::Value = serde_yaml::from_str(&manifest_text).expect("manifest");
     let tasks: Vec<Task> = read_jsonl(&read(&dataset.join("tasks.v1.jsonl"))).expect("tasks");
     assert_eq!(
-        manifest.corpus_size,
-        tasks.len(),
+        manifest["corpus_size"].as_u64(),
+        Some(tasks.len() as u64),
         "corpus_size vs tasks.v1.jsonl"
     );
     check(
@@ -58,17 +62,19 @@ fn rescore(dataset: &Path) {
         &reference_inputs(&tasks).expect("reference inputs"),
     );
     let Some(refs) = node_output(&dataset.join("reference-outputs.jsonl")) else {
-        return;
+        return 0;
     };
     let refs: Vec<OracleOutput> = read_jsonl(&refs).expect("reference outputs");
 
-    let mut runs: Vec<PathBuf> = std::fs::read_dir(dataset.join("runs"))
-        .expect("runs/")
-        .map(|e| e.expect("dir entry").path())
-        .collect();
+    let mut runs: Vec<PathBuf> = match std::fs::read_dir(dataset.join("runs")) {
+        Ok(dir) => dir.map(|e| e.expect("dir entry").path()).collect(),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Vec::new(),
+        Err(e) => panic!("{}: runs/: {e}", dataset.display()),
+    };
     runs.sort();
-    assert!(!runs.is_empty(), "{}: no runs", dataset.display());
+    let mut scored = 0;
     for run in runs {
+        let manifest = parse_manifest(&manifest_text).expect("manifest decision rule");
         let lines: Vec<Line> = read_jsonl(&read(&run.join("attempts.jsonl"))).expect("attempts");
         check(
             &run.join("oracle-inputs.jsonl"),
@@ -85,10 +91,20 @@ fn rescore(dataset: &Path) {
             &(serde_json::to_string_pretty(&t).expect("json") + "\n"),
         );
         check(&run.join("tables.md"), &render_tables(&t));
+        scored += 1;
     }
+    scored
 }
 
 #[test]
 fn synthetic_dataset_rescores() {
-    rescore(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/eval_diagram_synthetic"));
+    let scored = rescore(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/eval_diagram_synthetic"),
+    );
+    assert!(scored > 0 || bless(), "the synthetic dataset scored no run");
+}
+
+#[test]
+fn diagram_authoring_dataset_rescores() {
+    rescore(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../contracts/eval/diagram-authoring"));
 }

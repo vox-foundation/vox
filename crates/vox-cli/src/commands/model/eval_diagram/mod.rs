@@ -18,6 +18,7 @@
 //! manifest's `decision_rule` and in the findings report; this module reads it, never redefines it.
 
 pub mod oracle;
+pub mod prompt;
 pub mod render;
 pub mod score;
 pub mod stats;
@@ -238,6 +239,15 @@ pub fn write_jsonl<T: Serialize>(items: &[T]) -> Result<String> {
     Ok(out)
 }
 
+/// `blake3:` and the 64-hex BLAKE3 digest of a file's bytes (the manifest's pin of a frozen file).
+pub fn file_hash(path: &std::path::Path) -> Result<String> {
+    let bytes = std::fs::read(path).with_context(|| format!("read {}", path.display()))?;
+    Ok(format!(
+        "blake3:{}",
+        vox_crypto::facades::hex_encode(&vox_crypto::facades::secure_hash(&bytes))
+    ))
+}
+
 /// `reference-inputs.jsonl`: the Mermaid export of every task's reference, in task order.
 pub fn reference_inputs(tasks: &[Task]) -> Result<String> {
     let mut lines = Vec::with_capacity(tasks.len());
@@ -297,6 +307,24 @@ mod tests {
         let bad = "graph {\n    node a: \"A\"\n    a -> b\n}\n";
         let err = reference_inputs(&[task("t1", GRAPH), task("bad7", bad)]).unwrap_err();
         assert!(err.to_string().contains("bad7"), "{err}");
+    }
+
+    #[test]
+    fn file_hash_is_blake3_hex_and_tracks_every_byte() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("f.txt");
+        std::fs::write(&path, "graph {}\n").unwrap();
+        let h = file_hash(&path).unwrap();
+        let hex = h.strip_prefix("blake3:").unwrap();
+        assert_eq!(hex.len(), 64, "{h}");
+        assert!(
+            hex.bytes()
+                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+        );
+        assert_eq!(file_hash(&path).unwrap(), h);
+        std::fs::write(&path, "graph {}\r").unwrap();
+        assert_ne!(file_hash(&path).unwrap(), h);
+        assert!(file_hash(&dir.path().join("missing")).is_err());
     }
 
     #[test]

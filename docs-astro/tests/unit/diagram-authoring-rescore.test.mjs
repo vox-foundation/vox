@@ -12,7 +12,8 @@ import { parseError } from '../lib/mermaid-oracle.mjs';
 import { oracleJsonl, oracleLine } from '../lib/mermaid-batch.mjs';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
-const DATASETS = ['crates/vox-cli/tests/fixtures/eval_diagram_synthetic'];
+const AUTHORING = 'contracts/eval/diagram-authoring';
+const DATASETS = ['crates/vox-cli/tests/fixtures/eval_diagram_synthetic', AUTHORING];
 const BLESS = process.env.EVAL_DIAGRAM_BLESS === '1';
 
 /** The (input, output) file pairs of one dataset, in chain order. */
@@ -71,3 +72,20 @@ for (const rel of DATASETS) {
     assert.ok(checked > 0, `${rel}: no input/output pair was checked`);
   });
 }
+
+test('diagram-authoring: both Mermaid grammar-card examples parse', async () => {
+  const card = readFileSync(join(REPO_ROOT, AUTHORING, 'cards/mermaid.txt'), 'utf8');
+  const examples = card.split('\n\n').filter((p) => /^(flowchart|sequenceDiagram)\b/.test(p));
+  assert.deepEqual(examples.map((p) => p.split(/\s/)[0]), ['flowchart', 'sequenceDiagram']);
+  for (const example of examples) assert.equal(await parseError(example), null, example);
+});
+
+test('diagram-authoring: every reference output parses with supported sets', () => {
+  const tasks = readFileSync(join(REPO_ROOT, AUTHORING, 'tasks.v1.jsonl'), 'utf8').trim().split('\n');
+  const lines = readFileSync(join(REPO_ROOT, AUTHORING, 'reference-outputs.jsonl'), 'utf8').trim().split('\n');
+  assert.equal(lines.length, tasks.length);
+  for (const line of lines.map((l) => JSON.parse(l))) {
+    assert.equal(line.ok, true, line.id);
+    assert.ok(line.sets && !line.sets.unsupported, `${line.id}: ${JSON.stringify(line.sets)}`);
+  }
+});
