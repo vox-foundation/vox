@@ -446,7 +446,7 @@ pub async fn verify_claims_with_config(
         )
         .await;
         let mut results = fast_verdicts;
-        for (rem_idx, verdict) in llm_results.into_iter().chain(capped.into_iter()) {
+        for (rem_idx, verdict) in llm_results.into_iter().chain(capped) {
             results.push((remaining_indices[rem_idx], verdict));
         }
         results.sort_by_key(|(i, _)| *i);
@@ -757,7 +757,7 @@ pub fn evidence_context_for_claim(claim: &Claim, hits: &[ResearchHit], limit: us
             let raw_head: String = hit.raw_content.chars().take(600).collect();
             let candidate_text = format!("{} {} {}", hit.title, hit.snippet, raw_head);
             let (lexical, _) = lexical_containment_score(&claim.text, &candidate_text);
-            let prior = (hit.score as f64).clamp(0.0, 1.0) * 0.08;
+            let prior = hit.score.clamp(0.0, 1.0) * 0.08;
             (idx, lexical + prior)
         })
         .collect();

@@ -189,10 +189,10 @@ fn verify_findings_consistency(
     let claim_ids: HashSet<_> = inv.claims.iter().map(|c| c.id.as_str()).collect();
     let mut fingerprints = HashSet::new();
     for f in &findings.findings {
-        if let Some(fp) = &f.fingerprint {
-            if !fingerprints.insert(fp.as_str()) {
-                anyhow::bail!("finding {}: duplicate fingerprint {}", f.id, fp);
-            }
+        if let Some(fp) = &f.fingerprint
+            && !fingerprints.insert(fp.as_str())
+        {
+            anyhow::bail!("finding {}: duplicate fingerprint {}", f.id, fp);
         }
         let expected = compute_priority_score(&f.scores);
         if expected != f.priority_score {

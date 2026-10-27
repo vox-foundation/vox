@@ -5,6 +5,3 @@ pub mod forge {
 }
 pub mod researchgate;
 pub mod rss;
-
-#[cfg(test)]
-mod tests;

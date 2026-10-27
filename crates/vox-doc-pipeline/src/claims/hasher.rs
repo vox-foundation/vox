@@ -207,17 +207,16 @@ pub fn hash_anchor(repo_root: &Path, target: &str) -> Result<String, String> {
         .unwrap_or(file_rel)
         .trim_end_matches('/');
 
-    if symbol_opt.is_none() {
-        if file_rel.starts_with("VOX_")
+    if symbol_opt.is_none()
+        && (file_rel.starts_with("VOX_")
             || file_rel.starts_with("RUST_")
             || file_rel.starts_with("TURSO_")
             || file_rel.starts_with("vox ")
             || file_rel == "vox"
             || file_rel.starts_with("cargo run -p vox")
-            || target.contains("::")
-        {
-            return Ok(hash_normalized_code(target.trim()));
-        }
+            || target.contains("::"))
+    {
+        return Ok(hash_normalized_code(target.trim()));
     }
 
     let resolved_file_rel = if !repo_root.join(file_rel).exists() {

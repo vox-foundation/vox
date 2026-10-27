@@ -79,11 +79,11 @@ pub fn scan_corpus(
             } else {
                 repo_root.join(p)
             };
-            if full_path.is_file() {
-                if let Ok(content) = fs::read_to_string(&full_path) {
-                    let rel_path = full_path.strip_prefix(repo_root).unwrap_or(&full_path);
-                    resolved.extend(scan_file(rel_path, &content, &registry));
-                }
+            if full_path.is_file()
+                && let Ok(content) = fs::read_to_string(&full_path)
+            {
+                let rel_path = full_path.strip_prefix(repo_root).unwrap_or(&full_path);
+                resolved.extend(scan_file(rel_path, &content, &registry));
             }
         }
     } else if docs_dir.is_dir() {
@@ -93,15 +93,13 @@ pub fn scan_corpus(
             .flatten()
         {
             let path = entry.path();
-            if path.is_file() {
-                if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-                    if ext == "md" || ext == "mdx" {
-                        if let Ok(content) = fs::read_to_string(path) {
-                            let rel_path = path.strip_prefix(repo_root).unwrap_or(path);
-                            resolved.extend(scan_file(rel_path, &content, &registry));
-                        }
-                    }
-                }
+            if path.is_file()
+                && let Some(ext) = path.extension().and_then(|s| s.to_str())
+                && (ext == "md" || ext == "mdx")
+                && let Ok(content) = fs::read_to_string(path)
+            {
+                let rel_path = path.strip_prefix(repo_root).unwrap_or(path);
+                resolved.extend(scan_file(rel_path, &content, &registry));
             }
         }
     }

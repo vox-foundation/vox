@@ -149,18 +149,18 @@ fn extract_frontmatter_metadata(content: &str) -> (String, String, String) {
     let mut status = "current".to_string();
     let mut category = "General".to_string();
 
-    if content.starts_with("---") {
-        if let Some(end) = content[3..].find("---") {
-            let fm_slice = &content[3..3 + end];
-            for line in fm_slice.lines() {
-                let trimmed = line.trim();
-                if let Some(t) = trimmed.strip_prefix("title:") {
-                    title = t.trim().trim_matches('"').trim_matches('\'').to_string();
-                } else if let Some(s) = trimmed.strip_prefix("status:") {
-                    status = s.trim().trim_matches('"').trim_matches('\'').to_string();
-                } else if let Some(c) = trimmed.strip_prefix("category:") {
-                    category = c.trim().trim_matches('"').trim_matches('\'').to_string();
-                }
+    if content.starts_with("---")
+        && let Some(end) = content[3..].find("---")
+    {
+        let fm_slice = &content[3..3 + end];
+        for line in fm_slice.lines() {
+            let trimmed = line.trim();
+            if let Some(t) = trimmed.strip_prefix("title:") {
+                title = t.trim().trim_matches('"').trim_matches('\'').to_string();
+            } else if let Some(s) = trimmed.strip_prefix("status:") {
+                status = s.trim().trim_matches('"').trim_matches('\'').to_string();
+            } else if let Some(c) = trimmed.strip_prefix("category:") {
+                category = c.trim().trim_matches('"').trim_matches('\'').to_string();
             }
         }
     }
@@ -186,31 +186,32 @@ pub fn get_substantive_git_dates(repo_root: &Path) -> HashMap<String, u64> {
         ])
         .output();
 
-    if let Ok(out) = output {
-        if out.status.success() {
-            let stdout = String::from_utf8_lossy(&out.stdout);
-            let mut current_ts: Option<u64> = None;
-            let mut is_substantive = false;
+    if let Ok(out) = output
+        && out.status.success()
+    {
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        let mut current_ts: Option<u64> = None;
+        let mut is_substantive = false;
 
-            for line in stdout.lines() {
-                let trimmed = line.trim();
-                if let Some(rest) = trimmed.strip_prefix("COMMIT:") {
-                    let mut parts = rest.split('\t');
-                    let ts_str = parts.next().unwrap_or("0");
-                    let subject = parts.next().unwrap_or("").to_lowercase();
+        for line in stdout.lines() {
+            let trimmed = line.trim();
+            if let Some(rest) = trimmed.strip_prefix("COMMIT:") {
+                let mut parts = rest.split('\t');
+                let ts_str = parts.next().unwrap_or("0");
+                let subject = parts.next().unwrap_or("").to_lowercase();
 
-                    is_substantive = !subject.contains("chore(docs): regenerate")
-                        && !subject.contains("ssot-autoregen")
-                        && !subject.contains("style: fmt")
-                        && !subject.contains("ci: sync")
-                        && !subject.contains("fix(#");
+                is_substantive = !subject.contains("chore(docs): regenerate")
+                    && !subject.contains("ssot-autoregen")
+                    && !subject.contains("style: fmt")
+                    && !subject.contains("ci: sync")
+                    && !subject.contains("fix(#");
 
-                    current_ts = ts_str.parse::<u64>().ok();
-                } else if !trimmed.is_empty() && is_substantive {
-                    if let Some(ts) = current_ts {
-                        dates.entry(trimmed.to_string()).or_insert(ts);
-                    }
-                }
+                current_ts = ts_str.parse::<u64>().ok();
+            } else if !trimmed.is_empty()
+                && is_substantive
+                && let Some(ts) = current_ts
+            {
+                dates.entry(trimmed.to_string()).or_insert(ts);
             }
         }
     }
@@ -274,8 +275,7 @@ pub fn find_topic_clusters(pages: &[(String, String)]) -> Vec<TopicCluster> {
         }
 
         let mut cluster_members = vec![path_a.clone()];
-        for j in (i + 1)..token_sets.len() {
-            let (path_b, tokens_b) = &token_sets[j];
+        for (path_b, tokens_b) in &token_sets[(i + 1)..] {
             if clustered_paths.contains(path_b) {
                 continue;
             }
@@ -289,7 +289,7 @@ pub fn find_topic_clusters(pages: &[(String, String)]) -> Vec<TopicCluster> {
             for m in &cluster_members {
                 clustered_paths.insert(m.clone());
             }
-            let common_tokens: Vec<String> = tokens_a.iter().cloned().take(5).collect();
+            let common_tokens: Vec<String> = tokens_a.iter().take(5).cloned().collect();
             clusters.push(TopicCluster {
                 cluster_id: format!("cluster-{:03}", clusters.len() + 1),
                 pages: cluster_members,
