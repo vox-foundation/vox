@@ -180,6 +180,66 @@ All gates ran in the main checkout.
 - After `pnpm diagrams && pnpm build` (844 pages), Playwright `tests/vox-diagram.spec.ts` and `tests/build-output/diagrams.spec.ts`: 21 pass.
 - The review bundle was regenerated. `04-light-natural.png` shows the nested figure at 1284.5 x 536 px (was 1696 x 1482), with titles top-left and the `emit` edge clear of the Operations title.
 
+## Follow-up: the left-to-right regression from CR-01/WR-02 (verification gap)
+
+89-VERIFICATION raised a defect that 07b66a573 introduced. A gap-closure fix followed.
+
+**Commit:** 40e95fba9 `fix(89): lay sideways container titles in their content's ranks`
+**Files modified:** `crates/vox-diagram/src/layout/{dagre_impl,finish,input}.rs`, `src/layout/tests/containers.rs`, goldens `cases/21-nested.svg`, `cases/22-stress-nested.svg`, `corpus/03-axis-harness-river-design-2026-l83.svg`, `docs/src/architecture/voxdiagram-layout-go-no-go-2026.md`
+
+**Root cause.** 07b66a573 ranked every title before its content with invisible edges. In left-to-right and right-to-left layouts this put each title in a rank of its own. That rank is also the last rank of the container feeding it. Dagre keeps each cluster contiguous within every rank it spans, so two containers that share a rank must be stacked across the flow. Each fed container moved into its own band, offset from the one before it, and corpus 03 became a staircase. Separately, the 16-cell side column (`SIDE_TITLE_CELLS`) hard-broke any longer word, for example `HarnessRiverPane` / `l`.
+
+**Design.**
+- A sideways title has no edges, so its container spans only its content's ranks.
+- Two dagre behaviours, read from the dagre 0.1.1 source, place it:
+  - Ranking leaves a cluster member with no constraints in the cluster's latest rank (longest-path placement, which network simplex never moves at zero cost).
+  - Ordering keeps a node with no neighbours at its insertion index. Titles are inserted before every other node, so the title is first, at the top, in that rank.
+- A sideways diagram with containers is solved mirrored: the opposite direction, on reversed edges, with the points reversed back. Dagre's latest rank is then the flow's first column, so the title sits on top of the content's first column. Right-to-left mirrors the same way, so its titles sit top-right, over the flow's first column.
+- A side effect: dagre aligns long edges with their (mirrored) source, which is the real target. Edges therefore tend to reach a node under a title head-on. Without the mirror, the right-to-left stress figure's `emit` edge struck through the Operations title.
+- Titles wrap at the normal node width in every direction.
+- Top-down and bottom-up layouts are unchanged: they keep their title links. Their goldens are byte-identical. Diagrams without containers are not mirrored.
+
+**Tests (red on 56592855d first):**
+- `a_title_never_breaks_a_word_that_fits_a_line`: a title holding HarnessRiverPanel, EnforcementLayers and Inbound_discovery_planned keeps every word whole in all directions. On HEAD it failed with `["HarnessRiverPane", "l", ...]`.
+- `sideways_containers_follow_the_flow`: on corpus 03, drawn left-to-right and right-to-left, for each of the 11 edges between top-level containers, the feeding container's frame lies wholly before the fed one along the flow axis. The test first asserts that no pair feeds each other. On HEAD it failed: Controls x 16..450 px, while Store, which Controls feeds, spans 280..823. This property encodes the root cause directly: a title rank shared with the feeding container forces dagre to stack the two across the flow.
+- Also added:
+  - `sideways_river_frames_hug_and_titles_top_them`: compact frames, no edge through a title, and each title box at the top of its frame.
+  - Right-to-left variants of 21-nested and the stress figure in the compactness and title-crossing tests.
+  - `nested_figures_stay_compact`: a viewBox-area ceiling 10% above the new measurements, in both sideways directions.
+- Mutations (each restored afterwards; the diff was checked):
+  - Re-enabling title links sideways fails the flow test, the title-crossing test and the size ceiling.
+  - Dropping the mirror fails the title-crossing test (the right-to-left stress figure) and the size ceiling.
+  - Inserting titles after the clusters fails the compactness, crossing and size tests.
+  - Restoring the 16-cell wrap fails the word test.
+  - Padding 60 in place of 16 fails the compactness, title-on-top and size tests.
+
+**Measured (px):**
+
+| Diagram | Pre-CR-01 | 07b66a573 | Now |
+|---|---|---|---|
+| Corpus 03 | 1024 x 999.5 | 1157.5 x 1071 | 964 x 761 |
+| Reference stress figure | 1696 x 1482 | 1284.5 x 536 | 1392.5 x 446 (area -10%) |
+| 21-nested | 1147 x 1247 | 1805 x 382.5 | 1016.5 x 802 (area +18%, 57% of pre-CR-01) |
+
+- The total viewBox area of every corpus and case diagram with containers, left-to-right and right-to-left, fell 16% (13.56M to 11.44M px2).
+- Edge segments through a node box, counted over all 30 corpus graphs, three container cases and their right-to-left variants: 33 before, 25 now. 21-nested gains one: its `up` edge runs through `Source`. Corpus 03 loses one, its right-to-left variant loses eight, and 09 loses one.
+- Generated compound graphs, 1,024 cases: 0 fail closed (was 1), and 6 keep an edge through a title (was 6 to 7). Only one of those is sideways. The 128-case oracle varies from run to run between 0 and 4, under its bound of 6.
+
+**By eye (Chromium renders):**
+- Corpus 03 is three columns again, each title a band on top of its frame. `HarnessRiverPanel (Dockable` / `+ Full Surface)` is whole, and the edges flow left to right. The right-to-left variant mirrors it cleanly.
+- The stress figure: Platform, Core and Persistence titles sit top-left and stack as nested bands. The `emit` edge reaches Metrics horizontally, under the four-line Operations title.
+- Reference figure 01: Desktop Client now sits left of the Orchestrator container, not below it.
+- 21-nested is more compact than before CR-01 and narrower than 07b66a573, but taller. One long edge passes behind `Source`. That is a soft defect, which `verify` does not check by design.
+
+**Status:** fixed: requires human verification. This is a layout heuristic built on dagre's internal ranking and ordering rules. The tests pin its effects (flow order, titles on top, compactness, no crossing), not the mechanism.
+
+**Verification** (all in the main checkout, worktrees disabled):
+- `cargo nextest run -p vox-diagram`: 597 of 597 pass.
+- `cargo clippy -p vox-diagram --all-targets -D warnings`: clean.
+- `cargo nextest run -p vox-doc-pipeline -E 'test(render_manifest)'`: 11 of 11 pass.
+- The doc lint on the decision record is clean.
+- `pnpm diagrams && pnpm build`, then Playwright `tests/vox-diagram.spec.ts` and `tests/build-output/diagrams.spec.ts`: 22 of 22 pass. Fits: narrow stack widest fill 82.9%, wide stack 95.7%. The review bundle was regenerated and 04 and 01 were inspected.
+
 ---
 
 _Fixed: 2026-10-26_
