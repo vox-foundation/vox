@@ -1104,6 +1104,131 @@ mod collateral_gate_tests {
         let e = gate_err(dir.path());
         assert!(e.contains("reasoning_slices"), "{e}");
     }
+
+    /// Read the report back, set one field, write it again. The stored verdict
+    /// fields are left as the writer set them, so an edit looks like a hand-edit.
+    fn edit_report(dir: &Path, pointer: &str, value: serde_json::Value) {
+        let path = report_path(dir);
+        let mut report: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        *report.pointer_mut(pointer).unwrap() = value;
+        std::fs::write(path, serde_json::to_string_pretty(&report).unwrap()).unwrap();
+    }
+
+    #[test]
+    fn a_failed_status_is_refused_with_the_existing_text() {
+        let dir = valid_adapter_dir();
+        edit_report(dir.path(), "/status", serde_json::json!("fail"));
+        let e = gate_err(dir.path());
+        assert!(e.contains("eval_collateral_damage check FAILED."), "{e}");
+    }
+
+    #[test]
+    fn a_hand_edited_pass_over_a_ten_percent_accuracy_drop_is_refused() {
+        let dir = valid_adapter_dir();
+        edit_report(
+            dir.path(),
+            "/reasoning_slices/benches/gsm8k_think/accuracy/post",
+            serde_json::json!(0.5625),
+        );
+        let e = gate_err(dir.path());
+        assert!(e.contains("gsm8k_think"), "{e}");
+    }
+
+    #[test]
+    fn a_hand_edited_pass_over_a_think_initiation_drop_is_refused() {
+        let dir = valid_adapter_dir();
+        let base = "/reasoning_slices/benches/math500_think/think_initiation";
+        edit_report(dir.path(), &format!("{base}/pre"), serde_json::json!(0.5));
+        edit_report(
+            dir.path(),
+            &format!("{base}/post"),
+            serde_json::json!(0.46875),
+        );
+        let report: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(report_path(dir.path())).unwrap())
+                .unwrap();
+        assert_eq!(
+            report.pointer(&format!("{base}/exceeds_threshold")),
+            Some(&serde_json::json!(false)),
+            "the stored verdict must still claim no drop"
+        );
+        let e = gate_err(dir.path());
+        assert!(e.contains("math500_think_init"), "{e}");
+    }
+
+    #[test]
+    fn an_out_of_range_stored_number_is_refused() {
+        let dir = valid_adapter_dir();
+        edit_report(
+            dir.path(),
+            "/reasoning_slices/benches/gsm8k_think/accuracy/post",
+            serde_json::json!(0.123456789),
+        );
+        let text = std::fs::read_to_string(report_path(dir.path())).unwrap();
+        assert!(text.contains("0.123456789"));
+        std::fs::write(
+            report_path(dir.path()),
+            text.replace("0.123456789", "1e999"),
+        )
+        .unwrap();
+        let e = gate_err(dir.path());
+        assert!(e.contains("eval_collateral_damage"), "{e}");
+    }
+
+    #[test]
+    fn a_malformed_collateral_report_is_refused() {
+        let dir = valid_adapter_dir();
+        std::fs::write(report_path(dir.path()), "{ not json").unwrap();
+        let e = gate_err(dir.path());
+        assert!(e.contains("eval_collateral_damage"), "{e}");
+    }
+
+    #[test]
+    fn a_missing_slice_report_is_refused_by_name() {
+        let dir = valid_adapter_dir();
+        std::fs::remove_file(slice_file(dir.path(), "vox_think")).unwrap();
+        let e = gate_err(dir.path());
+        assert!(e.contains("vox_think"), "{e}");
+    }
+
+    #[test]
+    fn a_not_scored_slice_report_is_refused() {
+        let dir = valid_adapter_dir();
+        std::fs::write(
+            slice_file(dir.path(), "math500_think"),
+            r#"{"benchmark":"math500_think","status":"not_scored","n":0,"n_requested":32,"reason":"model did not load"}"#,
+        )
+        .unwrap();
+        let e = gate_err(dir.path());
+        assert!(
+            e.contains("not_scored") && e.contains("math500_think"),
+            "{e}"
+        );
+    }
+
+    #[test]
+    fn a_slice_report_with_n_31_is_refused() {
+        let dir = valid_adapter_dir();
+        std::fs::write(
+            slice_file(dir.path(), "gsm8k_think"),
+            r#"{"benchmark":"gsm8k_think","status":"scored","n":31,"accuracy":0.625,"think_initiation_rate":0.625}"#,
+        )
+        .unwrap();
+        let e = gate_err(dir.path());
+        assert!(e.contains("gsm8k_think") && e.contains("31"), "{e}");
+    }
+
+    #[test]
+    fn an_unparseable_slice_report_is_refused() {
+        let dir = valid_adapter_dir();
+        std::fs::write(slice_file(dir.path(), "gsm8k_think"), "{ not json").unwrap();
+        let e = gate_err(dir.path());
+        assert!(
+            e.contains("gsm8k_think") && e.contains("not valid JSON"),
+            "{e}"
+        );
+    }
 }
 
 #[cfg(all(test, feature = "gpu"))]

@@ -461,4 +461,89 @@ mod tests {
         let e = verify_reasoning_slices(&r, &cfg()).unwrap_err();
         assert!(e.contains("gsm8k_think"), "{e}");
     }
+
+    fn edited(pointer: &str, value: serde_json::Value) -> String {
+        let mut r = good_report();
+        *r.pointer_mut(pointer).unwrap() = value;
+        verify_reasoning_slices(&r, &cfg()).unwrap_err()
+    }
+
+    #[test]
+    fn a_widened_stored_threshold_is_refused() {
+        let e = edited("/threshold", serde_json::json!(0.5));
+        assert!(e.contains("threshold"), "{e}");
+    }
+
+    #[test]
+    fn a_stored_slice_size_other_than_32_is_refused() {
+        let e = edited("/reasoning_slices/slice_size", serde_json::json!(31));
+        assert!(e.contains("slice_size"), "{e}");
+    }
+
+    #[test]
+    fn a_missing_scope_note_is_refused() {
+        let mut r = good_report();
+        r.pointer_mut("/reasoning_slices")
+            .unwrap()
+            .as_object_mut()
+            .unwrap()
+            .remove("scope_note");
+        let e = verify_reasoning_slices(&r, &cfg()).unwrap_err();
+        assert!(e.contains("scope_note"), "{e}");
+    }
+
+    #[test]
+    fn a_missing_slice_is_refused_by_name() {
+        let mut r = good_report();
+        r.pointer_mut("/reasoning_slices/benches")
+            .unwrap()
+            .as_object_mut()
+            .unwrap()
+            .remove("math500_think");
+        let e = verify_reasoning_slices(&r, &cfg()).unwrap_err();
+        assert!(e.contains("math500_think"), "{e}");
+    }
+
+    #[test]
+    fn a_null_stored_score_is_refused() {
+        let e = edited(
+            "/reasoning_slices/benches/vox_think/think_initiation/post",
+            serde_json::Value::Null,
+        );
+        assert!(
+            e.contains("vox_think") && e.contains("think_initiation/post"),
+            "{e}"
+        );
+    }
+
+    #[test]
+    fn a_stored_slice_count_of_31_is_refused() {
+        let e = edited(
+            "/reasoning_slices/benches/gsm8k_think/n",
+            serde_json::json!(31),
+        );
+        assert!(
+            e.contains("gsm8k_think") && e.contains("expected 32"),
+            "{e}"
+        );
+    }
+
+    #[test]
+    fn a_zero_stored_baseline_is_refused() {
+        let e = edited(
+            "/reasoning_slices/benches/math500_think/accuracy/pre",
+            serde_json::json!(0.0),
+        );
+        assert!(e.contains("no relative bar"), "{e}");
+    }
+
+    #[test]
+    fn a_stored_pass_over_a_degraded_think_initiation_is_refused_on_the_init_key() {
+        let mut r = good_report();
+        let base = "/reasoning_slices/benches/vox_think/think_initiation";
+        *r.pointer_mut(&format!("{base}/pre")).unwrap() = serde_json::json!(0.5);
+        *r.pointer_mut(&format!("{base}/post")).unwrap() = serde_json::json!(0.46875);
+        let e = verify_reasoning_slices(&r, &cfg()).unwrap_err();
+        assert!(e.contains("vox_think_init"), "{e}");
+    }
 }
