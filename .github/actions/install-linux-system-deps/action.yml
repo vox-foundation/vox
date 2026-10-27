@@ -79,12 +79,26 @@ runs:
         sudo apt-get clean
         sudo rm -rf /var/lib/apt/lists/*
 
-        if ! sudo apt-get update -y; then
+        # Bound every network phase. An unbounded `apt-get install` once sat at
+        # ~56 kB/s on azure.archive.ubuntu.com for 17+ min (59 MB), which alone ate
+        # the 30-min job cap on every PR. `Timeout` only catches a dead socket, not
+        # a trickle, so the install is also wrapped in `timeout` and falls back to
+        # a different mirror host. Partial downloads are kept in the apt archive
+        # cache, so the retry resumes instead of starting over.
+        apt_opts=(-o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20)
+
+        if ! sudo timeout 180 apt-get update -y "${apt_opts[@]}"; then
           echo "::warning::apt-get update failed after disabling known flaky lists; retrying once"
           disable_flaky_apt_lists
           sudo apt-get clean
           sudo rm -rf /var/lib/apt/lists/*
-          sudo apt-get update -y
+          sudo timeout 180 apt-get update -y "${apt_opts[@]}"
         fi
 
-        sudo apt-get install -y "${pkgs[@]}"
+        if ! sudo timeout 300 apt-get install -y "${apt_opts[@]}" "${pkgs[@]}"; then
+          echo "::warning::apt-get install exceeded 5 min or failed (throttled mirror?); retrying via archive.ubuntu.com"
+          sudo sed -i 's#http://azure\.archive\.ubuntu\.com/ubuntu#http://archive.ubuntu.com/ubuntu#g' \
+            /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+          sudo timeout 180 apt-get update -y "${apt_opts[@]}"
+          sudo timeout 600 apt-get install -y "${apt_opts[@]}" "${pkgs[@]}"
+        fi
