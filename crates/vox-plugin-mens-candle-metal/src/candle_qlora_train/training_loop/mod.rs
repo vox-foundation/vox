@@ -62,6 +62,7 @@ fn checkpoint_and_bail_on_oom(
     shuffled_indices: &[usize],
     last_loss_val: f32,
     run_start_inst: Instant,
+    observed_peak_bytes: u64,
 ) -> anyhow::Error {
     if !super::oom::is_oom(&err) {
         return err;
@@ -98,13 +99,10 @@ fn checkpoint_and_bail_on_oom(
         adapter_path: ckpt_path.display().to_string(),
     });
 
-    // ponytail: this plugin crate has no live VRAM telemetry hookup yet
-    // (see training_loop/telem_helpers.rs — HardwareRegistry::monitor() is
-    // vox-populi-internal); 0 records "unknown observed peak", not a real
-    // reading. Wire a real reading when the host-capability reconnect lands.
+    // The sampler's running peak: a lower bound of the true peak at the failing allocation.
     let ev = super::oom::OomEvent {
         step: global_step,
-        observed_bytes: 0,
+        observed_bytes: observed_peak_bytes,
         batch_size: config.batch_size.max(1),
         seq_len: config.seq_len,
         predicted_bytes: 0,
@@ -273,6 +271,7 @@ pub fn run_training_loop(
     let mut skip_short_seq: u64 = 0;
     let mut skip_curriculum: u64 = 0;
     let mut skip_token_id_oob: u64 = 0;
+    let (mut truncated_rows, mut prompt_trimmed_rows) = (0u64, 0u64);
     let mut token_oob_warned = false;
     let mut trajectory_weighted_pairs: u64 = 0;
     let mut trajectory_clamped_pairs: u64 = 0;
@@ -401,6 +400,12 @@ pub fn run_training_loop(
                 }
                 TryEncodeOutcome::Encoded(enc) => enc,
             };
+            if epoch == start_epoch {
+                let (cut, trimmed) =
+                    truncation_flags(enc.raw_token_len, enc.ids.len(), enc.trunc_offset);
+                truncated_rows += u64::from(cut);
+                prompt_trimmed_rows += u64::from(trimmed);
+            }
 
             total_tokens += enc.raw_token_len;
 
@@ -443,6 +448,7 @@ pub fn run_training_loop(
                         &shuffled_indices,
                         last_loss_val,
                         run_start_inst,
+                        peak_sampler.observed_peak_bytes(),
                     ));
                 }
             };
@@ -480,6 +486,7 @@ pub fn run_training_loop(
                             &shuffled_indices,
                             last_loss_val,
                             run_start_inst,
+                            peak_sampler.observed_peak_bytes(),
                         ));
                     }
                     total_valid_tokens = total_valid_tokens.saturating_add(supervised_tokens);
@@ -597,7 +604,7 @@ pub fn run_training_loop(
                 } else {
                     None
                 };
-                let step_payload = telem_helpers::build_train_step_payload(
+                let mut step_payload = telem_helpers::build_train_step_payload(
                     epoch,
                     global_step,
                     optimizer_step_count,
@@ -618,6 +625,8 @@ pub fn run_training_loop(
                     config.seq_len as u64,
                     total_syntax_weight,
                 );
+                step_payload["peak_metal_allocated_bytes"] =
+                    serde_json::json!(peak_sampler.observed_peak_bytes());
                 telemetry::append(out, telemetry_schema::events::TRAIN_STEP, step_payload)?;
                 progress_anchor_step = optimizer_step_count;
                 progress_anchor_time = now;
@@ -747,6 +756,9 @@ pub fn run_training_loop(
             skip_curriculum,
             skip_token_id_oob,
             capped,
+            truncated_rows,
+            prompt_trimmed_rows,
+            final_loss_ema: ema_loss_val,
         },
         run_start_inst,
         peak_metal_bytes,
@@ -764,6 +776,11 @@ fn runtime_cap_reached(
         return false;
     }
     cap_secs.is_some_and(|c| elapsed.as_secs() >= c)
+}
+
+/// (any token dropped, prompt middle-trimmed) for one encoded row (D-04).
+fn truncation_flags(raw_token_len: usize, kept_len: usize, trunc_offset: usize) -> (bool, bool) {
+    (raw_token_len > kept_len, trunc_offset > 0)
 }
 
 #[cfg(test)]
@@ -788,5 +805,11 @@ mod cap_tests {
     #[test]
     fn cap_not_reached_before_its_time() {
         assert!(!cap(Some(60), 59, 3, true));
+    }
+    #[test]
+    fn truncation_flags_cover_fit_trimmed_and_cut() {
+        assert_eq!(super::truncation_flags(100, 100, 0), (false, false));
+        assert_eq!(super::truncation_flags(4000, 3072, 0), (true, false));
+        assert_eq!(super::truncation_flags(4000, 3072, 900), (true, true));
     }
 }

@@ -179,6 +179,10 @@ pub(super) struct TrainingLoopStats {
     pub skip_token_id_oob: u64,
     /// Training ended at the `--max-runtime-secs` cap, not after the last epoch.
     pub capped: bool,
+    /// Encoded rows that lost tokens to `seq_len` / had the prompt middle-trimmed (D-04).
+    pub truncated_rows: u64,
+    pub prompt_trimmed_rows: u64,
+    pub final_loss_ema: Option<f64>,
 }
 
 /// Calculate cosine learning rate with linear warmup.

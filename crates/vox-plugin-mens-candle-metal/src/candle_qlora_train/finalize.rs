@@ -196,6 +196,11 @@ pub(super) fn finalize_training_run(
         adapter_path: final_path.display().to_string(),
     });
 
+    let wall_secs = run_start_inst.elapsed().as_secs_f64();
+    train_log::info(&format!(
+        "{} rows truncated, {} with the prompt middle-trimmed (seq_len {})",
+        stats.truncated_rows, stats.prompt_trimmed_rows, config.seq_len
+    ));
     telemetry::append(
         out,
         telemetry_schema::events::TRAIN_COMPLETE,
@@ -210,6 +215,10 @@ pub(super) fn finalize_training_run(
             "run_id": run_id,
             "peak_metal_allocated_bytes": peak_metal_bytes,
             "capped": stats.capped,
+            "wall_secs": wall_secs,
+            "final_loss_ema": stats.final_loss_ema,
+            "truncated_rows": stats.truncated_rows,
+            "prompt_trimmed_rows": stats.prompt_trimmed_rows,
         }),
     )?;
 
@@ -255,6 +264,10 @@ pub(super) fn finalize_training_run(
             "total_tokens": total_tokens,
             "peak_metal_allocated_bytes": peak_metal_bytes,
             "capped": stats.capped,
+            "wall_secs": wall_secs,
+            "final_loss_ema": stats.final_loss_ema,
+            "truncated_rows": stats.truncated_rows,
+            "prompt_trimmed_rows": stats.prompt_trimmed_rows,
             "artifacts": {
                 "final_adapter": final_path.display().to_string(),
                 "training_skip_stats": out.join("training_skip_stats.json").display().to_string(),
@@ -291,7 +304,6 @@ pub(super) fn finalize_training_run(
         final_path.display(),
     ));
 
-    let wall_secs = run_start_inst.elapsed().as_secs_f64();
     let ms_per_step = if global_step > 0 {
         (wall_secs * 1000.0) / global_step as f64
     } else {
