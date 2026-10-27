@@ -13,21 +13,25 @@ pub enum TrainingSelection {
     /// Train this base+preset with this backend.
     Train {
         model: Option<String>,
-        preset: String,
+        preset: Option<String>,
         backend: PopuliTrainBackend,
     },
     /// Spoke is RagOnly/PromptOnly — skip the training stage.
     Skip { reason: String },
 }
 
-/// Resolve a spoke's training selection. `vram_mb_override` lets callers/tests
-/// inject VRAM (None → vram_autodetect at the resolver). CLI overrides win.
+/// Resolve a spoke's training selection. CLI overrides win.
+///
+/// `fixed_tier_mb: None` is live: the run's one size pick happens in
+/// `run_train` (D-06), so the CLI model and preset pass through and the spoke's
+/// `base.model` tag and `base.preset` are not consulted for size (D-02, D-03).
+/// `Some(mb)` keeps the fixed-tier tag sizing used only by the cloud path (D-08).
 pub fn resolve_training_selection(
     root: &Path,
     profile: Option<&str>,
     cli_model: Option<&str>,
     cli_preset: Option<&str>,
-    vram_mb_override: Option<u32>,
+    fixed_tier_mb: Option<u32>,
 ) -> anyhow::Result<TrainingSelection> {
     let eff = profile.and_then(|n| EffectiveDomainProfile::load_domain_profile(n, Some(root)).ok());
     let method = eff
@@ -49,21 +53,24 @@ pub fn resolve_training_selection(
         }
         TrainMethod::RagOnly | TrainMethod::PromptOnly => unreachable!(),
     };
+    let Some(tier_mb) = fixed_tier_mb else {
+        return Ok(TrainingSelection::Train {
+            model: cli_model.map(str::to_string),
+            preset: cli_preset.map(str::to_string),
+            backend,
+        });
+    };
 
-    // model: CLI wins; else resolve the spoke base.model (tag→VRAM-fit / concrete id);
-    // on failure (e.g. no GPU to size a tag) fall back to None (run_train default path).
+    // model: CLI wins; else resolve the spoke base.model (tag→tier fit / concrete id);
+    // on failure fall back to None.
     let model = if let Some(m) = cli_model {
         Some(m.to_string())
     } else if let Some(tag) = eff
         .as_ref()
         .and_then(|e| e.base.as_ref().map(|b| b.model.clone()))
     {
-        vox_populi::mens::tensor::spoke_base_resolver::resolve_base_model(
-            root,
-            &tag,
-            vram_mb_override,
-        )
-        .ok()
+        vox_populi::mens::tensor::spoke_base_resolver::resolve_base_model(root, &tag, Some(tier_mb))
+            .ok()
     } else {
         None
     };
@@ -77,7 +84,7 @@ pub fn resolve_training_selection(
         .unwrap_or_else(|| "qwen_4080_16g".to_string());
     Ok(TrainingSelection::Train {
         model,
-        preset,
+        preset: Some(preset),
         backend,
     })
 }
@@ -104,7 +111,7 @@ mod tests {
                 backend,
             } => {
                 assert!(model.unwrap().contains("Qwen"));
-                assert!(!preset.is_empty());
+                assert!(!preset.unwrap().is_empty());
                 assert!(matches!(backend, PopuliTrainBackend::CandleQlora));
             }
             _ => panic!("expected Train"),
@@ -128,17 +135,29 @@ mod tests {
         }
     }
     #[test]
-    fn no_gpu_tag_falls_back_to_none_model() {
+    fn live_mode_leaves_size_and_preset_to_the_selector() {
+        // The rust spoke has a base.model tag and base.preset qwen3_16g; live
+        // mode consults neither (D-02, D-06).
+        let sel = resolve_training_selection(&root(), Some("rust"), None, None, None).unwrap();
+        assert_eq!(
+            sel,
+            TrainingSelection::Train {
+                model: None,
+                preset: None,
+                backend: PopuliTrainBackend::CandleQlora,
+            }
+        );
+    }
+    #[test]
+    fn live_mode_keeps_cli_values() {
         let sel =
-            resolve_training_selection(&root(), Some("rust"), None, None, None /*no VRAM*/)
+            resolve_training_selection(&root(), Some("rust"), Some("Qwen3-4B"), Some("a100"), None)
                 .unwrap();
-        // On a host with no GPU, get_system_vram_gb() is None → tag unsizable → model None (default path).
-        if let TrainingSelection::Train { model, .. } = sel {
-            /* model may be None here */
-            let _ = model;
-        } else {
-            panic!()
-        }
+        let TrainingSelection::Train { model, preset, .. } = sel else {
+            panic!("expected Train")
+        };
+        assert_eq!(model.as_deref(), Some("Qwen3-4B"));
+        assert_eq!(preset.as_deref(), Some("a100"));
     }
     #[test]
     fn cli_preset_overrides() {
@@ -146,7 +165,7 @@ mod tests {
             resolve_training_selection(&root(), Some("rust"), None, Some("a100"), Some(16384))
                 .unwrap();
         if let TrainingSelection::Train { preset, .. } = sel {
-            assert_eq!(preset, "a100");
+            assert_eq!(preset.as_deref(), Some("a100"));
         } else {
             panic!()
         }
@@ -164,7 +183,7 @@ mod tests {
                         model.as_deref().unwrap_or("").contains("Qwen"),
                         "{spoke}: {model:?}"
                     );
-                    assert!(!preset.is_empty(), "{spoke}");
+                    assert!(!preset.unwrap_or_default().is_empty(), "{spoke}");
                 }
                 other => panic!("{spoke}: expected Train, got {other:?}"),
             }

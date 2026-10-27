@@ -400,9 +400,8 @@ pub async fn run_train(
     // Never silently swapped for a smaller model by the VRAM budget below —
     // see `never_retreat_the_named_model`.
     let mut effective_model = model;
-    // Resolved alongside `effective_model` below when `--domain` is given, via
-    // the same `resolve_training_selection` the cloud path already uses (see
-    // `resolve_cloud_spoke_base`) — otherwise stays the raw CLI `--preset`.
+    // Stays the raw CLI `--preset` for local runs, `--domain` included: with no
+    // `--preset`, `run_train` takes the preset of its live size pick (D-03, D-06).
     let mut effective_preset = preset.clone();
     let mut effective_validation_split_ratio = validation_split_ratio;
     let mut _effective_max_grad_norm = None; // pass down if needed
@@ -463,13 +462,8 @@ pub async fn run_train(
                     eprintln!("    Mix config: {}", mix_path.display());
                 }
 
-                // BLOCKER (D1): resolve the domain spoke's base model + preset via
-                // the same real resolver the cloud path already uses
-                // (`resolve_cloud_spoke_base` → `resolve_training_selection`).
-                // Previously `--domain rust --cloud local` left `effective_model`
-                // as the raw (often `None`) `--model` and `preset` as the raw
-                // (often `None`) `--preset`, silently ignoring the domain's
-                // pinned base — CLI-supplied values still win.
+                // Checks the spoke is trainable and keeps the CLI values; `run_train`
+                // makes the one live size pick for the run (D-06).
                 let (resolved_model, resolved_preset) = resolve_local_spoke_base(
                     workspace_root.as_deref(),
                     domain_name,
@@ -477,7 +471,7 @@ pub async fn run_train(
                     effective_preset.as_deref(),
                 )?;
                 effective_model = resolved_model;
-                effective_preset = Some(resolved_preset);
+                effective_preset = resolved_preset;
             }
             Err(e) => {
                 anyhow::bail!("Failed to load domain profile '{}': {}", domain_name, e);
@@ -710,21 +704,17 @@ fn write_local_adapter_card(
     Ok(lineage.adapter_path.with_file_name("adapter_card.json"))
 }
 
-/// Resolve the local spoke base for `--domain <name> --cloud local`: returns
-/// `(model, preset)`.
-///
-/// Mirrors `resolve_cloud_spoke_base` below — same real resolver
-/// (`resolve_training_selection`), same "CLI wins" precedence — but sizes
-/// with VRAM autodetect (`None`) rather than a fixed cloud tier, matching how
-/// `pipeline.rs`'s `PipelineStage::Train` already calls this resolver for a
-/// local run. Not `cfg(feature = "cloud")`: the local path must resolve
-/// regardless of whether the cloud feature is compiled in.
+/// Check the spoke for `--domain <name> --cloud local` is trainable and pass the
+/// CLI `(model, preset)` through: `run_train` picks the size from live free
+/// memory (D-06), so the spoke's `base.model` tag and `base.preset` do not.
+/// Not `cfg(feature = "cloud")`: the local path must resolve regardless of
+/// whether the cloud feature is compiled in.
 fn resolve_local_spoke_base(
     workspace_root: Option<&Path>,
     domain: &str,
     cli_model: Option<&str>,
     cli_preset: Option<&str>,
-) -> anyhow::Result<(Option<String>, String)> {
+) -> anyhow::Result<(Option<String>, Option<String>)> {
     use crate::commands::mens::training_selection::{
         TrainingSelection, resolve_training_selection,
     };
@@ -736,11 +726,7 @@ fn resolve_local_spoke_base(
             anyhow::anyhow!("could not find workspace root for spoke base resolution")
         })?;
 
-    let vram_mb = vox_populi::mens::tensor::vram_autodetect::get_system_vram_gb()
-        .map(|gb| (gb * 1024.0) as u32)
-        .or(Some(16_384));
-    let selection =
-        resolve_training_selection(&root, Some(domain), cli_model, cli_preset, vram_mb)?;
+    let selection = resolve_training_selection(&root, Some(domain), cli_model, cli_preset, None)?;
 
     match selection {
         TrainingSelection::Train { model, preset, .. } => Ok((model, preset)),
@@ -785,7 +771,10 @@ fn resolve_cloud_spoke_base(
         resolve_training_selection(&root, domain, cli_model, cli_preset, Some(CLOUD_VRAM_MB))?;
 
     let (model, rung) = match selection {
-        TrainingSelection::Train { model, preset, .. } => (model, preset),
+        TrainingSelection::Train { model, preset, .. } => (
+            model,
+            preset.ok_or_else(|| anyhow::anyhow!("fixed-tier selection always names a preset"))?,
+        ),
         TrainingSelection::Skip { reason } => {
             anyhow::bail!("spoke '{domain:?}' is {reason} — nothing to train in the cloud")
         }
@@ -1093,14 +1082,11 @@ mod local_spoke_base_wiring_tests {
     }
 
     #[test]
-    fn domain_rust_resolves_spoke_base_and_preset_not_defaults() {
-        let (model, preset) = resolve_local_spoke_base(Some(&root()), "rust", None, None).unwrap();
-        let model = model.expect("rust spoke must resolve a base model, not None");
-        assert!(
-            model.contains("Qwen"),
-            "expected the rust spoke's Qwen base, got {model:?}"
-        );
-        assert!(!preset.is_empty(), "resolved preset must not be empty");
+    fn domain_rust_leaves_size_to_the_live_selector() {
+        // The spoke's base.model tag and base.preset must not choose the size;
+        // run_train makes the one live pick (D-06).
+        let got = resolve_local_spoke_base(Some(&root()), "rust", None, None).unwrap();
+        assert_eq!(got, (None, None));
     }
 
     #[test]

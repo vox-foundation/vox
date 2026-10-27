@@ -482,13 +482,13 @@ pub async fn run(
                         preset: p,
                         backend,
                     } => {
-                        tracing::info!(model=?m, preset=%p, backend=?backend, "resolved training selection");
+                        tracing::info!(model=?m, preset=?p, backend=?backend, "resolved training selection");
                         if !dry_run {
                             #[cfg(feature = "gpu")]
                             {
                                 let device = device.clone().unwrap_or_else(|| "best".into());
                                 let target_model = m.clone();
-                                let target_preset = Some(p.clone());
+                                let target_preset = p.clone();
                                 let backend = *backend;
 
                                 // SAFETY: CLI process; no concurrent `getenv` readers rely on these during this block.
