@@ -50,11 +50,13 @@ describe('SessionSidebarSection', () => {
     expect(tabs[1]).toHaveTextContent('Old');
   });
 
-  it('exposes Archive as a real button that archives without selecting the session', () => {
+  it('exposes Archive as a real button, outside the tab, that archives without selecting the session', () => {
     const onArchiveSession = vi.fn();
     const onSessionChange = vi.fn();
     render(<SessionSidebarSection {...baseProps} sessions={[session({ session_id: 'a', title: 'A' })]} onArchiveSession={onArchiveSession} onSessionChange={onSessionChange} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Archive' }));
+    const archive = screen.getByRole('button', { name: 'Archive' });
+    expect(screen.getByRole('tab').contains(archive)).toBe(false);
+    fireEvent.click(archive);
     expect(onArchiveSession).toHaveBeenCalledWith('a');
     expect(onSessionChange).not.toHaveBeenCalled();
   });
