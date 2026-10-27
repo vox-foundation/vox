@@ -78,27 +78,39 @@ Plans:
   2. A rung whose memory floor has not been measured on hardware says so.
 **Plans**: TBD
 
-### Phase 318: Pick by Memory (`SIZE-02`)
-**Goal:** A hub and its spokes are chosen together from available memory, or from an explicit size.
+### Phase 318: Live VRAM Selector (`SIZE-02`)
+**Goal:** One selector reads current free memory, titrates to the largest Qwen3 size that fits, and picks the hub and its spokes together. Training, local serve, and chat all use it.
 **Depends on**: Phase 317
 **Requirements**: SIZE-02
 **Success Criteria** (what must be TRUE):
-  1. With no size given, one base size is picked from available memory, and every spoke's base and preset follow it.
-  2. An explicit size overrides the pick, and a size that does not fit is refused rather than silently shrunk.
+  1. The selector reads current free memory (Metal live budget, CUDA free VRAM), not total memory, and picks the largest ladder size whose predicted footprint fits.
+  2. If free memory drops between the pick and the load, it steps down a size and says why, instead of loading and running out of memory.
+  3. Every spoke's base and preset follow the picked size. An explicit size overrides the pick, and a size that does not fit is refused rather than silently shrunk.
+  4. The inference auto-selector and the training base pick both use this selector. The old fixed tiers that point at run directories that do not exist are gone.
 **Plans**: TBD
 
-### Phase 319: Train the Sizes (`SIZE-03`)
-**Goal:** Each Qwen3 size that fits this Mac is trained with the lane prefix, and each size that does not is recorded as not trained.
+### Phase 319: Mesh-Wide Selection (`MESH-01`)
+**Goal:** Across a mesh, the selector picks the largest size that fits on any node's current free memory and routes the work there.
 **Depends on**: Phase 318
+**Requirements**: MESH-01
+**Success Criteria** (what must be TRUE):
+  1. Node heartbeats carry current free accelerator memory, not only total VRAM.
+  2. The mesh pick chooses the largest size that fits on some node, routes the job to that node, and titrates down when no node fits the larger size.
+  3. A stale or missing node reading is not treated as free memory, and the local fallback still works with no mesh.
+**Plans**: TBD
+
+### Phase 320: Train the Sizes (`SIZE-03`)
+**Goal:** Each Qwen3 size that fits this Mac is trained with the lane prefix, and each size that does not is recorded as not trained.
+**Depends on**: Phase 319
 **Requirements**: SIZE-03
 **Success Criteria** (what must be TRUE):
   1. Each size that fits produces a Metal QLoRA adapter whose manifest names its pinned base.
   2. A size that does not fit has a record with the measured memory and no adapter.
 **Plans**: TBD
 
-### Phase 320: Harness Before/After (`HARN-01`, `BENCH-04`)
+### Phase 321: Harness Before/After (`HARN-01`, `BENCH-04`)
 **Goal:** The harness serves a chosen size, and one report shows before and after reasoning and intelligence scores for every trained size.
-**Depends on**: Phase 319
+**Depends on**: Phase 320
 **Requirements**: HARN-01, BENCH-04
 **Success Criteria** (what must be TRUE):
   1. The harness serves a chosen size's base or adapter through the existing serve path, behind the collateral gate.
@@ -115,9 +127,10 @@ Plans:
 | **Phase 315** | Serve Gate | `2/2` | Complete |
 | **Phase 316** | Before/After Comparison | `0/1` | Not started |
 | **Phase 317** | Size Ladder | `0/0` | Not started |
-| **Phase 318** | Pick by Memory | `0/0` | Not started |
-| **Phase 319** | Train the Sizes | `0/0` | Not started |
-| **Phase 320** | Harness Before/After | `0/0` | Not started |
+| **Phase 318** | Live VRAM Selector | `0/0` | Not started |
+| **Phase 319** | Mesh-Wide Selection | `0/0` | Not started |
+| **Phase 320** | Train the Sizes | `0/0` | Not started |
+| **Phase 321** | Harness Before/After | `0/0` | Not started |
 
 ---
 

@@ -10,11 +10,11 @@ last_activity: 2026-10-26
 last_activity_desc: Phase 315 verified passed; phase 316 ready to discuss
 state_head: 0da0d1fcbd298c382564ac4690f3c0decbf64210
 progress:
-  total_phases: 8
+  total_phases: 9
   completed_phases: 3
   total_plans: 9
   completed_plans: 8
-  percent: 37
+  percent: 33
 ---
 
 # Project State: Unified Workstream
@@ -23,7 +23,7 @@ progress:
 
 Phase: 316 (Before/After Comparison) — ready to discuss
 Plan: not started
-Status: Phase 315 verified passed (9/9). v5.6 extended to phases 317–320 (six Qwen3 sizes, trained on this Mac); not done until two sizes have real trained scores.
+Status: Phase 315 verified passed (9/9). v5.6 extended to phases 317–321 (six Qwen3 sizes, live-VRAM selector locally and across a mesh, trained on this Mac); not done until two sizes have real trained scores.
 Last activity: 2026-10-26 — Phase 315 marked complete
 
 ## Milestone History (Recent)

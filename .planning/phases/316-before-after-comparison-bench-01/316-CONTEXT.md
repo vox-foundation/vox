@@ -6,7 +6,7 @@
 <domain>
 ## Phase Boundary
 
-Score the pinned base and an adapter on the three checked-in 32-item reasoning slices, with accuracy and think-initiation stored as separate keys, when the requested pinned Qwen3 snapshot (any ladder size, default `Qwen/Qwen3-8B`) and an adapter trained on it are both on disk. When the snapshot is absent, record that fact and write no numeric score. This phase builds the command. It does not train a model, does not download weights itself, and does not change the serve gate. Today this checkout has no Qwen3-8B snapshot, so a run here takes the absent branch. Phases 317–320 (added 2026-10-26) download, train, and run this command for each Qwen3 size.
+Score the pinned base and an adapter on the three checked-in 32-item reasoning slices, with accuracy and think-initiation stored as separate keys, when the requested pinned Qwen3 snapshot (any ladder size, default `Qwen/Qwen3-8B`) and an adapter trained on it are both on disk. When the snapshot is absent, record that fact and write no numeric score. This phase builds the command. It does not train a model, does not download weights itself, and does not change the serve gate. Today this checkout has no Qwen3-8B snapshot, so a run here takes the absent branch. Phases 317–321 (added 2026-10-26) add the sizes, select by live VRAM locally and across a mesh, train, and run this command for each Qwen3 size.
 
 </domain>
 
@@ -75,10 +75,10 @@ The user accepted the four recommended answers: record absence here with no stan
 <deferred>
 ## Deferred Ideas
 
-- Now phase 318: pick a hub and its spokes together from available VRAM. Today spoke training bases resolve through `pick_base` on `train_bases.agentic_default` in `mens/config/gpu-specs.yaml`, but every spoke hard-codes `preset: qwen3_16g`, and the hub model has no VRAM entry (the `hub:` block in `mens/config/domain-profiles.yaml` lists only the embedder). This needs its own phase. Note that the `Qwen/Qwen3.8-27B` rung has an unmeasured floor and no license entry.
+- Now phases 318 and 319: a live-VRAM selector that titrates the hub and spokes together, locally and across a mesh. Today spoke training bases resolve through `pick_base` on `train_bases.agentic_default` in `mens/config/gpu-specs.yaml`, but every spoke hard-codes `preset: qwen3_16g`, and the hub model has no VRAM entry (the `hub:` block in `mens/config/domain-profiles.yaml` lists only the embedder). This needs its own phase. Note that the `Qwen/Qwen3.8-27B` rung has an unmeasured floor and no license entry.
 - Store the token cap on the report (review WR-02 from phase 315).
 - A report marker for an unclosed think block.
 - MATH-500 equivalent surface forms.
-- Adding the other Qwen3 sizes and training them (phases 317 and 319). Swapping the default base, or trying a new training technique, stays out of scope.
+- Adding the other Qwen3 sizes and training them (phases 317 and 320). Swapping the default base, or trying a new training technique, stays out of scope.
 
 </deferred>
