@@ -123,45 +123,51 @@ mod tests {
     use super::super::agent_loop::CHAT_MESSAGE_ENV_LOCK;
     use super::super::message::tests::{model_spec, test_state};
     use super::*;
+    use crate::llm_bridge::tool_selection::{CHAT_TURN_PINS, INTENT_FAMILIES};
+    use serde_json::{Value, json};
     use vox_orchestrator::models::ProviderType;
     use wiremock::matchers::method;
-    use wiremock::{Mock, MockServer, ResponseTemplate};
+    use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
-    fn computer_act_call() -> serde_json::Value {
-        serde_json::json!({
+    const MODEL_ID: &str = "test-openrouter-model-probe";
+    const DESKTOP_PROMPT: &str = "Use the Calculator app to compute 17 times 23.";
+
+    fn reply(message: Value) -> Value {
+        json!({
             "id": "chatcmpl-probe",
-            "model": "test-model",
-            "choices": [{
-                "index": 0,
-                "message": {
-                    "role": "assistant",
-                    "content": null,
-                    "tool_calls": [{
-                        "id": "call_1",
-                        "type": "function",
-                        "function": {
-                            "name": "vox_computer_act",
-                            "arguments": "{\"app\":\"Calculator\",\"kind\":\"click\"}",
-                        },
-                    }],
-                },
-                "finish_reason": "tool_calls",
-            }],
-            "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+            "model": MODEL_ID,
+            "choices": [{"index": 0, "message": message, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 11, "completion_tokens": 7},
         })
     }
 
-    /// The probe reports the model's first tool from the turn's real offered set and
-    /// stops there: exactly one model request, so the call is never dispatched and no
-    /// follow-up turn runs.
-    #[tokio::test]
+    fn tool_call(name: &str) -> Value {
+        reply(json!({
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [{
+                "id": "call_1",
+                "type": "function",
+                "function": {"name": name, "arguments": "{\"app\":\"Calculator\"}"},
+            }],
+        }))
+    }
+
+    fn text(content: &str) -> Value {
+        reply(json!({"role": "assistant", "content": content}))
+    }
+
+    /// Run the probe for `prompt` against a mock OpenRouter answering every request with
+    /// `response`; returns the probe result and every request the mock received.
     #[allow(clippy::await_holding_lock)]
-    async fn probe_reports_the_first_tool_without_dispatching_it() {
+    async fn probe_against(
+        response: ResponseTemplate,
+        prompt: &str,
+    ) -> (Result<FirstToolChoice, String>, Vec<Request>) {
         let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
         let server = MockServer::start().await;
         Mock::given(method("POST"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(computer_act_call()))
-            .expect(1)
+            .respond_with(response)
             .mount(&server)
             .await;
         let prev_base = std::env::var("OPENROUTER_BASE_URL").ok();
@@ -173,16 +179,14 @@ mod tests {
         vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
 
         let state = test_state();
-        let model_id = "test-openrouter-model-probe";
         {
             let handle = state.orchestrator.models_handle();
             let mut registry = handle.write().expect("models registry lock");
-            registry.register(model_spec(ProviderType::OpenRouter, model_id));
+            registry.register(model_spec(ProviderType::OpenRouter, MODEL_ID));
         }
-        *state.mcp_chat_model_override.write() = Some(model_id.to_string());
+        *state.mcp_chat_model_override.write() = Some(MODEL_ID.to_string());
 
-        let result =
-            probe_first_tool_choice(&state, "Use the Calculator app to compute 17 times 23.").await;
+        let result = probe_first_tool_choice(&state, prompt).await;
 
         unsafe {
             match prev_base {
@@ -195,19 +199,149 @@ mod tests {
             }
         }
         vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+        let requests = server.received_requests().await.expect("request recording");
+        (result, requests)
+    }
 
-        let choice = result.expect("probe should succeed against the mock model");
-        assert_eq!(choice.model, model_id);
-        assert_eq!(choice.tool.as_deref(), Some("vox_computer_act"));
-        assert!(
-            choice.offered.iter().any(|t| t == "vox_computer_snapshot"),
-            "a desktop request must be offered the desktop family: {:?}",
-            choice.offered
+    fn body(request: &Request) -> Value {
+        serde_json::from_slice(&request.body).expect("request body is JSON")
+    }
+
+    fn sent_tool_names(body: &Value) -> Vec<String> {
+        body["tools"]
+            .as_array()
+            .expect("request must carry a tools array")
+            .iter()
+            .map(|t| {
+                t["function"]["name"]
+                    .as_str()
+                    .expect("every tool has a function name")
+                    .to_string()
+            })
+            .collect()
+    }
+
+    fn family_core_tools(id: &str) -> &'static [&'static str] {
+        INTENT_FAMILIES
+            .iter()
+            .find(|f| f.id == id)
+            .expect("family exists")
+            .core_tools
+    }
+
+    /// One request, built like a real turn: routed model, system prompt, the user's
+    /// words, and the selected tools. The reported choice and offer list come from that
+    /// exchange, and nothing follows it (no dispatch, no second model call).
+    #[tokio::test]
+    async fn reports_the_structured_tool_call_from_the_tools_actually_sent() {
+        let (result, requests) = probe_against(
+            ResponseTemplate::new(200).set_body_json(tool_call("vox_computer_act")),
+            DESKTOP_PROMPT,
+        )
+        .await;
+        let choice = result.expect("probe succeeds against the mock");
+        assert_eq!(
+            requests.len(),
+            1,
+            "exactly one model call, no follow-up turn"
         );
+
+        let body = body(&requests[0]);
+        assert_eq!(body["model"], MODEL_ID);
+        let messages = body["messages"].as_array().expect("messages array");
+        assert_eq!(messages.len(), 2, "system + user only: {messages:?}");
+        assert_eq!(messages[0]["role"], "system");
         assert!(
-            !choice.offered.iter().any(|t| t.starts_with("vox_browser_")),
-            "a desktop request must not be offered browser tools: {:?}",
-            choice.offered
+            messages[0]["content"]
+                .as_str()
+                .is_some_and(|s| s.len() > 100),
+            "the real system prompt is sent: {:?}",
+            messages[0]["content"]
+        );
+        assert_eq!(messages[1]["role"], "user");
+        assert_eq!(messages[1]["content"], DESKTOP_PROMPT);
+
+        let sent = sent_tool_names(&body);
+        assert_eq!(
+            choice.offered, sent,
+            "reported offer list is what was sent, in order"
+        );
+        assert_eq!(
+            &sent[..CHAT_TURN_PINS.len()],
+            CHAT_TURN_PINS,
+            "pins lead the offer"
+        );
+        for tool in family_core_tools("computer") {
+            assert!(sent.iter().any(|s| s == tool), "{tool} not sent: {sent:?}");
+        }
+        assert!(
+            !sent.iter().any(|s| s.starts_with("vox_browser_")),
+            "browser tools sent for a desktop request: {sent:?}"
+        );
+
+        assert_eq!(choice.tool.as_deref(), Some("vox_computer_act"));
+        assert_eq!(choice.model, MODEL_ID);
+        assert_eq!((choice.prompt_tokens, choice.completion_tokens), (11, 7));
+    }
+
+    /// A prose answer is "no tool", and an unrelated request is sent neither family.
+    #[tokio::test]
+    async fn prose_reply_reports_no_tool_and_unrelated_turns_get_no_family_tools() {
+        let (result, requests) = probe_against(
+            ResponseTemplate::new(200).set_body_json(text("17 times 23 is 391.")),
+            "What is 17 times 23?",
+        )
+        .await;
+        let choice = result.expect("probe succeeds against the mock");
+        assert_eq!(choice.tool, None);
+        assert_eq!(requests.len(), 1);
+        let sent = sent_tool_names(&body(&requests[0]));
+        assert!(
+            !sent
+                .iter()
+                .any(|s| s.starts_with("vox_browser_") || s.starts_with("vox_computer_")),
+            "family tools sent for an arithmetic question: {sent:?}"
+        );
+    }
+
+    /// Models that write the call as JSON text are counted, but only for an offered tool:
+    /// naming a tool the turn never offered is not a choice of that tool.
+    #[tokio::test]
+    async fn text_tool_calls_count_only_for_offered_tools() {
+        let offered = "```json\n{\"name\": \"vox_computer_snapshot\", \"arguments\": {\"app\": \"Calculator\"}}\n```";
+        let (result, _) = probe_against(
+            ResponseTemplate::new(200).set_body_json(text(offered)),
+            DESKTOP_PROMPT,
+        )
+        .await;
+        assert_eq!(
+            result.expect("probe succeeds").tool.as_deref(),
+            Some("vox_computer_snapshot")
+        );
+
+        let unoffered = "```json\n{\"name\": \"vox_browser_open\", \"arguments\": {\"url\": \"https://example.com\"}}\n```";
+        let (result, _) = probe_against(
+            ResponseTemplate::new(200).set_body_json(text(unoffered)),
+            DESKTOP_PROMPT,
+        )
+        .await;
+        assert_eq!(result.expect("probe succeeds").tool, None);
+    }
+
+    /// A failed model call must surface as an error. Reporting it as "no tool" would
+    /// silently pass every negative trigger case.
+    #[tokio::test]
+    async fn provider_error_is_an_error_not_a_missing_tool() {
+        let (result, requests) = probe_against(
+            ResponseTemplate::new(500).set_body_json(json!({"error": {"message": "boom"}})),
+            "What is 17 times 23?",
+        )
+        .await;
+        assert!(!requests.is_empty(), "the probe must have called the model");
+        let err = result.expect_err("a 500 must not look like a prose answer");
+        assert!(
+            err.contains("500"),
+            "error names the provider status: {err}"
         );
     }
 }

@@ -39,7 +39,11 @@ fn describe(err: *mut NSError) -> String {
 }
 
 pub fn require_permission() -> Result<(), String> {
-    if CGPreflightScreenCaptureAccess() {
+    permission_result(CGPreflightScreenCaptureAccess())
+}
+
+fn permission_result(granted: bool) -> Result<(), String> {
+    if granted {
         Ok(())
     } else {
         Err("screen_recording_denied: grant Screen Recording to the host app (terminal, IDE, \
@@ -211,12 +215,21 @@ pub fn screenshot(
 mod tests {
     use super::*;
 
-    /// Preflight never prompts; a denial must name the permission and where to grant it.
+    /// A denial carries a stable code callers branch on and tells the user where to grant it.
     #[test]
-    fn require_permission_is_ok_or_names_the_missing_grant() {
-        if let Err(e) = require_permission() {
-            assert!(e.starts_with("screen_recording_denied:"), "{e}");
-            assert!(e.contains("Screen Recording"), "{e}");
-        }
+    fn denial_names_the_code_and_the_setting_to_change() {
+        assert_eq!(permission_result(true), Ok(()));
+        let err = permission_result(false).expect_err("denied must be an error");
+        assert!(err.starts_with("screen_recording_denied:"), "{err}");
+        assert!(err.contains("Privacy & Security"), "{err}");
+    }
+
+    /// The live preflight agrees with the pure decision (never prompts the user).
+    #[test]
+    fn require_permission_matches_the_os_preflight() {
+        assert_eq!(
+            require_permission(),
+            permission_result(CGPreflightScreenCaptureAccess())
+        );
     }
 }
