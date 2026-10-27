@@ -117,6 +117,8 @@ fn nested_frames_hug_their_children() {
     assert_compact(NESTED);
     assert_compact(STRESS);
     assert_compact(SINGLE);
+    assert_compact(&leftward(NESTED));
+    assert_compact(&leftward(STRESS));
 }
 
 fn assert_titles_clear(src: &str) {
@@ -134,11 +136,113 @@ fn assert_titles_clear(src: &str) {
     }
 }
 
+/// `src` drawn right-to-left; the nested fixtures are left-to-right.
+fn leftward(src: &str) -> String {
+    assert!(src.contains("direction: right"), "{src}");
+    src.replace("direction: right", "direction: left")
+}
+
 #[test]
 fn no_edge_strikes_through_a_container_title() {
     assert_titles_clear(NESTED);
     assert_titles_clear(STRESS);
     assert_titles_clear(SINGLE);
+    assert_titles_clear(&leftward(NESTED));
+    assert_titles_clear(&leftward(STRESS));
+}
+
+/// No regrowth: the pre-fix layout drew 21-nested at 1147 x 1247 px and the stress fence at
+/// 1696 x 1482; 07b66a573 drew them at 1805 x 382.5 and 1284.5 x 536, with a title column of its
+/// own in every container. Measured now: 1016.5 x 802 and 1392.5 x 446. The ceilings leave 10%.
+#[test]
+fn nested_figures_stay_compact() {
+    for (src, ceiling_px2) in [(NESTED, 897_000), (STRESS, 683_000)] {
+        for src in [src.to_owned(), leftward(src)] {
+            let (_, p) = laid(&src);
+            let area = i64::from(p.width) * i64::from(p.height) / 4;
+            assert!(
+                area <= ceiling_px2,
+                "{} x {} half-px is {area} px2, over {ceiling_px2}",
+                p.width,
+                p.height
+            );
+        }
+    }
+}
+
+/// Corpus 03 imported: three left-to-right container columns joined by one-way edges.
+fn river(direction: &str) -> String {
+    let mmd =
+        include_str!("../../../tests/fixtures/corpus/03-axis-harness-river-design-2026-l83.mmd");
+    let Some(src) = crate::mermaid::import(mmd, crate::mermaid::ImportOpts::default()).source
+    else {
+        panic!("corpus 03 does not import");
+    };
+    assert!(src.contains("direction: right"), "{src}");
+    src.replace("direction: right", &format!("direction: {direction}"))
+}
+
+/// The top-level container holding node `n`, if any.
+fn top_level(input: &LayoutInput, n: usize) -> Option<usize> {
+    let mut k = input.nodes[n].container?;
+    while let Some(p) = input.containers[k].parent {
+        k = p;
+    }
+    Some(k)
+}
+
+/// Sideways, a container that only feeds another lies wholly before it along the flow. The
+/// 07b66a573 layout ranked each title in a column of its own before the content; that column
+/// shares the feeding container's last rank, so dagre stacked the two across the flow instead and
+/// corpus 03 became a staircase (Controls spanned x 16..450, Store fed by it 280..823).
+#[test]
+fn sideways_containers_follow_the_flow() {
+    for direction in ["right", "left"] {
+        let (input, p) = laid(&river(direction));
+        let pairs: Vec<(usize, usize)> = input
+            .edges
+            .iter()
+            .filter_map(|e| Some((top_level(&input, e.from)?, top_level(&input, e.to)?)))
+            .filter(|(a, b)| a != b)
+            .collect();
+        assert_eq!(pairs.len(), 11, "{direction}: {pairs:?}");
+        for &(a, b) in &pairs {
+            assert!(
+                !pairs.contains(&(b, a)),
+                "{direction}: {a} and {b} feed each other"
+            );
+            let (up, down) = (p.containers[a].rect, p.containers[b].rect);
+            let before = if direction == "right" {
+                up.x + up.w <= down.x
+            } else {
+                down.x + down.w <= up.x
+            };
+            assert!(
+                before,
+                "{direction}: container {a} {up:?} feeds {b} {down:?} but is not before it"
+            );
+        }
+    }
+}
+
+/// Corpus 03 sideways: frames hug, no edge crosses a title, and each title tops its frame.
+#[test]
+fn sideways_river_frames_hug_and_titles_top_them() {
+    for direction in ["right", "left"] {
+        let src = river(direction);
+        assert_compact(&src);
+        assert_titles_clear(&src);
+        let (_, p) = laid(&src);
+        for (k, c) in p.containers.iter().enumerate() {
+            assert_eq!(
+                c.title.y,
+                c.rect.y + finish::CONTAINER_PAD,
+                "{direction}: title {k} {:?} is not on top of {:?}",
+                c.title,
+                c.rect
+            );
+        }
+    }
 }
 
 fn title(lines: &[&str]) -> LContainer {

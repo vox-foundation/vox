@@ -6,18 +6,19 @@ use dagre::layout::types::LabelPos;
 use dagre::{EdgeLabel, LayoutOptions, NodeLabel, RankDir};
 
 use super::verify::encloses;
-use super::{Engine, LayoutError, LayoutInput, RawBox, RawEdge, RawLayout, Separations};
+use super::{Engine, LEdge, LayoutError, LayoutInput, RawBox, RawEdge, RawLayout, Separations};
 use crate::ir::Direction;
 
 /// dagre 0.1.1 behind the [`Engine`] seam.
 pub(crate) struct DagreEngine;
 
-fn rank_dir(d: Direction) -> RankDir {
-    match d {
-        Direction::Down => RankDir::TB,
-        Direction::Right => RankDir::LR,
-        Direction::Up => RankDir::BT,
-        Direction::Left => RankDir::RL,
+/// dagre's direction; a [`mirrored`] layout runs the other way on reversed edges.
+fn rank_dir(d: Direction, mirror: bool) -> RankDir {
+    match (d, mirror) {
+        (Direction::Down, _) => RankDir::TB,
+        (Direction::Up, _) => RankDir::BT,
+        (Direction::Right, false) | (Direction::Left, true) => RankDir::LR,
+        (Direction::Left, false) | (Direction::Right, true) => RankDir::RL,
     }
 }
 
@@ -42,13 +43,13 @@ impl Item {
     }
 }
 
-/// The invisible edges that rank each container's title box before its content, so dagre keeps the
-/// title clear of nodes and routes edges beside it: from the title to every child container's
-/// title and to each own node that no edge reaches from inside the container (every own node when
-/// a cycle leaves none). Up and left layouts point them the other way, so a title still lands on
-/// the top (down, up) or the left (right, left) of its content.
+/// The invisible edges that rank each container's title box before its content in a top-down or
+/// bottom-up layout, so dagre keeps the title clear of nodes and routes edges beside it: from the
+/// title to every child container's title and to each own node that no edge reaches from inside
+/// the container (every own node when a cycle leaves none). Bottom-up points them the other way,
+/// so a title still lands on top of its content.
 fn title_links(input: &LayoutInput) -> Vec<(Item, Item)> {
-    let reverse = matches!(input.direction, Direction::Up | Direction::Left);
+    let reverse = input.direction == Direction::Up;
     let mut out = Vec::new();
     for k in 0..input.containers.len() {
         let inside = |n: usize| encloses(input, k, input.nodes.get(n).and_then(|n| n.container));
@@ -84,6 +85,21 @@ fn title_links(input: &LayoutInput) -> Vec<(Item, Item)> {
     out
 }
 
+/// Whether `input` is solved as its mirror image: the opposite direction on reversed edges, the
+/// points reversed back. Only sideways diagrams with containers are.
+///
+/// A sideways title must share its content's ranks: ranked before the content, as top-down does, it
+/// shares the last rank of the container feeding it, and dagre then stacks the two containers
+/// across the flow instead of along it (a staircase). So a sideways title gets no edges. Ranking
+/// leaves such a node in the latest rank of its cluster, and ordering keeps a node with no
+/// neighbours at its insertion index, so a title inserted before every other node tops its cluster
+/// in that rank. Mirrored, dagre's latest rank is the flow's first, so the title sits on top of
+/// the content's first column. Edges then also tend to reach a node under a title head-on rather
+/// than from above it.
+fn mirrored(input: &LayoutInput) -> bool {
+    matches!(input.direction, Direction::Right | Direction::Left) && !input.containers.is_empty()
+}
+
 impl Engine for DagreEngine {
     fn solve(&self, input: &LayoutInput, sep: Separations) -> Result<RawLayout, LayoutError> {
         let mut g: Graph<NodeLabel, EdgeLabel> = Graph::with_options(GraphOptions {
@@ -91,9 +107,7 @@ impl Engine for DagreEngine {
             multigraph: true,
             compound: true,
         });
-        for i in 0..input.containers.len() {
-            g.set_node(format!("c{i}"), Some(NodeLabel::default()));
-        }
+        // Titles go in first: see `mirrored`.
         for (i, c) in input.containers.iter().enumerate() {
             let title = NodeLabel {
                 width: px(c.title_w),
@@ -101,6 +115,11 @@ impl Engine for DagreEngine {
                 ..NodeLabel::default()
             };
             g.set_node(format!("t{i}"), Some(title));
+        }
+        for i in 0..input.containers.len() {
+            g.set_node(format!("c{i}"), Some(NodeLabel::default()));
+        }
+        for (i, c) in input.containers.iter().enumerate() {
             g.set_parent(&format!("t{i}"), Some(&format!("c{i}")));
             if let Some(p) = c.parent {
                 g.set_parent(&format!("c{i}"), Some(&format!("c{p}")));
@@ -117,6 +136,15 @@ impl Engine for DagreEngine {
                 g.set_parent(&format!("n{i}"), Some(&format!("c{c}")));
             }
         }
+        let mirror = mirrored(input);
+        let ends = |e: &LEdge| {
+            let (a, b) = if mirror {
+                (e.to, e.from)
+            } else {
+                (e.from, e.to)
+            };
+            (format!("n{a}"), format!("n{b}"))
+        };
         for (i, e) in input.edges.iter().enumerate() {
             let name = format!("e{i}");
             let label = e
@@ -128,14 +156,15 @@ impl Engine for DagreEngine {
                     labelpos: LabelPos::Center,
                     ..EdgeLabel::default()
                 });
-            g.set_edge(
-                format!("n{}", e.from),
-                format!("n{}", e.to),
-                Some(label),
-                Some(&name),
-            );
+            let (from, to) = ends(e);
+            g.set_edge(from, to, Some(label), Some(&name));
         }
-        for (j, (a, b)) in title_links(input).into_iter().enumerate() {
+        let links = if mirror {
+            Vec::new()
+        } else {
+            title_links(input)
+        };
+        for (j, (a, b)) in links.into_iter().enumerate() {
             g.set_edge(
                 a.name(),
                 b.name(),
@@ -144,7 +173,7 @@ impl Engine for DagreEngine {
             );
         }
         let opts = LayoutOptions {
-            rankdir: rank_dir(input.direction),
+            rankdir: rank_dir(input.direction, mirror),
             nodesep: f64::from(sep.nodesep),
             ranksep: f64::from(sep.ranksep),
             edgesep: f64::from(sep.edgesep),
@@ -172,14 +201,15 @@ impl Engine for DagreEngine {
             .iter()
             .enumerate()
             .map(|(i, e)| {
-                let found = g.edge(
-                    &format!("n{}", e.from),
-                    &format!("n{}", e.to),
-                    Some(&format!("e{i}")),
-                );
+                let (from, to) = ends(e);
+                let found = g.edge(&from, &to, Some(&format!("e{i}")));
+                let mut points: Vec<(f64, f64)> =
+                    found.map_or_else(Vec::new, |l| l.points.iter().map(|p| (p.x, p.y)).collect());
+                if mirror {
+                    points.reverse();
+                }
                 RawEdge {
-                    points: found
-                        .map_or_else(Vec::new, |l| l.points.iter().map(|p| (p.x, p.y)).collect()),
+                    points,
                     label: e.label.as_ref().and(found).map(|l| (l.x, l.y)),
                 }
             })

@@ -1,8 +1,8 @@
-//! Container finishing. The engine lays each title out as a box ranked before the container's
-//! content (above it top-down, left of it left-to-right), so a frame is only the box around what
-//! the container holds (its title box, its own nodes, its child frames and the labels of edges
-//! inside it) padded 8 px on every side. Nothing here reads the engine's own container rect, so
-//! engine slack never reaches a frame.
+//! Container finishing. The engine lays each title out as a box on top of the container's content
+//! (ranked before it top-down, first in the content's first column sideways), so a frame is only
+//! the box around what the container holds (its title box, its own nodes, its child frames and the
+//! labels of edges inside it) padded 8 px on every side. Nothing here reads the engine's own
+//! container rect, so engine slack never reaches a frame.
 
 use std::cmp::Reverse;
 
@@ -49,8 +49,8 @@ fn clear_of_edges(r: Rect, edges: &[PlacedEdge]) -> bool {
 }
 
 /// The frame of every container, deepest first so a child frame exists before its parent's,
-/// and the title box it ends up with. In a left-to-right layout the title column sits left of the
-/// content and dagre centres the title in it; the title moves up to the content's top when nothing
+/// and the title box it ends up with. Sideways, the title tops the content's first column; when
+/// content in another column sits higher, the title moves up to the content's top if nothing
 /// crosses it there. An edge label counts when both endpoints of its edge sit inside the
 /// container, or when one does and the label would otherwise straddle the frame.
 pub(crate) fn frames(

@@ -4,9 +4,9 @@
 use std::collections::BTreeMap;
 
 use super::finish::title_h;
-use super::text::{LINE_H, measure, node_size, pad_x, wrap, wrap_at};
+use super::text::{LINE_H, measure, node_size, pad_x, wrap};
 use super::{Half, LContainer, LEdge, LLabel, LNode, LayoutInput};
-use crate::ir::{Direction, GraphIr};
+use crate::ir::GraphIr;
 use crate::limits::{MAX_DEPTH, MAX_LABEL_CHARS, MAX_RENDER_EDGES, MAX_RENDER_NODES};
 use crate::svg::RenderError;
 
@@ -15,10 +15,6 @@ const EDGE_LABEL_PAD: Half = 8;
 
 /// Room around a container title inside its title box: 10 px each side, in half-pixels.
 const TITLE_PAD: Half = 20;
-
-/// Cells per title line in a left-to-right layout, where the title takes a column of its own
-/// left of the content: narrower than [`super::text::WRAP_CELLS`] so the column costs less width.
-const SIDE_TITLE_CELLS: usize = 16;
 
 /// The wrapped label box of an edge; a missing, empty or blank label draws nothing.
 fn edge_label(label: Option<&str>) -> Option<LLabel> {
@@ -79,11 +75,7 @@ fn containers(g: &GraphIr) -> Result<(Vec<LContainer>, BTreeMap<&str, usize>), R
             }
             cur = p;
         }
-        let title_lines = if matches!(g.direction, Direction::Right | Direction::Left) {
-            wrap_at(&c.label, SIDE_TITLE_CELLS)
-        } else {
-            wrap(&c.label)
-        };
+        let title_lines = wrap(&c.label);
         let widest = title_lines.iter().map(|l| measure(l)).max().unwrap_or(0);
         out.push(LContainer {
             parent: parents.get(i).copied().flatten(),
@@ -322,6 +314,25 @@ mod tests {
         assert_eq!(c.title_lines, wrap("Backend services\nand jobs"));
         assert_eq!(c.title_w, measure("Backend services") + 40);
         assert_eq!(c.title_h, title_h(2));
+    }
+
+    /// A title wraps at the node width in every direction, so no word that fits a line is broken.
+    /// The old 16-cell left-to-right column drew "HarnessRiverPane" / "l (Dockable +".
+    #[test]
+    fn a_title_never_breaks_a_word_that_fits_a_line() {
+        let title = "HarnessRiverPanel (Dockable + Full Surface) EnforcementLayers \
+                     Inbound_discovery_planned";
+        let words: Vec<&str> = title.split_whitespace().collect();
+        for direction in [Direction::Right, Direction::Left, Direction::Down] {
+            let mut g = graph(vec![], vec![]);
+            (g.direction, g.containers) = (direction, vec![boxed("a", None, title)]);
+            let Ok(input) = build(&g) else {
+                panic!("build failed");
+            };
+            let lines = &input.containers[0].title_lines;
+            let drawn: Vec<&str> = lines.iter().flat_map(|l| l.split_whitespace()).collect();
+            assert_eq!(drawn, words, "{direction:?}: {lines:?}");
+        }
     }
 
     #[test]
