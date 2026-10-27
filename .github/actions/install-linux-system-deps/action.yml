@@ -97,7 +97,8 @@ runs:
 
         if ! sudo timeout 300 apt-get install -y "${apt_opts[@]}" "${pkgs[@]}"; then
           echo "::warning::apt-get install exceeded 5 min or failed (throttled mirror?); retrying via archive.ubuntu.com"
-          sudo sed -i 's#http://azure\.archive\.ubuntu\.com/ubuntu#http://archive.ubuntu.com/ubuntu#g' \
+          sudo sed -i -e 's#mirror+file:/etc/apt/apt-mirrors.txt#http://archive.ubuntu.com/ubuntu/#g' \
+            -e 's#http://azure\.archive\.ubuntu\.com/ubuntu/\?#http://archive.ubuntu.com/ubuntu/#g' \
             /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
           sudo timeout 180 apt-get update -y "${apt_opts[@]}"
           sudo timeout 600 apt-get install -y "${apt_opts[@]}" "${pkgs[@]}"
