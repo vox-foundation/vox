@@ -730,28 +730,33 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 Ok(())
             }
 
+            // Without `gpu` nothing can be scored or recorded; a silent exit 0
+            // would read as success to a per-size loop.
+            #[cfg(not(feature = "gpu"))]
+            super::mens_tail_subcommands::PopuliMensTail::EvalReasoningCompare { .. } => {
+                anyhow::bail!(
+                    "vox mens eval-reasoning-compare requires the `gpu` cargo feature, \
+                     which was not enabled when this binary was built; rebuild with \
+                     `cargo build -p vox-ml-cli --release --features gpu`"
+                )
+            }
+
+            #[cfg(feature = "gpu")]
             super::mens_tail_subcommands::PopuliMensTail::EvalReasoningCompare {
                 base,
                 adapter,
                 hub_root,
                 bench_root,
                 out,
-            } => {
-                #[cfg(not(feature = "gpu"))]
-                let _ = (base, adapter, hub_root, bench_root, out);
-
-                #[cfg(feature = "gpu")]
-                crate::commands::mens::reasoning_compare::run_eval_reasoning_compare(
-                    crate::commands::mens::reasoning_compare::CompareArgs {
-                        base,
-                        adapter,
-                        hub_root,
-                        bench_root,
-                        out,
-                    },
-                )?;
-                Ok(())
-            }
+            } => crate::commands::mens::reasoning_compare::run_eval_reasoning_compare(
+                crate::commands::mens::reasoning_compare::CompareArgs {
+                    base,
+                    adapter,
+                    hub_root,
+                    bench_root,
+                    out,
+                },
+            ),
 
             super::mens_tail_subcommands::PopuliMensTail::BenchCompletion {
                 url,
