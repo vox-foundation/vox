@@ -1,0 +1,69 @@
+/*
+ * VoxDiagram figures (Phase 89). The pre-rendered SVG paints only `--vd-*` variables
+ * (crates/vox-diagram/src/svg/mod.rs THEME_VARS); this file maps them to Starlight's
+ * `--sl-*` tokens, which flip with `html[data-theme]`, so one SVG serves light and dark.
+ */
+.vd-figure {
+  --vd-text: var(--sl-color-white);
+  --vd-muted: var(--sl-color-gray-2);
+  --vd-node-fill: var(--sl-color-black);
+  --vd-node-stroke: var(--sl-color-gray-3);
+  --vd-edge: var(--sl-color-gray-3);
+  --vd-container-fill: var(--sl-color-gray-6);
+  --vd-container-stroke: var(--sl-color-gray-3);
+  --vd-bg: var(--sl-color-black);
+  --vd-font: var(--sl-font-system);
+  margin: 1.5rem 0;
+  overflow-x: auto;
+}
+
+.vd-figure:focus-visible {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 2px;
+}
+
+/* Natural size for small diagrams, never wider than the viewBox, never below 0.6 of it:
+   under that the figure scrolls instead of shrinking the text further (D-11). */
+.vd-figure > svg {
+  display: block;
+  width: 100%;
+  max-width: var(--vd-w, 100%);
+  min-width: calc(var(--vd-w, 0px) * 0.6);
+  height: auto;
+  margin-inline: auto;
+}
+
+.vd-source {
+  margin-top: 0.5rem;
+  font-size: var(--sl-text-sm);
+}
+
+.vd-source > summary {
+  cursor: pointer;
+  color: var(--sl-color-gray-2);
+}
+
+/* Dev-only placeholder for a fence with no pre-rendered SVG (a build fails instead). */
+.vd-figure.vd-missing {
+  border: 1px dashed var(--sl-color-gray-3);
+  border-radius: 0.25rem;
+  padding: 0.75rem 1rem;
+  color: var(--sl-color-gray-2);
+}
+
+.vd-figure.vd-missing > p {
+  margin: 0;
+}
+
+@media (forced-colors: active) {
+  .vd-figure {
+    --vd-text: CanvasText;
+    --vd-muted: CanvasText;
+    --vd-node-fill: Canvas;
+    --vd-node-stroke: CanvasText;
+    --vd-edge: CanvasText;
+    --vd-container-fill: Canvas;
+    --vd-container-stroke: CanvasText;
+    --vd-bg: Canvas;
+  }
+}

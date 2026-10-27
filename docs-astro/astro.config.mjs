@@ -97,11 +97,13 @@ export default defineConfig({
           projectName: 'Vox',
           description: 'Vox is a pre-1.0 (0.6.0) AI-native full-stack language that compiles a .vox file to a database schema, type-safe server, and browser UI. Build from source; see https://voxlang.org/reference/stability/ for maturity. Current syntax uses bare table / query / mutation / server / tool — not @endpoint.',
           exclude: internalsExcluded,
+          // The SVG's <desc> and labels are noise for LLMs; its fence source stays (details > pre).
+          customSelectors: { all: ['svg.vd-diagram'] },
         }),
       ],
       lastUpdated: true,
       pagefind: true,
-      customCss: ['./src/styles/reader-layout.css'],
+      customCss: ['./src/styles/reader-layout.css', './src/styles/vox-diagram.css'],
       components: {
         Sidebar: './src/components/Sidebar.astro',
         TableOfContents: './src/components/TableOfContents.astro',
