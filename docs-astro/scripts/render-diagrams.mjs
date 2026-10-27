@@ -7,26 +7,10 @@
  * failure (the remark plugin shows a placeholder for the missing diagram); build fails hard.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, rmSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 export const RENDER_COMMAND = ['cargo', 'run', '-p', 'vox-doc-pipeline', '--', '--render-diagrams'];
-
-const STORE = fileURLToPath(new URL('../.astro/data-store.json', import.meta.url));
-
-/**
- * Astro's content data store caches rendered markdown, and a page whose source did not change is
- * not re-rendered when the manifest does (89-RESEARCH Pitfall 3). Deleting the store forces a
- * re-sync. `astro.config.mjs` calls this at every (re)start, before content sync: calling it from
- * the CLI instead deletes the store under a running dev server, which then 404s every page.
- * Returns whether it deleted anything.
- */
-export function clearStaleStore({ before, after, storePath = STORE }) {
-  if (before === after || !existsSync(storePath)) return false;
-  rmSync(storePath);
-  return true;
-}
 
 export function renderDiagrams({ dev = false } = {}) {
   const [cmd, ...cmdArgs] = RENDER_COMMAND;

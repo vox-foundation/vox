@@ -1,7 +1,4 @@
 // @ts-check
-import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
@@ -10,7 +7,7 @@ import { voxGrammar } from './src/plugins/vox-grammar.mjs';
 import { getSidebar } from './src/utils/sidebar.mjs';
 import { remarkVoxInclude } from './src/plugins/remark-vox-include.mjs';
 import { remarkDocLinks } from './src/plugins/remark-doc-links.mjs';
-import { remarkVoxDiagram, assertNoMisses } from './src/plugins/remark-vox-diagram.mjs';
+import { voxDiagram } from './src/plugins/vox-diagram-integration.mjs';
 import { listDocPages, noindexRoutes, internalsDocIds } from './src/utils/page-index.mjs';
 
 const docsSrc = new URL('../docs/src', import.meta.url).pathname;
@@ -18,12 +15,8 @@ const docPages = listDocPages(docsSrc);
 const noindex = noindexRoutes(docPages);
 const internalsExcluded = internalsDocIds(docPages);
 
-// VoxDiagram pre-render output (gitignored; `pnpm diagrams` writes it). Its sha256 rides in the
-// plugin options so Astro's content data store is invalidated whenever a diagram changes (D-15).
+// VoxDiagram pre-render output (gitignored; `pnpm diagrams` writes it).
 const manifestFile = new URL('./.vox-diagram/manifest.json', import.meta.url);
-const manifestDigest = existsSync(manifestFile)
-  ? createHash('sha256').update(readFileSync(manifestFile)).digest('hex')
-  : 'none';
 
 export default defineConfig({
   site: 'https://voxlang.org/',
@@ -36,32 +29,7 @@ export default defineConfig({
     ],
   },
   integrations: [
-    {
-      name: 'vox-diagram',
-      hooks: {
-        'astro:config:setup': ({ command, updateConfig, addWatchFile }) => {
-          addWatchFile(manifestFile);
-          updateConfig({
-            markdown: {
-              remarkPlugins: [
-                [
-                  remarkVoxDiagram,
-                  { manifestPath: fileURLToPath(manifestFile), strict: command === 'build', digest: manifestDigest },
-                ],
-              ],
-            },
-          });
-        },
-        // A dev restart (the manifest is a watched file) does not re-sync content, so cached md pages
-        // would keep the old figure or placeholder. The digest in the plugin options changes Astro's
-        // config digest, and a sync clears the store when that differs (89-RESEARCH Pitfall 3 / A4).
-        'astro:server:setup': ({ refreshContent }) => refreshContent?.({}),
-        // md pages render during content sync before this hook, and a remark throw does not fail
-        // an md build, so this is what fails it; the done hook catches any miss recorded later.
-        'astro:build:start': () => assertNoMisses(),
-        'astro:build:done': () => assertNoMisses(),
-      },
-    },
+    voxDiagram({ manifestFile }),
     sitemap({
       filter: (page) => {
         const p = new URL(page).pathname;
