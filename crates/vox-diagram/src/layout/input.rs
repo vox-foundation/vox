@@ -287,6 +287,30 @@ mod tests {
         assert_eq!(input.nodes[0].container, Some(2));
     }
 
+    /// WR-04: the old 260 px strut cap and the frame re-wrap both dropped the floor for any title
+    /// line wider than about 232 px; a full 28-cell line of the widest glyphs must keep it.
+    #[test]
+    fn a_full_width_title_line_keeps_the_padding_floor() {
+        for glyph in ["W", "m"] {
+            let mut g = graph(vec![], vec![]);
+            g.containers = vec![boxed("a", None, &glyph.repeat(60))];
+            let Ok(input) = build(&g) else {
+                panic!("build failed");
+            };
+            let c = &input.containers[0];
+            let tw = c.title_lines.iter().map(|l| measure(l)).max().unwrap_or(0);
+            assert!(
+                tw > 464,
+                "{glyph}: a line of {tw} half-px does not exercise the old cap"
+            );
+            assert!(
+                c.title_w * 100 >= tw * 112,
+                "{glyph}: box {} for {tw}",
+                c.title_w
+            );
+        }
+    }
+
     #[test]
     fn a_title_is_wrapped_and_its_box_is_the_text_plus_10px_each_side() {
         let mut g = graph(vec![], vec![]);
