@@ -24,7 +24,10 @@ use vox_diagram::ir::Ir;
 use vox_diagram::mermaid::{ImportOpts, export, import};
 
 /// Stem to fixture-relative golden path for blocks without a `corpus-roundtrip/<stem>.sets.json`.
-const HAND: &[(&str, &str)] = &[];
+const HAND: &[(&str, &str)] = &[(
+    "29-how-to-rust-crate-imports-l53",
+    "import-cases-roundtrip/13-rust-crate-imports-stripped.sets.json",
+)];
 
 struct Entry {
     stem: String,

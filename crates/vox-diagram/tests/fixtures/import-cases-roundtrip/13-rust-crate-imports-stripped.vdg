@@ -1,0 +1,16 @@
+graph {
+    direction: right
+    node A: ".vox source"
+    node B: "Lexer / Parser"
+    node C: "AST ImportPathKind::RustCrate"
+    node D: "HIR HirRustImport"
+    node E: "Type registration"
+    node F: "Cargo.toml synthesis"
+    node G: "cargo build in cache / generated crate"
+    A -> B
+    B -> C
+    C -> D
+    D -> E
+    D -> F
+    F -> G
+}
