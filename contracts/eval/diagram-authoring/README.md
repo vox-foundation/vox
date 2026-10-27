@@ -15,8 +15,9 @@ real Mermaid parser for Mermaid.
 | `prompt-template.txt` | The one template both arms share. `[user]` is the first message, `[repair]` a repair turn. The system message is the arm's card. Only `{LANG}`, `{FENCE}` and `{VALIDATOR}` differ between arms. | hand-authored |
 | `reference-inputs.jsonl` | Mermaid export of every reference. | Rust |
 | `reference-outputs.jsonl` | The real Mermaid parser's canonical sets of each export: the task's expected node/edge (actor/message) sets. Never hand-written. | Node |
-| `manifest.v1.yaml` | Counts, BLAKE3 hashes of the four frozen inputs, oracles, MENS status. | hand-maintained, gated |
-| `runs/<name>/` | Recordings of live runs and their derived oracle files and tallies (from 91-04). | live run, then Rust/Node |
+| `manifest.v1.yaml` | Counts, BLAKE3 hashes of the four frozen inputs, the pre-registered `decision_rule`, oracles, MENS status. | hand-maintained, gated |
+| `runs/<name>/` | Recordings of live runs and their derived oracle files and tallies. | live run, then Rust/Node |
+| `probe-spend.jsonl` | The probe ledger: one line per model probe, answered or not, with its cost. | live run |
 
 ## Authoring rules (gated by `crates/vox-cli/tests/it/eval_diagram_tasks.rs`)
 
@@ -67,6 +68,31 @@ EVAL_DIAGRAM_BLESS=1 cargo nextest run -p vox-cli --test it -E 'test(/eval_diagr
 
 Then update `files` in `manifest.v1.yaml` with the hashes the manifest gate prints. Never edit a
 derived file by hand, and never regenerate a recording (`runs/*/attempts.jsonl`).
+
+## Live run
+
+The live run is the ignored test `eval_diagram_live::live_run` (code:
+`crates/vox-cli/src/commands/model/eval_diagram/{run,live,prereg}.rs`). It never runs in CI. Run it
+once, as plan 91-05 describes, with the freeze commit set to the commit whose subject starts with
+`docs(91-04): pre-register`:
+
+```text
+EVAL_DIAGRAM_FREEZE_COMMIT=<freeze commit> \
+  cargo test -p vox-cli --test it -- --ignored --exact eval_diagram_live::live_run --nocapture
+```
+
+Optional: `EVAL_DIAGRAM_MAX_SPEND_USD` (default and maximum 25) and `EVAL_DIAGRAM_RUN_NAME` (default
+the UTC date). Before any model call it refuses, with a HUMAN ACTION REQUIRED message, unless the
+freeze commit is that pre-registration commit, an ancestor of HEAD, and nothing in this directory
+(except `runs/` and `probe-spend.jsonl`) or in the findings report changed since it; it also checks
+the manifest rule and hashes, the report's prereg block, mermaid 11.17.2, a fresh run directory and
+the remaining budget. Models come from the registry's CodeGen selection restricted to cloud
+providers; nothing is pinned.
+
+The $25 cap covers every call, probes included, across all runs: spend is the sum of the attempt
+costs under `runs/` and the costs in `probe-spend.jsonl`. **Never delete a run directory or
+`probe-spend.jsonl`**: their spend counts against the cap, and deleting them would let a later run
+spend it again.
 
 ## MENS isolation
 
