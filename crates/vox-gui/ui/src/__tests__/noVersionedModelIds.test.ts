@@ -17,6 +17,12 @@ const RECORDED_TRACE_TESTS = new Set([
   'e2e/research-trace-panel.spec.ts',
   'e2e/models-leaderboard.spec.ts',
 ]);
+// `platformSsot.generated.ts` is a verbatim sync of the platform model catalog (pinned fallback slugs are part of
+// its data) written by the sibling repo's `ngi.video/scripts/sync-platform-ssot.mjs`, alongside
+// `vox-orchestrator/src/platform_ssot_generated.rs` and `contracts/orchestration/platform-ssot.v1.yaml`, under a
+// SHA-256 version stamp. It is DO-NOT-EDIT and is not hand-written GUI source; the GUI imports only its
+// version/hash constants (`lib/cvFlywheel.ts`). Rewriting it to family keys belongs in that generator, not here.
+const GENERATED_SYNC_FILES = new Set(['src/lib/platformSsot.generated.ts']);
 /**
  * Local model names may be literal (AGENTS.md: local MENS revisions are exempt): Ollama, MENS runs,
  * mesh- and locally-served models, and the MENS fine-tuning base.
@@ -90,7 +96,7 @@ describe('no versioned cloud model ids in GUI source, tests or mocks', () => {
     const files: string[] = [];
     for (const d of SCAN_DIRS) walk(join(UI_ROOT, d), files);
     const offenders = files
-      .filter((f) => resolve(f) !== resolve(SELF) && !RECORDED_TRACE_TESTS.has(relative(UI_ROOT, f)))
+      .filter((f) => resolve(f) !== resolve(SELF) && !RECORDED_TRACE_TESTS.has(relative(UI_ROOT, f)) && !GENERATED_SYNC_FILES.has(relative(UI_ROOT, f)))
       .flatMap((f) => findVersionedIds(readFileSync(f, 'utf8')).map((id) => `${relative(UI_ROOT, f)}: ${id}`));
     expect(offenders).toEqual([]);
   });
