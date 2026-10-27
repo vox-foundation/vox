@@ -365,7 +365,7 @@ fn base_for_name(name: &str) -> TrainPresetProfile {
             warmup: 10,
             lr: 1e-4,
         },
-        "qwen3_16g" => TrainPresetProfile {
+        "qwen3_6g" | "qwen3_12g" | "qwen3_16g" => TrainPresetProfile {
             rank: 16,
             alpha: 32.0,
             seq_len: 512,
@@ -817,6 +817,8 @@ mod qwen3_preset_tests {
     fn known_presets_contains_all_qwen3_tiers() {
         for name in &[
             "qwen3_dev_cpu",
+            "qwen3_6g",
+            "qwen3_12g",
             "qwen3_16g",
             "qwen3_24g",
             "qwen3_48g",
@@ -828,6 +830,12 @@ mod qwen3_preset_tests {
                 name
             );
         }
+    }
+
+    #[test]
+    fn new_ladder_presets_share_the_16g_profile() {
+        assert_eq!(base_for_name("qwen3_6g"), base_for_name("qwen3_16g"));
+        assert_eq!(base_for_name("qwen3_12g"), base_for_name("qwen3_16g"));
     }
 
     #[test]

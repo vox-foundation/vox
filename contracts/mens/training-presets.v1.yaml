@@ -25,6 +25,8 @@ presets:
   - id: vox-gen
   # Qwen3 dense ladder presets (revision-pinned hub; additive alongside legacy qwen_* presets)
   - id: qwen3_dev_cpu
+  - id: qwen3_6g
+  - id: qwen3_12g
   - id: qwen3_16g
   - id: qwen3_24g
   - id: qwen3_48g

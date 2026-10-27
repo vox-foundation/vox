@@ -31,6 +31,8 @@ pub const KNOWN_PRESETS: &[&str] = &[
     "vox-gen",
     // Qwen3 dense ladder presets — additive alongside legacy qwen_* presets.
     "qwen3_dev_cpu", // Qwen3-0.6B r8, CPU smoke — no quality gate
+    "qwen3_6g",      // Qwen3-1.7B QLoRA (6 GB class), live selector rung
+    "qwen3_12g",     // Qwen3-4B QLoRA (10-12 GB class), live selector rung
     "qwen3_16g",     // Qwen3-8B QLoRA r16 (RTX 4080 Super 16GB)
     "qwen3_24g",     // Qwen3-14B QLoRA r32 (3090/4090 24GB)
     "qwen3_48g",     // Qwen3-14B LoRA r32 un-quantized (48GB)
@@ -176,7 +178,7 @@ fn parse_overlay(raw: &str) -> anyhow::Result<HashMap<String, Vec<TrainBase>>> {
 
 /// Compile-time copy so an installed `vox` can resolve `agentic_default`
 /// without a Vox Cargo workspace checkout.
-fn load_embedded_overlay() -> anyhow::Result<HashMap<String, Vec<TrainBase>>> {
+pub(crate) fn load_embedded_overlay() -> anyhow::Result<HashMap<String, Vec<TrainBase>>> {
     const EMBEDDED: &str = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../mens/config/gpu-specs.yaml"
