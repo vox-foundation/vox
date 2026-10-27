@@ -69,13 +69,21 @@ fn wrap_drops_blank_lines() {
     assert_eq!(wrap(" \n\t\n"), Vec::<String>::new());
 }
 
+/// Phase 90 review WR-03: CJK has no spaces, so a sentence is one "word"; it still breaks at the
+/// line width (14 wide characters), not at the 48-cell identifier allowance.
 #[test]
-fn wrap_counts_cjk_as_two_cells() {
-    let half = WORD_CELLS / 2;
+fn wrap_counts_cjk_as_two_cells_and_breaks_it_at_the_line_width() {
+    let half = WRAP_CELLS / 2;
     let s = "\u{65e5}".repeat(half + 1);
     assert_eq!(
         wrap(&s),
         vec!["\u{65e5}".repeat(half), "\u{65e5}".to_owned()]
+    );
+    // A Latin identifier with one wide character is text too.
+    let mixed = format!("{}\u{65e5}", "a".repeat(WRAP_CELLS));
+    assert_eq!(
+        wrap(&mixed),
+        vec!["a".repeat(WRAP_CELLS), "\u{65e5}".to_owned()]
     );
 }
 
