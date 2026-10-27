@@ -6,12 +6,13 @@ use std::path::PathBuf;
 #[allow(clippy::too_many_arguments)]
 pub(super) async fn run_gpu_training(
     train_backend: vox_populi::mens::PopuliTrainBackend,
-    model: Option<String>,
+    mut model: Option<String>,
     device: String,
     data_dir: PathBuf,
     output_dir: PathBuf,
     resume: Option<PathBuf>,
-    preset: Option<String>,
+    mut preset: Option<String>,
+    size_pick: Option<vox_populi::mens::tensor::size_select::SizePick>,
     device_profile: vox_populi::mens::DeviceProfile,
     cli_overrides: vox_populi::mens::CliOverrides,
     gpu_info: vox_populi::mens::GpuInfo,
@@ -89,6 +90,21 @@ pub(super) async fn run_gpu_training(
         workspace_root.as_deref(),
     )?;
     tracing::debug!(path = %resolved.path.display(), source = ?resolved.source, "Preflight resolved train input");
+
+    // One re-read right before the download (D-05); the post-download `plan_for`
+    // refusal below remains the backstop. An explicit `--preset` still wins.
+    if let Some(pick) = size_pick {
+        let pick =
+            super::run_train::recheck_size_pick(pick, workspace_root.as_deref(), device_kind)?;
+        // The profile's size-ladder floors read VOX_BASE_MODEL (set by run_train).
+        // SAFETY: CLI process; set before any training thread starts.
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var("VOX_BASE_MODEL", &pick.rung.hf_id)
+        };
+        model = Some(pick.rung.hf_id.clone());
+        preset = preset.or(Some(pick.rung.preset.to_string()));
+    }
 
     // The old VRAM-tiered `auto_preset` lookup that used to pick `final_preset`
     // here was deleted (Task 8: it had no 27B rung and silently handed a 27B
@@ -249,7 +265,12 @@ pub(super) async fn run_gpu_training(
         };
         match auto_size_outcome {
             Ok(outcome) => {
-                match apply_auto_size_outcome(outcome, force_train_env(), batch_size, seq_len)? {
+                match apply_auto_size_outcome(
+                    outcome,
+                    super::run_train::force_train_env(),
+                    batch_size,
+                    seq_len,
+                )? {
                     SizingDecision::Sized {
                         batch_size: b,
                         seq_len: s,
@@ -719,24 +740,6 @@ fn verify_request_with_budget(
     })
 }
 
-/// `VOX_MENS_FORCE_TRAIN=1`/`true` — the registered operator override
-/// meaning "proceed past a failing gate", including the VRAM-fit refusal
-/// above. Restores exactly the escape hatch `train_arm.rs`'s deleted
-/// `budget_gate`/`force_train_env` used to provide for the params_b-only
-/// ladder's `ModelPlan.over_budget`, now applied to the real measured
-/// `plan_for`/`sweep` verdict instead — including `budget_gate`'s own
-/// unconditional coverage: it ran for every CUDA run regardless of how
-/// sizing was chosen, and (fix round 2) so does this, via both
-/// `auto_size_from_model_dir` (no explicit sizing) and
-/// `verify_request_from_model_dir` (explicit `--seq-len`/`--batch-size` or a
-/// domain-profile pin).
-fn force_train_env() -> bool {
-    std::env::var("VOX_MENS_FORCE_TRAIN")
-        .ok()
-        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-        .unwrap_or(false)
-}
-
 /// What to do with an [`AutoSizeOutcome`] once it's known — the ONE
 /// decision every call site (auto-sizing and explicit-sizing alike) must
 /// make identically, and the safety-critical branch fix round 2 exists to
@@ -807,7 +810,7 @@ fn apply_auto_size_outcome(
 mod auto_size_tests {
     use super::{
         AutoSizeOutcome, SizingDecision, accel_budget_and_lane, apply_auto_size_outcome,
-        auto_size_with_budget, force_train_env, verify_request_with_budget,
+        auto_size_with_budget, verify_request_with_budget,
     };
     use vox_populi::mens::tensor::memory_model::{DeviceBudget, Lane, MemoryModels};
 
@@ -944,31 +947,6 @@ lanes:
             other => panic!(
                 "expected a measured Refused for a 1 KiB budget on a calibrated lane, got {other:?}"
             ),
-        }
-    }
-
-    #[test]
-    #[allow(unsafe_code)]
-    fn force_train_env_parses_truthy_and_falsy_values() {
-        // Guards concurrent mutation of the process-global env var — no
-        // other test in this binary reads or writes VOX_MENS_FORCE_TRAIN.
-        static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-        let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        let prior = std::env::var("VOX_MENS_FORCE_TRAIN").ok();
-
-        // SAFETY: single-threaded section guarded by LOCK above.
-        unsafe { std::env::remove_var("VOX_MENS_FORCE_TRAIN") };
-        assert!(!force_train_env(), "unset -> false");
-        for on in ["1", "true", "TRUE"] {
-            unsafe { std::env::set_var("VOX_MENS_FORCE_TRAIN", on) };
-            assert!(force_train_env(), "{on} -> true");
-        }
-        unsafe { std::env::set_var("VOX_MENS_FORCE_TRAIN", "0") };
-        assert!(!force_train_env(), "0 -> false");
-
-        match prior {
-            Some(v) => unsafe { std::env::set_var("VOX_MENS_FORCE_TRAIN", v) },
-            None => unsafe { std::env::remove_var("VOX_MENS_FORCE_TRAIN") },
         }
     }
 
