@@ -7,7 +7,7 @@ current_phase_name: Serve Gate
 status: ready
 last_updated: "2026-10-26T23:41:08.000Z"
 last_activity: 2026-10-26
-last_activity_desc: Phase 315 security verified; code review next
+last_activity_desc: Phase 315 code review recorded; WR-01 and WR-04 in progress
 state_head: 0da0d1fcbd298c382564ac4690f3c0decbf64210
 progress:
   total_phases: 4
@@ -23,7 +23,7 @@ progress:
 
 Phase: 315 (Serve Gate) — verification in progress
 Plan: 2/2 summaries committed
-Status: Security verified (threats_open 0). Code review next.
+Status: Code review recorded (0 critical, 4 warning, 3 info). WR-01 and WR-04 open.
 Last activity: 2026-10-26 — Phase 315 security report written
 
 ## Milestone History (Recent)
@@ -41,7 +41,7 @@ Last activity: 2026-10-26 — Phase 315 security report written
 
 ## Next Step
 
-Code review, then the verifier, for phase 315. Phase 316 is not started.
+Fix WR-01 and WR-04, then the verifier, for phase 315. Phase 316 is not started.
 
 ## v5.5 Autonomous Progress (2026-10-25 America/Phoenix)
 
