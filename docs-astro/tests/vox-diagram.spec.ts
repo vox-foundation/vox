@@ -187,6 +187,14 @@ test('contrast check rejects a pale palette', async ({ page }) => {
   expect(pale.violations.filter((v) => v.startsWith('stroke')), 'pale strokes must fail').not.toHaveLength(0);
 });
 
+test('contrast check rejects strokes lost on the container fill', async ({ page }) => {
+  await open(page, REFERENCE, 'dark');
+  // Only the container fill moves, to the stroke colour: strokes over the page stay clean.
+  await page.addStyleTag({ content: '.vd-figure { --vd-container-fill: var(--sl-color-gray-3) !important; }' });
+  const lost = (await measure(page)).violations.filter((v) => v.startsWith('stroke'));
+  expect(lost, 'strokes on the container fill must fail').not.toHaveLength(0);
+});
+
 test('review bundle: every reference figure in light, dark and forced colors', async ({ page }) => {
   mkdirSync(BUNDLE, { recursive: true });
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -231,8 +239,19 @@ async function measure(page: Page): Promise<{ minText: number; minStroke: number
       else if (t.previousElementSibling?.matches('.vd-edge-label-bg, .vd-container, .vd-note')) box = t.previousElementSibling;
       out.push({ kind: 'text', what: `"${(t.textContent ?? '').trim().slice(0, 30)}"`, fg: cs(t, 'fill'), bg: box ? cs(box, 'fill') : 'unmapped' });
     }
-    for (const el of document.querySelectorAll('svg.vd-diagram .vd-node-shape, .vd-edge, .vd-container, .vd-lifeline')) {
-      out.push({ kind: 'stroke', what: el.getAttribute('class') ?? el.tagName, fg: cs(el, 'stroke'), bg: backdrop(el.closest('figure') ?? el) });
+    // A stroke is checked against every fill it can sit on: the page behind the figure, the fill
+    // of each container its box overlaps, and for a shape its own fill (WR-06).
+    const overlaps = (a: DOMRect, b: DOMRect): boolean =>
+      a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+    for (const el of document.querySelectorAll<SVGGraphicsElement>('svg.vd-diagram :is(.vd-node-shape, .vd-edge, .vd-container, .vd-lifeline)')) {
+      const what = el.getAttribute('class') ?? el.tagName;
+      const box = el.getBBox();
+      const fills = [backdrop(el.closest('figure') ?? el)];
+      for (const c of el.ownerSVGElement?.querySelectorAll<SVGGraphicsElement>('.vd-container') ?? []) {
+        if (overlaps(box, c.getBBox())) fills.push(cs(c, 'fill'));
+      }
+      if (el.matches('.vd-node-shape, .vd-container')) fills.push(cs(el, 'fill'));
+      for (const bg of new Set(fills)) out.push({ kind: 'stroke', what, fg: cs(el, 'stroke'), bg });
     }
     return out;
   });
