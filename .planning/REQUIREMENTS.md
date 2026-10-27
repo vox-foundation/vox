@@ -22,6 +22,17 @@
 - [x] **GATE-01**: Serve refuses an adapter when the collateral report is missing, or when accuracy or think-initiation on the lane benches drops past the configured threshold.
 - [x] **GATE-02**: The report says these benches are slices, so the 5% relative bar is not read as a full GSM8K or MATH-500 result.
 
+### Model sizes (`SIZE`) — added 2026-10-26
+
+- [ ] **SIZE-01**: The ladder pins all six Qwen3 dense sizes (0.6B, 1.7B, 4B, 8B, 14B, 32B), each with a real Hugging Face commit and a license. A rung whose memory floor has not been measured on hardware says so.
+- [ ] **SIZE-02**: A hub and its spokes are picked together from available memory: one base size, with each spoke's base and preset following it. An explicit size overrides the pick, and a size that does not fit is refused rather than silently shrunk.
+- [ ] **SIZE-03**: Each size that fits this Mac is QLoRA-trained on Metal with the lane prefix, and its adapter manifest names its pinned base. A size that does not fit is recorded as not trained, with the measured memory.
+
+### Harness before/after (`HARN`, `BENCH`) — added 2026-10-26
+
+- [ ] **HARN-01**: The harness serves a chosen size's base or adapter through the existing serve path, behind the collateral gate.
+- [ ] **BENCH-04**: For every trained size, one report holds before (base) and after (adapter) scores: reasoning accuracy and think-initiation on the three slices, and an intelligence score on a codegen or agent bench, each with n. The milestone is not complete until at least two sizes have real trained scores.
+
 ## Future Requirements
 
 - Swap the pinned Qwen3-8B base for a newer checkpoint, only after this before/after exists.
@@ -31,7 +42,7 @@
 
 | Feature | Reason |
 |---|---|
-| New base model | Confounds the before/after. Deferred until measurement exists. |
+| Swapping the default base | `Qwen/Qwen3-8B` stays the default. Other Qwen3 sizes are added as selectable rungs, not as a new default. |
 | Oct 2026 training recipes and the Unsloth 75% mix | The 75% figure is a vendor heuristic. Policy and measurement come first. |
 | Re-scoring adapters trained before 2026-10-26 as if they used the new prefix | Those runs did not. |
 | Full GSM8K and MATH-500 on every serve | Too slow for the gate. The checked-in slices are the bar, and they are labeled as slices. |
@@ -45,6 +56,11 @@
 | `BENCH-01` | Phase 316 | Pending |
 | `BENCH-02` | Phase 314 | Complete |
 | `BENCH-03` | Phase 314 | Complete |
+| `SIZE-01` | Phase 317 | Pending |
+| `SIZE-02` | Phase 318 | Pending |
+| `SIZE-03` | Phase 319 | Pending |
+| `HARN-01` | Phase 320 | Pending |
+| `BENCH-04` | Phase 320 | Pending |
 | `GATE-01` | Phase 315 | Complete |
 | `GATE-02` | Phase 315 | Complete |
 

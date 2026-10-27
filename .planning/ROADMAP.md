@@ -3,7 +3,7 @@
 # Roadmap: v5.6 — Reasoning Where the Lane Needs It
 
 **Milestone:** v5.6
-**Status:** Phase 315 complete — ready for phase 316
+**Status:** Phase 315 complete — ready for phase 316. Extended 2026-10-26: not complete until at least two Qwen3 sizes have real trained before/after scores.
 **Updated:** 2026-10-26
 
 ### Phase 313: Lane Prefix (`LANE-01`, `LANE-02`)
@@ -57,17 +57,54 @@ Plans:
 - [x] `315-02` (Wave 2, after 315-01): Serve re-validates the on-disk report and the per-slice reasoning reports and refuses a missing, stale, edited, or unscored one (completed 2026-10-26)
 
 ### Phase 316: Before/After Comparison (`BENCH-01`)
-**Goal:** Base and adapter are scored on the same slices when the weights exist, and no score is invented when they do not.
+**Goal:** A pinned Qwen3 base of any ladder size and its adapter are scored on the same slices when the weights exist, and no score is invented when they do not.
 **Depends on**: Phase 315
 **Requirements**: BENCH-01
 **Success Criteria** (what must be TRUE):
-  1. When the pinned Qwen3-8B snapshot and an adapter are on disk, one report holds accuracy and think-initiation for the GSM8K slice, the MATH-500 slice, and the Vox slice on both sides.
+  1. When the requested pinned Qwen3 snapshot (default `Qwen/Qwen3-8B`) and an adapter trained on it are on disk, one report holds accuracy and think-initiation for the GSM8K slice, the MATH-500 slice, and the Vox slice on both sides.
   2. When the snapshot is absent, the run records that fact and does not write numeric scores.
   3. Both sides use the checked-in items.
 **Plans**: 1 plan
 
 Plans:
 - [ ] `316-01`: Run the before/after on the checked-in slices, or record that the snapshot is absent
+
+### Phase 317: Size Ladder (`SIZE-01`)
+**Goal:** Every Qwen3 dense size is a pinned, licensed rung that the trainer and the harness can name.
+**Depends on**: Phase 316
+**Requirements**: SIZE-01
+**Success Criteria** (what must be TRUE):
+  1. The ladder has Qwen3-0.6B, 1.7B, 4B, 8B, 14B, and 32B, each pinned to a real Hugging Face commit and carrying a license.
+  2. A rung whose memory floor has not been measured on hardware says so.
+**Plans**: TBD
+
+### Phase 318: Pick by Memory (`SIZE-02`)
+**Goal:** A hub and its spokes are chosen together from available memory, or from an explicit size.
+**Depends on**: Phase 317
+**Requirements**: SIZE-02
+**Success Criteria** (what must be TRUE):
+  1. With no size given, one base size is picked from available memory, and every spoke's base and preset follow it.
+  2. An explicit size overrides the pick, and a size that does not fit is refused rather than silently shrunk.
+**Plans**: TBD
+
+### Phase 319: Train the Sizes (`SIZE-03`)
+**Goal:** Each Qwen3 size that fits this Mac is trained with the lane prefix, and each size that does not is recorded as not trained.
+**Depends on**: Phase 318
+**Requirements**: SIZE-03
+**Success Criteria** (what must be TRUE):
+  1. Each size that fits produces a Metal QLoRA adapter whose manifest names its pinned base.
+  2. A size that does not fit has a record with the measured memory and no adapter.
+**Plans**: TBD
+
+### Phase 320: Harness Before/After (`HARN-01`, `BENCH-04`)
+**Goal:** The harness serves a chosen size, and one report shows before and after reasoning and intelligence scores for every trained size.
+**Depends on**: Phase 319
+**Requirements**: HARN-01, BENCH-04
+**Success Criteria** (what must be TRUE):
+  1. The harness serves a chosen size's base or adapter through the existing serve path, behind the collateral gate.
+  2. For every trained size, the report holds base and adapter reasoning accuracy and think-initiation on the three slices, plus an intelligence score on a codegen or agent bench, with n recorded.
+  3. At least two sizes have real trained scores. Sizes without them are listed as not trained, with no numbers.
+**Plans**: TBD
 
 ### Progress
 
@@ -77,6 +114,10 @@ Plans:
 | **Phase 314** | Held-out Reasoning Set | `2/2` | Complete |
 | **Phase 315** | Serve Gate | `2/2` | Complete |
 | **Phase 316** | Before/After Comparison | `0/1` | Not started |
+| **Phase 317** | Size Ladder | `0/0` | Not started |
+| **Phase 318** | Pick by Memory | `0/0` | Not started |
+| **Phase 319** | Train the Sizes | `0/0` | Not started |
+| **Phase 320** | Harness Before/After | `0/0` | Not started |
 
 ---
 

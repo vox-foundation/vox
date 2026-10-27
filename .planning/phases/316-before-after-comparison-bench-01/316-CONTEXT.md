@@ -6,7 +6,7 @@
 <domain>
 ## Phase Boundary
 
-Score the pinned base and an adapter on the three checked-in 32-item reasoning slices, with accuracy and think-initiation stored as separate keys, when the pinned `Qwen/Qwen3-8B` snapshot and an adapter are both on disk. When the snapshot is absent, record that fact and write no numeric score. This checkout has no Qwen3-8B snapshot, so the run here takes the absent branch. The phase does not train a model, does not download weights, and does not change the serve gate.
+Score the pinned base and an adapter on the three checked-in 32-item reasoning slices, with accuracy and think-initiation stored as separate keys, when the requested pinned Qwen3 snapshot (any ladder size, default `Qwen/Qwen3-8B`) and an adapter trained on it are both on disk. When the snapshot is absent, record that fact and write no numeric score. This phase builds the command. It does not train a model, does not download weights itself, and does not change the serve gate. Today this checkout has no Qwen3-8B snapshot, so a run here takes the absent branch. Phases 317–320 (added 2026-10-26) download, train, and run this command for each Qwen3 size.
 
 </domain>
 
@@ -18,6 +18,10 @@ Score the pinned base and an adapter on the three checked-in 32-item reasoning s
 - Do not score Qwen3-0.6B, or any other model, as a stand-in for Qwen3-8B.
 - Do not download weights as part of this phase.
 
+### Base size is an input
+- The user extended v5.6 on 2026-10-26 to train all six Qwen3 dense sizes on this Mac. The command takes the base pin as input (a ladder rung tag or a pinned `hf_id@sha`), defaulting to the pinned `Qwen/Qwen3-8B`.
+- Detection checks the exact pinned revision of the requested size, not just any snapshot of that model.
+
 ### Both branches exist in code
 - If the pinned snapshot and an adapter are on disk, score the three checked-in slices (`gsm8k_think`, `math500_think`, `vox_think`) on both sides.
 - If either is missing, write the absence record instead.
@@ -25,7 +29,7 @@ Score the pinned base and an adapter on the three checked-in 32-item reasoning s
 - The run on this checkout takes the absent branch.
 
 ### Absence record shape
-- The absence record names `Qwen/Qwen3-8B` and says the snapshot is not on disk.
+- The absence record names the requested pinned base (default `Qwen/Qwen3-8B`) and says the snapshot is not on disk.
 - It has no `accuracy` key and no `think_initiation_rate` key.
 - It is not a collateral pass and is not a serve-gate input.
 
@@ -71,10 +75,10 @@ The user accepted the four recommended answers: record absence here with no stan
 <deferred>
 ## Deferred Ideas
 
-- Pick a hub and its spokes together from available VRAM. Today spoke training bases resolve through `pick_base` on `train_bases.agentic_default` in `mens/config/gpu-specs.yaml`, but every spoke hard-codes `preset: qwen3_16g`, and the hub model has no VRAM entry (the `hub:` block in `mens/config/domain-profiles.yaml` lists only the embedder). This needs its own phase. Note that the `Qwen/Qwen3.8-27B` rung has an unmeasured floor and no license entry.
+- Now phase 318: pick a hub and its spokes together from available VRAM. Today spoke training bases resolve through `pick_base` on `train_bases.agentic_default` in `mens/config/gpu-specs.yaml`, but every spoke hard-codes `preset: qwen3_16g`, and the hub model has no VRAM entry (the `hub:` block in `mens/config/domain-profiles.yaml` lists only the embedder). This needs its own phase. Note that the `Qwen/Qwen3.8-27B` rung has an unmeasured floor and no license entry.
 - Store the token cap on the report (review WR-02 from phase 315).
 - A report marker for an unclosed think block.
 - MATH-500 equivalent surface forms.
-- Swapping the pinned Qwen3-8B base, or trying a new training technique.
+- Adding the other Qwen3 sizes and training them (phases 317 and 319). Swapping the default base, or trying a new training technique, stays out of scope.
 
 </deferred>
