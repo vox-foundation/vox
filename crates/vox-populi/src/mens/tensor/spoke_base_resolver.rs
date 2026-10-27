@@ -960,6 +960,7 @@ mod tests {
             "floor_measured: true, measured_on: m4-max-metal",
             "floor_measured: true, peak_mb: 6900, measured_on: \"  \"",
             "floor_measured: false, peak_mb: 6900",
+            "floor_measured: false, measured_on: m4-max-metal",
             // A measured peak must be real and must fit under the floor it backs.
             "floor_measured: true, measured_on: m4-max-metal, peak_mb: 0",
             "floor_measured: true, measured_on: m4-max-metal, peak_mb: 7401",
