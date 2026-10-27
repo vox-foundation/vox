@@ -1,0 +1,34 @@
+{
+  "synthetic": true,
+  "corpus_size": 3,
+  "margin": 0.1,
+  "slots": {
+    "A": {
+      "scored_tasks": 3,
+      "arms": {
+        "mermaid": {
+          "first_pass": {
+            "valid": 2,
+            "n": 3,
+            "ci": {
+              "point": 0.6666666666666666,
+              "low": 0.20765960080204768,
+              "high": 0.9385080552796037
+            }
+          }
+        },
+        "voxdiagram": {
+          "first_pass": {
+            "valid": 2,
+            "n": 3,
+            "ci": {
+              "point": 0.6666666666666666,
+              "low": 0.20765960080204768,
+              "high": 0.9385080552796037
+            }
+          }
+        }
+      }
+    }
+  }
+}

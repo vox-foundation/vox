@@ -29,6 +29,16 @@ export async function accepts(src) {
   }
 }
 
+/** Null when the real Mermaid parser accepts `src`, else its own error message (repair feedback). */
+export async function parseError(src) {
+  try {
+    await mermaid.parse(src);
+    return null;
+  } catch (e) {
+    return String(e?.message ?? e);
+  }
+}
+
 const NAMED = { quot: '"', lt: '<', gt: '>', amp: '&', apos: "'", nbsp: String.fromCharCode(0xa0) };
 
 /** Undo Mermaid's label serialisation (br tags, entity placeholders, HTML entities), then trim. */

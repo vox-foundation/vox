@@ -11,6 +11,7 @@ pub mod discover;
 pub mod eval;
 pub mod eval_compare;
 pub mod eval_corpus;
+pub mod eval_diagram;
 pub mod explain;
 pub mod list;
 pub mod preferences;
@@ -89,5 +90,17 @@ pub async fn run(cmd: ModelCmd) -> anyhow::Result<()> {
         ModelCmd::Classify(args) => classify::run(args).await,
         ModelCmd::Shadow(args) => shadow::run(args).await,
         ModelCmd::CouncilReport(args) => council_report::run(args).await,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn model_args_route_a_subcommand_and_its_flags() {
+        let args = ModelArgs::try_parse_from(["model", "list", "--limit", "3"]).unwrap();
+        assert!(matches!(args.cmd, ModelCmd::List(ref l) if l.limit == 3));
+        assert!(ModelArgs::try_parse_from(["model", "no-such-subcommand"]).is_err());
     }
 }
