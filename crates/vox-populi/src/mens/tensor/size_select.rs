@@ -118,8 +118,11 @@ pub fn select_size(
                 Some(rung) => Ok(Selection::Size(explicit_pick(rung, free, force)?)),
                 None => Ok(Selection::PassThrough(pin)),
             },
-            // A concrete id or path, not a size name: no floor to check.
-            Err(_) if req.contains(['/', '\\']) => Ok(Selection::PassThrough(req.to_string())),
+            // Not a size name (`gpt2`, a local dir, another repo): no floor to
+            // check (D-04). A size-shaped name that does not resolve is a typo.
+            Err(_) if !names_a_ladder_size(req) || Path::new(req).exists() => {
+                Ok(Selection::PassThrough(req.to_string()))
+            }
             Err(e) => Err(e),
         };
     }
@@ -309,6 +312,15 @@ fn split_pin(pin: &str) -> (&str, Option<&str>) {
                 .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
     };
     (repo, rev.filter(hex))
+}
+
+/// Shaped like a ladder size: `Qwen3-<n>B`, optionally `owner/` and `@rev`.
+fn names_a_ladder_size(req: &str) -> bool {
+    let repo = req.split('@').next().unwrap_or(req);
+    let name = repo.rsplit(['/', '\\']).next().unwrap_or(repo);
+    name.strip_prefix("Qwen3-")
+        .and_then(|s| s.strip_suffix(['B', 'b']))
+        .is_some_and(|n| n.parse::<f64>().is_ok())
 }
 
 /// The largest rung that fits, or an error naming the smallest floor.
@@ -653,6 +665,12 @@ mod tests {
                 "Qwen/Qwen2.5-Coder-0.5B-Instruct",
                 "someone/Other-Model@0123456789abcdef0123456789abcdef01234567",
                 "/models/qwen3-0.6b-finetune",
+                "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+                // WR-03: bare ids without a slash pass through too (D-04).
+                "gpt2",
+                "my-local-dir",
+                // An existing relative dir (tests run in the crate dir).
+                "src",
             ] {
                 match explicit(id, free_mb, false).expect(id) {
                     Selection::PassThrough(got) => assert_eq!(got, id),
@@ -670,6 +688,10 @@ mod tests {
         );
         for part in ["Qwen3-1234B", "Qwen3-8B", "Qwen3-0.6B"] {
             assert!(msg.contains(part), "{part}: {msg}");
+        }
+        // Size-shaped names stay typos, with or without an owner or revision.
+        for typo in ["Qwen3-8b", "Qwen3-8B@main", "Qwen/Qwen3-8B@main"] {
+            assert!(explicit(typo, Some(13_000), false).is_err(), "{typo}");
         }
     }
 
