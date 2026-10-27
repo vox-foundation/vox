@@ -111,7 +111,11 @@ test.describe('Notices', () => {
 
   test('a failed inbox source shows a degraded Review badge', async ({ page }) => {
     await open(page, 'chat', { rejectTools: ['vox_pending_approvals'] });
-    await expect(page.getByRole('button', { name: "Review, couldn't load approvals" })).toBeVisible();
+    // The base mock still serves needs-you feedback, so the surviving source's count is part of the name
+    // ("Review, N items need you (couldn't load approvals)"); the zero-count form is covered in Sidebar.test.tsx.
+    await expect(
+      page.getByRole('button', { name: /^Review, \d+ items need you \(couldn't load approvals\)$/ }),
+    ).toBeVisible();
     await expect(page.getByTestId('bottom-status-bar-needs-you')).toContainText("couldn't load approvals");
     await shot(page, 'notices-degraded-review.png');
   });
