@@ -298,7 +298,8 @@ export function installTauriMock(viewKey: string): void {
             size: '8B',
             free_mb: 13926,
             floor_mb: 12000,
-            reason: 'largest size whose floor fits free memory (Metal working set)',
+            // The exact select_size note format.
+            reason: 'picked 8B: largest size whose floor 12000 MB fits 13926 MB free (Metal working set)',
           };
         case 'get_routing_summary_live':
           // Family keys from the bootstrap catalog (see e2e/lib/tauriMock.families.test.ts); no live catalog in e2e.
