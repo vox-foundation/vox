@@ -17,7 +17,9 @@
 //! The pre-registered decision rule (primary endpoint, interval, margin) lives in the dataset
 //! manifest's `decision_rule` and in the findings report; this module reads it, never redefines it.
 
+pub mod live;
 pub mod oracle;
+pub mod prereg;
 pub mod prompt;
 pub mod render;
 pub mod run;
