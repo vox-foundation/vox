@@ -428,7 +428,7 @@ pub(super) async fn run_gpu_training(
         )
         .map(|(lic, attr)| (Some(lic), attr || attribution_required))?;
     if let Some(id) = model.as_deref() {
-        for note in floor_notes(workspace_root.as_deref(), id) {
+        for note in floor_notes(workspace_root.as_deref(), id)? {
             eprintln!("  {} base {id}: {note}", "ℹ".cyan());
         }
     }

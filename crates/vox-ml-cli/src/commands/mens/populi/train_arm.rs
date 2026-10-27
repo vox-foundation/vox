@@ -798,23 +798,25 @@ fn resolve_cloud_spoke_base(
 
     // Quantization: derive from the resolved TrainBase.method when the spoke base
     // is a capability tag; concrete ids default to qlora.
-    let quant = derive_quantization_for_base(&root, domain, &hf_id, CLOUD_VRAM_MB);
+    let quant = derive_quantization_for_base(&root, domain, &hf_id, CLOUD_VRAM_MB)?;
 
     Ok((hf_id, rung, quant))
 }
 
 /// Derive the quantization label ("qlora" / "lora") for the resolved base by
-/// re-inspecting the spoke's base tag in the overlay. Defaults to "qlora".
+/// re-inspecting the spoke's base tag in the overlay. Defaults to "qlora"; errs
+/// when gpu-specs.yaml does not parse, rather than mislabeling a LoRA rung.
 #[cfg(feature = "cloud")]
 fn derive_quantization_for_base(
     root: &Path,
     domain: Option<&str>,
     resolved_hf_id: &str,
     vram_mb: u32,
-) -> String {
+) -> anyhow::Result<String> {
     use vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile;
     use vox_populi::mens::tensor::spoke_base_resolver::{load_overlay, pick_base};
 
+    let overlay = load_overlay(root)?;
     let tag = domain
         .and_then(|d| EffectiveDomainProfile::load_domain_profile(d, Some(root)).ok())
         .and_then(|e| e.base.as_ref().map(|b| b.model.clone()));
@@ -822,14 +824,13 @@ fn derive_quantization_for_base(
     // The resolved id must match the picked base for the method to apply; an
     // un-quantized rung advertises "lora" / "full_lora", otherwise qlora.
     if let Some(tag) = tag
-        && let Ok(overlay) = load_overlay(root)
         && let Ok(base) = pick_base(&overlay, &tag, vram_mb)
         && base.hf_id == resolved_hf_id
         && base.methods.iter().any(|m| m == "lora" || m == "full_lora")
     {
-        return "lora".to_string();
+        return Ok("lora".to_string());
     }
-    "qlora".to_string()
+    Ok("qlora".to_string())
 }
 
 /// Run the REAL eval gate on a cloud-trained adapter (BLOCKER 1).
@@ -1062,6 +1063,21 @@ fn jsonl_row_count_counts_non_empty_lines() {
     std::fs::write(&p, "{\"a\":1}\n\n{\"a\":2}\n").unwrap();
     assert_eq!(jsonl_row_count(&p), Some(2));
     assert_eq!(jsonl_row_count(&d.path().join("missing.jsonl")), None);
+}
+
+#[cfg(all(test, feature = "cloud"))]
+#[test]
+fn quantization_surfaces_a_malformed_overlay() {
+    let d = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(d.path().join("mens/config")).unwrap();
+    std::fs::write(
+        d.path().join("mens/config/gpu-specs.yaml"),
+        "train_bases:\n  t:\n    - { hf_id: \"org/M@x\", floor_mb: 1, methods: [lora] }\n",
+    )
+    .unwrap();
+    let e = derive_quantization_for_base(d.path(), None, "org/M@x", 24_000)
+        .expect_err("a malformed overlay must not default to qlora");
+    assert!(format!("{e:#}").contains("parse train_bases"), "{e:#}");
 }
 
 #[cfg(test)]

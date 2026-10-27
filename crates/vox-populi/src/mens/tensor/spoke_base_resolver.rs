@@ -105,23 +105,20 @@ pub fn rungs_for_hf_id<'a>(
 }
 
 /// Train-start report of the base's ladder rungs: one [`TrainBase::floor_label`]
-/// per rung of `hf_id`. Advisory, so an overlay that does not load gives an
-/// empty Vec; the training path's `resolve_license_class` already fails closed
-/// on a bad overlay.
-pub fn floor_notes(workspace_root: Option<&std::path::Path>, hf_id: &str) -> Vec<String> {
+/// per rung of `hf_id`. Errs when the overlay does not parse, so a malformed
+/// gpu-specs.yaml is reported rather than read as "no rungs".
+pub fn floor_notes(
+    workspace_root: Option<&std::path::Path>,
+    hf_id: &str,
+) -> anyhow::Result<Vec<String>> {
     let overlay = match workspace_root {
-        Some(root) => load_overlay(root),
-        None => load_embedded_overlay(),
+        Some(root) => load_overlay(root)?,
+        None => load_embedded_overlay()?,
     };
-    overlay.map_or_else(
-        |_| Vec::new(),
-        |o| {
-            rungs_for_hf_id(&o, hf_id)
-                .iter()
-                .map(|b| b.floor_label())
-                .collect()
-        },
-    )
+    Ok(rungs_for_hf_id(&overlay, hf_id)
+        .iter()
+        .map(|b| b.floor_label())
+        .collect())
 }
 
 /// Largest candidate for `tag` whose `floor_mb <= vram_mb`. Errors if the tag is
@@ -196,21 +193,21 @@ pub fn load_overlay(root: &std::path::Path) -> anyhow::Result<HashMap<String, Ve
 
 /// License metadata for a concrete `hf_id` (exact match, including any pinned
 /// `@sha` suffix), looked up across every `train_bases` rung regardless of tag.
-/// `None` when `hf_id` doesn't appear in any known rung (e.g. an ad hoc
-/// `--model` that isn't in `gpu-specs.yaml`).
+/// `Ok(None)` when `hf_id` doesn't appear in any known rung (e.g. an ad hoc
+/// `--model` that isn't in `gpu-specs.yaml`); `Err` when the overlay does not parse.
 fn license_for_hf_id(
     workspace_root: Option<&std::path::Path>,
     hf_id: &str,
-) -> Option<(Option<String>, bool)> {
+) -> anyhow::Result<Option<(Option<String>, bool)>> {
     let overlay = match workspace_root {
-        Some(root) => load_overlay(root).ok()?,
-        None => load_embedded_overlay().ok()?,
+        Some(root) => load_overlay(root)?,
+        None => load_embedded_overlay()?,
     };
-    overlay
+    Ok(overlay
         .values()
         .flatten()
         .find(|b| b.hf_id == hf_id)
-        .map(|b| (b.license.clone(), b.attribution_required))
+        .map(|b| (b.license.clone(), b.attribution_required)))
 }
 
 /// Conservative attribution-requirement default for a `--license-class` override whose
@@ -244,7 +241,10 @@ pub fn resolve_license_class(
     hf_id: Option<&str>,
     cli_override: Option<String>,
 ) -> anyhow::Result<(String, bool)> {
-    let resolved = hf_id.and_then(|id| license_for_hf_id(workspace_root, id));
+    let resolved = match hf_id {
+        Some(id) => license_for_hf_id(workspace_root, id)?,
+        None => None,
+    };
     if let Some(explicit) = cli_override {
         // If the base IS in gpu-specs.yaml, trust its recorded attribution_required — it was
         // reviewed when the entry was added. If the base is unmapped (`resolved` is `None`:
@@ -994,7 +994,8 @@ mod tests {
         let notes = floor_notes(
             Some(workspace_root()),
             "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",
-        );
+        )
+        .expect("overlay loads");
         assert_eq!(notes.len(), 2, "{notes:?}");
         assert!(
             notes.iter().all(|n| n.contains("floor unmeasured")),
@@ -1005,7 +1006,7 @@ mod tests {
             "{notes:?}"
         );
         assert_eq!(
-            floor_notes(None, PIN_4B),
+            floor_notes(None, PIN_4B).expect("embedded overlay loads"),
             ["qlora floor 7400 MB is an estimate (floor unmeasured)"]
         );
         assert!(
@@ -1013,7 +1014,42 @@ mod tests {
                 Some(workspace_root()),
                 "someone/Other-Model@0123456789abcdef0123456789abcdef01234567"
             )
+            .expect("overlay loads")
             .is_empty()
+        );
+    }
+
+    /// WR-01: a gpu-specs.yaml that fails to parse must surface its parse
+    /// error, never read as "no license entry" or "no floor notes". A missing
+    /// file still falls back to the embedded overlay.
+    #[test]
+    fn malformed_overlay_surfaces_its_parse_error() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir_all(dir.path().join("mens/config")).expect("mkdir");
+        std::fs::write(
+            dir.path().join("mens/config/gpu-specs.yaml"),
+            format!(
+                "train_bases:\n  t:\n    - {{ hf_id: \"{PIN_4B}\", floor_mb: 7400, \
+                 methods: [qlora], license: apache-2.0 }}\n"
+            ),
+        )
+        .expect("write overlay");
+        let root = Some(dir.path());
+        for over in [None, Some("apache-2.0".to_string())] {
+            let e = resolve_license_class(root, Some(PIN_4B), over.clone())
+                .expect_err("a malformed overlay must not resolve a license");
+            assert!(
+                format!("{e:#}").contains("parse train_bases"),
+                "{over:?}: {e:#}"
+            );
+        }
+        let e = floor_notes(root, PIN_4B).expect_err("a malformed overlay has no floor notes");
+        assert!(format!("{e:#}").contains("parse train_bases"), "{e:#}");
+
+        let absent = tempfile::tempdir().expect("tempdir");
+        assert_eq!(
+            floor_notes(Some(absent.path()), PIN_4B).expect("absent file uses the embedded copy"),
+            ["qlora floor 7400 MB is an estimate (floor unmeasured)"]
         );
     }
 }
