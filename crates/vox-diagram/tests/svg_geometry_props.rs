@@ -12,6 +12,7 @@ use proptest::prelude::*;
 use proptest::test_runner::{Config, TestRunner};
 use support::svgcheck::{Shape, Svg, check as check_svg};
 use support::{model_graph, noise, noisy_source};
+use unicode_width::UnicodeWidthStr;
 use vox_diagram::check;
 use vox_diagram::ir::{GraphIr, Ir};
 use vox_diagram::svg::{RenderError, SvgOpts, render};
@@ -76,6 +77,10 @@ fn container_index(g: &GraphIr, id: &str) -> Option<usize> {
 /// Floor on successful renders out of 128 cases (a reject-everything verifier fails it).
 const MIN_DRAWN: usize = 96;
 
+/// Ceiling on drawn cases with an edge through a container title, out of 128 (measured rate about
+/// 0.5%, so more than 6 is a regression, not noise).
+const MAX_CROSSED: usize = 6;
+
 fn fail<T>(m: String) -> Result<T, TestCaseError> {
     Err(TestCaseError::fail(m))
 }
@@ -137,26 +142,44 @@ fn chain(g: &GraphIr, i: usize) -> Vec<usize> {
     out
 }
 
-/// The title band of each IR container, from the drawn title lines: 10 px plus 16 px a line.
+/// The title text of each IR container, read back from the drawn label: lines 16 px apart with
+/// the first baseline `(n-1)*8 - 5` px above the centre, so the block is the centre plus or minus
+/// 8 px a line. Its width is a lower bound on the renderer's width model, 2 px per terminal cell
+/// (the narrowest advance is about 2.9 px), so the box never claims space the text may not use.
 fn bands(g: &GraphIr, s: &Svg) -> Vec<Shape> {
     let pos = svg_positions(g);
     (0..g.containers.len())
         .map(|i| {
-            let lines = s
+            let Some(l) = s
                 .labels
                 .iter()
                 .find(|l| l.class == "vd-container-label" && l.owner == pos[i])
-                .map_or(0, |l| i64::try_from(l.lines.len()).unwrap_or(0));
-            let c = &s.containers[pos[i]];
+            else {
+                return Shape {
+                    w: 0,
+                    h: 0,
+                    ..s.containers[pos[i]]
+                };
+            };
+            let n = i64::try_from(l.lines.len()).unwrap_or(0);
+            let cy = l.first_baseline + (n - 1) * 16 - 10;
+            let w = l
+                .lines
+                .iter()
+                .map(|t| 4 * i64::try_from(UnicodeWidthStr::width(t.as_str())).unwrap_or(0))
+                .max()
+                .unwrap_or(0);
             Shape {
-                h: 20 + 32 * lines,
-                ..*c
+                x: l.anchor_x - w / 2,
+                y: cy - 16 * n,
+                w,
+                h: 32 * n,
             }
         })
         .collect()
 }
 
-/// Sibling containers disjoint, foreign nodes clear of a frame, children below the title band.
+/// Sibling containers disjoint, foreign nodes clear of a frame, no child on a title.
 fn frames_hold(g: &GraphIr, s: &Svg) -> Result<(), TestCaseError> {
     let pos = svg_positions(g);
     let band = bands(g, s);
@@ -168,10 +191,7 @@ fn frames_hold(g: &GraphIr, s: &Svg) -> Result<(), TestCaseError> {
         }
         let parent = a.parent.as_deref().and_then(|p| container_index(g, p));
         if parent.is_some_and(|p| overlaps(&s.containers[pos[i]], &band[p])) {
-            return fail(format!(
-                "container {} sits in its parent's title band",
-                a.id
-            ));
+            return fail(format!("container {} sits on its parent's title", a.id));
         }
     }
     for (k, n) in g.nodes.iter().enumerate() {
@@ -183,13 +203,13 @@ fn frames_hold(g: &GraphIr, s: &Svg) -> Result<(), TestCaseError> {
             }
         }
         if own.is_some_and(|c| overlaps(&s.nodes[k], &band[c])) {
-            return fail(format!("node {k} sits in its container's title band"));
+            return fail(format!("node {k} sits on its container's title"));
         }
     }
     Ok(())
 }
 
-/// Edge-label boxes clear of every node box, every other label box and every title band.
+/// Edge-label boxes clear of every node box, every other label box and every title.
 fn edge_labels_clear(g: &GraphIr, s: &Svg) -> Result<(), TestCaseError> {
     let band = bands(g, s);
     for (e, l) in s.edge_labels.iter().enumerate() {
@@ -198,7 +218,7 @@ fn edge_labels_clear(g: &GraphIr, s: &Svg) -> Result<(), TestCaseError> {
         }
         if let Some(k) = band.iter().position(|b| overlaps(l, b)) {
             return fail(format!(
-                "edge label {e} {l:?} covers title band of {}",
+                "edge label {e} {l:?} covers the title of {}",
                 g.containers[k].id
             ));
         }
@@ -209,6 +229,41 @@ fn edge_labels_clear(g: &GraphIr, s: &Svg) -> Result<(), TestCaseError> {
             .position(|o| overlaps(l, o))
         {
             return fail(format!("edge labels {e} and {} overlap", e + 1 + o));
+        }
+    }
+    Ok(())
+}
+
+/// Whether segment `a`-`b` passes through the interior of `r`: the extents overlap and the line
+/// through the segment splits the corners.
+fn through(a: (i64, i64), b: (i64, i64), r: &Shape) -> bool {
+    if a.0.max(b.0) <= r.x
+        || a.0.min(b.0) >= right(r)
+        || a.1.max(b.1) <= r.y
+        || a.1.min(b.1) >= bottom(r)
+    {
+        return false;
+    }
+    let side = |x: i64, y: i64| (b.0 - a.0) * (y - a.1) - (b.1 - a.1) * (x - a.0);
+    let s = [
+        side(r.x, r.y),
+        side(right(r), r.y),
+        side(r.x, bottom(r)),
+        side(right(r), bottom(r)),
+    ];
+    !(s.iter().all(|&v| v >= 0) || s.iter().all(|&v| v <= 0))
+}
+
+/// No edge path strikes through a container title.
+fn titles_clear(g: &GraphIr, s: &Svg) -> Result<(), TestCaseError> {
+    for (k, t) in bands(g, s).iter().enumerate() {
+        for (e, path) in s.edge_paths.iter().enumerate() {
+            if path.windows(2).any(|p| through(p[0], p[1], t)) {
+                return fail(format!(
+                    "edge {e} strikes through the title of {}",
+                    g.containers[k].id
+                ));
+            }
         }
     }
     Ok(())
@@ -273,11 +328,13 @@ fn labels_hold(s: &Svg) -> Result<(), TestCaseError> {
     Ok(())
 }
 
-/// Counts of rejected (`Err(Geometry)`) and drawn (`Ok`) renders.
+/// Counts of rejected (`Err(Geometry)`) and drawn (`Ok`) renders, and drawn ones with an edge
+/// through a title.
 #[derive(Default)]
 struct Tally {
     rejected: Cell<usize>,
     drawn: Cell<usize>,
+    crossed: Cell<usize>,
 }
 
 fn hold(ir: &Ir, tally: &Tally) -> Result<(), TestCaseError> {
@@ -300,6 +357,9 @@ fn hold(ir: &Ir, tally: &Tally) -> Result<(), TestCaseError> {
     boxes_hold(g, &parsed)?;
     frames_hold(g, &parsed)?;
     edge_labels_clear(g, &parsed)?;
+    if titles_clear(g, &parsed).is_err() {
+        tally.crossed.set(tally.crossed.get() + 1);
+    }
     view_box_holds(&parsed)?;
     labels_hold(&parsed)
 }
@@ -316,7 +376,10 @@ fn geometry_holds() {
         }
     });
     let (rejected, drawn) = (tally.rejected.get(), tally.drawn.get());
-    println!("geometry_holds: {rejected} Err(Geometry), {drawn} drawn of 128 cases");
+    let crossed = tally.crossed.get();
+    println!(
+        "geometry_holds: {rejected} Err(Geometry), {drawn} drawn of 128 cases, {crossed} with an edge through a title"
+    );
     if let Err(e) = result {
         panic!("{e}");
     }
@@ -324,5 +387,11 @@ fn geometry_holds() {
     assert!(
         drawn >= MIN_DRAWN,
         "only {drawn} of 128 cases rendered ({rejected} rejected)"
+    );
+    // Dagre routes straight segments between ranks, so an edge can still clip a title box when every
+    // rung does; the renderer then draws the first valid rung. Measured 5 of 1024 cases.
+    assert!(
+        crossed <= MAX_CROSSED,
+        "{crossed} of {drawn} drawn cases have an edge through a title"
     );
 }

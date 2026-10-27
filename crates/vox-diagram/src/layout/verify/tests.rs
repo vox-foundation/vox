@@ -142,19 +142,22 @@ fn cont(parent: Option<usize>) -> LContainer {
         parent,
         depth: 1,
         title_lines: vec!["T".to_owned()],
-        strut_w: 40,
+        title_w: 40,
+        title_h: 36,
     }
 }
 
+/// A frame whose title box is its top 52 half-pixels.
 fn framed(rect: Rect) -> PlacedContainer {
     PlacedContainer {
         rect,
+        title: Rect { h: 52, ..rect },
         title_lines: vec!["T".to_owned()],
     }
 }
 
-/// Outer container with one nested container holding one node. A one-line title band is
-/// 52 half-pixels tall.
+/// Outer container with one nested container holding one node; each title box is the top
+/// 52 half-pixels of its frame.
 fn nested() -> (LayoutInput, Placed) {
     let input = LayoutInput {
         direction: crate::ir::Direction::Down,
@@ -179,8 +182,8 @@ fn nested() -> (LayoutInput, Placed) {
 fn a_clean_nested_layout_is_ok_and_touching_is_allowed() {
     let (input, mut p) = nested();
     assert_eq!(verify(&input, &p), Ok(()));
-    // The child container starts exactly where the outer title band ends.
-    p.containers[1].rect = rect(40, 72, 200, 168);
+    // The child container starts exactly where the outer title box ends.
+    p.containers[1] = framed(rect(40, 72, 200, 168));
     p.nodes[0] = rect(60, 124, 128, 76);
     assert_eq!(verify(&input, &p), Ok(()));
 }
@@ -214,7 +217,7 @@ fn sibling_containers_sharing_area_are_rejected() {
         framed(rect(100, 100, 200, 200)),
     ];
     assert_eq!(verify(&input, &p), Err(Violation::SiblingOverlap(0, 1)));
-    p.containers[1].rect = rect(220, 20, 160, 200);
+    p.containers[1] = framed(rect(220, 20, 160, 200));
     assert_eq!(verify(&input, &p), Ok(()));
 }
 
@@ -265,7 +268,7 @@ fn labelled(label: Rect) -> PlacedEdge {
 #[test]
 fn an_edge_label_in_a_title_band_is_rejected() {
     let (input, mut p) = nested();
-    // The outer band spans y 20..72; the nested container's spans y 80..132.
+    // The outer title box spans y 20..72; the nested container's spans y 80..132.
     p.edges = vec![labelled(rect(250, 30, 40, 20))];
     assert_eq!(verify(&input, &p), Err(Violation::LabelInTitleBand(0, 0)));
     p.edges = vec![labelled(rect(100, 90, 40, 20))];
@@ -287,4 +290,30 @@ fn an_edge_label_over_a_node_or_another_label_is_rejected() {
     assert_eq!(verify(&input, &p), Err(Violation::LabelOnLabel(0, 1)));
     p.edges[1].label = Some(rect(290, 100, 40, 20));
     assert_eq!(verify(&input, &p), Ok(()));
+}
+
+#[test]
+fn a_segment_crosses_a_box_only_through_its_interior() {
+    let r = rect(100, 100, 50, 20);
+    assert!(crosses((90, 110), (160, 110), r), "straight through");
+    assert!(crosses((90, 90), (160, 130), r), "diagonal through");
+    assert!(crosses((120, 110), (120, 300), r), "starts inside");
+    assert!(!crosses((90, 100), (160, 100), r), "along the top side");
+    assert!(!crosses((90, 90), (100, 100), r), "ends on a corner");
+    assert!(!crosses((80, 90), (110, 99), r), "passes above");
+    assert!(!crosses((90, 140), (160, 125), r), "passes below");
+    assert!(!crosses((60, 60), (99, 160), r), "passes left");
+}
+
+#[test]
+fn an_edge_through_a_title_box_is_reported_apart_from_the_hard_rules() {
+    let (input, mut p) = nested();
+    p.edges = vec![PlacedEdge {
+        points: vec![(250, 10), (250, 100)],
+        label: None,
+    }];
+    assert_eq!(verify(&input, &p), Ok(()));
+    assert_eq!(title_crossing(&p), Err(Violation::EdgeThroughTitle(0, 0)));
+    p.edges[0].points = vec![(10, 10), (10, 100)];
+    assert_eq!(title_crossing(&p), Ok(()));
 }

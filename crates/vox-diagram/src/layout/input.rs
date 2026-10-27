@@ -3,20 +3,22 @@
 
 use std::collections::BTreeMap;
 
-use super::text::{LINE_H, measure, node_size, pad_x, wrap};
+use super::finish::title_h;
+use super::text::{LINE_H, measure, node_size, pad_x, wrap, wrap_at};
 use super::{Half, LContainer, LEdge, LLabel, LNode, LayoutInput};
-use crate::ir::GraphIr;
+use crate::ir::{Direction, GraphIr};
 use crate::limits::{MAX_DEPTH, MAX_LABEL_CHARS, MAX_RENDER_EDGES, MAX_RENDER_NODES};
 use crate::svg::RenderError;
 
 /// Padding around an edge label's text block on each side: 4 px.
 const EDGE_LABEL_PAD: Half = 8;
 
-/// Room around a container title inside its strut: 10 px each side, in half-pixels.
+/// Room around a container title inside its title box: 10 px each side, in half-pixels.
 const TITLE_PAD: Half = 20;
 
-/// Widest a container title strut gets: 260 px, in half-pixels.
-const MAX_STRUT: Half = 520;
+/// Cells per title line in a left-to-right layout, where the title takes a column of its own
+/// left of the content: narrower than [`super::text::WRAP_CELLS`] so the column costs less width.
+const SIDE_TITLE_CELLS: usize = 16;
 
 /// The wrapped label box of an edge; a missing, empty or blank label draws nothing.
 fn edge_label(label: Option<&str>) -> Option<LLabel> {
@@ -77,13 +79,18 @@ fn containers(g: &GraphIr) -> Result<(Vec<LContainer>, BTreeMap<&str, usize>), R
             }
             cur = p;
         }
-        let title_lines = wrap(&c.label);
+        let title_lines = if matches!(g.direction, Direction::Right | Direction::Left) {
+            wrap_at(&c.label, SIDE_TITLE_CELLS)
+        } else {
+            wrap(&c.label)
+        };
         let widest = title_lines.iter().map(|l| measure(l)).max().unwrap_or(0);
         out.push(LContainer {
             parent: parents.get(i).copied().flatten(),
             depth: u32::try_from(depth).unwrap_or(u32::MAX),
+            title_w: widest + 2 * pad_x(widest, TITLE_PAD),
+            title_h: title_h(title_lines.len()),
             title_lines,
-            strut_w: (widest + 2 * pad_x(widest, TITLE_PAD)).min(MAX_STRUT),
         });
     }
     Ok((out, index))
@@ -248,7 +255,7 @@ mod tests {
     }
 
     #[test]
-    fn a_long_title_strut_uses_the_padding_floor() {
+    fn a_long_title_box_uses_the_padding_floor() {
         let title = "m".repeat(16);
         let tw = measure(&title);
         let mut g = graph(vec![], vec![]);
@@ -256,9 +263,9 @@ mod tests {
         let Ok(input) = build(&g) else {
             panic!("build failed");
         };
-        let w = input.containers[0].strut_w;
+        let w = input.containers[0].title_w;
         assert_eq!(w, tw + 2 * pad_x(tw, TITLE_PAD));
-        assert!(w * 100 >= tw * 112 && w < MAX_STRUT, "{w} for {tw}");
+        assert!(w * 100 >= tw * 112, "{w} for {tw}");
     }
 
     #[test]
@@ -281,19 +288,16 @@ mod tests {
     }
 
     #[test]
-    fn a_title_is_wrapped_and_the_strut_is_title_plus_20px_capped_at_260px() {
+    fn a_title_is_wrapped_and_its_box_is_the_text_plus_10px_each_side() {
         let mut g = graph(vec![], vec![]);
-        g.containers = vec![
-            boxed("a", None, "Backend services"),
-            boxed("b", None, &"W".repeat(60)),
-        ];
+        g.containers = vec![boxed("a", None, "Backend services\nand jobs")];
         let Ok(input) = build(&g) else {
             panic!("build failed");
         };
-        let c = &input.containers;
-        assert_eq!(c[0].title_lines, wrap("Backend services"));
-        assert_eq!(c[0].strut_w, measure("Backend services") + 40);
-        assert_eq!(c[1].strut_w, 520);
+        let c = &input.containers[0];
+        assert_eq!(c.title_lines, wrap("Backend services\nand jobs"));
+        assert_eq!(c.title_w, measure("Backend services") + 40);
+        assert_eq!(c.title_h, title_h(2));
     }
 
     #[test]

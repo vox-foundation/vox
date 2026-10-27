@@ -4,7 +4,7 @@
 use super::paint;
 use super::writer::{Writer, num};
 use crate::ir::Shape;
-use crate::layout::finish::{TITLE_STEP, title_band};
+use crate::layout::finish::TITLE_STEP;
 use crate::layout::{Half, LNode, PlacedContainer, Rect};
 
 /// Corner radius of a rounded rectangle, px.
@@ -114,14 +114,10 @@ pub(crate) fn write_container(w: &mut Writer, c: &PlacedContainer) {
             ("style", &style),
         ],
     );
-    let band = Rect {
-        h: title_band(c.title_lines.len()),
-        ..r
-    };
     label(
         w,
         &c.title_lines,
-        band,
+        c.title,
         ("vd-container-label", "--vd-text"),
         TITLE_STEP,
     );

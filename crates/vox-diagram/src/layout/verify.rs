@@ -1,11 +1,12 @@
 //! Hard-invariant geometry check on quantized integer geometry: exact comparisons, no epsilon.
 //! A layout that fails is never drawn. Soft defects (an edge crossing a non-endpoint node, a
 //! label merely touching a node) are deliberately not checked; dagre does not route around nodes.
-//! An edge label sharing interior area with a node, a title band or another label is hard.
+//! An edge label sharing interior area with a node, a title box or another label is hard. An edge
+//! through a title box is checked separately ([`title_crossing`]): it escalates the rung but does
+//! not reject the last one.
 
 use std::fmt;
 
-use super::finish::title_band;
 use super::text::{LINE_H, PAD_X, PAD_Y, measure};
 use super::{Half, LNode, LayoutInput, Placed, Rect};
 use crate::ir::Shape;
@@ -27,11 +28,13 @@ pub(crate) enum Violation {
     SiblingOverlap(usize, usize),
     /// A node overlaps a container that neither holds it nor encloses it (node, container).
     ForeignOverlap(usize, usize),
-    /// A child (node or container) intrudes into a container's title band.
+    /// A node, or a container that does not hold it, overlaps a container's title box.
     TitleBand(usize),
-    /// An edge label box overlaps a container's title band (edge, container): its opaque
+    /// An edge label box overlaps a container's title box (edge, container): its opaque
     /// background would erase title text.
     LabelInTitleBand(usize, usize),
+    /// An edge segment passes through a container's title box (edge, container).
+    EdgeThroughTitle(usize, usize),
     /// An edge label box overlaps a node box (edge, node).
     LabelOnNode(usize, usize),
     /// Two edge label boxes share interior area (earlier edge, later edge).
@@ -57,8 +60,22 @@ fn fits(n: &LNode, w: Half, h: Half) -> bool {
     }
 }
 
-fn overlap(a: Rect, b: Rect) -> bool {
+pub(crate) fn overlap(a: Rect, b: Rect) -> bool {
     a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+}
+
+/// Whether the segment `a`-`b` passes through the interior of `r` (touching a side or a corner is
+/// clear). Separating-axis test in exact integer arithmetic: the boxes' extents, then the line
+/// through the segment against the four corners.
+pub(crate) fn crosses(a: (Half, Half), b: (Half, Half), r: Rect) -> bool {
+    let (x0, y0, x1, y1) = (r.x, r.y, r.x + r.w, r.y + r.h);
+    if a.0.max(b.0) <= x0 || a.0.min(b.0) >= x1 || a.1.max(b.1) <= y0 || a.1.min(b.1) >= y1 {
+        return false;
+    }
+    let (dx, dy) = (i64::from(b.0 - a.0), i64::from(b.1 - a.1));
+    let side = |x: Half, y: Half| dx * i64::from(y - a.1) - dy * i64::from(x - a.0);
+    let s = [side(x0, y0), side(x1, y0), side(x0, y1), side(x1, y1)];
+    !(s.iter().all(|&v| v >= 0) || s.iter().all(|&v| v <= 0))
 }
 
 fn inside(r: Rect, width: Half, height: Half) -> bool {
@@ -75,7 +92,7 @@ fn contains(outer: Rect, inner: Rect) -> bool {
 
 /// Whether container `c` is `start` or one of its ancestors. The walk is bounded by the container
 /// count, so a cyclic hand-built parent chain ends.
-fn encloses(input: &LayoutInput, c: usize, start: Option<usize>) -> bool {
+pub(crate) fn encloses(input: &LayoutInput, c: usize, start: Option<usize>) -> bool {
     let mut cur = start;
     for _ in 0..=input.containers.len() {
         match cur {
@@ -88,7 +105,8 @@ fn encloses(input: &LayoutInput, c: usize, start: Option<usize>) -> bool {
 }
 
 /// The containment rules: every child inside its container, siblings apart, nothing foreign
-/// inside a container, and no child in a title band. Containers are checked before the view box.
+/// inside a container, and nothing on a title box but its own frame and its ancestors. Containers
+/// are checked before the view box.
 fn containment(input: &LayoutInput, placed: &Placed) -> Result<(), Violation> {
     let rects: Vec<Rect> = placed.containers.iter().map(|c| c.rect).collect();
     for (i, (n, r)) in input.nodes.iter().zip(&placed.nodes).enumerate() {
@@ -124,20 +142,11 @@ fn containment(input: &LayoutInput, placed: &Placed) -> Result<(), Violation> {
         }
     }
     for (k, c) in placed.containers.iter().enumerate() {
-        let band = Rect {
-            h: title_band(c.title_lines.len()),
-            ..c.rect
-        };
-        let node_in = input
-            .nodes
+        let node_in = placed.nodes.iter().any(|r| overlap(*r, c.title));
+        let box_in = rects
             .iter()
-            .zip(&placed.nodes)
-            .any(|(n, r)| n.container == Some(k) && overlap(*r, band));
-        let box_in = input
-            .containers
-            .iter()
-            .zip(&rects)
-            .any(|(sub, r)| sub.parent == Some(k) && overlap(*r, band));
+            .enumerate()
+            .any(|(j, r)| !encloses(input, j, Some(k)) && overlap(*r, c.title));
         if node_in || box_in {
             return Err(Violation::TitleBand(k));
         }
@@ -145,7 +154,7 @@ fn containment(input: &LayoutInput, placed: &Placed) -> Result<(), Violation> {
     Ok(())
 }
 
-/// Edge-label boxes clear of every title band, node box and later label box. Labels are drawn on an
+/// Edge-label boxes clear of every title box, node box and later label box. Labels are drawn on an
 /// opaque background, so any overlap hides what is underneath.
 fn labels(placed: &Placed) -> Result<(), Violation> {
     let boxes: Vec<(usize, Rect)> = placed
@@ -156,11 +165,7 @@ fn labels(placed: &Placed) -> Result<(), Violation> {
         .collect();
     for (n, &(e, l)) in boxes.iter().enumerate() {
         for (k, c) in placed.containers.iter().enumerate() {
-            let band = Rect {
-                h: title_band(c.title_lines.len()),
-                ..c.rect
-            };
-            if overlap(l, band) {
+            if overlap(l, c.title) {
                 return Err(Violation::LabelInTitleBand(e, k));
             }
         }
@@ -169,6 +174,20 @@ fn labels(placed: &Placed) -> Result<(), Violation> {
         }
         if let Some(&(o, _)) = boxes.iter().skip(n + 1).find(|(_, r)| overlap(l, *r)) {
             return Err(Violation::LabelOnLabel(e, o));
+        }
+    }
+    Ok(())
+}
+
+/// The first edge segment through a title box, if any. Kept apart from [`verify`] because dagre
+/// routes edges as straight segments between ranks and cannot always avoid a box: the caller
+/// prefers a rung without one but draws the last rung anyway.
+pub(crate) fn title_crossing(placed: &Placed) -> Result<(), Violation> {
+    for (e, edge) in placed.edges.iter().enumerate() {
+        for (k, c) in placed.containers.iter().enumerate() {
+            if edge.points.windows(2).any(|s| crosses(s[0], s[1], c.title)) {
+                return Err(Violation::EdgeThroughTitle(e, k));
+            }
         }
     }
     Ok(())

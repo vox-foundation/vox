@@ -66,7 +66,7 @@ fn boxed(cx: Option<f64>) -> RawLayout {
             w: Some(64.0),
             h: Some(38.0),
         }],
-        containers: vec![],
+        titles: vec![],
         edges: vec![],
     }
 }
@@ -138,7 +138,7 @@ fn raw_at(input: &LayoutInput, cx: impl Fn(usize) -> Option<f64>) -> RawLayout {
                 h: Some(f64::from(n.h) / 2.0),
             })
             .collect(),
-        containers: vec![],
+        titles: vec![],
         edges: input
             .edges
             .iter()
@@ -303,70 +303,5 @@ fn the_public_path_is_guarded_too() {
     ));
 }
 
-#[test]
-fn an_empty_container_is_at_least_its_title_strut_wide() {
-    use crate::layout::dagre_impl::DagreEngine;
-    let strut_w = measure_title("An empty container title") + 40;
-    let input = LayoutInput {
-        direction: Direction::Down,
-        nodes: vec![],
-        containers: vec![LContainer {
-            parent: None,
-            depth: 1,
-            title_lines: vec!["An empty container title".into()],
-            strut_w,
-        }],
-        edges: vec![],
-    };
-    let Ok(p) = lay_out(&DagreEngine, &input) else {
-        panic!("lay_out failed");
-    };
-    assert_eq!(p.containers.len(), 1);
-    assert!(p.containers[0].rect.w >= strut_w, "{:?}", p.containers[0]);
-    assert_eq!(p.containers[0].title_lines.len(), 1);
-}
-
-fn measure_title(s: &str) -> Half {
-    text::measure(s)
-}
-
-/// A leaf far outside its container on every rung.
-struct ContainerAlwaysBad(Cell<usize>);
-
-impl Engine for ContainerAlwaysBad {
-    fn solve(&self, _: &LayoutInput, _: Separations) -> Result<RawLayout, LayoutError> {
-        self.0.set(self.0.get() + 1);
-        let at = |cx, cy, w, h| RawBox {
-            cx: Some(cx),
-            cy: Some(cy),
-            w: Some(w),
-            h: Some(h),
-        };
-        Ok(RawLayout {
-            nodes: vec![at(500.0, 500.0, 64.0, 38.0)],
-            containers: vec![at(100.0, 100.0, 100.0, 100.0)],
-            edges: vec![],
-        })
-    }
-}
-
-#[test]
-fn a_leaf_outside_its_container_on_every_rung_is_a_geometry_error() {
-    let mut input = one_node();
-    input.nodes[0].container = Some(0);
-    input.containers = vec![LContainer {
-        parent: None,
-        depth: 1,
-        title_lines: vec!["T".into()],
-        strut_w: 40,
-    }];
-    let e = ContainerAlwaysBad(Cell::new(0));
-    let r = lay_out(&e, &input);
-    assert!(
-        matches!(&r, Err(RenderError::Geometry(m)) if m.contains("OutsideContainer")),
-        "{r:?}"
-    );
-    assert_eq!(e.0.get(), 3);
-}
-
+mod containers;
 mod coords;

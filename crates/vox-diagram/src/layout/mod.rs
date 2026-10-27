@@ -36,22 +36,24 @@ pub(crate) struct Separations {
     pub edgesep: i32,
 }
 
-/// Escalating separation rungs; the tracer uses the first.
+/// Escalating separation rungs; the tracer uses the first. `edgesep` stays below `nodesep`: dagre
+/// spaces container borders (dummy nodes) by `edgesep`, so a larger value inflates every nesting
+/// level, while the frame padding only needs 8 px of the border gap of `(nodesep + edgesep) / 2`.
 pub(crate) const RUNGS: [Separations; 3] = [
     Separations {
         nodesep: 40,
         ranksep: 60,
-        edgesep: 70,
+        edgesep: 20,
     },
     Separations {
         nodesep: 50,
         ranksep: 90,
-        edgesep: 120,
+        edgesep: 25,
     },
     Separations {
         nodesep: 60,
         ranksep: 140,
-        edgesep: 200,
+        edgesep: 30,
     },
 ];
 
@@ -75,8 +77,9 @@ pub(crate) struct LContainer {
     pub depth: u32,
     /// The wrapped title.
     pub title_lines: Vec<String>,
-    /// Width of the invisible strut that keeps the container as wide as its title.
-    pub strut_w: Half,
+    /// Size of the title box, laid out as a node ranked before the container's content.
+    pub title_w: Half,
+    pub title_h: Half,
 }
 
 /// A wrapped edge label and its box (text block plus padding), half-pixels.
@@ -126,8 +129,8 @@ pub(crate) struct RawEdge {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(crate) struct RawLayout {
     pub nodes: Vec<RawBox>,
-    /// One entry per input container: the engine's own rect, before padding and title band.
-    pub containers: Vec<RawBox>,
+    /// One entry per input container: its title box.
+    pub titles: Vec<RawBox>,
     pub edges: Vec<RawEdge>,
 }
 
@@ -184,10 +187,12 @@ pub(crate) struct PlacedEdge {
     pub label: Option<Rect>,
 }
 
-/// A container frame: its final rect (padding and title band included) and its title lines.
+/// A container frame: its rect (the padded box around its children), the box its title is
+/// drawn in and the title lines.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PlacedContainer {
     pub rect: Rect,
+    pub title: Rect,
     pub title_lines: Vec<String>,
 }
 
@@ -206,34 +211,27 @@ fn top_left(centre: Option<f64>, size: Option<f64>) -> Option<f64> {
     Some(centre? - size? / 2.0)
 }
 
+/// One engine box quantized to a [`Rect`].
+fn rect(b: &RawBox) -> Result<Rect, LayoutError> {
+    Ok(Rect {
+        x: quantize(top_left(b.cx, b.w))?,
+        y: quantize(top_left(b.cy, b.h))?,
+        w: quantize(b.w)?,
+        h: quantize(b.h)?,
+    })
+}
+
 /// Quantize one raw engine layout into [`Placed`], shifted so everything drawn starts at the
 /// margin. Fails closed on a missing, non-finite or huge coordinate or a wrong item count.
 fn place(input: &LayoutInput, raw: &RawLayout) -> Result<Placed, LayoutError> {
     if raw.nodes.len() != input.nodes.len()
-        || raw.containers.len() != input.containers.len()
+        || raw.titles.len() != input.containers.len()
         || raw.edges.len() != input.edges.len()
     {
         return Err(LayoutError::Missing);
     }
-    let mut nodes = Vec::with_capacity(raw.nodes.len());
-    for b in &raw.nodes {
-        nodes.push(Rect {
-            x: quantize(top_left(b.cx, b.w))?,
-            y: quantize(top_left(b.cy, b.h))?,
-            w: quantize(b.w)?,
-            h: quantize(b.h)?,
-        });
-    }
-    let mut containers = Vec::with_capacity(raw.containers.len());
-    for (b, c) in raw.containers.iter().zip(&input.containers) {
-        let engine = Rect {
-            x: quantize(top_left(b.cx, b.w))?,
-            y: quantize(top_left(b.cy, b.h))?,
-            w: quantize(b.w)?,
-            h: quantize(b.h)?,
-        };
-        containers.push(finish::frame(c, engine));
-    }
+    let mut nodes = raw.nodes.iter().map(rect).collect::<Result<Vec<_>, _>>()?;
+    let titles = raw.titles.iter().map(rect).collect::<Result<Vec<_>, _>>()?;
     let mut edges = Vec::with_capacity(raw.edges.len());
     for (e, le) in raw.edges.iter().zip(&input.edges) {
         if e.points.is_empty() {
@@ -257,6 +255,7 @@ fn place(input: &LayoutInput, raw: &RawLayout) -> Result<Placed, LayoutError> {
         };
         edges.push(PlacedEdge { points, label });
     }
+    let mut containers = finish::frames(input, &nodes, &titles, &edges);
     let labels = edges.iter().filter_map(|e| e.label);
     let xs = nodes
         .iter()
@@ -280,8 +279,10 @@ fn place(input: &LayoutInput, raw: &RawLayout) -> Result<Placed, LayoutError> {
         r.y += dy;
     }
     for c in &mut containers {
-        c.rect.x += dx;
-        c.rect.y += dy;
+        for r in [&mut c.rect, &mut c.title] {
+            r.x += dx;
+            r.y += dy;
+        }
     }
     for e in &mut edges {
         for p in &mut e.points {
@@ -302,21 +303,23 @@ fn place(input: &LayoutInput, raw: &RawLayout) -> Result<Placed, LayoutError> {
 }
 
 /// Lay `input` out through `engine`: try each [`RUNGS`] separation in order and return the first
-/// quantized layout that passes [`verify::verify`]. An engine failure is final (no further rung
-/// is tried); a layout failing on every rung is [`RenderError::Geometry`], never drawn.
+/// quantized layout that passes [`verify::verify`] with no edge through a title box, else the
+/// first that passes [`verify::verify`]. An engine failure is final (no further rung is tried); a
+/// layout failing [`verify::verify`] on every rung is [`RenderError::Geometry`], never drawn.
 pub(crate) fn lay_out(engine: &dyn Engine, input: &LayoutInput) -> Result<Placed, RenderError> {
-    let mut last = None;
+    let (mut last, mut fallback) = (None, None);
     for sep in RUNGS {
         let raw = guarded(|| engine.solve(input, sep))??;
         let placed = place(input, &raw)?;
-        match verify::verify(input, &placed) {
-            Ok(()) => return Ok(placed),
-            Err(v) => last = Some(v),
+        if let Err(v) = verify::verify(input, &placed) {
+            last = Some(v);
+        } else if verify::title_crossing(&placed).is_ok() {
+            return Ok(placed);
+        } else {
+            fallback.get_or_insert(placed);
         }
     }
-    Err(RenderError::Geometry(
-        last.map_or_else(String::new, |v| v.to_string()),
-    ))
+    fallback.ok_or_else(|| RenderError::Geometry(last.map_or_else(String::new, |v| v.to_string())))
 }
 
 /// Minimum and maximum of `it`, `(0, 0)` when empty.

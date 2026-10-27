@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1438 684" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1413 684" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
 <title id="vd-title">Diagram</title>
 <desc id="vd-desc">13 nodes, 16 edges: User Query → Lead Researcher (Superv…; Lead Researcher (Superv… → Task Decomposition &amp; Ro…; Task Decomposition &amp; Ro… → Worker Subagent 1: Topi…; Task Decomposition &amp; Ro… → Worker Subagent 2: Topi…; Task Decomposition &amp; Ro… → Worker Subagent N: Topi…; Worker Subagent 1: Topi… → W…</desc>
 <defs>
@@ -7,81 +7,81 @@
 </marker>
 </defs>
 <g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
-<path class="vd-edge" d="M366 54L366 84L366 114" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M479 151.5L1047.5 199.5Q1055 200 1055 208L1055 230" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M1169.5 283.5L1305.5 314.5Q1313 316 1313 324L1313 359" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M1055 286L1055 316L1055 359" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M940.5 283.5L802.5 314.5Q795 316 795 324L795 359" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M1313 397L1313 453L1313 496" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M1055 397L1055 453L1055 496" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M795 397L795 453L795 496" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M1313 552L1313 574Q1313 582 1305.5 582.5L902.5 628" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M1055 552L1055 574Q1055 582 1047.5 583.5L902.5 616" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M795 552L795 582L795 612" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M687.5 632L23.5 582.5Q16 582 16 574L16 524L16 453L16 378L16 316L16 258L16 208Q16 200 23.5 199L253.5 160.5" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M366 170L366 200L366 258L366 316L366 346" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M410 403L490 449Q496.5 453 496.5 461L496.5 496" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M496.5 552L496.5 574Q496.5 582 504 583.5L687.5 619" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M322 403L242.5 449Q236 453 236 461L236 496" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M341 54L341 84L341 114" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M454 151.5L1022.5 199.5Q1030 200 1030 208L1030 230" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1144.5 283.5L1280.5 314.5Q1288 316 1288 324L1288 359" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1030 286L1030 316L1030 359" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M915.5 283.5L777.5 314.5Q770 316 770 324L770 359" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1288 397L1288 453L1288 496" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1030 397L1030 453L1030 496" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M770 397L770 453L770 496" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1288 552L1288 574Q1288 582 1280.5 582.5L877.5 628" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1030 552L1030 574Q1030 582 1022.5 583.5L877.5 616" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M770 552L770 582L770 612" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M662.5 631.5L23.5 582.5Q16 582 16 574L16 524L16 453L16 378L16 316L16 258L16 208Q16 200 23.5 199L228.5 162" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M341 170L341 200L341 258L341 316L341 346" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M385 403L465 449Q471.5 453 471.5 461L471.5 496" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M471.5 552L471.5 574Q471.5 582 479 583.5L662.5 619" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M297 403L217.5 449Q211 453 211 461L211 496" marker-end="url(#vd-arrow)"/>
 </g>
 <g class="vd-nodes">
 <g class="vd-node">
-<rect class="vd-node-shape" x="313.5" y="16" width="105.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="366" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="366" dy="0">User Query</tspan></text>
+<rect class="vd-node-shape" x="288.5" y="16" width="105.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="341" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="341" dy="0">User Query</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="253.5" y="114" width="225.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="366" y="138" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="366" dy="0">Lead Researcher (Supervisor</tspan><tspan x="366" dy="18">Agent)</tspan></text>
+<rect class="vd-node-shape" x="228.5" y="114" width="225.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="341" y="138" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="341" dy="0">Lead Researcher (Supervisor</tspan><tspan x="341" dy="18">Agent)</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="940.5" y="230" width="229" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="1055" y="254" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1055" dy="0">Task Decomposition &amp; Router</tspan><tspan x="1055" dy="18">(Claude Haiku)</tspan></text>
+<rect class="vd-node-shape" x="915.5" y="230" width="229" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1030" y="254" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1030" dy="0">Task Decomposition &amp; Router</tspan><tspan x="1030" dy="18">(Claude Haiku)</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="1204" y="359" width="218" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="1313" y="383" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1313" dy="0">Worker Subagent 1: Topic A</tspan></text>
+<rect class="vd-node-shape" x="1179" y="359" width="218" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1288" y="383" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1288" dy="0">Worker Subagent 1: Topic A</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="946" y="359" width="218" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="1055" y="383" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1055" dy="0">Worker Subagent 2: Topic B</tspan></text>
+<rect class="vd-node-shape" x="921" y="359" width="218" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1030" y="383" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1030" dy="0">Worker Subagent 2: Topic B</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="684.5" y="359" width="221.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="795" y="383" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="795" dy="0">Worker Subagent N: Topic C</tspan></text>
+<rect class="vd-node-shape" x="659.5" y="359" width="221.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="770" y="383" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="770" dy="0">Worker Subagent N: Topic C</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="1227.5" y="496" width="171" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="1313" y="520" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1313" dy="0">Write Notes to Virtual</tspan><tspan x="1313" dy="18">Filesystem</tspan></text>
+<rect class="vd-node-shape" x="1202.5" y="496" width="171" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1288" y="520" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1288" dy="0">Write Notes to Virtual</tspan><tspan x="1288" dy="18">Filesystem</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="969.5" y="496" width="171" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="1055" y="520" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1055" dy="0">Write Notes to Virtual</tspan><tspan x="1055" dy="18">Filesystem</tspan></text>
+<rect class="vd-node-shape" x="944.5" y="496" width="171" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1030" y="520" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1030" dy="0">Write Notes to Virtual</tspan><tspan x="1030" dy="18">Filesystem</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="709.5" y="496" width="171" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="795" y="520" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="795" dy="0">Write Notes to Virtual</tspan><tspan x="795" dy="18">Filesystem</tspan></text>
+<rect class="vd-node-shape" x="684.5" y="496" width="171" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="770" y="520" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="770" dy="0">Write Notes to Virtual</tspan><tspan x="770" dy="18">Filesystem</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="687.5" y="612" width="215" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="795" y="636" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="795" dy="0">Subagents Distill Structured</tspan><tspan x="795" dy="18">Findings</tspan></text>
+<rect class="vd-node-shape" x="662.5" y="612" width="215" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="770" y="636" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="770" dy="0">Subagents Distill Structured</tspan><tspan x="770" dy="18">Findings</tspan></text>
 </g>
 <g class="vd-node">
-<polygon class="vd-node-shape" points="366,346 581,378 366,410 151,378" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="366" y="383" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="366" dy="0">Gaps / Contradictions Found?</tspan></text>
+<polygon class="vd-node-shape" points="341,346 556,378 341,410 126,378" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="341" y="383" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="341" dy="0">Gaps / Contradictions Found?</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="390" y="496" width="212.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="496" y="520" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="496" dy="0">Spawn Specialist Subagent</tspan><tspan x="496" dy="18">(Tie-Breaker)</tspan></text>
+<rect class="vd-node-shape" x="365" y="496" width="212.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="471" y="520" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="471" dy="0">Spawn Specialist Subagent</tspan><tspan x="471" dy="18">(Tie-Breaker)</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="121.5" y="496" width="228.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="235.5" y="520" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="235.5" dy="0">Synthesize Comprehensive</tspan><tspan x="235.5" dy="18">Report (Claude Opus/Sonnet)</tspan></text>
+<rect class="vd-node-shape" x="96.5" y="496" width="228.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="210.5" y="520" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="210.5" dy="0">Synthesize Comprehensive</tspan><tspan x="210.5" dy="18">Report (Claude Opus/Sonnet)</tspan></text>
 </g>
 </g>
 <g class="vd-edge-labels">
-<rect class="vd-edge-label-bg" x="479" y="440" width="34.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
-<text class="vd-edge-label" x="496" y="458" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="496" dy="0">Yes</tspan></text>
-<rect class="vd-edge-label-bg" x="222" y="440" width="27.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
-<text class="vd-edge-label" x="235.5" y="458" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="235.5" dy="0">No</tspan></text>
+<rect class="vd-edge-label-bg" x="454" y="440" width="34.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="471" y="458" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="471" dy="0">Yes</tspan></text>
+<rect class="vd-edge-label-bg" x="197" y="440" width="27.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="210.5" y="458" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="210.5" dy="0">No</tspan></text>
 </g>
 </svg>

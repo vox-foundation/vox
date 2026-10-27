@@ -18,7 +18,7 @@ impl Engine for BigDiamond {
                 w: Some(self.size),
                 h: Some(self.size),
             }],
-            containers: vec![],
+            titles: vec![],
             edges: vec![RawEdge {
                 points: vec![(self.reach, half), (half, half)],
                 label: None,
