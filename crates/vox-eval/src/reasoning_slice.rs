@@ -88,6 +88,29 @@ impl ReasoningSliceVerdict {
     }
 }
 
+/// Refuse inputs the generic arithmetic would quietly pass: a non-finite score
+/// (`f64::max` ignores NaN), a baseline of zero or less (rate forced to 0.0), or
+/// a fraction outside `[0, 1]`.
+fn guard(slice: &str, metric: &str, pre: f64, post: f64) -> Result<(), String> {
+    if !pre.is_finite() || !post.is_finite() {
+        return Err(format!(
+            "{slice} {metric}: non-finite score (pre={pre}, post={post}); refusing"
+        ));
+    }
+    if pre <= 0.0 {
+        return Err(format!(
+            "{slice} {metric}: baseline {pre} gives no relative bar; re-baseline or choose a \
+             different slice"
+        ));
+    }
+    if !(0.0..=1.0).contains(&pre) || !(0.0..=1.0).contains(&post) {
+        return Err(format!(
+            "{slice} {metric}: score outside [0, 1] (pre={pre}, post={post}); refusing"
+        ));
+    }
+    Ok(())
+}
+
 /// Compare accuracy and think-initiation `(pre, post)` for one slice.
 /// `n` is the number of items the scorer actually generated.
 pub fn eval_reasoning_slice(
@@ -110,6 +133,13 @@ pub fn eval_reasoning_slice(
     if n != SLICE_SIZE {
         return Err(format!("{slice}: n={n}, expected {SLICE_SIZE}"));
     }
+    guard(slice, "accuracy", accuracy.0, accuracy.1)?;
+    guard(
+        slice,
+        "think_initiation",
+        think_initiation.0,
+        think_initiation.1,
+    )?;
     let init_key = format!("{slice}{THINK_INIT_SUFFIX}");
     Ok(ReasoningSliceVerdict {
         slice,
@@ -244,5 +274,61 @@ mod tests {
         for name in SLICE_NAMES {
             assert_eq!(j["benches"][name]["n"], 32, "{name}");
         }
+    }
+
+    fn refused(slice: &str, acc: (f64, f64), think: (f64, f64), n: usize) -> String {
+        eval_reasoning_slice(slice, acc, think, n, &cfg()).unwrap_err()
+    }
+
+    #[test]
+    fn a_nan_accuracy_post_score_is_refused() {
+        let e = refused("gsm8k_think", (0.625, f64::NAN), (0.625, 0.625), 32);
+        assert!(e.contains("non-finite") && e.contains("gsm8k_think"), "{e}");
+    }
+
+    #[test]
+    fn an_infinite_think_initiation_post_score_is_refused() {
+        let e = refused("gsm8k_think", (0.625, 0.625), (0.625, f64::INFINITY), 32);
+        assert!(e.contains("non-finite"), "{e}");
+    }
+
+    #[test]
+    fn a_nan_baseline_is_refused() {
+        refused("vox_think", (f64::NAN, 0.5), (0.5, 0.5), 32);
+    }
+
+    #[test]
+    fn a_zero_accuracy_baseline_is_refused() {
+        let e = refused("math500_think", (0.0, 0.0), (0.625, 0.625), 32);
+        assert!(e.contains("no relative bar"), "{e}");
+    }
+
+    #[test]
+    fn a_zero_think_initiation_baseline_is_refused() {
+        let e = refused("math500_think", (0.625, 0.625), (0.0, 0.0), 32);
+        assert!(e.contains("no relative bar"), "{e}");
+    }
+
+    #[test]
+    fn an_accuracy_above_one_is_refused() {
+        refused("vox_think", (0.625, 1.5), (0.5, 0.5), 32);
+    }
+
+    #[test]
+    fn a_negative_think_initiation_is_refused() {
+        refused("vox_think", (0.625, 0.625), (0.5, -0.03125), 32);
+    }
+
+    #[test]
+    fn an_item_count_other_than_32_is_refused() {
+        for n in [0, 31, 33] {
+            let e = refused("gsm8k_think", (0.625, 0.625), (0.625, 0.625), n);
+            assert!(e.contains("expected 32"), "n={n}: {e}");
+        }
+    }
+
+    #[test]
+    fn an_unknown_slice_name_is_refused() {
+        refused("gsm8k", (0.625, 0.625), (0.625, 0.625), 32);
     }
 }
