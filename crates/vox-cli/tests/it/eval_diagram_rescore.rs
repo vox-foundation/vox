@@ -46,15 +46,15 @@ fn node_output(path: &Path) -> Option<String> {
 }
 
 /// Re-derive (or bless) every derived file of `dataset`; returns the number of runs re-scored. A
-/// dataset without `runs/` (the task set before its live run) checks the reference chain only, and
-/// its manifest's decision rule is read only once a run needs scoring.
+/// dataset without `runs/` (the task set before its live run) checks the reference chain only. The
+/// manifest's pre-registered decision rule must parse either way.
 fn rescore(dataset: &Path) -> usize {
-    let manifest_text = read(&dataset.join("manifest.v1.yaml"));
-    let manifest: serde_yaml::Value = serde_yaml::from_str(&manifest_text).expect("manifest");
+    let manifest =
+        parse_manifest(&read(&dataset.join("manifest.v1.yaml"))).expect("manifest decision rule");
     let tasks: Vec<Task> = read_jsonl(&read(&dataset.join("tasks.v1.jsonl"))).expect("tasks");
     assert_eq!(
-        manifest["corpus_size"].as_u64(),
-        Some(tasks.len() as u64),
+        manifest.corpus_size,
+        tasks.len(),
         "corpus_size vs tasks.v1.jsonl"
     );
     check(
@@ -74,7 +74,6 @@ fn rescore(dataset: &Path) -> usize {
     runs.sort();
     let mut scored = 0;
     for run in runs {
-        let manifest = parse_manifest(&manifest_text).expect("manifest decision rule");
         let lines: Vec<Line> = read_jsonl(&read(&run.join("attempts.jsonl"))).expect("attempts");
         check(
             &run.join("oracle-inputs.jsonl"),
