@@ -2,11 +2,42 @@ use anyhow::{Context, Result};
 use serde_json::json;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use vox_eval::reasoning_bench::SLICE_NAMES;
+use vox_eval::reasoning_slice::{
+    THINK_INIT_SUFFIX, eval_reasoning_slice, reasoning_slice_of, reasoning_slices_json,
+    require_reasoning_keys,
+};
 use vox_eval::{CollateralDamageConfig, CollateralDamageReport, eval_collateral_damage_suite};
 
 /// Benchmark directories are looked up by name under this root, matching the
 /// `--bench mens/data/<name>` convention `vox mens eval-local` uses.
 const BENCH_ROOT: &str = "mens/data";
+
+/// One scored benchmark. `n` is the item count for reasoning slices, `None` for
+/// eval-local benches.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct BenchScore {
+    pub(crate) value: f64,
+    pub(crate) n: Option<usize>,
+}
+
+/// Hand projection of one report (`CollateralDamageReport` is not `Serialize`).
+/// Reasoning entries pass `Some(n)` and gain `slice` and `n`; generic entries gain neither.
+fn report_json(r: &CollateralDamageReport, n: Option<usize>) -> serde_json::Value {
+    let mut v = json!({
+        "benchmark": r.benchmark_name,
+        "pre": r.pre_training_score,
+        "post": r.post_training_score,
+        "degradation": r.degradation,
+        "degradation_rate": r.degradation_rate,
+        "exceeds_threshold": r.exceeds_threshold,
+    });
+    if let Some(n) = n {
+        v["slice"] = json!(true);
+        v["n"] = json!(n);
+    }
+    v
+}
 
 /// Scores every benchmark named in the baseline against the adapter and writes
 /// the envelope the `vox mens serve` gate reads.
@@ -17,7 +48,7 @@ const BENCH_ROOT: &str = "mens/data";
 pub(crate) fn run_collateral_damage_with(
     pre_score_path: &Path,
     run_dir: &Path,
-    score_bench: &mut dyn FnMut(&str) -> Result<f64>,
+    score_bench: &mut dyn FnMut(&str) -> Result<BenchScore>,
 ) -> Result<i32> {
     let pre_file: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(pre_score_path).with_context(|| {
@@ -43,37 +74,66 @@ pub(crate) fn run_collateral_damage_with(
             pre_score_path.display()
         );
     }
+    require_reasoning_keys(pre.keys().map(String::as_str)).map_err(|e| anyhow::anyhow!(e))?;
 
-    let mut scores: Vec<(String, f64, f64)> = Vec::with_capacity(pre.len());
-    for (bench, pre_score) in &pre {
-        let post = score_bench(bench)?; // fails loudly; never falls back to `pre`
-        scores.push((bench.clone(), *pre_score, post));
+    let mut post: BTreeMap<&str, BenchScore> = BTreeMap::new();
+    for bench in pre.keys() {
+        // fails loudly; never falls back to `pre`
+        post.insert(bench.as_str(), score_bench(bench)?);
     }
 
-    let borrowed: Vec<(&str, f64, f64)> = scores
-        .iter()
-        .map(|(n, a, b)| (n.as_str(), *a, *b))
-        .collect();
     let cfg = CollateralDamageConfig::default();
-    let (status, failed_on, reports) = match eval_collateral_damage_suite(&borrowed, &cfg) {
-        Ok(rs) => ("pass", None, rs),
-        Err(bad) => ("fail", Some(bad.benchmark_name.clone()), vec![bad]),
-    };
-
-    // `CollateralDamageReport` is not `Serialize`; project it by hand.
-    let reports_json: Vec<_> = reports
+    let generic: Vec<(&str, f64, f64)> = pre
         .iter()
-        .map(|r: &CollateralDamageReport| {
-            json!({
-                "benchmark": r.benchmark_name,
-                "pre": r.pre_training_score,
-                "post": r.post_training_score,
-                "degradation": r.degradation,
-                "degradation_rate": r.degradation_rate,
-                "exceeds_threshold": r.exceeds_threshold,
-            })
-        })
+        .filter(|(bench, _)| reasoning_slice_of(bench).is_none())
+        .map(|(bench, p)| (bench.as_str(), *p, post[bench.as_str()].value))
         .collect();
+    let generic_result = eval_collateral_damage_suite(&generic, &cfg);
+
+    let mut verdicts = Vec::with_capacity(SLICE_NAMES.len());
+    for name in SLICE_NAMES {
+        let init = format!("{name}{THINK_INIT_SUFFIX}");
+        let (acc, think) = (post[name], post[init.as_str()]);
+        let n = acc
+            .n
+            .ok_or_else(|| anyhow::anyhow!("{name}: scorer returned no item count"))?;
+        verdicts.push(
+            eval_reasoning_slice(
+                name,
+                (pre[name], acc.value),
+                (pre[init.as_str()], think.value),
+                n,
+                &cfg,
+            )
+            .map_err(|e| anyhow::anyhow!(e))?,
+        );
+    }
+
+    let failing_slice = verdicts.iter().find(|v| v.exceeds_threshold());
+    let (status, failed_on, reports_json) = match (&generic_result, failing_slice) {
+        (Err(bad), _) => (
+            "fail",
+            Some(bad.benchmark_name.clone()),
+            vec![report_json(bad, None)],
+        ),
+        (Ok(_), Some(v)) => {
+            let key = v.failed_key();
+            let r = if v.accuracy.exceeds_threshold {
+                &v.accuracy
+            } else {
+                &v.think_initiation
+            };
+            ("fail", key, vec![report_json(r, Some(v.n))])
+        }
+        (Ok(rs), None) => {
+            let mut out: Vec<_> = rs.iter().map(|r| report_json(r, None)).collect();
+            for v in &verdicts {
+                out.push(report_json(&v.accuracy, Some(v.n)));
+                out.push(report_json(&v.think_initiation, Some(v.n)));
+            }
+            ("pass", None, out)
+        }
+    };
 
     std::fs::create_dir_all(run_dir)?;
     std::fs::write(
@@ -83,6 +143,7 @@ pub(crate) fn run_collateral_damage_with(
             "failed_on": failed_on,
             "threshold": cfg.max_degradation_rate,
             "reports": reports_json,
+            "reasoning_slices": reasoning_slices_json(&verdicts),
         }))?,
     )?;
 
@@ -140,7 +201,7 @@ fn cached_reasoning_report(
 /// from the same rubric the operator's baseline was produced with, and it is
 /// what performs the `MlBackend` plugin dispatch and loads the adapter — so an
 /// adapter that cannot be loaded surfaces here as an `Err`, never as a score.
-fn score_bench(bench: &str, adapter: &Path) -> Result<f64> {
+fn score_bench(bench: &str, adapter: &Path) -> Result<BenchScore> {
     let (dir_name, want_think_rate) = match bench.strip_suffix("_init") {
         Some(base) => (base, true),
         None => (bench, false),
@@ -148,10 +209,14 @@ fn score_bench(bench: &str, adapter: &Path) -> Result<f64> {
     let reasoning = Path::new(BENCH_ROOT).join(dir_name).join("reasoning.jsonl");
     if reasoning.is_file() {
         let report = cached_reasoning_report(dir_name, &reasoning, adapter)?;
-        return Ok(if want_think_rate {
+        let value = if want_think_rate {
             report.think_initiation_rate
         } else {
             report.accuracy
+        };
+        return Ok(BenchScore {
+            value,
+            n: Some(report.n),
         });
     }
     let bench_root = Path::new(BENCH_ROOT).join(bench);
@@ -180,14 +245,40 @@ fn score_bench(bench: &str, adapter: &Path) -> Result<f64> {
     .with_context(|| format!("scoring benchmark '{bench}' against {}", adapter.display()))?;
 
     let report: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&out)?)?;
-    report["pass_rate_at_1"].as_f64().ok_or_else(|| {
+    let value = report["pass_rate_at_1"].as_f64().ok_or_else(|| {
         anyhow::anyhow!("eval-local report for '{bench}' has no numeric pass_rate_at_1")
-    })
+    })?;
+    Ok(BenchScore { value, n: None })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The six reasoning keys at 20/32 (0.625) accuracy and think-initiation.
+    const SIX: &str = r#""gsm8k_think":0.625,"gsm8k_think_init":0.625,"math500_think":0.625,"math500_think_init":0.625,"vox_think":0.625,"vox_think_init":0.625"#;
+
+    /// A scorer result for `bench`: reasoning keys at 0.625 over 32 items, others `other`.
+    fn flat(bench: &str, other: f64) -> BenchScore {
+        if reasoning_slice_of(bench).is_some() {
+            BenchScore {
+                value: 0.625,
+                n: Some(32),
+            }
+        } else {
+            BenchScore {
+                value: other,
+                n: None,
+            }
+        }
+    }
+
+    fn read_report(dir: &Path) -> serde_json::Value {
+        serde_json::from_str(
+            &std::fs::read_to_string(dir.join("collateral_damage_report.json")).unwrap(),
+        )
+        .unwrap()
+    }
 
     #[test]
     fn a_degraded_adapter_writes_a_failing_report() {
@@ -195,7 +286,7 @@ mod tests {
         let pre = dir.path().join("pre.json");
         std::fs::write(
             &pre,
-            r#"{"benchmarks":{"general_bench":0.85,"code_bench":0.90}}"#,
+            format!(r#"{{"benchmarks":{{"general_bench":0.85,"code_bench":0.90,{SIX}}}}}"#),
         )
         .unwrap();
 
@@ -205,17 +296,17 @@ mod tests {
             // The degraded bench is the one that sorts FIRST, so a scorer loop
             // that short-circuits on the first failure is visible in `asked`.
             Ok(match bench {
-                "code_bench" => 0.40,
-                _ => 0.84,
+                "code_bench" => BenchScore {
+                    value: 0.40,
+                    n: None,
+                },
+                _ => flat(bench, 0.84),
             })
         };
         let code = run_collateral_damage_with(&pre, dir.path(), &mut scorer).unwrap();
 
         assert_eq!(code, 1, "a 55% collapse must not pass");
-        let report: serde_json::Value = serde_json::from_str(
-            &std::fs::read_to_string(dir.path().join("collateral_damage_report.json")).unwrap(),
-        )
-        .unwrap();
+        let report = read_report(dir.path());
         assert_eq!(report["status"], "fail");
         assert_eq!(
             report["failed_on"], "code_bench",
@@ -226,7 +317,16 @@ mod tests {
         // scored in sorted order — the baseline is read into a BTreeMap.)
         assert_eq!(
             asked,
-            ["code_bench", "general_bench"],
+            [
+                "code_bench",
+                "general_bench",
+                "gsm8k_think",
+                "gsm8k_think_init",
+                "math500_think",
+                "math500_think_init",
+                "vox_think",
+                "vox_think_init"
+            ],
             "every bench in the baseline must be re-scored against the adapter"
         );
     }
@@ -235,13 +335,55 @@ mod tests {
     fn an_unloadable_adapter_fails_loudly_and_writes_no_passing_report() {
         let dir = tempfile::tempdir().unwrap();
         let pre = dir.path().join("pre.json");
-        std::fs::write(&pre, r#"{"benchmarks":{"general_bench":0.85}}"#).unwrap();
+        std::fs::write(
+            &pre,
+            format!(r#"{{"benchmarks":{{"general_bench":0.85,{SIX}}}}}"#),
+        )
+        .unwrap();
         let mut scorer = |_: &str| anyhow::bail!("adapter not found");
         assert!(run_collateral_damage_with(&pre, dir.path(), &mut scorer).is_err());
         assert!(
             !dir.path().join("collateral_damage_report.json").exists(),
             "a load failure must never leave a report the serve gate would accept"
         );
+    }
+
+    #[test]
+    fn a_six_key_baseline_writes_the_slice_label_and_item_counts() {
+        let dir = tempfile::tempdir().unwrap();
+        let pre = dir.path().join("pre.json");
+        std::fs::write(
+            &pre,
+            format!(r#"{{"benchmarks":{{"general_bench":0.85,{SIX}}}}}"#),
+        )
+        .unwrap();
+        let mut scorer = |bench: &str| Ok(flat(bench, 0.84));
+        let code = run_collateral_damage_with(&pre, dir.path(), &mut scorer).unwrap();
+        assert_eq!(code, 0);
+        let report = read_report(dir.path());
+        assert_eq!(report["status"], "pass");
+        let note = report["reasoning_slices"]["scope_note"].as_str().unwrap();
+        assert!(
+            note.contains("32-item") && note.contains("not full"),
+            "{note}"
+        );
+        assert_eq!(report["reasoning_slices"]["slice_size"], 32);
+        for name in SLICE_NAMES {
+            assert_eq!(
+                report["reasoning_slices"]["benches"][name]["n"], 32,
+                "{name}"
+            );
+        }
+        let reports = report["reports"].as_array().unwrap();
+        assert_eq!(reports.len(), 7, "one generic plus two per slice");
+        for r in reports {
+            if reasoning_slice_of(r["benchmark"].as_str().unwrap()).is_some() {
+                assert_eq!(r["slice"], true);
+                assert_eq!(r["n"], 32);
+            } else {
+                assert!(r.get("slice").is_none() && r.get("n").is_none());
+            }
+        }
     }
 
     #[test]
@@ -256,7 +398,12 @@ mod tests {
             r#"{"model":"mens/demo","max_tokens":256,"pass_rate_at_1":0.7}"#,
         )
         .unwrap();
-        let mut scorer = |_: &str| Ok(1.0);
+        let mut scorer = |_: &str| {
+            Ok(BenchScore {
+                value: 1.0,
+                n: None,
+            })
+        };
         let err = run_collateral_damage_with(&pre, dir.path(), &mut scorer)
             .unwrap_err()
             .to_string();
@@ -276,7 +423,12 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let pre = dir.path().join("pre.json");
         std::fs::write(&pre, r#"{"benchmarks":{}}"#).unwrap();
-        let mut scorer = |_: &str| Ok(1.0);
+        let mut scorer = |_: &str| {
+            Ok(BenchScore {
+                value: 1.0,
+                n: None,
+            })
+        };
         let err = run_collateral_damage_with(&pre, dir.path(), &mut scorer)
             .unwrap_err()
             .to_string();

@@ -13,6 +13,7 @@ pub mod mens;
 pub mod provenance;
 pub mod qwen_reasoning;
 pub mod reasoning_bench;
+pub mod reasoning_slice;
 pub mod report;
 pub mod trial_flywheel;
 
