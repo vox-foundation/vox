@@ -81,8 +81,10 @@ The serve command refuses a missing or non-passing collateral report. It also
 re-checks the 32-item slice block in the report (`scope_note`, `slice_size`,
 and each slice's `n`) and each `collateral_eval/<slice>/reasoning_report.json`
 (status `scored`, `n` of 32), and it recomputes the per-slice drops from the
-stored numbers. It does not trust status alone, so a hand-edited or
-old-format `pass` is refused. A quick first look at the stored status:
+stored pre and post numbers. It does not trust status alone: a flipped
+status, a missing slice block, an old-format report, or numbers that recompute
+past 5% are refused. A consistent rewrite of pre and post is a new baseline and
+is not detected as an edit. A quick first look at the stored status:
 
 ```bash
 jq '.status' mens/runs/qwen35-08b-metal-e2e/collateral_damage_report.json
