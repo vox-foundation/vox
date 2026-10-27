@@ -50,10 +50,11 @@ Plans:
   1. Serve refuses to bind an adapter when the collateral report is missing.
   2. Serve refuses when accuracy or think-initiation on the reasoning keys drops past the configured threshold.
   3. The report states that the benches are slices and records the item count, so the 5% bar is not read as a full GSM8K or MATH-500 result.
-**Plans**: 1 plan
+**Plans**: 2 plans
 
 Plans:
-- [ ] `315-01`: Point the collateral serve gate at the reasoning keys and record the slice size
+- [ ] `315-01` (Wave 1): Strict per-slice evaluator in vox-eval; eval-collateral-damage requires all six reasoning keys, removes a stale report, and labels the slices with n
+- [ ] `315-02` (Wave 2, after 315-01): Serve re-validates the on-disk report and the per-slice reasoning reports and refuses a missing, stale, edited, or unscored one
 
 ### Phase 316: Before/After Comparison (`BENCH-01`)
 **Goal:** Base and adapter are scored on the same slices when the weights exist, and no score is invented when they do not.
@@ -74,7 +75,7 @@ Plans:
 |---|---|---|---|
 | **Phase 313** | Lane Prefix | `4/4` | Complete |
 | **Phase 314** | Held-out Reasoning Set | `2/2` | Complete |
-| **Phase 315** | Serve Gate | `0/1` | Not started |
+| **Phase 315** | Serve Gate | `0/2` | Not started |
 | **Phase 316** | Before/After Comparison | `0/1` | Not started |
 
 ---
