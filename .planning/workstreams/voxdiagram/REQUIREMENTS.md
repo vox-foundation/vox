@@ -33,8 +33,8 @@
 
 - [x] **MIG-01**: Maintainer can import a Mermaid flowchart/graph/state/sequence block to VoxDiagram; unsupported constructs fail closed with a by-line `unsupported` list (nothing silently dropped)
 - [x] **MIG-02**: Import is verified by node/edge-set equality through an import → Mermaid-export round trip over the corpus
-- [ ] **MIG-03**: All convertible ```` ```mermaid ```` fences in `docs/src` (33 fences / 21 files at committed HEAD 2026-10-16, plus any landed before migration; `archive/` excluded and untouched) are migrated to ```` ```vox-diagram ````, reviewed in small batches with a contact sheet
-- [ ] **MIG-04**: After migration the legacy-Mermaid baseline is tightened to the allowlist (the Gantt, plus any block MIG-01 cannot convert)
+- [x] **MIG-03**: All convertible ```` ```mermaid ```` fences in `docs/src` (33 fences / 21 files at committed HEAD 2026-10-16, plus any landed before migration; `archive/` excluded and untouched) are migrated to ```` ```vox-diagram ````, reviewed in small batches with a contact sheet
+- [x] **MIG-04**: After migration the legacy-Mermaid baseline is tightened to the allowlist (the Gantt, plus any block MIG-01 cannot convert)
 
 ### Docs Pipeline (DOCS)
 
@@ -92,8 +92,8 @@
 | REND-06 | Phase 84 | Complete |
 | MIG-01 | Phase 84 | Complete |
 | MIG-02 | Phase 84 | Complete |
-| MIG-03 | Phase 90 | Pending |
-| MIG-04 | Phase 90 | Pending |
+| MIG-03 | Phase 90 | Complete |
+| MIG-04 | Phase 90 | Complete |
 | DOCS-01 | Phase 87 | Complete |
 | DOCS-02 | Phase 87 | Complete |
 | DOCS-03 | Phase 89 | Complete |
