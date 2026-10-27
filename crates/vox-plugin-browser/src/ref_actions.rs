@@ -2,10 +2,37 @@ use std::collections::BTreeMap;
 
 use chromiumoxide_cdp::cdp::browser_protocol::dom::{BackendNodeId, GetBoxModelParams};
 
+use crate::actionability::{ActionKind, Actionability, not_actionable_response};
 use crate::engine::BrowserEngine;
+use crate::events::dialog_open_response;
 use crate::snapshot::{
     AxBox, AxRef, AxSnapshot, SnapshotOptions, compact_ax_snapshot, wrap_snapshot_tree,
 };
+
+/// Selects a matching `<option>` for selects; otherwise focuses the field and
+/// selects its current contents so the following text insertion replaces it.
+pub(crate) const PREPARE_FILL_JS: &str = r#"function (value) {
+  if (this.tagName === "SELECT") {
+    const options = Array.from(this.options);
+    const opt = options.find((o) => o.value === value || o.label === value || o.text.trim() === value);
+    if (!opt) return { mode: "no_option", options: options.slice(0, 50).map((o) => o.label || o.value) };
+    this.value = opt.value;
+    this.dispatchEvent(new Event("input", { bubbles: true }));
+    this.dispatchEvent(new Event("change", { bubbles: true }));
+    return { mode: "selected" };
+  }
+  this.focus();
+  if (typeof this.select === "function") {
+    this.select();
+  } else if (this.isContentEditable) {
+    const range = document.createRange();
+    range.selectNodeContents(this);
+    const sel = getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+  return { mode: "focused" };
+}"#;
 
 pub(crate) fn stale_ref_error(ref_id: &str) -> String {
     format!("stale_ref: {ref_id}")
@@ -70,22 +97,33 @@ impl BrowserEngine {
         page_id: &str,
         ref_id: &str,
         respect_sensitive: bool,
+        timeout_ms: u64,
     ) -> Result<serde_json::Value, String> {
         let ax_ref = self.last_ref(page_id, ref_id).await?;
         if respect_sensitive && ax_ref.sensitive {
             return Ok(sensitive_ref_response(ref_id));
         }
+        if let Some(dialog) = self.pending_dialog(page_id).await {
+            return Ok(dialog_open_response(&dialog));
+        }
 
         let page = self.page_ref(page_id).await?;
-        let bounds = box_for_backend_node(&page, ax_ref.backend_dom_node_id)
+        let ready = self
+            .wait_actionable(
+                &page,
+                ax_ref.backend_dom_node_id,
+                ActionKind::Click,
+                timeout_ms,
+            )
             .await
             .map_err(|_| stale_ref_error(ref_id))?;
-        self.click_xy(
-            page_id,
-            bounds.x + bounds.width / 2.0,
-            bounds.y + bounds.height / 2.0,
-        )
-        .await?;
+        let (x, y) = match ready {
+            Actionability::Ready { x, y } => (x, y),
+            Actionability::NotActionable { reason, check } => {
+                return Ok(not_actionable_response(ref_id, reason, &check));
+            }
+        };
+        self.click_xy(page_id, x, y).await?;
         Ok(serde_json::json!({ "ok": true, "ref": ref_id }))
     }
 
@@ -95,23 +133,50 @@ impl BrowserEngine {
         ref_id: &str,
         value: &str,
         respect_sensitive: bool,
+        timeout_ms: u64,
     ) -> Result<serde_json::Value, String> {
         let ax_ref = self.last_ref(page_id, ref_id).await?;
         if respect_sensitive && ax_ref.sensitive {
             return Ok(sensitive_ref_response(ref_id));
         }
+        if let Some(dialog) = self.pending_dialog(page_id).await {
+            return Ok(dialog_open_response(&dialog));
+        }
 
         let page = self.page_ref(page_id).await?;
-        let bounds = box_for_backend_node(&page, ax_ref.backend_dom_node_id)
+        let ready = self
+            .wait_actionable(
+                &page,
+                ax_ref.backend_dom_node_id,
+                ActionKind::Fill,
+                timeout_ms,
+            )
             .await
             .map_err(|_| stale_ref_error(ref_id))?;
-        self.click_xy(
-            page_id,
-            bounds.x + bounds.width / 2.0,
-            bounds.y + bounds.height / 2.0,
-        )
-        .await?;
-        self.type_text(page_id, value).await?;
+        if let Actionability::NotActionable { reason, check } = ready {
+            return Ok(not_actionable_response(ref_id, reason, &check));
+        }
+        let prepared = self
+            .call_on_backend_node(
+                &page,
+                ax_ref.backend_dom_node_id,
+                PREPARE_FILL_JS,
+                vec![serde_json::Value::from(value)],
+            )
+            .await?;
+        match prepared.get("mode").and_then(serde_json::Value::as_str) {
+            Some("selected") => {}
+            Some("no_option") => {
+                return Ok(serde_json::json!({
+                    "ok": false,
+                    "reason": "no_matching_option",
+                    "ref": ref_id,
+                    "options": prepared.get("options"),
+                }));
+            }
+            _ if value.is_empty() => self.press(page_id, "Delete").await?,
+            _ => self.type_text(page_id, value).await?,
+        }
         Ok(serde_json::json!({ "ok": true, "ref": ref_id }))
     }
 
@@ -177,6 +242,7 @@ fn sensitive_ref_response(ref_id: &str) -> serde_json::Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::actionability::DEFAULT_ACTION_TIMEOUT_MS;
 
     #[test]
     fn click_ref_empty_map_is_stale() {
@@ -220,7 +286,10 @@ mod tests {
             .unwrap()
             .ref_id
             .clone();
-        let out = engine.click_ref(&page_id, &go, true).await.unwrap();
+        let out = engine
+            .click_ref(&page_id, &go, true, DEFAULT_ACTION_TIMEOUT_MS)
+            .await
+            .unwrap();
         assert_eq!(out["ok"], true);
         engine.close(&page_id).await.unwrap();
     }

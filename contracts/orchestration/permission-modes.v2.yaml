@@ -84,6 +84,19 @@ risk_classes:
       are not confined to the VCS-tracked workspace, so this can never be
       treated as reversible regardless of what the command happens to do.
 
+  - tool: vox_computer_act
+    class: destructive
+    reversible: false
+    always_requires_approval: false
+    floor: null
+    rationale: >
+      Synthesizes clicks, keystrokes, and value changes in arbitrary native
+      desktop apps. Effects land outside the VCS-tracked workspace (sent mail,
+      changed settings, deleted documents) and cannot be undone by this
+      process, so every action parks for approval except under accept_all,
+      which is the explicit opt-in for unattended computer use. The read-only
+      vox_computer_* tools stay ungated.
+
   - tool: vox_deploy
     class: destructive
     reversible: false

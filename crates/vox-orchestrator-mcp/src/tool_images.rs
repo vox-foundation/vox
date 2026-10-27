@@ -13,6 +13,7 @@ pub const BROWSER_FRAME_IMAGE_PART_MAX_BYTES: usize = 400_000;
 pub const FRAME_IMAGE_TOOL_NAMES: &[&str] = &[
     "vox_browser_screenshot_viewport",
     "vox_browser_screencast_frame",
+    "vox_computer_screenshot",
 ];
 
 pub enum FramePersistMode {

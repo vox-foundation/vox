@@ -1,0 +1,24 @@
+[plugin]
+id = "computer"
+name = "Desktop Computer Use"
+version = "0.6.0"
+description = "Desktop computer use: accessibility snapshots, window capture, and background mouse/keyboard input targeted at one app."
+license = "Apache-2.0"
+
+[plugin.host]
+min-vox-version = "0.5.0"
+
+[plugin.payload]
+kind = "code"
+abi-version = 14
+
+[plugin.payload.provides]
+extension-points = ["ComputerControl"]
+
+[plugin.payload.requires]
+os = ["macos"]
+arch = ["x86_64", "aarch64"]
+native-libs = []
+
+[plugin.payload.artifacts]
+"macos-aarch64" = "libvox_plugin_computer.dylib"

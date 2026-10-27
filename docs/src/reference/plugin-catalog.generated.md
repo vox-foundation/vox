@@ -25,6 +25,7 @@ _Columns: `id`, `payload-kind`, `extension-points`/`exposes-tools`, `default-sou
 | `oratio` | `AudioCapture`, `SpeechToText` | `github:vox-foundation/vox` | `vox-dev` |
 | `webhook` | `HttpListener`, `WebhookInbox` | `local:crates/vox-plugin-webhook` | `vox-server`, `vox-dev` |
 | `browser` | `BrowserAutomation` | `local:crates/vox-plugin-browser` | `vox-dev` |
+| `computer` | `ComputerControl` | `local:crates/vox-plugin-computer` | `vox-dev` |
 | `runtime-wasm` | `SkillRuntime` | `local:crates/vox-plugin-runtime-wasm` | `vox-fullstack`, `vox-edge`, `vox-dev` |
 | `runtime-container` | `SkillRuntime` | `local:crates/vox-plugin-runtime-container` | `vox-server` |
 | `publication` | `Publication` | `local:crates/vox-plugin-publication` | — |

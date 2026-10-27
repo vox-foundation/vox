@@ -195,6 +195,15 @@ default-source = "local:crates/vox-plugin-browser"
 bundled-in = ["vox-dev"]
 
 [[plugin]]
+id = "computer"
+payload-kind = "code"
+description = "Desktop computer use: accessibility snapshots, window capture, and background mouse/keyboard input targeted at one app."
+status = "alpha"
+extension-points = ["ComputerControl"]
+default-source = "local:crates/vox-plugin-computer"
+bundled-in = ["vox-dev"]
+
+[[plugin]]
 id = "runtime-wasm"
 payload-kind = "code"
 description = "Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills). Faster cold start than containers, no external daemon."
@@ -306,7 +315,7 @@ extends = "vox-fullstack"
 plugins = [
     "mens-candle-cuda", "nvml-probe", "mens-candle-metal",
     "populi-mesh", "oratio",
-    "browser", "webhook",
+    "browser", "computer", "webhook",
 ]
 profiles = ["dev"]
 
@@ -535,6 +544,24 @@ license = "Apache-2.0"
 source = "https://github.com/vox-foundation/vox"
 pin = "2026-09-08-chat-research-loop"
 bundle-path = "assets/skills/browser-research"
+
+[[skill-bundle]]
+id = "browser-automation"
+description = "Use when the user wants something done on a web page — log in, fill a form, click through a flow, check that a page works. Snapshot, act on refs, wait for the result, read console and network events when something fails. For read-and-cite research use browser-research; for native desktop apps use computer-use."
+status = "beta"
+license = "Apache-2.0"
+source = "https://github.com/vox-foundation/vox"
+pin = "2026-10-26-computer-use"
+bundle-path = "assets/skills/browser-automation"
+
+[[skill-bundle]]
+id = "computer-use"
+description = "Use when the user wants something done in a native desktop app (Finder, System Settings, Calculator, Notes, any non-browser window). Snapshot the app's accessibility tree, act on refs in the background, verify with a fresh snapshot or screenshot. Not for web pages — use the browser tools there."
+status = "beta"
+license = "Apache-2.0"
+source = "https://github.com/vox-foundation/vox"
+pin = "2026-10-26-computer-use"
+bundle-path = "assets/skills/computer-use"
 
 [[skill-bundle]]
 id = "web-artifacts-builder"

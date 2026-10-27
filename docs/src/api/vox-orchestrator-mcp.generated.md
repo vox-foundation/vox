@@ -124,6 +124,7 @@ Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 | `benchmark_tools` | Benchmark telemetry query tools (`research_metrics`). |
 | `browser_tools` | Chromium CDP browser automation (`vox_browser_*`). |
 | `caller_role` | Trusted caller role for browser control-lock authorization. |
+| `computer_tools` | Desktop computer use through the `computer` code plugin (`vox_computer_*`). |
 | `capability_tools` | `vox_capability_explain` / `vox_capability_features`: answers from the embedded capability index. |
 | `chat_hop` | — |
 | `chat_model_resolve` | Shared LLM model resolution for chat tools. |

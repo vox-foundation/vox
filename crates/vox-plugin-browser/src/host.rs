@@ -9,6 +9,7 @@ use serde::Serialize;
 use tracing::debug;
 
 use crate::engine::BrowserEngine;
+use crate::events::PageEvents;
 use crate::policy::{cookie_export_public_json, require_named_consent, validate_navigation_url};
 use crate::resolve::history_capabilities;
 use crate::snapshot::AxRef;
@@ -19,6 +20,7 @@ pub(crate) struct HostInner {
     pub(crate) pages: HashMap<String, chromiumoxide::Page>,
     pub(crate) viewports: HashMap<String, ViewportMetrics>,
     pub(crate) ref_maps: HashMap<String, std::collections::BTreeMap<String, AxRef>>,
+    pub(crate) page_events: HashMap<String, PageEvents>,
     pub(crate) consent_profile_id: Option<String>,
     /// When true (Attach), last-page drop disconnects and must not kill Chrome.
     pub(crate) disconnect_only: bool,
@@ -37,6 +39,7 @@ impl HostInner {
             pages: HashMap::new(),
             viewports: HashMap::new(),
             ref_maps: HashMap::new(),
+            page_events: HashMap::new(),
             consent_profile_id,
             disconnect_only,
         }

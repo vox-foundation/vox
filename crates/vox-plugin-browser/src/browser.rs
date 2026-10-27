@@ -9,7 +9,9 @@ use abi_stable::std_types::*;
 use serde::Deserialize;
 use vox_plugin_api::extensions::browser_automation::BrowserAutomation;
 
+use crate::actionability::clamp_timeout_ms;
 use crate::engine::{BrowserEngine, global_engine};
+use crate::events::{DialogAction, EventQuery};
 use crate::policy::{BrowserLaunchMode, BrowserLaunchOptions};
 use crate::snapshot::SnapshotOptions;
 
@@ -107,12 +109,14 @@ impl Default for OpenExJson {
 #[serde(default, deny_unknown_fields)]
 struct RefActionOptions {
     respect_sensitive: bool,
+    timeout_ms: Option<u64>,
 }
 
 impl Default for RefActionOptions {
     fn default() -> Self {
         Self {
             respect_sensitive: true,
+            timeout_ms: None,
         }
     }
 }
@@ -374,7 +378,12 @@ impl BrowserAutomation for BrowserPlugin {
         let ref_id = ref_id.to_string();
         let result = rt().block_on(async move {
             engine
-                .click_ref(&page_id, &ref_id, options.respect_sensitive)
+                .click_ref(
+                    &page_id,
+                    &ref_id,
+                    options.respect_sensitive,
+                    clamp_timeout_ms(options.timeout_ms),
+                )
                 .await
         });
         to_rresult(
@@ -401,7 +410,13 @@ impl BrowserAutomation for BrowserPlugin {
         let value = value.to_string();
         let result = rt().block_on(async move {
             engine
-                .fill_ref(&page_id, &ref_id, &value, options.respect_sensitive)
+                .fill_ref(
+                    &page_id,
+                    &ref_id,
+                    &value,
+                    options.respect_sensitive,
+                    clamp_timeout_ms(options.timeout_ms),
+                )
                 .await
         });
         to_rresult(
@@ -450,5 +465,57 @@ impl BrowserAutomation for BrowserPlugin {
         let result =
             rt().block_on(async move { engine.cookies_import(&page_id, &cookies_json).await });
         to_rresult(result)
+    }
+
+    fn page_events(
+        &self,
+        page_id: RStr<'_>,
+        options_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError> {
+        let query = match parse_options::<EventQuery>(options_json.as_str()) {
+            Ok(query) => query,
+            Err(error) => return to_rresult(Err(error)),
+        };
+        let engine = self.engine.clone();
+        let page_id = page_id.to_string();
+        let result = rt().block_on(async move { engine.page_events(&page_id, &query).await });
+        to_rresult(
+            result
+                .and_then(|value| serde_json::to_string(&value).map_err(|e| e.to_string()))
+                .map(RString::from),
+        )
+    }
+
+    fn handle_dialog(
+        &self,
+        page_id: RStr<'_>,
+        options_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError> {
+        let action = match parse_options::<DialogAction>(options_json.as_str()) {
+            Ok(action) => action,
+            Err(error) => return to_rresult(Err(error)),
+        };
+        let engine = self.engine.clone();
+        let page_id = page_id.to_string();
+        let result = rt().block_on(async move { engine.handle_dialog(&page_id, &action).await });
+        to_rresult(
+            result
+                .and_then(|value| serde_json::to_string(&value).map_err(|e| e.to_string()))
+                .map(RString::from),
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every plugin handle drives the one process-wide engine, so pages and the
+    /// control lock survive the host re-requesting the extension.
+    #[test]
+    fn new_plugins_share_the_global_engine() {
+        let a = BrowserPlugin::new();
+        let b = BrowserPlugin::new();
+        assert!(Arc::ptr_eq(&a.engine, &b.engine));
     }
 }

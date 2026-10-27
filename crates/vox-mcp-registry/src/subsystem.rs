@@ -23,6 +23,7 @@ pub enum Subsystem {
     Compiler,
     Browser,
     Speech,
+    Computer,
 }
 
 impl Subsystem {
@@ -43,6 +44,7 @@ impl Subsystem {
         Subsystem::Compiler,
         Subsystem::Browser,
         Subsystem::Speech,
+        Subsystem::Computer,
     ];
 
     /// Catalog / wire spelling.
@@ -63,6 +65,7 @@ impl Subsystem {
             Subsystem::Compiler => "compiler",
             Subsystem::Browser => "browser",
             Subsystem::Speech => "speech",
+            Subsystem::Computer => "computer",
         }
     }
 
@@ -82,7 +85,7 @@ impl Subsystem {
             Memory => &[Db, SearchIndex],
             Research => &[LlmFacade, SearchIndex, Db],
             Mesh | Clarification | Flywheel => &[Db],
-            Db | ModelRegistry | Attention | Compiler | Browser | Speech => &[],
+            Db | ModelRegistry | Attention | Compiler | Browser | Speech | Computer => &[],
         }
     }
 }
@@ -106,7 +109,7 @@ mod tests {
 
     #[test]
     fn all_lists_every_variant_once_in_ord_order() {
-        assert_eq!(Subsystem::ALL.len(), 15);
+        assert_eq!(Subsystem::ALL.len(), 16);
         let mut sorted = Subsystem::ALL.to_vec();
         sorted.sort();
         sorted.dedup();
@@ -143,7 +146,15 @@ mod tests {
         for s in [Mesh, Clarification, Flywheel] {
             assert_eq!(s.deps(), &[Db], "{s:?}");
         }
-        for s in [Db, ModelRegistry, Attention, Compiler, Browser, Speech] {
+        for s in [
+            Db,
+            ModelRegistry,
+            Attention,
+            Compiler,
+            Browser,
+            Speech,
+            Computer,
+        ] {
             assert!(s.deps().is_empty(), "{s:?}");
         }
     }

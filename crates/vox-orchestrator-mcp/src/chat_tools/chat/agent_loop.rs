@@ -24,13 +24,15 @@ use vox_actor_runtime::ActivityOptions;
 use vox_actor_runtime::llm::{
     LlmChatMessage, LlmConfig, LlmResponse, LlmToolDef, llm_chat, llm_stream_activity,
 };
-use vox_mcp_registry::TOOL_REGISTRY;
+use vox_mcp_registry::{McpToolRegistryEntry, TOOL_REGISTRY};
 use vox_orchestrator::events::AgentEventKind;
 use vox_orchestrator::models::{ModelSpec, ProviderType};
 use vox_orchestrator::types::AgentId;
 
 use crate::input_schemas::tool_input_schema;
-use crate::llm_bridge::tool_selection::{DEFAULT_MAX_TOOLS, TurnContext, select_tools_for_turn};
+use crate::llm_bridge::tool_selection::{
+    CHAT_TURN_PINS, DEFAULT_MAX_TOOLS, TurnContext, admit_discovered_tools, select_tools_for_turn,
+};
 use crate::server_state::ServerState;
 
 /// Serializes test-only access to the process-global `OPENROUTER_BASE_URL` /
@@ -374,6 +376,101 @@ pub(crate) fn receipt_turn_event(
     })
 }
 
+/// Upper bound on tools a turn may add to its offered set through `vox_tool_search`,
+/// so progressive disclosure cannot grow the list past the selection-accuracy range
+/// `DEFAULT_MAX_TOOLS` was chosen for.
+const MAX_DISCOVERED_TOOLS_PER_TURN: usize = 16;
+
+pub(crate) fn llm_tool_def(entry: &McpToolRegistryEntry) -> LlmToolDef {
+    LlmToolDef {
+        name: entry.name.to_string(),
+        description: Some(entry.description.to_string()),
+        parameters: serde_json::Value::Object(tool_input_schema(entry.name)),
+    }
+}
+
+/// Registry tools this server can dispatch for an agent turn: compiled in, and allowed by
+/// the active capability profile and boot report (the same guard dispatch applies).
+fn dispatchable_tool_names(state: &ServerState) -> std::collections::BTreeSet<&'static str> {
+    TOOL_REGISTRY
+        .iter()
+        .map(|e| e.name)
+        .filter(|name| crate::registry::dispatchable_under_features(name))
+        .filter(|name| {
+            crate::profiles::guard_tool(state, crate::profiles::CallContext::LOCAL_WRITE, name)
+                .is_ok()
+        })
+        .collect()
+}
+
+/// Tool names in a successful `vox_tool_search` envelope (`data.tools[].name`).
+fn tool_search_hits(content: &str) -> Vec<String> {
+    serde_json::from_str::<serde_json::Value>(content)
+        .ok()
+        .and_then(|v| v["data"]["tools"].as_array().cloned())
+        .unwrap_or_default()
+        .iter()
+        .filter_map(|t| t["name"].as_str().map(str::to_string))
+        .collect()
+}
+
+/// The tool-selection context for one agent chat turn. Shared with the first-tool-choice
+/// probe so evals measure exactly what a real turn offers.
+pub(crate) fn chat_turn_context(
+    state: &ServerState,
+    permission_mode: Option<&str>,
+    active_skill_id: Option<String>,
+    user_message: &str,
+) -> TurnContext {
+    TurnContext {
+        permission_mode: permission_mode.map(str::to_string),
+        lanes: vec!["ai", "app"],
+        active_skill_id,
+        max_tools: DEFAULT_MAX_TOOLS,
+        // Never offer chat-turn-entry tools (`vox_chat_*`, e.g. `vox_chat_message`)
+        // as callable tools inside an agent turn. `select_tools_for_turn`'s
+        // general-purpose skill-permission filter
+        // (`skill_permissions::is_skill_infrastructure_tool`) deliberately
+        // whitelists `vox_chat_*` through *skill* restrictions — that's correct for
+        // other, non-recursive callers, so this exclusion is supplied here at the
+        // `run_agent_turn` call site rather than being hardcoded in
+        // `tool_selection.rs`. Without it, a model could dispatch
+        // `vox_chat_message` via `handle_tool_call_with_mode`, which re-enters
+        // `chat_message -> try_run_agent_turn -> run_agent_turn` — each re-entrant
+        // call gets its own fresh `max_iterations` budget, so
+        // `DEFAULT_MAX_ITERATIONS` alone would not bound the recursion depth.
+        //
+        // This is applied INSIDE `select_tools_for_turn`, before the `max_tools`
+        // cap, so a `vox_chat_*` entry sitting within the first `DEFAULT_MAX_TOOLS`
+        // registry-order entries no longer consumes a cap slot only to be
+        // discarded afterward (which used to leave turns with fewer than
+        // `DEFAULT_MAX_TOOLS` usable tools and could push a genuinely useful tool
+        // just past the cap boundary out of reach).
+        exclude_name_prefixes: vec!["vox_chat_"],
+        // Registry order is alphabetical, so the plain `.take(max_tools)`
+        // truncation made the delegation tools unreachable on every chat turn:
+        // after the ai/app lane filter `vox_spawn_agent` is candidate ~166 of
+        // ~188 and the cut lands at 40. Pin them so a chat turn can actually
+        // delegate.
+        //
+        // This is not free: the cap is fixed, so each pin evicts the tool that
+        // previously held the last slot. These three pins displaced
+        // `vox_check_file_owner`, `vox_check_mood`, and `vox_check_workspace`
+        // (previously slots 38-40, the cut ending at `vox_check_workspace`).
+        // Every further pin costs another tool the same way — the real fix is
+        // relevance ranking before truncation, not a longer pin list.
+        //
+        // `vox_tool_search` is the escape hatch for everything the cap hides: tools
+        // it surfaces are added to this turn's offered set (see
+        // `admit_discovered_tools`), the progressive-disclosure pattern.
+        pin_names: CHAT_TURN_PINS.to_vec(),
+        // Browser and desktop tools sit outside the ai/app lanes; a request that
+        // names a web page or a desktop app pulls their core tools in.
+        query: Some(user_message.to_string()),
+        available: Some(dispatchable_tool_names(state)),
+    }
+}
+
 #[cfg(test)]
 mod turn_event_tests {
     use super::turn_event_for_result;
@@ -630,7 +727,10 @@ async fn stream_final_answer(
 /// the model happened to say is never dispatched. Returns `None` on no match,
 /// a malformed candidate, or an unoffered tool name; the caller treats `None`
 /// as "the model declined to call a tool", never as an error.
-fn salvage_tool_call_from_text(text: &str, tool_defs: &[LlmToolDef]) -> Option<serde_json::Value> {
+pub(crate) fn salvage_tool_call_from_text(
+    text: &str,
+    tool_defs: &[LlmToolDef],
+) -> Option<serde_json::Value> {
     let candidate = fenced_json_candidate(text).or_else(|| bare_json_candidate(text))?;
     let obj = candidate.as_object()?;
     let name = obj.get("name")?.as_str()?;
@@ -798,58 +898,14 @@ pub(crate) async fn run_agent_turn(
     messages.extend(prior_conversation);
     messages.push(LlmChatMessage {
         role: "user".into(),
-        content: user_message,
+        content: user_message.clone(),
         ..Default::default()
     });
 
-    let turn_ctx = TurnContext {
-        permission_mode: permission_mode.map(str::to_string),
-        lanes: vec!["ai", "app"],
-        active_skill_id,
-        max_tools: DEFAULT_MAX_TOOLS,
-        // Never offer chat-turn-entry tools (`vox_chat_*`, e.g. `vox_chat_message`)
-        // as callable tools inside an agent turn. `select_tools_for_turn`'s
-        // general-purpose skill-permission filter
-        // (`skill_permissions::is_skill_infrastructure_tool`) deliberately
-        // whitelists `vox_chat_*` through *skill* restrictions — that's correct for
-        // other, non-recursive callers, so this exclusion is supplied here at the
-        // `run_agent_turn` call site rather than being hardcoded in
-        // `tool_selection.rs`. Without it, a model could dispatch
-        // `vox_chat_message` via `handle_tool_call_with_mode`, which re-enters
-        // `chat_message -> try_run_agent_turn -> run_agent_turn` — each re-entrant
-        // call gets its own fresh `max_iterations` budget, so
-        // `DEFAULT_MAX_ITERATIONS` alone would not bound the recursion depth.
-        //
-        // This is applied INSIDE `select_tools_for_turn`, before the `max_tools`
-        // cap, so a `vox_chat_*` entry sitting within the first `DEFAULT_MAX_TOOLS`
-        // registry-order entries no longer consumes a cap slot only to be
-        // discarded afterward (which used to leave turns with fewer than
-        // `DEFAULT_MAX_TOOLS` usable tools and could push a genuinely useful tool
-        // just past the cap boundary out of reach).
-        exclude_name_prefixes: vec!["vox_chat_"],
-        // Registry order is alphabetical, so the plain `.take(max_tools)`
-        // truncation made the delegation tools unreachable on every chat turn:
-        // after the ai/app lane filter `vox_spawn_agent` is candidate ~166 of
-        // ~188 and the cut lands at 40. Pin them so a chat turn can actually
-        // delegate.
-        //
-        // This is not free: the cap is fixed, so each pin evicts the tool that
-        // previously held the last slot. These three pins displaced
-        // `vox_check_file_owner`, `vox_check_mood`, and `vox_check_workspace`
-        // (previously slots 38-40, the cut ending at `vox_check_workspace`).
-        // Every further pin costs another tool the same way — the real fix is
-        // relevance ranking before truncation, not a longer pin list.
-        pin_names: vec!["vox_spawn_agent", "vox_submit_task", "vox_task_status"],
-    };
+    let turn_ctx = chat_turn_context(state, permission_mode, active_skill_id, &user_message);
     let selected = select_tools_for_turn(TOOL_REGISTRY, &state.skill_registry, &turn_ctx);
-    let tool_defs: Vec<LlmToolDef> = selected
-        .iter()
-        .map(|entry| LlmToolDef {
-            name: entry.name.to_string(),
-            description: Some(entry.description.to_string()),
-            parameters: serde_json::Value::Object(tool_input_schema(entry.name)),
-        })
-        .collect();
+    let mut tool_defs: Vec<LlmToolDef> = selected.into_iter().map(llm_tool_def).collect();
+    let mut discovered_tools = 0usize;
 
     let activity_options = ActivityOptions::new();
     let mut model_used = String::new();
@@ -990,6 +1046,21 @@ pub(crate) async fn run_agent_turn(
                 let call_succeeded = dispatch_ok
                     && !content.starts_with("Error:")
                     && !crate::server_state::tool_json_envelope_is_error(&content);
+                if call.name == "vox_tool_search" && call_succeeded {
+                    let hits = tool_search_hits(&content);
+                    let hits: Vec<&str> = hits.iter().map(String::as_str).collect();
+                    let offered: Vec<&str> = tool_defs.iter().map(|t| t.name.as_str()).collect();
+                    let admitted = admit_discovered_tools(
+                        TOOL_REGISTRY,
+                        &state.skill_registry,
+                        &turn_ctx,
+                        &hits,
+                        &offered,
+                        MAX_DISCOVERED_TOOLS_PER_TURN.saturating_sub(discovered_tools),
+                    );
+                    discovered_tools += admitted.len();
+                    tool_defs.extend(admitted.into_iter().map(llm_tool_def));
+                }
                 // Derived from the RESULT (`call_succeeded`, computed above from
                 // what dispatch actually did), never from `call.arguments` alone
                 // — see `turn_event_for_result`'s doc comment for why that

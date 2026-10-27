@@ -21,7 +21,7 @@ First-party Vox distribution bundles. Each bundle is the same host binary plus a
 | `vox-mesh` | `vox-base` | 2 | 2 | `mesh` |
 | `vox-server` | `vox-base` | 5 | 5 | `orchestrator,knowledge,mesh` |
 | `vox-edge` | `vox-base` | 4 | 4 | `lang,skills` |
-| `vox-dev` | `vox-fullstack` | 7 | 16 | `dev` |
+| `vox-dev` | `vox-fullstack` | 8 | 17 | `dev` |
 | `vox-mobile` | `vox-base` | 0 | 0 | — |
 
 ## Per-bundle plugin lists
@@ -134,6 +134,7 @@ Extends: `vox-fullstack`
 - `populi-mesh` — Populi mesh transport (HTTP control plane, A2A dispatch) + agent skill.
 - `oratio` — Audio capture + speech-to-text (Candle Whisper). Extracted from vox-speech in Unit 4.
 - `browser` — Chrome DevTools Protocol browser automation via chromiumoxide.
+- `computer` — Desktop computer use: accessibility snapshots, window capture, and background mouse/keyboard input targeted at one app (macOS; opt-in via the computer profile).
 - `webhook` — Inbound webhook HTTP listener with HMAC signature verification (GitHub, generic; GitLab deprecated).
 
 ### `vox-mobile`

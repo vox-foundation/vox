@@ -7,7 +7,7 @@
 
 use abi_stable::{sabi_trait, std_types::*};
 
-pub const BROWSER_AUTOMATION_REVISION: u32 = 5;
+pub const BROWSER_AUTOMATION_REVISION: u32 = 6;
 
 #[sabi_trait]
 pub trait BrowserAutomation: Send + Sync {
@@ -135,4 +135,21 @@ pub trait BrowserAutomation: Send + Sync {
 
     /// Import cookies for a page from JSON.
     fn cookies_import(&self, page_id: RStr<'_>, cookies_json: RStr<'_>) -> RResult<(), RBoxError>;
+
+    /// Buffered console messages, uncaught exceptions, network requests and the
+    /// open JavaScript dialog (if any) as JSON. `options_json` accepts
+    /// `{"since_seq":u64,"limit":usize,"kinds":["console","network"],"level":str,
+    /// "url_contains":str,"clear":bool}`; empty returns the latest entries.
+    /// Revision 6+.
+    fn page_events(&self, page_id: RStr<'_>, options_json: RStr<'_>)
+    -> RResult<RString, RBoxError>;
+
+    /// Accept or dismiss the open JavaScript dialog. `options_json` accepts
+    /// `{"accept":bool,"prompt_text":str}`. Returns `{"ok":false,"reason":"no_dialog"}`
+    /// when none is open. Revision 6+.
+    fn handle_dialog(
+        &self,
+        page_id: RStr<'_>,
+        options_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError>;
 }

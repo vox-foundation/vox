@@ -36,14 +36,14 @@
 - GUI: 15 CLI commands, 9 MCP tools, 13 GUI surfaces
 - Data & DB: 89 CLI commands, 18 MCP tools, 1 GUI surfaces
 - CI & governance: 215 CLI commands, 0 MCP tools, 1 GUI surfaces
-- Plugins & skills: 317 CLI commands, 58 MCP tools, 2 GUI surfaces
+- Plugins & skills: 317 CLI commands, 60 MCP tools, 2 GUI surfaces
 - VCS & repo: 28 CLI commands, 19 MCP tools, 1 GUI surfaces
 - Runtime & scripts: 14 CLI commands, 2 MCP tools, 0 GUI surfaces
 - Speech: 1 CLI commands, 3 MCP tools, 1 GUI surfaces
 - Gamification: 50 CLI commands, 16 MCP tools, 1 GUI surfaces
 - Build & deploy: 27 CLI commands, 0 MCP tools, 0 GUI surfaces
 - Docs: 0 CLI commands, 0 MCP tools, 0 GUI surfaces
-- Platform (other): 34 CLI commands, 97 MCP tools, 3 GUI surfaces
+- Platform (other): 34 CLI commands, 103 MCP tools, 3 GUI surfaces
 
 - [MCP tool reference](https://voxlang.org/reference/mcp-tool-registry-contract/): every MCP tool, its schema and contract
 - [GUI navigation](https://voxlang.org/reference/gui-navigation/): desktop app surfaces and how to reach them

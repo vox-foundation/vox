@@ -3,7 +3,7 @@
 //! Each step is the code that used to sit inline in `async_main`, moved verbatim apart from
 //! reading/writing [`DaemonBootCtx`] instead of locals. Steps for subsystems that were lazy
 //! before profiles (`model_registry`, `llm_facade`, `search_index`, `memory`, `compiler`,
-//! `browser`, `speech`) are probes or markers: they do no eager IO, they give the subsystem a
+//! `browser`, `speech`, `computer`) are probes or markers: they do no eager IO, they give the subsystem a
 //! slot in the closure and in the [`BootReport`] the MCP gate reads.
 
 use std::path::{Path, PathBuf};
@@ -174,6 +174,7 @@ pub static DAEMON_STEPS: &[BootStep<DaemonBootCtx>] = &[
     s("compiler", Some(Subsystem::Compiler), false, step_lazy),
     s("browser", Some(Subsystem::Browser), false, step_lazy),
     s("speech", Some(Subsystem::Speech), false, step_lazy),
+    s("computer", Some(Subsystem::Computer), false, step_lazy),
 ];
 
 #[cfg(test)]

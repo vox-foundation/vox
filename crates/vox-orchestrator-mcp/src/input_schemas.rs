@@ -203,6 +203,17 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             derived_tool_schema!(crate::params::BrowserControlLockParams)
         }
         "vox_browser_list_pages" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
+        "vox_browser_events" => derived_tool_schema!(crate::params::BrowserEventsParams),
+        "vox_browser_handle_dialog" => derived_tool_schema!(crate::params::BrowserDialogParams),
+        "vox_computer_permissions" | "vox_computer_list_apps" => {
+            parse_obj(r#"{"type":"object","additionalProperties":false}"#)
+        }
+        "vox_computer_list_windows" => derived_tool_schema!(crate::params::ComputerWindowsParams),
+        "vox_computer_snapshot" => derived_tool_schema!(crate::params::ComputerSnapshotParams),
+        "vox_computer_screenshot" => {
+            derived_tool_schema!(crate::params::ComputerScreenshotParams)
+        }
+        "vox_computer_act" => derived_tool_schema!(crate::params::ComputerActParams),
 
         // ── Compiler / workspace ─────────────────────────────────────────────
         "vox_check" | "vox_validate_file" | "vox_compiler::ast_inspect" => {

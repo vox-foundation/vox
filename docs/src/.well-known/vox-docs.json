@@ -144,7 +144,7 @@
         "id": "skills",
         "label": "Plugins & skills",
         "cli": 317,
-        "mcp": 58,
+        "mcp": 60,
         "surfaces": 2
       },
       {
@@ -193,7 +193,7 @@
         "id": "platform",
         "label": "Platform (other)",
         "cli": 34,
-        "mcp": 97,
+        "mcp": 103,
         "surfaces": 3
       }
     ]

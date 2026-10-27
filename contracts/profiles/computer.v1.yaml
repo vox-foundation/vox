@@ -1,0 +1,12 @@
+schema_version: 1
+id: computer
+description: "Desktop computer use (vox_computer_*): app/window listing, accessibility snapshots, screenshots, and background input. Never part of any bundle default; opt in explicitly."
+# vox_computer_act is destructive and parks for approval outside accept_all
+# (contracts/orchestration/permission-modes.v2.yaml).
+requires: [computer]
+tools:
+  include:
+    - vox_computer_*
+  include_lanes: []
+max_exposure: operator
+axis_surfaces: [computer]
