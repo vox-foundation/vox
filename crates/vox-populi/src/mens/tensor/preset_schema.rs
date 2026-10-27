@@ -65,7 +65,8 @@ pub const DEFAULT_PRESET: &str = "4080";
 /// are unaffected.
 pub use crate::mens::tensor::spoke_base_resolver::KNOWN_PRESETS;
 
-/// Size classes on the REAL Qwen3 dense ladder (0.6/8/14/32B).
+/// Size classes on the REAL Qwen3 dense ladder (0.6/1.7/4/8/14/32B). 1.7B and 4B
+/// have no class yet and fall to `Other`: per-size presets are Phase 318's SIZE-02.
 ///
 /// The previous classes matched 0.8b/2b/4b/9b — NONE of which exist on the real
 /// ladder, so the OOM safety clamps in [`apply_qwen_size_ladder_policy`] never fired.
@@ -84,7 +85,12 @@ enum QwenSizeClass {
 }
 
 fn detect_qwen_size_class(model_hint: Option<&str>) -> Option<QwenSizeClass> {
-    let m = model_hint?.to_ascii_lowercase();
+    let hint = model_hint?;
+    // A pinned revision's hex can contain 8b/14b/32b (the 1.7B and 4B pins both contain 8b).
+    let m = hint
+        .rsplit_once('@')
+        .map_or(hint, |(repo, _)| repo)
+        .to_ascii_lowercase();
     if !m.contains("qwen") {
         return None;
     }
@@ -867,6 +873,31 @@ mod qwen3_preset_tests {
                 got,
                 Some(expected),
                 "real rung {id} must map to {expected:?}, got {got:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn size_class_ignores_the_pinned_revision_text() {
+        use super::QwenSizeClass;
+        for (id, expected) in [
+            (
+                "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+                QwenSizeClass::Other,
+            ),
+            (
+                "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",
+                QwenSizeClass::Other,
+            ),
+            (
+                "Qwen/Qwen3-0.6B@32b0000000000000000000000000000000000000",
+                QwenSizeClass::S0p6,
+            ),
+        ] {
+            assert_eq!(
+                super::detect_qwen_size_class(Some(id)),
+                Some(expected),
+                "{id}"
             );
         }
     }

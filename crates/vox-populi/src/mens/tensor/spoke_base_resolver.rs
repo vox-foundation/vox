@@ -104,6 +104,26 @@ pub fn rungs_for_hf_id<'a>(
     rungs
 }
 
+/// Train-start report of the base's ladder rungs: one [`TrainBase::floor_label`]
+/// per rung of `hf_id`. Advisory, so an overlay that does not load gives an
+/// empty Vec; the training path's `resolve_license_class` already fails closed
+/// on a bad overlay.
+pub fn floor_notes(workspace_root: Option<&std::path::Path>, hf_id: &str) -> Vec<String> {
+    let overlay = match workspace_root {
+        Some(root) => load_overlay(root),
+        None => load_embedded_overlay(),
+    };
+    overlay.map_or_else(
+        |_| Vec::new(),
+        |o| {
+            rungs_for_hf_id(&o, hf_id)
+                .iter()
+                .map(|b| b.floor_label())
+                .collect()
+        },
+    )
+}
+
 /// Largest candidate for `tag` whose `floor_mb <= vram_mb`. Errors if the tag is
 /// unknown or nothing fits (fail-closed — never silently pick a too-big base).
 pub fn pick_base<'a>(
@@ -967,5 +987,33 @@ mod tests {
                 "{pin}"
             );
         }
+    }
+
+    #[test]
+    fn floor_notes_name_every_rung_of_a_pin() {
+        let notes = floor_notes(
+            Some(workspace_root()),
+            "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",
+        );
+        assert_eq!(notes.len(), 2, "{notes:?}");
+        assert!(
+            notes.iter().all(|n| n.contains("floor unmeasured")),
+            "{notes:?}"
+        );
+        assert!(
+            notes[0].contains("20000") && notes[1].contains("44000"),
+            "{notes:?}"
+        );
+        assert_eq!(
+            floor_notes(None, PIN_4B),
+            ["qlora floor 7400 MB is an estimate (floor unmeasured)"]
+        );
+        assert!(
+            floor_notes(
+                Some(workspace_root()),
+                "someone/Other-Model@0123456789abcdef0123456789abcdef01234567"
+            )
+            .is_empty()
+        );
     }
 }

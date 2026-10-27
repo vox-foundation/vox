@@ -50,6 +50,7 @@ pub(super) async fn run_gpu_training(
     mix_config: Option<PathBuf>,
 ) -> Result<()> {
     use owo_colors::OwoColorize;
+    use vox_populi::mens::tensor::spoke_base_resolver::floor_notes;
 
     let workspace_root = vox_corpus::training::contract::find_workspace_root();
     let skip_mix = vox_corpus::training::mix_prepare::corpus_mix_skip_from_env();
@@ -426,6 +427,11 @@ pub(super) async fn run_gpu_training(
             license_class,
         )
         .map(|(lic, attr)| (Some(lic), attr || attribution_required))?;
+    if let Some(id) = model.as_deref() {
+        for note in floor_notes(workspace_root.as_deref(), id) {
+            eprintln!("  {} base {id}: {note}", "ℹ".cyan());
+        }
+    }
 
     let config = vox_populi::mens::LoraTrainingConfig {
         base_model: model,

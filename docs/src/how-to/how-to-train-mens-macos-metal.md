@@ -100,6 +100,14 @@ unknown `--base` is an error. The command needs a `vox-ml-cli` built with
 `--features gpu`; without it, it exits with an error. The file is not a
 serve-gate input.
 
+`--base` accepts `Qwen3-0.6B`, `Qwen3-1.7B`, `Qwen3-4B`, `Qwen3-8B`,
+`Qwen3-14B` or `Qwen3-32B`, each resolved to its pinned revision in
+`mens/config/gpu-specs.yaml` `train_bases.qwen3_code`. `vox mens train
+--model` takes the same `hf_id@sha` pin, which also resolves the license.
+Every rung's `floor_mb` is an estimate until it is measured on hardware
+(`floor_measured: false`); the compare record and the train start print
+`floor unmeasured` for such a rung.
+
 ## Serve and pin from Drive
 
 Ollama commonly occupies port 11434. Use a separate port for the native server:
