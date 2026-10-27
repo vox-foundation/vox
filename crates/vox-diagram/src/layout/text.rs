@@ -75,6 +75,10 @@ pub(crate) fn pad_x(tw: Half, base: Half) -> Half {
 /// Cells per wrapped line.
 pub(crate) const WRAP_CELLS: usize = 28;
 
+/// Longest word kept whole, in cells. A word between [`WRAP_CELLS`] and this takes a line of its
+/// own and widens its box (an identifier is never split mid-word); only a longer word is broken.
+pub(crate) const WORD_CELLS: usize = 48;
+
 /// Terminal cells of `s`: wide chars 2, zero-width 0, everything else (controls included, which
 /// print as U+FFFD) 1.
 pub(crate) fn cells(s: &str) -> usize {
@@ -109,8 +113,9 @@ fn hard_break(word: &str, limit: usize) -> Vec<String> {
 }
 
 /// Wrap a label: explicit newlines are kept, words (split on space, tab and CR only) are filled
-/// greedily up to [`WRAP_CELLS`], and only a word longer than that is broken mid-word. Runs of
-/// separators collapse, lines are trimmed and blank lines are dropped.
+/// greedily up to [`WRAP_CELLS`]; a word longer than a line keeps a line of its own and only a
+/// word longer than [`WORD_CELLS`] is broken mid-word. Runs of separators collapse, lines are
+/// trimmed and blank lines are dropped.
 pub(crate) fn wrap(label: &str) -> Vec<String> {
     wrap_at(label, WRAP_CELLS)
 }
@@ -118,16 +123,17 @@ pub(crate) fn wrap(label: &str) -> Vec<String> {
 /// [`wrap`] with a line limit of `limit` cells (at least 1) instead of [`WRAP_CELLS`].
 pub(crate) fn wrap_at(label: &str, limit: usize) -> Vec<String> {
     let limit = limit.max(1);
+    let word_cap = limit.max(WORD_CELLS);
     let mut out = Vec::new();
     for line in label.split('\n') {
         let mut cur = String::new();
         for word in line.split(is_separator).filter(|w| !w.is_empty()) {
             let wc = cells(word);
-            if wc > limit {
+            if wc > word_cap {
                 if !cur.is_empty() {
                     out.push(std::mem::take(&mut cur));
                 }
-                let mut chunks = hard_break(word, limit);
+                let mut chunks = hard_break(word, word_cap);
                 cur = chunks.pop().unwrap_or_default();
                 out.extend(chunks);
             } else if cur.is_empty() {

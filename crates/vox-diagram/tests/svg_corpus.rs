@@ -97,6 +97,43 @@ fn corpus_graphs_all_render() {
     }
 }
 
+/// Phase 90 review (batch 2): no node label word of up to 48 cells is split across lines; a long
+/// identifier widens its box instead (Mermaid does the same).
+#[test]
+fn corpus_words_are_never_split() {
+    let mut longest = 0;
+    for (stem, ir) in corpus_graphs() {
+        let svg = render_ok(&stem, &ir, "vd");
+        let Ok(parsed) = check_svg(&svg, "vd") else {
+            panic!("{stem}: svg outside the allowlist");
+        };
+        let shown: Vec<&str> = parsed
+            .texts
+            .iter()
+            .flat_map(|(_, t)| t.split('\n'))
+            .flat_map(str::split_whitespace)
+            .collect();
+        for node in &graph(&ir).nodes {
+            for word in node
+                .label
+                .split_whitespace()
+                .filter(|w| w.chars().count() <= 48)
+            {
+                longest = longest.max(word.chars().count());
+                assert!(
+                    shown.contains(&word),
+                    "{stem}: word {word:?} of {:?} was split",
+                    node.label
+                );
+            }
+        }
+    }
+    assert!(
+        longest > 28,
+        "the corpus must exercise a word longer than one line"
+    );
+}
+
 #[test]
 fn corpus_top10_ranking() {
     let r = ranked();

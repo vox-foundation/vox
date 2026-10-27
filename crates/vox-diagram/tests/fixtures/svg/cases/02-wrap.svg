@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1365 142" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,Arimo,Arial,Liberation Sans,Helvetica,sans-serif);font-size:14px">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1621.5 142" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,Arimo,Arial,Liberation Sans,Helvetica,sans-serif);font-size:14px">
 <title id="vd-title">Diagram</title>
 <desc id="vd-desc">5 nodes, 4 edges: The quick brown fox jum… → Supercalifragilisticexp…; Supercalifragilisticexp… → 日本語のラベルは二つのセルを使います日本語のラ…; 日本語のラベルは二つのセルを使います日本語のラ… → Ship it 🚀🚀🚀 family 👨‍👩‍…; Ship it 🚀🚀🚀 family 👨‍👩‍… → say "hi" and back\slash…</desc>
 <defs>
@@ -8,9 +8,9 @@
 </defs>
 <g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
 <path class="vd-edge" d="M243.5 71L273.5 71L303.5 71" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M505 71L535 71L565 71" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M805 71L835 71L865 71" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M1105.5 71L1135.5 71L1165.5 71" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M594.5 71L624.5 71L654.5 71" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1061.5 71L1091.5 71L1121.5 71" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1362 71L1392 71L1422 71" marker-end="url(#vd-arrow)"/>
 </g>
 <g class="vd-nodes">
 <g class="vd-node">
@@ -18,20 +18,20 @@
 <text class="vd-label" x="129.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="129.5" dy="0">The quick brown fox jumps</tspan><tspan x="129.5" dy="18">over the lazy dog while five</tspan><tspan x="129.5" dy="18">boxing wizards jump quickly</tspan><tspan x="129.5" dy="18">and seven big sphinxes judge</tspan><tspan x="129.5" dy="18">my vow</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="303.5" y="43" width="201.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="404" y="67" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="404" dy="0">Supercalifragilisticexpialid</tspan><tspan x="404" dy="18">ocious_extra</tspan></text>
+<rect class="vd-node-shape" x="303.5" y="52" width="291" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="449" y="76" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="449" dy="0">Supercalifragilisticexpialidocious_extra</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="565" y="34" width="240" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="685" y="58" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="685" dy="0">日本語のラベルは二つのセルを</tspan><tspan x="685" dy="18">使います日本語のラベルは二つ</tspan><tspan x="685" dy="18">のセルを使います</tspan></text>
+<rect class="vd-node-shape" x="654.5" y="43" width="407" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="858" y="67" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="858" dy="0">日本語のラベルは二つのセルを使います日本語のラベ</tspan><tspan x="858" dy="18">ルは二つのセルを使います</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="865" y="43" width="240.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="985" y="67" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="985" dy="0">Ship it 🚀🚀🚀 family 👨‍👩‍👧</tspan><tspan x="985" dy="18">flag 🇯🇵 warn ⚠️</tspan></text>
+<rect class="vd-node-shape" x="1121.5" y="43" width="240.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1241.5" y="67" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1241.5" dy="0">Ship it 🚀🚀🚀 family 👨‍👩‍👧</tspan><tspan x="1241.5" dy="18">flag 🇯🇵 warn ⚠️</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="1165.5" y="43" width="183.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="1257" y="67" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1257" dy="0">say "hi" and back\slash</tspan><tspan x="1257" dy="18">&lt;b&gt;&amp;amp;</tspan></text>
+<rect class="vd-node-shape" x="1422" y="43" width="183.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1513.5" y="67" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1513.5" dy="0">say "hi" and back\slash</tspan><tspan x="1513.5" dy="18">&lt;b&gt;&amp;amp;</tspan></text>
 </g>
 </g>
 </svg>

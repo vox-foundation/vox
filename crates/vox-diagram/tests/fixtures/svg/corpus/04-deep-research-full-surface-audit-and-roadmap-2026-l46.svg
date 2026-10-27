@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 534.5 2052" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,Arimo,Arial,Liberation Sans,Helvetica,sans-serif);font-size:14px">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 543 2052" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,Arimo,Arial,Liberation Sans,Helvetica,sans-serif);font-size:14px">
 <title id="vd-title">Diagram</title>
 <desc id="vd-desc">17 nodes, 16 edges: Research Query (Topic, … → Cache Short-Circuit (Ex…; Cache Short-Circuit (Ex… → Return Cached ResearchR…; Cache Short-Circuit (Ex… → Resolve Research Models…; Resolve Research Models… → vox-db: create_research…; vox-db: create_research… → Stage 1: Decompose Quer…; Stage 1: Decom…</desc>
 <defs>
@@ -7,97 +7,97 @@
 </marker>
 </defs>
 <g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
-<path class="vd-edge" d="M266.5 72L266.5 102L266.5 132" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M316.5 212L391.5 263Q398 267 398 275L398 328" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M216.5 212L141.5 263Q135 267 135 275L135 310" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M135 384L135 414L135 444" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M135 518L135 548L135 578" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M135 634L135 664L135 694" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M135 768L135 798L135 828" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M135 902L135 932L135 962" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M135 1018L135 1048L135 1078" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M135 1152L135 1182L135 1212" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M135 1286L135 1316L135 1346" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M135 1420L135 1450L135 1480" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M135 1554L135 1584L135 1614" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M135 1688L135 1718L135 1748" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M135 1804L135 1834L135 1864" marker-end="url(#vd-arrow)"/>
-<path class="vd-edge" d="M135 1920L135 1950L135 1980" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M275 72L275 102L275 132" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M325 212L400 263Q406.5 267 406.5 275L406.5 328" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M225 212L150 263Q143.5 267 143.5 275L143.5 310" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M143.5 384L143.5 414L143.5 444" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M143.5 518L143.5 548L143.5 578" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M143.5 634L143.5 664L143.5 694" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M143.5 768L143.5 798L143.5 828" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M143.5 902L143.5 932L143.5 962" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M143.5 1018L143.5 1048L143.5 1078" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M143.5 1152L143.5 1182L143.5 1212" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M143.5 1286L143.5 1316L143.5 1346" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M143.5 1420L143.5 1450L143.5 1480" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M143.5 1554L143.5 1584L143.5 1614" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M143.5 1688L143.5 1718L143.5 1748" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M143.5 1804L143.5 1834L143.5 1864" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M143.5 1920L143.5 1950L143.5 1980" marker-end="url(#vd-arrow)"/>
 </g>
 <g class="vd-nodes">
 <g class="vd-node">
-<rect class="vd-node-shape" x="172" y="16" width="188.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="266" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="266" dy="0">Research Query (Topic,</tspan><tspan x="266" dy="18">Scope, Max Sources)</tspan></text>
+<rect class="vd-node-shape" x="180.5" y="16" width="188.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="274.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="274.5" dy="0">Research Query (Topic,</tspan><tspan x="274.5" dy="18">Scope, Max Sources)</tspan></text>
 </g>
 <g class="vd-node">
-<polygon class="vd-node-shape" points="266.5,132 459.5,178 266.5,224 73.5,178" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="266.5" y="174" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="266.5" dy="0">Cache Short-Circuit (Exact</tspan><tspan x="266.5" dy="18">FNV-1a)</tspan></text>
+<polygon class="vd-node-shape" points="275,132 468,178 275,224 82,178" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="275" y="174" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="275" dy="0">Cache Short-Circuit (Exact</tspan><tspan x="275" dy="18">FNV-1a)</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="277" y="328" width="241.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="397.5" y="352" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="397.5" dy="0">Return Cached ResearchResult</tspan></text>
+<rect class="vd-node-shape" x="285.5" y="328" width="241.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="406" y="352" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="406" dy="0">Return Cached ResearchResult</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="32.5" y="310" width="204.5" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="134.5" y="334" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="134.5" dy="0">Resolve Research Models</tspan><tspan x="134.5" dy="18">(Planner, Claim, Synth,</tspan><tspan x="134.5" dy="18">Judge)</tspan></text>
+<rect class="vd-node-shape" x="41" y="310" width="204.5" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="143" y="334" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="143" dy="0">Resolve Research Models</tspan><tspan x="143" dy="18">(Planner, Claim, Synth,</tspan><tspan x="143" dy="18">Judge)</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="36.5" y="444" width="197" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="135" y="468" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="135" dy="0">vox-db:</tspan><tspan x="135" dy="18">create_research_session</tspan><tspan x="135" dy="18">(status: planning)</tspan></text>
+<rect class="vd-node-shape" x="45" y="444" width="197" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="143.5" y="468" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="143.5" dy="0">vox-db:</tspan><tspan x="143.5" dy="18">create_research_session</tspan><tspan x="143.5" dy="18">(status: planning)</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="27.5" y="578" width="215" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="135" y="602" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="135" dy="0">Stage 1: Decompose Query</tspan><tspan x="135" dy="18">(3-6 Subqueries via LLM)</tspan></text>
+<rect class="vd-node-shape" x="36" y="578" width="215" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="143.5" y="602" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="143.5" dy="0">Stage 1: Decompose Query</tspan><tspan x="143.5" dy="18">(3-6 Subqueries via LLM)</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="19" y="694" width="232" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="135" y="718" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="135" dy="0">Stage 2: Gather Hits (Local</tspan><tspan x="135" dy="18">Tantivy/Mem + Web Multi-Hop</tspan><tspan x="135" dy="18">CRAG)</tspan></text>
+<rect class="vd-node-shape" x="27.5" y="694" width="232" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="143.5" y="718" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="143.5" dy="0">Stage 2: Gather Hits (Local</tspan><tspan x="143.5" dy="18">Tantivy/Mem + Web Multi-Hop</tspan><tspan x="143.5" dy="18">CRAG)</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="43" y="828" width="183.5" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="134.5" y="852" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="134.5" dy="0">Stage 3: Diagnostics</tspan><tspan x="134.5" dy="18">(Coverage %, Hit Rate,</tspan><tspan x="134.5" dy="18">Domain Diversity)</tspan></text>
+<rect class="vd-node-shape" x="51.5" y="828" width="183.5" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="143" y="852" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="143" dy="0">Stage 3: Diagnostics</tspan><tspan x="143" dy="18">(Coverage %, Hit Rate,</tspan><tspan x="143" dy="18">Domain Diversity)</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="35.5" y="962" width="199" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="135" y="986" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="135" dy="0">Stage 4: Claim Extraction</tspan><tspan x="135" dy="18">(vox-scientia or LLM)</tspan></text>
+<rect class="vd-node-shape" x="44" y="962" width="199" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="143.5" y="986" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="143.5" dy="0">Stage 4: Claim Extraction</tspan><tspan x="143.5" dy="18">(vox-scientia or LLM)</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="16" y="1078" width="237.5" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="134.5" y="1102" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="134.5" dy="0">Stage 5: Claim Verification</tspan><tspan x="134.5" dy="18">(SelfCheckGPT 3x Resampling</tspan><tspan x="134.5" dy="18">NLI)</tspan></text>
+<rect class="vd-node-shape" x="24.5" y="1078" width="237.5" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="143" y="1102" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="143" dy="0">Stage 5: Claim Verification</tspan><tspan x="143" dy="18">(SelfCheckGPT 3x Resampling</tspan><tspan x="143" dy="18">NLI)</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="34" y="1212" width="202" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="135" y="1236" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="135" dy="0">Stage 6: Confidence Gate</tspan><tspan x="135" dy="18">(Citation, Support,</tspan><tspan x="135" dy="18">Diversity, Hit Scores)</tspan></text>
+<rect class="vd-node-shape" x="42.5" y="1212" width="202" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="143.5" y="1236" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="143.5" dy="0">Stage 6: Confidence Gate</tspan><tspan x="143.5" dy="18">(Citation, Support,</tspan><tspan x="143.5" dy="18">Diversity, Hit Scores)</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="30.5" y="1346" width="209" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="135" y="1370" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="135" dy="0">Stage 7: Answer Synthesis</tspan><tspan x="135" dy="18">(Dense Markdown + [N]</tspan><tspan x="135" dy="18">Citations)</tspan></text>
+<rect class="vd-node-shape" x="39" y="1346" width="209" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="143.5" y="1370" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="143.5" dy="0">Stage 7: Answer Synthesis</tspan><tspan x="143.5" dy="18">(Dense Markdown + [N]</tspan><tspan x="143.5" dy="18">Citations)</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="27" y="1480" width="215.5" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="134.5" y="1504" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="134.5" dy="0">Stage 8: Quality Judge</tspan><tspan x="134.5" dy="18">(Factual, Density, Coverage</tspan><tspan x="134.5" dy="18">0-100)</tspan></text>
+<rect class="vd-node-shape" x="35.5" y="1480" width="215.5" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="143" y="1504" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="143" dy="0">Stage 8: Quality Judge</tspan><tspan x="143" dy="18">(Factual, Density, Coverage</tspan><tspan x="143" dy="18">0-100)</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="52.5" y="1614" width="164.5" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="134.5" y="1638" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="134.5" dy="0">Stage 9: CoVE</tspan><tspan x="134.5" dy="18">Self-Verification (If</tspan><tspan x="134.5" dy="18">DeepResearch Tier)</tspan></text>
+<rect class="vd-node-shape" x="61" y="1614" width="164.5" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="143" y="1638" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="143" dy="0">Stage 9: CoVE</tspan><tspan x="143" dy="18">Self-Verification (If</tspan><tspan x="143" dy="18">DeepResearch Tier)</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="34" y="1748" width="201.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="134.5" y="1772" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="134.5" dy="0">Stage 10: Citation Audit &amp;</tspan><tspan x="134.5" dy="18">Corroboration Count</tspan></text>
+<rect class="vd-node-shape" x="42.5" y="1748" width="201.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="143" y="1772" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="143" dy="0">Stage 10: Citation Audit &amp;</tspan><tspan x="143" dy="18">Corroboration Count</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="31.5" y="1864" width="206.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="134.5" y="1888" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="134.5" dy="0">Persist Artifact &amp; Report to</tspan><tspan x="134.5" dy="18">vox-db</tspan></text>
+<rect class="vd-node-shape" x="40" y="1864" width="206.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="143" y="1888" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="143" dy="0">Persist Artifact &amp; Report to</tspan><tspan x="143" dy="18">vox-db</tspan></text>
 </g>
 <g class="vd-node">
-<rect class="vd-node-shape" x="18" y="1980" width="234" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
-<text class="vd-label" x="135" y="2004" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="135" dy="0">update_research_session_stat</tspan><tspan x="135" dy="18">us: completed</tspan></text>
+<rect class="vd-node-shape" x="16" y="1980" width="254.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="143" y="2004" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="143" dy="0">update_research_session_status:</tspan><tspan x="143" dy="18">completed</tspan></text>
 </g>
 </g>
 <g class="vd-edge-labels">
-<rect class="vd-edge-label-bg" x="384.5" y="254" width="26.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
-<text class="vd-edge-label" x="397.5" y="272" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="397.5" dy="0">Hit</tspan></text>
-<rect class="vd-edge-label-bg" x="115" y="254" width="39.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
-<text class="vd-edge-label" x="134.5" y="272" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="134.5" dy="0">Miss</tspan></text>
+<rect class="vd-edge-label-bg" x="393" y="254" width="26.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="406" y="272" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="406" dy="0">Hit</tspan></text>
+<rect class="vd-edge-label-bg" x="123.5" y="254" width="39.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="143" y="272" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="143" dy="0">Miss</tspan></text>
 </g>
 </svg>

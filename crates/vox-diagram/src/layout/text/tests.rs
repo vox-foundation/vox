@@ -30,10 +30,28 @@ fn wrap_breaks_a_sentence_at_spaces() {
 
 #[test]
 fn wrap_hard_breaks_only_an_overlong_word() {
-    let w = "x".repeat(40);
-    assert_eq!(wrap(&w), vec!["x".repeat(28), "x".repeat(12)]);
-    let fits = "y".repeat(28);
+    let w = "x".repeat(WORD_CELLS + 12);
+    assert_eq!(wrap(&w), vec!["x".repeat(WORD_CELLS), "x".repeat(12)]);
+    let fits = "y".repeat(WORD_CELLS);
     assert_eq!(wrap(&fits), vec![fits]);
+}
+
+/// Phase 90: an identifier longer than a line is shown whole (the box widens, as in Mermaid)
+/// rather than split mid-word; the neighbouring words still wrap around it.
+#[test]
+fn wrap_keeps_a_word_longer_than_a_line_whole() {
+    for w in [
+        "StrengthenBenchmarksAndMetrics",
+        "PrototypeGrammarConstrainedDecoding",
+    ] {
+        assert!(cells(w) > WRAP_CELLS, "{w} must exceed a line");
+        assert_eq!(wrap(w), owned(&[w]), "{w}");
+    }
+    let long = "AddRepoAwareRetrievalForCodegen";
+    assert_eq!(
+        wrap(&format!("see {long} now")),
+        owned(&["see", long, "now"])
+    );
 }
 
 #[test]
@@ -53,13 +71,17 @@ fn wrap_drops_blank_lines() {
 
 #[test]
 fn wrap_counts_cjk_as_two_cells() {
-    let s = "\u{65e5}".repeat(15);
-    assert_eq!(wrap(&s), vec!["\u{65e5}".repeat(14), "\u{65e5}".to_owned()]);
+    let half = WORD_CELLS / 2;
+    let s = "\u{65e5}".repeat(half + 1);
+    assert_eq!(
+        wrap(&s),
+        vec!["\u{65e5}".repeat(half), "\u{65e5}".to_owned()]
+    );
 }
 
 #[test]
 fn wrap_keeps_a_zero_width_follower_with_its_base() {
-    let s = format!("{}e\u{301}x", "a".repeat(27));
+    let s = format!("{}e\u{301}x", "a".repeat(WORD_CELLS - 1));
     let lines = wrap(&s);
     assert_eq!(lines.len(), 2, "{lines:?}");
     assert!(lines[0].ends_with("e\u{301}"), "{lines:?}");
@@ -188,7 +210,7 @@ proptest! {
     fn wrapped_lines_are_short_clean_and_lossless(s in label()) {
         let lines = wrap(&s);
         for l in &lines {
-            prop_assert!(cells(l) <= 28, "{l:?}");
+            prop_assert!(cells(l) <= WORD_CELLS, "{l:?}");
             prop_assert!(!l.is_empty() && !l.starts_with(' ') && !l.ends_with(' ') && !l.contains("  "), "{l:?}");
         }
         prop_assert_eq!(payload(&lines.concat()), payload(&s));
