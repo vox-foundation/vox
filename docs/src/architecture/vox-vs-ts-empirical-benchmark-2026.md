@@ -38,7 +38,7 @@ This benchmark evaluates Vox's central claim against TypeScript across **$N = 10
 
 ### 2.1 Task Corpus ($N = 100$)
 
-The evaluation corpus comprises 100 paired specification fixtures spanning five distinct domain categories, drawn from [`contracts/eval/repair-corpus/`](file:///Users/brbrainerd/dev/vox/contracts/eval/repair-corpus/) and standard system programming benchmarks:
+The evaluation corpus comprises 100 paired specification fixtures spanning five distinct domain categories, drawn from [`contracts/eval/repair-corpus/`](../../../contracts/eval/repair-corpus/) and standard system programming benchmarks:
 
 | Category | Count | Description | Primary Verification Oracle |
 |:---|:---:|:---|:---|
@@ -137,6 +137,6 @@ All data and scripts to reproduce this benchmark are committed in the Vox reposi
   ```bash
   vox model eval-compare --corpus contracts/eval/repair-corpus/ --seed 42 --max-turns 3 --output contracts/reports/vox-vs-ts-benchmark-2026.json
   ```
-- **Lineage Card**: [`contracts/reports/cr-l-ga-baseline.v1.json`](file:///Users/brbrainerd/dev/vox/contracts/reports/cr-l-ga-baseline.v1.json)
+- **Lineage Card**: [`contracts/reports/cr-l-ga-baseline.v1.json`](../../../contracts/reports/cr-l-ga-baseline.v1.json)
 - **Feedback Registry**: [`crates/vox-corpus/src/flywheel.rs`](file:///Users/brbrainerd/dev/vox/crates/vox-corpus/src/flywheel.rs)
-- **Repair Corpus Fixtures**: [`contracts/eval/repair-corpus/`](file:///Users/brbrainerd/dev/vox/contracts/eval/repair-corpus/)
+- **Repair Corpus Fixtures**: [`contracts/eval/repair-corpus/`](../../../contracts/eval/repair-corpus/)
