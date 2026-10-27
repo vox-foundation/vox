@@ -109,7 +109,7 @@ const DEFAULT_MODEL_ARENA: ModelArenaStandingRow[] = [
   },
   {
     rank: 3,
-    model_id: 'qwen/qwen3.5-27b-base',
+    model_id: 'mens/qwen3.5-27b:base',
     harness_id: 'axis-ssi-v1.7',
     config_digest: '0000base27b00000',
     overall_pass_at_1_pct: 24.0,
