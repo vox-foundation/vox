@@ -105,8 +105,9 @@ serve-gate input.
 `mens/config/gpu-specs.yaml` `train_bases.qwen3_code`. `vox mens train
 --model` takes the same `hf_id@sha` pin, which also resolves the license.
 Every rung's `floor_mb` is an estimate until it is measured on hardware
-(`floor_measured: false`); the compare record and the train start print
-`floor unmeasured` for such a rung.
+(`floor_measured: false`). For such a rung the compare command and
+`vox mens train` print `floor unmeasured` on stderr, and the compare record
+carries `floor_measured: false`.
 
 ## Serve and pin from Drive
 
