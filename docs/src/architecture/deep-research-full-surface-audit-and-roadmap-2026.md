@@ -526,6 +526,7 @@ In `crates/vox-search/src/policy.rs:620-643`:
 
 ## 9. Actionable Remediation Roadmap
 
+<!-- Kept as Mermaid: VoxDiagram has no Gantt kind (Gantt support is deferred). This is the legacy-Mermaid baseline's only allowlisted entry, by user decision 2026-10-16 (Phase 90). -->
 ```mermaid
 gantt
     title Deep Research Remediation & Capability Phases

@@ -256,4 +256,4 @@ Import is fail-closed. It converts a block only when every line maps onto VoxDia
 
 ## Legacy Mermaid fences
 
-Existing fences with the `mermaid` info string under `docs/src` are recorded per file in `contracts/documentation/legacy-mermaid-baseline.v1.yaml`. The baseline only shrinks: the doc lint rejects a new Mermaid fence. New diagrams use a `vox-diagram` fence, which the doc lint validates with the same checker as this tool. VoxDiagram has no Gantt kind, so Gantt charts stay Mermaid.
+Existing fences with the `mermaid` info string under `docs/src` are recorded per file in `contracts/documentation/legacy-mermaid-baseline.v1.yaml`. The baseline only shrinks: the doc lint rejects a new Mermaid fence. New diagrams use a `vox-diagram` fence, which the doc lint validates with the same checker as this tool. VoxDiagram has no Gantt kind, so Gantt charts stay Mermaid. Since the Phase 90 migration the baseline allows exactly one fence, the Gantt chart in the [deep-research full-surface audit](../architecture/deep-research-full-surface-audit-and-roadmap-2026.md), kept because VoxDiagram has no Gantt kind.
