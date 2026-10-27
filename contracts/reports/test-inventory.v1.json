@@ -3,11 +3,11 @@
   "summary": {
     "workspace_crate_count": 132,
     "rust_files_scanned": 4326,
-    "cargo_unit_test_functions": 12589,
+    "cargo_unit_test_functions": 12605,
     "cargo_integration_test_functions": 3278,
     "cargo_bench_functions": 0,
     "cargo_ignored_test_functions": 95,
-    "cargo_test_functions_total": 15867,
+    "cargo_test_functions_total": 15883,
     "webir_related_ignored_tests": 1,
     "webir_ignored_tests_likely_retired_note": 0
   },
@@ -549,7 +549,7 @@
       "integration_rs_files": 0
     },
     "vox-orchestrator-mcp": {
-      "unit_tests": 1014,
+      "unit_tests": 1024,
       "integration_tests": 109,
       "bench_tests": 0,
       "ignored_tests": 2,
@@ -805,7 +805,7 @@
       "integration_rs_files": 0
     },
     "vox-repository": {
-      "unit_tests": 47,
+      "unit_tests": 53,
       "integration_tests": 0,
       "bench_tests": 0,
       "ignored_tests": 0,
