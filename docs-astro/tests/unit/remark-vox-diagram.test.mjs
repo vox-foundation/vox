@@ -211,11 +211,11 @@ test('two identical fences get distinct prefixes; figure shape', () => {
     const fig = tree.children[0];
     assert.equal(fig.type, 'vdFigure');
     assert.equal(fig.data.hName, 'figure');
+    // Not a landmark or a tab stop by default: the page script adds both only to a figure that
+    // scrolls (WR-03).
     assert.deepEqual(fig.data.hProperties, {
       className: ['vd-figure'],
       style: '--vd-w:96px',
-      tabIndex: 0,
-      role: 'region',
       ariaLabelledBy: findEl(a, 'title').properties.id,
     });
     assert.equal(a.properties.dataPagefindIgnore, '');
@@ -227,6 +227,34 @@ test('two identical fences get distinct prefixes; figure shape', () => {
     const code = details.children[1].children[0];
     assert.deepEqual(code.properties.className, ['language-vox-diagram']);
     assert.equal(code.children[0].value, normalizeSource(MINIMAL_VDG));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+    resetMisses();
+  }
+});
+
+test('each figure is named after its nearest heading and its page index (WR-03)', () => {
+  resetMisses();
+  const { dir, manifestPath } = minimalManifest();
+  try {
+    const heading = (depth, ...children) => ({ type: 'heading', depth, children });
+    const fence = () => ({ type: 'code', lang: 'vox-diagram', meta: null, value: MINIMAL_VDG });
+    const tree = {
+      type: 'root',
+      children: [
+        fence(),
+        heading(2, { type: 'text', value: 'Layout ' }, { type: 'inlineCode', value: 'stress' }),
+        fence(),
+        fence(),
+        heading(3, { type: 'emphasis', children: [{ type: 'text', value: 'Other' }] }),
+        fence(),
+      ],
+    };
+    remarkVoxDiagram({ manifestPath, strict: true })(tree, { path: '/r/docs/src/x.md' });
+    const titles = tree.children
+      .filter((n) => n.type === 'vdFigure')
+      .map((n) => flatText([findEl(n.data.hChildren[0], 'title')]));
+    assert.deepEqual(titles, ['Diagram 1', 'Layout stress, diagram 2', 'Layout stress, diagram 3', 'Other, diagram 4']);
   } finally {
     rmSync(dir, { recursive: true, force: true });
     resetMisses();

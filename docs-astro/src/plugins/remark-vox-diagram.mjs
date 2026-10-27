@@ -189,10 +189,14 @@ export function assertNoMisses() {
   throw new Error(`remark-vox-diagram: ${all.length} diagram fence(s) have no pre-rendered SVG:\n${lines}\n${RENDER_HINT}`);
 }
 
-function visit(tree, type, fn) {
-  if (tree.type === type) fn(tree);
-  if (Array.isArray(tree.children)) for (const c of tree.children) visit(c, type, fn);
+/** Every node of `tree` in document order. */
+function visit(tree, fn) {
+  fn(tree);
+  if (Array.isArray(tree.children)) for (const c of tree.children) visit(c, fn);
 }
+
+/** Plain text of an mdast node (text, inline code, emphasis, links, ...). */
+const plain = (node) => node.value ?? (node.children ?? []).map(plain).join('');
 
 const el = (tagName, properties, ...children) => ({ type: 'element', tagName, properties, children });
 const txt = (value) => ({ type: 'text', value });
@@ -225,8 +229,10 @@ export function remarkVoxDiagram({ manifestPath, strict = false } = {}) {
   return function transformer(tree, file) {
     const page = pageSlug(file.path);
     let n = 0;
-    visit(tree, 'code', (node) => {
-      if (node.lang !== 'vox-diagram' || node.meta) return;
+    let heading = '';
+    visit(tree, (node) => {
+      if (node.type === 'heading') heading = plain(node).replace(/\s+/g, ' ').trim();
+      if (node.type !== 'code' || node.lang !== 'vox-diagram' || node.meta) return;
       n += 1;
       const source = normalizeSource(node.value);
       const svg = manifest.get(source);
@@ -250,6 +256,10 @@ export function remarkVoxDiagram({ manifestPath, strict = false } = {}) {
       const prefix = `vd-${page}-${n}`;
       if (!PREFIX_RE.test(prefix)) throw new Error(`remark-vox-diagram: bad id prefix ${prefix}`);
       const svgEl = reprefix(parse(svg), prefix);
+      // The writer titles every diagram "Diagram"; a page-unique name keeps several figures, and
+      // their landmarks when they scroll, apart for screen readers (WR-03). It names the figure too.
+      const title = svgEl.children.find((c) => c.tagName === 'title');
+      if (title) title.children = [txt(heading ? `${heading}, diagram ${n}` : `Diagram ${n}`)];
       const width = /^0 0 (\S+) \S+$/.exec(svgEl.properties.viewBox ?? '')?.[1];
       if (!width || !/^\d+(\.\d+)?$/.test(width)) {
         throw new Error(`remark-vox-diagram: bad viewBox ${JSON.stringify(svgEl.properties.viewBox)}`);
@@ -261,11 +271,11 @@ export function remarkVoxDiagram({ manifestPath, strict = false } = {}) {
       delete node.meta;
       node.data = {
         hName: 'figure',
+        // A labelled figure, not a landmark or a tab stop: the integration's page script makes a
+        // figure that scrolls a focusable region.
         hProperties: {
           className: ['vd-figure'],
           style: `--vd-w:${width}px`,
-          tabIndex: 0,
-          role: 'region',
           ariaLabelledBy: `${prefix}-title`,
         },
         hChildren: [svgEl, sourceDetails(source)],

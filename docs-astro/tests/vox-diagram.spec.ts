@@ -151,6 +151,7 @@ for (const route of ROUTES) {
           scrolls: fig.scrollWidth > fig.clientWidth + 1,
           clientWidth: fig.clientWidth,
           focusable: fig.getAttribute('tabindex') === '0',
+          region: fig.getAttribute('role') === 'region',
           name: (label?.textContent ?? '').trim(),
         };
       }));
@@ -161,9 +162,14 @@ for (const route of ROUTES) {
         expect(f.rendered, `${f.id} wider than its viewBox`).toBeLessThanOrEqual(f.natural + 1);
         expect(f.rendered, `${f.id} below the 0.6 scale floor`).toBeGreaterThanOrEqual(f.natural * 0.6 - 1);
         expect(f.scrolls, `${f.id} wider than its figure must scroll inside it`).toBe(f.rendered > f.clientWidth + 1);
-        expect(f.focusable, `${f.id} is keyboard focusable`).toBe(true);
+        // WR-03: only a figure that scrolls is a tab stop and a (named) region landmark.
+        expect(f.focusable, `${f.id} is a tab stop exactly when it scrolls`).toBe(f.scrolls);
+        expect(f.region, `${f.id} is a region landmark exactly when it scrolls`).toBe(f.scrolls);
         expect(f.name, `${f.id} has an accessible name`).not.toBe('');
+        expect(f.name, `${f.id} keeps the writer's generic title`).not.toBe('Diagram');
       }
+      const names = figures.map((f) => f.name);
+      expect(new Set(names).size, `figure names repeat: ${names.join(' | ')}`).toBe(names.length);
       expect(pageOverflow, 'the page itself overflows horizontally').toBe(false);
       if (route === REFERENCE && viewport.width === 1280) {
         expect(figures.some((f) => f.scrolls), 'at least one reference figure (the wide sequence) scrolls at 1280px').toBe(true);

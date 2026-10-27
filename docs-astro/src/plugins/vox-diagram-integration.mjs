@@ -8,6 +8,25 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { fileURLToPath } from 'node:url';
 import { remarkVoxDiagram, assertNoMisses, resetMisses } from './remark-vox-diagram.mjs';
 
+/**
+ * Page script: a figure wider than its column scrolls (vox-diagram.css), so it becomes a focusable,
+ * labelled region for keyboard users; a figure that fits stays a plain figure, neither a tab stop
+ * nor a landmark (WR-03). Re-run on resize, since that changes which figures scroll.
+ */
+export const SCROLLERS = `function vdScrollers() {
+  for (const f of document.querySelectorAll('figure.vd-figure:not(.vd-missing)')) {
+    if (f.scrollWidth > f.clientWidth + 1) {
+      f.tabIndex = 0;
+      f.setAttribute('role', 'region');
+    } else {
+      f.removeAttribute('tabindex');
+      f.removeAttribute('role');
+    }
+  }
+}
+vdScrollers();
+addEventListener('resize', vdScrollers);`;
+
 /** `manifestFile` is a file URL; it need not exist (every fence is then a miss). */
 export function voxDiagram({ manifestFile }) {
   // The digest rides in the plugin options, so Astro's content data store is invalidated whenever a
@@ -19,9 +38,10 @@ export function voxDiagram({ manifestFile }) {
   return {
     name: 'vox-diagram',
     hooks: {
-      'astro:config:setup': ({ command, config, updateConfig, addWatchFile }) => {
+      'astro:config:setup': ({ command, config, updateConfig, addWatchFile, injectScript }) => {
         resetMisses();
         addWatchFile(manifestFile);
+        injectScript('page', SCROLLERS);
         if (command === 'build') {
           // An md render that throws is logged and cached in the build's content store with no
           // body, and the glob loader skips a file whose content and config digest did not change,
