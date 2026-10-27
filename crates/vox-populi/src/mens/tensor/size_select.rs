@@ -190,7 +190,12 @@ pub fn recheck_before_load(
         bail!("{NO_READING}")
     };
     if fits(&pick.rung, free) {
-        return Ok(pick);
+        let r = &pick.rung;
+        let note = format!(
+            "{} still fits: floor {} MB, {} MB free now ({})",
+            r.size, r.floor_mb, free.mb, free.source
+        );
+        return Ok(SizePick { note, ..pick });
     }
     let ladder = size_ladder(overlay)?;
     let rung = largest_fit(&ladder, free)?;
@@ -767,7 +772,11 @@ mod tests {
         let again = recheck(pick.clone(), Some(200_000), false).expect("still fits");
         assert_eq!(again.rung.size, "8B", "never steps up");
         assert!(!again.explicit);
-        assert_eq!(again.note, pick.note);
+        // IN-01: the re-check reports the fresh reading, not the first note again.
+        assert_ne!(again.note, pick.note);
+        for part in ["8B still fits", "12000", "200000"] {
+            assert!(again.note.contains(part), "{part}: {}", again.note);
+        }
     }
 
     #[test]
