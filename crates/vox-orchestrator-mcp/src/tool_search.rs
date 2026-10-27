@@ -33,28 +33,115 @@ pub fn rank_tools(query: &str, limit: usize) -> Vec<&'static McpToolRegistryEntr
     let mut scored: Vec<(u32, &'static McpToolRegistryEntry)> = TOOL_REGISTRY
         .iter()
         .filter_map(|entry| {
-            let name = entry.name.to_lowercase();
-            let description = entry.description.to_lowercase();
-            let score: u32 = terms
-                .iter()
-                .map(|term| {
-                    if name.split('_').any(|seg| seg == term) {
-                        SCORE_NAME_SEGMENT_EXACT
-                    } else if name.contains(term.as_str()) {
-                        SCORE_NAME_SUBSTRING
-                    } else if description.contains(term.as_str()) {
-                        SCORE_DESCRIPTION
-                    } else {
-                        0
-                    }
-                })
-                .sum();
+            let score = score_entry(&terms, entry);
             (score > 0).then_some((score, entry))
         })
         .collect();
     scored.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.name.cmp(b.1.name)));
     scored.truncate(limit);
     scored.into_iter().map(|(_, entry)| entry).collect()
+}
+
+/// Score one registry entry against lowercased `terms`; the scoring rule of
+/// [`rank_tools`], shared with chat tool selection so both rank alike.
+pub(crate) fn score_entry(terms: &[String], entry: &McpToolRegistryEntry) -> u32 {
+    let name = entry.name.to_lowercase();
+    let description = entry.description.to_lowercase();
+    terms
+        .iter()
+        .map(|term| {
+            if name.split('_').any(|seg| seg == term) {
+                SCORE_NAME_SEGMENT_EXACT
+            } else if name.contains(term.as_str()) {
+                SCORE_NAME_SUBSTRING
+            } else if description.contains(term.as_str()) {
+                SCORE_DESCRIPTION
+            } else {
+                0
+            }
+        })
+        .sum()
+}
+
+/// Words that carry no tool-selection signal in a chat turn: grammar, request
+/// boilerplate, and `vox` (a substring of nearly every tool name).
+const TURN_STOPWORDS: &[&str] = &[
+    "the", "and", "for", "are", "was", "were", "has", "have", "had", "not", "can", "could",
+    "would", "should", "you", "your", "this", "that", "these", "those", "with", "from", "into",
+    "about", "there", "here", "its", "any", "all", "some", "just", "also", "than", "them", "they",
+    "our", "out", "but", "one", "two", "been", "being", "will", "may", "might", "does", "did",
+    "how", "what", "which", "who", "when", "where", "why", "whether", "many", "much", "please",
+    "tell", "want", "need", "like", "make", "then", "confirm", "report", "check", "tool", "use",
+    "using", "current", "among", "result", "vox",
+];
+
+/// Extra search terms implied by a (stemmed) turn word: the registry describes the
+/// capability ("file"), a user states the task ("how many lines", "does it exist").
+const TURN_TERM_EXPANSIONS: &[(&str, &[&str])] = &[
+    ("exist", &["file"]),
+    ("line", &["file"]),
+    ("content", &["file"]),
+    ("folder", &["directory"]),
+];
+
+/// Strip a plural `s`/`ies` so `lines`/`exists` match `line`/`exist` terms.
+fn stem(word: &str) -> String {
+    if let Some(base) = word.strip_suffix("ies").filter(|b| b.len() >= 2) {
+        return format!("{base}y");
+    }
+    if word.len() > 3 && word.ends_with('s') && !word.ends_with("ss") && !word.ends_with("us") {
+        return word[..word.len() - 1].to_string();
+    }
+    word.to_string()
+}
+
+/// A token naming a filesystem path: contains `/`, or `stem.ext` with a 2-5 char
+/// alphanumeric extension (`Cargo.toml`, `main.rs`).
+fn looks_like_path(token: &str) -> bool {
+    if token.contains('/') {
+        return true;
+    }
+    token.rsplit_once('.').is_some_and(|(stem, ext)| {
+        !stem.is_empty()
+            && (2..=5).contains(&ext.len())
+            && ext.chars().all(|c| c.is_ascii_alphanumeric())
+            && ext.chars().any(|c| c.is_ascii_alphabetic())
+    })
+}
+
+/// Search terms for a natural-language chat turn, for [`score_entry`]: lowercased,
+/// stemmed, de-duplicated words without [`TURN_STOPWORDS`], plus the capability
+/// terms the wording implies (a path-like token implies `file`).
+pub(crate) fn turn_terms(text: &str) -> Vec<String> {
+    let lower = text.to_lowercase();
+    let mut out: Vec<String> = Vec::new();
+    let mut add = |term: &str| {
+        if !out.iter().any(|t| t == term) {
+            out.push(term.to_string());
+        }
+    };
+    for raw in lower.split_whitespace() {
+        let token = raw.trim_matches(|c: char| !c.is_alphanumeric());
+        if looks_like_path(token) {
+            add("file");
+        }
+        for raw_word in token.split(|c: char| !c.is_alphanumeric()) {
+            if TURN_STOPWORDS.contains(&raw_word) {
+                continue;
+            }
+            let word = stem(raw_word);
+            if word.len() < 3 || TURN_STOPWORDS.contains(&word.as_str()) {
+                continue;
+            }
+            add(&word);
+            for (from, extras) in TURN_TERM_EXPANSIONS {
+                if *from == word {
+                    extras.iter().for_each(|extra| add(extra));
+                }
+            }
+        }
+    }
+    out
 }
 
 /// `vox_tool_search` handler: keyword search over the tool registry, returning
@@ -158,5 +245,26 @@ mod tests {
         assert_eq!(v["success"], true);
         assert_eq!(v["data"]["total"], 0);
         assert!(v["data"]["tools"].as_array().expect("array").is_empty());
+    }
+
+    #[test]
+    fn turn_terms_stem_expand_and_drop_filler() {
+        let terms = turn_terms("Does Cargo.toml exist? How many lines does it have?");
+        assert_eq!(terms, ["file", "cargo", "toml", "exist", "line"]);
+        assert!(turn_terms("hello there").iter().all(|t| t == "hello"));
+        assert!(turn_terms("the and of to").is_empty());
+    }
+
+    #[test]
+    fn score_entry_prefers_name_segments_over_description_hits() {
+        let entry = TOOL_REGISTRY
+            .iter()
+            .find(|e| e.name == "vox_repo_query_file")
+            .expect("registered");
+        assert_eq!(
+            score_entry(&["file".to_string()], entry),
+            SCORE_NAME_SEGMENT_EXACT
+        );
+        assert_eq!(score_entry(&["zzqqx".to_string()], entry), 0);
     }
 }

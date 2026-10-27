@@ -28,7 +28,7 @@ Single source of truth for **repository identity**, **layout-derived affinity**,
 7. **Sessions** — JSONL sessions default to `.sessions/<repository_id>/` when using MCP `ServerState::new`; `SessionConfig.repository_id` is set so dual-written Codex `agent_sessions.task_snapshot` JSON includes the same tenant id.
 8. **Codex / Turso rows** — Repo-scoped *filesystem* paths use `repository_id`; optional future migrations may add a `repository_id` column (or composite keys) on Codex tables per ADR 004 — not required for MCP memory/session sharding above.
 9. **Agent scopes** — `.vox/agents/{name}.md` `scope:` lists are parsed by `vox_repository::load_agent_scopes`; task paths are checked with `normalize_task_path`.
-10. **Cross-repo working set** — Explicit polyrepo manifests live at `repo_root/.vox/repositories.yaml`; Vox does not ambient-scan the whole machine for unrelated clones.
+10. **Cross-repo working set** — Explicit polyrepo manifests live at `repo_root/.vox/repositories.yaml`; Vox does not ambient-scan the whole machine for unrelated clones. Without a manifest the catalog is the workspace itself (one local entry), so `vox_repo_query_file`/`_text`/`_history` work on the current repository; an unparseable manifest is still an error.
 11. **Cross-repo refresh cache** — Re-resolved catalog snapshots and related metadata live under `repo_root/.vox/cache/repos/<repository_id>/`.
 
 ## MCP tools

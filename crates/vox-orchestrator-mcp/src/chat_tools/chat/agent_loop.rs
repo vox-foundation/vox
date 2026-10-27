@@ -2065,10 +2065,10 @@ mod tests {
     #[tokio::test]
     async fn a_near_miss_tool_call_is_salvaged_and_tagged_not_hard_failed() {
         let server = MockServer::start().await;
-        // `vox_answer_question` (unlike `vox_git_status`) is actually within the
-        // turn's offered-tool set (alphabetical registry order, capped at
-        // `DEFAULT_MAX_TOOLS` — see `select_tools_for_turn`), which the salvage
-        // policy requires before treating any text-embedded JSON as a real call.
+        // `vox_answer_question` must be inside the turn's offered-tool set (see
+        // `select_tools_for_turn`: relevance to the prompt, then registry order),
+        // which the salvage policy requires before treating any text-embedded JSON
+        // as a real call. The prompt names it so relevance ranking offers it.
         let near_miss = plain_response_body(
             "I'll use vox_answer_question. ```json\n{\"name\":\"vox_answer_question\",\"arguments\":{}}\n```",
         );
@@ -2092,7 +2092,7 @@ mod tests {
             Some("sess-salvage"),
             vec![],
             "system prompt".to_string(),
-            "what's the git status?".to_string(),
+            "please answer my question".to_string(),
             None,
             None,
             config,
