@@ -81,38 +81,7 @@ for (const route of ROUTES) {
     test(`fits: ${stack} stack (${route})`, async ({ page }) => {
       await open(page, route);
       await useStack(page, stack);
-      const { total, checked, bad, fill } = await page.evaluate(() => {
-        const EPS = 0.5;
-        const texts = [...document.querySelectorAll<SVGTextElement>('svg.vd-diagram text')];
-        const bad: string[] = [];
-        let checked = 0;
-        let fill = 0;
-        for (const t of texts) {
-          const name = (t.textContent ?? '').trim().slice(0, 40);
-          let box: SVGGraphicsElement | null = null;
-          if (t.classList.contains('vd-label')) box = t.parentElement?.querySelector<SVGGraphicsElement>('.vd-node-shape') ?? null;
-          else {
-            const prev = t.previousElementSibling;
-            if (prev?.matches('.vd-edge-label-bg, .vd-container, .vd-note')) box = prev as SVGGraphicsElement;
-          }
-          if (!box) { bad.push(`unmapped text "${name}"`); continue; }
-          checked += 1;
-          const tb = t.getBBox();
-          const bb = box.getBBox();
-          if (box.tagName.toLowerCase() === 'polygon') {
-            const cx = bb.x + bb.width / 2;
-            const cy = bb.y + bb.height / 2;
-            const corners = [[tb.x, tb.y], [tb.x + tb.width, tb.y], [tb.x, tb.y + tb.height], [tb.x + tb.width, tb.y + tb.height]];
-            const worst = Math.max(...corners.map(([x, y]) => Math.abs(x - cx) / (bb.width / 2) + Math.abs(y - cy) / (bb.height / 2)));
-            if (worst > 1 + 1e-9) bad.push(`diamond "${name}" corner reaches ${worst.toFixed(3)} of the half-extent`);
-          } else {
-            fill = Math.max(fill, tb.width / bb.width);
-            const over = Math.max(bb.x - tb.x, tb.x + tb.width - (bb.x + bb.width), bb.y - tb.y, tb.y + tb.height - (bb.y + bb.height));
-            if (over > EPS) bad.push(`"${name}" overflows its box by ${over.toFixed(1)} units (text ${tb.width.toFixed(1)}x${tb.height.toFixed(1)}, box ${bb.width.toFixed(1)}x${bb.height.toFixed(1)})`);
-          }
-        }
-        return { total: texts.length, checked, bad, fill };
-      });
+      const { total, checked, bad, fill } = await page.evaluate(fitProblems);
       console.log(`fits ${stack} ${route}: ${checked}/${total} texts, widest text fills ${(fill * 100).toFixed(1)}% of its box`);
       expect(total, 'no svg text found').toBeGreaterThan(0);
       expect(bad).toEqual([]);
@@ -218,6 +187,97 @@ test('review bundle: every reference figure in light, dark and forced colors', a
       await figures.nth(i).evaluate((el) => el.classList.remove('vd-natural'));
     }
   }
+});
+
+/**
+ * Every `<text>` against the box it belongs to. Node, edge-label and note text must lie inside its
+ * box (a diamond by the half-extent rule). A container title must lie inside its frame with 4 px to
+ * spare, and clear of every node, edge label, other title, nested frame and edge stroke (WR-07):
+ * a title struck through by an edge, or pushed onto a child, fails. Runs in the page.
+ */
+function fitProblems(): { total: number; checked: number; bad: string[]; fill: number } {
+  const EPS = 0.5;
+  const MARGIN = 4;
+  const overlaps = (a: DOMRect, b: DOMRect): boolean =>
+    a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  const contains = (o: DOMRect, i: DOMRect): boolean =>
+    i.x >= o.x && i.y >= o.y && i.x + i.width <= o.x + o.width && i.y + i.height <= o.y + o.height;
+  const texts = [...document.querySelectorAll<SVGTextElement>('svg.vd-diagram text')];
+  const bad: string[] = [];
+  let checked = 0;
+  let fill = 0;
+  for (const t of texts) {
+    const name = (t.textContent ?? '').trim().slice(0, 40);
+    const tb = t.getBBox();
+    if (t.classList.contains('vd-container-label')) {
+      const frame = t.previousElementSibling;
+      if (!frame?.matches('rect.vd-container')) { bad.push(`unmapped title "${name}"`); continue; }
+      checked += 1;
+      const fb = (frame as SVGGraphicsElement).getBBox();
+      const room = Math.min(tb.x - fb.x, fb.x + fb.width - tb.x - tb.width, tb.y - fb.y, fb.y + fb.height - tb.y - tb.height);
+      if (room < MARGIN) bad.push(`title "${name}" is ${room.toFixed(1)} units from its frame (< ${MARGIN})`);
+      const svg = t.ownerSVGElement!;
+      for (const o of svg.querySelectorAll<SVGGraphicsElement>('.vd-node-shape, .vd-edge-label-bg, .vd-container-label')) {
+        if (o !== t && overlaps(tb, o.getBBox())) bad.push(`title "${name}" overlaps ${o.getAttribute('class')}`);
+      }
+      for (const c of svg.querySelectorAll<SVGGraphicsElement>('rect.vd-container')) {
+        const cb = c.getBBox();
+        if (c !== frame && overlaps(tb, cb) && !contains(cb, fb)) bad.push(`title "${name}" overlaps another frame`);
+      }
+      for (const e of svg.querySelectorAll<SVGGeometryElement>('path.vd-edge')) {
+        const eb = e.getBBox();
+        if (!overlaps(tb, new DOMRect(eb.x - 2, eb.y - 2, eb.width + 4, eb.height + 4))) continue;
+        let hit = false;
+        for (let x = tb.x + 1; x < tb.x + tb.width && !hit; x += 1) {
+          for (let y = tb.y + 1; y < tb.y + tb.height && !hit; y += 1) hit = e.isPointInStroke(new DOMPoint(x, y));
+        }
+        if (hit) bad.push(`title "${name}" is struck through by an edge`);
+      }
+      continue;
+    }
+    let box: SVGGraphicsElement | null = null;
+    if (t.classList.contains('vd-label')) box = t.parentElement?.querySelector<SVGGraphicsElement>('.vd-node-shape') ?? null;
+    else {
+      const prev = t.previousElementSibling;
+      if (prev?.matches('.vd-edge-label-bg, .vd-note')) box = prev as SVGGraphicsElement;
+    }
+    if (!box) { bad.push(`unmapped text "${name}"`); continue; }
+    checked += 1;
+    const bb = box.getBBox();
+    if (box.tagName.toLowerCase() === 'polygon') {
+      const cx = bb.x + bb.width / 2;
+      const cy = bb.y + bb.height / 2;
+      const corners = [[tb.x, tb.y], [tb.x + tb.width, tb.y], [tb.x, tb.y + tb.height], [tb.x + tb.width, tb.y + tb.height]];
+      const worst = Math.max(...corners.map(([x, y]) => Math.abs(x - cx) / (bb.width / 2) + Math.abs(y - cy) / (bb.height / 2)));
+      if (worst > 1 + 1e-9) bad.push(`diamond "${name}" corner reaches ${worst.toFixed(3)} of the half-extent`);
+    } else {
+      fill = Math.max(fill, tb.width / bb.width);
+      const over = Math.max(bb.x - tb.x, tb.x + tb.width - (bb.x + bb.width), bb.y - tb.y, tb.y + tb.height - (bb.y + bb.height));
+      if (over > EPS) bad.push(`"${name}" overflows its box by ${over.toFixed(1)} units (text ${tb.width.toFixed(1)}x${tb.height.toFixed(1)}, box ${bb.width.toFixed(1)}x${bb.height.toFixed(1)})`);
+    }
+  }
+  return { total: texts.length, checked, bad, fill };
+}
+
+test('fit check rejects a container title struck through by an edge', async ({ page }) => {
+  await open(page, REFERENCE);
+  expect((await page.evaluate(fitProblems)).bad, 'the reference page is clean').toEqual([]);
+  // Move one title onto the middle of an edge in the same diagram: the pre-fix D1 geometry.
+  await page.evaluate(() => {
+    const svg = [...document.querySelectorAll('svg.vd-diagram')].find((s) => s.querySelector('.vd-container-label') && s.querySelector('path.vd-edge'))!;
+    const edge = svg.querySelector<SVGGeometryElement>('path.vd-edge')!;
+    const mid = edge.getPointAtLength(edge.getTotalLength() / 2);
+    const title = svg.querySelector<SVGTextElement>('.vd-container-label')!;
+    const tb = title.getBBox();
+    for (const node of [title, ...title.querySelectorAll('tspan')]) {
+      const x = Number(node.getAttribute('x') ?? 0);
+      const y = Number(node.getAttribute('y') ?? 0);
+      if (node.hasAttribute('x')) node.setAttribute('x', String(x + mid.x - (tb.x + tb.width / 2)));
+      if (node.hasAttribute('y')) node.setAttribute('y', String(y + mid.y - (tb.y + tb.height / 2)));
+    }
+  });
+  const { bad } = await page.evaluate(fitProblems);
+  expect(bad.filter((b) => b.includes('struck through')), bad.join('\n')).not.toHaveLength(0);
 });
 
 /** Computed text and stroke colours of every figure, checked against WCAG thresholds (D-10). */
