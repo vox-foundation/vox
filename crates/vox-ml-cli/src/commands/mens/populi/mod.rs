@@ -5,6 +5,8 @@ mod dispatch;
 mod mens_tail_subcommands;
 #[cfg(feature = "gpu")]
 mod train_arm;
+#[cfg(feature = "gpu")]
+mod train_record;
 
 #[cfg(feature = "gpu")]
 pub use action::{

@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use super::action::{
     MensTokenizerCli, PopuliTrainBackendCli, TrainDataModeCli, TrainingDeploymentTargetCli,
 };
+use super::train_record::{RecordInput, report_record, write_train_record};
 use crate::commands::schola::train;
 
 #[allow(clippy::too_many_arguments)]
@@ -532,6 +533,7 @@ pub async fn run_train(
     let card_output_dir = output_dir.clone();
     let card_model = effective_model.clone();
     let card_preset = effective_preset.clone();
+    let run_start = RecordInput::start(epochs, effective_seq_len, opts.max_runtime_secs);
     let train_res = train::run_train(
         backend.into(),
         effective_model,
@@ -591,6 +593,8 @@ pub async fn run_train(
     if opts.plan_only {
         return train_res.map(|_| ());
     }
+    let record = run_start.finish(&card_output_dir, &card_model, &card_preset, &train_res);
+    report_record(write_train_record(&record, train_res.is_ok()));
 
     if train_res.is_ok()
         && let Some(ref r) = workspace_root
@@ -656,7 +660,7 @@ pub async fn run_train(
 /// The preset the run trained with, which the card records as `base_rung` and
 /// `preset_version`: an explicit `--preset`, else the run's final size pick's
 /// preset (after any D-05 step-down).
-fn trained_preset(
+pub(super) fn trained_preset(
     cli_preset: Option<String>,
     pick: Option<&vox_populi::mens::tensor::size_select::SizePick>,
 ) -> Option<String> {
