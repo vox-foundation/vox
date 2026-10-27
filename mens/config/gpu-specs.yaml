@@ -262,16 +262,22 @@ train_bases:
   # guard runs late; keep entries pinned up front.
   qwen3_code:
     - { hf_id: "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca", floor_mb: 2000,  methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }   # CPU / ≤8 GB dev
-    # Qwen3-4B: refs/heads/main = 1cfa9a7208912126459214e8b04321603b3df60c
-    # (git ls-remote, 2026-10-27); Apache License 2.0 LICENSE read at the pin.
-    # floor_mb is an ESTIMATE pending a Phase 320 hardware measurement, derived
-    # with this file's method from the pinned config.json and HF safetensors
-    # total (4,022,468,096 params, hidden 2560, tied embeddings): embedding
+    # Qwen3-1.7B and Qwen3-4B (Phase 317, SIZE-01). Each refs/heads/main equals
+    # its pin (git ls-remote, 2026-10-27), and each repo's LICENSE at the pin is
+    # the Apache License 2.0. Both floor_mb values are ESTIMATES pending a
+    # Phase 320 hardware measurement, derived with this file's method from the
+    # pinned config.json and HF safetensors total: NF4 non-embedding weights
+    # plus bf16 tied embeddings, x 2.96 (the 32B-QLoRA ratio, top of the
+    # 2.25x-2.96x band, so an unmeasured floor errs high).
+    # Qwen3-1.7B (2,031,739,904 params, hidden 2048, tied embeddings): embedding
+    # 151,936 x 2,048 = 311,164,928 params at bf16 = 622,329,856 B; the other
+    # 1,720,574,976 params at NF4 0.5 B = 860,287,488 B; bare total
+    # 1,482,617,344 B = 1,414 MiB; x 2.96 = 4,185, rounded up to 4200.
+    - { hf_id: "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e", floor_mb: 4200,  methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }   # 6 GB class
+    # Qwen3-4B (4,022,468,096 params, hidden 2560, tied embeddings): embedding
     # 151,936 x 2,560 = 388,956,160 params at bf16 = 777,912,320 B; the other
     # 3,633,511,936 params at NF4 0.5 B = 1,816,755,968 B; bare total
-    # 2,594,668,288 B = 2,474 MiB; x 2.96 (the 32B-QLoRA ratio, top of the
-    # 2.25x-2.96x band, so an unmeasured floor errs high) = 7,324, rounded up
-    # to 7400.
+    # 2,594,668,288 B = 2,474 MiB; x 2.96 = 7,324, rounded up to 7400.
     - { hf_id: "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",   floor_mb: 7400,  methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }   # 8 GB class
     - { hf_id: "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",   floor_mb: 12000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }   # 16 GB tier
     - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",  floor_mb: 20000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }   # 24 GB tier (QLoRA)

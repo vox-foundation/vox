@@ -520,6 +520,26 @@ pub(crate) mod tests {
         assert_eq!(ok_pin(Some("Qwen/Qwen3-4B"), &overlay), PIN_4B);
     }
 
+    #[test]
+    fn base_resolution_resolves_every_ladder_size() {
+        let overlay = repo_overlay();
+        let ladder = &overlay["qwen3_code"];
+        for name in [
+            "Qwen3-0.6B",
+            "Qwen3-1.7B",
+            "Qwen3-4B",
+            "Qwen3-8B",
+            "Qwen3-14B",
+            "Qwen3-32B",
+        ] {
+            let pin = ok_pin(Some(name), &overlay);
+            assert_eq!(pin, ok_pin(Some(&format!("Qwen/{name}")), &overlay));
+            assert!(pin.starts_with(&format!("Qwen/{name}@")), "{name}: {pin}");
+            assert!(BaseLabel::from_pin(&pin).revision.is_some(), "{pin}");
+            assert!(ladder.iter().any(|b| b.hf_id == pin), "{pin}");
+        }
+    }
+
     fn ok_pin(requested: Option<&str>, overlay: &HashMap<String, Vec<TrainBase>>) -> String {
         resolve_base_pin(requested, overlay).expect("resolves")
     }

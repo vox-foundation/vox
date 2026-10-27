@@ -130,6 +130,29 @@ struct GpuSpecsTrainBases {
 fn parse_overlay(raw: &str) -> anyhow::Result<HashMap<String, Vec<TrainBase>>> {
     let parsed: GpuSpecsTrainBases = serde_yaml::from_str(raw)
         .map_err(|e| anyhow::anyhow!("parse train_bases in gpu-specs.yaml: {e}"))?;
+    for (tag, rungs) in &parsed.train_bases {
+        for b in rungs {
+            let has_host = b
+                .measured_on
+                .as_deref()
+                .is_some_and(|s| !s.trim().is_empty());
+            let has_peak = b.peak_mb.is_some();
+            let ok = if b.floor_measured {
+                has_host && has_peak
+            } else {
+                b.measured_on.is_none() && !has_peak
+            };
+            if !ok {
+                anyhow::bail!(
+                    "train_bases.{tag} rung {}: floor_measured is {} but measured_on/peak_mb \
+                     disagree; a measured floor needs both measured_on and peak_mb, an \
+                     estimate carries neither",
+                    b.hf_id,
+                    b.floor_measured
+                );
+            }
+        }
+    }
     Ok(parsed.train_bases)
 }
 
@@ -896,5 +919,53 @@ mod tests {
                 .hf_id,
             "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
         );
+    }
+
+    #[test]
+    fn measured_floor_needs_evidence() {
+        let yaml = |extra: &str| {
+            format!(
+                "train_bases:\n  t:\n    - {{ hf_id: \"{PIN_4B}\", floor_mb: 7400, methods: [qlora], {extra} }}\n"
+            )
+        };
+        for bad in [
+            "floor_measured: true",
+            "floor_measured: true, measured_on: m4-max-metal",
+            "floor_measured: true, peak_mb: 6900, measured_on: \"  \"",
+            "floor_measured: false, peak_mb: 6900",
+        ] {
+            let msg = format!("{:#}", parse_overlay(&yaml(bad)).expect_err(bad));
+            assert!(
+                msg.contains("floor_measured") && msg.contains(PIN_4B),
+                "{bad}: {msg}"
+            );
+        }
+        let ok = parse_overlay(&yaml(
+            "floor_measured: true, measured_on: m4-max-metal, peak_mb: 6900",
+        ))
+        .expect("a measured rung with evidence loads");
+        assert!(
+            ok["t"][0]
+                .floor_label()
+                .contains("measured on m4-max-metal")
+        );
+    }
+
+    #[test]
+    fn every_dense_ladder_pin_resolves_its_license() {
+        for pin in [
+            "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
+            "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+            PIN_4B,
+            "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",
+            "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",
+            "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",
+        ] {
+            assert_eq!(
+                resolve_license_class(Some(workspace_root()), Some(pin), None).expect(pin),
+                ("apache-2.0".to_string(), false),
+                "{pin}"
+            );
+        }
     }
 }

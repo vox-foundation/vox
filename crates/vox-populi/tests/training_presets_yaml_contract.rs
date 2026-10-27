@@ -166,8 +166,11 @@ fn gpu_specs_agentic_default_qwen3_hf_ids_have_real_sha_format() {
 ///   (4-bit NF4) that is the ~27.856B params used below.
 /// - `Qwen/Qwen3-4B`: HF `safetensors.total` 4,022,468,096 at the pinned
 ///   revision (Phase 317), recorded nominal like the other rows.
+/// - `Qwen/Qwen3-1.7B`: HF `safetensors.total` 2,031,739,904 at the pinned
+///   revision (Phase 317), recorded nominal like the other rows.
 const KNOWN_PARAMS_B: &[(&str, f64)] = &[
     ("Qwen/Qwen3-0.6B", 0.6),
+    ("Qwen/Qwen3-1.7B", 1.7),
     ("Qwen/Qwen3-4B", 4.0),
     ("Qwen/Qwen3-8B", 8.0),
     ("Qwen/Qwen3-14B", 14.0),
@@ -296,4 +299,95 @@ fn gpu_specs_qwen3_train_bases_floor_mb_pins_against_real_weight_size() {
         checked >= 4,
         "expected to check at least the 4 QLoRA Qwen3 rungs, checked {checked}"
     );
+}
+
+/// The six Qwen3 dense sizes and the `refs/heads/main` commit
+/// `git ls-remote https://huggingface.co/Qwen/<repo> refs/heads/main` reported
+/// for each on 2026-10-27 (Phase 317, SIZE-01), in size order.
+const DENSE_LADDER: [(&str, &str); 6] = [
+    (
+        "Qwen/Qwen3-0.6B",
+        "c1899de289a04d12100db370d81485cdf75e47ca",
+    ),
+    (
+        "Qwen/Qwen3-1.7B",
+        "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+    ),
+    ("Qwen/Qwen3-4B", "1cfa9a7208912126459214e8b04321603b3df60c"),
+    ("Qwen/Qwen3-8B", "b968826d9c46dd6066d109eabc6255188de91218"),
+    ("Qwen/Qwen3-14B", "40c069824f4251a91eefaf281ebe4c544efd3e18"),
+    ("Qwen/Qwen3-32B", "9216db5781bf21249d130ec9da846c4624c16137"),
+];
+
+fn is_lower_hex_40(s: &str) -> bool {
+    s.len() == 40 && s.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f'))
+}
+
+/// SIZE-01: `train_bases.qwen3_code` pins every Qwen3 dense size to the commit
+/// in `DENSE_LADDER` (evidence: `git ls-remote ... refs/heads/main`,
+/// 2026-10-27), one pin per size across every tag, all Apache-2.0, every
+/// estimated floor labeled `floor unmeasured`. Hermetic: reads only the
+/// checked-in `mens/config/gpu-specs.yaml`, never the network.
+#[test]
+fn gpu_specs_qwen3_code_ladder_pins_all_six_dense_sizes() {
+    let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()
+        .expect("canonicalize workspace root");
+    let overlay = vox_populi::mens::tensor::spoke_base_resolver::load_overlay(&workspace_root)
+        .expect("load mens/config/gpu-specs.yaml train_bases");
+    let ladder = overlay.get("qwen3_code").expect("qwen3_code tag present");
+    let all: Vec<_> = overlay.values().flatten().collect();
+
+    let mut qlora_floors = Vec::new();
+    for (repo, sha) in DENSE_LADDER {
+        assert!(is_lower_hex_40(sha), "{repo}: bad evidence sha {sha}");
+        let pin = format!("{repo}@{sha}");
+        assert!(
+            ladder.iter().any(|b| b.hf_id == pin),
+            "qwen3_code has no rung {pin}"
+        );
+        for b in all
+            .iter()
+            .filter(|b| b.hf_id.split('@').next() == Some(repo))
+        {
+            assert_eq!(b.hf_id, pin, "{repo} pinned to more than one revision");
+            assert_eq!(b.license.as_deref(), Some("apache-2.0"), "{pin}");
+            assert!(!b.attribution_required, "{pin}");
+        }
+        let qlora = ladder
+            .iter()
+            .find(|b| b.hf_id == pin && b.methods.iter().any(|m| m == "qlora"))
+            .unwrap_or_else(|| panic!("qwen3_code has no QLoRA rung for {pin}"));
+        qlora_floors.push(qlora.floor_mb);
+    }
+    assert!(
+        qlora_floors.windows(2).all(|w| w[0] < w[1]),
+        "qwen3_code QLoRA floors must strictly increase with size: {qlora_floors:?}"
+    );
+    assert!(
+        ladder.iter().all(|b| !b.hf_id.contains("Qwen3.8")),
+        "Qwen3.8-27B is not a Qwen3 dense size and must stay out of qwen3_code"
+    );
+
+    let mut by_key: std::collections::HashMap<(&str, u32, &Vec<String>), _> =
+        std::collections::HashMap::new();
+    for b in &all {
+        if !b.floor_measured {
+            assert!(
+                b.floor_label().contains("floor unmeasured"),
+                "{}: {}",
+                b.hf_id,
+                b.floor_label()
+            );
+        }
+        if b.hf_id.contains("Qwen3") {
+            let rev = b.hf_id.rsplit_once('@').map(|(_, r)| r).unwrap_or("");
+            assert!(is_lower_hex_40(rev), "unpinned Qwen3 rung {}", b.hf_id);
+        }
+        let first = *by_key
+            .entry((b.hf_id.as_str(), b.floor_mb, &b.methods))
+            .or_insert(*b);
+        assert_eq!(first, *b, "repeated rung {} disagrees across tags", b.hf_id);
+    }
 }
