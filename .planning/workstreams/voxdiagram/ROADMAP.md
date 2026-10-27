@@ -43,7 +43,7 @@ v1.7 retires Mermaid as the primary diagram *authoring* format. A new pure L2 cr
 - [x] **Phase 86: Sequence Kind** - `sequence` DSL, width-aware lane SVG, and DSL round trip for the corpus sequence blocks (completed 2026-10-17)
 - [x] **Phase 87: Doc-Pipeline Consumer & Legacy-Mermaid Ratchet** - Doc lint validates `vox-diagram` fences and rejects new Mermaid fences via a shrink-only baseline; first authorized crate edge (completed 2026-10-17)
 - [x] **Phase 88: MCP Tool, CLI & Agent Guidance** - `vox_validate_diagram`, `vox diagram` CLI, and the grammar card agents author from; second authorized crate edge (completed 2026-10-17)
-- [ ] **Phase 89: Docs-Astro Integration** - Pre-render to manifest, remark inline, Playwright proof of ids, label fit and contrast
+- [x] **Phase 89: Docs-Astro Integration** - Pre-render to manifest, remark inline, Playwright proof of ids, label fit and contrast (completed 2026-10-27)
 - [ ] **Phase 90: Corpus Migration & Gate Tightening** - Migrate all convertible live fences in small reviewed batches, then tighten the baseline to the allowlist
 - [ ] **Phase 91: Measurement Harness & Advisory Closure** - Paired NL-to-diagram harness with CIs; annotate the advisory's unsourced table
 
@@ -241,7 +241,7 @@ Plans:
   2. Playwright against the built site shows no duplicate ids on a page with several diagrams, every `<text>` within its box under two font stacks, and contrast passing in both light and dark themes (forced-colors stays legible), exercised on fixture diagrams covering both kinds.
   3. The docs deploy and quality workflows run the pre-render step before `pnpm build` and trigger on `crates/vox-diagram/**` changes.
 
-**Plans**: 4/4 plans executed in 3 waves
+**Plans**: 4/4 plans complete in 3 waves
 
 Plans:
 **Wave 1**
@@ -301,7 +301,7 @@ Phases execute in numeric order, with the parallel opportunities noted under Ove
 | 86. Sequence Kind | 4/4 | Complete    | 2026-10-17 |
 | 87. Doc-Pipeline Consumer & Legacy-Mermaid Ratchet | 3/3 | Complete    | 2026-10-17 |
 | 88. MCP Tool, CLI & Agent Guidance | 3/3 | Complete    | 2026-10-17 |
-| 89. Docs-Astro Integration | 4/4 | In Progress | - |
+| 89. Docs-Astro Integration | 4/4 | Complete    | 2026-10-27 |
 | 90. Corpus Migration & Gate Tightening | 0/TBD | Not started | - |
 | 91. Measurement Harness & Advisory Closure | 0/TBD | Not started | - |
 

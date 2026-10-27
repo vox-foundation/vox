@@ -2,20 +2,21 @@
 gsd_state_version: "1.0"
 milestone: v1.7
 milestone_name: VoxDiagram
-current_phase: 89
-current_phase_name: Docs-Astro Integration
+current_phase: 90
+current_phase_name: Corpus Migration & Gate Tightening
 current_plan: 4
-status: verifying
-stopped_at: Completed 89-04-PLAN.md
-last_updated: "2026-10-27T04:53:59.419Z"
-last_activity: 2026-10-17
-last_activity_desc: Phase 89 execution started
-state_head: 183bc9ad8a49da46fe3c3b3931f9aee16b8eb335
+status: planning
+stopped_at: Phase 89 complete, ready to plan Phase 90
+last_updated: "2026-10-27T07:25:44.348Z"
+last_activity: 2026-10-27
+last_activity_desc: Phase 89 complete, transitioned to Phase 90
+state_head: 3d2d4d0e1d9b658c7c4bf825eece9e5aaa2924dd
 progress:
   total_phases: 9
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 31
   completed_plans: 31
+  percent: 78
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -29,12 +30,12 @@ See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edit
 
 ## Current Position
 
-Phase: 89 (Docs-Astro Integration) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
-Last activity: 2026-10-17 — Phase 89 execution started
+Phase: 90 — Corpus Migration & Gate Tightening
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-10-27 — Phase 89 complete, transitioned to Phase 90
 
-Progress: [███████░░░] 67% (0/9 phases)
+Progress: [████████░░] 78% (0/9 phases)
 
 ## Progress
 
@@ -66,7 +67,7 @@ None yet.
 
 **Last session:** 2026-10-27T04:53:59.350Z
 
-**Stopped At:** Completed 89-04-PLAN.md
+**Stopped At:** Phase 89 complete, ready to plan Phase 90
 **Resume File:** None
 
 ## Performance Metrics
