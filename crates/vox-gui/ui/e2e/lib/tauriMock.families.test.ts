@@ -69,4 +69,16 @@ describe('tauriMock model data comes from contract families', () => {
       expect(CONTRACT_FAMILIES.has(await invoke('get_active_model'))).toBe(true);
     });
   });
+
+  it('the auto model recommendation mock has the live selector shape', async () => {
+    await withMock(async (invoke) => {
+      const r = await invoke('get_auto_model_recommendation');
+      expect(Object.keys(r).sort()).toEqual(['floor_mb', 'free_mb', 'reason', 'selected_model_id', 'size']);
+      expect(r.selected_model_id).toMatch(/@[0-9a-f]{40}$/);
+      expect(r.size).toBe('8B');
+      expect(r.floor_mb).toBeLessThanOrEqual(r.free_mb);
+      expect(typeof r.reason).toBe('string');
+      expect(r.reason.length).toBeGreaterThan(0);
+    });
+  });
 });

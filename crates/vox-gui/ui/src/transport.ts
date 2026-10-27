@@ -891,9 +891,16 @@ export function termSessionClose(sessionId: string): Promise<void> {
 }
 
 export interface AutoModelRecommendation {
+  /** Pinned ladder model id (`owner/name@<40-hex revision>`). */
   selected_model_id: string;
-  detected_vram_gb: number;
-  tier_reason: string;
+  /** Ladder size label, such as `8B`. */
+  size: string;
+  /** Free memory in MB the pick was judged against. */
+  free_mb: number;
+  /** The size's QLoRA floor in MB, used as its footprint. */
+  floor_mb: number;
+  /** The selector's explanation of the pick. */
+  reason: string;
 }
 
 export function getAutoModelRecommendation(): Promise<AutoModelRecommendation> {
