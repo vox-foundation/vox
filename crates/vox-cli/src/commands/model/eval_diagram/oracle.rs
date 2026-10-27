@@ -4,8 +4,12 @@
 //! The model repairs, never the tool: `repair` / `apply_fixes` are not called here, or the
 //! "after repair" endpoint would measure the fixer instead of the agent.
 
+use std::collections::BTreeMap;
+
+use anyhow::{Context, Result, bail};
 use vox_doc_pipeline::diagram::{Emit, ValidateOpts, validate};
 
+use super::{Arm, Attempt, OracleOutput};
 use crate::commands::model::eval_corpus::extract_vox_code;
 
 /// Verdict of one VoxDiagram text.
@@ -42,10 +46,98 @@ pub fn vd_verdict(text: &str) -> VdVerdict {
     }
 }
 
+/// Oracle outputs by line id.
+pub type OracleMap<'a> = BTreeMap<&'a str, &'a OracleOutput>;
+
+/// Index oracle outputs by id.
+#[must_use]
+pub fn oracle_map(outputs: &[OracleOutput]) -> OracleMap<'_> {
+    outputs.iter().map(|o| (o.id.as_str(), o)).collect()
+}
+
+/// What the oracles say about one attempt.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Judged {
+    /// No reply: an infra failure, never an invalid diagram.
+    Transport,
+    Valid,
+    /// Invalid; the text is the next turn's feedback (VoxDiagram diagnostics JSON, Mermaid error).
+    Invalid(String),
+}
+
+/// Judge an attempt: `check` for VoxDiagram, the recorded Node oracle output for Mermaid.
+pub fn judge(a: &Attempt, oracle: &OracleMap<'_>) -> Result<Judged> {
+    if a.transport_error.is_some() {
+        return Ok(Judged::Transport);
+    }
+    let id = a.oracle_id();
+    let raw = a
+        .raw_response
+        .as_deref()
+        .with_context(|| format!("{id}: no reply"))?;
+    Ok(match a.arm {
+        Arm::Voxdiagram => {
+            let v = vd_verdict(&extract(raw));
+            if v.valid {
+                Judged::Valid
+            } else {
+                Judged::Invalid(v.feedback)
+            }
+        }
+        Arm::Mermaid => {
+            let o = oracle
+                .get(id.as_str())
+                .with_context(|| format!("no oracle output for {id}"))?;
+            match (o.ok, &o.error) {
+                (true, _) => Judged::Valid,
+                (false, Some(e)) => Judged::Invalid(e.clone()),
+                (false, None) => bail!("{id}: oracle output is not ok and has no error"),
+            }
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::commands::model::eval_diagram::score::tests::{MM, VD_BAD, attempt};
     use vox_doc_pipeline::diagram::check;
+
+    fn out(id: &str, ok: bool, error: Option<&str>) -> OracleOutput {
+        let sets = serde_json::Value::Null;
+        OracleOutput {
+            id: id.into(),
+            ok,
+            error: error.map(Into::into),
+            sets,
+            matched: None,
+        }
+    }
+
+    #[test]
+    fn judge_uses_check_for_voxdiagram_and_the_recorded_oracle_for_mermaid() {
+        let vd = attempt("t", Arm::Voxdiagram, "A", 0, Some(VD_BAD));
+        let fb = vd_verdict(&extract(VD_BAD)).feedback;
+        assert_eq!(judge(&vd, &BTreeMap::new()).unwrap(), Judged::Invalid(fb));
+        let mm = attempt("t", Arm::Mermaid, "A", 0, Some(MM));
+        let outs = [out("t:A:mermaid:0", false, Some("Parse error"))];
+        assert_eq!(
+            judge(&mm, &oracle_map(&outs)).unwrap(),
+            Judged::Invalid("Parse error".into())
+        );
+        assert!(
+            judge(&mm, &BTreeMap::new()).is_err(),
+            "a reply without an oracle output"
+        );
+        let outs = [out("t:A:mermaid:0", false, None)];
+        assert!(
+            judge(&mm, &oracle_map(&outs)).is_err(),
+            "not ok without an error text"
+        );
+        let mut lost = attempt("t", Arm::Mermaid, "A", 0, None);
+        lost.transport_error = Some("reset".into());
+        assert_eq!(judge(&lost, &BTreeMap::new()).unwrap(), Judged::Transport);
+    }
 
     #[test]
     fn valid_graph_has_empty_feedback_and_an_export() {

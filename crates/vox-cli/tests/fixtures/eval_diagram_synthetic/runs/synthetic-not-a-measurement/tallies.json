@@ -1,10 +1,28 @@
 {
   "synthetic": true,
-  "corpus_size": 3,
-  "margin": 0.1,
+  "corpus_size": 4,
+  "rule": {
+    "primary_endpoint": "first_pass_validity_slot_a",
+    "interval": "newcombe_method_10",
+    "confidence": 0.95,
+    "margin": 0.1,
+    "max_repair_turns": 2,
+    "max_infra_rate": 0.05
+  },
+  "stopped": null,
   "slots": {
     "A": {
+      "resolved_models": [
+        "synthetic-none"
+      ],
+      "model_drift": false,
       "scored_tasks": 3,
+      "excluded": [
+        "g003"
+      ],
+      "missing": [],
+      "complete": false,
+      "incomplete_reason": "1 infra exclusions exceed 5.0% of 4 tasks",
       "arms": {
         "mermaid": {
           "first_pass": {
@@ -15,7 +33,25 @@
               "low": 0.20765960080204768,
               "high": 0.9385080552796037
             }
-          }
+          },
+          "after_repair": {
+            "valid": 2,
+            "n": 3,
+            "ci": {
+              "point": 0.6666666666666666,
+              "low": 0.20765960080204768,
+              "high": 0.9385080552796037
+            }
+          },
+          "fidelity": {
+            "matched": 2,
+            "valid": 2,
+            "scored": 3
+          },
+          "attempts": 6,
+          "prompt_tokens": 3600,
+          "completion_tokens": 480,
+          "cost_usd": 0.0
         },
         "voxdiagram": {
           "first_pass": {
@@ -26,9 +62,210 @@
               "low": 0.20765960080204768,
               "high": 0.9385080552796037
             }
+          },
+          "after_repair": {
+            "valid": 3,
+            "n": 3,
+            "ci": {
+              "point": 1.0,
+              "low": 0.4385029682449545,
+              "high": 1.0
+            }
+          },
+          "fidelity": {
+            "matched": 3,
+            "valid": 3,
+            "scored": 3
+          },
+          "attempts": 5,
+          "prompt_tokens": 3000,
+          "completion_tokens": 400,
+          "cost_usd": 0.0
+        }
+      },
+      "paired": {
+        "after_repair": {
+          "a": 2,
+          "b": 1,
+          "c": 0,
+          "d": 0,
+          "ci": {
+            "point": 0.33333333333333337,
+            "low": -0.2905069164363785,
+            "high": 0.7923403991979523
+          },
+          "verdict": "inconclusive",
+          "superior": false,
+          "worse_within_margin": false,
+          "mcnemar_p": 1.0
+        },
+        "first_pass": {
+          "a": 1,
+          "b": 1,
+          "c": 1,
+          "d": 0,
+          "ci": {
+            "point": 0.0,
+            "low": -0.6398143052827471,
+            "high": 0.6398143052827471
+          },
+          "verdict": "inconclusive",
+          "superior": false,
+          "worse_within_margin": false,
+          "mcnemar_p": 1.0
+        }
+      },
+      "per_kind": {
+        "graph": {
+          "mermaid": {
+            "n": 2,
+            "first_pass": 1,
+            "after_repair": 1
+          },
+          "voxdiagram": {
+            "n": 2,
+            "first_pass": 2,
+            "after_repair": 2
+          }
+        },
+        "sequence": {
+          "mermaid": {
+            "n": 1,
+            "first_pass": 1,
+            "after_repair": 1
+          },
+          "voxdiagram": {
+            "n": 1,
+            "first_pass": 0,
+            "after_repair": 1
+          }
+        }
+      }
+    },
+    "B": {
+      "resolved_models": [
+        "synthetic-none-b"
+      ],
+      "model_drift": false,
+      "scored_tasks": 1,
+      "excluded": [],
+      "missing": [
+        "g002",
+        "s001",
+        "g003"
+      ],
+      "complete": false,
+      "incomplete_reason": "3 of 4 tasks lack a first-pass attempt in an arm",
+      "arms": {
+        "mermaid": {
+          "first_pass": {
+            "valid": 1,
+            "n": 1,
+            "ci": {
+              "point": 1.0,
+              "low": 0.20654931437723742,
+              "high": 1.0
+            }
+          },
+          "after_repair": {
+            "valid": 1,
+            "n": 1,
+            "ci": {
+              "point": 1.0,
+              "low": 0.20654931437723742,
+              "high": 1.0
+            }
+          },
+          "fidelity": {
+            "matched": 1,
+            "valid": 1,
+            "scored": 1
+          },
+          "attempts": 1,
+          "prompt_tokens": 590,
+          "completion_tokens": 80,
+          "cost_usd": 0.0
+        },
+        "voxdiagram": {
+          "first_pass": {
+            "valid": 1,
+            "n": 1,
+            "ci": {
+              "point": 1.0,
+              "low": 0.20654931437723742,
+              "high": 1.0
+            }
+          },
+          "after_repair": {
+            "valid": 1,
+            "n": 1,
+            "ci": {
+              "point": 1.0,
+              "low": 0.20654931437723742,
+              "high": 1.0
+            }
+          },
+          "fidelity": {
+            "matched": 1,
+            "valid": 1,
+            "scored": 1
+          },
+          "attempts": 1,
+          "prompt_tokens": 610,
+          "completion_tokens": 80,
+          "cost_usd": 0.0
+        }
+      },
+      "paired": {
+        "after_repair": {
+          "a": 1,
+          "b": 0,
+          "c": 0,
+          "d": 0,
+          "ci": {
+            "point": 0.0,
+            "low": -0.7934506856227626,
+            "high": 0.7934506856227626
+          },
+          "verdict": "inconclusive",
+          "superior": false,
+          "worse_within_margin": false,
+          "mcnemar_p": 1.0
+        },
+        "first_pass": {
+          "a": 1,
+          "b": 0,
+          "c": 0,
+          "d": 0,
+          "ci": {
+            "point": 0.0,
+            "low": -0.7934506856227626,
+            "high": 0.7934506856227626
+          },
+          "verdict": "inconclusive",
+          "superior": false,
+          "worse_within_margin": false,
+          "mcnemar_p": 1.0
+        }
+      },
+      "per_kind": {
+        "graph": {
+          "mermaid": {
+            "n": 1,
+            "first_pass": 1,
+            "after_repair": 1
+          },
+          "voxdiagram": {
+            "n": 1,
+            "first_pass": 1,
+            "after_repair": 1
           }
         }
       }
     }
+  },
+  "primary": {
+    "verdict": "not_determined",
+    "reason": "model A incomplete: 1 infra exclusions exceed 5.0% of 4 tasks"
   }
 }

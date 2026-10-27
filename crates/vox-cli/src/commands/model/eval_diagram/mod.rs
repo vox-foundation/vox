@@ -20,6 +20,7 @@
 pub mod oracle;
 pub mod render;
 pub mod score;
+pub mod stats;
 pub mod tally;
 
 use anyhow::{Context, Result, ensure};
