@@ -89,10 +89,18 @@ for (const route of ROUTES) {
     await open(page, route);
     const problems = await page.evaluate(() => {
       const out: string[] = [];
+      // The page's own prose may repeat an id (an explicit `<a id>` before a heading); only a
+      // duplicate that involves an id inside a figure is the diagram's problem.
       const seen = new Set<string>();
+      const flagged = new Set<string>();
       for (const el of document.querySelectorAll('[id]')) {
-        if (seen.has(el.id)) out.push(`duplicate id ${el.id}`);
+        if (seen.has(el.id)) flagged.add(el.id);
         seen.add(el.id);
+      }
+      for (const id of flagged) {
+        if ([...document.querySelectorAll('[id]')].some((e) => e.id === id && e.closest('.vd-figure'))) {
+          out.push(`duplicate id ${id}`);
+        }
       }
       for (const el of document.querySelectorAll('[aria-labelledby]')) {
         for (const token of (el.getAttribute('aria-labelledby') ?? '').split(/\s+/).filter(Boolean)) {
