@@ -52,6 +52,10 @@ export default defineConfig({
             },
           });
         },
+        // A dev restart (the manifest is a watched file) does not re-sync content, so cached md pages
+        // would keep the old figure or placeholder. The digest in the plugin options changes Astro's
+        // config digest, and a sync clears the store when that differs (89-RESEARCH Pitfall 3 / A4).
+        'astro:server:setup': ({ refreshContent }) => refreshContent?.({}),
         // md pages render during content sync before this hook, and a remark throw does not fail
         // an md build, so this is what fails it; the done hook catches any miss recorded later.
         'astro:build:start': () => assertNoMisses(),
