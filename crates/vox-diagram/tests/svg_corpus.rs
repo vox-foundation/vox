@@ -11,6 +11,7 @@ use support::clearance::clearance;
 use support::roundtrip::{assert_golden, fixtures, stems};
 use support::svgcheck::check as check_svg;
 use support::theme::{Theme, pane_css};
+use unicode_width::UnicodeWidthStr;
 use vox_diagram::check;
 use vox_diagram::ir::{GraphIr, Ir};
 use vox_diagram::mermaid::{ImportOpts, import};
@@ -108,19 +109,22 @@ fn corpus_words_are_never_split() {
         let Ok(parsed) = check_svg(&svg, "vd") else {
             panic!("{stem}: svg outside the allowlist");
         };
-        let shown: Vec<&str> = parsed
-            .texts
-            .iter()
-            .flat_map(|(_, t)| t.split('\n'))
-            .flat_map(str::split_whitespace)
-            .collect();
-        for node in &graph(&ir).nodes {
+        for (k, node) in graph(&ir).nodes.iter().enumerate() {
+            // Only this node's own drawn lines count, never `<desc>`, a title or another node
+            // (Phase 90 review WR-05).
+            let shown: Vec<&str> = parsed
+                .labels
+                .iter()
+                .filter(|l| l.class == "vd-label" && l.owner == k)
+                .flat_map(|l| l.lines.iter())
+                .flat_map(|l| l.split_whitespace())
+                .collect();
             for word in node
                 .label
                 .split_whitespace()
-                .filter(|w| w.chars().count() <= 48)
+                .filter(|w| UnicodeWidthStr::width(*w) <= 48)
             {
-                longest = longest.max(word.chars().count());
+                longest = longest.max(UnicodeWidthStr::width(word));
                 assert!(
                     shown.contains(&word),
                     "{stem}: word {word:?} of {:?} was split",
