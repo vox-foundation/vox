@@ -384,7 +384,7 @@ To make `vox` a first-class citizen inside interactive `nu` sessions (both exter
 
 ## 9. Implementation Roadmap (`Phases 49, 50 & 51` in Unified GSD Stream)
 
-The architecture in this document is sequenced into three cohesive phases in [`.planning/workstreams/unified/ROADMAP.md`](../../../.planning/workstreams/unified/ROADMAP.md):
+The architecture in this document is sequenced into three cohesive phases in `.planning/workstreams/unified/ROADMAP.md`:
 
 ### Phase 49: LLM-First Structured Shell (`Nushell` + `Vox-Shell`), Skills & MCP Execution Bridge (`SHELL-01..04`)
 - **`49-01-PLAN.md` (`SHELL-01`, `[MODEL: FLASH-3.8]`)**: Complete `NU_OSC633` (`A`/`B`/`C`/`D`/`E` with `$env.LAST_EXIT_CODE`), add `OpenSpec.shell: Option<String>`, add `!nu <pipeline>` (`InputIntent::StructuredShell`) + `diagnose_nu_posix_isms` in `vox-terminal-core`, and verify with unit/integration tests.

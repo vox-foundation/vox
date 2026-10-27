@@ -100,17 +100,17 @@ impl Subcommand for RepairCorpusSubcommand {
         let mut total_projects = 0usize;
         let mut passing_projects = 0usize;
 
-        if projects_dir.exists() {
-            if let Ok(entries) = std::fs::read_dir(&projects_dir) {
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if path.is_dir() {
-                        total_projects += 1;
-                        let expected = path.join("expected.json");
-                        let vox_toml = path.join("Vox.toml");
-                        if expected.exists() && vox_toml.exists() {
-                            passing_projects += 1;
-                        }
+        if projects_dir.exists()
+            && let Ok(entries) = std::fs::read_dir(&projects_dir)
+        {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    total_projects += 1;
+                    let expected = path.join("expected.json");
+                    let vox_toml = path.join("Vox.toml");
+                    if expected.exists() && vox_toml.exists() {
+                        passing_projects += 1;
                     }
                 }
             }

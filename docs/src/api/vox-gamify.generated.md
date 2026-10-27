@@ -76,7 +76,6 @@ All features work fully offline with deterministic fallbacks.
 | `kpi` | — |
 | `leaderboard` | — |
 | `lex_pack` | — |
-| `lsp_telemetry` | — |
 | `mcp_privacy` | — |
 | `notifications` | — |
 | `output_policy` | — |
@@ -94,6 +93,7 @@ All features work fully offline with deterministic fallbacks.
 | `streak` | — |
 | `teaching` | — |
 | `util` | — |
+| `verified_leaderboard` | — |
 
 ### Types
 

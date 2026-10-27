@@ -1045,7 +1045,7 @@ export function Loquela({
                 className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-(--color-status-warn)/40 bg-(--color-status-warn)/10 px-2.5 text-(--color-status-warn) transition hover:bg-(--color-status-warn)/18"
               >
                 <Icon.play className="size-3" />
-                <span className="font-display text-[10px] uppercase tracking-[0.11em]">Resume</span>
+                <span className="font-display text-[11px] uppercase tracking-[0.13em]">Resume</span>
               </button>
             </Tooltip>
           )}

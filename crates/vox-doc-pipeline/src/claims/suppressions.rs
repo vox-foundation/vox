@@ -37,8 +37,7 @@ impl SuppressionsFile {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
-        let json = serde_json::to_string_pretty(self)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        let json = serde_json::to_string_pretty(self).map_err(std::io::Error::other)?;
         fs::write(path, json)
     }
 
@@ -113,13 +112,13 @@ impl SuppressionsFile {
             if supp_page.is_empty() || supp_target.is_empty() {
                 return false;
             }
-            if let Ok(exp) = NaiveDate::parse_from_str(s.expires_after.trim(), "%Y-%m-%d") {
-                if exp >= today {
-                    let page_match = supp_page == norm_page
-                        || norm_page.ends_with(&format!("/{}", supp_page.trim_start_matches('/')));
-                    let target_match = supp_target == target;
-                    return page_match && target_match;
-                }
+            if let Ok(exp) = NaiveDate::parse_from_str(s.expires_after.trim(), "%Y-%m-%d")
+                && exp >= today
+            {
+                let page_match = supp_page == norm_page
+                    || norm_page.ends_with(&format!("/{}", supp_page.trim_start_matches('/')));
+                let target_match = supp_target == target;
+                return page_match && target_match;
             }
             false
         })

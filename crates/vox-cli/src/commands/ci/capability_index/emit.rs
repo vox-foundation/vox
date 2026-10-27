@@ -702,7 +702,7 @@ mod tests {
         let spread: Vec<&str> = export
             .split("...")
             .skip(1)
-            .map(|s| s.trim_end_matches(|c| c == ',' || c == ' ' || c == ']' || c == ';'))
+            .map(|s| s.trim_end_matches([',', ' ', ']', ';']))
             .collect();
         assert_eq!(spread.len(), declared.len(), "spread: {export}");
         assert_eq!(

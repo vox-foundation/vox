@@ -6,6 +6,10 @@ use crate::frontmatter::{FenceTracker, frontmatter_range, line_spans};
 pub const SUMMARY_OPEN: &str = "<!-- kb:summary -->";
 /// Closing marker.
 pub const SUMMARY_CLOSE: &str = "<!-- /kb:summary -->";
+/// MDX-safe opening marker: `.mdx` pages cannot contain HTML comments (`<!--` is a compile error).
+pub const SUMMARY_OPEN_MDX: &str = "{/* kb:summary */}";
+/// MDX-safe closing marker.
+pub const SUMMARY_CLOSE_MDX: &str = "{/* /kb:summary */}";
 /// Minimum summary length in words (inclusive); range checking is the lint's job.
 pub const SUMMARY_MIN_WORDS: usize = 40;
 /// Maximum summary length in words (inclusive).
@@ -24,8 +28,17 @@ pub enum SummaryStatus {
 /// True when the line, trimmed, is exactly the open or close marker.
 #[must_use]
 pub fn is_summary_marker_line(line: &str) -> bool {
+    is_open_marker(line) || is_close_marker(line)
+}
+
+fn is_open_marker(line: &str) -> bool {
     let t = line.trim();
-    t == SUMMARY_OPEN || t == SUMMARY_CLOSE
+    t == SUMMARY_OPEN || t == SUMMARY_OPEN_MDX
+}
+
+fn is_close_marker(line: &str) -> bool {
+    let t = line.trim();
+    t == SUMMARY_CLOSE || t == SUMMARY_CLOSE_MDX
 }
 
 /// Locate and measure the summary block. Markers inside fenced code are ignored.
@@ -44,14 +57,14 @@ pub fn inspect_summary(doc_text: &str) -> SummaryStatus {
         }
     }
     let opens: Vec<usize> = (0..lines.len())
-        .filter(|&i| lines[i].1.trim() == SUMMARY_OPEN)
+        .filter(|&i| is_open_marker(lines[i].1))
         .collect();
     let open = match opens.as_slice() {
         [] => return SummaryStatus::Missing,
         [o] => *o,
         _ => return SummaryStatus::Multiple,
     };
-    let Some(close) = (open + 1..lines.len()).find(|&i| lines[i].1.trim() == SUMMARY_CLOSE) else {
+    let Some(close) = (open + 1..lines.len()).find(|&i| is_close_marker(lines[i].1)) else {
         return SummaryStatus::Unterminated;
     };
     let after_h1 = lines
@@ -76,16 +89,30 @@ pub fn inspect_summary(doc_text: &str) -> SummaryStatus {
 pub fn strip_summary_blocks(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
-    while let Some(o) = rest.find(SUMMARY_OPEN) {
+    while let Some((o, open_len, close)) = next_open(rest) {
         out.push_str(&rest[..o]);
-        let after = &rest[o + SUMMARY_OPEN.len()..];
-        match after.find(SUMMARY_CLOSE) {
-            Some(c) => rest = &after[c + SUMMARY_CLOSE.len()..],
+        let after = &rest[o + open_len..];
+        match after.find(close) {
+            Some(c) => rest = &after[c + close.len()..],
             None => return out,
         }
     }
     out.push_str(rest);
     out
+}
+
+/// Earliest open marker of either form: (byte offset, marker length, matching close marker).
+fn next_open(text: &str) -> Option<(usize, usize, &'static str)> {
+    let html = text
+        .find(SUMMARY_OPEN)
+        .map(|o| (o, SUMMARY_OPEN.len(), SUMMARY_CLOSE));
+    let mdx = text
+        .find(SUMMARY_OPEN_MDX)
+        .map(|o| (o, SUMMARY_OPEN_MDX.len(), SUMMARY_CLOSE_MDX));
+    match (html, mdx) {
+        (Some(h), Some(m)) => Some(if h.0 <= m.0 { h } else { m }),
+        (h, m) => h.or(m),
+    }
 }
 
 #[cfg(test)]
@@ -200,5 +227,39 @@ mod tests {
         assert!(is_summary_marker_line("<!-- /kb:summary -->"));
         assert!(!is_summary_marker_line("text <!-- kb:summary -->"));
         assert!(!is_summary_marker_line("<!-- kb:other -->"));
+    }
+
+    /// MDX pages cannot hold `<!--`; the `{/* */}` form must be recognised everywhere.
+    #[test]
+    fn mdx_comment_markers_are_recognised() {
+        let t = format!(
+            "# T\n\n{SUMMARY_OPEN_MDX}\n{}\n{SUMMARY_CLOSE_MDX}\n\nbody\n",
+            words(40)
+        );
+        assert_eq!(
+            inspect_summary(&t),
+            SummaryStatus::Present { words: 40, line: 3 }
+        );
+        assert!(is_summary_marker_line("  {/* kb:summary */}  "));
+        assert!(is_summary_marker_line("{/* /kb:summary */}"));
+        assert!(!is_summary_marker_line("text {/* kb:summary */}"));
+        let unterminated = format!("# T\n{SUMMARY_OPEN_MDX}\nx\n");
+        assert_eq!(inspect_summary(&unterminated), SummaryStatus::Unterminated);
+        let late = format!("# T\n\nintro\n\n{SUMMARY_OPEN_MDX}\nx\n{SUMMARY_CLOSE_MDX}\n");
+        assert_eq!(inspect_summary(&late), SummaryStatus::Misplaced { line: 5 });
+    }
+
+    #[test]
+    fn strip_summary_blocks_handles_mdx_form() {
+        let t = format!("a\n{SUMMARY_OPEN_MDX}\nSECRET\n{SUMMARY_CLOSE_MDX}\nb\n");
+        let s = strip_summary_blocks(&t);
+        assert!(!s.contains("SECRET") && s.contains('a') && s.contains('b'));
+        let open = format!("keep\n{SUMMARY_OPEN_MDX}\nleak\n");
+        assert_eq!(strip_summary_blocks(&open), "keep\n");
+        let mixed = format!(
+            "{SUMMARY_OPEN}\nS1\n{SUMMARY_CLOSE}\nm\n{SUMMARY_OPEN_MDX}\nS2\n{SUMMARY_CLOSE_MDX}\nz"
+        );
+        let s = strip_summary_blocks(&mixed);
+        assert!(!s.contains("S1") && !s.contains("S2") && s.contains('m') && s.contains('z'));
     }
 }

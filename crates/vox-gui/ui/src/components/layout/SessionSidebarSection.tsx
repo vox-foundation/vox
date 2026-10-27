@@ -65,11 +65,15 @@ function SessionRow({
     );
   }
 
+  // The row is a plain wrapper: Archive is a sibling of the tab, not a button nested inside it
+  // (a focusable control inside role="tab" is an axe nested-interactive violation).
   return (
+    <div data-testid={`session-row-${s.session_id}`}
+         className="flex items-center rounded-sm text-[12px] hover:bg-overlay-hover group">
     <div role="tab" aria-selected={isActive}
          onClick={() => onSessionChange(s.session_id)}
          onDoubleClick={() => setEditing(true)}
-         className="flex items-center justify-between rounded-sm px-2 py-1 text-[12px] cursor-pointer hover:bg-overlay-hover group">
+         className="flex min-w-0 flex-1 items-center justify-between rounded-sm px-2 py-1 cursor-pointer">
       <span title={s.title} className="line-clamp-2 wrap-break-word">{s.title}</span>
       <span className="flex items-center gap-1 shrink-0">
         {hasPendingIssue && (
@@ -89,15 +93,17 @@ function SessionRow({
             {taskCount}
           </span>
         )}
-        {showArchive && (
-          <span
-            onClick={e => { e.stopPropagation(); onArchiveSession(s.session_id); }}
-            className="opacity-0 group-hover:opacity-100 text-[10px] text-text-muted hover:text-text-primary"
-          >
-            Archive
-          </span>
-        )}
       </span>
+    </div>
+    {showArchive && (
+      <button
+        type="button"
+        onClick={() => onArchiveSession(s.session_id)}
+        className="shrink-0 px-2 py-1 opacity-0 group-hover:opacity-100 focus:opacity-100 text-[10px] text-text-muted hover:text-text-primary"
+      >
+        Archive
+      </button>
+    )}
     </div>
   );
 }

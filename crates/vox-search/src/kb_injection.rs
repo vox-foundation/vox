@@ -479,8 +479,10 @@ mod tests {
         let mut p = sample_cand("p1", "docs/src/priv.md", 0.9, ContextTrustTier::Trusted);
         p.sensitivity = Some("private".into());
         let u = sample_cand("u1", "docs/src/web.md", 0.8, ContextTrustTier::Untrusted);
-        let mut scope = KbSessionScope::default();
-        scope.min_trust_tier = ContextTrustTier::Untrusted;
+        let scope = KbSessionScope {
+            min_trust_tier: ContextTrustTier::Untrusted,
+            ..Default::default()
+        };
         let ev = build_kb_context_injection(&[p, u], &scope, 32_000, true, None, "nonce42");
         assert_eq!(ev.injected.len(), 1);
         assert!(ev.exfiltration_tools_gated);
