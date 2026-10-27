@@ -1160,20 +1160,16 @@ mod collateral_gate_tests {
     #[test]
     fn an_out_of_range_stored_number_is_refused() {
         let dir = valid_adapter_dir();
+        // 1.5 is valid JSON (unlike 1e999, which serde_json rejects while
+        // parsing), so the refusal can only come from the [0, 1] range guard.
         edit_report(
             dir.path(),
             "/reasoning_slices/benches/gsm8k_think/accuracy/post",
-            serde_json::json!(0.123456789),
+            serde_json::json!(1.5),
         );
-        let text = std::fs::read_to_string(report_path(dir.path())).unwrap();
-        assert!(text.contains("0.123456789"));
-        std::fs::write(
-            report_path(dir.path()),
-            text.replace("0.123456789", "1e999"),
-        )
-        .unwrap();
         let e = gate_err(dir.path());
-        assert!(e.contains("eval_collateral_damage"), "{e}");
+        assert!(e.contains("outside [0, 1]"), "{e}");
+        assert!(e.contains("gsm8k_think"), "{e}");
     }
 
     #[test]
