@@ -47,29 +47,30 @@ External research for §2 used Tavily Research API (2026-06-16) plus NLM/Cochran
 
 Five eras structure how automated research evolved and what researchers still expect tools to save.
 
-```mermaid
-flowchart TB
-  subgraph eras [Historical eras]
-    E1["1960s-80s: IR and bibliographic DBs"]
-    E2["1990s-2000s: Systematic review and citation graphs"]
-    E3["2010s: Reproducibility and preregistration"]
-    E4["2018-2023: Semantic search and ML screening"]
-    E5["2024-2026: LLM agent deep research"]
-  end
-  subgraph vox [Vox SCIENTIA layers]
-    L1[Signal producers and scout]
-    L2[Retrieval: CRAG Tavily Tantivy Graphify]
-    L3[Claim and novelty verdict ladder]
-    L4[Human gate nanopub RO-Crate]
-    L5[Scholarly syndication Zenodo]
-  end
-  E1 --> L2
-  E2 --> L3
-  E3 --> L4
-  E4 --> L2
-  E4 --> L3
-  E5 --> L1
-  E5 --> L2
+```vox-diagram
+graph {
+    container eras: "Historical eras" {
+        node E1: "1960s-80s: IR and bibliographic DBs"
+        node E2: "1990s-2000s: Systematic review and citation graphs"
+        node E3: "2010s: Reproducibility and preregistration"
+        node E4: "2018-2023: Semantic search and ML screening"
+        node E5: "2024-2026: LLM agent deep research"
+    }
+    container vox: "Vox SCIENTIA layers" {
+        node L1: "Signal producers and scout"
+        node L2: "Retrieval: CRAG Tavily Tantivy Graphify"
+        node L3: "Claim and novelty verdict ladder"
+        node L4: "Human gate nanopub RO-Crate"
+        node L5: "Scholarly syndication Zenodo"
+    }
+    eras.E1 -> vox.L2
+    eras.E2 -> vox.L3
+    eras.E3 -> vox.L4
+    eras.E4 -> vox.L2
+    eras.E4 -> vox.L3
+    eras.E5 -> vox.L1
+    eras.E5 -> vox.L2
+}
 ```
 
 ### 2.1 Era timeline with citations
@@ -109,26 +110,27 @@ flowchart TB
 
 ## 3. Current architecture
 
-```mermaid
-sequenceDiagram
-  participant Agent as CodingAgent
-  participant RS as vox_research_shim
-  participant VS as vox_search
-  participant OR as OpenRouter
-  participant TV as Tavily
-  participant SC as vox_scientia
-  participant Human as Researcher
-  participant Out as NanoPub_Zenodo_Manuscript
+```vox-diagram
+sequence {
+    actor Agent: "CodingAgent"
+    actor RS: "vox_research_shim"
+    actor VS: "vox_search"
+    actor OR: "OpenRouter"
+    actor TV: "Tavily"
+    actor SC: "vox_scientia"
+    actor Human: "Researcher"
+    actor Out: "NanoPub_Zenodo_Manuscript"
 
-  Agent->>RS: vox research run
-  RS->>OR: planner + synthesize
-  RS->>VS: CRAG multi-hop
-  VS->>TV: Tier4 search optional
-  RS->>SC: claim_extractor optional paths
-  Note over RS,SC: FindingCandidate mesh emission not wired
-  SC->>Human: discovery inbox review
-  Human->>SC: ApprovalToken
-  SC->>Out: nanopub / archive / syndicate
+    Agent -> RS: "vox research run"
+    RS -> OR: "planner + synthesize"
+    RS -> VS: "CRAG multi-hop"
+    VS -> TV: "Tier4 search optional"
+    RS -> SC: "claim_extractor optional paths"
+    note over RS, SC: "FindingCandidate mesh emission not wired"
+    SC -> Human: "discovery inbox review"
+    Human -> SC: "ApprovalToken"
+    SC -> Out: "nanopub / archive / syndicate"
+}
 ```
 
 **Crate responsibilities:**
