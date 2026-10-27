@@ -47,7 +47,8 @@ impl Item {
 /// bottom-up layout, so dagre keeps the title clear of nodes and routes edges beside it: from the
 /// title to every child container's title and to each own node that no edge reaches from inside
 /// the container (every own node when a cycle leaves none), plus one from each outside node that
-/// feeds such an entry node to the title, so the title is never in its feeder's rank. Bottom-up
+/// feeds such an entry node, or an entry node of a nested container, to the title, so the title is
+/// never in its feeder's rank. Bottom-up
 /// points them the other way, so a title still lands on top of its content.
 fn title_links(input: &LayoutInput) -> Vec<(Item, Item)> {
     let reverse = input.direction == Direction::Up;
@@ -71,6 +72,11 @@ fn title_links(input: &LayoutInput) -> Vec<(Item, Item)> {
         if firsts.is_empty() {
             firsts = own;
         }
+        // Entry nodes of nested containers count too: an outside node feeding one is a feeder.
+        let nested: Vec<usize> = (0..input.nodes.len())
+            .filter(|&n| inside(n) && input.nodes[n].container != Some(k))
+            .filter(first)
+            .collect();
         // Nodes outside feeding those entry nodes: the title ranks after them too, or it shares
         // their rank and dagre sets the two containers side by side across the flow.
         let mut feeders: Vec<usize> = input
@@ -82,7 +88,8 @@ fn title_links(input: &LayoutInput) -> Vec<(Item, Item)> {
                 } else {
                     (e.to, e.from)
                 };
-                (firsts.contains(&near) && !inside(far)).then_some(far)
+                let entry = firsts.contains(&near) || nested.contains(&near);
+                (entry && !inside(far)).then_some(far)
             })
             .collect();
         feeders.sort_unstable();
@@ -311,9 +318,16 @@ mod tests {
             edges: vec![edge(0, 1), edge(3, 1), edge(3, 2)],
         };
         let (t, n) = (Item::Title, Item::Node);
+        // n3 feeds n2 inside the nested container, so it ranks before both titles.
         assert_eq!(
             title_links(&input),
-            vec![(t(0), t(1)), (t(0), n(0)), (t(1), n(2)), (n(3), t(1))]
+            vec![
+                (t(0), t(1)),
+                (t(0), n(0)),
+                (n(3), t(0)),
+                (t(1), n(2)),
+                (n(3), t(1))
+            ]
         );
         input.direction = Direction::Up;
         assert_eq!(
