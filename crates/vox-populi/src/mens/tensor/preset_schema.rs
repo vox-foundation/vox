@@ -66,7 +66,7 @@ pub const DEFAULT_PRESET: &str = "4080";
 pub use crate::mens::tensor::spoke_base_resolver::KNOWN_PRESETS;
 
 /// Size classes on the REAL Qwen3 dense ladder (0.6/1.7/4/8/14/32B). 1.7B and 4B
-/// have no class yet and fall to `Other`: per-size presets are Phase 318's SIZE-02.
+/// got their classes with their presets in Phase 318 (SIZE-02).
 ///
 /// The previous classes matched 0.8b/2b/4b/9b — NONE of which exist on the real
 /// ladder, so the OOM safety clamps in [`apply_qwen_size_ladder_policy`] never fired.
@@ -75,6 +75,10 @@ pub use crate::mens::tensor::spoke_base_resolver::KNOWN_PRESETS;
 enum QwenSizeClass {
     /// ~0.6B — CPU / dev smoke tier.
     S0p6,
+    /// ~1.7B — 6 GB class.
+    S1p7,
+    /// ~4B — 10-12 GB class.
+    S4,
     /// ~8B — 16 GB tier (RTX 4080 Super).
     S8,
     /// ~14B — 24/48 GB tier.
@@ -103,6 +107,10 @@ fn detect_qwen_size_class(model_hint: Option<&str>) -> Option<QwenSizeClass> {
         QwenSizeClass::S14
     } else if near(8.0) {
         QwenSizeClass::S8
+    } else if near(4.0) {
+        QwenSizeClass::S4
+    } else if near(1.7) {
+        QwenSizeClass::S1p7
     } else if near(0.6) {
         QwenSizeClass::S0p6
     } else {
@@ -132,7 +140,7 @@ fn apply_qwen_size_ladder_policy(
             }
             p.grad_accum = p.grad_accum.max(4);
         }
-        QwenSizeClass::S8 => {
+        QwenSizeClass::S1p7 | QwenSizeClass::S4 | QwenSizeClass::S8 => {
             // 16 GB-tier default rung: keep current 4080-class defaults; enforce safe floors.
             p.batch_size = p.batch_size.max(1);
             p.grad_accum = p.grad_accum.max(8);
@@ -853,13 +861,21 @@ mod qwen3_preset_tests {
     #[test]
     fn each_real_rung_maps_to_a_size_class() {
         // DEFAULTS F2: the size-class matcher must recognize every rung on the REAL
-        // dense ladder (0.6/8/14/32B). Previously it matched 0.8b/2b/4b/9b — none on
-        // the ladder — so the OOM safety clamps never fired.
+        // dense ladder (0.6/1.7/4/8/14/32B). Previously it matched 0.8b/2b/4b/9b —
+        // none on the ladder — so the OOM safety clamps never fired.
         use super::QwenSizeClass;
         let cases = [
             (
                 "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
                 QwenSizeClass::S0p6,
+            ),
+            (
+                "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+                QwenSizeClass::S1p7,
+            ),
+            (
+                "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",
+                QwenSizeClass::S4,
             ),
             (
                 "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",
@@ -890,11 +906,11 @@ mod qwen3_preset_tests {
         for (id, expected) in [
             (
                 "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
-                QwenSizeClass::Other,
+                QwenSizeClass::S1p7,
             ),
             (
                 "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",
-                QwenSizeClass::Other,
+                QwenSizeClass::S4,
             ),
             (
                 "Qwen/Qwen3-0.6B@32b0000000000000000000000000000000000000",
@@ -904,11 +920,11 @@ mod qwen3_preset_tests {
             // real pins contain `8b`.
             (
                 "/hf/hub/models--Qwen--Qwen3-1.7B/snapshots/70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
-                QwenSizeClass::Other,
+                QwenSizeClass::S1p7,
             ),
             (
                 "/hf/hub/models--Qwen--Qwen3-4B/snapshots/1cfa9a7208912126459214e8b04321603b3df60c",
-                QwenSizeClass::Other,
+                QwenSizeClass::S4,
             ),
             (
                 "/hf/hub/models--Qwen--Qwen3-8B/snapshots/14b32b0000000000000000000000000000000000",

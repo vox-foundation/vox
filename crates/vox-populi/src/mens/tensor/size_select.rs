@@ -127,6 +127,39 @@ pub fn select_size(
     }))
 }
 
+/// Re-check a pick right before download or load (D-05). An automatic pick that
+/// still fits is kept (never stepped up); one that no longer fits steps down to
+/// the largest size that does, with a note saying why. An explicit size is
+/// re-judged as explicit: refused (never stepped down) when it no longer fits.
+pub fn recheck_before_load(
+    pick: SizePick,
+    overlay: &HashMap<String, Vec<TrainBase>>,
+    free_now: Option<&FreeMemory>,
+    force: bool,
+) -> anyhow::Result<SizePick> {
+    if pick.explicit {
+        return explicit_pick(&pick.rung, free_now, force);
+    }
+    let Some(free) = free_now else {
+        bail!("{NO_READING}")
+    };
+    if fits(&pick.rung, free) {
+        return Ok(pick);
+    }
+    let ladder = size_ladder(overlay)?;
+    let rung = largest_fit(&ladder, free)?;
+    let old = &pick.rung;
+    let note = format!(
+        "stepped down from {} to {}: free memory fell to {} MB ({}); {} needs {} MB",
+        old.size, rung.size, free.mb, free.source, old.size, old.floor_mb
+    );
+    Ok(SizePick {
+        rung: rung.clone(),
+        explicit: false,
+        note,
+    })
+}
+
 /// The pin for a requested base. `None` is [`crate::mens::DEFAULT_MODEL_ID`]; a
 /// `repo@<40 hex>` pin passes through; a size name (`Qwen3-8B`) or bare repo id
 /// (`Qwen/Qwen3-8B`) resolves to the single distinct pinned `hf_id` across all
@@ -617,5 +650,64 @@ mod tests {
         for part in ["Qwen3-1234B", "Qwen3-8B", "Qwen3-0.6B"] {
             assert!(msg.contains(part), "{part}: {msg}");
         }
+    }
+
+    // ---- re-check before load (D-05) ----
+
+    fn recheck(pick: SizePick, free_mb: Option<u64>, force: bool) -> anyhow::Result<SizePick> {
+        let f = free_mb.map(free);
+        recheck_before_load(pick, &repo_overlay(), f.as_ref(), force)
+    }
+
+    #[test]
+    fn recheck_keeps_an_auto_pick_that_still_fits() {
+        let pick = auto(13_000);
+        let again = recheck(pick.clone(), Some(200_000), false).expect("still fits");
+        assert_eq!(again.rung.size, "8B", "never steps up");
+        assert!(!again.explicit);
+        assert_eq!(again.note, pick.note);
+    }
+
+    #[test]
+    fn recheck_steps_an_auto_pick_down_and_says_why() {
+        let pick = auto(21_000);
+        assert_eq!(pick.rung.size, "14B");
+        let down = recheck(pick, Some(13_000), false).expect("8B still fits");
+        assert_eq!(down.rung.size, "8B");
+        assert!(!down.explicit);
+        for part in ["stepped down", "14B", "8B", "13000", "20000"] {
+            assert!(down.note.contains(part), "{part}: {}", down.note);
+        }
+    }
+
+    #[test]
+    fn recheck_refuses_an_auto_pick_without_a_reading() {
+        let msg = format!(
+            "{:#}",
+            recheck(auto(13_000), None, false).expect_err("no reading")
+        );
+        assert!(msg.contains("no live free-memory reading"), "{msg}");
+    }
+
+    #[test]
+    fn recheck_refuses_when_nothing_fits_any_more() {
+        let msg = format!(
+            "{:#}",
+            recheck(auto(13_000), Some(1_000), false).expect_err("nothing fits")
+        );
+        assert!(msg.contains("0.6B"), "{msg}");
+    }
+
+    #[test]
+    fn recheck_never_steps_an_explicit_size_down() {
+        let pick = sized(explicit("Qwen3-14B", None, false).expect("kept unchecked"));
+        let msg = format!(
+            "{:#}",
+            recheck(pick.clone(), Some(13_000), false).expect_err("refused, not shrunk")
+        );
+        assert!(msg.contains("refusing"), "{msg}");
+        let forced = recheck(pick, Some(13_000), true).expect("forced");
+        assert_eq!(forced.rung.size, "14B");
+        assert!(forced.explicit);
     }
 }
