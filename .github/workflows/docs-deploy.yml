@@ -109,6 +109,12 @@ jobs:
         working-directory: docs-astro
         run: pnpm build
 
+      # ngi.video's catalog compares this SHA with main to tell whether the live
+      # docs are current. GITHUB_SHA is read in the shell, not interpolated.
+      - name: Write health.json
+        working-directory: docs-astro
+        run: printf '{"ok":true,"sha":"%s"}\n' "$GITHUB_SHA" > dist/health.json
+
       # ── GitHub Pages Deploy ─────────────────────────────────────────────
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
