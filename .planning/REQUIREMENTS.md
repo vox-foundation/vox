@@ -25,7 +25,7 @@
 ### Model sizes (`SIZE`) — added 2026-10-26
 
 - [x] **SIZE-01**: The ladder pins all six Qwen3 dense sizes (0.6B, 1.7B, 4B, 8B, 14B, 32B), each with a real Hugging Face commit and a license. A rung whose memory floor has not been measured on hardware says so.
-- [ ] **SIZE-02**: One selector reads current free memory (Metal live budget, CUDA free VRAM) and titrates to the largest ladder size whose predicted footprint fits, stepping down if free memory drops before load. The hub and its spokes are picked together: one base size, with each spoke's base and preset following it. An explicit size overrides the pick, and a size that does not fit is refused rather than silently shrunk. Training, local serve, and chat all use this selector, replacing the fixed tiers in `auto_select.rs`.
+- [x] **SIZE-02**: One selector reads current free memory (Metal live budget, CUDA free VRAM) and titrates to the largest ladder size whose predicted footprint fits, stepping down if free memory drops before load. The hub and its spokes are picked together: one base size, with each spoke's base and preset following it. An explicit size overrides the pick, and a size that does not fit is refused rather than silently shrunk. Training, local serve, and chat all use this selector, replacing the fixed tiers in `auto_select.rs`.
 - [ ] **MESH-01**: Node heartbeats carry current free accelerator memory. Across a mesh, the selector picks the largest size that fits on some node, routes the job there, and titrates down when no node fits. A stale or missing reading is not treated as free memory.
 - [ ] **SIZE-03**: Each size that fits this Mac is QLoRA-trained on Metal with the lane prefix, and its adapter manifest names its pinned base. A size that does not fit is recorded as not trained, with the measured memory.
 
@@ -58,7 +58,7 @@
 | `BENCH-02` | Phase 314 | Complete |
 | `BENCH-03` | Phase 314 | Complete |
 | `SIZE-01` | Phase 317 | Complete |
-| `SIZE-02` | Phase 318 | Pending |
+| `SIZE-02` | Phase 318 | Complete |
 | `MESH-01` | Phase 319 | Pending |
 | `SIZE-03` | Phase 320 | Pending |
 | `HARN-01` | Phase 321 | Pending |

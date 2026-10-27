@@ -3,7 +3,7 @@
 # Roadmap: v5.6 — Reasoning Where the Lane Needs It
 
 **Milestone:** v5.6
-**Status:** Phase 317 complete — ready for phase 318. Extended 2026-10-26: not complete until at least two Qwen3 sizes have real trained before/after scores.
+**Status:** Phase 318 complete — Phase 320 runs next (ahead of 319, user decision 2026-10-27). Extended 2026-10-26: not complete until at least two Qwen3 sizes have real trained before/after scores.
 **Updated:** 2026-10-26
 
 ### Phase 313: Lane Prefix (`LANE-01`, `LANE-02`)
@@ -106,10 +106,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] `318-01` (wave 1): Selector core in `vox-populi` `mens::tensor::size_select` — live free-memory reading, six-size ladder with presets (new `qwen3_6g`, `qwen3_12g`), automatic pick, explicit sizes (`resolve_base_pin` moved here), re-check before load
-- [ ] `318-02` (wave 2): Training — one pick in `run_train`, re-check before the download in `gpu.rs`, live mode for pipeline and `--domain` spokes, Metal default-base path deleted, how-to
-- [ ] `318-03` (wave 2): Inference — orchestrator auto-select on the selector with its `vox chat --model auto-local` and GUI-command consumers in the same commit (fake tiers and registry candidates deleted), `vox mens serve` pre-load fit check
-- [ ] `318-04` (wave 3): GUI recommendation TypeScript type and e2e mock in the new shape; how-to for serve (conservative fit check) and auto-local
+- [x] `318-01` (wave 1): Selector core in `vox-populi` `mens::tensor::size_select` — live free-memory reading, six-size ladder with presets (new `qwen3_6g`, `qwen3_12g`), automatic pick, explicit sizes (`resolve_base_pin` moved here), re-check before load
+- [x] `318-02` (wave 2): Training — one pick in `run_train`, re-check before the download in `gpu.rs`, live mode for pipeline and `--domain` spokes, Metal default-base path deleted, how-to
+- [x] `318-03` (wave 2): Inference — orchestrator auto-select on the selector with its `vox chat --model auto-local` and GUI-command consumers in the same commit (fake tiers and registry candidates deleted), `vox mens serve` pre-load fit check
+- [x] `318-04` (wave 3): GUI recommendation TypeScript type and e2e mock in the new shape; how-to for serve (conservative fit check) and auto-local (completed 2026-10-27)
 
 ### Phase 319: Mesh-Wide Selection (`MESH-01`)
 
@@ -155,7 +155,7 @@ Plans:
 | **Phase 315** | Serve Gate | `2/2` | Complete |
 | **Phase 316** | Before/After Comparison | `1/1` | Complete |
 | **Phase 317** | Size Ladder | `1/1` | Complete |
-| **Phase 318** | Live VRAM Selector | `0/4` | Planned |
+| **Phase 318** | Live VRAM Selector | `4/4` | Complete |
 | **Phase 319** | Mesh-Wide Selection | `0/0` | Not started |
 | **Phase 320** | Train the Sizes | `0/0` | Not started |
 | **Phase 321** | Harness Before/After | `0/0` | Not started |
