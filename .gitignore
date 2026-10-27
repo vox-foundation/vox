@@ -193,6 +193,10 @@ docs/book/
 !**/tests/fixtures/**/*.log
 # Exception: the KB retrieval-eval golden set (corpus snapshot + queries) is a tracked contract.
 !contracts/kb/eval/*.jsonl
+# Exception: nightly harness-eval results (`vox harness publish` writes one runs/<run_id>.jsonl per
+# run) are tracked history; without this the results-PR step in harness-eval-nightly.yml sees a
+# clean `git status` and never opens a PR (#584).
+!docs/harness-eval-history/runs/*.jsonl
 # Exception: the KB sanitizer red-team payload set (ASCII-escaped) is a tracked contract.
 !contracts/kb/redteam/*.jsonl
 
