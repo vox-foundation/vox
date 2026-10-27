@@ -75,6 +75,22 @@ test('assertNoMisses lists every miss', () => {
   assert.doesNotThrow(() => assertNoMisses());
 });
 
+test('a miss in a mounted repo page names its real source, not docs/src (WR-05)', () => {
+  resetMisses();
+  const run = remarkVoxDiagram({ manifestPath: NO_MANIFEST, strict: false });
+  const mounted = '/r/docs-astro/src/content/docs/repo/agents-md.md';
+  run(fenceTree(SOURCE), { path: mounted, data: { astro: { frontmatter: { mounted_from: 'AGENTS.md' } } } });
+  run(fenceTree(SOURCE), { path: '/r/docs-astro/src/content/docs/repo/crates-x-readme-md.md', data: {} });
+  assert.throws(
+    () => assertNoMisses(),
+    (err) =>
+      err.message.includes('  AGENTS.md fence 1') &&
+      err.message.includes('docs-astro/src/content/docs/repo/crates-x-readme-md.md fence 1') &&
+      !err.message.includes('docs/src/repo/'),
+  );
+  resetMisses();
+});
+
 // ---- Task 2: parser, ids, slug, near-miss, figure shape, pipeline, key parity ----
 
 const goldens = (dir) =>
