@@ -445,20 +445,30 @@ pub async fn run_live(
     for task in tasks {
         if ceiling_reached {
             skip_count += 1;
-            task_results.push(vox_db::HarnessEvalTaskResultRecord {
-                run_id: run_id.clone(),
-                task_id: task.id.to_string(),
-                category: task.category.to_string(),
-                checker_kind: "deterministic".to_string(),
-                status: "skip".to_string(),
-                pass_samples: 0,
-                total_samples: 0,
-                latency_p50_ms: None,
-                cost_usd: None,
-                failure_detail: Some("cost ceiling reached; remaining tasks skipped".to_string()),
-                recorded_at_ms: now_ms(),
-            });
+            task_results.push(skipped_task_record(
+                &run_id,
+                &task,
+                "cost ceiling reached; remaining tasks skipped",
+            ));
             continue;
+        }
+
+        if task.category == "privacy" {
+            let local_backend = vox_actor_runtime::inference_env::probe_populi_capabilities_cached(
+                &vox_config::inference::local_ollama_populi_base_url(),
+                std::time::Duration::from_secs(60),
+            )
+            .await;
+            let chat_pin =
+                vox_config::inference::forced_model_for(vox_config::inference::ModelRole::Chat);
+            if let Some(reason) =
+                privacy_task_skip_reason(local_backend.reachable, chat_pin.as_deref())
+            {
+                println!("skipping {}: {reason}", task.id);
+                skip_count += 1;
+                task_results.push(skipped_task_record(&run_id, &task, &reason));
+                continue;
+            }
         }
 
         let privacy_scope = if task.category == "privacy" {
@@ -471,7 +481,7 @@ pub async fn run_live(
         let mut first_failure = None;
         let mut latencies = Vec::with_capacity(samples);
         let mut task_cost_usd = 0.0;
-        for _ in 0..samples {
+        for sample in 0..samples {
             // Checked before EVERY live call, not once per task (spec §6.3) — a task's own
             // --samples loop must not be able to blow past the ceiling before the next check.
             if total_cost_usd >= LIVE_EVAL_COST_CEILING_USD {
@@ -484,7 +494,10 @@ pub async fn run_live(
                 break;
             }
             let turn_start = Instant::now();
-            match run_one_turn(&state, task.prompt).await {
+            // A fresh chat session per sample: without one every turn lands in the shared
+            // "default" session, so earlier replies leak into later samples' history.
+            let session_id = format!("harness-eval-{run_id}-{}-{sample}", task.id);
+            match run_one_turn(&state, task.prompt, &session_id).await {
                 Ok(turn) => {
                     total_cost_usd += turn.cost_usd;
                     task_cost_usd += turn.cost_usd;
@@ -614,16 +627,20 @@ pub async fn run_live(
 async fn run_one_turn(
     state: &vox_orchestrator_mcp::server_state::ServerState,
     prompt: &str,
+    session_id: &str,
 ) -> anyhow::Result<EvalTurnResult> {
     use vox_orchestrator_mcp::chat_tools::chat::chat_message;
     use vox_orchestrator_mcp::chat_tools::params::ChatMessageParams;
 
     // `ChatMessageParams` derives `Deserialize` only (no `Default`) — every field but `prompt`
-    // is `#[serde(default)]`, so deserializing a single-key JSON object is the real, already
+    // is `#[serde(default)]`, so deserializing a small JSON object is the real, already
     // -established way to build one with sane defaults (mirrors `message.rs`'s own
     // `chat_message_envelope_includes_latency_ms` test).
-    let params: ChatMessageParams = serde_json::from_value(serde_json::json!({ "prompt": prompt }))
-        .map_err(|e| anyhow::anyhow!("failed to build ChatMessageParams: {e}"))?;
+    let params: ChatMessageParams = serde_json::from_value(serde_json::json!({
+        "prompt": prompt,
+        "session_id": session_id,
+    }))
+    .map_err(|e| anyhow::anyhow!("failed to build ChatMessageParams: {e}"))?;
     let envelope_str = chat_message(state, params).await;
     let envelope: serde_json::Value = serde_json::from_str(&envelope_str)
         .map_err(|e| anyhow::anyhow!("chat_message envelope was not valid JSON: {e}"))?;
@@ -750,6 +767,48 @@ async fn build_eval_server_state() -> anyhow::Result<vox_orchestrator_mcp::serve
     ))
 }
 
+/// Why a "privacy" task cannot exercise local-only routing here, if it cannot. Without a
+/// reachable local Ollama backend there is no model it could legitimately pick (the CI runner
+/// has none), and a strict chat pin bypasses routing, so neither case says anything about
+/// local-only enforcement; both are skips, not failures.
+fn privacy_task_skip_reason(
+    local_backend_reachable: bool,
+    chat_pin: Option<&str>,
+) -> Option<String> {
+    if let Some(pin) = chat_pin {
+        return Some(format!(
+            "chat model is pinned to {pin}, which bypasses local-only routing"
+        ));
+    }
+    if !local_backend_reachable {
+        return Some(
+            "the local Ollama backend is not reachable, so local-only routing has no model to pick"
+                .to_string(),
+        );
+    }
+    None
+}
+
+fn skipped_task_record(
+    run_id: &str,
+    task: &LiveEvalTask,
+    reason: &str,
+) -> vox_db::HarnessEvalTaskResultRecord {
+    vox_db::HarnessEvalTaskResultRecord {
+        run_id: run_id.to_string(),
+        task_id: task.id.to_string(),
+        category: task.category.to_string(),
+        checker_kind: "deterministic".to_string(),
+        status: "skip".to_string(),
+        pass_samples: 0,
+        total_samples: 0,
+        latency_p50_ms: None,
+        cost_usd: None,
+        failure_detail: Some(reason.to_string()),
+        recorded_at_ms: now_ms(),
+    }
+}
+
 fn scoped_local_only_env() -> impl Drop {
     struct Guard;
     impl Drop for Guard {
@@ -808,6 +867,16 @@ fn git_branch() -> anyhow::Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn privacy_tasks_run_only_with_a_reachable_local_backend_and_no_chat_pin() {
+        assert_eq!(privacy_task_skip_reason(true, None), None);
+        let unreachable = privacy_task_skip_reason(false, None).expect("skip without a backend");
+        assert!(unreachable.contains("not reachable"), "{unreachable}");
+        let pinned = privacy_task_skip_reason(true, Some("anthropic/claude-haiku-5.5"))
+            .expect("skip under a chat pin");
+        assert!(pinned.contains("anthropic/claude-haiku-5.5"), "{pinned}");
+    }
 
     #[test]
     fn missing_api_keys_produce_a_skip_not_a_failure() {
