@@ -1,5 +1,6 @@
 //! Container finishing. The engine lays each title out as a box on top of the container's content
-//! (ranked before it top-down, first in the content's first column sideways), so a frame is only
+//! (ranked before it top-down, first in the content's first column sideways), which leaves a rank
+//! or a node gap between the two; the title is then snapped down to its content. A frame is only
 //! the box around what the container holds (its title box, its own nodes, its child frames and the
 //! labels of edges inside it) padded 8 px on every side. Nothing here reads the engine's own
 //! container rect, so engine slack never reaches a frame.
@@ -8,10 +9,15 @@ use std::cmp::Reverse;
 
 use super::verify::{crosses, encloses, overlap};
 use super::{Half, LayoutInput, PlacedContainer, PlacedEdge, Rect};
-use crate::ir::Direction;
 
 /// Padding between a frame and the box around its children, every side: 8 px.
 pub(crate) const CONTAINER_PAD: Half = 16;
+
+/// Gap between a title box and the content under it: 8 px.
+pub(crate) const TITLE_GAP: Half = 16;
+
+/// Step by which a title that cannot hug its content backs off towards the engine's spot: 2 px.
+pub(crate) const SNAP_STEP: Half = 4;
 
 /// Line pitch of a container title, px.
 pub(crate) const TITLE_STEP: Half = 16;
@@ -48,23 +54,64 @@ fn clear_of_edges(r: Rect, edges: &[PlacedEdge]) -> bool {
     })
 }
 
-/// The frame of every container, deepest first so a child frame exists before its parent's,
-/// and the title box it ends up with. Sideways, the title tops the content's first column; when
-/// content in another column sits higher, the title moves up to the content's top if nothing
-/// crosses it there. An edge label counts when both endpoints of its edge sit inside the
-/// container, or when one does and the label would otherwise straddle the frame.
+/// The frame of every container and the title box it ends up with: framed once with the engine's
+/// titles, then again with each title snapped to its content ([`snap`]). The first frames stand in
+/// for frames not yet final: a snap only ever shrinks a frame, so they are a safe superset.
 pub(crate) fn frames(
     input: &LayoutInput,
     nodes: &[Rect],
     titles: &[Rect],
     edges: &[PlacedEdge],
 ) -> Vec<PlacedContainer> {
+    let first: Vec<Rect> = pass(input, nodes, titles, edges, None)
+        .iter()
+        .map(|c| c.rect)
+        .collect();
+    pass(input, nodes, titles, edges, Some(&first))
+}
+
+/// Title `t` moved as close above its content `c` (the boxes `items`) as `free` allows:
+/// [`TITLE_GAP`] above the content under it, or level with the content's top when that is higher
+/// still (sideways, where the title tops one column), never above both the engine's spot and that
+/// top. A blocked spot backs off towards the engine's spot by [`SNAP_STEP`]; the engine's spot is
+/// the last resort.
+fn snap(t: Rect, c: Rect, items: &[Rect], free: impl Fn(Rect) -> bool) -> Rect {
+    let below = items
+        .iter()
+        .filter(|r| r.x < t.x + t.w && t.x < r.x + r.w)
+        .map(|r| r.y)
+        .min()
+        .unwrap_or(c.y);
+    let target = (below - TITLE_GAP - t.h).min(c.y).max(t.y.min(c.y));
+    let step = if target < t.y { SNAP_STEP } else { -SNAP_STEP };
+    let mut y = target;
+    while (t.y - y) * step > 0 {
+        let r = Rect { y, ..t };
+        if free(r) {
+            return r;
+        }
+        y += step;
+    }
+    t
+}
+
+/// One framing pass, deepest container first so a child frame exists before its parent's. With
+/// `first` (the frames of an earlier pass), each title is snapped to its content where it is clear
+/// of every edge, label, node and frame not holding it. An edge label counts when both endpoints of
+/// its edge sit inside the container, or when one does and the label would otherwise straddle the
+/// frame.
+fn pass(
+    input: &LayoutInput,
+    nodes: &[Rect],
+    titles: &[Rect],
+    edges: &[PlacedEdge],
+    first: Option<&[Rect]>,
+) -> Vec<PlacedContainer> {
     let n = input.containers.len();
     let mut order: Vec<usize> = (0..n).collect();
     order.sort_by_key(|&k| (Reverse(input.containers[k].depth), k));
     let mut rects: Vec<Option<Rect>> = vec![None; n];
     let mut placed_titles: Vec<Rect> = titles.to_vec();
-    let sideways = matches!(input.direction, Direction::Right | Direction::Left);
     for k in order {
         let Some(&dagre_title) = titles.get(k) else {
             continue;
@@ -87,14 +134,25 @@ pub(crate) fn frames(
             .zip(edges)
             .filter(|(e, _)| held(e.from) && held(e.to))
             .filter_map(|(_, p)| p.label);
-        let content = own.chain(subs).chain(inner).reduce(union);
-        let mut title = dagre_title;
-        if let Some(c) = content.filter(|c| sideways && c.y < title.y) {
-            let top = Rect { y: c.y, ..title };
-            if clear_of_edges(top, edges) {
-                title = top;
+        let items: Vec<Rect> = own.chain(subs).chain(inner).collect();
+        let content = items.iter().copied().reduce(union);
+        let title = match (first, content) {
+            (Some(first), Some(c)) => {
+                let foreign = |r: Rect| {
+                    (0..n).any(|j| {
+                        !encloses(input, j, Some(k))
+                            && rects[j]
+                                .or(first.get(j).copied())
+                                .is_some_and(|f| overlap(f, r))
+                    })
+                };
+                let free = |r: Rect| {
+                    clear_of_edges(r, edges) && !nodes.iter().any(|x| overlap(*x, r)) && !foreign(r)
+                };
+                snap(dagre_title, c, &items, free)
             }
-        }
+            _ => dagre_title,
+        };
         let mut b = content.map_or(title, |c| union(c, title));
         let touching: Vec<Rect> = input
             .edges
@@ -199,10 +257,36 @@ mod tests {
         // The inner edge's label widens the inner frame; the label of the edge from outside does not.
         let edges = [edge(rect(240, 300, 40, 20)), edge(rect(600, 600, 40, 20))];
         let f = frames(&input, &nodes, &titles, &edges);
-        assert_eq!(f[1].rect, rect(84, 104, 360, 232));
-        assert_eq!(f[0].rect, rect(68, 24, 392, 328));
-        assert_eq!(f[0].title, titles[0]);
+        // Each title snaps to 8 px above its content: the inner one above its nodes (y 148), the
+        // outer one above the inner frame (y 80).
+        assert_eq!(f[1].title, rect(200, 148, 40, 36));
+        assert_eq!(f[1].rect, rect(84, 132, 360, 204));
+        assert_eq!(f[0].title, rect(150, 80, 40, 36));
+        assert_eq!(f[0].rect, rect(68, 64, 392, 288));
         assert_eq!(f[1].title_lines, vec!["T".to_owned()]);
+    }
+
+    /// Phase 90 review WR-01: the title leaves the engine's rank gap and sits 8 px above its
+    /// content, unless something is in the way; then it stops at the lowest clear spot.
+    #[test]
+    fn a_title_snaps_down_to_its_content_and_stops_short_of_an_edge() {
+        let t = rect(100, 0, 40, 36);
+        let items = [rect(80, 200, 128, 76)];
+        let snapped = snap(t, items[0], &items, |_| true);
+        assert_eq!(snapped, rect(100, 148, 40, 36));
+        // A horizontal edge at y 150 blocks every spot from 115 (its box reaches 151) down.
+        let edges = [PlacedEdge {
+            points: vec![(0, 150), (400, 150)],
+            label: None,
+        }];
+        let stopped = snap(t, items[0], &items, |r| clear_of_edges(r, &edges));
+        assert_eq!(stopped, rect(100, 112, 40, 36));
+        // Fully blocked: the engine's spot.
+        assert_eq!(snap(t, items[0], &items, |_| false), t);
+        // Sideways, content higher beside the title: the title tops the content, no higher.
+        let beside = [rect(80, 200, 128, 76), rect(400, 10, 128, 76)];
+        let c = union(beside[0], beside[1]);
+        assert_eq!(snap(rect(100, 120, 40, 36), c, &beside, |_| true).y, 10);
     }
 
     #[test]

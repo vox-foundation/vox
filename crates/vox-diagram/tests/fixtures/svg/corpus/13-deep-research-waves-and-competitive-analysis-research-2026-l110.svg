@@ -7,8 +7,8 @@
 </marker>
 </defs>
 <g class="vd-containers">
-<rect class="vd-container" x="16" y="297" width="668" height="1235" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
-<text class="vd-container-label" x="137.5" y="319" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="137.5" dy="0">Autonomous Multi-Wave DAG</tspan><tspan x="137.5" dy="16">Engine</tspan></text>
+<rect class="vd-container" x="16" y="360" width="603.5" height="1172" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-container-label" x="137.5" y="382" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="137.5" dy="0">Autonomous Multi-Wave DAG</tspan><tspan x="137.5" dy="16">Engine</tspan></text>
 </g>
 <g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
 <path class="vd-edge" d="M350 448L350 508" marker-end="url(#vd-arrow)"/>

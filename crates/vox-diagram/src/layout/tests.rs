@@ -370,3 +370,4 @@ fn an_edge_through_a_node_escalates_the_rung_and_never_rejects_the_diagram() {
 mod containers;
 mod coords;
 mod feeds;
+mod titles;
