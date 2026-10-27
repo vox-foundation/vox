@@ -278,8 +278,8 @@ fn explicit_pick(
             if !force {
                 bail!(
                     "explicit size {size} needs {floor} MB but {} MB is free ({}); refusing \
-                     rather than shrinking. Choose a smaller size (training: \
-                     VOX_MENS_FORCE_TRAIN=1 overrides)",
+                     rather than shrinking. Choose a smaller size \
+                     (VOX_MENS_FORCE_TRAIN=1 overrides)",
                     f.mb,
                     f.source
                 );

@@ -152,8 +152,9 @@ pub(super) fn recheck_size_pick(
 /// `VOX_MENS_FORCE_TRAIN=1`/`true` — the registered operator override
 /// meaning "proceed past a failing gate": the explicit-size fit refusal here
 /// and the post-download `plan_for`/`sweep` VRAM-fit refusal in `gpu.rs`,
-/// which runs for every CUDA run regardless of how sizing was chosen.
-pub(super) fn force_train_env() -> bool {
+/// which runs for every CUDA run regardless of how sizing was chosen. `vox mens
+/// serve` honors it for its fit check too.
+pub(crate) fn force_train_env() -> bool {
     std::env::var("VOX_MENS_FORCE_TRAIN")
         .ok()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))

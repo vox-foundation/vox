@@ -137,12 +137,13 @@ curl -s http://127.0.0.1:11435/v1/models
 Right before it loads the model, `vox mens serve` re-reads free memory. When
 the run's `training_manifest.json` names a Qwen3 ladder base whose `floor_mb`
 does not fit, serve refuses and prints the floor and the free MB. It never
-swaps in a smaller base, and serve has no force override. A base off the
-ladder, a run that did not record one, or a host with no Metal or NVIDIA
-reading is served as before. The check is conservative: `floor_mb` is the
-size's QLoRA training floor, used here as the inference footprint, so serve can
-refuse a base that would load for inference alone. On such a host, serve on a
-machine with more free memory or train a smaller size. `vox chat --model
+swaps in a smaller base. A base off the ladder, a run that did not record one,
+or a host with no Metal or NVIDIA reading is served as before. The check is
+conservative: `floor_mb` is the size's QLoRA training floor, used here as the
+inference footprint, so serve can refuse a base that would load for inference
+alone. On such a host, set `VOX_MENS_FORCE_TRAIN=1` (the same override
+training uses) to serve it anyway, or serve on a machine with more free memory.
+`vox chat --model
 auto-local` and the GUI's local-model recommendation use the same pick as
 training: the largest Qwen3 size whose floor fits free memory, or an error
 saying why none can be picked.
