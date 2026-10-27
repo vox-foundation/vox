@@ -54,6 +54,15 @@ vox mens train --backend qlora --tokenizer hf --device metal \
   --fast-corpus
 ```
 
+`--max-runtime-secs` caps local Metal runs, not only cloud runs. The clock
+starts at the first training step (model loading does not count). When the
+limit passes, training stops at the next optimizer step, always after at least
+one, and still writes the adapter. `run_summary.json` then has
+`"capped": true`. For Qwen3 runs pass `--seq-len 3072` so the system prompt
+fits without middle truncation. `run_summary.json` reports `truncated_rows` and
+`prompt_trimmed_rows`, the rows that were still cut or had their prompt
+trimmed.
+
 The run directory must contain `tokenizer.json` and the trainer manifest,
 adapter, and configuration artifacts. Before serving an adapter, it must also
 contain `collateral_damage_report.json` with `"status": "pass"`. Generate it
@@ -122,6 +131,39 @@ Every rung's `floor_mb` is an estimate until it is measured on hardware
 (`floor_measured: false`). For such a rung the compare command and
 `vox mens train` print `floor unmeasured` on stderr, and the compare record
 carries `floor_measured: false`.
+
+### Check a run before training
+
+Add `--plan-only` to a `vox mens train` command to resolve the run without
+running it. It prints the free-memory reading and its source, the size pick
+and its reason, the pin, preset, `seq_len` and epochs, whether the pinned
+snapshot is cached, the corpus path and row count, the held-out contamination
+result, and the license class. It then exits 0. It does not download, load
+weights or train. A run that would refuse before the download refuses the same
+way under `--plan-only`. Add `--json` to get one JSON object on stdout instead,
+with schema `vox_mens_train_plan_v1`:
+
+```bash
+vox mens train --backend qlora --device metal --model Qwen3-1.7B \
+  --data-dir target/dogfood --seq-len 3072 --plan-only --json
+```
+
+Training refuses a corpus that contains a held-out evaluation question. Every
+row is checked against the questions in `mens/data/*_think/reasoning.jsonl`,
+ignoring case, punctuation and spacing. A row that contains one is refused, and
+the error lists its line numbers so you can remove those rows.
+
+### Run records
+
+Every local run that is not `--plan-only` writes `train-record.json` to its
+output directory, whether it succeeds or fails. `status` is `trained`, `capped`
+or `not_trained`. The record also holds the requested model, pin, size and
+preset, optimizer and micro steps, final loss, peak memory in MB (`peak_mb`,
+with `peak_source`), training and total wall time, truncation counts and the
+host GPU. The status comes only from this run's own files. A `run_summary.json`
+older than the run's start is ignored, so a reused output directory cannot
+make a failed run look trained. A run that runs out of memory is `not_trained`;
+its peak comes from this run's telemetry, and `reason` holds the error.
 
 ## Serve and pin from Drive
 
