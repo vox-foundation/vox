@@ -7,6 +7,8 @@
 
 use std::cmp::Reverse;
 
+use super::input::TITLE_PAD;
+use super::text::{WRAP_CELLS, cells, measure, pad_x, wrap_at};
 use super::verify::{crosses, encloses, overlap};
 use super::{Half, LayoutInput, PlacedContainer, PlacedEdge, Rect};
 
@@ -95,6 +97,37 @@ fn snap(t: Rect, c: Rect, items: &[Rect], free: impl Fn(Rect) -> bool) -> Rect {
     t
 }
 
+/// Title `t` (wrapped as `lines`) re-wrapped at the widest line limit whose box still fits the
+/// content `c`'s width, when that takes fewer lines: the box keeps its bottom edge and its centre,
+/// clamped so it stays over the content. A title wraps at the node width before layout, so without
+/// this a wide frame carries a narrow, stacked title.
+fn widen(label: &str, t: Rect, c: Rect, lines: &[String]) -> Option<(Rect, Vec<String>)> {
+    let mut best = None;
+    for limit in WRAP_CELLS + 1..=cells(label) {
+        let wrapped = wrap_at(label, limit);
+        let widest = wrapped.iter().map(|l| measure(l)).max().unwrap_or(0);
+        let w = widest + 2 * pad_x(widest, TITLE_PAD);
+        if w > c.w {
+            break;
+        }
+        if wrapped.len() < lines.len() {
+            best = Some((w, wrapped));
+        }
+    }
+    let (w, wrapped) = best?;
+    let h = title_h(wrapped.len());
+    let x = (t.x + t.w / 2 - w / 2).clamp(c.x, c.x + c.w - w);
+    Some((
+        Rect {
+            x,
+            y: t.y + t.h - h,
+            w,
+            h,
+        },
+        wrapped,
+    ))
+}
+
 /// One framing pass, deepest container first so a child frame exists before its parent's. With
 /// `first` (the frames of an earlier pass), each title is snapped to its content where it is clear
 /// of every edge, label, node and frame not holding it. An edge label counts when both endpoints of
@@ -112,6 +145,11 @@ fn pass(
     order.sort_by_key(|&k| (Reverse(input.containers[k].depth), k));
     let mut rects: Vec<Option<Rect>> = vec![None; n];
     let mut placed_titles: Vec<Rect> = titles.to_vec();
+    let mut placed_lines: Vec<Vec<String>> = input
+        .containers
+        .iter()
+        .map(|c| c.title_lines.clone())
+        .collect();
     for k in order {
         let Some(&dagre_title) = titles.get(k) else {
             continue;
@@ -136,6 +174,7 @@ fn pass(
             .filter_map(|(_, p)| p.label);
         let items: Vec<Rect> = own.chain(subs).chain(inner).collect();
         let content = items.iter().copied().reduce(union);
+        let mut lines = input.containers[k].title_lines.clone();
         let title = match (first, content) {
             (Some(first), Some(c)) => {
                 let foreign = |r: Rect| {
@@ -149,7 +188,16 @@ fn pass(
                 let free = |r: Rect| {
                     clear_of_edges(r, edges) && !nodes.iter().any(|x| overlap(*x, r)) && !foreign(r)
                 };
-                snap(dagre_title, c, &items, free)
+                let wide = widen(&input.containers[k].label, dagre_title, c, &lines)
+                    .map(|(t, l)| (snap(t, c, &items, free), l))
+                    .filter(|(t, _)| free(*t));
+                match wide {
+                    Some((t, l)) => {
+                        lines = l;
+                        t
+                    }
+                    None => snap(dagre_title, c, &items, free),
+                }
             }
             _ => dagre_title,
         };
@@ -170,16 +218,16 @@ fn pass(
         }
         rects[k] = Some(pad(b));
         placed_titles[k] = title;
+        placed_lines[k] = lines;
     }
-    input
-        .containers
-        .iter()
-        .zip(rects)
+    rects
+        .into_iter()
         .zip(placed_titles)
-        .map(|((c, r), title)| PlacedContainer {
+        .zip(placed_lines)
+        .map(|((r, title), title_lines)| PlacedContainer {
             rect: r.unwrap_or(title),
             title,
-            title_lines: c.title_lines.clone(),
+            title_lines,
         })
         .collect()
 }
@@ -198,6 +246,7 @@ mod tests {
         LContainer {
             parent,
             depth,
+            label: "T".into(),
             title_lines: vec!["T".into()],
             title_w: 40,
             title_h: title_h(1),

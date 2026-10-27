@@ -306,6 +306,7 @@ mod tests {
         let title = |parent| LContainer {
             parent,
             depth: 1,
+            label: "T".into(),
             title_lines: vec!["T".into()],
             title_w: 40,
             title_h: 36,

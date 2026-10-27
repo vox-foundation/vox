@@ -35,7 +35,7 @@
 </g>
 </g>
 <g class="vd-edge-labels">
-<rect class="vd-edge-label-bg" x="134.5" y="298" width="46" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<rect class="vd-edge-label-bg" x="134.5" y="298" width="46" height="26" style="fill:var(--vd-container-fill,#f6f8fa);stroke:none"/>
 <text class="vd-edge-label" x="157.5" y="316" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="157.5" dy="0">reads</tspan></text>
 <rect class="vd-edge-label-bg" x="192.5" y="144" width="58.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
 <text class="vd-edge-label" x="221.5" y="162" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="221.5" dy="0">request</tspan></text>

@@ -107,13 +107,13 @@
 </g>
 </g>
 <g class="vd-edge-labels">
-<rect class="vd-edge-label-bg" x="353" y="718" width="172" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<rect class="vd-edge-label-bg" x="353" y="718" width="172" height="44" style="fill:var(--vd-container-fill,#f6f8fa);stroke:none"/>
 <text class="vd-edge-label" x="439" y="736" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="439" dy="0">Contradiction / Missing</tspan><tspan x="439" dy="18">Depth</tspan></text>
-<rect class="vd-edge-label-bg" x="416.5" y="1118" width="180.5" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<rect class="vd-edge-label-bg" x="416.5" y="1118" width="180.5" height="44" style="fill:var(--vd-container-fill,#f6f8fa);stroke:none"/>
 <text class="vd-edge-label" x="506.5" y="1136" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="506.5" dy="0">High Uncertainty / Code</tspan><tspan x="506.5" dy="18">Query</tspan></text>
-<rect class="vd-edge-label-bg" x="89.5" y="1043" width="145" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<rect class="vd-edge-label-bg" x="89.5" y="1043" width="145" height="26" style="fill:var(--vd-container-fill,#f6f8fa);stroke:none"/>
 <text class="vd-edge-label" x="162" y="1061" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="162" dy="0">Sufficient Evidence</tspan></text>
-<rect class="vd-edge-label-bg" x="283.5" y="1296" width="70.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<rect class="vd-edge-label-bg" x="283.5" y="1296" width="70.5" height="26" style="fill:var(--vd-container-fill,#f6f8fa);stroke:none"/>
 <text class="vd-edge-label" x="318.5" y="1314" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="318.5" dy="0">Sufficient</tspan></text>
 <rect class="vd-edge-label-bg" x="1008" y="208" width="162" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
 <text class="vd-edge-label" x="1089" y="226" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="1089" dy="0">Tier 0: Exact Memory</tspan></text>

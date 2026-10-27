@@ -14,7 +14,7 @@ use crate::svg::RenderError;
 const EDGE_LABEL_PAD: Half = 8;
 
 /// Room around a container title inside its title box: 10 px each side, in half-pixels.
-const TITLE_PAD: Half = 20;
+pub(crate) const TITLE_PAD: Half = 20;
 
 /// The wrapped label box of an edge; a missing, empty or blank label draws nothing.
 fn edge_label(label: Option<&str>) -> Option<LLabel> {
@@ -82,6 +82,7 @@ fn containers(g: &GraphIr) -> Result<(Vec<LContainer>, BTreeMap<&str, usize>), R
             depth: u32::try_from(depth).unwrap_or(u32::MAX),
             title_w: widest + 2 * pad_x(widest, TITLE_PAD),
             title_h: title_h(title_lines.len()),
+            label: c.label.clone(),
             title_lines,
         });
     }

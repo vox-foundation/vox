@@ -141,6 +141,7 @@ fn cont(parent: Option<usize>) -> LContainer {
     LContainer {
         parent,
         depth: 1,
+        label: "T".to_owned(),
         title_lines: vec!["T".to_owned()],
         title_w: 40,
         title_h: 36,

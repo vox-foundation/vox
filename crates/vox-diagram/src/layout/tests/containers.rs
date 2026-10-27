@@ -253,6 +253,7 @@ fn title(lines: &[&str]) -> LContainer {
         depth: 1,
         title_w: widest + 40,
         title_h: finish::title_h(lines.len()),
+        label: lines.join("\n"),
         title_lines: lines,
     }
 }

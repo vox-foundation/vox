@@ -76,6 +76,8 @@ pub(crate) struct LContainer {
     pub parent: Option<usize>,
     /// Nesting depth derived from parent links, a top-level container being 1.
     pub depth: u32,
+    /// The title as written, re-wrapped at the frame's width when that takes fewer lines.
+    pub label: String,
     /// The wrapped title.
     pub title_lines: Vec<String>,
     /// Size of the title box, laid out as a node ranked before the container's content.

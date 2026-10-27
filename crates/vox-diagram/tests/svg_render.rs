@@ -312,3 +312,33 @@ fn svg_cases() {
         );
     }
 }
+
+/// The `style` of every edge-label background rect, in edge order.
+fn label_bg_styles(svg: &str) -> Vec<&str> {
+    svg.split("class=\"vd-edge-label-bg\"")
+        .skip(1)
+        .filter_map(|s| s.split("style=\"").nth(1)?.split('"').next())
+        .collect()
+}
+
+#[test]
+fn an_edge_label_inside_a_container_is_backed_by_the_container_fill() {
+    let src = "graph {\n    direction: right\n    container c: \"Box\" {\n        node a: \"A\"\n        node b: \"B\"\n        a -> b: \"inside\"\n    }\n    node d: \"D\"\n    c.b -> d: \"outside\"\n}\n";
+    let svg = render_ok(&ir_of(src), &SvgOpts::default());
+    let styles = label_bg_styles(&svg);
+    assert_eq!(styles.len(), 2, "{svg}");
+    assert!(styles[0].contains("--vd-container-fill"), "{styles:?}");
+    assert!(styles[1].contains("--vd-bg"), "{styles:?}");
+}
+
+#[test]
+fn a_container_title_takes_one_line_when_its_content_is_wide_enough() {
+    let src = "graph {\n    direction: right\n    container c: \"Current Monolithic Stage Model\" {\n        node a: \"Stage Request\"\n        node b: \"Run Entire Stage on Primary Model\"\n        node d: \"Local Ollama then OpenRouter\"\n        a -> b\n        b -> d\n    }\n}\n";
+    let svg = render_ok(&ir_of(src), &SvgOpts::default());
+    let title = svg
+        .split("class=\"vd-container-label\"")
+        .nth(1)
+        .and_then(|s| s.split("</text>").next())
+        .unwrap_or_default();
+    assert_eq!(title.matches("<tspan").count(), 1, "{title}");
+}

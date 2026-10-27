@@ -58,9 +58,9 @@
 </g>
 </g>
 <g class="vd-edge-labels">
-<rect class="vd-edge-label-bg" x="224.5" y="124" width="44.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<rect class="vd-edge-label-bg" x="224.5" y="124" width="44.5" height="26" style="fill:var(--vd-container-fill,#f6f8fa);stroke:none"/>
 <text class="vd-edge-label" x="246.5" y="142" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="246.5" dy="0">down</tspan></text>
-<rect class="vd-edge-label-bg" x="776.5" y="66" width="25" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<rect class="vd-edge-label-bg" x="776.5" y="66" width="25" height="26" style="fill:var(--vd-container-fill,#f6f8fa);stroke:none"/>
 <text class="vd-edge-label" x="789" y="84" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="789" dy="0">up</tspan></text>
 </g>
 </svg>

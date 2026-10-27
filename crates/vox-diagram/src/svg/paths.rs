@@ -115,8 +115,9 @@ pub(super) fn write_edges(w: &mut Writer, input: &LayoutInput, placed: &Placed, 
     w.close("g");
 }
 
-/// Draw each edge label on a `--vd-bg` background rect, after the nodes; no group when no edge
-/// has a label.
+/// Draw each edge label on a background rect, after the nodes: `--vd-container-fill` when the
+/// label's centre is inside a frame (every frame shares that fill), `--vd-bg` otherwise; no group
+/// when no edge has a label.
 pub(super) fn write_edge_labels(w: &mut Writer, input: &LayoutInput, placed: &Placed) {
     let labels: Vec<_> = input
         .edges
@@ -127,9 +128,21 @@ pub(super) fn write_edge_labels(w: &mut Writer, input: &LayoutInput, placed: &Pl
     if labels.is_empty() {
         return;
     }
-    let bg = format!("fill:{};stroke:none", paint("--vd-bg"));
+    let framed = |r: Rect| {
+        let (cx, cy) = (r.x + r.w / 2, r.y + r.h / 2);
+        placed.containers.iter().any(|c| {
+            let f = c.rect;
+            f.x < cx && cx < f.x + f.w && f.y < cy && cy < f.y + f.h
+        })
+    };
     w.open("g", &[("class", "vd-edge-labels")]);
     for (l, r) in labels {
+        let fill = if framed(r) {
+            "--vd-container-fill"
+        } else {
+            "--vd-bg"
+        };
+        let bg = format!("fill:{};stroke:none", paint(fill));
         let (x, y, bw, bh) = (num(r.x), num(r.y), num(r.w), num(r.h));
         w.empty(
             "rect",

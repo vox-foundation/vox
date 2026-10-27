@@ -52,13 +52,13 @@
 <g class="vd-edge-labels">
 <rect class="vd-edge-label-bg" x="129.5" y="95" width="58" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
 <text class="vd-edge-label" x="158.5" y="113" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="158.5" dy="0">HTTPS</tspan></text>
-<rect class="vd-edge-label-bg" x="413.5" y="95" width="137" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<rect class="vd-edge-label-bg" x="413.5" y="95" width="137" height="26" style="fill:var(--vd-container-fill,#f6f8fa);stroke:none"/>
 <text class="vd-edge-label" x="482" y="113" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="482" dy="0">routes the request</tspan></text>
-<rect class="vd-edge-label-bg" x="748" y="72" width="58.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<rect class="vd-edge-label-bg" x="748" y="72" width="58.5" height="26" style="fill:var(--vd-container-fill,#f6f8fa);stroke:none"/>
 <text class="vd-edge-label" x="777" y="90" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="777" dy="0">append</tspan></text>
-<rect class="vd-edge-label-bg" x="1172.5" y="72" width="44.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<rect class="vd-edge-label-bg" x="1172.5" y="72" width="44.5" height="26" style="fill:var(--vd-container-fill,#f6f8fa);stroke:none"/>
 <text class="vd-edge-label" x="1194.5" y="90" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="1194.5" dy="0">apply</tspan></text>
-<rect class="vd-edge-label-bg" x="759" y="118" width="37" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<rect class="vd-edge-label-bg" x="759" y="118" width="37" height="26" style="fill:var(--vd-container-fill,#f6f8fa);stroke:none"/>
 <text class="vd-edge-label" x="777.5" y="136" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="777.5" dy="0">emit</tspan></text>
 </g>
 </svg>
