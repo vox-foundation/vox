@@ -144,7 +144,7 @@ To determine if a superior format exists, we evaluated four major candidates acr
 | **Runtime Dependencies** | JavaScript (Browser/Node) | Go binary or WASM | Java VM / Graphviz | C binary / WebAssembly | Zero (Pure Rust/JS) |
 | **AST Tooling in Rust** | Regex / Ad-hoc | Rust parser exists | External CLI | `layout-rs` / Graphviz | Native `serde` |
 
-> **Unsourced row.** The "LLM Syntax Error Rate" figures above cite no measurement and should not be read as evidence. For a measured comparison of VoxDiagram and Mermaid authoring validity, see [VoxDiagram authoring reliability findings](voxdiagram-authoring-reliability-findings-2026.md).
+> **Unsourced row.** The "LLM Syntax Error Rate" figures above cite no measurement and should not be read as evidence. For a measured comparison of VoxDiagram and Mermaid authoring validity, see [VoxDiagram authoring reliability findings](voxdiagram-authoring-reliability-findings-2026.md). That measurement does not support the Mermaid figure: on 200 tasks, two low-cost cloud models failed Mermaid at first pass 4.0% and 2.0% of the time, and VoxDiagram 2.0% and 2.5%, against the 18–35% claimed above.
 
 ### Detailed Findings by Candidate:
 
