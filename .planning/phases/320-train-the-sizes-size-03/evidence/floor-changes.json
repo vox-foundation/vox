@@ -1,0 +1,87 @@
+{
+  "measured_on": "silicon-gpu-metal",
+  "sizes": [
+    {
+      "size": "0.6B",
+      "pin": "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
+      "peak_mb": 23675,
+      "floor_mb_before": 2000,
+      "floor_mb_after": 23675,
+      "floor_measured": true
+    },
+    {
+      "size": "1.7B",
+      "pin": "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+      "peak_mb": 54583,
+      "floor_mb_before": 5000,
+      "floor_mb_after": 54583,
+      "floor_measured": true
+    },
+    {
+      "size": "4B",
+      "pin": "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",
+      "peak_mb": 1,
+      "floor_mb_before": 9800,
+      "floor_mb_after": 56000,
+      "floor_measured": false,
+      "estimate_only": true
+    },
+    {
+      "size": "8B",
+      "pin": "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",
+      "peak_mb": 1,
+      "floor_mb_before": 12000,
+      "floor_mb_after": 62000,
+      "floor_measured": false,
+      "estimate_only": true
+    },
+    {
+      "size": "14B",
+      "pin": "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",
+      "peak_mb": 1,
+      "floor_mb_before": 20000,
+      "floor_mb_after": 70000,
+      "floor_measured": false,
+      "methods": ["qlora"],
+      "estimate_only": true
+    },
+    {
+      "size": "32B",
+      "pin": "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",
+      "peak_mb": 1,
+      "floor_mb_before": 60000,
+      "floor_mb_after": 85000,
+      "floor_measured": false,
+      "methods": ["qlora"],
+      "estimate_only": true
+    }
+  ],
+  "changed_picks": [
+    {
+      "live_mb": 13926,
+      "old_pick": "Qwen3-8B",
+      "new_pick": "Qwen2.5-Coder-7B"
+    },
+    {
+      "live_mb": 20890,
+      "old_pick": "Qwen3-14B",
+      "new_pick": "Qwen2.5-Coder-7B"
+    },
+    {
+      "live_mb": 27853,
+      "old_pick": "Qwen3-14B",
+      "new_pick": "Qwen2.5-Coder-7B"
+    },
+    {
+      "live_mb": 31334,
+      "old_pick": "Qwen3-14B",
+      "new_pick": "Qwen2.5-Coder-7B"
+    },
+    {
+      "live_mb": 83558,
+      "old_pick": "Qwen3-32B",
+      "new_pick": "Qwen3-14B",
+      "method": "qlora"
+    }
+  ]
+}
