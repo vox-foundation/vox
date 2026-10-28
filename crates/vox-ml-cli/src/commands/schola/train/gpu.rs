@@ -236,6 +236,12 @@ pub(super) async fn run_gpu_training(
         return Ok(final_pick);
     }
 
+    refuse_resume_onto_another_base(
+        resume.as_deref().unwrap_or(&output_dir),
+        model.as_deref(),
+        force_restart,
+    )?;
+
     let mut base_model_paths = None::<(Vec<std::path::PathBuf>, std::path::PathBuf)>;
     let mut tokenizer_path = None::<std::path::PathBuf>;
     if let Some(ref repo_id) = model {
@@ -577,6 +583,40 @@ pub(super) async fn run_gpu_training(
     }
 
     Ok(final_pick)
+}
+
+/// The resume base invariant, checked before the base download and memory
+/// estimate: a checkpoint in `checkpoint_root` trained on another base would be
+/// refused by the trainer anyway (`apply_checkpoint_resume`), after both.
+fn refuse_resume_onto_another_base(
+    checkpoint_root: &std::path::Path,
+    base: Option<&str>,
+    force_restart: bool,
+) -> Result<()> {
+    if force_restart {
+        return Ok(());
+    }
+    let path =
+        checkpoint_root.join(vox_populi::mens::tensor::checkpoint_state::CHECKPOINT_FILENAME);
+    let Ok(raw) = std::fs::read_to_string(&path) else {
+        return Ok(());
+    };
+    let state: serde_json::Value = serde_json::from_str(&raw)
+        .map_err(|e| anyhow::anyhow!("{} is not valid JSON: {e}", path.display()))?;
+    let Some(was) = state.get("base_model").and_then(|v| v.as_str()) else {
+        return Ok(()); // predates the recorded base; the trainer warns
+    };
+    if base == Some(was) {
+        return Ok(());
+    }
+    let now = base.unwrap_or("(none)");
+    anyhow::bail!(
+        "Checkpoint in {} was trained on base {was}, but this run's base is {now}. \
+         Resuming would attach that adapter to a different base model. Pass --model {was} \
+         to keep training it, or --force-restart to discard the checkpoint and start fresh \
+         on {now}.",
+        checkpoint_root.display()
+    )
 }
 
 /// Activation/gradient checkpointing policy. An explicit
@@ -1270,5 +1310,36 @@ lanes:
                 reason: "won't fit".into()
             }
         );
+    }
+}
+
+#[cfg(test)]
+mod resume_base_tests {
+    use super::refuse_resume_onto_another_base;
+
+    const OLD: &str = "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca";
+    const NEW: &str = "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e";
+
+    fn dir_with_checkpoint(base: Option<&str>) -> tempfile::TempDir {
+        let d = tempfile::tempdir().unwrap();
+        let state = serde_json::json!({ "schema": "vox_mens_checkpoint_v1", "base_model": base });
+        std::fs::write(d.path().join("checkpoint_state.json"), state.to_string()).unwrap();
+        d
+    }
+
+    /// 320 S2: a re-run onto another base downloaded 4 GB and ran the memory
+    /// estimate before the plugin refused the resume. It must refuse first.
+    #[test]
+    fn a_checkpoint_from_another_base_is_refused_before_the_download() {
+        let d = dir_with_checkpoint(Some(OLD));
+        let err = refuse_resume_onto_another_base(d.path(), Some(NEW), false).unwrap_err();
+        assert!(err.to_string().contains(OLD) && err.to_string().contains("--force-restart"));
+        refuse_resume_onto_another_base(d.path(), Some(OLD), false).unwrap();
+        refuse_resume_onto_another_base(d.path(), Some(NEW), true).unwrap();
+        // No checkpoint, or one that predates the recorded base: nothing to refuse.
+        refuse_resume_onto_another_base(tempfile::tempdir().unwrap().path(), Some(NEW), false)
+            .unwrap();
+        refuse_resume_onto_another_base(dir_with_checkpoint(None).path(), Some(NEW), false)
+            .unwrap();
     }
 }
