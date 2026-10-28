@@ -229,6 +229,11 @@ struct Budget {
     spent: f64,
     cap: f64,
     calls: usize,
+    /// Largest cost of one call seen in this run: reserved before each call, and charged for a
+    /// failed call that may have been billed.
+    // ponytail: the run's first call is admitted on headroom alone (nothing is priced yet); a
+    // registry price ceiling per slot would close that, add it if a cap ever runs that tight.
+    reserve: f64,
 }
 
 /// The append-only recording: every line is written and flushed before the run goes on.
@@ -268,6 +273,7 @@ pub async fn run_dataset<B: Backend>(
         spent: prior_spend(&cfg.dataset_dir)?,
         cap: cfg.max_spend_usd,
         calls: 0,
+        reserve: 0.0,
     };
     std::fs::create_dir_all(&run_dir)?;
     let file = std::fs::OpenOptions::new()
@@ -352,6 +358,10 @@ async fn run_slot<B: Backend>(
                 retries: 0,
             };
             let Some(cost_known) = call(b, budget, &slot.slot, messages, &mut a).await else {
+                // Stopped mid-retry: the failed calls were charged, so record them for later runs.
+                if a.transport_error.is_some() {
+                    rec.push(Line::Attempt(a))?;
+                }
                 return Ok(Some((SPEND_CAP, None)));
             };
             rec.push(Line::Attempt(a.clone()))?;
@@ -397,9 +407,10 @@ async fn run_slot<B: Backend>(
     Ok(None)
 }
 
-/// One model call: the cap is checked before it and before every transport retry (same slot,
-/// at most [`MAX_TRANSPORT_RETRIES`]). `None` when the cap forbids the call; otherwise whether
-/// the reply carried a usable cost (a transport failure carries none and costs nothing known).
+/// One model call: the cap, less the reservation, is checked before it and before every transport
+/// retry (same slot, at most [`MAX_TRANSPORT_RETRIES`]). `None` when the cap forbids
+/// the call; otherwise whether every charge is known. A failure that may have been billed is
+/// charged the reservation, and is a stop (`false`) when nothing has been priced yet.
 async fn call<B: Backend>(
     b: &mut B,
     budget: &mut Budget,
@@ -408,26 +419,40 @@ async fn call<B: Backend>(
     a: &mut Attempt,
 ) -> Option<bool> {
     loop {
-        if budget.spent >= budget.cap {
+        if budget.spent + budget.reserve >= budget.cap {
             return None;
         }
         budget.calls += 1;
         match b.chat(slot, messages.clone(), a.seed).await {
             Ok(r) => {
                 let cost = r.cost_usd.filter(|c| c.is_finite() && *c >= 0.0);
-                budget.spent += cost.unwrap_or(0.0);
+                let c = cost.unwrap_or(0.0);
+                budget.spent += c;
+                budget.reserve = budget.reserve.max(c);
                 a.resolved_model = Some(r.model);
                 a.raw_response = Some(r.content);
                 a.prompt_tokens = r.prompt_tokens;
                 a.completion_tokens = r.completion_tokens;
-                a.cost_usd = cost.unwrap_or(0.0);
+                a.cost_usd += c;
                 a.latency_ms = r.latency_ms;
+                a.transport_error = None;
                 return Some(cost.is_some());
             }
-            Err(_) if a.retries < MAX_TRANSPORT_RETRIES => a.retries += 1,
             Err(e) => {
-                a.transport_error = Some(redact_error(&e));
-                return Some(true);
+                let class = redact_error(&e);
+                let billable = !refused(&class);
+                a.transport_error = Some(class);
+                if billable {
+                    if budget.reserve == 0.0 {
+                        return Some(false);
+                    }
+                    budget.spent += budget.reserve;
+                    a.cost_usd += budget.reserve;
+                }
+                if a.retries == MAX_TRANSPORT_RETRIES {
+                    return Some(true);
+                }
+                a.retries += 1;
             }
         }
     }

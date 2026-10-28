@@ -79,7 +79,8 @@ const REFUSED: &str =
 struct Stub {
     calls: Vec<(String, u64, Vec<LlmChatMessage>)>,
     cost: Option<f64>,
-    transport_failures: usize,
+    /// Which 1-based calls fail in transport, and with what error text.
+    fail: Option<(fn(usize) -> bool, &'static str)>,
     batches: usize,
     fail_batch: Option<usize>,
 }
@@ -94,8 +95,10 @@ impl Backend for Stub {
         let vd = messages[0].content == VD_CARD;
         let turn = messages.iter().filter(|m| m.role == "assistant").count();
         self.calls.push((slot.to_string(), seed, messages));
-        if self.calls.len() <= self.transport_failures {
-            return Err(RESET.into());
+        if let Some((fails, error)) = self.fail
+            && fails(self.calls.len())
+        {
+            return Err(error.into());
         }
         let content = match (vd, turn) {
             (true, 0) => VD_BAD,
@@ -223,28 +226,30 @@ async fn stub_run_follows_the_round_order_and_the_scorer_accepts_it() {
 }
 
 #[tokio::test]
-async fn spend_cap_allows_exactly_k_calls_and_counts_prior_spend() {
+async fn spend_cap_reserves_the_next_call_and_counts_prior_spend() {
     let dir = dataset();
     let mut b = stub(0.01);
     let out = run_dataset(&mut b, &cfg(dir.path(), "r1", 0.055), header())
         .await
         .unwrap();
-    assert_eq!(b.calls.len(), 6);
+    // The sixth call would need 0.05 + 0.01 (the largest cost seen) > 0.055: it is never made.
+    assert_eq!(b.calls.len(), 5);
     assert_eq!(out.stopped.as_deref(), Some("spend_cap"));
     assert!(!out.complete);
     let lines = recorded(&out);
-    assert_eq!(attempts(&lines).count(), 6);
+    assert_eq!(attempts(&lines).count(), 5);
     let Some(Line::Stop(s)) = lines.last() else {
         panic!("no stop line")
     };
     assert_eq!(s.reason, "spend_cap");
-    assert!((s.spent_usd - 0.06).abs() < 1e-9, "{}", s.spent_usd);
+    assert!(s.spent_usd <= 0.055, "{}", s.spent_usd);
+    assert!((s.spent_usd - 0.05).abs() < 1e-9, "{}", s.spent_usd);
     let t: serde_json::Value =
         serde_json::from_str(&read(out.run_dir.join("tallies.json"))).unwrap();
     assert_eq!(t["stopped"], "spend_cap");
     assert_eq!(t["slots"]["A"]["complete"], false);
 
-    // Earlier runs (0.06) and the probe ledger (0.01 + a null cost) count against a new run's cap.
+    // Earlier runs (0.05) and the probe ledger (0.01 + a null cost) count against a new run's cap.
     let probes = [Some(0.01), None].map(|c| ProbeRecord {
         time: "t".into(),
         candidate: "c".into(),
@@ -329,36 +334,115 @@ async fn a_reply_without_a_cost_stops_the_run() {
 async fn transport_errors_retry_the_same_slot_three_times_then_are_recorded() {
     let dir = dataset();
     let mut b = Stub {
-        transport_failures: 4,
+        fail: Some((|n| (2..=5).contains(&n), RESET)),
         ..stub(0.001)
     };
     let out = run_dataset(&mut b, &cfg(dir.path(), "r1", 25.0), header())
         .await
         .unwrap();
     let lines = recorded(&out);
-    let first: Vec<&Attempt> = attempts(&lines).take(2).collect();
+    let first: Vec<&Attempt> = attempts(&lines).take(3).collect();
     assert_eq!(
-        first[0].transport_error.as_deref(),
+        first[1].transport_error.as_deref(),
         Some("HTTP request failed")
     );
     assert_eq!(
-        (first[0].retries, first[0].raw_response.is_none()),
+        (first[1].retries, first[1].raw_response.is_none()),
         (3, true)
     );
-    assert_eq!(
-        (first[1].retries, first[1].transport_error.is_none()),
-        (0, true)
-    );
+    // Each of the 4 failed calls may have been billed: each is charged the largest cost seen.
     assert!(
-        b.calls[..4]
+        (first[1].cost_usd - 0.004).abs() < 1e-12,
+        "{}",
+        first[1].cost_usd
+    );
+    for a in [first[0], first[2]] {
+        assert_eq!((a.retries, a.transport_error.is_none()), (0, true));
+    }
+    assert!(
+        b.calls[1..5]
             .iter()
-            .all(|c| c.0 == "A" && c.1 == b.calls[0].1 && texts(&c.2) == texts(&b.calls[0].2))
+            .all(|c| c.0 == "A" && c.1 == b.calls[1].1 && texts(&c.2) == texts(&b.calls[1].2))
     );
     assert!(out.problems.is_empty(), "{:?}", out.problems);
+    assert!((prior_spend(dir.path()).unwrap() - out.spent_usd).abs() < 1e-12);
 
     let dir = dataset();
     let mut b = Stub {
-        transport_failures: 2,
+        fail: Some((|n| (2..=3).contains(&n), RESET)),
+        ..stub(0.001)
+    };
+    let out = run_dataset(&mut b, &cfg(dir.path(), "r1", 25.0), header())
+        .await
+        .unwrap();
+    let lines = recorded(&out);
+    let a = attempts(&lines).nth(1).unwrap();
+    assert_eq!((a.retries, a.raw_response.is_some()), (2, true));
+    assert_eq!(a.transport_error, None);
+    assert!((a.cost_usd - 0.003).abs() < 1e-12, "{}", a.cost_usd);
+}
+
+#[tokio::test]
+async fn failed_calls_are_charged_so_the_cap_still_stops_the_run() {
+    // A provider that bills and then fails every call after the first.
+    let dir = dataset();
+    let mut b = Stub {
+        fail: Some((|n| n >= 2, RESET)),
+        ..stub(0.01)
+    };
+    let out = run_dataset(&mut b, &cfg(dir.path(), "r1", 0.055), header())
+        .await
+        .unwrap();
+    assert_eq!(out.stopped.as_deref(), Some("spend_cap"));
+    assert_eq!(b.calls.len(), 5);
+    assert!(out.spent_usd <= 0.055, "{}", out.spent_usd);
+    assert!((prior_spend(dir.path()).unwrap() - out.spent_usd).abs() < 1e-12);
+
+    // The cap stops it mid-retry: the charged attempt is still recorded, so later runs count it.
+    let dir = dataset();
+    let mut b = Stub {
+        fail: Some((|n| n >= 2, RESET)),
+        ..stub(0.01)
+    };
+    let out = run_dataset(&mut b, &cfg(dir.path(), "r1", 0.035), header())
+        .await
+        .unwrap();
+    assert_eq!(
+        (b.calls.len(), out.stopped.as_deref()),
+        (3, Some("spend_cap"))
+    );
+    let lines = recorded(&out);
+    let lost = attempts(&lines).nth(1).expect("the charged attempt");
+    assert_eq!(
+        (lost.retries, lost.transport_error.as_deref()),
+        (2, Some("HTTP request failed"))
+    );
+    assert!((prior_spend(dir.path()).unwrap() - 0.03).abs() < 1e-12);
+}
+
+#[tokio::test]
+async fn a_billable_failure_before_any_priced_call_stops_the_run() {
+    let dir = dataset();
+    let mut b = Stub {
+        fail: Some((|_| true, RESET)),
+        ..stub(0.01)
+    };
+    let out = run_dataset(&mut b, &cfg(dir.path(), "r1", 25.0), header())
+        .await
+        .unwrap();
+    assert_eq!(
+        (b.calls.len(), out.stopped.as_deref()),
+        (1, Some("cost_unknown"))
+    );
+    let lines = recorded(&out);
+    assert_eq!(attempts(&lines).count(), 1);
+}
+
+#[tokio::test]
+async fn a_provider_refusal_is_retried_uncharged_and_its_body_never_recorded() {
+    let dir = dataset();
+    let mut b = Stub {
+        fail: Some((|n| n <= 4, REFUSED)),
         ..stub(0.001)
     };
     let out = run_dataset(&mut b, &cfg(dir.path(), "r1", 25.0), header())
@@ -366,7 +450,16 @@ async fn transport_errors_retry_the_same_slot_three_times_then_are_recorded() {
         .unwrap();
     let lines = recorded(&out);
     let a = attempts(&lines).next().unwrap();
-    assert_eq!((a.retries, a.raw_response.is_some()), (2, true));
+    assert_eq!(
+        (a.retries, a.transport_error.as_deref(), a.cost_usd),
+        (3, Some("LLM API returned error (401)"), 0.0)
+    );
+    let text = read(out.run_dir.join("attempts.jsonl"));
+    assert!(
+        !text.contains("sk-proj") && !text.contains("SECRET"),
+        "{text}"
+    );
+    assert!(out.problems.is_empty(), "{:?}", out.problems);
 }
 
 #[test]
