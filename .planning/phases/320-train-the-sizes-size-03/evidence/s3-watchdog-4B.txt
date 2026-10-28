@@ -1,0 +1,5 @@
+limit 67018686464
+2026-10-28T05:39:17Z SIGINT 78955: peak 86329229312 B > limit 67018686464 B
+2026-10-28T05:40:09Z watchdog done; killed_at=1793165957; last peak=86329229312 n=2
+
+[exited with code 0]
