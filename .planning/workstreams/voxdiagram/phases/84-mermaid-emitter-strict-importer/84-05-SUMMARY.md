@@ -17,6 +17,7 @@ provides:
   - "mutation proof (e): the oracle's C(B) == R(B) assertion catches importer errors independently of the exporter"
   - "where-things-live.md Mermaid row; regenerated vox-diagram API page; closing gates green"
 affects: [86, 87, 90]
+requirements-completed: [REND-06, MIG-01, MIG-02]  # added at the v1.7 audit: 84-02..84-04 deferred the tick here and it was never set; 84-VERIFICATION proves all three
 
 actuals:
   tokens: 4300    # chars/4 over the diff excluding fixtures and the generated API page
