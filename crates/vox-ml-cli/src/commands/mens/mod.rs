@@ -27,6 +27,8 @@ pub(crate) mod eval_gate;
 #[cfg(feature = "gpu")]
 mod eval_local;
 mod eval_local_prompt;
+#[cfg(feature = "gpu")]
+pub(crate) mod ladder_serve;
 pub mod metrics;
 #[cfg(feature = "gpu")]
 pub mod models;

@@ -356,6 +356,8 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
 
             let model = model
                 .ok_or_else(|| anyhow::anyhow!("--model <path> is required for local serve"))?;
+            let model =
+                crate::commands::mens::ladder_serve::resolve_serve_run_dir(model.as_path())?;
 
             // Gate: Ensure collateral damage eval has run and passed if we're serving an adapter
             let manifest_path = model.join("training_manifest.json");

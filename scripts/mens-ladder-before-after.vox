@@ -1,0 +1,111 @@
+// vox:caps fs subprocess env
+// Phase 321 ladder before/after orchestration (D-321-07).
+//
+// Usage:
+//   vox run --interp scripts/mens-ladder-before-after.vox -- --plan-only
+//   vox run scripts/mens-ladder-before-after.vox
+
+import fs
+import process
+import env
+import json
+
+fn jstr(j: Json, k: str) to str {
+    return j.get(k).and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+}
+
+fn repo_root() to str {
+    let opt = env.get("VOX_REPO_ROOT")
+    if opt.is_some() {
+        return opt.unwrap()
+    }
+    return process.cwd()
+}
+
+fn plan_only_from_argv() to bool {
+    let argv = env.args()
+    for a in argv {
+        if a is "--plan-only" {
+            return true
+        }
+    }
+    return false
+}
+
+fn run_dir_for_size(size_label: str) to str {
+    let slug = size_label.to_lowercase()
+    return "mens/runs/qwen3-" + slug
+}
+
+fn print_trained_plan(size: str, run_dir: str, bench: str) {
+    print("trained size=" + size + " run_dir=" + run_dir)
+    print("  1 eval-reasoning-compare --base Qwen3-" + size + " --adapter " + run_dir)
+    print("  2 eval-local heldout base --bench " + bench + " (base snapshot)")
+    print("  3 eval-local heldout adapter --model " + run_dir + " --bench " + bench)
+    print("  4 build baseline (six reasoning keys + codegen pre from base scores)")
+    print("  5 eval-collateral-damage --post-adapter " + run_dir)
+    print("  6 eval-gate --run-dir " + run_dir)
+    print("  7 serve smoke --model " + run_dir)
+}
+
+fn print_not_trained_line(size: str, reason: str) {
+    print("not_trained size=" + size + " reason=" + reason)
+}
+
+fn main() {
+    let root = repo_root()
+    let ladder_path = root + "/.planning/phases/320-train-the-sizes-size-03/evidence/ladder.json"
+    let bench = "mens/data/heldout_bench"
+    let plan_only = plan_only_from_argv()
+
+    let raw = fs.read(ladder_path)
+    if raw.is_err() {
+        print("ERROR: cannot read ladder SSOT at " + ladder_path)
+        return null
+    }
+    let parsed = json.parse(raw.unwrap())
+    if parsed.is_err() {
+        print("ERROR: invalid ladder JSON")
+        return null
+    }
+    let doc = parsed.unwrap()
+    let sizes_opt = doc.get("sizes")
+    if sizes_opt is null {
+        print("ERROR: ladder.json missing sizes")
+        return null
+    }
+    let sizes = sizes_opt.unwrap().as_array().unwrap_or([])
+
+    print("mens-ladder-before-after plan-only=" + str(plan_only))
+    print("  ladder: " + ladder_path)
+    print("  bench:  " + bench)
+
+    for entry in sizes {
+        let size = jstr(entry, "size")
+        if size is "" {
+            continue
+        }
+        let mut status = jstr(entry, "s4_status")
+        if status is "" {
+            status = "not_trained"
+        }
+        if status is "trained" {
+            let run_dir = run_dir_for_size(size)
+            if plan_only {
+                print_trained_plan(size, run_dir, bench)
+            } else {
+                print("TODO: execute trained pipeline for " + size + " (use --plan-only to preview)")
+            }
+        } else {
+            let mut reason = jstr(entry, "reason")
+            if reason is "" {
+                reason = "not trained"
+            }
+            print_not_trained_line(size, reason)
+        }
+    }
+
+    if plan_only {
+        print("plan-only complete (no vox mens invoked)")
+    }
+}
