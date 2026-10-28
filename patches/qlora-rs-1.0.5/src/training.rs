@@ -788,6 +788,15 @@ impl QLoraTrainer {
         }
 
         self.accumulation_step = 0;
+        // Grads may arrive on the host (the Metal checkpointed path keeps LoRA
+        // grads out of the device pool); clip and the update run on each var's
+        // device. A no-op for grads already there.
+        for var in &vars {
+            let t = var.as_tensor();
+            if let Some(g) = grads.get(t).map(|g| g.to_device(t.device())).transpose()? {
+                grads.insert(t, g);
+            }
+        }
         if let Some(max_norm) = self.config.adapter_config.max_grad_norm {
             clip_grad_norm(&mut grads, &vars, max_norm)?;
         }

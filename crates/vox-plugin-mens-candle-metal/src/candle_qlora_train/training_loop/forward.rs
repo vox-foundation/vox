@@ -225,14 +225,14 @@ pub fn checkpointed_grads(
         )?
         .affine(k, 0.0)?;
         let chunk = part.backward()?;
-        qlora_rs::accumulate_grads_for_vars(&mut grads, &chunk, vars)?;
+        fold_on_host(&mut grads, &chunk, vars)?;
         if let Some(g) = chunk.get(head_in.as_tensor()) {
             upstream = (upstream + g)?;
         }
     }
     let seg_grads = qlora_rs::backward_from_cotangent(&hidden, &upstream)?;
     drop(hidden);
-    qlora_rs::accumulate_grads_for_vars(&mut grads, &seg_grads, vars)?;
+    fold_on_host(&mut grads, &seg_grads, vars)?;
     upstream = seg_grads
         .get(&last.input)
         .cloned()
@@ -241,13 +241,33 @@ pub fn checkpointed_grads(
     for seg in segments.iter().rev().skip(1) {
         let (input_var, seg_out) = model.recompute_segment(seg)?;
         let seg_grads = qlora_rs::backward_from_cotangent(&seg_out, &upstream)?;
-        qlora_rs::accumulate_grads_for_vars(&mut grads, &seg_grads, vars)?;
+        fold_on_host(&mut grads, &seg_grads, vars)?;
         upstream = seg_grads
             .get(input_var.as_tensor())
             .cloned()
             .context("checkpointed backward: no grad at a segment input")?;
     }
     Ok(grads)
+}
+
+/// `qlora_rs::accumulate_grads_for_vars`, summed on the host. On Metal a LoRA
+/// grad computed mid-backward takes whatever free pooled buffer is at least its
+/// size (often 16-256 MB for a few hundred KB), and candle's pool never shrinks;
+/// held on the device through the remaining segments and the accumulation
+/// window, those buffers stayed pinned (320-S3: +11 GB per-row peak at 0.6B
+/// accum 8). Copied out, the device grad is freed with its segment.
+fn fold_on_host(dst: &mut GradStore, src: &GradStore, vars: &[Var]) -> Result<()> {
+    for var in vars {
+        if let Some(g) = src.get(var.as_tensor()) {
+            let g = g.to_device(&Device::Cpu)?;
+            let merged = match dst.get(var.as_tensor()) {
+                Some(existing) => existing.add(&g)?,
+                None => g,
+            };
+            dst.insert(var.as_tensor(), merged);
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -263,18 +283,111 @@ mod tests {
     const WEIGHT: f64 = 2.0;
 
     fn tiny(n_layers: usize) -> (VarMap, TrainGraphModel) {
-        let (dev, varmap) = (Device::Cpu, VarMap::new());
-        let vb = VarBuilder::from_varmap(&varmap, DType::F32, &dev);
-        let m = crate::model::gradient_checkpoint_tests::build_model(vb, 8, n_layers, 16, &dev);
+        tiny_on(&Device::Cpu, n_layers)
+    }
+
+    fn tiny_on(dev: &Device, n_layers: usize) -> (VarMap, TrainGraphModel) {
+        let varmap = VarMap::new();
+        let vb = VarBuilder::from_varmap(&varmap, DType::F32, dev);
+        let m = crate::model::gradient_checkpoint_tests::build_model(vb, 8, n_layers, 16, dev);
         (varmap, TrainGraphModel::Qwen35(m))
     }
 
     fn run(model: &TrainGraphModel, gradient_checkpointing: bool) -> MaskedCeForward {
+        run_on(model, gradient_checkpointing, &Device::Cpu)
+    }
+
+    fn run_on(
+        model: &TrainGraphModel,
+        gradient_checkpointing: bool,
+        dev: &Device,
+    ) -> MaskedCeForward {
         let config = LoraTrainingConfig {
             gradient_checkpointing,
             ..Default::default()
         };
-        forward_masked_ce(model, &IDS, PREFIX, 0, WEIGHT, None, &config, &Device::Cpu).unwrap()
+        forward_masked_ce(model, &IDS, PREFIX, 0, WEIGHT, None, &config, dev).unwrap()
+    }
+
+    /// 320-S3: on Metal a LoRA grad computed mid-backward takes whatever free
+    /// pooled buffer is at least its size, and candle's pool never shrinks
+    /// (0.6B: 394 grads, 25 MB, sat in 6-13 GB of 16-512 MB buffers). Held
+    /// through the remaining segments and the accumulation window, they pinned
+    /// those buffers: +11 GB per-row peak at accum 8. The segmented backward
+    /// hands over host grads, equal to the eager ones.
+    #[test]
+    fn checkpointed_grads_leave_the_metal_pool_and_match_the_eager_backward() {
+        let Ok(dev) = Device::new_metal(0) else {
+            return; // no Metal device (e.g. a macOS CI VM)
+        };
+        let (varmap, model) = tiny_on(&dev, 3);
+        let vars = varmap.all_vars();
+        let MaskedCeForward::Finite { loss, .. } = run_on(&model, false, &dev) else {
+            panic!("eager forward not finite");
+        };
+        let want = loss.backward().unwrap();
+        let MaskedCeForward::Finite {
+            ckpt: Some(ckpt), ..
+        } = run_on(&model, true, &dev)
+        else {
+            panic!("checkpointed forward carried no checkpoint state");
+        };
+        let got = checkpointed_grads(&model, ckpt, &vars, 0.25).unwrap();
+        for v in &vars {
+            let (Some(a), Some(b)) = (want.get(v.as_tensor()), got.get(v.as_tensor())) else {
+                panic!("a LoRA var is missing a grad on one side");
+            };
+            assert!(
+                b.device().is_cpu(),
+                "a LoRA grad is still held in a Metal buffer"
+            );
+            let a = (a.to_device(&Device::Cpu).unwrap() * 0.25).unwrap();
+            let diff = (a - b).unwrap().abs().unwrap().max_all().unwrap();
+            assert!(diff.to_scalar::<f32>().unwrap() < 1e-4);
+        }
+    }
+
+    /// The trainer holds those host grads across micro-steps; closing the
+    /// window must give exactly the update of one step on their sum taken on
+    /// the device (same summation order as the trainer: newest + held).
+    #[test]
+    fn host_held_micro_step_grads_step_exactly_like_their_device_sum() {
+        let Ok(dev) = Device::new_metal(0) else {
+            return; // no Metal device (e.g. a macOS CI VM)
+        };
+        let trainer = |accum: usize| {
+            let mut config = qlora_rs::training::QLoraTrainingConfig::default();
+            config.adapter_config.gradient_accumulation_steps = accum;
+            let mut t = QLoraTrainer::new(config, dev.clone());
+            let w = t
+                .var_builder()
+                .get_with_hints(64, "w", candle_nn::Init::Const(1.0))
+                .unwrap();
+            t.init_optimizer(&[]).unwrap();
+            (t, w)
+        };
+        let grad = |w: &Tensor, mean: f32| {
+            let x = Tensor::randn(mean, 1f32, 64, &dev).unwrap();
+            let loss = (w * x).unwrap().sqr().unwrap().sum_all().unwrap();
+            loss.backward().unwrap().get(w).unwrap().clone()
+        };
+        let (mut held, w) = trainer(2);
+        let (mut once, w_ref) = trainer(1);
+        let (g1, g2) = (grad(&w, 0.3), grad(&w, -1.1));
+        for g in [&g1, &g2] {
+            let mut store = Tensor::new(0f32, &Device::Cpu).unwrap().backward().unwrap();
+            store.insert(&w, g.to_device(&Device::Cpu).unwrap());
+            held.optimizer_step_with_grads(store).unwrap();
+        }
+        let mut sum = Tensor::new(0f32, &dev).unwrap().backward().unwrap();
+        sum.insert(&w_ref, (&g2 + &g1).unwrap());
+        once.optimizer_step_with_grads(sum).unwrap();
+        let (a, b) = (w.to_vec1::<f32>().unwrap(), w_ref.to_vec1::<f32>().unwrap());
+        assert_ne!(a, vec![1f32; 64], "the window closed without an update");
+        assert_eq!(
+            a, b,
+            "held host grads stepped differently from their device sum"
+        );
     }
 
     /// The Metal loop must honor `gradient_checkpointing` (S2: an eager 28-layer
