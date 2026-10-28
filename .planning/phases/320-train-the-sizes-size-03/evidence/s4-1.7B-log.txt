@@ -194,7 +194,7 @@
   [mens] 34 rows truncated, 34 with the prompt middle-trimmed (seq_len 3072)
   [mens] Wrote external_serving_handoff_v1.json to /Users/brbrainerd/dev/vox-mens-compare/mens/runs/qwen3-1.7b/external_serving_handoff_v1.json
   [mens] Training complete — micro_steps=1108 optimizer_steps=138 no_supervised_skip_rate=0.00% — adapter: /Users/brbrainerd/dev/vox-mens-compare/mens/runs/qwen3-1.7b/candle_qlora_adapter.safetensors
-  [32m✓[39m Wrote train record /Users/brbrainerd/dev/vox-mens-compare/mens/runs/qwen3-1.7b/train-record.json
-  [32m✓[39m Backed up running corpus to /Users/brbrainerd/dev/vox-mens-compare/mens/data/train_full_backup.jsonl
-  [32m✓[39m Wrote adapter card /Users/brbrainerd/dev/vox-mens-compare/mens/runs/qwen3-1.7b/adapter_card.json
+  ✓ Wrote train record /Users/brbrainerd/dev/vox-mens-compare/mens/runs/qwen3-1.7b/train-record.json
+  ✓ Backed up running corpus to /Users/brbrainerd/dev/vox-mens-compare/mens/data/train_full_backup.jsonl
+  ✓ Wrote adapter card /Users/brbrainerd/dev/vox-mens-compare/mens/runs/qwen3-1.7b/adapter_card.json
 EXIT:0

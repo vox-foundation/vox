@@ -9,7 +9,7 @@
   "explicit": true,
   "epochs": 1,
   "seq_len": 3072,
-  "max_runtime_secs": 900,
+  "max_runtime_secs": null,
   "optimizer_steps": null,
   "micro_steps": null,
   "final_loss_ema": null,
@@ -17,13 +17,13 @@
   "peak_mb": 84541,
   "peak_source": "telemetry",
   "train_wall_secs": null,
-  "total_wall_secs": 226.730599,
+  "total_wall_secs": null,
   "truncated_rows": null,
   "prompt_trimmed_rows": null,
   "adapter": null,
-  "host": "Apple Silicon GPU",
-  "recorded_at": "2026-10-28T05:40:06.954552+00:00",
   "probe_dir": "mens/runs/320-probe-4B",
   "free_mb": 68010,
-  "free_source": "Metal working set"
+  "free_source": "Metal working set",
+  "lower_bound_mb": null,
+  "recorded_at": "2026-10-28T21:26:54Z"
 }

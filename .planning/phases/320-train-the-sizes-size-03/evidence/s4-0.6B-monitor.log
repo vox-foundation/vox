@@ -1,0 +1,9 @@
+2026-10-28T14:27:58Z monitor_start interval=1200s max=12
+2026-10-28T14:48:32Z monitor_start interval=1200s max=12
+2026-10-28T15:08:54Z CHECKIN steps=327 div=ok |  [mens] E1/1 step 324/1108 (29.2%) micro 324 | loss 1.2529 (last 0.4373) | lr 8.11e-5 | 28 tok/s | ETA 1h49m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+2026-10-28T15:29:15Z CHECKIN steps=470 div=ok |  [mens] E1/1 step 468/1108 (42.2%) micro 468 | loss 0.9585 (last 0.5809) | lr 6.29e-5 | 5 tok/s | ETA 1h29m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+2026-10-28T15:49:19Z CHECKIN steps=609 div=ok |  [mens] E1/1 step 607/1108 (54.8%) micro 607 | loss 0.4698 (last 0.8588) | lr 4.32e-5 | 17 tok/s | ETA 1h10m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+2026-10-28T16:09:29Z CHECKIN steps=737 div=ok |  [mens] E1/1 step 736/1108 (66.4%) micro 736 | loss 0.5795 (last 0.0880) | lr 2.57e-5 | 5 tok/s | ETA 53m36s | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+2026-10-28T16:29:35Z CHECKIN steps=857 div=ok |  [mens] E1/1 step 856/1108 (77.3%) micro 856 | loss 0.6091 (last 0.7545) | lr 1.24e-5 | 10 tok/s | ETA 37m10s | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+2026-10-28T16:49:59Z CHECKIN steps=974 div=ok |  [mens] E1/1 step 972/1108 (87.7%) micro 972 | loss 0.7002 (last 0.1266) | lr 3.74e-6 | 4 tok/s | ETA 20m29s | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+2026-10-28T17:10:09Z CHECKIN steps=1108 div=ok |  [mens] Running validation on 58 pairs...
