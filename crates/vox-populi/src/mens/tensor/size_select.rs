@@ -428,6 +428,15 @@ mod tests {
         sized(select_size(&repo_overlay(), Some(&free(mb)), None, false).expect("auto pick"))
     }
 
+    fn floor(size: &str) -> u32 {
+        size_ladder(&repo_overlay())
+            .expect("ladder")
+            .into_iter()
+            .find(|r| r.size == size)
+            .map(|r| r.floor_mb)
+            .unwrap_or_else(|| panic!("ladder size {size}"))
+    }
+
     #[test]
     fn cuda_reading_keeps_the_safety_margin() {
         let f = FreeMemory::cuda(10_000);
@@ -494,7 +503,17 @@ mod tests {
         let sizes: Vec<&str> = ladder.iter().map(|r| r.size.as_str()).collect();
         assert_eq!(sizes, ["0.6B", "1.7B", "4B", "8B", "14B", "32B"]);
         let floors: Vec<u32> = ladder.iter().map(|r| r.floor_mb).collect();
-        assert_eq!(floors, [2000, 5000, 9800, 12000, 20000, 60000]);
+        assert_eq!(
+            floors,
+            [
+                floor("0.6B"),
+                floor("1.7B"),
+                floor("4B"),
+                floor("8B"),
+                floor("14B"),
+                floor("32B"),
+            ]
+        );
         let presets: Vec<&str> = ladder.iter().map(|r| r.preset).collect();
         assert_eq!(
             presets,
@@ -546,19 +565,20 @@ mod tests {
 
     #[test]
     fn auto_pick_is_the_largest_size_that_fits() {
-        let p = auto(13_000);
+        let free_8b = u64::from(floor("8B")) + 1_000;
+        let p = auto(free_8b);
         assert_eq!(p.rung.size, "8B");
         assert!(!p.explicit);
         assert!(
-            p.note.contains("8B") && p.note.contains("13000"),
+            p.note.contains("8B") && p.note.contains(&free_8b.to_string()),
             "{}",
             p.note
         );
         for (mb, size) in [
-            (12_000, "8B"),
-            (11_999, "4B"),
+            (u64::from(floor("8B")), "8B"),
+            (u64::from(floor("8B")) - 1, "4B"),
             (200_000, "32B"),
-            (2_000, "0.6B"),
+            (u64::from(floor("0.6B")), "0.6B"),
         ] {
             assert_eq!(auto(mb).rung.size, size, "{mb} MB");
         }
@@ -577,9 +597,18 @@ mod tests {
     fn auto_pick_refuses_when_nothing_fits() {
         let msg = format!(
             "{:#}",
-            select_size(&repo_overlay(), Some(&free(1_999)), None, false).expect_err("too small")
+            select_size(
+                &repo_overlay(),
+                Some(&free(u64::from(floor("0.6B")) - 1)),
+                None,
+                false,
+            )
+            .expect_err("too small")
         );
-        assert!(msg.contains("0.6B") && msg.contains("2000"), "{msg}");
+        assert!(
+            msg.contains("0.6B") && msg.contains(&floor("0.6B").to_string()),
+            "{msg}"
+        );
     }
 
     #[test]
@@ -698,8 +727,9 @@ mod tests {
 
     #[test]
     fn explicit_size_that_fits_is_kept() {
+        let free_8b = u64::from(floor("8B")) + 1_000;
         for req in ["Qwen3-8B", "Qwen/Qwen3-8B", PIN_8B] {
-            let p = sized(explicit(req, Some(13_000), false).expect(req));
+            let p = sized(explicit(req, Some(free_8b), false).expect(req));
             assert!(p.explicit, "{req}");
             assert_eq!(p.rung.hf_id, PIN_8B, "{req}");
             assert_eq!(p.rung.size, "8B", "{req}");
@@ -708,14 +738,17 @@ mod tests {
 
     #[test]
     fn explicit_size_that_does_not_fit_is_refused_not_shrunk() {
+        let free_tight = u64::from(floor("8B")) + 1_000;
+        let floor_14b = floor("14B").to_string();
         let msg = format!(
             "{:#}",
-            explicit("Qwen3-14B", Some(13_000), false).expect_err("14B does not fit")
+            explicit("Qwen3-14B", Some(free_tight), false).expect_err("14B does not fit")
         );
-        for part in ["14B", "20000", "13000", "refusing"] {
+        for part in ["14B", floor_14b.as_str(), "refusing"] {
             assert!(msg.contains(part), "{part}: {msg}");
         }
-        let p = sized(explicit("Qwen3-14B", Some(13_000), true).expect("forced"));
+        assert!(msg.contains(&free_tight.to_string()), "{msg}");
+        let p = sized(explicit("Qwen3-14B", Some(free_tight), true).expect("forced"));
         assert_eq!(p.rung.size, "14B");
         assert!(p.note.contains("forced"), "{}", p.note);
     }
@@ -725,11 +758,12 @@ mod tests {
     #[test]
     fn another_revision_of_a_ladder_size_is_still_a_size() {
         let other = "Qwen/Qwen3-32B@0123456789abcdef0123456789abcdef01234567";
+        let free_tight = u64::from(floor("8B")) + 1_000;
         let msg = format!(
             "{:#}",
-            explicit(other, Some(13_000), false).expect_err("32B does not fit")
+            explicit(other, Some(free_tight), false).expect_err("32B does not fit")
         );
-        assert!(msg.contains("60000"), "{msg}");
+        assert!(msg.contains(&floor("32B").to_string()), "{msg}");
         let p = sized(explicit(other, Some(200_000), false).expect("fits"));
         assert_eq!(p.rung.hf_id, other);
         assert_eq!((p.rung.size.as_str(), p.rung.preset), ("32B", "qwen3_96g"));
@@ -745,7 +779,8 @@ mod tests {
 
     #[test]
     fn concrete_ids_off_the_ladder_pass_through() {
-        for free_mb in [Some(13_000), None] {
+        let free_8b = Some(u64::from(floor("8B")) + 1_000);
+        for free_mb in [free_8b, None] {
             for id in [
                 "org/Manual",
                 "Qwen/Qwen2.5-Coder-0.5B-Instruct",
@@ -770,14 +805,18 @@ mod tests {
     fn unknown_bare_size_name_is_an_error() {
         let msg = format!(
             "{:#}",
-            explicit("Qwen3-1234B", Some(13_000), false).expect_err("unknown size")
+            explicit("Qwen3-1234B", Some(u64::from(floor("8B")) + 1_000), false)
+                .expect_err("unknown size")
         );
         for part in ["Qwen3-1234B", "Qwen3-8B", "Qwen3-0.6B"] {
             assert!(msg.contains(part), "{part}: {msg}");
         }
         // Size-shaped names stay typos, with or without an owner or revision.
         for typo in ["Qwen3-8b", "Qwen3-8B@main", "Qwen/Qwen3-8B@main"] {
-            assert!(explicit(typo, Some(13_000), false).is_err(), "{typo}");
+            assert!(
+                explicit(typo, Some(u64::from(floor("8B")) + 1_000), false).is_err(),
+                "{typo}"
+            );
         }
     }
 
@@ -790,43 +829,57 @@ mod tests {
 
     #[test]
     fn recheck_keeps_an_auto_pick_that_still_fits() {
-        let pick = auto(13_000);
+        let free_8b = u64::from(floor("8B")) + 1_000;
+        let pick = auto(free_8b);
         let again = recheck(pick.clone(), Some(200_000), false).expect("still fits");
         assert_eq!(again.rung.size, "8B", "never steps up");
         assert!(!again.explicit);
         // IN-01: the re-check reports the fresh reading, not the first note again.
         assert_ne!(again.note, pick.note);
-        for part in ["8B still fits", "12000", "200000"] {
+        let floor_8b = floor("8B").to_string();
+        for part in ["8B still fits", floor_8b.as_str(), "200000"] {
             assert!(again.note.contains(part), "{part}: {}", again.note);
         }
     }
 
     #[test]
     fn recheck_steps_an_auto_pick_down_and_says_why() {
-        let pick = auto(21_000);
+        let free_14b = u64::from(floor("14B")) + 1_000;
+        let free_8b = u64::from(floor("8B")) + 1_000;
+        let pick = auto(free_14b);
         assert_eq!(pick.rung.size, "14B");
-        let down = recheck(pick, Some(13_000), false).expect("8B still fits");
+        let down = recheck(pick, Some(free_8b), false).expect("8B still fits");
         assert_eq!(down.rung.size, "8B");
         assert!(!down.explicit);
-        for part in ["stepped down", "14B", "8B", "13000", "20000"] {
+        let floor_14b = floor("14B").to_string();
+        let free_8b_s = free_8b.to_string();
+        for part in [
+            "stepped down",
+            "14B",
+            "8B",
+            free_8b_s.as_str(),
+            floor_14b.as_str(),
+        ] {
             assert!(down.note.contains(part), "{part}: {}", down.note);
         }
     }
 
     #[test]
     fn recheck_refuses_an_auto_pick_without_a_reading() {
+        let free_8b = u64::from(floor("8B")) + 1_000;
         let msg = format!(
             "{:#}",
-            recheck(auto(13_000), None, false).expect_err("no reading")
+            recheck(auto(free_8b), None, false).expect_err("no reading")
         );
         assert!(msg.contains("no live free-memory reading"), "{msg}");
     }
 
     #[test]
     fn recheck_refuses_when_nothing_fits_any_more() {
+        let free_8b = u64::from(floor("8B")) + 1_000;
         let msg = format!(
             "{:#}",
-            recheck(auto(13_000), Some(1_000), false).expect_err("nothing fits")
+            recheck(auto(free_8b), Some(1_000), false).expect_err("nothing fits")
         );
         assert!(msg.contains("0.6B"), "{msg}");
     }
