@@ -2,10 +2,10 @@
 gsd_state_version: "1.0"
 milestone: v5.6
 milestone_name: Reasoning Where the Lane Needs It
-current_phase: 320
-current_phase_name: Train the Sizes
-status: complete
-stopped_at: Completed 320-09-PLAN.md
+current_phase: 321
+current_phase_name: Harness Before/After
+status: executing
+stopped_at: Starting 321-02-PLAN.md (Metal scoring)
 last_updated: "2026-10-28T23:35:00.000Z"
 last_activity: 2026-10-28
 last_activity_desc: SIZE-03 PASS; ladder report committed (Plans 01–09)
@@ -22,7 +22,8 @@ progress:
 
 ## Current Position
 
-Phase: 320 (Train the Sizes) — **complete** (9/9 plans; SIZE-03 PASS). Next per roadmap: Phase 319 (mesh) or 321.
+Phase: 321 (Harness Before/After) — planning done (4 plans); executing 321-01. Phase 319 deferred.
+
 Current Plan: 9
 Total Plans in Phase: 9
 Status: 0.6B and 1.7B trained on Metal; 4B–32B not_trained / not attempted. Report: `320-LADDER-REPORT.md`.
@@ -43,7 +44,8 @@ Last activity: 2026-10-28 — Plan 09 SIZE-03 check + ladder report
 
 ## Next Step
 
-Phase 320 closed. Proceed to Phase 319 (mesh) or 321 per ROADMAP order.
+Phase 321: execute 321-02 (Metal before/after scoring for 0.6B and 1.7B; ~14–22h). Then 321-03 collateral/serve, 321-04 report. Phase 319 remains deferred.
+
 
 ## v5.5 Autonomous Progress (2026-10-25 America/Phoenix)
 
