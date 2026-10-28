@@ -173,6 +173,14 @@ pub struct EgressChatResponse {
     /// case of a plain text response (no tools requested, or the model answered in
     /// text instead of calling a tool).
     pub tool_calls: Option<Vec<EgressToolCall>>,
+    /// `choices[0].finish_reason` (`stop`, `length`, `tool_calls`, ...); `None` when absent.
+    /// `length` with empty `content` means the token budget ran out, often inside reasoning.
+    pub finish_reason: Option<String>,
+    /// `usage.completion_tokens_details.reasoning_tokens`; 0 when absent.
+    pub reasoning_tokens: u32,
+    /// Reasoning text (`message.reasoning`, else `message.reasoning_content`) when the
+    /// provider returns it. Never merged into `content`.
+    pub reasoning: Option<String>,
 }
 
 /// Structured egress failure so callers map to their own error types.

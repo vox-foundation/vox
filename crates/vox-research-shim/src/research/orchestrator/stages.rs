@@ -671,6 +671,9 @@ mod citation_diversity_tests {
             cache_read_tokens: 0,
             ttft_ms: None,
             tpot_ms: None,
+            finish_reason: None,
+            reasoning_tokens: 0,
+            reasoning: None,
         };
 
         let (content, model) = super::response_to_content_and_model(response);

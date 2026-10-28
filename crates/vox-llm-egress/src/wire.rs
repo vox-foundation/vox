@@ -382,7 +382,19 @@ pub async fn chat_once(
         .or(header_cost);
     let model = json["model"].as_str().unwrap_or(&req.model).to_string();
     let tool_calls = parse_tool_calls(&json["choices"][0]["message"]["tool_calls"]);
+    let message = &json["choices"][0]["message"];
+    let reasoning = ["reasoning", "reasoning_content"]
+        .iter()
+        .find_map(|k| message[*k].as_str().filter(|s| !s.is_empty()))
+        .map(str::to_string);
     Ok(EgressChatResponse {
+        finish_reason: json["choices"][0]["finish_reason"]
+            .as_str()
+            .map(str::to_string),
+        reasoning_tokens: usage["completion_tokens_details"]["reasoning_tokens"]
+            .as_u64()
+            .unwrap_or(0) as u32,
+        reasoning,
         content,
         prompt_tokens,
         completion_tokens,
