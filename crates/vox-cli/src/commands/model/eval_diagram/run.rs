@@ -63,6 +63,20 @@ pub trait Backend {
     async fn mermaid_batch(&mut self, inputs_jsonl: &str) -> Result<String>;
 }
 
+/// A run name is one directory under `runs/`: `[A-Za-z0-9._-]`, not starting with `.`. A nested or
+/// escaping name would hide the run's spend from [`prior_spend`], which reads one level down.
+pub fn check_run_name(name: &str) -> Result<()> {
+    ensure!(
+        !name.is_empty()
+            && !name.starts_with('.')
+            && name
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b)),
+        "run name {name:?} must be one directory name of letters, digits, '.', '_' and '-', not starting with '.'"
+    );
+    Ok(())
+}
+
 /// One line of the probe ledger.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProbeRecord {
@@ -202,6 +216,7 @@ pub async fn run_dataset<B: Backend>(
     header: RunHeader,
 ) -> Result<RunOutcome> {
     check_cap(cfg.max_spend_usd)?;
+    check_run_name(&cfg.run_name)?;
     let run_dir = cfg.dataset_dir.join("runs").join(&cfg.run_name);
     ensure!(
         !run_dir.exists(),

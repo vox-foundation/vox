@@ -22,7 +22,7 @@ use vox_orchestrator::models::{
 pub use super::prereg::MERMAID_VERSION;
 use super::prereg::{check_manifest, check_mermaid, check_report, check_sha, verify_freeze};
 use super::run::{Backend, PROBE_LEDGER, ProbeRecord, Reply, RunConfig, RunOutcome};
-use super::run::{check_cap, prior_spend, run_dataset};
+use super::run::{check_cap, check_run_name, prior_spend, run_dataset};
 use super::{ModelSlot, RunHeader};
 
 const HUMAN: &str = "HUMAN ACTION REQUIRED";
@@ -240,6 +240,7 @@ fn preconditions(cfg: &LiveConfig) -> Result<BTreeMap<String, String>> {
         .iter()
         .fold(cfg.repo_root.clone(), |p, s| p.join(s));
     check_mermaid(&read(&pkg)?)?;
+    check_run_name(&cfg.run_name)?;
     let run_dir = cfg.dataset_dir.join("runs").join(&cfg.run_name);
     ensure!(
         !run_dir.exists(),

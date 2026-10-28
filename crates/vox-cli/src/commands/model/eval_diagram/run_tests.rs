@@ -347,6 +347,22 @@ async fn transport_errors_retry_the_same_slot_three_times_then_are_recorded() {
 }
 
 #[tokio::test]
+async fn an_unsafe_run_name_is_refused_before_any_call() {
+    let dir = dataset();
+    let mut b = stub(0.001);
+    for name in [
+        "", ".", "..", "../x", "a/b", "a\\b", ".hidden", "a b", "r1\n",
+    ] {
+        let err = run_dataset(&mut b, &cfg(dir.path(), name, 25.0), header())
+            .await
+            .unwrap_err();
+        assert!(err.to_string().contains("run name"), "{name:?}: {err}");
+    }
+    assert!(b.calls.is_empty() && !dir.path().join("runs").exists());
+    check_run_name("2026-10-28_r2.v1").unwrap();
+}
+
+#[tokio::test]
 async fn a_failed_mermaid_batch_stops_the_run_and_still_derives_the_files() {
     let dir = dataset();
     let mut b = Stub {
