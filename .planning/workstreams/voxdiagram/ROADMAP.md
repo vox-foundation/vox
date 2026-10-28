@@ -45,7 +45,7 @@ v1.7 retires Mermaid as the primary diagram *authoring* format. A new pure L2 cr
 - [x] **Phase 88: MCP Tool, CLI & Agent Guidance** - `vox_validate_diagram`, `vox diagram` CLI, and the grammar card agents author from; second authorized crate edge (completed 2026-10-17)
 - [x] **Phase 89: Docs-Astro Integration** - Pre-render to manifest, remark inline, Playwright proof of ids, label fit and contrast (completed 2026-10-27)
 - [x] **Phase 90: Corpus Migration & Gate Tightening** - Migrate all convertible live fences in small reviewed batches, then tighten the baseline to the allowlist (completed 2026-10-27)
-- [ ] **Phase 91: Measurement Harness & Advisory Closure** - Paired NL-to-diagram harness with CIs; annotate the advisory's unsourced table
+- [x] **Phase 91: Measurement Harness & Advisory Closure** - Paired NL-to-diagram harness with CIs; annotate the advisory's unsourced table (completed 2026-10-27)
 
 ## Phase Details
 
@@ -292,7 +292,7 @@ Plans:
   2. The report states which of non-inferior, inconclusive, or inferior the data supports under a decision rule fixed before the run, is committed under `docs/src/architecture/` with valid frontmatter, and re-scoring the recorded model outputs reproduces the tallies deterministically.
   3. The advisory's error-rate table is annotated as unsourced and links to the measured result.
 
-**Plans**: 5/5 plans executed in 5 sequential waves
+**Plans**: 5/5 plans complete in 5 sequential waves
 
 Plans:
 - [x] 91-01-PLAN.md — Tracer: offline re-score chain (Rust scorer + Node batch Mermaid oracle) proven on a synthetic recording; `vox-eval::paired_ni` (Newcombe method 10, NI verdict) test-first; full tallies and recording checks (wave 1)
@@ -320,7 +320,7 @@ Phases execute in numeric order, with the parallel opportunities noted under Ove
 | 88. MCP Tool, CLI & Agent Guidance | 3/3 | Complete    | 2026-10-17 |
 | 89. Docs-Astro Integration | 4/4 | Complete    | 2026-10-27 |
 | 90. Corpus Migration & Gate Tightening | 6/6 | Complete    | 2026-10-27 |
-| 91. Measurement Harness & Advisory Closure | 5/5 | In Progress | - |
+| 91. Measurement Harness & Advisory Closure | 5/5 | Complete    | 2026-10-27 |
 
 ---
 *Roadmap created: 2026-10-16*
