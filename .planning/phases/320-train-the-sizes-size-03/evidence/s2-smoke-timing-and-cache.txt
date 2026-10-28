@@ -1,0 +1,7 @@
+wall_secs_from_launch=354
+start_epoch=1793151027 end_epoch=1793151381
+total 2958480
+-rw-r--r--@ 1 brbrainerd  staff        9732 Sep 11 13:37:23 2026 417d038a63fa3de29cfde265caedae14d1a58d92
+-rw-r--r--@ 1 brbrainerd  staff    11422654 Sep  5 21:22:04 2026 aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4
+-rw-r--r--@ 1 brbrainerd  staff  1503300328 Sep  5 21:22:17 2026 f47f71177f32bcd101b7573ec9171e6a57f4f4d31148d38e382306f42996874b
+-rw-r--r--@ 1 brbrainerd  staff         726 Sep  5 21:22:02 2026 f5c3703b78ae2a478ae15b247e9f855e0ce2107b
