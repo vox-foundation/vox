@@ -103,3 +103,70 @@ unresolved:
   - The BF16 dequant cache keeps ~2 B/param resident (~64+ GB for 32B).
   - Throughput: ~18 s per 2300-token row on 0.6B with checkpointing (ETA ~6 h for the 1108-row epoch).
   - The real SIGKILL path of the launcher was not reproduced end to end.
+
+## Gap closure (2026-10-27): query-chunked attention, tied head, resume
+
+User decisions: "Fix attention first", then "Yes, fix both" (resume gaps). Commits on gsd/mens-compare-316:
+bc034f7e9 (chunked attention), 2c98828a6 (CalKey message), 02142db1e (tied head at serve), f78bbc6eb (telemetry purge),
+dfeb3237f (early base refusal), e5be20e1e (20-min checkpoints), afb5ef543 (keep resume state on cap),
+f40481471 and cdc8fdc3a (estimate).
+
+### 1. Query-chunked attention (Metal model)
+
+- change: `crates/vox-plugin-mens-candle-metal/src/attention.rs`. Every multi-token attention (training, prefill) is a candle `CustomOp3` over the post-repeat_kv q, k, v. Its forward runs tape-free in 512-row query blocks (`QUERY_BLOCK`), each block reading only its causal key prefix `0..r0+len` (scores `[b,h,qb,kv]`, block mask, fused `softmax_last_dim`, `@V`). Its backward recomputes each block's probabilities from q and k and applies the flash-attention recurrence in candle ops (`dV += Pᵀ dO`, `dS = P ∘ (dO Vᵀ - rowsum(dO ∘ O))·scale`, `dQ = dS K`, `dK += dSᵀ Q`). The tape keeps q, k, v and the output only; no tensor larger than `[b,h,512,s]` exists. The one-token decode step keeps the plain softmax; the old full `[1,1,s,s]` mask helper is gone. No new crate, edge or feature.
+- tests (RED first, compile error: function missing): `attention::tests::chunked_attention_matches_eager_output_and_grads` (CPU, s=7, qb 3/1/7/16, so a 1-row tail, degenerate blocks and oversized blocks; output and dq/dk/dv vs the eager full-mask softmax, < 1e-5) and `chunked_attention_on_metal_matches_eager_on_cpu` (Metal, s=37, qb=16, < 1e-4). Plugin lib: 70 then 75 passed.
+- mutation 1: causal guard `if i % kv > r0 + i / kv {` -> `if i % kv > kv {` (grep -c 1 -> 0): both tests failed (output max diff 1.48 CPU, 2.67 Metal); restored from cp backup, diff -q identical, shasum 7d25fac2..., count 1.
+- mutation 2: softmax-backward correction `broadcast_sub(&delta)` -> `broadcast_sub(&delta.zeros_like()?)` (count 1 -> 0): both failed on dq (1.89 CPU, 1.54 Metal); restored, same shasum, count 1.
+- extra checks (temporary, not committed): random F32 at the real shape (h=2, hd=128, s=2333) on Metal, chunked qb 512 / single block vs CPU eager: output 3.7e-7, grads <= 5e-6 (Metal eager itself 4.8e-6). Real Qwen3-0.6B weights, F32 inference forward over 2333 tokens, eager vs chunked attention: max |logit diff| 1.1e-4 at max |logit| 24.3.
+- measured, 0.6B, `--seq-len 3072 --max-runtime-secs 180`, mens/runs/320-debug-chunked-s3072 (needed `VOX_MENS_FORCE_TRAIN=1` only because the then-installed vox-ml-cli carried the pre-chunk estimate, 59,149 MB vs 57,522 MB free): 19 optimizer steps in 180 s, exit 0. Peak per record 19.28 GB then flat 19.95 GB (run peak 19,948,748,800 B), versus 45.3-46.0 GB before (320-debug-proof-s3072). 9.8 s per row (239 tok/s) versus 18.4 s (126 tok/s). Same rows (2333/2277/2280/... tokens).
+- step-0 loss is 3.17428, not 3.16944 (0.15%); later losses track the old run within ~1% (1.2182/1.2010, 1.8707/1.8798, 1.6674/1.6647, ..., 3.6605/3.6657). The training lane runs BF16 compute in every QLoRA matmul (`preset_all_bf16`; activations F32 in between), so ulp-level differences in the attention output change BF16 roundings downstream. The attention itself matches eager to 1e-6 on random inputs and to 5e-6 relative on the real 0.6B in F32 (above). Not proven further.
+- measured, 1.7B (estimate 27,016 MB at the time, fits): mens/runs/320-debug-chunked-1.7b-s3072, preset batch/accum 1/8, rank 16: 16 rows / 2 optimizer steps in 195 s, peak 35.5 -> 47.7 -> 50.0 -> 50.5 GB then flat (50,469,847,040 B), 11.9 s per row. Same with `--grad-accum 1` (mens/runs/320-debug-chunked-1.7b-accum1): 10 steps in 134 s, 35.5 GB then flat 37.70 GB (37,700,567,040 B), 13.1 s per row. Step-0 loss 5.3576 in both. Under the 55 GB kill line throughout (watchdog on telemetry).
+
+### 2. Memory estimate (`estimate_training_vram_mb_qlora`)
+
+- f40481471: the checkpointed branch drops the per-layer `[h,s,s]` terms for one query block, `h·min(s,512)·s·150 B`, calibrated on the 0.6B run (fixed parts unchanged). Test RED: ratio 2.33 at s=2508 vs 19,024 MiB. Mutation `s.min(512)` -> `s` made it fail (ratio 1.60); restored, shasum 151695ff....
+- cdc8fdc3a: the 1.7B accum-1 point (35,954 MiB at 2499) came out at ratio 0.70. Doubling d at equal depth added ~17.7 GB; no linear-in-d term fits both points with a sane intercept, a per-parameter (12·d²·L) term does: resident is now `v·d·6 + 12·d²·L·13` (was `+ 12·d²·L·2.5 + 3 GiB`). Both measured points within 2% (0.6B 1.02, 1.7B 1.005). Test RED on the new 1.7B assertion (0.698); mutation back to the old resident term failed it again (0.698); restored, shasum 39b8a953....
+- estimates now, every row at 3072 tokens (MiB): 0.6B 20,725; 1.7B 38,056; 4B 61,637; 8B 122,876; 14B 195,382; 32B 295,822 (Qwen3 dims; only 0.6B and 1.7B are measured, both at --grad-accum 1). The eager (non-checkpointed) branch keeps the unchunked attention terms, which is what the CUDA plugin still runs.
+
+### 3. Stale CalKey message (2c98828a6)
+
+- `CalKey::new(CandleMetal, true)` is now a real cell; with no measured row `MemoryModels::get` reports "no memory-model calibration for lane candle-metal (gradient_checkpointing=true)". Test `metal_gradient_checkpointing_is_a_real_uncalibrated_cell` RED (unwrap on the old "does not implement" error). The live run log shows the new message.
+
+### 4. eval-local refused the S2 adapter (02142db1e)
+
+- cause: Qwen3-0.6B's checkpoint has `tie_word_embeddings: true` AND stores `lm_head.weight` (both names are in model.safetensors). The trainer's `resolve_lm_head_source` uses the embedding matrix for a tied model and keys the head LoRA `model.embed_tokens.weight`; the head LoRA acts only on the output projection (`QuantizedLinear::from_weight_with_varbuilder(&w_lm, ...)` as `lm_head`); the embedding lookup reads the base `wte`. Metal serving tried `lm_head.weight` first, found it, folded no delta, and `assert_adapter_fully_applied` correctly refused the never-applied `model.embed_tokens.weight` delta.
+- fix: `inference::lm_head_weight(tied, linear_weight)` applies the trainer's predicate: tied skips `lm_head.weight` and reads the embedding key through `linear_weight` (which folds the delta); untied keeps the old order. The embedding lookup still uses `get_tensor` (base). The fully-applied guard is unchanged.
+- test (RED, compile): `a_tied_head_serves_the_delta_trained_on_the_embedding_key` (tied store with both keys, delta keyed by the embedding; tied head logits == h·Wᵀ + h·ΔWᵀ within 1e-4; untied reads lm_head.weight unadapted). The source-count guard `no_linear_layer_is_built_from_an_unadapted_weight` now expects 12 layer sites + its literal, plus an exact match for the `lm_head_weight` call site.
+- mutation: tied branch `&LM_HEAD_KEYS[1..]` -> `&LM_HEAD_KEYS[..]` (count 1 -> 0): test failed ("tied head logits miss the trained delta by 27.59"); restored, shasum b4cbb04f..., count 1.
+- live: `target/release/vox mens eval-local --model mens/runs/320-smoke-0.6b --bench mens/data/heldout_bench --max-tokens 128 -o $TMPDIR/320-evallocal.json` (attempt-2 adapter, not retrained) loaded and answered all 52 prompts, exit 0. pass@1 0/52; every completion is a `<think>` preamble cut at 128 tokens (`trivial_placeholder_output` true for all 52), so the score says nothing about the adapter yet.
+- CUDA: `vox-plugin-mens-candle-cuda/src/inference.rs:406-410` has the same `lm_head.weight`-first chain and its trainer the same `resolve_lm_head_source`, so the same refusal will hit a CUDA-trained tied Qwen3 adapter. Not edited.
+
+### 5. --force-restart keeps telemetry.jsonl (f78bbc6eb)
+
+- `purge_fresh_start_artifacts` now also removes `telemetry.jsonl` (append-only, so attempt 1's rows leaked into attempt 2). Test `a_fresh_start_clears_the_previous_runs_telemetry` RED (assertion), then GREEN; mutation on the new line made it fail; restored, shasum a6d61194....
+
+### 6. Resume onto another base refused late (dfeb3237f)
+
+- gpu.rs now calls `refuse_resume_onto_another_base(resume or output dir, base, force_restart)` right before the base download (so before the memory estimate), reading the checkpoint's recorded `base_model`; same message as the trainer's check, which stays as the backstop. Test `a_checkpoint_from_another_base_is_refused_before_the_download` RED (compile), mutation `base == Some(was)` -> `base.is_some()` failed it; restored, shasum d0a7283c....
+- live: `vox mens train ... --model Qwen3-1.7B --output-dir mens/runs/320-resume-0.6b` (0.6B checkpoint) exited 1 in under 1 s with the base message and no download line.
+
+### 7. Time-based mid-epoch checkpoints (e5be20e1e)
+
+- `checkpoint_due(every_rows, rows_done, since_last_save, optimizer_boundary)`: the row interval as before, or 20 min (`CHECKPOINT_WALL_INTERVAL`) since the last save, the time trigger only at an optimizer-step boundary. After the resume state names the new `checkpoint_step_N`, older `checkpoint_step_*` files are pruned (epoch and pause files untouched). A capped run forces a save at the step it stopped on. Tests `a_checkpoint_is_due_by_rows_or_by_wall_time_at_a_step_boundary`, `only_the_latest_step_checkpoint_is_kept` (RED: compile). Mutation: drop the time clause -> the first failed; restored, shasum 464b44bc....
+
+### 8. Capped runs keep their resume state (afb5ef543)
+
+- `finalize::clean_resume_artifacts(out, capped)`: a capped run keeps `checkpoint_state.json` and its step adapter (the final adapter and manifest are still written); a finished run deletes both as before. Test `a_capped_run_keeps_its_resume_state_and_a_finished_run_does_not` (RED: compile); mutation `if capped` -> `if false` failed it; restored, shasum 0bcb41c6....
+- live (0.6B, `--seq-len 3072 --max-runtime-secs 120`, mens/runs/320-debug-resume): run 1 capped at optimizer step 14 (`"capped": true`), left `checkpoint_state.json` (epoch 1, global_step 14, pair_offset 14, base Qwen/Qwen3-0.6B@c1899de2..., adapter checkpoint_step_14). The identical command again logged "Checkpoint found ... resuming from epoch=1 global_step=14 pair_offset=14" and "Warm-started LoRA weights from .../checkpoint_step_14.safetensors", continued at step 15 through 29, capped again, and left only checkpoint_step_29 with global_step 29. Step 15 loss 0.3396 (0.3410 in the uninterrupted chunked run; AdamW moments are not in the checkpoint, so they restart on resume).
+
+### Builds
+
+- After all commits except cdc8fdc3a: release vox-ml-cli (`--features gpu,execution-api`), plugin (`--features metal`), vox; plugin staged (Plugin.toml + dylib) and installed with `vox plugin install --path <stage> --yes`; installed dylib byte-identical (diff -q, sha256 73e98f3d...). eval-local, the 1.7B runs and the resume proof ran on these. vox-ml-cli and vox were rebuilt again after cdc8fdc3a (estimate only; the plugin is unchanged by it).
+
+### Still open
+
+- 1.7B with the ladder's grad_accum 8 peaks ~12.8 GB above accum 1 (50.5 vs 37.7 GB); the estimate has no accumulation term. Unexplained.
+- The resident term (~13 B per layer parameter) is fitted to two sizes at equal depth; 4B (61.6 GB) and up are extrapolations, and 4B would be refused below ~62 GB free. A capped 4B run under the 55 GB watchdog would settle it.
+- The step-0 loss shift (3.1743 vs 3.1694) is attributed to BF16 rounding, not proven.
+- Resume restarts AdamW moments (pre-existing; the checkpoint holds only the adapter).
+- CUDA inference has the same tied-head gap (above); the CUDA model still uses eager attention.
