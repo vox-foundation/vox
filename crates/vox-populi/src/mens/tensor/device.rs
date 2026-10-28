@@ -101,18 +101,45 @@ pub fn estimate_training_vram_mb(
     (bytes / (1024 * 1024)).max(128)
 }
 
-/// Rough VRAM heuristic for **Candle QLoRA** (qlora-rs NF4 frozen bases).
+/// Peak-memory estimate (MiB) for the **Candle QLoRA** trainer, which runs one
+/// row of up to `seq_len` tokens per micro-step (batch rows are sequential).
+///
+/// Calibrated on Qwen3-0.6B Metal runs (320 S2), where the pool keeps every
+/// op's power-of-two buffer: resident weights (NF4 + BF16 dequant cache, F32
+/// embedding, BF16 head) plus ~3 GiB load overhead; per layer ~1 KB per token
+/// per hidden unit and ~95 B per head per token pair (the `[heads, s, s]`
+/// attention chain kept on the tape), plus ~200 B per head per token pair
+/// while one layer's attention backward runs; the `[s, vocab]` head at ~230 B
+/// per token per vocab entry. Eager keeps every layer on the tape until the
+/// backward; checkpointed keeps one layer, the layer boundaries, and one
+/// 256-row head chunk (the Metal plugin's `HEAD_CHUNK_ROWS`). Rows are assumed
+/// to reach `seq_len`, so this is the worst case for the run.
 #[must_use]
 pub fn estimate_training_vram_mb_qlora(
     d_model: usize,
     n_heads: usize,
     n_layers: usize,
     vocab: usize,
-    batch: usize,
     seq_len: usize,
+    gradient_checkpointing: bool,
 ) -> u64 {
-    let fp_mb = estimate_training_vram_mb(d_model, n_heads, n_layers, vocab, batch, seq_len);
-    fp_mb.saturating_mul(35).saturating_div(100).max(256)
+    let (d, h, l, v) = (
+        d_model as u64,
+        n_heads as u64,
+        n_layers.max(1) as u64,
+        vocab as u64,
+    );
+    let s = seq_len.max(1) as u64;
+    let resident = v * d * 6 + 12 * d * d * l * 5 / 2 + (3 << 30);
+    let layer = s * d * 1000 + h * s * s * 95;
+    let attention_backward = h * s * s * 200;
+    let head = |rows: u64| rows * v * 230;
+    let bytes = if gradient_checkpointing {
+        resident + layer + attention_backward + l * s * d * 4 + head(s.min(256))
+    } else {
+        resident + l * layer + attention_backward + head(s)
+    };
+    bytes / (1024 * 1024)
 }
 
 /// Log GPU summary via [`tracing`] (`target = "vox_mens_gpu"`).
@@ -149,7 +176,8 @@ pub fn print_gpu_summary_for(prefix: &str) {
 /// VRAM currently in use — not available without driver APIs.
 /// NVML probing moved to vox-plugin-nvml-probe.
 #[must_use]
-pub fn sample_vram_used_mb() -> Option<u64> {
+#[rustfmt::skip] // keeps the toestub-ignore comment pinned to the fn signature line
+pub fn sample_vram_used_mb() -> Option<u64> { // toestub-ignore(skeleton/hollow-fn): honest "unknown"; the probe lives in vox-plugin-nvml-probe
     None
 }
 
@@ -207,11 +235,24 @@ pub fn recommend_config_for_profile(preset_name: &str) -> TrainProfile {
 mod vram_estimate_tests {
     use super::*;
 
+    /// 320 S2: this estimate said 1618 MB for a Qwen3-0.6B row of 3072 tokens;
+    /// the eager Metal run reached ~374 GB at 2333. It must carry the attention
+    /// and head terms (measured peaks below, MiB) and drop with checkpointing.
     #[test]
-    fn qlora_heuristic_below_fp_estimate() {
-        let fp = estimate_training_vram_mb(768, 12, 12, 32_000, 1, 512);
-        let ql = estimate_training_vram_mb_qlora(768, 12, 12, 32_000, 1, 512);
-        assert!(ql < fp, "ql={ql} fp={fp}");
-        assert!(ql >= 256);
+    fn qlora_estimate_tracks_measured_metal_peaks() {
+        let q06 = |s, gc| estimate_training_vram_mb_qlora(1024, 16, 28, 151_936, s, gc);
+        for (s, measured) in [(128, 15_945), (256, 23_632), (512, 39_415), (2333, 357_056)] {
+            let ratio = q06(s, false) as f64 / measured as f64;
+            assert!((0.7..1.3).contains(&ratio), "seq {s}: ratio {ratio}");
+        }
+        // Checkpointed with 256-row head chunks; the 3072 run's longest row was 2499.
+        for (s, measured) in [(1024, 19_037), (2499, 43_862)] {
+            let ratio = q06(s, true) as f64 / measured as f64;
+            assert!(
+                (0.8..1.25).contains(&ratio),
+                "checkpointed seq {s}: ratio {ratio}"
+            );
+        }
+        assert!(q06(3072, true) * 5 < q06(3072, false));
     }
 }

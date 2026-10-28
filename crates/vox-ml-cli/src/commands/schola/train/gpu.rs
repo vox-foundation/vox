@@ -186,10 +186,6 @@ pub(super) async fn run_gpu_training(
         anyhow::bail!("--trajectory-quality-floor must be between 1 and 5 (got {q})");
     }
 
-    // Activation/gradient checkpointing default policy:
-    //   * explicit `--gradient-checkpointing` (→ env var) always wins;
-    //   * otherwise auto-enable for ~3B models, which OOM the single-backward peak
-    //     on a 16GB GPU without it (1.5B fits fine without checkpointing).
     // Computed here (rather than after download, where it used to live) so the
     // auto-sizing sweep below — which needs a `CalKey` including this flag —
     // can use the same value the final `LoraTrainingConfig` uses.
@@ -197,16 +193,11 @@ pub(super) async fn run_gpu_training(
         .ok()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
-    let gc_auto_large = model
-        .as_deref()
-        .and_then(vox_populi::mens::tensor::memory_budget::params_b_from_model_hint)
-        .map(|b| b >= 2.9)
-        .unwrap_or(false);
-    let gradient_checkpointing = gc_explicit || gc_auto_large;
+    let gradient_checkpointing =
+        wants_gradient_checkpointing(gc_explicit, model.as_deref(), device_kind);
     if gradient_checkpointing {
         tracing::info!(
             explicit = gc_explicit,
-            auto_large = gc_auto_large,
             "activation/gradient checkpointing ENABLED for this run"
         );
     }
@@ -411,15 +402,15 @@ pub(super) async fn run_gpu_training(
                 train_backend,
                 vox_populi::mens::PopuliTrainBackend::CandleQlora
             ) {
-                // `batch_size`/`seq_len` here (not `profile.*`) so this estimate
-                // reflects the post-sweep sizing when auto-sizing ran above.
+                // `seq_len` here (not `profile.*`) so this estimate reflects the
+                // post-sweep sizing when auto-sizing ran above.
                 vox_populi::mens::estimate_training_vram_mb_qlora(
                     cfg.n_embd,
                     cfg.n_head,
                     cfg.n_layer,
                     cfg.vocab_size,
-                    batch_size,
                     seq_len,
+                    gradient_checkpointing,
                 )
             } else {
                 vox_populi::mens::estimate_training_vram_mb(
@@ -431,6 +422,24 @@ pub(super) async fn run_gpu_training(
                     seq_len,
                 )
             };
+            // Metal has no calibrated plan_for lane (NoMeasurement above), so
+            // this estimate is its fit check: refuse past live free memory
+            // rather than let the OS kill the run mid-step (320 S2).
+            let metal = device_kind == vox_populi::mens::DeviceKind::Metal
+                || (device_kind == vox_populi::mens::DeviceKind::Best && cfg!(target_os = "macos"));
+            if metal
+                && let Some(free) = super::run_train::live_free_memory(device_kind)
+                && est_mb > free.mb
+                && !super::run_train::force_train_env()
+            {
+                anyhow::bail!(
+                    "estimated peak {est_mb} MB (every row at --seq-len {seq_len}, gradient \
+                     checkpointing {gradient_checkpointing}) exceeds {} MB free ({}); lower \
+                     --seq-len or free memory, or set VOX_MENS_FORCE_TRAIN=1 to try anyway",
+                    free.mb,
+                    free.source
+                );
+            }
             if gpu_info.vram_mb > 0 && est_mb as f64 > gpu_info.vram_mb as f64 * 0.85 {
                 eprintln!(
                     "  {} VRAM risk: est. {} MB > 85% of {} MB. Try --batch-size 2 --seq-len 256 or VOX_TRAIN_PROFILE=safe",
@@ -568,6 +577,24 @@ pub(super) async fn run_gpu_training(
     }
 
     Ok(final_pick)
+}
+
+/// Activation/gradient checkpointing policy. An explicit
+/// `VOX_MENS_GRADIENT_CHECKPOINTING` always wins; otherwise on for ~3B+ models,
+/// which OOM the single-backward peak on a 16 GB GPU without it, and always on
+/// Metal, where an eager 0.6B row already needs ~41 GB at 512 tokens (320 S2).
+fn wants_gradient_checkpointing(
+    explicit: bool,
+    model: Option<&str>,
+    device_kind: vox_populi::mens::DeviceKind,
+) -> bool {
+    use vox_populi::mens::DeviceKind;
+    explicit
+        || device_kind == DeviceKind::Metal
+        || (device_kind == DeviceKind::Best && cfg!(target_os = "macos"))
+        || model
+            .and_then(vox_populi::mens::tensor::memory_budget::params_b_from_model_hint)
+            .is_some_and(|b| b >= 2.9)
 }
 
 /// Point the run at a re-checked size pick (D-05): its pin becomes the model
@@ -846,6 +873,25 @@ fn apply_auto_size_outcome(
              reduce --seq-len/--batch-size, pick a smaller model, or set \
              VOX_MENS_FORCE_TRAIN=1 to proceed anyway."
         )),
+    }
+}
+
+#[cfg(test)]
+mod checkpointing_policy_tests {
+    use super::wants_gradient_checkpointing as gc;
+    use vox_populi::mens::DeviceKind::{Cuda, Metal};
+
+    const Q06: &str = "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca";
+
+    /// S2: a 0.6B Metal run at seq_len 3072 ran eager and one 2333-token row
+    /// reached ~374 GB of Metal memory; eager 0.6B already needs ~41 GB at 512
+    /// tokens. Metal always checkpoints; CUDA keeps its size rule.
+    #[test]
+    fn metal_always_checkpoints() {
+        assert!(gc(false, Some(Q06), Metal));
+        assert!(!gc(false, Some(Q06), Cuda));
+        assert!(gc(false, Some("Qwen/Qwen3-4B"), Cuda));
+        assert!(gc(true, Some(Q06), Cuda));
     }
 }
 
