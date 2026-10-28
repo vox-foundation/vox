@@ -2,20 +2,19 @@
 gsd_state_version: "1.0"
 milestone: v1.7
 milestone_name: VoxDiagram
-current_phase: 91
 current_plan: 5
-status: completed
+status: Awaiting next milestone
 stopped_at: Phase 91 complete — all phases complete
-last_updated: "2026-10-28T03:37:50.648Z"
+last_updated: "2026-10-28T06:10:00.423Z"
 last_activity: 2026-10-27
-last_activity_desc: Phase 91 complete
-state_head: 6f9bcae25d403ed68b14529a4c71622056dfcff3
+last_activity_desc: Milestone v1.7 completed and archived
+state_head: 4e18d9d52f4349d3f62ffa9a345956baba3a3ecb
 progress:
   total_phases: 9
   completed_phases: 9
   total_plans: 42
   completed_plans: 42
-  percent: 100
+current_phase: 91
 ---
 
 # Project State: VoxDiagram (`voxdiagram`)
@@ -25,21 +24,19 @@ progress:
 See: `.planning/PROJECT.md` (shared, owned by the `unified` workstream, not edited here) and `.planning/workstreams/voxdiagram/PROJECT-MILESTONE.md`.
 
 **Core value:** For this milestone, agents and humans author diagrams that cannot render-crash, and every live docs diagram renders deterministically.
-**Current focus:** Phase 91 — Measurement Harness & Advisory Closure
+**Current focus:** Milestone v1.7 shipped 2026-10-27 — branch awaits PR to `main`
 
 ## Current Position
 
-Phase: 91
-Plan: Not started
-Status: All phases complete
-Last activity: 2026-10-27 — Phase 91 complete
-
-Progress: [██████████] 100% (0/9 phases)
+Phase: Milestone v1.7 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-10-27 — Milestone v1.7 completed and archived
 
 ## Progress
 
-**Phases Complete:** 0
-**Current Plan:** 5
+**Phases Complete:** 9 / 9 (42 / 42 plans)
+**Current Plan:** —
 
 ## Key Decisions (milestone-level)
 
@@ -61,6 +58,15 @@ None yet.
 - `dagre` 0.1.1 is single-maintainer with no commits since May 2026; keep the one-file adapter and `dugong` fallback (Phase 85 go/no-go).
 - Phase 88 touches the operations catalog and generated artifacts that the `unified` milestone also edits; regenerate through `ssot-autoregen`.
 - Any allowlist entry beyond the Gantt (Phase 90) requires user sign-off.
+
+## Deferred Items
+
+Items acknowledged and deferred at milestone close, most recent first:
+
+| Category | Item | Status | Date | Milestone |
+|----------|------|--------|------|-----------|
+| deferred_items | 88/deferred-items.md: profile_backcompat fixture (resolved by the main merge) and `vox-gamify` present in the lean profile (pre-existing, via vox-cli-core/vox-lsp/vox-orchestrator) | acknowledged | 2026-10-27 | v1.7 |
+| deferred_items | 87/deferred-items.md: 26 pre-existing rust 1.98 clippy lints in `vox-doc-pipeline` claims/; stale `capability-index` `crate.vox-diagram` row (ssot-autoregen); vox-cli test initializer (fixed in 17f84c579) | acknowledged | 2026-10-27 | v1.7 |
 
 ## Session Continuity
 
@@ -169,3 +175,7 @@ None yet.
 
 - At the next merge of local `main` (`ceb1b5d1a`, other session's v1.5/v1.6) into `milestone/v1.7-voxdiagram`: (1) call `vox_doc_pipeline::pipeline::fence_issues(md)` from `self_heal_bot::validate_bot_patch_scope_and_gates` + one test; (2) re-seed `contracts/documentation/legacy-mermaid-baseline.v1.yaml` (user re-seeds; main has 40 fences / 25 files) — decided 2026-10-17.
 - Before opening the milestone PR: `vox-orchestrator-mcp` `profile_backcompat_tests` (2) fail at the phase base because the advertised-tools fixture lacks 14 already-registered tools; this PR touches the crate, so hosted `tests` will run them — fix the fixture (or confirm they are quarantined) in PR prep. Also expect `cargo clippy -p vox-doc-pipeline` to flag 26 pre-existing `claims/` findings on the affected-crate clippy step. — noted 2026-10-17.
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

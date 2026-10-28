@@ -17,3 +17,4 @@
 - 87-03: `vox-cli` lib tests did not compile on this branch (`OperationRow` test initializer in
   `operations_catalog_exposure.rs` lacked `owner_crate`/`domain`; main already has them). Fixed in
   `17f84c579` because the new gate test needs that test binary.
+  status: acknowledged

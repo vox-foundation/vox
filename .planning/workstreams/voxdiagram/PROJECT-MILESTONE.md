@@ -11,3 +11,7 @@
 **Phases:** 83+ (v1.6 `unified` owns 77–82).
 
 **Sources:** `docs/src/architecture/diagramming-and-mermaid-evaluation-advisory-2026.md` (error-rate table unsourced — see `research/PITFALLS.md`), `research/SUMMARY.md`.
+
+## Status: Shipped 2026-10-27
+
+All 9 phases (83–91, 42 plans) complete; 25/25 requirements satisfied. Closed as override (phases 83–90 verification went stale only through the `origin/main` merge `2bdeb19a0`). Archive: `milestones/v1.7-ROADMAP.md`, `milestones/v1.7-REQUIREMENTS.md`, `milestones/v1.7-MILESTONE-AUDIT.md`, `milestones/v1.7-phases/`; summary in `MILESTONES.md`. The shared `.planning/PROJECT.md` is owned by `unified` and is updated there at merge time.

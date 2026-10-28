@@ -10,3 +10,4 @@
   `vox-cli` tree through `vox-cli-core` (optional `db` feature, unchanged since `82b24d2d4`), `vox-lsp` and `vox-orchestrator`;
   `cargo tree -p vox-diagram` contains no gamify, and the phase's only manifest change is `vox-orchestrator-mcp -> vox-diagram`
   (a leaf crate). Not caused by phase 88; not fixed.
+  status: acknowledged
