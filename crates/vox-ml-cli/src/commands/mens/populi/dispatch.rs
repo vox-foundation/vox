@@ -1,6 +1,6 @@
 //! Dispatch for [`PopuliAction`](crate::commands::mens::PopuliAction).
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 use super::PopuliAction;
 
@@ -742,12 +742,35 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             // Without `gpu` nothing can be scored or recorded; a silent exit 0
             // would read as success to a per-size loop.
             #[cfg(not(feature = "gpu"))]
-            super::mens_tail_subcommands::PopuliMensTail::EvalReasoningCompare { .. } => {
+            super::mens_tail_subcommands::PopuliMensTail::BaselineFromCompare { .. }
+            | super::mens_tail_subcommands::PopuliMensTail::EvalReasoningCompare { .. } => {
                 anyhow::bail!(
                     "vox mens eval-reasoning-compare requires the `gpu` cargo feature, \
                      which was not enabled when this binary was built; rebuild with \
                      `cargo build -p vox-ml-cli --release --features gpu`"
                 )
+            }
+
+            #[cfg(feature = "gpu")]
+            super::mens_tail_subcommands::PopuliMensTail::BaselineFromCompare { compare, out } => {
+                let baseline =
+                    crate::commands::mens::baseline_from_compare::baseline_json_from_compare(
+                        &compare,
+                    )?;
+                match out {
+                    Some(path) => {
+                        if let Some(parent) = path.parent() {
+                            std::fs::create_dir_all(parent).with_context(|| {
+                                format!("create baseline output dir {}", parent.display())
+                            })?;
+                        }
+                        std::fs::write(&path, serde_json::to_string_pretty(&baseline)?)
+                            .with_context(|| format!("write baseline {}", path.display()))?;
+                        eprintln!("wrote {}", path.display());
+                    }
+                    None => println!("{}", serde_json::to_string_pretty(&baseline)?),
+                }
+                Ok(())
             }
 
             #[cfg(feature = "gpu")]

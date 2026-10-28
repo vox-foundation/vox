@@ -56,6 +56,18 @@ pub enum PopuliMensTail {
         post_adapter: PathBuf,
     },
 
+    /// Build collateral pre-score JSON (six reasoning keys) from a compared
+    /// `eval-reasoning-compare` report.
+    #[command(name = "baseline-from-compare")]
+    BaselineFromCompare {
+        /// Compared reasoning_before_after.v1 report path
+        #[arg(long)]
+        compare: PathBuf,
+        /// Write baseline JSON here (default: stdout)
+        #[arg(short = 'o', long)]
+        out: Option<PathBuf>,
+    },
+
     /// Score a pinned base and its adapter on the 32-item reasoning slices; writes an absence record when either is not on disk. Not a serve-gate input.
     #[command(name = "eval-reasoning-compare")]
     EvalReasoningCompare {

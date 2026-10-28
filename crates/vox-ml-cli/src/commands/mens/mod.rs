@@ -17,6 +17,8 @@
 //! Oratio speech-to-text lives at **`vox oratio`** (top-level), not under `mens`.
 //! ```
 
+#[cfg(feature = "gpu")]
+pub(crate) mod baseline_from_compare;
 /// Latency and throughput benchmarking for completions.
 pub mod bench_completion;
 #[cfg(feature = "cloud")]
