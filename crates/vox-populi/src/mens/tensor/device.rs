@@ -107,13 +107,16 @@ pub fn estimate_training_vram_mb(
 /// Calibrated on Qwen3-0.6B Metal runs (320 S2), where the pool keeps every
 /// op's power-of-two buffer: resident weights (NF4 + BF16 dequant cache, F32
 /// embedding, BF16 head) plus ~3 GiB load overhead; per layer ~1 KB per token
-/// per hidden unit and ~95 B per head per token pair (the `[heads, s, s]`
-/// attention chain kept on the tape), plus ~200 B per head per token pair
-/// while one layer's attention backward runs; the `[s, vocab]` head at ~230 B
-/// per token per vocab entry. Eager keeps every layer on the tape until the
-/// backward; checkpointed keeps one layer, the layer boundaries, and one
-/// 256-row head chunk (the Metal plugin's `HEAD_CHUNK_ROWS`). Rows are assumed
-/// to reach `seq_len`, so this is the worst case for the run.
+/// per hidden unit; the `[s, vocab]` head at ~230 B per token per vocab entry.
+///
+/// Checkpointed is the Metal plugin's path: one layer, the layer boundaries,
+/// one 256-row head chunk (`HEAD_CHUNK_ROWS`) and query-chunked attention,
+/// whose backward holds ~150 B per head per (query row, key) of one 512-row
+/// block (`attention::QUERY_BLOCK`), so attention grows with `s`, not `s²`.
+/// Eager models the unchunked attention every layer keeps on the tape (~95 B
+/// per head per token pair, plus ~200 B while one layer's backward runs), as
+/// measured before chunking. Rows are assumed to reach `seq_len`, so this is
+/// the worst case for the run.
 #[must_use]
 pub fn estimate_training_vram_mb_qlora(
     d_model: usize,
@@ -131,13 +134,13 @@ pub fn estimate_training_vram_mb_qlora(
     );
     let s = seq_len.max(1) as u64;
     let resident = v * d * 6 + 12 * d * d * l * 5 / 2 + (3 << 30);
-    let layer = s * d * 1000 + h * s * s * 95;
-    let attention_backward = h * s * s * 200;
     let head = |rows: u64| rows * v * 230;
     let bytes = if gradient_checkpointing {
-        resident + layer + attention_backward + l * s * d * 4 + head(s.min(256))
+        let attention_block = h * s.min(512) * s * 150;
+        resident + s * d * 1000 + attention_block + l * s * d * 4 + head(s.min(256))
     } else {
-        resident + l * layer + attention_backward + head(s)
+        let layer = s * d * 1000 + h * s * s * 95;
+        resident + l * layer + h * s * s * 200 + head(s)
     };
     bytes / (1024 * 1024)
 }
@@ -245,14 +248,14 @@ mod vram_estimate_tests {
             let ratio = q06(s, false) as f64 / measured as f64;
             assert!((0.7..1.3).contains(&ratio), "seq {s}: ratio {ratio}");
         }
-        // Checkpointed with 256-row head chunks; the 3072 run's longest row was 2499.
-        for (s, measured) in [(1024, 19_037), (2499, 43_862)] {
-            let ratio = q06(s, true) as f64 / measured as f64;
-            assert!(
-                (0.8..1.25).contains(&ratio),
-                "checkpointed seq {s}: ratio {ratio}"
-            );
-        }
+        // Checkpointed (256-row head chunks) with 512-row query-chunked
+        // attention: the --seq-len 3072 run peaked at 19,024 MiB, longest row
+        // 2508 (320-debug-chunked-s3072); before chunking that run was 43,862.
+        let ratio = q06(2508, true) as f64 / 19_024.0;
+        assert!(
+            (0.9..1.15).contains(&ratio),
+            "checkpointed seq 2508: ratio {ratio}"
+        );
         assert!(q06(3072, true) * 5 < q06(3072, false));
     }
 }
