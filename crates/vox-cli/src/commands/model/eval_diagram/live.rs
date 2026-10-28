@@ -26,7 +26,9 @@ use super::run::{check_cap, check_run_name, prior_spend, redact_error, refused, 
 use super::{ModelSlot, RunHeader};
 
 const HUMAN: &str = "HUMAN ACTION REQUIRED";
-const MAX_TOKENS: u64 = 4096;
+/// Output budget, reasoning included. 4096 in the 2026-10-27 run, where reasoning models spent it
+/// all thinking and wrote no answer on hard tasks; raised so the answer has room (user, 2026-10-27).
+const MAX_TOKENS: u64 = 16384;
 const SEED_BASE: u64 = 42;
 const B_CANDIDATES: usize = 10;
 const BATCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
@@ -143,7 +145,7 @@ async fn chat_once(config: LlmConfig, messages: Vec<LlmChatMessage>) -> Result<R
     })
 }
 
-/// The locked config of a slot: temperature 0, 4096 tokens, no tools; the seed is set per call.
+/// The locked config of a slot: temperature 0, [`MAX_TOKENS`], no tools; the seed is set per call.
 fn slot_config(spec: &ModelSpec) -> LlmConfig {
     let mut c = llm_config_for_spec(spec, TaskCategory::CodeGen);
     c.temperature = Some(0.0);

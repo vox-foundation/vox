@@ -56,6 +56,8 @@ Model B is the highest-ranked answering cloud model of a different vendor organi
 exists. A selection forced through the environment is refused. Every call goes through the
 model-agnostic facade (`vox_actor_runtime::llm`) with one locked configuration per model: temperature
 0, at most 4096 output tokens, no tools. The provider-reported model id of every call is recorded.
+Later runs allow 16384 output tokens and record each reply's finish reason (see "Limitations observed
+in the run").
 
 **Oracles.** VoxDiagram validity is `vox_diagram::check` reporting no error. Mermaid validity is
 acceptance by the pinned Mermaid 11.17.2 parser (`mermaid.parse`), run in Node by
@@ -245,6 +247,18 @@ on 199 tasks, with g056 excluded.
     A runaway reasoning budget, a content filter and a gateway quirk all look the same. The 10
     empty replies that used the full limit fit truncation. The other 7 do not: g128 used 225
     completion tokens.
+  - **Diagnosis by replay (2026-10-27, $0.024, not part of the measurement).** The 17 empty attempts
+    were re-sent with the same messages, seed and model after the facade began returning the
+    finish reason and reasoning. Replies at temperature 0 were not reproducible: 8 of the 15
+    answered calls now returned an answer. Of the 7 that were empty again, 6 stopped with
+    finish reason `length` after spending the whole 4096-token budget on reasoning (g029, g055
+    and g056 Mermaid, all with hard label escaping). 1 stopped normally with every token spent on
+    reasoning and the answer written only inside the reasoning (g059 VoxDiagram, 596 tokens). The
+    2 model B calls failed to decode. The dominant cause is the shared output budget, not the
+    notation.
+  - Later runs allow 16384 output tokens and record `finish_reason` and `reasoning_tokens` on every
+    attempt (commits `e2652e15a`, `422609e5a`). An answer found only in the reasoning still scores
+    invalid; the rule reads the reply.
 - **Both arms sit near the ceiling.** First-pass validity was 96 to 98%, so model A's paired
   comparison rests on 12 discordant tasks. The narrow interval reflects how rarely the arms disagreed.
 - **Two inexpensive models.** The registry selected two low-cost models, and the whole run cost under
