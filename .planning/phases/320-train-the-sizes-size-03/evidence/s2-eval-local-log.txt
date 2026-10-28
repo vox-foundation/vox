@@ -1,14 +1,33 @@
 [36m╔══════════════════════════════════════════╗[39m
 [36m║   Vox Mens — Local Eval Harness        ║[39m
 [36m╚══════════════════════════════════════════╝[39m
-  Model:  mens/runs/320-smoke-0.6b
-  Bench:  mens/data/heldout_bench
-  Tokens: 128 per sample | temp 0
+  Model:  mens/runs/320-smoke-0.6b-a3
+  Bench:  /private/tmp/claude-501/-Users-brbrainerd-dev-vox-voxdiagram/29f8e79e-7b0b-4197-9cfe-34ec71ab397b/scratchpad/bench8
+  Tokens: 1024 per sample | temp 0
 
-  Checkpoint: 0.0 MB | 52 benchmark samples
+  Checkpoint: 0.0 MB | 8 benchmark samples
   [36mℹ[39m Prompt order: lexicographic by full prompt (prefix-cache friendly)
 
-2026-10-28T03:08:52.125187Z  INFO vox_plugin_host::telemetry: event="plugin.discovered" id="mens-candle-metal" version="0.6.0" payload_kind="code" abi_or_format_version=13
-2026-10-28T03:08:52.126104Z  INFO vox_plugin_host::telemetry: event="plugin.discovered" id="mens-candle-cuda" version="0.6.0" payload_kind="code" abi_or_format_version=12
-2026-10-28T03:08:52.216033Z  INFO vox_plugin_host::telemetry: event="plugin.loaded" id="mens-candle-metal" version="0.6.0" payload_kind="code" load_ms=14
-Error: load_model(mens/runs/320-smoke-0.6b): 1 trained LoRA delta(s) were never applied to any weight: ["model.embed_tokens.weight"]. The adapter's base_key_map names tensors this model never loads as a linear projection, so the trained layers would be served as base weights. Next: check base_key_map in adapter_manifest.json against this model's config.json.
+2026-10-28T05:02:44.680916Z  INFO vox_plugin_host::telemetry: event="plugin.loaded" id="mens-candle-metal" version="0.6.0" payload_kind="code" load_ms=1
+  [32m✓[39m Inference backend: mens-candle-metal plugin loaded
+  [31m✗[39m [function] count_multiples_of_3_or_5 — define a function named `count_multiples_of_3_or_5` that takes an integer `n` and returns the sum of all positive multiples of 3 or 5 strictly below `n` (c=0/1 p@1=0.000 p@k=0.000)
+  [31m✗[39m [function] matrix_row_sums — define a function named `matrix_row_sums` that takes a list of lists of integers `matrix` and returns a list of the sum of each row (c=0/1 p@1=0.000 p@k=0.000)
+  [31m✗[39m [mutation] mutation_update — define a mutation named `update_item` that takes an integer `id` and a string `title` and updates the item with the matching id (c=0/1 p@1=0.000 p@k=0.000)
+  [32m✓[39m [page    ] page_index — define a page named `IndexPage` with a title 'Home' that displays a heading with the text 'Welcome' (c=1/1 p@1=1.000 p@k=1.000)
+  [31m✗[39m [workflow] workflow_fetch_save — define a workflow named `fetch_and_save` that fetches data from a URL stored in a variable `url` and saves the result to a variable `data` (c=0/1 p@1=0.000 p@k=0.000)
+  [31m✗[39m [action  ] action_create_item — define an action named `create_item` that takes a string parameter `title` and returns a new record with an `id` and the given `title` (c=0/1 p@1=0.000 p@k=0.000)
+  [32m✓[39m [action  ] action_delete — define an action named `delete_item` that takes an integer parameter `id` and returns a boolean indicating success (c=1/1 p@1=1.000 p@k=1.000)
+  [32m✓[39m [test    ] test_smoke — write a test named `smoke` that calls `add(1, 2)` and asserts the result equals 3 (c=1/1 p@1=1.000 p@k=1.000)
+
+  ──────────────────────────────────────────────────────
+  Overall: pass@1 3.00/8 (38%) | pass@1 3.00/8 (38%) | semantic 0%
+    page         p@1 1.00/1 p@k 1.00/1
+    action       p@1 1.00/2 p@k 1.00/2
+    mutation     p@1 0.00/1 p@k 0.00/1
+    workflow     p@1 0.00/1 p@k 0.00/1
+    test         p@1 1.00/1 p@k 1.00/1
+    function     p@1 0.00/2 p@k 0.00/2
+
+  Report saved: /private/tmp/claude-501/-Users-brbrainerd-dev-vox-voxdiagram/29f8e79e-7b0b-4197-9cfe-34ec71ab397b/scratchpad/eval8.json
+  pass@k summary saved: /private/tmp/claude-501/-Users-brbrainerd-dev-vox-voxdiagram/29f8e79e-7b0b-4197-9cfe-34ec71ab397b/scratchpad/benchmark_passatk.json
+  eval_results.json updated: /private/tmp/claude-501/-Users-brbrainerd-dev-vox-voxdiagram/29f8e79e-7b0b-4197-9cfe-34ec71ab397b/scratchpad/eval_results.json

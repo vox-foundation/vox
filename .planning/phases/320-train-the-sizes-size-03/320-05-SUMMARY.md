@@ -6,83 +6,75 @@ tags: [mens, qlora, metal, smoke, d-05, d-06, size-03]
 status: complete
 requires: [320-04]
 provides:
-  - "mens/runs/320-smoke-0.6b (gitignored): capped 0.6B adapter, 29 optimizer steps, pin in manifest and summary"
-  - "320-S2-SMOKE.md attempt 2 with the six D-05 checks; Stage S2: FAIL — held-out answer"
-  - "evidence/s2-* (attempt 2) and evidence/s2-attempt1/ (attempt 1 history)"
+  - "mens/runs/320-smoke-0.6b-a3 (gitignored): capped 0.6B adapter, 60 optimizer steps, pin in manifest and summary, resume state kept"
+  - "320-S2-SMOKE.md attempt 3 with the six D-05 checks; Stage S2: PASS (attempts 1-2 kept as history)"
+  - "evidence/s2-* (attempt 3), evidence/s2-attempt2/ and evidence/s2-attempt1/ (history)"
 affects: [320-06, 320-07, 320-08, 321]
 tech-stack:
   added: []
-  patterns: ["loss falling judged on run-scoped telemetry rows (after the last train_start), quarter and 5-step windows"]
+  patterns:
+    - "resume refusal tested against the capped run's own kept checkpoint instead of a SIGINT'd Run B"
+    - "eval-local subset via a --bench directory holding a trimmed manifest.json"
 key-files:
   created:
-    - .planning/phases/320-train-the-sizes-size-03/evidence/s2-attempt1/
+    - .planning/phases/320-train-the-sizes-size-03/evidence/s2-attempt2/
     - .planning/phases/320-train-the-sizes-size-03/evidence/s2-*
   modified:
     - .planning/phases/320-train-the-sizes-size-03/320-S2-SMOKE.md
+    - .planning/phases/320-train-the-sizes-size-03/320-05-SUMMARY.md
 decisions:
-  - "D-05 serve decision stays accept-eval-local (user, recorded in attempt 1); serve refused at the Phase 315 gate as expected"
-  - "Run C forced with VOX_MENS_FORCE_TRAIN=1 after the memory estimate refused it before the base check; a watcher guarded P-320-10"
-  - "Stage S2: FAIL — eval-local refuses the adapter (tied-head LoRA delta model.embed_tokens.weight never applied); code fix needed before S3"
+  - "D-05 serve decision stays accept-eval-local (user, attempt 1); serve refused at the Phase 315 gate as expected"
+  - "eval-local scored on the first 8 held-out tasks at --max-tokens 1024: the full 52-task bench projected to ~2.7 h"
+  - "Stage S2: PASS on the plan's criteria, with two caveats: 5-step loss window flat, and no complete answer text quotable (eval-local stores a 240-char preview)"
 metrics:
-  duration: "~15 min (02:56-03:11 UTC 2026-10-28)"
+  duration: "~35 min (04:44-05:19 UTC 2026-10-28)"
   completed: 2026-10-28
 actuals:
-  tokens: 9000
+  tokens: 12000
   tasks: 3
   commits: 1
-plan_head_before: 2c98828a6b0282c10592f073c4184f7575e282b0
-plan_head_after: 49173587ecdd357a671c665a6e06031435b4aeb8
+plan_head_before: 6d326bf745a627e81eb7cd4a35a62616b6a86113
 ---
 
-# Phase 320 Plan 05: S2 0.6B smoke run (attempt 2) Summary
+# Phase 320 Plan 05: S2 0.6B smoke run (attempt 3) Summary
 
-The second attempt ran on the fixed binaries (`vox 0.6.0+build.7428 (55a338c53)`, plugin sha1 `e1eb8287…`). The 0.6B smoke trained 29 steps under the 480 s cap with a flat ~44 GiB peak, and its loss fell. The adapter names the pin, and resume refuses the 1.7B base. Serve refused at the Phase 315 gate as expected. eval-local refuses to load the adapter: the tied-head LoRA delta, keyed `model.embed_tokens.weight`, is never applied by Metal inference. **Stage S2: FAIL — held-out answer.**
+Attempt 3 ran on `vox 0.6.0+build.7442 (cdc8fdc3a)`. The installed Metal plugin is byte-identical to `target/release` (sha256 `73e98f3d…`). The 0.6B smoke trained 60 steps under the 480 s cap at seq_len 3072. Its peak was 24.8 GB, flat from the first full-length row, and its quarter-window loss fell. The capped run kept its resume state. A resume onto 1.7B was refused in 0.43 s with no download, and the checkpoint was unchanged afterwards. Serve was refused at the Phase 315 gate, as expected. eval-local loaded the adapter and scored pass@1 3/8 on a subset of the held-out tasks. **Stage S2: PASS.**
 
 ## Commits
 
 | Task | Commit | Message |
 |------|--------|---------|
-| 1-2 | `49173587e` | docs(320-05): S2 smoke run evidence, attempt 2 |
+| 1-2 | see git log | docs(320-05): S2 smoke run evidence, attempt 3 |
 
 ## Results
 
 | D-05 check | Result | Key evidence |
 |---|---|---|
-| 1. Loss falls | PASS | n = 29. Quarter windows 1.6225 → 1.2988; 5-step windows 1.8224 → 1.6266. Final loss EMA 1.4059. |
-| 2. Manifest names the pin | PASS | `run_summary.base_model` is `Qwen/Qwen3-0.6B@c1899de…`; `adapter_manifest.base_model` is the `…/snapshots/c1899de…` directory. |
-| 3. Resume refuses a different base | PASS | `was trained on base Qwen/Qwen3-0.6B@c1899de…, but this run's base is Qwen/Qwen3-1.7B@70d244cc…`. The checkpoint's bytes are unchanged. |
-| 4. Serve | REFUSED AT THE GATE (expected) | `eval_collateral_damage check not found!`, exit 1. No gate files exist. |
-| 5. Held-out answer | **FAIL** | `1 trained LoRA delta(s) were never applied to any weight: ["model.embed_tokens.weight"]`, exit 1, no JSON written. |
-| 6. Peak recorded | PASS | 45,994,475,520 B (43,864 MiB) in `run_summary`, `train-record` and step telemetry. The estimate was 59,149 MB and the host had 64,599 MB free. |
+| 1. Loss falls | PASS (quarter) | n = 60. Quarter windows 1.7491 → 1.1632. The 5-step windows went 1.8251 → 1.8373 and did **not** fall (batch-1 row noise; per-row loss ranged 0.005-3.65). Final loss EMA 1.3123. |
+| 2. Pin and checkpoint kept | PASS | `run_summary.base_model` is `Qwen/Qwen3-0.6B@c1899de…` and `capped` is true. The record's status is `capped`. `checkpoint_state.json` (global_step 60) and `checkpoint_step_60.safetensors` remain. |
+| 3. Resume refuses a different base | PASS | Exit 1 in 0.43 s, no `Downloading` line, `was trained on base …0.6B@c1899de…, but this run's base is …1.7B@70d244cc…`. Checkpoint sha1s are unchanged. |
+| 4. Serve | REFUSED AT THE GATE (expected) | `eval_collateral_damage check not found!`, exit 1. No gate files exist. W1 is carried. |
+| 5. Held-out answer | PASS | 8-task subset at 1024 tokens: pass@1 3/8 (action_delete, test_smoke, page_index), semantic 0/8, 5/8 still inside `<think>`. No errors. The full text is not persisted: the preview is 240 chars. |
+| 6. Peak recorded | PASS | 24,824,217,600 B (23,675 MiB) in `run_summary`, `train-record` and telemetry. It rose 19.2 → 20.8 GB, then stayed flat at 24.8 GB from step 33, the first 3071-token row. The estimate of 20,725 MiB is 12% low. |
 
-Run record:
-
-| field | value |
-|---|---|
-| status | `capped` |
-| steps | 29 |
-| train wall | 491.5 s |
-| total wall | 511.1 s |
-| truncated / trimmed rows | 0 / 0 |
+Run record: `capped`, 60/60 steps, train wall 486.3 s, total wall 491.3 s, 2 truncated and 2 trimmed rows, 145,261 tokens.
 
 ## Deviations from Plan
 
-1. **Runs went through `target/release/vox mens …`, not `$ML`.** The shell allowlist blocks calling `vox-ml-cli` directly. `vox` forwards argv unchanged. The SIGINT for Run B went to the `vox-ml-cli` PID.
-2. **Run C was refused twice.** The first refusal came from the new Metal memory estimate (65,896 MB against 65,502 MB free), after the 1.7B download and before the base check. The run was repeated once with `VOX_MENS_FORCE_TRAIN=1` so the base check could run. A watcher would have sent SIGINT on `Masked CE numeric preflight` or `Training started` (P-320-10); it never fired. Both outcomes are in the evidence.
-3. **Loss was measured on run-scoped telemetry.** `--force-restart` does not truncate `telemetry.jsonl`, which still held attempt 1's `train_start` and its 374 GB step-0 row. Only rows after the last `train_start` were used.
-4. **The acceptance check "no `Downloading base model` line" fails as written.** The line also prints on a cache hit. Blob listings before and after the run are identical, so nothing was fetched.
-5. **Task 3 (`checkpoint:decision`, blocking-human) was not re-asked.** The user's attempt 1 decision `accept-eval-local` stands. It does not turn S2 into a PASS, because eval-local itself failed.
-6. **Concurrent commits.** `bc034f7e9` (query-chunked attention) and `2c98828a6` (calibration cell) landed on the branch during this run from another session. The binaries used here predate them: `vox`, `vox-ml-cli` and the plugin have timestamps of 19:26-19:53, and the plugin sha1 `e1eb8287…` was unchanged before and after.
+1. **Runs went through `target/release/vox mens …`, not `$ML`.** The shell allowlist blocks running `vox-ml-cli` directly.
+2. **No separate Run B.** The capped smoke run now keeps `checkpoint_state.json` (`afb5ef543`), so the 1.7B refusal was run against that checkpoint (`--resume mens/runs/320-smoke-0.6b-a3 --output-dir mens/runs/320-resume-1.7b-a3`). No `Training paused` evidence exists for this attempt.
+3. **eval-local ran on a subset at `--max-tokens 1024`**, per the orchestrator: the first 8 of the 52 tasks, through a trimmed `manifest.json` passed as `--bench`. The plan's bench path and `--max-tokens 128` were not used. A 2-task probe and a single `test_smoke` run at 4096 tokens are also kept.
+4. **The plan's acceptance check "no `Downloading base model` line" still fails as written.** The line also prints on a cache hit.
 
-## Deferred Issues (code, not patched per instructions)
+## Deferred Issues (not patched, per instructions)
 
-- **Blocks S3.** The Metal trainer's tied-head LoRA (`base_key_map["lm_head"] = "model.embed_tokens.weight"`, `candle_qlora_train/mod.rs:1006-1020`) is never requested by Metal inference, and `assert_adapter_fully_applied` (`inference.rs:830-850`) refuses it. Every tied-embedding base is affected: 0.6B, and 1.7B, which was confirmed tied.
-- Hygiene: `--force-restart` should truncate `telemetry.jsonl`.
-- Ordering: a mismatched `--resume` should be refused before the memory estimate and the base download.
+- eval-local stores only `completion.chars().take(240)` (`eval_local.rs:288`), so complete answers cannot be quoted.
+- The memory estimate is 12% low at a full 3072-token row. 4B and larger estimates are extrapolations from the same fit.
+- At 1024 tokens, 5 of 8 answers stay inside `<think>`.
 
 ## Self-Check: PASSED
 
-- `320-S2-SMOKE.md` ends with `Stage S2: FAIL — …`.
-- Commit `49173587e` is an ancestor of HEAD.
-- No `*.safetensors` file was committed.
+- `320-S2-SMOKE.md` ends with `Stage S2: PASS`.
+- Task 1's automated verify, adapted to the `-a3` dir and `capped == true`, printed `TASK1-VERIFY-PASS`. The Task 2 checks that apply printed `TASK2-CHECKS-PASS`.
+- No `*.safetensors` file was staged.
 - No `collateral_damage_report.json` or `gate_receipt.json` exists under the run dir.

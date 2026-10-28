@@ -1,0 +1,23 @@
+[36m╔══════════════════════════════════════════╗[39m
+[36m║   Vox Mens — Local Eval Harness        ║[39m
+[36m╚══════════════════════════════════════════╝[39m
+  Model:  mens/runs/320-smoke-0.6b-a3
+  Bench:  /private/tmp/claude-501/-Users-brbrainerd-dev-vox-voxdiagram/29f8e79e-7b0b-4197-9cfe-34ec71ab397b/scratchpad/bench2
+  Tokens: 1024 per sample | temp 0
+
+  Checkpoint: 0.0 MB | 2 benchmark samples
+  [36mℹ[39m Prompt order: lexicographic by full prompt (prefix-cache friendly)
+
+2026-10-28T04:54:35.758578Z  INFO vox_plugin_host::telemetry: event="plugin.loaded" id="mens-candle-metal" version="0.6.0" payload_kind="code" load_ms=2
+  [32m✓[39m Inference backend: mens-candle-metal plugin loaded
+  [31m✗[39m [workflow] workflow_fetch_save — define a workflow named `fetch_and_save` that fetches data from a URL stored in a variable `url` and saves the result to a variable `data` (c=0/1 p@1=0.000 p@k=0.000)
+  [31m✗[39m [action  ] action_create_item — define an action named `create_item` that takes a string parameter `title` and returns a new record with an `id` and the given `title` (c=0/1 p@1=0.000 p@k=0.000)
+
+  ──────────────────────────────────────────────────────
+  Overall: pass@1 0.00/2 (0%) | pass@1 0.00/2 (0%) | semantic 0%
+    workflow     p@1 0.00/1 p@k 0.00/1
+    action       p@1 0.00/1 p@k 0.00/1
+
+  Report saved: /private/tmp/claude-501/-Users-brbrainerd-dev-vox-voxdiagram/29f8e79e-7b0b-4197-9cfe-34ec71ab397b/scratchpad/eval2.json
+  pass@k summary saved: /private/tmp/claude-501/-Users-brbrainerd-dev-vox-voxdiagram/29f8e79e-7b0b-4197-9cfe-34ec71ab397b/scratchpad/benchmark_passatk.json
+  eval_results.json updated: /private/tmp/claude-501/-Users-brbrainerd-dev-vox-voxdiagram/29f8e79e-7b0b-4197-9cfe-34ec71ab397b/scratchpad/eval_results.json

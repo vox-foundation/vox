@@ -1,0 +1,148 @@
+{
+  "model": "mens/runs/320-smoke-0.6b-a3",
+  "base_only": false,
+  "bench": "/private/tmp/claude-501/-Users-brbrainerd-dev-vox-voxdiagram/29f8e79e-7b0b-4197-9cfe-34ec71ab397b/scratchpad/bench2",
+  "max_tokens": 1024,
+  "temperature": 0.0,
+  "n": 1,
+  "k": 1,
+  "seed_base": 1337,
+  "total": 2,
+  "passed_at_1": 0.0,
+  "passed_at_k": 0.0,
+  "pass_rate_at_1": 0.0,
+  "pass_rate_at_k": 0.0,
+  "semantic_task_success": 0.0,
+  "anti_stub_task_success": 0.0,
+  "placeholder_event_rate": 0.0,
+  "trivial_placeholder_event_rate": 1.0,
+  "construct_richness_mean": 0.0,
+  "category_stats": [
+    {
+      "category": "workflow",
+      "passed_at_1": 0.0,
+      "passed_at_k": 0.0,
+      "total": 1,
+      "pass_rate_at_1": 0.0,
+      "pass_rate_at_k": 0.0
+    },
+    {
+      "category": "action",
+      "passed_at_1": 0.0,
+      "passed_at_k": 0.0,
+      "total": 1,
+      "pass_rate_at_1": 0.0,
+      "pass_rate_at_k": 0.0
+    }
+  ],
+  "results": [
+    {
+      "manifest_index": 0,
+      "id": "workflow_fetch_save",
+      "file": "",
+      "context_files": [],
+      "category": "workflow",
+      "description": "define a workflow named `fetch_and_save` that fetches data from a URL stored in a variable `url` and saves the result to a variable `data`",
+      "n": 1,
+      "c": 0,
+      "k": 1,
+      "pass_at_1": 0.0,
+      "pass_at_k": 0.0,
+      "semantic_pass_at_k": false,
+      "samples": [
+        {
+          "sample_index": 0,
+          "seed": 340978291,
+          "pass": false,
+          "pass_compile": false,
+          "pass_ast": false,
+          "pass_exec": null,
+          "semantic_pass": false,
+          "anti_stub_pass": false,
+          "distinct_4_ratio": 1.0,
+          "constraint_adherence": true,
+          "symbol_binding_accuracy": 1.0,
+          "tool_call_json_valid": false,
+          "tool_name_exists": false,
+          "tool_call_salvaged": false,
+          "checks": {
+            "non_empty": false,
+            "parse_ok": true,
+            "typecheck_ok": true,
+            "diag_errors": 0,
+            "parse_error": null,
+            "placeholder_marker_hits": 0,
+            "trivial_placeholder_output": true,
+            "construct_richness_score": 0.0,
+            "anti_stub_pass": false,
+            "pass_compile": false,
+            "pass_ast": false,
+            "pass_exec": null,
+            "distinct_4_ratio": 1.0,
+            "constraint_adherence": true,
+            "symbol_binding_accuracy": 1.0,
+            "semantic_expected_contains": [
+              "workflow fetch_and_save"
+            ],
+            "semantic_pass": false
+          },
+          "completion_preview": "<think>\nOkay, let's see. The user wants a Vox program that defines a workflow named `fetch_and_save` which fetches data from a URL stored in a variable `url` and saves the result to a variable `data`. \n\nFirst, I need to create a workflow. T"
+        }
+      ]
+    },
+    {
+      "manifest_index": 1,
+      "id": "action_create_item",
+      "file": "",
+      "context_files": [],
+      "category": "action",
+      "description": "define an action named `create_item` that takes a string parameter `title` and returns a new record with an `id` and the given `title`",
+      "n": 1,
+      "c": 0,
+      "k": 1,
+      "pass_at_1": 0.0,
+      "pass_at_k": 0.0,
+      "semantic_pass_at_k": false,
+      "samples": [
+        {
+          "sample_index": 0,
+          "seed": 365272187,
+          "pass": false,
+          "pass_compile": false,
+          "pass_ast": false,
+          "pass_exec": null,
+          "semantic_pass": false,
+          "anti_stub_pass": false,
+          "distinct_4_ratio": 1.0,
+          "constraint_adherence": true,
+          "symbol_binding_accuracy": 1.0,
+          "tool_call_json_valid": false,
+          "tool_name_exists": false,
+          "tool_call_salvaged": false,
+          "checks": {
+            "non_empty": false,
+            "parse_ok": true,
+            "typecheck_ok": true,
+            "diag_errors": 0,
+            "parse_error": null,
+            "placeholder_marker_hits": 0,
+            "trivial_placeholder_output": true,
+            "construct_richness_score": 0.0,
+            "anti_stub_pass": false,
+            "pass_compile": false,
+            "pass_ast": false,
+            "pass_exec": null,
+            "distinct_4_ratio": 1.0,
+            "constraint_adherence": true,
+            "symbol_binding_accuracy": 1.0,
+            "semantic_expected_contains": [
+              "action create_item"
+            ],
+            "semantic_pass": false
+          },
+          "completion_preview": "<think>\nOkay, I need to write a Vox program that defines an action named `create_item` which takes a string parameter `title` and returns a new record with an `id` and the given `title`. Let me think about how to approach this.\n\nFirst, I sh"
+        }
+      ]
+    }
+  ]
+}

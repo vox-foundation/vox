@@ -1,0 +1,14 @@
+[36m╔══════════════════════════════════════════╗[39m
+[36m║   Vox Mens — Local Eval Harness        ║[39m
+[36m╚══════════════════════════════════════════╝[39m
+  Model:  mens/runs/320-smoke-0.6b
+  Bench:  mens/data/heldout_bench
+  Tokens: 128 per sample | temp 0
+
+  Checkpoint: 0.0 MB | 52 benchmark samples
+  [36mℹ[39m Prompt order: lexicographic by full prompt (prefix-cache friendly)
+
+2026-10-28T03:08:52.125187Z  INFO vox_plugin_host::telemetry: event="plugin.discovered" id="mens-candle-metal" version="0.6.0" payload_kind="code" abi_or_format_version=13
+2026-10-28T03:08:52.126104Z  INFO vox_plugin_host::telemetry: event="plugin.discovered" id="mens-candle-cuda" version="0.6.0" payload_kind="code" abi_or_format_version=12
+2026-10-28T03:08:52.216033Z  INFO vox_plugin_host::telemetry: event="plugin.loaded" id="mens-candle-metal" version="0.6.0" payload_kind="code" load_ms=14
+Error: load_model(mens/runs/320-smoke-0.6b): 1 trained LoRA delta(s) were never applied to any weight: ["model.embed_tokens.weight"]. The adapter's base_key_map names tensors this model never loads as a linear projection, so the trained layers would be served as base weights. Next: check base_key_map in adapter_manifest.json against this model's config.json.
