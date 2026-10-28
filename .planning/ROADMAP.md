@@ -132,7 +132,16 @@ Plans:
   1. Each size that fits produces a Metal QLoRA adapter whose manifest names its pinned base.
   2. A size that does not fit has a record with the measured memory and no adapter.
 
-**Plans**: TBD
+**Plans**: 8/9 plans executed
+- [x] 320-01-PLAN.md
+- [x] 320-02-PLAN.md
+- [x] 320-03-PLAN.md
+- [x] 320-04-PLAN.md
+- [x] 320-05-PLAN.md
+- [x] 320-06-PLAN.md
+- [x] 320-07-PLAN.md
+- [x] 320-08-PLAN.md
+- [ ] 320-09-PLAN.md
 
 ### Phase 321: Harness Before/After (`HARN-01`, `BENCH-04`)
 
