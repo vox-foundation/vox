@@ -104,10 +104,14 @@ pub fn estimate_training_vram_mb(
 /// Peak-memory estimate (MiB) for the **Candle QLoRA** trainer, which runs one
 /// row of up to `seq_len` tokens per micro-step (batch rows are sequential).
 ///
-/// Calibrated on Qwen3-0.6B Metal runs (320 S2), where the pool keeps every
-/// op's power-of-two buffer: resident weights (NF4 + BF16 dequant cache, F32
-/// embedding, BF16 head) plus ~3 GiB load overhead; per layer ~1 KB per token
-/// per hidden unit; the `[s, vocab]` head at ~230 B per token per vocab entry.
+/// Calibrated on Qwen3-0.6B and 1.7B Metal runs (320 S2), where the pool keeps
+/// every op's power-of-two buffer: ~6 B per embedding entry and ~13 B per
+/// layer parameter (`12·d²` per layer; NF4 + BF16 dequant cache account for
+/// 2.5 B, the rest is unexplained but scales with parameters: doubling `d` at
+/// equal depth added ~17.7 GB, not the ~6 GB a linear-in-`d` model gives);
+/// per layer ~1 KB per token per hidden unit; the `[s, vocab]` head at ~230 B
+/// per token per vocab entry. Measured with `--grad-accum 1`: on 1.7B,
+/// accumulating over 8 rows added ~12.8 GB that this does not model.
 ///
 /// Checkpointed is the Metal plugin's path: one layer, the layer boundaries,
 /// one 256-row head chunk (`HEAD_CHUNK_ROWS`) and query-chunked attention,
@@ -133,7 +137,7 @@ pub fn estimate_training_vram_mb_qlora(
         vocab as u64,
     );
     let s = seq_len.max(1) as u64;
-    let resident = v * d * 6 + 12 * d * d * l * 5 / 2 + (3 << 30);
+    let resident = v * d * 6 + 12 * d * d * l * 13;
     let head = |rows: u64| rows * v * 230;
     let bytes = if gradient_checkpointing {
         let attention_block = h * s.min(512) * s * 150;
@@ -257,5 +261,14 @@ mod vram_estimate_tests {
             "checkpointed seq 2508: ratio {ratio}"
         );
         assert!(q06(3072, true) * 5 < q06(3072, false));
+        // Qwen3-1.7B (d 2048), same path, --grad-accum 1: 35,954 MiB at a
+        // 2499-token max row (320-debug-chunked-1.7b-accum1). Doubling d did
+        // not add the ~6 GB a linear-in-d model predicts but ~17.7 GB.
+        let q17 = estimate_training_vram_mb_qlora(2048, 16, 28, 151_936, 2499, true);
+        let ratio = q17 as f64 / 35_954.0;
+        assert!(
+            (0.9..1.15).contains(&ratio),
+            "1.7B checkpointed seq 2499: ratio {ratio}"
+        );
     }
 }
