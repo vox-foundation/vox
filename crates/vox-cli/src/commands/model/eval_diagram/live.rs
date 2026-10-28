@@ -50,13 +50,13 @@ pub fn vendor_org(id: &str) -> &str {
     id.split_once('/').map_or(id, |(org, _)| org)
 }
 
-/// A model forced through the environment is a pin: refuse it.
+/// Only a registry score is a selection; an environment override or a configured premium alias is
+/// a pin: refuse it.
 pub fn refuse_override(reason: &SelectionReason) -> Result<()> {
-    if let SelectionReason::EnvOverride { env_var } = reason {
-        bail!(
-            "{HUMAN}: {env_var} forces the model; unset it, the eval selects through the registry"
-        );
-    }
+    ensure!(
+        matches!(reason, SelectionReason::Scored),
+        "{HUMAN}: the selection is not a registry score ({reason}); unset the override or alias, the eval refuses pins"
+    );
     Ok(())
 }
 

@@ -13,12 +13,21 @@ fn vendor_org_is_the_part_before_the_slash() {
 }
 
 #[test]
-fn an_environment_override_is_refused() {
-    let err = refuse_override(&SelectionReason::EnvOverride {
-        env_var: "VOX_MODEL_FORCE",
-    })
-    .unwrap_err();
-    assert!(err.to_string().starts_with(HUMAN), "{err}");
+fn only_a_registry_score_is_accepted() {
+    let pins = [
+        SelectionReason::EnvOverride {
+            env_var: "VOX_MODEL_FORCE",
+        },
+        SelectionReason::PremiumAlias {
+            task: TaskCategory::CodeGen,
+            alias_model_id: "acme/pinned".into(),
+        },
+        SelectionReason::LocalOnly,
+    ];
+    for reason in &pins {
+        let err = refuse_override(reason).unwrap_err();
+        assert!(err.to_string().starts_with(HUMAN), "{err}");
+    }
     refuse_override(&SelectionReason::Scored).unwrap();
 }
 
