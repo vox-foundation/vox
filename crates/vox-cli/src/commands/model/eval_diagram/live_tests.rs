@@ -51,12 +51,14 @@ async fn probes_are_ledgered_one_by_one_and_the_first_priced_reply_wins() {
     let dir = tempfile::tempdir().unwrap();
     let ids: Vec<String> = ["c1", "c2", "c3", "c4", "c5"].map(String::from).to_vec();
     let calls = Cell::new(0);
-    let (hit, recs) = probe_candidates(dir.path(), 25.0, &ids, |id| {
+    let (hit, recs) = probe_candidates(dir.path(), 25.0, &ids, |_| {
         calls.set(calls.get() + 1);
         let n = calls.get();
         async move {
             match n {
-                1 | 3 => Err(format!("{id}: 401")),
+                1 | 3 => Err(
+                    "LLM API returned error (401): {\"error\":\"key sk-proj-SECRET1234\"}".into(),
+                ),
                 2 => Ok(reply(None)),
                 _ => Ok(reply(Some(0.5))),
             }
@@ -70,7 +72,15 @@ async fn probes_are_ledgered_one_by_one_and_the_first_priced_reply_wins() {
         recs.iter().map(|r| r.ok).collect::<Vec<_>>(),
         [false, false, false, true]
     );
-    assert_eq!(recs[0].error.as_deref(), Some("c1: 401"));
+    assert_eq!(
+        recs[0].error.as_deref(),
+        Some("LLM API returned error (401)")
+    );
+    let text = std::fs::read_to_string(dir.path().join(PROBE_LEDGER)).unwrap();
+    assert!(
+        !text.contains("sk-proj") && !text.contains("SECRET"),
+        "{text}"
+    );
     assert_eq!(recs[1].error.as_deref(), Some("reply carried no cost"));
     assert_eq!(recs[3].resolved_model.as_deref(), Some("served"));
     assert_eq!(prior_spend(dir.path()).unwrap(), 0.5);

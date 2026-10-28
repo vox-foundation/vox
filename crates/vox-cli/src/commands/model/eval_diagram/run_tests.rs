@@ -68,6 +68,12 @@ fn recorded(out: &RunOutcome) -> Vec<Line> {
     read_jsonl(&read(out.run_dir.join("attempts.jsonl"))).unwrap()
 }
 
+/// A failure after the request was sent: it may have been billed.
+const RESET: &str = "HTTP request failed: connection reset";
+/// A provider refusal that echoes part of the key in its body.
+const REFUSED: &str =
+    "LLM API returned error (401): {\"error\":\"Incorrect API key provided: sk-proj-SECRET1234\"}";
+
 /// VoxDiagram: invalid at turn 0, valid after. Mermaid: g001 fails to parse at turns 0 and 1.
 #[derive(Default)]
 struct Stub {
@@ -89,7 +95,7 @@ impl Backend for Stub {
         let turn = messages.iter().filter(|m| m.role == "assistant").count();
         self.calls.push((slot.to_string(), seed, messages));
         if self.calls.len() <= self.transport_failures {
-            return Err("connection reset".into());
+            return Err(RESET.into());
         }
         let content = match (vd, turn) {
             (true, 0) => VD_BAD,
@@ -316,7 +322,7 @@ async fn transport_errors_retry_the_same_slot_three_times_then_are_recorded() {
     let first: Vec<&Attempt> = attempts(&lines).take(2).collect();
     assert_eq!(
         first[0].transport_error.as_deref(),
-        Some("connection reset")
+        Some("HTTP request failed")
     );
     assert_eq!(
         (first[0].retries, first[0].raw_response.is_none()),
@@ -344,6 +350,31 @@ async fn transport_errors_retry_the_same_slot_three_times_then_are_recorded() {
     let lines = recorded(&out);
     let a = attempts(&lines).next().unwrap();
     assert_eq!((a.retries, a.raw_response.is_some()), (2, true));
+}
+
+#[test]
+fn only_the_error_class_and_status_are_kept() {
+    for (raw, want) in [
+        (REFUSED, "LLM API returned error (401)"),
+        (
+            "LLM API returned error (503): upstream sk-or-v1-abc",
+            "LLM API returned error (503)",
+        ),
+        (
+            "Failed to parse response JSON: error decoding response body",
+            "Failed to parse response JSON",
+        ),
+        ("RATE_LIMITED: retry after 3 s", "RATE_LIMITED"),
+        (
+            "CONTEXT_LENGTH_EXCEEDED: LLM API returned error (400): too long",
+            "CONTEXT_LENGTH_EXCEEDED",
+        ),
+        ("activity cancelled", "activity cancelled"),
+        ("Unauthorized sk-proj-SECRET1234", "unclassified error"),
+        ("LLM API returned error (4x1)", "unclassified error"),
+    ] {
+        assert_eq!(redact_error(raw), want, "{raw}");
+    }
 }
 
 #[tokio::test]

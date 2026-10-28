@@ -22,7 +22,7 @@ use vox_orchestrator::models::{
 pub use super::prereg::MERMAID_VERSION;
 use super::prereg::{check_manifest, check_mermaid, check_report, check_sha, verify_freeze};
 use super::run::{Backend, PROBE_LEDGER, ProbeRecord, Reply, RunConfig, RunOutcome};
-use super::run::{check_cap, check_run_name, prior_spend, run_dataset};
+use super::run::{check_cap, check_run_name, prior_spend, redact_error, run_dataset};
 use super::{ModelSlot, RunHeader};
 
 const HUMAN: &str = "HUMAN ACTION REQUIRED";
@@ -87,7 +87,7 @@ where
             candidate: id.clone(),
             ok: cost.is_some(),
             error: match &reply {
-                Err(e) => Some(e.clone()),
+                Err(e) => Some(redact_error(e)),
                 Ok(_) if cost.is_none() => Some("reply carried no cost".into()),
                 Ok(_) => None,
             },

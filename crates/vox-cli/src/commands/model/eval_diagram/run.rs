@@ -77,6 +77,29 @@ pub fn check_run_name(name: &str) -> Result<()> {
     Ok(())
 }
 
+/// The facade's error class, with the HTTP status when there is one; never the provider's text,
+/// which can echo part of a key or a request header.
+#[must_use]
+pub fn redact_error(e: &str) -> String {
+    const CLASSES: [&str; 5] = [
+        "HTTP request failed",
+        "Failed to parse response JSON",
+        "RATE_LIMITED",
+        "CONTEXT_LENGTH_EXCEEDED",
+        "activity cancelled",
+    ];
+    let head = e.split(':').next().unwrap_or_default().trim();
+    let status = head
+        .strip_prefix("LLM API returned error (")
+        .and_then(|s| s.strip_suffix(')'))
+        .is_some_and(|c| !c.is_empty() && c.bytes().all(|b| b.is_ascii_digit()));
+    if status || CLASSES.contains(&head) {
+        head.into()
+    } else {
+        "unclassified error".into()
+    }
+}
+
 /// One line of the probe ledger.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProbeRecord {
@@ -386,7 +409,7 @@ async fn call<B: Backend>(
             }
             Err(_) if a.retries < MAX_TRANSPORT_RETRIES => a.retries += 1,
             Err(e) => {
-                a.transport_error = Some(e);
+                a.transport_error = Some(redact_error(&e));
                 return Some(true);
             }
         }
