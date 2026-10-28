@@ -56,10 +56,10 @@ async fn probes_are_ledgered_one_by_one_and_the_first_priced_reply_wins() {
         let n = calls.get();
         async move {
             match n {
-                1 | 3 => Err(
+                1 => Err(
                     "LLM API returned error (401): {\"error\":\"key sk-proj-SECRET1234\"}".into(),
                 ),
-                2 => Ok(reply(None)),
+                2 | 3 => Err("LLM API returned error (404): no such model".into()),
                 _ => Ok(reply(Some(0.5))),
             }
         }
@@ -81,7 +81,6 @@ async fn probes_are_ledgered_one_by_one_and_the_first_priced_reply_wins() {
         !text.contains("sk-proj") && !text.contains("SECRET"),
         "{text}"
     );
-    assert_eq!(recs[1].error.as_deref(), Some("reply carried no cost"));
     assert_eq!(recs[3].resolved_model.as_deref(), Some("served"));
     assert_eq!(prior_spend(dir.path()).unwrap(), 0.5);
 
@@ -96,12 +95,40 @@ async fn probes_are_ledgered_one_by_one_and_the_first_priced_reply_wins() {
     assert!(err.to_string().starts_with(HUMAN), "{err}");
     assert_eq!((calls.get(), ledger(dir.path()).len()), (0, 4));
 
-    // Three failures: three ledger lines, no slot.
+    // Three refusals: three ledger lines, no slot.
     let dir = tempfile::tempdir().unwrap();
-    let (hit, recs) = probe_candidates(dir.path(), 25.0, &ids[..3], |id| async move {
-        Err(format!("{id}: down"))
+    let (hit, recs) = probe_candidates(dir.path(), 25.0, &ids[..3], |_| async move {
+        Err("LLM API returned error (403): forbidden".into())
     })
     .await
     .unwrap();
     assert_eq!((hit, recs.len(), ledger(dir.path()).len()), (None, 3, 3));
+}
+
+#[tokio::test]
+async fn a_probe_that_may_have_been_billed_without_a_usable_cost_stops_probing() {
+    let ids: Vec<String> = ["c1", "c2"].map(String::from).to_vec();
+    let cases: [Result<Reply, String>; 4] = [
+        Ok(reply(None)),
+        Ok(reply(Some(-0.5))),
+        Ok(reply(Some(f64::NAN))),
+        Err("Failed to parse response JSON: error decoding response body".into()),
+    ];
+    for case in cases {
+        let dir = tempfile::tempdir().unwrap();
+        let calls = Cell::new(0);
+        let err = probe_candidates(dir.path(), 25.0, &ids, |_| {
+            calls.set(calls.get() + 1);
+            let r = case.clone();
+            async move { r }
+        })
+        .await
+        .unwrap_err();
+        assert!(err.to_string().starts_with(HUMAN), "{err}");
+        // One probe, ledgered, then nothing more; the ledger still sums.
+        assert_eq!(calls.get(), 1);
+        let recs = ledger(dir.path());
+        assert_eq!((recs.len(), recs[0].ok, recs[0].cost_usd), (1, false, None));
+        assert_eq!(prior_spend(dir.path()).unwrap(), 0.0);
+    }
 }

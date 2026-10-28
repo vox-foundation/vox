@@ -290,6 +290,23 @@ fn prior_spend_sums_attempt_costs_and_the_probe_ledger() {
     assert_eq!(prior_spend(alone.path()).unwrap(), 0.125);
     std::fs::write(dir.path().join(PROBE_LEDGER), ledger).unwrap();
     assert_eq!(prior_spend(dir.path()).unwrap(), 0.875);
+
+    // A negative cost would lower the spend: refused, in the ledger and in a recording.
+    let bad = tempfile::tempdir().unwrap();
+    std::fs::write(
+        bad.path().join(PROBE_LEDGER),
+        ledger.replace("0.125", "-0.5"),
+    )
+    .unwrap();
+    let err = prior_spend(bad.path()).unwrap_err();
+    assert!(format!("{err:#}").contains("-0.5"), "{err:#}");
+    let Line::Attempt(a) = &mut lines[1] else {
+        unreachable!()
+    };
+    a.cost_usd = -0.25;
+    std::fs::write(run.join("attempts.jsonl"), write_jsonl(&lines).unwrap()).unwrap();
+    let err = prior_spend(dir.path()).unwrap_err();
+    assert!(format!("{err:#}").contains("-0.25"), "{err:#}");
 }
 
 #[tokio::test]

@@ -100,6 +100,14 @@ pub fn redact_error(e: &str) -> String {
     }
 }
 
+/// The provider refused the request before generating anything (a 4xx status or a rate limit), so
+/// nothing was billed. Any other failure may have been: an undecodable 200, a timeout after send.
+pub(super) fn refused(class: &str) -> bool {
+    class.starts_with("LLM API returned error (4")
+        || class == "RATE_LIMITED"
+        || class == "CONTEXT_LENGTH_EXCEEDED"
+}
+
 /// One line of the probe ledger.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProbeRecord {
@@ -122,9 +130,18 @@ pub fn check_cap(cap: f64) -> Result<()> {
 
 /// Spend already counted against the cap: every attempt cost under `runs/*/attempts.jsonl` plus
 /// every cost in the probe ledger (a missing file counts 0, a null cost counts 0). The header's
-/// probe list is provenance only and never summed here, so nothing counts twice.
+/// probe list is provenance only and never summed here, so nothing counts twice. A negative or
+/// non-finite cost is refused: it would lower the spend.
 pub fn prior_spend(dataset_dir: &Path) -> Result<f64> {
     let mut total = 0.0;
+    let mut add = |cost: f64, at: &dyn std::fmt::Display| -> Result<()> {
+        ensure!(
+            cost.is_finite() && cost >= 0.0,
+            "{at}: cost {cost} USD is negative or not finite"
+        );
+        total += cost;
+        Ok(())
+    };
     match std::fs::read_dir(dataset_dir.join("runs")) {
         Ok(dir) => {
             for entry in dir {
@@ -135,7 +152,7 @@ pub fn prior_spend(dataset_dir: &Path) -> Result<f64> {
                 let text = std::fs::read_to_string(&path)?;
                 for line in read_jsonl::<Line>(&text).with_context(|| path.display().to_string())? {
                     if let Line::Attempt(a) = line {
-                        total += a.cost_usd;
+                        add(a.cost_usd, &path.display())?;
                     }
                 }
             }
@@ -146,7 +163,7 @@ pub fn prior_spend(dataset_dir: &Path) -> Result<f64> {
     match std::fs::read_to_string(dataset_dir.join(PROBE_LEDGER)) {
         Ok(text) => {
             for p in read_jsonl::<ProbeRecord>(&text).context(PROBE_LEDGER)? {
-                total += p.cost_usd.unwrap_or(0.0);
+                add(p.cost_usd.unwrap_or(0.0), &PROBE_LEDGER)?;
             }
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}

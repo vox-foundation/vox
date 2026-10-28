@@ -22,7 +22,7 @@ use vox_orchestrator::models::{
 pub use super::prereg::MERMAID_VERSION;
 use super::prereg::{check_manifest, check_mermaid, check_report, check_sha, verify_freeze};
 use super::run::{Backend, PROBE_LEDGER, ProbeRecord, Reply, RunConfig, RunOutcome};
-use super::run::{check_cap, check_run_name, prior_spend, redact_error, run_dataset};
+use super::run::{check_cap, check_run_name, prior_spend, redact_error, refused, run_dataset};
 use super::{ModelSlot, RunHeader};
 
 const HUMAN: &str = "HUMAN ACTION REQUIRED";
@@ -61,8 +61,10 @@ pub fn refuse_override(reason: &SelectionReason) -> Result<()> {
 }
 
 /// Probe candidates in order, appending one ledger line per probe (answered or not) before the
-/// next; returns the first that answers with a reported cost, and every probe. Refuses to probe
-/// once the dataset's prior spend (runs and ledger) reaches `cap`.
+/// next; returns the first that answers with a usable cost, and every probe. Refuses to probe
+/// once the dataset's prior spend (runs and ledger) reaches `cap`. A provider refusal moves on to
+/// the next candidate; any other probe without a usable cost may have been billed an unknown
+/// amount, so probing stops for a human.
 pub async fn probe_candidates<F, Fut>(
     dataset_dir: &Path,
     cap: f64,
@@ -81,16 +83,22 @@ where
             "{HUMAN}: spend {spent} USD has reached the cap {cap} USD; no further probe"
         );
         let reply = probe(id.clone()).await;
-        let cost = reply.as_ref().ok().and_then(|r| r.cost_usd);
+        let cost = reply
+            .as_ref()
+            .ok()
+            .and_then(|r| r.cost_usd)
+            .filter(|c| c.is_finite() && *c >= 0.0);
+        let error = match &reply {
+            Err(e) => Some(redact_error(e)),
+            Ok(_) if cost.is_none() => Some("reply carried no usable cost".into()),
+            Ok(_) => None,
+        };
+        let stop = error.as_deref().filter(|e| !refused(e)).map(String::from);
         let rec = ProbeRecord {
             time: chrono::Utc::now().to_rfc3339(),
             candidate: id.clone(),
-            ok: cost.is_some(),
-            error: match &reply {
-                Err(e) => Some(redact_error(e)),
-                Ok(_) if cost.is_none() => Some("reply carried no cost".into()),
-                Ok(_) => None,
-            },
+            ok: error.is_none(),
+            error,
             resolved_model: reply.as_ref().ok().map(|r| r.model.clone()),
             cost_usd: cost,
         };
@@ -104,6 +112,11 @@ where
         records.push(rec);
         if ok {
             return Ok((Some(id.clone()), records));
+        }
+        if let Some(e) = stop {
+            bail!(
+                "{HUMAN}: the probe of {id} may have been billed without a usable cost ({e}); the cap cannot hold, check the provider before probing again"
+            );
         }
     }
     Ok((None, records))
