@@ -3,7 +3,7 @@
 # Roadmap: v5.6 — Reasoning Where the Lane Needs It
 
 **Milestone:** v5.6
-**Status:** Phase 318 complete — Phase 320 runs next (ahead of 319, user decision 2026-10-27). Extended 2026-10-26: not complete until at least two Qwen3 sizes have real trained before/after scores.
+**Status:** Phase 320 complete (2026-10-28) — SIZE-03 PASS (0.6B/1.7B trained). Next: Phase 321 (HARN-01/BENCH-04); Phase 319 (MESH-01) still deferred.
 **Updated:** 2026-10-26
 
 ### Phase 313: Lane Prefix (`LANE-01`, `LANE-02`)
@@ -166,7 +166,7 @@ Plans:
 | **Phase 317** | Size Ladder | `1/1` | Complete |
 | **Phase 318** | Live VRAM Selector | `4/4` | Complete |
 | **Phase 319** | Mesh-Wide Selection | `0/0` | Not started |
-| **Phase 320** | Train the Sizes | `0/0` | Not started |
+| **Phase 320** | Train the Sizes | `9/9` | Complete |
 | **Phase 321** | Harness Before/After | `0/0` | Not started |
 
 ---
