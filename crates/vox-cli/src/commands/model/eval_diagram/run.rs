@@ -61,6 +61,10 @@ pub trait Backend {
     ) -> Result<Reply, String>;
     /// Judge an oracle-inputs JSONL text; returns the oracle's JSONL output verbatim.
     async fn mermaid_batch(&mut self, inputs_jsonl: &str) -> Result<String>;
+    /// Wait before transport retry `retry` (1-based): 2, 4, 8 s.
+    async fn backoff(&mut self, retry: u32) {
+        tokio::time::sleep(std::time::Duration::from_secs(2u64.pow(retry))).await;
+    }
 }
 
 /// A run name is one directory under `runs/`: `[A-Za-z0-9._-]`, not starting with `.`. A nested or
@@ -408,7 +412,7 @@ async fn run_slot<B: Backend>(
 }
 
 /// One model call: the cap, less the reservation, is checked before it and before every transport
-/// retry (same slot, at most [`MAX_TRANSPORT_RETRIES`]). `None` when the cap forbids
+/// retry (same slot, at most [`MAX_TRANSPORT_RETRIES`], with backoff). `None` when the cap forbids
 /// the call; otherwise whether every charge is known. A failure that may have been billed is
 /// charged the reservation, and is a stop (`false`) when nothing has been priced yet.
 async fn call<B: Backend>(
@@ -453,6 +457,7 @@ async fn call<B: Backend>(
                     return Some(true);
                 }
                 a.retries += 1;
+                b.backoff(a.retries).await;
             }
         }
     }

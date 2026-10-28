@@ -81,6 +81,7 @@ struct Stub {
     cost: Option<f64>,
     /// Which 1-based calls fail in transport, and with what error text.
     fail: Option<(fn(usize) -> bool, &'static str)>,
+    backoffs: Vec<u32>,
     batches: usize,
     fail_batch: Option<usize>,
 }
@@ -135,6 +136,10 @@ impl Backend for Stub {
             })
             .collect();
         write_jsonl(&outs)
+    }
+
+    async fn backoff(&mut self, retry: u32) {
+        self.backoffs.push(retry);
     }
 }
 
@@ -331,7 +336,7 @@ async fn a_reply_without_a_cost_stops_the_run() {
 }
 
 #[tokio::test]
-async fn transport_errors_retry_the_same_slot_three_times_then_are_recorded() {
+async fn transport_errors_back_off_retry_the_same_slot_three_times_then_are_recorded() {
     let dir = dataset();
     let mut b = Stub {
         fail: Some((|n| (2..=5).contains(&n), RESET)),
@@ -364,6 +369,7 @@ async fn transport_errors_retry_the_same_slot_three_times_then_are_recorded() {
             .iter()
             .all(|c| c.0 == "A" && c.1 == b.calls[1].1 && texts(&c.2) == texts(&b.calls[1].2))
     );
+    assert_eq!(b.backoffs, [1, 2, 3]);
     assert!(out.problems.is_empty(), "{:?}", out.problems);
     assert!((prior_spend(dir.path()).unwrap() - out.spent_usd).abs() < 1e-12);
 
@@ -380,6 +386,7 @@ async fn transport_errors_retry_the_same_slot_three_times_then_are_recorded() {
     assert_eq!((a.retries, a.raw_response.is_some()), (2, true));
     assert_eq!(a.transport_error, None);
     assert!((a.cost_usd - 0.003).abs() < 1e-12, "{}", a.cost_usd);
+    assert_eq!(b.backoffs, [1, 2]);
 }
 
 #[tokio::test]
