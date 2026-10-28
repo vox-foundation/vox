@@ -100,16 +100,6 @@ impl From<QMatMul> for QuantizedLinear {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-fn causal_mask(seq_len: usize, device: &Device) -> Result<Tensor> {
-    let mut data = vec![0.0f32; seq_len * seq_len];
-    for row in 0..seq_len {
-        for col in (row + 1)..seq_len {
-            data[row * seq_len + col] = f32::NEG_INFINITY;
-        }
-    }
-    Tensor::from_vec(data, (1, 1, seq_len, seq_len), device)
-}
-
 /// Differentiable RMSNorm with an F32-stable reduction that preserves the activation
 /// dtype. candle's `RmsNorm::forward_diff` upcasts BF16/F16 to F32 for the variance, but
 /// casts the normalized result back to the *input* dtype before multiplying by the (F32)
@@ -185,7 +175,6 @@ impl Qwen2Attention {
         kv_cache: Option<&mut Option<(Tensor, Tensor)>>,
     ) -> Result<Tensor> {
         let (b, seq_len, _d_model) = x.dims3()?;
-        let device = x.device();
 
         let q = self
             .q_proj
@@ -268,7 +257,7 @@ impl Qwen2Attention {
             None => (k, v),
         };
 
-        // `causal_mask` below is square in `seq_len`, so a multi-token forward is
+        // The causal mask below is square in `seq_len`, so a multi-token forward is
         // only correct when nothing was cached before it (the prefill). Feeding a
         // multi-token chunk on top of a populated cache would silently mask the
         // wrong positions rather than fail, so it fails here instead.
@@ -285,16 +274,20 @@ impl Qwen2Attention {
         let v = repeat_kv(&v, n_rep)?;
 
         let scale = 1.0 / (self.head_dim as f64).sqrt();
-        let att = (q.contiguous()?.matmul(&k.transpose(2, 3)?.contiguous()?)? * scale)?;
-
-        let att = if seq_len > 1 {
-            let mask = causal_mask(seq_len, device)?;
-            let masked_att = att.broadcast_add(&mask)?;
-            candle_nn::ops::softmax(&masked_att, candle_core::D::Minus1)?
+        // A multi-token forward (training, prefill) never materializes [h, s, s]:
+        // see `crate::attention`. A one-token decode step needs no mask.
+        let y = if seq_len > 1 {
+            crate::attention::chunked_causal_attention(
+                &q,
+                &k,
+                &v,
+                scale,
+                crate::attention::QUERY_BLOCK,
+            )?
         } else {
-            candle_nn::ops::softmax(&att, candle_core::D::Minus1)?
+            let att = (q.contiguous()?.matmul(&k.transpose(2, 3)?.contiguous()?)? * scale)?;
+            candle_nn::ops::softmax(&att, candle_core::D::Minus1)?.matmul(&v.contiguous()?)?
         };
-        let y = att.matmul(&v.contiguous()?)?;
         let mut y =
             y.transpose(1, 2)?
                 .contiguous()?
