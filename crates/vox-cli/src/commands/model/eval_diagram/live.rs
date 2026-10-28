@@ -138,6 +138,8 @@ async fn chat_once(config: LlmConfig, messages: Vec<LlmChatMessage>) -> Result<R
         completion_tokens: r.completion_tokens.into(),
         cost_usd: r.cost_usd,
         latency_ms: started.elapsed().as_millis() as u64,
+        finish_reason: r.finish_reason,
+        reasoning_tokens: r.reasoning_tokens.into(),
     })
 }
 

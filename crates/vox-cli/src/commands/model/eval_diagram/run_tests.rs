@@ -113,6 +113,8 @@ impl Backend for Stub {
             completion_tokens: 5,
             cost_usd: self.cost,
             latency_ms: 1,
+            finish_reason: Some("stop".into()),
+            reasoning_tokens: 2,
         })
     }
 
@@ -317,6 +319,32 @@ fn prior_spend_sums_attempt_costs_and_the_probe_ledger() {
     std::fs::write(run.join("attempts.jsonl"), write_jsonl(&lines).unwrap()).unwrap();
     let err = prior_spend(dir.path()).unwrap_err();
     assert!(format!("{err:#}").contains("-0.25"), "{err:#}");
+}
+
+/// An empty reply is only explainable if why the model stopped is on the record.
+#[tokio::test]
+async fn every_attempt_records_why_the_model_stopped() {
+    let dir = dataset();
+    let mut b = stub(0.001);
+    let out = run_dataset(&mut b, &cfg(dir.path(), "r1", 25.0), header())
+        .await
+        .unwrap();
+    let attempts: Vec<_> = recorded(&out)
+        .into_iter()
+        .filter_map(|l| match l {
+            Line::Attempt(a) => Some(a),
+            _ => None,
+        })
+        .collect();
+    assert!(!attempts.is_empty());
+    for a in attempts {
+        assert_eq!(
+            (a.finish_reason.as_deref(), a.reasoning_tokens),
+            (Some("stop"), 2),
+            "{}",
+            a.oracle_id()
+        );
+    }
 }
 
 #[tokio::test]

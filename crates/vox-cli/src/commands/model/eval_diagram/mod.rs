@@ -117,6 +117,17 @@ pub struct Attempt {
     pub latency_ms: u64,
     pub transport_error: Option<String>,
     pub retries: u32,
+    /// Why the model stopped (`stop`, `length`, ...); absent in runs recorded before 2026-10-28.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub finish_reason: Option<String>,
+    /// Reasoning tokens inside `completion_tokens`; an empty reply at `length` with these
+    /// near the budget spent it thinking.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub reasoning_tokens: u64,
+}
+
+fn is_zero(n: &u64) -> bool {
+    *n == 0
 }
 
 impl Attempt {

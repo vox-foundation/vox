@@ -196,6 +196,8 @@ pub(super) mod tests {
             latency_ms: 7,
             transport_error: None,
             retries: 0,
+            finish_reason: None,
+            reasoning_tokens: 0,
         }
     }
 

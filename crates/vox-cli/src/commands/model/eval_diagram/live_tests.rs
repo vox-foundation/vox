@@ -39,6 +39,8 @@ fn reply(cost: Option<f64>) -> Reply {
         completion_tokens: 1,
         cost_usd: cost,
         latency_ms: 1,
+        finish_reason: None,
+        reasoning_tokens: 0,
     }
 }
 

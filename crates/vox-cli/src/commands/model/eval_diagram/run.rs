@@ -47,6 +47,8 @@ pub struct Reply {
     /// `None` when the facade could not price the call: the run stops, the cap cannot hold.
     pub cost_usd: Option<f64>,
     pub latency_ms: u64,
+    pub finish_reason: Option<String>,
+    pub reasoning_tokens: u64,
 }
 
 /// Where replies and Mermaid verdicts come from: the facade and Node in a live run, a stub in tests.
@@ -360,6 +362,8 @@ async fn run_slot<B: Backend>(
                 latency_ms: 0,
                 transport_error: None,
                 retries: 0,
+                finish_reason: None,
+                reasoning_tokens: 0,
             };
             let Some(cost_known) = call(b, budget, &slot.slot, messages, &mut a).await else {
                 // Stopped mid-retry: the failed calls were charged, so record them for later runs.
@@ -439,6 +443,8 @@ async fn call<B: Backend>(
                 a.completion_tokens = r.completion_tokens;
                 a.cost_usd += c;
                 a.latency_ms = r.latency_ms;
+                a.finish_reason = r.finish_reason;
+                a.reasoning_tokens = r.reasoning_tokens;
                 a.transport_error = None;
                 return Some(cost.is_some());
             }
