@@ -293,6 +293,7 @@ pub fn run_training_loop(
     let peak_sampler = super::PeakSampler::start(device, std::time::Duration::from_millis(200));
     let run_start_inst = Instant::now();
     let mut capped = false;
+    let mut last_checkpoint = Instant::now();
     'epochs: for epoch in start_epoch..=config.epochs {
         let shuffled_indices = checkpoint::build_epoch_shuffled_indices(
             epoch,
@@ -679,6 +680,15 @@ pub fn run_training_loop(
                 });
             }
 
+            let optimizer_boundary = global_step.is_multiple_of(grad_accum);
+            capped = runtime_cap_reached(
+                config.max_runtime_secs,
+                run_start_inst.elapsed(),
+                optimizer_step_count,
+                optimizer_boundary,
+            );
+            // A capped run also saves here, so finalize can leave a resume
+            // point at the step it stopped on.
             super::checkpoint_mid::maybe_save_mid_epoch_checkpoint(
                 trainer,
                 out,
@@ -691,14 +701,10 @@ pub fn run_training_loop(
                 &shuffled_indices,
                 last_loss_val,
                 run_start_inst,
+                &mut last_checkpoint,
+                optimizer_boundary,
+                capped,
             )?;
-
-            capped = runtime_cap_reached(
-                config.max_runtime_secs,
-                run_start_inst.elapsed(),
-                optimizer_step_count,
-                global_step.is_multiple_of(grad_accum),
-            );
             if capped {
                 train_log::info(&format!(
                     "run cap reached after {} s at optimizer step {optimizer_step_count}; finalizing",
