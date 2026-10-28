@@ -4,14 +4,31 @@
 // Usage:
 //   vox run --interp scripts/mens-ladder-before-after.vox -- --plan-only
 //   vox run scripts/mens-ladder-before-after.vox
+//   vox run scripts/mens-ladder-before-after.vox -- --size 0.6B
 
 import fs
 import process
 import env
 import json
 
+fn checkpoint_rel() to str {
+    return ".planning/phases/321-harness-before-after-harn-01/evidence/checkpoint-scoring.json"
+}
+
+fn leg_timeout_secs() to int {
+    return 14400
+}
+
+fn progress_interval_secs() to int {
+    return 180
+}
+
 fn jstr(j: Json, k: str) to str {
     return j.get(k).and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+}
+
+fn jnum(j: Json, k: str) to float {
+    return j.get(k).and_then(fn(x: Json) to Option[float] { x.as_float() }).unwrap_or(0.0)
 }
 
 fn repo_root() to str {
@@ -22,19 +39,327 @@ fn repo_root() to str {
     return process.cwd()
 }
 
-fn plan_only_from_argv() to bool {
-    let argv = env.args()
-    for a in argv {
-        if a is "--plan-only" {
+fn flag_from_argv(name: str) to bool {
+    for a in env.args() {
+        if a is name {
             return true
         }
     }
     return false
 }
 
+fn size_filter_from_argv() to str {
+    let argv = env.args()
+    let mut i = 0
+    while i < argv.len() {
+        if argv[i] is "--size" {
+            if i + 1 < argv.len() {
+                let nxt = argv.get(i + 1)
+                if nxt isnt null {
+                    return nxt.unwrap()
+                }
+            }
+        }
+        i = i + 1
+    }
+    return ""
+}
+
+fn resolve_vox_bin(root: str) to str {
+    let rel = root + "/target/release/vox"
+    if fs.exists(rel) {
+        return rel
+    }
+    let dbg = root + "/target/debug/vox"
+    if fs.exists(dbg) {
+        return dbg
+    }
+    return "vox"
+}
+
 fn run_dir_for_size(size_label: str) to str {
     let slug = size_label.to_lowercase()
     return "mens/runs/qwen3-" + slug
+}
+
+fn compare_out_path(root: str, size: str) to str {
+    if size is "0.6B" {
+        return root + "/mens/runs/reasoning_compare/Qwen3-0.6B-c1899de289a0.json"
+    }
+    if size is "1.7B" {
+        return root + "/mens/runs/reasoning_compare/Qwen3-1.7B-70d244cc86cc.json"
+    }
+    return root + "/mens/runs/reasoning_compare/Qwen3-unknown.json"
+}
+
+fn base_snapshot_dir(root: str, run_dir: str) to str {
+    let manifest_path = root + "/" + run_dir + "/training_manifest.json"
+    let raw = fs.read(manifest_path)
+    if raw.is_err() {
+        return ""
+    }
+    let parsed = json.parse(raw.unwrap())
+    if parsed.is_err() {
+        return ""
+    }
+    let doc = parsed.unwrap()
+    let tok = jstr(doc, "tokenizer_path")
+    if tok is "" {
+        return ""
+    }
+    return tok.replace("/tokenizer.json", "")
+}
+
+fn empty_checkpoint() to Json {
+    let parsed = json.parse("{\"schema\":\"mens_ladder_scoring_checkpoint.v1\",\"legs\":[]}")
+    if parsed.is_err() {
+        return json.parse("{}").unwrap()
+    }
+    return parsed.unwrap()
+}
+
+fn read_checkpoint(root: str) to Json {
+    let path = root + "/" + checkpoint_rel()
+    if not fs.exists(path) {
+        return empty_checkpoint()
+    }
+    let raw = fs.read(path)
+    if raw.is_err() {
+        return empty_checkpoint()
+    }
+    let parsed = json.parse(raw.unwrap())
+    if parsed.is_err() {
+        return empty_checkpoint()
+    }
+    return parsed.unwrap()
+}
+
+fn write_checkpoint(root: str, doc) {
+    let path = root + "/" + checkpoint_rel()
+    let dir = root + "/.planning/phases/321-harness-before-after-harn-01/evidence"
+    if not fs.exists(dir) {
+        let _ = fs.mkdir(dir)
+    }
+    let _ = fs.write(path, json.stringify(doc))
+}
+
+fn reasoning_compared(out_path: str) to bool {
+    if not fs.exists(out_path) {
+        return false
+    }
+    let raw = fs.read(out_path)
+    if raw.is_err() {
+        return false
+    }
+    let parsed = json.parse(raw.unwrap())
+    if parsed.is_err() {
+        return false
+    }
+    let doc = parsed.unwrap()
+    return jstr(doc, "status") is "compared"
+}
+
+fn leg_done(checkpoint: Json, size: str, leg: str, out_path: str) to bool {
+    let legs_opt = checkpoint.get("legs")
+    if legs_opt is null {
+        return false
+    }
+    let legs = legs_opt.unwrap().as_array().unwrap_or([])
+    for entry in legs {
+        if jstr(entry, "size") is size and jstr(entry, "leg") is leg {
+            if jnum(entry, "exit_code") isnt 0.0 {
+                return false
+            }
+            if leg is "reasoning_compare" {
+                return reasoning_compared(out_path)
+            }
+            return fs.exists(out_path)
+        }
+    }
+    return false
+}
+
+fn append_leg_record(root: str, size: str, leg: str, started_at: str, finished_at: str, wall_secs: float, n: float, out_path: str, exit_code: float) {
+    let cp = root + "/" + checkpoint_rel()
+    let dir = root + "/.planning/phases/321-harness-before-after-harn-01/evidence"
+    if not fs.exists(dir) {
+        let _ = fs.mkdir(dir)
+    }
+    if not fs.exists(cp) {
+        let _ = fs.write(cp, "{\"schema\":\"mens_ladder_scoring_checkpoint.v1\",\"legs\":[]}")
+    }
+    let dol = "$"
+    let jq_filter = ".legs += [{size:" + dol + "size,leg:" + dol + "leg,started_at:" + dol + "started_at,finished_at:" + dol + "finished_at,wall_secs:" + dol + "wall_secs,n:" + dol + "n,out_path:" + dol + "out_path,exit_code:" + dol + "exit_code}]"
+    let cap = std.process.run_capture("jq", [
+        "--arg", "size", size,
+        "--arg", "leg", leg,
+        "--arg", "started_at", started_at,
+        "--arg", "finished_at", finished_at,
+        "--argjson", "wall_secs", str(wall_secs),
+        "--argjson", "n", str(n),
+        "--arg", "out_path", out_path,
+        "--argjson", "exit_code", str(exit_code),
+        jq_filter,
+        cp
+    ])
+    if cap.is_ok() and cap.unwrap().exit is 0 {
+        let _ = fs.write(cp, cap.unwrap().stdout)
+    }
+}
+
+fn run_timed_vox_leg(root: str, vox_bin: str, size: str, leg: str, out_path: str, mens_tail: list[str]) to float {
+    let mut timeout_bin = "/opt/homebrew/bin/timeout"
+    if not fs.exists(timeout_bin) {
+        timeout_bin = "timeout"
+    }
+    let start_ms = std.time.now_ms()
+    let started_at = str(start_ms)
+    print("SCORING start size=" + size + " leg=" + leg + " out=" + out_path)
+
+    let bash_inner = "set -euo pipefail; SIZE=" + size + "; LEG=" + leg + "; ( while sleep " + str(progress_interval_secs()) + "; do echo \"[checkpoint-scoring] $(date -u +%Y-%m-%dT%H:%M:%SZ) size=$SIZE leg=$LEG still running...\"; done ) & WPID=$!; trap 'kill $WPID 2>/dev/null || true' EXIT; cd " + root + "; " + timeout_bin + " " + str(leg_timeout_secs()) + " " + vox_bin + " mens"
+    let mut bash_cmd = bash_inner
+    for a in mens_tail {
+        bash_cmd = bash_cmd + " " + a
+    }
+    bash_cmd = bash_cmd + "; EC=$?; exit $EC"
+
+    let res_opt = process.run("/bin/bash", ["-lc", bash_cmd])
+    let end_ms = std.time.now_ms()
+    let wall_secs = (end_ms - start_ms) / 1000.0
+    let mut exit_code = 124.0
+    if res_opt isnt null {
+        exit_code = res_opt.unwrap().code * 1.0
+    }
+    let finished_at = str(end_ms)
+    let n = if leg is "reasoning_compare" { 32.0 } else { 52.0 }
+    append_leg_record(root, size, leg, started_at, finished_at, wall_secs, n, out_path, exit_code)
+    print("SCORING done size=" + size + " leg=" + leg + " exit=" + str(exit_code) + " wall_secs=" + str(wall_secs))
+    return exit_code
+}
+
+fn rel_from_root(root: str, abs: str) to str {
+    let prefix = root + "/"
+    if abs.starts_with(prefix) {
+        return abs.replace(prefix, "")
+    }
+    return abs
+}
+
+fn execute_trained_size(root: str, vox_bin: str, size: str, bench: str) to bool {
+    let run_dir = run_dir_for_size(size)
+    let compare_out = compare_out_path(root, size)
+    let evidence_dir = root + "/" + run_dir + "/evidence"
+    if not fs.exists(evidence_dir) {
+        let _ = fs.mkdir(evidence_dir)
+    }
+    let heldout_base = evidence_dir + "/heldout_base.json"
+    let heldout_adapter = evidence_dir + "/heldout_adapter.json"
+    let collateral_baseline = evidence_dir + "/collateral_baseline.json"
+    let cp0 = read_checkpoint(root)
+
+    if not leg_done(cp0, size, "reasoning_compare", compare_out) {
+        let ec = run_timed_vox_leg(
+            root,
+            vox_bin,
+            size,
+            "reasoning_compare",
+            compare_out,
+            [
+                "eval-reasoning-compare",
+                "--base",
+                "Qwen3-" + size,
+                "--adapter",
+                run_dir,
+                "--out",
+                rel_from_root(root, compare_out)
+            ]
+        )
+        if ec isnt 0.0 {
+            return false
+        }
+    } else {
+        print("SKIP complete leg=reasoning_compare size=" + size)
+    }
+
+    let base_snap = base_snapshot_dir(root, run_dir)
+    if base_snap is "" {
+        print("ERROR: cannot resolve base snapshot for " + run_dir)
+        return false
+    }
+
+    let cp1 = read_checkpoint(root)
+    if not leg_done(cp1, size, "heldout_base", heldout_base) {
+        let ec = run_timed_vox_leg(
+            root,
+            vox_bin,
+            size,
+            "heldout_base",
+            heldout_base,
+            [
+                "eval-local",
+                "--base",
+                base_snap,
+                "--bench",
+                bench,
+                "-o",
+                rel_from_root(root, heldout_base)
+            ]
+        )
+        if ec isnt 0.0 {
+            return false
+        }
+    } else {
+        print("SKIP complete leg=heldout_base size=" + size)
+    }
+
+    let cp2 = read_checkpoint(root)
+    if not leg_done(cp2, size, "heldout_adapter", heldout_adapter) {
+        let ec = run_timed_vox_leg(
+            root,
+            vox_bin,
+            size,
+            "heldout_adapter",
+            heldout_adapter,
+            [
+                "eval-local",
+                "--model",
+                run_dir,
+                "--bench",
+                bench,
+                "-o",
+                rel_from_root(root, heldout_adapter)
+            ]
+        )
+        if ec isnt 0.0 {
+            return false
+        }
+    } else {
+        print("SKIP complete leg=heldout_adapter size=" + size)
+    }
+
+    let cp3 = read_checkpoint(root)
+    if not leg_done(cp3, size, "collateral_baseline", collateral_baseline) {
+        let ec = run_timed_vox_leg(
+            root,
+            vox_bin,
+            size,
+            "collateral_baseline",
+            collateral_baseline,
+            [
+                "baseline-from-compare",
+                "--compare",
+                rel_from_root(root, compare_out),
+                "-o",
+                rel_from_root(root, collateral_baseline)
+            ]
+        )
+        if ec isnt 0.0 {
+            return false
+        }
+    } else {
+        print("SKIP complete leg=collateral_baseline size=" + size)
+    }
+    return true
 }
 
 fn print_trained_plan(size: str, run_dir: str, bench: str) {
@@ -56,7 +381,9 @@ fn main() {
     let root = repo_root()
     let ladder_path = root + "/.planning/phases/320-train-the-sizes-size-03/evidence/ladder.json"
     let bench = "mens/data/heldout_bench"
-    let plan_only = plan_only_from_argv()
+    let plan_only = flag_from_argv("--plan-only")
+    let size_filter = size_filter_from_argv().to_uppercase()
+    let vox_bin = resolve_vox_bin(root)
 
     let raw = fs.read(ladder_path)
     if raw.is_err() {
@@ -76,13 +403,19 @@ fn main() {
     }
     let sizes = sizes_opt.unwrap().as_array().unwrap_or([])
 
-    print("mens-ladder-before-after plan-only=" + str(plan_only))
+    print("mens-ladder-before-after plan-only=" + str(plan_only) + " vox_bin=" + vox_bin)
     print("  ladder: " + ladder_path)
     print("  bench:  " + bench)
+    if size_filter isnt "" {
+        print("  size filter: " + size_filter)
+    }
 
     for entry in sizes {
         let size = jstr(entry, "size")
         if size is "" {
+            continue
+        }
+        if size_filter isnt "" and size.to_uppercase() isnt size_filter {
             continue
         }
         let mut status = jstr(entry, "s4_status")
@@ -94,7 +427,11 @@ fn main() {
             if plan_only {
                 print_trained_plan(size, run_dir, bench)
             } else {
-                print("TODO: execute trained pipeline for " + size + " (use --plan-only to preview)")
+                let ok = execute_trained_size(root, vox_bin, size, bench)
+                if not ok {
+                    print("ERROR: scoring failed for size=" + size)
+                    return null
+                }
             }
         } else {
             let mut reason = jstr(entry, "reason")
@@ -107,5 +444,7 @@ fn main() {
 
     if plan_only {
         print("plan-only complete (no vox mens invoked)")
+    } else {
+        print("scoring orchestration complete")
     }
 }
