@@ -282,7 +282,12 @@ fn gpu_specs_qwen3_train_bases_floor_mb_pins_against_real_weight_size() {
                 base.floor_mb
             );
 
-            if is_qlora && params_b >= 8.0 {
+            // Phase 320 raised QLoRA estimates above the measured 1.7B peak sit above
+            // the 2.0x-4.0x nominal bare-weight band by design (ladder monotonicity).
+            let phase_320_raised_estimate = !base.floor_measured
+                && base.hf_id.starts_with("Qwen/Qwen3-")
+                && base.floor_mb > 54_583;
+            if is_qlora && params_b >= 8.0 && !phase_320_raised_estimate {
                 let ratio = base.floor_mb as f64 / bare;
                 assert!(
                     (2.0..=4.0).contains(&ratio),
@@ -306,6 +311,13 @@ fn gpu_specs_qwen3_train_bases_floor_mb_pins_against_real_weight_size() {
 /// The six Qwen3 dense sizes and the `refs/heads/main` commit
 /// `git ls-remote https://huggingface.co/Qwen/<repo> refs/heads/main` reported
 /// for each on 2026-10-27 (Phase 317, SIZE-01), in size order.
+/// Phase 320 ladder measurement on silicon-gpu-metal (QLoRA peaks, S4 + probe).
+const MEASURED_QLORA_PINS: &[&str] = &[
+    "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
+    "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+];
+const MEASURED_ON: &str = "silicon-gpu-metal";
+
 const DENSE_LADDER: [(&str, &str); 6] = [
     (
         "Qwen/Qwen3-0.6B",
@@ -375,13 +387,40 @@ fn gpu_specs_qwen3_code_ladder_pins_all_six_dense_sizes() {
     let mut by_key: std::collections::HashMap<(&str, u32, &Vec<String>), _> =
         std::collections::HashMap::new();
     for b in &all {
-        // No floor has been measured yet; Phase 320 measures them and updates
-        // this assertion alongside the YAML.
-        assert!(
-            !b.floor_measured,
-            "{} claims a measured floor before Phase 320",
-            b.hf_id
-        );
+        let is_qlora = b.methods.iter().any(|m| m == "qlora");
+        let should_be_measured = is_qlora && MEASURED_QLORA_PINS.iter().any(|pin| *pin == b.hf_id);
+        if should_be_measured {
+            assert!(
+                b.floor_measured,
+                "{} must carry floor_measured: true after Phase 320",
+                b.hf_id
+            );
+            assert_eq!(
+                b.measured_on.as_deref(),
+                Some(MEASURED_ON),
+                "{} measured_on must be {}",
+                b.hf_id,
+                MEASURED_ON
+            );
+            let peak = b.peak_mb.expect("measured rung needs peak_mb");
+            assert!(
+                peak > 0 && peak <= b.floor_mb,
+                "{} peak_mb {peak} must be in 1..=floor_mb {}",
+                b.hf_id,
+                b.floor_mb
+            );
+        } else {
+            assert!(
+                !b.floor_measured,
+                "{} must not claim a measured floor",
+                b.hf_id
+            );
+            assert!(
+                b.measured_on.is_none() && b.peak_mb.is_none(),
+                "{} estimate must not carry measured_on or peak_mb",
+                b.hf_id
+            );
+        }
         if b.hf_id.contains("Qwen3") {
             let rev = b.hf_id.rsplit_once('@').map(|(_, r)| r).unwrap_or("");
             assert!(is_lower_hex_40(rev), "unpinned Qwen3 rung {}", b.hf_id);

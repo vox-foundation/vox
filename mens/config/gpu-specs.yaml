@@ -246,7 +246,10 @@ presets:
 # measurement with measured_on (host and accelerator) and peak_mb (the measured
 # peak). An estimate carries neither. The loader (spoke_base_resolver.rs
 # parse_overlay) rejects a rung without the key and any other combination, and
-# every report of an estimated rung says "floor unmeasured".
+# every report of an estimated rung says "floor unmeasured". Phase 320 measured
+# the rungs marked floor_measured: true on silicon-gpu-metal as the Metal peak
+# allocated memory of a one-epoch QLoRA run at seq_len 3072, the larger of a
+# 120 s probe and the full or capped run.
 #
 # Pin evidence: all six Qwen3 dense pins (0.6B, 1.7B, 4B, 8B, 14B, 32B) were
 # re-confirmed on 2026-10-27 with
@@ -261,7 +264,7 @@ train_bases:
   # ensure_not_placeholder() rejects it at train/dispatch time, but that
   # guard runs late; keep entries pinned up front.
   qwen3_code:
-    - { hf_id: "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca", floor_mb: 2000,  methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }   # CPU / ≤8 GB dev
+    - { hf_id: "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca", floor_mb: 23675, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: true, measured_on: silicon-gpu-metal, peak_mb: 23675 }   # CPU / ≤8 GB dev
     # Qwen3-1.7B and Qwen3-4B (Phase 317, SIZE-01). Each refs/heads/main equals
     # its pin (git ls-remote, 2026-10-27), and each repo's LICENSE at the pin is
     # the Apache License 2.0. Both floor_mb values are ESTIMATES pending a
@@ -281,18 +284,18 @@ train_bases:
     # 704,705,024 B; bare total 1,327,034,880 B = 1,265.6 MiB; x 3.95 = 4,999,
     # rounded up to 5000. The checkpoint also ships a redundant lm_head.weight
     # copy (safetensors total 2,031,739,904 params); a tied load does not hold it.
-    - { hf_id: "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e", floor_mb: 5000,  methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }   # 6 GB class
+    - { hf_id: "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e", floor_mb: 54583, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: true, measured_on: silicon-gpu-metal, peak_mb: 54583 }   # 6 GB class
     # Qwen3-4B (hidden 2560, 36 layers, tied embeddings, safetensors total
     # 4,022,468,096 params with no separate lm_head): embedding 151,936 x 2,560 =
     # 388,956,160 params at bf16 = 777,912,320 B; non-embedding 36 x 100,930,816
     # + 2,560 = 3,633,511,936 params at NF4 0.5 B = 1,816,755,968 B; bare total
     # 2,594,668,288 B = 2,474.5 MiB; x 3.95 = 9,774, rounded up to 9800. That is
     # still below the 8B rung's 12000, so the ladder stays strictly increasing.
-    - { hf_id: "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",   floor_mb: 9800,  methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }   # 10-12 GB class
-    - { hf_id: "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",   floor_mb: 12000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }   # 16 GB tier
-    - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",  floor_mb: 20000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }   # 24 GB tier (QLoRA)
+    - { hf_id: "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",   floor_mb: 56000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }   # 10-12 GB class
+    - { hf_id: "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",   floor_mb: 62000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }   # 16 GB tier
+    - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",  floor_mb: 70000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }   # 24 GB tier (QLoRA)
     - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",  floor_mb: 44000, methods: [lora], license: apache-2.0, attribution_required: false, floor_measured: false }    # 48 GB tier (un-quantized; beats 24g entry)
-    - { hf_id: "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",  floor_mb: 60000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }   # 96 GB tier
+    - { hf_id: "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",  floor_mb: 85000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }   # 96 GB tier
 
   # Alias tags updated to include Qwen3 rungs alongside existing Qwen2.5 bases.
   # Resolver picks largest fitting rung — at ≥12GB a Qwen3 rung wins.
@@ -304,13 +307,13 @@ train_bases:
   # Apache-2.0 — Qwen2.5-Coder-3B-Instruct inherits the 3B base's license.
   small_code_default:  # intentionally caps at 8B; strong_code_default escalates to larger rungs
     - { hf_id: "Qwen/Qwen2.5-Coder-3B-Instruct",         floor_mb: 6000,  methods: [qlora, full_sft], license: qwen-research, attribution_required: true, floor_measured: false }
-    - { hf_id: "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",     floor_mb: 12000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }
+    - { hf_id: "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",     floor_mb: 62000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }
   strong_code_default:
     - { hf_id: "Qwen/Qwen2.5-Coder-7B-Instruct",         floor_mb: 11000, methods: [qlora, dpo, orpo], license: apache-2.0, attribution_required: false, floor_measured: false }
     # USER DECISION (Qwen3 everywhere): the Qwen3-8B rung (floor 12000) outranks the
     # Qwen2.5-Coder-7B rung (floor 11000) so a 16 GB box resolves to Qwen3-8B.
-    - { hf_id: "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",     floor_mb: 12000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }
-    - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",    floor_mb: 20000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }
+    - { hf_id: "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",     floor_mb: 62000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }
+    - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",    floor_mb: 70000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }
     # Qwen3.8-27B QLoRA. floor_mb is a provisional, UNMEASURED estimate — the
     # design spec's worked total resident+activation footprint (~24.4 GiB:
     # NF4 weights + bf16 embed/lm_head + LoRA/AdamW/grad state + activations
@@ -338,7 +341,7 @@ train_bases:
     # an explicit `--license-class` override — see spoke_base_resolver.rs.
     - { hf_id: "Qwen/Qwen3.8-27B@1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",  floor_mb: 34000, methods: [qlora], floor_measured: false }
     - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",    floor_mb: 44000, methods: [lora], license: apache-2.0, attribution_required: false, floor_measured: false }
-    - { hf_id: "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",    floor_mb: 60000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }
+    - { hf_id: "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",    floor_mb: 85000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }
     # Apple Silicon 128 GB tier (usable ~116 GiB after the GUI reserve): 32B
     # un-quantized LoRA. floor_mb is a provisional estimate — 64 GB of BF16
     # weights plus optimizer/activation headroom — pending a measured peak
@@ -348,15 +351,15 @@ train_bases:
     - { hf_id: "Qwen/Qwen2.5-Coder-7B-Instruct",         floor_mb: 11000, methods: [qlora, dpo], license: apache-2.0, attribution_required: false, floor_measured: false }
     # USER DECISION (Qwen3 everywhere): the Qwen3-8B rung (floor 12000) outranks the
     # Qwen2.5-Coder-7B rung (floor 11000) so a 16 GB box resolves to Qwen3-8B.
-    - { hf_id: "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",     floor_mb: 12000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }
-    - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",    floor_mb: 20000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }
+    - { hf_id: "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",     floor_mb: 62000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }
+    - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",    floor_mb: 70000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }
     # Qwen3.8-27B QLoRA — see strong_code_default above for the sizing note.
     # Deliberately below the 32B/60000 QLoRA rung so 60 GB+ resolution is unchanged;
     # deliberately below the real, measured 41779 MB tier so it correctly wins there.
     # NO `license:` FIELD — see strong_code_default above; not a confirmed real model.
     - { hf_id: "Qwen/Qwen3.8-27B@1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",  floor_mb: 34000, methods: [qlora], floor_measured: false }
     - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",    floor_mb: 44000, methods: [lora], license: apache-2.0, attribution_required: false, floor_measured: false }
-    - { hf_id: "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",    floor_mb: 60000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }
+    - { hf_id: "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",    floor_mb: 85000, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }
     # Apple Silicon 128 GB tier — see strong_code_default above for the note.
     - { hf_id: "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",    floor_mb: 100000, methods: [lora], license: apache-2.0, attribution_required: false, floor_measured: false }
 
