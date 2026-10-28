@@ -854,7 +854,7 @@ impl Qwen35Model {
 
     /// Final norm + clamp + lm_head, shared by the eager and checkpointed
     /// forward so logits are identical for the same input.
-    fn head_forward(&self, x: &Tensor) -> Result<Tensor> {
+    pub fn head_forward(&self, x: &Tensor) -> Result<Tensor> {
         let x = rms_norm_f32(&self.norm, x)?;
         let x = x.clamp(-64f64, 64f64)?;
         self.lm_head
@@ -884,6 +884,21 @@ impl Qwen35Model {
         input_ids: &Tensor,
         n_segments: usize,
     ) -> Result<CheckpointedForward> {
+        let (hidden, segments) = self.checkpointed_hidden(input_ids, n_segments)?;
+        Ok(CheckpointedForward {
+            logits: self.head_forward(&hidden)?,
+            segments,
+        })
+    }
+
+    /// [`Self::forward_checkpointed`] without the head: the last segment's
+    /// output (tape spans that segment only), so the caller can run the head in
+    /// row chunks rather than hold `[seq, vocab]` logits for the whole row.
+    pub fn checkpointed_hidden(
+        &self,
+        input_ids: &Tensor,
+        n_segments: usize,
+    ) -> Result<(Tensor, Vec<CheckpointSegment>)> {
         let num_layers = self.layers.len();
         let n_segments = n_segments.clamp(1, num_layers.max(1));
 
@@ -910,7 +925,7 @@ impl Qwen35Model {
         // First segment input is the embedding as an independent detached leaf
         // (embeddings are frozen — no grad needed through them).
         let mut seg_input = independent_boundary(&embed)?;
-        let mut logits = None;
+        let mut hidden = None;
         for s in 0..n_segments {
             let start = bounds[s];
             let end = bounds[s + 1];
@@ -922,7 +937,7 @@ impl Qwen35Model {
             });
             if s + 1 == n_segments {
                 // Last segment flows into the head WITHOUT severing.
-                logits = Some(self.head_forward(&seg_out)?);
+                hidden = Some(seg_out);
             } else {
                 // Sever the boundary into a fresh, storage-independent leaf so the
                 // next segment's backward computes a correct boundary gradient.
@@ -930,10 +945,7 @@ impl Qwen35Model {
             }
         }
 
-        Ok(CheckpointedForward {
-            logits: logits.expect("at least one segment"),
-            segments,
-        })
+        Ok((hidden.expect("at least one segment"), segments))
     }
 
     /// Recompute one checkpoint segment's forward from its detached boundary
@@ -1545,7 +1557,7 @@ mod kv_cache_tests {
 }
 
 #[cfg(test)]
-mod gradient_checkpoint_tests {
+pub(crate) mod gradient_checkpoint_tests {
     //! End-to-end correctness for activation/gradient checkpointing on the real
     //! `Qwen35Model`: a checkpointed segmented backward must produce the **same**
     //! LoRA gradients as an eager full-graph backward. CPU/F32 so it runs in
@@ -1643,7 +1655,7 @@ mod gradient_checkpoint_tests {
         }
     }
 
-    fn build_model(
+    pub(crate) fn build_model(
         vb: VarBuilder,
         d: usize,
         n_layers: usize,

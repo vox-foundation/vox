@@ -471,10 +471,17 @@ pub fn run_training_loop(
                     supervised_tokens,
                     theoretical_tokens,
                     syntax_weight_sum,
+                    ckpt,
                 } => {
-                    if let Err(e) = trainer.backward_step(&loss) {
+                    let stepped = match ckpt {
+                        Some(ckpt) => forward::checkpointed_backward_step(trainer, &model, ckpt),
+                        None => trainer
+                            .backward_step(&loss)
+                            .map_err(|e| anyhow::anyhow!("{e}")),
+                    };
+                    if let Err(e) = stepped {
                         return Err(checkpoint_and_bail_on_oom(
-                            anyhow::anyhow!("{e}"),
+                            e,
                             trainer,
                             out,
                             config,
