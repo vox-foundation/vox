@@ -90,7 +90,12 @@ the remaining budget. Models come from the registry's CodeGen selection restrict
 providers; nothing is pinned.
 
 The $25 cap covers every call, probes included, across all runs: spend is the sum of the attempt
-costs under `runs/` and the costs in `probe-spend.jsonl`. **Never delete a run directory or
+costs under `runs/` and the costs in `probe-spend.jsonl`. Before each call the run reserves the
+largest per-call cost it has seen. A call that fails after it may have been billed is charged that
+amount, and the run stops instead if nothing has been priced yet. A probe that may have been billed
+without a usable cost stops probing. The run `2026-10-27` predates these rules and charged its 9
+failed calls $0 (see the findings report). A run name must be one directory name of letters, digits,
+`.`, `_` and `-`. **Never delete a run directory or
 `probe-spend.jsonl`**: their spend counts against the cap, and deleting them would let a later run
 spend it again.
 

@@ -68,7 +68,8 @@ harness never applies VoxDiagram's own fixes; the model must repair.
 
 **Spend cap.** The live run stops before any call, probes included, once the cumulative spend reaches
 $25. Spend counts every earlier run and every probe in the dataset's probe ledger. A reply without a
-cost also stops the run.
+cost also stops the run. In this run, calls that failed in transport were charged $0; see
+"Limitations observed in the run".
 
 **Recording and re-score.** Every model reply is recorded in `runs/<name>/attempts.jsonl`, with the
 run header first. The offline re-score reproduces every derived file byte for byte with no network,
@@ -239,12 +240,50 @@ on 199 tasks, with g056 excluded.
     replies rather than parse errors.
   - The first-pass endpoint therefore measures failures to produce any output as well as syntax
     errors. The verdict stands as the rule assigns it.
+  - The recording cannot say why a reply was empty. At the time of the run the facade's response
+    (`LlmResponse`) carried no finish reason, refusal or reasoning field, so none was recorded.
+    A runaway reasoning budget, a content filter and a gateway quirk all look the same. The 10
+    empty replies that used the full limit fit truncation. The other 7 do not: g128 used 225
+    completion tokens.
 - **Both arms sit near the ceiling.** First-pass validity was 96 to 98%, so model A's paired
   comparison rests on 12 discordant tasks. The narrow interval reflects how rarely the arms disagreed.
 - **Two inexpensive models.** The registry selected two low-cost models, and the whole run cost under
   $0.30. Larger or different models were not measured.
-- **One exclusion.** Model B lost task g056 to a transport error, which is within the 5% allowance.
-  Model A had none.
+- **One exclusion, and it favoured Mermaid.** Model B lost task g056 to a transport error, which is
+  within the 5% allowance. Model A had none.
+  - The failure was in a repair turn (Mermaid, turn 1), which cannot change first-pass validity.
+    Rule 6 still excludes the task from both endpoints.
+  - At first pass, g056 was valid in VoxDiagram and invalid in Mermaid. The exclusion therefore
+    removed a discordant pair that favoured VoxDiagram.
+  - With g056 kept, model B's first pass is b = 5, c = 5: Δ = 0.0 points, interval [-3.6, +3.6],
+    McNemar p 1.0000. The verdict, non-inferior, is the same.
+  - A future pre-registration should exclude per endpoint, dropping a task from the first-pass
+    endpoint only on a turn-0 transport failure.
+- **The fidelity comparison favours VoxDiagram by construction.**
+  - The expected sets come from the VoxDiagram reference's own Mermaid export, and a valid
+    VoxDiagram reply is scored through the same exporter.
+  - So whatever the exporter canonicalises matches automatically in the VoxDiagram arm: the shape
+    mapping, the default direction and the container titles. The Mermaid arm has to guess these
+    wherever the prompt is loose, for example `(x)` or `([x])` for a rounded node.
+  - Part of the fidelity gap (96.5% vs 86.9% for model A, 91.5% vs 70.7% for model B) is therefore
+    built into the scorer. It is not evidence that models author VoxDiagram more faithfully.
+  - No exporter-independent comparison, such as labels and edge endpoints only, was run.
+- **Mermaid validity accepts any diagram type.** A reply that parses as a `pie` or `classDiagram`
+  counts as valid, while VoxDiagram is held to its graph and sequence kinds. This follows rule 1
+  ("the parser accepts it"); fidelity catches the wrong kind.
+- **Failed calls were charged $0 against the cap.** The run made 9 calls that failed in transport:
+  8 retries and the final failure of g056. A failure after the request was sent can still be billed,
+  for example a body that does not decode after HTTP 200, and these calls were not counted.
+  - The cap was also checked without reserving the next call's cost.
+  - The recorded $0.2849 is therefore a lower bound on what was billed. Charged at the run's
+    largest per-call cost ($0.0037), as the harness now charges them, the 9 failed calls would add
+    about $0.034. The cap was never at risk.
+  - The harness has since changed, for later runs only:
+    - A failed call that may have been billed is charged the largest per-call cost seen. A run
+      stops if one fails before any call has been priced.
+    - The largest per-call cost is reserved before each call.
+    - A probe that may have been billed without a usable cost stops probing.
+    - Only the provider error's class and HTTP status are recorded.
 
 ## Reproduce
 
