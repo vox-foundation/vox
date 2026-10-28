@@ -153,7 +153,13 @@ Plans:
   2. For every trained size, the report holds base and adapter reasoning accuracy and think-initiation on the three slices, plus an intelligence score on a codegen or agent bench, with n recorded.
   3. At least two sizes have real trained scores. Sizes without them are listed as not trained, with no numbers.
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 321-01-PLAN.md — Aggregate schema, serve-dir resolver, orchestration skeleton
+- [ ] 321-02-PLAN.md — Metal scoring (compare + heldout) for 0.6B and 1.7B
+- [ ] 321-03-PLAN.md — Collateral, gate receipts, serve directory smoke
+- [ ] 321-04-PLAN.md — Ladder rollup JSON + human before/after report
 
 ### Progress
 
@@ -167,7 +173,7 @@ Plans:
 | **Phase 318** | Live VRAM Selector | `4/4` | Complete |
 | **Phase 319** | Mesh-Wide Selection | `0/0` | Not started |
 | **Phase 320** | Train the Sizes | `9/9` | Complete |
-| **Phase 321** | Harness Before/After | `0/0` | Not started |
+| **Phase 321** | Harness Before/After | `0/4` | Planned |
 
 ---
 
