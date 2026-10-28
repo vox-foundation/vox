@@ -4,28 +4,29 @@ milestone: v5.6
 milestone_name: Reasoning Where the Lane Needs It
 current_phase: 320
 current_phase_name: Train the Sizes
-status: ready
+status: complete
 stopped_at: Completed 320-09-PLAN.md
-last_updated: "2026-10-28T23:33:06.899Z"
+last_updated: "2026-10-28T23:35:00.000Z"
 last_activity: 2026-10-28
-last_activity_desc: S4 full trains — 0.6B and 1.7B trained; 4B+ not_trained
-state_head: abdf7d8e066f28f6b4302c38c4e81d729949bdb3
+last_activity_desc: SIZE-03 PASS; ladder report committed (Plans 01–09)
+state_head: 8d18e8119
 progress:
   total_phases: 9
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 23
   completed_plans: 23
-  percent: 67
+  percent: 78
 ---
 
 # Project State: Unified Workstream
 
 ## Current Position
 
-Phase: 320 (Train the Sizes) — Plan 07 (S4) complete; next Plans 08–09 (measured floors + SIZE-03 check). Phase 319 still deferred behind 320.
-Plan: 07/09 done for 320
-Status: Two sizes fully trained on Metal (`mens/runs/qwen3-0.6b`, `mens/runs/qwen3-1.7b`). S4 PASS.
-Last activity: 2026-10-28 — S4 0.6B (~2.8 h) and 1.7B (~4.2 h) full epochs
+Phase: 320 (Train the Sizes) — **complete** (9/9 plans; SIZE-03 PASS). Next per roadmap: Phase 319 (mesh) or 321.
+Current Plan: 9
+Total Plans in Phase: 9
+Status: 0.6B and 1.7B trained on Metal; 4B–32B not_trained / not attempted. Report: `320-LADDER-REPORT.md`.
+Last activity: 2026-10-28 — Plan 09 SIZE-03 check + ladder report
 
 ## Milestone History (Recent)
 
@@ -42,7 +43,7 @@ Last activity: 2026-10-28 — S4 0.6B (~2.8 h) and 1.7B (~4.2 h) full epochs
 
 ## Next Step
 
-Execute Plans 320-08 and 320-09 (measured floors + SIZE-03 check), then Phase 319 (mesh) or 321 as roadmap order allows.
+Phase 320 closed. Proceed to Phase 319 (mesh) or 321 per ROADMAP order.
 
 ## v5.5 Autonomous Progress (2026-10-25 America/Phoenix)
 
