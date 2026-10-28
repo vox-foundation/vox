@@ -262,6 +262,89 @@ impl Parser {
                     default = Some(self.parse_expr()?);
                     self.expect(&Token::RParen)?;
                 }
+                Token::Ident(ref kw) if kw == "step" => {
+                    self.advance(); // eat `step`
+                    self.expect(&Token::LParen)?;
+                    match self.peek().clone() {
+                        Token::FloatLit(v) => {
+                            self.advance();
+                            constraints.push(FieldConstraint::Step(v));
+                        }
+                        Token::IntLit(v) => {
+                            self.advance();
+                            constraints.push(FieldConstraint::Step(v as f64));
+                        }
+                        _ => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected numeric literal inside step(...)",
+                                vec!["0.1".into(), "1".into()],
+                                Some(self.peek().to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    }
+                    self.expect(&Token::RParen)?;
+                }
+                Token::Ident(ref kw) if kw == "unit" => {
+                    self.advance(); // eat `unit`
+                    self.expect(&Token::LParen)?;
+                    if let Token::StringLit(s) = self.peek().clone() {
+                        self.advance();
+                        constraints.push(FieldConstraint::Unit(s));
+                    } else {
+                        return Err(());
+                    }
+                    self.expect(&Token::RParen)?;
+                }
+                Token::Ident(ref kw) if kw == "file_kind" => {
+                    self.advance(); // eat `file_kind`
+                    self.expect(&Token::LParen)?;
+                    if let Token::StringLit(s) = self.peek().clone() {
+                        self.advance();
+                        constraints.push(FieldConstraint::FileKind(s));
+                    } else {
+                        return Err(());
+                    }
+                    self.expect(&Token::RParen)?;
+                }
+                Token::Ident(ref kw) if kw == "mutually_exclusive_group" => {
+                    self.advance(); // eat `mutually_exclusive_group`
+                    self.expect(&Token::LParen)?;
+                    if let Token::StringLit(s) = self.peek().clone() {
+                        self.advance();
+                        constraints.push(FieldConstraint::MutuallyExclusiveGroup(s));
+                    } else {
+                        return Err(());
+                    }
+                    self.expect(&Token::RParen)?;
+                }
+                Token::Ident(ref kw) if kw == "preset" => {
+                    self.advance(); // eat `preset`
+                    self.expect(&Token::LParen)?;
+                    let preset_name = if let Token::StringLit(s) = self.peek().clone() {
+                        self.advance();
+                        s
+                    } else {
+                        return Err(());
+                    };
+                    self.expect(&Token::Comma)?;
+                    let val_expr = self.parse_expr()?;
+                    self.expect(&Token::RParen)?;
+                    constraints.push(FieldConstraint::Preset(preset_name, val_expr));
+                }
+                Token::Ident(ref kw) if kw == "cost_credits" => {
+                    self.advance(); // eat `cost_credits`
+                    self.expect(&Token::LParen)?;
+                    if let Token::IntLit(v) = self.peek().clone() {
+                        self.advance();
+                        constraints.push(FieldConstraint::CostCredits(v.max(0) as u32));
+                    } else {
+                        return Err(());
+                    }
+                    self.expect(&Token::RParen)?;
+                }
                 _ => break,
             }
         }

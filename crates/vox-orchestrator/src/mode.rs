@@ -238,6 +238,26 @@ impl RiskPosture {
         }
     }
 
+    /// Strictness rank where High is loosest (0) and Low is strictest (2).
+    #[must_use]
+    pub fn strictness_rank(self) -> u8 {
+        match self {
+            Self::High => 0,
+            Self::Moderate => 1,
+            Self::Low => 2,
+        }
+    }
+
+    /// Returns the stricter of `self` and `other`.
+    #[must_use]
+    pub fn stricter(self, other: Self) -> Self {
+        if self.strictness_rank() >= other.strictness_rank() {
+            self
+        } else {
+            other
+        }
+    }
+
     #[must_use]
     pub fn resolve(self) -> ResolvedRisk {
         match self {
@@ -715,25 +735,58 @@ pub fn effective_source_policy(
     merge_policy_entry(entry, default, || ("source", key))
 }
 
-/// Effective risk policy for `task`: explicit hint > category policy >
-/// source policy, returning `None` when nothing applies anywhere — distinct
-/// from [`resolve_task_policy`]'s always-concrete `RiskPosture`, which
-/// collapses "nothing configured" into the same value as "configured to the
-/// default." Callers that need to tell those two cases apart (e.g. to
-/// preserve an existing global toggle rather than overriding it with a
-/// coincidentally-matching default) use this instead of hand-rolling the
-/// same `effective_category_policy`/`effective_source_policy`/`.or()` chain.
-/// Shared by `socrates.rs`'s grounding/Socrates enforcement and
-/// `attention_fields.rs`'s approval-tier escalation.
+/// Configured risk policy for `task`: category policy > source policy,
+/// returning `None` when nothing is configured.
+///
+/// Unlike [`effective_risk_for_task`], this intentionally ignores any
+/// self-assigned `task.risk_posture` hint. Used by oversight subsystems
+/// to ensure a task cannot lower its configured floor (FLOOR-03).
 #[must_use]
-pub fn effective_risk_for_task(
+pub fn configured_risk_for_task(
     task: &crate::types::AgentTask,
     overrides: &crate::config::TaskPolicyOverrides,
 ) -> Option<RiskPosture> {
     let (_, category_risk) = effective_category_policy(overrides, task.task_category);
     let source = task.trigger_source.unwrap_or(TriggerSource::Interactive);
     let (_, source_risk) = effective_source_policy(overrides, source);
-    task.risk_posture.or(category_risk).or(source_risk)
+    category_risk.or(source_risk)
+}
+
+/// Strictest risk policy for `task`: combines `task.risk_posture` hint with
+/// configured category/source policy via [`RiskPosture::stricter`].
+///
+/// A self-assigned hint can only make the posture stricter, never looser.
+/// Oversight consumers MUST use this or [`configured_risk_for_task`] (FLOOR-03).
+#[must_use]
+pub fn strictest_risk_for_task(
+    task: &crate::types::AgentTask,
+    overrides: &crate::config::TaskPolicyOverrides,
+) -> Option<RiskPosture> {
+    let configured = configured_risk_for_task(task, overrides);
+    match (task.risk_posture, configured) {
+        (Some(hint), Some(cfg)) => Some(hint.stricter(cfg)),
+        (Some(hint), None) => Some(hint),
+        (None, Some(cfg)) => Some(cfg),
+        (None, None) => None,
+    }
+}
+
+/// Effective risk policy for `task`: explicit hint > category policy >
+/// source policy, returning `None` when nothing applies anywhere — distinct
+/// from [`resolve_task_policy`]'s always-concrete `RiskPosture`, which
+/// collapses "nothing configured" into the same value as "configured to the
+/// default."
+///
+/// **Note**: This serves only Mode-axis / cost consumers (e.g. model routing);
+/// oversight consumers MUST use [`strictest_risk_for_task`] or
+/// [`configured_risk_for_task`] to prevent self-lowering (FLOOR-03).
+#[must_use]
+pub fn effective_risk_for_task(
+    task: &crate::types::AgentTask,
+    overrides: &crate::config::TaskPolicyOverrides,
+) -> Option<RiskPosture> {
+    task.risk_posture
+        .or_else(|| configured_risk_for_task(task, overrides))
 }
 
 #[cfg(test)]
@@ -916,5 +969,108 @@ mod effective_policy_tests {
             None,
             "no explicit hint and no category/source policy must return None, not a default"
         );
+    }
+}
+
+#[cfg(test)]
+mod strictest_risk_tests {
+    use super::*;
+    use crate::config::{TaskPolicyEntry, TaskPolicyOverrides};
+    use crate::types::{AgentTask, TaskCategory, TaskId, TaskPriority};
+    use std::collections::HashMap;
+
+    #[test]
+    fn strictness_ordering() {
+        assert_eq!(
+            RiskPosture::High.stricter(RiskPosture::Low),
+            RiskPosture::Low
+        );
+        assert_eq!(
+            RiskPosture::Moderate.stricter(RiskPosture::High),
+            RiskPosture::Moderate
+        );
+        assert_eq!(
+            RiskPosture::Low.stricter(RiskPosture::Moderate),
+            RiskPosture::Low
+        );
+    }
+
+    #[test]
+    fn strictest_risk_for_task_matrix() {
+        let mut category = HashMap::new();
+        category.insert(
+            "CodeGen".to_string(),
+            TaskPolicyEntry {
+                clutch: None,
+                risk: Some("low".to_string()),
+            },
+        );
+        let overrides_low = TaskPolicyOverrides {
+            category,
+            source: HashMap::new(),
+        };
+
+        let mut category_high = HashMap::new();
+        category_high.insert(
+            "CodeGen".to_string(),
+            TaskPolicyEntry {
+                clutch: None,
+                risk: Some("high".to_string()),
+            },
+        );
+        let overrides_high = TaskPolicyOverrides {
+            category: category_high,
+            source: HashMap::new(),
+        };
+
+        let empty = TaskPolicyOverrides {
+            category: HashMap::new(),
+            source: HashMap::new(),
+        };
+
+        // hint High and category Low -> Low
+        let mut t1 = AgentTask::new(TaskId(1), "test", TaskPriority::Normal, vec![]);
+        t1.task_category = TaskCategory::CodeGen;
+        t1.risk_posture = Some(RiskPosture::High);
+        assert_eq!(
+            strictest_risk_for_task(&t1, &overrides_low),
+            Some(RiskPosture::Low)
+        );
+
+        // hint Low and category High -> Low
+        let mut t2 = AgentTask::new(TaskId(2), "test", TaskPriority::Normal, vec![]);
+        t2.task_category = TaskCategory::CodeGen;
+        t2.risk_posture = Some(RiskPosture::Low);
+        assert_eq!(
+            strictest_risk_for_task(&t2, &overrides_high),
+            Some(RiskPosture::Low)
+        );
+
+        // hint only -> hint
+        let mut t3 = AgentTask::new(TaskId(3), "test", TaskPriority::Normal, vec![]);
+        t3.risk_posture = Some(RiskPosture::Moderate);
+        assert_eq!(
+            strictest_risk_for_task(&t3, &empty),
+            Some(RiskPosture::Moderate)
+        );
+
+        // configured only -> configured
+        let mut t4 = AgentTask::new(TaskId(4), "test", TaskPriority::Normal, vec![]);
+        t4.task_category = TaskCategory::CodeGen;
+        assert_eq!(
+            strictest_risk_for_task(&t4, &overrides_low),
+            Some(RiskPosture::Low)
+        );
+
+        // neither -> None
+        let t5 = AgentTask::new(TaskId(5), "test", TaskPriority::Normal, vec![]);
+        assert_eq!(strictest_risk_for_task(&t5, &empty), None);
+
+        // configured_risk_for_task ignores task.risk_posture
+        assert_eq!(
+            configured_risk_for_task(&t1, &overrides_low),
+            Some(RiskPosture::Low)
+        );
+        assert_eq!(configured_risk_for_task(&t3, &empty), None);
     }
 }

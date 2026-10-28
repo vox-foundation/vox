@@ -83,8 +83,20 @@ pub(crate) mod v0_validate;
 
 pub use dispatch_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 
-use clap::{Parser, Subcommand};
-use clap_complete::Shell;
+use clap::{Parser, Subcommand, ValueEnum};
+pub use clap_complete::Shell;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+pub enum CompletionShell {
+    Bash,
+    Elvish,
+    Fish,
+    #[value(name = "powershell", alias = "pwsh")]
+    PowerShell,
+    Zsh,
+    #[value(name = "nushell", alias = "nu")]
+    Nushell,
+}
 
 /// Build version string: `0.x.y+build.N (githash)`
 pub const VOX_VERSION: &str = concat!(
@@ -121,11 +133,11 @@ pub struct VoxCliRoot {
 #[derive(Subcommand)]
 #[allow(clippy::large_enum_variant)]
 pub enum Cli {
-    /// Emit shell completions for `vox` (bash, zsh, fish, powershell, elvish).
+    /// Emit shell completions for `vox` (bash, zsh, fish, powershell, elvish, nushell).
     Completions {
         /// Target shell.
         #[arg(value_enum)]
-        shell: Shell,
+        shell: CompletionShell,
     },
     /// Print a dynamic command catalog generated from the clap command tree.
     Commands {

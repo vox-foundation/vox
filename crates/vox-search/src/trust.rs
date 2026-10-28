@@ -53,6 +53,8 @@ impl TrustScorer {
         }
         #[derive(Deserialize)]
         struct CrossrefMessage {
+            #[serde(default, rename = "updated-by")]
+            updated_by: Vec<CrossrefUpdate>,
             #[serde(default, rename = "update-to")]
             update_to: Vec<CrossrefUpdate>,
         }
@@ -75,8 +77,9 @@ impl TrustScorer {
         let parsed: CrossrefWork = serde_json::from_str(&text).ok()?;
         let is_retracted = parsed
             .message
-            .update_to
+            .updated_by
             .iter()
+            .chain(parsed.message.update_to.iter())
             .any(|u| u.update_type.eq_ignore_ascii_case("retraction"));
         Some(is_retracted)
     }

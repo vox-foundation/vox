@@ -154,8 +154,11 @@ pub(super) async fn call_tool_response_value(
         result: rendered,
     }
 }
+
+/// Dispatches tool call as JSON. Every gateway client, including the `/v1/mobile` console,
+/// is treated as agent-origin by construction so no gateway route can approve or modify a floored park.
 pub(super) async fn call_tool_json(state: &ServerState, name: &str, args: Value) -> Value {
-    match handle_tool_call(state, name, args).await {
+    match crate::floor_gate::with_agent_origin(handle_tool_call(state, name, args)).await {
         Ok(json) => Value::String(json),
         Err(e) => {
             let msg = format!("{e}");

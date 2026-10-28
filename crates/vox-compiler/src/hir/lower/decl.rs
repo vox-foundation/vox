@@ -31,6 +31,11 @@ impl LowerCtx {
                     }
                     crate::ast::decl::EffectAnnotation::Mutate => crate::hir::HirCapability::Mutate,
                     crate::ast::decl::EffectAnnotation::Vcs => crate::hir::HirCapability::Vcs,
+                    crate::ast::decl::EffectAnnotation::Spend => crate::hir::HirCapability::Spend,
+                    crate::ast::decl::EffectAnnotation::Write => crate::hir::HirCapability::Write,
+                    crate::ast::decl::EffectAnnotation::ExternalApi => {
+                        crate::hir::HirCapability::ExternalApi
+                    }
                     crate::ast::decl::EffectAnnotation::Mcp(t) => {
                         crate::hir::HirCapability::Mcp(t.clone())
                     }
@@ -789,6 +794,16 @@ impl LowerCtx {
             FieldConstraint::Enum(exprs) => {
                 HirFieldConstraint::Enum(exprs.iter().map(|e| self.lower_expr(e)).collect())
             }
+            FieldConstraint::Step(s) => HirFieldConstraint::Step(*s),
+            FieldConstraint::Unit(u) => HirFieldConstraint::Unit(u.clone()),
+            FieldConstraint::FileKind(k) => HirFieldConstraint::FileKind(k.clone()),
+            FieldConstraint::MutuallyExclusiveGroup(g) => {
+                HirFieldConstraint::MutuallyExclusiveGroup(g.clone())
+            }
+            FieldConstraint::Preset(name, expr) => {
+                HirFieldConstraint::Preset(name.clone(), self.lower_expr(expr))
+            }
+            FieldConstraint::CostCredits(c) => HirFieldConstraint::CostCredits(*c),
             FieldConstraint::Custom(s) => HirFieldConstraint::Custom(s.clone()),
         }
     }

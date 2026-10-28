@@ -82,8 +82,12 @@ describe('legacy alias redirects (deep-links must not break)', () => {
   it('search resolves to memory', () => {
     expect(resolveNavigation('search')).toEqual({ parent: 'knowledge', child: 'memory' });
   });
+  it('coverage resolves to explorer', () => {
+    expect(resolveNavigation('coverage')).toEqual({ parent: 'explorer', child: 'explorer' });
+  });
   it('exposes the alias map for callers that seed presets', () => {
     expect(LEGACY_VIEW_ALIASES['discovery-inbox']).toBe('activity');
+    expect(LEGACY_VIEW_ALIASES['coverage']).toBe('explorer');
   });
 });
 

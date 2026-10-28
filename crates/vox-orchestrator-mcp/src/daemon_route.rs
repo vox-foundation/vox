@@ -21,6 +21,9 @@ use vox_foundation::protocol::orch_daemon_method;
 /// Forward one tool call to the shared orchestrator daemon's `orch.tool_call`
 /// method, spawning/ensuring the daemon is reachable first.
 ///
+/// This marks stdio-forwarded calls agent-origin (`agent_origin: true`).
+/// The client LLM composes only `args`, and the flag can only restrict.
+///
 /// Returns the tool's raw JSON envelope (mirrors `crate::handle_tool_call`'s
 /// `Ok(String)` shape) on success. On daemon-unreachable or dispatch-level
 /// failure, returns `Err` with a human-readable message — `call_tool` in
@@ -39,7 +42,7 @@ pub async fn call_tool_via_daemon(
     let value = client
         .call(
             orch_daemon_method::TOOL_CALL,
-            serde_json::json!({ "name": name, "args": args }),
+            serde_json::json!({ "name": name, "args": args, "agent_origin": true }),
         )
         .await
         .map_err(|e| anyhow::anyhow!("tool '{name}' failed via orch.tool_call: {e}"))?;

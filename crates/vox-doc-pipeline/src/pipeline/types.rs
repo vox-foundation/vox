@@ -78,6 +78,11 @@ pub enum LintKind {
     Diagram(DiagramIssue),
     /// A legacy-Mermaid ratchet finding (see `mermaid_gate.rs`).
     LegacyMermaid(MermaidIssue),
+    /// A ```mermaid fenced block has invalid syntax or unsupported diagram type.
+    InvalidMermaid {
+        code: &'static str,
+        msg: String,
+    },
 }
 
 /// One finding of the shrink-only legacy-Mermaid baseline gate.

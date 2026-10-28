@@ -345,6 +345,34 @@ describe('ChatSurface', () => {
     expect(screen.getByTestId('chat-attention-meter')).toBeDefined();
   });
 
+  it('renders a dismissible Session Wrap-Up card when attention_budget is exhausted (HUMANE-04)', async () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={noopToast}
+          activeSessionId="s1"
+          composer={<div data-testid="loquela-composer">composer</div>}
+          attention_budget={{
+            max_attention_ms: 600_000,
+            spent_ms: 600_000,
+            total_requests: 15,
+            auto_approved: 10,
+            rejected: 0,
+            interrupt_freq_per_hour: 4,
+            last_interrupt_ms: 0,
+            inbox_suppressed_count: 0,
+            exhausted: true,
+            alert_level: 'Critical',
+          }}
+        />
+      </LanguageProvider>,
+    );
+    const card = await screen.findByTestId('humane-session-wrapup-card');
+    expect(card).toHaveTextContent(/Session Wrap-Up — Natural Stopping Point/i);
+    fireEvent.click(screen.getByRole('button', { name: /dismiss session wrap-up/i }));
+    expect(screen.queryByTestId('humane-session-wrapup-card')).toBeNull();
+  });
+
   it('mounts chat and execution rail as dockview panels (Task 9: no Sessions dockview panel)', async () => {
     render(
       <LanguageProvider>
@@ -1656,4 +1684,63 @@ describe('session hydration ownership (F18: redundant double hydrate per session
     const app = readFileSync(resolve(__dirname, '../../../App.tsx'), 'utf8');
     expect(app).toContain('hydrateChatSession(activeSessionId)');
   });
+
+  it('renders humane-session-wrapup-card when attention_budget is exhausted and dismisses cleanly (HUMANE-04)', async () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={noopToast}
+          activeSessionId="s1"
+          messages={[
+            { id: 'u1', role: 'user', text: 'ship it', status: 'done' },
+            { id: 'a1', role: 'assistant', text: 'done', status: 'done' },
+          ]}
+          composer={<div>composer</div>}
+          attention_budget={{
+            spent_ms: 14_400_000,
+            max_attention_ms: 14_400_000,
+            exhausted: true,
+            focus_depth: 2,
+            interrupt_freq_per_hour: 1.5,
+            trust_Factor: 0.9,
+            efficiency_ratio: 0.95,
+            alert_level: 'Critical',
+          }}
+        />
+      </LanguageProvider>,
+    );
+    const card = await screen.findByTestId('humane-session-wrapup-card');
+    expect(card).toHaveTextContent(/Session Wrap-Up — Natural Stopping Point/i);
+    expect(card).toHaveTextContent(/rest days never break your streak/i);
+    fireEvent.click(screen.getByRole('button', { name: /dismiss session wrap-up/i }));
+    expect(screen.queryByTestId('humane-session-wrapup-card')).toBeNull();
+  });
+
+  it('toggles KB Context Inspector drawer (Phase 44) and Batched Attention Inbox Digest panel (Phase 18)', async () => {
+    render(
+      <LanguageProvider>
+        <ChatSurface
+          pushToast={noopToast}
+          activeSessionId="s1"
+          messages={[]}
+          composer={<div data-testid="dummy-composer">Composer</div>}
+        />
+      </LanguageProvider>,
+    );
+
+    const kbToggle = await screen.findByTestId('kb-context-inspector-toggle');
+    fireEvent.click(kbToggle);
+    expect(await screen.findByTestId('kb-context-inspector-drawer')).toHaveTextContent(
+      /Session-Pinned @kb Context Injection/i,
+    );
+
+    const digestToggle = await screen.findByTestId('inbox-digest-toggle');
+    fireEvent.click(digestToggle);
+    expect(await screen.findByTestId('inbox-digest-panel')).toHaveTextContent(
+      /Batched Attention Inbox Digest/i,
+    );
+  });
 });
+
+
+

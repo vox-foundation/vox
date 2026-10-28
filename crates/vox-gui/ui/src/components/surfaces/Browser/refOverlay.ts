@@ -8,6 +8,9 @@ export interface OverlayBox {
 }
 
 export interface OverlayRef {
+  role?: string;
+  name?: string;
+  tag?: string;
   box_css?: OverlayBox | null;
 }
 

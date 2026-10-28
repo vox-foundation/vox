@@ -24,7 +24,7 @@ status: current
 
 Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../contracts/mcp/tool-registry.canonical.yaml).
 
-**Total tools:** 374
+**Total tools:** 376
 
 | Tool | Product Lane | Tier | HTTP Read Eligible | Description |
 |---|---|---|---|---|
@@ -341,6 +341,7 @@ Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../con
 | `vox_scientia_publication_status` | data |  | No | Return manifest state, digest-bound approval count, discovery rank, manifest completion, transform preview stub, destination_readiness inside preflight, and scholarly submission rows. |
 | `vox_scientia_publication_submit_local` | data |  | No | Submit an approved scientia publication through the scholarly adapter (optional adapter arg or VOX_SCHOLARLY_ADAPTER; default local_ledger), with external_submission_jobs ledger updates. |
 | `vox_scientia_worthiness_evaluate` | data |  | No | Evaluate publication-worthiness.contract YAML (repo-relative or default) against WorthinessInputs metrics JSON; returns Publish / AskForEvidence / Abstain decision (no writes). |
+| `vox_search_atlas` | platform |  | No | Budgeted LOD subgraph slice (crate -> file -> symbol) with derived containment edges and provenance header. |
 | `vox_search_callees` | platform |  | No | Functions called by the given symbol(s) — forward call edges, constructor noise filtered (read-only). |
 | `vox_search_callers` | platform |  | No | Functions that call the given symbol(s) — reverse call edges, constructor noise filtered (read-only). |
 | `vox_search_compare` | platform |  | Yes | Diff two Vox Search structural-index manifests for node/edge/community delta (read-only). |
@@ -390,6 +391,7 @@ Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../con
 | `vox_undo` | ai |  | No | Undo the last operation or a specific operation by ID. |
 | `vox_validate_diagram` | ai |  | Yes | Validate a VoxDiagram (graph or sequence) and return every diagnostic with machine-applicable fixes, the canonical source and stats; optionally convert a Mermaid block or emit SVG or Mermaid. Deterministic, no model calls, writes nothing. |
 | `vox_validate_file` | app |  | No | Validate a .vox file using the full compiler pipeline (lexer → parser → typeck → HIR). |
+| `vox_validate_mermaid` | ai |  | Yes | Validate and repair Mermaid diagrams in Markdown or raw Mermaid source with line-accurate diagnostics. |
 | `vox_validate_source` | app |  | No | Validate Vox source code passed as a string (no filesystem read). Returns LSP-style diagnostics with stable codes and structured autofix suggestions for the iterative AI-assistant repair loop. |
 | `vox_validate_vuv` | ai |  | Yes | Validate Vox/VUV source against the compile-time GUI guarantees (contrast, layer-occlusion, a11y, structural web-IR) without writing files. |
 | `vox_vcs_status` | ai |  | No | Get unified VCS status. |

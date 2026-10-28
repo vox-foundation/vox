@@ -11,13 +11,16 @@ pub mod doctest;
 mod facet_backlog;
 mod facets;
 mod lint;
+pub mod mermaid;
 mod mermaid_base_gate;
 mod mermaid_gate;
+pub mod openwiki;
 mod render_manifest;
 pub mod types;
 
 pub use diagrams::fence_issues;
 pub use facet_backlog::facet_backlog_gate_failures;
+pub use lint::{sync_readme_to_frontpage, transform_readme_block_for_mdx};
 pub use mermaid_base_gate::{Rename, mermaid_baseline_gate_failures};
 pub use mermaid_gate::MERMAID_BASELINE_REL;
 pub use vox_kb_facets::BACKLOG_REL as FACET_BACKLOG_REL;
@@ -90,6 +93,9 @@ fn workflow_for_kind(kind: &LintKind) -> &'static str {
         LintKind::Facet(i) => i.workflow(),
         LintKind::Diagram(i) => i.workflow(),
         LintKind::LegacyMermaid(i) => i.workflow(),
+        LintKind::InvalidMermaid { .. } => {
+            "quote special characters in Mermaid node/edge labels and balance subgraph/end blocks"
+        }
     }
 }
 
@@ -120,6 +126,7 @@ fn kind_label(kind: &LintKind) -> &'static str {
         LintKind::Facet(i) => i.rule_id(),
         LintKind::Diagram(i) => i.rule_id(),
         LintKind::LegacyMermaid(i) => i.rule_id(),
+        LintKind::InvalidMermaid { .. } => "invalid-mermaid",
     }
 }
 
@@ -286,6 +293,73 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
     if args.contains(&"--render-diagrams".to_string()) {
         return render_manifest::run(root, args);
     }
+    if args.contains(&"--sync-readme-frontpage".to_string()) {
+        let write = args.contains(&"--write".to_string()) || fix_mode;
+        return match lint::sync_readme_to_frontpage(root, write) {
+            Ok(changed) => {
+                if changed && !write {
+                    eprintln!(
+                        "README.md and docs/src/index.mdx are out of sync. Run with --write to sync."
+                    );
+                    1
+                } else {
+                    println!("readme-frontpage-sync OK (updated={})", changed && write);
+                    0
+                }
+            }
+            Err(msg) => {
+                eprintln!("{msg}");
+                1
+            }
+        };
+    }
+    if args.contains(&"--refresh-freshness-ledger".to_string()) {
+        let ledger_path = root.join("contracts/reports/docs-freshness/ledger.v1.json");
+        let existing = crate::claims::FreshnessLedger::load_from_file(&ledger_path);
+        let head_commit = existing
+            .as_ref()
+            .map(|l| l.head_commit.clone())
+            .filter(|c| !c.is_empty())
+            .unwrap_or_else(|| "0000000000000000000000000000000000000000".to_string());
+        let ledger = crate::claims::generate_freshness_ledger(root, &head_commit, None);
+        if let Err(e) = ledger.save_to_file(&ledger_path) {
+            eprintln!("Failed to write {}: {}", ledger_path.display(), e);
+            return 1;
+        }
+        eprintln!(
+            "Freshness ledger written to {} ({} pages: {} verified, {} drifting, {} broken, {} historical, {} unanchored)",
+            ledger_path.display(),
+            ledger.metrics.total_pages,
+            ledger.metrics.verified_count,
+            ledger.metrics.drifting_count,
+            ledger.metrics.broken_count,
+            ledger.metrics.historical_count,
+            ledger.metrics.unanchored_count,
+        );
+        for (p, rec) in &ledger.pages {
+            if !rec.broken_mentions.is_empty() {
+                eprintln!("  BROKEN {} -> {:?}", p, rec.broken_mentions);
+            }
+        }
+        if let Ok(resolved) = crate::claims::scan_corpus(root, None) {
+            let findings = crate::claims::generate_findings(&resolved);
+            let baseline_path = root.join("contracts/reports/docs-freshness/baseline.v1.json");
+            if let Ok(mut baseline) = crate::claims::BaselineFile::load_from_file(&baseline_path) {
+                let active_fps: std::collections::HashSet<String> = findings
+                    .iter()
+                    .map(|f| f.fingerprint.clone().unwrap_or_else(|| f.id.clone()))
+                    .collect();
+                let removed = baseline.tighten(&active_fps);
+                let _ = baseline.save_to_file(&baseline_path);
+                eprintln!(
+                    "Tightened baseline.v1.json: removed {} resolved deficits (remaining: {})",
+                    removed,
+                    baseline.deficits.len()
+                );
+            }
+        }
+        return 0;
+    }
 
     if corpus_mode {
         let mut md_files = Vec::new();
@@ -326,6 +400,28 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
     }
     if fix_mode {
         let mut fixed = 0_usize;
+        let mut mermaid_fixed = 0_usize;
+        let try_autofix_mermaid = |path: &Path| -> bool {
+            if !path.is_file() {
+                return false;
+            }
+            let norm = path.to_string_lossy().replace('\\', "/");
+            if norm.contains("/archive/") {
+                return false;
+            }
+            let Ok(raw) = vox_bounded_fs::read_utf8_path_capped(path) else {
+                return false;
+            };
+            if !raw.contains("```mermaid") {
+                return false;
+            }
+            let (repaired, _, changed) = mermaid::validate_and_repair_markdown_mermaid(&raw);
+            if changed > 0 && repaired != raw {
+                fs::write(path, repaired).is_ok()
+            } else {
+                false
+            }
+        };
         if lint_targets.is_empty() {
             let mut md_files = Vec::new();
             collect_md_files(&docs_src, &mut md_files);
@@ -333,12 +429,18 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
                 if try_autofix_status_draft(&f) {
                     fixed += 1;
                 }
+                if try_autofix_mermaid(&f) {
+                    mermaid_fixed += 1;
+                }
             }
         } else {
             for t in &lint_targets {
                 if t.is_file() {
                     if try_autofix_status_draft(t) {
                         fixed += 1;
+                    }
+                    if try_autofix_mermaid(t) {
+                        mermaid_fixed += 1;
                     }
                     continue;
                 }
@@ -348,11 +450,20 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
                     if try_autofix_status_draft(&f) {
                         fixed += 1;
                     }
+                    if try_autofix_mermaid(&f) {
+                        mermaid_fixed += 1;
+                    }
                 }
             }
         }
+        if let Ok(true) = lint::sync_readme_to_frontpage(root, true) {
+            eprintln!("Synced README.md blocks into docs/src/index.mdx.");
+        }
         if fixed > 0 {
             eprintln!("Applied {} frontmatter status auto-fix(es).", fixed);
+        }
+        if mermaid_fixed > 0 {
+            eprintln!("Applied {} Mermaid diagram auto-fix(es).", mermaid_fixed);
         }
     }
 
@@ -581,6 +692,9 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
                         i.rule_id()
                     );
                 }
+                LintKind::InvalidMermaid { code, msg } => {
+                    eprintln!("  ERROR  {}:{} — {} ({})", rel.display(), e.line, msg, code);
+                }
             }
         }
 
@@ -610,6 +724,7 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
                             | LintKind::ReadmeSyncMissingBlock { .. }
                             | LintKind::ReadmeSyncMissingAnchor { .. }
                             | LintKind::ReadmeSyncSourceMissing { .. }
+                            | LintKind::InvalidMermaid { .. }
                     )
             })
             .count();

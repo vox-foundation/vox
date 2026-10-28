@@ -109,6 +109,42 @@ describe('DocReader', () => {
       expect(screen.queryByTestId('doc-status-banner')).toBeNull();
     });
   });
+
+  it('supports KB Library facet filtering, Findings Inbox promote/reject, and KB Health verification (Phases 43 & 45)', async () => {
+    renderDocReader('docs/src/reference/cli.md');
+    await waitFor(() => {
+      expect(screen.getByTestId('kb-facet-filter-bar')).toBeDefined();
+      expect(screen.getByTestId('kb-trust-tier-badge').textContent).toContain('Verified SSOT');
+    });
+
+    // Switch to Findings Inbox tab (Phase 45 GUI-KB-07)
+    screen.getByTestId('kb-tab-inbox').click();
+    await waitFor(() => {
+      expect(screen.getByTestId('kb-inbox-panel')).toBeDefined();
+      expect(screen.getByTestId('kb-finding-row-kb-find-9601')).toBeDefined();
+    });
+
+    // Promote finding kb-find-9601
+    screen.getByTestId('kb-promote-kb-find-9601').click();
+    await waitFor(() => {
+      expect(screen.getByTestId('kb-finding-row-kb-find-9601').textContent).toContain(
+        'Tier: verified_finding',
+      );
+    });
+
+    // Switch to KB Health tab (Phase 45 GUI-KB-08)
+    screen.getByTestId('kb-tab-health').click();
+    await waitFor(() => {
+      expect(screen.getByTestId('kb-health-panel')).toBeDefined();
+      expect(screen.getByTestId('kb-stale-verify-count').textContent).toBe('0');
+    });
+
+    screen.getByTestId('kb-verify-stale-btn').click();
+    await waitFor(() => {
+      expect(screen.getByTestId('kb-stale-verify-count').textContent).toBe('1');
+    });
+  });
 });
+
 
 

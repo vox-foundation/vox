@@ -122,6 +122,9 @@ fn effect_kind_to_cap(eff: &HirEffectKind) -> HirCapability {
         HirEffectKind::GpuCompute => HirCapability::GpuCompute,
         HirEffectKind::Mutate => HirCapability::Mutate,
         HirEffectKind::Vcs => HirCapability::Vcs,
+        HirEffectKind::Spend => HirCapability::Spend,
+        HirEffectKind::Write => HirCapability::Write,
+        HirEffectKind::ExternalApi => HirCapability::ExternalApi,
         HirEffectKind::Mcp(s) => HirCapability::Mcp(s.clone()),
     }
 }
@@ -163,13 +166,46 @@ fn check_fn(
 /// the same effect-propagation rules as regular functions: if an endpoint
 /// declares `uses db`, it must not call functions that require `net` without
 /// also declaring `uses net`.
+fn is_query_forbidden_cap(cap: &HirCapability) -> bool {
+    matches!(
+        cap,
+        HirCapability::Spend
+            | HirCapability::Write
+            | HirCapability::ExternalApi
+            | HirCapability::Mutate
+    )
+}
+
 fn check_endpoint_fn_body(
     f: &HirEndpointFn,
     cap_map: &HashMap<String, Vec<HirCapability>>,
     source: &str,
     diags: &mut Vec<Diagnostic>,
 ) {
-    // Unannotated endpoints are open-world — skip.
+    if matches!(f.kind, crate::hir::nodes::HirEndpointKind::Query) {
+        for callee in callee_names(&f.body) {
+            if let Some(caps) = cap_map.get(&callee) {
+                for cap in caps {
+                    if is_query_forbidden_cap(cap) {
+                        let mut d = Diagnostic::error(
+                            format!(
+                                "query endpoint `{}` calls `{}` which requires forbidden effect `{}`; \
+                                 use `mutation` or `server` instead",
+                                f.name, callee, cap
+                            ),
+                            f.span,
+                            source,
+                        );
+                        d.category = DiagnosticCategory::EffectViolation;
+                        d.code = Some("E_QUERY_FORBIDDEN_EFFECT".to_string());
+                        diags.push(d);
+                    }
+                }
+            }
+        }
+    }
+
+    // Unannotated endpoints are open-world for non-forbidden effects — skip.
     if !f.is_pure && f.effects.is_empty() {
         return;
     }
@@ -666,6 +702,40 @@ fn check_one_endpoint_fn(f: &HirEndpointFn, diags: &mut Vec<Diagnostic>) {
         } else {
             seen.push(eff);
         }
+
+        // E_QUERY_FORBIDDEN_EFFECT: `query` endpoints are read-only and budget-neutral.
+        if matches!(f.kind, crate::hir::nodes::HirEndpointKind::Query)
+            && matches!(
+                eff,
+                HirEffectKind::Spend
+                    | HirEffectKind::Write
+                    | HirEffectKind::ExternalApi
+                    | HirEffectKind::Mutate
+            )
+        {
+            diags.push(Diagnostic {
+                severity: TypeckSeverity::Error,
+                message: format!(
+                    "query endpoint `{}` cannot declare `{}` effect; use `mutation` or `server` instead.",
+                    f.name,
+                    eff.label()
+                ),
+                span: f.span,
+                expected_type: None,
+                found_type: None,
+                context: Some(
+                    "query endpoints must not spend budget, mutate state, or call metered external APIs"
+                        .to_string(),
+                ),
+                suggestions: vec![],
+                category: DiagnosticCategory::EffectViolation,
+                code: Some("E_QUERY_FORBIDDEN_EFFECT".to_string()),
+                fixes: vec![],
+                line_col: None,
+                missing_cases: vec![],
+                ast_node_kind: Some("EndpointFnDecl".to_string()),
+            });
+        }
     }
 }
 
@@ -917,5 +987,29 @@ fn caller() to str { fetch() }",
         );
         assert_eq!(stdlib_module_capability("Scrape"), Some(HirCapability::Net));
         assert_eq!(stdlib_module_capability("scrape"), Some(HirCapability::Net));
+    }
+
+    #[test]
+    fn query_endpoint_forbids_spend_write_and_external_api_effects() {
+        for forbidden in [
+            HirEffectKind::Spend,
+            HirEffectKind::Write,
+            HirEffectKind::ExternalApi,
+        ] {
+            let f = make_endpoint_fn("get_preview", false, vec![forbidden]);
+            let diags = check_endpoint_fn_effects(&[f]);
+            assert_eq!(diags.len(), 1, "expected violation for {diags:?}");
+            assert_eq!(diags[0].code, Some("E_QUERY_FORBIDDEN_EFFECT".to_string()));
+        }
+
+        let diags = check(
+            "fn call_metered_llm() uses spend to str { \"ok\" }\nquery preview() to str { call_metered_llm() }",
+        );
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code.as_deref() == Some("E_QUERY_FORBIDDEN_EFFECT")),
+            "expected E_QUERY_FORBIDDEN_EFFECT when query calls spend function: {diags:?}"
+        );
     }
 }

@@ -118,7 +118,7 @@ fn emit_workflow_body(func: &HirFn) -> String {
     // `tests/adr021_parity.rs`). Match the value, not mere presence — an
     // inherited env from another workflow must not print or kill the host.
     out.push_str(&format!(
-        "    let __vox_debug_dispatch = ::std::env::var(\"VOX_RUN_WORKFLOW\").ok().as_deref().map(::str::trim) == Some({name:?});\n\
+        "    let __vox_debug_dispatch = ::std::env::var(\"VOX_RUN_WORKFLOW\").ok().as_deref().map(str::trim) == Some({name:?});\n\
          \x20   if __vox_debug_dispatch {{\n\
          \x20       println!(\"{{}}\", ::serde_json::to_string(&__vox_journal).map_err(|e| e.to_string())?);\n\
          \x20   }}\n"

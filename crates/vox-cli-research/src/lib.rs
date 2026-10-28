@@ -493,6 +493,7 @@ pub async fn research_publish(session_id: i64, slug: Option<String>) -> anyhow::
 /// (LLM output must not reach the tree Phase 2 indexes as Trusted).
 // vox:defactored-from vox-config 2026-10-06 (REPO_CACHE_DIR; vox-cli-research has no vox-config edge)
 fn publish_draft_path(repo_root: &std::path::Path, filename: &str) -> std::path::PathBuf {
+    // drift-allow(vox-path-literal): vox-cli-research has no vox-config edge (defactored 2026-10-06)
     repo_root.join(".vox/cache/research-drafts").join(filename)
 }
 

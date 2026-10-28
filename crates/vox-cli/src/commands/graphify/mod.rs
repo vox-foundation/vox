@@ -11,6 +11,9 @@ use vox_config::graphify::{
 };
 
 mod history;
+mod mcp_tool_names;
+
+use mcp_tool_names as tool_names;
 
 /// Returns the cache directory for a corpus: `<repo_root>/.vox/cache/vox-graph/<corpus_id>`.
 ///
@@ -777,6 +780,11 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 cli_catalog_json: Some(cli_catalog_json()),
                 gui_source_dir,
                 surface_registry_yaml,
+                mcp_tool_names: if corpus.extraction_mode.as_deref() == Some("gui-wiring") {
+                    Some(tool_names::canonical_mcp_tool_names(repo_root)?)
+                } else {
+                    None
+                },
             };
             // Preserve the previous graph as a bounded history before overwriting.
             if output_file.is_file() {
@@ -890,6 +898,11 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                 cli_catalog_json: Some(cli_catalog_json()),
                 gui_source_dir,
                 surface_registry_yaml,
+                mcp_tool_names: if corpus.extraction_mode.as_deref() == Some("gui-wiring") {
+                    Some(tool_names::canonical_mcp_tool_names(repo_root)?)
+                } else {
+                    None
+                },
             };
             println!("Indexing '{}' as corpus '{}'...", abs.display(), corpus_id);
             vox_graph_reader::rebuild::rebuild_graph(
@@ -946,6 +959,11 @@ pub async fn run(cmd: GraphifyCmd, repo_root: &std::path::Path) -> anyhow::Resul
                             cli_catalog_json: Some(cli_catalog_json()),
                             gui_source_dir,
                             surface_registry_yaml,
+                            mcp_tool_names: if c.extraction_mode.as_deref() == Some("gui-wiring") {
+                                Some(tool_names::canonical_mcp_tool_names(repo_root)?)
+                            } else {
+                                None
+                            },
                         };
                         let corpus_dir = output_file
                             .parent()

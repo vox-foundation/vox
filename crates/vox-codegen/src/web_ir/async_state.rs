@@ -66,6 +66,50 @@ pub fn validate_async_view(view: &HirAsyncView) -> Result<(), Vec<&'static str>>
     }
 }
 
+/// First-class `<WaitingNotice>` view contract (`RANK-02` / `A1-04`).
+///
+/// Replaces blank screens during rate limits, cooldowns, or external service
+/// backoff with an explicit human-readable reason, next-resume timestamp, and
+/// actionable user link.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WaitingNoticeSpec<'a> {
+    pub reason: &'a str,
+    pub resume_at: &'a str,
+    pub action_href: &'a str,
+    pub action_label: &'a str,
+}
+
+/// Validate and emit a `<WaitingNotice>` TSX fragment (`RANK-02`).
+///
+/// Rejects blank `reason`, `resume_at`, or `action_href` so rate-limit/cooldown
+/// states never degrade into a blank screen.
+pub fn emit_waiting_notice_tsx(spec: &WaitingNoticeSpec<'_>) -> Result<String, &'static str> {
+    if spec.reason.trim().is_empty() {
+        return Err("WaitingNotice requires a non-empty `reason`");
+    }
+    if spec.resume_at.trim().is_empty() {
+        return Err("WaitingNotice requires a non-empty `resume_at` timestamp or duration");
+    }
+    if spec.action_href.trim().is_empty() {
+        return Err("WaitingNotice requires a non-empty `action_href` recovery link");
+    }
+    let label = if spec.action_label.trim().is_empty() {
+        "Manage schedule & limits"
+    } else {
+        spec.action_label
+    };
+    Ok(format!(
+        r#"<aside role="status" aria-live="polite" data-vox-waiting-notice="true" data-testid="vox-waiting-notice" className="vox-waiting-notice">
+  <p className="vox-waiting-reason">{reason}</p>
+  <p className="vox-waiting-resume">Resumes at <time dateTime="{resume_at}">{resume_at}</time></p>
+  <a className="vox-waiting-action" href="{action_href}">{label}</a>
+</aside>"#,
+        reason = spec.reason,
+        resume_at = spec.resume_at,
+        action_href = spec.action_href,
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -105,5 +149,26 @@ mod tests {
         assert!(ASYNC_TYPE_ALIAS.contains("_tag"));
         assert!(!ASYNC_TYPE_ALIAS.contains("_kind"));
         assert!(!ASYNC_TYPE_ALIAS.contains(": \"type\""));
+    }
+
+    #[test]
+    fn waiting_notice_tsx_requires_reason_resume_and_action() {
+        let valid = WaitingNoticeSpec {
+            reason: "Provider rate limit reached for synthesis tier",
+            resume_at: "2026-10-15T01:15:00Z",
+            action_href: "/settings/quotas",
+            action_label: "Review quota settings",
+        };
+        let tsx = emit_waiting_notice_tsx(&valid).expect("valid waiting notice");
+        assert!(tsx.contains("data-vox-waiting-notice=\"true\""));
+        assert!(tsx.contains("Provider rate limit reached for synthesis tier"));
+        assert!(tsx.contains("dateTime=\"2026-10-15T01:15:00Z\""));
+        assert!(tsx.contains("href=\"/settings/quotas\""));
+
+        let missing_reason = WaitingNoticeSpec {
+            reason: " ",
+            ..valid
+        };
+        assert!(emit_waiting_notice_tsx(&missing_reason).is_err());
     }
 }

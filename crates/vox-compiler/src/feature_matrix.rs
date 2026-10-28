@@ -110,6 +110,8 @@ const fn is_ladder_proven_decorator(d: DecoratorFeature) -> bool {
             | Auth
             | McpTool
             | Tool
+            | Form
+            | RateLimit
             | JsonAs
             | Tokens
             | Layer
@@ -685,6 +687,58 @@ pub fn unsupported_diagnostic(feature: Feature, target: Target) -> UnsupportedCe
     }
 }
 
+/// Phase 69 (SIM-01): Summary of the 56-decorator golden parity sweep across all targets.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DecoratorParitySummary {
+    pub total_decorators: usize,
+    pub implemented_cells: usize,
+    pub unverified_cells: usize,
+    pub unsupported_cells: usize,
+    pub silent_noop_cells: usize,
+}
+
+/// Phase 69 (SIM-01): Audits all 56 `DecoratorFeature` variants across all 4 `Target`s,
+/// verifying that every non-`Implemented` cell produces a deterministic `UnsupportedCell`
+/// diagnostic with a registered code (`silent_noop_cells == 0`).
+#[must_use]
+pub fn decorator_parity_summary() -> DecoratorParitySummary {
+    let mut implemented_cells = 0;
+    let mut unverified_cells = 0;
+    let mut unsupported_cells = 0;
+    let mut silent_noop_cells = 0;
+
+    for d in DecoratorFeature::ALL {
+        let feat = Feature::Decorator(d);
+        for t in Target::ALL {
+            match support(feat, t) {
+                Support::Implemented => implemented_cells += 1,
+                Support::Unverified => {
+                    unverified_cells += 1;
+                    let diag = unsupported_diagnostic(feat, t);
+                    if diag.code.is_empty() || diag.message.is_empty() {
+                        silent_noop_cells += 1;
+                    }
+                }
+                Support::Unsupported(_) => {
+                    unsupported_cells += 1;
+                    let diag = unsupported_diagnostic(feat, t);
+                    if diag.code.is_empty() || diag.message.is_empty() {
+                        silent_noop_cells += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    DecoratorParitySummary {
+        total_decorators: DecoratorFeature::ALL.len(),
+        implemented_cells,
+        unverified_cells,
+        unsupported_cells,
+        silent_noop_cells,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -860,5 +914,30 @@ mod tests {
                  but is not. Expected Unsupported(DECORATOR_WEBHOOK_RUNTIME_UNIMPLEMENTED)."
             );
         }
+    }
+
+    #[test]
+    fn decorator_parity_sweep_promotes_form_and_ratelimit_and_has_zero_silent_noops() {
+        let summary = decorator_parity_summary();
+        assert_eq!(summary.total_decorators, 56);
+        assert_eq!(summary.silent_noop_cells, 0);
+        assert_eq!(
+            summary.implemented_cells + summary.unverified_cells + summary.unsupported_cells,
+            56 * 4
+        );
+        assert_eq!(
+            support(
+                Feature::Decorator(DecoratorFeature::Form),
+                Target::TypeScript
+            ),
+            Support::Implemented
+        );
+        assert_eq!(
+            support(
+                Feature::Decorator(DecoratorFeature::RateLimit),
+                Target::RustAxum
+            ),
+            Support::Implemented
+        );
     }
 }

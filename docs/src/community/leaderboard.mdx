@@ -1,0 +1,27 @@
+---
+title: "Verified Global Leaderboard & 5-Spoke Model Arena"
+description: "Server-authoritative BLAKE3 hash-chained stewardship leaderboard and 5-spoke MENS benchmark standings with Ed25519 signature verification."
+category: "Operations"
+status: "current"
+topic: "gamification"
+domain: "gui"
+authorship: "llm-assisted"
+authorship_model: "claude-opus-4-6"
+training_rationale: "Documents the zero-cheating server-authoritative Ludus leaderboard and 5-spoke MENS benchmark arena."
+---
+
+import VoxLeaderboardArena from '../../../docs-astro/src/components/VoxLeaderboardArena.astro';
+
+# Verified Global Leaderboard & 5-Spoke Model Arena
+
+<!-- kb:summary -->
+The Vox Verified Global Leaderboard (`VoxLeaderboardArena`) presents cryptographically verifiable community stewardship rankings, Collegium guild standings, and 5-spoke MENS model evaluation benchmarks (`(model_id, harness_id, config_digest)` tuples with 95% Wilson confidence intervals). All global standings are computed exclusively by `vox-ops-ludus` from HMAC-verified GitHub webhooks and Ed25519-signed benchmark receipts, linked in an append-only `BLAKE3` hash chain, and published as an `Ed25519`-signed `VerifiedLeaderboardSnapshotV1` snapshot with 100% static offline fallback.
+<!-- /kb:summary -->
+
+<VoxLeaderboardArena />
+
+## Verification Architecture
+
+1. **Zero Client Score Writes (`LEADERBOARD-01`)**: Local `vox-gamify` SQLite tables track solo developer progression only (`canonical_user_id()`). Global standings are derived exclusively from server-verified upstream events (`ludus_community.verified_contributions`).
+2. **Append-Only `BLAKE3` Proof Chain & `Ed25519` Snapshot Signing (`LEADERBOARD-02`)**: Every verified contribution records `prev_row_chain_hash_hex` and `row_chain_hash_hex` anchored to a 64-zero genesis hash, signed with `vox-ops-ludus`'s `Ed25519` key (`VerifiedLeaderboardSnapshotV1`).
+3. **5-Spoke Model & Mens Arena (`LEADERBOARD-03`)**: Ranks `(model_id, harness_id, config_digest)` tuples across Vox Codegen, Rust Maintenance, Foundational Syntax, Tool/MCP Calling, and Context Engineering with 95% Wilson confidence intervals and contamination guards.

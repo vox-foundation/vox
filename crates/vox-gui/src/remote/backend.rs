@@ -104,10 +104,13 @@ impl BackendState {
                 if let Some(mode) = permission_mode {
                     client = client.with_permission_mode(mode);
                 }
-                client
-                    .call_with_deadline(method, params, deadline)
-                    .await
-                    .map_err(|e| AxisError::Daemon(e.to_string()))
+                match client.call_with_deadline(method, params, deadline).await {
+                    Ok(v) => Ok(v),
+                    Err(e) => {
+                        daemon.invalidate().await;
+                        Err(AxisError::Daemon(e.to_string()))
+                    }
+                }
             }
             Backend::Remote(gateway) => gateway.call_daemon_method(method, params, deadline).await,
         }
@@ -187,17 +190,17 @@ mod tests {
         assert_eq!(reason("mesh"), None);
         assert_eq!(reason("models"), None);
         assert_eq!(reason("activity"), None);
-        assert_eq!(reason("tasks"), Some(UnavailableReason::NotRemoteCapable));
+        assert_eq!(reason("tasks"), None);
         assert_eq!(reason("chat"), Some(UnavailableReason::NotInProfile));
 
         let err = state
-            .call(orch_daemon_method::SUBAGENT_TREE, serde_json::json!({}))
+            .call(orch_daemon_method::PING, serde_json::json!({}))
             .await
             .unwrap_err();
         assert_eq!(
             err,
             AxisError::NotRemoteCapable {
-                method: orch_daemon_method::SUBAGENT_TREE.into()
+                method: orch_daemon_method::PING.into()
             }
         );
 

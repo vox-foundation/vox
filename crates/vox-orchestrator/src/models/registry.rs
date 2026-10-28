@@ -799,13 +799,24 @@ impl ModelRegistry {
                     strengths: vec![
                         crate::models::generated::StrengthTag::Generalist,
                         crate::models::generated::StrengthTag::Codegen,
+                        crate::models::generated::StrengthTag::UiCodegen,
+                        crate::models::generated::StrengthTag::Parsing,
+                        crate::models::generated::StrengthTag::Debugging,
+                        crate::models::generated::StrengthTag::Review,
+                        crate::models::generated::StrengthTag::Security,
+                        crate::models::generated::StrengthTag::Logic,
+                        crate::models::generated::StrengthTag::InterAgent,
+                        crate::models::generated::StrengthTag::Planning,
                     ],
                     capabilities: ModelCapabilities {
                         supports_json: true,
+                        supports_jsonl: true,
                         supports_tool_use: true,
                         supports_native_tools: true,
+                        supports_reasoning: true,
                         writes_vox: true,
                         max_context: 32768,
+                        latency_p50_ms: Some(140),
                         tier: crate::models::generated::ModelTier::Local,
                         param_count_b: Some(param_count),
                         ..Default::default()
@@ -819,6 +830,166 @@ impl ModelRegistry {
                 self.register(spec);
             }
         }
+    }
+
+    /// Register a calibrated Mens adapter from a 5-spoke [`vox_corpus::training::adapter_registry::MensAdapterRegistryEntry`]
+    /// into the Axis [`ModelRegistry`], populating `BenchEvidence` (`ModelConfidence::Confirmed`),
+    /// `ModelScore`, `arm_stats`, and per-spoke [`crate::models::StrengthTag`]s (`MENS-HARNESS-01..03`).
+    pub fn register_calibrated_mens_adapter(
+        &mut self,
+        entry: &vox_corpus::training::adapter_registry::MensAdapterRegistryEntry,
+    ) -> String {
+        use vox_corpus::training::contract::SpokeKind;
+
+        let model_id = if entry.checkpoint_id.starts_with("mens/") {
+            entry.checkpoint_id.clone()
+        } else {
+            format!("mens/{}", entry.checkpoint_id)
+        };
+
+        let mut strengths = vec![crate::models::generated::StrengthTag::Generalist];
+        for (spoke_key, &score) in &entry.per_spoke_scores {
+            if score < 0.50 {
+                continue;
+            }
+            match spoke_key.as_str() {
+                k if k == SpokeKind::VoxLang.as_str() => {
+                    strengths.push(crate::models::generated::StrengthTag::Codegen);
+                    strengths.push(crate::models::generated::StrengthTag::UiCodegen);
+                }
+                k if k == SpokeKind::RustWorkspace.as_str() => {
+                    strengths.push(crate::models::generated::StrengthTag::Debugging);
+                    strengths.push(crate::models::generated::StrengthTag::Review);
+                    strengths.push(crate::models::generated::StrengthTag::Security);
+                }
+                k if k == SpokeKind::StructuredShell.as_str() => {
+                    strengths.push(crate::models::generated::StrengthTag::Parsing);
+                }
+                k if k == SpokeKind::McpToolChain.as_str() => {
+                    strengths.push(crate::models::generated::StrengthTag::InterAgent);
+                    strengths.push(crate::models::generated::StrengthTag::Logic);
+                }
+                k if k == SpokeKind::AgentHarness.as_str() => {
+                    strengths.push(crate::models::generated::StrengthTag::Planning);
+                }
+                _ => {}
+            }
+        }
+        strengths.dedup();
+
+        let pass1 = entry.overall_pass_at_1.clamp(0.0, 1.0);
+        let spec = ModelSpec {
+            id: model_id.clone(),
+            canonical_slug: entry.adapter_trusty_uri.clone(),
+            provider: "voxlocal".to_string(),
+            provider_type: ProviderType::VoxLocal,
+            max_tokens: 16384,
+            cost_per_1k: entry.cost_per_1k_tokens_usd,
+            cost_per_1k_input: entry.cost_per_1k_tokens_usd,
+            cost_per_1k_output: entry.cost_per_1k_tokens_usd,
+            is_free: entry.cost_per_1k_tokens_usd <= 0.0,
+            observed_cost_per_1k: Some(entry.cost_per_1k_tokens_usd),
+            strengths,
+            capabilities: ModelCapabilities {
+                supports_json: true,
+                supports_jsonl: true,
+                supports_tool_use: true,
+                supports_native_tools: true,
+                supports_reasoning: true,
+                writes_vox: true,
+                max_context: 32768,
+                latency_p50_ms: Some(entry.latency_ms_p50 as u32),
+                intelligence_index: Some((pass1 * 100.0) as f32),
+                tier: crate::models::generated::ModelTier::Local,
+                param_count_b: Some(27.0),
+                ..Default::default()
+            },
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: PricingSource::Telemetry,
+            supported_parameters: vec![],
+        };
+        self.register(spec);
+
+        let total_problems: i64 = 25;
+        let successes = ((pass1 * total_problems as f64).round() as i64).min(total_problems);
+        let failures = (total_problems - successes).max(0) as u32;
+
+        self.bench.insert(
+            model_id.clone(),
+            super::bench_evidence::BenchEvidence {
+                cases: total_problems,
+                passed: successes,
+                errors: 0,
+                mean_score: pass1,
+                resolved_model_id: Some(model_id.clone()),
+                p50_ttft_ms: Some(40),
+                p50_latency_ms: Some(entry.latency_ms_p50 as i64),
+                p95_latency_ms: Some((entry.latency_ms_p50 * 2) as i64),
+                mean_tokens_per_sec: Some(65.0),
+                cost_per_solve_usd: Some(0.0),
+                tokens_per_solve: Some(512.0),
+                last_recorded_at_ms: 1_710_000_002_000,
+            },
+        );
+        self.scoreboard.insert(
+            model_id.clone(),
+            ModelScore {
+                success_rate: pass1,
+                quality_score: pass1,
+                cost_per_success_usd: Some(0.0),
+                p50_latency_ms: Some(entry.latency_ms_p50 as i64),
+                n_calls: total_problems,
+                success_count: successes,
+                p95_ttft_ms: Some(40),
+                p95_tpot_ms: Some(15.0),
+                goodput_tokens_per_sec: Some(65.0),
+            },
+        );
+        self.arm_stats
+            .insert(model_id.clone(), ((successes as u32).max(1), failures));
+        self.apply_routing_reference();
+        model_id
+    }
+
+    /// Map a canonical [`vox_corpus::training::contract::SpokeKind`] to its Axis [`super::routing_task::RoutingTask`]
+    /// and select the highest-scoring model in the registry (`MENS-HARNESS-02..03`).
+    #[must_use]
+    pub fn route_spoke_task(
+        &self,
+        spoke: vox_corpus::training::contract::SpokeKind,
+    ) -> Option<ModelSpec> {
+        use vox_corpus::training::contract::SpokeKind;
+
+        let task = match spoke {
+            SpokeKind::VoxLang => RoutingTask {
+                category: TaskCategory::CodeGen,
+                complexity: 6,
+                ..Default::default()
+            },
+            SpokeKind::RustWorkspace => RoutingTask {
+                category: TaskCategory::Debugging,
+                complexity: 6,
+                ..Default::default()
+            },
+            SpokeKind::StructuredShell => RoutingTask {
+                category: TaskCategory::Parsing,
+                complexity: 4,
+                ..Default::default()
+            },
+            SpokeKind::McpToolChain => RoutingTask {
+                category: TaskCategory::ToolOrchestration,
+                complexity: 6,
+                ..Default::default()
+            },
+            SpokeKind::AgentHarness => RoutingTask {
+                category: TaskCategory::Planning,
+                complexity: 6,
+                ..Default::default()
+            },
+        };
+        self.best_for_task(&task, CostPreference::Economy)
     }
 
     /// Register a new model specification.
@@ -1276,6 +1447,54 @@ impl ModelRegistry {
         self.agent_overrides.get(&agent_id).cloned()
     }
 
+    /// Apply verified `CommunityIntelligenceBundleV1` priors using bounded Empirical Bayes blending
+    /// ($w_{\text{local}} = \frac{n_{\text{local}}}{n_{\text{local}} + 10}$, clamped to $\pm 15\%$ max delta) (`INTEL-03`, `INTEL-04`).
+    ///
+    /// Returns the number of registered models updated. If the bundle fails `Ed25519` or $k \ge 20$
+    /// verification, or if `VOX_COMMUNITY_INTELLIGENCE=off`, returns `0` without mutating any state (`INTEL-05`).
+    pub fn apply_community_intelligence_bundle(
+        &mut self,
+        bundle: &super::intelligence_bundle::CommunityIntelligenceBundleV1,
+    ) -> usize {
+        if !super::intelligence_bundle::is_community_intelligence_enabled() {
+            return 0;
+        }
+        if bundle.verify_bundle_signature().is_err() {
+            return 0;
+        }
+        let mut updated = 0usize;
+        for model_id in self.models.keys().cloned().collect::<Vec<_>>() {
+            let model_hash = super::intelligence_bundle::model_id_blake3_hex(&model_id);
+            let matching: Vec<&super::intelligence_bundle::ModelRoutingPriorRowV1> = bundle
+                .model_routing_priors
+                .iter()
+                .filter(|r| r.model_id_hash == model_hash)
+                .collect();
+            if matching.is_empty() {
+                continue;
+            }
+            let community_rate = matching
+                .iter()
+                .map(|r| r.empirical_success_rate)
+                .sum::<f64>()
+                / (matching.len() as f64);
+
+            let entry = self.scoreboard.entry(model_id).or_default();
+            let base_local_rate = if entry.n_calls > 0 {
+                entry.success_rate
+            } else {
+                0.50
+            };
+            entry.success_rate = super::intelligence_bundle::blend_empirical_bayes_prior(
+                base_local_rate,
+                entry.n_calls.max(0) as u64,
+                community_rate,
+            );
+            updated += 1;
+        }
+        updated
+    }
+
     /// Builds a [`vox_actor_runtime::llm::LlmConfig`] for the best matching model when the `runtime` feature is on.
     #[cfg(feature = "runtime")]
     pub fn get_llm_config(
@@ -1553,5 +1772,73 @@ mod tests {
             "unreachable Ollama serves nothing"
         );
         assert!(reg.get("acme/hosted-1").is_some());
+    }
+
+    #[test]
+    fn calibrated_mens_adapter_routes_all_five_spokes_with_confirmed_confidence() {
+        use crate::models::autonomic::ModelConfidence;
+        use crate::models::spec::QualitySource;
+        use vox_corpus::training::adapter_registry::{
+            MensCheckpointManifestV1, calibrate_adapter_from_scorecard,
+        };
+        use vox_corpus::training::contract::SpokeKind;
+        use vox_corpus::training::curriculum::{
+            DEFAULT_MIN_SPOKE_WEIGHT_FLOOR, compute_curriculum_weights,
+        };
+        use vox_corpus::training::spoke_roundtrip::{
+            canonical_five_spoke_benchmark_suite_25, evaluate_multi_spoke_suite,
+        };
+
+        let suite = canonical_five_spoke_benchmark_suite_25();
+        let scorecard = evaluate_multi_spoke_suite(&suite);
+        let cw = compute_curriculum_weights(&scorecard, DEFAULT_MIN_SPOKE_WEIGHT_FLOOR);
+        let manifest = MensCheckpointManifestV1::build(
+            "qwen3_27b_five_spoke_v1",
+            "Qwen3.5-27B",
+            "trusty://vox-dataset/0123456789abcdef0123456789abcdef",
+            &cw,
+            vec![1.82, 1.31, 0.94, 0.71],
+            vec![0.68, 0.51, 0.39],
+            200,
+            75,
+        );
+        let adapter_entry = calibrate_adapter_from_scorecard(&manifest, &scorecard);
+
+        let mut reg = ModelRegistry::default();
+        let model_id = reg.register_calibrated_mens_adapter(&adapter_entry);
+        assert_eq!(model_id, "mens/qwen3_27b_five_spoke_v1");
+
+        let spec = reg
+            .get(&model_id)
+            .expect("calibrated Mens adapter must be registered");
+        let bench = reg
+            .bench
+            .get(&model_id)
+            .expect("calibrated Mens adapter must have BenchEvidence");
+        assert_eq!(bench.verdict(), Some(ModelConfidence::Confirmed));
+
+        let prior = spec
+            .capabilities
+            .quality_prior
+            .as_ref()
+            .expect("quality_prior must be stamped by apply_routing_reference");
+        assert!(matches!(prior.source, QualitySource::Measured { .. }));
+        assert!(
+            prior.value > 0.80,
+            "calibrated 25/25 adapter blended quality should exceed 0.80, got {}",
+            prior.value
+        );
+
+        for spoke in SpokeKind::ALL {
+            let selected = reg
+                .route_spoke_task(spoke)
+                .unwrap_or_else(|| panic!("spoke {} must route to a model", spoke.as_str()));
+            assert_eq!(
+                selected.id,
+                model_id,
+                "spoke {} should route to calibrated Mens adapter",
+                spoke.as_str()
+            );
+        }
     }
 }

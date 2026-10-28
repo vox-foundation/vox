@@ -68,11 +68,11 @@ export function ModelsView({ pushToast, gamifyEnabled = false }: ModelsViewProps
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const snap = await invoke<ModelsSnapshot>('get_models_snapshot', { limit: 120 });
-      const cards = snap.cards;
-      const routing = snap.routing;
-      const active = snap.active_model;
-      const statuses = snap.providers;
+      const snap = await invoke<ModelsSnapshot | null>('get_models_snapshot', { limit: 120 });
+      const cards = Array.isArray(snap?.cards) ? snap.cards : [];
+      const routing = snap?.routing ?? null;
+      const active = snap?.active_model ?? null;
+      const statuses = snap?.providers;
       setModels(cards);
       setSummary(routing);
       setActiveModel(active);
@@ -167,15 +167,25 @@ function RoutingPanel() {
     <Glass id="routing-panel" className="p-4 flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3 text-xs">
         <div className="font-display text-[11px] tracking-[0.2em] uppercase text-text-muted">Routing</div>
-        <label className="flex items-center gap-1">
+        <label className="flex items-center gap-1.5 text-text-secondary">
           Routing mode
-          <select aria-label="Routing mode" value={mode} onChange={e => setMode(e.target.value)}>
+          <select
+            aria-label="Routing mode"
+            value={mode}
+            onChange={e => setMode(e.target.value)}
+            className="h-7 rounded-md border border-border-subtle bg-bg-surface px-2.5 pr-7 font-mono text-[11px] text-text-primary focus:border-brass/40 focus:outline-hidden"
+          >
             {MODES.map(m => <option key={m} value={m}>{modeLabel(m)}</option>)}
           </select>
         </label>
-        <label className="flex items-center gap-1">
+        <label className="flex items-center gap-1.5 text-text-secondary">
           Task
-          <select aria-label="Task" value={task} onChange={e => setTask(e.target.value)}>
+          <select
+            aria-label="Task"
+            value={task}
+            onChange={e => setTask(e.target.value)}
+            className="h-7 rounded-md border border-border-subtle bg-bg-surface px-2.5 pr-7 font-mono text-[11px] text-text-primary focus:border-brass/40 focus:outline-hidden"
+          >
             {TASKS.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
         </label>

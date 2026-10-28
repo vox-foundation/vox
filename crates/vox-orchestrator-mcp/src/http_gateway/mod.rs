@@ -23,6 +23,8 @@ use axum::extract::DefaultBodyLimit;
 pub(super) use token::DashboardToken;
 mod eval;
 use eval::*;
+#[cfg(test)]
+mod floor_origin_tests;
 mod origin_guard;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{ConnectInfo, State};

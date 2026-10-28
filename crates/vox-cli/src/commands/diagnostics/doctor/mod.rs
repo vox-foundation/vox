@@ -171,6 +171,11 @@ const OPTIONAL_CHECK_NAMES: &[&str] = &[
     "GPU Discovery",
     "docker: not installed",
     "vox-ml-cli build",
+    "Populi mesh security defaults",
+    "Google AI Studio Key",
+    "Model Scoreboard",
+    "Model Catalog",
+    "Workspace Registration",
 ];
 
 /// A check is optional when named in [`OPTIONAL_CHECK_NAMES`], or is a

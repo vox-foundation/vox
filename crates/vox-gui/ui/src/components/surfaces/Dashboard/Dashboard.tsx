@@ -395,7 +395,7 @@ export function Dashboard({
           <AttentionBudgetMeter budget={attention_budget} />
         </div>
       )}
-      <div className="absolute right-5 top-2 z-20 flex items-center gap-2">
+      <div className="mb-3 flex items-center justify-end gap-2 px-5">
         {customizeMode && (
           <>
             <button
@@ -439,6 +439,7 @@ export function Dashboard({
         <div className="flex items-center justify-between bg-bg-base/60 px-4 py-2 text-xs border-b border-border-subtle">
           <span className="font-semibold text-text-primary uppercase tracking-wide">⬤ Workspace Simulation Mini-Map</span>
           <div className="flex gap-2">
+            <button type="button" onClick={() => onNavigate?.('harness')} className="text-emerald-400 hover:underline">Harness River</button>
             <button type="button" onClick={() => onNavigate?.('gamify')} className="text-cyan hover:underline">Immersive View</button>
             <button type="button" onClick={() => setSandboxCollapsed(!sandboxCollapsed)} className="text-text-muted hover:text-text-secondary">
               {sandboxCollapsed ? 'Expand' : 'Collapse'}
@@ -447,7 +448,7 @@ export function Dashboard({
         </div>
         {!sandboxCollapsed && (
           <div className="h-[250px] relative">
-            <LudusSandbox />
+            <LudusSandbox energy={80} maxEnergy={100} />
           </div>
         )}
       </div>

@@ -41,3 +41,12 @@ channels:
     uri: "vox://activity-appended"
     payload: ActivityRow
     semantics: fold
+  - name: term_output
+    uri: "vox://term-output"
+    payload: TermOutputFrame
+    semantics: fold
+  - name: term_event
+    uri: "vox://term-event"
+    payload: TermEventFrame
+    semantics: fold
+

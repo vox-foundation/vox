@@ -21,6 +21,7 @@ pub mod humaneval;
 /// CR-F6 (Foundation): regression budget — zero `todo!`/`unimplemented!`/
 /// `// vox:skip`/`de-stub-pending` in foundation crates and golden corpus.
 pub mod regression_budget;
+pub mod repair_corpus;
 pub mod retirement;
 /// Non-CR-L tooling gate: stdlib-coverage parity check. See
 /// `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md` §10 / §12.D.

@@ -27,6 +27,45 @@ export function DiscoveryRail({ actionId, nowMs, gamifyEnabled = false, onUseAct
   const [collapsed, setCollapsed] = useLocalStorage<boolean>(DISCOVERY_RAIL_COLLAPSED_KEY, false);
   const shownAt = useRef<number>(nowMs);
 
+const LOCAL_ACTION_HELP: Record<string, ActionHelp> = {
+  'slash.help': {
+    action_id: 'slash.help',
+    about: 'List terminal slash commands or show help for one command.',
+    args: [{ name: 'cmd', help: 'Optional command name', required: false }],
+    example: '/help',
+  },
+  'slash.model': {
+    action_id: 'slash.model',
+    about: 'Inspect or switch the active session LLM model or route.',
+    args: [{ name: 'id|route', help: 'Model identifier or routing tier', required: false }],
+    example: '/model route',
+  },
+  'slash.nu': {
+    action_id: 'slash.nu',
+    about: 'Show Nushell structured shell idioms or run a structured pipeline.',
+    args: [{ name: 'pipeline', help: 'Optional Nushell pipeline', required: false }],
+    example: '/nu',
+  },
+  'nu.where': {
+    action_id: 'nu.where',
+    about: 'Filter rows of a structured Nushell stream by predicate.',
+    args: [{ name: 'predicate', help: 'Row filter condition (e.g. size > 1kb)', required: true }],
+    example: '!nu ls | where size > 1kb',
+  },
+  'nu.select': {
+    action_id: 'nu.select',
+    about: 'Project specific columns from a structured Nushell table.',
+    args: [{ name: 'columns', help: 'Column names to select', required: true }],
+    example: '!nu ls | select name size',
+  },
+  'nu.to_json': {
+    action_id: 'nu.to_json',
+    about: 'Serialize structured Nushell pipeline output as JSON.',
+    args: [{ name: '--raw', help: 'Emit compact single-line JSON', required: false }],
+    example: '!nu ls | to json --raw',
+  },
+};
+
   useEffect(() => {
     if (!actionId) {
       setHelp(null);
@@ -35,8 +74,14 @@ export function DiscoveryRail({ actionId, nowMs, gamifyEnabled = false, onUseAct
     shownAt.current = nowMs;
     let live = true;
     discoveryHelp(actionId)
-      .then((h) => live && setHelp(h))
-      .catch(() => {});
+      .then((h) => {
+        if (!live) return;
+        setHelp(h ?? LOCAL_ACTION_HELP[actionId] ?? null);
+      })
+      .catch(() => {
+        if (!live) return;
+        setHelp(LOCAL_ACTION_HELP[actionId] ?? null);
+      });
     return () => {
       live = false;
     };
@@ -65,10 +110,12 @@ export function DiscoveryRail({ actionId, nowMs, gamifyEnabled = false, onUseAct
         <Glass className="flex flex-col items-center gap-2 p-2">
           <button
             type="button"
+            data-testid="discovery-rail-restore-button"
             aria-label="Expand discovery rail"
             aria-expanded={false}
+            title="Expand discovery rail"
             onClick={() => setCollapsed(false)}
-            className="rounded-lg border border-border-subtle p-2 text-text-muted transition hover:border-brass/40 hover:text-brass"
+            className="rounded-lg border border-border-subtle p-2 text-text-muted transition hover:border-brass/40 hover:bg-overlay-hover hover:text-brass"
           >
             <span className="font-mono text-sm" aria-hidden="true">
               »
@@ -101,10 +148,12 @@ export function DiscoveryRail({ actionId, nowMs, gamifyEnabled = false, onUseAct
           <h2 className="text-[10px] uppercase tracking-[0.18em] text-brass">{useLabel('con-discovery')}</h2>
           <button
             type="button"
+            data-testid="discovery-rail-hide-button"
             aria-label="Collapse discovery rail"
             aria-expanded={true}
+            title="Collapse discovery rail"
             onClick={() => setCollapsed(true)}
-            className="rounded-sm p-1 text-text-muted transition hover:bg-overlay-subtle hover:text-text-secondary"
+            className="rounded-md border border-border-subtle px-1.5 py-0.5 text-text-muted transition hover:border-brass/40 hover:bg-overlay-hover hover:text-brass"
           >
             <span className="font-mono text-xs" aria-hidden="true">
               «

@@ -494,7 +494,7 @@ async fn allowlist_entry_survives_a_fresh_db_reconnect() {
 }
 
 /// RED test 5 (parity): every tool referenced in
-/// `contracts/orchestration/permission-modes.v1.yaml`'s `risk_classes` has a
+/// `contracts/orchestration/permission-modes.v2.yaml`'s `risk_classes` has a
 /// matching entry in `vox_orchestrator_mcp::permission_modes::RISK_CLASSES`,
 /// and vice versa — the YAML and the Rust mirror cannot silently drift.
 #[test]
@@ -505,6 +505,9 @@ fn risk_classes_yaml_matches_rust_table() {
         class: String,
         reversible: bool,
         always_requires_approval: bool,
+        #[serde(default)]
+        #[allow(dead_code)]
+        floor: Option<String>,
     }
     #[derive(serde::Deserialize)]
     struct YamlDoc {
@@ -520,10 +523,10 @@ fn risk_classes_yaml_matches_rust_table() {
     let yaml_path = repo_root
         .join("contracts")
         .join("orchestration")
-        .join("permission-modes.v1.yaml");
+        .join("permission-modes.v2.yaml");
     let raw = std::fs::read_to_string(&yaml_path)
         .unwrap_or_else(|e| panic!("read {}: {e}", yaml_path.display()));
-    let doc: YamlDoc = serde_yaml::from_str(&raw).expect("parse permission-modes.v1.yaml");
+    let doc: YamlDoc = serde_yaml::from_str(&raw).expect("parse permission-modes.v2.yaml");
 
     use vox_orchestrator_mcp::permission_modes::{RISK_CLASSES, SafetyClass};
 
@@ -555,8 +558,116 @@ fn risk_classes_yaml_matches_rust_table() {
 
     assert_eq!(
         yaml_set, rust_set,
-        "permission-modes.v1.yaml risk_classes and RISK_CLASSES have drifted apart"
+        "permission-modes.v2.yaml risk_classes and RISK_CLASSES have drifted apart"
     );
+}
+
+#[test]
+fn floor_categories_yaml_matches_rust_floor() {
+    #[derive(serde::Deserialize)]
+    struct YamlRiskClass {
+        tool: String,
+        always_requires_approval: bool,
+        #[serde(default)]
+        floor: Option<String>,
+    }
+    #[derive(serde::Deserialize)]
+    struct YamlFloorCategory {
+        id: String,
+        description: String,
+        tools: Vec<String>,
+        arg_rules: Vec<String>,
+    }
+    #[derive(serde::Deserialize)]
+    struct YamlDocWithFloor {
+        risk_classes: Vec<YamlRiskClass>,
+        floor_categories: Vec<YamlFloorCategory>,
+    }
+
+    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = manifest_dir
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("repo root from CARGO_MANIFEST_DIR");
+    let yaml_path = repo_root
+        .join("contracts")
+        .join("orchestration")
+        .join("permission-modes.v2.yaml");
+    let raw = std::fs::read_to_string(&yaml_path)
+        .unwrap_or_else(|e| panic!("read {}: {e}", yaml_path.display()));
+    let doc: YamlDocWithFloor =
+        serde_yaml::from_str(&raw).expect("parse permission-modes.v2.yaml with floor_categories");
+
+    use vox_orchestrator::oversight::floor::{
+        ALL, FloorInput, arg_rule_ids, classify_floor, tools_for,
+    };
+
+    // 1. Assert set of ids equals FloorCategory::ALL.map(id)
+    let yaml_cat_ids: std::collections::BTreeSet<String> =
+        doc.floor_categories.iter().map(|c| c.id.clone()).collect();
+    let rust_cat_ids: std::collections::BTreeSet<String> =
+        ALL.iter().map(|c| c.id().to_string()).collect();
+    assert_eq!(yaml_cat_ids, rust_cat_ids, "floor_categories ids mismatch");
+
+    // 2. For each category, assert sorted tools and sorted arg_rules match Rust
+    for c in ALL {
+        let cat_yaml = doc
+            .floor_categories
+            .iter()
+            .find(|entry| entry.id == c.id())
+            .unwrap_or_else(|| panic!("missing floor category {}", c.id()));
+
+        assert!(
+            !cat_yaml.description.trim().is_empty(),
+            "floor category {} missing description",
+            c.id()
+        );
+
+        let mut yaml_tools = cat_yaml.tools.clone();
+        yaml_tools.sort();
+        let mut rust_tools: Vec<String> = tools_for(c).iter().map(|s| s.to_string()).collect();
+        rust_tools.sort();
+        assert_eq!(
+            yaml_tools,
+            rust_tools,
+            "floor category {} tools mismatch",
+            c.id()
+        );
+
+        let mut yaml_arg_rules = cat_yaml.arg_rules.clone();
+        yaml_arg_rules.sort();
+        let mut rust_arg_rules: Vec<String> =
+            arg_rule_ids(c).iter().map(|s| s.to_string()).collect();
+        rust_arg_rules.sort();
+        assert_eq!(
+            yaml_arg_rules,
+            rust_arg_rules,
+            "floor category {} arg_rules mismatch",
+            c.id()
+        );
+    }
+
+    // 3. Invariant: every risk_classes row whose floor is non-null has always_requires_approval: true,
+    // and row's floor id equals classify_floor for that tool with empty args (or is null when None)
+    let empty_args = serde_json::json!({});
+    for row in &doc.risk_classes {
+        let expected_cat = classify_floor(&FloorInput::tool(&row.tool, &empty_args, repo_root));
+        let expected_id = expected_cat.map(|c| c.id().to_string());
+
+        assert_eq!(
+            row.floor, expected_id,
+            "tool {} floor field in YAML ({:?}) does not match classify_floor ({:?})",
+            row.tool, row.floor, expected_id
+        );
+
+        if row.floor.is_some() {
+            assert!(
+                row.always_requires_approval,
+                "tool {} has floor {:?} but always_requires_approval is false",
+                row.tool, row.floor
+            );
+        }
+    }
 }
 
 /// RED test (follow-up review finding, HIGH SEVERITY): `vox_add_approval_allowlist_entry`

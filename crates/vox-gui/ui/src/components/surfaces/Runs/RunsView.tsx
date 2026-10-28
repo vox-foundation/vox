@@ -185,7 +185,7 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
   ];
 
   return (
-    <div className="grid grid-cols-12 gap-5 p-4 h-full overflow-auto">
+    <div className="grid grid-cols-12 content-start gap-5 p-4 h-full overflow-auto">
       {decision && (
         <Glass className="col-span-12 p-3">
           <div className="font-display text-[11px] tracking-[0.2em] uppercase text-text-muted">Latest Route Decision</div>

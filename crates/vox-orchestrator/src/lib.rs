@@ -132,6 +132,8 @@ pub mod handoff;
 pub mod legacy;
 /// Unified orchestrator policy façade composing all D1–D10.
 pub mod orchestrator_policy;
+/// Polyglot cross-repo Platform SSOT v2.1 (synced from ngi.video/packages/platform-ssot).
+pub mod platform_ssot_generated;
 /// Sensitivity classifier and privacy-level-aware routing (D8).
 pub mod privacy_classifier;
 pub mod process_util;
@@ -187,6 +189,8 @@ pub mod orchestration_feature_flags;
 /// Core multi-agent orchestrator implementation.
 pub mod orchestrator;
 pub use crate::orchestrator::core::is_chat_research_enabled;
+/// Oversight composition: safety floor, policy enforcement, and approval tiers.
+pub mod oversight;
 /// PII-aware redacting filter for sensitive data.
 pub mod pii_filter;
 /// Dynamic planning domain (router, synthesis, policies, replanning).

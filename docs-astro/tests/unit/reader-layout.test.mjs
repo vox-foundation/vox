@@ -26,4 +26,11 @@ test('reader-layout.css exists and contains expected rules', () => {
 
   // Overflow-x containment
   assert.match(css, /overflow-x:\s*hidden;/, 'Must guard viewport overflow-x');
+
+  // Hideable left & right sidebar buttons and states
+  assert.match(css, /#vox-sidebar-hide-btn/, 'Must define themed left sidebar hide button');
+  assert.match(css, /#vox-sidebar-restore-btn/, 'Must define themed left sidebar restore pill');
+  assert.match(css, /html\[data-sidebar-state="hidden"\]/, 'Must define hidden left sidebar state');
+  assert.match(css, /#vox-toc-hide-btn/, 'Must define themed right TOC hide button');
+  assert.match(css, /#vox-toc-restore-btn/, 'Must define themed right TOC restore pill');
 });

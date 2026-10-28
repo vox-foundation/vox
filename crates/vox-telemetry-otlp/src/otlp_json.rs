@@ -61,3 +61,51 @@ fn scalar_to_any_value(v: &Value) -> Value {
         _ => json!({ "stringValue": v.to_string() }),
     }
 }
+
+/// Merge multiple OTLP/HTTP log envelopes (or individual `logRecords`) into a single batched
+/// `resourceLogs` envelope (up to `batch.len()` records) so the uploader sends at most 1 HTTP POST
+/// per batch instead of `N` sequential requests (`TELEM-03`).
+pub fn merge_otlp_log_batch(envelopes: &[Value]) -> Value {
+    let mut install_id = "anonymous".to_string();
+    let mut merged_records: Vec<Value> = Vec::new();
+
+    for env in envelopes {
+        if let Some(res_logs) = env.get("resourceLogs").and_then(Value::as_array) {
+            for rl in res_logs {
+                if let Some(attrs) = rl.pointer("/resource/attributes").and_then(Value::as_array) {
+                    for attr in attrs {
+                        if attr.get("key").and_then(Value::as_str) == Some("vox.install_id")
+                            && let Some(id) =
+                                attr.pointer("/value/stringValue").and_then(Value::as_str)
+                        {
+                            install_id = id.to_string();
+                        }
+                    }
+                }
+                if let Some(scope_logs) = rl.get("scopeLogs").and_then(Value::as_array) {
+                    for sl in scope_logs {
+                        if let Some(records) = sl.get("logRecords").and_then(Value::as_array) {
+                            merged_records.extend(records.iter().cloned());
+                        }
+                    }
+                }
+            }
+        } else {
+            merged_records.push(env.clone());
+        }
+    }
+
+    json!({
+        "resourceLogs": [{
+            "resource": {
+                "attributes": [
+                    { "key": "vox.install_id", "value": { "stringValue": install_id } }
+                ]
+            },
+            "scopeLogs": [{
+                "scope": { "name": "vox-telemetry-otlp" },
+                "logRecords": merged_records
+            }]
+        }]
+    })
+}

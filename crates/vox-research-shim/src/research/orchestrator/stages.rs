@@ -75,7 +75,7 @@ pub(super) async fn judge_quality(params: JudgeParams<'_>) -> Result<i32, String
     let citation_snippets: String = params
         .citations
         .iter()
-        .take(5)
+        .take(15)
         .map(|c| {
             format!(
                 "- {} <{}>: {}",
@@ -282,20 +282,7 @@ async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<(Str
 
     let packed_units = pack_rag_budget(&units, params.query, evidence_budget);
     let evidence_text: String = if !packed_units.is_empty() {
-        packed_units
-            .iter()
-            .enumerate()
-            .map(|(i, u)| {
-                format!(
-                    "[{}] {}\nURL: {}\n{}\n",
-                    i + 1,
-                    u.subject,
-                    u.source_url,
-                    u.verbatim_quote
-                )
-            })
-            .collect::<Vec<_>>()
-            .join("\n")
+        format_packed_evidence_block(&packed_units)
     } else {
         let fallback_evidence: String = params
             .hits
@@ -336,6 +323,26 @@ async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<(Str
     .await
 }
 
+/// Formats `pack_rag_budget` output using each unit's canonical `[u.unit_id + 1]` 1-based index
+/// so inline `[N]` citations in synthesized reports always match `citations[N - 1]`.
+pub(super) fn format_packed_evidence_block(
+    packed_units: &[crate::research::distillation::ClaimEvidenceUnit],
+) -> String {
+    packed_units
+        .iter()
+        .map(|u| {
+            format!(
+                "[{}] {}\nURL: {}\n{}\n",
+                u.unit_id + 1,
+                u.subject,
+                u.source_url,
+                u.verbatim_quote
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 /// CoVE-style self-verification step.
 pub(super) async fn run_self_verification(
     _query: &str,
@@ -345,10 +352,10 @@ pub(super) async fn run_self_verification(
     api_key: Option<&str>,
     model: &str,
 ) -> SelfVerificationResult {
-    // Build a compact context from top-5 hits.
+    // Build a compact context from top-15 hits.
     let context: String = hits
         .iter()
-        .take(5)
+        .take(15)
         .map(|h| {
             format!(
                 "- {} — {}",
@@ -437,6 +444,73 @@ Sources:\n{context}\n\nQuestion: {q}\n\nAnswer with only 'yes', 'no', or 'unknow
         inconsistency_count,
         critical_inconsistency,
     }
+}
+
+/// Closed-loop CoVE repair pass: when `run_self_verification` flags a `critical_inconsistency`,
+/// rewrite the draft synthesis to prune or qualify claims not grounded in the top-15 sources and
+/// verified claim verdicts, while preserving canonical `[N]` citation indices.
+#[allow(clippy::too_many_arguments)]
+pub(super) async fn repair_inconsistent_synthesis(
+    query: &str,
+    draft_answer: &str,
+    hits: &[ResearchHit],
+    verdicts: &[super::super::types::ClaimVerdict],
+    endpoint: Option<&str>,
+    api_key: Option<&str>,
+    model: &str,
+    max_tokens: u32,
+) -> Option<String> {
+    let sources_block: String = hits
+        .iter()
+        .enumerate()
+        .take(15)
+        .map(|(i, h)| {
+            format!(
+                "[{}] {} ({}): {}",
+                i + 1,
+                h.title,
+                h.url,
+                sanitize_evidence(&h.snippet.chars().take(350).collect::<String>())
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let verdicts_block: String = verdicts
+        .iter()
+        .map(|v| {
+            format!(
+                "- {} => {} ({:.0}%)",
+                v.claim.text,
+                v.verdict,
+                v.confidence * 100.0
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let system = synthesis_system_prompt();
+    let user = format!(
+        "Self-verification detected ungrounded or inconsistent claims in the following draft answer.\n\
+         Rewrite the answer so that every factual statement is strictly supported by the numbered \
+         sources and claim verdicts below. Prune any unsupported assertions, move disputed claims \
+         under `## Contested Findings`, and keep exact `[N]` citation numbers matching the source list.\n\n\
+         Question: {query}\n\n\
+         Numbered Sources:\n{sources_block}\n\n\
+         Verified Claim Verdicts:\n{verdicts_block}\n\n\
+         Draft Answer to Repair:\n{draft_answer}"
+    );
+    chat_stage(
+        vox_actor_runtime::llm::cascade::ResearchStage::Synthesis,
+        endpoint,
+        api_key,
+        model,
+        0.1,
+        max_tokens,
+        vec![("system".to_string(), system), ("user".to_string(), user)],
+        None,
+    )
+    .await
+    .ok()
+    .filter(|repaired| !repaired.trim().is_empty())
 }
 
 #[cfg(feature = "runtime")]
@@ -607,13 +681,60 @@ pub(crate) async fn chat_stage_with_model(
 #[cfg(test)]
 mod synthesis_prompt_tests {
     use super::super::config::ABSTENTION_MARKER;
-    use super::synthesis_system_prompt;
+    use super::{format_packed_evidence_block, synthesis_system_prompt};
+    use crate::research::distillation::{ClaimEvidenceUnit, EpistemicModality, EvidenceKind};
 
     #[test]
     fn synthesis_prompt_names_the_abstention_marker() {
         let prompt = synthesis_system_prompt();
         assert!(prompt.contains(ABSTENTION_MARKER));
         assert!(prompt.contains("Cite sources inline"));
+    }
+
+    #[test]
+    fn format_packed_evidence_block_preserves_canonical_unit_ids() {
+        let reordered = vec![
+            ClaimEvidenceUnit {
+                unit_id: 4,
+                kind: EvidenceKind::AtomicFact,
+                subject: "Fifth Hit Contested".to_string(),
+                predicate: "reports".to_string(),
+                object: "Contested claim text".to_string(),
+                conditions: vec![],
+                modality: EpistemicModality::Definite,
+                verbatim_quote: "Contested claim text".to_string(),
+                span_start: 0,
+                span_end: 0,
+                source_url: "https://example.com/5".to_string(),
+                registrable_domain: "example.com".to_string(),
+                trust_score: 0.9,
+                corroborating_domains: vec![],
+                is_contradicted_or_contested: true,
+            },
+            ClaimEvidenceUnit {
+                unit_id: 0,
+                kind: EvidenceKind::AtomicFact,
+                subject: "First Hit".to_string(),
+                predicate: "reports".to_string(),
+                object: "Primary claim text".to_string(),
+                conditions: vec![],
+                modality: EpistemicModality::Definite,
+                verbatim_quote: "Primary claim text".to_string(),
+                span_start: 0,
+                span_end: 0,
+                source_url: "https://example.com/1".to_string(),
+                registrable_domain: "example.com".to_string(),
+                trust_score: 0.95,
+                corroborating_domains: vec![],
+                is_contradicted_or_contested: false,
+            },
+        ];
+
+        let formatted = format_packed_evidence_block(&reordered);
+        assert!(
+            formatted.contains("[5] Fifth Hit Contested") && formatted.contains("[1] First Hit"),
+            "packed evidence block must use canonical [u.unit_id + 1] numbering, got:\n{formatted}"
+        );
     }
 }
 

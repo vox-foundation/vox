@@ -9,6 +9,7 @@ pub mod costs;
 pub mod council_report;
 pub mod discover;
 pub mod eval;
+pub mod eval_bundle;
 pub mod eval_compare;
 pub mod eval_corpus;
 pub mod eval_diagram;

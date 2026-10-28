@@ -476,3 +476,143 @@ fn tool_call_for_db_tool_refused_when_db_not_booted() {
         .join()
         .expect("tool_call boot-gate thread panicked");
 }
+
+/// This mirrors the GUI, which resolves through `invokeMcpTool` → Tauri `invoke_mcp_tool` →
+/// `orch.tool_call` with params `{name, args}` and no `agent_origin` (vox-gui/src/commands/mcp.rs:48).
+/// It proves that the GUI wire shape can approve a floored park.
+#[tokio::test]
+async fn daemon_gui_path_can_approve_floored_park() {
+    let state = ServerState::new_full(load_config());
+    let orch = state.orchestrator.clone();
+    let extra: Arc<dyn ExtraDispatch> = Arc::new(McpExtraDispatch::new(state.clone()));
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap().to_string();
+    let server = tokio::spawn(orch_daemon::serve_listener_with_extra(
+        listener,
+        addr.clone(),
+        "ut-repo".to_string(),
+        orch,
+        Some(extra),
+        None,
+    ));
+    wait_ready(&addr).await;
+
+    // 1. Over daemon TOOL_CALL, spawn vox_skill_install {} with permission_mode: "accept_all".
+    let install_client = orch_daemon::OrchDaemonClient::new(addr.clone());
+    let call = tokio::spawn(async move {
+        install_client
+            .call(
+                vox_foundation::protocol::orch_daemon_method::TOOL_CALL,
+                serde_json::json!({
+                    "name": "vox_skill_install",
+                    "args": {},
+                    "permission_mode": "accept_all",
+                }),
+            )
+            .await
+    });
+
+    // 2. Poll LIST_PENDING_APPROVALS until it appears, and assert summary starts with [floor:external_effect].
+    let list_client = orch_daemon::OrchDaemonClient::new(addr.clone());
+    let deadline = tokio::time::Instant::now() + D_15S;
+    let approval_id = loop {
+        let value = list_client
+            .call(
+                vox_foundation::protocol::orch_daemon_method::LIST_PENDING_APPROVALS,
+                serde_json::json!({}),
+            )
+            .await
+            .expect("orch.list_pending_approvals dispatched");
+        let approvals = value
+            .get("approvals")
+            .and_then(serde_json::Value::as_array)
+            .expect("approvals array");
+        if let Some(entry) = approvals.iter().find(|a| {
+            a.get("tool").and_then(serde_json::Value::as_str) == Some("vox_skill_install")
+        }) {
+            let summary = entry
+                .get("summary")
+                .and_then(serde_json::Value::as_str)
+                .expect("summary present");
+            assert!(
+                summary.starts_with("[floor:external_effect]"),
+                "expected summary to start with [floor:external_effect], got: {summary}"
+            );
+            break entry
+                .get("approval_id")
+                .and_then(serde_json::Value::as_str)
+                .expect("approval_id present")
+                .to_string();
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "vox_skill_install never appeared in orch.list_pending_approvals"
+        );
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
+    };
+
+    // 3. Over TOOL_CALL, call vox_resolve_approval {"approval_id": <id>, "outcome": "approve"} and assert resolved: true.
+    let resolve_client = orch_daemon::OrchDaemonClient::new(addr.clone());
+    let resolve_res = resolve_client
+        .call(
+            vox_foundation::protocol::orch_daemon_method::TOOL_CALL,
+            serde_json::json!({
+                "name": "vox_resolve_approval",
+                "args": {
+                    "approval_id": approval_id,
+                    "outcome": "approve",
+                },
+            }),
+        )
+        .await
+        .expect("vox_resolve_approval dispatched over TOOL_CALL");
+
+    let resolved = resolve_res
+        .get("data")
+        .and_then(|d| d.get("resolved"))
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
+    assert!(
+        resolved,
+        "expected resolved: true from GUI path, got: {resolve_res}"
+    );
+
+    // 4. The spawned install call returns. It may be an argument-validation error,
+    // since `{}` is invalid, but it must not be a "not approved" denial.
+    let install_res = call.await.expect("join");
+    let error_text = match &install_res {
+        Ok(val) => val
+            .get("error")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("")
+            .to_string(),
+        Err(e) => e.to_string(),
+    };
+    assert!(
+        !error_text.contains("approval denied") && !error_text.contains("not approved"),
+        "install call should unpark and proceed to validation, got error: {error_text}"
+    );
+
+    // List no longer contains the id.
+    let after_value = list_client
+        .call(
+            vox_foundation::protocol::orch_daemon_method::LIST_PENDING_APPROVALS,
+            serde_json::json!({}),
+        )
+        .await
+        .expect("orch.list_pending_approvals dispatched after resolve");
+    let after_approvals = after_value
+        .get("approvals")
+        .and_then(serde_json::Value::as_array)
+        .expect("approvals array");
+    assert!(
+        !after_approvals
+            .iter()
+            .any(|a| a.get("approval_id").and_then(serde_json::Value::as_str)
+                == Some(approval_id.as_str())),
+        "resolved approval must no longer be in the list"
+    );
+
+    server.abort();
+}

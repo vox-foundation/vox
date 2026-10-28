@@ -36,11 +36,13 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Install cargo-nextest
+        if: ${{ !cancelled() }}
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-nextest
 
       - name: Install cargo-mutants
+        if: ${{ !cancelled() }}
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-mutants

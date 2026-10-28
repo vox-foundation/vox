@@ -18,5 +18,17 @@ fn main() {
         .and_then(std::path::Path::parent)
         .unwrap_or(dir);
     println!("cargo:rustc-env=VOX_COMPILER_REPO_ROOT={}", root.display());
+
+    // vox-arch-check: allow git-exec
+    let git_hash = std::process::Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(root)
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "unknown".to_string());
+    println!("cargo:rustc-env=VOX_GIT_HASH={git_hash}");
     println!("cargo:rerun-if-changed=build.rs");
 }

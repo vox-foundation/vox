@@ -266,7 +266,7 @@ pub fn registry() -> Vec<Box<dyn Subcommand>> {
         // P2.3: CR-L1 stub replaced by real vox-check-based impl.
         Box::new(subcommands::humaneval::HumanEvalSubcommand),
         Box::new(subcommands::stubs::MensOnDistributionStub),
-        Box::new(subcommands::stubs::RepairCorpusStub),
+        Box::new(subcommands::repair_corpus::RepairCorpusSubcommand),
         Box::new(subcommands::stubs::PlanFidelityStub),
         Box::new(subcommands::aci_default::AciDefaultSubcommand),
         Box::new(subcommands::retirement::RetirementSubcommand),

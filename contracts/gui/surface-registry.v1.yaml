@@ -1,6 +1,14 @@
 x_vox_version: 2
 schema_version: 1
 surfaces:
+- view_key: null
+  cli_group: null
+  representation_tier: none
+  nav_label: null
+  nav_icon: null
+  nav_group: null
+  parent_surface: null
+  notes: null
 - view_key: activity
   cli_group: null
   representation_tier: live_backend
@@ -9,14 +17,6 @@ surfaces:
   nav_group: knowledge
   parent_surface: knowledge
   notes: consolidated Discovery surface (timeline + inbox/review/archive presets); absorbs discovery-inbox, discovery-review, archive-panel
-- view_key: approvals
-  cli_group: null
-  representation_tier: live_backend
-  nav_label: Approvals
-  nav_icon: shield
-  nav_group: operate
-  parent_surface: runs
-  notes: null
 - view_key: browser
   cli_group: null
   representation_tier: live_backend
@@ -47,16 +47,8 @@ surfaces:
   nav_label: Console
   nav_icon: command
   nav_group: develop
-  parent_surface: workspace
-  notes: warp-model discovery terminal
-- view_key: coverage
-  cli_group: null
-  representation_tier: live_backend
-  nav_label: Coverage
-  nav_icon: check
-  nav_group: system
-  parent_surface: settings
-  notes: in-product surface coverage table
+  parent_surface: null
+  notes: null
 - view_key: dashboard
   cli_group: null
   representation_tier: live_backend
@@ -81,14 +73,6 @@ surfaces:
   nav_group: develop
   parent_surface: workspace
   notes: null
-- view_key: harness-health
-  cli_group: null
-  representation_tier: live_backend
-  nav_label: Harness Health
-  nav_icon: bolt
-  nav_group: develop
-  parent_surface: workspace
-  notes: chat harness eval run history + regression detection (vox harness eval --live)
 - view_key: mercatus
   cli_group: null
   representation_tier: live_backend
@@ -185,14 +169,14 @@ surfaces:
   nav_group: null
   parent_surface: null
   notes: dei-gated engine; CLI-only by design pending GUI panel — see A3
-- view_key: null
+- view_key: harness-health
   cli_group: audit
-  representation_tier: none
-  nav_label: null
-  nav_icon: null
-  nav_group: null
-  parent_surface: null
-  notes: null
+  representation_tier: live_backend
+  nav_label: Harness Health
+  nav_icon: bolt
+  nav_group: develop
+  parent_surface: workspace
+  notes: chat harness eval run history + regression detection (vox harness eval --live)
 - view_key: null
   cli_group: auth
   representation_tier: none
@@ -313,14 +297,14 @@ surfaces:
   nav_group: null
   parent_surface: null
   notes: null
-- view_key: null
+- view_key: vox-search
   cli_group: db
-  representation_tier: none
-  nav_label: null
-  nav_icon: null
-  nav_group: null
-  parent_surface: null
-  notes: null
+  representation_tier: live_backend
+  nav_label: Search Index
+  nav_icon: search
+  nav_group: knowledge
+  parent_surface: knowledge
+  notes: code-intelligence over the structural index (re-keyed from graphify)
 - view_key: null
   cli_group: dei
   representation_tier: none
@@ -369,14 +353,14 @@ surfaces:
   nav_group: null
   parent_surface: null
   notes: null
-- view_key: null
+- view_key: explorer
   cli_group: doctor
-  representation_tier: none
-  nav_label: null
-  nav_icon: null
-  nav_group: null
+  representation_tier: live_backend
+  nav_label: Explorer
+  nav_icon: branch
+  nav_group: system
   parent_surface: null
-  notes: null
+  notes: capability explorer
 - view_key: null
   cli_group: drift-check
   representation_tier: none
@@ -433,14 +417,14 @@ surfaces:
   nav_group: null
   parent_surface: null
   notes: null
-- view_key: null
+- view_key: gamify
   cli_group: gamify
-  representation_tier: none
-  nav_label: null
-  nav_icon: null
-  nav_group: null
-  parent_surface: null
-  notes: null
+  representation_tier: curated_decorator
+  nav_label: Gamify
+  nav_icon: spark
+  nav_group: system
+  parent_surface: settings
+  notes: achievements-drawer; Ludus profile via StatusBar trophy; Settings SSOT for enable/mode; deep-linkable via
 - view_key: null
   cli_group: generate
   representation_tier: none
@@ -545,14 +529,6 @@ surfaces:
   nav_group: null
   parent_surface: null
   notes: null
-- view_key: gamify
-  cli_group: ludus
-  representation_tier: curated_decorator
-  nav_label: Gamify
-  nav_icon: spark
-  nav_group: system
-  parent_surface: settings
-  notes: achievements-drawer; Ludus profile via StatusBar trophy; Settings SSOT for enable/mode; deep-linkable via
 - view_key: null
   cli_group: mcp
   representation_tier: none
@@ -608,14 +584,6 @@ surfaces:
   nav_icon: null
   nav_group: null
   parent_surface: null
-  notes: null
-- view_key: oratio
-  cli_group: oratio
-  representation_tier: curated_decorator
-  nav_label: Voice
-  nav_icon: mic
-  nav_group: compute
-  parent_surface: compute
   notes: null
 - view_key: null
   cli_group: plan
@@ -697,14 +665,6 @@ surfaces:
   nav_group: null
   parent_surface: null
   notes: null
-- view_key: null
-  cli_group: repl
-  representation_tier: none
-  nav_label: null
-  nav_icon: null
-  nav_group: null
-  parent_surface: null
-  notes: null
 - view_key: repository
   cli_group: repo
   representation_tier: live_backend
@@ -753,14 +713,6 @@ surfaces:
   nav_group: null
   parent_surface: null
   notes: dei-gated engine; CLI-only by design pending GUI panel — see A3
-- view_key: null
-  cli_group: schola
-  representation_tier: none
-  nav_label: null
-  nav_icon: null
-  nav_group: null
-  parent_surface: null
-  notes: null
 - view_key: scientia
   cli_group: scientia
   representation_tier: curated_decorator
@@ -777,21 +729,13 @@ surfaces:
   nav_group: null
   parent_surface: null
   notes: null
-- view_key: vox-search
-  cli_group: search
-  representation_tier: live_backend
-  nav_label: Search Index
-  nav_icon: search
-  nav_group: knowledge
-  parent_surface: knowledge
-  notes: code-intelligence over the structural index (re-keyed from graphify)
-- view_key: null
+- view_key: approvals
   cli_group: secrets
-  representation_tier: none
-  nav_label: null
-  nav_icon: null
-  nav_group: null
-  parent_surface: null
+  representation_tier: live_backend
+  nav_label: Approvals
+  nav_icon: shield
+  nav_group: operate
+  parent_surface: runs
   notes: null
 - view_key: null
   cli_group: serve
@@ -841,13 +785,13 @@ surfaces:
   nav_group: null
   parent_surface: null
   notes: null
-- view_key: null
+- view_key: oratio
   cli_group: speech
-  representation_tier: none
-  nav_label: null
-  nav_icon: null
-  nav_group: null
-  parent_surface: null
+  representation_tier: curated_decorator
+  nav_label: Voice
+  nav_icon: mic
+  nav_group: compute
+  parent_surface: compute
   notes: null
 - view_key: null
   cli_group: stop

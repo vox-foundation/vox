@@ -168,13 +168,34 @@ pub fn export_jsonl(root: &Path, w: &mut dyn std::io::Write) -> Result<usize> {
     Ok(n)
 }
 
-/// POST each pending JSON to `url` with optional `Authorization: Bearer …`. On HTTP 2xx, delete the file.
+/// Render up to `limit` pending spool files as a batched OTLP/HTTP JSON preview to `w`
+/// without making network calls or deleting files (`TELEM-04`).
+pub fn preview_pending(root: &Path, limit: usize, w: &mut dyn std::io::Write) -> Result<usize> {
+    let paths = list_pending(root)?;
+    let mut envelopes = Vec::new();
+    for p in paths.into_iter().take(limit.max(1)) {
+        envelopes.push(read_payload(&p)?);
+    }
+    let count = envelopes.len();
+    let merged = vox_telemetry_otlp::otlp_json::merge_otlp_log_batch(&envelopes);
+    let pretty = serde_json::to_string_pretty(&merged).context("serialize OTLP preview")?;
+    writeln!(w, "{pretty}").context("write OTLP preview")?;
+    Ok(count)
+}
+
+/// POST pending JSON payloads in batches of up to 100 records per request to `url` with optional
+/// `Authorization: Bearer …`. Enforces `vox_telemetry::config::is_remote_allowed()` (`TELEM-02`, `TELEM-03`).
 pub async fn upload_pending(
     root: &Path,
     url: &str,
     bearer: Option<&str>,
     dry_run: bool,
 ) -> Result<(usize, usize)> {
+    if !dry_run && !vox_telemetry::config::is_remote_allowed() {
+        return Err(anyhow!(
+            "remote telemetry upload is disabled (consent not granted or VOX_TELEMETRY=off; run `vox telemetry consent grant`)"
+        ));
+    }
     if url.trim().is_empty() {
         return Err(anyhow!("telemetry upload URL is empty"));
     }
@@ -184,12 +205,30 @@ pub async fn upload_pending(
     let paths = list_pending(root)?;
     let mut ok = 0usize;
     let mut fail = 0usize;
-    for p in paths {
-        let body = read_payload(&p)?;
-        let raw = serde_json::to_string(&body).context("serialize body")?;
+    for chunk in paths.chunks(100) {
+        let mut batch_paths = Vec::with_capacity(chunk.len());
+        let mut batch_payloads = Vec::with_capacity(chunk.len());
+        for p in chunk {
+            match read_payload(p) {
+                Ok(v) => {
+                    batch_paths.push(p.clone());
+                    batch_payloads.push(v);
+                }
+                Err(_) => fail += 1,
+            }
+        }
+        if batch_payloads.is_empty() {
+            continue;
+        }
+        let merged = vox_telemetry_otlp::otlp_json::merge_otlp_log_batch(&batch_payloads);
+        let raw = serde_json::to_string(&merged).context("serialize batched OTLP body")?;
         if dry_run {
-            eprintln!("[dry-run] would POST {} bytes to {url}", raw.len());
-            ok += 1;
+            eprintln!(
+                "[dry-run] would POST {} record(s) ({} bytes) to {url}",
+                batch_paths.len(),
+                raw.len()
+            );
+            ok += batch_paths.len();
             continue;
         }
         // Captured before `raw` is moved into the request body: the gamify
@@ -209,18 +248,14 @@ pub async fn upload_pending(
         let resp = req
             .send()
             .await
-            .with_context(|| format!("POST {}", p.display()))?;
+            .with_context(|| format!("POST batch of {} files", batch_paths.len()))?;
         let status = resp.status();
         if status.is_success() {
-            ack(&p)?;
-            ok += 1;
+            for p in &batch_paths {
+                ack(p)?;
+                ok += 1;
+            }
 
-            // `vox-gamify` is now an explicitly declared feature in Cargo.toml
-            // (`vox-gamify = ["dep:vox-gamify"]`). It previously named no
-            // feature at all — the crate is an optional dep referenced as
-            // `dep:vox-gamify`, which suppresses the implicit feature — so this
-            // block was unreachable. Kept gated rather than made unconditional:
-            // the optional dependency must stay optional for lean builds.
             #[cfg(feature = "vox-gamify")]
             {
                 if let Ok(db) = vox_db::Codex::connect_default().await {
@@ -239,11 +274,11 @@ pub async fn upload_pending(
             let text = resp.text().await.unwrap_or_default();
             tracing::warn!(
                 status = %status,
-                path = %p.display(),
+                batch_len = batch_paths.len(),
                 body = %text.chars().take(200).collect::<String>(),
-                "telemetry upload rejected"
+                "telemetry batch upload rejected"
             );
-            fail += 1;
+            fail += batch_paths.len();
         }
     }
     Ok((ok, fail))
@@ -353,5 +388,46 @@ mod prune_tests {
             "enqueue should have pruned the age-expired file"
         );
         assert_eq!(remaining.len(), 1, "only the freshly-enqueued file remains");
+    }
+
+    #[test]
+    fn preview_pending_renders_batched_otlp_envelope_without_deleting_files() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        enqueue(
+            root,
+            &serde_json::json!({
+                "resourceLogs": [{
+                    "resource": { "attributes": [{ "key": "vox.install_id", "value": { "stringValue": "inst-1" } }] },
+                    "scopeLogs": [{ "scope": { "name": "vox-telemetry-otlp" }, "logRecords": [{ "body": { "stringValue": "vox.command" } }] }]
+                }]
+            }),
+        )
+        .unwrap();
+        enqueue(
+            root,
+            &serde_json::json!({
+                "resourceLogs": [{
+                    "resource": { "attributes": [{ "key": "vox.install_id", "value": { "stringValue": "inst-1" } }] },
+                    "scopeLogs": [{ "scope": { "name": "vox-telemetry-otlp" }, "logRecords": [{ "body": { "stringValue": "vox.model_call" } }] }]
+                }]
+            }),
+        )
+        .unwrap();
+
+        let mut buf = Vec::new();
+        let count = preview_pending(root, 10, &mut buf).expect("preview_pending");
+        assert_eq!(count, 2);
+        assert_eq!(
+            pending_count(root),
+            2,
+            "preview must not delete pending files"
+        );
+        let parsed: serde_json::Value = serde_json::from_slice(&buf).expect("valid JSON");
+        let records = parsed
+            .pointer("/resourceLogs/0/scopeLogs/0/logRecords")
+            .and_then(|v| v.as_array())
+            .expect("logRecords");
+        assert_eq!(records.len(), 2);
     }
 }

@@ -57,7 +57,7 @@
 - `deriveTierCascade(input: TierCascadeInput): TierCascadeAssignment[]`
 - `deriveRiverSnapshot(input: RiverCorrelationInput): RiverSnapshot`
 
-- [ ] **Step 0: Verify preconditions**
+- [x] **Step 0: Verify preconditions**
 
 Run:
 ```bash
@@ -71,7 +71,7 @@ rg -n "export interface RailRouting" crates/vox-gui/ui/src/lib/routingSummary.ts
 ```
 Expected output matches line 40 (`export interface RailRouting`).
 
-- [ ] **Step 1: Write the failing test (`riverMath.test.ts`)**
+- [x] **Step 1: Write the failing test (`riverMath.test.ts`)**
 
 Create `crates/vox-gui/ui/src/components/surfaces/Harness/riverMath.test.ts`:
 ```typescript
@@ -164,7 +164,7 @@ describe('deriveRiverSnapshot', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify RED**
+- [x] **Step 2: Run test to verify RED**
 
 Run:
 ```bash
@@ -172,7 +172,7 @@ timeout 180s pnpm --dir crates/vox-gui/ui exec vitest run src/components/surface
 ```
 Expected: Fails with `Cannot find module './riverMath'`.
 
-- [ ] **Step 3: Write `riverTypes.ts` and `riverMath.ts`**
+- [x] **Step 3: Write `riverTypes.ts` and `riverMath.ts`**
 
 Create `crates/vox-gui/ui/src/components/surfaces/Harness/riverTypes.ts`:
 ```typescript
@@ -536,7 +536,7 @@ export function deriveRiverSnapshot(input: RiverCorrelationInput): RiverSnapshot
 }
 ```
 
-- [ ] **Step 4: Run test to verify GREEN**
+- [x] **Step 4: Run test to verify GREEN**
 
 Run:
 ```bash
@@ -558,7 +558,7 @@ Expected: `2 passed (2)`.
 - `computeAlluvialControlPoints(strand: RiverStrand, width: number, height: number): { x0: number; y0: number; cx1: number; cy1: number; sx: number; sy: number; cx2: number; cy2: number; x1: number; y1: number }`
 - `renderRiverFrame(ctx: CanvasRenderingContext2D, width: number, height: number, snapshot: RiverSnapshot, phaseSec: number): void`
 
-- [ ] **Step 0: Verify preconditions**
+- [x] **Step 0: Verify preconditions**
 
 Run:
 ```bash
@@ -566,7 +566,7 @@ rg -n "export interface RiverStrand" crates/vox-gui/ui/src/components/surfaces/H
 ```
 Expected output matches `export interface RiverStrand`.
 
-- [ ] **Step 1: Write the failing test (`riverCanvasRenderer.test.ts`)**
+- [x] **Step 1: Write the failing test (`riverCanvasRenderer.test.ts`)**
 
 Create `crates/vox-gui/ui/src/components/surfaces/Harness/riverCanvasRenderer.test.ts`:
 ```typescript
@@ -645,7 +645,7 @@ describe('riverCanvasRenderer', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify RED**
+- [x] **Step 2: Run test to verify RED**
 
 Run:
 ```bash
@@ -653,7 +653,7 @@ timeout 180s pnpm --dir crates/vox-gui/ui exec vitest run src/components/surface
 ```
 Expected: Fails with `Cannot find module './riverCanvasRenderer'`.
 
-- [ ] **Step 3: Write `riverCanvasRenderer.ts`**
+- [x] **Step 3: Write `riverCanvasRenderer.ts`**
 
 Create `crates/vox-gui/ui/src/components/surfaces/Harness/riverCanvasRenderer.ts`:
 ```typescript
@@ -822,7 +822,7 @@ export function renderRiverFrame(
 }
 ```
 
-- [ ] **Step 4: Run test to verify GREEN**
+- [x] **Step 4: Run test to verify GREEN**
 
 Run:
 ```bash
@@ -843,7 +843,7 @@ Expected: `2 passed (2)`.
 **Interfaces:**
 - `WaveformTierStripProps`: `{ snapshot: RiverSnapshot; condensed?: boolean; onSelectTier?: (tierId: HarnessTierId) => void }`
 
-- [ ] **Step 0: Verify preconditions**
+- [x] **Step 0: Verify preconditions**
 
 Run:
 ```bash
@@ -851,7 +851,7 @@ rg -n "export interface TierCascadeAssignment" crates/vox-gui/ui/src/components/
 ```
 Expected output matches `export interface TierCascadeAssignment`.
 
-- [ ] **Step 1: Write the failing test (`WaveformTierStrip.test.tsx`)**
+- [x] **Step 1: Write the failing test (`WaveformTierStrip.test.tsx`)**
 
 Create `crates/vox-gui/ui/src/components/surfaces/Harness/WaveformTierStrip.test.tsx`:
 ```tsx
@@ -897,7 +897,7 @@ describe('WaveformTierStrip', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify RED**
+- [x] **Step 2: Run test to verify RED**
 
 Run:
 ```bash
@@ -905,7 +905,7 @@ timeout 180s pnpm --dir crates/vox-gui/ui exec vitest run src/components/surface
 ```
 Expected: Fails with `Cannot find module './WaveformTierStrip'`.
 
-- [ ] **Step 3: Write `WaveformTierStrip.tsx`**
+- [x] **Step 3: Write `WaveformTierStrip.tsx`**
 
 Create `crates/vox-gui/ui/src/components/surfaces/Harness/WaveformTierStrip.tsx`:
 ```tsx
@@ -1019,7 +1019,7 @@ export function WaveformTierStrip({
 }
 ```
 
-- [ ] **Step 4: Run test to verify GREEN**
+- [x] **Step 4: Run test to verify GREEN**
 
 Run:
 ```bash
@@ -1040,7 +1040,7 @@ Expected: `2 passed (2)`.
 **Interfaces:**
 - `AgentTrajectoryBraidProps`: `{ trajectories: AgentTrajectoryRow[] }`
 
-- [ ] **Step 0: Verify preconditions**
+- [x] **Step 0: Verify preconditions**
 
 Run:
 ```bash
@@ -1048,7 +1048,7 @@ rg -n "export interface AgentTrajectoryRow" crates/vox-gui/ui/src/components/sur
 ```
 Expected output matches `export interface AgentTrajectoryRow`.
 
-- [ ] **Step 1: Write the failing test (`AgentTrajectoryBraid.test.tsx`)**
+- [x] **Step 1: Write the failing test (`AgentTrajectoryBraid.test.tsx`)**
 
 Create `crates/vox-gui/ui/src/components/surfaces/Harness/AgentTrajectoryBraid.test.tsx`:
 ```tsx
@@ -1089,7 +1089,7 @@ describe('AgentTrajectoryBraid', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify RED**
+- [x] **Step 2: Run test to verify RED**
 
 Run:
 ```bash
@@ -1097,7 +1097,7 @@ timeout 180s pnpm --dir crates/vox-gui/ui exec vitest run src/components/surface
 ```
 Expected: Fails with `Cannot find module './AgentTrajectoryBraid'`.
 
-- [ ] **Step 3: Write `AgentTrajectoryBraid.tsx`**
+- [x] **Step 3: Write `AgentTrajectoryBraid.tsx`**
 
 Create `crates/vox-gui/ui/src/components/surfaces/Harness/AgentTrajectoryBraid.tsx`:
 ```tsx
@@ -1182,7 +1182,7 @@ export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps
 }
 ```
 
-- [ ] **Step 4: Run test to verify GREEN**
+- [x] **Step 4: Run test to verify GREEN**
 
 Run:
 ```bash
@@ -1203,7 +1203,7 @@ Expected: `1 passed (1)`.
 **Interfaces:**
 - `VerificationFunnelFooterProps`: `{ snapshot: RiverSnapshot; condensed?: boolean; gamifyEnabled?: boolean }`
 
-- [ ] **Step 0: Verify preconditions**
+- [x] **Step 0: Verify preconditions**
 
 Run:
 ```bash
@@ -1211,7 +1211,7 @@ rg -n "export interface FunnelStage" crates/vox-gui/ui/src/components/surfaces/H
 ```
 Expected output matches `export interface FunnelStage`.
 
-- [ ] **Step 1: Write the failing test (`VerificationFunnelFooter.test.tsx`)**
+- [x] **Step 1: Write the failing test (`VerificationFunnelFooter.test.tsx`)**
 
 Create `crates/vox-gui/ui/src/components/surfaces/Harness/VerificationFunnelFooter.test.tsx`:
 ```tsx
@@ -1244,7 +1244,7 @@ describe('VerificationFunnelFooter', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify RED**
+- [x] **Step 2: Run test to verify RED**
 
 Run:
 ```bash
@@ -1252,7 +1252,7 @@ timeout 180s pnpm --dir crates/vox-gui/ui exec vitest run src/components/surface
 ```
 Expected: Fails with `Cannot find module './VerificationFunnelFooter'`.
 
-- [ ] **Step 3: Write `VerificationFunnelFooter.tsx`**
+- [x] **Step 3: Write `VerificationFunnelFooter.tsx`**
 
 Create `crates/vox-gui/ui/src/components/surfaces/Harness/VerificationFunnelFooter.tsx`:
 ```tsx
@@ -1360,7 +1360,7 @@ export function VerificationFunnelFooter({
 }
 ```
 
-- [ ] **Step 4: Run test to verify GREEN**
+- [x] **Step 4: Run test to verify GREEN**
 
 Run:
 ```bash
@@ -1383,7 +1383,7 @@ Expected: `1 passed (1)`.
 - `HarnessRiverPanelProps` & `HarnessRedirectProps`:
   `{ tasks?: ChatExecutionTask[]; messages?: ChatMessage[]; routing?: RailRouting | null; sessionSpentUsd?: number | null; control?: ControlState; chatModelOverride?: string | null; condensed?: boolean; gamifyEnabled?: boolean; onOpenRouting?: () => void; onFocusComposer?: () => void; }`
 
-- [ ] **Step 0: Verify preconditions**
+- [x] **Step 0: Verify preconditions**
 
 Run:
 ```bash
@@ -1391,7 +1391,7 @@ rg -n "export function HarnessRedirect" crates/vox-gui/ui/src/components/surface
 ```
 Expected output matches line 14.
 
-- [ ] **Step 1: Update `HarnessRedirect.test.tsx` to test both backwards-compatible composer focus AND the live Harness River HUD**
+- [x] **Step 1: Update `HarnessRedirect.test.tsx` to test both backwards-compatible composer focus AND the live Harness River HUD**
 
 Replace `crates/vox-gui/ui/src/components/surfaces/Harness/HarnessRedirect.test.tsx`:
 ```tsx
@@ -1425,7 +1425,7 @@ describe('HarnessRedirect (upgraded to Axis Harness River)', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify RED**
+- [x] **Step 2: Run test to verify RED**
 
 Run:
 ```bash
@@ -1433,7 +1433,7 @@ timeout 180s pnpm --dir crates/vox-gui/ui exec vitest run src/components/surface
 ```
 Expected: Fails because `HarnessRedirect` does not yet render `harness-waveform-tier-strip` or `<canvas>`.
 
-- [ ] **Step 3: Create `HarnessRiverPanel.tsx` and update `HarnessRedirect.tsx`**
+- [x] **Step 3: Create `HarnessRiverPanel.tsx` and update `HarnessRedirect.tsx`**
 
 Create `crates/vox-gui/ui/src/components/surfaces/Harness/HarnessRiverPanel.tsx`:
 ```tsx
@@ -1629,7 +1629,7 @@ export function HarnessRedirect(props: HarnessRedirectProps) {
 }
 ```
 
-- [ ] **Step 4: Run test to verify GREEN**
+- [x] **Step 4: Run test to verify GREEN**
 
 Run:
 ```bash
@@ -1650,7 +1650,7 @@ Expected: `2 passed (2)`.
 - Upgrade `HarnessDockPanel` in `ChatSurface.tsx` to observe dockview panel width (`HARNESS_FULL_WIDTH_PX = 420`) and clone `condensed={width < HARNESS_FULL_WIDTH_PX}` onto `props.params.node` (matching `NeedsYouDockPanel` / `MercatusDockPanel`).
 - Pass live `tasks`, `messages`, `routing`, `sessionSpentUsd`, `control`, `chatModelOverride`, and `onOpenRouting={() => setRoutingOpen(true)}` to `harnessNode`.
 
-- [ ] **Step 0: Verify preconditions**
+- [x] **Step 0: Verify preconditions**
 
 Run:
 ```bash
@@ -1658,11 +1658,11 @@ rg -n "function HarnessDockPanel|const harnessNode =" crates/vox-gui/ui/src/comp
 ```
 Expected output shows `function HarnessDockPanel` around line 205 and `const harnessNode =` around line 634–638.
 
-- [ ] **Step 1: View exact lines around `HarnessDockPanel` and `harnessNode` in `ChatSurface.tsx`**
+- [x] **Step 1: View exact lines around `HarnessDockPanel` and `harnessNode` in `ChatSurface.tsx`**
 
 Use `view_file` on `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx` lines 200–212 and 630–645 to confirm exact surrounding lines.
 
-- [ ] **Step 2: Update `HarnessDockPanel` and `harnessNode` in `ChatSurface.tsx`**
+- [x] **Step 2: Update `HarnessDockPanel` and `harnessNode` in `ChatSurface.tsx`**
 
 Use `replace_file_content` on `crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx` to upgrade `HarnessDockPanel`:
 ```tsx
@@ -1698,7 +1698,7 @@ And update `harnessNode` in `ChatSurface.tsx`:
   );
 ```
 
-- [ ] **Step 3: Run `ChatSurface` and `Harness` tests to verify GREEN**
+- [x] **Step 3: Run `ChatSurface` and `Harness` tests to verify GREEN**
 
 Run:
 ```bash
@@ -1718,7 +1718,7 @@ Expected: All tests in `src/components/surfaces/Harness/` pass.
 - Modify: `crates/vox-gui/ui/src/components/surfaces/Dashboard/Dashboard.tsx`
 - Modify: `docs/src/architecture/where-things-live.md`
 
-- [ ] **Step 0: Verify preconditions**
+- [x] **Step 0: Verify preconditions**
 
 Run:
 ```bash
@@ -1732,7 +1732,7 @@ rg -n "Workspace Simulation Mini-Map" crates/vox-gui/ui/src/components/surfaces/
 ```
 Expected output matches line 446.
 
-- [ ] **Step 1: Add a test in `GamifyView.test.tsx` verifying the `Live River` simulation mode toggle**
+- [x] **Step 1: Add a test in `GamifyView.test.tsx` verifying the `Live River` simulation mode toggle**
 
 In `crates/vox-gui/ui/src/components/surfaces/Gamify/GamifyView.test.tsx`, add a test case verifying that clicking the `Live River` button switches the simulation view to `axis-harness-river` while keeping every button `type="button"`:
 ```tsx
@@ -1749,7 +1749,7 @@ In `crates/vox-gui/ui/src/components/surfaces/Gamify/GamifyView.test.tsx`, add a
   });
 ```
 
-- [ ] **Step 2: Run `GamifyView.test.tsx` to verify RED**
+- [x] **Step 2: Run `GamifyView.test.tsx` to verify RED**
 
 Run:
 ```bash
@@ -1757,7 +1757,7 @@ timeout 180s pnpm --dir crates/vox-gui/ui exec vitest run src/components/surface
 ```
 Expected: Fails with `Unable to find an accessible element with the role "button" and name "/Live River/i"`.
 
-- [ ] **Step 3: Update `GamifyView.tsx`, `Dashboard.tsx`, and `where-things-live.md`**
+- [x] **Step 3: Update `GamifyView.tsx`, `Dashboard.tsx`, and `where-things-live.md`**
 
 In `crates/vox-gui/ui/src/components/surfaces/Gamify/GamifyView.tsx`:
 1. Import `HarnessRiverPanel` from `../Harness/HarnessRiverPanel`.
@@ -1812,7 +1812,7 @@ Add a row documenting the Axis Harness River SSOT and noting `apps/experimental/
 | Axis Harness River (3-tier model cascade HUD, live alluvial particle river, 8-slice agent trajectory braid, verification retention funnel) | [`crates/vox-gui/ui/src/components/surfaces/Harness/`](../../../crates/vox-gui/ui/src/components/surfaces/Harness/) (`HarnessRiverPanel.tsx`, `riverMath.ts`, `riverCanvasRenderer.ts`, `WaveformTierStrip.tsx`, `AgentTrajectoryBraid.tsx`, `VerificationFunnelFooter.tsx`) — supersedes standalone `apps/experimental/visualizer`; narrative [`axis-harness-river-design-2026.md`](./axis-harness-river-design-2026.md). |
 ```
 
-- [ ] **Step 4: Run `GamifyView.test.tsx` and full Harness test suite to verify GREEN**
+- [x] **Step 4: Run `GamifyView.test.tsx` and full Harness test suite to verify GREEN**
 
 Run:
 ```bash

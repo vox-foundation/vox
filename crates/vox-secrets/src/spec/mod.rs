@@ -429,3 +429,136 @@ mod uniqueness_tests {
         );
     }
 }
+
+/// Data-driven provider manifest entry (`CLAVIS-01`, `CLAVIS-04`) uniting canonical env,
+/// deprecated aliases, capability scopes, acquisition URL/recipe, free-tier availability,
+/// validation probe endpoint, and [`LifecycleMeta`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProviderManifestEntry {
+    pub provider_id: &'static str,
+    pub secret_id: SecretId,
+    pub canonical_env: &'static str,
+    pub deprecated_aliases: &'static [&'static str],
+    pub capabilities: &'static [Capability],
+    pub acquisition_url: Option<&'static str>,
+    pub recipe_hint: &'static str,
+    pub free_tier_available: bool,
+    pub validation_probe_endpoint: Option<&'static str>,
+    pub lifecycle: LifecycleMeta,
+}
+
+/// Derive the canonical [`ProviderManifestEntry`] for any [`SecretId`].
+#[must_use]
+pub fn provider_manifest_for(id: SecretId) -> ProviderManifestEntry {
+    let spec = id.spec();
+    let meta = id.metadata();
+    let caps = capabilities_for_secret(id);
+    let (provider_id, acquisition_url, probe_url) = match id {
+        SecretId::OpenRouterApiKey => (
+            "openrouter",
+            Some("https://openrouter.ai/keys"),
+            Some("https://openrouter.ai/api/v1/auth/key"),
+        ),
+        SecretId::GeminiApiKey => (
+            "gemini",
+            Some("https://aistudio.google.com/app/apikey"),
+            Some("https://generativelanguage.googleapis.com/v1beta/models"),
+        ),
+        SecretId::OpenaiApiKey => (
+            "openai",
+            Some("https://platform.openai.com/api-keys"),
+            Some("https://api.openai.com/v1/models"),
+        ),
+        SecretId::AnthropicApiKey => (
+            "anthropic",
+            Some("https://console.anthropic.com/settings/keys"),
+            Some("https://api.anthropic.com/v1/models"),
+        ),
+        SecretId::GroqApiKey => (
+            "groq",
+            Some("https://console.groq.com/keys"),
+            Some("https://api.groq.com/openai/v1/models"),
+        ),
+        SecretId::DeepSeekApiKey => (
+            "deepseek",
+            Some("https://platform.deepseek.com/api_keys"),
+            Some("https://api.deepseek.com/models"),
+        ),
+        SecretId::MistralApiKey => (
+            "mistral",
+            Some("https://console.mistral.ai/api-keys/"),
+            Some("https://api.mistral.ai/v1/models"),
+        ),
+        SecretId::HuggingFaceToken => (
+            "huggingface",
+            Some("https://huggingface.co/settings/tokens"),
+            Some("https://huggingface.co/api/whoami-v2"),
+        ),
+        SecretId::TavilyApiKey => (
+            "tavily",
+            Some("https://app.tavily.com/sign-up"),
+            Some("https://api.tavily.com/usage"),
+        ),
+        SecretId::ForgeToken | SecretId::VoxGithubOauthToken => (
+            "github",
+            Some("https://github.com/settings/tokens"),
+            Some("https://api.github.com/user"),
+        ),
+        _ => (taxonomy_class_for(id).slug(), None, None),
+    };
+    let free_tier_available = list_free_tier_offers()
+        .iter()
+        .any(|o| o.provider_id == provider_id);
+
+    ProviderManifestEntry {
+        provider_id,
+        secret_id: id,
+        canonical_env: spec.canonical_env,
+        deprecated_aliases: spec.deprecated_aliases,
+        capabilities: caps,
+        acquisition_url,
+        recipe_hint: spec.remediation,
+        free_tier_available,
+        validation_probe_endpoint: probe_url,
+        lifecycle: meta.lifecycle,
+    }
+}
+
+/// Return [`ProviderManifestEntry`] descriptors for all user-facing managed secrets.
+#[must_use]
+pub fn all_provider_manifests() -> Vec<ProviderManifestEntry> {
+    all_specs()
+        .into_iter()
+        .filter(|s| is_user_facing_secret(s.id))
+        .map(|s| provider_manifest_for(s.id))
+        .collect()
+}
+
+#[cfg(test)]
+mod manifest_tests {
+    use super::*;
+
+    #[test]
+    fn provider_manifest_for_openrouter_carries_url_probe_and_free_tier() {
+        let entry = provider_manifest_for(SecretId::OpenRouterApiKey);
+        assert_eq!(entry.provider_id, "openrouter");
+        assert_eq!(entry.canonical_env, "OPENROUTER_API_KEY");
+        assert!(entry.free_tier_available);
+        assert_eq!(entry.acquisition_url, Some("https://openrouter.ai/keys"));
+        assert_eq!(
+            entry.validation_probe_endpoint,
+            Some("https://openrouter.ai/api/v1/auth/key")
+        );
+    }
+
+    #[test]
+    fn all_provider_manifests_covers_user_facing_secrets() {
+        let manifests = all_provider_manifests();
+        assert!(manifests.len() >= 40);
+        assert!(
+            manifests
+                .iter()
+                .any(|m| m.secret_id == SecretId::GeminiApiKey)
+        );
+    }
+}

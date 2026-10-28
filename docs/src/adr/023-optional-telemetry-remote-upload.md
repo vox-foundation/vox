@@ -20,15 +20,16 @@ Vox records many **operator-controlled** diagnostics and research metrics locall
 ## Decision
 
 1. **No default remote upload.** The product does not phone home. Transmission requires an explicit CLI invocation (`vox telemetry upload`) and configured ingest URL.
-2. **Local spool first.** Pending payloads live as one JSON file per event under a configurable directory (default under the current working tree’s `.vox/telemetry-upload-queue/pending/`, overridable via `VOX_TELEMETRY_SPOOL_DIR`). Operators enqueue with **`vox telemetry enqueue`** or out-of-band file drops consistent with the spool layout.
+2. **Local spool first.** Pending payloads live as one JSON file per event under a configurable directory (default under the current working tree’s `.vox/telemetry-upload-queue/pending/`, overridable via `VOX_TELEMETRY_SPOOL_DIR`). Operators inspect queued redacted OTLP envelopes locally via **`vox telemetry preview [--format json|table]`** and enqueue with **`vox telemetry enqueue`** or out-of-band file drops consistent with the spool layout.
 3. **Secrets via vox-secrets only.** Ingest URL and bearer token are [`SecretId::VoxTelemetryUploadUrl`](../../../crates/vox-secrets/src/lib.rs) and [`SecretId::VoxTelemetryUploadToken`](../../../crates/vox-secrets/src/lib.rs) (`VOX_TELEMETRY_UPLOAD_URL`, `VOX_TELEMETRY_UPLOAD_TOKEN`). CLI code uses `vox_secrets::resolve_secret`; do not add parallel `std::env::var` reads for those values.
 4. **Normative wire behavior** (rate limits, signing roadmap, headers) lives in [telemetry-remote-sink-spec](../archive/research-2026-q1/telemetry-remote-sink-spec.md), not in this ADR.
 5. **Legal / security sign-off** for any *organization-wide* or *end-user* upload policy is recorded in that organization’s process; this ADR defines the **technical** guardrails (opt-in, explicit command, vox-secrets, delete-after-ack on success).
 
 ## Consequences
 
-- New CLI surface: `vox telemetry status|export|enqueue|upload` (catalog + command-registry generated from `contracts/operations/catalog.v1.yaml`).
-- New documentation: remote sink spec + env-var rows in [env-vars](../reference/env-vars.md).
+- CLI surface: `vox telemetry doctor|consent|status|export|preview|enqueue|upload` (catalog + command-registry generated from `contracts/operations/catalog.v1.yaml`).
+- `vox telemetry preview` renders the exact redacted OTLP/HTTP `ExportLogsServiceRequest` (`resourceLogs`) batch offline without network calls or spool deletion, and `vox telemetry upload` batches up to `200` pending records (`<= 256 KiB`) per `POST /v1/logs` request to the centralized ingest service residing in the private `vox-ops` repository backed by PostgreSQL (`telemetry_ingest.*`) rather than `server/telemetry/`.
+- Documentation: [Centralized Postgres Telemetry & Vox-Ops SSOT](../architecture/centralized-postgres-telemetry-vox-ops-ssot-2026.md) + env-var rows in [env-vars](../reference/env-vars.md).
 - Future HMAC or mTLS layers extend the sink spec and vox-secrets `SecretId` list without changing the “explicit upload” invariant.
 
 ## See also

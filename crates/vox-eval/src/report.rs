@@ -213,7 +213,7 @@ pub struct ReportInputs {
 }
 
 /// Schema-2 report.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EvalCorpusReport {
     /// [`REPORT_SCHEMA_VERSION`].
     pub schema_version: u32,
@@ -429,6 +429,66 @@ impl EvalCorpusReport {
             samples: inp.samples,
         }
     }
+}
+
+/// Render a [`crate::compare::MultiSpokeComparisonV1`] as a Markdown table report with per-spoke
+/// deltas and the automated promotion gate verdict (`EVAL-05`).
+#[must_use]
+pub fn render_multi_spoke_comparison_markdown(
+    comp: &crate::compare::MultiSpokeComparisonV1,
+) -> String {
+    let verdict_str = match &comp.verdict {
+        crate::compare::PromotionGateVerdict::Promote => "PROMOTE".to_string(),
+        crate::compare::PromotionGateVerdict::RejectRegression { regressed_spokes } => {
+            format!("REJECT_REGRESSION ({})", regressed_spokes.join(", "))
+        }
+        crate::compare::PromotionGateVerdict::HoldNoImprovement => {
+            "HOLD_NO_IMPROVEMENT".to_string()
+        }
+    };
+
+    let mut out = String::new();
+    out.push_str(&format!(
+        "# Mens 5-Spoke Evaluation Comparison (`{}` vs `{}`)\n\n",
+        comp.candidate_model_id, comp.baseline_model_id
+    ));
+    out.push_str(&format!("- **Snapshot URI:** `{}`\n", comp.snapshot_uri));
+    out.push_str(&format!(
+        "- **Overall Delta pass@1:** `{:+.4}`\n",
+        comp.overall_delta_pass_at_1
+    ));
+    out.push_str(&format!(
+        "- **Overall Delta pass@k:** `{:+.4}`\n",
+        comp.overall_delta_pass_at_k
+    ));
+    out.push_str(&format!("- **Promotion Verdict:** `{verdict_str}`\n\n"));
+    out.push_str(
+        "| Spoke | Baseline pass@1 | Candidate pass@1 | Delta pass@1 | W / T / L | Non-Inferior |\n",
+    );
+    out.push_str("|---|---:|---:|---:|---:|:---:|\n");
+
+    for d in &comp.spoke_deltas {
+        out.push_str(&format!(
+            "| `{}` | {:.4} | {:.4} | {:+.4} | {} / {} / {} | {} |\n",
+            d.spoke.as_str(),
+            d.baseline_pass_at_1,
+            d.candidate_pass_at_1,
+            d.delta_pass_at_1,
+            d.wins,
+            d.ties,
+            d.losses,
+            if d.non_inferior { "yes" } else { "NO" }
+        ));
+    }
+
+    out
+}
+
+/// Render a [`crate::compare::MultiSpokeComparisonV1`] as pretty-printed canonical JSON (`EVAL-05`).
+pub fn render_multi_spoke_comparison_json(
+    comp: &crate::compare::MultiSpokeComparisonV1,
+) -> Result<String, String> {
+    serde_json::to_string_pretty(comp).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
@@ -756,5 +816,59 @@ mod tests {
         let r = with_trajectories(0, &[("a", 0, &[false]), ("b", 0, &[true])]);
         assert!(r.pass_at_1_after_feedback.is_empty());
         assert_eq!(r.pass_at_1.as_ref().unwrap().n_problems, 2);
+    }
+
+    #[test]
+    fn render_multi_spoke_comparison_markdown_and_json_formats_table_and_verdict() {
+        use crate::compare::{PromotionGateVerdict, compare_mens_five_spokes};
+        use crate::mens::{
+            MensEvalSpoke, SpokeAttemptOutcome, SpokeProblemInput, evaluate_mens_five_spokes,
+        };
+
+        let make_probs = |pass_flags: [bool; 5]| -> Vec<SpokeProblemInput> {
+            MensEvalSpoke::ALL
+                .iter()
+                .enumerate()
+                .map(|(idx, &spoke)| SpokeProblemInput {
+                    case_id: format!("c_{}", spoke.as_str()),
+                    spoke,
+                    attempts: vec![SpokeAttemptOutcome {
+                        case_id: format!("c_{}", spoke.as_str()),
+                        spoke,
+                        syntax_valid: true,
+                        semantic_valid: pass_flags[idx],
+                        execution_passed: pass_flags[idx],
+                        diagnostic_summary: None,
+                    }],
+                })
+                .collect()
+        };
+
+        let base_p = make_probs([true, true, false, false, false]);
+        let cand_p = make_probs([true, true, true, true, true]);
+        let base_c = evaluate_mens_five_spokes(
+            "mens-base",
+            "trusty://vox-dataset/s1",
+            "trusty://blake3/a0",
+            1,
+            &base_p,
+        );
+        let cand_c = evaluate_mens_five_spokes(
+            "mens-cand",
+            "trusty://vox-dataset/s1",
+            "trusty://blake3/a1",
+            1,
+            &cand_p,
+        );
+        let comp = compare_mens_five_spokes(&base_c, &cand_c, &base_p, &cand_p, 0.0);
+        assert_eq!(comp.verdict, PromotionGateVerdict::Promote);
+
+        let md = render_multi_spoke_comparison_markdown(&comp);
+        assert!(md.contains("PROMOTE"));
+        assert!(md.contains("`vox_lang`"));
+        assert!(md.contains("`agent_harness`"));
+
+        let js = render_multi_spoke_comparison_json(&comp).unwrap();
+        assert!(js.contains("mens_multi_spoke_comparison_v1"));
     }
 }

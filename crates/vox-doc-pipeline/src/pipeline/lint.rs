@@ -281,6 +281,24 @@ pub(crate) fn lint_file(path: &Path, content: &str, repo_root: &Path, errors: &m
             kind: LintKind::UnclosedCodeFence,
         });
     }
+
+    let is_archive = path
+        .to_string_lossy()
+        .replace('\\', "/")
+        .contains("/archive/");
+    if !is_archive && content.contains("```mermaid") {
+        let (_, diags, _) = super::mermaid::validate_and_repair_markdown_mermaid(content);
+        for d in diags {
+            errors.push(LintError {
+                file: path.to_owned(),
+                line: d.line,
+                kind: LintKind::InvalidMermaid {
+                    code: d.code,
+                    msg: d.message,
+                },
+            });
+        }
+    }
 }
 
 fn yaml_introduces_second_frontmatter(lines: &[&str], dash_line_idx: usize) -> bool {
@@ -674,6 +692,71 @@ fn lint_readme_sync_content(
 /// process cwd. Source paths are parameters (rather than hardcoded) so this is
 /// directly unit-testable, e.g. pointing `readme_path` at a nonexistent file to
 /// exercise the missing-source-file error without touching the real repo files.
+/// Transform a `README.md` `<!-- ANCHOR: name -->` block into the MDX form expected inside
+/// `docs/src/index.mdx` (`{/* SYNC-FROM-README: name */} ... {/* SYNC-END: name */}`).
+pub fn transform_readme_block_for_mdx(readme_block: &str) -> String {
+    let transformed = readme_block
+        .replace("docs/src/assets/", "./assets/")
+        .replace("docs/src/reference/", "./reference/")
+        .replace("docs/src/how-to/", "./how-to/")
+        .replace("docs/src/architecture/", "./architecture/")
+        .replace("docs/src/adr/", "./adr/")
+        .replace("docs/src/explanation/", "./explanation/")
+        .replace(
+            "](CHANGELOG.md)",
+            "](https://github.com/vox-foundation/vox/blob/main/CHANGELOG.md)",
+        );
+    let transformed = rewrite_repo_relative_links(&transformed, "](crates/", 2, ')');
+    let transformed = rewrite_repo_relative_links(&transformed, "=\"crates/", 2, '"');
+    rewrite_repo_relative_links(&transformed, "](examples/", 2, ')')
+}
+
+/// Synchronize `SYNCED_BLOCKS` from `README.md` into `docs/src/index.mdx`.
+/// Returns `Ok(true)` if `index.mdx` was updated (or would be updated when `write == false`),
+/// `Ok(false)` if already in sync.
+pub fn sync_readme_to_frontpage(root: &Path, write: bool) -> Result<bool, String> {
+    let readme_path = root.join("README.md");
+    let mdx_path = root.join("docs/src/index.mdx");
+    let readme = vox_bounded_fs::read_utf8_path_capped(&readme_path)
+        .map_err(|e| format!("Failed to read {}: {}", readme_path.display(), e))?;
+    let mut mdx = vox_bounded_fs::read_utf8_path_capped(&mdx_path)
+        .map_err(|e| format!("Failed to read {}: {}", mdx_path.display(), e))?;
+
+    let mut changed = false;
+    for &name in SYNCED_BLOCKS {
+        let readme_block = readme_anchor(&readme, name).ok_or_else(|| {
+            format!(
+                "Missing <!-- ANCHOR: {name} --> in {}",
+                readme_path.display()
+            )
+        })?;
+        let start_marker = format!("{{/* SYNC-FROM-README: {name} */}}");
+        let end_marker = format!("{{/* SYNC-END: {name} */}}");
+        let start_idx = mdx
+            .find(&start_marker)
+            .ok_or_else(|| format!("Missing {start_marker} in {}", mdx_path.display()))?;
+        let after_start = start_idx + start_marker.len();
+        let rel_end = mdx[after_start..]
+            .find(&end_marker)
+            .ok_or_else(|| format!("Missing {end_marker} in {}", mdx_path.display()))?;
+        let end_idx = after_start + rel_end;
+        let current_mdx_block = mdx[after_start..end_idx].trim();
+
+        if normalize_for_compare(&readme_block) != normalize_for_compare(current_mdx_block) {
+            let rendered = transform_readme_block_for_mdx(&readme_block);
+            mdx.replace_range(after_start..end_idx, &format!("\n{}\n", rendered.trim()));
+            changed = true;
+        }
+    }
+
+    if changed && write {
+        fs::write(&mdx_path, &mdx)
+            .map_err(|e| format!("Failed to write {}: {}", mdx_path.display(), e))?;
+    }
+
+    Ok(changed)
+}
+
 pub(crate) fn lint_readme_sync_paths(
     readme_path: &Path,
     mdx_path: &Path,

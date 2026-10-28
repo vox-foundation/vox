@@ -47,6 +47,7 @@ pub mod zenodo_api_types;
 pub mod zenodo_metadata;
 
 pub mod adapter_health;
+pub mod handoff;
 mod social_retry;
 pub mod syndicate;
 mod syndication_outcome;

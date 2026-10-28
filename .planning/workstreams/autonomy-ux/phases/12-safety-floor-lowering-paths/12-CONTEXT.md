@@ -27,3 +27,10 @@ Decisions locked by the user on 2026-10-11, after `12-RESEARCH.md`. Milestone de
 - Newly floored tools go in `SKIP_DISPATCH_PROBE` so the registry test does not wait 300 s per tool.
 - The two existing tests that assert lowering behavior are inverted, not deleted.
 - Every guard gets a call-site test with a recorded mutation proof (`grep -c` before and after).
+
+## Revision 1 resolutions
+
+- **OQ4 resolution (12-07):** In-process agent self-approval of floored parks is refused by construction via a task-local `AGENT_ORIGIN` scope entered by vox's in-process agent dispatchers (`McpToolDispatcher::dispatch` and `run_agent_turn`).
+- **Entry points (12-08):** The stdio server and HTTP gateway entry points are made agent-origin by construction in 12-08.
+- **Residual T-12-25:** A raw daemon-socket or token-holding process, including shell routes, can still look human. It is accepted in 12-08 and owned by FLOOR-04b / Phase 14 success criterion 5.
+

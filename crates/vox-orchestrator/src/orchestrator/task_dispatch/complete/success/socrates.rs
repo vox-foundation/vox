@@ -3,33 +3,63 @@ use crate::orchestrator::{Orchestrator, OrchestratorError};
 use crate::types::{AgentId, AgentTask, CompletionAttestation, TaskId, TaskStatus};
 use tracing;
 
-/// Compute the effective `(grounding_enforce, socrates_enforce)` pair for one
-/// task -- extracted from `check_socrates_gate` so it's unit-testable without
-/// a live `Orchestrator`/completion pipeline. Task 2.4: the effective risk
-/// used here is the FULL precedence chain (explicit hint > this task's
-/// category policy > this task's trigger-source policy), matching
-/// `resolve_task_cost_policy` in `runtime.rs` -- previously this only
-/// consulted `task.risk_posture`, so a category/source risk policy had zero
-/// effect unless a caller also set an explicit hint. When nothing at all
-/// applies, the global config flags are preserved unchanged.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Enforce {
+    configured: bool,
+    hinted: bool,
+}
+
+impl Enforce {
+    fn required(self, trust_relax_gates: bool) -> bool {
+        self.configured || (self.hinted && !trust_relax_gates)
+    }
+}
+
+fn configured_flag(global: bool, configured: Option<bool>) -> bool {
+    global || configured.unwrap_or(false)
+}
+
+/// Compute the effective `(grounding, socrates)` [`Enforce`] pair for one task.
+///
+/// Precedence is strictest-wins (FLOOR-03):
+/// - `configured` is the global flag OR the configured (category/source) policy flag.
+///   An agent-selected `task_category` or `trigger_source` cannot lower enforcement below global.
+/// - `hinted` is the task's self-assigned `task.risk_posture` hint flag.
+///   A hint can only add/raise enforcement, never lower configured/global enforcement.
+/// - Trust-based gate relaxation (`trust_relax_gates`) waives ONLY enforcement
+///   that the task's own hint added; it cannot waive configured or global enforcement.
 #[must_use]
 fn resolve_grounding_socrates_enforce(
     task: &AgentTask,
     overrides: &crate::config::TaskPolicyOverrides,
     global_grounding_enforce: bool,
     global_socrates_enforce: bool,
-) -> (bool, bool) {
-    let resolved = crate::mode::effective_risk_for_task(task, overrides).map(|r| r.resolve());
-    let grounding_enforce = resolved
-        .map(|r| r.grounding_enforce)
-        .unwrap_or(global_grounding_enforce);
-    let socrates_enforce = resolved
-        .map(|r| r.socrates_enforce)
-        .unwrap_or(global_socrates_enforce);
-    (grounding_enforce, socrates_enforce)
+) -> (Enforce, Enforce) {
+    let configured_risk =
+        crate::mode::configured_risk_for_task(task, overrides).map(|r| r.resolve());
+    let configured_grounding = configured_risk.map(|r| r.grounding_enforce);
+    let configured_socrates = configured_risk.map(|r| r.socrates_enforce);
+
+    let hint_risk = task.risk_posture.map(|r| r.resolve());
+    let hint_grounding = hint_risk.map(|r| r.grounding_enforce).unwrap_or(false);
+    let hint_socrates = hint_risk.map(|r| r.socrates_enforce).unwrap_or(false);
+
+    let grounding = Enforce {
+        configured: configured_flag(global_grounding_enforce, configured_grounding),
+        hinted: hint_grounding,
+    };
+    let socrates = Enforce {
+        configured: configured_flag(global_socrates_enforce, configured_socrates),
+        hinted: hint_socrates,
+    };
+    (grounding, socrates)
 }
 
 impl Orchestrator {
+    /// Check completion gates (grounding and Socrates verification) for `task`.
+    ///
+    /// Trust relax narrows only hint-added gates; it never waives configured or global
+    /// enforcement or the bypass block (FLOOR-03, research Pitfall 2).
     pub async fn check_socrates_gate(
         &self,
         task_id: TaskId,
@@ -70,12 +100,14 @@ impl Orchestrator {
             } else {
                 (false, false)
             };
-            let (grounding_enforce, socrates_enforce) = resolve_grounding_socrates_enforce(
+            let (grounding, socrates) = resolve_grounding_socrates_enforce(
                 task,
                 &config.task_policy,
                 config.completion_grounding_enforce,
                 config.socrates_gate_enforce,
             );
+            let grounding_enforce = grounding.required(trust_relax_gates);
+            let socrates_enforce = socrates.required(trust_relax_gates);
             (
                 config.completion_grounding_shadow,
                 grounding_enforce,
@@ -116,10 +148,7 @@ impl Orchestrator {
                         "{msg}"
                     );
                 }
-                if grounding_enforce
-                    && !trust_relax_gates
-                    && task.debug_iterations < max_socrates_debug_iterations
-                {
+                if grounding_enforce && task.debug_iterations < max_socrates_debug_iterations {
                     tracing::warn!(
                         target: "vox_orchestrator::grounding",
                         task_id = task_id.0,
@@ -208,7 +237,6 @@ impl Orchestrator {
         }
 
         if (socrates_enforce || bypass_disallowed)
-            && !trust_relax_gates
             && (outcome.decision != vox_orchestrator_types::socrates_policy::RiskDecision::Answer
                 || !research_results.is_empty()
                 || bypass_disallowed)
@@ -279,7 +307,8 @@ impl Orchestrator {
 
 #[cfg(test)]
 mod resolve_grounding_socrates_enforce_tests {
-    use super::resolve_grounding_socrates_enforce;
+    use super::*;
+    use crate::SocratesTaskContext;
     use crate::config::{TaskPolicyEntry, TaskPolicyOverrides};
     use crate::types::{AgentTask, TaskCategory, TaskId, TaskPriority};
     use std::collections::HashMap;
@@ -310,15 +339,15 @@ mod resolve_grounding_socrates_enforce_tests {
 
         // Global defaults are both OFF -- if the category policy had zero
         // effect, both enforce flags would stay false.
-        let (grounding_enforce, socrates_enforce) =
+        let (grounding, socrates) =
             resolve_grounding_socrates_enforce(&task, &overrides, false, false);
 
         assert!(
-            grounding_enforce,
+            grounding.required(false),
             "Low-risk category policy must enable grounding enforcement even with no explicit risk_posture hint"
         );
         assert!(
-            socrates_enforce,
+            socrates.required(false),
             "Low-risk category policy must enable socrates enforcement even with no explicit risk_posture hint"
         );
     }
@@ -341,11 +370,11 @@ mod resolve_grounding_socrates_enforce_tests {
         let mut task = AgentTask::new(TaskId(2), "generate code", TaskPriority::Normal, vec![]);
         task.trigger_source = Some(crate::mode::TriggerSource::Automated);
 
-        let (grounding_enforce, socrates_enforce) =
+        let (grounding, socrates) =
             resolve_grounding_socrates_enforce(&task, &overrides, false, false);
 
-        assert!(grounding_enforce);
-        assert!(socrates_enforce);
+        assert!(grounding.required(false));
+        assert!(socrates.required(false));
     }
 
     #[test]
@@ -356,18 +385,17 @@ mod resolve_grounding_socrates_enforce_tests {
         };
         let task = AgentTask::new(TaskId(3), "generate code", TaskPriority::Normal, vec![]);
 
-        assert_eq!(
-            resolve_grounding_socrates_enforce(&task, &overrides, false, false),
-            (false, false)
-        );
-        assert_eq!(
-            resolve_grounding_socrates_enforce(&task, &overrides, true, true),
-            (true, true)
-        );
+        let (g_off, s_off) = resolve_grounding_socrates_enforce(&task, &overrides, false, false);
+        assert!(!g_off.required(false));
+        assert!(!s_off.required(false));
+
+        let (g_on, s_on) = resolve_grounding_socrates_enforce(&task, &overrides, true, true);
+        assert!(g_on.required(false));
+        assert!(s_on.required(false));
     }
 
     #[test]
-    fn explicit_risk_posture_still_wins_over_category_policy() {
+    fn explicit_risk_posture_cannot_lower_category_policy() {
         let mut category = HashMap::new();
         category.insert(
             format!("{:?}", TaskCategory::CodeGen),
@@ -385,12 +413,245 @@ mod resolve_grounding_socrates_enforce_tests {
         task.task_category = TaskCategory::CodeGen;
         task.risk_posture = Some(crate::mode::RiskPosture::High);
 
-        // High risk resolves both enforce flags to false, overriding the
-        // category's Low-risk policy.
-        let (grounding_enforce, socrates_enforce) =
+        // High-risk hint cannot lower the category's Low-risk policy (Review, both enforce flags true).
+        let (grounding, socrates) =
+            resolve_grounding_socrates_enforce(&task, &overrides, false, false);
+        assert!(grounding.required(false));
+        assert!(socrates.required(false));
+    }
+
+    #[test]
+    fn explicit_risk_posture_cannot_lower_global_enforce() {
+        let overrides = TaskPolicyOverrides {
+            category: HashMap::new(),
+            source: HashMap::new(),
+        };
+        let mut task = AgentTask::new(TaskId(5), "generate code", TaskPriority::Normal, vec![]);
+        task.risk_posture = Some(crate::mode::RiskPosture::High);
+
+        let (grounding, socrates) =
             resolve_grounding_socrates_enforce(&task, &overrides, true, true);
-        assert!(!grounding_enforce);
-        assert!(!socrates_enforce);
+        assert!(grounding.required(false));
+        assert!(socrates.required(false));
+    }
+
+    #[test]
+    fn explicit_risk_posture_can_raise_enforcement() {
+        let overrides = TaskPolicyOverrides {
+            category: HashMap::new(),
+            source: HashMap::new(),
+        };
+        let mut task = AgentTask::new(TaskId(6), "generate code", TaskPriority::Normal, vec![]);
+        task.risk_posture = Some(crate::mode::RiskPosture::Low);
+
+        let (grounding, socrates) =
+            resolve_grounding_socrates_enforce(&task, &overrides, false, false);
+        assert!(grounding.required(false));
+        assert!(socrates.required(false));
+    }
+
+    #[test]
+    fn lax_category_policy_cannot_lower_global_enforce() {
+        let mut category = HashMap::new();
+        category.insert(
+            format!("{:?}", TaskCategory::CodeGen),
+            TaskPolicyEntry {
+                clutch: None,
+                risk: Some("high".to_string()),
+            },
+        );
+        let overrides = TaskPolicyOverrides {
+            category,
+            source: HashMap::new(),
+        };
+        let mut task = AgentTask::new(TaskId(7), "generate code", TaskPriority::Normal, vec![]);
+        task.task_category = TaskCategory::CodeGen;
+
+        let (grounding, socrates) =
+            resolve_grounding_socrates_enforce(&task, &overrides, true, true);
+        assert!(grounding.required(false));
+        assert!(socrates.required(false));
+        assert!(grounding.required(true));
+        assert!(socrates.required(true));
+    }
+
+    fn test_violating_context_and_attestation() -> (SocratesTaskContext, CompletionAttestation) {
+        let soc = SocratesTaskContext {
+            risk_budget: String::new(),
+            factual_mode: true,
+            required_citations: 1,
+            ..Default::default()
+        };
+        let att = CompletionAttestation {
+            completion_summary: Some(
+                "The handler returns HTTP 403 for anonymous users; the gateway removes cookies on that path."
+                    .into(),
+            ),
+            ..Default::default()
+        };
+        (soc, att)
+    }
+
+    #[tokio::test]
+    async fn check_gate_hint_cannot_lower_category_policy() {
+        let mut cfg = crate::config::OrchestratorConfig::for_testing();
+        cfg.completion_grounding_enforce = false;
+        cfg.socrates_gate_enforce = false;
+        cfg.task_policy.category.insert(
+            format!("{:?}", TaskCategory::CodeGen),
+            TaskPolicyEntry {
+                clutch: None,
+                risk: Some("low".to_string()),
+            },
+        );
+        let orch = Orchestrator::new(cfg);
+        let aid = orch.spawn_agent("worker").expect("spawn");
+
+        let (soc, att) = test_violating_context_and_attestation();
+        let mut task = AgentTask::new(TaskId(10), "generate code", TaskPriority::Normal, vec![]);
+        task.task_category = TaskCategory::CodeGen;
+        task.risk_posture = Some(crate::mode::RiskPosture::High);
+        task.socrates = Some(soc);
+
+        let outcome = orch
+            .check_socrates_gate(task.id, aid, &task, Some(&att), 3, false)
+            .await
+            .expect("check gate ok");
+        assert!(
+            outcome.requeue.is_some(),
+            "hint High must not lower category Low policy"
+        );
+    }
+
+    #[tokio::test]
+    async fn check_gate_lax_category_cannot_lower_global_enforce() {
+        let mut cfg = crate::config::OrchestratorConfig::for_testing();
+        cfg.completion_grounding_enforce = true;
+        cfg.socrates_gate_enforce = false;
+        cfg.task_policy.category.insert(
+            format!("{:?}", TaskCategory::CodeGen),
+            TaskPolicyEntry {
+                clutch: None,
+                risk: Some("high".to_string()),
+            },
+        );
+        let orch = Orchestrator::new(cfg);
+        let aid = orch.spawn_agent("worker").expect("spawn");
+
+        let (soc, att) = test_violating_context_and_attestation();
+        let mut task = AgentTask::new(TaskId(11), "generate code", TaskPriority::Normal, vec![]);
+        task.task_category = TaskCategory::CodeGen;
+        task.socrates = Some(soc);
+
+        let outcome = orch
+            .check_socrates_gate(task.id, aid, &task, Some(&att), 3, false)
+            .await
+            .expect("check gate ok");
+        assert!(
+            outcome.requeue.is_some(),
+            "lax category must not lower global enforce"
+        );
+    }
+
+    #[tokio::test]
+    async fn trust_relax_cannot_waive_configured_grounding() {
+        let mut cfg = crate::config::OrchestratorConfig::for_testing();
+        cfg.completion_grounding_enforce = true;
+        cfg.socrates_gate_enforce = false;
+        let orch = Orchestrator::new(cfg);
+        let aid = orch.spawn_agent("worker").expect("spawn");
+
+        let (soc, att) = test_violating_context_and_attestation();
+        let mut task = AgentTask::new(TaskId(12), "generate code", TaskPriority::Normal, vec![]);
+        task.socrates = Some(soc);
+
+        let outcome = orch
+            .check_socrates_gate(task.id, aid, &task, Some(&att), 3, true)
+            .await
+            .expect("check gate ok");
+        assert!(
+            outcome.requeue.is_some(),
+            "trust relax must not waive configured grounding enforce"
+        );
+    }
+
+    #[tokio::test]
+    async fn trust_relax_cannot_waive_configured_socrates() {
+        let mut cfg = crate::config::OrchestratorConfig::for_testing();
+        cfg.completion_grounding_enforce = false;
+        cfg.socrates_gate_enforce = true;
+        let orch = Orchestrator::new(cfg);
+        let aid = orch.spawn_agent("worker").expect("spawn");
+
+        let soc = SocratesTaskContext {
+            fabricated_tool_claims: Some(vec!["fake_tool".into()]),
+            ..Default::default()
+        };
+        let mut task = AgentTask::new(TaskId(13), "generate code", TaskPriority::Normal, vec![]);
+        task.socrates = Some(soc);
+
+        let outcome = orch
+            .check_socrates_gate(task.id, aid, &task, None, 3, true)
+            .await
+            .expect("check gate ok");
+        assert!(
+            outcome.requeue.is_some(),
+            "trust relax must not waive configured socrates enforce"
+        );
+    }
+
+    #[tokio::test]
+    async fn trust_relax_cannot_waive_configured_bypass_disallowed() {
+        let mut cfg = crate::config::OrchestratorConfig::for_testing();
+        cfg.completion_grounding_enforce = false;
+        cfg.socrates_gate_enforce = false;
+        let orch = Orchestrator::new(cfg);
+        let aid = orch.spawn_agent("worker").expect("spawn");
+
+        {
+            let q_lock = orch.agent_queue(aid).expect("queue");
+            let mut q = crate::sync_lock::rw_write(&*q_lock);
+            q.capabilities.is_low_confidence_bypass_blocked = true;
+        }
+
+        let soc = SocratesTaskContext {
+            fabricated_tool_claims: Some(vec!["fake_tool".into()]),
+            ..Default::default()
+        };
+        let mut task = AgentTask::new(TaskId(14), "generate code", TaskPriority::Normal, vec![]);
+        task.socrates = Some(soc);
+
+        let outcome = orch
+            .check_socrates_gate(task.id, aid, &task, None, 3, true)
+            .await
+            .expect("check gate ok");
+        assert!(
+            outcome.requeue.is_some(),
+            "trust relax must not waive bypass_disallowed"
+        );
+    }
+
+    #[tokio::test]
+    async fn trust_relax_still_waives_hint_only_enforcement() {
+        let mut cfg = crate::config::OrchestratorConfig::for_testing();
+        cfg.completion_grounding_enforce = false;
+        cfg.socrates_gate_enforce = false;
+        let orch = Orchestrator::new(cfg);
+        let aid = orch.spawn_agent("worker").expect("spawn");
+
+        let (soc, att) = test_violating_context_and_attestation();
+        let mut task = AgentTask::new(TaskId(15), "generate code", TaskPriority::Normal, vec![]);
+        task.risk_posture = Some(crate::mode::RiskPosture::Low);
+        task.socrates = Some(soc);
+
+        let outcome = orch
+            .check_socrates_gate(task.id, aid, &task, Some(&att), 3, true)
+            .await
+            .expect("check gate ok");
+        assert!(
+            outcome.requeue.is_none(),
+            "trust relax should waive hint-added enforcement"
+        );
     }
 }
 

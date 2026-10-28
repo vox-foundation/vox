@@ -95,20 +95,27 @@ pub async fn gamify_record_event(state: &ServerState, p: GamifyRecordEventParams
 }
 
 pub async fn gamify_leaderboard(state: &ServerState, p: GamifyLeaderboardParams) -> String {
-    let db = match require_db(state) {
+    let _db = match require_db(state) {
         Ok(db) => db,
         Err(e) => return ToolResult::<Vec<LeaderboardEntryDto>>::err(e).to_json(),
     };
-    let limit = p.limit.unwrap_or(LEADERBOARD_DEFAULT_LIMIT) as i64;
-    match vox_gamify::db::leaderboard(db, limit).await {
-        Ok(rows) => ToolResult::ok(
-            rows.iter()
-                .enumerate()
-                .map(|(i, r)| LeaderboardEntryDto {
-                    rank: (i + 1) as u32,
-                    user_id: r.user_id.clone(),
-                    level: r.level,
-                    score: r.score,
+    let limit = p.limit.unwrap_or(LEADERBOARD_DEFAULT_LIMIT) as usize;
+    match vox_gamify::verified_leaderboard::verify_and_load_leaderboard_snapshot() {
+        Ok(snap) => ToolResult::ok(
+            snap.stewardship_standings
+                .into_iter()
+                .take(limit)
+                .map(|r| LeaderboardEntryDto {
+                    rank: r.rank,
+                    user_id: r.handle,
+                    level: ((r.lumens.max(0) as u64) / 200).max(1),
+                    score: r.lumens,
+                    rank_delta: r.rank_delta,
+                    tier_title: r.tier_title,
+                    lumens: r.lumens,
+                    row_chain_hash_hex: r.proof.row_chain_hash_hex,
+                    proof_digest_sha3_256: r.proof.payload_digest_sha3_256,
+                    signature_verified: true,
                 })
                 .collect::<Vec<_>>(),
         )

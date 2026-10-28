@@ -4,4 +4,6 @@
 mod error;
 
 pub use error::StoreError;
-pub use vox_db_types::store_types::{mens::*, params::*, rows_core::*, rows_extended::*};
+pub use vox_db_types::store_types::{
+    mens::*, params::*, rows_core::*, rows_extended::*, trials::*,
+};

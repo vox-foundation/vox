@@ -89,7 +89,23 @@ pub fn extract_quotes(text: &str) -> Vec<String> {
 }
 
 fn clean(raw: &str) -> SanitizedText {
-    SanitizedText::new(&vox_redact::redact_owned(raw))
+    let pre = SanitizedText::new(raw);
+    SanitizedText::new(&vox_redact::redact_owned(pre.as_str()))
+}
+
+fn sanitize_provenance(val: serde_json::Value) -> serde_json::Value {
+    match val {
+        serde_json::Value::String(s) => serde_json::Value::String(clean(&s).as_str().to_string()),
+        serde_json::Value::Array(arr) => {
+            serde_json::Value::Array(arr.into_iter().map(sanitize_provenance).collect())
+        }
+        serde_json::Value::Object(map) => serde_json::Value::Object(
+            map.into_iter()
+                .map(|(k, v)| (clean(&k).as_str().to_string(), sanitize_provenance(v)))
+                .collect(),
+        ),
+        other => other,
+    }
 }
 
 fn hash_hex(bytes: &[u8]) -> String {
@@ -139,8 +155,9 @@ pub async fn capture_finding(
         .unwrap_or("");
     let dedupe_key = hash_hex(format!("{}\0{scope}\0{hex}", input.origin.as_db_str()).as_bytes());
 
-    // Redact before splitting/truncating so a secret is never cut in half or split on `.`.
-    let redacted = vox_redact::redact_owned(truncate_bytes(summary_src, MAX_SNAPSHOT_BYTES));
+    // Sanitize zero-width chars first, then redact before splitting/truncating so a secret is never cut in half or split on `.`.
+    let pre_sanitized = SanitizedText::new(truncate_bytes(summary_src, MAX_SNAPSHOT_BYTES));
+    let redacted = vox_redact::redact_owned(pre_sanitized.as_str());
     let summary = SanitizedText::new(truncate_chars(&redacted, MAX_SUMMARY_CHARS));
     let quotes: Vec<SanitizedText> = extract_quotes(&redacted)
         .iter()
@@ -166,7 +183,7 @@ pub async fn capture_finding(
         fetched_at_ms: vox_db::now_unix_ms() as i64,
         content_hash,
         snapshot_relpath: Some(rel.clone()),
-        provenance: input.provenance,
+        provenance: sanitize_provenance(input.provenance),
     };
     let finding_id = db
         .insert_pending_finding(&finding)

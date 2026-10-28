@@ -31,6 +31,13 @@ pub(crate) fn rrf_dedup_key(line: &str) -> String {
         let id = rest.split_whitespace().next().unwrap_or("");
         return format!("qdrant:{id}");
     }
+    if let Some(rest) = t.strip_prefix("[tantivy:") {
+        let id = rest
+            .split(|c: char| c.is_whitespace() || c == ']')
+            .next()
+            .unwrap_or("");
+        return format!("tantivy:{id}");
+    }
     if let Some(rest) = t.strip_prefix('[')
         && let Some((head, _)) = rest.split_once(']')
     {

@@ -93,6 +93,30 @@ impl OrchDaemonClient {
         }
     }
 
+    /// Resolve the daemon socket (`SecretId::VoxOrchestratorDaemonSocket`, default
+    /// `127.0.0.1:9745`) and auth token (`SecretId::VoxOrchestratorDaemonToken`) via
+    /// Clavis, falling back to `~/.vox/run/orchestrator-daemon.token`.
+    #[must_use]
+    pub fn from_env_or_token_file() -> Self {
+        let addr = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorDaemonSocket)
+            .expose()
+            .map(str::trim)
+            .filter(|s| s.contains(':'))
+            .map(normalize_tcp_bind_addr)
+            .unwrap_or_else(|| "127.0.0.1:9745".to_string());
+        let token = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorDaemonToken)
+            .expose()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
+            .or_else(read_token_file);
+        Self {
+            addr,
+            token,
+            permission_mode: None,
+        }
+    }
+
     /// Set the `PermissionMode` wire string (T0.3 — `"ask" | "accept_edits"
     /// | "accept_all" | "plan"`) to carry on every subsequent request from
     /// this client. Mirrors [`Self::with_token`]'s builder shape. Callers

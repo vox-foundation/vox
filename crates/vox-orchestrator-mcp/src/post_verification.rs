@@ -103,10 +103,25 @@ pub fn attach_advisory(payload: String, advisory: String) -> String {
     }
 }
 
+/// Returns the workspace-relative `.md`/`.mdx` path to verify, iff `name` is a
+/// file-mutating tool that touched a Markdown file. Pure; performs no I/O.
+pub fn verifiable_markdown_path(name: &str, args: &serde_json::Value) -> Option<String> {
+    if !crate::scope_guard::WRITE_TOOLS.contains(&name) {
+        return None;
+    }
+    let path = crate::scope_guard::PATH_ARG_KEYS
+        .iter()
+        .find_map(|key| args.get(*key).and_then(|v| v.as_str()))?;
+    let is_md = std::path::Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("md") || e.eq_ignore_ascii_case("mdx"));
+    is_md.then(|| path.to_string())
+}
+
 /// Run auto-verification for a just-succeeded mutating tool, returning the (already
 /// attached) payload. No-op (returns `payload` unchanged) when disabled, when the tool
-/// didn't touch a `.vox` file, or when the file checks clean. Performs the `vox_check`
-/// I/O via the existing validator (DRY — no second compiler invocation path).
+/// didn't touch a `.vox` or `.md`/`.mdx` file, or when the file checks clean.
 pub async fn verify_and_attach(
     state: &ServerState,
     name: &str,
@@ -116,14 +131,34 @@ pub async fn verify_and_attach(
     if !enabled() {
         return payload;
     }
-    let Some(path) = verifiable_vox_path(name, args) else {
-        return payload;
-    };
-    let check_json = code_validator::vox_check(state, VoxCheckParams { path }).await;
-    match advisory_from_check_json(&check_json) {
-        Some(advisory) => attach_advisory(payload, advisory),
-        None => payload,
+    if let Some(path) = verifiable_vox_path(name, args) {
+        let check_json = code_validator::vox_check(state, VoxCheckParams { path }).await;
+        return match advisory_from_check_json(&check_json) {
+            Some(advisory) => attach_advisory(payload, advisory),
+            None => payload,
+        };
     }
+    if let Some(md_rel) = verifiable_markdown_path(name, args)
+        && let Ok(resolved) =
+            crate::workspace_path::resolve_existing_path_in_repository(state, &md_rel)
+        && let Ok(text) = tokio::fs::read_to_string(&resolved).await
+        && text.contains("```mermaid")
+    {
+        let (_, diags) =
+            crate::chat_tools::chat::mermaid_repair::validate_and_repair_markdown_mermaid(&text);
+        if let Some(first) = diags.first() {
+            let advisory = format!(
+                "AUTO_VERIFICATION_FAILED: your Markdown edit was written, but Mermaid validation reports {} \
+                 error(s) (first at line {}: {} [{}]). Call `vox_validate_mermaid` or quote special characters in node/edge labels.",
+                diags.len(),
+                first.line,
+                first.message,
+                first.code
+            );
+            return attach_advisory(payload, advisory);
+        }
+    }
+    payload
 }
 
 #[cfg(test)]

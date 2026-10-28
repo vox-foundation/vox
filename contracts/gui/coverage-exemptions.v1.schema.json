@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Vox GUI Coverage Exemptions v1",
+  "type": "object",
+  "required": ["x_vox_version", "schema_version", "exemptions"],
+  "additionalProperties": false,
+  "properties": {
+    "x_vox_version": { "type": "integer" },
+    "schema_version": { "const": 1 },
+    "exemptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["group", "owner", "reason", "review_by"],
+        "additionalProperties": false,
+        "properties": {
+          "group": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "owner": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string", "minLength": 1, "maxLength": 400 },
+          "review_by": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
+        }
+      }
+    }
+  }
+}

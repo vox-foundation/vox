@@ -111,6 +111,12 @@ pub enum CiCmd {
         /// Write/update the registry, generated TS, and report. Without this flag, verify only.
         #[arg(long)]
         write: bool,
+        /// Shrink the exemption baseline / raise the dedicated floor.
+        #[arg(long, conflicts_with = "write")]
+        tighten: bool,
+        /// Override the date used for review_by (YYYY-MM-DD).
+        #[arg(long, value_name = "YYYY-MM-DD")]
+        today: Option<String>,
     },
     /// Generate or verify the capability index (`contracts/capabilities/capability-index.v1.json`).
     #[command(name = "capability-index")]

@@ -2,8 +2,8 @@
   "schema_version": 1,
   "source": {
     "corpus_id": "vox-gui-surface",
-    "git_sha": "75465d426a10ccaaa8d57c5bb9b14ab13fe3a40b",
-    "built_at": "2026-10-09T08:03:00.508681+00:00"
+    "git_sha": "2593f1ae236ee21248709f012a8db9e288927dbd",
+    "built_at": "2026-10-16T08:38:17.185098+00:00"
   },
   "entries": {
     "cli-command": [
@@ -65,6 +65,11 @@
       {
         "id": "cli:audit:core",
         "label": "core",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:audit:docs",
+        "label": "docs",
         "status": "cli_only"
       },
       {
@@ -345,6 +350,11 @@
       {
         "id": "cli:ci:coverage-gates",
         "label": "coverage-gates",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:ci:crate-api-sync",
+        "label": "crate-api-sync",
         "status": "cli_only"
       },
       {
@@ -1698,6 +1708,21 @@
         "status": "cli_only"
       },
       {
+        "id": "cli:kb:eval",
+        "label": "eval",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:kb:reindex",
+        "label": "reindex",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:kb:status",
+        "label": "status",
+        "status": "cli_only"
+      },
+      {
         "id": "cli:llm:prompt",
         "label": "prompt",
         "status": "cli_only"
@@ -1808,6 +1833,11 @@
         "status": "cli_only"
       },
       {
+        "id": "cli:model:bench",
+        "label": "bench",
+        "status": "cli_only"
+      },
+      {
         "id": "cli:model:cas",
         "label": "cas",
         "status": "cli_only"
@@ -1840,6 +1870,11 @@
       {
         "id": "cli:model:eval",
         "label": "eval",
+        "status": "cli_only"
+      },
+      {
+        "id": "cli:model:eval-compare",
+        "label": "eval-compare",
         "status": "cli_only"
       },
       {
@@ -2751,6 +2786,11 @@
         "id": "cli:workflow:preview",
         "label": "preview",
         "status": "cli_only"
+      },
+      {
+        "id": "cli:workflow:signal",
+        "label": "signal",
+        "status": "cli_only"
       }
     ],
     "surface": [
@@ -2790,13 +2830,13 @@
         "status": "orphan_backend"
       },
       {
-        "id": "surface:coverage",
-        "label": "coverage",
+        "id": "surface:dashboard",
+        "label": "dashboard",
         "status": "orphan_backend"
       },
       {
-        "id": "surface:dashboard",
-        "label": "dashboard",
+        "id": "surface:explorer",
+        "label": "explorer",
         "status": "orphan_backend"
       },
       {
@@ -2917,14 +2957,14 @@
     ],
     "tool": [
       {
-        "id": "tool:vox_mesh_nodes",
-        "label": "vox_mesh_nodes",
-        "status": "dead_end"
+        "id": "tool:orch.oversight_set",
+        "label": "orch.oversight_set",
+        "status": "surfaced"
       },
       {
-        "id": "tool:vox_populi::inference_PROFILE",
-        "label": "vox_populi::inference_PROFILE",
-        "status": "orphan_backend"
+        "id": "tool:vox_mesh_nodes",
+        "label": "vox_mesh_nodes",
+        "status": "surfaced"
       }
     ]
   }

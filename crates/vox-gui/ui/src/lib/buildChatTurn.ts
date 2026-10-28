@@ -58,6 +58,8 @@ export interface ChatTurnSource {
   /** Interaction mode from the composer (plan|act|verify); forwarded as an
    *  enqueue hint on the background path. */
   mode?: string | null;
+  oversight_level?: string | null;
+  kb_scope?: string | null;
   files?: string[];
   context?: unknown;
   force_research?: boolean | null;

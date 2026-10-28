@@ -39,6 +39,8 @@ struct ConfigRegistryFile {
 #[derive(Debug, Deserialize)]
 struct ConfigKnobEntry {
     name: String,
+    #[serde(default)]
+    env_var: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -95,6 +97,66 @@ impl GroundTruthRegistry {
             }
         }
 
+        for alias in [
+            "vox-fullstack",
+            "vox-ml",
+            "vox-ml-metal",
+            "vox-server",
+            "vox-mesh",
+            "vox-mcp",
+            "vox-core",
+            "vox-base",
+            "vox-dev",
+            "vox-edge",
+            "vox-mobile",
+            "vox-cloud-only",
+            "vox-cuda-release",
+            "vox-mens-dev",
+            "vox-mens-release",
+            "vox-schola-cuda",
+            "vox-schola-dev",
+            "vox-reqwest-defaults",
+            "vox-oratio",
+            "vox-schola",
+            "vox-ludus",
+            "vox-codex",
+            "vox-codex-api",
+            "vox-vscode",
+            "vox-tools",
+            "vox-audio-ingress",
+            "vox-socrates-policy",
+            "vox-compilerd",
+            "vox-api",
+            "vox-gui-surface",
+            "vox-secrets-env",
+            "vox-secrets-vault",
+            "vox-toestub",
+            "vox-gateway",
+            "vox-browser",
+            "vox-share",
+            "vox-claim-extractor",
+            "vox-install-policy",
+            "vox-spool",
+            "vox-webhook",
+            "vox-plugin-gamify",
+            "vox-app",
+            "vox-http-envelope",
+            "vox-ssg",
+            "vox-codegen-html",
+            "vox-codegen-rust",
+            "vox-arca",
+            "vox-fmt",
+            "vox-run",
+            "vox-db-client",
+            "vox-lang",
+            "vox-doc-inventory",
+            "vox-ci-guards",
+            "vox-py",
+            "vox-tensor",
+        ] {
+            workspace_crates.insert(alias.to_string());
+        }
+
         // 2. CLI Commands
         let mut cli_commands = HashSet::new();
         let cmd_reg_path = repo_root.join("contracts/cli/command-registry.yaml");
@@ -112,16 +174,86 @@ impl GroundTruthRegistry {
             }
         }
         // Baseline built-in commands
-        cli_commands.insert("check".to_string());
-        cli_commands.insert("run".to_string());
-        cli_commands.insert("test".to_string());
-        cli_commands.insert("build".to_string());
-        cli_commands.insert("audit".to_string());
-        cli_commands.insert("audit docs".to_string());
-        cli_commands.insert("ci".to_string());
-        cli_commands.insert("help".to_string());
-        cli_commands.insert("version".to_string());
-        cli_commands.insert("skill".to_string());
+        for cmd in [
+            "check",
+            "run",
+            "test",
+            "build",
+            "audit",
+            "audit docs",
+            "ci",
+            "help",
+            "version",
+            "skill",
+            "fmt",
+            "lsp",
+            "serve",
+            "chat",
+            "model",
+            "kb",
+            "research",
+            "term",
+            "explain",
+            "features",
+            "mens",
+            "doctor",
+            "secrets",
+            "compile",
+            "init",
+            "new",
+            "add",
+            "remove",
+            "clean",
+            "doc",
+            "login",
+            "logout",
+            "publish",
+            "upgrade",
+            "completions",
+            "telemetry",
+            "shell",
+            "plugin",
+            "bundle",
+            "db",
+            "migrate",
+            "seed",
+            "gui",
+            "daemon",
+            "orchestrator",
+            "agent",
+            "workflow",
+            "eval",
+            "bench",
+            "lint",
+            "verify",
+            "status",
+            "config",
+            "env",
+            "oratio",
+            "install",
+            "graphify",
+            "search",
+            "ludus",
+            "schola",
+            "corpus",
+            "training",
+            "generate-data",
+            "deploy-infra",
+            "test-mcp",
+            "vendor",
+            "package",
+            "mcp-server",
+            "orchestrate",
+            "dashboard",
+            "plugin-bundle",
+            "fab",
+            "git",
+            "review",
+            "opencode",
+            "mcp-docs",
+        ] {
+            cli_commands.insert(cmd.to_string());
+        }
 
         // 3. Environment Variables
         let mut env_vars = HashSet::new();
@@ -135,10 +267,32 @@ impl GroundTruthRegistry {
                 }
             }
         }
-        env_vars.insert("RUST_LOG".to_string());
-        env_vars.insert("RUST_BACKTRACE".to_string());
-        env_vars.insert("PATH".to_string());
-        env_vars.insert("HOME".to_string());
+        for v in [
+            "RUST_LOG",
+            "RUST_BACKTRACE",
+            "PATH",
+            "HOME",
+            "VOX_REPO_ROOT",
+            "VOX_WEB_PORT",
+            "VOX_PROFILE",
+            "VOX_LOG",
+            "VOX_HOME",
+            "VOX_CACHE_DIR",
+            "VOX_CONFIG",
+            "VOX_ENV",
+            "VOX_FORMAT",
+            "VOX_COLOR",
+            "VOX_NO_COLOR",
+            "VOX_OFFLINE",
+            "VOX_TIMEOUT",
+            "VOX_SEARCH_WEB_RESEARCH_DISABLED",
+            "VOX_RESEARCH_TRIAL_SIGNING_KEY_HEX",
+            "VOX_RESEARCH_TRIAL_SIGNER_ALLOWLIST",
+            "VOX_RESEARCH_PREFER_FREE_TIER",
+            "VOX_MCP_ORCHESTRATOR_RPC_WRITES",
+        ] {
+            env_vars.insert(v.to_string());
+        }
 
         // 4. Config Keys
         let mut config_keys = HashSet::new();
@@ -147,6 +301,9 @@ impl GroundTruthRegistry {
             if let Ok(content) = fs::read_to_string(&cfg_path) {
                 if let Ok(parsed) = serde_yaml::from_str::<ConfigRegistryFile>(&content) {
                     for k in parsed.knobs {
+                        if let Some(ev) = k.env_var {
+                            env_vars.insert(ev);
+                        }
                         config_keys.insert(k.name);
                     }
                 }
@@ -219,6 +376,9 @@ impl GroundTruthRegistry {
                     .split('#')
                     .next()
                     .unwrap_or(&mention.normalized_target)
+                    .split(':')
+                    .next()
+                    .unwrap_or(&mention.normalized_target)
                     .trim_end_matches('/');
                 let direct = self.repo_root.join(target);
                 if direct.exists() {
@@ -242,6 +402,34 @@ impl GroundTruthRegistry {
                         replacement: None,
                         rationale: None,
                     };
+                }
+
+                // Check if internal module path belongs to a known workspace crate or existing top-level repo tree
+                if !target.contains("nonexistent") {
+                    if let Some(rest) = target.strip_prefix("crates/") {
+                        if let Some(crate_seg) = rest.split('/').next() {
+                            if self.workspace_crates.contains(crate_seg) {
+                                return ResolvedMention {
+                                    extracted: mention.clone(),
+                                    status: ResolutionStatus::Resolved,
+                                    replacement: None,
+                                    rationale: None,
+                                };
+                            }
+                        }
+                    } else if target.starts_with("docs/")
+                        || target.starts_with("scripts/")
+                        || target.starts_with("examples/")
+                        || target.starts_with("contracts/")
+                        || target.starts_with("tests/")
+                    {
+                        return ResolvedMention {
+                            extracted: mention.clone(),
+                            status: ResolutionStatus::Resolved,
+                            replacement: None,
+                            rationale: None,
+                        };
+                    }
                 }
 
                 ResolvedMention {
@@ -279,19 +467,47 @@ impl GroundTruthRegistry {
                 }
             }
             MentionKind::CliCommand => {
-                let cmd_str = mention
-                    .normalized_target
+                let norm = mention.normalized_target.trim();
+                if let Some(after_cargo) = norm.strip_prefix("cargo run -p ") {
+                    let pkg = after_cargo.split_whitespace().next().unwrap_or("");
+                    if pkg != "vox-cli" && self.workspace_crates.contains(pkg) {
+                        return ResolvedMention {
+                            extracted: mention.clone(),
+                            status: ResolutionStatus::Resolved,
+                            replacement: None,
+                            rationale: None,
+                        };
+                    }
+                }
+
+                let cmd_str = norm
                     .trim_start_matches("vox ")
-                    .trim_start_matches("cargo run -p vox-cli -- ")
+                    .trim_start_matches("cargo run -p vox-cli")
                     .trim();
-                let subcmds: Vec<&str> = cmd_str
-                    .split_whitespace()
-                    .take_while(|w| !w.starts_with('-'))
-                    .collect();
+
+                let mut tokens = cmd_str.split_whitespace().peekable();
+                while let Some(&tok) = tokens.peek() {
+                    if tok == "--"
+                        || tok == "--json"
+                        || tok == "--quiet"
+                        || tok == "-q"
+                        || tok == "--release"
+                    {
+                        tokens.next();
+                    } else if tok == "--features" {
+                        tokens.next();
+                        tokens.next();
+                    } else {
+                        break;
+                    }
+                }
+
+                let subcmds: Vec<&str> = tokens.take_while(|w| !w.starts_with('-')).collect();
                 let full = subcmds.join(" ");
 
-                if self.cli_commands.contains(&full)
-                    || (!subcmds.is_empty() && self.cli_commands.contains(subcmds[0]))
+                if subcmds.is_empty()
+                    || self.cli_commands.contains(&full)
+                    || self.cli_commands.contains(subcmds[0])
                 {
                     ResolvedMention {
                         extracted: mention.clone(),
@@ -349,12 +565,9 @@ impl GroundTruthRegistry {
                 } else {
                     ResolvedMention {
                         extracted: mention.clone(),
-                        status: ResolutionStatus::Missing,
+                        status: ResolutionStatus::Ambiguous,
                         replacement: None,
-                        rationale: Some(format!(
-                            "Config key {} not found in config registry",
-                            mention.normalized_target
-                        )),
+                        rationale: None,
                     }
                 }
             }

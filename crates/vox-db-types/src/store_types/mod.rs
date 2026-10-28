@@ -11,6 +11,7 @@ pub mod params;
 pub mod research;
 pub mod rows_core;
 pub mod rows_extended;
+pub mod trials;
 
 pub use build::*;
 pub use harness_eval::*;
@@ -19,3 +20,4 @@ pub use params::*;
 pub use research::*;
 pub use rows_core::*;
 pub use rows_extended::*;
+pub use trials::*;

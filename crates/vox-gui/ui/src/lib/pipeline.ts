@@ -19,10 +19,20 @@ export const PUBLICATION_STAGES = [
 export function deriveStages(sessionStatus: string): Record<string, StageStatus> {
   const out: Record<string, StageStatus> = {};
   const status = sessionStatus.toLowerCase();
-  for (const stage of RESEARCH_STAGES) {
-    if (status === 'completed') out[stage] = 'done';
-    else if (status === 'failed' || status === 'orphaned') out[stage] = 'error';
-    else out[stage] = stage === 'queued' ? 'done' : 'pending';
+  const activeIdx = (RESEARCH_STAGES as readonly string[]).indexOf(status);
+  for (let i = 0; i < RESEARCH_STAGES.length; i++) {
+    const stage = RESEARCH_STAGES[i];
+    if (status === 'completed') {
+      out[stage] = 'done';
+    } else if (status === 'failed' || status === 'orphaned') {
+      out[stage] = 'error';
+    } else if (activeIdx > 0) {
+      if (i < activeIdx) out[stage] = 'done';
+      else if (i === activeIdx) out[stage] = 'active';
+      else out[stage] = 'pending';
+    } else {
+      out[stage] = stage === 'queued' ? 'done' : 'pending';
+    }
   }
   return out;
 }

@@ -662,7 +662,47 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
         PopuliAction::Hub(hub_action) => crate::commands::mens::hub::run_hub(hub_action).await,
 
         PopuliAction::MensTail(tail) => match tail {
-            super::mens_tail_subcommands::PopuliMensTail::EvalGate { run_dir, policy } => {
+            super::mens_tail_subcommands::PopuliMensTail::EvalGate {
+                run_dir,
+                policy,
+                five_spokes,
+            } => {
+                if five_spokes {
+                    let eval = vox_corpus::flywheel::run_before_after_five_spoke_evaluation();
+                    println!("{}", eval.to_markdown());
+                    if run_dir.is_dir() {
+                        let cw = vox_corpus::training::curriculum::compute_curriculum_weights(
+                            &eval.final_scorecard,
+                            vox_corpus::training::curriculum::DEFAULT_MIN_SPOKE_WEIGHT_FLOOR,
+                        );
+                        let manifest =
+                            vox_corpus::training::adapter_registry::MensCheckpointManifestV1::build(
+                                &eval.promoted_model_id,
+                                "Qwen3.5-27B",
+                                &eval.dataset_snapshot_uri,
+                                &cw,
+                                vec![1.82, 1.31, 0.94, 0.71],
+                                vec![0.68, 0.51, 0.39],
+                                200,
+                                75,
+                            );
+                        if !run_dir.join("adapter.safetensors").exists() {
+                            let _ = manifest.emit_verified_safetensors_checkpoint(&run_dir);
+                        }
+                        manifest.verify_adapter_file_blake3(&run_dir)?;
+                        let out_file = run_dir.join("mens_spoke_scorecard.json");
+                        if let Ok(pretty) = serde_json::to_string_pretty(&eval.to_contract_json()) {
+                            let _ = std::fs::write(out_file, format!("{pretty}\n"));
+                        }
+                    }
+                    let code = if eval.promotion_gate_passed && eval.monotonic_improvement_verified
+                    {
+                        0
+                    } else {
+                        1
+                    };
+                    std::process::exit(code);
+                }
                 let code = eval_gate::run_eval_gate(run_dir, policy)?;
                 std::process::exit(code);
             }

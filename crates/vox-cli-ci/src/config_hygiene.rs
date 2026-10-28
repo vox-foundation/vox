@@ -623,6 +623,8 @@ pub const THIRD_PARTY_ALLOWLIST: &[&str] = &[
     // (vox-gui/build.rs sidecar check; gui_sidecar doctor triple detection).
     "TARGET",
     "RUSTC",
+    "CARGO_CFG_TARGET_OS",
+    "CARGO_CFG_TARGET_ENV",
     "XDG_CONFIG_HOME",
     "XDG_DATA_HOME",
     "XDG_CACHE_HOME",
@@ -890,11 +892,28 @@ mod tests {
         let src = r#"
             let t = std::env::var("TARGET").unwrap_or_default();
             let r = std::env::var("RUSTC").unwrap_or_default();
+            let os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+            let env = std::env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default();
             let bad = std::env::var("VOX_UNREGISTERED_KNOB").ok();
         "#;
         let hits = check_env_reads_registered(src, "x.rs", &registered);
         assert_eq!(hits.len(), 1, "only the unregistered var flags: {hits:?}");
         assert!(hits[0].message.contains("VOX_UNREGISTERED_KNOB"));
+    }
+
+    #[test]
+    fn scaling_and_toestub_report_schemas_parse_as_valid_json() {
+        let scaling =
+            include_str!("../../../contracts/reports/scaling-audit/findings-array.v1.schema.json");
+        let toestub = include_str!(
+            "../../../contracts/reports/toestub-remediation/delta-after-remediation.v1.schema.json"
+        );
+        let s_val: serde_json::Value =
+            serde_json::from_str(scaling).expect("findings-array.v1.schema.json must parse");
+        let t_val: serde_json::Value = serde_json::from_str(toestub)
+            .expect("delta-after-remediation.v1.schema.json must parse");
+        assert_eq!(s_val["x-vox-version"], 1);
+        assert_eq!(t_val["x-vox-version"], 1);
     }
 
     #[test]

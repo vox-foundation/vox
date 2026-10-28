@@ -24,12 +24,23 @@
 //!   Client gets updated result
 //! ```
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::{RwLock, broadcast};
 
 /// Default capacity for broadcast channels per table.
 const DEFAULT_CHANNEL_CAPACITY: usize = 64;
+/// Bounded replay ring capacity per `Stream[T]` channel (`Last-Event-ID` support, `STREAM-01`).
+const STREAM_REPLAY_CAPACITY: usize = 256;
+
+/// Sequenced SSE event stored in the bounded replay buffer (`STREAM-01`, `CC-02`).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct SequencedStreamEvent {
+    pub id: u64,
+    pub channel: String,
+    pub data: String,
+}
 
 /// Manages per-table broadcast channels for reactive query subscriptions.
 ///
@@ -50,6 +61,8 @@ const DEFAULT_CHANNEL_CAPACITY: usize = 64;
 pub struct SubscriptionManager {
     channels: Arc<RwLock<HashMap<String, broadcast::Sender<()>>>>,
     payload_channels: Arc<RwLock<HashMap<String, broadcast::Sender<String>>>>,
+    replay_buffers: Arc<RwLock<HashMap<String, VecDeque<SequencedStreamEvent>>>>,
+    next_event_id: Arc<AtomicU64>,
 }
 
 impl SubscriptionManager {
@@ -58,6 +71,8 @@ impl SubscriptionManager {
         Self {
             channels: Arc::new(RwLock::new(HashMap::new())),
             payload_channels: Arc::new(RwLock::new(HashMap::new())),
+            replay_buffers: Arc::new(RwLock::new(HashMap::new())),
+            next_event_id: Arc::new(AtomicU64::new(1)),
         }
     }
 
@@ -186,6 +201,47 @@ impl SubscriptionManager {
     /// Remove all subscription channels (for graceful shutdown).
     pub async fn unsubscribe_all(&self) {
         self.channels.write().await.clear();
+        self.replay_buffers.write().await.clear();
+    }
+
+    /// Publish a sequenced event for `Stream[T]` SSE endpoints with `Last-Event-ID` replay (`STREAM-01`).
+    pub async fn publish_sequenced(&self, channel: &str, data: String) -> u64 {
+        let id = self.next_event_id.fetch_add(1, Ordering::Relaxed);
+        let ev = SequencedStreamEvent {
+            id,
+            channel: channel.to_string(),
+            data: data.clone(),
+        };
+        {
+            let mut buffers = self.replay_buffers.write().await;
+            let ring = buffers
+                .entry(channel.to_string())
+                .or_insert_with(|| VecDeque::with_capacity(STREAM_REPLAY_CAPACITY));
+            if ring.len() >= STREAM_REPLAY_CAPACITY {
+                ring.pop_front();
+            }
+            ring.push_back(ev);
+        }
+        self.notify_payload(channel, data).await;
+        id
+    }
+
+    /// Return buffered events with `id > last_event_id` for `Last-Event-ID` SSE reconnection (`STREAM-01`).
+    pub async fn replay_since(
+        &self,
+        channel: &str,
+        last_event_id: u64,
+    ) -> Vec<SequencedStreamEvent> {
+        let buffers = self.replay_buffers.read().await;
+        buffers
+            .get(channel)
+            .map(|ring| {
+                ring.iter()
+                    .filter(|ev| ev.id > last_event_id)
+                    .cloned()
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 }
 
@@ -288,5 +344,27 @@ mod tests {
 
         assert!(rx1.recv().await.is_ok());
         assert!(rx2.recv().await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn sequenced_stream_replays_after_last_event_id() {
+        let mgr = SubscriptionManager::new();
+        let id1 = mgr
+            .publish_sequenced("job_progress", "{\"pct\":10}".into())
+            .await;
+        let id2 = mgr
+            .publish_sequenced("job_progress", "{\"pct\":50}".into())
+            .await;
+        let id3 = mgr
+            .publish_sequenced("job_progress", "{\"pct\":100}".into())
+            .await;
+        assert!(id1 < id2 && id2 < id3);
+
+        let replayed = mgr.replay_since("job_progress", id1).await;
+        assert_eq!(replayed.len(), 2);
+        assert_eq!(replayed[0].id, id2);
+        assert_eq!(replayed[0].data, "{\"pct\":50}");
+        assert_eq!(replayed[1].id, id3);
+        assert_eq!(replayed[1].data, "{\"pct\":100}");
     }
 }

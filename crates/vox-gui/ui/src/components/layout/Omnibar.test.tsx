@@ -457,6 +457,31 @@ describe('Omnibar', () => {
       expect(await screen.findByText('6 of 299')).toBeTruthy();
     });
 
+    it('D-12: capped Commands facet renders Browse all N in the Explorer link and strips prefix on click', async () => {
+      const { row } = await import('../../test-fixtures/capabilityIndexFixture');
+      const onOpenExplorer = vi.fn();
+      const onClose = vi.fn();
+      indexState.extraRows = Array.from({ length: 12 }, (_, i) =>
+        row({ id: `cli.zzzq${i}`, kind: 'cli', title: `Zzzq ${i}`, cli: `vox zzzq${i}`, catalogForm: true }),
+      );
+      renderOmnibar({ onOpenExplorer, onClose });
+
+      // Uncapped facet does not render the link
+      fireEvent.change(search(), { target: { value: 'approvals' } });
+      await screen.findByText('Best match');
+      expect(screen.queryByRole('button', { name: /Browse all .* in the Explorer/i })).toBeNull();
+
+      // Capped Commands facet with `>` prefix renders the link and strips `>`
+      fireEvent.change(search(), { target: { value: '> zzzq' } });
+      const linkBtn = await screen.findByRole('button', {
+        name: 'Browse all 11 in the Explorer',
+      });
+      fireEvent.click(linkBtn);
+      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(onOpenExplorer).toHaveBeenCalledTimes(1);
+      expect(onOpenExplorer).toHaveBeenCalledWith('zzzq');
+    });
+
     describe('WR-06: degraded when the index chunk fails to load', () => {
       beforeEach(() => {
         indexState.error = 'capability index failed to load';

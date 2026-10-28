@@ -29,6 +29,10 @@ import Default from '@astrojs/starlight/components/TableOfContents.astro';
       var restoreBtn = document.getElementById('vox-toc-restore-btn');
       var isHidden = document.documentElement.dataset.tocState === 'hidden';
       btn.setAttribute('aria-expanded', isHidden ? 'false' : 'true');
+
+      if (btn.dataset.voxBound === 'true') return;
+      btn.dataset.voxBound = 'true';
+
       btn.addEventListener('click', function() {
         document.documentElement.dataset.tocState = 'hidden';
         btn.setAttribute('aria-expanded', 'false');
@@ -43,5 +47,6 @@ import Default from '@astrojs/starlight/components/TableOfContents.astro';
     } else {
       initTocHide();
     }
+    document.addEventListener('astro:page-load', initTocHide);
   })();
 </script>

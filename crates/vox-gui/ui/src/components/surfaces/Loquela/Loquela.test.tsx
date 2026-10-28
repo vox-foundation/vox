@@ -201,7 +201,7 @@ describe('Loquela', () => {
     expect(screen.queryByRole('button', { name: /model:/i })).toBeNull();
   });
 
-  it('renders a Resume button when the current agent is paused, calling onResume with the agent', () => {
+  it('renders a Resume button when the current agent is paused, calling onResume with the agent while preserving the primary Run CTA', () => {
     const onResume = vi.fn();
     renderLoquela({
       agentPaused: true,
@@ -209,6 +209,8 @@ describe('Loquela', () => {
       onResume,
     });
     const resumeBtn = screen.getByRole('button', { name: /resume/i });
+    expect(screen.getByTestId('loquela-agent-paused-banner')).toBe(resumeBtn);
+    expect(screen.getByRole('button', { name: /^run/i })).toBeInTheDocument();
     fireEvent.click(resumeBtn);
     expect(onResume).toHaveBeenCalledWith({ id: 'a1' });
   });
@@ -498,5 +500,113 @@ describe('Loquela', () => {
     fireEvent.keyDown(ta, { key: 'Enter' });
     expect(onSubmit.mock.calls[0][0].execution_mode).toBe('plan');
   });
+
+  it('shows Compact Context chip when contextTokens exceeds 24,000 and dispatches /compact (HUMANE-03)', () => {
+    const onSlashCommand = vi.fn(() => true);
+    renderLoquela({ contextTokens: 28_000, onSlashCommand });
+    const chip = screen.getByTestId('loquela-compact-context-chip');
+    expect(chip).toHaveTextContent('Compact Context (~28k tok)');
+    fireEvent.click(chip);
+    expect(onSlashCommand).toHaveBeenCalledWith('/compact', expect.any(Object));
+  });
+
+  it('shows $0.000 (Local · 0% markup) when Local · Mens tier is selected (HUMANE-01)', () => {
+    renderLoquela();
+    fireEvent.click(screen.getByRole('button', { name: /choose model tier/i }));
+    fireEvent.click(screen.getByText('Local · Mens'));
+    expect(screen.getByTestId('loquela-cost-estimate')).toHaveTextContent('$0.000 (Local · 0% markup)');
+  });
+
+  it('offers @term attention chips in @ popover and shows ambient terminal context pill when failed/pinned blocks exist (50-03, 50-04)', async () => {
+    const { publishTerminalBridgeState, resetTerminalBridgeForTests } = await import(
+      '../../../lib/terminalBridge'
+    );
+    resetTerminalBridgeForTests();
+    publishTerminalBridgeState({
+      activeSessionId: 'term-1',
+      blocks: [
+        {
+          id: 5,
+          kind: 'Shell',
+          status: 'Failed',
+          origin: { kind: 'user' },
+          input: 'cargo test',
+          output: [{ stream: 'Stderr', text: 'test failed', ts_ms: 10 }],
+          exit_code: 101,
+          started_ms: 1,
+          ended_ms: 20,
+        },
+      ],
+      pinnedBlockIds: [5],
+    });
+
+    const setChips = vi.fn();
+    renderLoquela({ setChips });
+
+    const ambientPill = screen.getByTestId('loquela-ambient-term-pill');
+    expect(ambientPill).toHaveTextContent('@term:failed');
+    fireEvent.click(ambientPill);
+    expect(setChips).toHaveBeenCalled();
+
+    const ta = screen.getByLabelText('Task composer');
+    fireEvent.change(ta, { target: { value: 'explain @term' } });
+    const termOptions = screen.getAllByTestId('loquela-at-term-option');
+    expect(termOptions.length).toBeGreaterThanOrEqual(4);
+    resetTerminalBridgeForTests();
+  });
+
+  it('shows unified IntelliSensePopover and inline ghost text for slash commands (51-03)', () => {
+    renderLoquela();
+    fireEvent.click(screen.getByRole('button', { name: /choose send mode/i }));
+    fireEvent.click(screen.getByRole('button', { name: /set send mode: background task/i }));
+    const ta = screen.getByLabelText('Task composer') as HTMLTextAreaElement;
+    fireEvent.change(ta, { target: { value: '/ver' } });
+
+    expect(screen.getByTestId('intellisense-popover')).toBeTruthy();
+    expect(screen.getByTestId('loquela-ghost').textContent).toContain('ify');
+
+    fireEvent.keyDown(ta, { key: 'Tab' });
+    expect(screen.getByLabelText('Interaction mode')).toHaveTextContent(/verify/i);
+  });
+
+  it('shows IntelliSensePopover for @ mentions and cycles candidates with ArrowDown (51-03)', () => {
+    renderLoquela();
+    const ta = screen.getByLabelText('Task composer') as HTMLTextAreaElement;
+    fireEvent.change(ta, { target: { value: '@' } });
+
+    expect(screen.getByTestId('intellisense-popover')).toBeTruthy();
+    const termOptions = screen.getAllByTestId('loquela-at-term-option');
+    expect(termOptions.length).toBeGreaterThan(0);
+    expect(termOptions[0].getAttribute('data-active')).toBe('true');
+
+    fireEvent.keyDown(ta, { key: 'ArrowDown' });
+    const updatedTermOptions = screen.getAllByTestId('loquela-at-term-option');
+    expect(updatedTermOptions[1].getAttribute('data-active')).toBe('true');
+  });
+
+  it('supports unified Oversight 1..5 control, @kb scope selector, and Atlas click-to-@ mention insertion (Phases 18, 30, 44)', () => {
+    renderLoquela();
+    const oversightSelect = screen.getByTestId('loquela-oversight-select') as HTMLSelectElement;
+    expect(oversightSelect.value).toBe('balanced');
+    fireEvent.change(oversightSelect, { target: { value: 'cautious' } });
+    expect(oversightSelect.value).toBe('cautious');
+
+    const kbSelect = screen.getByTestId('loquela-kb-scope-select') as HTMLSelectElement;
+    expect(kbSelect.value).toBe('auto');
+    fireEvent.change(kbSelect, { target: { value: 'verified' } });
+    expect(kbSelect.value).toBe('verified');
+
+    fireEvent(
+      window,
+      new CustomEvent('vox:atlas-mention', {
+        detail: { token: '@file:crates/vox-compiler/src/lib.rs' },
+      }),
+    );
+    const ta = screen.getByLabelText('Task composer') as HTMLTextAreaElement;
+    expect(ta.value).toContain('@file:crates/vox-compiler/src/lib.rs');
+  });
+
 });
+
+
 

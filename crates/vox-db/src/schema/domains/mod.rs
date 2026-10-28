@@ -22,5 +22,6 @@ pub mod quarantine;
 pub mod scientia;
 pub mod secrets_cloudless;
 pub mod toestub_build;
+pub mod trials;
 pub mod visus;
 pub mod vox_mesh;

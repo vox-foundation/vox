@@ -909,17 +909,17 @@ fn scan_targets(root: &Path, all: bool) -> Result<Vec<String>> {
             .args(["diff", "--name-only", "--diff-filter=AMR", spec])
             .output()
             .with_context(|| format!("git diff for secret-env-guard ({spec})"))?;
-            if !output.status.success() {
-                return Err(anyhow!(
-                    "git diff failed while checking secret env usage (range={spec})"
-                ));
+            if output.status.success() {
+                return Ok(String::from_utf8_lossy(&output.stdout)
+                    .lines()
+                    .map(str::trim)
+                    .filter(|l| l.ends_with(".rs"))
+                    .map(std::string::ToString::to_string)
+                    .collect());
             }
-            return Ok(String::from_utf8_lossy(&output.stdout)
-                .lines()
-                .map(str::trim)
-                .filter(|l| l.ends_with(".rs"))
-                .map(std::string::ToString::to_string)
-                .collect());
+            eprintln!(
+                "secret-env-guard: warning: git diff range '{spec}' unavailable (shallow checkout?); falling back to HEAD"
+            );
         }
     }
 
@@ -1774,6 +1774,31 @@ mod sql_surface_tests {
         assert!(
             !report.compatibility_surface_markers.is_empty(),
             "expected compatibility marker detection"
+        );
+    }
+
+    #[test]
+    #[allow(unsafe_code)]
+    fn scan_targets_falls_back_when_git_ref_range_unavailable() {
+        let _env = ENV_MUTEX.lock().unwrap();
+        let prev = std::env::var("VOX_SECRET_GUARD_GIT_REF").ok();
+        unsafe {
+            std::env::set_var("VOX_SECRET_GUARD_GIT_REF", "nonexistent-base-ref...HEAD");
+        }
+        let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(|p| p.parent())
+            .expect("workspace root");
+        let res = super::scan_targets(repo_root, false);
+        unsafe {
+            match prev {
+                Some(v) => std::env::set_var("VOX_SECRET_GUARD_GIT_REF", v),
+                None => std::env::remove_var("VOX_SECRET_GUARD_GIT_REF"),
+            }
+        }
+        assert!(
+            res.is_ok(),
+            "scan_targets should fall back to HEAD when range ref is missing: {res:?}"
         );
     }
 }

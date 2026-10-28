@@ -3,9 +3,7 @@ use super::ast::{
 };
 use super::cache::CacheManager;
 use super::cluster::{ClusterEdge, ClusterNode, cluster_nodes};
-use super::registry::{
-    RegistryNode, mcp_tool_nodes, surface_nodes, tauri_command_nodes, transport_wrapper_map,
-};
+use super::registry::{RegistryNode, surface_nodes, tauri_command_nodes, transport_wrapper_map};
 use crate::rebuild_resolve::resolve_edges;
 use std::collections::HashMap;
 use std::fs;
@@ -74,7 +72,7 @@ pub(crate) fn walk_source_files(source_dir: &std::path::Path) -> Vec<std::path::
         .filter(|e| {
             matches!(
                 e.path().extension().and_then(|x| x.to_str()),
-                Some("rs" | "ts" | "tsx" | "js" | "jsx" | "py")
+                Some("rs" | "ts" | "tsx" | "js" | "jsx" | "py" | "vox")
             )
         })
         .map(|e| e.path().to_path_buf())
@@ -100,6 +98,8 @@ pub struct RebuildMeta {
     /// Contents of `contracts/gui/surface-registry.v1.yaml` (content-manifest emit).
     /// When `None`, no content manifest is emitted.
     pub surface_registry_yaml: Option<String>,
+    /// Canonical MCP tool names, used in gui-wiring mode to create tool nodes for referenced names.
+    pub mcp_tool_names: Option<Vec<String>>,
 }
 
 pub fn rebuild_graph(
@@ -170,7 +170,6 @@ pub fn rebuild_graph(
         if gui_wiring {
             if ext == "rs" {
                 reg.extend(tauri_command_nodes(&content, &registered_refs));
-                reg.extend(mcp_tool_nodes(&content));
             } else if module_id.ends_with("surfaceRegistry.generated.ts") {
                 reg.extend(surface_nodes(&content));
             }
@@ -178,6 +177,12 @@ pub fn rebuild_graph(
 
         all_nodes.extend(graph.nodes);
         all_edges.extend(graph.edges);
+    }
+
+    if let Some(tool_names) = meta.mcp_tool_names.as_deref() {
+        reg.extend(crate::registry::referenced_tool_nodes(
+            &all_edges, tool_names,
+        ));
     }
 
     // Fold registry nodes (commands/tools/surfaces) into the node set. A registry node may
@@ -216,6 +221,7 @@ pub fn rebuild_graph(
                             source: cn.id.clone(),
                             target: format!("cmd:{cmd}"),
                             confidence: "declared".to_string(),
+                            kind: "calls".to_string(),
                         });
                     }
                     all_nodes.push(crate::ast::ExtractedNode {
@@ -317,7 +323,8 @@ pub fn rebuild_graph(
             serde_json::json!({
                 "source": e.source,
                 "target": e.target,
-                "confidence": e.confidence
+                "confidence": e.confidence,
+                "kind": e.kind
             })
         })
         .collect();
@@ -368,6 +375,7 @@ pub fn rebuild_graph(
         "edge_count": edge_count,
         "graph_json_sha256": graph_digest,
         "extraction_mode": meta.extraction_mode,
+        "extractor_version": EXTRACTOR_VERSION,
         "confidence_counts": confidence_counts,
     });
     let manifest_path = output_file

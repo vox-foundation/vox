@@ -2,7 +2,7 @@
 title: "Research Trial Tier A Schema Contract (STORE-01)"
 description: "Canonical campaign, run and sample schema for research trials and Phase 12 code benchmarks: DDL at baseline 97, vocabularies, invariants, run grain, and the model_benchmark_results boundary, awaiting human approval."
 category: "Architecture SSOTs"
-status: "roadmap"
+status: "current"
 topic: "scientia-research"
 domain: "knowledge"
 authorship: "llm-assisted"

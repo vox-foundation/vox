@@ -76,15 +76,22 @@ pub(crate) fn resolve_edges(
                 || e.target.starts_with("tool:")
                 || e.target.starts_with("surface:")
             {
-                let confidence = if node_ids.contains(e.target.as_str()) {
+                let exists = node_ids.contains(e.target.as_str());
+                let confidence = if exists {
                     e.confidence.clone()
                 } else {
                     "dangling".to_string()
+                };
+                let kind = if exists {
+                    e.kind.clone()
+                } else {
+                    "mentions".to_string()
                 };
                 return Some(ExtractedEdge {
                     source: e.source.clone(),
                     target: e.target.clone(),
                     confidence,
+                    kind,
                 });
             }
             if node_ids.contains(e.target.as_str()) {
@@ -123,6 +130,7 @@ pub(crate) fn resolve_edges(
                 source: e.source.clone(),
                 target,
                 confidence: e.confidence.clone(),
+                kind: e.kind.clone(),
             })
         })
         .collect()
@@ -146,6 +154,7 @@ mod resolve_tests {
             source: source.to_string(),
             target: target.to_string(),
             confidence: "resolved".to_string(),
+            kind: "calls".to_string(),
         }
     }
 
@@ -286,6 +295,7 @@ mod resolve_tests {
             source: "m.rs::a".into(),
             target: "b".into(),
             confidence: "resolved".into(),
+            kind: "calls".into(),
         }];
         let out = resolve_edges(&nodes, &edges);
         assert_eq!(out.len(), 1);
@@ -305,22 +315,25 @@ mod resolve_tests {
                 source: "S.tsx::a".into(),
                 target: "cmd:real".into(),
                 confidence: "declared".into(),
+                kind: "calls".into(),
             },
             ExtractedEdge {
                 source: "S.tsx::b".into(),
                 target: "cmd:gone".into(),
                 confidence: "declared".into(),
+                kind: "calls".into(),
             },
         ];
         let out = resolve_edges(&nodes, &edges);
         assert!(
             out.iter()
-                .any(|e| e.target == "cmd:real" && e.confidence == "declared")
+                .any(|e| e.target == "cmd:real" && e.confidence == "declared" && e.kind == "calls")
         );
         let dangling = out
             .iter()
             .find(|e| e.target == "cmd:gone")
             .expect("dead-end edge must survive");
         assert_eq!(dangling.confidence, "dangling");
+        assert_eq!(dangling.kind, "mentions");
     }
 }

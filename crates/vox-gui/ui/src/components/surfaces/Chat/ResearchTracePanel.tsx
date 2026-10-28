@@ -26,6 +26,11 @@ export type ResearchTrace = {
   model_alias?: string | null;
   models?: RoleModel[];
   total_ms?: number;
+  wave_count?: number;
+  wave_stability?: number;
+  verified_claims?: number;
+  contradicted_claims?: number;
+  domain_mode?: string;
 };
 
 const FAIL = 'text-[var(--color-status-fail)]';
@@ -95,6 +100,10 @@ export function ResearchTracePanel({ trace }: { trace: ResearchTrace }) {
     : [
         MODE_LABEL[trace.mode] ?? trace.mode,
         `${trace.source_count} sources`,
+        trace.wave_count != null ? `${trace.wave_count}W` : null,
+        trace.wave_stability != null ? `${Math.round(trace.wave_stability * 100)}% stability` : null,
+        trace.verified_claims != null ? `${trace.verified_claims} verified` : null,
+        trace.contradicted_claims ? `${trace.contradicted_claims} contradicted` : null,
         trace.model ?? 'no model',
         seconds,
         trace.status,

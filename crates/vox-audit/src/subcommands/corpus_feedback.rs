@@ -344,6 +344,167 @@ fn write_substantive_report_atomic(
     Ok(())
 }
 
+/// Canonical 5-spoke discriminator for audit-to-corpus harvesting (`AUDIT-01`).
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum AuditSpokeKind {
+    VoxLang,
+    RustWorkspace,
+    StructuredShell,
+    McpToolChain,
+    AgentHarness,
+}
+
+impl AuditSpokeKind {
+    /// All 5 spokes in canonical order.
+    pub const ALL: [Self; 5] = [
+        Self::VoxLang,
+        Self::RustWorkspace,
+        Self::StructuredShell,
+        Self::McpToolChain,
+        Self::AgentHarness,
+    ];
+
+    /// Stable snake_case identifier.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::VoxLang => "vox_lang",
+            Self::RustWorkspace => "rust_workspace",
+            Self::StructuredShell => "structured_shell",
+            Self::McpToolChain => "mcp_tool_chain",
+            Self::AgentHarness => "agent_harness",
+        }
+    }
+
+    /// Parse a snake_case spoke identifier (including legacy aliases) into [`AuditSpokeKind`].
+    pub fn parse_spoke(s: &str) -> Result<Self, String> {
+        match s.trim() {
+            "vox_lang" => Ok(Self::VoxLang),
+            "rust_workspace" => Ok(Self::RustWorkspace),
+            "structured_shell" | "shell_command" => Ok(Self::StructuredShell),
+            "mcp_tool_chain" | "mcp_tool" => Ok(Self::McpToolChain),
+            "agent_harness" => Ok(Self::AgentHarness),
+            other => Err(format!("unknown spoke `{other}`")),
+        }
+    }
+}
+
+/// Deterministic 64-bit FNV-1a content digest formatted as 16 lowercase hex chars.
+#[must_use]
+pub fn fnv1a64_hex(bytes: &[u8]) -> String {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for &b in bytes {
+        hash ^= u64::from(b);
+        hash = hash.wrapping_mul(0x0100_0000_01b3);
+    }
+    format!("{hash:016x}")
+}
+
+/// Structured failed completion harvested from real audit findings and spoke verification failures (`AUDIT-01`).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct RejectedAttempt {
+    /// Schema discriminator (`"vox_rejected_attempt_v1"`).
+    pub schema_version: String,
+    /// Target spoke.
+    pub spoke: AuditSpokeKind,
+    /// Task prompt that triggered the failure.
+    pub prompt: String,
+    /// Rejected candidate output (`oracle_passed == false`).
+    pub rejected_response: String,
+    /// Deterministic oracle stage where verification failed.
+    pub oracle_stage: String,
+    /// Structured oracle diagnostics explaining why the candidate failed.
+    pub diagnostics: Vec<String>,
+    /// Source finding or rule ID (`rule_id` or `bug_class`).
+    pub source_finding_id: String,
+    /// Deterministic content digest (`fnv1a64_hex`).
+    pub content_digest: String,
+}
+
+impl RejectedAttempt {
+    /// Canonical schema discriminator.
+    pub const SCHEMA_VERSION: &'static str = "vox_rejected_attempt_v1";
+
+    /// Construct a new [`RejectedAttempt`] with computed content digest.
+    #[must_use]
+    pub fn new(
+        spoke: AuditSpokeKind,
+        prompt: impl Into<String>,
+        rejected_response: impl Into<String>,
+        oracle_stage: impl Into<String>,
+        diagnostics: Vec<String>,
+        source_finding_id: impl Into<String>,
+    ) -> Self {
+        let prompt = prompt.into();
+        let rejected_response = rejected_response.into();
+        let oracle_stage = oracle_stage.into();
+        let source_finding_id = source_finding_id.into();
+        let payload = format!(
+            "{}\0{}\0{}\0{}\0{}",
+            spoke.as_str(),
+            prompt.trim(),
+            rejected_response.trim(),
+            oracle_stage.trim(),
+            source_finding_id.trim()
+        );
+        let content_digest = fnv1a64_hex(payload.as_bytes());
+        Self {
+            schema_version: Self::SCHEMA_VERSION.to_string(),
+            spoke,
+            prompt,
+            rejected_response,
+            oracle_stage,
+            diagnostics,
+            source_finding_id,
+            content_digest,
+        }
+    }
+
+    /// Validate that the rejected attempt has non-empty diagnostics, prompt, and response.
+    pub fn verify(&self) -> Result<(), String> {
+        if self.schema_version != Self::SCHEMA_VERSION {
+            return Err(format!("invalid schema_version `{}`", self.schema_version));
+        }
+        if self.prompt.trim().is_empty() {
+            return Err("prompt must not be empty".to_string());
+        }
+        if self.rejected_response.trim().is_empty() {
+            return Err("rejected_response must not be empty".to_string());
+        }
+        if self.diagnostics.is_empty() {
+            return Err("diagnostics must not be empty on a rejected attempt".to_string());
+        }
+        Ok(())
+    }
+}
+
+/// Convert raw audit finding tuples `(spoke, prompt, rejected_response, oracle_stage, diagnostic, finding_id)`
+/// into deduplicated, validated [`RejectedAttempt`] records (`AUDIT-01`).
+#[must_use]
+pub fn harvest_rejected_attempts(
+    findings: &[(AuditSpokeKind, &str, &str, &str, &str, &str)],
+) -> Vec<RejectedAttempt> {
+    let mut seen = std::collections::BTreeSet::new();
+    let mut out = Vec::new();
+    for &(spoke, prompt, rejected, stage, diag, finding_id) in findings {
+        let attempt = RejectedAttempt::new(
+            spoke,
+            prompt,
+            rejected,
+            stage,
+            vec![diag.to_string()],
+            finding_id,
+        );
+        if attempt.verify().is_ok() && seen.insert(attempt.content_digest.clone()) {
+            out.push(attempt);
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -484,5 +645,65 @@ mod tests {
         let outcome = CorpusFeedbackSubcommand.run(&args);
         assert_eq!(outcome.exit_code, ExitCode::Ok);
         assert!(!outcome.report.incomplete);
+    }
+
+    #[test]
+    fn harvest_rejected_attempts_deduplicates_and_validates_all_five_spokes() {
+        let raw = vec![
+            (
+                AuditSpokeKind::VoxLang,
+                "Declare table",
+                "@table type T {}",
+                "grammar_gate",
+                "retired @table",
+                "vox/retired-decorator",
+            ),
+            (
+                AuditSpokeKind::VoxLang,
+                "Declare table",
+                "@table type T {}",
+                "grammar_gate",
+                "retired @table",
+                "vox/retired-decorator",
+            ),
+            (
+                AuditSpokeKind::RustWorkspace,
+                "Hash payload",
+                "use sha2::Sha256;",
+                "policy_gate",
+                "banned crypto import",
+                "vox/crypto/banned-crate-import",
+            ),
+            (
+                AuditSpokeKind::StructuredShell,
+                "Clean build",
+                "rm -rf /",
+                "shell_safety",
+                "forbidden rm -rf",
+                "vox/shell/forbidden",
+            ),
+            (
+                AuditSpokeKind::McpToolChain,
+                "Invoke check",
+                "{\"tool_name\":\"unknown\"}",
+                "mcp_schema",
+                "unknown tool",
+                "vox/mcp/unknown",
+            ),
+            (
+                AuditSpokeKind::AgentHarness,
+                "Plan task",
+                "{\"goal\":\"\"}",
+                "harness_schema",
+                "empty goal",
+                "vox/harness/empty-goal",
+            ),
+        ];
+
+        let harvested = harvest_rejected_attempts(&raw);
+        assert_eq!(harvested.len(), 5);
+        for item in &harvested {
+            assert!(item.verify().is_ok());
+        }
     }
 }

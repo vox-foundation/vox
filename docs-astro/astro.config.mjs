@@ -83,7 +83,7 @@ export default defineConfig({
       head: [
         {
           tag: 'script',
-          content: `(function(){try{var s=localStorage.getItem('vox-sidebar-state');var t=localStorage.getItem('vox-toc-state');document.documentElement.dataset.sidebarState=(s==='collapsed'?'collapsed':'pinned');document.documentElement.dataset.tocState=(t==='hidden'?'hidden':'visible');}catch(e){}})();`,
+          content: `(function(){try{var s=localStorage.getItem('vox-sidebar-state');var t=localStorage.getItem('vox-toc-state');document.documentElement.dataset.sidebarState=(s==='hidden'?'hidden':s==='collapsed'?'collapsed':'pinned');document.documentElement.dataset.tocState=(t==='hidden'?'hidden':'visible');}catch(e){}})();`,
         },
       ],
     }),

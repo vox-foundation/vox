@@ -253,3 +253,71 @@ fn model_prompt_projects_to_correct_category() {
     assert_eq!(map["canonical_model_id"], "gemini_flash_2");
     assert_eq!(map["profile_variant_id"], "none");
 }
+
+#[test]
+fn phase_89_flywheel_categories_project_with_salted_hashes_and_no_canary_leak() {
+    let bench = TelemetryEvent::ModelBenchCase(vox_telemetry::ModelBenchCaseEvent {
+        model_id: CANARY.to_string(),
+        fixture_id: CANARY.to_string(),
+        task_category: "codegen".to_string(),
+        passed: true,
+        latency_ms: 850,
+    });
+    let (cat, map) = project_event(&bench).expect("model_bench_case must project");
+    assert_eq!(cat, "model_bench_case");
+    assert_eq!(map["duration_bucket"], "lt1s");
+    assert!(!contains_canary(&Value::Object(map), CANARY));
+
+    let tp = TelemetryEvent::TrainingThroughput(vox_telemetry::TrainingThroughputEvent {
+        gpu_vendor: "nvidia".to_string(),
+        vram_bucket: "24_to_48gb".to_string(),
+        seq_len_bucket: "2k_to_8k".to_string(),
+        tok_per_sec_bucket: "50_to_200".to_string(),
+        success: true,
+    });
+    let (cat, map) = project_event(&tp).expect("training_throughput must project");
+    assert_eq!(cat, "training_throughput");
+    assert_eq!(map["gpu_vendor"], "nvidia");
+
+    let dm = TelemetryEvent::DomainMisguidance(vox_telemetry::DomainMisguidanceEvent {
+        culprit_domain: CANARY.to_string(),
+        domain_category: "official_docs".to_string(),
+        defect_class: "hallucinated_api".to_string(),
+    });
+    let (cat, map) = project_event(&dm).expect("domain_misguidance must project");
+    assert_eq!(cat, "domain_misguidance");
+    assert!(!contains_canary(&Value::Object(map), CANARY));
+}
+
+#[test]
+fn model_bench_case_no_canary_leak() {
+    assert_no_canary_leak!(TelemetryEvent::ModelBenchCase(ModelBenchCaseEvent {
+        model_id: CANARY.to_string(),
+        fixture_id: CANARY.to_string(),
+        task_category: "codegen".to_string(),
+        passed: true,
+        latency_ms: 450,
+    }));
+}
+
+#[test]
+fn training_throughput_no_canary_leak() {
+    assert_no_canary_leak!(TelemetryEvent::TrainingThroughput(
+        TrainingThroughputEvent {
+            gpu_vendor: "apple_metal".to_string(),
+            vram_bucket: "24_to_48gb".to_string(),
+            seq_len_bucket: "512_to_2k".to_string(),
+            tok_per_sec_bucket: "50_to_200".to_string(),
+            success: true,
+        }
+    ));
+}
+
+#[test]
+fn domain_misguidance_no_canary_leak() {
+    assert_no_canary_leak!(TelemetryEvent::DomainMisguidance(DomainMisguidanceEvent {
+        culprit_domain: CANARY.to_string(),
+        domain_category: "official_docs".to_string(),
+        defect_class: "hallucinated_api".to_string(),
+    }));
+}

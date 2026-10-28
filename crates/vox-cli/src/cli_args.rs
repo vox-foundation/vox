@@ -362,7 +362,7 @@ pub struct DoctorArgs {
     /// Preflight checks for `vox compile` / cross-target toolchains (rustup target, ANDROID_HOME, Xcode).
     #[arg(long, value_name = "TRIPLE")]
     pub compile_target: Option<String>,
-    #[arg(long, default_value_t = false)]
+    #[arg(long, alias = "fix", default_value_t = false)]
     pub auto_heal: bool,
     #[arg(long, default_value_t = false)]
     pub test_health: bool,

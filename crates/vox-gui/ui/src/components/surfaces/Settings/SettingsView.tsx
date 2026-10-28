@@ -96,9 +96,9 @@ function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
 }
 
 function RangeInline({
-  value, min, max, step = 1, suffix = '', onChange,
+  value, min, max, step = 1, prefix = '', suffix = '', onChange,
 }: {
-  value: number; min: number; max: number; step?: number; suffix?: string; onChange: (v: number) => void;
+  value: number; min: number; max: number; step?: number; prefix?: string; suffix?: string; onChange: (v: number) => void;
 }) {
   const label = React.useContext(RowLabelContext);
   const pct = ((value - min) / (max - min)) * 100;
@@ -110,7 +110,7 @@ function RangeInline({
         className="vox-range flex-1 h-1 appearance-none rounded-full overflow-hidden"
         style={{ background: `linear-gradient(to right, rgb(var(--brass)) ${pct}%, rgba(255,255,255,0.08) ${pct}%)` } as any}
       />
-      <span className="w-14 text-right font-mono text-[11px] text-text-secondary">{value}{suffix}</span>
+      <span className="w-14 text-right font-mono text-[11px] text-text-secondary">{prefix}{value}{suffix}</span>
     </div>
   );
 }
@@ -1421,7 +1421,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                 <RangeInline value={vals.concurrency} min={1} max={16} onChange={v => update({ concurrency: v })} />
               </Row>
               <Row label="Global budget cap (USD)" hint="Soft + hard cap. Throttles when reached.">
-                <RangeInline value={vals.capUsd} min={1} max={50} step={1} suffix="$" onChange={v => update({ capUsd: v })} />
+                <RangeInline value={vals.capUsd} min={1} max={50} step={1} prefix="$" onChange={v => update({ capUsd: v })} />
               </Row>
               <Row label="Auto-doubt threshold" hint="Confidence floor below which Augur intervenes">
                 <RangeInline value={Math.round(vals.doubtThresh * 100)} min={0} max={100} step={5} suffix="%" onChange={v => update({ doubtThresh: v / 100 })} />
@@ -1617,6 +1617,19 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                 </button>
               ))}
             </div>
+            <div className="mt-4 rounded-xl border border-border-subtle bg-overlay-subtle p-3" data-testid="community-intelligence-settings-card">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-display text-[12px] text-text-secondary">Community Intelligence Bundle (k &gt;= 20 · Ed25519 Signed)</div>
+                  <div className="text-[11px] text-text-muted">
+                    Bounded Empirical Bayes priors (±15% max weight delta) from ~/.vox/cache/community-intelligence.v1.json. Set VOX_COMMUNITY_INTELLIGENCE=off to disable independently of telemetry upload.
+                  </div>
+                </div>
+                <span className="shrink-0 rounded border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] text-emerald-300">
+                  Ed25519 Verified · Offline Ready
+                </span>
+              </div>
+            </div>
           </>
         )}
 
@@ -1666,9 +1679,13 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
             </label>
             <label className="flex items-center justify-between rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-sm">
               <span>Mode</span>
-              <select value={gamify.mode} disabled={!gamify.enabled}
+              <select
+                aria-label="Gamification mode"
+                value={gamify.mode}
+                disabled={!gamify.enabled}
                 onChange={e => updateGamify({ mode: e.target.value })}
-                className="rounded-sm bg-black/40 px-2 py-1 text-text-secondary">
+                className="rounded-sm bg-black/40 px-2.5 py-1 pr-7 text-text-secondary"
+              >
                 <option value="balanced">Balanced</option>
                 <option value="serious">Serious (silent)</option>
                 <option value="learning">Learning</option>

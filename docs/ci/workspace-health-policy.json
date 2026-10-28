@@ -20,6 +20,19 @@
       "patterns": ["vox-cli", "vox-mens", "vox-oratio"]
     }
   },
+  "crate_ceilings": {
+    "vox-actor-runtime": 45,
+    "vox-cli": 137,
+    "vox-cli-core": 24,
+    "vox-compiler": 52,
+    "vox-db": 34,
+    "vox-gamify": 31,
+    "vox-ml-cli": 61,
+    "vox-orchestrator": 85,
+    "vox-orchestrator-mcp": 101,
+    "vox-populi": 82,
+    "vox-secrets": 25
+  },
   "regressions": {
     "threshold_ratio": 1.25,
     "min_elapsed_ms": 100,

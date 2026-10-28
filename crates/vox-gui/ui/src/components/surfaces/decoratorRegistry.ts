@@ -1,7 +1,6 @@
 import React from 'react';
 import { CommandCardsView, SurfaceCard } from './CommandCardsView';
 import { ScientiaSurface } from './Scientia/ScientiaSurface';
-import { CoverageView } from './Coverage/CoverageView';
 import { ResearchView } from './Research/ResearchView';
 import { PublicationsView } from './Publications/PublicationsView';
 import { SubAgentsView } from './SubAgents/SubAgentsView';
@@ -39,7 +38,6 @@ function commandSurface(
  */
 export const surfaceDecorators: Record<string, React.ComponentType<SurfaceDecoratorProps>> = {
   scientia: ScientiaSurface,
-  coverage: CoverageView,
   // Bespoke, not `commandSurface`: the GPU Probe card needs the model the
   // user actually selected (`get_active_model`) to check a real fit, not a
   // static arg-free command — see `Models/MensTrainingView.tsx`.

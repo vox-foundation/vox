@@ -229,9 +229,23 @@ impl ExtraDispatch for McpExtraDispatch {
                 // comment), NEVER from `req.params` (tool-call args the
                 // caller/LLM composes).
                 let permission_mode = req.permission_mode.as_deref();
-                match crate::handle_tool_call_with_mode(&self.state, name, args, permission_mode)
-                    .await
-                {
+                // The `agent_origin` flag lives in `params` rather than in a top-level
+                // `DispatchRequest` field: unlike permission_mode or auth_token, the flag
+                // can only restrict permissions (triggering safety floors). The only potential
+                // bypass is omission, which a top-level field would not prevent either.
+                let agent_origin = req
+                    .params
+                    .get("agent_origin")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false);
+                let fut =
+                    crate::handle_tool_call_with_mode(&self.state, name, args, permission_mode);
+                let res = if agent_origin {
+                    crate::floor_gate::with_agent_origin(fut).await
+                } else {
+                    fut.await
+                };
+                match res {
                     Ok(json) => {
                         let value = serde_json::from_str::<serde_json::Value>(&json)
                             .unwrap_or_else(|_| serde_json::json!({ "raw": json }));

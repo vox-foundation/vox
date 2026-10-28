@@ -66,16 +66,16 @@ export function ResearchModeDropdown({
           {selected.id === 'auto' ? (
             <Icon.brain className="size-3 text-brass" />
           ) : selected.id === 'fast' ? (
-            <Icon.bolt className="size-3 text-amber-300" />
+            <Icon.bolt className="size-3 text-(--color-status-warn)" />
           ) : selected.id === 'deep' ? (
-            <Icon.globe className="size-3 text-cyan-300" />
+            <Icon.globe className="size-3 text-(--color-status-info)" />
           ) : (
             <Icon.search className="size-3 text-text-muted" />
           )}
           <span className="text-[11px] text-text-muted">Research:</span>
           <span className="text-[11px] text-text-primary font-medium">{selected.shortLabel}</span>
           {selected.badge && (
-            <span className="rounded bg-brass/15 px-1 py-0.5 font-mono text-[8px] text-brass">
+            <span className="rounded bg-brass/15 px-1 py-0.5 font-mono text-[11px] text-brass">
               {selected.badge}
             </span>
           )}
@@ -104,9 +104,9 @@ export function ResearchModeDropdown({
                   {opt.id === 'auto' ? (
                     <Icon.brain className="size-3.5 text-brass" />
                   ) : opt.id === 'fast' ? (
-                    <Icon.bolt className="size-3.5 text-amber-300" />
+                    <Icon.bolt className="size-3.5 text-(--color-status-warn)" />
                   ) : opt.id === 'deep' ? (
-                    <Icon.globe className="size-3.5 text-cyan-300" />
+                    <Icon.globe className="size-3.5 text-(--color-status-info)" />
                   ) : (
                     <Icon.search className="size-3.5 text-text-muted" />
                   )}
@@ -117,12 +117,12 @@ export function ResearchModeDropdown({
                       {opt.label}
                     </span>
                     {opt.badge && (
-                      <span className="rounded bg-brass/15 px-1 font-mono text-[8px] text-brass">
+                      <span className="rounded bg-brass/15 px-1 font-mono text-[11px] text-brass">
                         {opt.badge}
                       </span>
                     )}
                   </div>
-                  <div className="font-mono text-[9px] text-text-muted leading-tight mt-0.5">
+                  <div className="font-mono text-[11px] text-text-muted leading-tight mt-0.5">
                     {opt.hint}
                   </div>
                 </div>

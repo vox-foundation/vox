@@ -32,9 +32,12 @@ pub mod vox_interp;
 
 // Flat re-exports for ergonomic use by front-ends.
 pub use agent::{AgentAdapterConfig, translate_event};
-pub use block::{Block, BlockId, BlockKind, BlockStatus, OutputChunk, Stream};
+pub use block::{Block, BlockId, BlockKind, BlockOrigin, BlockStatus, OutputChunk, Stream};
 pub use daemon_host::DaemonHost;
-pub use host::{Attachment, LocalHost, OpenSpec, OutputFrame, SessionHost, SessionId, SessionInfo};
+pub use host::{
+    Attachment, LocalHost, OpenSpec, OutputFrame, RedactedBlockContext, SessionHost, SessionId,
+    SessionInfo, TermControlMode, TermSecurityLevel,
+};
 pub use input::{InputIntent, classify};
 pub use osc633::{Osc633Event, Osc633Parser};
 pub use pty::{PtyHandle, ShellBackend, ShellKind, default_shell, spawn_pty};

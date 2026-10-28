@@ -153,7 +153,7 @@ mod tests {
             cargo_version: s("cargo 1.0"),
             vox_git_sha: s("abc123"),
             vox_binary_sha256: s("bin-sha"),
-            verifier_version: s("0.6.0"),
+            verifier_version: s(env!("CARGO_PKG_VERSION")),
             verifier_matches_harness: Some(true),
             tier: s("smoke"),
             problem_set_hash: s("ps-hash"),

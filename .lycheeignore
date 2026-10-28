@@ -225,3 +225,12 @@ https://github\.com/tzervas/peft-rs/.*
 # block) answer 403 to any non-JS client, so a link checker cannot verify them.
 .*graphify\.net/.*
 .*openrouter\.zendesk\.com/.*
+# Astro public/media/* assets are served at /media/* at runtime (resolves to file://.*/media/.* under --root-dir .)
+file://.*/media/.*
+# Loopback service default URLs in generated env-var reference docs
+http://127\.0\.0\.1(:[0-9]+)?/?.*
+# Ropes & Gray, BleepingComputer, and web.dev return 403/500/503 to CI datacenter IPs
+.*ropesgray\.com/.*
+.*bleepingcomputer\.com/.*
+https://web\.dev/rendering-performance/?
+

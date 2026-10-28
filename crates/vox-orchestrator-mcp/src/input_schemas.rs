@@ -211,6 +211,9 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_validate_source" => {
             derived_tool_schema!(crate::params::ValidateSourceParams)
         }
+        "vox_validate_mermaid" => parse_obj(
+            r#"{"type":"object","properties":{"code":{"type":"string","description":"Standalone Mermaid diagram source code"},"markdown":{"type":"string","description":"Markdown document containing fenced mermaid code blocks"}},"additionalProperties":false}"#,
+        ),
         "vox_run_tests" => derived_tool_schema!(crate::params::RunTestsParams),
         "vox_build_crate" | "vox_lint_crate" | "vox_coverage_report" => {
             derived_tool_schema!(crate::params::OptionalCrateNameParams)
@@ -486,6 +489,9 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         ),
         "vox_search_structural" => parse_obj(
             r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id from contracts/retrieval/graphify-corpora.v1.yaml; omit for default corpus"},"query":{"type":"string","minLength":1,"description":"Lexical search query matched against node labels"},"limit":{"type":"integer","minimum":1,"description":"Maximum hits to return (default 10)"},"persist":{"type":"boolean","default":true,"description":"When true (default), upsert hits into knowledge_nodes for future agent recall. Pass false for ephemeral searches. Recall consumers must compare metadata.git_sha against HEAD to detect stale hits."}},"required":["query"],"additionalProperties":false}"#,
+        ),
+        "vox_search_atlas" => parse_obj(
+            r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id; omit for default"},"level":{"type":"string","enum":["crate","module","file","symbol"],"description":"LOD level of the slice"},"focus":{"type":"string","description":"Node id to center the slice on"},"branch_tip":{"type":"string","description":"Ref name for provenance header"},"kinds":{"type":"array","items":{"type":"string"},"description":"Restrict to node kinds"},"limit":{"type":"integer","minimum":1,"description":"Max nodes returned (hard-capped by the atlas budget)"}},"required":["level"],"additionalProperties":false}"#,
         ),
         "vox_search_neighbors" => parse_obj(
             r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id; omit for default"},"seeds":{"type":"array","items":{"type":"string"},"minItems":1,"description":"Seed node IDs to BFS-expand from"},"max_depth":{"type":"integer","minimum":1,"maximum":5,"description":"BFS hop limit (default 2)"},"limit":{"type":"integer","minimum":1,"description":"Max hits returned (default 20)"},"direction":{"type":"string","enum":["in","out","both"],"description":"in=callers, out=callees, both=undirected (default)"}},"required":["seeds"],"additionalProperties":false}"#,

@@ -9,21 +9,46 @@ training_eligible: true
 
 import VoxPlayground from '../../docs-astro/src/components/VoxPlayground.astro';
 
-<div style="text-align: center; padding: 2rem 0 1rem;">
-  <p style="font-size: 0.85rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sl-color-gray-3); margin: 0 0 0.5rem;">
+<div style="text-align: center; padding: 2.25rem 1rem 1.5rem; background: radial-gradient(ellipse at 50% 0%, rgba(56, 189, 248, 0.14), transparent 72%); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 14px; margin-bottom: 1.5rem;">
+  <p style="font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sl-color-accent-high); margin: 0 0 0.6rem;">
     Pre-1.0 Research Prototype · Workspace v0.6.0 · Apache-2.0
   </p>
-  <h1 style="font-size: 2.35rem; line-height: 1.15; margin: 0 0 0.85rem;">
-    One Language for Database, Server, UI, and AI Agents
+  <h1 style="font-size: 2.4rem; line-height: 1.15; margin: 0 0 0.9rem;">
+    Software Spoken in One Clear Voice
   </h1>
-  <p style="font-size: 1.1rem; line-height: 1.6; color: var(--sl-color-gray-2); max-width: 44rem; margin: 0 auto 1.5rem;">
-    Write one <code>.vox</code> file and run it immediately in a sandboxed interpreter, or compile it into a <strong>SQLite/Turso schema</strong>, a <strong>Rust (Axum) backend</strong>, and a <strong>TypeScript/React frontend</strong> — with no <code>null</code> values and every error checked at compile time.
+  <p style="font-size: 1.12rem; line-height: 1.65; color: var(--sl-color-gray-1); max-width: 45rem; margin: 0 auto 0.85rem;">
+    <strong>Your idea shouldn't shatter into four disconnected dialects before it even comes alive.</strong> Today, building a web app means translating the same thought across database schemas, backend servers, network APIs, and browser state — spending most of your creative energy on fragile glue code where humans get bogged down and AI models hallucinate.
+  </p>
+  <p style="font-size: 0.98rem; line-height: 1.6; color: var(--sl-color-gray-2); max-width: 44rem; margin: 0 auto 1.5rem;">
+    <strong>Vox</strong> (<em>"voice"</em>) unites your data, server logic, interface, and AI tools in one readable <code>.vox</code> file — catching missing values and possible failures before your program ever runs, so you and your AI agents can build what matters.
   </p>
   <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
-    <a href="/tutorials/tut-getting-started/" style="background: var(--sl-color-accent); color: var(--sl-color-black); padding: 0.65rem 1.3rem; border-radius: 6px; font-weight: 600; text-decoration: none;">Get Started →</a>
-    <a href="#try-it" style="border: 1px solid var(--sl-color-gray-5); padding: 0.65rem 1.3rem; border-radius: 6px; font-weight: 500; text-decoration: none;">Try in Browser ↓</a>
-    <a href="/reference/ref-syntax/" style="border: 1px solid var(--sl-color-gray-5); padding: 0.65rem 1.3rem; border-radius: 6px; text-decoration: none;">Syntax Reference</a>
-    <a href="https://github.com/vox-foundation/vox" style="padding: 0.65rem 1.1rem; border-radius: 6px; text-decoration: none; color: var(--sl-color-gray-2);">GitHub ↗</a>
+    <a href="/tutorials/tut-getting-started/" style="background: var(--sl-color-accent); color: #05080f; padding: 0.65rem 1.35rem; border-radius: 8px; font-weight: 700; text-decoration: none;">Start the 5-Minute Tutorial →</a>
+    <a href="#try-it" style="border: 1px solid var(--sl-color-accent); color: var(--sl-color-text); padding: 0.65rem 1.35rem; border-radius: 8px; font-weight: 600; text-decoration: none;">Try in Your Browser ↓</a>
+    <a href="/reference/ref-syntax/" style="border: 1px solid var(--sl-color-gray-5); color: var(--sl-color-gray-2); padding: 0.65rem 1.25rem; border-radius: 8px; text-decoration: none;">Syntax Cheat Sheet</a>
+    <a href="https://github.com/vox-foundation/vox" style="padding: 0.65rem 1.1rem; border-radius: 8px; text-decoration: none; color: var(--sl-color-gray-2);">GitHub ↗</a>
+  </div>
+</div>
+
+## New to Programming or Full-Stack Web Apps? Start Here
+
+You do **not** need to know Rust, SQL migrations, or React build tools to read and write Vox. Pick the path that matches where you are today:
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem; margin: 1.25rem 0 1.75rem;">
+  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 10px; padding: 1.1rem; background: var(--sl-color-bg-nav);">
+    <p style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sl-color-accent-high); margin: 0 0 0.35rem;">Step 1 · No Install Needed</p>
+    <h3 style="margin: 0 0 0.45rem; font-size: 1.05rem;"><a href="#try-it" style="text-decoration: none;">Run Vox in Your Browser ↓</a></h3>
+    <p style="margin: 0; font-size: 0.92rem; line-height: 1.5; color: var(--sl-color-gray-2);">Switch between 3 live examples below — Database + AI Tool, Safe Error Handling, and Durable Workflows.</p>
+  </div>
+  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 10px; padding: 1.1rem; background: var(--sl-color-bg-nav);">
+    <p style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sl-color-accent-high); margin: 0 0 0.35rem;">Step 2 · Hands-On Guide</p>
+    <h3 style="margin: 0 0 0.45rem; font-size: 1.05rem;"><a href="/tutorials/tut-getting-started/" style="text-decoration: none;">Getting Started Tutorial →</a></h3>
+    <p style="margin: 0; font-size: 0.92rem; line-height: 1.5; color: var(--sl-color-gray-2);">Write your first <code>.vox</code> script, learn <code>Option</code> and <code>Result</code>, and build a working task app in 10 minutes.</p>
+  </div>
+  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 10px; padding: 1.1rem; background: var(--sl-color-bg-nav);">
+    <p style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sl-color-accent-high); margin: 0 0 0.35rem;">Step 3 · Concept Wiki</p>
+    <h3 style="margin: 0 0 0.45rem; font-size: 1.05rem;"><a href="/explanation/why-vox-for-ai/" style="text-decoration: none;">Why Vox Works This Way →</a></h3>
+    <p style="margin: 0; font-size: 0.92rem; line-height: 1.5; color: var(--sl-color-gray-2);">Plain-language explanations of how one file replaces SQL + backend + frontend glue code.</p>
   </div>
 </div>
 
@@ -32,13 +57,15 @@ import VoxPlayground from '../../docs-astro/src/components/VoxPlayground.astro';
 {/* SYNC-FROM-README: why_vox */}
 ## Why Vox
 
-When you build a web application in mainstream languages, you usually write the same idea four separate times:
-1. A **database table** (in SQL or an ORM migration).
-2. A **backend data struct and API route** (in Rust, Go, Python, or Node).
-3. A **network client** that serializes JSON over HTTP.
-4. A **frontend interface** (in TypeScript/React) that unpacks that JSON and renders it.
+**Building software should feel like speaking a clear thought into existence — not translating the same idea into four incompatible dialects and praying the seams hold.**
 
-Mainstream languages predate large language models (LLMs) by decades. They tolerate implicit state — `null` pointers, undeclared exceptions, and schemas restated three or four times across the stack. Experienced developers keep those layers in sync by habit, but for both beginning programmers and statistical AI code generators, every boundary is a place where field names drift, types mismatch, or error handling gets skipped. A million-token context window doesn't help when most of it is glue code.
+Every time you bring an idea to life on the modern web, mainstream stacks force you to fracture that single thought across four separate worlds:
+1. A **database schema** (in SQL or an ORM migration) to store it.
+2. A **backend server** (in Rust, Go, Python, or Node) to validate and serve it.
+3. A **network wire contract** to serialize JSON across the gap.
+4. A **frontend interface** (in TypeScript/React) to unpack that JSON and put it in front of a human.
+
+Those languages and frameworks were designed decades before artificial intelligence, for an era where developers manually wired every boundary and accepted that a hidden `null` pointer or an undeclared exception might quietly crash the app at 2 a.m. Today, that fragmentation is the single biggest tax on both human creativity and machine intelligence. Whether you are learning to build your first app or collaborating with an AI coding agent, every seam between layers is a place where field names drift, types mismatch, and intent gets lost in boilerplate. A million-token context window does not help when most of it is spent keeping glue code in sync.
 
 <div align="center">
   <img src="./assets/old_internet_knot_abstract.png" alt="Schema Fragmentation in Traditional Web Stacks — 4-layer technical schematic" width="760" />
@@ -49,17 +76,52 @@ Mainstream languages predate large language models (LLMs) by decades. They toler
   </p>
 </div>
 
-Vox is what falls out when you design the language *after* the model:
-- **Declare data once.** One `table` declaration generates the SQL schema, the backend types, the HTTP wire format, and the TypeScript client.
-- **No `null`, no uncaught exceptions.** Missing values use `Option[T]` (`Some(x)` or `None`) and operations that can fail return `Result[T]` (`Ok(x)` or `Error(msg)`). The compiler refuses code that ignores an error.
-- **One file, clear boundaries.** Database queries (`query` / `mutation`), server endpoints (`server`), UI components (`component`), durable workflows (`workflow` / `activity`), and AI agent tools (`tool` / `resource`) live in a single `.vox` grammar with one consistent rule: **bare keywords open scopes, and `@decorators` modify declarations**.
+**Vox (*"voice"*) is what falls out when you design a programming language for human clarity and AI collaboration from day one:**
+- **One voice, zero translation drift.** Express a concept once. One `table` declaration generates your SQL schema, your backend types, your HTTP wire format, and your TypeScript client — automatically and in lockstep.
+- **Honest code that cannot fail silently.** There is no `null` and no uncaught exception in Vox. Missing values use `Option[T]` (`Some(x)` or `None`) and operations that can fail return `Result[T]` (`Ok(x)` or `Error(msg)`). If you or an AI agent forget to handle a failure, the compiler refuses the code before it ever runs.
+- **From instant spark to full-stack reality.** Database queries (`query` / `mutation`), server endpoints (`server`), UI components (`component`), durable crash-safe workflows (`workflow` / `activity`), and AI agent tools (`tool` / `resource`) live in a single `.vox` grammar with one consistent rule: **bare keywords open scopes, and `@decorators` modify declarations**. Run it immediately in a sandboxed interpreter (`vox run`) or compile it into a full-stack SQLite/Turso, Rust (Axum), and TypeScript/React application (`vox build`).
 {/* SYNC-END: why_vox */}
+
+### How One `.vox` File Compiles Across the Stack
+
+```vox-diagram
+graph {
+    direction: right
+    node Source: "One .vox Source File"
+    node Check: "vox check (Type & Error Checker)"
+    node Interp: "vox run (Instant Sandboxed Interpreter)"
+    node SQL: "SQLite / Turso Schema"
+    node Server: "Rust (Axum) HTTP Server"
+    node UI: "TypeScript / React UI"
+    node MCP: "MCP Agent Tools"
+    Source -> Check
+    Check -> Interp
+    Check -> SQL
+    Check -> Server
+    Check -> UI
+    Check -> MCP
+}
+```
+
+<details style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 0.85rem 1.1rem; margin: 1rem 0; background: var(--sl-color-bg-nav);">
+  <summary style="cursor: pointer; font-weight: 600; color: var(--sl-color-accent-high);">
+    What do <code>Option[T]</code> and <code>Result[T]</code> mean if I'm coming from Python or JavaScript?
+  </summary>
+  <div style="margin-top: 0.75rem; font-size: 0.95rem; line-height: 1.6;">
+    <p>In JavaScript or Python, any variable might secretly be <code>null</code>, <code>undefined</code>, or <code>None</code>, causing your app to crash while a user is clicking around.</p>
+    <ul>
+      <li><strong><code>Option[T]</code></strong> is a box that explicitly says: <em>"this value might be missing."</em> It is either <code>Some(value)</code> or <code>None</code>. The Vox compiler makes sure you check both cases before using it.</li>
+      <li><strong><code>Result[T]</code></strong> is a box for steps that might fail (like saving to a database). It returns either <code>Ok(value)</code> or <code>Error(message)</code>. Adding <code>?</code> to the end of a call (like <code>db.Task.insert(...)?</code>) means: <em>"if this succeeds, unwrap the value; if it fails, stop and return the error immediately."</em></li>
+    </ul>
+    <p style="margin-bottom: 0;">Read more in the <a href="/reference/ref-syntax/">Syntax Reference</a> or try the <strong>"2. No Null / Safe Errors"</strong> tab in the playground below.</p>
+  </div>
+</details>
 
 ---
 
 ## Try it
 
-Edit the code below and click **Run** to execute it in the sandboxed Vox interpreter (`vox run --interp --caps deterministic`).
+Choose one of the 3 starter templates below, edit the code directly, and click **Run** to execute it in the sandboxed Vox interpreter (`vox run --interp --caps deterministic`).
 
 <VoxPlayground initialCode={`// One declaration → schema, wire format, typed client
 table Task {
@@ -84,12 +146,12 @@ fn main() to Result[str] {
     return Ok(status)
 }`} />
 
-### How to Read the Example Above (For Beginners)
+### Line-by-Line Walkthrough (For Beginners)
 
-- **`table Task { ... }`** creates a database table with `title` (text) and `done` (true/false) columns, plus an automatic typed ID (`Id[Task]`) so you can never accidentally pass a user ID where a task ID is expected.
+- **`table Task { ... }`** creates a database table with `title` (text) and `done` (true/false) columns, plus an automatic typed ID (`Id[Task]`) so you can never accidentally pass a user ID where a task ID is expected. → [Learn about Tables & Queries](/tutorials/tut-first-app/)
 - **`query get_tasks() to int`** defines a read-only database query returning an integer (`int`).
-- **`tool "..." complete(...) to Result[str]`** defines a function that both your program and AI assistants (via the [Model Context Protocol](https://modelcontextprotocol.io)) can call. Its return type `Result[str]` means it either succeeds with `Ok("done")` or returns an `Error`. The `?` after `db.Task.delete(id)?` automatically returns early if the database step fails.
-- **`fn main() to Result[str]`** is the script entry point when you click **Run** or execute `vox run` in your terminal.
+- **`tool "..." complete(...) to Result[str]`** defines a function that both your program and AI assistants (via the [Model Context Protocol](https://modelcontextprotocol.io)) can call. Its return type `Result[str]` means it either succeeds with `Ok("done")` or returns an `Error`. The `?` after `db.Task.delete(id)?` automatically returns early if the database step fails. → [Guide: AI Agents & MCP Tools](/how-to/how-to-ai-agents/)
+- **`fn main() to Result[str]`** is the script entry point when you click **Run** or execute `vox run` in your terminal. → [Tutorial: Getting Started](/tutorials/tut-getting-started/)
 
 ---
 
@@ -100,37 +162,41 @@ Vox combines the language with an AI-native toolchain in one repository. Six pil
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.15rem; margin: 1.5rem 0;">
   <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1.15rem;">
     <h3 style="margin-top: 0; font-size: 1.05rem;">1. Unified Schema & Types</h3>
-    <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.55;">One <code>table</code> declaration drives SQLite/Turso tables, Rust structs, HTTP handlers, and TypeScript clients. <code>Option[T]</code> and <code>Result[T]</code> replace <code>null</code> and exceptions.</p>
+    <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.55;">One <code>table</code> declaration drives SQLite/Turso tables, Rust structs, HTTP handlers, and TypeScript clients. <code>Option[T]</code> and <code>Result[T]</code> replace <code>null</code> and exceptions. <a href="/reference/ref-syntax/">Syntax →</a></p>
   </div>
   <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1.15rem;">
     <h3 style="margin-top: 0; font-size: 1.05rem;">2. Two Execution Lanes</h3>
-    <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.55;">Use <code>vox run</code> for instant, capability-sandboxed script execution in memory, or <code>vox build</code> to emit a standalone Rust (Axum) server and React/TSX frontend.</p>
+    <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.55;">Use <code>vox run</code> for instant, capability-sandboxed script execution in memory, or <code>vox build</code> to emit a standalone Rust (Axum) server and React/TSX frontend. <a href="/tutorials/tut-first-app/">First App →</a></p>
   </div>
   <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1.15rem;">
     <h3 style="margin-top: 0; font-size: 1.05rem;">3. Durable Workflows</h3>
-    <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.55;">First-class <code>workflow</code> and <code>activity</code> blocks persist call ordinals, signals, and timers to a SQLite journal so long-running jobs can resume after crashes.</p>
+    <p style="margin-bottom: 0; font-size: 1.05rem;">First-class <code>workflow</code> and <code>activity</code> blocks persist call ordinals, signals, and timers to a SQLite journal so long-running jobs can resume after crashes. <a href="/tutorials/tut-workflow-durability/">Workflows →</a></p>
   </div>
   <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1.15rem;">
     <h3 style="margin-top: 0; font-size: 1.05rem;">4. Verified Agent Harness</h3>
-    <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.55;">A built-in MCP server and orchestrator issue cryptographic HMAC receipts for tool calls, lock shared resources in the task hopper, and route across live OpenRouter and local models.</p>
+    <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.55;">A built-in MCP server and orchestrator issue cryptographic HMAC receipts for tool calls, lock shared resources in the task hopper, and route across live OpenRouter and local models. <a href="/how-to/how-to-ai-agents/">Agent Guide →</a></p>
   </div>
   <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1.15rem;">
     <h3 style="margin-top: 0; font-size: 1.05rem;">5. Trusted Knowledge Base</h3>
-    <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.55;"><code>vox kb</code> indexes curated docs with Tantivy and SKOS taxonomy facets while quarantining unverified web scrapes and agent notes as <code>Untrusted</code> in a review inbox.</p>
+    <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.55;"><code>vox kb</code> indexes curated docs with Tantivy and SKOS taxonomy facets while quarantining unverified web scrapes and agent notes as <code>Untrusted</code> in a review inbox. <a href="/reference/cli/">CLI Docs →</a></p>
   </div>
   <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1.15rem;">
     <h3 style="margin-top: 0; font-size: 1.05rem;">6. Native ML & Eval (MENS)</h3>
-    <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.55;">Pure-Rust (Candle) QLoRA training across Metal, CUDA, and CPU plugins, paired with seeded multi-turn compiler-feedback evaluation (<code>vox model eval-compare</code>).</p>
+    <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.55;">Pure-Rust (Candle) QLoRA training across Metal, CUDA, and CPU plugins, paired with seeded multi-turn compiler-feedback evaluation (<code>vox model eval-compare</code>). <a href="/explanation/expl-architecture/">Architecture →</a></p>
   </div>
 </div>
 
-→ Deep dive into the compiler pipeline and IR stages: [Compiler Architecture](/explanation/expl-architecture/)
-
 ---
 
-## Tradeoffs: When Vox Fits (and When It Doesn't)
+## Tradeoffs & Current Stability (Progressive Deep Dive)
 
-We want you to know the costs of Vox's design before you invest time learning it:
+We grade every Vox surface honestly by what works today versus what is still a research prototype. Expand either table below when evaluating Vox for a project:
+
+<details open style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 0.95rem 1.15rem; margin: 1rem 0; background: var(--sl-color-bg-nav);">
+  <summary style="cursor: pointer; font-weight: 600; font-size: 1.02rem; color: var(--sl-color-text);">
+    When Vox Fits (and When You Should Pick Another Tool)
+  </summary>
+  <div style="margin-top: 0.85rem;">
 
 | Tradeoff | Why You Might Like Vox | Why You Might Wait or Pick Another Tool |
 |:---|:---|:---|
@@ -139,11 +205,14 @@ We want you to know the costs of Vox's design before you invest time learning it
 | **Interpreter vs. Full-Stack Codegen** | `vox run` runs scripts immediately with zero Rust compile wait and `--caps` sandboxing; `vox build` emits native Rust and TypeScript. | Compiling a generated Rust server outside the Vox repo currently requires building `vox` from a local source checkout (`VOX_REPO_ROOT`). |
 | **Pre-1.0 Research Velocity vs. Long-Term Stability** | You can inspect an active AI-native language, agent harness, and evaluation lab with candid in-tree audits. | Vox is **pre-1.0 prototype software**. Syntax and CLI flags still evolve, and there are no prebuilt binary releases yet. |
 
----
+  </div>
+</details>
 
-## Current State & Stability
-
-Surfaces are graded honestly by what works today versus what is still a prototype (last reviewed **2026-10-14**):
+<details style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 0.95rem 1.15rem; margin: 1rem 0; background: var(--sl-color-bg-nav);">
+  <summary style="cursor: pointer; font-weight: 600; font-size: 1.02rem; color: var(--sl-color-text);">
+    Surface-by-Surface Stability Matrix (Reviewed 2026-10-14)
+  </summary>
+  <div style="margin-top: 0.85rem;">
 
 | Surface | Status | What Works Today & Known Caveats |
 |:---|:---|:---|
@@ -158,9 +227,12 @@ Surfaces are graded honestly by what works today versus what is still a prototyp
 
 → Full per-component status tables and audit links: [Stability Matrix](/reference/stability/) · [v1.0 Release Criteria](/architecture/v1-release-criteria/)
 
+  </div>
+</details>
+
 ---
 
-## Documentation Map
+## Documentation & OpenWiki Map
 
 Organized by the [Diátaxis framework](https://diataxis.fr/) — structured around what you want to accomplish:
 
@@ -179,3 +251,4 @@ Organized by the [Diátaxis framework](https://diataxis.fr/) — structured arou
 - **Stewardship.** Stewarded by the Vox Foundation (in formation) and backed by the community via [Open Collective](https://opencollective.com/vox-foundation) with a public ledger.
 - **License.** [Apache 2.0](https://github.com/vox-foundation/vox/blob/main/LICENSE) — free for personal, academic, and commercial use with attribution.
 - **Links.** [GitHub Repository](https://github.com/vox-foundation/vox) · [GitHub Issues](https://github.com/vox-foundation/vox/issues) · [RSS Feed](https://voxlang.org/feed.xml) · [LLM Discovery Index (`/llms.txt`)](https://voxlang.org/llms.txt)
+

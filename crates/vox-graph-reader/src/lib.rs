@@ -14,6 +14,7 @@
 
 pub mod ast;
 mod ast_ts;
+pub mod ast_vox;
 pub mod bfs;
 pub mod cache;
 pub mod cluster;
@@ -24,6 +25,7 @@ pub mod edge_weights;
 pub mod gc;
 pub mod history;
 pub mod lens;
+pub mod lod;
 pub mod manifest;
 pub mod overlay;
 pub mod reachability;

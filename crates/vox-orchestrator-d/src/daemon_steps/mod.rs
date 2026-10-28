@@ -317,4 +317,43 @@ mod tests {
         assert_eq!(ctx.start_dir.as_deref(), Some(tmp.path()));
         assert!(ctx.populi_poll_join.lock().unwrap().is_none());
     }
+
+    #[tokio::test]
+    async fn daemon_boot_steps_apply_persisted_routing_preferences_and_model_registry() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let mut ctx = DaemonBootCtx::new(
+            OrchestratorConfig::for_testing(),
+            Some(tmp.path()),
+            ActiveProfile::dev(),
+            tmp.path().join("plugins"),
+        );
+        let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+            .await
+            .expect("in-memory VoxDb");
+        db.set_user_preference(
+            "local_user",
+            "routing_priority",
+            "quality=60,latency=25,cost=15",
+        )
+        .await
+        .expect("persist routing_priority");
+        db.set_user_preference(
+            "local_user",
+            "selection_policy",
+            r#"{"steps":[{"emphasize_axis":{"axis":"intelligence","weight":80}}]}"#,
+        )
+        .await
+        .expect("persist selection_policy");
+        ctx.db = Some(Arc::new(db));
+
+        step_model_registry(&mut ctx)
+            .await
+            .expect("step_model_registry");
+        step_routing_preferences(&mut ctx)
+            .await
+            .expect("step_routing_preferences");
+
+        vox_orchestrator::models::install_active_policy(None);
+        vox_orchestrator::models::install_base_routing_priority(None);
+    }
 }

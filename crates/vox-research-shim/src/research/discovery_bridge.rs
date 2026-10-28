@@ -51,6 +51,105 @@ pub fn meets_discovery_low_bar(result: &ResearchResult) -> bool {
     result.research_metadata.quality_score >= 50 && !supported_claim_ids(result).is_empty()
 }
 
+/// Infer a specific `EventCandidateClass` from the synthesized report and verified claims.
+#[must_use]
+pub fn infer_candidate_class(text: &str) -> EventCandidateClass {
+    let lower = text.to_ascii_lowercase();
+    if lower.contains("reproducib")
+        || lower.contains("sandbox")
+        || lower.contains("compiler error")
+        || lower.contains("ro-crate")
+        || lower.contains("deterministic replay")
+    {
+        EventCandidateClass::ReproducibilityInfra
+    } else if lower.contains("telemetry")
+        || lower.contains("trust score")
+        || lower.contains("calibration")
+        || lower.contains("citation precision")
+        || lower.contains("corroboration")
+    {
+        EventCandidateClass::TelemetryTrust
+    } else if lower.contains("governance")
+        || lower.contains("policy")
+        || lower.contains("safety floor")
+        || lower.contains("ssot")
+        || lower.contains("architecture decision")
+    {
+        EventCandidateClass::PolicyGovernance
+    } else if lower.contains("algorithm")
+        || lower.contains("latency")
+        || lower.contains("throughput")
+        || lower.contains("benchmark")
+        || lower.contains("optimization")
+        || lower.contains("rrf")
+        || lower.contains("bm25")
+    {
+        EventCandidateClass::AlgorithmicImprovement
+    } else {
+        EventCandidateClass::Other
+    }
+}
+
+/// Extract a concise human-readable `title_hint` from the research answer or top supported claim.
+#[must_use]
+pub fn extract_title_hint(result: &ResearchResult) -> Option<String> {
+    let generic_headings = [
+        "executive summary",
+        "research report",
+        "architectural tradeoffs",
+        "grounded claims",
+        "contested findings",
+        "implementation implications",
+        "summary",
+        "introduction",
+    ];
+    for line in result.answer.lines() {
+        let trimmed = line.trim();
+        if let Some(heading) = trimmed.strip_prefix('#') {
+            let clean = heading.trim_start_matches('#').trim();
+            if !clean.is_empty() && !generic_headings.contains(&clean.to_ascii_lowercase().as_str())
+            {
+                return Some(clean.chars().take(120).collect());
+            }
+        }
+    }
+    for line in result.answer.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with("<!--") {
+            continue;
+        }
+        let first_sentence = trimmed
+            .split(['.', '!', '\n'])
+            .next()
+            .unwrap_or(trimmed)
+            .trim()
+            .trim_start_matches(['-', '*', ' ']);
+        if first_sentence.len() >= 12 {
+            return Some(first_sentence.chars().take(120).collect());
+        }
+    }
+    result
+        .research_metadata
+        .claim_verdicts
+        .iter()
+        .find(|v| matches!(v.verdict, Verdict::Supported))
+        .map(|v| v.claim.text.chars().take(120).collect())
+}
+
+fn db_candidate_class(class: &EventCandidateClass) -> FindingCandidateClass {
+    match class {
+        EventCandidateClass::AlgorithmicImprovement => {
+            FindingCandidateClass::AlgorithmicImprovement
+        }
+        EventCandidateClass::ReproducibilityInfra => FindingCandidateClass::ReproducibilityInfra,
+        EventCandidateClass::PolicyGovernance => FindingCandidateClass::PolicyGovernance,
+        EventCandidateClass::TelemetryTrust => FindingCandidateClass::TelemetryTrust,
+        EventCandidateClass::Other
+        | EventCandidateClass::ModelCapabilityAtlas
+        | EventCandidateClass::ProviderReliabilityAtlas => FindingCandidateClass::Other,
+    }
+}
+
 /// Build a SCIENTIA finding candidate from a completed research result.
 #[must_use]
 pub fn finding_candidate_from_research_result(result: &ResearchResult) -> FindingCandidateV1 {
@@ -58,6 +157,33 @@ pub fn finding_candidate_from_research_result(result: &ResearchResult) -> Findin
     let quality_score = result.research_metadata.quality_score;
     let supported = supported_claim_ids(result);
     let now_ms = now_ms_i64();
+    let digest_hex = format!("{:016x}", fnv1a_hash(&result.answer));
+
+    let combined_corpus = format!(
+        "{}\n{}",
+        result.answer,
+        result
+            .research_metadata
+            .claim_verdicts
+            .iter()
+            .map(|v| v.claim.text.as_str())
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
+    let candidate_class = infer_candidate_class(&combined_corpus);
+    let title_hint = extract_title_hint(result);
+    let total_claims = result.research_metadata.claim_verdicts.len();
+    let disputed_claims = result
+        .research_metadata
+        .claim_verdicts
+        .iter()
+        .filter(|v| matches!(v.verdict, Verdict::Contradicted | Verdict::Contested))
+        .count();
+    let contradiction_risk = if total_claims > 0 {
+        Some((disputed_claims as f64 / total_claims as f64).clamp(0.0, 1.0))
+    } else {
+        Some(0.0)
+    };
 
     let signal = DiscoverySignal {
         code: "research_pipeline.supported_claims".to_string(),
@@ -75,23 +201,23 @@ pub fn finding_candidate_from_research_result(result: &ResearchResult) -> Findin
             metric_type: Some("supported_claims".to_string()),
             run_id: Some(session_id.to_string()),
             recorded_at_ms: Some(now_ms),
-            digest: Some(format!("{:016x}", fnv1a_hash(&result.answer))),
+            digest: Some(digest_hex.clone()),
         },
     };
 
     FindingCandidateV1 {
         schema_version: 1,
-        candidate_id: format!("finding-{session_id}-{:016x}", fnv1a_hash(&result.answer)),
-        candidate_class: EventCandidateClass::Other,
+        candidate_id: format!("finding-{session_id}-{digest_hex}"),
+        candidate_class,
         internal_signals: vec![signal],
         created_at_ms: now_ms,
         publication_id: None,
-        title_hint: None,
-        novelty_evidence_bundle_id: None,
+        title_hint,
+        novelty_evidence_bundle_id: Some(format!("novelty-bundle-{session_id}-{digest_hex}")),
         worthiness_decision_ref: Some(format!("research-quality-score:{quality_score}")),
         confidence: Some(FindingCandidateConfidence {
             signal_strength: Some((quality_score as f64 / 100.0).clamp(0.0, 1.0)),
-            contradiction_risk: None,
+            contradiction_risk,
             reproducibility_support: Some((supported.len() as f64 / 10.0).min(1.0)),
         }),
         updated_at_ms: None,
@@ -158,7 +284,7 @@ fn finding_row_from_candidate(
 
     Ok(FindingCandidateRow {
         candidate_id: candidate.candidate_id.clone(),
-        candidate_class: FindingCandidateClass::Other,
+        candidate_class: db_candidate_class(&candidate.candidate_class),
         publication_id: candidate.publication_id.clone(),
         title_hint: candidate.title_hint.clone(),
         internal_signals_json,
@@ -339,6 +465,41 @@ mod tests {
         assert!(meets_discovery_low_bar(&result));
         result.research_metadata.claim_verdicts.clear();
         assert!(!meets_discovery_low_bar(&result));
+    }
+
+    #[test]
+    fn infer_candidate_class_and_title_hint_and_contradiction_risk() {
+        let mut result = supported_result(9, 82);
+        result.answer = "# Executive Summary\n## Hybrid RRF Benchmark Latency Optimization\nRRF fusion reduces tail latency by 35%.".to_string();
+        let candidate = finding_candidate_from_research_result(&result);
+        assert_eq!(
+            candidate.candidate_class,
+            EventCandidateClass::AlgorithmicImprovement
+        );
+        assert_eq!(
+            candidate.title_hint.as_deref(),
+            Some("Hybrid RRF Benchmark Latency Optimization")
+        );
+        assert!(candidate.novelty_evidence_bundle_id.is_some());
+        assert_eq!(
+            candidate
+                .confidence
+                .as_ref()
+                .and_then(|c| c.contradiction_risk),
+            Some(0.0)
+        );
+        assert_eq!(
+            infer_candidate_class("Sandbox deterministic replay RO-Crate package"),
+            EventCandidateClass::ReproducibilityInfra
+        );
+        assert_eq!(
+            infer_candidate_class("Citation precision and telemetry calibration"),
+            EventCandidateClass::TelemetryTrust
+        );
+        assert_eq!(
+            infer_candidate_class("Safety floor and policy governance SSOT"),
+            EventCandidateClass::PolicyGovernance
+        );
     }
 
     #[tokio::test]

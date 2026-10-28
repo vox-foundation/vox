@@ -24,6 +24,11 @@ status: current
 
 Model selection, calibration, usage accounting, and provider catalogs for vox-orchestrator.
 
+## Crate Overview
+
+Model calibration, usage accounting, and budget policy types for the Vox orchestrator.
+
+
 ## Workspace Dependencies
 
 | Dependency | Kind |

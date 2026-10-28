@@ -401,6 +401,7 @@ workflow wf(amount: int) to int {
         assert!(matches!(first, Some(HostRequest::Begin { .. })));
         let thread_finished = std::sync::Arc::clone(&host.thread_finished);
         drop(host);
+        // drift-allow(timeout-literal,duplicate-numeric-literal): test thread reap bound
         tokio::time::timeout(std::time::Duration::from_secs(2), async {
             while !thread_finished.load(std::sync::atomic::Ordering::Acquire) {
                 tokio::task::yield_now().await;

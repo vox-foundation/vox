@@ -34,6 +34,32 @@ pub fn compute_trusty_uri(prereg: &PreregistrationV1) -> Result<String, Canonica
     Ok(format!("RA{b64}"))
 }
 
+/// Serialize any `T: Serialize + DeserializeOwned + PartialEq` to canonical UTF-8 JSON bytes
+/// with keys sorted lexicographically at every depth, rejecting lossy values (`NaN`, `Infinity`).
+pub fn canonical_json_bytes<T>(val: &T) -> Result<Vec<u8>, CanonicalError>
+where
+    T: serde::Serialize + serde::de::DeserializeOwned + PartialEq,
+{
+    let value =
+        serde_json::to_value(val).map_err(|e| CanonicalError::Serialization(e.to_string()))?;
+    match serde_json::from_value::<T>(value.clone()) {
+        Ok(back) if &back == val => {}
+        _ => return Err(CanonicalError::Lossy),
+    }
+    serde_json::to_vec(&sort_keys(value)).map_err(|e| CanonicalError::Serialization(e.to_string()))
+}
+
+/// Compute a `RA<base64url(sha256(canonical_json_bytes(val)))>` Trusty URI for any value `T`.
+pub fn compute_value_trusty_uri<T>(val: &T) -> Result<String, CanonicalError>
+where
+    T: serde::Serialize + serde::de::DeserializeOwned + PartialEq,
+{
+    let bytes = canonical_json_bytes(val)?;
+    let hash = vox_crypto::facades::interop_sha256(&bytes);
+    let b64 = base64url_encode_no_pad(&hash);
+    Ok(format!("RA{b64}"))
+}
+
 /// Serialize `prereg` to canonical JSON with keys sorted at every depth.
 ///
 /// The `id` field is set to an empty string in the canonical form so that the
@@ -43,14 +69,8 @@ pub fn compute_trusty_uri(prereg: &PreregistrationV1) -> Result<String, Canonica
 pub(crate) fn canonical_json(prereg: &PreregistrationV1) -> Result<String, CanonicalError> {
     let mut with_empty_id = prereg.clone();
     with_empty_id.id = String::new();
-    let value = serde_json::to_value(&with_empty_id)
-        .map_err(|e| CanonicalError::Serialization(e.to_string()))?;
-    match serde_json::from_value::<PreregistrationV1>(value.clone()) {
-        Ok(back) if back == with_empty_id => {}
-        _ => return Err(CanonicalError::Lossy),
-    }
-    serde_json::to_string(&sort_keys(value))
-        .map_err(|e| CanonicalError::Serialization(e.to_string()))
+    let bytes = canonical_json_bytes(&with_empty_id)?;
+    String::from_utf8(bytes).map_err(|e| CanonicalError::Serialization(e.to_string()))
 }
 
 /// `serde_json` keeps insertion order workspace-wide (`preserve_order`), so

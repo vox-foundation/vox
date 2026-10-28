@@ -132,3 +132,140 @@ pub(crate) fn arg_object_string_field(
     }
     None
 }
+
+pub(crate) fn extract_ts_ast(
+    ext: &str,
+    content: &str,
+    module_id: &str,
+    wrappers: &HashMap<String, String>,
+    boundary_callees: &[&str],
+    nodes: &mut Vec<crate::ast::ExtractedNode>,
+    edges: &mut Vec<crate::ast::ExtractedEdge>,
+) {
+    let language = match ext {
+        "ts" | "js" => Some(tree_sitter_typescript::LANGUAGE_TYPESCRIPT),
+        "tsx" | "jsx" => Some(tree_sitter_typescript::LANGUAGE_TSX),
+        "py" => Some(tree_sitter_python::LANGUAGE),
+        _ => None,
+    };
+    let Some(lang) = language else {
+        return;
+    };
+    let mut parser = tree_sitter::Parser::new();
+    if parser.set_language(&lang.into()).is_err() {
+        return;
+    }
+    let Some(tree) = parser.parse(content, None) else {
+        return;
+    };
+    let mut cursor = tree.walk();
+    let mut stack = vec![tree.root_node()];
+    let mut ids = crate::ast::IdAlloc::default();
+    let mut def_ids: HashMap<usize, String> = HashMap::new();
+    while let Some(node) = stack.pop() {
+        let is_fn_def = ts_fn_like(node);
+        let is_class = ts_class_like(node);
+        let is_call = matches!(node.kind(), "call_expression" | "call");
+        let is_jsx = matches!(
+            node.kind(),
+            "jsx_self_closing_element" | "jsx_opening_element"
+        );
+
+        if is_fn_def || is_class {
+            if let Some(name_node) = node.child_by_field_name("name") {
+                if let Ok(name) = name_node.utf8_text(content.as_bytes()) {
+                    let (scope, in_class) = ts_scope(node, content);
+                    let id = ids.alloc(crate::ast::qualify_in(module_id, &scope, name));
+                    let kind = if is_class {
+                        "struct"
+                    } else if in_class || node.kind() == "method_definition" {
+                        "method"
+                    } else {
+                        "fn"
+                    };
+                    nodes.push(crate::ast::ExtractedNode {
+                        id: id.clone(),
+                        label: name.to_string(),
+                        kind: kind.to_string(),
+                    });
+                    def_ids.insert(node.id(), id);
+                }
+            }
+        }
+        let current_fn = if is_call || is_jsx {
+            ts_enclosing_fn(node, &def_ids)
+        } else {
+            None
+        };
+        if is_jsx {
+            if let Some(ref source_fn) = current_fn {
+                if let Some(name_node) = node.child_by_field_name("name") {
+                    if let Ok(name) = name_node.utf8_text(content.as_bytes()) {
+                        if name.chars().next().is_some_and(|c| c.is_uppercase()) {
+                            edges.push(crate::ast::ExtractedEdge {
+                                source: source_fn.clone(),
+                                target: name.to_string(),
+                                confidence: "resolved".into(),
+                                kind: "calls".into(),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        if is_call {
+            if let Some(ref source_fn) = current_fn {
+                if let Some(function_node) = node.child_by_field_name("function") {
+                    if let Ok(callee) = function_node.utf8_text(content.as_bytes()) {
+                        let bare = callee.rsplit('.').next().unwrap_or(callee);
+                        let args = node.child_by_field_name("arguments");
+                        if boundary_callees.contains(&bare) {
+                            if let Some(arg0) = args.and_then(|a| arg_string_literal(a, 0, content))
+                            {
+                                if arg0 == "invoke_mcp_tool" {
+                                    if let Some(tool) = args.and_then(|a| {
+                                        arg_object_string_field(a, 1, "tool", content)
+                                    }) {
+                                        edges.push(crate::ast::ExtractedEdge {
+                                            source: source_fn.clone(),
+                                            target: format!("tool:{tool}"),
+                                            confidence: "declared".into(),
+                                            kind: "calls".into(),
+                                        });
+                                    }
+                                } else {
+                                    edges.push(crate::ast::ExtractedEdge {
+                                        source: source_fn.clone(),
+                                        target: format!("cmd:{arg0}"),
+                                        confidence: "declared".into(),
+                                        kind: "calls".into(),
+                                    });
+                                }
+                            }
+                            push_children(&mut stack, node, &mut cursor);
+                            continue;
+                        } else if callee.starts_with("voxTransport.") {
+                            if let Some(target) = wrappers.get(bare) {
+                                edges.push(crate::ast::ExtractedEdge {
+                                    source: source_fn.clone(),
+                                    target: target.clone(),
+                                    confidence: "declared".into(),
+                                    kind: "calls".into(),
+                                });
+                            }
+                            push_children(&mut stack, node, &mut cursor);
+                            continue;
+                        }
+                        edges.push(crate::ast::ExtractedEdge {
+                            source: source_fn.clone(),
+                            target: callee.to_string(),
+                            confidence: "resolved".into(),
+                            kind: "calls".into(),
+                        });
+                    }
+                }
+            }
+        }
+        push_children(&mut stack, node, &mut cursor);
+    }
+}

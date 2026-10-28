@@ -162,16 +162,16 @@ export function ActivityTimeline({ rows }: ActivityTimelineProps) {
                   <span className="font-semibold uppercase tracking-wider text-[10px] opacity-75">
                     {row.kind}
                   </span>
-                  <span className="text-zinc-500">
+                  <span className="text-text-muted">
                     {new Date(row.ts_ms).toLocaleTimeString()}
                   </span>
                   {row.agent_id && (
-                    <span className="px-1.5 py-0.5 rounded-sm bg-zinc-900/60 border border-zinc-800/50 text-[10px] text-zinc-400">
+                    <span className="px-1.5 py-0.5 rounded-sm bg-bg-base/80 border border-border-subtle text-[10px] text-text-secondary">
                       Agent: {row.agent_id}
                     </span>
                   )}
                 </div>
-                <p className="text-zinc-200 font-medium">{row.summary}</p>
+                <p className="text-text-primary font-medium">{row.summary}</p>
               </div>
             </div>
           );
@@ -186,7 +186,7 @@ export function ActivityTimeline({ rows }: ActivityTimelineProps) {
               )}`}
             >
               <div className="flex items-start gap-4">
-                <div className="flex items-center justify-center p-1.5 rounded-sm bg-zinc-900/50 border border-zinc-800">
+                <div className="flex items-center justify-center p-1.5 rounded-sm bg-bg-base/80 border border-border-subtle">
                   {getIcon('CostIncurred')}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -194,22 +194,22 @@ export function ActivityTimeline({ rows }: ActivityTimelineProps) {
                     <span className="font-semibold uppercase tracking-wider text-[10px] opacity-75">
                       CostIncurred (Folded)
                     </span>
-                    <span className="text-zinc-500">
+                    <span className="text-text-muted">
                       {new Date(item.rows[0].ts_ms).toLocaleTimeString()}
                     </span>
                     {item.agentId && (
-                      <span className="px-1.5 py-0.5 rounded-sm bg-zinc-900/60 border border-zinc-800/50 text-[10px] text-zinc-400">
+                      <span className="px-1.5 py-0.5 rounded-sm bg-bg-base/80 border border-border-subtle text-[10px] text-text-secondary">
                         Agent: {item.agentId}
                       </span>
                     )}
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <p className="text-zinc-200 font-medium">
+                    <p className="text-text-primary font-medium">
                       spent ${item.totalCost.toFixed(4)} ({item.rows.length} calls)
                     </p>
                     <button
                       onClick={() => toggleExpand(item.key)}
-                      className="px-2 py-0.5 rounded-sm bg-zinc-900/60 border border-zinc-800 hover:bg-zinc-800 text-[10px] text-zinc-400 hover:text-zinc-200 font-medium transition-colors"
+                      className="px-2 py-0.5 rounded-sm bg-bg-base/80 border border-border-subtle hover:bg-overlay-subtle text-[10px] text-text-secondary hover:text-text-primary font-medium transition-colors"
                       data-testid="fold-toggle"
                     >
                       {isExpanded ? 'Hide' : 'Expand'}
@@ -218,14 +218,14 @@ export function ActivityTimeline({ rows }: ActivityTimelineProps) {
                 </div>
               </div>
               {isExpanded && (
-                <div className="pl-12 pr-2 py-1 flex flex-col gap-1.5 border-t border-zinc-800/30 mt-1">
+                <div className="pl-12 pr-2 py-1 flex flex-col gap-1.5 border-t border-border-subtle mt-1">
                   {item.rows.map((row) => (
                     <div
                       key={row.id}
-                      className="flex items-center justify-between text-[11px] text-zinc-400 hover:text-zinc-300 py-0.5"
+                      className="flex items-center justify-between text-[11px] text-text-secondary hover:text-text-primary py-0.5"
                     >
                       <span className="truncate">{row.summary}</span>
-                      <span className="text-zinc-500 ml-2 whitespace-nowrap">
+                      <span className="text-text-muted ml-2 whitespace-nowrap">
                         {new Date(row.ts_ms).toLocaleTimeString()}
                       </span>
                     </div>
@@ -318,14 +318,14 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
 
       <Glass className="flex items-center gap-3 p-3 flex-wrap">
         <div className="flex flex-col gap-1 min-w-[120px]">
-          <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">
+          <label className="text-[10px] uppercase font-bold tracking-wider text-text-muted">
             Agent
           </label>
           <select
             value={agentFilter}
             aria-label="Agent"
             onChange={(e) => setAgentFilter(e.target.value)}
-            className="bg-zinc-900 border border-zinc-800 rounded-sm px-2 py-1 text-xs text-zinc-300 focus:outline-hidden focus:border-zinc-700"
+            className="bg-bg-base border border-border-subtle rounded-sm px-2 py-1 text-xs text-text-secondary focus:outline-hidden focus:border-brass/50"
           >
             <option value="">All Agents</option>
             {uniqueAgents.map((id) => (
@@ -337,14 +337,14 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
         </div>
 
         <div className="flex flex-col gap-1 min-w-[150px]">
-          <label className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">
+          <label className="text-[10px] uppercase font-bold tracking-wider text-text-muted">
             Event Type
           </label>
           <select
             value={kindFilter}
             aria-label="Event Type"
             onChange={(e) => setKindFilter(e.target.value)}
-            className="bg-zinc-900 border border-zinc-800 rounded-sm px-2 py-1 text-xs text-zinc-300 focus:outline-hidden focus:border-zinc-700"
+            className="bg-bg-base border border-border-subtle rounded-sm px-2 py-1 text-xs text-text-secondary focus:outline-hidden focus:border-brass/50"
           >
             <option value="">All Kinds</option>
             {uniqueKinds.map((kind) => (
@@ -359,9 +359,9 @@ export function ActivitySurface({ pushToast }: ActivitySurfaceProps) {
           <button
             onClick={fetchLogs}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 disabled:opacity-50 text-xs font-medium text-zinc-200 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-bg-surface border border-border-subtle hover:bg-overlay-subtle disabled:opacity-50 text-xs font-medium text-text-primary transition-colors"
           >
-            <Icon.alert className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <Icon.refresh className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
         </div>

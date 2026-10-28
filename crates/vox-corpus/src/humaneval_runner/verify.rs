@@ -253,6 +253,7 @@ mod tests {
             "let assert = fn(c: bool) to bool { return true }\nfn f() to int { return 0 }",
             "fn main() to str { return \"ok\" }",
             &d,
+            // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration; vox-corpus has no vox-config edge
             Duration::from_secs(1),
         )
         .unwrap();

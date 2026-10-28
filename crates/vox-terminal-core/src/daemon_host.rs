@@ -35,6 +35,85 @@ impl DaemonHost {
     }
 }
 
+/// Locate a `vox-orchestrator-d` binary adjacent to the current executable or on `PATH`.
+fn find_daemon_binary() -> Option<std::path::PathBuf> {
+    let bin_name = if cfg!(windows) {
+        "vox-orchestrator-d.exe"
+    } else {
+        "vox-orchestrator-d"
+    };
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(dir) = exe.parent()
+    {
+        let sibling = dir.join(bin_name);
+        if sibling.is_file() {
+            return Some(sibling);
+        }
+    }
+    if let Some(paths) = std::env::var_os("PATH") {
+        for dir in std::env::split_paths(&paths) {
+            let candidate = dir.join(bin_name);
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+    }
+    None
+}
+
+/// Attempt to spawn `vox-orchestrator-d` in the background on cold start and return
+/// a connected [`OrchDaemonClient`] once it answers a ping.
+async fn try_autospawn_daemon() -> Option<OrchDaemonClient> {
+    if std::env::var("VOX_TERM_NO_AUTOSPAWN").ok().as_deref() == Some("1") {
+        return None;
+    }
+    let bin = find_daemon_binary()?;
+    let mut cmd = std::process::Command::new(bin);
+    cmd.stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    let _child = cmd.spawn().ok()?;
+    for _ in 0..20 {
+        // drift-allow(timeout-literal,duplicate-numeric-literal): cold-start daemon poll interval
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        let client = OrchDaemonClient::from_env_or_token_file();
+        if let Ok(Ok(_)) =
+            // drift-allow(timeout-literal,duplicate-numeric-literal): fast loopback daemon probe bound
+            tokio::time::timeout(std::time::Duration::from_millis(200), client.ping()).await
+        {
+            return Some(client);
+        }
+    }
+    None
+}
+
+/// Probe `vox-orchestrator-d` with a 250ms timeout (auto-spawning it on cold start
+/// when available) and return a [`DaemonHost`] when reachable, or fall back to an
+/// in-process [`crate::host::LocalHost`].
+pub async fn resolve_session_host(
+    force_local: bool,
+) -> std::sync::Arc<dyn crate::host::SessionHost> {
+    if !force_local {
+        let client = OrchDaemonClient::from_env_or_token_file();
+        if let Ok(Ok(_)) =
+            // drift-allow(timeout-literal,duplicate-numeric-literal): fast loopback daemon probe bound
+            tokio::time::timeout(std::time::Duration::from_millis(250), client.ping()).await
+        {
+            return std::sync::Arc::new(DaemonHost::new(client));
+        }
+        if let Some(spawned_client) = try_autospawn_daemon().await {
+            return std::sync::Arc::new(DaemonHost::new(spawned_client));
+        }
+    }
+    std::sync::Arc::new(crate::host::LocalHost::default())
+}
+
 fn str_field<'a>(v: &'a Value, key: &str) -> Result<&'a str> {
     v.get(key)
         .and_then(Value::as_str)
@@ -120,7 +199,10 @@ impl SessionHost for DaemonHost {
     async fn open(&self, spec: OpenSpec) -> Result<SessionId> {
         let r = self
             .client
-            .call(OPEN, json!({"cols": spec.cols, "rows": spec.rows}))
+            .call(
+                OPEN,
+                json!({"cols": spec.cols, "rows": spec.rows, "shell": spec.shell}),
+            )
             .await?;
         Ok(str_field(&r, "session_id")?.to_string())
     }
@@ -131,9 +213,19 @@ impl SessionHost for DaemonHost {
             .ok_or_else(|| anyhow!("term.list: expected an array"))?
             .iter()
             .map(|s| {
+                let security_level = s
+                    .get("security_level")
+                    .and_then(|v| serde_json::from_value(v.clone()).ok())
+                    .unwrap_or_default();
+                let control_mode = s
+                    .get("control_mode")
+                    .and_then(|v| serde_json::from_value(v.clone()).ok())
+                    .unwrap_or_default();
                 Ok(SessionInfo {
                     id: str_field(s, "session_id")?.to_string(),
                     blocks: s.get("blocks").and_then(Value::as_u64).unwrap_or(0) as usize,
+                    security_level,
+                    control_mode,
                 })
             })
             .collect()

@@ -1,0 +1,13 @@
+{
+  "schema_version": "vox.spoke_regression_ratchet.v1",
+  "spoke_pass_at_1_floors": {
+    "agent_harness": 1.0,
+    "mcp_tool_chain": 1.0,
+    "rust_workspace": 1.0,
+    "structured_shell": 1.0,
+    "vox_lang": 1.0
+  },
+  "organic_search_recall_at_5_floor": 1.0,
+  "organic_mrr_floor": 0.95,
+  "organic_compilation_pass_rate_floor": 1.0
+}

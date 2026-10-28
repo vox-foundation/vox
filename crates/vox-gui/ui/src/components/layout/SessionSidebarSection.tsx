@@ -90,13 +90,12 @@ function SessionRow({
           </span>
         )}
         {showArchive && (
-          <button
-            type="button"
+          <span
             onClick={e => { e.stopPropagation(); onArchiveSession(s.session_id); }}
-            className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-[10px] text-text-muted hover:text-text-primary"
+            className="opacity-0 group-hover:opacity-100 text-[10px] text-text-muted hover:text-text-primary"
           >
             Archive
-          </button>
+          </span>
         )}
       </span>
     </div>

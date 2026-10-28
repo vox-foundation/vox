@@ -173,6 +173,33 @@ contracts:
       - vox ci docs-reality-audit verify
       - vox ci contracts-index
 
+  - id: documentation-docs-sidebar-section-order-v1
+    path: contracts/documentation/docs-sidebar-section-order.v1.json
+    owner: platform-ci
+    kind: json
+    description: Canonical sidebar section ordering for docs-astro Starlight navigation.
+    enforced_by:
+      - docs-astro/src/utils/sidebar.mjs
+      - vox ci contracts-index
+
+  - id: documentation-site-mounted-repo-docs-v1
+    path: contracts/documentation/site-mounted-repo-docs.v1.json
+    owner: platform-ci
+    kind: json
+    description: Out-of-tree repository Markdown files mounted under /repo/ in docs-astro.
+    enforced_by:
+      - docs-astro/src/utils/repo-mounts.mjs
+      - vox ci contracts-index
+
+  - id: documentation-tutorial-verification-v1
+    path: contracts/documentation/tutorial-verification.v1.json
+    owner: platform-ci
+    kind: json
+    description: Tutorial verification report for voxlang.org onboarding tutorials.
+    enforced_by:
+      - scripts/docs/tutorial-verify.vox
+      - vox ci contracts-index
+
   - id: reports-docs-reality-audit-inventory-schema
     path: contracts/reports/docs-reality-audit/inventory.v1.schema.json
     owner: platform-ci
@@ -1383,14 +1410,15 @@ contracts:
     enforced_by:
       - vox ci contracts-index
 
-  - id: orchestration-permission-modes-v1
-    path: contracts/orchestration/permission-modes.v1.yaml
+  - id: orchestration-permission-modes-v2
+    path: contracts/orchestration/permission-modes.v2.yaml
     owner: platform-ci
     kind: yaml
     description: >-
-      T0.3 dangerous-tool risk classification + PermissionMode auto-approve
-      matrix for the vox-orchestrator-mcp HITL approval gate; mirrored by
-      crates/vox-orchestrator-mcp/src/permission_modes.rs (parity-tested).
+      Dangerous-tool risk classification, PermissionMode auto-approve matrix,
+      and safety floor categories for vox-orchestrator-mcp HITL approval gate;
+      mirrored by crates/vox-orchestrator-mcp/src/permission_modes.rs and
+      vox-orchestrator::oversight::floor (parity-tested).
     enforced_by:
       - vox ci contracts-index
 

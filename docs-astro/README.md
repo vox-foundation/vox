@@ -1,49 +1,30 @@
-# Starlight Starter Kit: Basics
+# Vox Documentation Site (`docs-astro`)
 
-[![Built with Starlight](https://astro.badg.es/v2/built-with-starlight/tiny.svg)](https://starlight.astro.build)
+This package contains the Astro + Starlight site generator for [`voxlang.org`](https://voxlang.org). It renders the canonical documentation corpus in `docs/src/` along with mounted repository Markdown files and auto-generated reference catalogs.
 
+## Architecture & Source Layout
+
+- **Content Root**: `../docs/src/` — All authored tutorials, how-to guides, reference pages, architecture SSOTs, and ADRs live in `docs/src/`.
+- **Sidebar & Navigation**: `src/utils/sidebar.mjs` — Dynamically builds the Starlight sidebar from frontmatter (`title`, `category`, `sort_order`, `status`) and `contracts/documentation/docs-sidebar-section-order.v1.json`.
+- **Trust & Page Status**: `src/utils/page-status.mjs` — Computes reader trust banners, `noindex` rules, and `llms.txt` / sitemap inclusion from page `status` and `contracts/reports/docs-freshness/ledger.v1.json`.
+- **Interactive Chrome**: `src/components/` — Custom Starlight overrides (`PageFrame.astro`, `TwoColumnContent.astro`, `VoxPlayground.astro`, `MermaidInit.astro`).
+
+## Commands
+
+Run from `docs-astro/` (or via `pnpm --dir docs-astro <cmd>` from the repository root):
+
+| Command | Action |
+| :--- | :--- |
+| `pnpm install` | Install dependencies |
+| `pnpm dev` | Start local dev server at `http://localhost:4321` |
+| `pnpm build` | Build production static site to `./dist/` |
+| `pnpm test:unit` | Run unit tests (`tests/unit/*.test.mjs`) |
+| `pnpm test:build` | Run build-output verification tests against `./dist/` |
+
+## Documentation Governance
+
+Before adding or editing pages under `docs/src/`, consult `docs/src/contributors/documentation-governance.md` and validate changes with:
+
+```bash
+cargo run -p vox-doc-pipeline -- --lint-only --paths <relative-path-under-docs-src>
 ```
-pnpm create astro@latest -- --template starlight
-```
-
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
-
-## 🚀 Project Structure
-
-Inside of your Astro + Starlight project, you'll see the following folders and files:
-
-```
-.
-├── public/
-├── src/
-│   ├── assets/
-│   ├── content/
-│   │   └── docs/
-│   └── content.config.ts
-├── astro.config.mjs
-├── package.json
-└── tsconfig.json
-```
-
-Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its file name.
-
-Images can be added to `src/assets/` and embedded in Markdown with a relative link.
-
-Static assets, like favicons, can be placed in the `public/` directory.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `pnpm install`             | Installs dependencies                            |
-| `pnpm dev`             | Starts local dev server at `localhost:4321`      |
-| `pnpm build`           | Build your production site to `./dist/`          |
-| `pnpm preview`         | Preview your build locally, before deploying     |
-| `pnpm astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `pnpm astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Check out [Starlight’s docs](https://starlight.astro.build/), read [the Astro documentation](https://docs.astro.build), or jump into the [Astro Discord server](https://astro.build/chat).

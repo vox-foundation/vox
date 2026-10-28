@@ -1,3 +1,5 @@
+//! Model calibration, usage accounting, and budget policy types for the Vox orchestrator.
+
 pub mod calibration;
 pub mod usage;
 pub mod usage_policy;

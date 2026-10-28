@@ -28,6 +28,7 @@ pub mod planner;
 pub mod provider;
 mod research_event_metrics_bridge;
 mod search_policy_feedback;
+pub mod trial_scoring;
 pub mod types;
 pub mod verifier;
 
@@ -43,6 +44,7 @@ pub use orchestrator::{
 pub use research_event_metrics_bridge::TELEMETRY_CATALOG_ID_RESEARCH_EVENT_BRIDGE;
 pub(crate) use research_event_metrics_bridge::spawn_persist_research_event_for_metrics;
 pub use search_policy_feedback::load_rolling_search_policy_feedback;
+pub use trial_scoring::{TrialSampleEvaluation, score_research_result};
 pub use types::{
     Citation, CompetenceSignal, ResearchDomainMode, ResearchHit, ResearchMetadata, ResearchPlan,
     ResearchQuery, ResearchResult, ResearchScope, RetrievalDiagnostics, RoutingTier,

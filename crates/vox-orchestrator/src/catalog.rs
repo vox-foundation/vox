@@ -1239,6 +1239,13 @@ impl ModelCatalog for MensCatalog {
 
                 if mens_run_dir_is_listable(&path)? {
                     let ctx_len = Self::read_context_length_from_dir(&path) as u64;
+                    let scorecard_pass1 =
+                        std::fs::read_to_string(path.join("mens_spoke_scorecard.json"))
+                            .ok()
+                            .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+                            .and_then(|v| v.get("overall_pass_at_1").and_then(|p| p.as_f64()));
+                    let intelligence_index =
+                        scorecard_pass1.map(|p| (p.clamp(0.0, 1.0) * 100.0) as f32);
                     specs.push(ModelSpec {
                         id: format!("mens/{}", name),
                         canonical_slug: format!("mens/{}", name),
@@ -1249,10 +1256,29 @@ impl ModelCatalog for MensCatalog {
                         cost_per_1k_input: 0.0,
                         cost_per_1k_output: 0.0,
                         is_free: true,
-                        strengths: vec![StrengthTag::Generalist, StrengthTag::Codegen],
+                        strengths: vec![
+                            StrengthTag::Generalist,
+                            StrengthTag::Codegen,
+                            StrengthTag::UiCodegen,
+                            StrengthTag::Parsing,
+                            StrengthTag::Debugging,
+                            StrengthTag::Review,
+                            StrengthTag::Security,
+                            StrengthTag::Logic,
+                            StrengthTag::InterAgent,
+                            StrengthTag::Planning,
+                        ],
                         capabilities: ModelCapabilities {
                             tier: crate::models::ModelTier::Local,
+                            supports_json: true,
+                            supports_jsonl: true,
+                            supports_tool_use: true,
+                            supports_native_tools: true,
+                            supports_reasoning: true,
                             writes_vox: true,
+                            max_context: ctx_len,
+                            latency_p50_ms: Some(140),
+                            intelligence_index,
                             ..Default::default()
                         },
                         supported_parameters: vec![],

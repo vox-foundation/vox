@@ -2,6 +2,7 @@
 
 pub mod backend;
 pub mod errors;
+pub mod lifecycle;
 pub mod policy;
 pub mod redact;
 pub mod resolver;
@@ -33,14 +34,15 @@ pub(crate) static TEST_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(()
 pub use backend::vox_vault::{VaultHealth, cloudless_vault_env_diagnostic, probe_vault_health};
 pub use errors::SecretError;
 pub use policy::{MissingBehavior, SecretPolicy};
-pub use resolver::ResolveProfile;
 use resolver::{ResolveOptions, SecretResolver};
+pub use resolver::{ResolveProfile, parse_clavis_uri};
 pub use spec::{
-    Capability, FreeTierOffer, Profile, RequirementMode, RequirementSet, RotationPolicy,
-    SecretBundle, SecretClass, SecretId, SecretMaterialKind, SecretMetadata, SecretSpec, Workflow,
-    WorkflowRequirements, all_bundle_doc_names, all_specs, capabilities_for_secret,
-    list_free_tier_offers, managed_secret_env_names, required_for, required_for_profile,
-    requirements_for_bundle, requirements_for_profile, requirements_for_profile_mode,
+    Capability, FreeTierOffer, Profile, ProviderManifestEntry, RequirementMode, RequirementSet,
+    RotationPolicy, SecretBundle, SecretClass, SecretId, SecretMaterialKind, SecretMetadata,
+    SecretSpec, Workflow, WorkflowRequirements, all_bundle_doc_names, all_provider_manifests,
+    all_specs, capabilities_for_secret, list_free_tier_offers, managed_secret_env_names,
+    provider_manifest_for, required_for, required_for_profile, requirements_for_bundle,
+    requirements_for_profile, requirements_for_profile_mode,
 };
 pub use types::{ResolutionStatus, ResolvedSecret, SecretSource};
 
@@ -296,6 +298,12 @@ pub fn delete_secret(id: SecretId) -> Result<bool, SecretError> {
 #[must_use]
 pub fn resolve_secret_for_cli(id: SecretId) -> ResolvedSecret {
     resolve_secret_with_context(id, "cli")
+}
+
+/// Resolve a portable `clavis://<provider>/<key>` URI reference (`CLAVIS-02`).
+pub fn resolve_clavis_uri(uri: &str) -> Result<ResolvedSecret, String> {
+    let id = parse_clavis_uri(uri)?;
+    Ok(resolve_secret(id))
 }
 
 #[must_use]

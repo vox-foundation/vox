@@ -1,4 +1,3 @@
-
 // ── Multi-construct program templates ────────────────────────────────────────
 
 fn gen_full_stack_program(rng: &mut Rng, variant: usize) -> OrganicPair {
@@ -12,15 +11,19 @@ fn gen_full_stack_program(rng: &mut Rng, variant: usize) -> OrganicPair {
     let templates = [
         // Template 0: CRUD API
         format!(
-            "table {tn} {{\n    id: int\n    name: str\n    active: bool\n}}\n\nquery get_{noun}(id: int) to str {{\n    return db.{tn}.find(id).name\n}}\n\nmutation create_{noun}(name: str) to Unit {{\n    db.{tn}.insert(name)\n}}\n\n@get(\"/api/{noun}\")\nfn {noun}_handler(req: str) to str {{\n    return get_{noun}(1)\n}}\n\n@test\nfn test_{noun}() to Unit {{\n    create_{noun}(\"test\")\n    assert(get_{noun}(1) == \"test\")\n}}"
+            "table {tn} {{\n    id: int\n    name: str\n    active: bool\n}}\n\nquery get_{noun}(id: int) to str {{\n    return db.{tn}.find(id).name\n}}\n\nmutation create_{noun}(name: str) to Unit {{\n    db.{tn}.insert(name)\n}}\n\nserver {noun}_handler(req: str) to str {{\n    return get_{noun}(1)\n}}\n\n@test\nfn test_{noun}() to Unit {{\n    create_{noun}(\"test\")\n    assert(get_{noun}(1) is \"test\")\n}}"
         ),
         // Template 1: Agent pipeline
         format!(
-            "message {tn}Event {{\n    id: int\n    data: str\n}}\n\nactor {tn}Worker {{\n    state count: int = 0\n    on {verb}() to str {{\n        count = count + 1\n        return \"processed\"\n    }}\n}}\n\nworkflow {noun}_pipeline(input: str) to str {{\n    let worker = spawn({tn}Worker)\n    let result = {verb}(input)\n    return result\n}}"
+            "type {tn}Event {{\n    id: int\n    data: str\n}}\n\nactor {tn}Worker {{\n    on {verb}(input: str) to str {{\n        return \"processed\"\n    }}\n}}\n\nactivity run_{verb}(input: str) to Result[str] {{\n    return Ok(input)\n}}\n\nworkflow {noun}_pipeline(input: str) to Result[str] {{\n    let worker = spawn({tn}Worker)\n    let result = run_{verb}(input) with {{ retries: 3, timeout: \"30s\" }}\n    return result\n}}"
         ),
         // Template 2: UI app
         format!(
-            "type {tn}Status = Loading | Ready(data: str) | Error(msg: str)\n\ncomponent {tn}View() {{\n    state status: str = \"ready\"\n    view: <div className=\"{noun}\">\n        <h1>{{\"{tn}\"}}</h1>\n        <p>{{status}}</p>\n    </div>\n}}\n\nlayout fn {tn}Layout(children: Element) to Element {{\n    return <main>{{children}}</main>\n}}\n\nroutes {{\n    \"/\" to {tn}View\n}}"
+            "type {tn}Status = | Loading | Ready(data: str) | Error(msg: str)\n\ncomponent {tn}View() {{\n    state status: str = \"ready\"\n    view: column() {{\n        text() {{ \"{tn}\" }}\n        text() {{ \"{{status}}\" }}\n    }}\n}}\n\nroutes {{\n    \"/\" to {tn}View\n}}"
+        ),
+        // Template 3: VoxScript automation (`vox run scripts/*.vox`)
+        format!(
+            "import fs\nimport process\n\ntype {tn}Check {{\n    target: str\n    passed: bool\n}}\n\nfn verify_{noun}(pkg: str) to Result[{tn}Check] {{\n    let code = process.run(\"cargo\", [\"check\", \"-p\", pkg])?\n    return Ok({tn}Check {{\n        target: pkg,\n        passed: code is 0\n    }})\n}}\n\nfn main() to Result[Unit] {{\n    let res = verify_{noun}(\"vox-cli\")?\n    if not res.passed {{\n        return Error(\"check failed for \" + res.target)\n    }}\n    fs.write(\"target/{noun}.ok\", res.target)?\n    return Ok(())\n}}"
         ),
     ];
 
@@ -91,35 +94,26 @@ pub fn generate_cot_organic_corpus(seed: u64) -> Vec<OrganicPair> {
     for pair in base_pairs {
         let mut new_pair = pair.clone();
         let construct_name = new_pair.category.replace("vox_", "");
-        
+
         let think_block = format!(
             "<think>\n1. Plan: The user wants to generate a `{construct_name}` construct in Vox.\n\
              2. Syntax considerations: A valid `{construct_name}` requires correct keywords, valid identifiers, and proper brace formatting based on the Vox AST specification.\n\
              3. Implementation: I will synthesize a realistic, minimal example of a `{construct_name}` satisfying these requirements.\n\
              </think>\n\n"
         );
-        
+
         new_pair.response = format!("{think_block}{}", new_pair.response);
         new_pair.category = "vox_gen_cot".into();
         cot_pairs.push(new_pair);
     }
-    
+
     cot_pairs
 }
 
-/// Parse verification (heuristic fallback when parser feature not enabled).
+/// Compiler-backed parse verification using `vox_compiler::lexer` + `vox_compiler::parser`.
 fn verify_parse(source: &str) -> bool {
-    #[cfg(feature = "parser-verify")]
-    {
-        let tokens = vox_compiler::lexer::lex(source);
-        vox_compiler::parser::parse(tokens).is_ok()
-    }
-    #[cfg(not(feature = "parser-verify"))]
-    {
-        let open = source.chars().filter(|&c| c == '{').count();
-        let close = source.chars().filter(|&c| c == '}').count();
-        open == close && !source.is_empty()
-    }
+    let tokens = vox_compiler::lexer::lex(source);
+    vox_compiler::parser::parse(tokens).is_ok()
 }
 
 /// Write organic pairs to JSONL.

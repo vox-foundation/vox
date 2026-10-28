@@ -46,7 +46,6 @@ pub fn try_format(source: &str) -> Result<String, Vec<ParseError>> {
     let mut printer = printer::Printer::new();
     printer.print_module(&module);
     let out = printer.finish().trim_end().to_string() + "\n";
-    parse(lex(&out)).map(|_| ())?;
     if !layout_only(source, &out) {
         return Err(vec![ParseError::new(
             crate::ast::span::Span::new(0, 0),
@@ -55,6 +54,7 @@ pub fn try_format(source: &str) -> Result<String, Vec<ParseError>> {
             None,
         )]);
     }
+    parse(lex(&out)).map(|_| ())?;
     Ok(out)
 }
 

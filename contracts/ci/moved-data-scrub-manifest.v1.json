@@ -1,0 +1,46 @@
+{
+  "x-vox-version": 1,
+  "schema_version": 1,
+  "description": "Working-tree scrub contract enforcing that moved server telemetry, live social syndication adapters, multi-user Ludus community surfaces, and shadow gamify telemetry remain absent from the public vox repository while transparent opt-in vox-telemetry remains intact (SCRUB-01..04).",
+  "moved_target_repository": "vox-ops",
+  "forbidden_working_tree_paths": [
+    "server/telemetry",
+    "crates/vox-publisher/src/adapters/twitter.rs",
+    "crates/vox-publisher/src/adapters/reddit.rs",
+    "crates/vox-publisher/src/adapters/youtube.rs",
+    "crates/vox-publisher/src/adapters/discord.rs",
+    "crates/vox-publisher/src/adapters/bluesky.rs",
+    "crates/vox-publisher/src/adapters/mastodon.rs",
+    "crates/vox-publisher/src/adapters/linkedin.rs",
+    "crates/vox-publisher/src/adapters/hacker_news.rs",
+    "crates/vox-publisher/src/adapters/opencollective.rs",
+    "crates/vox-gamify/src/db/hint_telemetry.rs",
+    "crates/vox-gamify/src/lsp_telemetry.rs",
+    "crates/vox-gamify/src/collegium.rs",
+    "crates/vox-gamify/src/arena.rs",
+    "crates/vox-gamify/src/disputes.rs",
+    "crates/vox-gamify/src/ludus/auth.rs",
+    "crates/vox-gamify/src/ludus/sync.rs"
+  ],
+  "forbidden_sqlite_tables": [
+    "gamify_hint_telemetry",
+    "gamify_lsp_telemetry",
+    "gamify_collegium",
+    "gamify_collegium_members",
+    "gamify_arena_events",
+    "gamify_arena_participants",
+    "gamify_audit_disputes"
+  ],
+  "required_preserved_public_surfaces": [
+    "crates/vox-telemetry/src/lib.rs",
+    "crates/vox-telemetry/src/event.rs",
+    "crates/vox-telemetry/src/privacy.rs",
+    "crates/vox-telemetry-otlp/src/lib.rs",
+    "crates/vox-db/src/telemetry_sink.rs",
+    "crates/vox-db/src/store/ops_agent_telemetry.rs",
+    "crates/vox-gamify/src/verified_leaderboard.rs",
+    "crates/vox-orchestrator/src/models/intelligence_bundle.rs",
+    "docs/src/adr/023-optional-telemetry-remote-upload.md",
+    "docs/src/architecture/telemetry-trust-ssot.md"
+  ]
+}

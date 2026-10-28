@@ -317,6 +317,47 @@ export function ApprovalsView({ pushToast, gamifyEnabled = false }: ApprovalsVie
           }
         />
       </div>
+
+      <div
+        data-testid="approvals-security-deck"
+        className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-3"
+      >
+        <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+          <div className="flex items-center justify-between">
+            <span className="font-display text-[10px] tracking-widest text-brass uppercase">Active Gate Mode</span>
+            <span className="rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 font-mono text-[9px] text-brass uppercase">
+              {permissionMode.replace(/_/g, ' ')}
+            </span>
+          </div>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+            {PERMISSION_MODE_OPTIONS.find((m) => m.id === permissionMode)?.hint}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+          <div className="flex items-center justify-between">
+            <span className="font-display text-[10px] tracking-widest text-cyan uppercase">Authenticated Wire</span>
+            <span className="rounded border border-cyan/30 bg-cyan/10 px-1.5 py-0.5 font-mono text-[9px] text-cyan">
+              DispatchRequest
+            </span>
+          </div>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+            Permission mode rides on the top-level authenticated IPC envelope rather than untrusted tool JSON arguments.
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+          <div className="flex items-center justify-between">
+            <span className="font-display text-[10px] tracking-widest text-text-primary uppercase">Allowlist Guard</span>
+            <span className="font-mono text-[10px] text-emerald-300">
+              {approvals.length} queued
+            </span>
+          </div>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+            Adding a tool to the repository allowlist (<code className="text-brass">Always allow</code>) requires explicit HITL confirmation.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

@@ -210,6 +210,19 @@
     -webkit-font-smoothing: antialiased;
     font-family: var(--font-family-sans);
   }
+
+  select:not([data-unified-knob="true"]) {
+    appearance: none;
+    background-color: var(--color-bg-surface);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 6px;
+    padding: 0.25rem 1.75rem 0.25rem 0.625rem;
+    color: var(--color-text-secondary);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12' fill='none' stroke='%239ca3af' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 4.5 3 3 3-3'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 10px 10px;
+  }
 }
 
 @layer components {

@@ -35,14 +35,14 @@
       "reason": "needs_local_machine"
     },
     {
-      "surface": "coverage",
-      "available": true,
-      "reason": null
-    },
-    {
       "surface": "dashboard",
       "available": false,
       "reason": "not_in_profile"
+    },
+    {
+      "surface": "explorer",
+      "available": true,
+      "reason": null
     },
     {
       "surface": "flow",
@@ -100,6 +100,11 @@
       "reason": "not_in_profile"
     },
     {
+      "surface": "vox-search",
+      "available": false,
+      "reason": "not_in_profile"
+    },
+    {
       "surface": "catalog",
       "available": false,
       "reason": "not_in_profile"
@@ -130,11 +135,6 @@
       "reason": "not_in_profile"
     },
     {
-      "surface": "oratio",
-      "available": false,
-      "reason": "not_in_profile"
-    },
-    {
       "surface": "populi",
       "available": false,
       "reason": "not_in_profile"
@@ -155,12 +155,12 @@
       "reason": "not_in_profile"
     },
     {
-      "surface": "vox-search",
+      "surface": "skills",
       "available": false,
       "reason": "not_in_profile"
     },
     {
-      "surface": "skills",
+      "surface": "oratio",
       "available": false,
       "reason": "not_in_profile"
     }

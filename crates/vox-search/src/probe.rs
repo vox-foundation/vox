@@ -404,16 +404,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_unconfigured_searxng_returns_helpful_remediation() {
-        let prev = std::env::var("VOX_SEARCH_SEARXNG_URL").ok();
-        unsafe {
-            std::env::remove_var("VOX_SEARCH_SEARXNG_URL");
-        }
-        let res = probe_search_provider("searxng".to_string(), "rust".to_string()).await;
-        if let Some(val) = prev {
-            unsafe {
-                std::env::set_var("VOX_SEARCH_SEARXNG_URL", val);
-            }
-        }
+        let mut policy = SearchPolicy::default();
+        policy.searxng_url = None;
+        let res =
+            probe_search_provider_with_policy("searxng".to_string(), "rust".to_string(), policy)
+                .await;
         assert!(res.is_ok());
         let probe = res.unwrap();
         assert_eq!(probe.provider, "searxng");
@@ -437,13 +432,20 @@ mod tests {
     async fn test_unconfigured_tavily_returns_helpful_remediation() {
         let prev = std::env::var("TAVILY_API_KEY").ok();
         unsafe {
-            std::env::remove_var("TAVILY_API_KEY");
+            std::env::set_var("TAVILY_API_KEY", "");
         }
-        let res = probe_search_provider("tavily".to_string(), "rust".to_string()).await;
-        if let Some(val) = prev {
-            unsafe {
+        let mut policy = SearchPolicy::default();
+        policy.tavily_api_url = None;
+        let res =
+            probe_search_provider_with_policy("tavily".to_string(), "rust".to_string(), policy)
+                .await;
+        match prev {
+            Some(val) => unsafe {
                 std::env::set_var("TAVILY_API_KEY", val);
-            }
+            },
+            None => unsafe {
+                std::env::remove_var("TAVILY_API_KEY");
+            },
         }
         assert!(res.is_ok());
         let probe = res.unwrap();

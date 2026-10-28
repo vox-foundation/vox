@@ -250,6 +250,7 @@ const CONSTRUCTOR_PATTERNS: &[&str] = &[
 const FILE_ALLOWLIST: &[&str] = &[
     // vox-orchestrator-d's own daemon bootstrap: the single state owner.
     "vox-orchestrator-d/src/bin/vox_orchestrator_d.rs",
+    "vox-orchestrator-d/src/daemon_steps/mod.rs",
     // ServerState::new_full's own definition body (not a client call site).
     "vox-orchestrator-mcp/src/server_state.rs",
     // vox mcp's protocol-level-only ServerState::new_full (T2.2).

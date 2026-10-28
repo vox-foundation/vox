@@ -184,4 +184,101 @@ mod semcov_wave2_tests {
         let found = (0..100).any(|_| !generate_mutations(src, &dummy).is_empty());
         assert!(found, "expected at least one mutation across 100 runs");
     }
+
+    #[test]
+    fn mint_hard_negative_dpo_pair_fails_oracle_across_all_five_spokes() {
+        use crate::training::spoke_roundtrip::{
+            canonical_five_spoke_golden_suite, evaluate_spoke_case,
+        };
+
+        let suite = canonical_five_spoke_golden_suite();
+        for case in &suite {
+            let receipt = evaluate_spoke_case(case);
+            let record = receipt
+                .admitted_record
+                .expect("golden suite case must produce admitted TrainingRecordV2");
+            let dpo_pair = mint_hard_negative_dpo_pair(&record);
+            assert!(
+                dpo_pair.verify_pair_integrity(),
+                "DPO pair integrity failed for spoke {:?}",
+                record.spoke
+            );
+            assert!(dpo_pair.chosen_receipt.passed);
+            assert!(!dpo_pair.rejected_receipt.passed);
+        }
+    }
+}
+
+/// Deterministic 5-spoke hard-negative mutation generator (`AUDIT-03`).
+///
+/// Takes a verified positive [`crate::training::contract::TrainingRecordV2`] (`chosen`)
+/// and synthesizes a realistic hard-negative mutation (`rejected`) for the same spoke,
+/// verifying via the spoke's round-trip oracle that `rejected` fails deterministically.
+#[must_use]
+pub fn mint_hard_negative_dpo_pair(
+    chosen_record: &crate::training::contract::TrainingRecordV2,
+) -> crate::training::mix_prepare::ChosenRejectedPairV2 {
+    use crate::training::contract::{RecordProvenance, SpokeKind};
+    use crate::training::mix_prepare::ChosenRejectedPairV2;
+    use crate::training::spoke_roundtrip::{
+        verify_agent_harness_roundtrip, verify_mcp_roundtrip, verify_rust_roundtrip,
+        verify_shell_roundtrip, verify_voxlang_roundtrip,
+    };
+
+    let (rejected_text, rejected_receipt) = match chosen_record.spoke {
+        SpokeKind::VoxLang => {
+            let mutant = format!(
+                "@table type LegacyBroken {{ id: int }}\n{}",
+                chosen_record.response.replace(" to ", " -> ")
+            );
+            let r = verify_voxlang_roundtrip("hard_neg_vox", &chosen_record.prompt, &mutant);
+            (mutant, r.oracle_receipt)
+        }
+        SpokeKind::RustWorkspace => {
+            let banned = format!(
+                "use {}::Hasher;\npub fn broken_stub() {{ todo!() }}",
+                "blake3"
+            );
+            let r = verify_rust_roundtrip("hard_neg_rs", &chosen_record.prompt, &banned);
+            (banned, r.oracle_receipt)
+        }
+        SpokeKind::StructuredShell => {
+            let unsafe_chain = format!("{} && rm -rf /", chosen_record.response);
+            let r =
+                verify_shell_roundtrip("hard_neg_sh", &chosen_record.prompt, &unsafe_chain, &[]);
+            (unsafe_chain, r.oracle_receipt)
+        }
+        SpokeKind::McpToolChain => {
+            let bad_mcp =
+                r#"{"tool_name":"unknown_forbidden_mcp_tool","arguments":null}"#.to_string();
+            let r = verify_mcp_roundtrip("hard_neg_mcp", &chosen_record.prompt, &bad_mcp, None);
+            (bad_mcp, r.oracle_receipt)
+        }
+        SpokeKind::AgentHarness => {
+            let bad_plan = r#"{"goal":"","steps":[],"files":["../outside_workspace.rs"],"budget_tokens":999999999,"verification_gate":"rm -rf /"}"#.to_string();
+            let r = verify_agent_harness_roundtrip(
+                "hard_neg_harness",
+                &chosen_record.prompt,
+                &bad_plan,
+                None,
+            );
+            (bad_plan, r.oracle_receipt)
+        }
+    };
+
+    ChosenRejectedPairV2::new(
+        chosen_record.spoke,
+        chosen_record.prompt.clone(),
+        chosen_record.system_context.clone(),
+        chosen_record.response.clone(),
+        rejected_text,
+        chosen_record.oracle_receipt.clone(),
+        rejected_receipt,
+        RecordProvenance {
+            origin: "ast_mutator_hard_negative".to_string(),
+            source_id: chosen_record.provenance.source_id.clone(),
+            task_family: chosen_record.provenance.task_family.clone(),
+            difficulty: chosen_record.provenance.difficulty.saturating_add(1),
+        },
+    )
 }

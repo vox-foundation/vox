@@ -80,6 +80,10 @@ Shared local-first retrieval execution for MCP, orchestrator, CLI, and A2A bridg
 | `ingest` | — |
 | `kb_eval` | — |
 | `kb_ids` | — |
+| `kb_inbox` | — |
+| `kb_injection` | — |
+| `kb_rewrite_guard` | — |
+| `kb_staleness` | — |
 | `llm_query_expansion` | — |
 | `memory_hybrid` | — |
 | `mens_research_subagent` | — |

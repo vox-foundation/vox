@@ -39,7 +39,8 @@ use std::sync::OnceLock;
 //     (knowledge_bases, kb_entries, kb_routing_rules) moved into domains::quarantine behind
 //     the `quarantine` feature (03-12). Existing databases keep the tables and their rows.
 //     Also includes workflow durability tables (workflow_run_log.args_json, wake_at_ms/parked_reason, workflow_patch_log).
-pub const BASELINE_VERSION: i64 = 96;
+// 97: feat(trials): Research Trial Tier-A tables (trial_campaigns, trial_campaigns_log, trial_runs, trial_samples)
+pub const BASELINE_VERSION: i64 = 97;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]
@@ -164,6 +165,10 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
     SchemaFragment {
         name: "history_entries",
         sql: domains::history::SCHEMA_HISTORY,
+    },
+    SchemaFragment {
+        name: "trials",
+        sql: domains::trials::SCHEMA_TRIALS,
     },
 ];
 

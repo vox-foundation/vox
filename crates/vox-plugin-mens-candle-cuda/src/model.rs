@@ -106,7 +106,7 @@ impl Qwen2Attention {
         x: &Tensor,
         pos: usize,
         inv_freq: Option<&Tensor>,
-        kv_cache: Option<&mut (Tensor, Tensor)>,
+        kv_cache: Option<&mut Option<(Tensor, Tensor)>>,
     ) -> Result<Tensor> {
         let (b, seq_len, _d_model) = x.dims3()?;
         let device = x.device();
@@ -166,15 +166,28 @@ impl Qwen2Attention {
             (q, k)
         };
 
-        let (k, v) = if let Some((k_prev, v_prev)) = kv_cache {
-            let k = Tensor::cat(&[&*k_prev, &k], 2)?;
-            let v = Tensor::cat(&[&*v_prev, &v], 2)?;
-            *k_prev = k.clone();
-            *v_prev = v.clone();
-            (k, v)
-        } else {
-            (k, v)
+        let (k, v) = match kv_cache {
+            Some(slot) => {
+                let (k, v) = match slot.as_ref() {
+                    Some((k_prev, v_prev)) => (
+                        Tensor::cat(&[k_prev, &k], 2)?,
+                        Tensor::cat(&[v_prev, &v], 2)?,
+                    ),
+                    None => (k, v),
+                };
+                *slot = Some((k.clone(), v.clone()));
+                (k, v)
+            }
+            None => (k, v),
         };
+
+        if seq_len > 1 && k.dim(2)? != seq_len {
+            return Err(candle_core::Error::Msg(format!(
+                "multi-token forward over a populated KV cache is not supported: \
+                 seq_len={seq_len}, cached+new keys={}. Prefill once, then feed one token per step.",
+                k.dim(2)?
+            )));
+        }
 
         let n_rep = self.n_heads / self.n_kv_heads;
         let k = repeat_kv(&k, n_rep)?;
@@ -365,7 +378,7 @@ impl Qwen35LinearAttention {
         x: &Tensor,
         pos: usize,
         inv_freq: Option<&Tensor>,
-        state_cache: Option<&mut Tensor>,
+        state_cache: Option<&mut Option<Tensor>>,
     ) -> Result<Tensor> {
         let (b, seq_len, _d_model) = x.dims3()?;
         let device = x.device();
@@ -445,14 +458,13 @@ impl Qwen35LinearAttention {
             key = Self::repeat_heads_bshd(&key, rep)?;
         }
 
-        let mut state = if let Some(state_prev) = state_cache.as_ref() {
-            (**state_prev).clone()
-        } else {
-            Tensor::zeros(
+        let mut state = match state_cache.as_ref().and_then(|s| s.as_ref()) {
+            Some(state_prev) => state_prev.clone(),
+            None => Tensor::zeros(
                 (b, self.num_v_heads, self.head_k_dim, self.head_v_dim),
                 DType::F32,
                 device,
-            )?
+            )?,
         };
         let mut outs = Vec::with_capacity(seq_len);
         for t in 0..seq_len {
@@ -486,8 +498,8 @@ impl Qwen35LinearAttention {
             outs.push(out_t);
         }
 
-        if let Some(state_prev) = state_cache {
-            *state_prev = state.clone();
+        if let Some(slot) = state_cache {
+            *slot = Some(state);
         }
 
         let mut y = Tensor::stack(&outs, 1)?;
@@ -650,6 +662,60 @@ impl Qwen35Model {
         self.head_forward(&x)
     }
 
+    pub fn uses_linear_attention(&self) -> bool {
+        self.layers
+            .iter()
+            .any(|l| matches!(l.attention, Qwen35AttentionBlock::Linear(_)))
+    }
+
+    pub fn empty_cache(&self) -> Vec<Qwen35LayerCache> {
+        self.layers
+            .iter()
+            .map(|l| match &l.attention {
+                Qwen35AttentionBlock::Full(_) => Qwen35LayerCache::Full(None),
+                Qwen35AttentionBlock::Linear(_) => Qwen35LayerCache::Linear(None),
+            })
+            .collect()
+    }
+
+    pub fn forward_cached(
+        &self,
+        input_ids: &Tensor,
+        pos: usize,
+        cache: &mut [Qwen35LayerCache],
+    ) -> Result<Tensor> {
+        if cache.len() != self.layers.len() {
+            return Err(candle_core::Error::Msg(format!(
+                "KV cache has {} slots but the model has {} layers",
+                cache.len(),
+                self.layers.len()
+            )));
+        }
+        if let Some(i) = cache
+            .iter()
+            .position(|c| matches!(c, Qwen35LayerCache::Linear(Some(_))))
+        {
+            return Err(candle_core::Error::Msg(format!(
+                "incremental decode over a linear-attention layer is unsupported \
+                 (layer {i}): short-conv state caching is unimplemented, so the \
+                 depthwise conv would see zeros where the previous tokens should be. \
+                 Re-forward the full context for hybrid models instead."
+            )));
+        }
+        let (b, seq_len) = input_ids.dims2()?;
+        let d_model = self.embed_tokens.dim(1)?;
+        let ids = input_ids.flatten_all()?;
+        let mut x = self
+            .embed_tokens
+            .index_select(&ids, 0)?
+            .reshape((b, seq_len, d_model))?;
+
+        for (layer, slot) in self.layers.iter().zip(cache.iter_mut()) {
+            x = layer.forward(&x, pos, Some(slot))?;
+        }
+        self.head_forward(&x)
+    }
+
     /// Final norm + clamp + lm_head + F32 cast, shared by the eager and
     /// checkpointed forward so logits are byte-identical for the same input.
     fn head_forward(&self, x: &Tensor) -> Result<Tensor> {
@@ -750,9 +816,10 @@ impl Qwen35Model {
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum Qwen35LayerCache {
-    Full((Tensor, Tensor)),
-    Linear(Tensor),
+    Full(Option<(Tensor, Tensor)>),
+    Linear(Option<Tensor>),
 }
 
 // ── CandleModel: the opaque handle stored across plugin calls ─────────────────

@@ -117,7 +117,25 @@ test.describe('SITE-01..05 Reader Layout Matrix', () => {
                 }
               }
 
-              // 6. Persistence across page reload
+              // 6. Completely Hide Left Sidebar and Restore via themed pill button
+              // First pin it back so #vox-sidebar-hide-btn is directly visible
+              await pinBtn.click();
+              await expect(page.locator('html')).toHaveAttribute('data-sidebar-state', 'pinned');
+              const leftHideBtn = page.locator('#vox-sidebar-hide-btn');
+              await expect(leftHideBtn).toBeVisible();
+              await leftHideBtn.click();
+              await expect(page.locator('html')).toHaveAttribute('data-sidebar-state', 'hidden');
+
+              const leftRestoreBtn = page.locator('#vox-sidebar-restore-btn');
+              await expect(leftRestoreBtn).toBeVisible();
+              await leftRestoreBtn.click();
+              await expect(page.locator('html')).toHaveAttribute('data-sidebar-state', 'pinned');
+
+              // Collapse again for persistence check
+              await pinBtn.click();
+              await expect(page.locator('html')).toHaveAttribute('data-sidebar-state', 'collapsed');
+
+              // 7. Persistence across page reload
               await page.reload({ waitUntil: 'domcontentloaded' });
               await expect(page.locator('html')).toHaveAttribute('data-sidebar-state', 'collapsed');
             }

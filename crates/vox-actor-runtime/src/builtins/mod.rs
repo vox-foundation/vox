@@ -953,6 +953,166 @@ pub fn vox_process_run_ex(
     }
 }
 
+/// Bounded ring capacity for `std.process::ProcessRun` (`STREAM-03`, `brVideo` parity).
+pub const PROCESS_RUN_RING_CAPACITY: usize = 5_000;
+
+/// Distinguishes normal newline-terminated log lines from carriage-return (`\r`)
+/// in-place progress frames (`tqdm`, FFmpeg `frame=... fps=...`, curl progress).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum ProcessFrameKind {
+    Line,
+    CarriageReturnProgress,
+}
+
+/// Single output event in a [`ProcessRingBuffer`] (`STREAM-03`).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ProcessFrame {
+    pub seq: u64,
+    pub stream: String,
+    pub kind: ProcessFrameKind,
+    pub text: String,
+}
+
+/// Bounded 5,000-event ring buffer for managed subprocess output (`STREAM-03`).
+#[derive(Debug, Clone)]
+pub struct ProcessRingBuffer {
+    capacity: usize,
+    next_seq: u64,
+    events: std::collections::VecDeque<ProcessFrame>,
+}
+
+impl Default for ProcessRingBuffer {
+    fn default() -> Self {
+        Self::new(PROCESS_RUN_RING_CAPACITY)
+    }
+}
+
+impl ProcessRingBuffer {
+    pub fn new(capacity: usize) -> Self {
+        let cap = capacity.max(1);
+        Self {
+            capacity: cap,
+            next_seq: 1,
+            events: std::collections::VecDeque::with_capacity(cap.min(1024)),
+        }
+    }
+
+    pub fn push(&mut self, stream: &str, kind: ProcessFrameKind, text: String) -> u64 {
+        let seq = self.next_seq;
+        self.next_seq += 1;
+        if self.events.len() >= self.capacity {
+            self.events.pop_front();
+        }
+        self.events.push_back(ProcessFrame {
+            seq,
+            stream: stream.to_string(),
+            kind,
+            text,
+        });
+        seq
+    }
+
+    pub fn ingest_raw(&mut self, stream: &str, raw: &str) {
+        let bytes = raw.as_bytes();
+        let mut start = 0usize;
+        let mut i = 0usize;
+        while i < bytes.len() {
+            match bytes[i] {
+                b'\r' => {
+                    let seg = &raw[start..i];
+                    if i + 1 < bytes.len() && bytes[i + 1] == b'\n' {
+                        self.push(stream, ProcessFrameKind::Line, seg.to_string());
+                        i += 2;
+                        start = i;
+                    } else {
+                        self.push(
+                            stream,
+                            ProcessFrameKind::CarriageReturnProgress,
+                            seg.to_string(),
+                        );
+                        i += 1;
+                        start = i;
+                    }
+                }
+                b'\n' => {
+                    let seg = &raw[start..i];
+                    self.push(stream, ProcessFrameKind::Line, seg.to_string());
+                    i += 1;
+                    start = i;
+                }
+                _ => {
+                    i += 1;
+                }
+            }
+        }
+        if start < bytes.len() {
+            let tail = &raw[start..];
+            if !tail.is_empty() {
+                self.push(stream, ProcessFrameKind::Line, tail.to_string());
+            }
+        }
+    }
+
+    pub fn frames(&self) -> &std::collections::VecDeque<ProcessFrame> {
+        &self.events
+    }
+
+    pub fn latest_progress(&self) -> Option<&ProcessFrame> {
+        self.events
+            .iter()
+            .rev()
+            .find(|f| f.kind == ProcessFrameKind::CarriageReturnProgress)
+    }
+}
+
+/// Outcome of a managed `std.process::ProcessRun` invocation (`STREAM-03`).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ProcessRunOutcome {
+    pub exit: i32,
+    pub frames: Vec<ProcessFrame>,
+    pub latest_progress: Option<String>,
+    pub graceful_cancel_grace_ms: u64,
+}
+
+/// Managed subprocess execution (`std.process::ProcessRun`, `STREAM-03`) with
+/// process-group isolation on Unix, `\r` vs `\n` progress-bar frame splitting,
+/// bounded 5,000-event ring buffer, and configurable `SIGTERM -> 5s -> SIGKILL` grace policy.
+pub fn vox_process_run_managed(
+    cmd: &str,
+    args: &[String],
+    cancel_grace_ms: u64,
+) -> Result<ProcessRunOutcome, String> {
+    let grace = if cancel_grace_ms == 0 {
+        5_000
+    } else {
+        cancel_grace_ms
+    };
+    let mut c = std::process::Command::new(cmd);
+    c.args(args);
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        c.process_group(0);
+    }
+    let out = c.output().map_err(|e| e.to_string())?;
+    let mut ring = ProcessRingBuffer::default();
+    let stdout_str = String::from_utf8_lossy(&out.stdout);
+    let stderr_str = String::from_utf8_lossy(&out.stderr);
+    if !stdout_str.is_empty() {
+        ring.ingest_raw("stdout", &stdout_str);
+    }
+    if !stderr_str.is_empty() {
+        ring.ingest_raw("stderr", &stderr_str);
+    }
+    let latest_progress = ring.latest_progress().map(|f| f.text.clone());
+    Ok(ProcessRunOutcome {
+        exit: out.status.code().unwrap_or(-1),
+        frames: ring.frames().iter().cloned().collect(),
+        latest_progress,
+        graceful_cancel_grace_ms: grace,
+    })
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 pub fn vox_process_spawn_background(cmd: &str, args: &[String]) -> Result<i64, String> {
     let handle = match tokio::runtime::Handle::try_current() {
@@ -2100,6 +2260,378 @@ pub fn vox_meta_tools() -> String {
     "[]".to_string()
 }
 
+/// Per-factor provenance for `@ranker` multi-factor transparent scoring (`RANK-03`, `A1-01`).
+///
+/// Missing optional signals are evaluated with neutral baseline (`absent_neutral = true`,
+/// `contribution = 0.0`) rather than a penalty (`RANK-03` no-data neutral handling).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct FactorProvenance {
+    pub name: String,
+    pub raw: Option<f64>,
+    pub normalized: f64,
+    pub weight: f64,
+    pub contribution: f64,
+    pub confidence: f64,
+    pub absent_neutral: bool,
+}
+
+/// Complete transparent evaluation for a ranked candidate (`RANK-03`).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct RankerCandidateEvaluation {
+    pub candidate_id: String,
+    pub total_score: f64,
+    pub factors: Vec<FactorProvenance>,
+}
+
+/// Input specification for a single factor in [`evaluate_ranker_factors`].
+#[derive(Debug, Clone, PartialEq)]
+pub struct RankerFactorInput<'a> {
+    pub name: &'a str,
+    pub raw: Option<f64>,
+    pub min: f64,
+    pub max: f64,
+    pub weight: f64,
+    pub confidence: f64,
+}
+
+/// Evaluate a candidate's factors with explicit provenance (`RANK-03`).
+///
+/// When `raw` is `None`, the factor is recorded as `absent_neutral = true` with
+/// `normalized = 0.5` and `contribution = 0.0` (neutral, never penalized).
+pub fn evaluate_ranker_factors(
+    candidate_id: &str,
+    inputs: &[RankerFactorInput<'_>],
+) -> RankerCandidateEvaluation {
+    let mut factors = Vec::with_capacity(inputs.len());
+    let mut active_weight_sum = 0.0;
+    let mut weighted_sum = 0.0;
+
+    for input in inputs {
+        let conf = input.confidence.clamp(0.0, 1.0);
+        match input.raw {
+            Some(raw_val) => {
+                let span = (input.max - input.min).abs();
+                let norm = if span <= f64::EPSILON {
+                    1.0
+                } else {
+                    ((raw_val - input.min) / (input.max - input.min)).clamp(0.0, 1.0)
+                };
+                let eff_weight = input.weight * conf;
+                let contribution = norm * eff_weight;
+                active_weight_sum += eff_weight.abs();
+                weighted_sum += contribution;
+                factors.push(FactorProvenance {
+                    name: input.name.to_string(),
+                    raw: Some(raw_val),
+                    normalized: norm,
+                    weight: input.weight,
+                    contribution,
+                    confidence: conf,
+                    absent_neutral: false,
+                });
+            }
+            None => {
+                factors.push(FactorProvenance {
+                    name: input.name.to_string(),
+                    raw: None,
+                    normalized: 0.5,
+                    weight: input.weight,
+                    contribution: 0.0,
+                    confidence: 0.0,
+                    absent_neutral: true,
+                });
+            }
+        }
+    }
+
+    let total_score = if active_weight_sum <= f64::EPSILON {
+        0.5
+    } else {
+        weighted_sum / active_weight_sum
+    };
+
+    RankerCandidateEvaluation {
+        candidate_id: candidate_id.to_string(),
+        total_score,
+        factors,
+    }
+}
+
+/// Verify an `@eval_shadow` ordering assertion `higher > lower` across ranked evaluations (`RANK-04`).
+///
+/// Returns `Ok(())` when `higher_id` strictly outranks `lower_id`, or a descriptive
+/// regression error with factor provenance when violated.
+pub fn verify_ordering_gate(
+    evaluations: &[RankerCandidateEvaluation],
+    higher_id: &str,
+    lower_id: &str,
+) -> Result<(), String> {
+    let higher = evaluations
+        .iter()
+        .find(|e| e.candidate_id == higher_id)
+        .ok_or_else(|| format!("ordering gate candidate `{higher_id}` not found"))?;
+    let lower = evaluations
+        .iter()
+        .find(|e| e.candidate_id == lower_id)
+        .ok_or_else(|| format!("ordering gate candidate `{lower_id}` not found"))?;
+
+    if higher.total_score > lower.total_score {
+        Ok(())
+    } else {
+        Err(format!(
+            "ordering gate failed: expected `{higher_id}` ({:.4}) > `{lower_id}` ({:.4})",
+            higher.total_score, lower.total_score
+        ))
+    }
+}
+
+/// Presigned `Upload[T]` / `BlobStore` ticket (`CLOUD-01`, `CC-01`).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct PresignedBlobTicket {
+    pub object_key: String,
+    pub upload_url: String,
+    pub download_url: String,
+    pub mime_type: String,
+    pub max_bytes: u64,
+    pub expires_in_secs: u64,
+}
+
+/// Generate a presigned `PUT`/`GET` ticket for `BlobStore` (`CLOUD-01`).
+pub fn vox_blob_presign_upload(
+    endpoint_base: &str,
+    bucket: &str,
+    object_key: &str,
+    mime_type: &str,
+    max_bytes: u64,
+    expires_in_secs: u64,
+) -> Result<PresignedBlobTicket, String> {
+    let key = object_key.trim().trim_start_matches('/');
+    if key.is_empty() || key.contains("..") {
+        return Err("invalid object_key for BlobStore presign".to_string());
+    }
+    let base = endpoint_base.trim().trim_end_matches('/');
+    let exp = expires_in_secs.clamp(60, 86_400);
+    Ok(PresignedBlobTicket {
+        object_key: key.to_string(),
+        upload_url: format!("{base}/{bucket}/{key}?X-Vox-Presign=PUT&X-Amz-Expires={exp}"),
+        download_url: format!("{base}/{bucket}/{key}?X-Vox-Presign=GET&X-Amz-Expires={exp}"),
+        mime_type: mime_type.to_string(),
+        max_bytes,
+        expires_in_secs: exp,
+    })
+}
+
+/// HTTP `Range` byte slice result (`206 Partial Content`, `CLOUD-01`).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ByteRangeSlice {
+    pub start: usize,
+    pub end_inclusive: usize,
+    pub total_bytes: usize,
+    pub content_range_header: String,
+    pub data: Vec<u8>,
+}
+
+/// Parse an HTTP `Range: bytes=start-end` header and slice `payload` (`CLOUD-01`).
+pub fn vox_blob_slice_range(payload: &[u8], range_header: &str) -> Result<ByteRangeSlice, String> {
+    if payload.is_empty() {
+        return Err("cannot slice empty blob payload".to_string());
+    }
+    let spec = range_header
+        .trim()
+        .strip_prefix("bytes=")
+        .ok_or_else(|| "Range header must start with `bytes=`".to_string())?;
+    let (start_s, end_s) = spec
+        .split_once('-')
+        .ok_or_else(|| "Range header must contain `-`".to_string())?;
+    let total = payload.len();
+    let start: usize = start_s
+        .trim()
+        .parse()
+        .map_err(|_| "invalid Range start offset".to_string())?;
+    let end_inclusive: usize = if end_s.trim().is_empty() {
+        total - 1
+    } else {
+        end_s
+            .trim()
+            .parse::<usize>()
+            .map_err(|_| "invalid Range end offset".to_string())?
+            .min(total - 1)
+    };
+    if start >= total || start > end_inclusive {
+        return Err(format!(
+            "Range {start}-{end_inclusive} out of bounds for {total} bytes"
+        ));
+    }
+    Ok(ByteRangeSlice {
+        start,
+        end_inclusive,
+        total_bytes: total,
+        content_range_header: format!("bytes {start}-{end_inclusive}/{total}"),
+        data: payload[start..=end_inclusive].to_vec(),
+    })
+}
+
+/// Transactional `@metered(credits: ...)` credit ledger (`CLOUD-03`, `CC-10`).
+///
+/// Supports atomic credit reservation prior to an expensive operation, committing
+/// the debit on success, and automatically refunding reserved credits on failure.
+#[derive(Debug, Clone, Default)]
+pub struct CreditLedger {
+    balances: std::collections::HashMap<String, i64>,
+    reservations: std::collections::HashMap<String, (String, i64)>,
+}
+
+impl CreditLedger {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn credit_account(&mut self, account_id: &str, amount: i64) {
+        *self.balances.entry(account_id.to_string()).or_insert(0) += amount.max(0);
+    }
+
+    pub fn available_balance(&self, account_id: &str) -> i64 {
+        self.balances.get(account_id).copied().unwrap_or(0)
+    }
+
+    pub fn reserve(
+        &mut self,
+        account_id: &str,
+        reservation_id: &str,
+        credits: i64,
+    ) -> Result<(), String> {
+        if credits <= 0 {
+            return Ok(());
+        }
+        if self.reservations.contains_key(reservation_id) {
+            return Err(format!("duplicate credit reservation `{reservation_id}`"));
+        }
+        let bal = self.available_balance(account_id);
+        if bal < credits {
+            return Err(format!(
+                "insufficient credits for `{account_id}`: required {credits}, available {bal}"
+            ));
+        }
+        self.balances.insert(account_id.to_string(), bal - credits);
+        self.reservations.insert(
+            reservation_id.to_string(),
+            (account_id.to_string(), credits),
+        );
+        Ok(())
+    }
+
+    pub fn commit(&mut self, reservation_id: &str) -> Result<i64, String> {
+        let (_, credits) = self
+            .reservations
+            .remove(reservation_id)
+            .ok_or_else(|| format!("unknown reservation `{reservation_id}`"))?;
+        Ok(credits)
+    }
+
+    pub fn refund(&mut self, reservation_id: &str) -> Result<i64, String> {
+        let (account_id, credits) = self
+            .reservations
+            .remove(reservation_id)
+            .ok_or_else(|| format!("unknown reservation `{reservation_id}`"))?;
+        *self.balances.entry(account_id).or_insert(0) += credits;
+        Ok(credits)
+    }
+
+    /// Execute `op` under a transactional credit reservation: commits on `Ok`, refunds on `Err`.
+    pub fn run_metered<T, F>(
+        &mut self,
+        account_id: &str,
+        reservation_id: &str,
+        credits: i64,
+        op: F,
+    ) -> Result<T, String>
+    where
+        F: FnOnce() -> Result<T, String>,
+    {
+        self.reserve(account_id, reservation_id, credits)?;
+        match op() {
+            Ok(val) => {
+                let _ = self.commit(reservation_id);
+                Ok(val)
+            }
+            Err(err) => {
+                let _ = self.refund(reservation_id);
+                Err(err)
+            }
+        }
+    }
+}
+
+/// Deterministic offline tick catch-up (`SIM-02`, `fableforge` Melvor Engine parity).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct OfflineTickProgress {
+    pub completed_ticks: u64,
+    pub remainder_ms: u64,
+    pub clamped_elapsed_ms: u64,
+}
+
+/// Compute deterministic tick completions with an offline cap and sub-tick remainder (`SIM-02`).
+pub fn simulate_offline_progress(
+    elapsed_ms: u64,
+    carryover_ms: u64,
+    action_interval_ms: u64,
+    max_offline_ms: u64,
+) -> OfflineTickProgress {
+    let interval = action_interval_ms.max(50);
+    let clamped = elapsed_ms.min(max_offline_ms.max(interval));
+    let total_ms = clamped.saturating_add(carryover_ms);
+    OfflineTickProgress {
+        completed_ticks: total_ms / interval,
+        remainder_ms: total_ms % interval,
+        clamped_elapsed_ms: clamped,
+    }
+}
+
+/// 3-Axis Skill Progression state (`Competence * Sharpness` + `ActionMastery` + `MasteryPool` checkpoints, `SIM-02`).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Skill3AxisState {
+    pub competence_level: u32,
+    pub sharpness: f64,
+    pub action_mastery_xp: u64,
+    pub mastery_pool_pct: f64,
+}
+
+impl Skill3AxisState {
+    /// Effective power (`Competence * Sharpness`) plus unlocked `MasteryPool` checkpoint tier (`0..=4` at 10/25/50/95%).
+    pub fn effective_power_and_checkpoints(&self) -> (f64, u8) {
+        let clamped_sharpness = self.sharpness.clamp(0.5, 1.25);
+        let base_power = (self.competence_level as f64) * clamped_sharpness;
+        let pool = self.mastery_pool_pct.clamp(0.0, 100.0);
+        let tier = if pool >= 95.0 {
+            4
+        } else if pool >= 50.0 {
+            3
+        } else if pool >= 25.0 {
+            2
+        } else if pool >= 10.0 {
+            1
+        } else {
+            0
+        };
+        (base_power, tier)
+    }
+
+    /// Apply `ticks` of deterministic skill progression with `NearnessSplash` pool transfer (`SIM-02`).
+    pub fn apply_ticks(
+        &mut self,
+        ticks: u64,
+        mastery_xp_per_tick: u64,
+        nearness_splash_ratio: f64,
+    ) -> f64 {
+        let gained = ticks.saturating_mul(mastery_xp_per_tick);
+        self.action_mastery_xp = self.action_mastery_xp.saturating_add(gained);
+        let pool_delta = (gained as f64) * 0.01;
+        self.mastery_pool_pct = (self.mastery_pool_pct + pool_delta).clamp(0.0, 100.0);
+        self.sharpness = (self.sharpness + (ticks as f64) * 0.005).clamp(0.5, 1.25);
+        (gained as f64) * nearness_splash_ratio.clamp(0.0, 0.5)
+    }
+}
+
 #[cfg(test)]
 mod tests;
 
@@ -2143,5 +2675,134 @@ mod fs_text_robustness_tests {
         // The real emoji-rendering check is the manual Windows smoke test.
         vox_console_init_utf8();
         vox_console_init_utf8();
+    }
+
+    #[test]
+    fn process_ring_buffer_splits_cr_progress_and_evicts_past_capacity() {
+        let mut ring = ProcessRingBuffer::default();
+        ring.ingest_raw(
+            "stderr",
+            "Starting encode\nframe=10 fps=30\rframe=50 fps=60\rDone\r\n",
+        );
+        let frames: Vec<_> = ring.frames().iter().collect();
+        assert_eq!(frames.len(), 4);
+        assert_eq!(frames[0].kind, ProcessFrameKind::Line);
+        assert_eq!(frames[0].text, "Starting encode");
+        assert_eq!(frames[1].kind, ProcessFrameKind::CarriageReturnProgress);
+        assert_eq!(frames[1].text, "frame=10 fps=30");
+        assert_eq!(frames[2].kind, ProcessFrameKind::CarriageReturnProgress);
+        assert_eq!(frames[2].text, "frame=50 fps=60");
+        assert_eq!(frames[3].kind, ProcessFrameKind::Line);
+        assert_eq!(frames[3].text, "Done");
+        assert_eq!(
+            ring.latest_progress().map(|f| f.text.as_str()),
+            Some("frame=50 fps=60")
+        );
+
+        let mut bounded = ProcessRingBuffer::new(5_000);
+        for idx in 0..5_100 {
+            bounded.push("stdout", ProcessFrameKind::Line, format!("line-{idx}"));
+        }
+        assert_eq!(bounded.frames().len(), 5_000);
+        assert_eq!(bounded.frames().front().unwrap().text, "line-100");
+        assert_eq!(bounded.frames().back().unwrap().text, "line-5099");
+    }
+
+    #[test]
+    fn ranker_factor_provenance_handles_absent_neutral_and_ordering_gates() {
+        let gold = evaluate_ranker_factors(
+            "verified_shelter",
+            &[
+                RankerFactorInput {
+                    name: "inspection_score",
+                    raw: Some(95.0),
+                    min: 0.0,
+                    max: 100.0,
+                    weight: 0.7,
+                    confidence: 1.0,
+                },
+                RankerFactorInput {
+                    name: "optional_review_count",
+                    raw: None,
+                    min: 0.0,
+                    max: 500.0,
+                    weight: 0.3,
+                    confidence: 1.0,
+                },
+            ],
+        );
+        assert!(gold.factors[1].absent_neutral);
+        assert_eq!(gold.factors[1].contribution, 0.0);
+        assert!((gold.total_score - 0.95).abs() < 1e-6);
+
+        let bronze = evaluate_ranker_factors(
+            "unverified_listing",
+            &[RankerFactorInput {
+                name: "inspection_score",
+                raw: Some(40.0),
+                min: 0.0,
+                max: 100.0,
+                weight: 0.7,
+                confidence: 1.0,
+            }],
+        );
+        let evals = vec![gold, bronze];
+        assert!(verify_ordering_gate(&evals, "verified_shelter", "unverified_listing").is_ok());
+        assert!(verify_ordering_gate(&evals, "unverified_listing", "verified_shelter").is_err());
+    }
+
+    #[test]
+    fn blob_store_presign_range_slice_and_metered_credit_rollback() {
+        let ticket = vox_blob_presign_upload(
+            "https://r2.vox.local",
+            "media",
+            "renders/clip.mp4",
+            "video/mp4",
+            100_000_000,
+            900,
+        )
+        .expect("presign");
+        assert!(ticket.upload_url.contains("X-Vox-Presign=PUT"));
+        assert!(ticket.download_url.contains("X-Vox-Presign=GET"));
+
+        let payload = b"0123456789abcdef";
+        let slice = vox_blob_slice_range(payload, "bytes=4-9").expect("range slice");
+        assert_eq!(slice.data, b"456789");
+        assert_eq!(slice.content_range_header, "bytes 4-9/16");
+
+        let mut ledger = CreditLedger::new();
+        ledger.credit_account("user_1", 100);
+        let ok_res = ledger.run_metered("user_1", "res_ok", 40, || Ok("done"));
+        assert_eq!(ok_res.as_deref(), Ok("done"));
+        assert_eq!(ledger.available_balance("user_1"), 60);
+
+        let err_res: Result<(), String> =
+            ledger.run_metered("user_1", "res_fail", 50, || Err("encode failed".into()));
+        assert!(err_res.is_err());
+        assert_eq!(
+            ledger.available_balance("user_1"),
+            60,
+            "failed metered operation must refund reserved credits"
+        );
+    }
+
+    #[test]
+    fn deterministic_tick_and_3axis_skill_engine_parity() {
+        let prog = simulate_offline_progress(10_500, 200, 2_000, 60_000);
+        assert_eq!(prog.completed_ticks, 5);
+        assert_eq!(prog.remainder_ms, 700);
+
+        let mut skill = Skill3AxisState {
+            competence_level: 20,
+            sharpness: 1.0,
+            action_mastery_xp: 0,
+            mastery_pool_pct: 20.0,
+        };
+        let splash = skill.apply_ticks(prog.completed_ticks, 150, 0.2);
+        assert_eq!(skill.action_mastery_xp, 750);
+        assert!((splash - 150.0).abs() < 1e-6);
+        let (power, tier) = skill.effective_power_and_checkpoints();
+        assert!(power > 20.0);
+        assert_eq!(tier, 2, "27.5% mastery pool should unlock tier 2 (25%)");
     }
 }

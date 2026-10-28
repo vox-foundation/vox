@@ -180,6 +180,190 @@ pub fn recover_train_input_path_after_prefetch(
     )
 }
 
+/// Canonical DPO preference pair (`(chosen, rejected)`) with oracle receipts (`TRAIN-01`, `AUDIT-02`).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ChosenRejectedPairV2 {
+    /// Schema discriminator (`"vox_dpo_pair_v2"`).
+    pub schema_version: String,
+    /// Target spoke.
+    pub spoke: crate::training::contract::SpokeKind,
+    /// Shared user prompt.
+    pub prompt: String,
+    /// Shared system prompt.
+    pub system_prompt: String,
+    /// Verified winning completion (`chosen_receipt.passed == true`).
+    pub chosen: String,
+    /// Verified failing or hard-negative completion (`rejected_receipt.passed == false`).
+    pub rejected: String,
+    /// Oracle receipt for `chosen`.
+    pub chosen_receipt: crate::training::contract::OracleReceipt,
+    /// Oracle receipt for `rejected`.
+    pub rejected_receipt: crate::training::contract::OracleReceipt,
+    /// Provenance metadata.
+    pub provenance: crate::training::contract::RecordProvenance,
+    /// 32-hex `xxh3_128` digest of `spoke|prompt|chosen|rejected`.
+    pub content_digest: String,
+}
+
+impl ChosenRejectedPairV2 {
+    /// Canonical schema discriminator.
+    pub const SCHEMA_VERSION: &'static str = "vox_dpo_pair_v2";
+
+    /// Construct a new DPO preference pair with deterministic `xxh3_128` digest.
+    #[must_use]
+    pub fn new(
+        spoke: crate::training::contract::SpokeKind,
+        prompt: impl Into<String>,
+        system_prompt: impl Into<String>,
+        chosen: impl Into<String>,
+        rejected: impl Into<String>,
+        chosen_receipt: crate::training::contract::OracleReceipt,
+        rejected_receipt: crate::training::contract::OracleReceipt,
+        provenance: crate::training::contract::RecordProvenance,
+    ) -> Self {
+        let prompt = prompt.into();
+        let system_prompt = system_prompt.into();
+        let chosen = chosen.into();
+        let rejected = rejected.into();
+        let payload = format!(
+            "{}\n---\n{}\n---\n{}\n---\n{}",
+            spoke.as_str(),
+            prompt.trim(),
+            chosen.trim(),
+            rejected.trim()
+        );
+        let content_digest = format!("{:032x}", xxhash_rust::xxh3::xxh3_128(payload.as_bytes()));
+        Self {
+            schema_version: Self::SCHEMA_VERSION.to_string(),
+            spoke,
+            prompt,
+            system_prompt,
+            chosen,
+            rejected,
+            chosen_receipt,
+            rejected_receipt,
+            provenance,
+            content_digest,
+        }
+    }
+
+    /// Verify that `chosen` passed its spoke oracle, `rejected` failed its spoke oracle,
+    /// and the digest is intact.
+    #[must_use]
+    pub fn verify_pair_integrity(&self) -> bool {
+        let payload = format!(
+            "{}\n---\n{}\n---\n{}\n---\n{}",
+            self.spoke.as_str(),
+            self.prompt.trim(),
+            self.chosen.trim(),
+            self.rejected.trim()
+        );
+        let expected = format!("{:032x}", xxhash_rust::xxh3::xxh3_128(payload.as_bytes()));
+        self.schema_version == Self::SCHEMA_VERSION
+            && self.chosen_receipt.passed
+            && !self.rejected_receipt.passed
+            && self.chosen.trim() != self.rejected.trim()
+            && self.content_digest == expected
+    }
+}
+
+/// Token-bounded training micro-batch bridging a `TrustyDatasetSnapshot` into SFT + DPO steps (`TRAIN-01`).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct SftDpoBatch {
+    /// Zero-based batch index.
+    pub batch_index: usize,
+    /// Source dataset snapshot Trusty URI (`trusty://vox-dataset/...`).
+    pub snapshot_uri: String,
+    /// SFT positive records in this batch.
+    pub sft_records: Vec<crate::training::contract::TrainingRecordV2>,
+    /// DPO preference pairs in this batch.
+    pub dpo_pairs: Vec<ChosenRejectedPairV2>,
+    /// Exact accounted token budget for this batch.
+    pub total_tokens: usize,
+}
+
+/// Deterministic token estimator (~4 UTF-8 bytes per subword token, minimum 1 for non-empty strings) (`TRAIN-01`).
+#[must_use]
+pub fn estimate_token_count(text: &str) -> usize {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        0
+    } else {
+        trimmed.len().div_ceil(4).max(1)
+    }
+}
+
+/// Stream a `TrustyDatasetSnapshot`'s SFT records and DPO preference pairs into deterministic,
+/// token-budgeted `SftDpoBatch`es (`TRAIN-01`).
+#[must_use]
+pub fn stream_snapshot_batches(
+    snapshot_uri: &str,
+    sft_records: &[crate::training::contract::TrainingRecordV2],
+    dpo_pairs: &[ChosenRejectedPairV2],
+    max_batch_tokens: usize,
+) -> Vec<SftDpoBatch> {
+    let cap = max_batch_tokens.max(64);
+    let mut batches = Vec::new();
+    let mut cur_sft = Vec::new();
+    let mut cur_dpo = Vec::new();
+    let mut cur_tokens = 0usize;
+
+    for rec in sft_records {
+        if !rec.verify_integrity() {
+            continue;
+        }
+        let rec_tokens = estimate_token_count(&rec.system_context)
+            + estimate_token_count(&rec.prompt)
+            + estimate_token_count(&rec.response);
+        if (!cur_sft.is_empty() || !cur_dpo.is_empty()) && cur_tokens + rec_tokens > cap {
+            batches.push(SftDpoBatch {
+                batch_index: batches.len(),
+                snapshot_uri: snapshot_uri.to_string(),
+                sft_records: std::mem::take(&mut cur_sft),
+                dpo_pairs: std::mem::take(&mut cur_dpo),
+                total_tokens: cur_tokens,
+            });
+            cur_tokens = 0;
+        }
+        cur_tokens += rec_tokens;
+        cur_sft.push(rec.clone());
+    }
+
+    for pair in dpo_pairs {
+        if !pair.verify_pair_integrity() {
+            continue;
+        }
+        let pair_tokens = estimate_token_count(&pair.system_prompt)
+            + estimate_token_count(&pair.prompt)
+            + estimate_token_count(&pair.chosen)
+            + estimate_token_count(&pair.rejected);
+        if (!cur_sft.is_empty() || !cur_dpo.is_empty()) && cur_tokens + pair_tokens > cap {
+            batches.push(SftDpoBatch {
+                batch_index: batches.len(),
+                snapshot_uri: snapshot_uri.to_string(),
+                sft_records: std::mem::take(&mut cur_sft),
+                dpo_pairs: std::mem::take(&mut cur_dpo),
+                total_tokens: cur_tokens,
+            });
+            cur_tokens = 0;
+        }
+        cur_tokens += pair_tokens;
+        cur_dpo.push(pair.clone());
+    }
+
+    if !cur_sft.is_empty() || !cur_dpo.is_empty() {
+        batches.push(SftDpoBatch {
+            batch_index: batches.len(),
+            snapshot_uri: snapshot_uri.to_string(),
+            sft_records: cur_sft,
+            dpo_pairs: cur_dpo,
+            total_tokens: cur_tokens,
+        });
+    }
+
+    batches
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -332,5 +516,71 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn stream_snapshot_batches_partitions_sft_and_dpo_within_token_budget() {
+        use crate::training::contract::{
+            OracleReceipt, RecordProvenance, SpokeKind, TrainingRecordV2,
+        };
+
+        let sft = vec![TrainingRecordV2::new(
+            SpokeKind::VoxLang,
+            "Write a Vox function `id`",
+            "sys",
+            "fn id(x: int) to int { return x }",
+            OracleReceipt {
+                spoke: SpokeKind::VoxLang,
+                passed: true,
+                stage: "ok".to_string(),
+                diagnostics: Vec::new(),
+                exit_code: Some(0),
+            },
+            RecordProvenance {
+                origin: "test".to_string(),
+                source_id: "sft1".to_string(),
+                task_family: "vox_fn".to_string(),
+                difficulty: 2,
+            },
+        )];
+        let dpo = vec![ChosenRejectedPairV2::new(
+            SpokeKind::VoxLang,
+            "Write a Vox function `id`",
+            "sys",
+            "fn id(x: int) to int { return x }",
+            "@table fn id(x: int) -> int { x }",
+            OracleReceipt {
+                spoke: SpokeKind::VoxLang,
+                passed: true,
+                stage: "ok".to_string(),
+                diagnostics: Vec::new(),
+                exit_code: Some(0),
+            },
+            OracleReceipt {
+                spoke: SpokeKind::VoxLang,
+                passed: false,
+                stage: "parse".to_string(),
+                diagnostics: vec!["retired syntax".to_string()],
+                exit_code: Some(1),
+            },
+            RecordProvenance {
+                origin: "test".to_string(),
+                source_id: "dpo1".to_string(),
+                task_family: "vox_fn".to_string(),
+                difficulty: 4,
+            },
+        )];
+        assert!(dpo[0].verify_pair_integrity());
+
+        let batches = stream_snapshot_batches(
+            "trusty://vox-dataset/0123456789abcdef0123456789abcdef",
+            &sft,
+            &dpo,
+            128,
+        );
+        assert_eq!(batches.len(), 1);
+        assert_eq!(batches[0].sft_records.len(), 1);
+        assert_eq!(batches[0].dpo_pairs.len(), 1);
+        assert!(batches[0].total_tokens > 0 && batches[0].total_tokens <= 128);
     }
 }

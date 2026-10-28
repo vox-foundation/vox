@@ -25,6 +25,15 @@ fn main() {
     fs.write(data_dir + "/synthetic_search.jsonl", one_pair + "\n")
     fs.write(data_dir + "/golden_validated.jsonl", one_pair + "\n")
 
+    let dogfood_dir = "target/dogfood"
+    match std.fs.mkdir(dogfood_dir) {
+        Ok(_) => {}
+        Error(_) => {}
+    }
+    if not fs.exists(dogfood_dir + "/train.jsonl") {
+        fs.write(dogfood_dir + "/train.jsonl", one_pair + "\n")
+    }
+
     print("prep_mens_mix_inputs: wrote minimal lines under " + data_dir)
 
     // Extract golden examples to ensure training data stays synchronized

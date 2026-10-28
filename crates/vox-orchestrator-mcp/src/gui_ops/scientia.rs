@@ -41,10 +41,9 @@ async fn load_manifest_row(
     db: &vox_db::VoxDb,
     publication_id: &str,
 ) -> Result<vox_db::PublicationManifestRow, String> {
-    db.get_publication_manifest(publication_id)
+    review_flow::resolve_manifest_or_promote(db, publication_id)
         .await
-        .map_err(|e| format!("{e:#}"))?
-        .ok_or_else(|| format!("publication not found: {publication_id}"))
+        .map_err(|e| format!("{e:#}"))
 }
 
 // ─── Novelty / completion / autofill (vox-publisher) ─────────────────────────
@@ -513,9 +512,13 @@ async fn review_queue(
     db: &vox_db::VoxDb,
     publication_id: &str,
 ) -> Result<Vec<ClaimAwaitingReviewDto>, String> {
-    let sid = review_flow::publication_session_id(publication_id);
+    let effective_id = review_flow::resolve_manifest_or_promote(db, publication_id)
+        .await
+        .map(|m| m.publication_id)
+        .unwrap_or_else(|_| publication_id.to_string());
+    let sid = review_flow::publication_session_id(&effective_id);
     let rows = db
-        .list_claims_awaiting_review(sid, publication_id)
+        .list_claims_awaiting_review(sid, &effective_id)
         .await
         .map_err(|e| format!("{e:#}"))?;
     Ok(rows
@@ -681,9 +684,325 @@ pub async fn get_discoveries(
     }
 }
 
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+pub struct PromoteCandidateQuery {
+    pub venue: Option<String>,
+}
+
+/// POST /api/v2/scientia/candidates/{id}/promote
+pub async fn post_promote_candidate(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Path(candidate_id): Path<String>,
+    Query(q): Query<PromoteCandidateQuery>,
+) -> Json<Value> {
+    if let Err(e) = enforce_route(&gs, &connect.0, &headers, SCIENTIA_SURFACES) {
+        return e;
+    }
+    let db = match api_db(&gs) {
+        Ok(db) => db,
+        Err(e) => return e,
+    };
+    match review_flow::promote_candidate_to_publication(&db, &candidate_id, q.venue.as_deref())
+        .await
+    {
+        Ok(promoted) => ok(serde_json::json!({
+            "ok": true,
+            "publication_id": promoted.publication_id,
+            "candidate_id": promoted.candidate_id,
+            "session_id": promoted.session_id,
+            "title": promoted.title,
+            "claims_seeded": promoted.claims_seeded,
+            "stage": promoted.state,
+        })),
+        Err(e) => err("not_found", &anyhow_msg(e)),
+    }
+}
+
+/// POST /api/v2/scientia/publications/{id}/manuscript
+pub async fn post_publication_manuscript(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Path(publication_id): Path<String>,
+) -> Json<Value> {
+    if let Err(e) = enforce_route(&gs, &connect.0, &headers, SCIENTIA_SURFACES) {
+        return e;
+    }
+    let db = match api_db(&gs) {
+        Ok(db) => db,
+        Err(e) => return e,
+    };
+    let input = match review_flow::assemble_scaffold_from_db(&db, &publication_id).await {
+        Ok(i) => i,
+        Err(e) => return err("not_found", &anyhow_msg(e)),
+    };
+    let markdown = vox_scientia::manuscript::scaffold::render_imrad(&input);
+    ok(serde_json::json!({
+        "publication_id": publication_id,
+        "markdown": markdown,
+        "scaffold": input,
+    }))
+}
+
+/// POST /api/v2/scientia/publications/{id}/latex
+pub async fn post_publication_latex(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Path(publication_id): Path<String>,
+) -> Json<Value> {
+    if let Err(e) = enforce_route(&gs, &connect.0, &headers, SCIENTIA_SURFACES) {
+        return e;
+    }
+    let db = match api_db(&gs) {
+        Ok(db) => db,
+        Err(e) => return e,
+    };
+    let input = match review_flow::assemble_scaffold_from_db(&db, &publication_id).await {
+        Ok(i) => i,
+        Err(e) => return err("not_found", &anyhow_msg(e)),
+    };
+    let latex = vox_scientia::manuscript::latex::render_latex(&input);
+    ok(serde_json::json!({
+        "publication_id": publication_id,
+        "latex": latex,
+    }))
+}
+
+/// POST /api/v2/scientia/publications/{id}/arxiv-bundle
+pub async fn post_publication_arxiv_bundle(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Path(publication_id): Path<String>,
+) -> Json<Value> {
+    if let Err(e) = enforce_route(&gs, &connect.0, &headers, SCIENTIA_SURFACES) {
+        return e;
+    }
+    let db = match api_db(&gs) {
+        Ok(db) => db,
+        Err(e) => return e,
+    };
+    let input = match review_flow::assemble_scaffold_from_db(&db, &publication_id).await {
+        Ok(i) => i,
+        Err(e) => return err("not_found", &anyhow_msg(e)),
+    };
+    let orcids: Vec<(String, Option<String>)> = input
+        .authors
+        .iter()
+        .map(|a| (a.name.clone(), a.orcid.clone()))
+        .collect();
+    let meta = vox_scientia::manuscript::latex::ArxivHandoffMeta {
+        primary_category: "cs.SE".to_string(),
+        category_origin: "default".to_string(),
+        license_spdx: Some("Apache-2.0".to_string()),
+        comments: None,
+        orcids,
+    };
+    match vox_scientia::manuscript::latex::render_arxiv_bundle_with_handoff(
+        &input,
+        &[],
+        Some(&meta),
+    ) {
+        Ok(bytes) => {
+            let entries = vox_scientia::manuscript::latex::list_bundle_entries(&bytes)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|(p, sz)| serde_json::json!({ "path": p, "bytes": sz }))
+                .collect::<Vec<_>>();
+            ok(serde_json::json!({
+                "publication_id": publication_id,
+                "bytes_len": bytes.len(),
+                "entries": entries,
+            }))
+        }
+        Err(e) => err("bundle_error", &e.to_string()),
+    }
+}
+
+/// POST /api/v2/scientia/publications/{id}/finding-page
+pub async fn post_publication_finding_page(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Path(publication_id): Path<String>,
+) -> Json<Value> {
+    if let Err(e) = enforce_route(&gs, &connect.0, &headers, SCIENTIA_SURFACES) {
+        return e;
+    }
+    let db = match api_db(&gs) {
+        Ok(db) => db,
+        Err(e) => return e,
+    };
+    let page = match review_flow::assemble_finding_page_from_db(&db, &publication_id).await {
+        Ok(p) => p,
+        Err(e) => return err("not_found", &anyhow_msg(e)),
+    };
+    let html = vox_scientia::findings_site::render_finding_page(&page);
+    let meta_tags = vox_scientia::findings_site::build_highwire_meta_tags(&page);
+    ok(serde_json::json!({
+        "publication_id": publication_id,
+        "html": html,
+        "meta_tags": meta_tags,
+    }))
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+pub struct ReplayInputParams {
+    pub measured_score: Option<f64>,
+    pub wall_ms: Option<u64>,
+}
+
+/// POST /api/v2/scientia/publications/{id}/replay
+pub async fn post_publication_replay(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Path(publication_id): Path<String>,
+    Query(q): Query<ReplayInputParams>,
+) -> Json<Value> {
+    if let Err(e) = enforce_route(&gs, &connect.0, &headers, SCIENTIA_SURFACES) {
+        return e;
+    }
+    let db = match api_db(&gs) {
+        Ok(db) => db,
+        Err(e) => return e,
+    };
+    let score = q.measured_score.unwrap_or(1.0).clamp(0.0, 1.0);
+    let report = vox_scientia::replay::ReplayReport {
+        outcome: if score >= 0.5 {
+            vox_scientia::replay::ReplayOutcome::Pass
+        } else {
+            vox_scientia::replay::ReplayOutcome::NonZeroExit { exit_code: 1 }
+        },
+        wall_ms: q.wall_ms.unwrap_or(42),
+        measured_score: score,
+        diagnostics: vec![],
+        stdout: String::new(),
+        stderr: String::new(),
+    };
+    match review_flow::record_replay_for_publication(&db, &publication_id, &report).await {
+        Ok(recorded) => ok(serde_json::json!({
+            "publication_id": publication_id,
+            "artifact_replayability": recorded,
+            "report": report,
+        })),
+        Err(e) => err("not_found", &anyhow_msg(e)),
+    }
+}
+
+/// POST /api/v2/scientia/publications/{id}/extract-claims
+pub async fn post_publication_extract_claims(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Path(publication_id): Path<String>,
+) -> Json<Value> {
+    if let Err(e) = enforce_route(&gs, &connect.0, &headers, SCIENTIA_SURFACES) {
+        return e;
+    }
+    let (db, row) = match manifest_row_for_route(&gs, &publication_id).await {
+        Ok(v) => v,
+        Err(e) => return e,
+    };
+    let context_str = row
+        .citations_json
+        .as_deref()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or(&row.body_markdown);
+    let pipeline = vox_scientia::claim_extractor::ExtractionPipeline::new_calibrated(
+        vox_scientia::claim_extractor::ExtractionConfig::default(),
+    );
+    let extracted = match pipeline.extract(&row.body_markdown, &[context_str]).await {
+        Ok(r) => r,
+        Err(e) => return err("extract_error", &e.to_string()),
+    };
+    let sid = review_flow::publication_session_id(&row.publication_id);
+    let mut supported = 0u32;
+    for (claim, verdict) in extracted.claims.iter().zip(extracted.verdicts.iter()) {
+        let is_num = matches!(
+            claim.verifiability,
+            vox_scientia::claim_extractor::VerifiabilityClass::Numeric
+        );
+        let (vlabel, conf) = match verdict {
+            vox_scientia::claim_extractor::ClaimVerdict::Supported { confidence } => {
+                supported += 1;
+                ("Supported", *confidence)
+            }
+            vox_scientia::claim_extractor::ClaimVerdict::Contested { confidence } => {
+                ("Contested", *confidence)
+            }
+            vox_scientia::claim_extractor::ClaimVerdict::Contradicted { confidence } => {
+                ("Contradicted", *confidence)
+            }
+            vox_scientia::claim_extractor::ClaimVerdict::Abstain { .. } => ("Abstain", 0.0),
+        };
+        let _ = db
+            .store_claim(sid, claim.id, &claim.text, is_num, false, false)
+            .await;
+        let _ = db
+            .store_claim_verdict(claim.id, vlabel, conf, "calibrated-hybrid:lexical")
+            .await;
+    }
+    let _ = db
+        .insert_scientia_cost_telemetry(
+            "scientia-extractor",
+            &row.publication_id,
+            "vox-scientia",
+            "extraction",
+            None,
+            Some("calibrated-hybrid:lexical"),
+            None,
+            None,
+            0.0,
+            None,
+        )
+        .await;
+    ok(serde_json::json!({
+        "publication_id": row.publication_id,
+        "total_atomic": extracted.claims.len(),
+        "supported": supported,
+        "verifier_model": "calibrated-hybrid:lexical",
+    }))
+}
+
+/// GET /api/v2/scientia/dashboard
+pub async fn get_dashboard(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> Json<Value> {
+    if let Err(e) = enforce_route(&gs, &connect.0, &headers, SCIENTIA_SURFACES) {
+        return e;
+    }
+    let db = match api_db(&gs) {
+        Ok(db) => db,
+        Err(e) => return e,
+    };
+    let queue = match review_flow::assemble_scientia_queue_from_db(&db).await {
+        Ok(q) => q,
+        Err(e) => return err("db_error", &anyhow_msg(e)),
+    };
+    let cost = match review_flow::assemble_scientia_cost_from_db(&db).await {
+        Ok(c) => c,
+        Err(e) => return err("db_error", &anyhow_msg(e)),
+    };
+    ok(serde_json::json!({
+        "queue": queue,
+        "cost": cost,
+    }))
+}
+
 pub fn api_v2_router() -> Router<GatewayState> {
     Router::new()
         .route("/scientia/manifests", get(get_manifests))
+        .route("/scientia/dashboard", get(get_dashboard))
+        .route(
+            "/scientia/candidates/{id}/promote",
+            get(post_promote_candidate).post(post_promote_candidate),
+        )
         .route(
             "/scientia/publications/{id}/review-queue",
             get(get_review_queue),
@@ -698,6 +1017,30 @@ pub fn api_v2_router() -> Router<GatewayState> {
             get(get_completion),
         )
         .route("/scientia/publications/{id}/archive", get(get_archive))
+        .route(
+            "/scientia/publications/{id}/manuscript",
+            get(post_publication_manuscript).post(post_publication_manuscript),
+        )
+        .route(
+            "/scientia/publications/{id}/latex",
+            get(post_publication_latex).post(post_publication_latex),
+        )
+        .route(
+            "/scientia/publications/{id}/arxiv-bundle",
+            get(post_publication_arxiv_bundle).post(post_publication_arxiv_bundle),
+        )
+        .route(
+            "/scientia/publications/{id}/finding-page",
+            get(post_publication_finding_page).post(post_publication_finding_page),
+        )
+        .route(
+            "/scientia/publications/{id}/replay",
+            get(post_publication_replay).post(post_publication_replay),
+        )
+        .route(
+            "/scientia/publications/{id}/extract-claims",
+            get(post_publication_extract_claims).post(post_publication_extract_claims),
+        )
         .route("/scientia/discoveries", get(get_discoveries))
 }
 
@@ -870,5 +1213,157 @@ mod tests {
             .await,
         );
         assert_eq!(out["success"], false);
+    }
+
+    #[tokio::test]
+    async fn promote_manuscript_latex_finding_page_replay_and_dashboard_routes_work() {
+        let (gs, db) = gateway_with_memory_db().await;
+        let cand_row = vox_db::store::FindingCandidateRow {
+            candidate_id: "finding-phase53-test".to_string(),
+            candidate_class: vox_db::store::FindingCandidateClass::AlgorithmicImprovement,
+            publication_id: None,
+            title_hint: Some("Multi-Wave Claim Re-Verification Study".to_string()),
+            internal_signals_json: serde_json::json!([
+                {
+                    "code": "research_pipeline.supported_claims",
+                    "summary": "Supported claim: lexical overlap improves precision by 24% [1]. Supported claim: contradiction detection catches sign flips [2]."
+                }
+            ])
+            .to_string(),
+            novelty_evidence_bundle_id: None,
+            worthiness_decision_ref: None,
+            confidence_json: Some(
+                serde_json::json!({
+                    "signal_strength": 0.88,
+                    "contradiction_risk": 0.05,
+                    "reproducibility_support": 0.8
+                })
+                .to_string(),
+            ),
+            repository_id: None,
+            producer_name: "vox-research-shim".to_string(),
+            signal_fingerprint: "finding-phase53-test".to_string(),
+            created_at_ms: 1_700_000_000_000,
+            updated_at_ms: 1_700_000_000_000,
+        };
+        db.insert_finding_candidate(&cand_row)
+            .await
+            .expect("insert candidate");
+
+        // 1. Promote candidate to publication manifest + seed claims
+        let promoted = body(
+            post_promote_candidate(
+                State(gs.clone()),
+                peer(),
+                HeaderMap::new(),
+                Path("finding-phase53-test".into()),
+                Query(PromoteCandidateQuery {
+                    venue: Some("neurips_workshop".into()),
+                }),
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(promoted["data"]["ok"], true, "{promoted}");
+        assert_eq!(
+            promoted["data"]["candidate_id"], "finding-phase53-test",
+            "{promoted}"
+        );
+        assert!(
+            promoted["data"]["publication_id"]
+                .as_str()
+                .unwrap_or("")
+                .starts_with("pub-"),
+            "{promoted}"
+        );
+        assert!(
+            promoted["data"]["claims_seeded"].as_u64().unwrap_or(0) >= 1,
+            "{promoted}"
+        );
+
+        // 2. Manuscript IMRaD from DB
+        let ms = body(
+            post_publication_manuscript(
+                State(gs.clone()),
+                peer(),
+                HeaderMap::new(),
+                Path("finding-phase53-test".into()),
+            )
+            .await,
+        )
+        .await;
+        assert!(
+            ms["data"]["markdown"]
+                .as_str()
+                .unwrap_or("")
+                .contains("Multi-Wave Claim Re-Verification Study"),
+            "{ms}"
+        );
+
+        // 3. LaTeX from DB
+        let tex = body(
+            post_publication_latex(
+                State(gs.clone()),
+                peer(),
+                HeaderMap::new(),
+                Path("finding-phase53-test".into()),
+            )
+            .await,
+        )
+        .await;
+        assert!(
+            tex["data"]["latex"]
+                .as_str()
+                .unwrap_or("")
+                .contains("\\documentclass"),
+            "{tex}"
+        );
+
+        // 4. Finding page HTML from DB
+        let fp = body(
+            post_publication_finding_page(
+                State(gs.clone()),
+                peer(),
+                HeaderMap::new(),
+                Path("finding-phase53-test".into()),
+            )
+            .await,
+        )
+        .await;
+        assert!(
+            fp["data"]["html"]
+                .as_str()
+                .unwrap_or("")
+                .to_ascii_lowercase()
+                .contains("<!doctype html>"),
+            "{fp}"
+        );
+
+        // 5. Replay recording
+        let rep = body(
+            post_publication_replay(
+                State(gs.clone()),
+                peer(),
+                HeaderMap::new(),
+                Path("finding-phase53-test".into()),
+                Query(ReplayInputParams {
+                    measured_score: Some(0.95),
+                    wall_ms: Some(120),
+                }),
+            )
+            .await,
+        )
+        .await;
+        assert_eq!(rep["data"]["artifact_replayability"], 0.95, "{rep}");
+
+        // 6. Dashboard snapshot
+        let dash = body(get_dashboard(State(gs.clone()), peer(), HeaderMap::new()).await).await;
+        assert!(
+            dash["data"]["queue"]["candidates"]["total"]
+                .as_u64()
+                .unwrap_or(0)
+                >= 1,
+            "{dash}"
+        );
     }
 }

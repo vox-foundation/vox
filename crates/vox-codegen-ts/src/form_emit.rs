@@ -70,6 +70,28 @@ pub fn emit_form(form: &HirForm) -> String {
                         fname = f.name
                     ));
                 }
+                HirFieldConstraint::Range(HirExpr::IntLit(lo, _), HirExpr::IntLit(hi, _)) => {
+                    let label = f.label.as_deref().unwrap_or(&f.name);
+                    out.push_str(&format!(
+                        "    if (typeof {fname} === \"number\" && !Number.isNaN({fname}) && ({fname} < {lo} || {fname} > {hi})) e.{fname} = \"{label} must be between {lo} and {hi}\";\n",
+                        fname = f.name
+                    ));
+                }
+                HirFieldConstraint::MutuallyExclusiveGroup(grp) => {
+                    for peer in &visible {
+                        if peer.name != f.name
+                            && peer.constraints.iter().any(|pc| {
+                                matches!(pc, HirFieldConstraint::MutuallyExclusiveGroup(g) if g == grp)
+                            })
+                        {
+                            out.push_str(&format!(
+                                "    if ({fname} && {peer_name}) e.{fname} = \"Mutually exclusive with {peer_name} (group: {grp})\";\n",
+                                fname = f.name,
+                                peer_name = peer.name
+                            ));
+                        }
+                    }
+                }
                 _ => {}
             }
         }
@@ -78,17 +100,11 @@ pub fn emit_form(form: &HirForm) -> String {
 
     // Submit handler
     let submit_fn = form.on_submit.as_deref().unwrap_or("_noSubmit");
-    // vox-client mutations accept a single `args` object with named fields matching the endpoint
-    // params. Emit `{ field1, field2 }` shorthand so the call matches the generated client signature.
-    // Numeric fields hold `NaN` while empty (see `field_initial_value`). A
-    // *required* empty numeric is caught by `validate()` before submit, but an
-    // *optional* one would otherwise forward `NaN` into the client call (it
-    // serializes to `null` and can break endpoint validation or persist a wrong
-    // value). Coerce empty numerics to `undefined` so they're omitted from the
-    // JSON body; non-numeric fields use object shorthand unchanged.
     let fields: Vec<String> = visible
         .iter()
         .map(|f| {
+            // Numeric state initializes to NaN so an untouched optional field
+            // doesn't submit 0; coerce NaN → undefined at the call boundary.
             if hir_type_to_input_type(&f.ty) == "number" {
                 format!("{n}: Number.isNaN({n}) ? undefined : {n}", n = f.name)
             } else {
@@ -119,9 +135,8 @@ pub fn emit_form(form: &HirForm) -> String {
          \x20     await {submit_fn}({submit_call_args});\n"
     ));
     if let Some(r) = &form.success_redirect {
-        // Router-agnostic redirect: push history + dispatch popstate so the
-        // active router (Vox-emitted dependency-free, react-router, or @tanstack
-        // — all observe popstate) navigates to the success route.
+        // Router-agnostic SPA navigation: pushState + popstate notifies TanStack Router /
+        // React Router listeners without triggering a full-document reload.
         out.push_str(&format!(
             "      window.history.pushState(null, \"\", \"{r}\");\n      window.dispatchEvent(new PopStateEvent(\"popstate\"));\n"
         ));
@@ -158,38 +173,64 @@ pub fn emit_form(form: &HirForm) -> String {
                 fname = f.name));
             continue;
         }
-        let input_type = hir_type_to_input_type(&f.ty);
+        let file_accept = f.constraints.iter().find_map(|c| match c {
+            HirFieldConstraint::FileKind(k) => Some(k.as_str()),
+            _ => None,
+        });
+        let input_type = if file_accept.is_some() {
+            "file"
+        } else {
+            hir_type_to_input_type(&f.ty)
+        };
         let value_prop = match input_type {
             "checkbox" => "checked",
             "number" => "valueAsNumber",
             _ => "value",
         };
-        let max_len_attr = f
-            .constraints
-            .iter()
-            .find_map(|c| match c {
-                HirFieldConstraint::MaxLen(n) => Some(format!(" maxLength={{{n}}}")),
-                _ => None,
-            })
-            .unwrap_or_default();
+        let mut extra_attrs = String::new();
+        let mut unit_badge = String::new();
+        let mut cost_badge = String::new();
+        for c in &f.constraints {
+            match c {
+                HirFieldConstraint::MaxLen(n) => {
+                    extra_attrs.push_str(&format!(" maxLength={{{n}}}"))
+                }
+                HirFieldConstraint::Range(HirExpr::IntLit(lo, _), HirExpr::IntLit(hi, _)) => {
+                    extra_attrs.push_str(&format!(" min={{{lo}}} max={{{hi}}}"));
+                }
+                HirFieldConstraint::Step(s) => extra_attrs.push_str(&format!(" step={{{s}}}")),
+                HirFieldConstraint::FileKind(k) => {
+                    extra_attrs.push_str(&format!(" accept=\"{k}\""))
+                }
+                HirFieldConstraint::Unit(u) => {
+                    unit_badge = format!(" <span className=\"vox-form-unit\">{u}</span>");
+                }
+                HirFieldConstraint::CostCredits(credits) => {
+                    cost_badge = format!(
+                        " <span data-testid=\"vox-form-cost-credits\" className=\"vox-form-cost\">{credits} cr</span>"
+                    );
+                }
+                _ => {}
+            }
+        }
 
         let bind_attr = if input_type == "checkbox" {
             format!("checked={{{fname}}}", fname = f.name)
         } else if input_type == "number" {
-            // Numeric fields hold a `number` that is `NaN` when empty/unfilled —
-            // show a blank input then (a `value` of NaN would render "NaN").
             format!(
                 "value={{Number.isNaN({fname}) ? \"\" : {fname}}}",
                 fname = f.name
             )
+        } else if input_type == "file" {
+            String::new()
         } else {
             format!("value={{{fname} ?? \"\"}}", fname = f.name)
         };
 
         out.push_str(&format!(
             "      <label className=\"vox-form-field\">\n\
-             \x20       <span>{label}{req_marker}</span>\n\
-             \x20       <input type=\"{input_type}\" {bind_attr} onChange={{e => set_{fname}(e.target.{value_prop})}}{max_len_attr} aria-invalid={{!!errors.{fname}}} aria-describedby=\"{fname}-error\" />\n\
+             \x20       <span>{label}{req_marker}{unit_badge}{cost_badge}</span>\n\
+             \x20       <input type=\"{input_type}\" {bind_attr} onChange={{e => set_{fname}(e.target.{value_prop})}}{extra_attrs} aria-invalid={{!!errors.{fname}}} aria-describedby=\"{fname}-error\" />\n\
              \x20       {{errors.{fname} && <span id=\"{fname}-error\" role=\"alert\" className=\"vox-form-error\">{{errors.{fname}}}</span>}}\n\
              \x20     </label>\n",
             fname = f.name
@@ -197,6 +238,78 @@ pub fn emit_form(form: &HirForm) -> String {
     }
 
     out.push_str("      <button type=\"submit\" disabled={submitting}>{submitting ? \"Saving\u{2026}\" : \"Submit\"}</button>\n    </form>\n  );\n}\n");
+    out
+}
+
+/// Emit a React `<ToolForm_<name> />` island for a `.vox` `@tool` declaration (`POLYTOOL-04`)
+/// with preset profile selector, live CLI `argv` preview (`data-testid="tool-form-argv-preview"`),
+/// and streaming execution state.
+pub fn emit_tool_form(tool: &vox_compiler::hir::HirMcpTool, form: Option<&HirForm>) -> String {
+    let tool_name = &tool.func.name;
+    let cli_subcmd = tool_name.replace('_', "-");
+    let mut out = String::new();
+    out.push_str(&format!("export function ToolForm_{tool_name}() {{\n"));
+    for p in &tool.func.params {
+        out.push_str(&format!(
+            "  const [{pname}, set_{pname}] = React.useState(\"\");\n",
+            pname = p.name
+        ));
+    }
+    out.push_str("  const [preset, setPreset] = React.useState(\"default\");\n");
+    out.push_str("  const [running, setRunning] = React.useState(false);\n");
+
+    let argv_parts: Vec<String> = tool
+        .func
+        .params
+        .iter()
+        .map(|p| {
+            let flag = p.name.replace('_', "-");
+            format!(
+                "({pname} ? \" --{flag} \" + String({pname}) : \"\")",
+                pname = p.name
+            )
+        })
+        .collect();
+    let argv_expr = if argv_parts.is_empty() {
+        format!("\"{cli_subcmd}\"")
+    } else {
+        format!("\"{cli_subcmd}\" + {}", argv_parts.join(" + "))
+    };
+    out.push_str(&format!("  const argvPreview = {argv_expr};\n"));
+
+    let mut presets_jsx = String::new();
+    if let Some(f) = form {
+        for field in &f.fields {
+            for c in &field.constraints {
+                if let HirFieldConstraint::Preset(preset_name, expr) = c {
+                    let val_lit = match expr {
+                        HirExpr::IntLit(v, _) => v.to_string(),
+                        HirExpr::FloatLit(v, _) => v.to_string(),
+                        HirExpr::StringLit(s, _) => format!("\"{s}\""),
+                        _ => "\"\"".to_string(),
+                    };
+                    presets_jsx.push_str(&format!(
+                        "        <button type=\"button\" data-testid=\"tool-form-preset-{preset_name}\" onClick={{() => {{ setPreset(\"{preset_name}\"); set_{fname}(String({val_lit})); }}}}>{preset_name}</button>\n",
+                        fname = field.name
+                    ));
+                }
+            }
+        }
+    }
+
+    out.push_str("  return (\n    <div className=\"vox-tool-form\">\n");
+    if !presets_jsx.is_empty() {
+        out.push_str(
+            "      <div className=\"vox-tool-presets\" data-testid=\"tool-form-presets\">\n",
+        );
+        out.push_str(&presets_jsx);
+        out.push_str("      </div>\n");
+    }
+    out.push_str("      <code data-testid=\"tool-form-argv-preview\" className=\"vox-tool-argv\">{argvPreview}</code>\n");
+    if let Some(f) = form {
+        out.push_str(&format!("      <{fname} />\n", fname = f.name));
+    }
+    out.push_str("    </div>\n  );\n}\n");
     out
 }
 
@@ -231,8 +344,9 @@ fn hir_type_to_input_type(ty: &HirType) -> &'static str {
 
 fn field_initial_value(f: &HirFormField) -> &'static str {
     match &f.ty {
-        // Numeric fields start empty (NaN) so a required field isn't pre-satisfied
-        // by a `0` default; the input renders blank (see the `value` binding).
+        // Initialize numeric fields to NaN (mirrors empty <input type="number">
+        // e.target.valueAsNumber) so required check catches untouched inputs
+        // and optional inputs don't silently submit 0.
         HirType::Named(t) if t == "int" || t == "float" || t == "decimal" => "NaN",
         HirType::Named(t) if t == "bool" => "false",
         _ => "\"\"",
@@ -294,5 +408,49 @@ mod tests {
         assert!(out.contains("<select"), "select:\n{out}");
         assert!(out.contains(">admin<"), "admin opt:\n{out}");
         assert!(out.contains(">user<"), "user opt:\n{out}");
+    }
+
+    #[test]
+    fn parameter_facets_and_tool_form_island_emit_argv_and_presets() {
+        use vox_compiler::hir::HirExpr;
+        use vox_compiler::hir::nodes::form::HirFieldConstraint;
+
+        let mut crf = field("crf", HirType::Named("int".into()));
+        crf.constraints = vec![
+            HirFieldConstraint::Range(
+                HirExpr::IntLit(0, Span::new(0, 0)),
+                HirExpr::IntLit(51, Span::new(0, 0)),
+            ),
+            HirFieldConstraint::Step(1.0),
+            HirFieldConstraint::Unit("CRF".into()),
+            HirFieldConstraint::CostCredits(5),
+            HirFieldConstraint::Preset("fast".into(), HirExpr::IntLit(28, Span::new(0, 0))),
+        ];
+        let mut mode_a = field("cbr", HirType::Named("str".into()));
+        mode_a.constraints = vec![HirFieldConstraint::MutuallyExclusiveGroup("rate".into())];
+        let mut mode_b = field("vbr", HirType::Named("str".into()));
+        mode_b.constraints = vec![HirFieldConstraint::MutuallyExclusiveGroup("rate".into())];
+
+        let form = form_with(vec![crf, mode_a, mode_b]);
+        let form_tsx = emit_form(&form);
+        assert!(form_tsx.contains("min={0} max={51}"));
+        assert!(form_tsx.contains("step={1}"));
+        assert!(form_tsx.contains("vox-form-unit\">CRF<"));
+        assert!(form_tsx.contains("vox-form-cost-credits"));
+        assert!(form_tsx.contains("Mutually exclusive with vbr (group: rate)"));
+
+        let src = r#"
+tool "Compress video"
+compress_video(crf: int, cbr: str) to str {
+    return cbr
+}
+"#;
+        let tokens = vox_compiler::lexer::lex(src);
+        let ast = vox_compiler::parser::parse(tokens).unwrap();
+        let hir = vox_compiler::hir::lower_module(&ast);
+        let tool_tsx = emit_tool_form(&hir.mcp_tools[0], Some(&form));
+        assert!(tool_tsx.contains("export function ToolForm_compress_video()"));
+        assert!(tool_tsx.contains("data-testid=\"tool-form-argv-preview\""));
+        assert!(tool_tsx.contains("data-testid=\"tool-form-preset-fast\""));
     }
 }

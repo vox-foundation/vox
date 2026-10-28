@@ -79,6 +79,17 @@ pub(crate) fn enforce_route(
     enforce_dashboard_surface(gs, surfaces)
 }
 
+/// Dashboard write auth (`enforce_dashboard_write`) plus the plan-07 surface gate.
+pub(crate) fn enforce_write_route(
+    gs: &GatewayState,
+    peer: &std::net::SocketAddr,
+    headers: &axum::http::HeaderMap,
+    surfaces: &[&str],
+) -> Result<(), Json<Value>> {
+    crate::http_gateway::dashboard_api::enforce_dashboard_write(gs, peer, headers)?;
+    enforce_dashboard_surface(gs, surfaces)
+}
+
 #[cfg(test)]
 pub(crate) mod test_support {
     use std::collections::HashSet;

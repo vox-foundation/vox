@@ -1,9 +1,26 @@
 # Paths under scripts/ allowed to appear in `.github/workflows/*.yml`.
 # Tighten this list as jobs migrate to `vox ci …`. Lines starting with `#` are ignored.
+scripts/README.md
 scripts/arch-check.vox
 scripts/ci/corpus_prep.vox
+scripts/clean-build-artifacts.vox
+scripts/coverage-graph/README.md
+scripts/coverage-graph/ingest_reaches.py
+scripts/coverage-graph/os_compat.py
+scripts/coverage-graph/ratchet_check.py
+scripts/crate-build-audit.vox
+scripts/docs/
+scripts/docs/tutorial-test-runner.vox
+scripts/fmt.vox
 scripts/generate-bench-scaffold.vox
+scripts/install.ps1
+scripts/install.sh
+scripts/plugin-candidacy.vox
 scripts/quality/audit-telemetry.vox
 scripts/quality/audit-workspace-health.vox
+scripts/setup.vox
+scripts/show/README.md
+scripts/ssot-regen.vox
 scripts/vox_system_prompt.txt
 scripts/windows/vox-dev.ps1
+

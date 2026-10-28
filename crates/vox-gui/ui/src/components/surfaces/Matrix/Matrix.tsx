@@ -110,6 +110,8 @@ export function Matrix({ pushToast, gamifyEnabled = false }: MatrixProps) {
   }, [pushToast, refresh, gamifyEnabled]);
 
   const active = intentions.find(i => i.id === sel) || intentions[0];
+  const routingTitle = useLabel('mat-routing');
+  const axisTitle = useLabel('mat-axis');
 
   if (loading) return (
     <div className="p-8 text-center">
@@ -135,7 +137,7 @@ export function Matrix({ pushToast, gamifyEnabled = false }: MatrixProps) {
       <Glass className="col-span-12 xl:col-span-8 p-5">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('mat-routing')}</h2>
+            <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{routingTitle}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Live model-routing priority axes · weight = how strongly the orchestrator favors each axis</p>
           </div>
         </div>
@@ -157,7 +159,7 @@ export function Matrix({ pushToast, gamifyEnabled = false }: MatrixProps) {
 
       <Glass className="col-span-12 xl:col-span-4 p-5">
         <div className="flex items-center justify-between">
-          <h3 className="font-display text-[14px] font-semibold tracking-wide text-text-primary">{useLabel('mat-axis')}</h3>
+          <h3 className="font-display text-[14px] font-semibold tracking-wide text-text-primary">{axisTitle}</h3>
           <Pill phase={active.phase} />
         </div>
         <div className="mt-3 rounded-xl border border-border-subtle bg-overlay-subtle p-4">

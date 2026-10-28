@@ -125,6 +125,7 @@ async fn run_turn(db: Arc<VoxDb>, prompt: &str) -> (serde_json::Value, Vec<Strin
     .expect("chat message params");
     let response = chat_message(&state, params).await;
     // Spawned post-turn work (the old writeback) gets a bounded window to run.
+    // drift-allow(timeout-literal,duplicate-numeric-literal): local test post-turn settle bound
     tokio::time::sleep(Duration::from_secs(2)).await;
 
     // SAFETY: as above.

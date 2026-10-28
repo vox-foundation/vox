@@ -115,11 +115,11 @@ To ensure safe implementation without impacting active feature branches, we prop
 
 ```vox-diagram
 graph {
-    node A: "1. Zod Alignment & Validation Schemas \n Removes ~500 casts"
-    node B: "2. Sliced Builders Migration \n Removes ~1500 casts"
-    node C: "3. ES Imports & Centralized API Seams \n Removes ~1200 casts"
-    node D: "4. Zod DTO Boundaries \n Removes ~1000 casts"
-    node E: "5. central Mock Builders \n Removes ~800 casts"
+    node A: "1. Zod Alignment & Validation Schemas — Removes ~500 casts"
+    node B: "2. Sliced Builders Migration — Removes ~1500 casts"
+    node C: "3. ES Imports & Centralized API Seams — Removes ~1200 casts"
+    node D: "4. Zod DTO Boundaries — Removes ~1000 casts"
+    node E: "5. Central Mock Builders — Removes ~800 casts"
     A -> B
     B -> C
     C -> D

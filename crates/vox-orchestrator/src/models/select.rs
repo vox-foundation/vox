@@ -636,6 +636,24 @@ impl SelectionIntent {
             allow_free_in_performance_mode: false,
         }
     }
+
+    /// Pre-baked intent for automatic Mermaid diagram syntax repair (`MERMAID-03`).
+    /// Uses fast, low-cost parsing/codegen routing with a strict per-call cost ceiling
+    /// ($0.005) and prompt-caching enabled so diagram self-healing never exhausts turn budget.
+    #[must_use]
+    pub fn mermaid_repair() -> Self {
+        Self {
+            task: TaskCategory::Parsing,
+            axes: SelectionAxes::FAST,
+            complexity: 2,
+            context_size_hint: None,
+            caller_hint: Some("mermaid-repair"),
+            prefer_local: true,
+            max_cost_usd_per_call: Some(0.005),
+            cacheable_workload: true,
+            allow_free_in_performance_mode: true,
+        }
+    }
 }
 
 // ─── Outcome ────────────────────────────────────────────────────────────────
@@ -2110,5 +2128,16 @@ mod semcov_wave1c_tests {
             ProviderType::PopuliMesh,
             CandidateScope::CloudOnly
         ));
+    }
+
+    #[test]
+    fn mermaid_repair_intent_sets_fast_axes_and_cost_ceiling() {
+        let intent = SelectionIntent::mermaid_repair();
+        assert_eq!(intent.caller_hint, Some("mermaid-repair"));
+        assert_eq!(intent.axes, SelectionAxes::FAST);
+        assert_eq!(intent.max_cost_usd_per_call, Some(0.005));
+        assert!(intent.prefer_local);
+        assert!(intent.cacheable_workload);
+        assert!(intent.allow_free_in_performance_mode);
     }
 }

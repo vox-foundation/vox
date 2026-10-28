@@ -268,6 +268,32 @@ impl Orchestrator {
         Err(format!("task {} not found in any queue", task_id.0))
     }
 
+    /// Update the `mesh_policy` of a queued task. Returns an error if the task
+    /// is unknown or not in `Queued` status.
+    pub fn set_task_mesh_policy(
+        &self,
+        task_id: TaskId,
+        policy: crate::types::MeshPolicy,
+    ) -> Result<(), String> {
+        let agents = crate::sync_lock::rw_read(&self.agents);
+        for queue_lock in agents.values() {
+            let mut queue = crate::sync_lock::rw_write(queue_lock);
+            for task in queue.all_tasks_mut() {
+                if task.id == task_id {
+                    if !matches!(task.status, crate::TaskStatus::Queued) {
+                        return Err(format!(
+                            "task {} is {} and cannot change mesh policy",
+                            task_id.0, task.status
+                        ));
+                    }
+                    task.mesh_policy = policy;
+                    return Ok(());
+                }
+            }
+        }
+        Err(format!("task {} not found in any queue", task_id.0))
+    }
+
     /// Get a copy of the task assignments map.
     pub fn task_assignments_copy(&self) -> HashMap<TaskId, AgentId> {
         crate::sync_lock::rw_read(&self.task_assignments).clone()

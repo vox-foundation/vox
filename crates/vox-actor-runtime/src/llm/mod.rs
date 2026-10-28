@@ -15,7 +15,7 @@ pub use chat::{
     CONTEXT_EXCEEDED_PREFIX, RATE_LIMITED_ERROR_CLASS, RATE_LIMITED_PREFIX, infer_with_retry,
     llm_chat,
 };
-pub use embed::llm_embed;
+pub use embed::{LOCAL_EMBED_DEFAULT_DIM, llm_embed, local_embed_text};
 pub use run_trace::run_trace_scope;
 pub use stream::{llm_stream, llm_stream_activity, llm_stream_measured};
 pub use types::{

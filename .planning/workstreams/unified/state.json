@@ -1,0 +1,12 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": "v1.7",
+  "phases": [],
+  "next": {
+    "command": "/gsd-discuss-phase",
+    "label": "Discuss the first phase",
+    "reason": "Project initialized — plan your first phase"
+  },
+  "updated_at": "2026-10-19T21:15:30.185Z"
+}

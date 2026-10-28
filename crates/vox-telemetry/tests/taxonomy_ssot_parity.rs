@@ -17,6 +17,9 @@ const REQUIRED_CATEGORIES: &[&str] = &[
     "error_surface",
     "default_decision",
     "model_prompt",
+    "model_bench_case",
+    "training_throughput",
+    "domain_misguidance",
 ];
 
 #[test]

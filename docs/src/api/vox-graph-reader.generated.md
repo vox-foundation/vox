@@ -53,6 +53,7 @@ a `forward` index (source→target = caller→callee, `Direction::Out`), and a `
 | Module | Description |
 |---|---|
 | `ast` | — |
+| `ast_vox` | — |
 | `bfs` | — |
 | `cache` | — |
 | `cluster` | — |
@@ -63,6 +64,7 @@ a `forward` index (source→target = caller→callee, `Direction::Out`), and a `
 | `gc` | — |
 | `history` | — |
 | `lens` | — |
+| `lod` | — |
 | `manifest` | — |
 | `overlay` | — |
 | `reachability` | — |

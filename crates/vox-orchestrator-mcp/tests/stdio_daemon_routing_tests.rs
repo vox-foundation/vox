@@ -240,6 +240,182 @@ async fn stdio_routed_tool_call_approval_is_visible_and_resolvable_from_a_separa
     server.abort();
 }
 
+#[tokio::test]
+#[serial_test::serial]
+async fn stdio_forwarded_resolve_cannot_approve_floored_park() {
+    let home = IsolatedHomeEnv::new();
+    let token = "t22-stdio-floor-token";
+    home.write_token(token);
+
+    let state = ServerState::new_full(load_config());
+    let orch = state.orchestrator.clone();
+    let extra: Arc<dyn ExtraDispatch> = Arc::new(McpExtraDispatch::new(state.clone()));
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap().to_string();
+    let server = tokio::spawn(orch_daemon::serve_listener_with_extra(
+        listener,
+        addr.clone(),
+        "ut-repo".to_string(),
+        orch,
+        Some(extra),
+        Some(Arc::from(token)),
+    ));
+    wait_ready(&addr, Some(token)).await;
+
+    // SAFETY: serialized via `#[serial_test::serial]`.
+    #[allow(unsafe_code)]
+    unsafe {
+        std::env::set_var("VOX_ORCHESTRATOR_DAEMON_SOCKET", &addr);
+    }
+
+    let daemon_ensure = OrchestratorDaemonEnsure::default();
+
+    // 1. Spawn call_tool_via_daemon vox_skill_install {}
+    let call = tokio::spawn(async move {
+        call_tool_via_daemon(&daemon_ensure, "vox_skill_install", serde_json::json!({})).await
+    });
+
+    let gui_client = orch_daemon::OrchDaemonClient::with_token(addr.clone(), token.to_string());
+    let deadline = tokio::time::Instant::now() + D_15S;
+    let approval_id;
+    loop {
+        let approvals = gui_client
+            .call(
+                vox_foundation::protocol::orch_daemon_method::LIST_PENDING_APPROVALS,
+                serde_json::json!({}),
+            )
+            .await
+            .expect("orch.list_pending_approvals dispatched");
+        if let Some(arr) = approvals.get("approvals").and_then(|a| a.as_array()) {
+            if let Some(entry) = arr
+                .iter()
+                .find(|a| a.get("tool").and_then(|t| t.as_str()) == Some("vox_skill_install"))
+            {
+                let summary = entry
+                    .get("summary")
+                    .and_then(|s| s.as_str())
+                    .expect("summary present");
+                assert!(
+                    summary.starts_with("[floor:external_effect]"),
+                    "expected summary to start with [floor:external_effect], got: {summary}"
+                );
+                approval_id = entry
+                    .get("approval_id")
+                    .and_then(|id| id.as_str())
+                    .expect("approval_id present")
+                    .to_string();
+                break;
+            }
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "vox_skill_install never parked in orch.list_pending_approvals"
+        );
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
+    }
+
+    // 2. Call call_tool_via_daemon vox_resolve_approval with approve and attempted bypass args
+    let daemon_ensure2 = OrchestratorDaemonEnsure::default();
+    let res_approve = call_tool_via_daemon(
+        &daemon_ensure2,
+        "vox_resolve_approval",
+        serde_json::json!({
+            "approval_id": approval_id,
+            "outcome": "approve",
+            "agent_origin": false,
+            "origin": "human"
+        }),
+    )
+    .await
+    .expect("resolve call dispatched");
+    assert!(
+        res_approve.contains("FLOOR_SELF_APPROVAL_REFUSED"),
+        "expected FLOOR_SELF_APPROVAL_REFUSED on approve, got: {res_approve}"
+    );
+
+    // Assert entry is still listed
+    let list_check = gui_client
+        .call(
+            vox_foundation::protocol::orch_daemon_method::LIST_PENDING_APPROVALS,
+            serde_json::json!({}),
+        )
+        .await
+        .expect("list check");
+    let arr = list_check["approvals"].as_array().expect("approvals array");
+    assert!(
+        arr.iter()
+            .any(|a| a.get("approval_id").and_then(|i| i.as_str()) == Some(&approval_id)),
+        "approval entry should still be listed"
+    );
+
+    // Assert the spawned install has not finished after 200ms
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    assert!(
+        !call.is_finished(),
+        "spawned install should not have completed after refused approval"
+    );
+
+    // 3. Repeat with outcome: modify -> refused
+    let daemon_ensure3 = OrchestratorDaemonEnsure::default();
+    let res_modify = call_tool_via_daemon(
+        &daemon_ensure3,
+        "vox_resolve_approval",
+        serde_json::json!({
+            "approval_id": approval_id,
+            "outcome": "modify",
+            "modified_args": {}
+        }),
+    )
+    .await
+    .expect("modify call dispatched");
+    assert!(
+        res_modify.contains("FLOOR_SELF_APPROVAL_REFUSED"),
+        "expected FLOOR_SELF_APPROVAL_REFUSED on modify, got: {res_modify}"
+    );
+
+    // 4. Clean up as the GUI does: from the separate client, send TOOL_CALL with reject
+    let resolve_result = gui_client
+        .call(
+            vox_foundation::protocol::orch_daemon_method::TOOL_CALL,
+            serde_json::json!({
+                "name": "vox_resolve_approval",
+                "args": {
+                    "approval_id": approval_id,
+                    "outcome": "reject"
+                }
+            }),
+        )
+        .await
+        .expect("orch.tool_call vox_resolve_approval reject dispatched");
+    let resolved = resolve_result
+        .get("data")
+        .and_then(|d| d.get("resolved"))
+        .and_then(|b| b.as_bool())
+        .unwrap_or(false);
+    assert!(
+        resolved,
+        "expected resolved: true from GUI path reject, got: {resolve_result}"
+    );
+
+    // The spawned install call returns an error envelope
+    let outcome = call
+        .await
+        .expect("join")
+        .expect("call_tool_via_daemon returned tool envelope");
+    assert!(
+        vox_orchestrator_mcp::server::tool_json_envelope_is_error(&outcome),
+        "rejected approval must surface as an error envelope, got: {outcome}"
+    );
+
+    // SAFETY: serialized via `#[serial_test::serial]`.
+    #[allow(unsafe_code)]
+    unsafe {
+        std::env::remove_var("VOX_ORCHESTRATOR_DAEMON_SOCKET");
+    }
+    server.abort();
+}
+
 /// RED test 2: tool-schema listing works without any live daemon. Mirrors
 /// what `crate::server::VoxMcpServer::list_tools` does — build local state
 /// and merge the static registry — with no daemon running anywhere and no

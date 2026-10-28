@@ -185,3 +185,204 @@ async fn dispatch_with_empty_args_object_succeeds_for_a_readonly_tool() {
         "vox_git_status via the autonomous bridge should succeed, got: {raw}"
     );
 }
+
+#[tokio::test]
+async fn autonomous_dispatch_floor_parks() {
+    let state = Arc::new(ServerState::new_full(load_config()));
+    let dispatcher = McpToolDispatcher::new((*state).clone());
+
+    let call = tokio::spawn(async move {
+        dispatcher
+            .dispatch(
+                TaskId(778),
+                AgentId(3),
+                "vox_config_set",
+                serde_json::json!({ "max_agents": 2 }),
+                Some("accept_all"),
+            )
+            .await
+    });
+
+    let deadline = tokio::time::Instant::now() + D_15S;
+    loop {
+        if !state.pending_approvals.list().is_empty() {
+            break;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "autonomous dispatch never registered a pending approval for floored tool vox_config_set"
+        );
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
+    }
+
+    let pending = state.pending_approvals.list();
+    assert_eq!(pending.len(), 1);
+    assert_eq!(pending[0].tool, "vox_config_set");
+    let approval_id = pending[0].approval_id.clone();
+
+    assert!(
+        state
+            .pending_approvals
+            .resolve(&approval_id, ApprovalOutcome::Rejected)
+    );
+    let raw = call
+        .await
+        .expect("join")
+        .expect("dispatch returns Ok even for a rejected approval envelope");
+    assert!(
+        tool_json_envelope_is_error(&raw),
+        "rejected approval must yield an error envelope, got: {raw}"
+    );
+}
+
+#[tokio::test]
+async fn autonomous_dispatch_cannot_approve_floored_park() {
+    let state = Arc::new(ServerState::new_full(load_config()));
+    let dispatcher = McpToolDispatcher::new((*state).clone());
+
+    let dispatcher_clone = McpToolDispatcher::new((*state).clone());
+    let mut call = tokio::spawn(async move {
+        dispatcher_clone
+            .dispatch(
+                TaskId(101),
+                AgentId(1),
+                "vox_skill_install",
+                serde_json::json!({}),
+                Some("accept_all"),
+            )
+            .await
+    });
+
+    let deadline = tokio::time::Instant::now() + D_15S;
+    loop {
+        if state
+            .pending_approvals
+            .list()
+            .iter()
+            .any(|e| e.tool == "vox_skill_install")
+        {
+            break;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "autonomous dispatch never registered a pending approval for vox_skill_install"
+        );
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
+    }
+
+    let pending = state.pending_approvals.list();
+    let entry = pending
+        .iter()
+        .find(|e| e.tool == "vox_skill_install")
+        .expect("found pending approval for vox_skill_install");
+    assert!(
+        entry.summary.starts_with("[floor:external_effect]"),
+        "expected summary to start with [floor:external_effect], got: {}",
+        entry.summary
+    );
+    let approval_id = entry.approval_id.clone();
+
+    // 2. Call vox_resolve_approval with approve and spoofed origin/source fields
+    let res_approve = dispatcher
+        .dispatch(
+            TaskId(102),
+            AgentId(1),
+            "vox_resolve_approval",
+            serde_json::json!({
+                "approval_id": approval_id,
+                "outcome": "approve",
+                "origin": "human",
+                "source": "gui"
+            }),
+            Some("accept_all"),
+        )
+        .await
+        .expect("dispatch call returned Ok");
+    assert!(
+        res_approve.contains("FLOOR_SELF_APPROVAL_REFUSED"),
+        "expected FLOOR_SELF_APPROVAL_REFUSED, got: {res_approve}"
+    );
+    assert!(
+        state
+            .pending_approvals
+            .list()
+            .iter()
+            .any(|e| e.approval_id == approval_id),
+        "parked approval should still be listed"
+    );
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    assert!(
+        !call.is_finished(),
+        "spawned call must not finish while approval is refused"
+    );
+
+    // 4. Same dispatcher with outcome: "modify"
+    let res_modify = dispatcher
+        .dispatch(
+            TaskId(103),
+            AgentId(1),
+            "vox_resolve_approval",
+            serde_json::json!({
+                "approval_id": approval_id,
+                "outcome": "modify",
+                "origin": "human",
+                "source": "gui"
+            }),
+            Some("accept_all"),
+        )
+        .await
+        .expect("dispatch call returned Ok");
+    assert!(
+        res_modify.contains("FLOOR_SELF_APPROVAL_REFUSED"),
+        "expected FLOOR_SELF_APPROVAL_REFUSED on modify, got: {res_modify}"
+    );
+    assert!(
+        state
+            .pending_approvals
+            .list()
+            .iter()
+            .any(|e| e.approval_id == approval_id),
+        "parked approval should still be listed after modify attempt"
+    );
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    assert!(
+        !call.is_finished(),
+        "spawned call must still not finish after modify attempt"
+    );
+
+    // 5. Same dispatcher with outcome: "reject"
+    let res_reject = dispatcher
+        .dispatch(
+            TaskId(104),
+            AgentId(1),
+            "vox_resolve_approval",
+            serde_json::json!({
+                "approval_id": approval_id,
+                "outcome": "reject",
+            }),
+            Some("accept_all"),
+        )
+        .await
+        .expect("dispatch call returned Ok");
+    assert!(
+        res_reject.contains("\"resolved\":true") || res_reject.contains("\"resolved\": true"),
+        "expected resolved: true in reject response, got: {res_reject}"
+    );
+    assert!(
+        !state
+            .pending_approvals
+            .list()
+            .iter()
+            .any(|e| e.approval_id == approval_id),
+        "parked approval should be removed after rejection"
+    );
+
+    let raw = (&mut call)
+        .await
+        .expect("join")
+        .expect("dispatch returns Ok");
+    assert!(
+        tool_json_envelope_is_error(&raw),
+        "spawned install should return error envelope on reject, got: {raw}"
+    );
+}

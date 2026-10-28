@@ -33,8 +33,18 @@ async fn main() {
         .with_writer(std::io::stderr)
         .try_init();
 
+    // Register process-global telemetry recorder for GUI surfaces (`TELEM-01`).
+    let gui_telem_db = vox_db::connect_workspace_journey_optional_at(
+        vox_db::DbConnectSurface::Runtime,
+        None,
+        false,
+    )
+    .await;
+    vox_db::telemetry_sink::init_process_telemetry(gui_telem_db);
+
     // Whisper STT reaches vox-plugin-speech through the plugin host (loaded lazily on first use).
     commands::speech_plugin_backend::register();
+    vox_db::telemetry_sink::init_process_telemetry(None);
 
     let args: Vec<String> = std::env::args().collect();
     if args.iter().any(|arg| arg == "--drive-headless") {
@@ -88,7 +98,6 @@ async fn main() {
         })
         .manage(commands::mic::MicCaptureState::default())
         .manage(commands::pty::PtyManager::default())
-        .manage(commands::terminal_core::TerminalSessionManager::default())
         .manage(persistent_daemon.clone())
         .manage(std::sync::Arc::new(remote::backend::BackendState::new(
             persistent_daemon,
@@ -113,17 +122,15 @@ async fn main() {
                 drive::bridge::hide_drive_window_early(&app.handle().clone());
             }
             // `.setup()` runs synchronously on a worker thread already inside
-            // the #[tokio::main] runtime (needed so the pool connect has an
-            // ambient reactor) — block_on alone
-            // panics with "Cannot start a runtime from within a runtime".
-            // block_in_place is the sanctioned way to block synchronously
-            // from within a multi-thread runtime's worker thread.
-            let pool = tokio::task::block_in_place(|| {
+            // the #[tokio::main] runtime — block_in_place runs the short-lived
+            // Drive store reset check (when VOX_GUI_DRIVE_STORE_ROOT is set)
+            // and immediately drops the connection so `vox-gui` holds zero open
+            // `VoxDb` handles while `vox-orchestrator-d` runs.
+            tokio::task::block_in_place(|| {
                 tauri::async_runtime::block_on(
-                    commands::gui_db_pool::GuiDbPool::connect_workspace(),
-                )
+                    commands::gui_db_pool::GuiDbPool::reset_drive_store_if_requested(),
+                );
             });
-            app.manage(pool);
 
             // Single persistent orchestrator daemon shared by tool calls,
             // approvals, and the status/event streams. Warm it synchronously
@@ -136,9 +143,9 @@ async fn main() {
                 .state::<std::sync::Arc<remote::backend::BackendState>>()
                 .inner()
                 .clone();
-            if let Err(err) = tokio::task::block_in_place(|| {
-                tauri::async_runtime::block_on(daemon.ensure())
-            }) {
+            if let Err(err) =
+                tokio::task::block_in_place(|| tauri::async_runtime::block_on(daemon.ensure()))
+            {
                 tracing::warn!(
                     error = %err,
                     "orchestrator daemon not ready at Axis launch; streams will retry"
@@ -153,7 +160,11 @@ async fn main() {
             );
             // B4: start the live agent-event stream, re-emitting each AgentEvent
             // as the "vox://agent-events" Tauri event.
-            commands::orchestrator::spawn_agent_event_stream(app.handle().clone(), daemon.clone(), backend.clone());
+            commands::orchestrator::spawn_agent_event_stream(
+                app.handle().clone(),
+                daemon.clone(),
+                backend.clone(),
+            );
             // T3.1: background supervision task — periodically pings the
             // cached orchestrator daemon and clears/re-resolves it if it has
             // gone unreachable, so liveness is actively monitored rather than
@@ -162,7 +173,10 @@ async fn main() {
             daemon.clone().spawn_supervisor();
             // F2: Scientia queue + discovery push bridges poll the active backend.
             commands::scientia::spawn_scientia_queue_stream(app.handle().clone(), backend.clone());
-            commands::scientia::spawn_discovery_surfaced_stream(app.handle().clone(), backend.clone());
+            commands::scientia::spawn_discovery_surfaced_stream(
+                app.handle().clone(),
+                backend.clone(),
+            );
             let daemon = app
                 .state::<std::sync::Arc<commands::daemon::PersistentDaemon>>()
                 .inner()
@@ -199,9 +213,13 @@ async fn main() {
             commands::pty::pty_spawn,
             commands::pty::pty_write,
             commands::pty::pty_close,
-            commands::terminal_core::term_pty_bytes,
-            commands::terminal_core::term_get_blocks,
-            commands::terminal_core::term_submit,
+            commands::pty::term_session_open,
+            commands::pty::term_session_list,
+            commands::pty::term_session_attach,
+            commands::pty::term_session_input,
+            commands::pty::term_session_submit,
+            commands::pty::term_session_resize,
+            commands::pty::term_session_close,
             commands::console_a2a::send_to_agent,
             commands::action_manifest::get_action_manifest,
             commands::execute::execute_command,
@@ -406,6 +424,13 @@ async fn main() {
             commands::browser::browser_screenshot_frame,
             commands::browser::browser_session_status,
             commands::browser::browser_validate_playwright,
+            commands::browser::browser_act,
+            commands::browser::browser_extract,
+            commands::browser::browser_extract_json,
+            commands::browser::browser_click_ref,
+            commands::browser::browser_fill_ref,
+            commands::browser::browser_wait_for,
+            commands::browser::browser_read_dom,
             commands::signing::signing_key_status,
             commands::signing::rotate_signing_key,
             commands::mesh::list_trusted_nodes,
@@ -428,13 +453,15 @@ async fn main() {
             if let RunEvent::Exit = event {
                 // Policy: kill orchestrator only if this Axis spawned it.
                 // Adopted shared daemons stay up for CLI / MCP.
-                if let Some(daemon) = app_handle.try_state::<std::sync::Arc<commands::daemon::PersistentDaemon>>()
+                if let Some(daemon) =
+                    app_handle.try_state::<std::sync::Arc<commands::daemon::PersistentDaemon>>()
                 {
                     daemon.inner().shutdown_if_spawned();
                 }
                 // Same policy for `vox mens serve`: don't orphan a spawned
                 // child (with a loaded model + bound port) past GUI exit.
-                if let Some(mens_serve) = app_handle.try_state::<std::sync::Arc<commands::mens_serve::MensServeState>>()
+                if let Some(mens_serve) =
+                    app_handle.try_state::<std::sync::Arc<commands::mens_serve::MensServeState>>()
                 {
                     mens_serve.inner().shutdown_if_spawned();
                 }

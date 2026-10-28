@@ -103,7 +103,7 @@ pub struct ExcludedArm {
 }
 
 /// The full comparison.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Comparison {
     /// The one problem set every included arm scored.
     pub problem_set_hash: String,
@@ -311,6 +311,166 @@ pub fn compare(
         excluded,
         claims,
     })
+}
+
+/// Per-spoke paired delta and win/tie/loss summary (`EVAL-02`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SpokeDeltaSummary {
+    /// Target spoke.
+    pub spoke: crate::mens::MensEvalSpoke,
+    /// Baseline `pass@1`.
+    pub baseline_pass_at_1: f64,
+    /// Candidate `pass@1`.
+    pub candidate_pass_at_1: f64,
+    /// `candidate_pass_at_1 - baseline_pass_at_1`.
+    pub delta_pass_at_1: f64,
+    /// Baseline `pass@k`.
+    pub baseline_pass_at_k: f64,
+    /// Candidate `pass@k`.
+    pub candidate_pass_at_k: f64,
+    /// `candidate_pass_at_k - baseline_pass_at_k`.
+    pub delta_pass_at_k: f64,
+    /// Paired problems where candidate passed first attempt and baseline failed.
+    pub wins: usize,
+    /// Paired problems where both passed or both failed first attempt.
+    pub ties: usize,
+    /// Paired problems where baseline passed first attempt and candidate failed.
+    pub losses: usize,
+    /// Whether this spoke satisfies non-inferiority (`delta_pass_at_1 >= -max_spoke_regression`).
+    pub non_inferior: bool,
+}
+
+/// Automated adapter promotion/rollback gate verdict (`EVAL-04`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PromotionGateVerdict {
+    /// All 5 spokes meet non-inferiority and overall `pass@1` strictly improved.
+    Promote,
+    /// Blocked: one or more spokes regressed beyond `max_spoke_regression`.
+    RejectRegression { regressed_spokes: Vec<String> },
+    /// Blocked: no spoke regressed beyond tolerance, but overall `pass@1` did not strictly improve.
+    HoldNoImprovement,
+}
+
+/// Paired 5-spoke candidate-vs-baseline evaluation comparison (`EVAL-02`, `EVAL-04`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MultiSpokeComparisonV1 {
+    /// Schema discriminator (`"mens_multi_spoke_comparison_v1"`).
+    pub schema_version: String,
+    /// Baseline model ID.
+    pub baseline_model_id: String,
+    /// Candidate model ID.
+    pub candidate_model_id: String,
+    /// Shared dataset snapshot URI.
+    pub snapshot_uri: String,
+    /// Candidate overall `pass@1` minus baseline overall `pass@1`.
+    pub overall_delta_pass_at_1: f64,
+    /// Candidate overall `pass@k` minus baseline overall `pass@k`.
+    pub overall_delta_pass_at_k: f64,
+    /// Per-spoke deltas in canonical [`crate::mens::MensEvalSpoke::ALL`] order.
+    pub spoke_deltas: Vec<SpokeDeltaSummary>,
+    /// Automated promotion/rollback gate decision (`EVAL-04`).
+    pub verdict: PromotionGateVerdict,
+}
+
+impl MultiSpokeComparisonV1 {
+    /// Canonical schema discriminator.
+    pub const SCHEMA_VERSION: &'static str = "mens_multi_spoke_comparison_v1";
+}
+
+/// Compare a candidate 5-spoke scorecard against a baseline scorecard and paired problem outcomes,
+/// computing per-spoke deltas, win/tie/loss counts, and the [`PromotionGateVerdict`] (`EVAL-02`, `EVAL-04`).
+#[must_use]
+pub fn compare_mens_five_spokes(
+    baseline: &crate::mens::MensFiveSpokeScorecardV1,
+    candidate: &crate::mens::MensFiveSpokeScorecardV1,
+    baseline_problems: &[crate::mens::SpokeProblemInput],
+    candidate_problems: &[crate::mens::SpokeProblemInput],
+    max_spoke_regression: f64,
+) -> MultiSpokeComparisonV1 {
+    use crate::mens::MensEvalSpoke;
+
+    let tol = max_spoke_regression.max(0.0);
+    let mut spoke_deltas = Vec::with_capacity(MensEvalSpoke::ALL.len());
+    let mut regressed_spokes = Vec::new();
+
+    for spoke in MensEvalSpoke::ALL {
+        let b_metric = baseline.spokes.iter().find(|s| s.spoke == spoke);
+        let c_metric = candidate.spokes.iter().find(|s| s.spoke == spoke);
+
+        let b_p1 = b_metric.map(|m| m.pass_at_1).unwrap_or(0.0);
+        let c_p1 = c_metric.map(|m| m.pass_at_1).unwrap_or(0.0);
+        let delta_p1 = c_p1 - b_p1;
+
+        let b_pk = b_metric.map(|m| m.pass_at_k).unwrap_or(0.0);
+        let c_pk = c_metric.map(|m| m.pass_at_k).unwrap_or(0.0);
+        let delta_pk = c_pk - b_pk;
+
+        let b_map: BTreeMap<&str, bool> = baseline_problems
+            .iter()
+            .filter(|p| p.spoke == spoke)
+            .filter_map(|p| Some((p.case_id.as_str(), p.attempts.first()?.is_full_pass())))
+            .collect();
+        let c_map: BTreeMap<&str, bool> = candidate_problems
+            .iter()
+            .filter(|p| p.spoke == spoke)
+            .filter_map(|p| Some((p.case_id.as_str(), p.attempts.first()?.is_full_pass())))
+            .collect();
+
+        let mut wins = 0usize;
+        let mut ties = 0usize;
+        let mut losses = 0usize;
+        for (case_id, &b_ok) in &b_map {
+            if let Some(&c_ok) = c_map.get(case_id) {
+                match (b_ok, c_ok) {
+                    (false, true) => wins += 1,
+                    (true, false) => losses += 1,
+                    _ => ties += 1,
+                }
+            }
+        }
+
+        let non_inferior = delta_p1 + 1e-9 >= -tol && losses == 0;
+        if !non_inferior {
+            regressed_spokes.push(spoke.as_str().to_string());
+        }
+
+        spoke_deltas.push(SpokeDeltaSummary {
+            spoke,
+            baseline_pass_at_1: b_p1,
+            candidate_pass_at_1: c_p1,
+            delta_pass_at_1: delta_p1,
+            baseline_pass_at_k: b_pk,
+            candidate_pass_at_k: c_pk,
+            delta_pass_at_k: delta_pk,
+            wins,
+            ties,
+            losses,
+            non_inferior,
+        });
+    }
+
+    let overall_delta_pass_at_1 = candidate.overall_pass_at_1 - baseline.overall_pass_at_1;
+    let overall_delta_pass_at_k = candidate.overall_pass_at_k - baseline.overall_pass_at_k;
+
+    let verdict = if !regressed_spokes.is_empty() {
+        PromotionGateVerdict::RejectRegression { regressed_spokes }
+    } else if overall_delta_pass_at_1 > 1e-9 {
+        PromotionGateVerdict::Promote
+    } else {
+        PromotionGateVerdict::HoldNoImprovement
+    };
+
+    MultiSpokeComparisonV1 {
+        schema_version: MultiSpokeComparisonV1::SCHEMA_VERSION.to_string(),
+        baseline_model_id: baseline.model_id.clone(),
+        candidate_model_id: candidate.model_id.clone(),
+        snapshot_uri: candidate.snapshot_uri.clone(),
+        overall_delta_pass_at_1,
+        overall_delta_pass_at_k,
+        spoke_deltas,
+        verdict,
+    }
 }
 
 #[cfg(test)]
@@ -531,5 +691,81 @@ mod tests {
         assert_eq!(c.claims[0].condition_arm.as_deref(), Some("C1"));
         let conds: Vec<_> = c.included.iter().map(|s| s.condition.as_deref()).collect();
         assert_eq!(conds, [Some("C0"), Some("C1")]);
+    }
+
+    #[test]
+    fn compare_mens_five_spokes_enforces_non_inferiority_and_promotion_gate() {
+        use crate::mens::{
+            MensEvalSpoke, SpokeAttemptOutcome, SpokeProblemInput, evaluate_mens_five_spokes,
+        };
+
+        let make_probs = |pass_flags: [bool; 5]| -> Vec<SpokeProblemInput> {
+            MensEvalSpoke::ALL
+                .iter()
+                .enumerate()
+                .map(|(idx, &spoke)| SpokeProblemInput {
+                    case_id: format!("c_{}", spoke.as_str()),
+                    spoke,
+                    attempts: vec![SpokeAttemptOutcome {
+                        case_id: format!("c_{}", spoke.as_str()),
+                        spoke,
+                        syntax_valid: true,
+                        semantic_valid: pass_flags[idx],
+                        execution_passed: pass_flags[idx],
+                        diagnostic_summary: None,
+                    }],
+                })
+                .collect()
+        };
+
+        let base_probs = make_probs([true, true, false, false, false]);
+        let cand_promote_probs = make_probs([true, true, true, true, false]);
+        let cand_regress_probs = make_probs([false, true, true, true, true]);
+
+        let base_card = evaluate_mens_five_spokes(
+            "mens-base",
+            "trusty://vox-dataset/s1",
+            "trusty://blake3/a0",
+            1,
+            &base_probs,
+        );
+        let promote_card = evaluate_mens_five_spokes(
+            "mens-cand-1",
+            "trusty://vox-dataset/s1",
+            "trusty://blake3/a1",
+            1,
+            &cand_promote_probs,
+        );
+        let regress_card = evaluate_mens_five_spokes(
+            "mens-cand-2",
+            "trusty://vox-dataset/s1",
+            "trusty://blake3/a2",
+            1,
+            &cand_regress_probs,
+        );
+
+        let comp_ok = compare_mens_five_spokes(
+            &base_card,
+            &promote_card,
+            &base_probs,
+            &cand_promote_probs,
+            0.0,
+        );
+        assert_eq!(comp_ok.verdict, PromotionGateVerdict::Promote);
+        assert!((comp_ok.overall_delta_pass_at_1 - 0.40).abs() < 1e-9);
+
+        let comp_reg = compare_mens_five_spokes(
+            &base_card,
+            &regress_card,
+            &base_probs,
+            &cand_regress_probs,
+            0.0,
+        );
+        assert_eq!(
+            comp_reg.verdict,
+            PromotionGateVerdict::RejectRegression {
+                regressed_spokes: vec!["vox_lang".to_string()],
+            }
+        );
     }
 }

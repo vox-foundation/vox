@@ -79,6 +79,7 @@ pub mod schema;
 pub mod schema_extensions;
 /// Legacy import/export planning and verification for greenfield Codex releases.
 pub mod store;
+pub use store::ops_agent_telemetry;
 pub mod telemetry_sink;
 
 /// Canonical Codex storage policy (`vox.db` vs project store vs training sidecar).
@@ -198,6 +199,8 @@ pub mod temporal_claims;
 pub mod toestub_store;
 /// Mens QLoRA training run persistence (CRUD for `populi_training_run` table).
 pub mod training_run;
+/// Research Trial Tier-A atomic persistence (`STORE-01`, `STORE-02`).
+pub mod trials;
 mod trust_drift;
 mod trust_propagation;
 mod trust_telemetry;
@@ -307,9 +310,14 @@ pub use types::now_unix_ms;
 pub use vox_db_types::EvalRunParams;
 pub use vox_db_types::{
     CachedClaimVerdict, DbAgentId, DbCorrelationId, DbPlanSessionId, DbSessionId, DbTaskId,
-    DbUserId, MisguidanceReporter, RecordMisguidanceParams, ResearchArtifactRecord,
-    ResearchDefectClass, ResearchMisguidanceRecord, ResearchSearchResult, ResearchSessionRecord,
-    ResearchSessionSummary,
+    DbUserId, MisguidanceReporter, PersistFailpoint, RecordMisguidanceParams,
+    ResearchArtifactRecord, ResearchDefectClass, ResearchMisguidanceRecord, ResearchSearchResult,
+    ResearchSessionRecord, ResearchSessionSummary, TRIAL_ADAPTER_TAGS, TRIAL_CAMPAIGN_LOG_EVENTS,
+    TRIAL_CAMPAIGN_STATUSES, TRIAL_MEMORY_ABLATION_FLAGS, TRIAL_RUN_STATUSES,
+    TRIAL_SAMPLE_VERDICTS, TRIAL_STOPPING_RULE_KINDS, TrialCampaignLogRow, TrialCampaignRecord,
+    TrialCampaignRow, TrialRunBatch, TrialRunOutcome, TrialRunRecord, TrialRunRow,
+    TrialSampleRecord, TrialSampleRow, TrialSpendPartition, is_valid_campaign_transition,
+    is_valid_run_transition,
 };
 pub use vox_orchestrator_types::trust::{
     ContextTrustTier, FindingTier, tier_for_curated, tier_for_knowledge_node_type,
@@ -510,6 +518,31 @@ impl GuardedConnection {
     ) -> turso::Result<Vec<turso::Row>> {
         let _guard = self.lock.lock().await;
         self.inner.pragma_update(pragma_name, pragma_value).await
+    }
+
+    /// Execute an async closure inside a serialized SQLite `BEGIN IMMEDIATE ... COMMIT`
+    /// transaction while holding the [`GuardedConnection`] mutex for the entire transaction
+    /// lifetime. On any error returned by `f`, issues `ROLLBACK` before releasing the mutex.
+    pub async fn transaction<'a, F, Fut, T>(&'a self, f: F) -> Result<T, crate::StoreError>
+    where
+        F: FnOnce(&'a turso::Connection) -> Fut,
+        Fut: std::future::Future<Output = Result<T, crate::StoreError>> + 'a,
+    {
+        let _guard = self.lock.lock().await;
+        self.inner.execute("BEGIN IMMEDIATE", ()).await?;
+        match f(&self.inner).await {
+            Ok(val) => {
+                if let Err(e) = self.inner.execute("COMMIT", ()).await {
+                    let _ = self.inner.execute("ROLLBACK", ()).await;
+                    return Err(crate::StoreError::Turso(e));
+                }
+                Ok(val)
+            }
+            Err(err) => {
+                let _ = self.inner.execute("ROLLBACK", ()).await;
+                Err(err)
+            }
+        }
     }
 }
 

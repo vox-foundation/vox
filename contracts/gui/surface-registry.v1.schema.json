@@ -16,9 +16,10 @@
         "properties": {
           "view_key": { "type": ["string", "null"] },
           "cli_group": { "type": ["string", "null"] },
+          "mcp_namespace": { "type": ["string", "null"], "pattern": "^[a-z][a-z0-9_-]*$" },
           "representation_tier": {
             "type": "string",
-            "enum": ["none", "generic_form", "curated_decorator", "live_backend"]
+            "enum": ["none", "curated_decorator", "live_backend"]
           },
           "nav_label": { "type": ["string", "null"] },
           "nav_icon": { "type": ["string", "null"] },

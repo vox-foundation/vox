@@ -736,7 +736,11 @@ fn resolve_local_spoke_base(
             anyhow::anyhow!("could not find workspace root for spoke base resolution")
         })?;
 
-    let selection = resolve_training_selection(&root, Some(domain), cli_model, cli_preset, None)?;
+    let vram_mb = vox_populi::mens::tensor::vram_autodetect::get_system_vram_gb()
+        .map(|gb| (gb * 1024.0) as u32)
+        .or(Some(16_384));
+    let selection =
+        resolve_training_selection(&root, Some(domain), cli_model, cli_preset, vram_mb)?;
 
     match selection {
         TrainingSelection::Train { model, preset, .. } => Ok((model, preset)),

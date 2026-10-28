@@ -5,10 +5,10 @@ use serde::Serialize;
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
-const CHATBOT_TEMPLATE: &str = r#"# Vox Chatbot — OpenRouter-powered chat app
-#
-# Edit OPENROUTER_API_KEY in .env to enable live LLM responses.
-# Run with: vox build src/main.vox -o dist && vox run src/main.vox
+const CHATBOT_TEMPLATE: &str = r#"// Vox Chatbot — OpenRouter-powered chat app
+//
+// Edit OPENROUTER_API_KEY in .env to enable live LLM responses.
+// Run with: vox build src/main.vox -o dist && vox run src/main.vox
 
 table Conversation {
     user_id: str
@@ -61,9 +61,9 @@ routes {
 }
 "#;
 
-const DASHBOARD_TEMPLATE: &str = r#"# Vox Dashboard — data table with route params
-#
-# Run with: vox build src/main.vox -o dist && vox run src/main.vox
+const DASHBOARD_TEMPLATE: &str = r#"// Vox Dashboard — data table with route params
+//
+// Run with: vox build src/main.vox -o dist && vox run src/main.vox
 
 table Item {
     name: str
@@ -99,9 +99,9 @@ routes {
 }
 "#;
 
-const API_TEMPLATE: &str = r#"# Vox API — server functions with health + metrics
-#
-# Run with: vox build src/main.vox -o dist && vox run src/main.vox
+const API_TEMPLATE: &str = r#"// Vox API — server functions with health + metrics
+//
+// Run with: vox build src/main.vox -o dist && vox run src/main.vox
 
 table Task {
     title: str
@@ -130,9 +130,9 @@ server complete_task(id: str) to Result[bool] {
 }
 "#;
 
-const DEFAULT_FULL_STACK: &str = r#"# My Vox App — a full-stack starter
-#
-# Run with: vox build src/main.vox -o dist && vox run src/main.vox
+const DEFAULT_FULL_STACK: &str = r#"// My Vox App — a full-stack starter
+//
+// Run with: vox build src/main.vox -o dist && vox run src/main.vox
 
 table Note {
     title: str
@@ -160,11 +160,46 @@ routes {
 }
 "#;
 
-const AGENT_KIND: &str = "# A Vox AI agent\n\n@agent_def fn MyAgent(query: str) -> str {\n    return \"Response to: {query}\"\n}\n";
-const WORKFLOW_KIND: &str =
-    "# A Vox Workflow\n\n@workflow_def fn DataPipeline() {\n    return\n}\n";
+const AGENT_KIND: &str = "// A Vox AI agent\n\nactor MyAgent {\n    on query(input: str) to str {\n        return \"Response to: \" + input\n    }\n}\n";
+const WORKFLOW_KIND: &str = "// A Vox Workflow\n\nactivity fetch_step(input: str) to Result[str] {\n    return Ok(input)\n}\n\nworkflow DataPipeline(input: str) to Result[str] {\n    return fetch_step(input)\n}\n";
 
-const MOBILE_PWA_TEMPLATE: &str = r#"# Vox Mobile — web-first UI + native packaging via Tauri 2 (see `vox compile` / application-packaging SSOT)
+const SCRIPT_TEMPLATE: &str = r#"// Vox Automation Script
+// Run with: vox run src/main.vox
+
+fn main() to Result[str] {
+    print("Vox script ready")
+    return Ok("ready")
+}
+"#;
+
+const SIMULATION_RPG_TEMPLATE: &str = r#"// Vox Simulation RPG starter
+// Run with: vox run --interp src/main.vox
+
+table Character {
+    name: str
+    hp: int
+    gold: int
+}
+
+actor GameMaster {
+    on advance_world(hero: str) to str {
+        return hero + " explores the realm"
+    }
+}
+
+fn step_turn(hp: int, damage: int) to int {
+    if hp > damage {
+        return hp - damage
+    }
+    return 0
+}
+
+fn main() to int {
+    return step_turn(100, 15)
+}
+"#;
+
+const MOBILE_PWA_TEMPLATE: &str = r#"// Vox Mobile — web-first UI + native packaging via Tauri 2 (see `vox compile` / application-packaging SSOT)
 
 import std.mobile
 
@@ -342,18 +377,22 @@ pub fn resolve_scaffold_target_under_repo(
 fn main_vox_content(package_kind: &str, template: Option<&str>) -> Cow<'static, str> {
     if let Some(tmpl) = template {
         return match tmpl {
+            "default" => Cow::Borrowed(DEFAULT_FULL_STACK),
+            "script" => Cow::Borrowed(SCRIPT_TEMPLATE),
+            "simulation-rpg" => Cow::Borrowed(SIMULATION_RPG_TEMPLATE),
             "chatbot" => Cow::Borrowed(CHATBOT_TEMPLATE),
             "web" | "dashboard" => Cow::Borrowed(DASHBOARD_TEMPLATE),
             "api" => Cow::Borrowed(API_TEMPLATE),
             "mobile-pwa" | "tauri-mobile" => Cow::Borrowed(MOBILE_PWA_TEMPLATE),
             other => Cow::Owned(format!(
-                "# My Vox App\n\ncomponent App() {{\n    <div><h1>\"My Vox App\"</h1></div>\n}}\n\nroutes:\n    \"/\" to App\n\n# Unknown template '{other}'; use web, chatbot, dashboard, api, mobile-pwa, or tauri-mobile.\n"
+                "// My Vox App\n\ncomponent App() {{\n    view: column(raw_class=\"app\") {{\n        heading(level=1) {{ \"My Vox App\" }}\n    }}\n}}\n\nroutes {{\n    \"/\" to App\n}}\n\n// Unknown template '{other}'; use default, script, simulation-rpg, web, chatbot, dashboard, api, mobile-pwa, or tauri-mobile.\n"
             )),
         };
     }
     match package_kind {
         "agent" => Cow::Borrowed(AGENT_KIND),
         "workflow" => Cow::Borrowed(WORKFLOW_KIND),
+        "script" => Cow::Borrowed(SCRIPT_TEMPLATE),
         "chatbot" => Cow::Borrowed(CHATBOT_TEMPLATE),
         _ => Cow::Borrowed(DEFAULT_FULL_STACK),
     }
@@ -566,5 +605,26 @@ mod tests {
             "    fn add(x: int) to int { return x }",
             "add"
         ));
+    }
+
+    #[test]
+    fn scaffold_all_templates_emit_canonical_vox_syntax() {
+        for tmpl in [
+            "default",
+            "simulation-rpg",
+            "script",
+            "chatbot",
+            "dashboard",
+            "api",
+            "mobile-pwa",
+        ] {
+            let d = TempDir::new().unwrap();
+            scaffold_vox_project_at(d.path(), "tmpl-app", "application", Some(tmpl)).unwrap();
+            let src = std::fs::read_to_string(d.path().join("src/main.vox")).unwrap();
+            assert!(!src.is_empty());
+            assert!(!src.contains("@agent_def"));
+            assert!(!src.contains("@workflow_def"));
+            assert!(!src.contains("->"));
+        }
     }
 }

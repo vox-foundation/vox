@@ -7,19 +7,22 @@ use std::path::{Path as FsPath, PathBuf};
 
 use axum::extract::{ConnectInfo, Path, Query, State};
 use axum::http::HeaderMap;
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde_json::Value;
+use vox_foundation::protocol::dei_method;
+use vox_orchestrator::orch_daemon::ExtraDispatch;
 use vox_search::policy::{ResearchLane, SearchPolicy};
 use vox_secrets::{SecretId, list_free_tier_offers, resolve_secret, store_secret};
 
 use crate::gui_ops::dto::research::{
-    DocDraftPreview, ProviderStatusDto, PublishDocResult, QuotaUsageDto, ResearchClaimDto,
-    ResearchDetailDto, ResearchEngineConfigDto, ResearchEngineStatusDto, ResearchSessionDto,
+    DocDraftPreview, EpistemicDagDto, EpistemicDagEdgeDto, EpistemicDagNodeDto, ProviderStatusDto,
+    PublishDocResult, QuotaUsageDto, ResearchClaimDto, ResearchDetailDto, ResearchEngineConfigDto,
+    ResearchEngineStatusDto, ResearchSessionDto,
 };
-use crate::gui_ops::{GUI_USER_ID, api_db, enforce_route, require_db};
+use crate::gui_ops::{GUI_USER_ID, api_db, enforce_route, enforce_write_route, require_db};
 use crate::http_gateway::GatewayState;
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
@@ -42,11 +45,21 @@ mod artifact_mirror {
     pub struct Citation {
         pub source_id: i64,
         pub url: String,
+        #[serde(default)]
+        pub title: String,
+        #[serde(default)]
+        pub snippet: String,
+        #[serde(default)]
+        pub confidence: f64,
     }
 
     #[derive(Debug, Deserialize, Default)]
     pub struct EvidenceSpan {
         pub source_id: i64,
+        #[serde(default)]
+        pub text: String,
+        #[serde(default)]
+        pub span_type: String,
     }
 
     #[derive(Debug, Deserialize, Default)]
@@ -68,7 +81,10 @@ mod artifact_mirror {
 
     #[derive(Debug, Deserialize, Default)]
     pub struct ResearchMetadata {
+        #[serde(default)]
         pub routing_tier: String,
+        #[serde(default)]
+        pub confidence: f64,
         #[serde(default)]
         pub source_count: usize,
         #[serde(default)]
@@ -78,6 +94,16 @@ mod artifact_mirror {
         /// `(claim_id, distinct_supporting_domain_count)` pairs (`vox_search::corroboration`).
         #[serde(default)]
         pub corroboration_counts: Vec<(u64, usize)>,
+        #[serde(default)]
+        pub wave_count: Option<u8>,
+        #[serde(default)]
+        pub wave_stability: Option<f64>,
+        #[serde(default)]
+        pub quality_score: Option<i32>,
+        #[serde(default)]
+        pub synthesis_model: Option<String>,
+        #[serde(default)]
+        pub subqueries: Vec<String>,
     }
 
     #[derive(Debug, Deserialize, Default)]
@@ -89,13 +115,28 @@ mod artifact_mirror {
     #[derive(Debug, Deserialize, Default)]
     pub struct ResearchResult {
         #[serde(default)]
+        pub answer: String,
+        #[serde(default)]
         pub citations: Vec<Citation>,
+        #[serde(default)]
         pub research_metadata: ResearchMetadata,
     }
 
     #[derive(Debug, Deserialize, Default)]
+    pub struct ResearchPlan {
+        #[serde(default)]
+        pub subqueries: Vec<String>,
+    }
+
+    #[derive(Debug, Deserialize, Default)]
     pub struct ResearchRunArtifact {
+        #[serde(default)]
+        pub plan: ResearchPlan,
+        #[serde(default)]
         pub result: ResearchResult,
+        #[serde(default)]
+        #[allow(dead_code)]
+        pub report_markdown: String,
     }
 }
 
@@ -106,6 +147,10 @@ pub struct ResearchSummary {
     pub claims: Vec<ResearchClaimDto>,
     pub source_count: Option<usize>,
     pub citation_precision: Option<f64>,
+    pub wave_count: Option<u8>,
+    pub wave_stability: Option<f64>,
+    pub quality_score: Option<i32>,
+    pub synthesis_model: Option<String>,
 }
 
 /// `Verdict`'s wire form is snake_case; the GUI's verdict vocabulary is capitalized.
@@ -117,6 +162,183 @@ fn capitalize_verdict(wire: &str) -> String {
         "unverified" => "Unverified".to_string(),
         other => other.to_string(),
     }
+}
+
+/// Construct the 4-layer hierarchical epistemic DAG (`query -> subquery -> source_domain -> claim`)
+/// plus optional `sandbox_probe` nodes and `contradicts` edges from `artifact_json`.
+pub fn build_epistemic_dag(query_text: &str, artifact_json: &str) -> Option<EpistemicDagDto> {
+    let artifact: artifact_mirror::ResearchRunArtifact =
+        serde_json::from_str(artifact_json).ok()?;
+    let result = artifact.result;
+    let meta = result.research_metadata;
+
+    let mut nodes = Vec::new();
+    let mut edges = Vec::new();
+
+    let root_id = "query-0".to_string();
+    nodes.push(EpistemicDagNodeDto {
+        id: root_id.clone(),
+        kind: "query".to_string(),
+        label: if query_text.trim().is_empty() {
+            "Research Query".to_string()
+        } else {
+            query_text.trim().to_string()
+        },
+        wave: 0,
+        verdict: None,
+        confidence: if meta.confidence > 0.0 {
+            Some(meta.confidence)
+        } else {
+            None
+        },
+        url: None,
+        snippet: None,
+    });
+
+    let subqueries: Vec<String> = if !meta.subqueries.is_empty() {
+        meta.subqueries.clone()
+    } else if !artifact.plan.subqueries.is_empty() {
+        artifact.plan.subqueries.clone()
+    } else {
+        vec![query_text.trim().to_string()]
+    };
+
+    let wave_total = meta.wave_count.unwrap_or(1).max(1);
+    let mut subquery_ids = Vec::with_capacity(subqueries.len());
+    for (idx, sq) in subqueries.iter().enumerate() {
+        let sq_id = format!("subquery-{idx}");
+        let wave = ((idx as u8) % wave_total) + 1;
+        nodes.push(EpistemicDagNodeDto {
+            id: sq_id.clone(),
+            kind: "subquery".to_string(),
+            label: sq.clone(),
+            wave,
+            verdict: None,
+            confidence: None,
+            url: None,
+            snippet: None,
+        });
+        edges.push(EpistemicDagEdgeDto {
+            id: format!("edge-q-sq-{idx}"),
+            source: root_id.clone(),
+            target: sq_id.clone(),
+            kind: "decomposes_to".to_string(),
+        });
+        subquery_ids.push(sq_id);
+    }
+
+    for (c_idx, cit) in result.citations.iter().enumerate() {
+        let src_node_id = format!("source-{}", cit.source_id);
+        let label = if !cit.title.trim().is_empty() {
+            cit.title.trim().to_string()
+        } else {
+            cit.url.clone()
+        };
+        let parent_sq = subquery_ids
+            .get(c_idx % subquery_ids.len().max(1))
+            .cloned()
+            .unwrap_or_else(|| root_id.clone());
+        let wave = ((c_idx as u8) % wave_total) + 1;
+        nodes.push(EpistemicDagNodeDto {
+            id: src_node_id.clone(),
+            kind: "source_domain".to_string(),
+            label,
+            wave,
+            verdict: None,
+            confidence: if cit.confidence > 0.0 {
+                Some(cit.confidence)
+            } else {
+                None
+            },
+            url: Some(cit.url.clone()),
+            snippet: if cit.snippet.is_empty() {
+                None
+            } else {
+                Some(cit.snippet.clone())
+            },
+        });
+        edges.push(EpistemicDagEdgeDto {
+            id: format!("edge-sq-src-{c_idx}"),
+            source: parent_sq,
+            target: src_node_id,
+            kind: "retrieves_from".to_string(),
+        });
+    }
+
+    for (v_idx, cv) in meta.claim_verdicts.iter().enumerate() {
+        let claim_node_id = format!("claim-{}", cv.claim.claim_id);
+        let verdict = capitalize_verdict(&cv.verdict);
+        let wave = ((v_idx as u8) % wave_total) + 1;
+        nodes.push(EpistemicDagNodeDto {
+            id: claim_node_id.clone(),
+            kind: "claim".to_string(),
+            label: cv.claim.text.clone(),
+            wave,
+            verdict: Some(verdict.clone()),
+            confidence: Some(cv.confidence),
+            url: None,
+            snippet: None,
+        });
+
+        let mut linked_any = false;
+        for (s_idx, span) in cv.evidence_spans.iter().enumerate() {
+            let src_node_id = format!("source-{}", span.source_id);
+            let is_contra =
+                span.span_type.eq_ignore_ascii_case("contradicting") || verdict == "Contradicted";
+            if span.text.contains("Compiler error") || span.text.contains("Sandbox") {
+                let probe_id = format!("probe-{}-{s_idx}", cv.claim.claim_id);
+                nodes.push(EpistemicDagNodeDto {
+                    id: probe_id.clone(),
+                    kind: "sandbox_probe".to_string(),
+                    label: "Compiler Sandbox Probe".to_string(),
+                    wave,
+                    verdict: Some(verdict.clone()),
+                    confidence: Some(cv.confidence),
+                    url: None,
+                    snippet: Some(span.text.clone()),
+                });
+                edges.push(EpistemicDagEdgeDto {
+                    id: format!("edge-probe-{}-{s_idx}", cv.claim.claim_id),
+                    source: claim_node_id.clone(),
+                    target: probe_id,
+                    kind: "verifies_compile".to_string(),
+                });
+            }
+            if nodes.iter().any(|n| n.id == src_node_id) {
+                linked_any = true;
+                edges.push(EpistemicDagEdgeDto {
+                    id: format!("edge-src-claim-{}-{s_idx}", cv.claim.claim_id),
+                    source: src_node_id,
+                    target: claim_node_id.clone(),
+                    kind: if is_contra {
+                        "contradicts".to_string()
+                    } else {
+                        "grounds_claim".to_string()
+                    },
+                });
+            }
+        }
+        if !linked_any {
+            let fallback_src = result
+                .citations
+                .first()
+                .map(|c| format!("source-{}", c.source_id))
+                .or_else(|| subquery_ids.first().cloned())
+                .unwrap_or_else(|| root_id.clone());
+            edges.push(EpistemicDagEdgeDto {
+                id: format!("edge-fallback-claim-{}", cv.claim.claim_id),
+                source: fallback_src,
+                target: claim_node_id,
+                kind: if verdict == "Contradicted" {
+                    "contradicts".to_string()
+                } else {
+                    "grounds_claim".to_string()
+                },
+            });
+        }
+    }
+
+    Some(EpistemicDagDto { nodes, edges })
 }
 
 /// Parse `artifact_json` into the trust-UI summary. Fail-open: a parse failure yields an empty
@@ -170,10 +392,18 @@ pub fn extract_research_summary(artifact_json: &str) -> ResearchSummary {
         .collect();
 
     ResearchSummary {
-        confidence_tier: Some(meta.routing_tier),
+        confidence_tier: if meta.routing_tier.is_empty() {
+            None
+        } else {
+            Some(meta.routing_tier)
+        },
         claims,
         source_count: Some(meta.source_count),
         citation_precision: meta.citation_audit.map(|a| a.precision),
+        wave_count: meta.wave_count,
+        wave_stability: meta.wave_stability,
+        quality_score: meta.quality_score,
+        synthesis_model: meta.synthesis_model.filter(|s| !s.is_empty()),
     }
 }
 
@@ -195,34 +425,233 @@ fn session_dto(
 
 // ─── Doc drafts and publishing ───────────────────────────────────────────────
 
-/// Render the Architecture-SSOT preview draft for a research session (`vox-scientia` scaffold).
-pub async fn render_doc_draft(session_id: i64) -> Result<DocDraftPreview, String> {
+/// Build an [`vox_scientia::manuscript::scaffold::architecture_ssot::ArchitectureSsotInput`] from
+/// a persisted research session and its `artifact_json` / `report_markdown`.
+pub fn build_architecture_ssot_input(
+    session_id: i64,
+    query_text: Option<&str>,
+    report_markdown: Option<&str>,
+    artifact_json: Option<&str>,
+) -> vox_scientia::manuscript::scaffold::architecture_ssot::ArchitectureSsotInput {
+    use vox_scientia::manuscript::scaffold::architecture_ssot::{
+        ArchitectureSsotInput, CodebaseReference, EmpiricalClaimRow, GapRecommendation,
+        RoadmapPhase, SandboxExecutionRecord, SeverityTier,
+    };
+
     let title = format!("Research Session #{session_id} Architecture SSOT (2026)");
     let slug = format!("session-{session_id}-research");
+
+    let parsed = artifact_json
+        .and_then(|raw| serde_json::from_str::<artifact_mirror::ResearchRunArtifact>(raw).ok());
+
+    let stability_score = parsed
+        .as_ref()
+        .and_then(|a| {
+            a.result.research_metadata.wave_stability.or(
+                if a.result.research_metadata.confidence > 0.0 {
+                    Some(a.result.research_metadata.confidence)
+                } else {
+                    None
+                },
+            )
+        })
+        .unwrap_or(0.90);
+
+    let answer_body = report_markdown
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| {
+            parsed
+                .as_ref()
+                .map(|a| a.result.answer.as_str())
+                .filter(|s| !s.trim().is_empty())
+        });
+
+    let executive_summary = answer_body
+        .and_then(|md| {
+            md.lines()
+                .map(str::trim)
+                .find(|l| !l.is_empty() && !l.starts_with('#') && !l.starts_with('>'))
+                .map(ToString::to_string)
+        })
+        .unwrap_or_else(|| {
+            query_text
+                .filter(|q| !q.trim().is_empty())
+                .map(|q| format!("Empirical investigation of: {}", q.trim()))
+                .unwrap_or_else(|| "Empirical investigation findings.".to_string())
+        });
+
+    let hypothesis = query_text
+        .filter(|q| !q.trim().is_empty())
+        .map(|q| {
+            format!(
+                "Evaluate architectural claims and evidence for: {}",
+                q.trim()
+            )
+        })
+        .unwrap_or_else(|| "Initial architectural hypothesis.".to_string());
+
+    let mut verified_claims = Vec::new();
+    let mut codebase_refs = Vec::new();
+    let mut sandbox_probes = Vec::new();
+    let mut gaps_and_recommendations = Vec::new();
+    let mut roadmap_phases = Vec::new();
+
+    if let Some(ref artifact) = parsed {
+        let citations = &artifact.result.citations;
+        for cit in citations {
+            if cit.url.starts_with("repo://")
+                || cit.url.contains("crates/")
+                || cit.url.contains("docs/")
+            {
+                let file_path = cit.url.trim_start_matches("repo://").to_string();
+                let crate_name = file_path
+                    .split('/')
+                    .nth(1)
+                    .unwrap_or("vox-workspace")
+                    .to_string();
+                codebase_refs.push(CodebaseReference {
+                    crate_name,
+                    file_path,
+                    line_start: None,
+                    line_end: None,
+                    observation: if cit.snippet.trim().is_empty() {
+                        cit.title.clone()
+                    } else {
+                        cit.snippet.chars().take(160).collect()
+                    },
+                });
+            }
+        }
+
+        for (idx, cv) in artifact
+            .result
+            .research_metadata
+            .claim_verdicts
+            .iter()
+            .enumerate()
+        {
+            let verdict = capitalize_verdict(&cv.verdict);
+            let primary_source = cv
+                .evidence_spans
+                .first()
+                .and_then(|sp| citations.iter().find(|c| c.source_id == sp.source_id))
+                .map(|c| c.url.clone())
+                .or_else(|| citations.first().map(|c| c.url.clone()))
+                .unwrap_or_else(|| "session-evidence".to_string());
+
+            verified_claims.push(EmpiricalClaimRow {
+                subject: format!("Claim #{}", idx + 1),
+                predicate: verdict.to_ascii_lowercase(),
+                object: cv.claim.text.clone(),
+                verdict: verdict.clone(),
+                confidence: cv.confidence,
+                primary_evidence_source: primary_source,
+                trusty_uri: None,
+            });
+
+            for span in &cv.evidence_spans {
+                if span.text.contains("Compiler error") || span.text.contains("Sandbox") {
+                    sandbox_probes.push(SandboxExecutionRecord {
+                        title: format!("Claim #{} Sandbox Check", idx + 1),
+                        language: "rust".to_string(),
+                        original_snippet: cv.claim.text.clone(),
+                        repaired_snippet: None,
+                        compiler_output: span.text.clone(),
+                        success: verdict == "Supported",
+                    });
+                }
+            }
+
+            if verdict == "Contradicted" || verdict == "Contested" {
+                gaps_and_recommendations.push(GapRecommendation {
+                    severity: if verdict == "Contradicted" {
+                        SeverityTier::P0Critical
+                    } else {
+                        SeverityTier::P1Important
+                    },
+                    title: format!("Resolve {verdict} Claim #{}", idx + 1),
+                    description: cv.claim.text.clone(),
+                    remedy:
+                        "Reconcile implementation and documentation with verified evidence spans."
+                            .to_string(),
+                });
+            }
+        }
+    }
+
+    if !gaps_and_recommendations.is_empty() {
+        roadmap_phases.push(RoadmapPhase {
+            phase_number: 1,
+            title: "Contradiction & Gap Remediation".to_string(),
+            description: format!(
+                "Close {} identified contradiction/contested claim(s) from Research Session #{session_id}.",
+                gaps_and_recommendations.len()
+            ),
+            verification_gate: "cargo run -p vox-doc-pipeline -- --lint-only".to_string(),
+        });
+    }
+
+    let empirical_outcome_summary = format!(
+        "Verified {} claim(s) across {} codebase reference(s) with stability {:.2}.",
+        verified_claims.len(),
+        codebase_refs.len(),
+        stability_score
+    );
+
+    ArchitectureSsotInput {
+        title,
+        description: format!(
+            "Empirically verified architecture findings and benchmarks for session #{session_id}."
+        ),
+        category: "Architecture SSOTs".into(),
+        status: "current".into(),
+        training_eligible: false,
+        training_rationale: None,
+        sort_order: None,
+        session_id,
+        stability_score,
+        slug,
+        executive_summary,
+        hypothesis,
+        empirical_outcome_summary,
+        codebase_refs,
+        competitive_matrix: vec![],
+        verified_claims,
+        sandbox_probes,
+        gaps_and_recommendations,
+        roadmap_phases,
+    }
+}
+
+/// Render the Architecture-SSOT preview draft for a research session, hydrating from `VoxDb` when available.
+pub async fn render_doc_draft_with_db(
+    db: Option<&vox_db::VoxDb>,
+    session_id: i64,
+) -> Result<DocDraftPreview, String> {
+    let mut query_text: Option<String> = None;
+    let mut report_markdown: Option<String> = None;
+    let mut artifact_json: Option<String> = None;
+
+    if let Some(db) = db {
+        if let Ok(Some(session)) = db.get_research_session(session_id).await {
+            query_text = Some(session.query_text);
+        }
+        if let Ok(Some(artifact)) = db.get_research_artifact(session_id).await {
+            report_markdown = Some(artifact.report_markdown);
+            artifact_json = Some(artifact.artifact_json);
+        }
+    }
+
+    let input = build_architecture_ssot_input(
+        session_id,
+        query_text.as_deref(),
+        report_markdown.as_deref(),
+        artifact_json.as_deref(),
+    );
+    let title = input.title.clone();
+    let slug = input.slug.clone();
     let filename = format!("{slug}-2026.md");
-    let (title_in, slug_in) = (title.clone(), slug.clone());
     let markdown_content = tokio::task::spawn_blocking(move || {
-        let input = vox_scientia::manuscript::scaffold::architecture_ssot::ArchitectureSsotInput {
-            title: title_in,
-            description: "Empirically verified architecture findings and benchmarks.".into(),
-            category: "Architecture SSOTs".into(),
-            status: "current".into(),
-            training_eligible: true,
-            training_rationale: Some("Empirically verified architecture findings.".into()),
-            sort_order: None,
-            session_id,
-            stability_score: 0.90,
-            slug: slug_in,
-            executive_summary: "Empirical investigation findings.".into(),
-            hypothesis: "Initial architectural hypothesis.".into(),
-            empirical_outcome_summary: "Measured system performance.".into(),
-            codebase_refs: vec![],
-            competitive_matrix: vec![],
-            verified_claims: vec![],
-            sandbox_probes: vec![],
-            gaps_and_recommendations: vec![],
-            roadmap_phases: vec![],
-        };
         vox_scientia::manuscript::scaffold::architecture_ssot::render_architecture_ssot(&input)
             .map_err(|e| e.to_string())
     })
@@ -236,6 +665,11 @@ pub async fn render_doc_draft(session_id: i64) -> Result<DocDraftPreview, String
         is_valid: true,
         validation_errors: vec![],
     })
+}
+
+/// Render the Architecture-SSOT preview draft for a research session (`vox-scientia` scaffold).
+pub async fn render_doc_draft(session_id: i64) -> Result<DocDraftPreview, String> {
+    render_doc_draft_with_db(None, session_id).await
 }
 
 /// `docs/src/architecture/<slug>-2026.md` under `repo_root`; rejects path-traversal slugs.
@@ -723,6 +1157,9 @@ pub async fn get_research_session_detail(
         .as_ref()
         .map(|a| extract_research_summary(&a.artifact_json))
         .unwrap_or_default();
+    let epistemic_dag = artifact
+        .as_ref()
+        .and_then(|a| build_epistemic_dag(&session.query_text, &a.artifact_json));
     ok(ResearchDetailDto {
         session: session_dto(
             session.id,
@@ -737,6 +1174,11 @@ pub async fn get_research_session_detail(
         claims: summary.claims,
         source_count: summary.source_count,
         citation_precision: summary.citation_precision,
+        epistemic_dag,
+        wave_count: summary.wave_count,
+        wave_stability: summary.wave_stability,
+        quality_score: summary.quality_score,
+        synthesis_model: summary.synthesis_model,
     })
 }
 
@@ -750,7 +1192,8 @@ pub async fn get_research_doc_draft(
     if let Err(e) = enforce_route(&gs, &connect.0, &headers, RESEARCH_SURFACES) {
         return e;
     }
-    match render_doc_draft(session_id).await {
+    let state = gs.server_state();
+    match render_doc_draft_with_db(state.db.as_deref(), session_id).await {
         Ok(d) => ok(d),
         Err(e) => err("render_error", &e),
     }
@@ -769,6 +1212,63 @@ pub async fn get_research_engine_status(
     ok(engine_status(&state.repository.root, state.db.as_deref()).await)
 }
 
+async fn dispatch_extra_research_rpc(
+    gs: &GatewayState,
+    method: &str,
+    params: Value,
+) -> Json<Value> {
+    let extra = crate::daemon_extra::McpExtraDispatch::new(gs.server_state().clone());
+    let req = vox_foundation::protocol::DispatchRequest {
+        id: "http".to_string(),
+        method: method.to_string(),
+        params,
+        auth_token: None,
+        permission_mode: None,
+    };
+    let Some(resp) = extra.try_handle(&req).await else {
+        return err(
+            "research_error",
+            &format!("unhandled research method: {method}"),
+        );
+    };
+    match resp.payload {
+        vox_foundation::protocol::DispatchPayload::Result { value } => ok(value),
+        vox_foundation::protocol::DispatchPayload::Error { message, .. } => {
+            err("research_error", &message)
+        }
+        other => err(
+            "research_error",
+            &format!("unexpected dispatch payload: {other:?}"),
+        ),
+    }
+}
+
+/// POST /api/v2/research/run — enqueue a SCIENTIA research run (`research.run`).
+pub async fn post_research_run(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    if let Err(e) = enforce_write_route(&gs, &connect.0, &headers, RESEARCH_SURFACES) {
+        return e;
+    }
+    dispatch_extra_research_rpc(&gs, dei_method::RESEARCH_RUN, body).await
+}
+
+/// POST /api/v2/research/persist-claims — persist claims (`research.persist_claims`).
+pub async fn post_research_persist_claims(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    if let Err(e) = enforce_write_route(&gs, &connect.0, &headers, RESEARCH_SURFACES) {
+        return e;
+    }
+    dispatch_extra_research_rpc(&gs, dei_method::RESEARCH_PERSIST_CLAIMS, body).await
+}
+
 pub fn api_v2_router() -> Router<GatewayState> {
     Router::new()
         .route("/research/sessions", get(get_research_sessions))
@@ -778,6 +1278,11 @@ pub fn api_v2_router() -> Router<GatewayState> {
             get(get_research_doc_draft),
         )
         .route("/research/engine-status", get(get_research_engine_status))
+        .route("/research/run", post(post_research_run))
+        .route(
+            "/research/persist-claims",
+            post(post_research_persist_claims),
+        )
         .merge(super::scientia::api_v2_router())
 }
 
@@ -1044,6 +1549,138 @@ mod tests {
                 .free_key_offers
                 .iter()
                 .any(|o| o.provider_id == "tavily" && o.signup_url.contains("tavily.com"))
+        );
+    }
+
+    #[test]
+    fn builds_four_layer_epistemic_dag_from_artifact_json() {
+        let artifact = r##"{
+            "schema_version": 1,
+            "plan": { "subqueries": ["subquery alpha", "subquery beta"] },
+            "result": {
+                "answer": "# Executive Summary\nGrounded synthesis.",
+                "citations": [
+                    { "source_id": 1, "url": "repo://crates/vox-scientia/src/lib.rs", "title": "vox-scientia", "snippet": "Core scientia types", "confidence": 0.92 },
+                    { "source_id": 2, "url": "https://arxiv.org/abs/2401.00001", "title": "ArXiv Paper", "snippet": "Contradictory result", "confidence": 0.85 }
+                ],
+                "research_metadata": {
+                    "routing_tier": "DeepResearch",
+                    "confidence": 0.88,
+                    "source_count": 2,
+                    "wave_count": 2,
+                    "wave_stability": 0.91,
+                    "quality_score": 86,
+                    "synthesis_model": "claude-opus-4-6",
+                    "claim_verdicts": [
+                        {
+                            "claim": { "text": "vox-scientia defines the core scaffold.", "claim_id": 10 },
+                            "verdict": "supported",
+                            "confidence": 0.94,
+                            "evidence_spans": [{ "source_id": 1, "text": "Core scientia types", "span_type": "supporting" }],
+                            "resample_stability": 1.0
+                        },
+                        {
+                            "claim": { "text": "Broken snippet fails compilation.", "claim_id": 20 },
+                            "verdict": "contradicted",
+                            "confidence": 0.89,
+                            "evidence_spans": [{ "source_id": 2, "text": "Compiler error E0308", "span_type": "contradicting" }],
+                            "resample_stability": 0.67
+                        }
+                    ]
+                }
+            }
+        }"##;
+        let dag = build_epistemic_dag("How does scientia work?", artifact).expect("dag");
+        assert!(dag.nodes.iter().any(|n| n.kind == "query"));
+        assert_eq!(dag.nodes.iter().filter(|n| n.kind == "subquery").count(), 2);
+        assert_eq!(
+            dag.nodes
+                .iter()
+                .filter(|n| n.kind == "source_domain")
+                .count(),
+            2
+        );
+        assert_eq!(dag.nodes.iter().filter(|n| n.kind == "claim").count(), 2);
+        assert_eq!(
+            dag.nodes
+                .iter()
+                .filter(|n| n.kind == "sandbox_probe")
+                .count(),
+            1
+        );
+        assert!(dag.edges.iter().any(|e| e.kind == "decomposes_to"));
+        assert!(dag.edges.iter().any(|e| e.kind == "retrieves_from"));
+        assert!(dag.edges.iter().any(|e| e.kind == "grounds_claim"));
+        assert!(dag.edges.iter().any(|e| e.kind == "contradicts"));
+        assert!(dag.edges.iter().any(|e| e.kind == "verifies_compile"));
+    }
+
+    #[tokio::test]
+    async fn render_doc_draft_with_db_hydrates_claims_codebase_refs_and_probes() {
+        let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+            .await
+            .unwrap();
+        let sid = db
+            .create_research_session("s-doc", "Audit vox-scientia architecture")
+            .await
+            .expect("session");
+        let artifact = r#"{
+            "schema_version": 1,
+            "result": {
+                "answer": "Grounded executive summary from live session.",
+                "citations": [
+                    { "source_id": 1, "url": "repo://crates/vox-scientia/src/lib.rs", "title": "vox-scientia", "snippet": "Core scientia types" }
+                ],
+                "research_metadata": {
+                    "routing_tier": "DeepResearch",
+                    "confidence": 0.93,
+                    "wave_stability": 0.93,
+                    "source_count": 1,
+                    "claim_verdicts": [
+                        {
+                            "claim": { "text": "vox-scientia exports render_architecture_ssot.", "claim_id": 77 },
+                            "verdict": "supported",
+                            "confidence": 0.96,
+                            "evidence_spans": [{ "source_id": 1, "text": "pub fn render_architecture_ssot", "span_type": "supporting" }],
+                            "resample_stability": 1.0
+                        }
+                    ]
+                }
+            }
+        }"#;
+        db.store_research_artifact(
+            sid,
+            artifact,
+            "# Report\n\nGrounded executive summary from live session.",
+        )
+        .await
+        .expect("store artifact");
+
+        let draft = render_doc_draft_with_db(Some(&db), sid)
+            .await
+            .expect("hydrated draft");
+        assert!(
+            draft
+                .markdown_content
+                .contains("topic: \"scientia-research\"")
+        );
+        assert!(draft.markdown_content.contains("domain: \"knowledge\""));
+        assert!(
+            draft
+                .markdown_content
+                .contains("authorship: \"llm-assisted\"")
+        );
+        assert!(!draft.markdown_content.contains("training_eligible: true"));
+        assert!(draft.markdown_content.contains("<!-- kb:summary -->"));
+        assert!(
+            draft
+                .markdown_content
+                .contains("vox-scientia exports render_architecture_ssot.")
+        );
+        assert!(
+            draft
+                .markdown_content
+                .contains("crates/vox-scientia/src/lib.rs")
         );
     }
 }

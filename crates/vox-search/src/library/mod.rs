@@ -341,12 +341,105 @@ pub async fn search_with_taxonomy(
         .collect())
 }
 
+/// Compute the deterministic status/superseded/staleness ranking multiplier (`RET-04`):
+/// `research | roadmap | legacy | deprecated` and `superseded_by` pages are down-weighted (`0.65`)
+/// relative to `current` (`1.0`) while remaining in the result set.
+#[must_use]
+pub fn rank_multiplier_for_doc_frontmatter(frontmatter_json: &str, is_stale: bool) -> f32 {
+    let parsed: serde_json::Value =
+        serde_json::from_str(frontmatter_json).unwrap_or_else(|_| serde_json::json!({}));
+    let status = parsed
+        .get("status")
+        .and_then(|v| v.as_str())
+        .unwrap_or("current")
+        .trim()
+        .to_ascii_lowercase();
+    let superseded = parsed
+        .get("superseded_by")
+        .and_then(|v| v.as_str())
+        .is_some_and(|s| !s.trim().is_empty());
+
+    let mut mult = match status.as_str() {
+        "research" | "roadmap" | "legacy" | "deprecated" | "historical" | "archived" => 0.65_f32,
+        _ => 1.0_f32,
+    };
+    if superseded {
+        mult *= 0.65_f32;
+    }
+    if is_stale {
+        mult *= 0.85_f32;
+    }
+    mult
+}
+
+/// Hybrid RRF + local contextual dense + term-density reranked library search (`EMB-01..04`, `RET-04`).
+/// Falls back cleanly to lexical-only when `limit == 0` or query is empty.
+pub async fn search_hybrid_with_taxonomy(
+    db: &VoxDb,
+    lexical_dir: &Path,
+    query: &str,
+    limit: usize,
+    taxonomy: Option<&Taxonomy>,
+) -> Result<Vec<LibraryHit>> {
+    let fetch_k = limit.saturating_mul(3).max(20);
+    let mut hits = search_with_taxonomy(db, lexical_dir, query, fetch_k, taxonomy).await?;
+    if hits.is_empty() {
+        return Ok(hits);
+    }
+
+    let model_spec = format!(
+        "{}@{}",
+        crate::embedding_env::DEFAULT_LOCAL_EMBED_MODEL,
+        crate::embedding_env::DEFAULT_LOCAL_EMBED_REVISION
+    );
+    let space = crate::embeddings::VectorSpaceKey::from_model_spec(
+        &model_spec,
+        vox_actor_runtime::llm::LOCAL_EMBED_DEFAULT_DIM,
+    );
+    let q_vec = vox_actor_runtime::llm::local_embed_text(query, &model_spec);
+
+    for (rank_idx, hit) in hits.iter_mut().enumerate() {
+        let ctx_text =
+            chunk::format_chunk_for_embedding(&hit.title, &hit.heading_path, None, &hit.snippet);
+        let d_vec = vox_actor_runtime::llm::local_embed_text(&ctx_text, &model_spec);
+        let dense_sim =
+            crate::embeddings::cosine_similarity_checked(&space, &q_vec, &space, &d_vec)
+                .unwrap_or(0.0)
+                .max(0.0);
+        let rrf_lex = 1.0_f32 / (60.0 + (rank_idx + 1) as f32);
+        hit.score = hit.score * 0.7 + (rrf_lex + dense_sim * 0.3);
+    }
+
+    hits.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| a.chunk_hash.cmp(&b.chunk_hash))
+    });
+    hits.truncate(limit);
+    Ok(hits)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn hasher(b: &[u8]) -> String {
         vox_crypto::hex_encode(&vox_crypto::secure_hash(b))
+    }
+
+    #[test]
+    fn downweights_research_roadmap_legacy_and_superseded_docs() {
+        let cur = rank_multiplier_for_doc_frontmatter(r#"{"status":"current"}"#, false);
+        let res = rank_multiplier_for_doc_frontmatter(r#"{"status":"research"}"#, false);
+        let leg = rank_multiplier_for_doc_frontmatter(r#"{"status":"legacy"}"#, false);
+        let sup = rank_multiplier_for_doc_frontmatter(
+            r#"{"status":"current","superseded_by":"docs/src/new.md"}"#,
+            false,
+        );
+        assert!(res < cur);
+        assert!(leg < cur);
+        assert!(sup < cur);
     }
 
     #[tokio::test]
@@ -375,5 +468,10 @@ mod tests {
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].heading_path, "A › Sec");
         assert_eq!(hits[0].body_bytes, "## Sec\nquokkaflux lives here".len());
+
+        let hybrid_hits = search_hybrid_with_taxonomy(&db, &lex, "quokkaflux", 3, None)
+            .await
+            .unwrap();
+        assert_eq!(hybrid_hits.len(), 1);
     }
 }

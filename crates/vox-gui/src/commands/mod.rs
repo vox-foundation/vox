@@ -63,7 +63,6 @@ pub mod secrets;
 pub mod signing;
 pub mod speech_plugin_backend;
 pub mod stt_config;
-pub mod terminal_core;
 pub mod user_config;
 pub mod vcs_isolation;
 pub mod workspace_town;

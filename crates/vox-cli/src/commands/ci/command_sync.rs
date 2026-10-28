@@ -393,8 +393,19 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
         }
     }
 
+    // README.md <-> docs/src/index.mdx frontpage sync (FRONTPAGE-01..03)
+    if repo_root.join("README.md").is_file() && repo_root.join("docs/src/index.mdx").is_file() {
+        let changed = vox_doc_pipeline::pipeline::sync_readme_to_frontpage(repo_root, write)
+            .map_err(|e| anyhow!(e))?;
+        if changed && !write {
+            return Err(anyhow!(
+                "docs/src/index.mdx is out of sync with README.md; run `vox ci command-sync --write` from the repo root"
+            ));
+        }
+    }
+
     println!(
-        "command-sync OK ({}, {}, {}, {}, {})",
+        "command-sync OK ({}, {}, {}, {}, {}, docs/src/index.mdx)",
         GENERATED_REL,
         GENERATED_MENS_DEFAULTS_REL,
         GENERATED_ENV_VARS_REL,

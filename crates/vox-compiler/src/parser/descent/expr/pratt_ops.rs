@@ -77,6 +77,15 @@ impl Parser {
                 self.warn_mainstream_operator_alias(found, canonical);
             }
             self.advance();
+            let op = if pending_alias_warning.is_none()
+                && matches!(op, BinOp::Is)
+                && matches!(self.peek(), Token::Not)
+            {
+                self.advance();
+                BinOp::Isnt
+            } else {
+                op
+            };
             let rhs = self.parse_expr_bp(r_bp)?;
             let span = lhs.span().merge(rhs.span());
             lhs = Expr::Binary {

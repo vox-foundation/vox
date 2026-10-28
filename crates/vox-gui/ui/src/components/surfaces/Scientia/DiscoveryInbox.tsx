@@ -8,6 +8,7 @@ import {
   acknowledgeDiscovery,
   type DiscoveryInboxRow,
 } from './discoveryInboxApi';
+import { promoteCandidate } from '../../../api/scientia';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import { seedDiscoveryPresetForLegacyKey } from '../../../lib/navigation';
 
@@ -254,6 +255,35 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    data-testid={`promote-candidate-${r.id}`}
+                    disabled={busyId === r.id}
+                    onClick={async () => {
+                      setBusyId(r.id);
+                      try {
+                        const promoted = await promoteCandidate(r.publication_id);
+                        pushToast({
+                          tone: 'ok',
+                          title: 'Promoted to publication',
+                          body: `${promoted.publication_id} (${promoted.claims_seeded} claims seeded)`,
+                          cause: 'backend-ok',
+                        });
+                      } catch (err) {
+                        pushToast({
+                          tone: 'warn',
+                          title: 'Promotion failed',
+                          body: sanitizeErrorForToast(err),
+                          cause: 'backend-error',
+                        });
+                      } finally {
+                        setBusyId(null);
+                      }
+                    }}
+                    className="rounded-lg border border-brass/40 bg-brass/10 px-3 py-1.5 text-[11px] text-brass hover:bg-brass/20 disabled:opacity-40"
+                  >
+                    Promote to Publication
+                  </button>
                   <button
                     type="button"
                     onClick={() => openReview(r.publication_id)}

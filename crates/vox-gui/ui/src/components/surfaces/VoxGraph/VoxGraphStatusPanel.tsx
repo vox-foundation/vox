@@ -4,6 +4,7 @@ import { voxTransport } from '../../../transport';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { useVoxGraphStatus, VOX_GRAPH_STATUS_QUERY_KEY } from '../../../hooks/useVoxGraphStatus';
 import { useLabel } from '../../../hooks/useLanguage';
+import { CodeAtlasCanvas } from './CodeAtlasCanvas';
 
 /**
  * Render an RFC3339 `built_at` timestamp as a coarse relative time
@@ -355,6 +356,9 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
           </div>
         ))}
       </div>
+
+      {/* Phases 26–30: Unified Code & Architecture Atlas Canvas */}
+      <CodeAtlasCanvas />
     </div>
   );
 }

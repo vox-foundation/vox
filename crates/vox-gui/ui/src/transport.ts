@@ -706,6 +706,11 @@ class VoxTransport {
     return safeInvoke<HarnessHopperItemDto[]>('hopper_list');
   }
 
+  /** Vox Urbs: MCP aqueduct server health tap (AQVAE landmark). */
+  mcpServersStatus(): Promise<Array<{ name: string; ok: boolean }>> {
+    return safeInvoke<Array<{ name: string; ok: boolean }>>('mcp_servers_status');
+  }
+
   /** Current per-category/per-source task-policy overrides (Settings panel). */
   getTaskPolicyOverrides(): Promise<TaskPolicyOverrides> {
     return safeInvoke<TaskPolicyOverrides>('get_task_policy_overrides');
@@ -766,6 +771,10 @@ export interface Suggestion {
   action_id: string;
   completion: string;
   about: string;
+  kind?: string;
+  category?: string;
+  signature?: string;
+  score?: number;
 }
 
 export interface ActionHelp {
@@ -802,6 +811,83 @@ export function ptyWrite(tabId: string, data: string): Promise<void> {
 
 export function ptyClose(tabId: string): Promise<void> {
   return safeInvoke('pty_close', { tabId });
+}
+
+export type TermBlockOrigin =
+  | { kind: 'user' }
+  | { kind: 'agent'; agent_id: string }
+  | 'user'
+  | 'agent';
+
+export type TermBlockStatus = 'Running' | 'Ok' | 'Failed' | 'Cancelled';
+
+export interface TermOutputChunk {
+  stream: 'Stdout' | 'Stderr' | 'Meta';
+  text: string;
+  ts_ms: number;
+}
+
+export interface TermBlockDto {
+  id: number;
+  kind: unknown;
+  status: TermBlockStatus;
+  origin?: TermBlockOrigin;
+  input: string;
+  output: TermOutputChunk[];
+  exit_code: number | null;
+  started_ms: number;
+  ended_ms: number | null;
+}
+
+export interface TermSessionInfoDto {
+  id: string;
+  blocks: number;
+}
+
+export interface TermAttachmentDto {
+  session_id: string;
+  blocks: TermBlockDto[];
+  replay_utf8: string;
+  seq: number;
+}
+
+export interface TermOutputPayload {
+  session_id: string;
+  seq: number;
+  data: string;
+}
+
+export interface TermEventPayload {
+  session_id: string;
+  event: Record<string, unknown>;
+}
+
+export function termSessionOpen(cols: number, rows: number): Promise<string> {
+  return safeInvoke<string>('term_session_open', { cols, rows });
+}
+
+export function termSessionList(): Promise<TermSessionInfoDto[]> {
+  return safeInvoke<TermSessionInfoDto[]>('term_session_list');
+}
+
+export function termSessionAttach(sessionId: string): Promise<TermAttachmentDto> {
+  return safeInvoke<TermAttachmentDto>('term_session_attach', { sessionId });
+}
+
+export function termSessionInput(sessionId: string, data: string): Promise<void> {
+  return safeInvoke('term_session_input', { sessionId, data });
+}
+
+export function termSessionSubmit(sessionId: string, line: string): Promise<number> {
+  return safeInvoke<number>('term_session_submit', { sessionId, line });
+}
+
+export function termSessionResize(sessionId: string, cols: number, rows: number): Promise<void> {
+  return safeInvoke('term_session_resize', { sessionId, cols, rows });
+}
+
+export function termSessionClose(sessionId: string): Promise<void> {
+  return safeInvoke('term_session_close', { sessionId });
 }
 
 export interface AutoModelRecommendation {
@@ -890,6 +976,21 @@ export function listenPtyOutput(
 
 export function listenPtyExit(onExit: (tabId: string) => void): Promise<UnlistenFn> {
   return safeListen<{ tab_id: string }>(PTY_EXIT_EVENT, (e) => onExit(e.payload.tab_id));
+}
+
+export const TERM_OUTPUT_EVENT = 'vox://term-output';
+export const TERM_EVENT_EVENT = 'vox://term-event';
+
+export function listenTermOutput(
+  onChunk: (payload: TermOutputPayload) => void,
+): Promise<UnlistenFn> {
+  return safeListen<TermOutputPayload>(TERM_OUTPUT_EVENT, (e) => onChunk(e.payload));
+}
+
+export function listenTermEvent(
+  onEvent: (payload: TermEventPayload) => void,
+): Promise<UnlistenFn> {
+  return safeListen<TermEventPayload>(TERM_EVENT_EVENT, (e) => onEvent(e.payload));
 }
 
 // ---------------------------------------------------------------------------
@@ -1209,6 +1310,43 @@ export function codeRabbitPlan<T = unknown>(args: CodeRabbitSweepArgs): Promise<
 
 export function codeRabbitRunAsync(args: CodeRabbitSweepArgs): Promise<void> {
   return safeInvoke('coderabbit_run_async', args);
+}
+
+// ---------------------------------------------------------------------------
+// Scientia publication pipeline transport wrappers.
+// ---------------------------------------------------------------------------
+
+export function promoteScientiaCandidate<T = unknown>(
+  candidateId: string,
+  venue?: string | null,
+): Promise<T> {
+  return safeInvoke<T>('promote_scientia_candidate', {
+    candidateId,
+    venue: venue ?? null,
+  });
+}
+
+export function scientiaPublicationManuscript<T = unknown>(publicationId: string): Promise<T> {
+  return safeInvoke<T>('scientia_publication_manuscript', { publicationId });
+}
+
+export function scientiaPublicationLatex<T = unknown>(publicationId: string): Promise<T> {
+  return safeInvoke<T>('scientia_publication_latex', { publicationId });
+}
+
+export function scientiaPublicationFindingPage<T = unknown>(publicationId: string): Promise<T> {
+  return safeInvoke<T>('scientia_publication_finding_page', { publicationId });
+}
+
+export function scientiaPublicationExtractClaims<T = unknown>(publicationId: string): Promise<T> {
+  return safeInvoke<T>('scientia_publication_extract_claims', { publicationId });
+}
+
+export function scientiaPublicationReplay<T = unknown>(
+  publicationId: string,
+  measuredScore: number,
+): Promise<T> {
+  return safeInvoke<T>('scientia_publication_replay', { publicationId, measuredScore });
 }
 
 

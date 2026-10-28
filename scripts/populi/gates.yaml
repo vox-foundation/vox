@@ -17,8 +17,8 @@ profiles:
       # Intentional substring filter: `merge_*` GPU merge tests live in vox-ml-cli under `#[cfg(all(test, feature = "gpu"))]`
       # (moved out of vox-cli by the CLI monolith split).
       - { command: cargo, args: [test, -p, vox-ml-cli, --features, gpu, merge_] }
-      - { command: cargo, args: [test, -p, vox-plugin-mens-candle-cuda, --lib, merge_v2] }
-      - { command: cargo, args: [test, -p, vox-plugin-mens-candle-cuda, --lib, qlora_preflight] }
+      - { command: cargo, args: [test, -p, vox-plugin-mens-candle-core, --lib, merge_v2] }
+      - { command: cargo, args: [test, -p, vox-plugin-mens-candle-core, --lib, qlora_preflight] }
       # qwen35_linear_attention_forward_and_cache_progression (Burn) replaced by a candle-native equivalent.
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, linear_attention_forward_shapes_and_finite] }
       - { command: cargo, args: [test, -p, vox-plugin-mens-candle-cuda, --lib, resolve_adapter_manifest_finds_v3] }
@@ -39,10 +39,10 @@ profiles:
     steps:
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, execution_planner] }
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, hf_keymap] }
-      - { command: cargo, args: [test, -p, vox-plugin-mens-candle-cuda, --lib, qlora_preflight] }
+      - { command: cargo, args: [test, -p, vox-plugin-mens-candle-core, --lib, qlora_preflight] }
       # last_hidden_shape_is_d_model and its helper fns were deleted as dead code (933f1af567) -- no successor.
       # candle_burn_nf4_dequant_lm_reference_parity: deleted with the Burn backend (04a04ff63a) -- no successor.
-      - { command: cargo, args: [test, -p, vox-plugin-mens-candle-cuda, --lib, merge_v2] }
+      - { command: cargo, args: [test, -p, vox-plugin-mens-candle-core, --lib, merge_v2] }
       # qwen35_linear_attention_forward_and_cache_progression (Burn) replaced by a candle-native equivalent.
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, linear_attention_forward_shapes_and_finite] }
       - { command: cargo, args: [test, -p, vox-plugin-mens-candle-cuda, --lib, resolve_adapter_manifest_finds_v3] }
@@ -59,13 +59,12 @@ profiles:
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, execution_planner] }
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, hf_keymap] }
       - { command: cargo, args: [test, -p, vox-populi, --features, "mens,mens-train", --lib, training_text] }
-      # preflight_strict_rejects_missing_o_proj / merge_v2 moved to the plugin crates (e828828a9e); testing
-      # the cuda plugin only, which compiles fine under default (non-cuda) features on the GPU-less fleet.
-      - { command: cargo, args: [test, -p, vox-plugin-mens-candle-cuda, --lib, preflight_strict_rejects_missing_o_proj] }
+      # preflight_strict_rejects_missing_o_proj / merge_v2 moved to vox-plugin-mens-candle-core.
+      - { command: cargo, args: [test, -p, vox-plugin-mens-candle-core, --lib, preflight_strict_rejects_missing_o_proj] }
       # burn_full_graph_smoke, lora_vox_transformer_checkpoint_roundtrip,
       # merged_vox_transformer_matches_lora_full_forward, and the candle_burn_* parity tests were permanently
       # deleted (04a04ff63a, e828828a9e) along with the Burn training backend -- no replacement exists, removed here.
       # Intentional substring filter: `merge_*` GPU merge tests live in vox-ml-cli under `#[cfg(all(test, feature = "gpu"))]`
       # (moved out of vox-cli by the CLI monolith split).
       - { command: cargo, args: [test, -p, vox-ml-cli, --features, gpu, merge_] }
-      - { command: cargo, args: [test, -p, vox-plugin-mens-candle-cuda, --lib, merge_v2] }
+      - { command: cargo, args: [test, -p, vox-plugin-mens-candle-core, --lib, merge_v2] }

@@ -349,6 +349,14 @@ pub fn run_check_for_ci(payload: &str, policy_file: Option<&Path>) -> Result<()>
 }
 
 pub fn run_check(payload: &str, policy_file: Option<&Path>) -> Result<()> {
+    run_check_with_backend(payload, policy_file, None)
+}
+
+pub fn run_check_with_backend(
+    payload: &str,
+    policy_file: Option<&Path>,
+    backend: Option<&str>,
+) -> Result<()> {
     let root = repo_root();
     let policy_path = policy_path(policy_file);
     let policy = validate_policy_yaml_against_schema(&root, &policy_path)?;
@@ -357,6 +365,11 @@ pub fn run_check(payload: &str, policy_file: Option<&Path>) -> Result<()> {
             "unsupported exec policy version {}",
             policy.version
         ));
+    }
+
+    let backend_norm = backend.unwrap_or("auto").trim().to_ascii_lowercase();
+    if matches!(backend_norm.as_str(), "grammar" | "nu" | "nushell") {
+        return run_check_rust_fallback(payload, &policy);
     }
 
     // Try PowerShell AST path first (highest fidelity for PS syntax).
@@ -733,5 +746,19 @@ mod shell_policy_tests {
         assert!(err.is_err(), "expected URL rejection in `&&` segment");
         let msg = format!("{:#}", err.unwrap_err());
         assert!(msg.contains("evil.com"), "{msg}");
+    }
+
+    #[test]
+    fn run_check_with_backend_nu_and_grammar() {
+        let root = repo_root();
+        let policy = root.join(DEFAULT_POLICY_REL);
+        let ok_nu = run_check_with_backend("cargo build", Some(policy.as_path()), Some("nu"));
+        assert!(ok_nu.is_ok(), "{:?}", ok_nu.err());
+        let ok_grammar =
+            run_check_with_backend("cargo build", Some(policy.as_path()), Some("grammar"));
+        assert!(ok_grammar.is_ok(), "{:?}", ok_grammar.err());
+        let bad_nu =
+            run_check_with_backend("TotallyFakeCommand123", Some(policy.as_path()), Some("nu"));
+        assert!(bad_nu.is_err());
     }
 }

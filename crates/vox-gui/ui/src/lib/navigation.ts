@@ -39,8 +39,9 @@ export const PARENT_CHILD_MAP: Record<string, { parent: string; child?: string }
   populi: { parent: 'compute', child: 'populi' },
   oratio: { parent: 'compute', child: 'oratio' },
   // Settings.
-  coverage: { parent: 'settings', child: 'coverage' },
   gamify: { parent: 'settings', child: 'gamify' },
+  // Explorer.
+  explorer: { parent: 'explorer', child: 'explorer' },
 };
 
 /**
@@ -49,6 +50,7 @@ export const PARENT_CHILD_MAP: Record<string, { parent: string; child?: string }
  * Silent alias for one release, then hard-remove.
  */
 export const LEGACY_VIEW_ALIASES: Record<string, string> = {
+  coverage: 'explorer',
   search: 'memory',
   claims: 'scientia',
   review: 'scientia',
@@ -89,6 +91,7 @@ export const DEFAULT_CHILD_BY_PARENT: Record<string, string> = {
   compute: 'models',
   mercatus: 'mercatus',
   settings: 'settings',
+  explorer: 'explorer',
 };
 
 export const TOP_LEVEL_VIEWS = [
@@ -113,7 +116,7 @@ export const CHILD_ORDER_BY_PARENT: Record<string, string[]> = {
   workspace: ['console', 'repository', 'browser', 'harness', 'coderabbit'],
   commands: ['catalog', 'skills'],
   compute: ['models', 'mens', 'populi', 'oratio'],
-  settings: ['settings', 'coverage', 'gamify'],
+  settings: ['settings', 'gamify'],
 };
 
 /** Sort child view keys by the parent's intent order; unknown keys keep relative order at the end. */

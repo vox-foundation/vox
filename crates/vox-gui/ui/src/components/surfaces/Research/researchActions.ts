@@ -17,6 +17,34 @@ export interface ResearchRunHandle {
  * the old inline `execute_command(['research','run'], …)` path, which blocked
  * the UI for the whole pipeline.
  */
+export interface EpistemicDagNodeDto {
+  id: string;
+  kind: 'query' | 'subquery' | 'source_domain' | 'claim' | 'sandbox_probe' | string;
+  label: string;
+  wave: number;
+  status?: 'pending' | 'verified' | 'contradicted';
+  verdict?: string | null;
+  confidence?: number | null;
+  url?: string | null;
+  snippet?: string | null;
+  excerpt?: string | null;
+}
+
+export interface EpistemicDagEdgeDto {
+  id?: string;
+  source?: string;
+  target?: string;
+  src_id?: string;
+  dst_id?: string;
+  relation?: 'supports' | 'contradicts';
+  kind?: 'decomposes_to' | 'retrieves_from' | 'grounds_claim' | 'contradicts' | 'verifies_compile' | string;
+}
+
+export interface EpistemicDagDto {
+  nodes: EpistemicDagNodeDto[];
+  edges: EpistemicDagEdgeDto[];
+}
+
 export async function startResearchAsync(args: {
   query: string;
   scope?: string;
@@ -25,8 +53,9 @@ export async function startResearchAsync(args: {
   waves?: number;
   domainMode?: string;
   lane?: 'fast' | 'deep';
+  siteScope?: string;
 }): Promise<ResearchRunHandle> {
-  return invoke<ResearchRunHandle>('start_research_async', {
+  const payload: Record<string, unknown> = {
     query: args.query,
     scope: args.scope,
     maxSources: args.maxSources,
@@ -34,7 +63,11 @@ export async function startResearchAsync(args: {
     waves: args.waves,
     domainMode: args.domainMode,
     lane: args.lane,
-  });
+  };
+  if (args.siteScope && args.siteScope.trim()) {
+    payload.siteScope = args.siteScope.trim();
+  }
+  return invoke<ResearchRunHandle>('start_research_async', payload);
 }
 
 export interface DocDraftPreview {

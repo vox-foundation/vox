@@ -19,10 +19,16 @@ pub struct ExtractedEdge {
     pub target: String,
     #[serde(default = "default_confidence")]
     pub confidence: String,
+    #[serde(default = "default_edge_kind")]
+    pub kind: String,
 }
 
 pub(crate) fn default_confidence() -> String {
     "resolved".into()
+}
+
+pub(crate) fn default_edge_kind() -> String {
+    "calls".into()
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
@@ -34,9 +40,9 @@ pub struct ExtractedGraph {
 /// Bump when the extraction scheme changes (node-id format, edge rules). Folded into the
 /// per-file cache key in `rebuild` so unchanged files re-extract instead of returning a
 /// graph built under the old scheme.
-pub const EXTRACTOR_VERSION: &str = "4";
+pub const EXTRACTOR_VERSION: &str = "5";
 
-// Symbol id scheme (EXTRACTOR_VERSION 4). Ids are unique and deterministic per file content:
+// Symbol id scheme (EXTRACTOR_VERSION 5). Ids are unique and deterministic per file content:
 //
 //     <path>::<container>*::<name>[#<n>]
 //
@@ -61,7 +67,7 @@ pub const EXTRACTOR_VERSION: &str = "4";
 
 /// Join `module_id`, the container scope, and `name` with `::`. Empty `module_id` yields
 /// an unqualified id so the legacy `extract_ast` wrapper keeps bare names.
-fn qualify_in(module_id: &str, scope: &[String], name: &str) -> String {
+pub(crate) fn qualify_in(module_id: &str, scope: &[String], name: &str) -> String {
     let mut parts: Vec<&str> = Vec::with_capacity(scope.len() + 2);
     if !module_id.is_empty() {
         parts.push(module_id);
@@ -73,10 +79,10 @@ fn qualify_in(module_id: &str, scope: &[String], name: &str) -> String {
 
 /// Per-file id allocator: the n-th (n >= 2) occurrence of an id gets a `#n` suffix.
 #[derive(Default)]
-struct IdAlloc(HashMap<String, u32>);
+pub(crate) struct IdAlloc(HashMap<String, u32>);
 
 impl IdAlloc {
-    fn alloc(&mut self, id: String) -> String {
+    pub(crate) fn alloc(&mut self, id: String) -> String {
         let n = self.0.entry(id.clone()).or_insert(0);
         *n += 1;
         if *n == 1 { id } else { format!("{id}#{n}") }
@@ -247,6 +253,7 @@ impl<'ast> Visit<'ast> for RustVisitor {
                     source: current_fn.clone(),
                     target,
                     confidence: "resolved".into(),
+                    kind: "calls".into(),
                 });
             }
         }
@@ -274,10 +281,14 @@ pub fn extract_ast_in_module_with_wrappers(
     module_id: &str,
     wrappers: &HashMap<String, String>,
 ) -> ExtractedGraph {
+    if path.extension().is_some_and(|ext| ext == "vox") {
+        return crate::ast_vox::extract_vox_ast_in_module(content, module_id);
+    }
+
     let mut nodes = Vec::new();
     let mut edges = Vec::new();
 
-    if path.extension().map_or(false, |ext| ext == "rs") {
+    if path.extension().is_some_and(|ext| ext == "rs") {
         if let Ok(file) = syn::parse_file(content) {
             let mut visitor = RustVisitor {
                 module_id: module_id.to_string(),
@@ -294,167 +305,19 @@ pub fn extract_ast_in_module_with_wrappers(
         }
     } else {
         #[cfg(feature = "tree-sitter-grammars")]
-        {
-            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                let language = match ext {
-                    "ts" | "js" => Some(tree_sitter_typescript::LANGUAGE_TYPESCRIPT),
-                    "tsx" | "jsx" => Some(tree_sitter_typescript::LANGUAGE_TSX),
-                    "py" => Some(tree_sitter_python::LANGUAGE),
-                    _ => None,
-                };
-                // tree-sitter-typescript 0.23.2 node-kind names (discovered via A0d
-                // print-test against LANGUAGE_TSX; use these verbatim in B1/D1):
-                //   JSX self-closing element : "jsx_self_closing_element"
-                //     - component name        : child_by_field_name("name") -> "identifier"
-                //       (Capitalized => component; lowercase => DOM tag)
-                //     - opening element       : "jsx_opening_element"
-                //   import statement          : "import_statement"
-                //     - named import ident    : "import_clause" > "named_imports" >
-                //                               "import_specifier"; the bound name is the
-                //                               specifier's child_by_field_name("name") -> "identifier"
-                //   call_expression           : "call_expression"
-                //     - args field            : "arguments" (positional children, named)
-                //     - string literal kind   : "string" (text via "string_fragment" child)
-                //     - object literal kind    : "object"
-                //     - object entry kind      : "pair" (key "property_identifier", value e.g. "string")
-                if let Some(lang) = language {
-                    use crate::ast_ts::*;
-                    let mut parser = tree_sitter::Parser::new();
-                    if parser.set_language(&lang.into()).is_ok() {
-                        if let Some(tree) = parser.parse(content, None) {
-                            let mut cursor = tree.walk();
-                            let mut stack = vec![tree.root_node()];
-                            let mut ids = IdAlloc::default();
-                            // tree-sitter node id -> assigned symbol id, so a call's edge
-                            // source is its lexically enclosing fn (`ts_enclosing_fn`).
-                            let mut def_ids: HashMap<usize, String> = HashMap::new();
-                            while let Some(node) = stack.pop() {
-                                let is_fn_def = ts_fn_like(node);
-                                let is_class = ts_class_like(node);
-                                let is_call = matches!(node.kind(), "call_expression" | "call");
-                                let is_jsx = matches!(
-                                    node.kind(),
-                                    "jsx_self_closing_element" | "jsx_opening_element"
-                                );
-
-                                if is_fn_def || is_class {
-                                    if let Some(name_node) = node.child_by_field_name("name") {
-                                        if let Ok(name) = name_node.utf8_text(content.as_bytes()) {
-                                            let (scope, in_class) = ts_scope(node, content);
-                                            let id = ids.alloc(qualify_in(module_id, &scope, name));
-                                            let kind = if is_class {
-                                                "struct"
-                                            } else if in_class || node.kind() == "method_definition"
-                                            {
-                                                "method"
-                                            } else {
-                                                "fn"
-                                            };
-                                            nodes.push(ExtractedNode {
-                                                id: id.clone(),
-                                                label: name.to_string(),
-                                                kind: kind.to_string(),
-                                            });
-                                            def_ids.insert(node.id(), id);
-                                        }
-                                    }
-                                }
-                                let current_fn = if is_call || is_jsx {
-                                    ts_enclosing_fn(node, &def_ids)
-                                } else {
-                                    None
-                                };
-                                // JSX element usage => composition edge (only for
-                                // Capitalized names; lowercase = DOM tags).
-                                if is_jsx {
-                                    if let Some(ref source_fn) = current_fn {
-                                        if let Some(name_node) = node.child_by_field_name("name") {
-                                            if let Ok(name) =
-                                                name_node.utf8_text(content.as_bytes())
-                                            {
-                                                if name
-                                                    .chars()
-                                                    .next()
-                                                    .is_some_and(|c| c.is_uppercase())
-                                                {
-                                                    edges.push(ExtractedEdge {
-                                                        source: source_fn.clone(),
-                                                        target: name.to_string(),
-                                                        confidence: "resolved".into(),
-                                                    });
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                if is_call {
-                                    if let Some(ref source_fn) = current_fn {
-                                        if let Some(function_node) =
-                                            node.child_by_field_name("function")
-                                        {
-                                            if let Ok(callee) =
-                                                function_node.utf8_text(content.as_bytes())
-                                            {
-                                                let bare =
-                                                    callee.rsplit('.').next().unwrap_or(callee);
-                                                let args = node.child_by_field_name("arguments");
-                                                if BOUNDARY_CALLEES.contains(&bare) {
-                                                    // invoke('cmd') / callTool('cmd'); special-case
-                                                    // invoke('invoke_mcp_tool', { tool: '...' }).
-                                                    if let Some(arg0) = args.and_then(|a| {
-                                                        arg_string_literal(a, 0, content)
-                                                    }) {
-                                                        if arg0 == "invoke_mcp_tool" {
-                                                            if let Some(tool) = args.and_then(|a| {
-                                                                arg_object_string_field(
-                                                                    a, 1, "tool", content,
-                                                                )
-                                                            }) {
-                                                                edges.push(ExtractedEdge {
-                                                                    source: source_fn.clone(),
-                                                                    target: format!("tool:{tool}"),
-                                                                    confidence: "declared".into(),
-                                                                });
-                                                            }
-                                                        } else {
-                                                            edges.push(ExtractedEdge {
-                                                                source: source_fn.clone(),
-                                                                target: format!("cmd:{arg0}"),
-                                                                confidence: "declared".into(),
-                                                            });
-                                                        }
-                                                    }
-                                                    // Boundary call handled: do NOT also emit the
-                                                    // bare-call edge (prevents the double-count).
-                                                    push_children(&mut stack, node, &mut cursor);
-                                                    continue;
-                                                } else if callee.starts_with("voxTransport.") {
-                                                    if let Some(target) = wrappers.get(bare) {
-                                                        edges.push(ExtractedEdge {
-                                                            source: source_fn.clone(),
-                                                            target: target.clone(),
-                                                            confidence: "declared".into(),
-                                                        });
-                                                    }
-                                                    push_children(&mut stack, node, &mut cursor);
-                                                    continue;
-                                                }
-                                                edges.push(ExtractedEdge {
-                                                    source: source_fn.clone(),
-                                                    target: callee.to_string(),
-                                                    confidence: "resolved".into(),
-                                                });
-                                            }
-                                        }
-                                    }
-                                }
-                                push_children(&mut stack, node, &mut cursor);
-                            }
-                        }
-                    }
-                }
-            }
+        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+            crate::ast_ts::extract_ts_ast(
+                ext,
+                content,
+                module_id,
+                wrappers,
+                BOUNDARY_CALLEES,
+                &mut nodes,
+                &mut edges,
+            );
         }
+        #[cfg(not(feature = "tree-sitter-grammars"))]
+        let _ = (wrappers, BOUNDARY_CALLEES);
     }
 
     ExtractedGraph { nodes, edges }

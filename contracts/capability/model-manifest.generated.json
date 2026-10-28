@@ -63,8 +63,6 @@
       "title": "Add Approval Allowlist Entry",
       "description_model": "Persist a per-repository \"always allow this tool\" entry so it auto-approves without parking for HITL approval (T0.3).",
       "side_effect_class": "writes_files",
-      "scope_kind": "session",
-      "reversible": true,
       "curated": true
     },
     {
@@ -824,7 +822,7 @@
       "capability_id": "mcp.vox_code_audit_findings_upsert",
       "mcp_tool": "vox_code_audit_findings_upsert",
       "implicit": false,
-      "title": "Toestub Findings Upsert",
+      "title": "Code Audit Findings Upsert",
       "description_model": "Record or update TOESTUB anti-pattern findings from external reviews (GitHub/CodeRabbit).",
       "side_effect_class": "writes_files",
       "curated": true
@@ -1157,7 +1155,7 @@
       "capability_id": "mcp.vox_gamify_battle_start",
       "mcp_tool": "vox_gamify_battle_start",
       "implicit": false,
-      "title": "Ludus Battle Start",
+      "title": "Gamify Battle Start",
       "description_model": "Start a bug battle from a synthetic finding (companion name + rule + message).",
       "side_effect_class": "writes_files",
       "curated": true
@@ -1166,7 +1164,7 @@
       "capability_id": "mcp.vox_gamify_battle_submit",
       "mcp_tool": "vox_gamify_battle_submit",
       "implicit": false,
-      "title": "Ludus Battle Submit",
+      "title": "Gamify Battle Submit",
       "description_model": "Submit code for the active bug battle for a companion (success flag).",
       "side_effect_class": "writes_files",
       "curated": true
@@ -1175,7 +1173,7 @@
       "capability_id": "mcp.vox_gamify_collegium_join",
       "mcp_tool": "vox_gamify_collegium_join",
       "implicit": false,
-      "title": "Ludus Collegium Join",
+      "title": "Gamify Collegium Join",
       "description_model": "Join a collegium and emit a Ludus collegium_joined policy event.",
       "side_effect_class": "writes_files",
       "curated": true
@@ -1220,7 +1218,7 @@
       "capability_id": "mcp.vox_gamify_notification_ack",
       "mcp_tool": "vox_gamify_notification_ack",
       "implicit": false,
-      "title": "Ludus Notification Ack",
+      "title": "Gamify Notification Ack",
       "description_model": "Mark one Ludus notification as read for the canonical user (Codex gamify_notifications), by notification id.",
       "side_effect_class": "writes_files",
       "curated": true
@@ -1229,7 +1227,7 @@
       "capability_id": "mcp.vox_gamify_notifications_ack_all",
       "mcp_tool": "vox_gamify_notifications_ack_all",
       "implicit": false,
-      "title": "Ludus Notifications Ack All",
+      "title": "Gamify Notifications Ack All",
       "description_model": "Mark all unread Ludus notifications as read for the canonical user.",
       "side_effect_class": "writes_files",
       "curated": true
@@ -1238,7 +1236,7 @@
       "capability_id": "mcp.vox_gamify_notifications_list",
       "mcp_tool": "vox_gamify_notifications_list",
       "implicit": false,
-      "title": "Ludus Notifications List",
+      "title": "Gamify Notifications List",
       "description_model": "List unread Ludus (gamification) notifications for the current canonical user from Codex.",
       "side_effect_class": "read_only",
       "curated": true
@@ -1256,7 +1254,7 @@
       "capability_id": "mcp.vox_gamify_progress_snapshot",
       "mcp_tool": "vox_gamify_progress_snapshot",
       "implicit": false,
-      "title": "Ludus Progress Snapshot",
+      "title": "Gamify Progress Snapshot",
       "description_model": "Ludus digest: KPI summary, unread notifications, and recent reward-policy snapshots over a rolling day window.",
       "side_effect_class": "read_only",
       "curated": true
@@ -1265,7 +1263,7 @@
       "capability_id": "mcp.vox_gamify_quest_list",
       "mcp_tool": "vox_gamify_quest_list",
       "implicit": false,
-      "title": "Ludus Quest List",
+      "title": "Gamify Quest List",
       "description_model": "List Ludus quests for the canonical user (read-only).",
       "side_effect_class": "read_only",
       "curated": true
@@ -1283,7 +1281,7 @@
       "capability_id": "mcp.vox_gamify_shop_buy",
       "mcp_tool": "vox_gamify_shop_buy",
       "implicit": false,
-      "title": "Ludus Shop Buy",
+      "title": "Gamify Shop Buy",
       "description_model": "Buy a shop item by 1-based index; optional idempotency_key dedupes duplicate purchases.",
       "side_effect_class": "writes_files",
       "curated": true
@@ -1292,7 +1290,7 @@
       "capability_id": "mcp.vox_gamify_shop_catalog",
       "mcp_tool": "vox_gamify_shop_catalog",
       "implicit": false,
-      "title": "Ludus Shop Catalog",
+      "title": "Gamify Shop Catalog",
       "description_model": "Crystal shop catalog with effective prices for the current gamify mode.",
       "side_effect_class": "read_only",
       "curated": true
@@ -1339,7 +1337,7 @@
       "capability_id": "mcp.vox_ghost_text",
       "mcp_tool": "vox_ghost_text",
       "implicit": false,
-      "title": "Chat Ghost Text",
+      "title": "Ghost Text",
       "description_model": "LLM fill-in-the-middle completion for single-line editor fragments.",
       "side_effect_class": "network",
       "curated": true
@@ -1424,7 +1422,7 @@
       "capability_id": "mcp.vox_gui_run_finish",
       "mcp_tool": "vox_gui_run_finish",
       "implicit": false,
-      "title": "Finish GUI run",
+      "title": "Gui Run Finish",
       "description_model": "Mark a GUI run completed or failed, joining approval and telemetry totals when a task id is given.",
       "side_effect_class": "writes_files",
       "curated": true
@@ -1433,7 +1431,7 @@
       "capability_id": "mcp.vox_gui_run_start",
       "mcp_tool": "vox_gui_run_start",
       "implicit": false,
-      "title": "Start GUI run",
+      "title": "Gui Run Start",
       "description_model": "Record a running GUI-initiated run in the agent_runs journal.",
       "side_effect_class": "writes_files",
       "curated": true
@@ -1516,7 +1514,7 @@
       "capability_id": "mcp.vox_hopper_cancel",
       "mcp_tool": "vox_hopper_cancel",
       "implicit": false,
-      "title": "Cancel hopper task",
+      "title": "Hopper Cancel",
       "description_model": "Cancel a hopper item, removing it from the open queue.",
       "side_effect_class": "destructive",
       "curated": true
@@ -1525,7 +1523,7 @@
       "capability_id": "mcp.vox_hopper_mark_done",
       "mcp_tool": "vox_hopper_mark_done",
       "implicit": false,
-      "title": "Mark hopper task done",
+      "title": "Hopper Mark Done",
       "description_model": "Mark a hopper item completed.",
       "side_effect_class": "writes_files",
       "curated": true
@@ -1534,7 +1532,7 @@
       "capability_id": "mcp.vox_hopper_reprioritize",
       "mcp_tool": "vox_hopper_reprioritize",
       "implicit": false,
-      "title": "Reprioritize hopper task",
+      "title": "Hopper Reprioritize",
       "description_model": "Override a hopper item's priority (0 background, 1 normal, 2 urgent) with a developer capability.",
       "side_effect_class": "writes_files",
       "curated": true
@@ -1543,7 +1541,7 @@
       "capability_id": "mcp.vox_hopper_submit",
       "mcp_tool": "vox_hopper_submit",
       "implicit": false,
-      "title": "Submit hopper task",
+      "title": "Hopper Submit",
       "description_model": "Submit an intent to the persistent task hopper as a developer-sourced item.",
       "side_effect_class": "writes_files",
       "curated": true
@@ -1602,7 +1600,7 @@
       "capability_id": "mcp.vox_kb_import_research_session",
       "mcp_tool": "vox_kb_import_research_session",
       "implicit": false,
-      "title": "KB Import Research Session",
+      "title": "Kb Import Research Session",
       "description_model": "Persist a research session's citations and report into the knowledge base.",
       "side_effect_class": "writes_files",
       "curated": true
@@ -1725,8 +1723,6 @@
       "title": "List Approval Allowlist",
       "description_model": "List MCP tools currently allowlisted for auto-approval in a repository (T0.3).",
       "side_effect_class": "read_only",
-      "scope_kind": "session",
-      "reversible": false,
       "curated": true
     },
     {
@@ -2182,7 +2178,7 @@
       "capability_id": "mcp.vox_plan_node_upsert",
       "mcp_tool": "vox_plan_node_upsert",
       "implicit": false,
-      "title": "Edit live plan node",
+      "title": "Plan Node Upsert",
       "description_model": "Edit a not-yet-dispatched plan node's description, or insert a new step (blocked while the plan is unapproved).",
       "side_effect_class": "writes_files",
       "curated": true
@@ -2191,7 +2187,7 @@
       "capability_id": "mcp.vox_plan_nodes_approve",
       "mcp_tool": "vox_plan_nodes_approve",
       "implicit": false,
-      "title": "Approve plan nodes",
+      "title": "Plan Nodes Approve",
       "description_model": "Approve every blocked_on_approval node in a plan session; returns how many were released.",
       "side_effect_class": "writes_files",
       "curated": true
@@ -2609,8 +2605,6 @@
       "title": "Resolve Approval",
       "description_model": "Resolve a pending human-in-the-loop approval (approve / modify / reject) by id.",
       "side_effect_class": "writes_files",
-      "scope_kind": "session",
-      "reversible": false,
       "curated": true
     },
     {
@@ -2974,183 +2968,102 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_search_atlas",
+      "mcp_tool": "vox_search_atlas",
+      "implicit": false,
+      "title": "Search Atlas",
+      "description_model": "Budgeted LOD subgraph slice (crate -> file -> symbol) with derived containment edges and provenance header.",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_search_callees",
       "mcp_tool": "vox_search_callees",
       "implicit": false,
-      "title": "Vox Search Callees",
+      "title": "Search Callees",
       "description_model": "Functions called by the given symbol(s) — forward call edges, constructor noise filtered (read-only).",
-      "intent_tags": [
-        "retrieval",
-        "graph"
-      ],
       "side_effect_class": "read_only",
-      "scope_kind": "repository",
-      "reversible": true,
-      "requires_repo": true,
-      "preferred_for_models": true,
-      "human_takeover_friendly": true,
       "curated": true
     },
     {
       "capability_id": "mcp.vox_search_callers",
       "mcp_tool": "vox_search_callers",
       "implicit": false,
-      "title": "Vox Search Callers",
+      "title": "Search Callers",
       "description_model": "Functions that call the given symbol(s) — reverse call edges, constructor noise filtered (read-only).",
-      "intent_tags": [
-        "retrieval",
-        "graph"
-      ],
       "side_effect_class": "read_only",
-      "scope_kind": "repository",
-      "reversible": true,
-      "requires_repo": true,
-      "preferred_for_models": true,
-      "human_takeover_friendly": true,
       "curated": true
     },
     {
       "capability_id": "mcp.vox_search_compare",
       "mcp_tool": "vox_search_compare",
       "implicit": false,
-      "title": "Vox Search Compare",
+      "title": "Search Compare",
       "description_model": "Diff two Vox Search structural-index manifests for node/edge/community delta (read-only).",
-      "intent_tags": [
-        "retrieval",
-        "graph"
-      ],
       "side_effect_class": "read_only",
-      "scope_kind": "repository",
-      "reversible": true,
-      "requires_repo": true,
-      "preferred_for_models": true,
-      "human_takeover_friendly": true,
       "curated": true
     },
     {
       "capability_id": "mcp.vox_search_history",
       "mcp_tool": "vox_search_history",
       "implicit": false,
-      "title": "Vox Search History",
+      "title": "Search History",
       "description_model": "First-parent repo history for agents (log through lineage, focus, forgotten, search, timeline, brief). Ingests at most 60 s per call into a cache under the git common dir; results carry complete/behind, and an incomplete result means call again.",
-      "intent_tags": [
-        "retrieval",
-        "graph"
-      ],
       "side_effect_class": "writes_files",
-      "scope_kind": "repository",
-      "reversible": true,
-      "requires_repo": true,
-      "preferred_for_models": true,
-      "human_takeover_friendly": true,
       "curated": true
     },
     {
       "capability_id": "mcp.vox_search_neighbors",
       "mcp_tool": "vox_search_neighbors",
       "implicit": false,
-      "title": "Vox Search Neighbors",
+      "title": "Search Neighbors",
       "description_model": "BFS neighbor expansion from seed node IDs (read-only; layered navigation).",
-      "intent_tags": [
-        "retrieval",
-        "graph"
-      ],
       "side_effect_class": "read_only",
-      "scope_kind": "repository",
-      "reversible": true,
-      "requires_repo": true,
-      "preferred_for_models": true,
-      "human_takeover_friendly": true,
       "curated": true
     },
     {
       "capability_id": "mcp.vox_search_path",
       "mcp_tool": "vox_search_path",
       "implicit": false,
-      "title": "Vox Search Path",
+      "title": "Search Path",
       "description_model": "Shortest path between two node IDs in the Vox Search structural index (read-only).",
-      "intent_tags": [
-        "retrieval",
-        "graph"
-      ],
       "side_effect_class": "read_only",
-      "scope_kind": "repository",
-      "reversible": true,
-      "requires_repo": true,
-      "preferred_for_models": true,
-      "human_takeover_friendly": true,
       "curated": true
     },
     {
       "capability_id": "mcp.vox_search_rebuild",
       "mcp_tool": "vox_search_rebuild",
       "implicit": false,
-      "title": "Vox Search Rebuild",
+      "title": "Search Rebuild",
       "description_model": "Rebuild a Vox Search structural index (AST extract + cluster), snapshot the prior graph, and refresh freshness manifest (write).",
-      "intent_tags": [
-        "retrieval",
-        "graph"
-      ],
       "side_effect_class": "writes_files",
-      "scope_kind": "repository",
-      "reversible": true,
-      "requires_repo": true,
-      "preferred_for_models": true,
-      "human_takeover_friendly": true,
       "curated": true
     },
     {
       "capability_id": "mcp.vox_search_set_ttl",
       "mcp_tool": "vox_search_set_ttl",
       "implicit": false,
-      "title": "Vox Search Set TTL",
+      "title": "Search Set Ttl",
       "description_model": "Set the Vox Search corpora staleness TTL in days, writing the shared registry contract that the CLI and CI freshness gate also read (write).",
-      "intent_tags": [
-        "retrieval",
-        "graph"
-      ],
       "side_effect_class": "writes_files",
-      "scope_kind": "repository",
-      "reversible": true,
-      "requires_repo": true,
-      "preferred_for_models": false,
-      "human_takeover_friendly": true,
       "curated": true
     },
     {
       "capability_id": "mcp.vox_search_status",
       "mcp_tool": "vox_search_status",
       "implicit": false,
-      "title": "Vox Search Status",
+      "title": "Search Status",
       "description_model": "Report Vox Search structural-index freshness (read-only; `--strict` fails when stale).",
-      "intent_tags": [
-        "retrieval",
-        "graph"
-      ],
       "side_effect_class": "read_only",
-      "scope_kind": "repository",
-      "reversible": true,
-      "requires_repo": true,
-      "preferred_for_models": true,
-      "human_takeover_friendly": true,
       "curated": true
     },
     {
       "capability_id": "mcp.vox_search_structural",
       "mcp_tool": "vox_search_structural",
       "implicit": false,
-      "title": "Vox Search Structural",
+      "title": "Search Structural",
       "description_model": "Lexically search the Vox Search structural index on disk (read-only).",
-      "intent_tags": [
-        "retrieval",
-        "graph"
-      ],
       "side_effect_class": "writes_files",
-      "scope_kind": "repository",
-      "reversible": true,
-      "requires_repo": true,
-      "preferred_for_models": true,
-      "human_takeover_friendly": true,
       "curated": true
     },
     {
@@ -3166,7 +3079,7 @@
       "capability_id": "mcp.vox_semantic_fs_discover",
       "mcp_tool": "vox_semantic_fs_discover",
       "implicit": false,
-      "title": "Semantic filesystem discover",
+      "title": "Semantic Fs Discover",
       "description_model": "Rank workspace paths for an intent via the semantic-fs bridge (read-only inventory search).",
       "side_effect_class": "read_only",
       "curated": true
@@ -3518,6 +3431,15 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_validate_mermaid",
+      "mcp_tool": "vox_validate_mermaid",
+      "implicit": false,
+      "title": "Validate Mermaid",
+      "description_model": "Validate and repair Mermaid diagrams in Markdown or raw Mermaid source with line-accurate diagnostics.",
+      "side_effect_class": "none",
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_validate_source",
       "mcp_tool": "vox_validate_source",
       "implicit": false,
@@ -3530,11 +3452,9 @@
       "capability_id": "mcp.vox_validate_vuv",
       "mcp_tool": "vox_validate_vuv",
       "implicit": false,
-      "title": "GUI VUV Validation",
+      "title": "Validate Vuv",
       "description_model": "Validate Vox/VUV source against the compile-time GUI guarantees (contrast, layer-occlusion, a11y, structural web-IR) without writing files.",
       "side_effect_class": "none",
-      "scope_kind": "session",
-      "reversible": false,
       "curated": true
     },
     {
@@ -3619,7 +3539,7 @@
       "capability_id": "mcp.vox_workspace_mcp_refresh",
       "mcp_tool": "vox_workspace_mcp_refresh",
       "implicit": false,
-      "title": "Workspace MCP Refresh",
+      "title": "Workspace Mcp Refresh",
       "description_model": "Reloads/refreshes the workspace MCP registry and scan config.",
       "side_effect_class": "writes_files",
       "curated": true
@@ -4785,7 +4705,7 @@
       ],
       "implicit": false,
       "title": "Audit",
-      "description_model": "Run quality gates from contracts/ci/check-targets.v1.yaml; umbrella for lint, test, audit, doc, and arch checks.",
+      "description_model": "CLI operation `vox audit`",
       "curated": true
     },
     {
@@ -4981,7 +4901,7 @@
       ],
       "implicit": false,
       "title": "Bundle (plugins)",
-      "description_model": "CLI operation `vox bundle` — plugin distribution bundles (`list`, `build`, `apply`)",
+      "description_model": "CLI operation `vox bundle`",
       "curated": true
     },
     {
@@ -5037,7 +4957,7 @@
       ],
       "implicit": false,
       "title": "Bundle App",
-      "description_model": "Bundle a Vox source file into a complete web application (use `vox fab bundle` or `vox fabrica bundle`)",
+      "description_model": "CLI operation `vox bundle-app`",
       "curated": true
     },
     {
@@ -5103,7 +5023,7 @@
       ],
       "implicit": false,
       "title": "Chat",
-      "description_model": "Send one message through the harness's chat pipeline and print the reply (`vox chat`)",
+      "description_model": "CLI operation `vox chat`",
       "curated": true
     },
     {
@@ -5125,6 +5045,7 @@
       "implicit": false,
       "title": "Ci",
       "description_model": "CLI operation `vox ci`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -5136,6 +5057,7 @@
       "implicit": false,
       "title": "Ci Affected-crates",
       "description_model": "CLI operation `vox ci affected-crates`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -5147,6 +5069,7 @@
       "implicit": false,
       "title": "Ci Agentskills-compliance",
       "description_model": "CLI operation `vox ci agentskills-compliance`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5158,6 +5081,7 @@
       "implicit": false,
       "title": "Ci Ai-fixtures-coverage",
       "description_model": "CLI operation `vox ci ai-fixtures-coverage`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5169,6 +5093,7 @@
       "implicit": false,
       "title": "Ci Artifact-audit",
       "description_model": "CLI operation `vox ci artifact-audit`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5192,6 +5117,7 @@
       "implicit": false,
       "title": "Ci Attention-config-parity",
       "description_model": "CLI operation `vox ci attention-config-parity`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5203,6 +5129,7 @@
       "implicit": false,
       "title": "Ci Attention-event-ledger-parity",
       "description_model": "CLI operation `vox ci attention-event-ledger-parity`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5214,6 +5141,7 @@
       "implicit": false,
       "title": "Ci Backend-tests",
       "description_model": "CLI operation `vox ci backend-tests`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -5225,6 +5153,7 @@
       "implicit": false,
       "title": "Ci Bom-check",
       "description_model": "CLI operation `vox ci bom-check`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5236,6 +5165,7 @@
       "implicit": false,
       "title": "Ci Build-bench",
       "description_model": "Reproducible wall-clock build scenarios with a committed baseline; --compare emits a phase delta report.",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -5247,6 +5177,7 @@
       "implicit": false,
       "title": "Ci Build-cache-doctor",
       "description_model": "CLI operation `vox ci build-cache-doctor`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5258,6 +5189,7 @@
       "implicit": false,
       "title": "Ci Build-docs",
       "description_model": "CLI operation `vox ci build-docs`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -5269,6 +5201,7 @@
       "implicit": false,
       "title": "Ci Build-timings",
       "description_model": "CLI operation `vox ci build-timings`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -5280,6 +5213,7 @@
       "implicit": false,
       "title": "Ci Cache-key-lint",
       "description_model": "CLI operation `vox ci cache-key-lint`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5291,6 +5225,7 @@
       "implicit": false,
       "title": "Ci Canonical-map-verify",
       "description_model": "CLI operation `vox ci canonical-map-verify`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5302,6 +5237,7 @@
       "implicit": false,
       "title": "Ci Capability-index",
       "description_model": "CLI operation `vox ci capability-index`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -5313,6 +5249,7 @@
       "implicit": false,
       "title": "Ci Capability-snapshot",
       "description_model": "CLI operation `vox ci capability-snapshot`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5324,6 +5261,7 @@
       "implicit": false,
       "title": "Ci Capability-sync",
       "description_model": "CLI operation `vox ci capability-sync`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -5335,6 +5273,7 @@
       "implicit": false,
       "title": "Ci Check-codex-ssot",
       "description_model": "CLI operation `vox ci check-codex-ssot`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5346,6 +5285,7 @@
       "implicit": false,
       "title": "Ci Check-docs-ssot",
       "description_model": "CLI operation `vox ci check-docs-ssot`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5357,6 +5297,7 @@
       "implicit": false,
       "title": "Ci Check-links",
       "description_model": "CLI operation `vox ci check-links`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5368,6 +5309,7 @@
       "implicit": false,
       "title": "Ci Check-summary-drift",
       "description_model": "CLI operation `vox ci check-summary-drift`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -5379,6 +5321,7 @@
       "implicit": false,
       "title": "Ci Command-compliance",
       "description_model": "CLI operation `vox ci command-compliance`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5390,6 +5333,7 @@
       "implicit": false,
       "title": "Ci Command-sync",
       "description_model": "CLI operation `vox ci command-sync`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -5401,6 +5345,7 @@
       "implicit": false,
       "title": "Ci Commit-lint",
       "description_model": "CLI operation `vox ci commit-lint`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5411,7 +5356,8 @@
       ],
       "implicit": false,
       "title": "Ci Compile-matrix",
-      "description_model": "CLI operation `vox ci compile-matrix` — smoke `vox compile --help` via cargo (matches compile-matrix workflow)",
+      "description_model": "CLI operation `vox ci compile-matrix`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -5423,6 +5369,7 @@
       "implicit": false,
       "title": "Ci Completion-audit",
       "description_model": "CLI operation `vox ci completion-audit`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5434,6 +5381,7 @@
       "implicit": false,
       "title": "Ci Completion-gates",
       "description_model": "CLI operation `vox ci completion-gates`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5445,6 +5393,7 @@
       "implicit": false,
       "title": "Ci Completion-ingest",
       "description_model": "CLI operation `vox ci completion-ingest`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -5456,6 +5405,7 @@
       "implicit": false,
       "title": "Ci Config-gui-codegen",
       "description_model": "CLI operation `vox ci config-gui-codegen`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -5467,6 +5417,7 @@
       "implicit": false,
       "title": "Ci Config-hygiene",
       "description_model": "Advisory gate: detects hardcoded env paths, env reads in pure-config modules, and declared-but-unwired env-resolver functions.",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -5478,6 +5429,7 @@
       "implicit": false,
       "title": "Ci Config-registry-parity",
       "description_model": "Every operational VOX_* env knob read in code must be in the config registry.",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5489,6 +5441,7 @@
       "implicit": false,
       "title": "Ci Contracts-index",
       "description_model": "CLI operation `vox ci contracts-index`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5500,6 +5453,7 @@
       "implicit": false,
       "title": "Ci Coolify-eval",
       "description_model": "CLI operation `vox ci coolify-eval`",
+      "side_effect_class": "network",
       "curated": true
     },
     {
@@ -5512,6 +5466,7 @@
       "implicit": false,
       "title": "Ci Coolify-eval Discover",
       "description_model": "CLI operation `vox ci coolify-eval discover`",
+      "side_effect_class": "network",
       "curated": true
     },
     {
@@ -5524,6 +5479,7 @@
       "implicit": false,
       "title": "Ci Coolify-eval Sync-compose",
       "description_model": "CLI operation `vox ci coolify-eval sync-compose`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -5535,6 +5491,7 @@
       "implicit": false,
       "title": "Ci Corpus-decl-coverage",
       "description_model": "CLI operation `vox ci corpus-decl-coverage`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5546,6 +5503,7 @@
       "implicit": false,
       "title": "Ci Coverage-gates",
       "description_model": "CLI operation `vox ci coverage-gates`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5557,6 +5515,7 @@
       "implicit": false,
       "title": "Ci Crate-budget",
       "description_model": "CLI operation `vox ci crate-budget`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5568,6 +5527,7 @@
       "implicit": false,
       "title": "Ci Crate-build-map-parity",
       "description_model": "CLI operation `vox ci crate-build-map-parity`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -5579,6 +5539,7 @@
       "implicit": false,
       "title": "Ci Crate-edges",
       "description_model": "CLI operation `vox ci crate-edges`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -5590,6 +5551,7 @@
       "implicit": false,
       "title": "Ci Cuda-features",
       "description_model": "CLI operation `vox ci cuda-features`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5601,6 +5563,7 @@
       "implicit": false,
       "title": "Ci Cuda-release-build",
       "description_model": "CLI operation `vox ci cuda-release-build`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -5612,6 +5575,7 @@
       "implicit": false,
       "title": "Ci Data-ssot-guards",
       "description_model": "CLI operation `vox ci data-ssot-guards`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5623,6 +5587,7 @@
       "implicit": false,
       "title": "Ci Data-storage-guard",
       "description_model": "CLI operation `vox ci data-storage-guard`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5633,7 +5598,8 @@
       ],
       "implicit": false,
       "title": "Ci Db-schema-coverage",
-      "description_model": "Verify every CREATE TABLE in the workspace is owned by a crate in tiers.a_relational.owners.",
+      "description_model": "CLI operation `vox ci db-schema-coverage`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5645,6 +5611,7 @@
       "implicit": false,
       "title": "Ci Dep-cycles",
       "description_model": "Detect dependency cycles (HARD on normal-dep cycles) and inventory dev-dep back-edges using Tarjan SCC over cargo metadata.",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5656,6 +5623,7 @@
       "implicit": false,
       "title": "Ci Dep-sprawl",
       "description_model": "CLI operation `vox ci dep-sprawl`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5667,6 +5635,7 @@
       "implicit": false,
       "title": "Ci Deploy-status",
       "description_model": "CLI operation `vox ci deploy-status`",
+      "side_effect_class": "network",
       "curated": true
     },
     {
@@ -5678,6 +5647,7 @@
       "implicit": false,
       "title": "Ci Detect-rules-bench",
       "description_model": "CLI operation `vox ci detect-rules-bench`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5689,6 +5659,7 @@
       "implicit": false,
       "title": "Ci Determinism-audit",
       "description_model": "CLI operation `vox ci determinism-audit`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5700,6 +5671,7 @@
       "implicit": false,
       "title": "Ci Dev-loop-audit",
       "description_model": "CLI operation `vox ci dev-loop-audit`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5711,6 +5683,7 @@
       "implicit": false,
       "title": "Ci Doc-inventory",
       "description_model": "CLI operation `vox ci doc-inventory`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -5723,6 +5696,7 @@
       "implicit": false,
       "title": "Ci Doc-inventory Generate",
       "description_model": "CLI operation `vox ci doc-inventory generate`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -5747,6 +5721,7 @@
       "implicit": false,
       "title": "Ci Docs-reality-audit",
       "description_model": "CLI operation `vox ci docs-reality-audit`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -5759,6 +5734,7 @@
       "implicit": false,
       "title": "Ci Docs-reality-audit Metrics",
       "description_model": "CLI operation `vox ci docs-reality-audit metrics`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -5783,6 +5759,7 @@
       "implicit": false,
       "title": "Ci Doctest-md",
       "description_model": "CLI operation `vox ci doctest-md`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5794,6 +5771,7 @@
       "implicit": false,
       "title": "Ci Eval-matrix",
       "description_model": "CLI operation `vox ci eval-matrix`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -5806,6 +5784,7 @@
       "implicit": false,
       "title": "Ci Eval-matrix Run",
       "description_model": "CLI operation `vox ci eval-matrix run`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -5830,6 +5809,7 @@
       "implicit": false,
       "title": "Ci Exec-policy-contract",
       "description_model": "CLI operation `vox ci exec-policy-contract`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5841,6 +5821,7 @@
       "implicit": false,
       "title": "Ci Fan-in-budget",
       "description_model": "CLI operation `vox ci fan-in-budget`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5852,6 +5833,7 @@
       "implicit": false,
       "title": "Ci Feature-matrix",
       "description_model": "CLI operation `vox ci feature-matrix`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -5863,6 +5845,7 @@
       "implicit": false,
       "title": "Ci Flake-budget",
       "description_model": "CLI operation `vox ci flake-budget`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5874,6 +5857,7 @@
       "implicit": false,
       "title": "Ci Fmt-check",
       "description_model": "CLI operation `vox ci fmt-check`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -5885,6 +5869,7 @@
       "implicit": false,
       "title": "Ci Free-binary",
       "description_model": "CLI operation `vox ci free-binary`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -5896,6 +5881,7 @@
       "implicit": false,
       "title": "Ci Generate-plugin-catalog-docs",
       "description_model": "CLI operation `vox ci generate-plugin-catalog-docs`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -5907,6 +5893,7 @@
       "implicit": false,
       "title": "Ci Grammar-drift",
       "description_model": "CLI operation `vox ci grammar-drift`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5918,6 +5905,7 @@
       "implicit": false,
       "title": "Ci Grammar-export-check",
       "description_model": "CLI operation `vox ci grammar-export-check`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5929,6 +5917,7 @@
       "implicit": false,
       "title": "Ci Grammar-ssot-parity",
       "description_model": "CLI operation `vox ci grammar-ssot-parity`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5940,6 +5929,7 @@
       "implicit": false,
       "title": "Ci Gui-catalog-parity",
       "description_model": "CLI operation `vox ci gui-catalog-parity`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5951,6 +5941,7 @@
       "implicit": false,
       "title": "Ci Gui-honesty",
       "description_model": "CLI operation `vox ci gui-honesty`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5962,6 +5953,7 @@
       "implicit": false,
       "title": "Ci Gui-smoke",
       "description_model": "CLI operation `vox ci gui-smoke`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -5973,6 +5965,7 @@
       "implicit": false,
       "title": "Ci Gui-surface-coverage",
       "description_model": "CLI operation `vox ci gui-surface-coverage`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -5984,6 +5977,7 @@
       "implicit": false,
       "title": "Ci Gui-surface-registry",
       "description_model": "CLI operation `vox ci gui-surface-registry`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -5995,6 +5989,7 @@
       "implicit": false,
       "title": "Ci Gui-version-sync",
       "description_model": "CLI operation `vox ci gui-version-sync`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6006,6 +6001,7 @@
       "implicit": false,
       "title": "Ci Gui-visual-review",
       "description_model": "CLI operation `vox ci gui-visual-review`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -6017,6 +6013,7 @@
       "implicit": false,
       "title": "Ci Harness-trust-guard",
       "description_model": "CLI operation `vox ci harness-trust-guard`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6028,6 +6025,7 @@
       "implicit": false,
       "title": "Ci Ignored-test-age",
       "description_model": "CLI operation `vox ci ignored-test-age`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6039,6 +6037,7 @@
       "implicit": false,
       "title": "Ci Install-hooks",
       "description_model": "CLI operation `vox ci install-hooks`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6050,6 +6049,7 @@
       "implicit": false,
       "title": "Ci Job-timings",
       "description_model": "CLI operation `vox ci job-timings`",
+      "side_effect_class": "network",
       "curated": true
     },
     {
@@ -6061,6 +6061,7 @@
       "implicit": false,
       "title": "Ci Json-parse-check",
       "description_model": "CLI operation `vox ci json-parse-check`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6072,6 +6073,7 @@
       "implicit": false,
       "title": "Ci K-complexity-budget",
       "description_model": "CLI operation `vox ci k-complexity-budget`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6095,6 +6097,7 @@
       "implicit": false,
       "title": "Ci Line-endings",
       "description_model": "CLI operation `vox ci line-endings`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6106,6 +6109,7 @@
       "implicit": false,
       "title": "Ci Manifest",
       "description_model": "CLI operation `vox ci manifest`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6117,6 +6121,7 @@
       "implicit": false,
       "title": "Ci Mcp-vox-surface-parity",
       "description_model": "CLI operation `vox ci mcp-vox-surface-parity`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6128,6 +6133,7 @@
       "implicit": false,
       "title": "Ci Mens-scorecard",
       "description_model": "CLI operation `vox ci mens-scorecard`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -6140,6 +6146,7 @@
       "implicit": false,
       "title": "Ci Mens-scorecard Burn-rnd",
       "description_model": "CLI operation `vox ci mens-scorecard burn-rnd`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6152,6 +6159,7 @@
       "implicit": false,
       "title": "Ci Mens-scorecard Decide",
       "description_model": "CLI operation `vox ci mens-scorecard decide`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6164,6 +6172,7 @@
       "implicit": false,
       "title": "Ci Mens-scorecard Ingest-trust",
       "description_model": "CLI operation `vox ci mens-scorecard ingest-trust`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6176,6 +6185,7 @@
       "implicit": false,
       "title": "Ci Mens-scorecard Run",
       "description_model": "CLI operation `vox ci mens-scorecard run`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -6200,6 +6210,7 @@
       "implicit": false,
       "title": "Ci Mesh-gate",
       "description_model": "CLI operation `vox ci mesh-gate`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -6211,6 +6222,7 @@
       "implicit": false,
       "title": "Ci Model-routing-check",
       "description_model": "CLI operation `vox ci model-routing-check`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6222,6 +6234,7 @@
       "implicit": false,
       "title": "Ci No-dei-import",
       "description_model": "CLI operation `vox ci no-dei-import`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6233,6 +6246,7 @@
       "implicit": false,
       "title": "Ci No-plugin-cdylib-as-compile-dep",
       "description_model": "CLI operation `vox ci no-plugin-cdylib-as-compile-dep`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6244,6 +6258,7 @@
       "implicit": false,
       "title": "Ci No-tauri-in-core",
       "description_model": "CLI operation `vox ci no-tauri-in-core`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6255,6 +6270,7 @@
       "implicit": false,
       "title": "Ci Node-pnpm-ssot-guard",
       "description_model": "CLI operation `vox ci node-pnpm-ssot-guard`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6271,6 +6287,7 @@
         "naming",
         "governance"
       ],
+      "side_effect_class": "read_only",
       "requires_repo": true,
       "curated": true
     },
@@ -6283,6 +6300,7 @@
       "implicit": false,
       "title": "Ci Openclaw-contract",
       "description_model": "CLI operation `vox ci openclaw-contract`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6294,6 +6312,7 @@
       "implicit": false,
       "title": "Ci Operations-sync",
       "description_model": "CLI operation `vox ci operations-sync`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6305,6 +6324,7 @@
       "implicit": false,
       "title": "Ci Operations-verify",
       "description_model": "CLI operation `vox ci operations-verify`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6316,6 +6336,7 @@
       "implicit": false,
       "title": "Ci Operator-env-guard",
       "description_model": "CLI operation `vox ci operator-env-guard`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6327,6 +6348,7 @@
       "implicit": false,
       "title": "Ci Parse-status",
       "description_model": "CLI operation `vox ci parse-status`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6337,7 +6359,8 @@
       ],
       "implicit": false,
       "title": "Ci Pipeline-parity",
-      "description_model": "CLI operation `vox ci pipeline-parity` — umbrella gate for script→emission SSOT (grammar parity, canonical ladder, feature matrix, k-budget)",
+      "description_model": "CLI operation `vox ci pipeline-parity`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6349,6 +6372,7 @@
       "implicit": false,
       "title": "Ci Plugin-abi-parity",
       "description_model": "CLI operation `vox ci plugin-abi-parity`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -6360,6 +6384,7 @@
       "implicit": false,
       "title": "Ci Plugin-catalog-parity",
       "description_model": "CLI operation `vox ci plugin-catalog-parity`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6371,6 +6396,7 @@
       "implicit": false,
       "title": "Ci Plugin-catalog-sync",
       "description_model": "CLI operation `vox ci plugin-catalog-sync`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6382,6 +6408,7 @@
       "implicit": false,
       "title": "Ci Plugin-dep-boundary",
       "description_model": "CLI operation `vox ci plugin-dep-boundary`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6393,6 +6420,7 @@
       "implicit": false,
       "title": "Ci Plugin-skill-parity",
       "description_model": "CLI operation `vox ci plugin-skill-parity`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6404,6 +6432,7 @@
       "implicit": false,
       "title": "Ci Plugin-surface-sync",
       "description_model": "CLI operation `vox ci plugin-surface-sync`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6415,6 +6444,7 @@
       "implicit": false,
       "title": "Ci Pm-provenance",
       "description_model": "CLI operation `vox ci pm-provenance`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6426,6 +6456,7 @@
       "implicit": false,
       "title": "Ci Policy-allowlist-parity",
       "description_model": "CLI operation `vox ci policy-allowlist-parity`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6437,6 +6468,7 @@
       "implicit": false,
       "title": "Ci Policy-registry",
       "description_model": "CLI operation `vox ci policy-registry`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6448,6 +6480,7 @@
       "implicit": false,
       "title": "Ci Policy-registry-parity",
       "description_model": "CLI operation `vox ci policy-registry-parity`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6459,6 +6492,7 @@
       "implicit": false,
       "title": "Ci Policy-smoke",
       "description_model": "CLI operation `vox ci policy-smoke`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -6470,6 +6504,7 @@
       "implicit": false,
       "title": "Ci Pre-push",
       "description_model": "CLI operation `vox ci pre-push`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -6481,6 +6516,7 @@
       "implicit": false,
       "title": "Ci Profile-parity",
       "description_model": "CLI operation `vox ci profile-parity`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6492,6 +6528,7 @@
       "implicit": false,
       "title": "Ci Query-all-guard",
       "description_model": "CLI operation `vox ci query-all-guard`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6503,6 +6540,7 @@
       "implicit": false,
       "title": "Ci Release-build",
       "description_model": "CLI operation `vox ci release-build`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -6514,6 +6552,7 @@
       "implicit": false,
       "title": "Ci Release-draft-guard",
       "description_model": "CLI operation `vox ci release-draft-guard`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6525,6 +6564,7 @@
       "implicit": false,
       "title": "Ci Repo-guards",
       "description_model": "CLI operation `vox ci repo-guards`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6536,6 +6576,7 @@
       "implicit": false,
       "title": "Ci Required-context-guard",
       "description_model": "CLI operation `vox ci required-context-guard`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6547,6 +6588,7 @@
       "implicit": false,
       "title": "Ci Retired-symbol-check",
       "description_model": "CLI operation `vox ci retired-symbol-check`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6557,7 +6599,8 @@
       ],
       "implicit": false,
       "title": "Ci Retirement-audit",
-      "description_model": "CLI operation `vox ci retirement-audit` — scan `vox-deprecated-since` / `retire-by` markers vs workspace semver",
+      "description_model": "CLI operation `vox ci retirement-audit`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6569,6 +6612,7 @@
       "implicit": false,
       "title": "Ci Row-serde-lint",
       "description_model": "CLI operation `vox ci row-serde-lint`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6580,6 +6624,7 @@
       "implicit": false,
       "title": "Ci Runtime-regress",
       "description_model": "CLI operation `vox ci runtime-regress`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6591,6 +6636,7 @@
       "implicit": false,
       "title": "Ci Rust-ecosystem-policy",
       "description_model": "CLI operation `vox ci rust-ecosystem-policy`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -6602,6 +6648,7 @@
       "implicit": false,
       "title": "Ci Safety-inventory",
       "description_model": "CLI operation `vox ci safety-inventory`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6613,6 +6660,7 @@
       "implicit": false,
       "title": "Ci Scaling-audit",
       "description_model": "CLI operation `vox ci scaling-audit`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6625,6 +6673,7 @@
       "implicit": false,
       "title": "Ci Scaling-audit Emit-reports",
       "description_model": "CLI operation `vox ci scaling-audit emit-reports`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6649,6 +6698,7 @@
       "implicit": false,
       "title": "Ci Scientia-heuristics-parity",
       "description_model": "CLI operation `vox ci scientia-heuristics-parity`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6660,6 +6710,7 @@
       "implicit": false,
       "title": "Ci Scientia-novelty-ledger-contracts",
       "description_model": "CLI operation `vox ci scientia-novelty-ledger-contracts`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6671,6 +6722,7 @@
       "implicit": false,
       "title": "Ci Scientia-worthiness-contract",
       "description_model": "CLI operation `vox ci scientia-worthiness-contract`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6682,6 +6734,7 @@
       "implicit": false,
       "title": "Ci Script-hygiene",
       "description_model": "CLI operation `vox ci script-hygiene`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6693,6 +6746,7 @@
       "implicit": false,
       "title": "Ci Secret-env-guard",
       "description_model": "CLI operation `vox ci secret-env-guard`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6704,6 +6758,7 @@
       "implicit": false,
       "title": "Ci Secrets-contracts",
       "description_model": "CLI operation `vox ci secrets-contracts`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6715,6 +6770,7 @@
       "implicit": false,
       "title": "Ci Secrets-cutover-audit",
       "description_model": "CLI operation `vox ci secrets-cutover-audit`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6726,6 +6782,7 @@
       "implicit": false,
       "title": "Ci Secrets-cutover-gates",
       "description_model": "CLI operation `vox ci secrets-cutover-gates`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6737,6 +6794,7 @@
       "implicit": false,
       "title": "Ci Secrets-parity",
       "description_model": "CLI operation `vox ci secrets-parity`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6748,6 +6806,7 @@
       "implicit": false,
       "title": "Ci Source-token-budget",
       "description_model": "CLI operation `vox ci source-token-budget`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6759,6 +6818,7 @@
       "implicit": false,
       "title": "Ci Speech-runtime-suite",
       "description_model": "CLI operation `vox ci speech-runtime-suite`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -6770,6 +6830,7 @@
       "implicit": false,
       "title": "Ci Spoke-check",
       "description_model": "CLI operation `vox ci spoke-check`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6781,6 +6842,7 @@
       "implicit": false,
       "title": "Ci Sql-surface-guard",
       "description_model": "CLI operation `vox ci sql-surface-guard`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6792,6 +6854,7 @@
       "implicit": false,
       "title": "Ci Ssot-audit",
       "description_model": "CLI operation `vox ci ssot-audit`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6803,6 +6866,7 @@
       "implicit": false,
       "title": "Ci Ssot-drift",
       "description_model": "CLI operation `vox ci ssot-drift`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6826,6 +6890,7 @@
       "implicit": false,
       "title": "Ci String-id-lint",
       "description_model": "CLI operation `vox ci string-id-lint`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6837,6 +6902,7 @@
       "implicit": false,
       "title": "Ci Sync-ignore-files",
       "description_model": "CLI operation `vox ci sync-ignore-files`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6848,6 +6914,7 @@
       "implicit": false,
       "title": "Ci Test-inventory",
       "description_model": "CLI operation `vox ci test-inventory`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6859,6 +6926,7 @@
       "implicit": false,
       "title": "Ci Test-runtime-report",
       "description_model": "CLI operation `vox ci test-runtime-report`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6870,6 +6938,7 @@
       "implicit": false,
       "title": "Ci Tier-budget-check",
       "description_model": "CLI operation `vox ci tier-budget-check`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6881,6 +6950,7 @@
       "implicit": false,
       "title": "Ci Toestub-budget",
       "description_model": "CLI operation `vox ci toestub-budget`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6892,6 +6962,7 @@
       "implicit": false,
       "title": "Ci Toestub-scoped",
       "description_model": "CLI operation `vox ci toestub-scoped`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -6903,6 +6974,7 @@
       "implicit": false,
       "title": "Ci Toestub-self-apply",
       "description_model": "CLI operation `vox ci toestub-self-apply`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -6914,6 +6986,7 @@
       "implicit": false,
       "title": "Ci Toolchain-ssot",
       "description_model": "CLI operation `vox ci toolchain-ssot`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6925,6 +6998,7 @@
       "implicit": false,
       "title": "Ci Toolchain-workflow-lint",
       "description_model": "CLI operation `vox ci toolchain-workflow-lint`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6936,6 +7010,7 @@
       "implicit": false,
       "title": "Ci Turso-import-guard",
       "description_model": "CLI operation `vox ci turso-import-guard`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6947,6 +7022,7 @@
       "implicit": false,
       "title": "Ci Vox-parse-check",
       "description_model": "CLI operation `vox ci vox-parse-check`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6958,6 +7034,7 @@
       "implicit": false,
       "title": "Ci Watch-run",
       "description_model": "CLI operation `vox ci watch-run`",
+      "side_effect_class": "network",
       "curated": true
     },
     {
@@ -6969,6 +7046,7 @@
       "implicit": false,
       "title": "Ci Workflow-concurrency-guard",
       "description_model": "CLI operation `vox ci workflow-concurrency-guard`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6980,6 +7058,7 @@
       "implicit": false,
       "title": "Ci Workflow-scripts",
       "description_model": "CLI operation `vox ci workflow-scripts`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -6991,6 +7070,7 @@
       "implicit": false,
       "title": "Ci Yaml-parse-check",
       "description_model": "CLI operation `vox ci yaml-parse-check`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7110,7 +7190,7 @@
       ],
       "implicit": false,
       "title": "Compile",
-      "description_model": "CLI operation `vox compile` — native / Tauri / script / workspace packaging umbrella",
+      "description_model": "CLI operation `vox compile`",
       "curated": true
     },
     {
@@ -7131,7 +7211,7 @@
       ],
       "implicit": false,
       "title": "Component",
-      "description_model": "Vendor a shadcn/ui component into the project (fetches source from ui.shadcn.com and writes it under your `components.json` aliases)",
+      "description_model": "CLI operation `vox component`",
       "curated": true
     },
     {
@@ -7141,7 +7221,7 @@
       ],
       "implicit": false,
       "title": "Config",
-      "description_model": "Manage global configuration and preferences",
+      "description_model": "CLI operation `vox config`",
       "curated": true
     },
     {
@@ -7209,7 +7289,7 @@
       ],
       "implicit": false,
       "title": "Container",
-      "description_model": "Manage OCI containers: build/run the current project with resource limits",
+      "description_model": "CLI operation `vox container`",
       "curated": true
     },
     {
@@ -7242,6 +7322,7 @@
       "implicit": false,
       "title": "Db",
       "description_model": "CLI operation `vox db`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -7253,6 +7334,7 @@
       "implicit": false,
       "title": "Db Audit",
       "description_model": "CLI operation `vox db audit`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7264,6 +7346,7 @@
       "implicit": false,
       "title": "Db Build-health",
       "description_model": "CLI operation `vox db build-health`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7275,6 +7358,7 @@
       "implicit": false,
       "title": "Db Build-regressions",
       "description_model": "CLI operation `vox db build-regressions`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7286,6 +7370,7 @@
       "implicit": false,
       "title": "Db Capability-list",
       "description_model": "CLI operation `vox db capability-list`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7297,6 +7382,7 @@
       "implicit": false,
       "title": "Db Discovery-watch",
       "description_model": "CLI operation `vox db discovery-watch`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -7308,6 +7394,7 @@
       "implicit": false,
       "title": "Db Exec-history",
       "description_model": "CLI operation `vox db exec-history`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7331,6 +7418,7 @@
       "implicit": false,
       "title": "Db Export",
       "description_model": "CLI operation `vox db export`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -7342,6 +7430,7 @@
       "implicit": false,
       "title": "Db Feed-source-add",
       "description_model": "CLI operation `vox db feed-source-add`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -7353,6 +7442,7 @@
       "implicit": false,
       "title": "Db Feed-source-list",
       "description_model": "CLI operation `vox db feed-source-list`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7364,6 +7454,7 @@
       "implicit": false,
       "title": "Db Import",
       "description_model": "CLI operation `vox db import`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -7375,6 +7466,7 @@
       "implicit": false,
       "title": "Db Ingest-tick",
       "description_model": "CLI operation `vox db ingest-tick`",
+      "side_effect_class": "network",
       "curated": true
     },
     {
@@ -7386,6 +7478,7 @@
       "implicit": false,
       "title": "Db Introspect",
       "description_model": "CLI operation `vox db introspect`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7397,6 +7490,7 @@
       "implicit": false,
       "title": "Db Mens-metrics",
       "description_model": "CLI operation `vox db mens-metrics`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7408,6 +7502,7 @@
       "implicit": false,
       "title": "Db Mens-runs",
       "description_model": "CLI operation `vox db mens-runs`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7419,6 +7514,7 @@
       "implicit": false,
       "title": "Db Migrate",
       "description_model": "CLI operation `vox db migrate`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -7430,6 +7526,7 @@
       "implicit": false,
       "title": "Db Mirror-search-corpus",
       "description_model": "CLI operation `vox db mirror-search-corpus`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -7441,6 +7538,7 @@
       "implicit": false,
       "title": "Db Pref-get",
       "description_model": "CLI operation `vox db pref-get`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7452,6 +7550,7 @@
       "implicit": false,
       "title": "Db Pref-list",
       "description_model": "CLI operation `vox db pref-list`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7463,6 +7562,7 @@
       "implicit": false,
       "title": "Db Pref-set",
       "description_model": "CLI operation `vox db pref-set`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -7498,6 +7598,7 @@
       "implicit": false,
       "title": "Db Prune-plan",
       "description_model": "CLI operation `vox db prune-plan`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7509,6 +7610,7 @@
       "implicit": false,
       "title": "Db Publication-approve",
       "description_model": "CLI operation `vox db publication-approve`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -7520,6 +7622,7 @@
       "implicit": false,
       "title": "Db Publication-archive-code",
       "description_model": "CLI operation `vox db publication-archive-code`",
+      "side_effect_class": "network",
       "curated": true
     },
     {
@@ -7531,6 +7634,7 @@
       "implicit": false,
       "title": "Db Publication-archive-run",
       "description_model": "CLI operation `vox db publication-archive-run`",
+      "side_effect_class": "network",
       "curated": true
     },
     {
@@ -7542,6 +7646,7 @@
       "implicit": false,
       "title": "Db Publication-arxiv-handoff-record",
       "description_model": "CLI operation `vox db publication-arxiv-handoff-record`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -7553,6 +7658,7 @@
       "implicit": false,
       "title": "Db Publication-autofill",
       "description_model": "CLI operation `vox db publication-autofill`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -7564,6 +7670,7 @@
       "implicit": false,
       "title": "Db Publication-decision-explain",
       "description_model": "CLI operation `vox db publication-decision-explain`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7575,6 +7682,7 @@
       "implicit": false,
       "title": "Db Publication-discovery-explain",
       "description_model": "CLI operation `vox db publication-discovery-explain`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7586,6 +7694,7 @@
       "implicit": false,
       "title": "Db Publication-discovery-publish-rss",
       "description_model": "CLI operation `vox db publication-discovery-publish-rss`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -7597,6 +7706,7 @@
       "implicit": false,
       "title": "Db Publication-discovery-refresh-evidence",
       "description_model": "CLI operation `vox db publication-discovery-refresh-evidence`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -7608,6 +7718,7 @@
       "implicit": false,
       "title": "Db Publication-discovery-scan",
       "description_model": "CLI operation `vox db publication-discovery-scan`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7619,6 +7730,7 @@
       "implicit": false,
       "title": "Db Publication-external-jobs-dead-letter",
       "description_model": "CLI operation `vox db publication-external-jobs-dead-letter`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7630,6 +7742,7 @@
       "implicit": false,
       "title": "Db Publication-external-jobs-due",
       "description_model": "CLI operation `vox db publication-external-jobs-due`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7641,6 +7754,7 @@
       "implicit": false,
       "title": "Db Publication-external-jobs-replay",
       "description_model": "CLI operation `vox db publication-external-jobs-replay`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -7652,6 +7766,7 @@
       "implicit": false,
       "title": "Db Publication-external-jobs-tick",
       "description_model": "CLI operation `vox db publication-external-jobs-tick`",
+      "side_effect_class": "network",
       "curated": true
     },
     {
@@ -7663,6 +7778,7 @@
       "implicit": false,
       "title": "Db Publication-external-pipeline-metrics",
       "description_model": "CLI operation `vox db publication-external-pipeline-metrics`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7686,6 +7802,7 @@
       "implicit": false,
       "title": "Db Publication-media-list",
       "description_model": "CLI operation `vox db publication-media-list`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7697,6 +7814,7 @@
       "implicit": false,
       "title": "Db Publication-media-upsert",
       "description_model": "CLI operation `vox db publication-media-upsert`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -7708,6 +7826,7 @@
       "implicit": false,
       "title": "Db Publication-novelty-fetch",
       "description_model": "CLI operation `vox db publication-novelty-fetch`",
+      "side_effect_class": "network",
       "curated": true
     },
     {
@@ -7719,6 +7838,7 @@
       "implicit": false,
       "title": "Db Publication-novelty-happy-path",
       "description_model": "CLI operation `vox db publication-novelty-happy-path`",
+      "side_effect_class": "network",
       "curated": true
     },
     {
@@ -7730,6 +7850,7 @@
       "implicit": false,
       "title": "Db Publication-openreview-profile",
       "description_model": "CLI operation `vox db publication-openreview-profile`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7741,6 +7862,7 @@
       "implicit": false,
       "title": "Db Publication-preflight",
       "description_model": "CLI operation `vox db publication-preflight`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7752,6 +7874,7 @@
       "implicit": false,
       "title": "Db Publication-prepare",
       "description_model": "CLI operation `vox db publication-prepare`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -7763,6 +7886,7 @@
       "implicit": false,
       "title": "Db Publication-prepare-validated",
       "description_model": "CLI operation `vox db publication-prepare-validated`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -7774,6 +7898,7 @@
       "implicit": false,
       "title": "Db Publication-publish",
       "description_model": "CLI operation `vox db publication-publish`",
+      "side_effect_class": "network",
       "curated": true
     },
     {
@@ -7785,6 +7910,7 @@
       "implicit": false,
       "title": "Db Publication-retry-failed",
       "description_model": "CLI operation `vox db publication-retry-failed`",
+      "side_effect_class": "network",
       "curated": true
     },
     {
@@ -7796,6 +7922,7 @@
       "implicit": false,
       "title": "Db Publication-route-simulate",
       "description_model": "CLI operation `vox db publication-route-simulate`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7807,6 +7934,7 @@
       "implicit": false,
       "title": "Db Publication-scholarly-pipeline-run",
       "description_model": "CLI operation `vox db publication-scholarly-pipeline-run`",
+      "side_effect_class": "network",
       "curated": true
     },
     {
@@ -7818,6 +7946,7 @@
       "implicit": false,
       "title": "Db Publication-scholarly-remote-status",
       "description_model": "CLI operation `vox db publication-scholarly-remote-status`",
+      "side_effect_class": "network",
       "curated": true
     },
     {
@@ -7829,6 +7958,7 @@
       "implicit": false,
       "title": "Db Publication-scholarly-remote-status-sync-all",
       "description_model": "CLI operation `vox db publication-scholarly-remote-status-sync-all`",
+      "side_effect_class": "network",
       "curated": true
     },
     {
@@ -7840,6 +7970,7 @@
       "implicit": false,
       "title": "Db Publication-scholarly-remote-status-sync-batch",
       "description_model": "CLI operation `vox db publication-scholarly-remote-status-sync-batch`",
+      "side_effect_class": "network",
       "curated": true
     },
     {
@@ -7851,6 +7982,7 @@
       "implicit": false,
       "title": "Db Publication-scholarly-staging-export",
       "description_model": "CLI operation `vox db publication-scholarly-staging-export`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -7862,6 +7994,7 @@
       "implicit": false,
       "title": "Db Publication-status",
       "description_model": "CLI operation `vox db publication-status`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7873,6 +8006,7 @@
       "implicit": false,
       "title": "Db Publication-submit-local",
       "description_model": "CLI operation `vox db publication-submit-local`",
+      "side_effect_class": "network",
       "curated": true
     },
     {
@@ -7884,6 +8018,7 @@
       "implicit": false,
       "title": "Db Publication-transform-preview",
       "description_model": "CLI operation `vox db publication-transform-preview`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7895,6 +8030,7 @@
       "implicit": false,
       "title": "Db Publication-worthiness-evaluate",
       "description_model": "CLI operation `vox db publication-worthiness-evaluate`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7906,6 +8042,7 @@
       "implicit": false,
       "title": "Db Publication-zenodo-metadata",
       "description_model": "CLI operation `vox db publication-zenodo-metadata`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7917,6 +8054,7 @@
       "implicit": false,
       "title": "Db Reliability-agents",
       "description_model": "CLI operation `vox db reliability-agents`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7928,6 +8066,7 @@
       "implicit": false,
       "title": "Db Reliability-list",
       "description_model": "CLI operation `vox db reliability-list`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7939,6 +8078,7 @@
       "implicit": false,
       "title": "Db Research-ingest-file",
       "description_model": "CLI operation `vox db research-ingest-file`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -7950,6 +8090,7 @@
       "implicit": false,
       "title": "Db Research-ingest-url",
       "description_model": "CLI operation `vox db research-ingest-url`",
+      "side_effect_class": "network",
       "curated": true
     },
     {
@@ -7961,6 +8102,7 @@
       "implicit": false,
       "title": "Db Research-list",
       "description_model": "CLI operation `vox db research-list`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7972,6 +8114,7 @@
       "implicit": false,
       "title": "Db Research-map-add",
       "description_model": "CLI operation `vox db research-map-add`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -7983,6 +8126,7 @@
       "implicit": false,
       "title": "Db Research-map-list",
       "description_model": "CLI operation `vox db research-map-list`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -7994,6 +8138,7 @@
       "implicit": false,
       "title": "Db Research-metrics",
       "description_model": "CLI operation `vox db research-metrics`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -8005,6 +8150,7 @@
       "implicit": false,
       "title": "Db Research-refresh",
       "description_model": "CLI operation `vox db research-refresh`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -8028,6 +8174,7 @@
       "implicit": false,
       "title": "Db Retrieval-status",
       "description_model": "CLI operation `vox db retrieval-status`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -8039,6 +8186,7 @@
       "implicit": false,
       "title": "Db Sample",
       "description_model": "CLI operation `vox db sample`",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -8074,6 +8222,7 @@
       "implicit": false,
       "title": "Db Sync-invocables",
       "description_model": "CLI operation `vox db sync-invocables`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -8085,6 +8234,7 @@
       "implicit": false,
       "title": "Db Vacuum",
       "description_model": "CLI operation `vox db vacuum`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -8325,7 +8475,7 @@
       ],
       "implicit": false,
       "title": "Dispatch",
-      "description_model": "Dispatch-time routing preview — project what the dispatcher would do (P2-T6)",
+      "description_model": "CLI operation `vox dispatch`",
       "curated": true
     },
     {
@@ -8357,7 +8507,7 @@
       ],
       "implicit": false,
       "title": "Drift Check",
-      "description_model": "Workspace drift and pattern-repetition linter",
+      "description_model": "CLI operation `vox drift-check`",
       "curated": true
     },
     {
@@ -8367,7 +8517,7 @@
       ],
       "implicit": false,
       "title": "Emit",
-      "description_model": "Emit focused codegen artifacts (`emit client`, …)",
+      "description_model": "CLI operation `vox emit`",
       "curated": true
     },
     {
@@ -8398,18 +8548,9 @@
         "explain"
       ],
       "implicit": false,
-      "title": "Explain Capability",
-      "description_model": "Explain a Vox capability (what it is, its owning crate and layer, CLI/GUI/MCP equivalents and docs link), answered from contracts/capabilities/capability-index.v1.json.",
-      "intent_tags": [
-        "discovery",
-        "capability"
-      ],
+      "title": "Explain",
+      "description_model": "CLI operation `vox explain`",
       "side_effect_class": "read_only",
-      "scope_kind": "repository",
-      "reversible": true,
-      "requires_repo": false,
-      "preferred_for_models": true,
-      "human_takeover_friendly": true,
       "curated": true
     },
     {
@@ -8419,7 +8560,7 @@
       ],
       "implicit": false,
       "title": "Ext",
-      "description_model": "Extensions lane — unified entry for legacy and ML subcommands (`ext`)",
+      "description_model": "CLI operation `vox ext`",
       "curated": true
     },
     {
@@ -10753,18 +10894,9 @@
         "features"
       ],
       "implicit": false,
-      "title": "List Capabilities by Domain",
-      "description_model": "List Vox capabilities by domain with layer, CLI/GUI/MCP equivalents and docs path, answered from contracts/capabilities/capability-index.v1.json.",
-      "intent_tags": [
-        "discovery",
-        "capability"
-      ],
+      "title": "Features",
+      "description_model": "CLI operation `vox features`",
       "side_effect_class": "read_only",
-      "scope_kind": "repository",
-      "reversible": true,
-      "requires_repo": false,
-      "preferred_for_models": true,
-      "human_takeover_friendly": true,
       "curated": true
     },
     {
@@ -10784,7 +10916,7 @@
       ],
       "implicit": false,
       "title": "Gamify",
-      "description_model": "CLI operation `vox gamify` (alias `ludus`)",
+      "description_model": "CLI operation `vox gamify`",
       "curated": true
     },
     {
@@ -11114,7 +11246,7 @@
       ],
       "implicit": false,
       "title": "Gamify Hud",
-      "description_model": "CLI operation `vox gamify hud` (alias `vox ludus hud`)",
+      "description_model": "CLI operation `vox gamify hud`",
       "curated": true
     },
     {
@@ -11343,7 +11475,7 @@
       ],
       "implicit": false,
       "title": "Grammar",
-      "description_model": "Export the Vox language grammar in various formats for MENS training",
+      "description_model": "CLI operation `vox grammar`",
       "curated": true
     },
     {
@@ -11353,7 +11485,7 @@
       ],
       "implicit": false,
       "title": "Vox Graph",
-      "description_model": "CLI operation `vox graph` (formerly `vox graphify`)",
+      "description_model": "CLI operation `vox graph`",
       "intent_tags": [
         "retrieval",
         "graph"
@@ -11408,7 +11540,7 @@
       ],
       "implicit": false,
       "title": "Vox Graph History",
-      "description_model": "First-parent origin/main history with lineage and mechanical-change flags (log, focus, forgotten, search, timeline, brief); lazily ingests new commits into a store under the git common dir.",
+      "description_model": "CLI operation `vox graph history`",
       "intent_tags": [
         "retrieval",
         "graph"
@@ -11513,7 +11645,7 @@
       ],
       "implicit": false,
       "title": "Vox Graph Ingest",
-      "description_model": "Project graph nodes into Turso knowledge_nodes via VoxDb (CLI only; no MCP surface).",
+      "description_model": "CLI operation `vox graph ingest`",
       "intent_tags": [
         "retrieval",
         "graph"
@@ -11534,7 +11666,7 @@
       ],
       "implicit": false,
       "title": "Vox Search Neighbors",
-      "description_model": "BFS neighbor expansion from seed node IDs (read-only; layered navigation).",
+      "description_model": "CLI operation `vox graph query`",
       "intent_tags": [
         "retrieval",
         "graph"
@@ -11555,7 +11687,7 @@
       ],
       "implicit": false,
       "title": "Vox Search Rebuild",
-      "description_model": "Rebuild a Vox Search structural index (AST extract + cluster), snapshot the prior graph, and refresh freshness manifest (write).",
+      "description_model": "CLI operation `vox graph rebuild`",
       "intent_tags": [
         "retrieval",
         "graph"
@@ -11587,7 +11719,7 @@
       ],
       "implicit": false,
       "title": "Vox Search Status",
-      "description_model": "Report Vox Search structural-index freshness (read-only; `--strict` fails when stale).",
+      "description_model": "CLI operation `vox graph status`",
       "intent_tags": [
         "retrieval",
         "graph"
@@ -11618,7 +11750,7 @@
       ],
       "implicit": false,
       "title": "Gui",
-      "description_model": "CLI operation `vox gui` — launch Axis or drive a dedicated debug Axis",
+      "description_model": "CLI operation `vox gui`",
       "scope_kind": "session",
       "reversible": false,
       "curated": true
@@ -11631,7 +11763,7 @@
       ],
       "implicit": false,
       "title": "Gui Drive",
-      "description_model": "CLI operation `vox gui drive` — Axis Drive control plane",
+      "description_model": "CLI operation `vox gui drive`",
       "scope_kind": "session",
       "reversible": false,
       "curated": true
@@ -11801,7 +11933,7 @@
       ],
       "implicit": false,
       "title": "Harness",
-      "description_model": "Evaluate the harness itself (not a model) against a golden task set with a pass^k multi-sample gate (`vox harness eval`)",
+      "description_model": "CLI operation `vox harness`",
       "curated": true
     },
     {
@@ -11880,7 +12012,7 @@
       ],
       "implicit": false,
       "title": "KB",
-      "description_model": "Knowledge-base commands (`vox kb`); umbrella for the deterministic retrieval eval and its ratchet gate.",
+      "description_model": "CLI operation `vox kb`",
       "side_effect_class": "read_only",
       "curated": true
     },
@@ -11892,7 +12024,7 @@
       ],
       "implicit": false,
       "title": "KB Eval",
-      "description_model": "CLI operation `vox kb eval` — deterministic retrieval eval (Recall/MRR/nDCG on doc and chunk ids, answer-in-budget) and the retrieval ratchet gate",
+      "description_model": "CLI operation `vox kb eval`",
       "side_effect_class": "writes_files",
       "curated": true
     },
@@ -11951,7 +12083,7 @@
       ],
       "implicit": false,
       "title": "Llm",
-      "description_model": "LLM-native context and prompt generation tools (`vox llm prompt`)",
+      "description_model": "CLI operation `vox llm`",
       "curated": true
     },
     {
@@ -12013,7 +12145,7 @@
       ],
       "implicit": false,
       "title": "Mcp",
-      "description_model": "CLI operation `vox mcp` (start the native in-process MCP server)",
+      "description_model": "CLI operation `vox mcp`",
       "curated": true
     },
     {
@@ -12426,7 +12558,7 @@
       ],
       "implicit": false,
       "title": "Model Costs",
-      "description_model": "Show detailed cost reporting.",
+      "description_model": "CLI operation `vox model costs`",
       "curated": true
     },
     {
@@ -12448,7 +12580,7 @@
       ],
       "implicit": false,
       "title": "Model Discover",
-      "description_model": "Refresh the model catalog from all sources (discovery).",
+      "description_model": "CLI operation `vox model discover`",
       "curated": true
     },
     {
@@ -12493,7 +12625,7 @@
       ],
       "implicit": false,
       "title": "Model Explain",
-      "description_model": "Explain model selection for a given task description.",
+      "description_model": "CLI operation `vox model explain`",
       "side_effect_class": "read_only",
       "curated": true
     },
@@ -12505,7 +12637,7 @@
       ],
       "implicit": false,
       "title": "Model List",
-      "description_model": "List model ids from the local catalog cache.",
+      "description_model": "CLI operation `vox model list`",
       "side_effect_class": "read_only",
       "curated": true
     },
@@ -12529,7 +12661,7 @@
       ],
       "implicit": false,
       "title": "Model Preferences Reset",
-      "description_model": "Clear all VOX_CAPABILITY_* vault entries (best-effort).",
+      "description_model": "CLI operation `vox model preferences reset`",
       "side_effect_class": "destructive",
       "curated": true
     },
@@ -12542,7 +12674,7 @@
       ],
       "implicit": false,
       "title": "Model Preferences Set",
-      "description_model": "Set a Clavis capability routing preference or pinned model id in the vault.",
+      "description_model": "CLI operation `vox model preferences set`",
       "curated": true
     },
     {
@@ -12565,7 +12697,7 @@
       ],
       "implicit": false,
       "title": "Model Pricing Check",
-      "description_model": "Check pricing freshness and flag models still on stale bootstrap pricing.",
+      "description_model": "CLI operation `vox model pricing check`",
       "curated": true
     },
     {
@@ -12577,7 +12709,7 @@
       ],
       "implicit": false,
       "title": "Model Pricing Refresh",
-      "description_model": "Fetch live pricing from OpenRouter and LiteLLM and write to the local cache. Safe to run without a daemon.",
+      "description_model": "CLI operation `vox model pricing refresh`",
       "curated": true
     },
     {
@@ -12589,7 +12721,7 @@
       ],
       "implicit": false,
       "title": "Model Pricing Rollup",
-      "description_model": "Batch aggregate telemetry into the pricing catalog.",
+      "description_model": "CLI operation `vox model pricing rollup`",
       "curated": true
     },
     {
@@ -12601,7 +12733,7 @@
       ],
       "implicit": false,
       "title": "Model Pricing Show",
-      "description_model": "Show the model pricing catalog with observed vs catalog costs, cache pricing, and pricing source.",
+      "description_model": "CLI operation `vox model pricing show`",
       "side_effect_class": "read_only",
       "curated": true
     },
@@ -12613,7 +12745,7 @@
       ],
       "implicit": false,
       "title": "Model Rollup",
-      "description_model": "Perform batch aggregation of telemetry into the scoreboard.",
+      "description_model": "CLI operation `vox model rollup`",
       "curated": true
     },
     {
@@ -12624,7 +12756,7 @@
       ],
       "implicit": false,
       "title": "Model Scoreboard",
-      "description_model": "Show the model scoreboard (latency, success rate, cost).",
+      "description_model": "CLI operation `vox model scoreboard`",
       "curated": true
     },
     {
@@ -12646,7 +12778,7 @@
       ],
       "implicit": false,
       "title": "Model Show",
-      "description_model": "Show JSON for one model from the cache.",
+      "description_model": "CLI operation `vox model show`",
       "side_effect_class": "read_only",
       "curated": true
     },
@@ -12657,7 +12789,7 @@
       ],
       "implicit": false,
       "title": "New",
-      "description_model": "Scaffold a new Vox application from opinionated presets (`vox new web`)",
+      "description_model": "CLI operation `vox new`",
       "curated": true
     },
     {
@@ -12961,7 +13093,7 @@
       ],
       "implicit": false,
       "title": "Play",
-      "description_model": "Scaffold and immediately run a temporary Vox project (`vox play`)",
+      "description_model": "CLI operation `vox play`",
       "curated": true
     },
     {
@@ -12971,7 +13103,7 @@
       ],
       "implicit": false,
       "title": "Plugin",
-      "description_model": "Install, remove, list, and inspect Vox plugins",
+      "description_model": "CLI operation `vox plugin`",
       "curated": true
     },
     {
@@ -13194,7 +13326,7 @@
       ],
       "implicit": false,
       "title": "Policy",
-      "description_model": "View the unified policy catalog (CI gates, language rules, audits)",
+      "description_model": "CLI operation `vox policy`",
       "curated": true
     },
     {
@@ -13516,7 +13648,7 @@
       ],
       "implicit": false,
       "title": "Repair",
-      "description_model": "Automatically repair syntax and type errors in a `.vox` file via LLM (`vox repair`)",
+      "description_model": "CLI operation `vox repair`",
       "curated": true
     },
     {
@@ -14026,7 +14158,7 @@
       ],
       "implicit": false,
       "title": "Rollback",
-      "description_model": "Roll back the orchestration stack or task execution state using the vox-bounded-fs ledger",
+      "description_model": "CLI operation `vox rollback`",
       "side_effect_class": "destructive",
       "curated": true
     },
@@ -15128,7 +15260,7 @@
       ],
       "implicit": false,
       "title": "Speech",
-      "description_model": "CLI operation `vox speech` (alias `oratio`)",
+      "description_model": "CLI operation `vox speech`",
       "curated": true
     },
     {
@@ -15138,7 +15270,7 @@
       ],
       "implicit": false,
       "title": "Stop",
-      "description_model": "CLI operation `vox stop` (emergency stop the orchestrator via MCP/daemon local stop request)",
+      "description_model": "CLI operation `vox stop`",
       "side_effect_class": "spawns_process",
       "curated": true
     },
@@ -15284,7 +15416,7 @@
       ],
       "implicit": false,
       "title": "Term",
-      "description_model": "Headless-capable ratatui terminal UI — block-model shell + AI agent strip",
+      "description_model": "CLI operation `vox term`",
       "curated": true
     },
     {

@@ -45,14 +45,33 @@ export interface Session {
   conversation_id: number;
 }
 
+/** Composer interaction mode (plan / act / verify). */
+export type ComposerInteractionMode = 'plan' | 'act' | 'verify';
+
+/** @kb session context injection scope selector in Loquela. */
+export type KbScopeMode = 'auto' | 'verified' | 'off';
+
+/** Unified Oversight 1..5 composer governance posture. */
+export type OversightLevelId = 'relaxed' | 'guided' | 'balanced' | 'cautious' | 'strict';
+
+/** Canonical routing tier identifiers before a specific model card is pinned. */
+export type RoutingTierId = 'auto' | 'local' | 'mesh' | 'cloud';
+
+/** Lightweight agent reference used by Loquela `@` mentions and Resume controls. */
+export interface ComposerAgentRef {
+  id: string;
+  codename?: string;
+  phase?: string;
+}
+
 /** Mirrors `SubmitTaskInput` / Loquela composer dispatch payload. */
 export interface ChatPayload {
   description: string;
   session_id?: string;
   priority?: string | null;
-  mode?: string | null;
+  mode?: ComposerInteractionMode | string | null;
   model_hint?: string | null;
-  tier?: string | null;
+  tier?: RoutingTierId | string | null;
   dry_run?: boolean | null;
   active_skill?: string | null;
   files?: string[];
@@ -60,6 +79,10 @@ export interface ChatPayload {
   clutch?: string | null;
   /** Drive Console risk posture — safety gate level. Track D wires this to the orchestrator. */
   risk?: string | null;
+  /** Unified Oversight 1..5 level from the Loquela composer. */
+  oversight_level?: OversightLevelId | null;
+  /** Session-pinned @kb context scope from the Loquela composer. */
+  kb_scope?: KbScopeMode | null;
   /** Explicit model pick for this submit; maps to the model_override enqueue hint. */
   model_override?: string | null;
   /**
@@ -194,6 +217,8 @@ export interface AttentionBudgetSnapshot {
   interrupt_freq_per_hour: number;
   last_interrupt_ms: number;
   inbox_suppressed_count: number;
+  exhausted?: boolean;
+  alert_level?: string;
 }
 
 

@@ -101,11 +101,13 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
     }
   };
 
+  const needsYouTitle = useLabel('needs-you');
+
   if (condensed) {
     const total = effectiveNeedsYou.length + effectiveWithheld.length + approvals.length;
     return (
       <div className="p-2 text-[11px] text-text-muted">
-        <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-text-primary">{useLabel('needs-you')}</div>
+        <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-text-primary">{needsYouTitle}</div>
         {loading ? <div className="animate-pulse">Loading…</div> : <div>{total} {total === 1 ? 'needs' : 'need'} attention</div>}
       </div>
     );
@@ -130,7 +132,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3">
-        <h2 className="text-sm font-semibold tracking-wider uppercase text-text-primary">{useLabel('needs-you')}</h2>
+        <h2 className="text-sm font-semibold tracking-wider uppercase text-text-primary">{needsYouTitle}</h2>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -194,7 +196,7 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
         </div>
 
         {effectiveWithheld.length > 0 && (
-          <details className="group border border-border-subtle rounded-xl bg-overlay-subtle overflow-hidden">
+          <details open className="group border border-border-subtle rounded-xl bg-overlay-subtle overflow-hidden">
             <summary className="text-[11px] font-semibold text-text-muted hover:text-text-secondary cursor-pointer p-3 select-none tracking-wider uppercase list-none flex items-center justify-between">
               <span>Withheld by policy ({effectiveWithheld.length})</span>
               <span className="transition-transform group-open:rotate-180">▼</span>
@@ -211,6 +213,45 @@ export function NeedsYouSurface({ onOpenContext, pushToast, attention, condensed
             </div>
           </details>
         )}
+
+        <div
+          data-testid="needs-you-attention-deck"
+          className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-3"
+        >
+          <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+            <div className="flex items-center justify-between">
+              <span className="font-display text-[10px] tracking-widest text-brass uppercase">Entropy Gate</span>
+              <span className="rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 font-mono text-[9px] text-brass">
+                Info Gain
+              </span>
+            </div>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+              Questions below the information-gain threshold are withheld and resolved autonomously to preserve operator focus.
+            </p>
+          </div>
+          <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+            <div className="flex items-center justify-between">
+              <span className="font-display text-[10px] tracking-widest text-cyan uppercase">Doubt Escalation</span>
+              <span className="rounded border border-cyan/30 bg-cyan/10 px-1.5 py-0.5 font-mono text-[9px] text-cyan">
+                {effectiveNeedsYou.length} active
+              </span>
+            </div>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+              Agents surface high-impact doubts when verification oracles conflict, allowing one-click <code className="text-brass">Overrule</code> or <code className="text-brass">Let it verify</code>.
+            </p>
+          </div>
+          <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+            <div className="flex items-center justify-between">
+              <span className="font-display text-[10px] tracking-widest text-text-primary uppercase">Shared Inbox</span>
+              <span className="font-mono text-[10px] text-emerald-300">
+                {approvals.length + effectiveNeedsYou.length} open
+              </span>
+            </div>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+              Unifies tool approvals, blocking clarifications, and skill proposals in one synchronized attention stream.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

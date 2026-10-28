@@ -1,0 +1,195 @@
+{
+  "schema_version": 1,
+  "generated_at_ms": 1729380000000,
+  "expires_at_ms": 1760916000000,
+  "season_id": "2026-Q4-Foundations",
+  "window": "season",
+  "chain_tip_blake3_hex": "c94e8b7a6d5f4e3c2b1a0987654321fedcba0987654321fedcba0987654321fe",
+  "signer_public_key_hex": "ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c",
+  "ed25519_signature_hex": "dd1fefe5c88499bd5246bd8e896d2b122802ac0a6f5635a7755ac2ee0c88a5b3224397469f0d99daa655450817a9a9cbfcc23bdce8bae2067d3848a0cb2ee50a",
+  "stewardship_standings": [
+    {
+      "rank": 1,
+      "rank_delta": 1,
+      "handle": "autonomic-core",
+      "tier_title": "Archon of the Compiler",
+      "lumens": 2480,
+      "verified_prs_merged": 18,
+      "verified_reviews": 34,
+      "benchmark_lifts": 6,
+      "sparkline_7d": [
+        28,
+        35,
+        42,
+        38,
+        50,
+        64,
+        72
+      ],
+      "proof": {
+        "upstream_provider": "github_webhook",
+        "upstream_event_id": "pr_merged_2026_0901",
+        "payload_digest_sha3_256": "904f1708403f578f138f2bfb75106264667099e4528efdbb7d8d56d00b14d214",
+        "prev_row_chain_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+        "row_chain_hash_hex": "7d4daab4495ef5ce7b2a24c4df28845a0fefa7d97973b8ff76a84a74e687b043",
+        "checks_passed": [
+          "webhook_hmac_verified",
+          "independent_review_gate",
+          "ast_diff_threshold_ge_10",
+          "diminishing_returns_applied"
+        ]
+      }
+    },
+    {
+      "rank": 2,
+      "rank_delta": 0,
+      "handle": "mens-curator",
+      "tier_title": "Praetor of MENS",
+      "lumens": 1960,
+      "verified_prs_merged": 14,
+      "verified_reviews": 27,
+      "benchmark_lifts": 9,
+      "sparkline_7d": [
+        20,
+        24,
+        30,
+        36,
+        40,
+        48,
+        54
+      ],
+      "proof": {
+        "upstream_provider": "mens_bench_verifier",
+        "upstream_event_id": "eval_5spoke_2026_0902",
+        "payload_digest_sha3_256": "1880ce45b4ea51bfc795f924c6bfbff533bf55dfd057c2567421eec760634eae",
+        "prev_row_chain_hash_hex": "7d4daab4495ef5ce7b2a24c4df28845a0fefa7d97973b8ff76a84a74e687b043",
+        "row_chain_hash_hex": "a11f3d231163b9522d9a298f263d82c828ab71a66c63c9d08b6a50b1c8622efe",
+        "checks_passed": [
+          "webhook_hmac_verified",
+          "independent_review_gate",
+          "ast_diff_threshold_ge_10",
+          "diminishing_returns_applied"
+        ]
+      }
+    },
+    {
+      "rank": 3,
+      "rank_delta": 2,
+      "handle": "clavis-sentinel",
+      "tier_title": "Tribune of Trust",
+      "lumens": 1540,
+      "verified_prs_merged": 11,
+      "verified_reviews": 29,
+      "benchmark_lifts": 3,
+      "sparkline_7d": [
+        15,
+        18,
+        22,
+        25,
+        29,
+        34,
+        41
+      ],
+      "proof": {
+        "upstream_provider": "github_webhook",
+        "upstream_event_id": "pr_merged_2026_0903",
+        "payload_digest_sha3_256": "3b9d7e5a1c4f8e2b6d0a9c8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a",
+        "prev_row_chain_hash_hex": "a11f3d231163b9522d9a298f263d82c828ab71a66c63c9d08b6a50b1c8622efe",
+        "row_chain_hash_hex": "c94e8b7a6d5f4e3c2b1a0987654321fedcba0987654321fedcba0987654321fe",
+        "checks_passed": [
+          "webhook_hmac_verified",
+          "independent_review_gate",
+          "ast_diff_threshold_ge_10",
+          "diminishing_returns_applied"
+        ]
+      }
+    }
+  ],
+  "model_arena_standings": [
+    {
+      "rank": 1,
+      "model_id": "mens/qwen3.5-27b:five-spoke-qlora-r2",
+      "harness_id": "axis-ssi-v1.7",
+      "config_digest": "b3f8c2a1904e7d61",
+      "overall_pass_at_1_pct": 100.0,
+      "pass_at_1_ci95_low_pct": 86.7,
+      "pass_at_1_ci95_high_pct": 100.0,
+      "delta_vs_base_pct": 76.0,
+      "spoke_scores_pct": [
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        100.0
+      ],
+      "held_out_cutoff_clean": true,
+      "edited_tests_or_reference": false,
+      "evaluation_digest_sha3_256": "8f4e2c1a9b0d7e6f5a4c3b2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f",
+      "row_chain_hash_hex": "a11f3d231163b9522d9a298f263d82c828ab71a66c63c9d08b6a50b1c8622efe"
+    },
+    {
+      "rank": 2,
+      "model_id": "mens/qwen3.5-27b:five-spoke-qlora-r1",
+      "harness_id": "axis-ssi-v1.7",
+      "config_digest": "a1c4e9d2738b6f50",
+      "overall_pass_at_1_pct": 76.0,
+      "pass_at_1_ci95_low_pct": 56.6,
+      "pass_at_1_ci95_high_pct": 88.5,
+      "delta_vs_base_pct": 52.0,
+      "spoke_scores_pct": [
+        80.0,
+        80.0,
+        80.0,
+        80.0,
+        60.0
+      ],
+      "held_out_cutoff_clean": true,
+      "edited_tests_or_reference": false,
+      "evaluation_digest_sha3_256": "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b",
+      "row_chain_hash_hex": "7d4daab4495ef5ce7b2a24c4df28845a0fefa7d97973b8ff76a84a74e687b043"
+    },
+    {
+      "rank": 3,
+      "model_id": "qwen/qwen3.5-27b-base",
+      "harness_id": "axis-ssi-v1.7",
+      "config_digest": "0000base27b00000",
+      "overall_pass_at_1_pct": 24.0,
+      "pass_at_1_ci95_low_pct": 11.5,
+      "pass_at_1_ci95_high_pct": 43.4,
+      "delta_vs_base_pct": 0.0,
+      "spoke_scores_pct": [
+        20.0,
+        40.0,
+        20.0,
+        20.0,
+        20.0
+      ],
+      "held_out_cutoff_clean": true,
+      "edited_tests_or_reference": false,
+      "evaluation_digest_sha3_256": "99887766554433221100ffeeddccbbaa99887766554433221100ffeeddccbbaa",
+      "row_chain_hash_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "collegium_standings": [
+    {
+      "rank": 1,
+      "collegium_id": "col-compiler-forgers",
+      "name": "Ordo Compiler Forgers",
+      "pontifex_handle": "autonomic-core",
+      "member_count": 14,
+      "total_lumens": 6840,
+      "verified_contributions_count": 92,
+      "row_chain_hash_hex": "a11f3d231163b9522d9a298f263d82c828ab71a66c63c9d08b6a50b1c8622efe"
+    },
+    {
+      "rank": 2,
+      "collegium_id": "col-mens-architects",
+      "name": "Schola MENS Architects",
+      "pontifex_handle": "mens-curator",
+      "member_count": 11,
+      "total_lumens": 5120,
+      "verified_contributions_count": 74,
+      "row_chain_hash_hex": "a11f3d231163b9522d9a298f263d82c828ab71a66c63c9d08b6a50b1c8622efe"
+    }
+  ]
+}

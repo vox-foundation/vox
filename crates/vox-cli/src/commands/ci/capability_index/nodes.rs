@@ -10,6 +10,7 @@ use vox_capability_registry::{
     implicit_mcp_capability_id,
 };
 
+use super::super::gui_coverage_gate::in_gui_build;
 use super::super::gui_surface_registry::{RepresentationTier, SurfaceEntry, SurfaceRegistry};
 use super::docs_claims::PageMeta;
 use super::inputs::Inputs;
@@ -56,6 +57,7 @@ fn default_doc(path: &str) -> Vec<DocLink> {
 pub(crate) fn apply_surface_join(rows: &mut [IndexRow], surfaces: &SurfaceRegistry) {
     let mut by_group: BTreeMap<&str, &SurfaceEntry> = BTreeMap::new();
     let mut by_view: BTreeMap<&str, &SurfaceEntry> = BTreeMap::new();
+    let mut by_ns: BTreeMap<&str, &SurfaceEntry> = BTreeMap::new();
     for e in &surfaces.surfaces {
         if let Some(g) = e.cli_group.as_deref() {
             let slot = by_group.entry(g).or_insert(e);
@@ -66,6 +68,9 @@ pub(crate) fn apply_surface_join(rows: &mut [IndexRow], surfaces: &SurfaceRegist
         if let Some(v) = e.view_key.as_deref() {
             by_view.entry(v).or_insert(e);
         }
+        if let Some(ns) = e.mcp_namespace.as_deref() {
+            by_ns.entry(ns).or_insert(e);
+        }
     }
     for r in rows.iter_mut() {
         match r.kind {
@@ -75,7 +80,8 @@ pub(crate) fn apply_surface_join(rows: &mut [IndexRow], surfaces: &SurfaceRegist
                     continue;
                 };
                 if let Some(e) = by_group.get(group.as_str()) {
-                    let form = r.status.as_deref() == Some("active") && c.feature_gate.is_none();
+                    let form =
+                        in_gui_build(r.status.as_deref().unwrap_or(""), c.feature_gate.as_deref());
                     r.gui = Some(gui_ref(e, form));
                 }
             }
@@ -83,7 +89,7 @@ pub(crate) fn apply_surface_join(rows: &mut [IndexRow], surfaces: &SurfaceRegist
                 let Some(ns) = r.op_id.as_deref().and_then(|o| o.split('.').next()) else {
                     continue;
                 };
-                if let Some(e) = by_view.get(ns).or_else(|| by_group.get(ns)) {
+                if let Some(e) = by_view.get(ns).or(by_ns.get(ns)).or(by_group.get(ns)) {
                     r.gui = Some(gui_ref(e, false));
                 }
             }
@@ -300,6 +306,7 @@ mod tests {
         SurfaceEntry {
             view_key: view_key.map(str::to_string),
             cli_group: cli_group.map(str::to_string),
+            mcp_namespace: None,
             representation_tier: tier,
             nav_label: label.map(str::to_string),
             nav_icon: None,
@@ -309,57 +316,45 @@ mod tests {
         }
     }
 
-    fn inputs_with(
-        ops: Vec<super::super::inputs::OperationRow>,
-        surfaces: Vec<SurfaceEntry>,
-    ) -> Inputs {
+    fn inputs_with(ops: Vec<super::super::inputs::OperationRow>, s: Vec<SurfaceEntry>) -> Inputs {
+        let surfaces = SurfaceRegistry {
+            surfaces: s,
+            ..Default::default()
+        };
         Inputs {
             ops,
-            surfaces: SurfaceRegistry {
-                x_vox_version: 1,
-                schema_version: 1,
-                surfaces,
-            },
+            surfaces,
             ..Default::default()
         }
     }
 
     fn mesh_index() -> CapabilityIndex {
-        build_index(&inputs_with(
-            vec![
-                test_op(
-                    "mesh.nodes",
-                    Some((&["mesh", "nodes"], "active")),
-                    Some("vox_mesh_nodes"),
-                    "d",
-                ),
-                test_op("zz.x", Some((&["zz", "x"], "active")), None, "d"),
-            ],
-            vec![entry(
-                Some("mesh"),
-                Some("mesh"),
-                RepresentationTier::LiveBackend,
-                Some("Mesh"),
-            )],
-        ))
-        .expect("build")
+        let path = (&["mesh", "nodes"][..], "active");
+        let op1 = test_op("mesh.nodes", Some(path), Some("vox_mesh_nodes"), "d");
+        let op2 = test_cli_op("zz.x", "zz", "x");
+        let e = entry(
+            Some("mesh"),
+            Some("mesh"),
+            RepresentationTier::LiveBackend,
+            Some("Mesh"),
+        );
+        build_index(&inputs_with(vec![op1, op2], vec![e])).expect("build")
+    }
+
+    fn test_cli_op(
+        id: &'static str,
+        g: &'static str,
+        v: &'static str,
+    ) -> super::super::inputs::OperationRow {
+        test_op(id, Some((&[g, v], "active")), None, "d")
     }
 
     #[test]
     fn cli_row_gets_gui_from_cli_group() {
-        let idx = build_index(&inputs_with(
-            vec![
-                test_op(
-                    "secrets.get",
-                    Some((&["secrets", "get"], "active")),
-                    None,
-                    "d",
-                ),
-                test_op("zz.x", Some((&["zz", "x"], "active")), None, "d"),
-            ],
-            vec![entry(None, Some("secrets"), RepresentationTier::None, None)],
-        ))
-        .expect("build");
+        let op1 = test_cli_op("secrets.get", "secrets", "get");
+        let op2 = test_cli_op("zz.x", "zz", "x");
+        let e = entry(None, Some("secrets"), RepresentationTier::None, None);
+        let idx = build_index(&inputs_with(vec![op1, op2], vec![e])).expect("build");
         let gui = idx
             .row("cli.secrets.get")
             .and_then(|r| r.gui.as_ref())
@@ -381,6 +376,31 @@ mod tests {
     }
 
     #[test]
+    fn mcp_rows_join_through_mcp_namespace() {
+        let mut e = entry(
+            Some("gamify"),
+            Some("gamify"),
+            RepresentationTier::CuratedDecorator,
+            None,
+        );
+        e.mcp_namespace = Some("ludus".into());
+        let mut row = bare_row("mcp.vox_ludus_status".into(), RowKind::McpTool, "", "");
+        row.op_id = Some("ludus.status".into());
+        let mut rows = vec![row];
+        apply_surface_join(
+            &mut rows,
+            &SurfaceRegistry {
+                surfaces: vec![e],
+                ..Default::default()
+            },
+        );
+        assert_eq!(
+            rows[0].gui.as_ref().and_then(|g| g.view_key.as_deref()),
+            Some("gamify")
+        );
+    }
+
+    #[test]
     fn surface_row_refs_joined_rows() {
         let idx = mesh_index();
         let s = idx.row("surface.mesh").expect("surface.mesh row");
@@ -392,13 +412,17 @@ mod tests {
 
     #[test]
     fn crate_rows_from_layers() {
-        let mut inp = inputs_with(vec![], vec![]);
-        inp.layers = [("a-crate", 1u8), ("b-crate", 2)]
+        let layers = [("a-crate", 1u8), ("b-crate", 2)]
             .into_iter()
             .map(|(n, l)| (n.to_string(), Some(l)))
             .collect();
-        inp.crate_descriptions = [("a-crate".to_string(), "desc a".to_string())].into();
-        let idx = build_index(&inp).expect("build");
+        let descs = [("a-crate".to_string(), "desc a".to_string())].into();
+        let idx = build_index(&Inputs {
+            layers,
+            crate_descriptions: descs,
+            ..Default::default()
+        })
+        .expect("build");
         let a = idx.row("crate.a-crate").expect("crate.a-crate");
         assert_eq!(a.summary.as_deref(), Some("desc a"));
         let owner = a.owner.as_ref().expect("owner");
@@ -412,14 +436,19 @@ mod tests {
 
     #[test]
     fn skill_rows_link_tools() {
-        let mut inp = inputs_with(vec![test_op("x", None, Some("vox_x"), "d")], vec![]);
-        inp.skills = vec![SkillInput {
+        let op = test_op("x", None, Some("vox_x"), "d");
+        let skills = vec![SkillInput {
             id: "skill-x".into(),
             description: "Does x".into(),
             exposes_tools: vec!["vox_x".into(), "vox_absent".into()],
             source_path: None,
         }];
-        let idx = build_index(&inp).expect("build");
+        let idx = build_index(&Inputs {
+            ops: vec![op],
+            skills,
+            ..Default::default()
+        })
+        .expect("build");
         let s = idx.row("skill.skill-x").expect("skill row");
         assert_eq!(s.refs, vec!["mcp.vox_x"], "absent tools are not linked");
         assert_eq!(
@@ -445,18 +474,11 @@ mod tests {
     }
 
     fn doc_inputs(pages: &[(&str, &[&str])]) -> Inputs {
-        let mut inp = inputs_with(
-            vec![test_op(
-                "secrets",
-                Some((&["secrets"], "active")),
-                None,
-                "d",
-            )],
-            vec![],
-        );
+        let op = test_op("secrets", Some((&["secrets"], "active")), None, "d");
+        let mut inp = inputs_with(vec![op], vec![]);
         inp.doc_pages = pages
             .iter()
-            .map(|(p, caps)| (p.to_string(), page(caps)))
+            .map(|(p, c)| (p.to_string(), page(c)))
             .collect();
         inp
     }
@@ -477,11 +499,9 @@ mod tests {
         let idx = build_index(&doc_inputs(&[("docs/src/p.md", &["cli.secrets"])])).expect("build");
         let docs = &idx.row("cli.secrets").expect("row").docs;
         assert_eq!(docs[0].origin, "default");
-        let last = docs.last().expect("docs");
-        assert_eq!(
-            (last.path.as_str(), last.origin.as_str()),
-            ("docs/src/p.md", "claim")
-        );
+        let l = docs.last().expect("docs");
+        assert_eq!(l.path, "docs/src/p.md");
+        assert_eq!(l.origin, "claim");
         let d = idx.row("doc.docs/src/p.md").expect("doc row");
         assert_eq!(d.refs, vec!["cli.secrets"]);
         assert_eq!(d.title, "Page title");
@@ -495,13 +515,7 @@ mod tests {
     fn pinned_pages_get_doc_rows() {
         let pinned: Vec<(&str, &[&str])> = PINNED_DOCS.iter().map(|p| (*p, &[][..])).collect();
         let idx = build_index(&doc_inputs(&pinned)).expect("build");
-        for p in [
-            "docs/src/reference/cli-command-surface.generated.md",
-            "docs/src/reference/mcp-tool-registry-contract.md",
-            "docs/src/reference/gui-navigation.md",
-            "docs/src/architecture/where-things-live.md",
-            "docs/src/reference/plugin-catalog.generated.md",
-        ] {
+        for p in PINNED_DOCS {
             let d = idx
                 .row(&format!("doc.{p}"))
                 .unwrap_or_else(|| panic!("no doc row for {p}"));

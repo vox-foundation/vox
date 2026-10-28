@@ -1,7 +1,7 @@
 //! T0.3: registry-driven risk classification + `PermissionMode` auto-approve
 //! matrix for the dangerous-tool HITL gate in `dispatch.rs`.
 //!
-//! Mirrors `contracts/orchestration/permission-modes.v1.yaml`. The
+//! Mirrors `contracts/orchestration/permission-modes.v2.yaml`. The
 //! `RISK_CLASSES` table below is a hand-written Rust mirror of that file's
 //! `risk_classes` list; `tests::risk_classes_yaml_matches_rust_table` (in
 //! `tests/pending_approvals_tests.rs`) parses the YAML at test time and
@@ -51,7 +51,7 @@ pub struct RiskClass {
     pub always_requires_approval: bool,
 }
 
-/// Rust mirror of `contracts/orchestration/permission-modes.v1.yaml`'s
+/// Rust mirror of `contracts/orchestration/permission-modes.v2.yaml`'s
 /// `risk_classes` list. Keep in lockstep with the YAML — see module docs.
 pub const RISK_CLASSES: &[RiskClass] = &[
     RiskClass {
@@ -88,7 +88,7 @@ pub const RISK_CLASSES: &[RiskClass] = &[
         tool: "vox_deploy",
         class: SafetyClass::Destructive,
         reversible: false,
-        always_requires_approval: false,
+        always_requires_approval: true,
     },
     RiskClass {
         tool: "vox_add_approval_allowlist_entry",
@@ -124,7 +124,7 @@ pub fn is_gated_tool(tool: &str) -> bool {
 
 /// GUI-selected permission mode, threaded from `DispatchRequest::permission_mode`
 /// (T0.3) through to the dispatch gate. Mirrors
-/// `contracts/orchestration/permission-modes.v1.yaml`'s `modes` map.
+/// `contracts/orchestration/permission-modes.v2.yaml`'s `modes` map.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PermissionMode {
@@ -166,7 +166,7 @@ impl PermissionMode {
     }
 
     /// Whether this mode auto-approves a tool with the given classification,
-    /// per `contracts/orchestration/permission-modes.v1.yaml`'s `modes` map.
+    /// per `contracts/orchestration/permission-modes.v2.yaml`'s `modes` map.
     #[must_use]
     pub fn auto_approves(self, class: SafetyClass, reversible: bool) -> bool {
         match self {

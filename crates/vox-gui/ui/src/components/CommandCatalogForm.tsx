@@ -292,8 +292,41 @@ export function CommandCatalogForm({
                         )}
                     </div>
                 ) : (
-                    <div className="flex items-center justify-center h-full text-steel font-mono text-sm uppercase tracking-widest">
-                        Select a command from the catalog to configure and execute.
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-center rounded-xl border border-dashed border-border-subtle bg-bg-surface/40 p-8 text-steel font-mono text-sm uppercase tracking-widest">
+                            Select a command from the catalog to configure and execute.
+                        </div>
+                        <div
+                            data-testid="catalog-overview-deck"
+                            className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+                        >
+                            <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-4">
+                                <div className="flex items-center justify-between">
+                                    <span className="font-display text-[10px] tracking-widest text-brass uppercase">
+                                        Typed Clap Metadata
+                                    </span>
+                                    <span className="rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 font-mono text-[9px] text-brass">
+                                        {commandList.length} commands
+                                    </span>
+                                </div>
+                                <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+                                    Every CLI subcommand in <code className="text-cyan">vox-cli</code> compiles its flags, positional arguments, and default values directly into typed form controls.
+                                </p>
+                            </div>
+                            <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-4">
+                                <div className="flex items-center justify-between">
+                                    <span className="font-display text-[10px] tracking-widest text-cyan uppercase">
+                                        Destructive Run Gate
+                                    </span>
+                                    <span className="rounded border border-emerald-400/30 bg-emerald-400/10 px-1.5 py-0.5 font-mono text-[9px] text-emerald-300">
+                                        WR-08 Guarded
+                                    </span>
+                                </div>
+                                <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+                                    Mutating or destructive verbs require explicit confirmation in <code className="text-brass">ConfirmRunDialog</code> and drop stale tokens on selection change.
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>

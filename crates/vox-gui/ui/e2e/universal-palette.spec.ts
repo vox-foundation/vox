@@ -33,22 +33,20 @@ test.describe('Universal palette', () => {
     await page.keyboard.press('Control+k');
     const input = page.getByPlaceholder(/search surfaces, commands/i);
     await expect(input).toBeVisible();
-    await input.fill('vox check');
+    await input.fill('vox build');
 
-    // The MCP twin (vox_check) also mentions the verb in its detail now that every kind is
-    // listed, so anchor on the row label.
-    const row = page.getByRole('button', { name: /^vox check\b/ });
+    const row = page.getByRole('button', { name: /^vox build\b/ });
     await expect(row).toBeVisible({ timeout: 10_000 });
     await expect(row).toContainText('CLI');
-    await expect(row).toContainText('MCP');
+    await expect(row).toContainText('↵ opens form');
     await shot(page, 'universal-palette-01-cli-row');
 
     // Activate the row (D-01: opens the Catalog form, never executes). Enter-on-top-row is
     // covered by the Omnibar unit test; Best match (a later plan) will put this row first.
     await row.click();
     await expect.poll(async () => page.evaluate(() => window.location.hash)).toContain('view=catalog');
-    await expect(page.getByRole('heading', { name: 'vox check' })).toBeVisible({ timeout: 10_000 });
-    await expect(page.locator('[data-catalog-path="check"]')).toHaveAttribute('aria-current', 'true');
+    await expect(page.getByRole('heading', { name: 'vox build' })).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('[data-catalog-path="build"]')).toHaveAttribute('aria-current', 'true');
     await shot(page, 'universal-palette-02-prefilled-form');
   });
 

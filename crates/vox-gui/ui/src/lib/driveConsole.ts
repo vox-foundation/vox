@@ -1,5 +1,6 @@
 // Mirror of contracts/gui/drive-console.v1.yaml (kept in sync by the BE parity gate).
 import { modeLabel } from './turnEvents';
+import { SHELL_PREFERENCE_KEYS } from './shellPersistence';
 export type ClutchId = 'free' | 'efficiency' | 'balanced' | 'genius';
 export type RiskId = 'high' | 'moderate' | 'low';
 
@@ -28,3 +29,58 @@ export interface ControlState {
 export function defaultControl(): ControlState {
   return { clutch: 'efficiency', risk: 'moderate' };
 }
+
+let latestControlState: ControlState = defaultControl();
+const controlListeners = new Set<(state: ControlState) => void>();
+
+export function getLatestControlState(): ControlState {
+  return latestControlState;
+}
+
+export function publishControlState(next: ControlState): void {
+  latestControlState = next;
+  for (const listener of controlListeners) {
+    listener(latestControlState);
+  }
+}
+
+export function subscribeControlState(listener: (state: ControlState) => void): () => void {
+  controlListeners.add(listener);
+  return () => {
+    controlListeners.delete(listener);
+  };
+}
+
+function readInitialModelOverride(): string | null {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return null;
+    const raw = window.localStorage.getItem(SHELL_PREFERENCE_KEYS.chatModelOverride);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return typeof parsed === 'string' && parsed.trim() ? parsed.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+let latestModelOverride: string | null = readInitialModelOverride();
+const modelOverrideListeners = new Set<(modelId: string | null) => void>();
+
+export function getLatestModelOverride(): string | null {
+  return latestModelOverride;
+}
+
+export function publishModelOverride(next: string | null): void {
+  latestModelOverride = next;
+  for (const listener of modelOverrideListeners) {
+    listener(latestModelOverride);
+  }
+}
+
+export function subscribeModelOverride(listener: (modelId: string | null) => void): () => void {
+  modelOverrideListeners.add(listener);
+  return () => {
+    modelOverrideListeners.delete(listener);
+  };
+}
+

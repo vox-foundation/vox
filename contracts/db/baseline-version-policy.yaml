@@ -4,7 +4,7 @@ schema_version: 1
 
 policy:
   # Integer stored in DB `schema_version` table after baseline migration succeeds.
-  repository_baseline_integer: 96
+  repository_baseline_integer: 97
   # Keccak-256 of baseline_sql() — updated for 83: skill_candidates.lifecycle_state + source_hash (Task 3.3, harness parity plan);
   # re-updated for a comment fix (source_hash is blake3-only, not Keccak/blake3 — code-review finding on cd3f7e8736);
   # re-updated for skill_identities table (Task 3.4, harness parity plan — skill namespace/identity FCFS uniqueness);
@@ -39,7 +39,8 @@ policy:
   # (knowledge_bases, kb_entries, kb_routing_rules) moved into domains::quarantine behind the `quarantine`
   # feature (KB Phase 3, 03-12). Existing databases keep the tables and rows; only fresh databases stop creating them.
   # Also includes workflow durability schema additions (workflow_run_log.args_json, wake_at_ms, parked_reason, workflow_patch_log) and model_benchmark_results.
-  repository_baseline_digest_hex: "0x8e3a9f5c411b63aa622352ca005ae9ea27c18a4815d7557dc3dd9d6e81adef28"
+  # re-updated for 97: Research Trial Tier-A tables (trial_campaigns, trial_campaigns_log, trial_runs, trial_samples) + llm_interactions.trial_run_label.
+  repository_baseline_digest_hex: "0x538a3cfd1faf6bde088bc55401bbda62836a15eedc79417f60a88a3ebd2624fa"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.

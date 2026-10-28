@@ -43,6 +43,7 @@ Functions are deterministic heuristics—not a replacement for human eval or ful
 | `mens` | — |
 | `provenance` | — |
 | `report` | — |
+| `trial_flywheel` | — |
 
 ### Structs
 

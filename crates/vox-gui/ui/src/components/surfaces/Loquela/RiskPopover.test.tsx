@@ -26,11 +26,11 @@ describe('RiskPopover', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('anchors upward from its trigger (bottom-full inset, not static flow)', () => {
+  it('anchors upward and right-aligned from its trigger so split dock panels do not clip it', () => {
     render(<RiskPopover risk="moderate" onChange={() => {}} open onClose={() => {}} />);
     const cls = screen.getByRole('dialog').className;
     expect(cls).toContain('bottom-full');
-    expect(cls).toContain('left-0');
+    expect(cls).toContain('right-0');
     expect(cls).toContain('z-[99999]');
   });
 

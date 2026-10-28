@@ -10,7 +10,7 @@ pub struct RegistryNode {
 }
 
 impl RegistryNode {
-    fn new(prefix: &str, name: &str, kind: &str) -> Self {
+    pub fn new(prefix: &str, name: &str, kind: &str) -> Self {
         RegistryNode {
             id: format!("{prefix}:{name}"),
             label: name.to_string(),
@@ -45,6 +45,7 @@ pub fn tauri_command_nodes(src: &str, registered: &[&str]) -> Vec<RegistryNode> 
 
 /// Parse an MCP dispatch table: for each line, take the quoted literal left of
 /// `=>`; if it starts with `vox_`, emit a `tool:` node.
+/// Note: gui-wiring no longer uses this because GUI Rust match arms are not tool dispatch.
 pub fn mcp_tool_nodes(src: &str) -> Vec<RegistryNode> {
     let mut out = Vec::new();
     let mut seen = std::collections::HashSet::new();
@@ -276,4 +277,68 @@ pub fn surface_nodes(src: &str) -> Vec<RegistryNode> {
         }
     }
     out
+}
+
+/// Given the set of edges extracted so far and the known canonical MCP tool names,
+/// emits a `tool:` [`RegistryNode`] for each distinct edge target `tool:<name>`
+/// whose `<name>` is present in `tool_names`.
+pub fn referenced_tool_nodes(
+    edges: &[crate::ast::ExtractedEdge],
+    tool_names: &[String],
+) -> Vec<RegistryNode> {
+    let name_set: std::collections::HashSet<&str> = tool_names.iter().map(String::as_str).collect();
+    let mut seen = std::collections::HashSet::new();
+    let mut out = Vec::new();
+    for edge in edges {
+        if let Some(name) = edge.target.strip_prefix("tool:") {
+            if name_set.contains(name) && seen.insert(name.to_string()) {
+                out.push(RegistryNode::new("tool", name, "tool"));
+            }
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_referenced_tool_nodes() {
+        let edges = vec![
+            crate::ast::ExtractedEdge {
+                source: "surface:settings".to_string(),
+                target: "tool:vox_mesh_nodes".to_string(),
+                confidence: "proven".to_string(),
+                kind: "calls".to_string(),
+            },
+            crate::ast::ExtractedEdge {
+                source: "surface:compiler".to_string(),
+                target: "tool:vox_compiler::ast_inspect".to_string(),
+                confidence: "proven".to_string(),
+                kind: "calls".to_string(),
+            },
+            crate::ast::ExtractedEdge {
+                source: "surface:other".to_string(),
+                target: "tool:vox_not_in_registry".to_string(),
+                confidence: "proven".to_string(),
+                kind: "calls".to_string(),
+            },
+            crate::ast::ExtractedEdge {
+                source: "surface:settings".to_string(),
+                target: "cmd:do_something".to_string(),
+                confidence: "proven".to_string(),
+                kind: "calls".to_string(),
+            },
+        ];
+        let tool_names = vec![
+            "vox_mesh_nodes".to_string(),
+            "vox_compiler::ast_inspect".to_string(),
+            "vox_unreferenced".to_string(),
+        ];
+        let nodes = referenced_tool_nodes(&edges, &tool_names);
+        assert_eq!(nodes.len(), 2);
+        assert_eq!(nodes[0].id, "tool:vox_mesh_nodes");
+        assert_eq!(nodes[1].id, "tool:vox_compiler::ast_inspect");
+    }
 }

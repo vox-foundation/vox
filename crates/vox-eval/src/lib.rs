@@ -13,6 +13,7 @@ pub mod mens;
 pub mod paired_ni;
 pub mod provenance;
 pub mod report;
+pub mod trial_flywheel;
 
 /// Aggregated scores from a single eval run (format, safety, quality proxy, parse validity, coverage).
 pub struct EvalMetrics {

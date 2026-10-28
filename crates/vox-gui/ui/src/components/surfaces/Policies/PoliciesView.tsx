@@ -298,6 +298,32 @@ export function PoliciesView({
                   })}
                 </div>
               </section>
+
+              <section
+                data-testid="policy-enforcement-deck"
+                className="mt-auto grid grid-cols-1 gap-3 border-t border-border-subtle pt-4 sm:grid-cols-2"
+              >
+                <div className="rounded-lg border border-border-subtle bg-bg-base/70 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-display text-[10px] tracking-widest text-brass uppercase">Enforcement Gate</span>
+                    <span className="rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 font-mono text-[9px] text-brass">
+                      {detail.blocking ? 'Blocking' : 'Advisory'}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+                    Evaluated by <code className="text-cyan">vox audit code</code> and <code className="text-cyan">vox ci pre-push</code> across selected worktree branches.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border-subtle bg-bg-base/70 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-display text-[10px] tracking-widest text-cyan uppercase">Rule Provenance</span>
+                    <span className="font-mono text-[9px] text-emerald-300">{detail.origin}</span>
+                  </div>
+                  <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+                     emits structured JSONL findings with <code className="text-brass">schema_version</code> and rule discriminators for effort routing.
+                  </p>
+                </div>
+              </section>
             </>
           )}
         </Glass>

@@ -16,7 +16,8 @@ use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use serde_json::{Value, json};
 use vox_foundation::protocol::{DispatchPayload, DispatchRequest, DispatchResponse, term_method};
 use vox_orchestrator::orch_daemon::{ExtraDispatch, FrameSink, response_err, response_result};
-use vox_terminal_core::block::BlockId;
+use vox_orchestrator::oversight::floor::{FloorInput, classify_floor};
+use vox_terminal_core::block::{BlockId, BlockOrigin};
 use vox_terminal_core::{LocalHost, OpenSpec, SessionEvent};
 
 pub struct TermDispatch {
@@ -26,6 +27,46 @@ pub struct TermDispatch {
 impl TermDispatch {
     pub fn new(host: Arc<LocalHost>) -> Self {
         Self { host }
+    }
+
+    /// Execute an agent-initiated terminal line in `session_id` gated by the Phase 12
+    /// safety floor (`classify_floor`). Refuses unapproved executions before opening
+    /// any block; when approved, tags the resulting block with [`BlockOrigin::Agent`].
+    pub async fn run_agent_command(
+        &self,
+        session_id: &str,
+        line: &str,
+        agent_id: &str,
+        approved: bool,
+    ) -> anyhow::Result<BlockId> {
+        let trimmed = line.trim();
+        let shell_cmd = trimmed
+            .strip_prefix('!')
+            .or_else(|| trimmed.strip_prefix("/sh "))
+            .unwrap_or(trimmed)
+            .trim();
+        let args = json!({ "command": shell_cmd });
+        let floor = classify_floor(&FloorInput::tool(
+            "vox_run_shell",
+            &args,
+            std::path::Path::new("."),
+        ));
+        if !approved {
+            if let Some(cat) = floor {
+                anyhow::bail!(
+                    "safety floor ({}) requires human approval before term_run",
+                    cat.id()
+                );
+            }
+            anyhow::bail!("term_run requires approval before opening a terminal block");
+        }
+        let host = Arc::clone(&self.host);
+        let sid = session_id.to_string();
+        let l = line.to_string();
+        let origin = BlockOrigin::Agent {
+            agent_id: agent_id.to_string(),
+        };
+        tokio::task::spawn_blocking(move || host.submit_with_origin(&sid, &l, origin)).await?
     }
 }
 
@@ -93,6 +134,7 @@ impl ExtraDispatch for TermDispatch {
                     let spec = OpenSpec {
                         cols: dim(p, "cols", 80),
                         rows: dim(p, "rows", 24),
+                        shell: p.get("shell").and_then(Value::as_str).map(String::from),
                     };
                     Ok(json!({"session_id": self.host.open(spec).await?}))
                 }
@@ -100,7 +142,14 @@ impl ExtraDispatch for TermDispatch {
                     self.host
                         .list()
                         .into_iter()
-                        .map(|s| json!({"session_id": s.id, "blocks": s.blocks}))
+                        .map(|s| {
+                            json!({
+                                "session_id": s.id,
+                                "blocks": s.blocks,
+                                "security_level": s.security_level,
+                                "control_mode": s.control_mode,
+                            })
+                        })
                         .collect(),
                 )),
                 term_method::INPUT => {
@@ -133,6 +182,31 @@ impl ExtraDispatch for TermDispatch {
                 term_method::CLOSE => {
                     self.host.close(str_param(p, "session_id")?)?;
                     Ok(json!({}))
+                }
+                "term.context" => {
+                    let sid = str_param(p, "session_id")?;
+                    let max_blocks =
+                        p.get("max_blocks").and_then(Value::as_u64).unwrap_or(10) as usize;
+                    let blocks = self.host.redacted_context_bundle(sid, max_blocks)?;
+                    Ok(json!({ "blocks": blocks }))
+                }
+                "term.security" => {
+                    let sid = str_param(p, "session_id")?;
+                    if let Some(level_val) = p.get("security_level") {
+                        let level: vox_terminal_core::TermSecurityLevel =
+                            serde_json::from_value(level_val.clone())?;
+                        self.host.set_security_level(sid, level)?;
+                    }
+                    Ok(json!({ "security_level": self.host.security_level(sid)? }))
+                }
+                "term.control" => {
+                    let sid = str_param(p, "session_id")?;
+                    if let Some(mode_val) = p.get("control_mode") {
+                        let mode: vox_terminal_core::TermControlMode =
+                            serde_json::from_value(mode_val.clone())?;
+                        self.host.set_control_mode(sid, mode)?;
+                    }
+                    Ok(json!({ "control_mode": self.host.control_mode(sid)? }))
                 }
                 other => anyhow::bail!("unknown terminal method `{other}`"),
             }
@@ -248,6 +322,7 @@ mod tests {
 
     async fn next(rd: &mut BufReader<tokio::net::tcp::OwnedReadHalf>) -> Option<DispatchPayload> {
         let mut buf = String::new();
+        // drift-allow(timeout-literal,duplicate-numeric-literal): local test frame read bound
         match tokio::time::timeout(Duration::from_secs(5), rd.read_line(&mut buf)).await {
             Ok(Ok(n)) if n > 0 => Some(
                 serde_json::from_str::<DispatchResponse>(buf.trim())
@@ -338,6 +413,7 @@ mod tests {
         assert!(a.blocks[0].plain_output().contains("hi"));
 
         host.submit(&id, "!echo two").await.unwrap();
+        // drift-allow(timeout-literal,duplicate-numeric-literal): local test event wait bound
         tokio::time::timeout(Duration::from_secs(5), async {
             loop {
                 if matches!(
@@ -465,6 +541,79 @@ mod tests {
         assert!(
             host.attach(&sid).unwrap().blocks.is_empty(),
             "refused submit must not run"
+        );
+        host.close(&sid).unwrap();
+    }
+
+    #[tokio::test]
+    async fn agent_command_opens_block_with_agent_origin_and_enforces_floor() {
+        let host = Arc::new(LocalHost::default());
+        let dispatch = TermDispatch::new(host.clone());
+        let sid = host.open(OpenSpec::default()).await.unwrap();
+
+        // Unapproved call must fail and open 0 blocks.
+        let err = dispatch
+            .run_agent_command(&sid, "!git push --force origin main", "agent-alpha", false)
+            .await
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("history_rewrite"),
+            "expected history_rewrite floor error, got: {err}"
+        );
+        assert!(host.attach(&sid).unwrap().blocks.is_empty());
+
+        // Approved call executes and tags BlockOrigin::Agent.
+        let bid = dispatch
+            .run_agent_command(&sid, "!echo from-agent", "agent-alpha", true)
+            .await
+            .unwrap();
+        let block = host.block(&sid, bid).expect("agent block exists");
+        assert_eq!(
+            block.origin,
+            vox_terminal_core::BlockOrigin::Agent {
+                agent_id: "agent-alpha".to_string()
+            }
+        );
+        assert!(block.plain_output().contains("from-agent"));
+        host.close(&sid).unwrap();
+    }
+
+    #[tokio::test]
+    async fn term_context_rpc_returns_redacted_blocks() {
+        let (addr, host) = start(None).await;
+        let sid = result(call(addr, term_method::OPEN, json!({}), None).await)["session_id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        call(
+            addr,
+            term_method::SUBMIT,
+            json!({"session_id": sid, "line": "!echo contact alice@example.com"}),
+            None,
+        )
+        .await;
+        let ctx = result(
+            call(
+                addr,
+                "term.context",
+                json!({"session_id": sid, "max_blocks": 5}),
+                None,
+            )
+            .await,
+        );
+        let blocks = ctx["blocks"].as_array().expect("blocks array");
+        assert_eq!(blocks.len(), 1);
+        assert!(
+            !blocks[0]["output"]
+                .as_str()
+                .unwrap()
+                .contains("alice@example.com")
+        );
+        assert!(
+            blocks[0]["output"]
+                .as_str()
+                .unwrap()
+                .contains("[REDACTED_EMAIL]")
         );
         host.close(&sid).unwrap();
     }

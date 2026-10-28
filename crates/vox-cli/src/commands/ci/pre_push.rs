@@ -1057,6 +1057,7 @@ pub(crate) fn check_fmt(root: &Path) -> Result<()> {
     // that is ~6 KB, far under the ~32 KB limit. rustfmt expands each root's module
     // tree itself, so chunk size is independent of any single crate's file count.
     const CHUNK: usize = 50;
+    let auto_heal = std::env::var_os("CI").is_none() || std::env::var_os("VOX_AUTO_HEAL").is_some();
     let mut unformatted = false;
     for chunk in roots.chunks(CHUNK) {
         let status = std::process::Command::new("rustfmt")
@@ -1068,6 +1069,32 @@ pub(crate) fn check_fmt(root: &Path) -> Result<()> {
             .status()
             .context("spawn rustfmt --check")?;
         if !status.success() {
+            if auto_heal {
+                eprintln!(
+                    "    [auto-heal] rustfmt --check detected unformatted files in chunk; running rustfmt in-place..."
+                );
+                let fix_status = std::process::Command::new("rustfmt")
+                    .arg("--config-path")
+                    .arg(root)
+                    .args(chunk)
+                    .current_dir(root)
+                    .status()
+                    .context("spawn rustfmt auto-heal")?;
+                if fix_status.success() {
+                    let recheck = std::process::Command::new("rustfmt")
+                        .arg("--check")
+                        .arg("--config-path")
+                        .arg(root)
+                        .args(chunk)
+                        .current_dir(root)
+                        .status()
+                        .context("spawn rustfmt --check after auto-heal")?;
+                    if recheck.success() {
+                        eprintln!("    [auto-heal] chunk formatted and verified OK.");
+                        continue;
+                    }
+                }
+            }
             unformatted = true;
         }
     }
@@ -1083,7 +1110,16 @@ pub(crate) fn check_fmt(root: &Path) -> Result<()> {
 }
 
 fn step_line_endings(root: &Path) -> Result<()> {
-    vox_cli_ci::line_endings::run(root, false, None, false)
+    let auto_heal = std::env::var_os("CI").is_none() || std::env::var_os("VOX_AUTO_HEAL").is_some();
+    match vox_cli_ci::line_endings::run(root, false, None, false) {
+        Ok(()) => Ok(()),
+        Err(e) if auto_heal => {
+            eprintln!("    [auto-heal] line-endings check failed ({e}); running --autofix...");
+            vox_cli_ci::line_endings::run(root, true, None, false)?;
+            vox_cli_ci::line_endings::run(root, false, None, false)
+        }
+        Err(e) => Err(e),
+    }
 }
 
 fn step_ssot_drift(root: &Path) -> Result<()> {

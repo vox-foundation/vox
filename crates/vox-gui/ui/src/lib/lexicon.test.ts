@@ -30,8 +30,8 @@ describe('lexicon', () => {
     expect(pick(LEXICON.knowledge, 'la')).toBe('Scientia');
     expect(pick(LEXICON.scientia, 'en')).toBe('Findings');
   });
-  it('covers all 41 navigable viewKeys', () => {
-    const viewKeys = ['activity','agents','approvals','archive-panel','browser','catalog','chat','claims','commands','compute','console','coverage','dashboard','discovery-inbox','discovery-review','flow','gamify','harness','knowledge','matrix','memory','mens','mercatus','mesh','models','needs-you','oratio','policies','populi','publications','repository','research','review','runs','scientia','search','settings','skills','sub-agents','vox-search','workspace'];
+  it('covers all 42 navigable viewKeys', () => {
+    const viewKeys = ['activity','agents','approvals','archive-panel','browser','catalog','chat','claims','commands','compute','console','coverage','dashboard','discovery-inbox','discovery-review','explorer','flow','gamify','harness','knowledge','matrix','memory','mens','mercatus','mesh','models','needs-you','oratio','policies','populi','publications','repository','research','review','runs','scientia','search','settings','skills','sub-agents','vox-search','workspace'];
     for (const k of viewKeys) expect(LEXICON[k], `missing lexicon entry: ${k}`).toBeTruthy();
   });
   it('every registry surface has a lexicon entry', () => {

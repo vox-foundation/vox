@@ -26,10 +26,35 @@ pub struct InferenceEngine {
     pub model: InferenceModel,
     pub tokenizer: Tokenizer,
     pub device: Device,
+    /// Stop tokens read from the model's own `config.json` at load. Empty when
+    /// the config carries none — generation then runs to `max_tokens`.
+    pub eos_token_ids: Vec<u32>,
 }
 
 pub enum InferenceModel {
     Qwen35(Qwen35Model),
+}
+
+fn eos_token_ids(config_json: &str) -> Vec<u32> {
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(config_json) else {
+        return Vec::new();
+    };
+    let field = v
+        .get("text_config")
+        .and_then(|t| t.get("eos_token_id"))
+        .or_else(|| v.get("eos_token_id"));
+    match field {
+        Some(serde_json::Value::Array(items)) => items
+            .iter()
+            .filter_map(|x| x.as_u64().and_then(|n| u32::try_from(n).ok()))
+            .collect(),
+        Some(other) => other
+            .as_u64()
+            .and_then(|n| u32::try_from(n).ok())
+            .into_iter()
+            .collect(),
+        None => Vec::new(),
+    }
 }
 
 // `compute_dtype_for_device` and `resolve_inference_device` moved to
@@ -168,10 +193,13 @@ impl InferenceEngine {
         };
 
         let config_path = model_dir.join("config.json");
-        let mut layout = if config_path.is_file() {
+        let (mut layout, eos_token_ids) = if config_path.is_file() {
             let s = std::fs::read_to_string(&config_path)
                 .map_err(|e| anyhow::anyhow!("read config.json: {e}"))?;
-            crate::hf_layout::HfTransformerLayout::from_config_json_str(&s)?
+            (
+                crate::hf_layout::HfTransformerLayout::from_config_json_str(&s)?,
+                eos_token_ids(&s),
+            )
         } else {
             anyhow::bail!("config.json missing in {}", model_dir.display());
         };
@@ -409,6 +437,7 @@ impl InferenceEngine {
             model,
             tokenizer: _tokenizer,
             device: _device,
+            eos_token_ids,
         })
     }
 
@@ -487,25 +516,46 @@ impl InferenceEngine {
         top_p: Option<f64>,
         seed: Option<u64>,
     ) -> Result<String> {
-        let mut tokens = self
+        let prompt_tokens = self
             .tokenizer
             .encode(prompt, true)
             .map_err(|e| anyhow::anyhow!("tokenizer error: {e}"))?
             .get_ids()
             .to_vec();
 
+        if prompt_tokens.is_empty() {
+            return Ok(String::new());
+        }
+
         let mut generated = String::new();
         let mut rng = generation_rng(seed);
 
-        // Decoding without KV cache — re-runs the full context each step.
-        // KV-cache autoregressive generation requires forward_with_cache which is
-        // available in vox-populi's candle_model_qwen but not yet in the plugin's
-        // model.rs (SP3 stub). Use full-context forward for correctness.
-        for _ in 0..max_tokens {
-            let input = Tensor::new(tokens.as_slice(), &self.device)?.unsqueeze(0)?;
+        let uses_linear_attention = match &self.model {
+            InferenceModel::Qwen35(model) => model.uses_linear_attention(),
+        };
+        let mut cache = match &self.model {
+            InferenceModel::Qwen35(model) => model.empty_cache(),
+        };
+        let mut pos = 0usize;
+        let mut context = prompt_tokens.clone();
+        let mut step_input = prompt_tokens;
 
-            let logits = match &self.model {
-                InferenceModel::Qwen35(model) => model.forward(&input)?,
+        for _ in 0..max_tokens {
+            let logits = if uses_linear_attention {
+                let input = Tensor::new(context.as_slice(), &self.device)?.unsqueeze(0)?;
+                match &self.model {
+                    InferenceModel::Qwen35(model) => model.forward(&input)?,
+                }
+            } else {
+                let submitted = step_input.len();
+                let input = Tensor::new(step_input.as_slice(), &self.device)?.unsqueeze(0)?;
+                let logits = match &self.model {
+                    InferenceModel::Qwen35(model) => {
+                        model.forward_cached(&input, pos, &mut cache)?
+                    }
+                };
+                pos += submitted;
+                logits
             };
             let logits = logits.squeeze(0)?;
             let seq = logits.dim(0)?;
@@ -515,15 +565,18 @@ impl InferenceEngine {
             let next_token =
                 sample_next_token(&slice, temperature, top_k, top_p.unwrap_or(1.0), &mut rng);
 
-            // EOS tokens for Qwen family: 151645 (<|im_end|>), 151643 (<|endoftext|>)
-            if next_token == 151645 || next_token == 151643 {
+            if self.eos_token_ids.contains(&next_token) {
                 break;
             }
 
             if let Ok(char_str) = self.tokenizer.decode(&[next_token], false) {
                 generated.push_str(&char_str);
             }
-            tokens.push(next_token);
+            if uses_linear_attention {
+                context.push(next_token);
+            } else {
+                step_input = vec![next_token];
+            }
         }
 
         Ok(generated)

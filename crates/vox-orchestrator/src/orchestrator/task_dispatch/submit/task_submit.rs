@@ -277,7 +277,7 @@ impl Orchestrator {
             let db_opt = crate::sync_lock::rw_read(&*self.db).clone();
             if let Some(db) = db_opt {
                 let monthly_usage: i64 =
-                    vox_gamify::db::get_tenant_monthly_token_usage(&db, tenant_id)
+                    vox_db::ops_agent_telemetry::get_tenant_monthly_token_usage(&db, tenant_id)
                         .await
                         .unwrap_or(0);
                 let estimated_tokens = task.estimated_token_count();

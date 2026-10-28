@@ -1,36 +1,18 @@
 import React, { useEffect } from 'react';
-import { EmptyState } from '../../ui/EmptyState';
-import { Icon } from '../../ui/Icons';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
+import { HarnessRiverPanel, type HarnessRiverPanelProps } from './HarnessRiverPanel';
 
-interface HarnessRedirectProps {
-  onFocusComposer?: () => void;
-  gamifyEnabled?: boolean;
-}
+export type HarnessRedirectProps = HarnessRiverPanelProps;
 
 /**
- * Legacy Quick Harness tab — composer parity (slash, model tier, diff) lives in Loquela.
+ * Axis Harness River surface — serves both the dockable 'harness' panel in ChatSurface
+ * and the full Workspace -> Harness view while preserving composer focus actions.
  */
-export function HarnessRedirect({ onFocusComposer, gamifyEnabled }: HarnessRedirectProps) {
+export function HarnessRedirect(props: HarnessRedirectProps) {
+  const { gamifyEnabled } = props;
   useEffect(() => {
     void recordGamifyGuiEvent('harness_redirect_viewed', undefined, { enabled: gamifyEnabled });
   }, [gamifyEnabled]);
-  return (
-    <section className="space-y-4" aria-labelledby="harness-redirect-title">
-      <EmptyState
-        icon={<Icon.bolt className="size-8" />}
-        title="Quick Harness lives in the composer"
-        headingLevel={2}
-        description="Submit tasks, pick models, run /plan · /verify · /diff, and review worktree diffs from the Loquela bar at the bottom of the console."
-        action={
-          onFocusComposer
-            ? { label: 'Focus composer', onClick: onFocusComposer }
-            : undefined
-        }
-      />
-      <p id="harness-redirect-title" className="text-center text-[10px] text-text-muted">
-        Workspace → Quick Harness retained for deep links; execution surface is Loquela.
-      </p>
-    </section>
-  );
+
+  return <HarnessRiverPanel {...props} />;
 }

@@ -213,6 +213,7 @@ async fn run_on_peer_with_timeout(
         Ok(result) => result,
         Err(_) => {
             let _ = tokio::time::timeout(
+                // drift-allow(timeout-literal,duplicate-numeric-literal): best-effort peer cancel grace bound
                 std::time::Duration::from_secs(2),
                 cancel_on_peer(ep, peer, job_id),
             )

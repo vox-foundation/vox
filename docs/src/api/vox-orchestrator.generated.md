@@ -196,6 +196,7 @@ Mens live in mdBook [`mens-training-ssot.md`](../../../docs/src/architecture/men
 | `orch_daemon` | TCP JSON-line orchestrator daemon (`vox-orchestrator-d`) and client helpers. |
 | `orchestration_feature_flags` | — |
 | `orchestrator` | Core multi-agent orchestrator implementation. |
+| `oversight` | Oversight composition: safety floor, policy enforcement, and approval tiers. |
 | `pii_filter` | PII-aware redacting filter for sensitive data. |
 | `planning` | Dynamic planning domain (router, synthesis, policies, replanning). |
 | `populi_federation` | Read-only mens HTTP federation snapshot types (filled by MCP / embedders). |

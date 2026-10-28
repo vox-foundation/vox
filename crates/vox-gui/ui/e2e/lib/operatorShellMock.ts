@@ -197,7 +197,149 @@ export function installOperatorShellMock(opts: OperatorShellMockOptions = {}): v
         case 'pty_spawn':
         case 'pty_write':
         case 'pty_close':
+        case 'term_session_input':
+        case 'term_session_resize':
+        case 'term_session_close':
           return null;
+        case 'term_session_open': {
+          const store = ((window as any).__MOCK_TERM_SESSIONS__ ??= {
+            's-1': {
+              id: 's-1',
+              blocks: [
+                {
+                  id: 1,
+                  kind: 'Shell',
+                  status: 'Ok',
+                  origin: { kind: 'user' },
+                  input: 'vox run',
+                  output: [{ stream: 'Stdout', text: 'Ready.\n', ts_ms: 1 }],
+                  exit_code: 0,
+                  started_ms: 1,
+                  ended_ms: 5,
+                },
+              ],
+              replay_utf8: 'C:\\workspace\\vox> vox run\r\nReady.\r\n',
+              seq: 1,
+            },
+          });
+          const nextIdx = (((window as any).__MOCK_TERM_NEXT_SESSION__ ??= 1) as number) + 1;
+          (window as any).__MOCK_TERM_NEXT_SESSION__ = nextIdx;
+          const sid = `s-${nextIdx}`;
+          store[sid] = {
+            id: sid,
+            blocks: [],
+            replay_utf8: `C:\\workspace\\vox (${sid})> \r\n`,
+            seq: 1,
+          };
+          return sid;
+        }
+        case 'term_session_list': {
+          const store = ((window as any).__MOCK_TERM_SESSIONS__ ??= {
+            's-1': {
+              id: 's-1',
+              blocks: [
+                {
+                  id: 1,
+                  kind: 'Shell',
+                  status: 'Ok',
+                  origin: { kind: 'user' },
+                  input: 'vox run',
+                  output: [{ stream: 'Stdout', text: 'Ready.\n', ts_ms: 1 }],
+                  exit_code: 0,
+                  started_ms: 1,
+                  ended_ms: 5,
+                },
+              ],
+              replay_utf8: 'C:\\workspace\\vox> vox run\r\nReady.\r\n',
+              seq: 1,
+            },
+          });
+          return Object.values(store).map((s: any) => ({
+            id: s.id,
+            blocks: s.blocks.length,
+          }));
+        }
+        case 'term_session_attach': {
+          const store = ((window as any).__MOCK_TERM_SESSIONS__ ??= {
+            's-1': {
+              id: 's-1',
+              blocks: [
+                {
+                  id: 1,
+                  kind: 'Shell',
+                  status: 'Ok',
+                  origin: { kind: 'user' },
+                  input: 'vox run',
+                  output: [{ stream: 'Stdout', text: 'Ready.\n', ts_ms: 1 }],
+                  exit_code: 0,
+                  started_ms: 1,
+                  ended_ms: 5,
+                },
+              ],
+              replay_utf8: 'C:\\workspace\\vox> vox run\r\nReady.\r\n',
+              seq: 1,
+            },
+          });
+          const sid = String((args?.sessionId as string) ?? 's-1');
+          const sess = store[sid] ?? store['s-1'];
+          return {
+            session_id: sid,
+            blocks: sess.blocks.map((b: any) => ({ ...b })),
+            replay_utf8: sess.replay_utf8,
+            seq: sess.seq,
+          };
+        }
+        case 'term_session_submit': {
+          const store = ((window as any).__MOCK_TERM_SESSIONS__ ??= {
+            's-1': {
+              id: 's-1',
+              blocks: [
+                {
+                  id: 1,
+                  kind: 'Shell',
+                  status: 'Ok',
+                  origin: { kind: 'user' },
+                  input: 'vox run',
+                  output: [{ stream: 'Stdout', text: 'Ready.\n', ts_ms: 1 }],
+                  exit_code: 0,
+                  started_ms: 1,
+                  ended_ms: 5,
+                },
+              ],
+              replay_utf8: 'C:\\workspace\\vox> vox run\r\nReady.\r\n',
+              seq: 1,
+            },
+          });
+          const sid = String((args?.sessionId as string) ?? 's-1');
+          const sess = (store[sid] ??= {
+            id: sid,
+            blocks: [],
+            replay_utf8: '',
+            seq: 0,
+          });
+          const bid = (((window as any).__MOCK_TERM_NEXT_BLOCK__ ??= 1) as number) + 1;
+          (window as any).__MOCK_TERM_NEXT_BLOCK__ = bid;
+          const rawLine = String(args?.line ?? '').trim();
+          const isNu = rawLine.startsWith('!nu') || rawLine.startsWith('/nu');
+          const outputText = isNu
+            ? '[{"name":"vox-terminal-core","status":"ok"}]\n'
+            : `[ok] ${rawLine}\n`;
+          const newBlock = {
+            id: bid,
+            kind: rawLine.startsWith('?') ? 'AgentTurn' : rawLine.startsWith('/') ? 'SlashCommand' : 'Shell',
+            status: 'Ok',
+            origin: { kind: 'user' },
+            input: rawLine,
+            output: [{ stream: rawLine.startsWith('?') ? 'Agent' : 'Stdout', text: outputText, ts_ms: Date.now() }],
+            exit_code: 0,
+            started_ms: Date.now() - 5,
+            ended_ms: Date.now(),
+          };
+          sess.blocks.push(newBlock);
+          sess.seq += 1;
+          sess.replay_utf8 += `C:\\workspace\\vox> ${rawLine}\r\n${outputText}\r\n`;
+          return bid;
+        }
         case 'execute_command':
           return { exit_code: 0, stdout: 'ok', stderr: '' };
         case 'submit_orchestrator_task':

@@ -47,15 +47,38 @@ impl BackendCalls for Backend {
         match self {
             Backend::Local(daemon) => {
                 let client = daemon_client(daemon).await?;
-                let _in_flight = daemon.in_flight_guard();
-                client
-                    .call_with_deadline(
-                        orch_daemon_method::TOOL_CALL,
-                        serde_json::json!({ "name": tool, "args": args }),
-                        deadline_for_tool(tool),
-                    )
-                    .await
-                    .map_err(|e| format!("{tool}: {e}"))
+                let res = {
+                    let _in_flight = daemon.in_flight_guard();
+                    client
+                        .call_with_deadline(
+                            orch_daemon_method::TOOL_CALL,
+                            serde_json::json!({ "name": tool, "args": args.clone() }),
+                            deadline_for_tool(tool),
+                        )
+                        .await
+                };
+                match res {
+                    Ok(v) => Ok(v),
+                    Err(first_err) => {
+                        daemon.invalidate().await;
+                        if tool.starts_with("vox_chat_session_")
+                            && let Ok(retry_client) = daemon_client(daemon).await
+                        {
+                            let _in_flight = daemon.in_flight_guard();
+                            if let Ok(v) = retry_client
+                                .call_with_deadline(
+                                    orch_daemon_method::TOOL_CALL,
+                                    serde_json::json!({ "name": tool, "args": args }),
+                                    deadline_for_tool(tool),
+                                )
+                                .await
+                            {
+                                return Ok(v);
+                            }
+                        }
+                        Err(format!("{tool}: {first_err}"))
+                    }
+                }
             }
             Backend::Remote(gw) => gw
                 .call_daemon_method(
@@ -70,14 +93,32 @@ impl BackendCalls for Backend {
 
     async fn api_v2_get(&self, path_and_query: &str) -> Result<Value, String> {
         match self {
-            Backend::Local(daemon) => daemon_client(daemon)
-                .await?
-                .call(
-                    orch_daemon_method::API_V2_GET,
-                    serde_json::json!({ "path": path_and_query }),
-                )
-                .await
-                .map_err(|e| format!("GET /api/v2{path_and_query}: {e}")),
+            Backend::Local(daemon) => {
+                let client = daemon_client(daemon).await?;
+                match client
+                    .call(
+                        orch_daemon_method::API_V2_GET,
+                        serde_json::json!({ "path": path_and_query }),
+                    )
+                    .await
+                {
+                    Ok(v) => Ok(v),
+                    Err(first_err) => {
+                        daemon.invalidate().await;
+                        if let Ok(retry_client) = daemon_client(daemon).await
+                            && let Ok(v) = retry_client
+                                .call(
+                                    orch_daemon_method::API_V2_GET,
+                                    serde_json::json!({ "path": path_and_query }),
+                                )
+                                .await
+                        {
+                            return Ok(v);
+                        }
+                        Err(format!("GET /api/v2{path_and_query}: {first_err}"))
+                    }
+                }
+            }
             // Plan 06's `api_get` already unwraps the `{v,data|error}` envelope; re-wrap so
             // `api_data` sees one shape in both modes. Server-side errors stay `Ok(error envelope)`,
             // transport errors (unreachable, unauthorized, ...) stay `Err`, as in local mode.

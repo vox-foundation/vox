@@ -42,6 +42,7 @@ interface PlaywrightValidateResult {
 }
 
 type BrowserTab = 'preview' | 'agent';
+export type SonghandOperation = 'act' | 'extract' | 'extract_json' | 'wait_for' | 'read_dom';
 const DEFAULT_VIEWPORT_WIDTH = 1280;
 const DEFAULT_VIEWPORT_HEIGHT = 800;
 
@@ -49,6 +50,7 @@ const MAX_ACTION_LOG = 50;
 
 interface SnapshotPayload {
   refs?: Record<string, OverlayRef>;
+  tree?: string;
 }
 
 export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
@@ -78,6 +80,13 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
   const [validateOut, setValidateOut] = useState('');
   const [showRefs, setShowRefs] = useState(false);
   const [snapshotRefs, setSnapshotRefs] = useState<Record<string, OverlayRef>>({});
+  const [songhandOp, setSonghandOp] = useState<SonghandOperation>('act');
+  const [songhandInstruction, setSonghandInstruction] = useState('');
+  const [songhandSchema, setSonghandSchema] = useState(
+    '{"type":"object","properties":{"title":{"type":"string"},"items":{"type":"array"}}}',
+  );
+  const [songhandOutput, setSonghandOutput] = useState<string>('');
+  const [refFillValues, setRefFillValues] = useState<Record<string, string>>({});
   const frameBoxRef = useRef<HTMLDivElement>(null);
   const frameImgRef = useRef<HTMLImageElement>(null);
   const [frameSize, setFrameSize] = useState({ frameW: 0, frameH: 0 });
@@ -100,15 +109,16 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
         headless: boolean;
         control_mode?: string;
         action_log: string[];
-      }>(
+      } | null>(
         'browser_session_status',
       );
-      setPageId(status.page_id);
-      setHeadless(status.headless);
+      if (!status) return;
+      setPageId(status.page_id ?? null);
+      if (typeof status.headless === 'boolean') setHeadless(status.headless);
       if (status.control_mode === 'agent' || status.control_mode === 'you') {
         setControlMode(status.control_mode);
       }
-      setActionLog(status.action_log ?? []);
+      setActionLog(Array.isArray(status.action_log) ? status.action_log : []);
       if (!status.page_id) setPageInfo(null);
     } catch {
       setPageId(null);
@@ -117,9 +127,10 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
 
   const refreshPages = useCallback(async () => {
     try {
-      const list = await invoke<BrowserPageSummary[]>('browser_list_pages');
-      setPages(list);
-      if (list.length === 0) {
+      const list = await invoke<BrowserPageSummary[] | null>('browser_list_pages');
+      const safeList = Array.isArray(list) ? list : [];
+      setPages(safeList);
+      if (safeList.length === 0) {
         setPageInfo(null);
         setAgentNavUrl('');
       }
@@ -185,22 +196,27 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
   }, [actionLog, toastNeedsHuman]);
 
   // Surface genuine agent-driven browser activity from the orchestrator event
-  // stream. NOTE: AgentEventKind has no general "tool invoked" variant, so the
-  // only browser-identifying signal available here is `tool_timed_out` (carries
-  // `tool_key`). GUI-initiated session actions are mirrored separately via the
-  // browser-frame stream's `action_log`. Fully mirroring an agent-opened page
-  // (one the GUI never opened) would need a `vox_browser_list_pages` tool to
-  // share the page_id; that is intentionally out of scope here.
+  // stream and auto-sync open browser pages whenever an agent invokes a
+  // `vox_browser_*` tool from Chat (`Loquela`) or the orchestrator.
   useEffect(() => {
     let unlistenAgent: (() => void) | undefined;
-    listenAgentEvents((frame) => {
-      const kind = frame.kind ?? { type: '' };
+    listenAgentEvents((frameEvt) => {
+      const kind = (frameEvt.kind ?? { type: '' }) as Record<string, unknown>;
+      const kindType = typeof kind.type === 'string' ? kind.type : '';
       const toolKey: string | undefined =
-        typeof kind.tool_key === 'string' ? kind.tool_key : undefined;
-      if (kind.type === 'tool_timed_out' && toolKey?.startsWith('vox_browser')) {
-        const when = new Date(frame.timestamp_ms ?? Date.now()).toLocaleTimeString();
-        const line = `${when} agent: ${toolKey} timed out`;
+        typeof kind.tool_key === 'string'
+          ? kind.tool_key
+          : typeof kind.tool === 'string'
+            ? kind.tool
+            : undefined;
+      if (toolKey?.startsWith('vox_browser') || kindType.startsWith('browser_')) {
+        const when = new Date(frameEvt.timestamp_ms ?? Date.now()).toLocaleTimeString();
+        const statusSuffix =
+          kindType === 'tool_timed_out' ? 'timed out' : kindType || 'invoked';
+        const line = `${when} agent: ${toolKey ?? kindType} (${statusSuffix})`;
         setActionLog((prev) => [...prev.slice(-(MAX_ACTION_LOG - 1)), line]);
+        void refreshPages();
+        void refreshSessionStatus();
       }
     })
       .then((fn) => {
@@ -210,7 +226,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     return () => {
       if (unlistenAgent) unlistenAgent();
     };
-  }, []);
+  }, [refreshPages, refreshSessionStatus]);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -581,9 +597,153 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
     }
   };
 
-  const rawPreviewUrl = preview?.url ?? (previewUrl.trim() || null);
+  const runSonghandCommand = async () => {
+    const instruction = songhandInstruction.trim();
+    if (!instruction && songhandOp !== 'read_dom') {
+      pushToast({
+        tone: 'warn',
+        title: 'Instruction required',
+        body: 'Enter a natural-language Songhand instruction or CSS/XPath selector.',
+        cause: 'validation',
+      });
+      return;
+    }
+    setBusy(true);
+    try {
+      let res: unknown = null;
+      if (songhandOp === 'act') {
+        res = await invoke('browser_act', {
+          input: { instruction, page_id: pageId },
+        });
+      } else if (songhandOp === 'extract') {
+        res = await invoke('browser_extract', {
+          input: { instruction, page_id: pageId },
+        });
+      } else if (songhandOp === 'extract_json') {
+        res = await invoke('browser_extract_json', {
+          input: {
+            instruction,
+            schema_json: songhandSchema.trim() || '{"type":"object"}',
+            page_id: pageId,
+          },
+        });
+      } else if (songhandOp === 'wait_for') {
+        res = await invoke('browser_wait_for', {
+          input: { target: instruction, timeout_secs: 15, page_id: pageId },
+        });
+      } else {
+        res = await invoke('browser_read_dom', {
+          input: { target: instruction || 'body', html: false, page_id: pageId },
+        });
+      }
+      const formatted =
+        typeof res === 'string' ? res : JSON.stringify(res ?? { ok: true, op: songhandOp }, null, 2);
+      setSonghandOutput(formatted);
+      setActionLog((prev) => [
+        ...prev.slice(-(MAX_ACTION_LOG - 1)),
+        `songhand.${songhandOp}: ${instruction || 'body'}`,
+      ]);
+      await refreshSessionStatus();
+      if (pageId) await captureFrame();
+      pushToast({
+        tone: 'ok',
+        title: `Songhand ${songhandOp} complete`,
+        body: instruction.slice(0, 64) || 'DOM read complete',
+        cause: 'backend-ok',
+      });
+    } catch (err) {
+      const msg = sanitizeErrorForToast(err);
+      setSonghandOutput(`Error: ${msg}`);
+      pushToast({ tone: 'warn', title: `Songhand ${songhandOp} failed`, body: msg, cause: 'backend-error' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const clickSnapshotRef = async (refId: string) => {
+    setBusy(true);
+    try {
+      const res = await invoke<{ needs_human?: boolean; reason?: string }>('browser_click_ref', {
+        input: { ref_id: refId, page_id: pageId },
+      });
+      setActionLog((prev) => [...prev.slice(-(MAX_ACTION_LOG - 1)), `click_ref [${refId}]`]);
+      if (res?.needs_human) {
+        toastNeedsHuman(res.reason ?? `Ref [${refId}] requires human confirmation`);
+      } else {
+        pushToast({ tone: 'ok', title: `Clicked ref [${refId}]`, cause: 'backend-ok' });
+      }
+      if (pageId) await captureFrame();
+    } catch (err) {
+      pushToast({ tone: 'warn', title: `Click ref [${refId}] failed`, body: sanitizeErrorForToast(err), cause: 'backend-error' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const fillSnapshotRef = async (refId: string) => {
+    const val = (refFillValues[refId] ?? '').trim();
+    if (!val) return;
+    setBusy(true);
+    try {
+      const res = await invoke<{ needs_human?: boolean; reason?: string }>('browser_fill_ref', {
+        input: { ref_id: refId, value: val, page_id: pageId },
+      });
+      setActionLog((prev) => [...prev.slice(-(MAX_ACTION_LOG - 1)), `fill_ref [${refId}]`]);
+      if (res?.needs_human) {
+        toastNeedsHuman(res.reason ?? `Ref [${refId}] requires human confirmation`);
+      } else {
+        pushToast({ tone: 'ok', title: `Filled ref [${refId}]`, cause: 'backend-ok' });
+      }
+      if (pageId) await captureFrame();
+    } catch (err) {
+      pushToast({ tone: 'warn', title: `Fill ref [${refId}] failed`, body: sanitizeErrorForToast(err), cause: 'backend-error' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sendBrowserContextToChat = () => {
+    const activeTargetUrl = pageInfo?.url || (preview?.active ? preview.url : null) || agentUrl || previewUrl;
+    const refCount = Object.keys(snapshotRefs).length;
+    const summarySnippet = songhandOutput
+      ? songhandOutput.slice(0, 280)
+      : validateOut
+        ? validateOut.slice(0, 280)
+        : `page_id=${pageId ?? 'preview'} refs=${refCount} mode=${controlMode}`;
+    const token = `@browser(${activeTargetUrl})`;
+    window.dispatchEvent(
+      new CustomEvent('vox:browser-context', {
+        detail: {
+          url: activeTargetUrl,
+          pageId: pageId ?? 'preview',
+          refCount,
+          summary: summarySnippet,
+          token,
+        },
+      }),
+    );
+    window.dispatchEvent(
+      new CustomEvent('vox:atlas-mention', {
+        detail: { token },
+      }),
+    );
+    pushToast({
+      tone: 'ok',
+      title: 'Sent Browser context to Chat',
+      body: `${token} attached to Loquela composer`,
+      cause: 'backend-ok',
+    });
+  };
+
+  // CRITICAL FIX: Never mount an unstarted `http://127.0.0.1:3000` iframe on initial load!
+  // Previously `preview?.url ?? previewUrl` evaluated to `http://127.0.0.1:3000` even when
+  // `preview?.active` was false, causing BrowserView to either iframe whatever unrelated local
+  // app was listening on port 3000 (e.g., "Open Idle / Melvor Engine") or render a giant white box.
+  const rawPreviewUrl = preview?.active ? preview.url : null;
   const activePreviewUrl =
     rawPreviewUrl && isLoopbackPreviewUrl(rawPreviewUrl) ? rawPreviewUrl : null;
+  const candidatePlaywrightUrl =
+    activePreviewUrl ?? (isLoopbackPreviewUrl(previewUrl.trim()) ? previewUrl.trim() : null);
 
   return (
     <section className="space-y-4">
@@ -659,11 +819,19 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
             </button>
             <button
               type="button"
-              disabled={busy || !activePreviewUrl}
+              disabled={busy || !candidatePlaywrightUrl}
               onClick={runPlaywrightValidate}
               className="rounded-lg bg-overlay-subtle text-text-secondary px-4 py-2 text-[11px] uppercase tracking-wider disabled:opacity-50"
             >
               Validate (Playwright)
+            </button>
+            <button
+              type="button"
+              data-testid="browser-preview-send-to-chat"
+              onClick={sendBrowserContextToChat}
+              className="rounded-lg border border-brass/30 bg-brass/10 text-brass px-4 py-2 text-[11px] uppercase tracking-wider hover:bg-brass/20"
+            >
+              Send to Chat
             </button>
           </div>
           {preview && (
@@ -681,30 +849,94 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
               key={`${activePreviewUrl}-${previewReloadNonce}`}
               title="Vox app preview"
               src={activePreviewUrl}
-              className="w-full min-h-[480px] rounded-xl border border-border-subtle bg-white"
+              className="w-full min-h-[480px] rounded-xl border border-border-subtle bg-bg-base"
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
               onError={() => setPreviewFrameBlocked(true)}
             />
           ) : (
-            <div className="rounded-xl border border-dashed border-border-subtle p-8 text-center text-text-muted text-sm space-y-3">
-              <div>
-                {activePreviewUrl
-                  ? 'Preview frame blocked by page framing policy (X-Frame-Options/CSP).'
-                  : 'Enter a URL or app directory, then start preview.'}
+            <div
+              data-testid="browser-harness-quick-deck"
+              className="rounded-xl border border-border-subtle bg-bg-surface/60 p-5 space-y-4"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-3">
+                <div>
+                  <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-brass">
+                    Playwright &amp; Songhand Browser Harness Control Deck
+                  </h3>
+                  <p className="text-xs text-text-muted mt-1">
+                    {activePreviewUrl
+                      ? 'Preview frame blocked by page framing policy (X-Frame-Options/CSP). Switch to Agent Live View for CDP streaming.'
+                      : 'No loopback iframe preview is active. Start a Vox web app preview above, run Playwright E2E validation, or launch the Songhand AI Agent Browser (`vox_browser_act` / `extract` / `[eN]` accessibility refs).'}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    data-testid="browser-launch-songhand-cta"
+                    onClick={() => setTab('agent')}
+                    className="rounded-lg bg-brass/20 text-brass border border-brass/30 px-3.5 py-2 text-[11px] font-mono uppercase tracking-wider hover:bg-brass/30"
+                  >
+                    Open Songhand &amp; Agent View
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="browser-run-playwright-cta"
+                    disabled={busy || !candidatePlaywrightUrl}
+                    onClick={runPlaywrightValidate}
+                    className="rounded-lg bg-overlay-subtle border border-border-subtle text-text-secondary px-3.5 py-2 text-[11px] font-mono uppercase tracking-wider hover:border-white/20 disabled:opacity-50"
+                  >
+                    Run Playwright Suite
+                  </button>
+                </div>
               </div>
-              {activePreviewUrl && (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setTab('agent');
-                    setAgentUrl(activePreviewUrl);
-                    await openAgentSession();
-                  }}
-                  className="rounded-lg bg-brass/20 text-brass px-4 py-2 text-[11px] uppercase tracking-wider"
-                >
-                  Open in agent live view
-                </button>
-              )}
+
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="rounded-lg border border-border-subtle bg-black/25 p-3.5 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-brass">
+                      Songhand AI Primitives
+                    </span>
+                    <span className="rounded bg-brass/15 px-1.5 py-0.5 font-mono text-[10px] text-brass">
+                      MCP Ready
+                    </span>
+                  </div>
+                  <p className="text-xs text-text-secondary">
+                    Natural-language <code className="font-mono text-[11px]">vox_browser_act</code>,{' '}
+                    <code className="font-mono text-[11px]">vox_browser_extract</code>, and schema-constrained{' '}
+                    <code className="font-mono text-[11px]">vox_browser_extract_json</code> over live CDP tabs.
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-border-subtle bg-black/25 p-3.5 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-emerald-400">
+                      Accessibility [eN] Refs
+                    </span>
+                    <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] text-emerald-300">
+                      Deterministic
+                    </span>
+                  </div>
+                  <p className="text-xs text-text-secondary">
+                    Capture <code className="font-mono text-[11px]">vox_browser_snapshot</code> bounding boxes and drive{' '}
+                    <code className="font-mono text-[11px]">click_ref</code> / <code className="font-mono text-[11px]">fill_ref</code> with{' '}
+                    <code className="font-mono text-[11px]">needs_human</code> safety locks.
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-border-subtle bg-black/25 p-3.5 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-cyan">
+                      Chat &amp; Dock Integration
+                    </span>
+                    <span className="rounded bg-cyan/15 px-1.5 py-0.5 font-mono text-[10px] text-cyan">
+                      Loquela Linked
+                    </span>
+                  </div>
+                  <p className="text-xs text-text-secondary">
+                    Dock Browser side-by-side in Chat (<code className="font-mono text-[11px]">Panels ▾ → Browser</code>) and pipe extracted DOM/snapshots into <code className="font-mono text-[11px]">Loquela</code>.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -741,18 +973,113 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
             onClosePage={closePage}
             onControlModeToggle={() => setControlModeRemote(controlMode === 'you' ? 'agent' : 'you')}
           />
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={showRefs}
-              disabled={!pageId}
-              onChange={(e) => {
-                void onShowRefsChange(e.target.checked);
-              }}
-              className="rounded-sm"
-            />
-            <span className="text-[11px] text-text-muted">Show refs</span>
-          </label>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={showRefs}
+                disabled={!pageId}
+                onChange={(e) => {
+                  void onShowRefsChange(e.target.checked);
+                }}
+                className="rounded-sm"
+              />
+              <span className="text-[11px] text-text-muted">Show [eN] accessibility refs</span>
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                data-testid="browser-capture-snapshot-btn"
+                disabled={busy || !pageId}
+                onClick={captureSnapshot}
+                className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-text-secondary hover:border-white/20 disabled:opacity-50"
+              >
+                Snapshot [eN] ({Object.keys(snapshotRefs).length})
+              </button>
+              <button
+                type="button"
+                data-testid="browser-send-to-chat"
+                onClick={sendBrowserContextToChat}
+                className="rounded-lg border border-brass/30 bg-brass/15 px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-brass hover:bg-brass/25"
+              >
+                Send Context to Chat
+              </button>
+            </div>
+          </div>
+
+          {/* Songhand (Stagehand-Style AI) Act / Extract / Extract JSON / Wait Command Bar */}
+          <div
+            data-testid="browser-songhand-bar"
+            className="rounded-xl border border-border-subtle bg-bg-surface/70 p-3 space-y-2.5"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-brass">
+                Songhand Agentic Browser Bar (Act · Extract · Schema JSON · Wait · DOM)
+              </span>
+              <span className="font-mono text-[10px] text-text-muted">
+                Control lock: <strong className="text-text-secondary">{controlMode.toUpperCase()}</strong>
+              </span>
+            </div>
+            <div className="grid gap-2 md:grid-cols-[200px_1fr_auto]">
+              <select
+                aria-label="Songhand operation"
+                data-testid="browser-songhand-op"
+                data-unified-knob="true"
+                value={songhandOp}
+                onChange={(e) => setSonghandOp(e.target.value as SonghandOperation)}
+                className="h-9 rounded-lg border border-border-subtle bg-overlay-subtle px-2.5 font-mono text-xs text-text-primary focus:border-brass focus:outline-none"
+              >
+                <option value="act">Songhand Act (LLM)</option>
+                <option value="extract">Extract (Natural Language)</option>
+                <option value="extract_json">Extract JSON (Schema)</option>
+                <option value="wait_for">Wait For Selector</option>
+                <option value="read_dom">Read DOM Text</option>
+              </select>
+              <input
+                aria-label="Songhand instruction"
+                data-testid="browser-songhand-input"
+                value={songhandInstruction}
+                onChange={(e) => setSonghandInstruction(e.target.value)}
+                placeholder={
+                  songhandOp === 'wait_for' || songhandOp === 'read_dom'
+                    ? 'CSS or xpath:/... selector (e.g. #main-content, button.submit)'
+                    : 'Natural-language goal or extraction prompt (e.g. Click Sign In, summarize pricing tiers)'
+                }
+                className="h-9 w-full rounded-lg border border-border-subtle bg-overlay-subtle px-3 text-xs text-text-secondary"
+              />
+              <button
+                type="button"
+                data-testid="browser-songhand-run"
+                disabled={busy}
+                onClick={runSonghandCommand}
+                className="h-9 rounded-lg bg-brass/20 border border-brass/30 px-4 font-mono text-[11px] uppercase tracking-wider text-brass hover:bg-brass/30 disabled:opacity-50"
+              >
+                Run Songhand
+              </button>
+            </div>
+            {songhandOp === 'extract_json' && (
+              <label className="block space-y-1">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
+                  JSON Schema (draft-07)
+                </span>
+                <input
+                  aria-label="Extraction JSON schema"
+                  value={songhandSchema}
+                  onChange={(e) => setSonghandSchema(e.target.value)}
+                  className="w-full rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-xs text-text-secondary"
+                />
+              </label>
+            )}
+            {songhandOutput && (
+              <pre
+                data-testid="browser-songhand-output"
+                className="max-h-36 overflow-auto rounded-lg border border-white/5 bg-black/50 p-2.5 font-mono text-[11px] text-text-secondary whitespace-pre-wrap"
+              >
+                {songhandOutput}
+              </pre>
+            )}
+          </div>
+
           <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
             <div
               ref={frameBoxRef}
@@ -770,8 +1097,8 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
                   className="w-full h-full max-h-[480px] object-contain pointer-events-none"
                 />
               ) : (
-                <span className="text-text-muted text-sm">
-                  {frame?.error ?? 'No frame yet — open a session or wait for the live stream (~3s).'}
+                <span className="text-text-muted text-sm px-4 text-center">
+                  {frame?.error ?? 'No frame yet — open a session or wait for the live CDP screencast stream (~3s).'}
                 </span>
               )}
               {showRefs &&
@@ -781,9 +1108,15 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
                   viewW: frame?.viewport_width ?? DEFAULT_VIEWPORT_WIDTH,
                   viewH: frame?.viewport_height ?? DEFAULT_VIEWPORT_HEIGHT,
                 }).map((item) => (
-                  <span
+                  <button
+                    type="button"
                     key={item.refId}
-                    className="absolute pointer-events-none border border-brass/70 bg-brass/15 text-[10px] leading-none text-brass font-mono px-0.5"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void clickSnapshotRef(item.refId);
+                    }}
+                    title={`Click accessibility ref [${item.refId}]`}
+                    className="absolute border border-brass/70 bg-brass/15 text-[10px] leading-none text-brass font-mono px-0.5 hover:bg-brass/35"
                     style={{
                       left: item.left,
                       top: item.top,
@@ -792,16 +1125,76 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
                     }}
                   >
                     [{item.refId}]
-                  </span>
+                  </button>
                 ))}
             </div>
-            <div className="rounded-xl border border-border-subtle bg-black/20 p-3 max-h-[360px] overflow-auto">
-              <h3 className="text-[10px] uppercase tracking-wider text-text-muted mb-2">Action log</h3>
-              <ul role="log" aria-live="polite" aria-label="Browser action log" className="space-y-1 text-[11px] font-mono text-text-muted">
-                {(actionLog.length ? actionLog : ['(empty)']).map((line, i) => (
-                  <li key={`${line}-${i}`}>{line}</li>
-                ))}
-              </ul>
+            <div className="space-y-3">
+              <div
+                data-testid="browser-ref-inspector"
+                className="rounded-xl border border-border-subtle bg-black/20 p-3 max-h-[200px] overflow-auto"
+              >
+                <h3 className="text-[10px] uppercase tracking-wider text-text-muted mb-2">
+                  Accessibility Snapshot Refs ({Object.keys(snapshotRefs).length})
+                </h3>
+                {Object.keys(snapshotRefs).length === 0 ? (
+                  <p className="text-[11px] font-mono text-text-muted">
+                    No [eN] refs captured yet. Click &ldquo;Snapshot [eN]&rdquo; or toggle &ldquo;Show [eN] accessibility refs&rdquo;.
+                  </p>
+                ) : (
+                  <ul className="space-y-1.5 text-[11px] font-mono">
+                    {Object.entries(snapshotRefs).map(([refId, refMeta]) => (
+                      <li
+                        key={refId}
+                        className="flex flex-wrap items-center justify-between gap-1.5 rounded border border-white/5 bg-black/30 px-2 py-1"
+                      >
+                        <span className="text-brass font-semibold">
+                          [{refId}]{' '}
+                          <span className="text-text-secondary font-normal">
+                            {refMeta.role ?? refMeta.tag ?? 'element'}
+                            {refMeta.name ? ` "${refMeta.name}"` : ''}
+                          </span>
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void clickSnapshotRef(refId)}
+                            className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 text-[10px] text-text-secondary hover:text-brass"
+                          >
+                            Click
+                          </button>
+                          <input
+                            aria-label={`Fill value for ${refId}`}
+                            value={refFillValues[refId] ?? ''}
+                            onChange={(e) =>
+                              setRefFillValues((prev) => ({ ...prev, [refId]: e.target.value }))
+                            }
+                            placeholder="fill..."
+                            className="w-20 rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 text-[10px] text-text-secondary"
+                          />
+                          <button
+                            type="button"
+                            disabled={busy || !(refFillValues[refId] ?? '').trim()}
+                            onClick={() => void fillSnapshotRef(refId)}
+                            className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 text-[10px] text-text-secondary hover:text-brass disabled:opacity-50"
+                          >
+                            Fill
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-border-subtle bg-black/20 p-3 max-h-[200px] overflow-auto">
+                <h3 className="text-[10px] uppercase tracking-wider text-text-muted mb-2">Action log</h3>
+                <ul role="log" aria-live="polite" aria-label="Browser action log" className="space-y-1 text-[11px] font-mono text-text-muted">
+                  {(actionLog.length ? actionLog : ['(empty)']).map((line, i) => (
+                    <li key={`${line}-${i}`}>{line}</li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
         </div>
