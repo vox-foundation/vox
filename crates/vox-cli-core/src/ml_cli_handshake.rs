@@ -110,6 +110,31 @@ pub fn git_hash_from_version_line(line: &str) -> Option<&str> {
     known(hash)
 }
 
+/// Parent-side exit mapping for a finished `vox-ml-cli`: its exit code, or for
+/// a signal death `128 + signal` plus a message naming the signal (S2: a run
+/// killed by the macOS memory killer used to surface as a bare exit 1).
+pub fn child_exit(status: std::process::ExitStatus) -> (i32, Option<String>) {
+    if let Some(code) = status.code() {
+        return (code, None);
+    }
+    #[cfg(unix)]
+    if let Some(sig) = std::os::unix::process::ExitStatusExt::signal(&status) {
+        let hint = if sig == 9 {
+            " (SIGKILL: usually the OS memory killer; check peak memory or lower --seq-len)"
+        } else {
+            ""
+        };
+        return (
+            128 + sig,
+            Some(format!("vox-ml-cli was killed by signal {sig}{hint}")),
+        );
+    }
+    (
+        1,
+        Some(format!("vox-ml-cli ended without an exit code ({status})")),
+    )
+}
+
 /// Child-side entry point: run the handshake against the environment and
 /// print/exit as needed. Call once at `vox-ml-cli` startup.
 pub fn enforce_from_env(child: &str) {
@@ -182,6 +207,19 @@ mod tests {
             evaluate("abc1234", Some("def5678"), p, false, true),
             Handshake::Fail(_)
         ));
+    }
+
+    /// S2: the trainer was killed (likely the macOS memory killer) and `vox`
+    /// reported a bare exit 1. A signal death must say so and exit 128 + signal.
+    #[cfg(unix)]
+    #[test]
+    fn a_signal_death_is_reported_not_mapped_to_exit_1() {
+        use std::os::unix::process::ExitStatusExt;
+        use std::process::ExitStatus;
+        let (code, msg) = child_exit(ExitStatus::from_raw(9));
+        assert_eq!(code, 137);
+        assert!(msg.expect("signal message").contains("signal 9"));
+        assert_eq!(child_exit(ExitStatus::from_raw(3 << 8)), (3, None));
     }
 
     #[test]

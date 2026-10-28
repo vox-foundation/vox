@@ -126,7 +126,11 @@ async fn main() -> anyhow::Result<()> {
             // Wait for completion and exit with same status
             match command.status() {
                 Ok(status) => {
-                    std::process::exit(status.code().unwrap_or(1));
+                    let (code, msg) = vox_cli_core::ml_cli_handshake::child_exit(status);
+                    if let Some(msg) = msg {
+                        eprintln!("error: {msg}");
+                    }
+                    std::process::exit(code);
                 }
                 Err(e) => {
                     eprintln!("Error: vox-ml-cli is not installed or not in PATH.");
