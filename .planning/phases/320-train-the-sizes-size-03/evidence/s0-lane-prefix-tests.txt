@@ -1,0 +1,19 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.93s
+────────────
+ Nextest run ID 1ceaa014-8b01-4d7e-b3f1-c485f2dba63e with nextest profile: default
+    Starting 12 tests across 1 binary (68 tests skipped)
+        PASS [   0.049s] ( 1/12) vox-plugin-mens-candle-core training_text::tests::chatml_prefix_for_lane_hub_and_agent_are_bare_thinking
+        PASS [   0.049s] ( 2/12) vox-plugin-mens-candle-core training_text::tests::chatml_prefix_for_lane_codegen_matches_open_assistant
+        PASS [   0.051s] ( 3/12) vox-plugin-mens-candle-core training_text::tests::huge_answer_gets_half_the_window
+        PASS [   0.047s] ( 4/12) vox-plugin-mens-candle-core training_text::tests::messages_rows_gain_system_turn_once
+        PASS [   0.048s] ( 5/12) vox-plugin-mens-candle-core training_text::tests::long_answer_is_cut_at_its_tail_when_the_prompt_fits
+        PASS [   0.047s] ( 6/12) vox-plugin-mens-candle-core training_text::tests::message_rows_mask_the_empty_think_block_the_same_way
+        PASS [   0.051s] ( 7/12) vox-plugin-mens-candle-core training_text::tests::direct_answer_puts_empty_think_in_the_prompt_not_the_loss
+        PASS [   0.053s] ( 8/12) vox-plugin-mens-candle-core training_text::tests::message_rows_leave_a_reasoning_turn_unrewritten
+        PASS [   0.048s] ( 9/12) vox-plugin-mens-candle-core training_text::tests::oversized_prompt_is_trimmed_in_the_middle_and_the_answer_survives
+        PASS [   0.045s] (10/12) vox-plugin-mens-candle-core training_text::tests::short_rows_are_untouched
+        PASS [   0.050s] (11/12) vox-plugin-mens-candle-core training_text::tests::reasoning_trace_keeps_the_thinking_mode_entry_point
+        PASS [   0.047s] (12/12) vox-plugin-mens-candle-core training_text::tests::supervised_prefix_adds_no_second_flag
+────────────
+     Summary [   0.064s] 12 tests run: 12 passed, 68 skipped
+exit 0

@@ -1,0 +1,3 @@
+  [36mℹ[39m size: picked 32B: largest size whose floor 60000 MB fits 60005 MB free (Metal working set)
+  [32m✓[39m Wrote train record /var/folders/lp/cmsx7ph161vgpqb09z7mxs6r0000gn/T//gsd-320-04/s0-out/train-record.json
+Error: Corpus file not found: /var/folders/lp/cmsx7ph161vgpqb09z7mxs6r0000gn/T//gsd-320-04/s0-empty/train.jsonl (expected training pairs). Generate the corpus with `vox mens corpus extract` + `vox mens corpus pairs` before training.

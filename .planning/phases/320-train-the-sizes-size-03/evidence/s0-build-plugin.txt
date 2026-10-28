@@ -1,0 +1,134 @@
+[1m[92m   Compiling[0m rand_distr v0.5.1
+[1m[92m   Compiling[0m aws-lc-sys v0.45.0
+[1m[92m   Compiling[0m ring v0.17.14
+[1m[92m   Compiling[0m crossbeam-deque v0.8.6
+[1m[92m   Compiling[0m thiserror v1.0.69
+[1m[92m   Compiling[0m reborrow v0.5.5
+[1m[92m   Compiling[0m pulp-wasm-simd-flag v0.1.0
+[1m[92m   Compiling[0m dyn-stack v0.13.2
+[1m[92m   Compiling[0m raw-cpuid v11.6.0
+[1m[92m   Compiling[0m utf-8 v0.7.6
+[1m[92m   Compiling[0m new_debug_unreachable v1.0.6
+[1m[92m   Compiling[0m vox-plugin-types v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-plugin-types)
+[1m[92m   Compiling[0m tstr v0.2.4
+[1m[92m   Compiling[0m glob v0.3.3
+[1m[92m   Compiling[0m phf v0.11.3
+[1m[92m   Compiling[0m abi_stable_shared v0.11.0
+[1m[92m   Compiling[0m itertools v0.14.0
+[1m[92m   Compiling[0m libloading v0.7.4
+[1m[92m   Compiling[0m sysctl v0.6.0
+[1m[92m   Compiling[0m generational-arena v0.2.9
+[1m[92m   Compiling[0m pulp v0.22.2
+[1m[92m   Compiling[0m mac v0.1.1
+[1m[92m   Compiling[0m repr_offset v0.2.2
+[1m[92m   Compiling[0m unicode-segmentation v1.13.3
+[1m[92m   Compiling[0m precomputed-hash v0.1.1
+[1m[92m   Compiling[0m base64 v0.13.1
+[1m[92m   Compiling[0m futf v0.1.5
+[1m[92m   Compiling[0m macro_rules_attribute v0.2.2
+[1m[92m   Compiling[0m monostate v0.1.18
+[1m[92m   Compiling[0m esaxx-rs v0.1.10
+[1m[92m   Compiling[0m rayon-core v1.13.0
+[1m[92m   Compiling[0m vox-orchestrator-types v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-orchestrator-types)
+[1m[92m   Compiling[0m derive_builder v0.20.2
+[1m[92m   Compiling[0m onig_sys v69.9.3
+[1m[92m   Compiling[0m abi_stable v0.11.3
+[1m[92m   Compiling[0m vox-db-types v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-db-types)
+[1m[92m   Compiling[0m unicode-normalization-alignments v0.1.12
+[1m[92m   Compiling[0m dary_heap v0.3.9
+[1m[92m   Compiling[0m unicode_categories v0.1.1
+[1m[92m   Compiling[0m half v2.7.1
+[1m[92m   Compiling[0m aws-lc-rs v1.18.1
+[1m[92m   Compiling[0m dtoa v1.0.11
+[1m[92m   Compiling[0m onig v6.5.3
+[1m[92m   Compiling[0m tendril v0.4.3
+[1m[92m   Compiling[0m string_cache v0.8.9
+[1m[92m   Compiling[0m webpki-roots v0.26.11
+[1m[92m   Compiling[0m dtoa-short v0.3.5
+[1m[92m   Compiling[0m spm_precompiled v0.1.4
+[1m[92m   Compiling[0m typed-path v0.12.3
+[1m[92m   Compiling[0m downcast-rs v2.0.2
+[1m[92m   Compiling[0m cssparser v0.31.2
+[1m[92m   Compiling[0m phf v0.10.1
+[1m[92m   Compiling[0m markup5ever v0.12.1
+[1m[92m   Compiling[0m diesel v2.3.10
+[1m[92m   Compiling[0m safetensors v0.7.0
+[1m[92m   Compiling[0m candle-metal-kernels v0.10.2 (/Users/brbrainerd/dev/vox-mens-compare/patches/candle-metal-kernels-0.10.2)
+[1m[92m   Compiling[0m float8 v0.7.0
+[1m[92m   Compiling[0m fxhash v0.2.1
+[1m[92m   Compiling[0m rayon v1.12.0
+[1m[92m   Compiling[0m servo_arc v0.3.0
+[1m[92m   Compiling[0m csv-core v0.1.13
+[1m[92m   Compiling[0m vox-foundation v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-foundation)
+[1m[92m   Compiling[0m which v8.0.4
+[1m[92m   Compiling[0m html5ever v0.27.0
+[1m[92m   Compiling[0m ego-tree v0.6.3
+[1m[92m   Compiling[0m csv v1.4.0
+[1m[92m   Compiling[0m fancy-regex v0.14.0
+[1m[92m   Compiling[0m libbz2-rs-sys v0.2.5
+[1m[92m   Compiling[0m logos v0.16.1
+[1m[92m   Compiling[0m selectors v0.25.0
+[1m[92m   Compiling[0m rustls-webpki v0.103.15
+[1m[92m   Compiling[0m zip v7.2.0
+[1m[92m   Compiling[0m rustls v0.23.45
+[1m[92m   Compiling[0m bzip2 v0.6.1
+[1m[92m   Compiling[0m scraper v0.20.0
+[1m[92m   Compiling[0m rayon-cond v0.4.0
+[1m[92m   Compiling[0m tokenizers v0.22.2
+[1m[92m   Compiling[0m tokenizers v0.21.4
+[1m[92m   Compiling[0m gemm-common v0.19.0
+[1m[92m   Compiling[0m gemm-f32 v0.19.0
+[1m[92m   Compiling[0m gemm-f64 v0.19.0
+[1m[92m   Compiling[0m gemm-c32 v0.19.0
+[1m[92m   Compiling[0m gemm-c64 v0.19.0
+[1m[92m   Compiling[0m vox-plugin-api v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-plugin-api)
+[1m[92m   Compiling[0m gemm-f16 v0.19.0
+[1m[92m   Compiling[0m tokio-rustls v0.26.4
+[1m[92m   Compiling[0m rustls-platform-verifier v0.7.0
+[1m[92m   Compiling[0m tungstenite v0.24.0
+[1m[92m   Compiling[0m gemm v0.19.0
+[1m[92m   Compiling[0m hyper-rustls v0.27.9
+[1m[92m   Compiling[0m reqwest v0.13.4
+[1m[92m   Compiling[0m reqwest v0.12.28
+[1m[92m   Compiling[0m rust_decimal v1.43.0
+[1m[92m   Compiling[0m tokio-tungstenite v0.24.0
+[1m[92m   Compiling[0m candle-core v0.10.2
+[1m[92m   Compiling[0m gix-transport v0.57.1
+[1m[92m   Compiling[0m gix-protocol v0.62.0
+[1m[92m   Compiling[0m gix v0.84.0
+[1m[92m   Compiling[0m workspace-hack v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/workspace-hack)
+[1m[92m   Compiling[0m vox-scaling-policy v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-scaling-policy)
+[1m[92m   Compiling[0m vox-crypto v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-crypto)
+[1m[92m   Compiling[0m vox-openai v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-openai)
+[1m[92m   Compiling[0m vox-http-client v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-http-client)
+[1m[92m   Compiling[0m vox-llm-config v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-llm-config)
+[1m[92m   Compiling[0m vox-ast v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-ast)
+[1m[92m   Compiling[0m vox-container-types v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-container-types)
+[1m[92m   Compiling[0m vox-package-types v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-package-types)
+[1m[92m   Compiling[0m vox-skill-runtime v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-skill-runtime)
+[1m[92m   Compiling[0m vox-shell-stdlib-types v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-shell-stdlib-types)
+[1m[92m   Compiling[0m vox-language-surface v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-language-surface)
+[1m[92m   Compiling[0m vox-eval v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-eval)
+[1m[92m   Compiling[0m vox-grammar-export v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-grammar-export)
+[1m[92m   Compiling[0m vox-llm-egress v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-llm-egress)
+[1m[92m   Compiling[0m vox-bounded-fs v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-bounded-fs)
+[1m[92m   Compiling[0m vox-container v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-container)
+[1m[92m   Compiling[0m vox-secrets v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-secrets)
+[1m[92m   Compiling[0m vox-git v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-git)
+[1m[92m   Compiling[0m vox-hf-layout v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-hf-layout)
+[1m[92m   Compiling[0m vox-config v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-config)
+[1m[92m   Compiling[0m vox-plugin-host v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-plugin-host)
+[1m[92m   Compiling[0m candle-nn v0.10.2
+[1m[92m   Compiling[0m vox-repository v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-repository)
+[1m[92m   Compiling[0m vox-db v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-db)
+[1m[92m   Compiling[0m vox-compiler v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-compiler)
+[1m[92m   Compiling[0m peft-rs v1.0.3 (/Users/brbrainerd/dev/vox-mens-compare/patches/peft-rs-1.0.3)
+[1m[92m   Compiling[0m qlora-rs v1.0.5 (/Users/brbrainerd/dev/vox-mens-compare/patches/qlora-rs-1.0.5)
+[1m[92m   Compiling[0m vox-openclaw-runtime v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-openclaw-runtime)
+[1m[92m   Compiling[0m vox-package v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-package)
+[1m[92m   Compiling[0m vox-skills v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-skills)
+[1m[92m   Compiling[0m vox-actor-runtime v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-actor-runtime)
+[1m[92m   Compiling[0m vox-tensor v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-tensor)
+[1m[92m   Compiling[0m vox-plugin-mens-candle-core v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-plugin-mens-candle-core)
+[1m[92m   Compiling[0m vox-plugin-mens-candle-metal v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-plugin-mens-candle-metal)
+[1m[92m    Finished[0m `release` profile [optimized] target(s) in 2m 34s
