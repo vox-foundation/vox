@@ -1,0 +1,11 @@
+{
+  "file": "train_mixed.jsonl",
+  "validated_rows": 210,
+  "pairs_rows": 1166,
+  "mixed_rows": 1166,
+  "rows": 1166,
+  "empty_removed": 0,
+  "duplicates_removed": 0,
+  "think_rows": 0,
+  "direct_rows": 1166
+}

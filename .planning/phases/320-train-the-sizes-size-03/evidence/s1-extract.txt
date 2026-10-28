@@ -1,0 +1,4 @@
+[33m  ⊘ Skipped 29 file(s): excluded_glob[39m
+[33m  ⊘ Skipped 5 file(s): marked_training_eligible_false[39m
+[33m  ⊘ Skipped 474 file(s): not_in_roots[39m
+[32m✓ Corpus extraction: 278/324 new (0 skipped, 46 failed) → target/dogfood/validated.jsonl[39m

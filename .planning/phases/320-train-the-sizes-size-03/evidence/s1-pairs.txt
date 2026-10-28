@@ -1,0 +1,30 @@
+  Vox files: 210 (0 did not compile after metadata strip, 0 expect-error fixtures skipped)
+  Declarations: 722 → 703 verified pairs (13 failed in-context compile, 6 unnamed skipped); 47 whole-file pairs
+  Error correction: 330 mutants tried, 51 accepted by compiler (dropped), 279 pairs
+  Extracted 145 pairs from documentation (docs/src)
+
+[32mGenerated 1166 training pairs (871 unique answers, 279 error-correction):[39m
+  function              344 pairs  (difficulty: 2)
+  error_correction      279 pairs  (difficulty: 5)
+  documentation         145 pairs  (difficulty: 3)
+  test                  110 pairs  (difficulty: 2)
+  component              60 pairs  (difficulty: 3)
+  program                47 pairs  (difficulty: 5)
+  query                  42 pairs  (difficulty: 4)
+  table                  37 pairs  (difficulty: 3)
+  mutation               36 pairs  (difficulty: 4)
+  type                   24 pairs  (difficulty: 2)
+  routes                 12 pairs  (difficulty: 4)
+  server                  6 pairs  (difficulty: 5)
+  mcp_tool                6 pairs  (difficulty: 8)
+  activity                4 pairs  (difficulty: 7)
+  form                    4 pairs  (difficulty: 5)
+  workflow                3 pairs  (difficulty: 7)
+  mcp_resource            2 pairs  (difficulty: 8)
+  loading                 2 pairs  (difficulty: 3)
+  scheduled               1 pairs  (difficulty: 4)
+  state_machine           1 pairs  (difficulty: 5)
+  actor                   1 pairs  (difficulty: 5)
+
+✓ Wrote 1166 pairs to target/dogfood/train.jsonl (curriculum-ordered)
+✓ Metadata written to target/dogfood/metadata.json

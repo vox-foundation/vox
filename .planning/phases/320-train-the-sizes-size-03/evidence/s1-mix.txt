@@ -1,0 +1,3 @@
+  [mix] report → /Users/brbrainerd/dev/vox-mens-compare/target/dogfood/train_mixed.mix_report.json
+  [mix] lane distribution: {"vox_codegen": 1021, "vox_docs_qa": 145}
+  [mix] wrote 1166 lines → /Users/brbrainerd/dev/vox-mens-compare/target/dogfood/train_mixed.jsonl
