@@ -464,6 +464,7 @@ pub fn resolve_effective_profile(
         DEFAULT_PRESET
     };
     let name = normalize_preset_name(preset.or(env_p).unwrap_or(default_for_device));
+    let preset_named = preset.or(env_p).is_some() && name != "auto";
 
     let mut p = if name == "auto" {
         if kind == AcceleratorKind::Metal {
@@ -565,6 +566,7 @@ pub fn resolve_effective_profile(
     }
 
     if let Some(class) = detect_qwen_size_class(model_hint) {
+        let preset_shape = (p.batch_size, p.grad_accum);
         p = apply_qwen_size_ladder_policy(
             p,
             class,
@@ -572,6 +574,11 @@ pub fn resolve_effective_profile(
             model_hint,
             overrides.batch_size,
         );
+        // The 0.6B rung only raises batch/accum; a named preset (CLI, env, or the
+        // size pick's own rung preset) already carries the shape it wants.
+        if class == QwenSizeClass::S0p6 && preset_named {
+            (p.batch_size, p.grad_accum) = preset_shape;
+        }
         // The ladder's seq_len/grad_accum floors are defaults for the unset
         // case (same rule as batch_size): an explicit flag wins.
         if let Some(s) = overrides.seq_len {
@@ -746,6 +753,38 @@ mod preset_tests {
         );
     }
 
+    /// S2: the size pick adopted `qwen3_dev_cpu` (batch 1, accum 1) for 0.6B and the
+    /// 0.6B ladder rung raised it to batch 2 / accum 4. A named preset keeps its own.
+    #[test]
+    #[serial(vox_base_model_env)]
+    fn a_named_preset_keeps_its_batch_and_accum_on_the_0_6b_rung() {
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var(
+                "VOX_BASE_MODEL",
+                "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
+            );
+        }
+        let dev = DeviceProfile::from_gpu_info("Apple M4 Max", 110_101, "apple");
+        let overrides = CliOverrides {
+            seq_len: Some(3072),
+            ..CliOverrides::default()
+        };
+        let named = resolve_effective_profile(Some("qwen3_dev_cpu"), dev.clone(), None, overrides);
+        let auto = resolve_effective_profile(Some("auto"), dev, None, CliOverrides::default());
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("VOX_BASE_MODEL");
+        }
+        let named = named.expect("profile");
+        assert_eq!(
+            (named.batch_size, named.grad_accum, named.seq_len),
+            (1, 1, 3072)
+        );
+        // "auto" still gets the rung's raises (qwen3_16g's accum 8 already >= 4).
+        assert_eq!(auto.expect("profile").batch_size, 2);
+    }
+
     #[test]
     #[serial(vox_base_model_env)]
     fn test_prosumer_16g_preset_resolves() {
@@ -761,10 +800,9 @@ mod preset_tests {
             resolve_effective_profile(Some("prosumer_16g"), dev, None, CliOverrides::default())
                 .expect("profile");
         assert_eq!(profile.seq_len, 384);
-        // The 0.6B rung raises the *default* micro-batch to >= 2
-        // (`apply_qwen_size_ladder_policy`, QwenSizeClass::S0p6); only an explicit
-        // `--batch-size` keeps the preset's 1.
-        assert_eq!(profile.batch_size, 2);
+        // A named preset keeps its own batch/accum: the 0.6B rung's raises
+        // (`apply_qwen_size_ladder_policy`, QwenSizeClass::S0p6) apply to "auto" only.
+        assert_eq!(profile.batch_size, 1);
         assert_eq!(profile.grad_accum, 8);
         #[allow(unsafe_code)]
         unsafe {
