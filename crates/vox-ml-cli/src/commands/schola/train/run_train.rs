@@ -654,8 +654,17 @@ mod tests {
     #[test]
     fn recheck_of_an_auto_pick_without_a_reading_refuses() {
         let overlay = size_select::load_ladder_overlay(Some(&root())).expect("overlay");
+        let floor_8b = overlay
+            .get("qwen3_code")
+            .and_then(|rungs| {
+                rungs.iter().find(|b| {
+                    b.hf_id.starts_with("Qwen/Qwen3-8B@") && b.methods.iter().any(|m| m == "qlora")
+                })
+            })
+            .map(|b| b.floor_mb)
+            .expect("8B QLoRA rung");
         let free = FreeMemory {
-            mb: 13_000,
+            mb: u64::from(floor_8b) + 1_000,
             source: "test",
         };
         let Selection::Size(pick) =

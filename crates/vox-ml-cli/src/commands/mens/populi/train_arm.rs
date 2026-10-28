@@ -1185,12 +1185,21 @@ mod local_card_tests {
         use vox_populi::mens::tensor::size_select::{self, FreeMemory, Selection};
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let overlay = size_select::load_ladder_overlay(Some(&root)).unwrap();
+        let floor_14b = overlay
+            .get("qwen3_code")
+            .and_then(|rungs| {
+                rungs.iter().find(|b| {
+                    b.hf_id.starts_with("Qwen/Qwen3-14B@") && b.methods.iter().any(|m| m == "qlora")
+                })
+            })
+            .map(|b| b.floor_mb)
+            .expect("14B QLoRA rung");
         let free = FreeMemory {
-            mb: 21_000,
+            mb: u64::from(floor_14b) + 1_000,
             source: "test",
         };
-        let Selection::Size(pick) = size_select::select_size(&overlay, Some(&free), None, false)
-            .expect("14B fits 21000 MB")
+        let Selection::Size(pick) =
+            size_select::select_size(&overlay, Some(&free), None, false).expect("14B fits")
         else {
             panic!("an auto pick is a size");
         };

@@ -952,16 +952,31 @@ mod size_pick_tests {
         FreeMemory { mb, source: "test" }
     }
 
-    /// An auto 14B pick (21000 MB free) re-checked at 13000 MB free: steps down to 8B.
+    fn qlora_floor(repo: &str) -> u32 {
+        let overlay = overlay();
+        overlay
+            .get("qwen3_code")
+            .and_then(|rungs| {
+                rungs
+                    .iter()
+                    .find(|b| b.hf_id.starts_with(repo) && b.methods.iter().any(|m| m == "qlora"))
+            })
+            .map(|b| b.floor_mb)
+            .unwrap_or_else(|| panic!("QLoRA rung {repo}"))
+    }
+
+    /// An auto 14B pick re-checked with less free memory: steps down to 8B.
     fn stepped_down() -> (SizePick, SizePick) {
         let overlay = overlay();
+        let free_14b = u64::from(qlora_floor("Qwen/Qwen3-14B@")) + 1_000;
+        let free_8b = u64::from(qlora_floor("Qwen/Qwen3-8B@")) + 1_000;
         let Selection::Size(first) =
-            size_select::select_size(&overlay, Some(&free(21_000)), None, false).expect("pick")
+            size_select::select_size(&overlay, Some(&free(free_14b)), None, false).expect("pick")
         else {
             panic!("an auto pick is a size");
         };
         let down =
-            size_select::recheck_before_load(first.clone(), &overlay, Some(&free(13_000)), false)
+            size_select::recheck_before_load(first.clone(), &overlay, Some(&free(free_8b)), false)
                 .expect("8B still fits");
         (first, down)
     }
