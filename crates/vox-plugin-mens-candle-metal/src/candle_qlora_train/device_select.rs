@@ -91,7 +91,8 @@ pub(super) fn select_candle_device(
     Ok((device, label))
 }
 
-/// Remove prior QLoRA checkpoints in `out` for a `--force-restart` run.
+/// Remove prior QLoRA checkpoints, adapter and append-only telemetry in `out`
+/// for a `--force-restart` run.
 pub(super) fn purge_fresh_start_artifacts(out: &Path) -> std::io::Result<()> {
     let Ok(rd) = std::fs::read_dir(out) else {
         return Ok(());
@@ -101,6 +102,7 @@ pub(super) fn purge_fresh_start_artifacts(out: &Path) -> std::io::Result<()> {
         let s = name.to_string_lossy();
         let drop = s == crate::checkpoint_state::CHECKPOINT_FILENAME
             || s == "checkpoint_state.json.tmp"
+            || s == "telemetry.jsonl"
             || s == "candle_qlora_adapter.safetensors"
             || (s.starts_with("pause_step_") && s.ends_with(".safetensors"))
             || (s.starts_with("checkpoint_step_") && s.ends_with(".safetensors"))
@@ -127,5 +129,26 @@ mod macos_default_build_tests {
             label.starts_with("metal") || label == "cpu(fallback)",
             "macOS build compiled without Metal (label: {label})"
         );
+    }
+}
+
+#[cfg(test)]
+mod purge_tests {
+    /// 320 S2: attempt 1's step rows leaked into attempt 2's telemetry because
+    /// `--force-restart` kept `telemetry.jsonl` (it is append-only).
+    #[test]
+    fn a_fresh_start_clears_the_previous_runs_telemetry() {
+        let d = tempfile::tempdir().unwrap();
+        for f in [
+            "telemetry.jsonl",
+            "checkpoint_step_500.safetensors",
+            "notes.txt",
+        ] {
+            std::fs::write(d.path().join(f), "x").unwrap();
+        }
+        super::purge_fresh_start_artifacts(d.path()).unwrap();
+        assert!(!d.path().join("telemetry.jsonl").exists());
+        assert!(!d.path().join("checkpoint_step_500.safetensors").exists());
+        assert!(d.path().join("notes.txt").exists(), "unrelated files stay");
     }
 }
