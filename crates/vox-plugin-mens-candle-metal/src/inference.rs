@@ -543,10 +543,7 @@ impl InferenceEngine {
             );
             let lm_head = get_linear(
                 "lm_head.weight",
-                &linear_weight("lm_head.weight").or_else(|_| {
-                    linear_weight("model.language_model.embed_tokens.weight")
-                        .or_else(|_| linear_weight("model.embed_tokens.weight"))
-                })?,
+                &lm_head_weight(layout.tie_word_embeddings, linear_weight)?,
             )?;
             let embed_tokens = get_tensor("model.language_model.embed_tokens.weight")
                 .or_else(|_| get_tensor("model.embed_tokens.weight"))?;
@@ -783,6 +780,27 @@ const LM_HEAD_KEYS: [&str; 3] = [
     "model.language_model.embed_tokens.weight",
     "model.embed_tokens.weight",
 ];
+
+/// The LM head's base weight, chosen as the trainer's `resolve_lm_head_source`
+/// does: a tied model's head is the embedding matrix, and its adapter delta is
+/// keyed by the embedding key, even when the checkpoint also stores a copy as
+/// `lm_head.weight` (Qwen3-0.6B and 1.7B do). Only the head takes that delta;
+/// the embedding lookup reads the base tensor.
+fn lm_head_weight(tied: bool, linear_weight: impl Fn(&str) -> Result<Tensor>) -> Result<Tensor> {
+    let keys = if tied {
+        &LM_HEAD_KEYS[1..]
+    } else {
+        &LM_HEAD_KEYS[..]
+    };
+    let mut err = None;
+    for key in keys {
+        match linear_weight(key) {
+            Ok(t) => return Ok(t),
+            Err(e) => err = Some(e),
+        }
+    }
+    Err(err.unwrap_or_else(|| anyhow::anyhow!("no LM head key to try")))
+}
 
 /// Every transformer-block base key the load path must fetch through
 /// `linear_weight` — i.e. every linear projection LoRA can train, for this
@@ -1305,6 +1323,65 @@ mod tests {
         }
     }
 
+    /// 320 S2: Qwen3-0.6B/1.7B set `tie_word_embeddings` AND store a copy of
+    /// the head as `lm_head.weight`. The trainer trains the head LoRA on the
+    /// embedding matrix and keys it `model.embed_tokens.weight`; serving must
+    /// take the same base so the delta lands on the output projection
+    /// (logits = h·Wᵀ + h·ΔWᵀ), not fall through to the stored copy unadapted.
+    #[test]
+    fn a_tied_head_serves_the_delta_trained_on_the_embedding_key() {
+        use candle_core::{Device, Tensor};
+        let dev = Device::Cpu;
+        let (vocab, d) = (8usize, 4usize);
+        let base = Tensor::randn(0f32, 1.0, (vocab, d), &dev).unwrap();
+        let store: std::collections::HashMap<&str, Tensor> = [
+            ("lm_head.weight", base.clone()),
+            ("model.embed_tokens.weight", base.clone()),
+        ]
+        .into();
+        let embed_key = "model.embed_tokens.weight";
+        let mut factors = std::collections::HashMap::new();
+        factors.insert(embed_key.to_string(), ones_factors(vocab, d, 2, 16));
+        let linear_weight = |k: &str| -> anyhow::Result<Tensor> {
+            let t = store
+                .get(k)
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("no {k}"))?;
+            super::fold_lora_delta(t, k, &factors)
+        };
+
+        let h = Tensor::randn(0f32, 1.0, (1, d), &dev).unwrap();
+        let logits = |w: &Tensor| h.matmul(&w.t().unwrap()).unwrap();
+        let delta = factors[embed_key].delta().unwrap();
+        let want = (logits(&base) + logits(&delta)).unwrap();
+
+        let tied = super::lm_head_weight(true, linear_weight).unwrap();
+        let diff = (logits(&tied) - &want)
+            .unwrap()
+            .abs()
+            .unwrap()
+            .max_all()
+            .unwrap()
+            .to_scalar::<f32>()
+            .unwrap();
+        assert!(
+            diff < 1e-4,
+            "tied head logits miss the trained delta by {diff}"
+        );
+
+        // Untied: the real `lm_head.weight` is the base, and it has no delta here.
+        let untied = super::lm_head_weight(false, linear_weight).unwrap();
+        let diff = (logits(&untied) - logits(&base))
+            .unwrap()
+            .abs()
+            .unwrap()
+            .max_all()
+            .unwrap()
+            .to_scalar::<f32>()
+            .unwrap();
+        assert!(diff < 1e-6, "untied head must read lm_head.weight as is");
+    }
+
     /// A three-layer Qwen-shaped layout: two full-attention blocks and one
     /// linear-attention block, so both projection branches are covered.
     fn test_layout() -> crate::hf_layout::HfTransformerLayout {
@@ -1360,19 +1437,26 @@ mod tests {
             "a QuantizedLinear is being built straight from get_tensor — that layer serves \
              base weights even with an adapter loaded. Use linear_weight instead."
         );
-        // 13 real call sites + 1 for the matcher literal on the line above,
+        // 12 layer call sites + 1 for the matcher literal on the line above,
         // which `include_str!` also sees. Exact, not `>=`: a lower bound lets a
         // refactor delete one call site and still pass.
         assert_eq!(
             adapted, EXPECTED_ADAPTED_OCCURRENCES,
-            "expected exactly {EXPECTED_ADAPTED_OCCURRENCES} occurrences (13 linear projections \
+            "expected exactly {EXPECTED_ADAPTED_OCCURRENCES} occurrences (12 layer projections \
              + this test's own matcher literal), found {adapted}. A projection is being loaded \
              without the adapter, or a call site moved — {offenders} QuantizedLinear built total."
         );
+        assert_eq!(
+            src.matches("&lm_head_weight(layout.tie_word_embeddings, linear_weight)")
+                .count(),
+            2, // the load call site + this matcher literal
+            "the LM head must be fetched through lm_head_weight with the adapter fold"
+        );
     }
 
-    /// 13 linear projections + the matcher string literal in the test above.
-    const EXPECTED_ADAPTED_OCCURRENCES: usize = 14;
+    /// 12 layer projections + the matcher string literal in the test above;
+    /// the LM head goes through `lm_head_weight`, asserted separately.
+    const EXPECTED_ADAPTED_OCCURRENCES: usize = 13;
 
     /// B3: the wiring guard. Reverting ONE call site to a plain `get_tensor`
     /// drops its key from the requested set — and that must be a hard load

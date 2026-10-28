@@ -128,9 +128,9 @@ fn spawn_peak_sampler_thread( // toestub-ignore(skeleton/hollow-fn): honest "unm
 /// This matches serve's preference for a real `lm_head.weight` when present:
 /// without it, a model with an untied head (e.g. Qwen3.8-27B) computes logits
 /// against the wrong matrix during training while serve uses the right one.
-/// (Serve's own check in `inference.rs` is pure tensor presence — it never
-/// consults `tie_word_embeddings` — so the two agree for every real
-/// checkpoint, but they are not the same predicate.)
+/// Serve's `inference::lm_head_weight` applies the same predicate, so a tied
+/// checkpoint that also stores `lm_head.weight` (Qwen3-0.6B, 1.7B) gets its
+/// head delta, keyed by the embedding, on the output projection in both.
 ///
 /// - `tie_word_embeddings == false` and `lm_head_tensor` is `Some` → use it.
 /// - Otherwise (tied, or the key is genuinely absent from the checkpoint) →
