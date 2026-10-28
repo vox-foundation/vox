@@ -1,0 +1,11 @@
+{
+  "schema": "vox_mens_train_record_v1",
+  "status": "not_trained",
+  "reason": "above non-fitting 4B (D-06)",
+  "size": "8B",
+  "pin": "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",
+  "preset": "qwen3_16g",
+  "peak_mb": null,
+  "adapter": null,
+  "recorded_at": "2026-10-28T14:24:32.410Z"
+}
