@@ -42,9 +42,50 @@
       "finished_at": "2026-10-29T06:02:00Z",
       "wall_secs": 2,
       "n": 6
+    },
+    {
+      "size": "1.7B",
+      "leg": "reasoning_compare",
+      "exit_code": 0,
+      "started_at": "2026-10-29T05:58:42Z",
+      "finished_at": "2026-10-29T14:28:11Z",
+      "wall_secs": 30569,
+      "n": 32,
+      "out_path": "mens/runs/reasoning_compare/Qwen3-1.7B-70d244cc86cc.json",
+      "status": "compared"
+    },
+    {
+      "size": "1.7B",
+      "leg": "heldout_base",
+      "exit_code": 0,
+      "started_at": "2026-10-29T14:28:38Z",
+      "finished_at": "2026-10-29T14:51:24Z",
+      "wall_secs": 1366,
+      "n": 52,
+      "pass_rate_at_1": 0.0,
+      "out_path": "mens/runs/qwen3-1.7b/evidence/heldout_base.json"
+    },
+    {
+      "size": "1.7B",
+      "leg": "heldout_adapter",
+      "exit_code": 0,
+      "finished_at": "2026-10-29T15:09:30Z",
+      "n": 52,
+      "pass_rate_at_1": 0.0,
+      "out_path": "mens/runs/qwen3-1.7b/evidence/heldout_adapter.json"
+    },
+    {
+      "size": "1.7B",
+      "leg": "collateral_baseline",
+      "exit_code": 0,
+      "out_path": "mens/runs/qwen3-1.7b/evidence/collateral_baseline.json",
+      "finished_at": "2026-10-29T15:11:00Z",
+      "wall_secs": 2,
+      "n": 6
     }
   ],
   "note": "starting 0.6B compare",
-  "updated_at": "2026-10-29T05:58:42.780151+00:00",
-  "next": "1.7B reasoning_compare"
+  "updated_at": "2026-10-29T15:10:05.991099+00:00",
+  "next": "321-03 collateral",
+  "scoring_complete": true
 }
