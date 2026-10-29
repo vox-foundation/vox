@@ -303,6 +303,49 @@ impl AbsenceRecord {
     }
 }
 
+/// Compared report for one base. `compared` is true only when every slice name
+/// appears once and both sides are `Scored`. Not a serve-gate input.
+#[must_use]
+pub fn compared_report_json(
+    base: &BaseLabel,
+    slices: &[(&str, BenchOutcome, BenchOutcome)],
+) -> (serde_json::Value, bool) {
+    let mut counts: HashMap<&str, usize> = HashMap::new();
+    for (name, _, _) in slices {
+        *counts.entry(*name).or_default() += 1;
+    }
+    let compared = SLICE_NAMES.iter().all(|name| {
+        counts.get(*name).copied() == Some(1)
+            && slices.iter().any(|(got, base_out, adapter_out)| {
+                got == name
+                    && matches!(base_out, BenchOutcome::Scored(_))
+                    && matches!(adapter_out, BenchOutcome::Scored(_))
+            })
+    });
+    let mut slice_map = serde_json::Map::new();
+    for (name, base_out, adapter_out) in slices {
+        slice_map.insert(
+            (*name).to_string(),
+            serde_json::json!({
+                "base": base_out.to_json(),
+                "adapter": adapter_out.to_json(),
+            }),
+        );
+    }
+    let value = serde_json::json!({
+        "schema": BEFORE_AFTER_SCHEMA,
+        "status": if compared { "compared" } else { "incomplete" },
+        "scope_note": crate::reasoning_slice::REASONING_SLICE_SCOPE_NOTE,
+        "slice_size": SLICE_SIZE,
+        "base_requested": base.requested,
+        "base_model": base.repo_id,
+        "base_revision": base.revision,
+        "gate_input": false,
+        "slices": slice_map,
+    });
+    (value, compared)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -806,5 +849,74 @@ mod tests {
             "{name}"
         );
         assert!(name.ends_with("-unpinned.json"), "{name}");
+    }
+
+    fn scored_outcome(accuracy: f64, think: f64, n: usize) -> BenchOutcome {
+        BenchOutcome::Scored(crate::qwen_reasoning::ReasoningScore {
+            accuracy,
+            think_initiation_rate: think,
+            n,
+        })
+    }
+
+    #[test]
+    fn compared_report_has_separate_keys_per_slice_and_side() {
+        let base = BaseLabel::from_pin(vox_populi_default_pin());
+        let rows: Vec<(&str, BenchOutcome, BenchOutcome)> = SLICE_NAMES
+            .iter()
+            .map(|name| {
+                (
+                    *name,
+                    scored_outcome(1.0, 1.0, 32),
+                    scored_outcome(0.5, 0.25, 32),
+                )
+            })
+            .collect();
+        let (body, compared) = compared_report_json(&base, &rows);
+        assert!(compared);
+        assert_eq!(body["status"], "compared");
+        assert_eq!(
+            body["scope_note"],
+            crate::reasoning_slice::REASONING_SLICE_SCOPE_NOTE
+        );
+        assert_eq!(body["slice_size"], 32);
+        assert_eq!(body["gate_input"], false);
+        assert_eq!(body["base_model"], "Qwen/Qwen3-8B");
+        for name in SLICE_NAMES {
+            for side in ["base", "adapter"] {
+                let entry = &body["slices"][name][side];
+                assert!(entry.get("accuracy").is_some(), "{name} {side}");
+                assert!(
+                    entry.get("think_initiation_rate").is_some(),
+                    "{name} {side}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn one_not_scored_entry_makes_the_report_incomplete() {
+        let base = BaseLabel::from_pin(vox_populi_default_pin());
+        let mut rows: Vec<(&str, BenchOutcome, BenchOutcome)> = SLICE_NAMES
+            .iter()
+            .map(|name| {
+                (
+                    *name,
+                    scored_outcome(1.0, 1.0, 32),
+                    scored_outcome(1.0, 1.0, 32),
+                )
+            })
+            .collect();
+        rows[1].2 = BenchOutcome::NotScored {
+            reason: "adapter failed".to_string(),
+            n_requested: 32,
+        };
+        let (body, compared) = compared_report_json(&base, &rows);
+        assert!(!compared);
+        assert_eq!(body["status"], "incomplete");
+        let entry = &body["slices"]["math500_think"]["adapter"];
+        assert_eq!(entry["status"], "not_scored");
+        assert!(entry.get("accuracy").is_none());
+        assert!(entry.get("think_initiation_rate").is_none());
     }
 }
