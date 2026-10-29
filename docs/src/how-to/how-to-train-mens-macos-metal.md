@@ -90,6 +90,8 @@ is not detected as an edit. A quick first look at the stored status:
 jq '.status' mens/runs/qwen35-08b-metal-e2e/collateral_damage_report.json
 ```
 
+`vox mens eval-reasoning-compare --adapter <run dir>` scores the pinned base (the default pin, or `--base` with a size name or an `hf_id@sha`) and the adapter on the three checked-in slices into `mens/runs/reasoning_compare/<size>-<revision>.json`, one file per base; when the pinned snapshot or a matching adapter is not on disk it writes a `not_compared` record with no score keys and prints `NOT COMPARED`; the file is not a serve-gate input.
+
 ## Serve and pin from Drive
 
 Ollama commonly occupies port 11434. Use a separate port for the native server:

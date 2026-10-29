@@ -263,12 +263,9 @@ pub(crate) fn run_eval_reasoning_compare_with(
     overlay_root: &Path,
     score_side: SideScorer<'_>,
 ) -> Result<RunStatus> {
-    // Size-name resolution through train_bases is wired in a later task.
-    let _ = overlay_root;
-    let pin = args
-        .base
-        .clone()
-        .unwrap_or_else(|| vox_populi::mens::DEFAULT_MODEL_ID.to_string());
+    let overlay = vox_populi::mens::tensor::spoke_base_resolver::load_overlay(overlay_root)
+        .map_err(|err| anyhow::anyhow!("load train_bases overlay: {err}"))?;
+    let pin = detect::resolve_base_pin(args.base.as_deref(), &overlay);
     let label = BaseLabel::from_pin(&pin);
     let hub_root =
         detect::resolve_hub_root(args.hub_root.as_deref(), env_hub.0, env_hub.1, env_hub.2)
@@ -865,5 +862,37 @@ mod tests {
             }
         }
         false
+    }
+
+    #[test]
+    fn cli_entry_records_the_resolved_pin() {
+        let hub = tempfile::tempdir().unwrap();
+        let runs = tempfile::tempdir().unwrap();
+        let status = run_eval_reasoning_compare_with(
+            CompareArgs {
+                base: Some("Qwen3-0.6B".to_string()),
+                adapter: None,
+                hub_root: Some(hub.path().to_path_buf()),
+                bench_root: data_root(),
+                out: None,
+            },
+            (None, None, None),
+            runs.path(),
+            &repo_root(),
+            &mut |_, _, _| panic!("scorer must not run"),
+        )
+        .expect("resolved pin");
+        assert!(matches!(status, RunStatus::NotCompared(_)));
+        let path = runs
+            .path()
+            .join(REASONING_COMPARE_SUBDIR)
+            .join("Qwen3-0.6B-c1899de289a0.json");
+        let body: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(body["base_model"], "Qwen/Qwen3-0.6B");
+        assert_eq!(
+            body["base_revision"],
+            "c1899de289a04d12100db370d81485cdf75e47ca"
+        );
     }
 }

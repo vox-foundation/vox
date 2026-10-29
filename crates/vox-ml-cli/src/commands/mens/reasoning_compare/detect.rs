@@ -1,8 +1,11 @@
 //! Model-free detection of a pinned base snapshot and its adapter.
 //! Never opens a weight file and never loads a model.
 
+use std::collections::HashMap;
 use std::ffi::OsString;
 use std::path::{Component, Path, PathBuf};
+
+use vox_populi::mens::tensor::spoke_base_resolver::TrainBase;
 
 use vox_eval::reasoning_bench::{AbsenceReason, AbsenceRecord, BaseLabel};
 
@@ -203,6 +206,40 @@ fn absent(
         adapter_given: adapter.is_some(),
         adapter_on_disk,
     })
+}
+
+/// Resolve a size name or pinned id. `None` is the pinned default. An unknown
+/// or ambiguous name is returned unchanged so detection records `pin_unverifiable`.
+pub(crate) fn resolve_base_pin(
+    requested: Option<&str>,
+    overlay: &HashMap<String, Vec<TrainBase>>,
+) -> String {
+    let Some(input) = requested else {
+        return vox_populi::mens::DEFAULT_MODEL_ID.to_string();
+    };
+    if BaseLabel::from_pin(input).revision.is_some() {
+        return input.to_string();
+    }
+    let mut pins: Vec<String> = Vec::new();
+    for bases in overlay.values() {
+        for base in bases {
+            let label = BaseLabel::from_pin(&base.hf_id);
+            if label.revision.is_none() {
+                continue;
+            }
+            let repo = label.repo_id.as_str();
+            if (repo == input || repo.ends_with(&format!("/{input}")))
+                && !pins.contains(&base.hf_id)
+            {
+                pins.push(base.hf_id.clone());
+            }
+        }
+    }
+    if pins.len() == 1 {
+        pins.remove(0)
+    } else {
+        input.to_string()
+    }
 }
 
 #[cfg(test)]
@@ -474,5 +511,100 @@ mod tests {
             detect_inputs(hub.path(), &label, Some(alias.path())),
             Detected::Ready { .. }
         ));
+    }
+
+    fn workspace_overlay() -> HashMap<String, Vec<TrainBase>> {
+        vox_populi::mens::tensor::spoke_base_resolver::load_overlay(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        )
+        .expect("overlay")
+    }
+
+    fn train_base(hf_id: &str) -> TrainBase {
+        TrainBase {
+            hf_id: hf_id.to_string(),
+            floor_mb: 1,
+            methods: Vec::new(),
+            license: None,
+            attribution_required: false,
+        }
+    }
+
+    #[test]
+    fn base_resolution_default_is_the_pinned_8b() {
+        assert_eq!(
+            resolve_base_pin(None, &workspace_overlay()),
+            vox_populi::mens::DEFAULT_MODEL_ID
+        );
+    }
+
+    #[test]
+    fn base_resolution_full_pin_passes_through() {
+        let overlay = workspace_overlay();
+        let known = "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca";
+        let unknown = "other/model@0123456789abcdef0123456789abcdef01234567";
+        assert_eq!(resolve_base_pin(Some(known), &overlay), known);
+        assert_eq!(resolve_base_pin(Some(unknown), &overlay), unknown);
+    }
+
+    #[test]
+    fn base_resolution_size_name_uses_train_bases() {
+        let overlay = workspace_overlay();
+        let eight = "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218";
+        let small = "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca";
+        assert_eq!(resolve_base_pin(Some("Qwen3-8B"), &overlay), eight);
+        assert_eq!(resolve_base_pin(Some("Qwen/Qwen3-8B"), &overlay), eight);
+        assert_eq!(resolve_base_pin(Some("Qwen3-0.6B"), &overlay), small);
+    }
+
+    #[test]
+    fn base_resolution_unknown_or_ambiguous_is_unverifiable() {
+        let unknown = resolve_base_pin(Some("not-a-model"), &workspace_overlay());
+        assert_eq!(unknown, "not-a-model");
+        assert!(BaseLabel::from_pin(&unknown).revision.is_none());
+        let mut synthetic = HashMap::new();
+        synthetic.insert(
+            "tag".to_string(),
+            vec![
+                train_base("Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"),
+                train_base("Qwen/Qwen3-8B@0123456789abcdef0123456789abcdef01234567"),
+            ],
+        );
+        let got = resolve_base_pin(Some("Qwen3-8B"), &synthetic);
+        assert_eq!(got, "Qwen3-8B");
+        assert!(BaseLabel::from_pin(&got).revision.is_none());
+        let hub = tempfile::tempdir().unwrap();
+        assert_eq!(
+            reason_of(detect_inputs(hub.path(), &BaseLabel::from_pin(&got), None)),
+            AbsenceReason::PinUnverifiable
+        );
+    }
+
+    #[test]
+    fn base_resolution_size_is_detected_at_its_own_snapshot() {
+        let overlay = workspace_overlay();
+        let small_pin = resolve_base_pin(Some("Qwen3-0.6B"), &overlay);
+        let default_pin = resolve_base_pin(None, &overlay);
+        let small = BaseLabel::from_pin(&small_pin);
+        let hub = tempfile::tempdir().unwrap();
+        let dir = place(
+            hub.path(),
+            &small.repo_id,
+            small.revision.as_deref().expect("rev"),
+        );
+        let adapter = tempfile::tempdir().unwrap();
+        write_adapter(adapter.path(), &dir.display().to_string());
+        assert!(matches!(
+            detect_inputs(hub.path(), &small, Some(adapter.path())),
+            Detected::Ready { .. }
+        ));
+        assert_eq!(
+            reason_of(detect_inputs(
+                hub.path(),
+                &BaseLabel::from_pin(&default_pin),
+                Some(adapter.path())
+            )),
+            AbsenceReason::BaseSnapshotAbsent
+        );
     }
 }
