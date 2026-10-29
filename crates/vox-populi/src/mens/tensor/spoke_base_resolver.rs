@@ -605,6 +605,41 @@ pub fn confirm_before_load(
     }
 }
 
+/// CUDA `memory.free` wins when present. Otherwise Metal `memory_free_mb`.
+/// Both absent is an error. There is no environment override.
+pub fn free_mb_from_readings(
+    cuda: Option<crate::mens::tensor::vram_autodetect::VramInfo>,
+    metal_free_mb: Option<u64>,
+) -> anyhow::Result<u32> {
+    if let Some(info) = cuda {
+        let mb = info.free_gb * 1024.0;
+        if !mb.is_finite() || mb < 0.0 {
+            anyhow::bail!("CUDA free memory {mb} is not a usable MiB reading");
+        }
+        return Ok(mb.round() as u32);
+    }
+    if let Some(mb) = metal_free_mb {
+        return u32::try_from(mb)
+            .map_err(|_| anyhow::anyhow!("Metal memory_free_mb {mb} does not fit in u32"));
+    }
+    anyhow::bail!(
+        "no accelerator free-memory reading (CUDA free and Metal memory_free_mb are both absent)"
+    )
+}
+
+/// Live free memory: `query_nvidia_smi_vram`'s free field, else `monitor_metal`'s
+/// `memory_free_mb`. Unit tests inject readings into `free_mb_from_readings` instead.
+pub fn read_accelerator_free_mb() -> anyhow::Result<u32> {
+    let cuda = crate::mens::tensor::vram_autodetect::query_nvidia_smi_vram();
+    let metal_free_mb = if cuda.is_some() {
+        None
+    } else {
+        crate::mens::hardware::macos_metal::monitor_metal()
+            .map(|telemetry| telemetry.memory_free_mb)
+    };
+    free_mb_from_readings(cuda, metal_free_mb)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1415,5 +1450,27 @@ train_bases:
             resolve_base_model(root, "org/Custom-Model", None).expect("passthrough"),
             "org/Custom-Model"
         );
+    }
+
+    #[test]
+    fn free_mb_from_readings_prefers_cuda_free_field() {
+        let cuda = crate::mens::tensor::vram_autodetect::VramInfo {
+            total_gb: 16.0,
+            used_gb: 4.0,
+            free_gb: 12_000.0 / 1024.0,
+        };
+        let mb = free_mb_from_readings(Some(cuda), Some(100)).expect("cuda free wins");
+        assert_eq!(mb, 12_000);
+    }
+
+    #[test]
+    fn free_mb_from_readings_uses_metal_when_cuda_absent() {
+        let mb = free_mb_from_readings(None, Some(4096)).expect("metal free");
+        assert_eq!(mb, 4096);
+    }
+
+    #[test]
+    fn free_mb_from_readings_errors_when_both_absent() {
+        assert!(free_mb_from_readings(None, None).is_err());
     }
 }
