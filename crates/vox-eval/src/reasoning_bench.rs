@@ -272,9 +272,12 @@ impl AbsenceRecord {
     /// JSON body of a `not_compared` report. No score keys, no `n`, not a gate input.
     #[must_use]
     pub fn to_json(&self) -> serde_json::Value {
+        // BaseSnapshotIncomplete is returned only after the snapshot directory
+        // exists. Absent and unverifiable pins were never found on disk.
         let snapshot_on_disk = matches!(
             self.reason,
-            AbsenceReason::AdapterAbsent
+            AbsenceReason::BaseSnapshotIncomplete
+                | AbsenceReason::AdapterAbsent
                 | AbsenceReason::AdapterIncomplete
                 | AbsenceReason::AdapterBaseNotPinnedSnapshot
         );
@@ -778,6 +781,29 @@ mod tests {
         assert_eq!(body["snapshot_on_disk"], false);
         assert_eq!(body["gate_input"], false);
         assert_eq!(body["slices"], serde_json::json!(SLICE_NAMES));
+    }
+
+    #[test]
+    fn incomplete_snapshot_is_reported_on_disk() {
+        let base = BaseLabel::from_pin(vox_populi_default_pin());
+        let on_disk = |reason: AbsenceReason| {
+            AbsenceRecord {
+                base: base.clone(),
+                reason,
+                searched: Some("searched".to_string()),
+                adapter_given: false,
+                adapter_on_disk: false,
+            }
+            .to_json()["snapshot_on_disk"]
+                .as_bool()
+                .expect("bool")
+        };
+        assert!(!on_disk(AbsenceReason::BaseSnapshotAbsent));
+        assert!(!on_disk(AbsenceReason::PinUnverifiable));
+        assert!(on_disk(AbsenceReason::BaseSnapshotIncomplete));
+        assert!(on_disk(AbsenceReason::AdapterAbsent));
+        assert!(on_disk(AbsenceReason::AdapterIncomplete));
+        assert!(on_disk(AbsenceReason::AdapterBaseNotPinnedSnapshot));
     }
 
     fn vox_populi_default_pin() -> &'static str {
