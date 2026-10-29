@@ -2,30 +2,30 @@
 gsd_state_version: "1.0"
 milestone: v5.6
 milestone_name: Reasoning Where the Lane Needs It
-current_phase: 316
-current_phase_name: Before/After Comparison
-status: ready
-stopped_at: Completed 316-01-PLAN.md
-last_updated: "2026-10-29T01:21:33.806Z"
+current_phase: 317
+current_phase_name: Size Ladder
+status: ready_to_plan
+stopped_at: Phase 316 complete, ready to plan Phase 317
+last_updated: "2026-10-28T16:40:00.000Z"
 last_activity: 2026-10-28
-last_activity_desc: Phase 322 added to v5.6 (calibrated turn decisions + ChatARC)
+last_activity_desc: Phase 316 verified passed; advanced to 317
 state_head: ae417851211126b4767114bb3061e711571b7322
 progress:
   total_phases: 10
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 9
   completed_plans: 9
-  percent: 30
+  percent: 40
 ---
 
 # Project State: Unified Workstream
 
 ## Current Position
 
-Phase: 316 (Before/After Comparison) — plan 01 executed, awaiting verification
-Plan: 1 of 1
-Status: Phase 315 verified passed (9/9). v5.6 extended to phases 317–321 (sizes/mesh/train) and **322** (calibrated turn decisions + ChatARC); not done until two sizes have real trained scores and 322 is planned/executed or deferred.
-Last activity: 2026-10-29 — Completed 316-01-PLAN.md
+Phase: 317 (Size Ladder) — ready to plan
+Plan: Not started
+Status: Phase 316 verified passed (8/8) and threat-secure. v5.6 continues through 317–322; not done until two sizes have real trained scores and 322 is planned/executed or deferred.
+Last activity: 2026-10-28 — Phase 316 complete, ready to plan Phase 317
 
 ## Milestone History (Recent)
 
@@ -42,7 +42,7 @@ Last activity: 2026-10-29 — Completed 316-01-PLAN.md
 
 ## Next Step
 
-Execute phase 316, then plan/execute 317–321; plan phase 322 with `/gsd-plan-phase 322` (after or in parallel planning once 321 deps are clear).
+Discuss and plan phase 317 (size ladder), then execute. Phases 318–322 remain.
 
 ## v5.5 Autonomous Progress (2026-10-25 America/Phoenix)
 
@@ -71,6 +71,6 @@ Execute phase 316, then plan/execute 317–321; plan phase 322 with `/gsd-plan-p
 
 ## Session
 
-**Last session:** 2026-10-29T01:21:33.433Z
-**Stopped at:** Completed 316-01-PLAN.md
+**Last session:** 2026-10-28
+**Stopped at:** Phase 316 complete, ready to plan Phase 317
 **Resume file:** None

@@ -3,7 +3,7 @@
 # Roadmap: v5.6 — Reasoning Where the Lane Needs It
 
 **Milestone:** v5.6
-**Status:** Phase 315 complete — ready for phase 316. Extended 2026-10-26 (sizes 317–321) and 2026-10-28 (phase 322 calibrated decisions + ChatARC). Not complete until at least two Qwen3 sizes have real trained before/after scores **and** phase 322 is planned/executed or explicitly deferred.
+**Status:** Phase 316 complete — ready for phase 317. Extended 2026-10-26 (sizes 317–321) and 2026-10-28 (phase 322 calibrated decisions + ChatARC). Not complete until at least two Qwen3 sizes have real trained before/after scores **and** phase 322 is planned/executed or explicitly deferred.
 **Updated:** 2026-10-28
 
 ### Phase 313: Lane Prefix (`LANE-01`, `LANE-02`)
@@ -76,7 +76,7 @@ Plans:
 
 Plans:
 - [x] 316-01-PLAN.md
-- [ ] `316-01`: Run the before/after on the checked-in slices, or record that the snapshot is absent
+- [x] `316-01`: Run the before/after on the checked-in slices, or record that the snapshot is absent (completed 2026-10-28)
 
 ### Phase 317: Size Ladder (`SIZE-01`)
 
@@ -144,7 +144,7 @@ Plans:
 | **Phase 313** | Lane Prefix | `4/4` | Complete |
 | **Phase 314** | Held-out Reasoning Set | `2/2` | Complete |
 | **Phase 315** | Serve Gate | `2/2` | Complete |
-| **Phase 316** | Before/After Comparison | `0/1` | Not started |
+| **Phase 316** | Before/After Comparison | `1/1` | Complete    2026-10-28 |
 | **Phase 317** | Size Ladder | `0/0` | Not started |
 | **Phase 318** | Live VRAM Selector | `0/0` | Not started |
 | **Phase 319** | Mesh-Wide Selection | `0/0` | Not started |
