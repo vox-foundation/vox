@@ -3,7 +3,7 @@
 # Roadmap: v5.6 — Reasoning Where the Lane Needs It
 
 **Milestone:** v5.6
-**Status:** Phase 316 complete — ready for phase 317. Extended 2026-10-26 (sizes 317–321) and 2026-10-28 (phase 322 calibrated decisions + ChatARC). Not complete until at least two Qwen3 sizes have real trained before/after scores **and** phase 322 is planned/executed or explicitly deferred.
+**Status:** Phase 317 complete — ready for phase 318. Extended 2026-10-26 (sizes 317–321) and 2026-10-28 (phase 322 calibrated decisions + ChatARC). Not complete until at least two Qwen3 sizes have real trained before/after scores **and** phase 322 is planned/executed or explicitly deferred.
 **Updated:** 2026-10-28
 
 ### Phase 313: Lane Prefix (`LANE-01`, `LANE-02`)
@@ -148,7 +148,7 @@ Plans:
 | **Phase 314** | Held-out Reasoning Set | `2/2` | Complete |
 | **Phase 315** | Serve Gate | `2/2` | Complete |
 | **Phase 316** | Before/After Comparison | `1/1` | Complete    2026-10-28 |
-| **Phase 317** | Size Ladder | `1/1` | In Progress |
+| **Phase 317** | Size Ladder | `1/1` | Complete    2026-10-28 |
 | **Phase 318** | Live VRAM Selector | `0/0` | Not started |
 | **Phase 319** | Mesh-Wide Selection | `0/0` | Not started |
 | **Phase 320** | Train the Sizes | `0/0` | Not started |

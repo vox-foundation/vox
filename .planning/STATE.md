@@ -2,33 +2,30 @@
 gsd_state_version: "1.0"
 milestone: v5.6
 milestone_name: Reasoning Where the Lane Needs It
-current_phase: 317
-current_phase_name: Size Ladder
-current_plan: 1
-status: ready_for_verification
-stopped_at: Completed 317-01-PLAN.md
-last_updated: "2026-10-29T03:52:47.192Z"
+current_phase: 318
+current_phase_name: Live VRAM Selector
+status: ready_to_plan
+stopped_at: Phase 317 complete, ready to plan Phase 318
+last_updated: "2026-10-28T20:20:00.000Z"
 last_activity: 2026-10-28
-last_activity_desc: Completed 317-01-PLAN.md
+last_activity_desc: Phase 317 verified passed; advanced to 318
 state_head: 3592ec1e69305f2d6a0f92b14cba7a3a0c54387d
 progress:
   total_phases: 10
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 10
   completed_plans: 10
-  percent: 40
+  percent: 50
 ---
 
 # Project State: Unified Workstream
 
 ## Current Position
 
-Phase: 317 (Size Ladder) — executed, awaiting verification
-Current Plan: 1
-Total Plans in Phase: 1
-Plan: 317-01 executed
-Status: 317-01 executed. Awaiting verification. v5.6 continues through 318–322; not done until two sizes have real trained scores and 322 is planned/executed or deferred.
-Last activity: 2026-10-28 — Completed 317-01-PLAN.md
+Phase: 318 (Live VRAM Selector) — ready to discuss
+Plan: Not started
+Status: Phase 317 verified passed (7/7), threat-secure, Nyquist validated. v5.6 continues through 318–322; not done until two sizes have real trained scores and 322 is planned/executed or deferred.
+Last activity: 2026-10-28 — Phase 317 complete, ready to discuss Phase 318
 
 ## Milestone History (Recent)
 
@@ -45,7 +42,7 @@ Last activity: 2026-10-28 — Completed 317-01-PLAN.md
 
 ## Next Step
 
-Verify phase 317. Do not re-execute 317-01. Phases 318–322 remain.
+Phase 317 is Nyquist-compliant. Do not re-execute 317-01. Continue v5.6 at phase 318. Phases 318–322 remain.
 
 ## v5.5 Autonomous Progress (2026-10-25 America/Phoenix)
 
@@ -78,6 +75,6 @@ Verify phase 317. Do not re-execute 317-01. Phases 318–322 remain.
 
 ## Session
 
-**Last session:** 2026-10-29T03:52:46.904Z
-**Stopped at:** Completed 317-01-PLAN.md
+**Last session:** 2026-10-28
+**Stopped at:** Phase 317 complete, ready to discuss Phase 318
 **Resume file:** None
