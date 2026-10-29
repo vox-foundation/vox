@@ -117,6 +117,23 @@ fn measured_qlora_row<'a>(
     })
 }
 
+/// A live free-memory reading is required only for an automatic Qwen3 pick,
+/// an explicit size spelling, or a measured `qwen3_code` QLoRA row on this
+/// exact Hugging Face id. A concrete id is not a reading just because its
+/// name contains `Qwen3-`.
+pub(crate) fn model_needs_accelerator_reading(
+    model: &str,
+    automatic_qwen3: bool,
+    overlay: &std::collections::HashMap<
+        String,
+        Vec<vox_populi::mens::tensor::spoke_base_resolver::TrainBase>,
+    >,
+) -> bool {
+    automatic_qwen3
+        || vox_populi::mens::tensor::spoke_base_resolver::is_qwen3_size_spelling(model)
+        || measured_qlora_row(overlay, model).is_some()
+}
+
 fn pick_from_measured_row(
     row: &vox_populi::mens::tensor::spoke_base_resolver::TrainBase,
     free_mb: u32,
@@ -367,10 +384,11 @@ pub async fn run_train(
     }
     let mut preload_revision = None;
     if let Some(current) = model.clone() {
-        let repo = current.split('@').next().unwrap_or(current.as_str());
-        let needs_reading = automatic_qwen3
-            || vox_populi::mens::tensor::spoke_base_resolver::is_qwen3_size_spelling(&current)
-            || repo.contains("Qwen3-");
+        let root = vox_corpus::training::contract::find_workspace_root().ok_or_else(|| {
+            anyhow::anyhow!("could not find workspace root for the qwen3 preload check")
+        })?;
+        let overlay = vox_populi::mens::tensor::spoke_base_resolver::load_overlay(&root)?;
+        let needs_reading = model_needs_accelerator_reading(&current, automatic_qwen3, &overlay);
         let free_at_load = if needs_reading {
             vox_populi::mens::tensor::spoke_base_resolver::read_accelerator_free_mb()?
         } else {
@@ -708,6 +726,44 @@ mod tests {
 #[cfg(test)]
 mod preload_tests {
     use super::apply_preload_free_mb;
+
+    #[test]
+    fn concrete_id_with_qwen3_in_the_name_does_not_require_a_live_reading() {
+        let root = vox_corpus::training::contract::find_workspace_root().expect("workspace");
+        let overlay =
+            vox_populi::mens::tensor::spoke_base_resolver::load_overlay(&root).expect("overlay");
+        let measured = "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218";
+        assert!(!super::model_needs_accelerator_reading(
+            "org/Qwen3-8B-finetune",
+            false,
+            &overlay
+        ));
+        assert!(!super::model_needs_accelerator_reading(
+            "org/Manual",
+            false,
+            &overlay
+        ));
+        assert!(super::model_needs_accelerator_reading(
+            "org/Manual",
+            true,
+            &overlay
+        ));
+        assert!(super::model_needs_accelerator_reading(
+            "8B", false, &overlay
+        ));
+        assert!(super::model_needs_accelerator_reading(
+            "Qwen3-8B", false, &overlay
+        ));
+        assert!(super::model_needs_accelerator_reading(
+            measured, false, &overlay
+        ));
+        let needle = format!("repo.{}(\"Qwen3-\")", "contains");
+        assert!(
+            !include_str!("run_train.rs").contains(&needle),
+            "needs_reading must not substring-match Qwen3-"
+        );
+    }
+
     use vox_populi::mens::tensor::spoke_base_resolver::select_qwen3_code_qlora_for_free_mb;
 
     #[test]
