@@ -6,7 +6,7 @@ current_phase: 321
 current_phase_name: Harness Before/After
 current_plan: 9
 status: executing
-stopped_at: Completed 321-02-PLAN.md
+stopped_at: Starting 321-03-PLAN.md (collateral/gate/serve)
 last_updated: "2026-10-29T15:11:22.587Z"
 last_activity: 2026-10-28
 last_activity_desc: SIZE-03 PASS; ladder report committed (Plans 01–09)
@@ -45,7 +45,8 @@ Last activity: 2026-10-28 — Plan 09 SIZE-03 check + ladder report
 
 ## Next Step
 
-Phase 321: execute 321-02 (Metal before/after scoring for 0.6B and 1.7B; ~14–22h). Then 321-03 collateral/serve, 321-04 report. Phase 319 remains deferred.
+Phase 321: execute 321-03 (collateral + gate + serve smoke). 0.6B collateral Metal run in progress; then 1.7B collateral, gates, serve-smoke; then 321-04 report. Phase 319 deferred.
+
 
 ## v5.5 Autonomous Progress (2026-10-25 America/Phoenix)
 
