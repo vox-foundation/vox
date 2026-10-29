@@ -769,13 +769,23 @@ fn resolve_local_spoke_base(
         .ok()
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty());
-    let free_mb = vox_populi::mens::tensor::spoke_base_resolver::read_accelerator_free_mb()?;
+    let needs_reading = crate::commands::mens::training_selection::selection_requires_free_reading(
+        &root,
+        Some(domain),
+        cli_model,
+        env_default_model.as_deref(),
+    );
+    let free_mb = if needs_reading {
+        Some(vox_populi::mens::tensor::spoke_base_resolver::read_accelerator_free_mb()?)
+    } else {
+        None
+    };
     let selection = resolve_training_selection(
         &root,
         Some(domain),
         cli_model,
         cli_preset,
-        Some(free_mb),
+        free_mb,
         env_default_model.as_deref(),
     )?;
 

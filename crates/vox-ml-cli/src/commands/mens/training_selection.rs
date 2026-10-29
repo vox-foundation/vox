@@ -106,6 +106,34 @@ pub fn resolve_training_selection(
     })
 }
 
+/// Whether resolving this spoke needs a live free-memory reading.
+///
+/// RagOnly and PromptOnly skip before any reading. A QLoRA train needs one
+/// only when the size is unnamed or an explicit Qwen3 spelling. A concrete id
+/// and a non-empty env pin that is not a size spelling do not.
+pub fn selection_requires_free_reading(
+    root: &Path,
+    profile: Option<&str>,
+    cli_model: Option<&str>,
+    env_default_model: Option<&str>,
+) -> bool {
+    let eff = profile.and_then(|n| EffectiveDomainProfile::load_domain_profile(n, Some(root)).ok());
+    let method = eff
+        .as_ref()
+        .and_then(|e| e.base.as_ref().map(|b| b.method))
+        .unwrap_or(TrainMethod::Qlora);
+    if !matches!(method, TrainMethod::Qlora) {
+        return false;
+    }
+    let pinned = env_default_model
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    match cli_model.or(pinned) {
+        None => true,
+        Some(name) => vox_populi::mens::tensor::spoke_base_resolver::is_qwen3_size_spelling(name),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -116,6 +144,97 @@ mod tests {
             .unwrap()
             .to_path_buf()
     }
+
+    #[test]
+    fn skippable_spokes_do_not_require_a_free_memory_reading() {
+        let dir = std::env::temp_dir().join(format!("vox-selection-skip-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("mens/config")).unwrap();
+        std::fs::write(
+            dir.join("mens/config/domain-profiles.yaml"),
+            "profiles:\n  docs:\n    base: { model: strong_code_default, method: rag_only }\n  prompt:\n    base: { model: strong_code_default, method: prompt_only }\n",
+        )
+        .unwrap();
+        assert!(!selection_requires_free_reading(
+            &dir,
+            Some("docs"),
+            None,
+            None
+        ));
+        assert!(!selection_requires_free_reading(
+            &dir,
+            Some("prompt"),
+            None,
+            None
+        ));
+        let skipped =
+            resolve_training_selection(&dir, Some("docs"), None, None, None, None).unwrap();
+        assert!(matches!(skipped, TrainingSelection::Skip { .. }));
+        let _ = std::fs::remove_dir_all(&dir);
+
+        assert!(selection_requires_free_reading(
+            &root(),
+            Some("rust"),
+            None,
+            None
+        ));
+        assert!(selection_requires_free_reading(
+            &root(),
+            Some("rust"),
+            Some("8B"),
+            None
+        ));
+        assert!(!selection_requires_free_reading(
+            &root(),
+            Some("rust"),
+            Some("org/Manual"),
+            None
+        ));
+        assert!(!selection_requires_free_reading(
+            &root(),
+            Some("rust"),
+            None,
+            Some("org/Pinned")
+        ));
+        assert!(selection_requires_free_reading(
+            &root(),
+            Some("rust"),
+            None,
+            Some("8B")
+        ));
+    }
+
+    #[test]
+    fn free_memory_is_read_only_after_the_selection_predicate() {
+        let pipeline = include_str!("pipeline.rs");
+        let train = pipeline
+            .find("PipelineStage::Train =>")
+            .expect("train stage");
+        let window = &pipeline[train..];
+        let pred = window
+            .find("selection_requires_free_reading")
+            .expect("pipeline predicate");
+        let read = window
+            .find("read_accelerator_free_mb")
+            .expect("pipeline read");
+        assert!(pred < read, "pipeline must decide skip before probing");
+        let arm = include_str!("populi/train_arm.rs");
+        let start = arm
+            .find("fn resolve_local_spoke_base(")
+            .expect("local resolver");
+        let rest = &arm[start..];
+        let next = rest.find("\nfn ").expect("next fn");
+        let local = &rest[..next];
+        let pred = local
+            .find("selection_requires_free_reading")
+            .expect("local predicate");
+        let read = local.find("read_accelerator_free_mb").expect("local read");
+        assert!(
+            pred < read,
+            "local spoke resolution must decide skip before probing"
+        );
+    }
+
     #[test]
     fn rust_resolves_qwen_qlora() {
         // "rust-expert" renamed to "rust" by B0.1; test updated by B0.2 audit.

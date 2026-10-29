@@ -466,21 +466,17 @@ pub async fn run(
                     .ok()
                     .map(|value| value.trim().to_string())
                     .filter(|value| !value.is_empty());
-                let free_mb = match model.as_deref() {
-                    None => Some(
-                        vox_populi::mens::tensor::spoke_base_resolver::read_accelerator_free_mb()?,
-                    ),
-                    Some(name)
-                        if vox_populi::mens::tensor::spoke_base_resolver::is_qwen3_size_spelling(
-                            name,
-                        ) =>
-                    {
-                        Some(
-                            vox_populi::mens::tensor::spoke_base_resolver::read_accelerator_free_mb(
-                            )?,
-                        )
-                    }
-                    Some(_) => None,
+                let needs_reading =
+                    crate::commands::mens::training_selection::selection_requires_free_reading(
+                        &root,
+                        profile.as_deref(),
+                        model.as_deref(),
+                        env_default_model.as_deref(),
+                    );
+                let free_mb = if needs_reading {
+                    Some(vox_populi::mens::tensor::spoke_base_resolver::read_accelerator_free_mb()?)
+                } else {
+                    None
                 };
                 let selection =
                     crate::commands::mens::training_selection::resolve_training_selection(
