@@ -1,0 +1,50 @@
+{
+  "schema": "321_checkpoint_scoring.v1",
+  "legs": [
+    {
+      "size": "0.6B",
+      "leg": "reasoning_compare",
+      "exit_code": 0,
+      "started_at": "2026-10-28T23:51:40Z",
+      "finished_at": "2026-10-29T05:27:57Z",
+      "wall_secs": 20177,
+      "n": 32,
+      "out_path": "mens/runs/reasoning_compare/Qwen3-0.6B-c1899de289a0.json",
+      "status": "compared"
+    },
+    {
+      "size": "0.6B",
+      "leg": "heldout_base",
+      "exit_code": 0,
+      "started_at": "2026-10-29T05:28:34Z",
+      "finished_at": "2026-10-29T05:43:42Z",
+      "wall_secs": 908,
+      "n": 52,
+      "pass_rate_at_1": 0.0,
+      "out_path": "mens/runs/qwen3-0.6b/evidence/heldout_base.json"
+    },
+    {
+      "size": "0.6B",
+      "leg": "heldout_adapter",
+      "exit_code": 0,
+      "started_at": "2026-10-29T05:43:50Z",
+      "finished_at": "2026-10-29T05:58:25Z",
+      "wall_secs": 875,
+      "n": 52,
+      "pass_rate_at_1": 0.0385,
+      "out_path": "mens/runs/qwen3-0.6b/evidence/heldout_adapter.json"
+    },
+    {
+      "size": "0.6B",
+      "leg": "collateral_baseline",
+      "exit_code": 0,
+      "out_path": "mens/runs/qwen3-0.6b/evidence/collateral_baseline.json",
+      "finished_at": "2026-10-29T06:02:00Z",
+      "wall_secs": 2,
+      "n": 6
+    }
+  ],
+  "note": "starting 0.6B compare",
+  "updated_at": "2026-10-29T05:58:42.780151+00:00",
+  "next": "1.7B reasoning_compare"
+}
