@@ -740,10 +740,10 @@ mod tests {
             serde_json::Value::Object(map) => {
                 for (key, child) in map {
                     keys.push(key.clone());
-                    if key == "status" {
-                        if let Some(text) = child.as_str() {
-                            status_values.push(text.to_string());
-                        }
+                    if key == "status"
+                        && let Some(text) = child.as_str()
+                    {
+                        status_values.push(text.to_string());
                     }
                     collect_keys(child, keys, status_values);
                 }
