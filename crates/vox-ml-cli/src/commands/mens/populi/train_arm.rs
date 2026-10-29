@@ -399,6 +399,7 @@ pub async fn run_train(
     let effective_grad_accum: Option<usize> = grad_accum;
     // Never silently swapped for a smaller model by the VRAM budget below —
     // see `never_retreat_the_named_model`.
+    let automatic_qwen3 = model.is_none();
     let mut effective_model = model;
     // Resolved alongside `effective_model` below when `--domain` is given, via
     // the same `resolve_training_selection` the cloud path already uses (see
@@ -585,6 +586,7 @@ pub async fn run_train(
         effective_curriculum_schedule,
         effective_chatml,
         effective_mix_config,
+        automatic_qwen3,
     )
     .await;
 

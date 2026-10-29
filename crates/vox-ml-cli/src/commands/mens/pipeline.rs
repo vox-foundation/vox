@@ -573,6 +573,7 @@ pub async fn run(
                                     None,               // curriculum_schedule
                                     Default::default(), // chatml_config
                                     None,               // mix_config
+                                    model.is_none(),    // automatic_qwen3
                                 )
                                 .await?;
 

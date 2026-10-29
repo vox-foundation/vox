@@ -135,6 +135,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 None,               // curriculum_schedule
                 Default::default(), // chatml_config
                 None,               // mix_config
+                true,               // automatic_qwen3
             )
             .await?;
             Ok(())

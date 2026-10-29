@@ -101,6 +101,111 @@ mod corpus_threshold_tests {
     unused_assignments,
     unsafe_code
 )]
+
+fn measured_qlora_row<'a>(
+    overlay: &'a std::collections::HashMap<
+        String,
+        Vec<vox_populi::mens::tensor::spoke_base_resolver::TrainBase>,
+    >,
+    hf_id: &str,
+) -> Option<&'a vox_populi::mens::tensor::spoke_base_resolver::TrainBase> {
+    overlay.get("qwen3_code")?.iter().find(|base| {
+        base.hf_id == hf_id
+            && base.floor_measured
+            && base.floor_mb.is_some()
+            && base.methods.iter().any(|method| method == "qlora")
+    })
+}
+
+fn pick_from_measured_row(
+    row: &vox_populi::mens::tensor::spoke_base_resolver::TrainBase,
+    free_mb: u32,
+) -> anyhow::Result<vox_populi::mens::tensor::spoke_base_resolver::Qwen3LivePick> {
+    use vox_populi::mens::tensor::spoke_base_resolver::Qwen3LivePick;
+
+    let repo = row.hf_id.split('@').next().unwrap_or(row.hf_id.as_str());
+    let token = ["32B", "14B", "0.6B", "8B"]
+        .into_iter()
+        .find(|size| repo.ends_with(&format!("Qwen3-{size}")))
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "measured qwen3_code QLoRA row '{}' is not a dense Qwen3 size",
+                row.hf_id
+            )
+        })?;
+    let preset = match token {
+        "0.6B" => "qwen3_dev_cpu",
+        "8B" => "qwen3_16g",
+        "14B" => "qwen3_24g",
+        "32B" => "qwen3_96g",
+        other => anyhow::bail!("no qwen3_code QLoRA preset for size {other}"),
+    };
+    let floor_mb = row.floor_mb.ok_or_else(|| {
+        anyhow::anyhow!(
+            "measured qwen3_code QLoRA row '{}' has no floor_mb",
+            row.hf_id
+        )
+    })?;
+    Ok(Qwen3LivePick {
+        hf_id: row.hf_id.clone(),
+        size_token: token.to_string(),
+        preset: preset.to_string(),
+        floor_mb,
+        free_mb,
+    })
+}
+
+/// Re-check a resolved size against a free-memory reading the caller already took.
+/// Does not read the accelerator. Automatic picks may step down. Explicit Qwen3
+/// sizes and measured `qwen3_code` QLoRA pins are refused, never replaced.
+pub(crate) fn apply_preload_free_mb(
+    model: &str,
+    preset: &str,
+    automatic: bool,
+    free_mb: u32,
+) -> anyhow::Result<(
+    String,
+    String,
+    Option<vox_populi::mens::tensor::spoke_base_resolver::PreloadRevision>,
+)> {
+    use vox_populi::mens::tensor::spoke_base_resolver::{
+        SizeChoice, confirm_before_load, explicit_qwen3_size_for_free_mb, is_qwen3_size_spelling,
+        load_overlay,
+    };
+
+    let root = vox_corpus::training::contract::find_workspace_root().ok_or_else(|| {
+        anyhow::anyhow!("could not find workspace root for the qwen3 preload check")
+    })?;
+    let overlay = load_overlay(&root)?;
+    if !automatic && !is_qwen3_size_spelling(model) && measured_qlora_row(&overlay, model).is_none()
+    {
+        return Ok((model.to_string(), preset.to_string(), None));
+    }
+    let pick = if automatic {
+        let row = measured_qlora_row(&overlay, model).ok_or_else(|| {
+            anyhow::anyhow!("automatic qwen3 pick '{model}' is not a measured qwen3_code QLoRA row")
+        })?;
+        pick_from_measured_row(row, free_mb)?
+    } else if is_qwen3_size_spelling(model) {
+        explicit_qwen3_size_for_free_mb(&overlay, model, free_mb)?
+    } else {
+        let row = measured_qlora_row(&overlay, model)
+            .ok_or_else(|| anyhow::anyhow!("no measured qwen3_code QLoRA row for '{model}'"))?;
+        pick_from_measured_row(row, free_mb)?
+    };
+    let choice = if automatic {
+        SizeChoice::Automatic(pick)
+    } else {
+        SizeChoice::Explicit(pick)
+    };
+    let revision = confirm_before_load(&choice, free_mb)?;
+    Ok((
+        revision.loaded_hf_id.clone(),
+        revision.loaded_preset.clone(),
+        Some(revision),
+    ))
+}
+
 pub async fn run_train(
     train_backend: vox_populi::mens::PopuliTrainBackend,
     model: Option<String>,
@@ -154,6 +259,7 @@ pub async fn run_train(
     curriculum_schedule: Option<vox_populi::mens::tensor::training_config::CurriculumSchedule>,
     chatml: vox_populi::mens::tensor::training_config::ChatmlConfig,
     mix_config: Option<PathBuf>,
+    automatic_qwen3: bool,
 ) -> Result<()> {
     use owo_colors::OwoColorize;
 
@@ -193,41 +299,85 @@ pub async fn run_train(
     let workspace_root = vox_corpus::training::contract::find_workspace_root();
 
     let mut model = model;
+    let mut preset = preset;
     let env_default_model = std::env::var("VOX_MENS_DEFAULT_MODEL")
         .ok()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
-    if let Some(resolved) =
-        vox_populi::mens::tensor::spoke_base_resolver::maybe_resolve_metal_default_base(
-            model.as_deref(),
-            env_default_model.as_deref(),
-            &gpu_info.vendor,
-            matches!(
-                device_kind,
-                vox_populi::mens::DeviceKind::Best | vox_populi::mens::DeviceKind::Metal
-            ),
-            workspace_root.as_deref(),
-            gpu_info.vram_mb,
-        )?
-    {
+    if automatic_qwen3 && model.is_none() {
+        let free_mb = vox_populi::mens::tensor::spoke_base_resolver::read_accelerator_free_mb()?;
+        let pick =
+            vox_populi::mens::tensor::spoke_base_resolver::select_qwen3_code_qlora_for_free_mb(
+                free_mb,
+            )?;
         tracing::info!(
-            model = %resolved,
-            vram_mb = gpu_info.vram_mb,
-            "Using Metal-resolved HF model (`--model` omitted; agentic_default ladder)."
+            model = %pick.hf_id,
+            size = %pick.size_token,
+            free_mb,
+            "Selected measured qwen3_code QLoRA size from free memory."
         );
-        model = Some(resolved);
+        model = Some(pick.hf_id);
+        preset = Some(pick.preset);
+    } else {
+        if let Some(resolved) =
+            vox_populi::mens::tensor::spoke_base_resolver::maybe_resolve_metal_default_base(
+                model.as_deref(),
+                env_default_model.as_deref(),
+                &gpu_info.vendor,
+                matches!(
+                    device_kind,
+                    vox_populi::mens::DeviceKind::Best | vox_populi::mens::DeviceKind::Metal
+                ),
+                workspace_root.as_deref(),
+                gpu_info.vram_mb,
+            )?
+        {
+            tracing::info!(
+                model = %resolved,
+                vram_mb = gpu_info.vram_mb,
+                "Using Metal-resolved HF model (`--model` omitted; agentic_default ladder)."
+            );
+            model = Some(resolved);
+        }
+        if matches!(
+            train_backend,
+            vox_populi::mens::PopuliTrainBackend::CandleQlora
+        ) && model.is_none()
+        {
+            let resolved = vox_populi::mens::resolve_default_model_id(env_default_model.as_deref());
+            tracing::info!(
+                model = %resolved,
+                "Using default HF model for Candle QLoRA (`--model` omitted; see contracts/mens/training-presets.v1.yaml)."
+            );
+            model = Some(resolved);
+        }
     }
-    if matches!(
-        train_backend,
-        vox_populi::mens::PopuliTrainBackend::CandleQlora
-    ) && model.is_none()
-    {
-        let resolved = vox_populi::mens::resolve_default_model_id(env_default_model.as_deref());
-        tracing::info!(
-            model = %resolved,
-            "Using default HF model for Candle QLoRA (`--model` omitted; see contracts/mens/training-presets.v1.yaml)."
-        );
-        model = Some(resolved);
+    if let Some(current) = model.clone() {
+        let repo = current.split('@').next().unwrap_or(current.as_str());
+        let needs_reading = automatic_qwen3
+            || vox_populi::mens::tensor::spoke_base_resolver::is_qwen3_size_spelling(&current)
+            || repo.contains("Qwen3-");
+        let free_at_load = if needs_reading {
+            vox_populi::mens::tensor::spoke_base_resolver::read_accelerator_free_mb()?
+        } else {
+            0
+        };
+        let (loaded_id, loaded_preset, revision) = apply_preload_free_mb(
+            &current,
+            preset.as_deref().unwrap_or(""),
+            automatic_qwen3,
+            free_at_load,
+        )?;
+        if let Some(revision) = revision {
+            tracing::info!(
+                original_size = %revision.original_size,
+                loaded_size = %revision.loaded_size,
+                free_mb = revision.free_mb,
+                "pre-load free-memory revision"
+            );
+            model = Some(loaded_id);
+            preset = Some(loaded_preset);
+        }
     }
 
     let effective_qlora_require_full_proxy_stack = !qlora_allow_partial_proxy_stack
@@ -535,6 +685,104 @@ mod tests {
         assert!(
             !source.contains(&old_gate),
             "Metal QLoRA must no longer use the old dead-gate error"
+        );
+    }
+}
+
+#[cfg(test)]
+mod preload_tests {
+    use super::apply_preload_free_mb;
+    use vox_populi::mens::tensor::spoke_base_resolver::select_qwen3_code_qlora_for_free_mb;
+
+    #[test]
+    fn apply_preload_free_mb_steps_an_automatic_32b_pick_down() {
+        let big = select_qwen3_code_qlora_for_free_mb(70_000).expect("32B fits 70000");
+        assert_eq!(big.size_token, "32B");
+        assert_eq!(big.preset, "qwen3_96g");
+        let (loaded_id, loaded_preset, revision) =
+            apply_preload_free_mb(&big.hf_id, "qwen3_96g", true, 25_000).expect("step down");
+        let fourteen = select_qwen3_code_qlora_for_free_mb(25_000).expect("14B fits 25000");
+        assert_eq!(loaded_id, fourteen.hf_id);
+        assert_eq!(loaded_preset, "qwen3_24g");
+        let revision = revision.expect("revision");
+        assert_eq!(revision.original_size, "32B");
+        assert_eq!(revision.loaded_size, "14B");
+        assert_eq!(revision.free_mb, 25_000);
+        assert_eq!(revision.loaded_hf_id, fourteen.hf_id);
+    }
+
+    #[test]
+    fn apply_preload_free_mb_refuses_an_explicit_32b_pin() {
+        let big = select_qwen3_code_qlora_for_free_mb(70_000).expect("32B");
+        let fourteen = select_qwen3_code_qlora_for_free_mb(25_000).expect("14B");
+        let err = apply_preload_free_mb(&big.hf_id, "qwen3_96g", false, 25_000)
+            .expect_err("explicit 32B must not step down");
+        let msg = format!("{err:#}");
+        assert!(
+            !msg.contains(&fourteen.hf_id),
+            "explicit refusal must not substitute 14B: {msg}"
+        );
+    }
+
+    #[test]
+    fn apply_preload_free_mb_leaves_a_manual_id_unchanged() {
+        let (id, preset, revision) =
+            apply_preload_free_mb("org/Manual", "kept", false, 25_000).expect("passthrough");
+        assert_eq!(id, "org/Manual");
+        assert_eq!(preset, "kept");
+        assert!(revision.is_none());
+    }
+
+    #[test]
+    fn apply_preload_free_mb_errors_when_nothing_measured_fits() {
+        let big = select_qwen3_code_qlora_for_free_mb(70_000).expect("32B");
+        apply_preload_free_mb(&big.hf_id, "qwen3_96g", true, 1_500)
+            .expect_err("1500 MB fits no measured QLoRA row");
+    }
+
+    #[test]
+    fn run_train_checks_preload_before_select_mens_backend() {
+        let src = include_str!("run_train.rs");
+        let start = src.find("pub async fn run_train(").expect("run_train");
+        let rest = &src[start..];
+        let backend = rest
+            .find("select_mens_backend")
+            .expect("select_mens_backend");
+        let window = &rest[..backend];
+        assert!(
+            window.contains("apply_preload_free_mb") || window.contains("confirm_before_load"),
+            "run_train must re-check free memory before it selects a train backend"
+        );
+
+        let dispatch = include_str!("../../mens/populi/dispatch.rs");
+        let dog = dispatch.find("PopuliAction::Dogfood").expect("dogfood");
+        let dog_end = dispatch[dog..]
+            .find("PopuliAction::Train")
+            .expect("train arm");
+        let dog_window = &dispatch[dog..dog + dog_end];
+        assert!(
+            dog_window.contains("None,"),
+            "dogfood passes no model so the unnamed-size selector runs"
+        );
+        assert!(
+            dog_window.contains("automatic_qwen3"),
+            "dogfood must pass automatic true"
+        );
+
+        let pipeline = include_str!("../../mens/pipeline.rs");
+        assert!(
+            pipeline.contains("model.is_none()") && pipeline.contains("automatic_qwen3"),
+            "pipeline passes automatic true only when the CLI model was absent"
+        );
+
+        let train_arm = include_str!("../../mens/populi/train_arm.rs");
+        assert!(
+            train_arm.contains("let automatic_qwen3 = model.is_none();"),
+            "train_arm records whether the CLI model was absent"
+        );
+        assert!(
+            train_arm.contains("automatic_qwen3,"),
+            "train_arm threads that flag into schola run_train"
         );
     }
 }
