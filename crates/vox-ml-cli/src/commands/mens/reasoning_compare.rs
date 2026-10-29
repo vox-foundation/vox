@@ -48,6 +48,58 @@ pub(crate) struct CompareArgs {
     pub out: Option<PathBuf>,
 }
 
+/// Collapse `.` and `..` without resolving symlinks or requiring the path to exist.
+fn normalized_prefix(path: &Path) -> Result<PathBuf> {
+    let abs = std::path::absolute(path)?;
+    let mut out = PathBuf::new();
+    for c in abs.components() {
+        match c {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                out.pop();
+            }
+            other => out.push(other),
+        }
+    }
+    Ok(out)
+}
+
+/// Path used for the hub and adapter prefix check.
+///
+/// `std::path::absolute` leaves `..` and symlinks intact, and `starts_with`
+/// compares raw components, so `other/../hub/file` and a symlinked parent both
+/// miss a lexical prefix. Collapse `.` and `..`, then canonicalize the nearest
+/// existing ancestor. That is the path `remove_file` and `write` will hit.
+fn containment_path(path: &Path) -> Result<PathBuf> {
+    let mut tail = PathBuf::new();
+    let mut cursor = normalized_prefix(path)?;
+    loop {
+        match cursor.try_exists() {
+            Ok(true) => {
+                let mut resolved = cursor
+                    .canonicalize()
+                    .with_context(|| format!("canonicalizing {}", cursor.display()))?;
+                if !tail.as_os_str().is_empty() {
+                    resolved.push(&tail);
+                }
+                return normalized_prefix(&resolved);
+            }
+            Ok(false) => {
+                let Some(name) = cursor.file_name().map(|name| name.to_os_string()) else {
+                    return Ok(cursor);
+                };
+                tail = PathBuf::from(name).join(&tail);
+                if !cursor.pop() {
+                    return normalized_prefix(&tail);
+                }
+            }
+            Err(err) => {
+                anyhow::bail!("checking {}: {err}", cursor.display());
+            }
+        }
+    }
+}
+
 /// Refuse paths `vox mens serve` would treat as a gate input, plus hub and adapter dirs.
 pub(crate) fn check_out_path(out: &Path, hub_root: &Path, adapter: Option<&Path>) -> Result<()> {
     let name = out.file_name().and_then(|s| s.to_str()).unwrap_or("");
@@ -57,8 +109,8 @@ pub(crate) fn check_out_path(out: &Path, hub_root: &Path, adapter: Option<&Path>
     if out.components().any(|c| c.as_os_str() == "collateral_eval") {
         anyhow::bail!("refusing to write under collateral_eval");
     }
-    let out_abs = std::path::absolute(out)?;
-    let hub_abs = std::path::absolute(hub_root)?;
+    let out_abs = containment_path(out)?;
+    let hub_abs = containment_path(hub_root)?;
     if out_abs.starts_with(&hub_abs) {
         anyhow::bail!(
             "refusing to write under the hub root {}",
@@ -66,7 +118,7 @@ pub(crate) fn check_out_path(out: &Path, hub_root: &Path, adapter: Option<&Path>
         );
     }
     if let Some(adapter) = adapter {
-        let adapter_abs = std::path::absolute(adapter)?;
+        let adapter_abs = containment_path(adapter)?;
         if out_abs.starts_with(&adapter_abs) {
             anyhow::bail!(
                 "refusing to write under the adapter dir {}",
@@ -490,6 +542,86 @@ mod tests {
         )
         .expect_err("adapter");
         assert!(!in_adapter.exists(), "{err}");
+    }
+
+    #[test]
+    fn out_via_parent_dir_into_hub_or_adapter_is_refused() {
+        let parent = tempfile::tempdir().unwrap();
+        let hub = parent.path().join("hub");
+        let adapter = parent.path().join("adapter");
+        let decoy = parent.path().join("other");
+        std::fs::create_dir(&hub).unwrap();
+        std::fs::create_dir(&adapter).unwrap();
+        std::fs::create_dir(&decoy).unwrap();
+        let runs = tempfile::tempdir().unwrap();
+
+        let in_hub = decoy.join("..").join("hub").join("report.json");
+        let err = run(
+            &hub,
+            runs.path(),
+            Some(adapter.clone()),
+            Some(in_hub.clone()),
+            &mut |_, _, _| panic!("scorer must not run"),
+        )
+        .expect_err("dotdot hub");
+        assert!(!hub.join("report.json").exists(), "{err}");
+
+        let in_adapter = decoy.join("..").join("adapter").join("report.json");
+        let err = run(
+            &hub,
+            runs.path(),
+            Some(adapter.clone()),
+            Some(in_adapter.clone()),
+            &mut |_, _, _| panic!("scorer must not run"),
+        )
+        .expect_err("dotdot adapter");
+        assert!(!adapter.join("report.json").exists(), "{err}");
+
+        let escaped = hub.join("..").join("outside.json");
+        run(
+            &hub,
+            runs.path(),
+            Some(adapter),
+            Some(escaped),
+            &mut |_, _, _| panic!("scorer must not run"),
+        )
+        .expect("a .. that leaves the hub is outside it");
+        assert!(parent.path().join("outside.json").is_file());
+        assert!(!hub.join("outside.json").exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn out_through_symlink_into_hub_or_adapter_is_refused() {
+        let hub = tempfile::tempdir().unwrap();
+        let adapter = tempfile::tempdir().unwrap();
+        let runs = tempfile::tempdir().unwrap();
+        let links = tempfile::tempdir().unwrap();
+        let hub_link = links.path().join("hub");
+        std::os::unix::fs::symlink(hub.path(), &hub_link).unwrap();
+        let via_hub = hub_link.join("report.json");
+        let err = run(
+            hub.path(),
+            runs.path(),
+            Some(adapter.path().to_path_buf()),
+            Some(via_hub),
+            &mut |_, _, _| panic!("scorer must not run"),
+        )
+        .expect_err("symlinked hub");
+        assert!(!hub.path().join("report.json").exists(), "{err}");
+
+        let adapter_link = links.path().join("adapter");
+        std::os::unix::fs::symlink(adapter.path(), &adapter_link).unwrap();
+        let via_adapter = adapter_link.join("report.json");
+        let err = run(
+            hub.path(),
+            runs.path(),
+            Some(adapter.path().to_path_buf()),
+            Some(via_adapter),
+            &mut |_, _, _| panic!("scorer must not run"),
+        )
+        .expect_err("symlinked adapter");
+        assert!(!adapter.path().join("report.json").exists(), "{err}");
     }
 
     #[test]
