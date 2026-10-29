@@ -3,6 +3,7 @@ pub mod admission;
 pub mod auto_select;
 pub mod autonomic;
 pub mod bench_evidence;
+pub mod consensus;
 pub mod cost_tier;
 pub mod discovery_pipeline;
 pub mod family;
@@ -18,6 +19,7 @@ mod pareto;
 pub mod policy;
 pub mod prompt_profiles;
 pub mod provenance;
+pub mod quality_analyzer;
 pub mod ranking;
 pub mod reference;
 mod registry;
@@ -33,7 +35,7 @@ pub mod vram;
 
 pub use auto_select::{
     AutoModelSelection, detect_hardware_vram_gb, is_host_apple_silicon, select_optimal_local_model,
-    select_optimal_local_model_for_host, select_tier_for_vram,
+    select_optimal_local_model_for_host,
 };
 pub use cost_tier::{
     CHEAP_COST_PER_1K_USD, CostTier, blended_cost_per_1k, cost_tier_for, cost_tier_for_blended,
@@ -50,7 +52,10 @@ pub use policy::{
 #[cfg(feature = "runtime")]
 pub use registry::llm_config_for_spec;
 pub use registry::{
-    MIN_CALLS_FOR_CONFIDENT_RANK, ModelRegistry, ModelScore, wilson_score_interval,
+    ConversationalRoutingDecision, ConversationalSessionReport, ConversationalTurnMode,
+    ConversationalTurnReceipt, MIN_CALLS_FOR_CONFIDENT_RANK, ModelRegistry, ModelScore,
+    MultiSpokeHarnessStepReceipt, MultiSpokeHarnessWorkflowReport, SotaHarnessScorecardV1,
+    wilson_score_interval,
 };
 pub use routing_task::RoutingTask;
 pub use scoring::install_base_routing_priority;
@@ -60,8 +65,11 @@ pub use select::{
     select_with_default_registry, select_with_policy,
 };
 pub use spec::{
-    ModelCapabilities, ModelConfig, ModelRouteBackend, ModelSpec, PricingSource, ProviderType,
-    route_backend_for_model, task_category_premium_key, task_category_strength,
+    CostProvenanceTier, EnhancedPromptReceipt, ModelCapabilities, ModelConfig,
+    ModelOperationalStatus, ModelRouteBackend, ModelSpec, PricingSource, ProviderType,
+    ReasoningEffort, ResumableTurnStreamRegistry, SequencedTurnChunk, SessionPrivacyPosture,
+    TurnCostDeltaReceipt, TurnStreamEventKind, route_backend_for_model, task_category_premium_key,
+    task_category_strength,
 };
 pub use vram::{
     VramFit, VramProbe, estimate_vram_fit, free_vram_mb_hint, refresh_free_vram_hint_from_nvml,

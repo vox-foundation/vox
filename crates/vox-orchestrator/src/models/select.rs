@@ -28,7 +28,7 @@ use vox_telemetry::{SelectionDecisionEvent, TelemetryEvent};
 
 pub use super::auto_select::{
     AutoModelSelection, detect_hardware_vram_gb, is_host_apple_silicon, select_optimal_local_model,
-    select_optimal_local_model_for_host, select_tier_for_vram,
+    select_optimal_local_model_for_host,
 };
 
 // ─── Canonical request/response (SSOT API) ─────────────────────────────────
@@ -85,6 +85,33 @@ impl ModelSelectionRequest {
             candidate_scope: CandidateScope::AllProviders,
         }
     }
+
+    /// Attach T3-style turn controls (`reasoning_effort` and `include_web_search`) by
+    /// requiring the corresponding model capabilities (`VOX-ROUTER-T3-02`).
+    #[must_use]
+    pub fn with_t3_controls(
+        mut self,
+        reasoning_effort: Option<super::spec::ReasoningEffort>,
+        include_web_search: bool,
+    ) -> Self {
+        if reasoning_effort.is_some()
+            && !self
+                .required_capabilities
+                .contains(&super::generated::Capability::SupportsReasoning)
+        {
+            self.required_capabilities
+                .push(super::generated::Capability::SupportsReasoning);
+        }
+        if include_web_search
+            && !self
+                .required_capabilities
+                .contains(&super::generated::Capability::SupportsWebSearch)
+        {
+            self.required_capabilities
+                .push(super::generated::Capability::SupportsWebSearch);
+        }
+        self
+    }
 }
 
 /// Canonical selector entry point with structured decision envelope.
@@ -107,6 +134,10 @@ pub fn decide(
     let privacy_local_only = crate::route_policy::inference_privacy_local_only_from_env();
 
     for m in all {
+        if !registry.operational_status(&m.id).is_routable() {
+            rejection_reasons.push(format!("{} rejected: operational_status=outage", m.id));
+            continue;
+        }
         if !scope_allows(m.provider_type.clone(), request.candidate_scope) {
             rejection_reasons.push(format!("{} rejected: outside candidate_scope", m.id));
             continue;
@@ -147,6 +178,9 @@ pub fn decide(
         // Controlled exploration fallback for unconfirmed models when explicitly enabled.
         if exploration_enabled() {
             for m in registry.list_models() {
+                if !registry.operational_status(&m.id).is_routable() {
+                    continue;
+                }
                 if !scope_allows(m.provider_type.clone(), request.candidate_scope) {
                     continue;
                 }
@@ -184,6 +218,27 @@ pub fn decide(
         return None;
     }
 
+    // VOX-ROUTER-T3-01: When at least one candidate is Operational, demote Degraded models
+    // out of the primary candidate pool so healthy models win; if all candidates are Degraded,
+    // retain them as a graceful fallback tier.
+    if candidates
+        .iter()
+        .any(|m| registry.operational_status(&m.id).is_operational())
+    {
+        let mut healthy = Vec::with_capacity(candidates.len());
+        for m in candidates {
+            if registry.operational_status(&m.id).is_operational() {
+                healthy.push(m);
+            } else {
+                rejection_reasons.push(format!(
+                    "{} demoted: operational_status=degraded (healthy alternatives available)",
+                    m.id
+                ));
+            }
+        }
+        candidates = healthy;
+    }
+
     let candidate_ids: HashSet<String> = candidates.iter().map(|m| m.id.clone()).collect();
     let intent = &request.intent;
 
@@ -201,6 +256,12 @@ pub fn decide(
             // Same flagship rule as `select_via_scorer`: on cost- or speed-leaning axes the
             // fallback must not resolve to a flagship while another candidate fits.
             let no_flagship = intent.axes.intelligence < 50;
+            let routing_task = intent.context_fill_ratio.map(|ratio| super::RoutingTask {
+                category: intent.task,
+                complexity: intent.complexity,
+                context_fill_ratio: Some(ratio),
+                ..Default::default()
+            });
             let pick = |exclude_elite: bool| {
                 registry.best_for_with_filter(
                     intent.task,
@@ -211,7 +272,7 @@ pub fn decide(
                         candidate_ids.contains(&m.id)
                             && (!exclude_elite || m.capabilities.tier != super::ModelTier::Elite)
                     },
-                    None,
+                    routing_task.as_ref(),
                 )
             };
             let model = if no_flagship {
@@ -234,6 +295,12 @@ pub fn decide(
         let _axes = crate::models::scoring::AxesOverrideGuard::set(
             intent.axes.to_routing_priority(intent.prefer_local),
         );
+        let routing_task = intent.context_fill_ratio.map(|ratio| super::RoutingTask {
+            category: intent.task,
+            complexity: intent.complexity,
+            context_fill_ratio: Some(ratio),
+            ..Default::default()
+        });
         registry.rank_with_filter(
             intent.task,
             intent.complexity,
@@ -250,7 +317,7 @@ pub fn decide(
                     None
                 }
             },
-            None,
+            routing_task.as_ref(),
         )
     };
     let alternatives: Vec<String> = scored
@@ -489,6 +556,8 @@ pub struct SelectionIntent {
     /// Defaults to `false` everywhere except `SelectionIntent::research()`,
     /// which sets it from `VOX_RESEARCH_PREFER_FREE_TIER`.
     pub allow_free_in_performance_mode: bool,
+    /// Optional context fill ratio (`0.0..=1.0`) for cache-aware efficiency scoring (`SOTA-LIVE-ROUTE-01`).
+    pub context_fill_ratio: Option<f32>,
 }
 
 impl SelectionIntent {
@@ -505,6 +574,7 @@ impl SelectionIntent {
             max_cost_usd_per_call: None,
             cacheable_workload: false,
             allow_free_in_performance_mode: false,
+            context_fill_ratio: None,
         }
     }
 
@@ -522,6 +592,7 @@ impl SelectionIntent {
             max_cost_usd_per_call: None,
             cacheable_workload: true,
             allow_free_in_performance_mode: false,
+            context_fill_ratio: None,
         }
     }
 
@@ -538,6 +609,7 @@ impl SelectionIntent {
             max_cost_usd_per_call: None,
             cacheable_workload: false,
             allow_free_in_performance_mode: vox_config::inference::research_prefer_free_tier(),
+            context_fill_ratio: None,
         }
     }
 
@@ -554,6 +626,7 @@ impl SelectionIntent {
             max_cost_usd_per_call: None,
             cacheable_workload: true,
             allow_free_in_performance_mode: false,
+            context_fill_ratio: None,
         }
     }
 
@@ -570,6 +643,7 @@ impl SelectionIntent {
             max_cost_usd_per_call: Some(0.01),
             cacheable_workload: false,
             allow_free_in_performance_mode: false,
+            context_fill_ratio: None,
         }
     }
 
@@ -586,6 +660,7 @@ impl SelectionIntent {
             max_cost_usd_per_call: Some(0.005),
             cacheable_workload: false,
             allow_free_in_performance_mode: false,
+            context_fill_ratio: None,
         }
     }
 
@@ -602,6 +677,7 @@ impl SelectionIntent {
             max_cost_usd_per_call: Some(0.01),
             cacheable_workload: false,
             allow_free_in_performance_mode: false,
+            context_fill_ratio: None,
         }
     }
 
@@ -618,6 +694,7 @@ impl SelectionIntent {
             max_cost_usd_per_call: None,
             cacheable_workload: false,
             allow_free_in_performance_mode: false,
+            context_fill_ratio: None,
         }
     }
 
@@ -634,6 +711,7 @@ impl SelectionIntent {
             max_cost_usd_per_call: None,
             cacheable_workload: false,
             allow_free_in_performance_mode: false,
+            context_fill_ratio: None,
         }
     }
 
@@ -652,6 +730,7 @@ impl SelectionIntent {
             max_cost_usd_per_call: Some(0.005),
             cacheable_workload: true,
             allow_free_in_performance_mode: true,
+            context_fill_ratio: None,
         }
     }
 }
@@ -854,6 +933,7 @@ fn select_local_first(
                 ProviderType::Ollama | ProviderType::VoxLocal | ProviderType::PopuliMesh
             )
         })
+        .filter(|m| registry.operational_status(&m.id).is_routable())
         .filter(|m| supports_intent_constraints(m, intent))
         .max_by(|a, b| {
             score_for_intent(a, intent)
@@ -875,6 +955,9 @@ fn select_via_premium_alias(
     let key = crate::models::task_category_premium_key(intent.task);
     let alias = registry.premium_alias_for(key)?.to_string();
     let model = registry.get(&alias)?;
+    if !registry.operational_status(&model.id).is_routable() {
+        return None;
+    }
     if registry.is_superseded_in_registry(&model) {
         return None;
     }
@@ -921,6 +1004,12 @@ fn select_via_scorer(
     // Cost- or speed-leaning intents (intelligence axis below the premium-alias threshold of 50) must
     // not resolve to a flagship while another candidate fits; fall back only when nothing else does.
     let no_flagship = intent.axes.intelligence < 50;
+    let routing_task = intent.context_fill_ratio.map(|ratio| super::RoutingTask {
+        category: intent.task,
+        complexity: intent.complexity,
+        context_fill_ratio: Some(ratio),
+        ..Default::default()
+    });
     let pick = |exclude_elite: bool| {
         registry.best_for_with_filter(
             intent.task,
@@ -929,10 +1018,11 @@ fn select_via_scorer(
             intent.allow_free_in_performance_mode,
             |m| {
                 (!exclude_elite || m.capabilities.tier != crate::models::ModelTier::Elite)
+                    && registry.operational_status(&m.id).is_routable()
                     && supports_intent_constraints(m, &intent_clone)
                     && ModelRegistry::key_is_present_for(m)
             },
-            None,
+            routing_task.as_ref(),
         )
     };
     let model = if no_flagship {
@@ -1002,6 +1092,15 @@ fn score_for_intent(m: &ModelSpec, intent: &SelectionIntent) -> f64 {
     let want = crate::models::task_category_strength(intent.task);
     if m.strengths.contains(&want) {
         s += 0.5;
+    }
+    // Incorporate calibrated quality prior (e.g. BenchEvidence from 5-spoke MENS eval)
+    // and VoxLocal domain specialization so calibrated MENS adapters beat uncalibrated
+    // generic Ollama models on `prefer_local` routes (`ROUTE-MENS-03`).
+    if let Some(ref prior) = m.capabilities.quality_prior {
+        s += prior.value * 0.4;
+    }
+    if matches!(m.provider_type, ProviderType::VoxLocal) && m.capabilities.writes_vox {
+        s += 0.1;
     }
     // Tie-breaker: larger context.
     s += (m.capabilities.max_context as f64).log10().max(0.0) / 100.0;
@@ -2139,5 +2238,230 @@ mod semcov_wave1c_tests {
         assert!(intent.prefer_local);
         assert!(intent.cacheable_workload);
         assert!(intent.allow_free_in_performance_mode);
+    }
+
+    #[test]
+    fn t3_operational_status_outage_excluded_and_degraded_demoted() {
+        use crate::models::{ModelOperationalStatus, StrengthTag};
+        let mut registry = ModelRegistry::default();
+        let mut m_outage = ModelRegistry::new()
+            .list_models()
+            .into_iter()
+            .next()
+            .unwrap();
+        m_outage.id = "local/outage-model".into();
+        m_outage.canonical_slug = "local/outage-model".into();
+        m_outage.provider_type = ProviderType::Ollama;
+        m_outage.is_free = false;
+        m_outage.cost_per_1k = 0.005;
+        m_outage.cost_per_1k_input = 0.005;
+        m_outage.cost_per_1k_output = 0.005;
+        m_outage.pricing_source = crate::models::spec::PricingSource::UserConfig;
+        m_outage.strengths = vec![StrengthTag::Codegen];
+
+        let mut m_degraded = m_outage.clone();
+        m_degraded.id = "local/degraded-model".into();
+        m_degraded.canonical_slug = "local/degraded-model".into();
+
+        let mut m_healthy = m_outage.clone();
+        m_healthy.id = "local/healthy-model".into();
+        m_healthy.canonical_slug = "local/healthy-model".into();
+
+        registry.register(m_outage);
+        registry.register(m_degraded);
+        registry.register(m_healthy);
+
+        registry.ingest_t3_status_indicator("local/outage-model", "outage");
+        registry.ingest_t3_status_indicator("local/degraded-model", "degraded");
+        registry.ingest_t3_status_indicator("local/healthy-model", "operational");
+
+        assert_eq!(
+            registry.operational_status("local/outage-model"),
+            ModelOperationalStatus::Outage
+        );
+        assert_eq!(
+            registry.operational_status("local/degraded-model"),
+            ModelOperationalStatus::Degraded
+        );
+
+        let mut req =
+            ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::CodeGen));
+        req.candidate_scope = CandidateScope::LocalOnly;
+
+        let decision = decide(&req, &registry).expect("healthy candidate should be chosen");
+        assert_eq!(decision.selected_model, "local/healthy-model");
+        assert!(
+            decision
+                .rejection_reasons
+                .iter()
+                .any(|r| r.contains("local/outage-model rejected: operational_status=outage"))
+        );
+        assert!(
+            decision
+                .rejection_reasons
+                .iter()
+                .any(|r| r.contains("local/degraded-model demoted: operational_status=degraded"))
+        );
+
+        // If the healthy model also goes into Outage, the Degraded model acts as fallback.
+        registry.set_operational_status("local/healthy-model", ModelOperationalStatus::Outage);
+        let fallback =
+            decide(&req, &registry).expect("degraded candidate should serve as fallback");
+        assert_eq!(fallback.selected_model, "local/degraded-model");
+    }
+
+    #[test]
+    fn t3_controls_attach_reasoning_and_web_search_capabilities() {
+        use crate::models::{Capability, ReasoningEffort};
+        let req = ModelSelectionRequest::from_intent(SelectionIntent::research())
+            .with_t3_controls(Some(ReasoningEffort::High), true);
+        assert!(
+            req.required_capabilities
+                .contains(&Capability::SupportsReasoning)
+        );
+        assert!(
+            req.required_capabilities
+                .contains(&Capability::SupportsWebSearch)
+        );
+        assert_eq!(
+            ReasoningEffort::from_wire_str("high"),
+            Some(ReasoningEffort::High)
+        );
+        assert_eq!(ReasoningEffort::Medium.as_wire_str(), "medium");
+    }
+
+    #[test]
+    fn t3_reconcile_turn_cost_delta_tracks_credits_and_provenance() {
+        use crate::models::CostProvenanceTier;
+        let mut registry = ModelRegistry::default();
+        let mut cloud_paid = ModelRegistry::new()
+            .list_models()
+            .into_iter()
+            .next()
+            .unwrap();
+        cloud_paid.id = "anthropic/claude-sonnet-4.6".into();
+        cloud_paid.provider_type = ProviderType::OpenRouter;
+        cloud_paid.is_free = false;
+        cloud_paid.cost_per_1k_input = 0.003;
+        cloud_paid.cost_per_1k_output = 0.015;
+        cloud_paid.cache_read_cost_per_1k = 0.0003;
+
+        let mut cloud_free = cloud_paid.clone();
+        cloud_free.id = "meta-llama/llama-4-maverick:free".into();
+        cloud_free.is_free = true;
+
+        registry.register(cloud_paid);
+        registry.register(cloud_free);
+
+        // Platform credits with pre/post balance delta (t3router poll_credit_delta pattern)
+        let r_platform = registry.reconcile_turn_cost_delta(
+            "anthropic/claude-sonnet-4.6",
+            false,
+            Some(100.0),
+            Some(98.5),
+            1000,
+            1000,
+            500,
+            None,
+        );
+        assert_eq!(r_platform.tier, CostProvenanceTier::PlatformCredits);
+        assert_eq!(r_platform.credits_deducted, Some(1.5));
+        assert_eq!(r_platform.credits_remaining, Some(98.5));
+        assert!(r_platform.cost_usd_delta > 0.0);
+
+        // BYOK key provenance
+        let r_byok = registry.reconcile_turn_cost_delta(
+            "anthropic/claude-sonnet-4.6",
+            true,
+            None,
+            None,
+            1000,
+            500,
+            0,
+            Some(0.0105),
+        );
+        assert_eq!(r_byok.tier, CostProvenanceTier::Byok);
+        assert!((r_byok.cost_usd_delta - 0.0105).abs() < 1e-9);
+
+        // :free model provenance -> 0 USD delta
+        let r_free = registry.reconcile_turn_cost_delta(
+            "meta-llama/llama-4-maverick:free",
+            false,
+            None,
+            None,
+            2000,
+            1000,
+            0,
+            None,
+        );
+        assert_eq!(r_free.tier, CostProvenanceTier::FreeTier);
+        assert_eq!(r_free.cost_usd_delta, 0.0);
+    }
+
+    #[test]
+    fn t3_resumable_turn_stream_replays_after_cursor_and_supports_cancellation() {
+        use crate::models::{ResumableTurnStreamRegistry, TurnStreamEventKind};
+        let mut reg = ResumableTurnStreamRegistry::default();
+        reg.start_turn("thread-42", "run-1");
+        assert!(reg.is_generating("thread-42"));
+        assert_eq!(reg.run_id("thread-42").as_deref(), Some("run-1"));
+
+        let s1 = reg.append_chunk("thread-42", TurnStreamEventKind::ReasoningDelta, "think-1 ");
+        let s2 = reg.append_chunk("thread-42", TurnStreamEventKind::TextDelta, "Hello ");
+
+        // Mid-stream multi-tab join (`subscribe_or_replay`) atomically replays seq 2 and subscribes to seq 3
+        let (replayed_live, rx) = reg
+            .subscribe_or_replay("thread-42", 1)
+            .expect("active stream");
+        assert_eq!(replayed_live.len(), 1);
+        assert_eq!(replayed_live[0].sequence, 2);
+
+        let s3 = reg.append_chunk("thread-42", TurnStreamEventKind::TextDelta, "world!");
+        assert_eq!((s1, s2, s3), (1, 2, 3));
+        let streamed_chunk = rx.try_recv().expect("live subscriber received seq 3");
+        assert_eq!(streamed_chunk.sequence, 3);
+        assert_eq!(streamed_chunk.payload, "world!");
+
+        // Client reconnects with snapshot sequence = 1; should receive only seq 2 and 3
+        let replayed = reg.replay_after("thread-42", 1);
+        assert_eq!(replayed.len(), 2);
+        assert_eq!(replayed[0].sequence, 2);
+        assert_eq!(replayed[1].sequence, 3);
+
+        let (text, reasoning, last_seq) = reg.accumulated_snapshot("thread-42");
+        assert_eq!(text, "Hello world!");
+        assert_eq!(reasoning, "think-1 ");
+        assert_eq!(last_seq, 3);
+
+        // Out-of-band cancellation (thom-chat cancel-generation pattern)
+        assert!(reg.cancel_turn("thread-42"));
+        assert!(!reg.is_generating("thread-42"));
+        assert!(reg.is_cancelled("thread-42"));
+        assert!(!reg.cancel_turn("thread-42"));
+    }
+
+    #[test]
+    fn t3_enhance_prompt_preserves_rule_tags_and_privacy_posture_gates_persistence() {
+        use crate::models::SessionPrivacyPosture;
+        let receipt = ModelRegistry::enhance_user_prompt_for_spoke(
+            "um write a .vox actor for Counter following @vox_grammar and @no_semicolons",
+            None,
+        );
+        assert_eq!(receipt.target_spoke, "vox_lang");
+        assert_eq!(
+            receipt.preserved_rule_tags,
+            vec!["@vox_grammar".to_string(), "@no_semicolons".to_string()]
+        );
+        assert!(receipt.enhanced_prompt.contains("@vox_grammar"));
+        assert!(receipt.enhanced_prompt.contains("@no_semicolons"));
+        assert!(!receipt.enhanced_prompt.contains(" um "));
+
+        assert!(SessionPrivacyPosture::Standard.should_persist_to_db());
+        assert!(SessionPrivacyPosture::Standard.should_persist_memories());
+        assert!(!SessionPrivacyPosture::Ephemeral.should_persist_to_db());
+        assert!(!SessionPrivacyPosture::Ephemeral.should_persist_memories());
+        assert!(SessionPrivacyPosture::LocalPrivate.should_persist_to_db());
+        assert!(!SessionPrivacyPosture::LocalPrivate.should_persist_memories());
+        assert!(SessionPrivacyPosture::LocalPrivate.requires_local_only_models());
     }
 }
