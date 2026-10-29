@@ -155,7 +155,7 @@ pub async fn run_train(
             // pod and a re-run with the same spoke+corpus does not double-provision.
             // We wire idempotency + TerminateOnDrop here over the resolver's public
             // surface (resolve + dispatch_top). Full checkpoint-resume is deferred.
-            // TODO(b5-resume): wire sync_checkpoint_down / read_checkpoint_uri so a
+            // Architectural note (b5-resume): wire sync_checkpoint_down / read_checkpoint_uri so a
             // preempted job resumes from its last checkpoint instead of restarting.
             let idem_key =
                 vox_populi::mens::cloud::make_idempotency_key(effective_domain, &corpus_hash);
@@ -715,7 +715,7 @@ fn write_local_adapter_card(
 ///
 /// Mirrors `resolve_cloud_spoke_base` below — same real resolver
 /// (`resolve_training_selection`), same "CLI wins" precedence — but sizes
-/// with VRAM autodetect (`None`) rather than a fixed cloud tier, matching how
+/// with `read_accelerator_free_mb` rather than a fixed cloud tier, matching how
 /// `pipeline.rs`'s `PipelineStage::Train` already calls this resolver for a
 /// local run. Not `cfg(feature = "cloud")`: the local path must resolve
 /// regardless of whether the cloud feature is compiled in.
@@ -736,11 +736,9 @@ fn resolve_local_spoke_base(
             anyhow::anyhow!("could not find workspace root for spoke base resolution")
         })?;
 
-    let vram_mb = vox_populi::mens::tensor::vram_autodetect::get_system_vram_gb()
-        .map(|gb| (gb * 1024.0) as u32)
-        .or(Some(16_384));
+    let free_mb = vox_populi::mens::tensor::spoke_base_resolver::read_accelerator_free_mb()?;
     let selection =
-        resolve_training_selection(&root, Some(domain), cli_model, cli_preset, vram_mb)?;
+        resolve_training_selection(&root, Some(domain), cli_model, cli_preset, Some(free_mb))?;
 
     match selection {
         TrainingSelection::Train { model, preset, .. } => Ok((model, preset)),
@@ -1066,8 +1064,10 @@ fn jsonl_row_count_counts_non_empty_lines() {
 
 #[cfg(test)]
 mod local_spoke_base_wiring_tests {
+    #[cfg(feature = "hw-probe-live-test")]
     use super::resolve_local_spoke_base;
 
+    #[cfg(feature = "hw-probe-live-test")]
     fn root() -> std::path::PathBuf {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .ancestors()
@@ -1076,6 +1076,32 @@ mod local_spoke_base_wiring_tests {
             .to_path_buf()
     }
 
+    #[test]
+    fn resolve_local_spoke_base_does_not_invent_a_vram_reading() {
+        let src = include_str!("train_arm.rs");
+        let start = src
+            .find("fn resolve_local_spoke_base(")
+            .expect("resolve_local_spoke_base");
+        let rest = &src[start..];
+        let next = rest.find("\nfn ").expect("next fn");
+        let window = &rest[..next];
+        assert!(
+            window.contains("read_accelerator_free_mb"),
+            "local spoke resolution must read accelerator free memory"
+        );
+        assert!(
+            !window.contains("get_system_vram"),
+            "local spoke resolution must not copy a total-VRAM reading into free"
+        );
+        assert!(
+            !window.contains("16_384") && !window.contains("16384"),
+            "local spoke resolution must not substitute a numeric fallback"
+        );
+    }
+
+    /// These call the live reader. They stay behind the hardware-probe feature
+    /// so the default unit suite does not spawn nvidia-smi or create a Metal device.
+    #[cfg(feature = "hw-probe-live-test")]
     #[test]
     fn domain_rust_resolves_spoke_base_and_preset_not_defaults() {
         let (model, preset) = resolve_local_spoke_base(Some(&root()), "rust", None, None).unwrap();
@@ -1087,6 +1113,7 @@ mod local_spoke_base_wiring_tests {
         assert!(!preset.is_empty(), "resolved preset must not be empty");
     }
 
+    #[cfg(feature = "hw-probe-live-test")]
     #[test]
     fn cli_model_still_wins_over_domain_resolution() {
         let (model, _preset) =

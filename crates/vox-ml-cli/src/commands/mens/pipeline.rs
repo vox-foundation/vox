@@ -462,13 +462,29 @@ pub async fn run(
             PipelineStage::Train => {
                 let ws = vox_corpus::training::contract::find_workspace_root();
                 let root = ws.clone().unwrap_or_else(|| std::path::PathBuf::from("."));
+                let free_mb = match model.as_deref() {
+                    None => Some(
+                        vox_populi::mens::tensor::spoke_base_resolver::read_accelerator_free_mb()?,
+                    ),
+                    Some(name)
+                        if vox_populi::mens::tensor::spoke_base_resolver::is_qwen3_size_spelling(
+                            name,
+                        ) =>
+                    {
+                        Some(
+                            vox_populi::mens::tensor::spoke_base_resolver::read_accelerator_free_mb(
+                            )?,
+                        )
+                    }
+                    Some(_) => None,
+                };
                 let selection =
                     crate::commands::mens::training_selection::resolve_training_selection(
                         &root,
                         profile.as_deref(),
                         model.as_deref(),
                         preset.as_deref(),
-                        None,
+                        free_mb,
                     )?;
                 match &selection {
                     crate::commands::mens::training_selection::TrainingSelection::Skip {
