@@ -190,6 +190,34 @@ pub fn is_host_apple_silicon() -> bool {
     cfg!(all(target_os = "macos", target_arch = "aarch64"))
 }
 
+/// Largest measured `qwen3_code` QLoRA size that fits `free_mb`.
+///
+/// The reading is injected. This function does not probe hardware.
+pub fn select_from_free_mb(free_mb: u32) -> Result<AutoModelSelection, String> {
+    #[cfg(feature = "runtime")]
+    {
+        match vox_populi::mens::tensor::spoke_base_resolver::select_qwen3_code_qlora_for_free_mb(
+            free_mb,
+        ) {
+            Ok(pick) => Ok(AutoModelSelection {
+                selected_model_id: pick.hf_id,
+                detected_vram_gb: f64::from(free_mb) / 1024.0,
+                tier_reason: format!(
+                    "{size} QLoRA floor_mb {floor} fits free_mb {free_mb}",
+                    size = pick.size_token,
+                    floor = pick.floor_mb,
+                ),
+            }),
+            Err(err) => Err(err.to_string()),
+        }
+    }
+    #[cfg(not(feature = "runtime"))]
+    {
+        let _ = free_mb;
+        Err("qwen3 live selector requires the runtime feature".to_string())
+    }
+}
+
 /// Dynamically selects the optimal local model recommendation for the current hardware.
 #[must_use]
 pub fn select_optimal_local_model(is_apple_silicon: bool) -> AutoModelSelection {
@@ -211,6 +239,28 @@ pub fn select_optimal_local_model_for_host() -> AutoModelSelection {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn select_from_free_mb_25000_is_the_14b_qlora_pin() {
+        let sel = select_from_free_mb(25_000).expect("14B fits 25000");
+        assert_eq!(
+            sel.selected_model_id,
+            "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18"
+        );
+        assert!(!sel.selected_model_id.contains("mens/runs"));
+        assert_eq!(sel.detected_vram_gb, 25_000_f64 / 1024.0);
+        assert!(sel.tier_reason.contains("14B"), "{}", sel.tier_reason);
+        assert!(sel.tier_reason.contains("25000"), "{}", sel.tier_reason);
+        assert!(select_from_free_mb(1_500).is_err());
+        let mid = select_from_free_mb(50_000).expect("14B still fits 50000");
+        assert_eq!(mid.selected_model_id, sel.selected_model_id);
+        assert!(!mid.selected_model_id.contains("32B"));
+        let big = select_from_free_mb(70_000).expect("32B fits 70000");
+        assert_eq!(
+            big.selected_model_id,
+            "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137"
+        );
+    }
 
     #[test]
     fn test_auto_selection_tiers() {
