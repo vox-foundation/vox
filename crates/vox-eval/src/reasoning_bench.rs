@@ -153,6 +153,156 @@ impl BenchOutcome {
     }
 }
 
+/// Schema of the before/after reasoning report. Not a serve-gate input.
+pub const BEFORE_AFTER_SCHEMA: &str = "reasoning_before_after.v1";
+
+/// The base the caller asked for: repo id plus an optional 40-hex revision.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BaseLabel {
+    /// The pin string this label was parsed from.
+    pub requested: String,
+    /// Hub repo id (`owner/name`), the text before the last `@`.
+    pub repo_id: String,
+    /// Pinned revision when it is exactly 40 lowercase hex characters.
+    pub revision: Option<String>,
+}
+
+impl BaseLabel {
+    /// Split `pin` on the last `@`. `revision` is kept only for 40 lowercase hex chars.
+    #[must_use]
+    pub fn from_pin(pin: &str) -> BaseLabel {
+        let (repo_id, revision) = match pin.rfind('@') {
+            Some(at) => {
+                let repo = pin[..at].to_string();
+                let rev = &pin[at + 1..];
+                let pinned = rev.len() == 40
+                    && rev
+                        .bytes()
+                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b));
+                (repo, pinned.then(|| rev.to_string()))
+            }
+            None => (pin.to_string(), None),
+        };
+        BaseLabel {
+            requested: pin.to_string(),
+            repo_id,
+            revision,
+        }
+    }
+
+    /// `<size>-<first 12 hex>.json`, or `<size>-unpinned.json`. Path-safe.
+    #[must_use]
+    pub fn report_file_name(&self) -> String {
+        let segment = self
+            .repo_id
+            .rsplit('/')
+            .next()
+            .unwrap_or(self.repo_id.as_str());
+        let mut name: String = segment
+            .chars()
+            .map(|c| {
+                if c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_' {
+                    c
+                } else {
+                    '_'
+                }
+            })
+            .collect();
+        if name.starts_with('.') {
+            name.replace_range(..1, "_");
+        }
+        let stem = match self.revision.as_deref() {
+            Some(rev) => format!("{name}-{}", &rev[..12]),
+            None => format!("{name}-unpinned"),
+        };
+        format!("{stem}.json")
+    }
+}
+
+/// Why a before/after comparison was not scored.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AbsenceReason {
+    /// The exact pinned snapshot directory is not on disk.
+    BaseSnapshotAbsent,
+    /// The snapshot directory exists but weights or tokenizer files are incomplete.
+    BaseSnapshotIncomplete,
+    /// The requested pin has no single 40-hex revision to check.
+    PinUnverifiable,
+    /// No adapter directory, or neither adapter file, was given.
+    AdapterAbsent,
+    /// Exactly one of the adapter pair is present, or the manifest cannot be read.
+    AdapterIncomplete,
+    /// The manifest `base_model` is not the detected pinned snapshot.
+    AdapterBaseNotPinnedSnapshot,
+}
+
+impl AbsenceReason {
+    /// Stable snake-case token stored in the absence record.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::BaseSnapshotAbsent => "base_snapshot_absent",
+            Self::BaseSnapshotIncomplete => "base_snapshot_incomplete",
+            Self::PinUnverifiable => "pin_unverifiable",
+            Self::AdapterAbsent => "adapter_absent",
+            Self::AdapterIncomplete => "adapter_incomplete",
+            Self::AdapterBaseNotPinnedSnapshot => "adapter_base_not_pinned_snapshot",
+        }
+    }
+}
+
+/// Record written when the pinned snapshot or a matching adapter is not on disk.
+///
+/// This is not a serve-gate input. It carries no accuracy and no think-initiation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AbsenceRecord {
+    /// Base the caller asked for.
+    pub base: BaseLabel,
+    /// Why nothing was scored.
+    pub reason: AbsenceReason,
+    /// Snapshot path that was checked, when detection looked for one.
+    pub searched: Option<String>,
+    /// Whether the caller passed an adapter path.
+    pub adapter_given: bool,
+    /// Whether both adapter files were present as files.
+    pub adapter_on_disk: bool,
+}
+
+impl AbsenceRecord {
+    /// JSON body of a `not_compared` report. No score keys, no `n`, not a gate input.
+    #[must_use]
+    pub fn to_json(&self) -> serde_json::Value {
+        let snapshot_on_disk = matches!(
+            self.reason,
+            AbsenceReason::AdapterAbsent
+                | AbsenceReason::AdapterIncomplete
+                | AbsenceReason::AdapterBaseNotPinnedSnapshot
+        );
+        let revision = self.base.revision.as_deref().unwrap_or("unpinned");
+        serde_json::json!({
+            "schema": BEFORE_AFTER_SCHEMA,
+            "status": "not_compared",
+            "reason": self.reason.as_str(),
+            "base_requested": self.base.requested,
+            "base_model": self.base.repo_id,
+            "base_revision": self.base.revision,
+            "snapshot_on_disk": snapshot_on_disk,
+            "searched": self.searched,
+            "adapter": {
+                "given": self.adapter_given,
+                "on_disk": self.adapter_on_disk,
+            },
+            "slices": SLICE_NAMES,
+            "detail": format!(
+                "{} ({revision}) was not compared ({}); nothing was scored",
+                self.base.repo_id,
+                self.reason.as_str()
+            ),
+            "gate_input": false,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -536,5 +686,125 @@ mod tests {
             }
         }
         assert_eq!(total, 96);
+    }
+
+    fn collect_keys(
+        value: &serde_json::Value,
+        keys: &mut Vec<String>,
+        status_values: &mut Vec<String>,
+    ) {
+        match value {
+            serde_json::Value::Object(map) => {
+                for (key, child) in map {
+                    keys.push(key.clone());
+                    if key == "status" {
+                        if let Some(text) = child.as_str() {
+                            status_values.push(text.to_string());
+                        }
+                    }
+                    collect_keys(child, keys, status_values);
+                }
+            }
+            serde_json::Value::Array(items) => {
+                for child in items {
+                    collect_keys(child, keys, status_values);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    #[test]
+    fn absence_record_names_the_requested_pin() {
+        let record = AbsenceRecord {
+            base: BaseLabel::from_pin(vox_populi_default_pin()),
+            reason: AbsenceReason::BaseSnapshotAbsent,
+            searched: None,
+            adapter_given: false,
+            adapter_on_disk: false,
+        };
+        let body = record.to_json();
+        assert_eq!(body["schema"], BEFORE_AFTER_SCHEMA);
+        assert_eq!(body["status"], "not_compared");
+        assert_eq!(body["reason"], "base_snapshot_absent");
+        assert_eq!(body["base_model"], "Qwen/Qwen3-8B");
+        assert_eq!(
+            body["base_revision"],
+            "b968826d9c46dd6066d109eabc6255188de91218"
+        );
+        assert_eq!(body["snapshot_on_disk"], false);
+        assert_eq!(body["gate_input"], false);
+        assert_eq!(body["slices"], serde_json::json!(SLICE_NAMES));
+    }
+
+    fn vox_populi_default_pin() -> &'static str {
+        "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
+    }
+
+    #[test]
+    fn absence_record_has_no_score_keys_anywhere() {
+        let base = BaseLabel::from_pin(vox_populi_default_pin());
+        for reason in [
+            AbsenceReason::BaseSnapshotAbsent,
+            AbsenceReason::BaseSnapshotIncomplete,
+            AbsenceReason::PinUnverifiable,
+            AbsenceReason::AdapterAbsent,
+            AbsenceReason::AdapterIncomplete,
+            AbsenceReason::AdapterBaseNotPinnedSnapshot,
+        ] {
+            let body = AbsenceRecord {
+                base: base.clone(),
+                reason,
+                searched: Some("searched".to_string()),
+                adapter_given: true,
+                adapter_on_disk: true,
+            }
+            .to_json();
+            let mut keys = Vec::new();
+            let mut status_values = Vec::new();
+            collect_keys(&body, &mut keys, &mut status_values);
+            for banned in ["accuracy", "think_initiation_rate", "n"] {
+                assert!(!keys.iter().any(|k| k == banned), "{reason:?} has {banned}");
+            }
+            assert!(
+                status_values.iter().all(|v| v != "scored"),
+                "{reason:?} status values {status_values:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn absence_record_for_another_size_names_that_size() {
+        let record = AbsenceRecord {
+            base: BaseLabel::from_pin("Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca"),
+            reason: AbsenceReason::BaseSnapshotAbsent,
+            searched: None,
+            adapter_given: false,
+            adapter_on_disk: false,
+        };
+        let body = record.to_json();
+        assert_eq!(body["base_model"], "Qwen/Qwen3-0.6B");
+        assert_eq!(
+            body["base_revision"],
+            "c1899de289a04d12100db370d81485cdf75e47ca"
+        );
+    }
+
+    #[test]
+    fn report_file_name_is_per_base_and_path_safe() {
+        let eight = BaseLabel::from_pin(vox_populi_default_pin());
+        assert_eq!(eight.report_file_name(), "Qwen3-8B-b968826d9c46.json");
+        let small = BaseLabel::from_pin("Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca");
+        assert_eq!(small.report_file_name(), "Qwen3-0.6B-c1899de289a0.json");
+        let evil = BaseLabel::from_pin("../evil@main");
+        let name = evil.report_file_name();
+        assert!(!name.contains('/'), "{name}");
+        assert!(
+            std::path::Path::new(&name)
+                .components()
+                .all(|c| c.as_os_str() != ".."),
+            "{name}"
+        );
+        assert!(name.ends_with("-unpinned.json"), "{name}");
     }
 }

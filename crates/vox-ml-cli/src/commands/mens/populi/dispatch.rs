@@ -730,6 +730,29 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 Ok(())
             }
 
+            super::mens_tail_subcommands::PopuliMensTail::EvalReasoningCompare {
+                base,
+                adapter,
+                hub_root,
+                bench_root,
+                out,
+            } => {
+                #[cfg(not(feature = "gpu"))]
+                let _ = (base, adapter, hub_root, bench_root, out);
+
+                #[cfg(feature = "gpu")]
+                crate::commands::mens::reasoning_compare::run_eval_reasoning_compare(
+                    crate::commands::mens::reasoning_compare::CompareArgs {
+                        base,
+                        adapter,
+                        hub_root,
+                        bench_root,
+                        out,
+                    },
+                )?;
+                Ok(())
+            }
+
             super::mens_tail_subcommands::PopuliMensTail::BenchCompletion {
                 url,
                 count,
