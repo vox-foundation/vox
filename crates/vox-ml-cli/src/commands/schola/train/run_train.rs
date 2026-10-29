@@ -198,7 +198,7 @@ pub(crate) fn apply_preload_free_mb(
     } else {
         SizeChoice::Explicit(pick)
     };
-    let mut revision = confirm_before_load(&choice, free_mb)?;
+    let mut revision = confirm_before_load(&overlay, &choice, free_mb)?;
     // Same size: the caller's preset is the one they asked to train with.
     // A real step-down uses the smaller size's preset.
     if revision.loaded_size == revision.original_size && !preset.is_empty() {

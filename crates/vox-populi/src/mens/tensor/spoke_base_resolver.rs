@@ -511,7 +511,10 @@ fn select_qwen3_code_qlora_from_overlay(
 
 /// Largest measured `qwen3_code` QLoRA floor that fits `free_mb`, via `pick_base`.
 pub fn select_qwen3_code_qlora_for_free_mb(free_mb: u32) -> anyhow::Result<Qwen3LivePick> {
-    let overlay = load_embedded_overlay()?;
+    let overlay = match vox_corpus::training::contract::find_workspace_root() {
+        Some(root) => load_overlay(&root)?,
+        None => load_embedded_overlay()?,
+    };
     select_qwen3_code_qlora_from_overlay(&overlay, free_mb)
 }
 
@@ -572,6 +575,7 @@ pub fn explicit_qwen3_size_for_free_mb(
 /// Keep an automatic pick whose floor still fits. Otherwise step down through
 /// the same QLoRA picker. An explicit size is refused when its floor no longer fits.
 pub fn confirm_before_load(
+    overlay: &HashMap<String, Vec<TrainBase>>,
     choice: &SizeChoice,
     free_mb_at_load: u32,
 ) -> anyhow::Result<PreloadRevision> {
@@ -580,7 +584,7 @@ pub fn confirm_before_load(
             if pick.floor_mb <= free_mb_at_load {
                 Ok(revision_keeping(pick, free_mb_at_load))
             } else {
-                let loaded = select_qwen3_code_qlora_for_free_mb(free_mb_at_load)?;
+                let loaded = select_qwen3_code_qlora_from_overlay(overlay, free_mb_at_load)?;
                 Ok(PreloadRevision {
                     original_size: pick.size_token.clone(),
                     loaded_size: loaded.size_token,
@@ -1320,8 +1324,8 @@ train_bases:
             "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137"
         );
 
-        let stepped =
-            confirm_before_load(&SizeChoice::Automatic(pick.clone()), 25_000).expect("14B fits");
+        let stepped = confirm_before_load(&overlay, &SizeChoice::Automatic(pick.clone()), 25_000)
+            .expect("14B fits");
         assert_eq!(stepped.original_size, "32B");
         assert_eq!(stepped.loaded_size, "14B");
         assert_eq!(stepped.loaded_preset, "qwen3_24g");
@@ -1344,8 +1348,8 @@ train_bases:
             .expect("measured floor");
         assert_eq!(loaded_floor, 20_000);
 
-        let kept =
-            confirm_before_load(&SizeChoice::Automatic(pick), 70_000).expect("32B still fits");
+        let kept = confirm_before_load(&overlay, &SizeChoice::Automatic(pick), 70_000)
+            .expect("32B still fits");
         assert_eq!(kept.loaded_size, "32B");
         assert_eq!(kept.loaded_preset, "qwen3_96g");
         assert_eq!(kept.original_size, "32B");
@@ -1383,7 +1387,7 @@ train_bases:
         assert!(!top.hf_id.contains("4B"), "{}", top.hf_id);
 
         let wide = select_qwen3_code_qlora_for_free_mb(70_000).expect("32B");
-        let dropped = confirm_before_load(&SizeChoice::Automatic(wide), 1_500);
+        let dropped = confirm_before_load(&overlay, &SizeChoice::Automatic(wide), 1_500);
         let err = dropped.expect_err("0.6B floor no longer fits").to_string();
         assert!(!err.contains("1.7B"), "{err}");
         assert!(!err.contains("4B"), "{err}");
@@ -1413,20 +1417,50 @@ train_bases:
             eight.hf_id,
             "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
         );
-        let refused = confirm_before_load(&SizeChoice::Explicit(eight.clone()), 11_999);
+        let refused = confirm_before_load(&overlay, &SizeChoice::Explicit(eight.clone()), 11_999);
         let refused_err = refused.expect_err("explicit 8B below floor").to_string();
         assert!(!refused_err.contains("0.6B"), "{refused_err}");
         assert!(
             !refused_err.contains("c1899de289a04d12100db370d81485cdf75e47ca"),
             "{refused_err}"
         );
-        let kept = confirm_before_load(&SizeChoice::Explicit(eight), 12_000).expect("floor fits");
+        let kept = confirm_before_load(&overlay, &SizeChoice::Explicit(eight), 12_000)
+            .expect("floor fits");
         assert_eq!(kept.loaded_size, "8B");
         assert_eq!(kept.original_size, "8B");
         assert_eq!(
             kept.loaded_hf_id,
             "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
         );
+    }
+
+    #[test]
+    fn preload_step_down_uses_the_same_overlay_as_the_pick() {
+        fn row(hf_id: &str, floor_mb: u32) -> TrainBase {
+            TrainBase {
+                hf_id: hf_id.into(),
+                floor_mb: Some(floor_mb),
+                floor_measured: true,
+                methods: vec!["qlora".into()],
+                license: Some("apache-2.0".into()),
+                attribution_required: false,
+            }
+        }
+        let mut overlay = HashMap::new();
+        overlay.insert(
+            "qwen3_code".into(),
+            vec![
+                row("Qwen/Qwen3-32B@synthetic32", 50_000),
+                row("Qwen/Qwen3-8B@synthetic8", 1_000),
+            ],
+        );
+        let pick = select_qwen3_code_qlora_from_overlay(&overlay, 60_000).expect("32B");
+        assert_eq!(pick.hf_id, "Qwen/Qwen3-32B@synthetic32");
+        let stepped =
+            confirm_before_load(&overlay, &SizeChoice::Automatic(pick), 2_000).expect("step");
+        assert_eq!(stepped.loaded_size, "8B");
+        assert_eq!(stepped.loaded_hf_id, "Qwen/Qwen3-8B@synthetic8");
+        assert_ne!(stepped.loaded_size, "0.6B");
     }
 
     #[test]
