@@ -20,8 +20,9 @@ pub enum TrainingSelection {
     Skip { reason: String },
 }
 
-/// Resolve a spoke's training selection. `vram_mb_override` lets callers/tests
-/// inject VRAM (None → vram_autodetect at the resolver). CLI overrides win.
+/// Resolve a spoke's training selection. `vram_mb_override` is the injected
+/// free-memory reading. An absent model uses the measured qwen3_code QLoRA
+/// picker and errors when the reading is missing. CLI overrides win.
 pub fn resolve_training_selection(
     root: &Path,
     profile: Option<&str>,
@@ -50,30 +51,47 @@ pub fn resolve_training_selection(
         TrainMethod::RagOnly | TrainMethod::PromptOnly => unreachable!(),
     };
 
-    // model: CLI wins; else resolve the spoke base.model (tag→VRAM-fit / concrete id);
-    // on failure (e.g. no GPU to size a tag) fall back to None (run_train default path).
-    let model = if let Some(m) = cli_model {
-        Some(m.to_string())
-    } else if let Some(tag) = eff
+    // Absent model: one measured qwen3_code QLoRA size for every spoke.
+    // A size spelling is explicit and is not stepped down. A capability tag
+    // stays on resolve_base_model / pick_base and keeps the profile preset.
+    let profile_preset = eff
         .as_ref()
-        .and_then(|e| e.base.as_ref().map(|b| b.model.clone()))
-    {
-        vox_populi::mens::tensor::spoke_base_resolver::resolve_base_model(
-            root,
-            &tag,
-            vram_mb_override,
-        )
-        .ok()
+        .and_then(|e| e.base.as_ref().and_then(|b| b.preset.clone()));
+    let (model, size_preset) = if let Some(m) = cli_model {
+        if m.contains('/') {
+            (Some(m.to_string()), None)
+        } else if vox_populi::mens::tensor::spoke_base_resolver::is_qwen3_size_spelling(m) {
+            let free_mb = vram_mb_override.ok_or_else(|| {
+                anyhow::anyhow!("no free-memory reading; refusing explicit Qwen3 size '{m}'")
+            })?;
+            let overlay = vox_populi::mens::tensor::spoke_base_resolver::load_overlay(root)?;
+            let pick =
+                vox_populi::mens::tensor::spoke_base_resolver::explicit_qwen3_size_for_free_mb(
+                    &overlay, m, free_mb,
+                )?;
+            (Some(pick.hf_id), Some(pick.preset))
+        } else {
+            let id = vox_populi::mens::tensor::spoke_base_resolver::resolve_base_model(
+                root,
+                m,
+                vram_mb_override,
+            )?;
+            (Some(id), None)
+        }
+    } else if let Some(free_mb) = vram_mb_override {
+        let pick =
+            vox_populi::mens::tensor::spoke_base_resolver::select_qwen3_code_qlora_for_free_mb(
+                free_mb,
+            )?;
+        (Some(pick.hf_id), Some(pick.preset))
     } else {
-        None
+        anyhow::bail!("no free-memory reading; cannot select a qwen3_code QLoRA size")
     };
-    // preset: CLI wins; else base.preset; else default.
+    // preset: CLI wins; else the selector preset; else the spoke profile preset.
     let preset = cli_preset
         .map(str::to_string)
-        .or_else(|| {
-            eff.as_ref()
-                .and_then(|e| e.base.as_ref().and_then(|b| b.preset.clone()))
-        })
+        .or(size_preset)
+        .or(profile_preset)
         .unwrap_or_else(|| "qwen_4080_16g".to_string());
     Ok(TrainingSelection::Train {
         model,
@@ -128,17 +146,103 @@ mod tests {
         }
     }
     #[test]
-    fn no_gpu_tag_falls_back_to_none_model() {
-        let sel =
-            resolve_training_selection(&root(), Some("rust"), None, None, None /*no VRAM*/)
-                .unwrap();
-        // On a host with no GPU, get_system_vram_gb() is None → tag unsizable → model None (default path).
-        if let TrainingSelection::Train { model, .. } = sel {
-            /* model may be None here */
-            let _ = model;
-        } else {
-            panic!()
+    fn unnamed_size_without_a_reading_is_an_error() {
+        let err = resolve_training_selection(&root(), Some("rust"), None, None, None)
+            .expect_err("missing free-memory reading");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("free-memory"),
+            "expected a missing-reading error, got {msg}"
+        );
+    }
+
+    #[test]
+    fn unnamed_size_uses_one_qwen3_code_size_for_every_spoke() {
+        let spokes = ["vox-lang", "rust", "tool-selection", "argument-generation"];
+        let fourteen = "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18";
+        let eight = "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218";
+        for spoke in spokes {
+            let sel = resolve_training_selection(&root(), Some(spoke), None, None, Some(25_000))
+                .unwrap_or_else(|e| panic!("{spoke}: {e}"));
+            match sel {
+                TrainingSelection::Train { model, preset, .. } => {
+                    assert_eq!(model.as_deref(), Some(fourteen), "{spoke}");
+                    assert_eq!(preset, "qwen3_24g", "{spoke}");
+                }
+                other => panic!("{spoke}: expected Train, got {other:?}"),
+            }
+            let at_16 = resolve_training_selection(&root(), Some(spoke), None, None, Some(16_384))
+                .unwrap_or_else(|e| panic!("{spoke} 16g: {e}"));
+            match at_16 {
+                TrainingSelection::Train { model, preset, .. } => {
+                    assert_eq!(model.as_deref(), Some(eight), "{spoke}");
+                    assert_eq!(preset, "qwen3_16g", "{spoke}");
+                }
+                other => panic!("{spoke}: expected Train, got {other:?}"),
+            }
         }
+        let kept_preset =
+            resolve_training_selection(&root(), Some("rust"), None, Some("a100"), Some(16_384))
+                .expect("cli preset");
+        match kept_preset {
+            TrainingSelection::Train { model, preset, .. } => {
+                assert_eq!(model.as_deref(), Some(eight));
+                assert_eq!(preset, "a100");
+            }
+            other => panic!("expected Train, got {other:?}"),
+        }
+        let manual = resolve_training_selection(
+            &root(),
+            Some("rust"),
+            Some("org/Manual"),
+            None,
+            Some(16_384),
+        )
+        .expect("concrete id");
+        match manual {
+            TrainingSelection::Train { model, .. } => {
+                assert_eq!(model.as_deref(), Some("org/Manual"));
+            }
+            other => panic!("expected Train, got {other:?}"),
+        }
+        let small = resolve_training_selection(
+            &root(),
+            Some("rust"),
+            Some("small_code_default"),
+            None,
+            Some(100_000),
+        )
+        .expect("small_code_default");
+        match small {
+            TrainingSelection::Train { model, preset, .. } => {
+                assert_eq!(model.as_deref(), Some(eight));
+                assert_eq!(preset, "qwen3_16g");
+            }
+            other => panic!("expected Train, got {other:?}"),
+        }
+        let strong = resolve_training_selection(
+            &root(),
+            Some("rust"),
+            Some("strong_code_default"),
+            None,
+            Some(16_384),
+        )
+        .expect("strong_code_default");
+        match strong {
+            TrainingSelection::Train { model, .. } => {
+                assert_eq!(model.as_deref(), Some(eight));
+            }
+            other => panic!("expected Train, got {other:?}"),
+        }
+        assert!(
+            resolve_training_selection(&root(), Some("rust"), Some("32B"), None, Some(25_000))
+                .is_err()
+        );
+        assert!(
+            resolve_training_selection(&root(), Some("rust"), Some("1.7B"), None, Some(100_000))
+                .is_err()
+        );
+        assert!(resolve_training_selection(&root(), Some("rust"), None, None, None).is_err());
     }
     #[test]
     fn cli_preset_overrides() {
