@@ -526,8 +526,51 @@ fn revision_keeping(pick: &Qwen3LivePick, free_mb_at_load: u32) -> PreloadRevisi
     }
 }
 
+fn qwen3_code_qlora_floor_mb(
+    overlay: &HashMap<String, Vec<TrainBase>>,
+    hf_id: &str,
+) -> anyhow::Result<u32> {
+    let rows = overlay
+        .get("qwen3_code")
+        .ok_or_else(|| anyhow::anyhow!("train_bases has no qwen3_code tag"))?;
+    let row = rows
+        .iter()
+        .find(|base| base.hf_id == hf_id && base.methods.iter().any(|method| method == "qlora"))
+        .ok_or_else(|| anyhow::anyhow!("no qwen3_code qlora row for '{hf_id}'"))?;
+    row.floor_mb
+        .ok_or_else(|| anyhow::anyhow!("qwen3_code qlora row '{hf_id}' has no floor_mb"))
+}
+
+/// Accept only spellings `resolve_qwen3_size` accepts. Unmeasured rows and a
+/// QLoRA floor above `free_mb` are errors. This path does not pick a smaller size.
+pub fn explicit_qwen3_size_for_free_mb(
+    overlay: &HashMap<String, Vec<TrainBase>>,
+    size: &str,
+    free_mb: u32,
+) -> anyhow::Result<Qwen3LivePick> {
+    let pin = resolve_qwen3_size(overlay, size)?;
+    if !pin.floor_measured {
+        anyhow::bail!("Qwen3 size '{size}' is unmeasured and cannot be selected");
+    }
+    let floor_mb = qwen3_code_qlora_floor_mb(overlay, &pin.hf_id)?;
+    if floor_mb > free_mb {
+        anyhow::bail!(
+            "Qwen3 size '{size}' QLoRA floor {floor_mb} MB exceeds free memory {free_mb} MB"
+        );
+    }
+    let token = qwen3_size_token(size)
+        .ok_or_else(|| anyhow::anyhow!("unknown Qwen3 size spelling '{size}'"))?;
+    Ok(Qwen3LivePick {
+        hf_id: pin.hf_id,
+        size_token: token.to_string(),
+        preset: preset_for_qwen3_size_token(token)?.to_string(),
+        floor_mb,
+        free_mb,
+    })
+}
+
 /// Keep an automatic pick whose floor still fits. Otherwise step down through
-/// the same QLoRA picker.
+/// the same QLoRA picker. An explicit size is refused when its floor no longer fits.
 pub fn confirm_before_load(
     choice: &SizeChoice,
     free_mb_at_load: u32,
@@ -548,10 +591,17 @@ pub fn confirm_before_load(
                 })
             }
         }
-        SizeChoice::Explicit(pick) => anyhow::bail!(
-            "explicit Qwen3 size '{}' is checked by explicit_qwen3_size_for_free_mb",
-            pick.size_token
-        ),
+        SizeChoice::Explicit(pick) => {
+            if pick.floor_mb > free_mb_at_load {
+                anyhow::bail!(
+                    "explicit Qwen3 size '{}' QLoRA floor {} MB exceeds free memory {} MB; refusing to substitute a smaller size",
+                    pick.size_token,
+                    pick.floor_mb,
+                    free_mb_at_load
+                );
+            }
+            Ok(revision_keeping(pick, free_mb_at_load))
+        }
     }
 }
 
@@ -1273,6 +1323,97 @@ train_bases:
             mid.hf_id.starts_with("Qwen/Qwen3-14B@"),
             "50000 MB must select the 14B QLoRA row, got {}",
             mid.hf_id
+        );
+    }
+
+    #[test]
+    fn measured_qlora_ladder_and_unmeasured_sizes_fail_closed() {
+        let overlay = load_overlay(workspace_root()).expect("load overlay");
+        let eight = select_qwen3_code_qlora_for_free_mb(15_000).expect("8B");
+        assert_eq!(eight.size_token, "8B");
+        assert_eq!(eight.preset, "qwen3_16g");
+        assert_eq!(eight.floor_mb, 12_000);
+        assert_eq!(
+            eight.hf_id,
+            "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
+        );
+        let tiny = select_qwen3_code_qlora_for_free_mb(5_000).expect("0.6B");
+        assert_eq!(tiny.size_token, "0.6B");
+        assert_eq!(tiny.preset, "qwen3_dev_cpu");
+        assert_eq!(tiny.floor_mb, 2_000);
+        assert!(select_qwen3_code_qlora_for_free_mb(1_500).is_err());
+        let top = select_qwen3_code_qlora_for_free_mb(100_000).expect("32B");
+        assert_eq!(top.size_token, "32B");
+        assert!(!top.hf_id.contains("1.7B"), "{}", top.hf_id);
+        assert!(!top.hf_id.contains("4B"), "{}", top.hf_id);
+
+        let wide = select_qwen3_code_qlora_for_free_mb(70_000).expect("32B");
+        let dropped = confirm_before_load(&SizeChoice::Automatic(wide), 1_500);
+        let err = dropped.expect_err("0.6B floor no longer fits").to_string();
+        assert!(!err.contains("1.7B"), "{err}");
+        assert!(!err.contains("4B"), "{err}");
+        let _ = overlay;
+    }
+
+    #[test]
+    fn explicit_qwen3_size_refuses_unmeasured_and_over_floor() {
+        let overlay = load_overlay(workspace_root()).expect("load overlay");
+        assert!(explicit_qwen3_size_for_free_mb(&overlay, "1.7B", 100_000).is_err());
+        assert!(explicit_qwen3_size_for_free_mb(&overlay, "4B", 100_000).is_err());
+        assert!(explicit_qwen3_size_for_free_mb(&overlay, "Qwen3-1.7B", 100_000).is_err());
+        let over = explicit_qwen3_size_for_free_mb(&overlay, "32B", 25_000);
+        let over_err = over.expect_err("32B does not fit 25000").to_string();
+        assert!(
+            !over_err.contains("40c069824f4251a91eefaf281ebe4c544efd3e18"),
+            "{over_err}"
+        );
+        let over_alias = explicit_qwen3_size_for_free_mb(&overlay, "Qwen/Qwen3-32B", 25_000);
+        assert!(over_alias.is_err());
+        let eight =
+            explicit_qwen3_size_for_free_mb(&overlay, "Qwen/Qwen3-8B", 12_000).expect("8B fits");
+        assert_eq!(eight.size_token, "8B");
+        assert_eq!(eight.preset, "qwen3_16g");
+        assert_eq!(eight.floor_mb, 12_000);
+        assert_eq!(
+            eight.hf_id,
+            "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
+        );
+        let refused = confirm_before_load(&SizeChoice::Explicit(eight.clone()), 11_999);
+        let refused_err = refused.expect_err("explicit 8B below floor").to_string();
+        assert!(!refused_err.contains("0.6B"), "{refused_err}");
+        assert!(
+            !refused_err.contains("c1899de289a04d12100db370d81485cdf75e47ca"),
+            "{refused_err}"
+        );
+        let kept = confirm_before_load(&SizeChoice::Explicit(eight), 12_000).expect("floor fits");
+        assert_eq!(kept.loaded_size, "8B");
+        assert_eq!(kept.original_size, "8B");
+        assert_eq!(
+            kept.loaded_hf_id,
+            "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
+        );
+    }
+
+    #[test]
+    fn capability_tags_stay_on_resolve_base_model() {
+        let overlay = load_overlay(workspace_root()).expect("load overlay");
+        let root = workspace_root();
+        assert!(explicit_qwen3_size_for_free_mb(&overlay, "qwen3_16g", 100_000).is_err());
+        assert!(explicit_qwen3_size_for_free_mb(&overlay, "strong_code_default", 100_000).is_err());
+        assert!(explicit_qwen3_size_for_free_mb(&overlay, "2B", 100_000).is_err());
+        let small = resolve_base_model(root, "small_code_default", Some(100_000)).expect("small");
+        assert!(
+            small.contains("Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"),
+            "{small}"
+        );
+        let strong = resolve_base_model(root, "strong_code_default", Some(16_384)).expect("strong");
+        assert!(
+            strong.contains("Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"),
+            "{strong}"
+        );
+        assert_eq!(
+            resolve_base_model(root, "org/Custom-Model", None).expect("passthrough"),
+            "org/Custom-Model"
         );
     }
 }
