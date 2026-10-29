@@ -667,4 +667,41 @@ mod tests {
             AbsenceReason::BaseSnapshotAbsent
         );
     }
+
+    #[test]
+    fn resolve_qwen3_size_rejects_unknown_spellings() {
+        let overlay = workspace_overlay();
+        for spelling in ["2B", "Qwen3-7B", "Qwen/8B"] {
+            assert!(
+                vox_populi::mens::tensor::spoke_base_resolver::resolve_qwen3_size(
+                    &overlay, spelling
+                )
+                .is_err(),
+                "{spelling}"
+            );
+        }
+    }
+
+    #[test]
+    fn resolve_base_pin_leaves_capability_tag_unpinned() {
+        let got = resolve_base_pin(Some("qwen3_16g"), &workspace_overlay()).unwrap();
+        assert_eq!(got, "qwen3_16g");
+        assert!(BaseLabel::from_pin(&got).revision.is_none());
+    }
+
+    #[test]
+    fn resolve_qwen3_size_errors_when_qwen3_code_has_two_qlora_pins() {
+        let mut first = train_base("Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218");
+        first.methods = vec!["qlora".into()];
+        first.license = Some("apache-2.0".into());
+        let mut second = train_base("Qwen/Qwen3-8B@0123456789abcdef0123456789abcdef01234567");
+        second.methods = vec!["qlora".into()];
+        second.license = Some("apache-2.0".into());
+        let mut overlay = HashMap::new();
+        overlay.insert("qwen3_code".into(), vec![first, second]);
+        assert!(
+            vox_populi::mens::tensor::spoke_base_resolver::resolve_qwen3_size(&overlay, "Qwen3-8B")
+                .is_err()
+        );
+    }
 }

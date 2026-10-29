@@ -1061,4 +1061,36 @@ mod tests {
             "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"
         );
     }
+
+    #[test]
+    fn size_name_4b_records_the_pinned_unmeasured_base() {
+        let hub = tempfile::tempdir().unwrap();
+        let runs = tempfile::tempdir().unwrap();
+        let status = run_eval_reasoning_compare_with(
+            CompareArgs {
+                base: Some("4B".to_string()),
+                adapter: None,
+                hub_root: Some(hub.path().to_path_buf()),
+                bench_root: data_root(),
+                out: None,
+            },
+            (None, None, None),
+            runs.path(),
+            &repo_root(),
+            &mut |_, _, _| panic!("scorer must not run"),
+        )
+        .expect("resolved pin");
+        assert!(matches!(status, RunStatus::NotCompared(_)));
+        let path = runs
+            .path()
+            .join(REASONING_COMPARE_SUBDIR)
+            .join("Qwen3-4B-1cfa9a720891.json");
+        let body: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(body["base_model"], "Qwen/Qwen3-4B");
+        assert_eq!(
+            body["base_revision"],
+            "1cfa9a7208912126459214e8b04321603b3df60c"
+        );
+    }
 }

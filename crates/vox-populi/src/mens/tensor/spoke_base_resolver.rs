@@ -992,4 +992,101 @@ train_bases:
         overlay.insert("qwen3_code".into(), vec![no_license]);
         assert!(resolve_qwen3_size(&overlay, "8B").is_err());
     }
+
+    #[test]
+    fn resolve_qwen3_size_covers_the_dense_ladder() {
+        let overlay = load_overlay(workspace_root()).expect("load overlay");
+        let cases = [
+            (
+                "0.6B",
+                "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
+                "c1899de289a04d12100db370d81485cdf75e47ca",
+                true,
+            ),
+            (
+                "8B",
+                "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",
+                "b968826d9c46dd6066d109eabc6255188de91218",
+                true,
+            ),
+            (
+                "14B",
+                "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",
+                "40c069824f4251a91eefaf281ebe4c544efd3e18",
+                true,
+            ),
+            (
+                "32B",
+                "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",
+                "9216db5781bf21249d130ec9da846c4624c16137",
+                true,
+            ),
+            (
+                "4B",
+                "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",
+                "1cfa9a7208912126459214e8b04321603b3df60c",
+                false,
+            ),
+        ];
+        for (size, hf_id, revision, measured) in cases {
+            let pin =
+                resolve_qwen3_size(&overlay, size).unwrap_or_else(|err| panic!("{size}: {err}"));
+            assert_eq!(pin.hf_id, hf_id, "{size}");
+            assert_eq!(pin.revision, revision, "{size}");
+            assert_eq!(pin.license, "apache-2.0", "{size}");
+            assert_eq!(pin.floor_measured, measured, "{size}");
+            assert_eq!(revision.len(), 40, "{size}");
+        }
+        let four = overlay
+            .get("qwen3_code")
+            .expect("qwen3_code")
+            .iter()
+            .find(|base| base.hf_id.starts_with("Qwen/Qwen3-4B@"))
+            .expect("4B row");
+        assert!(four.floor_mb.is_none());
+        assert!(!four.floor_measured);
+        let four_pin = "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c";
+        for spelling in ["4B", "Qwen3-4B", "Qwen/Qwen3-4B"] {
+            let pin = resolve_qwen3_size(&overlay, spelling).expect(spelling);
+            assert_eq!(pin.hf_id, four_pin, "{spelling}");
+        }
+        let eight_pin = "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218";
+        for spelling in ["8B", "Qwen3-8B", "Qwen/Qwen3-8B"] {
+            let pin = resolve_qwen3_size(&overlay, spelling).expect(spelling);
+            assert_eq!(pin.hf_id, eight_pin, "{spelling}");
+        }
+    }
+
+    #[test]
+    fn unmeasured_pins_are_only_on_qwen3_code_and_measured_floors_stay() {
+        let overlay = load_overlay(workspace_root()).expect("load overlay");
+        let pins = [
+            "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+            "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",
+        ];
+        for pin in pins {
+            let mut tags: Vec<&str> = overlay
+                .iter()
+                .filter(|(_, rows)| rows.iter().any(|row| row.hf_id == pin))
+                .map(|(tag, _)| tag.as_str())
+                .collect();
+            tags.sort_unstable();
+            assert_eq!(tags, ["qwen3_code"], "{pin}");
+        }
+        let qwen = overlay.get("qwen3_code").expect("qwen3_code");
+        let floor = |repo_suffix: &str, method: &str| -> u32 {
+            qwen.iter()
+                .find(|row| {
+                    row.hf_id.contains(repo_suffix) && row.methods.iter().any(|item| item == method)
+                })
+                .unwrap_or_else(|| panic!("{repo_suffix} {method}"))
+                .floor_mb
+                .expect("measured floor")
+        };
+        assert_eq!(floor("Qwen3-0.6B@", "qlora"), 2000);
+        assert_eq!(floor("Qwen3-8B@", "qlora"), 12000);
+        assert_eq!(floor("Qwen3-14B@", "qlora"), 20000);
+        assert_eq!(floor("Qwen3-14B@", "lora"), 44000);
+        assert_eq!(floor("Qwen3-32B@", "qlora"), 60000);
+    }
 }
