@@ -229,12 +229,17 @@ fn absent(
 pub(crate) fn resolve_base_pin(
     requested: Option<&str>,
     overlay: &HashMap<String, Vec<TrainBase>>,
-) -> String {
+) -> anyhow::Result<String> {
     let Some(input) = requested else {
-        return vox_populi::mens::DEFAULT_MODEL_ID.to_string();
+        return Ok(vox_populi::mens::DEFAULT_MODEL_ID.to_string());
     };
     if BaseLabel::from_pin(input).revision.is_some() {
-        return input.to_string();
+        return Ok(input.to_string());
+    }
+    if vox_populi::mens::tensor::spoke_base_resolver::is_qwen3_size_spelling(input) {
+        let pin =
+            vox_populi::mens::tensor::spoke_base_resolver::resolve_qwen3_size(overlay, input)?;
+        return Ok(pin.hf_id);
     }
     let mut pins: Vec<String> = Vec::new();
     for bases in overlay.values() {
@@ -252,9 +257,9 @@ pub(crate) fn resolve_base_pin(
         }
     }
     if pins.len() == 1 {
-        pins.remove(0)
+        Ok(pins.remove(0))
     } else {
-        input.to_string()
+        Ok(input.to_string())
     }
 }
 
@@ -569,7 +574,8 @@ mod tests {
     fn train_base(hf_id: &str) -> TrainBase {
         TrainBase {
             hf_id: hf_id.to_string(),
-            floor_mb: 1,
+            floor_mb: Some(1),
+            floor_measured: true,
             methods: Vec::new(),
             license: None,
             attribution_required: false,
@@ -579,7 +585,7 @@ mod tests {
     #[test]
     fn base_resolution_default_is_the_pinned_8b() {
         assert_eq!(
-            resolve_base_pin(None, &workspace_overlay()),
+            resolve_base_pin(None, &workspace_overlay()).unwrap(),
             vox_populi::mens::DEFAULT_MODEL_ID
         );
     }
@@ -589,8 +595,8 @@ mod tests {
         let overlay = workspace_overlay();
         let known = "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca";
         let unknown = "other/model@0123456789abcdef0123456789abcdef01234567";
-        assert_eq!(resolve_base_pin(Some(known), &overlay), known);
-        assert_eq!(resolve_base_pin(Some(unknown), &overlay), unknown);
+        assert_eq!(resolve_base_pin(Some(known), &overlay).unwrap(), known);
+        assert_eq!(resolve_base_pin(Some(unknown), &overlay).unwrap(), unknown);
     }
 
     #[test]
@@ -598,14 +604,20 @@ mod tests {
         let overlay = workspace_overlay();
         let eight = "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218";
         let small = "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca";
-        assert_eq!(resolve_base_pin(Some("Qwen3-8B"), &overlay), eight);
-        assert_eq!(resolve_base_pin(Some("Qwen/Qwen3-8B"), &overlay), eight);
-        assert_eq!(resolve_base_pin(Some("Qwen3-0.6B"), &overlay), small);
+        assert_eq!(resolve_base_pin(Some("Qwen3-8B"), &overlay).unwrap(), eight);
+        assert_eq!(
+            resolve_base_pin(Some("Qwen/Qwen3-8B"), &overlay).unwrap(),
+            eight
+        );
+        assert_eq!(
+            resolve_base_pin(Some("Qwen3-0.6B"), &overlay).unwrap(),
+            small
+        );
     }
 
     #[test]
     fn base_resolution_unknown_or_ambiguous_is_unverifiable() {
-        let unknown = resolve_base_pin(Some("not-a-model"), &workspace_overlay());
+        let unknown = resolve_base_pin(Some("not-a-model"), &workspace_overlay()).unwrap();
         assert_eq!(unknown, "not-a-model");
         assert!(BaseLabel::from_pin(&unknown).revision.is_none());
         let mut synthetic = HashMap::new();
@@ -616,12 +628,14 @@ mod tests {
                 train_base("Qwen/Qwen3-8B@0123456789abcdef0123456789abcdef01234567"),
             ],
         );
-        let got = resolve_base_pin(Some("Qwen3-8B"), &synthetic);
-        assert_eq!(got, "Qwen3-8B");
-        assert!(BaseLabel::from_pin(&got).revision.is_none());
+        assert!(resolve_base_pin(Some("Qwen3-8B"), &synthetic).is_err());
         let hub = tempfile::tempdir().unwrap();
         assert_eq!(
-            reason_of(detect_inputs(hub.path(), &BaseLabel::from_pin(&got), None)),
+            reason_of(detect_inputs(
+                hub.path(),
+                &BaseLabel::from_pin("Qwen3-8B"),
+                None
+            )),
             AbsenceReason::PinUnverifiable
         );
     }
@@ -629,8 +643,8 @@ mod tests {
     #[test]
     fn base_resolution_size_is_detected_at_its_own_snapshot() {
         let overlay = workspace_overlay();
-        let small_pin = resolve_base_pin(Some("Qwen3-0.6B"), &overlay);
-        let default_pin = resolve_base_pin(None, &overlay);
+        let small_pin = resolve_base_pin(Some("Qwen3-0.6B"), &overlay).unwrap();
+        let default_pin = resolve_base_pin(None, &overlay).unwrap();
         let small = BaseLabel::from_pin(&small_pin);
         let hub = tempfile::tempdir().unwrap();
         let dir = place(
