@@ -103,7 +103,13 @@ Plans:
   3. Every spoke's base and preset follow the picked size. An explicit size overrides the pick, and a size that does not fit is refused rather than silently shrunk.
   4. The inference auto-selector and the training base pick both use this selector. The old fixed tiers that point at run directories that do not exist are gone.
 
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 318-01-PLAN.md — Measured QLoRA picker, pre-load step-down, and free-memory adapter
+- [ ] 318-02-PLAN.md — One size for every spoke, and a re-read immediately before training load
+- [ ] 318-03-PLAN.md — Chat and the GUI host call the selector; directory tiers are removed
+
 
 ### Phase 319: Mesh-Wide Selection (`MESH-01`)
 
@@ -149,7 +155,7 @@ Plans:
 | **Phase 315** | Serve Gate | `2/2` | Complete |
 | **Phase 316** | Before/After Comparison | `1/1` | Complete    2026-10-28 |
 | **Phase 317** | Size Ladder | `1/1` | Complete    2026-10-28 |
-| **Phase 318** | Live VRAM Selector | `0/0` | Not started |
+| **Phase 318** | Live VRAM Selector | `0/3` | Planned |
 | **Phase 319** | Mesh-Wide Selection | `0/0` | Not started |
 | **Phase 320** | Train the Sizes | `0/0` | Not started |
 | **Phase 321** | Harness Before/After | `0/0` | Not started |

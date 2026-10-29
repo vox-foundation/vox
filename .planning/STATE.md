@@ -4,11 +4,11 @@ milestone: v5.6
 milestone_name: Reasoning Where the Lane Needs It
 current_phase: 318
 current_phase_name: Live VRAM Selector
-status: ready_to_plan
-stopped_at: Phase 317 complete, ready to plan Phase 318
-last_updated: "2026-10-28T20:20:00.000Z"
-last_activity: 2026-10-28
-last_activity_desc: Phase 317 verified passed; advanced to 318
+status: ready_to_execute
+stopped_at: Phase 318 planned, 3 plans ready to execute
+last_updated: "2026-10-29T19:30:00.000Z"
+last_activity: 2026-10-29
+last_activity_desc: Phase 318 plans written (318-01, 318-02, 318-03)
 state_head: 3592ec1e69305f2d6a0f92b14cba7a3a0c54387d
 progress:
   total_phases: 10
@@ -22,10 +22,10 @@ progress:
 
 ## Current Position
 
-Phase: 318 (Live VRAM Selector) — ready to discuss
-Plan: Not started
-Status: Phase 317 verified passed (7/7), threat-secure, Nyquist validated. v5.6 continues through 318–322; not done until two sizes have real trained scores and 322 is planned/executed or deferred.
-Last activity: 2026-10-28 — Phase 317 complete, ready to discuss Phase 318
+Phase: 318 (Live VRAM Selector) — plans ready
+Plan: 318-01, 318-02, 318-03 (not executed)
+Status: Phase 317 verified passed (7/7). Phase 318 has 3 plans. v5.6 continues through 318–322; not done until two sizes have real trained scores and 322 is planned/executed or deferred.
+Last activity: 2026-10-29 — Phase 318 plans written
 
 ## Milestone History (Recent)
 
@@ -42,7 +42,7 @@ Last activity: 2026-10-28 — Phase 317 complete, ready to discuss Phase 318
 
 ## Next Step
 
-Phase 317 is Nyquist-compliant. Do not re-execute 317-01. Continue v5.6 at phase 318. Phases 318–322 remain.
+Phase 318 plans are written. Execute 318-01 first, then 318-02 and 318-03. Do not re-execute 317-01. Phases 319–322 remain.
 
 ## v5.5 Autonomous Progress (2026-10-25 America/Phoenix)
 
@@ -76,5 +76,5 @@ Phase 317 is Nyquist-compliant. Do not re-execute 317-01. Continue v5.6 at phase
 ## Session
 
 **Last session:** 2026-10-28
-**Stopped at:** Phase 317 complete, ready to discuss Phase 318
+**Stopped at:** Phase 318 planned, ready to execute
 **Resume file:** None
