@@ -399,7 +399,12 @@ pub async fn run_train(
     let effective_grad_accum: Option<usize> = grad_accum;
     // Never silently swapped for a smaller model by the VRAM budget below —
     // see `never_retreat_the_named_model`.
-    let automatic_qwen3 = model.is_none();
+    let env_default_model = std::env::var("VOX_MENS_DEFAULT_MODEL")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    // A non-empty env pin is an explicit name. Preload must refuse, not step down.
+    let automatic_qwen3 = model.is_none() && env_default_model.is_none();
     let mut effective_model = model;
     // Resolved alongside `effective_model` below when `--domain` is given, via
     // the same `resolve_training_selection` the cloud path already uses (see
@@ -738,9 +743,19 @@ fn resolve_local_spoke_base(
             anyhow::anyhow!("could not find workspace root for spoke base resolution")
         })?;
 
+    let env_default_model = std::env::var("VOX_MENS_DEFAULT_MODEL")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
     let free_mb = vox_populi::mens::tensor::spoke_base_resolver::read_accelerator_free_mb()?;
-    let selection =
-        resolve_training_selection(&root, Some(domain), cli_model, cli_preset, Some(free_mb))?;
+    let selection = resolve_training_selection(
+        &root,
+        Some(domain),
+        cli_model,
+        cli_preset,
+        Some(free_mb),
+        env_default_model.as_deref(),
+    )?;
 
     match selection {
         TrainingSelection::Train { model, preset, .. } => Ok((model, preset)),
@@ -781,8 +796,18 @@ fn resolve_cloud_spoke_base(
     // Cloud sizing tier: 24GB-class GPU (matches CloudResolver default min_vram_mb).
     const CLOUD_VRAM_MB: u32 = 24_000;
 
-    let selection =
-        resolve_training_selection(&root, domain, cli_model, cli_preset, Some(CLOUD_VRAM_MB))?;
+    let env_default_model = std::env::var("VOX_MENS_DEFAULT_MODEL")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    let selection = resolve_training_selection(
+        &root,
+        domain,
+        cli_model,
+        cli_preset,
+        Some(CLOUD_VRAM_MB),
+        env_default_model.as_deref(),
+    )?;
 
     let (model, rung) = match selection {
         TrainingSelection::Train { model, preset, .. } => (model, preset),

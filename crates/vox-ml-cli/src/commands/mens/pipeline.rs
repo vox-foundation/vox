@@ -462,6 +462,10 @@ pub async fn run(
             PipelineStage::Train => {
                 let ws = vox_corpus::training::contract::find_workspace_root();
                 let root = ws.clone().unwrap_or_else(|| std::path::PathBuf::from("."));
+                let env_default_model = std::env::var("VOX_MENS_DEFAULT_MODEL")
+                    .ok()
+                    .map(|value| value.trim().to_string())
+                    .filter(|value| !value.is_empty());
                 let free_mb = match model.as_deref() {
                     None => Some(
                         vox_populi::mens::tensor::spoke_base_resolver::read_accelerator_free_mb()?,
@@ -485,6 +489,7 @@ pub async fn run(
                         model.as_deref(),
                         preset.as_deref(),
                         free_mb,
+                        env_default_model.as_deref(),
                     )?;
                 match &selection {
                     crate::commands::mens::training_selection::TrainingSelection::Skip {
@@ -573,7 +578,7 @@ pub async fn run(
                                     None,               // curriculum_schedule
                                     Default::default(), // chatml_config
                                     None,               // mix_config
-                                    model.is_none(),    // automatic_qwen3
+                                    model.is_none() && env_default_model.is_none(), // automatic_qwen3
                                 )
                                 .await?;
 

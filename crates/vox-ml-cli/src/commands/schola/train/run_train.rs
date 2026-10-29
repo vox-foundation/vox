@@ -300,10 +300,18 @@ pub async fn run_train(
 
     let mut model = model;
     let mut preset = preset;
+    let mut automatic_qwen3 = automatic_qwen3;
     let env_default_model = std::env::var("VOX_MENS_DEFAULT_MODEL")
         .ok()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
+    if model.is_none()
+        && let Some(pinned) = env_default_model.clone()
+    {
+        // A named pin is explicit: preload must refuse, not step down.
+        model = Some(pinned);
+        automatic_qwen3 = false;
+    }
     if automatic_qwen3 && model.is_none() {
         let free_mb = vox_populi::mens::tensor::spoke_base_resolver::read_accelerator_free_mb()?;
         let pick =
@@ -771,14 +779,26 @@ mod preload_tests {
 
         let pipeline = include_str!("../../mens/pipeline.rs");
         assert!(
-            pipeline.contains("model.is_none()") && pipeline.contains("automatic_qwen3"),
-            "pipeline passes automatic true only when the CLI model was absent"
+            pipeline.contains("model.is_none() && env_default_model.is_none()")
+                && pipeline.contains("VOX_MENS_DEFAULT_MODEL"),
+            "pipeline passes automatic true only when the CLI model and the env pin are absent"
         );
 
         let train_arm = include_str!("../../mens/populi/train_arm.rs");
         assert!(
-            train_arm.contains("let automatic_qwen3 = model.is_none();"),
-            "train_arm records whether the CLI model was absent"
+            train_arm.contains("VOX_MENS_DEFAULT_MODEL")
+                && train_arm.contains("model.is_none() && env_default_model.is_none()"),
+            "train_arm treats a non-empty env pin as explicit, not automatic"
+        );
+        let pin_at = window
+            .find("VOX_MENS_DEFAULT_MODEL")
+            .expect("run_train reads the env pin");
+        let pick_at = window
+            .find("select_qwen3_code_qlora_for_free_mb")
+            .expect("live pick");
+        assert!(
+            pin_at < pick_at,
+            "the env pin is applied before the live free-memory pick"
         );
         assert!(
             train_arm.contains("automatic_qwen3,"),

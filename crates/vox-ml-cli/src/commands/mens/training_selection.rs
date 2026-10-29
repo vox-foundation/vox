@@ -29,6 +29,7 @@ pub fn resolve_training_selection(
     cli_model: Option<&str>,
     cli_preset: Option<&str>,
     vram_mb_override: Option<u32>,
+    env_default_model: Option<&str>,
 ) -> anyhow::Result<TrainingSelection> {
     let eff = profile.and_then(|n| EffectiveDomainProfile::load_domain_profile(n, Some(root)).ok());
     let method = eff
@@ -57,7 +58,12 @@ pub fn resolve_training_selection(
     let profile_preset = eff
         .as_ref()
         .and_then(|e| e.base.as_ref().and_then(|b| b.preset.clone()));
-    let (model, size_preset) = if let Some(m) = cli_model {
+    let pinned = env_default_model
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+    // CLI --model wins. The live selector runs only when both names are absent.
+    let named = cli_model.or(pinned);
+    let (model, size_preset) = if let Some(m) = named {
         if m.contains('/') {
             (Some(m.to_string()), None)
         } else if vox_populi::mens::tensor::spoke_base_resolver::is_qwen3_size_spelling(m) {
@@ -113,8 +119,8 @@ mod tests {
     #[test]
     fn rust_resolves_qwen_qlora() {
         // "rust-expert" renamed to "rust" by B0.1; test updated by B0.2 audit.
-        let sel =
-            resolve_training_selection(&root(), Some("rust"), None, None, Some(16384)).unwrap();
+        let sel = resolve_training_selection(&root(), Some("rust"), None, None, Some(16384), None)
+            .unwrap();
         match sel {
             TrainingSelection::Train {
                 model,
@@ -137,6 +143,7 @@ mod tests {
             Some("org/Manual"),
             None,
             Some(16384),
+            None,
         )
         .unwrap();
         if let TrainingSelection::Train { model, .. } = sel {
@@ -146,8 +153,55 @@ mod tests {
         }
     }
     #[test]
+    fn env_pin_wins_over_an_injected_free_memory_reading() {
+        let fourteen = "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18";
+        let pin = "org/Pinned-Not-Qwen";
+        // 25_000 MB selects 14B when no name is pinned.
+        let sel =
+            resolve_training_selection(&root(), Some("rust"), None, None, Some(25_000), Some(pin))
+                .expect("pin");
+        match sel {
+            TrainingSelection::Train { model, .. } => {
+                assert_eq!(model.as_deref(), Some(pin));
+                assert_ne!(model.as_deref(), Some(fourteen));
+            }
+            other => panic!("expected Train, got {other:?}"),
+        }
+        let blank = resolve_training_selection(
+            &root(),
+            Some("rust"),
+            None,
+            None,
+            Some(25_000),
+            Some("   "),
+        )
+        .expect("blank pin falls through");
+        match blank {
+            TrainingSelection::Train { model, .. } => {
+                assert_eq!(model.as_deref(), Some(fourteen));
+            }
+            other => panic!("expected Train, got {other:?}"),
+        }
+        let cli_wins = resolve_training_selection(
+            &root(),
+            Some("rust"),
+            Some("org/Cli"),
+            None,
+            Some(25_000),
+            Some(pin),
+        )
+        .expect("cli wins");
+        match cli_wins {
+            TrainingSelection::Train { model, .. } => {
+                assert_eq!(model.as_deref(), Some("org/Cli"));
+            }
+            other => panic!("expected Train, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn unnamed_size_without_a_reading_is_an_error() {
-        let err = resolve_training_selection(&root(), Some("rust"), None, None, None)
+        let err = resolve_training_selection(&root(), Some("rust"), None, None, None, None)
             .expect_err("missing free-memory reading");
         let msg = err.to_string();
         assert!(
@@ -162,8 +216,9 @@ mod tests {
         let fourteen = "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18";
         let eight = "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218";
         for spoke in spokes {
-            let sel = resolve_training_selection(&root(), Some(spoke), None, None, Some(25_000))
-                .unwrap_or_else(|e| panic!("{spoke}: {e}"));
+            let sel =
+                resolve_training_selection(&root(), Some(spoke), None, None, Some(25_000), None)
+                    .unwrap_or_else(|e| panic!("{spoke}: {e}"));
             match sel {
                 TrainingSelection::Train { model, preset, .. } => {
                     assert_eq!(model.as_deref(), Some(fourteen), "{spoke}");
@@ -171,8 +226,9 @@ mod tests {
                 }
                 other => panic!("{spoke}: expected Train, got {other:?}"),
             }
-            let at_16 = resolve_training_selection(&root(), Some(spoke), None, None, Some(16_384))
-                .unwrap_or_else(|e| panic!("{spoke} 16g: {e}"));
+            let at_16 =
+                resolve_training_selection(&root(), Some(spoke), None, None, Some(16_384), None)
+                    .unwrap_or_else(|e| panic!("{spoke} 16g: {e}"));
             match at_16 {
                 TrainingSelection::Train { model, preset, .. } => {
                     assert_eq!(model.as_deref(), Some(eight), "{spoke}");
@@ -181,9 +237,15 @@ mod tests {
                 other => panic!("{spoke}: expected Train, got {other:?}"),
             }
         }
-        let kept_preset =
-            resolve_training_selection(&root(), Some("rust"), None, Some("a100"), Some(16_384))
-                .expect("cli preset");
+        let kept_preset = resolve_training_selection(
+            &root(),
+            Some("rust"),
+            None,
+            Some("a100"),
+            Some(16_384),
+            None,
+        )
+        .expect("cli preset");
         match kept_preset {
             TrainingSelection::Train { model, preset, .. } => {
                 assert_eq!(model.as_deref(), Some(eight));
@@ -197,6 +259,7 @@ mod tests {
             Some("org/Manual"),
             None,
             Some(16_384),
+            None,
         )
         .expect("concrete id");
         match manual {
@@ -211,6 +274,7 @@ mod tests {
             Some("small_code_default"),
             None,
             Some(100_000),
+            None,
         )
         .expect("small_code_default");
         match small {
@@ -226,6 +290,7 @@ mod tests {
             Some("strong_code_default"),
             None,
             Some(16_384),
+            None,
         )
         .expect("strong_code_default");
         match strong {
@@ -235,20 +300,40 @@ mod tests {
             other => panic!("expected Train, got {other:?}"),
         }
         assert!(
-            resolve_training_selection(&root(), Some("rust"), Some("32B"), None, Some(25_000))
-                .is_err()
+            resolve_training_selection(
+                &root(),
+                Some("rust"),
+                Some("32B"),
+                None,
+                Some(25_000),
+                None
+            )
+            .is_err()
         );
         assert!(
-            resolve_training_selection(&root(), Some("rust"), Some("1.7B"), None, Some(100_000))
-                .is_err()
+            resolve_training_selection(
+                &root(),
+                Some("rust"),
+                Some("1.7B"),
+                None,
+                Some(100_000),
+                None
+            )
+            .is_err()
         );
-        assert!(resolve_training_selection(&root(), Some("rust"), None, None, None).is_err());
+        assert!(resolve_training_selection(&root(), Some("rust"), None, None, None, None).is_err());
     }
     #[test]
     fn cli_preset_overrides() {
-        let sel =
-            resolve_training_selection(&root(), Some("rust"), None, Some("a100"), Some(16384))
-                .unwrap();
+        let sel = resolve_training_selection(
+            &root(),
+            Some("rust"),
+            None,
+            Some("a100"),
+            Some(16384),
+            None,
+        )
+        .unwrap();
         if let TrainingSelection::Train { preset, .. } = sel {
             assert_eq!(preset, "a100");
         } else {
@@ -260,7 +345,7 @@ mod tests {
         // "agents" retired by B0.1 → replaced by "tool-selection" and "argument-generation".
         let root = root();
         for spoke in ["vox-lang", "rust", "tool-selection", "argument-generation"] {
-            let sel = resolve_training_selection(&root, Some(spoke), None, None, Some(16384))
+            let sel = resolve_training_selection(&root, Some(spoke), None, None, Some(16384), None)
                 .unwrap_or_else(|e| panic!("{spoke}: {e}"));
             match sel {
                 TrainingSelection::Train { model, preset, .. } => {
