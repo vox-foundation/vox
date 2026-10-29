@@ -412,6 +412,8 @@ mod tests {
         );
     }
 
+    // std::os::unix is absent on Windows; an ungated call fails the whole test module.
+    #[cfg(unix)]
     #[test]
     fn snapshot_with_dangling_shard_link_is_incomplete() {
         let hub = tempfile::tempdir().unwrap();
