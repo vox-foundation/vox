@@ -107,6 +107,7 @@ pub fn is_vox_script_request(prompt: &str) -> bool {
     lower.contains(".vox")
         || lower.contains("vox script")
         || lower.contains("voxscript")
+        || lower.contains("voxlang")
         || lower.contains("in vox")
         || lower.contains("vox code")
         || lower.contains("vox program")
@@ -222,7 +223,7 @@ pub async fn run(args: ChatArgs) -> Result<()> {
             }
             routed
         } else {
-            let mut cfg = resolve_chat_config(&effective_model_arg);
+            let mut cfg = resolve_chat_config(&effective_model_arg)?;
             cfg.telemetry_task_category = Some("cli-chat".to_string());
             vec![(
                 cfg,
@@ -404,6 +405,7 @@ pub fn build_sota_selection_request(
             max_cost_usd_per_call: Some(0.0),
             cacheable_workload: false,
             allow_free_in_performance_mode: true,
+            context_fill_ratio: None,
         },
         SotaRoutingMode::Efficient => SelectionIntent {
             task: task_category,
@@ -415,6 +417,7 @@ pub fn build_sota_selection_request(
             max_cost_usd_per_call: None,
             cacheable_workload: false,
             allow_free_in_performance_mode: false,
+            context_fill_ratio: None,
         },
         SotaRoutingMode::Balanced => SelectionIntent {
             task: task_category,
@@ -426,6 +429,7 @@ pub fn build_sota_selection_request(
             max_cost_usd_per_call: None,
             cacheable_workload: false,
             allow_free_in_performance_mode: false,
+            context_fill_ratio: None,
         },
         SotaRoutingMode::Genius => SelectionIntent {
             task: if is_code {
@@ -441,6 +445,7 @@ pub fn build_sota_selection_request(
             max_cost_usd_per_call: None,
             cacheable_workload: false,
             allow_free_in_performance_mode: false,
+            context_fill_ratio: None,
         },
         SotaRoutingMode::Auto => SelectionIntent {
             task: task_category,
@@ -456,6 +461,7 @@ pub fn build_sota_selection_request(
             max_cost_usd_per_call: None,
             cacheable_workload: false,
             allow_free_in_performance_mode: false,
+            context_fill_ratio: None,
         },
     };
     ModelSelectionRequest::from_intent(intent)
@@ -560,7 +566,14 @@ fn is_connection_error(err: &str) -> bool {
         || lower.contains("os error 10061")
 }
 
-pub(crate) fn resolve_chat_config(model: &str) -> LlmConfig {
+pub(crate) fn resolve_chat_config(model: &str) -> anyhow::Result<LlmConfig> {
+    resolve_chat_config_with_auto_pick(model, None)
+}
+
+pub(crate) fn resolve_chat_config_with_auto_pick(
+    model: &str,
+    auto_pick: Option<Result<vox_orchestrator::models::auto_select::AutoModelSelection, String>>,
+) -> anyhow::Result<LlmConfig> {
     if model == "auto-local"
         || model.starts_with("vox-mens-")
         || model.starts_with("mens/")
@@ -569,11 +582,16 @@ pub(crate) fn resolve_chat_config(model: &str) -> LlmConfig {
         || model == "qwen/qwen-3-8b"
     {
         let effective_model = if model == "auto-local" {
-            // Discrete-GPU VRAM comes from the nvml-probe plugin, if installed.
-            vox_orchestrator_mcp::server_state::vram_probe::register_nvml_vram_probe();
-            let is_apple_silicon = vox_orchestrator::models::auto_select::is_host_apple_silicon();
-            vox_orchestrator::models::auto_select::select_optimal_local_model(is_apple_silicon)
-                .selected_model_id
+            let selection = if let Some(picked) = auto_pick {
+                picked
+            } else {
+                // Discrete-GPU VRAM comes from the nvml-probe plugin, if installed.
+                vox_orchestrator_mcp::server_state::vram_probe::register_nvml_vram_probe();
+                let is_apple_silicon =
+                    vox_orchestrator::models::auto_select::is_host_apple_silicon();
+                vox_orchestrator::models::auto_select::select_optimal_local_model(is_apple_silicon)
+            };
+            selection.map_err(anyhow::Error::msg)?.selected_model_id
         } else {
             model.to_string()
         };
@@ -581,7 +599,7 @@ pub(crate) fn resolve_chat_config(model: &str) -> LlmConfig {
         let base_url = std::env::var("VOX_LOCAL_ENDPOINT")
             .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
         let chat_url = format!("{}/v1/chat/completions", base_url.trim_end_matches('/'));
-        LlmConfig {
+        Ok(LlmConfig {
             provider: "voxlocal".to_string(),
             model: effective_model,
             cost_per_1k: None,
@@ -602,16 +620,16 @@ pub(crate) fn resolve_chat_config(model: &str) -> LlmConfig {
             telemetry_attempt_number: None,
             telemetry_skip_interaction: true,
             seed: None,
-        }
+        })
     } else if model.starts_with("ollama")
         || (model.contains("qwen3") && !model.contains('/'))
         // vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="Retired in favor of Qwen 3 (Qwen/Qwen3-8B)" canonical="qwen3"
         || (model.contains("qwen2.5-coder") && !model.contains('/'))
         || model.starts_with("local")
     {
-        LlmConfig::ollama(model)
+        Ok(LlmConfig::ollama(model))
     } else {
-        LlmConfig::openrouter(model)
+        Ok(LlmConfig::openrouter(model))
     }
 }
 
@@ -648,19 +666,20 @@ mod tests {
 
     #[test]
     fn chat_routing_ollama_vs_openrouter() {
-        let local_qwen = resolve_chat_config("qwen3:8b");
+        let local_qwen = resolve_chat_config("qwen3:8b").expect("chat config");
         assert_eq!(local_qwen.provider, "ollama");
 
-        let openrouter_qwen = resolve_chat_config("qwen/qwen3-32b-instruct");
+        let openrouter_qwen = resolve_chat_config("qwen/qwen3-32b-instruct").expect("chat config");
         assert_eq!(openrouter_qwen.provider, "openrouter");
 
-        let catalog_local_qwen = resolve_chat_config("qwen/qwen-3-8b");
+        let catalog_local_qwen = resolve_chat_config("qwen/qwen-3-8b").expect("chat config");
         assert_eq!(catalog_local_qwen.provider, "voxlocal");
 
-        let local_qwen25 = resolve_chat_config("qwen2.5-coder:7b");
+        let local_qwen25 = resolve_chat_config("qwen2.5-coder:7b").expect("chat config");
         assert_eq!(local_qwen25.provider, "ollama");
 
-        let openrouter_qwen25 = resolve_chat_config("qwen/qwen2.5-coder-32b-instruct");
+        let openrouter_qwen25 =
+            resolve_chat_config("qwen/qwen2.5-coder-32b-instruct").expect("chat config");
         assert_eq!(openrouter_qwen25.provider, "openrouter");
     }
 
@@ -671,16 +690,35 @@ mod tests {
 
     #[test]
     fn chat_routing_auto_and_mens() {
-        let auto_cfg = resolve_chat_config("auto-local");
+        let pin = "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18";
+        let auto_cfg = resolve_chat_config_with_auto_pick(
+            "auto-local",
+            Some(Ok(
+                vox_orchestrator::models::auto_select::AutoModelSelection {
+                    selected_model_id: pin.to_string(),
+                    detected_vram_gb: 25_000_f64 / 1024.0,
+                    tier_reason: "14B QLoRA floor_mb 20000 fits free_mb 25000".to_string(),
+                },
+            )),
+        )
+        .expect("injected pick");
         assert_eq!(auto_cfg.provider, "voxlocal");
+        assert_eq!(auto_cfg.model, pin);
         assert!(auto_cfg.base_url.unwrap().contains("11434"));
-        assert!(!auto_cfg.model.is_empty());
 
-        let mens_cfg = resolve_chat_config("mens/runs/qwen3_27b_metal_check/quant_q8_0");
+        let refused =
+            resolve_chat_config_with_auto_pick("auto-local", Some(Err("unreadable".into())));
+        assert!(
+            refused.is_err(),
+            "an unreadable reading must not invent a model"
+        );
+
+        let mens_cfg =
+            resolve_chat_config("mens/runs/qwen3_27b_metal_check/quant_q8_0").expect("chat config");
         assert_eq!(mens_cfg.provider, "voxlocal");
         assert_eq!(mens_cfg.model, "mens/runs/qwen3_27b_metal_check/quant_q8_0");
 
-        let vox_mens_cfg = resolve_chat_config("vox-mens-8b-v0.6");
+        let vox_mens_cfg = resolve_chat_config("vox-mens-8b-v0.6").expect("chat config");
         assert_eq!(vox_mens_cfg.provider, "voxlocal");
         assert_eq!(vox_mens_cfg.model, "vox-mens-8b-v0.6");
     }
