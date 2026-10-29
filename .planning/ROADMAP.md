@@ -3,7 +3,7 @@
 # Roadmap: v5.6 — Reasoning Where the Lane Needs It
 
 **Milestone:** v5.6
-**Status:** Phase 317 complete — ready for phase 318. Extended 2026-10-26 (sizes 317–321) and 2026-10-28 (phase 322 calibrated decisions + ChatARC). Not complete until at least two Qwen3 sizes have real trained before/after scores **and** phase 322 is planned/executed or explicitly deferred.
+**Status:** Phase 318 complete — ready for phase 319. Extended 2026-10-26 (sizes 317–321) and 2026-10-28 (phase 322 calibrated decisions + ChatARC). Not complete until at least two Qwen3 sizes have real trained before/after scores **and** phase 322 is planned/executed or explicitly deferred.
 **Updated:** 2026-10-28
 
 ### Phase 313: Lane Prefix (`LANE-01`, `LANE-02`)
@@ -103,12 +103,12 @@ Plans:
   3. Every spoke's base and preset follow the picked size. An explicit size overrides the pick, and a size that does not fit is refused rather than silently shrunk.
   4. The inference auto-selector and the training base pick both use this selector. The old fixed tiers that point at run directories that do not exist are gone.
 
-**Plans:** 3 plans
+**Plans:** 3/3 plans executed
 
 Plans:
-- [ ] 318-01-PLAN.md — Measured QLoRA picker, pre-load step-down, and free-memory adapter
-- [ ] 318-02-PLAN.md — One size for every spoke, and a re-read immediately before training load
-- [ ] 318-03-PLAN.md — Chat and the GUI host call the selector; directory tiers are removed
+- [x] 318-01-PLAN.md — Measured QLoRA picker, pre-load step-down, and free-memory adapter (completed 2026-10-29)
+- [x] 318-02-PLAN.md — One size for every spoke, and a re-read immediately before training load (completed 2026-10-29)
+- [x] 318-03-PLAN.md — Chat and the GUI host call the selector; directory tiers are removed (completed 2026-10-29)
 
 
 ### Phase 319: Mesh-Wide Selection (`MESH-01`)
@@ -155,7 +155,7 @@ Plans:
 | **Phase 315** | Serve Gate | `2/2` | Complete |
 | **Phase 316** | Before/After Comparison | `1/1` | Complete    2026-10-28 |
 | **Phase 317** | Size Ladder | `1/1` | Complete    2026-10-28 |
-| **Phase 318** | Live VRAM Selector | `0/3` | Planned |
+| **Phase 318** | Live VRAM Selector | `3/3` | Complete    2026-10-29 |
 | **Phase 319** | Mesh-Wide Selection | `0/0` | Not started |
 | **Phase 320** | Train the Sizes | `0/0` | Not started |
 | **Phase 321** | Harness Before/After | `0/0` | Not started |

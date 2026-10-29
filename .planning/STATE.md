@@ -2,30 +2,30 @@
 gsd_state_version: "1.0"
 milestone: v5.6
 milestone_name: Reasoning Where the Lane Needs It
-current_phase: 318
-current_phase_name: Live VRAM Selector
-status: ready_to_execute
-stopped_at: Phase 318 planned, 3 plans ready to execute
-last_updated: "2026-10-29T19:30:00.000Z"
+current_phase: 319
+current_phase_name: Mesh-Wide Selection
+status: ready_to_plan
+stopped_at: Phase 318 complete — ready to discuss phase 319
+last_updated: "2026-10-29T21:45:00.000Z"
 last_activity: 2026-10-29
-last_activity_desc: Phase 318 plans written (318-01, 318-02, 318-03)
-state_head: 3592ec1e69305f2d6a0f92b14cba7a3a0c54387d
+last_activity_desc: Phase 318 verified passed (12/12); security closed; Nyquist compliant
+state_head: e3a27eda7
 progress:
   total_phases: 10
-  completed_phases: 5
-  total_plans: 10
-  completed_plans: 10
-  percent: 50
+  completed_phases: 6
+  total_plans: 13
+  completed_plans: 13
+  percent: 60
 ---
 
 # Project State: Unified Workstream
 
 ## Current Position
 
-Phase: 318 (Live VRAM Selector) — plans ready
-Plan: 318-01, 318-02, 318-03 (not executed)
-Status: Phase 317 verified passed (7/7). Phase 318 has 3 plans. v5.6 continues through 318–322; not done until two sizes have real trained scores and 322 is planned/executed or deferred.
-Last activity: 2026-10-29 — Phase 318 plans written
+Phase: 319 (Mesh-Wide Selection) — not started
+Plan: none yet
+Status: Phase 318 verified passed (12/12). Security threats_open 0. Nyquist compliant. v5.6 continues through 319–322; not done until two sizes have real trained scores and 322 is planned/executed or deferred.
+Last activity: 2026-10-29 — Phase 318 closed
 
 ## Milestone History (Recent)
 
@@ -42,7 +42,7 @@ Last activity: 2026-10-29 — Phase 318 plans written
 
 ## Next Step
 
-Phase 318 plans are written. Execute 318-01 first, then 318-02 and 318-03. Do not re-execute 317-01. Phases 319–322 remain.
+Phase 318 is verified, secured, and Nyquist-compliant. Do not re-execute 318. Discuss phase 319 (mesh-wide selection), then plan and execute. Phases 320–322 remain.
 
 ## v5.5 Autonomous Progress (2026-10-25 America/Phoenix)
 
@@ -63,6 +63,7 @@ Phase 318 plans are written. Execute 318-01 first, then 318-02 and 318-03. Do no
 |------|----------|-------|-------|
 | Phase 316 P01 | 1h 26m | 3 tasks | 9 files |
 | Phase 317 P01 | 41min | 2 tasks | 5 files |
+| Phase 318 P01–P03 | — | 9 tasks | selector, training, chat, GUI |
 
 ## Decisions
 
@@ -72,9 +73,13 @@ Phase 318 plans are written. Execute 318-01 first, then 318-02 and 318-03. Do no
 - [Phase 317]: 1.7B and 4B are unmeasured qwen3_code QLoRA rows with no floor_mb; pick_base cannot select them
 - [Phase 317]: floor_measured defaults true so existing measured floors stay eligible
 - [Phase 317]: Size names resolve through resolve_qwen3_size; capability tags stay on the memory picker
+- [Phase 318]: Unmeasured 1.7B and 4B stay ineligible; the live pick is the largest measured qwen3_code QLoRA floor that fits
+- [Phase 318]: CUDA free memory is nvidia-smi memory.free; Metal free memory is monitor_metal memory_free_mb
+- [Phase 318]: An explicit size, including VOX_MENS_DEFAULT_MODEL, is refused when it does not fit and is not stepped down
+- [Phase 318]: A caller preset stays when the size does not change; a step-down uses the smaller size's preset
 
 ## Session
 
-**Last session:** 2026-10-28
-**Stopped at:** Phase 318 planned, ready to execute
+**Last session:** 2026-10-29
+**Stopped at:** Phase 318 complete, ready to discuss phase 319
 **Resume file:** None
