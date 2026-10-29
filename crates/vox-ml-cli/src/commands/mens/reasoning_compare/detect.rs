@@ -108,11 +108,27 @@ pub(crate) fn detect_inputs(
         (true, true) => {}
     }
     match manifest_matches(&manifest, &snapshot) {
-        ManifestMatch::Matches => Detected::Ready {
-            snapshot,
-            adapter: adapter_dir.to_path_buf(),
-            base: label.clone(),
-        },
+        ManifestMatch::Matches => {
+            // The loader reads tokenizer.json (and training copies config.json)
+            // before it opens the manifest. A pair that cannot be loaded stays
+            // on the absence path and never scores the base.
+            if !adapter_dir.join("tokenizer.json").is_file()
+                || !adapter_dir.join("config.json").is_file()
+            {
+                return absent(
+                    label,
+                    AbsenceReason::AdapterIncomplete,
+                    searched,
+                    Some(adapter_dir),
+                    pair_on_disk,
+                );
+            }
+            Detected::Ready {
+                snapshot,
+                adapter: adapter_dir.to_path_buf(),
+                base: label.clone(),
+            }
+        }
         ManifestMatch::Incomplete => absent(
             label,
             AbsenceReason::AdapterIncomplete,
@@ -276,7 +292,14 @@ mod tests {
     }
 
     fn write_adapter(dir: &Path, base_model: &str) {
-        write_files(dir, &["candle_qlora_adapter.safetensors"]);
+        write_files(
+            dir,
+            &[
+                "candle_qlora_adapter.safetensors",
+                "tokenizer.json",
+                "config.json",
+            ],
+        );
         std::fs::write(
             dir.join("adapter_manifest.json"),
             serde_json::json!({ "base_model": base_model }).to_string(),
@@ -511,6 +534,27 @@ mod tests {
             detect_inputs(hub.path(), &label, Some(alias.path())),
             Detected::Ready { .. }
         ));
+    }
+
+    #[test]
+    fn adapter_missing_tokenizer_or_config_is_incomplete() {
+        let hub = tempfile::tempdir().unwrap();
+        let dir = place(
+            hub.path(),
+            "Qwen/Qwen3-8B",
+            PIN_8B.rsplit('@').next().unwrap(),
+        );
+        let label = BaseLabel::from_pin(PIN_8B);
+        for missing in ["tokenizer.json", "config.json"] {
+            let adapter = tempfile::tempdir().unwrap();
+            write_adapter(adapter.path(), &dir.display().to_string());
+            std::fs::remove_file(adapter.path().join(missing)).unwrap();
+            assert_eq!(
+                reason_of(detect_inputs(hub.path(), &label, Some(adapter.path()))),
+                AbsenceReason::AdapterIncomplete,
+                "{missing}"
+            );
+        }
     }
 
     fn workspace_overlay() -> HashMap<String, Vec<TrainBase>> {

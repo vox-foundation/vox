@@ -395,6 +395,8 @@ mod tests {
         }
         let adapter = tempfile::tempdir().unwrap();
         std::fs::write(adapter.path().join("candle_qlora_adapter.safetensors"), b"").unwrap();
+        std::fs::write(adapter.path().join("tokenizer.json"), b"").unwrap();
+        std::fs::write(adapter.path().join("config.json"), b"").unwrap();
         let manifest = serde_json::json!({ "base_model": snapshot.display().to_string() });
         std::fs::write(
             adapter.path().join("adapter_manifest.json"),

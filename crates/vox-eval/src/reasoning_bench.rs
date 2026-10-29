@@ -230,7 +230,8 @@ pub enum AbsenceReason {
     PinUnverifiable,
     /// No adapter directory, or neither adapter file, was given.
     AdapterAbsent,
-    /// Exactly one of the adapter pair is present, or the manifest cannot be read.
+    /// The adapter pair is incomplete, the manifest cannot be read, or a
+    /// matching run dir is missing `tokenizer.json` or `config.json`.
     AdapterIncomplete,
     /// The manifest `base_model` is not the detected pinned snapshot.
     AdapterBaseNotPinnedSnapshot,
