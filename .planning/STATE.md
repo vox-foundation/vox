@@ -4,17 +4,18 @@ milestone: v5.6
 milestone_name: Reasoning Where the Lane Needs It
 current_phase: 317
 current_phase_name: Size Ladder
-status: planned
-stopped_at: Phase 317 plan written
-last_updated: "2026-10-29T03:10:00.000Z"
+current_plan: 1
+status: ready_for_verification
+stopped_at: Completed 317-01-PLAN.md
+last_updated: "2026-10-29T03:52:47.192Z"
 last_activity: 2026-10-28
-last_activity_desc: Phase 317 plan written (317-01)
-state_head: ae417851211126b4767114bb3061e711571b7322
+last_activity_desc: Completed 317-01-PLAN.md
+state_head: 3592ec1e69305f2d6a0f92b14cba7a3a0c54387d
 progress:
   total_phases: 10
   completed_phases: 4
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
   percent: 40
 ---
 
@@ -22,10 +23,12 @@ progress:
 
 ## Current Position
 
-Phase: 317 (Size Ladder) — planned, 1 plan
-Plan: 317-01 ready to execute
-Status: Phase 316 verified passed (8/8) and threat-secure. v5.6 continues through 317–322; not done until two sizes have real trained scores and 322 is planned/executed or deferred.
-Last activity: 2026-10-28 — Phase 317 plan written
+Phase: 317 (Size Ladder) — executed, awaiting verification
+Current Plan: 1
+Total Plans in Phase: 1
+Plan: 317-01 executed
+Status: 317-01 executed. Awaiting verification. v5.6 continues through 318–322; not done until two sizes have real trained scores and 322 is planned/executed or deferred.
+Last activity: 2026-10-28 — Completed 317-01-PLAN.md
 
 ## Milestone History (Recent)
 
@@ -42,7 +45,7 @@ Last activity: 2026-10-28 — Phase 317 plan written
 
 ## Next Step
 
-Execute phase 317 (`/gsd-execute-phase 317`). Phases 318–322 remain.
+Verify phase 317. Do not re-execute 317-01. Phases 318–322 remain.
 
 ## v5.5 Autonomous Progress (2026-10-25 America/Phoenix)
 
@@ -62,15 +65,19 @@ Execute phase 317 (`/gsd-execute-phase 317`). Phases 318–322 remain.
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 316 P01 | 1h 26m | 3 tasks | 9 files |
+| Phase 317 P01 | 41min | 2 tasks | 5 files |
 
 ## Decisions
 
 - [Phase 316]: Detected::Ready carries the resolved BaseLabel so the compared report can name the pin
 - [Phase 316]: Weight-index shards that are absolute or contain .. are an incomplete snapshot
 - [Phase 316]: The how-to paragraph names eval-reasoning-compare and mens/runs/reasoning_compare/ and contains no digits
+- [Phase 317]: 1.7B and 4B are unmeasured qwen3_code QLoRA rows with no floor_mb; pick_base cannot select them
+- [Phase 317]: floor_measured defaults true so existing measured floors stay eligible
+- [Phase 317]: Size names resolve through resolve_qwen3_size; capability tags stay on the memory picker
 
 ## Session
 
-**Last session:** 2026-10-28
-**Stopped at:** Phase 317 plan written
+**Last session:** 2026-10-29T03:52:46.904Z
+**Stopped at:** Completed 317-01-PLAN.md
 **Resume file:** None
