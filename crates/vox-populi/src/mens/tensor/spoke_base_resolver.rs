@@ -424,6 +424,137 @@ pub fn maybe_resolve_metal_default_base(
     Ok(Some(resolve_metal_default_base(workspace_root, vram_mb)?))
 }
 
+/// Largest measured `qwen3_code` QLoRA size that fits one free-memory reading.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Qwen3LivePick {
+    pub hf_id: String,
+    pub size_token: String,
+    pub preset: String,
+    pub floor_mb: u32,
+    pub free_mb: u32,
+}
+
+/// Automatic pick, or an explicit size that must not be replaced.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SizeChoice {
+    Automatic(Qwen3LivePick),
+    Explicit(Qwen3LivePick),
+}
+
+/// Original size, the size that still fits at load, and the reading that decided.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PreloadRevision {
+    pub original_size: String,
+    pub loaded_size: String,
+    pub original_hf_id: String,
+    pub loaded_hf_id: String,
+    pub loaded_preset: String,
+    pub free_mb: u32,
+}
+
+fn preset_for_qwen3_size_token(token: &str) -> anyhow::Result<&'static str> {
+    match token {
+        "0.6B" => Ok("qwen3_dev_cpu"),
+        "8B" => Ok("qwen3_16g"),
+        "14B" => Ok("qwen3_24g"),
+        "32B" => Ok("qwen3_96g"),
+        other => anyhow::bail!("no qwen3_code QLoRA preset for size {other}"),
+    }
+}
+
+fn live_pick_from_row(row: &TrainBase, free_mb: u32) -> anyhow::Result<Qwen3LivePick> {
+    let token = qwen3_size_token(pin_repo_id(&row.hf_id)).ok_or_else(|| {
+        anyhow::anyhow!(
+            "winning qwen3_code qlora row '{}' is not a dense Qwen3 size",
+            row.hf_id
+        )
+    })?;
+    let floor_mb = row.floor_mb.ok_or_else(|| {
+        anyhow::anyhow!(
+            "winning qwen3_code qlora row '{}' has no floor_mb",
+            row.hf_id
+        )
+    })?;
+    Ok(Qwen3LivePick {
+        hf_id: row.hf_id.clone(),
+        size_token: token.to_string(),
+        preset: preset_for_qwen3_size_token(token)?.to_string(),
+        floor_mb,
+        free_mb,
+    })
+}
+
+/// `qwen3_code` rows whose methods contain `qlora`, under that same tag.
+fn qwen3_code_qlora_overlay(
+    overlay: &HashMap<String, Vec<TrainBase>>,
+) -> HashMap<String, Vec<TrainBase>> {
+    let rows = overlay
+        .get("qwen3_code")
+        .into_iter()
+        .flatten()
+        .filter(|base| base.methods.iter().any(|method| method == "qlora"))
+        .cloned()
+        .collect();
+    let mut filtered = HashMap::new();
+    filtered.insert("qwen3_code".to_string(), rows);
+    filtered
+}
+
+fn select_qwen3_code_qlora_from_overlay(
+    overlay: &HashMap<String, Vec<TrainBase>>,
+    free_mb: u32,
+) -> anyhow::Result<Qwen3LivePick> {
+    let filtered = qwen3_code_qlora_overlay(overlay);
+    let winner = pick_base(&filtered, "qwen3_code", free_mb)?;
+    live_pick_from_row(winner, free_mb)
+}
+
+/// Largest measured `qwen3_code` QLoRA floor that fits `free_mb`, via `pick_base`.
+pub fn select_qwen3_code_qlora_for_free_mb(free_mb: u32) -> anyhow::Result<Qwen3LivePick> {
+    let overlay = load_embedded_overlay()?;
+    select_qwen3_code_qlora_from_overlay(&overlay, free_mb)
+}
+
+fn revision_keeping(pick: &Qwen3LivePick, free_mb_at_load: u32) -> PreloadRevision {
+    PreloadRevision {
+        original_size: pick.size_token.clone(),
+        loaded_size: pick.size_token.clone(),
+        original_hf_id: pick.hf_id.clone(),
+        loaded_hf_id: pick.hf_id.clone(),
+        loaded_preset: pick.preset.clone(),
+        free_mb: free_mb_at_load,
+    }
+}
+
+/// Keep an automatic pick whose floor still fits. Otherwise step down through
+/// the same QLoRA picker.
+pub fn confirm_before_load(
+    choice: &SizeChoice,
+    free_mb_at_load: u32,
+) -> anyhow::Result<PreloadRevision> {
+    match choice {
+        SizeChoice::Automatic(pick) => {
+            if pick.floor_mb <= free_mb_at_load {
+                Ok(revision_keeping(pick, free_mb_at_load))
+            } else {
+                let loaded = select_qwen3_code_qlora_for_free_mb(free_mb_at_load)?;
+                Ok(PreloadRevision {
+                    original_size: pick.size_token.clone(),
+                    loaded_size: loaded.size_token,
+                    original_hf_id: pick.hf_id.clone(),
+                    loaded_hf_id: loaded.hf_id,
+                    loaded_preset: loaded.preset,
+                    free_mb: free_mb_at_load,
+                })
+            }
+        }
+        SizeChoice::Explicit(pick) => anyhow::bail!(
+            "explicit Qwen3 size '{}' is checked by explicit_qwen3_size_for_free_mb",
+            pick.size_token
+        ),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1088,5 +1219,60 @@ train_bases:
         assert_eq!(floor("Qwen3-14B@", "qlora"), 20000);
         assert_eq!(floor("Qwen3-14B@", "lora"), 44000);
         assert_eq!(floor("Qwen3-32B@", "qlora"), 60000);
+    }
+
+    #[test]
+    fn live_pick_then_preload_reread_names_original_loaded_and_free_mb() {
+        let root = workspace_root();
+        let overlay = load_overlay(root).expect("load overlay");
+        let pick = select_qwen3_code_qlora_for_free_mb(70_000).expect("32B fits");
+        assert_eq!(pick.size_token, "32B");
+        assert_eq!(pick.preset, "qwen3_96g");
+        assert_eq!(pick.floor_mb, 60_000);
+        assert_eq!(pick.free_mb, 70_000);
+        assert_eq!(
+            pick.hf_id,
+            "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137"
+        );
+
+        let stepped =
+            confirm_before_load(&SizeChoice::Automatic(pick.clone()), 25_000).expect("14B fits");
+        assert_eq!(stepped.original_size, "32B");
+        assert_eq!(stepped.loaded_size, "14B");
+        assert_eq!(stepped.loaded_preset, "qwen3_24g");
+        assert_eq!(
+            stepped.loaded_hf_id,
+            "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18"
+        );
+        assert_eq!(stepped.original_hf_id, pick.hf_id);
+        assert_eq!(stepped.free_mb, 25_000);
+        let loaded_floor = overlay
+            .get("qwen3_code")
+            .expect("qwen3_code")
+            .iter()
+            .find(|base| {
+                base.hf_id == stepped.loaded_hf_id
+                    && base.methods.iter().any(|method| method == "qlora")
+            })
+            .expect("loaded qlora row")
+            .floor_mb
+            .expect("measured floor");
+        assert_eq!(loaded_floor, 20_000);
+
+        let kept =
+            confirm_before_load(&SizeChoice::Automatic(pick), 70_000).expect("32B still fits");
+        assert_eq!(kept.loaded_size, "32B");
+        assert_eq!(kept.loaded_preset, "qwen3_96g");
+        assert_eq!(kept.original_size, "32B");
+        assert_eq!(kept.free_mb, 70_000);
+
+        let mid = select_qwen3_code_qlora_for_free_mb(50_000).expect("14B qlora fits");
+        assert_eq!(mid.floor_mb, 20_000);
+        assert_eq!(mid.preset, "qwen3_24g");
+        assert!(
+            mid.hf_id.starts_with("Qwen/Qwen3-14B@"),
+            "50000 MB must select the 14B QLoRA row, got {}",
+            mid.hf_id
+        );
     }
 }
