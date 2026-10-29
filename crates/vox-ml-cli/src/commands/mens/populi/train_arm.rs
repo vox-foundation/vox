@@ -536,8 +536,10 @@ pub async fn run_train(
         deployment_target.into()
     };
     let card_output_dir = output_dir.clone();
-    let card_model = effective_model.clone();
-    let card_preset = effective_preset.clone();
+    let mut card_model = effective_model.clone();
+    let mut card_preset = effective_preset.clone();
+    let mut card_loaded_size = String::new();
+    let mut card_loaded_preset = String::new();
     let train_res = train::run_train(
         backend.into(),
         effective_model,
@@ -594,6 +596,12 @@ pub async fn run_train(
         automatic_qwen3,
     )
     .await;
+    if let Ok(Some(revision)) = &train_res {
+        card_model = Some(revision.loaded_hf_id.clone());
+        card_preset = Some(revision.loaded_preset.clone());
+        card_loaded_size = revision.loaded_size.clone();
+        card_loaded_preset = revision.loaded_preset.clone();
+    }
 
     if train_res.is_ok()
         && let Some(ref r) = workspace_root
@@ -641,6 +649,8 @@ pub async fn run_train(
                 .unwrap_or_default()
                 .trim()
                 .to_string(),
+            loaded_size: card_loaded_size,
+            loaded_preset: card_loaded_preset,
         };
         // A card failure never fails a successful training run; it only leaves the run
         // unlabelable by eval.
@@ -653,7 +663,7 @@ pub async fn run_train(
         }
     }
 
-    train_res
+    train_res.map(|_| ())
 }
 
 /// Host-side facts the card needs that the run directory does not carry.
@@ -666,6 +676,8 @@ struct LocalCardMeta {
     seed: u64,
     corpus_hash: String,
     git_sha: String,
+    loaded_size: String,
+    loaded_preset: String,
 }
 
 /// Build, validate and write `adapter_card.json` next to a locally trained adapter.
@@ -688,12 +700,20 @@ fn write_local_adapter_card(
         .rsplit_once('@')
         .map(|(_, rev)| rev.to_string())
         .unwrap_or_default();
-    let preset = meta.preset.clone().unwrap_or_default();
+    let preset = if meta.loaded_preset.is_empty() {
+        meta.preset.clone().unwrap_or_default()
+    } else {
+        meta.loaded_preset.clone()
+    };
     let (fingerprint, kind) = vox_compiler::llm_prompt::grammar_fingerprint();
     let card = AdapterCard {
         base_hf_id,
         base_revision,
-        base_rung: meta.preset.clone().unwrap_or_else(|| "local".to_string()),
+        base_rung: if preset.is_empty() {
+            "local".to_string()
+        } else {
+            preset.clone()
+        },
         quantization: "qlora".to_string(),
         lora_rank: meta.rank,
         lora_alpha: meta.alpha,
@@ -710,6 +730,8 @@ fn write_local_adapter_card(
         training_manifest_digest: lineage.training_manifest_digest,
         training_syntax_fingerprint: fingerprint,
         syntax_fingerprint_kind: kind.to_string(),
+        loaded_size: meta.loaded_size.clone(),
+        loaded_preset: meta.loaded_preset.clone(),
     };
     card.validate()?;
     card.validate_lineage()?;
@@ -1163,6 +1185,8 @@ mod local_card_tests {
             seed: 42,
             corpus_hash: "abc123def456".into(),
             git_sha: "deadbee".into(),
+            loaded_size: String::new(),
+            loaded_preset: String::new(),
         }
     }
 
@@ -1204,6 +1228,24 @@ mod local_card_tests {
         assert_eq!(card.training_syntax_fingerprint, fp);
         assert_eq!(card.syntax_fingerprint_kind, kind);
         assert_eq!(kind, "ebnf-sha256");
+    }
+
+    #[test]
+    fn local_card_records_loaded_size_and_preset() {
+        let (d, adapter, _train) =
+            fixture("Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18");
+        let mut recorded = meta();
+        recorded.preset = Some("a100".into());
+        recorded.loaded_size = "14B".into();
+        recorded.loaded_preset = "qwen3_24g".into();
+        write_local_adapter_card(d.path(), None, &recorded).unwrap();
+        let card = vox_populi::mens::tensor::adapter_card::AdapterCard::read_sidecar(&adapter)
+            .unwrap()
+            .unwrap();
+        assert_eq!(card.loaded_size, "14B");
+        assert_eq!(card.loaded_preset, "qwen3_24g");
+        assert_eq!(card.base_rung, "qwen3_24g");
+        assert_eq!(card.preset_version, "qwen3_24g");
     }
 
     #[test]

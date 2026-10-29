@@ -198,7 +198,12 @@ pub(crate) fn apply_preload_free_mb(
     } else {
         SizeChoice::Explicit(pick)
     };
-    let revision = confirm_before_load(&choice, free_mb)?;
+    let mut revision = confirm_before_load(&choice, free_mb)?;
+    // Same size: the caller's preset is the one they asked to train with.
+    // A real step-down uses the smaller size's preset.
+    if revision.loaded_size == revision.original_size && !preset.is_empty() {
+        revision.loaded_preset = preset.to_string();
+    }
     Ok((
         revision.loaded_hf_id.clone(),
         revision.loaded_preset.clone(),
@@ -260,7 +265,7 @@ pub async fn run_train(
     chatml: vox_populi::mens::tensor::training_config::ChatmlConfig,
     mix_config: Option<PathBuf>,
     automatic_qwen3: bool,
-) -> Result<()> {
+) -> Result<Option<vox_populi::mens::tensor::spoke_base_resolver::PreloadRevision>> {
     use owo_colors::OwoColorize;
 
     super::super::process_priority::apply(&process_priority);
@@ -360,6 +365,7 @@ pub async fn run_train(
             model = Some(resolved);
         }
     }
+    let mut preload_revision = None;
     if let Some(current) = model.clone() {
         let repo = current.split('@').next().unwrap_or(current.as_str());
         let needs_reading = automatic_qwen3
@@ -385,6 +391,7 @@ pub async fn run_train(
             );
             model = Some(loaded_id);
             preset = Some(loaded_preset);
+            preload_revision = Some(revision);
         }
     }
 
@@ -620,7 +627,8 @@ pub async fn run_train(
             chatml,
             mix_config,
         )
-        .await
+        .await?;
+        return Ok(preload_revision);
     }
 
     #[cfg(not(feature = "gpu"))]
@@ -680,7 +688,7 @@ pub async fn run_train(
         eprintln!();
         eprintln!("  Canonical QLoRA (when `gpu` is enabled): `vox mens train --backend qlora …`");
         eprintln!("  See docs/src/reference/mens-training.md");
-        Ok(())
+        Ok(preload_revision)
     }
 }
 
@@ -701,6 +709,19 @@ mod tests {
 mod preload_tests {
     use super::apply_preload_free_mb;
     use vox_populi::mens::tensor::spoke_base_resolver::select_qwen3_code_qlora_for_free_mb;
+
+    #[test]
+    fn apply_preload_free_mb_keeps_caller_preset_when_the_size_stays() {
+        let eight = select_qwen3_code_qlora_for_free_mb(16_384).expect("8B");
+        let (loaded_id, loaded_preset, revision) =
+            apply_preload_free_mb(&eight.hf_id, "a100", true, 16_384).expect("kept");
+        assert_eq!(loaded_id, eight.hf_id);
+        assert_eq!(loaded_preset, "a100");
+        let revision = revision.expect("revision");
+        assert_eq!(revision.loaded_size, "8B");
+        assert_eq!(revision.original_size, "8B");
+        assert_eq!(revision.loaded_preset, "a100");
+    }
 
     #[test]
     fn apply_preload_free_mb_steps_an_automatic_32b_pick_down() {
