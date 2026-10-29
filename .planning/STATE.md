@@ -4,16 +4,16 @@ milestone: v5.6
 milestone_name: Reasoning Where the Lane Needs It
 current_phase: 317
 current_phase_name: Size Ladder
-status: ready_to_plan
-stopped_at: Phase 316 complete, ready to plan Phase 317
-last_updated: "2026-10-28T16:40:00.000Z"
+status: planned
+stopped_at: Phase 317 plan written
+last_updated: "2026-10-29T03:10:00.000Z"
 last_activity: 2026-10-28
-last_activity_desc: Phase 316 verified passed; advanced to 317
+last_activity_desc: Phase 317 plan written (317-01)
 state_head: ae417851211126b4767114bb3061e711571b7322
 progress:
   total_phases: 10
   completed_phases: 4
-  total_plans: 9
+  total_plans: 10
   completed_plans: 9
   percent: 40
 ---
@@ -22,10 +22,10 @@ progress:
 
 ## Current Position
 
-Phase: 317 (Size Ladder) — ready to plan
-Plan: Not started
+Phase: 317 (Size Ladder) — planned, 1 plan
+Plan: 317-01 ready to execute
 Status: Phase 316 verified passed (8/8) and threat-secure. v5.6 continues through 317–322; not done until two sizes have real trained scores and 322 is planned/executed or deferred.
-Last activity: 2026-10-28 — Phase 316 complete, ready to plan Phase 317
+Last activity: 2026-10-28 — Phase 317 plan written
 
 ## Milestone History (Recent)
 
@@ -42,7 +42,7 @@ Last activity: 2026-10-28 — Phase 316 complete, ready to plan Phase 317
 
 ## Next Step
 
-Discuss and plan phase 317 (size ladder), then execute. Phases 318–322 remain.
+Execute phase 317 (`/gsd-execute-phase 317`). Phases 318–322 remain.
 
 ## v5.5 Autonomous Progress (2026-10-25 America/Phoenix)
 
@@ -72,5 +72,5 @@ Discuss and plan phase 317 (size ladder), then execute. Phases 318–322 remain.
 ## Session
 
 **Last session:** 2026-10-28
-**Stopped at:** Phase 316 complete, ready to plan Phase 317
+**Stopped at:** Phase 317 plan written
 **Resume file:** None
