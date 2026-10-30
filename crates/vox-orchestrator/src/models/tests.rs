@@ -1984,6 +1984,10 @@ mod multi_surface_model_router_and_db_shape_audit {
 
     #[tokio::test]
     async fn multi_surface_model_router_and_db_shape_audit() {
+        // Hermetic: CI runners hold no provider keys, which leaves the router nothing to pick.
+        crate::models::key_guard::set_test_key_availability(Some(vec![
+            crate::models::ProviderType::OpenRouter,
+        ]));
         let db = vox_db::VoxDb::in_memory().await.expect("in-memory VoxDb");
         let sink = vox_db::telemetry_sink::ResearchMetricsSink::new(db.clone());
 
@@ -2158,5 +2162,6 @@ mod multi_surface_model_router_and_db_shape_audit {
         assert_eq!(neg_report.total_rows_checked, 1);
         assert_eq!(neg_report.malformed_metadata_rows.len(), 1);
         assert!(!neg_report.is_clean());
+        crate::models::key_guard::set_test_key_availability(None);
     }
 }
