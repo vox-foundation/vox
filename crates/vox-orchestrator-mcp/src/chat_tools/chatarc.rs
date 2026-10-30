@@ -20,15 +20,18 @@ use crate::server_state::ServerState;
 use crate::skill_search_index::SkillSearchIndex;
 
 /// Bumped whenever the scorer, the bins or the threshold change meaning.
-pub const CHATARC_VERSION: &str = "chatarc.v1";
+pub const CHATARC_VERSION: &str = "chatarc.v2";
 /// Shortlist size, including the trailing `none` option.
 pub(crate) const K_MAX: usize = 10;
-/// Minimum calibrated choice confidence before ChatARC acts.
-pub(crate) const TAU_CHOICE: f32 = 0.80;
+/// Minimum calibrated choice confidence before ChatARC acts. chatarc.v1 used
+/// 0.80; its held-out risk at 0.80 was 0.167 (> 0.10), so v2 fails closed: no
+/// confidence reaches 1.01 and ChatARC never acts (322-EVAL-REPORT.md).
+pub(crate) const TAU_CHOICE: f32 = 1.01;
 /// `(margin lower bound, precision)`, ascending by bound. The margin is
 /// `(s1 - s2) / s1` over the top two BM25 scores; the precision is the
-/// Laplace top-1 precision of that bin on the calib split.
-pub(crate) const CHOICE_BINS: [(f32, f32); 3] = [(0.0, 0.5), (0.25, 0.5), (0.5, 0.5)];
+/// Laplace top-1 precision of that bin on the calib split
+/// (`tests/fixtures/chatarc/calib.v1.jsonl`; correct of fired 3/8, 5/8, 14/16).
+pub(crate) const CHOICE_BINS: [(f32, f32); 3] = [(0.0, 0.40), (0.25, 0.60), (0.5, 0.83)];
 
 /// Which live source a candidate came from (not a closed set of actions).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -322,6 +325,10 @@ pub(crate) fn tool_pin_for(
 #[cfg(test)]
 #[path = "chatarc_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "chatarc_eval_tests.rs"]
+mod eval_tests;
 
 #[cfg(test)]
 mod seam_tests {
