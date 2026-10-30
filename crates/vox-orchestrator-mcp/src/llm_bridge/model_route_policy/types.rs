@@ -54,6 +54,13 @@ pub struct McpChatModelResolution {
     /// behavior — for call sites whose prompt IS the user's own message with
     /// no injected context mixed in (ghost text, inline edit, planning loops).
     pub capability_prompt: Option<String>,
+    /// `task_category` is the caller's placeholder, not a choice: the DEC-01
+    /// turn pack may fill it (and the `prefer_local` derived from it). Default
+    /// `false` = treated as set, so a call site that never marks it keeps its value.
+    pub task_unset: bool,
+    /// `complexity` is the caller's placeholder, not a choice: the DEC-01 turn
+    /// pack may fill it. Default `false` = treated as set.
+    pub complexity_unset: bool,
 }
 
 impl Default for McpChatModelResolution {
@@ -71,6 +78,8 @@ impl Default for McpChatModelResolution {
             trigger_source: vox_orchestrator::mode::TriggerSource::Interactive,
             web_evidence_supplied: false,
             capability_prompt: None,
+            task_unset: false,
+            complexity_unset: false,
         }
     }
 }
