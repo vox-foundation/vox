@@ -233,6 +233,8 @@ async fn try_run_agent_turn(
     capability_prompt: &str,
     session_id: &str,
     active_skill_id: Option<String>,
+    // ChatARC (phase 322-03) tool pick for `run_agent_turn`'s pins.
+    chatarc_tool_pin: Option<&'static str>,
     has_attachment: bool,
     temperature: Option<f32>,
     top_p: Option<f32>,
@@ -358,6 +360,7 @@ async fn try_run_agent_turn(
         // permission mode; `handle_tool_call_with_mode`'s fail-safe default (Ask)
         // applies, matching every other MCP call path that doesn't have one.
         active_skill_id,
+        chatarc_tool_pin,
         llm_config,
         super::agent_loop::DEFAULT_MAX_ITERATIONS,
         // Task G1: stream tokens over the existing agent-events bus as they
@@ -934,19 +937,24 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         &expanded_prompt,
         &params.skill_exclusions,
     );
-    let system_prompt = format!(
-        "{}{}\n\n{}",
-        build_system_prompt_with_skill(
-            state,
-            None,
-            params.skill.as_deref(),
-            chatarc_pick.as_ref().and_then(|p| p.skill_id()),
-            sticky_model_key.as_deref(),
-            &params.skill_exclusions,
-        )
-        .await,
-        session_ts,
-        ANTI_LAZINESS_RIDER
+    // A ChatARC command pick adds one trailing hint line; the cached prefix
+    // is unchanged.
+    let system_prompt = crate::chat_tools::chatarc::append_command_hint(
+        format!(
+            "{}{}\n\n{}",
+            build_system_prompt_with_skill(
+                state,
+                None,
+                params.skill.as_deref(),
+                chatarc_pick.as_ref().and_then(|p| p.skill_id()),
+                sticky_model_key.as_deref(),
+                &params.skill_exclusions,
+            )
+            .await,
+            session_ts,
+            ANTI_LAZINESS_RIDER
+        ),
+        chatarc_pick.as_ref(),
     );
     let llm_started = std::time::Instant::now();
 
@@ -1151,6 +1159,10 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 &expanded_prompt,
                 session_id.as_str(),
                 params.skill.clone(),
+                crate::chat_tools::chatarc::tool_pin_for(
+                    chatarc_pick.as_ref(),
+                    vox_mcp_registry::TOOL_REGISTRY,
+                ),
                 params.attachment_manifest.is_some(),
                 params.temperature,
                 params.top_p,
@@ -1816,6 +1828,7 @@ mod tests {
             "hello",
             "hello",
             "default-path-test",
+            None,
             None,
             false,
             None,

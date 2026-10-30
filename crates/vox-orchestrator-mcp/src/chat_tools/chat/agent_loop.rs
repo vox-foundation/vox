@@ -738,6 +738,16 @@ fn enclosing_json_object(text: &str, pos: usize) -> Option<&str> {
     None
 }
 
+/// The delegation pins every chat turn carries, plus a ChatARC tool pick
+/// when there is one and it is not already pinned.
+fn turn_pin_names(chatarc_tool: Option<&'static str>) -> Vec<&'static str> {
+    let mut pins = vec!["vox_spawn_agent", "vox_submit_task", "vox_task_status"];
+    if let Some(tool) = chatarc_tool.filter(|t| !pins.contains(t)) {
+        pins.push(tool);
+    }
+    pins
+}
+
 /// Run one user turn of the tool-calling agent loop to completion.
 ///
 /// `messages` passed to the first `llm_chat` call is `[system] + prior_conversation
@@ -776,6 +786,9 @@ pub(crate) async fn run_agent_turn(
     user_message: String,
     permission_mode: Option<&str>,
     active_skill_id: Option<String>,
+    // ChatARC (phase 322-03) tool pick, added to the pins below. Still subject
+    // to every `select_tools_for_turn` filter.
+    chatarc_tool_pin: Option<&'static str>,
     llm_config_template: LlmConfig,
     max_iterations: usize,
     stream_tokens: bool,
@@ -839,7 +852,7 @@ pub(crate) async fn run_agent_turn(
         // (previously slots 38-40, the cut ending at `vox_check_workspace`).
         // Every further pin costs another tool the same way — the real fix is
         // relevance ranking before truncation, not a longer pin list.
-        pin_names: vec!["vox_spawn_agent", "vox_submit_task", "vox_task_status"],
+        pin_names: turn_pin_names(chatarc_tool_pin),
     };
     let selected = select_tools_for_turn(TOOL_REGISTRY, &state.skill_registry, &turn_ctx);
     let tool_defs: Vec<LlmToolDef> = selected
@@ -1310,6 +1323,7 @@ pub async fn eval_gate_agent_loop_terminates_check() -> Result<(), String> {
         "eval-gate: loop forever please".to_string(),
         None,
         None,
+        None,
         llm_config,
         max_iterations,
         false,
@@ -1440,6 +1454,67 @@ mod tests {
         })
     }
 
+    #[test]
+    fn turn_pin_names_unchanged_without_chatarc_tool() {
+        assert_eq!(
+            turn_pin_names(None),
+            ["vox_spawn_agent", "vox_submit_task", "vox_task_status"]
+        );
+    }
+
+    #[test]
+    fn turn_pin_names_appends_chatarc_tool() {
+        assert_eq!(
+            turn_pin_names(Some("vox_x")),
+            [
+                "vox_spawn_agent",
+                "vox_submit_task",
+                "vox_task_status",
+                "vox_x"
+            ]
+        );
+        assert_eq!(
+            turn_pin_names(Some("vox_submit_task")),
+            ["vox_spawn_agent", "vox_submit_task", "vox_task_status"]
+        );
+    }
+
+    /// A ChatARC pin is a priority hint, not a bypass: a pinned tool on a lane
+    /// the turn does not offer never reaches the model.
+    #[test]
+    fn chatarc_tool_pin_is_still_filtered() {
+        let entry =
+            |name: &'static str, lane: &'static str| vox_mcp_registry::McpToolRegistryEntry {
+                name,
+                description: "synthetic",
+                product_lane: lane,
+                http_read_role_eligible: true,
+                exposure: vox_mcp_registry::Exposure::Public,
+                side_effect_class: vox_mcp_registry::SideEffectClass::ReadOnly,
+                requires: &[],
+            };
+        let registry: &'static [vox_mcp_registry::McpToolRegistryEntry] = Box::leak(
+            vec![
+                entry("vox_lane_ok", "ai"),
+                entry("vox_platform_pin", "platform"),
+            ]
+            .into_boxed_slice(),
+        );
+        let selected = |pin: &'static str| -> Vec<&'static str> {
+            let ctx = TurnContext {
+                exclude_name_prefixes: vec!["vox_chat_"],
+                pin_names: turn_pin_names(Some(pin)),
+                ..Default::default()
+            };
+            select_tools_for_turn(registry, &new_registry_arc(), &ctx)
+                .iter()
+                .map(|e| e.name)
+                .collect()
+        };
+        assert_eq!(selected("vox_platform_pin"), ["vox_lane_ok"]);
+        assert_eq!(selected("vox_lane_ok"), ["vox_lane_ok"]);
+    }
+
     /// A single-turn response with no tool_calls must return immediately with that
     /// text, without ever touching tool dispatch.
     #[tokio::test]
@@ -1462,6 +1537,7 @@ mod tests {
             vec![],
             "system prompt".to_string(),
             "hi".to_string(),
+            None,
             None,
             None,
             config,
@@ -1505,6 +1581,7 @@ mod tests {
             vec![],
             "system prompt".to_string(),
             "what's the git status?".to_string(),
+            None,
             None,
             None,
             config,
@@ -1558,6 +1635,7 @@ mod tests {
             vec![],
             "system prompt".to_string(),
             "what's the git status?".to_string(),
+            None,
             None,
             None,
             config,
@@ -1625,6 +1703,7 @@ mod tests {
             "hi".to_string(),
             None,
             None,
+            None,
             config,
             DEFAULT_MAX_ITERATIONS,
             false,
@@ -1676,6 +1755,7 @@ mod tests {
             vec![],
             "system prompt".to_string(),
             "loop forever please".to_string(),
+            None,
             None,
             None,
             config,
@@ -1768,6 +1848,7 @@ mod tests {
             vec![],
             "system prompt".to_string(),
             "keep hitting the same broken tool".to_string(),
+            None,
             None,
             None,
             config,
@@ -1952,6 +2033,7 @@ mod tests {
             "what's the git status?".to_string(),
             None,
             None,
+            None,
             cfg,
             DEFAULT_MAX_ITERATIONS,
             false,
@@ -2024,6 +2106,7 @@ mod tests {
             "what's the git status?".to_string(),
             None,
             None,
+            None,
             config,
             DEFAULT_MAX_ITERATIONS,
             false,
@@ -2065,6 +2148,7 @@ mod tests {
             vec![],
             "system prompt".to_string(),
             "what's the git status?".to_string(),
+            None,
             None,
             None,
             config,
@@ -2307,6 +2391,7 @@ mod tests {
             "hi".to_string(),
             None,
             None,
+            None,
             config,
             DEFAULT_MAX_ITERATIONS,
             true,
@@ -2386,6 +2471,7 @@ mod tests {
             vec![],
             "system prompt".to_string(),
             "what's the git status?".to_string(),
+            None,
             None,
             None,
             config,
@@ -2489,6 +2575,7 @@ mod tests {
             "please approve".to_string(),
             Some("accept_all"),
             None,
+            None,
             config,
             DEFAULT_MAX_ITERATIONS,
             false,
@@ -2565,6 +2652,7 @@ mod tests {
             vec![],
             "system prompt".to_string(),
             "show me a diagram".to_string(),
+            None,
             None,
             None,
             config,

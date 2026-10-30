@@ -258,11 +258,160 @@ pub struct CommandHint {
     pub about: String,
 }
 
-/// No provider seam yet (Task 2): the provider-unset behaviour.
+/// Supplies the host's command hints. vox-orchestrator-mcp (L3) cannot depend
+/// on vox-cli (L5), so the binary hosting the chat server registers one.
+pub type CommandHintProvider = fn() -> Vec<CommandHint>;
+
+#[cfg(not(test))]
+static COMMAND_HINT_PROVIDER: std::sync::RwLock<Option<CommandHintProvider>> =
+    std::sync::RwLock::new(None);
+
+// Tests keep the provider per thread, so parallel tests never share it.
+#[cfg(test)]
+thread_local! {
+    static TEST_COMMAND_HINT_PROVIDER: std::cell::Cell<Option<CommandHintProvider>> =
+        const { std::cell::Cell::new(None) };
+}
+
+/// Install the host's command-hint provider (replaces any earlier one).
+pub fn register_command_hint_provider(provider: CommandHintProvider) {
+    #[cfg(test)]
+    TEST_COMMAND_HINT_PROVIDER.with(|p| p.set(Some(provider)));
+    #[cfg(not(test))]
+    {
+        *COMMAND_HINT_PROVIDER
+            .write()
+            .unwrap_or_else(|p| p.into_inner()) = Some(provider);
+    }
+}
+
+/// The registered provider's hints; none when no host registered one or the
+/// lock is poisoned (fail open).
 pub(crate) fn registered_command_hints() -> Vec<CommandHint> {
-    Vec::new()
+    #[cfg(test)]
+    let provider = TEST_COMMAND_HINT_PROVIDER.with(std::cell::Cell::get);
+    #[cfg(not(test))]
+    let provider = COMMAND_HINT_PROVIDER.read().ok().and_then(|g| *g);
+    provider.map(|p| p()).unwrap_or_default()
+}
+
+/// Appends one `Relevant vox command` line for a command pick (newlines
+/// flattened, at most 200 chars); any other pick leaves the prompt unchanged.
+pub(crate) fn append_command_hint(system_prompt: String, pick: Option<&ChatArcPick>) -> String {
+    let Some(pick) = pick.filter(|p| p.kind == ActionKind::Command) else {
+        return system_prompt;
+    };
+    let line: String = format!("Relevant vox command for this turn: {}", pick.text)
+        .replace(['\r', '\n'], " ")
+        .chars()
+        .take(200)
+        .collect();
+    format!("{system_prompt}\n{line}")
+}
+
+/// The registry's static name for a tool pick; none for unknown ids and
+/// non-tool picks.
+pub(crate) fn tool_pin_for(
+    pick: Option<&ChatArcPick>,
+    registry: &'static [McpToolRegistryEntry],
+) -> Option<&'static str> {
+    let pick = pick.filter(|p| p.kind == ActionKind::Tool)?;
+    registry.iter().find(|e| e.name == pick.id).map(|e| e.name)
 }
 
 #[cfg(test)]
 #[path = "chatarc_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod seam_tests {
+    use super::*;
+
+    fn hints_x() -> Vec<CommandHint> {
+        vec![CommandHint {
+            invocation: "vox x".to_string(),
+            about: "x".to_string(),
+        }]
+    }
+
+    fn hints_xy() -> Vec<CommandHint> {
+        let mut h = hints_x();
+        h.push(CommandHint {
+            invocation: "vox y".to_string(),
+            about: "y".to_string(),
+        });
+        h
+    }
+
+    fn pick(kind: ActionKind, id: &str, text: &str) -> ChatArcPick {
+        ChatArcPick {
+            kind,
+            id: id.to_string(),
+            text: text.to_string(),
+            confidence: 1.0,
+        }
+    }
+
+    #[test]
+    fn provider_unset_yields_no_command_candidates() {
+        assert!(registered_command_hints().is_empty());
+        assert!(command_candidates(&registered_command_hints()).is_empty());
+    }
+
+    #[test]
+    fn registered_provider_is_read_each_pass() {
+        register_command_hint_provider(hints_x);
+        assert_eq!(registered_command_hints().len(), 1);
+        register_command_hint_provider(hints_xy);
+        let invocations: Vec<String> = registered_command_hints()
+            .into_iter()
+            .map(|h| h.invocation)
+            .collect();
+        assert!(invocations.contains(&"vox y".to_string()));
+    }
+
+    #[test]
+    fn append_command_hint_is_identity_without_command_pick() {
+        let prompt = "system\nprompt".to_string();
+        assert_eq!(append_command_hint(prompt.clone(), None), prompt);
+        for kind in [ActionKind::Skill, ActionKind::Tool] {
+            let p = pick(kind, "x", "x text");
+            assert_eq!(append_command_hint(prompt.clone(), Some(&p)), prompt);
+        }
+    }
+
+    #[test]
+    fn append_command_hint_adds_one_line() {
+        let prompt = "system\nprompt".to_string();
+        let hint = &command_candidates(&[CommandHint {
+            invocation: "vox graph query".to_string(),
+            about: "query the graph\nfor a symbol".to_string(),
+        }])[0];
+        let p = pick(ActionKind::Command, &hint.id, &hint.text);
+        let out = append_command_hint(prompt.clone(), Some(&p));
+        assert_eq!(out.lines().count(), prompt.lines().count() + 1, "{out}");
+        let last = out.lines().last().unwrap_or_default();
+        assert!(out.starts_with(&prompt));
+        assert!(
+            last.contains("vox graph query") && last.contains("for a symbol"),
+            "{last}"
+        );
+        let long = pick(ActionKind::Command, "vox z", &"z".repeat(500));
+        let out = append_command_hint(String::new(), Some(&long));
+        assert!(out.lines().last().unwrap_or_default().chars().count() <= 200);
+    }
+
+    #[test]
+    fn tool_pin_for_maps_only_registered_tools() {
+        let name = TOOL_REGISTRY[0].name;
+        assert_eq!(
+            tool_pin_for(Some(&pick(ActionKind::Tool, name, "")), TOOL_REGISTRY),
+            Some(name)
+        );
+        let unknown = pick(ActionKind::Tool, "vox_no_such_tool", "");
+        assert_eq!(tool_pin_for(Some(&unknown), TOOL_REGISTRY), None);
+        let skill = pick(ActionKind::Skill, name, "");
+        assert_eq!(tool_pin_for(Some(&skill), TOOL_REGISTRY), None);
+        assert_eq!(tool_pin_for(None, TOOL_REGISTRY), None);
+    }
+}

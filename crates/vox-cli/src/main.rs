@@ -48,9 +48,40 @@
 
 use clap::Parser;
 use std::process::Command;
+use vox_orchestrator_mcp::chat_tools::chatarc::{CommandHint, register_command_hint_provider};
+
+/// ChatARC command hints (phase 322-03): the compiled-in leaf commands of this
+/// binary, built once on first use. vox-orchestrator-mcp cannot depend on
+/// vox-cli, so the binary registers this provider; a spawn or join failure
+/// yields no hints (fail open).
+fn chatarc_command_hints() -> Vec<CommandHint> {
+    static HINTS: std::sync::OnceLock<Vec<CommandHint>> = std::sync::OnceLock::new();
+    HINTS
+        .get_or_init(|| {
+            // clap's recursive build of the command tree overflows the default stack.
+            std::thread::Builder::new()
+                .stack_size(32 * 1024 * 1024)
+                .spawn(|| {
+                    vox_cli::command_catalog::build_catalog()
+                        .entries
+                        .into_iter()
+                        .filter(|e| e.compiled_in && !e.has_subcommands)
+                        .map(|e| CommandHint {
+                            invocation: format!("vox {}", e.path.join(" ")),
+                            about: e.about,
+                        })
+                        .collect()
+                })
+                .ok()
+                .and_then(|handle| handle.join().ok())
+                .unwrap_or_default()
+        })
+        .clone()
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    register_command_hint_provider(chatarc_command_hints);
     // Render Unicode/emoji correctly on the Windows console for both `--interp`
     // (this process) and the spawned native binary (shared console code page).
     ::vox_actor_runtime::builtins::vox_console_init_utf8();
