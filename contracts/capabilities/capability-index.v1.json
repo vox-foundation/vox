@@ -19682,7 +19682,7 @@
       "gui": {
         "view_key": null,
         "nav_label": null,
-        "representation_tier": "none",
+        "representation_tier": "generic_form",
         "catalog_form": true
       },
       "owner": {
@@ -19730,7 +19730,7 @@
       "gui": {
         "view_key": null,
         "nav_label": null,
-        "representation_tier": "none",
+        "representation_tier": "generic_form",
         "catalog_form": true
       },
       "owner": {
@@ -19778,7 +19778,7 @@
       "gui": {
         "view_key": null,
         "nav_label": null,
-        "representation_tier": "none",
+        "representation_tier": "generic_form",
         "catalog_form": true
       },
       "owner": {
@@ -19826,7 +19826,7 @@
       "gui": {
         "view_key": null,
         "nav_label": null,
-        "representation_tier": "none",
+        "representation_tier": "generic_form",
         "catalog_form": true
       },
       "owner": {
@@ -19874,7 +19874,7 @@
       "gui": {
         "view_key": null,
         "nav_label": null,
-        "representation_tier": "none",
+        "representation_tier": "generic_form",
         "catalog_form": true
       },
       "owner": {
@@ -19922,7 +19922,7 @@
       "gui": {
         "view_key": null,
         "nav_label": null,
-        "representation_tier": "none",
+        "representation_tier": "generic_form",
         "catalog_form": true
       },
       "owner": {
@@ -63946,7 +63946,7 @@
       "gui": {
         "view_key": null,
         "nav_label": null,
-        "representation_tier": "none",
+        "representation_tier": "generic_form",
         "catalog_form": false
       },
       "owner": {

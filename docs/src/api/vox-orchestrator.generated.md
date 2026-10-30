@@ -171,6 +171,7 @@ Mens live in mdBook [`mens-training-ssot.md`](../../../docs/src/architecture/men
 | `handoff` | Structured handoff payloads between agents. |
 | `legacy` | — |
 | `orchestrator_policy` | Unified orchestrator policy façade composing all D1–D10. |
+| `platform_ssot_generated` | Polyglot cross-repo Platform SSOT v2.1 (synced from ngi.video/packages/platform-ssot). |
 | `privacy_classifier` | Sensitivity classifier and privacy-level-aware routing (D8). |
 | `process_util` | — |
 | `research_gate` | SCIENTIA pre-registration gate — refuses campaigns without a signed prereg (§5.1). |

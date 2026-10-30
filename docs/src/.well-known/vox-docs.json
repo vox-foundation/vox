@@ -81,7 +81,7 @@
         "id": "compiler",
         "label": "Compiler",
         "cli": 30,
-        "mcp": 10,
+        "mcp": 11,
         "surfaces": 0
       },
       {

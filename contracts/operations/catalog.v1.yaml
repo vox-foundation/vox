@@ -13735,7 +13735,6 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
-  cli: null
 - id: diagram.validate
   title: VoxDiagram Validation
   description: Validate a VoxDiagram (graph or sequence) and return every diagnostic
@@ -13758,6 +13757,7 @@ operations:
     http_read_role_eligible: true
     exposure: public
     requires: []
+  cli: null
 - id: dispatch
   title: Dispatch
   description: CLI operation `vox dispatch`
