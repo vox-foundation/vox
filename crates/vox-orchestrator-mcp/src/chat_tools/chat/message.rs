@@ -927,12 +927,20 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         }
         .as_deref(),
     );
+    // ChatARC (phase 322-03, VOX_CHATARC): scored on the user's own message,
+    // never the assembled `user_prompt` (history, files, retrieved text).
+    let chatarc_pick = crate::chat_tools::chatarc::pick_for_turn(
+        state,
+        &expanded_prompt,
+        &params.skill_exclusions,
+    );
     let system_prompt = format!(
         "{}{}\n\n{}",
         build_system_prompt_with_skill(
             state,
             None,
             params.skill.as_deref(),
+            chatarc_pick.as_ref().and_then(|p| p.skill_id()),
             sticky_model_key.as_deref(),
             &params.skill_exclusions,
         )
@@ -2508,6 +2516,72 @@ mod tests {
                 "tier {tier:?} must not set cognitive_profile -- doing so would                  route the turn to mcp_infer_completion and kill tool calls"
             );
         }
+    }
+
+    /// Captured from the unmodified `build_system_prompt_with_skill` (no pin)
+    /// for `chatarc_state()` before 322-03 touched it; byte-identical to
+    /// `.planning/phases/322-*/evidence/322-03-system-prompt-golden.txt`.
+    const SYSTEM_PROMPT_GOLDEN: &str = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/chatarc/system_prompt_golden.txt"
+    ));
+
+    fn chatarc_state() -> ServerState {
+        let state = test_state();
+        for (id, body) in [
+            ("chatarc-golden-y", "BODY-Y: follow the y procedure."),
+            ("chatarc-golden-z", "BODY-Z: follow the z procedure."),
+        ] {
+            state
+                .orchestrator
+                .skill_registry
+                .install(vox_plugin_api::skill::LoadedSkill {
+                    plugin_id: id.to_string(),
+                    format_version: 1,
+                    manifest: vox_skills::SkillManifest {
+                        id: id.to_string(),
+                        name: id.to_string(),
+                        version: "1.0.0".to_string(),
+                        description: format!("Golden fixture skill {id} for ChatARC injection"),
+                        ..Default::default()
+                    },
+                    body: body.to_string(),
+                    exposed_tools: vec![],
+                });
+        }
+        state
+    }
+
+    /// Day-stable date -> `<DATE>`, and the repository-memory section is
+    /// dropped: it reads a shared, gitignored MEMORY.md that other tests may
+    /// create or edit, and ChatARC never touches it.
+    fn normalize_prompt(p: &str) -> String {
+        let p = p.replace(&ts_to_date_str(now_ts()), "<DATE>");
+        match (p.find("## Repository memory"), p.find("## Environment")) {
+            (Some(a), Some(b)) if a < b => format!("{}{}", &p[..a], &p[b..]),
+            _ => p,
+        }
+    }
+
+    #[tokio::test]
+    async fn chatarc_skill_reaches_system_prompt() {
+        let state = chatarc_state();
+        let (y, z) = (Some("chatarc-golden-y"), Some("chatarc-golden-z"));
+        let picked = build_system_prompt_with_skill(&state, None, None, y, None, &[]).await;
+        assert!(picked.contains("BODY-Y"), "ChatARC skill body missing");
+        let pinned = build_system_prompt_with_skill(&state, None, z, y, None, &[]).await;
+        assert!(pinned.contains("BODY-Z") && !pinned.contains("BODY-Y"));
+        let excluded = ["chatarc-golden-y".to_string()];
+        let gone = build_system_prompt_with_skill(&state, None, None, y, None, &excluded).await;
+        assert!(
+            !gone.contains("BODY-Y"),
+            "an excluded skill must never be injected"
+        );
+        let neither = build_system_prompt_with_skill(&state, None, None, None, None, &[]).await;
+        assert_eq!(
+            normalize_prompt(&neither),
+            normalize_prompt(SYSTEM_PROMPT_GOLDEN)
+        );
     }
 }
 
