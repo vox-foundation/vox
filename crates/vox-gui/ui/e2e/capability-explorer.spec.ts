@@ -508,8 +508,11 @@ test.describe('Capability Explorer', () => {
     // The count grows with the catalog; the row-count bound below is what this test pins.
     await expect(page.locator('[role="status"]').filter({ hasText: /\d+ capabilities/ })).toBeVisible();
 
+    // Poll: the status line can render before the full catalog has loaded.
+    await expect
+      .poll(async () => Number(await treegrid.getAttribute('aria-rowcount')), { timeout: 15_000 })
+      .toBeGreaterThan(500);
     const ariaRowCount = Number(await treegrid.getAttribute('aria-rowcount'));
-    expect(ariaRowCount).toBeGreaterThan(500);
 
     const domRowCount = await treegrid.getByRole('row').count();
     expect(domRowCount).toBeLessThan(150);
