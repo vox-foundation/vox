@@ -864,4 +864,41 @@ mod qwen3_mesh_tests {
                 .expect_err("no reading");
         assert_eq!(err, Qwen3MeshError::NoFreshReading);
     }
+
+    #[test]
+    fn place_qwen3_only_this_node_is_a_mesh_pick() {
+        let nodes = vec![node("local-1", Some(70_000), Some(10.0))];
+        let got = place_qwen3_code_qlora(
+            &nodes,
+            &plain_req(),
+            10_000_000,
+            Some(3_600_000),
+            None,
+            Some(25_000),
+        )
+        .expect("mesh pick of this node");
+        match got {
+            Qwen3Placement::Mesh(selection) => {
+                assert_eq!(selection.node_id, "local-1");
+                assert_eq!(selection.size_token, "32B");
+                assert_eq!(selection.floor_mb, 60_000);
+            }
+            Qwen3Placement::Local(pick) => panic!("local {}", pick.size_token),
+        }
+    }
+
+    #[test]
+    fn place_qwen3_explicit_miss_does_not_fall_back_local() {
+        let nodes = vec![node("narrow", Some(25_000), Some(5.0))];
+        let err = place_qwen3_code_qlora(
+            &nodes,
+            &plain_req(),
+            10_000_000,
+            Some(3_600_000),
+            Some("32B"),
+            Some(70_000),
+        )
+        .expect_err("explicit miss");
+        assert_eq!(err, Qwen3MeshError::ExplicitDoesNotFit);
+    }
 }
