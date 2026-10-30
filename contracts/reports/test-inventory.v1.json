@@ -2,18 +2,18 @@
   "schema_version": 1,
   "summary": {
     "workspace_crate_count": 132,
-    "rust_files_scanned": 4427,
-    "cargo_unit_test_functions": 12509,
-    "cargo_integration_test_functions": 3654,
+    "rust_files_scanned": 4468,
+    "cargo_unit_test_functions": 12876,
+    "cargo_integration_test_functions": 3723,
     "cargo_bench_functions": 0,
-    "cargo_ignored_test_functions": 96,
-    "cargo_test_functions_total": 16163,
+    "cargo_ignored_test_functions": 98,
+    "cargo_test_functions_total": 16599,
     "webir_related_ignored_tests": 1,
     "webir_ignored_tests_likely_retired_note": 0
   },
   "crates": {
     "vox-actor-runtime": {
-      "unit_tests": 234,
+      "unit_tests": 242,
       "integration_tests": 5,
       "bench_tests": 0,
       "ignored_tests": 2,
@@ -37,7 +37,7 @@
       "integration_rs_files": 0
     },
     "vox-audit": {
-      "unit_tests": 155,
+      "unit_tests": 161,
       "integration_tests": 8,
       "bench_tests": 0,
       "ignored_tests": 2,
@@ -85,15 +85,15 @@
       "integration_rs_files": 3
     },
     "vox-cli": {
-      "unit_tests": 1134,
-      "integration_tests": 317,
+      "unit_tests": 1249,
+      "integration_tests": 334,
       "bench_tests": 0,
-      "ignored_tests": 8,
+      "ignored_tests": 9,
       "has_integration_dir": true,
-      "integration_rs_files": 102
+      "integration_rs_files": 106
     },
     "vox-cli-ci": {
-      "unit_tests": 456,
+      "unit_tests": 458,
       "integration_tests": 0,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -157,7 +157,7 @@
       "integration_rs_files": 5
     },
     "vox-codegen": {
-      "unit_tests": 280,
+      "unit_tests": 290,
       "integration_tests": 244,
       "bench_tests": 0,
       "ignored_tests": 8,
@@ -165,7 +165,7 @@
       "integration_rs_files": 60
     },
     "vox-codegen-ts": {
-      "unit_tests": 169,
+      "unit_tests": 171,
       "integration_tests": 16,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -173,7 +173,7 @@
       "integration_rs_files": 5
     },
     "vox-compiler": {
-      "unit_tests": 606,
+      "unit_tests": 613,
       "integration_tests": 642,
       "bench_tests": 0,
       "ignored_tests": 2,
@@ -221,7 +221,7 @@
       "integration_rs_files": 0
     },
     "vox-corpus": {
-      "unit_tests": 211,
+      "unit_tests": 243,
       "integration_tests": 12,
       "bench_tests": 0,
       "ignored_tests": 1,
@@ -237,7 +237,7 @@
       "integration_rs_files": 1
     },
     "vox-db": {
-      "unit_tests": 328,
+      "unit_tests": 338,
       "integration_tests": 201,
       "bench_tests": 0,
       "ignored_tests": 5,
@@ -261,12 +261,12 @@
       "integration_rs_files": 0
     },
     "vox-diagram": {
-      "unit_tests": 214,
-      "integration_tests": 376,
+      "unit_tests": 230,
+      "integration_tests": 395,
       "bench_tests": 0,
-      "ignored_tests": 3,
+      "ignored_tests": 4,
       "has_integration_dir": true,
-      "integration_rs_files": 60
+      "integration_rs_files": 65
     },
     "vox-doc-inventory": {
       "unit_tests": 4,
@@ -277,7 +277,7 @@
       "integration_rs_files": 0
     },
     "vox-doc-pipeline": {
-      "unit_tests": 106,
+      "unit_tests": 123,
       "integration_tests": 2,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -309,7 +309,7 @@
       "integration_rs_files": 1
     },
     "vox-eval": {
-      "unit_tests": 105,
+      "unit_tests": 117,
       "integration_tests": 0,
       "bench_tests": 0,
       "ignored_tests": 4,
@@ -333,7 +333,7 @@
       "integration_rs_files": 1
     },
     "vox-gamify": {
-      "unit_tests": 224,
+      "unit_tests": 229,
       "integration_tests": 42,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -357,20 +357,20 @@
       "integration_rs_files": 1
     },
     "vox-graph-reader": {
-      "unit_tests": 91,
-      "integration_tests": 96,
+      "unit_tests": 93,
+      "integration_tests": 101,
       "bench_tests": 0,
       "ignored_tests": 1,
       "has_integration_dir": true,
-      "integration_rs_files": 24
+      "integration_rs_files": 25
     },
     "vox-gui": {
-      "unit_tests": 358,
-      "integration_tests": 11,
+      "unit_tests": 362,
+      "integration_tests": 15,
       "bench_tests": 0,
       "ignored_tests": 1,
       "has_integration_dir": true,
-      "integration_rs_files": 5
+      "integration_rs_files": 6
     },
     "vox-hf-layout": {
       "unit_tests": 28,
@@ -454,14 +454,14 @@
     },
     "vox-llm-egress": {
       "unit_tests": 28,
-      "integration_tests": 16,
+      "integration_tests": 17,
       "bench_tests": 0,
       "ignored_tests": 0,
       "has_integration_dir": true,
       "integration_rs_files": 1
     },
     "vox-lsp": {
-      "unit_tests": 15,
+      "unit_tests": 18,
       "integration_tests": 31,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -501,7 +501,7 @@
       "integration_rs_files": 4
     },
     "vox-ml-cli": {
-      "unit_tests": 333,
+      "unit_tests": 334,
       "integration_tests": 3,
       "bench_tests": 0,
       "ignored_tests": 2,
@@ -533,7 +533,7 @@
       "integration_rs_files": 1
     },
     "vox-orchestrator": {
-      "unit_tests": 1339,
+      "unit_tests": 1386,
       "integration_tests": 181,
       "bench_tests": 0,
       "ignored_tests": 4,
@@ -541,7 +541,7 @@
       "integration_rs_files": 54
     },
     "vox-orchestrator-d": {
-      "unit_tests": 36,
+      "unit_tests": 39,
       "integration_tests": 3,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -557,12 +557,12 @@
       "integration_rs_files": 0
     },
     "vox-orchestrator-mcp": {
-      "unit_tests": 980,
-      "integration_tests": 106,
+      "unit_tests": 1002,
+      "integration_tests": 119,
       "bench_tests": 0,
       "ignored_tests": 2,
       "has_integration_dir": true,
-      "integration_rs_files": 29
+      "integration_rs_files": 31
     },
     "vox-orchestrator-models": {
       "unit_tests": 19,
@@ -661,7 +661,7 @@
       "integration_rs_files": 1
     },
     "vox-plugin-mens-candle-metal": {
-      "unit_tests": 58,
+      "unit_tests": 60,
       "integration_tests": 1,
       "bench_tests": 0,
       "ignored_tests": 3,
@@ -765,7 +765,7 @@
       "integration_rs_files": 0
     },
     "vox-project-scaffold": {
-      "unit_tests": 11,
+      "unit_tests": 12,
       "integration_tests": 0,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -774,11 +774,11 @@
     },
     "vox-publisher": {
       "unit_tests": 202,
-      "integration_tests": 57,
+      "integration_tests": 43,
       "bench_tests": 0,
       "ignored_tests": 0,
       "has_integration_dir": true,
-      "integration_rs_files": 22
+      "integration_rs_files": 15
     },
     "vox-quantize": {
       "unit_tests": 62,
@@ -821,7 +821,7 @@
       "integration_rs_files": 0
     },
     "vox-research-shim": {
-      "unit_tests": 154,
+      "unit_tests": 161,
       "integration_tests": 69,
       "bench_tests": 0,
       "ignored_tests": 3,
@@ -869,7 +869,7 @@
       "integration_rs_files": 0
     },
     "vox-scientia": {
-      "unit_tests": 346,
+      "unit_tests": 347,
       "integration_tests": 7,
       "bench_tests": 0,
       "ignored_tests": 1,
@@ -885,7 +885,7 @@
       "integration_rs_files": 0
     },
     "vox-search": {
-      "unit_tests": 260,
+      "unit_tests": 276,
       "integration_tests": 155,
       "bench_tests": 0,
       "ignored_tests": 2,
@@ -893,7 +893,7 @@
       "integration_rs_files": 34
     },
     "vox-secrets": {
-      "unit_tests": 115,
+      "unit_tests": 124,
       "integration_tests": 5,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -973,7 +973,7 @@
       "integration_rs_files": 0
     },
     "vox-telemetry": {
-      "unit_tests": 109,
+      "unit_tests": 110,
       "integration_tests": 22,
       "bench_tests": 0,
       "ignored_tests": 0,
@@ -982,7 +982,7 @@
     },
     "vox-telemetry-otlp": {
       "unit_tests": 0,
-      "integration_tests": 16,
+      "integration_tests": 23,
       "bench_tests": 0,
       "ignored_tests": 0,
       "has_integration_dir": true,
@@ -998,19 +998,19 @@
     },
     "vox-term": {
       "unit_tests": 2,
-      "integration_tests": 9,
+      "integration_tests": 12,
       "bench_tests": 0,
       "ignored_tests": 1,
       "has_integration_dir": true,
       "integration_rs_files": 4
     },
     "vox-terminal-core": {
-      "unit_tests": 37,
-      "integration_tests": 29,
+      "unit_tests": 43,
+      "integration_tests": 43,
       "bench_tests": 0,
       "ignored_tests": 0,
       "has_integration_dir": true,
-      "integration_rs_files": 9
+      "integration_rs_files": 11
     },
     "vox-test-harness": {
       "unit_tests": 23,
@@ -1071,9 +1071,9 @@
   },
   "rust_files_by_kind": {
     "benches": 4,
-    "integration_tests": 872,
+    "integration_tests": 880,
     "other": 27,
-    "unit_src": 3524
+    "unit_src": 3557
   },
   "zero_test_crates": [
     "vox-cli-contracts",
@@ -1233,7 +1233,7 @@
       "ignored_tests": 1
     },
     {
-      "path": "crates/vox-code-audit/src/stdlib_parity.rs",
+      "path": "crates/vox-cli/tests/it/eval_diagram_live.rs",
       "ignored_tests": 1
     }
   ],
@@ -1257,15 +1257,15 @@
     ]
   },
   "doctest_candidates": {
-    "src_files_with_rust_doc_fence": 13,
-    "rust_doc_fence_lines": 19
+    "src_files_with_rust_doc_fence": 14,
+    "rust_doc_fence_lines": 28
   },
   "test_file_patterns": {
-    "sleep_sites": 236,
-    "env_var_reads": 823,
-    "env_var_mutations": 1119,
-    "command_new": 597,
-    "serial_test": 110,
+    "sleep_sites": 249,
+    "env_var_reads": 850,
+    "env_var_mutations": 1132,
+    "command_new": 607,
+    "serial_test": 113,
     "proptest_colon_colon": 29,
     "quickcheck_colon_colon": 2,
     "insta_colon_colon": 86
