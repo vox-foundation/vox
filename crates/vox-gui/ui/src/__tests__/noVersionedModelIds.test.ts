@@ -16,12 +16,15 @@ const RECORDED_TRACE_TESTS = new Set([
   'src/components/surfaces/Chat/ResearchTracePanel.test.tsx',
   'e2e/research-trace-panel.spec.ts',
   'e2e/models-leaderboard.spec.ts',
+  // Vendored, DO-NOT-EDIT snapshot synced from ngi.video (`sync-platform-ssot.mjs`). The GUI imports only its
+  // CV functions and version constants (`lib/cvFlywheel.ts`), never its model list; strip pinned ids upstream.
+  'src/lib/platformSsot.generated.ts',
 ]);
 /**
  * Local model names may be literal (AGENTS.md: local MENS revisions are exempt): Ollama, MENS runs,
- * mesh- and locally-served models, and the MENS fine-tuning base.
+ * mesh- and locally-served models, and the MENS fine-tuning bases (Qwen3-8B; the Qwen 3.5 27B eval base).
  */
-const LOCAL_PREFIXES = ['ollama/', 'mens/', 'local/', 'mesh/', 'qwen/qwen3-8b'];
+const LOCAL_PREFIXES = ['ollama/', 'mens/', 'local/', 'mesh/', 'qwen/qwen3-8b', 'qwen/qwen3.5-27b-base'];
 const TOKEN_CHAR = /[A-Za-z0-9_./:@\\-]/;
 
 /**

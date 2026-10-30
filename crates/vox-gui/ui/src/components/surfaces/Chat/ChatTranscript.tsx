@@ -75,15 +75,15 @@ export function renderStructuredMessageText(text: string): React.ReactNode {
           data-testid="chat-code-block"
           className="my-2 overflow-hidden rounded-lg border border-border-subtle bg-bg-base/95 font-mono text-[11px] whitespace-normal"
         >
-          <div className="flex items-center justify-between border-b border-border-subtle bg-overlay-subtle px-2.5 py-1 text-[10px] text-text-muted">
-            <span className="uppercase tracking-wider text-brass">{lang}</span>
+          <div className="flex items-center justify-between border-b border-border-subtle bg-overlay-subtle px-2.5 py-1 text-[11px] text-text-muted">
+            <span className="uppercase tracking-[0.08em] text-brass">{lang}</span>
             <button
               type="button"
               data-testid="chat-code-copy"
               onClick={() => {
                 void navigator.clipboard?.writeText(codeBody);
               }}
-              className="rounded border border-border-subtle bg-bg-base px-1.5 py-0.5 text-[10px] text-text-secondary transition hover:border-brass/40 hover:text-brass"
+              className="rounded border border-border-subtle bg-bg-base px-1.5 py-0.5 text-[11px] text-text-secondary transition hover:border-brass/40 hover:text-brass"
             >
               Copy
             </button>
@@ -105,7 +105,7 @@ export function renderStructuredMessageText(text: string): React.ReactNode {
               return (
                 <div
                   key={`h-${bIdx}-${lIdx}`}
-                  className="mt-1.5 mb-0.5 font-display text-[12px] font-semibold tracking-wide text-brass"
+                  className="mt-1.5 mb-0.5 font-display text-[12px] font-semibold tracking-[0.13em] text-brass"
                 >
                   {renderInlineFormattedText(headingMatch[2], `h-${bIdx}-${lIdx}`)}
                 </div>
@@ -329,11 +329,11 @@ export function ChatTranscript({ messages, agentStreamItems, sessionId, onExclud
             <div className="mb-2 flex items-center justify-between border-b border-border-subtle pb-2">
               <div className="flex items-center gap-2">
                 <span className="size-2 rounded-full bg-brass" aria-hidden="true" />
-                <span className="font-display text-[11px] uppercase tracking-[0.12em] text-brass">
+                <span className="font-display text-[11px] uppercase tracking-[0.13em] text-brass">
                   Axis Session Context & Quick Launch
                 </span>
               </div>
-              <span className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[10px] text-text-secondary">
+              <span className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[11px] text-text-secondary">
                 5-Spoke MENS · @kb:auto · 0% Markup
               </span>
             </div>
@@ -345,7 +345,7 @@ export function ChatTranscript({ messages, agentStreamItems, sessionId, onExclud
               >
                 <div className="flex w-full items-center justify-between">
                   <span className="font-mono text-[11px] font-semibold text-text-primary">Compiler & WebIR Check</span>
-                  <span className="rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 font-mono text-[9px] text-brass">vox_lang</span>
+                  <span className="rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 font-mono text-[11px] text-brass">vox_lang</span>
                 </div>
                 <span className="text-[11px] leading-snug text-text-secondary">
                   Run HIR typecheck, effect-floor verification, and Rust/TS codegen parity.
@@ -357,8 +357,8 @@ export function ChatTranscript({ messages, agentStreamItems, sessionId, onExclud
                 className="flex flex-col items-start gap-1 rounded-lg border border-border-subtle bg-overlay-subtle/80 p-2.5 text-left transition hover:border-brass/40 hover:bg-overlay-hover"
               >
                 <div className="flex w-full items-center justify-between">
-                  <span className="font-mono text-[11px] font-semibold text-text-primary">KB & Code Atlas Grounding</span>
-                  <span className="rounded border border-(--color-status-pass)/30 bg-(--color-status-pass)/10 px-1.5 py-0.5 font-mono text-[9px] text-(--color-status-pass)">RRF 0.98</span>
+                  <span className="font-mono text-[11px] font-semibold text-text-primary">KB & Code Atlas Search</span>
+                  <span className="rounded border border-(--color-status-pass)/30 bg-(--color-status-pass)/10 px-1.5 py-0.5 font-mono text-[11px] text-(--color-status-pass)">RRF 0.98</span>
                 </div>
                 <span className="text-[11px] leading-snug text-text-secondary">
                   Query session-pinned architecture SSOTs and symbol callgraphs with zero hallucination.
@@ -371,7 +371,7 @@ export function ChatTranscript({ messages, agentStreamItems, sessionId, onExclud
               >
                 <div className="flex w-full items-center justify-between">
                   <span className="font-mono text-[11px] font-semibold text-text-primary">Songhand Browser & CV</span>
-                  <span className="rounded border border-(--color-status-info)/30 bg-(--color-status-info)/10 px-1.5 py-0.5 font-mono text-[9px] text-(--color-status-info)">[eN] refs</span>
+                  <span className="rounded border border-(--color-status-info)/30 bg-(--color-status-info)/10 px-1.5 py-0.5 font-mono text-[11px] text-(--color-status-info)">[eN] refs</span>
                 </div>
                 <span className="text-[11px] leading-snug text-text-secondary">
                   Drive Playwright + Songhand DOM extraction and CV Flywheel visual audits.
@@ -384,7 +384,7 @@ export function ChatTranscript({ messages, agentStreamItems, sessionId, onExclud
               >
                 <div className="flex w-full items-center justify-between">
                   <span className="font-mono text-[11px] font-semibold text-text-primary">5-Spoke MENS & Urbs Telemetry</span>
-                  <span className="rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 font-mono text-[9px] text-brass">100% pass@1</span>
+                  <span className="rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 font-mono text-[11px] text-brass">100% pass@1</span>
                 </div>
                 <span className="text-[11px] leading-snug text-text-secondary">
                   Inspect live QLoRA adapter routing, safety floor locks, and Urbs Roma landmarks.

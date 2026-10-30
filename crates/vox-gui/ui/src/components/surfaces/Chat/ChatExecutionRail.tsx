@@ -187,7 +187,7 @@ export function ChatExecutionRail({
       <Glass className="flex h-full flex-col gap-3 p-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-[11px] uppercase tracking-[0.08em] text-brass">{useLabel('chat-execution')}</h2>
-          <span className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[10px] text-text-secondary">
+          <span className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[11px] text-text-secondary">
             {tasks.length === 0 ? 'IDLE · READY' : `${tasks.length} ACTIVE`}
           </span>
         </div>
@@ -297,28 +297,28 @@ export function ChatExecutionRail({
           className="mt-auto flex flex-col gap-2 border-t border-border-subtle pt-3"
         >
           <div className="flex items-center justify-between">
-            <span className="font-display text-[10px] uppercase tracking-[0.12em] text-text-muted">
+            <span className="font-display text-[11px] uppercase tracking-[0.13em] text-text-muted">
               Verification & Oracles
             </span>
-            <span className="rounded border border-(--color-status-pass)/30 bg-(--color-status-pass)/10 px-1.5 py-0.5 font-mono text-[9px] text-(--color-status-pass)">
+            <span className="rounded border border-(--color-status-pass)/30 bg-(--color-status-pass)/10 px-1.5 py-0.5 font-mono text-[11px] text-(--color-status-pass)">
               5/5 Spokes Ready
             </span>
           </div>
           <div className="grid grid-cols-2 gap-1.5">
             <div className="rounded-md border border-border-subtle bg-overlay-subtle/80 px-2 py-1.5">
-              <div className="font-mono text-[10px] text-text-muted">Safety Floor</div>
+              <div className="font-mono text-[11px] text-text-muted">Safety Floor</div>
               <div className="mt-0.5 font-mono text-[11px] font-medium text-text-primary">classify_floor · Active</div>
             </div>
             <div className="rounded-md border border-border-subtle bg-overlay-subtle/80 px-2 py-1.5">
-              <div className="font-mono text-[10px] text-text-muted">KB Grounding</div>
+              <div className="font-mono text-[11px] text-text-muted">KB Scope</div>
               <div className="mt-0.5 font-mono text-[11px] font-medium text-brass">@kb:auto · RRF</div>
             </div>
             <div className="rounded-md border border-border-subtle bg-overlay-subtle/80 px-2 py-1.5">
-              <div className="font-mono text-[10px] text-text-muted">Browser Harness</div>
+              <div className="font-mono text-[11px] text-text-muted">Browser Harness</div>
               <div className="mt-0.5 font-mono text-[11px] font-medium text-text-primary">Songhand · [eN]</div>
             </div>
             <div className="rounded-md border border-border-subtle bg-overlay-subtle/80 px-2 py-1.5">
-              <div className="font-mono text-[10px] text-text-muted">MENS Adapter</div>
+              <div className="font-mono text-[11px] text-text-muted">MENS Adapter</div>
               <div className="mt-0.5 font-mono text-[11px] font-medium text-(--color-status-pass)">100% pass@1</div>
             </div>
           </div>
@@ -326,21 +326,21 @@ export function ChatExecutionRail({
             <button
               type="button"
               onClick={() => onNavigate?.('terminal')}
-              className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary transition hover:border-brass/40 hover:text-brass"
+              className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] text-text-secondary transition hover:border-brass/40 hover:text-brass"
             >
               Terminal
             </button>
             <button
               type="button"
               onClick={() => onNavigate?.('browser')}
-              className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary transition hover:border-brass/40 hover:text-brass"
+              className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] text-text-secondary transition hover:border-brass/40 hover:text-brass"
             >
               Browser
             </button>
             <button
               type="button"
               onClick={() => onNavigate?.('research')}
-              className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary transition hover:border-brass/40 hover:text-brass"
+              className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] text-text-secondary transition hover:border-brass/40 hover:text-brass"
             >
               Research
             </button>
