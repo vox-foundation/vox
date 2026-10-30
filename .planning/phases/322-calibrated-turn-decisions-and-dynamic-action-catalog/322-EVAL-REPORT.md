@@ -142,4 +142,112 @@ Mutations M8, M9 and M10 prove that each of these three exclusions depends on it
 
 ## ChatARC
 
-Filled by 322-03.
+**Version:** `chatarc.v2`. The first held-out run was `chatarc.v1` (τ 0.80). Its risk at τ was 0.167, above the 0.10 gate, so v2 fails closed: `TAU_CHOICE = 1.01` and ChatARC never acts. See "Fail-closed decision (chatarc.v1 → v2)" below.
+
+**Measured by:** `chatarc_eval_report` in `crates/vox-orchestrator-mcp/src/chat_tools/chatarc_eval_tests.rs`. It prints one `CHATARC_EVAL <json>` line and fails if risk at `TAU_CHOICE` is above 0.10 while ChatARC is enabled (`TAU_CHOICE ≤ 1.0`).
+
+### What is measured
+
+ChatARC builds one BM25 shortlist (`SkillSearchIndex::from_docs`) over all candidates. The shortlist holds the top `K_MAX - 1 = 9` actions, then `none`. Choice takes the top action. Its confidence is the calibrated precision of the bin its margin `(s1 - s2) / s1` falls in. The action is returned only when that confidence is at least `TAU_CHOICE`. The eval builds candidates from a hermetic catalog with the production converters (`skill_candidates`, `tool_candidates`, `command_candidates`). It runs `shortlist`, `choose_with` and `decide` exactly as `pick_for_turn` does.
+
+- **answered:** eval queries with a non-empty action shortlist. They feed ECE and coverage@error with `(bin confidence, top-1 == gold)`. A gold-`none` query is never correct for an action.
+- **coverage / risk at τ:** the share of all n queries where ChatARC acts, and the error rate among those.
+- **recall@K:** the share of non-none golds that appear among the shortlisted actions.
+- **none_abstention:** the share of gold-`none` queries whose final output is no action.
+- **end_to_end_accuracy:** the share of queries whose final output (an action or none) equals gold.
+- **dual_wording_agreement:** the share of paired wordings whose two final outputs are equal.
+
+### Fixtures
+
+| File | Path | Size | SHA-256 |
+| ---- | ---- | ---- | ------- |
+| catalog | `crates/vox-orchestrator-mcp/tests/fixtures/chatarc/catalog.v1.json` | 10 skills, 12 tools, 10 commands | `8bed53e527f041eae9d8ab509680e11d4c5ebbf40d5fb6eff2e56e448426e8f7` |
+| eval (frozen, held out) | `crates/vox-orchestrator-mcp/tests/fixtures/chatarc/eval.v1.jsonl` | 29 queries | `22d8569a1b69e7dc2906e194256854452d85afb6b2c9290375935e74d7a37644` |
+| calib | `crates/vox-orchestrator-mcp/tests/fixtures/chatarc/calib.v1.jsonl` | 34 queries | `c1940ac9db008ee9c12702c26b6e633b99ba919bc7b629313df7faa28a1d1c70` |
+
+The catalog and the eval split were committed together in d2126f658, before anything else in this plan. The eval hash was recorded in `evidence/322-03-eval-freeze.txt` in the next commit, before the calib split was written and before any bin existed. `shasum -a 256 -c` on that file passes, and the report's `eval_sha256` (computed in Rust from the `include_str!` bytes) matches it. The tools are real Vox MCP tool names with their registry descriptions. The skills and commands are Vox-shaped, and their descriptions were written for the fixture. The catalog includes near-duplicates so that the margin matters: `vox_run_tests` / `vox_test_all`, `vox_kb_search` / `vox_memory_search`, `vox_spawn_agent` / `vox_submit_task`, `vox graph status` / `vox graph refresh`, `vox doctor` / `vox secrets doctor`, and the skill `vox-diagram-authoring` / the command `vox diagram check`.
+
+| Split | none | skill | tool | command | dual_wording pairs |
+| ----- | ---- | ----- | ---- | ------- | ------------------ |
+| eval | 7 | 7 | 8 | 7 | 4 |
+| calib | 7 | 9 | 10 | 8 | 4 |
+
+`chatarc_fixtures_are_well_formed` enforces these properties in CI: every gold id exists in the catalog under its kind, the splits share no query, each split has at least 20 queries, at least 3 per gold kind, and at least 3 dual-wording pairs with equal gold.
+
+Labeling convention: gold is the single catalog action that best serves the user's message. It is `none` when no catalog action fits, which covers small talk, general knowledge, and a request that no catalog action can do (e21, "book me a flight").
+
+### Calibration (calib split only)
+
+| Bin (margin ≥) | fired | correct | Laplace precision |
+| -------------- | ----- | ------- | ----------------- |
+| 0.00 | 8 | 3 | 0.40 |
+| 0.25 | 8 | 5 | 0.60 |
+| 0.50 | 16 | 14 | 0.83 |
+
+Two calib queries got an empty shortlist. `CHOICE_BINS = [(0.0, 0.40), (0.25, 0.60), (0.5, 0.83)]`, and `choice_bins_match_calib_split` recomputes it in CI (M22). No catalog entry, label or bin boundary was changed after calibration.
+
+### Published metrics (eval split, n = 29)
+
+| Version | τ | answered | coverage@τ | risk@τ | ECE | cov@err 0.05 | cov@err 0.10 | recall@K | none_abstention | end_to_end_accuracy | dual_wording (4 pairs) | disabled |
+| ------- | - | -------- | ---------- | ------ | --- | ------------ | ------------ | -------- | --------------- | ------------------- | ---------------------- | -------- |
+| chatarc.v1 | 0.80 | 25 | 0.414 (12 of 29) | **0.167** | 0.010 | 0.000 | 0.000 | 0.909 | 0.714 | 0.517 | 0.25 | no |
+| chatarc.v2 | 1.01 | 25 | 0.000 | 0.000 | 0.010 | 0.000 | 0.000 | 0.909 | 1.000 | 0.241 | 1.00 | **yes** |
+
+ECE, coverage@error and recall@K do not depend on τ, so they are the same in both rows. The v2 agreement of 1.00 holds trivially, because every output is `none`.
+
+**v1 errors at τ.** Both errors are false activations on gold-`none` queries, each in the 0.83 bin:
+- e17 "thanks, that's all for now" picked `vox_test_all`, at margin 0.82. The tool's indexed text starts "vox test all", and only that one document contains the token "all".
+- e21 "book me a flight to Denver next Tuesday" picked `vox_submit_task`, at margin 0.77. The match is only on function words: its description contains "a" once and "to" twice.
+
+The 10 correct actions at τ were e04, e07, e08, e10, e14, e15, e16, e22, e24 and e26. Below τ, two other actions were wrong: e09, where `vox_submit_task` outranked `secret-management` at 0.60, and e12, where `vox_build_crate` outranked `vox graph query` at 0.40. e01 and e23 got an empty shortlist, which is a lexical miss ("committed" vs "uncommitted", "files" vs "file"). These are the two recall@K misses.
+
+coverage@error is 0 at both targets. Every threshold that admits any action also admits e17 and e21, which sit in the top bin, so the risk is never below 0.10.
+
+### Fail-closed decision (chatarc.v1 → v2)
+
+The plan requires that bins, catalog and labels never be changed from eval results. So the response to the tripped gate was:
+- `TAU_CHOICE = 1.01`. No calibrated confidence reaches it, so `choose_with` never returns an action, and every consumer gets exactly today's behaviour (L-08).
+- `CHATARC_VERSION = "chatarc.v2"`, and the report JSON marks `disabled: true`.
+- The bins stay calibrated (0.40 / 0.60 / 0.83). The mechanism (shortlist, Choice, skill injection, tool pin, command hint, provider seam, flag gate) is still covered by its own tests at explicit thresholds, and every guard in it is mutation-proven (M14 to M22).
+
+The cause is structural, not a single bad label. A raw BM25 margin cannot tell an off-catalog request from an on-catalog one: "all" and "to" give high margins whenever only one document contains them. Raising the bar needs an out-of-catalog signal, such as an absolute-score floor or a stopword-aware tokenizer. That change would need its own calib-only fit and a fresh frozen eval split. It is recorded here as follow-up work, not attempted.
+
+### Raw CHATARC_EVAL lines
+
+v1 (gate tripped; `/tmp/322-03-t3-v1.log`):
+
+```text
+CHATARC_EVAL {"version":"chatarc.v1","eval_sha256":"22d8569a1b69e7dc2906e194256854452d85afb6b2c9290375935e74d7a37644","n":29,"tau":0.800000011920929,"bins":[[0.0,0.4000000059604645],[0.25,0.6000000238418579],[0.5,0.8299999833106995]],"answered":25,"coverage_at_tau":0.41379310344827586,"risk_at_tau":0.16666666666666666,"ece":0.009600014686584495,"coverage_at_error_0_05":0.0,"coverage_at_error_0_10":0.0,"recall_at_k":0.9090909090909091,"none_abstention":0.7142857142857143,"end_to_end_accuracy":0.5172413793103449,"dual_wording_agreement":{"pairs":4,"agreement":0.25},"disabled":false}
+```
+
+v2 (published; `/tmp/322-03-t3.log`; per-item list included):
+
+```text
+CHATARC_EVAL {"version":"chatarc.v2","eval_sha256":"22d8569a1b69e7dc2906e194256854452d85afb6b2c9290375935e74d7a37644","n":29,"tau":1.0099999904632568,"bins":[[0.0,0.4000000059604645],[0.25,0.6000000238418579],[0.5,0.8299999833106995]],"answered":25,"coverage_at_tau":0.0,"risk_at_tau":0.0,"ece":0.009600014686584495,"coverage_at_error_0_05":0.0,"coverage_at_error_0_10":0.0,"recall_at_k":0.9090909090909091,"none_abstention":1.0,"end_to_end_accuracy":0.2413793103448276,"dual_wording_agreement":{"pairs":4,"agreement":1.0},"disabled":true,"items":[{"id":"e02","top":"vox_run_tests","margin":0.058816198259592056,"confidence":0.4000000059604645,"correct":true},{"id":"e03","top":"vox_spawn_agent","margin":0.10031203180551529,"confidence":0.4000000059604645,"correct":true},{"id":"e04","top":"vox_kb_search","margin":0.5206109881401062,"confidence":0.8299999833106995,"correct":true},{"id":"e05","top":"vox_git_log","margin":0.3537076413631439,"confidence":0.6000000238418579,"correct":true},{"id":"e06","top":"vox_check_workspace","margin":0.14815370738506317,"confidence":0.4000000059604645,"correct":true},{"id":"e07","top":"systematic-debugging","margin":0.5512728691101074,"confidence":0.8299999833106995,"correct":true},{"id":"e08","top":"writing-plans","margin":0.8637480735778809,"confidence":0.8299999833106995,"correct":true},{"id":"e09","top":"vox_submit_task","margin":0.26995769143104553,"confidence":0.6000000238418579,"correct":false},{"id":"e10","top":"release-notes","margin":0.8364678621292114,"confidence":0.8299999833106995,"correct":true},{"id":"e11","top":"dependency-discipline","margin":0.3129673898220062,"confidence":0.6000000238418579,"correct":true},{"id":"e12","top":"vox_build_crate","margin":0.15419916808605194,"confidence":0.4000000059604645,"correct":false},{"id":"e13","top":"vox ci ssot-drift","margin":0.32036468386650085,"confidence":0.6000000238418579,"correct":true},{"id":"e14","top":"vox diagram check","margin":0.6928173303604126,"confidence":0.8299999833106995,"correct":true},{"id":"e15","top":"vox doctor","margin":0.592011034488678,"confidence":0.8299999833106995,"correct":true},{"id":"e16","top":"vox graph refresh","margin":0.531480073928833,"confidence":0.8299999833106995,"correct":true},{"id":"e17","top":"vox_test_all","margin":0.8159666061401367,"confidence":0.8299999833106995,"correct":false},{"id":"e18","top":"vox graph status","margin":0.40248963236808777,"confidence":0.6000000238418579,"correct":false},{"id":"e19","top":"test-driven-development","margin":0.0,"confidence":0.4000000059604645,"correct":false},{"id":"e20","top":"release-notes","margin":0.0620855949819088,"confidence":0.4000000059604645,"correct":false},{"id":"e21","top":"vox_submit_task","margin":0.7742431163787842,"confidence":0.8299999833106995,"correct":false},{"id":"e22","top":"vox_git_diff","margin":0.6592679023742676,"confidence":0.8299999833106995,"correct":true},{"id":"e24","top":"test-driven-development","margin":0.5151358842849731,"confidence":0.8299999833106995,"correct":true},{"id":"e25","top":"vox_test_all","margin":0.1094086691737175,"confidence":0.4000000059604645,"correct":false},{"id":"e26","top":"vox ci pre-push","margin":0.7789803743362427,"confidence":0.8299999833106995,"correct":true},{"id":"e27","top":"vox_submit_task","margin":0.19218911230564117,"confidence":0.4000000059604645,"correct":false}]}
+```
+
+### Mutation proofs (L-15)
+
+All nine were PROVEN against committed HEAD 224b342da (driver output: `/tmp/322-03-mutations.txt`). Each guard was mutated, its named test failed with an assertion (not a compile error), and the test passed again after an exact reverse write that `git diff --quiet` confirmed. The full table is in 322-03-SUMMARY.md.
+
+| # | Guard | Test that failed |
+| - | ----- | ---------------- |
+| M14 | shortlist bound `K_MAX - 1` | `shortlist_is_at_most_k_and_ends_with_none` (16 options, not 10) |
+| M15 | trailing `none` option | same test (9 options, no `none`) |
+| M16 | flag gate `if !enabled { return None; }` | `decide_if_enabled_off_is_none_and_gathers_nothing` (gather ran) |
+| M17 | τ gate `confidence >= tau` | `choice_below_tau_is_none` (picked at 0.79) |
+| M18 | explicit pin precedence | `explicit_pin_wins_over_chatarc_skill` (`("y", "chatarc")`) |
+| M19 | provider-unset fail open | `provider_unset_yields_no_command_candidates` |
+| M20 | pins unchanged without a pick | `turn_pin_names_unchanged_without_chatarc_tool` |
+| M21 | tool candidates through `select_tools_for_turn` | `tool_candidates_respect_select_tools_for_turn_filters` (lane and `vox_chat_` leaked) |
+| M22 | calibration drift | `choice_bins_match_calib_split` |
+
+### Caveats
+
+- **Hermetic catalog versus the real registry.** The catalog has 32 items. In production a chat turn would score several hundred candidates: the roughly 190 tools a plain turn admits, every installed skill, and every compiled-in leaf command. The bins were fit on the 32-item catalog. BM25 idf and the margins both shift with the size of the collection, so the calibration may not transfer. `real_registry_shortlist_is_bounded` checks only that the shortlist over the real `TOOL_REGISTRY` stays at most 10 options and ends with `none`. Nothing measures accuracy on the real registry.
+- **The labels are agent-written.** One agent wrote the catalog descriptions, both splits and the scorer integration. The eval split was frozen before calibration. Even so, it is not an independent, human-labeled set.
+- **The sample is small.** n is 29 (eval) and 34 (calib). One error in the top bin moves risk@τ by about 0.08, and the gate failed on two items.
+- **Lexical recall has a ceiling.** recall@K is 0.91, and both misses are vocabulary gaps. The dual-wording agreement under v1 was 0.25: one wording of each action pair matched lexically and the other did not.
+- **There is a daemon provider gap (operator decision, not planned around).** The command-hint seam lives in `chatarc.rs` (`register_command_hint_provider`), and only `vox-cli`'s `main()` registers a provider. Production chat is served by `vox-orchestrator-d`: `vox mcp` forwards `vox_chat_message` to it, and the GUI calls it too. The daemon does not depend on vox-cli, so in daemon-hosted chat the command candidates fail open to none, while skills and tools still work. Commands work only in in-process hosts, such as `vox harness eval` live runs. Closing the gap needs either a new crate edge (USER-AUTHORIZED-ONLY) or a subprocess call to `vox commands --json` (a new exec trust boundary).
+- **The reliability prior was not read (L-09 "may").** Nothing writes skill reliability rows yet, so the prior would be a constant.
+- **The flag is off by default** (`VOX_CHATARC`). With the flag off, nothing is gathered (M16), and the no-pin system prompt equals the golden captured from the unmodified builder (`evidence/322-03-system-prompt-golden.txt`). With the flag on, v2 still never acts.
