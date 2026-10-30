@@ -495,7 +495,7 @@ pub(crate) fn select_qwen3_mesh(
         .map_err(|_| Qwen3MeshError::ExplicitDoesNotFit)?
     } else {
         vox_populi::mens::tensor::spoke_base_resolver::select_qwen3_code_qlora_for_free_mb(free_u32)
-            .map_err(|err| Qwen3MeshError::PickFailed(err.to_string()))?
+            .map_err(|_| Qwen3MeshError::NothingFits)?
     };
     route_pick_to_holder(candidates, pick)
 }
@@ -530,6 +530,38 @@ fn route_pick_to_holder(
             .accelerator_free_mb
             .expect("holder was filtered on accelerator_free_mb"),
     })
+}
+
+/// Mesh placement when a fresh reading exists. Otherwise the caller-supplied
+/// local reading. This function does not probe the GPU.
+#[derive(Debug)]
+pub(crate) enum Qwen3Placement {
+    Mesh(Qwen3MeshSelection),
+    Local(vox_populi::mens::tensor::spoke_base_resolver::Qwen3LivePick),
+}
+
+pub(crate) fn place_qwen3_code_qlora(
+    nodes: &[NodeRecord],
+    req: &DispatchRequest,
+    now_unix_ms: u64,
+    stale_window_ms: Option<u64>,
+    explicit_size: Option<&str>,
+    local_free_mb: Option<u32>,
+) -> Result<Qwen3Placement, Qwen3MeshError> {
+    if !nodes.is_empty() {
+        match select_qwen3_mesh(nodes, req, now_unix_ms, stale_window_ms, explicit_size) {
+            Ok(selection) => return Ok(Qwen3Placement::Mesh(selection)),
+            Err(Qwen3MeshError::NoFreshReading) => {}
+            Err(other) => return Err(other),
+        }
+    }
+    let Some(free_mb) = local_free_mb else {
+        return Err(Qwen3MeshError::NoFreshReading);
+    };
+    let pick =
+        vox_populi::mens::tensor::spoke_base_resolver::select_qwen3_code_qlora_for_free_mb(free_mb)
+            .map_err(|err| Qwen3MeshError::PickFailed(err.to_string()))?;
+    Ok(Qwen3Placement::Local(pick))
 }
 
 #[cfg(test)]
@@ -766,5 +798,70 @@ mod qwen3_mesh_tests {
         assert_eq!(got.node_id, "wide");
         assert_eq!(got.size_token, "32B");
         assert_eq!(got.floor_mb, 60_000);
+    }
+
+    #[test]
+    fn select_best_node_ignores_accelerator_free_mb() {
+        let nodes = vec![
+            node("busy", Some(70_000), Some(90.0)),
+            node("idle", None, Some(10.0)),
+        ];
+        let best = select_best_node(&nodes, &plain_req()).expect("script dispatch");
+        assert_eq!(best.id, "idle");
+        let mesh = select_qwen3_mesh(&nodes, &plain_req(), 10_000_000, Some(3_600_000), None)
+            .expect("mesh pick");
+        assert_eq!(mesh.node_id, "busy");
+        assert_eq!(mesh.size_token, "32B");
+    }
+
+    #[test]
+    fn place_qwen3_empty_registry_uses_local_reading() {
+        let got = place_qwen3_code_qlora(
+            &[],
+            &plain_req(),
+            10_000_000,
+            Some(3_600_000),
+            None,
+            Some(70_000),
+        )
+        .expect("local 32B");
+        match got {
+            Qwen3Placement::Local(pick) => {
+                assert_eq!(pick.size_token, "32B");
+                assert_eq!(pick.preset, "qwen3_96g");
+                assert_eq!(pick.floor_mb, 60_000);
+            }
+            Qwen3Placement::Mesh(selection) => panic!("named {}", selection.node_id),
+        }
+    }
+
+    #[test]
+    fn place_qwen3_no_fresh_reading_uses_local_reading() {
+        let nodes = vec![node("unread", None, Some(10.0))];
+        let got = place_qwen3_code_qlora(
+            &nodes,
+            &plain_req(),
+            10_000_000,
+            Some(3_600_000),
+            None,
+            Some(25_000),
+        )
+        .expect("local 14B");
+        match got {
+            Qwen3Placement::Local(pick) => {
+                assert_eq!(pick.size_token, "14B");
+                assert_eq!(pick.preset, "qwen3_24g");
+                assert_eq!(pick.floor_mb, 20_000);
+            }
+            Qwen3Placement::Mesh(selection) => panic!("named {}", selection.node_id),
+        }
+    }
+
+    #[test]
+    fn place_qwen3_without_local_reading_does_not_probe() {
+        let err =
+            place_qwen3_code_qlora(&[], &plain_req(), 10_000_000, Some(3_600_000), None, None)
+                .expect_err("no reading");
+        assert_eq!(err, Qwen3MeshError::NoFreshReading);
     }
 }
