@@ -10,8 +10,8 @@ use vox_orchestrator::models::Capability;
 use vox_orchestrator::types::TaskCategory;
 
 use super::turn_pack::{
-    Answer, Question, Rule, TAU_APPLY, TAU_FREE, TurnPack, evaluate_with_rules,
-    turn_selection_request,
+    Answer, Question, Rule, TAU_APPLY, TAU_FREE, TurnPack, evaluate_with_rules, tau_for,
+    turn_selection_request_at,
 };
 use super::types::McpChatModelResolution;
 
@@ -115,6 +115,34 @@ fn fixture(i: usize) -> Fixture {
         caps,
         golden,
     }
+}
+
+/// The 322-01 thresholds with every question enabled. The mechanism tests here
+/// run at these, so each guard stays mutation-provable while production
+/// (`tau_for`) has a question disabled.
+fn mechanism_tau(q: Question) -> f32 {
+    match q {
+        Question::AllowFreeTier => TAU_FREE,
+        _ => TAU_APPLY,
+    }
+}
+
+/// `turn_pack::turn_selection_request` at [`mechanism_tau`].
+fn turn_selection_request(
+    pack: Option<&TurnPack>,
+    res: &McpChatModelResolution,
+    derived_prefer_local: bool,
+    preference: CostPreference,
+    caps: Vec<Capability>,
+) -> vox_orchestrator::models::ModelSelectionRequest {
+    turn_selection_request_at(
+        mechanism_tau,
+        pack,
+        res,
+        derived_prefer_local,
+        preference,
+        caps,
+    )
 }
 
 fn request_debug(pack: Option<&TurnPack>, fx: &Fixture) -> String {
@@ -468,4 +496,34 @@ fn allow_free_pack_changes_only_scorer_eligibility() {
     expected.intent.allow_free_in_performance_mode = true;
     let patched = request(&free_pack(), &fx);
     assert_eq!(format!("{patched:?}"), format!("{expected:?}"));
+}
+
+/// 322-02 fail closed: production thresholds disable TaskShape and Stakes
+/// (held-out risk at τ 0.25 each, 322-EVAL-REPORT.md). A certain task answer no
+/// longer patches, and Stakes, which only vetoes free eligibility, vetoes on
+/// any stakes-2 firing whatever its confidence.
+#[test]
+fn disabled_questions_fail_closed() {
+    assert!(tau_for(Question::TaskShape) > 1.0 && tau_for(Question::Stakes) > 1.0);
+    let fx = fixture(1);
+    let prod = |p: &TurnPack| {
+        super::turn_pack::turn_selection_request(
+            Some(p),
+            &fx.res,
+            fx.derived_prefer_local,
+            fx.preference,
+            fx.caps.clone(),
+        )
+    };
+    assert_eq!(format!("{:?}", prod(&research_pack())), GOLDEN_G1);
+    assert!(prod(&free_pack()).intent.allow_free_in_performance_mode);
+    let low_confidence_high_stakes = TurnPack {
+        stakes: answer(2, 0.5),
+        ..free_pack()
+    };
+    assert!(
+        !prod(&low_confidence_high_stakes)
+            .intent
+            .allow_free_in_performance_mode
+    );
 }

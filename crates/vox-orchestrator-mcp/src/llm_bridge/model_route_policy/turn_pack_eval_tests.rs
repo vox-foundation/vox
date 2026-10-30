@@ -7,8 +7,16 @@ use std::collections::{BTreeMap, HashSet};
 
 use serde::Deserialize;
 
-use super::turn_pack::{Answer, Question, RULES, Rule, TurnPack, evaluate_with_rules};
-use crate::selective_metrics::laplace_precision;
+use serde_json::json;
+use vox_orchestrator::config::CostPreference;
+
+use super::resolve::VOX_LOCAL_PREFERRED_TASKS;
+use super::turn_pack::{
+    Answer, PACK_VERSION, Question, RULES, Rule, TurnPack, evaluate, evaluate_with_rules, tau_for,
+    turn_selection_request,
+};
+use super::types::McpChatModelResolution;
+use crate::selective_metrics::{coverage_and_risk, coverage_at_error, ece, laplace_precision};
 
 const CALIB: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -249,5 +257,107 @@ fn rule_order_control_is_non_vacuous() {
     assert!(
         contested,
         "no fixture prompt fires two rules on one question"
+    );
+}
+
+fn ratio(num: usize, den: usize) -> f64 {
+    if den == 0 {
+        0.0
+    } else {
+        num as f64 / den as f64
+    }
+}
+
+/// Per question, the fraction of `control` pairs whose two packs give the same
+/// answer value (abstention counts as an answer).
+fn agreement(turns: &[Turn], control: &str) -> serde_json::Value {
+    let ps = pairs(turns, control);
+    let same = |a: &Turn, b: &Turn, q| {
+        answer_of(&evaluate(&a.prompt), q).map(|x| x.value)
+            == answer_of(&evaluate(&b.prompt), q).map(|x| x.value)
+    };
+    let mut per_question = serde_json::Map::new();
+    for q in QUESTIONS {
+        let n = ps.iter().filter(|(a, b)| same(a, b, q)).count();
+        per_question.insert(format!("{q:?}"), json!(ratio(n, ps.len())));
+    }
+    let all = ps
+        .iter()
+        .filter(|(a, b)| QUESTIONS.iter().all(|&q| same(a, b, q)))
+        .count();
+    json!({ "pairs": ps.len(), "all_questions": ratio(all, ps.len()), "per_question": per_question })
+}
+
+/// DEC-04 held-out report: prints one `TURN_PACK_EVAL <json>` line and fails if
+/// any enabled question's risk at its τ exceeds 0.10.
+#[test]
+fn selective_eval_report() {
+    let eval = parse(EVAL);
+    let n_total = eval.len();
+    let packs: Vec<TurnPack> = eval.iter().map(|t| evaluate(&t.prompt)).collect();
+    let mut questions = serde_json::Map::new();
+    let mut over_risk = Vec::new();
+    for q in QUESTIONS {
+        let items: Vec<(f32, bool)> = eval
+            .iter()
+            .zip(&packs)
+            .filter_map(|(t, p)| {
+                answer_of(p, q).map(|a| (a.confidence, a.value == gold_of(&t.gold, q)))
+            })
+            .collect();
+        let correct = items.iter().filter(|i| i.1).count();
+        let tau = tau_for(q);
+        let disabled = tau > 1.0;
+        let (coverage, risk) = coverage_and_risk(&items, n_total, tau);
+        if !disabled && risk > 0.10 {
+            over_risk.push(format!("{q:?} risk@tau {risk:.3}"));
+        }
+        questions.insert(
+            format!("{q:?}"),
+            json!({
+                "n": n_total,
+                "answered": items.len(),
+                "accuracy": ratio(correct, items.len()),
+                "ece": ece(&items, 10),
+                "tau": tau,
+                "coverage_at_tau": coverage,
+                "risk_at_tau": risk,
+                "coverage_at_error_0_05": coverage_at_error(&items, n_total, 0.05),
+                "coverage_at_error_0_10": coverage_at_error(&items, n_total, 0.10),
+                "disabled": disabled,
+            }),
+        );
+    }
+    // A default chat turn: caller left task and complexity unset, no clutch.
+    let res = McpChatModelResolution {
+        task_unset: true,
+        complexity_unset: true,
+        ..Default::default()
+    };
+    let derived = VOX_LOCAL_PREFERRED_TASKS.contains(&res.task_category);
+    let request = |pack: Option<&TurnPack>| {
+        format!(
+            "{:?}",
+            turn_selection_request(pack, &res, derived, CostPreference::Performance, vec![])
+        )
+    };
+    let unpatched = request(None);
+    let patched_turns = packs
+        .iter()
+        .filter(|p| request(Some(p)) != unpatched)
+        .count();
+    let report = json!({
+        "pack_version": PACK_VERSION,
+        "eval_sha256": hex::encode(vox_crypto::interop_sha256(EVAL.as_bytes())),
+        "n": n_total,
+        "questions": questions,
+        "dual_wording_agreement": agreement(&eval, "dual_wording"),
+        "option_order_agreement": agreement(&eval, "option_order"),
+        "patched_turns": patched_turns,
+    });
+    println!("TURN_PACK_EVAL {report}");
+    assert!(
+        over_risk.is_empty(),
+        "risk at tau above 0.10: {over_risk:?}"
     );
 }

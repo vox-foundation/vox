@@ -17,11 +17,26 @@ use super::resolve::{VOX_LOCAL_PREFERRED_TASKS, build_selection_request};
 use super::types::McpChatModelResolution;
 
 /// Version of the rule table and its thresholds; bump on any change to either.
-pub(super) const PACK_VERSION: &str = "turn-pack.v1";
+pub(super) const PACK_VERSION: &str = "turn-pack.v2";
 /// Minimum confidence for an answer to patch `task`, `complexity` or `prefer_local`.
 pub(super) const TAU_APPLY: f32 = 0.80;
 /// Minimum confidence for the allow-free-tier answer to widen scorer eligibility.
 pub(super) const TAU_FREE: f32 = 0.85;
+
+/// Above 1.0, so no answer reaches it: the question is disabled (fails closed).
+pub(super) const TAU_DISABLED: f32 = 1.01;
+
+/// The threshold each question's answer must reach to act in `selection_inputs`
+/// (and the one the DEC-04 eval reports risk at).
+pub(super) const fn tau_for(q: Question) -> f32 {
+    match q {
+        // turn-pack.v2: held-out risk at τ was 0.25 for both (322-EVAL-REPORT.md),
+        // above the 0.10 gate. Disabled rather than refit on the eval split.
+        Question::TaskShape | Question::Stakes => TAU_DISABLED,
+        Question::AllowFreeTier => TAU_FREE,
+        _ => TAU_APPLY,
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Question {
@@ -180,7 +195,9 @@ const TASK_SHAPES: [TaskCategory; 4] = [
     TaskCategory::Chat,
 ];
 
+/// `tau` is the per-question threshold table: [`tau_for`] in production.
 pub(super) fn selection_inputs(
+    tau: fn(Question) -> f32,
     pack: Option<&TurnPack>,
     res: &McpChatModelResolution,
     derived_prefer_local: bool,
@@ -199,32 +216,38 @@ pub(super) fn selection_inputs(
     // `res.clutch` before the decide() site, so a policy-derived clutch counts as set.
     let may_set_allow_free = res.clutch.is_none();
 
-    let task = match sure(pack.task_shape, TAU_APPLY) {
+    let task = match sure(pack.task_shape, tau(Question::TaskShape)) {
         Some(v) if may_set_task => TASK_SHAPES
             .get(usize::from(v))
             .copied()
             .unwrap_or(caller.task),
         _ => caller.task,
     };
-    let complexity = match sure(pack.complexity, TAU_APPLY) {
+    let complexity = match sure(pack.complexity, tau(Question::Complexity)) {
         Some(v) if may_set_complexity => COMPLEXITY_SCORE_TO_U8
             .get(usize::from(v))
             .copied()
             .unwrap_or(caller.complexity),
         _ => caller.complexity,
     };
-    let private = sure(pack.privacy_local, TAU_APPLY) == Some(1);
+    let private = sure(pack.privacy_local, tau(Question::PrivacyLocal)) == Some(1);
     let prefer_local = if may_set_prefer_local {
         VOX_LOCAL_PREFERRED_TASKS.contains(&task) || private
     } else {
         caller.prefer_local
     };
+    // Stakes only vetoes free eligibility, so a disabled Stakes fails closed by
+    // vetoing on any stakes-2 firing, whatever its confidence.
+    let stakes_tau = tau(Question::Stakes);
+    let high_stakes = pack
+        .stakes
+        .is_some_and(|a| a.value == 2 && (stakes_tau > 1.0 || confident(&a, stakes_tau)));
     // Scorer eligibility only: lets `:free` specs compete under Performance
     // (orchestrator ranking). It selects no policy, touches no axes, and never
     // reads or reorders the free-floor list.
     let allow_free = may_set_allow_free
-        && sure(pack.allow_free_tier, TAU_FREE) == Some(1)
-        && sure(pack.stakes, TAU_APPLY) != Some(2)
+        && sure(pack.allow_free_tier, tau(Question::AllowFreeTier)) == Some(1)
+        && !high_stakes
         && !private;
     SelectionInputs {
         task,
@@ -243,7 +266,26 @@ pub(super) fn turn_selection_request(
     preference: CostPreference,
     required_capabilities: Vec<Capability>,
 ) -> ModelSelectionRequest {
-    let inputs = selection_inputs(pack, res, derived_prefer_local);
+    turn_selection_request_at(
+        tau_for,
+        pack,
+        res,
+        derived_prefer_local,
+        preference,
+        required_capabilities,
+    )
+}
+
+/// [`turn_selection_request`] at an explicit per-question threshold table.
+pub(super) fn turn_selection_request_at(
+    tau: fn(Question) -> f32,
+    pack: Option<&TurnPack>,
+    res: &McpChatModelResolution,
+    derived_prefer_local: bool,
+    preference: CostPreference,
+    required_capabilities: Vec<Capability>,
+) -> ModelSelectionRequest {
+    let inputs = selection_inputs(tau, pack, res, derived_prefer_local);
     build_selection_request(
         inputs.task,
         inputs.complexity,
