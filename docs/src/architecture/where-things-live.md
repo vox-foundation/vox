@@ -309,6 +309,8 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Discover bare `SKILL.md` skill dirs (agentskills.io interop layout) | `crates/vox-plugin-host/src/external_skills.rs` (`discover_external_skills`) |
 | Standard skill discovery roots (`.vox`/`.agents`/`.claude` × ws+home) | `crates/vox-config/src/paths.rs` (`skill_search_roots`) |
 | Skill disclosure into the chat system prompt (tier-1 catalog + pinned body) | `crates/vox-orchestrator-mcp/src/chat_tools/skill_catalog.rs`; wired in `chat_tools/mod.rs` `build_system_prompt_with_skill` |
+| Turn decision pack (calibrated routing inputs, DEC-01) | `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/turn_pack.rs` |
+| ChatARC action shortlist and choice (skills, MCP tools, commands) | `crates/vox-orchestrator-mcp/src/chat_tools/chatarc.rs`; command hints registered by `crates/vox-cli/src/main.rs` |
 | Ingest external skills into the CLI registry | `crates/vox-cli/src/commands/extras/ars/registry.rs` (`install_external_skills`) |
 | Add a plugin manifest field | `crates/vox-plugin-types/src/plugin_manifest.rs` |
 | Add a queue / lock / oplog method | `crates/vox-orchestrator-queue/src/{locks,oplog,affinity}/` |
