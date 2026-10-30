@@ -455,6 +455,14 @@ pub(crate) enum Qwen3MeshError {
 ///
 /// One call to `select_qwen3_code_qlora_for_free_mb` (which calls `pick_base`).
 /// Total VRAM, system RAM, and `min_vram_mb` are not inputs.
+
+fn effective_stale_window_ms(stale_window_ms: Option<u64>) -> u64 {
+    match stale_window_ms {
+        Some(window) if window > 0 => window,
+        _ => 3_600_000,
+    }
+}
+
 pub(crate) fn select_qwen3_mesh(
     nodes: &[NodeRecord],
     req: &DispatchRequest,
@@ -462,11 +470,13 @@ pub(crate) fn select_qwen3_mesh(
     stale_window_ms: Option<u64>,
     explicit_size: Option<&str>,
 ) -> Result<Qwen3MeshSelection, Qwen3MeshError> {
-    let _ = (stale_window_ms, explicit_size);
+    let _ = explicit_size;
+    let window = effective_stale_window_ms(stale_window_ms);
     let candidates: Vec<&NodeRecord> = nodes
         .iter()
         .filter(|node| {
             node.accelerator_free_mb.is_some()
+                && now_unix_ms.saturating_sub(node.last_seen_unix_ms) <= window
                 && node_passes_dispatch_policy(node, req, now_unix_ms)
         })
         .collect();
@@ -666,5 +676,53 @@ mod qwen3_mesh_tests {
         assert_eq!(got.size_token, "14B");
         assert_eq!(got.preset, "qwen3_24g");
         assert_eq!(got.floor_mb, 20_000);
+    }
+
+    fn stale_trio(wide_last_seen: u64) -> Vec<NodeRecord> {
+        let mut wide = node("wide", Some(70_000), Some(1.0));
+        wide.last_seen_unix_ms = wide_last_seen;
+        let mut missing = node("missing", None, Some(1.0));
+        missing.gpu_vram_total_mb = Some(80_000);
+        missing.memory_free_bytes = Some(80u64 * 1024 * 1024 * 1024);
+        missing.last_seen_unix_ms = 10_000_000;
+        let fresh = node("fresh", Some(25_000), Some(90.0));
+        vec![wide, missing, fresh]
+    }
+
+    #[test]
+    fn mesh_pick_ignores_stale_and_missing_free_memory() {
+        let nodes = stale_trio(6_399_999);
+        let got = select_qwen3_mesh(&nodes, &plain_req(), 10_000_000, Some(3_600_000), None)
+            .expect("fresh 14B");
+        assert_eq!(got.node_id, "fresh");
+        assert_eq!(got.size_token, "14B");
+        assert_eq!(got.preset, "qwen3_24g");
+        assert_eq!(got.floor_mb, 20_000);
+        let excluded = vec![nodes[0].clone(), nodes[1].clone()];
+        assert_eq!(
+            select_qwen3_mesh(&excluded, &plain_req(), 10_000_000, Some(3_600_000), None)
+                .expect_err("no fresh reading"),
+            Qwen3MeshError::NoFreshReading
+        );
+    }
+
+    #[test]
+    fn mesh_pick_unset_window_uses_dispatch_hour() {
+        let nodes = stale_trio(6_399_999);
+        let got =
+            select_qwen3_mesh(&nodes, &plain_req(), 10_000_000, None, None).expect("still 14B");
+        assert_eq!(got.node_id, "fresh");
+        assert_eq!(got.size_token, "14B");
+        let mut on_the_hour = stale_trio(6_400_000);
+        let got = select_qwen3_mesh(&on_the_hour, &plain_req(), 10_000_000, None, None)
+            .expect("hour-old 32B");
+        assert_eq!(got.node_id, "wide");
+        assert_eq!(got.size_token, "32B");
+        assert_eq!(got.floor_mb, 60_000);
+        on_the_hour[0].last_seen_unix_ms = 6_400_000;
+        let got = select_qwen3_mesh(&on_the_hour, &plain_req(), 10_000_000, Some(0), None)
+            .expect("zero window uses the hour");
+        assert_eq!(got.node_id, "wide");
+        assert_eq!(got.size_token, "32B");
     }
 }
