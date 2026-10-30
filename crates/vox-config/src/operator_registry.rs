@@ -29,7 +29,7 @@ pub const OPERATOR_TUNING_ENVS: &[OperatorEnvSpec] = &[
     },
     OperatorEnvSpec {
         name: "VOX_CHATARC",
-        description: "Enable the ChatARC action shortlist in chat turns (1/true to enable).",
+        description: "Enable ChatARC in chat turns (1/true to enable). Its choice is currently disabled pending recalibration (chatarc.v2), so it never acts.",
         defaults: "false",
 
         config_class: ConfigClass::NodeLocal,

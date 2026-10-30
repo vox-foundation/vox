@@ -118,6 +118,21 @@ fn decide_if_enabled_off_is_none_and_gathers_nothing() {
     assert_eq!(on.map(|p| p.id), Some("vox_run_tests".to_string()));
 }
 
+/// WR-09: a threshold above 1.0 (Choice disabled) can never act, so ChatARC
+/// gathers nothing: no skill list, no tool selection, no command catalog, no
+/// BM25 build.
+#[test]
+fn decide_if_enabled_disabled_tau_gathers_nothing() {
+    let pick = decide_if_enabled(
+        true,
+        || -> Vec<ActionCandidate> { panic!("gathered candidates while Choice is disabled") },
+        "run the tests",
+        &[(0.0, 1.0)],
+        1.01,
+    );
+    assert_eq!(pick, None);
+}
+
 #[test]
 fn new_skill_appears_on_next_discovery_pass() {
     let reg = new_registry_arc();

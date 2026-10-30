@@ -271,7 +271,7 @@ variables:
     required: false
     introduced_in: "0.6.0"
     default: "0"
-    description: "1/true/yes/on (case-insensitive, trimmed) enables the ChatARC action shortlist in chat turns; unset or any other value keeps it off."
+    description: "1/true/yes/on (case-insensitive, trimmed) enables ChatARC in chat turns; unset or any other value keeps it off. Its choice is currently disabled pending recalibration (chatarc.v2): it never acts and gathers no candidates."
   - name: "VOX_TURN_DECISION_PACK"
     owner_crate: "vox-config"
     kind: "bool"

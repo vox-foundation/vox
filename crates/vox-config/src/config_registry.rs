@@ -2119,7 +2119,7 @@ pub const CONFIG_KEYS: &[ConfigKey] = &[
         secret: false,
         status: Status::Active,
         label: "ChatARC action shortlist",
-        hint: "1/true enables the ChatARC action shortlist in chat turns; default off",
+        hint: "1/true enables ChatARC in chat turns; its choice is currently disabled pending recalibration (chatarc.v2), so it never acts; default off",
     },
     ConfigKey {
         key: "VOX_LOCAL_PLUGIN_FALLBACK",

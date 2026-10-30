@@ -205,7 +205,10 @@ pub(crate) fn decide(
     choose_with(&shortlist(cands, query), bins, tau)
 }
 
-/// `decide`, but only gathers candidates when ChatARC is enabled.
+/// `decide`, but only gathers candidates when ChatARC is enabled and its
+/// Choice can act: no confidence reaches a `tau` above 1.0 (chatarc.v2's
+/// fail-closed [`TAU_CHOICE`]), so it then gathers nothing either (no skill
+/// list, tool selection, command catalog or BM25 build).
 pub(crate) fn decide_if_enabled(
     enabled: bool,
     gather: impl FnOnce() -> Vec<ActionCandidate>,
@@ -214,6 +217,9 @@ pub(crate) fn decide_if_enabled(
     tau: f32,
 ) -> Option<ChatArcPick> {
     if !enabled {
+        return None;
+    }
+    if tau > 1.0 {
         return None;
     }
     decide(&gather(), query, bins, tau)
