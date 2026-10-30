@@ -166,6 +166,8 @@ pub fn resolution_for_tier(
             allow_cheapest_fallback: false,
             enforce_free_tier_only: false,
             complexity: base.complexity.max(8),
+            // Raised above: a choice now, so the DEC-01 turn pack must not fill it.
+            complexity_unset: false,
             ..base
         },
         Some(other) => {
@@ -275,6 +277,10 @@ async fn try_run_agent_turn(
             risk: risk.and_then(vox_orchestrator::mode::RiskPosture::from_label),
             web_evidence_supplied,
             capability_prompt: Some(capability_prompt.to_string()),
+            // The default chat turn never chooses task or complexity, so the
+            // DEC-01 turn pack may fill them (VOX_TURN_DECISION_PACK).
+            task_unset: true,
+            complexity_unset: true,
             ..Default::default()
         },
     );
@@ -2314,6 +2320,30 @@ mod tests {
             Some("glob".into())
         );
         assert_eq!(effective_model_pref(Some(""), None), None);
+    }
+
+    fn unset_base() -> McpChatModelResolution {
+        McpChatModelResolution {
+            task_unset: true,
+            complexity_unset: true,
+            ..Default::default()
+        }
+    }
+
+    /// DEC-01: the cloud tier raises complexity, so the turn pack must not fill it.
+    #[test]
+    fn resolution_for_tier_cloud_marks_complexity_set() {
+        let r = resolution_for_tier(Some("cloud"), unset_base());
+        assert!(!r.complexity_unset);
+        assert!(r.task_unset);
+    }
+
+    #[test]
+    fn resolution_for_tier_non_cloud_keeps_unset_flags() {
+        for tier in [Some("local"), Some("mesh"), None, Some("Cloud")] {
+            let r = resolution_for_tier(tier, unset_base());
+            assert!(r.task_unset && r.complexity_unset, "{tier:?}");
+        }
     }
 
     #[test]

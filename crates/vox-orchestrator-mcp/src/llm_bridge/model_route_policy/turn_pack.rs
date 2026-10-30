@@ -13,7 +13,7 @@ use vox_orchestrator::config::CostPreference;
 use vox_orchestrator::models::{Capability, ModelSelectionRequest};
 use vox_orchestrator::types::TaskCategory;
 
-use super::resolve::build_selection_request;
+use super::resolve::{VOX_LOCAL_PREFERRED_TASKS, build_selection_request};
 use super::types::McpChatModelResolution;
 
 /// Version of the rule table and its thresholds; bump on any change to either.
@@ -49,148 +49,30 @@ pub(super) struct Rule {
 }
 
 // ponytail: keyword rules, ceiling is lexical recall; upgrade path is a labeled classifier head.
+#[rustfmt::skip]
 pub(super) const RULES: &[Rule] = &[
-    Rule {
-        id: "task_shape.0.1",
-        question: Question::TaskShape,
-        any_of: &[
-            "fix",
-            "bug",
-            "refactor",
-            "implement",
-            "compile error",
-            "stack trace",
-            "failing test",
-            "rename",
-            "patch",
-        ],
-        answer: 0,
-        confidence: UNCALIBRATED,
-    },
-    Rule {
-        id: "task_shape.1.1",
-        question: Question::TaskShape,
-        any_of: &[
-            "what is",
-            "explain why",
-            "compare",
-            "sources",
-            "papers",
-            "latest",
-            "research",
-        ],
-        answer: 1,
-        confidence: UNCALIBRATED,
-    },
-    Rule {
-        id: "task_shape.2.1",
-        question: Question::TaskShape,
-        any_of: &[
-            "plan",
-            "roadmap",
-            "break down",
-            "steps to",
-            "design doc",
-            "milestone",
-        ],
-        answer: 2,
-        confidence: UNCALIBRATED,
-    },
-    Rule {
-        id: "task_shape.3.1",
-        question: Question::TaskShape,
-        any_of: &[
-            "thanks",
-            "thank you",
-            "hello",
-            "hi",
-            "good morning",
-            "how are you",
-        ],
-        answer: 3,
-        confidence: UNCALIBRATED,
-    },
-    Rule {
-        id: "complexity.0.1",
-        question: Question::Complexity,
-        any_of: &["typo", "one line", "quick", "trivial"],
-        answer: 0,
-        confidence: UNCALIBRATED,
-    },
-    Rule {
-        id: "complexity.2.1",
-        question: Question::Complexity,
-        any_of: &[
-            "architecture",
-            "across crates",
-            "redesign",
-            "migrate",
-            "concurrency",
-            "race condition",
-        ],
-        answer: 2,
-        confidence: UNCALIBRATED,
-    },
-    Rule {
-        id: "stakes.0.1",
-        question: Question::Stakes,
-        any_of: &["explain", "show me", "read"],
-        answer: 0,
-        confidence: UNCALIBRATED,
-    },
-    Rule {
-        id: "stakes.2.1",
-        question: Question::Stakes,
-        any_of: &[
-            "delete",
-            "drop table",
-            "force push",
-            "production",
-            "deploy",
-            "rm rf",
-            "credentials",
-            "secret",
-        ],
-        answer: 2,
-        confidence: UNCALIBRATED,
-    },
-    Rule {
-        id: "allow_free_tier.1.1",
-        question: Question::AllowFreeTier,
-        any_of: &[
-            "cheap",
-            "free model",
-            "free tier",
-            "quick question",
-            "any model",
-            "no rush",
-        ],
-        answer: 1,
-        confidence: UNCALIBRATED,
-    },
-    Rule {
-        id: "allow_free_tier.0.1",
-        question: Question::AllowFreeTier,
-        any_of: &["best model", "highest quality", "most capable", "critical"],
-        answer: 0,
-        confidence: UNCALIBRATED,
-    },
-    Rule {
-        id: "privacy_local.1.1",
-        question: Question::PrivacyLocal,
-        any_of: &[
-            "offline",
-            "local only",
-            "locally",
-            "private",
-            "confidential",
-            "on device",
-            "do not send",
-            "air gapped",
-        ],
-        answer: 1,
-        confidence: UNCALIBRATED,
-    },
+    Rule { id: "task_shape.0.1", question: Question::TaskShape, answer: 0, confidence: UNCALIBRATED,
+        any_of: &["fix", "bug", "refactor", "implement", "compile error", "stack trace", "failing test", "rename", "patch"] },
+    Rule { id: "task_shape.1.1", question: Question::TaskShape, answer: 1, confidence: UNCALIBRATED,
+        any_of: &["what is", "explain why", "compare", "sources", "papers", "latest", "research"] },
+    Rule { id: "task_shape.2.1", question: Question::TaskShape, answer: 2, confidence: UNCALIBRATED,
+        any_of: &["plan", "roadmap", "break down", "steps to", "design doc", "milestone"] },
+    Rule { id: "task_shape.3.1", question: Question::TaskShape, answer: 3, confidence: UNCALIBRATED,
+        any_of: &["thanks", "thank you", "hello", "hi", "good morning", "how are you"] },
+    Rule { id: "complexity.0.1", question: Question::Complexity, answer: 0, confidence: UNCALIBRATED,
+        any_of: &["typo", "one line", "quick", "trivial"] },
+    Rule { id: "complexity.2.1", question: Question::Complexity, answer: 2, confidence: UNCALIBRATED,
+        any_of: &["architecture", "across crates", "redesign", "migrate", "concurrency", "race condition"] },
+    Rule { id: "stakes.0.1", question: Question::Stakes, answer: 0, confidence: UNCALIBRATED,
+        any_of: &["explain", "show me", "read"] },
+    Rule { id: "stakes.2.1", question: Question::Stakes, answer: 2, confidence: UNCALIBRATED,
+        any_of: &["delete", "drop table", "force push", "production", "deploy", "rm rf", "credentials", "secret"] },
+    Rule { id: "allow_free_tier.1.1", question: Question::AllowFreeTier, answer: 1, confidence: UNCALIBRATED,
+        any_of: &["cheap", "free model", "free tier", "quick question", "any model", "no rush"] },
+    Rule { id: "allow_free_tier.0.1", question: Question::AllowFreeTier, answer: 0, confidence: UNCALIBRATED,
+        any_of: &["best model", "highest quality", "most capable", "critical"] },
+    Rule { id: "privacy_local.1.1", question: Question::PrivacyLocal, answer: 1, confidence: UNCALIBRATED,
+        any_of: &["offline", "local only", "locally", "private", "confidential", "on device", "do not send", "air gapped"] },
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -287,6 +169,10 @@ pub(super) fn confident(a: &Answer, tau: f32) -> bool {
     a.confidence >= tau
 }
 
+/// Complexity answer 0/1/2 → the `complexity` hint `build_selection_request` takes.
+const COMPLEXITY_SCORE_TO_U8: [u8; 3] = [2, 5, 8];
+
+/// TaskShape answer 0..=3 → task category.
 const TASK_SHAPES: [TaskCategory; 4] = [
     TaskCategory::CodeGen,
     TaskCategory::Research,
@@ -305,6 +191,14 @@ pub(super) fn selection_inputs(
     };
     let sure = |a: Option<Answer>, tau: f32| a.filter(|a| confident(a, tau)).map(|a| a.value);
     let may_set_task = res.task_unset;
+    let may_set_complexity = res.complexity_unset;
+    // prefer_local is derived from the caller's task (resolve.rs
+    // VOX_LOCAL_PREFERRED_TASKS), so it is unset exactly when task is.
+    let may_set_prefer_local = res.task_unset;
+    // `res` is post source-policy: resolve.rs writes any policy clutch into
+    // `res.clutch` before the decide() site, so a policy-derived clutch counts as set.
+    let may_set_allow_free = res.clutch.is_none();
+
     let task = match sure(pack.task_shape, TAU_APPLY) {
         Some(v) if may_set_task => TASK_SHAPES
             .get(usize::from(v))
@@ -312,7 +206,32 @@ pub(super) fn selection_inputs(
             .unwrap_or(caller.task),
         _ => caller.task,
     };
-    SelectionInputs { task, ..caller }
+    let complexity = match sure(pack.complexity, TAU_APPLY) {
+        Some(v) if may_set_complexity => COMPLEXITY_SCORE_TO_U8
+            .get(usize::from(v))
+            .copied()
+            .unwrap_or(caller.complexity),
+        _ => caller.complexity,
+    };
+    let private = sure(pack.privacy_local, TAU_APPLY) == Some(1);
+    let prefer_local = if may_set_prefer_local {
+        VOX_LOCAL_PREFERRED_TASKS.contains(&task) || private
+    } else {
+        caller.prefer_local
+    };
+    // Scorer eligibility only: lets `:free` specs compete under Performance
+    // (orchestrator ranking). It selects no policy, touches no axes, and never
+    // reads or reorders the free-floor list.
+    let allow_free = may_set_allow_free
+        && sure(pack.allow_free_tier, TAU_FREE) == Some(1)
+        && sure(pack.stakes, TAU_APPLY) != Some(2)
+        && !private;
+    SelectionInputs {
+        task,
+        complexity,
+        prefer_local,
+        allow_free,
+    }
 }
 
 /// The decide() request for this turn: `pack` (or `None` with the flag off)
