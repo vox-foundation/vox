@@ -175,6 +175,8 @@ fn merge_optional_node_fields(target: &mut NodeRecord, src: &NodeRecord) {
     if src.ed25519_pub_key_b64.is_some() {
         target.ed25519_pub_key_b64 = src.ed25519_pub_key_b64.clone();
     }
+    // Omission clears a previous free-memory reading. This copy does not touch total VRAM.
+    target.accelerator_free_mb = src.accelerator_free_mb;
 }
 
 pub(crate) async fn heartbeat(
@@ -383,4 +385,33 @@ pub(crate) async fn require_claimer_node_registered(
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod accelerator_free_mb_merge_tests {
+    use super::*;
+
+    fn minimal_record(id: &str) -> NodeRecord {
+        serde_json::from_str(&format!(
+            r#"{{"id":"{id}","capabilities":{{}},"version":"0.0.0","last_seen_unix_ms":0,"memory_free_bytes":null}}"#
+        ))
+        .expect("minimal NodeRecord JSON parses")
+    }
+
+    #[test]
+    fn merge_clears_accelerator_free_mb_when_later_heartbeat_omits_it() {
+        let mut target = minimal_record("node-1");
+        target.accelerator_free_mb = Some(16376);
+        target.gpu_vram_total_mb = Some(16376);
+        target.memory_free_bytes = Some(1);
+        let src = minimal_record("node-1");
+        merge_optional_node_fields(&mut target, &src);
+        assert_eq!(target.accelerator_free_mb, None);
+        assert_eq!(target.gpu_vram_total_mb, Some(16376));
+        assert_eq!(target.memory_free_bytes, Some(1));
+        let mut src = minimal_record("node-1");
+        src.accelerator_free_mb = Some(8192);
+        merge_optional_node_fields(&mut target, &src);
+        assert_eq!(target.accelerator_free_mb, Some(8192));
+    }
 }

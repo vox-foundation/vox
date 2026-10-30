@@ -70,6 +70,11 @@ pub struct NodeRecord {
     /// Total probed GPU VRAM in MB for the primary device (heterogeneity-aware planning).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gpu_vram_total_mb: Option<u64>,
+    /// Free accelerator memory in megabytes. Absent when the probe failed or a
+    /// later heartbeat omitted the field. This is not system RAM (`memory_free_bytes`)
+    /// and it is not the total-VRAM advertisement (`gpu_vram_total_mb`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accelerator_free_mb: Option<u64>,
     /// Probed GPU model name (e.g. `RTX 4080 SUPER`), when probe-backed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gpu_model_name: Option<String>,

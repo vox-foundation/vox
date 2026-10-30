@@ -212,6 +212,8 @@ fn merge_optional_node_fields(target: &mut NodeRecord, src: &NodeRecord) {
     if src.gpu_vram_total_mb.is_some() {
         target.gpu_vram_total_mb = src.gpu_vram_total_mb;
     }
+    // Omission clears a previous free-memory reading. Total VRAM stays copy-if-present.
+    target.accelerator_free_mb = src.accelerator_free_mb;
     if src.gpu_model_name.is_some() {
         target.gpu_model_name = src.gpu_model_name.clone();
     }
@@ -582,5 +584,22 @@ mod tests {
 
         assert_eq!(target.gpu_vram_total_mb, Some(16376));
         assert_eq!(target.gpu_model_name.as_deref(), Some("RTX 4080 SUPER"));
+    }
+
+    #[test]
+    fn merge_clears_accelerator_free_mb_when_later_heartbeat_omits_it() {
+        let mut target = minimal_record("node-1");
+        target.accelerator_free_mb = Some(16376);
+        target.gpu_vram_total_mb = Some(16376);
+        target.memory_free_bytes = Some(1);
+        let src = minimal_record("node-1");
+        merge_optional_node_fields(&mut target, &src);
+        assert_eq!(target.accelerator_free_mb, None);
+        assert_eq!(target.gpu_vram_total_mb, Some(16376));
+        assert_eq!(target.memory_free_bytes, Some(1));
+        let mut src = minimal_record("node-1");
+        src.accelerator_free_mb = Some(8192);
+        merge_optional_node_fields(&mut target, &src);
+        assert_eq!(target.accelerator_free_mb, Some(8192));
     }
 }
