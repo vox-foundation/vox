@@ -51,32 +51,52 @@ use std::process::Command;
 use vox_orchestrator_mcp::chat_tools::chatarc::{CommandHint, register_command_hint_provider};
 
 /// ChatARC command hints (phase 322-03): the compiled-in leaf commands of this
-/// binary, built once on first use. vox-orchestrator-mcp cannot depend on
-/// vox-cli, so the binary registers this provider; a spawn or join failure
-/// yields no hints (fail open).
+/// binary. vox-orchestrator-mcp cannot depend on vox-cli, so the binary
+/// registers this provider. The provider is called on a chat turn's async path,
+/// so it never blocks: the first call starts one background build and returns
+/// no hints, and later calls return the list once it is built. A failed spawn
+/// or a panicking build is logged and leaves the list empty (fail open). A
+/// plain `vox` invocation never calls the provider, so it builds nothing.
 fn chatarc_command_hints() -> Vec<CommandHint> {
     static HINTS: std::sync::OnceLock<Vec<CommandHint>> = std::sync::OnceLock::new();
-    HINTS
-        .get_or_init(|| {
-            // clap's recursive build of the command tree overflows the default stack.
-            std::thread::Builder::new()
-                .stack_size(32 * 1024 * 1024)
-                .spawn(|| {
-                    vox_cli::command_catalog::build_catalog()
-                        .entries
-                        .into_iter()
-                        .filter(|e| e.compiled_in && !e.has_subcommands)
-                        .map(|e| CommandHint {
-                            invocation: format!("vox {}", e.path.join(" ")),
-                            about: e.about,
-                        })
-                        .collect()
-                })
-                .ok()
-                .and_then(|handle| handle.join().ok())
-                .unwrap_or_default()
+    static WARM: std::sync::Once = std::sync::Once::new();
+    WARM.call_once(|| {
+        // clap's recursive build of the command tree overflows the default stack.
+        let spawned = std::thread::Builder::new()
+            .name("chatarc-command-hints".into())
+            .stack_size(32 * 1024 * 1024)
+            .spawn(
+                || match std::panic::catch_unwind(build_chatarc_command_hints) {
+                    Ok(hints) => {
+                        let _ = HINTS.set(hints);
+                    }
+                    Err(_) => tracing::warn!(
+                        target: "vox_cli::chatarc",
+                        "building ChatARC command hints panicked; no command hints this process"
+                    ),
+                },
+            );
+        if let Err(e) = spawned {
+            tracing::warn!(
+                target: "vox_cli::chatarc",
+                error = %e,
+                "could not spawn the ChatARC command-hint build; no command hints this process"
+            );
+        }
+    });
+    HINTS.get().cloned().unwrap_or_default()
+}
+
+fn build_chatarc_command_hints() -> Vec<CommandHint> {
+    vox_cli::command_catalog::build_catalog()
+        .entries
+        .into_iter()
+        .filter(|e| e.compiled_in && !e.has_subcommands)
+        .map(|e| CommandHint {
+            invocation: format!("vox {}", e.path.join(" ")),
+            about: e.about,
         })
-        .clone()
+        .collect()
 }
 
 #[tokio::main]
