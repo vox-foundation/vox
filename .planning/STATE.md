@@ -4,16 +4,16 @@ milestone: v5.6
 milestone_name: Reasoning Where the Lane Needs It
 current_phase: 320
 current_phase_name: Train the Sizes
-status: ready_to_plan
-stopped_at: Phase 320 context written — ready to plan
-last_updated: "2026-10-30T04:05:00.000Z"
+status: ready_to_execute
+stopped_at: Phase 320 planned - 2 plans, not executed
+last_updated: "2026-10-30T04:45:00.000Z"
 last_activity: 2026-10-29
-last_activity_desc: Phase 320 smart discuss context written
+last_activity_desc: Phase 320 plans written (320-01, 320-02)
 state_head: f2ab6c443
 progress:
   total_phases: 10
   completed_phases: 7
-  total_plans: 16
+  total_plans: 18
   completed_plans: 16
   percent: 70
 ---
@@ -22,8 +22,8 @@ progress:
 
 ## Current Position
 
-Phase: 320 (Train the Sizes) — not started
-Plan: none yet
+Phase: 320 (Train the Sizes) - planned, not executed
+Plan: 320-01 then 320-02
 Status: Phase 319 verified passed (12/12). Security threats_open 0. Nyquist compliant. v5.6 continues through 320–322; not done until two sizes have real trained scores and 322 is planned/executed or deferred.
 Last activity: 2026-10-29 — Phase 319 closed
 
@@ -42,7 +42,7 @@ Last activity: 2026-10-29 — Phase 319 closed
 
 ## Next Step
 
-Phase 320 context is written. Plan from the locked decisions. Do not re-open them. Do not download weights or start a live train. Phases 321–322 remain.
+Phase 320 has two plans. Execute 320-01, then 320-02. Do not re-open the locked decisions. Do not download weights or start a live train. Phases 321-322 remain.
 
 ## v5.5 Autonomous Progress (2026-10-25 America/Phoenix)
 
@@ -86,5 +86,5 @@ Phase 320 context is written. Plan from the locked decisions. Do not re-open the
 ## Session
 
 **Last session:** 2026-10-29
-**Stopped at:** Phase 320 context written, ready to plan
+**Stopped at:** Phase 320 planned (320-01, 320-02), not executed
 **Resume file:** None

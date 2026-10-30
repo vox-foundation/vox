@@ -137,7 +137,11 @@ Plans:
   1. Each size that fits produces a Metal QLoRA adapter whose manifest names its pinned base.
   2. A size that does not fit has a record with the measured memory and no adapter.
 
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 320-01-PLAN.md — One size_train.v1 record per qwen3_code QLoRA size, from an injected free-memory reading
+- [ ] 320-02-PLAN.md — Register vox mens size-train and take that reading once
 
 ### Phase 321: Harness Before/After (`HARN-01`, `BENCH-04`)
 
@@ -162,7 +166,7 @@ Plans:
 | **Phase 317** | Size Ladder | `1/1` | Complete    2026-10-28 |
 | **Phase 318** | Live VRAM Selector | `3/3` | Complete    2026-10-29 |
 | **Phase 319** | Mesh-Wide Selection | `3/3` | Complete    2026-10-29 |
-| **Phase 320** | Train the Sizes | `0/0` | Not started |
+| **Phase 320** | Train the Sizes | `0/2` | Planned |
 | **Phase 321** | Harness Before/After | `0/0` | Not started |
 | **Phase 322** | Calibrated turn decisions + ChatARC | `0/0` | Not started |
 
