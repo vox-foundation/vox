@@ -727,14 +727,16 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             super::mens_tail_subcommands::PopuliMensTail::EvalCollateralDamage {
                 pre_score,
                 post_adapter,
+                fail_fast,
             } => {
                 #[cfg(not(feature = "gpu"))]
-                let _ = (pre_score, post_adapter);
+                let _ = (pre_score, post_adapter, fail_fast);
 
                 #[cfg(feature = "gpu")]
                 crate::commands::mens::eval_collateral::run_collateral_damage(
                     pre_score,
                     post_adapter,
+                    fail_fast,
                 )?;
                 Ok(())
             }

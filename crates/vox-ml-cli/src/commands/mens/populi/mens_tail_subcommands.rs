@@ -54,6 +54,11 @@ pub enum PopuliMensTail {
         /// Adapter path to evaluate
         #[arg(long, id = "post")]
         post_adapter: PathBuf,
+        /// Score the reasoning slices one at a time in this order (comma-separated,
+        /// each slice once) and stop at the first that fails; later slices are
+        /// recorded as not_run.
+        #[arg(long, value_delimiter = ',')]
+        fail_fast: Option<Vec<String>>,
     },
 
     /// Build collateral pre-score JSON (six reasoning keys) from a compared

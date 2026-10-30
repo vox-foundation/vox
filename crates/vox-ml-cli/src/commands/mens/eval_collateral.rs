@@ -50,6 +50,137 @@ pub(crate) fn run_collateral_damage_with(
     run_dir: &Path,
     score_bench: &mut dyn FnMut(&str) -> Result<BenchScore>,
 ) -> Result<i32> {
+    let pre = load_pre(pre_score_path, run_dir)?;
+
+    let mut post: BTreeMap<&str, BenchScore> = BTreeMap::new();
+    for bench in pre.keys() {
+        // fails loudly; never falls back to `pre`
+        post.insert(bench.as_str(), score_bench(bench)?);
+    }
+
+    let cfg = CollateralDamageConfig::default();
+    let generic: Vec<(&str, f64, f64)> = pre
+        .iter()
+        .filter(|(bench, _)| reasoning_slice_of(bench).is_none())
+        .map(|(bench, p)| (bench.as_str(), *p, post[bench.as_str()].value))
+        .collect();
+    let generic_result = eval_collateral_damage_suite(&generic, &cfg);
+
+    let mut verdicts = Vec::with_capacity(SLICE_NAMES.len());
+    for name in SLICE_NAMES {
+        let init = format!("{name}{THINK_INIT_SUFFIX}");
+        verdicts.push(slice_verdict(
+            name,
+            &pre,
+            post[name],
+            post[init.as_str()],
+            &cfg,
+        )?);
+    }
+
+    let failing_slice = verdicts.iter().find(|v| v.exceeds_threshold());
+    let (status, failed_on, reports_json) = match (&generic_result, failing_slice) {
+        (Err(bad), _) => (
+            "fail",
+            Some(bad.benchmark_name.clone()),
+            vec![report_json(bad, None)],
+        ),
+        (Ok(_), Some(v)) => ("fail", v.failed_key(), vec![failing_report_json(v)]),
+        (Ok(rs), None) => {
+            let mut out: Vec<_> = rs.iter().map(|r| report_json(r, None)).collect();
+            out.extend(verdicts.iter().flat_map(slice_reports_json));
+            ("pass", None, out)
+        }
+    };
+
+    write_report(
+        run_dir,
+        json!({
+            "status": status,
+            "failed_on": failed_on,
+            "threshold": cfg.max_degradation_rate,
+            "reports": reports_json,
+            "reasoning_slices": reasoning_slices_json(&verdicts),
+        }),
+        &failed_on,
+    )
+}
+
+/// Fail-fast variant: scores the reasoning slices one at a time in `order` and
+/// stops at the first slice over the threshold. Slices after it are recorded as
+/// `not_run` with reason `fail_fast_after_<slice>` and no score. A partial
+/// report is always `fail`; when every slice passes it is a full report.
+pub(crate) fn run_collateral_damage_fail_fast_with(
+    pre_score_path: &Path,
+    run_dir: &Path,
+    order: &[String],
+    score_bench: &mut dyn FnMut(&str) -> Result<BenchScore>,
+) -> Result<i32> {
+    let pre = load_pre(pre_score_path, run_dir)?;
+    let mut want: Vec<&str> = order.iter().map(String::as_str).collect();
+    want.sort_unstable();
+    let mut all = SLICE_NAMES.to_vec();
+    all.sort_unstable();
+    if want != all {
+        anyhow::bail!(
+            "--fail-fast must name each reasoning slice exactly once ({SLICE_NAMES:?}), got {order:?}"
+        );
+    }
+    if let Some(other) = pre.keys().find(|b| reasoning_slice_of(b).is_none()) {
+        anyhow::bail!(
+            "--fail-fast scores reasoning slices only; the baseline also names '{other}'"
+        );
+    }
+
+    let cfg = CollateralDamageConfig::default();
+    let mut verdicts = Vec::with_capacity(order.len());
+    let mut not_run = Vec::new();
+    for (i, name) in order.iter().enumerate() {
+        let init = format!("{name}{THINK_INIT_SUFFIX}");
+        let (acc, think) = (score_bench(name)?, score_bench(&init)?);
+        let v = slice_verdict(name, &pre, acc, think, &cfg)?;
+        let failed = v.exceeds_threshold();
+        verdicts.push(v);
+        if failed {
+            not_run = order[i + 1..]
+                .iter()
+                .map(|rest| {
+                    json!({
+                        "benchmark": rest,
+                        "status": "not_run",
+                        "reason": format!("fail_fast_after_{name}"),
+                    })
+                })
+                .collect();
+            break;
+        }
+    }
+
+    let (status, failed_on, reports_json) = match verdicts.iter().find(|v| v.exceeds_threshold()) {
+        Some(v) => ("fail", v.failed_key(), vec![failing_report_json(v)]),
+        None => (
+            "pass",
+            None,
+            verdicts.iter().flat_map(slice_reports_json).collect(),
+        ),
+    };
+    write_report(
+        run_dir,
+        json!({
+            "status": status,
+            "failed_on": failed_on,
+            "threshold": cfg.max_degradation_rate,
+            "reports": reports_json,
+            "reasoning_slices": reasoning_slices_json(&verdicts),
+            "fail_fast_order": order,
+            "not_run": not_run,
+        }),
+        &failed_on,
+    )
+}
+
+/// Removes any stale report, then reads and validates the baseline.
+fn load_pre(pre_score_path: &Path, run_dir: &Path) -> Result<BTreeMap<String, f64>> {
     // A report from an earlier run must not survive a run that fails: serve
     // would read the old pass. Removed before anything else can fail.
     let report_path = run_dir.join("collateral_damage_report.json");
@@ -87,93 +218,78 @@ pub(crate) fn run_collateral_damage_with(
         );
     }
     require_reasoning_keys(pre.keys().map(String::as_str)).map_err(|e| anyhow::anyhow!(e))?;
+    Ok(pre)
+}
 
-    let mut post: BTreeMap<&str, BenchScore> = BTreeMap::new();
-    for bench in pre.keys() {
-        // fails loudly; never falls back to `pre`
-        post.insert(bench.as_str(), score_bench(bench)?);
-    }
-
-    let cfg = CollateralDamageConfig::default();
-    let generic: Vec<(&str, f64, f64)> = pre
-        .iter()
-        .filter(|(bench, _)| reasoning_slice_of(bench).is_none())
-        .map(|(bench, p)| (bench.as_str(), *p, post[bench.as_str()].value))
-        .collect();
-    let generic_result = eval_collateral_damage_suite(&generic, &cfg);
-
-    let mut verdicts = Vec::with_capacity(SLICE_NAMES.len());
-    for name in SLICE_NAMES {
-        let init = format!("{name}{THINK_INIT_SUFFIX}");
-        let (acc, think) = (post[name], post[init.as_str()]);
-        let n = match (acc.n, think.n) {
-            (Some(a), Some(t)) if a == t => a,
-            (Some(a), Some(t)) => {
-                anyhow::bail!("{name}: item counts differ ({name}: {a}, {init}: {t})")
-            }
-            _ => anyhow::bail!("{name}: scorer returned no item count for {name} or {init}"),
-        };
-        verdicts.push(
-            eval_reasoning_slice(
-                name,
-                (pre[name], acc.value),
-                (pre[init.as_str()], think.value),
-                n,
-                &cfg,
-            )
-            .map_err(|e| anyhow::anyhow!(e))?,
-        );
-    }
-
-    let failing_slice = verdicts.iter().find(|v| v.exceeds_threshold());
-    let (status, failed_on, reports_json) = match (&generic_result, failing_slice) {
-        (Err(bad), _) => (
-            "fail",
-            Some(bad.benchmark_name.clone()),
-            vec![report_json(bad, None)],
-        ),
-        (Ok(_), Some(v)) => {
-            let key = v.failed_key();
-            let r = if v.accuracy.exceeds_threshold {
-                &v.accuracy
-            } else {
-                &v.think_initiation
-            };
-            ("fail", key, vec![report_json(r, Some(v.n))])
+fn slice_verdict(
+    name: &str,
+    pre: &BTreeMap<String, f64>,
+    acc: BenchScore,
+    think: BenchScore,
+    cfg: &CollateralDamageConfig,
+) -> Result<vox_eval::reasoning_slice::ReasoningSliceVerdict> {
+    let init = format!("{name}{THINK_INIT_SUFFIX}");
+    let n = match (acc.n, think.n) {
+        (Some(a), Some(t)) if a == t => a,
+        (Some(a), Some(t)) => {
+            anyhow::bail!("{name}: item counts differ ({name}: {a}, {init}: {t})")
         }
-        (Ok(rs), None) => {
-            let mut out: Vec<_> = rs.iter().map(|r| report_json(r, None)).collect();
-            for v in &verdicts {
-                out.push(report_json(&v.accuracy, Some(v.n)));
-                out.push(report_json(&v.think_initiation, Some(v.n)));
-            }
-            ("pass", None, out)
-        }
+        _ => anyhow::bail!("{name}: scorer returned no item count for {name} or {init}"),
     };
+    eval_reasoning_slice(
+        name,
+        (pre[name], acc.value),
+        (pre[init.as_str()], think.value),
+        n,
+        cfg,
+    )
+    .map_err(|e| anyhow::anyhow!(e))
+}
 
+fn failing_report_json(v: &vox_eval::reasoning_slice::ReasoningSliceVerdict) -> serde_json::Value {
+    let r = if v.accuracy.exceeds_threshold {
+        &v.accuracy
+    } else {
+        &v.think_initiation
+    };
+    report_json(r, Some(v.n))
+}
+
+fn slice_reports_json(
+    v: &vox_eval::reasoning_slice::ReasoningSliceVerdict,
+) -> [serde_json::Value; 2] {
+    [
+        report_json(&v.accuracy, Some(v.n)),
+        report_json(&v.think_initiation, Some(v.n)),
+    ]
+}
+
+fn write_report(
+    run_dir: &Path,
+    report: serde_json::Value,
+    failed_on: &Option<String>,
+) -> Result<i32> {
     std::fs::create_dir_all(run_dir)?;
     std::fs::write(
         run_dir.join("collateral_damage_report.json"),
-        serde_json::to_string_pretty(&json!({
-            "status": status,
-            "failed_on": failed_on,
-            "threshold": cfg.max_degradation_rate,
-            "reports": reports_json,
-            "reasoning_slices": reasoning_slices_json(&verdicts),
-        }))?,
+        serde_json::to_string_pretty(&report)?,
     )?;
-
-    if let Some(bench) = &failed_on {
+    if let Some(bench) = failed_on {
         eprintln!("Collateral damage check FAILED on benchmark '{bench}'.");
+        Ok(1)
     } else {
         println!("Collateral damage check PASSED.");
+        Ok(0)
     }
-    Ok(if status == "pass" { 0 } else { 1 })
 }
 
 /// CLI entry point. Builds the real, adapter-backed scorer and owns the exit
 /// code — the `exit` lives here so the core above stays testable.
-pub fn run_collateral_damage(pre_score_path: PathBuf, post_adapter_path: PathBuf) -> Result<()> {
+pub fn run_collateral_damage(
+    pre_score_path: PathBuf,
+    post_adapter_path: PathBuf,
+    fail_fast: Option<Vec<String>>,
+) -> Result<()> {
     println!(
         "Evaluating collateral damage against baseline: {}",
         pre_score_path.display()
@@ -181,7 +297,15 @@ pub fn run_collateral_damage(pre_score_path: PathBuf, post_adapter_path: PathBuf
     println!("Using adapter: {}", post_adapter_path.display());
 
     let mut scorer = |bench: &str| score_bench(bench, &post_adapter_path);
-    let code = run_collateral_damage_with(&pre_score_path, &post_adapter_path, &mut scorer)?;
+    let code = match &fail_fast {
+        Some(order) => run_collateral_damage_fail_fast_with(
+            &pre_score_path,
+            &post_adapter_path,
+            order,
+            &mut scorer,
+        )?,
+        None => run_collateral_damage_with(&pre_score_path, &post_adapter_path, &mut scorer)?,
+    };
     if code != 0 {
         std::process::exit(code);
     }
@@ -711,5 +835,97 @@ mod tests {
         assert!(entry.get("slice").is_none() && entry.get("n").is_none());
         assert_eq!(entry["pre"], 0.85);
         assert_eq!(entry["post"], 0.84);
+    }
+
+    fn fail_fast_order() -> Vec<String> {
+        ["vox_think", "gsm8k_think", "math500_think"]
+            .map(String::from)
+            .to_vec()
+    }
+
+    #[test]
+    fn fail_fast_stops_at_the_first_failing_slice_and_marks_the_rest_not_run() {
+        let dir = tempfile::tempdir().unwrap();
+        let pre = write_baseline(dir.path(), &[], &[]);
+        let mut asked: Vec<String> = Vec::new();
+        let mut scorer = |bench: &str| {
+            asked.push(bench.to_string());
+            Ok(match bench {
+                // gsm8k also degrades: it must never be scored, so it cannot be the verdict.
+                "vox_think" | "gsm8k_think" => score(0.40625, Some(32)),
+                _ => flat(bench, 0.84),
+            })
+        };
+        let code =
+            run_collateral_damage_fail_fast_with(&pre, dir.path(), &fail_fast_order(), &mut scorer)
+                .unwrap();
+        assert_eq!(code, 1);
+        assert_eq!(asked, ["vox_think", "vox_think_init"]);
+        let report = read_report(dir.path());
+        assert_eq!(report["status"], "fail");
+        assert_eq!(report["failed_on"], "vox_think");
+        assert_eq!(report["fail_fast_order"], json!(fail_fast_order()));
+        let not_run = report["not_run"].as_array().unwrap();
+        assert_eq!(not_run.len(), 2);
+        for (entry, name) in not_run.iter().zip(["gsm8k_think", "math500_think"]) {
+            assert_eq!(entry["benchmark"], name);
+            assert_eq!(entry["status"], "not_run");
+            assert_eq!(entry["reason"], "fail_fast_after_vox_think");
+            assert!(entry.get("post").is_none(), "no invented score");
+        }
+        let benches = report["reasoning_slices"]["benches"].as_object().unwrap();
+        assert_eq!(benches.keys().collect::<Vec<_>>(), ["vox_think"]);
+    }
+
+    #[test]
+    fn fail_fast_runs_every_slice_in_order_when_all_pass() {
+        let dir = tempfile::tempdir().unwrap();
+        let pre = write_baseline(dir.path(), &[], &[]);
+        let mut asked: Vec<String> = Vec::new();
+        let mut scorer = |bench: &str| {
+            asked.push(bench.to_string());
+            Ok(flat(bench, 0.84))
+        };
+        let code =
+            run_collateral_damage_fail_fast_with(&pre, dir.path(), &fail_fast_order(), &mut scorer)
+                .unwrap();
+        assert_eq!(code, 0);
+        assert_eq!(
+            asked,
+            [
+                "vox_think",
+                "vox_think_init",
+                "gsm8k_think",
+                "gsm8k_think_init",
+                "math500_think",
+                "math500_think_init"
+            ]
+        );
+        let report = read_report(dir.path());
+        assert_eq!(report["status"], "pass");
+        assert_eq!(report["not_run"], json!([]));
+        assert_labelled(&report);
+        vox_eval::reasoning_slice::verify_reasoning_slices(
+            &report,
+            &CollateralDamageConfig::default(),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn fail_fast_refuses_an_order_that_skips_a_slice() {
+        let dir = tempfile::tempdir().unwrap();
+        let pre = write_baseline(dir.path(), &[], &[]);
+        let mut calls = 0;
+        {
+            let mut scorer = scorer_over(&[], &mut calls);
+            let order = ["vox_think", "gsm8k_think"].map(String::from).to_vec();
+            assert!(
+                run_collateral_damage_fail_fast_with(&pre, dir.path(), &order, &mut scorer)
+                    .is_err()
+            );
+        }
+        assert_eq!(calls, 0);
+        no_report(dir.path());
     }
 }
