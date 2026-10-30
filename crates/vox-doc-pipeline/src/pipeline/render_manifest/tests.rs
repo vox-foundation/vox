@@ -217,7 +217,8 @@ fn a_mount_outside_the_repo_or_not_markdown_is_an_error() {
     let fenced = format!("```vox-diagram\n{}```\n", fence("o"));
     std::fs::write(r.parent().unwrap().join(&outside), fenced).unwrap();
     let up = format!("../{outside}");
-    for bad in [up.as_str(), "/etc/x.md", "notes.txt", "missing.md"] {
+    let abs = r.parent().unwrap().join(&outside).display().to_string();
+    for bad in [up.as_str(), abs.as_str(), "notes.txt", "missing.md"] {
         let rendered = render_diagrams(&r, &mounts(&args(&["--mount", bad])));
         assert!(
             rendered.errors.len() == 1 && rendered.errors[0].contains("diagram-mount"),
