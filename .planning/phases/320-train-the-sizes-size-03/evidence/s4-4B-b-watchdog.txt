@@ -1,0 +1,4 @@
+limit 55998152704 (free 57500 MiB - 4096 MiB) deadline 90000s vox_pid=81750
+2026-10-30T13:58:50Z SIGINT ml_pid=81755 n=1108: stall 165993ms since last row (> 5x 32731ms)
+2026-10-30T14:00:50Z SIGKILL ml_pid=81755
+2026-10-30T14:00:52Z watchdog done; killed_at=1793368729; last peak=34677030912 n=1108 exit=137

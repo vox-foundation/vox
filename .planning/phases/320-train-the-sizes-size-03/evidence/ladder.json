@@ -119,10 +119,10 @@
       "over_24h": false,
       "trainer_projected_full_secs": null,
       "probe_dir": "mens/runs/320-probe-4B-postfix",
-      "reason": "post-fix re-probe (c56e13a33), 2026-10-30T01:46Z; capped at row 40 after the first 3071-token row 33; not trained by user decision (320-S3-4B-REPROBE.md)",
-      "s4_status": "not_trained",
-      "floor_mb_before": 56000,
-      "floor_mb_after": 33037,
+      "reason": "post-fix re-probe (c56e13a33), 2026-10-30T01:46Z, capped at row 40 after the first 3071-token row 33; trained in full on 2026-10-30 by user decision (320-S4-RUNS.md)",
+      "s4_status": "trained",
+      "floor_mb_before": 33037,
+      "floor_mb_after": 34460,
       "floor_measured": true,
       "history": [
         {
@@ -145,7 +145,33 @@
           "floor_mb_after": 56000,
           "floor_measured": false
         }
-      ]
+      ],
+      "s4_forced": true,
+      "s4_forced_reason": "trainer Metal estimate 61637 MB exceeded live free memory (57695 MB at launch a); measured re-probe peak 33037; watchdog limit free-at-launch minus 4096 MiB",
+      "s4_free_mb_at_launch": 57500,
+      "s4_resume": {
+        "needed": true,
+        "from_global_step": 1080,
+        "cause": "watchdog stall rule fired during post-epoch validation (no step rows); SIGINT 13:58:50Z, SIGKILL 14:00:50Z; not memory"
+      },
+      "s4_optimizer_steps": 138,
+      "s4_micro_steps": 1108,
+      "s4_final_loss_ema": 0.5434616348390439,
+      "s4_final_loss_ema_note": "EMA restarted at the resume; covers rows 1081-1108 only. Launch b EMA at micro 1107: 0.5999",
+      "s4_avg_val_loss": 0.6970950328960216,
+      "s4_loss_first_quarter_mean": 1.0907574956631456,
+      "s4_loss_last_quarter_mean": 0.603442414295101,
+      "s4_peak_mb": 34460,
+      "s4_peak_source": "run_summary (resumed segment); uninterrupted rows 1-1108 peaked 33071 MiB (telemetry)",
+      "s4_secs_per_row": 35.11,
+      "s4_train_wall_secs": 39438,
+      "s4_wall_hours": 10.96,
+      "s4_elapsed_hours": 11.31,
+      "s4_truncated_rows": 0,
+      "s4_prompt_trimmed_rows": 0,
+      "s4_truncation_note": "counts cover the 28 resumed rows only; launch b was killed before writing counts",
+      "s4_adapter": "/Users/brbrainerd/dev/vox-mens-compare/mens/runs/qwen3-4b/candle_qlora_adapter.safetensors",
+      "floor_basis": "S4 full-run peak (s4_peak_mb); the re-probe had set 33037, 320-08 56000 (estimate), 9800 before that"
     },
     {
       "size": "8B",

@@ -1,0 +1,34 @@
+vox-broker: queued (cap 6, 2 build(s) ahead) — build in /Users/brbrainerd/dev/vox-mens-compare
+[1m[92m   Compiling[0m vox-config v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-config)
+[1m[92m   Compiling[0m vox-corpus v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-corpus)
+[1m[92m   Compiling[0m vox-ml-cli v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-ml-cli)
+[1m[92m   Compiling[0m vox-repository v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-repository)
+[1m[92m   Compiling[0m vox-code-audit v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-code-audit)
+[1m[92m   Compiling[0m vox-vcs v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-vcs)
+[1m[92m   Compiling[0m vox-db v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-db)
+[1m[92m   Compiling[0m vox-compiler v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-compiler)
+[1m[92m   Compiling[0m vox-populi-types v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-populi-types)
+[1m[92m   Compiling[0m vox-openclaw-runtime v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-openclaw-runtime)
+[1m[92m   Compiling[0m vox-package v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-package)
+[1m[92m   Compiling[0m vox-orchestrator-queue v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-orchestrator-queue)
+[1m[92m   Compiling[0m vox-orchestrator-models v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-orchestrator-models)
+[1m[92m   Compiling[0m vox-skills v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-skills)
+[1m[92m   Compiling[0m vox-actor-runtime v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-actor-runtime)
+[1m[92m   Compiling[0m vox-tensor v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-tensor)
+[1m[92m   Compiling[0m vox-gamify v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-gamify)
+[1m[92m   Compiling[0m vox-search v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-search)
+[1m[92m   Compiling[0m vox-populi v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-populi)
+[1m[92m   Compiling[0m vox-lsp v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-lsp)
+[1m[92m   Compiling[0m vox-orchestrator v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-orchestrator)
+[1m[92m   Compiling[0m vox-orchestrator-driver v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-orchestrator-driver)
+[1m[92m   Compiling[0m vox-cli-core v0.6.0 (/Users/brbrainerd/dev/vox-mens-compare/crates/vox-cli-core)
+[1m[33mwarning[0m[1m: constant `MANIFEST_FILENAME` is never used[0m
+ [1m[94m--> [0mcrates/vox-ml-cli/src/commands/mens/ladder_serve.rs:9:18
+  [1m[94m|[0m
+[1m[94m9[0m [1m[94m|[0m pub(crate) const MANIFEST_FILENAME: &str = "training_manifest.json";
+  [1m[94m|[0m                  [1m[33m^^^^^^^^^^^^^^^^^[0m
+  [1m[94m|[0m
+  [1m[94m= [0m[1mnote[0m: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+[1m[33mwarning[0m: `vox-ml-cli` (lib) generated 1 warning
+[1m[92m    Finished[0m `release` profile [optimized] target(s) in 7m 00s
