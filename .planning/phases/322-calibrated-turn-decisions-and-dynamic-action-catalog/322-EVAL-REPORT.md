@@ -1,6 +1,6 @@
 # Phase 322 Eval Report: Turn Decision Pack Selective Prediction (DEC-04)
 
-**Pack version:** `turn-pack.v2`. The first held-out run was on `turn-pack.v1`. Two questions failed the 0.10 risk gate in that run, so both were disabled (fail closed) and the version was bumped to v2. See "Fail-closed decision" below.
+**Pack version:** `turn-pack.v3`. The first held-out run was on `turn-pack.v1`. Two questions failed the 0.10 risk gate in that run, so both were disabled (fail closed) and the version was bumped to v2. v3 adds the firing-based free-tier and Stakes vetoes from the code review; no rule, threshold or answer changed, and every metric below is identical under v3. See "Fail-closed decision" and "Review fixes" below.
 
 **Measured by:** `selective_eval_report` in `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/turn_pack_eval_tests.rs`. It prints one `TURN_PACK_EVAL <json>` line and fails if any enabled question's risk at τ is above 0.10.
 
@@ -103,7 +103,7 @@ Each edit fixes a named calib miss. All of them were made before any eval metric
 The v1 held-out run measured risk@τ = 0.25 for TaskShape and 0.25 for Stakes, against a gate of 0.10. As the plan requires, no rule, label or eval line was edited. The response was:
 
 - `TAU_DISABLED = 1.01` was added next to `PACK_VERSION`. `tau_for` returns it for TaskShape and Stakes. `selection_inputs` reads every threshold from that table, the report marks both questions `disabled`, and `PACK_VERSION` is now `turn-pack.v2`.
-- **Stakes is a veto, so it fails closed differently.** Its only role is to veto free-tier eligibility. A threshold above 1.0 would make the veto never fire, which fails *open*. A disabled Stakes therefore vetoes on any stakes-2 firing, whatever the firing's confidence. An unreliable stakes detector can only block more free routing, never less. Its eval error (e06) was itself a false "high stakes" call, which is the conservative direction. `disabled_questions_fail_closed` pins this behavior.
+- **Stakes is a veto, so it fails closed differently.** Its only role is to veto free-tier eligibility. A threshold above 1.0 would make the veto never fire, which fails *open*. A disabled Stakes therefore vetoes on any stakes-2 firing, whatever the firing's confidence. (v3: the veto is computed from the firings themselves, so it also holds when a stakes-0 rule wins the argmax and at any Stakes threshold; see "Review fixes".) An unreliable stakes detector can only block more free routing, never less. Its eval error (e06) was itself a false "high stakes" call, which is the conservative direction. `disabled_questions_fail_closed` pins this behavior.
 - TaskShape disabled means the pack never patches `task`. Because the pack also recomputes `prefer_local` from task, `prefer_local` changes only through a confident privacy answer.
 
 ## Raw TURN_PACK_EVAL lines
@@ -120,10 +120,32 @@ v2 (published; `/tmp/322-02-t3.log`):
 TURN_PACK_EVAL {"pack_version":"turn-pack.v2","eval_sha256":"3322f031870eeb15d3f3d29195efe5be58a280610cef3b4915b82d48171a611f","n":28,"questions":{"TaskShape":{"n":28,"answered":13,"accuracy":0.8461538461538461,"ece":0.1776923078757066,"tau":1.0099999904632568,"coverage_at_tau":0.0,"risk_at_tau":0.0,"coverage_at_error_0_05":0.0,"coverage_at_error_0_10":0.0,"disabled":true},"Complexity":{"n":28,"answered":1,"accuracy":1.0,"ece":0.5999999940395355,"tau":0.800000011920929,"coverage_at_tau":0.0,"risk_at_tau":0.0,"coverage_at_error_0_05":0.03571428571428571,"coverage_at_error_0_10":0.03571428571428571,"disabled":false},"Stakes":{"n":28,"answered":4,"accuracy":0.75,"ece":0.050000011920928955,"tau":1.0099999904632568,"coverage_at_tau":0.0,"risk_at_tau":0.0,"coverage_at_error_0_05":0.0,"coverage_at_error_0_10":0.0,"disabled":true},"AllowFreeTier":{"n":28,"answered":1,"accuracy":1.0,"ece":0.13999998569488525,"tau":0.8500000238418579,"coverage_at_tau":0.03571428571428571,"risk_at_tau":0.0,"coverage_at_error_0_05":0.03571428571428571,"coverage_at_error_0_10":0.03571428571428571,"disabled":false},"PrivacyLocal":{"n":28,"answered":3,"accuracy":1.0,"ece":0.19999998807907104,"tau":0.800000011920929,"coverage_at_tau":0.10714285714285714,"risk_at_tau":0.0,"coverage_at_error_0_05":0.10714285714285714,"coverage_at_error_0_10":0.10714285714285714,"disabled":false}},"dual_wording_agreement":{"pairs":4,"all_questions":0.25,"per_question":{"TaskShape":0.5,"Complexity":1.0,"Stakes":1.0,"AllowFreeTier":0.75,"PrivacyLocal":0.75}},"option_order_agreement":{"pairs":2,"all_questions":1.0,"per_question":{"TaskShape":1.0,"Complexity":1.0,"Stakes":1.0,"AllowFreeTier":1.0,"PrivacyLocal":1.0}},"patched_turns":1}
 ```
 
+## Review fixes (322-REVIEW.md, turn-pack.v3)
+
+The code review found that the pack's safety story was weaker than this report claimed. The fixes changed what the pack reads and when it vetoes. They changed no rule keyword, confidence, threshold, label or eval line.
+
+| Finding | Change | Test (RED → GREEN) |
+| ------- | ------ | ------------------ |
+| CR-01 | The pack scores `McpChatModelResolution.decision_prompt`: the user's own words before `@mention` expansion and canonicalization, or a research slash command's query. ChatARC gets the same text. Before the fix both scored `expanded_prompt`, which inlines mentioned files and the "Objectives …" header. | `pack_scores_decision_prompt_not_mention_expanded_text`, `turn_decision_text_is_the_users_own_words` |
+| WR-01 | `decision_prompt` being `Some` is the pack's opt-in. Only `try_run_agent_turn` sets it. | `resolution_without_decision_prompt_is_never_patched` |
+| CR-02 | `TurnPack.free_veto` is set by any deny-side AllowFreeTier rule or a negated free phrase. Examples are "don't use a free model" and "quick question, best model". | `negated_or_deny_side_free_cues_veto_allow_free` |
+| WR-02 | `free_veto` is also set by credential words or anything `vox_redact::redact_owned` would elide (`sk-`, `ghp_`, `AKIA`, JWT, bearer and `api_key=` values, emails, private IPs). | `secret_shaped_text_vetoes_allow_free` |
+| WR-04 | `TurnPack.stakes_veto` is set by any stakes-2 firing, independent of the argmax winner and of the Stakes τ. | `stakes_veto_holds_when_a_stakes_0_rule_outranks_it` |
+
+**Metric change: none.** The vetoes are computed beside the answers, not into them. Every per-question number, both agreement tables and `patched_turns` (1 of 28, e13) are byte-identical to v2. Only `pack_version` changed. No eval turn with an allow-free answer carries a negation, a deny cue or a secret shape. `rule_confidences_match_calib_split` passes unchanged, so no confidence needed re-derivation. `shasum -a 256 -c evidence/322-02-eval-freeze.txt` still reports OK. The ChatARC eval line is unchanged (`chatarc.v2`, `disabled: true`). WR-09 only stops a disabled ChatARC from gathering candidates, and the eval calls `decide` directly.
+
+The negation and credential lexicons were chosen from the review's examples before the eval was re-run, not tuned on it. e13 ("No need for anything fancy, a free model is fine") still allows free routing, because "no need" is not a listed negation.
+
+v3 (`/tmp/322-fix-eval.log`):
+
+```text
+TURN_PACK_EVAL {"pack_version":"turn-pack.v3","eval_sha256":"3322f031870eeb15d3f3d29195efe5be58a280610cef3b4915b82d48171a611f","n":28,"questions":{"TaskShape":{"n":28,"answered":13,"accuracy":0.8461538461538461,"ece":0.1776923078757066,"tau":1.0099999904632568,"coverage_at_tau":0.0,"risk_at_tau":0.0,"coverage_at_error_0_05":0.0,"coverage_at_error_0_10":0.0,"disabled":true},"Complexity":{"n":28,"answered":1,"accuracy":1.0,"ece":0.5999999940395355,"tau":0.800000011920929,"coverage_at_tau":0.0,"risk_at_tau":0.0,"coverage_at_error_0_05":0.03571428571428571,"coverage_at_error_0_10":0.03571428571428571,"disabled":false},"Stakes":{"n":28,"answered":4,"accuracy":0.75,"ece":0.050000011920928955,"tau":1.0099999904632568,"coverage_at_tau":0.0,"risk_at_tau":0.0,"coverage_at_error_0_05":0.0,"coverage_at_error_0_10":0.0,"disabled":true},"AllowFreeTier":{"n":28,"answered":1,"accuracy":1.0,"ece":0.13999998569488525,"tau":0.8500000238418579,"coverage_at_tau":0.03571428571428571,"risk_at_tau":0.0,"coverage_at_error_0_05":0.03571428571428571,"coverage_at_error_0_10":0.03571428571428571,"disabled":false},"PrivacyLocal":{"n":28,"answered":3,"accuracy":1.0,"ece":0.19999998807907104,"tau":0.800000011920929,"coverage_at_tau":0.10714285714285714,"risk_at_tau":0.0,"coverage_at_error_0_05":0.10714285714285714,"coverage_at_error_0_10":0.10714285714285714,"disabled":false}},"dual_wording_agreement":{"pairs":4,"all_questions":0.25,"per_question":{"TaskShape":0.5,"Complexity":1.0,"Stakes":1.0,"AllowFreeTier":0.75,"PrivacyLocal":0.75}},"option_order_agreement":{"pairs":2,"all_questions":1.0,"per_question":{"TaskShape":1.0,"Complexity":1.0,"Stakes":1.0,"AllowFreeTier":1.0,"PrivacyLocal":1.0}},"patched_turns":1}
+```
+
 ## Live resolve path (L-01, L-03)
 
 These tests use a registry that holds only a free model, under Performance. They are in `model_route_policy/tests.rs`.
-- `pack_on_lets_free_model_compete_under_performance`: flag on, the calib prompt c17 is the `capability_prompt`, and the result is `Ok("free-model")`.
+- `pack_on_lets_free_model_compete_under_performance`: flag on, the calib prompt c17 is the `decision_prompt` (v3; it was the `capability_prompt` before the review fixes), and the result is `Ok("free-model")`.
 - `pack_off_keeps_free_model_excluded_under_performance`: flag off, so the free model is excluded.
 - `source_policy_clutch_blocks_pack_allow_free`: the source policy `Interactive = genius` sets a clutch, so the free model is excluded.
 - `flag_on_without_capability_prompt_builds_no_pack`: there is no `capability_prompt`, so no pack is built and the free model is excluded.
@@ -136,7 +158,7 @@ Mutations M8, M9 and M10 prove that each of these three exclusions depends on it
 - **The sample is small.** n is 28 (eval) and 30 (calib). At low coverage a single error moves risk@τ by about 0.2 or more. Both gate failures were one or two items: e06, and the pair e20/e21. The questions that pass do so on 1 to 3 answered items (AllowFreeTier answered exactly 1 eval turn), so their 0.0 risk is weak evidence.
 - **Lexical rules have a recall ceiling.** Coverage@τ is at most 0.11 for every enabled question, and the dual-wording misses are vocabulary gaps. Most turns get no pack answer and fall through to today's request.
 - **Calib numbers are in-sample, eval numbers are held out.** The confidences are fit to calib, and the eval numbers above are the only out-of-sample evidence.
-- **allow_free only fires when no clutch is set.** It is therefore inert wherever the GUI or daemon always sends a clutch, and a source-policy clutch also counts as set. In practice the allow-free answer only affects callers that leave `clutch` as `None`.
+- **allow_free only fires when no clutch is set, and only on the default chat turn.** It is therefore inert wherever the GUI or daemon always sends a clutch, and a source-policy clutch also counts as set. Since the review fixes, the pack also runs only when `decision_prompt` is set, which only `try_run_agent_turn` does, so browser tools, t3 consensus, cognitive profiles and `call_llm_with_pref` never get a pack.
 - **Hosted Jev and MENS chat distillation are excluded by L-11** (RESEARCH F9). The DEC-04 clause "Jev gated by inference_privacy_local_only_from_env" is out of scope.
 - **The flag is off by default** (`VOX_TURN_DECISION_PACK`). With it off, the request is byte-identical to the 322-01 goldens, and those golden tests still pass inside the `turn_pack` filter run.
 
