@@ -7,6 +7,7 @@ import { voxGrammar } from './src/plugins/vox-grammar.mjs';
 import { getSidebar } from './src/utils/sidebar.mjs';
 import { remarkVoxInclude } from './src/plugins/remark-vox-include.mjs';
 import { remarkDocLinks } from './src/plugins/remark-doc-links.mjs';
+import { remarkStripTitleH1 } from './src/plugins/remark-strip-title-h1.mjs';
 import { voxDiagram } from './src/plugins/vox-diagram-integration.mjs';
 import { listDocPages, noindexRoutes, internalsDocIds } from './src/utils/page-index.mjs';
 
@@ -24,6 +25,7 @@ export default defineConfig({
   // Build fails loudly for any unresolved path/anchor — preventing silent blank code blocks.
   markdown: {
     remarkPlugins: [
+      remarkStripTitleH1,
       remarkVoxInclude,
       [remarkDocLinks, { repoUrl: 'https://github.com/vox-foundation/vox' }],
     ],
