@@ -389,6 +389,7 @@ fn eval_local_missing_model_errors() {
         1,
         1337,
         None,
+        false,
     );
     assert!(result.is_err());
     let msg = result.unwrap_err().to_string();

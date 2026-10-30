@@ -43,6 +43,8 @@ pub(crate) enum Side {
 pub(crate) enum RunStatus {
     /// All six entries were scored.
     Compared,
+    /// `--slices` named a strict subset and both sides of each were scored.
+    Partial,
     /// An absence record was written.
     NotCompared(AbsenceReason),
 }
@@ -55,7 +57,17 @@ pub(crate) struct CompareArgs {
     pub hub_root: Option<PathBuf>,
     pub bench_root: PathBuf,
     pub out: Option<PathBuf>,
+    /// Score only these slices (a `partial` record unless every slice is named).
+    pub slices: Option<Vec<String>>,
+    /// Build the report from the per-item checkpoint only; never generate.
+    pub merge_only: bool,
+    /// Discard existing per-item checkpoints instead of reusing them.
+    pub force_restart: bool,
 }
+
+/// Inference error for an item `--merge-only` found no checkpointed generation for.
+pub(crate) const MERGE_ONLY_REFUSAL: &str =
+    "not in the per-item checkpoint; --merge-only never generates";
 
 /// Scores one side on the loaded slices and returns one named outcome per slice.
 pub(crate) type SideScorer<'a> = &'a mut dyn FnMut(
@@ -179,6 +191,7 @@ pub(crate) fn run_before_after_with(
     bench_root: &Path,
     out: &Path,
     base_rungs: &serde_json::Value,
+    selected: &[&'static str],
     score_side: SideScorer<'_>,
 ) -> Result<RunStatus> {
     remove_stale_record(out)?;
@@ -196,7 +209,7 @@ pub(crate) fn run_before_after_with(
         } => {
             let mut load_errors: Vec<(&'static str, String)> = Vec::new();
             let mut loaded: Vec<(&'static str, Vec<ReasoningItem>)> = Vec::new();
-            for name in SLICE_NAMES {
+            for name in selected.iter().copied() {
                 match load_slice(&bench_root.join(name).join("reasoning.jsonl"), SLICE_SIZE) {
                     Ok(items) => loaded.push((name, items)),
                     Err(e) => load_errors.push((name, format!("loading slice: {e}"))),
@@ -224,18 +237,27 @@ pub(crate) fn run_before_after_with(
                     .map(|(_, o)| o.clone())
                     .unwrap_or_else(|| not_scored("scorer returned no outcome"))
             };
-            let rows: Vec<(&str, BenchOutcome, BenchOutcome)> = SLICE_NAMES
+            let rows: Vec<(&str, BenchOutcome, BenchOutcome)> = selected
                 .iter()
                 .map(|n| (*n, pick(&base_out, n), pick(&adapter_out, n)))
                 .collect();
             let adapter_dir = adapter.canonicalize().unwrap_or(adapter);
             let (mut report, compared) = compared_report_json(&base, &adapter_dir, &rows);
+            let is_scored = |o: &BenchOutcome| matches!(o, BenchOutcome::Scored(_));
+            let partial = selected.len() < SLICE_NAMES.len()
+                && rows.iter().all(|(_, b, a)| is_scored(b) && is_scored(a));
+            if partial {
+                report["status"] = "partial".into();
+                report["slices_requested"] = serde_json::json!(selected);
+            }
             report["base_rungs"] = base_rungs.clone();
             write_report(out, &report)?;
             if compared {
                 return Ok(RunStatus::Compared);
             }
-            let is_scored = |o: &BenchOutcome| matches!(o, BenchOutcome::Scored(_));
+            if partial {
+                return Ok(RunStatus::Partial);
+            }
             let first = rows.iter().find_map(|(n, b, a)| {
                 (!is_scored(b))
                     .then_some((*n, "base"))
@@ -252,30 +274,56 @@ pub(crate) fn run_before_after_with(
     }
 }
 
-/// Score every loaded slice through `infer` with the unchanged grader. Writes nothing.
-pub(crate) fn score_slices_loaded(
+/// Score every loaded slice of one model through the shared per-item
+/// checkpoint under `ck_root`, calling `infer` only for items not yet recorded.
+/// `Err` only when a checkpoint cannot be opened (a refused mismatch).
+pub(crate) fn score_slices_checkpointed(
+    ck_root: &Path,
+    model_dir: &Path,
     slices: &[(&'static str, Vec<ReasoningItem>)],
     max_tokens: usize,
+    force_restart: bool,
     infer: &mut dyn FnMut(&str) -> Result<String>,
-) -> Vec<(&'static str, BenchOutcome)> {
+) -> Result<Vec<(&'static str, BenchOutcome)>> {
     slices
         .iter()
         .map(|(name, items)| {
-            let (outcome, _rows) = reasoning_eval::score_loaded(name, items, max_tokens, infer);
-            (*name, outcome)
+            let (outcome, _rows) = reasoning_eval::score_slice_checkpointed(
+                ck_root,
+                model_dir,
+                name,
+                items,
+                max_tokens,
+                force_restart,
+                infer,
+            )?;
+            Ok((*name, outcome))
         })
         .collect()
 }
 
-/// Load `model_dir` once in the selected backend, score, and unload before
-/// returning so two models are never resident. Any plugin or load error makes
-/// every passed slice `NotScored` (fail closed, no number).
+/// Score one side through the checkpoint, loading `model_dir` in the selected
+/// backend only if an item needs generating and unloading it before returning,
+/// so two models are never resident. `merge_only` never loads a model. Any
+/// plugin or checkpoint error makes every passed slice `NotScored` (fail
+/// closed, no number).
 fn score_side_with_backend(
     model_dir: &Path,
     slices: &[(&'static str, Vec<ReasoningItem>)],
     max_tokens: usize,
+    force_restart: bool,
+    merge_only: bool,
 ) -> Vec<(&'static str, BenchOutcome)> {
-    match backend_scores(model_dir, slices, max_tokens) {
+    let ck_root = Path::new(crate::commands::mens::item_checkpoint::REASONING_CHECKPOINT_ROOT);
+    let score = |infer: &mut dyn FnMut(&str) -> Result<String>| {
+        score_slices_checkpointed(ck_root, model_dir, slices, max_tokens, force_restart, infer)
+    };
+    let result = if merge_only {
+        score(&mut |_: &str| -> Result<String> { anyhow::bail!("{MERGE_ONLY_REFUSAL}") })
+    } else {
+        reasoning_eval::with_backend(model_dir, false, score).and_then(|r| r)
+    };
+    match result {
         Ok(outcomes) => outcomes,
         Err(e) => slices
             .iter()
@@ -292,39 +340,29 @@ fn score_side_with_backend(
     }
 }
 
-fn backend_scores(
-    model_dir: &Path,
-    slices: &[(&'static str, Vec<ReasoningItem>)],
-    max_tokens: usize,
-) -> Result<Vec<(&'static str, BenchOutcome)>> {
-    let plugin_id = vox_populi::mens::select_mens_backend(
-        vox_populi::mens::DeviceKind::Best,
-        &vox_plugin_host::probe(),
-    );
-    let loaded = vox_plugin_host::cached_code_plugin(plugin_id).with_context(|| {
-        format!("{plugin_id} plugin not found — install vox-plugin-{plugin_id}")
-    })?;
-    let backend = loaded
-        .plugin
-        .as_ml_backend()
-        .into_option()
-        .ok_or_else(|| anyhow::anyhow!("{plugin_id} plugin does not provide MlBackend"))?;
-    let handle = backend
-        .load_model(model_dir.to_string_lossy().as_ref().into())
-        .into_result()
-        .map_err(|e| anyhow::anyhow!("load_model({}): {e}", model_dir.display()))?;
-    let mut infer = |prompt_json: &str| -> Result<String> {
-        backend
-            .run_inference(&handle, prompt_json.into())
-            .into_result()
-            .map(|resp| resp.as_str().to_string())
-            .map_err(|e| anyhow::anyhow!("{e}"))
+/// The `--slices` selection in canonical slice order, or every slice. An
+/// unknown name is refused before anything is detected or written.
+fn selected_slices(requested: Option<&[String]>) -> Result<Vec<&'static str>> {
+    let Some(requested) = requested else {
+        return Ok(SLICE_NAMES.to_vec());
     };
-    let outcomes = score_slices_loaded(slices, max_tokens, &mut infer);
-    if let Err(e) = backend.unload_model(&handle).into_result() {
-        eprintln!("warning: unload_model({}): {e}", model_dir.display());
+    if let Some(bad) = requested
+        .iter()
+        .find(|r| !SLICE_NAMES.contains(&r.as_str()))
+    {
+        anyhow::bail!(
+            "--slices names unknown slice {bad:?}; known slices: {}",
+            SLICE_NAMES.join(", ")
+        );
     }
-    Ok(outcomes)
+    if requested.is_empty() {
+        anyhow::bail!("--slices names no slice");
+    }
+    Ok(SLICE_NAMES
+        .iter()
+        .copied()
+        .filter(|n| requested.iter().any(|r| r == n))
+        .collect())
 }
 
 /// The single entry: resolve the pin and hub root, guard `--out`, detect, write.
@@ -335,6 +373,7 @@ pub(crate) fn run_eval_reasoning_compare_with(
     overlay_root: &Path,
     score_side: SideScorer<'_>,
 ) -> Result<RunStatus> {
+    let selected = selected_slices(args.slices.as_deref())?;
     let overlay = vox_populi::mens::tensor::spoke_base_resolver::load_overlay(overlay_root)
         .context("loading train_bases from mens/config/gpu-specs.yaml")?;
     // No --base means the 8B default; the size selector itself has no default size.
@@ -358,12 +397,19 @@ pub(crate) fn run_eval_reasoning_compare_with(
     });
     check_out_path(&out, &hub_root, args.adapter.as_deref(), &args.bench_root)?;
     let detected = detect::detect_inputs(&hub_root, &label, args.adapter.as_deref());
-    let status = run_before_after_with(detected, &args.bench_root, &out, &base_rungs, score_side)?;
+    let status = run_before_after_with(
+        detected,
+        &args.bench_root,
+        &out,
+        &base_rungs,
+        &selected,
+        score_side,
+    )?;
     match status {
         RunStatus::NotCompared(reason) => {
             eprintln!("NOT COMPARED: {} ({})", reason.as_str(), out.display());
         }
-        RunStatus::Compared => println!("{}", out.display()),
+        RunStatus::Compared | RunStatus::Partial => println!("{}", out.display()),
     }
     Ok(status)
 }
@@ -372,8 +418,9 @@ pub(crate) fn run_eval_reasoning_compare_with(
 pub(crate) fn run_eval_reasoning_compare(args: CompareArgs) -> Result<()> {
     let overlay_root = std::env::current_dir()?;
     let max_tokens = reasoning_eval::parse_max_tokens(reasoning_eval::max_tokens_env().as_deref())?;
+    let (force_restart, merge_only) = (args.force_restart, args.merge_only);
     let mut score = |_side: Side, dir: &Path, slices: &[(&'static str, Vec<ReasoningItem>)]| {
-        score_side_with_backend(dir, slices, max_tokens)
+        score_side_with_backend(dir, slices, max_tokens, force_restart, merge_only)
     };
     run_eval_reasoning_compare_with(
         args,
@@ -401,6 +448,9 @@ mod tests {
             hub_root: Some(hub.to_path_buf()),
             bench_root: repo_root().join("mens/data"),
             out,
+            slices: None,
+            merge_only: false,
+            force_restart: false,
         }
     }
 
@@ -1039,7 +1089,9 @@ mod tests {
             })
             .to_string())
         };
-        let outs = score_slices_loaded(&slices, 64, &mut infer);
+        let ck = tempfile::tempdir().expect("ck");
+        let outs = score_slices_checkpointed(ck.path(), ck.path(), &slices, 64, false, &mut infer)
+            .expect("checkpoint opens");
         assert_eq!(
             outs.iter().map(|(n, _)| *n).collect::<Vec<_>>(),
             ["gsm8k_think", "vox_think"]
@@ -1054,5 +1106,240 @@ mod tests {
                 other => panic!("expected Scored, got {other:?}"),
             }
         }
+    }
+
+    // ---- --slices (fake side scorer) ----
+
+    type Calls = Vec<(Side, Vec<&'static str>)>;
+
+    fn sliced_args(p: &Present, out: &Path, slices: Option<&[&str]>) -> CompareArgs {
+        let mut a = p.args(None);
+        a.out = Some(out.to_path_buf());
+        a.slices = slices.map(|s| s.iter().map(|n| n.to_string()).collect());
+        a
+    }
+
+    fn run_recording(p: &Present, a: CompareArgs, calls: &mut Calls) -> Result<RunStatus> {
+        let mut score = |side: Side, _: &Path, s: &[(&'static str, Vec<ReasoningItem>)]| {
+            calls.push((side, s.iter().map(|(n, _)| *n).collect()));
+            named_scores(side, s)
+        };
+        run(a, p.runs.path(), &mut score)
+    }
+
+    #[test]
+    fn a_sliced_run_scores_only_its_slices_and_is_marked_partial() {
+        let p = present();
+        let mut calls = Calls::new();
+        let status = run_recording(
+            &p,
+            sliced_args(&p, &p.out(), Some(&["vox_think"])),
+            &mut calls,
+        )
+        .expect("partial is Ok");
+        assert_eq!(status, RunStatus::Partial);
+        assert_eq!(
+            calls,
+            vec![
+                (Side::Base, vec!["vox_think"]),
+                (Side::Adapter, vec!["vox_think"])
+            ]
+        );
+        let v = read_json(&p.out());
+        assert_eq!(v["status"], "partial");
+        assert_eq!(v["slices_requested"], serde_json::json!(["vox_think"]));
+        let keys: Vec<&String> = v["slices"].as_object().expect("slices").keys().collect();
+        assert_eq!(keys, ["vox_think"]);
+    }
+
+    #[test]
+    fn a_sliced_run_naming_every_slice_is_a_full_compare() {
+        let p = present();
+        let mut calls = Calls::new();
+        let all = ["math500_think", "vox_think", "gsm8k_think"];
+        let status =
+            run_recording(&p, sliced_args(&p, &p.out(), Some(&all)), &mut calls).expect("compared");
+        assert_eq!(status, RunStatus::Compared);
+        assert_eq!(read_json(&p.out())["status"], "compared");
+    }
+
+    #[test]
+    fn an_unknown_slice_name_is_refused_before_any_scoring() {
+        let p = present();
+        let mut calls = Calls::new();
+        let err = run_recording(
+            &p,
+            sliced_args(&p, &p.out(), Some(&["nope_think"])),
+            &mut calls,
+        )
+        .expect_err("unknown slice");
+        assert!(format!("{err:#}").contains("nope_think"), "{err:#}");
+        assert!(calls.is_empty());
+        assert!(!p.out().exists());
+    }
+
+    // ---- shared per-item checkpoint (fake inference) ----
+
+    /// Deterministic fake generation: right answer on items whose question has
+    /// an even length. Counts calls.
+    fn fake_infer(calls: &mut usize) -> impl FnMut(&str) -> Result<String> + '_ {
+        move |prompt_json: &str| {
+            *calls += 1;
+            let v: serde_json::Value = serde_json::from_str(prompt_json).expect("prompt json");
+            let n = v["prompt"].as_str().expect("prompt").len();
+            Ok(serde_json::json!({
+                "generated_text": format!("<think>\n{n}\n</think>\n\n\\boxed{{{}}}", n % 7)
+            })
+            .to_string())
+        }
+    }
+
+    /// One checkpointed pass over both sides; returns the report bytes.
+    fn ck_report(
+        p: &Present,
+        root: &Path,
+        slices: &[(&'static str, Vec<ReasoningItem>)],
+        merge_only: bool,
+        calls: &mut usize,
+    ) -> String {
+        let mut infer = fake_infer(calls);
+        let mut refuse = |_: &str| -> Result<String> { anyhow::bail!("{MERGE_ONLY_REFUSAL}") };
+        let inner: &mut dyn FnMut(&str) -> Result<String> =
+            if merge_only { &mut refuse } else { &mut infer };
+        let base =
+            score_slices_checkpointed(root, &p.snapshot, slices, 2048, false, inner).expect("base");
+        let adapter = score_slices_checkpointed(root, &p.adapter, slices, 2048, false, inner)
+            .expect("adapter");
+        let rows: Vec<(&str, BenchOutcome, BenchOutcome)> = base
+            .into_iter()
+            .zip(adapter)
+            .map(|((n, b), (_, a))| (n, b, a))
+            .collect();
+        let label = BaseLabel::from_pin(PIN_8B);
+        serde_json::to_string_pretty(&compared_report_json(&label, &p.adapter, &rows).0)
+            .expect("json")
+    }
+
+    fn ck_files(root: &Path) -> Vec<PathBuf> {
+        let mut out = Vec::new();
+        for d in std::fs::read_dir(root).expect("root") {
+            for f in std::fs::read_dir(d.expect("entry").path()).expect("model dir") {
+                out.push(f.expect("file").path());
+            }
+        }
+        out.sort();
+        out
+    }
+
+    #[test]
+    fn a_rerun_generates_nothing_already_checkpointed() {
+        let p = present();
+        let root = p.runs.path().join("ck");
+        let (mut first, mut second) = (0, 0);
+        let a = ck_report(&p, &root, &checked_in(), false, &mut first);
+        assert_eq!(first, 2 * 3 * SLICE_SIZE);
+        let b = ck_report(&p, &root, &checked_in(), false, &mut second);
+        assert_eq!(second, 0, "every item was already scored");
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn a_retrained_adapter_does_not_reuse_old_generations() {
+        let p = present();
+        let root = p.runs.path().join("ck");
+        let vox: Slices = checked_in()
+            .into_iter()
+            .filter(|(n, _)| *n == "vox_think")
+            .collect();
+        let mut calls = 0;
+        ck_report(&p, &root, &vox, false, &mut calls);
+        std::fs::write(p.adapter.join(detect::ADAPTER_WEIGHTS), b"retrained").expect("retrain");
+        calls = 0;
+        ck_report(&p, &root, &vox, false, &mut calls);
+        assert_eq!(
+            calls, SLICE_SIZE,
+            "only the adapter side is generated again"
+        );
+    }
+
+    #[test]
+    fn resuming_after_a_kill_mid_file_equals_an_uninterrupted_run() {
+        let p = present();
+        let mut calls = 0;
+        let whole = ck_report(
+            &p,
+            &p.runs.path().join("whole"),
+            &checked_in(),
+            false,
+            &mut calls,
+        );
+
+        let root = p.runs.path().join("killed");
+        ck_report(&p, &root, &checked_in(), false, &mut calls);
+        // Simulate a kill: every file loses its tail, the last kept line torn.
+        for f in ck_files(&root) {
+            let text = std::fs::read_to_string(&f).expect("ck");
+            let keep: usize = text.lines().take(11).map(|l| l.len() + 1).sum();
+            std::fs::write(&f, &text.as_bytes()[..keep + 20]).expect("truncate");
+        }
+        calls = 0;
+        let resumed = ck_report(&p, &root, &checked_in(), false, &mut calls);
+        assert_eq!(
+            calls,
+            6 * (SLICE_SIZE - 10),
+            "the torn item and the rest are generated"
+        );
+        assert_eq!(resumed, whole);
+    }
+
+    #[test]
+    fn slices_scored_separately_merge_into_the_full_report_without_generating() {
+        let p = present();
+        let mut calls = 0;
+        let whole = ck_report(
+            &p,
+            &p.runs.path().join("whole"),
+            &checked_in(),
+            false,
+            &mut calls,
+        );
+
+        let root = p.runs.path().join("sliced");
+        for name in ["vox_think", "gsm8k_think", "math500_think"] {
+            let one: Slices = checked_in()
+                .into_iter()
+                .filter(|(n, _)| *n == name)
+                .collect();
+            ck_report(&p, &root, &one, false, &mut calls);
+        }
+        calls = 0;
+        let merged = ck_report(&p, &root, &checked_in(), true, &mut calls);
+        assert_eq!(calls, 0);
+        assert_eq!(merged, whole);
+    }
+
+    #[test]
+    fn merge_only_never_generates_a_missing_item() {
+        let p = present();
+        let root = p.runs.path().join("ck");
+        let vox: Slices = checked_in()
+            .into_iter()
+            .filter(|(n, _)| *n == "vox_think")
+            .collect();
+        let mut calls = 0;
+        ck_report(&p, &root, &vox, false, &mut calls);
+        calls = 0;
+        let report = ck_report(&p, &root, &checked_in(), true, &mut calls);
+        assert_eq!(calls, 0);
+        let v: serde_json::Value = serde_json::from_str(&report).expect("json");
+        assert_eq!(v["status"], "incomplete");
+        let reason = v["slices"]["gsm8k_think"]["base"]["reason"]
+            .as_str()
+            .unwrap_or_default();
+        assert!(reason.contains("--merge-only"), "{v}");
+        assert!(
+            v["slices"]["vox_think"]["adapter"]["accuracy"].is_number(),
+            "{v}"
+        );
     }
 }

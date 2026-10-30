@@ -50,7 +50,7 @@ pub(crate) fn run_collateral_damage_with(
     run_dir: &Path,
     score_bench: &mut dyn FnMut(&str) -> Result<BenchScore>,
 ) -> Result<i32> {
-    let pre = load_pre(pre_score_path, run_dir)?;
+    let pre = load_pre(pre_score_path, run_dir, true)?;
 
     let mut post: BTreeMap<&str, BenchScore> = BTreeMap::new();
     for bench in pre.keys() {
@@ -110,13 +110,15 @@ pub(crate) fn run_collateral_damage_with(
 /// stops at the first slice over the threshold. Slices after it are recorded as
 /// `not_run` with reason `fail_fast_after_<slice>` and no score. A partial
 /// report is always `fail`; when every slice passes it is a full report.
+/// The baseline may be partial (only the slices a sliced compare scored);
+/// reaching a slice it does not name is an error, before that slice is scored.
 pub(crate) fn run_collateral_damage_fail_fast_with(
     pre_score_path: &Path,
     run_dir: &Path,
     order: &[String],
     score_bench: &mut dyn FnMut(&str) -> Result<BenchScore>,
 ) -> Result<i32> {
-    let pre = load_pre(pre_score_path, run_dir)?;
+    let pre = load_pre(pre_score_path, run_dir, false)?;
     let mut want: Vec<&str> = order.iter().map(String::as_str).collect();
     want.sort_unstable();
     let mut all = SLICE_NAMES.to_vec();
@@ -137,6 +139,16 @@ pub(crate) fn run_collateral_damage_fail_fast_with(
     let mut not_run = Vec::new();
     for (i, name) in order.iter().enumerate() {
         let init = format!("{name}{THINK_INIT_SUFFIX}");
+        if let Some(missing) = [name.as_str(), init.as_str()]
+            .into_iter()
+            .find(|k| !pre.contains_key(*k))
+        {
+            anyhow::bail!(
+                "--fail-fast reached slice '{name}' but the baseline {} has no '{missing}' \
+                 (a partial baseline); score that slice in the compare first",
+                pre_score_path.display()
+            );
+        }
         let (acc, think) = (score_bench(name)?, score_bench(&init)?);
         let v = slice_verdict(name, &pre, acc, think, &cfg)?;
         let failed = v.exceeds_threshold();
@@ -179,8 +191,13 @@ pub(crate) fn run_collateral_damage_fail_fast_with(
     )
 }
 
-/// Removes any stale report, then reads and validates the baseline.
-fn load_pre(pre_score_path: &Path, run_dir: &Path) -> Result<BTreeMap<String, f64>> {
+/// Removes any stale report, then reads and validates the baseline. With
+/// `require_all` every reasoning key must be present.
+fn load_pre(
+    pre_score_path: &Path,
+    run_dir: &Path,
+    require_all: bool,
+) -> Result<BTreeMap<String, f64>> {
     // A report from an earlier run must not survive a run that fails: serve
     // would read the old pass. Removed before anything else can fail.
     let report_path = run_dir.join("collateral_damage_report.json");
@@ -217,7 +234,9 @@ fn load_pre(pre_score_path: &Path, run_dir: &Path) -> Result<BTreeMap<String, f6
             pre_score_path.display()
         );
     }
-    require_reasoning_keys(pre.keys().map(String::as_str)).map_err(|e| anyhow::anyhow!(e))?;
+    if require_all {
+        require_reasoning_keys(pre.keys().map(String::as_str)).map_err(|e| anyhow::anyhow!(e))?;
+    }
     Ok(pre)
 }
 
@@ -289,6 +308,7 @@ pub fn run_collateral_damage(
     pre_score_path: PathBuf,
     post_adapter_path: PathBuf,
     fail_fast: Option<Vec<String>>,
+    force_restart: bool,
 ) -> Result<()> {
     println!(
         "Evaluating collateral damage against baseline: {}",
@@ -296,7 +316,7 @@ pub fn run_collateral_damage(
     );
     println!("Using adapter: {}", post_adapter_path.display());
 
-    let mut scorer = |bench: &str| score_bench(bench, &post_adapter_path);
+    let mut scorer = |bench: &str| score_bench(bench, &post_adapter_path, force_restart);
     let code = match &fail_fast {
         Some(order) => run_collateral_damage_fail_fast_with(
             &pre_score_path,
@@ -316,6 +336,7 @@ fn cached_reasoning_report(
     bench: &str,
     items: &Path,
     adapter: &Path,
+    force_restart: bool,
 ) -> Result<super::reasoning_eval::ReasoningReport> {
     use std::sync::Mutex;
     static CACHE: Mutex<Vec<(String, super::reasoning_eval::ReasoningReport)>> =
@@ -327,7 +348,7 @@ fn cached_reasoning_report(
             return Ok(*report);
         }
     }
-    let report = super::reasoning_eval::score_reasoning_file(bench, items, adapter)?;
+    let report = super::reasoning_eval::score_reasoning_file(bench, items, adapter, force_restart)?;
     CACHE
         .lock()
         .unwrap_or_else(|err| err.into_inner())
@@ -341,14 +362,14 @@ fn cached_reasoning_report(
 /// from the same rubric the operator's baseline was produced with, and it is
 /// what performs the `MlBackend` plugin dispatch and loads the adapter — so an
 /// adapter that cannot be loaded surfaces here as an `Err`, never as a score.
-fn score_bench(bench: &str, adapter: &Path) -> Result<BenchScore> {
+fn score_bench(bench: &str, adapter: &Path, force_restart: bool) -> Result<BenchScore> {
     let (dir_name, want_think_rate) = match bench.strip_suffix("_init") {
         Some(base) => (base, true),
         None => (bench, false),
     };
     let reasoning = Path::new(BENCH_ROOT).join(dir_name).join("reasoning.jsonl");
     if reasoning.is_file() {
-        let report = cached_reasoning_report(dir_name, &reasoning, adapter)?;
+        let report = cached_reasoning_report(dir_name, &reasoning, adapter, force_restart)?;
         if report.n != SLICE_SIZE {
             anyhow::bail!(
                 "reasoning bench '{dir_name}': scored {} items, expected {SLICE_SIZE}",
@@ -387,6 +408,7 @@ fn score_bench(bench: &str, adapter: &Path) -> Result<BenchScore> {
         1,
         0,
         Some(out.clone()),
+        force_restart,
     )
     .with_context(|| format!("scoring benchmark '{bench}' against {}", adapter.display()))?;
 
@@ -927,5 +949,65 @@ mod tests {
         }
         assert_eq!(calls, 0);
         no_report(dir.path());
+    }
+
+    const PARTIAL_DROP: [&str; 4] = [
+        "gsm8k_think",
+        "gsm8k_think_init",
+        "math500_think",
+        "math500_think_init",
+    ];
+
+    #[test]
+    fn fail_fast_accepts_a_partial_baseline_when_its_slice_fails() {
+        let dir = tempfile::tempdir().unwrap();
+        let pre = write_baseline(dir.path(), &PARTIAL_DROP, &[]);
+        let over = [("vox_think", score(0.40625, Some(32)))];
+        let mut calls = 0;
+        let mut scorer = scorer_over(&over, &mut calls);
+        let code =
+            run_collateral_damage_fail_fast_with(&pre, dir.path(), &fail_fast_order(), &mut scorer)
+                .unwrap();
+        assert_eq!(code, 1);
+        let report = read_report(dir.path());
+        assert_eq!(report["failed_on"], "vox_think");
+        assert_eq!(report["not_run"].as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn fail_fast_refuses_to_reach_a_slice_the_baseline_does_not_name() {
+        let dir = tempfile::tempdir().unwrap();
+        let pre = write_baseline(dir.path(), &PARTIAL_DROP, &[]);
+        let mut asked: Vec<String> = Vec::new();
+        let mut scorer = |bench: &str| {
+            asked.push(bench.to_string());
+            Ok(flat(bench, 0.84))
+        };
+        let err =
+            run_collateral_damage_fail_fast_with(&pre, dir.path(), &fail_fast_order(), &mut scorer)
+                .expect_err("gsm8k_think has no baseline");
+        let msg = format!("{err:#}");
+        assert!(
+            msg.contains("gsm8k_think") && msg.contains("baseline"),
+            "{msg}"
+        );
+        assert_eq!(
+            asked,
+            ["vox_think", "vox_think_init"],
+            "gsm8k_think is never scored"
+        );
+        no_report(dir.path());
+    }
+
+    #[test]
+    fn the_full_check_still_refuses_a_partial_baseline() {
+        let dir = tempfile::tempdir().unwrap();
+        let pre = write_baseline(dir.path(), &PARTIAL_DROP, &[]);
+        let mut calls = 0;
+        {
+            let mut scorer = scorer_over(&[], &mut calls);
+            assert!(run_collateral_damage_with(&pre, dir.path(), &mut scorer).is_err());
+        }
+        assert_eq!(calls, 0);
     }
 }

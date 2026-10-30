@@ -625,9 +625,13 @@ pub enum PopuliAction {
         /// Base RNG seed for sampled generations (used when temperature > 0)
         #[arg(long, default_value = "1337")]
         seed_base: u64,
-        /// Output JSON results to this path
+        /// Output JSON results to this path; generations are checkpointed
+        /// beside it (`<output>.ckpt.jsonl`) and a rerun resumes from there
         #[arg(short = 'o', long)]
         output: Option<PathBuf>,
+        /// Discard this run's per-item checkpoint instead of resuming from it
+        #[arg(long)]
+        force_restart: bool,
     },
 
     /// Hugging Face Hub operations (upload / download model artifacts)

@@ -59,10 +59,14 @@ pub enum PopuliMensTail {
         /// recorded as not_run.
         #[arg(long, value_delimiter = ',')]
         fail_fast: Option<Vec<String>>,
+        /// Discard this run's per-item checkpoint instead of resuming from it
+        #[arg(long)]
+        force_restart: bool,
     },
 
-    /// Build collateral pre-score JSON (six reasoning keys) from a compared
-    /// `eval-reasoning-compare` report.
+    /// Build collateral pre-score JSON from an `eval-reasoning-compare` report:
+    /// six reasoning keys from a compared report, or the keys of the scored
+    /// slices from a partial (`--slices`) one, which only `--fail-fast` accepts.
     #[command(name = "baseline-from-compare")]
     BaselineFromCompare {
         /// Compared reasoning_before_after.v1 report path
@@ -93,6 +97,18 @@ pub enum PopuliMensTail {
         /// Report path (default: mens/runs/reasoning_compare/<size>-<rev12>.json)
         #[arg(long)]
         out: Option<PathBuf>,
+        /// Score only these slices (comma-separated); the report is `partial`
+        /// unless every slice is named. Generations are kept in the per-item
+        /// checkpoint, so a later full run only generates the rest.
+        #[arg(long, value_delimiter = ',')]
+        slices: Option<Vec<String>>,
+        /// Build the report from the per-item checkpoint only; never load a
+        /// model. An item with no recorded generation leaves its slice not scored.
+        #[arg(long)]
+        merge_only: bool,
+        /// Discard this run's per-item checkpoint instead of resuming from it
+        #[arg(long)]
+        force_restart: bool,
     },
 
     /// Benchmark FIM completion server latency

@@ -30,6 +30,8 @@ pub(crate) mod eval_gate;
 mod eval_local;
 mod eval_local_prompt;
 #[cfg(feature = "gpu")]
+pub(crate) mod item_checkpoint;
+#[cfg(feature = "gpu")]
 pub(crate) mod ladder_serve;
 pub mod metrics;
 #[cfg(feature = "gpu")]

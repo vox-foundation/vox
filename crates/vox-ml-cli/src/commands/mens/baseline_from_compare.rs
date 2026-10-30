@@ -33,24 +33,43 @@ fn base_side_score(slice: &Value, slice_name: &str, field: &str) -> Result<f64> 
         .with_context(|| format!("compare slices.{slice_name}.base missing {field}"))
 }
 
-/// Extract the six reasoning pre-score entries from a `reasoning_before_after.v1`
-/// report whose `status` is `compared`.
+/// Extract the reasoning pre-score entries from a `reasoning_before_after.v1`
+/// report: all six when `status` is `compared`, or the two of each slice in
+/// `slices_requested` when it is `partial` (a `--slices` run). A partial
+/// baseline feeds only `eval-collateral-damage --fail-fast`.
 pub(crate) fn baseline_json_from_compare_value(compare: &Value) -> Result<Value> {
     let schema = compare.get("schema").and_then(Value::as_str).unwrap_or("");
     if schema != BEFORE_AFTER_SCHEMA {
         bail!("expected schema {BEFORE_AFTER_SCHEMA}, got {schema:?}");
     }
     let status = compare.get("status").and_then(Value::as_str).unwrap_or("");
-    if status != "compared" {
-        bail!("compare status must be compared, got {status:?}");
-    }
+    let names: Vec<&str> = match status {
+        "compared" => SLICE_NAMES.to_vec(),
+        "partial" => {
+            let requested: Vec<&str> = compare
+                .get("slices_requested")
+                .and_then(Value::as_array)
+                .context("partial compare missing slices_requested")?
+                .iter()
+                .map(|v| v.as_str().context("slices_requested entry is not a string"))
+                .collect::<Result<_>>()?;
+            if requested.is_empty() {
+                bail!("partial compare names no slices_requested");
+            }
+            if let Some(bad) = requested.iter().find(|n| !SLICE_NAMES.contains(n)) {
+                bail!("partial compare requests unknown slice {bad:?}");
+            }
+            requested
+        }
+        _ => bail!("compare status must be compared or partial, got {status:?}"),
+    };
     let slices = compare
         .get("slices")
         .and_then(Value::as_object)
         .context("compare missing slices object")?;
 
     let mut benchmarks: Map<String, Value> = Map::new();
-    for name in SLICE_NAMES {
+    for name in names {
         let slice = slices
             .get(name)
             .with_context(|| format!("compare missing slice {name}"))?;
@@ -60,9 +79,11 @@ pub(crate) fn baseline_json_from_compare_value(compare: &Value) -> Result<Value>
         benchmarks.insert(format!("{name}{INIT_SUFFIX}"), json!(init));
     }
 
-    for key in reasoning_benchmark_keys() {
-        if !benchmarks.contains_key(key) {
-            bail!("internal error: baseline missing key {key}");
+    if status == "compared" {
+        for key in reasoning_benchmark_keys() {
+            if !benchmarks.contains_key(key) {
+                bail!("internal error: baseline missing key {key}");
+            }
         }
     }
 
@@ -145,5 +166,38 @@ mod tests {
         .unwrap();
         let v = baseline_json_from_compare(f.path()).unwrap();
         assert!(v.get("benchmarks").unwrap().get("math500_think").is_some());
+    }
+
+    fn partial_fixture() -> Value {
+        let mut doc = minimal_compared_fixture();
+        let s = doc["slices"].as_object_mut().unwrap();
+        s.retain(|k, _| k == "vox_think");
+        doc["status"] = json!("partial");
+        doc["slices_requested"] = json!(["vox_think"]);
+        doc
+    }
+
+    #[test]
+    fn a_partial_compare_yields_only_its_slice_keys() {
+        let v = baseline_json_from_compare_value(&partial_fixture()).unwrap();
+        let keys: Vec<&String> = v["benchmarks"].as_object().unwrap().keys().collect();
+        assert_eq!(keys, ["vox_think", "vox_think_init"]);
+    }
+
+    #[test]
+    fn a_partial_compare_missing_its_requested_slice_is_refused() {
+        let mut doc = partial_fixture();
+        doc["slices_requested"] = json!(["vox_think", "gsm8k_think"]);
+        let err = baseline_json_from_compare_value(&doc)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("gsm8k_think"), "{err}");
+    }
+
+    #[test]
+    fn an_incomplete_compare_is_still_refused() {
+        let mut doc = minimal_compared_fixture();
+        doc["status"] = json!("incomplete");
+        assert!(baseline_json_from_compare_value(&doc).is_err());
     }
 }

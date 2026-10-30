@@ -4,7 +4,7 @@ use super::eval_local_prompt::{
     PreparedBench, prepare_bench_item, sort_prepared_benches_lexicographic,
 };
 use super::metrics::verify_completion;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::path::PathBuf;
 
 use vox_bounded_fs::read_utf8_path_capped;
@@ -88,6 +88,7 @@ pub fn run_eval_local(
     k: usize,
     seed_base: u64,
     output: Option<PathBuf>,
+    force_restart: bool,
 ) -> Result<()> {
     use owo_colors::OwoColorize;
 
@@ -169,31 +170,136 @@ pub fn run_eval_local(
     // rebuilds the engine from disk per call), then dispatch one generation
     // per benchmark prompt below. `--model` must be the training run
     // directory containing the merged/adapter + manifest + tokenizer + config.
-    #[cfg(feature = "gpu")]
-    let engine = {
-        let plugin_id = vox_populi::mens::select_mens_backend(
-            vox_populi::mens::DeviceKind::Best,
-            &vox_plugin_host::probe(),
-        );
-        let loaded = vox_plugin_host::cached_code_plugin(plugin_id).with_context(|| {
-            format!("{plugin_id} plugin not found — install vox-plugin-{plugin_id}")
-        })?;
-        let backend = loaded
-            .plugin
-            .as_ml_backend()
-            .into_option()
-            .ok_or_else(|| anyhow::anyhow!("{plugin_id} plugin does not provide MlBackend"))?;
-        let handle = backend
-            .load_model(model.to_string_lossy().as_ref().into())
-            .into_result()
-            .map_err(|e| anyhow::anyhow!("load_model({}): {e}", model.display()))?;
-        eprintln!(
-            "  {} Inference backend: {plugin_id} plugin loaded",
-            "✓".green()
-        );
-        // Keep `loaded` alive alongside the handle for the duration of the eval.
-        (loaded, backend, handle)
+    // One generation per sample goes through a per-item checkpoint next to
+    // `--output` (`<output>.ckpt.jsonl`), so a stopped eval resumes where it
+    // stopped and its report is the one an uninterrupted run writes.
+    let mut ck = match &output {
+        Some(out) => {
+            let inputs = serde_json::json!({
+                "scorer": "eval_local verify_completion v1",
+                "model": super::item_checkpoint::model_identity(&model)?,
+                "base_only": is_base_only,
+                "bench_manifest_blake3": super::item_checkpoint::hash_json(&manifest),
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "samples": n,
+                "seed_base": seed_base,
+            });
+            let ck = super::item_checkpoint::ItemCheckpoint::open(
+                &out.with_extension("ckpt.jsonl"),
+                &inputs,
+                force_restart,
+            )?;
+            if ck.len() > 0 {
+                eprintln!(
+                    "  {} {} generations already in the checkpoint",
+                    "ℹ".cyan(),
+                    ck.len()
+                );
+            }
+            Some(ck)
+        }
+        None => None,
     };
+    let report = super::reasoning_eval::with_backend(&model, true, |backend_infer| {
+        let mut infer = |prompt_json: &str| match ck.as_mut() {
+            Some(ck) => ck.infer(prompt_json, &mut *backend_infer),
+            None => backend_infer(prompt_json),
+        };
+        eval_local_report(
+            &model,
+            is_base_only,
+            &bench,
+            &benchmarks,
+            max_tokens,
+            temperature,
+            n,
+            k,
+            seed_base,
+            &mut infer,
+        )
+    })?;
+    let results = report["results"].as_array().cloned().unwrap_or_default();
+    let total = benchmarks.len();
+    let passed_1 = report["passed_at_1"].as_f64().unwrap_or(0.0);
+    let passed_k = report["passed_at_k"].as_f64().unwrap_or(0.0);
+    let pass_rate_at_1 = report["pass_rate_at_1"].as_f64().unwrap_or(0.0);
+    let pass_rate_at_k = report["pass_rate_at_k"].as_f64().unwrap_or(0.0);
+
+    if let Some(out_path) = output {
+        std::fs::write(&out_path, serde_json::to_string_pretty(&report)?)?;
+        eprintln!("  Report saved: {}", out_path.display());
+        if let Some(parent) = out_path.parent() {
+            let passk_path = parent.join("benchmark_passatk.json");
+            std::fs::write(
+                &passk_path,
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "schema": "vox_mens_benchmark_passatk_v1",
+                    "n": n,
+                    "k": k,
+                    "seed_base": seed_base,
+                    "total": total,
+                    "pass_rate_at_1": pass_rate_at_1,
+                    "pass_rate_at_k": pass_rate_at_k
+                }))?,
+            )?;
+            eprintln!("  pass@k summary saved: {}", passk_path.display());
+
+            // Give eval-gates-agents.yaml's tool_call_salvage_rate a producer:
+            // merge (not clobber) it into eval_results.json. rust_compile_rate /
+            // clippy_clean_rate / tool_call_valid_json_rate / tool_name_exists_rate
+            // are deliberately NOT touched here — see aggregate_gate_producer_keys's
+            // doc comment for why (they already have real producers via
+            // `vox corpus eval`, and this path used to silently overwrite them
+            // with a weaker proxy).
+            let eval_results_path = parent.join("eval_results.json");
+            let mut eval_results_obj = read_json_object_or_empty(&eval_results_path);
+            eval_results_obj.extend(aggregate_gate_producer_keys(&results));
+            std::fs::write(
+                &eval_results_path,
+                serde_json::to_string_pretty(&serde_json::Value::Object(eval_results_obj))?,
+            )?;
+            eprintln!(
+                "  eval_results.json updated: {}",
+                eval_results_path.display()
+            );
+        }
+    } else {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+    }
+
+    #[cfg(feature = "gpu")]
+    vox_cli_core::benchmark_telemetry::record_opt_blocking(
+        "eval_local",
+        Some(pass_rate_at_k),
+        Some(serde_json::json!({
+            "total": total,
+            "passed_at_1": passed_1,
+            "passed_at_k": passed_k,
+            "model": model.to_string_lossy(),
+            "bench": bench.to_string_lossy(),
+        })),
+    );
+
+    Ok(())
+}
+
+/// Generate and verify every bench item through `infer` and build the report.
+/// Writes nothing; the report depends only on the responses `infer` returns.
+#[allow(clippy::too_many_arguments)]
+fn eval_local_report(
+    model: &std::path::Path,
+    is_base_only: bool,
+    bench: &std::path::Path,
+    benchmarks: &[serde_json::Value],
+    max_tokens: usize,
+    temperature: f32,
+    n: usize,
+    k: usize,
+    seed_base: u64,
+    infer: &mut dyn FnMut(&str) -> Result<String>,
+) -> serde_json::Value {
+    use owo_colors::OwoColorize;
 
     let mut results: Vec<serde_json::Value> = Vec::new();
     // Sums of per-problem unbiased estimates; the report rates are their means.
@@ -204,8 +310,9 @@ pub fn run_eval_local(
     let mut placeholder_event_count = 0usize;
     let mut trivial_placeholder_event_count = 0usize;
     let mut construct_richness_sum = 0.0_f64;
-    let mut category_stats: std::collections::HashMap<String, (f64, f64, usize)> =
-        std::collections::HashMap::new();
+    // Ordered, so the report is byte-identical across runs.
+    let mut category_stats: std::collections::BTreeMap<String, (f64, f64, usize)> =
+        std::collections::BTreeMap::new();
 
     #[cfg(feature = "gpu")]
     let _eval_session: Option<String> = None;
@@ -234,7 +341,6 @@ pub fn run_eval_local(
         } else {
             #[cfg(feature = "gpu")]
             {
-                let (_loaded, backend, handle) = &engine;
                 let mut passes = Vec::with_capacity(n);
                 let mut samples_json = Vec::with_capacity(n);
                 for i in 0..n {
@@ -246,10 +352,7 @@ pub fn run_eval_local(
                         "seed": seed,
                     })
                     .to_string();
-                    match backend
-                        .run_inference(handle, prompt_json.as_str().into())
-                        .into_result()
-                    {
+                    match infer(&prompt_json) {
                         Ok(resp) => {
                             let completion =
                                 serde_json::from_str::<serde_json::Value>(resp.as_str())
@@ -497,62 +600,7 @@ pub fn run_eval_local(
         "results": results,
     });
 
-    if let Some(out_path) = output {
-        std::fs::write(&out_path, serde_json::to_string_pretty(&report)?)?;
-        eprintln!("  Report saved: {}", out_path.display());
-        if let Some(parent) = out_path.parent() {
-            let passk_path = parent.join("benchmark_passatk.json");
-            std::fs::write(
-                &passk_path,
-                serde_json::to_string_pretty(&serde_json::json!({
-                    "schema": "vox_mens_benchmark_passatk_v1",
-                    "n": n,
-                    "k": k,
-                    "seed_base": seed_base,
-                    "total": total,
-                    "pass_rate_at_1": pass_rate_at_1,
-                    "pass_rate_at_k": pass_rate_at_k
-                }))?,
-            )?;
-            eprintln!("  pass@k summary saved: {}", passk_path.display());
-
-            // Give eval-gates-agents.yaml's tool_call_salvage_rate a producer:
-            // merge (not clobber) it into eval_results.json. rust_compile_rate /
-            // clippy_clean_rate / tool_call_valid_json_rate / tool_name_exists_rate
-            // are deliberately NOT touched here — see aggregate_gate_producer_keys's
-            // doc comment for why (they already have real producers via
-            // `vox corpus eval`, and this path used to silently overwrite them
-            // with a weaker proxy).
-            let eval_results_path = parent.join("eval_results.json");
-            let mut eval_results_obj = read_json_object_or_empty(&eval_results_path);
-            eval_results_obj.extend(aggregate_gate_producer_keys(&results));
-            std::fs::write(
-                &eval_results_path,
-                serde_json::to_string_pretty(&serde_json::Value::Object(eval_results_obj))?,
-            )?;
-            eprintln!(
-                "  eval_results.json updated: {}",
-                eval_results_path.display()
-            );
-        }
-    } else {
-        println!("{}", serde_json::to_string_pretty(&report)?);
-    }
-
-    #[cfg(feature = "gpu")]
-    vox_cli_core::benchmark_telemetry::record_opt_blocking(
-        "eval_local",
-        Some(pass_rate_at_k),
-        Some(serde_json::json!({
-            "total": total,
-            "passed_at_1": passed_1,
-            "passed_at_k": passed_k,
-            "model": model.to_string_lossy(),
-            "bench": bench.to_string_lossy(),
-        })),
-    );
-
-    Ok(())
+    report
 }
 
 /// Lightweight shape check — not a second verifier, just "does this completion
@@ -781,6 +829,78 @@ fn read_json_object_or_empty(path: &std::path::Path) -> serde_json::Map<String, 
 mod tests {
     use super::*;
 
+    /// A three-item bench (prompts built from `description`) in `dir`.
+    fn tiny_bench(dir: &std::path::Path) -> Vec<serde_json::Value> {
+        let items: Vec<serde_json::Value> = (0..3)
+            .map(|i| {
+                serde_json::json!({
+                    "id": format!("tiny_{i}"),
+                    "category": if i == 1 { "b" } else { "a" },
+                    "description": format!("define a function named `f{i}` returning {i}"),
+                    "answer": format!("fn f{i}() to int {{\n    return {i}\n}}"),
+                })
+            })
+            .collect();
+        std::fs::write(
+            dir.join("manifest.json"),
+            serde_json::json!({ "benchmarks": items }).to_string(),
+        )
+        .expect("manifest");
+        items
+    }
+
+    /// One report over the tiny bench through checkpoint `ck`; counts generations.
+    fn tiny_report(
+        bench: &std::path::Path,
+        items: &[serde_json::Value],
+        ck: &std::path::Path,
+        calls: &mut usize,
+    ) -> String {
+        let mut ck = crate::commands::mens::item_checkpoint::ItemCheckpoint::open(
+            ck,
+            &serde_json::json!({ "fixture": "tiny" }),
+            false,
+        )
+        .expect("ck");
+        let mut generate = |prompt_json: &str| -> Result<String> {
+            *calls += 1;
+            let v: serde_json::Value = serde_json::from_str(prompt_json).expect("json");
+            let i = v["prompt"].as_str().expect("prompt").len() % 3;
+            Ok(serde_json::json!({
+                "generated_text": format!("fn f{i}() to int {{\n    return {i}\n}}")
+            })
+            .to_string())
+        };
+        let mut infer = |p: &str| ck.infer(p, &mut generate);
+        let report = eval_local_report(bench, false, bench, items, 64, 0.0, 2, 1, 7, &mut infer);
+        serde_json::to_string_pretty(&report).expect("report")
+    }
+
+    #[test]
+    fn a_resumed_eval_writes_the_report_an_uninterrupted_one_does() {
+        let bench = tempfile::tempdir().expect("bench");
+        let items = tiny_bench(bench.path());
+        let mut calls = 0;
+        let whole = tiny_report(
+            bench.path(),
+            &items,
+            &bench.path().join("whole.jsonl"),
+            &mut calls,
+        );
+        assert_eq!(calls, 6, "3 items x 2 samples");
+
+        let ck = bench.path().join("killed.jsonl");
+        tiny_report(bench.path(), &items, &ck, &mut calls);
+        // A kill mid-write: header and two generations kept, the third torn.
+        let text = std::fs::read_to_string(&ck).expect("ck");
+        let keep: usize = text.lines().take(3).map(|l| l.len() + 1).sum();
+        std::fs::write(&ck, &text.as_bytes()[..keep + 15]).expect("truncate");
+        calls = 0;
+        let resumed = tiny_report(bench.path(), &items, &ck, &mut calls);
+        assert_eq!(calls, 4, "only the torn and unstarted generations run");
+        assert_eq!(resumed, whole);
+    }
+
     /// `--base <base-model-dir>` is the new base-only load path (Task
     /// followup: base-only inference); `--model` is unchanged. Neither or
     /// both being set is a usage error caught before any inference backend
@@ -789,7 +909,7 @@ mod tests {
     fn run_eval_local_requires_exactly_one_of_model_or_base() {
         let bench = PathBuf::from("mens/data/heldout_bench");
 
-        let neither = run_eval_local(None, None, bench.clone(), 8, 0.0, 1, 1, 0, None);
+        let neither = run_eval_local(None, None, bench.clone(), 8, 0.0, 1, 1, 0, None, false);
         let err = neither.expect_err("neither --model nor --base must be a usage error");
         assert!(
             err.to_string().contains("either --model or --base"),
@@ -806,6 +926,7 @@ mod tests {
             1,
             0,
             None,
+            false,
         );
         let err = both.expect_err("--model and --base together must be a usage error");
         assert!(err.to_string().contains("mutually exclusive"), "{err}");
@@ -857,6 +978,7 @@ mod tests {
                 k,
                 0,
                 None,
+                false,
             )
             .expect_err("an out-of-range k must be rejected");
             assert!(err.to_string().contains("--k must satisfy"), "{err}");
@@ -872,6 +994,7 @@ mod tests {
             3,
             0,
             None,
+            false,
         )
         .expect_err("model dir does not exist");
         assert!(

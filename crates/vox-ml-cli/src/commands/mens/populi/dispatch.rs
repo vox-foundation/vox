@@ -641,6 +641,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             k,
             seed_base,
             output,
+            force_restart,
         } => eval_local::run_eval_local(
             model,
             base,
@@ -651,6 +652,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             k,
             seed_base,
             output,
+            force_restart,
         ),
 
         PopuliAction::Hub(hub_action) => crate::commands::mens::hub::run_hub(hub_action).await,
@@ -728,15 +730,17 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 pre_score,
                 post_adapter,
                 fail_fast,
+                force_restart,
             } => {
                 #[cfg(not(feature = "gpu"))]
-                let _ = (pre_score, post_adapter, fail_fast);
+                let _ = (pre_score, post_adapter, fail_fast, force_restart);
 
                 #[cfg(feature = "gpu")]
                 crate::commands::mens::eval_collateral::run_collateral_damage(
                     pre_score,
                     post_adapter,
                     fail_fast,
+                    force_restart,
                 )?;
                 Ok(())
             }
@@ -782,6 +786,9 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 hub_root,
                 bench_root,
                 out,
+                slices,
+                merge_only,
+                force_restart,
             } => crate::commands::mens::reasoning_compare::run_eval_reasoning_compare(
                 crate::commands::mens::reasoning_compare::CompareArgs {
                     base,
@@ -789,6 +796,9 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                     hub_root,
                     bench_root,
                     out,
+                    slices,
+                    merge_only,
+                    force_restart,
                 },
             ),
 

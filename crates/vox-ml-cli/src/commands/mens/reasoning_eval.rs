@@ -38,8 +38,16 @@ pub(crate) fn score_reasoning_file(
     bench: &str,
     items_path: &Path,
     adapter: &Path,
+    force_restart: bool,
 ) -> Result<ReasoningReport> {
-    score_reasoning_file_with(bench, items_path, adapter, max_tokens_env().as_deref())
+    score_reasoning_file_with(
+        bench,
+        items_path,
+        adapter,
+        max_tokens_env().as_deref(),
+        Path::new(super::item_checkpoint::REASONING_CHECKPOINT_ROOT),
+        force_restart,
+    )
 }
 
 /// [`score_reasoning_file`] with the raw token-cap value passed in, so callers
@@ -49,6 +57,8 @@ fn score_reasoning_file_with(
     items_path: &Path,
     adapter: &Path,
     raw_max_tokens: Option<&str>,
+    ck_root: &Path,
+    force_restart: bool,
 ) -> Result<ReasoningReport> {
     if !adapter.is_dir() {
         anyhow::bail!(
@@ -74,12 +84,13 @@ fn score_reasoning_file_with(
             ));
         }
     };
-    let (outcome, rows) = match run_backend(bench, &items, adapter, max_tokens) {
-        Ok(done) => done,
-        Err(e) => {
-            return Err(fail_closed(bench, adapter, &format!("{e:#}"), items.len()));
-        }
-    };
+    let (outcome, rows) =
+        match run_backend(bench, &items, adapter, max_tokens, ck_root, force_restart) {
+            Ok(done) => done,
+            Err(e) => {
+                return Err(fail_closed(bench, adapter, &format!("{e:#}"), items.len()));
+            }
+        };
     write_outcome(bench, adapter, &outcome, &rows)?;
     match outcome {
         BenchOutcome::Scored(scored) => Ok(ReasoningReport {
@@ -128,14 +139,40 @@ pub(crate) fn max_tokens_env() -> Option<String> {
     std::env::var_os("VOX_REASONING_EVAL_MAX_TOKENS").map(|v| v.to_string_lossy().into_owned())
 }
 
-/// Load the backend plugin and adapter, then score every item through it.
-/// `Err` means the model never loaded.
+/// Score `items` on `adapter` through the shared per-item checkpoint, loading
+/// the model only if an item needs generating. `Err` means the plugin or the
+/// checkpoint could not be opened; a model that does not load fails the slice.
 fn run_backend(
     bench: &str,
     items: &[ReasoningItem],
     adapter: &Path,
     max_tokens: usize,
+    ck_root: &Path,
+    force_restart: bool,
 ) -> Result<(BenchOutcome, Vec<Row>)> {
+    with_backend(adapter, false, |infer| {
+        score_slice_checkpointed(
+            ck_root,
+            adapter,
+            bench,
+            items,
+            max_tokens,
+            force_restart,
+            infer,
+        )
+    })?
+}
+
+/// Run `f` with an inference function for `model_dir` on the selected backend.
+/// The plugin loads up front. With `eager` the model loads before `f` and a load
+/// failure is this function's `Err`; otherwise it loads on the first call (so a
+/// run whose items are all checkpointed never loads it) and a load failure is
+/// that call's `Err`. The model is unloaded before returning.
+pub(crate) fn with_backend<T>(
+    model_dir: &Path,
+    eager: bool,
+    f: impl FnOnce(&mut dyn FnMut(&str) -> Result<String>) -> T,
+) -> Result<T> {
     let plugin_id = vox_populi::mens::select_mens_backend(
         vox_populi::mens::DeviceKind::Best,
         &vox_plugin_host::probe(),
@@ -148,23 +185,65 @@ fn run_backend(
         .as_ml_backend()
         .into_option()
         .ok_or_else(|| anyhow::anyhow!("{plugin_id} plugin does not provide MlBackend"))?;
-    let handle = backend
-        .load_model(adapter.to_string_lossy().as_ref().into())
-        .into_result()
-        .map_err(|e| anyhow::anyhow!("load_model({}): {e}", adapter.display()))?;
-
-    let mut infer = |prompt_json: &str| -> Result<String> {
+    let load = || {
         backend
-            .run_inference(&handle, prompt_json.into())
+            .load_model(model_dir.to_string_lossy().as_ref().into())
             .into_result()
-            .map(|resp| resp.as_str().to_string())
-            .map_err(|e| anyhow::anyhow!("{e}"))
+            .map_err(|e| anyhow::anyhow!("load_model({}): {e}", model_dir.display()))
     };
-    let done = score_loaded(bench, items, max_tokens, &mut infer);
-    // `loaded` is a cache reference and must outlive `handle`; it drops here
-    // with the other locals, which is after the last inference.
-    let _plugin = loaded;
-    Ok(done)
+    let mut handle = if eager { Some(load()?) } else { None };
+    let out = {
+        let mut infer = |prompt_json: &str| -> Result<String> {
+            if handle.is_none() {
+                handle = Some(load()?);
+            }
+            let h = handle.as_ref().expect("loaded above");
+            backend
+                .run_inference(h, prompt_json.into())
+                .into_result()
+                .map(|resp| resp.as_str().to_string())
+                .map_err(|e| anyhow::anyhow!("{e}"))
+        };
+        f(&mut infer)
+    };
+    if let Some(h) = handle {
+        if let Err(e) = backend.unload_model(&h).into_result() {
+            eprintln!("warning: unload_model({}): {e}", model_dir.display());
+        }
+    }
+    Ok(out)
+}
+
+/// [`score_loaded`] through the shared per-item checkpoint for this model,
+/// bench, item set and decode settings: recorded generations are reused and
+/// `infer` runs only for the rest. `Err` only when the checkpoint is refused.
+pub(crate) fn score_slice_checkpointed(
+    ck_root: &Path,
+    model_dir: &Path,
+    bench: &str,
+    items: &[ReasoningItem],
+    max_tokens: usize,
+    force_restart: bool,
+    infer: &mut dyn FnMut(&str) -> Result<String>,
+) -> Result<(BenchOutcome, Vec<Row>)> {
+    let mut ck = super::item_checkpoint::reasoning_checkpoint(
+        ck_root,
+        model_dir,
+        bench,
+        items,
+        max_tokens,
+        force_restart,
+    )?;
+    if ck.len() > 0 {
+        eprintln!(
+            "  {bench}: {} of {} items already in the checkpoint for {}",
+            ck.len(),
+            items.len(),
+            model_dir.display()
+        );
+    }
+    let mut via_ck = |prompt_json: &str| ck.infer(prompt_json, infer);
+    Ok(score_loaded(bench, items, max_tokens, &mut via_ck))
 }
 
 /// `generated_text` of a response, only when it parses and is non-empty.
@@ -278,6 +357,11 @@ fn write_outcome(bench: &str, adapter: &Path, outcome: &BenchOutcome, rows: &[Ro
 mod tests {
     use super::*;
 
+    /// A checkpoint root no test shares.
+    fn ck_root() -> std::path::PathBuf {
+        tempfile::tempdir().expect("ck").keep()
+    }
+
     fn gsm8k_slice() -> std::path::PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../mens/data/gsm8k_think/reasoning.jsonl")
     }
@@ -294,8 +378,15 @@ mod tests {
     #[test]
     fn an_adapter_dir_without_a_loadable_model_writes_not_scored() {
         let adapter = tempfile::tempdir().expect("tempdir");
-        let err = score_reasoning_file_with("gsm8k_think", &gsm8k_slice(), adapter.path(), None)
-            .expect_err("an empty adapter dir cannot be scored");
+        let err = score_reasoning_file_with(
+            "gsm8k_think",
+            &gsm8k_slice(),
+            adapter.path(),
+            None,
+            &ck_root(),
+            false,
+        )
+        .expect_err("an empty adapter dir cannot be scored");
         let msg = format!("{err:#}");
         assert!(msg.contains("scored 0 of 32"), "message was: {msg}");
         let v = read_report(adapter.path(), "gsm8k_think");
@@ -310,8 +401,15 @@ mod tests {
     fn a_missing_adapter_path_is_err_and_not_created() {
         let root = tempfile::tempdir().expect("tempdir");
         let adapter = root.path().join("no-such-adapter");
-        let err = score_reasoning_file_with("gsm8k_think", &gsm8k_slice(), &adapter, None)
-            .expect_err("a missing adapter cannot be scored");
+        let err = score_reasoning_file_with(
+            "gsm8k_think",
+            &gsm8k_slice(),
+            &adapter,
+            None,
+            &ck_root(),
+            false,
+        )
+        .expect_err("a missing adapter cannot be scored");
         assert!(format!("{err:#}").contains("scored 0 of 32"));
         assert!(!adapter.exists(), "the adapter path must not be created");
     }
@@ -489,8 +587,15 @@ mod tests {
             .collect();
         std::fs::write(&slice, rows).expect("write slice");
         let adapter = tempfile::tempdir().expect("tempdir");
-        let err = score_reasoning_file_with("gsm8k_think", &slice, adapter.path(), None)
-            .expect_err("a 31-row slice must not be scored");
+        let err = score_reasoning_file_with(
+            "gsm8k_think",
+            &slice,
+            adapter.path(),
+            None,
+            &ck_root(),
+            false,
+        )
+        .expect_err("a 31-row slice must not be scored");
         let msg = format!("{err:#}");
         assert!(msg.contains("scored 0 of 32"), "message was: {msg}");
         let v = read_report(adapter.path(), "gsm8k_think");
@@ -519,9 +624,15 @@ mod tests {
     #[test]
     fn an_unparseable_max_tokens_is_not_scored_and_never_2048() {
         let adapter = tempfile::tempdir().expect("tempdir");
-        let err =
-            score_reasoning_file_with("gsm8k_think", &gsm8k_slice(), adapter.path(), Some("4k"))
-                .expect_err("a non-integer cap must not be scored");
+        let err = score_reasoning_file_with(
+            "gsm8k_think",
+            &gsm8k_slice(),
+            adapter.path(),
+            Some("4k"),
+            &ck_root(),
+            false,
+        )
+        .expect_err("a non-integer cap must not be scored");
         let msg = format!("{err:#}");
         assert!(
             msg.contains("VOX_REASONING_EVAL_MAX_TOKENS"),
