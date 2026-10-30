@@ -10,8 +10,8 @@ use vox_orchestrator::models::Capability;
 use vox_orchestrator::types::TaskCategory;
 
 use super::turn_pack::{
-    Answer, Question, Rule, TAU_APPLY, TAU_FREE, TurnPack, UNCALIBRATED, evaluate,
-    evaluate_with_rules, turn_selection_request,
+    Answer, Question, Rule, TAU_APPLY, TAU_FREE, TurnPack, evaluate_with_rules,
+    turn_selection_request,
 };
 use super::types::McpChatModelResolution;
 
@@ -404,49 +404,19 @@ fn pack_changes_only_the_four_inputs() {
     }
 }
 
-#[test]
-fn uncalibrated_rules_never_patch() {
-    let prompts = [
-        "please fix the bug in the parser",
-        "what is the latest research on this",
-        "plan the roadmap for the next milestone",
-        "thanks, hello there",
-        "quick typo fix",
-        "redesign the architecture across crates",
-        "explain and show me the file",
-        "delete the production credentials",
-        "cheap free tier is fine, no rush",
-        "use the best model, this is critical",
-        "keep this offline and local only",
-        "Refactor -- the CONCURRENCY race condition; deploy it locally!",
-    ];
-    for p in prompts {
-        let pack = evaluate(p);
-        assert_ne!(pack, TurnPack::default(), "{p:?} fires no rule");
-        for i in 1..=5 {
-            let fx = fixture(i);
-            assert_eq!(
-                format!("{:?}", request(&pack, &fx)),
-                fx.golden,
-                "{p:?} G{i}"
-            );
-        }
-    }
-}
-
 const TIE_RESEARCH: Rule = Rule {
     id: "task_shape.1.1",
     question: Question::TaskShape,
     any_of: &["fix"],
     answer: 1,
-    confidence: UNCALIBRATED,
+    confidence: 0.5,
 };
 const TIE_CODE: Rule = Rule {
     id: "task_shape.0.1",
     question: Question::TaskShape,
     any_of: &["fix"],
     answer: 0,
-    confidence: UNCALIBRATED,
+    confidence: 0.5,
 };
 
 #[test]

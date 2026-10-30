@@ -11,6 +11,8 @@ mod types;
 #[allow(unsafe_code)] // tests use `set_var` / `remove_var` under a global lock (Rust 2024)
 mod tests;
 #[cfg(test)]
+mod turn_pack_eval_tests;
+#[cfg(test)]
 mod turn_pack_tests;
 
 pub use resolve::{

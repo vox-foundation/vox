@@ -22,9 +22,6 @@ pub(super) const PACK_VERSION: &str = "turn-pack.v1";
 pub(super) const TAU_APPLY: f32 = 0.80;
 /// Minimum confidence for the allow-free-tier answer to widen scorer eligibility.
 pub(super) const TAU_FREE: f32 = 0.85;
-/// Prior carried by every rule until 322-02 replaces it with the calib-split
-/// precision. Below both τ, so an uncalibrated rule can never patch.
-pub(super) const UNCALIBRATED: f32 = 0.5;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Question {
@@ -35,7 +32,7 @@ pub(super) enum Question {
     PrivacyLocal,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(super) struct Rule {
     pub id: &'static str,
     pub question: Question,
@@ -48,31 +45,34 @@ pub(super) struct Rule {
     pub confidence: f32,
 }
 
+/// confidence = Laplace precision on tests/fixtures/turn_pack/calib.v1.jsonl,
+/// checked by rule_confidences_match_calib_split. A rule that never fires on
+/// calib keeps 0.5 (Laplace of 0/0), below both τ.
 // ponytail: keyword rules, ceiling is lexical recall; upgrade path is a labeled classifier head.
 #[rustfmt::skip]
 pub(super) const RULES: &[Rule] = &[
-    Rule { id: "task_shape.0.1", question: Question::TaskShape, answer: 0, confidence: UNCALIBRATED,
+    Rule { id: "task_shape.0.1", question: Question::TaskShape, answer: 0, confidence: 0.67,
         any_of: &["fix", "bug", "refactor", "implement", "compile error", "stack trace", "failing test", "rename", "patch"] },
-    Rule { id: "task_shape.1.1", question: Question::TaskShape, answer: 1, confidence: UNCALIBRATED,
-        any_of: &["what is", "explain why", "compare", "sources", "papers", "latest", "research"] },
-    Rule { id: "task_shape.2.1", question: Question::TaskShape, answer: 2, confidence: UNCALIBRATED,
+    Rule { id: "task_shape.1.1", question: Question::TaskShape, answer: 1, confidence: 0.83,
+        any_of: &["what is", "what does", "how does", "look up", "investigate", "explain why", "compare", "sources", "papers", "latest", "research"] },
+    Rule { id: "task_shape.2.1", question: Question::TaskShape, answer: 2, confidence: 0.86,
         any_of: &["plan", "roadmap", "break down", "steps to", "design doc", "milestone"] },
-    Rule { id: "task_shape.3.1", question: Question::TaskShape, answer: 3, confidence: UNCALIBRATED,
-        any_of: &["thanks", "thank you", "hello", "hi", "good morning", "how are you"] },
-    Rule { id: "complexity.0.1", question: Question::Complexity, answer: 0, confidence: UNCALIBRATED,
+    Rule { id: "task_shape.3.1", question: Question::TaskShape, answer: 3, confidence: 0.75,
+        any_of: &["thanks", "thank you", "hello", "hi", "hey", "good morning", "how are you"] },
+    Rule { id: "complexity.0.1", question: Question::Complexity, answer: 0, confidence: 0.40,
         any_of: &["typo", "one line", "quick", "trivial"] },
-    Rule { id: "complexity.2.1", question: Question::Complexity, answer: 2, confidence: UNCALIBRATED,
+    Rule { id: "complexity.2.1", question: Question::Complexity, answer: 2, confidence: 0.50,
         any_of: &["architecture", "across crates", "redesign", "migrate", "concurrency", "race condition"] },
-    Rule { id: "stakes.0.1", question: Question::Stakes, answer: 0, confidence: UNCALIBRATED,
+    Rule { id: "stakes.0.1", question: Question::Stakes, answer: 0, confidence: 0.50,
         any_of: &["explain", "show me", "read"] },
-    Rule { id: "stakes.2.1", question: Question::Stakes, answer: 2, confidence: UNCALIBRATED,
+    Rule { id: "stakes.2.1", question: Question::Stakes, answer: 2, confidence: 0.80,
         any_of: &["delete", "drop table", "force push", "production", "deploy", "rm rf", "credentials", "secret"] },
-    Rule { id: "allow_free_tier.1.1", question: Question::AllowFreeTier, answer: 1, confidence: UNCALIBRATED,
-        any_of: &["cheap", "free model", "free tier", "quick question", "any model", "no rush"] },
-    Rule { id: "allow_free_tier.0.1", question: Question::AllowFreeTier, answer: 0, confidence: UNCALIBRATED,
+    Rule { id: "allow_free_tier.1.1", question: Question::AllowFreeTier, answer: 1, confidence: 0.86,
+        any_of: &["cheap", "quick one", "small change", "free model", "free tier", "quick question", "any model", "no rush"] },
+    Rule { id: "allow_free_tier.0.1", question: Question::AllowFreeTier, answer: 0, confidence: 0.50,
         any_of: &["best model", "highest quality", "most capable", "critical"] },
-    Rule { id: "privacy_local.1.1", question: Question::PrivacyLocal, answer: 1, confidence: UNCALIBRATED,
-        any_of: &["offline", "local only", "locally", "private", "confidential", "on device", "do not send", "air gapped"] },
+    Rule { id: "privacy_local.1.1", question: Question::PrivacyLocal, answer: 1, confidence: 0.80,
+        any_of: &["offline", "local only", "locally", "keep it local", "private", "confidential", "on device", "do not send", "don t send", "air gapped"] },
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq)]
