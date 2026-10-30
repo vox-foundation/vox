@@ -143,35 +143,40 @@ pub(crate) async fn dispatch_results_poll(
     }
 }
 
+fn node_passes_dispatch_policy(n: &NodeRecord, req: &DispatchRequest, now_unix_ms: u64) -> bool {
+    if n.quarantined == Some(true) || node_maintenance_blocks_new_work(now_unix_ms, n) {
+        return false;
+    }
+    if let Some(required) = &req.required_labels
+        && !required.is_empty()
+        && !required
+            .iter()
+            .all(|req_lab| n.capabilities.labels.contains(req_lab))
+    {
+        return false;
+    }
+    if let (Some(task_kind_str), Some(policy)) = (&req.task_kind, &n.donation_policy) {
+        let allowed = policy.slots.iter().any(|slot| {
+            format!("{:?}", slot.task_kind).to_lowercase() == task_kind_str.to_lowercase()
+        });
+        if !allowed {
+            return false;
+        }
+    }
+    true
+}
+
 fn select_best_node<'a>(nodes: &'a [NodeRecord], req: &DispatchRequest) -> Option<&'a NodeRecord> {
     let mut candidates: Vec<_> = nodes
         .iter()
         .filter(|n| {
-            n.quarantined != Some(true) && !node_maintenance_blocks_new_work(crate::now_ms(), n)
-        })
-        .filter(|n| {
-            // Label matching
-            if let Some(required) = &req.required_labels
-                && !required.is_empty()
-                && !required
-                    .iter()
-                    .all(|req_lab| n.capabilities.labels.contains(req_lab))
-            {
+            if !node_passes_dispatch_policy(n, req, crate::now_ms()) {
                 return false;
             }
-            // VRAM matching
+            // VRAM matching stays on script dispatch. The mesh size pick does not use it.
             if let Some(min_vram) = req.min_vram_mb {
                 let node_vram = n.capabilities.min_vram_mb.unwrap_or(0);
                 if node_vram < min_vram {
-                    return false;
-                }
-            }
-            // Donation policy matching
-            if let (Some(task_kind_str), Some(policy)) = (&req.task_kind, &n.donation_policy) {
-                let allowed = policy.slots.iter().any(|slot| {
-                    format!("{:?}", slot.task_kind).to_lowercase() == task_kind_str.to_lowercase()
-                });
-                if !allowed {
                     return false;
                 }
             }
@@ -450,7 +455,6 @@ pub(crate) enum Qwen3MeshError {
 ///
 /// One call to `select_qwen3_code_qlora_for_free_mb` (which calls `pick_base`).
 /// Total VRAM, system RAM, and `min_vram_mb` are not inputs.
-#[allow(unused_variables)]
 pub(crate) fn select_qwen3_mesh(
     nodes: &[NodeRecord],
     req: &DispatchRequest,
@@ -458,9 +462,13 @@ pub(crate) fn select_qwen3_mesh(
     stale_window_ms: Option<u64>,
     explicit_size: Option<&str>,
 ) -> Result<Qwen3MeshSelection, Qwen3MeshError> {
+    let _ = (stale_window_ms, explicit_size);
     let candidates: Vec<&NodeRecord> = nodes
         .iter()
-        .filter(|node| node.accelerator_free_mb.is_some())
+        .filter(|node| {
+            node.accelerator_free_mb.is_some()
+                && node_passes_dispatch_policy(node, req, now_unix_ms)
+        })
         .collect();
     let Some(max_free) = candidates
         .iter()
@@ -572,5 +580,91 @@ mod qwen3_mesh_tests {
         .expect("record without accelerator_free_mb");
         assert_eq!(missing.accelerator_free_mb, None);
         assert_eq!(missing.memory_free_bytes, Some(123));
+    }
+
+    #[test]
+    fn mesh_pick_tie_breaks_on_lowest_cpu() {
+        let nodes = vec![
+            node("busy", Some(70_000), Some(80.0)),
+            node("idle", Some(70_000), Some(10.0)),
+        ];
+        let got = select_qwen3_mesh(&nodes, &plain_req(), 10_000_000, Some(3_600_000), None)
+            .expect("tie pick");
+        assert_eq!(got.node_id, "idle");
+        assert_eq!(got.size_token, "32B");
+        assert_eq!(got.preset, "qwen3_96g");
+        assert_eq!(got.floor_mb, 60_000);
+    }
+
+    fn assert_narrow_14b(nodes: &[NodeRecord], req: &DispatchRequest) {
+        let got =
+            select_qwen3_mesh(nodes, req, 10_000_000, Some(3_600_000), None).expect("narrow pick");
+        assert_eq!(got.node_id, "narrow");
+        assert_eq!(got.size_token, "14B");
+        assert_eq!(got.preset, "qwen3_24g");
+        assert_eq!(got.floor_mb, 20_000);
+    }
+
+    fn empty_donation() -> vox_mesh_types::WorkerDonationPolicy {
+        serde_json::from_value(serde_json::json!({
+            "slots": [],
+            "nsfw_allowed": false,
+            "max_job_duration_secs": 0,
+            "public_mesh_opt_in": false,
+            "min_priority": 0,
+            "allowed_scopes": null,
+            "allowed_users": null,
+            "denied_users": null,
+            "allowed_mesh_networks": null
+        }))
+        .expect("empty donation policy")
+    }
+
+    #[test]
+    fn mesh_pick_skips_quarantine_maintenance_labels_and_donation() {
+        let mut quarantined = node("wide", Some(70_000), Some(10.0));
+        quarantined.quarantined = Some(true);
+        let narrow = node("narrow", Some(25_000), Some(90.0));
+        assert_narrow_14b(&[quarantined, narrow], &plain_req());
+
+        let mut maintained = node("wide", Some(70_000), Some(10.0));
+        maintained.maintenance = Some(true);
+        maintained.maintenance_until_unix_ms = Some(10_000_001);
+        let narrow = node("narrow", Some(25_000), Some(90.0));
+        assert_narrow_14b(&[maintained, narrow], &plain_req());
+
+        let unlabeled = node("wide", Some(70_000), Some(10.0));
+        let mut labeled = node("narrow", Some(25_000), Some(90.0));
+        labeled
+            .capabilities
+            .labels
+            .push("region=us-east".to_string());
+        let mut req = plain_req();
+        req.required_labels = Some(vec!["region=us-east".to_string()]);
+        assert_narrow_14b(&[unlabeled, labeled], &req);
+
+        let mut closed = node("wide", Some(70_000), Some(10.0));
+        closed.donation_policy = Some(empty_donation());
+        let open = node("narrow", Some(25_000), Some(90.0));
+        let mut req = plain_req();
+        req.task_kind = Some("text_infer".to_string());
+        assert_narrow_14b(&[closed, open], &req);
+    }
+
+    #[test]
+    fn mesh_pick_ignores_total_vram_system_ram_and_min_vram() {
+        let mut rich = node("rich", None, Some(1.0));
+        rich.gpu_vram_total_mb = Some(80_000);
+        rich.memory_free_bytes = Some(80u64 * 1024 * 1024 * 1024);
+        rich.capabilities.min_vram_mb = Some(80_000);
+        let lean = node("lean", Some(25_000), Some(90.0));
+        let mut req = plain_req();
+        req.min_vram_mb = Some(70_000);
+        let got = select_qwen3_mesh(&[rich, lean], &req, 10_000_000, Some(3_600_000), None)
+            .expect("lean pick");
+        assert_eq!(got.node_id, "lean");
+        assert_eq!(got.size_token, "14B");
+        assert_eq!(got.preset, "qwen3_24g");
+        assert_eq!(got.floor_mb, 20_000);
     }
 }
