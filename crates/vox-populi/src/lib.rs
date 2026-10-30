@@ -288,6 +288,7 @@ pub fn node_record_for_current_process(node_id: String, listen_addr: Option<Stri
         gpu_inventory_source: None,
         gpu_truth_layer: None,
         gpu_vram_total_mb: None,
+        accelerator_free_mb: None,
         gpu_model_name: None,
         nvidia_driver_version: None,
         cuda_driver_version: None,

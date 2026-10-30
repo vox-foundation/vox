@@ -413,3 +413,164 @@ pub(crate) async fn execute_on_worker(
         })),
     }
 }
+
+/// One mesh placement of a measured `qwen3_code` QLoRA size.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Qwen3MeshSelection {
+    pub node_id: String,
+    pub size_token: String,
+    pub preset: String,
+    pub floor_mb: u32,
+    pub hf_id: String,
+    pub accelerator_free_mb: u64,
+}
+
+/// Why [`select_qwen3_mesh`] refused to name a node.
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
+pub(crate) enum Qwen3MeshError {
+    /// `accelerator_free_mb` does not fit the picker's `u32` argument.
+    #[error("accelerator_free_mb {0} does not fit in u32")]
+    ReadingExceedsU32(u64),
+    /// `pick_base` (via the qwen3 code QLoRA selector) returned an error.
+    #[error("{0}")]
+    PickFailed(String),
+    /// No node has a usable free-memory reading.
+    #[error("no fresh accelerator free-memory reading")]
+    NoFreshReading,
+    /// An explicit size spelling does not fit any eligible node.
+    #[error("explicit size does not fit any eligible node")]
+    ExplicitDoesNotFit,
+    /// Fresh readings exist and none hold a measured floor.
+    #[error("no measured qwen3_code QLoRA floor fits the fresh readings")]
+    NothingFits,
+}
+
+/// Largest measured `qwen3_code` QLoRA size that fits some eligible node's
+/// `accelerator_free_mb`, placed on a node that holds that floor.
+///
+/// One call to `select_qwen3_code_qlora_for_free_mb` (which calls `pick_base`).
+/// Total VRAM, system RAM, and `min_vram_mb` are not inputs.
+#[allow(unused_variables)]
+pub(crate) fn select_qwen3_mesh(
+    nodes: &[NodeRecord],
+    req: &DispatchRequest,
+    now_unix_ms: u64,
+    stale_window_ms: Option<u64>,
+    explicit_size: Option<&str>,
+) -> Result<Qwen3MeshSelection, Qwen3MeshError> {
+    let candidates: Vec<&NodeRecord> = nodes
+        .iter()
+        .filter(|node| node.accelerator_free_mb.is_some())
+        .collect();
+    let Some(max_free) = candidates
+        .iter()
+        .filter_map(|node| node.accelerator_free_mb)
+        .max()
+    else {
+        return Err(Qwen3MeshError::NoFreshReading);
+    };
+    let free_u32 =
+        u32::try_from(max_free).map_err(|_| Qwen3MeshError::ReadingExceedsU32(max_free))?;
+    let pick = vox_populi::mens::tensor::spoke_base_resolver::select_qwen3_code_qlora_for_free_mb(
+        free_u32,
+    )
+    .map_err(|err| Qwen3MeshError::PickFailed(err.to_string()))?;
+    route_pick_to_holder(candidates, pick)
+}
+
+fn route_pick_to_holder(
+    candidates: Vec<&NodeRecord>,
+    pick: vox_populi::mens::tensor::spoke_base_resolver::Qwen3LivePick,
+) -> Result<Qwen3MeshSelection, Qwen3MeshError> {
+    let floor = u64::from(pick.floor_mb);
+    let mut holders: Vec<&NodeRecord> = candidates
+        .into_iter()
+        .filter(|node| node.accelerator_free_mb.unwrap_or(0) >= floor)
+        .collect();
+    if holders.is_empty() {
+        return Err(Qwen3MeshError::NothingFits);
+    }
+    holders.sort_by(|left, right| {
+        let left_cpu = left.cpu_usage_pct.unwrap_or(100.0);
+        let right_cpu = right.cpu_usage_pct.unwrap_or(100.0);
+        left_cpu
+            .partial_cmp(&right_cpu)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    let chosen = holders[0];
+    Ok(Qwen3MeshSelection {
+        node_id: chosen.id.clone(),
+        size_token: pick.size_token,
+        preset: pick.preset,
+        floor_mb: pick.floor_mb,
+        hf_id: pick.hf_id,
+        accelerator_free_mb: chosen
+            .accelerator_free_mb
+            .expect("holder was filtered on accelerator_free_mb"),
+    })
+}
+
+#[cfg(test)]
+mod qwen3_mesh_tests {
+    use super::*;
+
+    fn node(id: &str, free_mb: Option<u64>, cpu: Option<f32>) -> NodeRecord {
+        let mut record: NodeRecord = serde_json::from_value(serde_json::json!({
+            "id": id,
+            "capabilities": {},
+            "version": "test",
+            "last_seen_unix_ms": 10_000_000,
+            "memory_free_bytes": null,
+        }))
+        .expect("minimal NodeRecord");
+        record.accelerator_free_mb = free_mb;
+        record.cpu_usage_pct = cpu;
+        record.last_seen_unix_ms = 10_000_000;
+        record
+    }
+
+    fn plain_req() -> DispatchRequest {
+        serde_json::from_value(serde_json::json!({ "source": "test" }))
+            .expect("minimal DispatchRequest")
+    }
+
+    #[test]
+    fn mesh_pick_routes_largest_floor_to_the_node_that_holds_it() {
+        let nodes = vec![
+            node("wide", Some(70_000), Some(50.0)),
+            node("narrow", Some(25_000), Some(10.0)),
+        ];
+        let got = select_qwen3_mesh(&nodes, &plain_req(), 10_000_000, Some(3_600_000), None)
+            .expect("mesh pick");
+        let local =
+            vox_populi::mens::tensor::spoke_base_resolver::select_qwen3_code_qlora_for_free_mb(
+                70_000,
+            )
+            .expect("local pick");
+        assert_eq!(got.node_id, "wide");
+        assert_eq!(got.size_token, "32B");
+        assert_eq!(got.preset, "qwen3_96g");
+        assert_eq!(got.floor_mb, 60_000);
+        assert_eq!(
+            got.hf_id,
+            "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137"
+        );
+        assert_eq!(got.size_token, local.size_token);
+        assert_eq!(got.preset, local.preset);
+        assert_eq!(got.floor_mb, local.floor_mb);
+        assert_eq!(got.hf_id, local.hf_id);
+        assert_ne!(got.node_id, "narrow");
+        assert_eq!(got.accelerator_free_mb, 70_000);
+
+        let missing: NodeRecord = serde_json::from_value(serde_json::json!({
+            "id": "missing-free",
+            "capabilities": {},
+            "version": "test",
+            "last_seen_unix_ms": 1,
+            "memory_free_bytes": 123,
+        }))
+        .expect("record without accelerator_free_mb");
+        assert_eq!(missing.accelerator_free_mb, None);
+        assert_eq!(missing.memory_free_bytes, Some(123));
+    }
+}
