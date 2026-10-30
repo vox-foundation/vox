@@ -518,6 +518,19 @@ pub fn select_qwen3_code_qlora_for_free_mb(free_mb: u32) -> anyhow::Result<Qwen3
     select_qwen3_code_qlora_from_overlay(&overlay, free_mb)
 }
 
+/// Explicit `resolve_qwen3_size` spelling. Unlike the automatic pick, this does
+/// not step down when the QLoRA floor is above `free_mb`.
+pub fn explicit_qwen3_code_qlora_for_free_mb(
+    size: &str,
+    free_mb: u32,
+) -> anyhow::Result<Qwen3LivePick> {
+    let overlay = match vox_corpus::training::contract::find_workspace_root() {
+        Some(root) => load_overlay(&root)?,
+        None => load_embedded_overlay()?,
+    };
+    explicit_qwen3_size_for_free_mb(&overlay, size, free_mb)
+}
+
 fn revision_keeping(pick: &Qwen3LivePick, free_mb_at_load: u32) -> PreloadRevision {
     PreloadRevision {
         original_size: pick.size_token.clone(),
@@ -1506,5 +1519,14 @@ train_bases:
     #[test]
     fn free_mb_from_readings_errors_when_both_absent() {
         assert!(free_mb_from_readings(None, None).is_err());
+    }
+
+    #[test]
+    fn explicit_qwen3_code_qlora_for_free_mb_refuses_over_floor() {
+        assert!(explicit_qwen3_code_qlora_for_free_mb("32B", 25_000).is_err());
+        let pick = explicit_qwen3_code_qlora_for_free_mb("32B", 70_000).expect("32B fits 70000");
+        assert_eq!(pick.size_token, "32B");
+        assert_eq!(pick.preset, "qwen3_96g");
+        assert_eq!(pick.floor_mb, 60_000);
     }
 }

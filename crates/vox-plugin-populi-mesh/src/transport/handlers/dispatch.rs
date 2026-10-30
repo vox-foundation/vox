@@ -470,7 +470,6 @@ pub(crate) fn select_qwen3_mesh(
     stale_window_ms: Option<u64>,
     explicit_size: Option<&str>,
 ) -> Result<Qwen3MeshSelection, Qwen3MeshError> {
-    let _ = explicit_size;
     let window = effective_stale_window_ms(stale_window_ms);
     let candidates: Vec<&NodeRecord> = nodes
         .iter()
@@ -489,10 +488,15 @@ pub(crate) fn select_qwen3_mesh(
     };
     let free_u32 =
         u32::try_from(max_free).map_err(|_| Qwen3MeshError::ReadingExceedsU32(max_free))?;
-    let pick = vox_populi::mens::tensor::spoke_base_resolver::select_qwen3_code_qlora_for_free_mb(
-        free_u32,
-    )
-    .map_err(|err| Qwen3MeshError::PickFailed(err.to_string()))?;
+    let pick = if let Some(size) = explicit_size {
+        vox_populi::mens::tensor::spoke_base_resolver::explicit_qwen3_code_qlora_for_free_mb(
+            size, free_u32,
+        )
+        .map_err(|_| Qwen3MeshError::ExplicitDoesNotFit)?
+    } else {
+        vox_populi::mens::tensor::spoke_base_resolver::select_qwen3_code_qlora_for_free_mb(free_u32)
+            .map_err(|err| Qwen3MeshError::PickFailed(err.to_string()))?
+    };
     route_pick_to_holder(candidates, pick)
 }
 
@@ -724,5 +728,43 @@ mod qwen3_mesh_tests {
             .expect("zero window uses the hour");
         assert_eq!(got.node_id, "wide");
         assert_eq!(got.size_token, "32B");
+    }
+
+    #[test]
+    fn mesh_pick_explicit_size_that_no_node_holds_is_an_error() {
+        let nodes = vec![node("narrow", Some(25_000), Some(10.0))];
+        let err = select_qwen3_mesh(
+            &nodes,
+            &plain_req(),
+            10_000_000,
+            Some(3_600_000),
+            Some("32B"),
+        )
+        .expect_err("32B does not fit");
+        assert_eq!(err, Qwen3MeshError::ExplicitDoesNotFit);
+        let got = select_qwen3_mesh(&nodes, &plain_req(), 10_000_000, Some(3_600_000), None)
+            .expect("automatic step-down");
+        assert_eq!(got.size_token, "14B");
+        assert_eq!(got.preset, "qwen3_24g");
+        assert_eq!(got.floor_mb, 20_000);
+    }
+
+    #[test]
+    fn mesh_pick_explicit_size_routes_to_a_node_that_holds_it() {
+        let nodes = vec![
+            node("wide", Some(70_000), Some(40.0)),
+            node("narrow", Some(25_000), Some(5.0)),
+        ];
+        let got = select_qwen3_mesh(
+            &nodes,
+            &plain_req(),
+            10_000_000,
+            Some(3_600_000),
+            Some("32B"),
+        )
+        .expect("explicit 32B");
+        assert_eq!(got.node_id, "wide");
+        assert_eq!(got.size_token, "32B");
+        assert_eq!(got.floor_mb, 60_000);
     }
 }
