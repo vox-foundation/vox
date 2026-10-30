@@ -175,11 +175,24 @@ pub fn weight_sources(model_dir: &Path, base_shards: &[PathBuf]) -> Vec<PathBuf>
 
 impl InferenceEngine {
     pub fn load(model_dir: &Path, device_kind: &crate::device::DeviceKind) -> Result<Self> {
+        let t0 = std::time::Instant::now();
         let tokenizer_path = model_dir.join("tokenizer.json");
         let _tokenizer = Tokenizer::from_file(&tokenizer_path)
             .map_err(|e| anyhow::anyhow!("load tokenizer: {e}"))?;
 
         let _device = resolve_inference_device(device_kind)?;
+        // Load phases on stderr, with the device's allocated bytes, so a slow
+        // or oversized load shows where its time and memory go.
+        let phase = |what: &str| {
+            let mem = metal_allocated_mib(&_device)
+                .map(|m| format!(", metal {m} MiB"))
+                .unwrap_or_default();
+            eprintln!(
+                "  load {}: {what} at {:.1}s{mem}",
+                model_dir.display(),
+                t0.elapsed().as_secs_f64()
+            );
+        };
 
         let quant_meta_path = model_dir.join("quant-metadata.json");
         let is_quantized = quant_meta_path.is_file();
@@ -213,6 +226,7 @@ impl InferenceEngine {
             let resolved = resolve_weights(model_dir, &adapter_path, &meta_path, &_device)?;
             let base_shards = resolved.base_shards;
             lora_factors = resolved.lora_factors;
+            phase(&format!("{} LoRA factors read", lora_factors.len()));
 
             for p in weight_sources(model_dir, &base_shards) {
                 let file = std::fs::File::open(&p)?;
@@ -225,10 +239,33 @@ impl InferenceEngine {
         for m in &all_buffers {
             weight_maps.push(SafeTensors::deserialize(m)?);
         }
+        phase("weights mapped");
 
         let mut qlora_cfg = qlora_rs::qlora::QLoraConfig::default();
         qlora_cfg.quantization.compute_dtype = compute_dtype_for_device(&_device);
         qlora_cfg.cache_dequantized = true;
+
+        // An unquantized checkpoint tensor as f32 on `dev`.
+        let checkpoint_tensor = |key: &str, dev: &Device| -> Result<Tensor> {
+            for st in &weight_maps {
+                if let Ok(view) = st.tensor(key) {
+                    let shape = view.shape().to_vec();
+                    let dtype = match view.dtype() {
+                        Dtype::F32 => candle_core::DType::F32,
+                        Dtype::BF16 => candle_core::DType::BF16,
+                        Dtype::F16 => candle_core::DType::F16,
+                        _ => continue,
+                    };
+                    let t = Tensor::from_raw_buffer(view.data(), dtype, &shape, dev)?;
+                    return if t.dtype() == candle_core::DType::F32 {
+                        Ok(t)
+                    } else {
+                        Ok(t.to_dtype(candle_core::DType::F32)?)
+                    };
+                }
+            }
+            anyhow::bail!("Weight not found: {key}");
+        };
 
         // Helper to find a non-linear tensor (layernorm, embedding, bias) in any map
         let get_tensor = |key: &str| -> Result<Tensor> {
@@ -264,24 +301,7 @@ impl InferenceEngine {
                 }
                 anyhow::bail!("Quantized tensor `{key}` not found in model.safetensors");
             } else {
-                for st in &weight_maps {
-                    if let Ok(view) = st.tensor(key) {
-                        let shape = view.shape().to_vec();
-                        let dtype = match view.dtype() {
-                            Dtype::F32 => candle_core::DType::F32,
-                            Dtype::BF16 => candle_core::DType::BF16,
-                            Dtype::F16 => candle_core::DType::F16,
-                            _ => continue,
-                        };
-                        let t = Tensor::from_raw_buffer(view.data(), dtype, &shape, &_device)?;
-                        return if t.dtype() == candle_core::DType::F32 {
-                            Ok(t)
-                        } else {
-                            Ok(t.to_dtype(candle_core::DType::F32)?)
-                        };
-                    }
-                }
-                anyhow::bail!("Weight not found: {key}");
+                checkpoint_tensor(key, &_device)
             }
         };
 
@@ -293,7 +313,12 @@ impl InferenceEngine {
             if is_quantized {
                 Ok(Tensor::zeros((1,), candle_core::DType::F32, &_device)?)
             } else {
-                fold_lora_delta(get_tensor(key)?, key, &lora_factors)
+                linear_weight_on_host(
+                    |dev| checkpoint_tensor(key, dev),
+                    key,
+                    &lora_factors,
+                    &_device,
+                )
             }
         };
 
@@ -535,6 +560,9 @@ impl InferenceEngine {
                     mlp,
                     inv_freq,
                 });
+                if (i + 1) % 8 == 0 || i + 1 == layout.num_hidden_layers {
+                    phase(&format!("layer {}/{}", i + 1, layout.num_hidden_layers));
+                }
             }
             let norm = candle_nn::RmsNorm::new(
                 get_tensor("model.language_model.norm.weight")
@@ -547,6 +575,7 @@ impl InferenceEngine {
             )?;
             let embed_tokens = get_tensor("model.language_model.embed_tokens.weight")
                 .or_else(|_| get_tensor("model.embed_tokens.weight"))?;
+            phase("head and embeddings built");
             InferenceModel::Qwen35(Qwen35Model {
                 embed_tokens,
                 layers,
@@ -762,6 +791,60 @@ impl InferenceEngine {
 /// base-only serve can never pick up a delta by accident.
 /// The dense delta is formed here and dropped at the end of this function — it
 /// is never stored, so peak extra memory is one weight, not one per layer.
+/// Bytes the Metal device has allocated, in MiB; `None` off Metal.
+#[cfg(feature = "metal")]
+fn metal_allocated_mib(device: &Device) -> Option<u64> {
+    match device {
+        Device::Metal(m) => Some(m.metal_device().current_allocated_size() as u64 >> 20),
+        _ => None,
+    }
+}
+
+#[cfg(not(feature = "metal"))]
+#[rustfmt::skip] // keeps the toestub-ignore comment pinned to the fn signature line
+fn metal_allocated_mib(_device: &Device) -> Option<u64> { // toestub-ignore(skeleton/hollow-fn): no Metal device without the `metal` feature, so there is nothing to read.
+    None
+}
+
+/// A linear projection's base weight with its adapter delta folded in, returned
+/// in host memory. Quantization reads the weight back to the host anyway
+/// (`quantize_nf4_with_config` takes `to_vec1`), so a device-resident copy only
+/// costs memory: at 0.6B an adapter load held 1.62x the base load. The upload,
+/// the f32 cast and the fold run on a throwaway Metal device whose buffer pool
+/// is released when it drops here, not in `device`'s pool, which Candle never
+/// releases. Same kernels on the same GPU, so the weight is bit-identical.
+fn linear_weight_on_host(
+    load: impl Fn(&Device) -> Result<Tensor>,
+    key: &str,
+    factors: &std::collections::HashMap<String, crate::merge::LoraFactors>,
+    device: &Device,
+) -> Result<Tensor> {
+    if !device.is_metal() {
+        return fold_lora_delta(load(device)?, key, factors);
+    }
+    let scratch = Device::new_metal(0)?;
+    let weight = load(&scratch)?;
+    let folded = match factors.get(key) {
+        None => weight,
+        Some(f) => {
+            let to_scratch = |t: &Tensor| -> Result<Tensor> {
+                Ok(t.to_device(&Device::Cpu)?.to_device(&scratch)?)
+            };
+            let one = std::collections::HashMap::from([(
+                key.to_string(),
+                crate::merge::LoraFactors {
+                    a: to_scratch(&f.a)?,
+                    b: to_scratch(&f.b)?,
+                    alpha: f.alpha,
+                    rank: f.rank,
+                },
+            )]);
+            fold_lora_delta(weight, key, &one)?
+        }
+    };
+    Ok(folded.to_device(&Device::Cpu)?)
+}
+
 fn fold_lora_delta(
     weight: Tensor,
     key: &str,
@@ -1185,10 +1268,97 @@ mod live_metal_tests {
             "base-only inference produced no output at all"
         );
     }
+
+    /// Metal bytes held after loading `dir`, net of what was allocated before.
+    #[cfg(feature = "metal")]
+    fn allocated_after_load_mib(dir: &std::path::Path) -> u64 {
+        let probe = candle_core::Device::new_metal(0).expect("metal");
+        let candle_core::Device::Metal(m) = &probe else {
+            panic!("not metal")
+        };
+        let mtl = m.metal_device().clone();
+        let before = mtl.current_allocated_size() as u64;
+        let t0 = std::time::Instant::now();
+        let engine = InferenceEngine::load(dir, &crate::device::DeviceKind::Best).expect("load");
+        let held = (mtl.current_allocated_size() as u64).saturating_sub(before) / (1024 * 1024);
+        eprintln!(
+            "MEASURE dir={} held_after_load_mib={held} load_s={:.1}",
+            dir.display(),
+            t0.elapsed().as_secs_f64()
+        );
+        drop(engine);
+        held
+    }
+
+    /// Loading an adapter run must hold about what loading its base holds: the
+    /// LoRA fold may not leave extra full-size buffers behind (it did, 1.62x at
+    /// 0.6B, which at 4B pushed the machine into memory compression).
+    ///
+    /// ```text
+    /// VOX_MENS_MEASURE_BASE=<base snapshot> VOX_MENS_MEASURE_ADAPTER=<run dir> \
+    ///   cargo test --release -p vox-plugin-mens-candle-metal --features metal \
+    ///   -- --ignored --nocapture adapter_load_holds_about_what_base_load_holds
+    /// ```
+    #[cfg(feature = "metal")]
+    #[test]
+    #[ignore = "owner:mens sunset:never needs a real base snapshot, its adapter run and Metal hardware"]
+    fn adapter_load_holds_about_what_base_load_holds() {
+        let env = |k: &str| std::path::PathBuf::from(std::env::var(k).expect(k));
+        let base = allocated_after_load_mib(&env("VOX_MENS_MEASURE_BASE"));
+        let adapter = allocated_after_load_mib(&env("VOX_MENS_MEASURE_ADAPTER"));
+        assert!(
+            adapter * 10 <= base * 13,
+            "adapter load holds {adapter} MiB, base {base} MiB (> 1.3x)"
+        );
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "metal")]
+    #[test]
+    fn a_host_linear_weight_is_bit_identical_to_the_device_one() {
+        use candle_core::{DType, Tensor};
+        let device = candle_core::Device::new_metal(0).expect("metal");
+        let vals = |n: usize, k: f32| -> Vec<f32> {
+            (0..n).map(|i| (i as f32 * k).sin() * 0.05).collect()
+        };
+        let (out, inn, r) = (96, 160, 8);
+        // A bf16 checkpoint weight, cast to f32 on whichever device loads it.
+        let raw = vals(out * inn, 0.37);
+        let load = |dev: &candle_core::Device| -> anyhow::Result<Tensor> {
+            Ok(Tensor::from_vec(raw.clone(), (out, inn), dev)?
+                .to_dtype(DType::BF16)?
+                .to_dtype(DType::F32)?)
+        };
+        let a = Tensor::from_vec(vals(r * inn, 1.3), (r, inn), &device).unwrap();
+        let b = Tensor::from_vec(vals(out * r, 0.71), (out, r), &device).unwrap();
+        let factors = std::collections::HashMap::from([(
+            "k".to_string(),
+            crate::merge::LoraFactors {
+                a,
+                b,
+                alpha: 16.0,
+                rank: r,
+            },
+        )]);
+        let bits = |t: &Tensor| -> Vec<u32> {
+            let v = t.flatten_all().unwrap().to_vec1::<f32>().unwrap();
+            v.iter().map(|x| x.to_bits()).collect()
+        };
+        let old = super::fold_lora_delta(load(&device).unwrap(), "k", &factors).unwrap();
+        let new = super::linear_weight_on_host(load, "k", &factors, &device).unwrap();
+        assert!(
+            new.device().is_cpu(),
+            "the weight is returned in host memory"
+        );
+        assert_eq!(bits(&old), bits(&new));
+        let base = load(&device).unwrap();
+        assert_ne!(bits(&old), bits(&base), "the fixture delta is not zero");
+        let untouched = super::linear_weight_on_host(load, "other", &factors, &device).unwrap();
+        assert_eq!(bits(&untouched), bits(&base));
+    }
+
     use super::assemble_prompt;
     use super::check_output_mode;
     use super::generation_rng;
