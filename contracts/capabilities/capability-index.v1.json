@@ -4867,6 +4867,54 @@
       }
     },
     {
+      "id": "cli.audit.docs",
+      "kind": "cli",
+      "title": "Audit Docs",
+      "summary": "CLI operation `vox audit docs`",
+      "op_id": "audit.docs",
+      "status": "active",
+      "domain": "ci",
+      "product_lane": "platform",
+      "side_effect_class": "writes_files",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "audit",
+          "docs"
+        ],
+        "invocation": "vox audit docs",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": "harness-health",
+        "nav_label": "Harness Health",
+        "representation_tier": "live_backend",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-audit",
+        "layer": 5,
+        "rule": "crate_name_match"
+      },
+      "source_path": "crates/vox-audit/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": "cli_only",
+        "basis": "graph-key",
+        "ambiguous": false,
+        "reason": null
+      }
+    },
+    {
       "id": "cli.audit.effort",
       "kind": "cli",
       "title": "Audit Effort",
@@ -7408,7 +7456,7 @@
       "id": "cli.ci.compile-matrix",
       "kind": "cli",
       "title": "Ci Compile-matrix",
-      "summary": "CLI operation `vox ci compile-matrix`",
+      "summary": "CLI operation `vox ci compile-matrix` — smoke `vox compile --help` via cargo (matches compile-matrix workflow)",
       "op_id": "ci.compile-matrix",
       "status": "active",
       "domain": "ci",
@@ -8031,6 +8079,54 @@
       }
     },
     {
+      "id": "cli.ci.crate-api-sync",
+      "kind": "cli",
+      "title": "Ci Crate-api-sync",
+      "summary": "CLI operation `vox ci crate-api-sync`",
+      "op_id": "ci.crate-api-sync",
+      "status": "active",
+      "domain": "ci",
+      "product_lane": "platform",
+      "side_effect_class": "writes_files",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "ci",
+          "crate-api-sync"
+        ],
+        "invocation": "vox ci crate-api-sync",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "generic_form",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli-ci",
+        "layer": 5,
+        "rule": "crate_name_match"
+      },
+      "source_path": "crates/vox-cli-ci/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": "cli_only",
+        "basis": "graph-key",
+        "ambiguous": false,
+        "reason": null
+      }
+    },
+    {
       "id": "cli.ci.crate-budget",
       "kind": "cli",
       "title": "Ci Crate-budget",
@@ -8370,7 +8466,7 @@
       "id": "cli.ci.db-schema-coverage",
       "kind": "cli",
       "title": "Ci Db-schema-coverage",
-      "summary": "CLI operation `vox ci db-schema-coverage`",
+      "summary": "Verify every CREATE TABLE in the workspace is owned by a crate in tiers.a_relational.owners.",
       "op_id": "ci.db-schema-coverage",
       "status": "active",
       "domain": "ci",
@@ -11357,7 +11453,7 @@
       "id": "cli.ci.pipeline-parity",
       "kind": "cli",
       "title": "Ci Pipeline-parity",
-      "summary": "CLI operation `vox ci pipeline-parity`",
+      "summary": "CLI operation `vox ci pipeline-parity` — umbrella gate for script→emission SSOT (grammar parity, canonical ladder, feature matrix, k-budget)",
       "op_id": "ci.pipeline-parity",
       "status": "active",
       "domain": "ci",
@@ -12317,7 +12413,7 @@
       "id": "cli.ci.retirement-audit",
       "kind": "cli",
       "title": "Ci Retirement-audit",
-      "summary": "CLI operation `vox ci retirement-audit`",
+      "summary": "CLI operation `vox ci retirement-audit` — scan `vox-deprecated-since` / `retire-by` markers vs workspace semver",
       "op_id": "ci.retirement-audit",
       "status": "active",
       "domain": "ci",
@@ -48415,6 +48511,249 @@
       }
     },
     {
+      "id": "cli.telemetry.intelligence",
+      "kind": "cli",
+      "title": "Telemetry Intelligence",
+      "summary": "CLI operation `vox telemetry intelligence`",
+      "op_id": "telemetry.intelligence",
+      "status": "active",
+      "domain": "platform",
+      "product_lane": "platform",
+      "side_effect_class": "read_only",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "telemetry",
+          "intelligence"
+        ],
+        "invocation": "vox telemetry intelligence",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "generic_form",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-telemetry",
+        "layer": 1,
+        "rule": "crate_name_match"
+      },
+      "source_path": "crates/vox-telemetry/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
+      "id": "cli.telemetry.intelligence.inspect",
+      "kind": "cli",
+      "title": "Telemetry Intelligence Inspect",
+      "summary": "CLI operation `vox telemetry intelligence inspect`",
+      "op_id": "telemetry.intelligence.inspect",
+      "status": "active",
+      "domain": "platform",
+      "product_lane": "platform",
+      "side_effect_class": "read_only",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "telemetry",
+          "intelligence",
+          "inspect"
+        ],
+        "invocation": "vox telemetry intelligence inspect",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "generic_form",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-telemetry",
+        "layer": 1,
+        "rule": "crate_name_match"
+      },
+      "source_path": "crates/vox-telemetry/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
+      "id": "cli.telemetry.intelligence.status",
+      "kind": "cli",
+      "title": "Telemetry Intelligence Status",
+      "summary": "CLI operation `vox telemetry intelligence status`",
+      "op_id": "telemetry.intelligence.status",
+      "status": "active",
+      "domain": "platform",
+      "product_lane": "platform",
+      "side_effect_class": "read_only",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "telemetry",
+          "intelligence",
+          "status"
+        ],
+        "invocation": "vox telemetry intelligence status",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "generic_form",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-telemetry",
+        "layer": 1,
+        "rule": "crate_name_match"
+      },
+      "source_path": "crates/vox-telemetry/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": "cli_only",
+        "basis": "graph-key",
+        "ambiguous": true,
+        "reason": null
+      }
+    },
+    {
+      "id": "cli.telemetry.intelligence.sync",
+      "kind": "cli",
+      "title": "Telemetry Intelligence Sync",
+      "summary": "CLI operation `vox telemetry intelligence sync`",
+      "op_id": "telemetry.intelligence.sync",
+      "status": "active",
+      "domain": "platform",
+      "product_lane": "platform",
+      "side_effect_class": "read_only",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "telemetry",
+          "intelligence",
+          "sync"
+        ],
+        "invocation": "vox telemetry intelligence sync",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "generic_form",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-telemetry",
+        "layer": 1,
+        "rule": "crate_name_match"
+      },
+      "source_path": "crates/vox-telemetry/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
+      "id": "cli.telemetry.preview",
+      "kind": "cli",
+      "title": "Telemetry Preview",
+      "summary": "CLI operation `vox telemetry preview`",
+      "op_id": "telemetry.preview",
+      "status": "active",
+      "domain": "platform",
+      "product_lane": "platform",
+      "side_effect_class": "read_only",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "telemetry",
+          "preview"
+        ],
+        "invocation": "vox telemetry preview",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "generic_form",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-telemetry",
+        "layer": 1,
+        "rule": "crate_name_match"
+      },
+      "source_path": "crates/vox-telemetry/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
       "id": "cli.telemetry.status",
       "kind": "cli",
       "title": "Telemetry Status",
@@ -49005,6 +49344,54 @@
           "preview"
         ],
         "invocation": "vox workflow preview",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "generic_form",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli",
+        "layer": 5,
+        "rule": "cli_module"
+      },
+      "source_path": "crates/vox-cli/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": "cli_only",
+        "basis": "graph-key",
+        "ambiguous": false,
+        "reason": null
+      }
+    },
+    {
+      "id": "cli.workflow.signal",
+      "kind": "cli",
+      "title": "Workflow Signal",
+      "summary": "CLI operation `vox workflow signal`",
+      "op_id": "workflow.signal",
+      "status": "active",
+      "domain": "runtime",
+      "product_lane": "workflow",
+      "side_effect_class": "writes_files",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "workflow",
+          "signal"
+        ],
+        "invocation": "vox workflow signal",
         "feature_gate": null
       },
       "mcp": null,
@@ -65181,6 +65568,7 @@
         "cli.audit.arch",
         "cli.audit.code",
         "cli.audit.core",
+        "cli.audit.docs",
         "cli.audit.effort",
         "cli.audit.effort-route",
         "cli.audit.research-parity",

@@ -1859,7 +1859,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox audit docs`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18364,7 +18364,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox telemetry intelligence`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18382,7 +18382,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox telemetry intelligence inspect`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18401,7 +18401,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox telemetry intelligence status`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18420,7 +18420,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox telemetry intelligence sync`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: read_only
   scope_kind: null
   reversible: null
   requires_repo: null
@@ -18675,7 +18675,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox workflow signal`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null

@@ -4742,6 +4742,18 @@
       "curated": true
     },
     {
+      "capability_id": "cli.audit.docs",
+      "cli_path": [
+        "audit",
+        "docs"
+      ],
+      "implicit": false,
+      "title": "Audit Docs",
+      "description_model": "CLI operation `vox audit docs`",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
       "capability_id": "cli.audit.effort",
       "cli_path": [
         "audit",
@@ -5356,7 +5368,7 @@
       ],
       "implicit": false,
       "title": "Ci Compile-matrix",
-      "description_model": "CLI operation `vox ci compile-matrix`",
+      "description_model": "CLI operation `vox ci compile-matrix` — smoke `vox compile --help` via cargo (matches compile-matrix workflow)",
       "side_effect_class": "spawns_process",
       "curated": true
     },
@@ -5507,6 +5519,18 @@
       "curated": true
     },
     {
+      "capability_id": "cli.ci.crate-api-sync",
+      "cli_path": [
+        "ci",
+        "crate-api-sync"
+      ],
+      "implicit": false,
+      "title": "Ci Crate-api-sync",
+      "description_model": "CLI operation `vox ci crate-api-sync`",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
       "capability_id": "cli.ci.crate-budget",
       "cli_path": [
         "ci",
@@ -5598,7 +5622,7 @@
       ],
       "implicit": false,
       "title": "Ci Db-schema-coverage",
-      "description_model": "CLI operation `vox ci db-schema-coverage`",
+      "description_model": "Verify every CREATE TABLE in the workspace is owned by a crate in tiers.a_relational.owners.",
       "side_effect_class": "read_only",
       "curated": true
     },
@@ -6359,7 +6383,7 @@
       ],
       "implicit": false,
       "title": "Ci Pipeline-parity",
-      "description_model": "CLI operation `vox ci pipeline-parity`",
+      "description_model": "CLI operation `vox ci pipeline-parity` — umbrella gate for script→emission SSOT (grammar parity, canonical ladder, feature matrix, k-budget)",
       "side_effect_class": "read_only",
       "curated": true
     },
@@ -6599,7 +6623,7 @@
       ],
       "implicit": false,
       "title": "Ci Retirement-audit",
-      "description_model": "CLI operation `vox ci retirement-audit`",
+      "description_model": "CLI operation `vox ci retirement-audit` — scan `vox-deprecated-since` / `retire-by` markers vs workspace semver",
       "side_effect_class": "read_only",
       "curated": true
     },
@@ -15387,6 +15411,69 @@
       "curated": true
     },
     {
+      "capability_id": "cli.telemetry.intelligence",
+      "cli_path": [
+        "telemetry",
+        "intelligence"
+      ],
+      "implicit": false,
+      "title": "Telemetry Intelligence",
+      "description_model": "CLI operation `vox telemetry intelligence`",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.telemetry.intelligence.inspect",
+      "cli_path": [
+        "telemetry",
+        "intelligence",
+        "inspect"
+      ],
+      "implicit": false,
+      "title": "Telemetry Intelligence Inspect",
+      "description_model": "CLI operation `vox telemetry intelligence inspect`",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.telemetry.intelligence.status",
+      "cli_path": [
+        "telemetry",
+        "intelligence",
+        "status"
+      ],
+      "implicit": false,
+      "title": "Telemetry Intelligence Status",
+      "description_model": "CLI operation `vox telemetry intelligence status`",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.telemetry.intelligence.sync",
+      "cli_path": [
+        "telemetry",
+        "intelligence",
+        "sync"
+      ],
+      "implicit": false,
+      "title": "Telemetry Intelligence Sync",
+      "description_model": "CLI operation `vox telemetry intelligence sync`",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.telemetry.preview",
+      "cli_path": [
+        "telemetry",
+        "preview"
+      ],
+      "implicit": false,
+      "title": "Telemetry Preview",
+      "description_model": "CLI operation `vox telemetry preview`",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
       "capability_id": "cli.telemetry.status",
       "cli_path": [
         "telemetry",
@@ -15528,6 +15615,18 @@
       "implicit": false,
       "title": "Workflow Preview",
       "description_model": "CLI operation `vox workflow preview`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.workflow.signal",
+      "cli_path": [
+        "workflow",
+        "signal"
+      ],
+      "implicit": false,
+      "title": "Workflow Signal",
+      "description_model": "CLI operation `vox workflow signal`",
+      "side_effect_class": "writes_files",
       "curated": true
     }
   ],
