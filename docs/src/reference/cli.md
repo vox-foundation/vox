@@ -556,7 +556,7 @@ Discovery/data-prep operator commands: `vox db publication-discovery-scan`, `vox
 
 ### `vox telemetry`
 
-**Optional operator upload path** — not default-on, not product telemetry. Local JSON spool under `.vox/telemetry-upload-queue` (or `VOX_TELEMETRY_SPOOL_DIR`), explicit **`vox telemetry upload`**, secrets via Clavis (`VOX_TELEMETRY_UPLOAD_URL`, `VOX_TELEMETRY_UPLOAD_TOKEN`). Subcommands: **`vox telemetry status`**, **`vox telemetry export`**, **`vox telemetry enqueue --json <file>`**, **`vox telemetry upload`** (`--dry-run` supported). See [ADR 023](../adr/023-optional-telemetry-remote-upload.md), [telemetry remote sink spec](../archive/research-2026-q1/telemetry-remote-sink-spec.md), [env-vars](env-vars.md).
+**Optional operator upload path** — not default-on, not product telemetry. Local JSON spool under `.vox/telemetry-upload-queue` (or `VOX_TELEMETRY_SPOOL_DIR`), explicit **`vox telemetry upload`**, secrets via Clavis (`VOX_TELEMETRY_UPLOAD_URL`, `VOX_TELEMETRY_UPLOAD_TOKEN`). Subcommands: **`vox telemetry status`**, **`vox telemetry export`**, **`vox telemetry preview`** (offline render of the redacted batch that would be uploaded; `--format table|json`, `--limit N`), **`vox telemetry enqueue --json <file>`**, **`vox telemetry upload`** (`--dry-run` supported). See [ADR 023](../adr/023-optional-telemetry-remote-upload.md), [telemetry remote sink spec](../archive/research-2026-q1/telemetry-remote-sink-spec.md), [env-vars](env-vars.md).
 
 ### `vox scientia`
 
