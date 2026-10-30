@@ -26,13 +26,22 @@
 
 - [x] **SIZE-01**: The ladder pins all six Qwen3 dense sizes (0.6B, 1.7B, 4B, 8B, 14B, 32B), each with a real Hugging Face commit and a license. A rung whose memory floor has not been measured on hardware says so.
 - [x] **SIZE-02**: One selector reads current free memory (Metal live budget, CUDA free VRAM) and titrates to the largest ladder size whose predicted footprint fits, stepping down if free memory drops before load. The hub and its spokes are picked together: one base size, with each spoke's base and preset following it. An explicit size overrides the pick, and a size that does not fit is refused rather than silently shrunk. Training, local serve, and chat all use this selector, replacing the fixed tiers in `auto_select.rs`.
-- [ ] **MESH-01**: Node heartbeats carry current free accelerator memory. Across a mesh, the selector picks the largest size that fits on some node, routes the job there, and titrates down when no node fits. A stale or missing reading is not treated as free memory.
+- [x] **MESH-01**: Node heartbeats carry current free accelerator memory. Across a mesh, the selector picks the largest size that fits on some node, routes the job there, and titrates down when no node fits. A stale or missing reading is not treated as free memory.
 - [x] **SIZE-03**: Each size that fits this Mac is QLoRA-trained on Metal with the lane prefix, and its adapter manifest names its pinned base. A size that does not fit is recorded as not trained, with the measured memory.
 
 ### Harness before/after (`HARN`, `BENCH`) — added 2026-10-26
 
 - [x] **HARN-01**: The harness serves a chosen size's base or adapter through the existing serve path, behind the collateral gate.
 - [x] **BENCH-04**: For every trained size, one report holds before (base) and after (adapter) scores: reasoning accuracy and think-initiation on the three slices, and an intelligence score on a codegen or agent bench, each with n. The milestone is not complete until at least two sizes have real trained scores.
+
+### Calibrated decisions + ChatARC (`DEC`, `CAT`) — added 2026-10-28
+
+- [ ] **DEC-01**: A versioned turn decision pack runs **before** [`build_selection_request`](../crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/resolve.rs) and patches only fields that function does not already derive from clutch/risk: `task`, `complexity`, and `prefer_local` when the caller has not set them. It may set `allow_free_in_performance_mode` **only when clutch is unset** (clutch `Free` already sets that flag; Performance must not be overridden). The pack never emits model ids. `allow_free_in_performance_mode` only lets `:free` specs compete in the scorer under Performance — it does **not** invoke `PreferFree` or the `free_floor` slug list (`OPENROUTER_FREE_FALLBACK_MODELS`).
+- [ ] **DEC-02**: Post-tool decisions extend existing control points, not a new loop: `evaluate_post_tool_batch_hook`, `evaluate_stop_hook`, and `apply_repair_escalation_to_config` (already builds `SelectionIntent::repair_loop` with `prefer_local` + `allow_free_in_performance_mode`). Low `model_still_ok` re-enters that escalation path. `draft_pr` is not a pack directive unless an existing PR tool is already in the ChatARC shortlist.
+- [ ] **DEC-03**: Flag-off identity tests cover `build_selection_request`, `resolve_mens_fast_apply_target`, `consult_oracle_model_advisory`, and `apply_repair_escalation_to_config` — not only lifecycle constructors.
+- [ ] **DEC-04**: Selective-prediction eval (accuracy, ECE, coverage@error) on turn-pack fixtures; optional OpenRouter Jev is gated by `inference_privacy_local_only_from_env`; no MENS chat distill; no unused facade. Pack must not fork SIZE-02 / MESH-01 memory selection.
+- [ ] **CAT-01**: ChatARC **composes** existing discovery — skill roots (`vox skill discover` / `skill_catalog`), MCP tool lists (including deferred catalog hints), and `command_catalog::build_catalog` — into one shortlist index. New skills, MCP tools, and clap commands appear on the next discovery pass without a new closed-world enum. Do not build a third registry.
+- [ ] **CAT-02**: Calibrated Choice over a lexical top-K (K≤10, include `none`) is consumed by skill activation, tool offering, or command hinting. Fail open to today's lexical/deferred behavior. External skill install already gates on `get_skill_reliability`; ChatARC ranking may read that prior but must not replace the install gate.
 
 ## Future Requirements
 
@@ -47,6 +56,8 @@
 | Oct 2026 training recipes and the Unsloth 75% mix | The 75% figure is a vendor heuristic. Policy and measurement come first. |
 | Re-scoring adapters trained before 2026-10-26 as if they used the new prefix | Those runs did not. |
 | Full GSM8K and MATH-500 on every serve | Too slow for the gate. The checked-in slices are the bar, and they are labeled as slices. |
+| Zero-shot System One model-id Choice replacing `select` | Empirically fails (arxiv 2610.02267); pack patches intent fields only. |
+| Permanent unused System One facade | Operator rule: every decision type has a required `agent_loop`/`select` consumer. |
 
 ## Traceability
 
@@ -59,14 +70,20 @@
 | `BENCH-03` | Phase 314 | Complete |
 | `SIZE-01` | Phase 317 | Complete |
 | `SIZE-02` | Phase 318 | Complete |
-| `MESH-01` | Phase 319 | Pending |
+| `MESH-01` | Phase 319 | Complete |
 | `SIZE-03` | Phase 320 | Pending |
 | `HARN-01` | Phase 321 | Complete (gate enforcement; collateral fail) |
 | `BENCH-04` | Phase 321 | Complete |
+| `DEC-01` | Phase 322 | Pending |
+| `DEC-02` | Phase 322 | Pending |
+| `DEC-03` | Phase 322 | Pending |
+| `DEC-04` | Phase 322 | Pending |
+| `CAT-01` | Phase 322 | Pending |
+| `CAT-02` | Phase 322 | Pending |
 | `GATE-01` | Phase 315 | Complete |
 | `GATE-02` | Phase 315 | Complete |
 
-**Coverage:** 7 v5.6 requirements → 4 phases → 0 unmapped
+**Coverage:** v5.6 requirements mapped to phases 313–322; DEC/CAT added 2026-10-28 → 0 unmapped
 
 ---
 

@@ -3,7 +3,7 @@
 # Roadmap: v5.6 — Reasoning Where the Lane Needs It
 
 **Milestone:** v5.6
-**Status:** Phase 321 complete (2026-10-29, document-close) — BENCH-04 scores on 0.6B/1.7B; HARN-01 gate enforcement verified (collateral fail → serve refused). Phase 319 still deferred.
+**Status:** Phase 321 complete (2026-10-29, document-close) — BENCH-04 scores on 0.6B/1.7B; HARN-01 gate enforcement verified (collateral fail → serve refused). Phase 319 (MESH-01) complete 2026-10-29: ported from the Cursor branch onto the phase 318 `size_select` selector and measured floors. Phase 322 added 2026-10-28 (not started).
 **Updated:** 2026-10-26
 
 ### Phase 313: Lane Prefix (`LANE-01`, `LANE-02`)
@@ -121,7 +121,12 @@ Plans:
   2. The mesh pick chooses the largest size that fits on some node, routes the job to that node, and titrates down when no node fits the larger size.
   3. A stale or missing node reading is not treated as free memory, and the local fallback still works with no mesh.
 
-**Plans**: TBD
+**Plans:** 3/3 plans executed (ported 2026-10-29 from `cursor/t3-deeper-extraction-v55-510f`, re-targeted onto `size_select::select_size`; see `319-PORT.md`)
+
+Plans:
+- [x] 319-01-PLAN.md — Largest QLoRA floor, routed to a node that holds it
+- [x] 319-02-PLAN.md — Stale window, explicit-size refusal, and heartbeat free memory
+- [x] 319-03-PLAN.md — Local fallback when no node has a fresh reading
 
 ### Phase 320: Train the Sizes (`SIZE-03`)
 
@@ -171,9 +176,29 @@ Plans:
 | **Phase 316** | Before/After Comparison | `1/1` | Complete |
 | **Phase 317** | Size Ladder | `1/1` | Complete |
 | **Phase 318** | Live VRAM Selector | `4/4` | Complete |
-| **Phase 319** | Mesh-Wide Selection | `0/0` | Not started |
+| **Phase 319** | Mesh-Wide Selection | `3/3` | Complete    2026-10-29 |
 | **Phase 320** | Train the Sizes | `9/9` | Complete |
 | **Phase 321** | Harness Before/After | `4/4` | Complete (document-close) |
+| **Phase 322** | Calibrated turn decisions + ChatARC | `0/0` | Not started |
+
+### Phase 322: Calibrated turn decisions and dynamic action catalog (`DEC-01..04`, `CAT-01..02`)
+
+**Directory:** `phases/322-calibrated-turn-decisions-and-dynamic-action-catalog/`
+**Goal:** Fully plumb System One / RLCD-style calibrated decisions into the live model-route and agent-loop control points (no facade). ChatARC composes the catalogs the harness already discovers (skills, MCP, clap commands) and chooses among shortlists. Complements `models::select`, clutch/risk axes, SIZE/MESH selectors, and MENS spokes — does not replace them or pretend `allow_free_in_performance_mode` is PreferFree.
+**Depends on**: Nothing in 317–321 (parallel). Must not fork SIZE-02 / MESH-01. Primary insertion is `llm_bridge/model_route_policy/resolve.rs`, plus repair escalation and stop/post-tool hooks.
+**Requirements**: DEC-01, DEC-02, DEC-03, DEC-04, CAT-01, CAT-02
+**Success Criteria** (what must be TRUE):
+  1. Turn-start pack feeds `build_selection_request` without overriding clutch-derived axes or `allow_free` when a clutch profile is set; flag off matches today's request bytes-for-bytes on fixtures.
+  2. `allow_free_in_performance_mode` is documented and tested as scorer eligibility only — `free_floor` slug order stays in `bootstrap_inference` / `FREE_FLOOR`.
+  3. Post-tool low confidence reuses `apply_repair_escalation_to_config`; stop/verify stay on `evaluate_stop_hook` / `evaluate_post_tool_batch_hook`.
+  4. ChatARC shortlist Choice is plumbed into an existing activation path and stays correct when a new skill, MCP tool, or clap command appears; selective-prediction metrics published; hosted Jev behind local-only privacy.
+
+**Plans**: TBD
+
+**Research / prior art:** [`docs/src/architecture/jev-system-one-harness-integration-research-2026.md`](../docs/src/architecture/jev-system-one-harness-integration-research-2026.md) (§§11–16; uncommitted on the Cursor branch, not yet in this checkout); cursor plan `labeled_router_plus_jev` folded here (do not execute as a standalone facade).
+
+Plans:
+- [ ] TBD (run `/gsd-plan-phase 322` to break down)
 
 ---
 

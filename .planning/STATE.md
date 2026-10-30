@@ -12,11 +12,11 @@ last_activity: 2026-10-28
 last_activity_desc: SIZE-03 PASS; ladder report committed (Plans 01–09)
 state_head: e2297d5ea09f10eaf472769b843fb7fe5cff1aa1
 progress:
-  total_phases: 9
-  completed_phases: 7
-  total_plans: 27
-  completed_plans: 25
-  percent: 78
+  total_phases: 10
+  completed_phases: 8
+  total_plans: 30
+  completed_plans: 28
+  percent: 80
 ---
 
 # Project State: Unified Workstream
@@ -46,7 +46,7 @@ Last activity: 2026-10-28 — Plan 09 SIZE-03 check + ladder report
 
 ## Next Step
 
-Phase 321 closed (document-close). Remaining v5.6: Phase 319 (MESH-01) still deferred, or milestone audit/cleanup.
+Phase 321 closed (document-close). Phase 319 (MESH-01) complete 2026-10-29, ported from the Cursor branch onto our selector (`319-PORT.md`). Remaining v5.6: Phase 322 (DEC-01..04, CAT-01..02) not started; plan it with `/gsd-plan-phase 322` once its CONTEXT.md is committed.
 
 
 ## v5.5 Autonomous Progress (2026-10-25 America/Phoenix)
@@ -68,6 +68,7 @@ Phase 321 closed (document-close). Remaining v5.6: Phase 319 (MESH-01) still def
 - [Phase 316]: eval-reasoning-compare --base resolves a Qwen3 size name through train_bases to exactly one pin; unknown or ambiguous input is recorded as pin_unverifiable, never a fallback revision
 - [Phase 320]: Only 0.6B/1.7B QLoRA measured; larger sizes use raised estimate floors per option 1
 - [Phase 320]: SIZE-03 closed from run dirs + size-03-check.txt; ladder report is Phase 321 handoff
+- [Phase 319]: Kept our 317/318 (size_select + measured floors); ported Cursor's MESH-01 onto select_size; Cursor's 317/318/320 work superseded
 
 ## Session
 
