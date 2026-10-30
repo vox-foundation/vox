@@ -433,7 +433,7 @@ pub(crate) struct Qwen3MeshSelection {
 /// Why [`select_qwen3_mesh`] refused to name a node.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub(crate) enum Qwen3MeshError {
-    /// `accelerator_free_mb` does not fit the picker's `u32` argument.
+    /// Every fresh `accelerator_free_mb` reading overflows the picker's `u32`.
     #[error("accelerator_free_mb {0} does not fit in u32")]
     ReadingExceedsU32(u64),
     /// `pick_base` (via the qwen3 code QLoRA selector) returned an error.
@@ -479,15 +479,34 @@ pub(crate) fn select_qwen3_mesh(
                 && node_passes_dispatch_policy(node, req, now_unix_ms)
         })
         .collect();
-    let Some(max_free) = candidates
+    // A reading that does not fit in u32 cannot be passed to the picker.
+    // Drop it. ReadingExceedsU32 only when every fresh reading overflows.
+    let usable: Vec<&NodeRecord> = candidates
+        .iter()
+        .copied()
+        .filter(|node| {
+            node.accelerator_free_mb
+                .is_some_and(|free| u32::try_from(free).is_ok())
+        })
+        .collect();
+    if usable.is_empty() {
+        return Err(
+            match candidates
+                .iter()
+                .filter_map(|node| node.accelerator_free_mb)
+                .max()
+            {
+                Some(free) => Qwen3MeshError::ReadingExceedsU32(free),
+                None => Qwen3MeshError::NoFreshReading,
+            },
+        );
+    }
+    let max_free = usable
         .iter()
         .filter_map(|node| node.accelerator_free_mb)
         .max()
-    else {
-        return Err(Qwen3MeshError::NoFreshReading);
-    };
-    let free_u32 =
-        u32::try_from(max_free).map_err(|_| Qwen3MeshError::ReadingExceedsU32(max_free))?;
+        .expect("usable nodes have accelerator_free_mb");
+    let free_u32 = u32::try_from(max_free).expect("usable free fits u32");
     let pick = if let Some(size) = explicit_size {
         vox_populi::mens::tensor::spoke_base_resolver::explicit_qwen3_code_qlora_for_free_mb(
             size, free_u32,
@@ -497,7 +516,7 @@ pub(crate) fn select_qwen3_mesh(
         vox_populi::mens::tensor::spoke_base_resolver::select_qwen3_code_qlora_for_free_mb(free_u32)
             .map_err(|_| Qwen3MeshError::NothingFits)?
     };
-    route_pick_to_holder(candidates, pick)
+    route_pick_to_holder(usable, pick)
 }
 
 fn route_pick_to_holder(
@@ -786,6 +805,32 @@ mod qwen3_mesh_tests {
         assert_eq!(got.size_token, "14B");
         assert_eq!(got.preset, "qwen3_24g");
         assert_eq!(got.floor_mb, 20_000);
+    }
+
+    #[test]
+    fn mesh_pick_drops_overflowing_free_memory_reading() {
+        let nodes = vec![
+            node("overflow", Some(u64::MAX), Some(1.0)),
+            node("usable", Some(25_000), Some(40.0)),
+        ];
+        let got = select_qwen3_mesh(&nodes, &plain_req(), 10_000_000, Some(3_600_000), None)
+            .expect("usable sibling");
+        assert_eq!(got.node_id, "usable");
+        assert_eq!(got.size_token, "14B");
+        assert_eq!(got.preset, "qwen3_24g");
+        assert_eq!(got.floor_mb, 20_000);
+        assert_eq!(got.accelerator_free_mb, 25_000);
+
+        let only_overflow = vec![node("overflow", Some(u64::MAX), Some(1.0))];
+        let err = select_qwen3_mesh(
+            &only_overflow,
+            &plain_req(),
+            10_000_000,
+            Some(3_600_000),
+            None,
+        )
+        .expect_err("every fresh reading overflows u32");
+        assert_eq!(err, Qwen3MeshError::ReadingExceedsU32(u64::MAX));
     }
 
     #[test]
