@@ -1625,15 +1625,15 @@ fn discover_workspace_evidence(
         let p = repo_root.join(rel);
         if p.is_file() {
             candidate_files.push(p);
-        } else if p.is_dir() {
-            if let Ok(entries) = std::fs::read_dir(&p) {
-                let mut dir_paths: Vec<std::path::PathBuf> =
-                    entries.filter_map(|e| e.ok().map(|d| d.path())).collect();
-                dir_paths.sort();
-                for child in dir_paths {
-                    if child.is_file() {
-                        candidate_files.push(child);
-                    }
+        } else if p.is_dir()
+            && let Ok(entries) = std::fs::read_dir(&p)
+        {
+            let mut dir_paths: Vec<std::path::PathBuf> =
+                entries.filter_map(|e| e.ok().map(|d| d.path())).collect();
+            dir_paths.sort();
+            for child in dir_paths {
+                if child.is_file() {
+                    candidate_files.push(child);
                 }
             }
         }

@@ -32,6 +32,8 @@ impl TermDispatch {
     /// Execute an agent-initiated terminal line in `session_id` gated by the Phase 12
     /// safety floor (`classify_floor`). Refuses unapproved executions before opening
     /// any block; when approved, tags the resulting block with [`BlockOrigin::Agent`].
+    // Not yet called from the daemon's dispatch path; exercised by the tests below.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub async fn run_agent_command(
         &self,
         session_id: &str,

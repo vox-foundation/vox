@@ -505,7 +505,8 @@ test.describe('Capability Explorer', () => {
     const searchInput = page.getByRole('searchbox', { name: 'Search capabilities' });
     await searchInput.fill('-');
 
-    await expect(page.locator('[role="status"]').filter({ hasText: /589 capabilities/ })).toBeVisible();
+    // The count grows with the catalog; the row-count bound below is what this test pins.
+    await expect(page.locator('[role="status"]').filter({ hasText: /\d+ capabilities/ })).toBeVisible();
 
     const ariaRowCount = Number(await treegrid.getAttribute('aria-rowcount'));
     expect(ariaRowCount).toBeGreaterThan(500);

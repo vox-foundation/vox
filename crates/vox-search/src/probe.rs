@@ -404,8 +404,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_unconfigured_searxng_returns_helpful_remediation() {
-        let mut policy = SearchPolicy::default();
-        policy.searxng_url = None;
+        let policy = SearchPolicy {
+            searxng_url: None,
+            ..Default::default()
+        };
         let res =
             probe_search_provider_with_policy("searxng".to_string(), "rust".to_string(), policy)
                 .await;
@@ -434,8 +436,10 @@ mod tests {
         unsafe {
             std::env::set_var("TAVILY_API_KEY", "");
         }
-        let mut policy = SearchPolicy::default();
-        policy.tavily_api_url = None;
+        let policy = SearchPolicy {
+            tavily_api_url: None,
+            ..Default::default()
+        };
         let res =
             probe_search_provider_with_policy("tavily".to_string(), "rust".to_string(), policy)
                 .await;

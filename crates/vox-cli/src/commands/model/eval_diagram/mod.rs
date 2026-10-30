@@ -357,7 +357,7 @@ mod tests {
             reason: "cap".into(),
             spent_usd: 1.5,
         });
-        let text = write_jsonl(&[line.clone()]).unwrap();
+        let text = write_jsonl(std::slice::from_ref(&line)).unwrap();
         assert!(text.starts_with("{\"type\":\"stop\""), "{text}");
         assert_eq!(
             read_jsonl::<Line>(&format!("\n{text}")).unwrap(),

@@ -213,10 +213,8 @@ pub fn extract_deep_crate_symbols(source: &str, rel_path: &str) -> Vec<DeepCrate
                 .or_else(|| after_pub.strip_prefix("const fn "))
             {
                 Some(("fn", rest))
-            } else if let Some(rest) = after_pub.strip_prefix("type ") {
-                Some(("type", rest))
             } else {
-                None
+                after_pub.strip_prefix("type ").map(|rest| ("type", rest))
             };
 
             if let Some((kind, rest)) = classified {

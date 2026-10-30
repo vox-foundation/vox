@@ -94,8 +94,7 @@ impl FreshnessLedger {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
-        let json = serde_json::to_string_pretty(self)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        let json = serde_json::to_string_pretty(self).map_err(std::io::Error::other)?;
         fs::write(path, json)
     }
 
@@ -147,37 +146,36 @@ fn parse_frontmatter_anchors(
     let mut anchors = Vec::new();
 
     let normalized = content.replace("\r\n", "\n");
-    if let Some(stripped) = normalized.strip_prefix("---\n") {
-        if let Some((fm, _)) = stripped.split_once("\n---\n") {
-            if let Ok(val) = serde_yaml::from_str::<serde_yaml::Value>(fm) {
-                if let Some(t) = val.get("title").and_then(|v| v.as_str()) {
-                    title = t.to_string();
-                }
-                if let Some(c) = val.get("category").and_then(|v| v.as_str()) {
-                    category = c.to_string();
-                }
-                if let Some(s) = val.get("status").and_then(|v| v.as_str()) {
-                    status = s.to_string();
-                }
-                if let Some(o) = val.get("owner").and_then(|v| v.as_str()) {
-                    owner = Some(o.to_string());
-                }
-                if let Some(r) = val.get("review_cadence").and_then(|v| v.as_str()) {
-                    review_cadence = Some(r.to_string());
-                }
-                if let Some(arr) = val.get("code_anchors").and_then(|v| v.as_sequence()) {
-                    for item in arr {
-                        if let Some(s) = item.as_str() {
-                            anchors.push(s.to_string());
-                        }
-                    }
-                }
-                if let Some(mf) = val.get("mounted_from").and_then(|v| v.as_str()) {
-                    if !anchors.iter().any(|a| a == mf) {
-                        anchors.push(mf.to_string());
-                    }
+    if let Some(stripped) = normalized.strip_prefix("---\n")
+        && let Some((fm, _)) = stripped.split_once("\n---\n")
+        && let Ok(val) = serde_yaml::from_str::<serde_yaml::Value>(fm)
+    {
+        if let Some(t) = val.get("title").and_then(|v| v.as_str()) {
+            title = t.to_string();
+        }
+        if let Some(c) = val.get("category").and_then(|v| v.as_str()) {
+            category = c.to_string();
+        }
+        if let Some(s) = val.get("status").and_then(|v| v.as_str()) {
+            status = s.to_string();
+        }
+        if let Some(o) = val.get("owner").and_then(|v| v.as_str()) {
+            owner = Some(o.to_string());
+        }
+        if let Some(r) = val.get("review_cadence").and_then(|v| v.as_str()) {
+            review_cadence = Some(r.to_string());
+        }
+        if let Some(arr) = val.get("code_anchors").and_then(|v| v.as_sequence()) {
+            for item in arr {
+                if let Some(s) = item.as_str() {
+                    anchors.push(s.to_string());
                 }
             }
+        }
+        if let Some(mf) = val.get("mounted_from").and_then(|v| v.as_str())
+            && !anchors.iter().any(|a| a == mf)
+        {
+            anchors.push(mf.to_string());
         }
     }
 
