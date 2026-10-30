@@ -119,6 +119,8 @@ pub(super) struct TurnPack {
     pub privacy_local: Option<Answer>,
     /// Vetoes free eligibility (from cue firings, never from an answer).
     pub free_veto: bool,
+    /// Some stakes-2 rule fired, whichever answer won: vetoes free eligibility.
+    pub stakes_veto: bool,
 }
 
 impl TurnPack {
@@ -179,6 +181,8 @@ pub(super) fn evaluate_with_rules(prompt: &str, rules: &[Rule]) -> TurnPack {
     pack.free_veto = fired(Question::AllowFreeTier, 0) || fires(FREE_NEGATIONS);
     // WR-02: secret-shaped text never becomes free-tier eligible.
     pack.free_veto |= fires(SECRET_CUES) || vox_redact::redact_owned(prompt) != prompt;
+    // WR-04: any stakes-2 firing, not the argmax winner.
+    pack.stakes_veto = fired(Question::Stakes, 2);
     pack
 }
 
@@ -259,19 +263,15 @@ pub(super) fn selection_inputs(
     } else {
         caller.prefer_local
     };
-    // Stakes only vetoes free eligibility, so a disabled Stakes fails closed by
-    // vetoing on any stakes-2 firing, whatever its confidence.
-    let stakes_tau = tau(Question::Stakes);
-    let high_stakes = pack
-        .stakes
-        .is_some_and(|a| a.value == 2 && (stakes_tau > 1.0 || confident(&a, stakes_tau)));
     // Scorer eligibility only: lets `:free` specs compete under Performance
     // (orchestrator ranking). It selects no policy, touches no axes, and never
     // reads or reorders the free-floor list.
     let allow_free = may_set_allow_free
         && sure(pack.allow_free_tier, tau(Question::AllowFreeTier)) == Some(1)
         && !pack.free_veto
-        && !high_stakes
+        // Stakes only vetoes free eligibility: any stakes-2 firing, whatever answer
+        // won and whatever its threshold, so Stakes can only ever block more.
+        && !pack.stakes_veto
         && !private;
     SelectionInputs {
         task,

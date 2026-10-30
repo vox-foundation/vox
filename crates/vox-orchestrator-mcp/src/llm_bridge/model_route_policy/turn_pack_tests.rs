@@ -365,7 +365,7 @@ fn allow_free_never_set_when_clutch_set() {
 fn allow_free_blocked_by_high_stakes_or_privacy() {
     let fx = fixture(1);
     let stakes = TurnPack {
-        stakes: answer(2, 0.95),
+        stakes_veto: true,
         ..free_pack()
     };
     assert!(!request(&stakes, &fx).intent.allow_free_in_performance_mode);
@@ -502,7 +502,7 @@ fn allow_free_pack_changes_only_scorer_eligibility() {
 /// 322-02 fail closed: production thresholds disable TaskShape and Stakes
 /// (held-out risk at τ 0.25 each, 322-EVAL-REPORT.md). A certain task answer no
 /// longer patches, and Stakes, which only vetoes free eligibility, vetoes on
-/// any stakes-2 firing whatever its confidence.
+/// any stakes-2 firing (`stakes_veto`) whatever its confidence or the winner.
 #[test]
 fn disabled_questions_fail_closed() {
     assert!(tau_for(Question::TaskShape) > 1.0 && tau_for(Question::Stakes) > 1.0);
@@ -520,6 +520,7 @@ fn disabled_questions_fail_closed() {
     assert!(prod(&free_pack()).intent.allow_free_in_performance_mode);
     let low_confidence_high_stakes = TurnPack {
         stakes: answer(2, 0.5),
+        stakes_veto: true,
         ..free_pack()
     };
     assert!(
@@ -571,5 +572,66 @@ fn secret_shaped_text_vetoes_allow_free() {
         "Quick question, is AKIAIOSFODNN7EXAMPLE still active?",
     ] {
         assert!(!prod_allows_free(p), "{p}");
+    }
+}
+
+const W_FREE: Rule = Rule {
+    id: "allow_free_tier.1.1",
+    question: Question::AllowFreeTier,
+    any_of: &["quick question"],
+    answer: 1,
+    confidence: 0.95,
+};
+const W_STAKES_LOW: Rule = Rule {
+    id: "stakes.0.1",
+    question: Question::Stakes,
+    any_of: &["explain"],
+    answer: 0,
+    confidence: 0.90,
+};
+const W_STAKES_HIGH: Rule = Rule {
+    id: "stakes.2.1",
+    question: Question::Stakes,
+    any_of: &["production"],
+    answer: 2,
+    confidence: 0.60,
+};
+
+/// Production thresholds, except Stakes enabled at 0.85 (above W_STAKES_HIGH).
+fn stakes_enabled_tau(q: Question) -> f32 {
+    match q {
+        Question::Stakes => 0.85,
+        _ => tau_for(q),
+    }
+}
+
+/// WR-04: the Stakes veto comes from any stakes-2 firing, not from the argmax
+/// winner or from the Stakes threshold.
+#[test]
+fn stakes_veto_holds_when_a_stakes_0_rule_outranks_it() {
+    let fx = fixture(1);
+    let rules = [W_FREE, W_STAKES_LOW, W_STAKES_HIGH];
+    let allows = |tau: fn(Question) -> f32, prompt: &str| {
+        turn_selection_request_at(
+            tau,
+            Some(&evaluate_with_rules(prompt, &rules)),
+            &fx.res,
+            fx.derived_prefer_local,
+            fx.preference,
+            fx.caps.clone(),
+        )
+        .intent
+        .allow_free_in_performance_mode
+    };
+    let calm = "Quick question: explain how traits work.";
+    let risky = "Quick question: explain how to deploy to production.";
+    assert_eq!(
+        evaluate_with_rules(risky, &rules).stakes.map(|a| a.value),
+        Some(0),
+        "stakes-0 wins the argmax"
+    );
+    for tau in [tau_for as fn(Question) -> f32, stakes_enabled_tau] {
+        assert!(allows(tau, calm));
+        assert!(!allows(tau, risky));
     }
 }
