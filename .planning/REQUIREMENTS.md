@@ -31,8 +31,8 @@
 
 ### Harness before/after (`HARN`, `BENCH`) — added 2026-10-26
 
-- [ ] **HARN-01**: The harness serves a chosen size's base or adapter through the existing serve path, behind the collateral gate.
-- [ ] **BENCH-04**: For every trained size, one report holds before (base) and after (adapter) scores: reasoning accuracy and think-initiation on the three slices, and an intelligence score on a codegen or agent bench, each with n. The milestone is not complete until at least two sizes have real trained scores.
+- [x] **HARN-01**: The harness serves a chosen size's base or adapter through the existing serve path, behind the collateral gate.
+- [x] **BENCH-04**: For every trained size, one report holds before (base) and after (adapter) scores: reasoning accuracy and think-initiation on the three slices, and an intelligence score on a codegen or agent bench, each with n. The milestone is not complete until at least two sizes have real trained scores.
 
 ## Future Requirements
 
@@ -61,8 +61,8 @@
 | `SIZE-02` | Phase 318 | Complete |
 | `MESH-01` | Phase 319 | Pending |
 | `SIZE-03` | Phase 320 | Pending |
-| `HARN-01` | Phase 321 | Pending |
-| `BENCH-04` | Phase 321 | Pending |
+| `HARN-01` | Phase 321 | Complete (gate enforcement; collateral fail) |
+| `BENCH-04` | Phase 321 | Complete |
 | `GATE-01` | Phase 315 | Complete |
 | `GATE-02` | Phase 315 | Complete |
 

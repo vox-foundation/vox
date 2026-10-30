@@ -1,0 +1,160 @@
+{
+  "schema": "mens_size_ladder_before_after.v1",
+  "gate_input": false,
+  "recorded_at": "2026-10-30T01:28:09.263750+00:00",
+  "host": "silicon-gpu-metal",
+  "decision": "document_close_collateral_fail",
+  "harn_01": "gate_enforcement_verified_serve_not_opened",
+  "sizes": [
+    {
+      "size": "0.6B",
+      "status": "trained",
+      "run_dir": "mens/runs/qwen3-0.6b",
+      "pin": "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
+      "reasoning": {
+        "compare_report": "mens/runs/reasoning_compare/Qwen3-0.6B-c1899de289a0.json",
+        "compare_schema": "reasoning_before_after.v1",
+        "slices": {
+          "gsm8k_think": {
+            "base": {
+              "accuracy": 0.5,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            },
+            "adapter": {
+              "accuracy": 0.40625,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            }
+          },
+          "math500_think": {
+            "base": {
+              "accuracy": 0.15625,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            },
+            "adapter": {
+              "accuracy": 0.1875,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            }
+          },
+          "vox_think": {
+            "base": {
+              "accuracy": 0.21875,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            },
+            "adapter": {
+              "accuracy": 0.21875,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            }
+          }
+        }
+      },
+      "intelligence": {
+        "base_eval_local": "mens/runs/qwen3-0.6b/evidence/heldout_base.json",
+        "adapter_eval_local": "mens/runs/qwen3-0.6b/evidence/heldout_adapter.json",
+        "base_pass_at_1": 0.0,
+        "pass_at_1": 0.038461538461538464,
+        "n": 52,
+        "base_n": 52
+      },
+      "collateral": {
+        "status": "fail",
+        "failed_on": "gsm8k_think",
+        "threshold": 0.05,
+        "path": "mens/runs/qwen3-0.6b/collateral_damage_report.json"
+      },
+      "serve": "refused_collateral_fail"
+    },
+    {
+      "size": "1.7B",
+      "status": "trained",
+      "run_dir": "mens/runs/qwen3-1.7b",
+      "pin": "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+      "reasoning": {
+        "compare_report": "mens/runs/reasoning_compare/Qwen3-1.7B-70d244cc86cc.json",
+        "compare_schema": "reasoning_before_after.v1",
+        "slices": {
+          "gsm8k_think": {
+            "base": {
+              "accuracy": 0.59375,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            },
+            "adapter": {
+              "accuracy": 0.65625,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            }
+          },
+          "math500_think": {
+            "base": {
+              "accuracy": 0.1875,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            },
+            "adapter": {
+              "accuracy": 0.28125,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            }
+          },
+          "vox_think": {
+            "base": {
+              "accuracy": 0.65625,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            },
+            "adapter": {
+              "accuracy": 0.59375,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            }
+          }
+        }
+      },
+      "intelligence": {
+        "base_eval_local": "mens/runs/qwen3-1.7b/evidence/heldout_base.json",
+        "adapter_eval_local": "mens/runs/qwen3-1.7b/evidence/heldout_adapter.json",
+        "base_pass_at_1": 0.0,
+        "pass_at_1": 0.0,
+        "n": 52,
+        "base_n": 52
+      },
+      "collateral": {
+        "status": "fail",
+        "failed_on": "vox_think",
+        "threshold": 0.05,
+        "path": "mens/runs/qwen3-1.7b/collateral_damage_report.json"
+      },
+      "serve": "refused_collateral_fail"
+    },
+    {
+      "size": "4B",
+      "status": "not_trained",
+      "reason": "watchdog SIGINT: peak 86329229312 B > limit 67018686464 B (live free 68010 MiB - 4096 MiB) at row 2; paused after row 3",
+      "pin": "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c"
+    },
+    {
+      "size": "8B",
+      "status": "not_trained",
+      "reason": "above non-fitting 4B (D-06)",
+      "pin": "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
+    },
+    {
+      "size": "14B",
+      "status": "not_trained",
+      "reason": "above non-fitting 4B (D-06)",
+      "pin": "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18"
+    },
+    {
+      "size": "32B",
+      "status": "not_trained",
+      "reason": "above non-fitting 4B (D-06)",
+      "pin": "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "schema": "321_collateral_attempt.v1",
+  "size": "0.6B",
+  "status": "fail",
+  "failed_on": "gsm8k_think",
+  "pre": 0.5,
+  "post": 0.40625,
+  "degradation_rate": 0.1875,
+  "threshold": 0.05,
+  "blocker": "collateral status fail blocks serve gate; plan 321-03 verify requires status=pass"
+}

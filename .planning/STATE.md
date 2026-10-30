@@ -5,8 +5,8 @@ milestone_name: Reasoning Where the Lane Needs It
 current_phase: 321
 current_phase_name: Harness Before/After
 current_plan: 9
-status: executing
-stopped_at: Starting 321-03-PLAN.md (collateral/gate/serve)
+status: complete
+stopped_at: Completed 321-04-PLAN.md (document-close)
 last_updated: "2026-10-29T15:11:22.587Z"
 last_activity: 2026-10-28
 last_activity_desc: SIZE-03 PASS; ladder report committed (Plans 01–09)
@@ -23,7 +23,8 @@ progress:
 
 ## Current Position
 
-Phase: 321 (Harness Before/After) — planning done (4 plans); executing 321-01. Phase 319 deferred.
+Phase: 321 (Harness Before/After) — **complete** (4/4 plans; document-close). Report: `321-BEFORE-AFTER-REPORT.md`.
+
 
 Current Plan: 9
 Total Plans in Phase: 9
@@ -45,7 +46,7 @@ Last activity: 2026-10-28 — Plan 09 SIZE-03 check + ladder report
 
 ## Next Step
 
-Phase 321: execute 321-03 (collateral + gate + serve smoke). 0.6B collateral Metal run in progress; then 1.7B collateral, gates, serve-smoke; then 321-04 report. Phase 319 deferred.
+Phase 321 closed (document-close). Remaining v5.6: Phase 319 (MESH-01) still deferred, or milestone audit/cleanup.
 
 
 ## v5.5 Autonomous Progress (2026-10-25 America/Phoenix)

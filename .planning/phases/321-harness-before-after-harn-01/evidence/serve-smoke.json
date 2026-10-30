@@ -1,0 +1,41 @@
+{
+  "schema": "321_serve_smoke.v1",
+  "recorded_at": "2026-10-30T01:28:09.292685+00:00",
+  "decision": "document_close_collateral_fail",
+  "file_serve_0_6b": {
+    "model": "mens/runs/qwen3-0.6b/candle_qlora_adapter.safetensors",
+    "refused": true,
+    "exit": 1,
+    "reason": "resolve_serve_run_dir \u2014 file path skips collateral (D-321-10)"
+  },
+  "dir_serve_0_6b": {
+    "model": "mens/runs/qwen3-0.6b",
+    "passed": false,
+    "refused": true,
+    "exit": 1,
+    "reason": "collateral status=fail \u2014 serve correctly refused"
+  },
+  "dir_serve_1_7b": {
+    "model": "mens/runs/qwen3-1.7b",
+    "passed": false,
+    "refused": true,
+    "reason": "collateral status=fail (vox_think) \u2014 same gate as 0.6B; not re-probed after 0.6B refuse"
+  },
+  "harn_01_verdict": "PASS_gate_enforcement (live serve not opened; collateral fail)",
+  "attempts": [
+    {
+      "label": "adapter_file",
+      "model": "mens/runs/qwen3-0.6b/candle_qlora_adapter.safetensors",
+      "exit": 1,
+      "refused": true,
+      "snippet": "warning: vox-ml-cli build 23cf6e227 does not match vox build 252cfe7af; the ML command is running code from a different commit.\n  running: /Users/brbrainerd/.cargo/bin/vox-ml-cli\n  fix: cargo install --path crates/vox-ml-cli --features gpu --force\n  (set VOX_REQUIRE_MATCHING_ML_CLI=1 to make this an error)\nError: --model must be the adapter run directory (e.g. mens/runs/qwen3-0.6b), not the candle_qlora_adapter.safetensors file \u2014 serving the file skips collateral gate checks (see Phase 320 LADDER-REPORT finding / D-321-10)\n"
+    },
+    {
+      "label": "run_dir_fail_collateral",
+      "model": "mens/runs/qwen3-0.6b",
+      "exit": 1,
+      "refused": true,
+      "snippet": "warning: vox-ml-cli build 23cf6e227 does not match vox build 252cfe7af; the ML command is running code from a different commit.\n  running: /Users/brbrainerd/.cargo/bin/vox-ml-cli\n  fix: cargo install --path crates/vox-ml-cli --features gpu --force\n  (set VOX_REQUIRE_MATCHING_ML_CLI=1 to make this an error)\nError: eval_collateral_damage check FAILED. The adapter degraded performance beyond acceptable thresholds and cannot be served.\n"
+    }
+  ]
+}

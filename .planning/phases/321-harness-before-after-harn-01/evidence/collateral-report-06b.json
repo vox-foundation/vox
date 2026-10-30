@@ -1,0 +1,68 @@
+{
+  "status": "fail",
+  "failed_on": "gsm8k_think",
+  "threshold": 0.05,
+  "reports": [
+    {
+      "benchmark": "gsm8k_think",
+      "pre": 0.5,
+      "post": 0.40625,
+      "degradation": 0.09375,
+      "degradation_rate": 0.1875,
+      "exceeds_threshold": true,
+      "slice": true,
+      "n": 32
+    }
+  ],
+  "reasoning_slices": {
+    "scope_note": "The reasoning benches gsm8k_think, math500_think and vox_think are fixed 32-item slices, not full GSM8K or MATH-500 results. The 5% relative bar applies to these 32 items only.",
+    "slice_size": 32,
+    "benches": {
+      "gsm8k_think": {
+        "n": 32,
+        "accuracy": {
+          "pre": 0.5,
+          "post": 0.40625,
+          "degradation_rate": 0.1875,
+          "exceeds_threshold": true
+        },
+        "think_initiation": {
+          "pre": 1.0,
+          "post": 1.0,
+          "degradation_rate": 0.0,
+          "exceeds_threshold": false
+        }
+      },
+      "math500_think": {
+        "n": 32,
+        "accuracy": {
+          "pre": 0.15625,
+          "post": 0.1875,
+          "degradation_rate": 0.0,
+          "exceeds_threshold": false
+        },
+        "think_initiation": {
+          "pre": 1.0,
+          "post": 1.0,
+          "degradation_rate": 0.0,
+          "exceeds_threshold": false
+        }
+      },
+      "vox_think": {
+        "n": 32,
+        "accuracy": {
+          "pre": 0.21875,
+          "post": 0.21875,
+          "degradation_rate": 0.0,
+          "exceeds_threshold": false
+        },
+        "think_initiation": {
+          "pre": 1.0,
+          "post": 1.0,
+          "degradation_rate": 0.0,
+          "exceeds_threshold": false
+        }
+      }
+    }
+  }
+}

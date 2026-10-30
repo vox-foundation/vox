@@ -3,7 +3,7 @@
 # Roadmap: v5.6 — Reasoning Where the Lane Needs It
 
 **Milestone:** v5.6
-**Status:** Phase 320 complete (2026-10-28) — SIZE-03 PASS (0.6B/1.7B trained). Next: Phase 321 (HARN-01/BENCH-04); Phase 319 (MESH-01) still deferred.
+**Status:** Phase 321 complete (2026-10-29, document-close) — BENCH-04 scores on 0.6B/1.7B; HARN-01 gate enforcement verified (collateral fail → serve refused). Phase 319 still deferred.
 **Updated:** 2026-10-26
 
 ### Phase 313: Lane Prefix (`LANE-01`, `LANE-02`)
@@ -173,7 +173,7 @@ Plans:
 | **Phase 318** | Live VRAM Selector | `4/4` | Complete |
 | **Phase 319** | Mesh-Wide Selection | `0/0` | Not started |
 | **Phase 320** | Train the Sizes | `9/9` | Complete |
-| **Phase 321** | Harness Before/After | `0/4` | Planned |
+| **Phase 321** | Harness Before/After | `4/4` | Complete (document-close) |
 
 ---
 

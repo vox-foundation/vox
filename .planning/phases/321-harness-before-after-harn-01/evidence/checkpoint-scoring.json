@@ -82,10 +82,31 @@
       "finished_at": "2026-10-29T15:11:00Z",
       "wall_secs": 2,
       "n": 6
+    },
+    {
+      "size": "0.6B",
+      "leg": "collateral",
+      "exit_code": 1,
+      "status": "fail",
+      "failed_on": "gsm8k_think",
+      "degradation_rate": 0.1875,
+      "threshold": 0.05,
+      "finished_at": "2026-10-29T17:41:19Z",
+      "out_path": "mens/runs/qwen3-0.6b/collateral_damage_report.json",
+      "note": "HARN-01 serve pass blocked until collateral status=pass"
+    },
+    {
+      "size": "1.7B",
+      "leg": "collateral",
+      "exit_code": 1,
+      "status": "fail",
+      "failed_on": "vox_think",
+      "finished_at": "2026-10-29T22:59:28Z",
+      "out_path": "mens/runs/qwen3-1.7b/collateral_damage_report.json"
     }
   ],
   "note": "starting 0.6B compare",
-  "updated_at": "2026-10-29T15:10:05.991099+00:00",
-  "next": "321-03 collateral",
+  "updated_at": "2026-10-29T23:00:11.203577+00:00",
+  "next": "321-03 blocked on collateral pass; serve-smoke recorded refusals; await decision for 321-04",
   "scoring_complete": true
 }
