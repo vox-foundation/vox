@@ -1,0 +1,23 @@
+{
+  "schema": "vox_mens_run_summary_v1",
+  "run_id": "20261030T014632Z",
+  "base_model": "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",
+  "adapter_tag": null,
+  "global_step": 40,
+  "optimizer_step_count": 5,
+  "avg_train_loss": 2.4778326729909166,
+  "avg_val_loss_last_epoch": null,
+  "total_tokens": 96727,
+  "peak_metal_allocated_bytes": 34640986112,
+  "capped": true,
+  "wall_secs": 1531.533106583,
+  "final_loss_ema": 1.7756063039849905,
+  "truncated_rows": 1,
+  "prompt_trimmed_rows": 1,
+  "artifacts": {
+    "final_adapter": "/Users/brbrainerd/dev/vox-mens-compare/mens/runs/320-probe-4B-postfix/candle_qlora_adapter.safetensors",
+    "training_skip_stats": "/Users/brbrainerd/dev/vox-mens-compare/mens/runs/320-probe-4B-postfix/training_skip_stats.json",
+    "telemetry_jsonl": "/Users/brbrainerd/dev/vox-mens-compare/mens/runs/320-probe-4B-postfix/telemetry.jsonl",
+    "model_card": "/Users/brbrainerd/dev/vox-mens-compare/mens/runs/320-probe-4B-postfix/MODEL_CARD.md"
+  }
+}
