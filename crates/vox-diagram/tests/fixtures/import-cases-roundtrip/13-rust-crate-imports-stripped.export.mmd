@@ -1,0 +1,14 @@
+flowchart LR
+    A[".vox source"]
+    B["Lexer / Parser"]
+    C["AST ImportPathKind::RustCrate"]
+    D["HIR HirRustImport"]
+    E["Type registration"]
+    F["Cargo.toml synthesis"]
+    G["cargo build in cache / generated crate"]
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    D --> F
+    F --> G

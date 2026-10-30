@@ -608,6 +608,9 @@ async fn stream_final_answer(
         cache_read_tokens: 0,
         ttft_ms,
         tpot_ms,
+        finish_reason: None,
+        reasoning_tokens: 0,
+        reasoning: None,
     })
 }
 

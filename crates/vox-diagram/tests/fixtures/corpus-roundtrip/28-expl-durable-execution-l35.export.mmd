@@ -1,0 +1,11 @@
+flowchart TD
+    A["Start Workflow"]
+    B{"Activity Finished?"}
+    C["Execute Activity"]
+    D["Write to Journal"]
+    E["End Workflow"]
+    A --> B
+    B -->|"No"| C
+    C --> D
+    D --> B
+    B -->|"Yes"| E

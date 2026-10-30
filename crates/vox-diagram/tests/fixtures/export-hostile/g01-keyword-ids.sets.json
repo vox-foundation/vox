@@ -1,0 +1,576 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "inside 0",
+      "rect",
+      [
+        "Click box"
+      ]
+    ],
+    [
+      "inside 1",
+      "rect",
+      [
+        "Default box"
+      ]
+    ],
+    [
+      "inside 2",
+      "rect",
+      [
+        "Click box",
+        "Interpolate box"
+      ]
+    ],
+    [
+      "inside 3",
+      "rect",
+      [
+        "Default box",
+        "End box"
+      ]
+    ],
+    [
+      "inside 4",
+      "rect",
+      [
+        "Top box"
+      ]
+    ],
+    [
+      "kw END",
+      "rect",
+      []
+    ],
+    [
+      "kw End",
+      "rect",
+      []
+    ],
+    [
+      "kw LR1",
+      "rect",
+      []
+    ],
+    [
+      "kw _blank",
+      "rect",
+      []
+    ],
+    [
+      "kw _parent",
+      "rect",
+      []
+    ],
+    [
+      "kw _self",
+      "rect",
+      []
+    ],
+    [
+      "kw _top",
+      "rect",
+      []
+    ],
+    [
+      "kw adirection",
+      "rect",
+      []
+    ],
+    [
+      "kw call",
+      "rect",
+      []
+    ],
+    [
+      "kw class",
+      "rect",
+      []
+    ],
+    [
+      "kw classDef",
+      "rect",
+      []
+    ],
+    [
+      "kw click",
+      "rect",
+      []
+    ],
+    [
+      "kw default",
+      "rect",
+      []
+    ],
+    [
+      "kw direction",
+      "rect",
+      []
+    ],
+    [
+      "kw end",
+      "rect",
+      []
+    ],
+    [
+      "kw flowchart",
+      "rect",
+      []
+    ],
+    [
+      "kw graph",
+      "rect",
+      []
+    ],
+    [
+      "kw href",
+      "rect",
+      []
+    ],
+    [
+      "kw interpolate",
+      "rect",
+      []
+    ],
+    [
+      "kw linkStyle",
+      "rect",
+      []
+    ],
+    [
+      "kw style",
+      "rect",
+      []
+    ],
+    [
+      "kw subgraph",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "inside 0",
+        "rect",
+        [
+          "Click box"
+        ]
+      ],
+      [
+        "inside 1",
+        "rect",
+        [
+          "Default box"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "inside 1",
+        "rect",
+        [
+          "Default box"
+        ]
+      ],
+      [
+        "inside 2",
+        "rect",
+        [
+          "Click box",
+          "Interpolate box"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "inside 2",
+        "rect",
+        [
+          "Click box",
+          "Interpolate box"
+        ]
+      ],
+      [
+        "inside 3",
+        "rect",
+        [
+          "Default box",
+          "End box"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "inside 3",
+        "rect",
+        [
+          "Default box",
+          "End box"
+        ]
+      ],
+      [
+        "inside 4",
+        "rect",
+        [
+          "Top box"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "kw END",
+        "rect",
+        []
+      ],
+      [
+        "kw graph",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw End",
+        "rect",
+        []
+      ],
+      [
+        "kw END",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw LR1",
+        "rect",
+        []
+      ],
+      [
+        "inside 0",
+        "rect",
+        [
+          "Click box"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "kw LR1",
+        "rect",
+        []
+      ],
+      [
+        "kw end",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw _blank",
+        "rect",
+        []
+      ],
+      [
+        "kw _parent",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw _parent",
+        "rect",
+        []
+      ],
+      [
+        "kw _top",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw _self",
+        "rect",
+        []
+      ],
+      [
+        "kw _blank",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw _top",
+        "rect",
+        []
+      ],
+      [
+        "kw adirection",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw adirection",
+        "rect",
+        []
+      ],
+      [
+        "kw LR1",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw call",
+        "rect",
+        []
+      ],
+      [
+        "kw href",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw class",
+        "rect",
+        []
+      ],
+      [
+        "kw classDef",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw classDef",
+        "rect",
+        []
+      ],
+      [
+        "kw linkStyle",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw click",
+        "rect",
+        []
+      ],
+      [
+        "kw default",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw default",
+        "rect",
+        []
+      ],
+      [
+        "kw interpolate",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw direction",
+        "rect",
+        []
+      ],
+      [
+        "kw flowchart",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw end",
+        "rect",
+        []
+      ],
+      [
+        "inside 3",
+        "rect",
+        [
+          "Default box",
+          "End box"
+        ]
+      ],
+      "to the end box"
+    ],
+    [
+      [
+        "kw end",
+        "rect",
+        []
+      ],
+      [
+        "kw End",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw end",
+        "rect",
+        []
+      ],
+      [
+        "kw adirection",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw flowchart",
+        "rect",
+        []
+      ],
+      [
+        "kw _self",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw graph",
+        "rect",
+        []
+      ],
+      [
+        "kw subgraph",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw href",
+        "rect",
+        []
+      ],
+      [
+        "kw direction",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw interpolate",
+        "rect",
+        []
+      ],
+      [
+        "kw call",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw linkStyle",
+        "rect",
+        []
+      ],
+      [
+        "kw click",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw style",
+        "rect",
+        []
+      ],
+      [
+        "kw class",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "kw subgraph",
+        "rect",
+        []
+      ],
+      [
+        "kw style",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": [
+    [
+      "Click box",
+      "Interpolate box"
+    ],
+    [
+      "Click box"
+    ],
+    [
+      "Default box",
+      "End box"
+    ],
+    [
+      "Default box"
+    ],
+    [
+      "Top box"
+    ]
+  ]
+}

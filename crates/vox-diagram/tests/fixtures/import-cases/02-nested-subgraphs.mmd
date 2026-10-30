@@ -1,0 +1,18 @@
+flowchart LR
+    subgraph Outer [Outer scope]
+        a[Alpha]
+        subgraph Middle [Middle scope]
+            b[Beta]
+            subgraph Inner [Inner scope]
+                c[Gamma]
+            end
+            b --> c
+        end
+        subgraph Plain
+            d[Delta]
+        end
+        a --> b
+    end
+    a --> c
+    c --> d
+    e[Epsilon] --> b

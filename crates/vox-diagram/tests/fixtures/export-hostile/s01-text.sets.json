@@ -1,0 +1,136 @@
+{
+  "kind": "sequence",
+  "actors": [
+    "Alice; the first",
+    "Bob <b> & co"
+  ],
+  "events": [
+    [
+      "message",
+      0,
+      1,
+      true,
+      "a; b"
+    ],
+    [
+      "message",
+      1,
+      0,
+      false,
+      "# hash"
+    ],
+    [
+      "message",
+      0,
+      1,
+      false,
+      "wrap: x"
+    ],
+    [
+      "message",
+      1,
+      0,
+      true,
+      "nowrap: x"
+    ],
+    [
+      "message",
+      0,
+      1,
+      false,
+      ":wrap: x"
+    ],
+    [
+      "message",
+      1,
+      0,
+      false,
+      ":nowrap:x"
+    ],
+    [
+      "message",
+      0,
+      1,
+      true,
+      "literal <br> tag"
+    ],
+    [
+      "message",
+      1,
+      0,
+      false,
+      "real\nnewline"
+    ],
+    [
+      "message",
+      0,
+      1,
+      false,
+      "say \"hi\" & bye"
+    ],
+    [
+      "message",
+      1,
+      0,
+      true,
+      "x as y"
+    ],
+    [
+      "message",
+      0,
+      1,
+      false,
+      "a ->> b"
+    ],
+    [
+      "message",
+      1,
+      0,
+      false,
+      "Note over a: z"
+    ],
+    [
+      "message",
+      0,
+      1,
+      true,
+      "%%{init: {}}%%"
+    ],
+    [
+      "message",
+      1,
+      0,
+      false,
+      "`tick"
+    ],
+    [
+      "message",
+      0,
+      1,
+      false,
+      "style: #quot;"
+    ],
+    [
+      "note",
+      [
+        0
+      ],
+      "semi; and # and wrap: inside"
+    ],
+    [
+      "note",
+      [
+        0,
+        1
+      ],
+      "wrap: whole"
+    ],
+    [
+      "note",
+      [
+        1
+      ],
+      ":nowrap: lead"
+    ]
+  ]
+}

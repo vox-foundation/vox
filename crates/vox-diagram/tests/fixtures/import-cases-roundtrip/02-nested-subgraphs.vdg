@@ -1,0 +1,21 @@
+graph {
+    direction: right
+    node e: "Epsilon"
+    container Outer: "Outer scope" {
+        node a: "Alpha"
+        container Middle: "Middle scope" {
+            node b: "Beta"
+            container Inner: "Inner scope" {
+                node c: "Gamma"
+            }
+            b -> Inner.c
+        }
+        container Plain: "Plain" {
+            node d: "Delta"
+        }
+        a -> Middle.b
+        a -> Middle.Inner.c
+        Middle.Inner.c -> Plain.d
+    }
+    e -> Outer.Middle.b
+}

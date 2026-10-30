@@ -1,0 +1,130 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "Code Query: 'Implement async distributed worker queue in Rust'",
+      "rect",
+      []
+    ],
+    [
+      "Ecosystem Discovery (crates.io/npm stars, downloads, maintenance)",
+      "rect",
+      []
+    ],
+    [
+      "Grounded Code & Architecture Plan",
+      "rect",
+      []
+    ],
+    [
+      "Local Codebase Scan (Existing crates, Cargo.lock, patterns)",
+      "rect",
+      []
+    ],
+    [
+      "Official Spec & Docs Extractor (docs.rs signatures, API contracts)",
+      "rect",
+      []
+    ],
+    [
+      "Sandbox Typecheck & Syntax Validator (vox check / cargo check)",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Code Query: 'Implement async distributed worker queue in Rust'",
+        "rect",
+        []
+      ],
+      [
+        "Ecosystem Discovery (crates.io/npm stars, downloads, maintenance)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Code Query: 'Implement async distributed worker queue in Rust'",
+        "rect",
+        []
+      ],
+      [
+        "Local Codebase Scan (Existing crates, Cargo.lock, patterns)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Code Query: 'Implement async distributed worker queue in Rust'",
+        "rect",
+        []
+      ],
+      [
+        "Official Spec & Docs Extractor (docs.rs signatures, API contracts)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Ecosystem Discovery (crates.io/npm stars, downloads, maintenance)",
+        "rect",
+        []
+      ],
+      [
+        "Sandbox Typecheck & Syntax Validator (vox check / cargo check)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Local Codebase Scan (Existing crates, Cargo.lock, patterns)",
+        "rect",
+        []
+      ],
+      [
+        "Grounded Code & Architecture Plan",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Official Spec & Docs Extractor (docs.rs signatures, API contracts)",
+        "rect",
+        []
+      ],
+      [
+        "Sandbox Typecheck & Syntax Validator (vox check / cargo check)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Sandbox Typecheck & Syntax Validator (vox check / cargo check)",
+        "rect",
+        []
+      ],
+      [
+        "Grounded Code & Architecture Plan",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

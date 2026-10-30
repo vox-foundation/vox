@@ -1,0 +1,7 @@
+// expect: diagram/shadowed-id
+graph {
+    node x: "X"
+    container c: "C" {
+        node x: "Inner"
+    }
+}

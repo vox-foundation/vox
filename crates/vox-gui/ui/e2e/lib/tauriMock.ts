@@ -386,7 +386,7 @@ export function installTauriMock(viewKey: string): void {
               target_usd: 0.39,
             },
             {
-              id: 'claude-sonnet-4',
+              id: 'anthropic/claude-sonnet',
               role: 'Frontier verifier',
               model: 'anthropic/claude-sonnet',
               sources: ['openrouter'],

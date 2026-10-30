@@ -1,0 +1,7 @@
+flowchart TD
+    ShopQuery["Shopping Query: 'Best noise-canceling headphones under $300'"] --> EntityExtract["Product Entity Extractor (Identify Top 3-5 Candidate Models)"]
+    EntityExtract --> SpecGather["Spec Matrix Gatherer (Manufacturer specs, battery, weight, codecs)"]
+    EntityExtract --> MerchantGather["Merchant & Price Scraper (Current prices, stock, retailers)"]
+    EntityExtract --> ReviewGather["Community Review Harvester (Reddit, RTINGS, forum sentiment)"]
+    SpecGather & MerchantGather & ReviewGather --> MatrixSynthesis["Product Comparison Synthesizer"]
+    MatrixSynthesis --> Verdicts["Decision Engine (Best Overall, Best Budget, Known Flaws)"]

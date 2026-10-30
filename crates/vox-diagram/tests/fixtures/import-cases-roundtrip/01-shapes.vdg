@@ -1,0 +1,22 @@
+graph {
+    node a: "Plain quoted"
+    node b: "Rounded unquoted" { shape: rounded }
+    node c: "Rounded quoted" { shape: rounded }
+    node d: "Decision" { shape: diamond }
+    node e: "Quoted decision" { shape: diamond }
+    node f: "Store" { shape: cylinder }
+    node g: "Quoted store" { shape: cylinder }
+    node h: "Start" { shape: start }
+    node i: "Quoted start" { shape: start }
+    node j: "End" { shape: end }
+    node k: "Quoted end" { shape: end }
+    node l: "Unquoted rect"
+    a -> b
+    b -> c
+    d -> e
+    f -> g
+    g -> h
+    i -> j
+    j -> k
+    k -> l
+}

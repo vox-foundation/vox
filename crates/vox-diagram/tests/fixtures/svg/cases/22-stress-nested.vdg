@@ -1,0 +1,25 @@
+graph {
+    direction: right
+
+    node user: "Browser"
+
+    container platform: "Platform services" {
+        node edge: "Edge proxy"
+        container core: "Core runtime" {
+            node api: "Public API"
+            container store: "Persistence layer" {
+                node log: "Write-ahead log"
+                node tables: "Task tables"
+            }
+        }
+    }
+    container ops: "Operations and observability tooling for the whole production fleet, including the on-call dashboards" {
+        node metrics: "Metrics"
+    }
+
+    user -> platform.edge: "HTTPS"
+    platform.edge -> platform.core.api: "routes the request"
+    platform.core.api -> platform.core.store.log: "append"
+    platform.core.store.log -> platform.core.store.tables: "apply"
+    platform.core.api -> ops.metrics: "emit"
+}

@@ -620,6 +620,10 @@ pub fn build_architecture_ssot_input(
         sandbox_probes,
         gaps_and_recommendations,
         roadmap_phases,
+        authorship_model: parsed
+            .as_ref()
+            .and_then(|a| a.result.research_metadata.synthesis_model.clone())
+            .filter(|m| !m.trim().is_empty()),
     }
 }
 

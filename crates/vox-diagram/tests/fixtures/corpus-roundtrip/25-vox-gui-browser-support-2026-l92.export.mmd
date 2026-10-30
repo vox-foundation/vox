@@ -1,0 +1,8 @@
+flowchart LR
+    n0["Frame click clientX/clientY"]
+    Map["mapClickToViewport"]
+    Cmd["vox_browser_click_xy"]
+    Page["CDP page viewport 1280x800"]
+    n0 --> Map
+    Map --> Cmd
+    Cmd --> Page

@@ -481,6 +481,9 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_validate_vuv" => parse_obj(
             r#"{"type":"object","properties":{"source":{"type":"string","minLength":1,"description":"Vox/VUV source to validate against the compile-time GUI guarantees (contrast, layer-occlusion, a11y, structural web-IR). No files are written."}},"required":["source"],"additionalProperties":false}"#,
         ),
+        "vox_validate_diagram" => parse_obj(
+            r#"{"type":"object","properties":{"source":{"type":"string","minLength":1,"description":"VoxDiagram source (graph or sequence). At most 65536 bytes."},"from_mermaid":{"type":"boolean","default":false,"description":"Treat source as one Mermaid block; return the converted VoxDiagram or the by-line unsupported list."},"emit":{"type":"string","enum":["svg","mermaid"],"description":"Also return the SVG or Mermaid rendering of a valid diagram."}},"required":["source"],"additionalProperties":false}"#,
+        ),
         "vox_search_status" => parse_obj(
             r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id from contracts/retrieval/graphify-corpora.v1.yaml; omit for all corpora"}},"additionalProperties":false}"#,
         ),

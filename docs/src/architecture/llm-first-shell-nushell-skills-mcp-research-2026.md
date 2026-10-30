@@ -116,19 +116,24 @@ We evaluated seven shell and execution environments across the criteria that gov
 
 ## 4. The Vox 3-Layer LLM-First Shell Architecture
 
-```mermaid
-flowchart TD
-    Agent["LLM Agent / Skill / Console User"] --> Router["Input & Tool Router (vox-terminal-core / vox-orchestrator-mcp)"]
-
-    Router -->|"Tier 1: In-Process, Deterministic, Zero-Spawn"| Tier1["Vox Native Shell Tier (vox_interp + std.fs / std.process / std.io)"]
-    Router -->|"Tier 2: Structured Relational / Tabular Query (!nu or backend=nushell)"| Tier2["Structured Nushell Engine (nu --no-config-file / nu --mcp)"]
-    Router -->|"Tier 3: Interactive CLI / Build Tool (!sh, cargo, git, pnpm)"| Tier3["Policy-Gated Host PTY (zsh / bash / pwsh)"]
-
-    Tier1 --> Gate["Safety Floor (classify_floor) + Exec Grammar (vox-container-types::exec_grammar)"]
-    Tier2 --> Gate
-    Tier3 --> Gate
-
-    Gate --> Out["ACI Envelope (aci.execution_probe.structured_data) + Redacted Block Context (vox-redact)"]
+```vox-diagram
+graph {
+    node Agent: "LLM Agent / Skill / Console User"
+    node Router: "Input & Tool Router (vox-terminal-core / vox-orchestrator-mcp)"
+    node Tier1: "Vox Native Shell Tier (vox_interp + std.fs / std.process / std.io)"
+    node Tier2: "Structured Nushell Engine (nu --no-config-file / nu --mcp)"
+    node Tier3: "Policy-Gated Host PTY (zsh / bash / pwsh)"
+    node Gate: "Safety Floor (classify_floor) + Exec Grammar (vox-container-types::exec_grammar)"
+    node Out: "ACI Envelope (aci.execution_probe.structured_data) + Redacted Block Context (vox-redact)"
+    Agent -> Router
+    Router -> Tier1: "Tier 1: In-Process, Deterministic, Zero-Spawn"
+    Router -> Tier2: "Tier 2: Structured Relational / Tabular Query (!nu or backend=nushell)"
+    Router -> Tier3: "Tier 3: Interactive CLI / Build Tool (!sh, cargo, git, pnpm)"
+    Tier1 -> Gate
+    Tier2 -> Gate
+    Tier3 -> Gate
+    Gate -> Out
+}
 ```
 
 ### 4.1 When to Route to Each Layer
@@ -217,22 +222,23 @@ Upgrade [`crates/vox-cli/src/commands/runtime/shell/check_terminal.rs`](../../..
 
 To make the terminal and chat behave as a single unified cognitive workspace — where each can invoke the other, security is user-configurable, control shifts smoothly between human and agent, and no copy-pasting is ever required — Vox defines five tightly integrated mechanisms across `vox-terminal-core`, `vox-orchestrator-d`, [`Console.tsx`](../../../crates/vox-gui/ui/src/components/surfaces/Console/Console.tsx), [`Loquela.tsx`](../../../crates/vox-gui/ui/src/components/surfaces/Loquela/Loquela.tsx), and [`ChatSurface.tsx`](../../../crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx):
 
-```mermaid
-sequenceDiagram
-    participant User as Developer (Hotkeys / Selection)
-    participant Term as Axis Console & SessionHost
-    participant Bus as TerminalBridgeBus (Ambient + Chips)
-    participant Chat as Loquela Composer & ChatSurface
-    participant Agent as Orchestrator Agent (term_run / ?prompt)
+```vox-diagram
+sequence {
+    actor User: "Developer (Hotkeys / Selection)"
+    actor Term: "Axis Console & SessionHost"
+    actor Bus: "TerminalBridgeBus (Ambient + Chips)"
+    actor Chat: "Loquela Composer & ChatSurface"
+    actor Agent: "Orchestrator Agent (term_run / ?prompt)"
 
-    Term->>Bus: Auto-publish redacted blocks, exit codes, cwd, pinned blocks
-    Bus->>Chat: Ambient context pill ("Term s-1 · 4 blocks · last exit 0")
-    User->>Term: Select block #3 (or lines L12-28) + press Cmd+L / Click "Focus in Chat"
-    Term->>Chat: Insert @term:s-1#3:L12-28 chip into Loquela composer (no copy-paste)
-    Chat->>Agent: Submit turn with ambient + focused @term block slices
-    Agent->>Term: Call term_run(session_id="s-1", cmd="!nu ls | where size > 10kb", level=L3)
-    Term-->>User: Live block card opens with Agent badge + Autopilot pulse
-    User->>Term: Press Esc / type keystroke -> Instant takeover to Manual mode
+    Term -> Bus: "Auto-publish redacted blocks, exit codes, cwd, pinned blocks"
+    Bus -> Chat: "Ambient context pill (\"Term s-1 · 4 blocks · last exit 0\")"
+    User -> Term: "Select block #3 (or lines L12-28) + press Cmd+L / Click \"Focus in Chat\""
+    Term -> Chat: "Insert @term:s-1#3:L12-28 chip into Loquela composer (no copy-paste)"
+    Chat -> Agent: "Submit turn with ambient + focused @term block slices"
+    Agent -> Term: "Call term_run(session_id=\"s-1\", cmd=\"!nu ls | where size > 10kb\", level=L3)"
+    reply Term -> User: "Live block card opens with Agent badge + Autopilot pulse"
+    User -> Term: "Press Esc / type keystroke -> Instant takeover to Manual mode"
+}
 ```
 
 ### 7.1 Bidirectional Invocation (Chat Calls Terminal ↔ Terminal Calls Chat)
@@ -310,31 +316,31 @@ A codebase-wide audit reveals **seven disconnected completion fragments** built 
 
 Instead of maintaining separate ad-hoc popovers in `Loquela.tsx` and `InputEditor.tsx`, Vox converges all seven completion sources into a single two-tier **Unified IntelliSense Engine**:
 
-```mermaid
-flowchart LR
-    subgraph Backend["Rust Completion Providers (vox-gui / vox-cli / vox-lsp / vox-terminal-core)"]
-        Cat["vox-cli CommandCatalog\n+ Flag/Arg Specs"]
-        Nu["Nushell / Shell Builtins\n+ extern 'vox' + History"]
-        Lsp["vox-lsp CompletionEngine\n+ language_surface + AST Symbols"]
-        Skills["vox-skills Registry\n+ capabilityIndex + MCP Tools"]
-        TermCtx["SessionHost Live Blocks\n(@term:s-1#3) + Repo Files"]
-        Nucleo["nucleo FuzzyMatcher\n+ Spaced-Repetition Boost"]
-    end
-
-    subgraph Frontend["Shared GUI IntelliSense Surface (crates/vox-gui/ui)"]
-        Hook["useIntellisense() Hook\nContext & Trigger Parser"]
-        Ghost["Inline Ghost Text\n(Tab / → to accept, Esc to dismiss)"]
-        Menu["IntelliSensePopover.tsx\nCategorized, Keyboard-Navigable, Arg Signature Rail"]
-    end
-
-    Cat --> Nucleo
-    Nu --> Nucleo
-    Lsp --> Nucleo
-    Skills --> Nucleo
-    TermCtx --> Nucleo
-    Nucleo --> Hook
-    Hook --> Ghost
-    Hook --> Menu
+```vox-diagram
+graph {
+    direction: right
+    container Backend: "Rust Completion Providers (vox-gui / vox-cli / vox-lsp / vox-terminal-core)" {
+        node Cat: "vox-cli CommandCatalog\n+ Flag/Arg Specs"
+        node Nu: "Nushell / Shell Builtins\n+ extern 'vox' + History"
+        node Lsp: "vox-lsp CompletionEngine\n+ language_surface + AST Symbols"
+        node Skills: "vox-skills Registry\n+ capabilityIndex + MCP Tools"
+        node TermCtx: "SessionHost Live Blocks\n(@term:s-1#3) + Repo Files"
+        node Nucleo: "nucleo FuzzyMatcher\n+ Spaced-Repetition Boost"
+        Cat -> Nucleo
+        Nu -> Nucleo
+        Lsp -> Nucleo
+        Skills -> Nucleo
+        TermCtx -> Nucleo
+    }
+    container Frontend: "Shared GUI IntelliSense Surface (crates/vox-gui/ui)" {
+        node Hook: "useIntellisense() Hook\nContext & Trigger Parser"
+        node Ghost: "Inline Ghost Text\n(Tab / → to accept, Esc to dismiss)"
+        node Menu: "IntelliSensePopover.tsx\nCategorized, Keyboard-Navigable, Arg Signature Rail"
+        Hook -> Ghost
+        Hook -> Menu
+    }
+    Backend.Nucleo -> Frontend.Hook
+}
 ```
 
 #### 1. Context-Aware Trigger & Prefix Grammar (Shared Across Chat & Terminal)

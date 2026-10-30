@@ -2791,6 +2791,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "dagre"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9468ae6a4b98e7102e0e59ba8f9aacd2266cec71817c19b62b2d61ee260524c1"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "darling"
 version = "0.20.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -17116,6 +17127,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-diagram"
+version = "0.6.0"
+dependencies = [
+ "dagre",
+ "insta",
+ "proptest",
+ "pulldown-cmark",
+ "quick-xml 0.41.0",
+ "serde",
+ "serde_json",
+ "strsim",
+ "unicode-width 0.2.2",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-doc-inventory"
 version = "0.6.0"
 dependencies = [
@@ -17145,6 +17172,7 @@ dependencies = [
  "sha2 0.11.0",
  "vox-bounded-fs",
  "vox-compiler",
+ "vox-diagram",
  "vox-kb-facets",
  "walkdir",
  "workspace-hack",
@@ -17999,6 +18027,7 @@ dependencies = [
  "vox-corpus",
  "vox-crypto",
  "vox-db",
+ "vox-diagram",
  "vox-foundation",
  "vox-gamify",
  "vox-grammar-export",
@@ -21115,6 +21144,7 @@ dependencies = [
  "portable-atomic",
  "postcard",
  "potential_utf",
+ "ppv-lite86",
  "proc-macro2",
  "pulldown-cmark",
  "pulley-interpreter",
@@ -21122,6 +21152,8 @@ dependencies = [
  "quote",
  "rand 0.10.1",
  "rand 0.8.6",
+ "rand 0.9.4",
+ "rand_chacha 0.9.0",
  "rand_core 0.6.4",
  "regex",
  "regex-automata",

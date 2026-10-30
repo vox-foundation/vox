@@ -9,7 +9,7 @@ training_eligible: true
 
 import VoxPlayground from '../../docs-astro/src/components/VoxPlayground.astro';
 
-<div style="text-align: center; padding: 2.25rem 1rem 1.5rem; background: radial-gradient(ellipse at 50% 0%, rgba(56, 189, 248, 0.14), transparent 72%); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 14px; margin-bottom: 1.5rem;">
+<div class="vox-home-hero" style="text-align: center; padding: 2.25rem 1rem 1.5rem; background: radial-gradient(ellipse at 50% 0%, rgba(56, 189, 248, 0.14), transparent 72%); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 14px; margin-bottom: 1.5rem;">
   <p style="font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sl-color-accent-high); margin: 0 0 0.6rem;">
     Pre-1.0 Research Prototype · Workspace v0.6.0 · Apache-2.0
   </p>
@@ -84,22 +84,23 @@ Those languages and frameworks were designed decades before artificial intellige
 
 ### How One `.vox` File Compiles Across the Stack
 
-```mermaid
-flowchart LR
-    Source["One .vox Source File"]
-    Check["vox check (Type & Error Checker)"]
-    Interp["vox run (Instant Sandboxed Interpreter)"]
-    SQL["SQLite / Turso Schema"]
-    Server["Rust (Axum) HTTP Server"]
-    UI["TypeScript / React UI"]
-    MCP["MCP Agent Tools"]
-
-    Source --> Check
-    Check --> Interp
-    Check --> SQL
-    Check --> Server
-    Check --> UI
-    Check --> MCP
+```vox-diagram
+graph {
+    direction: right
+    node Source: "One .vox Source File"
+    node Check: "vox check (Type & Error Checker)"
+    node Interp: "vox run (Instant Sandboxed Interpreter)"
+    node SQL: "SQLite / Turso Schema"
+    node Server: "Rust (Axum) HTTP Server"
+    node UI: "TypeScript / React UI"
+    node MCP: "MCP Agent Tools"
+    Source -> Check
+    Check -> Interp
+    Check -> SQL
+    Check -> Server
+    Check -> UI
+    Check -> MCP
+}
 ```
 
 <details style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 0.85rem 1.1rem; margin: 1rem 0; background: var(--sl-color-bg-nav);">
@@ -157,6 +158,10 @@ fn main() to Result[str] {
 ## How the Vox Suite Works
 
 Vox combines the language with an AI-native toolchain in one repository. Six pillars connect the workflow from writing code to running agents:
+
+<div align="center">
+  <img src="./assets/vox-suite-pillars.png" alt="A central Vox core linked to six pillars: schema and types, execution lanes, durable workflows, agent harness, knowledge base, and ML" width="760" />
+</div>
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.15rem; margin: 1.5rem 0;">
   <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1.15rem;">

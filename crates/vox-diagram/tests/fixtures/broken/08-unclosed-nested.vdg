@@ -1,0 +1,4 @@
+// expect: diagram/unclosed-brace, diagram/unclosed-brace
+graph {
+    container c: "C" {
+        node x: "X"

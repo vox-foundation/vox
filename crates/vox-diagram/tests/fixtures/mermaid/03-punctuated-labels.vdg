@@ -1,0 +1,3 @@
+graph TD
+    gw[API: gateway (beta) / v1.2] --> eng[Agent Runtime<br>core]
+    eng --> store[(Task DB)];

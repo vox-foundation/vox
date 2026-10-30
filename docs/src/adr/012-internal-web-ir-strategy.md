@@ -259,15 +259,25 @@ Confidence tags:
 
 ### Pipeline
 
-```mermaid
-flowchart LR
-  voxSource[VoxSource] --> astLayer[AstLayer]
-  astLayer --> hirLayer[HirLayer]
-  hirLayer --> webIrLayer[WebIrLayer]
-  webIrLayer --> validateLayer[WebIrValidate]
-  validateLayer --> reactEmit[ReactTanStackEmitter]
-  validateLayer --> ssgEmit[SsgHtmlEmitter]
-  validateLayer --> futureEmit[FutureEmitter]
+```vox-diagram
+graph {
+    direction: right
+    node voxSource: "VoxSource"
+    node astLayer: "AstLayer"
+    node hirLayer: "HirLayer"
+    node webIrLayer: "WebIrLayer"
+    node validateLayer: "WebIrValidate"
+    node reactEmit: "ReactTanStackEmitter"
+    node ssgEmit: "SsgHtmlEmitter"
+    node futureEmit: "FutureEmitter"
+    voxSource -> astLayer
+    astLayer -> hirLayer
+    hirLayer -> webIrLayer
+    webIrLayer -> validateLayer
+    validateLayer -> reactEmit
+    validateLayer -> ssgEmit
+    validateLayer -> futureEmit
+}
 ```
 
 ---

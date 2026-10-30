@@ -1,0 +1,16 @@
+flowchart LR
+    voxSource["VoxSource"]
+    astLayer["AstLayer"]
+    hirLayer["HirLayer"]
+    webIrLayer["WebIrLayer"]
+    validateLayer["WebIrValidate"]
+    reactEmit["ReactTanStackEmitter"]
+    ssgEmit["SsgHtmlEmitter"]
+    futureEmit["FutureEmitter"]
+    voxSource --> astLayer
+    astLayer --> hirLayer
+    hirLayer --> webIrLayer
+    webIrLayer --> validateLayer
+    validateLayer --> reactEmit
+    validateLayer --> ssgEmit
+    validateLayer --> futureEmit

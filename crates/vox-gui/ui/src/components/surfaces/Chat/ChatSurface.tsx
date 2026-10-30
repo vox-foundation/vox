@@ -849,13 +849,13 @@ export function ChatSurface({
           data-testid="chat-composer-dock"
         >
           {/* Phase 18 & Phase 44: Compact KB Context Inspector & Attention Digest Strip */}
-          <div className="mb-1.5 flex items-center justify-between gap-1.5 px-0.5 text-[10px]">
+          <div className="mb-1.5 flex items-center justify-between gap-1.5 px-0.5 text-[11px]">
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
               <button
                 type="button"
                 data-testid="kb-context-inspector-toggle"
                 onClick={() => setKbInspectorOpen((o) => !o)}
-                className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 font-mono text-[10px] tracking-tight text-text-secondary transition hover:border-white/20 hover:text-text-primary"
+                className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 font-mono text-[11px] tracking-tight text-text-secondary transition hover:border-white/20 hover:text-text-primary"
               >
                 <span className="size-1.5 rounded-full bg-brass" aria-hidden="true" />
                 @kb Context Inspector ({kbInspectorOpen ? 'hide' : `@kb:${liveKbScope} · ~${estimatedKbTokens} tok`})
@@ -864,7 +864,7 @@ export function ChatSurface({
                 type="button"
                 data-testid="inbox-digest-toggle"
                 onClick={() => setDigestOpen((o) => !o)}
-                className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 font-mono text-[10px] tracking-tight text-text-secondary transition hover:border-white/20 hover:text-text-primary"
+                className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 font-mono text-[11px] tracking-tight text-text-secondary transition hover:border-white/20 hover:text-text-primary"
               >
                 <span className="size-1.5 rounded-full bg-(--color-status-info)" aria-hidden="true" />
                 Attention Digest ({digestOpen ? 'hide' : `batched · ${waitingQuestions + blockedTasks} urgent`})
@@ -1156,7 +1156,7 @@ export function ChatSurface({
           aria-label="Workspace panels"
           className={`absolute right-0 ${tabBarTrailingSlot ? 'bottom-full mb-2' : 'top-full mt-1'} z-[99999] w-60 rounded-lg border border-border-subtle bg-bg-base p-1.5 shadow-2xl`}
         >
-                <div className="px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-text-muted">
+                <div className="px-2 py-1 font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
                   Docked Panels
                 </div>
                 {[
@@ -1203,7 +1203,7 @@ export function ChatSurface({
                   );
                 })}
                 <div className="my-1 border-t border-border-subtle" />
-                <div className="px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-text-muted">
+                <div className="px-2 py-1 font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
                   Layout Presets
                 </div>
                 <div className="grid grid-cols-3 gap-1 px-1 pb-1">
@@ -1211,7 +1211,7 @@ export function ChatSurface({
                     type="button"
                     data-testid="dock-preset-focus"
                     onClick={() => applyWorkspacePreset([])}
-                    className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-1 font-mono text-[10px] text-text-secondary hover:border-brass/40 hover:text-brass"
+                    className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-1 font-mono text-[11px] text-text-secondary hover:border-brass/40 hover:text-brass"
                   >
                     Focus
                   </button>
@@ -1219,7 +1219,7 @@ export function ChatSurface({
                     type="button"
                     data-testid="dock-preset-engineering"
                     onClick={() => applyWorkspacePreset(['executionRail', 'terminal'])}
-                    className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-1 font-mono text-[10px] text-text-secondary hover:border-brass/40 hover:text-brass"
+                    className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-1 font-mono text-[11px] text-text-secondary hover:border-brass/40 hover:text-brass"
                   >
                     Eng Split
                   </button>
@@ -1227,7 +1227,7 @@ export function ChatSurface({
                     type="button"
                     data-testid="dock-preset-civilization"
                     onClick={() => applyWorkspacePreset(['harness', 'urbs'])}
-                    className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-1 font-mono text-[10px] text-text-secondary hover:border-brass/40 hover:text-brass"
+                    className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-1 font-mono text-[11px] text-text-secondary hover:border-brass/40 hover:text-brass"
                   >
                     Urbs + River
                   </button>

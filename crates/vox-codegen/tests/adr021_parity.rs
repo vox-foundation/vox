@@ -153,23 +153,35 @@ fn emit_does_not_expect_terminal_return_on_park() {
             && rust.contains("Some(\"delayed\")"),
         "debug binary may exit 0 on park only when VOX_RUN_WORKFLOW equals this workflow name. got:\n{rust}"
     );
+    // Library wrappers return `Result<R, String>` (#610, 885fd254d), so a park
+    // fails closed as `Err` — never `process::exit` (kills the host) and no
+    // longer `panic!` (the pre-#610 shape for a non-Result `-> i64` wrapper).
     assert!(
         rust.contains(
-            "panic!(\"vox durable workflow: run parked (no WorkflowCompleted); resume with the same VOX_WORKFLOW_RUN_ID\")"
+            "return Err(\"vox durable workflow: run parked (no WorkflowCompleted); resume with the same VOX_WORKFLOW_RUN_ID\".to_string());"
         ),
-        "library wrappers must panic on park, not process::exit the host. got:\n{rust}"
+        "library wrappers must return Err on park, not process::exit the host. got:\n{rust}"
     );
     assert!(
-        rust.contains("WorkflowCompleted"),
+        !rust.contains("panic!"),
+        "library wrappers must not panic on park. got:\n{rust}"
+    );
+    assert_eq!(
+        rust.matches("process::exit").count(),
+        1,
+        "process::exit only in the debug-dispatch park branch. got:\n{rust}"
+    );
+    let park = rust.find("if !__vox_completed").expect("park check");
+    let extract = rust
+        .find("extract_terminal_return")
+        .expect("terminal return");
+    assert!(
+        park < extract,
         "wrapper must detect a parked journal before extract_terminal_return. got:\n{rust}"
     );
     assert!(
-        rust.contains("async fn delayed") && rust.contains("-> i64"),
-        "to int wrapper must keep the Vox return type; got:\n{rust}"
-    );
-    assert!(
-        !rust.contains('?'),
-        "to int wrapper must not use ?; got:\n{rust}"
+        rust.contains("async fn delayed(") && rust.contains("-> Result<i64, String>"),
+        "to int wrapper returns Result<i64, String> (declared type as Ok); got:\n{rust}"
     );
 }
 

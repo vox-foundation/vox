@@ -1,0 +1,15 @@
+---
+source: crates/vox-diagram/tests/fixes_repair.rs
+expression: r.text
+---
+sequence {
+    // a Mermaid comment
+    actor U: "User"
+    actor S: "Server (core)"
+    actor DB: "DB"
+    U->S: "open page"
+    S->DB: "load rows"
+    reply DB->S: "rows"
+    reply S->U: "render"
+    note over U,S: "handshake done"
+}

@@ -95,6 +95,87 @@ export function useVoxServerQuery<TData>(
   return useQuery<TData>({ queryKey, queryFn });
 }
 
+/**
+ * Convex-grade reactive table query (`db.Table.subscribe` -> live `useQuery` delta invalidation, `STREAM-02`).
+ * Subscribes to `/api/subscribe/${table}` SSE notifications from `SubscriptionManager` and invalidates
+ * `queryKey` whenever a `@mutation` commits against `table`.
+ */
+export function useVoxReactiveTableQuery<TData>(
+  table: string,
+  queryKey: readonly unknown[],
+  queryFn: () => Promise<TData>,
+) {
+  if (typeof window !== "undefined" && typeof EventSource !== "undefined") {
+    const esKey = `__voxSub_${table}`;
+    if (!(window as any)[esKey]) {
+      const es = new EventSource(`/api/subscribe/${encodeURIComponent(table)}`);
+      es.onmessage = () => {
+        void voxQueryClient.invalidateQueries({ queryKey });
+      };
+      (window as any)[esKey] = es;
+    }
+  }
+  return useQuery<TData>({ queryKey, queryFn });
+}
+
+/**
+ * Subscribe to a `Stream[T]` SSE endpoint with `Last-Event-ID` replay (`STREAM-01`).
+ */
+export function subscribeVoxEventStream<T>(
+  streamName: string,
+  onEvent: (data: T, lastEventId: string) => void,
+): () => void {
+  if (typeof EventSource === "undefined") return () => {};
+  const es = new EventSource(`/api/stream/${encodeURIComponent(streamName)}`);
+  es.onmessage = (ev: MessageEvent) => {
+    try {
+      onEvent(JSON.parse(ev.data) as T, ev.lastEventId || "");
+    } catch {
+      onEvent(ev.data as unknown as T, ev.lastEventId || "");
+    }
+  };
+  return () => es.close();
+}
+
+/**
+ * Client-side OPFS chunked media cache helper (`CLOUD-01`, `ngi.video` / `cineflow` parity).
+ * Fetches via HTTP `Range` when uncached and stores in Origin Private File System.
+ */
+export async function readOrCacheOpfsBlob(
+  cacheKey: string,
+  sourceUrl: string,
+  rangeHeader?: string,
+): Promise<ArrayBuffer> {
+  const nav: any = typeof navigator !== "undefined" ? navigator : null;
+  if (nav?.storage?.getDirectory) {
+    try {
+      const root = await nav.storage.getDirectory();
+      const safeName = cacheKey.replace(/[^a-zA-Z0-9._-]/g, "_");
+      try {
+        const existing = await root.getFileHandle(safeName);
+        const file = await existing.getFile();
+        return await file.arrayBuffer();
+      } catch {
+        const headers: Record<string, string> = {};
+        if (rangeHeader) headers["Range"] = rangeHeader;
+        const res = await fetch(sourceUrl, { headers });
+        const buf = await res.arrayBuffer();
+        const handle = await root.getFileHandle(safeName, { create: true });
+        const writable = await handle.createWritable();
+        await writable.write(buf);
+        await writable.close();
+        return buf;
+      }
+    } catch {
+      // Fall through to direct fetch when OPFS is unavailable
+    }
+  }
+  const headers: Record<string, string> = {};
+  if (rangeHeader) headers["Range"] = rangeHeader;
+  const res = await fetch(sourceUrl, { headers });
+  return await res.arrayBuffer();
+}
+
 
 === schemas.ts ===
 import { z } from "zod";

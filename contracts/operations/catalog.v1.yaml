@@ -3455,6 +3455,33 @@ operations:
     catalog_group: null
     ref_cli_required: false
     reachability_required: null
+- id: audit.docs
+  title: Audit Docs
+  description: CLI operation `vox audit docs`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - audit
+    - docs
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
 - id: audit.effort
   title: Audit Effort
   description: CLI operation `vox audit effort`
@@ -6098,7 +6125,7 @@ operations:
 - id: ci.compile-matrix
   title: Ci Compile-matrix
   description: CLI operation `vox ci compile-matrix`
-  description_human: null
+  description_human: "CLI operation `vox ci compile-matrix` — smoke `vox compile --help` via cargo (matches compile-matrix workflow)"
   product_lane: platform
   intent_tags: []
   side_effect_class: spawns_process
@@ -6448,6 +6475,33 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
+- id: ci.crate-api-sync
+  title: Ci Crate-api-sync
+  description: CLI operation `vox ci crate-api-sync`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - crate-api-sync
+    status: active
+    latin_ns: ci
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
 - id: ci.crate-budget
   title: Ci Crate-budget
   description: CLI operation `vox ci crate-budget`
@@ -6640,7 +6694,7 @@ operations:
 - id: ci.db-schema-coverage
   title: Ci Db-schema-coverage
   description: CLI operation `vox ci db-schema-coverage`
-  description_human: null
+  description_human: "Verify every CREATE TABLE in the workspace is owned by a crate in tiers.a_relational.owners."
   product_lane: platform
   intent_tags: []
   side_effect_class: read_only
@@ -8328,7 +8382,7 @@ operations:
 - id: ci.pipeline-parity
   title: Ci Pipeline-parity
   description: CLI operation `vox ci pipeline-parity`
-  description_human: null
+  description_human: "CLI operation `vox ci pipeline-parity` — umbrella gate for script→emission SSOT (grammar parity, canonical ladder, feature matrix, k-budget)"
   product_lane: platform
   intent_tags: []
   side_effect_class: read_only
@@ -8868,7 +8922,7 @@ operations:
 - id: ci.retirement-audit
   title: Ci Retirement-audit
   description: CLI operation `vox ci retirement-audit`
-  description_human: null
+  description_human: "CLI operation `vox ci retirement-audit` — scan `vox-deprecated-since` / `retire-by` markers vs workspace semver"
   product_lane: platform
   intent_tags: []
   side_effect_class: read_only
@@ -13574,6 +13628,190 @@ operations:
     catalog_group: null
     ref_cli_required: false
     reachability_required: null
+- id: diagram
+  title: Diagram
+  description: Check, format, render, export and import VoxDiagram diagrams from a file or stdin
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - diagram
+    status: active
+    latin_ns: null
+    handler_rust: commands::diagram::run
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: diagram.check
+  title: Diagram Check
+  description: Check a diagram file or stdin and print each diagnostic as file:line:col with its code (exit 1 on any error)
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - diagram
+    - check
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: diagram.fmt
+  title: Diagram Fmt
+  description: Print the canonical form of a diagram, or verify (--check) or rewrite (--write) the file
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - diagram
+    - fmt
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: diagram.render
+  title: Diagram Render
+  description: Render a diagram as deterministic SVG to stdout or -o FILE
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - diagram
+    - render
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: diagram.export
+  title: Diagram Export
+  description: Export a diagram as Mermaid to stdout or -o FILE
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - diagram
+    - export
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: diagram.import
+  title: Diagram Import
+  description: Convert a Mermaid block to canonical VoxDiagram and list unsupported lines (exit 1)
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - diagram
+    - import
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: diagram.validate
+  title: VoxDiagram Validation
+  description: Validate a VoxDiagram (graph or sequence) and return every diagnostic
+    with machine-applicable fixes, the canonical source and stats; optionally convert
+    a Mermaid block or emit SVG or Mermaid. Deterministic, no model calls, writes nothing.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: none
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_validate_diagram
+    http_read_role_eligible: true
+    exposure: public
+    requires: []
+  cli: null
 - id: dispatch
   title: Dispatch
   description: CLI operation `vox dispatch`
@@ -34399,6 +34637,144 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
+- id: telemetry.intelligence
+  title: Telemetry Intelligence
+  description: CLI operation `vox telemetry intelligence`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - telemetry
+    - intelligence
+    status: active
+    latin_ns: ci
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: telemetry.intelligence.inspect
+  title: Telemetry Intelligence Inspect
+  description: CLI operation `vox telemetry intelligence inspect`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - telemetry
+    - intelligence
+    - inspect
+    status: active
+    latin_ns: ci
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: telemetry.intelligence.status
+  title: Telemetry Intelligence Status
+  description: CLI operation `vox telemetry intelligence status`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - telemetry
+    - intelligence
+    - status
+    status: active
+    latin_ns: ci
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: telemetry.intelligence.sync
+  title: Telemetry Intelligence Sync
+  description: CLI operation `vox telemetry intelligence sync`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - telemetry
+    - intelligence
+    - sync
+    status: active
+    latin_ns: ci
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: telemetry.preview
+  title: Telemetry Preview
+  description: CLI operation `vox telemetry preview`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - telemetry
+    - preview
+    status: active
+    latin_ns: ci
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
 - id: telemetry.status
   title: Telemetry Status
   description: CLI operation `vox telemetry status`
@@ -35034,6 +35410,33 @@ operations:
     path:
     - workflow
     - preview
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: workflow.signal
+  title: Workflow Signal
+  description: CLI operation `vox workflow signal`
+  description_human: null
+  product_lane: workflow
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - workflow
+    - signal
     status: active
     latin_ns: null
     handler_rust: null

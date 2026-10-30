@@ -545,6 +545,15 @@ Coverage of these classes by detector + severity + enforcement point (and the st
 > must not push to the branch. Its status/skip boilerplate is turned off in
 > `.coderabbit.yaml`. Review is still performed by the agent or human opening the
 > PR, before asking for a merge.
+>
+> **The free tier skips any PR over 100 changed files** (it posts only a "Review
+> skipped: N files exceed the limit of 100" note — #681 was 738). So: shape PRs to
+> **≤100 files** where the work allows — split independent pieces into separate or
+> stacked PRs, and keep bulk regeneration out of feature PRs (CI's `ssot-autoregen`
+> commits it). Request `@coderabbitai review` only on PRs within the limit. A PR far
+> beyond it (roughly 300+ files: a main merge, a milestone branch, a repo-wide
+> rename) is not worth splitting just for CodeRabbit — skip the request and do the
+> self-review below instead.
 
 Because no reviewer is guaranteed to look at a PR:
 
@@ -582,6 +591,13 @@ free-tier flow above, and change them only in a PR that is about them.
 - Always write inline ````vox``` blocks, do NOT use mdBook `{{#include}}` directives for new code.
 - If rendering invalid code for illustrative reasons, disable validation explicitly by using `// vox:skip` inside the snippet. 
 - You MUST enforce syntax correctness programmatically over legacy include files. 
+
+### Diagrams in docs (VoxDiagram)
+
+New diagrams under `docs/src/` use a `vox-diagram` fenced block ([reference and grammar card](docs/src/reference/vox-diagram.md)).
+Validate with the `vox_validate_diagram` MCP tool or `vox --json diagram check <file|->` (`fixes[]` appear only in the JSON
+envelope), apply every `fixes[]` entry, and re-check until valid (doc lint rejects an invalid fence). Do not add fences with the `mermaid` info string: the legacy-Mermaid baseline only
+shrinks (convert one with `vox diagram import`).
 
 ## Retired Surfaces (LLM Guard)
 

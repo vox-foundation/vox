@@ -1,0 +1,6 @@
+// expect: diagram/expected-quoted-label
+graph {
+    node a: "A"
+    node b: "B"
+    a -> b: go now
+}

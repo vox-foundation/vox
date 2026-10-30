@@ -106,6 +106,16 @@ Producers should prefix `session_id` so rollups and dashboards can group without
 | `audit.route.run.failed` | `audit:<run_id>` | Optional | `vox audit effort-route` run lifecycle: routing failed before completion (`METRIC_TYPE_AUDIT_ROUTE_RUN_FAILED`). |
 | `audit.route.cluster.decided` | `audit:<run_id>` | Optional | `vox audit effort-route`: one cluster-and-route decision recorded (`METRIC_TYPE_AUDIT_ROUTE_CLUSTER_DECIDED`). |
 | `audit.effort.run.failed` | `audit:<run_id>` | Optional | `vox audit effort` run lifecycle: scan failed before completion (`METRIC_TYPE_AUDIT_EFFORT_RUN_FAILED`). |
+| `vox.command.usage` | producer-defined | Optional | Top-level CLI command usage (`TelemetryEvent::CommandUsage`, `METRIC_TYPE_COMMAND_USAGE`). |
+| `vox.skill.activation` | producer-defined | Optional | Skill activation at the MCP/CLI/GUI surface (`TelemetryEvent::SkillActivation`, `METRIC_TYPE_SKILL_ACTIVATION`). |
+| `vox.edit.pattern` | producer-defined | Optional | File-mutation edit pattern (`TelemetryEvent::EditPattern`, `METRIC_TYPE_EDIT_PATTERN`). |
+| `vox.harness.usage` | producer-defined | Optional | MCP tool-call harness shape (`TelemetryEvent::HarnessUsage`, `METRIC_TYPE_HARNESS_USAGE`). |
+| `vox.error.surface` | producer-defined | Optional | Subsystem error class at the MCP dispatch boundary (`TelemetryEvent::ErrorSurface`, `METRIC_TYPE_ERROR_SURFACE`). |
+| `vox.default.decision` | producer-defined | Optional | Tunable-constant decision and its observed outcome (`TelemetryEvent::DefaultDecision`, `METRIC_TYPE_DEFAULT_DECISION`). |
+| `vox.model.prompt` | producer-defined | Optional | Per-model prompt-profile injection outcome (`TelemetryEvent::ModelPrompt`, `METRIC_TYPE_MODEL_PROMPT`). |
+| `vox.model.bench_case` | producer-defined | Optional | Per-fixture model benchmark outcome (`TelemetryEvent::ModelBenchCase`, `METRIC_TYPE_MODEL_BENCH_CASE`). |
+| `vox.mens.training_throughput` | producer-defined | Optional | MENS training throughput observation (`TelemetryEvent::TrainingThroughput`, `METRIC_TYPE_TRAINING_THROUGHPUT`). |
+| `vox.research.domain_misguidance` | producer-defined | Optional | Research domain-misguidance observation (`TelemetryEvent::DomainMisguidance`, `METRIC_TYPE_DOMAIN_MISGUIDANCE`). |
 
 ### `socrates_surface` aggregate metadata (`record_socrates_eval_summary`)
 

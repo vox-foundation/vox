@@ -12,6 +12,8 @@ on:
       - 'crates/vox-cli/**'
       - 'crates/vox-compiler/**'
       - 'crates/vox-runtime/**'
+      # 84: tests/unit/mermaid-oracle.test.mjs reads the crate's fixtures; 89: the site renders diagrams from the crate
+      - 'crates/vox-diagram/**'
       - 'scripts/docs/**'
       - 'docs-astro/**'
       - '.git-blame-ignore-revs'
@@ -38,6 +40,8 @@ on:
       - 'crates/vox-cli/**'
       - 'crates/vox-compiler/**'
       - 'crates/vox-runtime/**'
+      # 84: tests/unit/mermaid-oracle.test.mjs reads the crate's fixtures; 89: the site renders diagrams from the crate
+      - 'crates/vox-diagram/**'
       - 'scripts/docs/**'
       - 'docs-astro/**'
       - '.git-blame-ignore-revs'
@@ -144,6 +148,9 @@ jobs:
         working-directory: docs-astro
         run: pnpm install --frozen-lockfile
 
+      - name: Pre-render VoxDiagram fences
+        run: cargo run -p vox-doc-pipeline -- --render-diagrams
+
       - name: Build Starlight
         id: starlight_build
         working-directory: docs-astro
@@ -187,9 +194,20 @@ jobs:
         working-directory: docs-astro
         run: npx playwright test tests/build-output/ --reporter=line
 
+      # 89: the wide-font stack needs DejaVu; the browser comes from Playwright's CDN
+      - name: Install Playwright Chromium and test fonts
+        working-directory: docs-astro
+        if: ${{ !cancelled() && steps.starlight_build.outcome == 'success' }}
+        run: sudo apt-get install -y fonts-dejavu-core fonts-liberation && npx playwright install chromium --with-deps
+
       - name: Reader layout visual-stepper checks
         working-directory: docs-astro
         run: npx playwright test tests/reader-layout.spec.ts --reporter=line
+
+      - name: VoxDiagram browser checks
+        working-directory: docs-astro
+        if: ${{ !cancelled() && steps.starlight_build.outcome == 'success' }}
+        run: npx playwright test tests/vox-diagram.spec.ts --reporter=line --output=test-results/vd-run
 
       - name: Upload reader layout review bundle
         uses: actions/upload-artifact@v4

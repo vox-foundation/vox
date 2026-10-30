@@ -1,0 +1,38 @@
+{
+  "kind": "sequence",
+  "actors": [
+    "Alice",
+    "Bob"
+  ],
+  "events": [
+    [
+      "message",
+      0,
+      1,
+      false,
+      "hello"
+    ],
+    [
+      "message",
+      1,
+      0,
+      true,
+      "hi"
+    ],
+    [
+      "note",
+      [
+        0,
+        1
+      ],
+      "both"
+    ],
+    [
+      "note",
+      [
+        0
+      ],
+      "one"
+    ]
+  ]
+}

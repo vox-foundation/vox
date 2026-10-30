@@ -125,11 +125,12 @@ type CheckReport {
 }
 
 fn check_crate(pkg: str) to Result[CheckReport] {
-    let status = process.run("cargo", ["check", "-p", pkg])?
-    return Ok(CheckReport {
-        crate_name: pkg,
-        passed: status is 0
-    })
+    let result = process.run("cargo", ["check", "-p", pkg])
+    if result is null {
+        return Error("could not run cargo")
+    }
+    // A record literal takes its type from the expected position.
+    return Ok({ crate_name: pkg, passed: result.unwrap().code is 0 })
 }
 
 fn main() to Result[Unit] {
@@ -138,7 +139,7 @@ fn main() to Result[Unit] {
         return Error("cargo check failed for " + report.crate_name)
     }
     fs.write("target/check-ok.txt", report.crate_name)?
-    return Ok(())
+    return Ok(Unit)
 }
 ```
 

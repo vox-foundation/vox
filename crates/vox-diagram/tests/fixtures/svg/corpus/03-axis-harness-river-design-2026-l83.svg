@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 964 729" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,Arimo,Arial,Liberation Sans,Helvetica,sans-serif);font-size:14px">
+<title id="vd-title">Diagram</title>
+<desc id="vd-desc">11 nodes, 11 edges: ChatModelPicker → deriveTierCascade(); DriveConsole → deriveTierCascade(); RailRouting → deriveTierCascade(); vox://agent-events → deriveRiverSnapshot(); ChatMessage.events → deriveRiverSnapshot(); deriveTierCascade() → Zone A: WaveformTierStr…; deriveTierCascade() → Zone B: Riv…</desc>
+<defs>
+<marker id="vd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-containers">
+<rect class="vd-container" x="24.5" y="16" width="210.5" height="308" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-container-label" x="129.5" y="38" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="129.5" dy="0">Loquela &amp; Model Selector</tspan></text>
+<rect class="vd-container" x="16" y="420" width="227.5" height="284" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-container-label" x="129.5" y="442" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="129.5" dy="0">Live Orchestrator Telemetry</tspan></text>
+<rect class="vd-container" x="347.5" y="82.5" width="252.5" height="506.5" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-container-label" x="473.5" y="104.5" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="473.5" dy="0">Pure Correlation Layer</tspan><tspan x="473.5" dy="16">(riverMath.ts)</tspan></text>
+<rect class="vd-container" x="704" y="80.5" width="244" height="632.5" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-container-label" x="826" y="102.5" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="826" dy="0">HarnessRiverPanel (Dockable</tspan><tspan x="826" dy="16">+ Full Surface)</tspan></text>
+</g>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M219 78L242.5 78Q250.5 78 256.5 82.5L334.5 144Q340.5 148.5 348.5 148.5L378 148.5" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M206.5 174L378 174" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M211 279L242.5 279Q250.5 279 256 273.5L335 196Q340.5 190.5 348.5 190.5L378 190.5" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M206 509L355.5 509" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M235.5 650L243 650Q250.5 650 255.5 645L335.5 570Q340.5 565 348 565L355.5 565" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M570 148.5L599 148.5Q607 148.5 615 148.5L689 146.5Q697 146.5 705 146.5L720.5 146.5" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M570 190.5L599 190.5Q607 190.5 611 197L693 322Q697 328.5 705 328.5L740 328.5" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M592 505L599.5 505Q607 505 608.5 498L695.5 160Q697 152.5 705 152.5L720.5 152.5" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M592 517L599.5 517Q607 517 610.5 511L693 377Q697 370.5 705 370.5L740 370.5" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M592 545L712 545" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M592 565L599.5 565Q607 565 612 570L691.5 653.5Q697 659 705 659L729 659" marker-end="url(#vd-arrow)"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="41" y="50" width="178" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="130" y="74" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="130" dy="0">ChatModelPicker</tspan><tspan x="130" dy="18">(Auto / Pinned Family)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="53.5" y="146" width="153" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="130" y="170" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="130" dy="0">DriveConsole</tspan><tspan x="130" dy="18">(ClutchId + RiskId)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="48.5" y="242" width="162.5" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="129.5" y="266" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="129.5" dy="0">RailRouting</tspan><tspan x="129.5" dy="18">(Decision Preview +</tspan><tspan x="129.5" dy="18">Alternatives)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="54" y="454" width="152" height="110" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="130" y="478" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="130" dy="0">vox://agent-events</tspan><tspan x="130" dy="18">(task_started,</tspan><tspan x="130" dy="18">token_streamed,</tspan><tspan x="130" dy="18">task_doubted,</tspan><tspan x="130" dy="18">task_completed)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="24" y="604" width="211.5" height="92" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="129.5" y="628" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="129.5" dy="0">ChatMessage.events</tspan><tspan x="129.5" dy="18">(TurnEventDto: tool_called,</tspan><tspan x="129.5" dy="18">verify_passed,</tspan><tspan x="129.5" dy="18">routing_decision)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="378" y="132.5" width="192" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="474" y="156.5" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="474" dy="0">deriveTierCascade()</tspan><tspan x="474" dy="18">Tier 1 Intercept · Tier 2</tspan><tspan x="474" dy="18">Fan-Out · Tier 3 Verifier</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="355.5" y="489" width="236.5" height="92" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="473.5" y="513" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="473.5" dy="0">deriveRiverSnapshot()</tspan><tspan x="473.5" dy="18">Throughput · BLAKE3 Thrift %</tspan><tspan x="473.5" dy="18">· 4-Stage Funnel · 8-Slice</tspan><tspan x="473.5" dy="18">Braid</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="720.5" y="130.5" width="211.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="826" y="154.5" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="826" dy="0">Zone A: WaveformTierStrip</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="740" y="312.5" width="172" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="826" y="336.5" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="826" dy="0">Zone B: RiverCanvas</tspan><tspan x="826" dy="18">(Alluvial Béziers +</tspan><tspan x="826" dy="18">Singularity + Laser)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="712" y="517" width="228" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="826" y="541" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="826" dy="0">Zone C: AgentTrajectoryBraid</tspan><tspan x="826" dy="18">(8-Slice SVG)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="729" y="613" width="194" height="92" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="826" y="637" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="826" dy="0">Zone D:</tspan><tspan x="826" dy="18">VerificationFunnelFooter</tspan><tspan x="826" dy="18">(3-Col Evidence + Ludus</tspan><tspan x="826" dy="18">Yield)</tspan></text>
+</g>
+</g>
+</svg>

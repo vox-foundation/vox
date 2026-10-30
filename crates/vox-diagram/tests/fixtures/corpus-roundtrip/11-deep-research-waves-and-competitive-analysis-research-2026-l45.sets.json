@@ -1,0 +1,202 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "Collaborative Plan Formulation",
+      "rect",
+      []
+    ],
+    [
+      "Formulate Refined / Follow-up Queries",
+      "rect",
+      []
+    ],
+    [
+      "Generate 3-8 Subqueries",
+      "rect",
+      []
+    ],
+    [
+      "Google Search Ingestion",
+      "rect",
+      []
+    ],
+    [
+      "Information Gap or Contradiction Detected?",
+      "diamond",
+      []
+    ],
+    [
+      "Ingest Full HTML Pages (up to 1M tokens)",
+      "rect",
+      []
+    ],
+    [
+      "Start Recursive Agent Loop",
+      "rect",
+      []
+    ],
+    [
+      "Synthesize 10-25 Page Report with Citations",
+      "rect",
+      []
+    ],
+    [
+      "User Approves Plan?",
+      "diamond",
+      []
+    ],
+    [
+      "User Prompt",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Collaborative Plan Formulation",
+        "rect",
+        []
+      ],
+      [
+        "User Approves Plan?",
+        "diamond",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Formulate Refined / Follow-up Queries",
+        "rect",
+        []
+      ],
+      [
+        "Google Search Ingestion",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Generate 3-8 Subqueries",
+        "rect",
+        []
+      ],
+      [
+        "Google Search Ingestion",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Google Search Ingestion",
+        "rect",
+        []
+      ],
+      [
+        "Ingest Full HTML Pages (up to 1M tokens)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Information Gap or Contradiction Detected?",
+        "diamond",
+        []
+      ],
+      [
+        "Formulate Refined / Follow-up Queries",
+        "rect",
+        []
+      ],
+      "Yes (Iter < Max)"
+    ],
+    [
+      [
+        "Information Gap or Contradiction Detected?",
+        "diamond",
+        []
+      ],
+      [
+        "Synthesize 10-25 Page Report with Citations",
+        "rect",
+        []
+      ],
+      "No or Iter == Max"
+    ],
+    [
+      [
+        "Ingest Full HTML Pages (up to 1M tokens)",
+        "rect",
+        []
+      ],
+      [
+        "Information Gap or Contradiction Detected?",
+        "diamond",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Start Recursive Agent Loop",
+        "rect",
+        []
+      ],
+      [
+        "Generate 3-8 Subqueries",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "User Approves Plan?",
+        "diamond",
+        []
+      ],
+      [
+        "Collaborative Plan Formulation",
+        "rect",
+        []
+      ],
+      "No"
+    ],
+    [
+      [
+        "User Approves Plan?",
+        "diamond",
+        []
+      ],
+      [
+        "Start Recursive Agent Loop",
+        "rect",
+        []
+      ],
+      "Yes"
+    ],
+    [
+      [
+        "User Prompt",
+        "rect",
+        []
+      ],
+      [
+        "Collaborative Plan Formulation",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

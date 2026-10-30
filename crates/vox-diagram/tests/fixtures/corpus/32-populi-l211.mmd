@@ -1,0 +1,7 @@
+stateDiagram-v2
+    [*] --> Pending: deliver
+    Pending --> Leased: inbox+claimer
+    Leased --> Leased: lease-renew
+    Leased --> Pending: lease expiry (swept)
+    Leased --> Done: ack
+    Done --> [*]

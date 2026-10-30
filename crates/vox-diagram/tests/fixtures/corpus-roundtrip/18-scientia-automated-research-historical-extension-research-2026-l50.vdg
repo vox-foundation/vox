@@ -1,0 +1,23 @@
+graph {
+    container eras: "Historical eras" {
+        node E1: "1960s-80s: IR and bibliographic DBs"
+        node E2: "1990s-2000s: Systematic review and citation graphs"
+        node E3: "2010s: Reproducibility and preregistration"
+        node E4: "2018-2023: Semantic search and ML screening"
+        node E5: "2024-2026: LLM agent deep research"
+    }
+    container vox: "Vox SCIENTIA layers" {
+        node L1: "Signal producers and scout"
+        node L2: "Retrieval: CRAG Tavily Tantivy Graphify"
+        node L3: "Claim and novelty verdict ladder"
+        node L4: "Human gate nanopub RO-Crate"
+        node L5: "Scholarly syndication Zenodo"
+    }
+    eras.E1 -> vox.L2
+    eras.E2 -> vox.L3
+    eras.E3 -> vox.L4
+    eras.E4 -> vox.L2
+    eras.E4 -> vox.L3
+    eras.E5 -> vox.L1
+    eras.E5 -> vox.L2
+}

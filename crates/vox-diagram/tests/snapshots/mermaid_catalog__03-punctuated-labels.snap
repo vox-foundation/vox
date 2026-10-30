@@ -1,0 +1,12 @@
+---
+source: crates/vox-diagram/tests/mermaid_catalog.rs
+expression: r.text
+---
+graph {
+    node gw: "API: gateway (beta) / v1.2"
+    node eng: "Agent Runtime\ncore"
+    node store: "Task DB" { shape: cylinder }
+    direction: down
+    gw -> eng
+    eng -> store
+}

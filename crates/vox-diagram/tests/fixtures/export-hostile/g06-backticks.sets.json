@@ -1,0 +1,68 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "`first",
+      "rect",
+      []
+    ],
+    [
+      "`whole label`",
+      "rect",
+      []
+    ],
+    [
+      "last`",
+      "rect",
+      []
+    ],
+    [
+      "mid`dle",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "`first",
+        "rect",
+        []
+      ],
+      [
+        "last`",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "last`",
+        "rect",
+        []
+      ],
+      [
+        "mid`dle",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "mid`dle",
+        "rect",
+        []
+      ],
+      [
+        "`whole label`",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

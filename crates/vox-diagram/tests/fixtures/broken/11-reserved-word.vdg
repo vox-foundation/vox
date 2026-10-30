@@ -1,0 +1,4 @@
+// expect: diagram/reserved-word
+graph {
+    node graph: "x"
+}

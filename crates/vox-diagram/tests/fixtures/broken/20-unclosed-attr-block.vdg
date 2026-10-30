@@ -1,0 +1,4 @@
+// expect: diagram/unclosed-brace, diagram/unclosed-brace
+graph {
+    node a: "A" { shape: cylinder
+    node b: "B"

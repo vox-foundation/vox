@@ -177,12 +177,15 @@ mod premium_alias_tests {
 
     #[test]
     fn default_premium_alias_targets_exist_in_models_list() {
+        // Premium aliases are live `~vendor/family-latest` OpenRouter aliases, never
+        // literal catalog rows: each must resolve to a registered family member.
         let cfg = ModelConfig::default();
+        let registry = crate::models::ModelRegistry::new();
         let ids: HashSet<_> = cfg.models.iter().map(|m| m.id.as_str()).collect();
         for (k, v) in &cfg.premium_alias {
             assert!(
-                ids.contains(v.as_str()),
-                "premium_alias {k} -> {v} not in default models list"
+                ids.contains(v.as_str()) || registry.get(v).is_some(),
+                "premium_alias {k} -> {v} resolves to no default model"
             );
         }
     }
@@ -1981,6 +1984,10 @@ mod multi_surface_model_router_and_db_shape_audit {
 
     #[tokio::test]
     async fn multi_surface_model_router_and_db_shape_audit() {
+        // Hermetic: CI runners hold no provider keys, which leaves the router nothing to pick.
+        crate::models::key_guard::set_test_key_availability(Some(vec![
+            crate::models::ProviderType::OpenRouter,
+        ]));
         let db = vox_db::VoxDb::in_memory().await.expect("in-memory VoxDb");
         let sink = vox_db::telemetry_sink::ResearchMetricsSink::new(db.clone());
 
@@ -2155,5 +2162,6 @@ mod multi_surface_model_router_and_db_shape_audit {
         assert_eq!(neg_report.total_rows_checked, 1);
         assert_eq!(neg_report.malformed_metadata_rows.len(), 1);
         assert!(!neg_report.is_clean());
+        crate::models::key_guard::set_test_key_availability(None);
     }
 }

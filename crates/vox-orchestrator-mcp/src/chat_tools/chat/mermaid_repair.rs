@@ -613,7 +613,7 @@ pub async fn observe_and_repair_turn_mermaid(
     let repair_intent = vox_orchestrator::models::SelectionIntent::mermaid_repair();
     let selected_model = vox_orchestrator::models::select_with_default_registry(&repair_intent)
         .map(|o| o.model_id)
-        .unwrap_or_else(|| "google/gemini-2.5-flash".to_string());
+        .unwrap_or_else(|| vox_config::model_defaults::GEMINI_OPENROUTER.to_string());
 
     telemetry.insert(
         "mermaid_observed_errors".to_string(),

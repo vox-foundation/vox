@@ -33,20 +33,31 @@ Earlier audits ([`deep-research-implementation-divergence-audit-2026-08-01.md`](
 
 ## 2. Claims vs. Reality Matrix: The 10 Concrete Gaps Holding Back Realistic Power
 
-```mermaid
-flowchart LR
-  subgraph DR["Deep Research Pipeline (vox-research-shim)"]
-    Q["ResearchQuery (General | Shopping | CodeGen)"] --> W["Multi-Wave Gather & Verify"]
-    W --> DB[("VoxDb: research_sessions + research_Session_events")]
-    W --> CAND["discovery_bridge: scientia_finding_candidates"]
-  end
-  subgraph ILLUSIONS["Current Broken Handoffs (Gaps 1–5)"]
-    DB -. "Gap 1: render_doc_draft ignores DB & hardcodes empty vec![]" .-> DOC["docs/src/architecture/*.md"]
-    CAND -. "Gap 2: finding-* ID written as publication_id (no manifest row!)" .-> INBOX["scientia_discovery_inbox"]
-    INBOX -. "Gap 3: Manual --scaffold X.json required on disk" .-> LATEX["IMRaD / LaTeX / arXiv / FindingPage"]
-    LATEX -. "Gap 4: MiniCheckBackend::Mock word-overlap default" .-> CLAIMS["scientia_claims"]
-    W -. "Gap 5: UsageSnapshot not wired to scientia_cost_telemetry" .-> COST["Dashboard & Cost ($0.00)"]
-  end
+```vox-diagram
+graph {
+    direction: right
+    container DR: "Deep Research Pipeline (vox-research-shim)" {
+        node Q: "ResearchQuery (General | Shopping | CodeGen)"
+        node W: "Multi-Wave Gather & Verify"
+        node DB: "VoxDb: research_sessions + research_Session_events" { shape: cylinder }
+        node CAND: "discovery_bridge: scientia_finding_candidates"
+        Q -> W
+        W -> DB
+        W -> CAND
+    }
+    container ILLUSIONS: "Current Broken Handoffs (Gaps 1–5)" {
+        node DOC: "docs/src/architecture/*.md"
+        node INBOX: "scientia_discovery_inbox"
+        node LATEX: "IMRaD / LaTeX / arXiv / FindingPage"
+        node CLAIMS: "scientia_claims"
+        node COST: "Dashboard & Cost ($0.00)"
+        INBOX -> LATEX: "Gap 3: Manual --scaffold X.json required on disk"
+        LATEX -> CLAIMS: "Gap 4: MiniCheckBackend::Mock word-overlap default"
+    }
+    DR.DB -> ILLUSIONS.DOC: "Gap 1: render_doc_draft ignores DB & hardcodes empty vec![]"
+    DR.CAND -> ILLUSIONS.INBOX: "Gap 2: finding-* ID written as publication_id (no manifest row!)"
+    DR.W -> ILLUSIONS.COST: "Gap 5: UsageSnapshot not wired to scientia_cost_telemetry"
+}
 ```
 
 ### 2.1 Automatic Publication Pipeline (`vox-scientia-*` / `vox-publisher` / `vox-cli`)
@@ -94,27 +105,29 @@ flowchart LR
 
 ## 3. Target Architecture: Realistic Power, End-to-End Observability & Visual Flair
 
-```mermaid
-flowchart TD
-  subgraph P52["Phase 52: Deep Research Realistic Power & Live Observability (RES-01..04)"]
-    R1["RES-01: DB-Grounded DocSynthesizer (kb:summary + taxonomy frontmatter + real claims/citations)"]
-    R2["RES-02: Full ResearchQuery API (domain_mode, scope, waves, site_scope) + Epistemic Graph Builder"]
-    R3["RES-03: Live Stage/Wave Telemetry Stream + UsageSnapshot -> scientia_cost_telemetry"]
-    R4["RES-04: Calibrated Verifier (Lexical/Containment Pre-Filter + abstain_threshold Enforcement)"]
-  end
-  subgraph P53["Phase 53: SCIENTIA Automatic Publication Closure (PUB-01..04)"]
-    P1["PUB-01: Candidate Classifier + 1-Click Candidate/Session -> publication_manifests Promotion"]
-    P2["PUB-02: DB-Backed ScaffoldInput & FindingPage Assembler (Zero Manual JSON Files)"]
-    P3["PUB-03: LLM-Backed Claim Grounding Verifier (vox_actor_runtime::llm) + Measured Replay Writeback"]
-    P4["PUB-04: Unified Dashboard (Candidates + Manifests + Reply Window) & Real Cost Rollup"]
-  end
-  subgraph P54["Phase 54: Unified Research & Scientia Studio GUI (SCIGUI-01..04)"]
-    G1["SCIGUI-01: Research Power Bar (General|Shopping|CodeGen, Scope, Waves, Site) + Mode Cards"]
-    G2["SCIGUI-02: Live Stage Telemetry Ribbon + Mounted MultiWaveProgressTimeline + Cost Meter"]
-    G3["SCIGUI-03: True Multi-Layer Epistemic DAG Canvas (Query->Subquery->Source->Claim->Verdict)"]
-    G4["SCIGUI-04: Unified Scientia & Publications Workbench (1-Click Promote, Worthiness Radar, Manuscript/LaTeX Preview)"]
-  end
-  P52 --> P53 --> P54
+```vox-diagram
+graph {
+    container P52: "Phase 52: Deep Research Realistic Power & Live Observability (RES-01..04)" {
+        node R1: "RES-01: DB-Grounded DocSynthesizer (kb:summary + taxonomy frontmatter + real claims/citations)"
+        node R2: "RES-02: Full ResearchQuery API (domain_mode, scope, waves, site_scope) + Epistemic Graph Builder"
+        node R3: "RES-03: Live Stage/Wave Telemetry Stream + UsageSnapshot -> scientia_cost_telemetry"
+        node R4: "RES-04: Calibrated Verifier (Lexical/Containment Pre-Filter + abstain_threshold Enforcement)"
+    }
+    container P53: "Phase 53: SCIENTIA Automatic Publication Closure (PUB-01..04)" {
+        node P1: "PUB-01: Candidate Classifier + 1-Click Candidate/Session -> publication_manifests Promotion"
+        node P2: "PUB-02: DB-Backed ScaffoldInput & FindingPage Assembler (Zero Manual JSON Files)"
+        node P3: "PUB-03: LLM-Backed Claim Grounding Verifier (vox_actor_runtime::llm) + Measured Replay Writeback"
+        node P4: "PUB-04: Unified Dashboard (Candidates + Manifests + Reply Window) & Real Cost Rollup"
+    }
+    container P54: "Phase 54: Unified Research & Scientia Studio GUI (SCIGUI-01..04)" {
+        node G1: "SCIGUI-01: Research Power Bar (General|Shopping|CodeGen, Scope, Waves, Site) + Mode Cards"
+        node G2: "SCIGUI-02: Live Stage Telemetry Ribbon + Mounted MultiWaveProgressTimeline + Cost Meter"
+        node G3: "SCIGUI-03: True Multi-Layer Epistemic DAG Canvas (Query->Subquery->Source->Claim->Verdict)"
+        node G4: "SCIGUI-04: Unified Scientia & Publications Workbench (1-Click Promote, Worthiness Radar, Manuscript/LaTeX Preview)"
+    }
+    P52.R4 -> P53.P1
+    P53.P4 -> P54.G1
+}
 ```
 
 ### 3.1 Phase 52 (`RES-01..04` — Wave 2 Backend): Deep Research Realistic Power, DB-Grounded Architecture SSOT Synthesis & Live Stage Observability

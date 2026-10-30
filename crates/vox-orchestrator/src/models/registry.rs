@@ -1228,30 +1228,27 @@ impl ModelRegistry {
             .cloned()
             .collect();
 
-        candidates.sort_by(|a, b| {
-            let score_a = super::scoring::auto_score_model(
-                a,
-                complexity,
-                false,
-                None,
-                preference,
-                None,
-                self.scoreboard.get(&a.id),
-            );
-            let score_b = super::scoring::auto_score_model(
-                b,
-                complexity,
-                false,
-                None,
-                preference,
-                None,
-                self.scoreboard.get(&b.id),
-            );
-            // Descending: highest score first.
-            score_b.total_cmp(&score_a).then_with(|| a.id.cmp(&b.id))
-        });
+        // Score each model once: rescoring inside the comparator reads shared scoring
+        // weights that can change mid-sort, which breaks total order (and panics).
+        let mut scored: Vec<(f64, ModelSpec)> = candidates
+            .drain(..)
+            .map(|m| {
+                let score = super::scoring::auto_score_model(
+                    &m,
+                    complexity,
+                    false,
+                    None,
+                    preference,
+                    None,
+                    self.scoreboard.get(&m.id),
+                );
+                (score, m)
+            })
+            .collect();
+        // Descending: highest score first.
+        scored.sort_by(|(sa, a), (sb, b)| sb.total_cmp(sa).then_with(|| a.id.cmp(&b.id)));
 
-        candidates
+        scored.into_iter().map(|(_, m)| m).collect()
     }
 
     /// Models rejected by [crate::route_policy] under current VOX_ROUTE_* env (stable sort by id).
@@ -1380,6 +1377,9 @@ impl ModelRegistry {
         if let Some(m) = self.models.get(key) {
             return Some(m.clone());
         }
+        if key.starts_with('~') {
+            return self.resolve_live_alias(key);
+        }
         let stripped_key = key.split_once('/').map_or(key, |(_, suffix)| suffix);
         let slug_suffix = format!("/{stripped_key}");
         if let Some(m) = self.models.values().find(|m| {
@@ -1435,6 +1435,13 @@ impl ModelRegistry {
     /// Used by `select()` to honor task-pinned premium aliases.
     pub fn premium_alias_for(&self, key: &str) -> Option<&str> {
         self.premium_alias.get(key).map(String::as_str)
+    }
+
+    /// Pin a routing key to a concrete model id (contract pins are live aliases).
+    #[cfg(test)]
+    pub(crate) fn set_premium_alias_for_test(&mut self, key: &str, model_id: &str) {
+        self.premium_alias
+            .insert(key.to_string(), model_id.to_string());
     }
 
     /// Set an explicit model override for a specific agent.

@@ -1,0 +1,112 @@
+---
+source: crates/vox-diagram/tests/diagnostics_all_errors.rs
+expression: report.diagnostics
+---
+[
+  {
+    "code": "diagram/unexpected-token",
+    "severity": "error",
+    "message": "expected `:`, found string \"A\"",
+    "span": {
+      "start": 182,
+      "end": 185,
+      "line": 3,
+      "col": 12,
+      "end_line": 3,
+      "end_col": 15
+    }
+  },
+  {
+    "code": "diagram/expected-quoted-label",
+    "severity": "error",
+    "message": "labels must be double-quoted; write \"Backend\"",
+    "span": {
+      "start": 198,
+      "end": 205,
+      "line": 4,
+      "col": 13,
+      "end_line": 4,
+      "end_col": 20
+    },
+    "fixes": [
+      {
+        "span": {
+          "start": 198,
+          "end": 205
+        },
+        "replacement": "\"Backend\""
+      }
+    ]
+  },
+  {
+    "code": "diagram/invalid-shape",
+    "severity": "error",
+    "message": "expected one of rect, rounded, diamond, cylinder, start, end, found `hexagon`",
+    "span": {
+      "start": 231,
+      "end": 238,
+      "line": 5,
+      "col": 26,
+      "end_line": 5,
+      "end_col": 33
+    }
+  },
+  {
+    "code": "diagram/empty-label",
+    "severity": "error",
+    "message": "label is empty; give it some text",
+    "span": {
+      "start": 253,
+      "end": 255,
+      "line": 6,
+      "col": 13,
+      "end_line": 6,
+      "end_col": 15
+    },
+    "fixes": [
+      {
+        "span": {
+          "start": 253,
+          "end": 255
+        },
+        "replacement": "\"d\""
+      }
+    ]
+  },
+  {
+    "code": "diagram/invalid-direction",
+    "severity": "error",
+    "message": "expected `down`, `right`, `up` or `left`, found `sideways`",
+    "span": {
+      "start": 271,
+      "end": 279,
+      "line": 7,
+      "col": 16,
+      "end_line": 7,
+      "end_col": 24
+    },
+    "help": "did you mean `down`?"
+  },
+  {
+    "code": "diagram/undeclared-node",
+    "severity": "error",
+    "message": "node `missing` is not declared",
+    "span": {
+      "start": 289,
+      "end": 296,
+      "line": 8,
+      "col": 10,
+      "end_line": 8,
+      "end_col": 17
+    },
+    "fixes": [
+      {
+        "span": {
+          "start": 170,
+          "end": 170
+        },
+        "replacement": "\n    node missing: \"missing\""
+      }
+    ]
+  }
+]

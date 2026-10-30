@@ -1,0 +1,12 @@
+graph {
+    direction: right
+    node long: "The quick brown fox jumps over the lazy dog while five boxing wizards jump quickly and seven big sphinxes judge my vow"
+    node word: "Supercalifragilisticexpialidocious_extra"
+    node cjk: "日本語のラベルは二つのセルを使います日本語のラベルは二つのセルを使います"
+    node emoji: "Ship it 🚀🚀🚀 family 👨‍👩‍👧 flag 🇯🇵 warn ⚠️"
+    node esc: "say \"hi\" and back\\slash <b>&amp;"
+    long -> word
+    word -> cjk
+    cjk -> emoji
+    emoji -> esc
+}

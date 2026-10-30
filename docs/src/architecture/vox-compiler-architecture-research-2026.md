@@ -16,26 +16,32 @@ sort_order: 5
 
 At runtime, user-facing commands (`vox check`, `vox build`, LSP validation, parts of MCP) fan into the **`vox-compiler`** crate as the unified front door for parsing and analysis.
 
-```mermaid
-flowchart LR
-  subgraph lexerParser [LexerAndParser]
-    lex[lex]
-    parse[parse]
-  end
-  subgraph analysis [Analysis]
-    ast[AST_module]
-    hir[HIR_lower]
-    typeck[typecheck_ast_module]
-    hirVal[validate_module_HIR]
-  end
-  subgraph emit [Emit]
-    codegen[codegen_rust_and_emit_targets]
-  end
-  Source[Vox_source] --> lex --> parse --> ast
-  ast --> hir --> typeck
-  hir --> hirVal
-  typeck --> codegen
-  hirVal --> codegen
+```vox-diagram
+graph {
+    direction: right
+    node Source: "Vox_source"
+    container lexerParser: "LexerAndParser" {
+        node lex: "lex"
+        node parse: "parse"
+        lex -> parse
+    }
+    container analysis: "Analysis" {
+        node ast: "AST_module"
+        node hir: "HIR_lower"
+        node typeck: "typecheck_ast_module"
+        node hirVal: "validate_module_HIR"
+        ast -> hir
+        hir -> typeck
+        hir -> hirVal
+    }
+    container emit: "Emit" {
+        node codegen: "codegen_rust_and_emit_targets"
+    }
+    Source -> lexerParser.lex
+    lexerParser.parse -> analysis.ast
+    analysis.typeck -> emit.codegen
+    analysis.hirVal -> emit.codegen
+}
 ```
 
 ## Module map (conceptual)

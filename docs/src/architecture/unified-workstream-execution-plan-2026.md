@@ -48,29 +48,47 @@ Establishes the single-branch execution and convergence plan across six parallel
 
 ## 2. Critical Ordering Invariants ("Why Order Matters")
 
-```mermaid
-flowchart TD
-    W0["Wave 0: Phase 05 Branch & Worktree Convergence (DONE)"] --> DB96["VoxDb Baseline 96 (kb Phase 03) + Merged catalog.v1.yaml + SessionHost H1-H5"]
-    DB96 --> P12["Wave 1: Phase 12 Safety Floor (12-01..08, DONE)"]
-    DB96 --> P07["Wave 1: Phase 07 & 07.1 Trials Domain (VoxDb Baseline 97)"]
-    DB96 --> P25["Wave 1: Phase 25 vox-graph-reader v5 + vox_search_atlas"]
-    DB96 --> P32["Wave 1: Phase 32 Docs Trust Signal Calibration (DONE via Phase 58)"]
-    P25 --> P33["Wave 2: Phase 33 OpenWiki Subsystem Hubs & Phases 55-58 Docs/Mermaid (55-58 DONE)"]
-    P32 --> P33
-    P32 --> P34["Wave 2: Phase 34 Duplicate Cluster Consolidation & KB Facet Burn-Down"]
-    P12 --> P13_17["Wave 2: Phases 13-17 Autonomy Daemon & Attention Inbox (Baseline 98)"]
-    P12 --> P46["Wave 2: Phases 46 (DONE), 49 Structured Shell, 52-53 Scientia, 60-61 (DONE), 62 Crates"]
-    P07 --> P08_11["Wave 2: Phases 08-11 & 42 Trial Race Harness & Benchmarks"]
-    DB96 --> P37_41["Wave 2: Phases 37-41 KB Embeddings, Context Injection & Staleness"]
-    P25 --> P26_31["Wave 3: Sequenced GUI (06.4 -> 26..31 Atlas -> 43..45 KB -> 18..19 Oversight -> 47-48 DONE -> 50-51, 54, 57 DONE)"]
-    P13_17 --> P26_31
-    P37_41 --> P26_31
-    P46 --> P26_31
-    P34 --> P35_36["Wave 4: Phases 35-36 Doc Verifier/Bot, 59 (DONE) & 63 Empirical Preprint + CR-L8 Flywheel"]
-    P37_41 --> P35_36
-    P26_31 --> P06_6["Wave 4: Phase 06.6 Cold-Start Time-to-Find Journeys"]
-    DB96 --> W5["Wave 5: Phases 64-69 Cross-Portfolio Domain Runtime (POLYTOOL, STREAM, RANK, USERDB, CLOUD, SIM)"]
-    DB96 --> W6["Wave 6: Phases 70-74 Worktree Land Wave, Clavis Next, Mens Apple Silicon & Populi Mesh Phase 3"]
+```vox-diagram
+graph {
+    node W0: "Wave 0: Phase 05 Branch & Worktree Convergence (DONE)"
+    node DB96: "VoxDb Baseline 96 (kb Phase 03) + Merged catalog.v1.yaml + SessionHost H1-H5"
+    node P12: "Wave 1: Phase 12 Safety Floor (12-01..08, DONE)"
+    node P07: "Wave 1: Phase 07 & 07.1 Trials Domain (VoxDb Baseline 97)"
+    node P25: "Wave 1: Phase 25 vox-graph-reader v5 + vox_search_atlas"
+    node P32: "Wave 1: Phase 32 Docs Trust Signal Calibration (DONE via Phase 58)"
+    node P33: "Wave 2: Phase 33 OpenWiki Subsystem Hubs & Phases 55-58 Docs/Mermaid (55-58 DONE)"
+    node P34: "Wave 2: Phase 34 Duplicate Cluster Consolidation & KB Facet Burn-Down"
+    node P13_17: "Wave 2: Phases 13-17 Autonomy Daemon & Attention Inbox (Baseline 98)"
+    node P46: "Wave 2: Phases 46 (DONE), 49 Structured Shell, 52-53 Scientia, 60-61 (DONE), 62 Crates"
+    node P08_11: "Wave 2: Phases 08-11 & 42 Trial Race Harness & Benchmarks"
+    node P37_41: "Wave 2: Phases 37-41 KB Embeddings, Context Injection & Staleness"
+    node P26_31: "Wave 3: Sequenced GUI (06.4 -> 26..31 Atlas -> 43..45 KB -> 18..19 Oversight -> 47-48 DONE -> 50-51, 54, 57 DONE)"
+    node P35_36: "Wave 4: Phases 35-36 Doc Verifier/Bot, 59 (DONE) & 63 Empirical Preprint + CR-L8 Flywheel"
+    node P06_6: "Wave 4: Phase 06.6 Cold-Start Time-to-Find Journeys"
+    node W5: "Wave 5: Phases 64-69 Cross-Portfolio Domain Runtime (POLYTOOL, STREAM, RANK, USERDB, CLOUD, SIM)"
+    node W6: "Wave 6: Phases 70-74 Worktree Land Wave, Clavis Next, Mens Apple Silicon & Populi Mesh Phase 3"
+    W0 -> DB96
+    DB96 -> P12
+    DB96 -> P07
+    DB96 -> P25
+    DB96 -> P32
+    P25 -> P33
+    P32 -> P33
+    P32 -> P34
+    P12 -> P13_17
+    P12 -> P46
+    P07 -> P08_11
+    DB96 -> P37_41
+    P25 -> P26_31
+    P13_17 -> P26_31
+    P37_41 -> P26_31
+    P46 -> P26_31
+    P34 -> P35_36
+    P37_41 -> P35_36
+    P26_31 -> P06_6
+    DB96 -> W5
+    DB96 -> W6
+}
 ```
 
 1. **Database Schema Baseline Monotonicity (`crates/vox-db/src/schema/manifest.rs`):**

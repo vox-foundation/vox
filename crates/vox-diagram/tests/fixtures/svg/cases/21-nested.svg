@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1016.5 682" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,Arimo,Arial,Liberation Sans,Helvetica,sans-serif);font-size:14px">
+<title id="vd-title">Diagram</title>
+<desc id="vd-desc">7 nodes, 5 edges: Side node → Other side; Source → Outer node; Deep node → Side node; Other side → Middle node; Long one → Source</desc>
+<defs>
+<marker id="vd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-containers">
+<rect class="vd-container" x="16" y="16" width="982.5" height="266" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-container-label" x="102.5" y="38" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="102.5" dy="0">Outer layer</tspan></text>
+<rect class="vd-container" x="366.5" y="586" width="358" height="80" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-container-label" x="428.5" y="608" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="428.5" dy="0">Sibling group</tspan></text>
+<rect class="vd-container" x="853.5" y="489" width="147" height="34" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-container-label" x="927" y="511" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="927" dy="0">Nothing here yet</tspan></text>
+<rect class="vd-container" x="321" y="378" width="215.5" height="112" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-container-label" x="428.5" y="400" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="428.5" dy="0">A very long title that keeps</tspan><tspan x="428.5" dy="16">going on and on for sixty</tspan><tspan x="428.5" dy="16">chars</tspan></text>
+<rect class="vd-container" x="24" y="50" width="966.5" height="122" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-container-label" x="102" y="72" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="102" dy="0">Middle layer</tspan></text>
+<rect class="vd-container" x="32" y="84" width="140.5" height="80" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-container-label" x="102" y="106" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="102" dy="0">Innermost layer</tspan></text>
+</g>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M477 639L618.5 639" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M705.5 460L723.5 460Q731.5 460 735 453.5L843 261.5Q846.5 255 854.5 255L875 255" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M153.5 137L239 137Q247 137 248 144.5L313 631.5Q314 639 322 639L380.5 639" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M716.5 636L724 636Q731.5 636 732 629L788.5 86.5Q789 79 797 79L872 79" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M474.5 463L629.5 463" marker-end="url(#vd-arrow)"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="629.5" y="444" width="76" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="667.5" y="468" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="667.5" dy="0">Source</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="875" y="236" width="104" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="927" y="260" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="927" dy="0">Outer node</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="872" y="60" width="110.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="927" y="84" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="927" dy="0">Middle node</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="51.5" y="118" width="102" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="102.5" y="142" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="102.5" dy="0">Deep node</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="380.5" y="620" width="96.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="428.5" y="644" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="428.5" dy="0">Side node</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="618.5" y="620" width="98" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="667.5" y="644" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="667.5" dy="0">Other side</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="383" y="444" width="91.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="428.5" y="468" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="428.5" dy="0">Long one</tspan></text>
+</g>
+</g>
+<g class="vd-edge-labels">
+<rect class="vd-edge-label-bg" x="224.5" y="124" width="44.5" height="26" style="fill:var(--vd-container-fill,#f6f8fa);stroke:none"/>
+<text class="vd-edge-label" x="246.5" y="142" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="246.5" dy="0">down</tspan></text>
+<rect class="vd-edge-label-bg" x="776.5" y="66" width="25" height="26" style="fill:var(--vd-container-fill,#f6f8fa);stroke:none"/>
+<text class="vd-edge-label" x="789" y="84" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="789" dy="0">up</tspan></text>
+</g>
+</svg>

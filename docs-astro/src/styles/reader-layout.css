@@ -602,3 +602,9 @@ body {
   color: inherit;
 }
 
+
+/* The front page's hero carries its own <h1>; hide Starlight's page-title row there so
+   the headline is not stated twice. */
+main:has(.vox-home-hero) .content-panel:has(> .sl-container > h1#_top) {
+  display: none;
+}

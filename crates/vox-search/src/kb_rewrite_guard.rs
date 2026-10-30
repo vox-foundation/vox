@@ -4,15 +4,39 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
-/// Canonical retired surfaces that must never reappear in rewritten summaries (`REWR-01`).
-pub const DEFAULT_RETIRED_SURFACES: &[&str] = &[
-    "KbStore",
-    "KbRouter",
+/// Retired doc surfaces outside the retired-symbols contract that must never reappear in
+/// rewritten summaries (`REWR-01`).
+const EXTRA_RETIRED_SURFACES: &[&str] = &[
     "TantivyDocsIndex",
-    "signal_research",
     "research-index.md",
     "architecture-index.md",
 ];
+
+/// The docs retired-symbol SSOT; every pattern there is also a rewrite violation (`REWR-01`).
+const RETIRED_SYMBOLS_YAML: &str =
+    include_str!("../../../contracts/documentation/retired-symbols.v1.yaml");
+
+fn retired_symbol_patterns() -> &'static [regex::Regex] {
+    #[derive(Deserialize)]
+    struct Contract {
+        symbols: Vec<Symbol>,
+    }
+    #[derive(Deserialize)]
+    struct Symbol {
+        pattern: String,
+    }
+    static PATTERNS: std::sync::OnceLock<Vec<regex::Regex>> = std::sync::OnceLock::new();
+    PATTERNS.get_or_init(|| {
+        serde_yaml::from_str::<Contract>(RETIRED_SYMBOLS_YAML)
+            .map(|c| {
+                c.symbols
+                    .iter()
+                    .filter_map(|s| regex::Regex::new(&s.pattern).ok())
+                    .collect()
+            })
+            .unwrap_or_default()
+    })
+}
 
 /// Canonical negation tokens whose presence must not be dropped by a summary rewrite (`REWR-01`).
 const NEGATION_TOKENS: &[&str] = &["not", "never", "cannot", "without", "forbid", "prohibit"];
@@ -133,10 +157,15 @@ pub fn verify_page_one_rewrite(
     let (new_before, new_summary, new_after) = split_summary_and_body(rewritten_md);
     let body_outside_summary_untouched = orig_before == new_before && orig_after == new_after;
 
-    let retired_surface_violations: Vec<String> = DEFAULT_RETIRED_SURFACES
+    let retired_surface_violations: Vec<String> = retired_symbol_patterns()
         .iter()
-        .filter(|&&surf| new_summary.contains(surf))
-        .map(|&s| s.to_string())
+        .filter_map(|re| re.find(&new_summary).map(|m| m.as_str().to_string()))
+        .chain(
+            EXTRA_RETIRED_SURFACES
+                .iter()
+                .filter(|&&surf| new_summary.contains(surf))
+                .map(|&s| s.to_string()),
+        )
         .collect();
 
     let orig_nums = extract_numeric_tokens(&orig_summary);
@@ -339,15 +368,17 @@ mod tests {
     fn rewrite_guard_preserves_fences_numbers_negations_and_blocks_retired() {
         let orig = "---\ntitle: \"Guide\"\n---\n# Guide\n<!-- kb:summary -->\nDo not exceed 50 items using `vox check`.\n<!-- /kb:summary -->\n\nBody paragraph.\n```vox\nfn main() -> Int { ret 0 }\n```";
         let good = "---\ntitle: \"Guide\"\nauthorship: \"llm-assisted\"\n---\n# Guide\n<!-- kb:summary -->\nYou must not exceed 50 items when running `vox check`.\n<!-- /kb:summary -->\n\nBody paragraph.\n```vox\nfn main() -> Int { ret 0 }\n```";
+        // An unparseable contract would silently disable the retired-symbol check.
+        assert!(retired_symbol_patterns().len() > 10);
         let allowed = BTreeSet::new();
         let rep = verify_page_one_rewrite(orig, good, &allowed);
         assert!(rep.passed, "{rep:?}");
 
-        // Dropping negation "not" or number "50" or introducing retired "KbStore" fails
-        let bad = "---\ntitle: \"Guide\"\n---\n# Guide\n<!-- kb:summary -->\nExceed items with `KbStore`.\n<!-- /kb:summary -->\n\nBody paragraph.\n```vox\nfn main() -> Int { ret 0 }\n```";
+        // Dropping negation "not" or number "50" or introducing a retired symbol fails
+        let bad = "---\ntitle: \"Guide\"\n---\n# Guide\n<!-- kb:summary -->\nExceed items with `ProbeOnlyExecutor`.\n<!-- /kb:summary -->\n\nBody paragraph.\n```vox\nfn main() -> Int { ret 0 }\n```";
         let bad_rep = verify_page_one_rewrite(orig, bad, &allowed);
         assert!(!bad_rep.passed);
-        assert!(!bad_rep.retired_surface_violations.is_empty());
+        assert_eq!(bad_rep.retired_surface_violations, ["ProbeOnlyExecutor"]);
         assert!(!bad_rep.dropped_numbers.is_empty());
         assert!(!bad_rep.dropped_negations.is_empty());
     }

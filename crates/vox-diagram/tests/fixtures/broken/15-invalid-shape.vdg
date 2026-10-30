@@ -1,0 +1,4 @@
+// expect: diagram/invalid-shape
+graph {
+    node a: "A" { shape: hexagon }
+}

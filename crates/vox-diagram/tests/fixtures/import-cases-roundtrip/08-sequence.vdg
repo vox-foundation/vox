@@ -1,0 +1,15 @@
+sequence {
+    actor U: "User (web)"
+    actor S: "Server: core"
+    actor DB: "DB"
+    actor Cache: "Cache"
+
+    U -> S: "request"
+    reply S -> U: "response"
+    S -> DB: "query"
+    reply DB -> S: "rows"
+    S -> Cache
+    note over S: "single actor note"
+    note over U, DB: "spans two"
+    Cache -> U: "late"
+}

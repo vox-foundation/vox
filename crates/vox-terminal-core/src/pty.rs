@@ -251,14 +251,13 @@ pub fn run_nu_structured_capture(pipeline: &str) -> (i32, String, String) {
             .arg("-c")
             .arg(&structured_cmd)
             .output()
+            && out.status.success()
         {
-            if out.status.success() {
-                return (
-                    0,
-                    format!("{warning_prefix}{}", String::from_utf8_lossy(&out.stdout)),
-                    String::from_utf8_lossy(&out.stderr).into_owned(),
-                );
-            }
+            return (
+                0,
+                format!("{warning_prefix}{}", String::from_utf8_lossy(&out.stdout)),
+                String::from_utf8_lossy(&out.stderr).into_owned(),
+            );
         }
 
         // Fall back to direct execution

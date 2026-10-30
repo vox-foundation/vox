@@ -71,6 +71,7 @@ vox-compiler.workspace = true
 vox-codegen.workspace = true
 vox-codegen-ts.workspace = true
 vox-grammar-export.workspace = true
+vox-diagram.workspace = true
 vox-mcp-registry.workspace = true
 vox-capability-registry.workspace = true
 vox-openai.workspace = true

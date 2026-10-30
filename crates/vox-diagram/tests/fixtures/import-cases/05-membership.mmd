@@ -1,0 +1,12 @@
+flowchart TD
+    shared[Used first at root]
+    shared --> inside
+    subgraph One [First scope]
+        shared
+        inside[Inside one]
+    end
+    subgraph Two [Second scope]
+        inside
+        other[Other]
+    end
+    other --> shared

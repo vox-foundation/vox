@@ -1,0 +1,30 @@
+flowchart TD
+    UserQuery["User Query"]
+    LeadAgent["Lead Researcher (Supervisor Agent)"]
+    Decomp["Task Decomposition #amp; Router (Claude Haiku)"]
+    Subagent1["Worker Subagent 1: Topic A"]
+    Subagent2["Worker Subagent 2: Topic B"]
+    SubagentN["Worker Subagent N: Topic C"]
+    VFS1["Write Notes to Virtual Filesystem"]
+    VFS2["Write Notes to Virtual Filesystem"]
+    VFS3["Write Notes to Virtual Filesystem"]
+    Distill["Subagents Distill Structured Findings"]
+    Reflection{"Gaps / Contradictions Found?"}
+    SpawnSpecialist["Spawn Specialist Subagent (Tie-Breaker)"]
+    FinalReport["Synthesize Comprehensive Report (Claude Opus/Sonnet)"]
+    UserQuery --> LeadAgent
+    LeadAgent --> Decomp
+    Decomp --> Subagent1
+    Decomp --> Subagent2
+    Decomp --> SubagentN
+    Subagent1 --> VFS1
+    Subagent2 --> VFS2
+    SubagentN --> VFS3
+    VFS1 --> Distill
+    VFS2 --> Distill
+    VFS3 --> Distill
+    Distill --> LeadAgent
+    LeadAgent --> Reflection
+    Reflection -->|"Yes"| SpawnSpecialist
+    SpawnSpecialist --> Distill
+    Reflection -->|"No"| FinalReport

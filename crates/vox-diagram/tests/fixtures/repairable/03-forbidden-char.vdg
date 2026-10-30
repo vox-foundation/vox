@@ -1,0 +1,5 @@
+graph {
+    node a: "bi‮di"
+    node b: "ok"
+    a -> b
+}

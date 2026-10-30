@@ -1,0 +1,8 @@
+flowchart LR
+  BrowserView[BrowserView Preview tab]
+  preview_start[preview_start IPC]
+  ViteGuard[OrchestratedViteGuard]
+  iframe[iframe localhost URL]
+
+  BrowserView --> preview_start --> ViteGuard
+  ViteGuard --> iframe

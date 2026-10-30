@@ -1,0 +1,14 @@
+graph {
+    direction: right
+    node RawHits: "Raw Web Pages (100k+ tokens)"
+    node LocalMENS: "Local MENS Model (Fast)"
+    node FactTriplets: "Structured Claim Triplets & Evidence Spans"
+    node GraphStore: "Factual Subgraph & Corroboration Matrix"
+    node RAGBudgeter: "RAG Context Budgeter (Top-K Verified Spans)"
+    node PackedPrompt: "Dense, High-Density Synthesis Prompt (<8k tokens)"
+    RawHits -> LocalMENS
+    LocalMENS -> FactTriplets
+    FactTriplets -> GraphStore
+    GraphStore -> RAGBudgeter
+    RAGBudgeter -> PackedPrompt
+}

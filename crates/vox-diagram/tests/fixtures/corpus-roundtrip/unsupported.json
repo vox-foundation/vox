@@ -1,0 +1,28 @@
+[
+  {
+    "file": "10-deep-research-full-surface-audit-and-roadmap-2026-l485",
+    "unsupported": [
+      {
+        "line": 1,
+        "construct": "header:gantt"
+      }
+    ]
+  },
+  {
+    "file": "29-how-to-rust-crate-imports-l53",
+    "unsupported": [
+      {
+        "line": 2,
+        "construct": "markdown-string"
+      },
+      {
+        "line": 6,
+        "construct": "markdown-string"
+      },
+      {
+        "line": 7,
+        "construct": "markdown-string"
+      }
+    ]
+  }
+]

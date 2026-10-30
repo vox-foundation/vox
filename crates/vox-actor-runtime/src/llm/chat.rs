@@ -217,6 +217,9 @@ pub async fn llm_chat(
                         cache_read_tokens: resp.cache_read_tokens,
                         ttft_ms: Some(resp.latency_ms),
                         tpot_ms,
+                        finish_reason: resp.finish_reason,
+                        reasoning_tokens: resp.reasoning_tokens,
+                        reasoning: resp.reasoning,
                     }))
                 }
                 Err(e) => {
@@ -657,6 +660,37 @@ mod infer_with_retry_latency_tests {
             ActivityResult::Ok(Ok(_)) => {}
             other => panic!("seeded request must match the mock and succeed, got {other:?}"),
         }
+    }
+
+    #[tokio::test]
+    async fn llm_chat_surfaces_why_an_empty_reply_stopped() {
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(wiremock::matchers::method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "model": "test-model",
+                "choices": [{
+                    "finish_reason": "length",
+                    "message": {"role": "assistant", "content": "", "reasoning": "hmm"}
+                }],
+                "usage": {
+                    "prompt_tokens": 3,
+                    "completion_tokens": 9,
+                    "completion_tokens_details": {"reasoning_tokens": 9}
+                }
+            })))
+            .mount(&server)
+            .await;
+
+        let cfg = mock_config(format!("{}/chat/completions", server.uri()));
+        let resp = match llm_chat(&ActivityOptions::new(), vec![], cfg).await {
+            ActivityResult::Ok(Ok(r)) => r,
+            other => panic!("expected a served response, got {other:?}"),
+        };
+        assert_eq!(resp.finish_reason.as_deref(), Some("length"));
+        assert_eq!(resp.reasoning_tokens, 9);
+        assert_eq!(resp.reasoning.as_deref(), Some("hmm"));
     }
 
     #[test]

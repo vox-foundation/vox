@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1392.5 410" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,Arimo,Arial,Liberation Sans,Helvetica,sans-serif);font-size:14px">
+<title id="vd-title">Diagram</title>
+<desc id="vd-desc">6 nodes, 5 edges: Browser → Edge proxy; Edge proxy → Public API; Public API → Write-ahead log; Write-ahead log → Task tables; Public API → Metrics</desc>
+<defs>
+<marker id="vd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-containers">
+<rect class="vd-container" x="239.5" y="16" width="1137" height="144" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-container-label" x="315.5" y="38" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="315.5" dy="0">Platform services</tspan></text>
+<rect class="vd-container" x="888.5" y="266" width="232" height="128" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-container-label" x="1004.5" y="288" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1004.5" dy="0">Operations and observability</tspan><tspan x="1004.5" dy="16">tooling for the whole</tspan><tspan x="1004.5" dy="16">production fleet, including</tspan><tspan x="1004.5" dy="16">the on-call dashboards</tspan></text>
+<rect class="vd-container" x="602.5" y="24" width="766" height="128" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-container-label" x="664" y="46" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="664" dy="0">Core runtime</tspan></text>
+<rect class="vd-container" x="928.5" y="32" width="432" height="80" rx="6" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-container-label" x="1004.5" y="54" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1004.5" dy="0">Persistence layer</tspan></text>
+</g>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M99.5 108L263.5 108" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M368 108L615.5 108" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M713.5 105L725 105Q733 105 740 102L770.5 88Q777.5 85 785.5 85L937 85" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1072 85L1247 85" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M713.5 111L725 111Q733 111 740 114L770.5 128Q777.5 131 780.5 138L878.5 360Q881.5 367 889.5 367L966 367" marker-end="url(#vd-arrow)"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="16" y="89" width="83.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="57.5" y="113" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="57.5" dy="0">Browser</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="263.5" y="89" width="104.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="315.5" y="113" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="315.5" dy="0">Edge proxy</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="615.5" y="89" width="98" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="664.5" y="113" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="664.5" dy="0">Public API</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="937" y="66" width="135" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1004.5" y="90" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1004.5" dy="0">Write-ahead log</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="1247" y="66" width="105.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1299.5" y="90" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1299.5" dy="0">Task tables</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="966" y="348" width="77" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1004.5" y="372" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1004.5" dy="0">Metrics</tspan></text>
+</g>
+</g>
+<g class="vd-edge-labels">
+<rect class="vd-edge-label-bg" x="129.5" y="95" width="58" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="158.5" y="113" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="158.5" dy="0">HTTPS</tspan></text>
+<rect class="vd-edge-label-bg" x="413.5" y="95" width="137" height="26" style="fill:var(--vd-container-fill,#f6f8fa);stroke:none"/>
+<text class="vd-edge-label" x="482" y="113" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="482" dy="0">routes the request</tspan></text>
+<rect class="vd-edge-label-bg" x="748" y="72" width="58.5" height="26" style="fill:var(--vd-container-fill,#f6f8fa);stroke:none"/>
+<text class="vd-edge-label" x="777" y="90" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="777" dy="0">append</tspan></text>
+<rect class="vd-edge-label-bg" x="1172.5" y="72" width="44.5" height="26" style="fill:var(--vd-container-fill,#f6f8fa);stroke:none"/>
+<text class="vd-edge-label" x="1194.5" y="90" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="1194.5" dy="0">apply</tspan></text>
+<rect class="vd-edge-label-bg" x="759" y="118" width="37" height="26" style="fill:var(--vd-container-fill,#f6f8fa);stroke:none"/>
+<text class="vd-edge-label" x="777.5" y="136" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="777.5" dy="0">emit</tspan></text>
+</g>
+</svg>

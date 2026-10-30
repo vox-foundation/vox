@@ -1,0 +1,99 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "Activity Finished?",
+      "diamond",
+      []
+    ],
+    [
+      "End Workflow",
+      "rect",
+      []
+    ],
+    [
+      "Execute Activity",
+      "rect",
+      []
+    ],
+    [
+      "Start Workflow",
+      "rect",
+      []
+    ],
+    [
+      "Write to Journal",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Activity Finished?",
+        "diamond",
+        []
+      ],
+      [
+        "End Workflow",
+        "rect",
+        []
+      ],
+      "Yes"
+    ],
+    [
+      [
+        "Activity Finished?",
+        "diamond",
+        []
+      ],
+      [
+        "Execute Activity",
+        "rect",
+        []
+      ],
+      "No"
+    ],
+    [
+      [
+        "Execute Activity",
+        "rect",
+        []
+      ],
+      [
+        "Write to Journal",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Start Workflow",
+        "rect",
+        []
+      ],
+      [
+        "Activity Finished?",
+        "diamond",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Write to Journal",
+        "rect",
+        []
+      ],
+      [
+        "Activity Finished?",
+        "diamond",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

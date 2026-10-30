@@ -1,0 +1,17 @@
+---
+source: crates/vox-diagram/tests/validate_envelope.rs
+expression: "validate(SEQ, o)"
+---
+{
+  "schema_version": 1,
+  "valid": true,
+  "diagnostics": [],
+  "normalized_source": "sequence {\n    actor web: \"Web\"\n    actor api: \"API\"\n    actor db: \"Database\"\n    web -> api: \"POST /orders\"\n    reply db -> api: \"id\"\n    note over api: \"idempotent\"\n}\n",
+  "stats": {
+    "nodes": 3,
+    "containers": 0,
+    "edges": 3,
+    "max_depth": 0
+  },
+  "emitted": "sequenceDiagram\n    participant p0 as Web\n    participant p1 as API\n    participant p2 as Database\n    p0->>p1: POST /orders\n    p2-->>p1: id\n    Note over p1: idempotent\n"
+}

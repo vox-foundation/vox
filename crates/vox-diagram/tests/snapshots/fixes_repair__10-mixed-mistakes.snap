@@ -1,0 +1,14 @@
+---
+source: crates/vox-diagram/tests/fixes_repair.rs
+expression: r.text
+---
+graph {
+    node missing: "missing"
+    direction: right
+    node a: "Alpha service"
+    node b: "B\\q"
+    node c: "c" { shape: diamond }
+    a -> b: "sends"
+    b -> c
+    c -> missing
+}

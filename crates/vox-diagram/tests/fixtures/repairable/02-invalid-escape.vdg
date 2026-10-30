@@ -1,0 +1,5 @@
+graph {
+    node a: "tab\there"
+    node b: "path C:\dir"
+    a -> b: "go\x"
+}

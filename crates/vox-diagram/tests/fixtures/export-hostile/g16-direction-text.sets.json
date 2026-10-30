@@ -1,0 +1,161 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "DIRECTION td x",
+      "rect",
+      []
+    ],
+    [
+      "direction LRX",
+      "rect",
+      []
+    ],
+    [
+      "direction TB",
+      "rect",
+      []
+    ],
+    [
+      "direction",
+      "rect",
+      []
+    ],
+    [
+      "direction\tLR",
+      "rect",
+      []
+    ],
+    [
+      "inside direction BT",
+      "rect",
+      [
+        "my direction RL box"
+      ]
+    ],
+    [
+      "p direction LR q",
+      "rect",
+      []
+    ],
+    [
+      "xdirection BT",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "DIRECTION td x",
+        "rect",
+        []
+      ],
+      [
+        "direction\tLR",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "direction LRX",
+        "rect",
+        []
+      ],
+      [
+        "direction",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "direction TB",
+        "rect",
+        []
+      ],
+      [
+        "xdirection BT",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "direction",
+        "rect",
+        []
+      ],
+      [
+        "inside direction BT",
+        "rect",
+        [
+          "my direction RL box"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "direction\tLR",
+        "rect",
+        []
+      ],
+      [
+        "direction LRX",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "p direction LR q",
+        "rect",
+        []
+      ],
+      [
+        "direction TB",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "p direction LR q",
+        "rect",
+        []
+      ],
+      [
+        "direction TB",
+        "rect",
+        []
+      ],
+      "go direction TB now"
+    ],
+    [
+      [
+        "xdirection BT",
+        "rect",
+        []
+      ],
+      [
+        "DIRECTION td x",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": [
+    [
+      "my direction RL box"
+    ]
+  ]
+}

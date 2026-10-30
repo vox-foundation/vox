@@ -1,0 +1,13 @@
+flowchart LR
+  voxSource[VoxSource] --> hir[HIR]
+  hir --> contractIr[ContractIR]
+  hir --> appContract[AppContract]
+  contractIr --> openapiEmit[OpenAPI emit]
+  contractIr --> voxClient[vox-client.ts emit]
+  contractIr --> zodEmit[schemas.ts emit]
+  hir --> rustHttp[Rust Axum emit]
+  hir --> tanstackQuery[vox-tanstack-query.tsx emit]
+  rustHttp --> axumServer[Generated Axum binary]
+  voxClient --> reactApp[External React app]
+  openapiEmit --> reactApp
+  tanstackQuery --> reactApp

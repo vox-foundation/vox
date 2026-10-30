@@ -1,0 +1,137 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "Deep",
+      "rect",
+      [
+        "Level One",
+        "Level Two",
+        "Level Three",
+        "Level Four"
+      ]
+    ],
+    [
+      "Item A",
+      "rect",
+      [
+        "Level One"
+      ]
+    ],
+    [
+      "Item B",
+      "rect",
+      [
+        "Sibling"
+      ]
+    ],
+    [
+      "Top",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Deep",
+        "rect",
+        [
+          "Level One",
+          "Level Two",
+          "Level Three",
+          "Level Four"
+        ]
+      ],
+      [
+        "Deep",
+        "rect",
+        [
+          "Level One",
+          "Level Two",
+          "Level Three",
+          "Level Four"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "Item A",
+        "rect",
+        [
+          "Level One"
+        ]
+      ],
+      [
+        "Deep",
+        "rect",
+        [
+          "Level One",
+          "Level Two",
+          "Level Three",
+          "Level Four"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "Item B",
+        "rect",
+        [
+          "Sibling"
+        ]
+      ],
+      [
+        "Top",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Top",
+        "rect",
+        []
+      ],
+      [
+        "Item A",
+        "rect",
+        [
+          "Level One"
+        ]
+      ],
+      "enter"
+    ]
+  ],
+  "containers": [
+    [
+      "Level One",
+      "Level Two",
+      "Level Three",
+      "Level Four"
+    ],
+    [
+      "Level One",
+      "Level Two",
+      "Level Three"
+    ],
+    [
+      "Level One",
+      "Level Two"
+    ],
+    [
+      "Level One"
+    ],
+    [
+      "Sibling",
+      "Hollow"
+    ],
+    [
+      "Sibling"
+    ]
+  ]
+}

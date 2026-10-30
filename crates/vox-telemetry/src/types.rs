@@ -2248,6 +2248,6 @@ mod tests {
         let h = SaltedHashHex::try_new(valid_hash).expect("valid 64-hex");
         assert_eq!(h.as_str(), valid_hash);
         assert!(SaltedHashHex::try_new("short").is_err());
-        assert!(SaltedHashHex::try_new(&"G".repeat(64)).is_err());
+        assert!(SaltedHashHex::try_new("G".repeat(64)).is_err());
     }
 }

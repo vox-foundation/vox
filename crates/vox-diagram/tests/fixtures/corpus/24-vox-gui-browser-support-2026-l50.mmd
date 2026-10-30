@@ -1,0 +1,12 @@
+flowchart LR
+  Loquela[Loquela chat]
+  User[Operator input]
+  Daemon[vox-orchestrator-d]
+  Mcp[vox_browser_* tools]
+  Plugin[vox-plugin-browser CDP]
+  FrameStream[vox://browser-frame]
+  AgentTab[Agent live view + controls]
+
+  Loquela --> Daemon --> Mcp --> Plugin
+  User --> AgentTab --> Daemon
+  Plugin --> FrameStream --> AgentTab

@@ -48,20 +48,33 @@ Scope was **expanded** during v2 to additionally cover:
 
 ## 2. System map (current code reality)
 
-```mermaid
-flowchart LR
-  voxSource[VoxSource] --> hir[HIR]
-  hir --> contractIr[ContractIR]
-  hir --> appContract[AppContract]
-  contractIr --> openapiEmit[OpenAPI emit]
-  contractIr --> voxClient[vox-client.ts emit]
-  contractIr --> zodEmit[schemas.ts emit]
-  hir --> rustHttp[Rust Axum emit]
-  hir --> tanstackQuery[vox-tanstack-query.tsx emit]
-  rustHttp --> axumServer[Generated Axum binary]
-  voxClient --> reactApp[External React app]
-  openapiEmit --> reactApp
-  tanstackQuery --> reactApp
+```vox-diagram
+graph {
+    direction: right
+    node voxSource: "VoxSource"
+    node hir: "HIR"
+    node contractIr: "ContractIR"
+    node appContract: "AppContract"
+    node openapiEmit: "OpenAPI emit"
+    node voxClient: "vox-client.ts emit"
+    node zodEmit: "schemas.ts emit"
+    node rustHttp: "Rust Axum emit"
+    node tanstackQuery: "vox-tanstack-query.tsx emit"
+    node axumServer: "Generated Axum binary"
+    node reactApp: "External React app"
+    voxSource -> hir
+    hir -> contractIr
+    hir -> appContract
+    contractIr -> openapiEmit
+    contractIr -> voxClient
+    contractIr -> zodEmit
+    hir -> rustHttp
+    hir -> tanstackQuery
+    rustHttp -> axumServer
+    voxClient -> reactApp
+    openapiEmit -> reactApp
+    tanstackQuery -> reactApp
+}
 ```
 
 Files behind each node:

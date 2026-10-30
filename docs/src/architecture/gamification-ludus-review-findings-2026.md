@@ -125,12 +125,18 @@ daily_llm_budget_usd = 2.00
 
 ## 6. Recommended Implementation Phasing
 
-```mermaid
-graph TD
-    P1[Phase 1: Guardian Config & Curfew Logic] --> P2[Phase 2: Cost-Thrift & Quality Rewards]
-    P2 --> P3[Phase 3: AI SVG Companion Customization]
-    P3 --> P4[Phase 4: GUI Wellness & Gallery Views]
-    P4 --> P5[Phase 5: Populi Mesh Marketplace]
+```vox-diagram
+graph {
+    node P1: "Phase 1: Guardian Config & Curfew Logic"
+    node P2: "Phase 2: Cost-Thrift & Quality Rewards"
+    node P3: "Phase 3: AI SVG Companion Customization"
+    node P4: "Phase 4: GUI Wellness & Gallery Views"
+    node P5: "Phase 5: Populi Mesh Marketplace"
+    P1 -> P2
+    P2 -> P3
+    P3 -> P4
+    P4 -> P5
+}
 ```
 
 ### Phase 1: Guardian Config & Curfew Logic

@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 887 400" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,Arimo,Arial,Liberation Sans,Helvetica,sans-serif);font-size:14px">
+<title id="vd-title">Diagram</title>
+<desc id="vd-desc">3 actors, 5 messages, 1 note: 注文 → サーバー 🚀; サーバー 🚀 → Café Ünïcode; Café Ünïcode → サーバー 🚀; Café Ünïcode → Café Ünïcode; サーバー 🚀 → 注文</desc>
+<defs>
+<marker id="vd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-lifelines" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1;stroke-dasharray:4 4">
+<path class="vd-lifeline" d="M48 54L48 384"/>
+<path class="vd-lifeline" d="M200 54L200 384"/>
+<path class="vd-lifeline" d="M725 54L725 384"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="16" y="16" width="64" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="48" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="48" dy="0">注文</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="144" y="16" width="112.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="200" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="200" dy="0">サーバー 🚀</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="663" y="16" width="124.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="725" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="725" dy="0">Café Ünïcode</tspan></text>
+</g>
+</g>
+<g class="vd-notes">
+<rect class="vd-note" x="184" y="290" width="557" height="56" rx="3" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-note-label" x="462.5" y="314" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="462.5" dy="0">備考:</tspan><tspan x="462.5" dy="18">長い説明文がここに入りますが、折り返されるはずです。🚀🚀🚀</tspan></text>
+</g>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M48 104L200 104" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M200 168L725 168" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M725 232L200 232" marker-end="url(#vd-arrow)" style="stroke-dasharray:6 4"/>
+<path class="vd-edge" d="M725 251L755 251L755 271L725 271" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M200 368L48 368" marker-end="url(#vd-arrow)"/>
+</g>
+<g class="vd-edge-labels">
+<rect class="vd-edge-label-bg" x="56" y="74" width="136" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="124" y="92" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="124" dy="0">注文を確認します</tspan></text>
+<rect class="vd-edge-label-bg" x="343" y="120" width="239" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="462.5" y="138" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="462.5" dy="0">🚀 launched ✅</tspan><tspan x="462.5" dy="18">second line with é and 👨‍👩‍👧</tspan></text>
+<rect class="vd-edge-label-bg" x="208" y="184" width="509" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="462.5" y="202" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="462.5" dy="0">受け取りました、ありがとうございます、すぐに処理を開始して結</tspan><tspan x="462.5" dy="18">果をお知らせします、少々お待ちください</tspan></text>
+<rect class="vd-edge-label-bg" x="761" y="248" width="110" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="816" y="266" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="816" dy="0">naïve résumé</tspan></text>
+</g>
+</svg>

@@ -1,0 +1,10 @@
+graph {
+    direction: up
+    node base: "Foundation"
+    node mid: "Middle"
+    node top: "Top" { shape: diamond }
+    node out: "Finish" { shape: start }
+    base -> mid
+    mid -> top
+    top -> out: "done"
+}

@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1312 262" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,Arimo,Arial,Liberation Sans,Helvetica,sans-serif);font-size:14px">
+<title id="vd-title">Diagram</title>
+<desc id="vd-desc">11 nodes, 10 edges: .vox source → vox compile; vox compile → native-binary target; vox compile → desktop and mobile targ…; native-binary target → Axum local server with …; desktop and mobile targ… → Generated src-tauri pro…; Generated src-tauri pro… → cargo tauri build; cargo tauri build → Desktop …</desc>
+<defs>
+<marker id="vd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M121.5 131L181.5 131" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M289.5 134L297 134Q304.5 134 307 141L332 210.5Q334.5 218 342.5 218L376 218" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M289.5 128L297 128Q304.5 128 309 122L330 93.5Q334.5 87.5 342 87.5L349.5 87.5" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M533.5 218L634 218" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M559.5 90.5L567 90.5Q574.5 90.5 579 96.5L600 125Q604.5 131 612 131L619.5 131" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M827.5 131L895.5 131" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1031.5 134L1046.5 134Q1054.5 134 1059.5 140L1079.5 164Q1084.5 170 1092.5 170L1124 170" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1031.5 128L1046.5 128Q1054.5 128 1059.5 122L1080 97.5Q1084.5 92 1092 92L1099.5 92" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M559.5 84.5L567 84.5Q574.5 84.5 579 78.5L600 50Q604.5 44 612.5 44L644.5 44" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M803 44L887.5 44" marker-end="url(#vd-arrow)"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="16" y="112" width="105.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="68.5" y="136" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="68.5" dy="0">.vox source</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="181.5" y="112" width="108" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="235.5" y="136" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="235.5" dy="0">vox compile</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="376" y="199" width="157.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="454.5" y="223" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="454.5" dy="0">native-binary target</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="349.5" y="68.5" width="210" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="454.5" y="92.5" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="454.5" dy="0">desktop and mobile targets</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="634" y="190" width="179.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="723.5" y="214" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="723.5" dy="0">Axum local server with</tspan><tspan x="723.5" dy="18">embedded SPA</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="619.5" y="112" width="208" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="723.5" y="136" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="723.5" dy="0">Generated src-tauri project</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="895.5" y="112" width="136" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="963.5" y="136" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="963.5" dy="0">cargo tauri build</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="1124" y="151" width="147.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1197.5" y="175" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1197.5" dy="0">Desktop installers</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="1099.5" y="73" width="196.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1197.5" y="97" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1197.5" dy="0">Android and iOS artifacts</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="644.5" y="16" width="158.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="723.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="723.5" dy="0">runtime-capabilities</tspan><tspan x="723.5" dy="18">projection</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="887.5" y="16" width="152" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="963.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="963.5" dy="0">tauri.conf.json and</tspan><tspan x="963.5" dy="18">permissions</tspan></text>
+</g>
+</g>
+</svg>

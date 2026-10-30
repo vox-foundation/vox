@@ -1,0 +1,63 @@
+schema_version: 1
+corpus: diagram-authoring
+# The complete set (user decision 2026-10-27): 200 tasks, 184 graph and 16 sequence. Gated by
+# eval_diagram_tasks::counts_match_the_manifest; the hard-case quotas by eval_diagram_tasks::quotas.
+corpus_size: 200
+kinds:
+  graph: 184
+  sequence: 16
+# The pre-registered decision rule (91-04, committed before any live model call). The machine keys are
+# what eval_diagram::parse_manifest and the live preconditions check; `text` is the rule verbatim, the
+# same as the block between the prereg markers of
+# docs/src/architecture/voxdiagram-authoring-reliability-findings-2026.md.
+decision_rule:
+  primary_endpoint: first_pass_validity_slot_a
+  interval: newcombe_method_10
+  confidence: 0.95
+  margin: 0.10
+  max_repair_turns: 2
+  max_infra_rate: 0.05
+  spend_cap_usd: 25
+  model_scope: cloud_only_registry_selection
+  registered_on: 2026-10-27
+  text: |
+    Decision rule, pre-registered on 2026-10-27 before any live model call.
+    1. Primary endpoint: first-pass validity (turn 0) of model A. Model A is the highest-ranked cloud model of the
+       model registry's CodeGen selection (candidate scope CloudOnly; no model is pinned) that answers a one-call probe
+       with a reported cost. A reply is valid for VoxDiagram when `vox_diagram::check` reports no error, and for Mermaid
+       when the pinned Mermaid 11.17.2 parser (`mermaid.parse`) accepts it. The checked text is the first fenced block of
+       the reply, else the whole trimmed reply, for both arms.
+    2. Effect: Δ = p(VoxDiagram) − p(Mermaid) over the 200 paired tasks (184 graph, 16 sequence), same model, temperature
+       0, the same seed per task and turn, grammar cards of comparable size.
+    3. Interval: the two-sided 95 % Newcombe hybrid-score interval for a difference of paired proportions (method 10,
+       Wilson-based MOVER, no continuity correction), written [L, U].
+    4. Non-inferiority margin: δ = 0.10 (10 percentage points).
+    5. Verdict: non-inferior if L > −0.10; inferior if U < −0.10; inconclusive otherwise. Descriptive flags that never
+       change the verdict: "superior" if L > 0; "worse but within margin" if U < 0 and L > −0.10.
+    6. Missing data: a task whose call still fails in transport after 3 retries of the same model, in any turn of either
+       arm, is excluded from both arms. The run is incomplete, and the primary verdict is "not determined", if exclusions
+       exceed 5 % of the 200 tasks or if the $25 spend cap or any other stop ends the run before model A has turn 0 for
+       all 200 tasks in both arms.
+    7. Secondary results, reported without a decision: validity after up to 2 repair turns, each fed only that arm's own
+       parser diagnostics, with the same interval; per-arm Wilson 95 % intervals; exact McNemar p; structural fidelity
+       against each task's expected sets; per-kind counts; tokens and cost; and model B (the highest-ranked answering
+       cloud model of a different vendor organisation) under the same rule as a replication, never pooled with model A.
+       If no such model answers, the report says that only one model family was measured.
+    8. The provider-reported model id of every call is recorded. Each model runs on one locked configuration; there is
+       no mid-run fallback to another model.
+# BLAKE3 of every frozen input (eval_diagram::file_hash). The offline gate
+# eval_diagram_frozen::manifest_pins_the_frozen_files fails when one changes without this file.
+files:
+  tasks.v1.jsonl: blake3:5c633f7ab9e020b3a74d6335a78d354929c09853d76d07f3770bb6251f484be8
+  cards/voxdiagram.txt: blake3:01fe9d19d568b29bdc24dce44611249d249b9494b33232f287ded957af34f285
+  cards/mermaid.txt: blake3:acba1d9c624720703f4219f7a98d6ae3b4c96398f8d95573ddfc569c626ffe6e
+  prompt-template.txt: blake3:b1b055f4e7a7ace435ff11ab05326f6846aefeff4343764db84a856dc405412d
+oracles:
+  voxdiagram: "vox-diagram check (vox_doc_pipeline::diagram::validate, the version in this tree)"
+  mermaid: "mermaid 11.17.2 parse via docs-astro/tests/lib/mermaid-batch.mjs"
+mens:
+  ingested: false
+  evidence: >-
+    contracts/eval/** is not a root of mens/config/vox-source-pool.yaml (listed there as
+    deliberately not a root; the pool reads .vox files only), and the docs extractor
+    (vox-corpus extract_docs) walks docs/src only. No task id needs a held_out_for_training list.

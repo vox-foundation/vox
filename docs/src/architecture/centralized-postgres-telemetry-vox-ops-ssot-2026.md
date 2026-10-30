@@ -48,14 +48,23 @@ A full workspace audit across `crates/vox-telemetry`, `crates/vox-telemetry-otlp
 
 Following the proven house standard across `ramada` (ADR-0008, `ramada-facts-grants.md` D-36) and `ngi.video` (`deploy/helios/ngi-video-db-setup`), `vox-ops` shares the existing `helios-postgres` container (`q40ck888ggkkcsosgcwgc0oo`, `pgvector/pgvector:pg17`, ~7 MB marginal disk, ~0 extra RAM) with strict **three-role privilege fencing**:
 
-```mermaid
-flowchart LR
-    Client["Vox Client (Opt-In)\nvox telemetry upload"] -->|"HTTPS POST /v1/logs\nOTLP JSON"| Ingest["vox-ops Ingest API\n(vox_ingest_app role)"]
-    Ingest -->|"INSERT ONLY\n(No SELECT/UPDATE/DELETE)"| RawTable[("telemetry.events_raw\nOwner: vox_ops_owner (NOLOGIN)")]
-    RawTable -->|"SECURITY DEFINER +\nsecurity_barrier Views\nHAVING count(DISTINCT install_id) >= 20"| Views[("telemetry.v_*_k20\nRead-Only Rollup Views")]
-    Views -->|"SELECT ONLY"| OpsWorker["vox-ops Aggregator & API\n(vox_ops_app role)"]
-    OpsWorker -->|"Ed25519 Signed JSON"| Bundle["GET /v1/intelligence/bundle.json"]
-    Bundle -.->|"Optional Pull (Online)\nCached in ~/.vox/cache/"| LocalVox["Local Vox (CLI / Daemon / GUI)\n100% Functional Offline"]
+```vox-diagram
+graph {
+    direction: right
+    node Client: "Vox Client (Opt-In)\nvox telemetry upload"
+    node Ingest: "vox-ops Ingest API\n(vox_ingest_app role)"
+    node RawTable: "telemetry.events_raw\nOwner: vox_ops_owner (NOLOGIN)" { shape: cylinder }
+    node Views: "telemetry.v_*_k20\nRead-Only Rollup Views" { shape: cylinder }
+    node OpsWorker: "vox-ops Aggregator & API\n(vox_ops_app role)"
+    node Bundle: "GET /v1/intelligence/bundle.json"
+    node LocalVox: "Local Vox (CLI / Daemon / GUI)\n100% Functional Offline"
+    Client -> Ingest: "HTTPS POST /v1/logs\nOTLP JSON"
+    Ingest -> RawTable: "INSERT ONLY\n(No SELECT/UPDATE/DELETE)"
+    RawTable -> Views: "SECURITY DEFINER +\nsecurity_barrier Views\nHAVING count(DISTINCT install_id) >= 20"
+    Views -> OpsWorker: "SELECT ONLY"
+    OpsWorker -> Bundle: "Ed25519 Signed JSON"
+    Bundle -> LocalVox: "Optional Pull (Online)\nCached in ~/.vox/cache/"
+}
 ```
 
 ### 3.1 Roles & Least-Privilege Fencing
@@ -114,29 +123,28 @@ Local `VoxDb` already defines six model-intelligence tables (`crates/vox-db/src/
 
 The Scientia and Publication stack (`crates/vox-publisher` and `crates/vox-db/src/schema/domains/{scientia,publish_cloud,trials}.rs`) is partitioned into **three cleanly separated sub-pipelines**:
 
-```mermaid
-flowchart TB
-    subgraph LocalVox["1. Local Vox & VoxDb (100% Standalone / Public Repo)"]
-        Producers["Self-Observation Producers\n(commit_watcher, code_uniqueness,\nharness_issues, trial_campaigns)"]
-        Discovery["Epistemic Discovery & Verification\n(scientia_discoveries, scientia_claims,\nscientia_claim_verdicts, scientia_nanopubs)"]
-        Manuscript["Local Manuscript & Bundle Prep\n(publication_manifests, CITATION.cff,\nBibTeX, arXiv tar.gz, Zenodo/OpenReview JSON)"]
-        Producers --> Discovery --> Manuscript
-    end
-
-    subgraph DualScholarly["2. Scholarly Venue Submission (Dual-Mode)"]
-        PersonalCLI["Mode A: Direct Personal CLI\nvox scientia publication-submit\n(User's own Zenodo/OpenReview/ORCID token)"]
-        FoundationQueue["Mode B: Foundation scientia_ops Queue\n(vox-ops Postgres FOR UPDATE SKIP LOCKED\n24/7 DOI/peer-review polling & co-author gate)"]
-    end
-
-    subgraph CentralOps["3. Centralized vox-ops (Private Repo + helios-postgres)"]
-        Syndication["vox-ops-syndication\nsyndication.outbox (X, Reddit, YouTube,\nDiscord, Bluesky, Mastodon, LinkedIn, HN, OC)"]
-        IntelDigest["vox-ops-intelligence\n1. Domain Reputation (v_domain_reputation_k20)\n2. Curated Prior-Art Feed Digest\n3. Model & Benchmark Priors"]
-    end
-
-    Manuscript -->|"Personal Research"| PersonalCLI
-    Manuscript -->|"SyndicationHandoffPayloadV1\n(Optional Webhook / JSON Export)"| FoundationQueue
-    Manuscript -->|"SyndicationHandoffPayloadV1"| Syndication
-    IntelDigest -.->|"Ed25519 Signed Bundle\n(Optional Pull)"| LocalVox
+```vox-diagram
+graph {
+    container LocalVox: "1. Local Vox & VoxDb (100% Standalone / Public Repo)" {
+        node Producers: "Self-Observation Producers\n(commit_watcher, code_uniqueness,\nharness_issues, trial_campaigns)"
+        node Discovery: "Epistemic Discovery & Verification\n(scientia_discoveries, scientia_claims,\nscientia_claim_verdicts, scientia_nanopubs)"
+        node Manuscript: "Local Manuscript & Bundle Prep\n(publication_manifests, CITATION.cff,\nBibTeX, arXiv tar.gz, Zenodo/OpenReview JSON)"
+        Producers -> Discovery
+        Discovery -> Manuscript
+    }
+    container DualScholarly: "2. Scholarly Venue Submission (Dual-Mode)" {
+        node PersonalCLI: "Mode A: Direct Personal CLI\nvox scientia publication-submit\n(User's own Zenodo/OpenReview/ORCID token)"
+        node FoundationQueue: "Mode B: Foundation scientia_ops Queue\n(vox-ops Postgres FOR UPDATE SKIP LOCKED\n24/7 DOI/peer-review polling & co-author gate)"
+    }
+    container CentralOps: "3. Centralized vox-ops (Private Repo + helios-postgres)" {
+        node Syndication: "vox-ops-syndication\nsyndication.outbox (X, Reddit, YouTube,\nDiscord, Bluesky, Mastodon, LinkedIn, HN, OC)"
+        node IntelDigest: "vox-ops-intelligence\n1. Domain Reputation (v_domain_reputation_k20)\n2. Curated Prior-Art Feed Digest\n3. Model & Benchmark Priors"
+    }
+    LocalVox.Manuscript -> DualScholarly.PersonalCLI: "Personal Research"
+    LocalVox.Manuscript -> DualScholarly.FoundationQueue: "SyndicationHandoffPayloadV1\n(Optional Webhook / JSON Export)"
+    LocalVox.Manuscript -> CentralOps.Syndication: "SyndicationHandoffPayloadV1"
+    CentralOps.IntelDigest -> LocalVox.Discovery: "Ed25519 Signed Bundle\n(Optional Pull)"
+}
 ```
 
 #### Sub-Pipeline B1: Local Epistemic Discovery, Trials, Nanopubs & Manuscript Authoring (**100% Local `VoxDb` + Public `vox`**)

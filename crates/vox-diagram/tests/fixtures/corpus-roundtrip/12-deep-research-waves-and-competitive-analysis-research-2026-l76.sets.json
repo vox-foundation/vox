@@ -1,0 +1,282 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "Gaps / Contradictions Found?",
+      "diamond",
+      []
+    ],
+    [
+      "Lead Researcher (Supervisor Agent)",
+      "rect",
+      []
+    ],
+    [
+      "Spawn Specialist Subagent (Tie-Breaker)",
+      "rect",
+      []
+    ],
+    [
+      "Subagents Distill Structured Findings",
+      "rect",
+      []
+    ],
+    [
+      "Synthesize Comprehensive Report (Claude Opus/Sonnet)",
+      "rect",
+      []
+    ],
+    [
+      "Task Decomposition & Router (Claude Haiku)",
+      "rect",
+      []
+    ],
+    [
+      "User Query",
+      "rect",
+      []
+    ],
+    [
+      "Worker Subagent 1: Topic A",
+      "rect",
+      []
+    ],
+    [
+      "Worker Subagent 2: Topic B",
+      "rect",
+      []
+    ],
+    [
+      "Worker Subagent N: Topic C",
+      "rect",
+      []
+    ],
+    [
+      "Write Notes to Virtual Filesystem",
+      "rect",
+      []
+    ],
+    [
+      "Write Notes to Virtual Filesystem",
+      "rect",
+      []
+    ],
+    [
+      "Write Notes to Virtual Filesystem",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Gaps / Contradictions Found?",
+        "diamond",
+        []
+      ],
+      [
+        "Spawn Specialist Subagent (Tie-Breaker)",
+        "rect",
+        []
+      ],
+      "Yes"
+    ],
+    [
+      [
+        "Gaps / Contradictions Found?",
+        "diamond",
+        []
+      ],
+      [
+        "Synthesize Comprehensive Report (Claude Opus/Sonnet)",
+        "rect",
+        []
+      ],
+      "No"
+    ],
+    [
+      [
+        "Lead Researcher (Supervisor Agent)",
+        "rect",
+        []
+      ],
+      [
+        "Gaps / Contradictions Found?",
+        "diamond",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Lead Researcher (Supervisor Agent)",
+        "rect",
+        []
+      ],
+      [
+        "Task Decomposition & Router (Claude Haiku)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Spawn Specialist Subagent (Tie-Breaker)",
+        "rect",
+        []
+      ],
+      [
+        "Subagents Distill Structured Findings",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Subagents Distill Structured Findings",
+        "rect",
+        []
+      ],
+      [
+        "Lead Researcher (Supervisor Agent)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Task Decomposition & Router (Claude Haiku)",
+        "rect",
+        []
+      ],
+      [
+        "Worker Subagent 1: Topic A",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Task Decomposition & Router (Claude Haiku)",
+        "rect",
+        []
+      ],
+      [
+        "Worker Subagent 2: Topic B",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Task Decomposition & Router (Claude Haiku)",
+        "rect",
+        []
+      ],
+      [
+        "Worker Subagent N: Topic C",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "User Query",
+        "rect",
+        []
+      ],
+      [
+        "Lead Researcher (Supervisor Agent)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Worker Subagent 1: Topic A",
+        "rect",
+        []
+      ],
+      [
+        "Write Notes to Virtual Filesystem",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Worker Subagent 2: Topic B",
+        "rect",
+        []
+      ],
+      [
+        "Write Notes to Virtual Filesystem",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Worker Subagent N: Topic C",
+        "rect",
+        []
+      ],
+      [
+        "Write Notes to Virtual Filesystem",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Write Notes to Virtual Filesystem",
+        "rect",
+        []
+      ],
+      [
+        "Subagents Distill Structured Findings",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Write Notes to Virtual Filesystem",
+        "rect",
+        []
+      ],
+      [
+        "Subagents Distill Structured Findings",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Write Notes to Virtual Filesystem",
+        "rect",
+        []
+      ],
+      [
+        "Subagents Distill Structured Findings",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

@@ -28,12 +28,12 @@ test.describe('Vox Dashboard', () => {
       await page.waitForSelector('nav', { timeout: 15_000 });
       await expect(activeSurface).toHaveAttribute('data-view', 'repository');
       await page.getByRole('button', { name: 'Workspace status' }).click();
-      await expect(page.getByText('ok')).toBeVisible();
+      await expect(page.getByText('ok', { exact: true })).toBeVisible();
 
       // Harness tab redirects to Loquela composer (legacy surface retained for deep links).
       await page.goto('/#view=harness');
       await page.waitForSelector('nav', { timeout: 15_000 });
-      await expect(page.getByText('Quick Harness lives in the composer')).toBeVisible();
+      await expect(page.getByRole('region', { name: 'Axis Autonomous Harness River' })).toBeVisible();
       await page.getByRole('button', { name: 'Focus composer' }).click();
 
       // Runs view under Review parent nav.

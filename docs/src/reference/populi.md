@@ -208,14 +208,20 @@ Client note { `PopuliHttpClient` surfaces route failures as `PopuliRegistryError
 
 ## A2A job lifecycle (informal)
 
-```mermaid
-stateDiagram-v2
-    [*] --> Pending: deliver
-    Pending --> Leased: inbox+claimer
-    Leased --> Leased: lease-renew
-    Leased --> Pending: lease expiry (swept)
-    Leased --> Done: ack
-    Done --> [*]
+```vox-diagram
+graph {
+    node start: "Start" { shape: start }
+    node Pending: "Pending"
+    node Leased: "Leased"
+    node Done: "Done"
+    node end: "End" { shape: end }
+    start -> Pending: "deliver"
+    Pending -> Leased: "inbox+claimer"
+    Leased -> Leased: "lease-renew"
+    Leased -> Pending: "lease expiry (swept)"
+    Leased -> Done: "ack"
+    Done -> end
+}
 ```
 
 ## Documentation → Mens training pipeline

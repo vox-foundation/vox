@@ -1,0 +1,7 @@
+// expect: diagram/unexpected-token, diagram/undeclared-node
+graph {
+    node a "A"
+    node b: "B"
+    a -> b
+    b -> c
+}

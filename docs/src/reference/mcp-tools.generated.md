@@ -24,7 +24,7 @@ status: current
 
 Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../contracts/mcp/tool-registry.canonical.yaml).
 
-**Total tools:** 375
+**Total tools:** 376
 
 | Tool | Product Lane | Tier | HTTP Read Eligible | Description |
 |---|---|---|---|---|
@@ -389,6 +389,7 @@ Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../con
 | `vox_transfer_file` | ai |  | No | Transfer ownership of a file to another agent. |
 | `vox_trust_override` | ai |  | No | Overrides the trust tier for the agent context. |
 | `vox_undo` | ai |  | No | Undo the last operation or a specific operation by ID. |
+| `vox_validate_diagram` | ai |  | Yes | Validate a VoxDiagram (graph or sequence) and return every diagnostic with machine-applicable fixes, the canonical source and stats; optionally convert a Mermaid block or emit SVG or Mermaid. Deterministic, no model calls, writes nothing. |
 | `vox_validate_file` | app |  | No | Validate a .vox file using the full compiler pipeline (lexer → parser → typeck → HIR). |
 | `vox_validate_mermaid` | ai |  | Yes | Validate and repair Mermaid diagrams in Markdown or raw Mermaid source with line-accurate diagnostics. |
 | `vox_validate_source` | app |  | No | Validate Vox source code passed as a string (no filesystem read). Returns LSP-style diagnostics with stable codes and structured autofix suggestions for the iterative AI-assistant repair loop. |

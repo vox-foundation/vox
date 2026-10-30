@@ -1,0 +1,23 @@
+flowchart LR
+    Source["Vox_source"]
+    subgraph lexerParser ["LexerAndParser"]
+        lex["lex"]
+        parse["parse"]
+    end
+    subgraph analysis ["Analysis"]
+        ast["AST_module"]
+        hir["HIR_lower"]
+        typeck["typecheck_ast_module"]
+        hirVal["validate_module_HIR"]
+    end
+    subgraph emit ["Emit"]
+        codegen["codegen_rust_and_emit_targets"]
+    end
+    lex --> parse
+    ast --> hir
+    hir --> typeck
+    hir --> hirVal
+    Source --> lex
+    parse --> ast
+    typeck --> codegen
+    hirVal --> codegen

@@ -2784,6 +2784,13 @@ tools:
   side_effect_class: destructive
   requires:
   - db
+- name: vox_validate_diagram
+  description: Validate a VoxDiagram (graph or sequence) and return every diagnostic with machine-applicable fixes, the canonical source and stats; optionally convert a Mermaid block or emit SVG or Mermaid. Deterministic, no model calls, writes nothing.
+  product_lane: ai
+  http_read_role_eligible: true
+  exposure: public
+  side_effect_class: none
+  requires: []
 - name: vox_validate_file
   description: Validate a .vox file using the full compiler pipeline (lexer → parser → typeck → HIR).
   product_lane: app

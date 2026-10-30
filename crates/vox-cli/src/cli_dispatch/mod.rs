@@ -625,6 +625,9 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         Cli::Grammar { args } => {
             crate::commands::grammar::handle(args);
         }
+        Cli::Diagram { cmd } => {
+            crate::commands::diagram::run(cmd)?;
+        }
         Cli::Mens { .. } | Cli::Populi { .. } | Cli::Oratio { .. } => {
             std::unreachable!(
                 "ML/AI commands are intercepted in main.rs and delegated to external binaries"

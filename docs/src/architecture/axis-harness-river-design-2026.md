@@ -80,42 +80,40 @@ Our existing citybuilder visualizer in [`crates/vox-gui/ui/src/components/gamify
 
 ## 3. Architecture & Data Flow
 
-```mermaid
-flowchart LR
-  subgraph Controls["Loquela & Model Selector"]
-    CMP["ChatModelPicker<br/>(Auto / Pinned Family)"]
-    DC["DriveConsole<br/>(ClutchId + RiskId)"]
-    RR["RailRouting<br/>(Decision Preview + Alternatives)"]
-  end
-
-  subgraph Stream["Live Orchestrator Telemetry"]
-    AE["vox://agent-events<br/>(task_started, token_streamed,<br/>task_doubted, task_completed)"]
-    TE["ChatMessage.events<br/>(TurnEventDto: tool_called,<br/>verify_passed, routing_decision)"]
-  end
-
-  subgraph Store["Pure Correlation Layer (riverMath.ts)"]
-    TC["deriveTierCascade()<br/>Tier 1 Intercept · Tier 2 Fan-Out · Tier 3 Verifier"]
-    RF["deriveRiverSnapshot()<br/>Throughput · BLAKE3 Thrift % · 4-Stage Funnel · 8-Slice Braid"]
-  end
-
-  subgraph UI["HarnessRiverPanel (Dockable + Full Surface)"]
-    Z1["Zone A: WaveformTierStrip"]
-    Z2["Zone B: RiverCanvas (Alluvial Béziers + Singularity + Laser)"]
-    Z3["Zone C: AgentTrajectoryBraid (8-Slice SVG)"]
-    Z4["Zone D: VerificationFunnelFooter (3-Col Evidence + Ludus Yield)"]
-  end
-
-  CMP --> TC
-  DC --> TC
-  RR --> TC
-  AE --> RF
-  TE --> RF
-  TC --> Z1
-  TC --> Z2
-  RF --> Z1
-  RF --> Z2
-  RF --> Z3
-  RF --> Z4
+```vox-diagram
+graph {
+    direction: right
+    container Controls: "Loquela & Model Selector" {
+        node CMP: "ChatModelPicker\n(Auto / Pinned Family)"
+        node DC: "DriveConsole\n(ClutchId + RiskId)"
+        node RR: "RailRouting\n(Decision Preview + Alternatives)"
+    }
+    container Stream: "Live Orchestrator Telemetry" {
+        node AE: "vox://agent-events\n(task_started, token_streamed,\ntask_doubted, task_completed)"
+        node TE: "ChatMessage.events\n(TurnEventDto: tool_called,\nverify_passed, routing_decision)"
+    }
+    container Store: "Pure Correlation Layer (riverMath.ts)" {
+        node TC: "deriveTierCascade()\nTier 1 Intercept · Tier 2 Fan-Out · Tier 3 Verifier"
+        node RF: "deriveRiverSnapshot()\nThroughput · BLAKE3 Thrift % · 4-Stage Funnel · 8-Slice Braid"
+    }
+    container UI: "HarnessRiverPanel (Dockable + Full Surface)" {
+        node Z1: "Zone A: WaveformTierStrip"
+        node Z2: "Zone B: RiverCanvas (Alluvial Béziers + Singularity + Laser)"
+        node Z3: "Zone C: AgentTrajectoryBraid (8-Slice SVG)"
+        node Z4: "Zone D: VerificationFunnelFooter (3-Col Evidence + Ludus Yield)"
+    }
+    Controls.CMP -> Store.TC
+    Controls.DC -> Store.TC
+    Controls.RR -> Store.TC
+    Stream.AE -> Store.RF
+    Stream.TE -> Store.RF
+    Store.TC -> UI.Z1
+    Store.TC -> UI.Z2
+    Store.RF -> UI.Z1
+    Store.RF -> UI.Z2
+    Store.RF -> UI.Z3
+    Store.RF -> UI.Z4
+}
 ```
 
 ### 3.1 Deterministic 3-Tier Cascade Mapping (`deriveTierCascade`)

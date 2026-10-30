@@ -1,0 +1,4 @@
+// expect: diagram/expected-quoted-label
+graph {
+    node a: 'x'
+}

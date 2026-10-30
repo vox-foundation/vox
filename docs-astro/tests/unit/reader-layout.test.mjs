@@ -24,6 +24,9 @@ test('reader-layout.css exists and contains expected rules', () => {
   // Reduced motion preference
   assert.match(css, /@media\s*\(\s*prefers-reduced-motion:\s*reduce\s*\)/, 'Must honor reduced motion preferences');
 
+  // Front page states its headline once: the hero's <h1>, not Starlight's title row too
+  assert.match(css, /main:has\(\.vox-home-hero\)[^{]*h1#_top\)\s*\{\s*display:\s*none;/, 'Must hide the page title on the hero page');
+
   // Overflow-x containment
   assert.match(css, /overflow-x:\s*hidden;/, 'Must guard viewport overflow-x');
 

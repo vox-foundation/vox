@@ -1,0 +1,20 @@
+flowchart TD
+    training["TrainingTelemetry"]
+    summary["RunSummaryContract"]
+    corpus["CorpusQualitySignals"]
+    evalLocal["HeldOutEvalLocal"]
+    benchmark["BenchmarkSummaryContract"]
+    scorecard["MensScorecard"]
+    mcpGen["McpGenerationMetrics"]
+    runtime["RuntimeMetricsContract"]
+    cliGen["CliGenerationMetrics"]
+    decision["DecisionGate"]
+    training --> summary
+    corpus --> summary
+    evalLocal --> benchmark
+    scorecard --> benchmark
+    mcpGen --> runtime
+    cliGen --> runtime
+    summary --> decision
+    benchmark --> decision
+    runtime --> decision

@@ -78,7 +78,7 @@ impl MiniCheckVerifier {
         {
             return Self::http(url);
         }
-        Self::calibrated_hybrid("anthropic/claude-3.5-haiku")
+        Self::calibrated_hybrid(vox_config::model_defaults::CLAIM_EXTRACTION)
     }
 
     pub fn from_env_with_lookup(

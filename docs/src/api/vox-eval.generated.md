@@ -41,6 +41,7 @@ Functions are deterministic heuristics—not a replacement for human eval or ful
 | `corpus_score` | — |
 | `corpus_stats` | — |
 | `mens` | — |
+| `paired_ni` | — |
 | `provenance` | — |
 | `report` | — |
 | `trial_flywheel` | — |
