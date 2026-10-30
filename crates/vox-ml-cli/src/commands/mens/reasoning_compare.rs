@@ -979,7 +979,7 @@ mod tests {
         let rungs = v["base_rungs"].as_array().expect("base_rungs array");
         assert_eq!(rungs.len(), 1, "{rungs:?}");
         assert_eq!(rungs[0]["hf_id"], super::detect::tests::PIN_4B);
-        assert_eq!(rungs[0]["floor_mb"], 33037);
+        assert_eq!(rungs[0]["floor_mb"], 34460);
         assert_eq!(rungs[0]["floor_measured"], true);
         assert_eq!(rungs[0]["license"], "apache-2.0");
 

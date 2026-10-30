@@ -250,8 +250,9 @@ presets:
 # the rungs marked floor_measured: true on silicon-gpu-metal as the Metal peak
 # allocated memory (run_summary.json, MiB) of a QLoRA run at seq_len 3072 on the
 # trainer with the accumulation fix (c56e13a33): the S4 one-epoch run for 0.6B
-# and 1.7B, and for 4B a capped re-probe that ran past the first full-length
-# (3071-token) row. Pre-fix peaks (23675 / 54583 / >=84541) are superseded.
+# and 1.7B, and for 4B the S4 one-epoch run of 2026-10-30 (its resumed segment,
+# rows 1081-1108, peaked higher than the uninterrupted rows 1-1108: 34460 vs 33071).
+# Pre-fix peaks (23675 / 54583 / >=84541) are superseded.
 #
 # Unmeasured dense QLoRA rungs (8B, 14B, 32B) use the trainer's own Metal QLoRA
 # estimate, vox_populi::mens::estimate_training_vram_mb_qlora(hidden, heads,
@@ -304,8 +305,8 @@ train_bases:
     # + 2,560 = 3,633,511,936 params at NF4 0.5 B = 1,816,755,968 B; bare total
     # 2,594,668,288 B = 2,474.5 MiB; x 3.95 = 9,774, rounded up to 9800. That is
     # still below the 8B rung's 12000, so the ladder stays strictly increasing.
-    # Qwen3-4B measured (post-fix re-probe, 2026-10-30, 320-S3-4B-REPROBE.md).
-    - { hf_id: "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",   floor_mb: 33037, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: true, measured_on: silicon-gpu-metal, peak_mb: 33037 }   # 10-12 GB class
+    # Qwen3-4B measured (S4 full run, 2026-10-30, 320-S4-RUNS.md; re-probe peak was 33037).
+    - { hf_id: "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",   floor_mb: 34460, methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: true, measured_on: silicon-gpu-metal, peak_mb: 34460 }   # 10-12 GB class
     # 8B / 14B / 32B QLoRA: Metal QLoRA estimate (train_bases header) with
     # (hidden, heads, layers) = 8B (4096, 32, 36), 14B (5120, 40, 40),
     # 32B (5120, 64, 64) from each pinned config.json.

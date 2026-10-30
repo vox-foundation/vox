@@ -825,11 +825,11 @@ mod tests {
     #[test]
     fn qwen3_code_4b_rung_is_pinned_and_carries_its_measured_floor() {
         let overlay = load_overlay(workspace_root()).expect("load overlay");
-        let base = pick_base(&overlay, "qwen3_code", 33_200).expect("4B fits");
+        let base = pick_base(&overlay, "qwen3_code", 34_500).expect("4B fits");
         assert_eq!(base.hf_id, PIN_4B);
-        assert_eq!(base.floor_mb, 33037);
+        assert_eq!(base.floor_mb, 34460);
         assert_eq!(
-            pick_base(&overlay, "qwen3_code", 33_036)
+            pick_base(&overlay, "qwen3_code", 34_459)
                 .expect("1.7B fits")
                 .hf_id,
             "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"
@@ -837,7 +837,7 @@ mod tests {
         assert_eq!(base.license.as_deref(), Some("apache-2.0"));
         assert_eq!(
             base.floor_label(),
-            "qlora floor 33037 MB measured on silicon-gpu-metal (peak 33037 MB)"
+            "qlora floor 34460 MB measured on silicon-gpu-metal (peak 34460 MB)"
         );
         assert_eq!(
             pick_base(&overlay, "qwen3_code", 122_876)
@@ -925,7 +925,7 @@ mod tests {
         );
         assert_eq!(
             floor_notes(None, PIN_4B).expect("embedded overlay loads"),
-            ["qlora floor 33037 MB measured on silicon-gpu-metal (peak 33037 MB)"]
+            ["qlora floor 34460 MB measured on silicon-gpu-metal (peak 34460 MB)"]
         );
         assert!(
             floor_notes(
@@ -967,7 +967,7 @@ mod tests {
         let absent = tempfile::tempdir().expect("tempdir");
         assert_eq!(
             floor_notes(Some(absent.path()), PIN_4B).expect("absent file uses the embedded copy"),
-            ["qlora floor 33037 MB measured on silicon-gpu-metal (peak 33037 MB)"]
+            ["qlora floor 34460 MB measured on silicon-gpu-metal (peak 34460 MB)"]
         );
 
         // Present but unreadable (here: a directory) is an error, not a silent fallback.

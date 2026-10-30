@@ -370,10 +370,10 @@ const MEASURED_QLORA_PINS: &[(&str, u32)] = &[
         "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
         27007,
     ),
-    // 4B: post-fix S3 re-probe (capped at row 40, past the first 3071-token row 33).
+    // 4B: post-fix S4 full run (2026-10-30); peak of the resumed segment, rows 1081-1108.
     (
         "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",
-        33037,
+        34460,
     ),
 ];
 const MEASURED_ON: &str = "silicon-gpu-metal";

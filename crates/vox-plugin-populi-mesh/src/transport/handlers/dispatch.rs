@@ -590,8 +590,8 @@ mod qwen3_mesh_tests {
     use super::*;
 
     // Ladder floors (gpu-specs.yaml, measured on silicon-gpu-metal): 0.6B 15319,
-    // 1.7B 27007, 4B 33037. 8B and up are estimates and are not used here.
-    const FREE_4B: u64 = 34_000;
+    // 1.7B 27007, 4B 34460. 8B and up are estimates and are not used here.
+    const FREE_4B: u64 = 35_000;
     const FREE_1_7B: u64 = 28_000;
 
     fn overlay() -> HashMap<String, Vec<TrainBase>> {
@@ -654,7 +654,7 @@ mod qwen3_mesh_tests {
     }
 
     fn assert_4b(rung: &SizeRung) {
-        assert_rung(rung, "4B", "qwen3_12g", 33_037);
+        assert_rung(rung, "4B", "qwen3_12g", 34_460);
         assert_eq!(
             rung.hf_id,
             "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c"
