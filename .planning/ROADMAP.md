@@ -121,7 +121,12 @@ Plans:
   2. The mesh pick chooses the largest size that fits on some node, routes the job to that node, and titrates down when no node fits the larger size.
   3. A stale or missing node reading is not treated as free memory, and the local fallback still works with no mesh.
 
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 319-01-PLAN.md — Largest measured QLoRA floor, routed to a node that holds it
+- [ ] 319-02-PLAN.md — Stale window, explicit-size refusal, and heartbeat free memory
+- [ ] 319-03-PLAN.md — Local fallback when no node has a fresh reading
 
 ### Phase 320: Train the Sizes (`SIZE-03`)
 
@@ -156,7 +161,7 @@ Plans:
 | **Phase 316** | Before/After Comparison | `1/1` | Complete    2026-10-28 |
 | **Phase 317** | Size Ladder | `1/1` | Complete    2026-10-28 |
 | **Phase 318** | Live VRAM Selector | `3/3` | Complete    2026-10-29 |
-| **Phase 319** | Mesh-Wide Selection | `0/0` | Not started |
+| **Phase 319** | Mesh-Wide Selection | `0/3` | Planned |
 | **Phase 320** | Train the Sizes | `0/0` | Not started |
 | **Phase 321** | Harness Before/After | `0/0` | Not started |
 | **Phase 322** | Calibrated turn decisions + ChatARC | `0/0` | Not started |

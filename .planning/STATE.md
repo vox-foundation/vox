@@ -4,16 +4,16 @@ milestone: v5.6
 milestone_name: Reasoning Where the Lane Needs It
 current_phase: 319
 current_phase_name: Mesh-Wide Selection
-status: ready_to_plan
-stopped_at: Phase 319 context written — ready to plan
-last_updated: "2026-10-29T21:45:00.000Z"
+status: planned
+stopped_at: Phase 319 plans written
+last_updated: "2026-10-30T01:45:00.000Z"
 last_activity: 2026-10-29
-last_activity_desc: Phase 319 smart discuss context written
+last_activity_desc: Phase 319 mesh selection plans written
 state_head: e3a27eda7
 progress:
   total_phases: 10
   completed_phases: 6
-  total_plans: 13
+  total_plans: 16
   completed_plans: 13
   percent: 60
 ---
@@ -22,8 +22,8 @@ progress:
 
 ## Current Position
 
-Phase: 319 (Mesh-Wide Selection) — not started
-Plan: none yet
+Phase: 319 (Mesh-Wide Selection) — planned
+Plan: 3 plans (319-01 tracer pick, 319-02 stale/explicit/heartbeat, 319-03 local fallback)
 Status: Phase 318 verified passed (12/12). Security threats_open 0. Nyquist compliant. v5.6 continues through 319–322; not done until two sizes have real trained scores and 322 is planned/executed or deferred.
 Last activity: 2026-10-29 — Phase 318 closed
 
