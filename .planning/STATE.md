@@ -46,7 +46,7 @@ Last activity: 2026-10-28 — Plan 09 SIZE-03 check + ladder report
 
 ## Next Step
 
-Phase 321 closed (document-close). Phase 319 (MESH-01) complete 2026-10-29, ported from the Cursor branch onto our selector (`319-PORT.md`). Remaining v5.6: Phase 322 (DEC-01..04, CAT-01..02) not started; plan it with `/gsd-plan-phase 322` once its CONTEXT.md is committed.
+Phase 321 closed (document-close). Phase 319 (MESH-01) complete 2026-10-29, ported from the Cursor branch onto our selector (`319-PORT.md`). Phase 322 closed with gaps 2026-10-30 (3/3 plans, `322-VERIFICATION.md`): DEC-01, DEC-04, CAT-01 complete; DEC-03 and CAT-02 partial; DEC-02 blocked until the Cursor checkout's `agent_loop/` refactor lands on a mergeable ref. Open operator decisions: DEC-02/03 path (wait, build here, or descope); daemon command-provider gap (accept, authorize a crate edge, or approve a subprocess bridge); ChatARC recalibration (absolute score floor or stopword-aware tokenizer + fresh frozen split).
 
 
 ## v5.5 Autonomous Progress (2026-10-25 America/Phoenix)

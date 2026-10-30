@@ -36,11 +36,11 @@
 
 ### Calibrated decisions + ChatARC (`DEC`, `CAT`) — added 2026-10-28
 
-- [ ] **DEC-01**: A versioned turn decision pack runs **before** [`build_selection_request`](../crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/resolve.rs) and patches only fields that function does not already derive from clutch/risk: `task`, `complexity`, and `prefer_local` when the caller has not set them. It may set `allow_free_in_performance_mode` **only when clutch is unset** (clutch `Free` already sets that flag; Performance must not be overridden). The pack never emits model ids. `allow_free_in_performance_mode` only lets `:free` specs compete in the scorer under Performance — it does **not** invoke `PreferFree` or the `free_floor` slug list (`OPENROUTER_FREE_FALLBACK_MODELS`).
+- [x] **DEC-01**: A versioned turn decision pack runs **before** [`build_selection_request`](../crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/resolve.rs) and patches only fields that function does not already derive from clutch/risk: `task`, `complexity`, and `prefer_local` when the caller has not set them. It may set `allow_free_in_performance_mode` **only when clutch is unset** (clutch `Free` already sets that flag; Performance must not be overridden). The pack never emits model ids. `allow_free_in_performance_mode` only lets `:free` specs compete in the scorer under Performance — it does **not** invoke `PreferFree` or the `free_floor` slug list (`OPENROUTER_FREE_FALLBACK_MODELS`).
 - [ ] **DEC-02**: Post-tool decisions extend existing control points, not a new loop: `evaluate_post_tool_batch_hook`, `evaluate_stop_hook`, and `apply_repair_escalation_to_config` (already builds `SelectionIntent::repair_loop` with `prefer_local` + `allow_free_in_performance_mode`). Low `model_still_ok` re-enters that escalation path. `draft_pr` is not a pack directive unless an existing PR tool is already in the ChatARC shortlist.
 - [ ] **DEC-03**: Flag-off identity tests cover `build_selection_request`, `resolve_mens_fast_apply_target`, `consult_oracle_model_advisory`, and `apply_repair_escalation_to_config` — not only lifecycle constructors.
-- [ ] **DEC-04**: Selective-prediction eval (accuracy, ECE, coverage@error) on turn-pack fixtures; optional OpenRouter Jev is gated by `inference_privacy_local_only_from_env`; no MENS chat distill; no unused facade. Pack must not fork SIZE-02 / MESH-01 memory selection.
-- [ ] **CAT-01**: ChatARC **composes** existing discovery — skill roots (`vox skill discover` / `skill_catalog`), MCP tool lists (including deferred catalog hints), and `command_catalog::build_catalog` — into one shortlist index. New skills, MCP tools, and clap commands appear on the next discovery pass without a new closed-world enum. Do not build a third registry.
+- [x] **DEC-04**: Selective-prediction eval (accuracy, ECE, coverage@error) on turn-pack fixtures; optional OpenRouter Jev is gated by `inference_privacy_local_only_from_env`; no MENS chat distill; no unused facade. Pack must not fork SIZE-02 / MESH-01 memory selection.
+- [x] **CAT-01**: ChatARC **composes** existing discovery — skill roots (`vox skill discover` / `skill_catalog`), MCP tool lists (including deferred catalog hints), and `command_catalog::build_catalog` — into one shortlist index. New skills, MCP tools, and clap commands appear on the next discovery pass without a new closed-world enum. Do not build a third registry.
 - [ ] **CAT-02**: Calibrated Choice over a lexical top-K (K≤10, include `none`) is consumed by skill activation, tool offering, or command hinting. Fail open to today's lexical/deferred behavior. External skill install already gates on `get_skill_reliability`; ChatARC ranking may read that prior but must not replace the install gate.
 
 ## Future Requirements
@@ -74,12 +74,12 @@
 | `SIZE-03` | Phase 320 | Pending |
 | `HARN-01` | Phase 321 | Complete (gate enforcement; collateral fail) |
 | `BENCH-04` | Phase 321 | Complete |
-| `DEC-01` | Phase 322 | Pending |
-| `DEC-02` | Phase 322 | Pending |
-| `DEC-03` | Phase 322 | Pending |
-| `DEC-04` | Phase 322 | Pending |
-| `CAT-01` | Phase 322 | Pending |
-| `CAT-02` | Phase 322 | Pending |
+| `DEC-01` | Phase 322 | Complete (flag default off; only AllowFreeTier/PrivacyLocal act under v3) |
+| `DEC-02` | Phase 322 | Blocked (anchor functions exist on no git ref; see 322-RESEARCH F1) |
+| `DEC-03` | Phase 322 | Partial (`build_selection_request` goldens only; other three functions blocked) |
+| `DEC-04` | Phase 322 | Complete (322-EVAL-REPORT.md; hosted Jev not built) |
+| `CAT-01` | Phase 322 | Complete (daemon chat has no command provider) |
+| `CAT-02` | Phase 322 | Partial (consumers wired; Choice gate closed at tau 1.01 pending recalibration) |
 | `GATE-01` | Phase 315 | Complete |
 | `GATE-02` | Phase 315 | Complete |
 

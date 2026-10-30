@@ -3,7 +3,7 @@
 # Roadmap: v5.6 — Reasoning Where the Lane Needs It
 
 **Milestone:** v5.6
-**Status:** Phase 321 complete (2026-10-29, document-close) — BENCH-04 scores on 0.6B/1.7B; HARN-01 gate enforcement verified (collateral fail → serve refused). Phase 319 (MESH-01) complete 2026-10-29: ported from the Cursor branch onto the phase 318 `size_select` selector and measured floors. Phase 322 added 2026-10-28 (not started).
+**Status:** Phase 321 complete (2026-10-29, document-close) — BENCH-04 scores on 0.6B/1.7B; HARN-01 gate enforcement verified (collateral fail → serve refused). Phase 319 (MESH-01) complete 2026-10-29: ported from the Cursor branch onto the phase 318 `size_select` selector and measured floors. Phase 322 closed with gaps 2026-10-30 (3/3 plans): DEC-01/04 and CAT-01 met; DEC-03 and CAT-02 partial; DEC-02 blocked (agent-loop hooks exist on no git ref). See `322-VERIFICATION.md`.
 **Updated:** 2026-10-26
 
 ### Phase 313: Lane Prefix (`LANE-01`, `LANE-02`)
@@ -179,7 +179,7 @@ Plans:
 | **Phase 319** | Mesh-Wide Selection | `3/3` | Complete    2026-10-29 |
 | **Phase 320** | Train the Sizes | `9/9` | Complete |
 | **Phase 321** | Harness Before/After | `4/4` | Complete (document-close) |
-| **Phase 322** | Calibrated turn decisions + ChatARC | `0/0` | Not started |
+| **Phase 322** | Calibrated turn decisions + ChatARC | `3/3` | Closed with gaps (DEC-02 blocked; DEC-03, CAT-02 partial) |
 
 ### Phase 322: Calibrated turn decisions and dynamic action catalog (`DEC-01..04`, `CAT-01..02`)
 
@@ -193,12 +193,15 @@ Plans:
   3. Post-tool low confidence reuses `apply_repair_escalation_to_config`; stop/verify stay on `evaluate_stop_hook` / `evaluate_post_tool_batch_hook`.
   4. ChatARC shortlist Choice is plumbed into an existing activation path and stays correct when a new skill, MCP tool, or clap command appears; selective-prediction metrics published; hosted Jev behind local-only privacy.
 
-**Plans**: TBD
+**Plans**: 3/3 plans executed (closed with gaps 2026-10-30)
 
 **Research / prior art:** [`docs/src/architecture/jev-system-one-harness-integration-research-2026.md`](../docs/src/architecture/jev-system-one-harness-integration-research-2026.md) (§§11–16); cursor plan `labeled_router_plus_jev` folded here (do not execute as a standalone facade).
 
 Plans:
-- [ ] TBD (run `/gsd-plan-phase 322` to break down)
+- [x] `322-01`: Versioned turn decision pack upstream of `build_selection_request`, flag-off goldens, only-when-unset rules (completed 2026-10-30)
+- [x] `322-02`: Turn-pack fixtures, calibration from the calib split, selective-prediction eval; TaskShape and Stakes disabled after failing the risk gate (completed 2026-10-30)
+- [x] `322-03`: ChatARC shortlist over skills + MCP tools + command catalog, three consumers; Choice gate closed (tau 1.01) after failing its risk gate (completed 2026-10-30)
+- Gaps: DEC-02 blocked and DEC-03 partial (repair/stop/post-tool/fast-apply/oracle functions exist on no git ref; they live only untracked in the Cursor checkout); CAT-02 consumers wired but inert until ChatARC is recalibrated; daemon-hosted chat has no command provider. Review fixes: `322-REVIEW-FIX.md`.
 
 ---
 
