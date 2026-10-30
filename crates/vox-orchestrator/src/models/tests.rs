@@ -177,12 +177,15 @@ mod premium_alias_tests {
 
     #[test]
     fn default_premium_alias_targets_exist_in_models_list() {
+        // Premium aliases are live `~vendor/family-latest` OpenRouter aliases, never
+        // literal catalog rows: each must resolve to a registered family member.
         let cfg = ModelConfig::default();
+        let registry = crate::models::ModelRegistry::new();
         let ids: HashSet<_> = cfg.models.iter().map(|m| m.id.as_str()).collect();
         for (k, v) in &cfg.premium_alias {
             assert!(
-                ids.contains(v.as_str()),
-                "premium_alias {k} -> {v} not in default models list"
+                ids.contains(v.as_str()) || registry.get(v).is_some(),
+                "premium_alias {k} -> {v} resolves to no default model"
             );
         }
     }

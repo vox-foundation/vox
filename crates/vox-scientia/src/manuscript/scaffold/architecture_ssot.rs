@@ -97,6 +97,11 @@ pub struct ArchitectureSsotInput {
     pub sandbox_probes: Vec<SandboxExecutionRecord>,
     pub gaps_and_recommendations: Vec<GapRecommendation>,
     pub roadmap_phases: Vec<RoadmapPhase>,
+    /// Model that synthesized the source research run, stamped as
+    /// `authorship_model` on LLM-assisted drafts. `None` omits the key rather
+    /// than claiming a model nobody recorded (the doc lint then asks for it).
+    #[serde(default)]
+    pub authorship_model: Option<String>,
 }
 
 fn sanitize_yaml_string(s: &str) -> String {
@@ -169,7 +174,16 @@ pub fn render_architecture_ssot(input: &ArchitectureSsotInput) -> Result<String,
         }
     } else {
         doc.push_str("authorship: \"llm-assisted\"\n");
-        doc.push_str("authorship_model: \"claude-opus-4-6\"\n");
+        if let Some(model) = input
+            .authorship_model
+            .as_deref()
+            .filter(|m| !m.trim().is_empty())
+        {
+            doc.push_str(&format!(
+                "authorship_model: \"{}\"\n",
+                sanitize_yaml_string(model)
+            ));
+        }
     }
     if let Some(sort_order) = input.sort_order {
         doc.push_str(&format!("sort_order: {}\n", sort_order));
@@ -365,6 +379,7 @@ mod tests {
             sandbox_probes: vec![],
             gaps_and_recommendations: vec![],
             roadmap_phases: vec![],
+            authorship_model: None,
         };
         let doc = render_architecture_ssot(&input).expect("render");
         assert!(doc.contains("title: \"Test Architecture SSOT\""));

@@ -36,7 +36,7 @@ max-threads = 1
 max-threads = 1
 
 [[profile.default.overrides]]
-filter = 'binary_id(=vox-codegen::emit_compile_harness) | (binary_id(=vox-compiler::emission_ladder_test) & (test(/_compiles_as_rust_script$/) | test(=ladder_contract_drives_each_fixture_target))) | binary_id(=vox-cli-tests::build_e2e) | binary_id(=vox-config-derive::trybuild) | binary_id(=vox-cli-tests::workflow_runtime_no_db)'
+filter = 'binary_id(=vox-codegen::emit_compile_harness) | (binary_id(=vox-codegen::adr021_parity) & test(/^generated_binary_/)) | (binary_id(=vox-compiler::emission_ladder_test) & (test(/_compiles_as_rust_script$/) | test(=ladder_contract_drives_each_fixture_target))) | binary_id(=vox-cli-tests::build_e2e) | binary_id(=vox-config-derive::trybuild) | binary_id(=vox-cli-tests::workflow_runtime_no_db)'
 test-group = 'nested-cargo'
 # One cold generated-crate compile outlives the profile's 60s x 3; this lets one finish.
 slow-timeout = { period = "300s", terminate-after = 4 }
@@ -59,6 +59,6 @@ slow-timeout = { period = "300s", terminate-after = 4 }
 retries = 1
 slow-timeout = { period = "180s", terminate-after = 3 }
 default-filter = '''not (
-    (binary_id(=vox-codegen::emit_compile_harness) | (binary_id(=vox-compiler::emission_ladder_test) & (test(/_compiles_as_rust_script$/) | test(=ladder_contract_drives_each_fixture_target))) | binary_id(=vox-cli-tests::build_e2e) | binary_id(=vox-config-derive::trybuild) | binary_id(=vox-cli-tests::workflow_runtime_no_db))
+    (binary_id(=vox-codegen::emit_compile_harness) | (binary_id(=vox-codegen::adr021_parity) & test(/^generated_binary_/)) | (binary_id(=vox-compiler::emission_ladder_test) & (test(/_compiles_as_rust_script$/) | test(=ladder_contract_drives_each_fixture_target))) | binary_id(=vox-cli-tests::build_e2e) | binary_id(=vox-config-derive::trybuild) | binary_id(=vox-cli-tests::workflow_runtime_no_db))
   | (binary_id(=vox-integration-tests::golden_behavioral_gate) & test(=golden_expect_blocks_match_interp_stdout))
 )'''

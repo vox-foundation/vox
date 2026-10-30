@@ -1268,6 +1268,18 @@ operations:
 - surface: vox-cli
   path:
   - audit
+  - docs
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - audit
   - effort
   status: active
   latin_ns: null
@@ -2050,6 +2062,18 @@ operations:
   catalog_group: null
   ref_cli_required: true
   reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - crate-api-sync
+  status: active
+  latin_ns: ci
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
   handler_rust: null
 - surface: vox-cli
   path:
@@ -12344,6 +12368,69 @@ operations:
 - surface: vox-cli
   path:
   - telemetry
+  - intelligence
+  status: active
+  latin_ns: ci
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - telemetry
+  - intelligence
+  - inspect
+  status: active
+  latin_ns: ci
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - telemetry
+  - intelligence
+  - status
+  status: active
+  latin_ns: ci
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - telemetry
+  - intelligence
+  - sync
+  status: active
+  latin_ns: ci
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - telemetry
+  - preview
+  status: active
+  latin_ns: ci
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - telemetry
   - status
   status: active
   latin_ns: ci
@@ -12483,6 +12570,18 @@ operations:
   path:
   - workflow
   - preview
+  status: active
+  latin_ns: null
+  product_lane: workflow
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - workflow
+  - signal
   status: active
   latin_ns: null
   product_lane: workflow

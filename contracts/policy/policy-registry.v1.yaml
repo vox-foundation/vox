@@ -928,6 +928,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.capability-index
+  domain: ci-gate
+  title: Ci Capability-index
+  group: CI Gates / capability
+  description: CLI operation `vox ci capability-index`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.capability-index
+    detail: vox ci capability-index
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.capability-snapshot
   domain: ci-gate
   title: Ci Capability-snapshot
@@ -1277,6 +1293,22 @@ policies:
     kind: command
     ref: contracts/operations/catalog.v1.yaml#ci.coverage-gates
     detail: vox ci coverage-gates
+  default_enabled: true
+  protected: false
+  origin: builtin
+- id: ci-gate/ci.crate-api-sync
+  domain: ci-gate
+  title: Ci Crate-api-sync
+  group: CI Gates / crate
+  description: CLI operation `vox ci crate-api-sync`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.crate-api-sync
+    detail: vox ci crate-api-sync
   default_enabled: true
   protected: false
   origin: builtin

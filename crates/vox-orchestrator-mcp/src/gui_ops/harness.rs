@@ -205,7 +205,7 @@ pub async fn propose_fix(
         &vox_orchestrator::models::SelectionIntent::repair_loop(),
     )
     .map(|o| o.model_id)
-    .unwrap_or_else(|| "google/gemini-3.1-pro".to_string());
+    .unwrap_or_else(|| vox_config::model_defaults::CODE_REPAIR.to_string());
     let mut llm_config = vox_actor_runtime::llm::LlmConfig::openrouter(&model_id);
     llm_config.temperature = Some(0.0);
     llm_config.max_tokens = Some(2048);

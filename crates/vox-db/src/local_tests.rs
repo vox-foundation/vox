@@ -1067,7 +1067,8 @@ async fn kb_findings_migration_from_95() {
     {
         let db = VoxDb::open(&path).await.unwrap();
         assert_eq!(db.schema_version().await.unwrap(), BASELINE_VERSION);
-        assert_eq!(BASELINE_VERSION, 96);
+        // kb_findings landed in v96; later migrations must still upgrade a v95 DB through it.
+        assert!(BASELINE_VERSION >= 96);
         assert!(db.insert_pending_finding(&finding).await.unwrap().is_some());
     }
     let db = VoxDb::open(&path).await.unwrap();

@@ -33,10 +33,10 @@ surface is added or removed without updating this table.
 | Chat | blocked:reactive-streams | streamed tokens + secretary-proposed events |
 | CodeRabbit | expressible | review findings list, request-response |
 | Console | blocked:other | PTY streams + xterm.js terminal emulation |
-| Coverage | expressible | tabular report rendering |
 | Dashboard | blocked:reactive-streams | orch-status now `.vox`-expressible via `on stream` (Sub-project B); full surface migration pending (Sub-project G) |
 | Discovery | expressible | discovery results list, request-response |
 | DocReader | expressible | static doc content rendering |
+| Explorer | expressible | capability-index treegrid with filter chips; generated index + one-shot load, request-response |
 | Flow | blocked:reactive-streams | live pipeline timeline events |
 | Gamify | blocked:reactive-streams | ludus notifications stream |
 | Harness | expressible | diff + repo file listing (request/response) |
