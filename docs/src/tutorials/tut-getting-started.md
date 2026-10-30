@@ -115,6 +115,8 @@ Open `http://localhost:3000` in your browser. You'll see the `App` component's "
 
 ## What you just built
 
+![One .vox file fanning out into a database, a server, and a browser UI](../assets/one-file-three-layers.png)
+
 Declarations in one file, no boilerplate glue:
 
 | Declaration | What it does | What `vox build` emits |
