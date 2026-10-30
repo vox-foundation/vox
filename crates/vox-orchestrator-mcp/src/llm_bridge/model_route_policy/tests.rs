@@ -1412,6 +1412,7 @@ fn resolve_free_only(
     source_genius: bool,
     user_prompt: &str,
     capability_prompt: Option<&str>,
+    decision_prompt: Option<&str>,
 ) -> Result<String, String> {
     let _g = INFERENCE_PROFILE_TEST_LOCK
         .lock()
@@ -1442,6 +1443,7 @@ fn resolve_free_only(
             task_category: vox_orchestrator::types::TaskCategory::Research,
             complexity: 5,
             capability_prompt: capability_prompt.map(str::to_string),
+            decision_prompt: decision_prompt.map(str::to_string),
             ..Default::default()
         },
     )
@@ -1474,7 +1476,7 @@ fn pack_on_lets_free_model_compete_under_performance() {
         "{pack:?}"
     );
     assert_eq!(
-        resolve_free_only(true, false, P_FREE, Some(P_FREE)),
+        resolve_free_only(true, false, P_FREE, Some(P_FREE), Some(P_FREE)),
         Ok("free-model".to_string())
     );
 }
@@ -1482,7 +1484,7 @@ fn pack_on_lets_free_model_compete_under_performance() {
 #[test]
 fn pack_off_keeps_free_model_excluded_under_performance() {
     assert_ne!(
-        resolve_free_only(false, false, P_FREE, Some(P_FREE)),
+        resolve_free_only(false, false, P_FREE, Some(P_FREE), Some(P_FREE)),
         Ok("free-model".to_string())
     );
 }
@@ -1490,7 +1492,7 @@ fn pack_off_keeps_free_model_excluded_under_performance() {
 #[test]
 fn source_policy_clutch_blocks_pack_allow_free() {
     assert_ne!(
-        resolve_free_only(true, true, P_FREE, Some(P_FREE)),
+        resolve_free_only(true, true, P_FREE, Some(P_FREE), Some(P_FREE)),
         Ok("free-model".to_string())
     );
 }
@@ -1498,7 +1500,45 @@ fn source_policy_clutch_blocks_pack_allow_free() {
 #[test]
 fn flag_on_without_capability_prompt_builds_no_pack() {
     assert_ne!(
-        resolve_free_only(true, false, P_FREE, None),
+        resolve_free_only(true, false, P_FREE, None, None),
+        Ok("free-model".to_string())
+    );
+}
+
+/// CR-01: what the default chat turn passes when the user mentions a file. The
+/// capability prompt is the `@mention`-expanded, canonicalized text, and the
+/// mentioned file's body carries free-tier words; the decision prompt is the
+/// user's own message.
+const P_MENTION_EXPANDED: &str = "Objectives (treat as a single set; order does not imply priority):\n\n1. Summarize \n\n--- @notes.md (notes.md) ---\n// cheap to clone; any free model can run this\n---\n";
+
+#[test]
+fn pack_scores_decision_prompt_not_mention_expanded_text() {
+    use super::turn_pack::{TAU_FREE, evaluate};
+    // Not vacuous: scored on its own, the file text would allow free routing.
+    assert!(
+        evaluate(P_MENTION_EXPANDED)
+            .allow_free_tier
+            .is_some_and(|a| a.value == 1 && a.confidence >= TAU_FREE)
+    );
+    assert_ne!(
+        resolve_free_only(
+            true,
+            false,
+            P_MENTION_EXPANDED,
+            Some(P_MENTION_EXPANDED),
+            Some("Summarize @notes.md"),
+        ),
+        Ok("free-model".to_string())
+    );
+}
+
+/// WR-01: a caller that sets `capability_prompt` but not the default chat
+/// turn's `decision_prompt` opt-in (browser tools, t3 consensus, cognitive
+/// profiles, `call_llm_with_pref`) gets no pack, so no free-tier widening.
+#[test]
+fn resolution_without_decision_prompt_is_never_patched() {
+    assert_ne!(
+        resolve_free_only(true, false, P_FREE, Some(P_FREE), None),
         Ok("free-model".to_string())
     );
 }

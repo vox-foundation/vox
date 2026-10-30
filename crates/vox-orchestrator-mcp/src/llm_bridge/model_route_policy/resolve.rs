@@ -507,10 +507,13 @@ fn resolve_mcp_chat_model_sync_inner(
         }
     }
 
-    // DEC-01: the turn pack reads only the caller-supplied user text, never the
-    // `user_prompt` fallback (history, file and web text), and fills only the
-    // inputs the caller left unset. Flag off → `None` → today's request.
-    let pack = match res.capability_prompt.as_deref() {
+    // DEC-01: the turn pack scores only `decision_prompt`, the user's own words
+    // (before `@mention` expansion and canonicalization). Only the default chat
+    // turn sets it, so `Some` is also the opt-in: every other caller gets no
+    // pack. It never reads `capability_prompt` (which inlines mentioned files)
+    // or the `user_prompt` fallback (history, file and web text), and it fills
+    // only the inputs the caller left unset. Flag off → `None` → today's request.
+    let pack = match res.decision_prompt.as_deref() {
         Some(text) if vox_config::inference::turn_decision_pack_enabled() => {
             Some(super::turn_pack::evaluate(text))
         }

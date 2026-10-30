@@ -61,6 +61,13 @@ pub struct McpChatModelResolution {
     /// `complexity` is the caller's placeholder, not a choice: the DEC-01 turn
     /// pack may fill it. Default `false` = treated as set.
     pub complexity_unset: bool,
+    /// The text the DEC-01 turn pack scores: the user's own words for this
+    /// turn (pre-`@mention`, pre-canonicalization), or a research slash
+    /// command's query. `Some` is also the pack's opt-in: only the default
+    /// chat turn (`try_run_agent_turn`) sets it, so every other caller of the
+    /// resolver (browser tools, t3 consensus, cognitive profiles,
+    /// `call_llm_with_pref`) gets no pack and today's request. Default `None`.
+    pub decision_prompt: Option<String>,
 }
 
 impl Default for McpChatModelResolution {
@@ -80,6 +87,7 @@ impl Default for McpChatModelResolution {
             capability_prompt: None,
             task_unset: false,
             complexity_unset: false,
+            decision_prompt: None,
         }
     }
 }

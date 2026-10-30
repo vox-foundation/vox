@@ -219,8 +219,9 @@ pub(crate) fn decide_if_enabled(
     decide(&gather(), query, bins, tau)
 }
 
-/// This turn's pick from the user's own message (never the assembled prompt,
-/// which carries history, files and retrieved text).
+/// This turn's pick. `user_message` is the user's own words (the caller passes
+/// the message before `@mention` expansion and canonicalization), never the
+/// assembled prompt, which carries history, files and retrieved text.
 pub(crate) fn pick_for_turn(
     state: &ServerState,
     user_message: &str,

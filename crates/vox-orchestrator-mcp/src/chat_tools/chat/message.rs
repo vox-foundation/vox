@@ -231,6 +231,10 @@ async fn try_run_agent_turn(
     // carries the full assembled prompt (history/files/retrieved context) for
     // everything else, including the actual LLM call below.
     capability_prompt: &str,
+    // CR-01 / WR-01: the user's own words (pre-`@mention`, pre-canonicalization)
+    // for the DEC-01 turn pack (`McpChatModelResolution::decision_prompt`).
+    // Setting it is the pack's opt-in, and only this default chat turn does.
+    decision_prompt: &str,
     session_id: &str,
     active_skill_id: Option<String>,
     // ChatARC (phase 322-03) tool pick for `run_agent_turn`'s pins.
@@ -283,6 +287,7 @@ async fn try_run_agent_turn(
             // DEC-01 turn pack may fill them (VOX_TURN_DECISION_PACK).
             task_unset: true,
             complexity_unset: true,
+            decision_prompt: Some(decision_prompt.to_string()),
             ..Default::default()
         },
     );
@@ -494,6 +499,18 @@ async fn try_run_agent_turn(
             }))
         }
         Err(e) => Some(Err(e)),
+    }
+}
+
+/// CR-01: the text the DEC-01 turn pack and ChatARC score: the user's own
+/// words (`raw_prompt`, before `@mention` expansion and canonicalization), or a
+/// research slash command's query. Never the expanded prompt, whose inlined
+/// file bodies and "Objectives …" header are not the user's message.
+fn turn_decision_text(raw_prompt: &str, intent: &super::research_intent::ResearchIntent) -> String {
+    if intent.explicit && intent.mode != super::research_intent::ResearchMode::None {
+        intent.query.clone()
+    } else {
+        raw_prompt.to_string()
     }
 }
 
@@ -862,6 +879,8 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         } else {
             expanded_prompt
         };
+    // CR-01: what the turn pack and ChatARC score.
+    let decision_text = turn_decision_text(&raw_prompt_for_research, &intent);
 
     let all_context_files: Vec<String> = {
         let mut v = params.context_files.clone();
@@ -930,13 +949,12 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         }
         .as_deref(),
     );
-    // ChatARC (phase 322-03, VOX_CHATARC): scored on the user's own message,
-    // never the assembled `user_prompt` (history, files, retrieved text).
-    let chatarc_pick = crate::chat_tools::chatarc::pick_for_turn(
-        state,
-        &expanded_prompt,
-        &params.skill_exclusions,
-    );
+    // ChatARC (phase 322-03, VOX_CHATARC): scored on the user's own words
+    // (`decision_text`), never `expanded_prompt` (mentioned file bodies, the
+    // canonicalizer header) or the assembled `user_prompt` (history, files,
+    // retrieved text).
+    let chatarc_pick =
+        crate::chat_tools::chatarc::pick_for_turn(state, &decision_text, &params.skill_exclusions);
     // A ChatARC command pick adds one trailing hint line; the cached prefix
     // is unchanged.
     let system_prompt = crate::chat_tools::chatarc::append_command_hint(
@@ -1157,6 +1175,8 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 // above (which carries `[CONVERSATION HISTORY]`/`[OPEN FILES]`/
                 // retrieved and web-research context).
                 &expanded_prompt,
+                // CR-01: the turn pack scores the user's own words.
+                &decision_text,
                 session_id.as_str(),
                 params.skill.clone(),
                 crate::chat_tools::chatarc::tool_pin_for(
@@ -1825,6 +1845,7 @@ mod tests {
         let result = try_run_agent_turn(
             &state,
             "system prompt",
+            "hello",
             "hello",
             "hello",
             "default-path-test",
@@ -2595,6 +2616,36 @@ mod tests {
             normalize_prompt(&neither),
             normalize_prompt(SYSTEM_PROMPT_GOLDEN)
         );
+    }
+
+    /// CR-01: a mentioned file's body and the canonicalizer header never reach
+    /// the turn pack or ChatARC; both score the user's own words.
+    #[test]
+    fn turn_decision_text_is_the_users_own_words() {
+        use super::super::research_intent::classify_research_intent;
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(
+            dir.path().join("notes.md"),
+            "// cheap to clone; any free model can run this\n",
+        )
+        .expect("write mentioned file");
+        let prompt = "Summarize @notes.md";
+        let cache = Arc::new(parking_lot::Mutex::new(None));
+        let (expanded, files) = resolve_mentions(prompt, dir.path(), &cache);
+        let canonical = prompt_canonical::canonicalize_prompt(&expanded, true, true)
+            .expect("canonicalize")
+            .text;
+        // Not vacuous: the prompt the model sees carries the file's words and
+        // the header.
+        assert_eq!(files, vec!["notes.md".to_string()]);
+        assert!(canonical.contains("free model") && canonical.contains("Objectives"));
+        let intent = classify_research_intent(prompt, None, None);
+        assert_eq!(turn_decision_text(prompt, &intent), prompt);
+        let slash = "/research rust slice patterns";
+        let intent = classify_research_intent(slash, None, None);
+        assert!(intent.explicit, "{intent:?}");
+        assert_eq!(turn_decision_text(slash, &intent), intent.query);
+        assert_ne!(intent.query, slash);
     }
 }
 

@@ -134,6 +134,7 @@ async fn plain_turn_events(clutch: Option<&str>) -> Vec<serde_json::Value> {
         "system prompt",
         "hello there",
         "hello there",
+        "hello there",
         "trace-session",
         None,
         None,
@@ -258,6 +259,7 @@ async fn the_golden_turn_matches_the_contract() {
     let result = try_run_agent_turn(
         &state,
         "system prompt",
+        "what's the git status?",
         "what's the git status?",
         "what's the git status?",
         "golden-session",
