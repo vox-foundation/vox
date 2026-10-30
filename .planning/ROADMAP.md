@@ -195,7 +195,7 @@ Plans:
 
 **Plans**: TBD
 
-**Research / prior art:** [`docs/src/architecture/jev-system-one-harness-integration-research-2026.md`](../docs/src/architecture/jev-system-one-harness-integration-research-2026.md) (§§11–16; uncommitted on the Cursor branch, not yet in this checkout); cursor plan `labeled_router_plus_jev` folded here (do not execute as a standalone facade).
+**Research / prior art:** [`docs/src/architecture/jev-system-one-harness-integration-research-2026.md`](../docs/src/architecture/jev-system-one-harness-integration-research-2026.md) (§§11–16); cursor plan `labeled_router_plus_jev` folded here (do not execute as a standalone facade).
 
 Plans:
 - [ ] TBD (run `/gsd-plan-phase 322` to break down)
