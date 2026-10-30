@@ -2,30 +2,30 @@
 gsd_state_version: "1.0"
 milestone: v5.6
 milestone_name: Reasoning Where the Lane Needs It
-current_phase: 319
-current_phase_name: Mesh-Wide Selection
-status: planned
-stopped_at: Phase 319 plans written
-last_updated: "2026-10-30T01:45:00.000Z"
+current_phase: 320
+current_phase_name: Train the Sizes
+status: ready_to_plan
+stopped_at: Phase 319 complete — ready to discuss phase 320
+last_updated: "2026-10-30T04:05:00.000Z"
 last_activity: 2026-10-29
-last_activity_desc: Phase 319 mesh selection plans written
-state_head: e3a27eda7
+last_activity_desc: Phase 319 verified passed (12/12); security closed; Nyquist compliant
+state_head: f2ab6c443
 progress:
   total_phases: 10
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 16
-  completed_plans: 13
-  percent: 60
+  completed_plans: 16
+  percent: 70
 ---
 
 # Project State: Unified Workstream
 
 ## Current Position
 
-Phase: 319 (Mesh-Wide Selection) — planned
-Plan: 3 plans (319-01 tracer pick, 319-02 stale/explicit/heartbeat, 319-03 local fallback)
-Status: Phase 318 verified passed (12/12). Security threats_open 0. Nyquist compliant. v5.6 continues through 319–322; not done until two sizes have real trained scores and 322 is planned/executed or deferred.
-Last activity: 2026-10-29 — Phase 318 closed
+Phase: 320 (Train the Sizes) — not started
+Plan: none yet
+Status: Phase 319 verified passed (12/12). Security threats_open 0. Nyquist compliant. v5.6 continues through 320–322; not done until two sizes have real trained scores and 322 is planned/executed or deferred.
+Last activity: 2026-10-29 — Phase 319 closed
 
 ## Milestone History (Recent)
 
@@ -42,7 +42,7 @@ Last activity: 2026-10-29 — Phase 318 closed
 
 ## Next Step
 
-Phase 319 context is written. Plan from the locked decisions. Do not re-open the four areas. Do not re-execute 318. Phases 320–322 remain.
+Phase 319 is verified, secured, and Nyquist-compliant. Do not re-execute 319. Discuss phase 320 (train the sizes that fit), then plan and execute. Phases 321–322 remain.
 
 ## v5.5 Autonomous Progress (2026-10-25 America/Phoenix)
 
@@ -64,6 +64,7 @@ Phase 319 context is written. Plan from the locked decisions. Do not re-open the
 | Phase 316 P01 | 1h 26m | 3 tasks | 9 files |
 | Phase 317 P01 | 41min | 2 tasks | 5 files |
 | Phase 318 P01–P03 | — | 9 tasks | selector, training, chat, GUI |
+| Phase 319 P01–P03 | — | 7 tasks | mesh pick, heartbeat, local fallback |
 
 ## Decisions
 
@@ -77,9 +78,13 @@ Phase 319 context is written. Plan from the locked decisions. Do not re-open the
 - [Phase 318]: CUDA free memory is nvidia-smi memory.free; Metal free memory is monitor_metal memory_free_mb
 - [Phase 318]: An explicit size, including VOX_MENS_DEFAULT_MODEL, is refused when it does not fit and is not stepped down
 - [Phase 318]: A caller preset stays when the size does not change; a step-down uses the smaller size's preset
+- [Phase 319]: accelerator_free_mb is the mesh fit number; gpu_vram_total_mb does not decide the size
+- [Phase 319]: An explicit size on the local fallback is refused, not stepped down or up
+- [Phase 319]: A free-memory reading that does not fit in u32 is dropped before the max
+- [Phase 319]: One fresh node is a mesh pick; no fresh reading uses the phase 318 local selector
 
 ## Session
 
 **Last session:** 2026-10-29
-**Stopped at:** Phase 319 context written, ready to plan
+**Stopped at:** Phase 319 complete, ready to discuss phase 320
 **Resume file:** None

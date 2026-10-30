@@ -3,7 +3,7 @@
 # Roadmap: v5.6 — Reasoning Where the Lane Needs It
 
 **Milestone:** v5.6
-**Status:** Phase 318 complete — ready for phase 319. Extended 2026-10-26 (sizes 317–321) and 2026-10-28 (phase 322 calibrated decisions + ChatARC). Not complete until at least two Qwen3 sizes have real trained before/after scores **and** phase 322 is planned/executed or explicitly deferred.
+**Status:** Phase 319 complete — ready for phase 320. Extended 2026-10-26 (sizes 317–321) and 2026-10-28 (phase 322 calibrated decisions + ChatARC). Not complete until at least two Qwen3 sizes have real trained before/after scores **and** phase 322 is planned/executed or explicitly deferred.
 **Updated:** 2026-10-28
 
 ### Phase 313: Lane Prefix (`LANE-01`, `LANE-02`)
@@ -121,12 +121,12 @@ Plans:
   2. The mesh pick chooses the largest size that fits on some node, routes the job to that node, and titrates down when no node fits the larger size.
   3. A stale or missing node reading is not treated as free memory, and the local fallback still works with no mesh.
 
-**Plans:** 3 plans
+**Plans:** 3/3 plans executed
 
 Plans:
-- [ ] 319-01-PLAN.md — Largest measured QLoRA floor, routed to a node that holds it
-- [ ] 319-02-PLAN.md — Stale window, explicit-size refusal, and heartbeat free memory
-- [ ] 319-03-PLAN.md — Local fallback when no node has a fresh reading
+- [x] 319-01-PLAN.md — Largest measured QLoRA floor, routed to a node that holds it (completed 2026-10-29)
+- [x] 319-02-PLAN.md — Stale window, explicit-size refusal, and heartbeat free memory (completed 2026-10-29)
+- [x] 319-03-PLAN.md — Local fallback when no node has a fresh reading (completed 2026-10-29)
 
 ### Phase 320: Train the Sizes (`SIZE-03`)
 
@@ -161,7 +161,7 @@ Plans:
 | **Phase 316** | Before/After Comparison | `1/1` | Complete    2026-10-28 |
 | **Phase 317** | Size Ladder | `1/1` | Complete    2026-10-28 |
 | **Phase 318** | Live VRAM Selector | `3/3` | Complete    2026-10-29 |
-| **Phase 319** | Mesh-Wide Selection | `0/3` | Planned |
+| **Phase 319** | Mesh-Wide Selection | `3/3` | Complete    2026-10-29 |
 | **Phase 320** | Train the Sizes | `0/0` | Not started |
 | **Phase 321** | Harness Before/After | `0/0` | Not started |
 | **Phase 322** | Calibrated turn decisions + ChatARC | `0/0` | Not started |
