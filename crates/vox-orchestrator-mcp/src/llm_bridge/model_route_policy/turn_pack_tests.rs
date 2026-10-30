@@ -411,6 +411,7 @@ fn pack_changes_only_the_four_inputs() {
         stakes: answer(0, 0.95),
         allow_free_tier: answer(1, 0.95),
         privacy_local: answer(0, 0.95),
+        ..Default::default()
     };
     for i in 1..=5 {
         let fx = fixture(i);
@@ -526,4 +527,34 @@ fn disabled_questions_fail_closed() {
             .intent
             .allow_free_in_performance_mode
     );
+}
+
+/// Production thresholds on a real prompt for the default chat turn (fixture 1:
+/// task and complexity unset, no clutch): does the pack allow free routing?
+fn prod_allows_free(prompt: &str) -> bool {
+    let fx = fixture(1);
+    super::turn_pack::turn_selection_request(
+        Some(&super::turn_pack::evaluate(prompt)),
+        &fx.res,
+        fx.derived_prefer_local,
+        fx.preference,
+        fx.caps.clone(),
+    )
+    .intent
+    .allow_free_in_performance_mode
+}
+
+/// CR-02: a negated or deny-side free cue vetoes allow-free, even though the
+/// allow rule (0.86) outranks the deny rule (0.50) in the argmax.
+#[test]
+fn negated_or_deny_side_free_cues_veto_allow_free() {
+    assert!(prod_allows_free("Use a free model for this."));
+    assert!(prod_allows_free("Quick question: what is a slice?"));
+    for p in [
+        "Please don't use a free model for this.",
+        "Do not use the free tier.",
+        "Quick question, but use the best model.",
+    ] {
+        assert!(!prod_allows_free(p), "{p}");
+    }
 }

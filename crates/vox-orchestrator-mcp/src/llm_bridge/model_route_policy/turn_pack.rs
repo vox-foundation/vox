@@ -16,8 +16,8 @@ use vox_orchestrator::types::TaskCategory;
 use super::resolve::{VOX_LOCAL_PREFERRED_TASKS, build_selection_request};
 use super::types::McpChatModelResolution;
 
-/// Version of the rule table and its thresholds; bump on any change to either.
-pub(super) const PACK_VERSION: &str = "turn-pack.v2";
+/// Version of the rule table, thresholds and vetoes; bump on any change (v3: vetoes).
+pub(super) const PACK_VERSION: &str = "turn-pack.v3";
 /// Minimum confidence for an answer to patch `task`, `complexity` or `prefer_local`.
 pub(super) const TAU_APPLY: f32 = 0.80;
 /// Minimum confidence for the allow-free-tier answer to widen scorer eligibility.
@@ -90,6 +90,12 @@ pub(super) const RULES: &[Rule] = &[
         any_of: &["offline", "local only", "locally", "keep it local", "private", "confidential", "on device", "do not send", "don t send", "air gapped"] },
 ];
 
+/// Negated free-tier requests ("don't use a free model") veto instead of allowing.
+// ponytail: lexical negation, ceiling is phrasings not listed; upgrade path is the classifier head.
+#[rustfmt::skip]
+const FREE_NEGATIONS: &[&str] = &["don t use", "dont use", "do not use", "never use", "avoid",
+    "no free", "not free", "not a free", "not the free", "not cheap", "not a cheap"];
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) struct Answer {
     pub value: u8,
@@ -106,6 +112,8 @@ pub(super) struct TurnPack {
     pub stakes: Option<Answer>,
     pub allow_free_tier: Option<Answer>,
     pub privacy_local: Option<Answer>,
+    /// Vetoes free eligibility (from cue firings, never from an answer).
+    pub free_veto: bool,
 }
 
 impl TurnPack {
@@ -128,7 +136,7 @@ pub(super) fn evaluate(prompt: &str) -> TurnPack {
 /// (padded with one space each side), fires every rule with a space-padded
 /// keyword substring, and keeps, per question, the highest-confidence firing
 /// rule; ties go to the lexicographically smallest rule id, so the answer never
-/// depends on table order.
+/// depends on table order. Vetoes come from firings, never from answers.
 pub(super) fn evaluate_with_rules(prompt: &str, rules: &[Rule]) -> TurnPack {
     let mut text = String::from(" ");
     for word in prompt
@@ -138,9 +146,15 @@ pub(super) fn evaluate_with_rules(prompt: &str, rules: &[Rule]) -> TurnPack {
         text.push_str(&word.to_lowercase());
         text.push(' ');
     }
+    let fires = |any_of: &[&str]| any_of.iter().any(|k| text.contains(&format!(" {k} ")));
+    let fired = |q: Question, answer: u8| {
+        rules
+            .iter()
+            .any(|r| r.question == q && r.answer == answer && fires(r.any_of))
+    };
     let mut pack = TurnPack::default();
     for rule in rules {
-        if !rule.any_of.iter().any(|k| text.contains(&format!(" {k} "))) {
+        if !fires(rule.any_of) {
             continue;
         }
         let slot = pack.slot_mut(rule.question);
@@ -156,6 +170,8 @@ pub(super) fn evaluate_with_rules(prompt: &str, rules: &[Rule]) -> TurnPack {
             });
         }
     }
+    // CR-02: a deny-side rule (it loses the argmax) or a negated free cue vetoes.
+    pack.free_veto = fired(Question::AllowFreeTier, 0) || fires(FREE_NEGATIONS);
     pack
 }
 
@@ -247,6 +263,7 @@ pub(super) fn selection_inputs(
     // reads or reorders the free-floor list.
     let allow_free = may_set_allow_free
         && sure(pack.allow_free_tier, tau(Question::AllowFreeTier)) == Some(1)
+        && !pack.free_veto
         && !high_stakes
         && !private;
     SelectionInputs {
