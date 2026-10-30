@@ -533,7 +533,8 @@ fn route_pick_to_holder(
 }
 
 /// Mesh placement when a fresh reading exists. Otherwise the caller-supplied
-/// local reading. This function does not probe the GPU.
+/// local reading: an explicit size is refused when it does not fit, and only
+/// the automatic pick steps down. This function does not probe the GPU.
 #[derive(Debug)]
 pub(crate) enum Qwen3Placement {
     Mesh(Qwen3MeshSelection),
@@ -558,9 +559,15 @@ pub(crate) fn place_qwen3_code_qlora(
     let Some(free_mb) = local_free_mb else {
         return Err(Qwen3MeshError::NoFreshReading);
     };
-    let pick =
+    let pick = if let Some(size) = explicit_size {
+        vox_populi::mens::tensor::spoke_base_resolver::explicit_qwen3_code_qlora_for_free_mb(
+            size, free_mb,
+        )
+        .map_err(|_| Qwen3MeshError::ExplicitDoesNotFit)?
+    } else {
         vox_populi::mens::tensor::spoke_base_resolver::select_qwen3_code_qlora_for_free_mb(free_mb)
-            .map_err(|err| Qwen3MeshError::PickFailed(err.to_string()))?;
+            .map_err(|err| Qwen3MeshError::PickFailed(err.to_string()))?
+    };
     Ok(Qwen3Placement::Local(pick))
 }
 
@@ -900,5 +907,79 @@ mod qwen3_mesh_tests {
         )
         .expect_err("explicit miss");
         assert_eq!(err, Qwen3MeshError::ExplicitDoesNotFit);
+    }
+
+    fn stale_or_missing_nodes() -> Vec<NodeRecord> {
+        let mut stale = node("stale", Some(70_000), Some(1.0));
+        stale.last_seen_unix_ms = 1;
+        let missing = node("missing", None, Some(1.0));
+        vec![stale, missing]
+    }
+
+    #[test]
+    fn place_qwen3_empty_explicit_32b_does_not_step_down() {
+        let err = place_qwen3_code_qlora(
+            &[],
+            &plain_req(),
+            10_000_000,
+            Some(3_600_000),
+            Some("32B"),
+            Some(25_000),
+        )
+        .expect_err("explicit 32B does not fit 25000");
+        assert_eq!(err, Qwen3MeshError::ExplicitDoesNotFit);
+    }
+
+    #[test]
+    fn place_qwen3_empty_explicit_14b_does_not_step_up() {
+        let got = place_qwen3_code_qlora(
+            &[],
+            &plain_req(),
+            10_000_000,
+            Some(3_600_000),
+            Some("14B"),
+            Some(70_000),
+        )
+        .expect("explicit 14B");
+        match got {
+            Qwen3Placement::Local(pick) => {
+                assert_eq!(pick.size_token, "14B");
+                assert_eq!(pick.preset, "qwen3_24g");
+                assert_eq!(pick.floor_mb, 20_000);
+            }
+            Qwen3Placement::Mesh(selection) => panic!("named {}", selection.node_id),
+        }
+    }
+
+    #[test]
+    fn place_qwen3_stale_or_missing_explicit_size_uses_local_rule() {
+        let err = place_qwen3_code_qlora(
+            &stale_or_missing_nodes(),
+            &plain_req(),
+            10_000_000,
+            Some(3_600_000),
+            Some("32B"),
+            Some(25_000),
+        )
+        .expect_err("stale registry must not step an explicit size down");
+        assert_eq!(err, Qwen3MeshError::ExplicitDoesNotFit);
+
+        let got = place_qwen3_code_qlora(
+            &stale_or_missing_nodes(),
+            &plain_req(),
+            10_000_000,
+            Some(3_600_000),
+            Some("14B"),
+            Some(70_000),
+        )
+        .expect("explicit 14B on the local reading");
+        match got {
+            Qwen3Placement::Local(pick) => {
+                assert_eq!(pick.size_token, "14B");
+                assert_eq!(pick.preset, "qwen3_24g");
+                assert_eq!(pick.floor_mb, 20_000);
+            }
+            Qwen3Placement::Mesh(selection) => panic!("named {}", selection.node_id),
+        }
     }
 }
