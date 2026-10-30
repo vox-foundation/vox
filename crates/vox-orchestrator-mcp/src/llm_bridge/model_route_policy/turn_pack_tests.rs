@@ -558,3 +558,18 @@ fn negated_or_deny_side_free_cues_veto_allow_free() {
         assert!(!prod_allows_free(p), "{p}");
     }
 }
+
+/// WR-02: secret-shaped text vetoes allow-free (a credential must never move
+/// from paid-only routing to free-tier eligibility).
+#[test]
+fn secret_shaped_text_vetoes_allow_free() {
+    assert!(prod_allows_free("Quick question about my config loader."));
+    for p in [
+        "Here is my API key sk-proj-abc123, quick question: why does auth fail?",
+        "Quick question, my password is hunter2, why won't it log in?",
+        "Quick question: is this token still valid?",
+        "Quick question, is AKIAIOSFODNN7EXAMPLE still active?",
+    ] {
+        assert!(!prod_allows_free(p), "{p}");
+    }
+}

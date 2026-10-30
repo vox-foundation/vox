@@ -96,6 +96,11 @@ pub(super) const RULES: &[Rule] = &[
 const FREE_NEGATIONS: &[&str] = &["don t use", "dont use", "do not use", "never use", "avoid",
     "no free", "not free", "not a free", "not the free", "not cheap", "not a cheap"];
 
+/// Credential words; `vox_redact` catches token shapes (`sk-…`, `ghp_…`, `AKIA…`, JWTs).
+#[rustfmt::skip]
+const SECRET_CUES: &[&str] = &["api key", "apikey", "password", "passwd", "passphrase", "token",
+    "private key", "secret", "credential", "credentials", "ssn", "sk", "bearer"];
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) struct Answer {
     pub value: u8,
@@ -172,6 +177,8 @@ pub(super) fn evaluate_with_rules(prompt: &str, rules: &[Rule]) -> TurnPack {
     }
     // CR-02: a deny-side rule (it loses the argmax) or a negated free cue vetoes.
     pack.free_veto = fired(Question::AllowFreeTier, 0) || fires(FREE_NEGATIONS);
+    // WR-02: secret-shaped text never becomes free-tier eligible.
+    pack.free_veto |= fires(SECRET_CUES) || vox_redact::redact_owned(prompt) != prompt;
     pack
 }
 
