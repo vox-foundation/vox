@@ -459,3 +459,43 @@ fn ties_break_by_rule_id_not_table_order() {
         Some("task_shape.0.1")
     );
 }
+
+/// L-03: the pack never reads or reorders the free floor; this pins its order.
+#[test]
+fn free_floor_order_is_pinned() {
+    assert_eq!(
+        vox_config::model_defaults::FREE_FLOOR,
+        [
+            "google/gemma-4-31b-it:free",
+            "qwen/qwen3-coder:free",
+            "openai/gpt-oss-120b:free",
+            "deepseek/deepseek-r1-0528:free",
+            "minimax/minimax-m2.5:free",
+        ]
+    );
+    assert_eq!(
+        vox_config::bootstrap_inference::OPENROUTER_FREE_FALLBACK_MODELS,
+        vox_config::model_defaults::FREE_FLOOR
+    );
+}
+
+/// L-03: a confident allow-free answer only widens scorer eligibility; axes
+/// (and so the selection policy) are untouched.
+#[test]
+fn allow_free_pack_changes_only_scorer_eligibility() {
+    let mut fx = fixture(2);
+    fx.res.task_unset = false;
+    fx.res.complexity_unset = false;
+    assert!(fx.res.clutch.is_none());
+    let mut expected = turn_selection_request(
+        None,
+        &fx.res,
+        fx.derived_prefer_local,
+        fx.preference,
+        fx.caps.clone(),
+    );
+    assert_eq!(format!("{expected:?}"), GOLDEN_G2);
+    expected.intent.allow_free_in_performance_mode = true;
+    let patched = request(&free_pack(), &fx);
+    assert_eq!(format!("{patched:?}"), format!("{expected:?}"));
+}

@@ -265,6 +265,20 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_CHATARC"
+    owner_crate: "vox-config"
+    kind: "bool"
+    required: false
+    introduced_in: "0.6.0"
+    default: "0"
+    description: "1/true/yes/on (case-insensitive, trimmed) enables the ChatARC action shortlist in chat turns; unset or any other value keeps it off."
+  - name: "VOX_TURN_DECISION_PACK"
+    owner_crate: "vox-config"
+    kind: "bool"
+    required: false
+    introduced_in: "0.6.0"
+    default: "0"
+    description: "1/true/yes/on (case-insensitive, trimmed) runs the DEC-01 turn decision pack ahead of chat model selection; unset or any other value keeps selection byte-identical to the pre-pack behavior."
   - name: "VOX_CHROME_EXECUTABLE"
     owner_crate: "vox-browser"
     kind: "string"
