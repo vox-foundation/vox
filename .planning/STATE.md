@@ -5,10 +5,10 @@ milestone_name: Reasoning Where the Lane Needs It
 current_phase: 320
 current_phase_name: Train the Sizes
 status: ready_to_plan
-stopped_at: Phase 319 complete — ready to discuss phase 320
+stopped_at: Phase 320 context written — ready to plan
 last_updated: "2026-10-30T04:05:00.000Z"
 last_activity: 2026-10-29
-last_activity_desc: Phase 319 verified passed (12/12); security closed; Nyquist compliant
+last_activity_desc: Phase 320 smart discuss context written
 state_head: f2ab6c443
 progress:
   total_phases: 10
@@ -42,7 +42,7 @@ Last activity: 2026-10-29 — Phase 319 closed
 
 ## Next Step
 
-Phase 319 is verified, secured, and Nyquist-compliant. Do not re-execute 319. Discuss phase 320 (train the sizes that fit), then plan and execute. Phases 321–322 remain.
+Phase 320 context is written. Plan from the locked decisions. Do not re-open them. Do not download weights or start a live train. Phases 321–322 remain.
 
 ## v5.5 Autonomous Progress (2026-10-25 America/Phoenix)
 
@@ -86,5 +86,5 @@ Phase 319 is verified, secured, and Nyquist-compliant. Do not re-execute 319. Di
 ## Session
 
 **Last session:** 2026-10-29
-**Stopped at:** Phase 319 complete, ready to discuss phase 320
+**Stopped at:** Phase 320 context written, ready to plan
 **Resume file:** None
