@@ -99,18 +99,29 @@ mod tests {
             .unwrap()
             .to_path_buf()
     }
+    /// The Qwen3-8B QLoRA floor: every alias tag lists that rung, so a tier at
+    /// this floor resolves every tagged spoke to a Qwen3 base.
+    fn qwen3_8b_tier_mb() -> u32 {
+        vox_populi::mens::tensor::spoke_base_resolver::load_overlay(&root())
+            .expect("overlay")["agentic_default"]
+            .iter()
+            .find(|b| b.hf_id == vox_populi::mens::DEFAULT_MODEL_ID)
+            .expect("Qwen3-8B rung")
+            .floor_mb
+    }
     #[test]
     fn rust_resolves_qwen_qlora() {
         // "rust-expert" renamed to "rust" by B0.1; test updated by B0.2 audit.
         let sel =
-            resolve_training_selection(&root(), Some("rust"), None, None, Some(16384)).unwrap();
+            resolve_training_selection(&root(), Some("rust"), None, None, Some(qwen3_8b_tier_mb()))
+                .unwrap();
         match sel {
             TrainingSelection::Train {
                 model,
                 preset,
                 backend,
             } => {
-                assert!(model.unwrap().contains("Qwen"));
+                assert!(model.unwrap().contains("Qwen3"));
                 assert!(!preset.unwrap().is_empty());
                 assert!(matches!(backend, PopuliTrainBackend::CandleQlora));
             }
@@ -175,18 +186,33 @@ mod tests {
         // "agents" retired by B0.1 → replaced by "tool-selection" and "argument-generation".
         let root = root();
         for spoke in ["vox-lang", "rust", "tool-selection", "argument-generation"] {
-            let sel = resolve_training_selection(&root, Some(spoke), None, None, Some(16384))
-                .unwrap_or_else(|e| panic!("{spoke}: {e}"));
+            let sel = resolve_training_selection(
+                &root,
+                Some(spoke),
+                None,
+                None,
+                Some(qwen3_8b_tier_mb()),
+            )
+            .unwrap_or_else(|e| panic!("{spoke}: {e}"));
             match sel {
                 TrainingSelection::Train { model, preset, .. } => {
                     assert!(
-                        model.as_deref().unwrap_or("").contains("Qwen"),
+                        model.as_deref().unwrap_or("").contains("Qwen3"),
                         "{spoke}: {model:?}"
                     );
                     assert!(!preset.unwrap_or_default().is_empty(), "{spoke}");
                 }
                 other => panic!("{spoke}: expected Train, got {other:?}"),
             }
+            // Below every Qwen3 rung the tag resolves nothing (never a retired
+            // Qwen2.5 base); the cloud path then falls back to DEFAULT_MODEL_ID.
+            let TrainingSelection::Train { model, .. } =
+                resolve_training_selection(&root, Some(spoke), None, None, Some(16384))
+                    .unwrap_or_else(|e| panic!("{spoke}: {e}"))
+            else {
+                panic!("{spoke}: expected Train");
+            };
+            assert_eq!(model, None, "{spoke}");
         }
     }
 }

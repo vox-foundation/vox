@@ -390,8 +390,15 @@ mod tests {
             .ancestors()
             .nth(2)
             .unwrap();
-        let id = resolve_base_model(root, "strong_code_default", Some(16384)).unwrap();
-        assert!(id.contains("Qwen"), "got {id}");
+        let id = resolve_base_model(root, "strong_code_default", Some(44_000)).unwrap();
+        assert!(id.contains("Qwen3"), "got {id}");
+        // Below every Qwen3 rung: fail closed, never a retired Qwen2.5 base.
+        let err = resolve_base_model(root, "strong_code_default", Some(16384)).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("no 'strong_code_default' base fits"),
+            "{err}"
+        );
     }
 
     #[test]
@@ -413,11 +420,13 @@ mod tests {
             .nth(2)
             .unwrap();
         let overlay = load_overlay(root).expect("load overlay");
-        let base = pick_base(&overlay, "qwen3_code", 74_000).expect("14B QLoRA fits");
+        let floor = qlora_floor(&overlay, "qwen3_code", "Qwen/Qwen3-14B@");
+        let base = pick_base(&overlay, "qwen3_code", floor).expect("14B QLoRA fits");
         assert!(
-            base.hf_id.contains("Qwen3-14B"),
-            "expected Qwen3-14B at 24GB, got: {}",
-            base.hf_id
+            base.hf_id.contains("Qwen3-14B") && base.methods.iter().any(|m| m == "qlora"),
+            "expected Qwen3-14B QLoRA at its floor {floor} MB, got: {} {:?}",
+            base.hf_id,
+            base.methods
         );
         assert!(
             base.hf_id.contains('@'),
@@ -464,20 +473,25 @@ mod tests {
         assert!(ensure_not_placeholder("Qwen/Qwen2.5-Coder-7B-Instruct").is_ok());
     }
 
+    /// Floor of the `tag` QLoRA rung whose `hf_id` starts with `prefix`.
+    fn qlora_floor(overlay: &HashMap<String, Vec<TrainBase>>, tag: &str, prefix: &str) -> u32 {
+        overlay[tag]
+            .iter()
+            .find(|b| b.hf_id.starts_with(prefix) && b.methods.iter().any(|m| m == "qlora"))
+            .unwrap_or_else(|| panic!("{tag} has no QLoRA rung {prefix}"))
+            .floor_mb
+    }
+
     #[test]
     fn strong_code_default_16g_resolves_qwen3_8b() {
-        // USER DECISION (Qwen3 everywhere): a 16GB box must resolve to Qwen3-8B,
-        // not fall to Qwen2.5-Coder-7B. The Qwen3-8B rung (floor 12000) must outrank
-        // the Qwen2.5-Coder-7B rung (floor 11000) at 16384 MB.
-        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .ancestors()
-            .nth(2)
-            .unwrap();
-        let overlay = load_overlay(root).expect("load overlay");
-        let base = pick_base(&overlay, "strong_code_default", 63_000).expect("a base fits");
+        // USER DECISION (Qwen3 everywhere): once free memory clears the Qwen3-8B
+        // QLoRA floor, strong_code_default resolves Qwen3-8B.
+        let overlay = load_overlay(workspace_root()).expect("load overlay");
+        let floor = qlora_floor(&overlay, "strong_code_default", "Qwen/Qwen3-8B@");
+        let base = pick_base(&overlay, "strong_code_default", floor).expect("a base fits");
         assert!(
             base.hf_id.contains("Qwen3-8B"),
-            "63 GB-class strong_code_default must resolve Qwen3-8B (Qwen3 everywhere), got: {}",
+            "{floor} MB strong_code_default must resolve Qwen3-8B (Qwen3 everywhere), got: {}",
             base.hf_id
         );
     }
@@ -485,18 +499,31 @@ mod tests {
     #[test]
     fn agentic_default_16g_resolves_qwen3_8b() {
         // USER DECISION (Qwen3 everywhere): the agentic_default ladder must also
-        // resolve Qwen3-8B once free memory clears the Phase 320 QLoRA floor.
-        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .ancestors()
-            .nth(2)
-            .unwrap();
-        let overlay = load_overlay(root).expect("load overlay");
-        let base = pick_base(&overlay, "agentic_default", 63_000).expect("a base fits");
+        // resolve Qwen3-8B once free memory clears its QLoRA floor.
+        let overlay = load_overlay(workspace_root()).expect("load overlay");
+        let floor = qlora_floor(&overlay, "agentic_default", "Qwen/Qwen3-8B@");
+        let base = pick_base(&overlay, "agentic_default", floor).expect("a base fits");
         assert!(
             base.hf_id.contains("Qwen3-8B"),
-            "63 GB-class agentic_default must resolve Qwen3-8B (Qwen3 everywhere), got: {}",
+            "{floor} MB agentic_default must resolve Qwen3-8B (Qwen3 everywhere), got: {}",
             base.hf_id
         );
+    }
+
+    /// Qwen 2.5 is a retired family (AGENTS.md Retired Surfaces: use Qwen 3+),
+    /// so no train_bases tag may offer a Qwen2.5 rung for any selector to pick.
+    #[test]
+    fn no_train_base_tag_offers_a_retired_qwen2_5_rung() {
+        let overlay = load_overlay(workspace_root()).expect("load overlay");
+        for (tag, rungs) in &overlay {
+            for b in rungs {
+                assert!(
+                    !b.hf_id.contains("Qwen2.5"),
+                    "train_bases.{tag} offers retired {}",
+                    b.hf_id
+                );
+            }
+        }
     }
 
     #[test]
@@ -509,7 +536,7 @@ mod tests {
             .unwrap();
         let overlay = load_overlay(root).expect("load overlay");
         // Even on a huge card, small_code_default must not exceed an 8B rung.
-        let base = pick_base(&overlay, "small_code_default", 96_000).expect("a base fits");
+        let base = pick_base(&overlay, "small_code_default", 1_000_000).expect("a base fits");
         assert!(
             !base.hf_id.contains("14B")
                 && !base.hf_id.contains("32B")
@@ -556,12 +583,13 @@ mod tests {
         let overlay = load_overlay(workspace_root()).expect("load overlay");
         let cases: &[(u32, Option<(&str, &str)>)] = &[
             (6144, None),
-            // 11–12 GiB window: Qwen2.5-Coder-7B still outranks nothing Qwen3.
-            (11500, Some(("Qwen2.5-Coder-7B", "qlora"))),
-            (13926, Some(("Qwen2.5-Coder-7B", "qlora"))),
-            (20890, Some(("Qwen2.5-Coder-7B", "qlora"))),
-            (27853, Some(("Qwen2.5-Coder-7B", "qlora"))),
-            (31334, Some(("Qwen2.5-Coder-7B", "qlora"))),
+            // Below the cheapest agentic_default Qwen3 rung (Qwen3.8-27B, 34000)
+            // nothing fits: fail closed rather than fall to a retired Qwen2.5 base.
+            (11500, None),
+            (13926, None),
+            (20890, None),
+            (27853, None),
+            (31334, None),
             // Task 15 (plan ID P1.5): the new Qwen3.8-27B QLoRA rung
             // (floor_mb 34000) correctly displaces Qwen3-14B-LoRA at this
             // real, hardware-measured Mac memory tier — QLoRA's genuinely
@@ -571,7 +599,9 @@ mod tests {
             // in .superpowers/sdd/2026-09-10-qwen38-27b-hub/task-15-brief.md.
             (41779, Some(("Qwen3.8-27B", "qlora"))),
             (55706, Some(("Qwen3-14B", "lora"))),
-            (83558, Some(("Qwen3-14B", "qlora"))),
+            // Qwen3-8B / 14B QLoRA floors are the Metal estimate (122876 / 195382),
+            // so the 14B un-quantized LoRA rung (44000, an older estimate) wins here.
+            (83558, Some(("Qwen3-14B", "lora"))),
             (111411, Some(("Qwen3-32B", "lora"))),
         ];
         for &(live_mb, expected) in cases {
@@ -580,7 +610,7 @@ mod tests {
                 None => {
                     assert!(
                         got.is_err(),
-                        "8 GB / {live_mb} MB must fail-closed on agentic_default, got {:?}",
+                        "{live_mb} MB must fail-closed on agentic_default, got {:?}",
                         got.ok().map(|b| (&b.hf_id, &b.methods))
                     );
                 }
@@ -778,36 +808,39 @@ mod tests {
         };
         assert_eq!(
             floors("Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"),
-            [62000]
+            [122876]
         );
         assert_eq!(
             floors("Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18"),
-            [44000, 70000]
+            [44000, 195382]
         );
         assert_eq!(
             floors("Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137"),
-            [85000, 100000]
+            [100000, 295822]
         );
         assert!(floors("Qwen/Qwen3-8B@0123456789abcdef0123456789abcdef01234567").is_empty());
         assert!(floors("Qwen/Qwen3-8B").is_empty());
     }
 
     #[test]
-    fn qwen3_code_4b_rung_is_pinned_and_says_its_floor_is_unmeasured() {
+    fn qwen3_code_4b_rung_is_pinned_and_carries_its_measured_floor() {
         let overlay = load_overlay(workspace_root()).expect("load overlay");
-        let base = pick_base(&overlay, "qwen3_code", 56_200).expect("4B fits");
+        let base = pick_base(&overlay, "qwen3_code", 33_200).expect("4B fits");
         assert_eq!(base.hf_id, PIN_4B);
-        assert_eq!(base.floor_mb, 56000);
+        assert_eq!(base.floor_mb, 33037);
         assert_eq!(
-            pick_base(&overlay, "qwen3_code", 55_999)
+            pick_base(&overlay, "qwen3_code", 33_036)
                 .expect("1.7B fits")
                 .hf_id,
             "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"
         );
         assert_eq!(base.license.as_deref(), Some("apache-2.0"));
-        assert!(base.floor_label().contains("floor unmeasured"));
         assert_eq!(
-            pick_base(&overlay, "qwen3_code", 62_000)
+            base.floor_label(),
+            "qlora floor 33037 MB measured on silicon-gpu-metal (peak 33037 MB)"
+        );
+        assert_eq!(
+            pick_base(&overlay, "qwen3_code", 122_876)
                 .expect("8B fits")
                 .hf_id,
             "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
@@ -887,12 +920,12 @@ mod tests {
             "{notes:?}"
         );
         assert!(
-            notes.iter().any(|n| n.contains("70000")) && notes.iter().any(|n| n.contains("44000")),
+            notes.iter().any(|n| n.contains("195382")) && notes.iter().any(|n| n.contains("44000")),
             "{notes:?}"
         );
         assert_eq!(
             floor_notes(None, PIN_4B).expect("embedded overlay loads"),
-            ["qlora floor 56000 MB is an estimate (floor unmeasured)"]
+            ["qlora floor 33037 MB measured on silicon-gpu-metal (peak 33037 MB)"]
         );
         assert!(
             floor_notes(
@@ -934,7 +967,7 @@ mod tests {
         let absent = tempfile::tempdir().expect("tempdir");
         assert_eq!(
             floor_notes(Some(absent.path()), PIN_4B).expect("absent file uses the embedded copy"),
-            ["qlora floor 56000 MB is an estimate (floor unmeasured)"]
+            ["qlora floor 33037 MB measured on silicon-gpu-metal (peak 33037 MB)"]
         );
 
         // Present but unreadable (here: a directory) is an error, not a silent fallback.

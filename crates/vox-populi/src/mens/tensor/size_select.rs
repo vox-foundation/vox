@@ -577,7 +577,8 @@ mod tests {
         for (mb, size) in [
             (u64::from(floor("8B")), "8B"),
             (u64::from(floor("8B")) - 1, "4B"),
-            (200_000, "32B"),
+            (u64::from(floor("32B")), "32B"),
+            (u64::from(floor("32B")) - 1, "14B"),
             (u64::from(floor("0.6B")), "0.6B"),
         ] {
             assert_eq!(auto(mb).rung.size, size, "{mb} MB");
@@ -764,7 +765,7 @@ mod tests {
             explicit(other, Some(free_tight), false).expect_err("32B does not fit")
         );
         assert!(msg.contains(&floor("32B").to_string()), "{msg}");
-        let p = sized(explicit(other, Some(200_000), false).expect("fits"));
+        let p = sized(explicit(other, Some(u64::from(floor("32B"))), false).expect("fits"));
         assert_eq!(p.rung.hf_id, other);
         assert_eq!((p.rung.size.as_str(), p.rung.preset), ("32B", "qwen3_96g"));
     }

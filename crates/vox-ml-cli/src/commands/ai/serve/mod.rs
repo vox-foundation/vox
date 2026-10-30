@@ -299,13 +299,22 @@ mod prompt_tests {
         size_select::load_ladder_overlay(None).expect("embedded gpu-specs")
     }
 
+    /// The ladder's QLoRA floor for `pin`, so these tests follow gpu-specs.yaml.
+    fn qlora_floor(pin: &str) -> u32 {
+        overlay()["qwen3_code"]
+            .iter()
+            .find(|b| b.hf_id == pin && b.methods.iter().any(|m| m == "qlora"))
+            .unwrap_or_else(|| panic!("QLoRA rung {pin}"))
+            .floor_mb
+    }
+
     #[test]
     fn serve_fit_note_refuses_a_ladder_base_that_does_not_fit() {
         let base = "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137";
         let err = serve_fit_note(Some(base), &overlay(), Some(&FREE), false)
             .expect_err("32B does not fit 13000 MB")
             .to_string();
-        for want in ["32B", "60000", "refusing"] {
+        for want in ["32B", &qlora_floor(base).to_string(), "refusing"] {
             assert!(err.contains(want), "{want} missing: {err}");
         }
     }
@@ -323,7 +332,11 @@ mod prompt_tests {
 
     #[test]
     fn serve_fit_note_reports_a_ladder_base_that_fits() {
-        let note = serve_fit_note(Some(PIN_8B), &overlay(), Some(&FREE), false).expect("8B fits");
+        let free = size_select::FreeMemory {
+            mb: u64::from(qlora_floor(PIN_8B)),
+            source: "test",
+        };
+        let note = serve_fit_note(Some(PIN_8B), &overlay(), Some(&free), false).expect("8B fits");
         assert!(note.is_some_and(|n| n.contains("8B")));
     }
 
