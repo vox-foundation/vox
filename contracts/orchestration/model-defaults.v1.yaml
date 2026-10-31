@@ -76,8 +76,8 @@ defaults:
     rationale: "premium_alias research (platform-ssot v2.1 OpenRouter :latest alias)."
     verified_on: "2026-10-18"
   - role: premium_planning
-    model: "~openai/gpt-sol-latest"
-    rationale: "premium_alias planning. ~openai/gpt-pro-latest is not a live OpenRouter alias; gpt-sol is the Sonnet-priced OpenAI tier."
+    model: "~openai/gpt-astra-latest"
+    rationale: "premium_alias planning. ~openai/gpt-pro-latest is not a live OpenRouter alias; astra is the OpenAI top tier that succeeds gpt-5.5-pro."
     verified_on: "2026-10-30 (live OpenRouter ~alias list)"
   - role: premium_review
     model: "~anthropic/claude-sonnet-latest"
