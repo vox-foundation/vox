@@ -28,6 +28,7 @@ on:
       - 'crates/**/README.md'
       - 'examples/**'
       - 'scripts/**/README.md'
+      - '.planning/workstreams/unified/ROADMAP.md'
   push:
     branches: [main]
     paths:
@@ -56,6 +57,7 @@ on:
       - 'crates/**/README.md'
       - 'examples/**'
       - 'scripts/**/README.md'
+      - '.planning/workstreams/unified/ROADMAP.md'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
