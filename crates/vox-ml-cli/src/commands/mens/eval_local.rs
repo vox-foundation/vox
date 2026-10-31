@@ -175,16 +175,15 @@ pub fn run_eval_local(
     // stopped and its report is the one an uninterrupted run writes.
     let mut ck = match &output {
         Some(out) => {
-            let inputs = serde_json::json!({
-                "scorer": "eval_local verify_completion v1",
-                "model": super::item_checkpoint::model_identity(&model)?,
-                "base_only": is_base_only,
-                "bench_manifest_blake3": super::item_checkpoint::hash_json(&manifest),
-                "max_tokens": max_tokens,
-                "temperature": temperature,
-                "samples": n,
-                "seed_base": seed_base,
-            });
+            let inputs = checkpoint_inputs(
+                super::item_checkpoint::model_identity(&model)?,
+                is_base_only,
+                super::item_checkpoint::hash_json(&manifest),
+                max_tokens,
+                temperature,
+                n,
+                seed_base,
+            );
             let ck = super::item_checkpoint::ItemCheckpoint::open(
                 &out.with_extension("ckpt.jsonl"),
                 &inputs,
@@ -284,6 +283,29 @@ pub fn run_eval_local(
     Ok(())
 }
 
+/// Checkpoint header inputs: everything that determines a generation.
+fn checkpoint_inputs(
+    model_identity: serde_json::Value,
+    is_base_only: bool,
+    bench_manifest_blake3: String,
+    max_tokens: usize,
+    temperature: f32,
+    n: usize,
+    seed_base: u64,
+) -> serde_json::Value {
+    serde_json::json!({
+        "scorer": "eval_local verify_completion v1",
+        "prompt_protocol": super::eval_local_prompt::HELDOUT_PROMPT_PROTOCOL,
+        "model": model_identity,
+        "base_only": is_base_only,
+        "bench_manifest_blake3": bench_manifest_blake3,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "samples": n,
+        "seed_base": seed_base,
+    })
+}
+
 /// Generate and verify every bench item through `infer` and build the report.
 /// Writes nothing; the report depends only on the responses `infer` returns.
 #[allow(clippy::too_many_arguments)]
@@ -354,17 +376,19 @@ fn eval_local_report(
                     .to_string();
                     match infer(&prompt_json) {
                         Ok(resp) => {
-                            let completion =
-                                serde_json::from_str::<serde_json::Value>(resp.as_str())
-                                    .ok()
-                                    .and_then(|v| {
-                                        v.get("generated_text")
-                                            .and_then(|x| x.as_str())
-                                            .map(str::to_string)
-                                    })
-                                    .unwrap_or_default();
+                            let raw = serde_json::from_str::<serde_json::Value>(resp.as_str())
+                                .ok()
+                                .and_then(|v| {
+                                    v.get("generated_text")
+                                        .and_then(|x| x.as_str())
+                                        .map(str::to_string)
+                                })
+                                .unwrap_or_default();
+                            // Score only the final answer: text after the last
+                            // `</think>`, nothing for a think block left open.
+                            let completion = vox_eval::qwen_reasoning::answer_region(&raw);
                             let v = verify_completion(
-                                &completion,
+                                completion,
                                 &bench,
                                 &file,
                                 &id,
@@ -384,9 +408,10 @@ fn eval_local_report(
                                     "distinct_4_ratio": v.distinct_4_ratio,
                                     "constraint_adherence": v.constraint_adherence,
                                     "symbol_binding_accuracy": v.symbol_binding_accuracy,
-                                    "tool_call_json_valid": looks_like_json_tool_call(&completion),
-                                    "tool_name_exists": tool_call_names_a_tool(&completion),
-                                    "tool_call_salvaged": tool_call_was_salvaged(&completion),
+                                    "tool_call_json_valid": looks_like_json_tool_call(completion),
+                                    "tool_name_exists": tool_call_names_a_tool(completion),
+                                    "tool_call_salvaged": tool_call_was_salvaged(completion),
+                                    "opened_think": vox_eval::qwen_reasoning::opened_nonempty_think(&raw),
                                     "checks": v.checks,
                                     "completion_preview": completion.chars().take(240).collect::<String>(),
                                 }));
@@ -572,6 +597,7 @@ fn eval_local_report(
         "model": model.to_string_lossy(),
         "base_only": is_base_only,
         "bench": bench.to_string_lossy(),
+        "prompt_protocol": super::eval_local_prompt::HELDOUT_PROMPT_PROTOCOL,
         "max_tokens": max_tokens,
         "temperature": temperature,
         "n": n,
@@ -962,6 +988,84 @@ mod tests {
         assert_ne!(s, sample_seed(7, "001", 1));
         // Pinned: 12-02's defactored copy asserts the same constant.
         assert_eq!(s, 780_188_561);
+    }
+
+    /// Think text never reaches the scorer: a chatty `<think>` body ("here is
+    /// the") would fail `constraint_adherence` if the raw completion were scored.
+    #[cfg(feature = "gpu")]
+    #[test]
+    fn think_text_is_stripped_before_scoring() {
+        let bench = tempfile::tempdir().expect("bench");
+        let items = tiny_bench(bench.path());
+        let mut infer = |_: &str| -> Result<String> {
+            Ok(serde_json::json!({
+                "generated_text": "<think>\nOkay, here is the plan.\n</think>\n\nfn f0() to int {\n    return 0\n}"
+            })
+            .to_string())
+        };
+        let report = eval_local_report(
+            bench.path(),
+            false,
+            bench.path(),
+            &items[..1],
+            64,
+            0.0,
+            1,
+            1,
+            7,
+            &mut infer,
+        );
+        let s = &report["results"][0]["samples"][0];
+        assert_eq!(s["constraint_adherence"], true, "{s}");
+        assert_eq!(s["opened_think"], true, "{s}");
+        let preview = s["completion_preview"].as_str().expect("preview");
+        assert!(!preview.contains("here is the"), "{preview}");
+        assert_eq!(
+            report["prompt_protocol"],
+            crate::commands::mens::eval_local_prompt::HELDOUT_PROMPT_PROTOCOL
+        );
+    }
+
+    /// The 128-token think-mode checkpoints already on disk are refused, not
+    /// reused: the header key differs even at the same budget and model.
+    #[test]
+    fn the_old_think_mode_checkpoint_header_is_refused() {
+        use crate::commands::mens::item_checkpoint::{ItemCheckpoint, hash_json};
+        const MANIFEST: &str = "d475b94aee6d3d39f33e980bfb2576eab814298929154d4475b13e13f7944595";
+        // Header inputs from mens/runs/qwen3-4b/evidence/heldout_adapter.ckpt.jsonl.
+        let model = serde_json::json!({
+            "adapter_weights_blake3": "44ddbfc99b0fc48b52bb3ce5010889b38f9de5de71b95f33820027d0dd404149",
+            "adapter_manifest_blake3": "0e97cea9aa18ed2445fadb0e89200054a256701931ada34346076b6ae9cafc18",
+        });
+        let old = serde_json::json!({
+            "scorer": "eval_local verify_completion v1",
+            "model": model,
+            "base_only": false,
+            "bench_manifest_blake3": MANIFEST,
+            "max_tokens": 128,
+            "temperature": 0.0,
+            "samples": 1,
+            "seed_base": 1337,
+        });
+        assert_eq!(
+            hash_json(&old),
+            "32beb8bf38352f2b1e4f053294105875d3f5b56d39149877c5a3ec10d56b35d4",
+            "fixture must reproduce the on-disk key"
+        );
+        let new = checkpoint_inputs(model, false, MANIFEST.to_string(), 128, 0.0, 1, 1337);
+        assert_ne!(hash_json(&new), hash_json(&old));
+        assert_eq!(
+            new["prompt_protocol"],
+            crate::commands::mens::eval_local_prompt::HELDOUT_PROMPT_PROTOCOL
+        );
+
+        let dir = tempfile::tempdir().expect("dir");
+        let path = dir.path().join("old.ckpt.jsonl");
+        drop(ItemCheckpoint::open(&path, &old, false).expect("old"));
+        assert!(
+            ItemCheckpoint::open(&path, &new, false).is_err(),
+            "an old-protocol checkpoint must be refused"
+        );
     }
 
     #[test]

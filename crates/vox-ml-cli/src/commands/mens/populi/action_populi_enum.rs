@@ -609,8 +609,9 @@ pub enum PopuliAction {
         /// Path to heldout benchmark directory (default: mens/data/heldout_bench)
         #[arg(long, default_value = "mens/data/heldout_bench")]
         bench: PathBuf,
-        /// Maximum tokens to generate per sample
-        #[arg(long, default_value = "128")]
+        /// Maximum tokens to generate per sample (fits the longest held-out
+        /// reference answer about 3x over)
+        #[arg(long, default_value_t = crate::commands::mens::eval_local_prompt::HELDOUT_MAX_TOKENS)]
         max_tokens: usize,
         /// Sampling temperature (0.0 = greedy)
         #[arg(long, default_value = "0.0")]

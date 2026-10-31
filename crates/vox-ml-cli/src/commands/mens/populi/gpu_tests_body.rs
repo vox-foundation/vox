@@ -398,3 +398,21 @@ fn eval_local_missing_model_errors() {
         "expected model not found: {msg}"
     );
 }
+
+/// `eval-local` defaults `--max-tokens` to the held-out budget, not 128.
+#[test]
+fn eval_local_default_max_tokens_is_the_heldout_budget() {
+    use clap::Parser;
+    #[derive(clap::Parser)]
+    struct Cli {
+        #[command(subcommand)]
+        action: crate::commands::mens::PopuliAction,
+    }
+    let cli = Cli::try_parse_from(["vox", "eval-local", "--base", "/b"]).expect("parse");
+    match cli.action {
+        crate::commands::mens::PopuliAction::EvalLocal { max_tokens, .. } => {
+            assert_eq!(max_tokens, 1024);
+        }
+        _ => panic!("expected eval-local"),
+    }
+}
