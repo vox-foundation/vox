@@ -61,7 +61,7 @@ test('fonts: figures load the self-hosted Arimo, metric-identical to its fallbac
     const probe = 'The quick brown fox jumps over the lazy dog 0123456789 Illinois';
     const measure = (family: string): number => {
       const span = document.createElement('span');
-      span.style.cssText = `position:absolute;white-space:nowrap;font-size:14px;font-family:${family}`;
+      span.style.cssText = `position:absolute;white-space:nowrap;font-size:14px;font-family:${family};text-rendering:geometricPrecision`;
       span.textContent = probe;
       document.body.append(span);
       const w = span.getBoundingClientRect().width;
