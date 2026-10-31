@@ -31,7 +31,7 @@ fn bootstrap_inference_pins_known_aliases() {
     assert_eq!(bootstrap_inference::OPENROUTER_AUTO, "openrouter/auto");
     assert_eq!(
         bootstrap_inference::NLI_FALLBACK,
-        "google/gemini-3.1-flash-lite"
+        vox_config::model_defaults::CLAIM_EXTRACTION
     );
 }
 
