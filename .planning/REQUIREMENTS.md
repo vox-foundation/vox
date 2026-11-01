@@ -677,3 +677,60 @@
 | `URBS-CV-MAX-02` | Phase 300 | Positive CV Noise Reduction (`noiseFloor < 5.1`) & Score Maximization | Complete |
 | `URBS-CV-MAX-03` | Phase 300 | 32-Surface Zero-Regression Verification | Complete |
 | `URBS-CV-MAX-04` | Phase 300 | Visual Critique & Before/After Blueprint Documentation | Complete |
+
+
+---
+
+# Requirements: Vox Milestone v5.7 — HF Auto-Sync (parallel to v5.6)
+
+**Defined:** 2026-11-01
+**Core Value (`v5.7`):** Every fine-tuned size is published to Hugging Face automatically after it passes its gates, and any machine can pull it back by size name, with provenance and gate receipts verified.
+**Decisions (user, 2026-11-01):** private repos under the user's HF account, one repo per size plus one index repo; upload automatically after a gated pass; download automatically when missing; all sizes and all artifact kinds.
+**Existing surface (do not rebuild):** `vox_populi::mens::hub::{upload_model_folder, download_model}`, `vox mens hub upload|download`, `SecretId::HuggingFaceToken` (Clavis), `normalize_hf_token_env`.
+**Constraint:** the 8B training run (v5.6, Phase 320) is live. No rebuild of `target/release/vox`, `vox-ml-cli` or the Metal plugin until it finishes.
+
+## v5.7 Requirements
+
+### Naming and config (`HFNAME`)
+
+- [ ] **HFNAME-01**: A size name (`0.6B`, `1.7B`, `4B`, `8B`, `14B`, `32B`) resolves to one deterministic HF repo id `<namespace>/vox-mens-qwen3-<size>` from the pinned base in `gpu-specs.yaml`. A test locks the mapping for all six sizes.
+- [ ] **HFNAME-02**: The namespace and the default visibility (`private`) come from config, not code. A missing namespace is a clear error that names the config key.
+
+### Publish (`HFPUB`)
+
+- [ ] **HFPUB-01**: After a successful `vox mens train` plus its gates, the adapter dir uploads to its size repo without a manual command. `--no-hf-sync` and `VOX_MENS_HF_SYNC=0` turn it off.
+- [ ] **HFPUB-02**: An adapter with no passing `collateral_damage_report.json` / `gate_receipt.json` is not uploaded; the refusal names the missing receipt. A forced upload is marked `ungated` in the model card.
+- [ ] **HFPUB-03**: One upload carries the adapter safetensors, `training_manifest.json`, collateral and gate receipts, eval reports, and a generated model card with base pin, size, corpus hash, final loss, measured peak MB and gate status.
+- [ ] **HFPUB-04**: Upload is idempotent: unchanged files (by hash) are skipped, so a re-run makes no new Hub commit.
+- [ ] **HFPUB-05**: The token resolves only through `vox_secrets::resolve_secret(HuggingFaceToken)`. A missing token fails before any file is read, naming `vox secrets doctor`.
+
+### Retrieve (`HFPULL`)
+
+- [ ] **HFPULL-01**: `vox mens eval-local`, `vox mens serve` and `vox mens run` given a size name with no local adapter pull it from the size repo into `mens/runs/qwen3-<size>`.
+- [ ] **HFPULL-02**: A pulled adapter is checked against its manifest: base pin equals the ladder pin and the receipts validate, or it is rejected and removed.
+- [ ] **HFPULL-03**: `VOX_MENS_NO_DOWNLOAD` and offline mode stop the pull with a message that says so, and never fall back silently.
+
+### Sync (`HFSYNC`)
+
+- [ ] **HFSYNC-01**: `vox mens hub sync` compares every size's local run dir with its Hub repo (hash by file) and reports `in_sync`, `local_only`, `hub_only`, `diverged`; `--push` and `--pull` act on the result.
+- [ ] **HFSYNC-02**: The existing 0.6B, 1.7B and 4B adapters, and 8B when its run finishes, are published through the same path, with a report of each result.
+- [ ] **HFSYNC-03**: A size with no trained adapter (`not_trained`) is reported as such, never created empty; the index repo lists every size with its status and pin.
+
+## Future Requirements
+
+- Per-checkpoint cloud backup during a long run.
+- Public release flow with license review.
+
+## Out of Scope
+
+- Publishing base-model weights (they stay on the upstream repos).
+- Merging adapters into full weights.
+
+## v5.7 Traceability
+
+| Requirement | Phase | Status |
+|---|---|---|
+| `HFNAME-01`, `HFNAME-02` | Phase 324 | Pending |
+| `HFPUB-01` – `HFPUB-05` | Phase 325 | Pending |
+| `HFPULL-01` – `HFPULL-03` | Phase 326 | Pending |
+| `HFSYNC-01` – `HFSYNC-03` | Phase 327 | Pending |

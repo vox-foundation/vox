@@ -720,3 +720,73 @@ Plans:
 | **Phase 298** | Continuous 3D Monumental `Aqua Claudia` Viaduct & Ground-Integrated Beveled Hydraulic/Sewer Grid | `1/1` | Complete |
 | **Phase 299** | Illuminated Halo-Backed Shape+Color Activity Particles & Interactive Conduit Semiotics | `1/1` | Complete |
 | **Phase 300** | Comprehensive Unit Tests, Semiotic Critique Audit & Playwright CV Flywheel Score Maximization | `1/1` | Complete |
+
+
+---
+
+# Roadmap: v5.7 — HF Auto-Sync (parallel to v5.6)
+
+**Status:** Defined 2026-11-01. Phases continue from 323 (vox) so a later merge does not collide. 4 phases, 13 requirements. Source changes only until the live 8B run (Phase 320) finishes; no rebuild of the release binaries or Metal plugin before then.
+
+### Phase 324: Repo naming and config (`HFNAME-01`, `HFNAME-02`)
+
+**Goal**: A size name maps to one HF repo id, and namespace and visibility come from config.
+**Depends on**: none
+**Success criteria**:
+1. All six sizes map to `<namespace>/vox-mens-qwen3-<size>` from the ladder pins, locked by a test.
+2. A missing namespace fails with the config key named.
+
+Plans:
+- [ ] `324-01`: Resolver in `vox-populi` next to `size_select` (same pin source), config keys, tests.
+
+### Phase 325: Gated auto-publish (`HFPUB-01..05`)
+
+**Goal**: A passed run uploads itself, and a run that has not passed does not.
+**Depends on**: Phase 324
+**Success criteria**:
+1. Train plus gates ends with an upload and no manual command; the opt-outs work.
+2. A missing gate receipt refuses the upload and names it.
+3. A re-run uploads nothing when nothing changed.
+4. The token comes only from Clavis; a missing token fails first.
+5. The Hub repo holds adapter, manifest, receipts, reports and a generated model card.
+
+Plans:
+- [ ] `325-01`: Model card and artifact set builder.
+- [ ] `325-02`: Hash-skip upload on `upload_model_folder`, gate precondition, token check.
+- [ ] `325-03`: Hook at the end of `run_train` / `eval-gate` with the opt-outs.
+
+### Phase 326: Auto-retrieve (`HFPULL-01..03`)
+
+**Goal**: A size name with no local adapter pulls a verified one.
+**Depends on**: Phase 324
+**Success criteria**:
+1. `eval-local`, `serve` and `run` pull a missing adapter by size name.
+2. A pulled adapter with a wrong pin or bad receipts is rejected and removed.
+3. Offline mode stops with an explicit message.
+
+Plans:
+- [ ] `326-01`: `pull_adapter_if_missing` with manifest and receipt verification.
+- [ ] `326-02`: Wire into the three consumers; offline handling.
+
+### Phase 327: Sync command and backfill (`HFSYNC-01..03`)
+
+**Goal**: One command shows and fixes drift across every size, and the trained sizes are published.
+**Depends on**: Phases 325, 326
+**Success criteria**:
+1. `vox mens hub sync` reports `in_sync`, `local_only`, `hub_only` or `diverged` per size; `--push` and `--pull` act on it.
+2. 0.6B, 1.7B, 4B (and 8B when it finishes) are published with a result report.
+3. `not_trained` sizes are never created empty; the index repo lists every size with status and pin.
+
+Plans:
+- [ ] `327-01`: `hub sync` subcommand and diff.
+- [ ] `327-02`: Index repo writer and `not_trained` handling.
+- [ ] `327-03`: Backfill run after the 8B run ends and the binaries are rebuilt.
+
+## Progress Table (`v5.7`)
+
+| Phase | Title | Plans | Status |
+|---|---|---|---|
+| **Phase 324** | Repo naming and config | `0/1` | Not started |
+| **Phase 325** | Gated auto-publish | `0/3` | Not started |
+| **Phase 326** | Auto-retrieve | `0/2` | Not started |
+| **Phase 327** | Sync command and backfill | `0/3` | Not started |

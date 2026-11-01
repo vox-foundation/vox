@@ -41,6 +41,18 @@ The compiler, orchestrator, runtime, knowledge base, and public documentation si
 
 **Out of this milestone:** swapping the base model, and trying Oct 2026 training techniques. Those wait until this measurement exists.
 
+## Active Parallel Milestone: v5.7 — HF Auto-Sync (`Phases 324–327`, `13` requirements)
+
+**Goal:** Publish every fine-tuned size to Hugging Face automatically after it passes its gates, and pull it back by size name with provenance and receipts verified.
+
+**Target features:**
+- One private repo per size (`<namespace>/vox-mens-qwen3-<size>`) plus an index repo
+- Gated auto-upload at the end of train/eval-gate, idempotent, token via Clavis only
+- Auto-pull when an adapter is missing in `eval-local`, `serve`, `run`
+- `vox mens hub sync` drift report and backfill of the trained sizes
+
+**Out of this milestone:** publishing base weights, merging adapters. Runs in parallel with v5.6; no release rebuild until the live 8B run ends.
+
 ## Completed Milestone: v5.5 — T3 CI/TOESTUB Deep Enforcement (`Phases 307–312`, `24/24` requirements, shipped 2026-10-25)
 
 **Goal:** Deeper t3code extraction beyond v5.4 — contributor vouch, privileged preview trust-split, live transfer-budget + job-matrix CI, test wall-clock/real-wait/loop/frame detectors, host-runtime + schema-hoist + knip dual + DOM-env, sidecar fingerprint hashing.
