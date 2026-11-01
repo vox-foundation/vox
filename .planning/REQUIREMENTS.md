@@ -693,8 +693,8 @@
 
 ### Naming and config (`HFNAME`)
 
-- [ ] **HFNAME-01**: A size name (`0.6B`, `1.7B`, `4B`, `8B`, `14B`, `32B`) resolves to one deterministic HF repo id `<namespace>/vox-mens-qwen3-<size>` from the pinned base in `gpu-specs.yaml`. A test locks the mapping for all six sizes.
-- [ ] **HFNAME-02**: The namespace and the default visibility (`private`) come from config, not code. A missing namespace is a clear error that names the config key.
+- [x] **HFNAME-01**: A size name (`0.6B`, `1.7B`, `4B`, `8B`, `14B`, `32B`) resolves to one deterministic HF repo id `<namespace>/vox-mens-qwen3-<size>` from the pinned base in `gpu-specs.yaml`. A test locks the mapping for all six sizes.
+- [x] **HFNAME-02**: The namespace and the default visibility (`private`) come from config, not code. A missing namespace is a clear error that names the config key.
 
 ### Publish (`HFPUB`)
 
@@ -730,7 +730,7 @@
 
 | Requirement | Phase | Status |
 |---|---|---|
-| `HFNAME-01`, `HFNAME-02` | Phase 324 | Pending |
+| `HFNAME-01`, `HFNAME-02` | Phase 324 | Complete |
 | `HFPUB-01` – `HFPUB-05` | Phase 325 | Pending |
 | `HFPULL-01` – `HFPULL-03` | Phase 326 | Pending |
 | `HFSYNC-01` – `HFSYNC-03` | Phase 327 | Pending |

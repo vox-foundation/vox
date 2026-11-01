@@ -1877,6 +1877,22 @@ pub const CONFIG_KEYS: &[ConfigKey] = &[
         label: "Mens No Download",
         hint: "Refuse to download Mens training-weight models from Hugging Face Hub; there is no local-directory alternative today.",
     },
+    // --- HF adapter publishing (v5.7 HFNAME-02). The account or org the per-size
+    // adapter repos publish under; operator config, never source (this repo is public). ---
+    ConfigKey {
+        key: "VOX_MENS_HF_NAMESPACE",
+        kind: ConfigKind::String,
+        default: DefaultValue::Literal(""),
+        bound: None,
+        group: Group::Storage,
+        class: ConfigClass::NodeLocal,
+        home: Home::Env,
+        gui: None,
+        secret: false,
+        status: Status::Active,
+        label: "Mens HF Namespace",
+        hint: "Hugging Face account or org that trained adapters publish under, as <namespace>/vox-mens-qwen3-<size>. Unset: publishing refuses and names this key.",
+    },
     // --- P3P6: broker/home knobs surfaced by the config-registry-parity gate ---
     ConfigKey {
         key: "VOX_HOME",

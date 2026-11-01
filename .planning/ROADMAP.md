@@ -737,7 +737,7 @@ Plans:
 2. A missing namespace fails with the config key named.
 
 Plans:
-- [ ] `324-01`: Resolver in `vox-populi` next to `size_select` (same pin source), config keys, tests.
+- [x] `324-01`: Resolver in `vox-populi` next to `size_select` (same pin source), config keys, tests (completed 2026-11-01).
 
 ### Phase 325: Gated auto-publish (`HFPUB-01..05`)
 
@@ -786,7 +786,7 @@ Plans:
 
 | Phase | Title | Plans | Status |
 |---|---|---|---|
-| **Phase 324** | Repo naming and config | `0/1` | Not started |
+| **Phase 324** | Repo naming and config | `1/1` | Complete |
 | **Phase 325** | Gated auto-publish | `0/3` | Not started |
 | **Phase 326** | Auto-retrieve | `0/2` | Not started |
 | **Phase 327** | Sync command and backfill | `0/3` | Not started |
