@@ -775,8 +775,7 @@ Plans:
 3. `not_trained` sizes are never created empty; the index repo lists every size with status and pin.
 
 Plans:
-- [x] `327-01`: `hub sync` subcommand, diff classifier, and index repo writer (`327-01-PLAN.md`, completed 2026-11-01).
-- [ ] `327-02`: Live Hub backfill run after `HuggingFaceToken` is provided and the 8B run ends.
+- [x] `327-01`: `hub sync` subcommand, diff classifier, index repo writer, and live Hub backfill of `0.6B`, `1.7B`, `4B`, and `vox-mens-index` (`327-01-PLAN.md`, `327-BACKFILL-REPORT.json`, completed 2026-11-01; `8B` will publish when its live S4 run finishes).
 
 ## Progress Table (`v5.7`)
 
@@ -785,4 +784,4 @@ Plans:
 | **Phase 324** | Repo naming and config | `1/1` | Complete |
 | **Phase 325** | Gated auto-publish | `1/1` | Complete |
 | **Phase 326** | Auto-retrieve | `1/1` | Complete |
-| **Phase 327** | Sync command and backfill | `1/2` | In Progress (`HFSYNC-01`, `HFSYNC-03` complete; `HFSYNC-02` awaiting token + 8B completion) |
+| **Phase 327** | Sync command and backfill | `1/1` | Complete (`0.6B`, `1.7B`, `4B` + index live on Hub; `8B` pending S4 completion) |

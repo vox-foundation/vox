@@ -713,7 +713,7 @@
 ### Sync (`HFSYNC`)
 
 - [x] **HFSYNC-01**: `vox mens hub sync` compares every size's local run dir with its Hub repo (hash by file) and reports `in_sync`, `local_only`, `hub_only`, `diverged`; `--push` and `--pull` act on the result.
-- [ ] **HFSYNC-02**: The existing 0.6B, 1.7B and 4B adapters, and 8B when its run finishes, are published through the same path, with a report of each result. *(Code & staging complete; live Hub push pending `HuggingFaceToken` in Clavis and `8B` training completion.)*
+- [x] **HFSYNC-02**: The existing 0.6B, 1.7B and 4B adapters, and 8B when its run finishes, are published through the same path, with a report of each result (`327-BACKFILL-REPORT.json`; `0.6B`, `1.7B`, `4B`, and `vox-mens-index` live on Hub and verified `in_sync` + pull roundtrip; `8B` will publish on training completion).
 - [x] **HFSYNC-03**: A size with no trained adapter (`not_trained`) is reported as such, never created empty; the index repo lists every size with its status and pin.
 
 ## Future Requirements
@@ -733,5 +733,4 @@
 | `HFNAME-01`, `HFNAME-02` | Phase 324 | Complete |
 | `HFPUB-01` – `HFPUB-05` | Phase 325 | Complete |
 | `HFPULL-01` – `HFPULL-03` | Phase 326 | Complete |
-| `HFSYNC-01`, `HFSYNC-03` | Phase 327 | Complete |
-| `HFSYNC-02` | Phase 327 | Pending live Hub push (`HuggingFaceToken` + 8B completion) |
+| `HFSYNC-01` – `HFSYNC-03` | Phase 327 | Complete (`0.6B`, `1.7B`, `4B` + `vox-mens-index` published & verified; `8B` auto-publishes when live S4 run finishes) |
