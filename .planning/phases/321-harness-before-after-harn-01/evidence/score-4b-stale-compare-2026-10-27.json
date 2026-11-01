@@ -1,0 +1,35 @@
+{
+  "schema": "reasoning_before_after.v1",
+  "status": "not_compared",
+  "reason": "base_snapshot_absent",
+  "base_requested": "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",
+  "base_model": "Qwen/Qwen3-4B",
+  "base_revision": "1cfa9a7208912126459214e8b04321603b3df60c",
+  "snapshot_on_disk": false,
+  "searched": "/nonexistent-hub/models--Qwen--Qwen3-4B/snapshots/1cfa9a7208912126459214e8b04321603b3df60c",
+  "adapter": {
+    "given": false,
+    "on_disk": false
+  },
+  "slices": [
+    "gsm8k_think",
+    "math500_think",
+    "vox_think"
+  ],
+  "detail": "Qwen/Qwen3-4B was not compared (base_snapshot_absent); nothing was scored",
+  "gate_input": false,
+  "base_rungs": [
+    {
+      "hf_id": "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",
+      "floor_mb": 9800,
+      "methods": [
+        "qlora"
+      ],
+      "license": "apache-2.0",
+      "attribution_required": false,
+      "floor_measured": false,
+      "measured_on": null,
+      "peak_mb": null
+    }
+  ]
+}

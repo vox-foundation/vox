@@ -28,8 +28,8 @@ Phase: 321 (Harness Before/After) — **complete** (4/4 plans; document-close). 
 
 Current Plan: 9
 Total Plans in Phase: 9
-Status: 0.6B and 1.7B trained on Metal; 4B–32B not_trained / not attempted. Report: `320-LADDER-REPORT.md`.
-Last activity: 2026-10-28 — Plan 09 SIZE-03 check + ladder report
+Status: 0.6B, 1.7B, and 4B trained and scored on Metal (4B passes collateral across all 3 slices); 8B–32B not_trained / not attempted (8B refused at 82103 MB free vs 122876 MB estimate floor). Reports: `320-LADDER-REPORT.md`, `321-BEFORE-AFTER-REPORT.md`, `mens/runs/ladder_before_after.json`.
+Last activity: 2026-11-01 — 4B full reasoning compare, collateral pass, and ladder before/after rollup closed
 
 ## Milestone History (Recent)
 

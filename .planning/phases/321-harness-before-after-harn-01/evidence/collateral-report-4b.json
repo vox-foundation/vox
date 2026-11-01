@@ -1,0 +1,124 @@
+{
+  "status": "pass",
+  "failed_on": null,
+  "threshold": 0.05,
+  "reports": [
+    {
+      "benchmark": "vox_think",
+      "pre": 0.5625,
+      "post": 0.71875,
+      "degradation": 0.0,
+      "degradation_rate": 0.0,
+      "exceeds_threshold": false,
+      "slice": true,
+      "n": 32
+    },
+    {
+      "benchmark": "vox_think_init",
+      "pre": 1.0,
+      "post": 1.0,
+      "degradation": 0.0,
+      "degradation_rate": 0.0,
+      "exceeds_threshold": false,
+      "slice": true,
+      "n": 32
+    },
+    {
+      "benchmark": "gsm8k_think",
+      "pre": 0.625,
+      "post": 0.625,
+      "degradation": 0.0,
+      "degradation_rate": 0.0,
+      "exceeds_threshold": false,
+      "slice": true,
+      "n": 32
+    },
+    {
+      "benchmark": "gsm8k_think_init",
+      "pre": 1.0,
+      "post": 1.0,
+      "degradation": 0.0,
+      "degradation_rate": 0.0,
+      "exceeds_threshold": false,
+      "slice": true,
+      "n": 32
+    },
+    {
+      "benchmark": "math500_think",
+      "pre": 0.21875,
+      "post": 0.21875,
+      "degradation": 0.0,
+      "degradation_rate": 0.0,
+      "exceeds_threshold": false,
+      "slice": true,
+      "n": 32
+    },
+    {
+      "benchmark": "math500_think_init",
+      "pre": 1.0,
+      "post": 1.0,
+      "degradation": 0.0,
+      "degradation_rate": 0.0,
+      "exceeds_threshold": false,
+      "slice": true,
+      "n": 32
+    }
+  ],
+  "reasoning_slices": {
+    "scope_note": "The reasoning benches gsm8k_think, math500_think and vox_think are fixed 32-item slices, not full GSM8K or MATH-500 results. The 5% relative bar applies to these 32 items only.",
+    "slice_size": 32,
+    "benches": {
+      "vox_think": {
+        "n": 32,
+        "accuracy": {
+          "pre": 0.5625,
+          "post": 0.71875,
+          "degradation_rate": 0.0,
+          "exceeds_threshold": false
+        },
+        "think_initiation": {
+          "pre": 1.0,
+          "post": 1.0,
+          "degradation_rate": 0.0,
+          "exceeds_threshold": false
+        }
+      },
+      "gsm8k_think": {
+        "n": 32,
+        "accuracy": {
+          "pre": 0.625,
+          "post": 0.625,
+          "degradation_rate": 0.0,
+          "exceeds_threshold": false
+        },
+        "think_initiation": {
+          "pre": 1.0,
+          "post": 1.0,
+          "degradation_rate": 0.0,
+          "exceeds_threshold": false
+        }
+      },
+      "math500_think": {
+        "n": 32,
+        "accuracy": {
+          "pre": 0.21875,
+          "post": 0.21875,
+          "degradation_rate": 0.0,
+          "exceeds_threshold": false
+        },
+        "think_initiation": {
+          "pre": 1.0,
+          "post": 1.0,
+          "degradation_rate": 0.0,
+          "exceeds_threshold": false
+        }
+      }
+    }
+  },
+  "fail_fast_order": [
+    "vox_think",
+    "gsm8k_think",
+    "math500_think"
+  ],
+  "not_run": []
+}

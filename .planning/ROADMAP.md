@@ -751,9 +751,7 @@ Plans:
 5. The Hub repo holds adapter, manifest, receipts, reports and a generated model card.
 
 Plans:
-- [ ] `325-01`: Model card and artifact set builder.
-- [ ] `325-02`: Hash-skip upload on `upload_model_folder`, gate precondition, token check.
-- [ ] `325-03`: Hook at the end of `run_train` / `eval-gate` with the opt-outs.
+- [x] `325-01`: Model card, artifact set builder, hash-skip upload, gate precondition, Clavis token check, and post-train / post-eval-gate hooks (`325-01-PLAN.md`, completed 2026-11-01).
 
 ### Phase 326: Auto-retrieve (`HFPULL-01..03`)
 
@@ -765,8 +763,7 @@ Plans:
 3. Offline mode stops with an explicit message.
 
 Plans:
-- [ ] `326-01`: `pull_adapter_if_missing` with manifest and receipt verification.
-- [ ] `326-02`: Wire into the three consumers; offline handling.
+- [x] `326-01`: `pull_adapter_if_missing` with manifest and receipt verification, wired into consumers, offline handling (`326-01-PLAN.md`, completed 2026-11-01).
 
 ### Phase 327: Sync command and backfill (`HFSYNC-01..03`)
 
@@ -778,15 +775,14 @@ Plans:
 3. `not_trained` sizes are never created empty; the index repo lists every size with status and pin.
 
 Plans:
-- [ ] `327-01`: `hub sync` subcommand and diff.
-- [ ] `327-02`: Index repo writer and `not_trained` handling.
-- [ ] `327-03`: Backfill run after the 8B run ends and the binaries are rebuilt.
+- [x] `327-01`: `hub sync` subcommand, diff classifier, and index repo writer (`327-01-PLAN.md`, completed 2026-11-01).
+- [ ] `327-02`: Live Hub backfill run after `HuggingFaceToken` is provided and the 8B run ends.
 
 ## Progress Table (`v5.7`)
 
 | Phase | Title | Plans | Status |
 |---|---|---|---|
 | **Phase 324** | Repo naming and config | `1/1` | Complete |
-| **Phase 325** | Gated auto-publish | `0/3` | Not started |
-| **Phase 326** | Auto-retrieve | `0/2` | Not started |
-| **Phase 327** | Sync command and backfill | `0/3` | Not started |
+| **Phase 325** | Gated auto-publish | `1/1` | Complete |
+| **Phase 326** | Auto-retrieve | `1/1` | Complete |
+| **Phase 327** | Sync command and backfill | `1/2` | In Progress (`HFSYNC-01`, `HFSYNC-03` complete; `HFSYNC-02` awaiting token + 8B completion) |

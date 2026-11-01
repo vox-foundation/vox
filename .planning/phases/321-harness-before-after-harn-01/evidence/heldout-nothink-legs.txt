@@ -1,0 +1,7 @@
+mens/runs/qwen3-0.6b/evidence/heldout_base_nothink.json exit=0 2026-10-31T02:34:55Z
+mens/runs/qwen3-0.6b/evidence/heldout_adapter_nothink.json exit=0 2026-10-31T02:50:01Z
+mens/runs/qwen3-1.7b/evidence/heldout_base_nothink.json exit=0 2026-10-31T03:26:29Z
+mens/runs/qwen3-1.7b/evidence/heldout_adapter_nothink.json exit=0 2026-10-31T03:43:19Z
+mens/runs/qwen3-4b/evidence/heldout_base_nothink.json exit=0 2026-10-31T04:49:00Z
+mens/runs/qwen3-4b/evidence/heldout_adapter_nothink.json exit=0 2026-10-31T05:30:37Z
+DONE 2026-10-31T05:30:37Z

@@ -2,7 +2,7 @@
 
 **Host:** Apple Silicon (`silicon-gpu-metal`)  
 **Branch:** `gsd/mens-compare-316`  
-**Decision (2026-10-29):** Document & close — collateral `status: fail` on both trained sizes; do **not** invent a serve pass. Gate refusals recorded in `evidence/serve-smoke.json`.
+**Decision (2026-11-01):** Close ladder at 4B — three sizes trained and scored (`0.6B`, `1.7B`, `4B`). `4B` passes the 5% reasoning collateral gate across all three slices (`vox_think` +27.8%, `gsm8k_think` 0.0% drop, `math500_think` 0.0% drop); `0.6B` and `1.7B` fail collateral. `8B` refused at 82,103 MB free vs 122,876 MB estimate floor (`mens/runs/qwen3-8b/train-record.json`).
 
 **Machine rollup:** [`mens/runs/ladder_before_after.json`](../../../mens/runs/ladder_before_after.json) (`mens_size_ladder_before_after.v1`, `gate_input: false`)
 
@@ -16,14 +16,14 @@
 | math500_think | 0.156 | 0.188 | 1.0 / 1.0 | 32 |
 | vox_think | 0.219 | 0.219 | 1.0 / 1.0 | 32 |
 
-| Intelligence (heldout_bench) | pass@1 | n |
-|------------------------------|--------|---|
-| Base snapshot | 0.00 | 52 |
-| Adapter | 0.038 | 52 |
+| Intelligence (`heldout_bench`, `qwen3_non_thinking_codegen_v1`, 1024 tok) | pass@1 | n |
+|---------------------------------------------------------------------------|--------|---|
+| Base snapshot | 0.115 (6/52) | 52 |
+| Adapter | 0.365 (19/52) | 52 |
 
-Artifacts: `mens/runs/reasoning_compare/Qwen3-0.6B-c1899de289a0.json`, `mens/runs/qwen3-0.6b/evidence/heldout_{base,adapter}.json`.
+Artifacts: `mens/runs/reasoning_compare/Qwen3-0.6B-c1899de289a0.json`, `mens/runs/qwen3-0.6b/evidence/heldout_{base,adapter}_nothink.json`.
 
-**Collateral:** `fail` on `gsm8k_think` (pre 0.50 → post 0.41, relative drop ~18.8% vs 5% bar). Report: `mens/runs/qwen3-0.6b/collateral_damage_report.json`.
+**Collateral:** `fail` on `gsm8k_think` (pre 0.500 → post 0.406, relative drop 18.75% vs 5% bar). Report: `mens/runs/qwen3-0.6b/collateral_damage_report.json`.
 
 ### 1.7B (`mens/runs/qwen3-1.7b`)
 
@@ -33,45 +33,53 @@ Artifacts: `mens/runs/reasoning_compare/Qwen3-0.6B-c1899de289a0.json`, `mens/run
 | math500_think | 0.188 | 0.281 | 1.0 / 1.0 | 32 |
 | vox_think | 0.656 | 0.594 | 1.0 / 1.0 | 32 |
 
-| Intelligence (heldout_bench) | pass@1 | n |
-|------------------------------|--------|---|
-| Base snapshot | 0.00 | 52 |
-| Adapter | 0.00 | 52 |
+| Intelligence (`heldout_bench`, `qwen3_non_thinking_codegen_v1`, 1024 tok) | pass@1 | n |
+|---------------------------------------------------------------------------|--------|---|
+| Base snapshot | 0.058 (3/52) | 52 |
+| Adapter | 0.327 (17/52) | 52 |
 
-Artifacts: `mens/runs/reasoning_compare/Qwen3-1.7B-70d244cc86cc.json`, `mens/runs/qwen3-1.7b/evidence/heldout_{base,adapter}.json`.
+Artifacts: `mens/runs/reasoning_compare/Qwen3-1.7B-70d244cc86cc.json`, `mens/runs/qwen3-1.7b/evidence/heldout_{base,adapter}_nothink.json`.
 
-**Collateral:** `fail` on `vox_think` (pre 0.66 → post 0.59, relative drop ~9.5% vs 5% bar). Report: `mens/runs/qwen3-1.7b/collateral_damage_report.json`.
+**Collateral:** `fail` on `vox_think` (pre 0.656 → post 0.594, relative drop 9.52% vs 5% bar). Report: `mens/runs/qwen3-1.7b/collateral_damage_report.json`.
 
-## HARN-01 — Serve gate (enforcement, not live serve)
+### 4B (`mens/runs/qwen3-4b`)
+
+| Slice | Base acc | Adapter acc | Think init (base/adapter) | n |
+|-------|----------|-------------|---------------------------|---|
+| gsm8k_think | 0.625 | 0.625 | 1.0 / 1.0 | 32 |
+| math500_think | 0.219 | 0.219 | 1.0 / 1.0 | 32 |
+| vox_think | 0.5625 | 0.71875 | 1.0 / 1.0 | 32 |
+
+| Intelligence (`heldout_bench`, `qwen3_non_thinking_codegen_v1`, 1024 tok) | pass@1 | n |
+|---------------------------------------------------------------------------|--------|---|
+| Base snapshot | 0.077 (4/52) | 52 |
+| Adapter | 0.250 (13/52) | 52 |
+
+Artifacts: `mens/runs/reasoning_compare/Qwen3-4B-1cfa9a720891.json`, `mens/runs/qwen3-4b/evidence/heldout_{base,adapter}_nothink.json`.
+
+**Collateral:** **`pass`** across all three reasoning slices (`vox_think` +27.8% relative gain, `gsm8k_think` 0.0% degradation, `math500_think` 0.0% degradation). Report: `mens/runs/qwen3-4b/collateral_damage_report.json`.
+
+## HARN-01 — Serve gate (enforcement)
 
 | Attempt | Result |
 |---------|--------|
-| `--model` = adapter **file** | **Refused** (D-321-10 / `resolve_serve_run_dir`) |
-| `--model` = run **directory** (0.6B) | **Refused** — collateral `fail` (“cannot be served”) |
+| `--model` = adapter **file** (`0.6B`, `4B`) | **Refused** (D-321-10 / `resolve_serve_run_dir`) |
+| `--model` = run **directory** (`0.6B`, `1.7B`) | **Refused** at `assert_collateral_gate` — collateral `fail` (“cannot be served”) |
+| `--model` = run **directory** (`4B`) | **Passes `assert_collateral_gate`** (`status: pass` across all 3 slices); refused at `assert_serve_preconditions` (`eval-gate` blocking gates not met) |
 | Live HTTP serve | **Not opened** (document-close decision) |
 
-Evidence: `.planning/phases/321-harness-before-after-harn-01/evidence/serve-smoke.json`.  
-`gate_receipt.json` was **not** produced (eval-gate not run after collateral fail).
+Evidence: `.planning/phases/321-harness-before-after-harn-01/evidence/serve-smoke.json`.
 
 ## not_trained sizes (no numeric scores)
 
-| Size | Status | Reason (from Phase 320 ladder) |
-|------|--------|--------------------------------|
-| 4B | not_trained | S3 probe watchdog — does not fit |
-| 8B | not_trained | Above non-fitting 4B (D-06) |
-| 14B | not_trained | Above non-fitting 4B (D-06) |
-| 32B | not_trained | Above non-fitting 4B (D-06) |
-
-## Wall time (Metal scoring, from checkpoint)
-
-| Size | Reasoning compare | Heldout base | Heldout adapter | Collateral |
-|------|-------------------|--------------|-----------------|------------|
-| 0.6B | ~5.6 h | ~15 min | ~15 min | ~2.5 h (fail) |
-| 1.7B | ~8.5 h | ~23 min | ~18 min | ~7.5 h (fail) |
+| Size | Status | Reason (from Phase 320 ladder / train-record) |
+|------|--------|-----------------------------------------------|
+| 8B | not_trained | Explicit size 8B needs 122876 MB but 82103 MB is free (Metal working set); refusing rather than shrinking |
+| 14B | not_trained | Estimate floor (195382 MB) exceeds live free memory |
+| 32B | not_trained | Estimate floor (295822 MB) exceeds live free memory |
 
 ## Findings
 
-1. **BENCH-04 met:** two trained sizes with real before/after reasoning (n=32) and intelligence (n=52).
-2. **Collateral bar blocked serve:** both adapters exceed the 5% relative degradation rule on at least one slice; serve correctly refuses.
-3. **Heldout pass@1 remains near zero** on this Metal pack — intelligence signal is weak; reasoning slices are the stronger before/after signal.
-4. **Native `vox run` of `mens-ladder-before-after.vox`** still fails compile on the native lane; prefer `--interp` / direct CLI until fixed.
+1. **BENCH-04 exceeded:** three trained sizes (`0.6B`, `1.7B`, `4B`) with real before/after reasoning (`n=32` per slice) and non-thinking codegen intelligence (`n=52`).
+2. **Non-thinking codegen protocol (`448df0192`) unlocked heldout `pass@1`:** switching `eval-local` to `qwen3_non_thinking_codegen_v1` with a 1024-token budget raised heldout `pass@1` from `0.0%` (truncated inside `<think>` at 128 tokens) to **36.5%** on `0.6B` (vs 11.5% base), **32.7%** on `1.7B` (vs 5.8% base), and **25.0%** on `4B` (vs 7.7% base).
+3. **4B clears reasoning collateral:** `Qwen3-4B` preserves `gsm8k_think` (`62.5%`) and `math500_think` (`21.9%`) with zero degradation while improving `vox_think` from `56.25%` to `71.875%` (+27.8% relative), passing `assert_collateral_gate`.

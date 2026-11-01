@@ -1,10 +1,10 @@
 {
   "schema": "mens_size_ladder_before_after.v1",
   "gate_input": false,
-  "recorded_at": "2026-10-30T01:28:09.263750+00:00",
+  "recorded_at": "2026-11-01T08:59:30+00:00",
   "host": "silicon-gpu-metal",
-  "decision": "document_close_collateral_fail",
-  "harn_01": "gate_enforcement_verified_serve_not_opened",
+  "decision": "close_ladder_at_4b_collateral_pass",
+  "harn_01": "gate_enforcement_verified_4b_collateral_pass",
   "sizes": [
     {
       "size": "0.6B",
@@ -54,10 +54,11 @@
         }
       },
       "intelligence": {
-        "base_eval_local": "mens/runs/qwen3-0.6b/evidence/heldout_base.json",
-        "adapter_eval_local": "mens/runs/qwen3-0.6b/evidence/heldout_adapter.json",
-        "base_pass_at_1": 0.0,
-        "pass_at_1": 0.038461538461538464,
+        "base_eval_local": "mens/runs/qwen3-0.6b/evidence/heldout_base_nothink.json",
+        "adapter_eval_local": "mens/runs/qwen3-0.6b/evidence/heldout_adapter_nothink.json",
+        "prompt_protocol": "qwen3_non_thinking_codegen_v1",
+        "base_pass_at_1": 0.11538461538461539,
+        "pass_at_1": 0.36538461538461536,
         "n": 52,
         "base_n": 52
       },
@@ -117,10 +118,11 @@
         }
       },
       "intelligence": {
-        "base_eval_local": "mens/runs/qwen3-1.7b/evidence/heldout_base.json",
-        "adapter_eval_local": "mens/runs/qwen3-1.7b/evidence/heldout_adapter.json",
-        "base_pass_at_1": 0.0,
-        "pass_at_1": 0.0,
+        "base_eval_local": "mens/runs/qwen3-1.7b/evidence/heldout_base_nothink.json",
+        "adapter_eval_local": "mens/runs/qwen3-1.7b/evidence/heldout_adapter_nothink.json",
+        "prompt_protocol": "qwen3_non_thinking_codegen_v1",
+        "base_pass_at_1": 0.057692307692307696,
+        "pass_at_1": 0.3269230769230769,
         "n": 52,
         "base_n": 52
       },
@@ -134,26 +136,84 @@
     },
     {
       "size": "4B",
-      "status": "not_trained",
-      "reason": "watchdog SIGINT: peak 86329229312 B > limit 67018686464 B (live free 68010 MiB - 4096 MiB) at row 2; paused after row 3",
-      "pin": "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c"
+      "status": "trained",
+      "run_dir": "mens/runs/qwen3-4b",
+      "pin": "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",
+      "reasoning": {
+        "compare_report": "mens/runs/reasoning_compare/Qwen3-4B-1cfa9a720891.json",
+        "compare_schema": "reasoning_before_after.v1",
+        "slices": {
+          "gsm8k_think": {
+            "base": {
+              "accuracy": 0.625,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            },
+            "adapter": {
+              "accuracy": 0.625,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            }
+          },
+          "math500_think": {
+            "base": {
+              "accuracy": 0.21875,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            },
+            "adapter": {
+              "accuracy": 0.21875,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            }
+          },
+          "vox_think": {
+            "base": {
+              "accuracy": 0.5625,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            },
+            "adapter": {
+              "accuracy": 0.71875,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            }
+          }
+        }
+      },
+      "intelligence": {
+        "base_eval_local": "mens/runs/qwen3-4b/evidence/heldout_base_nothink.json",
+        "adapter_eval_local": "mens/runs/qwen3-4b/evidence/heldout_adapter_nothink.json",
+        "prompt_protocol": "qwen3_non_thinking_codegen_v1",
+        "base_pass_at_1": 0.07692307692307693,
+        "pass_at_1": 0.25,
+        "n": 52,
+        "base_n": 52
+      },
+      "collateral": {
+        "status": "pass",
+        "failed_on": null,
+        "threshold": 0.05,
+        "path": "mens/runs/qwen3-4b/collateral_damage_report.json"
+      },
+      "serve": "collateral_gate_passed_eval_gate_refused"
     },
     {
       "size": "8B",
       "status": "not_trained",
-      "reason": "above non-fitting 4B (D-06)",
+      "reason": "explicit size 8B needs 122876 MB but 82103 MB is free (Metal working set); refusing rather than shrinking",
       "pin": "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
     },
     {
       "size": "14B",
       "status": "not_trained",
-      "reason": "above non-fitting 4B (D-06)",
+      "reason": "estimate floor (195382 MB) exceeds live free memory",
       "pin": "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18"
     },
     {
       "size": "32B",
       "status": "not_trained",
-      "reason": "above non-fitting 4B (D-06)",
+      "reason": "estimate floor (295822 MB) exceeds live free memory",
       "pin": "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137"
     }
   ]

@@ -698,23 +698,23 @@
 
 ### Publish (`HFPUB`)
 
-- [ ] **HFPUB-01**: After a successful `vox mens train` plus its gates, the adapter dir uploads to its size repo without a manual command. `--no-hf-sync` and `VOX_MENS_HF_SYNC=0` turn it off.
-- [ ] **HFPUB-02**: An adapter with no passing `collateral_damage_report.json` / `gate_receipt.json` is not uploaded; the refusal names the missing receipt. A forced upload is marked `ungated` in the model card.
-- [ ] **HFPUB-03**: One upload carries the adapter safetensors, `training_manifest.json`, collateral and gate receipts, eval reports, and a generated model card with base pin, size, corpus hash, final loss, measured peak MB and gate status.
-- [ ] **HFPUB-04**: Upload is idempotent: unchanged files (by hash) are skipped, so a re-run makes no new Hub commit.
-- [ ] **HFPUB-05**: The token resolves only through `vox_secrets::resolve_secret(HuggingFaceToken)`. A missing token fails before any file is read, naming `vox secrets doctor`.
+- [x] **HFPUB-01**: After a successful `vox mens train` plus its gates, the adapter dir uploads to its size repo without a manual command. `--no-hf-sync` and `VOX_MENS_HF_SYNC=0` turn it off.
+- [x] **HFPUB-02**: An adapter with no passing `collateral_damage_report.json` / `gate_receipt.json` is not uploaded; the refusal names the missing receipt. A forced upload is marked `ungated` in the model card.
+- [x] **HFPUB-03**: One upload carries the adapter safetensors, `training_manifest.json`, collateral and gate receipts, eval reports, and a generated model card with base pin, size, corpus hash, final loss, measured peak MB and gate status.
+- [x] **HFPUB-04**: Upload is idempotent: unchanged files (by hash) are skipped, so a re-run makes no new Hub commit.
+- [x] **HFPUB-05**: The token resolves only through `vox_secrets::resolve_secret(HuggingFaceToken)`. A missing token fails before any file is read, naming `vox secrets doctor`.
 
 ### Retrieve (`HFPULL`)
 
-- [ ] **HFPULL-01**: `vox mens eval-local`, `vox mens serve` and `vox mens run` given a size name with no local adapter pull it from the size repo into `mens/runs/qwen3-<size>`.
-- [ ] **HFPULL-02**: A pulled adapter is checked against its manifest: base pin equals the ladder pin and the receipts validate, or it is rejected and removed.
-- [ ] **HFPULL-03**: `VOX_MENS_NO_DOWNLOAD` and offline mode stop the pull with a message that says so, and never fall back silently.
+- [x] **HFPULL-01**: `vox mens eval-local`, `vox mens serve` and `vox mens run` given a size name with no local adapter pull it from the size repo into `mens/runs/qwen3-<size>`.
+- [x] **HFPULL-02**: A pulled adapter is checked against its manifest: base pin equals the ladder pin and the receipts validate, or it is rejected and removed.
+- [x] **HFPULL-03**: `VOX_MENS_NO_DOWNLOAD` and offline mode stop the pull with a message that says so, and never fall back silently.
 
 ### Sync (`HFSYNC`)
 
-- [ ] **HFSYNC-01**: `vox mens hub sync` compares every size's local run dir with its Hub repo (hash by file) and reports `in_sync`, `local_only`, `hub_only`, `diverged`; `--push` and `--pull` act on the result.
-- [ ] **HFSYNC-02**: The existing 0.6B, 1.7B and 4B adapters, and 8B when its run finishes, are published through the same path, with a report of each result.
-- [ ] **HFSYNC-03**: A size with no trained adapter (`not_trained`) is reported as such, never created empty; the index repo lists every size with its status and pin.
+- [x] **HFSYNC-01**: `vox mens hub sync` compares every size's local run dir with its Hub repo (hash by file) and reports `in_sync`, `local_only`, `hub_only`, `diverged`; `--push` and `--pull` act on the result.
+- [ ] **HFSYNC-02**: The existing 0.6B, 1.7B and 4B adapters, and 8B when its run finishes, are published through the same path, with a report of each result. *(Code & staging complete; live Hub push pending `HuggingFaceToken` in Clavis and `8B` training completion.)*
+- [x] **HFSYNC-03**: A size with no trained adapter (`not_trained`) is reported as such, never created empty; the index repo lists every size with its status and pin.
 
 ## Future Requirements
 
@@ -731,6 +731,7 @@
 | Requirement | Phase | Status |
 |---|---|---|
 | `HFNAME-01`, `HFNAME-02` | Phase 324 | Complete |
-| `HFPUB-01` – `HFPUB-05` | Phase 325 | Pending |
-| `HFPULL-01` – `HFPULL-03` | Phase 326 | Pending |
-| `HFSYNC-01` – `HFSYNC-03` | Phase 327 | Pending |
+| `HFPUB-01` – `HFPUB-05` | Phase 325 | Complete |
+| `HFPULL-01` – `HFPULL-03` | Phase 326 | Complete |
+| `HFSYNC-01`, `HFSYNC-03` | Phase 327 | Complete |
+| `HFSYNC-02` | Phase 327 | Pending live Hub push (`HuggingFaceToken` + 8B completion) |
