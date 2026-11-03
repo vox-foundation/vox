@@ -1,0 +1,23 @@
+// ---
+// title: "Z-score on std.array"
+// description: "from_list, astype f64, subtract mean, divide std with correction 0, then one materializer."
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// constructs: [fn, import, std.array, Result, assert]
+// training_eligible: true
+// difficulty: beginner
+// ---
+
+import std.array
+
+@uses(python)
+pub fn zscore(xs: list[float]) to Result[list[float]] {
+    let a = array.from_list(xs).astype(f64)
+    return ((a - a.mean()) / a.std(correction=0)).to_list()
+}
+
+fn main() {
+    let z = zscore([1.0, 3.0]).unwrap()
+    assert(z is [-1.0, 1.0])
+}

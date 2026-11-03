@@ -127,6 +127,8 @@ const KNOWN_INTERP_GAPS: &[(&str, &str)] = &[
         "inventory_rosetta_platform.vox",
         "platform-only: rosetta platform surface",
     ),
+    // Stats golden materializes through the uv python worker (plan 06).
+    ("py_array_stats.vox", "needs the uv python worker"),
 ];
 
 fn is_known_gap(path: &Path) -> Option<&'static str> {
@@ -251,4 +253,24 @@ fn all_runnable_goldens_execute_under_interp() {
         "Golden files failed under --mode interp:\n{}",
         failures.join("\n")
     );
+}
+
+/// The stats golden needs the uv worker. The in-process sweep must skip it
+/// so a missing worker is not reported as a pass.
+#[test]
+fn py_array_stats_is_an_interp_gap() {
+    assert!(
+        KNOWN_INTERP_GAPS.iter().any(|(name, reason)| {
+            *name == "py_array_stats.vox" && *reason == "needs the uv python worker"
+        }),
+        "py_array_stats.vox must be an interp gap"
+    );
+    let path =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/golden/py_array_stats.vox");
+    let src =
+        std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    assert_eq!(src.matches("to_list").count(), 1, "one to_list only");
+    assert!(src.contains("assert(z is [-1.0, 1.0])"));
+    assert!(src.contains("fn zscore"));
+    assert!(src.contains("fn main"));
 }
