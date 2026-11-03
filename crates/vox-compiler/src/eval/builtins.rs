@@ -1069,6 +1069,13 @@ pub fn call_builtin_method(
                 }
             }
 
+            if ns == Some("array") {
+                return match method {
+                    "from_list" => Some(array_from_list(args)),
+                    _ => None,
+                };
+            }
+
             if let Some(ns_str) = ns {
                 if !caps.allows_namespace(ns_str) {
                     return Some(VoxValue::_Denied(format!("{ns_str}.{method}")));
@@ -2575,8 +2582,99 @@ pub fn call_builtin_method(
             }
         }
 
+        VoxValue::ArrayPlan(plan) => match method {
+            "astype" => {
+                let dtype = match args.first() {
+                    Some(VoxValue::Str(dtype)) => dtype.as_ref(),
+                    _ => "f64",
+                };
+                Some(VoxValue::ArrayPlan(plan.astype(dtype)))
+            }
+            "mean" => Some(VoxValue::ArrayPlan(plan.mean())),
+            "std" => {
+                let Some(VoxValue::Int(correction)) = args.first() else {
+                    return Some(VoxValue::_Panic("std requires correction".into()));
+                };
+                Some(VoxValue::ArrayPlan(plan.std(*correction)))
+            }
+            _ => None,
+        },
+
         _ => None,
     }
+}
+
+/// The only host entry that calls the Python worker for `std.array`.
+///
+/// `mean` and `std` stay inside the plan JSON. The numeric payload is the
+/// Arrow body, not JSON numbers.
+pub fn materialize_to_list(
+    interp: &mut super::Interpreter,
+    plan: &super::array_plan::ArrayPlan,
+    caps: &crate::eval::caps::CapabilitySet,
+) -> VoxValue {
+    if !caps.allows_namespace("py") {
+        return VoxValue::_Denied("py.to_list".into());
+    }
+    let params = plan_params(plan);
+    let body = match vox_python_bridge::encode_f64_column(plan.host()) {
+        Ok(bytes) => bytes,
+        Err(err) => return VoxValue::Result(Err(crate::eval::value::err_str(err))),
+    };
+    match super::python::execute_plan(interp, params, body) {
+        Ok(reply) => match reply.body.as_deref() {
+            Some(bytes) => match vox_python_bridge::decode_f64_column(bytes) {
+                Ok(values) => VoxValue::Result(Ok(Box::new(VoxValue::list(
+                    values.into_iter().map(VoxValue::Float).collect(),
+                )))),
+                Err(err) => VoxValue::Result(Err(crate::eval::value::err_str(err))),
+            },
+            None => VoxValue::Result(Err(crate::eval::value::err_str(
+                "py: execute_plan reply missing body".to_string(),
+            ))),
+        },
+        Err(err) => VoxValue::Result(Err(crate::eval::value::err_str(err))),
+    }
+}
+
+fn plan_params(plan: &super::array_plan::ArrayPlan) -> serde_json::Value {
+    let correction = plan.correction();
+    let ops: Vec<serde_json::Value> = plan
+        .op_names()
+        .into_iter()
+        .map(|name| {
+            let mut op = serde_json::Map::new();
+            op.insert("name".into(), serde_json::Value::String(name.to_string()));
+            if name == "std" {
+                if let Some(correction) = correction {
+                    op.insert("correction".into(), serde_json::json!(correction));
+                }
+            } else if name == "astype" {
+                op.insert("dtype".into(), serde_json::Value::String("f64".into()));
+            }
+            serde_json::Value::Object(op)
+        })
+        .collect();
+    serde_json::json!({ "ops": ops })
+}
+
+fn array_from_list(args: Vec<VoxValue>) -> VoxValue {
+    let Some(VoxValue::List(items)) = args.into_iter().next() else {
+        return VoxValue::_Panic("from_list expects a list".into());
+    };
+    let mut values = Vec::with_capacity(items.len());
+    for item in items.iter() {
+        match item {
+            VoxValue::Float(number) => values.push(*number),
+            other => {
+                return VoxValue::_Panic(format!(
+                    "from_list expects floats, found {}",
+                    vox_value_type_name(other)
+                ));
+            }
+        }
+    }
+    VoxValue::ArrayPlan(super::array_plan::ArrayPlan::from_list(values))
 }
 
 fn lookup_json_field<'a>(fields: &'a [(String, VoxValue)], key: &str) -> Option<&'a VoxValue> {
@@ -3464,5 +3562,40 @@ mod scalar_method_mutation_tests {
             some(VoxValue::Int(2))
         );
         assert_eq!(call(s("abc"), "index_of", vec![s("z")]), none());
+    }
+}
+
+#[cfg(test)]
+mod array_materialize_tests {
+    use super::materialize_to_list;
+    use crate::eval::Interpreter;
+    use crate::eval::array_plan::ArrayPlan;
+    use crate::eval::caps::CapabilitySet;
+    use crate::eval::value::VoxValue;
+
+    #[test]
+    fn materialize_to_list_denies_without_py() {
+        let mut interp = Interpreter::new(1_000);
+        interp.caps = CapabilitySet::parse("net:none").expect("caps");
+        let plan = ArrayPlan::zscore(&[1.0, 3.0], 0);
+        let caps = interp.caps.clone();
+        match materialize_to_list(&mut interp, &plan, &caps) {
+            VoxValue::_Denied(what) => assert_eq!(what, "py.to_list"),
+            other => panic!("expected capability denial, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn plan_json_keeps_host_numbers_out_of_params() {
+        let plan = ArrayPlan::zscore(&[1.0, 3.0], 0);
+        let text = super::plan_params(&plan).to_string();
+        assert!(!text.contains("1.0"), "{text}");
+        assert!(!text.contains("3.0"), "{text}");
+        assert!(text.contains("mean"), "{text}");
+        assert!(text.contains("std"), "{text}");
+        assert!(
+            text.contains("\"correction\":0") || text.contains("\"correction\": 0"),
+            "{text}"
+        );
     }
 }

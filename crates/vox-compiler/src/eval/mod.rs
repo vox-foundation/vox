@@ -518,6 +518,14 @@ impl Interpreter {
         // (defining the function in your own file wins).
         // RFC: docs/src/architecture/intra-project-imports-rfc-2026-05-23.md.
         for imp in &module.imports {
+            if imp.module_path == ["std"] && imp.item == "array" {
+                let ns = VoxValue::object(vec![(
+                    "__namespace__".to_string(),
+                    VoxValue::Str("array".into()),
+                )]);
+                self.scope.set("array".to_string(), ns.clone());
+                self.module_scope.set("array".to_string(), ns);
+            }
             if let Some(rel_path) = imp.local_file_path.as_ref() {
                 self.resolve_local_file_import(rel_path, imp.local_file_alias.as_deref())?;
             }

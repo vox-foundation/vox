@@ -22,6 +22,11 @@ pub struct PythonProject {
 
 enum Msg {
     Hello(std::sync::mpsc::SyncSender<Result<String, String>>),
+    ExecutePlan {
+        params: serde_json::Value,
+        body: Vec<u8>,
+        reply: std::sync::mpsc::SyncSender<Result<vox_python_bridge::Reply, String>>,
+    },
 }
 
 /// Owns the worker thread. Dropping it closes the channel and drops the child.
@@ -48,6 +53,14 @@ impl Host {
                         match msg {
                             Msg::Hello(reply) => {
                                 let result = hello_version(&bridge).await;
+                                let _ = reply.send(result);
+                            }
+                            Msg::ExecutePlan {
+                                params,
+                                body,
+                                reply,
+                            } => {
+                                let result = execute_plan_call(&bridge, params, &body).await;
                                 let _ = reply.send(result);
                             }
                         }
@@ -122,6 +135,53 @@ fn version_string(interp: &mut Interpreter) -> Result<String, String> {
         .map_err(|_| "py: worker stopped".to_string())?;
     rx.recv_timeout(project.timeout)
         .map_err(|_| "py: worker timed out".to_string())?
+}
+
+/// One `execute_plan` on the worker this host already owns.
+///
+/// Does not construct a second [`vox_python_bridge::Bridge`].
+pub(crate) fn execute_plan(
+    interp: &mut Interpreter,
+    params: serde_json::Value,
+    body: Vec<u8>,
+) -> Result<vox_python_bridge::Reply, String> {
+    let Some(project) = interp.python_project.clone() else {
+        return Err(PY_ENV_MISSING.to_string());
+    };
+    tracing::debug!(payload = %params, "array plan sent to execute_plan");
+    if interp.python_host.is_none() {
+        interp.python_host = Some(Host::start(&project)?);
+    }
+    let host = interp
+        .python_host
+        .as_ref()
+        .ok_or_else(|| "py: worker stopped".to_string())?;
+    let (tx, rx) = std::sync::mpsc::sync_channel(1);
+    host.tx
+        .send(Msg::ExecutePlan {
+            params,
+            body,
+            reply: tx,
+        })
+        .map_err(|_| "py: worker stopped".to_string())?;
+    let reply = rx
+        .recv_timeout(project.timeout)
+        .map_err(|_| "py: worker timed out".to_string())??;
+    if std::env::var_os("VOX_BRIDGE_DEBUG_OPS").is_some_and(|value| value == "1") {
+        eprintln!("execute_plan");
+    }
+    Ok(reply)
+}
+
+async fn execute_plan_call(
+    bridge: &vox_python_bridge::Bridge,
+    params: serde_json::Value,
+    body: &[u8],
+) -> Result<vox_python_bridge::Reply, String> {
+    bridge
+        .call("execute_plan", params, Some(body))
+        .await
+        .map_err(|err| err.to_string())
 }
 
 async fn hello_version(bridge: &vox_python_bridge::Bridge) -> Result<String, String> {
@@ -304,6 +364,15 @@ mod tests {
             other => panic!("expected Ok version, got {other:?}"),
         }
         assert!(worker_spawned(&interp));
+    }
+
+    #[test]
+    fn execute_plan_missing_config_does_not_spawn() {
+        let mut interp = Interpreter::new(1_000);
+        let err = super::execute_plan(&mut interp, serde_json::json!({"ops": []}), Vec::new())
+            .expect_err("missing project");
+        assert!(err.starts_with("py-env:"), "{err}");
+        assert!(!worker_spawned(&interp));
     }
 
     #[test]

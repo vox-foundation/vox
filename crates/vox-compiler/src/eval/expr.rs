@@ -348,6 +348,12 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 (HirBinOp::Gte, VoxValue::Float(a), VoxValue::Int(b)) => {
                     Ok(VoxValue::Bool(a >= b as f64))
                 }
+                (HirBinOp::Sub, VoxValue::ArrayPlan(left), VoxValue::ArrayPlan(right)) => {
+                    Ok(VoxValue::ArrayPlan(left.sub(&right)))
+                }
+                (HirBinOp::Div, VoxValue::ArrayPlan(left), VoxValue::ArrayPlan(right)) => {
+                    Ok(VoxValue::ArrayPlan(left.div(&right)))
+                }
                 (op, l, r) => Err(EvalError::AssertionFailed(format!(
                     "unsupported binary op `{op:?}` for operands {} and {}",
                     crate::eval::builtins::vox_value_type_name(&l),
@@ -693,7 +699,35 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             let o = eval_expr(interp, obj)?;
             let mut eval_args = Vec::new();
             for a in args {
+                if method == "astype"
+                    && let HirExpr::Ident(dtype, _) = &a.value
+                    && matches!(dtype.as_str(), "f64" | "f32" | "i64" | "i32" | "bool")
+                {
+                    eval_args.push(VoxValue::Str(dtype.clone().into()));
+                    continue;
+                }
                 eval_args.push(eval_expr(interp, &a.value)?);
+            }
+
+            if method == "to_list"
+                && eval_args.is_empty()
+                && let VoxValue::ArrayPlan(plan) = &o
+            {
+                let plan = plan.clone();
+                let caps = interp.caps.clone();
+                let result = super::builtins::materialize_to_list(interp, &plan, &caps);
+                return match result {
+                    VoxValue::_Panic(msg) => Err(EvalError::AssertionFailed(msg)),
+                    VoxValue::_Denied(what) => {
+                        let (ns, denied_method) =
+                            what.split_once('.').unwrap_or((what.as_str(), ""));
+                        Err(EvalError::CapabilityDenied {
+                            ns: ns.to_string(),
+                            method: denied_method.to_string(),
+                        })
+                    }
+                    other => Ok(other),
+                };
             }
 
             // Closure-taking method dispatch — handled here (not in

@@ -6,8 +6,11 @@
 use std::ffi::OsString;
 use std::time::Duration;
 
+mod array_ipc;
 mod frame;
 mod host;
+
+pub use array_ipc::{decode_f64_column, encode_f64_column};
 
 pub use host::Bridge;
 pub use vox_foundation::protocol::{DispatchRequest, DispatchResponse};

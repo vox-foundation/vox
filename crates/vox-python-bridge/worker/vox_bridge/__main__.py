@@ -23,7 +23,7 @@ def main() -> None:
         frame = read_frame(stdin)
         if frame is None:
             return
-        header, _body = frame
+        header, body = frame
         try:
             request = json.loads(header)
         except json.JSONDecodeError as exc:
@@ -36,14 +36,27 @@ def main() -> None:
             if method == "shutdown":
                 write_frame(rpc_out, result_header(request_id, {"ok": True}))
                 return
-            value = dispatch(method, params, debug_ops)
+            outcome = dispatch(method, params, body, debug_ops)
         except Exception as exc:
-            write_frame(rpc_out, error_header(request_id, f"py: {exc}"))
+            message = str(exc)
+            if not message.startswith("py-plan:") and not message.startswith("py:"):
+                message = f"py: {message}"
+            write_frame(rpc_out, error_header(request_id, message))
             continue
-        write_frame(rpc_out, result_header(request_id, value))
+        if isinstance(outcome, tuple):
+            value, reply_body = outcome
+        else:
+            value, reply_body = outcome, b""
+        write_frame(rpc_out, result_header(request_id, value), reply_body)
 
 
-def dispatch(method: str, params: dict, debug_ops: bool):
+def dispatch(method: str, params: dict, body: bytes, debug_ops: bool):
+    if method == "execute_plan":
+        # Imported here so numpy stays unloaded until a plan runs, after the
+        # stdout dup in main.
+        from vox_bridge.array_ops import execute_plan
+
+        return execute_plan(params, body)
     if method == "hello":
         return {
             "python": platform.python_version(),
