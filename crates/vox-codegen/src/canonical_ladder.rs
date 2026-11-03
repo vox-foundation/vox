@@ -68,12 +68,22 @@ mod tests {
     }
 
     #[test]
-    fn ladder_loads_twelve_fixtures() {
+    fn ladder_loads_thirteen_fixtures() {
         let ladder = CanonicalLadder::load_from_repo_root(&repo_root()).expect("load ladder");
         assert_eq!(ladder.schema_version, 1);
-        assert_eq!(ladder.fixtures.len(), 12, "{:?}", ladder.fixtures);
+        assert_eq!(ladder.fixtures.len(), 13, "{:?}", ladder.fixtures);
         assert!(ladder.fixture("hello").is_some());
         assert!(ladder.fixture("crud_api").is_some());
+        let stats = ladder
+            .fixture("py_array_stats")
+            .expect("py_array_stats fixture");
+        assert_eq!(stats.path, "examples/golden/py_array_stats.vox");
+        for absent in ["py_frame_report", "py_tensor_infer", "py_escape_psd"] {
+            assert!(
+                ladder.fixture(absent).is_none(),
+                "{absent} must stay off this phase's ladder"
+            );
+        }
     }
 
     #[test]
