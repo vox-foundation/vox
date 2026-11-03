@@ -42,6 +42,16 @@ fn array_of(dtype: &str) -> HirType {
     HirType::Generic("Array".into(), vec![HirType::Named(dtype.into())])
 }
 
+fn result_of_list(elem: &str) -> HirType {
+    HirType::Generic(
+        "Result".into(),
+        vec![HirType::Generic(
+            "list".into(),
+            vec![HirType::Named(elem.into())],
+        )],
+    )
+}
+
 #[test]
 fn mixed_array_arithmetic_names_astype() {
     let src = "\
@@ -179,4 +189,113 @@ fn other(a: Array[f64]) {
             "nulls={literal:?} on Array of f64 typechecks: {errors:?}"
         );
     }
+}
+
+#[test]
+fn from_list_int_and_bool_map_to_host_lists() {
+    let src = "\
+import std.array
+@uses(python)
+fn host_lists(ints: list[int], flags: list[bool]) {
+    let a = array.from_list(ints)
+    let b = array.from_list(flags)
+    let ai = a.to_list()
+    let bi = b.to_list()
+}
+";
+    let (errors, hir) = check(src);
+    assert!(
+        errors.is_empty(),
+        "from_list of list[int] and list[bool] must typecheck: {errors:?}"
+    );
+    assert_eq!(
+        type_at(src, &hir, "array.from_list(ints)"),
+        &array_of("i64")
+    );
+    assert_ne!(
+        type_at(src, &hir, "array.from_list(ints)"),
+        &array_of("i32"),
+        "from_list of a host int list is i64, not i32"
+    );
+    assert_eq!(
+        type_at(src, &hir, "array.from_list(flags)"),
+        &array_of("bool")
+    );
+    assert_eq!(type_at(src, &hir, "a.to_list()"), &result_of_list("int"));
+    assert_eq!(type_at(src, &hir, "b.to_list()"), &result_of_list("bool"));
+}
+
+#[test]
+fn mean_and_std_only_on_f32_and_f64() {
+    let ints = "\
+fn int_stats(a: Array[i64]) {
+    let _ = a.mean()
+    let _ = a.std(correction=0)
+}
+";
+    let (int_errors, _) = check(ints);
+    assert!(
+        int_errors.len() >= 2,
+        "mean and std on Array of i64 must each diagnose, got {int_errors:?}"
+    );
+
+    let floats = "\
+fn float_stats(a: Array[f64], b: Array[f32]) {
+    let _ = a.mean()
+    let _ = a.std(correction=0)
+    let _ = b.mean()
+    let _ = b.std(correction=0)
+}
+";
+    let (float_errors, _) = check(floats);
+    assert!(
+        float_errors.is_empty(),
+        "mean and std on Array of f32 and f64 typecheck: {float_errors:?}"
+    );
+}
+
+#[test]
+fn i32_and_f32_exist_only_after_astype() {
+    let hosts = "\
+import std.array
+fn hosts(ints: list[int], floats: list[float]) {
+    let a = array.from_list(ints)
+    let b = array.from_list(floats)
+}
+";
+    let (host_errors, host_hir) = check(hosts);
+    assert!(
+        host_errors.is_empty(),
+        "host lists must typecheck before the astype check: {host_errors:?}"
+    );
+    assert_eq!(
+        type_at(hosts, &host_hir, "array.from_list(ints)"),
+        &array_of("i64")
+    );
+    assert_ne!(
+        type_at(hosts, &host_hir, "array.from_list(ints)"),
+        &array_of("i32")
+    );
+    assert_eq!(
+        type_at(hosts, &host_hir, "array.from_list(floats)"),
+        &array_of("f64")
+    );
+    assert_ne!(
+        type_at(hosts, &host_hir, "array.from_list(floats)"),
+        &array_of("f32")
+    );
+
+    let casts = "\
+fn casts(a: Array[i64], b: Array[f64]) {
+    let narrow = a.astype(i32)
+    let single = b.astype(f32)
+}
+";
+    let (cast_errors, cast_hir) = check(casts);
+    assert!(
+        cast_errors.is_empty(),
+        "astype(i32) and astype(f32) must typecheck: {cast_errors:?}"
+    );
+    assert_eq!(type_at(casts, &cast_hir, "a.astype(i32)"), &array_of("i32"));
+    assert_eq!(type_at(casts, &cast_hir, "b.astype(f32)"), &array_of("f32"));
 }
