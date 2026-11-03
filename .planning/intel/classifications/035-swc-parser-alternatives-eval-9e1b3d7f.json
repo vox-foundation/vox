@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/035-swc-parser-alternatives-eval.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 035 — SWC parser vs alternatives (evaluation only)",
+  "summary": "No migration without explicit ADR sign-off; evaluates swc versus oxc, biome, tsgo.",
+  "scope": ["SWC parser", "JS/TS validation", "parser evaluation", "vox-cli", "alternatives"],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null
+}

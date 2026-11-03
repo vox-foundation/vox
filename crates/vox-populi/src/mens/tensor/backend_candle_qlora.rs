@@ -1,6 +1,6 @@
-//! Candle **QLoRA** training dispatch via the `mens-candle-cuda` plugin.
+//! Candle **QLoRA** training dispatch via the host-matched Candle plugin.
 //!
-//! SP3-D: the training loop was extracted to `vox-plugin-mens-candle-cuda` in sub-batches A–C.
+//! SP3-D: the training loop was extracted to runtime plugins in sub-batches A–C.
 //! This module retains the [`TrainingBackend`] impl so that `lora_train::run_mens_training`
 //! can dispatch `--backend qlora` without knowing about the plugin host directly.
 //! At runtime the plugin must be installed; if not, a clear error is returned.
@@ -70,17 +70,26 @@ impl TrainingBackend for CandleQloraBackend {
         let registry = vox_plugin_host::discover(&plugins_dir)
             .map_err(|e| anyhow::anyhow!("plugin discovery failed at {plugins_dir:?}: {e}"))?;
 
-        let loaded =
-            vox_plugin_host::load_code_plugin(&registry, "mens-candle-cuda").map_err(|e| {
-                anyhow::anyhow!(
-                    "Could not load 'mens-candle-cuda' plugin from {plugins_dir:?}: {e}\n\
-                 Install it with: vox plugin install mens-candle-cuda"
+        let plugin_id =
+            super::backend_select::select_mens_backend(device_kind, &vox_plugin_host::probe());
+        let loaded = vox_plugin_host::load_code_plugin(&registry, plugin_id).map_err(|e| {
+            let hint = if super::backend_select::has_prebuilt_artifact(plugin_id) {
+                format!("Install it with: vox plugin install {plugin_id}")
+            } else {
+                format!(
+                    "No prebuilt '{plugin_id}' exists for this platform. Build it from source \
+                     (the vox-plugin-mens-candle-* crate; mens-candle-cpu is \
+                     vox-plugin-mens-candle-cuda without features, packaged with Plugin.cpu.toml), \
+                     add this platform to the manifest's [plugin.payload.artifacts] table, then: \
+                     vox plugin install --path <dir>"
                 )
-            })?;
+            };
+            anyhow::anyhow!("Could not load '{plugin_id}' plugin from {plugins_dir:?}: {e}\n{hint}")
+        })?;
 
         let ml_backend = loaded.plugin.as_ml_backend().into_option().ok_or_else(|| {
             anyhow::anyhow!(
-                "'mens-candle-cuda' plugin loaded but does not expose an MlBackend extension point"
+                "'{plugin_id}' plugin loaded but does not expose an MlBackend extension point"
             )
         })?;
 
@@ -100,7 +109,7 @@ impl TrainingBackend for CandleQloraBackend {
         let summary_json = ml_backend
             .run_full_training(config_json.as_str().into())
             .into_result()
-            .map_err(|e| anyhow::anyhow!("mens-candle-cuda training failed: {e}"))?;
+            .map_err(|e| anyhow::anyhow!("{plugin_id} training failed: {e}"))?;
 
         // ── Parse summary ─────────────────────────────────────────────────────
         let wire: TrainingSummaryWire = serde_json::from_str(summary_json.as_str())

@@ -1,0 +1,31 @@
+flowchart LR
+    subgraph Controls ["Loquela #amp; Model Selector"]
+        CMP["ChatModelPicker<br>(Auto / Pinned Family)"]
+        DC["DriveConsole<br>(ClutchId + RiskId)"]
+        RR["RailRouting<br>(Decision Preview + Alternatives)"]
+    end
+    subgraph Stream ["Live Orchestrator Telemetry"]
+        AE["vox://agent-events<br>(task_started, token_streamed,<br>task_doubted, task_completed)"]
+        TE["ChatMessage.events<br>(TurnEventDto: tool_called,<br>verify_passed, routing_decision)"]
+    end
+    subgraph Store ["Pure Correlation Layer (riverMath.ts)"]
+        TC["deriveTierCascade()<br>Tier 1 Intercept · Tier 2 Fan-Out · Tier 3 Verifier"]
+        RF["deriveRiverSnapshot()<br>Throughput · BLAKE3 Thrift % · 4-Stage Funnel · 8-Slice Braid"]
+    end
+    subgraph UI ["HarnessRiverPanel (Dockable + Full Surface)"]
+        Z1["Zone A: WaveformTierStrip"]
+        Z2["Zone B: RiverCanvas (Alluvial Béziers + Singularity + Laser)"]
+        Z3["Zone C: AgentTrajectoryBraid (8-Slice SVG)"]
+        Z4["Zone D: VerificationFunnelFooter (3-Col Evidence + Ludus Yield)"]
+    end
+    CMP --> TC
+    DC --> TC
+    RR --> TC
+    AE --> RF
+    TE --> RF
+    TC --> Z1
+    TC --> Z2
+    RF --> Z1
+    RF --> Z2
+    RF --> Z3
+    RF --> Z4

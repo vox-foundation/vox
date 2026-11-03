@@ -1,0 +1,427 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "Adversarial Bar Met?",
+      "diamond",
+      [
+        "Autonomous Multi-Wave DAG Engine"
+      ]
+    ],
+    [
+      "Consolidated Knowledge Subgraph",
+      "rect",
+      [
+        "Autonomous Multi-Wave DAG Engine"
+      ]
+    ],
+    [
+      "Context Window Budgeter (Top-K Spans)",
+      "rect",
+      []
+    ],
+    [
+      "Dynamic Triage Classifier",
+      "diamond",
+      []
+    ],
+    [
+      "Fast 1-Hop Search + Direct Synth (<1s)",
+      "rect",
+      []
+    ],
+    [
+      "Frontier Model Synthesis (OpenRouter / Claude / Gemini)",
+      "rect",
+      []
+    ],
+    [
+      "Gap & Contradiction Analyzer",
+      "diamond",
+      [
+        "Autonomous Multi-Wave DAG Engine"
+      ]
+    ],
+    [
+      "Interactive GUI Report + Claim Accordion + Chat Card",
+      "rect",
+      []
+    ],
+    [
+      "MENS Local Claim Extraction & Triplets",
+      "rect",
+      [
+        "Autonomous Multi-Wave DAG Engine"
+      ]
+    ],
+    [
+      "MENS Local Evidence Triangulation",
+      "rect",
+      [
+        "Autonomous Multi-Wave DAG Engine"
+      ]
+    ],
+    [
+      "Persist to VoxDB FTS5 & Claim Cache",
+      "rect",
+      []
+    ],
+    [
+      "Post-Hoc Citation Span & DOI Audit",
+      "rect",
+      []
+    ],
+    [
+      "Return VoxDB FTS5 Cached Knowledge (<50ms)",
+      "rect",
+      []
+    ],
+    [
+      "Run Sandboxed Compiler / Schema Validator",
+      "rect",
+      [
+        "Autonomous Multi-Wave DAG Engine"
+      ]
+    ],
+    [
+      "User / Chat Query",
+      "rect",
+      []
+    ],
+    [
+      "Wave 1: Reconnaissance",
+      "rect",
+      [
+        "Autonomous Multi-Wave DAG Engine"
+      ]
+    ],
+    [
+      "Wave 2: Targeted Deep-Dive & Citation Crawling",
+      "rect",
+      [
+        "Autonomous Multi-Wave DAG Engine"
+      ]
+    ],
+    [
+      "Wave 3: Adversarial Verification & Sandbox Execution",
+      "rect",
+      [
+        "Autonomous Multi-Wave DAG Engine"
+      ]
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Adversarial Bar Met?",
+        "diamond",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      [
+        "Consolidated Knowledge Subgraph",
+        "rect",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      "Sufficient"
+    ],
+    [
+      [
+        "Adversarial Bar Met?",
+        "diamond",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      [
+        "Wave 3: Adversarial Verification & Sandbox Execution",
+        "rect",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      "High Uncertainty / Code Query"
+    ],
+    [
+      [
+        "Consolidated Knowledge Subgraph",
+        "rect",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      [
+        "Context Window Budgeter (Top-K Spans)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Context Window Budgeter (Top-K Spans)",
+        "rect",
+        []
+      ],
+      [
+        "Frontier Model Synthesis (OpenRouter / Claude / Gemini)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Dynamic Triage Classifier",
+        "diamond",
+        []
+      ],
+      [
+        "Fast 1-Hop Search + Direct Synth (<1s)",
+        "rect",
+        []
+      ],
+      "Tier 1: Shallow Fact"
+    ],
+    [
+      [
+        "Dynamic Triage Classifier",
+        "diamond",
+        []
+      ],
+      [
+        "Return VoxDB FTS5 Cached Knowledge (<50ms)",
+        "rect",
+        []
+      ],
+      "Tier 0: Exact Memory"
+    ],
+    [
+      [
+        "Dynamic Triage Classifier",
+        "diamond",
+        []
+      ],
+      [
+        "Wave 1: Reconnaissance",
+        "rect",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      "Tier 2: Standard Deep"
+    ],
+    [
+      [
+        "Dynamic Triage Classifier",
+        "diamond",
+        []
+      ],
+      [
+        "Wave 1: Reconnaissance",
+        "rect",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      "Tier 3: Multi-Wave"
+    ],
+    [
+      [
+        "Frontier Model Synthesis (OpenRouter / Claude / Gemini)",
+        "rect",
+        []
+      ],
+      [
+        "Post-Hoc Citation Span & DOI Audit",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Gap & Contradiction Analyzer",
+        "diamond",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      [
+        "Consolidated Knowledge Subgraph",
+        "rect",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      "Sufficient Evidence"
+    ],
+    [
+      [
+        "Gap & Contradiction Analyzer",
+        "diamond",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      [
+        "Wave 2: Targeted Deep-Dive & Citation Crawling",
+        "rect",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      "Contradiction / Missing Depth"
+    ],
+    [
+      [
+        "MENS Local Claim Extraction & Triplets",
+        "rect",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      [
+        "Gap & Contradiction Analyzer",
+        "diamond",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "MENS Local Evidence Triangulation",
+        "rect",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      [
+        "Adversarial Bar Met?",
+        "diamond",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "Persist to VoxDB FTS5 & Claim Cache",
+        "rect",
+        []
+      ],
+      [
+        "Interactive GUI Report + Claim Accordion + Chat Card",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Post-Hoc Citation Span & DOI Audit",
+        "rect",
+        []
+      ],
+      [
+        "Persist to VoxDB FTS5 & Claim Cache",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Run Sandboxed Compiler / Schema Validator",
+        "rect",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      [
+        "Consolidated Knowledge Subgraph",
+        "rect",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "User / Chat Query",
+        "rect",
+        []
+      ],
+      [
+        "Dynamic Triage Classifier",
+        "diamond",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Wave 1: Reconnaissance",
+        "rect",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      [
+        "MENS Local Claim Extraction & Triplets",
+        "rect",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "Wave 2: Targeted Deep-Dive & Citation Crawling",
+        "rect",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      [
+        "MENS Local Evidence Triangulation",
+        "rect",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "Wave 3: Adversarial Verification & Sandbox Execution",
+        "rect",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      [
+        "Run Sandboxed Compiler / Schema Validator",
+        "rect",
+        [
+          "Autonomous Multi-Wave DAG Engine"
+        ]
+      ],
+      ""
+    ]
+  ],
+  "containers": [
+    [
+      "Autonomous Multi-Wave DAG Engine"
+    ]
+  ]
+}

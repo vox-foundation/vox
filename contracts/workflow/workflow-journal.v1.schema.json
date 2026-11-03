@@ -31,11 +31,37 @@
         "TimerWaitCompleted",
         "SignalWaitSatisfied",
         "MeshActivity",
-        "MeshActivitySkipped"
+        "MeshActivitySkipped",
+        "WorkflowPatch",
+        "ActivityCacheHit",
+        "TimerScheduled",
+        "SignalAwaited",
+        "WorkflowParked"
       ]
     }
   },
   "oneOf": [
+    {
+      "required": [
+        "event",
+        "workflow",
+        "signal_key"
+      ],
+      "properties": {
+        "event": {
+          "const": "SignalAwaited"
+        },
+        "workflow": {
+          "type": "string",
+          "minLength": 1
+        },
+        "signal_key": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
     {
       "required": [
         "event",
@@ -154,6 +180,48 @@
           "const": "WorkflowCompleted"
         },
         "workflow": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "required": [
+        "event",
+        "workflow",
+        "wake_at_ms"
+      ],
+      "properties": {
+        "event": {
+          "const": "TimerScheduled"
+        },
+        "workflow": {
+          "type": "string",
+          "minLength": 1
+        },
+        "wake_at_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "required": [
+        "event",
+        "workflow",
+        "reason"
+      ],
+      "properties": {
+        "event": {
+          "const": "WorkflowParked"
+        },
+        "workflow": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
           "type": "string",
           "minLength": 1
         }
@@ -548,6 +616,75 @@
           "minLength": 1
         },
         "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "required": [
+        "event",
+        "workflow",
+        "change_id",
+        "version",
+        "replayed"
+      ],
+      "properties": {
+        "event": {
+          "const": "WorkflowPatch"
+        },
+        "workflow": {
+          "type": "string",
+          "minLength": 1
+        },
+        "change_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "min_supported": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_supported": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "replayed": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    {
+      "required": [
+        "event",
+        "workflow",
+        "activity",
+        "activity_id",
+        "arg_hash"
+      ],
+      "properties": {
+        "event": {
+          "const": "ActivityCacheHit"
+        },
+        "workflow": {
+          "type": "string",
+          "minLength": 1
+        },
+        "activity": {
+          "type": "string",
+          "minLength": 1
+        },
+        "activity_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "arg_hash": {
           "type": "string",
           "minLength": 1
         }

@@ -15,7 +15,7 @@
 
 1. **Primary goal:** Fix Windows Clavis vault integration so `vox secrets import-env` and `vox secrets backend-status` work with absolute `VOX_SECRETS_VAULT_PATH` and a stable OS keyring master key.
 2. **Secondary goal (same session arc):** Dependency/security audit (P1 bumps, Sonatype token, `cargo audit`, MCP batch) — largely verified; see [Dependency audit state](#dependency-audit-state).
-3. **Execution style:** TDD + [`subagent-driven-development`](../../.claude/plugins/cache/superpowers-marketplace/superpowers/5.0.7/skills/subagent-driven-development/SKILL.md) / [`dispatching-parallel-agents`](../../.claude/plugins/cache/superpowers-marketplace/superpowers/5.0.7/skills/dispatching-parallel-agents/SKILL.md). Subagents hit **usage limits** late in the session; parent agent finished Tasks 3–6 inline.
+3. **Execution style:** TDD + the `subagent-driven-development` / `dispatching-parallel-agents` superpowers skills (plugin cache, not in this repo). Subagents hit **usage limits** late in the session; parent agent finished Tasks 3–6 inline.
 
 **Binding constraints (always):**
 
@@ -85,7 +85,7 @@ cargo test -p vox-secrets import_env_round_trips_sonatype    # 1/1 pass
 cargo test -p vox-cli --test secrets_backend_status_test      # run explicitly (see gotchas)
 ```
 
-**Parallel agent [Vault secrets tests](19e9e6cd-567b-480e-872f-3ba642487051) (2026-06-16, uncommitted):** `cargo test -p vox-secrets` green after removing duplicate `VoxSyndicationTemplateProfileEnabled` spec (`platform.rs`, `ids.rs`) and fixing `redact_replaces_secret_in_json_string` in `semcov_wave45_tests.rs`. Include in next vault-scoped commit if still in working tree.
+**Parallel agent "Vault secrets tests" (session `19e9e6cd-567b-480e-872f-3ba642487051`, 2026-06-16, uncommitted):** `cargo test -p vox-secrets` green after removing duplicate `VoxSyndicationTemplateProfileEnabled` spec (`platform.rs`, `ids.rs`) and fixing `redact_replaces_secret_in_json_string` in `semcov_wave45_tests.rs`. Include in next vault-scoped commit if still in working tree.
 
 ---
 
@@ -108,7 +108,7 @@ backend status: unavailable (decryption failed (master key mismatch?): ... Remed
 - Path fix works (no `invalid filename`).
 - `keyring=false` — probe could not read a non-empty `vox-secrets-vault`/`master` password (Windows Credential Manager visibility or missing entry).
 - `rows=1` — stale ciphertext in vault from a prior import under a different master.
-- **Root cause (parallel agent [Vault Task 0 recovery](9d56e125-8657-40a2-852b-93df6bf1fe86), 2026-06-16):** `derive_master_key()` in `vox_vault.rs` generates a **new random bootstrap master on every process** when keyring `get_password` fails — even if `set_password` appeared to succeed. Import encrypts with K₁; the next `backend-status` decrypts with K₂ → `master_fp` rotates each run. Unlike `auth_json.rs`, there is **no file fallback** for vault master persistence.
+- **Root cause (parallel agent "Vault Task 0 recovery", session `9d56e125-8657-40a2-852b-93df6bf1fe86`, 2026-06-16):** `derive_master_key()` in `vox_vault.rs` generates a **new random bootstrap master on every process** when keyring `get_password` fails — even if `set_password` appeared to succeed. Import encrypts with K₁; the next `backend-status` decrypts with K₂ → `master_fp` rotates each run. Unlike `auth_json.rs`, there is **no file fallback** for vault master persistence.
 - **Task 0 cannot complete in agent/sandbox shells** until either (a) interactive user PowerShell with working keyring round-trip, or (b) code adds `.vox` master file fallback + keyring write verify (mirror `write_registry_token` pattern).
 
 ---

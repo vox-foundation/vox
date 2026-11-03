@@ -1,0 +1,4 @@
+query-id	corpus-id	score
+q001	docs/src/alpha.md#Alpha Guide › Install	2
+q002	docs/src/alpha.md#Alpha Guide › Usage › Flags	2
+q003	docs/src/beta.md#Beta Notes › Setup	2

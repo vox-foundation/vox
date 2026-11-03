@@ -1,18 +1,12 @@
 name: Mobile E2E - Android
-# Heavy GitHub-hosted macOS job. Per the tier note it runs only in the merge queue
-# and on 'full-ci'-labeled PRs — NOT on every direct push to main. The former `push:`
-# trigger cold-compiled vox-cli on macos-13 with no cache and no timeout, so a routine
-# main push could run for hours. Removed `push:`; added a build cache and a timeout.
+# Heavy GitHub-hosted macOS job. Not on pull_request/merge_group: android-e2e's
+# 45m timeout exceeds the fast-lane (PR/merge_group) 30-min cap
+# (workflow_policy_guard). Runs nightly instead, like the (since retired) iOS lane's
+# earlier move off push/PR for the same class of heavy macOS job.
 on:
-  merge_group:
-  pull_request:
-    paths:
-      - 'apps/vox-mental-tracker/**'
-      - 'crates/vox-cli/**'
-      - 'crates/vox-codegen/**'
-      - 'crates/vox-codegen-ts/**'
-      - 'crates/vox-tauri-codegen/**'
-      - '.github/workflows/mobile-e2e-android.yml'
+  schedule:
+    - cron: '0 3 * * *' # Nightly
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -21,14 +15,20 @@ concurrency:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
+permissions:
+  contents: read
+
 jobs:
   android-e2e:
-    # Tier: heavy (GitHub-hosted macOS). merge_group + 'full-ci' label only; skip routine PR pushes.
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
-    runs-on: macos-13
+    # Nothing here needs macOS or the Android SDK (codegen only). macos-15-intel was a
+    # slow x86_64 runner whose cache key (no arch) restored the arm64 macOS target, so
+    # every run was a 43+ min cold build that hit the timeout.
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+      - name: Install system deps (libdbus/GTK/WebKit)
+        run: sudo apt-get update -y && sudo apt-get install -y libdbus-1-dev pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
       - uses: ./.github/actions/setup-rust
       - uses: pnpm/action-setup@v6
         with:
@@ -37,17 +37,22 @@ jobs:
         with:
           node-version: '24'
           cache: 'pnpm'
+          cache-dependency-path: apps/vox-mental-tracker/pnpm-lock.yaml
       - name: Install dependencies
         run: cd apps/vox-mental-tracker && pnpm install --frozen-lockfile
       - name: Build vox CLI
         run: cargo build -p vox-cli
-      - name: Build web bundle
-        run: cd apps/vox-mental-tracker && pnpm build
+      # No separate `pnpm build` (a second, unused release compile of vox-cli), and no
+      # Playwright here: the same `pnpm e2e` suite runs in vox-mental-tracker.yml's
+      # playwright job, with browsers installed. Codegen needs tauri-cli.
+      - name: Install tauri-cli
+        uses: taiki-e/install-action@v2
+        with:
+          tool: tauri-cli
       - name: Tauri mobile codegen (Android)
         run: |
           cd apps/vox-mental-tracker
           ../../target/debug/vox compile --target mobile-android -o dist src/main.vox
+      # Codegen writes next to the app's Vox.toml, not under the repo root.
       - name: Verify generated Tauri workspace
-        run: test -f target/generated/src-tauri/tauri.conf.json
-      - name: Run Playwright (web)
-        run: cd apps/vox-mental-tracker && pnpm e2e
+        run: test -f apps/vox-mental-tracker/target/generated/src-tauri/tauri.conf.json

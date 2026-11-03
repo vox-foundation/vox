@@ -1,0 +1,22 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/generated-project-runtime-deps.md",
+  "type": "DOC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "Generated project runtime deps",
+  "summary": "Technical design for how vox build-generated Cargo.toml locates vox-owned runtime crates outside checkout via three-tier path resolution.",
+  "scope": [
+    "generated Cargo.toml",
+    "runtime crate dependencies",
+    "path resolution",
+    "VOX_REPO_ROOT env var",
+    "Axum shell",
+    "Tauri shell"
+  ],
+  "cross_refs": [
+    "nightly-builds-ssot.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Describes a technical approach/mechanism (three-tier resolution) but reads more like architectural rationale than a formal spec. Could classify as SPEC (technical contract) but lacks schema/table formality of true specs."
+}

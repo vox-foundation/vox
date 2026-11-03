@@ -17,11 +17,11 @@ Vox is marching toward a production-hardened v1.0 release. Surfaces are graded b
 |:---|:---|:---|
 | **Core Intelligence** | | |
 | Orchestrator Core | 🔵 Stable | Thread-safe dispatch, agent lifecycle, and [Superpowers](../architecture/superpowers-ssot.md) orchestration. |
-| Agent Skills (MCP) | 🟣 Mature | Full [MCP v1.0](https://modelcontextprotocol.io) compliance with 100+ first-party tools. |
+| Agent Skills (MCP) | 🔵 Stable | Large first-party [MCP](https://modelcontextprotocol.io) registry (300+ tools in `contracts/mcp/tool-registry.canonical.yaml`). Protocol wiring is real; this is not a production SLA for every tool. |
 | Socrates Research | 🟡 Preview | [Socrates protocol](./socrates-protocol.md) for automated fact-checking and retrieval. |
 | **Language Platform** | | |
 | Compiler Core | 🟣 Mature | Wave 2 complete: pure-HIR lowering and stable syntax grammar. |
-| LSP & IDE Tools | 🟣 Mature | Production-grade `vox-lsp` with full cross-reference support. |
+| LSP & IDE Tools | 🟡 Preview | `vox-lsp` ships completions and hover ([capabilities SSOT](../architecture/vox-lsp-capabilities-ssot-2026.md)); go-to-definition and workspace symbols are partial or unadvertised. Not full cross-reference. |
 | Durable Runtime | 🔵 Stable (interpreter) / 🟡 Preview (codegen) | Interpreter path: journal-backed replay for the supported subset ([ADR-019](../adr/019-durable-workflow-journal-contract-v1.md) / [ADR-021](../adr/021-generated-workflow-durability-parity.md)) ships; `@scheduled` runs on a persistent scheduler with crash-safe state. Codegen path: generated binaries link but `current_hir_module()` registration in emitted `main()` is a tracked Phase-5 follow-up — see [ADR-041](../adr/041-durable-functions-completion-2026.md). Unrestricted control-flow replay is explicit non-goal. |
 | **Data & Foundation** | | |
 | Database Engine | 🔵 Stable | [vox-db](https://github.com/vox-foundation/vox/tree/main/crates/vox-db/) with Turso integration and zero-downtime migrations. |
@@ -33,8 +33,8 @@ Vox is marching toward a production-hardened v1.0 release. Surfaces are graded b
 | Visus (Vision) | 🟠 Emergent | [Voice of Vision](https://github.com/vox-foundation/vox/tree/main/crates/vox-cli/src/commands/visus/) for automated GUI bug detection. |
 | **Platform & UI** | | |
 | CLI & DX | 🟣 Mature | Rich diagnostic surface (`vox audit`, `vox ci`, `vox drift-check`). |
-| Native GUI (Tauri) | 🟡 Preview | Tauri 2.0 integration with Dashboard, Agent Flow, and Superpowers catalog. |
-| Distributed Mesh | 🟠 Emergent | Node discovery and workload routing functional across peers. |
+| Native GUI (Tauri) | 🟡 Preview | `vox-gui` is the **operator console** (dashboard, agent flow, Superpowers catalog) — not a compiler that turns your `.vox` app into a Tauri binary. |
+| Distributed Mesh | 🟠 Emergent | Opt-in node discovery exists. Federation / off-process workload routing is experimental and default-off. |
 
 ## Stability Tiers
 

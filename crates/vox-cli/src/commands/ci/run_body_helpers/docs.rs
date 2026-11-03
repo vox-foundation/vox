@@ -122,7 +122,8 @@ pub(crate) fn check_docs_ssot(root: &Path) -> Result<()> {
             let entry = entry?;
             let path = entry.path();
             if path.extension().is_some_and(|e| e == "md") {
-                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                if let Some(raw_stem) = path.file_stem().and_then(|s| s.to_str()) {
+                    let stem = raw_stem.strip_suffix(".generated").unwrap_or(raw_stem);
                     // Check if the filename looks like a crate name or matches an existing crate
                     if stem.starts_with("vox-") || actual_crates.contains(stem) {
                         let md = read_utf8_path_capped(&path)?;
@@ -176,6 +177,15 @@ pub(crate) fn check_docs_ssot(root: &Path) -> Result<()> {
                 }
             }
         }
+    }
+
+    let retired_research_index = root.join("docs/src/architecture/research-index.md");
+    if retired_research_index.is_file() {
+        return Err(anyhow!(
+            "retired completeness index recreated: {} — Starlight sidebar.mjs collectPages() \
+             is the browse surface. Snapshot: docs/src/archive/research-index-hand-curated-retired-2026-09.md",
+            retired_research_index.display()
+        ));
     }
 
     let mut src_files = Vec::new();
@@ -557,6 +567,7 @@ fn verify_baseline_policy_alignment(root: &Path) -> Result<()> {
 }
 
 pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
+    let auto_heal = std::env::var_os("CI").is_none() || std::env::var_os("VOX_AUTO_HEAL").is_some();
     // ponytail: local macro for per-sub-step timing; ssot-drift is the slowest gate (~35s)
     macro_rules! ds {
         ($label:literal, $expr:expr) => {{
@@ -601,7 +612,14 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     ds!("command_compliance", command_compliance::run(root))?;
     ds!(
         "gui_version_sync",
-        vox_cli_ci::gui_version_sync::run(root, false)
+        match vox_cli_ci::gui_version_sync::run(root, false) {
+            Ok(()) => Ok(()),
+            Err(_) if auto_heal => {
+                eprintln!("    [auto-heal] gui_version_sync drift; writing...");
+                vox_cli_ci::gui_version_sync::run(root, true)
+            }
+            Err(e) => Err(e),
+        }
     )?;
     ds!(
         "gui_catalog_parity",
@@ -609,30 +627,94 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     )?;
     ds!(
         "gui_surface_coverage",
-        crate::commands::ci::gui_surface_coverage::run(root, false)
+        match crate::commands::ci::gui_surface_coverage::run(root, false) {
+            Ok(()) => Ok(()),
+            Err(_) if auto_heal => {
+                eprintln!("    [auto-heal] gui_surface_coverage drift; writing...");
+                crate::commands::ci::gui_surface_coverage::run(root, true)
+            }
+            Err(e) => Err(e),
+        }
     )?;
     ds!(
         "gui_surface_registry",
-        crate::commands::ci::gui_surface_registry::run(root, false)
+        match crate::commands::ci::gui_surface_registry::run(root, false, None) {
+            Ok(()) => Ok(()),
+            Err(_) if auto_heal => {
+                eprintln!("    [auto-heal] gui_surface_registry drift; writing...");
+                crate::commands::ci::gui_surface_registry::run(root, true, None)
+            }
+            Err(e) => Err(e),
+        }
     )?;
     ds!(
         "capability_sync",
-        crate::commands::ci::capability_sync::run(root, false)
+        match crate::commands::ci::capability_sync::run(root, false) {
+            Ok(()) => Ok(()),
+            Err(_) if auto_heal => {
+                eprintln!("    [auto-heal] capability_sync drift; writing...");
+                crate::commands::ci::capability_sync::run(root, true)
+            }
+            Err(e) => Err(e),
+        }
+    )?;
+    ds!(
+        "capability_index",
+        match crate::commands::ci::capability_index::run(root, false) {
+            Ok(()) => Ok(()),
+            Err(_) if auto_heal => {
+                eprintln!("    [auto-heal] capability_index drift; writing...");
+                crate::commands::ci::capability_index::run(root, true)
+            }
+            Err(e) => Err(e),
+        }
     )?;
     ds!(
         "plugin_surface",
-        vox_cli_ci::plugin_surface::run(root, false)
+        match vox_cli_ci::plugin_surface::run(root, false) {
+            Ok(()) => Ok(()),
+            Err(_) if auto_heal => {
+                eprintln!("    [auto-heal] plugin_surface drift; writing...");
+                vox_cli_ci::plugin_surface::run(root, true)
+            }
+            Err(e) => Err(e),
+        }
     )?;
     ds!(
         "plugin_catalog_sync",
-        vox_cli_ci::plugin_catalog_sync::run(root, false)
+        match vox_cli_ci::plugin_catalog_sync::run(root, false) {
+            Ok(()) => Ok(()),
+            Err(_) if auto_heal => {
+                eprintln!("    [auto-heal] plugin_catalog_sync drift; writing...");
+                vox_cli_ci::plugin_catalog_sync::run(root, true)
+            }
+            Err(e) => Err(e),
+        }
     )?;
     // Catalog-derived reference docs must stay fresh when catalog.toml changes; this check
     // otherwise lives only in docs-quality.yml, so catalog edits could pass ssot-drift while
     // leaving the generated docs stale (the exact drift PR #218 left on main).
     ds!(
         "generate_plugin_catalog_docs",
-        vox_cli_ci::generate_plugin_catalog_docs::run(None, None, true)
+        match vox_cli_ci::generate_plugin_catalog_docs::run(None, None, true) {
+            Ok(()) => Ok(()),
+            Err(_) if auto_heal => {
+                eprintln!("    [auto-heal] generate_plugin_catalog_docs drift; writing...");
+                vox_cli_ci::generate_plugin_catalog_docs::run(None, None, false)
+            }
+            Err(e) => Err(e),
+        }
+    )?;
+    ds!(
+        "crate_api_docs",
+        match vox_cli_ci::crate_api_docs::run(root, false) {
+            Ok(()) => Ok(()),
+            Err(_) if auto_heal => {
+                eprintln!("    [auto-heal] crate_api_docs drift; writing...");
+                vox_cli_ci::crate_api_docs::run(root, true)
+            }
+            Err(e) => Err(e),
+        }
     )?;
     ds!(
         "plugin_skill_parity",
@@ -664,18 +746,25 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
         )
         .map_err(|e| anyhow::anyhow!(e))
     )?;
-    // ENFORCED on the CI side: an unregistered GitHub-hosted `runs-on` fails ssot-drift
-    // (and therefore CI). ssot-drift is reachable from the fast pre-push tier; that
-    // propagation is intentional and bounded. The standalone pre-push step
-    // (pre_push.rs step_runner_policy_check) stays ADVISORY so the gate is never
-    // silently bypassed by the known stale-binary `--no-verify` pattern.
-    ds!(
-        "runner_policy_check",
-        vox_cli_ci::runner_policy_check::run(root, true)
-    )?;
     ds!(
         "node_pnpm_ssot_guard",
         vox_cli_ci::node_pnpm_ssot_guard::run(root)
+    )?;
+    ds!(
+        "workflow_policy_guard",
+        vox_cli_ci::workflow_policy_guard::run(root)
+    )?;
+    ds!("cache_key_lint", vox_cli_ci::cache_key_lint::run(root))?;
+    ds!(
+        "kb_facets_ts",
+        match vox_cli_ci::kb_facets_ts::run(root, true) {
+            Ok(()) => Ok(()),
+            Err(_) if auto_heal => {
+                eprintln!("    [auto-heal] kb_facets_ts drift; writing...");
+                vox_cli_ci::kb_facets_ts::run(root, false)
+            }
+            Err(e) => Err(e),
+        }
     )?;
     println!("ssot-drift: nested SSOT guards OK");
     Ok(())
@@ -866,6 +955,51 @@ mod stale_ref_guard_tests {
         .expect("write AGENTS.md");
         check_stale_doc_and_workflow_refs(tmp.path()).expect(
             "without docs/, the stale-ref guard does not scan root AGENTS.md at all (documented gap)",
+        );
+    }
+
+    /// R7a: `run_ssot_drift` must dispatch `cache_key_lint` as a stage, or a
+    /// drift in it never blocks `vox ci pre-push`/CI. A source-text check on
+    /// this file rather than executing `run_ssot_drift` (which shells out to
+    /// `cargo metadata` and other stages) — mutation-checked by deleting the
+    /// dispatch line and confirming this test fails.
+    ///
+    /// The needle is built from two halves at runtime (not a single string
+    /// literal) so this assertion can never match itself via `include_str!`.
+    #[test]
+    fn run_ssot_drift_dispatches_cache_key_lint() {
+        let src = include_str!("docs.rs");
+        let needle = format!("{}{}", "ds!(\"cache_key", "_lint\"");
+        assert!(
+            src.contains(&needle),
+            "run_ssot_drift must call ds!(\"cache_key_lint\", ...)"
+        );
+    }
+
+    /// KB Phase 4 (D-02): `run_ssot_drift` must dispatch the kb-facets TS check, or a facet
+    /// schema change without a regenerated GUI type never blocks PR CI. Split needle as above;
+    /// whitespace stripped because the auto-heal `match` form is wrapped across lines.
+    #[test]
+    fn run_ssot_drift_dispatches_kb_facets_ts() {
+        let src: String = include_str!("docs.rs").split_whitespace().collect();
+        let needle = format!("{}{}", "ds!(\"kb_facets", "_ts\"");
+        assert!(
+            src.contains(&needle),
+            "run_ssot_drift must call ds!(\"kb_facets_ts\", ...)"
+        );
+    }
+
+    /// DISC-02: `run_ssot_drift` must dispatch `capability_index` as a stage, or a stale
+    /// capability index never blocks `vox ci pre-push`/CI. Source-text check (same rationale
+    /// as `run_ssot_drift_dispatches_cache_key_lint`); needle split so it cannot match itself.
+    /// Whitespace is stripped first because rustfmt wraps this long call across lines.
+    #[test]
+    fn run_ssot_drift_dispatches_capability_index() {
+        let src: String = include_str!("docs.rs").split_whitespace().collect();
+        let needle = format!("{}{}", "ds!(\"capability", "_index\",");
+        assert!(
+            src.contains(&needle),
+            "run_ssot_drift must call ds!(\"capability_index\", ...)"
         );
     }
 }

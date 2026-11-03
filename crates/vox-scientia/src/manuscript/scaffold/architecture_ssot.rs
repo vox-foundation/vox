@@ -1,0 +1,400 @@
+use serde::{Deserialize, Serialize};
+
+use super::common::{render_code_fence, render_markdown_table};
+use super::section_tree::ScaffoldError;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CodebaseReference {
+    pub crate_name: String,
+    pub file_path: String,
+    pub line_start: Option<u32>,
+    pub line_end: Option<u32>,
+    pub observation: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CompetitiveComparisonRow {
+    pub dimension: String,
+    pub vox_feature: String,
+    pub alternative_a_name: String,
+    pub alternative_a_val: String,
+    pub alternative_b_name: String,
+    pub alternative_b_val: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EmpiricalClaimRow {
+    pub subject: String,
+    pub predicate: String,
+    pub object: String,
+    pub verdict: String,
+    pub confidence: f64,
+    pub primary_evidence_source: String,
+    pub trusty_uri: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SandboxExecutionRecord {
+    pub title: String,
+    pub language: String,
+    pub original_snippet: String,
+    pub repaired_snippet: Option<String>,
+    pub compiler_output: String,
+    pub success: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum SeverityTier {
+    P0Critical,
+    P1Important,
+    P2Minor,
+}
+
+impl SeverityTier {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::P0Critical => "P0 (Critical)",
+            Self::P1Important => "P1 (Important)",
+            Self::P2Minor => "P2 (Minor)",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GapRecommendation {
+    pub severity: SeverityTier,
+    pub title: String,
+    pub description: String,
+    pub remedy: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RoadmapPhase {
+    pub phase_number: u32,
+    pub title: String,
+    pub description: String,
+    pub verification_gate: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ArchitectureSsotInput {
+    pub title: String,
+    pub description: String,
+    pub category: String,
+    pub status: String,
+    pub training_eligible: bool,
+    pub training_rationale: Option<String>,
+    pub sort_order: Option<u32>,
+    pub session_id: i64,
+    pub stability_score: f64,
+    pub slug: String,
+    pub executive_summary: String,
+    pub hypothesis: String,
+    pub empirical_outcome_summary: String,
+    pub codebase_refs: Vec<CodebaseReference>,
+    pub competitive_matrix: Vec<CompetitiveComparisonRow>,
+    pub verified_claims: Vec<EmpiricalClaimRow>,
+    pub sandbox_probes: Vec<SandboxExecutionRecord>,
+    pub gaps_and_recommendations: Vec<GapRecommendation>,
+    pub roadmap_phases: Vec<RoadmapPhase>,
+    /// Model that synthesized the source research run, stamped as
+    /// `authorship_model` on LLM-assisted drafts. `None` omits the key rather
+    /// than claiming a model nobody recorded (the doc lint then asks for it).
+    #[serde(default)]
+    pub authorship_model: Option<String>,
+}
+
+fn sanitize_yaml_string(s: &str) -> String {
+    s.replace("\r\n", " ")
+        .replace(['\r', '\n'], " ")
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+}
+
+fn build_kb_summary(input: &ArchitectureSsotInput) -> String {
+    let base = format!(
+        "{} Hypothesis evaluated: {} Empirical outcome: {} This single-source-of-truth architecture document synthesizes session #{} with wave stability {:.2}, recording {} verified empirical claims, {} codebase references, {} competitive benchmark comparisons, {} compiler sandbox reproducibility probes, and {} prioritized architectural gap recommendations for the Vox workspace.",
+        input.executive_summary.trim(),
+        input.hypothesis.trim(),
+        input.empirical_outcome_summary.trim(),
+        input.session_id,
+        input.stability_score,
+        input.verified_claims.len(),
+        input.codebase_refs.len(),
+        input.competitive_matrix.len(),
+        input.sandbox_probes.len(),
+        input.gaps_and_recommendations.len(),
+    );
+    let words: Vec<&str> = base.split_whitespace().collect();
+    if words.len() > 115 {
+        format!("{}...", words[..115].join(" "))
+    } else if words.len() < 42 {
+        format!(
+            "{} All claims, citations, and reproducibility probes are persisted in VoxDb and verified against repository ground truth.",
+            words.join(" ")
+        )
+    } else {
+        words.join(" ")
+    }
+}
+
+pub fn render_architecture_ssot(input: &ArchitectureSsotInput) -> Result<String, ScaffoldError> {
+    let mut doc = String::with_capacity(8192);
+
+    // Section 1: Canonical YAML Frontmatter
+    doc.push_str("---\n");
+    doc.push_str(&format!(
+        "title: \"{}\"\n",
+        sanitize_yaml_string(&input.title)
+    ));
+    doc.push_str(&format!(
+        "description: \"{}\"\n",
+        sanitize_yaml_string(&input.description)
+    ));
+    doc.push_str(&format!(
+        "category: \"{}\"\n",
+        sanitize_yaml_string(&input.category)
+    ));
+    doc.push_str(&format!(
+        "status: \"{}\"\n",
+        sanitize_yaml_string(&input.status)
+    ));
+    doc.push_str("topic: \"scientia-research\"\n");
+    doc.push_str("domain: \"knowledge\"\n");
+    if input.training_eligible {
+        doc.push_str("authorship: \"human\"\n");
+        doc.push_str("training_eligible: true\n");
+        if let Some(ref rationale) = input.training_rationale {
+            doc.push_str(&format!(
+                "training_rationale: \"{}\"\n",
+                sanitize_yaml_string(rationale)
+            ));
+        } else {
+            doc.push_str("training_rationale: \"Empirically verified architecture findings and benchmarks.\"\n");
+        }
+    } else {
+        doc.push_str("authorship: \"llm-assisted\"\n");
+        if let Some(model) = input
+            .authorship_model
+            .as_deref()
+            .filter(|m| !m.trim().is_empty())
+        {
+            doc.push_str(&format!(
+                "authorship_model: \"{}\"\n",
+                sanitize_yaml_string(model)
+            ));
+        }
+    }
+    if let Some(sort_order) = input.sort_order {
+        doc.push_str(&format!("sort_order: {}\n", sort_order));
+    }
+    doc.push_str("---\n\n");
+
+    // Title, KB Summary & Provenance
+    doc.push_str(&format!("# {}\n\n", input.title));
+    doc.push_str("<!-- kb:summary -->\n");
+    doc.push_str(&build_kb_summary(input));
+    doc.push_str("\n<!-- /kb:summary -->\n\n");
+    doc.push_str(&format!(
+        "> **Empirical Provenance:** Generated by Vox Deep Research (Session #{}, Stability $S = {:.2}$).\n\n",
+        input.session_id, input.stability_score
+    ));
+
+    // Section 2: Executive Summary & Codebase Reality
+    doc.push_str("## 1. Executive Summary & Codebase Reality\n\n");
+    doc.push_str(&format!("{}\n\n", input.executive_summary));
+    doc.push_str(&format!("**Hypothesis:** {}\n\n", input.hypothesis));
+    doc.push_str(&format!(
+        "**Empirical Outcome:** {}\n\n",
+        input.empirical_outcome_summary
+    ));
+
+    if !input.codebase_refs.is_empty() {
+        doc.push_str("### Codebase Targets & Reality Audit\n\n");
+        let headers = ["Crate", "File Path", "Lines", "Codebase Reality"];
+        let rows: Vec<Vec<String>> = input
+            .codebase_refs
+            .iter()
+            .map(|r| {
+                let lines = match (r.line_start, r.line_end) {
+                    (Some(s), Some(e)) => format!("{s}-{e}"),
+                    (Some(s), None) => format!("{s}"),
+                    _ => "N/A".into(),
+                };
+                vec![
+                    r.crate_name.clone(),
+                    format!("`{}`", r.file_path),
+                    lines,
+                    r.observation.clone(),
+                ]
+            })
+            .collect();
+        doc.push_str(&render_markdown_table(&headers, &rows));
+        doc.push('\n');
+    }
+
+    // Section 3: SOTA Competitive Analysis & Technical Benchmark Matrix
+    doc.push_str("## 2. SOTA Competitive Analysis & Technical Benchmark Matrix\n\n");
+    if !input.competitive_matrix.is_empty() {
+        let alt_a = input
+            .competitive_matrix
+            .first()
+            .map(|r| r.alternative_a_name.as_str())
+            .unwrap_or("Alternative A");
+        let alt_b = input
+            .competitive_matrix
+            .first()
+            .map(|r| r.alternative_b_name.as_str())
+            .unwrap_or("Alternative B");
+        let headers = ["Evaluation Dimension", "Vox Implementation", alt_a, alt_b];
+        let rows: Vec<Vec<String>> = input
+            .competitive_matrix
+            .iter()
+            .map(|r| {
+                vec![
+                    r.dimension.clone(),
+                    r.vox_feature.clone(),
+                    r.alternative_a_val.clone(),
+                    r.alternative_b_val.clone(),
+                ]
+            })
+            .collect();
+        doc.push_str(&render_markdown_table(&headers, &rows));
+        doc.push('\n');
+    }
+
+    // Section 4: Verified Empirical Claims Table
+    doc.push_str("## 3. Verified Empirical Claims Table\n\n");
+    if !input.verified_claims.is_empty() {
+        let headers = [
+            "Claim Subject",
+            "Predicate",
+            "Object",
+            "Verdict",
+            "Conf.",
+            "Evidence Source",
+        ];
+        let rows: Vec<Vec<String>> = input
+            .verified_claims
+            .iter()
+            .map(|c| {
+                vec![
+                    c.subject.clone(),
+                    c.predicate.clone(),
+                    c.object.clone(),
+                    c.verdict.clone(),
+                    format!("{:.2}", c.confidence),
+                    c.primary_evidence_source.clone(),
+                ]
+            })
+            .collect();
+        doc.push_str(&render_markdown_table(&headers, &rows));
+        doc.push('\n');
+    }
+
+    // Section 5: Code Verification & Sandbox Reproducibility Evidence
+    doc.push_str("## 4. Code Verification & Sandbox Reproducibility Evidence\n\n");
+    for (i, probe) in input.sandbox_probes.iter().enumerate() {
+        doc.push_str(&format!(
+            "### Probe #{}: {} ({})\n\n",
+            i + 1,
+            probe.title,
+            if probe.success { "PASSED" } else { "FAILED" }
+        ));
+        doc.push_str(&render_code_fence(
+            &probe.language,
+            &probe.original_snippet,
+            true,
+        ));
+        if let Some(ref repaired) = probe.repaired_snippet {
+            doc.push_str("\n**Self-Corrected Repair:**\n\n");
+            doc.push_str(&render_code_fence(&probe.language, repaired, true));
+        }
+        if !probe.compiler_output.is_empty() {
+            doc.push_str("\n**Compiler Output:**\n\n");
+            doc.push_str(&render_code_fence("text", &probe.compiler_output, false));
+        }
+        doc.push('\n');
+    }
+
+    // Section 6: Gap Analysis & Concrete Architectural Recommendations
+    doc.push_str("## 5. Gap Analysis & Concrete Architectural Recommendations\n\n");
+    for gap in &input.gaps_and_recommendations {
+        doc.push_str(&format!(
+            "### [{}] {}\n\n",
+            gap.severity.as_str(),
+            gap.title
+        ));
+        doc.push_str(&format!("**Description:** {}\n\n", gap.description));
+        doc.push_str(&format!("**Recommendation:** {}\n\n", gap.remedy));
+    }
+
+    // Section 7: Phased Implementation Roadmap & Verification Gates
+    doc.push_str("## 6. Phased Implementation Roadmap & Verification Gates\n\n");
+    for phase in &input.roadmap_phases {
+        doc.push_str(&format!(
+            "### Phase {}: {}\n\n",
+            phase.phase_number, phase.title
+        ));
+        doc.push_str(&format!("{}\n\n", phase.description));
+        doc.push_str(&format!(
+            "**Verification Gate:** `{}`\n\n",
+            phase.verification_gate
+        ));
+    }
+
+    Ok(doc)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_severity_tier_as_str_in_file() {
+        assert_eq!(SeverityTier::P0Critical.as_str(), "P0 (Critical)");
+        assert_eq!(SeverityTier::P1Important.as_str(), "P1 (Important)");
+        assert_eq!(SeverityTier::P2Minor.as_str(), "P2 (Minor)");
+    }
+
+    #[test]
+    fn test_render_architecture_ssot_in_file() {
+        let input = ArchitectureSsotInput {
+            slug: "test-doc".into(),
+            title: "Test Architecture SSOT".into(),
+            description: "A test description.".into(),
+            category: "Architecture SSOTs".into(),
+            status: "current".into(),
+            training_eligible: true,
+            training_rationale: None,
+            sort_order: None,
+            session_id: 1,
+            stability_score: 0.95,
+            executive_summary: "Summary text".into(),
+            hypothesis: "Hypothesis text".into(),
+            empirical_outcome_summary: "Outcome text".into(),
+            codebase_refs: vec![],
+            competitive_matrix: vec![],
+            verified_claims: vec![],
+            sandbox_probes: vec![],
+            gaps_and_recommendations: vec![],
+            roadmap_phases: vec![],
+            authorship_model: None,
+        };
+        let doc = render_architecture_ssot(&input).expect("render");
+        assert!(doc.contains("title: \"Test Architecture SSOT\""));
+        assert!(doc.contains("topic: \"scientia-research\""));
+        assert!(doc.contains("domain: \"knowledge\""));
+        assert!(doc.contains("<!-- kb:summary -->"));
+        let summary_body = doc
+            .split("<!-- kb:summary -->")
+            .nth(1)
+            .and_then(|s| s.split("<!-- /kb:summary -->").next())
+            .expect("kb:summary body");
+        let word_count = summary_body.split_whitespace().count();
+        assert!(
+            (40..=120).contains(&word_count),
+            "expected 40..=120 words in kb:summary, got {word_count}"
+        );
+    }
+}

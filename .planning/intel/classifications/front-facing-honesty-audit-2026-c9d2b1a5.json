@@ -1,0 +1,22 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/front-facing-honesty-audit-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Front-facing honesty audit (2026)",
+  "summary": "Calibrated audit of marketing claims versus shipped code; verdicts on claim calibration and Track A remediations to improve accuracy.",
+  "scope": [
+    "marketing claims audit",
+    "claim calibration verdicts",
+    "homepage/playground accuracy",
+    "llms.txt authority",
+    "contributor hub CTA"
+  ],
+  "cross_refs": [
+    "CITATION.cff",
+    ".github/FUNDING.yml"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Labeled explicitly as research/audit, not a decision document. Audit findings inform remediations but do not themselves lock decisions."
+}

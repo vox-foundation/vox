@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/planning-meta/11-document-boundary-matrix.md",
+  "type": "DOC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "Document boundary matrix",
+  "summary": "Ownership and boundary matrix for planning-meta documents defining scope and cross-document separation.",
+  "scope": ["document boundaries", "ownership matrix", "document scope", "planning-meta", "overlap test"],
+  "cross_refs": ["docs/src/architecture/planning-meta/00-research-baseline-source-map.md", "docs/src/architecture/planning-meta/01-master-planning-index.md", "docs/src/architecture/planning-meta/02-fast-llm-instruction-plan.md", "docs/src/architecture/planning-meta/03-weighted-deep-planning-manual.md", "docs/src/architecture/planning-meta/04-planning-critique-gap-analysis.md", "docs/src/architecture/planning-meta/05-anti-foot-gun-planning-standard.md", "docs/src/architecture/planning-meta/06-planning-taxonomy-glossary.md", "docs/src/architecture/planning-meta/07-task-catalog-authoring-spec.md", "docs/src/architecture/planning-meta/08-milestone-gate-definition-spec.md", "docs/src/architecture/planning-meta/09-exception-deferral-policy.md", "docs/src/architecture/planning-meta/10-document-maintenance-protocol.md", "docs/src/architecture/planning-meta/maintenance-log.md", "docs/src/architecture/planning-meta/exception-register.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Defines ownership boundaries via reference matrix; classified as DOC (reference/orientation guide) rather than SPEC because it maps document scope conceptually rather than defining a technical contract or schema."
+}

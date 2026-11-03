@@ -25,6 +25,7 @@ pub fn is_loggable(kind: &AgentEventKind) -> bool {
             | BudgetAlert { .. }
             | LockAcquired { .. }
             | LockReleased { .. }
+            | LockWaiting { .. }
             | ConflictDetected { .. }
             | FeedbackRequested { .. }
             | FeedbackResolved { .. }

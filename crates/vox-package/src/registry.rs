@@ -57,6 +57,10 @@ pub enum PmRegistryError {
     Auth(String),
     NotFound(String),
     Conflict(String),
+    /// The registry index itself returned 404 (or is otherwise unreachable at
+    /// the configured base URL) — distinct from a search that ran and matched
+    /// zero packages.
+    RegistryUnavailable(String),
 }
 
 impl std::fmt::Display for PmRegistryError {
@@ -67,6 +71,7 @@ impl std::fmt::Display for PmRegistryError {
             Self::Auth(msg) => write!(f, "Auth error: {msg}"),
             Self::NotFound(pkg) => write!(f, "Package not found: {pkg}"),
             Self::Conflict(msg) => write!(f, "Conflict: {msg}"),
+            Self::RegistryUnavailable(msg) => write!(f, "{msg}"),
         }
     }
 }
@@ -137,10 +142,10 @@ impl RegistryClient {
             let result: SearchResult = resp.json().await?;
             Ok(result)
         } else if resp.status().as_u16() == 404 {
-            Ok(SearchResult {
-                packages: vec![],
-                total: 0,
-            })
+            Err(PmRegistryError::RegistryUnavailable(format!(
+                "registry not found at {}",
+                self.base_url
+            )))
         } else {
             let text = resp.text().await.unwrap_or_default();
             Err(PmRegistryError::Api(text))
@@ -207,5 +212,62 @@ impl RegistryClient {
             let text = resp.text().await.unwrap_or_default();
             Err(PmRegistryError::Api(text))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wiremock::matchers::{method, path_regex};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    /// A 404 from the registry index means the registry doesn't exist at
+    /// that URL — that must surface as an error, not a silent "zero matches"
+    /// result indistinguishable from a real search with no hits.
+    #[tokio::test]
+    async fn search_maps_404_to_registry_unavailable_error() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path_regex(r"^/api/v1/packages$"))
+            .respond_with(ResponseTemplate::new(404))
+            .mount(&server)
+            .await;
+
+        let client = RegistryClient::new(&server.uri());
+        let err = client
+            .search("anything", 20, 0)
+            .await
+            .expect_err("404 must be an error, not an empty SearchResult");
+
+        assert!(
+            matches!(err, PmRegistryError::RegistryUnavailable(_)),
+            "expected RegistryUnavailable, got {err:?}"
+        );
+        let msg = err.to_string();
+        assert!(
+            msg.contains("registry not found at") && msg.contains(&server.uri()),
+            "message should name the unreachable registry, got: {msg}"
+        );
+    }
+
+    #[tokio::test]
+    async fn search_returns_zero_matches_distinctly_from_404() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path_regex(r"^/api/v1/packages$"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(SearchResult {
+                packages: vec![],
+                total: 0,
+            }))
+            .mount(&server)
+            .await;
+
+        let client = RegistryClient::new(&server.uri());
+        let result = client
+            .search("anything", 20, 0)
+            .await
+            .expect("a real 200 with zero matches must succeed");
+        assert!(result.packages.is_empty());
+        assert_eq!(result.total, 0);
     }
 }

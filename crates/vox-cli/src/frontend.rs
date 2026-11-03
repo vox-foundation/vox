@@ -303,6 +303,25 @@ fn try_pnpm_routes_gen(app_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Copy built static assets from Vite output to the backend's public directory.
+pub fn copy_built_assets(from: &Path, to: &Path) -> Result<()> {
+    if !from.exists() {
+        anyhow::bail!("Built assets not found at {}", from.display());
+    }
+    if to.exists() {
+        std::fs::remove_dir_all(to).ok();
+    }
+    std::fs::create_dir_all(to)?;
+    fs_utils::copy_dir_recursive(from, to).with_context(|| {
+        format!(
+            "Failed to copy assets from {} to {}",
+            from.display(),
+            to.display()
+        )
+    })?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -324,23 +343,4 @@ mod tests {
         assert!(text.contains("--- stdout ---"), "{text}");
         assert!(text.contains("--- stderr ---"), "{text}");
     }
-}
-
-/// Copy built static assets from Vite output to the backend's public directory.
-pub fn copy_built_assets(from: &Path, to: &Path) -> Result<()> {
-    if !from.exists() {
-        anyhow::bail!("Built assets not found at {}", from.display());
-    }
-    if to.exists() {
-        std::fs::remove_dir_all(to).ok();
-    }
-    std::fs::create_dir_all(to)?;
-    fs_utils::copy_dir_recursive(from, to).with_context(|| {
-        format!(
-            "Failed to copy assets from {} to {}",
-            from.display(),
-            to.display()
-        )
-    })?;
-    Ok(())
 }

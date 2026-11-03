@@ -117,8 +117,9 @@ fn main() { let xs = fs.list_recursive(".", "*.md"); print("ok"); }
 → `Error: Eval failed calling main: AssertionFailed("Method list_recursive not found")`
 
 Used in [`scripts/migrate-arrows.vox`](../../../scripts/migrate-arrows.vox),
-[`scripts/migrate-corpus.vox`](../../../scripts/migrate-corpus.vox),
-[`scripts/quality/doc-policy-lint.vox`](../../../scripts/quality/doc-policy-lint.vox).
+`scripts/migrate-corpus.vox`, `scripts/quality/doc-policy-lint.vox`
+(both deleted 2026-09-22 — they encoded retired language rules; see
+[the fine-tuning pipeline audit](mens-fine-tuning-pipeline-audit-2026-09-20.md)).
 
 ### #3b — `path.extension` does not exist
 
@@ -130,7 +131,7 @@ fn main() {
 ```
 → `Error: Eval failed calling main: AssertionFailed("Method extension not found")`
 
-Used in [`scripts/migrate-corpus.vox`](../../../scripts/migrate-corpus.vox).
+Used in `scripts/migrate-corpus.vox` (deleted 2026-09-22).
 Documented as existing in [`docs/src/reference/ref-builtins-stdlib.md`](../reference/ref-builtins-stdlib.md).
 
 ### #3c — `str.split_lines(s)` (free form) does not exist

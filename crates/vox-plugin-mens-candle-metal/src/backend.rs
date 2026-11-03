@@ -8,7 +8,7 @@ use vox_plugin_api::extensions::ml_backend::{MlBackend, MlBackend_TO, MlModelHan
 /// `anyhow::Error` does not implement `std::error::Error`, so we wrap it via
 /// `std::io::Error` (which does).
 fn anyhow_to_rbox(e: anyhow::Error) -> RBoxError {
-    RBoxError::new(std::io::Error::other(e.to_string()))
+    RBoxError::new(std::io::Error::other(format!("{e:#}")))
 }
 
 #[derive(Clone)]
@@ -109,12 +109,17 @@ impl MlBackend for CandleMetalPlugin {
         model: &MlModelHandle,
         prompt_json: RStr<'_>,
     ) -> RResult<RString, RBoxError> {
-        // The model handle's opaque pointer is the directory path encoded as a usize pointer
-        // to a Box<String> set in load_model. For inference we re-load via the model_path stored
-        // in the CandleModel wrapper.
+        // The model handle's opaque pointer is a Box<CandleModel> set in load_model.
+        // We reuse the in-memory InferenceEngine directly instead of reloading from disk.
         #[allow(unsafe_code)]
         let candle_model = unsafe { &*(model.opaque as *const crate::model::CandleModel) };
-        match crate::inference::run(&candle_model.model_path, prompt_json.as_str()) {
+        let mut engine = match candle_model.engine.lock() {
+            Ok(g) => g,
+            Err(e) => {
+                return RResult::RErr(anyhow_to_rbox(anyhow::anyhow!("engine lock poisoned: {e}")));
+            }
+        };
+        match engine.generate_from_json(prompt_json.as_str()) {
             Ok(s) => RResult::ROk(RString::from(s)),
             Err(e) => RResult::RErr(anyhow_to_rbox(e)),
         }

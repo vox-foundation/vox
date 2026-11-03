@@ -10,6 +10,16 @@ describe('scanSource', () => {
     const v = scanSource('x.tsx', `<button onClick={() => {}}>Go</button>`);
     expect(v.map(x => x.kind)).toContain('dead-handler');
   });
+  it('flags a void-0 or null no-op arrow handler', () => {
+    const v1 = scanSource('x.tsx', `<button onClick={() => void 0}>Go</button>`);
+    const v2 = scanSource('x.tsx', `<button onSubmit={() => null}>Go</button>`);
+    expect(v1.map(x => x.kind)).toContain('dead-handler');
+    expect(v2.map(x => x.kind)).toContain('dead-handler');
+  });
+  it('flags an unguarded e2e tauriMock import in shipped surface code', () => {
+    const v = scanSource('x.tsx', `import { installTauriMock } from '../../../e2e/lib/tauriMock';`);
+    expect(v.map(x => x.kind)).toContain('unguarded-mock');
+  });
   it('passes a real handler', () => {
     const v = scanSource('x.tsx', `<button onClick={() => invoke('do_it')}>Go</button>`);
     expect(v).toHaveLength(0);

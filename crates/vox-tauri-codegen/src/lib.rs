@@ -107,8 +107,13 @@ pub fn write_tauri_desktop_config(path: &Path, params: &TauriEmitParams<'_>) -> 
     Ok(())
 }
 
+/// Placeholder app icon, embedded so seeding never depends on where the generated
+/// project sits relative to the vox repo (a nested Vox package's `target/generated`
+/// is not three levels below the repo root). Copy of `crates/vox-gui/icons/icon.png`.
+const PLACEHOLDER_ICON_PNG: &[u8] = include_bytes!("../assets/placeholder-icon.png");
+
 // tauri-build probes icons/icon.png at compile time regardless of bundle.icon config.
-// Copy the repo icon so the proc macro doesn't panic; this file is never bundled here.
+// Seed a placeholder so the proc macro doesn't panic; this file is never bundled here.
 // Public so the bundle path can seed the generated src-tauri dir BEFORE `cargo tauri build`
 // runs (the emit/write paths run too late for the desktop compile smoke).
 pub fn seed_placeholder_icon(src_tauri_dir: &Path) -> Result<()> {
@@ -117,17 +122,8 @@ pub fn seed_placeholder_icon(src_tauri_dir: &Path) -> Result<()> {
         return Ok(());
     }
     fs::create_dir_all(src_tauri_dir.join("icons"))?;
-    // Walk up: src-tauri/ → generated/ → target/ → workspace root
-    let icon_src = src_tauri_dir
-        .parent()
-        .and_then(|p| p.parent())
-        .and_then(|p| p.parent())
-        .map(|ws| ws.join("crates/vox-gui/icons/icon.png"));
-    if let Some(src) = icon_src.filter(|p| p.is_file()) {
-        fs::copy(&src, &icon_dst)
-            .with_context(|| format!("copy placeholder icon to {}", icon_dst.display()))?;
-    }
-    Ok(())
+    fs::write(&icon_dst, PLACEHOLDER_ICON_PNG)
+        .with_context(|| format!("write placeholder icon to {}", icon_dst.display()))
 }
 
 /// Walk parents of `start` until `contracts/capability/runtime-capabilities.v1.yaml` exists.
@@ -308,6 +304,20 @@ Display name: **`{}`**
 mod tests {
     use super::*;
     use std::fs;
+
+    /// Real CI failure (compile-suite desktop Tauri smoke): the generated project
+    /// lives under a nested Vox package (`<pkg>/target/generated/src-tauri`), so
+    /// walking three parents up no longer reaches the vox repo root. The icon
+    /// copy was silently skipped and `generate_context!()` failed on the missing
+    /// `icons/icon.png`. The icon must be written regardless of layout.
+    #[test]
+    fn seed_placeholder_icon_writes_a_png_outside_the_repo_layout() {
+        let tmp = tempfile::tempdir().unwrap();
+        let src_tauri = tmp.path().join("pkg/target/generated/src-tauri");
+        seed_placeholder_icon(&src_tauri).unwrap();
+        let icon = fs::read(src_tauri.join("icons/icon.png")).expect("icon written");
+        assert!(icon.starts_with(b"\x89PNG\r\n\x1a\n"), "not a PNG");
+    }
 
     #[test]
     fn emits_packaging_hints() {

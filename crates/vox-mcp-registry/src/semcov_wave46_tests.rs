@@ -2,11 +2,11 @@
 mod semcov_wave46_tests {
     #![allow(clippy::module_inception)]
     use crate::{
-        A2A_MESSAGE_TYPES, McpToolRegistryEntry, ORCHESTRATOR_TOOLS, SKILL_TOOLS, TOOL_REGISTRY,
+        A2A_MESSAGE_TYPES, Exposure, McpToolRegistryEntry, ORCHESTRATOR_TOOLS, SKILL_TOOLS,
+        SideEffectClass, Subsystem, TOOL_REGISTRY,
     };
 
     const VALID_LANES: &[&str] = &["app", "workflow", "ai", "interop", "data", "platform"];
-    const VALID_TIERS: &[&str] = &["core", "extended", "experimental"];
 
     // ── registry lookup ────────────────────────────────────────────────────
 
@@ -125,24 +125,33 @@ mod semcov_wave46_tests {
     }
 
     #[test]
-    // Catches: build.rs emitting an empty tier when default_tier() is not applied
-    fn all_entries_have_non_empty_tier() {
+    // Catches: build.rs emitting a classification whose wire string no longer parses
+    fn all_classification_values_round_trip() {
         for e in TOOL_REGISTRY {
-            assert!(!e.tier.is_empty(), "tool '{}' has empty tier field", e.name);
+            assert_eq!(
+                Exposure::parse(e.exposure.as_str()),
+                Some(e.exposure),
+                "{}",
+                e.name
+            );
+            assert_eq!(
+                SideEffectClass::parse(e.side_effect_class.as_str()),
+                Some(e.side_effect_class),
+                "{}",
+                e.name
+            );
+            for s in e.requires {
+                assert_eq!(Subsystem::parse(s.as_str()), Some(*s), "{}", e.name);
+            }
         }
     }
 
     #[test]
-    // Catches: a new tier value added to YAML without updating the allowed set
-    fn all_tier_values_are_recognised() {
+    // Catches: duplicate subsystem ids emitted into one tool's requires slice
+    fn requires_has_no_duplicates() {
         for e in TOOL_REGISTRY {
-            assert!(
-                VALID_TIERS.contains(&e.tier),
-                "tool '{}' has unrecognised tier '{}' (expected one of {:?})",
-                e.name,
-                e.tier,
-                VALID_TIERS
-            );
+            let uniq: std::collections::BTreeSet<_> = e.requires.iter().collect();
+            assert_eq!(uniq.len(), e.requires.len(), "{}", e.name);
         }
     }
 

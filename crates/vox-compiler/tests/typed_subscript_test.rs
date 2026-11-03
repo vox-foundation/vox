@@ -52,5 +52,5 @@ fn string_subscript_returns_char_string() {
             let s = "hello"
             return s[1].unwrap_or("?")
         }"#);
-    assert_eq!(v, VoxValue::Str("e".to_string()));
+    assert_eq!(v, VoxValue::Str("e".to_string().into()));
 }

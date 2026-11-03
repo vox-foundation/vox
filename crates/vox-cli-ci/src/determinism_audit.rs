@@ -1,13 +1,43 @@
 use anyhow::{Result, anyhow};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::cargo_bin;
 
+fn resolve_or_build_vox_bin(root: &Path) -> Result<PathBuf> {
+    if let Some(p) = std::env::var_os("VOX_BIN") {
+        let pb = PathBuf::from(p);
+        if pb.is_file() {
+            return Ok(pb);
+        }
+    }
+    let exe_name = if cfg!(windows) { "vox.exe" } else { "vox" };
+    let debug_bin = root.join("target/debug").join(exe_name);
+    if debug_bin.is_file() {
+        return Ok(debug_bin);
+    }
+    let release_bin = root.join("target/release").join(exe_name);
+    if release_bin.is_file() {
+        return Ok(release_bin);
+    }
+    let status = Command::new(cargo_bin())
+        .current_dir(root)
+        .args(["build", "-p", "vox-cli"])
+        .status()?;
+    if !status.success() {
+        return Err(anyhow!("cargo build -p vox-cli failed"));
+    }
+    if debug_bin.is_file() {
+        Ok(debug_bin)
+    } else {
+        Err(anyhow!("vox binary not found at {}", debug_bin.display()))
+    }
+}
+
 pub fn run(root: &Path) -> Result<()> {
     println!("Running determinism audit on examples/golden...");
-    let cargo = cargo_bin();
+    let vox_bin = resolve_or_build_vox_bin(root)?;
     let golden_dir = root.join("examples/golden");
 
     if !golden_dir.is_dir() {
@@ -46,14 +76,10 @@ pub fn run(root: &Path) -> Result<()> {
         fs::create_dir_all(&dir1)?;
         fs::create_dir_all(&dir2)?;
 
-        // Run build 1
-        let status1 = Command::new(&cargo)
+        // Run build 1 directly against the compiled `vox` binary (avoids 140 `cargo run` lock rounds)
+        let status1 = Command::new(&vox_bin)
             .current_dir(root)
             .args([
-                "run",
-                "-p",
-                "vox-cli",
-                "--",
                 "build",
                 path.to_str().unwrap(),
                 "-o",
@@ -65,13 +91,9 @@ pub fn run(root: &Path) -> Result<()> {
         }
 
         // Run build 2
-        let status2 = Command::new(&cargo)
+        let status2 = Command::new(&vox_bin)
             .current_dir(root)
             .args([
-                "run",
-                "-p",
-                "vox-cli",
-                "--",
                 "build",
                 path.to_str().unwrap(),
                 "-o",
@@ -112,4 +134,21 @@ pub fn run(root: &Path) -> Result<()> {
         "Determinism audit passed: all golden examples produce byte-identical output across runs."
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolve_or_build_vox_bin_prefers_existing_target_debug_binary() {
+        let tmp = tempfile::tempdir().unwrap();
+        let debug_dir = tmp.path().join("target/debug");
+        fs::create_dir_all(&debug_dir).unwrap();
+        let exe_name = if cfg!(windows) { "vox.exe" } else { "vox" };
+        let fake_bin = debug_dir.join(exe_name);
+        fs::write(&fake_bin, b"#!/bin/sh\n").unwrap();
+        let resolved = resolve_or_build_vox_bin(tmp.path()).unwrap();
+        assert_eq!(resolved, fake_bin);
+    }
 }

@@ -45,6 +45,9 @@ pub fn note_template_profile_inert(
     }
 }
 
+pub const TWITTER_MAX_CHARS: usize = 280;
+pub const TWITTER_SUMMARY_MARGIN: usize = 20;
+
 pub fn twitter_effective_summary_max_chars(
     item: &UnifiedNewsItem,
     cfg: &PublisherConfig,
@@ -52,19 +55,20 @@ pub fn twitter_effective_summary_max_chars(
 ) -> usize {
     let margin_base = cfg
         .twitter_summary_margin_chars
-        .unwrap_or(crate::adapters::twitter::SUMMARY_MARGIN);
+        .unwrap_or(TWITTER_SUMMARY_MARGIN);
     note_template_profile_inert(item, "twitter", decision_reasons);
     if !syndication_template_profile_enabled() {
-        return crate::adapters::twitter::TWEET_MAX_CHARS.saturating_sub(margin_base);
+        return TWITTER_MAX_CHARS.saturating_sub(margin_base);
     }
     let Some(ref p) = channel_template_profile_label(item, "twitter") else {
-        return crate::adapters::twitter::TWEET_MAX_CHARS.saturating_sub(margin_base);
+        return TWITTER_MAX_CHARS.saturating_sub(margin_base);
     };
     let p_low = p.to_ascii_lowercase();
     let margin_adj = match p_low.as_str() {
         "brief" | "tight" | "compact" => margin_base.saturating_sub(16).max(4),
-        "roomy" | "spacious" | "narrative" => (margin_base.saturating_add(24))
-            .min(crate::adapters::twitter::TWEET_MAX_CHARS.saturating_div(3)),
+        "roomy" | "spacious" | "narrative" => {
+            (margin_base.saturating_add(24)).min(TWITTER_MAX_CHARS.saturating_div(3))
+        }
         _ => {
             decision_reasons.insert(
                 "template_profile_fallback_twitter".to_string(),
@@ -77,7 +81,7 @@ pub fn twitter_effective_summary_max_chars(
         "template_profile_resolved_twitter".to_string(),
         format!("{p}:margin_chars={margin_adj}"),
     );
-    crate::adapters::twitter::TWEET_MAX_CHARS.saturating_sub(margin_adj)
+    TWITTER_MAX_CHARS.saturating_sub(margin_adj)
 }
 
 pub fn social_text_cap_with_template_profile(

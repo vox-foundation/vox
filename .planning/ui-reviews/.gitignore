@@ -1,0 +1,4 @@
+# Temporary screenshot files captured during /gsd:ui-review visual audits
+# Do not commit — regenerated on each audit run
+*
+!.gitignore

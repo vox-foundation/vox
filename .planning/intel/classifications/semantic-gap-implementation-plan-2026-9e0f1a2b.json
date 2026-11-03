@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/semantic-gap-implementation-plan-2026.md",
+  "type": "DOC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "Semantic Gap Implementation Plan (2026-05-16)",
+  "summary": "TDD-based remediation plan for 7 HIGH and 1 LOW semantic-gap findings, organized in 3 independent batches with task breakdown.",
+  "scope": ["implementation-plan", "TDD", "batch-B-codegen", "batch-A-orchestrator", "batch-C-plugin", "task-breakdown"],
+  "cross_refs": ["docs/src/architecture/semantic-gap-audit-2026.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Detailed implementation plan with step-by-step tasks; classified as DOC (planning/task guidance) rather than SPEC, though procedurally prescriptive."
+}

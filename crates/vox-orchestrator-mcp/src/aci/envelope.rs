@@ -9,10 +9,23 @@ use vox_orchestrator::agentos::checkpoint_engine::should_sparse_checkpoint;
 use vox_orchestrator::agentos::mutation_classifier::mutation_kind_for_tool;
 
 static ACI_TOOL_RESPONSE_SCHEMA: LazyLock<Value> = LazyLock::new(|| {
-    serde_json::from_str(include_str!(
+    let mut schema: Value = serde_json::from_str(include_str!(
         "../../../../contracts/aci/agent-computer-interface.v1.schema.json"
     ))
-    .expect("parse embedded agent-computer-interface.v1.schema.json")
+    .expect("parse embedded agent-computer-interface.v1.schema.json");
+    if let Some(props) = schema
+        .pointer_mut("/$defs/aci_metadata/properties/execution_probe/properties")
+        .and_then(|v| v.as_object_mut())
+    {
+        props.entry("structured_data").or_insert_with(|| json!({}));
+        props.entry("syntax_hints").or_insert_with(|| {
+            json!({
+                "type": "array",
+                "items": { "type": "string" }
+            })
+        });
+    }
+    schema
 });
 
 static ACI_TOOL_RESPONSE_VALIDATOR: LazyLock<vox_jsonschema_util::Validator> =
@@ -191,5 +204,22 @@ mod tests {
         let out = attach_aci_envelope("vox_git_status", inner, false, None).expect("attach");
         let v: Value = serde_json::from_str(&out).expect("parse");
         assert_eq!(v["aci"]["execution_probe"]["stdout"], "x");
+    }
+
+    #[test]
+    fn aci_execution_probe_preserves_structured_data_and_syntax_hints() {
+        let inner = r#"{"success":true,"data":{},"meta":{"execution_probe":{"stdout":"[{\"name\":\"a\"}]","stderr":"","exit_code":0,"structured_data":[{"name":"a"}],"syntax_hints":["use ; instead of &&"]}}}"#;
+        let args = json!({ "backend": "nu" });
+        let out = attach_aci_envelope("vox_run_shell", inner, false, Some(&args)).expect("attach");
+        let v: Value = serde_json::from_str(&out).expect("parse");
+        assert_eq!(v["aci"]["shell_backend"], "nushell");
+        assert_eq!(
+            v["aci"]["execution_probe"]["structured_data"][0]["name"],
+            "a"
+        );
+        assert_eq!(
+            v["aci"]["execution_probe"]["syntax_hints"][0],
+            "use ; instead of &&"
+        );
     }
 }

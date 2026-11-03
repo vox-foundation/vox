@@ -54,7 +54,7 @@ export function Kpi({
       {...props}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] overline uppercase tracking-widest text-text-muted font-medium truncate">
+        <span className="text-[10px] uppercase tracking-widest text-text-muted font-medium truncate">
           {label}
         </span>
         {icon && <span className="text-text-muted flex shrink-0">{icon}</span>}
@@ -76,6 +76,7 @@ export function Kpi({
           </span>
         )}
       </div>
+      <span className={cn('vox-metric-rule', ACCENT_COLORS[accent])} aria-hidden="true" />
 
       {children}
     </Glass>

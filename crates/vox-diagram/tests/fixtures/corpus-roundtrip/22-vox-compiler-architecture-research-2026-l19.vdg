@@ -1,0 +1,25 @@
+graph {
+    direction: right
+    node Source: "Vox_source"
+    container lexerParser: "LexerAndParser" {
+        node lex: "lex"
+        node parse: "parse"
+        lex -> parse
+    }
+    container analysis: "Analysis" {
+        node ast: "AST_module"
+        node hir: "HIR_lower"
+        node typeck: "typecheck_ast_module"
+        node hirVal: "validate_module_HIR"
+        ast -> hir
+        hir -> typeck
+        hir -> hirVal
+    }
+    container emit: "Emit" {
+        node codegen: "codegen_rust_and_emit_targets"
+    }
+    Source -> lexerParser.lex
+    lexerParser.parse -> analysis.ast
+    analysis.typeck -> emit.codegen
+    analysis.hirVal -> emit.codegen
+}

@@ -9,7 +9,7 @@
 //! preference key.
 //!
 //! This is tier 3 of the 5-tier precedence order documented in
-//! `contracts/orchestration/permission-modes.v1.yaml` — checked by
+//! `contracts/orchestration/permission-modes.v2.yaml` — checked by
 //! `dispatch.rs`'s gate only after tier 2 (`permission_mode`, see
 //! [`crate::permission_modes`]) says "still park" for this call.
 

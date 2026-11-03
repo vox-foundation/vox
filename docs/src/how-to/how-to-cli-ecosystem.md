@@ -173,25 +173,21 @@ recall_async(agent, type, limit, min_importance)  # Query with relevance filteri
 
 Canonical page: [Installing Vox](../reference/installation.md).
 
-### Automated (recommended)
+### From source (works today)
+
+Prerequisites: Rust **1.98.1** (`rust-toolchain.toml`), Node.js >= 18, C compiler (gcc/clang/MSVC).
 
 ```bash
-curl --proto '=https' --tlsv1.2 -sSf https://voxlang.org/voxup | sh
+cargo install --locked --path crates/vox-cli
 ```
 
-From a checkout, the same scripts run directly — they take **no arguments**:
+### Planned: voxup
+
+The rustup-style one-liner is **not published**. Do not pipe `https://voxlang.org/voxup` into a shell until [Installing Vox](../reference/installation.md) marks that channel working. From a checkout the scripts take **no arguments**:
 
 ```bash
 sh scripts/install.sh        # Linux / macOS
 .\scripts\install.ps1        # Windows (PowerShell)
-```
-
-### Manual
-
-Prerequisites: Rust 1.96 (`rust-toolchain.toml` pins `1.96.0`), Node.js >= 18, C compiler (gcc/clang/MSVC). Full workspace + **Turso** crates: **clang** on Linux/macOS; **clang-cl** (LLVM) on Windows.
-
-```bash
-cargo install --locked --path crates/vox-cli
 ```
 
 > **Note:** Node.js and npm are required at runtime for `vox bundle` and `vox run` (frontend scaffolding). Copy `.env.example` to `.env` to configure optional API keys.

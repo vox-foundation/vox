@@ -19,6 +19,9 @@ pub enum PopuliMensTail {
         /// Policy file (default: mens/config/eval-gates.yaml)
         #[arg(long)]
         policy: Option<PathBuf>,
+        /// Run the 25-problem 5-spoke Mens before/after verification gate and write `mens_spoke_scorecard.json`.
+        #[arg(long, default_value_t = false)]
+        five_spokes: bool,
     },
 
     /// Capture a base-model BFCL baseline so the beat-base eval gate has a real
@@ -64,6 +67,37 @@ pub enum PopuliMensTail {
         /// Number of initial warmup requests
         #[arg(short = 'w', long, default_value = "5")]
         warmup: usize,
+    },
+
+    /// Rank live cloud GPU offers for a training run and print the estimated bill.
+    ///
+    /// Read-only: resolves and ranks, never provisions. Requires VOX_VAST_API_KEY
+    /// and/or VOX_RUNPOD_API_KEY for the rented rows; the local row needs neither.
+    #[cfg(feature = "cloud")]
+    #[command(name = "cloud-estimate")]
+    CloudEstimate {
+        /// Path to the model directory (read for layers / hidden / artifact bytes).
+        #[arg(long)]
+        model_dir: PathBuf,
+        /// Provider to query: auto, vast, runpod, local.
+        #[arg(long, default_value = "auto")]
+        target: String,
+        /// Refuse to list offers above this total run cost.
+        #[arg(long, default_value_t = 100.0)]
+        max_budget: f64,
+        /// Micro-batch size (drives the memory-model prediction and the
+        /// resolver's cost estimate). Matches `vox mens train`'s default.
+        #[arg(long, default_value_t = 4)]
+        batch_size: usize,
+        /// Training sequence length. Matches `vox mens train`'s default.
+        #[arg(long, default_value_t = 512)]
+        seq_len: usize,
+        /// Total number of training pairs (cost-estimate input only).
+        #[arg(long, default_value_t = 5000)]
+        num_samples: usize,
+        /// Number of training epochs (cost-estimate input only).
+        #[arg(long, default_value_t = 3)]
+        epochs: usize,
     },
 
     /// Generate the canonical system prompt template for IDE integration (Cursor, Claude, etc.)

@@ -35,7 +35,7 @@ export const tokens = {
       "400": "#d4af37",
       "500": "#c9a24a",
       "600": "#a8842f",
-      "700": "#8a6a26"
+      "700": "#7d5f20"
     },
     "verdigris": {
       "300": "#79c8ba",
@@ -45,7 +45,7 @@ export const tokens = {
     },
     "terracotta": {
       "400": "#d98b6a",
-      "600": "#b25a37"
+      "600": "#9f4e2f"
     },
     "oxblood": {
       "600": "#a3402f",

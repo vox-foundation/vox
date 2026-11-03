@@ -5,6 +5,9 @@
 //! that policy clamping helpers return values inside `[0.0, 1.0]` even
 //! when source weights drift outside the legal interval.
 
+// Task 9c: no real web host from any test (see tests/common/mod.rs).
+mod common;
+
 use vox_search::{A2ARetrievalRequest, SEARCH_POLICY_DEFAULT_VERSION, SearchPolicy};
 
 #[test]

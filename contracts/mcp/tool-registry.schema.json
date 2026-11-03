@@ -13,7 +13,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["name", "description", "product_lane"],
+        "required": ["name", "description", "product_lane", "exposure", "side_effect_class", "requires"],
         "properties": {
           "name": { "type": "string", "minLength": 1 },
           "description": { "type": "string", "minLength": 1 },
@@ -26,10 +26,24 @@
             "type": "boolean",
             "description": "Optional flag for MCP HTTP read-role eligibility. When true, this tool can be included in read-token visibility/invocation after gateway allowlist/env intersections."
           },
-          "tier": {
+          "exposure": {
             "type": "string",
-            "enum": ["core", "dev", "advanced"],
-            "description": "MCP tool tier indicating its typical load context."
+            "enum": ["public", "operator", "internal"],
+            "description": "Capability-profile exposure class (vox_mcp_registry::Exposure)."
+          },
+          "side_effect_class": {
+            "type": "string",
+            "enum": ["none", "read_only", "writes_files", "spawns_process", "network", "remote_mutation", "destructive"],
+            "description": "Strongest effect any handler path can have (vox_mcp_registry::SideEffectClass)."
+          },
+          "requires": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": ["db", "sessions", "agent_fleet", "model_registry", "llm_facade", "search_index", "memory", "research", "mesh", "attention", "clarification", "flywheel", "compiler", "browser", "speech"]
+            },
+            "description": "Subsystems that must be booted for the tool (vox_mcp_registry::Subsystem); [] when none."
           }
         }
       }

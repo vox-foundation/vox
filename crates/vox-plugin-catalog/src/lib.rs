@@ -107,6 +107,15 @@ pub fn bundle_resolved(id: &str) -> Result<Vec<&'static PluginCatalogEntry>, Res
     Ok(out)
 }
 
+/// Default capability profile ids declared directly on bundle `id` (not inherited).
+pub fn bundle_profiles(id: &str) -> Result<&'static [String], ResolveError> {
+    all_bundles()
+        .iter()
+        .find(|b| b.id == id)
+        .map(|b| b.profiles.as_slice())
+        .ok_or_else(|| ResolveError::UnknownBundle(id.to_string()))
+}
+
 #[cfg(test)]
 mod bundle_membership_tests {
     use super::bundle_resolved;
@@ -145,5 +154,47 @@ mod bundle_membership_tests {
     fn vox_server_bundle_resolves_without_error() {
         // Sanity: every plugin id listed in vox-server must exist in all_plugins().
         bundle_resolved("vox-server").expect("vox-server bundle should resolve cleanly");
+    }
+
+    #[test]
+    fn bundle_profiles_match_the_spec_defaults() {
+        use super::bundle_profiles;
+        assert_eq!(
+            bundle_profiles("vox-server")
+                .expect("server")
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            ["orchestrator", "knowledge", "mesh"]
+        );
+        assert_eq!(
+            bundle_profiles("vox-mesh")
+                .expect("mesh")
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            ["mesh"]
+        );
+        assert_eq!(
+            bundle_profiles("vox-dev")
+                .expect("dev")
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            ["dev"]
+        );
+        assert!(bundle_profiles("vox-base").expect("base").is_empty());
+    }
+
+    #[test]
+    fn bundle_profiles_unknown_bundle_errors() {
+        assert!(super::bundle_profiles("nope").is_err());
+    }
+
+    #[test]
+    fn no_bundle_defaults_to_browser() {
+        for b in super::all_bundles() {
+            assert!(!b.profiles.iter().any(|p| p == "browser"), "{}", b.id);
+        }
     }
 }

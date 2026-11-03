@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
+use vox_orchestrator_types::trust::{AGENT_CONCEPT_NODE_TYPE, AGENT_FACT_NODE_TYPE};
 
 use crate::services::persistence_obs::log_persistence_failure;
 use crate::types::AgentId;
@@ -203,15 +204,20 @@ impl MemoryManager {
                     log_persistence_failure("memory.persist_fact.save_memory", e);
                 }
 
-                // 2. Upsert a knowledge_node for this fact
+                // 2. Upsert a knowledge_node for this fact. D-07: graph rows written here are
+                //    model-originated, so they carry the agent node types (Untrusted).
+                let meta_json = format!(
+                    "{{\"value\":{:?},\"media_url\":{:?},\"media_type\":{:?}}}",
+                    v, m_url, m_type
+                );
                 if let Err(e) = db
                     .upsert_knowledge_node(
                         &k,
-                        "fact",
                         &k,
-                        Some(&format!("{{\"value\":\"{v}\"}}")),
-                        m_url.as_deref(),
-                        m_type.as_deref(),
+                        &v,
+                        Some(AGENT_FACT_NODE_TYPE),
+                        Some(&meta_json),
+                        None,
                     )
                     .await
                 {
@@ -221,7 +227,14 @@ impl MemoryManager {
                 // 3. Create knowledge_edge links for related facts
                 for r in rels {
                     if let Err(e) = db
-                        .upsert_knowledge_node(&r, "concept", &r, None, None, None)
+                        .upsert_knowledge_node(
+                            &r,
+                            &r,
+                            &r,
+                            Some(AGENT_CONCEPT_NODE_TYPE),
+                            None,
+                            None,
+                        )
                         .await
                     {
                         log_persistence_failure("memory.persist_fact.upsert_related_node", e);
@@ -647,5 +660,18 @@ impl MemoryManager {
             }
         }
         Ok(removed)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn for_account_scopes_the_manager_and_starts_with_no_keys() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mgr = MemoryManager::for_account("test-acc", dir.path()).expect("manager");
+        assert_eq!(mgr.account_id(), "test-acc");
+        assert!(mgr.list_keys().expect("keys").is_empty());
     }
 }

@@ -17,24 +17,12 @@ use vox_bounded_fs::read_utf8_path_capped;
 static VOX_DOC_LINK_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\[[^\]]+\]\(([^)]+\.vox)\)").expect("vox doc link regex"));
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 #[serde(default)]
 struct Frontmatter {
-    training_eligible: bool,
     last_updated: Option<String>,
     title: Option<String>,
     status: Option<String>,
-}
-
-impl Default for Frontmatter {
-    fn default() -> Self {
-        Self {
-            training_eligible: true,
-            last_updated: None,
-            title: None,
-            status: None,
-        }
-    }
 }
 
 /// Configuration for documentation extraction.
@@ -121,35 +109,42 @@ fn parse_frontmatter(content: &str, path: &Path) -> (Frontmatter, bool, u8) {
         return (Frontmatter::default(), false, 0);
     }
 
-    if !content.starts_with("---") {
-        // Fallback for files without frontmatter
-        let eligible = !(content.contains("training_eligible: false")
-            || content.contains("training_eligible:false"));
-        let fallback = Frontmatter {
+    // Fail closed (TAX-06): a typo such as `origin: web-promotd` must not make a page eligible.
+    let facets = match vox_kb_facets::parse_facets(content) {
+        Ok(f) => f,
+        Err(_) => return (Frontmatter::default(), false, 0),
+    };
+    // One shared rule with the facet lint (D-06); flag absent stays eligible (D-05).
+    if !vox_kb_facets::effective_training_eligible(&facets) {
+        return (Frontmatter::default(), false, 0);
+    }
+    // Fail closed (WR-03): a misspelled eligibility key (`training_eligble: false`) is ignored
+    // by the typed parse, so the author's intent must not default to "eligible".
+    if vox_kb_facets::facet_key_near_misses(content)
+        .iter()
+        .any(vox_kb_facets::KeyNearMiss::guards_eligibility)
+    {
+        return (Frontmatter::default(), false, 0);
+    }
+    // No frontmatter at all: keep the pre-TAX conservative opt-out so a stray
+    // `training_eligible: false` in a fence-less file (a crate README) still excludes it.
+    if vox_kb_facets::frontmatter_yaml(content).is_none()
+        && (content.contains("training_eligible: false")
+            || content.contains("training_eligible:false"))
+    {
+        return (Frontmatter::default(), false, 0);
+    }
+
+    let fm: Frontmatter = match vox_kb_facets::frontmatter_yaml(content) {
+        Some(y) => serde_yaml::from_str(y).unwrap_or_default(),
+        None => Frontmatter {
             title: path
                 .file_stem()
                 .and_then(|s| s.to_str())
                 .map(|s| s.replace(['-', '_'], " ")),
             ..Frontmatter::default()
-        };
-        return (fallback, eligible, 0);
-    }
-
-    let parts: Vec<&str> = content.splitn(3, "---").collect();
-    if parts.len() < 3 {
-        let eligible = !(content.contains("training_eligible: false")
-            || content.contains("training_eligible:false"));
-        return (Frontmatter::default(), eligible, 0);
-    }
-
-    let yaml_str = parts[1];
-
-    // Extract using serde_yaml, fallback to true if malformed
-    let fm: Frontmatter = serde_yaml::from_str(yaml_str).unwrap_or_default();
-
-    if !fm.training_eligible {
-        return (fm, false, 0);
-    }
+        },
+    };
 
     let mut penalty = 0;
     if let Some(ref date_str) = fm.last_updated
@@ -178,6 +173,10 @@ pub fn extract_from_md_file(
     if !eligible {
         return Ok(Vec::new());
     }
+
+    // The page-one summary block is a rewrite target, never training text (TAX-06); strip it
+    // before both lanes.
+    let source = vox_kb_facets::strip_summary_blocks(&source);
 
     let mut pairs = Vec::new();
 
@@ -348,11 +347,9 @@ fn extract_qa_sections(
             if !current_heading.is_empty()
                 && current_body.len() >= config.min_section_chars
                 && heading_level >= 2
+                && !is_link_list(&current_body)
             {
-                let prompt = format!(
-                    "Explain the Vox concept: {} (precise prose; any code snippets must use `->` returns.)",
-                    current_heading
-                );
+                let prompt = format!("Explain the Vox concept: {}", current_heading);
                 let mut response = current_body.trim().to_string();
 
                 // Relational Chunking: Inject linked .vox examples directly into the training response
@@ -405,6 +402,7 @@ fn extract_qa_sections(
     if !current_heading.is_empty()
         && current_body.len() >= config.min_section_chars
         && heading_level >= 2
+        && !is_link_list(&current_body)
     {
         let prompt = format!("Explain the Vox concept: {}", current_heading);
         let mut response = current_body.trim().to_string();
@@ -524,6 +522,27 @@ pub fn walk_and_extract_docs(config: &ExtractDocsConfig) -> anyhow::Result<Vec<D
     Ok(all)
 }
 
+/// True when most non-empty lines are markdown links (an index/"see also" list).
+/// Such sections have no explanatory content to learn from.
+fn is_link_list(body: &str) -> bool {
+    let lines: Vec<&str> = body
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .collect();
+    if lines.is_empty() {
+        return false;
+    }
+    let links = lines
+        .iter()
+        .filter(|l| {
+            let l = l.trim_start_matches(['-', '*', '/', ' ']);
+            l.starts_with('[') && l.contains("](")
+        })
+        .count();
+    links * 2 > lines.len()
+}
+
 fn walk_docs_dir(
     dir: &Path,
     config: &ExtractDocsConfig,
@@ -536,6 +555,10 @@ fn walk_docs_dir(
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
+            // Tombstoned (AGENTS.md §Archival Protocol): never training data.
+            if path.file_name().is_some_and(|n| n == "archive") {
+                continue;
+            }
             walk_docs_dir(&path, config, out)?;
         } else if path.extension().is_some_and(|e| e == "md") {
             match extract_from_md_file(&path, config) {
@@ -607,6 +630,45 @@ is actually emitted as a training pair by the extractor under test.
 
 More prose after the fence, also part of the section body.
 "#;
+
+    #[test]
+    fn qa_prompts_do_not_demand_arrow_returns_and_link_lists_are_skipped() {
+        const MD: &str = r#"# Doc
+
+## Returns
+
+Functions declare their return type with `to`, for example a function that
+adds two integers returns an int. This section is long enough to be emitted.
+
+## See also
+
+- [one.md](one.md)
+- [two.md](two.md)
+- [three.md](three.md)
+"#;
+        let mut out = Vec::new();
+        let config = ExtractDocsConfig {
+            min_section_chars: 40,
+            ..ExtractDocsConfig::default()
+        };
+        extract_qa_sections(
+            MD,
+            Path::new("d.md"),
+            &Frontmatter::default(),
+            0,
+            &config,
+            &mut out,
+        );
+        assert_eq!(out.len(), 1, "only the prose section should be emitted");
+        assert_eq!(out[0].prompt, "Explain the Vox concept: Returns");
+        assert!(!out.iter().any(|p| p.prompt.contains("->")));
+    }
+
+    #[test]
+    fn link_list_detection() {
+        assert!(is_link_list("- [a](a.md)\n- [b](b.md)\n"));
+        assert!(!is_link_list("Prose line.\n- [a](a.md)\nMore prose.\n"));
+    }
 
     #[test]
     fn qa_lane_excludes_skip_marked_fences() {
@@ -762,3 +824,7 @@ Check out this code:
         );
     }
 }
+
+#[cfg(test)]
+#[path = "extract_docs_facet_tests.rs"]
+mod facet_tests;

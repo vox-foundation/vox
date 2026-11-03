@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mesh-dashboard-and-distributed-compute-research-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Mesh, Dashboard & Distributed Compute — Research (2026-05-09)",
+  "summary": "Two-horizon research synthesis auditing mesh/dashboard/durable-workflow state, surveying prior art, identifying gaps and Wave-2 design space; feeds future plans-of-record.",
+  "scope": ["mesh", "dashboard", "distributed compute", "durable workflows", "prior art survey", "security model"],
+  "cross_refs": ["populi-mesh-north-star-2026.md", "populi-mesh-improvement-backlog-2026.md", "vox-dashboard-design-brief-2026.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

@@ -1,0 +1,20 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/deep-research-system-best-practices-research-2026-06-18.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Deep Research System Best Practices — Free-Tier-First, Tavily-95%-Slice Research",
+  "summary": "Verified findings on building free-tier-first deep research pipeline replicating ~95% of Tavily using SearXNG, local extraction, RRF, and OpenRouter cascade.",
+  "scope": ["deep research", "Tavily", "SearXNG", "DuckDuckGo", "OpenRouter", "web extraction", "Vox infrastructure"],
+  "cross_refs": [
+    "docs/src/architecture/deep-research-capabilities-audit-2026-06-17.md",
+    "docs/src/architecture/deep-research-prior-art-and-vox-roadmap-2026.md",
+    "docs/src/reference/tavily-integration-ssot.md",
+    "docs/src/architecture/search-retrieval-ssot-2026.md",
+    "crates/vox-search/src/web_dispatcher.rs",
+    "crates/vox-research-shim/src/research/orchestrator/pipeline.rs"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

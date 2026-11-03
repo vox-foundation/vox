@@ -53,8 +53,8 @@ export function ContextWindowMeter({
     >
       {/* Label row */}
       <div className="flex items-center justify-between">
-        <span className="text-[9px] uppercase tracking-[0.14em] text-text-muted">Context</span>
-        <span className={`font-mono text-[10px] tabular-nums ${ZONE_TEXT[zone]}`}>
+        <span className="text-[11px] uppercase tracking-[0.08em] text-text-muted">Context</span>
+        <span className={`font-mono text-[11px] tabular-nums ${ZONE_TEXT[zone]}`}>
           {pct}%
         </span>
       </div>
@@ -76,7 +76,7 @@ export function ContextWindowMeter({
       </div>
 
       {/* Strategy label */}
-      <span className="text-[8px] text-text-muted">{strategy}</span>
+      <span className="text-[11px] text-text-muted">{strategy}</span>
     </div>
   );
 }

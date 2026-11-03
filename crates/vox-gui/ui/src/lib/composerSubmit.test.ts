@@ -39,4 +39,13 @@ describe('App.tsx composer persist wiring (C2)', () => {
     // The old inline payload (which never carried already_submitted) is gone.
     expect(app).not.toContain("{ session_id: sessionId, role: 'user'");
   });
+
+  it('excludeSkillAndRetry strips Drive turn_id/trace_id before re-dispatch', () => {
+    const app = readFileSync(resolve(__dirname, '../App.tsx'), 'utf8');
+    const idx = app.indexOf('const excludeSkillAndRetry = useCallback');
+    expect(idx).toBeGreaterThan(-1);
+    const block = app.slice(idx, idx + 700);
+    expect(block).toMatch(/turn_id:\s*_turn/);
+    expect(block).toMatch(/trace_id:\s*_trace/);
+  });
 });

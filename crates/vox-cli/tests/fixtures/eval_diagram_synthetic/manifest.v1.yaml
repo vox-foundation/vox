@@ -1,0 +1,10 @@
+# SYNTHETIC scorer fixture for the diagram-authoring eval (crates/vox-cli eval_diagram). Hand-written
+# replies, not a measurement. The decision_rule keys mirror contracts/eval/diagram-authoring/.
+corpus_size: 4
+decision_rule:
+  primary_endpoint: first_pass_validity_slot_a
+  interval: newcombe_method_10
+  confidence: 0.95
+  margin: 0.10
+  max_repair_turns: 2
+  max_infra_rate: 0.05

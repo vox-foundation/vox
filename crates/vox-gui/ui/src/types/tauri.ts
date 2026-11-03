@@ -14,13 +14,14 @@ export type ToastCause =
   | 'backend-error'   // an async Tauri command / mutation failed
   | 'validation'      // user input rejected before any effect
   | 'clipboard'       // copied to clipboard (real OS effect)
-  | 'external';       // opened an external app/url
+  | 'external'        // opened an external app/url
+  | 'backend-pending'; // a backend call is still running (progress, not a result)
 // NOTE: deliberately NO cause for navigation or a routine, already-visible synchronous
 // action — those must NOT toast. A toast with no honest cause is a compile error.
 
 /** Toast input before the shell assigns an `id`. */
 export type Toast = {
-  tone: 'ok' | 'warn' | 'info';
+  tone: 'ok' | 'warn' | 'info' | 'error';
   title: string;
   body?: string;
   cmd?: string;
@@ -31,6 +32,8 @@ export type Toast = {
    * count) instead of adding a new entry. Defaults to `title` when omitted.
    */
   groupKey?: string;
+  /** A button in the toast (e.g. "View full output"). It must not navigate. */
+  action?: { label: string; onClick: () => void };
 };
 
 /** Mirrors `ChatSessionDto` from `commands/chat.rs`. */
@@ -42,14 +45,33 @@ export interface Session {
   conversation_id: number;
 }
 
+/** Composer interaction mode (plan / act / verify). */
+export type ComposerInteractionMode = 'plan' | 'act' | 'verify';
+
+/** @kb session context injection scope selector in Loquela. */
+export type KbScopeMode = 'auto' | 'verified' | 'off';
+
+/** Unified Oversight 1..5 composer governance posture. */
+export type OversightLevelId = 'relaxed' | 'guided' | 'balanced' | 'cautious' | 'strict';
+
+/** Canonical routing tier identifiers before a specific model card is pinned. */
+export type RoutingTierId = 'auto' | 'local' | 'mesh' | 'cloud';
+
+/** Lightweight agent reference used by Loquela `@` mentions and Resume controls. */
+export interface ComposerAgentRef {
+  id: string;
+  codename?: string;
+  phase?: string;
+}
+
 /** Mirrors `SubmitTaskInput` / Loquela composer dispatch payload. */
 export interface ChatPayload {
   description: string;
   session_id?: string;
   priority?: string | null;
-  mode?: string | null;
+  mode?: ComposerInteractionMode | string | null;
   model_hint?: string | null;
-  tier?: string | null;
+  tier?: RoutingTierId | string | null;
   dry_run?: boolean | null;
   active_skill?: string | null;
   files?: string[];
@@ -57,6 +79,10 @@ export interface ChatPayload {
   clutch?: string | null;
   /** Drive Console risk posture — safety gate level. Track D wires this to the orchestrator. */
   risk?: string | null;
+  /** Unified Oversight 1..5 level from the Loquela composer. */
+  oversight_level?: OversightLevelId | null;
+  /** Session-pinned @kb context scope from the Loquela composer. */
+  kb_scope?: KbScopeMode | null;
   /** Explicit model pick for this submit; maps to the model_override enqueue hint. */
   model_override?: string | null;
   /**
@@ -68,14 +94,27 @@ export interface ChatPayload {
    * synchronous request/response path; `'task'` enqueues an orchestrator task
    * with a correlated event stream.
    */
-  execution_mode?: 'chat' | 'task';
+  execution_mode?: 'chat' | 'task' | 'plan';
   /**
    * Opt-in, per-session grounding/hallucination-check toggle from the chat
    * composer (see `hooks/useGroundingCheck.ts`). `undefined`/`null` leaves
    * the daemon's default (off) in place.
    */
   grounding_check_enabled?: boolean | null;
+  /** Drive-minted turn id; when set, App must not re-mint. */
+  turn_id?: string | null;
+  /** Drive-minted trace id; when set, App must not re-mint. */
+  trace_id?: string | null;
+  /** Explicit research override (true to force, false to bypass, null/undefined for auto). */
+  force_research?: boolean | null;
+  /** Research scope mode ('auto', 'quick', 'deep', 'none'). */
+  research_scope?: string | null;
 }
+
+/** What `handleLoquelaSubmit` returns so Drive send can parse last_error. */
+export type ChatSubmitResult =
+  | { ok: true; text?: string; modelId?: string }
+  | { ok: false; error: string };
 
 export interface RoutingPriority {
   efficiency: number;
@@ -105,6 +144,12 @@ export interface RoutingSummary {
   arm_count: number;
   model_count: number;
   decision_preview: DecisionPreview | null;
+  /** Family of the preview pick (Rust `models::family::family_key`). */
+  family?: string | null;
+  /** Where the pick's id came from; show a concrete version only for `catalog`. */
+  resolved_from?: 'catalog' | 'bootstrap' | 'local' | null;
+  /** `SelectionReason` display text of the preview pick. */
+  reason?: string | null;
 }
 
 /** Raw agent row from orchestrator status before `mapAgent`. */
@@ -172,6 +217,8 @@ export interface AttentionBudgetSnapshot {
   interrupt_freq_per_hour: number;
   last_interrupt_ms: number;
   inbox_suppressed_count: number;
+  exhausted?: boolean;
+  alert_level?: string;
 }
 
 
@@ -254,3 +301,71 @@ export interface GraphifyStatusDto {
   corpora: CorpusStatusDto[];
 }
 
+export interface RouteQuality {
+  value: number;
+  source: 'benchmark' | 'inherited' | 'estimate' | 'measured' | 'unknown';
+  index: number | null;
+  inherited_from: string | null;
+}
+export interface RouteScoreParts { quality: number; efficiency: number; latency: number; other: number; bonuses: number }
+export interface RouteCandidate {
+  id: string; provider: string; tier: string; is_free: boolean;
+  price_out_per_m: number | null; score: number; quality: RouteQuality; parts: RouteScoreParts;
+}
+export interface RouteExclusionGroup { reason: string; count: number; examples: string[] }
+export interface RouteExplanation {
+  mode: string; task: string; complexity: number; chosen: string | null; only_candidate: boolean;
+  total_models: number; candidates: RouteCandidate[]; excluded: RouteExclusionGroup[];
+}
+export interface RoutingHealthViolation { invariant: string; detail: string }
+export interface RoutingHealth {
+  schema_version: number; checked_at_unix: number; models: number; cloud_models: number;
+  benchmarked: number; inherited: number; unknown_tier_cloud: number;
+  quality_scale: 'derived' | 'fallback'; price_bands: 'derived' | 'fallback';
+  efficient_pick: string | null;
+  violations: RoutingHealthViolation[];
+}
+
+
+// ── Remote Axis (plan 06) — mirrors crates/vox-gui/src/remote/{backend,manifest,gateway_client,error}.rs ──
+
+export type BackendMode = 'local' | 'remote';
+
+export type SurfaceUnavailableReason = 'not_in_profile' | 'needs_local_machine' | 'not_remote_capable';
+
+export interface SurfaceAvailability {
+  surface: string;
+  available: boolean;
+  reason: SurfaceUnavailableReason | null;
+}
+
+/** `GET /v1/profile` as served by the gateway (00-contracts §Wire shapes). */
+export interface ServerProfile {
+  profiles: string[];
+  max_exposure: 'public' | 'operator' | 'internal';
+  subsystems: { booted: string[]; failed: { id: string; error: string }[] };
+  tools: string[];
+  axis_surfaces: string[];
+  server_version: string;
+}
+
+export interface BackendStatus {
+  mode: BackendMode;
+  url: string | null;
+  profile: ServerProfile | null;
+  surfaces: SurfaceAvailability[];
+}
+
+/** `{"error":{...}}` envelope carried by rejected Axis remote commands. */
+export interface AxisErrorPayload {
+  code: string;
+  message: string;
+  fingerprint?: string;
+  pinned?: string;
+  server?: string;
+  gui?: string;
+  command?: string;
+  module?: string;
+  class?: string;
+  method?: string;
+}

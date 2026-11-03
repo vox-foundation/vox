@@ -20,22 +20,33 @@ This guide walks you through running a local Vox mesh control plane — no envir
 vox populi serve --enable
 ```
 
-On the very first run, Vox generates a random bearer token and saves it to `~/.vox/config.toml` under the key `mesh.token`.  The token is printed once — copy it somewhere safe:
+On the very first run, Vox generates a random bearer token and stores it in the Clavis vault (`SecretId::VoxMeshToken`) — it is never written to `~/.vox/config.toml` and never printed in plaintext:
 
 ```text
-vox populi: generated mesh bearer token (saved to ~/.vox/config.toml):
-  VOX_MESH_TOKEN=a3f7c2...  ← copy this
-  Keep this secret — it authenticates all control-plane requests.
+vox populi: generated a mesh bearer token and stored it in the Clavis vault (fingerprint a3f7c2b91045e6d8).
+  Any local `vox populi`/orchestrator process resolves it automatically (`vox secrets get VOX_MESH_TOKEN` confirms it's set, redacted).
+  Keep it secret — it authenticates all control-plane requests.
 vox populi: listening on http://127.0.0.1:PORT
 ```
 
+If stdin is a TTY, you're asked to confirm before the token is generated and stored; pass `--yes` (or run non-interactively, e.g. under systemd/Docker) to skip the prompt.
+
 The OS assigns a free port automatically (you can override with `--bind 127.0.0.1:9847`).
 
-Subsequent runs reuse the saved token — no output unless it has changed.
+Subsequent runs reuse the stored token — no output unless it has changed. `vox secrets get VOX_MESH_TOKEN` only shows redacted status, never the plaintext — that's intentional, and it's the same for every managed secret.
 
 ## Step 2 — Verify the server is running
 
-In a second terminal, set the token and probe the health endpoint:
+Any other Vox process on this machine (the orchestrator, a second `vox populi` invocation) resolves the token from the vault automatically — no manual export needed for those.
+
+For manual `curl` testing in a second terminal, you need a value you can type. Set your own token as an env var *before* the first `--enable` run, so it takes precedence over auto-generation and you keep a copy:
+
+```sh
+export VOX_MESH_TOKEN=$(openssl rand -hex 24)
+vox populi serve --enable
+```
+
+Then, in a second terminal, reuse the same value:
 
 ```sh
 curl http://127.0.0.1:PORT/health
@@ -46,7 +57,7 @@ curl -H "Authorization: Bearer $VOX_MESH_TOKEN" \
 # {"nodes":[]}
 ```
 
-Replace `PORT` with the port printed in Step 1, and `$VOX_MESH_TOKEN` with your token.
+Replace `PORT` with the port printed in Step 1.
 
 ## Step 3 — Register a worker node
 
@@ -92,19 +103,19 @@ When the canonical VoxDb database is reachable, the control plane automatically 
 
 | Source | How |
 |--------|-----|
-| Auto-generated (default) | Saved to `~/.vox/config.toml` as `mesh.token` on first `--enable` run |
-| Environment override | Set `VOX_MESH_TOKEN=<value>` before starting; takes precedence over config file |
-| Manual set | `vox config set mesh.token <value>` (if `vox config` is available) |
+| Auto-generated (default) | Stored in the Clavis vault as `VOX_MESH_TOKEN` on first `--enable` run |
+| Environment override | Set `VOX_MESH_TOKEN=<value>` before starting; takes precedence over the vault |
+| Manual set | `vox secrets set VOX_MESH_TOKEN --stdin` |
+| Legacy `~/.vox/config.toml` `mesh.token` | Still read if present (older installs), but deprecated: the next `vox populi serve --enable` migrates it into the vault and deletes it from the file. `vox populi config check` flags it while it's there. |
 
-To rotate the token, delete `mesh.token` from `~/.vox/config.toml` and restart with `--enable`.
+To rotate the token, run `vox secrets set VOX_MESH_TOKEN --stdin` with a new value and restart `vox populi serve --enable`. There's no `vox secrets delete` yet — overwriting is the supported way to change it.
 
 ## Connecting the orchestrator
 
-Point the orchestrator at the control plane:
+The orchestrator resolves `VOX_MESH_TOKEN` from the vault automatically once it's stored — no manual export needed on the same machine:
 
 ```sh
 export VOX_MESH_CONTROL_ADDR=http://127.0.0.1:PORT
-export VOX_MESH_TOKEN=<your-token>
 vox orchestrate ...
 ```
 
@@ -112,6 +123,6 @@ vox orchestrate ...
 
 **Port already in use** — omit `--bind` to let the OS assign a free port, or choose a different port with `--bind 127.0.0.1:<PORT>`.
 
-**401 Unauthorized** — the `Authorization: Bearer` header is missing or the token does not match the one saved in `~/.vox/config.toml`.  Run `vox populi config show` to check the token source.
+**401 Unauthorized** — the `Authorization: Bearer` header is missing or the token doesn't match the one in the vault. Run `vox populi config show` to check the token source, and `vox secrets get VOX_MESH_TOKEN` to confirm one is set (redacted; it won't show the plaintext).
 
 **Mesh store warm-up warning** — `mesh store warm-up failed; continuing with empty cache` is printed when VoxDb is unavailable.  The server still starts and operates fully in-memory.

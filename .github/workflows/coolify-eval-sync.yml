@@ -19,6 +19,10 @@ jobs:
   coolify-eval:
     name: coolify-eval API
     runs-on: ubuntu-latest
+    # Recent runs complete in 3-12m; 20m covers a slow Coolify API round-trip
+    # (workflow_dispatch-only, so the 180m slow-lane cap applies, but there's
+    # no reason to wait that long for a hung API call).
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 

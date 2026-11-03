@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/scientia-automated-research-handoff-2026-06-16.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "SCIENTIA Automated Research — agent handoff",
+  "summary": "Fresh-agent onboarding context for SCIENTIA implementation: working-tree status, Waves 0–6 deliverables, code-review findings, remaining work, and verification gates.",
+  "scope": ["SCIENTIA implementation", "agent workflow", "verification commands", "research pipeline"],
+  "cross_refs": ["scientia-automated-research-historical-extension-research-2026.md", "2026-06-12-scientia-research-pipeline-upgrade.md", "scientia-self-publication-gap-map-2026.md", "search-retrieval-ssot-2026.md", "graphify-integration-research-2026-06-16.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

@@ -2,7 +2,7 @@
 title: "Deep Research Stage 2 Synthesis & Priorities (2026-08-01)"
 description: "Synthesizes the four Stage 2 docs (cross-domain methods survey, domain-agnosticism audit, GUI representation design, implementation-divergence audit) into one prioritized gap list, feeding the Stage 2 implementation plan. Headline findings: a live ranking bias favoring code sites over general-authority sources, the post-hoc citation audit feature silently dropped during Stage 1 execution, and the dominant Stage 1 failure mode was under-specified integration surface, not wrong algorithms — directly shaping how Stage 2's plan must be written."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
 training_rationale: "Normative synthesis and prioritization for the deep-research Stage 2 program; direct input to its implementation plan."
 ---

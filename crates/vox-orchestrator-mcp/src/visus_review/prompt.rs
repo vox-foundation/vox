@@ -1,9 +1,9 @@
 //! System prompt for adversarial GUI screenshot review.
 
-/// Cache-busting prompt version. BUMP whenever `RUBRIC`, `system_prompt`, or
-/// `user_prompt` change meaning: a verdict produced under an older prompt must
-/// not satisfy the new one (decide_status compares this against each cache entry).
-pub const PROMPT_VERSION: &str = "2026-07-18.1";
+/// Cache-busting prompt versions.
+pub const DEFECT_PROMPT_VERSION: &str = "2026-09-30.defect1";
+pub const UX_PROMPT_VERSION: &str = "2026-09-30.ux1";
+pub const PROMPT_VERSION: &str = UX_PROMPT_VERSION;
 
 pub const RUBRIC: &str = r#"
 Review this desktop-app surface SCREENSHOT adversarially against these principles. Hunt for real defects; do not flatter.
@@ -93,6 +93,90 @@ Analyze the attached screenshot per the defect rubric and output the JSON verdic
         } else {
             format!("(setup error: {})", e.state_error)
         },
+    )
+}
+
+/// UX clarity, accessibility, and capability audit rubric.
+pub const UX_CLARITY_RUBRIC: &str = r#"
+Audit this desktop GUI surface screenshot for UX clarity, terminology, affordances, and capability gaps across four pillars:
+
+1. Jargon & Acronym Retirement:
+Replace internal codenames, developer jargon, and unexpanded acronyms with plain, self-evident user-facing language.
+Enforce Vox internal glossary replacements:
+- Ludus -> Activity Alerts
+- Mercatus -> Marketplace / Compute Store
+- DEI -> Oversight / Approvals
+- Socrates -> Architecture Reasoner
+- CAS -> Cache / Content Store
+- AXTree -> Accessibility Tree
+
+2. Readability & Visual Hierarchy:
+Evaluate scannability, primary action clarity, and cognitive load. Ensure the surface purpose is immediately understandable, primary actions are unmistakable, visual hierarchy is well-structured, typography and spacing are clean, and visual noise is minimized.
+
+3. Controllability & Affordance:
+Evaluate interactive controls and affordances. Interactive controls must look clickable with obvious states (selected, disabled, hover, active). Surfaces with collections or lists must provide obvious filters/states, search, and sorting controls with predictable feedback.
+
+4. Missing Features & Capabilities:
+Identify high-value tools, actions, shortcuts, batch operations, or contextual controls that are noticeably absent and would make the surface significantly more powerful, complete, and useful for users.
+"#;
+
+pub fn ux_system_prompt() -> String {
+    format!(
+        "You are an expert product design and user experience auditor performing a UX clarity \
+and capability audit of a desktop GUI surface screenshot.\n\n\
+UX CLARITY RUBRIC:\n{UX_CLARITY_RUBRIC}\n\n\
+OUTPUT CONTRACT: Respond with ONLY a single JSON object, no prose, no markdown fence:\n\
+{{\n  \
+  \"score\": <integer 0-100, 100 = optimal UX clarity and completeness>,\n  \
+  \"verdict\": \"pass\" | \"pass_with_notes\" | \"fail\",\n  \
+  \"jargon_retirements\": [\n    \
+    {{\n      \
+      \"current_term\": \"<cryptic term or acronym in UI>\",\n      \
+      \"replacement\": \"<plain English replacement per glossary>\",\n      \
+      \"rationale\": \"<why current term confuses users>\"\n    \
+    }}\n  \
+  ],\n  \
+  \"readability_issues\": [\n    \
+    {{\n      \
+      \"region\": \"<where on screen>\",\n      \
+      \"issue\": \"<what hurts scannability, primary action clarity, or cognitive load>\",\n      \
+      \"recommendation\": \"<concrete design recommendation>\"\n    \
+    }}\n  \
+  ],\n  \
+  \"controllability_gaps\": [\n    \
+    {{\n      \
+      \"control\": \"<affected control, filter, or interaction>\",\n      \
+      \"issue\": \"<unclear affordance, missing filter/sort, or weak feedback>\",\n      \
+      \"fix\": \"<actionable fix to improve interactivity and control>\"\n    \
+    }}\n  \
+  ],\n  \
+  \"missing_capabilities\": [\n    \
+    {{\n      \
+      \"feature_name\": \"<name of missing feature or capability>\",\n      \
+      \"user_benefit\": \"<how this makes surface more powerful or productive>\",\n      \
+      \"implementation_hint\": \"<suggested UI placement or mechanism>\"\n    \
+    }}\n  \
+  ]\n\
+}}\n\
+If the surface is clean, clear, and complete, return empty arrays, verdict \"pass\", score >= 90."
+    )
+}
+
+pub fn ux_user_prompt(e: &crate::visus_review::bundle::BundleEntry) -> String {
+    let err = if e.state_error.is_empty() {
+        String::new()
+    } else {
+        format!(" (setup error: {})", e.state_error)
+    };
+    format!(
+        "Capture: surface '{surface}', state '{state}', viewport '{viewport}', browser '{browser}', theme '{theme}'.{err}\n\
+Audit the attached screenshot per the UX clarity rubric and output the JSON report.",
+        surface = e.surface,
+        state = e.state,
+        viewport = e.viewport,
+        browser = e.browser,
+        theme = e.theme,
+        err = err,
     )
 }
 
@@ -190,5 +274,81 @@ mod tests {
         );
         e.axe_violations.clear();
         let _ = defect_user_prompt(&e); // no panic on empty
+    }
+    #[test]
+    fn prompt_version_is_current_ux_bump() {
+        assert_eq!(PROMPT_VERSION, "2026-09-30.ux1");
+    }
+    #[test]
+    fn ux_system_prompt_contains_rubric_glossary_and_schema() {
+        let sp = ux_system_prompt();
+        // 4 pillars & rubric keywords
+        assert!(sp.contains("Jargon & Acronym Retirement"));
+        assert!(sp.contains("Readability & Visual Hierarchy"));
+        assert!(sp.contains("Controllability & Affordance"));
+        assert!(sp.contains("Missing Features & Capabilities"));
+        assert!(sp.contains("scannability"));
+        assert!(sp.contains("primary action clarity"));
+        assert!(sp.contains("cognitive load"));
+        assert!(sp.contains("interactive controls"));
+        assert!(sp.contains("obvious filters/states"));
+
+        // Glossary terms
+        assert!(sp.contains("Ludus") && sp.contains("Activity Alerts"));
+        assert!(sp.contains("Mercatus") && sp.contains("Marketplace / Compute Store"));
+        assert!(sp.contains("DEI") && sp.contains("Oversight / Approvals"));
+        assert!(sp.contains("Socrates") && sp.contains("Architecture Reasoner"));
+        assert!(sp.contains("CAS") && sp.contains("Cache / Content Store"));
+        assert!(sp.contains("AXTree") && sp.contains("Accessibility Tree"));
+
+        // JSON schema contract matching UxAuditReport
+        assert!(sp.contains("ONLY a single JSON object"));
+        assert!(sp.contains("\"score\""));
+        assert!(sp.contains("\"verdict\""));
+        assert!(sp.contains("\"jargon_retirements\""));
+        assert!(sp.contains("\"current_term\""));
+        assert!(sp.contains("\"replacement\""));
+        assert!(sp.contains("\"rationale\""));
+        assert!(sp.contains("\"readability_issues\""));
+        assert!(sp.contains("\"region\""));
+        assert!(sp.contains("\"issue\""));
+        assert!(sp.contains("\"recommendation\""));
+        assert!(sp.contains("\"controllability_gaps\""));
+        assert!(sp.contains("\"control\""));
+        assert!(sp.contains("\"fix\""));
+        assert!(sp.contains("\"missing_capabilities\""));
+        assert!(sp.contains("\"feature_name\""));
+        assert!(sp.contains("\"user_benefit\""));
+        assert!(sp.contains("\"implementation_hint\""));
+    }
+    #[test]
+    fn ux_user_prompt_formats_bundle_entry() {
+        let e = crate::visus_review::bundle::BundleEntry {
+            id: "settings--dark--wide--chromium".into(),
+            surface: "settings".into(),
+            state: "dark".into(),
+            viewport: "wide".into(),
+            browser: "chromium".into(),
+            theme: "dark".into(),
+            file: "s.png".into(),
+            sha256: "hash123".into(),
+            state_ok: true,
+            state_error: String::new(),
+            axe_violations: vec![],
+            console_errors: vec![],
+            console_warnings: vec![],
+            page_errors: vec![],
+            icon_issues: vec![],
+            overflow: serde_json::Value::Null,
+            capture_ms: 120,
+            captured_at: "now".into(),
+        };
+        let up = ux_user_prompt(&e);
+        assert!(up.contains("surface 'settings'"));
+        assert!(up.contains("state 'dark'"));
+        assert!(up.contains("viewport 'wide'"));
+        assert!(up.contains("browser 'chromium'"));
+        assert!(up.contains("theme 'dark'"));
+        assert!(up.contains("UX clarity rubric"));
     }
 }

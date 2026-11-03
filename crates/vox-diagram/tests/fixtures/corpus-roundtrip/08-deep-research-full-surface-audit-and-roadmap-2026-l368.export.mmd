@@ -1,0 +1,14 @@
+flowchart TD
+    CodeGenQuery["Code Query: 'Implement async distributed worker queue in Rust'"]
+    LocalRepoCheck["Local Codebase Scan (Existing crates, Cargo.lock, patterns)"]
+    EcosystemCheck["Ecosystem Discovery (crates.io/npm stars, downloads, maintenance)"]
+    DocsFetch["Official Spec #amp; Docs Extractor (docs.rs signatures, API contracts)"]
+    SandboxedCheck["Sandbox Typecheck #amp; Syntax Validator (vox check / cargo check)"]
+    CodeGenSynthesis["Grounded Code #amp; Architecture Plan"]
+    CodeGenQuery --> LocalRepoCheck
+    CodeGenQuery --> EcosystemCheck
+    CodeGenQuery --> DocsFetch
+    EcosystemCheck --> SandboxedCheck
+    DocsFetch --> SandboxedCheck
+    SandboxedCheck --> CodeGenSynthesis
+    LocalRepoCheck --> CodeGenSynthesis

@@ -65,14 +65,14 @@ pub async fn run_train(
     optimizer_experiment_mode: vox_populi::mens::OptimizerExperimentMode,
     data_mode: TrainDataModeCli,
     fast_corpus: bool,
-    persistent: bool,
+    #[cfg_attr(not(feature = "cloud"), allow(unused_variables))] persistent: bool,
 ) -> anyhow::Result<()> {
     if cloud != "local" {
         #[cfg(feature = "cloud")]
         {
             use vox_populi::mens::cloud::{
-                CloudJobSpec, CloudOrchestrationOutcome, CloudResolver, EvalGateOutcome,
-                TrainingManifest, check_spend_gate, post_training_flow,
+                CloudJobSpec, CloudOrchestrationOutcome, CloudResolver, TrainingManifest,
+                check_spend_gate, post_training_flow,
             };
             use vox_populi::mens::tensor::domain_router::DomainRouter;
 
@@ -131,7 +131,15 @@ pub async fn run_train(
             spec.seq_len = seq_len.unwrap_or(512);
             spec.batch_size = batch_size.unwrap_or(4);
             spec.epochs = epochs.unwrap_or(3);
-            spec.num_samples = 5000;
+            // Sizes the runtime estimate and the 1.5x watchdog kill; a fixed 5000
+            // under-counted the real 9,268-row corpus.
+            spec.num_samples =
+                jsonl_row_count(&data_dir.join("train.jsonl")).unwrap_or_else(|| {
+                    eprintln!(
+                        "  [cloud] no local train.jsonl to count; assuming 5000 rows for sizing"
+                    );
+                    5000
+                });
             spec.persistent = persistent;
 
             // Corpus hash for the idempotency key (stable per input corpus).
@@ -167,10 +175,23 @@ pub async fn run_train(
                 );
                 None
             } else {
-                let ranked = resolver
+                // Same threshold logic `vox mens cloud-estimate` uses (Task 3) and
+                // `CloudResolver::dispatch` uses for Train jobs, so the read-only
+                // estimate and every real dispatch path agree on whether an offer
+                // is big enough. No local model directory exists yet on a
+                // from-scratch cloud run, so this sizes from Hub API metadata
+                // (one small request, no weight bytes) rather than
+                // `ModelShape::from_model_dir`.
+                let min_vram_mb = vox_populi::mens::cloud::min_vram_mb_for_training(
+                    &spec.model_id,
+                    spec.batch_size,
+                    spec.seq_len,
+                )
+                .await?;
+                let (ranked, rejected) = resolver
                     .resolve(&vox_populi::mens::cloud::ResolveRequest {
                         target: std::str::FromStr::from_str(&cloud)?,
-                        min_vram_mb: 24000,
+                        min_vram_mb,
                         max_acceptable_cost: spec
                             .max_budget_usd
                             .unwrap_or(resolver.config.max_budget_usd),
@@ -180,6 +201,16 @@ pub async fn run_train(
                         epochs: spec.epochs,
                     })
                     .await?;
+                if ranked.is_empty() && !rejected.is_empty() {
+                    // Every real dispatch path used to lose these reasons in
+                    // a `tracing::debug!` the operator never sees — surface
+                    // them here, at the one point they're about to be told
+                    // only "no offers to dispatch" while spending money.
+                    eprintln!("  ⚠ No suitable cloud offers — every candidate was rejected:");
+                    for (offer_id, reason) in &rejected {
+                        eprintln!("      {offer_id}: {reason}");
+                    }
+                }
                 let (handle, watchdog, provider) = resolver.dispatch_top(&ranked, &spec).await?;
                 // Record the idempotency key so a concurrent / retried invocation
                 // detects the in-flight job and reuses it.
@@ -293,14 +324,21 @@ pub async fn run_train(
         vox_corpus::training::contract::normalize_training_resume_path(r, workspace_root.as_deref())
     });
 
-    #[allow(unsafe_code)]
-    unsafe {
-        if fast_corpus {
+    // Never clear a user-set `VOX_TRAIN_SKIP_CORPUS_MIX`: the flag only adds the opt-out.
+    let skip_mix = vox_corpus::training::mix_prepare::corpus_mix_skipped(fast_corpus);
+    if fast_corpus {
+        // SAFETY: single-threaded CLI setup; read later by the trainer's mix step.
+        #[allow(unsafe_code)]
+        unsafe {
             std::env::set_var("VOX_TRAIN_SKIP_CORPUS_MIX", "1");
-        } else {
-            std::env::remove_var("VOX_TRAIN_SKIP_CORPUS_MIX");
         }
     }
+    // The stale-corpus refresh (pairs → data_dir/train.jsonl, then mix) only applies to
+    // the canonical data dir; an explicit --data-dir is the user's data.
+    let canonical_data_dir = vox_corpus::training::mix_prepare::is_canonical_data_dir(
+        workspace_root.as_deref(),
+        &data_dir,
+    );
 
     // Preflight: stale corpus fingerprint → same refresh path for both data modes (synthetic + pipeline w/o train + mix).
     // `strict`: refresh failures abort. `auto-refresh`: log warnings and continue (legacy).
@@ -322,8 +360,7 @@ pub async fn run_train(
         let version_mismatch = corpus_compiler_version_mismatch(&data_dir);
         let is_fresh = fingerprint_fresh && version_mismatch.is_none();
 
-        let skip_regen = vox_corpus::training::mix_prepare::corpus_mix_skip_from_env();
-        if !is_fresh && !skip_regen {
+        if !is_fresh && !skip_mix && canonical_data_dir {
             let strict = matches!(data_mode, TrainDataModeCli::Strict);
             let reason = match &version_mismatch {
                 Some((found, current)) => format!(
@@ -358,10 +395,15 @@ pub async fn run_train(
     // VRAM-aware budget > preset fallback (applied in gpu.rs). `None` means
     // "not yet set"; each stage fills only what an earlier stage left unset.
     let mut effective_seq_len: Option<usize> = seq_len;
-    let mut effective_batch_size: Option<usize> = batch_size;
-    let mut effective_grad_accum: Option<usize> = grad_accum;
-    // May be retreated to a smaller Qwen3.5 variant by the VRAM budget below.
+    let effective_batch_size: Option<usize> = batch_size;
+    let effective_grad_accum: Option<usize> = grad_accum;
+    // Never silently swapped for a smaller model by the VRAM budget below —
+    // see `never_retreat_the_named_model`.
     let mut effective_model = model;
+    // Resolved alongside `effective_model` below when `--domain` is given, via
+    // the same `resolve_training_selection` the cloud path already uses (see
+    // `resolve_cloud_spoke_base`) — otherwise stays the raw CLI `--preset`.
+    let mut effective_preset = preset.clone();
     let mut effective_validation_split_ratio = validation_split_ratio;
     let mut _effective_max_grad_norm = None; // pass down if needed
     let mut effective_curriculum = curriculum;
@@ -420,6 +462,22 @@ pub async fn run_train(
                     // Actually simply inform.
                     eprintln!("    Mix config: {}", mix_path.display());
                 }
+
+                // BLOCKER (D1): resolve the domain spoke's base model + preset via
+                // the same real resolver the cloud path already uses
+                // (`resolve_cloud_spoke_base` → `resolve_training_selection`).
+                // Previously `--domain rust --cloud local` left `effective_model`
+                // as the raw (often `None`) `--model` and `preset` as the raw
+                // (often `None`) `--preset`, silently ignoring the domain's
+                // pinned base — CLI-supplied values still win.
+                let (resolved_model, resolved_preset) = resolve_local_spoke_base(
+                    workspace_root.as_deref(),
+                    domain_name,
+                    effective_model.as_deref(),
+                    effective_preset.as_deref(),
+                )?;
+                effective_model = resolved_model;
+                effective_preset = Some(resolved_preset);
             }
             Err(e) => {
                 anyhow::bail!("Failed to load domain profile '{}': {}", domain_name, e);
@@ -427,131 +485,18 @@ pub async fn run_train(
         }
     }
 
-    let mut budget_seq_len = None;
-    let mut budget_batch_size = None;
-    let mut budget_grad_accum = None;
-    {
-        use owo_colors::OwoColorize;
-        let device_is_cuda = vox_populi::mens::normalize_device(&device)
-            .map(|d| matches!(d, vox_populi::mens::DeviceKind::Cuda))
-            .unwrap_or(false);
-        if device_is_cuda {
-            use vox_populi::mens::tensor::finetune_contract::BaseQuantMode;
-            use vox_populi::mens::tensor::memory_budget;
-            let default_model = vox_populi::mens::default_model_id();
-            let model_hint = effective_model.as_deref().unwrap_or(&default_model);
-            let requested_b = memory_budget::params_b_from_model_hint(model_hint).unwrap_or(7.0);
-
-            // Dynamic VRAM Auditing (free VRAM takes priority)
-            let vram_info = vox_populi::mens::tensor::vram_autodetect::get_system_vram_info();
-            let mut vram = if let Some(info) = vram_info {
-                eprintln!(
-                    "  {} VRAM Audit: {:.1} GiB total, {:.1} GiB used, {:.1} GiB free",
-                    "📊".cyan(),
-                    info.total_gb,
-                    info.used_gb,
-                    info.free_gb
-                );
-                info.free_gb as f64
-            } else {
-                16.0
-            };
-            if let Some(frac) = vram_limit_fraction {
-                vram *= frac as f64;
-            }
-
-            // Early options resolution
-            let base_quant = match backend {
-                PopuliTrainBackendCli::Lora => BaseQuantMode::None,
-                PopuliTrainBackendCli::Qlora => BaseQuantMode::Nf4,
-            };
-            let gc_explicit = std::env::var("VOX_MENS_GRADIENT_CHECKPOINTING")
-                .ok()
-                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-                .unwrap_or(false);
-            let gc_auto_large = requested_b >= 2.9;
-            let gc_enabled = gc_explicit || gc_auto_large;
-
-            // Run planning options-aware
-            let mp = if memory_budget::is_qwen25coder(model_hint) {
-                memory_budget::plan_qwen25coder_with_options(
-                    vram,
-                    requested_b,
-                    base_quant,
-                    gc_enabled,
-                )
-            } else if memory_budget::is_qwen35(model_hint) {
-                memory_budget::plan_qwen35_with_options(vram, requested_b, base_quant, gc_enabled)
-            } else if memory_budget::is_qwen3(model_hint) {
-                memory_budget::plan_qwen3_with_options(vram, requested_b, base_quant, gc_enabled)
-            } else {
-                let resident_per_b =
-                    memory_budget::get_resident_per_b(model_hint, base_quant, gc_enabled);
-                let p = memory_budget::plan_with_resident(vram, requested_b, resident_per_b);
-                memory_budget::ModelPlan {
-                    model_id: model_hint.to_string(),
-                    params_b: requested_b,
-                    seq_len: p.seq_len,
-                    batch_size: p.batch_size,
-                    grad_accum: p.grad_accum,
-                    retreated_from_b: None,
-                    over_budget: p.over_budget,
-                    rationale: p.rationale,
-                }
-            };
-
-            // Dual-sizing fix: if the model was pinned (effective_model is Some),
-            // we must not use the retreated model's generous constraints (it would cause OOM).
-            // Instead, re-solve the budget specifically for the pinned model parameters.
-            let final_plan = if effective_model.is_some() && mp.retreated_from_b.is_some() {
-                let resident_per_b =
-                    memory_budget::get_resident_per_b(model_hint, base_quant, gc_enabled);
-                let p = memory_budget::plan_with_resident(vram, requested_b, resident_per_b);
-                memory_budget::ModelPlan {
-                    model_id: model_hint.to_string(),
-                    params_b: requested_b,
-                    seq_len: p.seq_len,
-                    batch_size: p.batch_size,
-                    grad_accum: p.grad_accum,
-                    retreated_from_b: None,
-                    over_budget: p.over_budget,
-                    rationale: format!(
-                        "pinned model ≈{requested_b:.1}B solved specifically — {}",
-                        p.rationale
-                    ),
-                }
-            } else {
-                mp
-            };
-
-            eprintln!("  {} VRAM budget: {}", "⚙".cyan(), final_plan.rationale);
-
-            if let Some(from_b) = final_plan.retreated_from_b {
-                if effective_model.is_none() {
-                    eprintln!(
-                        "  {} Auto-selected {} for {:.0} GiB VRAM (requested ≈{:.1}B would not fit).",
-                        "↓".yellow(),
-                        final_plan.model_id,
-                        vram,
-                        from_b
-                    );
-                    effective_model = Some(final_plan.model_id.clone());
-                } else {
-                    eprintln!(
-                        "  {} {} is pinned but may not fit {:.0} GiB — omit --model to auto-retreat to {}.",
-                        "⚠".yellow(),
-                        model_hint,
-                        vram,
-                        final_plan.model_id
-                    );
-                }
-            }
-
-            budget_seq_len = Some(final_plan.seq_len);
-            budget_batch_size = Some(final_plan.batch_size);
-            budget_grad_accum = Some(final_plan.grad_accum);
-        }
-    }
+    // The old CUDA pre-download budget estimate (params_b-only ladder: Qwen
+    // family classifiers + `get_resident_per_b` + `plan_with_resident*`) was
+    // deleted — no `ModelShape` (real on-disk layer/hidden/artifact-bytes
+    // facts) exists this early, so it was never more than a guess. The real
+    // per-host fit now happens post-download via the measured
+    // `memory_model::sweep`/`plan_for` entry point once the model is on disk
+    // (see `crate::commands::schola::train::gpu::run_gpu_training`); until
+    // then these stay unset and `resolve_effective_profile` uses the plain
+    // preset defaults.
+    let budget_seq_len = None;
+    let budget_batch_size = None;
+    let budget_grad_accum = None;
 
     let parsed_filter = if let Some(cf) = effective_context_filter {
         Some(cf)
@@ -579,11 +524,14 @@ pub async fn run_train(
     if let Some(ref log_dir) = spawn_log_dir {
         return crate::commands::schola::train::spawn_train_with_log(log_dir.clone());
     }
-    let deployment_target = if preset.as_deref() == Some("mobile_edge") {
+    let deployment_target = if effective_preset.as_deref() == Some("mobile_edge") {
         vox_populi::mens::TrainingDeploymentTarget::MobileEdge
     } else {
         deployment_target.into()
     };
+    let card_output_dir = output_dir.clone();
+    let card_model = effective_model.clone();
+    let card_preset = effective_preset.clone();
     let train_res = train::run_train(
         backend.into(),
         effective_model,
@@ -604,7 +552,7 @@ pub async fn run_train(
         warmup,
         seed,
         effective_min_rating,
-        preset,
+        effective_preset,
         deployment_target,
         process_priority,
         vram_limit_fraction,
@@ -640,33 +588,166 @@ pub async fn run_train(
     )
     .await;
 
-    if train_res.is_ok() {
-        if let Some(ref r) = workspace_root {
-            let mixed = r.join("target/dogfood/train_mixed.jsonl");
-            let backup = r.join("mens/data/train_full_backup.jsonl");
-            if mixed.exists() {
-                if let Some(parent) = backup.parent() {
-                    let _ = std::fs::create_dir_all(parent);
-                }
-                if let Err(e) = std::fs::copy(&mixed, &backup) {
-                    use owo_colors::OwoColorize;
-                    eprintln!(
-                        "  {} Failed to copy train_mixed.jsonl to backup: {e}",
-                        "⚠️".yellow()
-                    );
-                } else {
-                    use owo_colors::OwoColorize;
-                    eprintln!(
-                        "  {} Backed up running corpus to {}",
-                        "✓".green(),
-                        backup.display()
-                    );
-                }
+    if train_res.is_ok()
+        && let Some(ref r) = workspace_root
+    {
+        let mixed = r.join("target/dogfood/train_mixed.jsonl");
+        let backup = r.join("mens/data/train_full_backup.jsonl");
+        if mixed.exists() {
+            if let Some(parent) = backup.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            if let Err(e) = std::fs::copy(&mixed, &backup) {
+                use owo_colors::OwoColorize;
+                eprintln!(
+                    "  {} Failed to copy train_mixed.jsonl to backup: {e}",
+                    "⚠️".yellow()
+                );
+            } else {
+                use owo_colors::OwoColorize;
+                eprintln!(
+                    "  {} Backed up running corpus to {}",
+                    "✓".green(),
+                    backup.display()
+                );
             }
         }
     }
 
+    if train_res.is_ok() {
+        use owo_colors::OwoColorize;
+        let repo_root = workspace_root
+            .clone()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+        let meta = LocalCardMeta {
+            base_model: card_model,
+            preset: card_preset,
+            rank: rank.unwrap_or(16) as u32,
+            alpha: alpha.unwrap_or(32.0),
+            seed,
+            corpus_hash: workspace_root
+                .as_deref()
+                .map(vox_corpus::corpus::preflight::compute_corpus_fingerprint)
+                .unwrap_or_default(),
+            git_sha: vox_git::read_only(&repo_root, &["rev-parse", "--short", "HEAD"])
+                .ok()
+                .unwrap_or_default()
+                .trim()
+                .to_string(),
+        };
+        // A card failure never fails a successful training run; it only leaves the run
+        // unlabelable by eval.
+        match write_local_adapter_card(&card_output_dir, workspace_root.as_deref(), &meta) {
+            Ok(path) => eprintln!("  {} Wrote adapter card {}", "✓".green(), path.display()),
+            Err(e) => eprintln!(
+                "  {} Could not write adapter card: {e:#} -- eval will refuse to label this run",
+                "⚠️".yellow()
+            ),
+        }
+    }
+
     train_res
+}
+
+/// Host-side facts the card needs that the run directory does not carry.
+#[derive(Debug, Clone)]
+struct LocalCardMeta {
+    base_model: Option<String>,
+    preset: Option<String>,
+    rank: u32,
+    alpha: f32,
+    seed: u64,
+    corpus_hash: String,
+    git_sha: String,
+}
+
+/// Build, validate and write `adapter_card.json` next to a locally trained adapter.
+///
+/// Validates BEFORE writing: an untraceable run (e.g. unpinned base model) leaves no card.
+fn write_local_adapter_card(
+    output_dir: &Path,
+    workspace_root: Option<&Path>,
+    meta: &LocalCardMeta,
+) -> anyhow::Result<PathBuf> {
+    use vox_populi::mens::tensor::adapter_card::{AdapterCard, read_training_lineage};
+
+    let lineage = read_training_lineage(output_dir, workspace_root)?;
+    let base_hf_id = lineage
+        .base_model
+        .clone()
+        .or_else(|| meta.base_model.clone())
+        .unwrap_or_default();
+    let base_revision = base_hf_id
+        .rsplit_once('@')
+        .map(|(_, rev)| rev.to_string())
+        .unwrap_or_default();
+    let preset = meta.preset.clone().unwrap_or_default();
+    let (fingerprint, kind) = vox_compiler::llm_prompt::grammar_fingerprint();
+    let card = AdapterCard {
+        base_hf_id,
+        base_revision,
+        base_rung: meta.preset.clone().unwrap_or_else(|| "local".to_string()),
+        quantization: "qlora".to_string(),
+        lora_rank: meta.rank,
+        lora_alpha: meta.alpha,
+        seed: meta.seed,
+        corpus_hash: meta.corpus_hash.clone(),
+        preset_version: preset,
+        metrics: serde_json::Value::Null,
+        cost_usd: 0.0,
+        provider: "local".to_string(),
+        git_sha: meta.git_sha.clone(),
+        created: chrono::Utc::now().to_rfc3339(),
+        adapter_sha256: lineage.adapter_sha256,
+        train_data_sha256: lineage.train_data_sha256,
+        training_manifest_digest: lineage.training_manifest_digest,
+        training_syntax_fingerprint: fingerprint,
+        syntax_fingerprint_kind: kind.to_string(),
+    };
+    card.validate()?;
+    card.validate_lineage()?;
+    card.write_sidecar(&lineage.adapter_path)?;
+    Ok(lineage.adapter_path.with_file_name("adapter_card.json"))
+}
+
+/// Resolve the local spoke base for `--domain <name> --cloud local`: returns
+/// `(model, preset)`.
+///
+/// Mirrors `resolve_cloud_spoke_base` below — same real resolver
+/// (`resolve_training_selection`), same "CLI wins" precedence — but sizes
+/// with VRAM autodetect (`None`) rather than a fixed cloud tier, matching how
+/// `pipeline.rs`'s `PipelineStage::Train` already calls this resolver for a
+/// local run. Not `cfg(feature = "cloud")`: the local path must resolve
+/// regardless of whether the cloud feature is compiled in.
+fn resolve_local_spoke_base(
+    workspace_root: Option<&Path>,
+    domain: &str,
+    cli_model: Option<&str>,
+    cli_preset: Option<&str>,
+) -> anyhow::Result<(Option<String>, String)> {
+    use crate::commands::mens::training_selection::{
+        TrainingSelection, resolve_training_selection,
+    };
+
+    let root = workspace_root
+        .map(Path::to_path_buf)
+        .or_else(vox_corpus::training::contract::find_workspace_root)
+        .ok_or_else(|| {
+            anyhow::anyhow!("could not find workspace root for spoke base resolution")
+        })?;
+
+    let vram_mb = vox_populi::mens::tensor::vram_autodetect::get_system_vram_gb()
+        .map(|gb| (gb * 1024.0) as u32)
+        .or(Some(16_384));
+    let selection =
+        resolve_training_selection(&root, Some(domain), cli_model, cli_preset, vram_mb)?;
+
+    match selection {
+        TrainingSelection::Train { model, preset, .. } => Ok((model, preset)),
+        TrainingSelection::Skip { reason } => {
+            anyhow::bail!("spoke '{domain}' is {reason} — nothing to train locally")
+        }
+    }
 }
 
 /// Resolve the cloud spoke base: returns `(hf_id@revision, rung, quantization)`.
@@ -738,18 +819,15 @@ fn derive_quantization_for_base(
         .and_then(|d| EffectiveDomainProfile::load_domain_profile(d, Some(root)).ok())
         .and_then(|e| e.base.as_ref().map(|b| b.model.clone()));
 
-    if let Some(tag) = tag {
-        if let Ok(overlay) = load_overlay(root) {
-            if let Ok(base) = pick_base(&overlay, &tag, vram_mb) {
-                // The resolved id must match the picked base for the method to apply.
-                if base.hf_id == resolved_hf_id {
-                    // Un-quantized rung advertises "lora" / "full_lora"; otherwise qlora.
-                    if base.methods.iter().any(|m| m == "lora" || m == "full_lora") {
-                        return "lora".to_string();
-                    }
-                }
-            }
-        }
+    // The resolved id must match the picked base for the method to apply; an
+    // un-quantized rung advertises "lora" / "full_lora", otherwise qlora.
+    if let Some(tag) = tag
+        && let Ok(overlay) = load_overlay(root)
+        && let Ok(base) = pick_base(&overlay, &tag, vram_mb)
+        && base.hf_id == resolved_hf_id
+        && base.methods.iter().any(|m| m == "lora" || m == "full_lora")
+    {
+        return "lora".to_string();
     }
     "qlora".to_string()
 }
@@ -778,35 +856,6 @@ fn run_cloud_eval_gate(
     }
 }
 
-/// Resolve a single training-sizing knob (`seq_len` / `batch_size` / `grad_accum`)
-/// from its candidate sources, applying the canonical precedence:
-///
-/// ```text
-/// explicit CLI flag  >  deliberate domain profile  >  per-model VRAM budget  >  generic preset default
-/// ```
-///
-/// Each argument is `Some` only when that tier actually supplied a value:
-/// - `cli`: the user passed `--seq-len` / `--batch-size` / `--grad-accum`.
-/// - `domain`: a deliberately-chosen domain profile pinned the knob.
-/// - `budget`: the per-model VRAM budget (`memory_budget::plan*`) sized the knob to fit the card.
-/// - `preset_default`: a generic preset's fallback value.
-///
-/// The key correctness property (the "dual-sizing" bug fix): a **generic preset
-/// default must NOT override the VRAM budget** — `budget` is consulted strictly
-/// before `preset_default`, so the budget can shrink an over-large preset and
-/// avoid OOM. Explicit CLI flags and deliberate domain profiles still win over
-/// the budget.
-///
-/// Pure and side-effect-free so it can be unit-tested in isolation.
-fn resolve_training_sizing(
-    cli: Option<usize>,
-    domain: Option<usize>,
-    budget: Option<usize>,
-    preset_default: Option<usize>,
-) -> Option<usize> {
-    cli.or(domain).or(budget).or(preset_default)
-}
-
 /// The version this build stamps into freshly generated corpora.
 fn current_corpus_compiler_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
@@ -833,12 +882,13 @@ fn corpus_compiler_version_mismatch(data_dir: &Path) -> Option<(String, String)>
     }
 }
 
-/// Regenerate synthetic data, run `vox mens pipeline` with `skip_train`, optionally copy mix → `train.jsonl`,
-/// then record fingerprint. See [`TrainDataModeCli`](super::action::TrainDataModeCli).
+/// Regenerate synthetic data, run `vox mens pipeline` with `skip_train` (pairs → `train.jsonl`,
+/// mix → the mix config's `output:`), then record fingerprint. The trainer's own mix step
+/// then resolves the mix output (incremental skip when unchanged). See [`TrainDataModeCli`](super::action::TrainDataModeCli).
 async fn refresh_stale_training_corpus(
     root: &Path,
-    data_dir: &PathBuf,
-    output_dir: &PathBuf,
+    data_dir: &Path,
+    output_dir: &Path,
     current_fp: &str,
     strict: bool,
 ) -> anyhow::Result<()> {
@@ -870,8 +920,8 @@ async fn refresh_stale_training_corpus(
 
     eprintln!("  {} Running corpus extraction pipeline...", "🔄".cyan());
     match crate::commands::mens::pipeline::run(
-        data_dir.clone(),
-        output_dir.clone(),
+        data_dir.to_path_buf(),
+        output_dir.to_path_buf(),
         true,
         false,
         None,
@@ -891,51 +941,6 @@ async fn refresh_stale_training_corpus(
                 return Err(e).context("corpus extraction pipeline (stale-fingerprint refresh)");
             }
             eprintln!("  {} Pipeline error: {}", "⚠️".yellow(), e);
-        }
-    }
-
-    let mix_yaml = root.join(vox_corpus::training::mix_prepare::MIX_CONFIG_REL);
-    if mix_yaml.is_file() {
-        match vox_corpus::training::mix_prepare::copy_mix_output_to_train_jsonl(
-            root, data_dir, &mix_yaml,
-        ) {
-            Ok(true) => {
-                eprintln!(
-                    "  {} Mixed data ready at: {}",
-                    "✓".green(),
-                    data_dir.join("train.jsonl").display()
-                );
-                #[allow(unsafe_code)]
-                unsafe {
-                    std::env::set_var("VOX_TRAIN_SKIP_CORPUS_MIX", "1");
-                }
-            }
-            Ok(false) => {
-                if strict {
-                    anyhow::bail!(
-                        "mix output not found after pipeline; check {}",
-                        mix_yaml.display()
-                    );
-                }
-                eprintln!(
-                    "  {} Mix output not found after pipeline; check {}",
-                    "⚠️".yellow(),
-                    mix_yaml.display()
-                );
-            }
-            Err(e) => {
-                if strict {
-                    return Err(e).context(format!(
-                        "copy mixed corpus to {}",
-                        data_dir.join("train.jsonl").display()
-                    ));
-                }
-                eprintln!(
-                    "  {} Failed to copy mixed corpus to train.jsonl: {}",
-                    "⚠️".yellow(),
-                    e
-                );
-            }
         }
     }
 
@@ -960,74 +965,6 @@ async fn refresh_stale_training_corpus(
     }
 
     Ok(())
-}
-
-#[cfg(test)]
-mod sizing_precedence_tests {
-    use super::resolve_training_sizing;
-
-    /// The headline "dual-sizing" bug: a generic preset must NOT beat the VRAM
-    /// budget. Preset seq=512 + budget seq=256, no explicit CLI / domain → 256.
-    #[test]
-    fn budget_overrides_generic_preset_seq_len() {
-        let resolved = resolve_training_sizing(
-            None,      // no explicit --seq-len
-            None,      // no domain profile
-            Some(256), // VRAM budget
-            Some(512), // generic preset default
-        );
-        assert_eq!(resolved, Some(256));
-    }
-
-    /// Explicit CLI always wins, even over the budget: CLI seq=512 + budget seq=256 → 512.
-    #[test]
-    fn explicit_cli_beats_budget() {
-        let resolved = resolve_training_sizing(Some(512), None, Some(256), Some(512));
-        assert_eq!(resolved, Some(512));
-    }
-
-    /// A deliberate domain profile beats the budget but loses to explicit CLI.
-    #[test]
-    fn domain_beats_budget_but_loses_to_cli() {
-        assert_eq!(
-            resolve_training_sizing(None, Some(1024), Some(256), Some(512)),
-            Some(1024)
-        );
-        assert_eq!(
-            resolve_training_sizing(Some(2048), Some(1024), Some(256), Some(512)),
-            Some(2048)
-        );
-    }
-
-    /// No preset at all: the budget value is used as-is.
-    #[test]
-    fn budget_only_is_used() {
-        assert_eq!(
-            resolve_training_sizing(None, None, Some(256), None),
-            Some(256)
-        );
-    }
-
-    /// batch_size / grad_accum follow the same precedence (one representative case each).
-    #[test]
-    fn budget_overrides_preset_for_batch_and_grad() {
-        // batch_size: preset would set 8, budget shrinks to 1.
-        assert_eq!(
-            resolve_training_sizing(None, None, Some(1), Some(8)),
-            Some(1)
-        );
-        // grad_accum: explicit CLI of 4 wins over budget's 16.
-        assert_eq!(
-            resolve_training_sizing(Some(4), None, Some(16), Some(2)),
-            Some(4)
-        );
-    }
-
-    /// Nothing supplied anywhere → None (caller keeps its own fallback).
-    #[test]
-    fn all_none_yields_none() {
-        assert_eq!(resolve_training_sizing(None, None, None, None), None);
-    }
 }
 
 #[cfg(all(test, feature = "cloud"))]
@@ -1096,5 +1033,129 @@ mod cloud_eval_gate_tests {
                 );
             }
         }
+    }
+}
+
+/// D1: `--domain rust --cloud local` wiring. Proves `resolve_local_spoke_base`
+/// (the function `run_train`'s local branch now calls) actually resolves the
+/// spoke's real base + preset — not the bug this replaces, where the local
+/// branch was `let effective_model = model;` and silently kept the raw
+/// (`None`) CLI `--model`/`--preset` regardless of `--domain`.
+///
+/// This is NOT a re-test of `training_selection.rs::rust_resolves_qwen_qlora`
+/// (which already covers the resolver itself) — it exercises the train_arm.rs
+/// wiring on top of it: that the local path's own helper, called with no CLI
+/// overrides, still surfaces the "rust" spoke's Qwen base instead of leaving
+/// `model` as `None` / `preset` unset.
+/// Non-empty lines in a JSONL file, or `None` when it cannot be read.
+#[cfg_attr(not(feature = "cloud"), allow(dead_code))]
+fn jsonl_row_count(path: &std::path::Path) -> Option<usize> {
+    let text = vox_bounded_fs::read_utf8_path_capped(path).ok()?;
+    Some(text.lines().filter(|l| !l.trim().is_empty()).count())
+}
+
+#[cfg(test)]
+#[test]
+fn jsonl_row_count_counts_non_empty_lines() {
+    let d = tempfile::tempdir().unwrap();
+    let p = d.path().join("train.jsonl");
+    std::fs::write(&p, "{\"a\":1}\n\n{\"a\":2}\n").unwrap();
+    assert_eq!(jsonl_row_count(&p), Some(2));
+    assert_eq!(jsonl_row_count(&d.path().join("missing.jsonl")), None);
+}
+
+#[cfg(test)]
+mod local_spoke_base_wiring_tests {
+    use super::resolve_local_spoke_base;
+
+    fn root() -> std::path::PathBuf {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap()
+            .to_path_buf()
+    }
+
+    #[test]
+    fn domain_rust_resolves_spoke_base_and_preset_not_defaults() {
+        let (model, preset) = resolve_local_spoke_base(Some(&root()), "rust", None, None).unwrap();
+        let model = model.expect("rust spoke must resolve a base model, not None");
+        assert!(
+            model.contains("Qwen"),
+            "expected the rust spoke's Qwen base, got {model:?}"
+        );
+        assert!(!preset.is_empty(), "resolved preset must not be empty");
+    }
+
+    #[test]
+    fn cli_model_still_wins_over_domain_resolution() {
+        let (model, _preset) =
+            resolve_local_spoke_base(Some(&root()), "rust", Some("org/Manual"), None).unwrap();
+        assert_eq!(model.as_deref(), Some("org/Manual"));
+    }
+}
+
+#[cfg(test)]
+mod local_card_tests {
+    use super::{LocalCardMeta, write_local_adapter_card};
+    use vox_crypto::facades::{hex_encode, interop_sha256};
+
+    fn meta() -> LocalCardMeta {
+        LocalCardMeta {
+            base_model: None,
+            preset: Some("qwen3_16g".into()),
+            rank: 16,
+            alpha: 32.0,
+            seed: 42,
+            corpus_hash: "abc123def456".into(),
+            git_sha: "deadbee".into(),
+        }
+    }
+
+    /// Run dir with adapter, train.jsonl and a manifest pointing at it by absolute path.
+    fn fixture(base_model: &str) -> (tempfile::TempDir, std::path::PathBuf, std::path::PathBuf) {
+        let d = tempfile::tempdir().unwrap();
+        let adapter = d.path().join("candle_qlora_adapter.safetensors");
+        let train = d.path().join("train.jsonl");
+        std::fs::write(&adapter, b"adapter-bytes\r\n\xff").unwrap();
+        std::fs::write(&train, b"{\"a\":1}\r\n{\"a\":2}\n").unwrap();
+        let manifest = serde_json::json!({
+            "train_file": train.display().to_string(),
+            "base_model": base_model,
+        });
+        std::fs::write(
+            d.path().join("training_manifest.json"),
+            manifest.to_string(),
+        )
+        .unwrap();
+        (d, adapter, train)
+    }
+
+    #[test]
+    fn local_card_hashes_the_consumed_train_file() {
+        let (d, adapter, train) = fixture("Qwen/Qwen3-8B@abc123");
+        let path = write_local_adapter_card(d.path(), None, &meta()).unwrap();
+        assert_eq!(path, d.path().join("adapter_card.json"));
+        let card = vox_populi::mens::tensor::adapter_card::AdapterCard::read_sidecar(&adapter)
+            .unwrap()
+            .unwrap();
+        let sha = |p: &std::path::Path| hex_encode(&interop_sha256(&std::fs::read(p).unwrap()));
+        assert_eq!(card.train_data_sha256, sha(&train));
+        assert_eq!(card.adapter_sha256, sha(&adapter));
+        assert_eq!(card.base_hf_id, "Qwen/Qwen3-8B@abc123");
+        assert_eq!(card.base_revision, "abc123");
+        card.validate().unwrap();
+        card.validate_lineage().unwrap();
+        let (fp, kind) = vox_compiler::llm_prompt::grammar_fingerprint();
+        assert_eq!(card.training_syntax_fingerprint, fp);
+        assert_eq!(card.syntax_fingerprint_kind, kind);
+        assert_eq!(kind, "ebnf-sha256");
+    }
+
+    #[test]
+    fn local_card_refuses_unpinned_base() {
+        let (d, _adapter, _train) = fixture("Qwen/Qwen3-8B");
+        assert!(write_local_adapter_card(d.path(), None, &meta()).is_err());
+        assert!(!d.path().join("adapter_card.json").exists());
     }
 }

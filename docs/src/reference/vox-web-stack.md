@@ -30,25 +30,23 @@ schema_type: "TechArticle"
 ## Canonical Frontend
 
 > [!IMPORTANT]
-> **`vox-dashboard` is the Single Source of Truth** for the Vox user-facing frontend experience (see [ADR 030](../adr/030-state-machine-ssot.md) and [ADR 031](../adr/031-deprecate-vox-vscode.md)).
-> `apps/editor/vox-vscode/` is **deprecated** and retained only for its LSP client. Ship new MCP behavior, capability UX, and visualization in `crates/vox-dashboard/` — not in the VS Code extension.
+> **`crates/vox-gui` is the canonical primary Vox user-facing GUI and orchestration surface** (see [ADR 045](../adr/045-tauri-gui-replaces-axum-dashboard.md), ratified). The legacy Axum `vox-dashboard` this section previously described was decommissioned 2026-05-12 and no longer exists in the tree.
+> `apps/editor/vox-vscode/` is **deprecated** and retained only for its LSP client. Ship new MCP behavior, capability UX, and visualization in `crates/vox-gui/` — not in the VS Code extension.
 
-The **orchestration dashboard** (`crates/vox-dashboard/`) is the primary Vox user surface. It is served by the Axum backend (`vox dashboard` command) and communicates with the orchestrator over a local MCP WebSocket proxy. All reactive UI state within the dashboard uses the Vox `state_machine` compiler primitive as the single source of truth (see below).
+The **Tauri 2 desktop GUI** (`crates/vox-gui/`) is the primary Vox user surface. It ships as a native application shell and communicates with the orchestrator via Tauri IPC (`invoke()`/events) — not a served web page or WebSocket. Its command surface is generated from `vox-cli`'s `clap` manifest (`CommandCatalog`), so any command added to `vox-cli` appears automatically in the GUI; see [ADR 045](../adr/045-tauri-gui-replaces-axum-dashboard.md).
 
 Frontend lifecycle ownership (canonical vs experimental vs fixture-only) is tracked in [`frontend-surface-ownership.md`](frontend-surface-ownership.md) and the machine-readable contract [`contracts/frontend/surface-ownership.v1.yaml`](../../../contracts/frontend/surface-ownership.v1.yaml).
 
-- **Dashboard entry point:** `crates/vox-dashboard/app/src/app.vox` — lowered to `app/src/generated/` by `vox build`
-- **Backend:** `crates/vox-dashboard/src/` — Axum routes, MCP proxy, settings API
+- **Entry point:** `crates/vox-gui/src/main.rs` (Rust/Tauri) + `crates/vox-gui/ui/src/App.tsx` (React)
+- **Backend:** `crates/vox-gui/src/commands/` — Tauri IPC command handlers
 - **Unified Grammar**: Vocabulary is synchronized via **`tree-sitter-vox/GRAMMAR_SSOT.md`**.
-- **Retired**: Legacy `frontend/` (Next.js), `packages/vox-ui/`, and VS Code as primary surface have been removed/deprecated.
+- **Retired**: Legacy `frontend/` (Next.js), `packages/vox-ui/`, the Axum `vox-dashboard`, and VS Code as primary surface have all been removed/deprecated.
 
-## `state_machine` as SSoT for reactive UI state
+## UI authoring track: `vox-gui` is hand-authored React, not `state_machine`-compiled
 
-Within the dashboard (and any Vox-generated application), reactive state **must** be expressed using the Vox `state_machine` compiler primitive. This primitive is defined in `crates/vox-compiler/src/hir/nodes/state_machine.rs`, type-checked at `crates/vox-compiler/src/typeck/state_machine_check.rs`, and lowered to TypeScript+React by `crates/vox-codegen-ts/src/state_machine_emit.rs`.
+`crates/vox-gui/ui/src` is a fully hand-authored React/TSX surface — zero `.vox` source files exist there (verified 2026-09-22). This differs from the retired dashboard's model, which compiled `state_machine`-primitive `.vox` sources into generated TSX. `vox-gui` does not use that pipeline: it is `authoring_track: react-hand-authored` per the boundary rule recorded in [`contracts/frontend/surface-ownership.v1.yaml`](../../../contracts/frontend/surface-ownership.v1.yaml) and [`external-frontend-interop-plan-2026.md`](../architecture/external-frontend-interop-plan-2026.md#cross-cutting-concerns).
 
-Do **not** hand-write reactive `.tsx` files in `app/src/generated/` — they must be compiler outputs from `.vox` sources. The CI gate at `scripts/check_dashboard_ssot.vox` enforces this rule.
-
-Hand-written React source for the dashboard's escape-hatch components is explicitly allowed under `src/components/`. Only the `app/src/generated/` subtree is compiler-owned.
+The Vox `state_machine` compiler primitive itself remains the SSoT for reactive state in **Vox-generated** applications (compiler surfaces: `crates/vox-compiler/src/hir/nodes/state_machine.rs`, `crates/vox-compiler/src/typeck/state_machine_check.rs`, `crates/vox-codegen-ts/src/state_machine_emit.rs`) — that decision is unaffected and still governs `component`/`state_machine`-authored Vox apps generally. It does not describe `vox-gui`'s own UI, which is a hand-authored operator tool, not a Vox-compiled application. The `scripts/check_dashboard_ssot.vox` CI gate this section previously referenced no longer exists (it enforced the retired dashboard's compiler-output-only rule).
 
 ## Not part of Vox
 

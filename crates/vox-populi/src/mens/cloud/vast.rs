@@ -122,6 +122,17 @@ impl VastClient {
         }
         if spec.job_kind != JobKind::Train {
             env.insert("VOX_SERVE_PORT".into(), spec.serve_port.to_string().into());
+        } else {
+            // Transmit the same batch_size/seq_len the local dispatch decision was
+            // sized against (see `min_vram_mb_for_training`) so the remote worker
+            // cannot re-derive a larger, unverified shape from its own preset
+            // ladder — see `populi-entrypoint.vox`'s "train" arm, which reads
+            // these into `vox mens train --batch-size/--seq-len`.
+            env.insert(
+                "VOX_MENS_BATCH_SIZE".into(),
+                spec.batch_size.to_string().into(),
+            );
+            env.insert("VOX_MENS_SEQ_LEN".into(), spec.seq_len.to_string().into());
         }
         if spec.persistent {
             env.insert("VOX_PERSISTENT_NODE".into(), "1".into());
@@ -393,5 +404,44 @@ impl CloudProvider for VastClient {
         } else {
             Ok(None)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn build_env_map_transmits_batch_size_and_seq_len_for_train_jobs() {
+        let config = Arc::new(CloudProviderConfig::default());
+        let client = VastClient::new("test-key".to_string(), config.clone());
+        let mut spec = CloudJobSpec::new_train(&config);
+        spec.batch_size = 7;
+        spec.seq_len = 999;
+
+        let env = client.build_env_map(&spec);
+
+        assert_eq!(
+            env.get("VOX_MENS_BATCH_SIZE").and_then(|v| v.as_str()),
+            Some("7"),
+            "remote worker must receive the exact batch_size the local dispatch \
+             decision was sized against, not re-derive its own"
+        );
+        assert_eq!(
+            env.get("VOX_MENS_SEQ_LEN").and_then(|v| v.as_str()),
+            Some("999")
+        );
+    }
+
+    #[test]
+    fn build_env_map_omits_sizing_vars_for_non_train_jobs() {
+        let config = Arc::new(CloudProviderConfig::default());
+        let client = VastClient::new("test-key".to_string(), config.clone());
+        let spec = CloudJobSpec::new_serve(&config, 3600);
+
+        let env = client.build_env_map(&spec);
+
+        assert!(!env.contains_key("VOX_MENS_BATCH_SIZE"));
+        assert!(!env.contains_key("VOX_MENS_SEQ_LEN"));
     }
 }

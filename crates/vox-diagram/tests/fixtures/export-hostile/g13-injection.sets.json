@@ -1,0 +1,50 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "\"] ; click n0 call alert(1) [\"",
+      "rect",
+      []
+    ],
+    [
+      "\"]\nend\nsubgraph x[\"",
+      "rect",
+      []
+    ],
+    [
+      "a --> b",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "\"] ; click n0 call alert(1) [\"",
+        "rect",
+        []
+      ],
+      [
+        "a --> b",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "a --> b",
+        "rect",
+        []
+      ],
+      [
+        "\"]\nend\nsubgraph x[\"",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

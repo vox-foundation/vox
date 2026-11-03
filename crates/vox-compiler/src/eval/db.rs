@@ -88,7 +88,7 @@ fn apply_op(op: &str, have: &VoxValue, want: &VoxValue) -> bool {
             Some(Ordering::Greater | Ordering::Equal)
         ),
         "contains" => match (have, want) {
-            (VoxValue::Str(h), VoxValue::Str(w)) => h.contains(w.as_str()),
+            (VoxValue::Str(h), VoxValue::Str(w)) => h.contains(w.as_ref()),
             (VoxValue::List(items), w) => items.iter().any(|it| it == w),
             _ => false,
         },

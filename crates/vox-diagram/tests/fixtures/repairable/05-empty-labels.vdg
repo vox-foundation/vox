@@ -1,0 +1,7 @@
+graph {
+    node a: ""
+    container c: "" {
+        node d: "D"
+    }
+    a -> c.d: ""
+}

@@ -85,6 +85,7 @@ pub async fn enqueue_recovery_first_node(
                 attachment_manifest: None,
                 budget: None,
                 trace_id: None,
+                turn_id: None,
                 active_skill: None,
                 tenant_id: tenant_id.clone(),
                 clutch: None,

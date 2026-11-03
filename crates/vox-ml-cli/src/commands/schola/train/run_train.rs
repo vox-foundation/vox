@@ -1,5 +1,99 @@
 use anyhow::Result;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+// ── P2-009: Corpus threshold gate (research: CL minimum corpus) ────────
+// Refuse to start training if the corpus has fewer than the minimum viable
+// pairs. Current corpus is ~340 (Gap G-11); research proves <500 pairs
+// guarantees catastrophic overfitting.
+// Reference: docs/src/architecture/research-cl-qlora-minimum-corpus-2026.md
+const MIN_CORPUS_PAIRS: usize = 100;
+
+/// Hard-fails if `train.jsonl` is missing (previously silently skipped the whole gate) or
+/// has fewer than [`MIN_CORPUS_PAIRS`] non-blank lines.
+pub(crate) fn check_corpus_threshold(data_dir: &Path) -> Result<()> {
+    let train_jsonl = data_dir.join("train.jsonl");
+    if !train_jsonl.exists() {
+        // A missing train.jsonl is not "no corpus check needed" -- it means the corpus
+        // was never built (or the data dir is wrong). Silently skipping here let
+        // training start against zero pairs. Fail closed instead.
+        anyhow::bail!(
+            "Corpus file not found: {} (expected training pairs). \
+             Generate the corpus with `vox mens corpus extract` + `vox mens corpus pairs` \
+             before training.",
+            train_jsonl.display()
+        );
+    }
+    let pair_count = std::fs::read_to_string(&train_jsonl)
+        .map(|s| s.lines().filter(|l| !l.trim().is_empty()).count())
+        .unwrap_or(0);
+    if pair_count < MIN_CORPUS_PAIRS {
+        anyhow::bail!(
+            "Corpus has {} validated pairs (minimum: {}). \
+             Fine-tuning with fewer than {} pairs risks catastrophic overfitting \
+             (see research-cl-qlora-minimum-corpus-2026.md).\n\
+             Use `vox mens serve --rag` for in-context learning until the corpus \
+             reaches the threshold, or generate more pairs with \
+             `vox mens corpus extract` + `vox mens corpus pairs`.",
+            pair_count,
+            MIN_CORPUS_PAIRS,
+            MIN_CORPUS_PAIRS
+        );
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod corpus_threshold_tests {
+    use super::{MIN_CORPUS_PAIRS, check_corpus_threshold};
+
+    #[test]
+    fn missing_train_jsonl_is_a_hard_error() {
+        let dir = std::env::temp_dir().join(format!(
+            "vox-corpus-threshold-test-missing-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        // No train.jsonl written.
+        let err = check_corpus_threshold(&dir).expect_err("missing train.jsonl must error");
+        assert!(
+            err.to_string().contains("Corpus file not found"),
+            "unexpected error: {err}"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn undersized_train_jsonl_is_a_hard_error() {
+        let dir = std::env::temp_dir().join(format!(
+            "vox-corpus-threshold-test-small-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("train.jsonl"), "{}\n{}\n").unwrap();
+        let err = check_corpus_threshold(&dir).expect_err("under-threshold corpus must error");
+        assert!(
+            err.to_string().contains("validated pairs"),
+            "unexpected error: {err}"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn sufficiently_sized_train_jsonl_passes() {
+        let dir = std::env::temp_dir().join(format!(
+            "vox-corpus-threshold-test-ok-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let lines = "{}\n".repeat(MIN_CORPUS_PAIRS);
+        std::fs::write(dir.join("train.jsonl"), lines).unwrap();
+        check_corpus_threshold(&dir).expect("corpus at threshold must pass");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
 
 #[allow(
     clippy::too_many_arguments,
@@ -89,21 +183,46 @@ pub async fn run_train(
             "`--qlora-allow-partial-proxy-stack` cannot be combined with `--qlora-require-full-proxy-stack`."
         );
     }
-    if let Some(r) = qlora_max_skip_rate {
-        if !r.is_finite() || !(0.0..=1.0).contains(&r) {
-            anyhow::bail!("--qlora-max-skip-rate must be between 0.0 and 1.0 (got {r})");
-        }
+    if let Some(r) = qlora_max_skip_rate
+        && (!r.is_finite() || !(0.0..=1.0).contains(&r))
+    {
+        anyhow::bail!("--qlora-max-skip-rate must be between 0.0 and 1.0 (got {r})");
     }
 
+    let gpu_info = vox_populi::mens::probe_gpu();
+    let workspace_root = vox_corpus::training::contract::find_workspace_root();
+
     let mut model = model;
+    let env_default_model = std::env::var("VOX_MENS_DEFAULT_MODEL")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    if let Some(resolved) =
+        vox_populi::mens::tensor::spoke_base_resolver::maybe_resolve_metal_default_base(
+            model.as_deref(),
+            env_default_model.as_deref(),
+            &gpu_info.vendor,
+            matches!(
+                device_kind,
+                vox_populi::mens::DeviceKind::Best | vox_populi::mens::DeviceKind::Metal
+            ),
+            workspace_root.as_deref(),
+            gpu_info.vram_mb,
+        )?
+    {
+        tracing::info!(
+            model = %resolved,
+            vram_mb = gpu_info.vram_mb,
+            "Using Metal-resolved HF model (`--model` omitted; agentic_default ladder)."
+        );
+        model = Some(resolved);
+    }
     if matches!(
         train_backend,
         vox_populi::mens::PopuliTrainBackend::CandleQlora
     ) && model.is_none()
     {
-        let resolved = vox_populi::mens::resolve_default_model_id(
-            std::env::var("VOX_MENS_DEFAULT_MODEL").ok().as_deref(),
-        );
+        let resolved = vox_populi::mens::resolve_default_model_id(env_default_model.as_deref());
         tracing::info!(
             model = %resolved,
             "Using default HF model for Candle QLoRA (`--model` omitted; see contracts/mens/training-presets.v1.yaml)."
@@ -140,44 +259,21 @@ pub async fn run_train(
                  Rebuild: `cargo build -p vox-ml-cli --features gpu,mens-candle-cuda` (or `cargo vox-cuda-release`).\n\
                  On Windows use a VS Developer shell so `nvcc` can find MSVC."
             );
-            // Preflight: make sure the runtime cuda plugin is installed + loadable,
-            // self-healing (rebuild + reinstall) on a stale/missing/ABI-mismatched
-            // plugin so a plain `vox mens train --device cuda` works out of the box.
-            // Opt out with `--no-auto-heal` (sets VOX_MENS_NO_AUTO_HEAL).
-            // Gated on `mens-candle-cuda`: that is when the real CUDA dispatch is
-            // compiled (and it implies `gpu`, so plugin_heal is available).
-            #[cfg(feature = "mens-candle-cuda")]
-            crate::commands::mens::plugin_heal::ensure_cuda_plugin(true)?;
         }
-        #[cfg(target_os = "macos")]
-        if matches!(device_kind, vox_populi::mens::DeviceKind::Metal) {
-            // DEAD GATE REMOVED: this used to be `#[cfg(not(feature =
-            // "mens-candle-metal"))]`, but no such Cargo feature exists on
-            // vox-ml-cli (or any crate) — `mens-candle-metal` is a *runtime
-            // plugin* id (crates/vox-plugin-mens-candle-metal, see
-            // vox-plugin-catalog/catalog.toml), not a build feature. The
-            // negation was therefore always true, so the bail always fired
-            // while advertising an unbuildable remediation.
-            //
-            // The gate is now unconditional, which is behaviourally identical
-            // and honest: Metal QLoRA training genuinely has no backend today.
-            // vox-populi exposes `mens-candle-qlora-cuda` but no Metal twin
-            // (no `candle-core/metal` wiring), and the plugin's
-            // `run_train_step`/`run_eval_step` still return unimplemented
-            // pending the SP3-D host protocol
-            // (crates/vox-plugin-mens-candle-metal/src/training.rs). Declaring
-            // a `mens-candle-metal` feature here would only move the dead end.
-            // Re-gate this once vox-populi grows a Metal Candle backend.
-            anyhow::bail!(
-                "`--device metal` for Candle QLoRA is not supported yet: there is no \
-                 Metal-enabled Candle training backend in this build.\n\
-                 Use `--device cpu` instead.\n\
-                 (`--device cuda` needs a separate, NVIDIA-equipped machine — it is not \
-                 an alternative on this host, and this message deliberately does not \
-                 suggest a rebuild: an installed user has no toolchain to rebuild with.)\n\
-                 (Tracking: vox-populi needs a Metal twin of `mens-candle-qlora-cuda`, and \
-                 the `mens-candle-metal` plugin needs the SP3-D training host protocol.)"
-            );
+        // Make sure the plugin the selector will dispatch to is installed and
+        // loadable, self-healing a missing/stale one (opt out with
+        // `--no-auto-heal` / VOX_MENS_NO_AUTO_HEAL). Same selector the training
+        // dispatch in vox-populi uses, so they can't disagree. Skip the heal
+        // where no release asset exists for this platform (it would try a
+        // download that can't succeed); dispatch then fails at load with a
+        // build-from-source hint.
+        #[cfg(feature = "gpu")]
+        {
+            let plugin_id =
+                vox_populi::mens::select_mens_backend(device_kind, &vox_plugin_host::probe());
+            if vox_populi::mens::has_prebuilt_artifact(plugin_id) {
+                crate::commands::mens::plugin_heal::ensure_plugin(plugin_id, true)?;
+            }
         }
     }
 
@@ -240,7 +336,6 @@ pub async fn run_train(
         }
     }
 
-    let workspace_root = vox_corpus::training::contract::find_workspace_root();
     let data_dir = vox_corpus::training::contract::normalize_workspace_relative_path(
         data_dir,
         workspace_root.as_deref(),
@@ -253,9 +348,11 @@ pub async fn run_train(
         vox_corpus::training::contract::normalize_training_resume_path(r, workspace_root.as_deref())
     });
 
-    let gpu_info = vox_populi::mens::probe_gpu();
-    let device_profile =
-        vox_populi::mens::DeviceProfile::from_gpu_info(&gpu_info.model_name, gpu_info.vram_mb);
+    let device_profile = vox_populi::mens::DeviceProfile::from_gpu_info(
+        &gpu_info.model_name,
+        gpu_info.vram_mb,
+        &gpu_info.vendor,
+    );
     let cli_overrides = vox_populi::mens::CliOverrides {
         rank,
         alpha,
@@ -275,7 +372,7 @@ pub async fn run_train(
         device_profile.clone(),
         None,
         cli_overrides.clone(),
-    );
+    )?;
 
     tracing::debug!(
         model = ?model,
@@ -285,33 +382,7 @@ pub async fn run_train(
         "Dispatching training payload to native orchestra"
     );
 
-    // ── P2-009: Corpus threshold gate (research: CL minimum corpus) ────────
-    // Refuse to start training if the corpus has fewer than the minimum viable
-    // pairs. Current corpus is ~340 (Gap G-11); research proves <500 pairs
-    // guarantees catastrophic overfitting.
-    // Reference: docs/src/architecture/research-cl-qlora-minimum-corpus-2026.md
-    const MIN_CORPUS_PAIRS: usize = 100;
-    {
-        let train_jsonl = data_dir.join("train.jsonl");
-        if train_jsonl.exists() {
-            let pair_count = std::fs::read_to_string(&train_jsonl)
-                .map(|s| s.lines().filter(|l| !l.trim().is_empty()).count())
-                .unwrap_or(0);
-            if pair_count < MIN_CORPUS_PAIRS {
-                anyhow::bail!(
-                    "Corpus has {} validated pairs (minimum: {}). \
-                     Fine-tuning with fewer than {} pairs risks catastrophic overfitting \
-                     (see research-cl-qlora-minimum-corpus-2026.md).\n\
-                     Use `vox mens serve --rag` for in-context learning until the corpus \
-                     reaches the threshold, or generate more pairs with \
-                     `vox mens corpus extract` + `vox mens corpus pairs`.",
-                    pair_count,
-                    MIN_CORPUS_PAIRS,
-                    MIN_CORPUS_PAIRS
-                );
-            }
-        }
-    }
+    check_corpus_threshold(&data_dir)?;
 
     eprintln!("{}", "╔══════════════════════════════════════════╗".cyan());
     eprintln!("{}", "║   VoxMens — native fine-tuning (QLoRA)  ║".cyan());
@@ -342,9 +413,11 @@ pub async fn run_train(
     }
     eprintln!();
 
+    // `return` is load-bearing in the non-gpu build, where a cfg(not) block follows.
     #[cfg(feature = "gpu")]
+    #[allow(clippy::needless_return)]
     {
-        return super::gpu::run_gpu_training(
+        super::gpu::run_gpu_training(
             train_backend,
             model,
             device,
@@ -389,7 +462,7 @@ pub async fn run_train(
             chatml,
             mix_config,
         )
-        .await;
+        .await
     }
 
     #[cfg(not(feature = "gpu"))]
@@ -450,5 +523,18 @@ pub async fn run_train(
         eprintln!("  Canonical QLoRA (when `gpu` is enabled): `vox mens train --backend qlora …`");
         eprintln!("  See docs/src/reference/mens-training.md");
         Ok(())
+    }
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod tests {
+    #[test]
+    fn metal_qlora_error_is_not_the_old_dead_gate_message() {
+        let source = include_str!("run_train.rs");
+        let old_gate = ["`--device metal` for Candle QLoRA", " is not supported yet"].concat();
+        assert!(
+            !source.contains(&old_gate),
+            "Metal QLoRA must no longer use the old dead-gate error"
+        );
     }
 }

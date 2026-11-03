@@ -23,6 +23,9 @@ pub mod audit_effort;
 /// `vox audit effort-route` — routes audit findings to enforcement proposals (D3).
 pub mod audit_route;
 
+/// `vox audit research-parity` — audits architecture SSOTs for empirical test citations.
+pub mod audit_research_parity;
+
 #[cfg(feature = "dei")]
 pub mod attention;
 /// Identity and master key integration (`vox auth`).
@@ -31,6 +34,8 @@ pub mod auth;
 pub mod build;
 /// Packaging tools for bundling Vox web apps (e.g., TanStack/Vite wrapper).
 pub mod bundle;
+/// `vox explain` / `vox features`: answers from the capability index.
+pub mod capability_cmds;
 /// Catalog explicit management commands (`vox catalog`).
 pub mod catalog;
 /// Validation and static checking (`vox check`).
@@ -60,6 +65,8 @@ pub mod secrets;
 // `db.rs` re-exports this tree; keep a same-file reference for tooling / unwired-module checks.
 #[allow(unused_imports)]
 use self::db_research as _;
+/// Daemon `orch.tool_call` helpers shared by `vox dei` and `vox kb status|reindex`.
+pub(crate) mod daemon_tool;
 /// Local VoxDB / Codex diagnostics (`vox db`).
 pub mod db;
 /// Clap entrypoints for `vox db`.
@@ -117,20 +124,19 @@ pub mod openclaw;
 pub mod play;
 pub mod pm;
 pub mod pm_lifecycle;
+/// `--profile <ids>` resolution shared by `vox mcp` / `vox serve`.
+pub mod profile_arg;
 pub mod repair;
-#[cfg(feature = "dei")]
-pub mod safety;
-/// Raw precompiled WASI module execution (`vox wasm run`) via vox-wasm-engine.
-/// Gated with `script-wasi`: vox-wasm-engine pulls the full wasmtime stack
-/// (~69 crates / ~5 min), which should not ride into the default CLI build
-/// (native `--mode script` does not need it).
-#[cfg(feature = "script-wasi")]
-pub mod wasm;
-
 /// Explicit multi-repo catalog and read-only polyrepo queries (`vox repo`).
 pub mod repo;
 pub mod repo_init;
 pub(crate) mod repo_upgrade;
+#[cfg(feature = "dei")]
+pub mod safety;
+/// Headless daemon + HTTP gateway scoped to a capability profile (`vox serve`).
+pub mod serve;
+/// `vox serve` network flags mapped to MCP HTTP gateway env for the spawned daemon.
+pub mod serve_network;
 /// TOESTUB structural testing guard logic.
 #[cfg(feature = "stub-check")]
 pub mod stub_check;
@@ -168,6 +174,8 @@ pub mod telemetry;
 pub mod test;
 pub mod update;
 
+/// VoxDiagram CLI (`vox diagram`).
+pub mod diagram;
 pub mod grammar;
 
 /// Manual plan bridging via PlanningOrchestrator
@@ -198,6 +206,9 @@ pub mod gui;
 
 /// Workspace drift and pattern-repetition linter (`vox drift-check`).
 pub mod drift_check;
+
+/// Knowledge-base operations (`vox kb eval|status|reindex`).
+pub mod kb;
 
 /// Insta snapshot helpers: orphan detection and cleanup (`vox snapshot`).
 pub mod snapshot;

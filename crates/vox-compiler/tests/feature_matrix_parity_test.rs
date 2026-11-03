@@ -63,18 +63,25 @@ fn spawn_interp_errors_with_backend_only_code() {
     assert_assertion_failed_contains(result, codes::PARITY_BACKEND_ONLY);
 }
 
-// ── Test 3: With → interpreter returns PARITY_UNIMPLEMENTED ─────────────────
+// ── Test 3: With → interpreter evaluates inner with options; TS emits PARITY_UNIMPLEMENTED ──
 
 #[test]
 fn with_interp_errors_with_unimplemented_code() {
+    use vox_compiler::feature_matrix::{ExprFeature, Feature, unsupported_diagnostic};
+    use vox_compiler::target::Target;
+
     let lit = || Box::new(HirExpr::StringLit("x".to_string(), zero()));
     let with_expr = HirExpr::With(lit(), lit(), zero());
     let mut interp = Interpreter::new(1_000_000);
-    let result = eval_expr(&mut interp, &with_expr);
-    assert_assertion_failed_contains(result, codes::PARITY_UNIMPLEMENTED);
+    let result =
+        eval_expr(&mut interp, &with_expr).expect("ADR-021 interpreter backs HirExpr::With");
+    assert_eq!(result, VoxValue::Str("x".into()));
+
+    let cell = unsupported_diagnostic(Feature::Expr(ExprFeature::With), Target::Interpreter);
+    assert_eq!(cell.code, codes::PARITY_UNIMPLEMENTED);
 }
 
-// ── Test 4: WorkflowVersion → Rust codegen emits compile_error! ─────────────
+// ── Test 4: WorkflowVersion → Rust emits inert unit (ADR-021); JSX emits compile_error! ─────
 
 #[test]
 fn workflow_version_rust_emitter_produces_parity_code() {
@@ -87,14 +94,23 @@ fn workflow_version_rust_emitter_produces_parity_code() {
         span: zero(),
     });
     let output = emit_expr(&wv);
-    assert!(
-        output.contains("compile_error!"),
-        "Rust emitter must emit compile_error! for WorkflowVersion; got: {output:?}"
+    assert_eq!(
+        output.trim(),
+        "()",
+        "ADR-021: WorkflowVersion is backed by interpret_workflow_durable and emits inert () in Rust; got: {output:?}"
     );
+
+    let jsx = HirExpr::Jsx(HirJsxElement {
+        tag: "div".to_string(),
+        attributes: vec![],
+        children: vec![],
+        span: zero(),
+    });
+    let jsx_out = emit_expr(&jsx);
     assert!(
-        output.contains(codes::PARITY_UNIMPLEMENTED),
-        "compile_error! must carry parity code {:?}; got: {output:?}",
-        codes::PARITY_UNIMPLEMENTED
+        jsx_out.contains("compile_error!") && jsx_out.contains(codes::PARITY_FRONTEND_ONLY),
+        "Rust emitter must emit compile_error! with {:?} for JSX; got: {jsx_out:?}",
+        codes::PARITY_FRONTEND_ONLY
     );
 }
 

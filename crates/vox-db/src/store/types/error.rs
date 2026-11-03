@@ -58,4 +58,39 @@ pub enum StoreError {
         /// Names of the non-empty tables that blocked the drop.
         tables: Vec<String>,
     },
+    /// Database `schema_version` matches `BASELINE_VERSION` (or higher), yet a required baseline
+    /// table (`TRIAL_REQUIRED_TABLES`, etc.) is missing from `sqlite_master` (`STORE-01`).
+    #[error(
+        "baseline stamped (schema_version >= {}) without required table '{missing_table}'",
+        crate::schema::BASELINE_VERSION
+    )]
+    BaselineStampedWithoutTables {
+        /// Name of the missing table.
+        missing_table: String,
+    },
+    /// Illegal `trial_campaigns` or `trial_runs` status transition (`TRIAL-01`).
+    #[error("illegal trial status transition for {entity} '{id}': '{from}' -> '{to}'")]
+    IllegalTrialTransition {
+        /// Entity type ("campaign" or "run").
+        entity: &'static str,
+        /// Primary key (`campaign_id` or `run_id`).
+        id: String,
+        /// Current status in the database.
+        from: String,
+        /// Attempted target status.
+        to: String,
+    },
+    /// Invalid vocabulary value for a trial column (`TRIAL-01`..`TRIAL-04`).
+    #[error("invalid trial value for {field}: '{value}' (expected one of {allowed})")]
+    InvalidTrialValue {
+        /// Field name.
+        field: &'static str,
+        /// Rejected value.
+        value: String,
+        /// Allowed vocabulary summary.
+        allowed: &'static str,
+    },
+    /// Deterministic persistence failpoint triggered during test injection (`STORE-02`).
+    #[error("persistence failpoint triggered: {0}")]
+    FailpointTriggered(&'static str),
 }

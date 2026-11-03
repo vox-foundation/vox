@@ -250,11 +250,11 @@ Also fix the reference to the retired script a few lines below (governance.md li
 
 Old:
 ```
-GitHub CI runs the **scoped** TOESTUB pass above (`toestub_scoped.sh`). When you run **`vox stub-check`**, it exits non-zero on error/critical findings for the configured scan (see CLI flags in [`ref-cli.md`](../src/ref-cli.md)).
+GitHub CI runs the **scoped** TOESTUB pass above (`toestub_scoped.sh`). When you run **`vox stub-check`**, it exits non-zero on error/critical findings for the configured scan (see CLI flags in [`cli.md`](../../src/reference/cli.md)).
 ```
 New:
 ```
-GitHub CI runs the **scoped** TOESTUB pass above (`vox ci toestub-scoped`). When you run **`vox stub-check`**, it exits non-zero on error/critical findings for the configured scan (see CLI flags in [`ref-cli.md`](../src/ref-cli.md)).
+GitHub CI runs the **scoped** TOESTUB pass above (`vox ci toestub-scoped`). When you run **`vox stub-check`**, it exits non-zero on error/critical findings for the configured scan (see CLI flags in [`cli.md`](../../src/reference/cli.md)).
 ```
 
 - [ ] **Step 2: Fix `docs/agents/cli-toolchain.md:78`**

@@ -352,3 +352,66 @@ mod semcov_wave2_tests {
         assert_eq!(sanitize_chatml(s), s);
     }
 }
+
+impl ReplayRow {
+    /// Convert an Arca telemetry [`ReplayRow`] into a validated [`crate::training::TrainingRecordV2`]
+    /// with secret redaction and safety-floor verification (`CORPUS-04`, `CORPUS-06`).
+    #[must_use]
+    pub fn to_training_record_v2(&self) -> Option<crate::training::TrainingRecordV2> {
+        use crate::tool_workflow_corpus::{classify_shell_safety_floor, redact_trajectory_secrets};
+        use crate::training::{OracleReceipt, RecordProvenance, SpokeKind, TrainingRecordV2};
+
+        if self.prompt.trim().is_empty() || self.response.trim().is_empty() {
+            return None;
+        }
+        if classify_shell_safety_floor(&self.response).is_err() {
+            return None;
+        }
+        let spoke = match self.record_type.as_str() {
+            "tool_trace" => SpokeKind::McpToolChain,
+            "cli" | "shell_trace" => SpokeKind::StructuredShell,
+            _ => SpokeKind::AgentHarness,
+        };
+        let (clean_prompt, _) = redact_trajectory_secrets(&self.prompt);
+        let (clean_resp, _) = redact_trajectory_secrets(&self.response);
+        let receipt = OracleReceipt {
+            spoke,
+            passed: true,
+            stage: "arca_replay+redact+safety_floor".to_string(),
+            diagnostics: Vec::new(),
+            exit_code: Some(0),
+        };
+        let prov = RecordProvenance {
+            origin: "arca_replay".to_string(),
+            source_id: self.repository_id.clone(),
+            task_family: self.category.clone(),
+            difficulty: self.difficulty.unwrap_or_else(|| {
+                crate::training::construct_difficulty(&self.category, &self.record_type)
+            }),
+        };
+        Some(TrainingRecordV2::new(
+            spoke,
+            clean_prompt,
+            "You are the Vox Orchestrator agent harness.",
+            clean_resp,
+            receipt,
+            prov,
+        ))
+    }
+}
+
+/// Deterministically replay verified [`crate::training::TrainingRecordV2`] records from a
+/// persisted `VoxDb` dataset snapshot, optionally filtered to a single [`crate::training::SpokeKind`] (`CORPUS-06`).
+#[cfg(feature = "database")]
+pub async fn replay_snapshot_for_spoke(
+    db: &VoxDb,
+    snapshot_id_or_uri: &str,
+    spoke: Option<crate::training::SpokeKind>,
+) -> anyhow::Result<Vec<crate::training::TrainingRecordV2>> {
+    let (_meta, records) =
+        crate::dataset_snapshot::load_snapshot_from_db(db, snapshot_id_or_uri).await?;
+    Ok(records
+        .into_iter()
+        .filter(|r| spoke.is_none_or(|s| r.spoke == s))
+        .collect())
+}

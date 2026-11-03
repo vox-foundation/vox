@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/terminal-exec-policy-ssot.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Terminal Exec Policy SSOT (2026)",
+  "summary": "Live SSOT for PowerShell-first terminal execution policy: structured output, AST inspection, allowlist enforcement.",
+  "scope": ["terminal execution", "PowerShell", "policy enforcement", "AST validation", "structured output", "command allowlisting"],
+  "cross_refs": ["docs/src/archive/research-2026-q1/terminal-exec-policy-research-findings-2026.md", "docs/src/archive/research-2026-q1/terminal-ast-validation-research-2026.md", "contracts/terminal/exec-policy.v1.yaml", "docs/src/contributors/agent-instruction-architecture.md", "docs/src/architecture/agent-shell-fluency-eval-design-2026.md", "AGENTS.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

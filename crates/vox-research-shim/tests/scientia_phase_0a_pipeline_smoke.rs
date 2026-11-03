@@ -1,10 +1,43 @@
 //! Phase 0a — `run_research` is callable; web hits flow through `vox-search` when scope allows.
+//!
+//! These tests run with no LLM endpoint configured (no `runtime` feature, no API key), so
+//! synthesis honestly fails (Task 7 / D5: the template-answer fallback was removed). Each
+//! test now asserts that honest failure instead of a template-backed "success" — the earlier
+//! pipeline stages (session creation, event emission) still ran and are checked where they did.
+//!
+//! Every test that expects synthesis to fail is ignored under `runtime`: that
+//! feature is on in any workspace-wide build (vox-cli / vox-orchestrator-mcp
+//! enable it), and then synthesis runs the real model cascade — an explicit
+//! `llm_endpoint` only prepends a candidate, it does not replace the cascade —
+//! so the run could make a paid call and even succeed.
 
 use vox_research_shim::research::types::{ResearchQuery, ResearchScope};
-use vox_research_shim::research::{BroadcastEmitter, ResearchConfig, run_research};
+use vox_research_shim::research::{
+    BroadcastEmitter, ResearchConfig, run_research, run_research_with_context_and_session,
+};
 
-#[tokio::test]
-async fn run_research_returns_coherent_metadata() {
+#[cfg_attr(
+    feature = "runtime",
+    ignore = "needs a no-LLM build: with `runtime` synthesis would call real model providers"
+)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn run_research_without_llm_fails_honestly_not_with_a_template() {
+    let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+        .await
+        .expect("memory db");
+    db.save_snippet(vox_db::SaveSnippetParams {
+        language: "rust",
+        title: "smoke test orchestrator research pipeline",
+        code: "fn pipeline_smoke() {}",
+        description: Some("smoke test orchestrator research pipeline evidence"),
+        tags: Some("smoke"),
+        author_id: None,
+        source_ref: None,
+        embedding_ref: None,
+    })
+    .await
+    .expect("save snippet");
+
     let query = ResearchQuery {
         query: "smoke test orchestrator research pipeline".into(),
         scope: ResearchScope::Both,
@@ -12,31 +45,55 @@ async fn run_research_returns_coherent_metadata() {
         persist_to_docs: false,
         verify_claims: false,
         site_scope: None,
+        domain_mode: Default::default(),
+        waves: 1,
+        lane: vox_search::policy::ResearchLane::Fast,
     };
-    let config = ResearchConfig::default();
+    // Hermetic: `ResearchConfig::default()` resolves `SearchPolicy::from_env()`,
+    // so with `ResearchScope::Both` it would reach real Wikipedia / OpenAlex /
+    // arXiv / DDG / SearXNG and a paid Tavily key if one resolves. Turn every
+    // web provider off (as `lane_orchestrator_test` does) and the web-research
+    // master switch too; the local snippet above still feeds synthesis.
+    let mut config = ResearchConfig::default();
+    let p = &mut config.search_policy;
+    p.web_research_enabled = false;
+    p.wikipedia_fallback_enabled = false;
+    p.enable_wikipedia = false;
+    p.enable_openalex = false;
+    p.enable_arxiv = false;
+    p.duckduckgo_fallback_enabled = false;
+    p.tavily_enabled = false;
+    p.searxng_url = None;
 
-    let result = run_research(query, None, &config).await.expect("succeeds");
-
-    assert!(
-        result.research_metadata.subquery_count >= 1,
-        "planner emits at least one subquery"
-    );
-    assert!(
-        result.research_metadata.source_count == result.sources.len(),
-        "metadata source_count tracks sources vec"
-    );
-    assert!(result.research_metadata.claim_verdicts.is_empty());
-    assert!(
-        result.citations.len() <= result.sources.len(),
-        "citations are capped from sources"
-    );
+    // No LLM endpoint configured: synthesis honestly fails (D5 — no template fallback).
+    let err = run_research(query, Some(&db), &config)
+        .await
+        .expect_err("synthesis has no LLM to call in this environment");
+    assert!(err.to_string().contains("synthesis failed"), "{err}");
 }
 
-#[tokio::test]
+#[cfg_attr(
+    feature = "runtime",
+    ignore = "needs a no-LLM build: with `runtime` synthesis would call real model providers"
+)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn run_research_with_codex_persists_session_row() {
     let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
         .await
         .expect("memory db");
+    db.save_snippet(vox_db::SaveSnippetParams {
+        language: "rust",
+        title: "session persistence smoke",
+        code: "fn session_persistence_smoke() {}",
+        description: Some("session persistence smoke snippet"),
+        tags: Some("smoke"),
+        author_id: None,
+        source_ref: None,
+        embedding_ref: None,
+    })
+    .await
+    .expect("save snippet");
+
     let query = ResearchQuery {
         query: "session persistence smoke".into(),
         scope: ResearchScope::Local,
@@ -44,28 +101,56 @@ async fn run_research_with_codex_persists_session_row() {
         persist_to_docs: false,
         verify_claims: false,
         site_scope: None,
+        domain_mode: Default::default(),
+        waves: 1,
+        lane: vox_search::policy::ResearchLane::Fast,
     };
     let config = ResearchConfig::default();
 
-    let result = run_research(query, Some(&db), &config)
+    let session_id = db
+        .create_research_session("test:session-persistence-smoke", &query.query)
         .await
-        .expect("succeeds");
+        .expect("create session");
 
-    assert!(result.research_metadata.session_id > 0);
+    // No LLM endpoint configured: synthesis honestly fails, but the session row created
+    // before synthesis must still be findable and correctly marked failed (D5/D8).
+    let err =
+        run_research_with_context_and_session(query, None, Some(&db), &config, Some(session_id))
+            .await
+            .expect_err("synthesis has no LLM to call in this environment");
+    assert!(err.to_string().contains("synthesis failed"), "{err}");
+
     let session = db
-        .get_research_session(result.research_metadata.session_id)
+        .get_research_session(session_id)
         .await
         .expect("get session")
         .expect("session row");
     assert_eq!(session.query_text, "session persistence smoke");
-    assert_eq!(session.status, "completed");
+    assert_eq!(session.status, "failed");
 }
 
-#[tokio::test]
+#[cfg_attr(
+    feature = "runtime",
+    ignore = "needs a no-LLM build: with `runtime` synthesis would call real model providers"
+)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn run_research_with_codex_persists_durable_artifact() {
     let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
         .await
         .expect("memory db");
+    db.save_snippet(vox_db::SaveSnippetParams {
+        language: "rust",
+        title: "artifact persistence smoke",
+        code: "fn artifact_persistence_smoke() {}",
+        description: Some("artifact persistence smoke snippet"),
+        tags: Some("smoke"),
+        author_id: None,
+        source_ref: None,
+        embedding_ref: None,
+    })
+    .await
+    .expect("save snippet");
+
     let query = ResearchQuery {
         query: "artifact persistence smoke".into(),
         scope: ResearchScope::Local,
@@ -73,31 +158,63 @@ async fn run_research_with_codex_persists_durable_artifact() {
         persist_to_docs: false,
         verify_claims: false,
         site_scope: None,
+        domain_mode: Default::default(),
+        waves: 1,
+        lane: vox_search::policy::ResearchLane::Fast,
     };
     let config = ResearchConfig::default();
 
-    let result = run_research(query, Some(&db), &config)
+    let session_id = db
+        .create_research_session("test:artifact-persistence-smoke", &query.query)
         .await
-        .expect("succeeds");
+        .expect("create session");
+
+    // No LLM endpoint configured: synthesis honestly fails before the artifact-persistence
+    // stage runs, so no artifact must be written — a failed run must not leave a fabricated
+    // durable artifact behind (D5/D8).
+    let err =
+        run_research_with_context_and_session(query, None, Some(&db), &config, Some(session_id))
+            .await
+            .expect_err("synthesis has no LLM to call in this environment");
+    assert!(err.to_string().contains("synthesis failed"), "{err}");
 
     let artifact = db
-        .get_research_artifact(result.research_metadata.session_id)
+        .get_research_artifact(session_id)
         .await
-        .expect("get artifact")
-        .expect("artifact row");
-    assert!(artifact.artifact_json.contains("\"schema_version\":1"));
+        .expect("get artifact query succeeds");
     assert!(
-        artifact
-            .artifact_json
-            .contains("artifact persistence smoke")
+        artifact.is_none(),
+        "a failed run must not persist a fabricated artifact"
     );
-    assert!(artifact.report_markdown.contains("# Research Report"));
-    assert!(artifact.report_markdown.contains("## Sources"));
 }
 
-#[tokio::test]
+#[cfg_attr(
+    feature = "runtime",
+    ignore = "needs a no-LLM build: with `runtime` synthesis would call real model providers"
+)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn run_research_emits_scientia_events() {
-    let (sender, mut receiver) = tokio::sync::broadcast::channel(16);
+    let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+        .await
+        .expect("memory db");
+    db.save_snippet(vox_db::SaveSnippetParams {
+        language: "rust",
+        title: "event emission smoke",
+        code: "fn event_emission_smoke() {}",
+        description: Some("event emission smoke snippet"),
+        tags: Some("smoke"),
+        author_id: None,
+        source_ref: None,
+        embedding_ref: None,
+    })
+    .await
+    .expect("save snippet");
+
+    // Capacity bumped from 16 (Task 15b): fixing the claim-span coordinate bug means
+    // legitimate claims now survive extraction and each emits a `ClaimExtracted` event,
+    // so the small buffer previously sized for the (mostly-dropped-claims) bug lags
+    // before this test's single post-hoc `try_recv`.
+    let (sender, mut receiver) = tokio::sync::broadcast::channel(256);
     let config = ResearchConfig {
         event_emitter: Some(std::sync::Arc::new(BroadcastEmitter::new(sender))),
         ..ResearchConfig::default()
@@ -109,9 +226,17 @@ async fn run_research_emits_scientia_events() {
         persist_to_docs: false,
         verify_claims: false,
         site_scope: None,
+        domain_mode: Default::default(),
+        waves: 1,
+        lane: vox_search::policy::ResearchLane::Fast,
     };
 
-    let _ = run_research(query, None, &config).await.expect("succeeds");
+    // No LLM endpoint configured: synthesis honestly fails, but the "research_started"
+    // telemetry event fires well before synthesis and must still have been emitted.
+    let err = run_research(query, Some(&db), &config)
+        .await
+        .expect_err("synthesis has no LLM to call in this environment");
+    assert!(err.to_string().contains("synthesis failed"), "{err}");
 
     let first = receiver.try_recv().expect("at least one research event");
     assert!(matches!(
@@ -130,6 +255,9 @@ async fn run_research_live_web_may_return_sources() {
         persist_to_docs: false,
         verify_claims: false,
         site_scope: None,
+        domain_mode: Default::default(),
+        waves: 1,
+        lane: vox_search::policy::ResearchLane::Fast,
     };
     let config = ResearchConfig::default();
 

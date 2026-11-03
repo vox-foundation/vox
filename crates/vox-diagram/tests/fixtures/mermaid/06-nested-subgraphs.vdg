@@ -1,0 +1,8 @@
+graph TB
+    subgraph platform["Platform"]
+        subgraph svc[Services]
+            api[API] --> worker[Worker]
+        end
+        cache[(Cache)]
+    end
+    audit[Audit Log]

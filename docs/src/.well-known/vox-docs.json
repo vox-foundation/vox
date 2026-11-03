@@ -1,57 +1,201 @@
 {
   "project": "Vox",
-  "version": "0.4",
+  "version": "0.6.0",
   "license": "Apache-2.0",
   "homepage": "https://voxlang.org",
   "repository": "https://github.com/vox-foundation/vox",
   "docs_root": "https://voxlang.org",
   "feed": "https://voxlang.org/feed.xml",
   "sitemap": "https://voxlang.org/sitemap.xml",
+  "status": "pre-1.0",
   "pillars": {
     "tutorials": {
-      "index_url": "https://voxlang.org/tutorials/tut-getting-started.html",
-      "path_pattern": "tutorials/tut-*.html",
+      "index_url": "https://voxlang.org/tutorials/tut-getting-started/",
+      "path_pattern": "tutorials/tut-*/",
       "goal": "Learning-oriented, pedagogical steps for building apps with Vox"
     },
     "how_to": {
-      "index_url": "https://voxlang.org/how-to/how-to-ai-agents.html",
-      "path_pattern": "how-to/how-to-*.html",
+      "index_url": "https://voxlang.org/how-to/how-to-ai-agents/",
+      "path_pattern": "how-to/how-to-*/",
       "goal": "Problem-solving, practical recipes for specific Vox tasks"
     },
     "explanations": {
-      "index_url": "https://voxlang.org/explanation/why-vox-for-ai.html",
-      "path_pattern": "explanation/expl-*.html",
+      "index_url": "https://voxlang.org/explanation/why-vox-for-ai/",
+      "path_pattern": "explanation/expl-*/",
       "goal": "Understanding-oriented, conceptual depth on the Vox compiler and runtime"
     },
     "reference": {
-      "index_url": "https://voxlang.org/reference/ref-syntax.html",
-      "path_pattern": "reference/ref-*.html",
+      "index_url": "https://voxlang.org/reference/ref-syntax/",
+      "path_pattern": "reference/ref-*/",
       "goal": "Information-oriented, technical specifications for keywords, decorators, and CLI"
     },
     "api": {
-      "index_url": "https://voxlang.org/api/decorators.html",
-      "path_pattern": "api/*.html",
+      "index_url": "https://voxlang.org/api/decorators/",
+      "path_pattern": "api/*/",
       "goal": "Per-crate API documentation for the Vox toolchain"
     }
   },
   "key_pages": {
-    "getting_started": "https://voxlang.org/tutorials/tut-getting-started.html",
-    "syntax_reference": "https://voxlang.org/reference/ref-syntax.html",
-    "type_system": "https://voxlang.org/reference/ref-type-system.html",
-    "decorators": "https://voxlang.org/reference/ref-decorators.html",
-    "faq": "https://voxlang.org/explanation/faq.html",
-    "why_vox": "https://voxlang.org/explanation/why-vox-for-ai.html",
-    "ai_agents": "https://voxlang.org/how-to/how-to-ai-agents.html",
-    "changelog": "https://voxlang.org/reference/changelog.html"
+    "getting_started": "https://voxlang.org/tutorials/tut-getting-started/",
+    "syntax_reference": "https://voxlang.org/reference/ref-syntax/",
+    "type_system": "https://voxlang.org/reference/ref-type-system/",
+    "decorators": "https://voxlang.org/reference/ref-decorators/",
+    "faq": "https://voxlang.org/explanation/faq/",
+    "why_vox": "https://voxlang.org/explanation/why-vox-for-ai/",
+    "ai_agents": "https://voxlang.org/how-to/how-to-ai-agents/",
+    "stability": "https://voxlang.org/reference/stability/",
+    "changelog": "https://github.com/vox-foundation/vox/blob/main/CHANGELOG.md"
   },
   "agent_hints": {
-    "preferred_context": "Prioritize the 'reference' pillar for syntax queries and 'tutorials' for code structure queries. The 'explanations' pillar covers design philosophy and architectural decisions.",
-    "rag_optimization": "Headers follow H1 \u2192 H2 \u2192 H3 hierarchy for reliable semantic chunking. Vox code blocks are tagged with the 'vox' language identifier for syntax-aware parsing.",
+    "preferred_context": "Prioritize the 'reference' pillar for syntax queries and 'tutorials' for code structure queries. The 'explanations' pillar covers design philosophy and architectural decisions. Read /reference/stability/ before claiming a surface is production-ready.",
+    "rag_optimization": "Headers follow H1 → H2 → H3 hierarchy for reliable semantic chunking. Vox code blocks are tagged with the 'vox' language identifier for syntax-aware parsing.",
     "llm_training_signal": "Pages with 'training_eligible: true' frontmatter contain verified, canonical Vox code examples suitable for fine-tuning datasets.",
     "canonical_keywords": [
-      "Vox language", "AI-native language", "compiler-verified code", "MCP tools",
-      "durable workflows", "null-free language", "Rust codegen", "TypeScript codegen",
-      "actor model", "LLM tooling", "zero hallucination compiler"
+      "Vox language",
+      "AI-native language",
+      "compiler-verified code",
+      "MCP tools",
+      "durable workflows",
+      "null-free language",
+      "Rust codegen",
+      "TypeScript codegen",
+      "actor model",
+      "LLM tooling"
+    ],
+    "retired_syntax": [
+      "@endpoint",
+      "@table type",
+      "@mcp.tool"
+    ]
+  },
+  "capabilities": {
+    "index": "contracts/capabilities/capability-index.v1.json",
+    "explain_cli": "vox explain <thing>",
+    "features_cli": "vox features --domain <d>",
+    "explain_mcp": "vox_capability_explain",
+    "features_mcp": "vox_capability_features",
+    "mcp_tool_reference": "https://voxlang.org/reference/mcp-tool-registry-contract/",
+    "gui_navigation": "https://voxlang.org/reference/gui-navigation/",
+    "domains": [
+      {
+        "id": "compiler",
+        "label": "Compiler",
+        "cli": 30,
+        "mcp": 11,
+        "surfaces": 0
+      },
+      {
+        "id": "orchestrator",
+        "label": "Orchestrator & agents",
+        "cli": 28,
+        "mcp": 72,
+        "surfaces": 2
+      },
+      {
+        "id": "mesh",
+        "label": "Mesh / Populi",
+        "cli": 6,
+        "mcp": 3,
+        "surfaces": 2
+      },
+      {
+        "id": "ml",
+        "label": "ML / Mens",
+        "cli": 53,
+        "mcp": 0,
+        "surfaces": 2
+      },
+      {
+        "id": "research",
+        "label": "Research / Scientia",
+        "cli": 78,
+        "mcp": 68,
+        "surfaces": 2
+      },
+      {
+        "id": "secrets",
+        "label": "Secrets",
+        "cli": 20,
+        "mcp": 0,
+        "surfaces": 1
+      },
+      {
+        "id": "gui",
+        "label": "GUI",
+        "cli": 15,
+        "mcp": 9,
+        "surfaces": 13
+      },
+      {
+        "id": "data",
+        "label": "Data & DB",
+        "cli": 89,
+        "mcp": 18,
+        "surfaces": 1
+      },
+      {
+        "id": "ci",
+        "label": "CI & governance",
+        "cli": 217,
+        "mcp": 0,
+        "surfaces": 1
+      },
+      {
+        "id": "skills",
+        "label": "Plugins & skills",
+        "cli": 317,
+        "mcp": 58,
+        "surfaces": 2
+      },
+      {
+        "id": "vcs",
+        "label": "VCS & repo",
+        "cli": 28,
+        "mcp": 19,
+        "surfaces": 1
+      },
+      {
+        "id": "runtime",
+        "label": "Runtime & scripts",
+        "cli": 15,
+        "mcp": 2,
+        "surfaces": 0
+      },
+      {
+        "id": "speech",
+        "label": "Speech",
+        "cli": 1,
+        "mcp": 3,
+        "surfaces": 1
+      },
+      {
+        "id": "gamify",
+        "label": "Gamification",
+        "cli": 50,
+        "mcp": 16,
+        "surfaces": 1
+      },
+      {
+        "id": "deploy",
+        "label": "Build & deploy",
+        "cli": 27,
+        "mcp": 0,
+        "surfaces": 0
+      },
+      {
+        "id": "docs",
+        "label": "Docs",
+        "cli": 0,
+        "mcp": 0,
+        "surfaces": 0
+      },
+      {
+        "id": "platform",
+        "label": "Platform (other)",
+        "cli": 45,
+        "mcp": 97,
+        "surfaces": 3
+      }
     ]
   }
 }

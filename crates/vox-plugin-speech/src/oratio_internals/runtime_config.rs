@@ -440,8 +440,9 @@ impl OratioRuntimeConfig {
     /// `defaults` → optional `VOX_ORATIO_CONFIG` file → env.
     pub fn resolve() -> Self {
         let mut c = Self::default();
-        if let Ok(p) = std::env::var("VOX_ORATIO_CONFIG")
-            && let Err(e) = c.merge_file(Path::new(&p))
+        let config_path = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioConfig);
+        if let Some(p) = config_path.expose()
+            && let Err(e) = c.merge_file(Path::new(p))
         {
             tracing::warn!(
                 target: "vox_oratio_config",

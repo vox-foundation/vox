@@ -90,15 +90,26 @@ fn normalize(s: &str) -> String {
     s.replace("\r\n", "\n").trim_end().to_string()
 }
 
-fn run_interp(vox: &Path, file: &Path) -> Result<String, String> {
+/// Runs from the repo root, like `golden_differential_gate`: goldens address
+/// fixtures by repo-relative path (e.g. `glob_and_listdir_order`).
+///
+/// `fault_expected` (`// EXPECT-EXIT: nonzero-both`) inverts the exit check:
+/// the run must exit non-zero, and the EXPECT block is then a prefix of stdout.
+fn run_interp(
+    vox: &Path,
+    file: &Path,
+    root: &Path,
+    fault_expected: bool,
+) -> Result<String, String> {
     let out = Command::new(vox)
         .args(["run", "--mode", "interp"])
         .arg(file)
+        .current_dir(root)
         .output()
         .map_err(|e| format!("spawn `{}` failed: {e}", vox.display()))?;
-    if !out.status.success() {
+    if out.status.success() == fault_expected {
         return Err(format!(
-            "non-zero exit {:?}\n--- stderr ---\n{}",
+            "exit {:?} but EXPECT-EXIT nonzero-both is {fault_expected}\n--- stderr ---\n{}",
             out.status.code(),
             String::from_utf8_lossy(&out.stderr)
         ));
@@ -136,14 +147,23 @@ fn golden_expect_blocks_match_interp_stdout() {
             .unwrap_or(f)
             .to_string_lossy()
             .into_owned();
-        match run_interp(&vox, f) {
+        let fault_expected = src
+            .lines()
+            .any(|l| l.trim() == "// EXPECT-EXIT: nonzero-both");
+        match run_interp(&vox, f, &root, fault_expected) {
             Ok(stdout) => {
                 let got = normalize(&stdout);
                 let want = normalize(&expected);
                 // Exact-match on the EXPECT block. Programs are authored to print
                 // exactly their EXPECT content; if a runtime banner is ever added
-                // to stdout this assertion will catch it (by design).
-                if got != want {
+                // to stdout this assertion will catch it (by design). A faulting
+                // golden prints its EXPECT block before the fault, so prefix-match.
+                let matches = if fault_expected {
+                    got.starts_with(&want)
+                } else {
+                    got == want
+                };
+                if !matches {
                     failures.push(format!(
                         "  MISMATCH {label}\n    expected: {want:?}\n    got:      {got:?}"
                     ));

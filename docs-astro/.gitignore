@@ -24,3 +24,6 @@ pnpm-debug.log*
 test-results/
 playwright-report/
 .playwright/
+
+# VoxDiagram pre-render manifest (written by `pnpm diagrams`, D-02)
+.vox-diagram/

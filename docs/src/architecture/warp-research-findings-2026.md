@@ -18,6 +18,13 @@ and ADR-026. Warp is exclusively a design reference.
 
 ## License Determination
 
+> **Update 2026-10-08:** Warp's README now states that its UI framework crates
+> `warpui_core` and `warpui` are **MIT**; the rest of the repository remains
+> AGPL-3.0. The MIT crates are vendorable under ADR-026 intake path 2, but were
+> evaluated and not adopted for Axis — see
+> [`terminal-session-host-design-2026.md`](terminal-session-host-design-2026.md) §8.
+> The table below reflects the 2026-04-29 scan.
+
 | Source | Finding |
 |---|---|
 | `Cargo.toml` workspace | `license = "AGPL-3.0-only"` |
@@ -95,7 +102,7 @@ business logic, GPU UI framework, or Vox already has equivalents.
 | `fuzzy-search` feature wire-up | `crates/vox-cli/Cargo.toml`, `src/lib.rs`; `Cargo.toml` workspace dep |
 | `.voxindexingignore` | `.voxindexingignore` |
 | This research doc | `docs/src/architecture/warp-research-findings-2026.md` |
-| Research index update | `docs/src/architecture/research-index.md` |
+| Research index update | Set valid frontmatter (`title`, `description`, `category`, `status`). Do not recreate `research-index.md`. |
 
 ## Next Steps (ordered by value)
 

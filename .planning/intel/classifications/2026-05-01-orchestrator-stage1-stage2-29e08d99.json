@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/2026-05-01-orchestrator-stage1-stage2.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Orchestrator Stage 1 & 2: Security + Crash-Prevention Implementation Plan",
+  "summary": "Implementation plan for 7 P0/P1 fixes across orchestrator gateway, runtime, grounding, daemon surfaces with step-by-step TDD approach.",
+  "scope": ["orchestrator", "security", "crash-prevention", "gateway", "runtime", "grounding", "daemon"],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

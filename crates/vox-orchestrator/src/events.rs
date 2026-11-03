@@ -244,11 +244,30 @@ pub enum AgentEventKind {
         agent_id: AgentId,
         path: PathBuf,
         exclusive: bool,
+        /// Chat or workflow session holding the resource (Phase 5 D-13).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        session_id: Option<String>,
+        /// Task holding the resource (Phase 5 D-13).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        task_id: Option<TaskId>,
     },
     /// A file lock was released.
     LockReleased {
         agent_id: AgentId,
         path: PathBuf,
+        /// Chat or workflow session releasing the resource (Phase 5 D-13).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        session_id: Option<String>,
+        /// Task releasing the resource (Phase 5 D-13).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        task_id: Option<TaskId>,
+    },
+    /// A hopper task is waiting for a resource lock held by another task (Phase 5 D-08/D-10).
+    LockWaiting {
+        resource_id: String,
+        task_id: TaskId,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        session_id: Option<String>,
     },
 
     /// An agent went idle (no pending tasks).
@@ -832,6 +851,7 @@ pub fn is_tier_a(kind: &AgentEventKind) -> bool {
         | AgentEventKind::ToolTimedOut { .. }
         | AgentEventKind::LockAcquired { .. }
         | AgentEventKind::LockReleased { .. }
+        | AgentEventKind::LockWaiting { .. }
         | AgentEventKind::AgentIdle { .. }
         | AgentEventKind::AgentBusy { .. }
         | AgentEventKind::MessageSent { .. }
@@ -920,7 +940,7 @@ pub fn is_tier_a(kind: &AgentEventKind) -> bool {
 pub const TIER_B_KIND_NAMES: &[&str] = &[
     "AgentSpawned", "AgentRetired", "AgentHeartbeat", "ActivityChanged",
     "OperatingModeChanged", "TaskStarted", "TaskPhaseChanged", "TaskDelegated",
-    "TaskResolved", "ToolTimedOut", "LockAcquired", "LockReleased", "AgentIdle",
+    "TaskResolved", "ToolTimedOut", "LockAcquired", "LockReleased", "LockWaiting", "AgentIdle",
     "AgentBusy", "MessageSent", "CostIncurred", "EmergencyStop",
     "ContinuationTriggered", "PlanHandoff", "ScopeViolation",
     "CompactionTriggered", "MemoryFlushed", "SessionCreated", "SessionReset",
@@ -1336,10 +1356,19 @@ mod tests {
                 agent_id: AgentId(1),
                 path: PathBuf::from("f"),
                 exclusive: true,
+                session_id: None,
+                task_id: None,
             },
             AgentEventKind::LockReleased {
                 agent_id: AgentId(1),
                 path: PathBuf::from("f"),
+                session_id: None,
+                task_id: None,
+            },
+            AgentEventKind::LockWaiting {
+                resource_id: "res".into(),
+                task_id: TaskId(1),
+                session_id: None,
             },
         ];
         for kind in &tier_b_kinds {

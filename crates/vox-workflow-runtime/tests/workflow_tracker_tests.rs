@@ -81,7 +81,7 @@ impl WorkflowTracker for RecordingTracker {
 async fn workflow_not_found_returns_error_stub() {
     let hir = HirModule::default();
     let mut tracker = RecordingTracker::default();
-    let err = interpret_workflow_durable(&hir, "any_workflow", &mut tracker).await;
+    let err = interpret_workflow_durable(&hir, "any_workflow", vec![], &mut tracker).await;
     assert!(
         err.is_err(),
         "planner should error when workflow HIR is unavailable"
@@ -148,6 +148,7 @@ async fn workflow_run_log_schema_contains_lease_columns() {
         "lease_until_ms",
         "started_at_ms",
         "updated_at_ms",
+        "args_json",
     ] {
         assert!(
             columns.contains(required),

@@ -18,6 +18,7 @@ use crate::extensions::script_executor::ScriptExecutor_TO;
 use crate::extensions::skill_runtime::SkillRuntime_TO;
 use crate::extensions::speech_to_text::SpeechToText_TO;
 use crate::extensions::tensor_backend::TensorBackend_TO;
+use crate::extensions::webhook_inbox::WebhookInbox_TO;
 use crate::host::VoxHost_TO;
 use abi_stable::{
     StableAbi, library::RootModule, package_version_strings, sabi_trait,
@@ -122,6 +123,12 @@ pub trait VoxPlugin: Send + Sync {
     fn as_skill_runtime(&self) -> ROption<SkillRuntime_TO<'static, RBox<()>>> {
         ROption::RNone
     }
+
+    /// Optional accessor: if this plugin provides a WebhookInbox implementation,
+    /// return Some(trait object). Default impl returns None.
+    fn as_webhook_inbox(&self) -> ROption<WebhookInbox_TO<'static, RBox<()>>> {
+        ROption::RNone
+    }
 }
 
 pub type VoxPluginRef = VoxPlugin_TO<'static, RBox<()>>;
@@ -214,5 +221,11 @@ mod semcov_wave5_tests {
     fn default_as_skill_runtime_returns_rnone() {
         let p = MinimalPlugin;
         assert!(p.as_skill_runtime().is_rnone());
+    }
+
+    #[test]
+    fn default_as_webhook_inbox_returns_rnone() {
+        let p = MinimalPlugin;
+        assert!(p.as_webhook_inbox().is_rnone());
     }
 }

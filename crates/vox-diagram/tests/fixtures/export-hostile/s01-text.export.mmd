@@ -1,0 +1,21 @@
+sequenceDiagram
+    participant p0 as Alice#59; the first
+    participant p1 as Bob #lt;b#gt; #amp; co
+    p0-->>p1: a#59; b
+    p1->>p0: #35; hash
+    p0->>p1: #119;rap: x
+    p1-->>p0: #110;owrap: x
+    p0->>p1: #58;wrap: x
+    p1->>p0: #58;nowrap:x
+    p0-->>p1: literal #lt;br#gt; tag
+    p1->>p0: real<br>newline
+    p0->>p1: say #quot;hi#quot; #amp; bye
+    p1-->>p0: x as y
+    p0->>p1: a -#gt;#gt; b
+    p1->>p0: Note over a: z
+    p0-->>p1: #37;#37;{init: {}}#37;#37;
+    p1->>p0: #96;tick
+    p0->>p1: style#58; #35;quot#59;
+    Note over p0: semi#59; and #35; and wrap: inside
+    Note over p0,p1: #119;rap: whole
+    Note over p1: #58;nowrap: lead

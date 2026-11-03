@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/session-handoff-2026-05-28-evening.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Handoff: evening continuation (2026-05-28)",
+  "summary": "Evening audit completion with 8-item action plan results, coverage metrics, outstanding items.",
+  "scope": ["v0.6.0 state", "test coverage", "telemetry blind spots", "coverage regression", "pre-push gate"],
+  "cross_refs": ["session-handoff-2026-05-28-state-audit.md", "post-sprint-forward-plan-2026-05-25.md", "session-handoff-2026-05-25-finalization-pass.md"],
+  "locked": false,
+  "precedence": null
+}

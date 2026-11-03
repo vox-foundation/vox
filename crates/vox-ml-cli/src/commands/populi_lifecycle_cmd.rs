@@ -55,6 +55,8 @@ pub(crate) struct OverlayDiagnostics {
     pub(crate) detail: String,
 }
 
+// Parsed once per process from argv; boxing `Up` would only churn every match site.
+#[allow(clippy::large_enum_variant)]
 #[derive(Subcommand)]
 pub enum PopuliLifecycleCmd {
     /// Start a private local/overlay mesh with secure defaults.

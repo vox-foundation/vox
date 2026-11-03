@@ -110,6 +110,11 @@ pub struct BundleEntry {
     /// Plugins added on top of any inherited set. May be empty.
     #[serde(default)]
     pub plugins: Vec<String>,
+
+    /// Capability profiles written as the default `VOX_PROFILE` by `vox bundle apply`.
+    /// Not inherited through `extends`; empty means "leave the configured profile alone".
+    #[serde(default)]
+    pub profiles: Vec<String>,
 }
 
 /// One bundled interop skill directory under `assets/skills/<id>/SKILL.md`.

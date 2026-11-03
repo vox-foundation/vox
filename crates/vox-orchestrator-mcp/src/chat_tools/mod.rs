@@ -409,6 +409,7 @@ mod routing_tests {
             sqlite_fts5_reported: None,
             sqlite_foreign_keys_on: None,
             rrf_fused_hit_count: 0,
+            min_trust_tier: None,
         };
         let v = socrates_tool_meta(&p, 0.48, false, 0, 0, 0, Some(&retrieval));
         let refinement = v.get("search_refinement").expect("search_refinement field");
@@ -457,6 +458,7 @@ mod routing_tests {
             cognitive_profile: None,
             json_mode: false,
             trace_id: None,
+            turn_id: None,
             correlation_id: None,
             attachment_manifest: None,
             temperature: None,
@@ -472,6 +474,8 @@ mod routing_tests {
             dry_run: None,
             force_research: None,
             research_scope: None,
+            domain_mode: None,
+            site_scope: None,
         };
         let rich = ChatMessageParams {
             prompt: "Hi".into(),
@@ -487,6 +491,7 @@ mod routing_tests {
             cognitive_profile: None,
             json_mode: false,
             trace_id: None,
+            turn_id: None,
             correlation_id: None,
             attachment_manifest: None,
             temperature: None,
@@ -502,6 +507,8 @@ mod routing_tests {
             dry_run: None,
             force_research: None,
             research_scope: None,
+            domain_mode: None,
+            site_scope: None,
         };
         let a = chat_grounding_score(&empty, 0);
         let b = chat_grounding_score(&rich, 3);

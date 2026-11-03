@@ -19,12 +19,27 @@ pub enum GateResult {
 }
 
 /// Enforces pre-registration requirements before a campaign may start.
+///
+/// A preregistration embeds its own verifying key, so a valid signature alone
+/// proves nothing about who signed. Only keys in `trusted_signers` (lowercase
+/// hex Ed25519 verifying keys) are accepted; the default gate trusts no one.
 #[derive(Debug, Default, Clone)]
-pub struct PreregGate;
+pub struct PreregGate {
+    trusted_signers: std::collections::BTreeSet<String>,
+}
 
 impl PreregGate {
-    pub fn new() -> Self {
-        Self
+    pub fn new<I, S>(trusted_signers: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        Self {
+            trusted_signers: trusted_signers
+                .into_iter()
+                .map(|key| key.as_ref().to_ascii_lowercase())
+                .collect(),
+        }
     }
 
     /// Check whether a campaign may proceed.
@@ -33,6 +48,7 @@ impl PreregGate {
     /// - `prereg` is `None` → refused with "no preregistration provided"
     /// - `signature_hex` is `None` → refused with "no signature provided"
     /// - signature verification fails → refused with the verification error
+    /// - the embedded signing key is not a trusted signer → refused
     pub fn check_campaign(
         &self,
         prereg: Option<&PreregistrationV1>,
@@ -56,12 +72,25 @@ impl PreregGate {
             },
         };
 
-        match verify_prereg(prereg, sig) {
-            Ok(()) => GateResult::Approved,
-            Err(e) => GateResult::Refused {
+        if let Err(e) = verify_prereg(prereg, sig) {
+            return GateResult::Refused {
                 reason: format!("invalid signature: {e}"),
-            },
+            };
         }
+
+        if !self
+            .trusted_signers
+            .contains(&prereg.signing_key.to_ascii_lowercase())
+        {
+            return GateResult::Refused {
+                reason: format!(
+                    "signing key {} is not a trusted preregistration signer",
+                    prereg.signing_key
+                ),
+            };
+        }
+
+        GateResult::Approved
     }
 }
 
@@ -111,10 +140,47 @@ mod tests {
         }
     }
 
+    fn trusted_gate(sk: &vox_crypto::facades::SigningKey) -> PreregGate {
+        let vk = vox_crypto::facades::to_verifying_key(sk);
+        PreregGate::new([hex::encode(vox_crypto::facades::verifying_key_to_bytes(
+            &vk,
+        ))])
+    }
+
+    #[test]
+    fn refused_when_signer_is_not_trusted() {
+        // Catches: any self-embedded key passing the gate
+        let (sk, _vk) = generate_signing_keypair();
+        let (other, _) = generate_signing_keypair();
+        let mut prereg = draft_prereg();
+        let sig = sign_prereg(&mut prereg, &sk).expect("signing must succeed");
+        for gate in [PreregGate::default(), trusted_gate(&other)] {
+            let result = gate.check_campaign(Some(&prereg), Some(&sig.0));
+            assert!(
+                matches!(&result, GateResult::Refused { reason } if reason.contains("trusted")),
+                "{result:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn trusted_signer_matches_case_insensitively() {
+        let (sk, vk) = generate_signing_keypair();
+        let gate = PreregGate::new([
+            hex::encode(vox_crypto::facades::verifying_key_to_bytes(&vk)).to_ascii_uppercase(),
+        ]);
+        let mut prereg = draft_prereg();
+        let sig = sign_prereg(&mut prereg, &sk).expect("signing must succeed");
+        assert_eq!(
+            gate.check_campaign(Some(&prereg), Some(&sig.0)),
+            GateResult::Approved
+        );
+    }
+
     #[test]
     fn approved_with_valid_signed_prereg() {
-        let gate = PreregGate::new();
         let (sk, _vk) = generate_signing_keypair();
+        let gate = trusted_gate(&sk);
         let mut prereg = draft_prereg();
         let sig = sign_prereg(&mut prereg, &sk).expect("signing must succeed");
         let result = gate.check_campaign(Some(&prereg), Some(&sig.0));
@@ -127,7 +193,7 @@ mod tests {
 
     #[test]
     fn refused_without_prereg() {
-        let gate = PreregGate::new();
+        let gate = PreregGate::default();
         let result = gate.check_campaign(None, None);
         assert!(
             matches!(result, GateResult::Refused { .. }),
@@ -143,8 +209,8 @@ mod tests {
 
     #[test]
     fn refused_without_signature() {
-        let gate = PreregGate::new();
         let (sk, _vk) = generate_signing_keypair();
+        let gate = trusted_gate(&sk);
         let mut prereg = draft_prereg();
         sign_prereg(&mut prereg, &sk).expect("signing must succeed");
         // Pass prereg but no signature
@@ -163,8 +229,8 @@ mod tests {
 
     #[test]
     fn refused_with_bad_signature() {
-        let gate = PreregGate::new();
         let (sk, _vk) = generate_signing_keypair();
+        let gate = trusted_gate(&sk);
         let mut prereg = draft_prereg();
         sign_prereg(&mut prereg, &sk).expect("signing must succeed");
         let bad_sig = "00".repeat(64);

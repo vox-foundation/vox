@@ -709,7 +709,7 @@ curl http://localhost:4318/healthz    # → "ok"
 Prod deploy checklist (human-gated):
 - [ ] Provision VPS/Coolify service, wire CLICKHOUSE_URL + CLICKHOUSE_PASSWORD
 - [ ] Add TLS via reverse proxy (nginx/caddy) in front of port 4318
-- [ ] Set OTLP_ENDPOINT=https://your-domain.com:4318/v1/logs in vox-telemetry-otlp SpoolSink
+- [ ] Set `OTLP_ENDPOINT=https://your-domain.com:4318/v1/logs` in vox-telemetry-otlp SpoolSink
 - [ ] Verify E3 end-to-end: start Vox with consent=Granted, watch events arrive in ClickHouse events_raw
 
 ```yaml

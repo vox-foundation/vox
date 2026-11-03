@@ -17,24 +17,100 @@ use ratatui::{
     text::{Line, Span},
     widgets::Paragraph,
 };
-use std::io;
+use std::io::{self, BufRead, IsTerminal};
 use tokio::sync::broadcast::error::TryRecvError;
 
 use vox_terminal_core::session::{Session, SessionEvent};
+use vox_terminal_core::{SessionHost, daemon_host::resolve_session_host};
 
 use crate::{
     term_setup::TermSetup,
+    theme::is_dumb_terminal,
     ui::{blocks, input::InputBox},
     vt::VtGrid,
 };
 
+/// Parsed CLI flags for `vox-term` (`--attach <session_id>`, `--local`).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct TermCliArgs {
+    pub attach: Option<String>,
+    pub force_local: bool,
+}
+
+impl TermCliArgs {
+    pub fn parse_iter<I, S>(args: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        let mut parsed = Self::default();
+        let mut iter = args.into_iter().skip(1);
+        while let Some(arg) = iter.next() {
+            let s = arg.as_ref();
+            if s == "--local" {
+                parsed.force_local = true;
+            } else if s == "--attach" {
+                if let Some(next) = iter.next() {
+                    parsed.attach = Some(next.as_ref().to_string());
+                }
+            } else if let Some(rest) = s.strip_prefix("--attach=")
+                && !rest.is_empty()
+            {
+                parsed.attach = Some(rest.to_string());
+            }
+        }
+        parsed
+    }
+
+    pub fn from_env() -> Self {
+        Self::parse_iter(std::env::args())
+    }
+}
+
+/// Resolve the active [`SessionHost`]: connects to `vox-orchestrator-d` when reachable
+/// (unless `force_local` is true) and falls back to an in-process `LocalHost`.
+pub async fn resolve_host(force_local: bool) -> std::sync::Arc<dyn SessionHost> {
+    resolve_session_host(force_local).await
+}
+
+/// True when crossterm/ratatui must not be initialized: `TERM=dumb`, or
+/// stdin/stdout is not a tty (piped input, redirected output, CI). Checked
+/// *before* touching crossterm — its input reader panics/errors when spun up
+/// against a non-tty stdin, and raw-mode escapes still land on a redirected
+/// stdout even when raw mode itself fails.
+fn is_headless() -> bool {
+    is_dumb_terminal() || !io::stdin().is_terminal() || !io::stdout().is_terminal()
+}
+
+/// Plain-text line loop for headless/dumb terminals: no crossterm, no ANSI
+/// escapes. Reads lines from stdin until EOF and exits cleanly.
+fn run_plain() -> Result<()> {
+    let stdin = io::stdin();
+    for line in stdin.lock().lines() {
+        let _line = line?;
+        // Headless mode has no interactive block/agent UI to draw; it exists
+        // so piped input (CI, `TERM=dumb`) doesn't crash. Intent dispatch for
+        // plain mode is out of scope here (tracked separately).
+    }
+    Ok(())
+}
+
 /// Entry-point for the TUI. Headless-safe: degrades to plain stdout under TERM=dumb.
+/// Per-keystroke dispatch logic (`InputBox::submit` -> `Session::submit`) is
+/// covered by `crates/vox-term/tests/dispatch.rs` and the `session::tests`
+/// module; this loop itself is an interactive event loop over a real
+/// terminal and isn't unit-testable. See `contracts/toestub/suppressions.v1.json`.
 pub fn run() -> Result<()> {
-    // Attempt raw mode; under dumb terminals this returns Err and we skip TUI.
-    let _setup = TermSetup::new().ok();
+    let _cli_args = TermCliArgs::from_env();
+    if is_headless() {
+        return run_plain();
+    }
+
+    // We're on a real, non-dumb tty; enter raw mode + alternate screen.
+    let _setup = TermSetup::new()?;
 
     let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
-    let session = Session::new("main");
+    let mut session = Session::new("main");
     // Subscribe before the loop so we don't miss early events.
     let mut session_rx = session.subscribe();
     let mut input = InputBox::new();
@@ -100,7 +176,9 @@ pub fn run() -> Result<()> {
         })?;
 
         // Poll for input events (50 ms tick = ~20 fps).
-        if !event::poll(vox_config::timeouts::D_50MS)? {
+        // vox:defactored-from vox-config 2026-09-27
+        const POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
+        if !event::poll(POLL_INTERVAL)? {
             continue;
         }
         match event::read()? {
@@ -113,8 +191,11 @@ pub fn run() -> Result<()> {
                 code: KeyCode::Enter,
                 ..
             }) => {
-                let _intent = input.submit();
-                // Track 4: dispatch intent through command registry / Session::submit
+                let intent = input.submit();
+                // ponytail: blocking on the UI thread — spawn_pty already runs a
+                // shell in the background for interactive sessions; a bounded
+                // async executor is the upgrade path once commands can be slow.
+                session.submit(intent);
             }
             Event::Key(KeyEvent {
                 code: KeyCode::Backspace,

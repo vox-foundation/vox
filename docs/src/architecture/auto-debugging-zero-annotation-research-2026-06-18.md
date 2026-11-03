@@ -2,8 +2,9 @@
 title: "Zero-Annotation Severity-Graded Debugging — Feasibility Research"
 description: "Prior art and feasibility for surfacing program behavior without manual print/log statements: omniscient/time-travel debugging, automatic instrumentation, runtime selectivity, and automatic severity inference. Confirms capture-without-annotation is production-proven; selectivity and inferred severity are the design problems."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
+training_rationale: "Project architecture and research context."
 ---
 
 # Zero-Annotation Severity-Graded Debugging — Feasibility Research

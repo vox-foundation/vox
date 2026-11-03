@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/script-tier-timings-2026-09.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Script tier timings (2026-09)",
+  "summary": "Measured execution timings for 84 scripts; input data for interpreter-first default-tier flip decision.",
+  "scope": ["script-execution", "interpreter-tier", "native-tier", "performance-measurement", "vox-cli", "timing-data"],
+  "cross_refs": ["docs/superpowers/plans/2026-09-05-interpreter-first-execution.md", "scripts/bench-script-tiers.vox"],
+  "locked": false,
+  "precedence": null
+}

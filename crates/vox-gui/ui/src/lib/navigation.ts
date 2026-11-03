@@ -1,3 +1,5 @@
+import { labelFor, sidebarParentLabel, type Lang } from './lexicon';
+
 /**
  * Resolve a view key to its top-level nav parent and optional child tab.
  * Intent-first grouping: Direct(chat) → Review(runs) → Agents → Knowledge →
@@ -37,8 +39,9 @@ export const PARENT_CHILD_MAP: Record<string, { parent: string; child?: string }
   populi: { parent: 'compute', child: 'populi' },
   oratio: { parent: 'compute', child: 'oratio' },
   // Settings.
-  coverage: { parent: 'settings', child: 'coverage' },
   gamify: { parent: 'settings', child: 'gamify' },
+  // Explorer.
+  explorer: { parent: 'explorer', child: 'explorer' },
 };
 
 /**
@@ -47,6 +50,7 @@ export const PARENT_CHILD_MAP: Record<string, { parent: string; child?: string }
  * Silent alias for one release, then hard-remove.
  */
 export const LEGACY_VIEW_ALIASES: Record<string, string> = {
+  coverage: 'explorer',
   search: 'memory',
   claims: 'scientia',
   review: 'scientia',
@@ -87,6 +91,7 @@ export const DEFAULT_CHILD_BY_PARENT: Record<string, string> = {
   compute: 'models',
   mercatus: 'mercatus',
   settings: 'settings',
+  explorer: 'explorer',
 };
 
 export const TOP_LEVEL_VIEWS = [
@@ -111,7 +116,7 @@ export const CHILD_ORDER_BY_PARENT: Record<string, string[]> = {
   workspace: ['console', 'repository', 'browser', 'harness', 'coderabbit'],
   commands: ['catalog', 'skills'],
   compute: ['models', 'mens', 'populi', 'oratio'],
-  settings: ['settings', 'coverage', 'gamify'],
+  settings: ['settings', 'gamify'],
 };
 
 /** Sort child view keys by the parent's intent order; unknown keys keep relative order at the end. */
@@ -124,48 +129,24 @@ export function orderedChildren(parent: string, children: string[]): string[] {
   );
 }
 
-/** Human-readable labels for breadcrumb segments. */
-export const NAV_LABELS: Record<string, string> = {
-  chat: 'Chat',
-  runs: 'Review',
-  agents: 'Agents',
-  knowledge: 'Knowledge',
-  workspace: 'Workspace',
-  commands: 'Commands',
-  compute: 'Compute',
-  mercatus: 'Mercatus',
-  settings: 'Settings',
-  dashboard: 'Dashboard',
-  flow: 'Flow',
-  tasks: 'Tasks',
-  approvals: 'Approvals',
-  'needs-you': 'Needs You',
-  policies: 'Policies',
-  repository: 'Repository',
-  browser: 'Browser',
-  harness: 'Harness',
-  console: 'Console',
-  coderabbit: 'CodeRabbit',
-  catalog: 'Catalog',
-  skills: 'Skills',
-  memory: 'Memory',
-  research: 'Research',
-  scientia: 'Findings',
-  activity: 'Discovery',
-  'vox-search': 'Search Index',
-  publications: 'Publications',
-  models: 'Models',
-  mens: 'Training',
-  populi: 'Nodes',
-  oratio: 'Voice',
-  mesh: 'Mesh',
-  'sub-agents': 'Sub-Agents',
-  coverage: 'Coverage',
-  gamify: 'Gamify',
-};
+/**
+ * English labels for nav keys (breadcrumb segments, sidebar children, tab chips), derived from
+ * LEXICON — the one label source. A top-level parent uses its `nav:` override (runs → Review).
+ */
+export const NAV_LABELS: Record<string, string> = Object.fromEntries(
+  [...TOP_LEVEL_VIEWS, ...Object.keys(PARENT_CHILD_MAP)].map((key) => [key, sidebarParentLabel(key, 'en')]),
+);
 
 export function labelForNavKey(key: string): string {
   return NAV_LABELS[key] ?? key.replace(/-/g, ' ');
+}
+
+/**
+ * Label of `key` as a child row or tab: the plain LEXICON entry, never the `nav:` parent override
+ * (so `runs` reads "Runs" under its "Review" parent). Language-aware, unlike `labelForNavKey`.
+ */
+export function childLabelFor(key: string, lang: Lang = 'en'): string {
+  return labelFor(key, lang);
 }
 
 /** Short label for workbench tab bar chips. */
@@ -179,13 +160,14 @@ export interface BreadcrumbSegment {
 }
 
 /** Breadcrumb trail for a resolved view key (parent › child when distinct). */
-export function breadcrumbsForView(viewKey: string): BreadcrumbSegment[] {
+export function breadcrumbsForView(viewKey: string, lang: Lang = 'en'): BreadcrumbSegment[] {
   const { parent, child } = resolveNavigation(viewKey);
-  const segments: BreadcrumbSegment[] = [
-    { key: parent, label: labelForNavKey(parent) },
-  ];
-  if (child !== parent) {
-    segments.push({ key: child, label: labelForNavKey(child) });
+  const parentLabel = sidebarParentLabel(parent, lang);
+  const childLabel = childLabelFor(child, lang);
+  const segments: BreadcrumbSegment[] = [{ key: parent, label: parentLabel }];
+  // A self-child (runs under Review) still gets a segment when its label differs from the parent's.
+  if (child !== parent || childLabel !== parentLabel) {
+    segments.push({ key: child, label: childLabel });
   }
   return segments;
 }

@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1064.5 430" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,Arimo,Arial,Liberation Sans,Helvetica,sans-serif);font-size:14px">
+<title id="vd-title">Diagram</title>
+<desc id="vd-desc">3 actors, 7 messages: A very long actor label… → Server; Server → The persistent relation…; The persistent relation… → Server; Server → A very long actor label…; A very long actor label… → Server; Server → A very long actor label…; A very long actor label… → The persistent relation…</desc>
+<defs>
+<marker id="vd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-lifelines" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1;stroke-dasharray:4 4">
+<path class="vd-lifeline" d="M119.5 126L119.5 414"/>
+<path class="vd-lifeline" d="M536.5 126L536.5 414"/>
+<path class="vd-lifeline" d="M953.5 126L953.5 414"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="16" y="16" width="207.5" height="110" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="119.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="119.5" dy="0">A very long actor label that</tspan><tspan x="119.5" dy="18">has to wrap onto several</tspan><tspan x="119.5" dy="18">lines because it is far</tspan><tspan x="119.5" dy="18">wider than twenty eight</tspan><tspan x="119.5" dy="18">cells</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="500" y="16" width="73" height="110" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="536.5" y="76" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="536.5" dy="0">Server</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="859" y="16" width="189.5" height="110" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="953.5" y="58" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="953.5" dy="0">The persistent relational</tspan><tspan x="953.5" dy="18">database cluster of the</tspan><tspan x="953.5" dy="18">billing department</tspan></text>
+</g>
+</g>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M119.5 176L536.5 176" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M536.5 222L953.5 222" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M953.5 244L536.5 244" marker-end="url(#vd-arrow)" style="stroke-dasharray:6 4"/>
+<path class="vd-edge" d="M536.5 290L119.5 290" marker-end="url(#vd-arrow)" style="stroke-dasharray:6 4"/>
+<path class="vd-edge" d="M119.5 312L536.5 312" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M536.5 334L119.5 334" marker-end="url(#vd-arrow)" style="stroke-dasharray:6 4"/>
+<path class="vd-edge" d="M119.5 398L953.5 398" marker-end="url(#vd-arrow)"/>
+</g>
+<g class="vd-edge-labels">
+<rect class="vd-edge-label-bg" x="299" y="146" width="58.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="328" y="164" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="328" dy="0">request</tspan></text>
+<rect class="vd-edge-label-bg" x="722" y="192" width="46" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="745" y="210" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="745" dy="0">query</tspan></text>
+<rect class="vd-edge-label-bg" x="293" y="260" width="70.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="328" y="278" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="328" dy="0">response</tspan></text>
+<rect class="vd-edge-label-bg" x="127.5" y="350" width="401" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="328" y="368" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="328" dy="0">a direct read that skips the server and has to cross its</tspan><tspan x="328" dy="18">lane</tspan></text>
+</g>
+</svg>

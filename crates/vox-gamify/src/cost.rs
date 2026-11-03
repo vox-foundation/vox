@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-pub use crate::db::CostRecord;
+pub use vox_db::ops_agent_telemetry::CostRecord;
 
 /// Aggregated cost summary for an agent or session.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

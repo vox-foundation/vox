@@ -7,6 +7,14 @@ const QUALITY_FREE_PAID_COMPONENT: f64 = 0.35;
 const QUALITY_PAID_COMPONENT: f64 = 0.95;
 const QUALITY_TOKEN_WEIGHT: f64 = 0.6;
 const QUALITY_PAID_WEIGHT: f64 = 0.4;
+/// Fallback for `RoutingReference::quality_reference` (the best model in
+/// OpenRouter's catalog scored 57.6 on 2026-09-28).
+pub(super) const QUALITY_INDEX_REFERENCE: f64 = 60.0;
+/// Fallback for `RoutingReference::unbenchmarked_scale`: scale applied to the paid/free + context-length proxy for unbenchmarked OpenRouter models, so an
+/// unknown long-tail model cannot outrank a strongly benchmarked one on the proxy alone. Only
+/// OpenRouter's catalog carries the index; direct-provider and local models have no benchmark to
+/// be missing, so their proxy is left unscaled (scaling it demoted every Anthropic-direct flagship).
+pub(super) const UNBENCHMARKED_QUALITY_SCALE: f64 = 0.6;
 const EFFICIENCY_COST_SCALER: f64 = 100.0;
 pub(super) const COMPLEXITY_HIGH_CUTOFF: u8 = 8;
 const COMPLEXITY_LOW_CUTOFF: u8 = 3;
@@ -69,7 +77,14 @@ pub fn scoreboard_feedback_boost(
         return 0.0;
     }
     let success = s.success_rate.clamp(0.0, 1.0);
-    let quality = s.quality_score.clamp(0.0, 1.0);
+    // `ModelScore::quality_score` is not graded (it defaults to 1.0 per call), so only a
+    // measured benchmark score counts here; otherwise this term is neutral.
+    let quality = match m.capabilities.quality_prior.as_ref().map(|p| &p.source) {
+        Some(super::spec::QualitySource::Measured { score, .. }) => {
+            f64::from(*score).clamp(0.0, 1.0)
+        }
+        _ => 0.5,
+    };
     let lat = s
         .p50_latency_ms
         .map(|ms| {
@@ -151,14 +166,26 @@ pub(super) fn model_budget_hint(
 
 #[must_use]
 pub(super) fn quality_score(m: &ModelSpec) -> f64 {
+    m.capabilities.quality_prior.as_ref().map_or_else(
+        || {
+            super::reference::RoutingReference::FALLBACK
+                .quality_prior(m, None)
+                .value
+        },
+        |prior| prior.value,
+    )
+}
+
+/// The unscaled context-length + paid/free proxy used for a model with no benchmark.
+#[must_use]
+pub(super) fn proxy_quality(m: &ModelSpec) -> f64 {
     let token_component = (m.max_tokens as f64).log10().clamp(1.0, 7.0) / 7.0;
     let paid_component = if m.is_free {
         QUALITY_FREE_PAID_COMPONENT
     } else {
         QUALITY_PAID_COMPONENT
     };
-    ((token_component * QUALITY_TOKEN_WEIGHT) + (paid_component * QUALITY_PAID_WEIGHT))
-        .clamp(0.0, 1.0)
+    (token_component * QUALITY_TOKEN_WEIGHT) + (paid_component * QUALITY_PAID_WEIGHT)
 }
 
 #[must_use]
@@ -197,6 +224,7 @@ pub(super) fn latency_score(m: &ModelSpec) -> f64 {
 
     match m.provider_type {
         ProviderType::Ollama => 0.95,
+        ProviderType::VoxLocal | ProviderType::PopuliMesh => 0.92,
         ProviderType::Groq => 0.95,
         ProviderType::Cerebras => 0.95,
         ProviderType::GoogleDirect => 0.8,
@@ -317,8 +345,57 @@ fn base_routing_weights() -> AutoRoutingPriority {
     AutoRoutingPriority::from_env()
 }
 
+/// One weighted axis of [`ScoreParts`]: its weight and its 0–1 value.
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
+pub struct AxisPart {
+    pub weight: u8,
+    pub value: f64,
+}
+
+const ZERO_AXIS: AxisPart = AxisPart {
+    weight: 0,
+    value: 0.0,
+};
+
+/// Every term of [`auto_score_model`], so an explanation shows why a model scored what it did
+/// without re-implementing the formula. [`auto_score_model`] returns `total`.
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
+pub struct ScoreParts {
+    pub total: f64,
+    /// A provider budget hint marked the model rate-limited: `total` is the floor and the parts are all zero,
+    /// so this is the one case where the parts do not add up to `total`.
+    pub rate_limited: bool,
+    pub efficiency: AxisPart,
+    pub quality: AxisPart,
+    pub latency: AxisPart,
+    pub availability: AxisPart,
+    pub balance: AxisPart,
+    pub mobile: AxisPart,
+    /// Sum of the six weights (at least 1); the weighted axes are divided by it.
+    pub weight_sum: f64,
+    pub fill_in_middle: f64,
+    pub free_bonus: f64,
+    pub off_peak_bonus: f64,
+    pub telemetry: f64,
+    pub vram: f64,
+}
+
+impl ScoreParts {
+    /// The weighted-axis share of `total`, summed in the scorer's own order.
+    #[must_use]
+    pub fn weighted(&self) -> f64 {
+        (f64::from(self.efficiency.weight) * self.efficiency.value
+            + f64::from(self.quality.weight) * self.quality.value
+            + f64::from(self.latency.weight) * self.latency.value
+            + f64::from(self.availability.weight) * self.availability.value
+            + f64::from(self.balance.weight) * self.balance.value
+            + f64::from(self.mobile.weight) * self.mobile.value)
+            / self.weight_sum
+    }
+}
+
 #[must_use]
-pub fn auto_score_model(
+pub fn auto_score_parts(
     m: &ModelSpec,
     complexity: u8,
     free_tier_fill_in_middle: bool,
@@ -326,7 +403,7 @@ pub fn auto_score_model(
     preference: CostPreference,
     hints: Option<&[RemainingBudget]>,
     scoreboard: Option<&super::registry::ModelScore>,
-) -> f64 {
+) -> ScoreParts {
     let mut w = base_routing_weights();
     if complexity >= COMPLEXITY_HIGH_CUTOFF {
         w.precision = w.precision.saturating_add(COMPLEXITY_PRECISION_BONUS);
@@ -373,7 +450,22 @@ pub fn auto_score_model(
 
     let (remaining, rate_limited) = model_budget_hint(m, hints);
     if rate_limited {
-        return RATE_LIMITED_SCORE_FLOOR;
+        return ScoreParts {
+            total: RATE_LIMITED_SCORE_FLOOR,
+            rate_limited: true,
+            efficiency: ZERO_AXIS,
+            quality: ZERO_AXIS,
+            latency: ZERO_AXIS,
+            availability: ZERO_AXIS,
+            balance: ZERO_AXIS,
+            mobile: ZERO_AXIS,
+            weight_sum: 1.0,
+            fill_in_middle: 0.0,
+            free_bonus: 0.0,
+            off_peak_bonus: 0.0,
+            telemetry: 0.0,
+            vram: 0.0,
+        };
     }
 
     let balance_bias = 1.0_f64 - f64::from(context_fill_ratio.unwrap_or(0.0).clamp(0.0, 1.0));
@@ -398,12 +490,14 @@ pub fn auto_score_model(
             + u16::from(w.mobile),
     )
     .max(1.0);
-    let score = f64::from(w.efficiency) * efficiency_score(m)
-        + f64::from(w.precision) * quality_score(m)
+    let (eff, qual, bal) = (efficiency_score(m), quality_score(m), balance_bias);
+    let mob = mobile_score(m);
+    let score = f64::from(w.efficiency) * eff
+        + f64::from(w.precision) * qual
         + f64::from(w.latency) * live_latency
         + f64::from(w.availability) * availability_score
-        + f64::from(w.balance) * balance_bias
-        + f64::from(w.mobile) * mobile_score(m);
+        + f64::from(w.balance) * bal
+        + f64::from(w.mobile) * mob;
 
     let prefer_mesh = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRoutingPreferMesh)
         .expose()
@@ -419,9 +513,17 @@ pub fn auto_score_model(
         } else {
             ZERO_COST_BASE_BONUS
         }
-    } else if m.is_free && complexity < COMPLEXITY_HIGH_CUTOFF {
-        // Any other zero-cost provider (e.g. local Ollama models) earns the
-        // same small base bonus PopuliMesh gets for being free — the mesh-only
+    } else if m.is_free
+        && complexity < COMPLEXITY_HIGH_CUTOFF
+        && matches!(
+            m.provider_type,
+            crate::models::ProviderType::Ollama | crate::models::ProviderType::VoxLocal
+        )
+    {
+        // Other local zero-cost providers (Ollama, VoxLocal) earn the same small
+        // base bonus PopuliMesh gets for being free. Hosted free endpoints do not:
+        // they already max the efficiency axis, and the bonus on top outranked
+        // measurably better paid models costing fractions of a cent. The mesh-only
         // tiers above (0.8 prefer_mesh / 0.25 the mesh flagship) stay
         // PopuliMesh-specific, since those reflect an explicit mesh-preference
         // policy or a specific first-party model, not "any free model".
@@ -482,7 +584,71 @@ pub fn auto_score_model(
     let telemetry_boost = scoreboard_feedback_boost(m, scoreboard, &routing_cfg.quality_weights);
     let vram_penalty = vram_score_delta(m, super::vram::free_vram_mb_hint());
 
-    (score / total_w) + fim_bias + mens_bonus + off_peak_bonus + telemetry_boost + vram_penalty
+    let parts = ScoreParts {
+        total: 0.0,
+        rate_limited: false,
+        efficiency: AxisPart {
+            weight: w.efficiency,
+            value: eff,
+        },
+        quality: AxisPart {
+            weight: w.precision,
+            value: qual,
+        },
+        latency: AxisPart {
+            weight: w.latency,
+            value: live_latency,
+        },
+        availability: AxisPart {
+            weight: w.availability,
+            value: availability_score,
+        },
+        balance: AxisPart {
+            weight: w.balance,
+            value: bal,
+        },
+        mobile: AxisPart {
+            weight: w.mobile,
+            value: mob,
+        },
+        weight_sum: total_w,
+        fill_in_middle: fim_bias,
+        free_bonus: mens_bonus,
+        off_peak_bonus,
+        telemetry: telemetry_boost,
+        vram: vram_penalty,
+    };
+    ScoreParts {
+        total: (score / total_w)
+            + fim_bias
+            + mens_bonus
+            + off_peak_bonus
+            + telemetry_boost
+            + vram_penalty,
+        ..parts
+    }
+}
+
+#[must_use]
+pub fn auto_score_model(
+    m: &ModelSpec,
+    complexity: u8,
+    free_tier_fill_in_middle: bool,
+    context_fill_ratio: Option<f32>,
+    preference: CostPreference,
+    hints: Option<&[RemainingBudget]>,
+    scoreboard: Option<&super::registry::ModelScore>,
+) -> f64 {
+    auto_score_parts(
+        m,
+        complexity,
+        free_tier_fill_in_middle,
+        context_fill_ratio,
+        preference,
+        hints,
+        scoreboard,
+    )
+    .total
 }
 
 /// Advisory VRAM-fit contribution to the score (Task 2.6): a small
@@ -493,7 +659,7 @@ pub fn auto_score_model(
 /// function so it's directly unit-testable without mutating the process-wide
 /// free-VRAM cache.
 #[must_use]
-fn vram_score_delta(m: &ModelSpec, free_vram_mb: Option<u64>) -> f64 {
+pub(crate) fn vram_score_delta(m: &ModelSpec, free_vram_mb: Option<u64>) -> f64 {
     match super::vram::estimate_vram_fit(m, free_vram_mb) {
         super::vram::VramFit::Exceeds => VRAM_EXCEEDS_PENALTY,
         super::vram::VramFit::Comfortable
@@ -679,6 +845,20 @@ mod tests {
         );
     }
 
+    /// The zero-cost bonus is a nudge for local inference. A hosted free endpoint already
+    /// maxes the efficiency axis; the bonus on top let it outrank measurably better paid
+    /// models costing fractions of a cent (live bench 2026-10-08).
+    #[test]
+    fn hosted_free_model_gets_no_zero_cost_bonus() {
+        let local = make_spec(ProviderType::Ollama, 0.0, true);
+        let hosted = make_spec(ProviderType::OpenRouter, 0.0, true);
+        let parts = |m: &ModelSpec| {
+            auto_score_parts(m, 5, false, None, CostPreference::Economy, None, None)
+        };
+        assert!(parts(&local).free_bonus > 0.0);
+        assert_eq!(parts(&hosted).free_bonus, 0.0);
+    }
+
     /// Critical regression guard for the LiteLLM "free always wins" trap
     /// flagged during Task 2.1b planning: at high complexity, a small free
     /// local (Ollama) model must NOT outscore a large, capable paid model.
@@ -765,8 +945,8 @@ mod tests {
     /// as "doesn't exist for this session" rather than defaulting to fits/
     /// doesn't-fit. Uses the crate's real global hint accessor
     /// (`free_vram_mb_hint`), which defaults to `None` absent an explicit
-    /// `set_free_vram_mb_hint` call — this test makes none, so it can't race
-    /// other tests over that global.
+    /// `set_free_vram_mb_hint` call — this test makes none, and in test builds
+    /// the hint is per-thread, so it can't race other tests over that global.
     #[test]
     fn vram_unknown_signal_is_true_noop_through_auto_score_model() {
         let mut baseline = make_spec(ProviderType::Ollama, 0.0, true);
@@ -859,6 +1039,130 @@ mod tests {
             "applying the Exceeds penalty on top of the no-signal score must \
              strictly lower it — it must never cancel out to neutral"
         );
+    }
+    #[test]
+    fn quality_score_follows_the_live_intelligence_index() {
+        let mut hi = make_spec(ProviderType::OpenRouter, 1.0, false);
+        hi.capabilities.intelligence_index = Some(57.6);
+        let mut lo = make_spec(ProviderType::OpenRouter, 1.0, false);
+        lo.capabilities.intelligence_index = Some(37.3);
+        assert!(
+            quality_score(&hi) > quality_score(&lo),
+            "paid models must no longer score equal"
+        );
+        assert!((quality_score(&hi) - 57.6 / QUALITY_INDEX_REFERENCE).abs() < 1e-6);
+    }
+
+    #[test]
+    fn a_free_model_with_a_high_index_beats_a_paid_one_without() {
+        let mut free = make_spec(ProviderType::OpenRouter, 0.0, true);
+        free.capabilities.intelligence_index = Some(45.0);
+        let paid_unbenchmarked = make_spec(ProviderType::OpenRouter, 5.0, false);
+        assert!(quality_score(&free) > quality_score(&paid_unbenchmarked));
+    }
+
+    #[test]
+    fn unbenchmarked_quality_is_scaled_below_strong_benchmarked_models() {
+        let mut unknown = make_spec(ProviderType::OpenRouter, 1.0, false);
+        unknown.max_tokens = 1_000_000;
+        assert!(
+            quality_score(&unknown) > 0.0 && quality_score(&unknown) <= UNBENCHMARKED_QUALITY_SCALE
+        );
+        let mut strong = make_spec(ProviderType::OpenRouter, 1.0, false);
+        strong.capabilities.intelligence_index = Some(47.5);
+        assert!(quality_score(&strong) > quality_score(&unknown));
+    }
+
+    #[test]
+    #[serial_test::serial]
+    fn score_parts_add_up_to_the_total() {
+        let cases = [
+            (
+                make_spec(ProviderType::OpenRouter, 1.0, false),
+                2,
+                CostPreference::Economy,
+            ),
+            (
+                make_spec(ProviderType::Ollama, 0.0, true),
+                5,
+                CostPreference::Economy,
+            ),
+            (
+                make_spec(ProviderType::Anthropic, 0.045, false),
+                9,
+                CostPreference::Performance,
+            ),
+        ];
+        for (m, complexity, pref) in cases {
+            let p = auto_score_parts(&m, complexity, false, None, pref, None, None);
+            let recomputed = p.weighted()
+                + p.fill_in_middle
+                + p.free_bonus
+                + p.off_peak_bonus
+                + p.telemetry
+                + p.vram;
+            assert_eq!(
+                p.total.to_bits(),
+                recomputed.to_bits(),
+                "{:?}",
+                m.provider_type
+            );
+            assert_eq!(
+                p.total,
+                auto_score_model(&m, complexity, false, None, pref, None, None)
+            );
+            assert_eq!(p.quality.value, quality_score(&m));
+            assert_eq!(p.efficiency.value, efficiency_score(&m));
+            assert!(!p.rate_limited);
+        }
+    }
+
+    #[test]
+    fn a_free_model_below_the_high_cutoff_shows_its_bonus() {
+        let free = make_spec(ProviderType::Ollama, 0.0, true);
+        assert_eq!(
+            auto_score_parts(&free, 5, false, None, CostPreference::Economy, None, None).free_bonus,
+            ZERO_COST_BASE_BONUS
+        );
+        assert_eq!(
+            auto_score_parts(
+                &free,
+                COMPLEXITY_HIGH_CUTOFF,
+                false,
+                None,
+                CostPreference::Economy,
+                None,
+                None
+            )
+            .free_bonus,
+            0.0
+        );
+    }
+
+    #[test]
+    fn a_rate_limited_model_reports_the_floor_and_why() {
+        let spec = make_spec(ProviderType::OpenRouter, 0.01, false);
+        let hints = vec![crate::usage::RemainingBudget {
+            provider: "openrouter".into(),
+            model: "test/model".into(),
+            calls_used: 50,
+            daily_limit: 100,
+            remaining: 50,
+            cost_today: 0.5,
+            rate_limited: true,
+        }];
+        let p = auto_score_parts(
+            &spec,
+            5,
+            false,
+            None,
+            CostPreference::Economy,
+            Some(&hints),
+            None,
+        );
+        assert!(p.rate_limited);
+        assert_eq!(p.total, RATE_LIMITED_SCORE_FLOOR);
+        assert_eq!(p.quality.weight, 0);
     }
 }
 

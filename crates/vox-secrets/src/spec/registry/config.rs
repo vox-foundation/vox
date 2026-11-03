@@ -168,4 +168,15 @@ pub const SPECS_CONFIG: &[SecretSpec] = &[
         remediation: "Set VOX_WORKSPACE_ROOT to the workspace root directory.",
         scope_description: "Workspace root path.",
     },
+    SecretSpec {
+        id: SecretId::VoxChatResearchEnabled,
+        canonical_env: "VOX_CHAT_RESEARCH_ENABLED",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Enable autonomous web research in chat turns (default: true).",
+        scope_description: "Toggle for research retrieval during chat conversation turns.",
+    },
 ];

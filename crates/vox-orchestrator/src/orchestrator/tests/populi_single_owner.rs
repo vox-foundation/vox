@@ -500,8 +500,6 @@ async fn remote_worker_tick_once_seeds_context_and_attaches_socrates_when_task_a
         bundle_inline_b64: None,
         exec_source_b64: None,
         exec_source_blake3_hex: None,
-        exec_bundle_b64: None,
-        exec_bundle_blake3_hex: None,
     };
     http.relay_a2a(&vox_populi::transport::A2ADeliverRequest {
         sender_agent_id: "1".into(),
@@ -632,8 +630,6 @@ async fn remote_worker_tick_once_accepts_object_context_envelope_payload() {
         bundle_inline_b64: None,
         exec_source_b64: None,
         exec_source_blake3_hex: None,
-        exec_bundle_b64: None,
-        exec_bundle_blake3_hex: None,
     };
     http.relay_a2a(&vox_populi::transport::A2ADeliverRequest {
         sender_agent_id: "1".into(),
@@ -771,6 +767,7 @@ impl std::io::Write for CapturingWriter {
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
+        let _locked = self.buf.lock().expect("capturing writer lock");
         Ok(())
     }
 }

@@ -117,7 +117,7 @@ The two modes share one substrate: the wire-format SSOT, the OpenAPI/JSON Schema
 **Scope:**
 
 1. **JWT verification primitive** in `vox-stdlib`, with key resolution through Clavis ([AGENTS.md §Secret Management](../../../AGENTS.md)). RS256/ES256/HS256 supported; JWKS fetch with caching.
-2. **Session store abstraction** over `@table`. Default schema, `verify_token() -> Result[Session]`, `revoke()`, idle and absolute timeouts.
+2. **Session store abstraction** over `@table`. Default schema, `verify_token() to Result[Session]`, `revoke()`, idle and absolute timeouts.
 3. **Health and observability endpoints**:
    - `/healthz`, `/readyz` — auto-mounted, opt-out via flag.
    - `/metrics` — Prometheus text format, opt-in.
@@ -159,7 +159,7 @@ The two modes share one substrate: the wire-format SSOT, the OpenAPI/JSON Schema
    - The `routes` block stays — it remains the way Vox authors a route tree.
    - `component` keyword stays — it remains the Vox UI authoring primitive.
 4. **Optional WASM-from-Node bridge** (lower priority; can defer to 5b):
-   - npm package `@vox/wasi-runtime` that loads a Vox-compiled `.wasm` (the existing `--isolation wasm` artifact, see [`wasi.rs`](../../../crates/vox-cli/src/commands/runtime/run/backend/wasi.rs)) and exposes typed exported functions to Node.
+   - npm package `@vox/wasi-runtime` that loads a Vox-compiled `.wasm` (the WASI script lane was deleted; the remaining cargo backend is [`native.rs`](../../../crates/vox-cli/src/commands/runtime/run/backend/native.rs)) and exposes typed exported functions to Node.
    - Use case: Node worker calling pure Vox computations in-process. Not for HTTP request handling — that path stays Axum.
    - Defer N-API/cdylib indefinitely unless concrete pull emerges.
 5. **Tutorials in `docs/src/tutorials/`:**
@@ -179,6 +179,7 @@ The two modes share one substrate: the wire-format SSOT, the OpenAPI/JSON Schema
 - **Security:** auth and CORS defaults must fail closed. CORS must reject by default; `@auth` must reject by default; rate-limit decorators must be additive, not subtractive.
 - **Migration support:** ship `vox migrate drop-island` (Phase 5) — rewrites `@island` use sites to the bidirectional import form — and `vox migrate wire-format` (Phase 2 → future v2) so users are never stranded.
 - **Emitted component code is generated, not authored.** Per the project's "auto-generated docs" policy, emitted `.tsx` files should not be hand-edited; the `.vox` source is canonical. Any escape-hatch user-edit zones must be explicitly delimited so the compiler can preserve them across re-emits.
+- **Vox-native vs. hand-authored-React authoring track is per-surface, not per-file.** `crates/vox-gui` is a fully hand-authored React/TSX surface and stays that way — it is the canonical operator GUI, not an interop demo. `apps/interop/marquee_app` is the interop-reference surface exercising the bidirectional bridge described in Phase 5 above. The `authoring_track` field on each surface's entry in [`contracts/frontend/surface-ownership.v1.yaml`](../../../contracts/frontend/surface-ownership.v1.yaml) is the machine-readable half of this rule; a surface changing tracks requires updating both that file and this bullet.
 
 ## Sequencing and dependencies
 

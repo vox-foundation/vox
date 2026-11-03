@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/multi-provider-local-cloud-routing-research-2026-07-30.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Multi-Provider & Local-vs-Cloud Model Routing — Verified Research (2026-07-30)",
+  "summary": "Adversarial-verified research into production LLM routing: LiteLLM, OpenRouter, Portkey, RouteLLM. Distilled into a declarative policy design with ledger of what does not transplant.",
+  "scope": ["LLM routing", "model selection", "provider selection", "fallback cascades", "cost-based routing", "latency-based routing"],
+  "cross_refs": ["claude-code-harness-mechanics-2026-07-30.md", "vox-harness-graph-audit-2026-07-30.md", "vox-harness-parity-plan-2026-07-30.md", "model-selection-2026-q2.md", "model-catalog-ssot-2026.md", "model-autonomic-system-2026.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

@@ -73,7 +73,11 @@ anti_stub:
   min_pass_rate: 0.92
   max_placeholder_event_rate: 0.08
   max_trivial_placeholder_event_rate: 0.08
-  min_construct_richness_mean: 0.20
+  # Must equal ANTI_STUB_MIN_CONSTRUCT_RICHNESS in crates/vox-ml-cli/src/commands/mens/eval_local.rs
+  # — see eval-gates.yaml's anti_stub comment for the full rationale (coverage_score() tops out
+  # at 1/8 = 0.125 for a correct single-declaration bench answer). Kept in sync by
+  # `eval_gate_thresholds_match_anti_stub_min_construct_richness` in eval_local.rs's test module.
+  min_construct_richness_mean: 0.125
   block: false
 
 # Warn-only: review_metrics.json is written by the review pipeline, not the trainer.

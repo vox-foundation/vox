@@ -22,6 +22,7 @@ use vox_compiler::eval::value::VoxValue;
 // the single-threaded-interpreter assumption before the change can land.
 // See docs/src/architecture/vox-memory-model-audit-and-value-optimization-2026-06-05.md §Part 2.
 static_assertions::assert_not_impl_any!(VoxValue: Send, Sync);
+static_assertions::assert_not_impl_any!(vox_compiler::eval::Interpreter: Send, Sync);
 
 /// Run a Vox program's `main` through the tree-walking interpreter and return
 /// its value, mirroring the real `--mode interp` path (`parse_script`).

@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/004-codex-arca-turso-ssot.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 004: Codex over Arca over Turso",
+  "summary": "Codex is the public database API, Arca is internal schema, Turso/libSQL is sole relational engine.",
+  "scope": ["Codex", "Arca", "Turso", "libSQL", "database", "vox-db", "schema", "secrets"],
+  "cross_refs": ["../reference/env-vars.md", "../archive/research-2026-q1/codex-arca-compatibility-boundaries.md", "../../../contracts/db/data-storage-policy.v1.yaml"],
+  "locked": true,
+  "precedence": null
+}

@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/033-typed-fragment-primitive.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 033 — Typed parametric fragment primitive",
+  "summary": "Introduces `fragment` bare-keyword for typed parametric markup blocks passable as component props.",
+  "scope": ["fragments", "parametric markup", "typed props", "React components", "markup rendering"],
+  "cross_refs": ["../architecture/svelte-vs-react-frameworks-research-2026.md", "../architecture/svelte-mineable-features-implementation-plan-2026.md", "032-vox-ui-reactive-modules.md", "../archive/phase5-react-interop-spec-2026.md"],
+  "locked": true,
+  "precedence": null
+}

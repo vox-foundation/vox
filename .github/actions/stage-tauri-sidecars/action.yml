@@ -1,0 +1,97 @@
+name: stage-tauri-sidecars
+description: >-
+  Build (or placeholder) every Tauri sidecar listed in
+  crates/vox-gui/tauri.conf.json `bundle.externalBin` and stage each one at the
+  triple-suffixed path vox-gui's build.rs and the Tauri bundler expect
+  (`<externalBin entry>-<triple>[.exe]`). tauri.conf.json is the ONLY list of
+  sidecars: workflows call this action instead of naming binaries, so adding a
+  sidecar there is enough. (Hand-copied lists missed the second sidecar when it
+  was added, and build.rs's nested-cargo autobuild of it deadlocked
+  `cargo tauri build --target` for 3 hours.) Afterwards the job env carries
+  VOX_GUI_SKIP_SIDECAR_AUTOBUILD=1, so a sidecar that is still missing fails in
+  seconds instead of nesting a cargo build.
+
+inputs:
+  target:
+    description: >-
+      Rust target triple to stage for. `universal-apple-darwin` builds
+      aarch64-apple-darwin and x86_64-apple-darwin and stages both per-arch
+      names plus the lipo'd universal one (Tauri's universal build needs all
+      three). Empty = the host triple.
+    required: false
+    default: ""
+  placeholder:
+    description: >-
+      "true" stages exit-1 placeholder files without building anything, for
+      lanes that compile vox-gui but never run a sidecar (build.rs only checks
+      the files exist).
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Stage Tauri external sidecars from tauri.conf.json
+      shell: bash
+      env:
+        SIDECAR_TARGET: ${{ inputs.target }}
+        SIDECAR_PLACEHOLDER: ${{ inputs.placeholder }}
+      run: |
+        set -euo pipefail
+        gui=crates/vox-gui
+        # Sidecars ship inside the bundle, so they use the shipped-artifact profile
+        # (see release_build.rs `shipped_build_steps_use_the_dist_profile`).
+        profile=dist
+        # `tr -d '\r'`: native jq.exe on Windows writes CRLF, which would glue a
+        # carriage return onto every name.
+        rels=$(jq -r '.bundle.externalBin[]' "$gui/tauri.conf.json" | tr -d '\r')
+        [[ -n "$rels" ]] || { echo "::error::no bundle.externalBin in $gui/tauri.conf.json"; exit 1; }
+        [[ -n "$SIDECAR_TARGET" ]] || SIDECAR_TARGET=$(rustc -vV | sed -n 's|^host: ||p' | tr -d '\r')
+
+        if [[ "$SIDECAR_TARGET" == universal-apple-darwin ]]; then
+          build_triples=(aarch64-apple-darwin x86_64-apple-darwin)
+          stage_triples=("${build_triples[@]}" universal-apple-darwin)
+        else
+          build_triples=("$SIDECAR_TARGET")
+          stage_triples=("$SIDECAR_TARGET")
+        fi
+
+        if [[ "$SIDECAR_PLACEHOLDER" != true ]]; then
+          # Map each sidecar binary to the workspace package that owns that bin
+          # target, so no bin->package table is maintained here.
+          meta=$(cargo metadata --no-deps --format-version 1)
+          args=()
+          for rel in $rels; do
+            bin=$(basename "$rel")
+            pkg=$(jq -r --arg b "$bin" '.packages[] | select(any(.targets[]; .name == $b and (.kind | index("bin")))) | .name' <<<"$meta" | tr -d '\r')
+            [[ -n "$pkg" ]] || { echo "::error::no workspace package has a bin target named '$bin' (externalBin in $gui/tauri.conf.json)"; exit 1; }
+            args+=(-p "$pkg" --bin "$bin")
+          done
+          targets=()
+          for t in "${build_triples[@]}"; do targets+=(--target "$t"); done
+          # No channel argument: adds to the toolchain cargo actually uses
+          # (rust-toolchain.toml's pin), which is what the build below runs.
+          rustup target add "${build_triples[@]}"
+          echo "cargo build ${args[*]} --profile $profile ${targets[*]}"
+          cargo build "${args[@]}" --profile "$profile" "${targets[@]}"
+        fi
+
+        for rel in $rels; do
+          bin=$(basename "$rel")
+          for t in "${stage_triples[@]}"; do
+            ext=""; [[ "$t" == *windows* ]] && ext=".exe"
+            dest="$gui/$rel-$t$ext"
+            mkdir -p "$(dirname "$dest")"
+            if [[ "$SIDECAR_PLACEHOLDER" == true ]]; then
+              printf '#!/bin/sh\necho "placeholder sidecar staged by stage-tauri-sidecars" >&2\nexit 1\n' > "$dest"
+              chmod +x "$dest"
+            elif [[ "$t" == universal-apple-darwin ]]; then
+              lipo -create -output "$dest" \
+                "target/aarch64-apple-darwin/$profile/$bin" "target/x86_64-apple-darwin/$profile/$bin"
+            else
+              cp "target/$t/$profile/$bin$ext" "$dest"
+            fi
+            echo "staged $dest"
+          done
+        done
+        echo "VOX_GUI_SKIP_SIDECAR_AUTOBUILD=1" >> "$GITHUB_ENV"

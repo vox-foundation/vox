@@ -2,8 +2,9 @@
 title: "Decentralized Skill + Code Marketplace — Research & Codebase Audit"
 description: "Grounding research for a local-first, auto-reviewed, decentralized marketplace that mines repeated Vox code blocks and prompts/agent flows, dedups against existing MCP tools/skills, agentically reviews and tags submissions, and shares opt-in. Audits the existing Vox skill/MCP SSOT spine and synthesizes prior art on agentic code review, skill/prompt registries, decentralized distribution, and the Rust crate stack."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
+training_rationale: "Project architecture and research context."
 ---
 
 # Decentralized Skill + Code Marketplace — Research & Codebase Audit

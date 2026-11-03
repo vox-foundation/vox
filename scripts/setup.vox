@@ -5,7 +5,12 @@
 
 fn check_command(cmd: str, args: list[str], name: str) to bool {
     let result_opt = process.run(cmd, args)
-    if result_opt is null {
+    // `process.run` returns `Option[Record]` (typecheck contract), not `Null` —
+    // a spawn failure is `Option(None)`, a distinct VoxValue variant from
+    // `Null`. `result_opt is null` was therefore always false (Task 2 Step 11 —
+    // Task 0 found this `Option.unwrap()` panic), silently falling through to
+    // `.unwrap()` on `None` instead of the "missing dependency" branch below.
+    if result_opt is None {
         print("Missing dependency (could not spawn): " + name)
         return false
     }
@@ -15,6 +20,28 @@ fn check_command(cmd: str, args: list[str], name: str) to bool {
         return false
     }
     print("Found: " + name)
+    return true
+}
+
+fn install_tool(path: str, bin: str, name: str) to bool {
+    // `--debug --target-dir target` reuses the workspace's dev-build artifacts, so this is
+    // near-instant after a normal build. Hooks call these binaries and never build them.
+    let result_opt = if bin == "" {
+        process.run("cargo", ["install", "--locked", "--debug", "--force", "--target-dir", "target", "--path", path])
+    } else {
+        process.run("cargo", ["install", "--locked", "--debug", "--force", "--target-dir", "target", "--path", path, "--bin", bin])
+    }
+    if result_opt is None {
+        print("Could not spawn cargo to install " + name)
+        return false
+    }
+    let result = result_opt.unwrap()
+    if result.code != 0 {
+        print(result.stderr)
+        print("Failed to install " + name)
+        return false
+    }
+    print("Installed: " + name)
     return true
 }
 
@@ -30,7 +57,7 @@ fn main() {
 
     print("[2] Ensuring WASM sysroots (wasm32-wasip1)...")
     let wasm_opt = process.run("rustup", ["target", "add", "wasm32-wasip1"])
-    if wasm_opt isnt null {
+    if wasm_opt isnt None {
         let wasm_result = wasm_opt.unwrap()
         if wasm_result.code != 0 {
             print("Failed to add WASM target. Isolated workloads may fail.")
@@ -59,21 +86,31 @@ fn main() {
 
     print("[5] Installing Git Pre-commit Hooks...")
     let hooks_opt = process.run("vox", ["run", "scripts/install-hooks.vox"])
-    if hooks_opt isnt null {
+    if hooks_opt isnt None {
         let hooks = hooks_opt.unwrap()
         if hooks.code != 0 {
             print("Hook installation failed. Ensure lefthook is installed.")
         }
     }
 
-    print("[6] Validating Workspace Integrity...")
+    print("[6] Installing the tools the git hooks call (vox, toestub, vox-drift-check)...")
+    // Git hooks never build (lefthook.yml; enforced by `vox ci dev-loop-guard`). They run
+    // these installed binaries, so a fresh clone needs them before its first commit.
+    let vox_ok = install_tool("crates/vox-cli", "", "vox")
+    let toestub_ok = install_tool("crates/vox-code-audit", "toestub", "toestub")
+    let drift_ok = install_tool("crates/vox-drift-check", "", "vox-drift-check")
+    if not (vox_ok and toestub_ok and drift_ok) {
+        print("Some hook tools did not install; commits that need them will fail until they do.")
+    }
+
+    print("[7] Validating Workspace Integrity...")
     print("Running cargo check --workspace (excluding vox-gui)...")
     // Exclude `vox-gui`: it is a native Tauri desktop app (WebKit/Cocoa system
     // frameworks) that is not in `default-members` and does not check in a stripped
     // clean room (notably macOS). The cross-platform CI excludes it for the same
     // reason — a setup-integrity check shouldn't gate on the native GUI toolchain.
     let check_opt = process.run("cargo", ["check", "--workspace", "--exclude", "vox-gui"])
-    if check_opt is null {
+    if check_opt is None {
         print("Failed to spawn cargo check.")
         process.exit(1)
     }

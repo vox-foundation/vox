@@ -1,0 +1,21 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/vox-gui-design-review-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Vox GUI Design Review (annotated mockups + component specs)",
+  "summary": "Visual design review for Vox Tauri GUI with annotated mockups, design system foundations, and component API proposals for five operator surfaces.",
+  "scope": [
+    "GUI design system",
+    "component APIs",
+    "visual language",
+    "surfaces: Dashboard, Chat, Tasks, Runs, Policies",
+    "design tokens",
+    "accessibility"
+  ],
+  "cross_refs": [
+    "docs/src/architecture/vox-gui-ux-beautification-plan-2026.md"
+  ],
+  "locked": false,
+  "precedence": null
+}

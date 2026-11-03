@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 /// One generation attempt. `compiled`/`tests_passed` are exit-code facts, never
 /// an LLM judgment.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AttemptOutcome {
     pub compiled: bool,
     pub tests_passed: bool,
@@ -25,7 +25,7 @@ pub struct AttemptOutcome {
 
 /// All attempts at one fixture. `n` samples drawn, `c` correct — both required
 /// by the unbiased estimator, so attempts are NEVER stopped early on a pass.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FixtureOutcome {
     pub fixture_id: String,
     pub n: usize,

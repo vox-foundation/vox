@@ -1,7 +1,7 @@
 ---
 title: "Implementation Plan: Zero-Copy Vox Codegen"
 category: "Architecture SSOTs"
-status: "current"
+status: "roadmap"
 ---
 
 # Implementation Plan: Zero-Copy Vox Codegen

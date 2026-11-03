@@ -1,0 +1,11 @@
+graph {
+    node client: "Client"
+    node out: "Outside"
+    container svc: "Backend services" {
+        node api: "API"
+        node db: "Store" { shape: cylinder }
+        api -> db: "reads"
+    }
+    client -> svc.api: "request"
+    svc.db -> out: "export"
+}

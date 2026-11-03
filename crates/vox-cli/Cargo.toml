@@ -30,10 +30,8 @@ path = "src/bin/vox-compilerd.rs"
 
 [features]
 # `script-execution` (native `vox run --mode script` lane) is default-on: it is
-# lightweight (xxhash cache + OS sandbox helpers, no WASM runtime) and is the
-# common dev/CI path. The heavy Wasmtime WASI lane lives behind `script-wasi`
-# (see below) so a normal `cargo build -p vox-cli` does NOT pay ~5 min / ~69
-# crates of wasmtime+cranelift just to run native scripts.
+# lightweight (xxhash cache + OS sandbox helpers) and is the common dev/CI path.
+# The Wasmtime WASI script lane was deleted (interpreter-first Task 12).
 default = ["keyring-store", "script-execution"]
 # OS credential store for `vox login` / `vox auth connect` vault persistence.
 # Disable on headless CI builds where no keyring daemon is available.
@@ -45,9 +43,8 @@ fuzzy-search = ["dep:nucleo"]
 # command delegates to the vox-ml-cli binary as a subprocess (see
 # Commands::Oratio in src/lib.rs), so it doesn't link the Candle Whisper stack
 # (vox-speech's `stt-candle`) into vox-cli directly. Reserved for a future
-# in-process wire-up — see the `#[ignore]`d
-# feature_sets_include_populi_oratio_lane test (sunset 2026-08-01) for that
-# tracked decision; don't add real deps here without revisiting it.
+# in-process wire-up. Being empty, it has no `FEATURE_SETS` CI lane; add one
+# when real deps land here.
 oratio = []
 # Native MCP server runtime previously in vox-mcp binary
 mcp-server = [
@@ -57,12 +54,13 @@ mcp-server = [
 ]
 # Enables Arca telemetry replay and persistent DB features (shared with vox-corpus).
 database = ["vox-corpus/database"]
-# Heavy on-disk retrieval: tantivy full-text index + web-scrape (scraper/html2text).
-# OFF by default to keep the CLI lean — resolver-2 feature unification means this
-# single switch turns tantivy on across every vox-search instance in the graph
+# Heavy retrieval: the KB Library lexical index (vox_search::library, tantivy) + web-scrape
+# (scraper/html2text). The tantivy entry is redundant-but-harmless now that vox-search
+# enables `tantivy-lexical` by default. OFF by default to keep the CLI lean — resolver-2
+# feature unification means this single switch turns web-scrape on across every vox-search instance in the graph
 # (vox-orchestrator / vox-research-shim / vox-orchestrator-mcp included). Shipped release
 # binaries enable this so end users keep full `vox search`. See WS2-T3.
-heavy-retrieval = ["vox-search/tantivy-lexical", "vox-search/web-scrape"]
+heavy-retrieval = ["vox-search/tantivy-lexical", "vox-search/web-scrape", "vox-orchestrator-mcp/web-scrape"]
 
 
 
@@ -74,14 +72,6 @@ script-execution = [
     "dep:xxhash-rust",
     "dep:landlock",
     "dep:win32job",
-]
-# WASI isolation lane (`vox run --isolation wasm`, `vox wasm ...`): Wasmtime JIT
-# + cranelift + WASI. HEAVY (~69 crates, ~5 min from a warm base). Opt-in.
-script-wasi = [
-    "script-execution",
-    "dep:vox-wasm-engine",
-    "dep:wasmtime",
-    "dep:wasmtime-wasi",
 ]
 # Axum inference server (`vox mens serve`) + REST execution API; implies `script-execution`.
 execution-api = ["script-execution", "dep:tokio-stream"]
@@ -181,7 +171,6 @@ vox-package = { workspace = true }
 
 vox-eval = { workspace = true }
 vox-container = { workspace = true }
-vox-wasm-engine = { workspace = true, optional = true }
 vox-deploy-codegen = { workspace = true }
 # Non-optional: `harness::live_eval::build_eval_server_state` (Task 5, `--live` golden corpus)
 # needs `vox_skills::new_registry_arc`/`SkillRegistry` directly, and vox-orchestrator-mcp already
@@ -193,6 +182,7 @@ vox-skill-discovery = { workspace = true, optional = true }
 vox-gamify = { workspace = true, optional = true }
 vox-config = { workspace = true }
 vox-secrets = { workspace = true }
+dialoguer = { workspace = true }
 vox-oauth-pkce = { workspace = true }
 vox-db = { workspace = true, features = ["host-integration", "legacy-import"] }
 vox-sql = { workspace = true, features = ["postgres", "mysql"] }
@@ -201,9 +191,9 @@ vox-term             = { path = "../vox-term" }
 # `vox-scientia::ro_crate::MainEntity` is the input shape for the replay
 # handler; not pulled in via the producers crate.
 vox-scientia = { workspace = true }
-# Lean by default (qdrant-vector + tavily). The heavy tantivy full-text + web-scrape
-# stacks are gated behind the `heavy-retrieval` feature (off by default; shipped
-# release binaries enable it). See WS2-T3.
+# Lean by default (qdrant-vector + tavily). The web-scrape stack (and the KB Library
+# tantivy index, already a vox-search default) is gated behind `heavy-retrieval`
+# (off by default; shipped release binaries enable it). See WS2-T3.
 vox-search = { workspace = true }
 # `vox-plugin-publication` is intentionally NOT a direct dep here. The CLI
 # routes `db/publication/ingest.rs` through `vox-plugin-host`'s ABI surface
@@ -292,8 +282,6 @@ sysinfo = { workspace = true }
 vox-git = { workspace = true }
 xxhash-rust = { workspace = true, optional = true }
 which = { workspace = true }
-wasmtime = { workspace = true, optional = true }
-wasmtime-wasi = { workspace = true, optional = true }
 flate2.workspace = true
 tar.workspace = true
 zip = { features = ["deflate"], version = "2" }
@@ -332,7 +320,12 @@ win32job = { workspace = true, optional = true }
 libc = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { workspace = true, features = ["Win32_System_Threading"] }
+windows-sys = { workspace = true, features = [
+    "Win32_System_Threading",
+    "Win32_System_IO",
+    "Win32_System_Console",
+    "Win32_Storage_FileSystem",
+] }
 
 [build-dependencies]
 vox-build-meta = { workspace = true }

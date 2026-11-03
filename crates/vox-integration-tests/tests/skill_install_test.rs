@@ -1,12 +1,13 @@
 #![allow(missing_docs)]
 
-use vox_orchestrator::OrchestratorConfig;
+use std::sync::Arc;
+use vox_orchestrator::{ApprovalOutcome, OrchestratorConfig};
 use vox_orchestrator_mcp::{ServerState, handle_tool_call as tools};
 
 #[tokio::test]
 async fn test_skill_install_tool_availability() {
     let config = OrchestratorConfig::default();
-    let state = ServerState::new_full(config);
+    let state = Arc::new(ServerState::new_full(config));
 
     // 1. Install a test skill via vox_skill_install
     let test_skill = r#"---
@@ -31,9 +32,29 @@ Instructions inside.
         "bundle_json": bundle_json
     });
 
-    let resp: String = tools(&state, "vox_skill_install", install_req)
-        .await
-        .unwrap();
+    let state_clone = Arc::clone(&state);
+    let call =
+        tokio::spawn(async move { tools(&state_clone, "vox_skill_install", install_req).await });
+
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
+    let mut approval_id = None;
+    while tokio::time::Instant::now() < deadline {
+        let list = state.pending_approvals.list();
+        if let Some(entry) = list.iter().find(|e| e.tool == "vox_skill_install") {
+            approval_id = Some(entry.approval_id.clone());
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+
+    let aid = approval_id.expect("expected vox_skill_install to park for approval");
+    assert!(
+        state
+            .pending_approvals
+            .resolve(&aid, ApprovalOutcome::Approved)
+    );
+
+    let resp: String = call.await.unwrap().unwrap();
     assert!(
         resp.contains("\"success\": true") || resp.contains("\"success\":true"),
         "Failed to install skill: {}",

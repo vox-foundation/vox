@@ -151,6 +151,33 @@ CREATE TABLE IF NOT EXISTS model_scoreboard (
 CREATE INDEX IF NOT EXISTS idx_model_scoreboard_task 
     ON model_scoreboard(task_category, strength_tag, success_rate);
 
+-- One graded case from `vox models bench`: the only writer of measured model quality.
+-- `model_id` is the catalog id routed on; `resolved_model_id` is what the provider says
+-- actually answered (differs for `-latest` / `openrouter/auto` style aliases).
+CREATE TABLE IF NOT EXISTS model_benchmark_results (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id             TEXT    NOT NULL,
+    model_id           TEXT    NOT NULL,
+    resolved_model_id  TEXT,
+    provider           TEXT    NOT NULL,
+    suite              TEXT    NOT NULL,   -- codegen | reasoning | json | tool_call | needle | vox_gen
+    task_category      TEXT    NOT NULL,
+    case_id            TEXT    NOT NULL,
+    passed             INTEGER NOT NULL,
+    score              REAL    NOT NULL,   -- 0..1 graded score
+    ttft_ms            INTEGER,
+    latency_ms         INTEGER,
+    input_tokens       INTEGER,
+    output_tokens      INTEGER,
+    tokens_per_sec     REAL,
+    cost_usd           REAL,
+    error_class        TEXT,               -- NULL on a completed call
+    recorded_at_ms     INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_model_benchmark_results_model
+    ON model_benchmark_results(model_id, recorded_at_ms);
+
 -- Observed pricing SSOT updated from llm_interactions
 CREATE TABLE IF NOT EXISTS model_pricing_catalog (
     model_id                   TEXT    NOT NULL,
@@ -433,5 +460,36 @@ CREATE TABLE IF NOT EXISTS scientia_harness_fix_proposals (
     status           TEXT    NOT NULL,          -- pending_approval|applied|rejected (validated in Rust)
     proposed_at_ms   INTEGER NOT NULL,
     resolved_at_ms   INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS research_misguidance_events (
+    id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id             INTEGER REFERENCES scientia_research_sessions(id) ON DELETE SET NULL,
+    defect_class           TEXT    NOT NULL,
+    culprit_url            TEXT,
+    culprit_domain         TEXT    NOT NULL,
+    claim_id               INTEGER,
+    research_query         TEXT    NOT NULL,
+    misleading_excerpt     TEXT,
+    generated_code_snippet TEXT,
+    failure_diagnostic     TEXT,
+    correction_diff        TEXT,
+    reporter               TEXT    NOT NULL,
+    domain_penalty         REAL    NOT NULL DEFAULT 0.1,
+    status                 TEXT    NOT NULL DEFAULT 'open',
+    resolved_at_ms         INTEGER,
+    created_at_ms          INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_misguidance_domain ON research_misguidance_events(culprit_domain);
+CREATE INDEX IF NOT EXISTS idx_misguidance_session ON research_misguidance_events(session_id);
+
+CREATE TABLE IF NOT EXISTS research_domain_reputation (
+    domain                 TEXT    PRIMARY KEY,
+    incident_count         INTEGER NOT NULL DEFAULT 0,
+    penalty_score          REAL    NOT NULL DEFAULT 0.0,
+    last_incident_at_ms    INTEGER NOT NULL,
+    is_blacklisted         INTEGER NOT NULL DEFAULT 0,
+    updated_at_ms          INTEGER NOT NULL
 );
 "#;

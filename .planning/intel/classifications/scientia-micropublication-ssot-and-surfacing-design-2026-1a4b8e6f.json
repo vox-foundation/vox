@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/scientia-micropublication-ssot-and-surfacing-design-2026.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "SCIENTIA Micro-Publication, SSOT Unification & Discovery-Surfacing Design (2026)",
+  "summary": "Architectural design for claim-centric SSOT across nanopub/scholarly/social with human-gated discovery review, spec-compliant Trusty-URI signing, and multi-pillar accuracy fixes (bundling, embedding, conflict detection).",
+  "scope": ["nanopublication", "Trusty-URI", "human approval", "novelty verification", "claim extraction", "syndication", "NoveltyEvidenceBundle", "AtomicClaim"],
+  "cross_refs": ["scientia-ssot-handbook.md", "scientia-publication-worthiness-rules.md", "vox-gui-scientia-coverage-audit-2026.md", "scientia-self-publication-gap-map-2026.md", "where-things-live.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

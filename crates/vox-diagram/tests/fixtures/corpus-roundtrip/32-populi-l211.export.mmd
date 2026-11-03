@@ -1,0 +1,12 @@
+flowchart TD
+    start(("Start"))
+    Pending["Pending"]
+    Leased["Leased"]
+    Done["Done"]
+    n4((("End")))
+    start -->|"deliver"| Pending
+    Pending -->|"inbox+claimer"| Leased
+    Leased -->|"lease-renew"| Leased
+    Leased -->|"lease expiry (swept)"| Pending
+    Leased -->|"ack"| Done
+    Done --> n4

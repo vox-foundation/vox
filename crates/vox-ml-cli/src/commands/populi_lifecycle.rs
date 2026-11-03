@@ -180,7 +180,7 @@ pub async fn run(cmd: PopuliLifecycleCmd, global_json: bool) -> anyhow::Result<(
                 let (sk, vk) = vox_crypto::facades::generate_signing_keypair();
                 let sk_bytes = sk.inner.to_bytes();
                 let sk_b64 =
-                    base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &sk_bytes);
+                    base64::Engine::encode(&base64::engine::general_purpose::STANDARD, sk_bytes);
                 env_map.insert("VOX_MESH_FEDERATION_SIGNING_KEY".to_string(), sk_b64);
 
                 let vk_bytes = vox_crypto::facades::verifying_key_to_bytes(&vk);
@@ -465,12 +465,7 @@ fn overlay_diag_tailscale() -> OverlayDiagnostics {
 }
 
 fn overlay_diag_wireguard() -> OverlayDiagnostics {
-    let (exe, args): (&str, &[&str]) = if cfg!(windows) {
-        ("wg", &["show"])
-    } else {
-        ("wg", &["show"])
-    };
-    let available = command_ok(exe, args);
+    let available = command_ok("wg", &["show"]);
     let connected = available;
     let detail = if available {
         "wireguard command available".to_string()

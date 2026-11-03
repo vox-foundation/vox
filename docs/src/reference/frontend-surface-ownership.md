@@ -15,7 +15,7 @@ Frontend dependency drift limits are versioned in [`contracts/frontend/dependenc
 
 ## Worked examples
 
-**Surface class:** a new dashboard panel is **`canonical`** — implement under `crates/vox-dashboard` first; only then mirror stubs into `apps/interop/marquee_app` if interop needs proving.
+**Surface class:** a new dashboard panel is **`canonical`** — implement under `crates/vox-gui` first; only then mirror stubs into `apps/interop/marquee_app` if interop needs proving.
 
 **React attribute mapping:** follow event / prop aliases in [`gui-compatibility.v1.yaml`](../../../contracts/frontend/gui-compatibility.v1.yaml) (e.g. wire `on:click` in Vox source to the emitted React prop convention documented there).
 
@@ -25,7 +25,7 @@ Frontend dependency drift limits are versioned in [`contracts/frontend/dependenc
 
 | Surface | Status | Why it exists | Change policy |
 | --- | --- | --- | --- |
-| `crates/vox-dashboard` | canonical | Primary Vox user-facing GUI and orchestration UX | New product UX lands here first |
+| `crates/vox-gui` | canonical | Primary Vox user-facing GUI and orchestration UX | New product UX lands here first |
 | `apps/interop/marquee_app` | interoperability-reference | Demonstrates external React app consuming generated Vox artifacts | Keep minimal and realistic; do not fork product UX |
 | `apps/experimental/visualizer` | experimental | Sandbox for visualization prototypes | Promote to dashboard or delete; avoid long-lived duplication |
 | `tests/fixtures/frontend/test_app_bundle` | fixture-only | Deterministic scaffold fixture and generated snapshot surface | Treat as fixture data, not product UX |
@@ -33,7 +33,7 @@ Frontend dependency drift limits are versioned in [`contracts/frontend/dependenc
 
 ## Necessary and unnecessary usage
 
-- **Necessary:** `vox-dashboard` and one external interop exemplar (`apps/interop/marquee_app`) to validate "Vox backend + React frontend" workflows.
+- **Necessary:** `crates/vox-gui` and one external interop exemplar (`apps/interop/marquee_app`) to validate "Vox backend + React frontend" workflows.
 - **Necessary:** generated TSX in compiler-owned trees where Vox source is authoritative.
 - **Unnecessary:** implementing the same visualization feature in both dashboard and `apps/experimental/visualizer` without an explicit promotion plan.
 - **Unnecessary:** treating `tests/fixtures/frontend/test_app_bundle` as a production surface.
@@ -41,7 +41,7 @@ Frontend dependency drift limits are versioned in [`contracts/frontend/dependenc
 ## Governance checks
 
 - New GUI behavior must declare target surface class (canonical, interoperability-reference, experimental, fixture-only, deprecated-primary-surface).
-- Canonical UX changes require updates in `crates/vox-dashboard` first.
+- Canonical UX changes require updates in `crates/vox-gui` first.
 - Experimental surfaces must define either:
   - a promotion path into the canonical surface, or
   - a decommission date.

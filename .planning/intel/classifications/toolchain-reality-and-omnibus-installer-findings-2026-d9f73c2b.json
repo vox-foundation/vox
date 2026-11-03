@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/toolchain-reality-and-omnibus-installer-findings-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Toolchain Reality and Omnibus Installer Findings",
+  "summary": "Audit of hidden toolchain dependencies in Vox 'single-command install'; roadmap for true independence via native bundler and voxup.",
+  "scope": ["toolchain", "installation", "Node.js dependency", "Rust ecosystem", "bundler", "voxup", "hermetic toolchain"],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

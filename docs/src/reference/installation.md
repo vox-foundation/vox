@@ -12,101 +12,83 @@ schema_type: "TechArticle"
 This is the **canonical** installation page. Every other install snippet in the
 repository is one command plus a link back here.
 
-Vox is pre-1.0. The supported paths are **`voxup`** (a `rustup`-style toolchain
-installer that downloads a prebuilt release) and **`cargo install` from a
-checkout**. Nothing else is published yet — see
-[Packaging status](#packaging-status).
+Vox is pre-1.0 (workspace version 0.6.0). **The path that works today is
+`cargo install` from a checkout.** `voxup` is the intended rustup-style
+installer, but there are **no published GitHub Releases** for it to download —
+see [Packaging status](#packaging-status).
 
-## Quick install (voxup)
+## Quick install (from source)
 
-### macOS and Linux
-
-```sh
-curl --proto '=https' --tlsv1.2 -sSf https://voxlang.org/voxup | sh
-```
-
-### Windows (PowerShell)
-
-```powershell
-Invoke-WebRequest -Uri https://voxlang.org/voxup.ps1 -OutFile voxup.ps1
-.\voxup.ps1
-```
-
-Restart your terminal (or `source ~/.bashrc`) and verify:
-
-```bash
-vox --version
-```
-
-### What the script does
-
-The script takes **no arguments and no flags**. It runs one fixed sequence:
-
-1. Detects your platform and maps it to a published release target
-   (`x86_64-unknown-linux-gnu`, `x86_64-apple-darwin`, `aarch64-apple-darwin`,
-   `x86_64-pc-windows-msvc`). aarch64 Linux has no release asset and the script
-   stops with a message telling you to build from source.
-2. Queries the GitHub Releases API for the newest release of
-   `vox-foundation/vox` (all releases are currently pre-releases, so
-   `/releases/latest` is deliberately not used).
-3. Downloads `voxup-<tag>-<target>.tar.gz` and `checksums.txt`, and verifies
-   SHA-256.
-4. Extracts and runs `voxup install default`.
-
-Targets and artifact layout: [binary release contract](../ci/binary-release-contract.md).
-
-### Running it from a checkout
-
-The published URLs serve byte-identical copies of the in-repo scripts, so a
-clone can run them directly:
-
-```bash
-sh scripts/install.sh        # macOS / Linux
-.\scripts\install.ps1        # Windows (PowerShell)
-```
-
-`docs-astro/public/voxup` and `docs-astro/public/voxup.ps1` are kept identical to
-`scripts/install.sh` and `scripts/install.ps1` by the
-`documented_install_urls_are_served` test. Edit one, copy to the other in the
-same commit.
-
-## What gets installed
-
-| Path | Contents |
-|---|---|
-| `~/.vox/bin/vox` | The Vox CLI (real binary from the release archive) |
-| `~/.vox/bin/voxup` | The installer binary (used by `voxup update`) |
-| `~/.vox/toolchains/vox-<version>/` | Versioned toolchain directory |
-| `~/.vox/toolchains/active` | Active version number (plain text) |
-
-`~/.vox/bin` is appended to your shell `PATH`.
-
-## Updating
-
-```bash
-voxup update
-```
-
-Checks GitHub for a newer release and installs it if one exists.
-
-## Building from source
-
-**Prerequisites:** Rust **1.96** — the workspace `rust-version` is `1.96` and
-`rust-toolchain.toml` pins the toolchain to `1.96.0`, which is what CI and every
-shipped artifact are built with. Also Node.js >= 18 (runtime dependency of
-`vox bundle` and `vox run` for frontend scaffolding) and a C compiler
+**Prerequisites:** Rust **1.98.1** (`rust-toolchain.toml`; workspace
+`rust-version` is 1.96), Node.js >= 18 (frontend scaffolding), pnpm >= 9, and a C compiler
 (gcc / clang / MSVC).
 
 ```bash
 git clone https://github.com/vox-foundation/vox.git
 cd vox
 cargo install --locked --path crates/vox-cli
+vox doctor
 ```
 
-Always pass `--locked`: it installs against the workspace `Cargo.lock`, which is
-what the release binaries are built from. This exact argument vector is the
-`CARGO_INSTALL_CLI_FROM_SOURCE` constant in
+Always pass `--locked`: it installs against the workspace `Cargo.lock`. This
+exact argument vector is the `CARGO_INSTALL_CLI_FROM_SOURCE` constant in
 `crates/vox-cli/src/utils/install_policy/mod.rs`.
+
+Restart your terminal if `vox` is not on `PATH`, then verify:
+
+```bash
+vox --version
+```
+
+`cargo install` puts `vox` on your Cargo bin path (`~/.cargo/bin` by default).
+
+## Planned: voxup (not working end-to-end)
+
+When a **published** (non-draft) GitHub Release exists, `voxup` is the intended
+one-liner. **Do not pipe the live URL into a shell today** — `https://voxlang.org/voxup`
+has 404'd, and `voxup` ignores draft releases that CI creates.
+
+The in-repo scripts (no arguments, no flags) are what the published URLs will
+serve:
+
+```bash
+sh scripts/install.sh        # macOS / Linux
+.\scripts\install.ps1        # Windows (PowerShell)
+```
+
+`docs-astro/public/voxup` and `docs-astro/public/voxup.ps1` must stay
+byte-identical to `scripts/install.sh` and `scripts/install.ps1` (enforced by
+`documented_install_urls_are_served`). Edit one, copy to the other in the same
+commit.
+
+What the script will do once releases exist:
+
+1. Detect your platform and map it to a release target
+   (`x86_64-unknown-linux-gnu`, `x86_64-apple-darwin`, `aarch64-apple-darwin`,
+   `x86_64-pc-windows-msvc`). aarch64 Linux has no release asset and the script
+   tells you to build from source.
+2. Query the GitHub Releases API for the newest **published** release of
+   `vox-foundation/vox` (drafts are skipped).
+3. Download `voxup-<tag>-<target>.tar.gz` and `checksums.txt`, and verify
+   SHA-256.
+4. Extract and run `voxup install default`.
+
+Targets and artifact layout: [binary release contract](../ci/binary-release-contract.md).
+
+When that path works, it will install:
+
+| Path | Contents |
+|---|---|
+| `~/.vox/bin/vox` | The Vox CLI (real binary from the release archive) |
+| `~/.vox/bin/vox-lsp` | The standalone Language Server Protocol binary — `vox lsp` and editor integrations (e.g. the VS Code extension) spawn this from `PATH` |
+| `~/.vox/bin/voxup` | The installer binary (used by `voxup update`) |
+| `~/.vox/toolchains/vox-<version>/` | Versioned toolchain directory |
+| `~/.vox/toolchains/active` | Active version number (plain text) |
+
+`~/.vox/bin` is appended to your shell `PATH`. Update with `voxup update` once
+a newer published release exists.
+
+## Building from source (development)
 
 For a development build without installing:
 
@@ -141,13 +123,31 @@ serve. The path and required feature are recorded as
 `SOURCE_INSTALL_ML_CLI_REL_PATH` and `CARGO_INSTALL_ML_CLI_FROM_SOURCE` in
 `crates/vox-cli/src/utils/install_policy/mod.rs`.
 
+### The Language Server (`vox lsp`)
+
+`vox lsp` (`crates/vox-cli/src/commands/lsp.rs`) does **not** run the language
+server in-process — it spawns a separate `vox-lsp` binary from `PATH` and
+proxies its stdio. `cargo install --locked --path crates/vox-cli` does **not**
+build or install `vox-lsp`; you must install it separately:
+
+```bash
+cargo install --locked --path crates/vox-lsp
+```
+
+Once published releases exist, `voxup`'s `default` and `full` tiers install
+`vox-lsp` alongside `vox` automatically (see the [Packaging status](#packaging-status)
+table above for why the one-liner doesn't work yet). The VS Code extension
+(`apps/editor/vox-vscode`) defaults to `cargo run -p vox-lsp --release --` in
+a dev checkout, or a custom `vox.lsp.serverPath` setting pointing at an
+installed `vox-lsp` binary.
+
 ## Packaging status
 
 | Channel | Status today |
 |---|---|
-| `voxup` one-liner (`https://voxlang.org/voxup`, `/voxup.ps1`) | **Working.** Downloads a checksum-verified release binary. |
 | `cargo install --locked --path crates/vox-cli` | **Working.** Requires a checkout and a Rust toolchain. |
-| GitHub Release archives | **Published** for the four targets above (pre-releases). |
+| `voxup` one-liner (`https://voxlang.org/voxup`, `/voxup.ps1`) | **Not published.** Script exists in-repo; live URL has 404'd; `voxup` needs a published (non-draft) GitHub Release. |
+| GitHub Release archives | **Not published.** CI can create **draft** releases; nothing is published for `voxup` to consume. |
 | Homebrew tap | **Not published.** The release job builds and hashes a macOS tarball but the tap-update step is a placeholder; no `vox-foundation/homebrew-vox` formula is dispatched. |
 | Windows `.msi` | **Not published.** The `cargo wix --no-build` job has no preceding `cargo build --profile dist`, so it has no binary to package, and nothing is uploaded. |
 | Debian `.deb` | **Not published.** `cargo deb` does build the package, but no step uploads it to the release. |
@@ -163,8 +163,9 @@ vox doctor
 
 | Check | Required? | How to fix |
 |---|---|---|
-| Rust 1.96 (workspace `rust-version`; `rust-toolchain.toml` pins `1.96.0`) | Yes | [rustup.rs](https://rustup.rs) |
+| Rust 1.98.1 (`rust-toolchain.toml`; workspace `rust-version` is 1.96) | Yes | [rustup.rs](https://rustup.rs) |
 | Node.js >= 18 | Optional | [nodejs.org](https://nodejs.org) |
+| pnpm >= 9 | Optional | [pnpm.io](https://pnpm.io) |
 | Git | Yes | [git-scm.com](https://git-scm.com) |
 | C compiler (MSVC / gcc / clang) | Yes | Platform-specific, see below |
 | clang / LLVM | Optional | The workspace patches **`aegis`** with **`pure-rust`** defaults, so a typical Windows + MSVC build does **not** need `clang-cl` for Turso. Install LLVM only if you hit a toolchain that still expects native crypto builds. |
@@ -176,8 +177,9 @@ vox doctor
 Example output:
 
 ```text
-  ✓  Rust / Cargo              cargo 1.96.0
+  ✓  Rust / Cargo              cargo 1.98.1
   ✓  Node.js                   v20.11.0 (>= v18)
+  ✓  pnpm                      v9.1.0 (>= v9)
   ✓  Git                       git version 2.44.0
   ✓  C Compiler                MSVC Build Tools found
   ✓  Google AI Studio Key      configured (free Gemini models available)

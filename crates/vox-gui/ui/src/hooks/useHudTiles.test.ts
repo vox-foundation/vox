@@ -13,7 +13,7 @@ import {
 describe('pending_approvals HUD tile', () => {
   it('is part of the HUD tile SSOT with a label', () => {
     expect(HUD_TILE_KINDS).toContain('pending_approvals');
-    expect(HUD_TILE_LABELS.pending_approvals).toBe('Pending approvals');
+    expect(HUD_TILE_LABELS.pending_approvals).toBe('Needs you');
   });
 
   it('appears in the strip by default and DROPS when disabled', () => {
@@ -25,15 +25,13 @@ describe('pending_approvals HUD tile', () => {
 });
 
 describe('useHudTiles', () => {
-  it('defaultHudTiles() returns all 7 kinds in order', () => {
+  it('defaultHudTiles() returns the 5 card kinds in order', () => {
     const config = defaultHudTiles();
     expect(config.tiles.map((t) => t.kind)).toEqual([
       'active_agents',
-      'queue_depth',
       'budget_burn',
       'mesh_peers',
       'active_model',
-      'openrouter_spend',
       'pending_approvals',
     ]);
   });
@@ -69,8 +67,8 @@ describe('useHudTiles', () => {
 
   it('toggleHudTile updates enabled flag for matching id', () => {
     const config = defaultHudTiles();
-    const next = toggleHudTile(config, 'queue_depth', false);
-    expect(next.tiles.find((t) => t.id === 'queue_depth')?.enabled).toBe(false);
+    const next = toggleHudTile(config, 'mesh_peers', false);
+    expect(next.tiles.find((t) => t.id === 'mesh_peers')?.enabled).toBe(false);
     expect(next.tiles.find((t) => t.id === 'active_agents')?.enabled).toBe(true);
   });
 
@@ -78,13 +76,45 @@ describe('useHudTiles', () => {
     const config = defaultHudTiles();
     const next = reorderHudTile(config, 0, 2);
     expect(next.tiles.map((t) => t.kind)).toEqual([
-      'queue_depth',
       'budget_burn',
-      'active_agents',
       'mesh_peers',
+      'active_agents',
       'active_model',
-      'openrouter_spend',
       'pending_approvals',
     ]);
+  });
+});
+
+describe('retired HUD tiles (merged into the Engine and Spend cards)', () => {
+  it('drops queue_depth and openrouter_spend from a stored config and keeps the other choices', () => {
+    const cfg = validateHudTilesConfig({
+      version: 1,
+      tiles: [
+        { id: 'active_agents', kind: 'active_agents', enabled: false },
+        { id: 'queue_depth', kind: 'queue_depth', enabled: true },
+        { id: 'openrouter_spend', kind: 'openrouter_spend', enabled: false },
+        { id: 'mesh_peers', kind: 'mesh_peers', enabled: true },
+      ],
+    });
+    expect(cfg.tiles).toEqual([
+      { id: 'active_agents', kind: 'active_agents', enabled: false },
+      { id: 'mesh_peers', kind: 'mesh_peers', enabled: true },
+    ]);
+  });
+
+  it('still rejects an id that was never a tile', () => {
+    expect(() =>
+      validateHudTilesConfig({ version: 1, tiles: [{ id: 'queue_depthx', kind: 'active_agents', enabled: true }] }),
+    ).toThrow(/unknown tile id/i);
+  });
+
+  it('labels are the card names', () => {
+    expect(HUD_TILE_LABELS).toEqual({
+      active_agents: 'Engine',
+      budget_burn: 'Spend',
+      mesh_peers: 'Mesh',
+      active_model: 'Routing',
+      pending_approvals: 'Needs you',
+    });
   });
 });

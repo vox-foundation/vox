@@ -31,14 +31,17 @@ pub use check_terminal::{DEFAULT_POLICY_REL, validate_policy_file};
 /// `vox shell` subcommands (`repl` when omitted).
 #[derive(Subcommand, Clone, Debug)]
 pub enum ShellCmd {
-    /// Validate a PowerShell command string against `contracts/terminal/exec-policy.v1.yaml` using pwsh AST.
+    /// Validate a shell command string against `contracts/terminal/exec-policy.v1.yaml` (`auto`, `pwsh`, `nu`, or `grammar`).
     Check {
-        /// PowerShell source line or script fragment to analyze.
+        /// Shell source line or script fragment to analyze.
         #[arg(long)]
         payload: String,
         /// Policy YAML (default: repo `contracts/terminal/exec-policy.v1.yaml`).
         #[arg(long, value_name = "PATH")]
         policy: Option<PathBuf>,
+        /// Validation backend (`auto`, `pwsh`, `nu`, `grammar`).
+        #[arg(long, default_value = "auto")]
+        backend: String,
     },
     /// Dev-only micro-REPL (`pwd`/`ls`/`cat` + whitespace-split OS passthrough). Not `pwsh` and not policy-checked.
     Repl,
@@ -48,8 +51,12 @@ pub enum ShellCmd {
 pub async fn run(cmd: Option<ShellCmd>) -> Result<()> {
     match cmd.unwrap_or(ShellCmd::Repl) {
         ShellCmd::Repl => run_shell().await,
-        ShellCmd::Check { payload, policy } => {
-            check_terminal::run_check(&payload, policy.as_deref())?;
+        ShellCmd::Check {
+            payload,
+            policy,
+            backend,
+        } => {
+            check_terminal::run_check_with_backend(&payload, policy.as_deref(), Some(&backend))?;
             println!("shell check: OK (exec policy)");
             Ok(())
         }

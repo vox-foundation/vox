@@ -31,7 +31,11 @@ async fn federated_resource_appears_in_surface_and_reads() {
         ws.resource_by_uri("vox://golden/mcp-status").is_some(),
         "golden resource should be federated"
     );
-    let text = dispatch_workspace_resource(&ws, "vox://golden/mcp-status").unwrap();
+    let root = state
+        .workspace_root
+        .clone()
+        .unwrap_or_else(|| state.repository.root.clone());
+    let text = dispatch_workspace_resource(&ws, "vox://golden/mcp-status", &root).unwrap();
     assert_eq!(text, "ok");
 }
 

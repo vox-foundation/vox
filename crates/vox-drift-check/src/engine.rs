@@ -101,7 +101,7 @@ impl DriftEngine {
                 let name = e.file_name().to_string_lossy();
                 !matches!(
                     name.as_ref(),
-                    "target" | "node_modules" | ".git" | "archive" | ".claude"
+                    "target" | "node_modules" | ".git" | "archive" | ".claude" | ".worktrees"
                 ) && name != vox_config::paths::REPO_DOT_VOX_CACHE_DIR
             })
             .filter_map(|e| e.ok())
@@ -118,10 +118,11 @@ impl DriftEngine {
     }
 }
 
-/// Returns true if any path component equals `.claude` (agent worktree root).
+/// Returns true if any path component equals `.claude` or `.worktrees` (agent worktree roots).
 /// Belt-and-suspenders guard alongside the `filter_entry` name check above.
 fn path_contains_claude(path: &Path) -> bool {
-    path.components().any(|c| c.as_os_str() == ".claude")
+    path.components()
+        .any(|c| c.as_os_str() == ".claude" || c.as_os_str() == ".worktrees")
 }
 
 pub fn detect_language(path: &Path) -> Language {

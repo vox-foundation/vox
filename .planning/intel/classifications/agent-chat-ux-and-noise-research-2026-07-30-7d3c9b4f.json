@@ -1,0 +1,24 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/agent-chat-ux-and-noise-research-2026-07-30.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Agent Chat UX, Noise Control & Panel Information Design (2026-07-30)",
+  "summary": "Architectural specification for agent panel design using ARIA live regions, WCAG 4.1.3 conformance, and severity-based notification taxonomy.",
+  "scope": [
+    "agent UI design",
+    "ARIA live regions",
+    "notification severity",
+    "information design",
+    "accessibility conformance",
+    "panel patterns"
+  ],
+  "cross_refs": [
+    "docs/src/architecture/vox-harness-graph-audit-2026-07-30.md",
+    "docs/src/architecture/claude-code-harness-mechanics-2026-07-30.md",
+    "docs/src/architecture/gui-frontend-design-principles-2026-06-14.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

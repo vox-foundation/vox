@@ -174,10 +174,11 @@ pub(crate) fn reorder_chunks_by_score(chunks: &mut [SemanticChunk], score: &Hash
 }
 
 /// File-aggregated node degree from the AST graph cache. `None` on any failure / zero matches.
+// vox:defactored-from vox-config 2026-09-27
+const GRAPHIFY_REPO_CODE_GRAPH_DIR: &str = ".vox/cache/graphify/repo-code-graph";
+
 pub fn load_file_centrality(repo: &Path) -> Option<HashMap<String, f64>> {
-    let path = repo
-        .join(vox_config::paths::REPO_GRAPHIFY_REPO_CODE_GRAPH_DIR)
-        .join("graph.json");
+    let path = repo.join(GRAPHIFY_REPO_CODE_GRAPH_DIR).join("graph.json");
     let text = std::fs::read_to_string(path).ok()?;
     let value: serde_json::Value = serde_json::from_str(&text).ok()?;
     let reader = vox_graph_reader::GraphifyReader::from_value(value).ok()?;

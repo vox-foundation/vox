@@ -13,7 +13,7 @@ scientia-twitter = []
 scientia-linkedin = []
 scientia-mastodon = []
 scientia-bluesky = []
-scientia-bluesky-sdk = ["dep:bsky-sdk", "dep:atrium-api"]
+scientia-bluesky-sdk = []
 scientia-discord = []
 scientia-opencollective = []
 scientia-youtube = []
@@ -55,10 +55,6 @@ vox-config = { path = "../vox-config" }
 vox-jsonschema-util.workspace = true
 unicode-segmentation = { workspace = true }
 vox-db = { path = "../vox-db", optional = true }
-
-
-bsky-sdk = { workspace = true, optional = true }
-atrium-api = { workspace = true, optional = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
 [dev-dependencies]

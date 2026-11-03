@@ -63,7 +63,7 @@ impl Parser {
                 }
                 Token::Isnt => BinOp::Isnt,
                 Token::NotEq => {
-                    pending_alias_warning = Some(("!=", "is not"));
+                    pending_alias_warning = Some(("!=", "isnt"));
                     BinOp::Isnt
                 }
                 Token::PipeOp => BinOp::Pipe,
@@ -77,6 +77,15 @@ impl Parser {
                 self.warn_mainstream_operator_alias(found, canonical);
             }
             self.advance();
+            let op = if pending_alias_warning.is_none()
+                && matches!(op, BinOp::Is)
+                && matches!(self.peek(), Token::Not)
+            {
+                self.advance();
+                BinOp::Isnt
+            } else {
+                op
+            };
             let rhs = self.parse_expr_bp(r_bp)?;
             let span = lhs.span().merge(rhs.span());
             lhs = Expr::Binary {
@@ -174,7 +183,7 @@ mod semcov_wave1c_tests {
         assert!(warnings[0].message.contains("is"));
     }
 
-    /// Same for `!=` -> BinOp::Isnt, pointing at `is not`.
+    /// Same for `!=` -> BinOp::Isnt, pointing at `isnt` (`is not` parses as `is (not x)`).
     #[test]
     fn not_eq_parses_and_warns() {
         use crate::lexer::lex;
@@ -196,10 +205,10 @@ mod semcov_wave1c_tests {
             .filter(|e| e.severity == crate::parser::error::ParseSeverity::Warning)
             .collect();
         assert_eq!(warnings.len(), 1);
-        assert!(warnings[0].message.contains("is not"));
+        assert!(warnings[0].message.contains("`isnt`"));
     }
 
-    /// The canonical spellings (`is`, `is not` via `isnt`) must NOT trigger
+    /// The canonical spellings (`is`, `isnt`) must NOT trigger
     /// this new warning — only the mainstream aliases do.
     #[test]
     fn is_and_isnt_do_not_warn() {

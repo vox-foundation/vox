@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/session-handoff-2026-05-25-state-of-the-work.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Handoff: state of the work (2026-05-25)",
+  "summary": "Post-recovery audit of work state, task completion status, and corrections to prior claims.",
+  "scope": ["work state", "task completion", "Phase M", "Phase H", "v0.6.0 preparation"],
+  "cross_refs": ["session-handoff-2026-05-24-lost-work-audit.md", "work-loss-audit-and-handoff-2026-05-24.md", "post-sprint-forward-plan-2026-05-25.md", "vox-stdlib-gap-audit-2026-05-23.md", "json-as-rfc-2026-05-24.md"],
+  "locked": false,
+  "precedence": null
+}

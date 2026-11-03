@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/026-third-party-code-provenance.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-026: Third-Party Code Provenance Policy",
+  "summary": "Governs ingestion of external open-source code with explicit AGPL guardrails and attribution.",
+  "scope": ["licensing", "AGPL", "vendoring", "code provenance", "Apache-2.0", "compliance", "cargo-deny"],
+  "cross_refs": ["deny.toml", "architecture/warp-research-findings-2026.md", "architecture/vendored-crates-registry-2026.md"],
+  "locked": true,
+  "precedence": null
+}

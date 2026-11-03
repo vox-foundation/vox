@@ -52,7 +52,7 @@ User-visible copy and debug-style logging for the extension should stay aligned 
 When testing optional orchestrator sidecar pilots, launch VS Code with matching env for the MCP process {
 
 - `VOX_ORCHESTRATOR_DAEMON_SOCKET=<tcp-host:port>`
-- optional `VOX_MCP_ORCHESTRATOR_RPC_READS=1` and/or `VOX_MCP_ORCHESTRATOR_RPC_WRITES=1`
+- optional `VOX_MCP_ORCHESTRATOR_RPC_READS=1` (attaches daemon `orch.status` to `vox_orchestrator_status`)
 - optional strict mismatch signal `VOX_MCP_ORCHESTRATOR_DAEMON_REPOSITORY_ID_STRICT=1`
 
 MCP currently probes TCP peers only (stdio transport is valid for the daemon process itself but skipped for MCP peer probing).

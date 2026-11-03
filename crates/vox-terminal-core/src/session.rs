@@ -6,10 +6,13 @@
 
 use tokio::sync::broadcast;
 
-use crate::block::{Block, BlockId, BlockKind, OutputChunk, Stream};
+use crate::block::{Block, BlockId, BlockKind, BlockOrigin, OutputChunk, Stream};
+use crate::commands::{CommandRegistry, CommandResult};
+use crate::input::InputIntent;
 use crate::osc633::{Osc633Event, Osc633Parser};
+use crate::pty::run_shell_capture;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum SessionEvent {
     BlockOpened { id: BlockId },
     OutputAppended { id: BlockId, chunk: OutputChunk },
@@ -58,6 +61,152 @@ impl Session {
         &self.blocks
     }
 
+    /// Dispatch a classified [`InputIntent`] (from `InputBox::submit`) and
+    /// return the id of the block it produced. Track 4: this is the wiring
+    /// `app.rs`'s Enter handler was previously discarding.
+    ///
+    /// `Shell` and `Command` intents actually execute; `VoxNative` and
+    /// `Agent` are acknowledged with a stub block rather than silently
+    /// dropped — full REPL eval / agent dispatch is out of scope here.
+    pub fn submit(&mut self, intent: InputIntent) -> BlockId {
+        self.submit_with_origin(intent, BlockOrigin::User)
+    }
+
+    /// Dispatch a classified [`InputIntent`] with an explicit [`BlockOrigin`].
+    pub fn submit_with_origin(&mut self, intent: InputIntent, origin: BlockOrigin) -> BlockId {
+        match intent {
+            InputIntent::Shell(cmd) => {
+                let (code, stdout, stderr) = run_shell_capture(&cmd);
+                let mut chunks = Vec::new();
+                if !stdout.is_empty() {
+                    chunks.push(OutputChunk::text(Stream::Stdout, stdout));
+                }
+                if !stderr.is_empty() {
+                    chunks.push(OutputChunk::text(Stream::Stderr, stderr));
+                }
+                self.push_block(BlockKind::Shell, origin, cmd, chunks, code)
+            }
+            InputIntent::StructuredShell(pipeline) => {
+                let (code, stdout, stderr) = crate::pty::run_nu_structured_capture(&pipeline);
+                let mut chunks = Vec::new();
+                if !stdout.is_empty() {
+                    chunks.push(OutputChunk::text(Stream::Stdout, stdout));
+                }
+                if !stderr.is_empty() {
+                    chunks.push(OutputChunk::text(Stream::Stderr, stderr));
+                }
+                self.push_block(
+                    BlockKind::Shell,
+                    origin,
+                    format!("!nu {pipeline}"),
+                    chunks,
+                    code,
+                )
+            }
+            InputIntent::Command { name, args } => {
+                let result = CommandRegistry::default().dispatch(&format!("/{name} {args}"));
+                let (text, ok) = match result {
+                    CommandResult::Output(s) => (s, true),
+                    CommandResult::Silent => (String::new(), true),
+                    CommandResult::NotFound => (format!("Unknown command: /{name}"), false),
+                };
+                let chunks = if text.is_empty() {
+                    vec![]
+                } else {
+                    vec![OutputChunk::text(Stream::Stdout, text)]
+                };
+                self.push_block(
+                    BlockKind::SlashCommand,
+                    origin,
+                    format!("/{name} {args}").trim().to_string(),
+                    chunks,
+                    if ok { 0 } else { 1 },
+                )
+            }
+            InputIntent::VoxNative(src) => {
+                let trimmed = src.trim();
+                let is_explicit_vox = trimmed.starts_with("fn ")
+                    || trimmed.starts_with("let ")
+                    || trimmed.starts_with("type ")
+                    || trimmed.starts_with("import ")
+                    || trimmed.starts_with('@');
+                let vox_src = if trimmed.contains("fn main") {
+                    trimmed.to_string()
+                } else {
+                    format!("fn main() -> Int {{ {trimmed} }}")
+                };
+                match crate::vox_interp::eval_line(&vox_src) {
+                    Ok(out) => self.push_block(
+                        BlockKind::VoxNative,
+                        origin,
+                        src,
+                        vec![OutputChunk::text(Stream::Stdout, out)],
+                        0,
+                    ),
+                    Err(err) if is_explicit_vox => self.push_block(
+                        BlockKind::VoxNative,
+                        origin,
+                        src,
+                        vec![OutputChunk::text(Stream::Stderr, err.to_string())],
+                        1,
+                    ),
+                    Err(_) => {
+                        let (code, stdout, stderr) = run_shell_capture(trimmed);
+                        let mut chunks = Vec::new();
+                        if !stdout.is_empty() {
+                            chunks.push(OutputChunk::text(Stream::Stdout, stdout));
+                        }
+                        if !stderr.is_empty() {
+                            chunks.push(OutputChunk::text(Stream::Stderr, stderr));
+                        }
+                        self.push_block(BlockKind::Shell, origin, src, chunks, code)
+                    }
+                }
+            }
+            InputIntent::Agent(prompt) => {
+                let routed = crate::agent::route_agent_prompt(&prompt);
+                let text = routed.summary();
+                let _ = self
+                    .tx
+                    .send(SessionEvent::AgentMessage { text: text.clone() });
+                self.push_block(
+                    BlockKind::AgentTurn,
+                    origin,
+                    prompt,
+                    vec![OutputChunk::text(Stream::Agent, text)],
+                    0,
+                )
+            }
+        }
+    }
+
+    /// Push a fully-formed (already-completed) block and emit the same event
+    /// sequence a PTY-driven block would (`Opened` → `OutputAppended`* → `Closed`).
+    fn push_block(
+        &mut self,
+        kind: BlockKind,
+        origin: BlockOrigin,
+        input: String,
+        output: Vec<OutputChunk>,
+        exit: i32,
+    ) -> BlockId {
+        let id = BlockId(self.next_id);
+        self.next_id += 1;
+        let mut block = Block::new(id, kind, input).with_origin(origin);
+        let _ = self.tx.send(SessionEvent::BlockOpened { id });
+        for chunk in output {
+            block.push(chunk.clone());
+            let _ = self.tx.send(SessionEvent::OutputAppended {
+                id,
+                chunk: chunk.clone(),
+            });
+        }
+        block.finish(exit);
+        self.blocks.push(block);
+        let _ = self.tx.send(SessionEvent::BlockClosed { id });
+        id
+    }
+
     fn apply_osc(&mut self, ev: Osc633Event) {
         match ev {
             Osc633Event::PromptStart => {
@@ -104,5 +253,83 @@ impl Session {
             }
             Osc633Event::PromptEnd => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::block::BlockStatus;
+
+    #[test]
+    fn submit_shell_runs_the_command_and_captures_output() {
+        let mut session = Session::new("test");
+        let id = session.submit(InputIntent::Shell("echo hi-from-shell".to_string()));
+
+        let block = session.blocks().iter().find(|b| b.id == id).unwrap();
+        assert_eq!(block.kind, BlockKind::Shell);
+        assert_eq!(block.status, BlockStatus::Ok);
+        assert_eq!(block.exit_code, Some(0));
+        assert!(
+            block.plain_output().contains("hi-from-shell"),
+            "unexpected output: {:?}",
+            block.plain_output()
+        );
+    }
+
+    #[test]
+    fn submit_shell_surfaces_nonzero_exit_as_failed() {
+        let mut session = Session::new("test");
+        let id = session.submit(InputIntent::Shell("exit 7".to_string()));
+
+        let block = session.blocks().iter().find(|b| b.id == id).unwrap();
+        assert_eq!(block.status, BlockStatus::Failed);
+        assert_eq!(block.exit_code, Some(7));
+    }
+
+    #[test]
+    fn submit_known_command_dispatches_through_registry() {
+        let mut session = Session::new("test");
+        let id = session.submit(InputIntent::Command {
+            name: "help".to_string(),
+            args: String::new(),
+        });
+
+        let block = session.blocks().iter().find(|b| b.id == id).unwrap();
+        assert_eq!(block.kind, BlockKind::SlashCommand);
+        assert_eq!(block.status, BlockStatus::Ok);
+        assert!(block.plain_output().contains("/help"));
+    }
+
+    #[test]
+    fn submit_unknown_command_reports_failure() {
+        let mut session = Session::new("test");
+        let id = session.submit(InputIntent::Command {
+            name: "zzzzznope".to_string(),
+            args: String::new(),
+        });
+
+        let block = session.blocks().iter().find(|b| b.id == id).unwrap();
+        assert_eq!(block.status, BlockStatus::Failed);
+        assert!(block.plain_output().contains("Unknown command"));
+    }
+
+    #[test]
+    fn submit_emits_block_lifecycle_events() {
+        let mut session = Session::new("test");
+        let mut rx = session.subscribe();
+        let id = session.submit(InputIntent::Shell("echo x".to_string()));
+
+        let mut saw_opened = false;
+        let mut saw_closed = false;
+        while let Ok(ev) = rx.try_recv() {
+            match ev {
+                SessionEvent::BlockOpened { id: eid } if eid == id => saw_opened = true,
+                SessionEvent::BlockClosed { id: eid } if eid == id => saw_closed = true,
+                _ => {}
+            }
+        }
+        assert!(saw_opened, "expected a BlockOpened event");
+        assert!(saw_closed, "expected a BlockClosed event");
     }
 }

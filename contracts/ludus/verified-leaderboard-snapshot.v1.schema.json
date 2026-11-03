@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voxlang.org/contracts/ludus/verified-leaderboard-snapshot.v1.schema.json",
+  "title": "VerifiedLeaderboardSnapshotV1",
+  "description": "Server-authoritative Ed25519-signed, BLAKE3 hash-chained leaderboard snapshot (LEADERBOARD-02).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at_ms",
+    "expires_at_ms",
+    "season_id",
+    "window",
+    "chain_tip_blake3_hex",
+    "signer_public_key_hex",
+    "ed25519_signature_hex",
+    "stewardship_standings",
+    "model_arena_standings",
+    "collegium_standings"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "generated_at_ms": { "type": "integer", "minimum": 1 },
+    "expires_at_ms": { "type": "integer", "minimum": 1 },
+    "season_id": { "type": "string", "minLength": 1 },
+    "window": {
+      "type": "string",
+      "enum": ["seven_days", "thirty_days", "season", "all_time"]
+    },
+    "chain_tip_blake3_hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "signer_public_key_hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "ed25519_signature_hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{128}$"
+    },
+    "stewardship_standings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rank",
+          "rank_delta",
+          "handle",
+          "tier_title",
+          "lumens",
+          "verified_prs_merged",
+          "verified_reviews",
+          "benchmark_lifts",
+          "sparkline_7d",
+          "proof"
+        ],
+        "properties": {
+          "rank": { "type": "integer", "minimum": 1 },
+          "rank_delta": { "type": "integer" },
+          "handle": { "type": "string", "minLength": 1 },
+          "tier_title": { "type": "string", "minLength": 1 },
+          "lumens": { "type": "integer", "minimum": 0 },
+          "verified_prs_merged": { "type": "integer", "minimum": 0 },
+          "verified_reviews": { "type": "integer", "minimum": 0 },
+          "benchmark_lifts": { "type": "integer", "minimum": 0 },
+          "sparkline_7d": {
+            "type": "array",
+            "minItems": 7,
+            "maxItems": 7,
+            "items": { "type": "integer", "minimum": 0 }
+          },
+          "proof": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "upstream_provider",
+              "upstream_event_id",
+              "payload_digest_sha3_256",
+              "prev_row_chain_hash_hex",
+              "row_chain_hash_hex",
+              "checks_passed"
+            ],
+            "properties": {
+              "upstream_provider": { "type": "string", "minLength": 1 },
+              "upstream_event_id": { "type": "string", "minLength": 1 },
+              "payload_digest_sha3_256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+              "prev_row_chain_hash_hex": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+              "row_chain_hash_hex": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+              "checks_passed": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "model_arena_standings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rank",
+          "model_id",
+          "harness_id",
+          "config_digest",
+          "overall_pass_at_1_pct",
+          "pass_at_1_ci95_low_pct",
+          "pass_at_1_ci95_high_pct",
+          "delta_vs_base_pct",
+          "spoke_scores_pct",
+          "held_out_cutoff_clean",
+          "edited_tests_or_reference",
+          "evaluation_digest_sha3_256",
+          "row_chain_hash_hex"
+        ],
+        "properties": {
+          "rank": { "type": "integer", "minimum": 1 },
+          "model_id": { "type": "string", "minLength": 1 },
+          "harness_id": { "type": "string", "minLength": 1 },
+          "config_digest": { "type": "string", "minLength": 1 },
+          "overall_pass_at_1_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+          "pass_at_1_ci95_low_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+          "pass_at_1_ci95_high_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+          "delta_vs_base_pct": { "type": "number" },
+          "spoke_scores_pct": {
+            "type": "array",
+            "minItems": 5,
+            "maxItems": 5,
+            "items": { "type": "number", "minimum": 0, "maximum": 100 }
+          },
+          "held_out_cutoff_clean": { "type": "boolean" },
+          "edited_tests_or_reference": { "type": "boolean" },
+          "evaluation_digest_sha3_256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "row_chain_hash_hex": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "collegium_standings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rank",
+          "collegium_id",
+          "name",
+          "pontifex_handle",
+          "member_count",
+          "total_lumens",
+          "verified_contributions_count",
+          "row_chain_hash_hex"
+        ],
+        "properties": {
+          "rank": { "type": "integer", "minimum": 1 },
+          "collegium_id": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "pontifex_handle": { "type": "string", "minLength": 1 },
+          "member_count": { "type": "integer", "minimum": 1 },
+          "total_lumens": { "type": "integer", "minimum": 0 },
+          "verified_contributions_count": { "type": "integer", "minimum": 0 },
+          "row_chain_hash_hex": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    }
+  }
+}

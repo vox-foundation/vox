@@ -7,6 +7,10 @@
 //! - **Layout:** file-backed `dashboard_layout.v1` under `.vox/dashboard/layout.json` when workspace known.
 //!   `PUT` requires a **write** bearer (same rules as `/v1/tools/call`) when authentication is enabled.
 //! - **Routing viz:** read-only arm stats from the model registry when `VOX_DASHBOARD_ROUTING_VIZ=1`.
+//! - **Exposure (capability-profiles plan 04):** every GET needs a read or write token; PUT
+//!   `/dashboard/layout`, POST `/vcs/isolation/strategy`, POST `/hopper/submit` need the write
+//!   token; POST `/mesh/nodes/{id}/kill` additionally needs a loopback caller. Loopback is the
+//!   TCP peer (never a header) and is never granted when `VOX_MCP_HTTP_BEHIND_TUNNEL=1`.
 
 use axum::Json;
 use axum::Router;
@@ -19,15 +23,15 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use super::{
-    AccessRole, GatewayState, enforce_auth, enforce_https_requirement, enforce_rate_limit,
-    request_identity, resolve_access_role,
+    AccessRole, GatewayState, caller_is_loopback, enforce_auth, enforce_https_requirement,
+    enforce_rate_limit, request_identity, resolve_access_role,
 };
 use crate::services::routes::{err, ok};
 use crate::sync_poison::{poison_rw_read, poison_rw_write};
 
 type GuardResult = std::result::Result<(), Json<Value>>;
 
-fn enforce_dashboard_read(
+pub(crate) fn enforce_dashboard_read(
     gs: &GatewayState,
     peer: &SocketAddr,
     headers: &HeaderMap,
@@ -45,7 +49,7 @@ fn enforce_dashboard_read(
     Ok(())
 }
 
-fn enforce_dashboard_write(
+pub(crate) fn enforce_dashboard_write(
     gs: &GatewayState,
     peer: &SocketAddr,
     headers: &HeaderMap,
@@ -59,6 +63,22 @@ fn enforce_dashboard_write(
         )),
         Err(e) => Err(err("unauthorized", &e)),
     }
+}
+
+/// Emergency/mesh controls: write token AND a loopback caller (spec §3 `internal`).
+fn enforce_dashboard_loopback_write(
+    gs: &GatewayState,
+    peer: &SocketAddr,
+    headers: &HeaderMap,
+) -> GuardResult {
+    enforce_dashboard_write(gs, peer, headers)?;
+    if !caller_is_loopback(gs, peer) {
+        return Err(err(
+            "exposure_denied",
+            "this operation is only available to loopback callers",
+        ));
+    }
+    Ok(())
 }
 
 fn live_mesh_enabled() -> bool {
@@ -83,22 +103,6 @@ fn live_runs_enabled() -> bool {
             .map(|s| s == "1" || s.eq_ignore_ascii_case("true")),
         Ok(true)
     )
-}
-
-fn confidence_state_for_model(m: &vox_orchestrator::models::ModelSpec) -> &'static str {
-    let pins = vox_config::load_model_pins_config().unwrap_or_default();
-    if pins.retired_ids.iter().any(|id| id == &m.id) {
-        return "deprecated";
-    }
-    match m.pricing_source {
-        vox_orchestrator::models::spec::PricingSource::Telemetry
-        | vox_orchestrator::models::spec::PricingSource::UserConfig => "confirmed",
-        vox_orchestrator::models::spec::PricingSource::Unknown => "provisional",
-        vox_orchestrator::models::spec::PricingSource::LiteLLM
-        | vox_orchestrator::models::spec::PricingSource::OpenRouter
-        | vox_orchestrator::models::spec::PricingSource::AnthropicDirect
-        | vox_orchestrator::models::spec::PricingSource::Bootstrap => "shadowed",
-    }
 }
 
 fn fixture_mesh_nodes() -> Value {
@@ -424,7 +428,7 @@ pub async fn post_mesh_node_kill(
     headers: HeaderMap,
     Path(id): Path<String>,
 ) -> Json<Value> {
-    if let Err(e) = enforce_dashboard_write(&gs, &connect.0, &headers) {
+    if let Err(e) = enforce_dashboard_loopback_write(&gs, &connect.0, &headers) {
         return e;
     }
     ok(json!({
@@ -448,18 +452,22 @@ pub async fn get_models_catalog(
         Ok(guard) => guard.list_models(),
         Err(e) => return err("lock", &e.to_string()),
     };
-    let arm_stats = match poison_rw_read(models.read(), "arm stats for catalog") {
-        Ok(guard) => guard.arm_stats_snapshot().clone(),
+    let (arm_stats, confidence_state) = match poison_rw_read(models.read(), "arm stats for catalog")
+    {
+        Ok(guard) => (
+            guard.arm_stats_snapshot().clone(),
+            snapshot
+                .iter()
+                .map(|m| (m.id.clone(), guard.routing_confidence(m).as_str()))
+                .collect::<std::collections::HashMap<_, _>>(),
+        ),
         Err(e) => return err("lock", &e.to_string()),
     };
     ok(json!({
         "source": "registry",
         "model_count": snapshot.len(),
         "models": snapshot,
-        "confidence_state": snapshot
-            .iter()
-            .map(|m| (m.id.clone(), confidence_state_for_model(m)))
-            .collect::<std::collections::HashMap<_, _>>(),
+        "confidence_state": confidence_state,
         "arm_stats": arm_stats,
     }))
 }
@@ -471,45 +479,8 @@ pub async fn get_models_catalog(
 /// surfaces compute identical snapshots from one source of truth.
 pub(crate) async fn assemble_scientia_queue()
 -> anyhow::Result<vox_scientia::dashboard::QueueSnapshot> {
-    use vox_scientia::dashboard::{
-        CandidateRow, ClaimsPendingSummary, DashboardInputs, ReplyWindowEntry, build_queue_snapshot,
-    };
     let db = vox_db::VoxDb::connect_default().await?;
-    let manifests = db
-        .list_publication_manifests(Some("scientia"), None, 200)
-        .await?;
-    let candidates: Vec<CandidateRow> = manifests
-        .iter()
-        .map(|m| CandidateRow {
-            candidate_id: m.publication_id.clone(),
-            candidate_class: m.content_type.clone(),
-            confidence: 0.0,
-            state: m.state.clone(),
-            created_at_ms: m.created_at_ms,
-            updated_at_ms: m.updated_at_ms,
-        })
-        .collect();
-    let retraction_queue: Vec<String> = candidates
-        .iter()
-        .filter(|c| c.state == "retracted")
-        .map(|c| c.candidate_id.clone())
-        .collect();
-    let counts = db.scientia_claims_pending_summary().await?;
-    let claims_pending = ClaimsPendingSummary {
-        verifiable: counts.verifiable.max(0) as u64,
-        abstained: counts.abstained.max(0) as u64,
-        extraction_running: counts.extraction_running.max(0) as u64,
-    };
-    let manifests_in_reply_window: Vec<ReplyWindowEntry> = Vec::new();
-    let now_ms = chrono::Utc::now().timestamp_millis();
-    let inputs = DashboardInputs {
-        candidates: &candidates,
-        claims_pending,
-        manifests_in_reply_window: &manifests_in_reply_window,
-        retraction_queue: &retraction_queue,
-        now_ms,
-    };
-    Ok(build_queue_snapshot(&inputs))
+    vox_scientia::review_flow::assemble_scientia_queue_from_db(&db).await
 }
 
 /// GET /api/v2/scientia/queue — live `QueueSnapshot` assembled from the Codex DB.
@@ -521,7 +492,12 @@ pub async fn get_scientia_queue(
     if let Err(e) = enforce_dashboard_read(&gs, &connect.0, &headers) {
         return e;
     }
-    match assemble_scientia_queue().await {
+    let res = if let Some(db) = gs.server_state.db.as_ref() {
+        vox_scientia::review_flow::assemble_scientia_queue_from_db(db).await
+    } else {
+        assemble_scientia_queue().await
+    };
+    match res {
         Ok(snapshot) => {
             ok(serde_json::to_value(&snapshot)
                 .unwrap_or_else(|e| json!({ "error": e.to_string() })))
@@ -539,42 +515,20 @@ pub async fn get_scientia_cost(
     if let Err(e) = enforce_dashboard_read(&gs, &connect.0, &headers) {
         return e;
     }
-    use vox_scientia::dashboard::cost::{CostInputs, build_cost_rollup};
-    let db = match vox_db::VoxDb::connect_default().await {
-        Ok(db) => db,
-        Err(e) => return err("db_error", &e.to_string()),
-    };
-    let (provider_rows, phase_rows, findings) = match db.scientia_cost_raw_this_quarter().await {
-        Ok(r) => r,
-        Err(e) => return err("db_error", &e.to_string()),
-    };
-    let by_provider: Vec<(String, f64)> = provider_rows
-        .into_iter()
-        .map(|r| (r.provider, r.total_usd))
-        .collect();
-    let mut inputs = CostInputs {
-        extraction_usd: 0.0,
-        critic_usd: 0.0,
-        novelty_retrieval_usd: 0.0,
-        scholarly_submission_usd: 0.0,
-        by_provider,
-        findings_published_this_quarter: findings,
-    };
-    // Map per-phase rows (baseline v70 `pipeline_phase` GROUP BY) onto the four
-    // category lines; unknown phase strings are ignored (forward-compat). Mirrors
-    // the `apply_phase_costs` fold in the `vox scientia cost` CLI handler so the
-    // REST surface and the CLI report identical category splits.
-    for row in &phase_rows {
-        match row.phase.as_str() {
-            "extraction" => inputs.extraction_usd += row.total_usd,
-            "critic" => inputs.critic_usd += row.total_usd,
-            "novelty" => inputs.novelty_retrieval_usd += row.total_usd,
-            "scholarly" => inputs.scholarly_submission_usd += row.total_usd,
-            _ => {}
+    let res = if let Some(db) = gs.server_state.db.as_ref() {
+        vox_scientia::review_flow::assemble_scientia_cost_from_db(db).await
+    } else {
+        match vox_db::VoxDb::connect_default().await {
+            Ok(db) => vox_scientia::review_flow::assemble_scientia_cost_from_db(&db).await,
+            Err(e) => Err(anyhow::anyhow!(e)),
         }
+    };
+    match res {
+        Ok(rollup) => {
+            ok(serde_json::to_value(&rollup).unwrap_or_else(|e| json!({ "error": e.to_string() })))
+        }
+        Err(e) => err("db_error", &e.to_string()),
     }
-    let rollup = build_cost_rollup(&inputs);
-    ok(serde_json::to_value(&rollup).unwrap_or_else(|e| json!({ "error": e.to_string() })))
 }
 
 /// GET /api/v2/vcs/isolation — live isolation strategy + per-agent + active conflicts.
@@ -678,6 +632,8 @@ pub struct HopperSubmitBody {
     pub source: vox_orchestrator::hopper::IntakeSource,
     #[serde(default)]
     pub session_id: Option<String>,
+    #[serde(default)]
+    pub resource_id: Option<String>,
 }
 
 fn default_priority_hint() -> vox_orchestrator::hopper::PriorityHint {
@@ -701,14 +657,20 @@ pub async fn post_hopper_submit(
     if body.intent.trim().is_empty() {
         return err("bad_request", "intent must not be empty");
     }
+    if let Some(ref rid) = body.resource_id {
+        if let Err(e) = vox_orchestrator::hopper::types::validate_resource_id(rid) {
+            return err("bad_request", &e);
+        }
+    }
     let item = gs
         .hopper
-        .submit(
+        .submit_with_resource(
             body.intent,
             body.affinity_hints,
             body.priority_hint,
             body.source,
             body.session_id,
+            body.resource_id,
         )
         .await;
     ok(serde_json::to_value(&item).unwrap_or_else(|e| json!({ "error": e.to_string() })))
@@ -774,4 +736,32 @@ pub fn router() -> Router<GatewayState> {
         .route("/hopper/inbox", get(get_hopper_inbox))
         .route("/hopper/assigned", get(get_hopper_assigned))
         .route("/hopper/history", get(get_hopper_history))
+        .merge(crate::gui_ops::models::api_v2_router())
+        .merge(crate::gui_ops::prefs::api_v2_router())
+        .merge(crate::gui_ops::chat::api_v2_router())
+        .merge(crate::gui_ops::knowledge::api_v2_router())
+        .merge(crate::gui_ops::research::api_v2_router())
+        .merge(crate::gui_ops::attention::api_v2_router())
+        .merge(crate::gui_ops::orchestrator::api_v2_router())
+        .merge(crate::gui_ops::harness::api_v2_router())
+}
+
+#[cfg(test)]
+mod hopper_body_tests {
+    use super::HopperSubmitBody;
+
+    #[test]
+    fn resource_id_is_opt_in() {
+        let plain: HopperSubmitBody =
+            serde_json::from_value(serde_json::json!({ "intent": "x" })).unwrap();
+        assert_eq!(
+            plain.resource_id, None,
+            "existing callers that send no resource_id are unchanged"
+        );
+        let with: HopperSubmitBody = serde_json::from_value(
+            serde_json::json!({ "intent": "x", "resource_id": "db://orders/1" }),
+        )
+        .unwrap();
+        assert_eq!(with.resource_id.as_deref(), Some("db://orders/1"));
+    }
 }

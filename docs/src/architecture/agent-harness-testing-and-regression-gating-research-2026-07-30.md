@@ -2,7 +2,7 @@
 title: "Testing & Regression-Gating an Agent Harness — Verified Research 2026-07-30"
 description: "Adversarially verified research into testing the harness rather than the model: why SWE-Bench-style benchmarks are contamination-compromised as regression gates, τ-bench's deterministic outcome-checking and pass^k reliability metric, LLM-as-judge fragility to stylistic artifacts, OpenTelemetry GenAI tracing as the observability substrate, and SkillOps as emerging skill-library governance — with the statistical sample-size and CI-canarying questions left explicitly open."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: false
 ---
 

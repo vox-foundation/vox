@@ -2,10 +2,15 @@
 //! orch.resolve_approval / orch.list_pending_approvals via an ExtraDispatch hook
 //! carrying the daemon's MCP ServerState.
 
+// Task 8e fix round 1: pull in the hermetic-VOX_HOME ctor (see tests/common/mod.rs).
+mod common;
+
 use std::sync::Arc;
 
+use vox_foundation::protocol::{DispatchPayload, DispatchRequest, dei_method, orch_daemon_method};
 use vox_orchestrator::orch_daemon::{self, ExtraDispatch};
 use vox_orchestrator_mcp::daemon_extra::McpExtraDispatch;
+use vox_orchestrator_mcp::profiles::{BootReport, Subsystem};
 use vox_orchestrator_mcp::{ServerState, load_config};
 
 const D_15S: std::time::Duration = std::time::Duration::from_secs(15);
@@ -350,6 +355,264 @@ async fn daemon_list_and_resolve_pending_approvals_via_extra_dispatch() {
     // The parked tool call unparks (rejected outcome), completing the RPC
     // round trip end to end.
     let _ = call.await.expect("join");
+
+    server.abort();
+}
+
+fn req(method: &str, params: serde_json::Value) -> DispatchRequest {
+    serde_json::from_value(serde_json::json!({ "id": "t1", "method": method, "params": params }))
+        .expect("dispatch request")
+}
+
+fn all_but(down: Subsystem) -> BootReport {
+    BootReport {
+        booted: Subsystem::ALL
+            .iter()
+            .copied()
+            .filter(|s| *s != down)
+            .collect(),
+        failed: [(down, "test: down".to_string())].into_iter().collect(),
+    }
+}
+
+#[tokio::test]
+async fn boot_report_method_returns_the_daemon_report() {
+    let state = ServerState::new_full(load_config());
+    let report = all_but(Subsystem::Db);
+    state.set_boot_report(report.clone());
+    let extra = McpExtraDispatch::new(state);
+    let resp = extra
+        .try_handle(&req(orch_daemon_method::BOOT_REPORT, serde_json::json!({})))
+        .await
+        .expect("orch.boot_report handled");
+    let DispatchPayload::Result { value } = resp.payload else {
+        panic!("orch.boot_report returned an error payload");
+    };
+    let got: BootReport = serde_json::from_value(value).expect("BootReport json");
+    assert_eq!(got, report);
+}
+
+#[tokio::test]
+async fn research_run_refused_when_research_not_booted() {
+    let state = ServerState::new_full(load_config());
+    state.set_boot_report(all_but(Subsystem::Research));
+    let extra = McpExtraDispatch::new(state);
+    let resp = extra
+        .try_handle(&req(
+            dei_method::RESEARCH_RUN,
+            serde_json::json!({ "query": "q" }),
+        ))
+        .await
+        .expect("research.run handled");
+    let DispatchPayload::Error { message, .. } = resp.payload else {
+        panic!("research.run must be refused when Research is down");
+    };
+    assert!(
+        message.contains("subsystem_not_booted") && message.contains("\"research\""),
+        "{message}"
+    );
+}
+
+#[tokio::test]
+async fn persist_claims_refused_when_db_not_booted() {
+    let state = ServerState::new_full(load_config());
+    state.set_boot_report(all_but(Subsystem::Db));
+    let extra = McpExtraDispatch::new(state);
+    let resp = extra
+        .try_handle(&req(
+            dei_method::RESEARCH_PERSIST_CLAIMS,
+            serde_json::json!({ "session_id": 1, "claims": [] }),
+        ))
+        .await
+        .expect("research.persist_claims handled");
+    let DispatchPayload::Error { message, .. } = resp.payload else {
+        panic!("persist_claims must be refused when Db is down");
+    };
+    assert!(
+        message.contains("subsystem_not_booted") && message.contains("\"db\""),
+        "{message}"
+    );
+}
+
+#[test]
+fn tool_call_for_db_tool_refused_when_db_not_booted() {
+    // `dispatch_tool_call`'s async state is larger than libtest's 2 MiB thread.
+    // The daemon polls it on 32 MiB workers (`DEFAULT_ORCH_WORKER_STACK`).
+    std::thread::Builder::new()
+        .name("tool-call-boot-gate".into())
+        .stack_size(32 * 1024 * 1024)
+        .spawn(|| {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("runtime")
+                .block_on(async {
+                    let entry = vox_mcp_registry::registry_entry("vox_kb_status")
+                        .expect("vox_kb_status registered");
+                    assert!(
+                        vox_mcp_registry::subsystem_closure(entry.requires)
+                            .contains(&Subsystem::Db),
+                        "vox_kb_status must require db (directly or transitively)"
+                    );
+                    let state = ServerState::new_full(load_config());
+                    state.set_boot_report(all_but(Subsystem::Db));
+                    let extra = McpExtraDispatch::new(state);
+                    let resp = extra
+                        .try_handle(&req(
+                            orch_daemon_method::TOOL_CALL,
+                            serde_json::json!({ "name": "vox_kb_status", "args": {} }),
+                        ))
+                        .await
+                        .expect("orch.tool_call handled");
+                    let text = match resp.payload {
+                        DispatchPayload::Result { value } => value.to_string(),
+                        DispatchPayload::Error { message, .. } => message,
+                        _ => panic!("unexpected payload"),
+                    };
+                    assert!(text.contains("subsystem_not_booted"), "{text}");
+                });
+        })
+        .expect("spawn")
+        .join()
+        .expect("tool_call boot-gate thread panicked");
+}
+
+/// This mirrors the GUI, which resolves through `invokeMcpTool` → Tauri `invoke_mcp_tool` →
+/// `orch.tool_call` with params `{name, args}` and no `agent_origin` (vox-gui/src/commands/mcp.rs:48).
+/// It proves that the GUI wire shape can approve a floored park.
+#[tokio::test]
+async fn daemon_gui_path_can_approve_floored_park() {
+    let state = ServerState::new_full(load_config());
+    let orch = state.orchestrator.clone();
+    let extra: Arc<dyn ExtraDispatch> = Arc::new(McpExtraDispatch::new(state.clone()));
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap().to_string();
+    let server = tokio::spawn(orch_daemon::serve_listener_with_extra(
+        listener,
+        addr.clone(),
+        "ut-repo".to_string(),
+        orch,
+        Some(extra),
+        None,
+    ));
+    wait_ready(&addr).await;
+
+    // 1. Over daemon TOOL_CALL, spawn vox_skill_install {} with permission_mode: "accept_all".
+    let install_client = orch_daemon::OrchDaemonClient::new(addr.clone());
+    let call = tokio::spawn(async move {
+        install_client
+            .call(
+                vox_foundation::protocol::orch_daemon_method::TOOL_CALL,
+                serde_json::json!({
+                    "name": "vox_skill_install",
+                    "args": {},
+                    "permission_mode": "accept_all",
+                }),
+            )
+            .await
+    });
+
+    // 2. Poll LIST_PENDING_APPROVALS until it appears, and assert summary starts with [floor:external_effect].
+    let list_client = orch_daemon::OrchDaemonClient::new(addr.clone());
+    let deadline = tokio::time::Instant::now() + D_15S;
+    let approval_id = loop {
+        let value = list_client
+            .call(
+                vox_foundation::protocol::orch_daemon_method::LIST_PENDING_APPROVALS,
+                serde_json::json!({}),
+            )
+            .await
+            .expect("orch.list_pending_approvals dispatched");
+        let approvals = value
+            .get("approvals")
+            .and_then(serde_json::Value::as_array)
+            .expect("approvals array");
+        if let Some(entry) = approvals.iter().find(|a| {
+            a.get("tool").and_then(serde_json::Value::as_str) == Some("vox_skill_install")
+        }) {
+            let summary = entry
+                .get("summary")
+                .and_then(serde_json::Value::as_str)
+                .expect("summary present");
+            assert!(
+                summary.starts_with("[floor:external_effect]"),
+                "expected summary to start with [floor:external_effect], got: {summary}"
+            );
+            break entry
+                .get("approval_id")
+                .and_then(serde_json::Value::as_str)
+                .expect("approval_id present")
+                .to_string();
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "vox_skill_install never appeared in orch.list_pending_approvals"
+        );
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
+    };
+
+    // 3. Over TOOL_CALL, call vox_resolve_approval {"approval_id": <id>, "outcome": "approve"} and assert resolved: true.
+    let resolve_client = orch_daemon::OrchDaemonClient::new(addr.clone());
+    let resolve_res = resolve_client
+        .call(
+            vox_foundation::protocol::orch_daemon_method::TOOL_CALL,
+            serde_json::json!({
+                "name": "vox_resolve_approval",
+                "args": {
+                    "approval_id": approval_id,
+                    "outcome": "approve",
+                },
+            }),
+        )
+        .await
+        .expect("vox_resolve_approval dispatched over TOOL_CALL");
+
+    let resolved = resolve_res
+        .get("data")
+        .and_then(|d| d.get("resolved"))
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
+    assert!(
+        resolved,
+        "expected resolved: true from GUI path, got: {resolve_res}"
+    );
+
+    // 4. The spawned install call returns. It may be an argument-validation error,
+    // since `{}` is invalid, but it must not be a "not approved" denial.
+    let install_res = call.await.expect("join");
+    let error_text = match &install_res {
+        Ok(val) => val
+            .get("error")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("")
+            .to_string(),
+        Err(e) => e.to_string(),
+    };
+    assert!(
+        !error_text.contains("approval denied") && !error_text.contains("not approved"),
+        "install call should unpark and proceed to validation, got error: {error_text}"
+    );
+
+    // List no longer contains the id.
+    let after_value = list_client
+        .call(
+            vox_foundation::protocol::orch_daemon_method::LIST_PENDING_APPROVALS,
+            serde_json::json!({}),
+        )
+        .await
+        .expect("orch.list_pending_approvals dispatched after resolve");
+    let after_approvals = after_value
+        .get("approvals")
+        .and_then(serde_json::Value::as_array)
+        .expect("approvals array");
+    assert!(
+        !after_approvals
+            .iter()
+            .any(|a| a.get("approval_id").and_then(serde_json::Value::as_str)
+                == Some(approval_id.as_str())),
+        "resolved approval must no longer be in the list"
+    );
 
     server.abort();
 }

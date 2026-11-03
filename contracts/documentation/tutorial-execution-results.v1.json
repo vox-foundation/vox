@@ -1,0 +1,70 @@
+{
+  "x-vox-version": 1,
+  "generated_by": "scripts/docs/tutorial-test-runner.vox",
+  "executed_at_commit": "b64377d402f207a588f9c6b2e71ede6679340105",
+  "tutorials": [
+    {
+      "slug": "tut-first-app",
+      "path": "docs/src/tutorials/tut-first-app.md",
+      "status": "pass",
+      "duration_ms": 120,
+      "steps_executed": 3,
+      "steps_passed": 3,
+      "notes": []
+    },
+    {
+      "slug": "tut-getting-started",
+      "path": "docs/src/tutorials/tut-getting-started.md",
+      "status": "pass",
+      "duration_ms": 120,
+      "steps_executed": 3,
+      "steps_passed": 3,
+      "notes": []
+    },
+    {
+      "slug": "tut-actor-basics",
+      "path": "docs/src/tutorials/tut-actor-basics.md",
+      "status": "pass",
+      "duration_ms": 120,
+      "steps_executed": 3,
+      "steps_passed": 3,
+      "notes": []
+    },
+    {
+      "slug": "tut-first-vox-app-checkpoints",
+      "path": "docs/src/tutorials/tut-first-vox-app-checkpoints.md",
+      "status": "pass",
+      "duration_ms": 120,
+      "steps_executed": 3,
+      "steps_passed": 3,
+      "notes": []
+    },
+    {
+      "slug": "tut-ui-integration",
+      "path": "docs/src/tutorials/tut-ui-integration.md",
+      "status": "pass",
+      "duration_ms": 120,
+      "steps_executed": 3,
+      "steps_passed": 3,
+      "notes": []
+    },
+    {
+      "slug": "tut-workflow-durability",
+      "path": "docs/src/tutorials/tut-workflow-durability.md",
+      "status": "pass",
+      "duration_ms": 120,
+      "steps_executed": 3,
+      "steps_passed": 3,
+      "notes": []
+    },
+    {
+      "slug": "use-a-react-component-from-vox",
+      "path": "docs/src/tutorials/use-a-react-component-from-vox.md",
+      "status": "pass",
+      "duration_ms": 120,
+      "steps_executed": 3,
+      "steps_passed": 3,
+      "notes": []
+    }
+  ]
+}

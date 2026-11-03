@@ -44,5 +44,6 @@ Automated exercises live in [`crates/vox-integration-tests/tests/lsp_capabilitie
 ## Next research steps
 
 1. Generate a machine-readable capability table from `initialize` response + handler registry (or document manually until automated).
-2. Align with Phase 1 SSOT collapse for completion sources ([vox-language-rules-phase1-ssot-collapse-2026.md](vox-language-rules-phase1-ssot-collapse-2026.md)).
+2. Align with Phase 1 SSOT collapse for completion sources ([vox-language-rules-phase1-ssot-collapse-2026.md](vox-language-rules-phase1-ssot-collapse-2026.md)) and the Unified IntelliSense & Dynamic Suggestion Engine across `vox-lsp`, Chat (`Loquela`), and Terminal (`Console`) ([llm-first-shell-nushell-skills-mcp-research-2026.md §8](llm-first-shell-nushell-skills-mcp-research-2026.md)).
 3. Close archetype-blocked items calling out LSP stubs in [web-app-archetype-coverage-2026.md](web-app-archetype-coverage-2026.md).
+

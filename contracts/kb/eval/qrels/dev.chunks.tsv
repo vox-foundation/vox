@@ -1,0 +1,215 @@
+query-id	corpus-id	score
+q001	docs/src/architecture/where-things-live.md#Where Things Live	2
+q001	docs/src/architecture/where-things-live.md#Where Things Live › Quick reference: subsystem → crate (by layer)	2
+q001	docs/src/architecture/where-things-live.md#Where Things Live › When to NOT add a new crate	1
+q002	docs/src/architecture/canonical-runtime-names.md#Canonical runtime names (daemon, MCP, env)	1
+q002	docs/src/architecture/canonical-runtime-names.md#Canonical runtime names (daemon, MCP, env) › Orchestrator daemon binary	2
+q002	docs/src/architecture/legacy-tombstone-remediation-ledger-2026.md#Legacy / tombstone remediation ledger (2026) › Orchestrator naming (vox-dei, vox-dei-d)	1
+q004	docs/src/how-to/how-to-voxdb-canonical-store.md#How to use the canonical VoxDB / Codex store › What is canonical?	2
+q004	docs/src/reference/env-vars.md#Environment variables (SSOT) › Codex / Turso (vox-db, vox-package)	2
+q005	docs/src/adr/019-durable-workflow-journal-contract-v1.md#ADR 019: Durable workflow journal contract v1 › Decision	2
+q005	docs/src/explanation/expl-durable-execution.md#Explanation: Durable Execution › 5. Storage Backend	1
+q006	docs/src/architecture/ci-and-build-loop-findings-2026.md#CI and build loop findings (2026-10-03) › Local loop: why a commit or push takes minutes to hours	2
+q006	docs/src/architecture/rust-build-loop-ssot-2026.md#Rust build loop: where the time goes and what is allowed to change it › Measured on 2026-10-03 (macOS arm64, load average about 3, a worktree on main)	1
+q008	docs/src/how-to/how-to-train-mens-macos-metal.md#How To: Train MENS on macOS Metal › Install and pre-download	1
+q008	docs/src/how-to/how-to-train-mens-macos-metal.md#How To: Train MENS on macOS Metal › Run the automation	1
+q008	docs/src/how-to/how-to-train-mens-macos-metal.md#How To: Train MENS on macOS Metal › Train the Metal pack	2
+q009	docs/src/contributors/build-broker-usage.md#Build broker — machine-wide cargo coordination › How it works	1
+q009	docs/src/contributors/build-broker-usage.md#Build broker — machine-wide cargo coordination › Tunables (env)	2
+q011	docs/src/operations/populi-overlay-personal-cluster-runbook.md#Populi overlay personal cluster runbook › Enrollment (high level)	2
+q011	docs/src/operations/populi-overlay-personal-cluster-runbook.md#Populi overlay personal cluster runbook › Preconditions	1
+q011	docs/src/reference/populi.md#Mesh / Populi SSOT (CPU-first) › Appendix: TLS / WireGuard transport (P0-T5) › WireGuard / Tailscale Funnel (recommended for off-LAN)	1
+q012	docs/src/how-to/how-to-unit-test.md#How-To: Test Your Logic › 3. Property Writing with @forall	2
+q012	docs/src/how-to/how-to-unit-test.md#How-To: Test Your Logic › 4. Fuzzing with @fuzz	2
+q012	docs/src/how-to/how-to-unit-test.md#How-To: Test Your Logic › Summary	1
+q013	docs/src/how-to/how-to-model-routing.md#Model Routing & Provider Cascade › How Model Selection Works › Mens / Ollama base URL	1
+q013	docs/src/how-to/how-to-model-routing.md#Model Routing & Provider Cascade › How Model Selection Works › vox chat (CLI)	2
+q013	docs/src/how-to/how-to-model-routing.md#Model Routing & Provider Cascade › Provider Cascade	1
+q013	docs/src/reference/installation.md#Installing Vox › AI provider keys › Layer 3: Ollama (optional, local)	2
+q015	docs/src/explanation/expl-actors-workflows.md#Actors & Workflows › Activities	1
+q015	docs/src/explanation/expl-actors-workflows.md#Actors & Workflows › Actors	1
+q015	docs/src/explanation/expl-actors-workflows.md#Actors & Workflows › Quick Comparison	2
+q015	docs/src/explanation/expl-actors-workflows.md#Actors & Workflows › Workflows	1
+q016	docs/src/architecture/data-storage-ssot-2026.md#Data Storage SSOT (2026) › 4. Target state: four-tier data model	1
+q016	docs/src/architecture/data-storage-ssot-2026.md#Data Storage SSOT (2026) › 4. Target state: four-tier data model › 4.1 Tier A — Relational (libSQL/Turso)	2
+q016	docs/src/architecture/data-storage-ssot-2026.md#Data Storage SSOT (2026) › 4. Target state: four-tier data model › 4.2 Tier B — Append-only JSONL spools	2
+q016	docs/src/architecture/data-storage-ssot-2026.md#Data Storage SSOT (2026) › 4. Target state: four-tier data model › 4.3 Tier C — Content-addressed artifacts	2
+q018	docs/src/architecture/agentos-ssot-2026.md#AgentOS & Agent-Computer Interface SSOT (2026) › 3. Mutation classification	2
+q019	docs/src/reference/vox-ir-specification.md#Vox IR Specification	2
+q019	docs/src/reference/vox-ir-specification.md#Vox IR Specification › Purpose	1
+q019	docs/src/reference/vox-ir-specification.md#Vox IR Specification › Stability guarantees	2
+q020	docs/src/explanation/expl-durable-execution.md#Explanation: Durable Execution › 1. The Journal System	1
+q020	docs/src/explanation/expl-durable-execution.md#Explanation: Durable Execution › 2. Recovery via Replay	2
+q020	docs/src/explanation/expl-durable-execution.md#Explanation: Durable Execution › 3. Exactly-Once Semantics	2
+q022	docs/src/architecture/cryptography-ssot-2026.md#Cryptography Policy SSoT › Allowed Primitives	2
+q022	docs/src/reference/ref-builtins-hashing.md#Hashing & Identity Builtins › Workspace hash algorithm map (Rust tooling)	1
+q023	docs/src/adr/026-third-party-code-provenance.md#ADR-026: Third-Party Code Provenance Policy › Decision › 1. Approved intake paths (in priority order)	1
+q023	docs/src/adr/026-third-party-code-provenance.md#ADR-026: Third-Party Code Provenance Policy › Decision › 2. Prohibited intake	2
+q023	docs/src/adr/026-third-party-code-provenance.md#ADR-026: Third-Party Code Provenance Policy › Decision › 3. Attribution requirements for vendored code	2
+q025	docs/src/contributors/local-ci-pre-push.md#Local CI parity (pre-push) › Bypass (emergency only)	2
+q026	docs/src/architecture/data-storage-lint-and-ci-spec-2026.md#Data Storage Lint & CI Spec (2026) › 7. .cursor/rules/data-storage-policy.mdc (shipped at HEAD, aligned in this PR)	1
+q026	docs/src/architecture/data-storage-ssot-2026.md#Data Storage SSOT (2026) › 3. Non-negotiables (decided constraints)	2
+q026	docs/src/reference/env-vars.md#Environment variables (SSOT) › Codex / Turso (vox-db, vox-package)	1
+q027	docs/src/adr/023-optional-telemetry-remote-upload.md#ADR 023: Optional telemetry remote upload › Decision	2
+q027	docs/src/architecture/telemetry-trust-ssot.md#Telemetry Trust (SSoT) › Core Policy	2
+q027	docs/src/architecture/telemetry-unification-design-2026.md#Telemetry unification design 2026 › Trust posture	1
+q029	docs/src/adr/003-native-training-over-python.md#ADR 003 — Native Rust Training Over Python › Consequences	1
+q029	docs/src/adr/003-native-training-over-python.md#ADR 003 — Native Rust Training Over Python › Historical context (why we left Python)	2
+q029	docs/src/journeys/native-training.md#Journey: Native Rust LLM Training › The Curse of Python ML Environments	1
+q030	docs/src/adr/037-tauri-convergence.md#ADR 037 — Tauri Convergence › Context	1
+q030	docs/src/adr/045-tauri-gui-replaces-axum-dashboard.md#ADR 045 — Tauri GUI Replaces Axum Dashboard › Context	2
+q030	docs/src/adr/045-tauri-gui-replaces-axum-dashboard.md#ADR 045 — Tauri GUI Replaces Axum Dashboard › Decision	1
+q032	docs/src/adr/048-interpreter-is-the-execution-and-sandbox-tier.md#ADR 048: Interpreter is the execution and sandbox tier › Context	2
+q032	docs/src/adr/048-interpreter-is-the-execution-and-sandbox-tier.md#ADR 048: Interpreter is the execution and sandbox tier › Decision	2
+q032	docs/src/architecture/voxscript-portability-substrate-research-2026.md#VoxScript portability substrate: research and findings (2026-09) › Part 2 — Research findings › 2.1 WASM is the only substrate that delivers bit-identity — and it cannot run Vox's scripts	1
+q033	docs/src/ci/concurrency-exceptions.md#Workflow concurrency exceptions	2
+q033	docs/src/reference/cli.md#Reference: vox CLI (minimal compiler binary) › Build & run › vox ci …	1
+q034	docs/src/architecture/terminal-exec-policy-ssot.md#Terminal Exec Policy SSOT (2026) › What this policy IS	2
+q034	docs/src/architecture/terminal-exec-policy-ssot.md#Terminal Exec Policy SSOT (2026) › What this policy is NOT	1
+q034	docs/src/ci/runner-contract.md#CI runner contract › Agent / local terminal vs CI shell	1
+q034	docs/src/contributors/agent-instruction-architecture.md#Agent instruction architecture › Command policy strategy (PowerShell-first)	1
+q036	docs/src/contributors/vox-binary-freshness-and-ssot-2026.md#Vox Binary Freshness & Single-Source-of-Truth (2026) › 1. The incident	2
+q036	docs/src/contributors/vox-binary-freshness-and-ssot-2026.md#Vox Binary Freshness & Single-Source-of-Truth (2026) › 2. Two underlying problems	1
+q037	docs/src/ci/workspace-root-manifest.md#Workspace root Cargo.toml (fix forward)	1
+q037	docs/src/ci/workspace-root-manifest.md#Workspace root Cargo.toml (fix forward) › When Cargo errors with "not found in workspace.dependencies"	2
+q037	docs/src/contributors/dependency-policy.md#Dependency policy › Rust: single workspace pin	1
+q039	docs/src/reference/isolation.md#Interpreter isolation › --caps grammar	1
+q039	docs/src/reference/isolation.md#Interpreter isolation › Exit codes	2
+q040	docs/src/how-to/populi-quickstart.md#Populi Quickstart › Token management	1
+q040	docs/src/how-to/populi-quickstart.md#Populi Quickstart › Troubleshooting	2
+q040	docs/src/reference/populi.md#Mesh / Populi SSOT (CPU-first) › Control-plane HTTP errors (stable text bodies)	2
+q041	docs/src/architecture/model-catalog-ssot-2026.md#Model Catalog SSOT — Architecture & Implementation Plan 2026 › Part 1 — Confirmed Split-Brain Bugs (True Positives) › Bug 3 — AnthropicDirect Registers Expensive Models as is_free: true	2
+q041	docs/src/architecture/model-catalog-ssot-2026.md#Model Catalog SSOT — Architecture & Implementation Plan 2026 › Part 4 — Implementation Tasks › Wave 0 — Critical Bug Fixes (Regressions Today, No Architecture Change)	1
+q043	docs/src/operations/secrets-break-glass-runbook.md#Secrets Break-Glass Runbook › Post-incident mandatory tasks	1
+q043	docs/src/operations/secrets-cloudless-ops-runbook.md#Secrets Cloudless Ops Runbook › Incident handling	2
+q043	docs/src/reference/secrets-ssot.md#Secrets SSOT › Naming Convention	1
+q043	docs/src/reference/secrets-ssot.md#Secrets SSOT › Secrets SSOT	2
+q044	docs/src/adr/041-durable-functions-completion-2026.md#ADR 041: Durable functions completion (workflow, activity, actor, @scheduled) › Decision	2
+q044	docs/src/architecture/vox-language-rules-phase5-effects-determinism-2026.md#Vox Language Rules — Phase 5: Effect System & Workflow Determinism (2026-05-09) › Task 3: Workflow determinism hard rule	1
+q044	docs/src/explanation/expl-actors-workflows.md#Actors & Workflows › Compilation Phases	2
+q044	docs/src/explanation/expl-durable-execution.md#Explanation: Durable Execution › 4. Determinism Requirements	2
+q044	docs/src/tutorials/tut-workflow-durability.md#Tutorial: Workflow Durability › 5. Best Practices	1
+q046	docs/src/architecture/omni-search-audit-and-roadmap-2026.md#Omni-Search Audit & Roadmap (2026) › 2. Current Search Architecture Map › 2.1 Full Stack Layers	2
+q046	docs/src/architecture/search-retrieval-ssot-2026.md#Search & Retrieval SSOT (2026) › 6. MCP tools and GUI	1
+q046	docs/src/reference/gui-navigation.md#GUI navigation › OmniSearch	1
+q046	docs/src/reference/gui-navigation.md#GUI navigation › OmniSearch › Search scopes (OmniSearch vs Search surface)	2
+q047	docs/src/adr/023-optional-telemetry-remote-upload.md#ADR 023: Optional telemetry remote upload › Decision	2
+q047	docs/src/reference/cli.md#Reference: vox CLI (minimal compiler binary) › Tooling › vox telemetry	1
+q047	docs/src/reference/env-vars.md#Environment variables (SSOT) › Optional telemetry upload (vox telemetry)	2
+q048	docs/src/ci/affected-crate-selective-ci.md#Affected-Crate Selective CI › Local parity	2
+q048	docs/src/ci/affected-crate-selective-ci.md#Affected-Crate Selective CI › Sentinels (force full)	2
+q048	docs/src/ci/runner-contract.md#CI runner contract › Local-first CI (required policy, ENFORCED)	1
+q048	docs/src/contributors/local-ci-pre-push.md#Local CI parity (pre-push) › Profiles	1
+x001	docs/src/architecture/where-things-live.md#Where Things Live	2
+x001	docs/src/architecture/where-things-live.md#Where Things Live › Quick reference: subsystem → crate (by layer)	2
+x001	docs/src/architecture/where-things-live.md#Where Things Live › When to NOT add a new crate	1
+x002	docs/src/architecture/canonical-runtime-names.md#Canonical runtime names (daemon, MCP, env)	1
+x002	docs/src/architecture/canonical-runtime-names.md#Canonical runtime names (daemon, MCP, env) › Orchestrator daemon binary	2
+x002	docs/src/architecture/legacy-tombstone-remediation-ledger-2026.md#Legacy / tombstone remediation ledger (2026) › Orchestrator naming (vox-dei, vox-dei-d)	1
+x004	docs/src/how-to/how-to-voxdb-canonical-store.md#How to use the canonical VoxDB / Codex store › What is canonical?	2
+x004	docs/src/reference/env-vars.md#Environment variables (SSOT) › Codex / Turso (vox-db, vox-package)	2
+x005	docs/src/how-to/how-to-train-mens-macos-metal.md#How To: Train MENS on macOS Metal › Install and pre-download	1
+x005	docs/src/how-to/how-to-train-mens-macos-metal.md#How To: Train MENS on macOS Metal › Run the automation	1
+x005	docs/src/how-to/how-to-train-mens-macos-metal.md#How To: Train MENS on macOS Metal › Train the Metal pack	2
+x006	docs/src/contributors/build-broker-usage.md#Build broker — machine-wide cargo coordination › How it works	1
+x006	docs/src/contributors/build-broker-usage.md#Build broker — machine-wide cargo coordination › Tunables (env)	2
+x008	docs/src/operations/populi-overlay-personal-cluster-runbook.md#Populi overlay personal cluster runbook › Enrollment (high level)	2
+x008	docs/src/operations/populi-overlay-personal-cluster-runbook.md#Populi overlay personal cluster runbook › Preconditions	1
+x008	docs/src/reference/populi.md#Mesh / Populi SSOT (CPU-first) › Appendix: TLS / WireGuard transport (P0-T5) › WireGuard / Tailscale Funnel (recommended for off-LAN)	1
+x009	docs/src/how-to/how-to-unit-test.md#How-To: Test Your Logic › 3. Property Writing with @forall	2
+x009	docs/src/how-to/how-to-unit-test.md#How-To: Test Your Logic › 4. Fuzzing with @fuzz	2
+x009	docs/src/how-to/how-to-unit-test.md#How-To: Test Your Logic › Summary	1
+x010	docs/src/how-to/how-to-model-routing.md#Model Routing & Provider Cascade › How Model Selection Works › Mens / Ollama base URL	1
+x010	docs/src/how-to/how-to-model-routing.md#Model Routing & Provider Cascade › How Model Selection Works › vox chat (CLI)	2
+x010	docs/src/how-to/how-to-model-routing.md#Model Routing & Provider Cascade › Provider Cascade	1
+x010	docs/src/reference/installation.md#Installing Vox › AI provider keys › Layer 3: Ollama (optional, local)	2
+x012	docs/src/explanation/expl-actors-workflows.md#Actors & Workflows › Activities	1
+x012	docs/src/explanation/expl-actors-workflows.md#Actors & Workflows › Actors	1
+x012	docs/src/explanation/expl-actors-workflows.md#Actors & Workflows › Quick Comparison	2
+x012	docs/src/explanation/expl-actors-workflows.md#Actors & Workflows › Workflows	1
+x013	docs/src/architecture/agentos-ssot-2026.md#AgentOS & Agent-Computer Interface SSOT (2026) › 3. Mutation classification	2
+x014	docs/src/reference/vox-ir-specification.md#Vox IR Specification	2
+x014	docs/src/reference/vox-ir-specification.md#Vox IR Specification › Purpose	1
+x014	docs/src/reference/vox-ir-specification.md#Vox IR Specification › Stability guarantees	2
+x015	docs/src/explanation/expl-durable-execution.md#Explanation: Durable Execution › 1. The Journal System	1
+x015	docs/src/explanation/expl-durable-execution.md#Explanation: Durable Execution › 2. Recovery via Replay	2
+x015	docs/src/explanation/expl-durable-execution.md#Explanation: Durable Execution › 3. Exactly-Once Semantics	2
+x017	docs/src/architecture/cryptography-ssot-2026.md#Cryptography Policy SSoT › Allowed Primitives	2
+x017	docs/src/reference/ref-builtins-hashing.md#Hashing & Identity Builtins › Workspace hash algorithm map (Rust tooling)	1
+x018	docs/src/adr/026-third-party-code-provenance.md#ADR-026: Third-Party Code Provenance Policy › Decision › 1. Approved intake paths (in priority order)	1
+x018	docs/src/adr/026-third-party-code-provenance.md#ADR-026: Third-Party Code Provenance Policy › Decision › 2. Prohibited intake	2
+x018	docs/src/adr/026-third-party-code-provenance.md#ADR-026: Third-Party Code Provenance Policy › Decision › 3. Attribution requirements for vendored code	2
+x020	docs/src/contributors/local-ci-pre-push.md#Local CI parity (pre-push) › Bypass (emergency only)	2
+x021	docs/src/architecture/data-storage-lint-and-ci-spec-2026.md#Data Storage Lint & CI Spec (2026) › 7. .cursor/rules/data-storage-policy.mdc (shipped at HEAD, aligned in this PR)	1
+x021	docs/src/architecture/data-storage-ssot-2026.md#Data Storage SSOT (2026) › 3. Non-negotiables (decided constraints)	2
+x021	docs/src/reference/env-vars.md#Environment variables (SSOT) › Codex / Turso (vox-db, vox-package)	1
+x022	docs/src/adr/023-optional-telemetry-remote-upload.md#ADR 023: Optional telemetry remote upload › Decision	2
+x022	docs/src/architecture/telemetry-trust-ssot.md#Telemetry Trust (SSoT) › Core Policy	2
+x022	docs/src/architecture/telemetry-unification-design-2026.md#Telemetry unification design 2026 › Trust posture	1
+x024	docs/src/adr/003-native-training-over-python.md#ADR 003 — Native Rust Training Over Python › Consequences	1
+x024	docs/src/adr/003-native-training-over-python.md#ADR 003 — Native Rust Training Over Python › Historical context (why we left Python)	2
+x024	docs/src/journeys/native-training.md#Journey: Native Rust LLM Training › The Curse of Python ML Environments	1
+x025	docs/src/adr/037-tauri-convergence.md#ADR 037 — Tauri Convergence › Context	1
+x025	docs/src/adr/045-tauri-gui-replaces-axum-dashboard.md#ADR 045 — Tauri GUI Replaces Axum Dashboard › Context	2
+x025	docs/src/adr/045-tauri-gui-replaces-axum-dashboard.md#ADR 045 — Tauri GUI Replaces Axum Dashboard › Decision	1
+x027	docs/src/adr/048-interpreter-is-the-execution-and-sandbox-tier.md#ADR 048: Interpreter is the execution and sandbox tier › Context	2
+x027	docs/src/adr/048-interpreter-is-the-execution-and-sandbox-tier.md#ADR 048: Interpreter is the execution and sandbox tier › Decision	2
+x027	docs/src/architecture/voxscript-portability-substrate-research-2026.md#VoxScript portability substrate: research and findings (2026-09) › Part 2 — Research findings › 2.1 WASM is the only substrate that delivers bit-identity — and it cannot run Vox's scripts	1
+x028	docs/src/ci/concurrency-exceptions.md#Workflow concurrency exceptions	2
+x028	docs/src/reference/cli.md#Reference: vox CLI (minimal compiler binary) › Build & run › vox ci …	1
+x029	docs/src/architecture/terminal-exec-policy-ssot.md#Terminal Exec Policy SSOT (2026) › What this policy IS	2
+x029	docs/src/architecture/terminal-exec-policy-ssot.md#Terminal Exec Policy SSOT (2026) › What this policy is NOT	1
+x029	docs/src/ci/runner-contract.md#CI runner contract › Agent / local terminal vs CI shell	1
+x029	docs/src/contributors/agent-instruction-architecture.md#Agent instruction architecture › Command policy strategy (PowerShell-first)	1
+x031	docs/src/contributors/vox-binary-freshness-and-ssot-2026.md#Vox Binary Freshness & Single-Source-of-Truth (2026) › 1. The incident	2
+x031	docs/src/contributors/vox-binary-freshness-and-ssot-2026.md#Vox Binary Freshness & Single-Source-of-Truth (2026) › 2. Two underlying problems	1
+x032	docs/src/ci/workspace-root-manifest.md#Workspace root Cargo.toml (fix forward)	1
+x032	docs/src/ci/workspace-root-manifest.md#Workspace root Cargo.toml (fix forward) › When Cargo errors with "not found in workspace.dependencies"	2
+x032	docs/src/contributors/dependency-policy.md#Dependency policy › Rust: single workspace pin	1
+x034	docs/src/reference/isolation.md#Interpreter isolation › --caps grammar	1
+x034	docs/src/reference/isolation.md#Interpreter isolation › Exit codes	2
+x035	docs/src/how-to/populi-quickstart.md#Populi Quickstart › Token management	1
+x035	docs/src/how-to/populi-quickstart.md#Populi Quickstart › Troubleshooting	2
+x035	docs/src/reference/populi.md#Mesh / Populi SSOT (CPU-first) › Control-plane HTTP errors (stable text bodies)	2
+x036	docs/src/architecture/model-catalog-ssot-2026.md#Model Catalog SSOT — Architecture & Implementation Plan 2026 › Part 1 — Confirmed Split-Brain Bugs (True Positives) › Bug 3 — AnthropicDirect Registers Expensive Models as is_free: true	2
+x036	docs/src/architecture/model-catalog-ssot-2026.md#Model Catalog SSOT — Architecture & Implementation Plan 2026 › Part 4 — Implementation Tasks › Wave 0 — Critical Bug Fixes (Regressions Today, No Architecture Change)	1
+x038	docs/src/operations/secrets-break-glass-runbook.md#Secrets Break-Glass Runbook › Post-incident mandatory tasks	1
+x038	docs/src/operations/secrets-cloudless-ops-runbook.md#Secrets Cloudless Ops Runbook › Incident handling	2
+x038	docs/src/reference/secrets-ssot.md#Secrets SSOT › Naming Convention	1
+x038	docs/src/reference/secrets-ssot.md#Secrets SSOT › Secrets SSOT	2
+x039	docs/src/adr/041-durable-functions-completion-2026.md#ADR 041: Durable functions completion (workflow, activity, actor, @scheduled) › Decision	2
+x039	docs/src/architecture/vox-language-rules-phase5-effects-determinism-2026.md#Vox Language Rules — Phase 5: Effect System & Workflow Determinism (2026-05-09) › Task 3: Workflow determinism hard rule	1
+x039	docs/src/explanation/expl-actors-workflows.md#Actors & Workflows › Compilation Phases	2
+x039	docs/src/explanation/expl-durable-execution.md#Explanation: Durable Execution › 4. Determinism Requirements	2
+x039	docs/src/tutorials/tut-workflow-durability.md#Tutorial: Workflow Durability › 5. Best Practices	1
+x041	docs/src/architecture/omni-search-audit-and-roadmap-2026.md#Omni-Search Audit & Roadmap (2026) › 2. Current Search Architecture Map › 2.1 Full Stack Layers	2
+x041	docs/src/architecture/search-retrieval-ssot-2026.md#Search & Retrieval SSOT (2026) › 6. MCP tools and GUI	1
+x041	docs/src/reference/gui-navigation.md#GUI navigation › OmniSearch	1
+x041	docs/src/reference/gui-navigation.md#GUI navigation › OmniSearch › Search scopes (OmniSearch vs Search surface)	2
+x042	docs/src/adr/023-optional-telemetry-remote-upload.md#ADR 023: Optional telemetry remote upload › Decision	2
+x042	docs/src/reference/cli.md#Reference: vox CLI (minimal compiler binary) › Tooling › vox telemetry	1
+x042	docs/src/reference/env-vars.md#Environment variables (SSOT) › Optional telemetry upload (vox telemetry)	2
+x043	docs/src/ci/affected-crate-selective-ci.md#Affected-Crate Selective CI › Local parity	2
+x043	docs/src/ci/affected-crate-selective-ci.md#Affected-Crate Selective CI › Sentinels (force full)	2
+x043	docs/src/ci/runner-contract.md#CI runner contract › Local-first CI (required policy, ENFORCED)	1
+x043	docs/src/contributors/local-ci-pre-push.md#Local CI parity (pre-push) › Profiles	1
+x044	docs/src/journeys/fullstack-data.md#Journey: One-File Full-Stack Data › The Vox Paradigm: No API Layer	2
+x044	docs/src/tutorials/tut-first-app.md#Tutorial: Building a Collaborative Task List › 2. Define the Data Model	1
+x045	docs/src/learning/rust-via-vox/lesson-01-ownership-pattern-drill.md#Lesson 1 — Ownership in Practice: Reading Code Like a Reviewer	2
+x045	docs/src/learning/rust-via-vox/notes-session-01.md#Rust via Vox — Session 1 Notes: Ownership, Errors, Enums › 3. Stack vs Heap (and why ownership exists)	1
+x046	docs/src/api/DOC_GAPS.md#Known Documentation Gaps & Backlog	2
+x046	docs/src/api/DOC_GAPS.md#Known Documentation Gaps & Backlog › High Priority	1
+x047	docs/src/api/vox-codegen-ts.md#vox-codegen-ts API (deprecated stub)	2
+x047	docs/src/api/vox-codegen-ts.md#vox-codegen-ts API (deprecated stub) › Overview	1
+x048	docs/src/reference/env-vars.md#Environment variables (SSOT)	2
+x050	docs/src/case-studies/v0.5-production-deployment.md#Case Study: First Production Deployment (v0.5 Preview Gate) › Deployment Execution	2
+x050	docs/src/case-studies/v0.5-production-deployment.md#Case Study: First Production Deployment (v0.5 Preview Gate) › Scenario	1
+x051	docs/src/examples/golden.md#Golden Examples: Working Vox Code	1
+x051	docs/src/examples/golden.md#Golden Examples: Working Vox Code › CRUD API — Table, Query, Mutation, and Endpoint	2
+x053	docs/src/how-to/how-to-database.md#How-To: The Database Layer › Defining a Table	2
+x053	docs/src/how-to/how-to-database.md#How-To: The Database Layer › Guarding Reads/Writes with query and mutation	1
+x053	docs/src/reference/vox-db-language-surface.md#Vox database language surface (canonical) › Declarations	2
+x053	docs/src/tutorials/tut-getting-started.md#Getting Started with Vox › Step 3: Write a notes app	1
+x054	docs/src/reference/cli-command-surface.generated.md#CLI command surface (generated)	2
+x054	docs/src/reference/cli.md#Reference: vox CLI (minimal compiler binary)	1
+x054	docs/src/reference/command-compliance.md#Command compliance › Command projection pipeline (SSOT chain)	1

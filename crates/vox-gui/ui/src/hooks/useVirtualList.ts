@@ -1,4 +1,4 @@
-import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual';
+import { useVirtualizer, type Range, type VirtualItem } from '@tanstack/react-virtual';
 import type React from 'react';
 
 export interface UseVirtualListOptions {
@@ -6,6 +6,7 @@ export interface UseVirtualListOptions {
   count: number;
   estimateSize: (index: number) => number;
   overscan?: number;
+  rangeExtractor?: (range: Range) => number[];
 }
 
 export interface UseVirtualListResult {
@@ -19,12 +20,14 @@ export function useVirtualList({
   count,
   estimateSize,
   overscan = 3,
+  rangeExtractor,
 }: UseVirtualListOptions): UseVirtualListResult {
   const virtualizer = useVirtualizer({
     count,
     getScrollElement: () => containerRef.current,
     estimateSize,
     overscan,
+    ...(rangeExtractor ? { rangeExtractor } : {}),
   });
 
   return {

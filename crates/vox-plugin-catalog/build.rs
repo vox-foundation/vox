@@ -27,6 +27,8 @@ struct BundleEntry {
     extends: Option<String>,
     #[serde(default)]
     plugins: Vec<String>,
+    #[serde(default)]
+    profiles: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -76,6 +78,7 @@ fn resolve_bundle(
 
 fn main() {
     println!("cargo:rerun-if-changed=catalog.toml");
+    println!("cargo:rerun-if-changed=../../contracts/profiles");
     let src = std::fs::read_to_string("catalog.toml").expect("catalog.toml not found");
     let cat: CatalogFile = match toml::from_str(&src) {
         Ok(v) => v,
@@ -169,6 +172,31 @@ fn main() {
                 b.id, parent
             ));
         }
+        let mut seen_profiles = HashSet::new();
+        for prof in &b.profiles {
+            if !seen_profiles.insert(prof.clone()) {
+                errors.push(format!("bundle '{}' lists profile '{}' twice", b.id, prof));
+            }
+            if prof == "browser" {
+                errors.push(format!(
+                    "bundle '{}' lists profile 'browser', which is never part of a bundle default",
+                    b.id
+                ));
+            }
+            if prof != "dev"
+                && !std::path::Path::new("../../contracts/profiles")
+                    .join(format!("{prof}.v1.yaml"))
+                    .is_file()
+            {
+                errors.push(format!(
+                    "bundle '{}' lists profile '{}', but contracts/profiles/{}.v1.yaml does not exist",
+                    b.id, prof, prof
+                ));
+            }
+        }
+        if b.profiles.iter().any(|p| p == "dev") && b.profiles.len() > 1 {
+            errors.push(format!("bundle '{}': profile 'dev' must stand alone", b.id));
+        }
     }
 
     // Inverse: every plugin's bundled-in[] must include the plugin in the named bundle's resolved set.
@@ -231,6 +259,24 @@ fn main() {
         }
         if p.default_source.is_empty() {
             errors.push(format!("plugin '{}' has empty default-source", p.id));
+        } else if let Some(rel) = p.default_source.strip_prefix("local:") {
+            // build.rs runs with CWD = the crate dir (crates/vox-plugin-catalog).
+            if !std::path::Path::new("../..").join(rel).exists() {
+                errors.push(format!(
+                    "plugin '{}' default-source 'local:{}' does not resolve: crates/../{} does not exist",
+                    p.id, rel, rel
+                ));
+            }
+        } else if p.default_source.starts_with("github:")
+            && p.default_source != "github:vox-foundation/vox"
+        {
+            // The vox-foundation org only owns `vox` and `homebrew-vox` — no
+            // per-plugin repos exist. A `github:` default-source other than
+            // the first-party release-asset repo can never be installed.
+            errors.push(format!(
+                "plugin '{}' default-source '{}' is not installable: vox-foundation has no such repo; use a local: path to the in-tree crate instead",
+                p.id, p.default_source
+            ));
         }
     }
 

@@ -131,7 +131,10 @@ pub fn base_reward(event_type: &str) -> BaseReward {
         "plan_handoff" => BaseReward::new(40, 8),
         "agent_handoff_accepted" => BaseReward::new(50, 10),
         "peer_teach_session" => BaseReward::with_lumens(500, 100, 50), // High social value
-        "message_sent" => BaseReward::new(1, 0),
+        // HUMANE-02: Zero XP for raw prompt volume; reward verified craft & local sovereignty instead
+        "message_sent" => BaseReward::new(0, 0),
+        "single_shot_verified" => BaseReward::new(35, 8),
+        "local_mens_verified" => BaseReward::new(25, 6),
 
         // GitHub / Collaboration
         "pr_merged" => BaseReward::with_lumens(200, 40, 15),
@@ -891,5 +894,20 @@ mod tests {
         let milestone = base_reward("vox_feature_milestone");
         assert_eq!(milestone.xp, 40);
         assert_eq!(milestone.crystals, 8);
+    }
+
+    #[test]
+    fn humane_zero_message_sent_and_craft_mastery_rewards() {
+        let msg = base_reward("message_sent");
+        assert_eq!(msg.xp, 0, "message_sent must not reward raw prompt volume");
+        assert_eq!(msg.crystals, 0);
+
+        let single_shot = base_reward("single_shot_verified");
+        assert_eq!(single_shot.xp, 35);
+        assert_eq!(single_shot.crystals, 8);
+
+        let local_mens = base_reward("local_mens_verified");
+        assert_eq!(local_mens.xp, 25);
+        assert_eq!(local_mens.crystals, 6);
     }
 }

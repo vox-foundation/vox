@@ -1,19 +1,24 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../ui/Glass';
 import { Icon } from '../ui/Icons';
 import { AxisMark } from '../ui/AxisMark';
 import { DashboardData } from '../../types/dashboard';
 import { SURFACE_REGISTRY } from '../../generated/surfaceRegistry.generated';
-import { TOP_LEVEL_VIEWS, resolveNavigation, CHILD_ORDER_BY_PARENT, labelForNavKey } from '../../lib/navigation';
+import { TOP_LEVEL_VIEWS, resolveNavigation, CHILD_ORDER_BY_PARENT, childLabelFor } from '../../lib/navigation';
 import { STATUS_BADGE_CLASS, STATUS_RAIL_BADGE_CLASS } from '../../styles/tokens';
 import { useFreshness } from '../../hooks/useFreshness';
 import { useLang } from '../../hooks/useLanguage';
 import { LEXICON, labelFor, sidebarParentLabel } from '../../lib/lexicon';
 import { SessionSidebarSection } from './SessionSidebarSection';
 import type { ChatSession } from '../../lib/useChatSessions';
+import type { Toast } from '../../types/tauri';
+import { surfaceAvailability, useBackendStatus } from '../../hooks/useBackendStatus';
+import { BackendStatusPill } from './BackendStatusPill';
+import { UNAVAILABLE_COPY } from './SurfaceUnavailable';
 
-export type SidebarMode = 'rail' | 'default' | 'wide';
+export type SidebarMode = 'hidden' | 'rail' | 'default' | 'wide';
 
 type PolicyBadgeStatus = 'pass' | 'fail' | 'warn' | 'not_run';
 export interface PolicyBadge { count: number; status: PolicyBadgeStatus; }
@@ -22,7 +27,7 @@ interface NavItemProps {
   active: boolean;
   icon: React.ReactNode;
   label: string;
-  onClick: () => void;
+  onClick: (e?: React.MouseEvent<HTMLButtonElement>) => void;
   badge?: number | string | null;
   badgeClass?: string;
   railBadgeClass?: string;
@@ -45,7 +50,7 @@ function NavItem({ active, icon, label, onClick, badge, badgeClass, railBadgeCla
   );
 }
 
-const SIDEBAR_WIDTHS = { rail: 64, default: 212, wide: 280 };
+const SIDEBAR_WIDTHS: Record<SidebarMode, number> = { hidden: 0, rail: 64, default: 212, wide: 280 };
 const SIDEBAR_ORDER: SidebarMode[] = ["rail", "default", "wide"];
 
 // Curated nav icons (labels now come from the lexicon by viewKey).
@@ -74,10 +79,11 @@ interface SidebarProps {
   data: DashboardData;
   mode: SidebarMode;
   setMode: (m: SidebarMode) => void;
-  pushToast: (t: any) => void;
+  pushToast: (t: Toast) => void;
   appVersion?: string;
   policyBadge?: PolicyBadge | null;
   needsYouCount?: number;
+  needsYouDegraded?: string[];
   lastOrchEventAt?: number | null;
   orchUsesPolling?: boolean;
   liveFreshMs?: number;
@@ -108,6 +114,7 @@ export function Sidebar({
   appVersion,
   policyBadge,
   needsYouCount,
+  needsYouDegraded,
   lastOrchEventAt = null,
   orchUsesPolling = false,
   liveFreshMs = 10_000,
@@ -126,8 +133,23 @@ export function Sidebar({
   onToggleArchivedSessions,
   onTaskBadgeClick,
 }: SidebarProps) {
-  const w = SIDEBAR_WIDTHS[mode];
-  const collapsed = mode === "rail";
+  const lastVisibleModeRef = useRef<Exclude<SidebarMode, 'hidden'>>(
+    mode === 'hidden' ? 'default' : mode,
+  );
+  const [localHidden, setLocalHidden] = useState(mode === 'hidden');
+  useEffect(() => {
+    if (mode === 'hidden') {
+      setLocalHidden(true);
+    } else {
+      lastVisibleModeRef.current = mode;
+      setLocalHidden(false);
+    }
+  }, [mode]);
+
+  const isHidden = mode === 'hidden' || localHidden;
+  const effectiveMode: SidebarMode = isHidden ? 'hidden' : mode;
+  const w = SIDEBAR_WIDTHS[effectiveMode];
+  const collapsed = effectiveMode === "rail";
   const { parent: activeParent } = resolveNavigation(view);
   const [identity, setIdentity] = useState('operator@vox');
   const tone = useFreshness(lastOrchEventAt, {
@@ -144,12 +166,27 @@ export function Sidebar({
   }, []);
 
   const cycle = (dir: number) => {
-    const i = SIDEBAR_ORDER.indexOf(mode);
+    const i = SIDEBAR_ORDER.indexOf(effectiveMode);
     const ni = Math.max(0, Math.min(SIDEBAR_ORDER.length - 1, i + dir)) as number;
     setMode(SIDEBAR_ORDER[ni]);
   };
 
+  const handleHideSidebar = () => {
+    if (mode !== 'hidden') {
+      lastVisibleModeRef.current = mode;
+    }
+    setLocalHidden(true);
+    setMode('hidden');
+  };
+
+  const handleRestoreSidebar = () => {
+    const target = lastVisibleModeRef.current || 'default';
+    setLocalHidden(false);
+    setMode(target);
+  };
+
   const { lang } = useLang();
+  const { status: backendStatus } = useBackendStatus();
   const activeRef = useRef<HTMLButtonElement>(null);
 
   const visibleTopLevel = TOP_LEVEL_VIEWS.filter(k => k !== 'settings');
@@ -157,10 +194,48 @@ export function Sidebar({
   // null = no override (show active parent's children).
   // '' (empty string) = user explicitly collapsed the active parent.
   const [peekedParent, setPeekedParent] = useState<string | null>(null);
+  const [railMenuOpenKey, setRailMenuOpenKey] = useState<string | null>(null);
+  const [railMenuPos, setRailMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setPeekedParent(null);
   }, [activeParent]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    };
+  }, []);
+
+  const handleRailMouseEnter = (key: string, e: React.MouseEvent<HTMLElement>) => {
+    if (!collapsed) return;
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    const rect = e.currentTarget.getBoundingClientRect();
+    setRailMenuPos({ top: rect.top, left: rect.right + 6 });
+    setRailMenuOpenKey(key);
+  };
+
+  const handleRailMouseLeave = () => {
+    if (!collapsed) return;
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = setTimeout(() => {
+      setRailMenuOpenKey(null);
+      setRailMenuPos(null);
+    }, 150);
+  };
+
+  const handleFlyoutMouseEnter = () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+  };
+
+  const handleFlyoutMouseLeave = () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = setTimeout(() => {
+      setRailMenuOpenKey(null);
+      setRailMenuPos(null);
+    }, 150);
+  };
 
   const expandedParent = peekedParent === '' ? null : peekedParent ?? activeParent;
 
@@ -169,14 +244,39 @@ export function Sidebar({
   }, [view]);
 
   const settingsEntry = SURFACE_REGISTRY.find(e => e.viewKey === 'settings');
-  const coverageEntry = SURFACE_REGISTRY.find(e => e.viewKey === 'coverage');
+  const explorerEntry = SURFACE_REGISTRY.find(e => e.viewKey === 'explorer');
+
+  if (isHidden) {
+    return (
+      <aside
+        aria-label="Sidebar"
+        data-sidebar-hidden="true"
+        className="shrink-0 flex flex-col transition-[width] duration-200 ease-out h-full overflow-visible sticky top-0"
+        style={{ width: 0 }}
+      >
+        <button
+          type="button"
+          data-testid="sidebar-restore-button"
+          onClick={handleRestoreSidebar}
+          aria-label="Show sidebar"
+          aria-expanded={false}
+          title="Show sidebar"
+          className="fixed left-3 top-3 z-50 inline-flex items-center gap-1.5 rounded-full border border-brass/40 bg-bg-base/95 px-2.5 py-1.5 font-display text-[10px] uppercase tracking-[0.14em] text-text-secondary shadow-lg backdrop-blur-md transition hover:border-brass hover:bg-overlay-hover hover:text-brass"
+        >
+          <AxisMark className="size-3.5 text-brass" />
+          <span>Sidebar</span>
+          <Icon.chevR className="size-3 text-brass" aria-hidden="true" />
+        </button>
+      </aside>
+    );
+  }
 
   return (
     <aside aria-label="Sidebar" className="shrink-0 flex flex-col transition-[width] duration-200 ease-out h-full overflow-hidden sticky top-0" style={{ width: w }}>
       <Glass className="flex h-full flex-col p-3 rounded-none border-y-0 border-l-0">
         <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} pb-3 shrink-0`}>
           {collapsed && (
-            <div className="grid size-6 place-items-center rounded-md bg-white/[0.04] ring-1 ring-brass/40 shrink-0">
+            <div className="grid size-6 place-items-center rounded-md bg-white/4 ring-1 ring-brass/40 shrink-0">
               <AxisMark className="size-4 text-brass" />
             </div>
           )}
@@ -189,13 +289,24 @@ export function Sidebar({
             </div>
           )}
           <div className={`flex items-center ${collapsed ? "flex-col gap-1" : "gap-0.5"}`}>
-            <button type="button" onClick={() => cycle(-1)} disabled={mode === "rail"} title="Collapse" aria-label="Collapse sidebar"
-              className={`flex size-6 items-center justify-center rounded-md border border-border-subtle ${mode === "rail" ? "opacity-30 cursor-not-allowed" : "hover:bg-overlay-hover text-text-muted hover:text-text-primary"}`}>
+            <button type="button" onClick={() => cycle(-1)} disabled={effectiveMode === "rail"} title="Collapse" aria-label="Collapse sidebar"
+              className={`flex size-6 items-center justify-center rounded-md border border-border-subtle ${effectiveMode === "rail" ? "opacity-30 cursor-not-allowed" : "hover:bg-overlay-hover text-text-muted hover:text-text-primary"}`}>
               <Icon.chevL className="size-3" aria-hidden="true"/>
             </button>
-            <button type="button" onClick={() => cycle(1)} disabled={mode === "wide"} title="Expand" aria-label="Expand sidebar"
-              className={`flex size-6 items-center justify-center rounded-md border border-border-subtle ${mode === "wide" ? "opacity-30 cursor-not-allowed" : "hover:bg-overlay-hover text-text-muted hover:text-text-primary"}`}>
+            <button type="button" onClick={() => cycle(1)} disabled={effectiveMode === "wide"} title="Expand" aria-label="Expand sidebar"
+              className={`flex size-6 items-center justify-center rounded-md border border-border-subtle ${effectiveMode === "wide" ? "opacity-30 cursor-not-allowed" : "hover:bg-overlay-hover text-text-muted hover:text-text-primary"}`}>
               <Icon.chevR className="size-3" aria-hidden="true"/>
+            </button>
+            <button
+              type="button"
+              data-testid="sidebar-hide-button"
+              onClick={handleHideSidebar}
+              title="Hide sidebar"
+              aria-label="Hide sidebar"
+              aria-expanded={true}
+              className="flex size-6 items-center justify-center rounded-md border border-border-subtle text-text-muted transition hover:border-brass/40 hover:bg-overlay-hover hover:text-brass"
+            >
+              <Icon.x className="size-3" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -217,7 +328,7 @@ export function Sidebar({
                 <span className="flex-1 min-w-0 text-left font-display text-[12px] tracking-[0.12em] uppercase whitespace-nowrap overflow-hidden text-ellipsis">
                   Search
                 </span>
-                <span className="rounded border border-border-subtle bg-overlay-subtle px-1 text-[9px] tracking-widest text-text-muted">⌘K</span>
+                <span className="rounded-sm border border-border-subtle bg-overlay-subtle px-1 text-[9px] tracking-widest text-text-muted">⌘K</span>
               </>
             )}
           </button>
@@ -228,34 +339,58 @@ export function Sidebar({
             const label = navLabelFor(key, lang);
             const IconCmp = (Icon as Record<string, any>)[TOP_NAV_ICON[key] ?? 'file'] ?? Icon.file;
             const isActive = activeParent === key;
-            const isExpanded = expandedParent === key && mode === 'wide';
+            const isExpanded = expandedParent === key && mode !== 'rail';
             const children = CHILD_ORDER_BY_PARENT[key];
+            const hasReviewItems = key === 'runs' && needsYouCount != null && needsYouCount > 0;
+            const couldNotLoad =
+              key === 'runs' && (needsYouDegraded?.length ?? 0) > 0 ? `couldn't load ${needsYouDegraded!.join(', ')}` : '';
             const badge =
               key === 'agents' ? agentsCount
-              : key === 'runs' && needsYouCount != null && needsYouCount > 0 ? needsYouCount
+              : hasReviewItems ? needsYouCount
+              : couldNotLoad ? '!'
               : undefined;
             const navAriaLabel =
               key === 'runs'
-                ? needsYouCount != null && needsYouCount > 0
-                  ? `Review, ${needsYouCount} items need you`
-                  : 'Review'
+                ? hasReviewItems
+                  ? `Review, ${needsYouCount} items need you${couldNotLoad ? ` (${couldNotLoad})` : ''}`
+                  : couldNotLoad
+                    ? `Review, ${couldNotLoad}`
+                    : 'Review'
                 : undefined;
             return (
               <React.Fragment key={key}>
-                <div className="flex items-center gap-0.5">
+                <div
+                  className="relative flex items-center gap-0.5"
+                  onMouseEnter={(e) => collapsed && children && handleRailMouseEnter(key, e)}
+                  onMouseLeave={handleRailMouseLeave}
+                >
                   <div className="flex-1 min-w-0">
                     <NavItem
                       innerRef={isActive ? activeRef : undefined}
                       collapsed={collapsed}
                       active={isActive}
-                      onClick={() => onOpenParent(key)}
+                      onClick={(e) => {
+                        onOpenParent(key);
+                        if (collapsed && children) {
+                          if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+                          if (railMenuOpenKey === key) {
+                            setRailMenuOpenKey(null);
+                            setRailMenuPos(null);
+                          } else {
+                            const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                            setRailMenuPos({ top: rect.top, left: rect.right + 6 });
+                            setRailMenuOpenKey(key);
+                          }
+                        }
+                      }}
                       icon={<IconCmp className="size-4" />}
                       label={label}
                       badge={badge}
                       ariaLabel={navAriaLabel}
                     />
                   </div>
-                  {children && mode === 'wide' && (
+                  {/* chat has no child views but expands to its session list, so it needs the toggle too */}
+                  {(children || key === 'chat') && mode !== 'rail' && (
                     <button
                       type="button"
                       aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${label}`}
@@ -265,6 +400,50 @@ export function Sidebar({
                     >
                       <Icon.chevR className={`size-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} aria-hidden="true" />
                     </button>
+                  )}
+                  {collapsed && railMenuOpenKey === key && children && typeof document !== 'undefined' && createPortal(
+                    <div
+                      role="menu"
+                      aria-label={`${label} subsections`}
+                      data-testid={`rail-flyout-${key}`}
+                      onMouseEnter={handleFlyoutMouseEnter}
+                      onMouseLeave={handleFlyoutMouseLeave}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          setRailMenuOpenKey(null);
+                          setRailMenuPos(null);
+                        }
+                      }}
+                      style={railMenuPos ? { top: `${railMenuPos.top}px`, left: `${railMenuPos.left}px` } : undefined}
+                      className="fixed z-[99999] min-w-[180px] rounded-xl border border-border-subtle bg-bg-base/95 p-1.5 shadow-2xl backdrop-blur-xl animate-in fade-in-0 zoom-in-95 pointer-events-auto"
+                    >
+                      <div className="px-2.5 py-1 text-[10px] font-display uppercase tracking-widest text-text-muted border-b border-border-subtle mb-1">
+                        {label}
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        {children.map(childKey => (
+                          <button
+                            key={childKey}
+                            type="button"
+                            role="menuitem"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenTab(childKey);
+                              setRailMenuOpenKey(null);
+                              setRailMenuPos(null);
+                            }}
+                            className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition ${
+                              view === childKey
+                                ? 'bg-brass/15 text-brass font-medium'
+                                : 'text-text-secondary hover:bg-overlay-hover hover:text-text-primary'
+                            }`}
+                          >
+                            {childLabelFor(childKey, lang)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>,
+                    document.body
                   )}
                 </div>
                 {isExpanded && key === 'chat' && chatSessions && (
@@ -288,21 +467,26 @@ export function Sidebar({
                 )}
                 {isExpanded && key !== 'chat' && children && (
                   <div className="ml-4 flex flex-col gap-0.5 border-l border-border-subtle pl-2">
-                    {children.map(childKey => (
-                      <button
-                        key={childKey}
-                        type="button"
-                        onClick={() => onOpenTab(childKey)}
-                        aria-current={view === childKey ? 'page' : undefined}
-                        className={`w-full rounded-lg px-2 py-1.5 text-left font-display text-[11px] tracking-[0.1em] uppercase transition ${
-                          view === childKey
-                            ? 'bg-brass/10 text-brass'
-                            : 'text-text-muted hover:bg-overlay-hover hover:text-text-secondary'
-                        }`}
-                      >
-                        {labelForNavKey(childKey)}
-                      </button>
-                    ))}
+                    {children.map(childKey => {
+                      const availability = surfaceAvailability(backendStatus, childKey);
+                      return (
+                        <button
+                          key={childKey}
+                          type="button"
+                          onClick={() => onOpenTab(childKey)}
+                          aria-current={view === childKey ? 'page' : undefined}
+                          data-unavailable={availability.available ? undefined : availability.reason ?? undefined}
+                          title={availability.available || !availability.reason ? undefined : UNAVAILABLE_COPY[availability.reason].title}
+                          className={`w-full rounded-lg px-2 py-1.5 text-left font-display text-[11px] tracking-widest uppercase transition ${
+                            view === childKey
+                              ? 'bg-brass/10 text-brass'
+                              : 'text-text-muted hover:bg-overlay-hover hover:text-text-secondary'
+                          } ${availability.available ? '' : 'opacity-50'}`}
+                        >
+                          {childLabelFor(childKey, lang)}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </React.Fragment>
@@ -311,6 +495,7 @@ export function Sidebar({
         </nav>
 
         <div className="flex flex-col gap-2 pt-3 shrink-0">
+          <BackendStatusPill collapsed={collapsed} />
           {settingsEntry && (
             <div className={`flex flex-col gap-0.5 pt-2 ${collapsed ? 'border-t border-border-subtle' : ''}`}>
               {!collapsed && <div className="mx-2 mb-1 border-b border-border-subtle px-0 pb-1 font-display text-[9px] uppercase tracking-[0.32em] text-text-muted">{labelFor('group:system', lang)}</div>}
@@ -329,21 +514,21 @@ export function Sidebar({
                     : 'Settings'
                 }
               />
-              {coverageEntry && (
+              {explorerEntry && (
                 <NavItem
                   collapsed={collapsed}
-                  active={view === 'coverage'}
-                  onClick={() => onOpenTab('coverage')}
-                  icon={<Icon.check className="size-4" />}
-                  label={labelFor('coverage', lang)}
-                  ariaLabel="Coverage, CI surface gaps"
+                  active={view === 'explorer'}
+                  onClick={() => onOpenTab('explorer')}
+                  icon={<Icon.branch className="size-4" />}
+                  label={labelFor('explorer', lang)}
+                  ariaLabel="Explorer, browse everything Vox can do"
                 />
               )}
             </div>
           )}
 
           <div className={`flex items-center ${collapsed ? "justify-center" : "gap-2 px-2"} pb-1 pt-1`}>
-            <div className="relative size-7 shrink-0 rounded-full bg-gradient-to-br from-violet-500 to-cyan-500">
+            <div className="relative size-7 shrink-0 rounded-full bg-linear-to-br from-violet-500 to-cyan-500">
               <span
                 data-testid="sidebar-orch-freshness-dot"
                 aria-hidden="true"

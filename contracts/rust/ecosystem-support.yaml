@@ -15,6 +15,7 @@ template_managed_dependencies:
     - vox-db
     - vox-actor-runtime
     - vox-speech
+    - anyhow
   script_native:
     - tokio
     - serde

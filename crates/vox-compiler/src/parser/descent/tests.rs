@@ -811,24 +811,6 @@ fn test_web_surface_syntax_inventory_non_empty() {
     assert!(joined.contains("routes {"), "{joined}");
 }
 
-#[test]
-#[ignore = "owner: compiler — sunset: 2026-08-01 — agent/environment decl parse not in active grammar path"]
-fn test_parse_agent_and_environment() {
-    let m = parse_str(
-        r#"
-agent Assistant {
-    version "1.0"
-}
-environment staging {
-    base "node"
-}
-"#,
-    );
-    assert_eq!(2, m.declarations.len());
-    assert!(matches!(m.declarations[0], Decl::Agent(_)));
-    assert!(matches!(m.declarations[1], Decl::Environment(_)));
-}
-
 // ── parse_script tests (audit item A.1) ──────────────────────────────────────
 
 fn parse_script_str(source: &str) -> Module {

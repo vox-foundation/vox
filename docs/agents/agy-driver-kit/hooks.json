@@ -1,0 +1,16 @@
+{
+  "vox-agent-guard": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/agent-guard.mjs",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

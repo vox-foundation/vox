@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/039-ai-fixture-hole-decorator.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 039 — AI fixture `@hole` decorator",
+  "summary": "Introduces `@hole` decorator for deferred-fill fixtures with compile-time enforcement.",
+  "scope": ["AI fixtures", "@hole decorator", "deferred implementation", "compile safety", "reviewer accountability"],
+  "cross_refs": [],
+  "locked": true,
+  "precedence": null
+}

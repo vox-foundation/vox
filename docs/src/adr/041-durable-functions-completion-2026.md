@@ -53,12 +53,17 @@ Between 2026-05-01 and 2026-05-23, the implementation work was completed:
 
 1. Retain `@durable`, `@scheduled`, `workflow`, `activity`, and `actor` as
    public grammar features.
-2. The durable runtime is **Stable** for the supported subset documented
-   in ADR-019 (linear activity execution, deterministic `if` branches,
-   `workflow_wait` timer replay).
-3. Out-of-subset features (arbitrary `match` replay, unbounded loops,
-   non-deterministic conditions inside workflows) remain explicit
-   non-goals as ADR-019 §5 specifies. The determinism lint enforces this.
+2. The durable **interpreted** runtime is **Stable** for the body-first
+   subset (`if` / `match` / `for` / `while` / `?`). Generated-Rust
+   durability uses the same engine (`VoxDbTracker`, `__vox_run_workflow`,
+   ADR-021 compile gate) and is no longer Preview-until-Phase-6. Mesh /
+   `PopuliActivity` and nested workflow calls remain out of scope (loud
+   unsupported error, not a silent drop). See
+   [true-workflow-durability-design-2026.md](../architecture/true-workflow-durability-design-2026.md).
+3. Out-of-subset for **generated** Rust may stay linear. Interpreted
+   `match` / loops are in-scope under the determinism lint. Mesh /
+   `PopuliActivity` is out of the 2026-09-06 body-first plan (loud
+   unsupported error, not a silent drop).
 4. The `vox check` CLI gate at the user-facing layer that rejected
    `workflow`/`activity` with `E0001`/`E0002` must be removed in this
    ADR's enactment (Task 7.2/7.3 will surface it; the gate is in

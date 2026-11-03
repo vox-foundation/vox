@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/telemetry-driven-cost-accounting-research-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Telemetry-Driven Cost Accounting Architecture (2026)",
+  "summary": "Implemented system for self-correcting empirical feedback loop reflecting ground-truth spend across LLM providers.",
+  "scope": ["telemetry", "cost accounting", "model pricing", "Scientia", "LLM routing", "budget management"],
+  "cross_refs": ["docs/src/architecture/model-orchestration-ssot-audit-2026.md", "crates/vox-db/src/research_metrics_contract.rs", "crates/vox-cli-ci/src/build_timings.rs", "crates/vox-orchestrator-mcp/src/llm_bridge/infer.rs"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

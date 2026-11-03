@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/orchestrator-companion-audit-findings-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Orchestrator Companion Audit — Non-Routing Surface Critique & Improvement Plan",
+  "summary": "Full-system audit of vox-orchestrator excluding model routing: 280+ numbered improvements across 27 surface clusters, four-axis tagged (risk/capability/hygiene/perf × P0–P3).",
+  "scope": ["orchestrator core", "runtime supervisor", "handoff validation", "event bus", "grounding", "MCP dispatch", "usage tracking", "HTTP gateway", "memory tools", "persistence"],
+  "cross_refs": ["model-orchestration-ssot-audit-2026.md", "nextgen-orchestrator-research-2026.md", "ADR-022"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

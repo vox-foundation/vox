@@ -1,0 +1,25 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/unified-task-hopper-research-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Unified Task Hopper — Research, Design Space, and Recommendation (2026-05-09)",
+  "summary": "Audits unified developer-facing task intake proposal, evaluates three design options (A: lightweight adapter, B: persistent service, C: mesh-native), recommends Option A with forward-compatible persistence schema.",
+  "scope": [
+    "orchestrator",
+    "task intake",
+    "agent queues",
+    "hopper design",
+    "worktree isolation",
+    "VCS automation"
+  ],
+  "cross_refs": [
+    "docs/src/architecture/populi-mesh-north-star-2026.md",
+    "docs/src/architecture/agentic-version-control-automation-research-2026.md",
+    "docs/src/architecture/multi-agent-vcs-replication-spec-2026.md",
+    "docs/src/architecture/nextgen-orchestrator-research-2026.md",
+    "docs/src/architecture/dashboard-migration-research-2026.md"
+  ],
+  "locked": false,
+  "precedence": null
+}

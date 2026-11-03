@@ -1,0 +1,68 @@
+{
+  "kind": "graph",
+  "direction": "right",
+  "nodes": [
+    [
+      "BrowserView Preview tab",
+      "rect",
+      []
+    ],
+    [
+      "OrchestratedViteGuard",
+      "rect",
+      []
+    ],
+    [
+      "iframe localhost URL",
+      "rect",
+      []
+    ],
+    [
+      "preview_start IPC",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "BrowserView Preview tab",
+        "rect",
+        []
+      ],
+      [
+        "preview_start IPC",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "OrchestratedViteGuard",
+        "rect",
+        []
+      ],
+      [
+        "iframe localhost URL",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "preview_start IPC",
+        "rect",
+        []
+      ],
+      [
+        "OrchestratedViteGuard",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

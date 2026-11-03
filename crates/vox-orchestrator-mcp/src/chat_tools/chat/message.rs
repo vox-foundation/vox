@@ -13,9 +13,7 @@ use crate::chat_socrates_meta::{
 };
 use crate::journey_envelope;
 use crate::llm_bridge::{McpChatModelResolution, McpInferRouting, call_llm, call_llm_with_pref};
-use crate::memory::{
-    RetrievalTriggerMode, run_retrieval_bundle, should_trigger_autonomous_research,
-};
+use crate::memory::{RetrievalTriggerMode, run_retrieval_bundle};
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 use crate::session_identity::normalize_chat_session_id;
@@ -108,6 +106,8 @@ struct AgentTurnResult {
     /// when the rationale-carrying resolver produced one. Surfaced to the GUI as
     /// `data.selection_reason` for `ModelBadge`'s tooltip.
     selection_reason: Option<String>,
+    /// The strict pin the model was resolved through (Task 13), if any.
+    pinned: Option<String>,
     /// Chat-turn-visible events derived from tool results this turn (Phase E
     /// Task E1) — empty on every path except the real agent loop
     /// ([`super::agent_loop::run_agent_turn`]), which is the only path that
@@ -218,10 +218,17 @@ pub fn resolution_for_tier(
 /// `params.temperature`/`params.top_p` straight from the request, applied to the
 /// mapped `LlmConfig` exactly as the `call_llm` fallback applies them via
 /// `temperature_override`/`top_p_override`.
+#[allow(clippy::too_many_arguments)]
 async fn try_run_agent_turn(
     state: &ServerState,
     system_prompt: &str,
     user_prompt: &str,
+    // Task 8f: the user's own message for this turn (post-`@mention`-expansion,
+    // pre-context-assembly) — used ONLY for capability-requirement inference
+    // (`McpChatModelResolution::capability_prompt`). `user_prompt` above still
+    // carries the full assembled prompt (history/files/retrieved context) for
+    // everything else, including the actual LLM call below.
+    capability_prompt: &str,
     session_id: &str,
     active_skill_id: Option<String>,
     has_attachment: bool,
@@ -231,6 +238,7 @@ async fn try_run_agent_turn(
     tier: Option<&str>,
     clutch: Option<&str>,
     risk: Option<&str>,
+    web_evidence_supplied: bool,
 ) -> Option<Result<AgentTurnResult, String>> {
     if has_attachment {
         return None;
@@ -265,6 +273,8 @@ async fn try_run_agent_turn(
             context_fill_ratio,
             clutch: clutch.and_then(vox_orchestrator::mode::ClutchProfile::from_label),
             risk: risk.and_then(vox_orchestrator::mode::RiskPosture::from_label),
+            web_evidence_supplied,
+            capability_prompt: Some(capability_prompt.to_string()),
             ..Default::default()
         },
     );
@@ -298,6 +308,24 @@ async fn try_run_agent_turn(
     let model = choice.model;
     let is_free = choice.is_free;
     let selection_reason = choice.rationale;
+    // One `routing_decision` per assistant turn, first in `events`, built only from the resolved
+    // spec, the composer's mode (if it sent one) and a reason that never echoes a requested id
+    // (docs/superpowers/plans/2026-09-28-chat-turn-trace.md).
+    let routing_event = super::turn_events::routing_decision_event(
+        &model,
+        clutch.and_then(vox_orchestrator::mode::ClutchProfile::from_label),
+        &super::turn_events::routing_reason(
+            selection_reason.as_deref(),
+            SelectionSource::classify(
+                request_model_override
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty()),
+                Some(model.id.as_str()),
+                global_pref.as_deref(),
+            ),
+        ),
+    );
+    let pinned = choice.pinned;
 
     let mut llm_config = super::agent_loop::model_spec_to_llm_config(&model)?;
     // Thread sampling overrides through on the mapped path exactly as the
@@ -450,7 +478,10 @@ async fn try_run_agent_turn(
                 model_used: outcome.model_used,
                 tokens: outcome.total_tokens,
                 selection_reason,
-                events: outcome.events,
+                pinned,
+                events: std::iter::once(routing_event)
+                    .chain(outcome.events)
+                    .collect(),
             }))
         }
         Err(e) => Some(Err(e)),
@@ -472,6 +503,25 @@ async fn try_run_agent_turn(
 /// **Cognitive Profile Routing**: Pass `"fast"`, `"reasoning"`, or `"creative"` to influence
 /// model selection and temperature without changing the MCP tool contract.
 pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> String {
+    let hop_started = std::time::Instant::now();
+    let hop_trace = params
+        .trace_id
+        .clone()
+        .or_else(|| params.correlation_id.clone());
+    let hop_turn = params.turn_id.clone();
+    let emit_turn_hop =
+        |session: Option<&str>, success: bool, outcome: crate::chat_hop::TurnOutcome| {
+            crate::chat_hop::record_turn_boundary(
+                state,
+                hop_trace.clone(),
+                hop_turn.clone(),
+                session.map(str::to_string),
+                success,
+                hop_started.elapsed().as_millis() as u64,
+                outcome,
+            );
+        };
+
     // 1. Resolve @mentions in the prompt
     let workspace_root = state
         .workspace_root
@@ -479,6 +529,30 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         .unwrap_or_else(|| std::path::PathBuf::from("."));
     let (expanded_prompt, mention_files) =
         resolve_mentions(&params.prompt, &workspace_root, &state.mention_path_cache);
+    // Research (spec §4) classifies and searches from THIS prompt — the user's own
+    // words, NOT the @mention-expanded text (a mention inlines up to 8000 chars of
+    // file content, whose words must not trip research cues; and dispatch's
+    // `timeout_for_chat_message_args` classifies this same raw prompt, so the two
+    // must agree or a Deep turn gets the ordinary timeout) — and before
+    // `canonicalize_prompt` below wraps it in "Objectives
+    // (treat as a single set; order does not imply priority):\n\n1. ..."
+    // boilerplate for the LLM's own framing. That boilerplate is not the user's
+    // question: fed into a search engine verbatim it returns garbage (observed
+    // live: an astrophysics arXiv dump for a Gemini-model question), and it
+    // swallows a leading `/deepresearch`/`/research` slash command so
+    // `classify_research_intent`'s `strip_command` never matches, forcing every
+    // command onto the heuristic-cue fallback instead of the explicit path.
+    let raw_prompt_for_research = params.prompt.clone();
+    // Research (spec §4): classify from the RAW (pre-canonicalization) prompt —
+    // see the doc comment above — and do it *before* the autonomous-retrieval
+    // preamble below, so the preamble knows whether this turn's numbered
+    // research sources (quick/deep) will already supply web evidence (Task 8d).
+    let intent = super::research_intent::classify_research_intent(
+        &raw_prompt_for_research,
+        params.force_research,
+        params.research_scope.as_deref(),
+    );
+    let mut research_trace = super::research_turn::ResearchTrace::new(intent.clone());
     let (expanded_prompt, canonical_meta) = match prompt_canonical::canonicalize_prompt(
         &expanded_prompt,
         true, // order_invariant
@@ -491,6 +565,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
             (c.text, Some((hash, conflict_count, objective_count)))
         }
         Err(e) => {
+            emit_turn_hop(None, false, crate::chat_hop::TurnOutcome::Unknown);
             return ToolResult::<String>::err_with_remediation(
                 format!("Prompt rejected by safety canonicalizer: {e}"),
                 REM_CHAT_CANONICAL,
@@ -566,172 +641,218 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         context_parts.push(format!("[OPEN FILES]: {}", params.open_files.join(", ")));
     }
 
+    // Check if explicit local knowledgebase search was requested
+    let is_explicit_local_search = expanded_prompt.trim_start().starts_with("/research search")
+        || expanded_prompt.trim_start().starts_with("/research-search")
+        || expanded_prompt
+            .trim_start()
+            .starts_with("/research --search");
+
+    let explicit_search_result = if is_explicit_local_search {
+        let remainder = expanded_prompt
+            .trim_start()
+            .strip_prefix("/research search")
+            .or_else(|| {
+                expanded_prompt
+                    .trim_start()
+                    .strip_prefix("/research-search")
+            })
+            .or_else(|| {
+                expanded_prompt
+                    .trim_start()
+                    .strip_prefix("/research --search")
+            })
+            .unwrap_or(&expanded_prompt)
+            .trim();
+
+        // Parse typed flags: --domain, --min-confidence, --verified-only, --limit
+        let mut query_tokens = Vec::new();
+        let mut domain = None;
+        let mut min_confidence = None;
+        let mut verified_only = None;
+        let mut limit = Some(5);
+
+        let parts = remainder.split_whitespace().collect::<Vec<_>>();
+        let mut idx = 0;
+        while idx < parts.len() {
+            let p = parts[idx];
+            if let Some(val) = p.strip_prefix("--domain=") {
+                domain = Some(val.trim_matches('"').trim_matches('\'').to_string());
+            } else if p == "--domain" && idx + 1 < parts.len() {
+                idx += 1;
+                domain = Some(parts[idx].trim_matches('"').trim_matches('\'').to_string());
+            } else if let Some(val) = p.strip_prefix("--min-confidence=") {
+                min_confidence = val.parse::<f64>().ok();
+            } else if p == "--min-confidence" && idx + 1 < parts.len() {
+                idx += 1;
+                min_confidence = parts[idx].parse::<f64>().ok();
+            } else if let Some(val) = p.strip_prefix("--limit=") {
+                limit = val.parse::<usize>().ok();
+            } else if p == "--limit" && idx + 1 < parts.len() {
+                idx += 1;
+                limit = parts[idx].parse::<usize>().ok();
+            } else if p == "--verified-only" {
+                verified_only = Some(true);
+            } else {
+                query_tokens.push(p);
+            }
+            idx += 1;
+        }
+
+        let clean_query = query_tokens
+            .join(" ")
+            .trim_matches('"')
+            .trim_matches('\'')
+            .trim()
+            .to_string();
+
+        let search_params = crate::memory_tools::ResearchSearchParams {
+            query: clean_query,
+            limit,
+            domain,
+            min_confidence,
+            verified_only,
+        };
+        Some(crate::memory_tools::research_search(state, search_params).await)
+    } else {
+        None
+    };
+
     // 2b/2c. Unified autonomous retrieval injection:
     // Use the same retrieval pipeline as `vox_memory_search` with deterministic fallback
     // (hybrid -> BM25 -> lexical fallback), then append memory + knowledge snippets.
     let mut retrieval_evidence = None;
-    let retrieval_trace = params
-        .trace_id
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .or_else(|| {
-            params
-                .correlation_id
-                .as_deref()
-                .map(str::trim)
-                .filter(|s| !s.is_empty())
-        });
-    match run_retrieval_bundle(
-        state,
-        &expanded_prompt,
-        RetrievalTriggerMode::AutoChatPreamble,
-        3,
-        retrieval_trace,
-    )
-    .await
-    {
-        Ok(bundle) => {
-            if !bundle.rrf_fused_lines.is_empty() {
-                let snippets = bundle
-                    .rrf_fused_lines
-                    .iter()
-                    .map(|h| format!("- {h}"))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                context_parts.push(format!(
-                    "[AUTONOMOUS RESEARCH — RRF FUSION (tier: {})]:\n{snippets}",
-                    bundle.evidence.retrieval_tier
-                ));
+    if explicit_search_result.is_none() {
+        let retrieval_trace = params
+            .trace_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .or_else(|| {
+                params
+                    .correlation_id
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+            });
+        // Task 8d: when this turn's research intent is Quick or Deep, the
+        // numbered research sources below are this turn's web evidence — the
+        // preamble must not inject a second, unnumbered web block the
+        // citation check can't verify. Its memory/KG/chunk/repo/KB legs are
+        // unrelated to web evidence and stay on for every intent.
+        let skip_preamble_web = intent.mode != super::research_intent::ResearchMode::None;
+        if skip_preamble_web {
+            research_trace.push(super::research_turn::StageRecord::new(
+                "preamble",
+                "skipped",
+                None,
+                "autonomous web retrieval skipped: numbered research sources are the web \
+                 evidence this turn"
+                    .to_string(),
+                serde_json::json!({}),
+            ));
+        }
+        match run_retrieval_bundle(
+            state,
+            &expanded_prompt,
+            RetrievalTriggerMode::AutoChatPreamble,
+            3,
+            retrieval_trace,
+            skip_preamble_web,
+        )
+        .await
+        {
+            Ok(bundle) => {
+                if !bundle.rrf_fused_lines.is_empty() {
+                    let snippets = bundle
+                        .rrf_fused_lines
+                        .iter()
+                        .map(|h| format!("- {h}"))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    context_parts.push(format!(
+                        "[AUTONOMOUS RESEARCH — RRF FUSION (tier: {})]:\n{snippets}",
+                        bundle.evidence.retrieval_tier
+                    ));
+                }
+                if !bundle.memory_lines.is_empty() {
+                    let snippets = bundle
+                        .memory_lines
+                        .iter()
+                        .map(|h| format!("- {h}"))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    context_parts.push(format!(
+                        "[AUTONOMOUS RESEARCH — MEMORY (tier: {})]:\n{snippets}",
+                        bundle.evidence.retrieval_tier
+                    ));
+                }
+                if !bundle.knowledge_lines.is_empty() {
+                    let formatted = bundle
+                        .knowledge_lines
+                        .iter()
+                        .map(|n| format!("- {n}"))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    context_parts.push(format!(
+                        "[AUTONOMOUS RESEARCH — KNOWLEDGE GRAPH]:\n{formatted}"
+                    ));
+                }
+                if !bundle.chunk_lines.is_empty() {
+                    let formatted = bundle
+                        .chunk_lines
+                        .iter()
+                        .map(|c| format!("- {c}"))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    context_parts.push(format!(
+                        "[AUTONOMOUS RESEARCH — DOCUMENT CHUNKS]:\n{formatted}"
+                    ));
+                }
+                if !bundle.repo_lines.is_empty() {
+                    let formatted = bundle
+                        .repo_lines
+                        .iter()
+                        .map(|c| format!("- {c}"))
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    context_parts.push(format!("[AUTONOMOUS RESEARCH — REPOSITORY]:\n{formatted}"));
+                }
+                retrieval_evidence = Some(bundle.evidence.clone());
             }
-            if !bundle.memory_lines.is_empty() {
-                let snippets = bundle
-                    .memory_lines
-                    .iter()
-                    .map(|h| format!("- {h}"))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                context_parts.push(format!(
-                    "[AUTONOMOUS RESEARCH — MEMORY (tier: {})]:\n{snippets}",
-                    bundle.evidence.retrieval_tier
-                ));
-            }
-            if !bundle.knowledge_lines.is_empty() {
-                let formatted = bundle
-                    .knowledge_lines
-                    .iter()
-                    .map(|n| format!("- {n}"))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                context_parts.push(format!(
-                    "[AUTONOMOUS RESEARCH — KNOWLEDGE GRAPH]:\n{formatted}"
-                ));
-            }
-            if !bundle.chunk_lines.is_empty() {
-                let formatted = bundle
-                    .chunk_lines
-                    .iter()
-                    .map(|c| format!("- {c}"))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                context_parts.push(format!(
-                    "[AUTONOMOUS RESEARCH — DOCUMENT CHUNKS]:\n{formatted}"
-                ));
-            }
-            if !bundle.repo_lines.is_empty() {
-                let formatted = bundle
-                    .repo_lines
-                    .iter()
-                    .map(|c| format!("- {c}"))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                context_parts.push(format!("[AUTONOMOUS RESEARCH — REPOSITORY]:\n{formatted}"));
-            }
-            retrieval_evidence = Some(bundle.evidence.clone());
-
-            // Check if autonomous deep research should be triggered
-            if should_trigger_autonomous_research(&expanded_prompt, &bundle, params.force_research)
-            {
-                tracing::info!("Triggering autonomous research for additional context");
-                let scope = params.research_scope.as_deref().unwrap_or("both");
-
-                // Spawn autonomous research execution
-                let queries = vec![expanded_prompt.clone()];
-                let trigger_reason = format!(
-                    "Chat context injection (forced: {:?}, scope: {})",
-                    params.force_research, scope
+            Err(e) => {
+                tracing::debug!(
+                    target: "vox_mcp::autonomous_research",
+                    error = %e,
+                    "autonomous retrieval injection failed — continuing without injected context"
                 );
-
-                match state
-                    .orchestrator
-                    .perform_autonomous_research(None, None, queries, &trigger_reason)
-                    .await
-                {
-                    Ok(results) => {
-                        if !results.is_empty() {
-                            let formatted = results.join("\n");
-                            context_parts.push(format!(
-                                "[AUTONOMOUS RESEARCH — SYNTHESIS SUMMARY]:\n{formatted}"
-                            ));
-                            tracing::info!(
-                                count = results.len(),
-                                "Autonomous research results injected successfully"
-                            );
-                        }
-                    }
-                    Err(err) => {
-                        tracing::warn!(error = %err, "Autonomous research execution failed");
-                    }
-                }
             }
-            if !bundle.kb_lines.is_empty() {
-                let formatted = bundle
-                    .kb_lines
-                    .iter()
-                    .map(|c| format!("- {c}"))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                context_parts.push(format!(
-                    "[AUTONOMOUS RESEARCH — KNOWLEDGE BASE]:\n{formatted}"
-                ));
-            }
-        }
-        Err(e) => {
-            tracing::debug!(
-                target: "vox_mcp::autonomous_research",
-                error = %e,
-                "autonomous retrieval injection failed — continuing without injected context"
-            );
         }
     }
 
-    let kb_mention_lines = if let Some(db) = state.db.clone() {
-        use vox_orchestrator::knowledge_base::store::KbStore;
-        let mentioned_names = crate::memory::parse_kb_mentions(&expanded_prompt);
-        if mentioned_names.is_empty() {
-            Vec::new()
+    // Research (spec §4): intent was classified above (before the preamble);
+    // run quick/deep now — every turn already has a trace.
+    let mut deep_answer: Option<Result<String, String>> = None;
+    if explicit_search_result.is_none() && vox_orchestrator::is_chat_research_enabled() {
+        match intent.mode {
+            super::research_intent::ResearchMode::None => {}
+            super::research_intent::ResearchMode::Quick => {
+                let block = super::research_turn::run_quick(state, &mut research_trace).await;
+                context_parts.push(block);
+            }
+            super::research_intent::ResearchMode::Deep => {
+                deep_answer =
+                    Some(super::research_turn::run_deep(state, &mut research_trace).await);
+            }
+        }
+    }
+    // Slash commands: the model sees the question, not "/research …".
+    let expanded_prompt =
+        if intent.explicit && intent.mode != super::research_intent::ResearchMode::None {
+            intent.query.clone()
         } else {
-            let store = KbStore::new(db);
-            let kbs = store.list().await.unwrap_or_default();
-            let mut lines = Vec::new();
-            for name in &mentioned_names {
-                if let Some(kb) = kbs.iter().find(|k| k.name.to_ascii_lowercase() == *name) {
-                    let entries = store.list_entries(&kb.id, 10, 0).await.unwrap_or_default();
-                    for e in entries {
-                        lines.push(format!("[KB:{}] {}", kb.name, e.content));
-                    }
-                }
-            }
-            lines
-        }
-    } else {
-        Vec::new()
-    };
-
-    if !kb_mention_lines.is_empty() {
-        let formatted = kb_mention_lines.join("\n");
-        context_parts.push(format!("[MENTIONED KNOWLEDGE BASES]:\n{formatted}"));
-    }
+            expanded_prompt
+        };
 
     let all_context_files: Vec<String> = {
         let mut v = params.context_files.clone();
@@ -815,227 +936,300 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     );
     let llm_started = std::time::Instant::now();
 
-    let (response_text, model_used, tokens, selection_reason, events) = match params
-        .cognitive_profile
-        .as_deref()
+    // The strict pin the chat model resolved through (Task 13) — set only by
+    // the agent-loop path, the one that carries the resolver's `McpModelChoice`.
+    let mut chat_pin: Option<String> = None;
+    let (response_text, model_used, tokens, selection_reason, mut events) = if let Some(deep) =
+        deep_answer
     {
-        Some(profile) => {
-            let resolution_template = McpChatModelResolution {
-                allow_cheapest_fallback: profile == "fast",
-                complexity: match profile {
-                    "reasoning" => 9,
-                    "creative" => 7,
-                    _ => 5,
-                },
-                ..Default::default()
-            };
-            let profile_complexity = resolution_template.complexity;
-            let base_temperature = if profile == "creative" {
-                0.8_f32
-            } else {
-                0.3_f32
-            };
-            match resolve_chat_llm_model(
-                state,
-                &user_prompt,
-                resolution_template.clone(),
-                Some(session_id.as_str()),
-            )
-            .await
-            {
-                Ok((model, free_only)) => {
-                    let pref = effective_model_pref(
-                        params.model_override.as_deref(),
-                        match crate::sync_poison::poison_rw_read(
-                            state.mcp_chat_model_override.read(),
-                            "mcp_chat_model_override",
-                        ) {
-                            Ok(g) => g.clone(),
+        match deep {
+            Ok(answer) => (
+                answer,
+                research_trace.model.clone().unwrap_or_default(),
+                0u64,
+                Some("deep research pipeline synthesis".to_string()),
+                vec![],
+            ),
+            Err(e) => (
+                // Status message, not an answer: the trace shows the failing stage and the sources.
+                format!(
+                    "Deep research failed: {e}\n\nNo answer was generated. The research trace below shows which stage failed and what was retrieved."
+                ),
+                "none".to_string(),
+                0u64,
+                Some("deep research failed".to_string()),
+                vec![],
+            ),
+        }
+    } else if let Some(local_res) = explicit_search_result {
+        (
+            local_res,
+            "local/knowledgebase-fts5".to_string(),
+            0u64,
+            Some("Zero-cost local knowledgebase search".to_string()),
+            vec![],
+        )
+    } else {
+        match params.cognitive_profile.as_deref() {
+            Some(profile) => {
+                let resolution_template = McpChatModelResolution {
+                    allow_cheapest_fallback: profile == "fast",
+                    complexity: match profile {
+                        "reasoning" => 9,
+                        "creative" => 7,
+                        _ => 5,
+                    },
+                    // See `try_run_agent_turn`'s call site: same reasoning, quick
+                    // research already supplied evidence for this turn.
+                    web_evidence_supplied: !research_trace.sources.is_empty(),
+                    // Task 8f: infer capability requirements from the user's own
+                    // message, not the assembled `user_prompt` used below for the
+                    // actual LLM call.
+                    capability_prompt: Some(expanded_prompt.clone()),
+                    ..Default::default()
+                };
+                let profile_complexity = resolution_template.complexity;
+                let base_temperature = if profile == "creative" {
+                    0.8_f32
+                } else {
+                    0.3_f32
+                };
+                match resolve_chat_llm_model(
+                    state,
+                    &user_prompt,
+                    resolution_template.clone(),
+                    Some(session_id.as_str()),
+                )
+                .await
+                {
+                    Ok((model, free_only)) => {
+                        let pref = effective_model_pref(
+                            params.model_override.as_deref(),
+                            match crate::sync_poison::poison_rw_read(
+                                state.mcp_chat_model_override.read(),
+                                "mcp_chat_model_override",
+                            ) {
+                                Ok(g) => g.clone(),
+                                Err(e) => {
+                                    tracing::warn!(error = %e, "mcp_chat_model_override poisoned");
+                                    None
+                                }
+                            }
+                            .as_deref(),
+                        );
+                        let max_tokens =
+                            crate::llm_bridge::clamp_http_max_output_tokens(model.max_tokens);
+                        let routing = McpInferRouting {
+                            user_prompt: &user_prompt,
+                            sticky_model_pref: pref.as_deref(),
+                            resolution_template,
+                            free_only,
+                            allow_cloud_ollama_fallback: true,
+                            selection_rationale: None,
+                            user_id: Some(session_id.as_str()),
+                        };
+                        match crate::llm_bridge::mcp_infer_completion(
+                            state,
+                            model,
+                            "vox_chat_message",
+                            &system_prompt,
+                            &routing,
+                            max_tokens,
+                            base_temperature,
+                            params.temperature,
+                            params.top_p,
+                            params.json_mode,
+                            params.attachment_manifest.clone(),
+                        )
+                        .await
+                        {
+                            // `mcp_infer_completion` doesn't surface a selection rationale
+                            // (its `McpInferRouting.selection_rationale` above is `None`
+                            // on the cognitive-profile path); record a truthful reason for
+                            // *why* there's no rationale rather than leaving it a silent
+                            // `None` — see Phase B Task B1.
+                            Ok(r) => (
+                                r.0,
+                                r.1,
+                                r.2,
+                                Some(format!(
+                                    "cognitive profile '{profile}' \u{2192} complexity {profile_complexity}; rationale not surfaced"
+                                )),
+                                vec![],
+                            ),
                             Err(e) => {
-                                tracing::warn!(error = %e, "mcp_chat_model_override poisoned");
-                                None
+                                emit_turn_hop(
+                                    Some(session_id.as_str()),
+                                    false,
+                                    crate::chat_hop::turn_outcome_for_dispatch_err(&e),
+                                );
+                                return ToolResult::<String>::err_with_remediation(
+                                    format!("LLM error: {e}"),
+                                    REM_LLM_COMPLETION,
+                                )
+                                .to_json();
                             }
                         }
-                        .as_deref(),
-                    );
-                    let max_tokens =
-                        crate::llm_bridge::clamp_http_max_output_tokens(model.max_tokens);
-                    let routing = McpInferRouting {
-                        user_prompt: &user_prompt,
-                        sticky_model_pref: pref.as_deref(),
-                        resolution_template,
-                        free_only,
-                        allow_cloud_ollama_fallback: true,
-                        selection_rationale: None,
-                        user_id: Some(session_id.as_str()),
-                    };
-                    match crate::llm_bridge::mcp_infer_completion(
-                        state,
-                        model,
-                        "vox_chat_message",
-                        &system_prompt,
-                        &routing,
-                        max_tokens,
-                        base_temperature,
-                        params.temperature,
-                        params.top_p,
-                        params.json_mode,
-                        params.attachment_manifest.clone(),
-                    )
-                    .await
-                    {
-                        // `mcp_infer_completion` doesn't surface a selection rationale
-                        // (its `McpInferRouting.selection_rationale` above is `None`
-                        // on the cognitive-profile path); record a truthful reason for
-                        // *why* there's no rationale rather than leaving it a silent
-                        // `None` — see Phase B Task B1.
-                        Ok(r) => (
-                            r.0,
-                            r.1,
-                            r.2,
-                            Some(format!(
-                                "cognitive profile '{profile}' \u{2192} complexity {profile_complexity}; rationale not surfaced"
-                            )),
-                            vec![],
-                        ),
-                        Err(e) => {
-                            return ToolResult::<String>::err_with_remediation(
-                                format!("LLM error: {e}"),
-                                REM_LLM_COMPLETION,
-                            )
-                            .to_json();
-                        }
                     }
-                }
-                Err(e) => {
-                    tracing::warn!(
-                        target: "vox_mcp::cognitive_routing",
-                        profile,
-                        error = %e,
-                        "cognitive profile model resolution failed — using standard routing"
-                    );
-                    match call_llm(
-                        state,
-                        &system_prompt,
-                        &user_prompt,
-                        Some(session_id.as_str()),
-                        params.temperature,
-                        params.top_p,
-                        params.attachment_manifest.clone(),
-                    )
-                    .await
-                    {
-                        Ok(r) => (
-                            r.0,
-                            r.1,
-                            r.2,
-                            Some(format!(
-                                "Fallback: cognitive-profile resolution failed ({e})"
-                            )),
-                            vec![],
-                        ),
-                        Err(e2) => {
-                            return ToolResult::<String>::err_with_remediation(
-                                format!("LLM error: {e2}"),
-                                REM_LLM_COMPLETION,
-                            )
-                            .to_json();
+                    Err(e) => {
+                        tracing::warn!(
+                            target: "vox_mcp::cognitive_routing",
+                            profile,
+                            error = %e,
+                            "cognitive profile model resolution failed — using standard routing"
+                        );
+                        match call_llm(
+                            state,
+                            &system_prompt,
+                            &user_prompt,
+                            Some(session_id.as_str()),
+                            params.temperature,
+                            params.top_p,
+                            params.attachment_manifest.clone(),
+                            // Task 8f: cognitive-profile resolution failed, but this
+                            // fallback still infers capabilities from the user's own
+                            // message, not from `user_prompt` (the assembled prompt
+                            // with injected history/open-files/retrieved/web context).
+                            Some(&expanded_prompt),
+                        )
+                        .await
+                        {
+                            Ok(r) => (
+                                r.0,
+                                r.1,
+                                r.2,
+                                Some(format!(
+                                    "Fallback: cognitive-profile resolution failed ({e})"
+                                )),
+                                vec![],
+                            ),
+                            Err(e2) => {
+                                emit_turn_hop(
+                                    Some(session_id.as_str()),
+                                    false,
+                                    crate::chat_hop::TurnOutcome::LlmError,
+                                );
+                                return ToolResult::<String>::err_with_remediation(
+                                    format!("LLM error: {e2}"),
+                                    REM_LLM_COMPLETION,
+                                )
+                                .to_json();
+                            }
                         }
                     }
                 }
             }
-        }
-        // Default (no cognitive_profile) chat path: Task 1.3d (F24 wiring). Attempt
-        // the tool-calling agent loop (Task 1.3c) whenever the resolved model maps
-        // to a simple provider shape and no multimodal attachment is present (the
-        // mapper does not handle vision/attachment content — see
-        // `super::agent_loop::model_spec_to_llm_config`). Otherwise fall back to
-        // the existing `call_llm` -> `mcp_infer_completion` pipeline unchanged,
-        // which still handles every other provider plus vision/budget/fallback.
-        None => match try_run_agent_turn(
-            state,
-            &system_prompt,
-            &user_prompt,
-            session_id.as_str(),
-            params.skill.clone(),
-            params.attachment_manifest.is_some(),
-            params.temperature,
-            params.top_p,
-            params.model_override.as_deref(),
-            params.tier.as_deref(),
-            params.clutch.as_deref(),
-            params.risk.as_deref(),
-        )
-        .await
-        {
-            Some(Ok(r)) => (r.text, r.model_used, r.tokens, r.selection_reason, r.events),
-            Some(Err(e)) => {
-                return ToolResult::<String>::err_with_remediation(
-                    format!("LLM error: {e}"),
-                    REM_LLM_COMPLETION,
-                )
-                .to_json();
-            }
-            // Bug 2 fix: `try_run_agent_turn` already resolved (or tried to
-            // resolve) this turn's model using `params.model_override` /
-            // `params.tier`. Falling through to plain `call_llm` here used to
-            // silently discard both and re-resolve from only the
-            // process-global override with `allow_cheapest_fallback: true`
-            // unconditionally and no free-tier enforcement -- a different
-            // model could be picked with no error surfaced, and a `tier:
-            // "local"` request could silently escape free-tier enforcement.
-            // `call_llm_with_pref` threads the same per-request pref/tier
-            // through so this fallback resolves consistently with the path
-            // that just failed, instead of picking an unrelated model.
-            None => match call_llm_with_pref(
+            // Default (no cognitive_profile) chat path: Task 1.3d (F24 wiring). Attempt
+            // the tool-calling agent loop (Task 1.3c) whenever the resolved model maps
+            // to a simple provider shape and no multimodal attachment is present (the
+            // mapper does not handle vision/attachment content — see
+            // `super::agent_loop::model_spec_to_llm_config`). Otherwise fall back to
+            // the existing `call_llm` -> `mcp_infer_completion` pipeline unchanged,
+            // which still handles every other provider plus vision/budget/fallback.
+            None => match try_run_agent_turn(
                 state,
                 &system_prompt,
                 &user_prompt,
-                Some(session_id.as_str()),
+                // Task 8f: capability requirements come from the user's own
+                // message (`expanded_prompt`), not the assembled `user_prompt`
+                // above (which carries `[CONVERSATION HISTORY]`/`[OPEN FILES]`/
+                // retrieved and web-research context).
+                &expanded_prompt,
+                session_id.as_str(),
+                params.skill.clone(),
+                params.attachment_manifest.is_some(),
                 params.temperature,
                 params.top_p,
-                params.attachment_manifest.clone(),
                 params.model_override.as_deref(),
                 params.tier.as_deref(),
+                params.clutch.as_deref(),
+                params.risk.as_deref(),
+                // Quick research already ran web retrieval and injected numbered
+                // sources into `user_prompt` — the model doesn't need its own
+                // built-in web search capability for this turn (D-fix: see
+                // `McpChatModelResolution::web_evidence_supplied`).
+                !research_trace.sources.is_empty(),
             )
             .await
             {
-                // `call_llm_with_pref` resolves via the rationale-carrying resolver
-                // internally but doesn't return the rationale through its
-                // `(String, String, u64)` return type — out of scope for this task
-                // (see `try_run_agent_turn`'s doc comment). Record a truthful reason
-                // for the missing detail rather than a silent `None`.
-                Ok(r) => (
-                    r.0,
-                    r.1,
-                    r.2,
-                    Some("Fallback: attachment present, or provider shape unmapped".to_string()),
-                    vec![],
-                ),
-                Err(e) => {
+                Some(Ok(r)) => {
+                    chat_pin = r.pinned;
+                    (r.text, r.model_used, r.tokens, r.selection_reason, r.events)
+                }
+                Some(Err(e)) => {
+                    emit_turn_hop(
+                        Some(session_id.as_str()),
+                        false,
+                        crate::chat_hop::turn_outcome_for_dispatch_err(&e),
+                    );
                     return ToolResult::<String>::err_with_remediation(
                         format!("LLM error: {e}"),
                         REM_LLM_COMPLETION,
                     )
                     .to_json();
                 }
+                // Bug 2 fix: `try_run_agent_turn` already resolved (or tried to
+                // resolve) this turn's model using `params.model_override` /
+                // `params.tier`. Falling through to plain `call_llm` here used to
+                // silently discard both and re-resolve from only the
+                // process-global override with `allow_cheapest_fallback: true`
+                // unconditionally and no free-tier enforcement -- a different
+                // model could be picked with no error surfaced, and a `tier:
+                // "local"` request could silently escape free-tier enforcement.
+                // `call_llm_with_pref` threads the same per-request pref/tier
+                // through so this fallback resolves consistently with the path
+                // that just failed, instead of picking an unrelated model.
+                None => match call_llm_with_pref(
+                    state,
+                    &system_prompt,
+                    &user_prompt,
+                    Some(session_id.as_str()),
+                    params.temperature,
+                    params.top_p,
+                    params.attachment_manifest.clone(),
+                    params.model_override.as_deref(),
+                    params.tier.as_deref(),
+                    // Task 8f: this is the attachment/non-agent-loop fallback
+                    // (`try_run_agent_turn` returned `None`) — it must infer
+                    // capability requirements from the user's own message too,
+                    // not from `user_prompt` (the assembled prompt with
+                    // history/open-files/retrieved/web context).
+                    Some(&expanded_prompt),
+                )
+                .await
+                {
+                    // `call_llm_with_pref` resolves via the rationale-carrying resolver
+                    // internally but doesn't return the rationale through its
+                    // `(String, String, u64)` return type — out of scope for this task
+                    // (see `try_run_agent_turn`'s doc comment). Record a truthful reason
+                    // for the missing detail rather than a silent `None`.
+                    Ok(r) => (
+                        r.0,
+                        r.1,
+                        r.2,
+                        Some(
+                            "Fallback: attachment present, or provider shape unmapped".to_string(),
+                        ),
+                        vec![],
+                    ),
+                    Err(e) => {
+                        emit_turn_hop(
+                            Some(session_id.as_str()),
+                            false,
+                            crate::chat_hop::turn_outcome_for_dispatch_err(&e),
+                        );
+                        return ToolResult::<String>::err_with_remediation(
+                            format!("LLM error: {e}"),
+                            REM_LLM_COMPLETION,
+                        )
+                        .to_json();
+                    }
+                },
             },
-        },
+        }
     };
 
-    // KB signal adapter: fire-and-forget after response is assembled
-    if let Some(db) = state.db.clone() {
-        let content_for_kb = response_text.clone();
-        let session_ref = session_id.clone();
-        tokio::spawn(async move {
-            crate::kb::signal_chat::ingest_chat_turn(
-                db,
-                &content_for_kb,
-                Some(session_ref.as_str()),
-            )
-            .await;
-        });
-    }
+    // TRUST-03: model output is never written back into the knowledge base from a chat turn.
 
     let chat_q_key =
         mcp_questioning_session_key(state, "vox_chat_message", Some(session_id.as_str()));
@@ -1280,8 +1474,13 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         if vox_gamify::config_gate::is_enabled() {
             let _ = vox_gamify::event_router::route_event_auto_user(db, &payload).await;
         } else {
-            let _ =
-                vox_gamify::db::insert_event(db, "0", "llm_turn", Some(&payload.to_string())).await;
+            let _ = vox_db::ops_agent_telemetry::insert_event(
+                db,
+                "0",
+                "llm_turn",
+                Some(&payload.to_string()),
+            )
+            .await;
         }
     }
 
@@ -1398,6 +1597,22 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         selection_reason.clone(),
     );
 
+    // Task 13: the chat role's model — the pin it was requested as (if the
+    // strict-pin branch applied one) and the id that answered. A deep turn's
+    // answer comes from the research roles, not chat.
+    if intent.mode != super::research_intent::ResearchMode::Deep && !model_used.is_empty() {
+        research_trace.set_chat_model(chat_pin.as_deref(), &model_used);
+    }
+    if intent.mode == super::research_intent::ResearchMode::Quick {
+        let check =
+            super::research_turn::check_citations(&response_text, research_trace.sources.len());
+        research_trace.push(super::research_turn::citation_stage(
+            &check,
+            research_trace.sources.len(),
+        ));
+    }
+    events.insert(0, research_trace.to_event());
+
     let result = serde_json::json!({
         "message": asst_msg,
         "history": history,
@@ -1411,6 +1626,19 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         "retrieval": retrieval_evidence,
         "events": events,
     });
+
+    let turn_outcome = if response_text.contains("cut off after")
+        && response_text.contains("tool-use round-trips")
+    {
+        crate::chat_hop::TurnOutcome::IterationLimit
+    } else {
+        crate::chat_hop::TurnOutcome::Ok
+    };
+    emit_turn_hop(
+        Some(session_id.as_str()),
+        matches!(turn_outcome, crate::chat_hop::TurnOutcome::Ok),
+        turn_outcome,
+    );
 
     ToolResult::ok(result).to_json()
 }
@@ -1572,6 +1800,7 @@ mod tests {
             &state,
             "system prompt",
             "hello",
+            "hello",
             "default-path-test",
             None,
             false,
@@ -1581,6 +1810,7 @@ mod tests {
             None,
             None,
             None,
+            false,
         )
         .await;
 
@@ -1599,6 +1829,118 @@ mod tests {
         assert!(
             err.to_lowercase().contains("budget"),
             "expected error to mention budget, got: {err}"
+        );
+        assert_eq!(
+            crate::chat_hop::turn_outcome_for_dispatch_err(&err),
+            crate::chat_hop::TurnOutcome::BudgetDenied,
+            "budget guard refusal must classify as BudgetDenied, not LlmError"
+        );
+    }
+
+    /// Task 8f, fix round 2: when `resolve_chat_llm_model` errors, `chat_message`'s
+    /// `cognitive_profile` branch falls through to plain `call_llm(state,
+    /// &system_prompt, &user_prompt, ...)` — `user_prompt` there is the fully
+    /// assembled prompt (history/open-files/`[SELECTED TEXT]`/retrieved/web
+    /// context). This must still infer capabilities from the user's own message
+    /// (`expanded_prompt`), not from that assembled prompt.
+    ///
+    /// Forces `resolve_chat_llm_model` to error via an exceeded daily budget —
+    /// `resolve_chat_llm_model` calls `enforce_budget_guard` *before* any model
+    /// resolution work, so it fails deterministically and hermetically (no
+    /// network reachable: no HTTP mock is even needed, since the fallback
+    /// `call_llm` call below also hits `mcp_infer_completion`'s own budget gate
+    /// before any dispatch). `params.selected_text` injects "latest news" into
+    /// `context_parts` (`[SELECTED TEXT]`) without needing multi-turn history —
+    /// the user's actual message (`prompt`) is "refactor this", with no
+    /// web-search cue. An error mentioning "budget" (not "capability"/"not
+    /// allowed") proves resolution accepted the pinned web-incapable model
+    /// despite "latest news" sitting in the injected `[SELECTED TEXT]` block.
+    #[tokio::test]
+    #[serial]
+    async fn cognitive_profile_fallback_infers_capabilities_from_users_message_not_injected_context()
+     {
+        let prior = std::env::var("VOX_BUDGET_USD").ok();
+        // SAFETY: `#[serial]` — no concurrent env mutation in this crate's tests.
+        unsafe { std::env::set_var("VOX_BUDGET_USD", "0.01") };
+        vox_config::snapshot::bump(&["VOX_BUDGET_USD"]);
+
+        let db = VoxDb::connect(DbConfig::Memory)
+            .await
+            .expect("open in-memory db");
+        db.record_llm_outcome(ModelOutcome {
+            session_id: "cognitive-fallback-capability-test",
+            user_id: None,
+            tenant_id: None,
+            prompt: "p",
+            response: "r",
+            model_id: "m",
+            provider: "openrouter",
+            task_category: "general",
+            strength_tag: "generalist",
+            latency_ms: Some(10),
+            input_tokens: Some(5),
+            output_tokens: Some(5),
+            cache_read_tokens: Some(0),
+            trace_id: None,
+            context_utilization_pct: None,
+            success: true,
+            cost_usd: Some(0.02),
+            quality_score: Some(1.0),
+            ttft_ms: None,
+            tpot_ms: None,
+        })
+        .await
+        .expect("record spend");
+
+        let state = ServerState::new_test()
+            .await
+            .with_db_initialized(Arc::new(db))
+            .await;
+
+        // Web-incapable model, pinned via the sticky override so the fallback
+        // `call_llm`'s resolution takes the id-lookup branch (no scored
+        // selection, no API key dependency).
+        let model_id = "cognitive-fallback-web-incapable";
+        {
+            let handle = state.orchestrator.models_handle();
+            handle
+                .write()
+                .expect("models lock")
+                .register(model_spec(ProviderType::OpenRouter, model_id));
+        }
+        *state.mcp_chat_model_override.write() = Some(model_id.to_string());
+
+        let params: ChatMessageParams = serde_json::from_value(serde_json::json!({
+            "prompt": "refactor this",
+            "selected_text": "what's the latest news on rust async?",
+            "cognitive_profile": "fast",
+            "session_id": "cognitive-fallback-capability-test",
+        }))
+        .expect("chat message params");
+
+        let response_json = chat_message(&state, params).await;
+
+        // SAFETY: `#[serial]` — restore prior env state before asserting/panicking.
+        unsafe {
+            match &prior {
+                Some(v) => std::env::set_var("VOX_BUDGET_USD", v),
+                None => std::env::remove_var("VOX_BUDGET_USD"),
+            }
+        }
+        vox_config::snapshot::bump(&["VOX_BUDGET_USD"]);
+
+        let parsed: serde_json::Value =
+            serde_json::from_str(&response_json).expect("chat_message must return valid JSON");
+        assert_eq!(
+            parsed["success"], false,
+            "budget-exceeded turn must fail: {response_json}"
+        );
+        let err = parsed["error"].as_str().unwrap_or_default();
+        assert!(
+            err.to_lowercase().contains("budget"),
+            "expected a budget error (proving capability resolution accepted the pinned \
+             web-incapable model despite \"latest news\" in injected [SELECTED TEXT]) — got a \
+             capability-gate or other error instead: {response_json}"
         );
     }
 
@@ -1670,6 +2012,197 @@ mod tests {
             data.get("latency_ms").and_then(|v| v.as_u64()).is_some(),
             "chat_message envelope `data` must carry a `latency_ms` field for ModelBadge: {response_json}"
         );
+    }
+
+    #[tokio::test]
+    #[allow(unsafe_code)]
+    #[allow(clippy::await_holding_lock)]
+    async fn every_turn_carries_a_research_trace_event() {
+        let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(plain_response_body("hello back")),
+            )
+            .mount(&server)
+            .await;
+        let prev_base = std::env::var("OPENROUTER_BASE_URL").ok();
+        let prev_key = std::env::var("OPENROUTER_API_KEY").ok();
+        unsafe {
+            std::env::set_var("OPENROUTER_BASE_URL", server.uri());
+            std::env::set_var("OPENROUTER_API_KEY", "test-key");
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+        let state = test_state();
+        let model_id = "test-openrouter-model-trace";
+        {
+            let handle = state.orchestrator.models_handle();
+            handle
+                .write()
+                .expect("models lock")
+                .register(model_spec(ProviderType::OpenRouter, model_id));
+        }
+        *state.mcp_chat_model_override.write() = Some(model_id.to_string());
+
+        let params: ChatMessageParams =
+            serde_json::from_value(serde_json::json!({ "prompt": "hi" })).expect("params");
+        let response_json = chat_message(&state, params).await;
+
+        unsafe {
+            match prev_base {
+                Some(v) => std::env::set_var("OPENROUTER_BASE_URL", v),
+                None => std::env::remove_var("OPENROUTER_BASE_URL"),
+            }
+            match prev_key {
+                Some(v) => std::env::set_var("OPENROUTER_API_KEY", v),
+                None => std::env::remove_var("OPENROUTER_API_KEY"),
+            }
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+
+        let parsed: serde_json::Value = serde_json::from_str(&response_json).expect("json");
+        assert_eq!(parsed["success"], true, "{response_json}");
+        let ev = &parsed["data"]["events"][0];
+        assert_eq!(ev["kind"], "research_trace", "{response_json}");
+        assert_eq!(ev["mode"], "none");
+        assert_eq!(ev["stages"][0]["stage"], "detection");
+        // D1 regression: a greeting must not reach web retrieval.
+        assert!(
+            ev["stages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|s| s["stage"] != "retrieval"),
+            "{ev}"
+        );
+        // Task 8d: a None-intent turn has no numbered research sources to
+        // conflict with, so the autonomous-retrieval preamble keeps its web
+        // leg and must NOT record a "preamble" skipped stage.
+        assert!(
+            ev["stages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|s| s["stage"] != "preamble"),
+            "{ev}"
+        );
+    }
+
+    /// Task 8d: on a Quick-intent turn, the numbered research sources
+    /// (`run_quick`) are this turn's web evidence, so the autonomous-retrieval
+    /// preamble must skip its own web leg and record why. Mutation guard: if
+    /// the `skip_preamble_web` gate in `chat_message` (or the
+    /// `web_research_enabled` seam it sets on `run_retrieval_bundle`'s policy)
+    /// is removed, this test's `preamble` stage assertion fails.
+    #[tokio::test]
+    #[allow(unsafe_code)]
+    #[allow(clippy::await_holding_lock)]
+    async fn quick_research_turn_skips_the_preamble_web_leg() {
+        let _env_guard = CHAT_MESSAGE_ENV_LOCK.lock().expect("env lock");
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(plain_response_body("no sources found")),
+            )
+            .mount(&server)
+            .await;
+        let prev_base = std::env::var("OPENROUTER_BASE_URL").ok();
+        let prev_key = std::env::var("OPENROUTER_API_KEY").ok();
+        let model_id = "test-openrouter-model-preamble-skip";
+        unsafe {
+            std::env::set_var("OPENROUTER_BASE_URL", server.uri());
+            std::env::set_var("OPENROUTER_API_KEY", "test-key");
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+        let state = test_state();
+        {
+            let handle = state.orchestrator.models_handle();
+            let mut spec = model_spec(ProviderType::OpenRouter, model_id);
+            // Task 8e fix round 1: this test used to also force the process
+            // env var `VOX_MODEL_FORCE` to this model id, purely to keep
+            // resolution deterministic against a host `~/.vox/config.toml`
+            // pin (see the removed comment in git blame). That workaround is
+            // now redundant — `vox-orchestrator-mcp`'s hermetic test ctor
+            // (`src/lib.rs`) points `VOX_HOME` at an empty temp dir before any
+            // test runs, so `~/.vox/config.toml` can never supply
+            // `VOX_MODEL_FORCE` here — and it raced: mutating a process-wide
+            // env var under `CHAT_MESSAGE_ENV_LOCK` does not serialize
+            // against `llm_bridge::model_route_policy::tests`' *different*
+            // `INFERENCE_PROFILE_TEST_LOCK`, so those tests could
+            // transiently observe this model id as a strict pin and fail.
+            // `mcp_chat_model_override` below (private per-`ServerState`
+            // state, no cross-test env race) is exactly the sticky-pref path
+            // every other test in this file already uses, and reaches the
+            // same capability gate `caps_ok` enforces on the strict-pin path
+            // — so keep the full-capability grant to prove this test's
+            // subject (the research trace) does not accidentally depend on
+            // it.
+            spec.capabilities = vox_orchestrator::models::ModelCapabilities {
+                supports_json: true,
+                supports_vision: true,
+                supports_native_tools: true,
+                supports_tool_use: true,
+                supports_reasoning: true,
+                supports_web_search: true,
+                supports_image_generation: true,
+                supports_audio_input: true,
+                supports_audio_output: true,
+                supports_file_input: true,
+                supports_jsonl: true,
+                writes_vox: true,
+                ..vox_orchestrator::models::ModelCapabilities::default()
+            };
+            handle.write().expect("models lock").register(spec);
+        }
+        *state.mcp_chat_model_override.write() = Some(model_id.to_string());
+
+        // Explicit `/research` is classified Quick regardless of heuristic
+        // cues (see `research_intent::classify_research_intent`), so this
+        // turn's mode is deterministic without depending on wording heuristics.
+        let params: ChatMessageParams = serde_json::from_value(serde_json::json!({
+            "prompt": "/research latest tokio release"
+        }))
+        .expect("params");
+        let response_json = chat_message(&state, params).await;
+
+        unsafe {
+            match prev_base {
+                Some(v) => std::env::set_var("OPENROUTER_BASE_URL", v),
+                None => std::env::remove_var("OPENROUTER_BASE_URL"),
+            }
+            match prev_key {
+                Some(v) => std::env::set_var("OPENROUTER_API_KEY", v),
+                None => std::env::remove_var("OPENROUTER_API_KEY"),
+            }
+        }
+        vox_config::snapshot::bump(&["OPENROUTER_BASE_URL"]);
+
+        let parsed: serde_json::Value = serde_json::from_str(&response_json).expect("json");
+        assert_eq!(parsed["success"], true, "{response_json}");
+        let ev = &parsed["data"]["events"][0];
+        assert_eq!(ev["kind"], "research_trace", "{response_json}");
+        assert_eq!(ev["mode"], "quick", "{ev}");
+        let stages = ev["stages"].as_array().unwrap();
+        let preamble = stages
+            .iter()
+            .find(|s| s["stage"] == "preamble")
+            .unwrap_or_else(|| panic!("expected a preamble stage in the trace: {ev}"));
+        assert_eq!(preamble["status"], "skipped", "{preamble}");
+        assert_eq!(
+            preamble["summary"],
+            "autonomous web retrieval skipped: numbered research sources are the web \
+             evidence this turn",
+            "{preamble}"
+        );
+        // Task 13: the chat role's model is recorded as the id the provider
+        // reported ("test-model" in the mock body) — not a strict pin here
+        // (sticky override), so no requested pin.
+        assert_eq!(
+            ev["models"],
+            serde_json::json!([{"role": "chat", "requested": null, "resolved": "test-model"}]),
+            "{ev}"
+        );
+        assert_eq!(ev["model"], "test-model", "{ev}");
     }
 
     /// Regression test for the "attention budget meter never increments during
@@ -1947,3 +2480,11 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "message_turn_trace_tests.rs"]
+mod turn_trace_tests;
+
+#[cfg(test)]
+#[path = "message_kb_leak_tests.rs"]
+mod kb_leak_tests;

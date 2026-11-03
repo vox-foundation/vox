@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/vox-speech-surface-inventory-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Vox Speech Surface Inventory 2026",
+  "summary": "Audited inventory of microphone, speech-capture, and speech-to-code entry points across editor, app, dashboard, CLI, MCP, HTTP.",
+  "scope": ["speech surfaces", "Oratio", "Sherpa", "Web Speech API", "MCP tools", "editor webview", "mobile"],
+  "cross_refs": ["vox-oratio", "vox-dashboard", "vox-orchestrator-mcp", "apps/editor/vox-vscode", "apps/vox-mental-tracker"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

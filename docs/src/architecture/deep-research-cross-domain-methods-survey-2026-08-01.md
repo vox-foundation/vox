@@ -2,7 +2,7 @@
 title: "Beyond Crossref/OpenAlex: Cross-Domain Research Methods Survey (2026-08-01)"
 description: "Surveys how legal, medical, historical, and journalistic research validate sources/claims without a DOI-keyed citation graph, extracting 11 concrete, adoptable techniques (citation-validity graphs, evidence-tier tagging, corroboration counting, domain reputation scoring) for Vox's trust/novelty pipeline, which is currently scholarly-paper-shaped."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
 training_rationale: "Normative cross-domain research-methods survey grounding the deep-research Stage 2 domain-agnosticism work; identifies concrete, implementable techniques with data-source notes."
 ---
@@ -10,7 +10,7 @@ training_rationale: "Normative cross-domain research-methods survey grounding th
 # Beyond Crossref/OpenAlex: Cross-Domain Research Methods Survey
 
 **Date:** 2026-08-01 (Stage 2)
-**Scope:** How legal, medical, historical, journalistic, and general/consumer research validate sources and claims without a DOI-keyed academic citation graph — the exact gap in Vox's current `TrustScorer` (Crossref retraction + OpenAlex venue reputation), which only functions for scholarly-paper-shaped sources. Companion to [deep-research-domain-agnosticism-audit-2026-08-01.md](deep-research-domain-agnosticism-audit-2026-08-01.md) and [research-index.md](research-index.md).
+**Scope:** How legal, medical, historical, journalistic, and general/consumer research validate sources and claims without a DOI-keyed academic citation graph — the exact gap in Vox's current `TrustScorer` (Crossref retraction + OpenAlex venue reputation), which only functions for scholarly-paper-shaped sources. Companion to [deep-research-domain-agnosticism-audit-2026-08-01.md](deep-research-domain-agnosticism-audit-2026-08-01.md).
 
 ---
 

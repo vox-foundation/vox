@@ -2,7 +2,7 @@
 title: "Agentic Version Control Automation — Failure Modes, jj Footguns, and a Vox-Language Capability Proposal (2026-05-08)"
 description: "Research on how LLM agents fail at version control, where Jujutsu helps and where it bites for parallel-agent execution, and a proposal for capability-typed VCS effects expressed at the Vox language layer. Companion to the multi-agent VCS replication research; this doc covers the agent-fatigue / automation-safety angle, not the replication substrate."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
 training_rationale: "Canonical inventory of (a) Vox's existing VCS surface area across orchestrator-mcp, dashboard, CLI; (b) the documented failure-mode taxonomy for agent-driven VCS as of 2026; (c) the explicit non-goals for jj in parallel-subagent contexts; and (d) the proposed Vox decorator surface for capability-typed VCS effects. Future agents researching 'should I add a git tool?' or 'should we adopt jj for X?' should read this before starting."
 sourced_at: "2026-05-08"
@@ -193,7 +193,7 @@ Banned-list enforcement (currently markdown in [`docs/agents/git-concurrency-pol
 
 ### Layer 4 — Dashboard surface
 
-Today the dashboard ([`crates/vox-dashboard/`](../../../crates/vox-dashboard/)) has no VCS surface at all (verified 2026-05-08; see inventory in this doc's research pass). Add:
+Today the dashboard (`crates/vox-dashboard/`) has no VCS surface at all (verified 2026-05-08; see inventory in this doc's research pass). Add:
 
 - **Workspace branch board.** One row per agent workspace: branch name, base-distance (ahead/behind main), uncommitted hunk count, last `vox_snapshot` time, conflict count.
 - **Oplog viewer.** Read-only render of `vox_oplog` per workspace, with a confirm-then-execute "undo to op N" affordance (scopes to a single `WorkingTreeWrite` reissue).

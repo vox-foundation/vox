@@ -55,7 +55,23 @@ pub struct AdmittedReplay {
 pub trait HopperIntake: Send + Sync {
     /// Support downcasting to concrete hopper implementations.
     fn as_any(&self) -> &dyn std::any::Any;
-    /// Submit a new intake item. Returns the admitted item.
+
+    /// Submit a new intake item declaring an optional resource requirement (Phase 5 D-08).
+    ///
+    /// Required trait method: every hopper implementation must implement this.
+    async fn submit_with_resource(
+        &self,
+        intent: String,
+        affinity_hints: Vec<String>,
+        priority_hint: PriorityHint,
+        source: IntakeSource,
+        session_id: Option<String>,
+        resource_id: Option<String>,
+    ) -> IntakeItem;
+
+    /// Submit a new intake item without a resource requirement.
+    ///
+    /// Provided method forwarding to [`HopperIntake::submit_with_resource`] with `resource_id: None`.
     async fn submit(
         &self,
         intent: String,
@@ -63,7 +79,17 @@ pub trait HopperIntake: Send + Sync {
         priority_hint: PriorityHint,
         source: IntakeSource,
         session_id: Option<String>,
-    ) -> IntakeItem;
+    ) -> IntakeItem {
+        self.submit_with_resource(
+            intent,
+            affinity_hints,
+            priority_hint,
+            source,
+            session_id,
+            None,
+        )
+        .await
+    }
 
     /// Return all items in Inbox state.
     async fn inbox(&self) -> Vec<IntakeItem>;
@@ -148,20 +174,28 @@ impl HopperIntake for SwappableHopper {
         self
     }
 
-    async fn submit(
+    async fn submit_with_resource(
         &self,
         intent: String,
         affinity_hints: Vec<String>,
         priority_hint: PriorityHint,
         source: IntakeSource,
         session_id: Option<String>,
+        resource_id: Option<String>,
     ) -> IntakeItem {
         let inner = {
             let guard = self.inner.read().await;
             guard.clone()
         };
         inner
-            .submit(intent, affinity_hints, priority_hint, source, session_id)
+            .submit_with_resource(
+                intent,
+                affinity_hints,
+                priority_hint,
+                source,
+                session_id,
+                resource_id,
+            )
             .await
     }
 
@@ -302,15 +336,17 @@ impl HopperIntake for InMemoryHopper {
         self
     }
 
-    async fn submit(
+    async fn submit_with_resource(
         &self,
         intent: String,
         affinity_hints: Vec<String>,
         priority_hint: PriorityHint,
         source: IntakeSource,
         session_id: Option<String>,
+        resource_id: Option<String>,
     ) -> IntakeItem {
-        let item = IntakeItem::new(intent, affinity_hints, priority_hint, source, session_id);
+        let mut item = IntakeItem::new(intent, affinity_hints, priority_hint, source, session_id);
+        item.resource_id = resource_id;
 
         self.bus.emit(AgentEventKind::HopperItemAdmitted {
             item_id: item.item_id.clone(),
@@ -671,5 +707,98 @@ mod tests {
         // second cancel on a terminal item is an error
         let err = hopper.cancel(&item.item_id).await;
         assert!(err.is_err(), "cancelling a terminal item must error");
+    }
+
+    #[tokio::test]
+    async fn submit_with_resource_records_the_resource() {
+        let h = InMemoryHopper::headless();
+        let item = h
+            .submit_with_resource(
+                "t".into(),
+                vec![],
+                PriorityHint::Normal,
+                IntakeSource::Developer,
+                Some("chat-s1".into()),
+                Some("db://orders/1".into()),
+            )
+            .await;
+        assert_eq!(item.resource_id.as_deref(), Some("db://orders/1"));
+        let inbox = h.inbox().await;
+        assert_eq!(inbox.len(), 1);
+        assert_eq!(inbox[0].resource_id.as_deref(), Some("db://orders/1"));
+    }
+
+    #[tokio::test]
+    async fn plain_submit_declares_no_resource() {
+        let h = InMemoryHopper::headless();
+        let item = h
+            .submit(
+                "plain".into(),
+                vec![],
+                PriorityHint::Normal,
+                IntakeSource::Developer,
+                None,
+            )
+            .await;
+        assert_eq!(item.resource_id, None);
+        let inbox = h.inbox().await;
+        assert_eq!(inbox.len(), 1);
+        assert_eq!(inbox[0].resource_id, None);
+    }
+
+    #[tokio::test]
+    async fn swappable_hopper_forwards_the_resource() {
+        let inner = Arc::new(InMemoryHopper::headless());
+        let swappable = SwappableHopper::new(inner.clone());
+        let item = swappable
+            .submit_with_resource(
+                "forwarded".into(),
+                vec![],
+                PriorityHint::Normal,
+                IntakeSource::Developer,
+                Some("chat-s1".into()),
+                Some("db://orders/1".into()),
+            )
+            .await;
+        assert_eq!(item.resource_id.as_deref(), Some("db://orders/1"));
+        let inner_inbox = inner.inbox().await;
+        assert_eq!(inner_inbox.len(), 1);
+        assert_eq!(inner_inbox[0].resource_id.as_deref(), Some("db://orders/1"));
+    }
+
+    #[tokio::test]
+    async fn dispatched_task_carries_the_items_resource_and_session() {
+        let bus = Arc::new(crate::events::EventBus::new(16));
+        let rx = bus.subscribe();
+        let hopper = Arc::new(InMemoryHopper::new(bus.clone()));
+        let enqueued = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let sink = enqueued.clone();
+
+        let handle = tokio::spawn(crate::orchestrator::dispatch::run_dispatcher(
+            rx,
+            hopper.clone(),
+            move |t| {
+                sink.lock().unwrap().push(t);
+                Some(crate::types::AgentId(1))
+            },
+            Some(1),
+        ));
+
+        hopper
+            .submit_with_resource(
+                "t".into(),
+                vec![],
+                PriorityHint::Normal,
+                IntakeSource::Developer,
+                Some("chat-s1".into()),
+                Some("db://orders/1".into()),
+            )
+            .await;
+
+        handle.await.unwrap();
+        let tasks = enqueued.lock().unwrap();
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].resource_id.as_deref(), Some("db://orders/1"));
+        assert_eq!(tasks[0].session_id.as_deref(), Some("chat-s1"));
     }
 }

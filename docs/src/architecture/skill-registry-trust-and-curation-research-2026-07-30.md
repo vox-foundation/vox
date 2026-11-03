@@ -2,7 +2,7 @@
 title: "Skill/Tool Registry Curation & Trust Models — Verified Research 2026-07-30"
 description: "Adversarially verified research into the official MCP Registry's namespace-ownership and moderation model: DNS/GitHub-verified publishing, a deliberately permissive takedown policy that never removes vulnerable servers, and mutable-status soft-delete revocation — the closest published prior art for a Vox skill registry."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: false
 ---
 

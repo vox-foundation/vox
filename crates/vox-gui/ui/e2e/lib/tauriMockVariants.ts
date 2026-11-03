@@ -35,7 +35,7 @@ export function installEmptyStateMock(viewKey: string): void {
     'get_memory_status', 'get_command_catalog', 'get_full_registry',
     'get_command_metadata', 'get_gui_run', 'get_task_diff',
     'explain_model_selection', 'suggest_model_for_task', 'vox_search_query', 'execute_command',
-    'get_completion_report', 'get_archive_status',
+    'get_completion_report', 'get_archive_status', 'get_models_snapshot',
   ]);
 
   /**
@@ -48,6 +48,8 @@ export function installEmptyStateMock(viewKey: string): void {
       case 'get_command_catalog': return { generated_from: 'mock-empty', entries: [] };
       case 'vox_search_query': return { hits: [], facets_by_source: [], facets_by_kind: [], total: 0, next_cursor: null, corpora: [] };
       case 'get_routing_summary_live': return { active_model: null, decision_preview: null };
+      case 'get_models_snapshot':
+        return { cards: [], routing: { active_model: null, decision_preview: null }, active_model: null, providers: [] };
       case 'execute_command': return { exit_code: 0, stdout: '', stderr: '' };
       case 'get_full_registry': return { commands: [] };
       case 'get_completion_report': return { score: 100, warnings: [], is_complete: true };
@@ -80,7 +82,7 @@ export function installErrorStateMock(viewKey: string): void {
 
   /** IPC commands whose failure exercises error-state UI in the component. */
   const ERROR_CMDS = new Set([
-    'list_gui_runs', 'list_model_cards', 'get_routing_summary_live',
+    'list_gui_runs', 'list_model_cards', 'get_routing_summary_live', 'get_models_snapshot',
     'vox_search_query', 'list_research_sessions', 'list_publication_manifests',
     'get_memory_status', 'chat_list_sessions', 'get_model_scoreboard',
     'get_ludus_profile', 'policy_list', 'policy_status',

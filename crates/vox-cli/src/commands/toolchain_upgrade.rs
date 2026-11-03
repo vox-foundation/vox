@@ -33,7 +33,7 @@ pub fn run_toolchain_upgrade(args: &UpgradeToolchainArgs, json_output: bool) -> 
         gitlab: optional_env(&["GITLAB_TOKEN", "VOX_GITLAB_TOKEN"]),
     };
 
-    let candidate = resolve_candidate(
+    let outcome = resolve_candidate(
         &provider,
         &triple,
         current_str,
@@ -45,8 +45,14 @@ pub fn run_toolchain_upgrade(args: &UpgradeToolchainArgs, json_output: bool) -> 
     )
     .map_err(map_self_update)?;
 
-    let Some(candidate) = candidate else {
-        return emit_up_to_date(json_output, current_str, &triple, provider.describe());
+    let candidate = match outcome {
+        CandidateOutcome::Found(c) => c,
+        CandidateOutcome::NoUpdate => {
+            return emit_up_to_date(json_output, current_str, &triple, provider.describe());
+        }
+        CandidateOutcome::NoReleases => {
+            return emit_no_releases(json_output, &triple, provider.describe());
+        }
     };
 
     if !args.apply {
@@ -281,6 +287,21 @@ fn map_self_update(e: self_update::errors::Error) -> anyhow::Error {
     anyhow!("toolchain upgrade: {e}")
 }
 
+/// Distinguishes "the provider has zero published releases" from "releases
+/// exist but none are eligible for this version/channel/policy" — these are
+/// different user-facing outcomes (a hard error vs. a normal up-to-date report).
+#[derive(Debug)]
+enum CandidateOutcome {
+    Found(Candidate),
+    NoUpdate,
+    NoReleases,
+}
+
+/// True when `releases` reflects a provider with nothing published at all.
+fn no_releases_published(releases: &[Release]) -> bool {
+    releases.is_empty()
+}
+
 fn resolve_candidate(
     provider: &Provider,
     triple: &str,
@@ -290,16 +311,18 @@ fn resolve_candidate(
     channel: Channel,
     allow_pre: bool,
     auth: &AuthTokens,
-) -> Result<Option<Candidate>, self_update::errors::Error> {
+) -> Result<CandidateOutcome, self_update::errors::Error> {
     let allow_breaking = args.allow_breaking;
 
     if let Some(ver) = &args.version {
         let tag = normalize_tag(ver);
-        return Ok(Some(fetch_pinned(provider, triple, &tag, auth)?));
+        return Ok(CandidateOutcome::Found(fetch_pinned(
+            provider, triple, &tag, auth,
+        )?));
     }
 
     match provider {
-        Provider::Http { .. } => Ok(None),
+        Provider::Http { .. } => Ok(CandidateOutcome::NoUpdate),
         Provider::Github {
             owner,
             repo,
@@ -314,8 +337,11 @@ fn resolve_candidate(
                 list_b.with_url(u);
             }
             let mut releases = list_b.build()?.fetch()?;
+            if no_releases_published(&releases) {
+                return Ok(CandidateOutcome::NoReleases);
+            }
             releases.sort_by(|a, b| cmp_release_versions(b, a));
-            pick_from_releases_github(
+            let picked = pick_from_releases_github(
                 releases,
                 triple,
                 current_str,
@@ -325,7 +351,11 @@ fn resolve_candidate(
                 allow_breaking,
                 owner,
                 repo,
-            )
+            )?;
+            Ok(match picked {
+                Some(c) => CandidateOutcome::Found(c),
+                None => CandidateOutcome::NoUpdate,
+            })
         }
         Provider::Gitlab { host, owner, repo } => {
             let mut list_b = gitlab::ReleaseList::configure();
@@ -335,8 +365,11 @@ fn resolve_candidate(
                 list_b.auth_token(t);
             }
             let mut releases = list_b.build()?.fetch()?;
+            if no_releases_published(&releases) {
+                return Ok(CandidateOutcome::NoReleases);
+            }
             releases.sort_by(|a, b| cmp_release_versions(b, a));
-            pick_from_releases_gitlab(
+            let picked = pick_from_releases_gitlab(
                 releases,
                 triple,
                 current_str,
@@ -344,7 +377,11 @@ fn resolve_candidate(
                 channel,
                 allow_pre,
                 allow_breaking,
-            )
+            )?;
+            Ok(match picked {
+                Some(c) => CandidateOutcome::Found(c),
+                None => CandidateOutcome::NoUpdate,
+            })
         }
     }
 }
@@ -675,8 +712,6 @@ fn install_candidate(
         json_output,
     )?;
 
-    run_bootstrap_environment_check(candidate, auth, target_triple, &checksum_txt, json_output)?;
-
     Ok(())
 }
 
@@ -764,110 +799,6 @@ fn find_sidecar_asset(checksum_txt: &str, target_triple: &str, ext: &str) -> Opt
     None
 }
 
-fn run_bootstrap_environment_check(
-    candidate: &Candidate,
-    auth: &AuthTokens,
-    target_triple: &str,
-    checksum_txt: &str,
-    json_output: bool,
-) -> Result<()> {
-    let ext = if cfg!(target_os = "windows") {
-        ".zip"
-    } else {
-        ".tar.gz"
-    };
-
-    let bootstrap_asset = find_bootstrap_asset(checksum_txt, target_triple, ext);
-    let Some(bootstrap_asset) = bootstrap_asset else {
-        return Ok(());
-    };
-
-    let mut base = candidate.asset.download_url.clone();
-    if let Some(idx) = base.rfind('/') {
-        base.truncate(idx + 1);
-    }
-    let bg_url = format!("{base}{bootstrap_asset}");
-    let bg_bytes = match download_bytes(&bg_url, auth) {
-        Ok(b) => b,
-        Err(e) => {
-            if !json_output {
-                eprintln!("note: could not download vox-bootstrap to perform env check: {e}");
-            }
-            return Ok(());
-        }
-    };
-
-    if verify_checksum(&bg_bytes, checksum_txt, &bootstrap_asset).is_err() {
-        if !json_output {
-            eprintln!("note: vox-bootstrap checksum verification failed, skipping env check");
-        }
-        return Ok(());
-    }
-
-    let tmp = TempDir::new().map_err(|e| anyhow!("temp dir: {e}"))?;
-    let archive_path = tmp.path().join(&bootstrap_asset);
-    std::fs::write(&archive_path, &bg_bytes).map_err(|e| anyhow!(e))?;
-    let bg_bin = if cfg!(target_os = "windows") {
-        "vox-bootstrap.exe"
-    } else {
-        "vox-bootstrap"
-    };
-
-    let mut ex = Extract::from_source(&archive_path);
-    ex.archive(archive_kind_for_asset_name(&bootstrap_asset));
-    if ex.extract_file(tmp.path(), bg_bin).is_err() {
-        return Ok(());
-    }
-
-    let extracted = tmp.path().join(bg_bin);
-
-    let output = std::process::Command::new(&extracted)
-        .args(["plan"])
-        .output();
-
-    if let Ok(out) = output {
-        if !out.status.success() {
-            if !json_output {
-                let heal_script = if cfg!(target_os = "windows") {
-                    ".\\scripts\\install.ps1 -Apply"
-                } else {
-                    "./scripts/install.sh --apply"
-                };
-                eprintln!("\n{}", "=".repeat(60));
-                eprintln!("WARNING: ENVIRONMENTAL DRIFT DETECTED");
-                eprintln!("{}", "=".repeat(60));
-                eprintln!("The newly installed version of Vox requires system dependencies");
-                eprintln!("that are either missing or outdated on your machine.");
-                eprintln!("\nPlease run the following command to self-heal your environment:");
-                eprintln!("    {}", heal_script);
-                eprintln!("{}\n", "=".repeat(60));
-            }
-        }
-    }
-
-    Ok(())
-}
-
-fn find_bootstrap_asset(checksum_txt: &str, target_triple: &str, ext: &str) -> Option<String> {
-    for line in checksum_txt.lines() {
-        let mut parts = line.split_whitespace();
-        let Some(_hash) = parts.next() else {
-            continue;
-        };
-        let Some(path) = parts.next() else {
-            continue;
-        };
-        let file = path.rsplit('/').next().unwrap_or(path).to_string();
-        if !file.contains(target_triple) || !file.ends_with(ext) {
-            continue;
-        }
-        if file.starts_with("vox-bootstrap-") {
-            return Some(file);
-        }
-    }
-    None
-}
-
 fn emit_up_to_date(
     json_output: bool,
     current: &str,
@@ -893,6 +824,35 @@ fn emit_up_to_date(
         println!("Use `--apply` after reviewing release notes to install an upgrade.");
     }
     Ok(())
+}
+
+/// The provider has zero published releases — distinct from "up to date"
+/// (which implies at least one release exists). Exits non-zero either way,
+/// including under `--json`, since there is nothing to install.
+fn emit_no_releases(json_output: bool, triple: &str, source: serde_json::Value) -> Result<()> {
+    if json_output {
+        println!(
+            "{}",
+            serde_json::json!({
+                "toolchain_upgrade": {
+                    "status": "no_releases",
+                    "target_triple": triple,
+                    "source": source,
+                    "manifest_graph_touched": false,
+                    "hint": "No releases have been published for this repo yet. Build from source (`--source repo`) or use `--provider http` with `--version` for a static mirror.",
+                }
+            })
+        );
+    } else {
+        eprintln!(
+            "No published releases found for {} (target {}).",
+            source, triple
+        );
+        eprintln!(
+            "Build from source with `vox upgrade --source repo`, or use `--provider http --version <tag>` for a static mirror."
+        );
+    }
+    Err(anyhow!("no published releases"))
 }
 
 fn emit_check_only(
@@ -931,6 +891,28 @@ fn emit_check_only(
 #[cfg(test)]
 mod policy_tests {
     use super::*;
+
+    /// Repro for the 2026-09-21 bug: an empty (mocked) release list — as
+    /// returned by a repo with zero published GitHub releases — must be
+    /// reported as "no releases", not silently treated the same as "no
+    /// eligible update" (which implies releases exist).
+    #[test]
+    fn empty_release_list_is_detected_as_no_releases_published() {
+        let empty: Vec<Release> = Vec::new();
+        assert!(no_releases_published(&empty));
+    }
+
+    #[test]
+    fn nonempty_release_list_is_not_no_releases_published() {
+        let releases = vec![Release {
+            name: "x".into(),
+            version: "0.1.0".into(),
+            date: String::new(),
+            body: None,
+            assets: vec![],
+        }];
+        assert!(!no_releases_published(&releases));
+    }
 
     #[test]
     fn stable_channel_skips_prerelease() {

@@ -3,6 +3,9 @@
 //!   cargo test -p vox-orchestrator-mcp agy_pipeline_smoke -- --ignored
 //! Prereqs: agy authenticated; run from the repo root (committed HEAD).
 
+// Task 8e fix round 1: pull in the hermetic-VOX_HOME ctor (see tests/common/mod.rs).
+mod common;
+
 use vox_orchestrator_mcp::agy_doctor::{AgyStatus, detect};
 use vox_orchestrator_mcp::agy_exec::{AgyExec, AgySpec};
 use vox_orchestrator_mcp::agy_gates::{Gate, run_gates};
@@ -10,7 +13,7 @@ use vox_orchestrator_mcp::agy_pipeline::classify_outcome;
 use vox_orchestrator_mcp::agy_worktree::DelegationWorktree;
 
 #[tokio::test]
-#[ignore = "live agy call — bills Antigravity credits"]
+#[ignore = "owner:orchestrator sunset:never live agy call — bills Antigravity credits"]
 async fn smoke_pipeline_classifies_a_real_run() {
     assert!(
         matches!(detect(), AgyStatus::Ready { .. }),

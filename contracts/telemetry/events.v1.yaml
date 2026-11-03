@@ -89,6 +89,16 @@ events:
       retrieval_hit_rate, scientia.finding_candidate_proposed, scientia.claim_verified.
       Plan JSON for subqueries_emitted remains a direct record_research_metric row (no duplicate bus row).
 
+  - id: research-trial
+    schema_path: contracts/telemetry/research-trial.v1.schema.json
+    owner_crate: vox-telemetry
+    tier: "B"
+    retention_days: 365
+    description: >-
+      Structural-only metadata for research_trial.* rows in research_metrics (campaign, run,
+      stage, model_call, tool_call). Enforced at write time by
+      vox_telemetry::research_trial::validate_research_trial_metadata; content keys are rejected.
+
 # ─────────────────────────────────────────────────────────────────────────────
 # metric_types — every `METRIC_TYPE_*` constant from
 # `crates/vox-telemetry/src/types.rs`. Schema-less events use the generic

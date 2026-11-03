@@ -65,8 +65,12 @@ fn repeat_kv(x: &Tensor, n_rep: usize) -> Result<Tensor> {
 
 fn rotate_half(x: &Tensor) -> Result<Tensor> {
     let last_dim = x.dim(candle_core::D::Minus1)?;
-    let x1 = x.narrow(candle_core::D::Minus1, 0, last_dim / 2)?;
-    let x2 = x.narrow(candle_core::D::Minus1, last_dim / 2, last_dim / 2)?;
+    let x1 = x
+        .narrow(candle_core::D::Minus1, 0, last_dim / 2)?
+        .contiguous()?;
+    let x2 = x
+        .narrow(candle_core::D::Minus1, last_dim / 2, last_dim / 2)?
+        .contiguous()?;
     Tensor::cat(&[&x2.neg()?, &x1], candle_core::D::Minus1)
 }
 
@@ -87,6 +91,13 @@ pub struct Qwen2Attention {
     pub n_heads: usize,
     pub n_kv_heads: usize,
     pub head_dim: usize,
+    /// Dense Qwen3's per-head RMSNorm on Q/K, applied right after projection
+    /// and before RoPE. `None` for Qwen2/Qwen2.5-style checkpoints, which
+    /// don't have it. Confirmed load-bearing: a real Qwen/Qwen3-0.6B
+    /// checkpoint produced fluent-looking garbage output without it (real
+    /// weights, real tokenizer, no crash — just wrong numbers).
+    pub q_norm: Option<RmsNorm>,
+    pub k_norm: Option<RmsNorm>,
 }
 
 impl Qwen2Attention {
@@ -95,7 +106,7 @@ impl Qwen2Attention {
         x: &Tensor,
         pos: usize,
         inv_freq: Option<&Tensor>,
-        kv_cache: Option<&mut (Tensor, Tensor)>,
+        kv_cache: Option<&mut Option<(Tensor, Tensor)>>,
     ) -> Result<Tensor> {
         let (b, seq_len, _d_model) = x.dims3()?;
         let device = x.device();
@@ -131,12 +142,20 @@ impl Qwen2Attention {
             None => v,
         };
 
-        let q = q
-            .reshape((b, seq_len, self.n_heads, self.head_dim))?
-            .transpose(1, 2)?;
-        let k = k
-            .reshape((b, seq_len, self.n_kv_heads, self.head_dim))?
-            .transpose(1, 2)?;
+        let q = q.reshape((b, seq_len, self.n_heads, self.head_dim))?;
+        let q = match &self.q_norm {
+            Some(norm) => rms_norm_f32(norm, &q)?,
+            None => q,
+        };
+        let q = q.transpose(1, 2)?;
+
+        let k = k.reshape((b, seq_len, self.n_kv_heads, self.head_dim))?;
+        let k = match &self.k_norm {
+            Some(norm) => rms_norm_f32(norm, &k)?,
+            None => k,
+        };
+        let k = k.transpose(1, 2)?;
+
         let v = v
             .reshape((b, seq_len, self.n_kv_heads, self.head_dim))?
             .transpose(1, 2)?;
@@ -147,15 +166,28 @@ impl Qwen2Attention {
             (q, k)
         };
 
-        let (k, v) = if let Some((k_prev, v_prev)) = kv_cache {
-            let k = Tensor::cat(&[&*k_prev, &k], 2)?;
-            let v = Tensor::cat(&[&*v_prev, &v], 2)?;
-            *k_prev = k.clone();
-            *v_prev = v.clone();
-            (k, v)
-        } else {
-            (k, v)
+        let (k, v) = match kv_cache {
+            Some(slot) => {
+                let (k, v) = match slot.as_ref() {
+                    Some((k_prev, v_prev)) => (
+                        Tensor::cat(&[k_prev, &k], 2)?,
+                        Tensor::cat(&[v_prev, &v], 2)?,
+                    ),
+                    None => (k, v),
+                };
+                *slot = Some((k.clone(), v.clone()));
+                (k, v)
+            }
+            None => (k, v),
         };
+
+        if seq_len > 1 && k.dim(2)? != seq_len {
+            return Err(candle_core::Error::Msg(format!(
+                "multi-token forward over a populated KV cache is not supported: \
+                 seq_len={seq_len}, cached+new keys={}. Prefill once, then feed one token per step.",
+                k.dim(2)?
+            )));
+        }
 
         let n_rep = self.n_heads / self.n_kv_heads;
         let k = repeat_kv(&k, n_rep)?;
@@ -173,8 +205,6 @@ impl Qwen2Attention {
         let act_dtype = q.dtype();
         if seq_len > 1 {
             let att = att.to_dtype(DType::F32)?;
-            let att_max = att.max_keepdim(candle_core::D::Minus1)?;
-            let att = att.broadcast_sub(&att_max)?;
             let mask = causal_mask(seq_len, device)?;
             let att = att.broadcast_add(&mask)?;
             let att = candle_nn::ops::softmax(&att, candle_core::D::Minus1)?;
@@ -348,7 +378,7 @@ impl Qwen35LinearAttention {
         x: &Tensor,
         pos: usize,
         inv_freq: Option<&Tensor>,
-        state_cache: Option<&mut Tensor>,
+        state_cache: Option<&mut Option<Tensor>>,
     ) -> Result<Tensor> {
         let (b, seq_len, _d_model) = x.dims3()?;
         let device = x.device();
@@ -428,14 +458,13 @@ impl Qwen35LinearAttention {
             key = Self::repeat_heads_bshd(&key, rep)?;
         }
 
-        let mut state = if let Some(state_prev) = state_cache.as_ref() {
-            (**state_prev).clone()
-        } else {
-            Tensor::zeros(
+        let mut state = match state_cache.as_ref().and_then(|s| s.as_ref()) {
+            Some(state_prev) => state_prev.clone(),
+            None => Tensor::zeros(
                 (b, self.num_v_heads, self.head_k_dim, self.head_v_dim),
                 DType::F32,
                 device,
-            )?
+            )?,
         };
         let mut outs = Vec::with_capacity(seq_len);
         for t in 0..seq_len {
@@ -469,8 +498,8 @@ impl Qwen35LinearAttention {
             outs.push(out_t);
         }
 
-        if let Some(state_prev) = state_cache {
-            *state_prev = state.clone();
+        if let Some(slot) = state_cache {
+            *slot = Some(state);
         }
 
         let mut y = Tensor::stack(&outs, 1)?;
@@ -633,6 +662,60 @@ impl Qwen35Model {
         self.head_forward(&x)
     }
 
+    pub fn uses_linear_attention(&self) -> bool {
+        self.layers
+            .iter()
+            .any(|l| matches!(l.attention, Qwen35AttentionBlock::Linear(_)))
+    }
+
+    pub fn empty_cache(&self) -> Vec<Qwen35LayerCache> {
+        self.layers
+            .iter()
+            .map(|l| match &l.attention {
+                Qwen35AttentionBlock::Full(_) => Qwen35LayerCache::Full(None),
+                Qwen35AttentionBlock::Linear(_) => Qwen35LayerCache::Linear(None),
+            })
+            .collect()
+    }
+
+    pub fn forward_cached(
+        &self,
+        input_ids: &Tensor,
+        pos: usize,
+        cache: &mut [Qwen35LayerCache],
+    ) -> Result<Tensor> {
+        if cache.len() != self.layers.len() {
+            return Err(candle_core::Error::Msg(format!(
+                "KV cache has {} slots but the model has {} layers",
+                cache.len(),
+                self.layers.len()
+            )));
+        }
+        if let Some(i) = cache
+            .iter()
+            .position(|c| matches!(c, Qwen35LayerCache::Linear(Some(_))))
+        {
+            return Err(candle_core::Error::Msg(format!(
+                "incremental decode over a linear-attention layer is unsupported \
+                 (layer {i}): short-conv state caching is unimplemented, so the \
+                 depthwise conv would see zeros where the previous tokens should be. \
+                 Re-forward the full context for hybrid models instead."
+            )));
+        }
+        let (b, seq_len) = input_ids.dims2()?;
+        let d_model = self.embed_tokens.dim(1)?;
+        let ids = input_ids.flatten_all()?;
+        let mut x = self
+            .embed_tokens
+            .index_select(&ids, 0)?
+            .reshape((b, seq_len, d_model))?;
+
+        for (layer, slot) in self.layers.iter().zip(cache.iter_mut()) {
+            x = layer.forward(&x, pos, Some(slot))?;
+        }
+        self.head_forward(&x)
+    }
+
     /// Final norm + clamp + lm_head + F32 cast, shared by the eager and
     /// checkpointed forward so logits are byte-identical for the same input.
     fn head_forward(&self, x: &Tensor) -> Result<Tensor> {
@@ -733,9 +816,10 @@ impl Qwen35Model {
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum Qwen35LayerCache {
-    Full((Tensor, Tensor)),
-    Linear(Tensor),
+    Full(Option<(Tensor, Tensor)>),
+    Linear(Option<Tensor>),
 }
 
 // ── CandleModel: the opaque handle stored across plugin calls ─────────────────
@@ -745,47 +829,22 @@ pub enum Qwen35LayerCache {
 /// vox-populi's preflight logic. Batch 3 wires vox-populi to construct the model and
 /// pass it to the plugin via an alternative init path.
 pub struct CandleModel {
-    /// Eagerly-built model graph. Unused on the inference path — `run_inference`
-    /// reloads a fresh `InferenceEngine` from `model_path` on every call — so it is
-    /// left `None` for handles produced by [`Self::load_from_path`].
-    pub _inner: Option<Qwen35Model>,
-    /// Path to the model directory, stored so `run_inference` can reload the engine.
+    pub engine: std::sync::Mutex<crate::inference::InferenceEngine>,
+    #[allow(dead_code)]
     pub model_path: String,
+    #[allow(dead_code)]
+    pub trainer: Option<qlora_rs::training::QLoraTrainer>,
 }
 
 impl CandleModel {
-    /// Open an inference-ready model directory.
-    ///
-    /// The handle only carries `model_path`; the actual model graph is rebuilt by
-    /// [`crate::inference::run`] (via `InferenceEngine::load`) on each `run_inference`
-    /// call, so no `QloraEmbedBundle` construction is needed here. We validate that the
-    /// directory contains the artifacts `InferenceEngine::load` requires, failing early
-    /// with an actionable message rather than deep inside the load path.
     pub fn load_from_path(model_path: &str) -> anyhow::Result<Self> {
-        let dir = std::path::Path::new(model_path);
-        if !dir.is_dir() {
-            anyhow::bail!(
-                "model path {model_path} is not a directory — pass the training run dir \
-                 (containing candle_qlora_adapter.safetensors, adapter_manifest.json, \
-                 tokenizer.json, config.json)"
-            );
-        }
-        for required in [
-            "candle_qlora_adapter.safetensors",
-            "adapter_manifest.json",
-            "tokenizer.json",
-            "config.json",
-        ] {
-            if !dir.join(required).is_file() {
-                anyhow::bail!(
-                    "model dir {model_path} is missing {required} — run \
-                     `vox mens merge-qlora` / finalize the run before inference"
-                );
-            }
-        }
+        let path = std::path::Path::new(model_path);
+        let engine =
+            crate::inference::InferenceEngine::load(path, &crate::device::DeviceKind::Best)?;
         Ok(Self {
-            _inner: None,
+            engine: std::sync::Mutex::new(engine),
             model_path: model_path.to_string(),
+            trainer: None,
         })
     }
 }
@@ -825,6 +884,8 @@ mod gradient_checkpoint_tests {
             q_bias: None,
             k_bias: None,
             v_bias: None,
+            q_norm: None,
+            k_norm: None,
             n_heads,
             n_kv_heads: n_heads,
             head_dim,
@@ -996,10 +1057,154 @@ mod bf16_activation_tests {
             q_bias: Some(Tensor::zeros(d, DType::F32, device).unwrap()),
             k_bias: Some(Tensor::zeros(d, DType::F32, device).unwrap()),
             v_bias: Some(Tensor::zeros(d, DType::F32, device).unwrap()),
+            q_norm: None,
+            k_norm: None,
             n_heads: 2,
             n_kv_heads: 2,
             head_dim: 4,
         }
+    }
+
+    /// Dense Qwen3's per-head q_norm/k_norm must actually change the forward
+    /// output when present — confirmed load-bearing on a real Qwen/Qwen3-0.6B
+    /// checkpoint this session: omitting it produced fluent-looking garbage
+    /// text, not a crash. Builds two attention blocks from the SAME
+    /// deterministic weight tensors (quantization is deterministic given the
+    /// same input) so the only difference is q_norm/k_norm's presence.
+    #[test]
+    fn qk_norm_changes_output_when_present() {
+        let device = Device::Cpu;
+        let d = 8usize;
+        let mut cfg = qlora_rs::QLoraConfig::preset_all_bf16(4, 8);
+        cfg.quantization.compute_dtype = qlora_rs::quantization::ComputeDType::F32;
+        let w = Tensor::arange(0u32, (d * d) as u32, &device)
+            .unwrap()
+            .to_dtype(DType::F32)
+            .unwrap()
+            .reshape((d, d))
+            .unwrap()
+            .affine(0.01, 0.0)
+            .unwrap();
+        let build = |q_norm: Option<RmsNorm>, k_norm: Option<RmsNorm>| Qwen2Attention {
+            q_proj: QuantizedLinear::from_weight(&w, None, &cfg, &device).unwrap(),
+            k_proj: QuantizedLinear::from_weight(&w, None, &cfg, &device).unwrap(),
+            v_proj: QuantizedLinear::from_weight(&w, None, &cfg, &device).unwrap(),
+            o_proj: QuantizedLinear::from_weight(&w, None, &cfg, &device).unwrap(),
+            q_bias: None,
+            k_bias: None,
+            v_bias: None,
+            n_heads: 2,
+            n_kv_heads: 2,
+            head_dim: 4,
+            q_norm,
+            k_norm,
+        };
+
+        let x = Tensor::randn(0f32, 1f32, (1, 3, d), &device).unwrap();
+        let without_norm = build(None, None)
+            .forward(&x, 0, None, None)
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1::<f32>()
+            .unwrap();
+
+        let norm_weight = Tensor::new(&[2.0f32, 0.5, 3.0, 1.5], &device).unwrap();
+        let with_norm = build(
+            Some(RmsNorm::new(norm_weight.clone(), 1e-6)),
+            Some(RmsNorm::new(norm_weight, 1e-6)),
+        )
+        .forward(&x, 0, None, None)
+        .unwrap()
+        .flatten_all()
+        .unwrap()
+        .to_vec1::<f32>()
+        .unwrap();
+
+        assert_ne!(
+            without_norm, with_norm,
+            "q_norm/k_norm must change the forward output — if this fails, \
+             Qwen2Attention is silently ignoring them"
+        );
+    }
+
+    /// q_norm/k_norm are applied exactly once, per head, before RoPE (HF Qwen3:
+    /// `q_norm(q_proj(x).view(.., head_dim))`). RMSNorm with a non-uniform weight is not
+    /// idempotent, so applying it twice changes the output; compare against a reference.
+    #[test]
+    fn qk_norm_is_applied_exactly_once() {
+        use candle_nn::Module as _;
+        let device = Device::Cpu;
+        let (d, heads, hd, seq) = (8usize, 2usize, 4usize, 3usize);
+        let mut cfg = QLoraConfig::preset_all_bf16(4, 8);
+        cfg.quantization.compute_dtype = ComputeDType::F32;
+        let w = Tensor::arange(0u32, (d * d) as u32, &device)
+            .unwrap()
+            .to_dtype(DType::F32)
+            .unwrap()
+            .reshape((d, d))
+            .unwrap()
+            .affine(0.01, 0.0)
+            .unwrap();
+        let lin = || QuantizedLinear::from_weight(&w, None, &cfg, &device).unwrap();
+        let norm_w = Tensor::new(&[2.0f32, 0.5, 3.0, 1.5], &device).unwrap();
+        let norm = || RmsNorm::new(norm_w.clone(), 1e-6);
+        let attn = Qwen2Attention {
+            q_proj: lin(),
+            k_proj: lin(),
+            v_proj: lin(),
+            o_proj: lin(),
+            q_bias: None,
+            k_bias: None,
+            v_bias: None,
+            n_heads: heads,
+            n_kv_heads: heads,
+            head_dim: hd,
+            q_norm: Some(norm()),
+            k_norm: Some(norm()),
+        };
+        let x = Tensor::randn(0f32, 1f32, (1, seq, d), &device).unwrap();
+        let got = attn.forward(&x, 0, None, None).unwrap();
+
+        // Reference: one per-head RMSNorm on q and k, causal softmax attention, o_proj.
+        let per_head = |t: Tensor, n: Option<RmsNorm>| {
+            let t = t.reshape((1, seq, heads, hd)).unwrap();
+            let t = n.map_or(t.clone(), |n| n.forward(&t).unwrap());
+            t.transpose(1, 2).unwrap().contiguous().unwrap()
+        };
+        let q = per_head(attn.q_proj.forward(&x).unwrap(), Some(norm()));
+        let k = per_head(attn.k_proj.forward(&x).unwrap(), Some(norm()));
+        let v = per_head(attn.v_proj.forward(&x).unwrap(), None);
+        let kt = k.transpose(2, 3).unwrap().contiguous().unwrap();
+        let att = (q.matmul(&kt).unwrap() * (1.0 / (hd as f64).sqrt())).unwrap();
+        let att = att
+            .broadcast_add(&causal_mask(seq, &device).unwrap())
+            .unwrap();
+        let att = candle_nn::ops::softmax(&att, candle_core::D::Minus1).unwrap();
+        let y = att
+            .matmul(&v)
+            .unwrap()
+            .transpose(1, 2)
+            .unwrap()
+            .contiguous()
+            .unwrap()
+            .reshape((1, seq, d))
+            .unwrap();
+        let want = attn.o_proj.forward(&y).unwrap();
+        let diff = (got - want)
+            .unwrap()
+            .abs()
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .max(0)
+            .unwrap()
+            .to_scalar::<f32>()
+            .unwrap();
+        assert!(
+            diff < 1e-4,
+            "max |forward - single-norm reference| = {diff}"
+        );
     }
 
     /// CPU path: F32 activations in → F32 out, finite. This must NOT regress (BF16 matmul
@@ -1097,5 +1302,112 @@ mod bf16_activation_tests {
             "lm_head building with F32 cast should succeed but failed: {:?}",
             lm_head.err()
         );
+    }
+
+    /// Q/K RMSNorm must be applied exactly once, before RoPE. A second
+    /// application is invisible with a uniform norm weight (RMSNorm of an
+    /// already-normalised vector times a constant is idempotent), so this uses
+    /// a non-uniform weight like real Qwen3 checkpoints have, and compares the
+    /// forward pass against a reference built from the attention's own
+    /// projections with a single `rms_norm_f32` per side.
+    #[test]
+    fn qk_norm_matches_single_rms_norm_f32_reference() {
+        let device = Device::Cpu;
+        let (d, n_heads, head_dim) = (8usize, 2usize, 4usize);
+        let mut cfg = QLoraConfig::preset_all_bf16(4, 8);
+        cfg.quantization.compute_dtype = ComputeDType::F32;
+        let w = Tensor::arange(0u32, (d * d) as u32, &device)
+            .unwrap()
+            .to_dtype(DType::F32)
+            .unwrap()
+            .reshape((d, d))
+            .unwrap()
+            .affine(0.01, 0.0)
+            .unwrap();
+        let mk = || QuantizedLinear::from_weight(&w, None, &cfg, &device).unwrap();
+        let norm_w = Tensor::new(&[2.0f32, 0.5, 3.0, 1.5], &device).unwrap();
+        let attn = Qwen2Attention {
+            q_proj: mk(),
+            k_proj: mk(),
+            v_proj: mk(),
+            o_proj: mk(),
+            q_bias: None,
+            k_bias: None,
+            v_bias: None,
+            n_heads,
+            n_kv_heads: n_heads,
+            head_dim,
+            q_norm: Some(RmsNorm::new(norm_w.clone(), 1e-6)),
+            k_norm: Some(RmsNorm::new(norm_w, 1e-6)),
+        };
+
+        let x = Tensor::randn(0f32, 1f32, (1, 3, d), &device).unwrap();
+        let actual = attn.forward(&x, 0, None, None).unwrap();
+
+        // Reference: same projections, one norm per side, no RoPE (inv_freq = None),
+        // n_heads == n_kv_heads so repeat_kv is the identity.
+        let (b, s, _) = x.dims3().unwrap();
+        let q = attn
+            .q_proj
+            .forward(&x)
+            .unwrap()
+            .reshape((b, s, n_heads, head_dim))
+            .unwrap();
+        let q = rms_norm_f32(attn.q_norm.as_ref().unwrap(), &q)
+            .unwrap()
+            .transpose(1, 2)
+            .unwrap();
+        let k = attn
+            .k_proj
+            .forward(&x)
+            .unwrap()
+            .reshape((b, s, n_heads, head_dim))
+            .unwrap();
+        let k = rms_norm_f32(attn.k_norm.as_ref().unwrap(), &k)
+            .unwrap()
+            .transpose(1, 2)
+            .unwrap();
+        let v = attn
+            .v_proj
+            .forward(&x)
+            .unwrap()
+            .reshape((b, s, n_heads, head_dim))
+            .unwrap()
+            .transpose(1, 2)
+            .unwrap();
+        let scale = 1.0 / (head_dim as f64).sqrt();
+        let att = (q
+            .contiguous()
+            .unwrap()
+            .matmul(&k.transpose(2, 3).unwrap().contiguous().unwrap())
+            .unwrap()
+            * scale)
+            .unwrap();
+        let att = att
+            .broadcast_add(&causal_mask(s, &device).unwrap())
+            .unwrap();
+        let att = candle_nn::ops::softmax(&att, candle_core::D::Minus1).unwrap();
+        let y = att
+            .matmul(&v.contiguous().unwrap())
+            .unwrap()
+            .transpose(1, 2)
+            .unwrap()
+            .contiguous()
+            .unwrap()
+            .reshape((b, s, n_heads * head_dim))
+            .unwrap();
+        let expected = attn.o_proj.forward(&y).unwrap();
+
+        let (a, e) = (
+            actual.flatten_all().unwrap().to_vec1::<f32>().unwrap(),
+            expected.flatten_all().unwrap().to_vec1::<f32>().unwrap(),
+        );
+        assert_eq!(a.len(), e.len());
+        for (i, (av, ev)) in a.iter().zip(e.iter()).enumerate() {
+            assert!(
+                (av - ev).abs() < 1e-4,
+                "element {i}: forward={av} reference={ev} — Q/K norm is not applied exactly once"
+            );
+        }
     }
 }

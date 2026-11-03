@@ -1,0 +1,5 @@
+// expect: diagram/duplicate-id
+graph {
+    node a: "A"
+    node a: "B"
+}

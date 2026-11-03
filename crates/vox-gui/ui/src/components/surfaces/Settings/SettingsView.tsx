@@ -19,12 +19,19 @@ import { useVoxMutation } from '../../../hooks/useVoxQuery';
 import { searchSettings } from './settingsIndex';
 import type { HudTilesConfig } from '../../../hooks/useHudTiles';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
-import { ACTION_REGISTRY, DEFAULT_BINDINGS, type Bindings, parseBindings, serializeBindings, chordFromEvent } from '../../../lib/keybinds';
+import { ACTION_REGISTRY, DEFAULT_BINDINGS, chordFromEvent } from '../../../lib/keybinds';
+import { setBindings } from '../../../lib/keybindStore';
+import { useKeybindings } from '../../../hooks/useKeybinds';
 import { useOnboardingGate } from '../Onboarding/useOnboardingGate';
+import { useBackendStatus } from '../../../hooks/useBackendStatus';
+import { SurfaceUnavailable } from '../../layout/SurfaceUnavailable';
+import { ServerConnectionSection } from './ServerConnectionSection';
+import { sectionLockedRemotely } from './settingsBackends';
 
 const GUI_PREF_KEYS = ['theme', 'telemetry', 'sign', 'checkpointMins'] as const;
 
-const SECTIONS = [
+export const SECTIONS = [
+  { id: 'server',       icon: 'link',    label: 'Server' },
   { id: 'orchestrator', icon: 'cpu',     label: 'Orchestrator' },
   { id: 'scaling',      icon: 'cpu',     label: 'Scaling' },
   { id: 'llm',          icon: 'bolt',    label: 'LLM & providers' },
@@ -46,6 +53,7 @@ const SECTIONS = [
 interface SettingsState {
   doubt: boolean;
   autobudget: boolean;
+  chatResearchEnabled: boolean;
   theme: string;
   concurrency: number;
   capUsd: number;
@@ -62,6 +70,9 @@ interface SettingsState {
   scaleMemFloorMb: number;
 }
 
+/** The label of the enclosing Row, so a control inside it is named without every call site repeating it. */
+const RowLabelContext = React.createContext<string | undefined>(undefined);
+
 function Row({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-xl border border-border-subtle bg-overlay-subtle p-3">
@@ -69,7 +80,9 @@ function Row({ label, hint, children }: { label: string; hint: string; children:
         <div className="font-display text-[12px] text-text-secondary">{label}</div>
         <div className="text-[11px] text-text-muted">{hint}</div>
       </div>
-      <div className="shrink-0">{children}</div>
+      <RowLabelContext.Provider value={label}>
+        <div className="shrink-0">{children}</div>
+      </RowLabelContext.Provider>
     </div>
   );
 }
@@ -83,20 +96,21 @@ function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
 }
 
 function RangeInline({
-  value, min, max, step = 1, suffix = '', onChange,
+  value, min, max, step = 1, prefix = '', suffix = '', onChange,
 }: {
-  value: number; min: number; max: number; step?: number; suffix?: string; onChange: (v: number) => void;
+  value: number; min: number; max: number; step?: number; prefix?: string; suffix?: string; onChange: (v: number) => void;
 }) {
+  const label = React.useContext(RowLabelContext);
   const pct = ((value - min) / (max - min)) * 100;
   return (
     <div className="flex w-52 items-center gap-3">
       <input
-        type="range" min={min} max={max} step={step} value={value}
+        type="range" aria-label={label} min={min} max={max} step={step} value={value}
         onChange={e => onChange(Number(e.target.value))}
         className="vox-range flex-1 h-1 appearance-none rounded-full overflow-hidden"
         style={{ background: `linear-gradient(to right, rgb(var(--brass)) ${pct}%, rgba(255,255,255,0.08) ${pct}%)` } as any}
       />
-      <span className="w-14 text-right font-mono text-[11px] text-text-secondary">{value}{suffix}</span>
+      <span className="w-14 text-right font-mono text-[11px] text-text-secondary">{prefix}{value}{suffix}</span>
     </div>
   );
 }
@@ -257,7 +271,7 @@ function MeshPeersSection({ pushToast }: { pushToast: (t: Toast) => void }) {
                     type="button"
                     disabled={busy === p.id}
                     onClick={() => toggleTrust(p)}
-                    className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
+                    className="rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
                   >{isTrusted ? 'untrust' : 'trust'}</button>
                 </div>
               </div>
@@ -332,7 +346,7 @@ function SigningKeysSection({ vals, update, pushToast, gamifyEnabled }: {
               type="button"
               disabled={rotating}
               onClick={rotate}
-              className="mt-3 rounded border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
+              className="mt-3 rounded-sm border border-border-subtle bg-overlay-subtle px-3 py-1.5 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
             >{rotating ? 'working…' : 'create identity'}</button>
           </div>
         ) : (
@@ -350,7 +364,7 @@ function SigningKeysSection({ vals, update, pushToast, gamifyEnabled }: {
                 type="button"
                 disabled={rotating}
                 onClick={rotate}
-                className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
+                className="rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
               >{rotating ? 'rotating…' : 'rotate'}</button>
             </div>
           </div>
@@ -576,19 +590,19 @@ export function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t
           placeholder="Paste new value…"
           value={drafts[r.canonicalEnv] ?? ''}
           onChange={e => setDrafts(d => ({ ...d, [r.canonicalEnv]: e.target.value }))}
-          className="flex-1 rounded border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-none"
+          className="flex-1 rounded-sm border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-hidden"
         />
         <button
           type="button"
           disabled={!drafts[r.canonicalEnv] || busy === r.canonicalEnv}
           onClick={() => save(r.canonicalEnv)}
-          className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
+          className="rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
         >save</button>
         <button
           type="button"
           disabled={!r.isPresent || busy === r.canonicalEnv}
           onClick={() => remove(r.canonicalEnv)}
-          className="rounded border border-rose-500/20 bg-rose-500/[0.04] px-2 py-1 font-mono text-[10px] text-rose-300 hover:bg-rose-500/10 disabled:opacity-40"
+          className="rounded-sm border border-rose-500/20 bg-rose-500/4 px-2 py-1 font-mono text-[10px] text-rose-300 hover:bg-rose-500/10 disabled:opacity-40"
         >remove</button>
       </div>
     </div>
@@ -627,32 +641,32 @@ export function KeysSecretsSection({ pushToast, gamifyEnabled }: { pushToast: (t
             type="button"
             disabled={importBusy}
             onClick={migrate}
-            className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
+            className="rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
           >Migrate auth.json → vault</button>
           <input
             type="text"
             value={envPath}
             placeholder="default .env (optional path)"
             onChange={e => { setEnvPath(e.target.value); setPreview(null); }}
-            className="min-w-[180px] flex-1 rounded border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-none"
+            className="min-w-[180px] flex-1 rounded-sm border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-hidden"
           />
           <button
             type="button"
             disabled={importBusy}
             onClick={runPreview}
-            className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
+            className="rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
           >Preview</button>
           {preview && preview.count > 0 && (
             <button
               type="button"
               disabled={importBusy}
               onClick={runImport}
-              className="rounded border border-emerald-400/20 bg-emerald-400/[0.06] px-2 py-1 font-mono text-[10px] text-emerald-300 hover:bg-emerald-400/10 disabled:opacity-40"
+              className="rounded-sm border border-emerald-400/20 bg-emerald-400/6 px-2 py-1 font-mono text-[10px] text-emerald-300 hover:bg-emerald-400/10 disabled:opacity-40"
             >Import {preview.count}</button>
           )}
         </div>
         {preview && (
-          <div className="mt-2 rounded border border-border-subtle bg-black/20 p-2">
+          <div className="mt-2 rounded-sm border border-border-subtle bg-black/20 p-2">
             <div className="font-display text-[10px] uppercase tracking-widest text-text-muted">
               {preview.count} managed secret{preview.count === 1 ? '' : 's'} would import (names only — no values shown)
             </div>
@@ -733,10 +747,42 @@ interface LlmSpendDto {
   perSessionBudgetUsd: number;
 }
 
-function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
+/**
+ * Recorded spend vs budget from the connected Vox server (single SSOT aggregate). Best-effort:
+ * stays hidden when the read fails. Shown inside Runtime locally, and on its own remotely, where
+ * Runtime's config editor is locked to this machine but the spend is the server's.
+ */
+function LlmSpendMeter() {
+  const [spend, setSpend] = useState<LlmSpendDto | null>(null);
+  const reload = useCallback(async () => {
+    try {
+      setSpend(await invoke<LlmSpendDto>('get_llm_spend', {}));
+    } catch {
+      setSpend(null);
+    }
+  }, []);
+  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    // Guarded: listen() rejects outside Tauri (bare browser/tests).
+    const un = listen('vox://llm-config-changed', () => { reload(); }).catch(() => undefined);
+    return () => { un.then((f) => f?.()); };
+  }, [reload]);
+  if (!spend) return null;
+  return (
+    <div className="mt-3 rounded-sm border border-border-subtle bg-black/20 p-3" data-testid="llm-spend">
+      <div className="font-mono text-[10px] uppercase tracking-wide text-text-muted">LLM spend (recorded actuals)</div>
+      <div className="mt-1 flex flex-wrap gap-x-6 gap-y-1 font-mono text-[11px] text-text-secondary">
+        <span>session ${spend.sessionUsd.toFixed(4)} / ${spend.perSessionBudgetUsd.toFixed(2)}</span>
+        <span>today ${spend.dayUsd.toFixed(4)} / ${spend.dailyBudgetUsd.toFixed(2)}</span>
+        <span>total ${spend.totalUsd.toFixed(4)}</span>
+      </div>
+    </div>
+  );
+}
+
+function RuntimeConfigSection({ pushToast }: { pushToast: (t: Toast) => void }) {
   const [fields, setFields] = useState<UserConfigFieldDto[]>([]);
   const [loading, setLoading] = useState(true);
-  const [spend, setSpend] = useState<LlmSpendDto | null>(null);
   // In-flight edits keyed by config key; cleared on reload.
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -751,12 +797,6 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
       pushToast({ tone: 'warn', title: 'Could not load runtime config', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
-    }
-    // Recorded spend vs budget (single SSOT aggregate); best-effort, never blocks config.
-    try {
-      setSpend(await invoke<LlmSpendDto>('get_llm_spend', {}));
-    } catch {
-      /* store may be unavailable on a fresh install — leave spend hidden */
     }
   }, [pushToast]);
 
@@ -827,13 +867,13 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
           value={draftFor(f)}
           placeholder={f.default || '—'}
           onChange={e => setDrafts(d => ({ ...d, [f.key]: e.target.value }))}
-          className="w-56 rounded border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-none"
+          className="w-56 rounded-sm border border-border-subtle bg-black/30 px-2 py-1 font-mono text-[11px] text-text-primary placeholder:text-text-muted focus:border-brass/40 focus:outline-hidden"
         />
         <button
           type="button"
           disabled={busy === f.key || draftFor(f) === f.currentValue}
           onClick={() => save(f, draftFor(f))}
-          className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
+          className="rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-subtle disabled:opacity-40"
         >save</button>
       </div>
     );
@@ -849,16 +889,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
       <p className="mt-0.5 text-[11px] text-text-muted">
         Core user config persisted to your Vox user config (effective values: ENV &gt; Vox.toml &gt; global &gt; defaults)
       </p>
-      {spend && (
-        <div className="mt-3 rounded border border-border-subtle bg-black/20 p-3" data-testid="llm-spend">
-          <div className="font-mono text-[10px] uppercase tracking-wide text-text-muted">LLM spend (recorded actuals)</div>
-          <div className="mt-1 flex flex-wrap gap-x-6 gap-y-1 font-mono text-[11px] text-text-secondary">
-            <span>session ${spend.sessionUsd.toFixed(4)} / ${spend.perSessionBudgetUsd.toFixed(2)}</span>
-            <span>today ${spend.dayUsd.toFixed(4)} / ${spend.dailyBudgetUsd.toFixed(2)}</span>
-            <span>total ${spend.totalUsd.toFixed(4)}</span>
-          </div>
-        </div>
-      )}
+      <LlmSpendMeter />
       {loading ? (
         <div className="mt-4 text-[12px] text-text-muted">Loading…</div>
       ) : (
@@ -876,7 +907,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
                         disabled={busy === f.key}
                         onClick={() => reset(f)}
                         title="Reset to default"
-                        className="rounded border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-muted hover:bg-overlay-subtle disabled:opacity-40"
+                        className="rounded-sm border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[10px] text-text-muted hover:bg-overlay-subtle disabled:opacity-40"
                       >reset</button>
                     </div>
                   </Row>
@@ -890,7 +921,7 @@ function RuntimeConfigSection({ pushToast }: { pushToast: (t: any) => void }) {
   );
 }
 
-function LlmSettingsSection({ pushToast, onJumpToKeysSecrets }: { pushToast: (t: any) => void; onJumpToKeysSecrets: () => void }) {
+function LlmSettingsSection({ pushToast, onJumpToKeysSecrets }: { pushToast: (t: Toast) => void; onJumpToKeysSecrets: () => void }) {
   const [cfg, setCfg] = useState({
     maxConcurrentRequests: 8,
     openrouterMaxConcurrent: null as number | null,
@@ -1062,24 +1093,23 @@ interface SettingsViewProps {
 export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTilesChange }: SettingsViewProps) {
   const { lang, setLang } = useLang();
   const [section, setSection] = useState('orchestrator');
+  const { status: backendStatus } = useBackendStatus();
+  const sectionLocked = sectionLockedRemotely(section, backendStatus.mode);
+  const shownSection = sectionLocked ? '' : section;
   const [filter, setFilter] = useState('');
-  const [keybindings, setKeybindings] = useState<Bindings>(DEFAULT_BINDINGS);
+  const keybindings = useKeybindings();
   const [capturingId, setCapturingId] = useState<string | null>(null);
-  useEffect(() => {
-    voxTransport.getGuiPreference('gui.keybinds')
-      .then(json => setKeybindings(parseBindings(json)))
-      .catch(() => setKeybindings(DEFAULT_BINDINGS));
-  }, []);
   useEffect(() => {
     if (!capturingId) return;
     const onKey = (e: KeyboardEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      // A modifier alone is the first keydown of every chord; keep capturing until the real key.
+      if (['Control', 'Meta', 'Shift', 'Alt', 'AltGraph'].includes(e.key)) return;
       const chord = chordFromEvent(e);
       const next = { ...keybindings, [capturingId]: chord };
-      setKeybindings(next);
+      setBindings(next);
       setCapturingId(null);
-      voxTransport.setGuiPreference('gui.keybinds', serializeBindings(next)).catch(() => {});
     };
     window.addEventListener('keydown', onKey, { capture: true });
     return () => window.removeEventListener('keydown', onKey, { capture: true });
@@ -1112,7 +1142,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
     mobile: 0,
   });
   const [vals, setVals] = useState<SettingsState>({
-    doubt: true, autobudget: true, theme: 'arcane', concurrency: 7,
+    doubt: true, autobudget: true, chatResearchEnabled: true, theme: 'arcane', concurrency: 7,
     capUsd: DEFAULT_BUDGET_CAP_USD, doubtThresh: 0.6, sign: false, telemetry: 'local',
     isolation: 'wasm', checkpointMins: 5,
     scalingEnabled: false, minAgents: 1, scalingThreshold: 5,
@@ -1224,7 +1254,9 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
       // #273's resource-aware scaling; `setHydrated(true)` gates #229's persist
       // path (see `if (hydrated)` in `update`).
       try {
-        const cfg = await invoke<Record<string, unknown>>('get_orchestrator_config');
+        // A backend with no [orchestrator] table answers null; read it as empty (the updater
+        // below runs during render, so a throw here would take the whole surface down).
+        const cfg = (await invoke<Record<string, unknown> | null>('get_orchestrator_config')) ?? {};
         const num = (k: string) => (cfg[k] == null ? undefined : Number(cfg[k]));
         const bool = (k: string) => (cfg[k] == null ? undefined : Boolean(cfg[k]));
         setVals((prev) => ({
@@ -1235,6 +1267,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           ...(typeof cfg.isolation === 'string' ? { isolation: cfg.isolation } : {}),
           ...(bool('autobudget') != null ? { autobudget: bool('autobudget')! } : {}),
           ...(bool('doubt') != null ? { doubt: bool('doubt')! } : {}),
+          ...(bool('chatResearchEnabled') != null ? { chatResearchEnabled: bool('chatResearchEnabled')! } : {}),
           ...(bool('scalingEnabled') != null ? { scalingEnabled: bool('scalingEnabled')! } : {}),
           ...(bool('harnessIssueDetectionEnabled') != null ? { harnessIssueDetectionEnabled: bool('harnessIssueDetectionEnabled')! } : {}),
           ...(num('minAgents') != null ? { minAgents: num('minAgents')! } : {}),
@@ -1322,9 +1355,9 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
       <div role="status" aria-live="polite" className="sr-only">
         {prefAnnounce}
       </div>
-      <h1 className="col-span-12 font-display text-lg tracking-[0.14em] uppercase text-text-primary">
+      <h2 className="col-span-12 font-display text-lg tracking-[0.14em] uppercase text-text-primary">
         {useLabel('settings')}
-      </h1>
+      </h2>
       {/* Nav */}
       <Glass className="col-span-12 md:col-span-3 p-3">
         <input
@@ -1332,7 +1365,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           onChange={e => setFilter(e.target.value)}
           placeholder="Search settings…"
           aria-label="Search settings"
-          className="mb-2 w-full rounded-lg border border-border-subtle bg-overlay-subtle px-2.5 py-1.5 text-[12px] text-text-secondary placeholder:text-text-muted outline-none focus:border-brass/30"
+          className="mb-2 w-full rounded-lg border border-border-subtle bg-overlay-subtle px-2.5 py-1.5 text-[12px] text-text-secondary placeholder:text-text-muted outline-hidden focus:border-brass/30"
         />
         {filter.trim() ? (
           <nav className="flex flex-col gap-1">
@@ -1341,7 +1374,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                 key={entry.id}
                 type="button"
                 onClick={() => { setSection(entry.section); setFilter(''); }}
-                className="flex flex-col rounded-lg px-3 py-2 text-left text-text-secondary hover:bg-overlay-subtle hover:text-text-primary focus:outline-none focus-visible:ring-1 focus-visible:ring-brass/40"
+                className="flex flex-col rounded-lg px-3 py-2 text-left text-text-secondary hover:bg-overlay-subtle hover:text-text-primary focus:outline-hidden focus-visible:ring-1 focus-visible:ring-brass/40"
               >
                 <span className="text-[12px]">{entry.label}</span>
                 <span className="text-[10px] text-text-muted">{entry.hint}</span>
@@ -1376,7 +1409,10 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
 
       {/* Content */}
       <Glass className="col-span-12 md:col-span-9 p-5">
-        {section === 'orchestrator' && (
+        {sectionLocked && <SurfaceUnavailable viewKey={`settings:${section}`} reason="needs_local_machine" />}
+        {sectionLocked && section === 'runtime' && <LlmSpendMeter />}
+        {shownSection === 'server' && <ServerConnectionSection pushToast={pushToast} />}
+        {shownSection === 'orchestrator' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-orchestrator')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Global scheduling, budget, and verification policy</p>
@@ -1385,7 +1421,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                 <RangeInline value={vals.concurrency} min={1} max={16} onChange={v => update({ concurrency: v })} />
               </Row>
               <Row label="Global budget cap (USD)" hint="Soft + hard cap. Throttles when reached.">
-                <RangeInline value={vals.capUsd} min={1} max={50} step={1} suffix="$" onChange={v => update({ capUsd: v })} />
+                <RangeInline value={vals.capUsd} min={1} max={50} step={1} prefix="$" onChange={v => update({ capUsd: v })} />
               </Row>
               <Row label="Auto-doubt threshold" hint="Confidence floor below which Augur intervenes">
                 <RangeInline value={Math.round(vals.doubtThresh * 100)} min={0} max={100} step={5} suffix="%" onChange={v => update({ doubtThresh: v / 100 })} />
@@ -1415,11 +1451,18 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
               <Row label="Auto-budget per agent" hint="Derived from skill + recent burn">
                 <Toggle on={vals.autobudget} onClick={() => update({ autobudget: !vals.autobudget })} />
               </Row>
+              <Row label="Autonomous chat research" hint="Allow orchestrator to trigger live deep research during chat turns">
+                <Toggle
+                  data-testid="toggle-chat-research"
+                  on={vals.chatResearchEnabled}
+                  onClick={() => update({ chatResearchEnabled: !vals.chatResearchEnabled })}
+                />
+              </Row>
             </div>
           </>
         )}
 
-        {section === 'scaling' && (
+        {shownSection === 'scaling' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-scaling')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Spawn and retire agents automatically based on queue load and local host resources</p>
@@ -1452,7 +1495,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           </>
         )}
 
-        {section === 'llm' && (
+        {shownSection === 'llm' && (
           <LlmSettingsSection
             pushToast={pushToast}
             onJumpToKeysSecrets={() => {
@@ -1464,7 +1507,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           />
         )}
 
-        {section === 'routing' && (
+        {shownSection === 'routing' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-routing')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Emphasis tunes how the scorer trades off intelligence, efficiency, and responsiveness (persisted to VOX_AUTO_ROUTING_PRIORITY)</p>
@@ -1479,7 +1522,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                     type="button"
                     onClick={() => applyEmphasis(preset)}
                     className={`rounded-lg border p-2 text-center transition ${
-                      activePreset === name ? 'border-brass/40 bg-brass/[0.05] text-text-primary' : 'border-border-subtle bg-overlay-subtle text-text-muted hover:border-white/15 hover:text-text-secondary'
+                      activePreset === name ? 'border-brass/40 bg-brass/5 text-text-primary' : 'border-border-subtle bg-overlay-subtle text-text-muted hover:border-white/15 hover:text-text-secondary'
                     }`}
                   >
                     <span className="font-display text-[11px] tracking-wide">{name}</span>
@@ -1540,22 +1583,22 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           </>
         )}
 
-        {section === 'runtime' && <RuntimeConfigSection pushToast={pushToast} />}
-        {section === 'voice' && <SttSettingsSection pushToast={pushToast} />}
+        {shownSection === 'runtime' && <RuntimeConfigSection pushToast={pushToast} />}
+        {shownSection === 'voice' && <SttSettingsSection pushToast={pushToast} />}
 
-        {section === 'mesh' && <MeshPeersSection pushToast={pushToast} />}
+        {shownSection === 'mesh' && <MeshPeersSection pushToast={pushToast} />}
 
-        {section === 'signing' && (
+        {shownSection === 'signing' && (
           <SigningKeysSection vals={vals} update={update} pushToast={pushToast} gamifyEnabled={gamifyEnabled} />
         )}
 
-        {section === 'secrets' && (
+        {shownSection === 'secrets' && (
           <div id="keys-secrets-section" tabIndex={-1}>
             <KeysSecretsSection pushToast={pushToast} gamifyEnabled={gamifyEnabled} />
           </div>
         )}
 
-        {section === 'telemetry' && (
+        {shownSection === 'telemetry' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-telemetry')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Where Vox sends spans, metrics, and traces</p>
@@ -1566,7 +1609,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                   type="button"
                   onClick={() => update({ telemetry: id })}
                   className={`rounded-xl border p-3 text-left transition ${
-                    vals.telemetry === id ? 'border-brass/40 bg-brass/[0.05]' : 'border-border-subtle hover:border-white/15 bg-overlay-subtle'
+                    vals.telemetry === id ? 'border-brass/40 bg-brass/5' : 'border-border-subtle hover:border-white/15 bg-overlay-subtle'
                   }`}
                 >
                   <div className="font-display text-[12px] tracking-wider text-text-primary">{l}</div>
@@ -1574,12 +1617,25 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                 </button>
               ))}
             </div>
+            <div className="mt-4 rounded-xl border border-border-subtle bg-overlay-subtle p-3" data-testid="community-intelligence-settings-card">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-display text-[12px] text-text-secondary">Community Intelligence Bundle (k &gt;= 20 · Ed25519 Signed)</div>
+                  <div className="text-[11px] text-text-muted">
+                    Bounded Empirical Bayes priors (±15% max weight delta) from ~/.vox/cache/community-intelligence.v1.json. Set VOX_COMMUNITY_INTELLIGENCE=off to disable independently of telemetry upload.
+                  </div>
+                </div>
+                <span className="shrink-0 rounded border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] text-emerald-300">
+                  Ed25519 Verified · Offline Ready
+                </span>
+              </div>
+            </div>
           </>
         )}
 
-        {section === 'onboarding' && <OnboardingSection />}
+        {shownSection === 'onboarding' && <OnboardingSection />}
 
-        {section === 'keybinds' && (
+        {shownSection === 'keybinds' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-keybinds')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Click a shortcut to rebind it. Press any key combination to set the new chord.</p>
@@ -1605,9 +1661,8 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
             <button
               type="button"
               onClick={() => {
-                setKeybindings(DEFAULT_BINDINGS);
+                setBindings(DEFAULT_BINDINGS);
                 setCapturingId(null);
-                voxTransport.setGuiPreference('gui.keybinds', serializeBindings(DEFAULT_BINDINGS)).catch(() => {});
               }}
               className="mt-3 rounded-md border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-[11px] text-text-muted hover:text-text-secondary transition"
             >
@@ -1616,7 +1671,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           </>
         )}
 
-        {section === 'gamify' && (
+        {shownSection === 'gamify' && (
           <div className="space-y-3">
             <label className="flex items-center justify-between rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-sm">
               <span>Gamification enabled</span>
@@ -1624,9 +1679,13 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
             </label>
             <label className="flex items-center justify-between rounded-lg border border-border-subtle bg-overlay-subtle p-3 text-sm">
               <span>Mode</span>
-              <select value={gamify.mode} disabled={!gamify.enabled}
+              <select
+                aria-label="Gamification mode"
+                value={gamify.mode}
+                disabled={!gamify.enabled}
                 onChange={e => updateGamify({ mode: e.target.value })}
-                className="rounded bg-black/40 px-2 py-1 text-text-secondary">
+                className="rounded-sm bg-black/40 px-2.5 py-1 pr-7 text-text-secondary"
+              >
                 <option value="balanced">Balanced</option>
                 <option value="serious">Serious (silent)</option>
                 <option value="learning">Learning</option>
@@ -1636,7 +1695,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           </div>
         )}
 
-        {section === 'theme' && (
+        {shownSection === 'theme' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-text-primary">{useLabel('set-theme')}</h2>
             <p className="mt-0.5 text-[11px] text-text-muted">Aesthetic mode for the GUI layer</p>
@@ -1651,10 +1710,10 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
                   type="button"
                   onClick={() => update({ theme: t.id })}
                   className={`rounded-xl border p-3 text-left transition ${
-                    vals.theme === t.id ? 'border-brass/40 bg-brass/[0.05]' : 'border-border-subtle hover:border-white/15 bg-overlay-subtle'
+                    vals.theme === t.id ? 'border-brass/40 bg-brass/5' : 'border-border-subtle hover:border-white/15 bg-overlay-subtle'
                   }`}
                 >
-                  <div className={`h-16 w-full rounded-lg bg-gradient-to-br ${t.swatch}`} />
+                  <div className={`h-16 w-full rounded-lg bg-linear-to-br ${t.swatch}`} />
                   <div className="mt-2 font-display text-[12px] tracking-wider text-text-secondary">{t.name}</div>
                 </button>
               ))}
@@ -1662,7 +1721,7 @@ export function SettingsView({ pushToast, gamifyEnabled, hudTilesConfig, onHudTi
           </>
         )}
 
-        {section === 'display' && (
+        {shownSection === 'display' && (
           <>
             <Row label="Latin labels" hint="Show nav and section names in Latin">
               <Toggle on={lang === 'la'} onClick={() => setLang(lang === 'la' ? 'en' : 'la')} />

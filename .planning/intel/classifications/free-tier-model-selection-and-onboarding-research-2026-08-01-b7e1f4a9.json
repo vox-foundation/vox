@@ -1,0 +1,26 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/free-tier-model-selection-and-onboarding-research-2026-08-01.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Free-Tier Model Selection & Onboarding — Audit, Research, and Risk-Reviewed Design (2026-08-01)",
+  "summary": "Live-code audit of model-selection engine, external research on registries and competitor UX, adversarial pre-mortem of recommendations, and design with failure-mode controls.",
+  "scope": [
+    "model-selection engine",
+    "free-tier handling",
+    "model-rating registries",
+    "competitor onboarding UX",
+    "OAuth desktop-security",
+    "budget enforcement"
+  ],
+  "cross_refs": [
+    "model-selection-2026-q2.md",
+    "free-by-default-and-residual-work-plan-2026.md",
+    "vox-harness-parity-plan-2026-07-30.md",
+    "coding-agent-local-model-ux-comparison-2026-07-30.md",
+    "telemetry-trust-ssot.md",
+    "vox-gui-design-review-2026.md"
+  ],
+  "locked": false,
+  "precedence": null
+}

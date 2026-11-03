@@ -50,3 +50,27 @@ fn slash_only_whitespace_is_vox_native() {
     // input is trimmed before classification, so "/   " → "/"
     assert_eq!(classify("/   "), InputIntent::VoxNative("/".into()));
 }
+
+#[test]
+fn question_mark_is_agent() {
+    assert_eq!(
+        classify("?fix the failing test"),
+        InputIntent::Agent("fix the failing test".into())
+    );
+}
+
+#[test]
+fn bang_nu_is_structured_shell() {
+    assert_eq!(
+        classify("!nu ls | where size > 10kb"),
+        InputIntent::StructuredShell("ls | where size > 10kb".into())
+    );
+}
+
+#[test]
+fn slash_nu_is_structured_shell() {
+    assert_eq!(
+        classify("/nu sys | get cpu"),
+        InputIntent::StructuredShell("sys | get cpu".into())
+    );
+}

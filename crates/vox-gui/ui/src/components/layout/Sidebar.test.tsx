@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import React from 'react';
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -13,7 +13,7 @@ vi.mock('../../generated/surfaceRegistry.generated', () => ({
     { viewKey: 'flow', navLabel: 'Flow', parentSurface: 'agents', tier: 'surface' },
     { viewKey: 'memory', navLabel: 'Memory', parentSurface: 'search', tier: 'surface' },
     { viewKey: 'settings', navLabel: 'Settings', parentSurface: null, tier: 'surface' },
-    { viewKey: 'coverage', navLabel: 'Coverage', parentSurface: 'settings', tier: 'surface' },
+    { viewKey: 'explorer', navLabel: 'Explorer', parentSurface: null, tier: 'surface' },
   ],
 }));
 
@@ -75,9 +75,9 @@ describe('Sidebar badges', () => {
     expect(screen.getByRole('button', { name: 'Settings' })).toBeDefined();
   });
 
-  it('exposes Coverage shortcut with CI surface gaps aria-label', () => {
+  it('exposes Explorer shortcut with browse everything Vox can do aria-label', () => {
     renderSidebar();
-    expect(screen.getByRole('button', { name: /Coverage.*CI surface gaps/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /Explorer.*browse everything Vox can do/i })).toBeDefined();
   });
 });
 
@@ -97,13 +97,13 @@ describe('Sidebar has no nav filter', () => {
   it('still renders top-level nav items', () => {
     renderSidebar();
     expect(screen.getByRole('button', { name: 'Chat' })).toBeDefined();
-    expect(screen.getByRole('button', { name: /Agents/ })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^Agents/i })).toBeDefined();
   });
 
   it('workspace nav calls onOpenParent with workspace key', () => {
     const onOpenParent = vi.fn();
     renderSidebar({ onOpenParent });
-    fireEvent.click(screen.getByRole('button', { name: /Workspace/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Workspace$/i }));
     expect(onOpenParent).toHaveBeenCalledWith('workspace');
   });
 });
@@ -155,7 +155,7 @@ describe('Sidebar language labels', () => {
   });
 });
 
-describe('Sidebar accordion (wide mode only)', () => {
+describe('Sidebar accordion (default and wide modes)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     Element.prototype.scrollIntoView = vi.fn();
@@ -169,14 +169,39 @@ describe('Sidebar accordion (wide mode only)', () => {
     expect(screen.queryByRole('button', { name: /^policies$/i })).not.toBeInTheDocument();
   });
 
+  it('expands the parent containing the active view in default mode as well', () => {
+    renderSidebar({ view: 'flow', mode: 'default' });
+    expect(screen.getByRole('button', { name: /^flow$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^tasks$/i })).toBeInTheDocument();
+  });
+
+  it('names the runs child "Runs" under the "Review" parent, in the active language', () => {
+    renderSidebar({ view: 'runs', mode: 'wide' });
+    expect(screen.getByRole('button', { name: /^runs$/i })).toBeInTheDocument();
+    cleanup();
+    window.localStorage.setItem('vox.lang', 'la');
+    renderSidebar({ view: 'runs', mode: 'wide' });
+    expect(screen.getByRole('button', { name: /^cursus$/i })).toBeInTheDocument();
+  });
+
   it('does not render a child tree in rail mode', () => {
     renderSidebar({ view: 'flow', mode: 'rail' });
     expect(screen.queryByRole('button', { name: /^tasks$/i })).not.toBeInTheDocument();
   });
 
-  it('does not render a child tree in default mode either', () => {
-    renderSidebar({ view: 'flow', mode: 'default' });
+  it('renders a portaled flyout menu for subsections in rail mode on hover or click and navigates', () => {
+    const onOpenTab = vi.fn();
+    renderSidebar({ view: 'flow', mode: 'rail', onOpenTab });
+    // In rail mode, the inline tree is collapsed
     expect(screen.queryByRole('button', { name: /^tasks$/i })).not.toBeInTheDocument();
+    // Clicking the parent reveals the portaled flyout menu
+    const agentsBtn = screen.getByRole('button', { name: /Agents/ });
+    fireEvent.click(agentsBtn);
+    expect(screen.getByTestId('rail-flyout-agents')).toBeInTheDocument();
+    const taskItem = screen.getByRole('menuitem', { name: /^tasks$/i });
+    expect(taskItem).toBeInTheDocument();
+    fireEvent.click(taskItem);
+    expect(onOpenTab).toHaveBeenCalledWith('tasks');
   });
 
   it('clicking a child calls onOpenTab with that child key', () => {
@@ -250,5 +275,75 @@ describe('Sidebar chat sessions section (Task 9)', () => {
     });
     fireEvent.click(screen.getByText('First chat'));
     expect(onSessionChange).toHaveBeenCalledWith('s1');
+  });
+});
+
+describe('Sidebar degraded Review badge', () => {
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+    window.localStorage.clear();
+  });
+
+  it('shows a degraded badge instead of all-clear when a source failed', () => {
+    renderSidebar({ needsYouCount: 0, needsYouDegraded: ['approvals'] } as never);
+    const review = screen.getByRole('button', { name: "Review, couldn't load approvals" });
+    expect(review.textContent).toContain('!');
+  });
+
+  it('keeps the count and names the failed source when other sources have items', () => {
+    renderSidebar({ needsYouCount: 2, needsYouDegraded: ['feedback'] } as never);
+    expect(screen.getByRole('button', { name: "Review, 2 items need you (couldn't load feedback)" })).toBeDefined();
+  });
+});
+
+
+import { StaticBackendStatusProvider } from '../../hooks/useBackendStatus';
+
+describe('Sidebar remote gating', () => {
+  it('marks unavailable child surfaces with their reason', () => {
+    render(
+      <LanguageProvider>
+        <StaticBackendStatusProvider
+          status={{ mode: 'remote', url: 'https://vox.lan:3921/', profile: null, surfaces: [{ surface: 'dashboard', available: true, reason: null }] }}
+        >
+          <Sidebar {...baseProps} mode="wide" view="dashboard" />
+        </StaticBackendStatusProvider>
+      </LanguageProvider>,
+    );
+    const flow = screen.getAllByRole('button').find((b) => b.getAttribute('data-unavailable') === 'not_in_profile');
+    expect(flow).toBeTruthy();
+    expect(flow?.getAttribute('title')).toMatch(/not available on this server/i);
+  });
+});
+
+describe('Sidebar hide and restore button', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    Element.prototype.scrollIntoView = vi.fn();
+    window.localStorage.clear();
+  });
+
+  it('hides the sidebar completely when Hide sidebar button is clicked and restores it via Show sidebar button', () => {
+    const setMode = vi.fn();
+    renderSidebar({ mode: 'default', setMode });
+
+    const hideBtn = screen.getByTestId('sidebar-hide-button');
+    expect(hideBtn).toHaveAttribute('aria-label', 'Hide sidebar');
+    expect(hideBtn).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(hideBtn);
+    expect(setMode).toHaveBeenCalledWith('hidden');
+
+    const aside = screen.getByRole('complementary', { name: 'Sidebar' });
+    expect(aside).toHaveAttribute('data-sidebar-hidden', 'true');
+    expect(screen.queryByRole('navigation', { name: 'Primary navigation' })).toBeNull();
+
+    const restoreBtn = screen.getByTestId('sidebar-restore-button');
+    expect(restoreBtn).toHaveAttribute('aria-label', 'Show sidebar');
+    expect(restoreBtn).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(restoreBtn);
+    expect(setMode).toHaveBeenCalledWith('default');
+    expect(screen.getByRole('navigation', { name: 'Primary navigation' })).toBeInTheDocument();
   });
 });

@@ -96,6 +96,53 @@ fn valid_crate_name(name: &str) -> bool {
             .all(|ch| ch.is_alphanumeric() || ch == '-' || ch == '_')
 }
 
+/// Split crates into at most `n` groups of near-equal weight (longest-processing-time greedy:
+/// heaviest first, each into the currently lightest group). Each CI shard then compiles and
+/// runs only its own group's test binaries — compiling every test binary in every shard (hash
+/// sharding) cost 17-19 min per shard. Empty groups are dropped; ties break by name.
+pub fn partition_crates(weights: &[(String, u64)], n: usize) -> Vec<Vec<String>> {
+    let n = n.max(1);
+    let mut sorted: Vec<&(String, u64)> = weights.iter().collect();
+    sorted.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    let mut groups: Vec<(u64, Vec<String>)> = vec![(0, Vec::new()); n];
+    for (name, w) in sorted {
+        let lightest = groups
+            .iter_mut()
+            .min_by_key(|(total, _)| *total)
+            .expect("n >= 1 groups");
+        lightest.0 += (*w).max(1);
+        lightest.1.push(name.clone());
+    }
+    groups
+        .into_iter()
+        .filter(|(_, g)| !g.is_empty())
+        .map(|(_, mut g)| {
+            g.sort();
+            g
+        })
+        .collect()
+}
+
+/// Weight of a crate for sharding: its `.rs` file count (each integration-test file is a separate
+/// binary to compile and link, so file count tracks test build cost). Missing dir -> 1.
+fn crate_weight(name: &str) -> u64 {
+    fn count(dir: &std::path::Path) -> u64 {
+        std::fs::read_dir(dir).map_or(0, |rd| {
+            rd.flatten()
+                .map(|e| {
+                    let p = e.path();
+                    if p.is_dir() {
+                        count(&p)
+                    } else {
+                        u64::from(p.extension().is_some_and(|x| x == "rs"))
+                    }
+                })
+                .sum()
+        })
+    }
+    count(&std::path::Path::new("crates").join(name)).max(1)
+}
+
 fn write_github_output(path: &str, lines: &str) -> std::io::Result<()> {
     use std::io::Write;
     let mut f = std::fs::OpenOptions::new()
@@ -190,15 +237,9 @@ pub fn run_affected_cmd(args: &[String]) -> i32 {
     let path_flags = crate::affected::compute_path_flags(&changed);
     let aff = crate::affected::compute_affected(&changed, &graph.crates);
 
-    let seeds: BTreeSet<String> = changed
-        .iter()
-        .filter_map(|f| crate::affected::file_to_crate(f))
-        .map(String::from)
-        .collect();
-    let closure = if seeds.is_empty() {
-        BTreeSet::new()
-    } else {
-        crate::affected::reverse_closure(&graph.crates, &seeds)
+    let closure = match &aff {
+        crate::affected::Affected::Crates(s) => s.clone(),
+        _ => BTreeSet::new(),
     };
 
     for c in &closure {
@@ -240,6 +281,45 @@ pub fn run_affected_cmd(args: &[String]) -> i32 {
         path_flags.affects_plugins,
     );
 
+    // `--shards N`: crate-level shards for the PR test jobs (`--exclude <crate>` repeatable).
+    let mut out_line = out_line;
+    if let Some(n) = get("--shards").and_then(|v| v.parse::<usize>().ok()) {
+        let excluded: BTreeSet<String> = args
+            .windows(2)
+            .filter(|w| w[0] == "--exclude")
+            .map(|w| w[1].clone())
+            .collect();
+        // Fail closed like ci.yml: an empty affected set means the whole workspace.
+        let pool: Vec<String> = if full || closure.is_empty() {
+            graph.crates.keys().cloned().collect()
+        } else {
+            closure.iter().cloned().collect()
+        };
+        let weights: Vec<(String, u64)> = pool
+            .into_iter()
+            .filter(|c| !excluded.contains(c) && valid_crate_name(c))
+            .map(|c| {
+                let w = crate_weight(&c);
+                (c, w)
+            })
+            .collect();
+        let groups = partition_crates(&weights, n);
+        let ids: Vec<String> = (1..=groups.len()).map(|i| i.to_string()).collect();
+        out_line.push_str(&format!("shard_list=[{}]\n", ids.join(",")));
+        for i in 1..=n {
+            let args = groups
+                .get(i - 1)
+                .map(|g| {
+                    g.iter()
+                        .map(|c| format!("-p {c}"))
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                })
+                .unwrap_or_default();
+            out_line.push_str(&format!("shard_{i}_p_args={args}\n"));
+        }
+    }
+
     if let Some(go) = get("--github-output") {
         if let Err(e) = write_github_output(&go, &out_line) {
             eprintln!("::error::failed to write github output: {e}");
@@ -253,7 +333,86 @@ pub fn run_affected_cmd(args: &[String]) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use super::run_affected_cmd;
+    use super::{partition_crates, run_affected_cmd};
+
+    #[test]
+    fn partition_balances_by_weight_and_drops_empty_groups() {
+        let w = |pairs: &[(&str, u64)]| -> Vec<(String, u64)> {
+            pairs.iter().map(|(n, w)| (n.to_string(), *w)).collect()
+        };
+        let groups = partition_crates(
+            &w(&[
+                ("big", 10),
+                ("mid", 6),
+                ("small-a", 4),
+                ("small-b", 3),
+                ("tiny", 1),
+            ]),
+            3,
+        );
+        assert_eq!(groups.len(), 3);
+        // LPT: big alone; mid + tiny; small-a + small-b.
+        assert!(groups.contains(&vec!["big".to_string()]));
+        assert!(groups.contains(&vec!["mid".to_string(), "tiny".to_string()]));
+        assert!(groups.contains(&vec!["small-a".to_string(), "small-b".to_string()]));
+        // Fewer crates than shards: no empty shard.
+        assert_eq!(
+            partition_crates(&w(&[("only", 5)]), 3),
+            vec![vec!["only".to_string()]]
+        );
+        // Every crate lands in exactly one group.
+        let all: Vec<String> =
+            partition_crates(&w(&[("a", 2), ("b", 2), ("c", 2), ("d", 2)]), 3).concat();
+        assert_eq!(all.len(), 4);
+    }
+
+    /// R1: EXAMPLES_CONSUMERS (seeded by compute_affected for `examples/`
+    /// changes) must survive into the emitted `-p` args, not just the
+    /// `file_to_crate`-derived seeds. vox-compiler is one of the consumers
+    /// but is not itself named by any changed file here.
+    #[test]
+    fn examples_change_pulls_examples_consumers_into_p_args() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let crates: std::collections::BTreeMap<String, Vec<String>> =
+            crate::affected::EXAMPLES_CONSUMERS
+                .iter()
+                .map(|c| (c.to_string(), Vec::new()))
+                .collect();
+        let graph = super::CrateGraph {
+            schema_version: 1,
+            crates,
+        };
+        let graph_path = dir.path().join("graph.json");
+        std::fs::write(&graph_path, serde_json::to_string(&graph).unwrap()).unwrap();
+
+        let changed_path = dir.path().join("changed.txt");
+        std::fs::write(
+            &changed_path,
+            "crates/vox-cli/src/main.rs\nexamples/golden/foo.vox\n",
+        )
+        .unwrap();
+
+        let out_path = dir.path().join("gh_output.txt");
+        let code = run_affected_cmd(&[
+            "affected-crates".into(),
+            "--changed".into(),
+            changed_path.to_string_lossy().into_owned(),
+            "--graph".into(),
+            graph_path.to_string_lossy().into_owned(),
+            "--github-output".into(),
+            out_path.to_string_lossy().into_owned(),
+        ]);
+        assert_eq!(code, 0);
+        let out = std::fs::read_to_string(&out_path).unwrap();
+        let p_args_line = out
+            .lines()
+            .find(|l| l.starts_with("affected_p_args="))
+            .expect("affected_p_args line");
+        assert!(
+            p_args_line.contains("-p vox-compiler"),
+            "expected -p vox-compiler in {p_args_line:?}"
+        );
+    }
 
     #[test]
     fn shadow_junit_exits_nonzero_when_failure_outside_affected_set() {

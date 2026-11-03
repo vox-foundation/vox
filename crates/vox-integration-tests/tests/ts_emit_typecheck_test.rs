@@ -18,8 +18,9 @@ use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
 use vox_integration_tests::{
-    EnvVarGuard, collect_vox_files, run_tsc_noemit, strip_unc_prefix, ts_scratch_dir,
+    collect_vox_files, env_var_lock, run_tsc_noemit, strip_unc_prefix, ts_scratch_dir,
 };
+use vox_test_harness::env_scratch::EnvScratch;
 
 /// Absolute path to the `examples/golden-ts/` directory of Vox fixtures.
 fn golden_ts_dir() -> PathBuf {
@@ -87,10 +88,11 @@ fn all_golden_fixtures_emit_valid_typescript() {
     // state, so toggling it inside the parallel loop below would race across threads.
     // Disables the WebIR validate gate for test isolation (same pattern as pipeline_test.rs)
     // — we care about whether the emitted TS type-checks, not the structural IR gate.
-    // EnvVarGuard also serializes against admin_output_typechecks_when_gated (below), which
-    // mutates the same var, and restores it even if a fixture panics inside the batch.
+    // The env lock also serializes against admin_output_typechecks_when_gated (below), which
+    // mutates the same var; EnvScratch restores it even if a fixture panics inside the batch.
     let emitted: Vec<(String, Vec<(String, String)>)> = {
-        let _guard = EnvVarGuard::set(&[("VOX_WEBIR_VALIDATE", "0")]);
+        let _lock = env_var_lock();
+        let _env = EnvScratch::empty().set("VOX_WEBIR_VALIDATE", "0");
 
         // Compile every fixture in parallel — each is an independent lex/parse/lower/codegen
         // pass with no shared mutable state (the env var is set once, read-only from here).
@@ -230,16 +232,16 @@ fn admin_output_typechecks_when_gated() {
     std::fs::write(&registry_path, "admin_tables:\n  - User\n").expect("write registry");
 
     // Enable the gate + point at our registry; disable the WebIR validate gate for
-    // isolation (same pattern as compile_to_ts). EnvVarGuard serializes against
+    // isolation (same pattern as compile_to_ts). The env lock serializes against
     // all_golden_fixtures_emit_valid_typescript (above), which also mutates
-    // VOX_WEBIR_VALIDATE, and restores every var even if codegen panics.
+    // VOX_WEBIR_VALIDATE; EnvScratch restores every var even if codegen panics.
     let registry_path_str = registry_path.to_str().expect("registry path must be UTF-8");
     let output = {
-        let _guard = EnvVarGuard::set(&[
-            ("VOX_EMIT_ADMIN", "1"),
-            ("VOX_ADMIN_REGISTRY", registry_path_str),
-            ("VOX_WEBIR_VALIDATE", "0"),
-        ]);
+        let _lock = env_var_lock();
+        let _env = EnvScratch::empty()
+            .set("VOX_EMIT_ADMIN", "1")
+            .set("VOX_ADMIN_REGISTRY", registry_path_str)
+            .set("VOX_WEBIR_VALIDATE", "0");
         let opts = CodegenOptions {
             tanstack_start: false,
             target: None,

@@ -1,6 +1,9 @@
 use crate::spec::types::*;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, strum::Display)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, strum::Display, Serialize, Deserialize,
+)]
 pub enum SecretId {
     GeminiApiKey,
     OpenRouterApiKey,
@@ -94,6 +97,12 @@ pub enum SecretId {
     VoxOsfApiToken,
     VoxArxivAccessToken,
     VoxNanopubSigningKeyHex,
+    /// Research-trial campaign / benchmark-bundle signing key (Ed25519 private
+    /// key hex). Distinct from the nanopub key (D-11); vault-only in strict mode.
+    VoxResearchTrialSigningKeyHex,
+    /// CSV of hex Ed25519 public keys trusted to sign research trials; unset
+    /// trusts nobody.
+    VoxResearchTrialSignerAllowlist,
     /// Per-user RSA nanopublication signing key, base64-encoded PKCS#8 private
     /// key (account/profile-scoped, persistable, non-shareable).
     VoxUserRsaNanopubPrivateKeyB64,
@@ -302,7 +311,6 @@ pub enum SecretId {
     VoxGenericApiKey,
     VoxMeshHttpJoin,
     VoxMeshHttpHeartbeatSecs,
-    VoxMeshExecPolicy,
     VoxMeshA2aStorePath,
     VoxMeshExecLeaseStorePath,
     VoxMeshDispatchStorePath,
@@ -327,6 +335,10 @@ pub enum SecretId {
     VoxCandleDevice,
     VoxQuestioningMirrorGlobalAttention,
     VoxMcpOrchestratorDaemonRepositoryIdStrict,
+    /// Umbrella for MCP daemon read-RPC pilots (today: status tool only).
+    VoxMcpOrchestratorRpcReads,
+    /// `vox_orchestrator_status` attaches `orch.status` from the aligned daemon.
+    VoxMcpOrchestratorStatusToolRpc,
 
     VoxQuestioningMaxAttentionMs,
     VoxOratioLogitBiasStrength,
@@ -375,6 +387,11 @@ pub enum SecretId {
     VoxSearchSearxngEngines,
     VoxSearchSearxngLanguage,
     VoxSearchDdgFallbackDisabled,
+    /// Task 8e: when truthy, `SearchPolicy::from_env` forces
+    /// `web_research_enabled = false` so no code path can reach a live web
+    /// search engine — set by `vox-orchestrator-mcp`'s hermetic test ctors
+    /// (`src/lib.rs` and `tests/common/mod.rs`), never by production code.
+    VoxSearchWebResearchDisabled,
     VoxSearchScraperTimeout,
     VoxSearchScraperRobotsRespect,
     VoxSearchScraperMinDensity,
@@ -426,6 +443,9 @@ pub enum SecretId {
     VoxMcpHttpHealthAuth,
     VoxMcpHttpTrustXForwardedFor,
     VoxMcpHttpPublicEvalEnabled,
+    VoxMcpHttpTlsCert,
+    VoxMcpHttpTlsKey,
+    VoxMcpHttpBehindTunnel,
     VoxMeshMaxStaleMs,
     VoxMcpLlmCostEvents,
     VoxMcpGrammarMask,
@@ -518,6 +538,7 @@ pub enum SecretId {
     OpenaiTuningTopP,
     AnthropicTuningTemperature,
     AnthropicTuningTopP,
+    VoxChatResearchEnabled,
 }
 
 pub const ALL_CHAT_OPTIONALS: &[SecretId] = &[
@@ -671,6 +692,20 @@ impl SecretId {
                 taxonomy_class: TaxonomyClass::ScholarlyPublication,
                 lifecycle: LifecycleMeta::MANUAL,
             },
+            // Research-trial private signing key: vault-only in strict mode, never
+            // from the environment or compat fallbacks (D-07, D-11); not shareable.
+            SecretId::VoxResearchTrialSigningKeyHex => SecretMetadata {
+                class: SecretClass::Integration,
+                material_kind: SecretMaterialKind::ApiKey,
+                persistable_account_secret: true,
+                shareable: false,
+                device_local_only: false,
+                allow_env_in_strict: false,
+                allow_compat_sources_in_strict: false,
+                rotation_policy: RotationPolicy::Manual,
+                taxonomy_class: TaxonomyClass::ScholarlyPublication,
+                lifecycle: LifecycleMeta::MANUAL,
+            },
             SecretId::WebhookSigningSecret
             | SecretId::VoxOpenReviewAccessToken
             | SecretId::VoxOpenReviewPassword
@@ -720,5 +755,52 @@ impl SecretId {
             i += 1;
         }
         panic!("SecretId must exist in SPECS")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SecretId;
+
+    #[test]
+    fn metadata_and_spec_resolve_for_known_id() {
+        let id = SecretId::AnthropicApiKey;
+        let meta = id.metadata();
+        assert_eq!(
+            meta.material_kind,
+            crate::spec::types::SecretMaterialKind::ApiKey
+        );
+        let spec = id.spec();
+        assert_eq!(spec.id as u32, id as u32);
+    }
+
+    #[test]
+    fn research_trial_signing_key_is_vault_only_in_strict() {
+        let id = SecretId::VoxResearchTrialSigningKeyHex;
+        let meta = id.metadata();
+        assert!(!meta.allow_env_in_strict);
+        assert!(!meta.allow_compat_sources_in_strict);
+        assert!(!meta.shareable);
+        assert_eq!(
+            id.spec().canonical_env,
+            "VOX_RESEARCH_TRIAL_SIGNING_KEY_HEX"
+        );
+    }
+
+    #[test]
+    fn research_trial_signer_allowlist_is_optional_csv() {
+        let spec = SecretId::VoxResearchTrialSignerAllowlist.spec();
+        assert_eq!(spec.canonical_env, "VOX_RESEARCH_TRIAL_SIGNER_ALLOWLIST");
+        assert_eq!(spec.policy, crate::policy::SecretPolicy::optional_skip());
+    }
+
+    #[test]
+    fn research_trial_ids_resolve_to_specs() {
+        for id in [
+            SecretId::VoxResearchTrialSigningKeyHex,
+            SecretId::VoxResearchTrialSignerAllowlist,
+        ] {
+            assert_eq!(id.spec().id as u32, id as u32);
+        }
     }
 }

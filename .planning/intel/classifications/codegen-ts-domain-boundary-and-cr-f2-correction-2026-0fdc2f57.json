@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/codegen-ts-domain-boundary-and-cr-f2-correction-2026.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Codegen-TS Domain Boundary & CR-F2 Correction (Handoff)",
+  "summary": "Defines Rust vs TypeScript emit domain boundary (logic→Rust, browser/GUI→TypeScript), corrects CR-F2 release criteria.",
+  "scope": ["codegen domain", "Rust emit", "TypeScript emit", "release criteria", "split discipline"],
+  "cross_refs": ["v1-release-criteria.md", "2026-06-06-phase1-cross-arm-parity.md"],
+  "locked": false,
+  "precedence": null
+}

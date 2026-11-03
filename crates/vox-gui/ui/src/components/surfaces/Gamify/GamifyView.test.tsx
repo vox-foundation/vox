@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { LanguageProvider } from '../../../hooks/useLanguage';
 
@@ -89,5 +89,13 @@ describe('GamifyView', () => {
     const { container } = render(<LanguageProvider><GamifyView pushToast={vi.fn()} /></LanguageProvider>);
     const canvas = container.querySelector('canvas');
     expect(canvas).not.toBeNull();
+  });
+
+  it('switches between Urbs Map and Live River harness visualizer', () => {
+    render(<LanguageProvider><GamifyView pushToast={vi.fn()} /></LanguageProvider>);
+    const riverBtn = screen.getByRole('button', { name: /Live River/i });
+    expect(riverBtn.getAttribute('type')).toBe('button');
+    fireEvent.click(riverBtn);
+    expect(screen.getByTestId('axis-harness-river')).toBeDefined();
   });
 });

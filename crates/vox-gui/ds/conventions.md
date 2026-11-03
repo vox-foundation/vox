@@ -32,6 +32,7 @@ can drive opacity: `rgb(var(--brass) / 0.1)`. It is restated per scope in
 | Body / UI | **Inter** (400/500) | Default sans for everything that isn't display. |
 | Caption | **EB Garamond** Italic | Quiet, literary asides only. |
 | Mono | system mono | Code, numerics where alignment matters. |
+| Micro caps | Inter or mono, ≥ 11 px | Chip and metadata labels — all-caps with `letter-spacing: 0.08em`. Display (0.13em) and micro (0.08em) are the only tracked-caps styles; data text is never below 11 px. |
 
 Cinzel is a Trajan-column capitalis — reserve it for structural labels, never
 long-form text.

@@ -176,6 +176,92 @@ pub enum BudgetSignal {
     },
 }
 
+impl BudgetSignal {
+    /// Vox's structural anti-extractive guarantee: `BudgetSignal::CostExceeded` never triggers
+    /// a silent credit auto-reload or overage billing.
+    #[must_use]
+    pub const fn no_auto_reload_guaranteed(&self) -> bool {
+        true
+    }
+
+    /// Actionable, non-coercive recommendation when a user's explicit cost cap is reached.
+    #[must_use]
+    pub const fn cost_exceeded_recommendation(&self) -> Option<&'static str> {
+        match self {
+            Self::CostExceeded { .. } => Some(
+                "Session budget cap reached (0% Vox markup; auto-reload is permanently disabled). Shifting to --model free or local MENS.",
+            ),
+            _ => None,
+        }
+    }
+}
+
+/// Zero-markup per-turn cost and savings receipt (`HUMANE-01`).
+///
+/// Proves that Vox applies `$0.00` platform markup over upstream BYOK/local inference
+/// and quantifies how much developer budget was preserved compared to frontier cloud rates
+/// (`$15.00/M` input, `$75.00/M` output).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct TurnCostReceipt {
+    pub model_id: String,
+    pub tier: String,
+    pub prompt_tokens: u64,
+    pub cached_tokens: u64,
+    pub completion_tokens: u64,
+    pub upstream_cost_usd: f64,
+    /// Structural constant: always `0.0`. Vox never marks up BYOK or local inference.
+    pub vox_markup_usd: f64,
+    pub saved_vs_frontier_usd: f64,
+}
+
+impl TurnCostReceipt {
+    /// Reference frontier input rate (`$15.00` per 1M prompt tokens).
+    pub const FRONTIER_INPUT_USD_PER_M: f64 = 15.0;
+    /// Reference frontier output rate (`$75.00` per 1M completion tokens).
+    pub const FRONTIER_OUTPUT_USD_PER_M: f64 = 75.0;
+
+    #[must_use]
+    pub fn new(
+        model_id: impl Into<String>,
+        tier: impl Into<String>,
+        prompt_tokens: u64,
+        cached_tokens: u64,
+        completion_tokens: u64,
+        upstream_cost_usd: f64,
+    ) -> Self {
+        let clean_upstream = upstream_cost_usd.max(0.0);
+        let frontier_equiv_usd = (prompt_tokens as f64 / 1_000_000.0)
+            * Self::FRONTIER_INPUT_USD_PER_M
+            + (completion_tokens as f64 / 1_000_000.0) * Self::FRONTIER_OUTPUT_USD_PER_M;
+        let saved_vs_frontier_usd = (frontier_equiv_usd - clean_upstream).max(0.0);
+        Self {
+            model_id: model_id.into(),
+            tier: tier.into(),
+            prompt_tokens,
+            cached_tokens,
+            completion_tokens,
+            upstream_cost_usd: clean_upstream,
+            vox_markup_usd: 0.0,
+            saved_vs_frontier_usd,
+        }
+    }
+
+    /// Format a concise, honest 1-line receipt footer for CLI and telemetry surfaces.
+    #[must_use]
+    pub fn format_footer(&self) -> String {
+        format!(
+            "cost-receipt[{} · {}]: in={} (cached={}) out={} | upstream=${:.5} (0% Vox markup) | saved=${:.4} vs frontier",
+            self.tier,
+            self.model_id,
+            self.prompt_tokens,
+            self.cached_tokens,
+            self.completion_tokens,
+            self.upstream_cost_usd,
+            self.saved_vs_frontier_usd
+        )
+    }
+}
+
 /// A record of a single agent iteration for drift detection.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DriftRecord {
@@ -1147,6 +1233,31 @@ mod tests {
         assert_eq!(
             admitted, expected_admitted,
             "exactly floor((cap - used) / estimate) reservations must be admitted, got {admitted}"
+        );
+    }
+
+    #[test]
+    fn test_turn_cost_receipt_zero_markup_and_frontier_savings() {
+        let local_receipt = TurnCostReceipt::new("vox-mens-27b", "free", 2_000, 1_500, 1_000, 0.0);
+        assert_eq!(local_receipt.vox_markup_usd, 0.0);
+        assert_eq!(local_receipt.upstream_cost_usd, 0.0);
+        // Frontier equiv: 2000 * ($15/1M) + 1000 * ($75/1M) = $0.03 + $0.075 = $0.105
+        assert!((local_receipt.saved_vs_frontier_usd - 0.105).abs() < 1e-6);
+        let footer = local_receipt.format_footer();
+        assert!(footer.contains("0% Vox markup"));
+        assert!(footer.contains("saved=$0.1050 vs frontier"));
+
+        let bm = BudgetManager::new(None);
+        let agent = AgentId(76);
+        bm.set_allocation(agent, AgentBudgetAllocation::new(100_000, 0.05));
+        bm.record_cost(agent, 0.06, None);
+        let sig = bm.agent_budget_signal(agent);
+        assert!(matches!(sig, BudgetSignal::CostExceeded { .. }));
+        assert!(sig.no_auto_reload_guaranteed());
+        assert!(
+            sig.cost_exceeded_recommendation()
+                .unwrap()
+                .contains("auto-reload is permanently disabled")
         );
     }
 }

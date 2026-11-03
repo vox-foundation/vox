@@ -2,9 +2,9 @@
 title: "Tutorial: Persistent Actors & State"
 description: "Master stateful concurrency in Vox. Learn to define, spawn, and persist actor state across system restarts."
 category: "Tutorials"
+status: "current"
 sort_order: 4
 training_eligible: true
-
 schema_type: "HowTo"
 ---
 
@@ -17,12 +17,16 @@ In Vox, **Actors** are the primary unit of stateful concurrency. Unlike standard
 An actor is defined with the `actor` keyword. Its internal state is private and only accessible via message handlers.
 
 ```vox
-{{#include ../../../examples/golden/ref_actors.vox:basic_actor}}
+fn Counter_increment(current: int) to int {
+    let count = current + 1
+    print("Count is " + count)
+    return count
+}
 ```
 
-## 2. Spawning and Identity
+*Source: examples/golden/ref_actors.vox*
 
-To use an actor, you must **spawn** it. This returns an `ActorRef`, which acts as a capability to send messages.
+## 2. Spawning and Identity
 
 To use an actor, you must **spawn** it. This returns an `ActorRef`, which acts as a capability to send messages.
 
@@ -72,15 +76,15 @@ fn WorkerActor_DoWork() {
 
 ## 5. Behind the Scenes: How Actors Compile
 
-When you run `vox build`, the compiler lowers actor constructs directly into high-performance Rust primitives:
+When you run `vox build`, the compiler lowers actor declarations into structured Rust backend code (`crates/vox-codegen/src/codegen_rust/emit/workflow.rs`). `emit_actor_state_structs` generates a private state struct (`<Actor>State`), and `emit_fn_with_actor_handlers` emits handler functions taking `state: &mut <Actor>State`. Runtime coordination routes through `vox_actor_runtime`:
 
 | Vox Construct | Compiled Rust Equivalent |
 | :--- | :--- |
-| `actor X` | `struct X` + `enum XMessage` + `async fn run(mailbox)` |
-| `state count: int` | Struct field in the actor's private state struct |
-| `spawn X()` | `tokio::spawn` + `mpsc::channel` creation |
-| `ref.send msg()` | `mpsc::Sender::send` (fire and forget) |
-| `await ref.get()` | `oneshot::channel` + `mpsc::send` (request/reply) |
+| `actor X` | `struct XState` + handler functions taking `&mut XState` |
+| `state count: int` | Struct field in `XState` |
+| `spawn X()` | `tokio::spawn` + task mailbox registration |
+| `ref.send msg()` | `mpsc::Sender::send` / `SubscriptionManager` |
+| `await ref.get()` | Request/reply via runtime channel |
 | `state_load(key)` | `Codex::get_actor_state(actor_id, key)` |
 | `state_save(key, v)` | `Codex::put_actor_state(actor_id, key, v)` |
 

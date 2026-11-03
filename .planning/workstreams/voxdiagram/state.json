@@ -1,0 +1,58 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": "v1.7 — VoxDiagram",
+  "phases": [
+    {
+      "number": "83",
+      "name": "Core Crate - Parser, IR & Diagnostics",
+      "status": "complete"
+    },
+    {
+      "number": "84",
+      "name": "Mermaid Emitter & Strict Importer",
+      "status": "complete"
+    },
+    {
+      "number": "85",
+      "name": "Graph Layout & Deterministic SVG",
+      "status": "complete"
+    },
+    {
+      "number": "86",
+      "name": "Sequence Kind",
+      "status": "complete"
+    },
+    {
+      "number": "87",
+      "name": "Doc-Pipeline Consumer & Legacy-Mermaid Ratchet",
+      "status": "complete"
+    },
+    {
+      "number": "88",
+      "name": "MCP Tool, CLI & Agent Guidance",
+      "status": "complete"
+    },
+    {
+      "number": "89",
+      "name": "Docs-Astro Integration",
+      "status": "complete"
+    },
+    {
+      "number": "90",
+      "name": "Corpus Migration & Gate Tightening",
+      "status": "complete"
+    },
+    {
+      "number": "91",
+      "name": "Measurement Harness & Advisory Closure",
+      "status": "complete"
+    }
+  ],
+  "next": {
+    "command": "/gsd:progress",
+    "label": "Show progress",
+    "reason": "Unsure of state — showing progress"
+  },
+  "updated_at": "2026-10-28T06:10:00.480Z"
+}

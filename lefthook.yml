@@ -2,6 +2,14 @@
 # Install once after cloning: vox run scripts/install-hooks.vox
 # Requires lefthook: https://github.com/evilmartians/lefthook
 #
+# Hooks NEVER build. They call the installed `vox` and `toestub` binaries (install
+# them from CI-built artifacts with `voxup install --tag nightly`, or once with
+# `cargo install --locked --path crates/vox-cli` and
+# `cargo install --locked --path crates/vox-code-audit --bin toestub`). A hook that
+# ran `cargo run` rebuilt vox-cli before every commit or push — minutes to hours on
+# a busy machine — to run checks hosted CI runs anyway. `vox ci dev-loop-guard`
+# (fast tier, local and CI) fails if a `cargo run/build/test/clippy` returns here.
+#
 # stage_fixed: true  →  lefthook re-stages any files the generator rewrites,
 #                        so the developer doesn't need to manually git add them.
 pre-commit:
@@ -10,42 +18,41 @@ pre-commit:
     # Auto-format and re-stage so a format slip never becomes a separate `style:`
     # follow-up commit. WRITE side of the fmt gate; the read-side verification
     # (`vox ci fmt-check`, the "Format Check" step in ci.yml) stays in CI for
-    # contributors without this hook. scripts/fmt.vox chunks `cargo fmt` per crate
-    # because `cargo fmt --all` overflows the Windows command-line limit (os error
-    # 206) on this large workspace. On already-formatted code it no-ops; when the
-    # dev's edited file is misformatted it formats + `stage_fixed` re-stages it.
+    # contributors without this hook. Formats only the STAGED .rs files with the
+    # toolchain's rustfmt directly (never `cargo fmt --all`, which overflows the
+    # Windows command-line limit, os error 206, on this workspace; a commit's staged
+    # set is small). This used to be `cargo run -p vox-cli -- run scripts/fmt.vox`,
+    # which rebuilt the whole vox-cli binary on every commit that touched a crate it
+    # depends on (2-32 minutes per commit) just to run rustfmt on the same files.
+    # The full-workspace check is unchanged: `vox ci pre-push` and CI run
+    # `rustfmt --check` over every target root, and `vox run scripts/fmt.vox -- --all`
+    # is still the fix. On already-formatted code this no-ops; when a staged file is
+    # misformatted it formats + `stage_fixed` re-stages it.
     fmt-fix:
-      run: cargo run -p vox-cli --quiet -- run scripts/fmt.vox
+      run: rustfmt --config-path . {staged_files}
       stage_fixed: true
       glob: "**/*.rs"
+      exclude:
+        - "**/vox-plugin-cloud/**"
+        # An `include!`d expression fragment, not a module; rustfmt cannot parse it alone.
+        - "crates/vox-gui/src/config/generated_fields.rs"
       fail_text: "rustfmt could not format (likely a syntax error). Fix the parse error, then re-commit."
 
-    sync-ignore-files:
-      run: cargo run -p vox-cli --quiet -- ci sync-ignore-files
-      stage_fixed: true
-      glob: ".voxignore"
-
-    command-sync:
-      run: cargo run -p vox-cli --quiet -- ci command-sync
-      stage_fixed: true
-      glob: "crates/vox-cli/src/commands/**/*.rs"
-
-    gui-version-sync:
-      run: cargo run -p vox-cli --quiet -- ci gui-version-sync --write
-      stage_fixed: true
-      glob: "{Cargo.toml,crates/vox-gui/tauri.conf.json,crates/vox-gui/ui/package.json,clients/runtime-types/package.json,clients/runtime-web/package.json}"
-
-    plugin-catalog-docs:
-      run: cargo run -p vox-cli --quiet -- ci generate-plugin-catalog-docs
-      stage_fixed: true
-      glob: "crates/vox-plugin-catalog/catalog.toml"
+    # Generated SSOT files (.cursorignore/.aiignore/.aiexclude, the CLI command surface, GUI
+    # version stamps, the plugin catalog docs) are NOT regenerated here. A hook can only use
+    # the installed vox, which is usually older than the tree and would write stale output.
+    # PR CI's `ssot-autoregen` job regenerates them with a fresh build and commits the result;
+    # `vox ci ssot-drift` (fast tier, local and CI) reports any drift.
 
     # Test-First Policy enforcement (AGENTS.md §Test-First Policy).
     # Blocks commits that introduce a `pub fn` (Rust) or `fn` in golden Vox
     # without an adjacent test. Runs only when relevant files are staged.
     # `enforce-strict` makes Warnings (not just Errors) fail the commit.
     tdd-guard:
-      run: cargo run -p vox-code-audit --bin toestub --quiet -- . --rules skeleton --min-severity warning --mode enforce-strict --format terminal
+      # Scan only the staged sources that tripped this hook. `toestub .` walks the
+      # whole workspace and fail-closes on pre-existing skeleton Warnings
+      # (`enforce-strict`), which blocks every Rust commit.
+      run: toestub {staged_files} --rules skeleton --min-severity warning --mode enforce-strict --format terminal --suppressions contracts/toestub/suppressions.v1.json
       glob: "{crates/**/*.rs,examples/golden/**/*.vox}"
       fail_text: "Test-First Policy violation. Add a #[test] (or @test in golden Vox) before the new pub fn lands. See AGENTS.md §Test-First Policy."
 
@@ -53,12 +60,36 @@ pre-commit:
       glob: "crates/vox-gui/ui/src/components/surfaces/**/*.tsx"
       run: cd crates/vox-gui/ui && pnpm vitest run src/components/surfaces/__guards__/surfaceHonesty.guard.test.ts
 
+    ci-status:
+      # Never fails the commit; prints GitHub CI problems + open nightly failures.
+      run: vox ci status --hook || true
+
 # Optional secondary gate when using lefthook directly on push (thin Rust drift).
 # The authoritative hook installed by `vox ci install-hooks` delegates to `vox ci pre-push`
 # (fast profile: fmt, line-endings, ssot-drift, scoped docs, vox-drift-check).
 pre-push:
   parallel: false
   commands:
-    drift-check:
-      run: cargo run -p vox-drift-check --quiet -- . --severity warning --fail-on warning
-      glob: "crates/**/*.rs"
+    # Authoritative local gate is `vox ci pre-push` (fast tier). Do not run
+    # workspace-wide drift-check --fail-on warning here — that dumps every
+    # pre-existing finding and blocks unrelated pushes.
+    pre-push:
+      run: vox ci pre-push || (vox run scripts/fmt.vox -- --all && vox ci line-endings --autofix && vox ci sync-ignore-files && vox ci pre-push)
+      # Advisory locally: the installed vox is usually a few commits older than the tree, and
+      # hosted CI (which builds vox fresh) is the authoritative gate, so skip the freshness refusal.
+      # git passes the pushed refs on stdin; local pre-push auto-heals and allows main pushes.
+      use_stdin: true
+      env:
+        VOX_PRE_PUSH_REFS: "1"
+        VOX_SKIP_FRESHNESS_CHECK: "1"
+        VOX_ALLOW_MAIN_PUSH: "1"
+        VOX_AUTO_HEAL: "1"
+
+# A new worktree is what fills the disk: each grows a 20-80 GB target/ within a day.
+# Reclaim targets of worktrees idle past the retention policy (1 day), in the
+# background. Never builds; never touches source, a git-locked worktree, the current
+# worktree, or one with a running build (vox ci artifact-prune's own gates).
+post-checkout:
+  commands:
+    target-gc:
+      run: vox ci artifact-prune --include-worktrees --apply > /dev/null 2>&1 &

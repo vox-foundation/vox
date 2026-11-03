@@ -492,3 +492,224 @@ fn emit_mcp_resource_arms(out: &mut String) {
     out.push_str("                }\n");
     out.push_str("            },\n");
 }
+
+/// Polyglot tool surface bundle generated from a single `.vox` `@tool` + optional `@form` declaration (`POLYTOOL-01..03`).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct PolyglotToolBundle {
+    /// JSON Schema Draft 2020-12 + `uiSchema` map keyed by tool name.
+    pub json_schema_and_ui: String,
+    /// Nushell `extern` completion declarations for all `@tool` functions.
+    pub nushell_completions: String,
+    /// OpenAPI 3.1 `/api/tools/<name>` POST path items JSON.
+    pub openapi_paths: String,
+    /// MCP server + Axum/Tauri RPC dispatch source.
+    pub mcp_and_rpc_rs: String,
+}
+
+/// Emit the 6-layer polyglot surface (`CLI/Nushell`, `JSON Schema 2020-12 + uiSchema`, `OpenAPI 3.1`, and `MCP/RPC`)
+/// from a module's `@tool` and `@form` declarations (`POLYTOOL-01..03`).
+pub fn emit_tool_polyglot_artifacts(module: &HirModule, package_name: &str) -> PolyglotToolBundle {
+    use serde_json::{Map, Value, json};
+    use vox_compiler::hir::nodes::form::HirFieldConstraint;
+
+    let mut schemas_root = Map::new();
+    let mut nu_out = String::new();
+    let mut openapi_paths = Map::new();
+
+    for tool in &module.mcp_tools {
+        let tool_name = &tool.func.name;
+        let matching_form = module.forms.iter().find(|f| {
+            f.name.eq_ignore_ascii_case(tool_name)
+                || f.on_submit
+                    .as_deref()
+                    .is_some_and(|s| s.eq_ignore_ascii_case(tool_name))
+        });
+
+        let mut props = Map::new();
+        let mut ui_schema = Map::new();
+        let mut required = Vec::new();
+        let mut nu_flags = Vec::new();
+
+        for param in &tool.func.params {
+            let mut prop_val: Value =
+                serde_json::from_str(&hir_type_json_schema_property(param.type_ann.as_ref()))
+                    .unwrap_or_else(|_| json!({ "type": "string" }));
+            let mut ui_field = Map::new();
+
+            if let Some(form) = matching_form
+                && let Some(field) = form.fields.iter().find(|ff| ff.name == param.name)
+            {
+                if let Some(lbl) = &field.label {
+                    if let Some(obj) = prop_val.as_object_mut() {
+                        obj.insert("title".into(), json!(lbl));
+                    }
+                }
+                for c in &field.constraints {
+                    match c {
+                        HirFieldConstraint::Range(lo, hi) => {
+                            if let (
+                                vox_compiler::hir::HirExpr::IntLit(min_v, _),
+                                vox_compiler::hir::HirExpr::IntLit(max_v, _),
+                            ) = (lo, hi)
+                                && let Some(obj) = prop_val.as_object_mut()
+                            {
+                                obj.insert("minimum".into(), json!(min_v));
+                                obj.insert("maximum".into(), json!(max_v));
+                            }
+                        }
+                        HirFieldConstraint::Step(s) => {
+                            if let Some(obj) = prop_val.as_object_mut() {
+                                obj.insert("multipleOf".into(), json!(s));
+                            }
+                            ui_field.insert("ui:step".into(), json!(s));
+                        }
+                        HirFieldConstraint::Unit(u) => {
+                            ui_field.insert("ui:unit".into(), json!(u));
+                        }
+                        HirFieldConstraint::FileKind(k) => {
+                            ui_field.insert("ui:widget".into(), json!("file"));
+                            ui_field.insert("ui:fileKind".into(), json!(k));
+                        }
+                        HirFieldConstraint::MutuallyExclusiveGroup(g) => {
+                            ui_field.insert("ui:mutuallyExclusiveGroup".into(), json!(g));
+                        }
+                        HirFieldConstraint::CostCredits(credits) => {
+                            ui_field.insert("ui:costCredits".into(), json!(credits));
+                        }
+                        HirFieldConstraint::Preset(preset_name, _) => {
+                            let presets = ui_field
+                                .entry("ui:presets")
+                                .or_insert_with(|| json!([]))
+                                .as_array_mut();
+                            if let Some(arr) = presets {
+                                arr.push(json!(preset_name));
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
+            props.insert(param.name.clone(), prop_val);
+            if !ui_field.is_empty() {
+                ui_schema.insert(param.name.clone(), Value::Object(ui_field));
+            }
+            required.push(Value::String(param.name.clone()));
+            let flag_name = param.name.replace('_', "-");
+            nu_flags.push(format!("    --{flag_name}: string"));
+        }
+
+        schemas_root.insert(
+            tool_name.clone(),
+            json!({
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "title": tool_name,
+                "description": tool.description,
+                "type": "object",
+                "properties": Value::Object(props.clone()),
+                "required": Value::Array(required.clone()),
+                "uiSchema": Value::Object(ui_schema),
+            }),
+        );
+
+        nu_out.push_str(&format!(
+            "# {}\nexport extern \"{} {}\" [\n{}\n    --help (-h)\n]\n\n",
+            tool.description,
+            package_name,
+            tool_name.replace('_', "-"),
+            nu_flags.join("\n")
+        ));
+
+        openapi_paths.insert(
+            format!("/api/tools/{tool_name}"),
+            json!({
+                "post": {
+                    "operationId": format!("tool_{tool_name}"),
+                    "summary": tool.description,
+                    "requestBody": {
+                        "required": true,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": Value::Object(props),
+                                    "required": Value::Array(required),
+                                }
+                            }
+                        }
+                    }
+                }
+            }),
+        );
+    }
+
+    PolyglotToolBundle {
+        json_schema_and_ui: serde_json::to_string_pretty(&Value::Object(schemas_root))
+            .unwrap_or_default(),
+        nushell_completions: nu_out,
+        openapi_paths: serde_json::to_string_pretty(&Value::Object(openapi_paths))
+            .unwrap_or_default(),
+        mcp_and_rpc_rs: emit_mcp_server(module, package_name),
+    }
+}
+
+#[cfg(test)]
+mod polyglot_tool_tests {
+    use super::*;
+    use vox_compiler::hir::lower_module;
+    use vox_compiler::lexer::lex;
+    use vox_compiler::parser::parse;
+
+    #[test]
+    fn single_tool_and_form_emits_schema_ui_nushell_openapi_and_mcp() {
+        let src = r#"
+tool "Compress video with hardware acceleration"
+compress_video(input_path: str, crf: int, preset_profile: str) to str {
+    return input_path
+}
+
+form CompressVideo {
+    field input_path: str required label("Source Video") file_kind("video/*")
+    field crf: int range(0..51) step(1) unit("CRF") cost_credits(5) preset("fast", 28)
+    field preset_profile: str mutually_exclusive_group("encoding_mode")
+    on_submit: compress_video
+}
+"#;
+        let tokens = lex(src);
+        let module = parse(tokens).expect("parse tool + form with parameter facets");
+        let hir = lower_module(&module);
+        let bundle = emit_tool_polyglot_artifacts(&hir, "brvideo");
+
+        assert!(
+            bundle
+                .json_schema_and_ui
+                .contains("https://json-schema.org/draft/2020-12/schema")
+        );
+        assert!(bundle.json_schema_and_ui.contains("\"minimum\": 0"));
+        assert!(bundle.json_schema_and_ui.contains("\"maximum\": 51"));
+        assert!(bundle.json_schema_and_ui.contains("\"ui:unit\": \"CRF\""));
+        assert!(
+            bundle
+                .json_schema_and_ui
+                .contains("\"ui:fileKind\": \"video/*\"")
+        );
+        assert!(
+            bundle
+                .json_schema_and_ui
+                .contains("\"ui:mutuallyExclusiveGroup\": \"encoding_mode\"")
+        );
+        assert!(bundle.json_schema_and_ui.contains("\"ui:costCredits\": 5"));
+        assert!(
+            bundle
+                .nushell_completions
+                .contains("export extern \"brvideo compress-video\"")
+        );
+        assert!(bundle.nushell_completions.contains("--input-path: string"));
+        assert!(
+            bundle
+                .openapi_paths
+                .contains("\"/api/tools/compress_video\"")
+        );
+        assert!(bundle.mcp_and_rpc_rs.contains("\"compress_video\""));
+    }
+}

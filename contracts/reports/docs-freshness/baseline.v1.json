@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-10-14T07:21:13.331291+00:00",
+  "deficits": [
+    {
+      "fingerprint": "c5babc06e8e40dae1c89300559729b8382a4cd0979b0e329ea00dfa48e441a44",
+      "page_path": "docs/src/reference/changelog.md",
+      "raw_text": "vox-dei"
+    },
+    {
+      "fingerprint": "26f95f87e7691bb720a7c8f9d05201d6e3680b72d1318d12f93a973f81afd016",
+      "page_path": "docs/src/reference/changelog.md",
+      "raw_text": "vox ci no-vox-dei-import"
+    },
+    {
+      "fingerprint": "a7eecc5da1ee87a8aae1f3f772d396d6c0cf1859d0790d7c03c5b154e8069099",
+      "page_path": "docs/src/reference/changelog.md",
+      "raw_text": "vox-dei"
+    },
+    {
+      "fingerprint": "ebece5d157d1348f3311cb71d2c786f4d4a5e9c499fa7231427ae9cfa16295fd",
+      "page_path": "docs/src/reference/env-vars.generated.md",
+      "raw_text": "TURSO_AUTH_TOKEN"
+    },
+    {
+      "fingerprint": "81cba963e1b98763e44c6be92bf19d1b0440d753654ff7785b527dce56683fb9",
+      "page_path": "docs/src/reference/env-vars.generated.md",
+      "raw_text": "TURSO_URL"
+    },
+    {
+      "fingerprint": "6576d9b5623de9cdfa3c1329d7543e22b9ca00e807d28d36aefb000ef096cf8e",
+      "page_path": "docs/src/reference/env-vars.generated.md",
+      "raw_text": "VOX_TURSO_TOKEN"
+    },
+    {
+      "fingerprint": "7f480be4b94bb0b03c702f5748246d89112ddcbffd712120647a6969f702d952",
+      "page_path": "docs/src/reference/env-vars.generated.md",
+      "raw_text": "VOX_TURSO_URL"
+    }
+  ]
+}

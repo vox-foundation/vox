@@ -12,6 +12,8 @@ export interface AttentionInbox {
   /** Raw hopper task rows, for consumers (e.g. TasksView) that need the full
    *  per-task list rather than just the derived blocked count. */
   hopperTasks: HopperTaskDto[];
+  /** Sources whose last fetch failed (`approvals`, `feedback`, `tasks`); their lists are empty because they are unknown, not because they are clear. */
+  degraded: string[];
   /** Items awaiting a human decision: pending approvals + needs-you feedback. */
   totalCount: number;
   refresh(): Promise<void>;
@@ -25,17 +27,25 @@ export function useAttentionInbox(): AttentionInbox {
   const [withheld, setWithheld] = useState<FeedbackRow[]>([]);
   const [blockedTasksCount, setBlockedTasksCount] = useState(0);
   const [hopperTasks, setHopperTasks] = useState<HopperTaskDto[]>([]);
+  const [degraded, setDegraded] = useState<string[]>([]);
 
   const refresh = useCallback(async () => {
     const emptyFeedback = { needsYou: [] as FeedbackRow[], withheld: [] as FeedbackRow[] };
-    const [approvalRes, feedback, tasks] = await Promise.all([
-      Promise.resolve(voxTransport.invokeMcpTool('vox_pending_approvals', {})).catch(() => null),
-      Promise.resolve(feedbackList()).catch(() => emptyFeedback),
-      Promise.resolve(hopperList()).catch(() => [] as HopperTaskDto[]),
+    const [approvalRes, feedback, tasks] = await Promise.allSettled([
+      Promise.resolve(voxTransport.invokeMcpTool('vox_pending_approvals', {})),
+      Promise.resolve(feedbackList()),
+      Promise.resolve(hopperList()),
     ]);
-    const safeFeedback = feedback ?? emptyFeedback;
-    const safeTasks = tasks ?? [];
-    setApprovals(approvalRes ? parsePendingApprovals(approvalRes as McpInvokeResult) : []);
+    // An MCP error reply resolves instead of rejecting; it is a failed source all the same.
+    const approvalReply = approvalRes.status === 'fulfilled' && !approvalRes.value?.is_error ? approvalRes.value : undefined;
+    setDegraded([
+      approvalRes.status === 'rejected' || approvalRes.value?.is_error ? 'approvals' : null,
+      feedback.status === 'rejected' ? 'feedback' : null,
+      tasks.status === 'rejected' ? 'tasks' : null,
+    ].filter((s): s is string => s !== null));
+    const safeFeedback = (feedback.status === 'fulfilled' && feedback.value) || emptyFeedback;
+    const safeTasks = (tasks.status === 'fulfilled' && tasks.value) || [];
+    setApprovals(approvalReply ? parsePendingApprovals(approvalReply as McpInvokeResult) : []);
     setNeedsYou(safeFeedback.needsYou ?? []);
     setWithheld(safeFeedback.withheld ?? []);
     const gates = new Set<number>((safeFeedback.needsYou ?? []).flatMap((f) => f.gates ?? []));
@@ -68,5 +78,5 @@ export function useAttentionInbox(): AttentionInbox {
     await refresh();
   }, [refresh]);
 
-  return { approvals, needsYou, withheld, blockedTasksCount, hopperTasks, totalCount: approvals.length + needsYou.length, refresh, resolveApproval, resolveFeedback };
+  return { approvals, needsYou, withheld, blockedTasksCount, hopperTasks, totalCount: approvals.length + needsYou.length, refresh, resolveApproval, resolveFeedback, degraded };
 }

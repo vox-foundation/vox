@@ -1,0 +1,59 @@
+x_vox_version: 2
+schema_version: 1
+exemptions:
+  - group: architect
+    owner: vox-cli
+    reason: "Contributor architecture diagnostics behind feature `codex|stub-check`; not intended for GUI workflows."
+    review_by: "2027-01-31"
+  - group: attention
+    owner: vox-cli
+    reason: "Feature-gated under `--features dei`; not included in default GUI build; orchestrator control is handled via native agents and runs surfaces."
+    review_by: "2027-01-31"
+  - group: dei
+    owner: vox-cli
+    reason: "Feature-gated under `--features dei`; not included in default GUI build; orchestrator control is handled via native agents and runs surfaces."
+    review_by: "2027-01-31"
+  - group: gui
+    owner: vox-cli
+    reason: "Self-referential command `vox gui` that launches the GUI app; `gui` feature is not enabled in the GUI sidecar build."
+    review_by: "2027-01-31"
+  - group: live
+    owner: vox-cli
+    reason: "Terminal-only interactive event dashboard behind feature `live`; live monitoring in GUI is provided by Runs and Dashboard views."
+    review_by: "2027-01-31"
+  - group: mcp
+    owner: vox-cli
+    reason: "Server CLI entry point behind feature `mcp-server`; the GUI embeds the MCP runtime in-process rather than via CLI invocation."
+    review_by: "2027-01-31"
+  - group: openclaw
+    owner: vox-cli
+    reason: "Experimental agent crawler behind feature `ars`; installed skills and agents are managed through the Skills surface."
+    review_by: "2027-01-31"
+  - group: recensio
+    owner: vox-cli-review
+    reason: "Code review CLI behind feature `coderabbit`; external review tooling is retired in policy and has no planned GUI representation."
+    review_by: "2027-01-31"
+  - group: review
+    owner: vox-cli-review
+    reason: "Code review CLI behind feature `coderabbit`; external review tooling is retired in policy and has no planned GUI representation."
+    review_by: "2027-01-31"
+  - group: safety
+    owner: vox-cli
+    reason: "Feature-gated under `--features dei`; not included in default GUI build; safety policies are inspected via the Policies surface."
+    review_by: "2027-01-31"
+  - group: stop
+    owner: vox-cli
+    reason: "Feature-gated under `--features dei`; not included in default GUI build; stopping runs and agents is supported directly in the Runs surface."
+    review_by: "2027-01-31"
+  - group: stub-check
+    owner: vox-cli
+    reason: "Contributor TOESTUB verification tool behind feature `stub-check`; headless CI/lint check not applicable to GUI."
+    review_by: "2027-01-31"
+  - group: train
+    owner: vox-cli
+    reason: "Deprecated training entry behind feature `gpu+mens-dei`; superseded by `vox mens` and has no active GUI pathway."
+    review_by: "2027-01-31"
+  - group: visus
+    owner: vox-cli
+    reason: "Feature-gated under `--features dei`; not included in default GUI build; visual trajectory inspection is served by the Harness surface."
+    review_by: "2027-01-31"

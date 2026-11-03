@@ -11,9 +11,13 @@ fn research_query_default_constructs() {
         persist_to_docs: false,
         verify_claims: true,
         site_scope: None,
+        domain_mode: Default::default(),
+        waves: 1,
+        lane: vox_search::policy::ResearchLane::Fast,
     };
     assert_eq!(q.query, "test");
     assert_eq!(q.max_sources, 5);
+    assert_eq!(q.domain_mode, ResearchDomainMode::General);
 }
 
 #[test]
@@ -27,6 +31,7 @@ fn retrieval_diagnostics_serializes() {
         hit_rate: 0.0,
         distinct_domain_count: 2,
         citation_diversity_below_threshold: true,
+        ..RetrievalDiagnostics::default()
     };
     let json = serde_json::to_value(&d).expect("serializes");
     assert!(json.is_object());
@@ -55,6 +60,16 @@ fn research_metadata_planner_degraded_round_trips_json() {
         self_verification: None,
         citation_audit: None,
         corroboration_counts: vec![],
+        wave_count: 1,
+        wave_stability: None,
+        low_grounding_evidence: false,
+        subqueries: vec![],
+        synthesis_model: String::new(),
+        judge_error: None,
+        served_from_cache: false,
+        claims_extracted_count: 0,
+        claims_verified_count: 0,
+        usage: Default::default(),
     };
     let json = serde_json::to_value(&meta).expect("serializes");
     assert_eq!(json["planner_degraded"], true);

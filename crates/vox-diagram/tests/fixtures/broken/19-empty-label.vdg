@@ -1,0 +1,4 @@
+// expect: diagram/empty-label
+graph {
+    node a: ""
+}

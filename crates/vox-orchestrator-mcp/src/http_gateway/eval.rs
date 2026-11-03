@@ -101,8 +101,14 @@ pub(super) async fn http_eval(
 
     let mut cmd =
         tokio::process::Command::new(std::env::current_exe().unwrap_or_else(|_| "vox".into()));
-    // Use standard interpreter for pure computation (fastest)
-    cmd.arg("run").arg("--interp").arg(&file_path);
+    // Use standard interpreter for pure computation (fastest); lock capabilities
+    // to deterministic pure namespaces so public /v1/eval callers cannot invoke
+    // fs/process/env/http/secrets or escalate via `// vox:caps`.
+    cmd.arg("run")
+        .arg("--interp")
+        .arg("--caps")
+        .arg("deterministic")
+        .arg(&file_path);
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
     // Hard execution boundary: 5 seconds

@@ -1,8 +1,8 @@
 use super::config::memory_config_for_state;
 use super::params::{
     KnowledgeQueryParams, MemoryLogParams, MemoryRecallParams, MemorySearchParams,
-    MemoryStoreParams, ResearchRunParams, ResearchSessionParams, ResearchStartParams,
-    SemanticFsDiscoverParams,
+    MemoryStoreParams, ResearchRunParams, ResearchSearchParams, ResearchSessionParams,
+    ResearchStartParams, SemanticFsDiscoverParams,
 };
 use super::retrieval::{RetrievalTriggerMode, run_retrieval_bundle};
 use crate::params::ToolResult;
@@ -110,6 +110,7 @@ pub async fn memory_search(state: &ServerState, params: MemorySearchParams) -> S
         RetrievalTriggerMode::ExplicitToolQuery,
         10,
         trace,
+        false, // explicit tool query: keep the web leg (Task 8d only touches the chat preamble)
     )
     .await
     {
@@ -283,6 +284,17 @@ pub async fn research_run(state: &ServerState, params: ResearchRunParams) -> Str
         }
     };
 
+    let domain_mode = params
+        .domain_mode
+        .as_deref()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or_default();
+    let lane = match parse_research_lane(params.lane.as_deref()) {
+        Ok(lane) => lane,
+        Err(msg) => {
+            return ToolResult::<String>::err_with_remediation(msg, REM_RESEARCH_RUN).to_json();
+        }
+    };
     let rq = ResearchQuery {
         query: params.query,
         scope,
@@ -290,12 +302,16 @@ pub async fn research_run(state: &ServerState, params: ResearchRunParams) -> Str
         persist_to_docs: false,
         verify_claims: params.verify_claims.unwrap_or(false),
         site_scope: params.site_scope,
+        domain_mode,
+        waves: params.waves.unwrap_or(1).clamp(1, 5),
+        lane,
     };
 
     let config = ResearchConfig {
         event_emitter: Some(std::sync::Arc::new(
             vox_research_shim::research::BroadcastEmitter::new(state.research_events.clone()),
         )),
+        finding_capture: crate::kb_tools::findings::web_capture_for_state(state),
         ..ResearchConfig::default()
     };
     let ctx = SearchRuntimeContext::new(
@@ -303,7 +319,8 @@ pub async fn research_run(state: &ServerState, params: ResearchRunParams) -> Str
         state.db.clone(),
         state.orchestrator_config.memory.log_dir.clone(),
         state.orchestrator_config.memory.memory_md_path.clone(),
-    );
+    )
+    .with_web_capture(crate::kb_tools::findings::web_capture_for_state(state));
 
     match run_research_with_context(rq, Some(&ctx), state.db.as_deref(), &config).await {
         Ok(result) => {
@@ -351,6 +368,12 @@ pub async fn research_start(state: &ServerState, params: ResearchStartParams) ->
             return ToolResult::<String>::err_with_remediation(msg, REM_RESEARCH_RUN).to_json();
         }
     };
+    let lane = match parse_research_lane(params.lane.as_deref()) {
+        Ok(lane) => lane,
+        Err(msg) => {
+            return ToolResult::<String>::err_with_remediation(msg, REM_RESEARCH_RUN).to_json();
+        }
+    };
     let query = params.query.trim().to_string();
     if query.is_empty() {
         return ToolResult::<String>::err_with_remediation(
@@ -373,6 +396,11 @@ pub async fn research_start(state: &ServerState, params: ResearchStartParams) ->
 
     let state = state.clone();
     tokio::spawn(async move {
+        let domain_mode = params
+            .domain_mode
+            .as_deref()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or_default();
         let rq = ResearchQuery {
             query,
             scope,
@@ -380,17 +408,22 @@ pub async fn research_start(state: &ServerState, params: ResearchStartParams) ->
             persist_to_docs: false,
             verify_claims: params.verify_claims.unwrap_or(false),
             site_scope: params.site_scope,
+            domain_mode,
+            waves: params.waves.unwrap_or(1).clamp(1, 5),
+            lane,
         };
         let ctx = SearchRuntimeContext::new(
             state.repository.root.clone(),
             state.db.clone(),
             state.orchestrator_config.memory.log_dir.clone(),
             state.orchestrator_config.memory.memory_md_path.clone(),
-        );
+        )
+        .with_web_capture(crate::kb_tools::findings::web_capture_for_state(&state));
         let config = ResearchConfig {
             event_emitter: Some(std::sync::Arc::new(
                 vox_research_shim::research::BroadcastEmitter::new(state.research_events.clone()),
             )),
+            finding_capture: crate::kb_tools::findings::web_capture_for_state(&state),
             ..ResearchConfig::default()
         };
         let outcome = run_research_with_context_and_session(
@@ -499,6 +532,85 @@ pub async fn research_get(state: &ServerState, params: ResearchSessionParams) ->
     .to_json()
 }
 
+/// Query the research knowledgebase across persisted reports and claims.
+pub async fn research_search(state: &ServerState, params: ResearchSearchParams) -> String {
+    let Some(ref db) = state.db else {
+        return ToolResult::<String>::err_with_remediation(
+            "VoxDb not attached to MCP server.".to_string(),
+            REM_MEMORY_VOXDB,
+        )
+        .to_json();
+    };
+
+    let limit = params.limit.unwrap_or(10).clamp(1, 50);
+    match db.search_research_artifacts(&params.query, limit).await {
+        Ok(hits) => {
+            let filtered_hits: Vec<_> = if let Some(ref d) = params.domain {
+                let d_lower = d.to_ascii_lowercase();
+                hits.into_iter()
+                    .filter(|h| {
+                        h.query_text.to_ascii_lowercase().contains(&d_lower)
+                            || h.snippet.to_ascii_lowercase().contains(&d_lower)
+                    })
+                    .collect()
+            } else {
+                hits
+            };
+
+            if filtered_hits.is_empty() {
+                return ToolResult::ok(format!(
+                    "No research artifacts found matching '{}'.",
+                    params.query
+                ))
+                .to_json();
+            }
+            let mut out = format!(
+                "# Research Knowledgebase Results for '{}'\n\n",
+                params.query
+            );
+            for hit in filtered_hits {
+                out.push_str(&format!(
+                    "### [Session {}] {}\n",
+                    hit.session_id, hit.query_text
+                ));
+                out.push_str(&format!("*Snippet:* {}\n", hit.snippet));
+                if let Ok(claims) = db.list_publication_claims(hit.session_id).await {
+                    let filtered = claims.into_iter().filter(|c| {
+                        let verdict_str = c.verdict.as_deref().unwrap_or("Unverified");
+                        if params.verified_only == Some(true) && verdict_str != "Supported" {
+                            return false;
+                        }
+                        if let Some(min_conf) = params.min_confidence {
+                            let conf = c.confidence.unwrap_or(0.0);
+                            if conf < min_conf {
+                                return false;
+                            }
+                        }
+                        true
+                    });
+                    for c in filtered {
+                        let v = c.verdict.as_deref().unwrap_or("Unverified");
+                        let conf = c.confidence.unwrap_or(0.0);
+                        out.push_str(&format!("- [{}] (conf: {:.2}) {}\n", v, conf, c.text));
+                    }
+                }
+                out.push('\n');
+            }
+            ToolResult::ok(out).to_json()
+        }
+        Err(e) => ToolResult::<String>::err_with_remediation(
+            format!("Search failed: {e}"),
+            REM_RESEARCH_RUN,
+        )
+        .to_json(),
+    }
+}
+
+fn parse_research_lane(lane: Option<&str>) -> Result<vox_search::policy::ResearchLane, String> {
+    lane.filter(|s| !s.trim().is_empty())
+        .map_or(Ok(Default::default()), str::parse)
+}
+
 fn parse_research_scope(
     scope: Option<&str>,
 ) -> Result<vox_research_shim::research::ResearchScope, String> {
@@ -513,5 +625,37 @@ fn parse_research_scope(
         "local" => Ok(ResearchScope::Local),
         "web" => Ok(ResearchScope::Web),
         other => Err(format!("invalid scope {other:?}: use web|local|both")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_research_scope() {
+        use vox_research_shim::research::ResearchScope;
+        assert_eq!(parse_research_scope(None).unwrap(), ResearchScope::Both);
+        assert_eq!(
+            parse_research_scope(Some("web")).unwrap(),
+            ResearchScope::Web
+        );
+        assert_eq!(
+            parse_research_scope(Some("local")).unwrap(),
+            ResearchScope::Local
+        );
+        assert!(parse_research_scope(Some("invalid")).is_err());
+    }
+
+    #[test]
+    fn test_parse_research_lane() {
+        use vox_search::policy::ResearchLane;
+        assert_eq!(parse_research_lane(None).unwrap(), ResearchLane::Fast);
+        assert_eq!(parse_research_lane(Some("  ")).unwrap(), ResearchLane::Fast);
+        assert_eq!(
+            parse_research_lane(Some("Deep")).unwrap(),
+            ResearchLane::Deep
+        );
+        assert!(parse_research_lane(Some("slow")).is_err());
     }
 }

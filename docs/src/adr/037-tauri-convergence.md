@@ -8,7 +8,7 @@ schema_type: "TechArticle"
 
 # ADR 037 — Tauri Convergence
 
-**Status**: Accepted  
+**Status**: Partially superseded (2026-06-12) by [adr-NNN](../architecture/adr-NNN-scope-tauri-desktop-only.md) — the mobile-target clause only (Tauri no longer covers `--target mobile-android`/`--target mobile-ios`; React Native + Expo does). The desktop-convergence decision below is unaffected and remains Accepted.
 **Date**: 2026-05-11
 
 ---
@@ -56,6 +56,7 @@ This ADR records the product and architecture decision so implementation can pro
 - Capability projection moves from "merge hints for a downstream shell" toward generated Tauri config/capability files.
 - `apps/vox-mental-tracker` becomes the acceptance fixture for proving Tauri mobile can carry real Vox app features, including on-device ASR through the Sherpa plugin port.
 - Future contributors and coding agents get hard guardrails: adding new `@capacitor/*`, `npx cap sync`, or Axum-as-app generation outside the active migration allowlist fails architecture checks.
+- **Desktop-clause implementation verified complete (2026-09-22):** `vox compile --target desktop` emits a real Tauri workspace via `generate_tauri_workspace` in `crates/vox-codegen/src/codegen_rust/emit/mod.rs` (a real `src-tauri/Cargo.toml`, `main.rs`, and `build.rs`, with no `axum` or `rust-embed` dependency); `vox bundle` detects that emitted `src-tauri/Cargo.toml` in `build_single_binary` and routes to `build_tauri_app` (both in `crates/vox-cli/src/commands/bundle.rs`), which runs a real `cargo tauri build --no-bundle`; and `docs/src/architecture/layers.toml` carries the `no-capacitor-in-app-codegen`, `no-axum-in-generated-app-emit`, and `no-rust-embed-in-generated-cargo` forbidden-pattern rules, active with tracked `exempt_files`. Decision points 1 (desktop scope only), 2, 3, and 6 above are implemented, not merely decided; the mobile clause remains superseded by adr-NNN.
 
 ---
 

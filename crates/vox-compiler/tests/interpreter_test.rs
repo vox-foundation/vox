@@ -1,12 +1,13 @@
 /// Verify that an indexed for-loop (`for v, i in arr`) binds the index
-/// variable correctly in the body.  The for expression returns a list, so
-/// `for v, i in [10, 20, 30] { v + i }` should produce [10+0, 20+1, 30+2]
-/// = [10, 21, 32].
+/// variable correctly in the body. A `for` loop is `Unit`-typed (it is not a
+/// comprehension), so the body accumulates: [10+0, 20+1, 30+2] = [10, 21, 32].
 #[test]
 fn for_loop_with_index_binds_index_in_body() {
     let source = "
-    fn main() -> List {
-        return for v, i in [10, 20, 30] { v + i }
+    fn main() -> list[int] {
+        let mut out: list[int] = []
+        for v, i in [10, 20, 30] { out.push(v + i) }
+        return out
     }
     ";
 
@@ -268,7 +269,7 @@ fn compiled_regex_find_group_in_interp() {
     assert_eq!(
         res,
         vox_compiler::eval::value::VoxValue::Option(Some(Box::new(
-            vox_compiler::eval::value::VoxValue::Str("7".to_string())
+            vox_compiler::eval::value::VoxValue::Str("7".to_string().into())
         ))),
         "compiled regex re.find(...).group(1) should extract \"7\" under --mode interp"
     );

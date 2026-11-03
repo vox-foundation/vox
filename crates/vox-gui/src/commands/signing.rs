@@ -60,10 +60,12 @@ pub fn signing_key_status() -> SigningKeyDto {
 }
 
 /// Best-effort unlock using `VOX_IDENTITY_MASTER_PWD` (CI/headless convenience).
-/// Returns `None` when the env var is absent or does not unlock the file.
+/// Resolved through Clavis (`SecretId::VoxIdentityMasterPwd`). Returns `None` when it is unset,
+/// blank, or does not unlock the file. The password is only handed to `load_identity`; it is
+/// never logged, returned, or placed in an error.
 fn read_identity_from_env() -> Option<SigningKeyDto> {
-    let pwd = std::env::var("VOX_IDENTITY_MASTER_PWD").ok()?;
-    let id = vox_identity::storage::load_identity(&pwd).ok()?;
+    let resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxIdentityMasterPwd);
+    let id = vox_identity::storage::load_identity(resolved.expose()?).ok()?;
     Some(dto_from_identity(&id, true))
 }
 
@@ -85,4 +87,29 @@ fn dto_from_identity(id: &vox_identity::NodeIdentity, present: bool) -> SigningK
 pub fn rotate_signing_key(password: String) -> Result<SigningKeyDto, String> {
     let fresh = vox_identity::storage::rotate_identity(&password).map_err(|e| e.to_string())?;
     Ok(dto_from_identity(&fresh, true))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dto_from_identity_carries_public_fields_and_never_the_private_key() {
+        let id = vox_identity::NodeIdentity::generate();
+        let dto = dto_from_identity(&id, true);
+        assert_eq!(dto.algorithm, "ed25519");
+        assert_eq!(dto.node_id, id.node_id());
+        assert_eq!(dto.fingerprint, id.fingerprint());
+        assert_eq!(dto.pubkey_hex, id.pubkey_hex());
+        assert!(dto.present);
+        // SigningKeyDto has no private-key field at all — the type itself is the guarantee
+        // referenced in this module's SECURITY note; this assertion pins that shape.
+        assert!(!dto.pubkey_hex.is_empty());
+    }
+
+    #[test]
+    fn dto_from_identity_respects_the_present_flag() {
+        let id = vox_identity::NodeIdentity::generate();
+        assert!(!dto_from_identity(&id, false).present);
+    }
 }

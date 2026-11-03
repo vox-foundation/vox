@@ -33,6 +33,23 @@ struct OpenRouterModelsResponse {
     data: Vec<OpenRouterModelData>,
 }
 
+#[derive(serde::Deserialize, Default)]
+struct OpenRouterBenchmarks {
+    #[serde(default)]
+    artificial_analysis: Option<OpenRouterArtificialAnalysis>,
+}
+
+#[derive(serde::Deserialize, Default)]
+struct OpenRouterArtificialAnalysis {
+    #[serde(default)]
+    intelligence_index: Option<f32>,
+}
+
+#[derive(serde::Deserialize)]
+struct OpenRouterAliasTarget {
+    slug: String,
+}
+
 #[derive(serde::Deserialize)]
 struct OpenRouterModelData {
     id: String,
@@ -52,6 +69,19 @@ struct OpenRouterModelData {
     /// Provider latency statistics surfaced by the OpenRouter catalog.
     #[serde(default)]
     latency: Option<OpenRouterLatency>,
+    /// Provider-published unix time; the only recency signal OpenRouter exposes.
+    #[serde(default)]
+    created: Option<u64>,
+    /// Stable dated slug when OpenRouter provides one; falls back to `id`.
+    #[serde(default)]
+    canonical_slug: Option<String>,
+    /// `YYYY-MM-DD` after which OpenRouter stops serving the model.
+    #[serde(default)]
+    expiration_date: Option<String>,
+    #[serde(default)]
+    benchmarks: Option<OpenRouterBenchmarks>,
+    #[serde(default)]
+    alias_target: Option<OpenRouterAliasTarget>,
 }
 
 #[derive(serde::Deserialize)]
@@ -129,101 +159,154 @@ impl ModelCatalog for OpenRouterCatalog {
             ));
         }
 
-        let body: OpenRouterModelsResponse = resp.json().await?;
-        let mut models = Vec::new();
+        let text = resp.text().await?;
+        specs_from_openrouter_json(&text)
+    }
+}
 
-        for m in body.data {
-            let cost_input = (m.pricing.prompt.parse::<f64>().unwrap_or(0.0) * 1000.0).max(0.0);
-            let cost_output =
-                (m.pricing.completion.parse::<f64>().unwrap_or(0.0) * 1000.0).max(0.0);
-            let p_zero = m.pricing.prompt == "0"
-                || m.pricing.prompt == "0.0"
-                || m.pricing.prompt.starts_with("-")
-                || m.pricing.prompt.is_empty();
-            let c_zero = m.pricing.completion == "0"
-                || m.pricing.completion == "0.0"
-                || m.pricing.completion.starts_with("-")
-                || m.pricing.completion.is_empty();
-            let is_free = p_zero && c_zero;
+/// Civil date (`YYYY-MM-DD`, UTC) for a unix time (Howard Hinnant's days-to-civil).
+fn utc_date_iso(unix_secs: u64) -> String {
+    let z = (unix_secs / 86_400) as i64 + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = yoe + era * 400 + i64::from(m <= 2);
+    format!("{y:04}-{m:02}-{d:02}")
+}
 
-            // True tokenomics tracked separately via cost_per_1k_input and cost_per_1k_output.
-            // The cost_per_1k legacy field defaults to output cost for registry sorting.
-            let cost_per_1k = cost_output;
+/// Map an OpenRouter `/api/v1/models` JSON body to specs (today's UTC date drives expiry).
+pub(crate) fn specs_from_openrouter_json(json: &str) -> anyhow::Result<Vec<ModelSpec>> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or_default();
+    specs_from_openrouter_json_at(json, &utc_date_iso(now))
+}
 
-            let provider_prefix = m.id.split('/').next().unwrap_or("unknown");
+/// Pure mapping used by [`OpenRouterCatalog::refresh`] and by tests. Skips `:batch`
+/// variants (asynchronous), `~vendor/…-latest` alias entries (they duplicate a real
+/// model) and models whose `expiration_date` is on or before `today`.
+pub(crate) fn specs_from_openrouter_json_at(
+    json: &str,
+    today: &str,
+) -> anyhow::Result<Vec<ModelSpec>> {
+    let body: OpenRouterModelsResponse = serde_json::from_str(json)?;
+    // `~vendor/…-latest` entries are skipped as models, but they name each line's current model.
+    let alias_targets: std::collections::HashSet<String> = body
+        .data
+        .iter()
+        .filter(|m| m.id.starts_with('~'))
+        .filter_map(|m| m.alias_target.as_ref().map(|t| t.slug.clone()))
+        .collect();
+    let mut models = Vec::new();
 
-            let architecture = m.architecture.unwrap_or_default();
-            let supports_vision = architecture
-                .input_modalities
-                .iter()
-                .any(|v| v.eq_ignore_ascii_case("image"));
-            let supports_json = m
-                .supported_parameters
-                .iter()
-                .any(|p| p == "response_format" || p == "structured_outputs");
-
-            // ── Capabilities: rate limits, latency, moderation, uptime ─────────────────────────
-            let (rate_limit_rpm, rate_limit_rpd) = m
-                .per_request_limits
-                .as_ref()
-                .map(|r| (r.requests_per_minute, r.requests_per_day))
-                .unwrap_or((None, None));
-
-            let latency_p50_ms = m.latency.as_ref().and_then(|l| l.p50);
-            let is_moderated = m
-                .top_provider
-                .as_ref()
-                .map(|tp| tp.is_moderated)
-                .unwrap_or(false);
-
-            let mut capabilities = ModelCapabilities {
-                supports_json,
-                supports_vision,
-                max_context: m.context_length,
-                rate_limit_rpm,
-                rate_limit_rpd,
-                latency_p50_ms,
-                is_moderated,
-                uptime_score: None, // populated later by catalog_classifier
-                ..Default::default()
-            };
-            let inferred = crate::models::infer_capabilities(
-                &m.supported_parameters,
-                &architecture.input_modalities,
-                &architecture.output_modalities,
-            );
-            capabilities.merge_capability_flags(&inferred);
-            let strengths =
-                infer_strengths(&m.id, m.description.as_deref(), &m.supported_parameters);
-            let max_tokens = m
-                .top_provider
-                .and_then(|tp| tp.max_completion_tokens)
-                .filter(|n| *n > 0)
-                .unwrap_or(m.context_length);
-
-            models.push(ModelSpec {
-                id: m.id.clone(),
-                canonical_slug: m.id.clone(),
-                provider: provider_prefix.to_string(),
-                provider_type: ProviderType::OpenRouter,
-                max_tokens,
-                cost_per_1k,
-                cost_per_1k_input: cost_input,
-                cost_per_1k_output: cost_output,
-                is_free,
-                strengths,
-                capabilities,
-                supported_parameters: m.supported_parameters,
-                observed_cost_per_1k: None,
-                cache_creation_cost_per_1k: 0.0,
-                cache_read_cost_per_1k: 0.0,
-                supports_prompt_caching: false, // LiteLLM oracle fills this in
-                pricing_source: crate::models::spec::PricingSource::OpenRouter,
-            });
+    for m in body.data {
+        if m.id.ends_with(":batch") || m.id.starts_with('~') {
+            continue;
+        }
+        if m.expiration_date.as_deref().is_some_and(|d| d <= today) {
+            continue;
         }
 
-        Ok(models)
+        let cost_input = (m.pricing.prompt.parse::<f64>().unwrap_or(0.0) * 1000.0).max(0.0);
+        let cost_output = (m.pricing.completion.parse::<f64>().unwrap_or(0.0) * 1000.0).max(0.0);
+        let p_zero = m.pricing.prompt == "0"
+            || m.pricing.prompt == "0.0"
+            || m.pricing.prompt.starts_with("-")
+            || m.pricing.prompt.is_empty();
+        let c_zero = m.pricing.completion == "0"
+            || m.pricing.completion == "0.0"
+            || m.pricing.completion.starts_with("-")
+            || m.pricing.completion.is_empty();
+        let is_free = p_zero && c_zero;
+
+        // True tokenomics tracked separately via cost_per_1k_input and cost_per_1k_output.
+        // The cost_per_1k legacy field defaults to output cost for registry sorting.
+        let cost_per_1k = cost_output;
+
+        let provider_prefix = m.id.split('/').next().unwrap_or("unknown");
+
+        let architecture = m.architecture.unwrap_or_default();
+        let supports_vision = architecture
+            .input_modalities
+            .iter()
+            .any(|v| v.eq_ignore_ascii_case("image"));
+        let supports_json = m
+            .supported_parameters
+            .iter()
+            .any(|p| p == "response_format" || p == "structured_outputs");
+
+        // ── Capabilities: rate limits, latency, moderation, uptime ─────────────────────────
+        let (rate_limit_rpm, rate_limit_rpd) = m
+            .per_request_limits
+            .as_ref()
+            .map(|r| (r.requests_per_minute, r.requests_per_day))
+            .unwrap_or((None, None));
+
+        let latency_p50_ms = m.latency.as_ref().and_then(|l| l.p50);
+        let is_moderated = m
+            .top_provider
+            .as_ref()
+            .map(|tp| tp.is_moderated)
+            .unwrap_or(false);
+
+        let mut capabilities = ModelCapabilities {
+            supports_json,
+            supports_vision,
+            max_context: m.context_length,
+            rate_limit_rpm,
+            rate_limit_rpd,
+            latency_p50_ms,
+            is_moderated,
+            uptime_score: None, // populated later by catalog_classifier
+            released_at: m.created,
+            intelligence_index: m
+                .benchmarks
+                .as_ref()
+                .and_then(|b| b.artificial_analysis.as_ref())
+                .and_then(|a| a.intelligence_index),
+            is_alias_target: alias_targets.contains(&m.id),
+            ..Default::default()
+        };
+        let inferred = crate::models::infer_capabilities(
+            &m.supported_parameters,
+            &architecture.input_modalities,
+            &architecture.output_modalities,
+        );
+        capabilities.merge_capability_flags(&inferred);
+        let strengths = infer_strengths(&m.id, m.description.as_deref(), &m.supported_parameters);
+        let max_tokens = m
+            .top_provider
+            .and_then(|tp| tp.max_completion_tokens)
+            .filter(|n| *n > 0)
+            .unwrap_or(m.context_length);
+
+        models.push(ModelSpec {
+            id: m.id.clone(),
+            canonical_slug: m.canonical_slug.clone().unwrap_or_else(|| m.id.clone()),
+            provider: provider_prefix.to_string(),
+            provider_type: ProviderType::OpenRouter,
+            max_tokens,
+            cost_per_1k,
+            cost_per_1k_input: cost_input,
+            cost_per_1k_output: cost_output,
+            is_free,
+            strengths,
+            capabilities,
+            supported_parameters: m.supported_parameters,
+            observed_cost_per_1k: None,
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false, // LiteLLM oracle fills this in
+            pricing_source: crate::models::spec::PricingSource::OpenRouter,
+        });
     }
+
+    Ok(models)
 }
 
 #[cfg(test)]
@@ -289,6 +372,294 @@ mod tests {
         let strengths = infer_strengths("x/m", None, &["reasoning".to_string()]);
         assert!(strengths.contains(&StrengthTag::Logic));
         assert!(strengths.contains(&StrengthTag::Debugging));
+    }
+
+    #[tokio::test]
+    async fn an_unreachable_ollama_leaves_no_ollama_model_to_route_to() {
+        let entry = |id: &str, provider_type| ModelSpec {
+            id: id.into(),
+            canonical_slug: id.into(),
+            provider: "test".into(),
+            provider_type,
+            max_tokens: 4096,
+            cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
+            is_free: true,
+            observed_cost_per_1k: None,
+            strengths: vec![StrengthTag::Generalist],
+            capabilities: ModelCapabilities::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::spec::PricingSource::Bootstrap,
+            supported_parameters: vec![],
+        };
+        let mut reg = crate::models::ModelRegistry::default();
+        reg.register(entry("qwen/qwen-3.6-27b", ProviderType::Ollama));
+        reg.register(entry("acme/hosted-1", ProviderType::OpenRouter));
+        let installed = sync_installed_ollama(&mut reg, "http://127.0.0.1:9".into()).await;
+        assert_eq!(installed, 0);
+        assert!(reg.get("qwen/qwen-3.6-27b").is_none());
+        assert!(reg.get("acme/hosted-1").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_huggingface_catalog_known_models_modern() {
+        let cat = HuggingFaceCatalog::new();
+        let specs = cat.refresh().await.expect("refresh should succeed");
+        assert!(
+            !specs.iter().any(|s| s.id.contains("Qwen2.5")),
+            "Qwen 2.5 must not be in default HF catalog"
+        );
+        assert!(
+            specs.iter().any(|s| s.id.contains("Qwen3")),
+            "Qwen 3 should be in default HF catalog"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_mens_catalog_extracts_context_length_from_config() {
+        let tmp = tempfile::tempdir().expect("create tempdir");
+        let root = tmp.path();
+
+        // 1. Direct config.json with max_position_embeddings
+        let run_1 = root.join("run_direct");
+        std::fs::create_dir_all(&run_1).unwrap();
+        std::fs::write(
+            run_1.join("config.json"),
+            r#"{"max_position_embeddings": 40960}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            MensCatalog::read_context_length_from_dir(&run_1),
+            40960,
+            "should extract max_position_embeddings from root config.json"
+        );
+
+        // 2. final/config.json with context_length
+        let run_2 = root.join("run_final");
+        let final_dir = run_2.join("final");
+        std::fs::create_dir_all(&final_dir).unwrap();
+        std::fs::write(
+            final_dir.join("config.json"),
+            r#"{"context_length": 128000}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            MensCatalog::read_context_length_from_dir(&run_2),
+            128000,
+            "should extract context_length from final/config.json"
+        );
+
+        // 3. adapter_manifest.json referencing base_model dir
+        let base_model_dir = root.join("base_model");
+        std::fs::create_dir_all(&base_model_dir).unwrap();
+        std::fs::write(
+            base_model_dir.join("config.json"),
+            r#"{"max_position_embeddings": 65536}"#,
+        )
+        .unwrap();
+
+        let run_3 = root.join("run_adapter");
+        std::fs::create_dir_all(&run_3).unwrap();
+        std::fs::write(
+            run_3.join("adapter_manifest.json"),
+            format!(
+                r#"{{"format":"vox_mens_adapter","version":3,"base_model":{}}}"#,
+                serde_json::to_string(&base_model_dir.to_string_lossy()).unwrap()
+            ),
+        )
+        .unwrap();
+        assert_eq!(
+            MensCatalog::read_context_length_from_dir(&run_3),
+            65536,
+            "should extract context length from base_model config via adapter_manifest.json"
+        );
+
+        // 4. Fallback default when no config exists
+        let run_4 = root.join("run_empty");
+        std::fs::create_dir_all(&run_4).unwrap();
+        assert_eq!(
+            MensCatalog::read_context_length_from_dir(&run_4),
+            32768,
+            "should fallback to 32768 when no config exists"
+        );
+
+        // 5. MensCatalog::refresh discovers run and sets max_tokens dynamically
+        let mens_root = root.join("workspace_mens");
+        let runs_dir = mens_root.join("mens").join("runs");
+        let run_refresh = runs_dir.join("test-model");
+        let final_dir = run_refresh.join("final");
+        std::fs::create_dir_all(&final_dir).unwrap();
+        std::fs::write(
+            final_dir.join("config.json"),
+            r#"{"max_position_embeddings": 40960}"#,
+        )
+        .unwrap();
+        std::fs::write(final_dir.join("tokenizer.json"), b"{}").unwrap();
+        std::fs::write(final_dir.join("candle_qlora_adapter.safetensors"), b"stub").unwrap();
+        std::fs::write(final_dir.join("adapter_manifest.json"), b"{}").unwrap();
+
+        let catalog = MensCatalog::new(&mens_root);
+        let models = catalog.refresh().await.expect("refresh succeeds");
+        assert_eq!(models.len(), 1);
+        assert_eq!(models[0].id, "mens/test-model");
+        assert_eq!(models[0].max_tokens, 40960);
+    }
+
+    #[test]
+    fn test_mens_catalog_resolves_hf_hub_cache_pinned_revision() {
+        let tmp = tempfile::tempdir().expect("create tempdir");
+        let hf_root = tmp.path().join("hf_hub");
+        let snap_dir = hf_root
+            .join("models--Qwen--Qwen3-8B")
+            .join("snapshots")
+            .join("b968826d9c46dd6066d109eabc6255188de91218");
+        std::fs::create_dir_all(&snap_dir).unwrap();
+        std::fs::write(
+            snap_dir.join("config.json"),
+            r#"{"max_position_embeddings": 32768}"#,
+        )
+        .unwrap();
+
+        let run_dir = tmp.path().join("run_pinned");
+        std::fs::create_dir_all(&run_dir).unwrap();
+        let base_model_val =
+            serde_json::json!("Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218");
+
+        let ctx_len =
+            resolve_base_model_context_length_internal(&run_dir, &base_model_val, Some(&hf_root));
+
+        assert_eq!(
+            ctx_len,
+            Some(32768),
+            "must resolve context length from HF hub cache pinned revision"
+        );
+    }
+
+    #[test]
+    fn mens_run_dir_is_listable_requires_tokenizer_with_adapter() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let run = tmp.path().join("e2e-smoke");
+        std::fs::create_dir_all(&run).expect("run dir");
+        assert!(
+            !mens_run_dir_is_listable(&run).expect("listable"),
+            "empty run dir must not register"
+        );
+        std::fs::write(run.join("candle_qlora_adapter.safetensors"), b"stub").expect("adapter");
+        assert!(
+            !mens_run_dir_is_listable(&run).expect("listable"),
+            "adapter alone is not serveable without tokenizer.json"
+        );
+        std::fs::write(run.join("tokenizer.json"), b"{}").expect("tokenizer");
+        assert!(
+            !mens_run_dir_is_listable(&run).expect("listable"),
+            "adapter + tokenizer without manifest is not serveable"
+        );
+        std::fs::write(run.join("adapter_manifest.json"), b"{}").expect("manifest");
+        assert!(
+            mens_run_dir_is_listable(&run).expect("listable"),
+            "adapter + tokenizer + manifest at run root is listable"
+        );
+    }
+
+    #[test]
+    fn mens_run_dir_is_listable_rejects_empty_final_subdir() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let run = tmp.path().join("legacy");
+        std::fs::create_dir_all(run.join("final")).expect("final");
+        assert!(
+            !mens_run_dir_is_listable(&run).expect("listable"),
+            "empty final/ subdir must not register"
+        );
+    }
+
+    const SAMPLE_MODELS_JSON: &str = r#"{"data":[
+      {"id":"anthropic/claude-sonnet-4.6","canonical_slug":"anthropic/claude-4.6-sonnet-20260101","created":1767225600,
+       "pricing":{"prompt":"0.000003","completion":"0.000015"},"context_length":200000,
+       "benchmarks":{"artificial_analysis":{"intelligence_index":47.5,"coding_index":null,"agentic_index":null},"design_arena":[]}},
+      {"id":"anthropic/claude-sonnet-4.6:batch","created":1767225600,
+       "pricing":{"prompt":"0.0000015","completion":"0.0000075"},"context_length":200000},
+      {"id":"~deepseek/deepseek-flash-latest","created":1780000000,
+       "pricing":{"prompt":"0.0000003","completion":"0.0000012"},"context_length":1048576,
+       "alias_target":{"name":"DeepSeek: DeepSeek V4.1 Flash","slug":"deepseek/deepseek-v4.1-flash"}},
+      {"id":"qwen/qwen3-coder:free","created":1760000000,
+       "pricing":{"prompt":"0","completion":"0"},"context_length":131072},
+      {"id":"acme/undated-model",
+       "pricing":{"prompt":"0.000001","completion":"0.000002"},"context_length":32000},
+      {"id":"acme/expired-model","created":1700000000,"expiration_date":"2026-09-01",
+       "pricing":{"prompt":"0.000001","completion":"0.000002"},"context_length":32000},
+      {"id":"acme/retiring-later","created":1700000000,"expiration_date":"2026-12-31",
+       "pricing":{"prompt":"0.000001","completion":"0.000002"},"context_length":32000}
+    ]}"#;
+
+    #[test]
+    fn specs_read_created_canonical_slug_and_intelligence_index() {
+        let specs = specs_from_openrouter_json_at(SAMPLE_MODELS_JSON, "2026-09-28").expect("parse");
+        let sonnet = specs
+            .iter()
+            .find(|s| s.id == "anthropic/claude-sonnet-4.6")
+            .unwrap();
+        assert_eq!(sonnet.capabilities.released_at, Some(1_767_225_600));
+        assert_eq!(
+            sonnet.canonical_slug,
+            "anthropic/claude-4.6-sonnet-20260101"
+        );
+        assert_eq!(sonnet.capabilities.intelligence_index, Some(47.5));
+        let free = specs
+            .iter()
+            .find(|s| s.id == "qwen/qwen3-coder:free")
+            .unwrap();
+        assert!(free.is_free);
+        assert_eq!(
+            free.canonical_slug, "qwen/qwen3-coder:free",
+            "missing canonical_slug falls back to id"
+        );
+        assert_eq!(
+            free.capabilities.intelligence_index, None,
+            "no benchmarks block means None, not 0"
+        );
+    }
+
+    #[test]
+    fn missing_created_stays_none() {
+        let specs = specs_from_openrouter_json_at(SAMPLE_MODELS_JSON, "2026-09-28").expect("parse");
+        let undated = specs.iter().find(|s| s.id == "acme/undated-model").unwrap();
+        assert_eq!(
+            undated.capabilities.released_at, None,
+            "absent created must not become 0 or now"
+        );
+    }
+
+    #[test]
+    fn batch_alias_and_expired_entries_are_skipped() {
+        let specs = specs_from_openrouter_json_at(SAMPLE_MODELS_JSON, "2026-09-28").expect("parse");
+        let ids: Vec<&str> = specs.iter().map(|s| s.id.as_str()).collect();
+        assert!(
+            !ids.iter().any(|i| i.ends_with(":batch")),
+            "batch variants are asynchronous: {ids:?}"
+        );
+        assert!(
+            !ids.iter().any(|i| i.starts_with('~')),
+            "alias entries duplicate real models: {ids:?}"
+        );
+        assert!(
+            !ids.contains(&"acme/expired-model"),
+            "expired model kept: {ids:?}"
+        );
+        assert!(
+            ids.contains(&"acme/retiring-later"),
+            "a future expiry is still selectable: {ids:?}"
+        );
+        assert_eq!(specs.len(), 4);
+    }
+
+    #[test]
+    fn utc_date_iso_formats_known_instants() {
+        assert_eq!(utc_date_iso(0), "1970-01-01");
+        assert_eq!(utc_date_iso(1_767_225_600), "2026-01-01");
+        assert_eq!(utc_date_iso(1_790_618_686), "2026-09-28");
     }
 }
 /// Parses Ollama's `details.parameter_size` field (e.g. `"8.2B"`, `"70M"`,
@@ -420,6 +791,28 @@ impl ModelCatalog for OllamaCatalog {
     }
 }
 
+/// Merge the live Ollama listing at `base_url` into `registry`: installed models are
+/// registered, and Ollama entries that are not installed are dropped (all of them when
+/// Ollama is unreachable; see [`crate::models::ModelRegistry::reconcile_ollama`]).
+/// Re-derives the routing reference. Returns the number of installed models.
+pub async fn sync_installed_ollama(
+    registry: &mut crate::models::ModelRegistry,
+    base_url: String,
+) -> usize {
+    let ollama = OllamaCatalog::new(base_url).refresh().await.ok();
+    let installed: Option<Vec<String>> = ollama
+        .as_ref()
+        .map(|models| models.iter().map(|m| m.id.clone()).collect());
+    registry.reconcile_ollama(installed.as_deref());
+    let models = ollama.unwrap_or_default();
+    let count = models.len();
+    for m in models {
+        registry.register(m);
+    }
+    registry.apply_routing_reference();
+    count
+}
+
 /// A catalog for Hugging Face Inference Providers.
 pub struct HuggingFaceCatalog {
     #[allow(dead_code)]
@@ -449,9 +842,9 @@ impl ModelCatalog for HuggingFaceCatalog {
         // This is a placeholder for the actual HF Inference Providers discovery.
         // For now, we return a few high-quality known defaults if no dedicated discovery endpoint is used.
         let known_models = vec![
-            "Qwen/Qwen2.5-72B-Instruct",
-            "meta-llama/Llama-3.1-70B-Instruct",
-            "mistralai/Mixtral-8x7B-Instruct-v0.1",
+            "Qwen/Qwen3-32B-Instruct",
+            "deepseek-ai/DeepSeek-R1",
+            "meta-llama/Llama-3.3-70B-Instruct",
         ];
 
         let mut specs = Vec::new();
@@ -517,32 +910,20 @@ impl ModelCatalog for PopuliMeshCatalog {
 pub async fn discover_populi_mesh_models() -> Result<Vec<ModelSpec>, anyhow::Error> {
     #[cfg(feature = "populi-transport")]
     {
-        let mut control_url_opt =
-            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorMeshControlUrl)
-                .expose()
-                .map(|s| s.to_string());
-        if control_url_opt.is_none() {
-            control_url_opt =
-                vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshControlAddr)
-                    .expose()
-                    .map(|s| s.to_string());
-        }
-        let Some(control_url) = control_url_opt else {
-            return Ok(vec![]);
-        };
-        let client =
-            vox_populi::http_client::PopuliHttpClient::new(control_url.trim()).with_env_token();
-        let dir = client.federation_directory().await?;
+        // Task 3.2: trusted, probed peers replace the asserted HTTP directory.
+        // No control-URL secret is needed any more -- reachability is the
+        // membership test, so an unconfigured or offline node simply yields no
+        // candidates instead of an error.
         let mut specs = Vec::new();
-        for peer in dir.entries {
+        for peer in crate::models::mesh_directory::trusted_peers().await {
             for kind in peer.task_kinds {
                 let kind_str = serde_json::to_value(&kind)
                     .ok()
                     .and_then(|v| v.as_str().map(str::to_string))
                     .unwrap_or_else(|| "general".to_string());
                 specs.push(ModelSpec {
-                    id: format!("mesh/{}/{}", peer.scope_id, kind_str),
-                    canonical_slug: format!("mesh/{}/{}", peer.scope_id, kind_str),
+                    id: format!("mesh/{}/{}", peer.endpoint_id, kind_str),
+                    canonical_slug: format!("mesh/{}/{}", peer.endpoint_id, kind_str),
                     provider: "mens".to_string(),
                     provider_type: ProviderType::PopuliMesh,
                     max_tokens: 128_000,
@@ -570,7 +951,7 @@ pub async fn discover_populi_mesh_models() -> Result<Vec<ModelSpec>, anyhow::Err
                 });
             }
         }
-        return Ok(specs);
+        Ok(specs)
     }
     #[cfg(not(feature = "populi-transport"))]
     {
@@ -579,14 +960,257 @@ pub async fn discover_populi_mesh_models() -> Result<Vec<ModelSpec>, anyhow::Err
     }
 }
 
+/// True when `dir` has artifacts `vox mens serve` / Candle inference can load.
+///
+/// Candle requires `tokenizer.json` plus **both** the LoRA adapter weights and
+/// `adapter_manifest.json` (merged.safetensors alone is not a load path).
+fn mens_run_has_serveable_artifacts(dir: &std::path::Path) -> bool {
+    dir.join("tokenizer.json").is_file()
+        && dir.join("candle_qlora_adapter.safetensors").is_file()
+        && dir.join("adapter_manifest.json").is_file()
+}
+
+/// Returns true when `path` looks like a listable MENS training run under `mens/runs/`.
+///
+/// Accepts legacy layouts with a `final` or `checkpoint-*` child that contains serveable
+/// artifacts, and flat QLoRA/LoRA packs at the run root (`tokenizer.json` plus adapter
+/// artifacts).
+fn mens_run_dir_is_listable(path: &std::path::Path) -> std::io::Result<bool> {
+    if mens_run_has_serveable_artifacts(path) {
+        return Ok(true);
+    }
+
+    for entry in std::fs::read_dir(path)?.flatten() {
+        if !entry.path().is_dir() {
+            continue;
+        }
+        let file_name = entry.file_name();
+        let Some(name) = file_name.to_str() else {
+            continue;
+        };
+        if (name == "final" || name.starts_with("checkpoint-"))
+            && mens_run_has_serveable_artifacts(&entry.path())
+        {
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
+}
+
 /// A catalog for local MENS checkpoints.
 pub struct MensCatalog {
     root: std::path::PathBuf,
 }
 
+fn parse_context_length_from_config(path: &std::path::Path) -> Option<u32> {
+    if !path.is_file() {
+        return None;
+    }
+    let content = std::fs::read_to_string(path).ok()?;
+    let val: serde_json::Value = serde_json::from_str(&content).ok()?;
+    if let Some(n) = val
+        .get("max_position_embeddings")
+        .or_else(|| val.get("context_length"))
+        .or_else(|| val.get("seq_length"))
+        .or_else(|| val.get("model_max_length"))
+        .or_else(|| val.get("n_positions"))
+        .or_else(|| {
+            val.get("model_config").and_then(|m| {
+                m.get("max_position_embeddings")
+                    .or_else(|| m.get("context_length"))
+                    .or_else(|| m.get("seq_length"))
+                    .or_else(|| m.get("model_max_length"))
+                    .or_else(|| m.get("n_positions"))
+            })
+        })
+    {
+        if let Some(v) = n.as_u64() {
+            if v > 0 {
+                if let Ok(val) = u32::try_from(v) {
+                    return Some(val);
+                }
+            }
+        }
+        if let Some(s) = n.as_str() {
+            if let Ok(v) = s.parse::<u32>() {
+                if v > 0 {
+                    return Some(v);
+                }
+            }
+        }
+    }
+    None
+}
+
+fn resolve_base_model_context_length(
+    dir: &std::path::Path,
+    base_model_val: &serde_json::Value,
+) -> Option<u32> {
+    resolve_base_model_context_length_internal(dir, base_model_val, None)
+}
+
+fn resolve_base_model_context_length_internal(
+    dir: &std::path::Path,
+    base_model_val: &serde_json::Value,
+    custom_hub_base: Option<&std::path::Path>,
+) -> Option<u32> {
+    if let Some(base_str) = base_model_val.as_str() {
+        // First check if base_str resolves relative to the run directory
+        let rel = dir.join(base_str);
+        if rel.is_file() {
+            if let Some(len) = parse_context_length_from_config(&rel) {
+                return Some(len);
+            }
+        } else if rel.is_dir() {
+            if let Some(len) = parse_context_length_from_config(&rel.join("config.json")) {
+                return Some(len);
+            }
+        }
+
+        // Then check if base_str is an absolute path
+        let p = std::path::Path::new(base_str);
+        if p.is_absolute() {
+            if p.is_file() {
+                if let Some(len) = parse_context_length_from_config(p) {
+                    return Some(len);
+                }
+            } else if p.is_dir() {
+                if let Some(len) = parse_context_length_from_config(&p.join("config.json")) {
+                    return Some(len);
+                }
+            }
+        }
+
+        // Check local Hugging Face hub cache if base is a repo id like "Qwen/Qwen3-0.6B" or pinned "Qwen/Qwen3-8B@<sha>"
+        let repo_id = base_str.split('@').next().unwrap_or(base_str);
+        let revision_sha = base_str.split('@').nth(1);
+
+        let hub_base = custom_hub_base
+            .map(|p| p.to_path_buf())
+            .or_else(|| {
+                std::env::var("HF_HUB_CACHE")
+                    .ok()
+                    .map(std::path::PathBuf::from)
+            })
+            .or_else(|| {
+                std::env::var("HF_HOME")
+                    .ok()
+                    .map(|h| std::path::PathBuf::from(h).join("hub"))
+            })
+            .or_else(|| {
+                dirs::home_dir().map(|home| home.join(".cache").join("huggingface").join("hub"))
+            });
+
+        if let Some(hub_root) = hub_base {
+            let snapshots_dir = hub_root
+                .join(format!("models--{}", repo_id.replace('/', "--")))
+                .join("snapshots");
+            if snapshots_dir.is_dir() {
+                // If a specific revision SHA was provided, check snapshots/<revision_sha>/config.json first
+                if let Some(sha) = revision_sha {
+                    let rev_dir = snapshots_dir.join(sha);
+                    if rev_dir.is_dir() {
+                        if let Some(len) =
+                            parse_context_length_from_config(&rev_dir.join("config.json"))
+                        {
+                            return Some(len);
+                        }
+                    }
+                }
+                if let Ok(entries) = std::fs::read_dir(&snapshots_dir) {
+                    for entry in entries.flatten() {
+                        let ep = entry.path();
+                        if ep.is_dir() {
+                            if let Some(len) =
+                                parse_context_length_from_config(&ep.join("config.json"))
+                            {
+                                return Some(len);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else if let Some(base_obj) = base_model_val.as_object() {
+        if let Some(n) = base_obj
+            .get("max_position_embeddings")
+            .or_else(|| base_obj.get("context_length"))
+            .or_else(|| base_obj.get("seq_length"))
+            .or_else(|| base_obj.get("model_max_length"))
+            .or_else(|| base_obj.get("n_positions"))
+        {
+            if let Some(v) = n.as_u64() {
+                if v > 0 {
+                    if let Ok(val) = u32::try_from(v) {
+                        return Some(val);
+                    }
+                }
+            }
+            if let Some(s) = n.as_str() {
+                if let Ok(v) = s.parse::<u32>() {
+                    if v > 0 {
+                        return Some(v);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
 impl MensCatalog {
     pub fn new(root: impl Into<std::path::PathBuf>) -> Self {
         Self { root: root.into() }
+    }
+
+    /// Discovers and returns the context length (in tokens) for a MENS checkpoint run directory.
+    /// Checks `config.json` and `final/config.json`, then `adapter_manifest.json` for base model
+    /// config, falling back to 32768.
+    pub fn read_context_length_from_dir(dir: &std::path::Path) -> u32 {
+        let discovered = (|| {
+            if let Some(len) = parse_context_length_from_config(&dir.join("config.json")) {
+                return len;
+            }
+            if let Some(len) =
+                parse_context_length_from_config(&dir.join("final").join("config.json"))
+            {
+                return len;
+            }
+
+            let manifest_candidates = [
+                dir.join("adapter_manifest.json"),
+                dir.join("final").join("adapter_manifest.json"),
+            ];
+            for manifest_path in &manifest_candidates {
+                if manifest_path.is_file() {
+                    if let Ok(content) = std::fs::read_to_string(manifest_path) {
+                        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
+                            if let Some(base_val) = val.get("base_model") {
+                                if let Some(len) = resolve_base_model_context_length(dir, base_val)
+                                {
+                                    return len;
+                                }
+                            }
+                            if let Some(upstream_val) = val
+                                .get("provenance")
+                                .and_then(|p| p.get("upstream_model_id"))
+                            {
+                                if let Some(len) =
+                                    resolve_base_model_context_length(dir, upstream_val)
+                                {
+                                    return len;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            32768
+        })();
+
+        if discovered == 0 { 32768 } else { discovered }
     }
 }
 
@@ -609,29 +1233,52 @@ impl ModelCatalog for MensCatalog {
                     .unwrap_or("unknown")
                     .to_string();
 
-                // Look for 'final' or 'checkpoint-*' subdirs to confirm it's a valid run
-                let has_checkpoint = std::fs::read_dir(&path)?.flatten().any(|e| {
-                    e.file_name()
-                        .to_str()
-                        .map(|s| s == "final" || s.starts_with("checkpoint-"))
-                        .unwrap_or(false)
-                });
+                if name.starts_with('.') {
+                    continue;
+                }
 
-                if has_checkpoint {
+                if mens_run_dir_is_listable(&path)? {
+                    let ctx_len = Self::read_context_length_from_dir(&path) as u64;
+                    let scorecard_pass1 =
+                        std::fs::read_to_string(path.join("mens_spoke_scorecard.json"))
+                            .ok()
+                            .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+                            .and_then(|v| v.get("overall_pass_at_1").and_then(|p| p.as_f64()));
+                    let intelligence_index =
+                        scorecard_pass1.map(|p| (p.clamp(0.0, 1.0) * 100.0) as f32);
                     specs.push(ModelSpec {
                         id: format!("mens/{}", name),
                         canonical_slug: format!("mens/{}", name),
-                        provider: "populi_local".to_string(),
+                        provider: "voxlocal".to_string(),
                         provider_type: ProviderType::VoxLocal,
-                        max_tokens: 8192,
+                        max_tokens: ctx_len,
                         cost_per_1k: 0.0,
                         cost_per_1k_input: 0.0,
                         cost_per_1k_output: 0.0,
                         is_free: true,
-                        strengths: vec![StrengthTag::Generalist, StrengthTag::Codegen],
+                        strengths: vec![
+                            StrengthTag::Generalist,
+                            StrengthTag::Codegen,
+                            StrengthTag::UiCodegen,
+                            StrengthTag::Parsing,
+                            StrengthTag::Debugging,
+                            StrengthTag::Review,
+                            StrengthTag::Security,
+                            StrengthTag::Logic,
+                            StrengthTag::InterAgent,
+                            StrengthTag::Planning,
+                        ],
                         capabilities: ModelCapabilities {
                             tier: crate::models::ModelTier::Local,
+                            supports_json: true,
+                            supports_jsonl: true,
+                            supports_tool_use: true,
+                            supports_native_tools: true,
+                            supports_reasoning: true,
                             writes_vox: true,
+                            max_context: ctx_len,
+                            latency_p50_ms: Some(140),
+                            intelligence_index,
                             ..Default::default()
                         },
                         supported_parameters: vec![],
@@ -966,5 +1613,126 @@ impl LiteLLMCatalog {
 impl Default for LiteLLMCatalog {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod mens_catalog_tests {
+    use super::*;
+    use std::fs;
+    use std::path::Path;
+
+    fn touch(path: &Path) {
+        fs::write(path, b"").expect("touch file");
+    }
+
+    fn run_dir(root: &Path, name: &str) -> std::path::PathBuf {
+        let dir = root.join("mens").join("runs").join(name);
+        fs::create_dir_all(&dir).expect("create run dir");
+        dir
+    }
+
+    async fn listed_ids(root: &Path) -> Vec<String> {
+        MensCatalog::new(root)
+            .refresh()
+            .await
+            .expect("refresh")
+            .into_iter()
+            .map(|spec| spec.id)
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn mens_catalog_skips_empty_checkpoint_subdir_run() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let run = run_dir(temp.path(), "legacy-checkpoint-run");
+        fs::create_dir_all(run.join("checkpoint-1000")).expect("checkpoint subdir");
+
+        let ids = listed_ids(temp.path()).await;
+        assert!(ids.is_empty(), "empty checkpoint-* subdir must not list");
+    }
+
+    #[tokio::test]
+    async fn mens_catalog_lists_checkpoint_subdir_with_artifacts() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let run = run_dir(temp.path(), "legacy-checkpoint-run");
+        let ckpt = run.join("checkpoint-1000");
+        fs::create_dir_all(&ckpt).expect("checkpoint subdir");
+        touch(&ckpt.join("tokenizer.json"));
+        touch(&ckpt.join("candle_qlora_adapter.safetensors"));
+        touch(&ckpt.join("adapter_manifest.json"));
+
+        let ids = listed_ids(temp.path()).await;
+        assert_eq!(ids, vec!["mens/legacy-checkpoint-run".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn mens_catalog_lists_flat_qlora_pack() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let run = run_dir(temp.path(), "qwen35-08b-metal-e2e");
+        touch(&run.join("tokenizer.json"));
+        touch(&run.join("candle_qlora_adapter.safetensors"));
+        touch(&run.join("adapter_manifest.json"));
+        touch(&run.join("checkpoint_epoch_1.safetensors"));
+
+        let ids = listed_ids(temp.path()).await;
+        assert_eq!(ids, vec!["mens/qwen35-08b-metal-e2e".to_string()]);
+    }
+
+    #[tokio::test]
+    async fn mens_catalog_skips_empty_run_dir() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        run_dir(temp.path(), "junk-empty");
+
+        let ids = listed_ids(temp.path()).await;
+        assert!(ids.is_empty());
+    }
+
+    #[test]
+    fn mens_run_dir_is_listable_rejects_adapter_manifest_only_with_tokenizer() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let run = temp.path().join("run");
+        fs::create_dir_all(&run).expect("run dir");
+        touch(&run.join("tokenizer.json"));
+        touch(&run.join("adapter_manifest.json"));
+
+        assert!(
+            !mens_run_dir_is_listable(&run).expect("listable"),
+            "manifest without candle_qlora_adapter.safetensors is not serveable"
+        );
+    }
+
+    #[test]
+    fn mens_run_dir_is_listable_rejects_empty_checkpoint_subdir() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let run = temp.path().join("run");
+        fs::create_dir_all(run.join("checkpoint-1000")).expect("checkpoint subdir");
+
+        assert!(
+            !mens_run_dir_is_listable(&run).expect("listable"),
+            "checkpoint-* without serveable artifacts must not list"
+        );
+    }
+
+    #[test]
+    fn alias_targets_are_flagged() {
+        let json = r#"{"data":[
+          {"id":"~acme/widget-latest","created":1780000000,"pricing":{"prompt":"0.000001","completion":"0.000002"},
+           "context_length":1000,"alias_target":{"name":"Widget","slug":"acme/widget-4.8"}},
+          {"id":"acme/widget-4.8","created":1700000000,"pricing":{"prompt":"0.000001","completion":"0.000002"},"context_length":1000},
+          {"id":"acme/widget-5.5","created":1760000000,"pricing":{"prompt":"0.000001","completion":"0.000002"},"context_length":1000}
+        ]}"#;
+        let specs = specs_from_openrouter_json_at(json, "2026-09-29").expect("parse");
+        let flag = |id: &str| {
+            specs
+                .iter()
+                .find(|s| s.id == id)
+                .unwrap()
+                .capabilities
+                .is_alias_target
+        };
+        assert!(flag("acme/widget-4.8"));
+        assert!(!flag("acme/widget-5.5"));
+        assert_eq!(specs.len(), 2, "the alias entry itself is still skipped");
     }
 }

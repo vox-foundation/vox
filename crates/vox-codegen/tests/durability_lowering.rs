@@ -23,7 +23,14 @@ fn workflow_lowers_to_interpret_workflow_durable() {
 }
 
 #[test]
-fn activity_lowers_to_journal_execute() {
+fn activity_lowers_to_plain_async_body_not_journal_execute() {
+    // Task 6.1: activities are invoked by the workflow interpreter via
+    // `HostRequest::Begin` / `HostDecision::Execute`|`Replay` — the
+    // interpreter's `WorkflowTracker` (`VoxDbTracker` in the generated path)
+    // owns record/replay. Wrapping the generated activity fn body in
+    // `journal::execute` was dead code (unreachable on the interpreter's
+    // call path) with a second, conflicting id scheme; `journal::execute`
+    // was deleted in the same change.
     let src = "activity act() to int { return 9 }";
     let module = parse(lex(src)).expect("parse");
     let hir = lower_module(&module);
@@ -34,12 +41,12 @@ fn activity_lowers_to_journal_execute() {
         .expect("activity present");
     let rust = emit_fn(func, Some(&hir.inferred_types), &[]);
     assert!(
-        rust.contains("journal::execute"),
-        "activity MUST lower to journal::execute; got:\n{rust}"
+        !rust.contains("journal::execute"),
+        "activity emit must NOT wrap journal::execute (deleted Task 6.1); got:\n{rust}"
     );
     assert!(
-        rust.contains("activity_id") || rust.contains("journal::execute"),
-        "activity body must reference journal::execute; got:\n{rust}"
+        rust.contains("activity_id"),
+        "activity body must still reference activity_id (comment) for traceability; got:\n{rust}"
     );
 }
 

@@ -50,6 +50,8 @@ pub struct TrainingPair {
     pub agent_trust_score: Option<f64>,
     /// Optional syntax-aware spans for loss weighting.
     pub syntax_spans: Option<Vec<SyntaxSpan>>,
+    /// Source-mix weight stamped by `vox mens corpus mix` (the source's `weight:`).
+    pub mix_weight: Option<f64>,
 }
 
 /// Raw deserialization helper: accepts both canonical and alias key names.
@@ -57,6 +59,8 @@ pub struct TrainingPair {
 struct TrainingPairRaw {
     pub prompt: Option<String>,
     pub instruction: Option<String>,
+    /// Alpaca-style context (evidence, question) that belongs with `instruction`.
+    pub input: Option<String>,
     pub response: Option<String>,
     pub output: Option<String>,
     #[serde(alias = "turns")]
@@ -70,6 +74,7 @@ struct TrainingPairRaw {
     pub interruption_decision: Option<String>,
     pub agent_trust_score: Option<f64>,
     pub syntax_spans: Option<Vec<SyntaxSpan>>,
+    pub mix_weight: Option<f64>,
     // Note: `origin`, `schema_version`, and `source` keys appear in some dogfood
     // rows but are intentionally not declared here. Serde silently ignores
     // unknown fields by default (no `#[serde(deny_unknown_fields)]`), so they
@@ -80,7 +85,14 @@ impl<'de> Deserialize<'de> for TrainingPair {
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let raw = TrainingPairRaw::deserialize(d)?;
         Ok(Self {
-            prompt: raw.prompt.or(raw.instruction),
+            prompt: raw.prompt.or_else(|| {
+                // Alpaca rows split the task across `instruction` + `input`; dropping
+                // `input` trains the answer without the evidence it depends on.
+                match (raw.instruction, raw.input.filter(|i| !i.trim().is_empty())) {
+                    (Some(ins), Some(inp)) => Some(format!("{ins}\n\n{inp}")),
+                    (ins, inp) => ins.or(inp),
+                }
+            }),
             response: raw.response.or(raw.output),
             messages: raw.messages,
             rating: raw.rating,
@@ -92,6 +104,7 @@ impl<'de> Deserialize<'de> for TrainingPair {
             interruption_decision: raw.interruption_decision,
             agent_trust_score: raw.agent_trust_score,
             syntax_spans: raw.syntax_spans,
+            mix_weight: raw.mix_weight,
         })
     }
 }
@@ -463,6 +476,24 @@ pub fn load_all<P: AsRef<Path>>(path: P, min_rating: u8) -> std::io::Result<Vec<
 mod tests {
     use super::*;
     use std::io::Write;
+
+    #[test]
+    fn alpaca_input_is_joined_into_prompt() {
+        let p: TrainingPair = serde_json::from_str(
+            r#"{"instruction":"Answer from evidence.","input":"<evidence>A causes B</evidence>","output":"A causes B [1]"}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            p.prompt.as_deref(),
+            Some("Answer from evidence.\n\n<evidence>A causes B</evidence>")
+        );
+        let q: TrainingPair =
+            serde_json::from_str(r#"{"instruction":"Do it.","input":"","output":"ok"}"#).unwrap();
+        assert_eq!(q.prompt.as_deref(), Some("Do it."));
+        let r: TrainingPair =
+            serde_json::from_str(r#"{"prompt":"P","input":"ignored","response":"R"}"#).unwrap();
+        assert_eq!(r.prompt.as_deref(), Some("P"));
+    }
 
     #[test]
     fn encode_ascii_roundtrip() {

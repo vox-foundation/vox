@@ -12,7 +12,7 @@ pub fn run(file: &Path, _args: &[String]) -> Result<()> {
 
     // Parse `// vox:caps <cap1> <cap2> …` on the very first line (parity with
     // vox-cli's `run_interp`).
-    let mut caps = std::collections::HashSet::new();
+    let mut legacy_words = Vec::new();
     let mut has_caps_directive = false;
     if let Some(first_line) = source.lines().next()
         && first_line.starts_with("// vox:caps ")
@@ -22,7 +22,7 @@ pub fn run(file: &Path, _args: &[String]) -> Result<()> {
             .trim_start_matches("// vox:caps ")
             .split_whitespace()
         {
-            caps.insert(cap.to_string());
+            legacy_words.push(cap.to_string());
         }
     }
 
@@ -32,9 +32,12 @@ pub fn run(file: &Path, _args: &[String]) -> Result<()> {
     let lowered = vox_compiler::hir::lower::lower_module(&module);
 
     let mut interpreter = vox_compiler::eval::Interpreter::new(10_000_000);
-    if has_caps_directive {
-        interpreter.caps = Some(caps);
-    }
+    // Explicit, not the constructor's default — parity with vox-cli's `run_interp`.
+    interpreter.caps = if has_caps_directive {
+        vox_compiler::eval::caps::CapabilitySet::from_legacy_directive(&legacy_words)
+    } else {
+        vox_compiler::eval::caps::CapabilitySet::developer_default()
+    };
     if let Ok(abs) = std::fs::canonicalize(file) {
         interpreter.set_source_path(abs);
     } else {
@@ -45,14 +48,35 @@ pub fn run(file: &Path, _args: &[String]) -> Result<()> {
         .run_module(&lowered)
         .map_err(|e| anyhow::anyhow!("Eval failed: {:?}", e))?;
 
-    let res = interpreter
-        .call("main", vec![])
-        .map_err(|e| anyhow::anyhow!("Eval failed calling main: {:?}", e))?;
+    let res = if lowered.functions.iter().any(|f| f.name == "main") {
+        interpreter
+            .call("main", vec![])
+            .map_err(|e| anyhow::anyhow!("Eval failed calling main: {:?}", e))?
+    } else {
+        vox_compiler::eval::value::VoxValue::Null
+    };
 
     if !matches!(res, vox_compiler::eval::value::VoxValue::Null) {
         println!("{}", vox_compiler::eval::builtins::vox_value_display(&res));
     }
 
-    vox_compiler::eval::builtins::vox_flush_exit_commands();
+    interpreter.flush_exit_commands();
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn run_test_empty_and_main() {
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("test.vox");
+        std::fs::write(&file, "fn main() to int { return 42; }").unwrap();
+        assert!(run(&file, &[]).is_ok());
+
+        let decl_only = dir.path().join("decl.vox");
+        std::fs::write(&decl_only, "table Task { done: bool }").unwrap();
+        assert!(run(&decl_only, &[]).is_ok());
+    }
 }

@@ -1,14 +1,20 @@
 //! `vox ci fan-in-budget` — deny-new-growth gate for workspace fan-in.
 //!
-//! Reads `contracts/ci/crate-graph.v1.json` and `contracts/ci/fan-in-snapshot.v1.json`.
+//! Reads `contracts/ci/fan-in-snapshot.v1.json` and computes the LIVE fan-in
+//! straight from `cargo metadata` via `crate_edges::collect_live_edges` — the
+//! same non-dev (Normal + Build only) edge set `vox ci crate-edges` trusts, and
+//! for the same reason: a regenerated mirror must not be able to shrink what
+//! this gate sees. Dev-only edges (test/dev-dependencies) never ship in the
+//! binary closure, so they must not count toward fan-in either.
 //! Fails when any crate's in-tree dependent COUNT grows beyond its committed snapshot value.
 //! Crates that shrink their fan-in are not flagged (ratchet, not two-way).
 
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
+
+use crate::crate_edges::{self, EXEMPT};
 
 #[derive(Debug, Deserialize)]
 pub struct FanInSnapshot {
@@ -17,25 +23,26 @@ pub struct FanInSnapshot {
     pub snapshot: HashMap<String, usize>,
 }
 
-/// Compute fan-in from `crate-graph.v1.json` `{"crates": {name: [dep, ...]}}`.
+/// Compute fan-in from a live, non-dev in-tree edge set (`(from, to)` pairs, `from`
+/// depends on `to`). `workspace-hack` is exempt in both positions, mirroring
+/// `crate_edges::EXEMPT` — it's a hakari feature-unification crate, not a real
+/// dependent or dependency.
 /// Returns `(crate_name, dependents_count)` for all crates listed in `snapshot`.
-pub fn compute_fan_in(graph: &Value, snapshot: &FanInSnapshot) -> HashMap<String, usize> {
+pub fn compute_fan_in(
+    edges: &BTreeSet<(String, String)>,
+    snapshot: &FanInSnapshot,
+) -> HashMap<String, usize> {
     let mut counts: HashMap<String, usize> = HashMap::new();
     // Init to 0 for all snapshot keys so missing crates show up as 0 (not missing)
     for k in snapshot.snapshot.keys() {
         counts.insert(k.clone(), 0);
     }
-    if let Some(m) = graph.get("crates").and_then(|v| v.as_object()) {
-        for (_crate_name, deps) in m {
-            if let Some(arr) = deps.as_array() {
-                for dep in arr {
-                    if let Some(dep_str) = dep.as_str()
-                        && let Some(c) = counts.get_mut(dep_str)
-                    {
-                        *c += 1;
-                    }
-                }
-            }
+    for (from, to) in edges {
+        if from == EXEMPT || to == EXEMPT {
+            continue;
+        }
+        if let Some(c) = counts.get_mut(to) {
+            *c += 1;
         }
     }
     counts
@@ -64,20 +71,16 @@ pub fn check_regressions(actual: &HashMap<String, usize>, snapshot: &FanInSnapsh
 }
 
 pub fn run_fan_in_budget(root: &Path, exit_zero: bool) -> Result<()> {
-    let graph_path = root.join("contracts/ci/crate-graph.v1.json");
     let snapshot_path = root.join("contracts/ci/fan-in-snapshot.v1.json");
-
-    let graph_raw = std::fs::read_to_string(&graph_path)
-        .with_context(|| format!("read {}", graph_path.display()))?;
-    let graph: Value = serde_json::from_str(&graph_raw)
-        .with_context(|| format!("parse {}", graph_path.display()))?;
 
     let snapshot_raw = std::fs::read_to_string(&snapshot_path)
         .with_context(|| format!("read {}", snapshot_path.display()))?;
     let snapshot: FanInSnapshot = serde_json::from_str(&snapshot_raw)
         .with_context(|| format!("parse {}", snapshot_path.display()))?;
 
-    let actual = compute_fan_in(&graph, &snapshot);
+    let edges = crate_edges::collect_live_edges(root)
+        .context("collect live in-tree (non-dev) edges via cargo metadata")?;
+    let actual = compute_fan_in(&edges, &snapshot);
 
     // Report all
     let mut keys: Vec<&String> = snapshot.snapshot.keys().collect();
@@ -120,7 +123,6 @@ pub fn run_fan_in_budget(root: &Path, exit_zero: bool) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
 
     fn make_snapshot(entries: Vec<(&str, usize)>) -> FanInSnapshot {
         FanInSnapshot {
@@ -136,6 +138,13 @@ mod tests {
         entries
             .into_iter()
             .map(|(k, v)| (k.to_string(), v))
+            .collect()
+    }
+
+    fn edges(pairs: &[(&str, &str)]) -> BTreeSet<(String, String)> {
+        pairs
+            .iter()
+            .map(|(f, t)| (f.to_string(), t.to_string()))
             .collect()
     }
 
@@ -167,25 +176,83 @@ mod tests {
     #[test]
     fn compute_fan_in_counts_correctly() {
         let snap = make_snapshot(vec![("vox-db", 0)]);
-        let graph = json!({
-            "crates": {
-                "vox-cli": ["vox-db", "vox-compiler"],
-                "vox-scientia": ["vox-db"],
-                "vox-search": ["vox-compiler"]
-            }
-        });
-        let result = compute_fan_in(&graph, &snap);
+        let e = edges(&[
+            ("vox-cli", "vox-db"),
+            ("vox-cli", "vox-compiler"),
+            ("vox-scientia", "vox-db"),
+            ("vox-search", "vox-compiler"),
+        ]);
+        let result = compute_fan_in(&e, &snap);
         assert_eq!(result["vox-db"], 2);
     }
 
     #[test]
     fn missing_crate_in_graph_counts_as_zero() {
         let snap = make_snapshot(vec![("vox-nobody", 5)]);
-        let graph = json!({ "crates": {} });
-        let result = compute_fan_in(&graph, &snap);
+        let e = edges(&[]);
+        let result = compute_fan_in(&e, &snap);
         assert_eq!(result.get("vox-nobody").copied().unwrap_or(0), 0);
         // Shrinkage (0 < 5) — not a regression
         let violations = check_regressions(&result, &snap);
         assert!(violations.is_empty());
+    }
+
+    /// Decision (2026-09-27): `workspace-hack` is exempt from fan-in counting in
+    /// both positions, mirroring `crate_edges::EXEMPT` — it's a hakari
+    /// feature-unification crate that every other crate depends on by design, not
+    /// a real dependent relationship the budget should ratchet.
+    #[test]
+    fn workspace_hack_exempt_from_fan_in() {
+        let snap = make_snapshot(vec![("workspace-hack", 0), ("vox-db", 0)]);
+        let e = edges(&[("vox-cli", "workspace-hack"), ("vox-cli", "vox-db")]);
+        let result = compute_fan_in(&e, &snap);
+        assert_eq!(
+            result["workspace-hack"], 0,
+            "workspace-hack must be exempt from fan-in counting"
+        );
+        assert_eq!(result["vox-db"], 1);
+    }
+
+    /// Decision (2026-09-27): fan-in counts only non-dev edges. Build a minimal
+    /// two-crate cargo workspace where `a`'s only edge to `b` is a
+    /// `[dev-dependencies]` entry, run it through the SAME live-edge collector
+    /// `crate-edges` trusts, and confirm the dev-only edge neither appears in the
+    /// live set nor counts toward `b`'s fan-in.
+    #[test]
+    fn dev_only_edge_not_counted_in_fan_in() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("Cargo.toml"),
+            "[workspace]\nmembers = [\"a\", \"b\"]\nresolver = \"2\"\n",
+        )
+        .unwrap();
+        std::fs::create_dir_all(dir.path().join("a/src")).unwrap();
+        std::fs::write(
+            dir.path().join("a/Cargo.toml"),
+            "[package]\nname = \"a\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n\
+             [dev-dependencies]\nb = { path = \"../b\" }\n",
+        )
+        .unwrap();
+        std::fs::write(dir.path().join("a/src/lib.rs"), "").unwrap();
+        std::fs::create_dir_all(dir.path().join("b/src")).unwrap();
+        std::fs::write(
+            dir.path().join("b/Cargo.toml"),
+            "[package]\nname = \"b\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+        )
+        .unwrap();
+        std::fs::write(dir.path().join("b/src/lib.rs"), "").unwrap();
+
+        let live = crate_edges::collect_live_edges(dir.path()).unwrap();
+        assert!(
+            !live.contains(&("a".to_string(), "b".to_string())),
+            "dev-only dependency must not appear in the live non-dev edge set: {live:?}"
+        );
+
+        let snap = make_snapshot(vec![("b", 0)]);
+        let counts = compute_fan_in(&live, &snap);
+        assert_eq!(
+            counts["b"], 0,
+            "dev-only dependency must not count toward fan-in"
+        );
     }
 }

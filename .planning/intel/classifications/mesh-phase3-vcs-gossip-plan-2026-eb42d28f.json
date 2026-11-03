@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mesh-phase3-vcs-gossip-plan-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Mesh Phase 3 — Multi-agent VCS over mesh (op-log gossip) Implementation Plan",
+  "summary": "TDD implementation plan for Phase 3: durable op-log persistence, signed capability mints, Bloom-filter anti-entropy gossip, vector-clock affinity, sealed-trait hardening, and op-log-as-projection-source.",
+  "scope": ["op-log persistence", "Ed25519 signing", "gossip protocol", "capability mints", "projections", "vox-db schema", "sealed traits"],
+  "cross_refs": ["mesh-and-language-distribution-ssot-2026.md", "multi-agent-vcs-replication-spec-2026.md", "git-concurrency-policy.md", "unified-task-hopper-research-2026.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

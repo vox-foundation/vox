@@ -27,6 +27,7 @@
 
 pub mod budget;
 pub mod estimator;
+pub mod offer_filter;
 pub mod pipeline_dispatch;
 pub mod resolver;
 pub mod runpod_provider;
@@ -35,13 +36,14 @@ pub mod watchdog;
 
 pub use budget::BudgetLedger;
 pub use estimator::TimeEstimator;
+pub use offer_filter::{UnsuitableReason, offer_is_suitable};
 pub use pipeline_dispatch::{
     CloudOrchestrationOutcome, DispatchPlan, EvalGateOutcome, TerminateOnDrop, TrainingManifest,
     check_spend_gate, dispatch_training, dispatch_with_guard, make_idempotency_key,
     poll_until_done, post_training_flow, read_checkpoint_uri, register_challenger,
     sync_checkpoint_down,
 };
-pub use resolver::{CloudResolver, ResolveRequest};
+pub use resolver::{CloudResolver, ResolveRequest, min_vram_mb_for_training};
 
 use std::time::{Duration, SystemTime};
 
@@ -379,6 +381,27 @@ impl CloudJobSpec {
 include!("part_jobs.rs");
 include!("part_cli.rs");
 pub mod local_provider;
+
+/// Shared `GpuOffer` fixture. Values are the ones `pipeline_dispatch`'s tests were
+/// written against; vary fields with struct-update syntax rather than cloning the
+/// whole 12-field literal.
+#[cfg(test)]
+pub(crate) fn test_offer() -> GpuOffer {
+    GpuOffer {
+        provider: ProviderKind::RunPod,
+        offer_id: "offer-1".into(),
+        gpu_name: "rtx 4090".into(),
+        gpu_count: 1,
+        vram_mb: 24576,
+        price_per_hour_usd: 1.0,
+        is_spot: true,
+        reliability_pct: 95.0,
+        auto_terminate: false,
+        fetched_at: Some(std::time::Instant::now()),
+        datacenter_region: None,
+        cuda_max: None,
+    }
+}
 
 #[cfg(test)]
 mod tests {

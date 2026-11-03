@@ -8,7 +8,6 @@ description = "AI-judged audit of git commit history, ranking commits by estimat
 [dependencies]
 hex = { workspace = true }
 vox-actor-runtime = { path = "../vox-actor-runtime" }
-vox-secrets       = { path = "../vox-secrets" }
 vox-telemetry     = { path = "../vox-telemetry" }
 vox-config        = { path = "../vox-config" }
 vox-git           = { path = "../vox-git" }

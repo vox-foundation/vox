@@ -15,5 +15,8 @@ serde_json = { workspace = true }
 fs2 = "0.4"
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
 [dev-dependencies]
 tempfile = { workspace = true }

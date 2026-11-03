@@ -1,17 +1,19 @@
-import React, { useEffect, useRef } from 'react';
-import { Terminal, type IDisposable } from '@xterm/xterm';
+import React, { useEffect, useRef, useState } from 'react';
+import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import {
-  ptySpawn,
-  ptyWrite,
-  ptyClose,
-  listenPtyOutput,
-  listenPtyExit,
+  termSessionOpen,
+  termSessionAttach,
+  termSessionInput,
+  termSessionSubmit,
+  termSessionResize,
+  listenTermOutput,
+  listenTermEvent,
+  type TermBlockDto,
 } from '../../../transport';
-import { terminalExitColor } from '../../../lib/visualTokens';
-import { createBlockReducer, type Block, type Osc633Kind } from './osc633';
+import { WebglTerminalAddon } from './webglAddon';
 
-/** A line the parent wants written to this PTY. `seq` changes each submit so the
+/** A line the parent wants submitted to this session. `seq` changes each submit so the
  *  effect re-fires even when the same text is sent twice. */
 export interface PendingLine {
   text: string;
@@ -20,104 +22,215 @@ export interface PendingLine {
 
 interface Props {
   tabId: string;
+  sessionId?: string | null;
   pendingLine: PendingLine | null;
-  /** Called when an OSC 633 command/output block completes (shell integration). */
-  onBlock?: (block: Block) => void;
+  onSessionResolved?: (sessionId: string) => void;
+  onBlocksChange?: (blocks: TermBlockDto[]) => void;
+  /** Called when a command/output block completes. */
+  onBlock?: (block: TermBlockDto) => void;
+}
+
+function isClosingOrAgentEvent(ev: unknown): boolean {
+  if (!ev || typeof ev !== 'object') return true;
+  return 'BlockClosed' in ev || 'AgentMessage' in ev || (ev as { type?: string }).type === 'block_closed';
 }
 
 /**
- * Renders one PTY-backed terminal via xterm.js. Spawns the PTY on mount, streams
- * output in, and forwards both interactive keystrokes (xterm onData) and
- * parent-submitted lines to the backend.
+ * Renders one `SessionHost`-backed terminal via xterm.js + `WebglTerminalAddon`.
+ * Opens or attaches to the daemon-hosted session on mount, replays `replay_utf8`
+ * and `blocks`, and streams live output/events without owning a duplicate OSC-633 parser.
  */
-export function TerminalTab({ tabId, pendingLine, onBlock }: Props) {
+export function TerminalTab({
+  tabId,
+  sessionId,
+  pendingLine,
+  onSessionResolved,
+  onBlocksChange,
+  onBlock,
+}: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
+  const activeSessionRef = useRef<string | null>(sessionId ?? null);
   const onBlockRef = useRef(onBlock);
   onBlockRef.current = onBlock;
+  const onBlocksChangeRef = useRef(onBlocksChange);
+  onBlocksChangeRef.current = onBlocksChange;
+  const onSessionResolvedRef = useRef(onSessionResolved);
+  onSessionResolvedRef.current = onSessionResolved;
+  const [mockReplay, setMockReplay] = useState<string>('');
 
   const isMock: boolean = typeof window !== 'undefined' && !!((window as any).__TAURI_CALLS__);
 
   useEffect(() => {
-    if (isMock) return;
+    let term: Terminal | null = null;
+    let webgl: WebglTerminalAddon | null = null;
 
-    const term = new Terminal({ convertEol: true, fontFamily: 'monospace', fontSize: 13 });
-    const fit = new FitAddon();
-    term.loadAddon(fit);
-    if (hostRef.current) term.open(hostRef.current);
-    try {
-      fit.fit();
-    } catch {
-      /* jsdom: no layout */
-    }
-    termRef.current = term;
-
-    // OSC 633 shell-integration: build command/output blocks and paint a
-    // per-block exit-status dot. Defensive — any failure leaves raw scrollback.
-    const reducer = createBlockReducer();
-    const decorations: IDisposable[] = [];
-    term.parser.registerOscHandler(633, (data: string) => {
-      const sep = data.indexOf(';');
-      const kind = (sep === -1 ? data : data.slice(0, sep)) as Osc633Kind;
-      const payload = sep === -1 ? undefined : data.slice(sep + 1);
-      const active = term.buffer?.active;
-      const cursorLine = active ? active.baseY + active.cursorY : 0;
-      reducer.onMarker(kind, payload, cursorLine);
-      if (kind === 'D') {
-        const b = reducer.latestCompleted();
-        if (b) {
-          const enriched = { ...b, output: captureOutput(term, b.startLine, b.endLine) };
-          onBlockRef.current?.(enriched);
-          paintStatusDot(term, b, decorations);
+    if (!isMock) {
+      term = new Terminal({ convertEol: true, fontFamily: 'monospace', fontSize: 13 });
+      const fit = new FitAddon();
+      webgl = new WebglTerminalAddon();
+      term.loadAddon(fit);
+      if (hostRef.current) term.open(hostRef.current);
+      term.loadAddon(webgl);
+      const w = webgl;
+      webgl.onContextLoss(() => {
+        try {
+          w.dispose();
+        } catch {
+          /* fallback to DOM renderer */
         }
+      });
+      try {
+        fit.fit();
+      } catch {
+        /* jsdom: no layout */
       }
-      return true; // handled
-    });
+      termRef.current = term;
 
-    term.onData((d) => {
-      ptyWrite(tabId, d).catch(() => {});
-    });
+      term.onData((d) => {
+        const sid = activeSessionRef.current;
+        if (sid) {
+          termSessionInput(sid, d).catch(() => {});
+        }
+      });
+
+      (term as unknown as { onResize?: (cb: (size: { cols: number; rows: number }) => void) => void }).onResize?.(
+        ({ cols, rows }) => {
+          const sid = activeSessionRef.current;
+          if (sid) {
+            termSessionResize(sid, cols, rows).catch(() => {});
+          }
+        },
+      );
+    }
+
+    if (sessionId === null) {
+      return () => {
+        try {
+          webgl?.dispose();
+        } catch {
+          /* ignore */
+        }
+        term?.dispose();
+      };
+    }
 
     let disposed = false;
     let unOut: (() => void) | undefined;
-    let unExit: (() => void) | undefined;
-    listenPtyOutput((id, data) => {
-      if (id === tabId) term.write(data);
-    }).then((u) => (disposed ? u() : (unOut = u)));
-    listenPtyExit((id) => {
-      if (id === tabId) term.write('\r\n[process exited]\r\n');
-    }).then((u) => (disposed ? u() : (unExit = u)));
+    let unEv: (() => void) | undefined;
 
-    ptySpawn(tabId, term.cols || 80, term.rows || 24).catch(() => {});
+    (async () => {
+      try {
+        const cols = term?.cols || 80;
+        const rows = term?.rows || 24;
+        const sid = sessionId || (await termSessionOpen(cols, rows));
+        if (disposed) return;
+        activeSessionRef.current = sid;
+        onSessionResolvedRef.current?.(sid);
+
+        const snap = await termSessionAttach(sid);
+        if (disposed) return;
+        if (snap.replay_utf8) {
+          if (term) {
+            term.write(snap.replay_utf8);
+          } else {
+            setMockReplay(snap.replay_utf8);
+          }
+        }
+        onBlocksChangeRef.current?.(snap.blocks ?? []);
+        const completed = [...(snap.blocks ?? [])]
+          .reverse()
+          .find((b) => b.status !== 'Running');
+        if (completed) {
+          onBlockRef.current?.(completed);
+        }
+
+        const u1 = await listenTermOutput((payload) => {
+          if (payload.session_id === sid) {
+            if (term) {
+              term.write(payload.data);
+            } else {
+              setMockReplay((prev) => prev + payload.data);
+            }
+          }
+        });
+        if (disposed) {
+          u1();
+        } else {
+          unOut = u1;
+        }
+
+        const u2 = await listenTermEvent(async (payload) => {
+          if (payload.session_id !== sid || !isClosingOrAgentEvent(payload.event)) return;
+          try {
+            const refreshed = await termSessionAttach(sid);
+            if (disposed) return;
+            onBlocksChangeRef.current?.(refreshed.blocks ?? []);
+            const latestDone = [...(refreshed.blocks ?? [])]
+              .reverse()
+              .find((b) => b.status !== 'Running');
+            if (latestDone) {
+              onBlockRef.current?.(latestDone);
+            }
+          } catch {
+            /* ignore transient refresh failure */
+          }
+        });
+        if (disposed) {
+          u2();
+        } else {
+          unEv = u2;
+        }
+      } catch {
+        /* session attach failed in headless/offline mode */
+      }
+    })();
 
     return () => {
       disposed = true;
       unOut?.();
-      unExit?.();
-      decorations.forEach((d) => {
-        try {
-          d.dispose();
-        } catch {
-          /* already disposed with the term */
-        }
-      });
-      ptyClose(tabId).catch(() => {});
-      term.dispose();
+      unEv?.();
+      try {
+        webgl?.dispose();
+      } catch {
+        /* ignore */
+      }
+      term?.dispose();
     };
-  }, [tabId, isMock]);
+  }, [tabId, sessionId, isMock]);
 
   useEffect(() => {
-    if (isMock) return;
-    if (pendingLine && termRef.current) {
-      ptyWrite(tabId, `${pendingLine.text}\n`).catch(() => {});
+    const sid = activeSessionRef.current;
+    if (pendingLine && sid) {
+      termSessionSubmit(sid, pendingLine.text)
+        .then(() => termSessionAttach(sid))
+        .then((snap) => {
+          if (!snap) return;
+          if (snap.replay_utf8) {
+            if (termRef.current) {
+              termRef.current.write(snap.replay_utf8);
+            } else {
+              setMockReplay(snap.replay_utf8);
+            }
+          }
+          onBlocksChangeRef.current?.(snap.blocks ?? []);
+          const latestDone = [...(snap.blocks ?? [])]
+            .reverse()
+            .find((b) => b.status !== 'Running');
+          if (latestDone) {
+            onBlockRef.current?.(latestDone);
+          }
+        })
+        .catch(() => {});
     }
-  }, [pendingLine, tabId, isMock]);
+  }, [pendingLine]);
 
   if (isMock) {
     return (
       <div
         role="application"
         aria-label="terminal"
+        data-testid="terminal-viewport"
         style={{
           height: '100%',
           width: '100%',
@@ -128,17 +241,22 @@ export function TerminalTab({ tabId, pendingLine, onBlock }: Props) {
           padding: '12px',
           boxSizing: 'border-box',
           overflowY: 'auto',
-          lineHeight: '1.4'
+          lineHeight: '1.4',
         }}
       >
-        <div>Microsoft Windows [Version 10.0.22631]</div>
-        <div>(c) Microsoft Corporation. All rights reserved.</div>
+        <div>Vox Terminal Session ({activeSessionRef.current ?? sessionId ?? 's-1'})</div>
+        <div>WebGL Block Renderer · OSC-633 SessionHost Active</div>
         <br />
-        <div>C:\workspace\vox&gt; vox run</div>
-        <div>🏃 Running task...</div>
-        <div>[info] Web server listening on port 1420</div>
-        <div>[info] Database connection established</div>
-        <div>✅ Ready.</div>
+        {mockReplay ? (
+          <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+            {mockReplay}
+          </pre>
+        ) : (
+          <>
+            <div>C:\workspace\vox&gt; vox run</div>
+            <div>✅ Ready.</div>
+          </>
+        )}
       </div>
     );
   }
@@ -148,59 +266,8 @@ export function TerminalTab({ tabId, pendingLine, onBlock }: Props) {
       ref={hostRef}
       role="application"
       aria-label="terminal"
+      data-testid="terminal-viewport"
       style={{ height: '100%', width: '100%' }}
     />
   );
-}
-
-/**
- * Read the terminal buffer between a block's command line and its end line to
- * recover the command's output text. Best-effort: returns undefined if the
- * buffer API is unavailable (e.g. jsdom in tests).
- */
-function captureOutput(term: Terminal, startLine: number, endLine: number): string | undefined {
-  try {
-    const buf = term.buffer?.active;
-    if (!buf || typeof buf.getLine !== 'function') return undefined;
-    const out: string[] = [];
-    // +1 skips the command line itself; output lives between exec and the next prompt.
-    for (let i = startLine + 1; i <= endLine; i++) {
-      const line = buf.getLine(i);
-      if (line) out.push(line.translateToString(true));
-    }
-    return out.join('\n').replace(/\n+$/, '');
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Paint a small exit-status dot in the gutter at a block's command line:
- * green (exit 0), red (non-zero), neutral (unknown). Best-effort — xterm's
- * marker/decoration APIs are unavailable in some environments (e.g. jsdom).
- */
-function paintStatusDot(term: Terminal, block: Block, sink: IDisposable[]): void {
-  try {
-    const active = term.buffer?.active;
-    const cursorAbs = active ? active.baseY + active.cursorY : 0;
-    // registerMarker takes an offset relative to the cursor's current line.
-    const marker = term.registerMarker(block.startLine - cursorAbs);
-    if (!marker) return;
-    const color = terminalExitColor(block.exitCode);
-    const dec = term.registerDecoration({ marker, width: 1 });
-    if (!dec) {
-      sink.push(marker);
-      return;
-    }
-    dec.onRender((el: HTMLElement) => {
-      el.style.backgroundColor = color;
-      el.style.borderRadius = '50%';
-      el.style.width = '6px';
-      el.style.height = '6px';
-      el.style.marginTop = '5px';
-    });
-    sink.push(dec, marker);
-  } catch {
-    /* decoration is cosmetic; never break the terminal over it */
-  }
 }

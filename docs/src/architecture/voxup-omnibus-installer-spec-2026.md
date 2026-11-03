@@ -51,7 +51,7 @@ When `voxup install` runs, it resolves a manifest (`channels/stable.toml`) that 
 It then downloads these as isolated bundles into `~/.vox/toolchains/`:
 1. **Vox CLI:** The actual `vox` executable.
 2. **Hermetic Node.js:** A minimal, portable Node.js binary + `pnpm` specifically for Vox's internal usage. The user's system `node` is ignored.
-3. **WASM Sysroots:** Pre-compiled `wasm32-wasip1` standard libraries. No local Cargo/Rustup is needed for `vox run --isolation wasm`.
+3. **Script runtime:** The `vox` binary is enough for script-shaped files (ADR-048). `cargo` / `rustc` / `wasm32-wasip1` are not required.
 4. **LLVM/Mold (Linux):** If required for fast ML inference compilation.
 
 ### 4. CLI Path Execution

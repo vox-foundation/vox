@@ -23,7 +23,7 @@ Primary navigation:
 - **Architectural rules:** [`docs/src/architecture/layers.toml`](docs/src/architecture/layers.toml) — layer assignments, fan-in / LoC budgets, allowed inversions. Enforced by `cargo run -p vox-arch-check`.
 - Contributor entry point: [`docs/src/contributors/contributor-hub.md`](docs/src/contributors/contributor-hub.md)
 - Documentation authority map: [`docs/src/contributors/documentation-governance.md`](docs/src/contributors/documentation-governance.md)
-- Architecture map: [`docs/src/architecture/architecture-index.md`](docs/src/architecture/architecture-index.md)
+- Architecture map: Starlight sidebar (frontmatter `category` / `sort_order`) — do not revive `docs/src/architecture/architecture-index.md`
 - See [phase-numbering-index](docs/src/architecture/phase-numbering-index.md) for disambiguation of the three independent phase sequences used in plans (frontend interop, GUI-native language, workspace reorg).
 - Classification SSOT: [`docs/src/architecture/classification-ssot-2026.md`](docs/src/architecture/classification-ssot-2026.md)
 - AgentOS / ACI SSOT: [`docs/src/architecture/agentos-ssot-2026.md`](docs/src/architecture/agentos-ssot-2026.md)
@@ -35,7 +35,7 @@ When working under the Vox repository, ALL research findings, architecture docum
 
 - Research docs follow the naming pattern: `*-research-2026.md`, `*-findings-2026.md`
 - Architecture SSoT docs: `*-ssot.md` or descriptive names in `docs/src/architecture/`
-- After writing to `docs/`, update [`docs/src/architecture/research-index.md`](docs/src/architecture/research-index.md)
+- After writing a page, set valid YAML frontmatter (`title`, `description`, `category`, `status`). Starlight `docs-astro/src/utils/sidebar.mjs` lists it automatically. Do **not** create or edit `docs/src/architecture/research-index.md` (retired; snapshot under `docs/src/archive/`).
 - Do not store Vox-specific research in IDE knowledge bases that are only accessible to one tool
 
 ## Auto-generated documentation files (do not edit manually)
@@ -47,15 +47,14 @@ When working under the Vox repository, ALL research findings, architecture docum
 
 **Committed and kept in sync by pre-commit hooks (`lefthook.yml`):**
 
-- `docs/src/reference/cli-command-surface.generated.md`, `docs/src/reference/mens-train-defaults.generated.md` — regenerate with `cargo run -p vox-cli -- ci command-sync`.
+- `docs/src/reference/cli-command-surface.generated.md`, `docs/src/reference/mens-train-defaults.generated.md`, `docs/src/reference/env-vars.generated.md`, `docs/src/reference/config-keys.generated.md`, `docs/src/reference/mcp-tools.generated.md` — regenerate with `cargo run -p vox-cli -- ci command-sync`.
 - `docs/src/reference/plugin-catalog.generated.md`, `docs/src/reference/distribution-bundles.generated.md` — regenerate with `cargo run -p vox-cli -- ci generate-plugin-catalog-docs`.
 - `.cursorignore`, `.aiignore`, `.aiexclude` — derived from `.voxignore`; regenerate with `vox ci sync-ignore-files`.
 
-Install the pre-commit hooks once after cloning: `vox run scripts/install-hooks.vox`. The hooks auto-stage regenerated files on every commit so these never drift to CI.
+First-time setup (`vox run scripts/setup.vox`) installs the git hooks and the binaries they call (`vox`, `toestub`, `vox-drift-check`). Hooks never build and never regenerate these files; PR CI's `ssot-autoregen` job regenerates them, and `vox ci ssot-drift` reports drift.
 
 Manually-maintained files that **are** safe to edit:
 - `docs/src/adr/index.md`, `docs/src/adr/README.md` — hand-rolled ADR tables, not generated.
-- `docs/src/architecture/research-index.md` — a hand-curated SSOT index (manual frontmatter), **not** generated despite the name. Edit it directly.
 - Individual ADR / architecture / how-to / tutorial / reference markdown files — these are the **sources** the generators read from.
 
 **Reading diffs cheaply (agents).** Tracked generated artifacts are marked
@@ -89,11 +88,16 @@ Minimum required keys (full template and the canonical `category` / `status` voc
 title: "Page title"
 description: "One specific sentence about what this page covers."
 category: "Architecture SSOTs"   # one of the canonical category values in the governance doc
+topic: "doc-governance"          # taxonomy prefLabel (contracts/documentation/kb-taxonomy.v1.yaml)
+domain: "documentation"          # taxonomy prefLabel
+authorship: "llm-assisted"       # human | llm-assisted | llm-generated (+ authorship_model for LLM)
 ---
 ```
 
 Rules for any agent writing docs:
 - **Write the frontmatter as part of creating the file** — never author the body first and leave the block to a later pass. A new `.md` without frontmatter is an incomplete file.
+- New docs also need `topic` / `domain` prefLabels, `authorship` (plus `authorship_model` when LLM-written) and a 40-120 word `<!-- kb:summary -->` block directly under the H1 (SSOT: the governance section "KB facets (taxonomy contract)"). Never write `authorship`, `origin` or `human_attested_by` you cannot vouch for, and never set `human_attested_by` as an agent.
+- The facet backlog (`contracts/documentation/kb-facet-backlog.v1.yaml`) only shrinks. Adding backlog entries is **USER-AUTHORIZED-ONLY** (same discipline as crate-edges `exceptions`): never re-seed it to admit a doc you wrote, and do not backfill facets into existing docs in bulk.
 - Do **not** hand-add `last_updated` — the pipeline derives it from Git history.
 - Pick the `category` from the governance vocabulary; add `status` when the shipped-vs-aspirational distinction matters to readers.
 - Verify before pushing with the scoped lint: `cargo run -p vox-doc-pipeline -- --lint-only --paths <your-file>.md` (or just let the fast pre-push hook's scoped doc-lint catch it).
@@ -250,9 +254,9 @@ All project automation — CI prep, corpus transforms, training pipelines, insta
 
 | Need | Command | Notes |
 |---|---|---|
-| Pure computation, fast startup | `vox run --interp scripts/foo.vox` | No compile step; ~50ms cold start |
-| File I/O, subprocess | `vox run scripts/foo.vox` | Native tier; content-hash cached |
-| Untrusted / sandboxed | `vox run --isolation wasm scripts/foo.vox` | Wasmtime WASI; explicit `--wasi-dir` |
+| Pure computation, fast startup | `vox run --interp scripts/foo.vox` | No compile step; interpreter isolation |
+| Script-shaped (default) | `vox run scripts/foo.vox` | Interpreter; no cargo. Repeatable `--caps` |
+| Native compile (opt-in) | `vox run --mode script scripts/foo.vox` | Needs cargo + rustc; not a sandbox |
 
 **Bootstrap exception:** `scripts/windows/vox-dev.ps1` and `scripts/vox-dev.sh` are **retained as thin launchers only** (≤10 lines of primary logic where possible). They forward to `cargo run -p vox-cli -- run <args>` to solve the chicken-and-egg problem of needing `vox` to run `.vox` before `vox` is built.
 
@@ -262,14 +266,17 @@ All project automation — CI prep, corpus transforms, training pipelines, insta
 - Subprocess calls go through `vox-actor-runtime` process primitives (telemetry-observable)
 - Use the secrets crate (`vox_secrets::resolve_secret(...)`) for secrets — never `env.get("MY_KEY")` for sensitive values
 
-**Formatting Rust (Windows-safe).** Never run `cargo fmt --all` on this workspace — it passes every crate's target root to a single `rustfmt` process, which overflows the Windows `CreateProcess` command-line limit and dies with `os error 206` ("The filename or extension is too long"). Format the whole workspace with:
+**Formatting Rust (Windows-safe).** Never run `cargo fmt --all` on this workspace — it passes every crate's target root to a single `rustfmt` process, which overflows the Windows `CreateProcess` command-line limit and dies with `os error 206` ("The filename or extension is too long"). Routine work formats **dirty `.rs` files only**; do not sweep the whole repo unless you changed `rustfmt.toml` or are merging parallel-agent work:
 
 ```
-vox run scripts/fmt.vox                    # write (fix) — Windows/Linux/macOS
-VOX_FMT_CHECK=1 vox run scripts/fmt.vox    # check only (nonzero exit on drift)
+vox run scripts/fmt.vox                         # write: dirty .rs only (default)
+vox run scripts/fmt.vox -- --all                # write: full workspace
+vox run scripts/fmt.vox -- vox-cli              # write: one workspace package
+VOX_FMT_CHECK=1 vox run scripts/fmt.vox         # check dirty only (local)
+VOX_FMT_CHECK=1 vox run scripts/fmt.vox -- --all
 ```
 
-`scripts/fmt.vox` formats each crate via `cargo fmt --manifest-path crates/<crate>/Cargo.toml`, so every invocation is tiny while cargo still resolves `rustfmt.toml` + per-crate edition (full fidelity — a raw `rustfmt` loop loses the config on Windows `\\?\` paths and emits phantom diffs). The pre-push gate (`vox ci pre-push` → `check_fmt`) and both CI workflows use the same per-crate strategy. To fix a single crate: `cargo fmt -p <crate>`.
+`scripts/fmt.vox` runs `rustfmt --config-path <repo root>` in chunks of 50 paths (never `cargo fmt --all`). Dirty-file mode formats dirty `.rs` paths; `--all` / `VOX_FMT_ALL=1` formats every target root from `cargo metadata`. The pre-push gate (`vox ci pre-push` → `check_fmt`) is **always** full-workspace `rustfmt --check` — dirty check is not CI parity. After a failed gate: `vox run scripts/fmt.vox -- --all`. A single crate: `cargo fmt -p vox-cli`.
 
 Full rationale, execution tier map, security model, and migration plan: background research in `docs/src/archive/research-2026-q1/` (do not ingest — see §Archival Protocol).
 
@@ -388,7 +395,7 @@ In Vox, tests are not just regression catchers — they are training data for th
 
 **Enforcement:**
 
-- **Pre-commit hook** (`lefthook` `tdd-guard`): blocks commits that introduce `pub fn` / `fn` without an adjacent test. Install via `vox run scripts/install-hooks.vox`.
+- **Pre-commit hook** (`lefthook` `tdd-guard`): blocks commits that introduce `pub fn` / `fn` without an adjacent test. Installed by `vox run scripts/setup.vox`.
 - **CI:** `vox-code-audit` reports `skeleton/untested-pub-api` (Warning) and `skeleton/no-test-for-pub-fn` (Warning). Default CI mode is `legacy` (Errors block, Warnings surface). PRs touching `crates/vox-compiler/**` or `crates/vox-codegen/**` additionally trigger `cargo mutants` to verify tests *catch* mutations, not just exist.
 - **Override:** `// toestub-ignore(skeleton/untested-pub-api) — <reason>` on the line above the `pub fn`, or a structured entry in `contracts/toestub/suppressions.v1.json` with `owner` and `reason`. Suppress only when refactoring is impractical, not to avoid the work.
 
@@ -400,38 +407,29 @@ In Vox, tests are not just regression catchers — they are training data for th
 > **Full tier spec:** `docs/superpowers/specs/2026-05-27-test-suite-perf-and-gate-tiers-design.md §4`
 > **Full tier table + per-flag details:** `docs/src/contributors/local-ci-pre-push.md` — do not restate the tier table here, it drifts.
 
-**Run CI locally first — do NOT use GitHub Actions as your primary feedback loop (Required).**
-GitHub-hosted CI is slow (minutes-to-tens-of-minutes per push) and burns runner
-minutes on iteration noise. Before every push, reproduce the relevant gates locally
-and only push once they are green. **Local-first runner policy:** CI jobs default to
-the self-hosted Docker fleet; GitHub-hosted `runs-on` requires a registered exception
-([`docs/src/ci/github-hosted-exceptions.md`](docs/src/ci/github-hosted-exceptions.md)).
-Enforced gate: `vox ci runner-policy-check` runs `--strict` inside `ssot-drift`. Both CI and
-the fast pre-push tier run `ssot-drift`, so an unregistered GitHub-hosted `runs-on` hard-fails
-both — but **CI is authoritative** (pre-push can be `--no-verify`-skipped). The required gate
-(`ci-summary`) runs hosted so a fleet outage cannot block merges (see runner-contract.md
-break-glass). Local is for speed, not cost — vox is public, hosted minutes are free.
-See [`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md) §Local-first CI.
-We have Docker available, so the full GitHub workflow suite can be run locally with `act`:
+**Hosted CI is the gate; the laptop is not (Required, decided 2026-10-03).** GitHub-hosted
+runners run clippy, the full suites, nightly and release builds. Locally, verify only what you
+touched: `cargo check -p <crate>` and `cargo nextest run -p <crate>` (or `cargo test -p <crate> <filter>`).
+Never run `cargo clippy --workspace` or a workspace-wide test locally to "pre-check" a push —
+that cost hours on a loaded machine and duplicated the gate. Evidence and plan:
+[`ci-and-build-loop-findings-2026.md`](docs/src/architecture/ci-and-build-loop-findings-2026.md).
 
-- **Reproduce the actual GitHub jobs in Docker:** `vox ci pre-push --act` runs the
-  workflow jobs via [nektos/act](https://github.com/nektos/act) in containers that
-  mirror the CI runner image (secrets come from the git-ignored `.secrets` file).
-  Use this to catch container/runner-only failures (e.g. `lychee` check-links,
-  arch-check evidence-ledger) before they ever reach GitHub.
-- **Faster inner loop (no Docker):** `vox ci pre-push --full` for the native gate
-  tiers below; scope to changed crates with `--since <ref>`.
-- **Per-job spot-checks:** run the exact command a failing job runs (e.g.
-  `cargo run -q -p vox-arch-check`, `cargo run -q -p vox-cli -- ci check-links`)
-  rather than re-pushing to see if it passes.
-
-Push only after the local equivalent of the gates you expect to run is green. Treat
-a red GitHub check whose local equivalent passes as a runner/environment difference
-to reproduce locally (via `--act`), not as something to fix by repeated pushes.
+- **Work reaches `main` only through a PR.** Branch, batch commits, `git push -u origin HEAD:<branch>`,
+  `gh pr create --draft`, read CI, self-review, mark ready, merge through the queue. The pre-push
+  hook refuses a push to `main` (`VOX_ALLOW_MAIN_PUSH=1` overrides for emergencies only).
+- **Git hooks never build.** They call the installed `vox` and `toestub`; `vox ci dev-loop-guard`
+  (fast tier, local and CI) fails if a hook runs `cargo run/build/test/clippy`, calls an unregistered
+  `vox` command, or `.cargo/config.toml` hardcodes `[build] jobs`.
+- **No hardcoded CPU or job counts** in config, the build broker, workflows or scripts: derive from
+  the machine (`available_parallelism`, load). An env var may override; a literal default may not.
+- **One `target/` per worktree; never symlink `target` into another checkout** — a shared build-dir
+  lock serializes every worktree behind the slowest build.
+- **Per-job spot-checks:** reproduce a failing CI job by running that job's exact command for the
+  affected crate, not by re-pushing blindly.
 
 Use `vox ci pre-push` to run any tier locally (default = **fast**, ≤60s: fmt, line-endings,
-ssot-drift, runner-policy-check, workflow-concurrency-guard, scoped doc lint + doctest,
-drift-check). Install the hook once with `cargo run -q -p vox-cli -- ci install-hooks`. The
+ssot-drift, workflow-concurrency-guard, workflow-permissions (strict), scoped doc lint + doctest,
+drift-check, dev-loop-guard). It runs as the pre-push hook (advisory; hosted CI is authoritative). The
 full tier list (complete / full / full+cov / full+since / full+cov+since / ci-equivalent),
 their exact flags, and the `--include-slow` slow-test names live in
 [`local-ci-pre-push.md`](docs/src/contributors/local-ci-pre-push.md) — not restated here.
@@ -441,8 +439,9 @@ their exact flags, and the `--include-slow` slow-test names live in
 ## Dependency Discipline (Required, SSOT)
 
 Workspace crate-dependency edges are CI-gated by `vox ci crate-edges` (exact edge-set
-ratchet + downward-only layer rule; contracts: `contracts/ci/crate-edges.allow.v1.json`,
-`contracts/ci/crate-layers.v1.json`).
+ratchet + downward-only layer rule; contracts: `contracts/ci/crate-edges.allow.v1.json`
+and the layer map in `docs/src/architecture/layers.toml`, which `vox-arch-check` also reads —
+the single layer SSOT).
 
 1. **Before adding a dep on another workspace crate:** prefer a narrower `-types`/`-core`
    crate; or apply the defactor policy (rule 3). If the edge is genuinely needed,
@@ -455,42 +454,71 @@ ratchet + downward-only layer rule; contracts: `contracts/ci/crate-edges.allow.v
    with a `// vox:defactored-from <crate> <date>` comment instead of taking a crate
    edge. Larger shared surfaces get split into `-types`/`-core` crates. Never fork
    100+ line chunks.
-4. **New crates** must be assigned a layer in `contracts/ci/crate-layers.v1.json` at
-   creation (L0 leaf foundation ... L4 apps/shells; see
+4. **New crates** must be assigned a layer in `docs/src/architecture/layers.toml` `[crates]`
+   at creation (L0 pure types ... L4 plugins, L5 surfaces; see the file header and
    `docs/src/architecture/where-things-live.md`). Dependencies point same-layer or down.
 
-## Local-First CI Verification Contract (Required, SSOT)
+## CI Contract (Required, SSOT)
 
-The local runner fleet is the CI plane. For agents:
+- **GitHub-hosted CI is the gate.** `ci.yml`'s required context
+  (`Check, Build, and Test (Rust)`) is a thin `gate` job whose one step checks
+  that `linux`, `tests` and `ui` succeeded. `linux` runs the local fast tier
+  plus clippy on affected crates; it also runs `cargo-deny`
+  licenses/bans/sources on dependency changes, and `cargo clippy`/`rustdoc -D
+  warnings` on a detected toolchain bump. `tests` runs nextest on the same
+  affected set in 3 parallel `--partition hash:K/3` shards (a skipped `tests`
+  counts only when `linux` planned none), under nextest profile `ci-gate`:
+  `ci` minus a quarantine of tests red on `main` (issue #569; nightly still
+  runs them). Never add a test to the quarantine to make your own PR green —
+  only remove entries as they get fixed. `ui` (typecheck + vitest +
+  Playwright) is required only on PRs that change `crates/vox-gui/**` or
+  `orch_daemon/mod.rs` (it fails closed when the base SHA is missing). The
+  merge queue additionally runs an **advisory** (non-blocking) Windows compile
+  check. Jobs are capped at 30 min. `nightly.yml` and other scheduled
+  workflows run the slow lanes, capped at 180 min. Caps are enforced by
+  `workflow-policy-guard` (in `ssot-drift`). Over budget? Cache, shard, or
+  move the job to nightly — never raise the cap.
+- **What nightly defers, and what it doesn't.** Every normal PR *does* run
+  nextest — on the affected-crate subset, in the `tests` shards. What is
+  deferred to nightly is the **full-workspace** run's llvm-cov coverage lane,
+  and the full run for ordinary PRs. PRs touching `Cargo.toml`/`Cargo.lock`,
+  `.cargo/`, `.github/workflows/`, `contracts/` or `.config/` run the full
+  workspace suite (measured 2026-09-26: ~21 min of test execution on a 4-core
+  hosted runner, which is why it is sharded). The one case where tests are
+  skipped entirely is a detected toolchain bump: `linux` spends its budget on
+  fresh clippy/rustdoc instead, and the tests fall to nightly's full run.
+- **Run CI locally first:** `vox ci pre-push` (fast), `--complete`/`--full`
+  for code changes, or run the PR gate's `linux` job in Docker with
+  `act pull_request -j linux`.
+- **CI state comes to you.** Failed/timed-out jobs on your branch and open
+  `nightly-failure` issues are printed by the git pre-commit/pre-push hooks
+  and injected by Claude Code hooks. When you see a block, fix it before
+  continuing. `vox ci status` prints the same block on demand. Scheduled
+  workflows that stop running (past ~2x their cadence) trigger their own
+  `Nightly stale:` issues via a dead-man's-switch workflow (`ci-liveness.yml`).
+- **Concurrency required.** Every push/PR-triggered workflow needs a
+  top-level `concurrency:` block with `cancel-in-progress: true` (or a row in
+  `docs/src/ci/concurrency-exceptions.md`), enforced by
+  `workflow-concurrency-guard`.
+- **Rust caches are `main`-only.** `Swatinem/rust-cache` saves only from
+  `main` branch runs; PR and `merge_group` runs restore but never save. The
+  reason is the repository's hard 10 GB Actions-cache budget with LRU
+  eviction: a cache written from a PR run is scoped to `refs/pull/N/merge`, so
+  no other ref can ever read it. Every such entry is write-only garbage that
+  evicts the `main`-scope entries every job actually restores from. The same
+  rule covers `actions/cache`, `Swatinem/rust-cache`, and `actions/setup-node`
+  with a `cache:` input (use `package-manager-cache: false`); it is enforced
+  by `vox ci cache-key-lint`.
 
-- **Local gates green = the verdict for what they cover.** Run
-  `vox ci pre-push --complete` (or `--full` when code/tests changed). Green =
-  push and move on — never wait on remote checks. (The default fast tier omits
-  clippy and all tests; do not treat fast-tier green as the verdict for code
-  changes.)
-- **Fleet CI is authoritative for the rest** (rustdoc, deny/audit, compiler
-  gates, integration/docker/browser/GUI smokes, coverage/architecture budgets,
-  all-features/mutation/cross-platform/mobile lanes). Its verdicts arrive
-  asynchronously via the queue snapshot's `failures` field — surfaced at
-  SessionStart and by `vox ci queue`. A red there is new information to fix
-  locally, never a reason to re-push and watch.
-- **Remote check-watching is blocked** for agent sessions (PreToolUse hook →
-  `vox ci queue --hook-guard`): `gh pr checks`, `gh run watch`,
-  check-runs polling, `vox ci watch-run`, and hand-rolled gh+sleep loops.
-  Reading one failure's logs stays allowed: `gh run list --branch <b>` then
-  `gh run view <id> --log-failed`.
-- **Queue interactions:** `vox ci queue --json` to read (the `advice` field
-  says what to do); `vox ci queue --clear` to cancel superseded + stale runs.
-  Cancellable = push/pull_request events only, first attempt, non-main,
-  non-tag; stale-clearing self-disables when the fleet is down.
-- **No new hosted jobs / unguarded workflows:** GitHub-hosted `runs-on` needs a
-  row in `docs/src/ci/github-hosted-exceptions.md` (`vox ci runner-policy-check`);
-  push/PR workflows need a top-level `concurrency:` block containing
-  `cancel-in-progress: true` — a bare group string or a non-cancelling group
-  does not count — or a row in `docs/src/ci/concurrency-exceptions.md`
-  (`vox ci workflow-concurrency-guard`).
+Spec: `docs/superpowers/specs/2026-09-21-hosted-primary-ci-design.md`.
 
-Details: `docs/src/ci/local-first-ci.md`.
+## GUI Visual Verification Invariant (Normative Policy)
+
+All GUI components, panels, and surfaces MUST have automated visual inspection verification in Playwright before merge.
+
+- **Automated visual stepper suite:** Any new or substantially modified GUI surface, panel, or interactive debugger must be backed by a deterministic Playwright spec (`crates/vox-gui/ui/e2e/`) executing stateful interaction sequences against mock IPC harnesses (`installTauriMock` / `installTauriMockRich`).
+- **Visual evidence capture:** Visual stepper tests must capture viewport screenshots into `crates/vox-gui/ui/review-bundle/latest/` to provide evidence of layout stability, occlusion avoidance, and diagnostic rendering across themes and viewports.
+- **Pre-merge verification:** UI changes must pass `pnpm --dir crates/vox-gui/ui test:e2e` and `pnpm --dir crates/vox-gui/ui typecheck` before merging to prevent regressions in user-facing surfaces.
 
 ## Perennial Bug Patterns (catch early)
 
@@ -501,28 +529,39 @@ Details: `docs/src/ci/local-first-ci.md`.
 - **Doc fences compiled as unintended doctests.** A bare or `rust`-tagged fence in docs is compiled as a doctest; example snippets that aren't meant to compile fail the rustdoc gate ("annotate as `text` so it isn't compiled as Rust" recurs). Mark non-compiling examples ` ```text `; for `vox` excerpts use ` ```vox ` + a leading `// vox:skip` with a reason (see §Markdown Hygiene).
 - **Async handler / async-test regression (codegen).** `query`/`mutation` handler emission must `await` (handler_await); and merges have silently reverted async tests to sync (`vox-vcs` cas_fallback). On a merge that touches async code/tests, re-confirm they're still `async` before pushing.
 - **SSOT / schema drift** (largest class, 103 fixes) — already gated by `vox ci ssot-drift` (+ the `ssot-autoregen` PR bot). Don't hand-regenerate after merge; see §Local CI Gate Tiers.
-- **`vox-gui` sidecar missing in a fresh worktree.** `cargo build`/`test -p vox-gui` fails inside `tauri-build` ("resource path ... doesn't exist") the first time ANY `git worktree add` builds it — each worktree gets its own `target/` (per-worktree by design, see `.cargo/config.toml`), so the release `vox` binary Tauri bundles as an `externalBin` sidecar doesn't exist yet. `crates/vox-gui/build.rs` and `vox doctor` both name the missing path and the fix: run `vox run scripts/gui-build.vox` (or `cargo build -p vox-cli --release` then copy `target/release/vox[.exe]` to the triple-suffixed sidecar path) once per worktree before building `vox-gui`.
+- **`vox-gui` sidecar missing in a fresh worktree.** `cargo build`/`test -p vox-gui` fails inside `tauri-build` ("resource path ... doesn't exist") the first time ANY `git worktree add` builds it — each worktree gets its own `target/` (per-worktree by design, see `.cargo/config.toml`), so the release `vox` binary Tauri bundles as an `externalBin` sidecar doesn't exist yet. `crates/vox-gui/build.rs` and `vox doctor` both name the missing path and the fix: run `vox run scripts/gui-build.vox` (or `cargo build -p vox-cli --release` then copy `target/release/vox[.exe]` to the triple-suffixed sidecar path) once per worktree before building `vox-gui`. **The same worktree also lacks `crates/vox-gui/ui/dist`**, which `tauri.conf.json`'s `frontendDist` points at, so `cargo clippy --workspace --all-targets` (and therefore `vox ci pre-push --complete`) fails there too until you run `pnpm install && pnpm build` in `crates/vox-gui/ui`. Three independent agents hit this on 2026-09-05 in three fresh worktrees; it is not a code problem and nothing should be committed to "fix" it.
 - **Move + reformat = a duplicate definition, not a merge conflict.** When one branch MOVES an item (function, impl, test) and another reformats or edits around its old position, git sees a delete at one site and an add at another, takes both, and produces a file that **compiles-fails rather than merge-fails** — the item is defined twice with no conflict markers to warn you. Observed 2026-09-04 merging `bf1b73061` (which moved `cargo_config_rustc_wrapper` above the test module for clippy) into a branch that had reformatted around its old position. **Union-resolving ("take both hunks") is safe only for append-only registries** — index tables, `mod` lists, match arms added at the end — and is actively wrong wherever one side may have moved something. **The opposite naive resolution fails too, and more quietly:** taking ONE side of a shared table or registry can yield a green test asserting something false — observed the same day, where `#473` and `main` each correctly edited a *different row* of the writer table in `workflow_permissions_guard.rs`, so either side taken wholesale passes its own test and is wrong. Between the two there is no safe default: union-resolve breaks the build, one-side-wins breaks the assertion, and neither shows a marker. After resolving any Rust conflict, verify each item is defined **once** (`grep -c 'fn <name>'`), its call sites still resolve, `cargo check -p <crate>` is clean, and — for a table or registry — check every row against **the merged tree**, not against either side's intent. A marker-free file is not evidence of a good merge.
-- **Parallel-agent fmt drift.** When multiple agents/worktrees touch overlapping crates concurrently, `rustfmt` drift from one session's edits routinely lands unformatted in another's commit. Before merging work assembled from parallel sessions, run `vox run scripts/fmt.vox` (or `VOX_FMT_CHECK=1 vox run scripts/fmt.vox` to check only).
+- **Parallel-agent fmt drift.** When multiple agents/worktrees touch overlapping crates concurrently, `rustfmt` drift from one session's edits routinely lands unformatted in another's commit. Before merging work assembled from parallel sessions, run `vox run scripts/fmt.vox -- --all` (or `VOX_FMT_CHECK=1 vox run scripts/fmt.vox -- --all` to check only) — the default dirty-only pass will miss files another agent formatted on a different worktree.
 
 Coverage of these classes by detector + severity + enforcement point (and the still-open gaps) is tracked in [`detector-coverage-ledger.md`](docs/src/contributors/detector-coverage-ledger.md) — add a row when you add a detector.
 
 ## PR & Review Discipline (Required, Cross-Tool)
 
-> **CodeRabbit is RETIRED.** Do not comment `@coderabbitai review`, do not wait on
-> an automated reviewer, and do not treat a PR as reviewed because it was opened.
-> No bot will review it. Review is now performed by the agent or human opening the
+> **CodeRabbit runs on demand (free tier, resumed 2026-10-09).** It does not review
+> automatically on this repository. When a PR is marked ready, comment
+> `@coderabbitai review` **once** (not per push); triage its findings like any other
+> review. It is advisory: never wait on it as a gate, never treat a PR as reviewed
+> because CodeRabbit commented, and never tick its Autofix/Autopilot boxes — it
+> must not push to the branch. Its status/skip boilerplate is turned off in
+> `.coderabbit.yaml`. Review is still performed by the agent or human opening the
 > PR, before asking for a merge.
+>
+> **The free tier skips any PR over 100 changed files** (it posts only a "Review
+> skipped: N files exceed the limit of 100" note — #681 was 738). So: shape PRs to
+> **≤100 files** where the work allows — split independent pieces into separate or
+> stacked PRs, and keep bulk regeneration out of feature PRs (CI's `ssot-autoregen`
+> commits it). Request `@coderabbitai review` only on PRs within the limit. A PR far
+> beyond it (roughly 300+ files: a main merge, a milestone branch, a repo-wide
+> rename) is not worth splitting just for CodeRabbit — skip the request and do the
+> self-review below instead.
 
-Because nothing reviews a PR automatically:
+Because no reviewer is guaranteed to look at a PR:
 
 - **Review your own diff before proposing a merge.** Read every hunk you are about
   to ship, not just the ones you remember writing. Run `/code-review high` (or an
   equivalent careful pass) over the full branch range, not the last commit.
 - **Batch commits; push once when the branch is review-ready** — not after every commit.
 - **Don't open a PR before it's review-ready.** Use a **Draft** if you must push early.
-- `vox ci pre-push` prints an **advisory** reminder on re-push to a branch with an
-  upstream; it never blocks.
 
 **Verify security-relevant guards by mutation, not by observing green tests.** Break
 the guard deliberately and confirm the test fails, then restore. A test that passes
@@ -540,11 +579,11 @@ working tree can hide a poisoned commit.
 
 One-line takeaway: **nothing reviews it but you.**
 
-**Residual CodeRabbit surfaces (not yet removed).** `.coderabbit.yaml`,
-`contracts/review/coderabbit-semantic-groups.v1.yaml`, and CodeRabbit entries in
+**Other CodeRabbit surfaces.** Beyond the live `.coderabbit.yaml`,
+`contracts/review/coderabbit-semantic-groups.v1.yaml` and CodeRabbit entries in
 `.github/workflows/ci.yml`, `contracts/operations/catalog.v1.yaml`, and the secrets
-registry are still present. Removing them is a tracked migration of its own — do not
-half-remove them in an unrelated PR, and do not rely on them meanwhile.
+registry belong to the older paid-tier integration; do not rely on them for the
+free-tier flow above, and change them only in a PR that is about them.
 
 ## Markdown Hygiene and Code Snippets (Doctest Policy)
 
@@ -552,6 +591,13 @@ half-remove them in an unrelated PR, and do not rely on them meanwhile.
 - Always write inline ````vox``` blocks, do NOT use mdBook `{{#include}}` directives for new code.
 - If rendering invalid code for illustrative reasons, disable validation explicitly by using `// vox:skip` inside the snippet. 
 - You MUST enforce syntax correctness programmatically over legacy include files. 
+
+### Diagrams in docs (VoxDiagram)
+
+New diagrams under `docs/src/` use a `vox-diagram` fenced block ([reference and grammar card](docs/src/reference/vox-diagram.md)).
+Validate with the `vox_validate_diagram` MCP tool or `vox --json diagram check <file|->` (`fixes[]` appear only in the JSON
+envelope), apply every `fixes[]` entry, and re-check until valid (doc lint rejects an invalid fence). Do not add fences with the `mermaid` info string: the legacy-Mermaid baseline only
+shrinks (convert one with `vox diagram import`).
 
 ## Retired Surfaces (LLM Guard)
 
@@ -561,6 +607,7 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 |---|---|
 | `vox-dei` (old large orchestrator crate) | `vox-orchestrator` |
 | `vox-ars` (crate) | `vox-openclaw-runtime` |
+| KbStore, KbRouter, legacy vox_kb_* CRUD tools | `vox_kb_search` / `vox_kb_get` / `vox_kb_cite` (Library index) and the `kb_findings` inbox for anything model- or web-derived (retired KB Phase 3, D-02; no aliases) |
 | `vox-ludus` | `vox-gamify` |
 | `vox-lexer`, `vox-parser`, `vox-hir`, `vox-typeck` | `vox-compiler` (monolith) |
 | `@component fn Name()` | `component Name() {}` |
@@ -576,6 +623,14 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 | `crates/vox-oratio` (crate renamed `81681e81b`; the `vox speech` command keeps `oratio` as a visible alias) | `crates/vox-speech` |
 | `vox-dei-shim` (renamed `5463bc16c`) | `vox-research-shim` |
 | `vox-bootstrap` (crate, deleted) | `voxup` (`crates/voxup/`) / `scripts/install.{sh,ps1}` |
+| `Qwen 2.5` family (`Qwen2.5-Coder-*`) | `Qwen 3+` (`Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218` active fine-tuning; Qwen 3.5) |
+| `--isolation wasm\|container\|gvisor\|microvm` | interpreter (`vox run` / `--interp`); repeatable `--caps` (ADR-048) |
+| `vox wasm run` | `vox run` (interpreter) |
+| `script-wasi` | interpreter (no rustup wasm target) |
+| `ProbeOnlyExecutor` | `InterpExecutor` |
+| `MicroVmRuntime` / `Tier::MicroVm` | interpreter isolation (ADR-048); planner error-path stays |
+| `VoxMeshExecPolicy` (SecretId) | receiver-imposed `--caps` (placement config key survives) |
+| `exec_bundle_b64` | VoxScript source on the mesh stream |
 
 Memory-write APIs are not a simple retirement pair: for writing facts, use `MemoryManager::persist_fact`; `sync_to_db()` bulk-syncs `MEMORY.md` → DB only and is **not** a drop-in replacement for `persist_fact`.
 
@@ -589,7 +644,7 @@ Every vestigial call site must carry this marker until it is fully removed by it
 
 ## Versioning Policy (SSOT)
 
-Single source of truth: `Cargo.toml [workspace.package] version`. All first-party crates inherit it via `version.workspace = true`; plugin crates (`vox-plugin-*`) version independently.
+Single source of truth: `Cargo.toml [workspace.package] version`. All first-party crates inherit it via `version.workspace = true`, `vox-plugin-*` included. The `[plugin] version` in a code or composite `Plugin.toml` must equal it too: `vox-plugin-host::load_code_plugin` refuses any other (spec §4.2(d)), and `vox ci plugin-surface-sync` fails on drift. Skill-only plugins are not version-checked.
 
 **Version scheme:** `MAJOR.MINOR.PATCH+build.N (GITHASH)` — `MAJOR.MINOR`/`PATCH` are human-bumped (or git-cliff on tag for `PATCH`); `+build.N`/`(GITHASH)` are injected automatically by `vox-build-meta` in `build.rs` on every commit.
 
@@ -659,7 +714,7 @@ interception work in the first place.
 - Installed by `scripts/broker-install.vox` (dry-run by default; `--apply` to
   build the shim, install it, and edit your shell profile). State and
   activation are checked by `vox doctor`.
-- Tunables: `VOX_BROKER_MAX_CONCURRENT` (max simultaneous builds
+- Admission follows measured load (a build waits while the load average exceeds the core count). Tunables: `VOX_BROKER_MAX_CONCURRENT` (optional upper bound on simultaneous builds
   machine-wide) and `VOX_BROKER_RESERVED_SLOTS` (slots reserved for a build
   domain the broker's file-lock semaphore can't see, e.g. a containerised CI
   runner sharing the host's CPU but not its mount namespace). Full reference:

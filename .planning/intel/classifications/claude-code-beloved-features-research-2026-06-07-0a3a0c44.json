@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/claude-code-beloved-features-research-2026-06-07.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Claude Code's Most-Beloved Programming Features — Research & Vox Adoption Audit",
+  "summary": "Web research on Claude Code features, practitioner sentiment, and gap audit against Vox orchestrator and MENS pipeline.",
+  "scope": ["Claude Code", "harness architecture", "agent features", "Vox adoption", "MENS training"],
+  "cross_refs": ["docs/superpowers/plans/2026-06-07-claude-code-feature-adoption.md"],
+  "locked": false,
+  "precedence": null
+}

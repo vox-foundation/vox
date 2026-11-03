@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/semantic-test-coverage-graph-strategy-2026-06-07.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Semantic Test-Coverage Graph Strategy (2026-06-07)",
+  "summary": "Strategic proposal for a searchable semantic-coverage map overlaid on graphify graph; Phase 0–3 roadmap with open design decisions.",
+  "scope": ["strategy", "coverage-graph", "semantic-proof", "graphify", "phased-build", "proof-strength"],
+  "cross_refs": ["docs/src/architecture/data-storage-ssot-2026.md", "crates/vox-effort-audit"],
+  "locked": false,
+  "precedence": null
+}

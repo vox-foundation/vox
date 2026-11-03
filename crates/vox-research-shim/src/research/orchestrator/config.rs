@@ -7,6 +7,10 @@ use vox_orchestrator::services::embeddings::EmbeddingService;
 /// Progress reporting callback for research operations.
 pub type ProgressCallback = dyn Fn(String, Option<f32>) + Send + Sync + 'static;
 
+/// First line of a synthesis answer that declines to answer for lack of evidence.
+/// The synthesis prompt asks for it and the evaluator keys abstention on it.
+pub const ABSTENTION_MARKER: &str = "[INSUFFICIENT_EVIDENCE]";
+
 /// Completeness rider for all research LLM prompts.
 pub(super) const RESEARCH_COMPLETENESS_RIDER: &str = "
 <research_completeness_rider>
@@ -43,7 +47,9 @@ pub struct ResearchConfig {
     pub judge_temperature: f32,
     /// Max tokens for the judge response.
     pub judge_max_tokens: u32,
-    /// Quality score returned when no LLM judge is available.
+    /// Legacy fallback score. Judge failures no longer use it: they are recorded as quality 0
+    /// plus `judge_error` so scoring treats them as Missing (SCORE-04, D-13). Kept because a
+    /// stages.rs test reads it.
     pub fallback_quality_score: i32,
     /// Max chars for the synthesis LLM context (hits + verdict text).
     pub synthesis_context_max_chars: usize,
@@ -91,6 +97,15 @@ pub struct ResearchConfig {
     /// Phase 0a STUB: uses `super::super::model_select::InferenceConfig` (static fallbacks).
     /// Phase 1 replaces with `vox_orchestrator::mode::InferenceConfig` when that module is activated.
     pub model_pick_inference: Option<super::super::model_select::InferenceConfig>,
+    /// Tunable retrieval search policy (provider toggles, timeouts, weights).
+    pub search_policy: vox_search::policy::SearchPolicy,
+    /// Skip the result-cache read and write for this run; set by the trial runner so replicates are real runs.
+    pub bypass_result_cache: bool,
+    /// Trial run id. When set it labels every LLM call of the run and disables the content-bearing metrics bridge (D-12).
+    pub trial_run_label: Option<String>,
+    /// Sink that receives every gathered web hit (with full page text) for the findings inbox.
+    /// `None` means gathered web text is persisted nowhere (fail-closed).
+    pub finding_capture: Option<Arc<dyn vox_search::capture::WebFindingCapture>>,
 }
 
 impl std::fmt::Debug for ResearchConfig {
@@ -108,6 +123,8 @@ impl std::fmt::Debug for ResearchConfig {
                 "search_policy_feedback",
                 &self.search_policy_feedback.is_some(),
             )
+            .field("search_policy", &self.search_policy)
+            .field("finding_capture", &self.finding_capture.is_some())
             .finish_non_exhaustive()
     }
 }
@@ -133,14 +150,38 @@ impl Default for ResearchConfig {
             claim_max_tokens: 512,
             synthesis_model: r.synthesis_model,
             synthesis_temperature: 0.2,
-            synthesis_max_tokens: 1200,
+            // D9 (Task 8 fix round 4): 1200 truncated the answer mid-sentence at
+            // live scale. Live-probed against google/gemini-3.8-flash with a
+            // 24k-char evidence prompt (the shipped `synthesis_context_max_chars`):
+            // 1200 => completion_tokens 1202, cut off mid-sentence; 2400 => 1803
+            // tokens, complete; 4000 => 1562; 8000 => 962. The natural length for
+            // the five mandated markdown sections tops out near 1800 tokens, so
+            // 2400 is marginal — 4000 keeps headroom without being unbounded, and
+            // stays under the chat path's 8192 output cap. See
+            // `synthesis_probe_max_tokens_budget_vs_visible_output`.
+            synthesis_max_tokens: 4000,
             judge_model: r.judge_model,
             judge_temperature: 0.0,
-            judge_max_tokens: 16,
-            fallback_quality_score: i32::from(
-                ConfidencePolicy::DEFAULT_MIN_REVIEW_FINDING_CONFIDENCE,
-            ),
-            synthesis_context_max_chars: 8000,
+            // D8 (Task 8 fix round 2): 400 was too tight for the judge's own JSON
+            // schema (3 free-text `*_reasoning` fields plus 4 integer scores) —
+            // live-probed against google/gemini-3.8-flash: 400 => unparseable
+            // truncated JSON every time; 1200/1600/4000 all returned a parseable
+            // score. 1600 keeps headroom above the observed 1200 floor without
+            // being unbounded.
+            //
+            // D9 (Task 8 fix round 4): 1600 was sized against a *truncated*
+            // 201-char answer. Once the synthesis fix below let the answer reach
+            // its natural ~3800 chars, the judge's own `*_reasoning` strings grew
+            // with it and 1600 truncated again live ("judge returned unparseable
+            // JSON: {\n  \"factual_accuracy_reasoning\": \"The provided
+            // bibliography lists five unrelated arXiv papers…"). Raised to 4000,
+            // matching `synthesis_max_tokens` — the judge reads the synthesis
+            // output, so its budget must scale with it.
+            judge_max_tokens: 4000,
+            // Judge unavailable => the answer is unjudged, so it must land below the pipeline's
+            // persistence gates (>= 50 low bar, >= 70 high bar) instead of borrowing a passing score.
+            fallback_quality_score: 40,
+            synthesis_context_max_chars: 24000,
             chunk_max_chars: 1200,
             chunk_overlap_chars: 150,
             trust_multiplier: 1.2,
@@ -160,6 +201,10 @@ impl Default for ResearchConfig {
             event_emitter: None,
             search_policy_feedback: None,
             model_pick_inference: None,
+            search_policy: vox_search::policy::SearchPolicy::from_env(),
+            bypass_result_cache: false,
+            trial_run_label: None,
+            finding_capture: None,
         }
     }
 }

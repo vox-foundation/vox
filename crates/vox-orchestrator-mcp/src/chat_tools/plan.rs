@@ -211,6 +211,23 @@ struct PlanResponseSchema {
 /// Generate a structured plan for a goal. Optionally writes PLAN.md to the workspace root.
 /// This backs the Cursor-style "Planning Mode" in the extension and in Vox agents.
 pub async fn plan_goal(state: &ServerState, params: PlanParams) -> String {
+    if params
+        .trace_id
+        .as_deref()
+        .is_some_and(|s| !s.trim().is_empty())
+        || params
+            .turn_id
+            .as_deref()
+            .is_some_and(|s| !s.trim().is_empty())
+    {
+        tracing::debug!(
+            target: "vox_mcp::plan",
+            trace_id = ?params.trace_id,
+            turn_id = ?params.turn_id,
+            session_id = ?params.session_id,
+            "vox_plan ChatHop correlation ids"
+        );
+    }
     let max_tasks = params.max_tasks.unwrap_or(30);
     let plan_depth = params.plan_depth.unwrap_or_default();
     let scope_note = if params.scope_files.is_empty() {
@@ -261,7 +278,7 @@ Rules:
     );
 
     let system_prompt = build_system_prompt(state, None).await;
-    let resolution_template = McpChatModelResolution {
+    let mut resolution_template = McpChatModelResolution {
         complexity: match params.max_tasks {
             Some(n) if n > 10 => 9,
             _ => 7,
@@ -269,9 +286,38 @@ Rules:
         ..Default::default()
     };
 
-    let (model, free_only) = match resolve_chat_llm_model(
+    let global_pref = match crate::sync_poison::poison_rw_read(
+        state.mcp_chat_model_override.read(),
+        "mcp_chat_model_override",
+    ) {
+        Ok(g) => g.clone(),
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_MCP_MODEL_LOCK)
+                .to_json();
+        }
+    };
+    let pref = crate::chat_tools::chat::message::effective_model_pref(
+        params.model_override.as_deref(),
+        global_pref.as_deref(),
+    );
+
+    if let Err(e) =
+        crate::chat_model_resolve::enforce_budget_guard(state, params.session_id.as_deref()).await
+    {
+        return ToolResult::<String>::err_with_remediation(
+            format!("No model found for plan: {e}"),
+            REM_MCP_MODEL_RESOLVE,
+        )
+        .to_json();
+    }
+    if resolution_template.context_fill_ratio.is_none() {
+        resolution_template.context_fill_ratio =
+            crate::llm_bridge::mcp_global_llm_context_fill_ratio(&state.orchestrator);
+    }
+    let (model, free_only) = match crate::llm_bridge::resolve_mcp_chat_model(
         state,
         &user_prompt,
+        pref.as_deref(),
         resolution_template.clone(),
         params.session_id.as_deref(),
     )
@@ -287,16 +333,6 @@ Rules:
         }
     };
 
-    let pref = match crate::sync_poison::poison_rw_read(
-        state.mcp_chat_model_override.read(),
-        "mcp_chat_model_override",
-    ) {
-        Ok(g) => g.clone(),
-        Err(e) => {
-            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_MCP_MODEL_LOCK)
-                .to_json();
-        }
-    };
     let routing = McpInferRouting {
         user_prompt: &user_prompt,
         sticky_model_pref: pref.as_deref(),

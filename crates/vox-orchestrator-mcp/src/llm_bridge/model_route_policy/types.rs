@@ -34,6 +34,26 @@ pub struct McpChatModelResolution {
     /// is correct by construction here — no inference needed (contrast with
     /// `AgentTask.trigger_source`, which is genuinely optional/hinted).
     pub trigger_source: vox_orchestrator::mode::TriggerSource,
+    /// `true` when Vox already ran web retrieval for this turn and injected
+    /// numbered sources into the prompt (quick research, `research_turn::run_quick`).
+    /// `Capability::SupportsWebSearch` means the *model itself* has built-in web
+    /// search; that's a different mechanism than Vox's own retrieval, and requiring
+    /// it here would wrongly exclude models (e.g. `google/gemini-3.8-flash`) whose
+    /// catalog entry has `supports_web_search: false` even though the turn already
+    /// has real evidence. See `resolve_mcp_chat_model_sync_inner`, which drops
+    /// `Capability::SupportsWebSearch` from `required_capabilities` when this is set.
+    pub web_evidence_supplied: bool,
+    /// Task 8f: the user's own message for this turn — after `@mention`
+    /// expansion but before conversation history, open files, retrieved
+    /// context, or fetched web text are assembled into the full prompt the
+    /// model actually sees. When `Some`, `resolve_mcp_chat_model_sync_inner`
+    /// infers `required_capabilities` from THIS text only; every other use of
+    /// `user_prompt` in the resolver (capability-pin model selection,
+    /// complexity/context-length heuristics, the actual LLM call) keeps using
+    /// the full prompt. `None` falls back to `user_prompt` — the pre-existing
+    /// behavior — for call sites whose prompt IS the user's own message with
+    /// no injected context mixed in (ghost text, inline edit, planning loops).
+    pub capability_prompt: Option<String>,
 }
 
 impl Default for McpChatModelResolution {
@@ -49,6 +69,8 @@ impl Default for McpChatModelResolution {
             clutch: None,
             risk: None,
             trigger_source: vox_orchestrator::mode::TriggerSource::Interactive,
+            web_evidence_supplied: false,
+            capability_prompt: None,
         }
     }
 }

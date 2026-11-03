@@ -267,7 +267,7 @@ pub fn generate_all(cfg: &SyntheticGenConfig, output_path: &Path) -> anyhow::Res
             variants_per_prompt: 3,
             typo_char_rate: 0.05,
             synonym_swap_rate: 0.25,
-            shuffle_words: true,
+            shuffle_words: false, // shuffling the first words yields ungrammatical prompts ("I to want …")
             case_variants: true,
         };
         let augmented = crate::corpus::augment::augment_jsonl_lines(&raw_lines, &aug_cfg, cfg.seed);

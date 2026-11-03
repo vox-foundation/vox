@@ -1,0 +1,95 @@
+// vox:caps fs
+// scripts/mens-corpus/build_vox_corpus_extract_pkg.vox
+//
+// Task followup-corpus-sources (2026-09-12-mens-end-to-end-completion): `mens/config/mix-rust.yaml`
+// references `target/dogfood/vox_corpus_extract_pkg.jsonl` (optional: true, weight 2.0,
+// "Human-mined workspace code (breadth)") but nothing ever generated it — the kill test found
+// it resolved `skipped_reason: missing_file_optional` alongside `rust_pairs.validated.jsonl` and
+// `vox_rust_expert_cross.jsonl`, leaving the Rust-authoring mix 100% Rust-about-Vox instead of
+// carrying any real Vox-language signal.
+//
+// The raw extractor exists and works (`vox mens corpus extract .`, wired to
+// `vox-ml-cli::training::build_training_record`) — it walks every `.vox` file in the repo and
+// keeps only what the real Vox compiler frontend parses clean. But its records use a
+// `source`/`code`/`constructs`/... schema with no `lane` and no `response` field, so two
+// independent mix-pipeline gates reject every row as-is:
+//   1. `mix-rust.yaml`'s `include_lanes: [vox_rust_expert_cross, vox_rust_authoring,
+//      vox_rust_review]` filter (`skipped_reason: no_lines_passed_filters` without a lane) —
+//      the same gap `build_rust_authoring_corpus.vox` (task D2) fixed for
+//      `rust_authoring.validated.jsonl` by relabeling rather than widening the config allow-list.
+//   2. The mix normalizer's assistant-response check in
+//      `crates/vox-corpus/src/corpus/mix/mod.rs` ("neither messages nor response/output field
+//      present") — it requires `response` or `output`, and the raw extractor only emits `code`.
+// This script fixes both by reshaping each row into the training-pair schema (prompt/response)
+// used elsewhere in the pipeline, tagged with the `vox_rust_expert_cross` lane (cross-domain
+// Rust-workspace exposure to compiling Vox syntax — the closest fit of the three allowed lanes
+// for genuine `.vox` source content, and the same lane the `rust-mine` translation pairs use).
+//
+// Usage:
+//   vox run scripts/mens-corpus/build_vox_corpus_extract_pkg.vox
+// Prerequisite (regenerates the raw input this script reshapes):
+//   cargo run -p vox-ml-cli --bin vox-ml-cli -- mens corpus extract . \
+//       -o target/dogfood/vox_corpus_extract_pkg.raw.jsonl
+
+import fs
+import json
+
+fn main() {
+    let input_path = "target/dogfood/vox_corpus_extract_pkg.raw.jsonl"
+    let output_path = "target/dogfood/vox_corpus_extract_pkg.jsonl"
+
+    let content_res = fs.read(input_path)
+    if content_res.is_err() {
+        print("[build_vox_corpus_extract_pkg] failed to read " + input_path + " — run `cargo run -p vox-ml-cli --bin vox-ml-cli -- mens corpus extract . -o " + input_path + "` first")
+        return
+    }
+    let content = content_res.unwrap()
+
+    let raw_lines = content.split("\n")
+    let n = raw_lines.len()
+
+    let mut kept: list[str] = []
+    let mut total = 0
+    let mut malformed = 0
+
+    let mut i = 0
+    while i < n {
+        let line = raw_lines.get(i).unwrap()
+        let trimmed = line.trim()
+        if trimmed.len() > 0 {
+            total = total + 1
+            match json.parse(trimmed) {
+                Ok(data) => {
+                    let source = data.get("source").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("unknown")
+                    let code = data.get("code").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("")
+                    if code.len() > 0 {
+                        let prompt = "Write the complete Vox source file at " + source
+                        let row = "{\"prompt\":" + json.stringify(prompt) + ",\"response\":" + json.stringify(code) + ",\"source\":" + json.stringify(source) + ",\"category\":\"vox_source_pkg\",\"lane\":\"vox_rust_expert_cross\",\"origin\":\"human\"}"
+                        kept = kept.push(row)
+                    }
+                }
+                Error(_) => {
+                    malformed = malformed + 1
+                }
+            }
+        }
+        i = i + 1
+    }
+
+    if not fs.exists("target/dogfood") {
+        match fs.mkdir("target/dogfood") { Ok(_) => {} Error(_) => {} }
+    }
+
+    let mut body = ""
+    let mut j = 0
+    while j < kept.len() {
+        body = body + kept.get(j).unwrap() + "\n"
+        j = j + 1
+    }
+    fs.write_file(output_path, body)
+
+    print("[build_vox_corpus_extract_pkg] input_lines=" + str(total))
+    print("[build_vox_corpus_extract_pkg] malformed=" + str(malformed))
+    print("[build_vox_corpus_extract_pkg] output_lines=" + str(kept.len()))
+    print("[build_vox_corpus_extract_pkg] wrote " + output_path)
+}

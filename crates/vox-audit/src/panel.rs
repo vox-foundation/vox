@@ -145,8 +145,8 @@ impl OpenRouterPanelClient {
     /// [`vox_config::inference::openrouter_api_key`]. Returns
     /// [`PanelClientError::MissingApiKey`] when neither is set.
     pub fn from_env() -> Result<Self, PanelClientError> {
-        let api_key = vox_config::inference::openrouter_api_key()
-            .ok_or(PanelClientError::MissingApiKey)?;
+        let api_key =
+            vox_config::inference::openrouter_api_key().ok_or(PanelClientError::MissingApiKey)?;
         let http = reqwest::blocking::Client::builder()
             .timeout(vox_config::timeouts::D_120S)
             .build()
@@ -175,10 +175,13 @@ impl PanelClient for OpenRouterPanelClient {
             "temperature": 0.0,
         });
 
+        let auth_header = vox_http_client::bearer_auth_header(&self.api_key)
+            .map_err(|e| PanelClientError::Http(format!("invalid API key header: {e}")))?;
+
         let resp = self
             .http
             .post(vox_config::openrouter_chat_completions_url())
-            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("Authorization", auth_header)
             .header("X-Title", "Vox Audit Panel")
             .json(&body)
             .send()
@@ -341,7 +344,9 @@ impl PanelClient for MensPanelClient {
             .clone()
             .or_else(|| parsed.choices.into_iter().next().map(|c| c.text))
             .ok_or_else(|| {
-                PanelClientError::MalformedResponse("MENS response missing both `text` and `choices`".into())
+                PanelClientError::MalformedResponse(
+                    "MENS response missing both `text` and `choices`".into(),
+                )
             })?;
         let output_tokens = parsed.tokens_generated;
         // Local MENS has no metered cost; record 0.0 so cost-budget
@@ -641,13 +646,11 @@ pub(crate) mod test_support {
             _system_prompt: &str,
             _user_prompt: &str,
         ) -> Result<PanelResponse, PanelClientError> {
-            self.scripts
-                .lock()
-                .unwrap()
-                .pop()
-                .unwrap_or_else(|| {
-                    Err(PanelClientError::MalformedResponse("sequence exhausted".into()))
-                })
+            self.scripts.lock().unwrap().pop().unwrap_or_else(|| {
+                Err(PanelClientError::MalformedResponse(
+                    "sequence exhausted".into(),
+                ))
+            })
         }
     }
 

@@ -217,7 +217,6 @@
     "tiers",
     "strengths",
     "task_categories",
-    "premium_alias",
     "economy_cost_ceiling_usd_per_1k",
     "capability_policy",
     "strength_inference",

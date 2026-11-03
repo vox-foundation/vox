@@ -16,7 +16,9 @@ fn pre_push_dry_run_quick_lists_fast_steps() {
         String::from_utf8_lossy(&out.stderr)
     );
     let stdout = String::from_utf8_lossy(&out.stdout);
-    for needle in ["cargo fmt", "ci line-endings", "ci ssot-drift"] {
+    // fmt runs as chunked `rustfmt --check`, never `cargo fmt --all` (Windows
+    // command-line limit — see AGENTS.md §Formatting Rust).
+    for needle in ["rustfmt --check", "ci line-endings", "ci ssot-drift"] {
         assert!(stdout.contains(needle), "missing `{needle}` in:\n{stdout}");
     }
     assert!(

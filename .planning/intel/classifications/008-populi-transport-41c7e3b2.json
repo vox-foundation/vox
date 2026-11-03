@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/008-populi-transport.md",
+  "type": "ADR",
+  "confidence": "medium",
+  "manifest_override": true,
+  "title": "ADR 008: Mens transport",
+  "summary": "In-tree HTTP control plane via Axum with TLS at reverse proxy; evaluate QUIC/gRPC only as future replacement.",
+  "scope": ["Mens", "Populi", "HTTP", "Axum", "TLS", "mTLS", "control plane", "federation"],
+  "cross_refs": ["../reference/populi.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "No explicit Status: line in frontmatter; decision structure present but status field missing — treating as accepted via context (phase 3 baseline implies active decision)."
+}

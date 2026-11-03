@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/plugin-system-redesign-sp2-plan-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Plugin System Redesign — SP2 Implementation Plan (2026)",
+  "summary": "Step-by-step TDD implementation plan for vox-plugin-api ABI traits, vox-plugin-host loader for code and skill payloads, dual registry, and test plugins.",
+  "scope": ["implementation planning", "plugin system", "ABI design", "host loader", "test fixtures"],
+  "cross_refs": ["plugin-system-redesign-2026.md", "plugin-system-redesign-sp1-plan-2026.md", "vox-plugin-api", "vox-plugin-host", "vox-plugin-noop-code", "vox-plugin-noop-skill"],
+  "locked": false,
+  "precedence": null
+}

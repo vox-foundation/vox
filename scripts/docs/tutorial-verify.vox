@@ -1,0 +1,574 @@
+// ---
+// title: "Tutorial Verification Script"
+// description: "Verifies CLI commands, code snippets, installation prerequisites, and relative links across tutorials."
+// category: "tooling"
+// status: "current"
+// training_eligible: false
+// ---
+//
+// Usage:
+//   vox run --mode interp scripts/docs/tutorial-verify.vox
+//   vox run --mode interp scripts/docs/tutorial-verify.vox -- --check
+
+// vox:caps fs env subprocess
+
+import fs
+import env
+import process
+
+fn norm(p: str) to str {
+    return p.replace("\\", "/")
+}
+
+fn json_escape(s: str) to str {
+    let s1 = s.replace("\\", "\\\\")
+    return s1.replace("\"", "\\\"")
+}
+
+fn json_str_array(xs: list[str]) to str {
+    let mut out = "["
+    let mut i = 0
+    while i < xs.len() {
+        out = out + "\"" + json_escape(xs.get(i).unwrap()) + "\""
+        if i < xs.len() - 1 {
+            out = out + ", "
+        }
+        i = i + 1
+    }
+    return out + "]"
+}
+
+fn is_letter(ch: str) to bool {
+    let letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    return letters.contains(ch)
+}
+
+fn is_digit(ch: str) to bool {
+    let digits = "0123456789"
+    return digits.contains(ch)
+}
+
+fn has_digit(s: str) to bool {
+    let mut i = 0
+    while i < s.len() {
+        let ch = s.slice(i, i + 1)
+        if is_digit(ch) {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+fn is_valid_version_char(ch: str) to bool {
+    let valid = "0123456789.+v-><="
+    return valid.contains(ch)
+}
+
+fn is_version_string(s: str) to bool {
+    if not has_digit(s) {
+        return false
+    }
+    if s.contains("/") or s.contains("[") or s.contains("]") or s.contains("`") or s.contains("(") or s.contains(")") {
+        return false
+    }
+    let mut i = 0
+    while i < s.len() {
+        let ch = s.slice(i, i + 1)
+        if not is_valid_version_char(ch) {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+fn has_letter(s: str) to bool {
+    let mut i = 0
+    while i < s.len() {
+        let ch = s.slice(i, i + 1)
+        if is_letter(ch) {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+fn contains_str(xs: list[str], val: str) to bool {
+    for x in xs {
+        if x is val {
+            return true
+        }
+    }
+    return false
+}
+
+fn tutorial_paths() to list[str] {
+    return [
+        "docs/src/tutorials/tut-actor-basics.md",
+        "docs/src/tutorials/tut-first-app.md",
+        "docs/src/tutorials/tut-first-vox-app-checkpoints.md",
+        "docs/src/tutorials/tut-getting-started.md",
+        "docs/src/tutorials/tut-ui-integration.md",
+        "docs/src/tutorials/tut-workflow-durability.md",
+        "docs/src/tutorials/use-a-react-component-from-vox.md"
+    ]
+}
+
+fn get_git_head() to str {
+    let proc = process.run("git", ["rev-parse", "HEAD"])
+    if proc is null {
+        return ""
+    }
+    let res = proc.unwrap()
+    if not (res.code is 0) {
+        return ""
+    }
+    return res.stdout.trim()
+}
+
+fn get_blob_sha(path: str) to str {
+    let proc = process.run("git", ["hash-object", path])
+    if proc is null {
+        return ""
+    }
+    let res = proc.unwrap()
+    if not (res.code is 0) {
+        return ""
+    }
+    return res.stdout.trim()
+}
+
+type RegistryEntry {
+    path_str: str,
+    status: str,
+}
+
+fn load_active_commands() to list[RegistryEntry] {
+    let mut entries = []
+    let proc = process.run("git", ["show", "HEAD:contracts/cli/command-registry.yaml"])
+    if proc is null {
+        return entries
+    }
+    let res = proc.unwrap()
+    if not (res.code is 0) {
+        return entries
+    }
+
+    let lines = res.stdout.split("\n")
+    let mut in_vox_cli = false
+    let mut in_path = false
+    let mut path_tokens = []
+    let mut current_status = ""
+
+    for line in lines {
+        let trimmed = line.trim()
+        if trimmed.starts_with("- surface:") {
+            if in_vox_cli and path_tokens.len() > 0 {
+                let p = path_tokens.join(" ")
+                entries = entries.push({ path_str: p, status: current_status })
+            }
+            in_vox_cli = trimmed is "- surface: vox-cli"
+            in_path = false
+            path_tokens = []
+            current_status = ""
+        } else if in_vox_cli {
+            if trimmed is "path:" {
+                in_path = true
+                path_tokens = []
+            } else if in_path and trimmed.starts_with("- ") {
+                let token = trimmed.slice(2, trimmed.len()).trim()
+                path_tokens = path_tokens.push(token)
+            } else if trimmed.starts_with("status:") {
+                in_path = false
+                current_status = trimmed.slice(7, trimmed.len()).trim()
+            } else if trimmed.starts_with("handler_rust:") or trimmed.starts_with("latin_ns:") {
+                in_path = false
+            }
+        }
+    }
+    if in_vox_cli and path_tokens.len() > 0 {
+        let p = path_tokens.join(" ")
+        entries = entries.push({ path_str: p, status: current_status })
+    }
+    return entries
+}
+
+fn check_registry_prefix(cmd_tokens: list[str], registry: list[RegistryEntry]) to str {
+    let mut best_len = 0
+    let mut best_status = ""
+    for entry in registry {
+        let entry_tokens = entry.path_str.split(" ")
+        if entry_tokens.len() <= cmd_tokens.len() {
+            let mut matches = true
+            let mut i = 0
+            while i < entry_tokens.len() {
+                if not (entry_tokens.get(i).unwrap() is cmd_tokens.get(i).unwrap()) {
+                    matches = false
+                    break
+                }
+                i = i + 1
+            }
+            if matches and entry_tokens.len() > best_len {
+                best_len = entry_tokens.len()
+                best_status = entry.status
+            }
+        }
+    }
+    return best_status
+}
+
+fn check_command_help_flags(cmd_path_tokens: list[str], flags: list[str]) to Result[Unit, str] {
+    let mut args = ["run", "-q", "-p", "vox-cli", "--"]
+    for t in cmd_path_tokens {
+        args = args.push(t)
+    }
+    args = args.push("--help")
+
+    let proc = process.run("cargo", args)
+    if proc is null {
+        return Error("Failed to run cargo help for " + cmd_path_tokens.join(" "))
+    }
+    let res = proc.unwrap()
+    let help_text = res.stdout + "\n" + res.stderr
+    if help_text.contains("vox-ml-cli") {
+        return Error("delegated to vox-ml-cli; flags not checked")
+    }
+    for flag in flags {
+        if not help_text.contains(flag) {
+            return Error("Flag " + flag + " not found in help for " + cmd_path_tokens.join(" "))
+        }
+    }
+    return Ok(Unit)
+}
+
+fn resolve_link_path(base_file: str, link_target: str) to str {
+    let mut clean_target = link_target
+    if clean_target.contains("#") {
+        clean_target = clean_target.split("#").get(0).unwrap()
+    }
+    if clean_target.contains(":") {
+        clean_target = clean_target.split(":").get(0).unwrap()
+    }
+    if clean_target.len() is 0 {
+        return base_file
+    }
+
+    let base_parts = base_file.split("/")
+    let mut dir_parts = []
+    let mut i = 0
+    while i < base_parts.len() - 1 {
+        dir_parts = dir_parts.push(base_parts.get(i).unwrap())
+        i = i + 1
+    }
+
+    let target_parts = clean_target.split("/")
+    for part in target_parts {
+        if part is "." or part is "" {
+            continue
+        } else if part is ".." {
+            if dir_parts.len() > 0 {
+                let mut new_parts = []
+                let mut j = 0
+                while j < dir_parts.len() - 1 {
+                    new_parts = new_parts.push(dir_parts.get(j).unwrap())
+                    j = j + 1
+                }
+                dir_parts = new_parts
+            }
+        } else {
+            dir_parts = dir_parts.push(part)
+        }
+    }
+    return dir_parts.join("/")
+}
+
+type TutorialResult {
+    path: str,
+    blob_sha: str,
+    commands_in_registry: str,
+    snippets_compile: str,
+    install_versions_match: str,
+    links_resolve: str,
+    notes: list[str],
+}
+
+fn verify_tutorial(path: str, registry: list[RegistryEntry], install_content: str) to TutorialResult {
+    let blob_sha = get_blob_sha(path)
+    let mut notes = []
+
+    // 1. Snippets compile check
+    let mut snippets_compile = "pass"
+    let doc_proc = process.run("vox", ["ci", "doctest-md", "--strict", path])
+    if doc_proc is null {
+        snippets_compile = "fail"
+        notes = notes.push("vox ci doctest-md failed to execute")
+    } else {
+        let dres = doc_proc.unwrap()
+        if not (dres.code is 0) {
+            snippets_compile = "fail"
+            notes = notes.push("vox ci doctest-md exit code " + str(dres.code))
+        }
+    }
+
+    // Check // vox:skip reason
+    let content_res = fs.read(path)
+    let content = if content_res.is_ok() { content_res.unwrap() } else { "" }
+    let lines = content.split("\n")
+
+    let mut in_vox_fence = false
+    let mut line_num = 0
+    for line in lines {
+        line_num = line_num + 1
+        let trimmed = line.trim()
+        if trimmed.starts_with("```") {
+            let rest = trimmed.replace("`", "").trim()
+            if not in_vox_fence and rest is "vox" {
+                in_vox_fence = true
+            } else if in_vox_fence {
+                in_vox_fence = false
+            }
+        } else if in_vox_fence {
+            if trimmed.starts_with("// vox:skip") {
+                let after_marker = trimmed.slice(11, trimmed.len()).trim()
+                let mut reason = after_marker
+                if reason.starts_with(":") or reason.starts_with("—") or reason.starts_with("-") {
+                    reason = reason.slice(1, reason.len()).trim()
+                }
+                if not has_letter(reason) {
+                    snippets_compile = "fail"
+                    notes = notes.push("unreasoned vox:skip at line " + str(line_num) + ": " + trimmed)
+                }
+            }
+        }
+    }
+
+    // 2. Commands in registry & flags
+    let mut commands_in_registry = "pass"
+    let mut in_shell_fence = false
+    let shell_langs = ["bash", "sh", "shell", "console", "powershell", "text"]
+    let mut parsed_commands = []
+
+    for line in lines {
+        let trimmed = line.trim()
+        if trimmed.starts_with("```") {
+            let lang = trimmed.replace("`", "").trim()
+            if not in_shell_fence and contains_str(shell_langs, lang) {
+                in_shell_fence = true
+            } else if in_shell_fence {
+                in_shell_fence = false
+            }
+        } else if in_shell_fence {
+            let mut cmd_line = trimmed
+            if cmd_line.starts_with("$ ") {
+                cmd_line = cmd_line.slice(2, cmd_line.len()).trim()
+            } else if cmd_line.starts_with("PS> ") {
+                cmd_line = cmd_line.slice(4, cmd_line.len()).trim()
+            }
+
+            if cmd_line.starts_with("vox ") {
+                parsed_commands = parsed_commands.push(cmd_line)
+                let raw_tokens = cmd_line.split(" ")
+                let mut cmd_tokens = []
+                let mut flags = []
+                let mut i = 1
+                while i < raw_tokens.len() {
+                    let t = raw_tokens.get(i).unwrap().trim()
+                    if t.len() is 0 {
+                        i = i + 1
+                        continue
+                    }
+                    if t.starts_with("-") or t.contains("/") or t.contains(".") or t.contains("<") or t.contains("=") {
+                        let mut j = i
+                        while j < raw_tokens.len() {
+                            let ft = raw_tokens.get(j).unwrap().trim()
+                            if ft.starts_with("-") {
+                                flags = flags.push(ft)
+                            }
+                            j = j + 1
+                        }
+                        break
+                    } else {
+                        cmd_tokens = cmd_tokens.push(t)
+                    }
+                    i = i + 1
+                }
+
+                if cmd_tokens.len() > 0 {
+                    let st = check_registry_prefix(cmd_tokens, registry)
+                    if not (st is "active") {
+                        commands_in_registry = "fail"
+                        notes = notes.push("command not active in registry: " + cmd_tokens.join(" "))
+                    } else if flags.len() > 0 {
+                        let flag_res = check_command_help_flags(cmd_tokens, flags)
+                        match flag_res {
+                            Ok(_) => {}
+                            Error(msg) => {
+                                if msg.contains("delegated to vox-ml-cli") {
+                                    notes = notes.push(msg)
+                                } else {
+                                    commands_in_registry = "fail"
+                                    notes = notes.push(msg)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    print("  [commands parsed for " + path + "]: " + str(parsed_commands.len()))
+
+    // 3. Install versions match
+    let mut install_versions_match = "pass"
+    let tools = ["Node.js", "pnpm", "Rust"]
+    for tool in tools {
+        for line in lines {
+            if line.contains(tool) {
+                for word in line.split(" ") {
+                    let clean_word = word.replace("(", "").replace(")", "").replace("**", "").replace(",", "").trim()
+                    if is_version_string(clean_word) {
+                        if not install_content.contains(clean_word) {
+                            install_versions_match = "fail"
+                            notes = notes.push("version mismatch for " + tool + ": tutorial has " + clean_word + " not matching installation.md")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 4. Links resolve
+    let mut links_resolve = "pass"
+    for line in lines {
+        if line.contains("](") {
+            let parts = line.split("](")
+            let mut p_idx = 1
+            while p_idx < parts.len() {
+                let tail = parts.get(p_idx).unwrap()
+                let target = tail.split(")").get(0).unwrap().trim()
+                if not (target.starts_with("http://") or target.starts_with("https://") or target.starts_with("mailto:") or target.starts_with("#")) {
+                    let resolved = resolve_link_path(path, target)
+                    if not fs.exists(resolved) {
+                        links_resolve = "fail"
+                        notes = notes.push("dead relative link: " + target + " -> " + resolved)
+                    }
+                }
+                p_idx = p_idx + 1
+            }
+        }
+    }
+
+    return {
+        path: path,
+        blob_sha: blob_sha,
+        commands_in_registry: commands_in_registry,
+        snippets_compile: snippets_compile,
+        install_versions_match: install_versions_match,
+        links_resolve: links_resolve,
+        notes: notes,
+    }
+}
+
+fn main() {
+    let argv = env.args()
+    let mut check_mode = false
+    for a in argv {
+        if a is "--check" {
+            check_mode = true
+        }
+    }
+
+    let head_commit = get_git_head()
+    let registry = load_active_commands()
+    print("tutorial-verify: loaded " + str(registry.len()) + " active vox-cli commands from HEAD registry")
+
+    let install_res = fs.read("docs/src/reference/installation.md")
+    let install_content = if install_res.is_ok() { install_res.unwrap() } else { "" }
+
+    let paths = tutorial_paths()
+    let mut results = []
+    let mut any_failed = false
+
+    for path in paths {
+        print("Verifying " + path + "...")
+        let r = verify_tutorial(path, registry, install_content)
+        if r.commands_in_registry is "fail" or r.snippets_compile is "fail" or r.install_versions_match is "fail" or r.links_resolve is "fail" {
+            any_failed = true
+        }
+        print("  -> commands=" + r.commands_in_registry + " snippets=" + r.snippets_compile + " install=" + r.install_versions_match + " links=" + r.links_resolve + " notes=" + str(r.notes.len()))
+        results = results.push(r)
+    }
+
+    let record_file = "contracts/documentation/tutorial-verification.v1.json"
+
+    if check_mode {
+        print("tutorial-verify: running in --check mode")
+        if not fs.exists(record_file) {
+            print("Error: " + record_file + " does not exist")
+            process.exit(1)
+        }
+        let existing_res = fs.read(record_file)
+        let existing = existing_res.unwrap()
+        let mut mismatch = false
+        for r in results {
+            if not existing.contains(r.blob_sha) {
+                print("Error: blob_sha mismatch for " + r.path + " (" + r.blob_sha + ")")
+                mismatch = true
+            }
+            if r.commands_in_registry is "fail" or r.snippets_compile is "fail" or r.install_versions_match is "fail" or r.links_resolve is "fail" {
+                print("Error: check failed for " + r.path)
+                mismatch = true
+            }
+        }
+        if mismatch or any_failed {
+            process.exit(1)
+        }
+        print("tutorial-verify --check OK")
+        return
+    }
+
+    // Default mode: write JSON
+    let mut json_out = "{\n"
+    json_out = json_out + "  \"x-vox-version\": 1,\n"
+    json_out = json_out + "  \"generated_by\": \"scripts/docs/tutorial-verify.vox\",\n"
+    json_out = json_out + "  \"verified_at_commit\": \"" + head_commit + "\",\n"
+    json_out = json_out + "  \"tutorials\": [\n"
+
+    let mut i = 0
+    while i < results.len() {
+        let r = results.get(i).unwrap()
+        json_out = json_out + "    {\n"
+        json_out = json_out + "      \"path\": \"" + r.path + "\",\n"
+        json_out = json_out + "      \"blob_sha\": \"" + r.blob_sha + "\",\n"
+        json_out = json_out + "      \"checks\": {\n"
+        json_out = json_out + "        \"commands_in_registry\": \"" + r.commands_in_registry + "\",\n"
+        json_out = json_out + "        \"snippets_compile\": \"" + r.snippets_compile + "\",\n"
+        json_out = json_out + "        \"install_versions_match\": \"" + r.install_versions_match + "\",\n"
+        json_out = json_out + "        \"links_resolve\": \"" + r.links_resolve + "\"\n"
+        json_out = json_out + "      },\n"
+        json_out = json_out + "      \"notes\": " + json_str_array(r.notes) + "\n"
+        json_out = json_out + "    }"
+        if i < results.len() - 1 {
+            json_out = json_out + ",\n"
+        } else {
+            json_out = json_out + "\n"
+        }
+        i = i + 1
+    }
+
+    json_out = json_out + "  ]\n"
+    json_out = json_out + "}\n"
+
+    let write_res = fs.write(record_file, json_out)
+    match write_res {
+        Ok(_) => {
+            print("Wrote " + record_file)
+        }
+        Error(err) => {
+            print("Failed to write " + record_file + ": " + str(err))
+            process.exit(1)
+        }
+    }
+}

@@ -1,0 +1,23 @@
+graph {
+    node UserQuery: "User Prompt"
+    node PlanPhase: "Collaborative Plan Formulation"
+    node UserApproval: "User Approves Plan?" { shape: diamond }
+    node LoopStart: "Start Recursive Agent Loop"
+    node GenQueries: "Generate 3-8 Subqueries"
+    node GoogleSearch: "Google Search Ingestion"
+    node IngestPages: "Ingest Full HTML Pages (up to 1M tokens)"
+    node GapAnalysis: "Information Gap or Contradiction Detected?" { shape: diamond }
+    node RefineQueries: "Formulate Refined / Follow-up Queries"
+    node LongSynthesis: "Synthesize 10-25 Page Report with Citations"
+    UserQuery -> PlanPhase
+    PlanPhase -> UserApproval
+    UserApproval -> PlanPhase: "No"
+    UserApproval -> LoopStart: "Yes"
+    LoopStart -> GenQueries
+    GenQueries -> GoogleSearch
+    GoogleSearch -> IngestPages
+    IngestPages -> GapAnalysis
+    GapAnalysis -> RefineQueries: "Yes (Iter < Max)"
+    RefineQueries -> GoogleSearch
+    GapAnalysis -> LongSynthesis: "No or Iter == Max"
+}

@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/session-handoff-2026-05-28-state-audit.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Handoff: state audit (2026-05-28)",
+  "summary": "Post-v0.6.0 state audit capturing 78 commits over three days, outstanding work, uncommitted files.",
+  "scope": ["v0.6.0 release", "Phase H endpoint retirement", "PR #90", "workspace state", "test coverage"],
+  "cross_refs": ["session-handoff-2026-05-24-lost-work-audit.md", "session-handoff-2026-05-25-state-of-the-work.md", "session-handoff-2026-05-25-finalization-pass.md", "post-sprint-forward-plan-2026-05-25.md"],
+  "locked": false,
+  "precedence": null
+}

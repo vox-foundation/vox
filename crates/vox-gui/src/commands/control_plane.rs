@@ -2,10 +2,9 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use vox_foundation::protocol::orch_daemon_method;
-use vox_orchestrator::orch_daemon::OrchDaemonClient;
 use vox_orchestrator::{FileAffinity, TaskPriority};
 
-use crate::commands::daemon::PersistentDaemon;
+use crate::remote::backend::BackendState;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct SubmitTaskInput {
@@ -47,6 +46,13 @@ pub struct SubmitTaskInput {
     /// non-chat callers (Tasks surface, hopper).
     #[serde(default)]
     pub chat_session_id: Option<String>,
+    /// End-to-end ChatHop correlation (UUID). Forwarded as `enqueue_hints.trace_id`.
+    #[serde(default)]
+    pub trace_id: Option<String>,
+    /// Per-submit turn id (UUID). Forwarded as `enqueue_hints.turn_id` onto
+    /// [`vox_orchestrator::TaskEnqueueHints`] / [`vox_orchestrator::AgentTask`].
+    #[serde(default)]
+    pub turn_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -60,16 +66,11 @@ pub struct ControlPlaneResult {
 }
 
 async fn call_orchestrator_daemon(
-    daemon: &PersistentDaemon,
+    backend: &BackendState,
     method: &str,
     params: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
-    let addr = daemon.ensure().await?;
-    let client = match daemon.token().await {
-        Some(token) => OrchDaemonClient::with_token(addr, token),
-        None => OrchDaemonClient::new(addr),
-    };
-    client.call(method, params).await.map_err(|e| e.to_string())
+    backend.call(method, params).await.map_err(String::from)
 }
 
 /// Build the daemon SUBMIT_TASK params from the composer input. Extracted from
@@ -118,6 +119,12 @@ fn submit_task_params(input: SubmitTaskInput) -> serde_json::Value {
     if let Some(risk) = input.risk.as_deref().filter(|r| !r.trim().is_empty()) {
         enqueue_hints.insert("risk".into(), serde_json::json!(risk));
     }
+    if let Some(trace_id) = input.trace_id.as_deref().filter(|t| !t.trim().is_empty()) {
+        enqueue_hints.insert("trace_id".into(), serde_json::json!(trace_id));
+    }
+    if let Some(turn_id) = input.turn_id.as_deref().filter(|t| !t.trim().is_empty()) {
+        enqueue_hints.insert("turn_id".into(), serde_json::json!(turn_id));
+    }
     if !enqueue_hints.is_empty()
         && let Some(obj) = params.as_object_mut()
     {
@@ -133,7 +140,7 @@ fn submit_task_params(input: SubmitTaskInput) -> serde_json::Value {
 pub async fn submit_orchestrator_task(
     app_handle: tauri::AppHandle,
     input: SubmitTaskInput,
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    daemon: tauri::State<'_, Arc<BackendState>>,
 ) -> Result<ControlPlaneResult, String> {
     let params = submit_task_params(input);
     let response =
@@ -163,7 +170,7 @@ pub async fn submit_orchestrator_task(
 #[tauri::command]
 pub async fn pause_orchestrator_agent(
     agent_id: u64,
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    daemon: tauri::State<'_, Arc<BackendState>>,
 ) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
         &daemon,
@@ -182,7 +189,7 @@ pub async fn pause_orchestrator_agent(
 #[tauri::command]
 pub async fn resume_orchestrator_agent(
     agent_id: u64,
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    daemon: tauri::State<'_, Arc<BackendState>>,
 ) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
         &daemon,
@@ -202,7 +209,7 @@ pub async fn resume_orchestrator_agent(
 pub async fn doubt_orchestrator_task(
     task_id: u64,
     reason: Option<String>,
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    daemon: tauri::State<'_, Arc<BackendState>>,
 ) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
         &daemon,
@@ -225,7 +232,7 @@ pub async fn doubt_orchestrator_task(
 pub async fn overrule_orchestrator_task(
     task_id: u64,
     reason: String,
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    daemon: tauri::State<'_, Arc<BackendState>>,
 ) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
         &daemon,
@@ -277,7 +284,7 @@ fn normalize_lifecycle(raw: &str) -> String {
 
 #[tauri::command]
 pub async fn list_orchestrator_tasks(
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    daemon: tauri::State<'_, Arc<BackendState>>,
 ) -> Result<Vec<TaskRowDto>, String> {
     let response = call_orchestrator_daemon(
         &daemon,
@@ -345,7 +352,7 @@ pub async fn edit_orchestrator_task(
     app_handle: tauri::AppHandle,
     task_id: u64,
     description: String,
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    daemon: tauri::State<'_, Arc<BackendState>>,
 ) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
         &daemon,
@@ -367,7 +374,7 @@ pub async fn edit_orchestrator_task(
 pub async fn cancel_orchestrator_task(
     app_handle: tauri::AppHandle,
     task_id: u64,
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    daemon: tauri::State<'_, Arc<BackendState>>,
 ) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
         &daemon,
@@ -389,7 +396,7 @@ pub async fn cancel_orchestrator_task(
 pub async fn interrupt_orchestrator_task(
     app_handle: tauri::AppHandle,
     task_id: u64,
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    daemon: tauri::State<'_, Arc<BackendState>>,
 ) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
         &daemon,
@@ -412,7 +419,7 @@ pub async fn reorder_orchestrator_task(
     app_handle: tauri::AppHandle,
     task_id: u64,
     priority: String,
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    daemon: tauri::State<'_, Arc<BackendState>>,
 ) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
         &daemon,
@@ -437,7 +444,7 @@ pub async fn reorder_orchestrator_task(
 pub async fn approve_orchestrator_task_plan(
     app_handle: tauri::AppHandle,
     task_id: u64,
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    daemon: tauri::State<'_, Arc<BackendState>>,
 ) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
         &daemon,
@@ -460,7 +467,7 @@ pub async fn approve_orchestrator_task_plan(
 pub async fn skip_orchestrator_verify(
     app_handle: tauri::AppHandle,
     task_id: u64,
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    daemon: tauri::State<'_, Arc<BackendState>>,
 ) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
         &daemon,
@@ -483,7 +490,7 @@ pub async fn skip_orchestrator_verify(
 pub async fn force_orchestrator_verify(
     app_handle: tauri::AppHandle,
     task_id: u64,
-    daemon: tauri::State<'_, Arc<PersistentDaemon>>,
+    daemon: tauri::State<'_, Arc<BackendState>>,
 ) -> Result<ControlPlaneResult, String> {
     call_orchestrator_daemon(
         &daemon,
@@ -535,6 +542,8 @@ mod submit_params_tests {
             task_category: None,
             grounding_check_enabled: None,
             chat_session_id: None,
+            trace_id: None,
+            turn_id: None,
         }
     }
 
@@ -581,5 +590,24 @@ mod submit_params_tests {
     fn grounding_check_enabled_is_null_when_omitted() {
         let params = submit_task_params(input(None));
         assert!(params["grounding_check_enabled"].is_null());
+    }
+
+    #[test]
+    fn submit_params_carry_trace_id_and_turn_id_enqueue_hints() {
+        let mut i = input(None);
+        i.trace_id = Some("trace-bg-42".into());
+        i.turn_id = Some("turn-bg-42".into());
+        let params = submit_task_params(i);
+        assert_eq!(params["enqueue_hints"]["trace_id"], "trace-bg-42");
+        assert_eq!(params["enqueue_hints"]["turn_id"], "turn-bg-42");
+    }
+
+    #[test]
+    fn submit_params_omit_blank_correlation_ids() {
+        let mut i = input(None);
+        i.trace_id = Some("   ".into());
+        i.turn_id = Some("".into());
+        let params = submit_task_params(i);
+        assert!(params.get("enqueue_hints").is_none());
     }
 }

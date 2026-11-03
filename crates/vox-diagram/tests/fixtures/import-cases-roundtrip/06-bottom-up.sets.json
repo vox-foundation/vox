@@ -1,0 +1,68 @@
+{
+  "kind": "graph",
+  "direction": "up",
+  "nodes": [
+    [
+      "Finish",
+      "start",
+      []
+    ],
+    [
+      "Foundation",
+      "rect",
+      []
+    ],
+    [
+      "Middle",
+      "rect",
+      []
+    ],
+    [
+      "Top",
+      "diamond",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Foundation",
+        "rect",
+        []
+      ],
+      [
+        "Middle",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Middle",
+        "rect",
+        []
+      ],
+      [
+        "Top",
+        "diamond",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Top",
+        "diamond",
+        []
+      ],
+      [
+        "Finish",
+        "start",
+        []
+      ],
+      "done"
+    ]
+  ],
+  "containers": []
+}

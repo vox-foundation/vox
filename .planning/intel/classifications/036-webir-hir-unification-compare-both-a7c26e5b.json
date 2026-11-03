@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/036-webir-hir-unification-compare-both.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 036 — WebIR vs HIR unification (compare-both)",
+  "summary": "Adopt HIR core + WebIR projections; collapse duplicate emit paths for GUI-any-platform goals.",
+  "scope": ["WebIR", "HIR", "compiler lowering", "IR unification", "projections"],
+  "cross_refs": ["012-internal-web-ir-strategy.md", "../architecture/external-frontend-interop-plan-2026.md", "../architecture/vox-application-packaging-ssot-2026.md"],
+  "locked": true,
+  "precedence": null
+}

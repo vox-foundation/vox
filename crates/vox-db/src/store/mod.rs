@@ -44,6 +44,8 @@ pub use ops_mens_intelligence::{CorpusQualitySummary, GrpoStepRow};
 mod open;
 mod ops;
 mod ops_a2a;
+pub mod ops_activity;
+pub mod ops_agent_telemetry;
 mod ops_agents;
 pub mod ops_build;
 mod ops_cas;
@@ -67,6 +69,7 @@ mod ops_mcp_diagnostics;
 mod ops_memory;
 mod ops_mens_cloud;
 mod ops_mens_intelligence;
+mod ops_model_bench;
 mod ops_news;
 pub mod ops_orchestrator;
 mod ops_planning;
@@ -81,15 +84,25 @@ mod ops_skill_identity;
 mod ops_skills;
 mod ops_user_identity;
 
+pub use ops_activity::{ActivityLogEntry, ActivityLogFilter};
 pub use ops_agents::LlmSpendSummary;
 pub use ops_discovery_inbox::DiscoveryInboxRow;
 pub use ops_finding_candidates::{FindingCandidateClass, FindingCandidateRow, InsertOutcome};
 pub use ops_harness_decisions::HarnessIssueDecisionRow;
 pub use ops_harness_fix_proposals::{HarnessFixProposalRow, NewFixProposal};
 pub use ops_harness_issues::{HarnessIssueRow, NewHarnessIssue};
+pub use ops_memory::{
+    KB_CHUNK_SOURCE_TYPE, KB_LIBRARY_CORPUS, KbFindingCounts, KbFindingRow, KbIndexState,
+    KnowledgeHealthInfo, KnowledgeNodeRecord, LegacyKbCounts, LegacyKbEntry, LibraryChunkDiff,
+    LibraryChunkInput, LibraryChunkPos, LibraryChunkRow, LibraryDocRow, LibraryDocUpsert,
+    NewKbFinding, SearchCorpusCounts,
+};
+pub use ops_model_bench::{ModelBenchmarkSummaryRow, NewModelBenchmarkResult};
 pub use ops_orchestrator::HopperInboxRow;
+pub use ops_quota::{ProviderQuotaUsage, current_period_key, get_quota_usage, record_quota_spend};
 pub use ops_review::{ReviewDecisionRow, VALID_DECISIONS};
 pub use ops_skill_candidates::{NewSkillCandidate, SkillCandidateRow};
 pub use ops_user_identity::{NanopubRow, UserIdentityRow};
+pub mod ops_quota;
 mod ops_secrets_cloudless;
 mod ops_visus;

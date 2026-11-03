@@ -308,3 +308,74 @@ fn parse_ci_retirement_audit() {
         }
     ));
 }
+
+#[cfg(feature = "gui")]
+#[test]
+fn parse_gui_command_flag_still_works() {
+    with_cli_parse_stack(|| {
+        VoxCliRoot::try_parse_from(["vox", "gui", "--command", "chat"]).expect("gui --command");
+    });
+}
+
+#[cfg(feature = "gui")]
+#[test]
+fn parse_gui_drive_start() {
+    with_cli_parse_stack(|| {
+        VoxCliRoot::try_parse_from(["vox", "gui", "drive", "start"]).expect("gui drive start");
+    });
+}
+
+#[cfg(feature = "gui")]
+#[test]
+fn catalog_includes_gui_drive_paths() {
+    with_cli_parse_stack(|| {
+        let cat = vox_cli::command_catalog::build_catalog();
+        let paths: Vec<String> = cat.entries.iter().map(|e| e.path.join("/")).collect();
+        for required in [
+            "gui",
+            "gui/drive",
+            "gui/drive/start",
+            "gui/drive/set",
+            "gui/drive/send",
+            "gui/drive/state",
+            "gui/drive/wait",
+            "gui/drive/stop",
+            "gui/drive/show",
+            "gui/drive/headless",
+            "gui/drive/headless/state",
+            "gui/drive/headless/set",
+            "gui/drive/headless/send",
+        ] {
+            assert!(
+                paths.iter().any(|p| p == required),
+                "missing catalog path {required}"
+            );
+        }
+    });
+}
+
+#[test]
+fn isolation_and_wasm_surfaces_are_gone() {
+    with_cli_parse_stack(|| {
+        let wasm_err = match VoxCliRoot::try_parse_from(["vox", "wasm", "run", "foo.wasm"]) {
+            Ok(_) => panic!("expected parse failure for removed subcommand `wasm`"),
+            Err(e) => e,
+        };
+        let wasm_msg = wasm_err.to_string();
+        assert!(
+            wasm_msg.contains("unrecognized subcommand"),
+            "expected clap 4.5 unrecognized subcommand, got: {wasm_msg}"
+        );
+
+        let isolation_err =
+            match VoxCliRoot::try_parse_from(["vox", "script", "--isolation", "wasm", "foo.vox"]) {
+                Ok(_) => panic!("expected parse failure for removed `--isolation`"),
+                Err(e) => e,
+            };
+        let isolation_msg = isolation_err.to_string();
+        assert!(
+            isolation_msg.contains("unexpected argument '--isolation' found"),
+            "expected clap 4.5 unexpected argument '--isolation' found, got: {isolation_msg}"
+        );
+    });
+}

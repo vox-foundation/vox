@@ -22,6 +22,17 @@ impl Palette {
         Self { commands }
     }
 
+    /// Populate live terminal sessions (`SessionInfo`) into the palette for quick attach.
+    pub fn with_sessions(&mut self, sessions: &[vox_terminal_core::SessionInfo]) {
+        self.commands.retain(|c| !c.name.starts_with("/attach "));
+        for s in sessions {
+            self.commands.push(Command {
+                name: format!("/attach {}", s.id),
+                description: format!("Attach to live session {} ({} blocks)", s.id, s.blocks),
+            });
+        }
+    }
+
     /// Returns commands whose name fuzzy-matches `query`, ranked by score.
     pub fn search(&self, query: &str) -> Vec<&Command> {
         if query.is_empty() {

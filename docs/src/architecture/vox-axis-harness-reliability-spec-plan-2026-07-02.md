@@ -2,7 +2,7 @@
 title: "Vox Axis Harness Reliability — Spec + Plan 2026-07-02"
 description: "Adversarially audited spec and TDD-ready execution plan to close the reliability/trust gap between Vox Axis and a Claude-Code-grade harness: authenticated harness-owned trust, op-log-as-SSOT durable sessions, single-daemon state across ALL clients, self-healing streams, and runtime consolidation — with contracts and CI guards so every invariant is machine-enforced."
 category: "Architecture SSOTs"
-status: "current"
+status: "roadmap"
 training_eligible: false
 ---
 

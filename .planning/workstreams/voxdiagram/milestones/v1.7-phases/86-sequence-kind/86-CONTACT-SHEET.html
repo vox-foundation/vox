@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>VoxDiagram contact sheet: sequence diagrams</title>
+<style>
+body { font-family: system-ui, sans-serif; margin: 16px; }
+.row { display: flex; gap: 12px; margin-bottom: 28px; }
+.vd-light, .vd-dark { flex: 1 1 0; min-width: 0; padding: 12px; overflow: auto;
+  background: var(--sl-color-black); color: var(--sl-color-white); border: 1px solid #888; }
+.vd-light svg, .vd-dark svg { max-width: 900px; height: auto; }
+.vd-light {
+  --sl-color-white: hsl(224, 10%, 10%);
+  --sl-color-gray-1: hsl(224, 14%, 16%);
+  --sl-color-gray-2: hsl(224, 10%, 23%);
+  --sl-color-gray-3: hsl(224, 7%, 36%);
+  --sl-color-gray-4: hsl(224, 6%, 56%);
+  --sl-color-gray-5: hsl(224, 6%, 77%);
+  --sl-color-gray-6: hsl(224, 20%, 94%);
+  --sl-color-black: hsl(0, 0%, 100%);
+  --vd-text: var(--sl-color-white);
+  --vd-muted: var(--sl-color-gray-2);
+  --vd-node-fill: var(--sl-color-black);
+  --vd-node-stroke: var(--sl-color-gray-3);
+  --vd-edge: var(--sl-color-gray-3);
+  --vd-container-fill: var(--sl-color-gray-6);
+  --vd-container-stroke: var(--sl-color-gray-3);
+  --vd-bg: var(--sl-color-black);
+}
+.vd-dark {
+  --sl-color-white: hsl(0, 0%, 100%);
+  --sl-color-gray-1: hsl(224, 20%, 94%);
+  --sl-color-gray-2: hsl(224, 6%, 77%);
+  --sl-color-gray-3: hsl(224, 6%, 56%);
+  --sl-color-gray-4: hsl(224, 7%, 36%);
+  --sl-color-gray-5: hsl(224, 10%, 23%);
+  --sl-color-gray-6: hsl(224, 14%, 16%);
+  --sl-color-black: hsl(224, 10%, 10%);
+  --vd-text: var(--sl-color-white);
+  --vd-muted: var(--sl-color-gray-2);
+  --vd-node-fill: var(--sl-color-black);
+  --vd-node-stroke: var(--sl-color-gray-3);
+  --vd-edge: var(--sl-color-gray-3);
+  --vd-container-fill: var(--sl-color-gray-6);
+  --vd-container-stroke: var(--sl-color-gray-3);
+  --vd-bg: var(--sl-color-black);
+}
+</style>
+</head>
+<body>
+<h2>19-scientia-automated-research-historical-extension-research-2026-l112</h2>
+<div class="row">
+<div class="vd-light">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1709.5 512" role="img" aria-labelledby="s0l-title s0l-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<title id="s0l-title">Diagram</title>
+<desc id="s0l-desc">8 actors, 8 messages, 1 note: CodingAgent → vox_research_shim; vox_research_shim → OpenRouter; vox_research_shim → vox_search; vox_search → Tavily; vox_research_shim → vox_scientia; vox_scientia → Researcher; Researcher → vox_scientia; vox_scientia → NanoPub_Zenodo_Manuscri…</desc>
+<defs>
+<marker id="s0l-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-lifelines" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1;stroke-dasharray:4 4">
+<path class="vd-lifeline" d="M73.5 54L73.5 496"/>
+<path class="vd-lifeline" d="M234.5 54L234.5 496"/>
+<path class="vd-lifeline" d="M459.5 54L459.5 496"/>
+<path class="vd-lifeline" d="M684.5 54L684.5 496"/>
+<path class="vd-lifeline" d="M909.5 54L909.5 496"/>
+<path class="vd-lifeline" d="M1134.5 54L1134.5 496"/>
+<path class="vd-lifeline" d="M1355.5 54L1355.5 496"/>
+<path class="vd-lifeline" d="M1576.5 54L1576.5 496"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="16" y="16" width="115.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="73.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="73.5" dy="0">CodingAgent</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="155" y="16" width="159.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="234.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="234.5" dy="0">vox_research_shim</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="407" y="16" width="105.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="459.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="459.5" dy="0">vox_search</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="629.5" y="16" width="110.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="684.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="684.5" dy="0">OpenRouter</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="876" y="16" width="67.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="909.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="909.5" dy="0">Tavily</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="1079" y="16" width="111.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1134.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1134.5" dy="0">vox_scientia</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="1302.5" y="16" width="106.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1355.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1355.5" dy="0">Researcher</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="1460" y="16" width="233.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1576.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1576.5" dy="0">NanoPub_Zenodo_Manuscript</tspan></text>
+</g>
+</g>
+<g class="vd-notes">
+<rect class="vd-note" x="218.5" y="304" width="932" height="38" rx="3" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-note-label" x="684.5" y="328" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="684.5" dy="0">FindingCandidate mesh emission not wired</tspan></text>
+</g>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M73.5 104L234.5 104" marker-end="url(#s0l-arrow)"/>
+<path class="vd-edge" d="M234.5 150L684.5 150" marker-end="url(#s0l-arrow)"/>
+<path class="vd-edge" d="M234.5 196L459.5 196" marker-end="url(#s0l-arrow)"/>
+<path class="vd-edge" d="M459.5 242L909.5 242" marker-end="url(#s0l-arrow)"/>
+<path class="vd-edge" d="M234.5 288L1134.5 288" marker-end="url(#s0l-arrow)"/>
+<path class="vd-edge" d="M1134.5 388L1355.5 388" marker-end="url(#s0l-arrow)"/>
+<path class="vd-edge" d="M1355.5 434L1134.5 434" marker-end="url(#s0l-arrow)"/>
+<path class="vd-edge" d="M1134.5 480L1576.5 480" marker-end="url(#s0l-arrow)"/>
+</g>
+<g class="vd-edge-labels">
+<rect class="vd-edge-label-bg" x="93.5" y="74" width="121" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="154" y="92" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="154" dy="0">vox research run</tspan></text>
+<rect class="vd-edge-label-bg" x="386" y="120" width="147.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="459.5" y="138" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="459.5" dy="0">planner + synthesize</tspan></text>
+<rect class="vd-edge-label-bg" x="288" y="166" width="118.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="347" y="184" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="347" dy="0">CRAG multi-hop</tspan></text>
+<rect class="vd-edge-label-bg" x="610" y="212" width="149.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="684.5" y="230" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="684.5" dy="0">Tier4 search optional</tspan></text>
+<rect class="vd-edge-label-bg" x="580" y="258" width="209" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="684.5" y="276" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="684.5" dy="0">claim_extractor optional paths</tspan></text>
+<rect class="vd-edge-label-bg" x="1165" y="358" width="160.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="1245" y="376" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="1245" dy="0">discovery inbox review</tspan></text>
+<rect class="vd-edge-label-bg" x="1190" y="404" width="110" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="1245" y="422" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="1245" dy="0">ApprovalToken</tspan></text>
+<rect class="vd-edge-label-bg" x="1253" y="450" width="205" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="1355.5" y="468" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="1355.5" dy="0">nanopub / archive / syndicate</tspan></text>
+</g>
+</svg>
+</div>
+<div class="vd-dark">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1709.5 512" role="img" aria-labelledby="s0d-title s0d-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<title id="s0d-title">Diagram</title>
+<desc id="s0d-desc">8 actors, 8 messages, 1 note: CodingAgent → vox_research_shim; vox_research_shim → OpenRouter; vox_research_shim → vox_search; vox_search → Tavily; vox_research_shim → vox_scientia; vox_scientia → Researcher; Researcher → vox_scientia; vox_scientia → NanoPub_Zenodo_Manuscri…</desc>
+<defs>
+<marker id="s0d-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-lifelines" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1;stroke-dasharray:4 4">
+<path class="vd-lifeline" d="M73.5 54L73.5 496"/>
+<path class="vd-lifeline" d="M234.5 54L234.5 496"/>
+<path class="vd-lifeline" d="M459.5 54L459.5 496"/>
+<path class="vd-lifeline" d="M684.5 54L684.5 496"/>
+<path class="vd-lifeline" d="M909.5 54L909.5 496"/>
+<path class="vd-lifeline" d="M1134.5 54L1134.5 496"/>
+<path class="vd-lifeline" d="M1355.5 54L1355.5 496"/>
+<path class="vd-lifeline" d="M1576.5 54L1576.5 496"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="16" y="16" width="115.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="73.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="73.5" dy="0">CodingAgent</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="155" y="16" width="159.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="234.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="234.5" dy="0">vox_research_shim</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="407" y="16" width="105.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="459.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="459.5" dy="0">vox_search</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="629.5" y="16" width="110.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="684.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="684.5" dy="0">OpenRouter</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="876" y="16" width="67.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="909.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="909.5" dy="0">Tavily</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="1079" y="16" width="111.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1134.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1134.5" dy="0">vox_scientia</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="1302.5" y="16" width="106.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1355.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1355.5" dy="0">Researcher</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="1460" y="16" width="233.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1576.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1576.5" dy="0">NanoPub_Zenodo_Manuscript</tspan></text>
+</g>
+</g>
+<g class="vd-notes">
+<rect class="vd-note" x="218.5" y="304" width="932" height="38" rx="3" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-note-label" x="684.5" y="328" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="684.5" dy="0">FindingCandidate mesh emission not wired</tspan></text>
+</g>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M73.5 104L234.5 104" marker-end="url(#s0d-arrow)"/>
+<path class="vd-edge" d="M234.5 150L684.5 150" marker-end="url(#s0d-arrow)"/>
+<path class="vd-edge" d="M234.5 196L459.5 196" marker-end="url(#s0d-arrow)"/>
+<path class="vd-edge" d="M459.5 242L909.5 242" marker-end="url(#s0d-arrow)"/>
+<path class="vd-edge" d="M234.5 288L1134.5 288" marker-end="url(#s0d-arrow)"/>
+<path class="vd-edge" d="M1134.5 388L1355.5 388" marker-end="url(#s0d-arrow)"/>
+<path class="vd-edge" d="M1355.5 434L1134.5 434" marker-end="url(#s0d-arrow)"/>
+<path class="vd-edge" d="M1134.5 480L1576.5 480" marker-end="url(#s0d-arrow)"/>
+</g>
+<g class="vd-edge-labels">
+<rect class="vd-edge-label-bg" x="93.5" y="74" width="121" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="154" y="92" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="154" dy="0">vox research run</tspan></text>
+<rect class="vd-edge-label-bg" x="386" y="120" width="147.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="459.5" y="138" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="459.5" dy="0">planner + synthesize</tspan></text>
+<rect class="vd-edge-label-bg" x="288" y="166" width="118.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="347" y="184" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="347" dy="0">CRAG multi-hop</tspan></text>
+<rect class="vd-edge-label-bg" x="610" y="212" width="149.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="684.5" y="230" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="684.5" dy="0">Tier4 search optional</tspan></text>
+<rect class="vd-edge-label-bg" x="580" y="258" width="209" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="684.5" y="276" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="684.5" dy="0">claim_extractor optional paths</tspan></text>
+<rect class="vd-edge-label-bg" x="1165" y="358" width="160.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="1245" y="376" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="1245" dy="0">discovery inbox review</tspan></text>
+<rect class="vd-edge-label-bg" x="1190" y="404" width="110" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="1245" y="422" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="1245" dy="0">ApprovalToken</tspan></text>
+<rect class="vd-edge-label-bg" x="1253" y="450" width="205" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="1355.5" y="468" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="1355.5" dy="0">nanopub / archive / syndicate</tspan></text>
+</g>
+</svg>
+</div>
+</div>
+<h2>30-seq-long-labels</h2>
+<div class="row">
+<div class="vd-light">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1328.5 450" role="img" aria-labelledby="s1l-title s1l-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<title id="s1l-title">Diagram</title>
+<desc id="s1l-desc">4 actors, 6 messages: Client → Gateway; Gateway → Stock; Stock → Gateway; Client → Stock; Gateway → Billing; Billing → Client</desc>
+<defs>
+<marker id="s1l-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-lifelines" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1;stroke-dasharray:4 4">
+<path class="vd-lifeline" d="M49.5 54L49.5 434"/>
+<path class="vd-lifeline" d="M459.5 54L459.5 434"/>
+<path class="vd-lifeline" d="M869.5 54L869.5 434"/>
+<path class="vd-lifeline" d="M1279.5 54L1279.5 434"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="16" y="16" width="67" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="49.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="49.5" dy="0">Client</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="415.5" y="16" width="88" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="459.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="459.5" dy="0">Gateway</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="835.5" y="16" width="68.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="869.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="869.5" dy="0">Billing</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="1246.5" y="16" width="66" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1279.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1279.5" dy="0">Stock</tspan></text>
+</g>
+</g>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M49.5 122L459.5 122" marker-end="url(#s1l-arrow)"/>
+<path class="vd-edge" d="M459.5 204L1279.5 204" marker-end="url(#s1l-arrow)"/>
+<path class="vd-edge" d="M1279.5 250L459.5 250" marker-end="url(#s1l-arrow)" style="stroke-dasharray:6 4"/>
+<path class="vd-edge" d="M49.5 332L1279.5 332" marker-end="url(#s1l-arrow)"/>
+<path class="vd-edge" d="M459.5 354L869.5 354" marker-end="url(#s1l-arrow)"/>
+<path class="vd-edge" d="M869.5 418L49.5 418" marker-end="url(#s1l-arrow)" style="stroke-dasharray:6 4"/>
+</g>
+<g class="vd-edge-labels">
+<rect class="vd-edge-label-bg" x="67.5" y="74" width="374" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="254.5" y="92" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="254.5" dy="0">The order service confirms the payment with the billing</tspan><tspan x="254.5" dy="18">provider before releasing stock</tspan></text>
+<rect class="vd-edge-label-bg" x="685" y="138" width="369" height="62" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="869.5" y="156" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="869.5" dy="0">Reserve every line item of the basket, then keep the</tspan><tspan x="869.5" dy="18">reservation alive for the whole fifteen minute checkout</tspan><tspan x="869.5" dy="18">window while the customer is paying</tspan></text>
+<rect class="vd-edge-label-bg" x="857.5" y="220" width="24" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="869.5" y="238" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="869.5" dy="0">ok</tspan></text>
+<rect class="vd-edge-label-bg" x="467.5" y="266" width="394" height="62" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="664.5" y="284" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="664.5" dy="0">Cancel the reservation as soon as the payment fails three</tspan><tspan x="664.5" dy="18">times in a row, release the stock back to the shared pool,</tspan><tspan x="664.5" dy="18">notify the warehouse team and write an audit entry</tspan></text>
+<rect class="vd-edge-label-bg" x="429" y="370" width="61" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="459.5" y="388" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="459.5" dy="0">line one</tspan><tspan x="459.5" dy="18">line two</tspan></text>
+</g>
+</svg>
+</div>
+<div class="vd-dark">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1328.5 450" role="img" aria-labelledby="s1d-title s1d-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<title id="s1d-title">Diagram</title>
+<desc id="s1d-desc">4 actors, 6 messages: Client → Gateway; Gateway → Stock; Stock → Gateway; Client → Stock; Gateway → Billing; Billing → Client</desc>
+<defs>
+<marker id="s1d-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-lifelines" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1;stroke-dasharray:4 4">
+<path class="vd-lifeline" d="M49.5 54L49.5 434"/>
+<path class="vd-lifeline" d="M459.5 54L459.5 434"/>
+<path class="vd-lifeline" d="M869.5 54L869.5 434"/>
+<path class="vd-lifeline" d="M1279.5 54L1279.5 434"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="16" y="16" width="67" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="49.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="49.5" dy="0">Client</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="415.5" y="16" width="88" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="459.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="459.5" dy="0">Gateway</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="835.5" y="16" width="68.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="869.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="869.5" dy="0">Billing</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="1246.5" y="16" width="66" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1279.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1279.5" dy="0">Stock</tspan></text>
+</g>
+</g>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M49.5 122L459.5 122" marker-end="url(#s1d-arrow)"/>
+<path class="vd-edge" d="M459.5 204L1279.5 204" marker-end="url(#s1d-arrow)"/>
+<path class="vd-edge" d="M1279.5 250L459.5 250" marker-end="url(#s1d-arrow)" style="stroke-dasharray:6 4"/>
+<path class="vd-edge" d="M49.5 332L1279.5 332" marker-end="url(#s1d-arrow)"/>
+<path class="vd-edge" d="M459.5 354L869.5 354" marker-end="url(#s1d-arrow)"/>
+<path class="vd-edge" d="M869.5 418L49.5 418" marker-end="url(#s1d-arrow)" style="stroke-dasharray:6 4"/>
+</g>
+<g class="vd-edge-labels">
+<rect class="vd-edge-label-bg" x="67.5" y="74" width="374" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="254.5" y="92" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="254.5" dy="0">The order service confirms the payment with the billing</tspan><tspan x="254.5" dy="18">provider before releasing stock</tspan></text>
+<rect class="vd-edge-label-bg" x="685" y="138" width="369" height="62" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="869.5" y="156" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="869.5" dy="0">Reserve every line item of the basket, then keep the</tspan><tspan x="869.5" dy="18">reservation alive for the whole fifteen minute checkout</tspan><tspan x="869.5" dy="18">window while the customer is paying</tspan></text>
+<rect class="vd-edge-label-bg" x="857.5" y="220" width="24" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="869.5" y="238" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="869.5" dy="0">ok</tspan></text>
+<rect class="vd-edge-label-bg" x="467.5" y="266" width="394" height="62" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="664.5" y="284" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="664.5" dy="0">Cancel the reservation as soon as the payment fails three</tspan><tspan x="664.5" dy="18">times in a row, release the stock back to the shared pool,</tspan><tspan x="664.5" dy="18">notify the warehouse team and write an audit entry</tspan></text>
+<rect class="vd-edge-label-bg" x="429" y="370" width="61" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="459.5" y="388" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="459.5" dy="0">line one</tspan><tspan x="459.5" dy="18">line two</tspan></text>
+</g>
+</svg>
+</div>
+</div>
+<h2>31-seq-self-and-notes</h2>
+<div class="row">
+<div class="vd-light">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1294 496" role="img" aria-labelledby="s2l-title s2l-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<title id="s2l-title">Diagram</title>
+<desc id="s2l-desc">3 actors, 4 messages, 3 notes: First → First; Middle → Middle; Last → Last; Middle → Last</desc>
+<defs>
+<marker id="s2l-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-lifelines" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1;stroke-dasharray:4 4">
+<path class="vd-lifeline" d="M213.5 54L213.5 480"/>
+<path class="vd-lifeline" d="M658 54L658 480"/>
+<path class="vd-lifeline" d="M844.5 54L844.5 480"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="181.5" y="16" width="64" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="213.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="213.5" dy="0">First</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="621.5" y="16" width="73" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="658" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="658" dy="0">Middle</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="812.5" y="16" width="64" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="844.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="844.5" dy="0">Last</tspan></text>
+</g>
+</g>
+<g class="vd-notes">
+<rect class="vd-note" x="16" y="236" width="395.5" height="56" rx="3" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-note-label" x="213.5" y="260" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="213.5" dy="0">A note over a single lane with enough text that it has to</tspan><tspan x="213.5" dy="18">wrap onto a second line at sixty cells</tspan></text>
+<rect class="vd-note" x="197.5" y="308" width="663" height="56" rx="3" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-note-label" x="529" y="332" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="529" dy="0">A note spanning the first and the last lane, wide enough to</tspan><tspan x="529" dy="18">cover the middle lane as well</tspan></text>
+<rect class="vd-note" x="602.5" y="380" width="297" height="38" rx="3" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-note-label" x="751" y="404" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="751" dy="0">Reversed operands still span both lanes</tspan></text>
+</g>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M213.5 86L243.5 86L243.5 106L213.5 106" marker-end="url(#s2l-arrow)"/>
+<path class="vd-edge" d="M658 137L688 137L688 157L658 157" marker-end="url(#s2l-arrow)"/>
+<path class="vd-edge" d="M844.5 188L874.5 188L874.5 208L844.5 208" marker-end="url(#s2l-arrow)"/>
+<path class="vd-edge" d="M658 464L844.5 464" marker-end="url(#s2l-arrow)"/>
+</g>
+<g class="vd-edge-labels">
+<rect class="vd-edge-label-bg" x="249.5" y="74" width="400.5" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="449.5" y="92" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="449.5" dy="0">retry the request up to three times with exponential backoff</tspan><tspan x="449.5" dy="18">and jitter</tspan></text>
+<rect class="vd-edge-label-bg" x="694" y="134" width="142.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="765" y="152" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="765" dy="0">validate the payload</tspan></text>
+<rect class="vd-edge-label-bg" x="880.5" y="176" width="397.5" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="1079" y="194" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="1079" dy="0">flush the write-ahead log to disk before acknowledging the</tspan><tspan x="1079" dy="18">commit to the caller</tspan></text>
+<rect class="vd-edge-label-bg" x="735" y="434" width="32" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="751" y="452" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="751" dy="0">ack</tspan></text>
+</g>
+</svg>
+</div>
+<div class="vd-dark">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1294 496" role="img" aria-labelledby="s2d-title s2d-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<title id="s2d-title">Diagram</title>
+<desc id="s2d-desc">3 actors, 4 messages, 3 notes: First → First; Middle → Middle; Last → Last; Middle → Last</desc>
+<defs>
+<marker id="s2d-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-lifelines" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1;stroke-dasharray:4 4">
+<path class="vd-lifeline" d="M213.5 54L213.5 480"/>
+<path class="vd-lifeline" d="M658 54L658 480"/>
+<path class="vd-lifeline" d="M844.5 54L844.5 480"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="181.5" y="16" width="64" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="213.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="213.5" dy="0">First</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="621.5" y="16" width="73" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="658" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="658" dy="0">Middle</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="812.5" y="16" width="64" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="844.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="844.5" dy="0">Last</tspan></text>
+</g>
+</g>
+<g class="vd-notes">
+<rect class="vd-note" x="16" y="236" width="395.5" height="56" rx="3" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-note-label" x="213.5" y="260" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="213.5" dy="0">A note over a single lane with enough text that it has to</tspan><tspan x="213.5" dy="18">wrap onto a second line at sixty cells</tspan></text>
+<rect class="vd-note" x="197.5" y="308" width="663" height="56" rx="3" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-note-label" x="529" y="332" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="529" dy="0">A note spanning the first and the last lane, wide enough to</tspan><tspan x="529" dy="18">cover the middle lane as well</tspan></text>
+<rect class="vd-note" x="602.5" y="380" width="297" height="38" rx="3" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-note-label" x="751" y="404" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="751" dy="0">Reversed operands still span both lanes</tspan></text>
+</g>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M213.5 86L243.5 86L243.5 106L213.5 106" marker-end="url(#s2d-arrow)"/>
+<path class="vd-edge" d="M658 137L688 137L688 157L658 157" marker-end="url(#s2d-arrow)"/>
+<path class="vd-edge" d="M844.5 188L874.5 188L874.5 208L844.5 208" marker-end="url(#s2d-arrow)"/>
+<path class="vd-edge" d="M658 464L844.5 464" marker-end="url(#s2d-arrow)"/>
+</g>
+<g class="vd-edge-labels">
+<rect class="vd-edge-label-bg" x="249.5" y="74" width="400.5" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="449.5" y="92" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="449.5" dy="0">retry the request up to three times with exponential backoff</tspan><tspan x="449.5" dy="18">and jitter</tspan></text>
+<rect class="vd-edge-label-bg" x="694" y="134" width="142.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="765" y="152" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="765" dy="0">validate the payload</tspan></text>
+<rect class="vd-edge-label-bg" x="880.5" y="176" width="397.5" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="1079" y="194" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="1079" dy="0">flush the write-ahead log to disk before acknowledging the</tspan><tspan x="1079" dy="18">commit to the caller</tspan></text>
+<rect class="vd-edge-label-bg" x="735" y="434" width="32" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="751" y="452" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="751" dy="0">ack</tspan></text>
+</g>
+</svg>
+</div>
+</div>
+<h2>32-seq-replies-and-wide-actors</h2>
+<div class="row">
+<div class="vd-light">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 994.5 430" role="img" aria-labelledby="s3l-title s3l-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<title id="s3l-title">Diagram</title>
+<desc id="s3l-desc">3 actors, 7 messages: A very long actor label… → Server; Server → The persistent relation…; The persistent relation… → Server; Server → A very long actor label…; A very long actor label… → Server; Server → A very long actor label…; A very long actor label… → The persistent relation…</desc>
+<defs>
+<marker id="s3l-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-lifelines" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1;stroke-dasharray:4 4">
+<path class="vd-lifeline" d="M119.5 126L119.5 414"/>
+<path class="vd-lifeline" d="M501.5 126L501.5 414"/>
+<path class="vd-lifeline" d="M883.5 126L883.5 414"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="16" y="16" width="207.5" height="110" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="119.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="119.5" dy="0">A very long actor label that</tspan><tspan x="119.5" dy="18">has to wrap onto several</tspan><tspan x="119.5" dy="18">lines because it is far</tspan><tspan x="119.5" dy="18">wider than twenty eight</tspan><tspan x="119.5" dy="18">cells</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="465" y="16" width="73" height="110" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="501.5" y="76" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="501.5" dy="0">Server</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="789" y="16" width="189.5" height="110" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="883.5" y="58" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="883.5" dy="0">The persistent relational</tspan><tspan x="883.5" dy="18">database cluster of the</tspan><tspan x="883.5" dy="18">billing department</tspan></text>
+</g>
+</g>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M119.5 176L501.5 176" marker-end="url(#s3l-arrow)"/>
+<path class="vd-edge" d="M501.5 222L883.5 222" marker-end="url(#s3l-arrow)"/>
+<path class="vd-edge" d="M883.5 244L501.5 244" marker-end="url(#s3l-arrow)" style="stroke-dasharray:6 4"/>
+<path class="vd-edge" d="M501.5 290L119.5 290" marker-end="url(#s3l-arrow)" style="stroke-dasharray:6 4"/>
+<path class="vd-edge" d="M119.5 312L501.5 312" marker-end="url(#s3l-arrow)"/>
+<path class="vd-edge" d="M501.5 334L119.5 334" marker-end="url(#s3l-arrow)" style="stroke-dasharray:6 4"/>
+<path class="vd-edge" d="M119.5 398L883.5 398" marker-end="url(#s3l-arrow)"/>
+</g>
+<g class="vd-edge-labels">
+<rect class="vd-edge-label-bg" x="281.5" y="146" width="58.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="310.5" y="164" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="310.5" dy="0">request</tspan></text>
+<rect class="vd-edge-label-bg" x="669.5" y="192" width="46" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="692.5" y="210" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="692.5" dy="0">query</tspan></text>
+<rect class="vd-edge-label-bg" x="275.5" y="260" width="70.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="310.5" y="278" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="310.5" dy="0">response</tspan></text>
+<rect class="vd-edge-label-bg" x="318.5" y="350" width="366" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="501.5" y="368" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="501.5" dy="0">a direct read that skips the server and has to cross its</tspan><tspan x="501.5" dy="18">lane</tspan></text>
+</g>
+</svg>
+</div>
+<div class="vd-dark">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 994.5 430" role="img" aria-labelledby="s3d-title s3d-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<title id="s3d-title">Diagram</title>
+<desc id="s3d-desc">3 actors, 7 messages: A very long actor label… → Server; Server → The persistent relation…; The persistent relation… → Server; Server → A very long actor label…; A very long actor label… → Server; Server → A very long actor label…; A very long actor label… → The persistent relation…</desc>
+<defs>
+<marker id="s3d-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-lifelines" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1;stroke-dasharray:4 4">
+<path class="vd-lifeline" d="M119.5 126L119.5 414"/>
+<path class="vd-lifeline" d="M501.5 126L501.5 414"/>
+<path class="vd-lifeline" d="M883.5 126L883.5 414"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="16" y="16" width="207.5" height="110" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="119.5" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="119.5" dy="0">A very long actor label that</tspan><tspan x="119.5" dy="18">has to wrap onto several</tspan><tspan x="119.5" dy="18">lines because it is far</tspan><tspan x="119.5" dy="18">wider than twenty eight</tspan><tspan x="119.5" dy="18">cells</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="465" y="16" width="73" height="110" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="501.5" y="76" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="501.5" dy="0">Server</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="789" y="16" width="189.5" height="110" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="883.5" y="58" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="883.5" dy="0">The persistent relational</tspan><tspan x="883.5" dy="18">database cluster of the</tspan><tspan x="883.5" dy="18">billing department</tspan></text>
+</g>
+</g>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M119.5 176L501.5 176" marker-end="url(#s3d-arrow)"/>
+<path class="vd-edge" d="M501.5 222L883.5 222" marker-end="url(#s3d-arrow)"/>
+<path class="vd-edge" d="M883.5 244L501.5 244" marker-end="url(#s3d-arrow)" style="stroke-dasharray:6 4"/>
+<path class="vd-edge" d="M501.5 290L119.5 290" marker-end="url(#s3d-arrow)" style="stroke-dasharray:6 4"/>
+<path class="vd-edge" d="M119.5 312L501.5 312" marker-end="url(#s3d-arrow)"/>
+<path class="vd-edge" d="M501.5 334L119.5 334" marker-end="url(#s3d-arrow)" style="stroke-dasharray:6 4"/>
+<path class="vd-edge" d="M119.5 398L883.5 398" marker-end="url(#s3d-arrow)"/>
+</g>
+<g class="vd-edge-labels">
+<rect class="vd-edge-label-bg" x="281.5" y="146" width="58.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="310.5" y="164" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="310.5" dy="0">request</tspan></text>
+<rect class="vd-edge-label-bg" x="669.5" y="192" width="46" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="692.5" y="210" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="692.5" dy="0">query</tspan></text>
+<rect class="vd-edge-label-bg" x="275.5" y="260" width="70.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="310.5" y="278" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="310.5" dy="0">response</tspan></text>
+<rect class="vd-edge-label-bg" x="318.5" y="350" width="366" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="501.5" y="368" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="501.5" dy="0">a direct read that skips the server and has to cross its</tspan><tspan x="501.5" dy="18">lane</tspan></text>
+</g>
+</svg>
+</div>
+</div>
+<h2>33-seq-unicode</h2>
+<div class="row">
+<div class="vd-light">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 829 400" role="img" aria-labelledby="s4l-title s4l-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<title id="s4l-title">Diagram</title>
+<desc id="s4l-desc">3 actors, 5 messages, 1 note: 注文 → サーバー 🚀; サーバー 🚀 → Café Ünïcode; Café Ünïcode → サーバー 🚀; Café Ünïcode → Café Ünïcode; サーバー 🚀 → 注文</desc>
+<defs>
+<marker id="s4l-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-lifelines" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1;stroke-dasharray:4 4">
+<path class="vd-lifeline" d="M48 54L48 384"/>
+<path class="vd-lifeline" d="M193 54L193 384"/>
+<path class="vd-lifeline" d="M671 54L671 384"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="16" y="16" width="64" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="48" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="48" dy="0">注文</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="137" y="16" width="112.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="193" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="193" dy="0">サーバー 🚀</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="609" y="16" width="124.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="671" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="671" dy="0">Café Ünïcode</tspan></text>
+</g>
+</g>
+<g class="vd-notes">
+<rect class="vd-note" x="177" y="290" width="510" height="56" rx="3" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-note-label" x="432" y="314" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="432" dy="0">備考:</tspan><tspan x="432" dy="18">長い説明文がここに入りますが、折り返されるはずです。🚀🚀🚀</tspan></text>
+</g>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M48 104L193 104" marker-end="url(#s4l-arrow)"/>
+<path class="vd-edge" d="M193 168L671 168" marker-end="url(#s4l-arrow)"/>
+<path class="vd-edge" d="M671 232L193 232" marker-end="url(#s4l-arrow)" style="stroke-dasharray:6 4"/>
+<path class="vd-edge" d="M671 251L701 251L701 271L671 271" marker-end="url(#s4l-arrow)"/>
+<path class="vd-edge" d="M193 368L48 368" marker-end="url(#s4l-arrow)"/>
+</g>
+<g class="vd-edge-labels">
+<rect class="vd-edge-label-bg" x="56" y="74" width="129" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="120.5" y="92" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="120.5" dy="0">注文を確認します</tspan></text>
+<rect class="vd-edge-label-bg" x="321.5" y="120" width="221" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="432" y="138" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="432" dy="0">🚀 launched ✅</tspan><tspan x="432" dy="18">second line with é and 👨‍👩‍👧</tspan></text>
+<rect class="vd-edge-label-bg" x="201" y="184" width="462" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="432" y="202" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="432" dy="0">受け取りました、ありがとうございます、すぐに処理を開始して結</tspan><tspan x="432" dy="18">果をお知らせします、少々お待ちください</tspan></text>
+<rect class="vd-edge-label-bg" x="707" y="248" width="106" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="760" y="266" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="760" dy="0">naïve résumé</tspan></text>
+</g>
+</svg>
+</div>
+<div class="vd-dark">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 829 400" role="img" aria-labelledby="s4d-title s4d-desc" class="vd-diagram" style="font-family:var(--vd-font,system-ui,sans-serif);font-size:14px">
+<title id="s4d-title">Diagram</title>
+<desc id="s4d-desc">3 actors, 5 messages, 1 note: 注文 → サーバー 🚀; サーバー 🚀 → Café Ünïcode; Café Ünïcode → サーバー 🚀; Café Ünïcode → Café Ünïcode; サーバー 🚀 → 注文</desc>
+<defs>
+<marker id="s4d-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-lifelines" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1;stroke-dasharray:4 4">
+<path class="vd-lifeline" d="M48 54L48 384"/>
+<path class="vd-lifeline" d="M193 54L193 384"/>
+<path class="vd-lifeline" d="M671 54L671 384"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="16" y="16" width="64" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="48" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="48" dy="0">注文</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="137" y="16" width="112.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="193" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="193" dy="0">サーバー 🚀</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="609" y="16" width="124.5" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="671" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="671" dy="0">Café Ünïcode</tspan></text>
+</g>
+</g>
+<g class="vd-notes">
+<rect class="vd-note" x="177" y="290" width="510" height="56" rx="3" style="fill:var(--vd-container-fill,#f6f8fa);stroke:var(--vd-container-stroke,#848d97);stroke-width:1.5"/>
+<text class="vd-note-label" x="432" y="314" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="432" dy="0">備考:</tspan><tspan x="432" dy="18">長い説明文がここに入りますが、折り返されるはずです。🚀🚀🚀</tspan></text>
+</g>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M48 104L193 104" marker-end="url(#s4d-arrow)"/>
+<path class="vd-edge" d="M193 168L671 168" marker-end="url(#s4d-arrow)"/>
+<path class="vd-edge" d="M671 232L193 232" marker-end="url(#s4d-arrow)" style="stroke-dasharray:6 4"/>
+<path class="vd-edge" d="M671 251L701 251L701 271L671 271" marker-end="url(#s4d-arrow)"/>
+<path class="vd-edge" d="M193 368L48 368" marker-end="url(#s4d-arrow)"/>
+</g>
+<g class="vd-edge-labels">
+<rect class="vd-edge-label-bg" x="56" y="74" width="129" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="120.5" y="92" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="120.5" dy="0">注文を確認します</tspan></text>
+<rect class="vd-edge-label-bg" x="321.5" y="120" width="221" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="432" y="138" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="432" dy="0">🚀 launched ✅</tspan><tspan x="432" dy="18">second line with é and 👨‍👩‍👧</tspan></text>
+<rect class="vd-edge-label-bg" x="201" y="184" width="462" height="44" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="432" y="202" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="432" dy="0">受け取りました、ありがとうございます、すぐに処理を開始して結</tspan><tspan x="432" dy="18">果をお知らせします、少々お待ちください</tspan></text>
+<rect class="vd-edge-label-bg" x="707" y="248" width="106" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="760" y="266" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="760" dy="0">naïve résumé</tspan></text>
+</g>
+</svg>
+</div>
+</div>
+</body>
+</html>

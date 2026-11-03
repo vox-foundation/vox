@@ -1,5 +1,8 @@
 use std::path::{Path, PathBuf};
 
+mod build_sidecar;
+use build_sidecar::sidecar_build_args;
+
 /// Check every `bundle.externalBin` entry in `tauri.conf.json` for the
 /// Tauri-sidecar-suffixed binary (e.g. `vox-x86_64-pc-windows-msvc.exe`) before
 /// handing off to `tauri_build`, which fails with a repo-unaware path-only
@@ -43,24 +46,24 @@ fn check_sidecar_binaries(gui_dir: &Path) -> Result<Vec<(PathBuf, String)>, Stri
     Ok(missing)
 }
 
-/// `cargo build -p vox-cli --release --bin <name>` then copy the unsuffixed
+/// `cargo build -p <owning pkg> --release --bin <name>` then copy the unsuffixed
 /// `target/release/<name>` to the triple-suffixed sidecar path Tauri expects.
-/// Only handles the CLI binary itself — the frontend (`ui/dist`, built via
+/// Only handles the CLI binaries themselves — the frontend (`ui/dist`, built via
 /// `vox run scripts/gui-build.vox`'s `pnpm build` step) is a separate, larger
 /// dependency this can't self-heal, and is checked independently elsewhere.
 fn autobuild_sidecar(sidecar: &Path, bin_name: &str) -> Result<(), String> {
+    let args = sidecar_build_args(bin_name)?;
+    let cmd = format!("cargo {}", args.join(" "));
     println!(
-        "cargo:warning=vox-gui: sidecar binary {} missing, running `cargo build -p vox-cli --release --bin {bin_name}` to build it (one-time per fresh worktree; set VOX_GUI_SKIP_SIDECAR_AUTOBUILD=1 to disable)",
+        "cargo:warning=vox-gui: sidecar binary {} missing, running `{cmd}` to build it (one-time per fresh worktree; set VOX_GUI_SKIP_SIDECAR_AUTOBUILD=1 to disable)",
         sidecar.display()
     );
     let status = std::process::Command::new(env!("CARGO"))
-        .args(["build", "-p", "vox-cli", "--release", "--bin", bin_name])
+        .args(&args)
         .status()
-        .map_err(|e| format!("spawn `cargo build -p vox-cli --release --bin {bin_name}`: {e}"))?;
+        .map_err(|e| format!("spawn `{cmd}`: {e}"))?;
     if !status.success() {
-        return Err(format!(
-            "`cargo build -p vox-cli --release --bin {bin_name}` exited with {status}"
-        ));
+        return Err(format!("`{cmd}` exited with {status}"));
     }
     let ext = if sidecar.extension().is_some() {
         format!(".{}", sidecar.extension().unwrap().to_string_lossy())
@@ -95,28 +98,36 @@ fn main() {
     let mut still_missing = Vec::new();
     for (sidecar, bin_name) in missing {
         if skip_autobuild {
-            still_missing.push(sidecar);
+            still_missing.push((sidecar, bin_name));
             continue;
         }
         if let Err(e) = autobuild_sidecar(&sidecar, &bin_name) {
             println!("cargo:warning=vox-gui: sidecar autobuild failed: {e}");
-            still_missing.push(sidecar);
+            still_missing.push((sidecar, bin_name));
         }
     }
 
     if !still_missing.is_empty() {
         let missing_list = still_missing
             .iter()
-            .map(|p| format!("  - {}", p.display()))
+            .map(|(p, _)| format!("  - {}", p.display()))
             .collect::<Vec<_>>()
             .join("\n");
+        let build_cmds = still_missing
+            .iter()
+            .map(|(_, bin)| match sidecar_build_args(bin) {
+                Ok(args) => format!("cargo {}", args.join(" ")),
+                Err(e) => format!("# {e}"),
+            })
+            .collect::<Vec<_>>()
+            .join("\n  ");
         panic!(
             "vox-gui sidecar binary missing (autobuild {}):\n{missing_list}\n\n\
              Build it before building vox-gui:\n\n  \
              vox run scripts/gui-build.vox\n\n\
              or manually:\n\n  \
-             cargo build -p vox-cli --release --bin vox\n  \
-             # then copy target/release/vox<ext> to the path(s) listed above",
+             {build_cmds}\n  \
+             # then copy target/release/<bin><ext> to the path(s) listed above",
             if skip_autobuild {
                 "skipped via VOX_GUI_SKIP_SIDECAR_AUTOBUILD"
             } else {
@@ -128,5 +139,22 @@ fn main() {
     // Must not swallow errors: a missing Windows manifest yields STATUS_ENTRYPOINT_NOT_FOUND at runtime.
     if let Err(err) = tauri_build::try_build(tauri_build::Attributes::new()) {
         panic!("tauri build script failed: {err}");
+    }
+
+    // tauri-build embeds the Common-Controls v6 manifest into the app binary only.
+    // Integration-test executables that build a Tauri app (research_doc_publish_test)
+    // then die on Windows with STATUS_ENTRYPOINT_NOT_FOUND, as the comment above warns.
+    // Embed the same dependency into test executables.
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows")
+        && std::env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc")
+    {
+        let manifest = std::path::Path::new(&std::env::var("CARGO_MANIFEST_DIR").unwrap())
+            .join("windows-test.manifest");
+        println!("cargo:rerun-if-changed={}", manifest.display());
+        println!("cargo:rustc-link-arg-tests=/MANIFEST:EMBED");
+        println!(
+            "cargo:rustc-link-arg-tests=/MANIFESTINPUT:{}",
+            manifest.display()
+        );
     }
 }

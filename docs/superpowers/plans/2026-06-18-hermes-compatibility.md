@@ -276,11 +276,11 @@ git commit -m "feat(compiler): register generic vox_agent_* compiler built-ins"
 **Files:**
 - Create: `crates/vox-orchestrator-mcp/src/agent_tools.rs`
 - Modify: `crates/vox-orchestrator-mcp/src/lib.rs`
-- Modify: [catalog.v1.yaml](file:///c:/Users/Owner/vox/contracts/operations/catalog.v1.yaml)
+- Modify: [catalog.v1.yaml](../../../contracts/operations/catalog.v1.yaml)
 
 - [ ] **Step 1: Write the failing test**
 
-In [catalog.v1.yaml](file:///c:/Users/Owner/vox/contracts/operations/catalog.v1.yaml), add generic operations:
+In [catalog.v1.yaml](../../../contracts/operations/catalog.v1.yaml), add generic operations:
 ```yaml
 - name: agent.list_remote
   mcp_name: vox_agent_list_remote

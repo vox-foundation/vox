@@ -1,0 +1,24 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/vox-application-packaging-ssot-2026.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Vox application packaging SSOT (2026)",
+  "summary": "Normative contract for shipping installable Vox applications (desktop/mobile) with declarative manifest, Tauri shell integration, and CI verification gates.",
+  "scope": [
+    "application packaging",
+    "desktop installers",
+    "mobile bundling",
+    "Tauri 2",
+    "deployment",
+    "vox compile",
+    "native shells"
+  ],
+  "cross_refs": [
+    "docs/src/reference/vox-portability-ssot.md",
+    "docs/src/adr/037-tauri-convergence.md",
+    "docs/src/architecture/tauri-convergence-migration-plan-2026.md"
+  ],
+  "locked": false,
+  "precedence": null
+}

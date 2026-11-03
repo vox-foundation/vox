@@ -1,5 +1,5 @@
 use crate::features::ExtractedFeatures;
-use crate::rules::{DriftRule, WorkspaceContext};
+use crate::rules::{DriftRule, WorkspaceContext, is_test_file};
 use vox_code_audit::rules::{Finding, FindingConfidence, Language, Severity};
 
 pub struct ReqwestBypassRule;
@@ -38,6 +38,7 @@ impl DriftRule for ReqwestBypassRule {
                     .iter()
                     .any(|f| cs.path.iter().map(|s| s.as_str()).eq(f.iter().copied()))
             })
+            .filter(|cs| !crate::extractor::is_allowed_at(features, self.id(), cs.loc.line))
             .map(|cs| Finding {
                 rule_id: self.id().to_string(),
                 rule_name: "Reqwest Client Bypass".into(),
@@ -61,11 +62,6 @@ impl DriftRule for ReqwestBypassRule {
             })
             .collect()
     }
-}
-
-fn is_test_file(p: &std::path::Path) -> bool {
-    let s = p.to_string_lossy();
-    s.contains("/tests/") || s.contains("\\tests\\") || s.ends_with("_test.rs")
 }
 
 #[cfg(test)]
@@ -123,5 +119,15 @@ mod tests {
         let f = make("vox-search", &[&["reqwest", "Client", "builder"]]);
         let rule = ReqwestBypassRule;
         assert_eq!(rule.check(&f, &ctx()).len(), 1);
+    }
+
+    #[test]
+    fn honors_drift_allow_on_the_call_line() {
+        let mut f = make("vox-publisher", &[&["reqwest", "Client", "new"]]);
+        f.allowed_lines
+            .entry("reqwest-bypass".into())
+            .or_default()
+            .extend([4, 5]); // a comment on line 4 covers lines 4 and 5; the call is on line 5
+        assert!(ReqwestBypassRule.check(&f, &ctx()).is_empty());
     }
 }

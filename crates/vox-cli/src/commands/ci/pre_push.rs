@@ -2,9 +2,10 @@
 //!
 //! ## Profiles
 //!
-//! - **Fast (default):** `cargo fmt`, line-endings, ssot-drift, **scoped** doc lint +
-//!   doctest on changed `docs/src/**/*.md` (excludes `docs/src/archive/`), and workspace
-//!   drift-check. Tuned so hooks finish quickly; CI still runs full docs-quality.
+//! - **Fast (default):** chunked `rustfmt --check` (`scripts/fmt.vox` / `check_fmt`),
+//!   line-endings, ssot-drift, **scoped** doc lint + doctest on changed
+//!   `docs/src/**/*.md` (excludes `docs/src/archive/`), and workspace drift-check.
+//!   Tuned so hooks finish quickly; CI still runs full docs-quality.
 //! - **`--complete`:** historical full static gate — whole-tree doc lint + doctest under
 //!   `docs/src/`, doc-inventory, workspace clippy (`-D warnings`), scoped TOESTUB.
 //! - **`--full`:** `--complete` plus **`cargo nextest run --workspace --profile ci`**
@@ -13,7 +14,12 @@
 //! ## Extended flags for `--full`
 //!
 //! - **`--include-slow`:** also run the slow `#[ignore]` partition (arch-check live
-//!   scientia timeout, codegen bundle; ~3–5 min extra).
+//!   scientia timeout, codegen bundle; ~3–5 min extra). `golden_differential_gate`
+//!   (interp vs. one generated native crate per `examples/golden/**/*.vox` EXPECT) is
+//!   deliberately **not** in this partition — its one-crate native bundle build is a
+//!   ~6-8 min cold build. It runs on a schedule instead:
+//!   `.github/workflows/differential-gate-nightly.yml` (commented pointer next to the
+//!   hand-maintained duplicate of `step_nextest_slow` in `ci.yml`).
 //! - **`--with-coverage`:** substitute `cargo llvm-cov nextest` for the plain nextest
 //!   step and append `cargo llvm-cov report` (lcov + HTML under `target/llvm-cov/`).
 //!   Requires `cargo-llvm-cov` on PATH; adds ~60s.
@@ -39,11 +45,10 @@ use cargo_metadata::MetadataCommand;
 use serde::Serialize;
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::fs::OpenOptions;
-use std::io::Write;
+use std::io::{IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
@@ -146,6 +151,20 @@ struct OwnedStep {
 
 #[allow(unsafe_code)] // `set_var` is unsafe on Rust 2024; pre-push is single-threaded.
 pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
+    // Only as a git pre-push hook (lefthook sets VOX_PRE_PUSH_REFS=1): git writes the refs to
+    // stdin and closes it. Elsewhere stdin may be an open, idle pipe (agents, CI) and a read
+    // would block forever.
+    if std::env::var_os("VOX_PRE_PUSH_REFS").is_some() && !std::io::stdin().is_terminal() {
+        let mut s = String::new();
+        std::io::stdin().read_to_string(&mut s)?;
+        if let Some(msg) = vox_cli_ci::pre_push_refs::refused_main_push(
+            &s,
+            std::env::var_os("VOX_ALLOW_MAIN_PUSH").is_some(),
+        ) {
+            bail!("{msg}");
+        }
+    }
+
     // nextest and other tools spawn nested `cargo` without our `--config` flags;
     // clear the workspace rustc-wrapper so gates work when sccache is absent.
     unsafe {
@@ -185,6 +204,9 @@ pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
         )?;
         return Ok(());
     }
+    // Surface GitHub CI failures/timeouts and open nightly-failure issues to
+    // whoever is pushing — agents see this in the push output without asking.
+    super::status::print_live_for_push();
     const WARN_AT_SECS: u64 = 20 * 60;
     const FAIL_AT_SECS: u64 = 25 * 60;
     let total = Instant::now();
@@ -251,7 +273,6 @@ pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
         "pre-push: profile `{}` — all checks passed in {total_ms}ms",
         profile_name(&opts)
     );
-    print_pr_review_discipline_hint(root);
     write_pre_push_report(
         root,
         &opts,
@@ -267,62 +288,18 @@ pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
     Ok(())
 }
 
-/// Non-blocking advisory printed after a successful pre-push: when re-pushing a
-/// feature branch that already has an upstream (the proxy for an open PR),
-/// remind that pushes do **not** auto-trigger a CodeRabbit review (the repo
-/// `.coderabbit.yaml` sets `auto_review.auto_incremental_review: false`) and that
-/// `@coderabbitai review` is the on-demand trigger. See AGENTS.md §"PR & Review
-/// Discipline". Best-effort and never fails the push; uses only local git (no
-/// network), so it adds no measurable latency.
-fn print_pr_review_discipline_hint(root: &Path) {
-    use std::process::Command;
-    let branch = match Command::new("git")
-        .current_dir(root)
-        .args(["rev-parse", "--abbrev-ref", "HEAD"])
-        .output()
-    {
-        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).trim().to_string(),
-        _ => return,
-    };
-    if branch.is_empty() || branch == "main" || branch == "master" || branch == "HEAD" {
-        return;
-    }
-    // An upstream tracking branch means this branch was pushed before — i.e. this
-    // is a re-push, the case where an open PR likely already exists. First pushes
-    // (no upstream yet) stay silent so the initial PR-open review isn't second-guessed.
-    let has_upstream = Command::new("git")
-        .current_dir(root)
-        .args(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"])
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
-    if !has_upstream {
-        return;
-    }
-    eprintln!(
-        "pre-push: review discipline — this re-push will NOT auto-trigger a CodeRabbit review"
-    );
-    eprintln!(
-        "          (.coderabbit.yaml auto_incremental_review=false). Batch commits, and comment"
-    );
-    eprintln!("          `@coderabbitai review` on the PR when it's ready for a fresh review.");
-}
-
 fn run_step_with_heartbeat(
     label: &str,
     push_start: Instant,
     f: impl FnOnce() -> Result<()>,
 ) -> Result<()> {
-    let stop = Arc::new(AtomicBool::new(false));
-    let stop_bg = Arc::clone(&stop);
+    let (stop_tx, stop_rx) = std::sync::mpsc::channel::<()>();
     let label_owned = label.to_string();
     let bg = thread::spawn(move || {
         let t0 = Instant::now();
-        loop {
-            thread::sleep(vox_config::timeouts::D_3S);
-            if stop_bg.load(Ordering::Relaxed) {
-                break;
-            }
+        while let Err(std::sync::mpsc::RecvTimeoutError::Timeout) =
+            stop_rx.recv_timeout(vox_config::timeouts::D_3S)
+        {
             let step_s = t0.elapsed().as_secs();
             let total_s = push_start.elapsed().as_secs();
             eprintln!(
@@ -336,7 +313,7 @@ fn run_step_with_heartbeat(
         }
     });
     let out = f();
-    stop.store(true, Ordering::Relaxed);
+    let _ = stop_tx.send(());
     let _ = bg.join();
     out
 }
@@ -494,7 +471,7 @@ fn append_prepush_audit_log(root: &Path, opts: &PrePushOpts, total_ms: u64) -> R
 fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
     let mut v: Vec<OwnedStep> = vec![
         OwnedStep {
-            label: "cargo fmt --all -- --check".into(),
+            label: "rustfmt --check (workspace, chunked)".into(),
             scope: None,
             run: Box::new(step_fmt),
         },
@@ -514,11 +491,6 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
             run: Box::new(step_spoke_check),
         },
         OwnedStep {
-            label: "vox ci runner-policy-check".into(),
-            scope: None,
-            run: Box::new(step_runner_policy_check),
-        },
-        OwnedStep {
             label: "vox ci workflow-concurrency-guard".into(),
             scope: None,
             run: Box::new(step_workflow_concurrency_guard),
@@ -527,6 +499,11 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
             label: "vox ci workflow-permissions-guard".into(),
             scope: None,
             run: Box::new(step_workflow_permissions_guard),
+        },
+        OwnedStep {
+            label: "vox ci dev-loop-guard".into(),
+            scope: None,
+            run: Box::new(step_dev_loop_guard),
         },
         OwnedStep {
             label: "vox ci check-links".into(),
@@ -542,6 +519,27 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
             label: "vox ci canonical-map-verify".into(),
             scope: None,
             run: Box::new(step_canonical_map_verify),
+        },
+        OwnedStep {
+            label: "vox kb eval --gate".into(),
+            scope: None,
+            run: Box::new(step_kb_eval_gate),
+        },
+        OwnedStep {
+            label: "vox-doc-pipeline facet backlog (tighten-only vs base)".into(),
+            scope: None,
+            run: Box::new(step_facet_backlog_gate),
+        },
+        OwnedStep {
+            label: "vox-doc-pipeline legacy-Mermaid baseline (shrink-only vs base)".into(),
+            scope: None,
+            run: Box::new(step_mermaid_baseline_gate),
+        },
+        // Whole tree, any changed extension: the scoped lint below skips when no `.md` changed.
+        OwnedStep {
+            label: "vox-doc-pipeline legacy-Mermaid ratchet (whole docs/src)".into(),
+            scope: None,
+            run: Box::new(step_mermaid_lint),
         },
     ];
 
@@ -877,16 +875,18 @@ fn nextest_cargo_status(root: &Path, args: &[&str]) -> Result<()> {
     Ok(())
 }
 
-/// Returns a `Command` that invokes the current `vox` binary.
-///
-/// On Windows, `cargo run -p vox-cli` would try to relink `vox.exe`, which
-/// fails with "Access is denied" (os error 5) because the currently running
-/// process holds a lock on the executable. We avoid this by resolving
-/// `current_exe()` and invoking it directly — the binary is already fresh
-/// (we just ran it). On non-Windows platforms we keep using `cargo run` so
-/// that sub-commands always run against the latest source.
+/// Diff base for pre-push checks: `override_ref` when set, else `origin/main`.
+fn base_ref_or_default(override_ref: Option<String>) -> String {
+    override_ref.unwrap_or_else(|| "origin/main".into())
+}
+
+/// Single reader of the diff-base override, shared by the diff step and the kb eval gate.
+fn prepush_base_ref() -> String {
+    base_ref_or_default(std::env::var("VOX_PREPUSH_BASE").ok())
+}
+
 fn git_diff_name_only_for_prepush(root: &Path) -> Result<String> {
-    let primary = std::env::var("VOX_PREPUSH_BASE").unwrap_or_else(|_| "origin/main".into());
+    let primary = prepush_base_ref();
     let attempt = |base: &str| -> Result<String> {
         let out = // vox-arch-check: allow git-exec
         Command::new("git")
@@ -913,7 +913,10 @@ fn git_diff_name_only_for_prepush(root: &Path) -> Result<String> {
     }
 }
 
-/// Repo-relative paths under `docs/src/` (no `docs/src/` prefix), excluding `archive/`.
+/// Repo-relative paths under `docs/src/` (no `docs/src/` prefix), excluding
+/// `archive/` and paths deleted in the diff (the diff includes deletions,
+/// but `vox-doc-pipeline --paths=` errors loudly on a path that no longer
+/// exists on disk).
 fn changed_docs_md_rel_paths(root: &Path) -> Result<Vec<String>> {
     let raw = git_diff_name_only_for_prepush(root)?;
     let mut seen = BTreeSet::new();
@@ -924,6 +927,9 @@ fn changed_docs_md_rel_paths(root: &Path) -> Result<Vec<String>> {
         }
         if let Some(rest) = line.strip_prefix("docs/src/") {
             if rest.starts_with("archive/") {
+                continue;
+            }
+            if !root.join("docs/src").join(rest).is_file() {
                 continue;
             }
             seen.insert(rest.to_string());
@@ -1051,6 +1057,7 @@ pub(crate) fn check_fmt(root: &Path) -> Result<()> {
     // that is ~6 KB, far under the ~32 KB limit. rustfmt expands each root's module
     // tree itself, so chunk size is independent of any single crate's file count.
     const CHUNK: usize = 50;
+    let auto_heal = std::env::var_os("CI").is_none() || std::env::var_os("VOX_AUTO_HEAL").is_some();
     let mut unformatted = false;
     for chunk in roots.chunks(CHUNK) {
         let status = std::process::Command::new("rustfmt")
@@ -1062,13 +1069,39 @@ pub(crate) fn check_fmt(root: &Path) -> Result<()> {
             .status()
             .context("spawn rustfmt --check")?;
         if !status.success() {
+            if auto_heal {
+                eprintln!(
+                    "    [auto-heal] rustfmt --check detected unformatted files in chunk; running rustfmt in-place..."
+                );
+                let fix_status = std::process::Command::new("rustfmt")
+                    .arg("--config-path")
+                    .arg(root)
+                    .args(chunk)
+                    .current_dir(root)
+                    .status()
+                    .context("spawn rustfmt auto-heal")?;
+                if fix_status.success() {
+                    let recheck = std::process::Command::new("rustfmt")
+                        .arg("--check")
+                        .arg("--config-path")
+                        .arg(root)
+                        .args(chunk)
+                        .current_dir(root)
+                        .status()
+                        .context("spawn rustfmt --check after auto-heal")?;
+                    if recheck.success() {
+                        eprintln!("    [auto-heal] chunk formatted and verified OK.");
+                        continue;
+                    }
+                }
+            }
             unformatted = true;
         }
     }
     if unformatted {
         bail!(
             "rustfmt --check found unformatted files (diffs above). \
-             Run `vox run scripts/fmt.vox` to fix (Windows-safe; plain \
+             Run `vox run scripts/fmt.vox -- --all` to fix (Windows-safe; plain \
              `cargo fmt --all` overflows the Windows command-line limit / \
              os error 206 on this workspace). Single crate: `cargo fmt -p <crate>`."
         );
@@ -1077,7 +1110,16 @@ pub(crate) fn check_fmt(root: &Path) -> Result<()> {
 }
 
 fn step_line_endings(root: &Path) -> Result<()> {
-    vox_cli_ci::line_endings::run(root, false, None, false)
+    let auto_heal = std::env::var_os("CI").is_none() || std::env::var_os("VOX_AUTO_HEAL").is_some();
+    match vox_cli_ci::line_endings::run(root, false, None, false) {
+        Ok(()) => Ok(()),
+        Err(e) if auto_heal => {
+            eprintln!("    [auto-heal] line-endings check failed ({e}); running --autofix...");
+            vox_cli_ci::line_endings::run(root, true, None, false)?;
+            vox_cli_ci::line_endings::run(root, false, None, false)
+        }
+        Err(e) => Err(e),
+    }
 }
 
 fn step_ssot_drift(root: &Path) -> Result<()> {
@@ -1088,26 +1130,20 @@ fn step_spoke_check(root: &Path) -> Result<()> {
     super::run_body::run_body_helpers::run_spoke_check(root)
 }
 
-fn step_runner_policy_check(root: &Path) -> Result<()> {
-    // In-process (same as ssot-drift wedge) — avoids Windows nested `current_exe()` spawning a
-    // stale `vox.exe` when embed build metadata lags the working tree.
-    vox_cli_ci::runner_policy_check::run(root, false)
-}
-
 fn step_workflow_concurrency_guard(root: &Path) -> Result<()> {
-    // In-process (same as runner-policy-check) — avoids Windows nested `current_exe()`
+    // In-process (same as ssot-drift wedge) — avoids Windows nested `current_exe()`
     // spawning a stale `vox.exe`. Strict: the tree is already clean + exceptions exist.
     vox_cli_ci::workflow_concurrency_guard::run(root, true)
 }
 
 fn step_workflow_permissions_guard(root: &Path) -> Result<()> {
-    // Advisory (strict=false), unlike its concurrency sibling: only 19 of 45
-    // workflows currently declare a top-level `permissions:` block, so strict
-    // here would block every contributor's pre-push on a pre-existing backlog.
-    // Warning-only still makes the gate real — it runs, and a NEW workflow
-    // without a block is named on the next push. Flip to `true` once the
-    // backlog is cleared.
-    vox_cli_ci::workflow_permissions_guard::run(root, false)
+    // Strict, like its concurrency sibling: every workflow now declares a
+    // top-level `permissions:` block, so a new one without it is a real error.
+    vox_cli_ci::workflow_permissions_guard::run(root)
+}
+
+fn step_dev_loop_guard(root: &Path) -> Result<()> {
+    vox_cli_ci::dev_loop_guard::run(root)
 }
 
 fn step_check_links(root: &Path) -> Result<()> {
@@ -1121,6 +1157,25 @@ fn step_retired_symbol_check(root: &Path) -> Result<()> {
 
 fn step_canonical_map_verify(root: &Path) -> Result<()> {
     vox_cli_ci::canonical_docs::run(root)
+}
+
+fn step_kb_eval_gate(root: &Path) -> Result<()> {
+    crate::commands::kb::gate::run_gate(root, &prepush_base_ref())
+}
+
+fn step_facet_backlog_gate(root: &Path) -> Result<()> {
+    crate::commands::kb::facet_backlog::run_facet_backlog_gate(root, &prepush_base_ref())
+}
+
+fn step_mermaid_baseline_gate(root: &Path) -> Result<()> {
+    super::mermaid_baseline::run_mermaid_baseline_gate(root, &prepush_base_ref())
+}
+
+fn step_mermaid_lint(root: &Path) -> Result<()> {
+    match vox_doc_pipeline::pipeline::lint_in(root, &["--mermaid-only".to_string()]) {
+        0 => Ok(()),
+        c => bail!("legacy-Mermaid ratchet failed (exit {c})"),
+    }
 }
 
 fn step_doc_inventory(root: &Path) -> Result<()> {
@@ -1178,10 +1233,10 @@ fn step_toestub_changed(root: &Path) -> Result<()> {
 }
 
 fn step_doc_frontmatter_full(root: &Path) -> Result<()> {
-    cargo_status(
-        root,
-        &["run", "-q", "-p", "vox-doc-pipeline", "--", "--lint-only"],
-    )
+    match vox_doc_pipeline::pipeline::lint_in(root, &["--lint-only".to_string()]) {
+        0 => Ok(()),
+        c => bail!("vox-doc-pipeline lint failed (exit {c})"),
+    }
 }
 
 fn step_doc_frontmatter_scoped(root: &Path, rel_paths: &[String]) -> Result<()> {
@@ -1189,17 +1244,11 @@ fn step_doc_frontmatter_scoped(root: &Path, rel_paths: &[String]) -> Result<()> 
         println!("    (no changed markdown under docs/src vs. base — skipping)");
         return Ok(());
     }
-    let paths_arg = rel_paths.join(",");
-    let status = cargo()
-        .args(["run", "-q", "-p", "vox-doc-pipeline", "--", "--lint-only"])
-        .arg(format!("--paths={paths_arg}"))
-        .current_dir(root)
-        .status()
-        .context("spawn vox-doc-pipeline (scoped)")?;
-    if !status.success() {
-        bail!("vox-doc-pipeline exited with {:?}", status.code());
+    let paths_arg = format!("--paths={}", rel_paths.join(","));
+    match vox_doc_pipeline::pipeline::lint_in(root, &["--lint-only".to_string(), paths_arg]) {
+        0 => Ok(()),
+        c => bail!("vox-doc-pipeline lint failed (exit {c})"),
     }
-    Ok(())
 }
 
 fn step_doctest_md_full(root: &Path) -> Result<()> {
@@ -1224,19 +1273,21 @@ fn step_drift_check(root: &Path) -> Result<()> {
     // that are tracked separately; blocking every push on them was always a
     // false-positive-saturated gate.  Error-level findings are hard failures
     // (e.g. security-sensitive patterns) and must stay blocked.
-    let status = cargo()
-        .args([
-            "run",
-            "-q",
-            "-p",
-            "vox-drift-check",
-            "--",
-            ".",
-            "--severity",
-            "warning",
-            "--fail-on",
-            "error",
-        ])
+    // Never `cargo run` the tool here (it rebuilt vox-drift-check and workspace-hack's
+    // dependency set before every push): use the installed binary; locally a missing one is
+    // skipped, and hosted CI builds it before this step.
+    let bin = match vox_cli_ci::installed_tool("vox-drift-check") {
+        vox_cli_ci::ToolPath::Found(p) => p,
+        vox_cli_ci::ToolPath::SkipLocal => {
+            println!("    vox-drift-check not installed: skipped locally (hosted CI runs it)");
+            return Ok(());
+        }
+        vox_cli_ci::ToolPath::MissingOnCi => {
+            bail!("vox-drift-check is not on PATH; the CI job must build it before the fast tier")
+        }
+    };
+    let status = Command::new(bin)
+        .args([".", "--severity", "warning", "--fail-on", "error"])
         .current_dir(root)
         .status()
         .context("spawn vox-drift-check")?;
@@ -1548,6 +1599,9 @@ fn step_llvm_cov_report(root: &Path) -> Result<()> {
 /// Run only the three slow `#[ignore]` tests that are annotated with `"slow; …"`.
 /// Uses an explicit `-E` filter + `--run-ignored ignored-only` so none of the other
 /// 250+ ignored tests (intentionally excluded) are swept in.
+///
+/// `golden_differential_gate` is intentionally NOT added to this filter — see the
+/// module doc above and `.github/workflows/differential-gate-nightly.yml`.
 fn step_nextest_slow(root: &Path) -> Result<()> {
     nextest_cargo_status(
         root,
@@ -1559,6 +1613,7 @@ fn step_nextest_slow(root: &Path) -> Result<()> {
                 "test(arch_check_live_workspace_smoke_and_description_rule)",
                 " or test(timeout_kills_long_running_child)",
                 " or test(generated_ai_fixture_bundle_passes_cargo_check)",
+                " or (package(vox-mesh-transport) + binary(interp_executor))",
             ),
             "--run-ignored",
             "ignored-only",
@@ -1584,6 +1639,23 @@ fn changed_dirs_under_crates(root: &Path) -> Result<Vec<PathBuf>> {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn prepush_base_ref_defaults_to_origin_main() {
+        assert_eq!(base_ref_or_default(None), "origin/main");
+        assert_eq!(base_ref_or_default(Some("HEAD~3".into())), "HEAD~3");
+    }
+
+    #[test]
+    fn heartbeat_does_not_pad_fast_steps() {
+        let t0 = std::time::Instant::now();
+        run_step_with_heartbeat("noop", t0, || Ok(())).unwrap();
+        assert!(
+            t0.elapsed() < std::time::Duration::from_millis(500),
+            "{:?}",
+            t0.elapsed()
+        );
+    }
 
     fn write_budget_yaml(dir: &std::path::Path, yaml: &str) {
         let budgets_dir = dir.join("contracts/budgets");
@@ -1733,6 +1805,18 @@ mod tests {
         assert_eq!(chunks[0].len(), 10);
         assert_eq!(chunks[1].len(), 10);
         assert_eq!(chunks[2].len(), 5);
+    }
+
+    #[test]
+    fn mermaid_lint_step_ignores_which_extensions_changed() {
+        // CR-01: an `.mdx`-only change leaves the scoped doc lint with nothing to do.
+        let dir = tempdir().unwrap();
+        let docs = dir.path().join("docs/src");
+        std::fs::create_dir_all(&docs).unwrap();
+        assert!(step_mermaid_lint(dir.path()).is_ok());
+        std::fs::write(docs.join("new.mdx"), "# T\n\n```mermaid\ngraph TD\n```\n").unwrap();
+        assert!(step_mermaid_lint(dir.path()).is_err());
+        assert!(step_doc_frontmatter_scoped(dir.path(), &[]).is_ok());
     }
 
     #[test]

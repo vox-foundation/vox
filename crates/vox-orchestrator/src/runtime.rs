@@ -22,6 +22,37 @@ use crate::types::TaskId;
 use futures_util::StreamExt;
 use std::time::Instant;
 
+/// Map a registry backend onto a stream route, keeping the catalog id.
+///
+/// VoxLocal must stay `Registry` — `Cascade` drops `m.id` and can egress to a
+/// cloud-inclusive client even when the selected model was local.
+fn stream_route_for_model_backend<'a>(
+    backend: ModelRouteBackend,
+    model: &'a str,
+) -> vox_gamify::StreamRoute<'a> {
+    match backend {
+        ModelRouteBackend::Ollama => vox_gamify::StreamRoute::Registry {
+            backend: vox_gamify::LudusStreamBackend::Ollama,
+            model,
+        },
+        ModelRouteBackend::GeminiDirect => vox_gamify::StreamRoute::Registry {
+            backend: vox_gamify::LudusStreamBackend::Gemini,
+            model,
+        },
+        ModelRouteBackend::OpenRouter => vox_gamify::StreamRoute::Registry {
+            backend: vox_gamify::LudusStreamBackend::OpenRouter,
+            model,
+        },
+        ModelRouteBackend::CascadeFallback | ModelRouteBackend::PopuliMesh => {
+            vox_gamify::StreamRoute::Cascade
+        }
+        ModelRouteBackend::VoxLocal => vox_gamify::StreamRoute::Registry {
+            backend: vox_gamify::LudusStreamBackend::VoxLocal,
+            model,
+        },
+    }
+}
+
 /// Compute the effective `(CostPreference, force_free_pool, RiskPosture)` for
 /// one task — extracted from `AiTaskProcessor::process` so it's unit-testable
 /// without a live orchestrator. `global_default` is
@@ -32,6 +63,37 @@ use std::time::Instant;
 /// whether any *clutch* policy applied, so callers get category/source risk
 /// policy even for a task with no clutch override at all — `AgentTask::resolved_risk()`
 /// only ever sees the explicit hint and must not be used for this instead.
+/// Why a background turn got its model, as shown on its `SelectedModelRecord` (ModelBadge):
+/// the clutch mode, how many candidates it beat, and where its quality rating came from.
+fn background_selection_reason(
+    clutch: crate::mode::ClutchProfile,
+    sel: &crate::models::mode_select::ModeSelection,
+) -> String {
+    let quality = match sel
+        .spec
+        .capabilities
+        .quality_prior
+        .as_ref()
+        .map(|p| &p.source)
+    {
+        Some(crate::models::spec::QualitySource::Measured { cases, .. }) => {
+            format!("benchmarked on {cases} cases")
+        }
+        Some(crate::models::spec::QualitySource::Benchmark { .. }) => "public index".to_string(),
+        Some(crate::models::spec::QualitySource::Inherited { from, .. }) => {
+            format!("index inherited from {from}")
+        }
+        _ => "estimated quality".to_string(),
+    };
+    let mode = format!("{clutch:?}").to_ascii_lowercase();
+    let n = sel.ranking.ranked.len();
+    if sel.only_candidate {
+        format!("{mode} mode: only candidate outside the mode's tiers ({quality})")
+    } else {
+        format!("{mode} mode: best of {n} ({quality})")
+    }
+}
+
 fn resolve_task_cost_policy(
     task: &crate::types::AgentTask,
     overrides: &crate::config::TaskPolicyOverrides,
@@ -40,6 +102,7 @@ fn resolve_task_cost_policy(
     crate::config::CostPreference,
     bool,
     crate::mode::RiskPosture,
+    crate::mode::ClutchProfile,
 ) {
     let (category_clutch, category_risk) =
         crate::mode::effective_category_policy(overrides, task.task_category);
@@ -56,10 +119,10 @@ fn resolve_task_cost_policy(
         source_risk,
     );
     if task.clutch_profile.is_none() && category_clutch.is_none() && source_clutch.is_none() {
-        return (global_default, false, risk);
+        return (global_default, false, risk, clutch);
     }
     let rc = clutch.resolve();
-    (rc.cost_preference, rc.force_free_pool, risk)
+    (rc.cost_preference, rc.force_free_pool, risk, clutch)
 }
 
 /// Returns the first hyphen-delimited segment of `s`, or the first 8 bytes if
@@ -680,7 +743,7 @@ impl TaskProcessor for AiTaskProcessor {
             let cfg = crate::sync_lock::rw_read(&*self.orchestrator.config);
             (cfg.task_policy.clone(), cfg.cost_preference)
         };
-        let (mut cost_pref, force_free_pool, resolved_risk) =
+        let (mut cost_pref, force_free_pool, resolved_risk, clutch) =
             resolve_task_cost_policy(&task, &overrides, global_default);
         if matches!(
             resolved_risk.resolve().model_lean,
@@ -709,46 +772,28 @@ impl TaskProcessor for AiTaskProcessor {
                 .exploration
                 .budget_usd_per_day;
 
-            if allowed_providers.is_empty() {
-                registry.best_for_task_with_filter(&task, cost_pref, |m| {
-                    if m.pricing_source == crate::models::spec::PricingSource::Unknown
-                        && exploration_spent >= exploration_limit
-                    {
-                        return false;
-                    }
-                    if force_free_pool && !m.is_free {
-                        return false;
-                    }
-                    true
-                })
-            } else {
-                registry.best_for_task_with_filter(&task, cost_pref, |m| {
-                    if m.pricing_source == crate::models::spec::PricingSource::Unknown
-                        && exploration_spent >= exploration_limit
-                    {
-                        return false;
-                    }
-                    if force_free_pool && !m.is_free {
-                        return false;
-                    }
-                    let provider_str = match m.provider_type {
-                        crate::models::ProviderType::OpenRouter => "openrouter",
-                        crate::models::ProviderType::Ollama => "ollama",
-                        crate::models::ProviderType::GoogleDirect => "google",
-                        crate::models::ProviderType::Groq => "groq",
-                        crate::models::ProviderType::Cerebras => "cerebras",
-                        crate::models::ProviderType::Mistral => "mistral",
-                        crate::models::ProviderType::DeepSeek => "deepseek",
-                        crate::models::ProviderType::SambaNova => "sambanova",
-                        crate::models::ProviderType::Anthropic => "anthropic",
-                        crate::models::ProviderType::PopuliMesh => "populimesh",
-                        crate::models::ProviderType::HuggingFaceRouter => "huggingface",
-                        crate::models::ProviderType::Custom(_) => "custom",
-                        crate::models::ProviderType::VoxLocal => "vox_local",
-                    };
-                    allowed_providers.contains(provider_str)
-                })
+            let gate = crate::models::mode_select::DispatchGate {
+                force_free_pool,
+                unknown_price_blocked: exploration_spent >= exploration_limit,
+                allowed_providers: (!allowed_providers.is_empty()).then_some(allowed_providers),
+            };
+            registry.best_for_task_under_gate(
+                &crate::models::RoutingTask::from(&task),
+                cost_pref,
+                clutch,
+                &gate,
+            )
+        }
+        .map(|sel| {
+            if sel.only_candidate {
+                tracing::info!(model = %sel.spec.id, ?clutch, "mode fallback: only candidate outside the mode's preferred tiers");
             }
+            let reason = background_selection_reason(clutch, &sel);
+            (sel.spec, reason)
+        });
+        let (routed, routed_reason) = match routed {
+            Some((spec, reason)) => (Some(spec), Some(reason)),
+            None => (None, None),
         };
         // Code-review fix: `routed == None` (no eligible model in the registry,
         // e.g. no local model registered under local_only privacy) used to fall
@@ -790,23 +835,7 @@ impl TaskProcessor for AiTaskProcessor {
         {
             vox_gamify::StreamRoute::UserModelOverride(mo)
         } else if let Some(m) = routed.as_ref() {
-            match route_backend_for_model(m) {
-                ModelRouteBackend::Ollama => vox_gamify::StreamRoute::Registry {
-                    backend: vox_gamify::LudusStreamBackend::Ollama,
-                    model: m.id.as_str(),
-                },
-                ModelRouteBackend::GeminiDirect => vox_gamify::StreamRoute::Registry {
-                    backend: vox_gamify::LudusStreamBackend::Gemini,
-                    model: m.id.as_str(),
-                },
-                ModelRouteBackend::OpenRouter => vox_gamify::StreamRoute::Registry {
-                    backend: vox_gamify::LudusStreamBackend::OpenRouter,
-                    model: m.id.as_str(),
-                },
-                ModelRouteBackend::CascadeFallback => vox_gamify::StreamRoute::Cascade,
-                ModelRouteBackend::PopuliMesh => vox_gamify::StreamRoute::Cascade,
-                ModelRouteBackend::VoxLocal => vox_gamify::StreamRoute::Cascade,
-            }
+            stream_route_for_model_backend(route_backend_for_model(m), m.id.as_str())
         } else {
             vox_gamify::StreamRoute::Cascade
         };
@@ -880,8 +909,8 @@ impl TaskProcessor for AiTaskProcessor {
             .is_some_and(|s| !s.is_empty())
         {
             "override".to_string()
-        } else if routed.is_some() {
-            "scored".to_string()
+        } else if let Some(reason) = routed_reason {
+            reason
         } else {
             "fallback".to_string()
         };
@@ -1702,6 +1731,33 @@ mod tests {
     use super::*;
 
     #[test]
+    fn background_reason_names_mode_rank_and_quality_provenance() {
+        use crate::models::spec::{QualityPrior, QualitySource};
+        let mut spec = crate::models::ModelRegistry::new()
+            .list_models()
+            .into_iter()
+            .next()
+            .expect("bootstrap model");
+        spec.capabilities.quality_prior = Some(QualityPrior {
+            value: 0.7,
+            source: QualitySource::Measured {
+                score: 0.8,
+                cases: 24,
+                prior: 0.6,
+            },
+        });
+        let sel = crate::models::mode_select::ModeSelection {
+            spec,
+            only_candidate: false,
+            ranking: crate::models::ranking::Ranking::default(),
+        };
+        assert_eq!(
+            background_selection_reason(crate::mode::ClutchProfile::Balanced, &sel),
+            "balanced mode: best of 0 (benchmarked on 24 cases)"
+        );
+    }
+
+    #[test]
     fn short_id_from_standard_uuid() {
         let uuid_str = "550e8400-e29b-41d4-a716-446655440000";
         let result = short_id_from_str(uuid_str);
@@ -1751,6 +1807,17 @@ mod tests {
         let (name, args) = parse_tool_intent_line("@tool");
         assert_eq!(name, "");
         assert_eq!(args, serde_json::json!({}));
+    }
+
+    #[test]
+    fn vox_local_registry_route_keeps_the_model_id() {
+        match stream_route_for_model_backend(ModelRouteBackend::VoxLocal, "mens/e2e-smoke-metal") {
+            vox_gamify::StreamRoute::Registry {
+                backend: vox_gamify::LudusStreamBackend::VoxLocal,
+                model,
+            } => assert_eq!(model, "mens/e2e-smoke-metal"),
+            other => panic!("VoxLocal must be Registry with the catalog id, got {other:?}"),
+        }
     }
 
     #[tokio::test]
@@ -2144,7 +2211,7 @@ mod task_policy_wiring_tests {
         let task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
         let overrides = TaskPolicyOverrides::default();
         let global_default = crate::config::OrchestratorConfig::default().cost_preference;
-        let (cost_pref, force_free_pool, risk) =
+        let (cost_pref, force_free_pool, risk, clutch) =
             resolve_task_cost_policy(&task, &overrides, global_default);
         assert_eq!(
             cost_pref, global_default,
@@ -2152,6 +2219,10 @@ mod task_policy_wiring_tests {
         );
         assert!(!force_free_pool);
         assert_eq!(risk, crate::mode::RiskPosture::Moderate);
+        assert_eq!(
+            clutch,
+            crate::mode::resolve_task_policy(None, None, None, None, None, None).0
+        );
     }
 
     #[test]
@@ -2170,7 +2241,7 @@ mod task_policy_wiring_tests {
             category: std::collections::HashMap::new(),
             source,
         };
-        let (_cost_pref, force_free_pool, risk) = resolve_task_cost_policy(
+        let (_cost_pref, force_free_pool, risk, _clutch) = resolve_task_cost_policy(
             &task,
             &overrides,
             crate::config::OrchestratorConfig::default().cost_preference,
@@ -2205,7 +2276,7 @@ mod task_policy_wiring_tests {
             source,
         };
         let global_default = crate::config::OrchestratorConfig::default().cost_preference;
-        let (cost_pref, force_free_pool, risk) =
+        let (cost_pref, force_free_pool, risk, _clutch) =
             resolve_task_cost_policy(&task, &overrides, global_default);
         assert_eq!(
             cost_pref, global_default,

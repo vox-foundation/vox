@@ -3,12 +3,15 @@ use super::super::common::Check;
 pub async fn run(checks: &mut Vec<Check>) {
     let home = dirs::home_dir().unwrap_or_default();
     if home.as_os_str().is_empty() {
-        checks.push(Check::warn("Shell Completions", "could not determine home directory to verify completions".to_string()));
+        checks.push(Check::warn(
+            "Shell Completions",
+            "could not determine home directory to verify completions".to_string(),
+        ));
         return;
     }
 
     let is_windows = cfg!(windows);
-    
+
     // Check PowerShell first since it's the standard on Windows and common elsewhere
     let mut pwsh_path = home.clone();
     if is_windows {
@@ -23,7 +26,7 @@ pub async fn run(checks: &mut Vec<Check>) {
 
     let mut bash_path = home.clone();
     bash_path.push(".bashrc");
-    
+
     let mut zsh_path = home.clone();
     zsh_path.push(".zshrc");
 
@@ -32,11 +35,24 @@ pub async fn run(checks: &mut Vec<Check>) {
     fish_path.push("fish");
     fish_path.push("config.fish");
 
+    let mut nu_path = home.clone();
+    if is_windows {
+        nu_path.push("AppData");
+        nu_path.push("Roaming");
+        nu_path.push("nushell");
+        nu_path.push("config.nu");
+    } else {
+        nu_path.push(".config");
+        nu_path.push("nushell");
+        nu_path.push("config.nu");
+    }
+
     let profiles = vec![
         ("PowerShell", pwsh_path),
         ("Bash", bash_path),
         ("Zsh", zsh_path),
         ("Fish", fish_path),
+        ("Nushell", nu_path),
     ];
 
     let mut found_any = false;

@@ -94,7 +94,7 @@ impl Default for AugmentConfig {
             variants_per_prompt: 3,
             typo_char_rate: 0.05,
             synonym_swap_rate: 0.25,
-            shuffle_words: true,
+            shuffle_words: false, // shuffling the first words yields ungrammatical prompts ("I to want …")
             case_variants: true,
         }
     }

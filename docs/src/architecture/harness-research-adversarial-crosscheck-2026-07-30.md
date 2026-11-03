@@ -2,7 +2,7 @@
 title: "Harness Research Adversarial Cross-Check 2026-07-30"
 description: "Cross-document consistency check and independent re-verification pass over the seven-document Claude-Code-parity research set: confirms no contradictions between documents, upgrades two under-cited claims with better primary sources, and downgrades two claims whose specific numbers could not survive a second verification pass."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: false
 ---
 

@@ -232,6 +232,9 @@ pub struct TaskEnqueueHints {
     /// Optional trace identifier for cross-system correlation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub trace_id: Option<String>,
+    /// Optional ChatHop / Drive turn id for cross-system correlation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub turn_id: Option<String>,
     /// Optional budget constraints for the task.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub budget: Option<Budget>,
@@ -587,6 +590,9 @@ pub struct AgentTask {
     /// Optional trace identifier for cross-system correlation (FIX-14).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub trace_id: Option<String>,
+    /// Optional ChatHop / Drive turn id for cross-system correlation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub turn_id: Option<String>,
     /// Optional budget constraints for the task (FIX-18).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub budget: Option<Budget>,
@@ -626,6 +632,11 @@ pub struct AgentTask {
     /// Optional session link (for chat/workflow grouping in Mens).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
+    /// Optional resource the task needs exclusive use of (Phase 5 D-08).
+    ///
+    /// Set from the intake item; the completion/failure paths release its lock (05-06).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resource_id: Option<String>,
     /// Chat session that issued the submit call (Phase D Task D1 durable
     /// lineage). Distinct from `session_id` above (Mens telemetry grouping,
     /// caller-supplied) — this one is injected server-side by `run_agent_turn`
@@ -760,6 +771,7 @@ impl AgentTask {
             mode: None,
             test_decision: None,
             trace_id: None,
+            turn_id: None,
             budget: None,
             task_category,
             debug_iterations: 0,
@@ -776,6 +788,7 @@ impl AgentTask {
             socrates: None,
             capability_requirements: None,
             session_id: None,
+            resource_id: None,
             chat_session_id: None,
             thread_id: None,
             attention_weight: 0.0,
@@ -959,6 +972,9 @@ impl AgentTask {
         if let Some(ref trace_id) = h.trace_id {
             self.trace_id = Some(trace_id.clone());
         }
+        if let Some(ref turn_id) = h.turn_id {
+            self.turn_id = Some(turn_id.clone());
+        }
         if let Some(ref budget) = h.budget {
             self.budget = Some(budget.clone());
         }
@@ -1103,15 +1119,27 @@ impl AgentTask {
     }
 
     /// Predict the number of tokens this task will consume based on its complexity and category.
+    /// One formula: it lives on [`crate::models::RoutingTask`], which routing reads.
     pub fn estimated_token_count(&self) -> u64 {
-        let base = match self.task_category {
-            TaskCategory::CodeGen => 2000,
-            TaskCategory::Research => 4000,
-            TaskCategory::Visus => 8000,
-            _ => 1000,
-        };
-        let complexity_mult = f64::from(self.estimated_complexity).powi(2) / 25.0; // 5 is 1.0, 10 is 4.0
-        (base as f64 * complexity_mult).round() as u64
+        crate::models::RoutingTask::from(self).estimated_token_count()
+    }
+}
+
+impl From<&AgentTask> for crate::models::RoutingTask {
+    fn from(task: &AgentTask) -> Self {
+        Self {
+            category: task.task_category,
+            complexity: task.estimated_complexity,
+            research_hints: task.research_hints.clone(),
+            tool_hints: task.tool_hints.clone(),
+            max_cost_usd: task.budget.as_ref().and_then(|b| b.max_cost_usd),
+        }
+    }
+}
+
+impl From<AgentTask> for crate::models::RoutingTask {
+    fn from(task: AgentTask) -> Self {
+        Self::from(&task)
     }
 }
 
@@ -1144,6 +1172,7 @@ mod tests {
         ] {
             let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
             let hints = TaskEnqueueHints {
+                turn_id: None,
                 clutch: Some(label.to_string()),
                 ..Default::default()
             };
@@ -1161,6 +1190,7 @@ mod tests {
         ] {
             let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
             let hints = TaskEnqueueHints {
+                turn_id: None,
                 risk: Some(label.to_string()),
                 ..Default::default()
             };
@@ -1173,6 +1203,7 @@ mod tests {
     fn apply_hints_unknown_clutch_risk_leaves_none() {
         let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
         let hints = TaskEnqueueHints {
+            turn_id: None,
             clutch: Some("turbo".to_string()),
             risk: Some("reckless".to_string()),
             ..Default::default()
@@ -1192,6 +1223,7 @@ mod tests {
         ] {
             let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
             let hints = TaskEnqueueHints {
+                turn_id: None,
                 trigger_source: Some(label.to_string()),
                 ..Default::default()
             };
@@ -1204,6 +1236,7 @@ mod tests {
     fn apply_hints_unknown_trigger_source_leaves_none() {
         let mut task = AgentTask::new(TaskId(1), "t", TaskPriority::Normal, vec![]);
         let hints = TaskEnqueueHints {
+            turn_id: None,
             trigger_source: Some("turbo".to_string()),
             ..Default::default()
         };
@@ -1394,6 +1427,7 @@ mod tests {
             socrates_context: None,
             attachment_manifest: None,
             trace_id: None,
+            turn_id: None,
             budget: None,
             active_skill: None,
             tenant_id: None,

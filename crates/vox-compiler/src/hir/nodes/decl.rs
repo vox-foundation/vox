@@ -795,6 +795,12 @@ pub enum HirCapability {
     Mutate,
     /// Version-control / repository operations (`repo.*` / `vcs.*` builtins).
     Vcs,
+    /// Incurs paid API / scrape / compute spend (`RANK-01`).
+    Spend,
+    /// Mutates persistent production state (`RANK-01`).
+    Write,
+    /// Calls an external third-party API (`RANK-01`).
+    ExternalApi,
     /// `mcp(tool_name)` — parameterized MCP tool call.
     Mcp(String),
     /// `uses nothing` — explicitly pure.
@@ -814,6 +820,9 @@ impl HirCapability {
             Self::GpuCompute => "gpu_compute",
             Self::Mutate => "mutate",
             Self::Vcs => "vcs",
+            Self::Spend => "spend",
+            Self::Write => "write",
+            Self::ExternalApi => "external_api",
             Self::Mcp(_) => "mcp",
             Self::Nothing => "nothing",
         }

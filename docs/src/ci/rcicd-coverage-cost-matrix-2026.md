@@ -27,12 +27,12 @@ This document implements the RCICD audit plan: what is covered where, what belon
 | `docs-deploy.yml` | Path-filtered push `main` | Site deploy | Medium |
 | `link_checker.yml` | PR + push `main` | External links | Medium |
 | `ssot-drift.yml` | PR + push `main` | Crate version / dashboard SSOT (overlaps theme with `ci.yml`, not identical steps) | Low–medium |
-| `mutation-nightly.yml` / `bench-nightly.yml` / `qwen35-native-nightly.yml` | Schedule | Nightly quality / perf (`cargo mutants` for the first) | High (scheduled) |
+| `mutation-nightly.yml` / `bench-nightly.yml` | Schedule | Nightly quality / perf (`cargo mutants` for the first) | High (scheduled) |
 | `mobile-e2e-android.yml` | Path-filtered PR/push (`apps/vox-mental-tracker/**`) | Android emulator E2E | High |
 | `deploy-hetzner.yml` | Push `main`, `workflow_dispatch` | Coolify deploy + health probes; Gate 1 is minimal ubuntu build only | Low (smoke) + deploy wall time |
 | Tag/release workflows | Tags / `release` | Artifacts | Variable |
 
-For runner labels and exceptions, see [runner-contract.md](runner-contract.md) and [github-hosted-exceptions.md](github-hosted-exceptions.md).
+For runner labels, see [runner-contract.md](runner-contract.md).
 
 ## `ci.yml` job → coverage → local parity
 

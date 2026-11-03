@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/plugin-system-deep-audit-2026-05-08.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Plugin System Deep Audit (2026-05-08)",
+  "summary": "Second-pass audit covering ABI completeness, discovery, sandbox model, cross-cutting concerns, and distribution with recommendations prioritized by effort.",
+  "scope": ["plugin system", "ABI surface", "plugin lifecycle", "sandbox model", "security", "distribution"],
+  "cross_refs": ["plugin-system-audit-2026-05-08.md", "vox-plugin-api", "vox-plugin-host", "telemetry-trust-ssot.md"],
+  "locked": false,
+  "precedence": null
+}

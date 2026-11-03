@@ -229,8 +229,12 @@ pub fn stop_managed_process(base: &str) -> anyhow::Result<StopManagedProcessResu
 /// absolute path succeeds for the same user against the same pid.
 #[cfg(windows)]
 fn taskkill_path() -> std::path::PathBuf {
+    // The literal is Windows' documented default, used only when `SystemRoot`
+    // is unset, and only in this `#[cfg(windows)]` fn, so it cannot break on
+    // another OS.
     let root = std::env::var_os("SystemRoot")
         .map(std::path::PathBuf::from)
+        // vox-arch-check: allow abs-path
         .unwrap_or_else(|| std::path::PathBuf::from(r"C:\Windows"));
     root.join("System32").join("taskkill.exe")
 }

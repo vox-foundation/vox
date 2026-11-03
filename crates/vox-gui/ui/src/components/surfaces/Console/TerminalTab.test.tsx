@@ -3,37 +3,54 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, cleanup, waitFor, screen } from '@testing-library/react';
 import React from 'react';
 
-const spawnMock = vi.fn().mockResolvedValue(undefined);
-const writeMock = vi.fn().mockResolvedValue(undefined);
+const openMock = vi.fn().mockResolvedValue('s-1');
+const attachMock = vi.fn().mockResolvedValue({
+  session_id: 's-1',
+  blocks: [
+    {
+      id: 1,
+      kind: 'Shell',
+      status: 'Ok',
+      origin: { kind: 'user' },
+      input: 'git status',
+      output: [{ stream: 'Stdout', text: 'clean\n', ts_ms: 1 }],
+      exit_code: 0,
+      started_ms: 1,
+      ended_ms: 2,
+    },
+  ],
+  replay_utf8: '$ git status\r\nclean\r\n',
+  seq: 3,
+});
+const inputMock = vi.fn().mockResolvedValue(undefined);
+const submitMock = vi.fn().mockResolvedValue(2);
+const resizeMock = vi.fn().mockResolvedValue(undefined);
+
 vi.mock('../../../transport', () => ({
-  ptySpawn: (...a: unknown[]) => spawnMock(...a),
-  ptyWrite: (...a: unknown[]) => writeMock(...a),
-  ptyClose: vi.fn().mockResolvedValue(undefined),
-  listenPtyOutput: vi.fn().mockResolvedValue(() => {}),
-  listenPtyExit: vi.fn().mockResolvedValue(() => {}),
+  termSessionOpen: (...a: unknown[]) => openMock(...a),
+  termSessionAttach: (...a: unknown[]) => attachMock(...a),
+  termSessionInput: (...a: unknown[]) => inputMock(...a),
+  termSessionSubmit: (...a: unknown[]) => submitMock(...a),
+  termSessionResize: (...a: unknown[]) => resizeMock(...a),
+  listenTermOutput: vi.fn().mockResolvedValue(() => {}),
+  listenTermEvent: vi.fn().mockResolvedValue(() => {}),
 }));
 
-// Capture the OSC 633 handler the component registers so tests can drive markers.
-let oscHandler: ((data: string) => boolean) | null = null;
+const termWriteMock = vi.fn();
+const loadedAddons: unknown[] = [];
+
 vi.mock('@xterm/xterm', () => ({
   Terminal: class {
-    parser = {
-      registerOscHandler: (id: number, cb: (data: string) => boolean) => {
-        if (id === 633) oscHandler = cb;
-        return { dispose() {} };
-      },
-    };
     buffer = { active: { cursorY: 0, baseY: 0 } };
     open() {}
-    write() {}
+    write(data: string) {
+      termWriteMock(data);
+    }
     onData() {}
     dispose() {}
-    loadAddon() {}
-    registerMarker() {
-      return { dispose() {} };
-    }
-    registerDecoration() {
-      return { onRender() {}, dispose() {} };
+    loadAddon(addon: { activate?: (t: unknown) => void }) {
+      loadedAddons.push(addon);
+      addon.activate?.(this);
     }
     get cols() {
       return 80;
@@ -46,13 +63,18 @@ vi.mock('@xterm/xterm', () => ({
 vi.mock('@xterm/addon-fit', () => ({ FitAddon: class { fit() {} } }));
 
 import { TerminalTab } from './TerminalTab';
+import { WebglTerminalAddon, renderTermBlockForAgent } from './webglAddon';
 
 describe('TerminalTab', () => {
   beforeEach(() => {
     cleanup();
-    spawnMock.mockClear();
-    writeMock.mockClear();
-    oscHandler = null;
+    openMock.mockClear();
+    attachMock.mockClear();
+    inputMock.mockClear();
+    submitMock.mockClear();
+    resizeMock.mockClear();
+    termWriteMock.mockClear();
+    loadedAddons.length = 0;
   });
 
   it('exposes the host as a labeled application region', () => {
@@ -61,28 +83,57 @@ describe('TerminalTab', () => {
     expect(host.getAttribute('role')).toBe('application');
   });
 
-  it('spawns a PTY for its tab id on mount', async () => {
+  it('opens and attaches a SessionHost session on mount and replays snapshot', async () => {
+    const onBlocksChange = vi.fn();
+    const onSessionResolved = vi.fn();
+    render(
+      <TerminalTab
+        tabId="tab-1"
+        pendingLine={null}
+        onBlocksChange={onBlocksChange}
+        onSessionResolved={onSessionResolved}
+      />,
+    );
+    await waitFor(() => expect(openMock).toHaveBeenCalledWith(80, 24));
+    await waitFor(() => expect(attachMock).toHaveBeenCalledWith('s-1'));
+    expect(onSessionResolved).toHaveBeenCalledWith('s-1');
+    expect(termWriteMock).toHaveBeenCalledWith('$ git status\r\nclean\r\n');
+    expect(onBlocksChange).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ id: 1, input: 'git status' })]),
+    );
+  });
+
+  it('loads WebglTerminalAddon and disposes it gracefully on context loss', async () => {
     render(<TerminalTab tabId="tab-1" pendingLine={null} />);
-    await waitFor(() => expect(spawnMock).toHaveBeenCalledWith('tab-1', 80, 24));
+    await waitFor(() => expect(attachMock).toHaveBeenCalled());
+    const webgl = loadedAddons.find((a): a is WebglTerminalAddon => a instanceof WebglTerminalAddon);
+    expect(webgl).toBeTruthy();
+    expect(webgl!.isDisposed()).toBe(false);
+    webgl!.simulateContextLoss();
+    expect(webgl!.isDisposed()).toBe(true);
   });
 
-  it('writes a submitted line to the PTY', async () => {
+  it('submits a pending line through termSessionSubmit', async () => {
     const { rerender } = render(<TerminalTab tabId="tab-1" pendingLine={null} />);
-    await waitFor(() => expect(spawnMock).toHaveBeenCalled());
+    await waitFor(() => expect(attachMock).toHaveBeenCalledWith('s-1'));
     rerender(<TerminalTab tabId="tab-1" pendingLine={{ text: 'ls', seq: 1 }} />);
-    await waitFor(() => expect(writeMock).toHaveBeenCalledWith('tab-1', 'ls\n'));
+    await waitFor(() => expect(submitMock).toHaveBeenCalledWith('s-1', 'ls'));
   });
 
-  it('registers an OSC 633 handler and fires onBlock when a block completes', async () => {
-    const onBlock = vi.fn();
-    render(<TerminalTab tabId="tab-1" pendingLine={null} onBlock={onBlock} />);
-    await waitFor(() => expect(oscHandler).toBeTruthy());
-    oscHandler!('A');
-    oscHandler!('E;git status');
-    oscHandler!('C');
-    oscHandler!('D;0');
-    expect(onBlock).toHaveBeenCalledTimes(1);
-    expect(onBlock.mock.calls[0][0].command).toBe('git status');
-    expect(onBlock.mock.calls[0][0].exitCode).toBe(0);
+  it('formats TermBlockDto for agent handoff via renderTermBlockForAgent', () => {
+    const formatted = renderTermBlockForAgent(
+      {
+        id: 1,
+        kind: 'Shell',
+        status: 'Ok',
+        input: 'cargo check',
+        output: [{ stream: 'Stdout', text: 'Finished dev\n', ts_ms: 1 }],
+        exit_code: 0,
+        started_ms: 1,
+        ended_ms: 2,
+      },
+      'fallback',
+    );
+    expect(formatted).toBe('$ cargo check\nFinished dev\n(exit 0)');
   });
 });

@@ -41,6 +41,26 @@ impl crate::VoxDb {
             .await
     }
 
+    /// Number of embeddings of `source_type`, optionally restricted to one `source_id`.
+    pub async fn embedding_count(
+        &self,
+        source_type: &str,
+        source_id: Option<&str>,
+    ) -> Result<i64, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT COUNT(*) FROM embeddings \
+                 WHERE source_type = ?1 AND (?2 IS NULL OR source_id = ?2)",
+                params![source_type, source_id],
+            )
+            .await?;
+        Ok(match rows.next().await? {
+            Some(r) => r.get::<i64>(0)?,
+            None => 0,
+        })
+    }
+
     /// Brute-force cosine similarity search over the `embeddings` table.
     ///
     /// Fetches up to `limit * 10` candidate rows, scores each, and returns the top `limit`
@@ -115,5 +135,24 @@ impl crate::VoxDb {
         scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         scored.truncate(lim as usize);
         Ok(scored)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::VoxDb;
+
+    #[tokio::test]
+    async fn embedding_count_filters_by_type_and_optional_id() {
+        let db = VoxDb::open_memory().await.unwrap();
+        for (ty, id) in [("kb_chunk", "h1"), ("kb_chunk", "h2"), ("memory", "h1")] {
+            db.store_embedding(ty, id, "m", &[1.0], None, None)
+                .await
+                .unwrap();
+        }
+        assert_eq!(db.embedding_count("kb_chunk", None).await.unwrap(), 2);
+        assert_eq!(db.embedding_count("kb_chunk", Some("h1")).await.unwrap(), 1);
+        assert_eq!(db.embedding_count("kb_chunk", Some("zz")).await.unwrap(), 0);
+        assert_eq!(db.embedding_count("memory", None).await.unwrap(), 1);
     }
 }

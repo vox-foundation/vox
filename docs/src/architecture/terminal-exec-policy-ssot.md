@@ -58,5 +58,6 @@ Future work (deferred, not blocking): `vox ci terminal-policy-sync` / `terminal-
 
 - [AGENTS.md §Cross-Platform Shell Discipline](../../../AGENTS.md)
 - [`contracts/terminal/exec-policy.v1.yaml`](../../../contracts/terminal/exec-policy.v1.yaml)
+- [LLM-First Shell Execution: Nushell, Structured Alternatives, Skills, and MCP Integration Research (2026)](llm-first-shell-nushell-skills-mcp-research-2026.md)
 - [Agent shell fluency eval design (2026)](agent-shell-fluency-eval-design-2026.md)
 - Archived (do not ingest autonomously): `docs/src/archive/research-2026-q1/terminal-exec-policy-research-findings-2026.md`, `terminal-ast-validation-research-2026.md`

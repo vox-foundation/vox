@@ -1,0 +1,24 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/v1-foundation-criteria-research-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "v1.0 Foundation-Criteria Advisory (2026-06-05)",
+  "summary": "Forensic audit finding current v1.0 criteria cannot certify a finished language; proposes FOUNDATION tier (CR-F1–F6) with machine-readable LLM-actionable format and gate ordering.",
+  "scope": [
+    "v1.0 release criteria",
+    "Foundation tier",
+    "compiler completeness",
+    "behavioral verification",
+    "arm parity",
+    "Distribution tier",
+    "GUI tier"
+  ],
+  "cross_refs": [
+    "docs/src/architecture/v1-release-criteria.md",
+    "docs/superpowers/specs/2026-05-21-v1-honest-completion-plan.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Categorized as DOC (research audit and advisory) rather than SPEC because it proposes new tiers and format but does not represent currently-accepted, live gates. Implementation of CR-META format pending council adoption."
+}

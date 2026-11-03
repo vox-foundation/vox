@@ -315,10 +315,10 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
 
         <div className="grid grid-cols-12 gap-3">
           <div className="col-span-12 sm:col-span-6">
-            <label className="mb-1 block font-display text-[10px] uppercase tracking-wider text-text-muted">
+            <label htmlFor="mesh-target-node" className="mb-1 block font-display text-[10px] uppercase tracking-wider text-text-muted">
               Target node (optional)
             </label>
-            <select
+            <select id="mesh-target-node"
               value={targetNode}
               onChange={(e) => setTargetNode(e.target.value)}
               disabled={!dispatchConfigured}
@@ -333,10 +333,10 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
             </select>
           </div>
           <div className="col-span-12 sm:col-span-6">
-            <label className="mb-1 block font-display text-[10px] uppercase tracking-wider text-text-muted">
+            <label htmlFor="mesh-task-kind" className="mb-1 block font-display text-[10px] uppercase tracking-wider text-text-muted">
               Task kind (optional)
             </label>
-            <input
+            <input id="mesh-task-kind"
               value={taskKind}
               onChange={(e) => setTaskKind(e.target.value)}
               disabled={!dispatchConfigured}
@@ -345,10 +345,10 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
             />
           </div>
           <div className="col-span-12">
-            <label className="mb-1 block font-display text-[10px] uppercase tracking-wider text-text-muted">
+            <label htmlFor="mesh-source" className="mb-1 block font-display text-[10px] uppercase tracking-wider text-text-muted">
               Source (.vox)
             </label>
-            <textarea
+            <textarea id="mesh-source"
               value={source}
               onChange={(e) => setSource(e.target.value)}
               disabled={!dispatchConfigured}

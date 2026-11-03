@@ -1,0 +1,13 @@
+sequence {
+    actor client: "Client"
+    actor gateway: "Gateway"
+    actor billing: "Billing"
+    actor stock: "Stock"
+
+    client -> gateway: "The order service confirms the payment with the billing provider before releasing stock"
+    gateway -> stock: "Reserve every line item of the basket, then keep the reservation alive for the whole fifteen minute checkout window while the customer is paying"
+    reply stock -> gateway: "ok"
+    client -> stock: "Cancel the reservation as soon as the payment fails three times in a row, release the stock back to the shared pool, notify the warehouse team and write an audit entry"
+    gateway -> billing
+    reply billing -> client: "line one\nline two"
+}

@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/canonical-runtime-names.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Canonical runtime names (daemon, MCP, env)",
+  "summary": "Frozen canonical identifiers vs deprecated aliases for daemon binary, environment variables, crate names, and MCP tool prefixes; prevents split-brain naming across CLI/MCP/docs/contracts.",
+  "scope": ["orchestrator-d", "vox-gamify", "VOX_DB_*", "vox-openclaw-runtime", "Vox Axis"],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": "Reference/registry document defining canonical naming convention. Frontmatter status=current. Does not propose requirements or constraints; it registers names and maps deprecated aliases. Role is as a lookup table that prevents naming split-brain, not as a binding specification."
+}

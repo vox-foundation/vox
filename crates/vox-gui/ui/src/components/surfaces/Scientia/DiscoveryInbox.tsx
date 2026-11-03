@@ -8,6 +8,7 @@ import {
   acknowledgeDiscovery,
   type DiscoveryInboxRow,
 } from './discoveryInboxApi';
+import { promoteCandidate } from '../../../api/scientia';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
 import { seedDiscoveryPresetForLegacyKey } from '../../../lib/navigation';
 
@@ -245,7 +246,7 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
                       {r.signal_codes.map((c) => (
                         <span
                           key={c}
-                          className="rounded border border-violet-400/20 bg-violet-400/[0.06] px-1.5 py-0.5 font-mono text-[10px] text-violet-200/90"
+                          className="rounded-sm border border-violet-400/20 bg-violet-400/6 px-1.5 py-0.5 font-mono text-[10px] text-violet-200/90"
                         >
                           {c}
                         </span>
@@ -254,6 +255,35 @@ export function DiscoveryInbox({ pushToast }: SurfaceDecoratorProps) {
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    data-testid={`promote-candidate-${r.id}`}
+                    disabled={busyId === r.id}
+                    onClick={async () => {
+                      setBusyId(r.id);
+                      try {
+                        const promoted = await promoteCandidate(r.publication_id);
+                        pushToast({
+                          tone: 'ok',
+                          title: 'Promoted to publication',
+                          body: `${promoted.publication_id} (${promoted.claims_seeded} claims seeded)`,
+                          cause: 'backend-ok',
+                        });
+                      } catch (err) {
+                        pushToast({
+                          tone: 'warn',
+                          title: 'Promotion failed',
+                          body: sanitizeErrorForToast(err),
+                          cause: 'backend-error',
+                        });
+                      } finally {
+                        setBusyId(null);
+                      }
+                    }}
+                    className="rounded-lg border border-brass/40 bg-brass/10 px-3 py-1.5 text-[11px] text-brass hover:bg-brass/20 disabled:opacity-40"
+                  >
+                    Promote to Publication
+                  </button>
                   <button
                     type="button"
                     onClick={() => openReview(r.publication_id)}

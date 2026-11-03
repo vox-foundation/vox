@@ -70,6 +70,26 @@
     "open_p1": {
       "type": "integer",
       "minimum": 0
+    },
+    "corpus_pages_scanned": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "total_mentions_extracted": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "resolved_mentions_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "dead_mentions_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "health_status": {
+      "type": "string",
+      "enum": ["unpopulated", "healthy", "deficits_found"]
     }
   }
 }

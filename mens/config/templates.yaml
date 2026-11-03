@@ -49,66 +49,70 @@ synthetic:
     - name: "stripe_checkout"
       description: "a durable Stripe checkout workflow"
       snippet: |
-        @workflow fn stripe_checkout(req: CheckoutReq) to CheckoutRes:
-            let lock = vox_lock_acquire("stripe_checkout", req.id)
-            if !lock.acquired:
-                ret CheckoutRes { status: "conflict" }
-            let payment = vox_stripe_charge(req.amount, req.token)
-            vox_db_insert("payments", payment)
-            vox_lock_release(lock.id)
-            ret CheckoutRes { status: "success", payment_id: payment.id }
+        workflow stripe_checkout(req: CheckoutReq) to Result[CheckoutRes] {
+            let lock = acquire_lock("stripe_checkout", req.id) with { retries: 3, timeout: "10s" }
+            if not lock.acquired {
+                return Ok(CheckoutRes { status: "conflict", payment_id: "" })
+            }
+            let payment = charge_stripe(req.amount, req.token) with { retries: 3, timeout: "30s" }
+            record_payment("payments", payment) with { retries: 2, timeout: "10s" }
+            release_lock(lock.id) with { retries: 2, timeout: "5s" }
+            return Ok(CheckoutRes { status: "success", payment_id: payment.id })
+        }
     - name: "email_campaign"
       description: "durable drip email campaign"
       snippet: |
-        @workflow fn email_campaign(user: User) to Unit:
-            vox_email_send(user.email, "welcome_01")
-            vox_sleep(Duration::from_days(1))
-            let active = vox_db_query("SELECT active FROM users WHERE id=?", [user.id])
-            if active:
-                vox_email_send(user.email, "tips_02")
-            ret
+        workflow email_campaign(user: User) to Result[Unit] {
+            send_email(user.email, "welcome_01") with { retries: 3, timeout: "15s" }
+            let active = check_user_active(user.id) with { retries: 2, timeout: "10s" }
+            if active {
+                send_email(user.email, "tips_02") with { retries: 3, timeout: "15s" }
+            }
+            return Ok(())
+        }
     - name: "retry_pipeline"
-      description: "a durable data pipeline with exponential backoff"
+      description: "a durable data pipeline with retry policy"
       snippet: |
-        @workflow fn retry_pipeline(job: Job) to JobResult:
-            let mut attempts = 0
-            loop:
-                let res = vox_run_job(job)
-                if res.success:
-                    ret res
-                attempts += 1
-                if attempts > 3:
-                    ret JobResult { success: false, error: "max retries" }
-                vox_sleep(Duration::from_mins(2 ^ attempts))
+        workflow retry_pipeline(job: Job) to Result[JobResult] {
+            let res = run_job_activity(job) with { retries: 3, timeout: "60s" }
+            if not res.success {
+                return Error("max retries exceeded")
+            }
+            return Ok(res)
+        }
 
   agents:
     - name: "code_reviewer"
       description: "review pull requests and leave structured feedback"
       snippet: |
-        @agent_def fn code_reviewer() to ReviewReport:
-            tools: [vox_validate_file, vox_run_tests, vox_git_diff]
-            memory: long_term
-            fn run(pr_id: String) to ReviewReport:
-                let diff = vox_git_diff(pr_id)
-                let valid = vox_validate_file(diff.path)
-                ret ReviewReport { issues: valid.errors, diff: diff }
+        actor CodeReviewer {
+            on review(pr_id: str) to Result[ReviewReport] {
+                let diff = vox_git_diff(pr_id)?
+                let valid = vox_validate_file(diff.path)?
+                return Ok(ReviewReport { issues: valid.errors, diff: diff })
+            }
+        }
     - name: "corpus_builder"
       description: "expand the Mens training corpus by generating synthetic pairs"
       snippet: |
-        @agent_def fn corpus_builder() to Unit:
-            tools: [vox_generate_code, vox_memory_store]
-            fn run(taxonomy: List[String]) to Unit:
-                for construct in taxonomy:
-                    let pairs = generate_pairs(construct)
-                    vox_memory_store("corpus." + construct, pairs)
-                ret
+        actor CorpusBuilder {
+            on expand(taxonomy: list[str]) to Result[Unit] {
+                for construct in taxonomy {
+                    let pairs = generate_pairs(construct)?
+                    vox_memory_store("corpus." + construct, pairs)?
+                }
+                return Ok(())
+            }
+        }
     - name: "test_runner"
       description: "run the test suite and report failures to the orchestrator"
       snippet: |
-        @agent_def fn test_runner() to TestReport:
-            tools: [vox_run_tests, vox_a2a_send]
-            fn run(crate_name: String) to TestReport:
-                let report = vox_run_tests(crate_name)
-                if report.failures > 0:
-                    vox_a2a_send("orchestrator", "error_report", report)
-                ret report
+        actor TestRunner {
+            on run(crate_name: str) to Result[TestReport] {
+                let report = vox_run_tests(crate_name)?
+                if report.failures > 0 {
+                    vox_a2a_send("orchestrator", "error_report", report)?
+                }
+                return Ok(report)
+            }
+        }

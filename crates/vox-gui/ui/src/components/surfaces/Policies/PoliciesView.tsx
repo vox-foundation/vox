@@ -8,6 +8,7 @@ import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { buildGroupTree, needsAttention, overallWorst, statusForRow } from './policyTree';
 import { policySetEnabled, policyEdit } from '../../../transport';
 import type { PolicyRow, PolicyDetail, PolicyStatus, BranchInfo, RunStatus } from './types';
+import type { Toast } from '../../../types/tauri';
 
 const STATUS_DOT: Record<RunStatus, string> = {
   fail: 'bg-red-500',
@@ -35,7 +36,7 @@ export function PoliciesView({
   pushToast,
   gamifyEnabled = false,
 }: {
-  pushToast: (t: any) => void;
+  pushToast: (t: Toast) => void;
   gamifyEnabled?: boolean;
 }) {
   const [rows, setRows] = useState<PolicyRow[]>([]);
@@ -58,7 +59,7 @@ export function PoliciesView({
         setRows(list);
         if (list.length) setSelectedId(prev => prev ?? list[0].id);
       })
-      .catch(err => pushToast({ tone: 'warn', title: 'Policy catalog failed', body: sanitizeErrorForToast(err) }));
+      .catch(err => pushToast({ tone: 'error', title: 'Policy catalog failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
     invoke<BranchInfo[]>('list_branches')
       .then(b => { setBranches(b); setSelectedBranches(b.filter(x => x.isCurrent).map(x => x.branch)); })
       .catch(() => setBranches([]));
@@ -83,7 +84,7 @@ export function PoliciesView({
     );
     invoke<PolicyDetail>('policy_show', { id: selectedId })
       .then(setDetail)
-      .catch(err => pushToast({ tone: 'warn', title: 'Detail failed', body: sanitizeErrorForToast(err) }));
+      .catch(err => pushToast({ tone: 'error', title: 'Detail failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
@@ -95,7 +96,7 @@ export function PoliciesView({
     if (!selectedId) return;
     invoke<PolicyDetail>('policy_show', { id: selectedId })
       .then(setDetail)
-      .catch(err => pushToast({ tone: 'warn', title: 'Detail failed', body: sanitizeErrorForToast(err) }));
+      .catch(err => pushToast({ tone: 'error', title: 'Detail failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
   };
 
   const toggleBranch = (b: string) =>
@@ -232,14 +233,14 @@ export function PoliciesView({
                     aria-label="Policy title"
                     value={editTitle}
                     onChange={e => setEditTitle(e.target.value)}
-                    className="rounded border border-border-subtle bg-black/30 px-2 py-1 font-mono text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-brass/40"
+                    className="rounded-sm border border-border-subtle bg-black/30 px-2 py-1 font-mono text-xs text-text-primary focus:outline-hidden focus:ring-1 focus:ring-brass/40"
                   />
                   <textarea
                     aria-label="Policy description"
                     value={editDesc}
                     onChange={e => setEditDesc(e.target.value)}
                     rows={3}
-                    className="rounded border border-border-subtle bg-black/30 px-2 py-1 font-mono text-xs text-text-secondary focus:outline-none focus:ring-1 focus:ring-brass/40 resize-y"
+                    className="rounded-sm border border-border-subtle bg-black/30 px-2 py-1 font-mono text-xs text-text-secondary focus:outline-hidden focus:ring-1 focus:ring-brass/40 resize-y"
                   />
                   <div className="flex gap-2">
                     <button type="button"
@@ -295,6 +296,32 @@ export function PoliciesView({
                       </span>
                     );
                   })}
+                </div>
+              </section>
+
+              <section
+                data-testid="policy-enforcement-deck"
+                className="mt-auto grid grid-cols-1 gap-3 border-t border-border-subtle pt-4 sm:grid-cols-2"
+              >
+                <div className="rounded-lg border border-border-subtle bg-bg-base/70 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-display text-[10px] tracking-widest text-brass uppercase">Enforcement Gate</span>
+                    <span className="rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 font-mono text-[9px] text-brass">
+                      {detail.blocking ? 'Blocking' : 'Advisory'}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+                    Evaluated by <code className="text-cyan">vox audit code</code> and <code className="text-cyan">vox ci pre-push</code> across selected worktree branches.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border-subtle bg-bg-base/70 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-display text-[10px] tracking-widest text-cyan uppercase">Rule Provenance</span>
+                    <span className="font-mono text-[9px] text-emerald-300">{detail.origin}</span>
+                  </div>
+                  <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+                     emits structured JSONL findings with <code className="text-brass">schema_version</code> and rule discriminators for effort routing.
+                  </p>
                 </div>
               </section>
             </>

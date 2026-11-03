@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { auditIconsInPage, auditOverflowInPage } from './audits';
+import { auditDomQualityInPage, auditIconsInPage, auditOverflowInPage } from './audits';
 
 describe('auditIconsInPage', () => {
   it('flags zero-size svgs, drawless svgs, and broken imgs; passes healthy ones', () => {
@@ -33,5 +33,29 @@ describe('auditOverflowInPage', () => {
     Object.defineProperty(document.body, 'scrollWidth', { value: 1600, configurable: true });
     Object.defineProperty(document.body, 'clientWidth', { value: 1440, configurable: true });
     expect(auditOverflowInPage().bodyHorizontalOverflowPx).toBe(160);
+  });
+});
+
+describe('auditDomQualityInPage', () => {
+  it('detects light-theme contrast leaks, overlapping CTAs, and unstyled selects', () => {
+    document.documentElement.dataset.theme = 'obsidian';
+    document.body.innerHTML = `
+      <main>
+        <div id="leak" style="background-color: rgb(238, 237, 254); color: rgb(244, 244, 245)">Leak</div>
+        <button data-testid="open-chat-cta">Open Chat</button>
+        <button aria-expanded="false" id="customize">Customize</button>
+        <select id="styled" data-unified-knob="true"><option>A</option></select>
+      </main>
+    `;
+    const rectOverlap = () => ({ left: 100, right: 220, top: 20, bottom: 52, width: 120, height: 32 }) as DOMRect;
+    (document.getElementById('leak') as any).getBoundingClientRect = rectOverlap;
+    (document.querySelector('[data-testid="open-chat-cta"]') as any).getBoundingClientRect = rectOverlap;
+    (document.getElementById('customize') as any).getBoundingClientRect = rectOverlap;
+    (document.getElementById('styled') as any).getBoundingClientRect = rectOverlap;
+
+    const report = auditDomQualityInPage('dashboard');
+    expect(report.lightThemeContrastLeakCount).toBe(1);
+    expect(report.overlappingControlPairs).toBe(1);
+    expect(report.unstyledNativeSelectCount).toBe(0);
   });
 });

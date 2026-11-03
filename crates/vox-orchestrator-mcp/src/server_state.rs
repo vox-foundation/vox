@@ -13,6 +13,15 @@ use vox_orchestrator::{
 };
 use vox_skills::{SkillRegistry, install_builtins, new_registry_arc};
 
+/// Opt-in webhook -> hopper intake poller (Phase 3 D-10/D-13).
+mod webhook_intake;
+
+/// Host-side registration of the nvml-probe plugin as the orchestrator's GPU probe.
+pub mod vram_probe;
+
+mod boot_gate;
+pub use boot_gate::subsystem_not_booted_json;
+
 #[derive(Debug, Clone)]
 pub struct CachedCatalog {
     pub resolved: vox_repository::ResolvedRepoCatalog,
@@ -46,15 +55,6 @@ pub struct CachedGraph {
     pub key: GraphCacheKey,
     pub value: Arc<serde_json::Value>,
     pub reader: Arc<vox_graph_reader::GraphifyReader>,
-}
-
-/// Chosen orchestrator backend for the current MCP operation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum OrchestratorBackendMode {
-    /// Use in-process `ServerState::orchestrator`.
-    Embedded,
-    /// Use aligned TCP `vox-orchestrator-d` via `OrchDaemonClient`.
-    DaemonAlignedTcp,
 }
 
 #[derive(Clone)]
@@ -135,11 +135,23 @@ pub struct ServerState {
     /// Learned per-model prompt profiles (Track F).  Hydrated from DB at startup;
     /// updated in-process as variants are promoted through the confidence state machine.
     pub model_prompt_registry: Arc<ModelPromptRegistry>,
+
+    /// Capability profile this host serves (`dev` unless `--profile` / `VOX_PROFILE`).
+    pub active_profile: Arc<crate::profiles::ActiveProfile>,
+
+    /// Subsystems actually up. "Everything booted" until plan 03's conditioned boot.
+    pub boot_report: Arc<PrRwLock<crate::profiles::BootReport>>,
 }
 
 impl ServerState {
     pub fn feedback(&self) -> vox_orchestrator::feedback::FeedbackStore {
         self.feedback.clone()
+    }
+
+    /// Scope this state to `profile` (advertising and dispatch both honor it).
+    pub fn with_profile(mut self, profile: crate::profiles::ActiveProfile) -> Self {
+        self.active_profile = Arc::new(profile);
+        self
     }
 
     /// The trusted caller role for this server (human vs agent), used to authorize
@@ -329,6 +341,8 @@ impl ServerState {
             skill_search_index,
             active_skill_id: Arc::new(parking_lot::RwLock::new(None)),
             model_prompt_registry: Arc::new(ModelPromptRegistry::new()),
+            active_profile: Arc::new(crate::profiles::ActiveProfile::dev()),
+            boot_report: Arc::new(PrRwLock::new(crate::profiles::full_boot_report())),
         };
 
         // Spawn pollers
@@ -337,6 +351,12 @@ impl ServerState {
         state.spawn_populi_remote_worker_poller();
 
         state.spawn_scientia_research_mesh_background_jobs();
+        // Phase 3 D-04: no [orchestrator.webhook] section => no-op.
+        let _ = webhook_intake::spawn_webhook_intake_poller(
+            state.orchestrator_config.webhook.as_ref(),
+            state.orchestrator.hopper(),
+        );
+        vram_probe::register_nvml_vram_probe();
 
         state
     }
@@ -348,6 +368,25 @@ impl ServerState {
         repository: vox_repository::RepositoryContext,
         session_manager: Arc<TokMutex<SessionManager>>,
         skill_registry: Arc<SkillRegistry>,
+    ) -> Self {
+        Self::new_for_daemon_gated(
+            orchestrator,
+            orchestrator_config,
+            repository,
+            session_manager,
+            skill_registry,
+            true,
+        )
+    }
+
+    /// [`Self::new_for_daemon`] with the Research-only scientia mesh jobs made optional (skipped when `Research` is outside the capability-profile closure).
+    pub fn new_for_daemon_gated(
+        orchestrator: Arc<Orchestrator>,
+        orchestrator_config: OrchestratorConfig,
+        repository: vox_repository::RepositoryContext,
+        session_manager: Arc<TokMutex<SessionManager>>,
+        skill_registry: Arc<SkillRegistry>,
+        spawn_research_jobs: bool,
     ) -> Self {
         let workspace_root = Some(repository.root.clone());
         let workspace_mcp_root = workspace_root
@@ -399,13 +438,23 @@ impl ServerState {
             )),
             active_skill_id: Arc::new(parking_lot::RwLock::new(None)),
             model_prompt_registry: Arc::new(ModelPromptRegistry::new()),
+            active_profile: Arc::new(crate::profiles::ActiveProfile::dev()),
+            boot_report: Arc::new(PrRwLock::new(crate::profiles::full_boot_report())),
         };
         Self::spawn_external_skill_hydration(
             state.skill_registry.clone(),
             workspace_mcp_root,
             state.skill_search_index.clone(),
         );
-        state.spawn_scientia_research_mesh_background_jobs();
+        if spawn_research_jobs {
+            state.spawn_scientia_research_mesh_background_jobs();
+        }
+        // Phase 3 D-04: no [orchestrator.webhook] section => no-op.
+        let _ = webhook_intake::spawn_webhook_intake_poller(
+            state.orchestrator_config.webhook.as_ref(),
+            state.orchestrator.hopper(),
+        );
+        vram_probe::register_nvml_vram_probe();
         state
     }
 
@@ -451,28 +500,35 @@ impl ServerState {
         })
     }
 
-    pub fn orch_daemon_client_for_task_reads_rpc(&self) -> Option<OrchDaemonClient> {
-        None
+    /// Read-RPC pilot gate: umbrella `VOX_MCP_ORCHESTRATOR_RPC_READS` OR the per-tool flag `id`.
+    fn mcp_orch_daemon_reads_pilot_enabled(id: vox_secrets::SecretId) -> bool {
+        Self::mcp_env_truthy(vox_secrets::SecretId::VoxMcpOrchestratorRpcReads)
+            || Self::mcp_env_truthy(id)
     }
 
-    pub fn orch_daemon_client_for_task_writes_rpc(&self) -> Option<OrchDaemonClient> {
-        None
+    /// TCP client for `VOX_ORCHESTRATOR_DAEMON_SOCKET`, only when the boot probe
+    /// confirmed the daemon shares our `repository_id`.
+    pub fn orch_daemon_tcp_client_when_repo_aligned(&self) -> Option<OrchDaemonClient> {
+        if !self.orch_daemon_repo_id_aligned.load(Ordering::SeqCst) {
+            return None;
+        }
+        let resolved =
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorDaemonSocket);
+        let addr = resolved.expose()?;
+        // Same normalization as the boot probe, so a `tcp://` prefix works here too.
+        Some(OrchDaemonClient::new(
+            vox_orchestrator::orch_daemon::normalize_tcp_bind_addr(addr),
+        ))
     }
 
-    pub fn orch_daemon_client_for_start_rpc(&self) -> Option<OrchDaemonClient> {
-        None
-    }
-
-    pub fn orch_daemon_client_for_agent_writes_rpc(&self) -> Option<OrchDaemonClient> {
-        None
-    }
-
+    /// `vox_orchestrator_status` pilot: attach the aligned daemon's `orch.status`.
     pub fn orch_daemon_client_for_status_tool_rpc(&self) -> Option<OrchDaemonClient> {
-        None
-    }
-
-    pub fn orchestrator_backend_mode_for_writes(&self) -> OrchestratorBackendMode {
-        OrchestratorBackendMode::Embedded
+        if !Self::mcp_orch_daemon_reads_pilot_enabled(
+            vox_secrets::SecretId::VoxMcpOrchestratorStatusToolRpc,
+        ) {
+            return None;
+        }
+        self.orch_daemon_tcp_client_when_repo_aligned()
     }
 
     pub fn mcp_agent_fleet_env_enabled() -> bool {
@@ -641,6 +697,17 @@ impl ServerState {
                 tracing::warn!("model_prompt_registry populate_from_db failed: {e}");
             }
         });
+        // RET-03: copy legacy VoxKB rows into the findings inbox (idempotent, never fatal).
+        let (db_kb, root_kb) = (db.clone(), self.repository.root.clone());
+        tokio::spawn(async move {
+            match crate::kb_tools::findings::migrate_legacy_kb_entries(&db_kb, &root_kb).await {
+                Ok(r) if r.kb_entries + r.knowledge_bases + r.kb_routing_rules > 0 => {
+                    tracing::info!(?r, "legacy VoxKB rows counted and migrated to kb_findings");
+                }
+                Ok(_) => {}
+                Err(e) => tracing::warn!("legacy VoxKB migration failed: {e}"),
+            }
+        });
         self.db = Some(db);
         self.load_attention_preferences_from_db().await;
 
@@ -706,6 +773,8 @@ impl ServerState {
             )),
             active_skill_id: Arc::new(parking_lot::RwLock::new(None)),
             model_prompt_registry: Arc::new(ModelPromptRegistry::new()),
+            active_profile: Arc::new(crate::profiles::ActiveProfile::dev()),
+            boot_report: Arc::new(PrRwLock::new(crate::profiles::full_boot_report())),
         }
     }
 
@@ -717,10 +786,11 @@ impl ServerState {
 
 /// Returns true when JSON looks like `ToolResult` with `success: false` (MCP `is_error` signal).
 pub fn tool_json_envelope_is_error(json: &str) -> bool {
-    serde_json::from_str::<serde_json::Value>(json)
-        .ok()
-        .and_then(|v| v.get("success").and_then(|s| s.as_bool()))
-        == Some(false)
+    let Ok(v) = serde_json::from_str::<serde_json::Value>(json) else {
+        return false;
+    };
+    v.get("success").and_then(|s| s.as_bool()) == Some(false)
+        || crate::profiles::is_profile_denial_json(&v)
 }
 
 #[cfg(test)]
@@ -728,6 +798,18 @@ mod tests {
     use super::*;
     use vox_orchestrator::feedback::FeedbackKind;
     use vox_orchestrator::types::TaskId;
+
+    #[tokio::test]
+    async fn with_profile_replaces_active_profile_and_keeps_boot_report() {
+        let state = ServerState::new_test().await;
+        let models = crate::profiles::ActiveProfile::resolve(&["models"]).expect("models");
+        let scoped = state.with_profile(models.clone());
+        assert_eq!(*scoped.active_profile, models);
+        assert_eq!(
+            *scoped.boot_report.read(),
+            crate::profiles::full_boot_report()
+        );
+    }
 
     #[tokio::test]
     async fn feedback_shared() {
@@ -749,5 +831,63 @@ mod tests {
         let req = state.orchestrator.feedback().get(&id);
         assert!(req.is_some());
         assert_eq!(req.unwrap().prompt, "Shared test?");
+    }
+
+    const STATUS_PILOT_ENVS: [&str; 3] = [
+        "VOX_MCP_ORCHESTRATOR_RPC_READS",
+        "VOX_MCP_ORCHESTRATOR_STATUS_TOOL_RPC",
+        "VOX_ORCHESTRATOR_DAEMON_SOCKET",
+    ];
+
+    /// Set exactly `vars` (others in [`STATUS_PILOT_ENVS`] cleared).
+    #[allow(unsafe_code)] // Rust 2024 set_var/remove_var; callers are #[serial].
+    fn set_status_pilot_env(vars: &[(&str, &str)]) {
+        for name in STATUS_PILOT_ENVS {
+            // SAFETY: `#[serial]` — no concurrent env mutation in this crate's tests.
+            unsafe {
+                match vars.iter().find(|(k, _)| *k == name) {
+                    Some((_, v)) => std::env::set_var(name, v),
+                    None => std::env::remove_var(name),
+                }
+            }
+        }
+    }
+
+    async fn status_tool_client(aligned: bool, vars: &[(&str, &str)]) -> bool {
+        set_status_pilot_env(vars);
+        let state = ServerState::new_test().await;
+        state
+            .orch_daemon_repo_id_aligned
+            .store(aligned, Ordering::SeqCst);
+        let got = state.orch_daemon_client_for_status_tool_rpc().is_some();
+        set_status_pilot_env(&[]);
+        got
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn status_tool_rpc_off_without_pilot_flag() {
+        let sock = ("VOX_ORCHESTRATOR_DAEMON_SOCKET", "127.0.0.1:9");
+        assert!(!status_tool_client(true, &[sock]).await);
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn status_tool_rpc_off_when_repo_not_aligned() {
+        let sock = ("VOX_ORCHESTRATOR_DAEMON_SOCKET", "127.0.0.1:9");
+        let flag = ("VOX_MCP_ORCHESTRATOR_STATUS_TOOL_RPC", "1");
+        assert!(!status_tool_client(false, &[flag, sock]).await);
+    }
+
+    #[tokio::test]
+    #[serial_test::serial]
+    async fn status_tool_rpc_on_with_flag_alignment_and_socket() {
+        let sock = ("VOX_ORCHESTRATOR_DAEMON_SOCKET", "127.0.0.1:9");
+        for flag in [
+            ("VOX_MCP_ORCHESTRATOR_STATUS_TOOL_RPC", "1"),
+            ("VOX_MCP_ORCHESTRATOR_RPC_READS", "true"),
+        ] {
+            assert!(status_tool_client(true, &[flag, sock]).await, "{flag:?}");
+        }
     }
 }

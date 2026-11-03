@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/planning-meta/09-exception-deferral-policy.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Exception and deferral policy",
+  "summary": "Operational policy for planning exceptions and deferrals with allowed classes, mandatory metadata, expiry, review cadence, and retirement workflow.",
+  "scope": ["exceptions", "deferrals", "exception classes", "mandatory metadata", "expiry policy", "review cadence", "retirement workflow"],
+  "cross_refs": ["docs/src/architecture/planning-meta/05-anti-foot-gun-planning-standard.md", "docs/src/architecture/planning-meta/08-milestone-gate-definition-spec.md", "docs/src/architecture/planning-meta/10-document-maintenance-protocol.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/012-internal-web-ir-strategy.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 012 — Internal Web IR strategy for Vox",
+  "summary": "Adopts WebIR as first-class compiler layer between HIR and frontend emitters with React/TanStack as primary target.",
+  "scope": ["WebIR", "frontend codegen", "React", "TanStack", "islands", "TypeScript emission", "compiler layers"],
+  "cross_refs": ["../architecture/external-frontend-interop-plan-2026.md", "../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md", "../explanation/expl-architecture.md", "../explanation/expl-compiler-lowering.md", "../reference/vox-web-stack.md", "../reference/cli.md", "010-tanstack-web-spine.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Superseded 2026-05-03 by external-frontend-interop-plan-2026; retained for historical context"
+}

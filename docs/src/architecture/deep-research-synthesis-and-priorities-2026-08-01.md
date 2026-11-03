@@ -2,7 +2,7 @@
 title: "Deep Research Enhancement Program — Synthesis & Priorities (2026-08-01)"
 description: "Synthesizes the four 2026-08-01 deep-research research docs (fundamentals, competitive landscape, trust/novelty scoring, multi-provider/skills/publication) plus the verification pass into one impact-ranked gap list, the recommended differentiation strategy, and the handoff point to an implementation plan."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
 training_rationale: "Normative synthesis and prioritization for the deep-research enhancement program; the direct input to its implementation plan."
 ---

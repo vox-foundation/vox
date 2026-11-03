@@ -24,6 +24,8 @@ export const BUILTIN_SLASH: SlashEntry[] = [
   { cmd: '/memory',   desc: 'Query Mnemosyne (RAG over project memory)',   icon: 'memory', kind: 'builtin' },
   { cmd: '/rollback', desc: 'Revert to last durable checkpoint',           icon: 'back',   kind: 'builtin' },
   { cmd: '/diff',     desc: 'Show pending diff staged by agent',           icon: 'file',   kind: 'builtin' },
+  { cmd: '/research', desc: 'Trigger deep research and claim verification', icon: 'search', kind: 'builtin' },
+  { cmd: '/deepresearch', desc: 'Trigger deep multi-source research pipeline', icon: 'search', kind: 'builtin' },
 ];
 
 interface SkillRecord {

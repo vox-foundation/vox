@@ -1,0 +1,68 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "</end>",
+      "rect",
+      []
+    ],
+    [
+      "<img src=x onerror=alert(1)>",
+      "rect",
+      []
+    ],
+    [
+      "<script>alert(1)</script>",
+      "rect",
+      []
+    ],
+    [
+      "literal <br> tag",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "<img src=x onerror=alert(1)>",
+        "rect",
+        []
+      ],
+      [
+        "literal <br> tag",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "<script>alert(1)</script>",
+        "rect",
+        []
+      ],
+      [
+        "<img src=x onerror=alert(1)>",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "literal <br> tag",
+        "rect",
+        []
+      ],
+      [
+        "</end>",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

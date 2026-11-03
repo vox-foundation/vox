@@ -1,0 +1,66 @@
+{
+  "kind": "sequence",
+  "actors": [
+    "Actor end",
+    "Actor opt",
+    "Actor loop",
+    "Actor alt",
+    "Actor participant",
+    "Actor Note",
+    "Actor a-b",
+    "ghost",
+    "phantom"
+  ],
+  "events": [
+    [
+      "message",
+      0,
+      0,
+      false,
+      "self"
+    ],
+    [
+      "message",
+      2,
+      2,
+      true,
+      "dashed self"
+    ],
+    [
+      "message",
+      1,
+      3,
+      false,
+      "forward"
+    ],
+    [
+      "note",
+      [
+        4,
+        5
+      ],
+      "two actors"
+    ],
+    [
+      "note",
+      [
+        6
+      ],
+      "one actor"
+    ],
+    [
+      "message",
+      3,
+      7,
+      false,
+      "to nowhere"
+    ],
+    [
+      "note",
+      [
+        8
+      ],
+      "over nowhere"
+    ]
+  ]
+}

@@ -7,7 +7,8 @@ mod sync_poison;
 pub use vox_orchestrator_mcp::{
     ServerState, ToolResult, VoxMcpServer, client, context, dei_ipc, http_gateway,
     journey_envelope, lifecycle, llm_bridge, load_config, mcp_agent_fleet_env_enabled,
-    populi_startup, run_stdio_server_blocking, speech_constraints,
+    populi_startup, run_stdio_server_blocking, run_stdio_server_blocking_with_profile,
+    speech_constraints,
 };
 
 pub mod sync_lock;

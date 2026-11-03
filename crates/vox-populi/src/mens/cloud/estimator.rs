@@ -180,16 +180,6 @@ impl TimeEstimator {
     pub fn tflops_for(&self, norm_name: &str) -> Option<f64> {
         self.specs.get(norm_name).map(|s| s.fp16_tflops)
     }
-
-    /// Look up VRAM in MB for a normalized GPU name.
-    pub fn vram_mb_for(&self, norm_name: &str) -> Option<u64> {
-        self.specs.get(norm_name).map(|s| s.vram_mb)
-    }
-
-    /// Select the best preset for the given VRAM — used by both local and cloud training.
-    pub fn preset_for_vram(&self, vram_mb: u64) -> Option<(&str, &TrainingPreset)> {
-        TrainingPreset::best_for_vram(&self.presets, vram_mb)
-    }
 }
 
 // ── Inline Levenshtein ────────────────────────────────────────────────────────

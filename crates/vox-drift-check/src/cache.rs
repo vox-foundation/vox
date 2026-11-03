@@ -14,7 +14,15 @@ impl FeatureCache {
     }
 
     pub fn from_workspace(root: &std::path::Path) -> Self {
-        Self::new(root.join(vox_config::paths::REPO_DRIFT_CACHE_DIR))
+        let workspace_root = if root.file_name().and_then(|n| n.to_str()) == Some("crates")
+            && let Some(parent) = root.parent()
+            && parent.join("Cargo.toml").is_file()
+        {
+            parent
+        } else {
+            root
+        };
+        Self::new(workspace_root.join(vox_config::paths::REPO_DRIFT_CACHE_DIR))
     }
 
     pub fn hash_file(content: &str) -> String {

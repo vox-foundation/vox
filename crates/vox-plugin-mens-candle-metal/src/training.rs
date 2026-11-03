@@ -90,7 +90,7 @@ pub fn run_full_training(config_json: &str) -> io::Result<String> {
         req.device_kind,
         &req.system_prompt,
     )
-    .map_err(|e| io::Error::other(format!("training failed: {e}")))?;
+    .map_err(|e| io::Error::other(format!("training failed: {e:#}")))?;
 
     serde_json::to_string(&summary)
         .map_err(|e| io::Error::other(format!("serialize TrainingSummary: {e}")))

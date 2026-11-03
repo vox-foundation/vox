@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/boilerplate-reduction-gap-analysis-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Boilerplate Reduction — Gap Analysis Against Vox's Existing Backlog (2026)",
+  "summary": "Code-audited reconciliation of 25 boilerplate categories against Vox's actual implementation state; provides 5-tier verdicts (Shipped/Spec'd/Partially-Built/No-Spec/Out-of-Scope) and graft task blocks.",
+  "scope": ["async-state", "forms", "auth", "effects", "routes", "LLM integration", "durable functions", "vector search", "CRDTs"],
+  "cross_refs": ["boilerplate-reduction-design-brief-2026.md", "web-app-archetype-coverage-2026.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Research/audit document reconciling outside-in framing with inside-out backlog. Produces GA-01..GA-25 self-contained Sonnet-4.6-followable task blocks (§4), not binding decisions. Frontmatter status=research. Audit was 2026-05-09; corrects earlier pass with evidence-backed verdicts."
+}

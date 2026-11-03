@@ -13,10 +13,14 @@
 pub mod claims;
 pub(super) mod config;
 pub mod discovery_bridge;
+pub mod distillation;
+pub mod domain;
 pub mod emitter;
 pub mod gate;
 pub(super) mod json_parse;
 mod mesh_subscriber;
+pub mod metering;
+pub mod misguidance;
 pub mod model_select;
 pub mod orchestrator;
 pub mod persistence;
@@ -24,6 +28,7 @@ pub mod planner;
 pub mod provider;
 mod research_event_metrics_bridge;
 mod search_policy_feedback;
+pub mod trial_scoring;
 pub mod types;
 pub mod verifier;
 
@@ -31,13 +36,17 @@ pub use emitter::BroadcastEmitter;
 pub use mesh_subscriber::{
     ScientiaMeshSubscriberOptions, spawn_scientia_mesh_research_event_subscriber,
 };
+pub use misguidance::correlate_diagnostic_to_citations;
 pub use orchestrator::{
-    ResearchConfig, run_research, run_research_with_context, run_research_with_context_and_session,
+    ABSTENTION_MARKER, ResearchConfig, run_research, run_research_with_context,
+    run_research_with_context_and_session,
 };
 pub use research_event_metrics_bridge::TELEMETRY_CATALOG_ID_RESEARCH_EVENT_BRIDGE;
 pub(crate) use research_event_metrics_bridge::spawn_persist_research_event_for_metrics;
 pub use search_policy_feedback::load_rolling_search_policy_feedback;
+pub use trial_scoring::{TrialSampleEvaluation, score_research_result};
 pub use types::{
-    Citation, CompetenceSignal, ResearchHit, ResearchMetadata, ResearchPlan, ResearchQuery,
-    ResearchResult, ResearchScope, RetrievalDiagnostics, RoutingTier, SelfVerificationResult,
+    Citation, CompetenceSignal, ResearchDomainMode, ResearchHit, ResearchMetadata, ResearchPlan,
+    ResearchQuery, ResearchResult, ResearchScope, RetrievalDiagnostics, RoutingTier,
+    SelfVerificationResult,
 };

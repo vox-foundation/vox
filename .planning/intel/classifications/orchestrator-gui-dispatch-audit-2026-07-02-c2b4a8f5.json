@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/orchestrator-gui-dispatch-audit-2026-07-02.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Orchestrator + GUI Agent-Dispatch Audit (2026-07-02)",
+  "summary": "Adversarial audit of orchestrator core, MCP dispatch, GUI dispatch with verified findings: trust bypassable at two levels, restart mangles work, split-brain across MCP/CLI/GUI, dead streams stay silent.",
+  "scope": ["orchestrator daemon", "GUI agent dispatch", "MCP dispatch", "tool calls", "approvals", "trust boundary", "TCP transport", "event bus", "restart recovery"],
+  "cross_refs": ["vox-gui-harness-buildout-plan-2026.md", "vox-axis-harness-reliability-spec-plan-2026-07-02.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

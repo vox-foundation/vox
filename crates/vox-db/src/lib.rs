@@ -79,6 +79,7 @@ pub mod schema;
 pub mod schema_extensions;
 /// Legacy import/export planning and verification for greenfield Codex releases.
 pub mod store;
+pub use store::ops_agent_telemetry;
 pub mod telemetry_sink;
 
 /// Canonical Codex storage policy (`vox.db` vs project store vs training sidecar).
@@ -179,7 +180,10 @@ pub mod preferences;
 pub mod project_store;
 mod questioning_telemetry;
 mod research;
+pub mod research_doc_io;
 pub mod research_pipeline;
+/// KB-text sanitizer and provenance newtypes. Lives in `vox-db-types`.
+pub use vox_db_types::kb_text;
 /// Hybrid retrieval helpers (vector / full-text fusion) for RAG-style pipelines.
 /// Moved to `vox-db-types`; re-exported here for back-compat.
 pub use vox_db_types::retrieval;
@@ -191,9 +195,12 @@ pub mod secrets;
 mod socrates_telemetry;
 mod sync_invocables;
 pub mod syntax_k_telemetry;
+pub mod temporal_claims;
 pub mod toestub_store;
 /// Mens QLoRA training run persistence (CRUD for `populi_training_run` table).
 pub mod training_run;
+/// Research Trial Tier-A atomic persistence (`STORE-01`, `STORE-02`).
+pub mod trials;
 mod trust_drift;
 mod trust_propagation;
 mod trust_telemetry;
@@ -212,6 +219,8 @@ pub use store::ops_convergence::ConvergenceOpRow;
 
 pub mod oratio_eval;
 pub mod plugin_state_backend;
+/// Content-addressed local web cache with HTTP 304 support.
+pub mod web_cache;
 
 pub use auto_migrate::AutoMigrator;
 #[cfg(feature = "host-integration")]
@@ -254,22 +263,27 @@ pub use retrieval::{
     SearchCorpus, SearchDiagnostics, SearchIntent, SearchPlan, SearchRefinementAction,
     fuse_hybrid_results, heuristic_search_plan,
 };
+pub use schema::domains::quarantine::SCHEMA_LEGACY_VOXKB as LEGACY_VOXKB_DDL;
 pub use schema_digest::{SchemaDigest, digest_to_json, format_llm_context, generate_schema_digest};
 pub use socrates_telemetry::{
     SocratesSurfaceAggregate, SocratesSurfaceTelemetry, hallucination_risk_proxy,
 };
 pub use store::{
-    A2AMessageRow, A2aClarificationMessageParams, AccountSecretCiphertextRow, AgentDefEntry,
-    AgentEventRow, ArtifactEntry, BehaviorEventEntry, BenchmarkEventRow, BuildHealthSummary,
-    BuildRunRow, CloudCostSummary, CloudDispatchRow, CodexChangeLogEntry, CommandFrequencyEntry,
-    ComponentEntry, CorpusQualitySummary, CrateSample, CrateSampleRow, DiscoveryInboxRow,
-    EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry, ExternalStatusSnapshotParams,
-    ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams, ExternalSubmissionAttemptRow,
-    ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams, GamifyLudusKpiRollup,
-    GamifyPolicySnapshotListRow, GrpoStepRow, HarnessFixProposalRow, HarnessIssueDecisionRow,
-    HarnessIssueRow, HopperInboxRow, KnowledgeNodeSummary, LearnedPatternEntry, LlmSpendSummary,
-    LocalTrainRow, LogExecutionParams, LogInteractionParams, MemoryEntry, NewFixProposal,
-    NewHarnessIssue, NewSkillCandidate, PackageSearchResult, PlanNodeRow, PlanSessionRow,
+    A2AMessageRow, A2aClarificationMessageParams, AccountSecretCiphertextRow, ActivityLogEntry,
+    ActivityLogFilter, AgentDefEntry, AgentEventRow, ArtifactEntry, BehaviorEventEntry,
+    BenchmarkEventRow, BuildHealthSummary, BuildRunRow, CloudCostSummary, CloudDispatchRow,
+    CodexChangeLogEntry, CommandFrequencyEntry, ComponentEntry, CorpusQualitySummary, CrateSample,
+    CrateSampleRow, DiscoveryInboxRow, EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry,
+    ExternalStatusSnapshotParams, ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams,
+    ExternalSubmissionAttemptRow, ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams,
+    GamifyLudusKpiRollup, GamifyPolicySnapshotListRow, GrpoStepRow, HarnessFixProposalRow,
+    HarnessIssueDecisionRow, HarnessIssueRow, HopperInboxRow, KB_CHUNK_SOURCE_TYPE,
+    KB_LIBRARY_CORPUS, KbFindingCounts, KbFindingRow, KbIndexState, KnowledgeHealthInfo,
+    KnowledgeNodeRecord, KnowledgeNodeSummary, LearnedPatternEntry, LegacyKbCounts, LegacyKbEntry,
+    LibraryChunkDiff, LibraryChunkInput, LibraryChunkPos, LibraryChunkRow, LibraryDocRow,
+    LibraryDocUpsert, LlmSpendSummary, LocalTrainRow, LogExecutionParams, LogInteractionParams,
+    MemoryEntry, ModelBenchmarkSummaryRow, NewFixProposal, NewHarnessIssue, NewKbFinding,
+    NewModelBenchmarkResult, NewSkillCandidate, PackageSearchResult, PlanNodeRow, PlanSessionRow,
     PlanVersionRow, PublicationAttemptRow, PublicationExternalLinkRow,
     PublicationExternalLinkUpsertParams, PublicationExternalRevisionRow,
     PublicationExternalRevisionUpsertParams, PublicationManifestParams, PublicationManifestRow,
@@ -278,10 +292,10 @@ pub use store::{
     QuestionOptionOutcomeRow, QuestionOptionParams, QuestionOptionRow, QuestionRow,
     QuestionSessionCreateParams, QuestionSessionRow, QuestionStopEventParams, QuestionStopEventRow,
     RegisterAgentParams, RegressionRow, SaveMemoryParams, SaveSnippetParams, ScheduledEntry,
-    ScholarlySubmissionRow, SessionEventRow, SessionRow, SkillCandidateRow, SkillExecutionParams,
-    SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport, SnippetEntry, StoreError,
-    ThroughputProfileRow, TrainingPair, TrustRollupEntry, UpsertAccountSecretCiphertextParams,
-    UserEntry, WarningRow, WorkflowExecutionRow,
+    ScholarlySubmissionRow, SearchCorpusCounts, SessionEventRow, SessionRow, SkillCandidateRow,
+    SkillExecutionParams, SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport,
+    SnippetEntry, StoreError, ThroughputProfileRow, TrainingPair, TrustRollupEntry,
+    UpsertAccountSecretCiphertextParams, UserEntry, WarningRow, WorkflowExecutionRow,
 };
 pub use sync_invocables::InvocableSyncEngine;
 pub use syntax_k_telemetry::SyntaxKEventMeta;
@@ -295,8 +309,18 @@ pub use trust_telemetry::{TrustObservationEntry, TrustObservationInput, TrustRol
 pub use types::now_unix_ms;
 pub use vox_db_types::EvalRunParams;
 pub use vox_db_types::{
-    DbAgentId, DbCorrelationId, DbPlanSessionId, DbSessionId, DbTaskId, DbUserId,
-    ResearchArtifactRecord, ResearchSessionRecord, ResearchSessionSummary,
+    CachedClaimVerdict, DbAgentId, DbCorrelationId, DbPlanSessionId, DbSessionId, DbTaskId,
+    DbUserId, MisguidanceReporter, PersistFailpoint, RecordMisguidanceParams,
+    ResearchArtifactRecord, ResearchDefectClass, ResearchMisguidanceRecord, ResearchSearchResult,
+    ResearchSessionRecord, ResearchSessionSummary, TRIAL_ADAPTER_TAGS, TRIAL_CAMPAIGN_LOG_EVENTS,
+    TRIAL_CAMPAIGN_STATUSES, TRIAL_MEMORY_ABLATION_FLAGS, TRIAL_RUN_STATUSES,
+    TRIAL_SAMPLE_VERDICTS, TRIAL_STOPPING_RULE_KINDS, TrialCampaignLogRow, TrialCampaignRecord,
+    TrialCampaignRow, TrialRunBatch, TrialRunOutcome, TrialRunRecord, TrialRunRow,
+    TrialSampleRecord, TrialSampleRow, TrialSpendPartition, is_valid_campaign_transition,
+    is_valid_run_transition,
+};
+pub use vox_orchestrator_types::trust::{
+    ContextTrustTier, FindingTier, tier_for_curated, tier_for_knowledge_node_type,
 };
 #[cfg(feature = "host-integration")]
 pub use workspace_journey_store::{
@@ -304,45 +328,6 @@ pub use workspace_journey_store::{
     connect_workspace_journey_optional_at, workspace_journey_diagnostics_json,
     workspace_journey_store_mode_from_env,
 };
-
-/// Row returned by KB queries from VoxDb.
-#[derive(Debug, Clone)]
-pub struct KbRow {
-    pub id: String,
-    pub name: String,
-    pub description: String,
-    pub created_at_ms: i64,
-    pub updated_at_ms: i64,
-    pub entry_count: i64,
-}
-
-/// Row returned by KB entry queries from VoxDb.
-#[derive(Debug, Clone)]
-pub struct KbEntryRow {
-    pub id: String,
-    pub kb_id: String,
-    pub content: String,
-    pub source_signal: String,
-    pub source_ref: Option<String>,
-    pub routing_confidence: f64,
-    pub tags: String,
-    pub created_at_ms: i64,
-    pub last_accessed_at_ms: Option<i64>,
-    pub access_count: i64,
-    pub accepted: i64,
-    pub mens_queued: i64,
-}
-
-/// Row returned by KB routing rule queries from VoxDb.
-#[derive(Debug, Clone)]
-pub struct KbRuleRow {
-    pub id: String,
-    pub kb_id: String,
-    pub rule_type: String,
-    pub pattern: String,
-    pub priority: i64,
-    pub created_at_ms: i64,
-}
 
 /// Public product name for the unified database facade (**Codex** over Arca/Turso).
 ///
@@ -396,6 +381,20 @@ impl VoxDb {
             sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
         }
     }
+
+    /// Connect to an ephemeral in-memory database for testing.
+    #[cfg(feature = "local")]
+    pub async fn in_memory() -> Result<Self, StoreError> {
+        Self::connect(DbConfig::Memory).await
+    }
+
+    /// Connect to an ephemeral in-memory database for testing.
+    #[cfg(not(feature = "local"))]
+    pub async fn in_memory() -> Result<Self, StoreError> {
+        Err(StoreError::NotFound(
+            "in_memory requires the 'local' feature".into(),
+        ))
+    }
 }
 
 /// Serializes access to a shared `turso::Connection` to avoid
@@ -406,7 +405,7 @@ impl VoxDb {
 /// `turso::Connection::clone()` does **not** create an independent connection: it clones an
 /// `Arc` to the same underlying `turso_sdk_kit::rsapi::TursoConnection`, which itself guards
 /// every `step()` (the primitive under `query`/`execute`/`execute_batch`/`prepare`) with an
-/// atomic [`ConcurrentGuard`]. Two async tasks that call into *any* clones of the same
+/// atomic `ConcurrentGuard`. Two async tasks that call into *any* clones of the same
 /// connection at literally the same instant (e.g. two Tauri GUI commands dispatched close
 /// together on a multi-threaded Tokio runtime, or a background poll racing a user action) can
 /// have their `step()` polls genuinely overlap on different OS threads, tripping that guard and
@@ -519,6 +518,31 @@ impl GuardedConnection {
     ) -> turso::Result<Vec<turso::Row>> {
         let _guard = self.lock.lock().await;
         self.inner.pragma_update(pragma_name, pragma_value).await
+    }
+
+    /// Execute an async closure inside a serialized SQLite `BEGIN IMMEDIATE ... COMMIT`
+    /// transaction while holding the [`GuardedConnection`] mutex for the entire transaction
+    /// lifetime. On any error returned by `f`, issues `ROLLBACK` before releasing the mutex.
+    pub async fn transaction<'a, F, Fut, T>(&'a self, f: F) -> Result<T, crate::StoreError>
+    where
+        F: FnOnce(&'a turso::Connection) -> Fut,
+        Fut: std::future::Future<Output = Result<T, crate::StoreError>> + 'a,
+    {
+        let _guard = self.lock.lock().await;
+        self.inner.execute("BEGIN IMMEDIATE", ()).await?;
+        match f(&self.inner).await {
+            Ok(val) => {
+                if let Err(e) = self.inner.execute("COMMIT", ()).await {
+                    let _ = self.inner.execute("ROLLBACK", ()).await;
+                    return Err(crate::StoreError::Turso(e));
+                }
+                Ok(val)
+            }
+            Err(err) => {
+                let _ = self.inner.execute("ROLLBACK", ()).await;
+                Err(err)
+            }
+        }
     }
 }
 
@@ -645,7 +669,7 @@ mod codex_contract {
 /// Shared mutex that serialises all tests that mutate process-level environment
 /// variables (`VOX_DB_URL`, `VOX_DB_TOKEN`, `VOX_SECRETS_*`, …). Both
 /// `config::tests` and `local_tests` acquire this lock before touching env.
-#[cfg(test)]
+#[cfg(all(test, feature = "host-integration"))]
 pub(crate) static TEST_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[cfg(all(test, feature = "local"))]

@@ -1,7 +1,7 @@
 ---
 title: "build-stabilization-findings-2026"
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: false
 ---
 # Vox Orchestration Build Stabilization Findings (2026-04-21)

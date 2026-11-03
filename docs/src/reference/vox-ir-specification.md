@@ -9,7 +9,7 @@ schema_type: "TechArticle"
 
 # Vox IR Specification
 
-The **Vox Intermediate Representation (IR)** is the canonical, platform-agnostic, and machine-verifiable **JSON bundle** for a Vox program after type checking. It is primarily produced by `vox check --emit-ir` as a `VoxIrModule` (HIR-shaped `module` plus optional embedded **WebIR**).
+The **Vox Intermediate Representation (IR)** is the canonical, platform-agnostic, and machine-verifiable **JSON bundle** for a Vox program after type checking. The emitter module is `vox_codegen::hir_export` (`lower_hir_to_vox_ir`). It is still produced by `vox check --emit-ir` as a JSON `VoxIrModule` (HIR-shaped `module` plus optional embedded **WebIR**). The artifact name remains `<stem>.vox-ir.json`.
 
 ## Purpose
 
@@ -69,7 +69,7 @@ While internal HIR layouts may evolve between compiler versions, **Vox IR** (v2.
 
 ## Verification
 
-- CI: `crates/vox-compiler/tests/ir_emission_test.rs` lowers a fixture through the full frontend, serializes `VoxIrModule`, and validates against `vox-ir.schema.json` (same JSON shape as `vox check --emit-ir`).
+- CI: `crates/vox-compiler/tests/ir_emission_test.rs` lowers a fixture through `hir_export`, serializes `VoxIrModule`, and validates against `vox-ir.schema.json` (same JSON shape as `vox check --emit-ir`).
 - Golden examples: `crates/vox-compiler/tests/golden_vox_examples.rs` (parse + lower + WebIR validate + Syntax-K metrics).
 
 ## Canonical example (`*.vox-ir.json`)

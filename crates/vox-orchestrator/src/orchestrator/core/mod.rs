@@ -50,6 +50,17 @@ impl crate::orchestrator::Orchestrator {
             crate::types::AgentId,
         >::new()));
 
+        // Constructed here (rather than only in the `Self { .. }` literal below) so the
+        // hopper dispatcher — spawned before `Self` exists — can share the same resource
+        // lock manager the rest of the orchestrator uses (Phase 5 D-08 / D-13).
+        let resource_locks = crate::locks::ResourceLockManager::new();
+        let resource_gate = crate::orchestrator::safety::ResourceGate::new(
+            resource_locks.clone(),
+            bulletin.clone(),
+            event_bus.clone(),
+            config.task_timeout_ms,
+        );
+
         let enqueue_agents = Arc::clone(&agents);
         let enqueue_assignments = Arc::clone(&task_assignments);
         let enqueue_closure =
@@ -95,13 +106,23 @@ impl crate::orchestrator::Orchestrator {
             };
 
         let cancel_agents = Arc::clone(&agents);
+        let cancel_resource_gate = resource_gate.clone();
         let cancel_closure = move |task_id: crate::types::TaskId| {
             let agents_lock = cancel_agents.read().unwrap();
             let mut found = false;
-            for queue_arc in agents_lock.values() {
+            for (&agent_id, queue_arc) in agents_lock.iter() {
                 let mut queue = queue_arc.write().unwrap();
-                if queue.cancel(task_id).is_some() {
+                if let Some(task) = queue.cancel(task_id) {
                     found = true;
+                    drop(queue);
+                    if let Some(ref resource) = task.resource_id {
+                        cancel_resource_gate.release(
+                            agent_id,
+                            resource,
+                            task.session_id.as_deref(),
+                            Some(task.id),
+                        );
+                    }
                     break;
                 }
             }
@@ -126,6 +147,7 @@ impl crate::orchestrator::Orchestrator {
                 enqueue_closure,
                 None,
                 Some(dispatcher_oplog),
+                Some(resource_gate.clone()),
             ));
 
             let cascade_rx = event_bus.subscribe();
@@ -198,7 +220,7 @@ impl crate::orchestrator::Orchestrator {
             tool_ledger: Arc::new(RwLock::new(
                 crate::tool_receipt::ToolReceiptLedger::from_config(&config),
             )),
-            resource_locks: crate::locks::ResourceLockManager::new(),
+            resource_locks,
             privacy_router: Arc::new(RwLock::new(crate::privacy_router::PrivacyRouter::new(
                 crate::privacy_router::PrivacyRoutingPolicy::default(),
             ))),
@@ -299,6 +321,15 @@ impl crate::orchestrator::Orchestrator {
     }
 }
 
+/// Returns true if autonomous research during chat turns is enabled.
+/// Controlled via Clavis `SecretId::VoxChatResearchEnabled`. Defaults to true.
+pub fn is_chat_research_enabled() -> bool {
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxChatResearchEnabled)
+        .expose()
+        .map(|v| v.trim() != "false" && v.trim() != "0")
+        .unwrap_or(true)
+}
+
 mod accessors;
 pub mod checkpoint;
 mod init;
@@ -339,5 +370,10 @@ mod isolation_policy_tests {
             plan.strategy_for(crate::types::AgentId(5)),
             crate::isolation::IsolationStrategy::SeparateBranches
         );
+    }
+
+    #[test]
+    fn chat_research_enabled_defaults_to_true() {
+        assert!(crate::is_chat_research_enabled());
     }
 }

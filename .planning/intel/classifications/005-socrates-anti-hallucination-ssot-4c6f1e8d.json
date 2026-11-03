@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/005-socrates-anti-hallucination-ssot.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 005: Socrates anti-hallucination SSOT",
+  "summary": "Single vox-socrates-policy crate provides unified confidence thresholds and risk classification for LLM surfaces.",
+  "scope": ["Socrates", "anti-hallucination", "confidence thresholds", "LLM", "orchestrator", "reliability"],
+  "cross_refs": ["../reference/socrates-protocol.md", "../crates/vox-socrates-policy", "../crates/vox-orchestrator/src/socrates.rs"],
+  "locked": true,
+  "precedence": null
+}

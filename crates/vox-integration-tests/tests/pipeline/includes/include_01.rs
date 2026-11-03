@@ -121,77 +121,6 @@ fn codegen_jsx_text_content_not_interpolated() {
     );
 }
 
-// --- TS codegen for activities (tombstoned: activity construct removed) ---
-
-#[test]
-#[ignore = "activity construct tombstoned; server-side logic uses @mutation fn; owner: vox-compiler; sunset: 2026-12-31"]
-fn codegen_ts_activity_produces_activities_file() {
-    let src = r#"
-type MyRes = | Ok(v: str) | Error
-
-activity send_email(recipient: str, subject: str) to Result[str] {
-    return Ok(recipient)
-}
-"#;
-    let tokens = lex(src);
-    let module = parse(tokens).unwrap();
-    let hir = vox_compiler::hir::lower_module(&module);
-    let output = generate(&hir).unwrap();
-
-    let filenames: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
-    assert!(
-        filenames.contains(&"activities.ts"),
-        "Should produce activities.ts, got: {:?}",
-        filenames
-    );
-}
-
-#[test]
-#[ignore = "activity construct tombstoned; server-side logic uses @mutation fn; owner: vox-compiler; sunset: 2026-12-31"]
-fn codegen_ts_activity_has_async_function() {
-    let src = r#"
-type MyRes = | Ok(v: str) | Error
-
-activity fetch_data(url: str) to Result[str] {
-    return Ok(url)
-}
-"#;
-    let tokens = lex(src);
-    let module = parse(tokens).unwrap();
-    let hir = vox_compiler::hir::lower_module(&module);
-    let output = generate(&hir).unwrap();
-
-    let activities = output
-        .files
-        .iter()
-        .find(|(n, _)| n == "activities.ts")
-        .unwrap();
-    insta::assert_snapshot!("activity_fetch_data_ts_emit", activities.1);
-}
-
-#[test]
-#[ignore = "activity construct tombstoned; server-side logic uses @mutation fn; owner: vox-compiler; sunset: 2026-12-31"]
-fn codegen_ts_activity_has_runtime_helper() {
-    let src = r#"
-type MyRes = | Ok(v: str) | Error
-
-activity do_work() to Result[str] {
-    return Ok("done")
-}
-"#;
-    let tokens = lex(src);
-    let module = parse(tokens).unwrap();
-    let hir = vox_compiler::hir::lower_module(&module);
-    let output = generate(&hir).unwrap();
-
-    let activities = output
-        .files
-        .iter()
-        .find(|(n, _)| n == "activities.ts")
-        .unwrap();
-    insta::assert_snapshot!("activity_do_work_ts_runtime_helpers", activities.1);
-}
-
 // --- TS codegen for tables ---
 
 #[test]
@@ -217,45 +146,6 @@ table Task {
 
     let schema = output.files.iter().find(|(n, _)| n == "schema.ts").unwrap();
     insta::assert_snapshot!("table_task_schema_ts_emit", schema.1);
-}
-
-// --- @v0 codegen tests ---
-
-#[test]
-#[ignore = "@v0 components dropped from HIR (Path B removed); no TSX generated — owner: integration-tests sunset: 2026-12-31"]
-fn codegen_v0_placeholder_from_prompt() {
-    let src = r#"@v0 "A stats dashboard with charts" Stats {}"#;
-    let tokens = lex(src);
-    let module = parse(tokens).unwrap();
-    let hir = vox_compiler::hir::lower_module(&module);
-    let output = generate(&hir).unwrap();
-
-    let filenames: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
-    assert!(
-        filenames.contains(&"Stats.tsx"),
-        "Should produce Stats.tsx, got: {:?}",
-        filenames
-    );
-
-    let stats = output.files.iter().find(|(n, _)| n == "Stats.tsx").unwrap();
-    insta::assert_snapshot!("v0_stats_tsx_placeholder", stats.1);
-}
-
-#[test]
-#[ignore = "@v0 components dropped from HIR (Path B removed); no TSX generated — owner: integration-tests sunset: 2026-12-31"]
-fn codegen_v0_placeholder_from_image() {
-    let src = r#"@v0 from "design.png" Dashboard {}"#;
-    let tokens = lex(src);
-    let module = parse(tokens).unwrap();
-    let hir = vox_compiler::hir::lower_module(&module);
-    let output = generate(&hir).unwrap();
-
-    let dash = output
-        .files
-        .iter()
-        .find(|(n, _)| n == "Dashboard.tsx")
-        .unwrap();
-    insta::assert_snapshot!("v0_dashboard_tsx_from_image", dash.1);
 }
 
 // --- @table / index end-to-end pipeline tests ---
@@ -417,9 +307,10 @@ fn codegen_tanstack_start_flag_does_not_emit_separate_router_file() {
 
 #[test]
 fn golden_web_routing_fullstack_codegen_emits_manifest_and_client() {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/golden/web_routing_fullstack.vox");
-    let src = read_utf8_path_capped(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../examples/golden/web_routing_fullstack.vox");
+    let src =
+        read_utf8_path_capped(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
     let tokens = lex(&src);
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);
@@ -451,9 +342,10 @@ fn golden_web_routing_fullstack_codegen_emits_manifest_and_client() {
 
 #[test]
 fn golden_blog_fullstack_codegen_emits_manifest_get_and_post() {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/golden/blog_fullstack.vox");
-    let src = read_utf8_path_capped(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let path =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/golden/blog_fullstack.vox");
+    let src =
+        read_utf8_path_capped(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
     let tokens = lex(&src);
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);
@@ -681,7 +573,6 @@ fn pipeline_mixed_declarations_hir_counts_and_web_ir_validate() {
     );
     assert_eq!(hir.endpoint_fns.len(), 1);
 
-
     let web = lower_hir_to_web_ir(&hir);
     let diags = validate_web_ir(&web);
     assert!(diags.is_empty(), "{diags:?}");
@@ -772,11 +663,7 @@ fn assert_mixed_surface_codegen_core_files() {
         let output = generate(&hir).expect("codegen");
         let names: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
         for needle in ["Dash.tsx", "Shell.tsx", "routes.manifest.ts"] {
-            assert!(
-                names.contains(&needle),
-                "expected {needle} in {:?}",
-                names
-            );
+            assert!(names.contains(&needle), "expected {needle} in {:?}", names);
         }
     });
 }

@@ -84,3 +84,14 @@ describe('CodeRabbitView toast shape (B6)', () => {
     await new Promise((r) => setTimeout(r, 0));
   });
 });
+
+describe('CodeRabbitView theme (axe color-contrast)', () => {
+  it('styles its text with the theme tokens, not light-theme fallback greys', () => {
+    const { container } = render(<CodeRabbitView pushToast={vi.fn()} />);
+    const html = container.innerHTML.toLowerCase();
+    // #5f5e5a and #888780 are light-theme greys that fail contrast on the dark surface.
+    expect(html).not.toContain('#5f5e5a');
+    expect(html).not.toContain('#888780');
+    expect(html).toContain('var(--color-text-secondary)');
+  });
+});

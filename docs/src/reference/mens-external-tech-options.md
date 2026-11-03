@@ -277,12 +277,18 @@ For Vox, that means:
 
 ## Recommended adoption sequence
 
-```mermaid
-flowchart TD
-    benchmark[StrengthenBenchmarksAndMetrics] --> retrieval[AddRepoAwareRetrievalForCodegen]
-    retrieval --> constraint[PrototypeGrammarConstrainedDecoding]
-    constraint --> semantic[PrototypeSemanticBenchmarkSubset]
-    semantic --> customGate[RevisitCustomModelDecision]
+```vox-diagram
+graph {
+    node benchmark: "StrengthenBenchmarksAndMetrics"
+    node retrieval: "AddRepoAwareRetrievalForCodegen"
+    node constraint: "PrototypeGrammarConstrainedDecoding"
+    node semantic: "PrototypeSemanticBenchmarkSubset"
+    node customGate: "RevisitCustomModelDecision"
+    benchmark -> retrieval
+    retrieval -> constraint
+    constraint -> semantic
+    semantic -> customGate
+}
 ```
 
 ## Practical shortlist

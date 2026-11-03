@@ -565,7 +565,7 @@ pub fn transcribe_pcm_internal(
     );
 
     let mut output_segments = Vec::new();
-    let frame_to_ms = |frames: usize| -> u64 { (frames * 10 * 160) as u64 / 16 };
+    let frame_to_ms = mel_frames_to_ms;
 
     if windows.len() == 1 {
         let mut decoder = match build_decoder(
@@ -706,8 +706,20 @@ pub fn transcribe_pcm_internal(
     Ok((merge_transcript_chunk_strings(parts), output_segments))
 }
 
+/// Mel frames to milliseconds: one frame is `HOP_LENGTH` samples at `SAMPLE_RATE` (10 ms).
+fn mel_frames_to_ms(frames: usize) -> u64 {
+    (frames * m::HOP_LENGTH * 1000 / SAMPLE_RATE) as u64
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn mel_frames_to_ms_uses_the_10ms_hop() {
+        // One 30 s Whisper window is N_FRAMES (3000) mel frames.
+        assert_eq!(super::mel_frames_to_ms(super::m::N_FRAMES), 30_000);
+        assert_eq!(super::mel_frames_to_ms(1), 10);
+    }
+
     #[test]
     fn single_window_branch_does_not_force_simulated_oom() {
         let source = include_str!("candle_whisper.rs");

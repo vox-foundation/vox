@@ -5,7 +5,11 @@ mod harness_issue_scorer;
 mod history;
 mod hydrate;
 pub(crate) mod mentions;
-mod message;
+pub mod mermaid_repair;
+pub(crate) mod message;
+pub mod research_intent;
+pub mod research_turn;
+mod turn_events;
 
 pub use history::chat_history;
-pub use message::chat_message;
+pub use message::{chat_message, effective_model_pref};

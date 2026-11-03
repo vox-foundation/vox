@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mens-program-status-and-requirements-audit-2026-09-12.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "MENS Program Status & Requirements Audit",
+  "summary": "Comprehensive audit: rates 25 requirements (R1-R6, D1-D9, M1-M4) against current codebase with evidence; surfaces assumptions corrected; plans forward with 6 prioritized follow-ups.",
+  "scope": ["program requirements audit", "status assessment", "assumption validation", "LoRA adapter application", "cloud calibration", "calibration data gaps"],
+  "cross_refs": ["mens-loc-audit-2026-09.md", "2026-09-11-candle-metal-calibration.md", "mac-hub-qwen3-quantization-pipeline-decision-2026-09-05.md", "mens-cloud-training-economics-2026-09-11.md", "AccelBudget", "memory_model.rs", "CalibrationRecord"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Program audit and status report using 5-point rating scale (✅/⚠️/🔧/❌/🚫). Systematically reviews every requirement against code. Corrects 4 prior assumptions. Surfaces data gaps (only 1/6 calibration cells filled, second Metal measurement blocked by time). Proposes 6 prioritized next steps. Supporting governance document, not a decision."
+}

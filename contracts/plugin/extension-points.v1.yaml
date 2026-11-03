@@ -2,7 +2,7 @@
 # Source of truth: crates/vox-plugin-api/src/extensions/*.rs (+ the VoxPlugin accessors
 # in crates/vox-plugin-api/src/abi.rs). Do NOT hand-edit — regenerate instead.
 schema_version: 1
-abi_version: 12
+abi_version: 13
 extension_points:
 - name: AudioCapture
   module: audio_capture
@@ -16,20 +16,25 @@ extension_points:
   - stop_capture
 - name: BrowserAutomation
   module: browser_automation
-  revision: 4
+  revision: 5
   accessor: as_browser_automation
   methods:
   - ax_tree
   - back
   - click
+  - click_ref
   - click_xy
   - close
+  - cookies_export
+  - cookies_import
   - fill
+  - fill_ref
   - forward
   - goto
   - html
   - list_pages
   - open
+  - open_ex
   - page_info
   - press
   - reload
@@ -40,6 +45,7 @@ extension_points:
   - screenshot_viewport_bytes
   - scroll
   - set_viewport
+  - snapshot
   - stop
   - text
   - type_text
@@ -140,3 +146,10 @@ extension_points:
   - revision
   - supports_cuda
   - supports_wgpu
+- name: WebhookInbox
+  module: webhook_inbox
+  revision: 1
+  accessor: as_webhook_inbox
+  methods:
+  - poll_events
+  - revision

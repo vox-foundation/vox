@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mens-training-ssot.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "MENS Training — Architecture Pointer",
+  "summary": "Navigation pointer page directing readers to canonical reference section for MENS training procedure and operator runbooks.",
+  "scope": ["MENS", "training pipeline", "documentation", "reference"],
+  "cross_refs": ["../reference/mens-training.md", "gui-native-roadmap-status-2026.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

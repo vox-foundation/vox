@@ -44,9 +44,10 @@ pub(super) async fn http_info(
         .unwrap_or(DEFAULT_BIND_PORT);
     let mut allowed_tools: Vec<String> = state.allowed_tools.iter().cloned().collect();
     allowed_tools.sort();
-    let mut read_role_allowed_tools: Vec<String> = visible_tools_for_role(&state, AccessRole::Read)
-        .into_iter()
-        .collect();
+    let mut read_role_allowed_tools: Vec<String> =
+        visible_tools_for(&state, call_context(&state, &connect.0, AccessRole::Read))
+            .into_iter()
+            .collect();
     read_role_allowed_tools.sort();
     Json(GatewayInfo {
         enabled: true,
@@ -87,18 +88,19 @@ pub(super) async fn http_mobile_status(
         return *resp;
     }
 
-    let git = call_tool_json(
-        &state.server_state,
-        "vox_git_status",
-        Value::Object(serde_json::Map::new()),
-    )
-    .await;
-    let orch = call_tool_json(
-        &state.server_state,
-        "vox_orchestrator_status",
-        Value::Object(serde_json::Map::new()),
-    )
-    .await;
+    let role = match resolve_access_role(&state, &headers, Some(&connect.0)) {
+        Ok(r) => r,
+        Err(msg) => {
+            return (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({ "error": msg })),
+            )
+                .into_response();
+        }
+    };
+    let ctx = call_context(&state, &connect.0, role);
+    let git = gated_tool_json(&state, ctx, "vox_git_status").await;
+    let orch = gated_tool_json(&state, ctx, "vox_orchestrator_status").await;
     Json(serde_json::json!({
         "success": true,
         "git_status": git,

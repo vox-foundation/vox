@@ -1,0 +1,184 @@
+{
+  "kind": "graph",
+  "direction": "right",
+  "nodes": [
+    [
+      "Compute Local Embeddings -> Qdrant/MemoryHybrid",
+      "rect",
+      [
+        "Deep Research Storage & Indexing"
+      ]
+    ],
+    [
+      "Create Knowledge Nodes & Claim Edges",
+      "rect",
+      [
+        "Deep Research Storage & Indexing"
+      ]
+    ],
+    [
+      "Hybrid Search (BM25 + Dense Vector)",
+      "rect",
+      [
+        "Subsequent Queries & Chat"
+      ]
+    ],
+    [
+      "Index into SQLite FTS5 & Tantivy",
+      "rect",
+      [
+        "Deep Research Storage & Indexing"
+      ]
+    ],
+    [
+      "New Chat Turn or Research Query",
+      "rect",
+      [
+        "Subsequent Queries & Chat"
+      ]
+    ],
+    [
+      "Retrieve Past Research Evidence & Reports",
+      "rect",
+      [
+        "Subsequent Queries & Chat"
+      ]
+    ],
+    [
+      "Scrape & Gather Web Pages",
+      "rect",
+      [
+        "Active Research Run"
+      ]
+    ],
+    [
+      "Synthesize Research Report",
+      "rect",
+      [
+        "Active Research Run"
+      ]
+    ],
+    [
+      "Upsert into search_documents & chunks",
+      "rect",
+      [
+        "Deep Research Storage & Indexing"
+      ]
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Hybrid Search (BM25 + Dense Vector)",
+        "rect",
+        [
+          "Subsequent Queries & Chat"
+        ]
+      ],
+      [
+        "Retrieve Past Research Evidence & Reports",
+        "rect",
+        [
+          "Subsequent Queries & Chat"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "New Chat Turn or Research Query",
+        "rect",
+        [
+          "Subsequent Queries & Chat"
+        ]
+      ],
+      [
+        "Hybrid Search (BM25 + Dense Vector)",
+        "rect",
+        [
+          "Subsequent Queries & Chat"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "Scrape & Gather Web Pages",
+        "rect",
+        [
+          "Active Research Run"
+        ]
+      ],
+      [
+        "Upsert into search_documents & chunks",
+        "rect",
+        [
+          "Deep Research Storage & Indexing"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "Synthesize Research Report",
+        "rect",
+        [
+          "Active Research Run"
+        ]
+      ],
+      [
+        "Create Knowledge Nodes & Claim Edges",
+        "rect",
+        [
+          "Deep Research Storage & Indexing"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "Synthesize Research Report",
+        "rect",
+        [
+          "Active Research Run"
+        ]
+      ],
+      [
+        "Index into SQLite FTS5 & Tantivy",
+        "rect",
+        [
+          "Deep Research Storage & Indexing"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "Upsert into search_documents & chunks",
+        "rect",
+        [
+          "Deep Research Storage & Indexing"
+        ]
+      ],
+      [
+        "Compute Local Embeddings -> Qdrant/MemoryHybrid",
+        "rect",
+        [
+          "Deep Research Storage & Indexing"
+        ]
+      ],
+      ""
+    ]
+  ],
+  "containers": [
+    [
+      "Active Research Run"
+    ],
+    [
+      "Deep Research Storage & Indexing"
+    ],
+    [
+      "Subsequent Queries & Chat"
+    ]
+  ]
+}

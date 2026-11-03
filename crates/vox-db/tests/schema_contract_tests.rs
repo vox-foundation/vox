@@ -107,3 +107,50 @@ async fn record_agent_event_round_trip_matches_agent_events_table() {
     assert_eq!(payload_json.as_deref(), Some(r#"{"k":1}"#));
     assert_eq!(cli_version.as_deref(), Some("9.9.9"));
 }
+
+#[tokio::test]
+async fn provider_quota_usage_table_exists() {
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+    let cols = pragma_columns(&db, "provider_quota_usage").await;
+    for col in [
+        "provider",
+        "period_key",
+        "units_spent",
+        "units_limit",
+        "last_synced_at",
+    ] {
+        assert!(
+            cols.iter().any(|c| c == col),
+            "provider_quota_usage.{col} missing: {cols:?}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn provider_quota_usage_spend_and_get_roundtrip() {
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+    let period = "2026-09";
+    db.record_quota_spend("tavily", period, 50)
+        .await
+        .expect("record spend");
+    let usage = db
+        .get_quota_usage("tavily", period)
+        .await
+        .expect("get usage")
+        .expect("some usage");
+    assert_eq!(usage.provider, "tavily");
+    assert_eq!(usage.period_key, period);
+    assert_eq!(usage.units_spent, 50);
+    assert_eq!(usage.units_limit, 1000);
+
+    // Spend additional 25
+    db.record_quota_spend("tavily", period, 25)
+        .await
+        .expect("record spend 2");
+    let usage2 = db
+        .get_quota_usage("tavily", period)
+        .await
+        .expect("get usage 2")
+        .expect("some usage 2");
+    assert_eq!(usage2.units_spent, 75);
+}

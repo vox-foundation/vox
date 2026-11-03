@@ -4,44 +4,64 @@
 //! - [`context::SearchRuntimeContext`] — repo root, optional VoxDb handle, memory paths.
 //! - [`execution::execute_search_plan`] — memory hybrid + knowledge + chunks + repo inventory.
 //! - [`bundle::run_search_with_verification`] — automatic verification pass.
-//! - Optional **Tantivy** (`tantivy-lexical`) and **Qdrant** (`qdrant-vector`) backends.
+//! - Optional **Tantivy** (`tantivy-lexical`, the KB Library index in `library`) and **Qdrant** (`qdrant-vector`) backends.
 
 pub mod a2a_contract;
+pub mod arxiv;
 pub mod bundle;
+pub mod capture;
 pub mod context;
 pub mod corroboration;
 pub mod crag;
+#[cfg(feature = "web-scrape")]
+pub mod crawler;
 pub mod duckduckgo;
 pub mod embedding_env;
 pub mod embeddings;
 pub mod evaluation;
 pub mod execution;
 pub mod ingest;
+pub mod kb_eval;
+pub mod kb_ids;
+pub mod kb_inbox;
+pub mod kb_injection;
+pub mod kb_rewrite_guard;
+pub mod kb_staleness;
 pub mod llm_query_expansion;
 mod memory_cache;
 pub mod memory_hybrid;
+pub mod mens_research_subagent;
 pub mod novelty;
+pub mod openalex;
+pub mod parallel_exploration;
 pub mod policy;
+#[cfg(feature = "tavily")]
+pub mod probe;
 pub mod research;
 mod rrf;
+pub mod safety_governor;
 #[cfg(feature = "web-scrape")]
 pub mod scraper;
+pub mod search_circuit_breaker;
 pub mod searxng;
 mod searxng_defaults;
 /// Intent-oriented repo path discovery (AgentOS semantic filesystem bridge).
 pub mod semantic_fs;
+pub mod spa_fallback;
 pub mod symbol_proximity;
-mod tavily_budget;
+pub mod tavily_budget;
 #[cfg(feature = "tavily")]
 pub mod tavily_extract;
 #[cfg(feature = "tavily")]
 pub mod tavily_research;
+pub mod term_density_reranker;
 pub mod trust;
 pub mod unified;
 pub mod web_dispatcher;
+pub mod wikipedia;
 
 #[cfg(feature = "tantivy-lexical")]
-pub mod lexical_tantivy;
+pub mod library;
 #[cfg(feature = "tavily")]
 pub mod tavily;
 #[cfg(feature = "qdrant-vector")]
@@ -64,10 +84,53 @@ pub use execution::{
 };
 pub use ingest::ingest_markdown_tree;
 pub use memory_hybrid::{HybridSearchHit, MemorySearchEngine};
-pub use policy::{SEARCH_POLICY_DEFAULT_VERSION, SearchPolicy, SearchPolicyFeedback};
+pub use parallel_exploration::{
+    BranchResult, CancellationToken, ParallelExplorationCoordinator, ResearchBranch,
+};
+pub use policy::{ResearchLane, SEARCH_POLICY_DEFAULT_VERSION, SearchPolicy, SearchPolicyFeedback};
+pub use search_circuit_breaker::{
+    ProviderCircuitBreaker, SearchProviderCircuitRegistry, SearchProviderId,
+};
 pub use tavily_budget::TavilySessionBudget;
 pub use unified::UnifiedHit;
 pub use vox_actor_runtime::llm::LlmConfig;
+pub use web_dispatcher::{WebSearchDispatcher, WebSearchDispatcherExt};
 
 #[cfg(test)]
 mod semcov_wave21_tests;
+
+/// Guard for the approved `feature:vox-search-default` decision: the KB Library tests only run
+/// in PR CI because `tantivy-lexical` is a default feature.
+#[cfg(test)]
+#[test]
+#[allow(clippy::assertions_on_constants)] // the constant IS the assertion
+fn tantivy_lexical_enabled_by_default() {
+    assert!(cfg!(feature = "tantivy-lexical"));
+}
+
+/// Task 9c: the unit-test twin of `tests/common/mod.rs` — routes every
+/// non-loopback request through a dead local proxy so no unit test (e.g. a
+/// `web-scrape` scrape of a hard-coded `en.wikipedia.org` / `arxiv.org` hit
+/// URL) can reach a real web host. Wiremock on loopback is exempt.
+#[cfg(test)]
+mod test_egress_guard {
+    #[ctor::ctor(unsafe)]
+    #[allow(unsafe_code)] // SAFETY: ctors run pre-main, single-threaded, before any test thread.
+    fn block_non_loopback_egress() {
+        unsafe {
+            for key in [
+                "HTTP_PROXY",
+                "HTTPS_PROXY",
+                "ALL_PROXY",
+                "http_proxy",
+                "https_proxy",
+                "all_proxy",
+            ] {
+                std::env::set_var(key, "http://127.0.0.1:9");
+            }
+            for key in ["NO_PROXY", "no_proxy"] {
+                std::env::set_var(key, "127.0.0.1,localhost,::1");
+            }
+        }
+    }
+}

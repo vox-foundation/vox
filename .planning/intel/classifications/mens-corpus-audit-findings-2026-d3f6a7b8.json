@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mens-corpus-audit-findings-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "MENS Corpus Pipeline Audit & Golden Example Repair — 2026-05-13",
+  "summary": "Audit of 56 golden Vox examples; 24 initially failing type-checker, all fixed; categorizes 15 root-cause classes; reports corpus pipeline results (19,930 training pairs).",
+  "scope": ["corpus audit", "golden examples", "Vox compiler failures", "training data pipeline", "root-cause taxonomy"],
+  "cross_refs": ["examples/golden/", "vox check", "vox mens corpus pairs", "vox mens corpus mix"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Audit report documenting findings and fixes. Categories 1-15 are compiler limitations and workarounds. Pipeline results section reports metrics. Surfaces compiler issues (Option[T] inference, Unit literal, db.Table.filter) for future work. Supporting research, not a decision."
+}

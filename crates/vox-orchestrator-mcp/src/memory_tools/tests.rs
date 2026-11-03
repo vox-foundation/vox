@@ -112,6 +112,7 @@ async fn retrieval_bundle_prefers_bm25_before_lexical_fallback() {
         RetrievalTriggerMode::ExplicitToolQuery,
         5,
         None,
+        false,
     )
     .await
     .expect("retrieval bundle");

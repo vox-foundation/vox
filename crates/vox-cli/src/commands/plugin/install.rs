@@ -18,12 +18,13 @@ pub async fn run(
     url: Option<&str>,
     yes: bool,
     allow_unverified: bool,
+    force: bool,
 ) -> Result<()> {
     match (id, path, url) {
         (_, Some(dir), None) => install_from_path(dir, yes),
         (_, None, Some(u)) => install_from_url(u, yes, None, allow_unverified).await,
         (Some(plugin_id), None, None) => {
-            install_from_catalog(plugin_id, yes, allow_unverified).await
+            install_from_catalog(plugin_id, yes, allow_unverified, force).await
         }
         (None, None, None) => bail!("Specify a plugin id, --path <dir>, or --url <url>"),
         (Some(_), Some(_), _) | (_, Some(_), Some(_)) => {
@@ -54,6 +55,28 @@ fn validate_path_component(kind: &str, value: &str) -> Result<()> {
         bail!("plugin {kind} {value:?} contains {bad:?}; allowed: A-Z a-z 0-9 . - _");
     }
     Ok(())
+}
+
+/// Refuse to install a plugin whose declared `requires-tag` the host does not
+/// satisfy (e.g. `mens-candle-cuda` on a host with no CUDA driver), unless
+/// `force` overrides it. Split out as pure logic — taking an already-probed
+/// [`vox_plugin_host::CapabilitySet`] rather than probing itself — so it is
+/// unit-testable on any host regardless of actual hardware.
+fn check_platform_compatibility(
+    id: &str,
+    requires_tag: Option<&str>,
+    caps: &vox_plugin_host::CapabilitySet,
+    force: bool,
+) -> Result<()> {
+    if force || caps.satisfies(requires_tag) {
+        return Ok(());
+    }
+    let tag = requires_tag.unwrap_or("<none>");
+    bail!(
+        "plugin '{id}' requires capability '{tag}', which this host does not have — \
+         installing it would produce a plugin that cannot run here. Pass --force to \
+         install anyway."
+    );
 }
 
 /// Copy plugin files from `src_dir` (must contain Plugin.toml) into the install root.
@@ -207,9 +230,20 @@ fn record_artifact_checksums(
         return Ok(());
     }
 
+    // A local `--path` dev install (build one platform, install from the
+    // crate dir) naturally supplies only the CURRENT triple's artifact, even
+    // though a multi-platform plugin's Plugin.toml legitimately declares
+    // every platform's filename (true for the real release bundle). Only the
+    // current triple's presence is guaranteed by the earlier "artifact for
+    // this triple was not found" check in `install_from_path` — checksum
+    // whatever else actually landed in `dest`, and skip what didn't, rather
+    // than treating an absent OTHER platform's file as an install failure.
     let mut hashes = std::collections::BTreeMap::new();
     for (triple, filename) in declared {
         let artifact_path = dest.join(filename);
+        if !artifact_path.is_file() {
+            continue;
+        }
         let bytes = std::fs::read(&artifact_path)
             .with_context(|| format!("reading {} to checksum it", artifact_path.display()))?;
         use sha3::{Digest, Sha3_256};
@@ -592,12 +626,31 @@ fn local_fallback_enabled() -> bool {
 }
 
 /// Resolve `id` in the catalog, parse default-source, and install.
-async fn install_from_catalog(id: &str, yes: bool, allow_unverified: bool) -> Result<()> {
+async fn install_from_catalog(
+    id: &str,
+    yes: bool,
+    allow_unverified: bool,
+    force: bool,
+) -> Result<()> {
     let catalog = vox_plugin_catalog::all_plugins();
     let entry = catalog
         .iter()
         .find(|p| p.id == id)
         .with_context(|| format!("Plugin '{}' not found in catalog", id))?;
+
+    // Refuse a plugin the host cannot run (e.g. a CUDA backend with no CUDA
+    // driver) before touching the network or the filesystem. Checked here,
+    // not just by `vox plugin doctor` after the fact, because "installed but
+    // unusable" is the exact bug this guards: `entry.requires_tag` and the
+    // host capability probe already exist for MlBackend selection
+    // (vox-plugin-host::capability); this reuses them instead of installing
+    // first and finding out never works.
+    check_platform_compatibility(
+        id,
+        entry.requires_tag.as_deref(),
+        &vox_plugin_host::probe(),
+        force,
+    )?;
 
     let source = &entry.default_source;
 
@@ -804,7 +857,7 @@ mod tests {
     fn local_fallback_is_opt_in_not_opt_out() {
         let src = include_str!("install.rs");
         // Split so this needle cannot match the assertion message below.
-        let opt_out = concat!("VOX_NO_", "LOCAL_PLUGIN_FALLBACK");
+        let opt_out = concat!("VOX_", "NO_LOCAL_PLUGIN_FALLBACK");
         assert!(
             !src.contains(opt_out),
             "the workspace-local plugin fallback is still opt-out; it must require \
@@ -1008,7 +1061,10 @@ version = \"../../..\"
         // longer exercise the `local:` refusal this test exists to guard --
         // and routing them here would make a live network call from a unit
         // test. nvml-probe is still a `local:` entry in catalog.toml.
-        let err = install_from_catalog("nvml-probe", true, false)
+        // force=true: nvml-probe requires-tag "nvidia-gpu", which this test
+        // host does not have; this test exercises the local-source opt-in
+        // refusal, not the platform-compatibility gate, so bypass it.
+        let err = install_from_catalog("nvml-probe", true, false, true)
             .await
             .expect_err("a CWD-relative local: source must not install by default");
         let m = err.to_string();
@@ -1055,6 +1111,42 @@ version = \"../../..\"
     }
 
     #[test]
+    fn platform_check_refuses_a_missing_capability_without_force() {
+        let caps = vox_plugin_host::CapabilitySet::from_tags(["cpu-only", "apple-silicon"]);
+        let err =
+            check_platform_compatibility("mens-candle-cuda", Some("nvidia-gpu"), &caps, false)
+                .expect_err("a CUDA plugin must be refused on a host with no CUDA capability");
+        let m = err.to_string();
+        assert!(
+            m.contains("nvidia-gpu"),
+            "error must name the missing capability: {m}"
+        );
+        assert!(m.contains("--force"), "error must name the override: {m}");
+    }
+
+    #[test]
+    fn platform_check_allows_a_missing_capability_with_force() {
+        let caps = vox_plugin_host::CapabilitySet::from_tags(["cpu-only"]);
+        check_platform_compatibility("mens-candle-cuda", Some("nvidia-gpu"), &caps, true)
+            .expect("--force must override the platform-compatibility check");
+    }
+
+    #[test]
+    fn platform_check_allows_a_matching_capability_without_force() {
+        let caps =
+            vox_plugin_host::CapabilitySet::from_tags(["cpu-only", "apple-silicon", "metal"]);
+        check_platform_compatibility("mens-candle-metal", Some("apple-silicon"), &caps, false)
+            .expect("a Metal plugin must be allowed on a host with apple-silicon");
+    }
+
+    #[test]
+    fn platform_check_always_allows_a_plugin_with_no_requires_tag() {
+        let caps = vox_plugin_host::CapabilitySet::from_tags(["cpu-only"]);
+        check_platform_compatibility("oratio", None, &caps, false)
+            .expect("a plugin with no requires-tag must never be blocked by the platform check");
+    }
+
+    #[test]
     fn missing_hash_is_refused_by_default() {
         let err = verify_plugin_archive(PAYLOAD, None, false, "https://example/p.zip")
             .expect_err("an unverifiable plugin must not install");
@@ -1072,24 +1164,25 @@ version = \"../../..\"
         assert_eq!(got, payload_hash());
     }
 
-    /// A catalog install must fail BEFORE any network call when the entry is
-    /// unpinned — an unpinned `latest` asset cannot be checksummed at all.
-    #[tokio::test]
-    #[allow(unsafe_code)] // `remove_var` is unsafe on Rust 2024; ENV_LOCK serialises this test's mutators.
-    #[allow(clippy::await_holding_lock)] // `#[tokio::test]` is single-threaded, so holding the guard across the await is sound.
-    async fn catalog_install_refuses_an_unpinned_entry_before_downloading() {
-        // ENV_LOCK (defined above) serialises this against the fallback tests,
-        // which set and remove the same process-global variable.
-        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        unsafe { std::env::remove_var(LOCAL_FALLBACK_ENV) };
-        let err = install_from_catalog("oratio", true, false)
-            .await
-            .expect_err("unpinned catalog entry must not install");
-        let m = err.to_string();
-        assert!(
-            m.contains("no pinned `version`") || m.contains("no sha256"),
-            "expected a pre-network refusal, got: {m}"
-        );
+    /// Third-party `github:` catalog entries keep the pinned-hash model: an
+    /// unpinned `latest` asset cannot be checksummed at all. (First-party
+    /// entries resolve version + hash from this binary's own release's
+    /// `checksums.txt` instead, so they are exempt.)
+    #[test]
+    fn third_party_github_catalog_entries_pin_a_version() {
+        for p in vox_plugin_catalog::all_plugins() {
+            let Some(gh) = p.default_source.strip_prefix("github:") else {
+                continue;
+            };
+            if gh == FIRST_PARTY_PLUGIN_REPO {
+                continue;
+            }
+            assert!(
+                p.version.is_some(),
+                "plugin '{}' has a third-party github: source but no pinned version",
+                p.id
+            );
+        }
     }
 
     /// Serialises tests that point `VOX_PLUGINS_DIR` at a private tempdir —
@@ -1150,6 +1243,71 @@ version = \"../../..\"
         );
     }
 
+    /// A legitimate local `--path` dev install (e.g. `cargo build -p
+    /// vox-plugin-foo --release` then `vox plugin install --path
+    /// crates/vox-plugin-foo`) naturally supplies only the CURRENT platform's
+    /// built artifact — that's what one `cargo build` on one machine produces.
+    /// A multi-platform plugin's Plugin.toml legitimately declares other
+    /// platforms' filenames too (they exist in the real release bundle), but
+    /// `record_artifact_checksums` tried to hash every declared entry
+    /// unconditionally and errored on the ones this local build never
+    /// produced — breaking the exact workflow the earlier
+    /// "artifact for this triple was not found" guard is supposed to leave
+    /// open (that guard only checks the CURRENT triple's artifact).
+    #[test]
+    #[allow(unsafe_code)] // `set_var`/`remove_var` are unsafe on Rust 2024; PLUGINS_DIR_LOCK serialises this test's mutators.
+    fn install_from_path_ignores_undeclared_other_platform_artifacts() {
+        let _guard = PLUGINS_DIR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let triple = vox_plugin_types::current_target_triple()
+            .expect("test host must be a supported triple");
+
+        let src = tempfile::tempdir().expect("src tempdir");
+        // Only the current triple's file actually exists in this local build...
+        std::fs::write(src.path().join("libdemo_current.bin"), b"real bytes")
+            .expect("write current-triple artifact");
+        // ...but Plugin.toml declares another platform too, as a real
+        // multi-platform plugin's manifest does.
+        std::fs::write(
+            src.path().join("Plugin.toml"),
+            format!(
+                "[plugin]\nid = \"multi-platform-demo\"\nversion = \"0.1.0\"\n\n\
+                 [plugin.payload]\nkind = \"code\"\nabi-version = 1\n\n\
+                 [plugin.payload.artifacts]\n\"{triple}\" = \"libdemo_current.bin\"\n\
+                 \"some-other-triple\" = \"libdemo_other.bin\"\n"
+            ),
+        )
+        .expect("write Plugin.toml");
+
+        let plugins_dir = tempfile::tempdir().expect("plugins tempdir");
+        // vox-arch-check: allow abs-path (test-local tempdir, not a repo path)
+        unsafe { std::env::set_var("VOX_PLUGINS_DIR", plugins_dir.path()) };
+        let result = install_from_path(src.path(), true);
+        unsafe { std::env::remove_var("VOX_PLUGINS_DIR") };
+        result.expect("install must succeed even though a DIFFERENT platform's artifact is absent");
+
+        let dest_manifest = plugins_dir
+            .path()
+            .join("multi-platform-demo")
+            .join("0.1.0")
+            .join("Plugin.toml");
+        let installed: toml::Value = toml::from_str(
+            &std::fs::read_to_string(&dest_manifest).expect("read installed manifest"),
+        )
+        .expect("installed manifest must still parse");
+        assert!(
+            installed["plugin"]["payload"]["artifacts-sha3"]
+                .get(triple)
+                .is_some(),
+            "the current triple's artifact must still be checksummed"
+        );
+        assert!(
+            installed["plugin"]["payload"]["artifacts-sha3"]
+                .get("some-other-triple")
+                .is_none(),
+            "an undeclared-and-absent other platform's artifact must not appear in the checksum table"
+        );
+    }
+
     #[test]
     fn parse_checksums_extracts_name_to_hash_pairs() {
         let text = "\
@@ -1178,6 +1336,7 @@ bbbb000000000000000000000000000000000000000000000000000000002222  checksums.txt
     #[test]
     fn first_party_plugin_urls_are_built_from_the_running_binary_version() {
         let (asset_url, checksums_url, asset_name) =
+            // drift-allow(version-string): fixture version, independent of the workspace version
             first_party_plugin_urls("mens-candle-metal", "0.6.0", "macos-aarch64");
         assert_eq!(asset_name, "mens-candle-metal-v0.6.0-macos-aarch64.zip");
         assert_eq!(
@@ -1199,6 +1358,7 @@ bbbb000000000000000000000000000000000000000000000000000000002222  checksums.txt
     fn a_release_tag_override_changes_only_the_tag_not_the_asset_name() {
         let (asset_url, checksums_url, asset_name) = first_party_plugin_urls_tagged(
             "mens-candle-metal",
+            // drift-allow(version-string): fixture version, independent of the workspace version
             "0.6.0",
             "macos-aarch64",
             "v0.6.0-rc.4735",
@@ -1226,6 +1386,7 @@ bbbb000000000000000000000000000000000000000000000000000000002222  checksums.txt
     #[test]
     fn first_party_plugin_urls_never_contain_the_literal_latest() {
         let (asset_url, checksums_url, _) =
+            // drift-allow(version-string): fixture version, independent of the workspace version
             first_party_plugin_urls("mens-candle-cuda", "0.6.0", "linux-x86_64");
         assert!(!asset_url.contains("latest"), "got {asset_url}");
         assert!(!checksums_url.contains("latest"), "got {checksums_url}");

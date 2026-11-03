@@ -29,22 +29,33 @@ pub(crate) fn visit_rs_files(dir: &Path, f: &mut impl FnMut(&Path) -> Result<()>
 /// Allowlisted non-`.vox` glue under `scripts/` (bootstrap / installer stubs only).
 /// Keep in sync with [scripts/ci/script-hygiene.vox](scripts/ci/script-hygiene.vox).
 const SCRIPT_GLUE_ALLOWLIST: &[&str] = &[
-    // Thin bootstrap launchers (pre-`vox`-binary): exempt by design.
+    // Thin bootstrap launchers and public release installers (pre-`vox`-binary): exempt by design.
+    "scripts/install.ps1",
+    "scripts/install.sh",
     "scripts/vox-dev.sh",
     "scripts/windows/vox-dev.ps1",
+    // Inert test fixtures consumed by scripts/broker-bypass-lint.vox (never executed).
+    "scripts/broker-bypass-fixtures/known-bypass-rustup-run-continuation.sh",
+    "scripts/broker-bypass-fixtures/known-bypass-rustup-which.sh",
+    "scripts/broker-bypass-fixtures/known-bypass.sh",
+    "scripts/broker-bypass-fixtures/no-bypass-bare-cargo.sh",
     // Coverage-graph analysis tooling (Python; read-only reporting, not runtime glue).
     // Tracked exception — do NOT add new .py here without rationale.
     "scripts/coverage-graph/build_index.py",
     "scripts/coverage-graph/candidate_gaps.py",
     "scripts/coverage-graph/dup_and_wiring.py",
     "scripts/coverage-graph/emit_baseline.py",
+    "scripts/coverage-graph/emit_unproven_worklist.py",
     "scripts/coverage-graph/export_lcov_chunked.py",
     "scripts/coverage-graph/ingest_reaches.py",
     "scripts/coverage-graph/merge_behaviors_to_graph.py",
     "scripts/coverage-graph/os_compat.py",
     "scripts/coverage-graph/overlay_tests.py",
+    "scripts/coverage-graph/prune_graph_snapshot.py",
+    "scripts/coverage-graph/ratchet_check.py",
     "scripts/coverage-graph/rebuild_full_graph.py",
     "scripts/coverage-graph/recover_and_synth.py",
+    "scripts/coverage-graph/test_manifest_writer.py",
     "scripts/coverage-graph/test_overlay_tests.py",
 ];
 
@@ -466,6 +477,20 @@ fn run_mens_gate_unix_isolated(root: &Path, profile: &str, opts: &MensGateOpts) 
     Ok(())
 }
 
+/// Rewrite a `cargo test ...` arg list into `cargo nextest run ... --no-tests=fail` so a
+/// filter that matches zero tests (typo, renamed/deleted test) hard-fails instead of the
+/// plain-`cargo test` silent-pass (exit 0 on "0 tests run"). Non-`test`-subcommand arg lists
+/// (there are none in `gates.yaml` today, but the check is defensive) pass through unchanged.
+fn rewrite_test_to_nextest(arg_strs: Vec<String>) -> Vec<String> {
+    if arg_strs.first().map(String::as_str) != Some("test") {
+        return arg_strs;
+    }
+    let mut out = vec!["nextest".to_string(), "run".to_string()];
+    out.extend(arg_strs.into_iter().skip(1));
+    out.push("--no-tests=fail".to_string());
+    out
+}
+
 fn run_mens_gate_steps(root: &Path, profile: &str) -> Result<()> {
     let manifest_path = resolve_mens_gate_manifest_path(root);
     let raw = read_utf8_path_capped(&manifest_path)
@@ -498,6 +523,10 @@ fn run_mens_gate_steps(root: &Path, profile: &str) -> Result<()> {
             .iter()
             .filter_map(|v| v.as_str().map(str::to_string))
             .collect();
+        // `cargo test <filter>` exits 0 when the filter matches zero tests (a typo'd or
+        // deleted test name silently "passes"). Route through `nextest run --no-tests=fail`
+        // instead, which hard-fails when a step's filter matches nothing.
+        let arg_strs = rewrite_test_to_nextest(arg_strs);
         eprintln!(">> {cmd} {}", arg_strs.join(" "));
         let st = if cmd == "cargo" {
             let mut child = Command::new(&cargo);
@@ -567,22 +596,20 @@ pub(crate) fn run_toestub_scoped_roots(
             })
             .collect()
     };
-    let cargo = cargo_bin();
-    let nested_target = nested_cargo_target_dir(repo);
-    let mut c = Command::new(&cargo);
-    c.current_dir(repo)
-        .env("CARGO_TARGET_DIR", &nested_target)
-        .args([
-            "run",
-            "-q",
-            "-p",
-            "vox-code-audit",
-            "--bin",
-            "toestub",
-            "--",
-            "--format",
-            "json",
-        ]);
+    // Installed `toestub`, never `cargo run` (that built vox-code-audit into a cold nested
+    // target on every push). Locally a missing binary is skipped; hosted CI builds it first.
+    let bin = match vox_cli_ci::installed_tool("toestub") {
+        vox_cli_ci::ToolPath::Found(p) => p,
+        vox_cli_ci::ToolPath::SkipLocal => {
+            println!("    TOESTUB: toestub not installed: skipped locally (hosted CI runs it)");
+            return Ok(());
+        }
+        vox_cli_ci::ToolPath::MissingOnCi => {
+            bail!("toestub is not on PATH; the CI job must build vox-code-audit before this step")
+        }
+    };
+    let mut c = Command::new(&bin);
+    c.current_dir(repo).args(["--format", "json"]);
     if mode != ToestubCiMode::Legacy {
         c.arg("--mode").arg(mode.as_cli_str());
     }
@@ -596,13 +623,37 @@ pub(crate) fn run_toestub_scoped_roots(
         c.arg(root.to_string_lossy().as_ref());
     }
     let output = c.output().context("spawn toestub scoped (batched)")?;
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        bail!("toestub scoped run failed: {stderr}");
-    }
     let stdout = String::from_utf8_lossy(&output.stdout);
     print_toestub_json_summary(&stdout, roots.len());
+    if !output.status.success() {
+        let critical = toestub_critical_findings(&stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!(
+            "toestub scoped run failed ({} critical finding(s)):\n  {}\n{stderr}",
+            critical.len(),
+            critical.join("\n  ")
+        );
+    }
     Ok(())
+}
+
+/// `rule_id file:line` for each critical finding in a TOESTUB JSON envelope — the findings that
+/// fail `--mode enforce-warn`, so a failed gate can name them instead of only its stderr.
+fn toestub_critical_findings(stdout: &str) -> Vec<String> {
+    let Ok(doc) = serde_json::from_str::<serde_json::Value>(stdout.trim()) else {
+        return Vec::new();
+    };
+    doc.get("findings")
+        .and_then(|v| v.as_array())
+        .into_iter()
+        .flatten()
+        .filter(|f| f.get("severity").and_then(|v| v.as_str()) == Some("critical"))
+        .map(|f| {
+            let s = |k: &str| f.get(k).and_then(|v| v.as_str()).unwrap_or("?");
+            let line = f.get("line").and_then(|v| v.as_u64()).unwrap_or(0);
+            format!("{} {}:{line}", s("rule_id"), s("file"))
+        })
+        .collect()
 }
 
 /// Parse TOESTUB JSON envelope and print a one-line summary (no snippet dumps).
@@ -646,6 +697,19 @@ mod toestub_summary_tests {
     fn toestub_json_summary_parses_envelope() {
         let json = r#"{"schema_version":1,"files_scanned":3,"findings":[{"severity":"error"},{"severity":"warning"}]}"#;
         print_toestub_json_summary(json, 2);
+    }
+
+    #[test]
+    fn critical_findings_name_rule_and_location() {
+        let json = r#"{"findings":[
+            {"severity":"warning","rule_id":"skeleton/x","file":"a.rs","line":1},
+            {"severity":"critical","rule_id":"security/hardcoded-secret/aws-key","file":"b.rs","line":302}
+        ]}"#;
+        assert_eq!(
+            super::toestub_critical_findings(json),
+            vec!["security/hardcoded-secret/aws-key b.rs:302".to_string()]
+        );
+        assert!(super::toestub_critical_findings("not json").is_empty());
     }
 }
 

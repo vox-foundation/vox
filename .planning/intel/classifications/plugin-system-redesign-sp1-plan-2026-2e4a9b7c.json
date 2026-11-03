@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/plugin-system-redesign-sp1-plan-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Plugin System Redesign — SP1 Implementation Plan (2026)",
+  "summary": "Step-by-step TDD implementation plan for plugin manifest schemas, vox-plugin-catalog SSOT crate, documentation, and parity CI guards.",
+  "scope": ["implementation planning", "plugin system", "test-driven development", "catalog schema", "CI automation"],
+  "cross_refs": ["plugin-system-redesign-2026.md", "docs/src/reference/plugin-manifest.md", "docs/src/reference/plugin-catalog.md", "vox-plugin-catalog", "vox-build-meta"],
+  "locked": false,
+  "precedence": null
+}

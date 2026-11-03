@@ -1,0 +1,19 @@
+flowchart LR
+    e["Epsilon"]
+    subgraph Outer ["Outer scope"]
+        a["Alpha"]
+        subgraph Middle ["Middle scope"]
+            b["Beta"]
+            subgraph Inner ["Inner scope"]
+                c["Gamma"]
+            end
+        end
+        subgraph Plain ["Plain"]
+            d["Delta"]
+        end
+    end
+    b --> c
+    a --> b
+    a --> c
+    c --> d
+    e --> b

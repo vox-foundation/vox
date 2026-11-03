@@ -2,11 +2,18 @@ import React from 'react';
 import { Glass } from '../../ui/Glass';
 import { CommandCatalogForm } from '../../CommandCatalogForm';
 import { useLabel } from '../../../hooks/useLanguage';
+import type { CommandCatalogEntry } from '../../../types/catalog';
 
-export function Catalog({ skills = [] }: any) {
+interface CatalogProps {
+  catalog?: CommandCatalogEntry[];
+  /** Palette handoff: select this CLI path (nonce re-applies a repeat of the same path). */
+  prefill?: { path: string[]; nonce: number } | null;
+}
+
+export function Catalog({ catalog: entries = [], prefill }: CatalogProps) {
   const catalog = {
     generated_from: 'tauri:get_command_catalog',
-    entries: skills ?? [],
+    entries,
   };
 
   return (
@@ -20,7 +27,7 @@ export function Catalog({ skills = [] }: any) {
         </div>
       </Glass>
       <div className="h-[calc(100vh-290px)] min-h-[560px]">
-        <CommandCatalogForm catalog={catalog} />
+        <CommandCatalogForm catalog={catalog} initialPath={prefill?.path} nonce={prefill?.nonce} />
       </div>
     </div>
   );

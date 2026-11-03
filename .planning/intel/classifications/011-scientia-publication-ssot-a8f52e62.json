@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/011-scientia-publication-ssot.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 011: Scientia publication manifest SSOT",
+  "summary": "Unifies Scientia, news, and scholarly submission around one publication manifest and digest-bound approvals.",
+  "scope": ["Scientia", "publication manifests", "vox-db", "vox-publisher", "scholarly submissions", "digest-bound approvals"],
+  "cross_refs": ["docs/agents/database-nomenclature.md", "docs/src/architecture/scientia-publication-readiness-audit.md", "docs/src/architecture/scientia-publication-automation-ssot.md", "docs/src/reference/scientia-publication-worthiness-rules.md"],
+  "locked": true,
+  "precedence": null
+}

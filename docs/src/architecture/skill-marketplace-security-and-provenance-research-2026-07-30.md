@@ -2,7 +2,7 @@
 title: "Skill Marketplace Security: MCP Attacks, GPT Store Review, Package Provenance — Verified Research 2026-07-30"
 description: "Adversarially verified research closing the security half of the registry-trust gap: named, PoC-demonstrated MCP attack classes (Tool Poisoning, Rug Pull, Advanced Tool Poisoning), a large-scale census finding the MCP ecosystem 'rife with exploitable gadgets,' OpenAI's GPT Store review process against independent research showing 95%+ of listed GPTs remain exploitable, and npm/crates.io's concrete anti-squatting and Sigstore provenance prior art."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: false
 ---
 

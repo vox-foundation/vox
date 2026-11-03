@@ -42,4 +42,4 @@ Components tested under G4 Parity Gate:
 - `component` declarations with `state` and `view`
 - `@island` declarations with prop types
 - `routes { }` blocks
-- `@endpoint(kind: query/mutation/server)` functions
+- `server` / `query` / `mutation` functions (formerly `@endpoint(kind: query/mutation/server)`)

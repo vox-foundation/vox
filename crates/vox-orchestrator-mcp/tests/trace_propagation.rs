@@ -2,6 +2,9 @@
 //! that emitted `model_call_event` rows record correct `parent_task_id` and `span_depth`
 //! at every level.
 
+// Task 8e fix round 1: pull in the hermetic-VOX_HOME ctor (see tests/common/mod.rs).
+mod common;
+
 use std::sync::{Arc, Mutex};
 
 use vox_telemetry::{

@@ -2,6 +2,7 @@
 
 pub mod backend;
 pub mod errors;
+pub mod lifecycle;
 pub mod policy;
 pub mod redact;
 pub mod resolver;
@@ -13,16 +14,34 @@ pub mod spec;
 mod tests;
 mod types;
 
+/// Crate-wide lock serializing every test that mutates process-global
+/// environment state (`HOME`, `USERPROFILE`, `VOX_ACCOUNT_ID`,
+/// `VOX_SECRETS_VAULT_PATH`, etc.) or otherwise depends on it being stable
+/// for the test's duration. Previously several files each declared their own
+/// function-local `static ENV_LOCK`, which only serialized repeat calls to
+/// *that one test* — it did nothing to stop a completely different test
+/// (including `VoxCloudBackend::new`'s own env-var isolation hook) from
+/// mutating `HOME`/`VOX_ACCOUNT_ID` concurrently on another thread under the
+/// default parallel `cargo test`. A single shared lock, taken by every such
+/// test (and by [`crate::backend::vox_vault::isolate_vault_tests_from_real_home`]
+/// as its very first step), removes that race. `unwrap_or_else` recovers
+/// from a poisoned lock (a prior test panicking while holding it) rather
+/// than cascading failures into every later test — the whole point of a
+/// shared lock is that one test's panic must not sink the others.
+#[cfg(test)]
+pub(crate) static TEST_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 pub use backend::vox_vault::{VaultHealth, cloudless_vault_env_diagnostic, probe_vault_health};
 pub use errors::SecretError;
 pub use policy::{MissingBehavior, SecretPolicy};
-pub use resolver::ResolveProfile;
 use resolver::{ResolveOptions, SecretResolver};
+pub use resolver::{ResolveProfile, parse_clavis_uri};
 pub use spec::{
-    Capability, Profile, RequirementMode, RequirementSet, RotationPolicy, SecretBundle,
-    SecretClass, SecretId, SecretMaterialKind, SecretMetadata, SecretSpec, Workflow,
-    WorkflowRequirements, all_bundle_doc_names, all_specs, capabilities_for_secret,
-    managed_secret_env_names, required_for, required_for_profile, requirements_for_bundle,
+    Capability, FreeTierOffer, Profile, ProviderManifestEntry, RequirementMode, RequirementSet,
+    RotationPolicy, SecretBundle, SecretClass, SecretId, SecretMaterialKind, SecretMetadata,
+    SecretSpec, Workflow, WorkflowRequirements, all_bundle_doc_names, all_provider_manifests,
+    all_specs, capabilities_for_secret, list_free_tier_offers, managed_secret_env_names,
+    provider_manifest_for, required_for, required_for_profile, requirements_for_bundle,
     requirements_for_profile, requirements_for_profile_mode,
 };
 pub use types::{ResolutionStatus, ResolvedSecret, SecretSource};
@@ -239,13 +258,15 @@ pub fn store_secret(
     profile: Option<&str>,
 ) -> Result<(), SecretError> {
     let backend = backend::vox_vault::VoxCloudBackend::new()?;
+    // Vault `clavis_secret_versions.created_by` CHECK allows only
+    // cli|mcp|api|agent:% — never the resolve-side fallback "process".
     backend.write_secret_v2(
         id.spec().canonical_env,
         plaintext,
         profile,
         "create",
         Some("programmatic-store"),
-        "process",
+        "cli",
         backend::vox_vault::DEFAULT_HISTORY_DEPTH,
     )
 }
@@ -277,6 +298,12 @@ pub fn delete_secret(id: SecretId) -> Result<bool, SecretError> {
 #[must_use]
 pub fn resolve_secret_for_cli(id: SecretId) -> ResolvedSecret {
     resolve_secret_with_context(id, "cli")
+}
+
+/// Resolve a portable `clavis://<provider>/<key>` URI reference (`CLAVIS-02`).
+pub fn resolve_clavis_uri(uri: &str) -> Result<ResolvedSecret, String> {
+    let id = parse_clavis_uri(uri)?;
+    Ok(resolve_secret(id))
 }
 
 #[must_use]
@@ -487,9 +514,9 @@ mod managed_secret_tests {
     #[test]
     #[allow(unsafe_code)]
     fn delete_secret_removes_a_stored_value_and_is_idempotent() {
-        use std::sync::Mutex;
-        static ENV_LOCK: Mutex<()> = Mutex::new(());
-        let _guard = ENV_LOCK.lock().expect("env lock");
+        let _guard = crate::TEST_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
 
         let tmp_dir = tempfile::tempdir().expect("tempdir");
         let db_path = tmp_dir.path().join("delete_secret_vault.db");
@@ -819,5 +846,30 @@ mod import_env_tests {
     fn missing_file_is_an_error() {
         let path = std::path::Path::new("definitely-does-not-exist-xyz.env");
         assert!(import_env_from_path(path, false).is_err());
+    }
+}
+
+#[cfg(test)]
+mod free_tier_catalog_tests {
+    use super::*;
+
+    #[test]
+    fn test_free_tier_catalog_contains_verified_providers() {
+        let offers = spec::free_tier::list_free_tier_offers();
+        assert!(offers.iter().any(|o| o.provider_id == "tavily"
+            && o.signup_url == "https://app.tavily.com/sign-up"
+            && !o.requires_credit_card));
+        assert!(offers.iter().any(|o| o.provider_id == "gemini"
+            && o.signup_url == "https://aistudio.google.com/app/apikey"));
+        assert!(
+            offers
+                .iter()
+                .any(|o| o.provider_id == "openrouter"
+                    && o.signup_url == "https://openrouter.ai/keys")
+        );
+        assert!(
+            offers.iter().any(|o| o.provider_id == "semantic_scholar"
+                && o.signup_url.contains("semanticscholar.org"))
+        );
     }
 }

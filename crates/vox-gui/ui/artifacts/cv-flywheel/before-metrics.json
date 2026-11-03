@@ -1,0 +1,135 @@
+{
+  "ssotVersion": "2026.10.19-v3.5",
+  "ssotSha256": "d2432a2df998b5e9ccb30f4b5ae9d9b637e08d5bb6788ac0b89e5f2aeaf03fca",
+  "capturedAt": "2026-10-19T17:19:45.000Z",
+  "surfaces": {
+    "chat-default": {
+      "surfaceId": "chat-default",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/chat-default-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 87.8,
+        "luminanceContrast": 14.5,
+        "noiseFloor": 5.3,
+        "meanLuminance": 15.2
+      },
+      "domAudit": {
+        "surfaceId": "chat-default",
+        "outerOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 2,
+        "controlHeightSpreadPx": 6,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.859,
+        "axeViolations": 1
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.785,
+        "promptAdherence": 0.86,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.92,
+        "styleConsistency": 0.66
+      },
+      "weightedRubricScore": 0.8503
+    },
+    "loquela-knobs": {
+      "surfaceId": "loquela-knobs",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/loquela-knobs-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 93.4,
+        "luminanceContrast": 15.0,
+        "noiseFloor": 5.4,
+        "meanLuminance": 15.6
+      },
+      "domAudit": {
+        "surfaceId": "loquela-knobs",
+        "outerOverflowPx": 0,
+        "clippedInteractiveCount": 1,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 2,
+        "controlHeightSpreadPx": 6,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.859,
+        "axeViolations": 1
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.808,
+        "promptAdherence": 0.86,
+        "anatomicalAccuracy": 0.82,
+        "compositionQuality": 0.92,
+        "styleConsistency": 0.66
+      },
+      "weightedRubricScore": 0.828
+    },
+    "chat-dock-multi": {
+      "surfaceId": "chat-dock-multi",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/chat-dock-multi-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 95.1,
+        "luminanceContrast": 15.6,
+        "noiseFloor": 5.5,
+        "meanLuminance": 15.8
+      },
+      "domAudit": {
+        "surfaceId": "chat-dock-multi",
+        "outerOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 2,
+        "controlHeightSpreadPx": 6,
+        "rawEmojiCount": 0,
+        "unlitLandmarkCount": 0,
+        "missingDockPanelIds": ["terminal", "urbs"],
+        "viewportCoverageRatio": 0.859,
+        "axeViolations": 1
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.818,
+        "promptAdherence": 0.66,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.92,
+        "styleConsistency": 0.66
+      },
+      "weightedRubricScore": 0.7985
+    },
+    "urbs-civilization": {
+      "surfaceId": "urbs-civilization",
+      "stage": "before",
+      "screenshotPath": "artifacts/cv-flywheel/urbs-civilization-before.png",
+      "pixelSignals": {
+        "edgeSharpness": 79.5,
+        "luminanceContrast": 17.3,
+        "noiseFloor": 5.1,
+        "meanLuminance": 16.4
+      },
+      "domAudit": {
+        "surfaceId": "urbs-civilization",
+        "outerOverflowPx": 0,
+        "clippedInteractiveCount": 0,
+        "overlappingControlPairs": 0,
+        "unstyledNativeSelectCount": 0,
+        "controlHeightSpreadPx": 0,
+        "rawEmojiCount": 2,
+        "unlitLandmarkCount": 2,
+        "missingDockPanelIds": [],
+        "viewportCoverageRatio": 0.859,
+        "axeViolations": 0
+      },
+      "vlmRubric": {
+        "technicalQuality": 0.779,
+        "promptAdherence": 0.74,
+        "anatomicalAccuracy": 0.96,
+        "compositionQuality": 0.92,
+        "styleConsistency": 0.76
+      },
+      "weightedRubricScore": 0.8228
+    }
+  }
+}

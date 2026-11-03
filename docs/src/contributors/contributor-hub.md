@@ -43,7 +43,7 @@ Quick routing by goal. All links resolve from this directory.
 | Add a CLI command | [CLI reference](../reference/cli.md) + [Command compliance](../reference/command-compliance.md) |
 | Work with secrets or credentials | [Secrets SSOT](../reference/secrets-ssot.md) |
 | Understand the agentic quality model | [Coding agent instructions](coding-agents.md) + [Governance (TOESTUB)](../../agents/governance.md) |
-| Read architecture or research context | [Research index](../architecture/research-index.md) |
+| Read architecture or research context | [Where things live](../architecture/where-things-live.md) · Starlight sidebar section **Architecture SSOTs** |
 
 ## Contributor map
 
@@ -59,7 +59,7 @@ Use these surfaces intentionally:
 | CLI or command-surface changes | [CLI reference](../reference/cli.md), [Command compliance](../reference/command-compliance.md) |
 | Documentation updates or new docs | [Documentation governance](documentation-governance.md) |
 | Telemetry, metrics, privacy boundaries | [Telemetry trust SSOT](../architecture/telemetry-trust-ssot.md), [Telemetry metric contract](../reference/telemetry-metric-contract.md) |
-| Architecture or roadmap context | [Where things live](../architecture/where-things-live.md), [Research index](../architecture/research-index.md) |
+| Architecture or roadmap context | [Where things live](../architecture/where-things-live.md) · Starlight sidebar **Architecture SSOTs** |
 | Contracts and schema-backed behavior | [contracts/README.md](../../../contracts/README.md), related reference pages under `docs/src/reference/` |
 | MCP, HTTP, Populi mesh, SSE, WebSockets | [Communication protocols](../reference/communication-protocols.md), [protocol catalog](../../../contracts/communication/protocol-catalog.yaml); research [Protocol convergence research 2026](../archive/research-2026-q1/protocol-convergence-research-2026.md) |
 | CI, workflow, or policy guardrails | [CI runner contract](../ci/runner-contract.md), [Dependency policy](dependency-policy.md), [Pre-push local CI parity](#pre-push-local-ci-parity) (below), [Architectural governance (TOESTUB)](../../agents/governance.md) |
@@ -72,7 +72,7 @@ Fast local policy rerun for this lane:
 ## Pre-push: local CI parity
 
 **Default `git push` hook:** **`vox ci pre-push`** runs the **fast** profile (scoped docs + critical guards). Use **`vox ci pre-push --complete`** for the full static gate before risky merges; CI still runs the heavy docs-quality sweep.
-Install once via **`vox ci install-hooks`**. See [local CI parity](local-ci-pre-push.md) for **`--full`**, heartbeats, **`--no-verify`** policy, and tuning **`VOX_PREPUSH_BASE`**.
+Install once via **`vox run scripts/setup.vox`** (hooks plus the `vox`/`toestub`/`vox-drift-check` binaries they call; hooks never build). See [local CI parity](local-ci-pre-push.md) for **`--full`**, heartbeats, **`--no-verify`** policy, and tuning **`VOX_PREPUSH_BASE`**.
 
 ## Contributor expectations
 

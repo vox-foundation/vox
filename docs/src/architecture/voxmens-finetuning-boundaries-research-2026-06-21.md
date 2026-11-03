@@ -2,7 +2,7 @@
 title: "VoxMens Fine-Tuning Boundaries — Research Findings (2026-06-21)"
 description: "Deep-research evidence on where fine-tuning a resource-scalable open-weight LLM is worth it vs not, for the VoxMens hub-and-spoke design: hub base-model choices, the harness/tool-use generalization boundary, low-resource DSL adaptation, multi-adapter serving, and whether a fine-tuned ~32B can reach Flash/Sonnet tier."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 ---
 
 # VoxMens Fine-Tuning Boundaries — Research Findings (2026-06-21)

@@ -152,6 +152,15 @@ impl RunPodClient {
             env.push(
                 serde_json::json!({"key": "VOX_SERVE_PORT", "value": spec.serve_port.to_string()}),
             );
+        } else {
+            // See vast.rs's `build_env_map` for why: transmit the same
+            // batch_size/seq_len the local dispatch decision was sized against.
+            env.push(
+                serde_json::json!({"key": "VOX_MENS_BATCH_SIZE", "value": spec.batch_size.to_string()}),
+            );
+            env.push(
+                serde_json::json!({"key": "VOX_MENS_SEQ_LEN", "value": spec.seq_len.to_string()}),
+            );
         }
         if spec.persistent {
             env.push(serde_json::json!({"key": "VOX_PERSISTENT_NODE", "value": "1"}));
@@ -344,5 +353,47 @@ impl CloudProvider for RunPodClient {
         } else {
             Ok(None)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn env_value<'a>(env: &'a [serde_json::Value], key: &str) -> Option<&'a str> {
+        env.iter()
+            .find(|e| e["key"] == key)
+            .and_then(|e| e["value"].as_str())
+    }
+
+    #[test]
+    fn build_env_transmits_batch_size_and_seq_len_for_train_jobs() {
+        let config = Arc::new(CloudProviderConfig::default());
+        let client = RunPodClient::new("test-key".to_string(), config.clone());
+        let mut spec = CloudJobSpec::new_train(&config);
+        spec.batch_size = 7;
+        spec.seq_len = 999;
+
+        let env = client.build_env(&spec);
+
+        assert_eq!(
+            env_value(&env, "VOX_MENS_BATCH_SIZE"),
+            Some("7"),
+            "remote worker must receive the exact batch_size the local dispatch \
+             decision was sized against, not re-derive its own"
+        );
+        assert_eq!(env_value(&env, "VOX_MENS_SEQ_LEN"), Some("999"));
+    }
+
+    #[test]
+    fn build_env_omits_sizing_vars_for_non_train_jobs() {
+        let config = Arc::new(CloudProviderConfig::default());
+        let client = RunPodClient::new("test-key".to_string(), config.clone());
+        let spec = CloudJobSpec::new_serve(&config, 3600);
+
+        let env = client.build_env(&spec);
+
+        assert!(env_value(&env, "VOX_MENS_BATCH_SIZE").is_none());
+        assert!(env_value(&env, "VOX_MENS_SEQ_LEN").is_none());
     }
 }

@@ -48,7 +48,7 @@ pub struct VoxConfig {
 impl Default for VoxConfig {
     fn default() -> Self {
         Self {
-            model: "anthropic/claude-sonnet-4".to_string(),
+            model: crate::model_defaults::CHAT.to_string(),
             openrouter_key: None,
             openai_key: None,
             gemini_key: None,

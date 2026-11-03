@@ -40,7 +40,7 @@ pub const CONTEXT_EXCEEDED_PREFIX: &str = "CONTEXT_LENGTH_EXCEEDED: ";
 /// `error_class` tag `map_egress_error` assigns to `vox_llm_egress::EgressError::RateLimited`.
 /// Kept `pub` (and re-exported via `vox_actor_runtime::llm`) so downstream callers —
 /// e.g. `vox-cli`'s `vox doctor` rate-limit check, which reads this same tag back out of
-/// the `llm_attempts.error_class` DB column written by [`record_telemetry_attempt`] —
+/// the `llm_attempts.error_class` DB column written by `record_telemetry_attempt` —
 /// can match on this constant instead of re-guessing the string literal.
 pub const RATE_LIMITED_ERROR_CLASS: &str = "rate-limited";
 
@@ -141,6 +141,7 @@ pub async fn llm_chat(
                     tool_calls: m.tool_calls.clone(),
                     tool_call_id: m.tool_call_id.clone(),
                     name: m.name.clone(),
+                    content_parts: m.content_parts.clone(),
                 })
                 .collect();
             let wire_tools: Option<Vec<vox_llm_egress::ToolDef>> =
@@ -156,6 +157,7 @@ pub async fn llm_chat(
             let params = vox_llm_egress::ChatParams {
                 temperature: config.temperature,
                 top_p: config.top_p,
+                seed: config.seed,
                 max_tokens: config.max_tokens,
                 response_format: config.response_format.as_ref(),
                 tools: wire_tools.as_deref(),
@@ -215,6 +217,9 @@ pub async fn llm_chat(
                         cache_read_tokens: resp.cache_read_tokens,
                         ttft_ms: Some(resp.latency_ms),
                         tpot_ms,
+                        finish_reason: resp.finish_reason,
+                        reasoning_tokens: resp.reasoning_tokens,
+                        reasoning: resp.reasoning,
                     }))
                 }
                 Err(e) => {
@@ -326,12 +331,10 @@ async fn record_telemetry_outcome(
                     context_utilization_pct: None,
                     success,
                     cost_usd,
-                    // WARNING (Task M2): this is not a quality signal. It is a restatement
-                    // of `success`, and the only other writer of
-                    // `model_scoreboard.quality_score` is `COALESCE(AVG(llm_feedback.rating)
-                    // / 5.0, 1.0)` over a table with zero rows, i.e. a constant 1.0. Do not
-                    // rank, render, or reward on it until M2 gives it a definition.
-                    quality_score: Some(if success { 1.0 } else { 0.0 }),
+                    // A completed HTTP call says nothing about answer quality; quality comes
+                    // only from graded benchmark cases (`model_benchmark_results`) or user
+                    // feedback, never from `success`.
+                    quality_score: None,
                     ttft_ms,
                     tpot_ms,
                 };
@@ -596,6 +599,7 @@ mod infer_with_retry_latency_tests {
             telemetry_trace_id: None,
             telemetry_attempt_number: None,
             telemetry_skip_interaction: true,
+            seed: None,
         }
     }
 
@@ -614,6 +618,7 @@ mod infer_with_retry_latency_tests {
             .respond_with(
                 ResponseTemplate::new(200)
                     .set_body_json(body)
+                    // drift-allow(timeout-literal,duplicate-numeric-literal): wiremock artificial latency fixture
                     .set_delay(std::time::Duration::from_millis(120)),
             )
             .mount(&server)
@@ -631,5 +636,68 @@ mod infer_with_retry_latency_tests {
             "infer_with_retry must surface the real elapsed time, got {}ms",
             response.latency_ms
         );
+    }
+
+    #[tokio::test]
+    async fn llm_chat_forwards_seed_to_the_wire() {
+        use wiremock::matchers::body_partial_json;
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(body_partial_json(serde_json::json!({"seed": 77})))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "model": "test-model",
+                "choices": [{"message": {"role": "assistant", "content": "hi"}}],
+                "usage": {"prompt_tokens": 3, "completion_tokens": 1}
+            })))
+            .mount(&server)
+            .await;
+
+        let mut cfg = mock_config(format!("{}/chat/completions", server.uri()));
+        cfg.seed = Some(77);
+        cfg.telemetry_skip_interaction = true;
+        match llm_chat(&ActivityOptions::new(), vec![], cfg).await {
+            ActivityResult::Ok(Ok(_)) => {}
+            other => panic!("seeded request must match the mock and succeed, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn llm_chat_surfaces_why_an_empty_reply_stopped() {
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(wiremock::matchers::method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "model": "test-model",
+                "choices": [{
+                    "finish_reason": "length",
+                    "message": {"role": "assistant", "content": "", "reasoning": "hmm"}
+                }],
+                "usage": {
+                    "prompt_tokens": 3,
+                    "completion_tokens": 9,
+                    "completion_tokens_details": {"reasoning_tokens": 9}
+                }
+            })))
+            .mount(&server)
+            .await;
+
+        let cfg = mock_config(format!("{}/chat/completions", server.uri()));
+        let resp = match llm_chat(&ActivityOptions::new(), vec![], cfg).await {
+            ActivityResult::Ok(Ok(r)) => r,
+            other => panic!("expected a served response, got {other:?}"),
+        };
+        assert_eq!(resp.finish_reason.as_deref(), Some("length"));
+        assert_eq!(resp.reasoning_tokens, 9);
+        assert_eq!(resp.reasoning.as_deref(), Some("hmm"));
+    }
+
+    #[test]
+    fn llm_config_without_seed_key_still_deserializes() {
+        let mut v = serde_json::to_value(mock_config("http://x".into())).expect("serialize");
+        v.as_object_mut().expect("object").remove("seed");
+        let cfg: LlmConfig = serde_json::from_value(v).expect("deserialize without seed");
+        assert!(cfg.seed.is_none());
     }
 }

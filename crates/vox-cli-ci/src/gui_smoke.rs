@@ -55,7 +55,7 @@ pub fn run(root: &Path) -> Result<()> {
         println!("gui-smoke: skip pnpm build lane (set VOX_GUI_PNPM_BUILD=1 or CI=1)");
     }
 
-    if std::env::var("VOX_WEB_VITE_SMOKE").ok().as_deref() == Some("1") {
+    if vox_secrets::resolve_secret(vox_secrets::SecretId::VoxWebViteSmoke).expose() == Some("1") {
         let st = Command::new(&cargo)
             .current_dir(root)
             .env("VOX_WEB_VITE_SMOKE", "1")
@@ -83,7 +83,7 @@ pub fn run(root: &Path) -> Result<()> {
         );
     }
 
-    if std::env::var("VOX_GUI_PLAYWRIGHT").ok().as_deref() == Some("1") {
+    if vox_secrets::resolve_secret(vox_secrets::SecretId::VoxGuiPlaywright).expose() == Some("1") {
         let st = Command::new(&cargo)
             .current_dir(root)
             .env("VOX_GUI_PLAYWRIGHT", "1")

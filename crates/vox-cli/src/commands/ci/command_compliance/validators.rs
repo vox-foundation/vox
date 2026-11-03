@@ -25,7 +25,7 @@ use crate::utils::install_policy::{
 
 /// Known `latin_ns` values in [`contracts/cli/command-registry.yaml`] for `surface: vox-cli`.
 const KNOWN_LATIN_NS: &[&str] = &[
-    "fabrica", "mens", "diag", "ars", "ci", "codex", "recensio", "dei", "pm",
+    "fabrica", "mens", "diag", "ars", "ci", "codex", "recensio", "dei", "pm", "gui",
 ];
 const KNOWN_PRODUCT_LANES: &[&str] = &["app", "workflow", "ai", "interop", "data", "platform"];
 const CLI_REGISTRY_SCHEMA_REL: &str = "contracts/cli/command-registry.schema.json";
@@ -35,15 +35,30 @@ fn normalize_lf(s: &str) -> String {
     s.replace("\r\n", "\n").replace('\r', "\n")
 }
 
+/// A registry/embed mismatch is an error unless the caller said its binary may be stale
+/// (`VOX_SKIP_FRESHNESS_CHECK`, set by the pre-push hook: the installed `vox` is usually a few
+/// commits behind the tree, and hosted CI, which builds `vox` fresh, is the authoritative gate).
+pub(crate) fn embed_mismatch_is_fatal(embed_matches_disk: bool, skip_freshness: bool) -> bool {
+    !embed_matches_disk && !skip_freshness
+}
+
 /// Fail when the registry on disk disagrees with the `include_str!` embed (stale `vox` binary).
 pub(crate) fn check_command_registry_embed_matches_disk(repo_root: &Path) -> Result<()> {
     let p = repo_root.join(super::registry::REGISTRY_REL);
     let disk = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
-    if normalize_lf(&disk) != normalize_lf(EMBEDDED_COMMAND_REGISTRY_YAML) {
+    let matches = normalize_lf(&disk) == normalize_lf(EMBEDDED_COMMAND_REGISTRY_YAML);
+    let skip = std::env::var_os(crate::freshness::SKIP_ENV).is_some();
+    if embed_mismatch_is_fatal(matches, skip) {
         return Err(anyhow!(
             "{} does not match the vox-cli embedded registry — rebuild with `cargo build -p vox-cli` so `include_str!` picks up edits",
             p.display()
         ));
+    }
+    if !matches {
+        eprintln!(
+            "warning: {} differs from this binary's embedded registry; skipped (VOX_SKIP_FRESHNESS_CHECK). Hosted CI re-checks it.",
+            p.display()
+        );
     }
     Ok(())
 }
@@ -67,6 +82,37 @@ pub(crate) fn check_catalog_feature_gates_match_registry(reg: &RegistryFile) -> 
                 merged
             ));
         }
+    }
+    Ok(())
+}
+
+/// Verify that every top-level clap command in build_catalog() is registered in command-registry.yaml (GEN-05).
+pub(crate) fn check_catalog_top_level_command_presence(reg: &RegistryFile) -> Result<()> {
+    let catalog = crate::command_catalog::build_catalog();
+    let reg_top_levels: std::collections::HashSet<&str> = reg
+        .operations
+        .iter()
+        .filter(|o| o.surface == "vox-cli" && o.path.len() == 1)
+        .map(|o| o.path[0].as_str())
+        .collect();
+
+    let mut missing = Vec::new();
+    for entry in &catalog.entries {
+        if entry.path.len() == 1 {
+            let cmd_name = entry.path[0].as_str();
+            if !reg_top_levels.contains(cmd_name) {
+                missing.push(cmd_name);
+            }
+        }
+    }
+    missing.sort();
+    missing.dedup();
+    if !missing.is_empty() {
+        return Err(anyhow!(
+            "{} top-level CLI command(s) in clap catalog missing from command-registry.yaml (projected from catalog.v1.yaml):\n  {:?}\nAdd corresponding operation rows to contracts/operations/catalog.v1.yaml.",
+            missing.len(),
+            missing
+        ));
     }
     Ok(())
 }
@@ -227,6 +273,26 @@ pub(crate) fn check_env_vars_doc_tokens_registered(
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod embed_check_tests {
+    #[test]
+    fn a_stale_embed_fails_unless_the_freshness_check_is_skipped() {
+        assert!(
+            !super::embed_mismatch_is_fatal(true, false),
+            "matching embed never fails"
+        );
+        assert!(!super::embed_mismatch_is_fatal(true, true));
+        assert!(
+            super::embed_mismatch_is_fatal(false, false),
+            "stale binary, strict mode: fail"
+        );
+        assert!(
+            !super::embed_mismatch_is_fatal(false, true),
+            "stale binary with VOX_SKIP_FRESHNESS_CHECK: warn only (the pre-push hook's advisory mode)"
+        );
+    }
 }
 
 #[cfg(test)]

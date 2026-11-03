@@ -2,11 +2,31 @@
 
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
+use tokio::time::timeout;
 
+use vox_config::timeouts::D_195S;
 use vox_foundation::protocol::orch_daemon_method;
 use vox_foundation::protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 
 use super::normalize_tcp_bind_addr;
+
+/// Client-side read deadline for one-shot `call` (chat ceiling + margin).
+pub const ORCH_CLIENT_READ_DEADLINE: std::time::Duration = D_195S;
+
+/// Classified client failures for empty vs Error vs timeout frames.
+#[derive(Debug, thiserror::Error)]
+pub enum OrchClientError {
+    #[error(
+        "orchestrator daemon returned an empty response for method `{method}` (connection closed or handler wrote no frame)"
+    )]
+    EmptyResponse { method: String },
+    #[error("orchestrator daemon error ({code}): {message}")]
+    DaemonError { code: i32, message: String },
+    #[error("orchestrator daemon read timed out after {secs}s for method `{method}`")]
+    ReadTimeout { method: String, secs: u64 },
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
+}
 
 /// Well-known file the daemon writes its auth token to at startup, and that
 /// [`OrchDaemonClient::new`] best-effort reads to auto-resolve a token (T0.2).
@@ -73,6 +93,30 @@ impl OrchDaemonClient {
         }
     }
 
+    /// Resolve the daemon socket (`SecretId::VoxOrchestratorDaemonSocket`, default
+    /// `127.0.0.1:9745`) and auth token (`SecretId::VoxOrchestratorDaemonToken`) via
+    /// Clavis, falling back to `~/.vox/run/orchestrator-daemon.token`.
+    #[must_use]
+    pub fn from_env_or_token_file() -> Self {
+        let addr = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorDaemonSocket)
+            .expose()
+            .map(str::trim)
+            .filter(|s| s.contains(':'))
+            .map(normalize_tcp_bind_addr)
+            .unwrap_or_else(|| "127.0.0.1:9745".to_string());
+        let token = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorDaemonToken)
+            .expose()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
+            .or_else(read_token_file);
+        Self {
+            addr,
+            token,
+            permission_mode: None,
+        }
+    }
+
     /// Set the `PermissionMode` wire string (T0.3 — `"ask" | "accept_edits"
     /// | "accept_all" | "plan"`) to carry on every subsequent request from
     /// this client. Mirrors [`Self::with_token`]'s builder shape. Callers
@@ -85,13 +129,57 @@ impl OrchDaemonClient {
         self
     }
 
-    /// Send one line, read one line (blocking for this request).
+    /// Send one line, read one line (blocking for this request), using the
+    /// default [`ORCH_CLIENT_READ_DEADLINE`]. Callers whose method can
+    /// legitimately run longer than that (e.g. `vox_chat_message` on the Deep
+    /// research lane) should use [`Self::call_with_deadline`] instead of
+    /// raising this default for every method.
     pub async fn call(
         &self,
         method: &str,
         params: serde_json::Value,
     ) -> anyhow::Result<serde_json::Value> {
-        let mut stream = TcpStream::connect(&self.addr).await?;
+        self.call_classified(method, params)
+            .await
+            .map_err(anyhow::Error::from)
+    }
+
+    /// Same as [`Self::call`] but returns a classified [`OrchClientError`].
+    pub async fn call_classified(
+        &self,
+        method: &str,
+        params: serde_json::Value,
+    ) -> Result<serde_json::Value, OrchClientError> {
+        self.call_classified_with_deadline(method, params, ORCH_CLIENT_READ_DEADLINE)
+            .await
+    }
+
+    /// Same as [`Self::call`], but with an explicit read deadline instead of
+    /// the default [`ORCH_CLIENT_READ_DEADLINE`]. Used by callers of
+    /// `vox_chat_message` on the Deep research lane, whose server-side budget
+    /// (`vox_orchestrator_mcp::dispatch_timeout::DEEP_CHAT_MESSAGE_TIMEOUT`)
+    /// exceeds the generic default.
+    pub async fn call_with_deadline(
+        &self,
+        method: &str,
+        params: serde_json::Value,
+        deadline: std::time::Duration,
+    ) -> anyhow::Result<serde_json::Value> {
+        self.call_classified_with_deadline(method, params, deadline)
+            .await
+            .map_err(anyhow::Error::from)
+    }
+
+    /// Same as [`Self::call_classified`], but with an explicit read deadline.
+    pub async fn call_classified_with_deadline(
+        &self,
+        method: &str,
+        params: serde_json::Value,
+        deadline: std::time::Duration,
+    ) -> Result<serde_json::Value, OrchClientError> {
+        let mut stream = TcpStream::connect(&self.addr)
+            .await
+            .map_err(|e| OrchClientError::Other(e.into()))?;
         let (read_half, mut write_half) = stream.split();
         let id = uuid::Uuid::new_v4().to_string();
         let req = DispatchRequest {
@@ -101,21 +189,45 @@ impl OrchDaemonClient {
             auth_token: self.token.clone(),
             permission_mode: self.permission_mode.clone(),
         };
-        let mut line = serde_json::to_string(&req)?;
+        let mut line = serde_json::to_string(&req).map_err(|e| OrchClientError::Other(e.into()))?;
         line.push('\n');
-        write_half.write_all(line.as_bytes()).await?;
-        write_half.flush().await?;
+        write_half
+            .write_all(line.as_bytes())
+            .await
+            .map_err(|e| OrchClientError::Other(e.into()))?;
+        write_half
+            .flush()
+            .await
+            .map_err(|e| OrchClientError::Other(e.into()))?;
 
         let mut reader = BufReader::new(read_half);
         let mut resp_line = String::new();
-        reader.read_line(&mut resp_line).await?;
-        let resp: DispatchResponse = serde_json::from_str(resp_line.trim())?;
+        match timeout(deadline, reader.read_line(&mut resp_line)).await {
+            Ok(Ok(_)) => {}
+            Ok(Err(e)) => return Err(OrchClientError::Other(e.into())),
+            Err(_elapsed) => {
+                return Err(OrchClientError::ReadTimeout {
+                    method: method.to_string(),
+                    secs: deadline.as_secs(),
+                });
+            }
+        }
+        let trimmed = resp_line.trim();
+        if trimmed.is_empty() {
+            return Err(OrchClientError::EmptyResponse {
+                method: method.to_string(),
+            });
+        }
+        let resp: DispatchResponse =
+            serde_json::from_str(trimmed).map_err(|e| OrchClientError::Other(e.into()))?;
         match resp.payload {
             DispatchPayload::Result { value } => Ok(value),
             DispatchPayload::Error { message, code } => {
-                anyhow::bail!("orchestrator daemon error ({code}): {message}")
+                Err(OrchClientError::DaemonError { code, message })
             }
-            _ => anyhow::bail!("unexpected orchestrator daemon payload (not a Result)"),
+            _ => Err(OrchClientError::Other(anyhow::anyhow!(
+                "unexpected orchestrator daemon payload (not a Result)"
+            ))),
         }
     }
 
@@ -356,7 +468,7 @@ impl OrchDaemonClient {
     /// stream with an error rather than being silently swallowed, so a caller
     /// using `subscribe_events_from_offset` can detect "you lagged, reconnect"
     /// and re-subscribe with an updated offset.
-    async fn subscribe_with_method(
+    pub async fn subscribe_with_method(
         &self,
         method: &str,
         params: serde_json::Value,
@@ -403,5 +515,52 @@ impl OrchDaemonClient {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_response_error_message_names_method() {
+        let err = OrchClientError::EmptyResponse {
+            method: "orch.tool_call".into(),
+        };
+        let msg = err.to_string();
+        assert!(msg.contains("empty response"));
+        assert!(msg.contains("orch.tool_call"));
+    }
+
+    #[test]
+    fn read_timeout_includes_deadline_secs() {
+        let err = OrchClientError::ReadTimeout {
+            method: "orch.ping".into(),
+            secs: ORCH_CLIENT_READ_DEADLINE.as_secs(),
+        };
+        let msg = err.to_string();
+        assert!(msg.contains("timed out"));
+        assert!(msg.contains(&ORCH_CLIENT_READ_DEADLINE.as_secs().to_string()));
+    }
+
+    #[test]
+    fn client_read_deadline_exceeds_chat_ceiling() {
+        assert!(ORCH_CLIENT_READ_DEADLINE > std::time::Duration::from_secs(180));
+    }
+
+    /// Task 15d review round 1 (B1): a per-call deadline is now available so
+    /// `vox_chat_message` callers on the Deep lane aren't stuck with the
+    /// generic [`ORCH_CLIENT_READ_DEADLINE`] — this only checks the plumbing
+    /// compiles and the read-timeout error still names the deadline that was
+    /// actually passed in, not the default.
+    #[test]
+    fn read_timeout_reports_the_deadline_actually_used() {
+        let err = OrchClientError::ReadTimeout {
+            method: "orch.tool_call".into(),
+            secs: 330,
+        };
+        let msg = err.to_string();
+        assert!(msg.contains("330"));
+        assert!(!msg.contains(&ORCH_CLIENT_READ_DEADLINE.as_secs().to_string()));
     }
 }

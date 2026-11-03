@@ -40,9 +40,8 @@ pub struct Invite {
 pub fn parse_invite_url(raw: &str) -> anyhow::Result<Invite> {
     if raw.starts_with("vox-mesh://invite") {
         // Parse the query string manually to avoid pulling in url crate.
-        let query = raw
-            .splitn(2, '?')
-            .nth(1)
+        let (_, query) = raw
+            .split_once('?')
             .ok_or_else(|| anyhow::anyhow!("invite URL missing query string"))?;
 
         let mut manifest_url = None;

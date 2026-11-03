@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::io::{IsTerminal, Read};
 
 use anyhow::{Context, Result};
 use clap::{Subcommand, ValueEnum};
@@ -13,6 +13,15 @@ fn managed_secret_id(canonical_env: &str) -> Result<vox_secrets::SecretId> {
             "`{canonical_env}` is not a canonical managed secret name; use `vox secrets status` to inspect registered secrets"
         )
     })
+}
+
+/// Trim surrounding whitespace (including the trailing newline) and reject empty input.
+fn normalize_secret_input(raw: &str) -> Result<&str> {
+    let value = raw.trim();
+    if value.is_empty() {
+        anyhow::bail!("secret value from standard input must not be empty");
+    }
+    Ok(value)
 }
 
 fn local_inference_allows_no_cloud_key() -> bool {
@@ -225,13 +234,18 @@ pub async fn run(cmd: SecretsCmd) -> Result<()> {
             }
             let secret_id = managed_secret_id(&canonical_env)?;
             let mut value = String::new();
-            std::io::stdin()
-                .read_to_string(&mut value)
-                .context("failed to read secret from standard input")?;
-            let value = value.trim();
-            if value.is_empty() {
-                anyhow::bail!("secret value from standard input must not be empty");
+            if std::io::stdin().is_terminal() {
+                // Interactive: read one hidden line; reading to EOF would wait for Ctrl-D.
+                value = dialoguer::Password::new()
+                    .with_prompt(format!("Enter value for {canonical_env} (input hidden)"))
+                    .interact()
+                    .context("failed to read secret from terminal")?;
+            } else {
+                std::io::stdin()
+                    .read_to_string(&mut value)
+                    .context("failed to read secret from standard input")?;
             }
+            let value = normalize_secret_input(&value)?;
             vox_secrets::store_secret(secret_id, value, None)
                 .map_err(|e| anyhow::anyhow!("failed to store managed secret: {e}"))?;
             let resolved = vox_secrets::resolve_secret_for_cli(secret_id);
@@ -244,6 +258,12 @@ pub async fn run(cmd: SecretsCmd) -> Result<()> {
             Ok(())
         }
         SecretsCmd::Get { canonical_env } => {
+            if canonical_env.starts_with("clavis://") {
+                let resolved = vox_secrets::resolve_clavis_uri(&canonical_env)
+                    .map_err(|e| anyhow::anyhow!("{e}"))?;
+                println!("{canonical_env}: {}", resolved.redacted());
+                return Ok(());
+            }
             let secret_id = managed_secret_id(&canonical_env)?;
             let resolved = vox_secrets::resolve_secret_for_cli(secret_id);
             println!("{canonical_env}: {}", resolved.redacted());
@@ -962,5 +982,55 @@ mod oauth_login_cli_tests {
             .is_err(),
             "positional token input must be rejected by the command shape"
         );
+    }
+}
+
+#[cfg(test)]
+mod secret_input_tests {
+    use super::normalize_secret_input;
+
+    #[test]
+    fn trims_trailing_newline_and_whitespace() {
+        assert_eq!(normalize_secret_input("sk-dummy\n").unwrap(), "sk-dummy");
+        assert_eq!(
+            normalize_secret_input("  sk-dummy\r\n").unwrap(),
+            "sk-dummy"
+        );
+    }
+
+    #[test]
+    fn rejects_empty_or_whitespace_only() {
+        assert!(normalize_secret_input("").is_err());
+        assert!(normalize_secret_input(" \n").is_err());
+    }
+}
+
+/// Inspect provider manifest and validation probe specification for a managed secret (`CLAVIS-01`, `CLAVIS-06`).
+pub fn inspect_secret_lifecycle_plan(
+    canonical_env: &str,
+) -> Result<(
+    Option<vox_secrets::ProviderManifestEntry>,
+    Option<vox_secrets::lifecycle::ValidationProbeSpec>,
+    vox_secrets::lifecycle::RotationRunbook,
+)> {
+    let secret_id = managed_secret_id(canonical_env)?;
+    let manifest = vox_secrets::provider_manifest_for(secret_id);
+    let probe = vox_secrets::lifecycle::validation_probe_for(secret_id);
+    let runbook = vox_secrets::lifecycle::rotation_runbook_for(secret_id);
+    Ok((Some(manifest), probe, runbook))
+}
+
+#[cfg(test)]
+mod clavis_next_cli_tests {
+    use super::inspect_secret_lifecycle_plan;
+
+    #[test]
+    fn lifecycle_plan_returns_manifest_probe_and_runbook() {
+        let (manifest, probe, runbook) =
+            inspect_secret_lifecycle_plan("OPENROUTER_API_KEY").expect("valid canonical env");
+        assert!(manifest.is_some());
+        assert!(probe.is_some());
+        assert_eq!(runbook.canonical_env, "OPENROUTER_API_KEY");
+        assert!(!runbook.rotate_step.is_empty());
     }
 }

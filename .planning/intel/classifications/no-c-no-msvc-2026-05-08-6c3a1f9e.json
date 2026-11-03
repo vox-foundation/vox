@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/no-c-no-msvc-2026-05-08.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Pure-Rust Build: Eliminating C and MSVC Dependencies",
+  "summary": "Specification of pure-Rust workspace build posture: eliminated C dependencies via PTX bundling, feature flags, pure-Rust backends. Residual and rationale documented.",
+  "scope": ["build system", "C dependency elimination", "CUDA runtime", "pure Rust", "candle-kernels", "PTX compilation", "CI matrix"],
+  "cross_refs": ["candle-kernels", "cudarc", "patches/candle-kernels-0.9.2"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

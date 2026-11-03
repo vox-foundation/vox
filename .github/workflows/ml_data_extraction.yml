@@ -4,18 +4,13 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'examples/golden/**'
-      - 'crates/vox-compiler/**'
-      - 'crates/vox-ml-cli/src/commands/corpus/**'
-      - 'crates/vox-cli/src/training/**'
-      - 'scripts/ci/**'
-      - 'contracts/eval/**'
-  schedule:
-    - cron: '0 4 * * *'  # 4 AM UTC nightly
+  # Not on push:main: the extract (60m) and train (180m) jobs exceed the
+  # fast-lane (branch push) 30-min cap (workflow_policy_guard). No schedule
+  # either (OD5): this lane needs a GPU runner that doesn't exist yet — see
+  # ml_data_extraction.yml's build-plugin-zips comment in nightly-artifacts.yml
+  # for the same gap — so it was disabled_manually and sat with no runner to
+  # pick up its cron. workflow_dispatch-only until a GPU runner exists; re-add
+  # `schedule:` at that point and its row back to nightly-report.yml.
   workflow_dispatch:       # manual trigger
     inputs:
       force_train:
@@ -51,6 +46,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'schedule' && 'nightly' || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 # ── Platform portability notes ───────────────────────────────────────────────
 # GitHub-specific: github.sha, github.event.inputs.*, workflow_dispatch
 # Forgejo equivalent: gitea.sha, workflow_dispatch (Forgejo Actions supports this)
@@ -59,10 +57,12 @@ concurrency:
 jobs:
   extract:
     name: Extract & Validate Training Corpus
-    runs-on: [self-hosted, linux]
+    # Hosted: extraction needs no GPU, and the self-hosted fleet is an optional backup
+    # only (no job may wait on it). Only `train` below needs a GPU runner.
+    runs-on: ubuntu-latest
     # Missing until 2026-07-27 (found in the same audit that fixed the
     # nightly workflows' missing timeouts) — GitHub's 360-min default lets
-    # a hang squat a scarce self-hosted runner slot for hours.
+    # a hang hold a runner for hours.
     timeout-minutes: 60
     env:
       # Abstract VCS_SHA: use github.sha on GitHub Actions.
@@ -80,8 +80,6 @@ jobs:
       - name: Set up Rust
         uses: ./.github/actions/setup-rust
 
-      - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.11
 
       - name: Build Vox Compiler
         # `vox mens ...` / `vox train ...` delegate to a separate `vox-ml-cli`
@@ -93,8 +91,6 @@ jobs:
         # ...` — that masked this one, since the command was rejected before
         # ever reaching the vox-ml-cli delegation code path).
         run: cargo build -p vox-cli -p vox-ml-cli --release --quiet
-        env:
-          RUSTC_WRAPPER: sccache
 
       - name: Put target/release on PATH (for the vox -> vox-ml-cli delegation above)
         run: echo "$GITHUB_WORKSPACE/target/release" >> "$GITHUB_PATH"
@@ -202,6 +198,12 @@ jobs:
                   populi/data/train_hash.txt \
                   scripts/vox_system_prompt.txt
           git diff --cached --quiet || git commit -m "chore: update validated ML training corpus [skip ci]"
+          # No contents: write here: the repo's default token scope is already read-only,
+          # so this push cannot have been succeeding, and no recent run (all cancelled)
+          # is evidence that it ever did. Granting write would widen the token on the
+          # strength of a guess. If the corpus commit is genuinely wanted, add
+          # `permissions: {contents: write}` to this job in a change that can show the
+          # push working.
           git push
 
       - name: Upload training data artifact
@@ -224,6 +226,7 @@ jobs:
       github.event.inputs.force_train == 'true' ||
       github.event_name == 'workflow_dispatch'
     # Portable note: On Forgejo Actions, workflow_dispatch and event.inputs work identically.
+    # Optional: needs a GPU runner, which does not exist yet. Nothing gates on this job.
     runs-on: [self-hosted, linux, x64, gpu]
     # Missing until 2026-07-27 (see the `extract` job's timeout comment) --
     # generous bound for real GPU fine-tuning, still finite.

@@ -3,6 +3,7 @@
 pub mod drain;
 pub mod ls;
 pub mod preview;
+pub mod signal;
 
 #[derive(clap::Subcommand, Debug)]
 pub enum WorkflowCmd {
@@ -12,6 +13,8 @@ pub enum WorkflowCmd {
     Ls(ls::LsArgs),
     /// Project the schedule of activities a workflow would dispatch without running it.
     Preview(preview::WorkflowPreviewArgs),
+    /// Deliver a named signal to a durable workflow run.
+    Signal(signal::SignalArgs),
 }
 
 pub async fn run(cmd: WorkflowCmd) -> anyhow::Result<()> {
@@ -19,5 +22,6 @@ pub async fn run(cmd: WorkflowCmd) -> anyhow::Result<()> {
         WorkflowCmd::Drain(args) => drain::run(&args).await,
         WorkflowCmd::Ls(args) => ls::run(&args).await,
         WorkflowCmd::Preview(args) => preview::run(&args).await,
+        WorkflowCmd::Signal(args) => signal::run(&args).await,
     }
 }

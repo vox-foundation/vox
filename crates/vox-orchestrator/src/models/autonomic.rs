@@ -293,6 +293,8 @@ pub enum PromotionEvidence {
     FailureThreshold,
     /// Listed in `model-pins.v1.yaml` `retired_ids:` — explicit council retirement.
     CouncilRetirement,
+    /// A graded `vox model bench` run moved the Wilson verdict (`bench_evidence::BenchEvidence::verdict`).
+    BenchmarkVerdict,
 }
 
 impl PromotionEvidence {
@@ -304,6 +306,7 @@ impl PromotionEvidence {
             Self::ShadowEval => "shadow_eval",
             Self::FailureThreshold => "failure_threshold",
             Self::CouncilRetirement => "council_retirement",
+            Self::BenchmarkVerdict => "benchmark_verdict",
         }
     }
 }
@@ -436,7 +439,7 @@ mod tests {
         let prior = HashSet::new();
         let fresh = vec![
             DiscoveredModel {
-                id: "anthropic/claude-3.5-sonnet".to_string(), // retired
+                id: "claude-mythos-preview-20260407".to_string(), // retired
                 description: None,
                 max_context_tokens: None,
             },
@@ -448,7 +451,7 @@ mod tests {
         ];
         let new_ids = diff_and_emit_discovery(DiscoverySource::OpenRouter, &prior, fresh);
         // Retired ids must not appear.
-        assert!(!new_ids.contains(&"anthropic/claude-3.5-sonnet".to_string()));
+        assert!(!new_ids.contains(&"claude-mythos-preview-20260407".to_string()));
         assert!(new_ids.contains(&"anthropic/claude-future-1".to_string()));
     }
 

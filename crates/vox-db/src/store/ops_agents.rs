@@ -297,7 +297,7 @@ impl crate::VoxDb {
         let context_utilization_pct = outcome.context_utilization_pct;
         let success = outcome.success;
         let cost_usd = outcome.cost_usd;
-        let quality_score = outcome.quality_score.unwrap_or(1.0);
+        let quality_score = outcome.quality_score;
         let ttft_ms = outcome.ttft_ms;
         let tpot_ms = outcome.tpot_ms;
 
@@ -348,15 +348,19 @@ impl crate::VoxDb {
                 // Note: p50/p99 approximations require separate compute batches.
                 // We do a simple exponential moving average for quality/cost here for now,
                 // or just increment the counters and let batch jobs recalculate p50.
+                // An ungraded turn (`quality_score` NULL) leaves the stored quality untouched.
                 conn.execute(
                     "INSERT INTO model_scoreboard
-                        (model_id, task_category, strength_tag, window_days, n_calls, success_rate, cost_per_success_usd, quality_score, updated_at_ms)
-                     VALUES (?1, ?2, ?3, ?4, 1, ?5, ?6, ?7, ?8)
+                        (model_id, task_category, strength_tag, window_days, n_calls, success_rate, success_count, cumulative_cost_usd, cost_per_success_usd, quality_score, updated_at_ms)
+                     VALUES (?1, ?2, ?3, ?4, 1, ?5, CAST(?5 AS INTEGER), ?6, ?6, COALESCE(?7, 1.0), ?8)
                      ON CONFLICT(model_id, task_category, strength_tag, window_days) DO UPDATE SET
                         n_calls = n_calls + 1,
                         success_rate = ((success_rate * n_calls) + ?5) / (n_calls + 1),
+                        success_count = success_count + CAST(?5 AS INTEGER),
+                        cumulative_cost_usd = cumulative_cost_usd + ?6,
                         cost_per_success_usd = ((cost_per_success_usd * (success_rate * n_calls)) + ?6) / MAX(1.0, (success_rate * n_calls) + ?5),
-                        quality_score = ((quality_score * n_calls) + ?7) / (n_calls + 1),
+                        quality_score = CASE WHEN ?7 IS NULL THEN quality_score
+                                             ELSE ((quality_score * n_calls) + ?7) / (n_calls + 1) END,
                         updated_at_ms = ?8",
                     params![
                         model_id.as_str(),
@@ -403,6 +407,26 @@ impl crate::VoxDb {
         } else {
             Ok(LlmSpendSummary::default())
         }
+    }
+
+    /// Input + output tokens of the most recent `llm_interactions` row for a session (0 if
+    /// none). The newest call is what currently occupies the context window; a SUM over all
+    /// rows would grow unbounded across turns.
+    pub async fn latest_interaction_tokens(&self, session_id: &str) -> Result<u64, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT COALESCE(input_tokens, 0) + COALESCE(output_tokens, 0)
+                 FROM llm_interactions
+                 WHERE session_id = ?1
+                 ORDER BY rowid DESC LIMIT 1",
+                params![session_id],
+            )
+            .await?;
+        Ok(match rows.next().await? {
+            Some(r) => r.get::<i64>(0).unwrap_or(0).max(0) as u64,
+            None => 0,
+        })
     }
 
     // ── LLM Feedback (llm_feedback) ───────────────────────────────────────────
@@ -1001,5 +1025,58 @@ mod spend_tests {
             s1.session_usd
         );
         assert!((s1.total_usd - 0.07).abs() < 1e-9, "total still all");
+    }
+}
+
+#[cfg(test)]
+mod interaction_token_tests {
+    use crate::store::types::ModelOutcome;
+    use crate::{DbConfig, VoxDb};
+
+    fn outcome<'a>(session: &'a str, input: i64, output: i64) -> ModelOutcome<'a> {
+        ModelOutcome {
+            session_id: session,
+            user_id: None,
+            tenant_id: None,
+            prompt: "p",
+            response: "r",
+            model_id: "m",
+            provider: "openrouter",
+            task_category: "general",
+            strength_tag: "generalist",
+            latency_ms: Some(10),
+            input_tokens: Some(input),
+            output_tokens: Some(output),
+            cache_read_tokens: Some(0),
+            trace_id: None,
+            context_utilization_pct: None,
+            success: true,
+            cost_usd: Some(0.0),
+            quality_score: Some(1.0),
+            ttft_ms: None,
+            tpot_ms: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn latest_interaction_tokens_is_zero_for_unknown_session() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        assert_eq!(db.latest_interaction_tokens("nope").await.expect("read"), 0);
+    }
+
+    #[tokio::test]
+    async fn latest_interaction_tokens_reads_only_the_newest_row() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        db.record_llm_outcome(outcome("s1", 100, 20))
+            .await
+            .expect("rec 1");
+        db.record_llm_outcome(outcome("s1", 300, 40))
+            .await
+            .expect("rec 2");
+        db.record_llm_outcome(outcome("s2", 9, 9))
+            .await
+            .expect("rec 3");
+        assert_eq!(db.latest_interaction_tokens("s1").await.expect("read"), 340);
+        assert_eq!(db.latest_interaction_tokens("s2").await.expect("read"), 18);
     }
 }

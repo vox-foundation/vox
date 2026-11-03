@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "epoch": 3,
+  "epoch_note": "kb-04 card facets (kb_ids-sections-v2+card-facets+est4b+md512): card chunks gain topic/domain prefLabel lines and skip page-one summary marker lines; no frozen-snapshot doc carries either, so every metric is unchanged",
+  "retriever": "library-tantivy-v1",
+  "chunker": "kb_ids-sections-v2+card-facets+est4b+md512",
+  "token_estimator": "bytes/4",
+  "budget_tokens": 1500,
+  "tolerance": 0.01,
+  "metrics": {
+    "dev/all": {
+      "doc": {
+        "recall@5": 0.551974,
+        "recall@10": 0.687939,
+        "mrr@10": 0.607728,
+        "ndcg@10": 0.548914
+      },
+      "chunk": {
+        "recall@5": 0.311842,
+        "recall@10": 0.432895,
+        "mrr@10": 0.389996,
+        "ndcg@10": 0.3326
+      },
+      "answer_in_budget": 0.539474
+    },
+    "dev/seed": {
+      "doc": {
+        "recall@5": 0.598571,
+        "recall@10": 0.779524,
+        "mrr@10": 0.701542,
+        "ndcg@10": 0.626178
+      },
+      "chunk": {
+        "recall@5": 0.362857,
+        "recall@10": 0.477143,
+        "mrr@10": 0.479671,
+        "ndcg@10": 0.384792
+      },
+      "answer_in_budget": 0.6
+    }
+  }
+}

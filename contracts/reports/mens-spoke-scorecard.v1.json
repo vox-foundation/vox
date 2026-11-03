@@ -1,0 +1,61 @@
+{
+  "schema_version": "mens_spoke_scorecard_v1",
+  "total_tasks": 5,
+  "macro_pass_at_1": 1.0,
+  "macro_pass_at_k": 1.0,
+  "macro_syntax_validity_rate": 1.0,
+  "macro_semantic_validity_rate": 1.0,
+  "macro_execution_success_rate": 1.0,
+  "spokes": [
+    {
+      "spoke": "vox_lang",
+      "task_count": 1,
+      "pass_at_1": 1.0,
+      "pass_at_k": 1.0,
+      "syntax_validity_rate": 1.0,
+      "semantic_validity_rate": 1.0,
+      "execution_success_rate": 1.0,
+      "mean_coverage_score": 0.75
+    },
+    {
+      "spoke": "rust_workspace",
+      "task_count": 1,
+      "pass_at_1": 1.0,
+      "pass_at_k": 1.0,
+      "syntax_validity_rate": 1.0,
+      "semantic_validity_rate": 1.0,
+      "execution_success_rate": 1.0,
+      "mean_coverage_score": 1.0
+    },
+    {
+      "spoke": "structured_shell",
+      "task_count": 1,
+      "pass_at_1": 1.0,
+      "pass_at_k": 1.0,
+      "syntax_validity_rate": 1.0,
+      "semantic_validity_rate": 1.0,
+      "execution_success_rate": 1.0,
+      "mean_coverage_score": 1.0
+    },
+    {
+      "spoke": "mcp_tool_chain",
+      "task_count": 1,
+      "pass_at_1": 1.0,
+      "pass_at_k": 1.0,
+      "syntax_validity_rate": 1.0,
+      "semantic_validity_rate": 1.0,
+      "execution_success_rate": 1.0,
+      "mean_coverage_score": 1.0
+    },
+    {
+      "spoke": "agent_harness",
+      "task_count": 1,
+      "pass_at_1": 1.0,
+      "pass_at_k": 1.0,
+      "syntax_validity_rate": 1.0,
+      "semantic_validity_rate": 1.0,
+      "execution_success_rate": 1.0,
+      "mean_coverage_score": 1.0
+    }
+  ]
+}

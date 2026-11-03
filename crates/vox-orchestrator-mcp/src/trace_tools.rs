@@ -1,6 +1,13 @@
+//! DEAD — do not use for ChatHop or agent corpus SSOT.
+//!
+//! Quarantined by the 2026-09-10 chat surface audit: this `ToolTraceRecord`
+//! shape is unused and is **not** the ChatHop dogfood trail. New hop writers
+//! must use [`crate::chat_hop`] → `dogfood_trace_path_for("chat_hops.jsonl")`.
+
 use serde::Serialize;
 use std::path::Path;
 
+/// Dead struct — prefer [`crate::chat_hop::ChatHopRecord`].
 #[derive(Serialize, Clone)]
 pub struct ToolTraceRecord {
     pub tool: String,
@@ -76,4 +83,32 @@ pub async fn append_json(path: &Path, value: &serde_json::Value) -> anyhow::Resu
         .await?;
     f.write_all(line.as_bytes()).await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strip_removes_secret_keys() {
+        let args = serde_json::json!({"path": "a.rs", "api_key": "sk-x", "token": "t"});
+        let cleaned = strip_telemetry_fields(&args);
+        assert_eq!(cleaned.get("path").and_then(|v| v.as_str()), Some("a.rs"));
+        assert!(cleaned.get("api_key").is_none());
+        assert!(cleaned.get("token").is_none());
+    }
+
+    #[test]
+    fn failed_trace_skipped_for_chatml() {
+        let rec = ToolTraceRecord {
+            tool: "vox_x".into(),
+            args_json: serde_json::json!({}),
+            result_preview: None,
+            session_id: None,
+            timestamp_ms: 0,
+            success: false,
+            latency_ms: 1,
+        };
+        assert!(tool_trace_to_chatml(&rec).is_none());
+    }
 }

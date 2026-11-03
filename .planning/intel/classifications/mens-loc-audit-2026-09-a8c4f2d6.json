@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mens-loc-audit-2026-09.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "MENS Subsystem LoC Audit (2026-09)",
+  "summary": "Lines-of-code accounting for MENS subsystem across 6 crates; 52,245 lines total (5.8% workspace); test-to-production ratio 26%; identifies 26 god_object violations, 23 byte-identical undocumented duplicates between CUDA/Metal plugins.",
+  "scope": ["MENS codebase size", "god_object violations", "test coverage ratio", "duplication between CUDA and Metal", "defactor policy violations"],
+  "cross_refs": ["crates/vox-populi/src/mens/", "crates/vox-plugin-mens-candle-cuda/", "crates/vox-plugin-mens-candle-metal/", "crates/vox-quantize/", "crates/vox-ml-cli/src/commands/mens/", "vox-code-audit::god_object detector", "AGENTS.md Dependency Discipline"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Research audit surfacing technical debt: 23 unsuppressed god_object errors and 23 unmarked duplicate files violating defactor policy. Recommends decomposition of preset_schema.rs, memory_model.rs, domain_router.rs and extraction of shared candle code into a -core crate. Supporting metric document, not a decision."
+}

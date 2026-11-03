@@ -3,7 +3,8 @@ title: "ADR-NNN: Scope Tauri to desktop only; pick React Native + Expo + uniffi 
 status: current
 category: "Architecture SSOTs"
 date: 2026-05-28
-supersedes: adr-037
+supersedes:
+  - adr-037
 related:
   - mobile-target-evaluation-2026.md (decision rationale, bake-off evidence, framework comparison)
   - mobile-rn-expo-architecture-and-migration-2026.md (implementation architecture)

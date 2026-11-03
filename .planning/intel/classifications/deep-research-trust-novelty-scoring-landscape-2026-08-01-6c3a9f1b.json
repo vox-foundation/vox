@@ -1,0 +1,18 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/deep-research-trust-novelty-scoring-landscape-2026-08-01.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Trust, Novelty & Quality-Scoring Landscape for Deep Research (2026-08-01)",
+  "summary": "Survey of source-credibility scoring, novelty detection, claim verification, and bad-research detection techniques; maps to Vox implementation gaps.",
+  "scope": ["source credibility", "novelty detection", "claim verification", "NLI verification", "research quality", "gate.rs", "verifier.rs"],
+  "cross_refs": [
+    "deep-research-fundamentals-2026-08-01.md",
+    "deep-research-competitive-landscape-2026-08-01.md",
+    "crates/vox-research-shim/src/research/gate.rs",
+    "crates/vox-research-shim/src/research/verifier.rs"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

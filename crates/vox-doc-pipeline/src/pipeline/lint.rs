@@ -10,6 +10,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use super::anchors::{extract_marked_block, readme_anchor};
+use super::facets::FacetCtx;
 use super::types::{LintError, LintKind};
 
 // These must match the `sections` array in contracts/documentation/docs-sidebar-section-order.v1.json.
@@ -25,6 +26,7 @@ pub(crate) const VALID_CATEGORIES: &[&str] = &[
     "API Reference — Crates",
     "Examples",
     "Concepts",
+    "Library",
     "Architecture Decisions (ADRs)",
     "Architecture SSOTs",
     "Contributors",
@@ -90,10 +92,6 @@ fn levenshtein(a: &str, b: &str) -> usize {
     prev[b.len()]
 }
 
-fn repo_root_for_lint() -> PathBuf {
-    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
-}
-
 /// Long-form plans and design drafts often use unlabeled Markdown code fences for ASCII
 /// diagrams, git snippets, and mixed excerpts; requiring a language tag on every fence is noise
 /// without improving publish output. Canonical tutorials and reference SSOT pages remain enforced.
@@ -128,22 +126,11 @@ fn skip_unlabeled_code_fence(path: &Path, repo_root: &Path) -> bool {
         .is_some_and(|idx| skip_unlabeled_code_fence_rel(&normalized[idx..]))
 }
 
-/// Recursively walk `dir` and collect lint errors for every `.md` file.
-pub(crate) fn collect_lint_errors(dir: &Path, errors: &mut Vec<LintError>) {
-    let root = repo_root_for_lint();
-    collect_lint_errors_target_with_root(dir, errors, &root);
-}
-
-/// Collect lint errors from either a markdown file or a directory tree.
-pub(crate) fn collect_lint_errors_target(target: &Path, errors: &mut Vec<LintError>) {
-    let root = repo_root_for_lint();
-    collect_lint_errors_target_with_root(target, errors, &root);
-}
-
 pub(crate) fn collect_lint_errors_target_with_root(
     target: &Path,
     errors: &mut Vec<LintError>,
     repo_root: &Path,
+    facet_ctx: Option<&FacetCtx>,
 ) {
     use rayon::prelude::*;
 
@@ -155,20 +142,21 @@ pub(crate) fn collect_lint_errors_target_with_root(
 
     let collected: Vec<LintError> = md_files
         .par_iter()
-        .flat_map_iter(|path| lint_one_file(path, repo_root))
+        .flat_map_iter(|path| lint_one_file(path, repo_root, facet_ctx))
         .collect();
     errors.extend(collected);
 }
 
-/// Recursively collect lintable `.md` paths (skips `SUMMARY.md`, which is tool-generated).
-fn gather_md_files(target: &Path, out: &mut Vec<PathBuf>) {
+/// A doc the pipeline lints: `.md`/`.mdx`, except the tool-generated `docs/src/SUMMARY.md`
+/// (matched by exact path, so `x-SUMMARY.md` or `SUMMARY.md.d/y.md` are still linted).
+fn is_lintable_doc(p: &Path) -> bool {
+    p.extension().is_some_and(|e| e == "md" || e == "mdx") && !p.ends_with("docs/src/SUMMARY.md")
+}
+
+/// Recursively collect lintable `.md` paths (skips the generated `docs/src/SUMMARY.md`).
+pub(crate) fn gather_md_files(target: &Path, out: &mut Vec<PathBuf>) {
     if target.is_file() {
-        if target
-            .extension()
-            .map(|e| e == "md" || e == "mdx")
-            .unwrap_or(false)
-            && !target.to_str().unwrap_or_default().contains("SUMMARY.md")
-        {
+        if is_lintable_doc(target) {
             out.push(target.to_path_buf());
         }
         return;
@@ -181,12 +169,7 @@ fn gather_md_files(target: &Path, out: &mut Vec<PathBuf>) {
             let path = entry.path();
             if path.is_dir() {
                 gather_md_files(&path, out);
-            } else if path
-                .extension()
-                .map(|e| e == "md" || e == "mdx")
-                .unwrap_or(false)
-                && !path.to_str().unwrap_or_default().contains("SUMMARY.md")
-            {
+            } else if is_lintable_doc(&path) {
                 out.push(path);
             }
         }
@@ -195,11 +178,15 @@ fn gather_md_files(target: &Path, out: &mut Vec<PathBuf>) {
 
 /// Lint a single file (frontmatter + fences + doctests) into a fresh error vector.
 /// Returning an owned `Vec` keeps each unit of work independent for `rayon`.
-fn lint_one_file(path: &Path, repo_root: &Path) -> Vec<LintError> {
+fn lint_one_file(path: &Path, repo_root: &Path, facet_ctx: Option<&FacetCtx>) -> Vec<LintError> {
     let mut errors = Vec::new();
     let content = vox_bounded_fs::read_utf8_path_capped(path).unwrap_or_default();
     lint_file(path, &content, repo_root, &mut errors);
+    if let Some(ctx) = facet_ctx {
+        super::facets::lint_facets(path, &content, repo_root, ctx, &mut errors);
+    }
     crate::pipeline::doctest::check_doctests(path, &content, &mut errors);
+    super::diagrams::check_diagram_fences(path, &content, &mut errors);
     errors
 }
 
@@ -241,7 +228,7 @@ pub(crate) fn lint_file(path: &Path, content: &str, repo_root: &Path, errors: &m
             || after_backticks
                 .trim()
                 .chars()
-                .all(|c| c.is_alphanumeric() || c == '-' || c == '_');
+                .all(|c| c.is_alphanumeric() || c == '-' || c == '_' || c == ',' || c == '.');
 
         if backtick_count >= 1 && rest_is_fence_like {
             if (1..3).contains(&backtick_count) {
@@ -261,7 +248,8 @@ pub(crate) fn lint_file(path: &Path, content: &str, repo_root: &Path, errors: &m
                 } else {
                     fence_open = true;
                     fence_start_line = line_no;
-                    let lang = trimmed[backtick_count..].trim();
+                    let lang_full = trimmed[backtick_count..].trim();
+                    let lang = lang_full.split(',').next().unwrap_or("").trim();
                     fence_is_vox = lang == "vox";
                     if lang.is_empty() && !skip_unlabeled_code_fence(path, repo_root) {
                         errors.push(LintError {
@@ -292,6 +280,24 @@ pub(crate) fn lint_file(path: &Path, content: &str, repo_root: &Path, errors: &m
             line: fence_start_line,
             kind: LintKind::UnclosedCodeFence,
         });
+    }
+
+    let is_archive = path
+        .to_string_lossy()
+        .replace('\\', "/")
+        .contains("/archive/");
+    if !is_archive && content.contains("```mermaid") {
+        let (_, diags, _) = super::mermaid::validate_and_repair_markdown_mermaid(content);
+        for d in diags {
+            errors.push(LintError {
+                file: path.to_owned(),
+                line: d.line,
+                kind: LintKind::InvalidMermaid {
+                    code: d.code,
+                    msg: d.message,
+                },
+            });
+        }
     }
 }
 
@@ -444,6 +450,12 @@ fn lint_frontmatter(path: &Path, content: &str, errors: &mut Vec<LintError>) {
                     kind: LintKind::HandAuthoredLastUpdated,
                 });
             }
+        } else if line.starts_with("last_verified:") || line.starts_with("last_verified_commit:") {
+            errors.push(LintError {
+                file: path.to_owned(),
+                line: line_no,
+                kind: LintKind::HandAuthoredLastVerified,
+            });
         }
     }
 
@@ -590,7 +602,8 @@ fn rewrite_repo_relative_links(s: &str, needle: &str, open_len: usize, terminato
 fn normalize_for_compare(s: &str) -> String {
     let transformed = s
         // Used by why_vox (its two figure images).
-        .replace("docs/src/assets/", "./assets/")
+        .replace("docs/src/assets/", "/assets/")
+        .replace("./assets/", "/assets/")
         // The following `docs/src/X/` -> `./X/` swaps, the CHANGELOG.md case, and the
         // `examples/`/`crates/` rewrites below existed only for former how_vox/tier_table
         // content (decorator-reference links, ADR links, crate/example links, the
@@ -673,25 +686,82 @@ fn lint_readme_sync_content(
     }
 }
 
-/// Whole-repo check: compares README.md against docs/src/index.mdx. Called once
-/// per lint run (not per-file) from `mod.rs`. Reads plain repo-root-relative
-/// paths directly (matching this tool's own convention of assuming the process
-/// cwd is the repo root — see mod.rs's own `Path::new("docs/src")` with no
-/// root-joining) rather than taking a caller-supplied repo_root, since the
-/// natural helper for that (`repo_root_for_lint()`) is private to this module
-/// and mod.rs can't call it across module boundaries.
-pub(crate) fn lint_readme_sync(errors: &mut Vec<LintError>) {
-    lint_readme_sync_paths(
-        Path::new("README.md"),
-        Path::new("docs/src/index.mdx"),
-        errors,
-    );
+/// Whole-repo check: compares `README.md` against `docs/src/index.mdx`. Called
+/// once per lint run (not per-file) from `mod.rs::lint_in`, which passes both
+/// paths joined under its caller-supplied `root` so the check never reads the
+/// process cwd. Source paths are parameters (rather than hardcoded) so this is
+/// directly unit-testable, e.g. pointing `readme_path` at a nonexistent file to
+/// exercise the missing-source-file error without touching the real repo files.
+/// Transform a `README.md` `<!-- ANCHOR: name -->` block into the MDX form expected inside
+/// `docs/src/index.mdx` (`{/* SYNC-FROM-README: name */} ... {/* SYNC-END: name */}`).
+pub fn transform_readme_block_for_mdx(readme_block: &str) -> String {
+    let transformed = readme_block
+        .replace("docs/src/assets/", "./assets/")
+        .replace("docs/src/reference/", "./reference/")
+        .replace("docs/src/how-to/", "./how-to/")
+        .replace("docs/src/architecture/", "./architecture/")
+        .replace("docs/src/adr/", "./adr/")
+        .replace("docs/src/explanation/", "./explanation/")
+        .replace(
+            "](CHANGELOG.md)",
+            "](https://github.com/vox-foundation/vox/blob/main/CHANGELOG.md)",
+        );
+    let transformed = rewrite_repo_relative_links(&transformed, "](crates/", 2, ')');
+    let transformed = rewrite_repo_relative_links(&transformed, "=\"crates/", 2, '"');
+    rewrite_repo_relative_links(&transformed, "](examples/", 2, ')')
 }
 
-/// `lint_readme_sync`'s logic, with the two source paths as parameters so it's
-/// directly unit-testable (e.g. pointing `readme_path` at a nonexistent file to
-/// exercise the missing-source-file error without touching the real repo files).
-fn lint_readme_sync_paths(readme_path: &Path, mdx_path: &Path, errors: &mut Vec<LintError>) {
+/// Synchronize `SYNCED_BLOCKS` from `README.md` into `docs/src/index.mdx`.
+/// Returns `Ok(true)` if `index.mdx` was updated (or would be updated when `write == false`),
+/// `Ok(false)` if already in sync.
+pub fn sync_readme_to_frontpage(root: &Path, write: bool) -> Result<bool, String> {
+    let readme_path = root.join("README.md");
+    let mdx_path = root.join("docs/src/index.mdx");
+    let readme = vox_bounded_fs::read_utf8_path_capped(&readme_path)
+        .map_err(|e| format!("Failed to read {}: {}", readme_path.display(), e))?;
+    let mut mdx = vox_bounded_fs::read_utf8_path_capped(&mdx_path)
+        .map_err(|e| format!("Failed to read {}: {}", mdx_path.display(), e))?;
+
+    let mut changed = false;
+    for &name in SYNCED_BLOCKS {
+        let readme_block = readme_anchor(&readme, name).ok_or_else(|| {
+            format!(
+                "Missing <!-- ANCHOR: {name} --> in {}",
+                readme_path.display()
+            )
+        })?;
+        let start_marker = format!("{{/* SYNC-FROM-README: {name} */}}");
+        let end_marker = format!("{{/* SYNC-END: {name} */}}");
+        let start_idx = mdx
+            .find(&start_marker)
+            .ok_or_else(|| format!("Missing {start_marker} in {}", mdx_path.display()))?;
+        let after_start = start_idx + start_marker.len();
+        let rel_end = mdx[after_start..]
+            .find(&end_marker)
+            .ok_or_else(|| format!("Missing {end_marker} in {}", mdx_path.display()))?;
+        let end_idx = after_start + rel_end;
+        let current_mdx_block = mdx[after_start..end_idx].trim();
+
+        if normalize_for_compare(&readme_block) != normalize_for_compare(current_mdx_block) {
+            let rendered = transform_readme_block_for_mdx(&readme_block);
+            mdx.replace_range(after_start..end_idx, &format!("\n{}\n", rendered.trim()));
+            changed = true;
+        }
+    }
+
+    if changed && write {
+        fs::write(&mdx_path, &mdx)
+            .map_err(|e| format!("Failed to write {}: {}", mdx_path.display(), e))?;
+    }
+
+    Ok(changed)
+}
+
+pub(crate) fn lint_readme_sync_paths(
+    readme_path: &Path,
+    mdx_path: &Path,
+    errors: &mut Vec<LintError>,
+) {
     // A missing source file must be a loud lint error, not a quiet early return — the
     // whole point of this check is to never let drift go unnoticed, and a silent no-op
     // here (e.g. after one of the two files gets moved or renamed) would defeat that.
@@ -761,6 +831,19 @@ mod tests {
                 .iter()
                 .any(|e| matches!(e.kind, LintKind::HandAuthoredLastUpdated)),
             "did not expect a HandAuthoredLastUpdated error, got: {errs:?}"
+        );
+    }
+
+    #[test]
+    fn hand_authored_last_verified_is_a_hard_error() {
+        let mut errs = Vec::new();
+        let md_path = Path::new("fixture.md");
+        let content = "---\ntitle: \"Fixture\"\ndescription: \"A fixture page.\"\ncategory: \"Concepts\"\nlast_verified: \"2026-10-13\"\n---\n\nBody.\n";
+        lint_frontmatter(md_path, content, &mut errs);
+        assert!(
+            errs.iter()
+                .any(|e| matches!(e.kind, LintKind::HandAuthoredLastVerified)),
+            "expected HandAuthoredLastVerified error, got: {errs:?}"
         );
     }
 
@@ -877,7 +960,7 @@ mod tests {
             f.write_all(body.as_bytes()).unwrap();
         }
         let mut errors = Vec::new();
-        collect_lint_errors_target_with_root(&dir, &mut errors, Path::new("."));
+        collect_lint_errors_target_with_root(&dir, &mut errors, Path::new("."), None);
         assert!(
             errors
                 .iter()
@@ -1097,6 +1180,45 @@ mod tests {
         assert!(
             unknown.is_empty(),
             "documentation-governance.md advertises categories the lint rejects: {unknown:?}"
+        );
+    }
+
+    /// `VALID_CATEGORIES` (minus `archive`) and the sidebar JSON `sections` are
+    /// two hand-kept copies of one vocabulary; drift makes Starlight append the
+    /// page's section at the end, collapsed, or the lint reject a sidebar label.
+    #[test]
+    fn valid_categories_match_sidebar_sections() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .expect("repo root")
+            .join("contracts/documentation/docs-sidebar-section-order.v1.json");
+        let raw = std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+        let json: serde_json::Value = serde_json::from_str(&raw).expect("sidebar JSON parses");
+        let sections: Vec<&str> = json["sections"]
+            .as_array()
+            .expect("`sections` array")
+            .iter()
+            .map(|v| v.as_str().expect("section label is a string"))
+            .collect();
+        let categories: Vec<&str> = VALID_CATEGORIES
+            .iter()
+            .copied()
+            .filter(|c| *c != "archive")
+            .collect();
+        let missing_from_sidebar: Vec<&&str> = categories
+            .iter()
+            .filter(|c| !sections.contains(c))
+            .collect();
+        let missing_from_lint: Vec<&&str> = sections
+            .iter()
+            .filter(|s| !categories.contains(s))
+            .collect();
+        assert_eq!(
+            sections, categories,
+            "VALID_CATEGORIES and sidebar sections drifted (same labels, same order). \
+             In lint but not sidebar: {missing_from_sidebar:?}; in sidebar but not lint: {missing_from_lint:?}"
         );
     }
 }

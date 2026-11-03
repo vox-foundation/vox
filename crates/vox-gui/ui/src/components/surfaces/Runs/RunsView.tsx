@@ -10,6 +10,7 @@ import { Icon } from '../../ui/Icons';
 import { RUNS_POLL_MS, RUNS_LIST_LIMIT, SCOREBOARD_WINDOW_DAYS } from '../../../config/constants';
 import { recordGamifyGuiEvent } from '../../../lib/gamifyGuiEvents';
 import { useIsEmbeddedSurface } from '../../dashboard/EmbeddedSurfaceContext';
+import type { Toast } from '../../../types/tauri';
 
 interface ScoreboardRow {
   model_id: string;
@@ -36,7 +37,7 @@ interface RunRow {
 }
 
 interface RunsViewProps {
-  pushToast: (t: any) => void;
+  pushToast: (t: Toast) => void;
   gamifyEnabled?: boolean;
 }
 
@@ -73,7 +74,7 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
       const summary = await invoke<any>('get_routing_summary_live');
       setDecision(summary?.decision_preview ?? null);
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Runs load failed', body: sanitizeErrorForToast(err) });
+      pushToast({ tone: 'error', title: 'Runs load failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setLoading(false);
     }
@@ -159,7 +160,7 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
           type="button"
           onClick={() => setSelectedRunId(r.run_id)}
           aria-pressed={selectedRun?.run_id === r.run_id}
-          className="hover:text-brass text-left font-medium outline-none focus:ring-1 focus:ring-brass/40 rounded px-1 -mx-1"
+          className="hover:text-brass text-left font-medium outline-hidden focus:ring-1 focus:ring-brass/40 rounded-sm px-1 -mx-1"
         >
           {r.workflow_name}
         </button>
@@ -184,7 +185,7 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
   ];
 
   return (
-    <div className="grid grid-cols-12 gap-5 p-4 h-full overflow-auto">
+    <div className="grid grid-cols-12 content-start gap-5 p-4 h-full overflow-auto">
       {decision && (
         <Glass className="col-span-12 p-3">
           <div className="font-display text-[11px] tracking-[0.2em] uppercase text-text-muted">Latest Route Decision</div>
@@ -199,7 +200,7 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
       )}
 
       <div className="col-span-12 xl:col-span-7 flex flex-col gap-3">
-        <h3 className="font-display text-sm tracking-widest uppercase text-text-secondary">Model Scoreboard (7d)</h3>
+        <h2 className="font-display text-sm tracking-widest uppercase text-text-secondary">Model Scoreboard (7d)</h2>
         <DataTable
           rows={scoreboard}
           columns={scoreboardCols}
@@ -217,7 +218,7 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
       </div>
 
       <div className="col-span-12 xl:col-span-5 flex flex-col gap-3">
-        <h3 className="font-display text-sm tracking-widest uppercase text-text-secondary">Recent Activity</h3>
+        <h2 className="font-display text-sm tracking-widest uppercase text-text-secondary">Recent Activity</h2>
         <DataTable
           rows={runs}
           columns={runsCols}
@@ -256,7 +257,7 @@ export function RunsView({ pushToast, gamifyEnabled = false }: RunsViewProps) {
               </div>
             ) : null}
             {selectedRun.last_error ? (
-              <pre className="mt-2 whitespace-pre-wrap rounded border border-rose-300/20 bg-rose-950/20 p-2 text-[10px] text-rose-200">
+              <pre className="mt-2 whitespace-pre-wrap rounded-sm border border-rose-300/20 bg-rose-950/20 p-2 text-[10px] text-rose-200">
                 {selectedRun.last_error}
               </pre>
             ) : (

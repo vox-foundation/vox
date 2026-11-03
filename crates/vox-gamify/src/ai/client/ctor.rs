@@ -8,7 +8,9 @@ use crate::ai::fallback::deterministic_response;
 use crate::ai::keys::{resolve_gemini_key, resolve_openrouter_key};
 use crate::ai::provider::FreeAiProvider;
 
-use super::{AiReportFn, CostReportFn, FreeAiClient, LudusStreamBackend, StreamRoute};
+use super::{
+    AiReportFn, CostReportFn, FreeAiClient, LudusStreamBackend, StreamRoute, is_mens_local_model,
+};
 
 impl FreeAiClient {
     /// Create a client with an explicit provider list.
@@ -44,9 +46,10 @@ impl FreeAiClient {
         let mut providers = Vec::new();
 
         // 1. Probe Ollama
-        if Self::probe_ollama(OLLAMA_DEFAULT_URL).await {
+        let ollama_url = ollama_default_url();
+        if Self::probe_ollama(&ollama_url).await {
             providers.push(FreeAiProvider::Ollama {
-                url: OLLAMA_DEFAULT_URL.to_string(),
+                url: ollama_url,
                 model: OLLAMA_DEFAULT_MODEL.to_string(),
             });
         }
@@ -270,7 +273,7 @@ impl FreeAiClient {
                 }
             }
         }
-        OLLAMA_DEFAULT_URL.to_string()
+        ollama_default_url()
     }
 
     fn openrouter_key_from_providers(providers: &[FreeAiProvider]) -> String {
@@ -360,6 +363,21 @@ impl FreeAiClient {
                 })
             }
             StreamRoute::Registry {
+                backend: LudusStreamBackend::VoxLocal,
+                model,
+            } => {
+                let model = model.to_string();
+                Box::pin(async_stream::try_stream! {
+                    let mut stream = Self::stream_vox_local(&http, &prompt_owned, Some(&model)).await;
+                    while let Some(chunk) = stream.next().await {
+                        match chunk {
+                            Ok(t) => yield t,
+                            Err(e) => Err(e)?,
+                        }
+                    }
+                })
+            }
+            StreamRoute::Registry {
                 backend: LudusStreamBackend::OpenRouter,
                 model,
             } => {
@@ -394,6 +412,18 @@ impl FreeAiClient {
             }
             StreamRoute::UserModelOverride(model) => {
                 let model = model.to_string();
+                if is_mens_local_model(&model) {
+                    return Box::pin(async_stream::try_stream! {
+                        let mut stream =
+                            Self::stream_vox_local(&http, &prompt_owned, Some(&model)).await;
+                        while let Some(chunk) = stream.next().await {
+                            match chunk {
+                                Ok(t) => yield t,
+                                Err(e) => Err(e)?,
+                            }
+                        }
+                    });
+                }
                 Box::pin(async_stream::try_stream! {
                     let url = Self::ollama_base_from_providers(&providers);
                     let mut stream = Self::stream_ollama(&http, &url, &model, &prompt_owned).await;
@@ -440,7 +470,7 @@ impl FreeAiClient {
                     }
 
                     let gem_key = Self::gemini_key_from_providers(&providers);
-                    if !gem_key.is_empty() {
+                    if !gem_key.is_empty() && !is_claude_model(&model) {
                         let mut stream =
                             Self::stream_gemini(&http, &gem_key, &model, &prompt_owned).await;
                         while let Some(chunk) = stream.next().await {
@@ -468,5 +498,38 @@ impl FreeAiClient {
                 })
             }
         }
+    }
+}
+
+/// Check whether a model ID refers to an Anthropic / Claude model.
+/// Used to prevent UserModelOverride from forwarding Claude models to Gemini direct endpoints.
+pub(crate) fn is_claude_model(model: &str) -> bool {
+    let lower = model.to_ascii_lowercase();
+    lower.contains("claude") || lower.contains("anthropic")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn detects_claude_models() {
+        assert!(is_claude_model("claude-3-5-sonnet-20241022"));
+        assert!(is_claude_model("anthropic/claude-opus-4.7"));
+        assert!(is_claude_model("Anthropic/Claude-3-Haiku"));
+        assert!(is_claude_model("claude"));
+        assert!(!is_claude_model("gemini-2.0-flash"));
+        assert!(!is_claude_model("google/gemini-2.5-flash"));
+        assert!(!is_claude_model("openai/gpt-4o"));
+        assert!(!is_claude_model("ollama/llama3"));
+    }
+
+    #[test]
+    fn explicit_provider_is_reported_as_active() {
+        let client = FreeAiClient::new(vec![FreeAiProvider::Deterministic]);
+        assert_eq!(
+            client.active_provider_info(),
+            ("deterministic".to_string(), "none".to_string())
+        );
     }
 }

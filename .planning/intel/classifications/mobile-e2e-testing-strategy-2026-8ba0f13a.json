@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mobile-e2e-testing-strategy-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Mobile End-to-End Testing Strategy Implementation Plan",
+  "summary": "Strategy and implementation phases for mobile E2E testing using Tauri 2: automated testing infrastructure, build pipelines, and deployment workflows for Android and iOS.",
+  "scope": ["mobile E2E testing", "Tauri 2", "Android emulator", "iOS simulator", "CI/CD automation", "deployment workflows"],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

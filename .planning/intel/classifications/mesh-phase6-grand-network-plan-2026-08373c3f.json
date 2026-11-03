@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mesh-phase6-grand-network-plan-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Mesh Phase 6 — Grand Network (Volunteer Compute) Implementation Plan (2026-05-09)",
+  "summary": "TDD implementation plan for Phase 6: opt-in joinable bounded-trust global mesh via federation envelope, public attestation registry, micro-VM sandbox interface, redundant-execution voting, and trust-graph self-publication.",
+  "scope": ["federation envelope", "public attestation registry", "micro-VM sandbox", "redundancy voting", "TEE attestation", "Scientia discovery loop", "volunteer compute"],
+  "cross_refs": ["mesh-and-language-distribution-ssot-2026.md", "unified-task-hopper-research-2026.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

@@ -452,10 +452,11 @@ pub async fn run_execute(root: &Path, spec_path: &Path, out_dir: Option<&Path>) 
         .unwrap_or_else(|| root.join("mens").join("eval").join("runs").join(ts));
     std::fs::create_dir_all(&out)?;
 
-    let max_tokens: u64 = std::env::var("VOX_MENS_SCORECARD_MAX_TOKENS")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(2048);
+    let max_tokens: u64 =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMensScorecardMaxTokens)
+            .expose()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(2048);
 
     let mut summaries = Vec::<ConditionSummary>::new();
     let mut all_events = Vec::<TaskEvent>::new();
@@ -773,4 +774,53 @@ pub fn run_burn_rnd(
         println!("{}", out["reason"].as_str().unwrap_or(""));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_voxelized_strict_rejects_fenced_or_prose_wrapped_output() {
+        assert!(is_voxelized_strict("fn f() {}", "fn f() {}"));
+        assert!(!is_voxelized_strict("```vox\nfn f() {}\n```", "fn f() {}"));
+        assert!(!is_voxelized_strict(
+            "Here is the function:\nfn f() {}",
+            "fn f() {}"
+        ));
+    }
+
+    #[test]
+    fn placeholder_marker_hits_counts_distinct_markers_case_insensitively() {
+        assert_eq!(placeholder_marker_hits("fn f() { 1 }"), 0);
+        assert_eq!(
+            placeholder_marker_hits("// TODO: implement\n// placeholder for now"),
+            2
+        );
+    }
+
+    #[test]
+    fn is_trivial_placeholder_output_flags_empty_and_single_line_bodies() {
+        assert!(is_trivial_placeholder_output(""));
+        assert!(is_trivial_placeholder_output("return"));
+        assert!(is_trivial_placeholder_output("  // just a comment\n  x\n"));
+        assert!(!is_trivial_placeholder_output(
+            "let x = 1;\nlet y = 2;\nx + y"
+        ));
+    }
+
+    #[test]
+    fn percentile_u128_returns_zero_for_empty_and_sorts_before_indexing() {
+        let mut empty: Vec<u128> = vec![];
+        assert_eq!(percentile_u128(&mut empty, 0.5), 0);
+        let mut values = vec![30, 10, 20];
+        assert_eq!(percentile_u128(&mut values, 0.0), 10);
+        assert_eq!(percentile_u128(&mut values, 1.0), 30);
+    }
+
+    #[test]
+    fn condition_output_dir_joins_base_and_id() {
+        let base = Path::new("mens/eval/runs/ts");
+        assert_eq!(condition_output_dir(base, "cond-a"), base.join("cond-a"));
+    }
 }

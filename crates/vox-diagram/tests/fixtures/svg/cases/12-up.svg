@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 212.5 390" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,Arimo,Arial,Liberation Sans,Helvetica,sans-serif);font-size:14px">
+<title id="vd-title">Diagram</title>
+<desc id="vd-desc">4 nodes, 6 edges: Source → Middle; Middle → Target; Target → Source; Middle → Middle; Target → Loop; Loop → Loop</desc>
+<defs>
+<marker id="vd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M103 336L103 328.5Q103 321 107.5 315.5L120.5 299Q125 293 125 285L125 250" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M125 212L125 204.5Q125 197 120.5 191.5L105.5 172.5Q101 167 101 159.5L101 152" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M61 152L61 159.5Q61 167 58.5 174L40 223.5Q37.5 231 39 238.5L57.5 314Q59 321 59 328.5L59 336" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M161.5 242.5L183 249.5Q185 250 187.5 250L188 250Q190.5 250 191 248L194.5 238.5Q196.5 231 194.5 223.5L191 214Q190.5 212 188 212L187.5 212Q185 212 183 212.5L161.5 219.5" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M81 114L81 54" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M113 44L144 53Q148 54 152.5 54L152.5 54Q157 54 158.5 50L162.5 42Q165.5 35 162.5 28L158.5 20Q157 16 152.5 16L152.5 16Q148 16 144 17L113 26" marker-end="url(#vd-arrow)"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="43" y="336" width="76" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="81" y="360" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="81" dy="0">Source</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="88.5" y="212" width="73" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="125" y="236" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="125" dy="0">Middle</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="45" y="114" width="72" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="81" y="138" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="81" dy="0">Target</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="49" y="16" width="64" height="38" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="81" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="81" dy="0">Loop</tspan></text>
+</g>
+</g>
+<g class="vd-edge-labels">
+<rect class="vd-edge-label-bg" x="109" y="280" width="32.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="125" y="298" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="125" dy="0">first</tspan></text>
+<rect class="vd-edge-label-bg" x="16" y="218" width="42.5" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="37" y="236" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="37" dy="0">cycle</tspan></text>
+<rect class="vd-edge-label-bg" x="143" y="22" width="45" height="26" style="fill:var(--vd-bg,#fff);stroke:none"/>
+<text class="vd-edge-label" x="165.5" y="40" text-anchor="middle" style="fill:var(--vd-muted,#57606a);stroke:none"><tspan x="165.5" dy="0">again</tspan></text>
+</g>
+</svg>

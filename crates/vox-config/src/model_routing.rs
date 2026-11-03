@@ -113,15 +113,16 @@ pub fn load_model_routing_config() -> ModelRoutingConfig {
         }
     });
 
-    // 2026-05-15: pins.v1.yaml is the council-reviewed SSOT for premium_alias.
-    // Overlay it on top of routing.yaml so the two stay in sync during migration.
-    if let Some(pins) = load_model_pins_config() {
-        // Pins win over routing.yaml when both define an alias for the same key.
-        for (k, v) in pins.premium_alias {
-            cfg.premium_alias.insert(k, v);
-        }
-    }
+    // Task 14: premium_alias targets live in model-defaults.v1.yaml (`premium_*`
+    // roles), not in either YAML here.
+    cfg.premium_alias = contract_premium_aliases();
     cfg
+}
+
+fn contract_premium_aliases() -> HashMap<String, String> {
+    crate::model_defaults::premium_aliases()
+        .map(|(alias, model)| (alias.to_string(), model.to_string()))
+        .collect()
 }
 
 /// Minimal projection of `contracts/orchestration/model-pins.v1.yaml` —
@@ -185,10 +186,48 @@ fn default_min_classifier_confidence() -> f32 {
 pub fn load_model_pins_config() -> Option<ModelPinsConfig> {
     let yaml = include_str!("../../../contracts/orchestration/model-pins.v1.yaml");
     match serde_yaml::from_str::<ModelPinsConfig>(yaml) {
-        Ok(cfg) => Some(cfg),
+        Ok(mut cfg) => {
+            // Task 14: model ids come from model-defaults.v1.yaml.
+            cfg.premium_alias = contract_premium_aliases();
+            cfg.classifier.primary = Some(crate::model_defaults::CLASSIFIER_PRIMARY.to_string());
+            cfg.classifier.fallback = Some(crate::model_defaults::CLASSIFIER_FALLBACK.to_string());
+            Some(cfg)
+        }
         Err(e) => {
             tracing::warn!("Failed to parse model-pins.v1.yaml: {e}");
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn routing_premium_alias_comes_from_the_defaults_contract() {
+        let cfg = load_model_routing_config();
+        let want: HashMap<String, String> = crate::model_defaults::premium_aliases()
+            .map(|(a, m)| (a.to_string(), m.to_string()))
+            .collect();
+        assert!(!want.is_empty());
+        assert_eq!(cfg.premium_alias, want);
+    }
+
+    #[test]
+    fn pins_take_premium_alias_and_classifier_from_the_contract() {
+        let pins = load_model_pins_config().expect("pins parse");
+        assert_eq!(
+            pins.premium_alias,
+            load_model_routing_config().premium_alias
+        );
+        assert_eq!(
+            pins.classifier.primary.as_deref(),
+            Some(crate::model_defaults::CLASSIFIER_PRIMARY)
+        );
+        assert_eq!(
+            pins.classifier.fallback.as_deref(),
+            Some(crate::model_defaults::CLASSIFIER_FALLBACK)
+        );
     }
 }

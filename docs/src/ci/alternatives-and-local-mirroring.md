@@ -9,19 +9,17 @@ schema_type: "TechArticle"
 # CI alternatives and local Docker-based mirroring
 
 > **Update (2026-06-03):** The parallel GitLab CI mirror (`.gitlab-ci.yml`) has been **retired and deleted** — GitLab CI is no longer a supported target. The notes below that described it as "already mirrored" / "a safety net" are kept for historical context but no longer reflect the repo; GitHub Actions (`.github/workflows/`) is the sole CI surface.
+>
+> **Update (2026-09-22):** The **self-hosted fleet is also retired** (hosted-primary migration; Tasks 9/10/14 of `docs/superpowers/plans/2026-09-22-ci-audit-remediation.md`). Every workflow now runs on GitHub-hosted runners. This page was written while the fleet was the default, and its comparisons still assume it. The *conclusions* survive — hosted minutes are free for a public repo, guard logic lives in `vox ci` so provider choice is a YAML rewrite, and Rust build caching is the real lever — but read every "self-hosted" / "local fleet" mention below as describing the **pre-2026-09** setup, not today's.
 
 Research output. No workflow YAML or runner topology is changed by this
 document — it captures findings so we can decide how (or whether) to invest.
 
 ## TL;DR
 
-1. **Free-tier minutes are not our bottleneck.** `ci.yml` and the heavy ML lanes
-   already run on **self-hosted Linux** ([runner-contract](runner-contract.md)).
-   The only GitHub-hosted minutes we still pay for are documented exceptions:
-   `docs-deploy`, `docs-quality`, `link_checker`, `release-binaries`
-   (`windows-latest` / `macos-latest`), `vox-vscode-extension`, and two
-   `ubuntu-latest` smokes inside `ci.yml`
-   ([github-hosted-exceptions](github-hosted-exceptions.md)).
+1. **Free-tier minutes are not our bottleneck.** GitHub-hosted minutes are free
+   for a public repo like vox — see [runner-contract](runner-contract.md) for
+   the current runner assignment.
 2. **Local-Docker-as-gate already exists in skeleton form.** `vox ci pre-push`
    ([local-ci-pre-push](../contributors/local-ci-pre-push.md)) is the supported
    entry point. The fastest, lowest-risk improvement is to **graft `act` (or
@@ -40,11 +38,10 @@ document — it captures findings so we can decide how (or whether) to invest.
 
 | Layer | What we use today | Notes |
 |---|---|---|
-| Default runner | `[self-hosted, linux, x64]` | Free in minute terms; bottleneck is wall-clock + capacity. |
-| Docker / Buildx jobs | `[self-hosted, linux, x64, docker]` | Used by `mesh-compose-config`, `docker-vox-image-smoke`, `all-features-matrix`. |
-| Browser / Playwright | `[self-hosted, linux, x64, browser]` | Chromium pool. |
-| GH-hosted exceptions | `ubuntu-latest`, `windows-latest`, `macos-latest` | 7 workflow surfaces; documented. |
-| Local mirror | `vox ci pre-push` | Quick / default / full modes (~30 s / 2–4 min / 10–25 min). |
+| Default runner | `ubuntu-latest` (plus `windows-latest` / `macos-latest` where a job needs them) | Free minutes: vox is public. The only `self-hosted` labels left are two starved GPU lanes; see [runner contract](runner-contract.md) §Runners. |
+| PR gate | `ci.yml` — `linux` + `ui` under the `gate` aggregator | 30-min cap; advisory `windows` leg in the merge queue. |
+| Slow lanes | `nightly.yml` and the other scheduled workflows | 180-min cap. |
+| Local mirror | `vox ci pre-push` | Fast / `--complete` / `--full` tiers. |
 
 The architecture already separates "guard logic" (Rust binaries under
 `crates/vox-cli/src/commands/ci/`) from "workflow YAML" (`.github/workflows/`).
@@ -99,7 +96,7 @@ mismatch) before they burn minutes.
 **Windows support.** `act` runs on Windows via WinGet, Scoop, Chocolatey, or
 the `gh act` extension; the supported daemon is the **WSL2-native Docker Engine**
 (`docker-ce` installed inside the WSL2 distro — Docker Desktop is not used on this
-host; see [runner-autoscaling.md](runner-autoscaling.md)). No special invocation is
+host). No special invocation is
 needed: `act` picks up the active `docker-wsl` SSH context like any other Docker
 client. Install + troubleshooting tables: [local-ci-pre-push.md
 §Installing `act`](../contributors/local-ci-pre-push.md#installing-act).
@@ -248,10 +245,10 @@ These are sequenced by "smallest diff with biggest signal" first.
    `vox-vscode-extension` against `act` with cached `~/.cache/act` +
    bind-mounted `~/.cargo`. Catches the failures that today only surface
    after push.
-2. **Publish the self-hosted runner image to GHCR** so contributors can
-   `docker pull ghcr.io/<org>/vox-ci-runner` and reproduce the heavy
-   self-hosted lanes locally. This is the lever for "run the real CI
-   locally," not `act`.
+2. ~~**Publish the self-hosted runner image to GHCR.**~~ **Obsolete (2026-09):**
+   the runner image and its scripts were deleted with the fleet. With every
+   job on `ubuntu-latest`, `act`'s catalog image *is* the "run the real CI
+   locally" lever.
 3. **Audit `act` image drift quarterly** if we adopt it — pin the catalog
    image SHA in `.actrc` and bump alongside our `actions/*` major-version
    bumps.
@@ -265,8 +262,8 @@ These are sequenced by "smallest diff with biggest signal" first.
 
 ## Non-goals
 
-- Replacing the self-hosted runner fleet — out of scope; orthogonal to
-  provider choice.
+- Runner-fleet topology — orthogonal to provider choice (and moot since the
+  fleet's 2026-09 retirement).
 - Auto-blocking commits on `act` results — pre-push is the right surface
   per `AGENTS.md`; pre-commit is too noisy for this codebase's build
   times.
@@ -286,7 +283,6 @@ These are sequenced by "smallest diff with biggest signal" first.
 ## See also
 
 - [Runner contract](runner-contract.md)
-- [GitHub-hosted exceptions](github-hosted-exceptions.md)
 - [Workflow enumeration](workflow-enumeration.md)
 - [Local CI parity (pre-push)](../contributors/local-ci-pre-push.md)
 - [`AGENTS.md` §VoxScript-First Glue Code](../../../AGENTS.md)

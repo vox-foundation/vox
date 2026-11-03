@@ -14,7 +14,9 @@ use vox_foundation::protocol::{
 };
 use vox_orchestrator::orch_daemon::ExtraDispatch;
 
+use crate::profiles::Subsystem;
 use crate::server_state::ServerState;
+use crate::server_state::subsystem_not_booted_json;
 
 /// [`ExtraDispatch`] backed by an MCP [`ServerState`].
 pub struct McpExtraDispatch {
@@ -57,6 +59,16 @@ impl ExtraDispatch for McpExtraDispatch {
             // This is the cross-process executor for `vox research run --async`,
             // which only inserts a `queued` row and never runs the pipeline.
             dei_method::RESEARCH_RUN => {
+                if !self.state.subsystem_up(Subsystem::Research) {
+                    return Some(error(
+                        &req.id,
+                        subsystem_not_booted_json(
+                            "method",
+                            dei_method::RESEARCH_RUN,
+                            Subsystem::Research,
+                        ),
+                    ));
+                }
                 let params: crate::memory::ResearchStartParams =
                     match serde_json::from_value(req.params.clone()) {
                         Ok(p) => p,
@@ -92,6 +104,116 @@ impl ExtraDispatch for McpExtraDispatch {
                     .unwrap_or(envelope);
                 Some(result(&req.id, value))
             }
+            dei_method::RESEARCH_PERSIST_CLAIMS => {
+                if !self.state.subsystem_up(Subsystem::Db) {
+                    return Some(error(
+                        &req.id,
+                        subsystem_not_booted_json(
+                            "method",
+                            dei_method::RESEARCH_PERSIST_CLAIMS,
+                            Subsystem::Db,
+                        ),
+                    ));
+                }
+                let Some(db) = self.state.db.clone() else {
+                    return Some(error(&req.id, "VoxDb not attached to daemon"));
+                };
+                let session_id = req
+                    .params
+                    .get("session_id")
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0);
+                let mut stored_count = 0;
+
+                if let Some(claims_array) = req.params.get("claims").and_then(|v| v.as_array()) {
+                    for item in claims_array {
+                        let text = item.get("text").and_then(|v| v.as_str()).unwrap_or("");
+                        if text.is_empty() {
+                            continue;
+                        }
+                        let mut hash: u64 = 0xcbf29ce484222325;
+                        for byte in text.bytes() {
+                            hash ^= byte as u64;
+                            hash = hash.wrapping_mul(0x100000001b3);
+                        }
+                        let claim_id = item
+                            .get("claim_id")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(hash);
+                        let verdict = item
+                            .get("verdict")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("supported");
+                        let confidence = item
+                            .get("confidence")
+                            .and_then(|v| v.as_f64())
+                            .unwrap_or(0.9);
+                        let is_numeric = item
+                            .get("is_numeric")
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(false);
+                        let is_recent = item
+                            .get("is_recent")
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(false);
+                        let is_named_event = item
+                            .get("is_named_event")
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(false);
+
+                        let _ = db
+                            .store_claim(
+                                session_id,
+                                claim_id,
+                                text,
+                                is_numeric,
+                                is_recent,
+                                is_named_event,
+                            )
+                            .await;
+                        let _ = db
+                            .store_claim_verdict(
+                                claim_id,
+                                verdict,
+                                confidence,
+                                "orchestrator-daemon",
+                            )
+                            .await;
+                        stored_count += 1;
+                    }
+                } else if session_id > 0 {
+                    if let Ok(existing) = db.list_publication_claims(session_id).await {
+                        stored_count = existing.len();
+                    }
+                }
+
+                Some(result(
+                    &req.id,
+                    serde_json::json!({
+                        "session_id": session_id,
+                        "persisted_claims": stored_count
+                    }),
+                ))
+            }
+            orch_daemon_method::BOOT_REPORT => Some(
+                match serde_json::to_value(self.state.boot_report_snapshot()) {
+                    Ok(value) => result(&req.id, value),
+                    Err(e) => error(&req.id, format!("serialize boot report: {e}")),
+                },
+            ),
+            orch_daemon_method::API_V2_GET => {
+                let path = req
+                    .params
+                    .get("path")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                Some(
+                    match crate::gui_ops::inproc::api_v2_get(&self.state, path).await {
+                        Ok(v) => result(&req.id, v),
+                        Err(e) => error(&req.id, e),
+                    },
+                )
+            }
             orch_daemon_method::TOOL_CALL => {
                 let Some(name) = req.params.get("name").and_then(|v| v.as_str()) else {
                     return Some(error(&req.id, "params.name (string) required"));
@@ -107,9 +229,23 @@ impl ExtraDispatch for McpExtraDispatch {
                 // comment), NEVER from `req.params` (tool-call args the
                 // caller/LLM composes).
                 let permission_mode = req.permission_mode.as_deref();
-                match crate::handle_tool_call_with_mode(&self.state, name, args, permission_mode)
-                    .await
-                {
+                // The `agent_origin` flag lives in `params` rather than in a top-level
+                // `DispatchRequest` field: unlike permission_mode or auth_token, the flag
+                // can only restrict permissions (triggering safety floors). The only potential
+                // bypass is omission, which a top-level field would not prevent either.
+                let agent_origin = req
+                    .params
+                    .get("agent_origin")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false);
+                let fut =
+                    crate::handle_tool_call_with_mode(&self.state, name, args, permission_mode);
+                let res = if agent_origin {
+                    crate::floor_gate::with_agent_origin(fut).await
+                } else {
+                    fut.await
+                };
+                match res {
                     Ok(json) => {
                         let value = serde_json::from_str::<serde_json::Value>(&json)
                             .unwrap_or_else(|_| serde_json::json!({ "raw": json }));
@@ -155,5 +291,18 @@ impl ExtraDispatch for McpExtraDispatch {
             }
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::McpExtraDispatch;
+    use crate::profiles::Subsystem;
+
+    #[tokio::test]
+    async fn new_wraps_a_server_state_whose_default_report_is_fully_booted() {
+        let state = crate::ServerState::new_full(crate::load_config());
+        let extra = McpExtraDispatch::new(state);
+        assert!(extra.state.subsystem_up(Subsystem::Db));
     }
 }

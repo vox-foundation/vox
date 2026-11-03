@@ -4,14 +4,20 @@
 
 use crate::VoxDb;
 use crate::store::StoreError;
+use regex::Regex;
+use std::collections::{HashMap, HashSet};
+use std::str::FromStr;
+use std::sync::OnceLock;
 use turso::params;
 use vox_db_types::{
-    ClaimsPendingCounts, ResearchArtifactRecord, ResearchSessionRecord, ResearchSessionSummary,
-    ScientiaClaimWithVerdict,
+    CachedClaimVerdict, ClaimsPendingCounts, MisguidanceReporter, RecordMisguidanceParams,
+    ResearchArtifactRecord, ResearchDefectClass, ResearchMisguidanceRecord, ResearchSearchResult,
+    ResearchSessionRecord, ResearchSessionSummary, ScientiaClaimWithVerdict,
 };
 
 impl VoxDb {
-    /// Create a new research session and return its row id.
+    /// Create a new research session and return its row id. Fails when
+    /// `session_key` already exists: each attempt gets its own key.
     pub async fn create_research_session(
         &self,
         session_key: &str,
@@ -24,17 +30,21 @@ impl VoxDb {
         let conn = self.conn.clone();
         breaker
             .call(|| async move {
-                conn.execute(
-                    "INSERT OR IGNORE INTO scientia_research_sessions \
-                     (session_key, status, started_at_ms, query_text) \
-                     VALUES (?1, 'queued', ?2, ?3)",
-                    params![key.as_str(), now, q.as_str()],
-                )
-                .await?;
-                Ok::<(), StoreError>(())
+                let mut rows = conn
+                    .query(
+                        "INSERT INTO scientia_research_sessions \
+                         (session_key, status, started_at_ms, query_text) \
+                         VALUES (?1, 'queued', ?2, ?3) RETURNING id",
+                        params![key.as_str(), now, q.as_str()],
+                    )
+                    .await?;
+                let row = rows
+                    .next()
+                    .await?
+                    .ok_or_else(|| StoreError::NotFound(format!("research session {key}")))?;
+                Ok::<i64, StoreError>(row.get::<i64>(0)?)
             })
-            .await?;
-        Ok(self.conn.last_insert_rowid())
+            .await
     }
 
     /// Update the status of a research session.
@@ -128,6 +138,7 @@ impl VoxDb {
     /// Record a single research pipeline metric.
     ///
     /// Maps onto the existing `research_metrics` table (column `metric_value`, `created_at`).
+    /// Rows pass [`vox_telemetry::validate_research_metric_row`] like every other writer.
     pub async fn record_research_metric(
         &self,
         session_id: i64,
@@ -136,6 +147,8 @@ impl VoxDb {
         metadata_json: Option<&str>,
     ) -> Result<(), StoreError> {
         let sid = session_id.to_string();
+        vox_telemetry::validate_research_metric_row(&sid, metric_type, metadata_json)
+            .map_err(|e| StoreError::Db(e.to_string()))?;
         let mt = metric_type.to_string();
         let meta = metadata_json.map(|s| s.to_string());
         let breaker = self.breaker.clone();
@@ -462,8 +475,245 @@ impl VoxDb {
                     params![session_id, artifact.as_str(), report.as_str(), now],
                 )
                 .await?;
+
+                // Populate / update scientia_research_fts if available
+                let mut query_text = String::new();
+                if let Ok(mut rows) = conn
+                    .query(
+                        "SELECT query_text FROM scientia_research_sessions WHERE id = ?1",
+                        params![session_id],
+                    )
+                    .await
+                    && let Ok(Some(row)) = rows.next().await
+                    && let Ok(q) = row.get::<String>(0)
+                {
+                    query_text = q;
+                }
+
+                let mut claims_text = String::new();
+                if let Ok(mut rows) = conn
+                    .query(
+                        "SELECT text FROM scientia_claims WHERE session_id = ?1",
+                        params![session_id],
+                    )
+                    .await
+                {
+                    let mut claims = Vec::new();
+                    while let Ok(Some(row)) = rows.next().await {
+                        if let Ok(t) = row.get::<String>(0) {
+                            claims.push(t);
+                        }
+                    }
+                    claims_text = claims.join("\n");
+                }
+
+                let _ = conn
+                    .execute(
+                        "DELETE FROM scientia_research_fts WHERE session_id = ?1",
+                        params![session_id],
+                    )
+                    .await;
+                let _ = conn
+                    .execute(
+                        "INSERT INTO scientia_research_fts (session_id, query_text, report_markdown, claims_text) \
+                         VALUES (?1, ?2, ?3, ?4)",
+                        params![session_id, query_text.as_str(), report.as_str(), claims_text.as_str()],
+                    )
+                    .await;
+
                 Ok::<(), StoreError>(())
             })
+            .await
+    }
+
+    /// Full-text search across historical research artifacts and claims.
+    ///
+    /// Tries BM25 ranking on `scientia_research_fts` with `snippet()`; falls back to
+    /// LIKE substring matching if FTS5 is not available or query has no FTS hits.
+    pub async fn search_research_artifacts(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<ResearchSearchResult>, StoreError> {
+        let lim = limit.clamp(1, 200) as i64;
+        let q_trimmed = query.trim();
+        if q_trimmed.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let q_fts = sanitize_fts_query(q_trimmed);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        let q_owned = q_trimmed.to_string();
+
+        breaker
+            .call(|| async move {
+                if !q_fts.is_empty() {
+                    let fts_res = conn
+                        .query(
+                            "SELECT f.session_id, f.query_text, \
+                                    snippet(scientia_research_fts, -1, '', '', '...', 32) AS snip, \
+                                    COALESCE(a.created_at_ms, s.started_at_ms, 0) AS created_at_ms, \
+                                    COALESCE(SUBSTR(f.report_markdown, 1, 200), '') AS fallback_snip \
+                             FROM scientia_research_fts f \
+                             LEFT JOIN scientia_research_artifacts a ON a.session_id = f.session_id \
+                             LEFT JOIN scientia_research_sessions s ON s.id = f.session_id \
+                             WHERE scientia_research_fts MATCH ?1 \
+                             ORDER BY bm25(scientia_research_fts) ASC \
+                             LIMIT ?2",
+                            params![q_fts.as_str(), lim],
+                        )
+                        .await;
+
+                    if let Ok(mut rows) = fts_res {
+                        let mut results = Vec::new();
+                        while let Ok(Some(row)) = rows.next().await {
+                            let sid: i64 = row.get(0)?;
+                            let qtext: String = row.get(1)?;
+                            let mut snip: String = row.get(2)?;
+                            let cat: i64 = row.get(3)?;
+                            if snip.trim().is_empty() {
+                                let fallback: String = row.get(4)?;
+                                snip = fallback;
+                            }
+                            results.push(ResearchSearchResult {
+                                session_id: sid,
+                                query_text: qtext,
+                                snippet: snip,
+                                created_at_ms: cat,
+                            });
+                        }
+                        if !results.is_empty() {
+                            return Ok::<Vec<ResearchSearchResult>, StoreError>(results);
+                        }
+                    }
+                }
+
+                // Fallback: LIKE query
+                let pat = format!("%{q_owned}%");
+                let mut rows = conn
+                    .query(
+                        "SELECT a.session_id, s.query_text, \
+                                COALESCE(SUBSTR(a.report_markdown, 1, 200), '') AS snip, \
+                                a.created_at_ms \
+                         FROM scientia_research_artifacts a \
+                         JOIN scientia_research_sessions s ON s.id = a.session_id \
+                         WHERE s.query_text LIKE ?1 OR a.report_markdown LIKE ?1 \
+                            OR EXISTS (SELECT 1 FROM scientia_claims c WHERE c.session_id = a.session_id AND c.text LIKE ?1) \
+                         ORDER BY a.created_at_ms DESC \
+                         LIMIT ?2",
+                        params![pat.as_str(), lim],
+                    )
+                    .await?;
+
+                let mut results = Vec::new();
+                while let Some(row) = rows.next().await? {
+                    let sid: i64 = row.get(0)?;
+                    let qtext: String = row.get(1)?;
+                    let snip: String = row.get(2)?;
+                    let cat: i64 = row.get(3)?;
+                    results.push(ResearchSearchResult {
+                        session_id: sid,
+                        query_text: qtext,
+                        snippet: snip,
+                        created_at_ms: cat,
+                    });
+                }
+                Ok::<Vec<ResearchSearchResult>, StoreError>(results)
+            })
+            .await
+    }
+
+    /// Look up a previously verified claim verdict from historical research sessions with optional minimum confidence filtering.
+    ///
+    /// If `max_age_ms > 0`, only verdicts recorded within the last `max_age_ms` are returned.
+    /// If `min_confidence` is `Some(min_conf)`, only verdicts with `confidence >= min_conf` are returned.
+    /// Spans stored as 'Unverified' are filtered out.
+    /// If `min_confidence` is provided, results are ordered by `confidence DESC, created_at_ms DESC` so the highest confidence verdict wins.
+    pub async fn get_cached_claim_verdict_filtered(
+        &self,
+        claim_id: u64,
+        max_age_ms: i64,
+        min_confidence: Option<f64>,
+    ) -> Result<Option<CachedClaimVerdict>, StoreError> {
+        let cid = claim_id as i64;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let mut rows = match (max_age_ms > 0, min_confidence) {
+                    (true, Some(min_c)) => {
+                        let cutoff = now_ms().saturating_sub(max_age_ms);
+                        conn.query(
+                            "SELECT claim_id, verdict, confidence, verifier_model, created_at_ms \
+                             FROM scientia_claim_verdicts \
+                             WHERE claim_id = ?1 AND verdict <> 'Unverified' AND created_at_ms >= ?2 AND confidence >= ?3 \
+                             ORDER BY confidence DESC, created_at_ms DESC, id DESC LIMIT 1",
+                            params![cid, cutoff, min_c],
+                        )
+                        .await?
+                    }
+                    (true, None) => {
+                        let cutoff = now_ms().saturating_sub(max_age_ms);
+                        conn.query(
+                            "SELECT claim_id, verdict, confidence, verifier_model, created_at_ms \
+                             FROM scientia_claim_verdicts \
+                             WHERE claim_id = ?1 AND verdict <> 'Unverified' AND created_at_ms >= ?2 \
+                             ORDER BY created_at_ms DESC, id DESC LIMIT 1",
+                            params![cid, cutoff],
+                        )
+                        .await?
+                    }
+                    (false, Some(min_c)) => {
+                        conn.query(
+                            "SELECT claim_id, verdict, confidence, verifier_model, created_at_ms \
+                             FROM scientia_claim_verdicts \
+                             WHERE claim_id = ?1 AND verdict <> 'Unverified' AND confidence >= ?2 \
+                             ORDER BY confidence DESC, created_at_ms DESC, id DESC LIMIT 1",
+                            params![cid, min_c],
+                        )
+                        .await?
+                    }
+                    (false, None) => {
+                        conn.query(
+                            "SELECT claim_id, verdict, confidence, verifier_model, created_at_ms \
+                             FROM scientia_claim_verdicts \
+                             WHERE claim_id = ?1 AND verdict <> 'Unverified' \
+                             ORDER BY created_at_ms DESC, id DESC LIMIT 1",
+                            params![cid],
+                        )
+                        .await?
+                    }
+                };
+                let Some(row) = rows.next().await? else {
+                    return Ok::<Option<CachedClaimVerdict>, StoreError>(None);
+                };
+                let cid_val: i64 = row.get(0)?;
+                let verdict: String = row.get(1)?;
+                let confidence: f64 = row.get(2)?;
+                let verifier_model: Option<String> = row.get(3)?;
+                let created_at_ms: i64 = row.get(4)?;
+                Ok(Some(CachedClaimVerdict {
+                    claim_id: cid_val as u64,
+                    verdict,
+                    confidence,
+                    verifier_model,
+                    created_at_ms,
+                }))
+            })
+            .await
+    }
+
+    /// Look up a previously verified claim verdict from historical research sessions.
+    ///
+    /// If `max_age_ms > 0`, only verdicts recorded within the last `max_age_ms` are returned.
+    /// Spans stored as 'Unverified' are filtered out. Returns the newest non-Unverified verdict.
+    pub async fn get_cached_claim_verdict(
+        &self,
+        claim_id: u64,
+        max_age_ms: i64,
+    ) -> Result<Option<CachedClaimVerdict>, StoreError> {
+        self.get_cached_claim_verdict_filtered(claim_id, max_age_ms, None)
             .await
     }
 
@@ -657,6 +907,272 @@ impl VoxDb {
             })
             .await
     }
+
+    /// Record a research misguidance event and update the culprit domain's reputation with exponential decay.
+    pub async fn record_research_misguidance(
+        &self,
+        params: &RecordMisguidanceParams,
+    ) -> Result<i64, StoreError> {
+        let now = now_ms();
+        let params = params.clone();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let culprit_url = params
+                    .culprit_url
+                    .as_deref()
+                    .map(|s| turso::Value::Text(s.to_string()))
+                    .unwrap_or(turso::Value::Null);
+                let excerpt = params
+                    .misleading_excerpt
+                    .as_deref()
+                    .map(|s| turso::Value::Text(sanitize_telemetry_string(s)))
+                    .unwrap_or(turso::Value::Null);
+                let code = params
+                    .generated_code_snippet
+                    .as_deref()
+                    .map(|s| turso::Value::Text(s.to_string()))
+                    .unwrap_or(turso::Value::Null);
+                let diag = params
+                    .failure_diagnostic
+                    .as_deref()
+                    .map(|s| turso::Value::Text(sanitize_telemetry_string(s)))
+                    .unwrap_or(turso::Value::Null);
+                let diff = params
+                    .correction_diff
+                    .as_deref()
+                    .map(|s| turso::Value::Text(s.to_string()))
+                    .unwrap_or(turso::Value::Null);
+                let session_id_val = params
+                    .session_id
+                    .map(turso::Value::Integer)
+                    .unwrap_or(turso::Value::Null);
+                let claim_id_val = params
+                    .claim_id
+                    .map(turso::Value::Integer)
+                    .unwrap_or(turso::Value::Null);
+
+                let insert_params = vec![
+                    session_id_val,
+                    turso::Value::Text(params.defect_class.as_str().to_string()),
+                    culprit_url,
+                    turso::Value::Text(params.culprit_domain.clone()),
+                    claim_id_val,
+                    turso::Value::Text(params.research_query.clone()),
+                    excerpt,
+                    code,
+                    diag,
+                    diff,
+                    turso::Value::Text(params.reporter.as_str().to_string()),
+                    turso::Value::Real(params.domain_penalty),
+                    turso::Value::Integer(now),
+                ];
+
+                conn.execute(
+                    "INSERT INTO research_misguidance_events \
+                     (session_id, defect_class, culprit_url, culprit_domain, \
+                      claim_id, research_query, misleading_excerpt, generated_code_snippet, \
+                      failure_diagnostic, correction_diff, reporter, domain_penalty, created_at_ms) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                    insert_params,
+                )
+                .await?;
+
+                let event_id = conn.last_insert_rowid();
+
+                let mut rep_rows = conn
+                    .query(
+                        "SELECT incident_count, penalty_score, last_incident_at_ms \
+                         FROM research_domain_reputation WHERE domain = ?1",
+                        params![params.culprit_domain.as_str()],
+                    )
+                    .await?;
+
+                let (new_count, new_penalty) = if let Some(row) = rep_rows.next().await? {
+                    let current_count: i64 = row.get(0)?;
+                    let current_penalty: f64 = row.get(1)?;
+                    let last_incident_at_ms: i64 = row.get(2)?;
+
+                    let elapsed_days = ((now - last_incident_at_ms) as f64 / 86_400_000.0).max(0.0);
+                    let decayed = current_penalty * (-elapsed_days * std::f64::consts::LN_2 / 30.0).exp();
+                    #[allow(clippy::manual_clamp)] // .max().min() intentionally maps NaN to the lower bound; .clamp() would propagate NaN
+                    let new_pen = (decayed + params.domain_penalty).max(0.0).min(2.0);
+                    (current_count + 1, new_pen)
+                } else {
+                    #[allow(clippy::manual_clamp)] // .max().min() intentionally maps NaN to the lower bound; .clamp() would propagate NaN
+                    let new_pen = params.domain_penalty.max(0.0).min(2.0);
+                    (1i64, new_pen)
+                };
+
+                let is_blacklisted: i64 = if new_count >= 5 && new_penalty >= 1.0 { 1 } else { 0 };
+
+                conn.execute(
+                    "INSERT INTO research_domain_reputation \
+                     (domain, incident_count, penalty_score, last_incident_at_ms, is_blacklisted, updated_at_ms) \
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6) \
+                     ON CONFLICT(domain) DO UPDATE SET \
+                       incident_count = excluded.incident_count, \
+                       penalty_score = excluded.penalty_score, \
+                       last_incident_at_ms = excluded.last_incident_at_ms, \
+                       is_blacklisted = excluded.is_blacklisted, \
+                       updated_at_ms = excluded.updated_at_ms",
+                    params![
+                        params.culprit_domain.as_str(),
+                        new_count,
+                        new_penalty,
+                        now,
+                        is_blacklisted,
+                        now,
+                    ],
+                )
+                .await?;
+
+                Ok::<i64, StoreError>(event_id)
+            })
+            .await
+    }
+
+    /// Mark a research misguidance event as resolved, saving the correction diff.
+    pub async fn resolve_research_misguidance(
+        &self,
+        id: i64,
+        correction_diff: &str,
+    ) -> Result<(), StoreError> {
+        let now = now_ms();
+        let diff = correction_diff.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE research_misguidance_events \
+                     SET resolved_at_ms = ?1, correction_diff = ?2, status = 'resolved' \
+                     WHERE id = ?3",
+                    params![now, diff.as_str(), id],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// List recorded research misguidance events, optionally filtered by session id.
+    pub async fn list_research_misguidance(
+        &self,
+        session_id: Option<i64>,
+        limit: u32,
+    ) -> Result<Vec<ResearchMisguidanceRecord>, StoreError> {
+        let lim = limit.clamp(1, 1000) as i64;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let mut rows = match session_id {
+                    Some(sid) => {
+                        conn.query(
+                            "SELECT id, session_id, defect_class, culprit_url, culprit_domain, \
+                             claim_id, research_query, misleading_excerpt, generated_code_snippet, \
+                             failure_diagnostic, correction_diff, reporter, domain_penalty, \
+                             status, resolved_at_ms, created_at_ms \
+                             FROM research_misguidance_events \
+                             WHERE session_id = ?1 \
+                             ORDER BY created_at_ms DESC, id DESC LIMIT ?2",
+                            params![sid, lim],
+                        )
+                        .await?
+                    }
+                    None => {
+                        conn.query(
+                            "SELECT id, session_id, defect_class, culprit_url, culprit_domain, \
+                             claim_id, research_query, misleading_excerpt, generated_code_snippet, \
+                             failure_diagnostic, correction_diff, reporter, domain_penalty, \
+                             status, resolved_at_ms, created_at_ms \
+                             FROM research_misguidance_events \
+                             ORDER BY created_at_ms DESC, id DESC LIMIT ?1",
+                            params![lim],
+                        )
+                        .await?
+                    }
+                };
+
+                let mut out = Vec::new();
+                while let Some(row) = rows.next().await? {
+                    let defect_class_str: String = row.get(2)?;
+                    let reporter_str: String = row.get(11)?;
+                    let defect_class =
+                        ResearchDefectClass::from_str(&defect_class_str).map_err(StoreError::Db)?;
+                    let reporter =
+                        MisguidanceReporter::from_str(&reporter_str).map_err(StoreError::Db)?;
+
+                    out.push(ResearchMisguidanceRecord {
+                        id: row.get(0)?,
+                        session_id: row.get(1)?,
+                        defect_class,
+                        culprit_url: row.get(3)?,
+                        culprit_domain: row.get(4)?,
+                        claim_id: row.get(5)?,
+                        research_query: row.get(6)?,
+                        misleading_excerpt: row.get(7)?,
+                        generated_code_snippet: row.get(8)?,
+                        failure_diagnostic: row.get(9)?,
+                        correction_diff: row.get(10)?,
+                        reporter,
+                        domain_penalty: row.get(12)?,
+                        status: row.get(13)?,
+                        resolved_at_ms: row.get(14)?,
+                        created_at_ms: row.get(15)?,
+                    });
+                }
+                Ok::<Vec<ResearchMisguidanceRecord>, StoreError>(out)
+            })
+            .await
+    }
+
+    /// Retrieve all domain penalty scores where penalty > 0.0.
+    pub async fn get_domain_penalties(&self) -> Result<HashMap<String, f64>, StoreError> {
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let mut rows = conn
+                    .query(
+                        "SELECT domain, penalty_score FROM research_domain_reputation WHERE penalty_score > 0.0",
+                        params![],
+                    )
+                    .await?;
+                let mut map = HashMap::new();
+                while let Some(row) = rows.next().await? {
+                    let domain: String = row.get(0)?;
+                    let penalty: f64 = row.get(1)?;
+                    map.insert(domain, penalty);
+                }
+                Ok::<HashMap<String, f64>, StoreError>(map)
+            })
+            .await
+    }
+
+    /// Retrieve the set of all blacklisted domains.
+    pub async fn get_blacklisted_domains(&self) -> Result<HashSet<String>, StoreError> {
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let mut rows = conn
+                    .query(
+                        "SELECT domain FROM research_domain_reputation WHERE is_blacklisted = 1",
+                        params![],
+                    )
+                    .await?;
+                let mut set = HashSet::new();
+                while let Some(row) = rows.next().await? {
+                    let domain: String = row.get(0)?;
+                    set.insert(domain);
+                }
+                Ok::<HashSet<String>, StoreError>(set)
+            })
+            .await
+    }
 }
 
 fn now_ms() -> i64 {
@@ -666,10 +1182,104 @@ fn now_ms() -> i64 {
         .as_millis() as i64
 }
 
+fn sanitize_fts_query(input: &str) -> String {
+    let tokens: Vec<&str> = input
+        .split(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')
+        .filter(|s| !s.is_empty())
+        .collect();
+    if tokens.is_empty() {
+        return String::new();
+    }
+    tokens
+        .into_iter()
+        .map(|t| format!("\"{t}\""))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Sanitize sensitive tokens, credentials, and env variable values from telemetry and diagnostic strings.
+pub fn sanitize_telemetry_string(s: &str) -> String {
+    if s.is_empty() {
+        return String::new();
+    }
+    let mut result = s.to_string();
+
+    // 1. Sensitive environment variables: KEY=val, TOKEN=val, SECRET=val, PASSWORD=val, etc.
+    static ENV_VAR_RE: OnceLock<Regex> = OnceLock::new();
+    let env_var_re = ENV_VAR_RE.get_or_init(|| {
+        Regex::new(
+            r#"(?i)\b([A-Za-z0-9_]*(?:KEY|SECRET|TOKEN|PASSWORD|PASSWD|CREDENTIAL)[A-Za-z0-9_]*\s*=\s*)(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s"'\r\n]+)"#,
+        )
+        .unwrap()
+    });
+    result = env_var_re
+        .replace_all(&result, "${1}[REDACTED]")
+        .to_string();
+
+    // 2. Bearer tokens: Bearer [a-zA-Z0-9_\-\.]+
+    static BEARER_RE: OnceLock<Regex> = OnceLock::new();
+    let bearer_re =
+        BEARER_RE.get_or_init(|| Regex::new(r"(?i)\bBearer\s+[a-zA-Z0-9_\-\.]+").unwrap());
+    result = bearer_re
+        // drift-allow(bearer-header-inline): parses/matches/redacts a header, or a test fixture; not building one
+        .replace_all(&result, "Bearer [REDACTED]")
+        .to_string();
+
+    // 3. API key patterns: (sk|tvly|ghp)[-_][a-zA-Z0-9_\-\.]+
+    static API_KEY_PAT_RE: OnceLock<Regex> = OnceLock::new();
+    let api_key_pat_re = API_KEY_PAT_RE
+        .get_or_init(|| Regex::new(r"(?i)\b(?:sk|tvly|ghp)[-_][a-zA-Z0-9_\-\.]+").unwrap());
+    result = api_key_pat_re
+        .replace_all(&result, "[REDACTED]")
+        .to_string();
+
+    // 4. Pass through standard pattern redact (covers AWS keys AKIA..., generic sk-..., ghp_..., etc.)
+    let (redacted, _) = crate::redact::redact(&result);
+    redacted
+}
+
 #[cfg(test)]
 mod tests {
     use crate::store::ReviewDecisionRow;
     use crate::{DbConfig, VoxDb};
+
+    #[tokio::test]
+    async fn create_research_session_rejects_a_repeated_key() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        let first = db.create_research_session("k:one", "q1").await.unwrap();
+        let second = db.create_research_session("k:two", "q2").await.unwrap();
+        assert_ne!(first, second);
+        assert!(
+            db.create_research_session("k:one", "q1").await.is_err(),
+            "each attempt has its own key; reusing one must not merge two attempts into one session"
+        );
+    }
+
+    #[tokio::test]
+    async fn record_research_metric_enforces_trial_allowlist() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
+        let sid = db.create_research_session("k:trial", "q").await.unwrap();
+        let leaked = db
+            .record_research_metric(
+                sid,
+                "research_trial.run",
+                1.0,
+                Some(r#"{"query":"what did the user ask"}"#),
+            )
+            .await;
+        assert!(
+            leaked.is_err(),
+            "content keys must not reach research_metrics"
+        );
+        db.record_research_metric(
+            sid,
+            "research_trial.run",
+            1.0,
+            Some(r#"{"run_id":"r-1","status":"ok"}"#),
+        )
+        .await
+        .expect("structural trial row is accepted");
+    }
 
     /// Seed helper: store a claim row under the given session.
     async fn seed_claim(db: &VoxDb, session_id: i64, claim_id: u64) {

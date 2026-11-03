@@ -1,20 +1,24 @@
 //! Interpreted workflow planning and execution (internal).
 
+pub mod counting_tracker;
 mod hir_context;
+pub mod host;
 pub mod plan;
 pub mod populi;
 mod return_extract;
 pub mod run;
 pub mod tracker;
 pub mod types;
+pub mod waker;
 
 pub use hir_context::{current_hir_module, set_current_hir_module};
-pub use plan::{plan_workflow_activities, plan_workflow_replay_ir};
+pub use host::{HostDecision, HostOutcome, HostRequest, WorkflowHost};
+pub use plan::plan_workflow_activities;
 #[cfg(feature = "mens")]
 pub use populi::execute_populi_step;
 pub use return_extract::{ExtractError, extract_terminal_return};
 pub use run::{WORKFLOW_JOURNAL_VERSION, interpret_workflow, interpret_workflow_durable};
-pub use tracker::{DefaultTracker, InMemoryTracker, WorkflowTracker};
+pub use tracker::{DefaultTracker, InMemoryTracker, SignalDecision, WorkflowTracker};
 pub use types::{PlannedActivity, PopuliActivity, PopuliHttpOp, ReplayNode, WorkflowReplayIr};
 
 #[cfg(test)]

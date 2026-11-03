@@ -13,6 +13,8 @@
 //! queries, no LLM calls, no network I/O. Callers stage the inputs from
 //! `vox-db` and `vox-scientia` separately.
 
+pub mod architecture_ssot;
+pub mod common;
 pub mod render;
 pub mod safe_slots;
 pub mod section_tree;

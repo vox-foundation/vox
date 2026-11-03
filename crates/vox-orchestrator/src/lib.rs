@@ -84,12 +84,13 @@ pub mod bulletin;
 /// Prefix-cache hit predictor (D7).
 pub mod cache_predictor;
 /// Calibration loop: Welford drift detection + Thompson bandit (D10).
-pub mod calibration;
+pub use vox_orchestrator_models::calibration;
 /// Host capability probing and merge with `OrchestratorConfig::default_agent_capabilities`.
 pub mod capability_probe;
 /// Dynamic model catalogs.
 pub mod catalog;
 pub mod catalog_classifier;
+pub mod catalog_live;
 /// Five-signal circuit breaker for doom-loop detection (D6).
 pub mod circuit_breaker;
 /// DB-backed clarification inbox drain (Codex `a2a_messages`).
@@ -116,6 +117,7 @@ pub mod continuation;
 pub mod contract;
 /// Agent activity events and pub/sub bus.
 pub mod events;
+pub mod events_severity;
 /// Developer mental fatigue monitoring and cognitive pacing.
 pub mod fatigue_monitor;
 /// Pre/post task gates (including TOESTUB quality checks).
@@ -130,6 +132,8 @@ pub mod handoff;
 pub mod legacy;
 /// Unified orchestrator policy façade composing all D1–D10.
 pub mod orchestrator_policy;
+/// Polyglot cross-repo Platform SSOT v2.1 (synced from ngi.video/packages/platform-ssot).
+pub mod platform_ssot_generated;
 /// Sensitivity classifier and privacy-level-aware routing (D8).
 pub mod privacy_classifier;
 pub mod process_util;
@@ -141,9 +145,6 @@ pub mod risk_matrix;
 pub mod subagent_dispatch;
 /// Three-tier model cascade for autonomous model-routing (D1).
 pub mod tier_cascade;
-
-pub mod knowledge_base;
-pub use knowledge_base::{KbEntry, KbEntrySource, KbRoutingRule, KbRoutingRuleType, KnowledgeBase};
 
 /// Entropy-based hallucination detection.
 pub mod entropy_scorer;
@@ -187,6 +188,9 @@ pub mod orch_daemon;
 pub mod orchestration_feature_flags;
 /// Core multi-agent orchestrator implementation.
 pub mod orchestrator;
+pub use crate::orchestrator::core::is_chat_research_enabled;
+/// Oversight composition: safety floor, policy enforcement, and approval tiers.
+pub mod oversight;
 /// PII-aware redacting filter for sensitive data.
 pub mod pii_filter;
 /// Dynamic planning domain (router, synthesis, policies, replanning).
@@ -233,9 +237,9 @@ pub mod topology;
 /// Core identifiers, tasks, messages, and shared value types.
 pub mod types;
 /// Aggregated LLM usage, quotas, and cost accounting.
-pub mod usage;
+pub use vox_orchestrator_models::usage;
 /// Provider daily quota policy (dynamic + defaults).
-pub mod usage_policy;
+pub use vox_orchestrator_models::usage_policy;
 /// Per-agent workspace views and pending change tracking.
 pub mod workspace;
 
@@ -372,7 +376,7 @@ pub use socrates::{
     session_context_envelope_key,
 };
 pub use summary::SummaryManager;
-pub use tool_receipt::{ReceiptValidationResult, ToolReceipt, ToolReceiptLedger};
+pub use tool_receipt::{ReceiptValidationResult, ToolReceipt, ToolReceiptError, ToolReceiptLedger};
 pub use topology::{
     AgentDelegationBinding, AgentRole, AgentTopologyNode, AgentTopologySnapshot, DelegationEdge,
     DynamicSpawnContext, TopologyGap,
@@ -403,3 +407,14 @@ pub use orchestrator_policy::{
 
 pub mod preregistration;
 pub mod secretary;
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn reexport_paths_resolve() {
+        // The three modules moved to vox-orchestrator-models; the old paths must keep resolving.
+        let _: Option<crate::usage::RemainingBudget> = None;
+        let _: Option<crate::usage_policy::ProviderLimitOwned> = None;
+        let _: Option<crate::calibration::CalibrationConfig> = None;
+    }
+}

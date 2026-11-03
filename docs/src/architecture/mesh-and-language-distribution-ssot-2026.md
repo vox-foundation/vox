@@ -494,10 +494,10 @@ is gated on CLI fluency and we ship a working tool nobody can use.
 
 | ID | Task | Files | Notes |
 |---|---|---|---|
-| `P4-T1` | **Wire mesh routes to live orchestrator state** (replace fixtures) | [`vox-dashboard/src/api/mesh.rs`](../../../crates/vox-dashboard/src/api/mesh.rs); subscribe to orchestrator EventBus over WS | Per design brief Phase 2 |
+| `P4-T1` | **Wire mesh routes to live orchestrator state** (replace fixtures) | `vox-dashboard/src/api/mesh.rs`; subscribe to orchestrator EventBus over WS | Per design brief Phase 2 |
 | `P4-T2` | **"Add a Node" wizard** with one-shot install command + QR-code as coequal | new wizard flow; `vox-crypto` for Ed25519 keypair gen; `vox-identity` for handle | One-shot bearer ≤ 10 min TTL; embedded peer_id; install command prints itself first (`--print` mode) before piping to shell |
 | `P4-T3` | **Donation-policy editor** (slots, kinds, NSFW filter, per-peer overrides) | new `vox-mesh-policy` (L2) consumed by orchestrator admission; UI in dashboard | Policy file is `donations.vox` — first-class Vox source, type-checked, version-controlled |
-| `P4-T4` | **Live topology canvas** with health colors (replaces empty `NetworkTab.tsx`) | [`vox-dashboard/app/src/generated/NetworkTab.tsx`](../../../crates/vox-dashboard/app/src/generated/NetworkTab.tsx) | Force-graph that *doesn't* re-layout per event; click-to-pin; status pill per node |
+| `P4-T4` | **Live topology canvas** with health colors (replaces empty `NetworkTab.tsx`) | `vox-dashboard/app/src/generated/NetworkTab.tsx` | Force-graph that *doesn't* re-layout per event; click-to-pin; status pill per node |
 | `P4-T5` | **Audit-log scrubber** — timeline slider over op-log → state at instant | new `/api/v2/oplog/at/{ts}` route; UI; consumes Phase 3 op-log | Temporal-replay equivalent for Vox |
 | `P4-T6` | **Per-node spend gauge + mesh-wide budget bar** | extends existing `budget.*` settings; cost from Phase 2 dispatch envelope | |
 | `P4-T7` | **Mesh-aware `⌘K` palette** ("kill on node X", "drain Y", "send latest to friend-gpu") | extends existing `cmdk.vox` | |

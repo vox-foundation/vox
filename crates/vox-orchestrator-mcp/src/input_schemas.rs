@@ -67,6 +67,9 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_complete_task" => derived_tool_schema!(crate::params::CompleteTaskParams),
         "vox_fail_task" => derived_tool_schema!(crate::params::FailTaskParams),
         "vox_doubt_task" => derived_tool_schema!(crate::params::DoubtTaskParams),
+        "vox_verify_task_claims" => {
+            derived_tool_schema!(crate::receipt_tools::VerifyTaskClaimsParams)
+        }
         "vox_propose_skill" => derived_tool_schema!(crate::params::ProposeSkillParams),
         "vox_ask_clarification" => derived_tool_schema!(crate::params::AskClarificationParams),
         "vox_resolve_feedback" => derived_tool_schema!(crate::params::ResolveFeedbackParams),
@@ -146,12 +149,26 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
 
         // ── Browser (CDP / chromiumoxide) ───────────────────────────────────
         "vox_browser_open" => derived_tool_schema!(crate::params::BrowserOpenParams),
+        "vox_browser_open_ex" => derived_tool_schema!(crate::params::BrowserOpenExParams),
         "vox_browser_close" => derived_tool_schema!(crate::params::BrowserPageParams),
         "vox_browser_goto" => derived_tool_schema!(crate::params::BrowserGotoParams),
         "vox_browser_click" | "vox_browser_text" => {
             derived_tool_schema!(crate::params::BrowserTargetParams)
         }
         "vox_browser_fill" => derived_tool_schema!(crate::params::BrowserFillParams),
+        "vox_browser_snapshot" => {
+            derived_tool_schema!(crate::params::BrowserSnapshotParams)
+        }
+        "vox_browser_click_ref" => derived_tool_schema!(crate::params::BrowserRefParams),
+        "vox_browser_fill_ref" => {
+            derived_tool_schema!(crate::params::BrowserFillRefParams)
+        }
+        "vox_browser_cookies_export" => {
+            derived_tool_schema!(crate::params::BrowserPageParams)
+        }
+        "vox_browser_cookies_import" => {
+            derived_tool_schema!(crate::params::BrowserCookiesImportParams)
+        }
         "vox_browser_wait_for" => derived_tool_schema!(crate::params::BrowserWaitParams),
         "vox_browser_html" => derived_tool_schema!(crate::params::BrowserHtmlParams),
         "vox_browser_screenshot" => {
@@ -194,6 +211,9 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_validate_source" => {
             derived_tool_schema!(crate::params::ValidateSourceParams)
         }
+        "vox_validate_mermaid" => parse_obj(
+            r#"{"type":"object","properties":{"code":{"type":"string","description":"Standalone Mermaid diagram source code"},"markdown":{"type":"string","description":"Markdown document containing fenced mermaid code blocks"}},"additionalProperties":false}"#,
+        ),
         "vox_run_tests" => derived_tool_schema!(crate::params::RunTestsParams),
         "vox_build_crate" | "vox_lint_crate" | "vox_coverage_report" => {
             derived_tool_schema!(crate::params::OptionalCrateNameParams)
@@ -286,22 +306,11 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         | "vox_poll_events" => parse_obj(r#"{"type":"object","additionalProperties":true}"#),
 
         // ── Knowledge Bases (VoxKB) ──────────────────────────────────────────
-        "vox_kb_create" => derived_tool_schema!(crate::kb_tools::params::KbCreateParams),
-        "vox_kb_list" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
-        "vox_kb_delete" => derived_tool_schema!(crate::kb_tools::params::KbDeleteParams),
-        "vox_kb_add_entry" => derived_tool_schema!(crate::kb_tools::params::KbAddEntryParams),
-        "vox_kb_delete_entry" => derived_tool_schema!(crate::kb_tools::params::KbDeleteEntryParams),
-        "vox_kb_list_entries" => {
-            derived_tool_schema!(crate::kb_tools::params::KbListEntriesParams)
-        }
-        "vox_kb_review_entry" => {
-            derived_tool_schema!(crate::kb_tools::params::KbReviewEntryParams)
-        }
-        "vox_kb_get_feed" => derived_tool_schema!(crate::kb_tools::params::KbGetFeedParams),
-        "vox_kb_add_rule" => derived_tool_schema!(crate::kb_tools::params::KbAddRuleParams),
-        "vox_kb_list_rules" => derived_tool_schema!(crate::kb_tools::params::KbListRulesParams),
-        "vox_kb_query" => derived_tool_schema!(crate::kb_tools::params::KbQueryParams),
-        "vox_kb_clip" => derived_tool_schema!(crate::kb_tools::params::KbClipParams),
+        "vox_kb_search" => derived_tool_schema!(crate::kb_tools::library::KbSearchParams),
+        "vox_kb_get" => derived_tool_schema!(crate::kb_tools::library::KbGetParams),
+        "vox_kb_cite" => derived_tool_schema!(crate::kb_tools::library::KbCiteParams),
+        "vox_kb_status" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
+        "vox_kb_reindex" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
 
         // ── Memory (MEMORY.md / search) ─────────────────────────────────────
         "vox_memory_store" => parse_obj(
@@ -323,13 +332,16 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             r#"{"type":"object","properties":{"query":{"type":"string"},"limit":{"type":"integer"}},"required":["query"],"additionalProperties":false}"#,
         ),
         "vox_research_run" => parse_obj(
-            r#"{"type":"object","properties":{"query":{"type":"string","minLength":1},"scope":{"type":"string"},"max_sources":{"type":"integer","minimum":1,"maximum":50},"verify_claims":{"type":"boolean"},"site_scope":{"type":"string"},"json":{"type":"boolean"}},"required":["query"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"query":{"type":"string","minLength":1},"scope":{"type":"string"},"max_sources":{"type":"integer","minimum":1,"maximum":50},"verify_claims":{"type":"boolean"},"site_scope":{"type":"string"},"json":{"type":"boolean"},"waves":{"type":"integer","minimum":1,"description":"Research waves (default 1)"},"domain_mode":{"type":"string","description":"general (default), shopping, or codegen; case-insensitive"},"lane":{"type":"string","enum":["fast","deep"],"description":"fast (default; no LLM planner) or deep (LLM query decomposition). Canonical values are lowercase; the server also accepts any case and surrounding whitespace."}},"required":["query"],"additionalProperties":false}"#,
         ),
         "vox_research_start" => parse_obj(
-            r#"{"type":"object","properties":{"query":{"type":"string","minLength":1},"scope":{"type":"string"},"max_sources":{"type":"integer","minimum":1,"maximum":50},"verify_claims":{"type":"boolean"},"site_scope":{"type":"string"}},"required":["query"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"query":{"type":"string","minLength":1},"scope":{"type":"string"},"max_sources":{"type":"integer","minimum":1,"maximum":50},"verify_claims":{"type":"boolean"},"site_scope":{"type":"string"},"waves":{"type":"integer","minimum":1,"description":"Research waves (default 1)"},"domain_mode":{"type":"string","description":"general (default), shopping, or codegen; case-insensitive"},"lane":{"type":"string","enum":["fast","deep"],"description":"fast (default; no LLM planner) or deep (LLM query decomposition). Canonical values are lowercase; the server also accepts any case and surrounding whitespace."}},"required":["query"],"additionalProperties":false}"#,
         ),
         "vox_research_status" | "vox_research_get" => parse_obj(
             r#"{"type":"object","properties":{"session_id":{"type":"integer","minimum":1}},"required":["session_id"],"additionalProperties":false}"#,
+        ),
+        "vox_research_search" => parse_obj(
+            r#"{"type":"object","properties":{"query":{"type":"string","minLength":1},"limit":{"type":"integer","minimum":1,"maximum":50},"domain":{"type":"string"},"min_confidence":{"type":"number","minimum":0.0,"maximum":1.0},"verified_only":{"type":"boolean"}},"required":["query"],"additionalProperties":false}"#,
         ),
 
         // ── Sessions & compaction ─────────────────────────────────────────────
@@ -469,11 +481,17 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_validate_vuv" => parse_obj(
             r#"{"type":"object","properties":{"source":{"type":"string","minLength":1,"description":"Vox/VUV source to validate against the compile-time GUI guarantees (contrast, layer-occlusion, a11y, structural web-IR). No files are written."}},"required":["source"],"additionalProperties":false}"#,
         ),
+        "vox_validate_diagram" => parse_obj(
+            r#"{"type":"object","properties":{"source":{"type":"string","minLength":1,"description":"VoxDiagram source (graph or sequence). At most 65536 bytes."},"from_mermaid":{"type":"boolean","default":false,"description":"Treat source as one Mermaid block; return the converted VoxDiagram or the by-line unsupported list."},"emit":{"type":"string","enum":["svg","mermaid"],"description":"Also return the SVG or Mermaid rendering of a valid diagram."}},"required":["source"],"additionalProperties":false}"#,
+        ),
         "vox_search_status" => parse_obj(
             r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id from contracts/retrieval/graphify-corpora.v1.yaml; omit for all corpora"}},"additionalProperties":false}"#,
         ),
         "vox_search_structural" => parse_obj(
             r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id from contracts/retrieval/graphify-corpora.v1.yaml; omit for default corpus"},"query":{"type":"string","minLength":1,"description":"Lexical search query matched against node labels"},"limit":{"type":"integer","minimum":1,"description":"Maximum hits to return (default 10)"},"persist":{"type":"boolean","default":true,"description":"When true (default), upsert hits into knowledge_nodes for future agent recall. Pass false for ephemeral searches. Recall consumers must compare metadata.git_sha against HEAD to detect stale hits."}},"required":["query"],"additionalProperties":false}"#,
+        ),
+        "vox_search_atlas" => parse_obj(
+            r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id; omit for default"},"level":{"type":"string","enum":["crate","module","file","symbol"],"description":"LOD level of the slice"},"focus":{"type":"string","description":"Node id to center the slice on"},"branch_tip":{"type":"string","description":"Ref name for provenance header"},"kinds":{"type":"array","items":{"type":"string"},"description":"Restrict to node kinds"},"limit":{"type":"integer","minimum":1,"description":"Max nodes returned (hard-capped by the atlas budget)"}},"required":["level"],"additionalProperties":false}"#,
         ),
         "vox_search_neighbors" => parse_obj(
             r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id; omit for default"},"seeds":{"type":"array","items":{"type":"string"},"minItems":1,"description":"Seed node IDs to BFS-expand from"},"max_depth":{"type":"integer","minimum":1,"maximum":5,"description":"BFS hop limit (default 2)"},"limit":{"type":"integer","minimum":1,"description":"Max hits returned (default 20)"},"direction":{"type":"string","enum":["in","out","both"],"description":"in=callers, out=callees, both=undirected (default)"}},"required":["seeds"],"additionalProperties":false}"#,
@@ -486,6 +504,15 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         ),
         "vox_search_compare" => parse_obj(
             r#"{"type":"object","properties":{"corpus_a":{"type":"string","description":"First corpus id to compare"},"corpus_b":{"type":"string","description":"Second corpus id to compare"}},"required":["corpus_a","corpus_b"],"additionalProperties":false}"#,
+        ),
+        "vox_capability_explain" => parse_obj(
+            r#"{"type":"object","properties":{"query":{"type":"string","minLength":1,"maxLength":256,"description":"capability id, CLI path, MCP tool, GUI view key, crate or skill"}},"required":["query"],"additionalProperties":false}"#,
+        ),
+        "vox_capability_features" => parse_obj(
+            r#"{"type":"object","properties":{"domain":{"type":"string","minLength":1,"maxLength":64,"description":"domain id (omit to list every domain with counts)"}},"additionalProperties":false}"#,
+        ),
+        "vox_search_history" => parse_obj(
+            r#"{"type":"object","properties":{"query":{"type":"string","enum":["log","focus","forgotten","search","timeline","brief"],"description":"View: log (a file's changes through rename/split/merge lineage), focus (churn per area), forgotten (dormant high-fan-in areas), search (commit text, paths, symbols), timeline (top areas per bucket), brief (one line)"},"path":{"type":"string","description":"log: repo-relative file path"},"text":{"type":"string","description":"search: terms"},"since_days":{"type":"integer","minimum":1,"description":"focus (default 30) / timeline (default 90)"},"min_age_days":{"type":"integer","minimum":0,"description":"forgotten: default 60"},"bucket_days":{"type":"integer","minimum":1,"description":"timeline: default 7"},"by":{"type":"string","enum":["crate","dir"],"description":"Area grouping (default crate)"},"include_mechanical":{"type":"boolean","description":"Include fmt/generated/import-only changes (default false)"},"limit":{"type":"integer","minimum":1,"description":"Max rows (default 20)"}},"required":["query"],"additionalProperties":false}"#,
         ),
         "vox_search_rebuild" => parse_obj(
             r#"{"type":"object","properties":{"corpus":{"type":"string","description":"Corpus id to rebuild; omit for the registry default_corpus_id. WRITE/mutating: regenerates the on-disk AST code graph and snapshots the previous one."}},"additionalProperties":false}"#,
@@ -645,7 +672,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             r#"{"type":"object","properties":{"file_path":{"type":"string"},"start_line":{"type":"integer","minimum":1},"end_line":{"type":"integer","minimum":1},"target_content":{"type":"string"},"replacement_code":{"type":"string"}},"required":["file_path","target_content","replacement_code"],"additionalProperties":false}"#,
         ),
         "vox_plan" => parse_obj(
-            r#"{"type":"object","properties":{"goal":{"type":"string","minLength":1,"maxLength":65536},"scope_files":{"type":"array","items":{"type":"string","maxLength":4096}},"write_to_disk":{"type":"boolean"},"max_tasks":{"type":"integer","minimum":1,"maximum":2000},"session_id":{"type":"string","maxLength":2048},"plan_depth":{"type":"string","enum":["minimal","standard","deep"]},"auto_expand_thin_plan":{"type":"boolean"},"loop_mode":{"type":"string","enum":["off","auto","force"]},"max_refine_rounds":{"type":"integer","minimum":0,"maximum":8},"refine_budget_tokens":{"type":"integer","minimum":0,"maximum":200000},"gap_risk_threshold":{"type":"number","minimum":0.05,"maximum":0.95},"plan_page_offset":{"type":"integer","minimum":0,"maximum":500000},"plan_page_limit":{"type":"integer","minimum":1,"maximum":2000},"plan_telemetry_session_id":{"type":"string","maxLength":2048},"require_approval":{"type":"boolean"},"question_link_session_id":{"type":"string","maxLength":2048},"questioning_hints_enabled":{"type":"boolean"},"answerer_profile":{"type":"string","enum":["local_first","cloud_first","balanced"]},"temperature":{"type":"number","minimum":0.0,"maximum":2.0},"top_p":{"type":"number","minimum":0.0,"maximum":1.0}},"required":["goal"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"goal":{"type":"string","minLength":1,"maxLength":65536},"scope_files":{"type":"array","items":{"type":"string","maxLength":4096}},"write_to_disk":{"type":"boolean"},"max_tasks":{"type":"integer","minimum":1,"maximum":2000},"session_id":{"type":"string","maxLength":2048},"plan_depth":{"type":"string","enum":["minimal","standard","deep"]},"auto_expand_thin_plan":{"type":"boolean"},"loop_mode":{"type":"string","enum":["off","auto","force"]},"max_refine_rounds":{"type":"integer","minimum":0,"maximum":8},"refine_budget_tokens":{"type":"integer","minimum":0,"maximum":200000},"gap_risk_threshold":{"type":"number","minimum":0.05,"maximum":0.95},"plan_page_offset":{"type":"integer","minimum":0,"maximum":500000},"plan_page_limit":{"type":"integer","minimum":1,"maximum":2000},"plan_telemetry_session_id":{"type":"string","maxLength":2048},"require_approval":{"type":"boolean"},"question_link_session_id":{"type":"string","maxLength":2048},"questioning_hints_enabled":{"type":"boolean"},"answerer_profile":{"type":"string","enum":["local_first","cloud_first","balanced"]},"temperature":{"type":"number","minimum":0.0,"maximum":2.0},"top_p":{"type":"number","minimum":0.0,"maximum":1.0},"model_override":{"type":"string","maxLength":256},"trace_id":{"type":"string","maxLength":256,"description":"End-to-end ChatHop correlation id"},"turn_id":{"type":"string","maxLength":256,"description":"Per-submit turn id for Drive / ChatHop JSONL"}},"required":["goal"],"additionalProperties":false}"#,
         ),
         "vox_ghost_text" => parse_obj(
             r#"{"type":"object","properties":{"prefix":{"type":"string"},"suffix":{"type":"string"},"language":{"type":"string"},"file_path":{"type":"string"},"max_tokens":{"type":"integer"},"session_id":{"type":"string"},"temperature":{"type":"number","minimum":0.0,"maximum":2.0},"top_p":{"type":"number","minimum":0.0,"maximum":1.0}},"required":["prefix","suffix"],"additionalProperties":true}"#,
@@ -825,7 +852,128 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_scientia_assist_suggestions" => parse_obj(
             r#"{"type":"object","properties":{"publication_id":{"type":"string","minLength":1,"maxLength":256},"use_llm":{"type":"boolean","description":"When false, return heuristic JSON only"}},"required":["publication_id"],"additionalProperties":false}"#,
         ),
-
+        // ── gui_ops: models (plan 07) ──
+        "vox_models_preference_set" => {
+            derived_tool_schema!(crate::gui_ops::models::ModelsPreferenceSetParams)
+        }
+        // ── gui_ops: prefs (plan 07) ──
+        "vox_gui_preference_get" => {
+            derived_tool_schema!(crate::gui_ops::prefs::GuiPreferenceGetParams)
+        }
+        "vox_gui_preference_set" => {
+            derived_tool_schema!(crate::gui_ops::prefs::GuiPreferenceSetParams)
+        }
+        // ── gui_ops: chat (plan 07) ──
+        "vox_chat_session_create" => {
+            derived_tool_schema!(crate::gui_ops::chat::ChatSessionCreateParams)
+        }
+        "vox_chat_session_append" => {
+            derived_tool_schema!(crate::gui_ops::chat::ChatSessionAppendParams)
+        }
+        "vox_chat_session_rename" => {
+            derived_tool_schema!(crate::gui_ops::chat::ChatSessionRenameParams)
+        }
+        "vox_chat_session_archive" => {
+            derived_tool_schema!(crate::gui_ops::chat::ChatSessionArchiveParams)
+        }
+        // ── gui_ops: knowledge (plan 07) ──
+        "vox_kb_node_delete" => {
+            derived_tool_schema!(crate::gui_ops::knowledge::KbNodeDeleteParams)
+        }
+        "vox_kb_ingest_text" => {
+            derived_tool_schema!(crate::gui_ops::knowledge::KbIngestTextParams)
+        }
+        "vox_kb_ingest_url" => {
+            derived_tool_schema!(crate::gui_ops::knowledge::KbIngestUrlParams)
+        }
+        "vox_kb_import_research_session" => {
+            derived_tool_schema!(crate::gui_ops::knowledge::KbImportResearchSessionParams)
+        }
+        "vox_memory_reindex" => {
+            derived_tool_schema!(crate::gui_ops::knowledge::MemoryReindexParams)
+        }
+        // ── gui_ops: research (plan 07) ──
+        "vox_research_flag_misleading" => {
+            derived_tool_schema!(crate::gui_ops::research::ResearchFlagParams)
+        }
+        "vox_research_publish_doc" => {
+            derived_tool_schema!(crate::gui_ops::research::ResearchPublishDocParams)
+        }
+        "vox_research_engine_config_set" => {
+            derived_tool_schema!(crate::gui_ops::research::ResearchEngineConfigSetParams)
+        }
+        "vox_research_engine_probe" => {
+            derived_tool_schema!(crate::gui_ops::research::ResearchEngineProbeParams)
+        }
+        "vox_scientia_publication_claim_review" => {
+            derived_tool_schema!(crate::gui_ops::scientia::ClaimReviewParams)
+        }
+        "vox_scientia_publication_nanopublish" => {
+            derived_tool_schema!(crate::gui_ops::scientia::NanopublishParams)
+        }
+        "vox_scientia_publication_autofill" => {
+            derived_tool_schema!(crate::gui_ops::scientia::AutofillParams)
+        }
+        "vox_scientia_discovery_ack" => {
+            derived_tool_schema!(crate::gui_ops::scientia::DiscoveryAckParams)
+        }
+        // ── gui_ops: orchestrator (plan 07) ──
+        "vox_hopper_submit" => {
+            derived_tool_schema!(crate::gui_ops::orchestrator::HopperSubmitParams)
+        }
+        "vox_hopper_reprioritize" => {
+            derived_tool_schema!(crate::gui_ops::orchestrator::HopperReprioritizeParams)
+        }
+        "vox_hopper_cancel" => {
+            derived_tool_schema!(crate::gui_ops::orchestrator::HopperItemParams)
+        }
+        "vox_hopper_mark_done" => {
+            derived_tool_schema!(crate::gui_ops::orchestrator::HopperItemParams)
+        }
+        "vox_plan_node_upsert" => {
+            derived_tool_schema!(crate::gui_ops::orchestrator::PlanNodeUpsertParams)
+        }
+        "vox_plan_nodes_approve" => {
+            derived_tool_schema!(crate::gui_ops::orchestrator::PlanNodesApproveParams)
+        }
+        "vox_gui_run_start" => {
+            derived_tool_schema!(crate::gui_ops::dto::orchestrator::StartGuiRunInput)
+        }
+        "vox_gui_run_finish" => {
+            derived_tool_schema!(crate::gui_ops::dto::orchestrator::FinishGuiRunInput)
+        }
+        // ── gui_ops: harness (plan 07) ──
+        "vox_harness_corpus_scan" => {
+            derived_tool_schema!(crate::gui_ops::harness::CorpusScanParams)
+        }
+        "vox_harness_fix_propose" => {
+            derived_tool_schema!(crate::gui_ops::harness::FixProposeParams)
+        }
+        "vox_harness_fix_resolve" => {
+            derived_tool_schema!(crate::gui_ops::harness::FixResolveParams)
+        }
+        "vox_harness_issue_decide" => {
+            derived_tool_schema!(crate::gui_ops::harness::IssueDecideParams)
+        }
+        // ── gui_ops: gamify (plan 07) ──
+        "vox_gamify_profile" => {
+            derived_tool_schema!(crate::gui_ops::gamify::GamifyProfileParams)
+        }
+        "vox_gamify_due_actions" => {
+            derived_tool_schema!(crate::gui_ops::gamify::GamifyDueActionsParams)
+        }
+        "vox_gamify_record_event" => {
+            derived_tool_schema!(crate::gui_ops::gamify::GamifyRecordEventParams)
+        }
+        "vox_gamify_leaderboard" => {
+            derived_tool_schema!(crate::gui_ops::gamify::GamifyLeaderboardParams)
+        }
+        "vox_gamify_companions" => {
+            derived_tool_schema!(crate::gui_ops::gamify::GamifyCompanionsParams)
+        }
+        "vox_gamify_discovery_record" => {
+            derived_tool_schema!(crate::gui_ops::gamify::GamifyDiscoveryRecordParams)
+        }
         _ => Map::new(),
     }
 }
@@ -893,6 +1041,44 @@ mod tests {
             missing.is_empty(),
             "TOOL_REGISTRY tools missing non-empty input_schema: {missing:?}"
         );
+    }
+
+    /// The research schemas set `additionalProperties:false`, so every field the params
+    /// struct accepts must be advertised or strict clients cannot send it.
+    #[test]
+    fn research_run_start_schemas_advertise_every_param() {
+        fn keys(v: &Value) -> std::collections::BTreeSet<String> {
+            v["properties"]
+                .as_object()
+                .expect("properties")
+                .keys()
+                .cloned()
+                .collect()
+        }
+        for (tool, derived) in [
+            (
+                "vox_research_run",
+                serde_json::to_value(schemars::schema_for!(
+                    crate::memory_tools::ResearchRunParams
+                ))
+                .unwrap(),
+            ),
+            (
+                "vox_research_start",
+                serde_json::to_value(schemars::schema_for!(
+                    crate::memory_tools::ResearchStartParams
+                ))
+                .unwrap(),
+            ),
+        ] {
+            let schema = Value::Object(tool_input_schema(tool));
+            assert_eq!(keys(&schema), keys(&derived), "{tool}");
+            assert_eq!(
+                schema["properties"]["lane"]["enum"],
+                serde_json::json!(["fast", "deep"]),
+                "{tool}"
+            );
+        }
     }
 
     #[test]
@@ -1125,5 +1311,18 @@ mod tests {
                 panic!("Tool '{}' has invalid JSON Schema: {}", entry.name, error);
             }
         }
+    }
+
+    #[test]
+    fn vox_plan_schema_defines_model_override() {
+        let schema = tool_input_schema("vox_plan");
+        let props = schema
+            .get("properties")
+            .and_then(|v| v.as_object())
+            .expect("properties");
+        assert!(props.contains_key("model_override"));
+        let mo = props.get("model_override").unwrap();
+        assert_eq!(mo["type"], "string");
+        assert_eq!(mo["maxLength"], 256);
     }
 }

@@ -28,7 +28,19 @@ use std::sync::OnceLock;
 // 90: fix(scientia): add a partial unique index enforcing the chat_session pending
 //     dedup rule at the database level (PR review: check-then-insert race between
 //     concurrently-spawned judge tasks)
-pub const BASELINE_VERSION: i64 = 90;
+// 91: feat(db): add web_cache table and indexes to knowledge domain
+// 92: feat(db): add covering indexes idx_knowledge_edges_src_rel and idx_knowledge_edges_dst_rel for recursive CTE
+// 93: feat(vox-db): add research_misguidance_events, research_domain_reputation, and provider_quota_usage tables (Tasks 1 & 2)
+// 94: feat(vox-db): add hopper_inbox.resource_id for resource-locked hopper tasks (Phase 5 D-08)
+// 95: feat(vox-db): add model_benchmark_results (graded per-case model benchmarks, `vox models bench`)
+// 95: feat(kb): library index columns + kb_index_state (KB Phase 2)
+// 96: feat(kb): kb_findings inbox + search_documents.trust_tier (KB Phase 3)
+//     Digest re-updated, still 96 (no BASELINE_VERSION bump needed): the legacy VoxKB DDL
+//     (knowledge_bases, kb_entries, kb_routing_rules) moved into domains::quarantine behind
+//     the `quarantine` feature (03-12). Existing databases keep the tables and their rows.
+//     Also includes workflow durability tables (workflow_run_log.args_json, wake_at_ms/parked_reason, workflow_patch_log).
+// 97: feat(trials): Research Trial Tier-A tables (trial_campaigns, trial_campaigns_log, trial_runs, trial_samples)
+pub const BASELINE_VERSION: i64 = 97;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]
@@ -154,6 +166,10 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
         name: "history_entries",
         sql: domains::history::SCHEMA_HISTORY,
     },
+    SchemaFragment {
+        name: "trials",
+        sql: domains::trials::SCHEMA_TRIALS,
+    },
 ];
 
 /// Hex encoded Keccak-256 digest of [`baseline_sql`].
@@ -188,10 +204,16 @@ pub fn baseline_sql() -> &'static str {
         }
         #[cfg(feature = "quarantine")]
         {
-            let sql = domains::quarantine::SCHEMA_QUARANTINE.trim();
-            if !sql.is_empty() {
-                full.push_str(sql);
-                full.push_str("\n\n");
+            // The legacy VoxKB tables ride the same feature (KB Phase 3, RET-03): a fresh
+            // default-feature database does not create them; existing databases keep theirs.
+            for sql in [
+                domains::quarantine::SCHEMA_QUARANTINE.trim(),
+                domains::quarantine::SCHEMA_LEGACY_VOXKB.trim(),
+            ] {
+                if !sql.is_empty() {
+                    full.push_str(sql);
+                    full.push_str("\n\n");
+                }
             }
         }
         full
@@ -224,6 +246,37 @@ mod quarantine_gating {
             sql.contains("CREATE TABLE IF NOT EXISTS toestub_file_cache"),
             "quarantine feature is ON; toestub_file_cache DDL must appear in baseline_sql()"
         );
+    }
+
+    /// The three legacy VoxKB tables (retired by KB Phase 3, rows copied into
+    /// `kb_findings` by 03-08) are quarantined: a fresh default-feature database must
+    /// not create them. Existing databases keep theirs (they are not in
+    /// `QUARANTINE_DROP_TABLES`).
+    #[test]
+    #[cfg(not(feature = "quarantine"))]
+    fn quarantined_legacy_voxkb_absent_by_default() {
+        let sql = baseline_sql();
+        for table in ["knowledge_bases", "kb_entries", "kb_routing_rules"] {
+            assert!(
+                !sql.contains(&format!("CREATE TABLE IF NOT EXISTS {table} ")),
+                "{table} DDL must not appear in the default baseline_sql()"
+            );
+        }
+    }
+
+    /// With the `quarantine` feature the legacy VoxKB tables come back, exactly once.
+    #[test]
+    #[cfg(feature = "quarantine")]
+    fn quarantined_legacy_voxkb_present_with_feature() {
+        let sql = baseline_sql();
+        for table in ["knowledge_bases", "kb_entries", "kb_routing_rules"] {
+            let ddl = format!("CREATE TABLE IF NOT EXISTS {table} ");
+            assert_eq!(
+                sql.matches(&ddl).count(),
+                1,
+                "{table} DDL must appear exactly once in baseline_sql() under `quarantine`"
+            );
+        }
     }
 }
 

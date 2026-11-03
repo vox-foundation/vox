@@ -30,7 +30,11 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm run dev',
+    // Run vite directly, NOT via `pnpm run dev`: pnpm starts vite in its own process
+    // group, so Playwright's group-kill leaves it orphaned holding the stdio pipes and
+    // Playwright then waits on them forever (hung the CI ui leg at "Terminating the
+    // WebServer"). Same command as the `dev` script (`vite`), minus the wrapper.
+    command: 'node ./node_modules/vite/bin/vite.js',
     url: 'http://localhost:1420',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

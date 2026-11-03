@@ -19,6 +19,8 @@ pub enum LudusStreamBackend {
     Ollama,
     Gemini,
     OpenRouter,
+    /// Local MENS HTTP (`VOX_LOCAL_ENDPOINT`, default `:11434`) — `mens/<run>` catalog ids.
+    VoxLocal,
 }
 
 /// How [`FreeAiClient::generate_stream_routed`] should reach the LLM.
@@ -31,8 +33,34 @@ pub enum StreamRoute<'a> {
         backend: LudusStreamBackend,
         model: &'a str,
     },
-    /// Honor a user-provided model slug: try Ollama, then OpenRouter, then Gemini, then cascade.
+    /// Honor a user-provided model slug.
+    ///
+    /// `mens/<run>` slugs go to VoxLocal (`VOX_LOCAL_ENDPOINT/generate`) only.
+    /// Other slugs try Ollama, then OpenRouter, then Gemini, then cascade.
     UserModelOverride(&'a str),
+}
+
+/// True when a chat-picker / catalog id is a local MENS run (`mens/<run>`).
+pub(crate) fn is_mens_local_model(model: &str) -> bool {
+    model.trim().starts_with("mens/")
+}
+
+#[cfg(test)]
+mod mens_override_tests {
+    use super::is_mens_local_model;
+
+    #[test]
+    fn mens_run_slug_is_local() {
+        assert!(is_mens_local_model("mens/e2e-smoke-metal"));
+        assert!(is_mens_local_model("  mens/e2e-smoke  "));
+    }
+
+    #[test]
+    fn ollama_and_cloud_slugs_are_not_mens_local() {
+        assert!(!is_mens_local_model("llama3.2"));
+        assert!(!is_mens_local_model("qwen/qwen3-8b"));
+        assert!(!is_mens_local_model(""));
+    }
 }
 
 /// AI client that tries providers in order until one succeeds.
