@@ -409,16 +409,19 @@ impl BuiltinTypes {
                 is_deprecated: false,
             },
         );
-        // Dtype token for `astype(f64)`. This is not a host numeric type.
-        env.define(
-            "f64".into(),
-            Binding {
-                ty: Ty::Named("f64".into()),
-                mutable: false,
-                kind: BindingKind::Constructor,
-                is_deprecated: false,
-            },
-        );
+        // Plan dtype tokens for `astype`. These are not host numeric types.
+        // `from_list` never produces `i32` or `f32`.
+        for dtype in ["f64", "f32", "i64", "i32"] {
+            env.define(
+                dtype.into(),
+                Binding {
+                    ty: Ty::Named(dtype.into()),
+                    mutable: false,
+                    kind: BindingKind::Constructor,
+                    is_deprecated: false,
+                },
+            );
+        }
 
         // str(value: any) → str
         env.define(

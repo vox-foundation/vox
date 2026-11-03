@@ -550,27 +550,58 @@ impl<'a> Checker<'a> {
                     let method_ty = self.uf.instantiate_with(&method_ty, &bindings);
 
                     if let Ty::Fn(params, ret) = method_ty {
-                        if method == "std" && matches!(obj_ty, Ty::Array(_)) {
-                            self.check_array_std_args(args, *span);
-                        } else if method == "sort" && matches!(obj_ty, Ty::Array(_)) {
-                            self.check_array_sort_args(args, *span);
-                        } else {
-                            self.check_arguments(&params, args, *span);
-                        }
-                        if matches!(method.as_str(), "to_list" | "item" | "shape")
-                            && matches!(obj_ty, Ty::Array(_))
-                            && !self
-                                .current_caps
-                                .iter()
-                                .any(|cap| matches!(cap, crate::hir::HirCapability::Python))
+                        let array_ty = if method == "from_list"
+                            && matches!(&obj_ty, Ty::Named(name) if name == "StdArrayNs")
                         {
-                            self.diags.push(Diagnostic::error(
-                                format!("{method} on Array requires `uses python`"),
-                                *span,
-                                self.source,
-                            ));
+                            Some(self.check_array_from_list(args, *span))
+                        } else if method == "astype" && matches!(obj_ty, Ty::Array(_)) {
+                            Some(self.check_array_astype(args, *span))
+                        } else {
+                            None
+                        };
+                        if let Some(array_ty) = array_ty {
+                            array_ty
+                        } else {
+                            let reduction_ok = if matches!(method.as_str(), "mean" | "std")
+                                && matches!(obj_ty, Ty::Array(_))
+                            {
+                                self.array_float_reduction_ok(&obj_ty, method, *span)
+                            } else {
+                                true
+                            };
+                            if method == "std" && matches!(obj_ty, Ty::Array(_)) {
+                                self.check_array_std_args(args, *span);
+                            } else if method == "sort" && matches!(obj_ty, Ty::Array(_)) {
+                                self.check_array_sort_args(args, *span);
+                            } else {
+                                self.check_arguments(&params, args, *span);
+                            }
+                            if matches!(method.as_str(), "to_list" | "item" | "shape")
+                                && matches!(obj_ty, Ty::Array(_))
+                                && !self
+                                    .current_caps
+                                    .iter()
+                                    .any(|cap| matches!(cap, crate::hir::HirCapability::Python))
+                            {
+                                self.diags.push(Diagnostic::error(
+                                    format!("{method} on Array requires `uses python`"),
+                                    *span,
+                                    self.source,
+                                ));
+                            }
+                            if !reduction_ok {
+                                Ty::Error
+                            } else if method == "to_list" {
+                                if let Ty::Array(inner) = &obj_ty {
+                                    Self::array_to_list_ty(inner)
+                                        .unwrap_or_else(|| ret.as_ref().clone())
+                                } else {
+                                    ret.as_ref().clone()
+                                }
+                            } else {
+                                ret.as_ref().clone()
+                            }
                         }
-                        ret.as_ref().clone()
                     } else {
                         Ty::Error
                     }

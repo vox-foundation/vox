@@ -239,6 +239,134 @@ impl<'a> Checker<'a> {
         }
     }
 
+    /// `from_list` of a host list. `list[int]` is Array of i64, `list[bool]`
+    /// is Array of bool, and `list[float]` is Array of f64. i32 and f32 are
+    /// not host-list dtypes.
+    pub(super) fn check_array_from_list(&mut self, args: &[HirArg], span: Span) -> Ty {
+        tracing::debug!(
+            arg_count = args.len(),
+            "std.array from_list arguments sent to dtype mapping"
+        );
+        if args.len() != 1 || args[0].name.is_some() {
+            self.diags.push(Diagnostic::error(
+                "from_list takes one positional list".into(),
+                span,
+                self.source,
+            ));
+            for arg in args {
+                let _ = self.check_expr(&arg.value, None);
+            }
+            return Ty::Error;
+        }
+        let checked = self.check_expr(&args[0].value, None);
+        let arg_ty = self.uf.resolve(&checked);
+        tracing::debug!(?arg_ty, "std.array from_list host list payload");
+        let dtype = match &arg_ty {
+            Ty::List(inner) => match inner.as_ref() {
+                Ty::Int => Some("i64"),
+                Ty::Bool => Some("bool"),
+                Ty::Float => Some("f64"),
+                _ => None,
+            },
+            _ => None,
+        };
+        match dtype {
+            Some(name) => Ty::Array(Box::new(Ty::Named(name.into()))),
+            None => {
+                self.diags.push(Diagnostic::error(
+                    "from_list accepts list of int, list of float, or list of bool".into(),
+                    hir_expr_span(&args[0].value),
+                    self.source,
+                ));
+                Ty::Error
+            }
+        }
+    }
+
+    /// `astype` takes one dtype token and returns Array of that token.
+    /// Legal tokens are i32, i64, f32, f64, and bool.
+    pub(super) fn check_array_astype(&mut self, args: &[HirArg], span: Span) -> Ty {
+        tracing::debug!(
+            arg_count = args.len(),
+            "std.array astype arguments sent to dtype check"
+        );
+        if args.len() != 1 || args[0].name.is_some() {
+            self.diags.push(Diagnostic::error(
+                "astype takes one dtype identifier".into(),
+                span,
+                self.source,
+            ));
+            for arg in args {
+                let _ = self.check_expr(&arg.value, None);
+            }
+            return Ty::Error;
+        }
+        let value_ty = self.check_expr(&args[0].value, None);
+        let name = match &args[0].value {
+            HirExpr::Ident(name, _) => Some(name.as_str()),
+            _ => None,
+        };
+        tracing::debug!(?name, ?value_ty, "std.array astype dtype payload");
+        match name {
+            Some(dtype @ ("i32" | "i64" | "f32" | "f64" | "bool")) => {
+                Ty::Array(Box::new(Ty::Named(dtype.into())))
+            }
+            _ => {
+                self.diags.push(Diagnostic::error(
+                    "astype accepts i32, i64, f32, f64, or bool".into(),
+                    hir_expr_span(&args[0].value),
+                    self.source,
+                ));
+                Ty::Error
+            }
+        }
+    }
+
+    /// `mean` and `std` are legal only on Array of f32 or Array of f64.
+    pub(super) fn array_float_reduction_ok(
+        &mut self,
+        obj_ty: &Ty,
+        method: &str,
+        span: Span,
+    ) -> bool {
+        let Ty::Array(inner) = obj_ty else {
+            return true;
+        };
+        let inner = self.uf.resolve(inner);
+        let ok = matches!(inner, Ty::Named(ref name) if name == "f32" || name == "f64");
+        tracing::debug!(?inner, method, ok, "std.array reduction dtype");
+        if !ok {
+            self.diags.push(Diagnostic::error(
+                format!(
+                    "{method} is legal only on Array of f32 or Array of f64; use astype to align the dtype"
+                ),
+                span,
+                self.source,
+            ));
+        }
+        ok
+    }
+
+    /// Host list produced by `to_list` for integer and bool plan dtypes.
+    /// f32 and f64 keep the generated `Result[list[float]]` signature.
+    pub(super) fn array_to_list_ty(inner: &Ty) -> Option<Ty> {
+        let elem = match inner {
+            Ty::Named(name) if name == "i64" || name == "i32" => Ty::Int,
+            Ty::Named(name) if name == "bool" => Ty::Bool,
+            Ty::Bool => Ty::Bool,
+            _ => return None,
+        };
+        tracing::debug!(
+            ?inner,
+            elem = elem.signature(),
+            "std.array to_list host mapping"
+        );
+        Some(Ty::Result(
+            Box::new(Ty::List(Box::new(elem))),
+            Box::new(Ty::Str),
+        ))
+    }
+
     pub(super) fn check_arguments(&mut self, expected: &[Ty], actual: &[HirArg], span: Span) {
         if expected.len() != actual.len() {
             self.diags.push(
