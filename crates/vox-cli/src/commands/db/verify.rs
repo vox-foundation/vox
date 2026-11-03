@@ -11,7 +11,7 @@ use vox_sql::type_map::{UnsupportedTypePolicy, vox_type_to_sql};
 use vox_sql::{AnySqlBackend, BackendKind};
 
 #[derive(Debug, serde::Serialize)]
-struct VerifyFinding {
+pub(crate) struct VerifyFinding {
     severity: &'static str,
     code: &'static str,
     table: String,
@@ -92,7 +92,7 @@ pub async fn verify(
     Err(anyhow!("schema drift detected (see report above)"))
 }
 
-fn compare_tables(
+pub(crate) fn compare_tables(
     declared_tables: &[TableDecl],
     live: &IntrospectedSchema,
     backend: BackendKind,
