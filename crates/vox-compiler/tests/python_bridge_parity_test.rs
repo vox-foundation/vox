@@ -131,10 +131,62 @@ fn on_disk_expected_matches_behavior_cases() {
 }
 
 /// A row counts only with a signature, a real worker handler, and a non-null
-/// expected object.
-#[rustfmt::skip]
-fn check_row(_row: &Value, _worker: &str) -> Result<(), String> { // toestub-ignore(skeleton/hollow-fn): RED stub returns Ok until the checks land
-    Ok(())
+/// expected object. A comment that names an op is not a handler.
+fn check_row(row: &Value, worker: &str) -> Result<(), String> {
+    let name = row
+        .get("name")
+        .and_then(Value::as_str)
+        .filter(|name| !name.is_empty())
+        .unwrap_or("row");
+
+    let signature = row.get("signature").and_then(Value::as_str);
+    if signature.is_none_or(|signature| signature.trim().is_empty()) {
+        return Err(format!("{name} missing signature"));
+    }
+
+    let Some(handler) = row
+        .get("handler")
+        .and_then(Value::as_str)
+        .filter(|handler| !handler.trim().is_empty())
+    else {
+        return Err(format!("{name} missing handler"));
+    };
+    if !worker_defines_handler(worker, handler) {
+        return Err(format!(
+            "{name} handler {handler} is not a column-0 def and HANDLERS key"
+        ));
+    }
+
+    match row.get("expected") {
+        None => Err(format!("{name} missing expected")),
+        Some(expected) if expected.is_null() => Err(format!("{name} expected is null")),
+        Some(expected) if !expected.is_mapping() => {
+            Err(format!("{name} expected must be an object"))
+        }
+        Some(_) => Ok(()),
+    }
+}
+
+/// Column-0 `def` plus a HANDLERS entry. Comment lines do not count.
+fn worker_defines_handler(worker: &str, handler: &str) -> bool {
+    let def_prefix = format!("def {handler}(");
+    let key_needle = format!("\"{handler}\": {handler}");
+    let mut has_def = false;
+    let mut has_key = false;
+    for line in worker.lines() {
+        if line.trim_start().starts_with('#') {
+            continue;
+        }
+        if line.starts_with(&def_prefix) {
+            has_def = true;
+        }
+        if let Some(code) = line.split('#').next()
+            && code.contains(&key_needle)
+        {
+            has_key = true;
+        }
+    }
+    has_def && has_key
 }
 
 #[test]
