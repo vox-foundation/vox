@@ -2,6 +2,9 @@
 //! `workflow` bodies (ADR-019 §5). Activities and plain `fn`s are exempt
 //! — activities have their return values recorded by the journal; plain
 //! fns are not on the durability replay path.
+//!
+//! These tests exercise `check_workflow_determinism` through
+//! `typecheck_ast_module`, including Python-capability rejection (EFF-03).
 
 use vox_compiler::typeck::Diagnostic;
 use vox_compiler::typeck::typecheck_ast_module;

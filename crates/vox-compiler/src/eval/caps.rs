@@ -14,7 +14,17 @@ pub const PURE: &[&str] = &[
 /// Gated. `io` is here for classification only — its authority comes from `fs:`.
 /// `crypto` is gated by the `random` axis.
 pub const GATED: &[&str] = &[
-    "fs", "io", "process", "env", "secrets", "http", "time", "agentos", "crypto",
+    "fs",
+    "io",
+    "process",
+    "env",
+    "secrets",
+    "http",
+    "time",
+    "agentos",
+    "crypto",
+    "py",
+    "py.unverified",
 ];
 
 pub fn is_classified(ns: &str) -> bool {
@@ -138,6 +148,14 @@ impl CapabilitySet {
                 }
                 ("process" | "secrets" | "agentos", "none") => {}
                 ("process" | "secrets" | "agentos", _) => return Err(err("expected none|allow")),
+                ("py", "allow") => {
+                    out.allowed.insert("py".into());
+                }
+                ("py", "unverified") => {
+                    out.allowed.insert("py".into());
+                    out.allowed.insert("py.unverified".into());
+                }
+                ("py", _) => return Err(err("py takes allow|unverified")),
                 _ => return Err(err("unknown namespace")),
             }
         }
@@ -197,6 +215,11 @@ impl CapabilitySet {
         }
         if self.allowed.contains("process") {
             parts.push("process:allow".into());
+        }
+        if self.allowed.contains("py.unverified") {
+            parts.push("py:unverified".into());
+        } else if self.allowed.contains("py") {
+            parts.push("py:allow".into());
         }
         if self.allowed.contains("env") {
             parts.push(if self.env_write {
