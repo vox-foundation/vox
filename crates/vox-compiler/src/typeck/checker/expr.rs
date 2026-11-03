@@ -555,7 +555,7 @@ impl<'a> Checker<'a> {
                         } else {
                             self.check_arguments(&params, args, *span);
                         }
-                        if method == "to_list"
+                        if matches!(method.as_str(), "to_list" | "item" | "shape")
                             && matches!(obj_ty, Ty::Array(_))
                             && !self
                                 .current_caps
@@ -563,7 +563,7 @@ impl<'a> Checker<'a> {
                                 .any(|cap| matches!(cap, crate::hir::HirCapability::Python))
                         {
                             self.diags.push(Diagnostic::error(
-                                "to_list on Array requires `uses python`".into(),
+                                format!("{method} on Array requires `uses python`"),
                                 *span,
                                 self.source,
                             ));
@@ -1048,5 +1048,70 @@ mod tests {
             .map(|d| d.message.as_str())
             .collect();
         assert!(errors.iter().any(|m| m.contains("astype")), "{errors:?}");
+    }
+
+    fn check(src: &str) -> Vec<String> {
+        let tokens = crate::lexer::lex(src);
+        let module = crate::parser::parse(tokens)
+            .unwrap_or_else(|errs| panic!("parse failed: {errs:?}\n{src}"));
+        let mut hir = crate::hir::lower_module(&module);
+        crate::typeck::typecheck_hir_module(src, &mut hir)
+            .into_iter()
+            .filter(|diag| diag.severity == crate::typeck::diagnostics::TypeckSeverity::Error)
+            .map(|diag| diag.message)
+            .collect()
+    }
+
+    #[test]
+    fn item_shape_require_python() {
+        let bare = "\
+import std.array
+fn bare(xs: list[float]) {
+    let a = array.from_list(xs)
+    let _ = a.item()
+    let _ = a.shape()
+}
+";
+        let bare_errors = check(bare);
+        assert!(
+            bare_errors
+                .iter()
+                .any(|message| message.contains("item") && message.contains("python")),
+            "item without uses python must diagnose, got {bare_errors:?}"
+        );
+        assert!(
+            bare_errors
+                .iter()
+                .any(|message| message.contains("shape") && message.contains("python")),
+            "shape without uses python must diagnose, got {bare_errors:?}"
+        );
+
+        let with_py = "\
+import std.array
+@uses(python)
+fn with_py(xs: list[float]) {
+    let a = array.from_list(xs)
+    let _ = a.item()
+    let _ = a.shape()
+}
+";
+        let with_py_errors = check(with_py);
+        assert!(
+            with_py_errors.is_empty(),
+            "item and shape with uses python typecheck: {with_py_errors:?}"
+        );
+
+        let sorted = "\
+import std.array
+fn sorted(xs: list[float]) {
+    let a = array.from_list(xs)
+    let _ = a.sort(nulls=\"first\")
+}
+";
+        let sort_errors = check(sorted);
+        assert!(
+            sort_errors.is_empty(),
+            "sort must not require uses python: {sort_errors:?}"
+        );
     }
 }

@@ -348,8 +348,14 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 (HirBinOp::Gte, VoxValue::Float(a), VoxValue::Int(b)) => {
                     Ok(VoxValue::Bool(a >= b as f64))
                 }
+                (HirBinOp::Add, VoxValue::ArrayPlan(left), VoxValue::ArrayPlan(right)) => {
+                    Ok(VoxValue::ArrayPlan(left.add(&right)))
+                }
                 (HirBinOp::Sub, VoxValue::ArrayPlan(left), VoxValue::ArrayPlan(right)) => {
                     Ok(VoxValue::ArrayPlan(left.sub(&right)))
+                }
+                (HirBinOp::Mul, VoxValue::ArrayPlan(left), VoxValue::ArrayPlan(right)) => {
+                    Ok(VoxValue::ArrayPlan(left.mul(&right)))
                 }
                 (HirBinOp::Div, VoxValue::ArrayPlan(left), VoxValue::ArrayPlan(right)) => {
                     Ok(VoxValue::ArrayPlan(left.div(&right)))
@@ -709,13 +715,17 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 eval_args.push(eval_expr(interp, &a.value)?);
             }
 
-            if method == "to_list"
+            if matches!(method.as_str(), "to_list" | "item" | "shape")
                 && eval_args.is_empty()
                 && let VoxValue::ArrayPlan(plan) = &o
             {
                 let plan = plan.clone();
                 let caps = interp.caps.clone();
-                let result = super::builtins::materialize_to_list(interp, &plan, &caps);
+                let result = match method.as_str() {
+                    "item" => super::builtins::materialize_item(interp, &plan, &caps),
+                    "shape" => super::builtins::materialize_shape(interp, &plan, &caps),
+                    _ => super::builtins::materialize_to_list(interp, &plan, &caps),
+                };
                 return match result {
                     VoxValue::_Panic(msg) => Err(EvalError::AssertionFailed(msg)),
                     VoxValue::_Denied(what) => {

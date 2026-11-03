@@ -45,7 +45,9 @@ impl<'a> Checker<'a> {
         let r = self.uf.resolve(&r);
         match op {
             HirBinOp::Add => {
-                if l == Ty::Str || r == Ty::Str {
+                if matches!(l, Ty::Array(_)) || matches!(r, Ty::Array(_)) {
+                    self.array_same_dtype_op(&l, &r, span)
+                } else if l == Ty::Str || r == Ty::Str {
                     Ty::Str
                 } else if l == Ty::Int && r == Ty::Int {
                     Ty::Int
@@ -69,7 +71,14 @@ impl<'a> Checker<'a> {
                     host_numeric_binop(&l, &r)
                 }
             }
-            HirBinOp::Mul | HirBinOp::Mod => host_numeric_binop(&l, &r),
+            HirBinOp::Mul => {
+                if matches!(l, Ty::Array(_)) || matches!(r, Ty::Array(_)) {
+                    self.array_same_dtype_op(&l, &r, span)
+                } else {
+                    host_numeric_binop(&l, &r)
+                }
+            }
+            HirBinOp::Mod => host_numeric_binop(&l, &r),
             HirBinOp::Lt | HirBinOp::Gt | HirBinOp::Lte | HirBinOp::Gte => Ty::Bool,
             HirBinOp::Is | HirBinOp::Isnt => Ty::Bool,
             HirBinOp::And | HirBinOp::Or => {
@@ -145,15 +154,17 @@ impl<'a> Checker<'a> {
         }
     }
 
-    /// Sub and div of two arrays. Same inner dtype yields that array, including
-    /// a rank-0 plan against a rank-1 plan (rank is not part of `Ty::Array`).
-    /// A mismatch names `astype` and does not fall through to host promotion.
+    /// Elementwise add, sub, mul, and div of two arrays. Same inner dtype
+    /// yields that array, including a rank-0 plan against a rank-1 plan
+    /// (rank is not part of `Ty::Array`). A mismatch names `astype` and does
+    /// not fall through to host promotion.
     fn array_same_dtype_op(&mut self, l: &Ty, r: &Ty, span: Span) -> Ty {
         match (l, r) {
             (Ty::Array(a), Ty::Array(b)) if a == b => Ty::Array(a.clone()),
             _ => {
                 self.diags.push(Diagnostic::error(
-                    "Array sub and div need the same inner dtype; use astype to align them".into(),
+                    "Array add, sub, mul, and div need the same inner dtype; use astype to align them"
+                        .into(),
                     span,
                     self.source,
                 ));

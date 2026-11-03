@@ -8,6 +8,8 @@ use super::value::VoxValue;
 use secrecy::ExposeSecret;
 use std::rc::Rc;
 use std::sync::Mutex;
+#[cfg(test)]
+use std::sync::atomic::{AtomicU32, Ordering};
 use vox_config::timeouts::HTTP_REQUEST; // HTTP_REQUEST = 30s
 
 static ENV_MUTEX: Mutex<()> = Mutex::new(());
@@ -2597,6 +2599,12 @@ pub fn call_builtin_method(
                 };
                 Some(VoxValue::ArrayPlan(plan.std(*correction)))
             }
+            "sort" => {
+                let Some(VoxValue::Str(nulls)) = args.first() else {
+                    return Some(VoxValue::_Panic("sort requires nulls".into()));
+                };
+                Some(VoxValue::ArrayPlan(plan.sort(nulls)))
+            }
             _ => None,
         },
 
@@ -2608,11 +2616,22 @@ pub fn call_builtin_method(
 ///
 /// `mean` and `std` stay inside the plan JSON. The numeric payload is the
 /// Arrow body, not JSON numbers.
+#[cfg(test)]
+static MATERIALIZE_CALLS: AtomicU32 = AtomicU32::new(0);
+
+/// How many times [`materialize_to_list`] has been entered.
+#[cfg(test)]
+pub(crate) fn materialize_calls() -> u32 {
+    MATERIALIZE_CALLS.load(Ordering::SeqCst)
+}
+
 pub fn materialize_to_list(
     interp: &mut super::Interpreter,
     plan: &super::array_plan::ArrayPlan,
     caps: &crate::eval::caps::CapabilitySet,
 ) -> VoxValue {
+    #[cfg(test)]
+    MATERIALIZE_CALLS.fetch_add(1, Ordering::SeqCst);
     if !caps.allows_namespace("py") {
         return VoxValue::_Denied("py.to_list".into());
     }
@@ -2637,20 +2656,89 @@ pub fn materialize_to_list(
     }
 }
 
+/// `item` is one [`materialize_to_list`] call. The wire method stays `execute_plan`.
+pub fn materialize_item(
+    interp: &mut super::Interpreter,
+    plan: &super::array_plan::ArrayPlan,
+    caps: &crate::eval::caps::CapabilitySet,
+) -> VoxValue {
+    let plan = plan.appending("item");
+    scalar_from_column(materialize_to_list(interp, &plan, caps))
+}
+
+/// `shape` is one [`materialize_to_list`] call. The wire method stays `execute_plan`.
+pub fn materialize_shape(
+    interp: &mut super::Interpreter,
+    plan: &super::array_plan::ArrayPlan,
+    caps: &crate::eval::caps::CapabilitySet,
+) -> VoxValue {
+    let plan = plan.appending("shape");
+    ints_from_column(materialize_to_list(interp, &plan, caps))
+}
+
+fn scalar_from_column(value: VoxValue) -> VoxValue {
+    match value {
+        VoxValue::Result(Ok(inner)) => match *inner {
+            VoxValue::List(items) if items.len() == 1 => {
+                VoxValue::Result(Ok(Box::new(items[0].clone())))
+            }
+            _ => VoxValue::Result(Err(crate::eval::value::err_str(
+                "py: item expected one value".to_string(),
+            ))),
+        },
+        other => other,
+    }
+}
+
+fn ints_from_column(value: VoxValue) -> VoxValue {
+    match value {
+        VoxValue::Result(Ok(inner)) => match *inner {
+            VoxValue::List(items) => {
+                let mut dims = Vec::with_capacity(items.len());
+                for item in items.iter() {
+                    let dim = match item {
+                        VoxValue::Int(number) => *number,
+                        VoxValue::Float(number) if number.is_finite() && number.fract() == 0.0 => {
+                            *number as i64
+                        }
+                        _ => {
+                            return VoxValue::Result(Err(crate::eval::value::err_str(
+                                "py: shape expected integer dimensions".to_string(),
+                            )));
+                        }
+                    };
+                    dims.push(VoxValue::Int(dim));
+                }
+                VoxValue::Result(Ok(Box::new(VoxValue::list(dims))))
+            }
+            _ => VoxValue::Result(Err(crate::eval::value::err_str(
+                "py: shape expected a list".to_string(),
+            ))),
+        },
+        other => other,
+    }
+}
+
 fn plan_params(plan: &super::array_plan::ArrayPlan) -> serde_json::Value {
-    let correction = plan.correction();
     let ops: Vec<serde_json::Value> = plan
-        .op_names()
+        .param_steps()
         .into_iter()
-        .map(|name| {
+        .map(|step| {
             let mut op = serde_json::Map::new();
-            op.insert("name".into(), serde_json::Value::String(name.to_string()));
-            if name == "std" {
-                if let Some(correction) = correction {
+            op.insert(
+                "name".into(),
+                serde_json::Value::String(step.op.to_string()),
+            );
+            if step.op == "std" {
+                if let Some(correction) = step.correction {
                     op.insert("correction".into(), serde_json::json!(correction));
                 }
-            } else if name == "astype" {
+            } else if step.op == "astype" {
                 op.insert("dtype".into(), serde_json::Value::String("f64".into()));
+            } else if step.op == "sort" {
+                if let Some(nulls) = step.nulls {
+                    op.insert("nulls".into(), serde_json::Value::String(nulls.to_string()));
+                }
             }
             serde_json::Value::Object(op)
         })
@@ -3596,6 +3684,43 @@ mod array_materialize_tests {
         assert!(
             text.contains("\"correction\":0") || text.contains("\"correction\": 0"),
             "{text}"
+        );
+    }
+
+    #[test]
+    fn item_shape_call_execute_plan() {
+        let mut interp = Interpreter::new(1_000);
+        interp.caps = CapabilitySet::parse("net:none").expect("caps");
+        let plan = ArrayPlan::from_list(vec![1.0, 3.0]);
+        let caps = interp.caps.clone();
+        let before = super::materialize_calls();
+        match super::materialize_item(&mut interp, &plan, &caps) {
+            VoxValue::_Denied(what) => assert_eq!(what, "py.to_list"),
+            other => panic!("item must call materialize_to_list, got {other:?}"),
+        }
+        assert_eq!(
+            super::materialize_calls(),
+            before + 1,
+            "item calls materialize_to_list once"
+        );
+        match super::materialize_shape(&mut interp, &plan, &caps) {
+            VoxValue::_Denied(what) => assert_eq!(what, "py.to_list"),
+            other => panic!("shape must call materialize_to_list, got {other:?}"),
+        }
+        assert_eq!(
+            super::materialize_calls(),
+            before + 2,
+            "shape calls materialize_to_list once"
+        );
+        let python_src = include_str!("python.rs");
+        assert!(
+            !python_src.contains("call(\"item\"") && !python_src.contains("call(\"shape\""),
+            "item and shape are not Bridge::call method names"
+        );
+        let eval_src = include_str!("expr.rs");
+        assert!(
+            !eval_src.contains("call(\"item\"") && !eval_src.contains("call(\"shape\""),
+            "eval must not send a wire method named item or shape"
         );
     }
 }
