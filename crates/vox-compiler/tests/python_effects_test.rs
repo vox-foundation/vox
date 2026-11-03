@@ -6,10 +6,13 @@
 //!   AST → HIR → `HirCapability`, and propagate through effect compliance.
 
 use vox_compiler::ast::decl::EffectAnnotation;
+use vox_compiler::eval::caps::CapabilitySet;
+use vox_compiler::eval::value::VoxValue;
+use vox_compiler::eval::{EvalError, Interpreter};
 use vox_compiler::hir::{HirCapability, HirEffectKind, HirFn, lower_module};
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::error::ParseErrorClass;
-use vox_compiler::parser::parse;
+use vox_compiler::parser::{parse, parse_script};
 use vox_compiler::typeck::effect_check::check_effect_compliance;
 use vox_compiler::typeck::{Diagnostic, DiagnosticCategory};
 
@@ -179,4 +182,100 @@ workflow w() uses python_unverified to int { return 1 }
         lower_fn_named(src, "w").capabilities,
         vec![HirCapability::PythonUnverified]
     );
+}
+
+// ── EFF-02 runtime (caps gate) ─────────────────────────────────────────
+
+const NESTED_PYTHON: &str = r#"
+fn secret() uses python to int {
+    return 7
+}
+
+pub fn main() to int {
+    return secret()
+}
+"#;
+
+const ENTRY_PYTHON: &str = r#"
+pub fn main() uses python to int {
+    return 7
+}
+"#;
+
+const NESTED_UNVERIFIED: &str = r#"
+fn secret() uses python_unverified to int {
+    return 7
+}
+
+pub fn main() to int {
+    return secret()
+}
+"#;
+
+fn eval_main_with_caps(src: &str, caps: CapabilitySet) -> Result<VoxValue, EvalError> {
+    let module = parse_script(lex(src)).expect("parse");
+    let hir = lower_module(&module);
+    let mut interp = Interpreter::new(1_000_000);
+    interp.caps = caps;
+    interp.run_module(&hir).expect("run_module");
+    interp.call("main", vec![])
+}
+
+fn assert_capability_denied(src: &str, spec: &str, ns: &str, method: &str) {
+    let err = eval_main_with_caps(src, CapabilitySet::parse(spec).expect("caps"))
+        .expect_err("expected capability denied");
+    match err {
+        EvalError::CapabilityDenied {
+            ns: got_ns,
+            method: got_method,
+        } => {
+            assert_eq!(got_ns, ns, "namespace for caps {spec}");
+            assert_eq!(got_method, method, "method for caps {spec}");
+        }
+        other => panic!("expected capability denied, got {other:?}"),
+    }
+}
+
+#[test]
+fn python_cap_runtime_without_py_is_denied() {
+    assert_capability_denied(NESTED_PYTHON, "env:ro", "py", "secret");
+}
+
+#[test]
+fn python_cap_runtime_entry_main_without_py_is_denied() {
+    assert_capability_denied(ENTRY_PYTHON, "env:ro", "py", "main");
+}
+
+#[test]
+fn python_cap_runtime_py_allow_runs_body() {
+    let v = eval_main_with_caps(
+        NESTED_PYTHON,
+        CapabilitySet::parse("py:allow").expect("caps"),
+    )
+    .expect("py:allow runs the python body");
+    assert_eq!(v, VoxValue::Int(7));
+}
+
+#[test]
+fn python_cap_runtime_unverified_without_grant_is_denied() {
+    for spec in ["env:ro", "py:allow"] {
+        assert_capability_denied(NESTED_UNVERIFIED, spec, "py.unverified", "secret");
+    }
+}
+
+#[test]
+fn python_cap_runtime_unverified_grant_runs_body() {
+    let v = eval_main_with_caps(
+        NESTED_UNVERIFIED,
+        CapabilitySet::parse("py:unverified").expect("caps"),
+    )
+    .expect("py:unverified runs the body");
+    assert_eq!(v, VoxValue::Int(7));
+}
+
+#[test]
+fn python_cap_runtime_developer_default_runs_body() {
+    let v = eval_main_with_caps(NESTED_PYTHON, CapabilitySet::developer_default())
+        .expect("developer_default runs the python body");
+    assert_eq!(v, VoxValue::Int(7));
 }

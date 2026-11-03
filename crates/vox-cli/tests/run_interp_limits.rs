@@ -34,6 +34,36 @@ fn capability_denial_exits_77_with_a_marker_on_stderr_and_nothing_on_stdout() {
 }
 
 #[test]
+fn python_capability_call_without_py_exits_77() {
+    let f = write(
+        "py-caps",
+        r#"fn secret() uses python to int { print("LEAK"); return 7 }
+pub fn main() { return secret() }"#,
+    );
+    let out = Command::new(vox())
+        .args(["run", "--mode", "interp", "--caps", "env:ro"])
+        .arg(&f)
+        .output()
+        .unwrap();
+    assert_eq!(
+        out.status.code(),
+        Some(77),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("vox: capability denied: py.secret"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("--caps"),
+        "error must name the flag that grants it"
+    );
+    assert!(!String::from_utf8_lossy(&out.stdout).contains("LEAK"));
+}
+
+#[test]
 fn caps_is_repeatable() {
     let d = tempfile::tempdir().unwrap();
     std::fs::write(d.path().join("a.txt"), "A").unwrap();
