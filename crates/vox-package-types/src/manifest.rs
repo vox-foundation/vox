@@ -33,6 +33,9 @@ pub struct VoxManifest {
     /// App-database settings (`[db]`).
     #[serde(default)]
     pub db: Option<DbSection>,
+    /// Python bridge environment (`[python]`). Absent means the bridge is not configured.
+    #[serde(default)]
+    pub python: Option<PythonSection>,
 }
 
 /// Who owns the app database schema (`[db] schema_owner`).
@@ -65,6 +68,43 @@ impl DbSection {
         }
         let parsed: DbOnly = toml::from_str(content).map_err(ManifestError::Parse)?;
         Ok(parsed.db.unwrap_or_default())
+    }
+}
+
+fn default_max_fetch_mb() -> u64 {
+    256
+}
+
+fn default_timeout_s() -> u64 {
+    300
+}
+
+/// `[python]` section of `Vox.toml`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PythonSection {
+    #[serde(default)]
+    pub version: Option<String>,
+    #[serde(default)]
+    pub packages: Vec<String>,
+    #[serde(default)]
+    pub extras: Vec<String>,
+    #[serde(default = "default_max_fetch_mb")]
+    pub max_fetch_mb: u64,
+    #[serde(default = "default_timeout_s")]
+    pub timeout_s: u64,
+}
+
+impl PythonSection {
+    /// Read `[python]` from manifest text. `Ok(None)` when the section is absent.
+    /// Does not require `[package]`.
+    pub fn from_manifest_str(content: &str) -> Result<Option<Self>, ManifestError> {
+        #[derive(Deserialize)]
+        struct PythonOnly {
+            #[serde(default)]
+            python: Option<PythonSection>,
+        }
+        let parsed: PythonOnly = toml::from_str(content).map_err(ManifestError::Parse)?;
+        Ok(parsed.python)
     }
 }
 
@@ -388,6 +428,7 @@ impl VoxManifest {
             search: None,
             deploy: None,
             db: None,
+            python: None,
         }
     }
 
@@ -599,5 +640,62 @@ enabled_providers = ["wikipedia", "arxiv"]
         let db = DbSection::from_manifest_str("[db]\nschema_owner = \"external\"\n").unwrap();
         assert_eq!(db.schema_owner, SchemaOwner::External);
         assert!(DbSection::from_manifest_str("not = [valid").is_err());
+    }
+
+    #[test]
+    fn python_section_appends_after_db_and_parses_fields() {
+        let toml = r#"
+[package]
+name = "a"
+
+[db]
+schema_owner = "external"
+
+[python]
+version = "3.12"
+packages = ["numpy>=2.1"]
+extras = ["matplotlib>=3.9"]
+max_fetch_mb = 128
+timeout_s = 30
+"#;
+        let manifest = VoxManifest::from_str(toml).unwrap();
+        assert_eq!(
+            manifest.db.as_ref().map(|d| d.schema_owner),
+            Some(SchemaOwner::External)
+        );
+        let py = manifest.python.clone().expect("python section");
+        assert_eq!(py.version.as_deref(), Some("3.12"));
+        assert_eq!(py.packages, vec!["numpy>=2.1".to_string()]);
+        assert_eq!(py.extras, vec!["matplotlib>=3.9".to_string()]);
+        assert_eq!(py.max_fetch_mb, 128);
+        assert_eq!(py.timeout_s, 30);
+        let rendered = manifest.to_toml_string().unwrap();
+        let db_at = rendered.find("[db]").expect("db table");
+        let py_at = rendered.find("[python]").expect("python table");
+        assert!(db_at < py_at, "{rendered}");
+    }
+
+    #[test]
+    fn python_section_absent_is_none_and_empty_table_uses_defaults() {
+        let absent = VoxManifest::from_str("[package]\nname = \"a\"\n").unwrap();
+        assert!(absent.python.is_none());
+        assert!(
+            PythonSection::from_manifest_str("[package]\nname = \"a\"\n")
+                .unwrap()
+                .is_none()
+        );
+        let empty = PythonSection::from_manifest_str("[python]\n")
+            .unwrap()
+            .expect("empty table");
+        assert!(empty.version.is_none());
+        assert!(empty.packages.is_empty());
+        assert!(empty.extras.is_empty());
+        assert_eq!(empty.max_fetch_mb, 256);
+        assert_eq!(empty.timeout_s, 300);
+    }
+
+    #[test]
+    fn scaffold_leaves_python_unset() {
+        assert!(VoxManifest::scaffold("n", "library").python.is_none());
     }
 }
