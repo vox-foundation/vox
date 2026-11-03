@@ -230,4 +230,4 @@ Doc-tests vox_ast: 0 passed
 EXIT_AST:0
 ```
 
-## Self-Check: PENDING
+## Self-Check: PASSED
