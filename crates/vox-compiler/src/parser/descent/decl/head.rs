@@ -587,10 +587,14 @@ impl Parser {
                 self.advance(); // consume the unknown name for recovery
                 None
             }
-            // `env` is a keyword token, allow it here.
+            // `env` and `spawn` are keyword tokens, not identifiers.
             Token::Env => {
                 self.advance();
                 Some(crate::ast::decl::EffectAnnotation::Env)
+            }
+            Token::Spawn => {
+                self.advance();
+                Some(crate::ast::decl::EffectAnnotation::Spawn)
             }
             _ => {
                 self.errors.push(ParseError::classified(
