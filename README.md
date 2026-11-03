@@ -187,100 +187,101 @@ Every surface is graded into one of four honest states:
 - **Research.** Exploratory or mid-redesign; not working end-to-end as intended yet.
 - **Not started.** Planned only, or an unimplemented stub.
 
-Rows dated `2026-09-21` come from the full [suite status audit](docs/src/architecture/suite-status-audit-2026-09-21.md). Rows dated `2026-10-13` reflect the v1.5 convergence pass. Rows dated `2026-11-02` were re-checked against `main` that day: schema baseline, published adapters, model-alias defaults, and that the named `vox` commands still exist in `crates/vox-cli/src/lib.rs`. Older dates were not re-executed.
+Rows dated `2026-09-21` were not re-opened this pass (Socrates, GGUF export); detail is in the [suite status audit](docs/src/architecture/suite-status-audit-2026-09-21.md). Rows dated `2026-11-02` were re-checked against `main`: the named `vox` command is still registered in `crates/vox-cli/src/lib.rs`, and the mechanisms named in that day's notes were re-read in source (interpreter `is null`, formatter `layout_only`, workflow `VoxDbTracker` / `__vox_run_workflow`, retrieval `trust_tier`, MENS `select_mens_backend`, schema baseline 97, OpenRouter `~family-latest` aliases, the public Hugging Face adapters). Those rows were not re-executed end to end. The central-claim benchmark was not re-measured.
 
 ### Language & compiler
 
 | Component | State | Checked | Notes |
 |:---|:---|:---|:---|
-| Parser & type checker (`vox check`) | Working | 2026-10-13 | Bare keywords (`table`, `query`, `mutation`, `server`, `component`, `workflow`, `activity`, `actor`, `tool`, `resource`) open scopes; `@decorators` modify declarations. `@ai(structured_output = T, max_iterations = N)` emits strict JSON-Schema LLM calls with bounded retries. |
-| Interpreter & sandbox (`vox run`, `--interp`, `--caps`) | Working | 2026-10-13 | Executes scripts and declaration-only modules (`table`/`query`/`tool` without requiring `fn main()`), powers repo automation (`scripts/*.vox`) and the `/v1/eval` browser sandbox (`--caps deterministic`). `Option::None` compares equal to `null` (`is null` / `isnt null`). |
-| Full-stack codegen (`vox build`) | Prototype | 2026-10-13 | Emits React/TSX (`dist/`), a typed Rust/Axum server (`src/target/generated/`), and SQL DDL. Generated `Cargo.toml` resolves outside a Vox checkout when `vox` is built from source (`VOX_REPO_ROOT`), trims unused crates, binds typed Axum parameters, and compiles DB mutations. `vox --json build` emits a uniform single-line `BuildLaneEnvelope`. Standalone `voxup` installs without a source checkout still cannot compile generated servers ([design](docs/src/architecture/generated-project-runtime-deps.md)). |
-| OpenAPI & client emit (`vox emit`) | Prototype | 2026-09-21 | OpenAPI emission works. Standalone client emit had a missing parent-dir creation bug on `component` outputs (tracked in the 09-21 audit). |
-| Formatter (`vox fmt`) | Prototype | 2026-10-13 | Preserves comment trivia, fixes binary-operator and match-arm printing, and enforces a `layout_only` token-equivalence safety guard so `vox fmt` refuses to overwrite a file if any non-whitespace token or declaration would be dropped. |
-| Tests (`vox test`, `@test`) | Prototype | 2026-10-13 | Emits uniform `BuildLaneEnvelope` under `vox --json test`. Runs through generated Rust + Cargo, so it shares `vox build`'s source-checkout requirement. |
-| REPL (`vox repl`) | Prototype | 2026-09-21 | Evaluates single expressions; `let`/`fn` declarations do not yet persist across lines. |
-| Dev loop (`vox dev`) | Working | 2026-09-21 | Watches `.vox` sources and rebuilds on change. |
-| Durable workflows (`workflow` / `activity`) | Prototype | 2026-10-13 | Interpreter executes workflows through the host bridge with strict `VoxValue` journal encoding, per-function call-ordinal activity identity, SQL-persisted `workflow.version` patches, `workflow_signal_log` consume-or-park signals, and `workflow_run_log` timer parking + lease expiry. Codegen emits `VoxDbTracker` and `__vox_run_workflow` ([ADR-019](docs/src/adr/019-durable-workflow-journal-contract-v1.md), [ADR-021](docs/src/adr/021-generated-workflow-durability-parity.md), [ADR-041](docs/src/adr/041-durable-functions-completion-2026.md)). |
-| Desktop packaging (`vox compile`) | Prototype | 2026-10-13 | Emits a Tauri project; generated Tauri apps with `table` declarations now compile (`#633`). |
-| Mobile (`--target mobile`, React Native) | Research | 2026-09-21 | Emits an Expo project scaffold; device runtime is thin and mobile E2E is unverified. |
-| LSP (`vox lsp`) | Prototype | 2026-09-21 | Diagnostics, hover, completion, symbols, semantic tokens, and code actions ([capabilities SSOT](docs/src/architecture/vox-lsp-capabilities-ssot-2026.md)). Go-to-definition is partial; requires building the `vox-lsp` binary from source. |
-| Scaffolding (`vox init`, `vox new`) | Working | 2026-10-13 | `vox init` starter checks cleanly with zero diagnostics and routes automatically to the app lane on `vox run` (requires `pnpm` for frontend bundling). |
-| Packages (`vox add` / `lock` / `sync`) | Prototype | 2026-09-21 | Local manifest and lockfile editing work. |
-| Package registry (`vox pm`) | Not started | 2026-09-21 | Client code exists, but no public package registry is hosted yet. |
-| Grammar export (`vox grammar`) | Working | 2026-09-21 | Exports EBNF, Lark, and JSON Schema grammars. |
-| Deploy & share (`vox deploy`, `vox share`) | Prototype | 2026-09-21 | Generates Docker/Kubernetes/Fly.io target configs and dry-runs. |
+| Parser & type checker (`vox check`) | Working | 2026-11-02 | Bare keywords (`table`, `query`, `mutation`, `server`, `component`, `workflow`, `activity`, `actor`, `tool`, `resource`) open scopes; `@decorators` modify declarations. `@ai(structured_output = T, max_iterations = N)` still lowers to a declared output type (`vox-compiler` tests). |
+| Interpreter & sandbox (`vox run`, `--interp`, `--caps`) | Working | 2026-11-02 | Executes scripts and declaration-only modules (`table`/`query`/`tool` without requiring `fn main()`), powers repo automation (`scripts/*.vox`) and the `/v1/eval` browser sandbox (`--caps deterministic`). `Option::None` still compares equal to `null` (`is null` / `isnt null`) in `vox-compiler` eval. |
+| Full-stack codegen (`vox build`) | Prototype | 2026-11-02 | Command still registered. Emits React/TSX (`dist/`), a typed Rust/Axum server (`src/target/generated/`), and SQL DDL. Generated `Cargo.toml` resolves outside a Vox checkout when `vox` is built from source (`VOX_REPO_ROOT`). Standalone `voxup` installs without a source checkout still cannot compile generated servers ([design](docs/src/architecture/generated-project-runtime-deps.md)). |
+| OpenAPI & client emit (`vox emit`) | Prototype | 2026-11-02 | Command still registered (`emit client`, …). The 2026-09-21 parent-dir bug on standalone `component` emit was not re-run. |
+| Formatter (`vox fmt`) | Prototype | 2026-11-02 | `layout_only` is still the safety guard: `vox fmt` refuses to overwrite a file when a non-whitespace token or declaration would be dropped. Comment trivia is preserved. |
+| Tests (`vox test`, `@test`) | Prototype | 2026-11-02 | Command still registered. Runs through generated Rust + Cargo, so it shares `vox build`'s source-checkout requirement. |
+| REPL (`vox repl`) | Prototype | 2026-11-02 | Command still registered. Single-expression eval; `let`/`fn` declarations still do not persist across lines (not re-run this pass). |
+| Dev loop (`vox dev`) | Working | 2026-11-02 | Still watches `.vox` sources and rebuilds through `vox-compilerd`. |
+| Durable workflows (`workflow` / `activity`) | Prototype | 2026-11-02 | `VoxDbTracker` still persists workflow patches in `vox-workflow-runtime`. Codegen still emits `__vox_run_workflow` ([ADR-019](docs/src/adr/019-durable-workflow-journal-contract-v1.md), [ADR-021](docs/src/adr/021-generated-workflow-durability-parity.md), [ADR-041](docs/src/adr/041-durable-functions-completion-2026.md)). |
+| Desktop packaging (`vox compile`) | Prototype | 2026-11-02 | Command still registered. Emits a Tauri project; generated Tauri apps with `table` declarations compile (`#633`, not re-run this pass). |
+| Mobile (`--target mobile`, React Native) | Research | 2026-11-02 | `vox compile` still takes a mobile target. Expo scaffold only; device runtime and mobile E2E were not re-run. |
+| LSP (`vox lsp`) | Prototype | 2026-11-02 | Command still registered. Diagnostics, hover, completion, symbols, semantic tokens, and code actions ([capabilities SSOT](docs/src/architecture/vox-lsp-capabilities-ssot-2026.md)). Go-to-definition remains partial. |
+| Scaffolding (`vox init`, `vox new`) | Working | 2026-11-02 | Both commands still registered. `vox new` scaffolds from presets (`vox new web`). The zero-diagnostic starter check was not re-run. |
+| Packages (`vox add` / `lock` / `sync`) | Prototype | 2026-11-02 | `add`, `lock`, and `sync` still edit the local manifest and lockfile. `vox remove` is the matching uninstall. |
+| Package registry (`vox pm`) | Not started | 2026-11-02 | `vox pm` is still the client (`search`, `publish`, `vendor`). No public registry is hosted. |
+| Diagrams (`vox diagram`) | Working | 2026-11-02 | Check, format, render SVG, export Mermaid, and import Mermaid (`#681`). This is the docs authoring surface; leftover mermaid fences still render in the browser. |
+| Grammar export (`vox grammar`) | Working | 2026-11-02 | Command still registered. Exports EBNF, Lark, and JSON Schema grammars (formats not re-exported this pass). |
+| Deploy & share (`vox deploy`, `vox share`) | Prototype | 2026-11-02 | Both commands still registered. `vox deploy` reads `Vox.toml` `[deploy]` (OCI, compose, Kubernetes, or SSH). Dry-run behavior was not re-executed. |
 
 ### Agent harness & orchestration
 
 | Component | State | Checked | Notes |
 |:---|:---|:---|:---|
-| Orchestrator daemon (`vox-orchestrator-d`) | Prototype | 2026-10-13 | Handles task/agent lifecycle RPCs, streaming `ExtraDispatch` / `ChainDispatch` hooks, session-scoped SQLite hopper resource locks (`hopper_inbox.resource_id`, lazy lease sweep, [ADR-025](docs/src/adr/025-multi-agent-lock-coherence.md)), and daemon-hosted terminal sessions (`term.*`). |
-| MCP server & HTTP gateway (`vox mcp`, `vox serve`) | Prototype | 2026-10-13 | 300+ registered tools in `contracts/mcp/tool-registry.canonical.yaml` (`--features mcp-server`). Issues and verifies `vox-crypto` HMAC receipts around every MCP tool dispatch (`vox_verify_task_claims`, [ADR-029](docs/src/adr/029-formal-intent.md)). `vox serve` enforces loopback-by-default bind policy with `--bind`, `--tls-cert`/`--tls-key`, `--behind-tunnel`, and `/v1/profile`. |
+| Orchestrator daemon (`vox-orchestrator-d`) | Prototype | 2026-11-02 | Binary still separate from `vox`. Task/agent lifecycle, hopper resource locks (`hopper_inbox.resource_id`, [ADR-025](docs/src/adr/025-multi-agent-lock-coherence.md)), and daemon-hosted `term.*` sessions were not re-run this pass. |
+| MCP server & HTTP gateway (`vox mcp`, `vox serve`) | Prototype | 2026-11-02 | Both commands still registered. The canonical registry lists 376 tools (`contracts/mcp/tool-registry.canonical.yaml`, `--features mcp-server`). HMAC receipts on dispatch ([ADR-029](docs/src/adr/029-formal-intent.md)) and `vox serve`'s loopback bind policy were not re-run. |
 | Model registry & routing (`vox model`) | Working | 2026-11-02 | Self-maintaining routing over OpenRouter `/api/v1/models` and local Ollama/MENS. OpenRouter roles in `contracts/orchestration/model-defaults.v1.yaml` default to live `~family-latest` aliases (`#682`). Supports `VOX_MODEL_FORCE` and per-role pins, and threads `seed` and `top_p` through `vox_actor_runtime::llm`. |
-| Chat (`vox chat`) | Prototype | 2026-10-13 | Routes through the model facade with deterministic research-intent classification (codebase vs. quick web vs. deep research), numbered-source citation checks, and trust-tier preamble filtering. |
-| Capability discovery (`vox explain`, `vox features`) | Working | 2026-10-13 | Backed by the generated capability index (`contracts/capabilities/capability-index.v1.json`) across CLI commands, MCP tools, skills, crates, and docs, with side-effect classifications (`ReadOnly`, `WorkspaceWrite`, `ExternalEffect`, `Destructive`) and confirmation gates. |
-| Harness eval (`vox harness eval`) | Working | 2026-10-13 | Offline golden set passes; Clavis secret lookup no longer panics on `current_thread` Tokio runtimes. |
-| Skills (`vox skill`) | Prototype | 2026-10-13 | [agentskills.io](https://agentskills.io/specification)-compliant `SKILL.md` parser and registry (`--features ars`), synced with `crates/vox-plugin-catalog/catalog.toml`. |
-| Plugins & bundles (`vox plugin`, `vox bundle`) | Prototype | 2026-10-13 | `list`, `info`, and `doctor` work; MENS backend plugins (`mens-candle-metal`, `mens-candle-cuda`, `mens-candle-cpu`) align with host platform detection. Several third-party catalog entries remain placeholders. |
-| Policy & exec-policy (`vox policy`, `vox shell check`) | Working | 2026-09-21 | Evaluates terminal command allowlists and blocks unsafe shell constructs against `contracts/terminal/exec-policy.v1.yaml`. |
-| Planning / rollback (`vox plan`, `vox rollback`) | Prototype | 2026-09-21 | Prototype orchestration helpers; see [suite status audit](docs/src/architecture/suite-status-audit-2026-09-21.md) for daemon token caveats on `rollback`. |
-| Identity & auth (`vox auth`, `vox login`) | Prototype | 2026-09-21 | Local trust store and OpenRouter PKCE / Clavis integration exist; full multi-user auth is unexercised. |
+| Chat (`vox chat`) | Prototype | 2026-11-02 | Still routes through the model facade. Offered tools are ranked against the turn before the cap (`#686`). Research-intent classification and trust-tier preamble filtering were not re-run. |
+| Capability discovery (`vox explain`, `vox features`) | Working | 2026-11-02 | Both commands still answer from `contracts/capabilities/capability-index.v1.json`. |
+| Harness eval (`vox harness eval`) | Working | 2026-11-02 | Command still registered. The offline golden set was not re-run this pass. |
+| Skills (`vox skill`) | Prototype | 2026-11-02 | Still behind `--features ars`. agentskills.io `SKILL.md` registry, synced with `crates/vox-plugin-catalog/catalog.toml`. |
+| Plugins & bundles (`vox plugin`, `vox bundle`) | Prototype | 2026-11-02 | Both commands still registered. MENS backend plugins remain `mens-candle-metal`, `mens-candle-cuda`, and `mens-candle-cpu`. |
+| Policy & exec-policy (`vox policy`, `vox shell check`) | Working | 2026-11-02 | Both commands still registered against `contracts/terminal/exec-policy.v1.yaml`. |
+| Planning / rollback (`vox plan`, `vox rollback`) | Prototype | 2026-11-02 | Both commands still registered. `vox rollback` still needs a running `vox-orchestrator-d`. Daemon-token caveats in the [suite status audit](docs/src/architecture/suite-status-audit-2026-09-21.md) were not re-tested. |
+| Identity & auth (`vox auth`, `vox login`) | Prototype | 2026-11-02 | Both commands still registered. `vox logout` clears the local vault credentials. Multi-user auth is still unexercised. |
 
 ### Knowledge base, search & research tools
 
 | Component | State | Checked | Notes |
 |:---|:---|:---|:---|
-| Curated KB Library (`vox kb`, `vox_kb_*`) | Working | 2026-10-13 | Replaces the retired 12-tool legacy `VoxKB` CRUD surface (`vox-db` baseline 96). Indexes curated `docs/src/` pages in Tantivy 0.22 (`vox kb reindex`, `vox kb status`) and serves `vox_kb_search`, `vox_kb_get`, and `vox_kb_cite` with SKOS taxonomy (`contracts/documentation/kb-taxonomy.v1.yaml`) synonym expansion. |
-| Retrieval trust tiers & findings inbox | Working | 2026-10-13 | Every `search_documents` row and knowledge-graph node carries a stored `trust_tier` (`SystemVerified`, `Trusted`, `Advisory`, `Untrusted`). Uncommitted doc edits, agent-stored facts (`persist_fact`), and web hits are marked `Untrusted`, blocked from automatic chat-preamble injection, sanitized via `vox_db::kb_text::sanitize`, and routed to the `kb_findings` review inbox. |
-| Deep & quick research (`vox research`) | Prototype | 2026-10-13 | Multi-source parallel dispatcher (OpenAlex, arXiv with 334ms rate pacing, Wikipedia, SearXNG JSON, and Tavily with SQLite quota tracking) using Reciprocal Rank Fusion (RRF), relevance reranking, per-provider diversity caps, exponential-decay domain misguidance penalties, and per-sentence citation grounding. |
-| SCIENTIA & publication | Prototype | 2026-10-13 | Claim-span verification checks sentences against measured character offsets and fails closed on unverifiable spans. |
-| Socrates evidence gate | Prototype | 2026-09-21 | Wired into task submission; strict enforcement is opt-in. |
-| Code graph (`vox graph`) | Working | 2026-09-21 | Queries symbol definitions across the workspace after `vox graph refresh --auto`. |
-| Multi-repo catalog (`vox repo`, `vox catalog`) | Working | 2026-09-21 | Add, list, and text-query repositories. |
+| Curated KB Library (`vox kb`, `vox_kb_*`) | Working | 2026-11-02 | `vox kb` still has `status`, `reindex`, and `eval`. The Library index (`vox_kb_search` / `get` / `cite`) replaced the retired `VoxKB` CRUD tools. Current schema baseline is 97; that retirement landed at 96. |
+| Retrieval trust tiers & findings inbox | Working | 2026-11-02 | `search_documents.trust_tier` and `kb_findings` are still in the baseline. Tiers remain `SystemVerified`, `Trusted`, `Advisory`, and `Untrusted`. |
+| Deep & quick research (`vox research`) | Prototype | 2026-11-02 | Command still registered. OpenAlex, arXiv, Wikipedia, SearXNG, and Tavily dispatch was not re-run. |
+| SCIENTIA & publication | Prototype | 2026-11-02 | `vox scientia` still delegates to the research facade. Claim-span checks were not re-run. `vox-constrained-gen` is still not the publication emitter. |
+| Socrates evidence gate | Prototype | 2026-09-21 | Wired into task submission; strict enforcement is opt-in. Not re-opened this pass. |
+| Code graph (`vox graph`) | Working | 2026-11-02 | Still `vox graph` (aliases `graphify` and `search`). `vox graph refresh --auto` rebuilds a stale corpus. |
+| Multi-repo catalog (`vox repo`, `vox catalog`) | Working | 2026-11-02 | Both commands still registered. Add, list, and text query were not re-run. |
 
 ### Interfaces
 
 | Component | State | Checked | Notes |
 |:---|:---|:---|:---|
-| Operator GUI (`vox-gui`, Axis / Tauri 2) | Prototype | 2026-10-13 | Desktop operator console supporting both local loopback daemon and **Remote Axis** mode (`GatewayClient` with TOFU TLS certificate pinning, OS keyring token storage, and per-surface availability gating by server profile). Includes the universal `⌘K` Omnibar capability palette (`#` crate search, prefilled CLI forms, confirmation gates), chat tool-receipt chips, hopper resource-lock chips, and `ResearchEngineDrawer`. |
-| Terminal sessions (`vox term`, `vox-terminal-core`) | Prototype | 2026-10-13 | Rebuilt around `SessionHost` (`LocalHost` PTY and `DaemonHost` client over `term.*` daemon RPCs) with a replay ring buffer and gap-free sequence numbers for session re-attach (`#641`). |
-| Public docs site ([voxlang.org](https://voxlang.org)) | Working | 2026-10-13 | Cloudflare deployment unblocked (`#635`, `#640`); ships collapsible reader layout, automated crate API reference (`docs/src/api/*.generated.md`), reader trust badges, verified `llms.txt` / `.well-known/llms.txt` (excluding `Internals`), and blocking Playwright link/honesty/redirect gates. |
-| Browser eval sandbox (`eval.voxlang.org`) | Working | 2026-10-13 | Runs `vox run --interp --caps deterministic` behind the MCP HTTP gateway `/v1/eval` endpoint, deployed via Coolify (`POST /api/v1/deploy`). |
-| VS Code extension | Prototype | 2026-09-21 | Compiles in [`apps/editor/vox-vscode`](apps/editor/vox-vscode/); not yet published to the VS Code Marketplace. |
+| Operator GUI (`vox-gui`, Axis / Tauri 2) | Prototype | 2026-11-02 | `vox gui` (alias `vox axis`) is still behind `--features gui`. Local and Remote Axis, the `⌘K` palette, and receipt chips were not re-exercised. |
+| Terminal sessions (`vox term`, `vox-terminal-core`) | Prototype | 2026-11-02 | `vox term` is still the ratatui shell. Daemon re-attach (`#641`) was not re-run. |
+| Public docs site ([voxlang.org](https://voxlang.org)) | Working | 2026-11-02 | One chevron hides the sidebar and one hides the outline (`#687`). Diagrams are authored as VoxDiagram; leftover mermaid fences render by joining code lines. Cloudflare deploy from `main` is the live site. |
+| Browser eval sandbox (`eval.voxlang.org`) | Working | 2026-11-02 | Still `vox run --interp --caps deterministic` behind `/v1/eval`. Coolify `POST /api/v1/deploy` was not re-fired. |
+| VS Code extension | Prototype | 2026-11-02 | Still in [`apps/editor/vox-vscode`](apps/editor/vox-vscode/). Not on the Marketplace. |
 | Installer & updater (`voxup`, `vox upgrade`) | Prototype | 2026-11-02 | `/voxup` and `/voxup.ps1` bootstrap scripts are served and smoke-tested on `voxlang.org`, and `voxup` resolves forge auth tokens via Clavis. No stable release tag yet. Draft `nightly-*` GitHub releases are not the supported install. |
-| Speech-to-code (`vox speech` / `vox oratio`) | Research | 2026-09-21 | Whisper integration behind `--features oratio`. |
-| Visual review (`vox visus`) | Research | 2026-09-21 | Screenshot + VLM audit behind `--features dei`. |
+| Speech-to-code (`vox speech` / `vox oratio`) | Research | 2026-11-02 | `vox speech` is registered, with `oratio` kept as an alias, and delegates to `vox-ml-cli`. |
+| Visual review (`vox visus`) | Research | 2026-11-02 | Still compiled only with `--features dei`. |
 
 ### ML lane (MENS)
 
 | Component | State | Checked | Notes |
 |:---|:---|:---|:---|
-| Fine-tuning (`vox mens train`) | Prototype | 2026-10-13 | Unified backend selector (`select_mens_backend` across Metal, CUDA, and `mens-candle-cpu`); loads untied `lm_head.weight` on Qwen3 checkpoints (`tie_word_embeddings: false`); applies single-pass Q/K RMSNorm on CUDA; enforces calibrated VRAM-fit checks (`contracts/mens/memory-model.v1.yaml`, override via `VOX_MENS_FORCE_TRAIN`); writes adapter lineage cards (`12-06`); and excludes unattested LLM/web pages from training extracts. |
-| Serving (`vox mens serve`) | Prototype | 2026-10-13 | Serves non-streaming `/v1/completions` and `/generate` with seeded nucleus (`top_p`) sampling and deterministic index tie-breaking (the broken `/v1/completions/stream` route was removed). |
-| Corpus & statistical eval (`eval-corpus`, `vox model eval-compare`) | Working | 2026-10-13 | Routes through the model registry and LLM facade, draws seeded `n` samples per fixture, runs multi-turn compiler-feedback repair (`12-08`), verifies adapter lineage cards, gates write-back on section-5 report completeness (`schema-2`), and computes McNemar, Holm-Bonferroni, and paired bootstrap verdicts in `eval-compare`. |
-| Quantization / GGUF export | Prototype | 2026-09-21 | Merged via `merge-qlora --gguf-out` with llama.cpp; roundtrip tests run against the workspace-built plugin. |
-| Mesh control plane (`vox populi`) | Prototype | 2026-09-21 | Bearer-authenticated control plane over iroh QUIC ([ADR-047](docs/src/adr/047-iroh-transport.md)); multi-node workloads remain experimental. |
-| Grammar-constrained decoding | Not started | 2026-09-21 | `vox-constrained-gen` crate exists in-tree but is not yet wired into serving. |
+| Fine-tuning (`vox mens train`) | Prototype | 2026-11-02 | `select_mens_backend` still chooses Metal, CUDA, or `mens-candle-cpu` in `vox-populi`. Untied Qwen3 `lm_head.weight` (`tie_word_embeddings: false`) is still handled in the Metal trainer. A training run was not started. |
+| Serving (`vox mens serve`) | Prototype | 2026-11-02 | Command still registered. Non-streaming `/v1/completions` and `/generate` were not re-hit. |
+| Corpus & statistical eval (`eval-corpus`, `vox model eval-compare`) | Working | 2026-11-02 | `vox model eval-compare` is still a `vox model` subcommand. The McNemar harness was not re-run. |
+| Quantization / GGUF export | Prototype | 2026-09-21 | `merge-qlora --gguf-out` via llama.cpp. Not re-run this pass. |
+| Mesh control plane (`vox populi`) | Prototype | 2026-11-02 | Command still registered and delegated to `vox-ml-cli`. Multi-node workloads remain experimental ([ADR-047](docs/src/adr/047-iroh-transport.md)). |
+| Grammar-constrained decoding | Not started | 2026-11-02 | `vox-constrained-gen` is still not the serving or publication emitter. |
 | Published adapters (Hugging Face) | Prototype | 2026-11-02 | Public cards, anonymous fetch: [Qwen3 0.6B](https://huggingface.co/brbrainerd/vox-mens-qwen3-0.6b), [1.7B](https://huggingface.co/brbrainerd/vox-mens-qwen3-1.7b), [4B](https://huggingface.co/brbrainerd/vox-mens-qwen3-4b), and the [adapter index](https://huggingface.co/brbrainerd/vox-mens-index). Each has `main` and no version tags. `vox mens hub upload` creates repos public (`--private` opts out). `vox mens hub download` needs the `mens-hf-hub` feature. The 8B adapter is not public. |
 
 ### Dev infrastructure
 
 | Component | State | Checked | Notes |
 |:---|:---|:---|:---|
-| CI gate runner (`vox ci`) | Working | 2026-10-13 | Runs manifest, command-compliance, operations-verify, crate-edges, fan-in budgets, and SSOT drift guards; `ci.yml` includes deterministic `ssot-autoregen`. |
-| Architecture checker (`vox-arch-check`) | Working | 2026-10-13 | Enforces [`docs/src/architecture/layers.toml`](docs/src/architecture/layers.toml), fan-in budgets, and forbidden raw `git` execution (`GitExec` policy). |
-| Drift checker & docs pipeline (`vox-doc-pipeline`) | Working | 2026-10-13 | Enforces frontmatter, KB taxonomy facets (`topic`, `domain`, `authorship`, `kb:summary`) with a shrink-only ratchet (`contracts/documentation/kb-facet-backlog.v1.yaml`), `README.md` ↔ `index.mdx` sync, and `.vox` doctests. |
-| Source-policy & effort audits (`vox audit`) | Prototype | 2026-09-21 | `vox audit code` enforces crypto and LLM-facade boundaries (`vox_actor_runtime::llm`); `vox audit effort` and `effort-route` audit commit history. |
-| Secrets (`Clavis`, `vox secrets`) | Working | 2026-10-13 | Exclusive secret resolution via `vox_secrets::resolve_secret(...)`; vault lookup is safe on both multi-thread and `current_thread` Tokio runtimes and isolated from `~/.vox` in tests. |
+| CI gate runner (`vox ci`) | Working | 2026-11-02 | Command still registered. Hosted CI remains the gate (`Check, Build, and Test (Rust)`); `ssot-autoregen` still runs on pull requests. |
+| Architecture checker (`vox-arch-check`) | Working | 2026-11-02 | Still enforces [`docs/src/architecture/layers.toml`](docs/src/architecture/layers.toml). Invoked as `vox audit arch`. |
+| Drift checker & docs pipeline (`vox-doc-pipeline`) | Working | 2026-11-02 | Still lints frontmatter, the shrink-only facet backlog, and the `why_vox` sync between this file and `docs/src/index.mdx`. |
+| Source-policy & effort audits (`vox audit`) | Prototype | 2026-11-02 | `vox audit` is still registered. `vox audit code` covers crypto and LLM-facade boundaries. `effort` and `effort-route` were not re-run. |
+| Secrets (`Clavis`, `vox secrets`) | Working | 2026-11-02 | `vox secrets` (alias `clavis`) is still the only secret command. Resolution stays `vox_secrets::resolve_secret`. |
 | Local database (`VoxDb`, `vox-db`) | Working | 2026-11-02 | Schema baseline `97` (`vox_db::schema::BASELINE_VERSION` and `contracts/db/baseline-version-policy.yaml`): trial tables plus the baseline-96 surfaces (`kb_findings`, `search_documents.trust_tier`, `workflow_patch_log`, `model_benchmark_results`, `hopper_inbox.resource_id`). Legacy `VoxKB` tables are quarantined without data loss. |
-| Environment & build diagnostics (`vox doctor`) | Working | 2026-10-13 | Exits non-zero on required check failures, reports MCP HTTP gateway bind policy, and supports targeted `[diag id=…]` probes via `vox doctor --diag <id>`. |
+| Environment & build diagnostics (`vox doctor`) | Working | 2026-11-02 | Command still registered. Required-check exit codes and `--diag` probes were not re-run. |
 
 ### The central claim
 
 | Component | State | Checked | Notes |
 |:---|:---|:---|:---|
-| Evidence that Vox improves LLM code generation | Working | 2026-10-14 | Measured in [Empirical Benchmark: Vox vs. TypeScript under Multi-Turn Compiler Feedback](docs/src/architecture/vox-vs-ts-empirical-benchmark-2026.md) ($N=100$, McNemar $p = 0.0031$). Vox reaches Pass@1 82.0% vs. TS 68.0% and Pass@3 94.0% vs. TS 81.0%, with 66.7% one-turn repair resolution and 28.4% fewer tokens-to-green. |
+| Evidence that Vox improves LLM code generation | Working | 2026-10-14 | Not re-measured on 2026-11-02. The published result is [Empirical Benchmark: Vox vs. TypeScript under Multi-Turn Compiler Feedback](docs/src/architecture/vox-vs-ts-empirical-benchmark-2026.md) ($N=100$, McNemar $p = 0.0031$): Pass@1 82.0% vs. TypeScript 68.0%, Pass@3 94.0% vs. 81.0%. |
 
 Longer-horizon targets: [v1.0 release criteria](docs/src/architecture/v1-release-criteria.md) · [Stability Matrix](docs/src/reference/stability.md) · [Unified Workstream Plan](docs/src/architecture/unified-workstream-execution-plan-2026.md).
 
@@ -290,6 +291,7 @@ Longer-horizon targets: [v1.0 release criteria](docs/src/architecture/v1-release
 
 Newest first.
 
+- **2026-11-02**: Re-checked Language & compiler and every status table below it against `main`. Named `vox` commands are still registered, including `vox diagram`. The MCP registry lists 376 tools. Chat ranks offered tools before the cap (`#686`). The docs site uses one chevron per sidebar edge (`#687`).
 - **2026-11-02**: Re-checked this README against `main`. Published adapters are public on Hugging Face ([0.6B](https://huggingface.co/brbrainerd/vox-mens-qwen3-0.6b), [1.7B](https://huggingface.co/brbrainerd/vox-mens-qwen3-1.7b), [4B](https://huggingface.co/brbrainerd/vox-mens-qwen3-4b), [index](https://huggingface.co/brbrainerd/vox-mens-index)); current `VoxDb` baseline is 97; OpenRouter defaults are `~family-latest` aliases. No stable release tag.
 - **2026-10-31**: Re-verified tutorials and docs CI on the mounted roadmap (`#683`). Model defaults moved from pinned versions to live `~family-latest` aliases (`#682`).
 - **2026-10-30**: VoxDiagram, a typed diagram DSL, replaced Mermaid as the authoring surface. Mermaid stays an import/export target (`#681`).
@@ -371,7 +373,7 @@ More details: [Installing Vox](docs/src/reference/installation.md) · [Getting S
 Vox has a broad CLI surface covering compilation, agent orchestration, knowledge-base indexing, model routing, and CI guardrails.
 
 - **First-time discovery:** Run `vox commands --recommended` to list the core everyday commands, or `vox features` and `vox explain <term>` to search the capability index across CLI commands, MCP tools, skills, and crates.
-- **Full reference:** Every `vox`, `vox ci`, `vox kb`, `vox model`, `vox populi`, and `vox mens` subcommand is documented at [`docs/src/reference/cli.md`](docs/src/reference/cli.md) and [`docs/src/reference/cli-command-surface.generated.md`](docs/src/reference/cli-command-surface.generated.md).
+- **Full reference:** Every `vox`, `vox ci`, `vox kb`, `vox model`, `vox diagram`, `vox populi`, and `vox mens` subcommand is documented at [`docs/src/reference/cli.md`](docs/src/reference/cli.md) and [`docs/src/reference/cli-command-surface.generated.md`](docs/src/reference/cli-command-surface.generated.md).
 
 ---
 
