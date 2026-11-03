@@ -801,7 +801,7 @@ pub(crate) async fn run_agent_turn(
     messages.extend(prior_conversation);
     messages.push(LlmChatMessage {
         role: "user".into(),
-        content: user_message,
+        content: user_message.clone(),
         ..Default::default()
     });
 
@@ -840,9 +840,11 @@ pub(crate) async fn run_agent_turn(
         // previously held the last slot. These three pins displaced
         // `vox_check_file_owner`, `vox_check_mood`, and `vox_check_workspace`
         // (previously slots 38-40, the cut ending at `vox_check_workspace`).
-        // Every further pin costs another tool the same way — the real fix is
-        // relevance ranking before truncation, not a longer pin list.
+        // Pins keep the delegation tools inside the cap. The rest of the set is
+        // ranked against this turn's text, so a late-alphabet tool can still be
+        // offered when the message names it.
         pin_names: vec!["vox_spawn_agent", "vox_submit_task", "vox_task_status"],
+        query: Some(user_message),
     };
     let selected = select_tools_for_turn(TOOL_REGISTRY, &state.skill_registry, &turn_ctx);
     let tool_defs: Vec<LlmToolDef> = selected
@@ -1997,10 +1999,10 @@ mod tests {
     #[tokio::test]
     async fn a_near_miss_tool_call_is_salvaged_and_tagged_not_hard_failed() {
         let server = MockServer::start().await;
-        // `vox_answer_question` (unlike `vox_git_status`) is actually within the
-        // turn's offered-tool set (alphabetical registry order, capped at
-        // `DEFAULT_MAX_TOOLS` — see `select_tools_for_turn`), which the salvage
-        // policy requires before treating any text-embedded JSON as a real call.
+        // `vox_answer_question` must be inside the turn's offered-tool set (see
+        // `select_tools_for_turn`: relevance to the prompt, then registry order),
+        // which the salvage policy requires before treating any text-embedded JSON
+        // as a real call. The prompt names it so relevance ranking offers it.
         let near_miss = plain_response_body(
             "I'll use vox_answer_question. ```json\n{\"name\":\"vox_answer_question\",\"arguments\":{}}\n```",
         );
@@ -2024,7 +2026,7 @@ mod tests {
             Some("sess-salvage"),
             vec![],
             "system prompt".to_string(),
-            "what's the git status?".to_string(),
+            "please answer my question".to_string(),
             None,
             None,
             config,

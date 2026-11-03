@@ -172,6 +172,13 @@ pub struct RepoFileRead {
     pub root: String,
     pub path: String,
     pub bytes_read: usize,
+    /// Size of the whole file, before any `max_bytes` truncation of `content`.
+    #[serde(default)]
+    pub total_bytes: usize,
+    /// Line count of the whole file (newline-terminated or final unterminated line),
+    /// so a caller never has to count lines out of `content`.
+    #[serde(default)]
+    pub total_lines: usize,
     pub truncated: bool,
     pub content: String,
 }
