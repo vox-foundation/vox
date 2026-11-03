@@ -44,4 +44,55 @@ mod tests {
         let doctor = VoxCliRoot::try_parse_from(["vox", "py", "doctor"]).unwrap();
         assert!(matches!(doctor.cmd, crate::Cli::Py { cmd: PyCmd::Doctor }));
     }
+
+    /// `vox run` of the golden in a temp project that has `[python]`.
+    #[test]
+    fn python_bridge_vox_run_prints_version() {
+        if which::which("uv").is_err() || which::which("python3").is_err() {
+            eprintln!("skip: uv or python3 is absent");
+            return;
+        }
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(
+            dir.path().join("Vox.toml"),
+            "[python]\nversion = \"3.12\"\n",
+        )
+        .expect("vox.toml");
+        let golden = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../examples/golden/py_bridge_hello.vox");
+        let script = dir.path().join("hello.vox");
+        std::fs::copy(&golden, &script).expect("copy golden");
+        super::env::sync_project(dir.path()).expect("vox py sync");
+
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("runtime");
+        vox_compiler::eval::python::start_print_capture();
+        let ran = rt.block_on(async {
+            crate::commands::run::run(
+                &script,
+                &[],
+                crate::commands::run::RunMode::Interp,
+                &[],
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .await
+        });
+        let lines = vox_compiler::eval::python::stop_print_capture();
+        ran.expect("vox run");
+        assert!(
+            lines.iter().any(|line| {
+                line.contains('.')
+                    && line
+                        .split('.')
+                        .all(|part| !part.is_empty() && part.chars().all(|c| c.is_ascii_digit()))
+            }),
+            "expected the worker Python version, got {lines:?}"
+        );
+    }
 }

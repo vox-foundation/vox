@@ -6,6 +6,7 @@ pub mod caps;
 pub mod db;
 pub mod env;
 pub mod expr;
+pub mod python;
 pub mod repo;
 pub mod shell_stdlib;
 pub mod stmt;
@@ -211,6 +212,11 @@ pub struct Interpreter {
     python_fns: std::collections::HashSet<String>,
     /// User functions whose HIR capabilities include `HirCapability::PythonUnverified`.
     python_unverified_fns: std::collections::HashSet<String>,
+    /// Project `[python]` config. Absent means every bridge call returns `py-env`
+    /// without spawning a worker.
+    python_project: Option<python::PythonProject>,
+    /// Lazy worker host. Created on the first `python.version()` when a project is set.
+    python_host: Option<python::Host>,
     pub activity_hook: Option<crate::eval::activity_hook::ActivityHook>,
     /// Durable call-site ordinals installed from the loaded HIR.
     pub call_ordinals: std::collections::HashMap<crate::ast::span::Span, u32>,
@@ -305,6 +311,13 @@ impl Interpreter {
             VoxValue::object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("repo".to_string().into()),
+            )]),
+        );
+        scope.set(
+            "python".to_string(),
+            VoxValue::object(vec![(
+                "__namespace__".to_string(),
+                VoxValue::Str("python".to_string().into()),
             )]),
         );
         // Bare `crypto.hash_fast(...)` (Task 1b's `crypto_hash_parity.vox`
@@ -442,6 +455,8 @@ impl Interpreter {
             workflow_names: std::collections::HashSet::new(),
             python_fns: std::collections::HashSet::new(),
             python_unverified_fns: std::collections::HashSet::new(),
+            python_project: None,
+            python_host: None,
             activity_hook: None,
             call_ordinals: std::collections::HashMap::new(),
             call_keys: std::collections::HashMap::new(),

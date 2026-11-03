@@ -399,6 +399,17 @@ impl BuiltinTypes {
             },
         );
 
+        // python bridge (`python.version()`).
+        env.define(
+            "python".into(),
+            Binding {
+                ty: Ty::Named("PythonModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
         // path module
         env.define(
             "path".into(),
@@ -1046,6 +1057,16 @@ impl BuiltinTypes {
             ),
         );
         methods.insert("FsModule".into(), fs_methods);
+
+        let mut python_methods = std::collections::HashMap::new();
+        python_methods.insert(
+            "version".into(),
+            Ty::Fn(
+                vec![],
+                Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str))),
+            ),
+        );
+        methods.insert("PythonModule".into(), python_methods);
 
         // Path module methods. `extension` / `parent` / `file_name` / `stem` /
         // `is_absolute` registered alongside `path.join` 2026-05-23 (audit doc §10).

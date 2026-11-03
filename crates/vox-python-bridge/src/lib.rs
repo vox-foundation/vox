@@ -63,6 +63,11 @@ impl BridgeError {
     }
 }
 
+/// Directory that contains the `vox_bridge` package. Put it on `PYTHONPATH`.
+pub fn worker_root() -> std::path::PathBuf {
+    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("worker")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -80,5 +85,11 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec!["python3", "-m", "vox_bridge"]
         );
+    }
+
+    #[test]
+    fn worker_root_contains_the_bridge_module() {
+        let main = worker_root().join("vox_bridge").join("__main__.py");
+        assert!(main.is_file(), "missing {}", main.display());
     }
 }

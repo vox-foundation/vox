@@ -1,0 +1,21 @@
+// ---
+// title: "Python bridge hello"
+// description: "python.version() returns the worker Python version when the project has [python]."
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// constructs: [fn, python.version, Result, match, print, @uses]
+// last_validated: 2026-11-03
+// training_eligible: false
+// training_weight: 1.0
+// difficulty: beginner
+// ---
+// @training_prompt: Call python.version() from a function that declares uses python and print the version string.
+
+@uses(python)
+fn main() {
+    match python.version() {
+        Ok(v) => print(v)
+        Error(e) => print(e)
+    }
+}

@@ -645,6 +645,25 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 }
                 return super::repo::execute_repo_op(interp, method, eval_args);
             }
+            // `python.version()` — gate on the AST receiver, then the `py` cap.
+            // `allows_namespace("python")` is false even when `py` is granted.
+            if let HirExpr::Ident(ns_name, _) = obj.as_ref()
+                && ns_name == "python"
+                && method == "version"
+            {
+                if !interp.caps.allows_namespace("py") {
+                    return Err(EvalError::CapabilityDenied {
+                        ns: "py".into(),
+                        method: "version".into(),
+                    });
+                }
+                if !args.is_empty() {
+                    return Err(EvalError::AssertionFailed(
+                        "python.version() takes no arguments".into(),
+                    ));
+                }
+                return Ok(super::python::call_version(interp));
+            }
 
             // `list.push(x)` in-place fast path (see `eval/env.rs` `get_mut`
             // doc comment). The generic dispatch below goes through

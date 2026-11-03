@@ -2723,6 +2723,7 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
                 .map(vox_value_display)
                 .collect::<Vec<_>>()
                 .join(" ");
+            super::python::note_print(&msg);
             println!("{msg}");
             Some(VoxValue::Null)
         }

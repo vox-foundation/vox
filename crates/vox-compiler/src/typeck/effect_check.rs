@@ -593,6 +593,7 @@ fn stdlib_module_capability(module: &str) -> Option<HirCapability> {
         "env" | "environment" => Some(HirCapability::Env),
         "time" | "clock" | "Clock" => Some(HirCapability::Clock),
         "process" | "Process" => Some(HirCapability::Spawn),
+        "python" => Some(HirCapability::Python),
         // Web automation/scraping are network-bearing (Browser also launches a
         // process; Net is the load-bearing capability). Previously ungoverned.
         "Scrape" | "scrape" | "Browser" | "OpenClaw" | "Agent" => Some(HirCapability::Net),
@@ -989,6 +990,36 @@ fn caller() to str { fetch() }",
         );
         assert_eq!(stdlib_module_capability("Scrape"), Some(HirCapability::Net));
         assert_eq!(stdlib_module_capability("scrape"), Some(HirCapability::Net));
+    }
+
+    #[test]
+    fn python_bridge_module_requires_python_capability() {
+        assert_eq!(
+            stdlib_module_capability("python"),
+            Some(HirCapability::Python)
+        );
+    }
+
+    #[test]
+    fn python_bridge_missing_effect_fails_typecheck() {
+        let diags = check(
+            "@uses(net)\nfn main() {\n    match python.version() {\n        Ok(v) => print(v)\n        Error(e) => print(e)\n    }\n}\n",
+        );
+        assert!(
+            diags.iter().any(|d| d.message.contains("uses python")),
+            "missing uses python must be diagnosed; got {diags:?}"
+        );
+    }
+
+    #[test]
+    fn python_bridge_declared_effect_has_no_uses_python_diagnostic() {
+        let diags = check(
+            "@uses(python)\nfn main() {\n    match python.version() {\n        Ok(v) => print(v)\n        Error(e) => print(e)\n    }\n}\n",
+        );
+        assert!(
+            diags.iter().all(|d| !d.message.contains("uses python")),
+            "declared python effect must not ask for uses python; got {diags:?}"
+        );
     }
 
     #[test]
