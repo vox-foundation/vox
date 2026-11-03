@@ -40,7 +40,7 @@ The spec is organised as **tiers of fidelity** so cost is assessed honestly — 
 | **RN target emits the ES import** | ❌ **missing** | [`rn/component.rs:1221-1277`](../../../crates/vox-rn-codegen/src/component.rs) has no Phase-5 block; PascalCase tags become `RnNode::CustomComponent` with **no import** ([`rn/component.rs:469-492`](../../../crates/vox-rn-codegen/src/component.rs)) |
 | JSX imported name usable as a tag `<MyButton/>` | ❌ **not registered** | web: [`reactive.rs:808`](../../../crates/vox-codegen-ts/src/reactive/mod.rs) requires `uppercase && known_components.contains(tag)`; `known_components` = `hir.components` + forms, not imports |
 | JSX prop typechecking | ⚠️ **already permissive** | [`typeck/checker/expr.rs:716-730`](../../../crates/vox-compiler/src/typeck/checker/expr.rs) checks attribute *values* only, returns `Ty::Element` — no prop-shape validation |
-| HIR opaque/extern type | ❌ none | `HirType` = `Named \| Generic \| Function \| Tuple \| Unit \| Decimal` ([`hir/nodes/stmt_expr.rs:90-103`](../../../crates/vox-compiler/src/hir/nodes/stmt_expr.rs)) |
+| HIR opaque/extern type | ❌ none | `HirType` = `Named \| Generic \| Function \| Tuple \| Unit \| Decimal` ([`hir/nodes/stmt_expr.rs:111`](../../../crates/vox-compiler/src/hir/nodes/stmt_expr.rs)) |
 | `map_hir_type_to_ts` catch-all | `_ => "any"` | [`lowering_shared/jsx.rs:24-39`](../../../crates/vox-compiler/src/lowering_shared/jsx.rs) |
 | RN **component emitter** (one IR) | ✅ exists | [`rn/mod.rs:57`](../../../crates/vox-rn-codegen/src/lib.rs) `generate_rn`; intrinsic→RN map [`rn/component.rs:339-511`](../../../crates/vox-rn-codegen/src/component.rs) |
 | Per-dependency / provider / peer registry | ❌ none | no contract YAML maps npm packages → peers/providers/styling |
@@ -108,14 +108,14 @@ The JSX checker is **already permissive**: [`typeck/checker/expr.rs:716-730`](..
 
 For the top-N components where authoring ergonomics matter, add a **flat facade** without modelling TS's type system:
 
-- Add `HirType::OpaqueExtern(String)` to the enum ([`hir/nodes/stmt_expr.rs:90-103`](../../../crates/vox-compiler/src/hir/nodes/stmt_expr.rs)) — a type carrying a **verbatim TS-type string**.
+- Add `HirType::OpaqueExtern(String)` to the enum ([`hir/nodes/stmt_expr.rs:111`](../../../crates/vox-compiler/src/hir/nodes/stmt_expr.rs)) — a type carrying a **verbatim TS-type string**.
 - `map_hir_type_to_ts` ([`lowering_shared/jsx.rs:24-39`](../../../crates/vox-compiler/src/lowering_shared/jsx.rs)) gains, **before** the catch-all `_ => "any"`:
   ```rust
   HirType::OpaqueExtern(ts) => ts.clone(),
   ```
 - A facade is a Vox `extern type` whose fields are `OpaqueExtern` strings, e.g. produced by `vox import-types`:
-  ```vox
-  // vox:skip — illustrative only; the flat-facade `extern type` (S5) was PRUNED (see §15). Not real Vox syntax.
+  ```text
+  // Illustrative only; the flat-facade `extern type` (S5) was PRUNED (see §15). Not real Vox syntax.
   extern type ButtonProps {            // facade for @mui/material Button
     variant: ts "Button['variant']"    // opaque TS-type string, not modeled
     color: ts "Button['color']"
@@ -134,8 +134,8 @@ A **dev-time** step (`vox import-types <specifier>`) invokes the TypeScript comp
 
 Extend the existing `import` parser ([`head.rs:95-150`](../../../crates/vox-compiler/src/parser/descent/decl/head.rs)) and `ImportPathKind::ReactComponent` ([`ast/decl/types.rs:33-55`](../../../crates/vox-ast/src/decl/types.rs)) from default-only to:
 
-```vox
-// vox:skip — illustrative import-form surface; `Dialog` appears as both named and namespace to show the variants, so this is not a single compile unit.
+```text
+// Illustrative import-form surface; `Dialog` appears as both named and namespace to show the variants, so this is not a single compile unit.
 import react Button from "@mui/material/Button"                       // default
 import react { Dialog, DialogTrigger } from "@radix-ui/react-dialog"  // named
 import react { useButton } from "react-aria"                          // named hook
@@ -230,7 +230,7 @@ Skip early: gluestack (fragmented 55k/42k), `@rneui/themed` (51k, declining).
 | Slice | Delivers | Touches (file:line) | Acceptance |
 |---|---|---|---|
 | **S1 — Import grammar (C1)** | named / namespace / aliased import forms | `ast/decl/types.rs:33-55`, `parser/descent/decl/head.rs:95-150`, `hir/nodes/decl.rs:227-249`, `hir/lower/mod.rs:139-151`, emit `reactive.rs:947-964` | extend `parser_import_syntax_test.rs`; `cargo test -p vox-compiler import`; golden `.tsx` diff |
-| **S2 — JSX-tag registration (C2)** | `<Imported/>` + `<Ns.Member/>` resolve on **web** | `reactive.rs:801-819` + `:876-912`, `web_ir/lower.rs`, `web_ir/validate.rs:300/356`; new `HirType::OpaqueExtern` (`hir/nodes/stmt_expr.rs:90-103`) + `lowering_shared/jsx.rs:24-39` arm | golden: a Vox component renders an imported Radix dialog; `cargo test -p vox-codegen` |
+| **S2 — JSX-tag registration (C2)** | `<Imported/>` + `<Ns.Member/>` resolve on **web** | `reactive.rs:801-819` + `:876-912`, `web_ir/lower.rs`, `web_ir/validate.rs:300/356`; new `HirType::OpaqueExtern` (`hir/nodes/stmt_expr.rs:111`) + `lowering_shared/jsx.rs:24-39` arm | golden: a Vox component renders an imported Radix dialog; `cargo test -p vox-codegen` |
 | **S3 — Manifest + dedupe + SSOT (C4)** | per-library SSOT YAML; emit deps + peers; Vite `dedupe` | new `contracts/frontend/external-component-libraries.v1.yaml` (+schema); `scaffold.rs:45-118`, `library_package_emit.rs`, `rn/scaffold.rs:154-197` | `pnpm install && tsc --noEmit` on a fixture passes; `vox check` errors on React-range conflict |
 | **S4 — Providers + styling + `use client` (C5/C6/C7)** | provider injection, CSS-file/engine wiring, `'use client'` stamping, mandatory-provider diagnostic | emitter + SSOT; `routes` root wrap; `reactive.rs` component header | integration: MUI button renders themed; Mantine `styles.css` imported; `vox check` errors when `@mantine/core` imported w/o provider |
 | **S5 — Flat-facade type bridge (C3 opt-in)** | `vox import-types` → `*.vox.extern.json`; `extern type`; facade prop-name/required checks | new dev step (TS compiler API, Node); `TypeDefDecl`/new `ExternTypeDecl` (`ast/decl/typedef.rs:83-102`, `hir/nodes/decl.rs:370-396`); `contract_ir/project.rs` (`OpaqueExtern→Unknown`); `typeck/checker/expr.rs:716-730` facade check | `vox check` flags unknown / missing-required prop on a faceted component; opaque path unaffected |

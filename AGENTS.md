@@ -243,6 +243,8 @@ See: research [`docs/src/architecture/skill-ecosystem-interop-research-2026-06-1
 
 All project automation — CI prep, corpus transforms, training pipelines, install helpers, data migrations — MUST be written as `.vox` files and executed via `vox run`. Do **not** introduce new `.ps1`, `.sh`, or `.py` glue scripts.
 
+**Scoped `.py` exemption (user-approved 2026-11-01):** `crates/vox-python-bridge/worker/**` may contain Python. That tree is the bridge worker (runtime, conformance tests, and twins), not project automation. Do not add `.py` files anywhere else.
+
 **Why:** A single `vox run scripts/foo.vox` command shape is:
 - Type-checked by the Vox compiler before execution (`vox check scripts/foo.vox`)
 - Cross-platform (same file, same command on Windows/Linux/macOS)

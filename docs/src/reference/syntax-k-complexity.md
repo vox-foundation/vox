@@ -62,7 +62,7 @@ Core payload fields:
 
 ## Integration surfaces
 
-- Compiler estimators: `crates/vox-compiler/src/syntax_k.rs`
+- Compiler estimators: `crates/vox-codegen/src/syntax_k.rs`
 - Compiler test artifacts:
   - `target/benchmarks/syntax-k/golden/*.json`
   - `target/benchmarks/syntax-k/parity/*.json`
