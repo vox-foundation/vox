@@ -1870,6 +1870,10 @@
       "vox-secrets"
     ],
     [
+      "vox-python-bridge",
+      "vox-foundation"
+    ],
+    [
       "vox-repository",
       "vox-bounded-fs"
     ],

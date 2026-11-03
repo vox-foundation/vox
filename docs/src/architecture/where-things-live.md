@@ -108,6 +108,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-mcp-registry`](../../../crates/vox-mcp-registry/) | Compile-time MCP tool registry and capability profiles (`PROFILES`, `ActiveProfile`, `authorize_tool`) from contracts YAML (SSOT). |
 | [`vox-llm-egress`](../../../crates/vox-llm-egress/) | Sanctioned LLM provider wire; pure egress, no config/secret resolution. |
 | [`vox-project-scaffold`](../../../crates/vox-project-scaffold/) | Shared Vox.toml + src/main.vox + skill scaffolding for vox init and MCP. |
+| [`vox-python-bridge`](../../../crates/vox-python-bridge/) | Framed stdio host for one lazy Python worker: request lifecycle, handle generations, and fetch-size caps. |
 | [`vox-repository`](../../../crates/vox-repository/) | Repository discovery, stable identity, layout probes, and agent scope helpers for external and internal Vox workspaces. |
 | [`vox-similarity`](../../../crates/vox-similarity/) | Pure simhash/minhash/LSH near-duplicate similarity core for discovery + marketplace dedup. |
 | [`vox-skill-runtime`](../../../crates/vox-skill-runtime/) | Abstract sandbox runtime trait for skill execution. Implementations ship as plugins (wasm, container). |
@@ -267,6 +268,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Safety floor (action-only hard floor: history rewrite, policy grant, external effect, secrets write) | `crates/vox-orchestrator/src/oversight/floor.rs` (enforced in `crates/vox-orchestrator-mcp/src/floor_gate.rs`) |
 | Circuit breaker — doom-loop detection (D6) | `crates/vox-orchestrator/src/circuit_breaker.rs` |
 | Confidence fusion — Socrates trigger (D3) | `crates/vox-orchestrator/src/confidence_fusion.rs` |
+| System One / Jev discriminator (research — cascade prefilter, tool airlock, guardrails, skill pick, RAG rerank) | Research: [`jev-system-one-harness-integration-research-2026.md`](./jev-system-one-harness-integration-research-2026.md). Not a shipped crate; do **not** route through `vox_actor_runtime::llm` — separate System One client if adopted. |
 | Tier cascade — model routing (D1) | `crates/vox-orchestrator/src/tier_cascade.rs` |
 | Registry-backed model resolution (Thompson arms, privacy-local filter) | `crates/vox-orchestrator/src/registry_model_resolve.rs` |
 | Inference tier/modality config for routing (`InferenceConfig`, `TierProfile`) | `crates/vox-orchestrator/src/mode.rs` |

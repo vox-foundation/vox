@@ -18631,6 +18631,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-python-bridge"
+version = "0.6.0"
+dependencies = [
+ "libc",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "vox-foundation",
+ "windows-sys 0.59.0",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-quantize"
 version = "0.6.0"
 dependencies = [
