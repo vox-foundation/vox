@@ -13,6 +13,9 @@ pub enum VoxValue {
     /// `regex::Regex` so `re.find/matches/find_all` run without recompiling,
     /// matching the Rust-codegen `VoxRegex` path.
     Regex(regex::Regex),
+    /// Pure `std.array` plan. Constructors store the host list and append
+    /// op names; they do not call the Python worker.
+    ArrayPlan(crate::eval::array_plan::ArrayPlan),
     /// A regex match: capture groups by index (group 0 = whole match). A `None`
     /// slot means that group did not participate. `m.group(i)` → `Option[str]`.
     Match(Vec<core::option::Option<String>>),

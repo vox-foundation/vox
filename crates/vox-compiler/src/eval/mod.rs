@@ -1,6 +1,7 @@
 pub use vox_eval::*;
 
 pub mod activity_hook;
+pub mod array_plan;
 pub mod builtins;
 pub mod caps;
 pub mod db;

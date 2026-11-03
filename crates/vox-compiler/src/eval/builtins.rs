@@ -2933,6 +2933,7 @@ pub fn vox_value_type_name(v: &VoxValue) -> &'static str {
         VoxValue::Float(_) => "Float",
         VoxValue::Decimal(_) => "Decimal",
         VoxValue::Regex(_) => "Regex",
+        VoxValue::ArrayPlan(_) => "ArrayPlan",
         VoxValue::Match(_) => "Match",
         VoxValue::Str(_) => "Str",
         VoxValue::Bool(_) => "Bool",
@@ -3008,6 +3009,7 @@ pub fn vox_value_display(v: &VoxValue) -> String {
             }
         }
         VoxValue::Match(_)
+        | VoxValue::ArrayPlan(_)
         | VoxValue::Fn { .. }
         | VoxValue::Constructor(_)
         | VoxValue::_Return(_)
