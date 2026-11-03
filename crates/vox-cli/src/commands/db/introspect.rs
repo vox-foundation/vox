@@ -2,20 +2,43 @@
 
 use anyhow::Result;
 use vox_sql::AnySqlBackend;
+use vox_sql::schema_model::IntrospectedSchema;
 
-pub async fn introspect(url: Option<&str>, compact: bool) -> Result<()> {
+/// Output of `vox db introspect --emit`.
+///
+/// `json` is the default and matches the previous stdout bytes (pretty or compact).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
+pub enum IntrospectEmit {
+    #[default]
+    Json,
+    Vox,
+}
+
+pub async fn introspect(url: Option<&str>, compact: bool, emit: IntrospectEmit) -> Result<()> {
     let backend = if let Some(url) = url {
         AnySqlBackend::connect_from_url(url).await?
     } else {
         AnySqlBackend::connect_from_app_env().await?
     };
     let schema = backend.introspect_schema().await?;
-    if compact {
-        println!("{}", serde_json::to_string(&schema)?);
-    } else {
-        println!("{}", serde_json::to_string_pretty(&schema)?);
-    }
+    print!("{}", render(&schema, compact, emit)?);
     Ok(())
+}
+
+/// Render an already-introspected schema. JSON keeps a trailing newline, matching
+/// the previous `println!` of `serde_json`. `--compact` applies only to JSON.
+fn render(schema: &IntrospectedSchema, compact: bool, emit: IntrospectEmit) -> Result<String> {
+    match emit {
+        IntrospectEmit::Json => {
+            let body = if compact {
+                serde_json::to_string(schema)?
+            } else {
+                serde_json::to_string_pretty(schema)?
+            };
+            Ok(format!("{body}\n"))
+        }
+        IntrospectEmit::Vox => Ok(schema.to_vox_source()),
+    }
 }
 
 #[cfg(test)]
@@ -77,5 +100,59 @@ mod tests {
             true,
         );
         assert!(findings.is_empty(), "{findings:?}\n{src}");
+    }
+
+    /// DBI-01: default JSON output is unchanged by `--emit`.
+    #[tokio::test]
+    async fn emit_json_output_is_unchanged() {
+        let schema = fixture_schema().await;
+        assert_eq!(
+            render(&schema, false, IntrospectEmit::Json).unwrap(),
+            format!("{}\n", serde_json::to_string_pretty(&schema).unwrap())
+        );
+        assert_eq!(
+            render(&schema, true, IntrospectEmit::Json).unwrap(),
+            format!("{}\n", serde_json::to_string(&schema).unwrap())
+        );
+    }
+
+    #[tokio::test]
+    async fn emit_vox_matches_to_vox_source() {
+        let schema = fixture_schema().await;
+        assert_eq!(
+            render(&schema, true, IntrospectEmit::Vox).unwrap(),
+            schema.to_vox_source()
+        );
+    }
+
+    #[test]
+    fn introspect_emit_defaults_to_json_and_accepts_vox() {
+        use crate::commands::db_cli::{DbCli, DbCliCore};
+        match DbCli::try_parse_from(["db", "introspect"]).expect("default introspect") {
+            DbCli::Core(DbCliCore::Introspect { emit, compact, url }) => {
+                assert_eq!(emit, IntrospectEmit::Json);
+                assert!(!compact);
+                assert!(url.is_none());
+            }
+            _ => panic!("expected introspect"),
+        }
+        match DbCli::try_parse_from(["db", "introspect", "--emit", "vox"]).expect("emit vox") {
+            DbCli::Core(DbCliCore::Introspect { emit, .. }) => {
+                assert_eq!(emit, IntrospectEmit::Vox);
+            }
+            _ => panic!("expected introspect"),
+        }
+    }
+
+    #[test]
+    fn introspect_help_shows_emit_flag() {
+        use clap::CommandFactory;
+        let cmd = crate::commands::db_cli::DbCli::command();
+        let introspect = cmd
+            .find_subcommand("introspect")
+            .expect("introspect subcommand");
+        let help = introspect.clone().render_help().to_string();
+        assert!(help.contains("--emit"), "{help}");
+        assert!(help.contains("vox"), "{help}");
     }
 }
