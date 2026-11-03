@@ -34,6 +34,8 @@ fn effect_kind_to_cap(eff: &HirEffectKind) -> HirCapability {
         HirEffectKind::Spend => HirCapability::Spend,
         HirEffectKind::Write => HirCapability::Write,
         HirEffectKind::ExternalApi => HirCapability::ExternalApi,
+        HirEffectKind::Python => HirCapability::Python,
+        HirEffectKind::PythonUnverified => HirCapability::PythonUnverified,
         HirEffectKind::Mcp(s) => HirCapability::Mcp(s.clone()),
     }
 }
@@ -288,6 +290,8 @@ fn hir_capability_to_packaging_id(cap: &HirCapability) -> Option<&'static str> {
         | HirCapability::Spend
         | HirCapability::Write
         | HirCapability::ExternalApi
+        | HirCapability::Python
+        | HirCapability::PythonUnverified
         | HirCapability::Mcp(_) => None,
     }
 }

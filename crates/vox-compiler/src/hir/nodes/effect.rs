@@ -24,6 +24,10 @@ pub enum HirEffectKind {
     Write,
     /// Calls an external third-party API (`RANK-01`).
     ExternalApi,
+    /// Calls the Python bridge through the verified Tier 1 std surface.
+    Python,
+    /// Calls the Python bridge through the gated Tier 2 escape hatch.
+    PythonUnverified,
     /// Parameterized MCP tool call.
     Mcp(String),
 }
@@ -44,6 +48,8 @@ impl HirEffectKind {
             HirEffectKind::Spend => "spend".into(),
             HirEffectKind::Write => "write".into(),
             HirEffectKind::ExternalApi => "external_api".into(),
+            HirEffectKind::Python => "python".into(),
+            HirEffectKind::PythonUnverified => "python_unverified".into(),
             HirEffectKind::Mcp(tool) => format!("mcp({tool})"),
         }
     }

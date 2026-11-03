@@ -32,6 +32,10 @@ pub enum EffectAnnotation {
     Write,
     /// Calls an external third-party API (`RANK-01`).
     ExternalApi,
+    /// Calls the Python bridge through the verified Tier 1 std surface.
+    Python,
+    /// Calls the Python bridge through the gated Tier 2 escape hatch.
+    PythonUnverified,
     /// Calls a specific MCP tool: `mcp(tool_name)`.
     Mcp(String),
     /// Explicit `uses nothing` — equivalent to `@pure`.
@@ -54,6 +58,8 @@ impl EffectAnnotation {
             "spend" | "Spend" => Some(Self::Spend),
             "write" | "Write" => Some(Self::Write),
             "external_api" | "ExternalApi" => Some(Self::ExternalApi),
+            "python" => Some(Self::Python),
+            "python_unverified" => Some(Self::PythonUnverified),
             "nothing" => Some(Self::Nothing),
             _ => None,
         }
@@ -74,6 +80,8 @@ impl EffectAnnotation {
             Self::Spend => "spend",
             Self::Write => "write",
             Self::ExternalApi => "external_api",
+            Self::Python => "python",
+            Self::PythonUnverified => "python_unverified",
             Self::Mcp(_) => "mcp",
             Self::Nothing => "nothing",
         }
