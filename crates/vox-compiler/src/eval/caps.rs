@@ -369,6 +369,46 @@ mod tests {
     use super::*;
     use std::path::Path;
 
+    // Phase 324 (EFF-02): `py:allow` grants verified Python only;
+    // `py:unverified` grants both tiers; restrictive grants neither.
+    #[test]
+    fn py_allow_grants_py_but_not_unverified() {
+        let c = CapabilitySet::parse("py:allow").unwrap();
+        assert!(c.allows_namespace("py"));
+        assert!(!c.allows_namespace("py.unverified"));
+    }
+
+    #[test]
+    fn py_unverified_grants_both_tiers() {
+        let c = CapabilitySet::parse("py:unverified").unwrap();
+        assert!(c.allows_namespace("py"));
+        assert!(c.allows_namespace("py.unverified"));
+    }
+
+    #[test]
+    fn restrictive_denies_py() {
+        let c = CapabilitySet::restrictive();
+        assert!(!c.allows_namespace("py"));
+        assert!(!c.allows_namespace("py.unverified"));
+        assert!(CapabilitySet::parse("py:bogus").is_err());
+    }
+
+    #[test]
+    fn py_is_gated_and_on_by_developer_default() {
+        assert!(GATED.contains(&"py") && GATED.contains(&"py.unverified"));
+        let d = CapabilitySet::developer_default();
+        assert!(d.allows_namespace("py") && d.allows_namespace("py.unverified"));
+    }
+
+    #[test]
+    fn py_grants_round_trip_through_tokens() {
+        for spec in ["py:allow", "py:unverified"] {
+            let c = CapabilitySet::parse(spec).unwrap();
+            let rebuilt = CapabilitySet::parse(&c.to_tokens().join(",")).unwrap();
+            assert_eq!(c, rebuilt, "{spec} lost in to_tokens round-trip");
+        }
+    }
+
     #[test]
     fn unmentioned_namespaces_are_denied() {
         let c = CapabilitySet::parse("env:ro").unwrap();
