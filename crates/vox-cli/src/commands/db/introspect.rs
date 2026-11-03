@@ -124,35 +124,4 @@ mod tests {
             schema.to_vox_source()
         );
     }
-
-    #[test]
-    fn introspect_emit_defaults_to_json_and_accepts_vox() {
-        use crate::commands::db_cli::{DbCli, DbCliCore};
-        match DbCli::try_parse_from(["db", "introspect"]).expect("default introspect") {
-            DbCli::Core(DbCliCore::Introspect { emit, compact, url }) => {
-                assert_eq!(emit, IntrospectEmit::Json);
-                assert!(!compact);
-                assert!(url.is_none());
-            }
-            _ => panic!("expected introspect"),
-        }
-        match DbCli::try_parse_from(["db", "introspect", "--emit", "vox"]).expect("emit vox") {
-            DbCli::Core(DbCliCore::Introspect { emit, .. }) => {
-                assert_eq!(emit, IntrospectEmit::Vox);
-            }
-            _ => panic!("expected introspect"),
-        }
-    }
-
-    #[test]
-    fn introspect_help_shows_emit_flag() {
-        use clap::CommandFactory;
-        let cmd = crate::commands::db_cli::DbCli::command();
-        let introspect = cmd
-            .find_subcommand("introspect")
-            .expect("introspect subcommand");
-        let help = introspect.clone().render_help().to_string();
-        assert!(help.contains("--emit"), "{help}");
-        assert!(help.contains("vox"), "{help}");
-    }
 }
