@@ -4,6 +4,7 @@ use crate::commands::db_retention;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use vox_bounded_fs::read_utf8_path_capped_async;
+use vox_package::manifest::{DbSection, SchemaOwner};
 use vox_secrets::SecretId;
 
 /// Print current VoxDB schema version and connection path.
@@ -105,6 +106,38 @@ pub async fn sample(table: &str, limit: i64) -> Result<()> {
     Ok(())
 }
 
+/// Refuse to apply migrations when `[db] schema_owner = "external"`.
+///
+/// `--dry-run` is allowed so the caller can still print the plan. The default
+/// owner (`vox`) never refuses.
+fn check_schema_owner(owner: SchemaOwner, dry_run: bool) -> Result<()> {
+    if owner == SchemaOwner::External && !dry_run {
+        anyhow::bail!(
+            "refusing to apply migrations because [db] schema_owner = \"external\" \
+             (another tool owns this schema). Re-run with --dry-run to print the plan."
+        );
+    }
+    Ok(())
+}
+
+/// `[db] schema_owner` from the nearest `Vox.toml` above `source`, or `Vox` when
+/// no manifest (or no `[db]` section) is present.
+fn load_schema_owner(source: &Path) -> Result<SchemaOwner> {
+    let mut dir = source.parent();
+    while let Some(current) = dir {
+        let manifest_path = current.join("Vox.toml");
+        if manifest_path.is_file() {
+            let content = std::fs::read_to_string(&manifest_path)
+                .with_context(|| format!("read {}", manifest_path.display()))?;
+            let db = DbSection::from_manifest_str(&content)
+                .map_err(|e| anyhow::anyhow!("parse {}: {e}", manifest_path.display()))?;
+            return Ok(db.schema_owner);
+        }
+        dir = current.parent();
+    }
+    Ok(SchemaOwner::Vox)
+}
+
 /// Apply any pending schema migrations.
 pub async fn migrate(file: Option<&PathBuf>, url: Option<&str>, dry_run: bool) -> Result<()> {
     let path = file
@@ -118,6 +151,8 @@ pub async fn migrate(file: Option<&PathBuf>, url: Option<&str>, dry_run: bool) -
         );
         return Ok(());
     }
+
+    let schema_owner = load_schema_owner(&path)?;
 
     let result = crate::pipeline::run_frontend(&path, false)
         .await
@@ -152,6 +187,7 @@ pub async fn migrate(file: Option<&PathBuf>, url: Option<&str>, dry_run: bool) -
             .await
             .map_err(|e| anyhow::anyhow!("failed to plan app-plane migration: {e}"))?;
         println!("{}", plan.describe());
+        check_schema_owner(schema_owner, dry_run)?;
         if dry_run {
             println!("Dry run enabled: no app-plane migration actions were applied.");
         } else {
@@ -168,6 +204,7 @@ pub async fn migrate(file: Option<&PathBuf>, url: Option<&str>, dry_run: bool) -
     let migrator = vox_db::AutoMigrator::new(db.connection());
     let plan = migrator.plan(&tables, &collections, &indexes).await?;
     println!("{}", plan.describe());
+    check_schema_owner(schema_owner, dry_run)?;
     if dry_run {
         println!("Dry run enabled: no local Codex migration actions were applied.");
     } else {
@@ -721,5 +758,35 @@ mod tests {
     fn resolve_app_plane_url_none_when_no_explicit_or_app_env() {
         let selected = resolve_app_plane_url_with_env(None, None);
         assert!(selected.is_none());
+    }
+
+    use super::{check_schema_owner, load_schema_owner};
+    use vox_package::manifest::SchemaOwner;
+
+    #[test]
+    fn external_schema_owner_refuses_non_dry_run_migrate() {
+        let err = check_schema_owner(SchemaOwner::External, false).unwrap_err();
+        assert!(err.to_string().contains("schema_owner"), "{err}");
+    }
+
+    #[test]
+    fn external_schema_owner_allows_dry_run_and_vox_owner_allows_apply() {
+        check_schema_owner(SchemaOwner::External, true).expect("dry-run allowed");
+        check_schema_owner(SchemaOwner::Vox, false).expect("vox-owned apply allowed");
+        check_schema_owner(SchemaOwner::Vox, true).expect("vox-owned dry-run allowed");
+    }
+
+    #[test]
+    fn load_schema_owner_discovers_vox_toml_above_source() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("src")).unwrap();
+        let src = dir.path().join("src/main.vox");
+        assert_eq!(load_schema_owner(&src).unwrap(), SchemaOwner::Vox);
+        std::fs::write(
+            dir.path().join("Vox.toml"),
+            "[package]\nname = \"app\"\n[db]\nschema_owner = \"external\"\n",
+        )
+        .unwrap();
+        assert_eq!(load_schema_owner(&src).unwrap(), SchemaOwner::External);
     }
 }

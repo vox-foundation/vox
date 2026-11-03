@@ -30,6 +30,42 @@ pub struct VoxManifest {
     /// Deployment configuration
     #[serde(default)]
     pub deploy: Option<DeploySection>,
+    /// App-database settings (`[db]`).
+    #[serde(default)]
+    pub db: Option<DbSection>,
+}
+
+/// Who owns the app database schema (`[db] schema_owner`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SchemaOwner {
+    /// Vox declarations own the schema; `vox db migrate` may apply changes (default).
+    #[default]
+    Vox,
+    /// Another tool (Drizzle, SQLAlchemy, Alembic, …) owns the schema;
+    /// `vox db migrate` only prints the plan (`--dry-run`) and refuses to apply.
+    External,
+}
+
+/// `[db]` section of `Vox.toml`.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DbSection {
+    #[serde(default)]
+    pub schema_owner: SchemaOwner,
+}
+
+impl DbSection {
+    /// Read only `[db]` from `Vox.toml` content (default when absent). Does not require
+    /// `[package]`, so callers that only need DB settings accept partial manifests.
+    pub fn from_manifest_str(content: &str) -> Result<Self, ManifestError> {
+        #[derive(Deserialize)]
+        struct DbOnly {
+            #[serde(default)]
+            db: Option<DbSection>,
+        }
+        let parsed: DbOnly = toml::from_str(content).map_err(ManifestError::Parse)?;
+        Ok(parsed.db.unwrap_or_default())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -351,6 +387,7 @@ impl VoxManifest {
             orchestrator: None,
             search: None,
             deploy: None,
+            db: None,
         }
     }
 
@@ -516,5 +553,51 @@ enabled_providers = ["wikipedia", "arxiv"]
         let toml_str = manifest.to_toml_string().unwrap();
         assert!(toml_str.contains("[search]"));
         assert!(toml_str.contains("active_lane = \"deep\""));
+    }
+
+    #[test]
+    fn db_section_absent_defaults_to_vox_owner() {
+        let manifest = VoxManifest::from_str("[package]\nname = \"a\"\n").unwrap();
+        assert!(manifest.db.is_none());
+        assert_eq!(
+            DbSection::from_manifest_str("[package]\nname = \"a\"\n")
+                .unwrap()
+                .schema_owner,
+            SchemaOwner::Vox
+        );
+    }
+
+    #[test]
+    fn db_section_parses_external_schema_owner() {
+        let toml = "[package]\nname = \"a\"\n\n[db]\nschema_owner = \"external\"\n";
+        let manifest = VoxManifest::from_str(toml).unwrap();
+        assert_eq!(
+            manifest.db.as_ref().map(|d| d.schema_owner),
+            Some(SchemaOwner::External)
+        );
+        assert!(
+            manifest
+                .to_toml_string()
+                .unwrap()
+                .contains("schema_owner = \"external\"")
+        );
+    }
+
+    #[test]
+    fn db_section_empty_table_defaults_to_vox_and_rejects_unknown_owner() {
+        let empty = VoxManifest::from_str("[package]\nname = \"a\"\n[db]\n").unwrap();
+        assert_eq!(empty.db.map(|d| d.schema_owner), Some(SchemaOwner::Vox));
+        assert!(
+            VoxManifest::from_str("[package]\nname = \"a\"\n[db]\nschema_owner = \"drizzle\"\n")
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn db_section_from_manifest_str_tolerates_missing_package() {
+        // `vox db migrate` only needs `[db]`; a Vox.toml without `[package]` must still be read.
+        let db = DbSection::from_manifest_str("[db]\nschema_owner = \"external\"\n").unwrap();
+        assert_eq!(db.schema_owner, SchemaOwner::External);
+        assert!(DbSection::from_manifest_str("not = [valid").is_err());
     }
 }
