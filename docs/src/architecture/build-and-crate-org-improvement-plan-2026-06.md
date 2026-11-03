@@ -2,7 +2,7 @@
 title: "Build-Time, Crate-Org & Target-Sprawl Improvement Plan (2026-06)"
 description: "Synthesis of a 7-lens parallel audit of the Vox workspace: build-time hotspots, crate inventory/layers, dead/combine/new crates, feature-gates-vs-crates, plugin boundaries, and the 400+ GB target-folder sprawl. Records the quick wins already landed (with measured before/after) and the gated workstreams that follow."
 category: "Architecture SSOTs"
-status: "current"
+status: "roadmap"
 training_eligible: false
 ---
 
@@ -208,8 +208,9 @@ IDs are stable. Status reflects the 2026-06-03 execution pass.
 1. **Sprawl strategy:** per-worktree targets + sccache (recommended) vs single shared
    absolute target vs both. Affects WS1-T2/T3 and changes machine-local config.
 2. **Concurrent agent-worktree cap + disk budget** (WS1-T4): 6–8?
-3. **CUDA CI:** the three `vox-cli --features gpu` sites (`ci.yml:393`,
-   `qwen35-native-nightly.yml:25/28/35`) are invalid — `vox-cli` has no `gpu` feature and
+3. **CUDA CI:** the `vox-cli --features gpu` site at `ci.yml:393` (the sibling
+   sites in `qwen35-native-nightly.yml:25/28/35` were removed with that workflow's
+   2026-09 retirement) is invalid — `vox-cli` has no `gpu` feature and
    `mens train` / `run --interp` are `vox-cli` subcommands (GPU is a runtime-loaded
    plugin, not a compile feature). The audit's "retarget to `vox-ml-cli`" is wrong for the
    subcommand lines. Decide: drop the bogus `--features gpu` (build vox-cli normally, load

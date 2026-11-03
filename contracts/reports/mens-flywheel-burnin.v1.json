@@ -1,0 +1,31 @@
+{
+  "schema_version": "mens_flywheel_burnin_v1",
+  "monotonic_improvement_verified": true,
+  "lineage_verified": true,
+  "cycles": [
+    {
+      "cycle": 0,
+      "snapshot_uri": "trusty://vox-dataset/c78854cb7f49cbabe881a128225de9b2",
+      "adapter_trusty_uri": "trusty://xxh3/f0bc28984cf6204b8c2558e90080736d",
+      "model_id": "mens-qlora-cycle-0",
+      "overall_pass_at_1": 0.4,
+      "batch_count": 6
+    },
+    {
+      "cycle": 1,
+      "snapshot_uri": "trusty://vox-dataset/c78854cb7f49cbabe881a128225de9b2",
+      "adapter_trusty_uri": "trusty://xxh3/c1fe489c8ce984c519730e212edc1ae6",
+      "model_id": "mens-qlora-cycle-1",
+      "overall_pass_at_1": 0.8,
+      "batch_count": 6
+    },
+    {
+      "cycle": 2,
+      "snapshot_uri": "trusty://vox-dataset/c78854cb7f49cbabe881a128225de9b2",
+      "adapter_trusty_uri": "trusty://xxh3/6e99ccb57f42020c9ea1f12c782dccc0",
+      "model_id": "mens-qlora-cycle-2",
+      "overall_pass_at_1": 1.0,
+      "batch_count": 6
+    }
+  ]
+}

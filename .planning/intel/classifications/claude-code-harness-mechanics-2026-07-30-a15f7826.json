@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/claude-code-harness-mechanics-2026-07-30.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Claude Code Harness Mechanics — Verified Research (2026-07-30)",
+  "summary": "Adversarially verified research on Claude Code internals: agentic loop, context compaction, skills, tools, permissions, hooks, subagents.",
+  "scope": ["Claude Code", "harness internals", "agentic loop", "context management", "permissions pipeline"],
+  "cross_refs": ["vox-harness-graph-audit-2026-07-30.md", "vox-harness-parity-plan-2026-07-30.md", "orchestrator-gui-dispatch-audit-2026-07-02.md"],
+  "locked": false,
+  "precedence": null
+}

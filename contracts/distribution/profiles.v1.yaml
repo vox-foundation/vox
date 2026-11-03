@@ -12,6 +12,7 @@ binaries:
   - vox
   - vox-langtool
   - vox-ml-cli
+  - vox-lsp
   - voxup
 
 # Install tiers. Each tier declares the binaries it ships, its build-time deps
@@ -34,13 +35,17 @@ tiers:
     runtime_optional: []
   default:
     description: "Agentic CLI plus desktop GUI (Axis)."
-    binaries: [vox]
+    # vox-lsp ships alongside vox: `vox lsp` (crates/vox-cli/src/commands/lsp.rs)
+    # spawns the standalone `vox-lsp` binary from PATH rather than running the
+    # language server in-process, and editor integrations (e.g.
+    # apps/editor/vox-vscode) spawn it directly too.
+    binaries: [vox, vox-lsp]
     bundle: vox-fullstack
     build_deps: [rust, node, tauri-system-libs]
     runtime_optional: []
   full:
     description: "Everything: CLI, GUI, ML, agy delegation, curated plugins."
-    binaries: [vox, vox-ml-cli, voxup]
+    binaries: [vox, vox-lsp, vox-ml-cli, voxup]
     bundle: vox-dev
     build_deps: [rust, node, tauri-system-libs]
     runtime_optional: [agy, model-weights, plugins]

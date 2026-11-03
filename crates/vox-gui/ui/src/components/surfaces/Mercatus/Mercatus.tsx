@@ -78,6 +78,12 @@ export function Mercatus({ condensed }: { condensed?: boolean }) {
         </div>
       )}
 
+      {state === 'ok' && !cfg && (
+        <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-6 text-center text-xs text-text-muted">
+          No price-watch watchlist configured in this workspace yet.
+        </div>
+      )}
+
       {state === 'ok' && cfg && (
         <>
           {/* Coverage matrix */}
@@ -152,8 +158,8 @@ export function Mercatus({ condensed }: { condensed?: boolean }) {
           </div>
 
           {/* Source cost table */}
-          <details className="rounded-lg border border-border-subtle">
-            <summary className="cursor-pointer px-3 py-2 font-display text-[10px] uppercase tracking-widest text-text-muted hover:text-text-secondary">
+          <details open className="rounded-lg border border-border-subtle bg-bg-surface/60">
+            <summary className="cursor-pointer px-3 py-2 font-display text-[10px] uppercase tracking-widest text-text-secondary hover:text-text-primary">
               Source registry ({Object.keys(sources).length})
             </summary>
             <div className="overflow-x-auto">
@@ -181,6 +187,45 @@ export function Mercatus({ condensed }: { condensed?: boolean }) {
               </table>
             </div>
           </details>
+
+          <div
+            data-testid="mercatus-arbitrage-deck"
+            className="grid grid-cols-1 gap-3 sm:grid-cols-3"
+          >
+            <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+              <div className="flex items-center justify-between">
+                <span className="font-display text-[10px] tracking-widest text-brass uppercase">Spot GPU Arbitrage</span>
+                <span className="rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 font-mono text-[9px] text-brass">
+                  QLoRA Ready
+                </span>
+              </div>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+                Tracks Vast.ai &amp; RunPod spot instance pricing against target hourly ceilings for MENS 24GB/48GB training runs.
+              </p>
+            </div>
+            <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+              <div className="flex items-center justify-between">
+                <span className="font-display text-[10px] tracking-widest text-cyan uppercase">Token Cost Band</span>
+                <span className="rounded border border-cyan/30 bg-cyan/10 px-1.5 py-0.5 font-mono text-[9px] text-cyan">
+                  Live Sync
+                </span>
+              </div>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+                Feeds OpenRouter &amp; frontier provider price-per-million shifts directly into <code className="text-brass">vox-orchestrator</code> model routing.
+              </p>
+            </div>
+            <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+              <div className="flex items-center justify-between">
+                <span className="font-display text-[10px] tracking-widest text-text-primary uppercase">Probe Cadence</span>
+                <span className="font-mono text-[10px] text-emerald-300">
+                  {allSourceKeys.length} active feeds
+                </span>
+              </div>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+                Automated background sweeps respect per-source cadence windows and daily probe cost caps.
+              </p>
+            </div>
+          </div>
         </>
       )}
 

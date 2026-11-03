@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/2026-05-08-naming-and-guards-design.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Naming & Anti-Entanglement Guards (2026-05-08)",
+  "summary": "Design for LLM-navigation naming conventions and CI drift guards: 8 crate renames, anti-entanglement rules, where-things-live map.",
+  "scope": ["naming-convention", "crate-rename", "anti-entanglement-guards", "architecture-check", "documentation-map", "vox-code-audit", "vox-secrets", "vox-package"],
+  "cross_refs": ["docs/src/architecture/2026-05-08-workspace-reorg-outcome.md", "docs/src/architecture/where-things-live.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Specification for naming conventions and enforcement. Track A: 8 crate renames with atomic pattern. Track B: anti-entanglement guards (fan-in, LoC budget, orphan detection). Track C: where-things-live map and docstring requirements."
+}

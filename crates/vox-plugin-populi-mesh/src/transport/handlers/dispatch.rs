@@ -234,13 +234,14 @@ pub(crate) async fn execute_on_worker(
         ));
     }
 
-    // Phase 4: Policy Gating
-    let secret = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshExecPolicy);
-    let policy = secret.expose().unwrap_or("permissive");
-    if req.is_bundle && policy == "source-only" {
+    // vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="mesh-phase6" canonical="vox_mesh_transport::InterpExecutor"
+    let policy = "source-only";
+    if req.is_bundle {
         return Err(ResponseErr(
             StatusCode::FORBIDDEN,
-            "populi policy: this node only allows source-based dispatch (binary execution disabled)".into(),
+            format!(
+                "populi policy: {policy}: this node only allows source-based dispatch (binary execution disabled)"
+            ),
         ));
     }
 
@@ -333,14 +334,11 @@ pub(crate) async fn execute_on_worker(
 
     let output = if req.is_bundle {
         if bin_path.extension().is_some_and(|ext| ext == "wasm") {
-            std::process::Command::new("vox")
-                .arg("run")
-                .arg("--mode")
-                .arg("script")
-                .arg("--isolation")
-                .arg("wasm")
-                .arg(&bin_path)
-                .output()
+            return Err(ResponseErr(
+                StatusCode::BAD_REQUEST,
+                "populi: WASI bundle execution was retired; dispatch source (`.vox`) instead"
+                    .into(),
+            ));
         } else {
             std::process::Command::new(&bin_path).output()
         }

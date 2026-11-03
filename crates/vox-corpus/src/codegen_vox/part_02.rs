@@ -28,7 +28,10 @@ fn gen_body(rng: &mut Rng, ret_type: &str, complexity: u8, tags: &mut Vec<String
     }
 
     if ret_type != "Unit" {
-        lines.push(format!("    return {}", gen_literal_for_type(rng, ret_type)));
+        lines.push(format!(
+            "    return {}",
+            gen_literal_for_type(rng, ret_type)
+        ));
         tags.push("stmt:return".into());
     }
 
@@ -121,7 +124,7 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
     let (source, prompt) = match tag {
         "function" => {
             let body = gen_body(rng, &ret_type, complexity, &mut tags);
-            let dec = ["", "@async\n", "@traced\n", "@pure\n"][variant % 4];
+            let dec = ["", "@pure\n"][variant % 2];
             (
                 format!("{dec}fn {name}({params}) to {ret_type} {{\n{body}\n}}"),
                 format!("Write a Vox function called `{name}` that returns `{ret_type}`"),
@@ -129,45 +132,37 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         }
         "component" => {
             tags.push("expr:jsx".into());
-            let jsx = format!(
-                "    view: <div className=\"{noun}\">\n        <h1>{{\"{type_name}\"}}</h1>\n    </div>"
-            );
+            let view =
+                format!("    view: column() {{\n        text() {{ \"{type_name}\" }}\n    }}");
             (
-                format!("component {type_name}View({params}) {{\n{jsx}\n}}"),
+                format!("component {type_name}View({params}) {{\n{view}\n}}"),
                 format!("Create a Vox UI component called `{type_name}View`"),
             )
         }
         "reactive_component" => {
             tags.push("expr:jsx".into());
             let (sf, st) = FIELD_POOL[rng.usize(FIELD_POOL.len())];
-            let mount_cleanup = "    on mount {\n        // Initialize data\n    }\n    on cleanup {\n        // teardown\n    }".to_string();
             (
                 format!(
-                    "component {type_name}({params}) {{\n    state {sf}: {st} = {}\n{}\n    view: <div className=\"{noun}\">\n        <h1>{{\"{type_name}\"}}</h1>\n        <p>{{{sf}}}</p>\n    </div>\n}}",
+                    "component {type_name}({params}) {{\n    state {sf}: {st} = {}\n    view: column() {{\n        text() {{ \"{type_name}\" }}\n        text() {{ \"{{{sf}}}\" }}\n    }}\n}}",
                     gen_literal_for_type(rng, st),
-                    mount_cleanup
                 ),
                 format!("Create a modern reactive Vox component called `{type_name}`"),
             )
         }
         "actor" => {
             let handler_count = 1 + variant % 3;
-            let (sf, st) = FIELD_POOL[rng.usize(FIELD_POOL.len())];
             let mut handlers = Vec::new();
             for i in 0..handler_count {
                 let ev = &VERBS[(rng.usize(VERBS.len()) + i) % VERBS.len()];
                 let hr = gen_prim_type(rng);
                 handlers.push(format!(
-                    "    on {ev}() to {hr} {{\n        {sf} = {sf} + 1\n        return {}\n    }}",
+                    "    on {ev}(delta: int) to {hr} {{\n        return {}\n    }}",
                     gen_literal_for_type(rng, &hr)
                 ));
             }
             (
-                format!(
-                    "actor {type_name}Actor {{\n    state {sf}: {st} = {}\n\n{}\n}}",
-                    gen_literal_for_type(rng, st),
-                    handlers.join("\n\n")
-                ),
+                format!("actor {type_name}Actor {{\n{}\n}}", handlers.join("\n\n")),
                 format!(
                     "Define a Vox actor called `{type_name}Actor` with {handler_count} handlers"
                 ),
@@ -192,26 +187,26 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
             let fields = gen_fields(rng, fc);
             (
                 format!("table {type_name} {{\n{fields}\n}}"),
-                format!("Define a Vox @table schema `{type_name}` with {fc} fields"),
+                format!("Define a Vox table schema `{type_name}` with {fc} fields"),
             )
         }
         "http_route" => {
             let methods = ["get", "post", "put", "delete"];
             let m = methods[variant % methods.len()];
             (
-                format!("@{m}(\"/api/{noun}\")\nfn {name}(req: str) to str {{\n    return \"ok\"\n}}"),
-                format!("Create a Vox HTTP {m} handler at `/api/{noun}`"),
+                format!("server {m}_{noun}(req: str) to str {{\n    return \"ok\"\n}}"),
+                format!("Create a Vox server endpoint `{m}_{noun}` for `/api/{noun}`"),
             )
         }
         "mcp_tool" => (
             format!(
-                "tool {name}({params}) to str {{\n    /// {name}: {verb} data.\n    return \"done\"\n}}"
+                "tool \"{name}: {verb} data\" {name}({params}) to str {{\n    return \"done\"\n}}"
             ),
             format!("Define a Vox MCP tool called `{name}`"),
         ),
         "mcp_resource" => (
             format!(
-                "@mcp.resource \"{noun}://{{path}}\"\nfn read_{noun}(path: str) to str {{\n    return path\n}}"
+                "resource \"{noun}://path\" \"Read {noun} resource\" read_{noun}() to str {{\n    return \"{noun}\"\n}}"
             ),
             format!("Define a Vox MCP resource for `{noun}`"),
         ),
@@ -230,8 +225,8 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         "action" => {
             let body = gen_body(rng, &ret_type, complexity, &mut tags);
             (
-                format!("@action\nfn {name}({params}) to {ret_type} {{\n{body}\n}}"),
-                format!("Write a Vox @action called `{name}`"),
+                format!("server {name}({params}) to {ret_type} {{\n{body}\n}}"),
+                format!("Write a Vox server action called `{name}`"),
             )
         }
         "test" => (
@@ -242,14 +237,14 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         ),
         "type_def" => {
             let src = match variant % 3 {
-                0 => format!("type {type_name}Status = Active | Inactive | Pending"),
-                1 => format!("type {type_name}Result = Success(data: str) | Error(msg: str)"),
-                _ => format!("type {type_name}Option[T] = Some(value: T) | None"),
+                0 => format!("type {type_name}Status = | Active | Inactive | Pending"),
+                1 => format!("type {type_name}Result = | Success(data: str) | Error(msg: str)"),
+                _ => format!("type {type_name}Option[T] = | Some(value: T) | None"),
             };
             (src, format!("Define a Vox union type for `{type_name}`"))
         }
         "import" => {
-            let modules = ["std.json", "network.HTTP", "db.users"];
+            let modules = ["fs", "process", "json"];
             (
                 format!("import {}", modules[variant % modules.len()]),
                 "Write a Vox import statement".into(),
@@ -293,10 +288,8 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         "collection" => {
             let fields = gen_fields(rng, 3);
             (
-                format!(
-                    "@collection type {type_name}Doc {{\n{fields}\n    embedding: list[float]\n}}"
-                ),
-                format!("Define a Vox @collection for `{type_name}`"),
+                format!("table {type_name}Doc {{\n{fields}\n    embedding: list[float]\n}}"),
+                format!("Define a Vox document table `{type_name}Doc`"),
             )
         }
         "index" => {
@@ -308,13 +301,13 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         }
         "vector_index" => (
             format!(
-                "@vector_index {type_name}Doc.by_embedding on (embedding) {{ dimensions: 768 }}"
+                "table {type_name}VectorDoc {{\n    title: str\n    embedding: list[float]\n}}"
             ),
-            format!("Define a Vox @vector_index for `{type_name}Doc`"),
+            format!("Define a Vox vector document table for `{type_name}VectorDoc`"),
         ),
         "search_index" => (
-            format!("@search_index {type_name}Doc.by_content on (title, description)"),
-            format!("Define a Vox @search_index on `{type_name}Doc`"),
+            format!("table {type_name}SearchDoc {{\n    title: str\n    description: str\n}}"),
+            format!("Define a Vox search document table on `{type_name}SearchDoc`"),
         ),
         "trait" => (
             format!(
@@ -329,25 +322,23 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
             format!("Implement a trait for `{type_name}`"),
         ),
         "skill" => (
-            format!("@skill\nfn {name}_skill({params}) to str {{\n    return \"analyzed\"\n}}"),
-            format!("Define a Vox @skill called `{name}_skill`"),
+            format!(
+                "tool \"{name}_skill: reusable skill\" {name}_skill({params}) to str {{\n    return \"analyzed\"\n}}"
+            ),
+            format!("Define a Vox tool skill called `{name}_skill`"),
         ),
         "agent_def" => (
             format!(
-                "@agent_def\nfn {name}_agent() to str {{\n    tools: [{verb}]\n    memory: long_term\n    return \"ready\"\n}}"
+                "actor {type_name}Agent {{\n    on run(input: str) to str {{\n        return \"ready\"\n    }}\n}}"
             ),
-            format!("Define a Vox @agent_def `{name}_agent`"),
+            format!("Define a Vox agent actor `{type_name}Agent`"),
         ),
-        "agent" => {
-            let (sf, st) = FIELD_POOL[rng.usize(FIELD_POOL.len())];
-            (
-                format!(
-                    "agent {type_name}Agent {{\n    state {sf}: {st} = {}\n    on {verb}() to str {{\n        return \"processed\"\n    }}\n}}",
-                    gen_literal_for_type(rng, st)
-                ),
-                format!("Define a Vox agent `{type_name}Agent`"),
-            )
-        }
+        "agent" => (
+            format!(
+                "actor {type_name}Agent {{\n    on {verb}() to str {{\n        return \"processed\"\n    }}\n}}"
+            ),
+            format!("Define a Vox actor `{type_name}Agent`"),
+        ),
         "config" => {
             let fields = gen_fields(rng, 3);
             (
@@ -356,56 +347,52 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
             )
         }
         "context" => (
-            format!(
-                "context {type_name}Context {{\n    value: str\n    update: fn(str) to Unit\n}}"
-            ),
+            format!("context {type_name}Context {{\n    value: str\n}}"),
             format!("Define a Vox context `{type_name}Context`"),
         ),
         "hook" => (
             format!(
-                "hook fn use_{noun}(initial: int) to (int, fn() -> Unit) {{\n    let state = initial\n    return (state, fn() to state + 1)\n}}"
+                "fn use_{noun}(initial: int) to int {{\n    let state = initial\n    return state + 1\n}}"
             ),
-            format!("Define a Vox hook `use_{noun}`"),
+            format!("Define a Vox helper `use_{noun}`"),
         ),
         "provider" => (
             format!(
-                "provider fn {type_name}Provider(children: Element) to Element {{\n    return <div>{{children}}</div>\n}}"
+                "component {type_name}Provider() {{\n    view: column() {{\n        text() {{ \"{type_name}\" }}\n    }}\n}}"
             ),
-            format!("Define a Vox provider `{type_name}Provider`"),
+            format!("Define a Vox component `{type_name}Provider`"),
         ),
         "fixture" => (
-            format!("@fixture\nfn setup_{noun}() to str {{\n    return \"test_fixture\"\n}}"),
-            format!("Define a Vox @fixture for `{noun}`"),
+            format!("fn setup_{noun}() to str {{\n    return \"test_fixture\"\n}}"),
+            format!("Define a Vox test setup helper for `{noun}`"),
         ),
         "layout" => (
             format!(
-                "layout fn {type_name}Layout(children: Element) to Element {{\n    return <main>{{children}}</main>\n}}"
+                "component {type_name}Layout() {{\n    view: column() {{\n        text() {{ \"{type_name}\" }}\n    }}\n}}"
             ),
-            format!("Define a Vox layout `{type_name}Layout`"),
+            format!("Define a Vox layout component `{type_name}Layout`"),
         ),
         "loading" => (
             format!(
-                "loading fn {type_name}Loading() to Element {{\n    return <div>{{\"Loading...\"}}</div>\n}}"
+                "component {type_name}Loading() {{\n    view: column() {{\n        text() {{ \"Loading...\" }}\n    }}\n}}"
             ),
             format!("Define a Vox loading component for `{type_name}`"),
         ),
         "not_found" => (
             format!(
-                "not_found fn {type_name}NotFound() to Element {{\n    return <h1>{{\"404 - Not Found\"}}</h1>\n}}"
+                "component {type_name}NotFound() {{\n    view: column() {{\n        text() {{ \"404 - Not Found\" }}\n    }}\n}}"
             ),
-            format!("Define a Vox 404 handler for `{type_name}`"),
+            format!("Define a Vox 404 component for `{type_name}`"),
         ),
         "error_boundary" => (
             format!(
-                "error_boundary fn {type_name}Error(error: str) to Element {{\n    return <div class=\"error\">{{error}}</div>\n}}"
+                "component {type_name}Error(error: str) {{\n    view: column() {{\n        text() {{ \"{type_name}\" }}\n    }}\n}}"
             ),
-            format!("Define a Vox error boundary for `{type_name}`"),
+            format!("Define a Vox error component for `{type_name}`"),
         ),
         "keyframes" => (
-            format!(
-                "@keyframes {noun}_fade {{\n    from {{ opacity: 0 }}\n    to {{ opacity: 1 }}\n}}"
-            ),
-            format!("Define Vox @keyframes `{noun}_fade`"),
+            format!("type {type_name}Fade {{\n    from_opacity: int\n    to_opacity: int\n}}"),
+            format!("Define Vox transition struct `{type_name}Fade`"),
         ),
         "theme" => (
             format!(
@@ -414,8 +401,8 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
             format!("Define a Vox dark theme for `{noun}`"),
         ),
         "mock" => (
-            format!("@mock\nfn mock_{noun}() to str {{\n    return \"mock_data\"\n}}"),
-            format!("Define a Vox @mock for `{noun}`"),
+            format!("fn mock_{noun}() to str {{\n    return \"mock_data\"\n}}"),
+            format!("Define a Vox mock helper for `{noun}`"),
         ),
         "environment" => (
             format!(
@@ -425,32 +412,32 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         ),
         "page" => (
             format!(
-                "page fn {type_name}Page() to Element {{\n    return <section>\n        <h1>{{\"{type_name}\"}}</h1>\n    </section>\n}}"
+                "component {type_name}Page() {{\n    view: column() {{\n        text() {{ \"{type_name}\" }}\n    }}\n}}"
             ),
-            format!("Define a Vox static page `{type_name}Page`"),
+            format!("Define a Vox page component `{type_name}Page`"),
         ),
         "routes" => (
             format!(
-                "routes {{\n    \"/\" to {type_name}Page\n    \"/{noun}\" to {type_name}View\n    \"/{noun}/:id\" to {type_name}Detail\n}}"
+                "routes {{\n    \"/\" to {type_name}Page\n    \"/{noun}\" to {type_name}View\n}}"
             ),
             format!("Define Vox routes for `{type_name}`"),
         ),
         "v0_component" => (
-            format!("component {type_name}Widget() {{\n    // @v0(\"https://v0.dev/t/example\")\n    view: <div></div>\n}}"),
-            format!("Define a Vox v0.dev component `{type_name}Widget`"),
+            format!(
+                "component {type_name}Widget() {{\n    view: column() {{\n        text() {{ \"{type_name}\" }}\n    }}\n}}"
+            ),
+            format!("Define a Vox component `{type_name}Widget`"),
         ),
         _ => {
             // Unknown taxonomy entry — generate a generic function tagged with the construct
             let body = gen_body(rng, "str", complexity, &mut tags);
             (
-                format!("# {tag} construct\nfn {name}({params}) to str {{\n{body}\n}}"),
+                format!("// {tag} construct\nfn {name}({params}) to str {{\n{body}\n}}"),
                 format!("Write a Vox `{tag}` construct called `{name}`"),
             )
         }
     };
 
-    // Ensure the SFT training explicitly flags older React/TS artifacts (if generation paths emit raw TSX) 
-    // Currently, everything should now be native Vox.
     Some(OrganicPair {
         prompt,
         response: source,

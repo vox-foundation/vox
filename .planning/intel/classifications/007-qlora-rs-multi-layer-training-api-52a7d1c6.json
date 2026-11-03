@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/007-qlora-rs-multi-layer-training-api.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 007: qlora-rs multi-layer training API (Phase 2c architecture gate)",
+  "summary": "Verify qlora-rs supports multi-layer training with shared optimizer without forking the library itself.",
+  "scope": ["qlora-rs", "multi-layer training", "QLoRA", "shared optimizer", "VarMap", "QuantizedLinear"],
+  "cross_refs": ["../reference/mens-training.md", "https://docs.rs/qlora-rs/1.0.5/qlora_rs/training/struct.QLoraTrainer.html"],
+  "locked": true,
+  "precedence": null
+}

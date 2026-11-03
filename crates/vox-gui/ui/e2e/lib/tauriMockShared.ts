@@ -21,11 +21,12 @@ export function seedMockEnvironment(viewKey: string): void {
         activeTab: viewKey,
       }),
     );
-    window.localStorage.setItem('vox_sidebar_mode', 'default');
+    window.localStorage.setItem('vox_sidebar_mode', JSON.stringify('default'));
   } catch {
     // sandboxed contexts may deny localStorage
   }
   (window as any).__TAURI_CALLS__ = [];
+  (window as any).__VOX_IPC_ACTIVE_COUNT__ = 0;
   (window as any).__TAURI_EVENT_PLUGIN_INTERNALS__ = {
     unregisterListener: (_event: string, _eventId: number) => {},
   };
@@ -56,12 +57,26 @@ export function eventPluginResponse(cmd: string, args: any): number | null | und
     const reg = (window as any).__TAURI_EVENT_LISTENERS__ as
       | Record<string, string[]>
       | undefined;
+    // Each listen gets its own id so `unlisten` can drop exactly that handler: without this, a StrictMode
+    // double effect leaves a dead handler registered and every emit reaches the component twice.
+    const w = window as any;
+    const eventId: number = (w.__TAURI_EVENT_NEXT_ID__ = (w.__TAURI_EVENT_NEXT_ID__ ?? 0) + 1);
     if (reg && typeof args?.event === 'string' && typeof args?.handler === 'string') {
       (reg[args.event] ??= []).push(args.handler);
+      (w.__TAURI_EVENT_BY_ID__ ??= {})[eventId] = { event: args.event, handler: args.handler };
     }
-    return Math.floor(Math.random() * 10000);
+    return eventId;
   }
-  if (cmd === 'plugin:event|unlisten') return null;
+  if (cmd === 'plugin:event|unlisten') {
+    const w = window as any;
+    const hit = (w.__TAURI_EVENT_BY_ID__ ?? {})[args?.eventId];
+    const reg = w.__TAURI_EVENT_LISTENERS__ as Record<string, string[]> | undefined;
+    if (hit && reg?.[hit.event]) {
+      reg[hit.event] = reg[hit.event].filter((h) => h !== hit.handler);
+      delete w.__TAURI_EVENT_BY_ID__[args.eventId];
+    }
+    return null;
+  }
   return undefined;
 }
 

@@ -26,6 +26,11 @@ use crate::models::{ModelRegistry, ModelSpec, ProviderType, TaskCategory};
 use vox_config::AutoRoutingPriority;
 use vox_telemetry::{SelectionDecisionEvent, TelemetryEvent};
 
+pub use super::auto_select::{
+    AutoModelSelection, detect_hardware_vram_gb, is_host_apple_silicon, select_optimal_local_model,
+    select_optimal_local_model_for_host, select_tier_for_vram,
+};
+
 // ─── Canonical request/response (SSOT API) ─────────────────────────────────
 
 /// Rich model-selection request consumed by the canonical selector.
@@ -126,7 +131,7 @@ pub fn decide(
             rejection_reasons.push(format!("{} rejected: privacy mode excludes cloud", m.id));
             continue;
         }
-        let conf = confidence_state_for_model(&m);
+        let conf = confidence_state_for_model(&m, registry);
         if !is_routing_eligible(conf) {
             rejection_reasons.push(format!(
                 "{} gated: confidence_state={}",
@@ -161,7 +166,7 @@ pub fn decide(
                 if !crate::route_policy::privacy_allows_model_for_mode(&m, privacy_local_only) {
                     continue;
                 }
-                let conf = confidence_state_for_model(&m);
+                let conf = confidence_state_for_model(&m, registry);
                 if conf == super::autonomic::ModelConfidence::Deprecated {
                     continue;
                 }
@@ -193,14 +198,27 @@ pub fn decide(
             // hardcodes this field `false`, so decide()'s fallback stays inert for
             // chat/coding/etc. traffic today — this is a deliberate, not incidental,
             // consequence of threading the flag through by intent rather than by caller.
-            let model = registry.best_for_with_filter(
-                intent.task,
-                intent.complexity,
-                intent.axes.to_cost_preference(),
-                intent.allow_free_in_performance_mode,
-                |m| candidate_ids.contains(&m.id),
-                None,
-            )?;
+            // Same flagship rule as `select_via_scorer`: on cost- or speed-leaning axes the
+            // fallback must not resolve to a flagship while another candidate fits.
+            let no_flagship = intent.axes.intelligence < 50;
+            let pick = |exclude_elite: bool| {
+                registry.best_for_with_filter(
+                    intent.task,
+                    intent.complexity,
+                    intent.axes.to_cost_preference(),
+                    intent.allow_free_in_performance_mode,
+                    |m| {
+                        candidate_ids.contains(&m.id)
+                            && (!exclude_elite || m.capabilities.tier != super::ModelTier::Elite)
+                    },
+                    None,
+                )
+            };
+            let model = if no_flagship {
+                pick(true).or_else(|| pick(false))
+            } else {
+                pick(false)
+            }?;
             Some(SelectionOutcome {
                 model_id: model.id.clone(),
                 model_spec: model,
@@ -209,11 +227,38 @@ pub fn decide(
             })
         })?;
 
-    let alternatives: Vec<String> = candidates
+    // The candidates in the scorer's own order, under this request's axes and chat's flagship rule
+    // (the same guard and rule as `select_via_scorer`), so "alternatives" are the real runners-up
+    // rather than HashMap order.
+    let scored = {
+        let _axes = crate::models::scoring::AxesOverrideGuard::set(
+            intent.axes.to_routing_priority(intent.prefer_local),
+        );
+        registry.rank_with_filter(
+            intent.task,
+            intent.complexity,
+            intent.axes.to_cost_preference(),
+            intent.allow_free_in_performance_mode,
+            |m| {
+                if !candidate_ids.contains(&m.id) {
+                    Some(super::ranking::Exclusion::Filtered)
+                } else if intent.axes.intelligence < 50
+                    && m.capabilities.tier == super::ModelTier::Elite
+                {
+                    Some(super::ranking::Exclusion::FlagshipExcludedByMode)
+                } else {
+                    None
+                }
+            },
+            None,
+        )
+    };
+    let alternatives: Vec<String> = scored
+        .ranked
         .iter()
-        .filter(|m| m.id != selected.model_id)
+        .filter(|r| r.spec.id != selected.model_id)
         .take(5)
-        .map(|m| m.id.clone())
+        .map(|r| r.spec.id.clone())
         .collect();
 
     let cap_match = request
@@ -241,7 +286,7 @@ pub fn decide(
         alternatives,
         rejection_reasons,
         pricing_confidence: selected.model_spec.pricing_source.clone(),
-        discovery_state: confidence_state_for_model(&selected.model_spec),
+        discovery_state: confidence_state_for_model(&selected.model_spec, registry),
         outcome: selected,
     })
 }
@@ -260,15 +305,28 @@ fn scope_allows(provider_type: ProviderType, scope: CandidateScope) -> bool {
     }
 }
 
-fn confidence_state_for_model(m: &ModelSpec) -> super::autonomic::ModelConfidence {
+fn confidence_state_for_model(
+    m: &ModelSpec,
+    registry: &ModelRegistry,
+) -> super::autonomic::ModelConfidence {
     let pins = vox_config::load_model_pins_config().unwrap_or_default();
     if pins.retired_ids.iter().any(|id| id == &m.id) {
         return super::autonomic::ModelConfidence::Deprecated;
     }
-    // Pricing-source heuristic (the `scoreboard: None` answer). The scoreboard-
-    // aware path that promotes discovered models on real evidence lives in
-    // `discovery_pipeline::resolve_eligibility`.
-    super::discovery_pipeline::resolve_eligibility(m, None, 0.0)
+    super::discovery_pipeline::resolve_eligibility_from_evidence(
+        m,
+        registry.get_score(&m.id),
+        registry.bench_evidence(&m.id),
+    )
+}
+
+impl ModelRegistry {
+    /// The routing confidence `decide()` gates on for `m` (retired → deprecated, then
+    /// benchmark, external index, scoreboard, and pricing evidence).
+    #[must_use]
+    pub fn routing_confidence(&self, m: &ModelSpec) -> super::autonomic::ModelConfidence {
+        confidence_state_for_model(m, self)
+    }
 }
 
 fn exploration_enabled() -> bool {
@@ -508,7 +566,39 @@ impl SelectionIntent {
             complexity: 2,
             context_size_hint: None,
             caller_hint: Some("nli-classifier"),
-            prefer_local: false,
+            prefer_local: true,
+            max_cost_usd_per_call: Some(0.01),
+            cacheable_workload: false,
+            allow_free_in_performance_mode: false,
+        }
+    }
+
+    /// Pre-baked intent for snippet triage / relevance ranking in deep research.
+    #[must_use]
+    pub fn snippet_triage() -> Self {
+        Self {
+            task: TaskCategory::Parsing,
+            axes: SelectionAxes::FAST,
+            complexity: 2,
+            context_size_hint: None,
+            caller_hint: Some("snippet-triage"),
+            prefer_local: true,
+            max_cost_usd_per_call: Some(0.005),
+            cacheable_workload: false,
+            allow_free_in_performance_mode: false,
+        }
+    }
+
+    /// Pre-baked intent for claim extraction in deep research.
+    #[must_use]
+    pub fn claim_extraction() -> Self {
+        Self {
+            task: TaskCategory::Parsing,
+            axes: SelectionAxes::FAST,
+            complexity: 3,
+            context_size_hint: None,
+            caller_hint: Some("claim-extraction"),
+            prefer_local: true,
             max_cost_usd_per_call: Some(0.01),
             cacheable_workload: false,
             allow_free_in_performance_mode: false,
@@ -544,6 +634,24 @@ impl SelectionIntent {
             max_cost_usd_per_call: None,
             cacheable_workload: false,
             allow_free_in_performance_mode: false,
+        }
+    }
+
+    /// Pre-baked intent for automatic Mermaid diagram syntax repair (`MERMAID-03`).
+    /// Uses fast, low-cost parsing/codegen routing with a strict per-call cost ceiling
+    /// ($0.005) and prompt-caching enabled so diagram self-healing never exhausts turn budget.
+    #[must_use]
+    pub fn mermaid_repair() -> Self {
+        Self {
+            task: TaskCategory::Parsing,
+            axes: SelectionAxes::FAST,
+            complexity: 2,
+            context_size_hint: None,
+            caller_hint: Some("mermaid-repair"),
+            prefer_local: true,
+            max_cost_usd_per_call: Some(0.005),
+            cacheable_workload: true,
+            allow_free_in_performance_mode: true,
         }
     }
 }
@@ -671,12 +779,9 @@ pub fn select_with_policy(
 }
 
 fn select_inner(intent: &SelectionIntent, registry: &ModelRegistry) -> Option<SelectionOutcome> {
-    // 1. VOX_MODEL_FORCE env override.
-    if let Ok(force) = std::env::var("VOX_MODEL_FORCE") {
-        let force = force.trim().to_string();
-        if !force.is_empty()
-            && let Some(model) = registry.get(&force)
-        {
+    // 1. VOX_MODEL_FORCE strict pin (env var, then ~/.vox/config.toml).
+    if let Some(force) = vox_config::inference::forced_model() {
+        if let Some(model) = registry.get(&force) {
             return Some(SelectionOutcome {
                 model_id: force,
                 model_spec: model,
@@ -686,6 +791,7 @@ fn select_inner(intent: &SelectionIntent, registry: &ModelRegistry) -> Option<Se
                 effective_axes: intent.axes.to_routing_priority(intent.prefer_local),
             });
         }
+        tracing::warn!(pin = %force, "VOX_MODEL_FORCE model not in registry; selection continues unpinned");
     }
 
     // 2. Local-only path.
@@ -769,6 +875,9 @@ fn select_via_premium_alias(
     let key = crate::models::task_category_premium_key(intent.task);
     let alias = registry.premium_alias_for(key)?.to_string();
     let model = registry.get(&alias)?;
+    if registry.is_superseded_in_registry(&model) {
+        return None;
+    }
     if !supports_intent_constraints(&model, intent) {
         return None;
     }
@@ -809,14 +918,28 @@ fn select_via_scorer(
     // of the pass, so per-task SelectionAxes actually drive the choice (not just
     // the global VOX_AUTO_ROUTING_PRIORITY env). Restored on drop.
     let _axes_guard = crate::models::scoring::AxesOverrideGuard::set(effective_axes);
-    let model = registry.best_for_with_filter(
-        intent.task,
-        intent.complexity,
-        cost_pref,
-        intent.allow_free_in_performance_mode,
-        |m| supports_intent_constraints(m, &intent_clone) && ModelRegistry::key_is_present_for(m),
-        None,
-    )?;
+    // Cost- or speed-leaning intents (intelligence axis below the premium-alias threshold of 50) must
+    // not resolve to a flagship while another candidate fits; fall back only when nothing else does.
+    let no_flagship = intent.axes.intelligence < 50;
+    let pick = |exclude_elite: bool| {
+        registry.best_for_with_filter(
+            intent.task,
+            intent.complexity,
+            cost_pref,
+            intent.allow_free_in_performance_mode,
+            |m| {
+                (!exclude_elite || m.capabilities.tier != crate::models::ModelTier::Elite)
+                    && supports_intent_constraints(m, &intent_clone)
+                    && ModelRegistry::key_is_present_for(m)
+            },
+            None,
+        )
+    };
+    let model = if no_flagship {
+        pick(true).or_else(|| pick(false))
+    } else {
+        pick(false)
+    }?;
     drop(_axes_guard);
     Some(SelectionOutcome {
         model_id: model.id.clone(),
@@ -1039,6 +1162,33 @@ mod tests {
         assert_eq!(i.axes, SelectionAxes::FAST);
     }
 
+    #[test]
+    fn test_local_first_research_intents() {
+        let nli = SelectionIntent::nli_classifier();
+        assert!(
+            nli.prefer_local,
+            "NLI classifier must prefer local execution"
+        );
+
+        let triage = SelectionIntent::snippet_triage();
+        assert!(
+            triage.prefer_local,
+            "snippet triage must prefer local execution"
+        );
+
+        let extract = SelectionIntent::claim_extraction();
+        assert!(
+            extract.prefer_local,
+            "claim extraction must prefer local execution"
+        );
+
+        let synth = SelectionIntent::research();
+        assert!(
+            !synth.prefer_local,
+            "synthesis must allow cloud frontier models"
+        );
+    }
+
     // #[file_serial]: calls decide() against the real bootstrap registry and
     // asserts on the resulting provider type; races against the privacy-
     // override tests below the same way select_with_empty_policy_falls_
@@ -1083,13 +1233,15 @@ mod tests {
             .expect("at least one model");
         model.id = "test-model-not-retired".to_string();
         model.pricing_source = super::super::spec::PricingSource::Unknown;
+        model.provider_type = super::super::ProviderType::OpenRouter;
+        model.capabilities.intelligence_index = None;
         assert_eq!(
-            confidence_state_for_model(&model),
+            confidence_state_for_model(&model, &registry),
             super::super::autonomic::ModelConfidence::Provisional
         );
         model.pricing_source = super::super::spec::PricingSource::Telemetry;
         assert_eq!(
-            confidence_state_for_model(&model),
+            confidence_state_for_model(&model, &registry),
             super::super::autonomic::ModelConfidence::Confirmed
         );
     }
@@ -1130,15 +1282,19 @@ mod tests {
     #[file_serial]
     #[allow(unsafe_code)]
     fn select_with_premium_alias_honors_alias_when_intelligence_high() {
-        // The premium alias for codegen (anthropic/claude-opus-4.7) is gated by
+        // The premium alias for codegen (the contract's `premium_codegen` role) is gated by
         // the key-present check added in the B3 key-gated candidate filter
         // (`select_via_premium_alias` -> `ModelRegistry::key_is_present_for`).
-        // A hosted CI runner with no ANTHROPIC_API_KEY configured must still be
+        // A hosted CI runner with no OPENROUTER_API_KEY configured must still be
         // able to exercise the premium-alias *routing* logic in isolation, so
         // set a test key here (mirrors `key_gate_admits_provider_when_key_present`).
-        let prior = std::env::var("ANTHROPIC_API_KEY").ok();
-        // SAFETY: #[file_serial]; prior value restored below.
-        unsafe { std::env::set_var("ANTHROPIC_API_KEY", "test-key") };
+        let prior_anthropic = std::env::var("ANTHROPIC_API_KEY").ok();
+        let prior_openrouter = std::env::var("OPENROUTER_API_KEY").ok();
+        // SAFETY: #[file_serial]; prior values restored below.
+        unsafe {
+            std::env::set_var("ANTHROPIC_API_KEY", "test-key");
+            std::env::set_var("OPENROUTER_API_KEY", "test-or-key");
+        };
         let registry = ModelRegistry::new();
         let intent = SelectionIntent {
             axes: SelectionAxes::QUALITY_FIRST,
@@ -1146,19 +1302,23 @@ mod tests {
         };
         let outcome = select(&intent, &registry);
         unsafe {
-            match prior {
+            match prior_anthropic {
                 Some(v) => std::env::set_var("ANTHROPIC_API_KEY", v),
                 None => std::env::remove_var("ANTHROPIC_API_KEY"),
+            }
+            match prior_openrouter {
+                Some(v) => std::env::set_var("OPENROUTER_API_KEY", v),
+                None => std::env::remove_var("OPENROUTER_API_KEY"),
             }
         }
         let outcome = outcome.expect("a model exists");
         // With QUALITY_FIRST axes (intelligence=70), premium alias should fire.
-        // The alias for codegen is `anthropic/claude-opus-4.7` per current routing.yaml.
+        // The alias for codegen is the contract's `premium_codegen` live alias.
         match outcome.reason {
             SelectionReason::PremiumAlias {
                 ref alias_model_id, ..
             } => {
-                assert_eq!(alias_model_id, "anthropic/claude-opus-4.7");
+                assert_eq!(alias_model_id, vox_config::model_defaults::PREMIUM_CODEGEN);
             }
             other => panic!("expected PremiumAlias, got {:?}", other),
         }
@@ -1362,7 +1522,6 @@ mod tests {
     // flip mid-test, making the two calls' candidate sets diverge.
     #[test]
     #[file_serial]
-    #[allow(unsafe_code)]
     fn select_with_empty_policy_falls_through_to_cascade() {
         // BALANCED axes (this intent's default) resolve to `CostPreference::Performance`
         // (cost=33 <= intelligence+responsiveness=67), which excludes every
@@ -1371,11 +1530,17 @@ mod tests {
         // candidate is separately excluded by the B3 key-gated candidate filter
         // when no provider key is configured. On a hosted runner with no
         // ANTHROPIC_API_KEY, that leaves zero eligible candidates for either
-        // call below. Set a test key so a real paid candidate is selectable,
-        // matching `key_gate_admits_provider_when_key_present`'s pattern.
-        let prior = std::env::var("ANTHROPIC_API_KEY").ok();
-        // SAFETY: #[file_serial]; prior value restored below.
-        unsafe { std::env::set_var("ANTHROPIC_API_KEY", "test-key") };
+        // call below. So the provider set is pinned to Anthropic for this thread: the real Clavis
+        // check also reads the user's vault and keychain, so on a machine with other provider keys
+        // the candidate set (and the pick) depended on state this test does not control.
+        struct KeysPinned;
+        impl Drop for KeysPinned {
+            fn drop(&mut self) {
+                crate::models::key_guard::set_test_key_availability(None);
+            }
+        }
+        crate::models::key_guard::set_test_key_availability(Some(vec![ProviderType::Anthropic]));
+        let _keys = KeysPinned;
         let registry = ModelRegistry::new();
         let intent = SelectionIntent::for_task(TaskCategory::CodeGen);
         // An empty policy carries no steps, so the resolver yields nothing and
@@ -1384,15 +1549,43 @@ mod tests {
         let ctx = crate::models::policy::PolicyContext::default();
         let via_policy = select_with_policy(&intent, &registry, &policy, &ctx);
         let via_cascade = select(&intent, &registry);
-        unsafe {
-            match prior {
-                Some(v) => std::env::set_var("ANTHROPIC_API_KEY", v),
-                None => std::env::remove_var("ANTHROPIC_API_KEY"),
-            }
-        }
         let via_policy = via_policy.expect("a model exists for codegen");
         let via_cascade = via_cascade.expect("a model exists for codegen");
         assert_eq!(via_policy.model_id, via_cascade.model_id);
+    }
+
+    // With the provider set pinned for the thread, selection must not look at the ambient
+    // credentials at all: a key appearing in the environment (or the vault) between two calls on a
+    // developer machine changes nothing. This is what made the test above flaky.
+    #[test]
+    #[file_serial]
+    #[allow(unsafe_code)]
+    fn pinned_provider_keys_ignore_the_ambient_environment() {
+        struct KeysPinned;
+        impl Drop for KeysPinned {
+            fn drop(&mut self) {
+                crate::models::key_guard::set_test_key_availability(None);
+            }
+        }
+        crate::models::key_guard::set_test_key_availability(Some(vec![ProviderType::Anthropic]));
+        let _keys = KeysPinned;
+        let registry = ModelRegistry::new();
+        let intent = SelectionIntent::for_task(TaskCategory::CodeGen);
+        let before = select(&intent, &registry).expect("a pinned Anthropic model is selectable");
+
+        let prior = std::env::var("DEEPSEEK_API_KEY").ok();
+        // SAFETY: #[file_serial]; prior value restored below.
+        unsafe { std::env::set_var("DEEPSEEK_API_KEY", "ambient-key") };
+        let after = select(&intent, &registry);
+        unsafe {
+            match prior {
+                Some(v) => std::env::set_var("DEEPSEEK_API_KEY", v),
+                None => std::env::remove_var("DEEPSEEK_API_KEY"),
+            }
+        }
+        let after = after.expect("still selectable");
+        assert_eq!(before.model_id, after.model_id);
+        assert_eq!(before.model_spec.provider_type, ProviderType::Anthropic);
     }
 
     // ── Phase-2 wiring: key-gated candidate filter (B3) ─────────────────────
@@ -1437,7 +1630,10 @@ mod tests {
         registry.register(key_gate_spec("ollama-local-test", ProviderType::Ollama));
         let req =
             ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::CodeGen));
+        // No vendor key and no OpenRouter key either, so the Anthropic model has no wire.
+        crate::models::key_guard::set_test_key_availability(Some(vec![]));
         let d = decide(&req, &registry).expect("local (keyless-OK) candidate remains");
+        crate::models::key_guard::set_test_key_availability(None);
         assert_eq!(d.selected_model, "ollama-local-test");
         assert!(
             d.rejection_reasons
@@ -1642,6 +1838,200 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    #[file_serial]
+    fn select_skips_a_premium_alias_pin_that_a_newer_family_member_supersedes() {
+        // Contract pins are live `~…-latest` aliases (never superseded), so pin codegen to a
+        // concrete bootstrap id here. Re-register it as a dated local-provider spec (no key
+        // needed) and add a newer member of the same family.
+        let mut registry = ModelRegistry::new();
+        registry.set_premium_alias_for_test(
+            crate::models::task_category_premium_key(TaskCategory::CodeGen),
+            "anthropic/claude-3-7-sonnet",
+        );
+        let mut pin = registry
+            .get("anthropic/claude-3-7-sonnet")
+            .expect("bootstrap pin");
+        pin.provider_type = crate::models::ProviderType::Ollama;
+        pin.capabilities.released_at = Some(1_700_000_000);
+        let mut newer = pin.clone();
+        newer.id = "anthropic/claude-sonnet-5.5".into();
+        newer.canonical_slug = newer.id.clone();
+        newer.capabilities.released_at = Some(1_790_000_000);
+        registry.register(pin);
+        registry.register(newer);
+        let intent = SelectionIntent {
+            axes: SelectionAxes::QUALITY_FIRST,
+            ..SelectionIntent::for_task(TaskCategory::CodeGen)
+        };
+        let outcome = select(&intent, &registry).expect("a model exists");
+        assert!(
+            !matches!(outcome.reason, SelectionReason::PremiumAlias { .. }),
+            "the superseded pin must not be honoured, got {:?}",
+            outcome.reason
+        );
+    }
+
+    fn tiered_spec(
+        id: &str,
+        tier: crate::models::ModelTier,
+        cost: f64,
+    ) -> crate::models::ModelSpec {
+        crate::models::ModelSpec {
+            id: id.into(),
+            canonical_slug: id.into(),
+            provider: "test".into(),
+            provider_type: crate::models::ProviderType::Ollama,
+            max_tokens: 200_000,
+            cost_per_1k: cost,
+            cost_per_1k_input: cost,
+            cost_per_1k_output: cost,
+            is_free: false,
+            observed_cost_per_1k: None,
+            strengths: vec![
+                crate::models::StrengthTag::Codegen,
+                crate::models::StrengthTag::Generalist,
+            ],
+            capabilities: crate::models::ModelCapabilities {
+                tier,
+                ..Default::default()
+            },
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::spec::PricingSource::Bootstrap,
+            supported_parameters: vec![],
+        }
+    }
+
+    /// The Elite model is the CHEAPEST here, so without the exclusion it wins under cost-leaning axes.
+    fn flagship_registry() -> ModelRegistry {
+        let mut r = ModelRegistry::default();
+        r.register(tiered_spec(
+            "acme/flagship-9",
+            crate::models::ModelTier::Elite,
+            0.0005,
+        ));
+        r.register(tiered_spec(
+            "acme/workhorse-9",
+            crate::models::ModelTier::Pro,
+            0.02,
+        ));
+        r
+    }
+
+    #[test]
+    #[file_serial]
+    fn scorer_excludes_a_flagship_on_cost_first_axes() {
+        let intent = SelectionIntent {
+            axes: SelectionAxes::COST_FIRST,
+            complexity: 10,
+            ..SelectionIntent::for_task(TaskCategory::CodeGen)
+        };
+        let out = select(&intent, &flagship_registry()).expect("a model exists");
+        assert_eq!(out.model_id, "acme/workhorse-9");
+    }
+
+    #[test]
+    #[file_serial]
+    fn scorer_excludes_a_flagship_on_balanced_axes() {
+        let intent = SelectionIntent {
+            axes: SelectionAxes::BALANCED,
+            complexity: 10,
+            ..SelectionIntent::for_task(TaskCategory::CodeGen)
+        };
+        let out = select(&intent, &flagship_registry()).expect("a model exists");
+        assert_eq!(out.model_id, "acme/workhorse-9");
+    }
+
+    #[test]
+    #[file_serial]
+    fn scorer_allows_a_flagship_on_quality_first_axes() {
+        let intent = SelectionIntent {
+            axes: SelectionAxes::QUALITY_FIRST,
+            complexity: 10,
+            ..SelectionIntent::for_task(TaskCategory::CodeGen)
+        };
+        let out = select(&intent, &flagship_registry()).expect("a model exists");
+        assert_eq!(
+            out.model_id, "acme/flagship-9",
+            "quality-first applies no tier exclusion"
+        );
+    }
+
+    #[test]
+    #[file_serial]
+    fn scorer_falls_back_to_a_flagship_when_it_is_the_only_candidate() {
+        let mut r = ModelRegistry::default();
+        r.register(tiered_spec(
+            "acme/flagship-9",
+            crate::models::ModelTier::Elite,
+            0.0005,
+        ));
+        let intent = SelectionIntent {
+            axes: SelectionAxes::COST_FIRST,
+            complexity: 10,
+            ..SelectionIntent::for_task(TaskCategory::CodeGen)
+        };
+        let out =
+            select(&intent, &r).expect("must not return None when the only candidate is Elite");
+        assert_eq!(out.model_id, "acme/flagship-9");
+    }
+
+    #[test]
+    #[file_serial]
+    fn decide_alternatives_follow_the_ranking() {
+        fn confirmed(id: &str, cost: f64, released_at: Option<u64>) -> crate::models::ModelSpec {
+            crate::models::ModelSpec {
+                id: id.into(),
+                canonical_slug: id.into(),
+                provider: "test".into(),
+                provider_type: crate::models::ProviderType::Ollama,
+                max_tokens: 64_000,
+                cost_per_1k: cost,
+                cost_per_1k_input: cost,
+                cost_per_1k_output: cost,
+                is_free: false,
+                observed_cost_per_1k: None,
+                strengths: vec![
+                    crate::models::StrengthTag::Codegen,
+                    crate::models::StrengthTag::Generalist,
+                ],
+                capabilities: crate::models::ModelCapabilities {
+                    released_at,
+                    ..Default::default()
+                },
+                cache_creation_cost_per_1k: 0.0,
+                cache_read_cost_per_1k: 0.0,
+                supports_prompt_caching: false,
+                pricing_source: crate::models::spec::PricingSource::UserConfig,
+                supported_parameters: vec![],
+            }
+        }
+        let mut registry = ModelRegistry::default();
+        registry.register(confirmed("acme/widget-4.8", 0.001, Some(1_700_000_000)));
+        registry.register(confirmed("acme/widget-5.5", 0.02, Some(1_760_000_000)));
+        registry.register(confirmed("acme/gadget", 0.005, None));
+        registry.register(confirmed("acme/gizmo", 0.01, None));
+        let req =
+            ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::CodeGen));
+        let decision = decide(&req, &registry).expect("confirmed local candidates");
+        assert!(
+            !decision
+                .alternatives
+                .contains(&"acme/widget-4.8".to_string()),
+            "a superseded model is not an alternative: {:?}",
+            decision.alternatives
+        );
+        assert!(!decision.alternatives.contains(&decision.selected_model));
+        assert_eq!(
+            decision.alternatives.len(),
+            2,
+            "{:?}",
+            decision.alternatives
+        );
+    }
 }
 
 #[cfg(test)]
@@ -1743,5 +2133,16 @@ mod semcov_wave1c_tests {
             ProviderType::PopuliMesh,
             CandidateScope::CloudOnly
         ));
+    }
+
+    #[test]
+    fn mermaid_repair_intent_sets_fast_axes_and_cost_ceiling() {
+        let intent = SelectionIntent::mermaid_repair();
+        assert_eq!(intent.caller_hint, Some("mermaid-repair"));
+        assert_eq!(intent.axes, SelectionAxes::FAST);
+        assert_eq!(intent.max_cost_usd_per_call, Some(0.005));
+        assert!(intent.prefer_local);
+        assert!(intent.cacheable_workload);
+        assert!(intent.allow_free_in_performance_mode);
     }
 }

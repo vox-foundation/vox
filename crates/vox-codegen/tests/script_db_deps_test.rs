@@ -23,6 +23,45 @@ fn generate_option_type_script() -> vox_codegen::codegen_rust::CodegenOutput {
 }
 
 #[test]
+fn script_with_workflow_enables_sql_and_vox_db() {
+    let src = r#"
+activity charge(amount: int) to int { return amount }
+workflow checkout(amount: int) to int { return charge(amount) }
+"#;
+    let module = parse_script(lex(src)).expect("parse");
+    let hir = lower_module(&module);
+    let out = generate_script(&hir, "vox-script", Some(&runtime_path())).expect("generate_script");
+    let cargo = out.files.get("Cargo.toml").expect("Cargo.toml present");
+    assert!(
+        cargo.contains("vox-workflow-runtime")
+            && cargo.contains("features")
+            && cargo.contains("sql"),
+        "workflow scripts must enable vox-workflow-runtime sql; got:\n{cargo}"
+    );
+    assert!(
+        cargo.contains("vox-db") && cargo.contains("path ="),
+        "workflow scripts must depend on vox-db for VoxDbTracker; got:\n{cargo}"
+    );
+}
+
+#[test]
+fn script_without_tables_or_workflow_omits_vox_db() {
+    let src = "fn add(a: int, b: int) to int { return a + b }";
+    let module = parse_script(lex(src)).expect("parse");
+    let hir = lower_module(&module);
+    let out = generate_script(&hir, "vox-script", Some(&runtime_path())).expect("generate_script");
+    let cargo = out.files.get("Cargo.toml").expect("Cargo.toml present");
+    assert!(
+        !cargo.contains("vox-db"),
+        "plain scripts must stay db-free; got:\n{cargo}"
+    );
+    assert!(
+        !cargo.contains("vox-workflow-runtime"),
+        "plain scripts must not pull workflow-runtime; got:\n{cargo}"
+    );
+}
+
+#[test]
 fn script_with_tables_includes_vox_db_in_cargo_toml() {
     let out = generate_option_type_script();
     let cargo = out.files.get("Cargo.toml").expect("Cargo.toml present");

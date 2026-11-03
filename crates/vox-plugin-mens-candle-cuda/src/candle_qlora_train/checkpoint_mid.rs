@@ -45,6 +45,7 @@ pub(super) fn maybe_save_mid_epoch_checkpoint(
             last_loss: last_loss_val,
             wall_seconds_elapsed: run_start_inst.elapsed().as_secs_f64(),
             saved_at_utc: CheckpointState::now_utc(),
+            data_fingerprint: config.data_fingerprint.clone(),
         };
         state.save(out).context("save CheckpointState mid-epoch")?;
 

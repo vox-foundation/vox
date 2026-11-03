@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/shiki-mdbook-doc-platform-research-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Shiki, mdBook & Documentation Platform Evaluation (2026)",
+  "summary": "Comprehensive research on documentation platforms with quantified feature matrix and migration recommendations.",
+  "scope": ["documentation platform", "syntax highlighting", "Shiki", "mdBook", "TextMate grammar", "doctest", "vox.tmLanguage.json"],
+  "cross_refs": ["docs/src/archive/research-2026-q1/vox-syntax-highlighting-ssot-2026.md", "apps/editor/vox-vscode/syntaxes/vox.tmLanguage.json", "docs-astro/README.md", "AGENTS.md"],
+  "locked": false,
+  "precedence": null
+}

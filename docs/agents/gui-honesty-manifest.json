@@ -526,10 +526,10 @@
   },
   {
     "surface": "Chat",
-    "file": "src\\components\\surfaces\\Chat\\ModelBadge.tsx",
-    "line": 32,
+    "file": "src\\components\\surfaces\\Chat\\TurnTrace.tsx",
+    "line": 56,
     "kind": "handler",
-    "snippet": "onClick={() => setOpen(o => !o)}"
+    "snippet": "onClick={() => setExpanded((v) => !v)}"
   },
   {
     "surface": "Chat",

@@ -9,13 +9,23 @@ vi.mock('./ScientiaDashboard', () => ({
 vi.mock('./ClaimsView', () => ({
   ClaimsView: () => <div data-testid="scientia-claims" />,
 }));
+vi.mock('./DiscoveryInbox', () => ({
+  DiscoveryInbox: () => <div data-testid="scientia-inbox" />,
+}));
+vi.mock('./DiscoveryReview', () => ({
+  DiscoveryReview: () => <div data-testid="scientia-studio" />,
+}));
 
 import { ScientiaSurface } from './ScientiaSurface';
 
 describe('ScientiaSurface (Findings)', () => {
-  it('defaults to the dashboard and exposes a Claims tab (claims MERGE)', () => {
+  it('defaults to the dashboard and exposes Inbox, Studio & Review, and Claims tabs', () => {
     render(<ScientiaSurface pushToast={() => {}} />);
     expect(screen.getByTestId('scientia-dashboard')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Inbox' }));
+    expect(screen.getByTestId('scientia-inbox')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Studio & Review' }));
+    expect(screen.getByTestId('scientia-studio')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Claims' }));
     expect(screen.getByTestId('scientia-claims')).toBeInTheDocument();
   });

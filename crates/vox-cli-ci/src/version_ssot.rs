@@ -476,6 +476,7 @@ serde         = { version = "1.0", features = ["derive"] }
     #[test]
     fn drift_names_the_lagging_declaration() {
         let d = path_dependency_versions(ROOT, Path::new("Cargo.toml"));
+        // drift-allow(version-string): fixture version, independent of the workspace version
         let drifted = drift("0.6.0", &d);
         assert_eq!(drifted.len(), 1);
         assert!(drifted[0].declaration.what.contains("vox-plugin-api"));

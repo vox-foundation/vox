@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/coding-agent-local-model-ux-comparison-2026-07-30.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "How Coding Agents Expose Model Selection & Local Models — Verified Research 2026-07-30",
+  "summary": "Verified comparison of Claude Code, Aider, Continue.dev model-selection schemas and local-model support; no hardware detection found.",
+  "scope": ["model selection", "local models", "Ollama", "LM Studio", "agent UX"],
+  "cross_refs": ["multi-provider-local-cloud-routing-research-2026-07-30.md", "agent-chat-ux-and-noise-research-2026-07-30.md"],
+  "locked": false,
+  "precedence": null
+}

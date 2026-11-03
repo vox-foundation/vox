@@ -1,0 +1,194 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "codegen vox_codegen emit workflow.rs",
+      "rect",
+      []
+    ],
+    [
+      "hir lower decl.rs",
+      "rect",
+      []
+    ],
+    [
+      "lexer voxCompilerLexer",
+      "rect",
+      []
+    ],
+    [
+      "mcp dispatch aci mutation_kind",
+      "rect",
+      []
+    ],
+    [
+      "orchestrator subagent_dispatch tier_cascade",
+      "rect",
+      []
+    ],
+    [
+      "parser parseFnDecl head.rs",
+      "rect",
+      []
+    ],
+    [
+      "runtime vox_actor_runtime llm chat cascade stream",
+      "rect",
+      []
+    ],
+    [
+      "telemetry record_event fixture_catalog",
+      "rect",
+      []
+    ],
+    [
+      "typeck effect_deps_lint cuda_gate ast_decl_lints",
+      "rect",
+      []
+    ],
+    [
+      "voxSource (.vox)",
+      "rect",
+      []
+    ],
+    [
+      "vox_db llm_interactions research_metrics",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "codegen vox_codegen emit workflow.rs",
+        "rect",
+        []
+      ],
+      [
+        "runtime vox_actor_runtime llm chat cascade stream",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "hir lower decl.rs",
+        "rect",
+        []
+      ],
+      [
+        "typeck effect_deps_lint cuda_gate ast_decl_lints",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "lexer voxCompilerLexer",
+        "rect",
+        []
+      ],
+      [
+        "parser parseFnDecl head.rs",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "mcp dispatch aci mutation_kind",
+        "rect",
+        []
+      ],
+      [
+        "telemetry record_event fixture_catalog",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "orchestrator subagent_dispatch tier_cascade",
+        "rect",
+        []
+      ],
+      [
+        "mcp dispatch aci mutation_kind",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "parser parseFnDecl head.rs",
+        "rect",
+        []
+      ],
+      [
+        "hir lower decl.rs",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "runtime vox_actor_runtime llm chat cascade stream",
+        "rect",
+        []
+      ],
+      [
+        "orchestrator subagent_dispatch tier_cascade",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "telemetry record_event fixture_catalog",
+        "rect",
+        []
+      ],
+      [
+        "vox_db llm_interactions research_metrics",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "typeck effect_deps_lint cuda_gate ast_decl_lints",
+        "rect",
+        []
+      ],
+      [
+        "codegen vox_codegen emit workflow.rs",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "voxSource (.vox)",
+        "rect",
+        []
+      ],
+      [
+        "lexer voxCompilerLexer",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

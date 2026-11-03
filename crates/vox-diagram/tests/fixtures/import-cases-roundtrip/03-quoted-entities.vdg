@@ -1,0 +1,10 @@
+graph {
+    node a: "Say \"hi\""
+    node b: "Hash # and heart ♥"
+    node c: "Line one\nline two\nline three"
+    node d: "Ampersand & more"
+    a -> b: "a|b"
+    b -> c: "plain text"
+    c -> d: "pipe free"
+    a -> d
+}

@@ -1,0 +1,156 @@
+{
+  "kind": "graph",
+  "direction": "right",
+  "nodes": [
+    [
+      "Alpha",
+      "rect",
+      [
+        "Outer scope"
+      ]
+    ],
+    [
+      "Beta",
+      "rect",
+      [
+        "Outer scope",
+        "Middle scope"
+      ]
+    ],
+    [
+      "Delta",
+      "rect",
+      [
+        "Outer scope",
+        "Plain"
+      ]
+    ],
+    [
+      "Epsilon",
+      "rect",
+      []
+    ],
+    [
+      "Gamma",
+      "rect",
+      [
+        "Outer scope",
+        "Middle scope",
+        "Inner scope"
+      ]
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Alpha",
+        "rect",
+        [
+          "Outer scope"
+        ]
+      ],
+      [
+        "Beta",
+        "rect",
+        [
+          "Outer scope",
+          "Middle scope"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "Alpha",
+        "rect",
+        [
+          "Outer scope"
+        ]
+      ],
+      [
+        "Gamma",
+        "rect",
+        [
+          "Outer scope",
+          "Middle scope",
+          "Inner scope"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "Beta",
+        "rect",
+        [
+          "Outer scope",
+          "Middle scope"
+        ]
+      ],
+      [
+        "Gamma",
+        "rect",
+        [
+          "Outer scope",
+          "Middle scope",
+          "Inner scope"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "Epsilon",
+        "rect",
+        []
+      ],
+      [
+        "Beta",
+        "rect",
+        [
+          "Outer scope",
+          "Middle scope"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "Gamma",
+        "rect",
+        [
+          "Outer scope",
+          "Middle scope",
+          "Inner scope"
+        ]
+      ],
+      [
+        "Delta",
+        "rect",
+        [
+          "Outer scope",
+          "Plain"
+        ]
+      ],
+      ""
+    ]
+  ],
+  "containers": [
+    [
+      "Outer scope",
+      "Middle scope",
+      "Inner scope"
+    ],
+    [
+      "Outer scope",
+      "Middle scope"
+    ],
+    [
+      "Outer scope",
+      "Plain"
+    ],
+    [
+      "Outer scope"
+    ]
+  ]
+}

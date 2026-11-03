@@ -11,7 +11,7 @@ pub fn instruction_templates(construct: &str) -> &[&str] {
         ],
         "component" => &[
             "Write a Vox UI component called {name}",
-            "Create a {name} component in Vox using JSX syntax",
+            "Create a {name} component in Vox",
         ],
         "actor" => &[
             "Write a Vox actor called {name} with state management",
@@ -27,7 +27,7 @@ pub fn instruction_templates(construct: &str) -> &[&str] {
         ],
         "table" => &[
             "Define a Vox database table called {name}",
-            "Create a {name} table using @table in Vox",
+            "Create a {name} table in Vox",
         ],
         "query" => &[
             "Write a Vox database query called {name}",
@@ -64,48 +64,143 @@ pub fn instruction_templates(construct: &str) -> &[&str] {
     }
 }
 
-/// Extract the primary name from a Vox source string.
-pub fn extract_name_from_source(code: &str) -> String {
-    // Try keywords that precede a name: fn, actor, type, workflow, etc.
-    let keywords = [
-        "fn ",
-        "actor ",
-        "type ",
-        "workflow ",
-        "activity ",
-        "trait ",
-        "agent ",
-        "skill ",
-        "hook ",
-        "layout ",
-    ];
-    for line in code.lines() {
-        let trimmed = line.trim();
-        for kw in &keywords {
-            if let Some(rest) = trimmed.strip_prefix(kw) {
-                // Also check after decorators like "@component fn Name"
-                let name: String = rest
-                    .chars()
-                    .take_while(|c| c.is_alphanumeric() || *c == '_')
-                    .collect();
-                if !name.is_empty() {
-                    return name;
-                }
-            }
-            // Check for decorator-prefixed: "@component fn Name"
-            if trimmed.starts_with('@')
-                && let Some(idx) = trimmed.find(kw)
-            {
-                let rest = &trimmed[idx + kw.len()..];
-                let name: String = rest
-                    .chars()
-                    .take_while(|c| c.is_alphanumeric() || *c == '_')
-                    .collect();
-                if !name.is_empty() {
-                    return name;
-                }
+/// Split golden-file metadata out of training code.
+///
+/// Returns `(code, training_prompt)`: `code` has the leading `// ---` frontmatter
+/// block, `// ANCHOR:` / `// ANCHOR_END:` markers and `// @training_prompt:` lines
+/// removed (they are file metadata, not Vox a model should learn to emit);
+/// `training_prompt` is the author-written task from `// @training_prompt:`.
+pub fn split_training_metadata(code: &str) -> (String, Option<String>) {
+    let mut out = Vec::new();
+    let mut prompt = None;
+    let mut lines = code.lines().peekable();
+    while lines.peek().is_some_and(|l| l.trim().is_empty()) {
+        lines.next();
+    }
+    if lines.peek().is_some_and(|l| l.trim() == "// ---") {
+        lines.next();
+        for l in lines.by_ref() {
+            if l.trim() == "// ---" {
+                break;
             }
         }
     }
-    "example".to_string()
+    for line in lines {
+        let t = line.trim_start();
+        if let Some(p) = t.strip_prefix("// @training_prompt:") {
+            prompt = Some(p.trim().to_string()).filter(|p| !p.is_empty());
+        } else if !(t.starts_with("// ANCHOR:") || t.starts_with("// ANCHOR_END:")) {
+            out.push(line);
+        }
+    }
+    (out.join("\n").trim().to_string(), prompt)
+}
+
+/// Extract the primary declared name from a Vox source string, or `None`.
+///
+/// Skips comments and decorators; understands every bare-keyword declaration
+/// (`fn`, `pub fn`, `component`, `table`, `query`, `mutation`, `server`,
+/// `tool "desc" name`, …) so prompts stop falling back to a placeholder name.
+pub fn extract_name_from_source(code: &str) -> Option<String> {
+    const KEYWORDS: &[&str] = &[
+        "fn",
+        "component",
+        "actor",
+        "type",
+        "workflow",
+        "activity",
+        "table",
+        "query",
+        "mutation",
+        "server",
+        "tool",
+        "resource",
+        "state_machine",
+        "module",
+        "trait",
+        "agent",
+        "skill",
+        "message",
+        "form",
+        "index",
+    ];
+    let ident = |s: &str| -> Option<String> {
+        let n: String = s
+            .trim_start()
+            .chars()
+            .take_while(|c| c.is_alphanumeric() || *c == '_')
+            .collect();
+        (!n.is_empty() && !n.starts_with(|c: char| c.is_ascii_digit())).then_some(n)
+    };
+    for line in code.lines() {
+        let mut t = line.trim();
+        if t.starts_with("//") || t.starts_with('#') {
+            continue;
+        }
+        // Strip leading decorators (`@auth(scheme: bearer) table ...`) and `pub`.
+        while let Some(rest) = t.strip_prefix('@') {
+            let end = rest.find(' ').unwrap_or(rest.len());
+            let paren = rest.find('(').filter(|&p| p < end);
+            t = match paren {
+                Some(_) => rest.find(") ").map_or("", |i| &rest[i + 2..]),
+                None => &rest[end..],
+            }
+            .trim_start();
+        }
+        t = t.strip_prefix("pub ").unwrap_or(t);
+        for kw in KEYWORDS {
+            let Some(rest) = t.strip_prefix(kw).filter(|r| r.starts_with(' ')) else {
+                continue;
+            };
+            // `tool "name: description" fn_name(...)`, `resource "uri" "desc" name()`
+            let mut r = rest.trim_start();
+            while let Some(q) = r.strip_prefix('"') {
+                r = q.find('"').map_or("", |i| q[i + 1..].trim_start());
+            }
+            if let Some(n) = ident(r) {
+                return Some(n);
+            }
+        }
+    }
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extracts_names_from_bare_keyword_declarations() {
+        let cases = [
+            ("// fn not_this()\nfn add(a: int) to int {", "add"),
+            ("pub fn run() {", "run"),
+            ("component Counter(initial: int) {", "Counter"),
+            ("@auth(scheme: bearer) table Task {", "Task"),
+            ("query list_tasks() to List[Task] {", "list_tasks"),
+            (
+                "tool \"search: find docs\" search_docs(q: str) to str {",
+                "search_docs",
+            ),
+            ("@test fn adds() {", "adds"),
+            ("type MergeError =\n    | WrongKind", "MergeError"),
+        ];
+        for (src, want) in cases {
+            assert_eq!(
+                extract_name_from_source(src).as_deref(),
+                Some(want),
+                "{src}"
+            );
+        }
+        assert_eq!(extract_name_from_source("import std.mobile\n"), None);
+    }
+
+    #[test]
+    fn strips_golden_metadata_and_keeps_training_prompt() {
+        let src = "// ---\n// title: \"X\"\n// training_eligible: true\n// ---\n// @training_prompt: Build a counter.\n\n// ANCHOR: display\n// A counter.\ncomponent C() {\n}\n// ANCHOR_END: display\n";
+        let (code, prompt) = split_training_metadata(src);
+        assert_eq!(code, "// A counter.\ncomponent C() {\n}");
+        assert_eq!(prompt.as_deref(), Some("Build a counter."));
+        let (plain, none) = split_training_metadata("fn a() {\n}\n");
+        assert_eq!((plain.as_str(), none), ("fn a() {\n}", None));
+    }
 }

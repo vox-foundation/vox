@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/037-tauri-convergence.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 037 — Tauri Convergence",
+  "summary": "Desktop-mobile application convergence on Tauri 2; mobile-target clause partially superseded by adr-NNN, desktop convergence remains Accepted.",
+  "scope": ["Tauri 2", "desktop application shell", "mobile application packaging", "application compilation", "GUI code generation"],
+  "cross_refs": ["../architecture/adr-NNN-scope-tauri-desktop-only.md", "../architecture/tauri-audit-2026.md", "../architecture/tauri-convergence-migration-plan-2026.md", "../architecture/vox-application-packaging-ssot-2026.md", "024-dashboard-axum-spa.md", "../architecture/vox-gui-native-roadmap-2026.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Partially superseded: mobile-target clause no longer valid (Tauri does not cover mobile-android/mobile-ios; React Native + Expo handles mobile). Desktop-convergence decision remains Accepted and active. Document mixes still-valid and superseded content; treated as unlocked overall."
+}

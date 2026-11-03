@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/003-native-training-over-python.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 003 — Native Rust Training Over Python",
+  "summary": "Move Mens training from Python/Unsloth to native Rust using Candle and qlora-rs for HF-weight QLoRA.",
+  "scope": ["Mens training", "Rust", "Candle", "qlora-rs", "QLoRA", "Python migration", "tokenizer"],
+  "cross_refs": ["006-mens-full-graph-qlora-qlora-rs.md", "007-qlora-rs-multi-layer-training-api.md", "../reference/mens-training.md", "../crates/vox-tensor/src/data.rs"],
+  "locked": true,
+  "precedence": null
+}

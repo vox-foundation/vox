@@ -15,7 +15,9 @@ export default defineConfig({
   },
   webServer: appDir
     ? {
-        command: "pnpm run preview -- --host 127.0.0.1 --port 4173 --strictPort",
+        // Call vite directly: pnpm 10+ forwards a literal `--` to the script, after which
+        // vite ignored --host/--port and the server never came up on 127.0.0.1:4173.
+        command: "pnpm exec vite preview --host 127.0.0.1 --port 4173 --strictPort",
         cwd: appDir,
         url: "http://127.0.0.1:4173/",
         reuseExistingServer: !process.env.CI,

@@ -30,6 +30,18 @@ This surface is emitted by `vox-mcp` only when `VOX_MCP_HTTP_ENABLED=1` and is i
 - Only enable `VOX_MCP_HTTP_TRUST_X_FORWARDED_FOR=1` when requests cannot bypass the trusted proxy layer.
 - Configure proxy WebSocket pass-through for `/v1/ws` upgrade traffic.
 
+## Network bind policy and discovery
+
+- Loopback (`127.0.0.0/8`, `::1`) is the default bind. Any other host, or
+  `VOX_MCP_HTTP_BEHIND_TUNNEL=1`, requires `VOX_MCP_HTTP_BEARER_TOKEN`,
+  `VOX_MCP_HTTP_READ_BEARER_TOKEN`, and TLS (`VOX_MCP_HTTP_TLS_CERT`/`_KEY`) or the tunnel
+  attestation; `VOX_MCP_HTTP_ALLOW_UNAUTHENTICATED` is rejected there. Startup refuses otherwise.
+- Caller loopback is the TCP peer address; behind a tunnel no caller is loopback. Off loopback,
+  `internal` tools are never served and `POST /api/v2/mesh/nodes/{id}/kill` is refused.
+- `GET /v1/profile` returns the active profile, booted/failed subsystems, `axis_surfaces`, server
+  version, and the tools the calling token may use. See
+  [Running Vox as a server](../how-to/how-to-run-vox-as-a-server.md).
+
 ## Related
 
 - [Crate API: vox-mcp](../reference/cli.md)

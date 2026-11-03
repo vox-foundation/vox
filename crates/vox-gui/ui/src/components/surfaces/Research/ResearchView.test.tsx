@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react';
 import React from 'react';
 
 const SESSIONS = [
@@ -35,11 +35,40 @@ const DETAIL_WITH_CLAIMS = {
 
 let detailResponse: unknown = DETAIL_NO_CLAIMS;
 
-const invokeMock = vi.fn((cmd: string) => {
+const DEFAULT_ENGINE_STATUS = {
+  active_lane: 'fast',
+  fast_timeout_ms: 2500,
+  deep_timeout_ms: 15000,
+  providers: [
+    { id: 'wikipedia', name: 'Wikipedia', is_keyless: true, is_enabled: true, has_key: false },
+    { id: 'openalex', name: 'OpenAlex', is_keyless: true, is_enabled: true, has_key: false },
+    { id: 'arxiv', name: 'arXiv', is_keyless: true, is_enabled: true, has_key: false },
+    { id: 'searxng', name: 'SearXNG', is_keyless: true, is_enabled: true, has_key: false },
+    { id: 'tavily', name: 'Tavily', is_keyless: false, is_enabled: true, has_key: true, quota_usage: { units_spent: 160, units_limit: 1000, last_synced_at: '2026-09-18' } },
+  ],
+  free_key_offers: [
+    {
+      provider_id: 'tavily',
+      name: 'Tavily Search',
+      signup_url: 'https://app.tavily.com/sign-up',
+      free_tier_description: '1,000 queries/month free web search for AI agents and LLMs.',
+      quota_summary: '1,000 searches/mo',
+      requires_credit_card: false,
+      secret_id: 'tavily_api_key',
+    }
+  ],
+};
+
+const defaultInvokeHandler = (cmd: string) => {
   if (cmd === 'list_research_sessions') return Promise.resolve(SESSIONS);
   if (cmd === 'get_research_session_detail') return Promise.resolve(detailResponse);
+  if (cmd === 'get_research_engine_status') return Promise.resolve(DEFAULT_ENGINE_STATUS);
+  if (cmd === 'start_research_async') return Promise.resolve({ session_id: 2, task_id: 't2', status: 'running' });
+  if (cmd === 'save_research_session_to_kb') return Promise.resolve(3);
   return Promise.resolve(null);
-});
+};
+
+const invokeMock = vi.fn(defaultInvokeHandler);
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: (cmd: string, args?: unknown) => invokeMock(cmd, args),
 }));
@@ -53,7 +82,8 @@ import { ResearchView } from './ResearchView';
 describe('ResearchView', () => {
   beforeEach(() => {
     cleanup();
-    invokeMock.mockClear();
+    invokeMock.mockReset();
+    invokeMock.mockImplementation(defaultInvokeHandler);
     detailResponse = DETAIL_NO_CLAIMS;
   });
 
@@ -95,18 +125,15 @@ describe('ResearchView', () => {
     render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
     await waitFor(() => expect(screen.getByText('What is Vox?')).toBeTruthy());
     screen.getByText('What is Vox?').closest('button')!.click();
-    await waitFor(() => expect(screen.getByText(/High confidence/i)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Preliminary — Awaiting evidence corroboration/i)).toBeTruthy());
     expect(screen.getByText(/1 claim verified · 0 contested · 3 sources/i)).toBeTruthy();
     // The fixture's single citation has corroboration_count: 1 (< 2, so it
     // reads as uncorroborated) — the banner's "N corroborating sources"
-    // figure must reflect that (0), not the unrelated total source_count
-    // (3), or it contradicts the "uncorroborated" TrustChip shown below.
-    expect(screen.getByText(/High confidence — 0 corroborating sources/i)).toBeTruthy();
-    // existing raw-report render is still present, unchanged
+    // figure reflects that (0), so it correctly shows Preliminary instead of false High confidence.
     expect(screen.getByText('The sky is blue.')).toBeTruthy();
   });
 
-  it('counts only citations backed by real corroboration data in the headline banner', async () => {
+  it('counts only citations backed by real corroboration data in the headline banner and requires 2+ for high confidence', async () => {
     detailResponse = {
       ...DETAIL_WITH_CLAIMS,
       claims: [
@@ -116,7 +143,7 @@ describe('ResearchView', () => {
           verdict: 'Supported',
           confidence: 0.9,
           resample_stability: 1.0,
-          citation_urls: ['https://example.com/a'],
+          citation_urls: ['https://example.com/a', 'https://example.com/b'],
           corroboration_count: 3,
         },
       ],
@@ -125,6 +152,496 @@ describe('ResearchView', () => {
     await waitFor(() => expect(screen.getByText('What is Vox?')).toBeTruthy());
     screen.getByText('What is Vox?').closest('button')!.click();
     await waitFor(() => expect(screen.getByText(/High confidence/i)).toBeTruthy());
-    expect(screen.getByText(/High confidence — 1 corroborating source\b/i)).toBeTruthy();
+    expect(screen.getByText(/High confidence — 2 corroborating sources, no contested claims/i)).toBeTruthy();
+  });
+
+  it('renders refuted warning banner when claims are contradicted', async () => {
+    detailResponse = {
+      ...DETAIL_WITH_CLAIMS,
+      claims: [
+        {
+          claim_id: 'c1',
+          text: 'A refuted claim.',
+          verdict: 'Refuted',
+          confidence: 0.9,
+          resample_stability: 1.0,
+          citation_urls: ['https://example.com/a', 'https://example.com/b'],
+          corroboration_count: 3,
+        },
+      ],
+    };
+    render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
+    await waitFor(() => expect(screen.getByText('What is Vox?')).toBeTruthy());
+    screen.getByText('What is Vox?').closest('button')!.click();
+    await waitFor(() => expect(screen.getByText(/Refuted by Evidence/i)).toBeTruthy());
+    expect(screen.getByText(/Refuted by Evidence — 1 of 1 claims contradicted by sources/i)).toBeTruthy();
+  });
+
+  it('clicking a citation button in the report highlights the matching claim row', async () => {
+    detailResponse = {
+      ...DETAIL_WITH_CLAIMS,
+      report_markdown: 'The sky is blue [1].',
+      claims: [
+        {
+          claim_id: 'c1',
+          text: 'The sky is blue.',
+          verdict: 'Supported',
+          confidence: 0.9,
+          resample_stability: 1.0,
+          citation_urls: ['https://example.com/a', 'https://example.com/b'],
+          corroboration_count: 3,
+        },
+      ],
+    };
+    const { container } = render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
+    await waitFor(() => expect(screen.getByText('What is Vox?')).toBeTruthy());
+    screen.getByText('What is Vox?').closest('button')!.click();
+
+    const citeButton = await screen.findByRole('button', { name: 'Citation 1' });
+    expect(citeButton).toBeTruthy();
+    citeButton.click();
+
+    await waitFor(() => {
+      const claimEl = container.querySelector('#claim-c1');
+      expect(claimEl).toBeTruthy();
+      expect(claimEl?.className).toContain('ring-2 ring-brass');
+    });
+  });
+
+  it('renders epistemic DAG canvas and opens Sandbox REPL modal from detail view', async () => {
+    detailResponse = DETAIL_WITH_CLAIMS;
+    render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
+    await waitFor(() => expect(screen.getByText('What is Vox?')).toBeTruthy());
+    screen.getByText('What is Vox?').closest('button')!.click();
+
+    await waitFor(() => {
+      expect(screen.getByRole('region', { name: /epistemic research dag/i })).toBeTruthy();
+    });
+
+    const replButton = screen.getByRole('button', { name: /sandbox repl/i });
+    expect(replButton).toBeTruthy();
+    replButton.click();
+
+    await waitFor(() => {
+      expect(screen.getByText('Sandbox REPL Probe')).toBeTruthy();
+      expect(screen.getByRole('button', { name: /run compiler probe/i })).toBeTruthy();
+    });
+  });
+
+  it('toggles Diagnostic Prober when clicking toggle-diagnostics-btn', async () => {
+    render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
+
+    expect(screen.queryByTestId('live-source-prober')).toBeNull();
+
+    const toggleBtn = screen.getByTestId('toggle-diagnostics-btn');
+    expect(toggleBtn.getAttribute('type')).toBe('button');
+    toggleBtn.click();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('live-source-prober')).toBeTruthy();
+    });
+
+    toggleBtn.click();
+    await waitFor(() => {
+      expect(screen.queryByTestId('live-source-prober')).toBeNull();
+    });
+  });
+
+  it('toggles Judge Inspector when clicking toggle-judge-btn in session detail', async () => {
+    detailResponse = DETAIL_WITH_CLAIMS;
+    render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
+    await waitFor(() => expect(screen.getByText('What is Vox?')).toBeTruthy());
+    screen.getByText('What is Vox?').closest('button')!.click();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('toggle-judge-btn')).toBeTruthy();
+    });
+
+    expect(screen.queryByTestId('judge-inspector')).toBeNull();
+
+    const judgeBtn = screen.getByTestId('toggle-judge-btn');
+    expect(judgeBtn.getAttribute('type')).toBe('button');
+    judgeBtn.click();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('judge-inspector')).toBeTruthy();
+      expect(screen.getByTestId('metric-confidence-tier').textContent).toBe('DeepResearch');
+      expect(screen.getByTestId('metric-source-count').textContent).toBe('3');
+      expect(screen.getByTestId('count-supported').textContent).toBe('1');
+    });
+
+    judgeBtn.click();
+    await waitFor(() => {
+      expect(screen.queryByTestId('judge-inspector')).toBeNull();
+    });
+  });
+
+  it('opens misguidance modal when Flag Citation button is clicked and submits flag', async () => {
+    detailResponse = DETAIL_WITH_CLAIMS;
+    render(<LanguageProvider><ResearchView pushToast={vi.fn()} /></LanguageProvider>);
+    await waitFor(() => expect(screen.getByText('What is Vox?')).toBeTruthy());
+    screen.getByText('What is Vox?').closest('button')!.click();
+
+    const flagBtn = await screen.findByTestId('flag-citation-misleading');
+    expect(flagBtn.getAttribute('type')).toBe('button');
+    fireEvent.click(flagBtn);
+
+    expect(await screen.findByText(/Flag Misleading Research/i)).toBeTruthy();
+    const selector = screen.getByTestId('defect-class-selector');
+    expect(selector).toBeTruthy();
+    expect(screen.getByText('Inelegant Code')).toBeTruthy();
+    expect(screen.getByText('Fails to Run')).toBeTruthy();
+    expect(screen.getByText('User Corrected')).toBeTruthy();
+
+    const submitBtn = screen.getByRole('button', { name: /Submit Flag/i });
+    expect(submitBtn.getAttribute('type')).toBe('button');
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith(
+        'flag_research_misleading',
+        expect.objectContaining({
+          params: expect.objectContaining({
+            session_id: 1,
+            defect_class: 'inelegant_code',
+            culprit_url: 'https://example.com/a',
+          }),
+        })
+      );
+    });
+  });
+
+  describe('ResearchView Lane Switch & Honesty Guard', () => {
+    it('renders Fast Lane by default and switches to Deep Lane on click', () => {
+      render(<ResearchView />);
+      const fastBtn = screen.getByTestId('lane-switch-fast');
+      const deepBtn = screen.getByTestId('lane-switch-deep');
+      expect(fastBtn).toHaveAttribute('aria-selected', 'true');
+
+      fireEvent.click(deepBtn);
+      expect(deepBtn).toHaveAttribute('aria-selected', 'true');
+      expect(fastBtn).toHaveAttribute('aria-selected', 'false');
+    });
+
+    it('renders empty-results-notice when research has low evidence', () => {
+      render(<ResearchView initialLowEvidence={true} />);
+      expect(screen.getByTestId('empty-results-notice')).toBeInTheDocument();
+    });
+
+    it('clicking rerun-deep-lane-btn switches active lane to deep and starts research', async () => {
+      invokeMock.mockImplementation((cmd: string) => {
+        if (cmd === 'list_research_sessions') return Promise.resolve(SESSIONS);
+        if (cmd === 'get_research_session_detail') return Promise.resolve(DETAIL_NO_CLAIMS);
+        if (cmd === 'start_research_async') return Promise.resolve({ session_id: 2, task_id: 't2', status: 'running' });
+        return Promise.resolve(null);
+      });
+
+      render(<ResearchView initialLowEvidence={true} />);
+      const input = screen.getByLabelText('Research question');
+      fireEvent.change(input, { target: { value: 'quantum supremacy' } });
+
+      const rerunBtn = screen.getByTestId('rerun-deep-lane-btn');
+      fireEvent.click(rerunBtn);
+
+      await waitFor(() => {
+        expect(invokeMock).toHaveBeenCalledWith(
+          'start_research_async',
+          expect.objectContaining({
+            query: 'quantum supremacy',
+            lane: 'deep',
+          })
+        );
+        expect(screen.getByTestId('lane-switch-deep')).toHaveAttribute('aria-selected', 'true');
+        expect(screen.queryByTestId('empty-results-notice')).toBeNull();
+      });
+    });
+
+    it('renders active provider quota badges and keyless indicators', async () => {
+      render(<ResearchView />);
+      await waitFor(() => {
+        expect(screen.getByTestId('provider-badge-strip')).toBeInTheDocument();
+      });
+      expect(screen.getByText(/Wikipedia/i)).toBeInTheDocument();
+      expect(screen.getByText(/OpenAlex/i)).toBeInTheDocument();
+      expect(screen.getByText(/arXiv/i)).toBeInTheDocument();
+      expect(screen.getByText(/Tavily/i)).toBeInTheDocument();
+      expect(screen.getByText(/840\/1000/i)).toBeInTheDocument();
+    });
+
+    it('renders free tier offer action pill when provider is not keyed and offer matches', async () => {
+      invokeMock.mockImplementation((cmd: string) => {
+        if (cmd === 'list_research_sessions') return Promise.resolve(SESSIONS);
+        if (cmd === 'get_research_session_detail') return Promise.resolve(DETAIL_NO_CLAIMS);
+        if (cmd === 'get_research_engine_status') {
+          return Promise.resolve({
+            active_lane: 'fast',
+            fast_timeout_ms: 2500,
+            deep_timeout_ms: 15000,
+            providers: [
+              { id: 'tavily', name: 'Tavily', is_keyless: false, is_enabled: false, has_key: false },
+            ],
+            free_key_offers: [
+              {
+                provider_id: 'tavily',
+                name: 'Tavily Search',
+                signup_url: 'https://app.tavily.com/sign-up',
+                free_tier_description: '1,000 queries/month free web search for AI agents and LLMs.',
+                quota_summary: '1,000 searches/mo',
+                requires_credit_card: false,
+                secret_id: 'tavily_api_key',
+              },
+            ],
+          });
+        }
+        return Promise.resolve(null);
+      });
+
+      render(<ResearchView />);
+      await waitFor(() => {
+        expect(screen.getByText(/\+ Tavily \(1,000 searches\/mo available\)/i)).toBeInTheDocument();
+      });
+    });
+
+    it('clears low-evidence notice when switching to a healthy session', async () => {
+      detailResponse = DETAIL_WITH_CLAIMS;
+      render(<ResearchView initialLowEvidence={true} />);
+      expect(screen.getByTestId('empty-results-notice')).toBeInTheDocument();
+
+      await waitFor(() => expect(screen.getByText('What is Vox?')).toBeTruthy());
+      screen.getByText('What is Vox?').closest('button')!.click();
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('empty-results-notice')).toBeNull();
+      });
+    });
+
+    it('opens ResearchEngineDrawer when configure-engines-btn is clicked', async () => {
+      render(<ResearchView />);
+      await waitFor(() => {
+        expect(screen.getByTestId('configure-engines-btn')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('research-engine-drawer')).toBeNull();
+      fireEvent.click(screen.getByTestId('configure-engines-btn'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('research-engine-drawer')).toBeInTheDocument();
+        expect(screen.getByText(/Zero-Key Guarantee/i)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Phase 1 Observability & UX Enhancements', () => {
+    it('renders degraded-setup-banner when Tavily has no key and SearXNG is disabled (P1.2)', async () => {
+      invokeMock.mockImplementation((cmd: string) => {
+        if (cmd === 'get_research_engine_status') {
+          return Promise.resolve({
+            active_lane: 'fast',
+            fast_timeout_ms: 2500,
+            deep_timeout_ms: 15000,
+            providers: [
+              { id: 'wikipedia', name: 'Wikipedia', is_keyless: true, is_enabled: true, has_key: false },
+              { id: 'searxng', name: 'SearXNG', is_keyless: true, is_enabled: false, has_key: false },
+              { id: 'tavily', name: 'Tavily', is_keyless: false, is_enabled: true, has_key: false },
+            ],
+            free_key_offers: [],
+          });
+        }
+        if (cmd === 'list_research_sessions') return Promise.resolve([]);
+        return Promise.resolve(null);
+      });
+
+      render(<ResearchView />);
+      await waitFor(() => {
+        expect(screen.getByTestId('degraded-setup-banner')).toBeInTheDocument();
+        expect(screen.getByText(/Research quality degraded/i)).toBeInTheDocument();
+      });
+    });
+
+    it('pre-fills query input when clicking re-run button on a past session (P1.8)', async () => {
+      render(<ResearchView />);
+      await waitFor(() => expect(screen.getByTestId('rerun-session-1')).toBeInTheDocument());
+
+      const input = screen.getByLabelText('Research question') as HTMLInputElement;
+      expect(input.value).toBe('');
+
+      fireEvent.click(screen.getByTestId('rerun-session-1'));
+      expect(input.value).toBe('What is Vox?');
+    });
+
+    it('renders metadata statistics (subqueries, waves, stability) in detail header (P1.3)', async () => {
+      detailResponse = {
+        session: SESSIONS[0],
+        report_markdown: 'Full findings on Vox architecture.',
+        artifact_json: JSON.stringify({
+          result: {
+            research_metadata: {
+              wave_count: 3,
+              subquery_count: 6,
+              wave_stability: 0.85,
+            },
+          },
+        }),
+      };
+
+      render(<ResearchView />);
+      await waitFor(() => expect(screen.getByText('What is Vox?')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('What is Vox?'));
+
+      await waitFor(() => {
+        const stats = screen.getByTestId('session-metadata-stats');
+        expect(stats).toBeInTheDocument();
+        expect(stats).toHaveTextContent(/6 subqueries · 3 waves · stability 85%/i);
+      });
+    });
+
+    it('renders planner-degraded-chip when planner_degraded is true in artifact_json (P1.6)', async () => {
+      detailResponse = {
+        session: SESSIONS[0],
+        report_markdown: 'Report content',
+        artifact_json: JSON.stringify({
+          result: {
+            research_metadata: {
+              planner_degraded: true,
+            },
+          },
+        }),
+      };
+
+      render(<ResearchView />);
+      await waitFor(() => expect(screen.getByText('What is Vox?')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('What is Vox?'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('planner-degraded-chip')).toBeInTheDocument();
+        expect(screen.getByText(/Planner degraded/i)).toBeInTheDocument();
+      });
+    });
+
+    it('renders dropped-source-count in Citations & Sources header (P1.4)', async () => {
+      detailResponse = {
+        session: SESSIONS[0],
+        report_markdown: 'Report with citations',
+        citations: [{ url: 'https://example.com/one' }],
+        artifact_json: JSON.stringify({
+          result: {
+            research_metadata: {
+              retrieval_diagnostics: {
+                dropped_source_count: 4,
+              },
+            },
+          },
+        }),
+      };
+
+      render(<ResearchView />);
+      await waitFor(() => expect(screen.getByText('What is Vox?')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('What is Vox?'));
+
+      await waitFor(() => {
+        const droppedChip = screen.getByTestId('dropped-source-count');
+        expect(droppedChip).toBeInTheDocument();
+        expect(droppedChip).toHaveTextContent(/4 sources filtered by novelty/i);
+      });
+    });
+
+    it('calls save_research_session_to_kb and toasts on clicking Save to KB (P2.4)', async () => {
+      detailResponse = {
+        session: SESSIONS[0],
+        report_markdown: 'Report with citations',
+        citations: [{ url: 'https://example.com/one' }],
+      };
+
+      const pushToast = vi.fn();
+      render(<ResearchView pushToast={pushToast} />);
+      await waitFor(() => expect(screen.getByText('What is Vox?')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('What is Vox?'));
+
+      await waitFor(() => expect(screen.getByTestId('save-to-kb-button')).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId('save-to-kb-button'));
+
+      await waitFor(() => {
+        expect(invokeMock).toHaveBeenCalledWith('save_research_session_to_kb', { sessionId: 1 });
+        expect(pushToast).toHaveBeenCalledWith(expect.objectContaining({
+          tone: 'ok',
+          title: 'Filed for review',
+          body: expect.stringMatching(/3 source\(s\) filed for review/),
+          cause: 'backend-ok',
+        }));
+      });
+    });
+
+    it('forwards domainMode, scope, waves, and siteScope from power control bar (Phase 54)', async () => {
+      render(<ResearchView />);
+      fireEvent.click(screen.getByTestId('domain-mode-shopping'));
+      fireEvent.click(screen.getByTestId('research-scope-web'));
+      fireEvent.click(screen.getByTestId('research-waves-3'));
+      fireEvent.change(screen.getByTestId('research-site-scope-input'), {
+        target: { value: 'docs.rs, arxiv.org' },
+      });
+
+      const input = screen.getByLabelText('Research question');
+      fireEvent.change(input, { target: { value: 'best rust http client' } });
+      fireEvent.keyDown(input, { key: 'Enter' });
+
+      await waitFor(() => {
+        expect(invokeMock).toHaveBeenCalledWith(
+          'start_research_async',
+          expect.objectContaining({
+            query: 'best rust http client',
+            domainMode: 'shopping',
+            scope: 'web',
+            waves: 3,
+            siteScope: 'docs.rs, arxiv.org',
+          }),
+        );
+      });
+    });
+
+    it('renders ShoppingDecisionCard, CodeGenVerificationCard, and telemetry ribbon in detail view (Phase 54)', async () => {
+      detailResponse = {
+        session: SESSIONS[0],
+        report_markdown: 'Comparison complete.',
+        wave_count: 2,
+        wave_stability: 0.91,
+        quality_score: 5,
+        synthesis_model: 'gemini-pro',
+        shopping_decision: {
+          query: 'best rust http client',
+          recommended_option: 'Reqwest',
+          confidence: 0.92,
+          criteria: ['Ergonomics', 'Async'],
+          options: [
+            {
+              name: 'Reqwest',
+              overall_score: 0.92,
+              pros: ['Ecosystem standard'],
+              cons: ['Compile time'],
+              criteria_scores: { Ergonomics: 0.95, Async: 0.9 },
+              citation_urls: ['https://docs.rs/reqwest'],
+            },
+          ],
+        },
+        codegen_verification: {
+          passed: true,
+          compiler_exit_code: 0,
+          snippet_count: 2,
+          diagnostics: ['vox check: 0 errors, 0 warnings'],
+          verified_symbols: ['vox_search::pipeline'],
+        },
+      };
+
+      render(<ResearchView />);
+      await waitFor(() => expect(screen.getByText('What is Vox?')).toBeInTheDocument());
+      fireEvent.click(screen.getByText('What is Vox?'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('research-telemetry-ribbon')).toBeInTheDocument();
+        expect(screen.getByTestId('shopping-decision-card')).toBeInTheDocument();
+        expect(screen.getByTestId('codegen-verification-card')).toBeInTheDocument();
+        expect(screen.getByTestId('detail-multi-wave-timeline')).toBeInTheDocument();
+        expect(screen.getByTestId('promote-to-scientia-btn')).toBeInTheDocument();
+      });
+    });
   });
 });

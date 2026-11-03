@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/session-handoff-2026-05-24-lost-work-audit.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Handoff: 2026-05-24 lost-work forensic audit + recovery plan",
+  "summary": "Post-incident audit of orphaned work during parallel-agent commit storm; recovery commands and discipline forward.",
+  "scope": ["handoff", "incident-audit", "recovery-plan", "jj-snapshot", "CEA3089", "parallel-agents"],
+  "cross_refs": ["docs/src/architecture/session-handoff-2026-05-25-finalization-pass.md", "docs/src/architecture/json-as-rfc-2026-05-24.md"],
+  "locked": false,
+  "precedence": null
+}

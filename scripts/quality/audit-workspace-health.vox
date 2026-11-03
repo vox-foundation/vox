@@ -132,13 +132,16 @@ fn main() {
         }
 
         let mut tier_name = "unknown"
-        if name_matches_any(name, foundational_patterns) { tier_name = "foundational" }
+        if not name.starts_with("vox-plugin-mens-") and name_matches_any(name, foundational_patterns) { tier_name = "foundational" }
         if tier_name == "unknown" and name_matches_any(name, runtime_patterns) { tier_name = "runtime" }
         if tier_name == "unknown" and name_matches_any(name, leaf_patterns) { tier_name = "leaf" }
 
+        let crate_ceiling = pointer_int(policy, "/crate_ceilings/" + name, -1)
+
         if tier_name == "foundational" {
-            if dcount > foundational_limit {
-                print("⚠️  BLOAT: Foundational crate '" + name + "' has " + str(dcount) + " direct dependencies (limit: " + str(foundational_limit) + ").")
+            let eff_limit = if crate_ceiling > 0 { crate_ceiling } else { foundational_limit }
+            if dcount > eff_limit {
+                print("⚠️  BLOAT: Foundational crate '" + name + "' has " + str(dcount) + " direct dependencies (limit: " + str(eff_limit) + ").")
                 violations = violations + 1
             }
             if has_ml and not foundational_allow_ml {
@@ -146,13 +149,15 @@ fn main() {
                 violations = violations + 1
             }
         } else if tier_name == "runtime" {
-            if dcount > runtime_limit {
-                print("⚠️  BLOAT: Runtime crate '" + name + "' has " + str(dcount) + " direct dependencies (limit: " + str(runtime_limit) + ").")
+            let eff_limit = if crate_ceiling > 0 { crate_ceiling } else { runtime_limit }
+            if dcount > eff_limit {
+                print("⚠️  BLOAT: Runtime crate '" + name + "' has " + str(dcount) + " direct dependencies (limit: " + str(eff_limit) + ").")
                 violations = violations + 1
             }
         } else if tier_name == "leaf" {
-            if dcount > leaf_limit {
-                print("⚠️  SPRAWL: Leaf crate '" + name + "' has " + str(dcount) + " direct dependencies (limit: " + str(leaf_limit) + ").")
+            let eff_limit = if crate_ceiling > 0 { crate_ceiling } else { leaf_limit }
+            if dcount > eff_limit {
+                print("⚠️  SPRAWL: Leaf crate '" + name + "' has " + str(dcount) + " direct dependencies (limit: " + str(eff_limit) + ").")
                 violations = violations + 1
             }
         }

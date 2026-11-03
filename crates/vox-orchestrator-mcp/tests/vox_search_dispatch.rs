@@ -1,6 +1,9 @@
 //! Guard: MCP dispatch + input-schema string keys route the renamed `vox_search_*`
 //! tools and no longer carry the retired `vox_graphify_*` prefix (plan vs1, T3).
 
+// Task 8e fix round 1: pull in the hermetic-VOX_HOME ctor (see tests/common/mod.rs).
+mod common;
+
 #[test]
 fn dispatch_routes_vox_search_keys_not_graphify() {
     let dispatch = include_str!("../src/dispatch.rs");

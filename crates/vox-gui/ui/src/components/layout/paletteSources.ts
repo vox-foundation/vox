@@ -29,11 +29,14 @@ export interface PaletteSources {
 
 const MAX_PER_KIND = 5;
 
-export type PalettePrefixMode = 'default' | 'commands' | 'agents' | 'skills';
+export type PalettePrefixMode = 'default' | 'commands' | 'agents' | 'skills' | 'crates';
 
-/** Strip palette prefix (`>`, `@`, `/`) and return routing mode + effective query. */
+/**
+ * Strip palette prefix (`>`, `@`, `/`, `#`) and return routing mode + effective query.
+ * Bare `?` is reserved for the shortcut sheet (D-11) and is deliberately not parsed.
+ */
 export function parsePaletteQuery(raw: string): { mode: PalettePrefixMode; query: string } {
-  const match = raw.match(/^([>@/])\s*(.*)$/);
+  const match = raw.match(/^([>@/#])\s*(.*)$/);
   if (!match) return { mode: 'default', query: raw };
   const query = match[2].trim();
   switch (match[1]) {
@@ -43,6 +46,8 @@ export function parsePaletteQuery(raw: string): { mode: PalettePrefixMode; query
       return { mode: 'agents', query };
     case '/':
       return { mode: 'skills', query };
+    case '#':
+      return { mode: 'crates', query };
     default:
       return { mode: 'default', query: raw };
   }

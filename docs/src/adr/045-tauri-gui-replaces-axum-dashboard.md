@@ -7,6 +7,8 @@ category: "Architecture Decisions (ADRs)"
 
 # ADR 045 — Tauri GUI Replaces Axum Dashboard
 
+**Status**: Accepted (2026-09-22)
+
 ## Context
 
 The legacy `vox-dashboard` utilized an Axum-based SPA served over HTTP/WebSockets to display the orchestration dashboard and provide visual command surfaces. As Vox shifts toward a Single Source of Truth (SSOT) architecture, keeping the CLI commands and the dashboard UI in sync became a manual, error-prone task. Furthermore, the web-served nature of the dashboard required dealing with browser security policies, CORS, and network port management which was brittle.

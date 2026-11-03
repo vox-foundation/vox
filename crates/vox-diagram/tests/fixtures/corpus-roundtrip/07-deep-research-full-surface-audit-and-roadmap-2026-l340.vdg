@@ -1,0 +1,17 @@
+graph {
+    node ShopQuery: "Shopping Query: 'Best noise-canceling headphones under $300'"
+    node EntityExtract: "Product Entity Extractor (Identify Top 3-5 Candidate Models)"
+    node SpecGather: "Spec Matrix Gatherer (Manufacturer specs, battery, weight, codecs)"
+    node MerchantGather: "Merchant & Price Scraper (Current prices, stock, retailers)"
+    node ReviewGather: "Community Review Harvester (Reddit, RTINGS, forum sentiment)"
+    node MatrixSynthesis: "Product Comparison Synthesizer"
+    node Verdicts: "Decision Engine (Best Overall, Best Budget, Known Flaws)"
+    ShopQuery -> EntityExtract
+    EntityExtract -> SpecGather
+    EntityExtract -> MerchantGather
+    EntityExtract -> ReviewGather
+    SpecGather -> MatrixSynthesis
+    MerchantGather -> MatrixSynthesis
+    ReviewGather -> MatrixSynthesis
+    MatrixSynthesis -> Verdicts
+}

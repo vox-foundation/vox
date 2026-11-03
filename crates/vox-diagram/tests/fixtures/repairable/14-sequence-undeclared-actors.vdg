@@ -1,0 +1,9 @@
+sequence {
+    actor client: "Client"
+    actor server: "Server"
+    client -> gateway: "request"
+    gateway -> server: "forward"
+    server -> db: "query"
+    reply db -> server: "rows"
+    note over cache: "warm"
+}

@@ -73,6 +73,7 @@
                 "writes_files",
                 "spawns_process",
                 "network",
+                "remote_mutation",
                 "destructive",
                 "mixed",
                 "unknown"

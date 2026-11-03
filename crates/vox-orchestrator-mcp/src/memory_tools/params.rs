@@ -66,6 +66,15 @@ pub struct ResearchRunParams {
     /// When true (default), return JSON-serialized [`vox_research_shim::research::ResearchResult`].
     #[serde(default = "default_research_json")]
     pub json: bool,
+    /// Number of research waves (default 1).
+    #[serde(default)]
+    pub waves: Option<usize>,
+    /// Domain mode: general, shopping, codegen.
+    #[serde(default)]
+    pub domain_mode: Option<String>,
+    /// Research lane: `fast` (default; no LLM planner) or `deep` (LLM query decomposition).
+    #[serde(default)]
+    pub lane: Option<String>,
 }
 
 /// MCP arguments: start a long-running research job.
@@ -80,12 +89,40 @@ pub struct ResearchStartParams {
     pub verify_claims: Option<bool>,
     #[serde(default)]
     pub site_scope: Option<String>,
+    /// Number of research waves (default 1).
+    #[serde(default)]
+    pub waves: Option<usize>,
+    /// Domain mode: general, shopping, codegen.
+    #[serde(default)]
+    pub domain_mode: Option<String>,
+    /// Research lane: `fast` (default; no LLM planner) or `deep` (LLM query decomposition).
+    #[serde(default)]
+    pub lane: Option<String>,
 }
 
 /// MCP arguments: inspect a research session.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ResearchSessionParams {
     pub session_id: i64,
+}
+
+/// MCP arguments: search persisted research sessions, reports, and verified claims.
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+pub struct ResearchSearchParams {
+    /// Natural-language or keyword search query for the research knowledgebase.
+    pub query: String,
+    /// Maximum number of session records to return (default 10, max 50).
+    #[serde(default)]
+    pub limit: Option<usize>,
+    /// Optional domain mode filter (e.g. 'codegen', 'shopping', 'general').
+    #[serde(default)]
+    pub domain: Option<String>,
+    /// Minimum confidence score threshold for claims (0.0 to 1.0).
+    #[serde(default)]
+    pub min_confidence: Option<f64>,
+    /// When true, only returns claims with 'Supported' verdict.
+    #[serde(default)]
+    pub verified_only: Option<bool>,
 }
 
 fn default_research_json() -> bool {
@@ -180,6 +217,24 @@ impl SessionInfo {
     }
 }
 
+#[cfg(test)]
+mod session_info_tests {
+    use super::SessionInfo;
+
+    #[test]
+    fn from_session_copies_identity_and_counters() {
+        let session = vox_orchestrator::session::Session::new(vox_orchestrator::AgentId(7), None);
+        let info = SessionInfo::from_session(&session);
+
+        assert_eq!(info.id, session.id);
+        assert_eq!(info.agent_id, "7");
+        assert_eq!(info.tenant_id, None);
+        assert_eq!(info.turn_count, session.turn_count);
+        assert_eq!(info.token_count, session.total_tokens);
+        assert_eq!(info.created_at, session.created_at);
+    }
+}
+
 /// MCP arguments: read one `user_preferences` row.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct PreferenceGetParams {
@@ -268,4 +323,37 @@ pub struct MemoryRecallDbParams {
     pub memory_type: Option<String>,
     /// Max rows.
     pub limit: Option<i64>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn session_info_from_session_copies_every_field() {
+        let mut s = vox_orchestrator::session::Session::new(
+            vox_orchestrator::AgentId(7),
+            Some("tenant-a".into()),
+        );
+        s.turn_count = 3;
+        s.total_tokens = 42;
+        let info = SessionInfo::from_session(&s);
+        assert_eq!(info.id, s.id);
+        assert_eq!(info.agent_id, s.agent_id.0.to_string());
+        assert_eq!(info.tenant_id.as_deref(), Some("tenant-a"));
+        assert_eq!(info.state, s.state.to_string());
+        assert_eq!(info.turn_count, 3);
+        assert_eq!(info.token_count, 42);
+        assert_eq!(info.created_at, s.created_at);
+    }
+
+    #[test]
+    fn research_params_accept_optional_lane() {
+        let p: ResearchRunParams =
+            serde_json::from_value(serde_json::json!({"query": "q", "lane": "deep"})).unwrap();
+        assert_eq!(p.lane.as_deref(), Some("deep"));
+        let p: ResearchStartParams =
+            serde_json::from_value(serde_json::json!({"query": "q"})).unwrap();
+        assert_eq!(p.lane, None);
+    }
 }

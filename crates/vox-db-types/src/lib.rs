@@ -1,4 +1,4 @@
-//! # vox-db-types — Pure data types for [`vox-db`](../vox_db/index.html)
+//! # vox-db-types — Pure data types for `vox-db`
 //!
 //! Lightweight crate holding parameter and row structs used by the `vox-db` facade.
 //! Consumers that only need types (not connection-bearing operations) can depend on
@@ -34,12 +34,17 @@ pub use store_types::*;
 /// SCIENTIA / research-session row DTOs.
 pub mod research;
 pub use research::{
-    ClaimsPendingCounts, ResearchArtifactRecord, ResearchSessionRecord, ResearchSessionSummary,
+    CachedClaimVerdict, ClaimsPendingCounts, DomainReputationRecord, MisguidanceReporter,
+    RecordMisguidanceParams, ResearchArtifactRecord, ResearchDefectClass,
+    ResearchMisguidanceRecord, ResearchSearchResult, ResearchSessionRecord, ResearchSessionSummary,
     ScientiaClaimWithVerdict,
 };
 
 /// Alias kept for back-compat (`vox_db::MemoryParams`).
 pub type MemoryParams<'a> = store_types::SaveMemoryParams<'a>;
+
+/// KB-text sanitizer and provenance newtypes (TRUST-05).
+pub mod kb_text;
 
 /// Typed string-ID newtypes for DB row fields (UUIDs, hashes, human-readable IDs).
 pub mod ids;

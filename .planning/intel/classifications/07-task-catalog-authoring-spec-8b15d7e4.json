@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/planning-meta/07-task-catalog-authoring-spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Task catalog authoring spec",
+  "summary": "Specification for writing atomic planning tasks with dependencies, weighting, acceptance evidence, and anti-foot-gun checks.",
+  "scope": ["task authoring", "atomic tasks", "task schema", "dependencies", "acceptance evidence", "task lifecycle", "weighting rubric"],
+  "cross_refs": ["docs/src/architecture/planning-meta/05-anti-foot-gun-planning-standard.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

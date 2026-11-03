@@ -11,37 +11,37 @@ import { GroundingCheckToggle } from './GroundingCheckToggle';
 describe('GroundingCheckToggle', () => {
   it('renders off by default and reflects the hook-backed state', () => {
     render(<GroundingCheckToggle enabled={false} onToggle={vi.fn()} />);
-    const btn = screen.getByRole('button', { name: /grounding check off/i });
+    const btn = screen.getByRole('button', { name: /check replies off/i });
     expect(btn).toHaveAttribute('aria-pressed', 'false');
-    expect(btn).toHaveTextContent('grounding: off');
+    expect(btn).toHaveTextContent('Check replies: off');
   });
 
   it('renders on when the persisted preference is true', () => {
     render(<GroundingCheckToggle enabled={true} onToggle={vi.fn()} />);
-    const btn = screen.getByRole('button', { name: /grounding check on/i });
+    const btn = screen.getByRole('button', { name: /check replies on/i });
     expect(btn).toHaveAttribute('aria-pressed', 'true');
-    expect(btn).toHaveTextContent('grounding: on');
+    expect(btn).toHaveTextContent('Check replies: on');
   });
 
   it('calls onToggle with the flipped value on click', async () => {
     const user = userEvent.setup();
     const onToggle = vi.fn();
     render(<GroundingCheckToggle enabled={false} onToggle={onToggle} />);
-    await user.click(screen.getByRole('button', { name: /grounding check off/i }));
+    await user.click(screen.getByRole('button', { name: /check replies off/i }));
     expect(onToggle).toHaveBeenCalledWith(true);
   });
 
   it('is a real <button type="button">, not a link or div', () => {
     render(<GroundingCheckToggle enabled={false} onToggle={vi.fn()} />);
-    const btn = screen.getByRole('button', { name: /grounding check off/i });
+    const btn = screen.getByRole('button', { name: /check replies off/i });
     expect(btn.tagName).toBe('BUTTON');
     expect(btn).toHaveAttribute('type', 'button');
   });
 });
 
 // Wiring guard: the toggle renders inside the composer's own toolbar row
-// (Loquela's `trailingSlot`), alongside ChatModelPicker — mirrors
-// ChatModelPicker.test.tsx's "toolbar placement wiring" guard.
+// (Loquela's `trailingSlot`), alongside the model-tier trigger — mirrors
+// the deleted ChatModelPicker test's "toolbar placement wiring" guard.
 describe('GroundingCheckToggle toolbar placement wiring', () => {
   it('App.tsx passes GroundingCheckToggle as part of the Loquela trailingSlot', () => {
     const appSrc = readFileSync(path.resolve(__dirname, '../../../App.tsx'), 'utf8');
@@ -51,7 +51,7 @@ describe('GroundingCheckToggle toolbar placement wiring', () => {
   });
 });
 
-// Wiring guard (readFileSync idiom, mirroring ChatModelPicker.test.tsx's
+// Wiring guard (readFileSync idiom, mirroring the deleted ChatModelPicker test's
 // "model_override submit-payload wiring"): the toggle state must actually
 // reach the params the daemon receives for SUBMIT_TASK as
 // `grounding_check_enabled`, not just sit inert in the composer.

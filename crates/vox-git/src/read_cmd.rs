@@ -16,6 +16,7 @@ const READ_ONLY: &[&str] = &[
     "status",
     "cat-file",
     "ls-files",
+    "ls-tree",
     "remote",
     "worktree",
     "branch",

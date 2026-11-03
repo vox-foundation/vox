@@ -13,15 +13,35 @@ pub const SENTINEL_PREFIX: &[&str] = &[".cargo/", "crates/workspace-hack/"];
 
 pub const COMPILER_CRATES: &[&str] = &["vox-compiler", "vox-codegen", "vox-integration-tests"];
 
+/// Crates whose tests read `examples/` (kept honest by `examples_consumers_matches_the_tree`).
+pub const EXAMPLES_CONSUMERS: &[&str] = &[
+    "vox-audit",
+    "vox-cli",
+    "vox-codegen",
+    "vox-compiler",
+    "vox-integration-tests",
+    "vox-ml-cli",
+    "vox-orchestrator-mcp",
+    "vox-workflow-runtime",
+];
+
 pub fn is_sentinel(path: &str) -> bool {
     SENTINEL_EXACT.contains(&path) || SENTINEL_PREFIX.iter().any(|p| path.starts_with(p))
 }
 
+/// Generated reports: written by `vox ci … --write`, read back only by `vox ci ssot-drift`,
+/// which the PR `linux` job runs on every PR. A change confined to them needs no test run.
+pub const GENERATED_CONTRACT_REPORTS: &str = "contracts/reports/";
+
 /// Non-graph `contracts/**` edits can change SSOT surfaces workspace-wide; force a full PR gate.
+/// Generated reports are the exception (see [`GENERATED_CONTRACT_REPORTS`]); every other
+/// contracts path still forces a full run, so a new reader of a contract can never be skipped.
 pub fn contracts_outside_graph_force_full(changed_files: &[String]) -> bool {
-    changed_files
-        .iter()
-        .any(|f| f.starts_with("contracts/") && f != CRATE_GRAPH_SENTINEL)
+    changed_files.iter().any(|f| {
+        f.starts_with("contracts/")
+            && f != CRATE_GRAPH_SENTINEL
+            && !f.starts_with(GENERATED_CONTRACT_REPORTS)
+    })
 }
 
 /// CI workflow edits can change gate behavior workspace-wide; force a full PR gate.
@@ -137,11 +157,14 @@ pub fn compute_affected(
     if ci_workflow_force_full(changed_files) {
         return Affected::Full;
     }
-    let seeds: BTreeSet<String> = changed_files
+    let mut seeds: BTreeSet<String> = changed_files
         .iter()
         .filter_map(|f| file_to_crate(f))
         .map(String::from)
         .collect();
+    if changed_files.iter().any(|f| f.starts_with("examples/")) {
+        seeds.extend(EXAMPLES_CONSUMERS.iter().map(|s| s.to_string()));
+    }
     if seeds.is_empty() {
         return Affected::None;
     }
@@ -272,6 +295,20 @@ mod tests {
     }
 
     #[test]
+    fn generated_reports_alone_do_not_force_a_full_run_but_other_contracts_still_do() {
+        assert!(!super::contracts_outside_graph_force_full(&[
+            "contracts/reports/gui-surface-coverage.v1.json".into()
+        ]));
+        assert!(super::contracts_outside_graph_force_full(&[
+            "contracts/reports/gui-surface-coverage.v1.json".into(),
+            "contracts/ci/crate-edges.allow.v1.json".into()
+        ]));
+        assert!(super::contracts_outside_graph_force_full(&[
+            "contracts/brand-new-dir/x.yaml".into()
+        ]));
+    }
+
+    #[test]
     fn contracts_outside_graph_in_compute_affected() {
         assert_eq!(
             compute_affected(
@@ -299,11 +336,52 @@ mod tests {
     }
 
     #[test]
-    fn golden_only_none_affected() {
-        assert_eq!(
-            compute_affected(&["examples/golden/foo.vox".into()], &BTreeMap::new()),
-            Affected::None
-        );
+    fn examples_only_seeds_examples_consumers() {
+        let got = compute_affected(&["examples/golden/foo.vox".into()], &BTreeMap::new());
+        let want: BTreeSet<String> = EXAMPLES_CONSUMERS.iter().map(|s| s.to_string()).collect();
+        assert_eq!(got, Affected::Crates(want));
+    }
+
+    fn rs_files_mention_examples(dir: &std::path::Path) -> bool {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return false;
+        };
+        entries.flatten().any(|e| {
+            let p = e.path();
+            if p.is_dir() {
+                rs_files_mention_examples(&p)
+            } else {
+                // Comment-only mentions don't count (vox-cli-tests and vox-populi name
+                // `examples/` in doc comments but read their own local fixtures).
+                p.extension().is_some_and(|x| x == "rs")
+                    && std::fs::read_to_string(&p)
+                        .unwrap_or_default()
+                        .lines()
+                        .any(|l| {
+                            !l.trim_start().starts_with("//")
+                                && (l.contains("examples/") || l.contains(".join(\"examples\")"))
+                        })
+            }
+        })
+    }
+
+    /// Every crate whose integration tests (`tests/**/*.rs`) read `examples/` must be in
+    /// EXAMPLES_CONSUMERS, or an examples-only PR silently skips its tests. In-`src`
+    /// `#[cfg(test)]` readers can't be told apart from non-test mentions by a scan, so
+    /// they are listed by hand in SRC_TEST_READERS.
+    #[test]
+    fn examples_consumers_matches_the_tree() {
+        const SRC_TEST_READERS: &[&str] = &["vox-ml-cli"]; // eval_local_prompt.rs golden smoke test
+        let crates_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        let mut expected: BTreeSet<String> =
+            SRC_TEST_READERS.iter().map(|s| s.to_string()).collect();
+        for krate in std::fs::read_dir(&crates_dir).unwrap().flatten() {
+            if rs_files_mention_examples(&krate.path().join("tests")) {
+                expected.insert(krate.file_name().to_string_lossy().to_string());
+            }
+        }
+        let listed: BTreeSet<String> = EXAMPLES_CONSUMERS.iter().map(|s| s.to_string()).collect();
+        assert_eq!(expected, listed, "update EXAMPLES_CONSUMERS");
     }
 
     #[test]

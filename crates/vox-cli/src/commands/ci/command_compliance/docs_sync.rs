@@ -51,7 +51,15 @@ pub(crate) fn read_cli_reference_for_compliance(repo_root: &Path) -> Result<Stri
 }
 
 pub(crate) fn read_env_vars_ssot_doc(repo_root: &Path) -> Result<String> {
-    // Always load the prose SSOT tables — `docs/src/ref/env-vars-ssot.md` is a stub redirect only.
+    let generated_path = repo_root.join("docs/src/reference/env-vars.generated.md");
+    if generated_path.is_file() {
+        return read_utf8_path_capped(&generated_path).with_context(|| {
+            format!(
+                "read {} (generated env-vars reference)",
+                generated_path.display()
+            )
+        });
+    }
     let canonical = repo_root.join("docs/src/reference/env-vars.md");
     read_utf8_path_capped(&canonical).with_context(|| {
         format!(

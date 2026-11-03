@@ -2,10 +2,24 @@
 
 mod commands;
 mod config;
+mod drive;
+mod remote;
+
+/// `tauri::generate_handler!` plus the (root, module, command) table the remote-mode gate needs.
+macro_rules! axis_invoke_handler {
+    ($($root:ident :: $module:ident :: $cmd:ident),* $(,)?) => {{
+        const COMMAND_MODULES: &remote::gate::CommandTable =
+            &[$((stringify!($root), stringify!($module), stringify!($cmd))),*];
+        let inner = remote::gate::typed_handler(tauri::generate_handler![$($root::$module::$cmd),*]);
+        move |invoke: tauri::ipc::Invoke<tauri::Wry>| {
+            remote::gate::gate_invoke(COMMAND_MODULES, invoke, &inner)
+        }
+    }};
+}
 
 use commands::app_state::GuiState;
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{Manager, RunEvent};
 
 #[tokio::main]
 async fn main() {
@@ -19,7 +33,27 @@ async fn main() {
         .with_writer(std::io::stderr)
         .try_init();
 
+    // Register process-global telemetry recorder for GUI surfaces (`TELEM-01`).
+    let gui_telem_db = vox_db::connect_workspace_journey_optional_at(
+        vox_db::DbConnectSurface::Runtime,
+        None,
+        false,
+    )
+    .await;
+    vox_db::telemetry_sink::init_process_telemetry(gui_telem_db);
+
+    // Whisper STT reaches vox-plugin-speech through the plugin host (loaded lazily on first use).
+    commands::speech_plugin_backend::register();
+    vox_db::telemetry_sink::init_process_telemetry(None);
+
     let args: Vec<String> = std::env::args().collect();
+    if args.iter().any(|arg| arg == "--drive-headless") {
+        if let Err(err) = drive::headless::run_stdio() {
+            eprintln!("{err}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if args.iter().any(|arg| arg == "--print-action-manifest-json") {
         match commands::action_manifest::build_action_manifest()
             .map_err(|e| e.to_string())
@@ -36,6 +70,7 @@ async fn main() {
         }
     }
     let mut initial_view = None;
+    let drive_flags = drive::flags::parse_drive_flags(&args);
 
     // Simple CLI arg parser for the Tauri process
     for i in 0..args.len() {
@@ -44,60 +79,104 @@ async fn main() {
         }
     }
 
+    let persistent_daemon = std::sync::Arc::new(commands::daemon::PersistentDaemon::default());
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
+        .append_invoke_initialization_script(if drive_flags.drive {
+            drive::bridge::DRIVE_ISOLATION_SCRIPT
+        } else {
+            ""
+        })
         .manage(GuiState {
             initial_view: Mutex::new(initial_view),
         })
+        .manage(if drive_flags.drive {
+            drive::bridge::DriveRuntime::pending_live()
+        } else {
+            drive::bridge::DriveRuntime::off()
+        })
         .manage(commands::mic::MicCaptureState::default())
         .manage(commands::pty::PtyManager::default())
-        .manage(commands::terminal_core::TerminalSessionManager::default())
-        .manage(std::sync::Arc::new(
-            commands::daemon::PersistentDaemon::default(),
-        ))
+        .manage(persistent_daemon.clone())
+        .manage(std::sync::Arc::new(remote::backend::BackendState::new(
+            persistent_daemon,
+        )))
         .manage(std::sync::Arc::new(
             commands::browser::BrowserState::default(),
         ))
-        .setup(|app| {
-            // `.setup()` runs synchronously on a worker thread already inside
-            // the #[tokio::main] runtime (needed below so scientia's
-            // tokio::spawn calls have an ambient reactor) — block_on alone
-            // panics with "Cannot start a runtime from within a runtime".
-            // block_in_place is the sanctioned way to block synchronously
-            // from within a multi-thread runtime's worker thread.
-            let pool = tokio::task::block_in_place(|| {
-                tauri::async_runtime::block_on(
-                    commands::gui_db_pool::GuiDbPool::connect_workspace(),
-                )
-            });
-            if let Ok(db) = pool.handle() {
-                commands::scientia::spawn_scientia_queue_stream(app.handle().clone(), db.clone());
-                commands::scientia::spawn_discovery_surfaced_stream(app.handle().clone(), db);
+        .manage(std::sync::Arc::new(
+            commands::mens_serve::MensServeState::default(),
+        ))
+        .setup(move |app| {
+            if drive_flags.drive {
+                let runtime = app.state::<drive::bridge::DriveRuntime>();
+                if let Err(err) =
+                    drive::bridge::start_live(&app.handle().clone(), drive_flags, &runtime)
+                {
+                    eprintln!("axis drive listener failed to start: {err}");
+                    tracing::error!(error = %err, "axis drive listener failed to start");
+                }
             }
-            app.manage(pool);
+            if drive_flags.drive && !drive_flags.show {
+                drive::bridge::hide_drive_window_early(&app.handle().clone());
+            }
+            // `.setup()` runs synchronously on a worker thread already inside
+            // the #[tokio::main] runtime — block_in_place runs the short-lived
+            // Drive store reset check (when VOX_GUI_DRIVE_STORE_ROOT is set)
+            // and immediately drops the connection so `vox-gui` holds zero open
+            // `VoxDb` handles while `vox-orchestrator-d` runs.
+            tokio::task::block_in_place(|| {
+                tauri::async_runtime::block_on(
+                    commands::gui_db_pool::GuiDbPool::reset_drive_store_if_requested(),
+                );
+            });
 
             // Single persistent orchestrator daemon shared by tool calls,
-            // approvals, and the status/event streams.
+            // approvals, and the status/event streams. Warm it synchronously
+            // so the first chat send is not racing a cold spawn (up to ~15s).
             let daemon = app
                 .state::<std::sync::Arc<commands::daemon::PersistentDaemon>>()
                 .inner()
                 .clone();
+            let backend = app
+                .state::<std::sync::Arc<remote::backend::BackendState>>()
+                .inner()
+                .clone();
+            if let Err(err) =
+                tokio::task::block_in_place(|| tauri::async_runtime::block_on(daemon.ensure()))
+            {
+                tracing::warn!(
+                    error = %err,
+                    "orchestrator daemon not ready at Axis launch; streams will retry"
+                );
+            }
             // B1: start the live orchestrator status stream, re-emitting each
             // snapshot as the "vox://orch-status" Tauri event.
             commands::orchestrator::spawn_orchestrator_status_stream(
                 app.handle().clone(),
                 daemon.clone(),
+                backend.clone(),
             );
             // B4: start the live agent-event stream, re-emitting each AgentEvent
             // as the "vox://agent-events" Tauri event.
-            commands::orchestrator::spawn_agent_event_stream(app.handle().clone(), daemon.clone());
+            commands::orchestrator::spawn_agent_event_stream(
+                app.handle().clone(),
+                daemon.clone(),
+                backend.clone(),
+            );
             // T3.1: background supervision task — periodically pings the
             // cached orchestrator daemon and clears/re-resolves it if it has
             // gone unreachable, so liveness is actively monitored rather than
             // only checked reactively the next time a stream/command touches
             // the daemon.
             daemon.clone().spawn_supervisor();
+            // F2: Scientia queue + discovery push bridges poll the active backend.
+            commands::scientia::spawn_scientia_queue_stream(app.handle().clone(), backend.clone());
+            commands::scientia::spawn_discovery_surfaced_stream(
+                app.handle().clone(),
+                backend.clone(),
+            );
             let daemon = app
                 .state::<std::sync::Arc<commands::daemon::PersistentDaemon>>()
                 .inner()
@@ -125,7 +204,7 @@ async fn main() {
             commands::orchestrator::spawn_orchestrator_config_watch(app.handle().clone());
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
+        .invoke_handler(axis_invoke_handler![
             commands::activity::activity_query,
             commands::catalog::get_command_catalog,
             commands::discovery::discovery_suggest,
@@ -134,9 +213,13 @@ async fn main() {
             commands::pty::pty_spawn,
             commands::pty::pty_write,
             commands::pty::pty_close,
-            commands::terminal_core::term_pty_bytes,
-            commands::terminal_core::term_get_blocks,
-            commands::terminal_core::term_submit,
+            commands::pty::term_session_open,
+            commands::pty::term_session_list,
+            commands::pty::term_session_attach,
+            commands::pty::term_session_input,
+            commands::pty::term_session_submit,
+            commands::pty::term_session_resize,
+            commands::pty::term_session_close,
             commands::console_a2a::send_to_agent,
             commands::action_manifest::get_action_manifest,
             commands::execute::execute_command,
@@ -146,6 +229,9 @@ async fn main() {
             commands::coderabbit::coderabbit_token_present,
             commands::devlog::log_frontend,
             commands::app_state::get_initial_view,
+            drive::bridge::get_drive_mode,
+            drive::bridge::drive_set_ready,
+            drive::bridge::drive_respond,
             commands::build_info::get_build_info,
             commands::chat::chat_create_session,
             commands::chat::chat_list_sessions,
@@ -192,36 +278,52 @@ async fn main() {
             commands::llm_settings::get_llm_config,
             commands::llm_settings::set_llm_config,
             commands::llm_settings::openrouter_key_status,
-            commands::llm_settings::inference_provider_status,
+            commands::models::inference_provider_status,
+            commands::mens_serve::mens_serve_status,
+            commands::mens_serve::mens_serve_start,
+            commands::mens_serve::mens_serve_stop,
+            commands::mens_run_reports::mens_run_reports,
             commands::docs_index::vox_docs_index,
             commands::docs_index::read_doc_markdown,
             commands::orchestrator::get_orchestrator_status,
             commands::orchestrator::get_orchestrator_status_bin,
             commands::orchestrator::set_orchestrator_config,
             commands::orchestrator::get_orchestrator_config,
-            commands::orchestrator::get_context_budget,
-            commands::orchestrator::hopper_list,
-            commands::orchestrator::hopper_submit,
-            commands::orchestrator::hopper_reprioritize,
-            commands::orchestrator::hopper_cancel,
-            commands::orchestrator::hopper_mark_done,
+            commands::context_budget::get_context_budget,
+            commands::hopper::hopper_list,
+            commands::hopper::hopper_submit,
+            commands::hopper::hopper_reprioritize,
+            commands::hopper::hopper_cancel,
+            commands::hopper::hopper_mark_done,
             commands::dynamic_mapping::get_command_metadata,
             commands::dynamic_mapping::get_full_registry,
             commands::models::list_model_cards,
-            commands::models::get_active_model,
-            commands::models::set_active_model,
+            commands::models_host::search_model_cards,
+            commands::models::get_models_snapshot,
+            commands::model_active::get_active_model,
+            commands::model_active::set_active_model,
+            commands::models_host::get_auto_model_recommendation,
             commands::models::get_routing_summary_live,
+            commands::models::get_model_leaderboard,
             commands::models::set_routing_priority,
             commands::models::get_routing_intentions,
             commands::models::nudge_routing_intention,
             commands::models::get_selection_policy,
             commands::models::set_selection_policy,
             commands::models::get_model_scoreboard,
-            commands::models::explain_model_selection,
-            commands::models::suggest_model_for_task,
+            commands::models_host::explain_model_selection,
+            commands::models_host::suggest_model_for_task,
+            commands::routing_explain::explain_routing,
+            commands::routing_explain::get_routing_health,
             commands::memory::get_memory_status,
             commands::memory::mnemosyne_recall,
             commands::memory::mnemosyne_reindex,
+            commands::knowledge::list_knowledge_nodes,
+            commands::knowledge::delete_knowledge_node,
+            commands::knowledge::get_kb_health,
+            commands::knowledge::ingest_text,
+            commands::knowledge::ingest_url,
+            commands::knowledge::save_research_session_to_kb,
             commands::mercatus::mercatus_load_config,
             commands::mercatus::mercatus_save_config,
             commands::preferences::get_gui_preference,
@@ -248,14 +350,14 @@ async fn main() {
             commands::user_config::get_user_config,
             commands::user_config::set_user_config,
             commands::user_config::reset_user_config,
-            commands::user_config::get_llm_spend,
+            commands::llm_spend::get_llm_spend,
             commands::stt_config::get_stt_config,
             commands::stt_config::set_stt_config,
             commands::gamify::get_ludus_profile,
             commands::gamify::list_ludus_notifications,
             commands::gamify::ack_ludus_notification,
-            commands::gamify::get_gamify_settings,
-            commands::gamify::set_gamify_settings,
+            commands::gamify_settings::get_gamify_settings,
+            commands::gamify_settings::set_gamify_settings,
             commands::gamify::record_gui_event,
             commands::gamify::list_gamify_leaderboard,
             commands::gamify::list_gamify_companions,
@@ -266,6 +368,16 @@ async fn main() {
             commands::harness_town::harness_ci_fleet_status,
             commands::harness_town::vcs_town_status,
             commands::research::start_research_async,
+            commands::research::flag_research_misleading,
+            commands::research_host::save_research_doc,
+            commands::research::persist_research_claims,
+            commands::research::generate_research_doc_draft,
+            commands::research::publish_research_doc,
+            commands::research_host::execute_sandbox_probe,
+            commands::search_probe::get_research_engine_status,
+            commands::search_probe::save_research_engine_config,
+            commands::search_probe::probe_search_provider,
+            commands::search_probe::probe_all_search_providers,
             commands::scientia::list_research_sessions,
             commands::scientia::get_research_session_detail,
             commands::scientia::list_publication_manifests,
@@ -283,7 +395,7 @@ async fn main() {
             commands::scientia_review::run_autofill,
             commands::scientia_review::get_archive_status,
             commands::search::vox_search_query,
-            commands::search::open_locator,
+            commands::locator::open_locator,
             commands::policy::policy_list,
             commands::policy::policy_show,
             commands::policy::policy_status,
@@ -308,9 +420,17 @@ async fn main() {
             commands::browser::browser_type_text,
             commands::browser::browser_input_key,
             commands::browser::browser_set_control_mode,
+            commands::browser::browser_snapshot,
             commands::browser::browser_screenshot_frame,
             commands::browser::browser_session_status,
             commands::browser::browser_validate_playwright,
+            commands::browser::browser_act,
+            commands::browser::browser_extract,
+            commands::browser::browser_extract_json,
+            commands::browser::browser_click_ref,
+            commands::browser::browser_fill_ref,
+            commands::browser::browser_wait_for,
+            commands::browser::browser_read_dom,
             commands::signing::signing_key_status,
             commands::signing::rotate_signing_key,
             commands::mesh::list_trusted_nodes,
@@ -321,8 +441,30 @@ async fn main() {
             commands::mission_control::list_subagent_tree,
             commands::mission_control::list_mc_approvals,
             commands::mission_control::set_task_mesh_policy,
+            commands::daemon::orchestrator_daemon_ready,
             commands::daemon::orchestrator_version_mismatch,
+            commands::axis_remote::axis_connect_remote,
+            commands::axis_remote::axis_disconnect_remote,
+            commands::axis_remote::axis_backend_status,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            if let RunEvent::Exit = event {
+                // Policy: kill orchestrator only if this Axis spawned it.
+                // Adopted shared daemons stay up for CLI / MCP.
+                if let Some(daemon) =
+                    app_handle.try_state::<std::sync::Arc<commands::daemon::PersistentDaemon>>()
+                {
+                    daemon.inner().shutdown_if_spawned();
+                }
+                // Same policy for `vox mens serve`: don't orphan a spawned
+                // child (with a loaded model + bound port) past GUI exit.
+                if let Some(mens_serve) =
+                    app_handle.try_state::<std::sync::Arc<commands::mens_serve::MensServeState>>()
+                {
+                    mens_serve.inner().shutdown_if_spawned();
+                }
+            }
+        });
 }

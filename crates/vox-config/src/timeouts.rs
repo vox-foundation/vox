@@ -41,6 +41,10 @@ pub const D_20S: Duration = Duration::from_secs(20);
 pub const D_30S: Duration = Duration::from_secs(30);
 pub const D_60S: Duration = Duration::from_secs(60);
 pub const D_120S: Duration = Duration::from_secs(120);
+pub const D_180S: Duration = Duration::from_secs(180);
+/// Client read deadline for orch `tool_call`: chat ceiling + margin so the
+/// dispatch-side timeout can surface an Error frame before the client EOFs.
+pub const D_195S: Duration = Duration::from_secs(195);
 pub const D_300S: Duration = Duration::from_secs(300);
 pub const D_600S: Duration = Duration::from_secs(600);
 pub const D_1800S: Duration = Duration::from_secs(1800);

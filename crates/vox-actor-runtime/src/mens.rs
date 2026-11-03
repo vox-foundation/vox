@@ -113,18 +113,19 @@ pub struct GenerateResponse {
     pub eval_duration: u64,
 }
 
-/// An embedding request.
+/// An embedding request. `/api/embed` reads `input`; the deprecated
+/// `/api/embeddings` read `prompt`.
 #[derive(Debug, Serialize)]
 struct EmbedRequest<'a> {
     model: &'a str,
-    prompt: &'a str,
+    input: &'a str,
 }
 
-/// An embedding response.
+/// An embedding response. `/api/embed` returns a batch, one vector per input.
 #[derive(Debug, Deserialize)]
 pub struct EmbedResponse {
-    /// Embedding vector for the input text.
-    pub embedding: Vec<f64>,
+    /// One embedding vector per input; this client sends exactly one input.
+    pub embeddings: Vec<Vec<f64>>,
 }
 
 /// Classification result.
@@ -214,18 +215,21 @@ impl PopuliClient {
     pub async fn embed(&self, text: &str) -> Result<Vec<f64>, MensError> {
         let req = EmbedRequest {
             model: &self.config.model,
-            prompt: text,
+            input: text,
         };
 
         let resp = self
             .http
-            .post(format!("{}/api/embeddings", self.config.base_url))
+            .post(format!("{}/api/embed", self.config.base_url))
             .json(&req)
             .send()
             .await?;
 
         let body = resp.json::<EmbedResponse>().await?;
-        Ok(body.embedding)
+        body.embeddings
+            .into_iter()
+            .next()
+            .ok_or_else(|| MensError::MalformedResponse("/api/embed returned no embeddings".into()))
     }
 
     /// Classify input text into categories.
@@ -291,5 +295,34 @@ impl PopuliClient {
 
         let resp = self.generate(&augmented_prompt).await?;
         Ok(resp.response)
+    }
+}
+
+#[cfg(test)]
+mod embed_wire_tests {
+    use super::*;
+
+    /// Catches: leaving the request field as `prompt`. /api/embed reads
+    /// `input`; a request carrying `prompt` is accepted with an empty input
+    /// and yields a useless embedding rather than an error.
+    #[test]
+    fn embed_request_uses_the_api_embed_field_name() {
+        let json = serde_json::to_string(&EmbedRequest {
+            model: "nomic-embed-text",
+            input: "hello",
+        })
+        .unwrap();
+        assert!(json.contains("\"input\""), "got {json}");
+        assert!(!json.contains("\"prompt\""), "got {json}");
+    }
+
+    /// Catches: leaving `EmbedResponse { embedding: Vec<f64> }`. /api/embed
+    /// returns a batch (`embeddings: [[..]]`); the old shape fails to
+    /// deserialize against it, so this fails if the struct is reverted.
+    #[test]
+    fn embed_response_parses_the_api_embed_batch_shape() {
+        let r: EmbedResponse = serde_json::from_str(r#"{"embeddings":[[0.1,0.2,0.3]]}"#).unwrap();
+        assert_eq!(r.embeddings.len(), 1);
+        assert_eq!(r.embeddings[0], vec![0.1, 0.2, 0.3]);
     }
 }

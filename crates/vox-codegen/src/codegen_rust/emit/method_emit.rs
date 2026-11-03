@@ -15,6 +15,12 @@ fn db_ref(fallible: bool) -> String {
         } else {
             "&**VOX_SCRIPT_DB.get().expect(\"vox script db\")".into()
         }
+    } else if super::script_db::app_db_emit_mode() {
+        if fallible {
+            "VOX_APP_DB.get().expect(\"vox app db: not initialized\").as_ref()".into()
+        } else {
+            "&**VOX_APP_DB.get().expect(\"vox app db: not initialized\")".into()
+        }
     } else if fallible {
         "&db".into()
     } else {
@@ -22,8 +28,43 @@ fn db_ref(fallible: bool) -> String {
     }
 }
 
+thread_local! {
+    /// Set while emitting a db op that is the scrutinee of a `match` with `Ok`/`Error`
+    /// arms. Vox types every db op `Result[T, str]`, but codegen normally unwraps it
+    /// (`?` / `.expect`) because most code uses the value; a match on the Result needs the
+    /// Result itself. Consumed by the outermost db op only (nested args see `false`).
+    static DB_RESULT_MODE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Emit `f` with the next db op keeping its `Result` (see [`DB_RESULT_MODE`]).
+pub(super) fn with_db_result_mode<R>(f: impl FnOnce() -> R) -> R {
+    DB_RESULT_MODE.with(|c| c.set(true));
+    let out = f();
+    DB_RESULT_MODE.with(|c| c.set(false));
+    out
+}
+
+fn take_db_result_mode() -> bool {
+    DB_RESULT_MODE.with(|c| c.replace(false))
+}
+
+thread_local! {
+    /// True while rendering the db op that took [`DB_RESULT_MODE`]; read by
+    /// [`await_or_expect_suffix`]. Saved/restored per op so nested ops are unaffected.
+    static DB_OP_AS_RESULT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+fn db_op_as_result() -> bool {
+    DB_OP_AS_RESULT.with(|c| c.get())
+}
+
+/// `.await` keeping the `Result` with a `String` error, matching Vox `Result[T, str]`.
+const AWAIT_AS_RESULT: &str = ".await.map_err(|e| e.to_string())";
+
 fn await_or_expect_suffix(fallible: bool, expect_msg: &str) -> String {
-    if fallible {
+    if db_op_as_result() {
+        AWAIT_AS_RESULT.into()
+    } else if fallible {
         ".await?".into()
     } else {
         format!(".await.expect(\"{expect_msg}\")")
@@ -80,7 +121,10 @@ where
     F: Fn(&HirExpr) -> String,
 {
     let db = db_ref(fallible);
+    // Taken before the args so a db op nested in an argument stays in value form.
+    let as_result = take_db_result_mode();
     let args_str = emit_param_values(emit_expr, args);
+    let prev_as_result = DB_OP_AS_RESULT.with(|c| c.replace(as_result));
 
     let rendered = match op {
         HirDbTableOp::Insert => {
@@ -88,9 +132,9 @@ where
                 .first()
                 .cloned()
                 .unwrap_or_else(|| "serde_json::json!({})".to_string());
-            if fallible {
+            if fallible && !as_result {
                 format!(
-                    "{{ let item: {table_name} = serde_json::from_value({val}).map_err(|e| vox_db::StoreError::Serialization(format!(\"{{}}\", e)))?; {table_name}::insert({db}, &item).await?; }}"
+                    "{{ let item: {table_name} = serde_json::from_value({val}).map_err(|e| vox_db::StoreError::Serialization(format!(\"{{}}\", e)))?; {table_name}::insert({db}, &item).await? }}"
                 )
             } else {
                 format!(
@@ -114,7 +158,7 @@ where
                 .get(1)
                 .cloned()
                 .unwrap_or_else(|| "serde_json::json!({})".to_string());
-            if fallible {
+            if fallible && !as_result {
                 format!(
                     "{{ let item: {table_name} = serde_json::from_value({val}).map_err(|e| vox_db::StoreError::Serialization(format!(\"{{}}\", e)))?; {table_name}::update({db}, {id_arg}, &item).await?; }}"
                 )
@@ -137,6 +181,7 @@ where
         HirDbTableOp::All => emit_all_op(emit_expr, table_name, order_by, limit, fallible, &db),
         HirDbTableOp::Count => {
             if order_by.is_some() || limit.is_some() {
+                DB_OP_AS_RESULT.with(|c| c.set(prev_as_result));
                 return "/* vox codegen: invalid count modifiers (typecheck should reject) */ 0"
                     .into();
             }
@@ -163,6 +208,7 @@ where
             )
         }
     };
+    DB_OP_AS_RESULT.with(|c| c.set(prev_as_result));
     if plan.is_some_and(|p| p.capabilities.requires_sync)
         && matches!(
             op,
@@ -517,6 +563,41 @@ fn obj_is_list(obj: &HirExpr, inferred_types: Option<&HashMap<Span, HirType>>) -
     )
 }
 
+/// Returns `true` when the HIR expression's inferred type is an anonymous
+/// `Record` (i.e. a `{k: v, ...}` object literal typed via
+/// `typeck::Ty::Record`), as opposed to the `Json` newtype
+/// (`std.json`'s dynamic value type — `typeck/builtins.rs`'s
+/// `json_value_methods`) or an untyped receiver. `Ty` has no dedicated
+/// `HirType::Record` variant — `Ty::to_hir_type()` falls back to
+/// `HirType::Named(self.signature())` for it, and `Ty::Record`'s signature
+/// is always a curly-braced field list (e.g.
+/// `HirType::Named("{a: int, b: str}")`, or `"{}"` for an empty literal) —
+/// so that shape is what we match on here.
+///
+/// Used by the `.keys()` dispatch below (Important-5 fix) as a POSITIVE
+/// gate: an earlier version gated on `!obj_is_json(obj, ..)` instead, which
+/// fails OPEN whenever `inferred_types` is absent or the span wasn't
+/// tracked — a genuine `Json` receiver would then silently take the
+/// `Record` lowering too, stripping the `Option` wrapper that
+/// `json_value_methods["keys"]` (`Option[List[str]]`) promises callers.
+/// Requiring a positive `obj_is_record` match instead fails CLOSED: with no
+/// type info, `.keys()` falls through past this arm rather than risk
+/// mis-lowering a `Json` value.
+fn obj_is_record(obj: &HirExpr, inferred_types: Option<&HashMap<Span, HirType>>) -> bool {
+    let Some(types) = inferred_types else {
+        return false;
+    };
+    let span = match obj {
+        HirExpr::Ident(_, s)
+        | HirExpr::FieldAccess(_, _, s)
+        | HirExpr::MethodCall(_, _, _, _, s)
+        | HirExpr::Call(_, _, _, s)
+        | HirExpr::Index(_, _, s) => *s,
+        _ => return false,
+    };
+    matches!(types.get(&span), Some(HirType::Named(n)) if n.starts_with('{'))
+}
+
 pub(super) fn emit_method_call<F>(
     emit_expr: &F,
     obj: &HirExpr,
@@ -614,6 +695,32 @@ where
         if let Some(s) = try_emit_list_method(method, &o, &arg_exprs) {
             return s;
         }
+    }
+    // `x.keys()` on a plain object literal (Task 2 corollary —
+    // `object_field_order.vox`, one of Task 1b's eight goldens: `for k in
+    // o.keys() { ... }` over a `{zeta: 1, middle: 2, alpha: 3}` literal).
+    // Object literals lower to `serde_json::json!({...})` (a
+    // `serde_json::Value`; see `ObjectLit` in `stmt_expr_tail.rs`), which has
+    // no inherent `.keys()` — only `.as_object()` does, yielding a
+    // `serde_json::Map<String, Value>` whose own `.keys()` returns
+    // `&String`s that must be cloned into an owned `Vec<String>` to match
+    // this `Record`-typed receiver's non-Option `List[str]` typeck signature
+    // (`typeck/builtins.rs`). `preserve_order` (Cargo.toml, Step 3) keeps
+    // that iteration in insertion order, matching the interpreter's
+    // `fields.iter()` in `eval/builtins.rs`. Gated on a POSITIVE
+    // `obj_is_record` match (Important-5 fix), not `!obj_is_json(..)`: the
+    // negative form fails open when `inferred_types` is absent, letting a
+    // real `Json` receiver silently take this non-Option lowering instead
+    // of its own `Option[List[str]]`-shaped `.keys()`. `obj_is_record` fails
+    // closed instead — no type info means we skip this arm.
+    if method == "keys"
+        && arg_exprs.is_empty()
+        && !recv_is_list
+        && obj_is_record(obj, inferred_types)
+    {
+        return format!(
+            "({o}).as_object().map(|m| m.keys().cloned().collect::<Vec<String>>()).unwrap_or_default()"
+        );
     }
     // `x.get(key)` with a STRING-typed key (literal or inferred `str`) is an
     // object/JSON keyed lookup — `VoxJson::get(String) -> Option<VoxJson>`,
@@ -716,6 +823,33 @@ fn insert_result_already_unwrapped(
     })
 }
 
+fn db_table_op_for_method(method: &str) -> Option<HirDbTableOp> {
+    Some(match method {
+        "insert" => HirDbTableOp::Insert,
+        "get" | "find" => HirDbTableOp::Get,
+        "update" => HirDbTableOp::Update,
+        "delete" => HirDbTableOp::Delete,
+        "all" => HirDbTableOp::All,
+        "count" => HirDbTableOp::Count,
+        "query" => HirDbTableOp::UnsafeQueryRawClause,
+        _ => return None,
+    })
+}
+
+/// True for `db.Table.op(...)`. Codegen already peels the op's `Result`
+/// (inner `.await?` when fallible, `.expect` otherwise), so a Vox `?` on it
+/// must not add a second propagation.
+pub(super) fn is_db_table_op_call(expr: &HirExpr) -> bool {
+    let HirExpr::MethodCall(obj, method, _, plan, _) = expr else {
+        return false;
+    };
+    let HirExpr::FieldAccess(inner, _, _) = obj.as_ref() else {
+        return false;
+    };
+    matches!(inner.as_ref(), HirExpr::Ident(n, _) if n == "db")
+        && (plan.is_some() || db_table_op_for_method(method).is_some())
+}
+
 /// Try to emit a `db.Table.method(...)` call. When HIR attached a query plan
 /// (e.g. `filter({ col: val })` → `FilterRecord`), use `plan.op` so we do not
 /// fall through to list `.filter` lowerings on `db.User`.
@@ -739,19 +873,9 @@ where
     if n != "db" {
         return None;
     }
-    let op = if let Some(p) = plan {
-        p.op
-    } else {
-        match method {
-            "insert" => HirDbTableOp::Insert,
-            "get" | "find" => HirDbTableOp::Get,
-            "update" => HirDbTableOp::Update,
-            "delete" => HirDbTableOp::Delete,
-            "all" => HirDbTableOp::All,
-            "count" => HirDbTableOp::Count,
-            "query" => HirDbTableOp::UnsafeQueryRawClause,
-            _ => return None,
-        }
+    let op = match plan {
+        Some(p) => p.op,
+        None => db_table_op_for_method(method)?,
     };
     Some(emit_db_table_op(
         emit_expr,
@@ -960,6 +1084,16 @@ fn try_emit_list_method(method: &str, o: &str, arg_exprs: &[String]) -> Option<S
             o, arg_exprs[0]
         )),
 
+        // Task 2 Step 7: `xs.sorted()` (no key) — natural `Ord`. Needed so
+        // `fs.glob(...).sorted()`/`fs.list_dir(...)` etc. compile natively;
+        // the runtime helpers (`vox_fs_glob`, `vox_list_dir`) already return
+        // pre-sorted `Vec<String>`, so this is also reachable on plain
+        // in-script lists of ints/strings/etc. built without the fs tier.
+        "sorted" if arg_exprs.is_empty() => Some(format!(
+            "({{ let mut __lst = {}; __lst.sort(); __lst }})",
+            o
+        )),
+
         _ => None,
     }
 }
@@ -1148,8 +1282,107 @@ fn try_emit_str_method(method: &str, o: &str, arg_exprs: &[String]) -> Option<St
 
 #[cfg(test)]
 mod tests {
-    use super::{SqlDialect, dialect_for_backend_kind, dialect_from_urls};
+    use super::{
+        HashMap, HirExpr, HirType, Span, SqlDialect, dialect_for_backend_kind, dialect_from_urls,
+        emit_method_call, is_db_table_op_call, obj_is_record,
+    };
     use vox_sql::BackendKind;
+
+    fn ident(name: &str, span: Span) -> HirExpr {
+        HirExpr::Ident(name.to_string(), span)
+    }
+
+    fn identity_emit(e: &HirExpr) -> String {
+        match e {
+            HirExpr::Ident(name, _) => name.clone(),
+            _ => "<unsupported>".to_string(),
+        }
+    }
+
+    /// Important-5 fix: `obj_is_record` is a positive check, so it must
+    /// return `true` ONLY for a receiver whose tracked inferred type is the
+    /// curly-braced `Ty::Record` signature shape — never for a `Json`
+    /// receiver, an untracked span, or a missing `inferred_types` map. The
+    /// old guard (`!obj_is_json(..)`) inverted the last two cases to `true`,
+    /// which is exactly the fail-open bug this locks shut.
+    #[test]
+    fn obj_is_record_true_only_for_record_signature() {
+        let span = Span::new(0, 1);
+        let mut types = HashMap::new();
+        types.insert(span, HirType::Named("{a: int}".to_string()));
+        let record_recv = ident("o", span);
+        assert!(obj_is_record(&record_recv, Some(&types)));
+
+        // Json receiver: must NOT be treated as a Record.
+        let json_span = Span::new(2, 3);
+        let mut json_types = HashMap::new();
+        json_types.insert(json_span, HirType::Named("Json".to_string()));
+        let json_recv = ident("j", json_span);
+        assert!(!obj_is_record(&json_recv, Some(&json_types)));
+
+        // No inferred_types at all (common when a codegen call site doesn't
+        // thread it through) — must fail CLOSED, not default to "is a Record".
+        assert!(!obj_is_record(&record_recv, None));
+
+        // inferred_types present but this span was never recorded.
+        let untracked_span = Span::new(4, 5);
+        let untracked_recv = ident("u", untracked_span);
+        assert!(!obj_is_record(&untracked_recv, Some(&types)));
+    }
+
+    /// End-to-end guard: `.keys()` on a `Record`-typed receiver gets the
+    /// direct `.as_object()...unwrap_or_default()` lowering; on a
+    /// `Json`-typed receiver (or with no type info at all) it must NOT —
+    /// falling through to the generic `(o).keys()` passthrough instead, so a
+    /// real `Json` value keeps its own `Option[List[str]]`-shaped `.keys()`.
+    #[test]
+    fn keys_dispatch_only_takes_record_lowering_for_record_receiver() {
+        let record_span = Span::new(10, 11);
+        let mut record_types = HashMap::new();
+        record_types.insert(record_span, HirType::Named("{a: int}".to_string()));
+        let record_recv = ident("rec", record_span);
+        let emitted = emit_method_call(
+            &identity_emit,
+            &record_recv,
+            "keys",
+            &[],
+            None,
+            false,
+            Some(&record_types),
+        );
+        assert!(
+            emitted.contains("as_object()") && emitted.contains("unwrap_or_default()"),
+            "Record receiver must get the non-Option Record lowering; got: {emitted}"
+        );
+
+        let json_span = Span::new(12, 13);
+        let mut json_types = HashMap::new();
+        json_types.insert(json_span, HirType::Named("Json".to_string()));
+        let json_recv = ident("j", json_span);
+        let emitted_json = emit_method_call(
+            &identity_emit,
+            &json_recv,
+            "keys",
+            &[],
+            None,
+            false,
+            Some(&json_types),
+        );
+        assert_eq!(
+            emitted_json, "j.keys()",
+            "Json receiver must fall through to its own inherent `.keys()`, not the Record lowering"
+        );
+
+        // No inferred_types at all: must fail CLOSED (fall through), not
+        // silently assume Record — this is the exact regression Important-5
+        // fixes (`!obj_is_json(..)` used to fail open here).
+        let emitted_no_types =
+            emit_method_call(&identity_emit, &json_recv, "keys", &[], None, false, None);
+        assert_eq!(
+            emitted_no_types, "j.keys()",
+            "missing inferred_types must not fall back to the Record lowering"
+        );
+    }
 
     #[test]
     fn backend_kind_maps_to_expected_dialect_shape() {
@@ -1228,5 +1461,21 @@ mod tests {
             dialect_from_urls(Some("nope"), Some("also-nope")).placeholder_style,
             SqlDialect::sqlite().placeholder_style
         );
+    }
+
+    #[test]
+    fn is_db_table_op_call_only_matches_db_table_ops() {
+        let sp = Span::new(0, 1);
+        let call = |obj: HirExpr, method: &str| {
+            HirExpr::MethodCall(Box::new(obj), method.to_string(), vec![], None, sp)
+        };
+        let db_note = || HirExpr::FieldAccess(Box::new(ident("db", sp)), "Note".into(), sp);
+        for op in ["insert", "get", "update", "delete", "all", "count"] {
+            assert!(is_db_table_op_call(&call(db_note(), op)), "db.Note.{op}");
+        }
+        assert!(!is_db_table_op_call(&call(db_note(), "frobnicate")));
+        let other_note = HirExpr::FieldAccess(Box::new(ident("store", sp)), "Note".into(), sp);
+        assert!(!is_db_table_op_call(&call(other_note, "insert")));
+        assert!(!is_db_table_op_call(&call(ident("items", sp), "insert")));
     }
 }

@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/build-and-crate-org-improvement-plan-2026-06.md",
+  "type": "DOC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "Build-Time, Crate-Org & Target-Sprawl Improvement Plan (2026-06)",
+  "summary": "Synthesis of 7-lens audit of workspace (build-time, crate layers, dead/combine crates, feature gates, plugin boundaries, target sprawl). Records quick wins landed and gated workstreams with open decisions.",
+  "scope": ["build-time", "crate-organization", "target-folder", "feature gates", "plugin boundaries", "dependency volume"],
+  "cross_refs": ["comprehensive-audit-v2-2026.md", "build-time-baseline.md", "build-time-log.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Audit + improvement plan with execution log (items landed + measured before/after). Frontmatter status=current. Contains 'Open decisions' naming 5 things requiring human call (§206). Not a binding decision document; it documents decisions already made (WS1-T1, WS2-T1 done) and deferred decisions (WS1-T2, WS1-T3 gated)."
+}

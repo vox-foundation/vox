@@ -21,9 +21,85 @@ pub fn keyed_hash(key: &[u8; 32], data: &[u8]) -> [u8; 32] {
     hasher.finalize().into()
 }
 
-/// Fast generic hashing for caches (XXH3)
+/// Fast generic hashing for caches (XXH3-64)
 pub fn fast_hash(data: &[u8]) -> u64 {
     xxh3_64(data)
+}
+
+/// Hex of the fast hash over `bytes`: XXH3-128, 32 lowercase hex chars.
+/// Matches `format!("{h:032x}")` on the raw `u128` — big-endian hex of the
+/// 16-byte digest is byte-for-byte identical to that formatting.
+///
+/// This is the single call site for both the interp's `crypto.hash_fast` and
+/// native codegen's `crypto.hash_fast` emit (`builtin_registry.rs`). It is
+/// *not* called by `vox-actor-runtime`'s `vox_hash_fast` (used by
+/// `std.hash_fast` and `prompt_canonical`) — that crate cannot take a normal
+/// dependency on `vox-crypto` without a `crate-edges` ledger entry, so it
+/// reimplements the same algorithm independently. Equivalence between the two
+/// is enforced by a dev-dependency test in
+/// `vox-actor-runtime::builtins::tests::hash_fast_matches_vox_crypto_hash_fast_hex`.
+pub fn hash_fast_hex(bytes: &[u8]) -> String {
+    hex_encode(&xxhash_rust::xxh3::xxh3_128(bytes).to_be_bytes())
+}
+
+/// Lowercase hex encoding of an arbitrary byte slice.
+pub fn hex_encode(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for b in bytes {
+        out.push(HEX[(b >> 4) as usize] as char);
+        out.push(HEX[(b & 0x0f) as usize] as char);
+    }
+    out
+}
+
+#[cfg(test)]
+mod hash_fast_hex_tests {
+    use super::*;
+
+    #[test]
+    fn hex_encode_matches_lowercase_format_x() {
+        let bytes = [0x00u8, 0x0fu8, 0xa0u8, 0xffu8, 0x7bu8];
+        assert_eq!(hex_encode(&bytes), "000fa0ff7b");
+    }
+
+    #[test]
+    fn hex_encode_of_empty_slice_is_empty_string() {
+        assert_eq!(hex_encode(&[]), "");
+    }
+
+    #[test]
+    fn hash_fast_hex_is_32_lowercase_hex_chars() {
+        let digest = hash_fast_hex(b"abc");
+        assert_eq!(digest.len(), 32, "{digest}");
+        assert!(
+            digest
+                .chars()
+                .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
+            "{digest}"
+        );
+    }
+
+    #[test]
+    fn hash_fast_hex_matches_be_bytes_of_xxh3_128() {
+        let expected = hex_encode(&xxhash_rust::xxh3::xxh3_128(b"abc").to_be_bytes());
+        assert_eq!(hash_fast_hex(b"abc"), expected);
+    }
+
+    #[test]
+    fn hash_fast_hex_is_deterministic_and_input_sensitive() {
+        assert_eq!(hash_fast_hex(b"abc"), hash_fast_hex(b"abc"));
+        assert_ne!(hash_fast_hex(b"abc"), hash_fast_hex(b"abd"));
+    }
+}
+
+/// SHA-256, only for external formats that fix the algorithm (e.g. Trusty URIs).
+/// Vox-owned hashing uses [`secure_hash`] or [`compliance_hash`].
+pub fn interop_sha256(data: &[u8]) -> [u8; 32] {
+    let result = <sha2::Sha256 as sha2::Digest>::digest(data);
+    let mut out = [0u8; 32];
+    out.copy_from_slice(&result);
+    out
 }
 
 /// Compliance / standardized hash (SHA-3 256)
@@ -626,6 +702,15 @@ mod semcov_wave41_tests {
             got.as_ref(),
             expected.as_slice(),
             "SHA3-256 empty known vector mismatch"
+        );
+    }
+
+    #[test]
+    fn interop_sha256_known_vector() {
+        // Catches: interop hash wired to SHA3 or BLAKE3 — FIPS 180-2 SHA-256("abc")
+        assert_eq!(
+            hex::encode(interop_sha256(b"abc")),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
         );
     }
 

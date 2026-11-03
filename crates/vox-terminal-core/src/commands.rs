@@ -75,21 +75,54 @@ impl Default for CommandRegistry {
             description: "List available slash-commands",
             handler: |_| {
                 CommandResult::Output(
-                    "Available commands: /help /model /budget /skills /memory /context /sh /ai"
+                    "Available commands: /help /model /budget /skills /memory /context /sh /nu /ai"
                         .into(),
                 )
             },
         });
         r.register(CommandEntry {
-            name: "model",
-            description: "Switch or list AI models",
+            name: "nu",
+            description: "Run a structured Nushell pipeline (JSON output) or show Nushell hints",
             handler: |args| {
-                if args.is_empty() {
+                let trimmed = args.trim();
+                if trimmed.is_empty() || trimmed == "help" || trimmed == "--help" {
                     CommandResult::Output(
-                        "Usage: /model <name>  — e.g. /model claude-sonnet-4-6".into(),
+                        "Usage: /nu <pipeline> | !nu <pipeline> — e.g. `/nu ls | where size > 1kb | to json`\n\
+                         POSIX-to-Nushell Quick Reference:\n  \
+                         • &&     → ; or and\n  \
+                         • ||     → or\n  \
+                         • 2>&1   → out+err>\n  \
+                         • $VAR   → $env.VAR"
+                            .into(),
                     )
                 } else {
-                    CommandResult::Output(format!("Model set to: {args}"))
+                    let (code, stdout, stderr) = crate::pty::run_nu_structured_capture(trimmed);
+                    if code == 0 {
+                        CommandResult::Output(stdout)
+                    } else {
+                        CommandResult::Output(format!("exit {code}: {stderr}{stdout}"))
+                    }
+                }
+            },
+        });
+        r.register(CommandEntry {
+            name: "model",
+            description: "Switch, list, or intelligently route AI models",
+            handler: |args| {
+                let trimmed = args.trim();
+                if trimmed.is_empty() {
+                    CommandResult::Output(
+                        "Usage: /model <name> | /model route <prompt>  — e.g. /model claude-sonnet-4-6"
+                            .into(),
+                    )
+                } else if let Some(rest) = trimmed
+                    .strip_prefix("route ")
+                    .or_else(|| trimmed.strip_prefix("explain "))
+                {
+                    let routed = crate::agent::route_agent_prompt(rest);
+                    CommandResult::Output(routed.summary())
+                } else {
+                    CommandResult::Output(format!("Model set to: {trimmed}"))
                 }
             },
         });

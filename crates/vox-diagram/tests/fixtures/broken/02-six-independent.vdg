@@ -1,0 +1,9 @@
+// expect: diagram/unexpected-token, diagram/expected-quoted-label, diagram/invalid-shape, diagram/empty-label, diagram/invalid-direction, diagram/undeclared-node
+graph {
+    node a "A"
+    node b: Backend
+    node c: "C" { shape: hexagon }
+    node d: ""
+    direction: sideways
+    a -> missing
+}

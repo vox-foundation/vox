@@ -14,7 +14,7 @@ use vox_codegen::codegen_rust::RustAppShell;
 /// Bundle a Vox source file into a complete, runnable web application or script binary.
 ///
 /// 1. For `App` mode: Runs full web scaffolding, `pnpm` install + build, and embeds assets.
-/// 2. For `Script` mode: Compiles to a single standalone binary (native or WASI).
+/// 2. For `Script` mode: Compiles to a single standalone native binary.
 pub async fn run(
     file: &Path,
     out_dir: &Path,
@@ -49,26 +49,19 @@ async fn run_script_bundle(file: &Path, out_dir: &Path, target: Option<&str>) ->
         sandbox: false,
         allow_mcp: false,
         no_cache: false,
-        isolation: None, // Default to native for now, or could check env
         trust_class: None,
         wasi_dirs: Vec::new(),
         target_triple: target.map(|s| s.to_string()),
     };
 
-    let (artifact_path, backend) = script::compile(file, &opts).await?;
+    let (artifact_path, _backend) = script::compile(file, &opts).await?;
 
     fs::create_dir_all(out_dir).await?;
     let app_name = file
         .file_stem()
         .map(|s| s.to_string_lossy().to_string())
         .unwrap_or_else(|| "script".into());
-    let bin_name = if backend.cache_label().contains("wasi") {
-        format!("{}.wasm", app_name)
-    } else if cfg!(windows) {
-        format!("{}.exe", app_name)
-    } else {
-        app_name
-    };
+    let bin_name = script_bundle_bin_name(&app_name);
 
     let dest = out_dir.join(bin_name);
     fs::copy(&artifact_path, &dest)
@@ -83,6 +76,13 @@ async fn run_script_bundle(file: &Path, out_dir: &Path, target: Option<&str>) ->
     );
 
     Ok(())
+}
+
+/// Where Step 1's `build::run` wrote the generated Rust project for `file`.
+/// Must share build's computation: a member package with its own `Vox.toml`
+/// resolves to `<package>/target/generated`, which the cwd need not match.
+fn app_generated_dir(file: &Path) -> PathBuf {
+    build::generated_backend_dir(file.parent())
 }
 
 async fn run_app_bundle(
@@ -157,7 +157,7 @@ async fn run_app_bundle(
 
     // Step 4: Copy built assets to backend public dir
     println!("=== Step 4/5: Packaging static assets ===");
-    let generated_dir = crate::fs_utils::run_target_dir_for_workspace(None).join("generated");
+    let generated_dir = app_generated_dir(file);
     let public_dir = generated_dir.join("public");
     copy_built_assets(&app_dir.join("dist"), &public_dir).await?;
 
@@ -385,4 +385,53 @@ fn binary_artifact_path(
     }
 
     Ok(binary_path)
+}
+
+/// Host binary name for a script bundle. The WASI `.wasm` lane is gone.
+fn script_bundle_bin_name(app_name: &str) -> String {
+    if cfg!(windows) {
+        format!("{app_name}.exe")
+    } else {
+        app_name.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{app_generated_dir, script_bundle_bin_name};
+
+    /// Real CI failure (compile-matrix smoke): for a workspace member package
+    /// with its own `Vox.toml`, `build::run` wrote the generated project under
+    /// `<package>/target/generated`, but the bundle step rebuilt the path from
+    /// the cwd (`<workspace>/target/generated`, no `Cargo.toml` there). Cargo
+    /// then climbed to the parent repo's manifest and the binary was "not found".
+    #[test]
+    fn app_generated_dir_is_the_package_build_dir_not_the_cwd() {
+        let tmp = tempfile::tempdir().unwrap();
+        let ws = tmp.path().join("ws");
+        let pkg = ws.join("packages/desktop");
+        std::fs::create_dir_all(pkg.join("src")).unwrap();
+        std::fs::write(ws.join("Vox.toml"), "").unwrap();
+        std::fs::write(pkg.join("Vox.toml"), "").unwrap();
+        let file = pkg.join("src/main.vox");
+
+        assert_eq!(
+            app_generated_dir(&file),
+            crate::fs_utils::strip_windows_verbatim_path(pkg.join("target/generated")),
+        );
+    }
+
+    #[test]
+    fn script_bundle_bin_name_is_native_not_wasm() {
+        let name = script_bundle_bin_name("demo");
+        assert!(
+            !name.ends_with(".wasm"),
+            "script bundles no longer emit WASI artifacts, got {name}"
+        );
+        if cfg!(windows) {
+            assert_eq!(name, "demo.exe");
+        } else {
+            assert_eq!(name, "demo");
+        }
+    }
 }

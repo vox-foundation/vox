@@ -1,0 +1,7 @@
+crates/vox-plugin-browser -> crates/vox-plugin-browser
+crates/vox-plugin-mens-candle-cuda -> crates/vox-plugin-mens-candle-core
+crates/vox-plugin-mens-candle-metal -> crates/vox-plugin-mens-candle-core
+crates/vox-gui -> crates/vox-gui
+crates/vox-mesh-transport -> crates/vox-mesh-transport
+crates/vox-plugin-mens-candle-cuda -> crates/vox-cli
+crates/vox-plugin-mens-candle-metal -> crates/vox-cli

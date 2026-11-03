@@ -191,6 +191,11 @@ impl Parser {
                     break;
                 }
                 if matches!(self.peek(), Token::Eof) {
+                    // EOF inside an open struct body is a truncated/malformed
+                    // file, not a successful close — `expect` records a
+                    // proper "Expected }, found <eof>" error instead of
+                    // silently treating EOF as if `}` had been consumed.
+                    self.expect(&Token::RBrace)?;
                     break;
                 }
                 let fstart = self.span();
@@ -410,6 +415,7 @@ impl Parser {
         let mut primary_key: Option<String> = None;
         let mut is_extern = false;
         let mut source: Option<String> = None;
+        let mut scoped_by: Option<String> = None;
         if matches!(self.peek(), Token::LParen) {
             self.advance(); // eat `(`
             loop {
@@ -442,6 +448,15 @@ impl Parser {
                         self.advance(); // eat `pk`
                         self.expect(&Token::Colon)?;
                         primary_key = Some(self.parse_ident_name()?);
+                    }
+                    Token::Ident(k) if k == "scoped_by" => {
+                        if scoped_by.is_some() {
+                            self.push_duplicate_table_param_error("scoped_by");
+                            return Err(());
+                        }
+                        self.advance(); // eat `scoped_by`
+                        self.expect(&Token::Colon)?;
+                        scoped_by = Some(self.parse_ident_name()?);
                     }
                     Token::Ident(k) if k == "source" => {
                         if source.is_some() {
@@ -476,8 +491,13 @@ impl Parser {
                         use crate::parser::error::{ParseError, ParseErrorClass};
                         self.errors.push(ParseError::classified(
                             self.span(),
-                            "Expected `extern`, `pk: <field_name>`, or `source: <name>` inside `@table(...)`.",
-                            vec!["extern".into(), "pk: id".into(), "source: users".into()],
+                            "Expected `extern`, `pk: <field_name>`, `scoped_by: <field_name>`, or `source: <name>` inside `@table(...)`.",
+                            vec![
+                                "extern".into(),
+                                "pk: id".into(),
+                                "scoped_by: tenant".into(),
+                                "source: users".into(),
+                            ],
                             Some(self.peek().to_string()),
                             ParseErrorClass::Declaration,
                         ));
@@ -537,7 +557,7 @@ impl Parser {
             fields,
             description: None,
             json_layout: None,
-            auth_provider: None,
+            auth_provider: scoped_by.map(|col| format!("scoped_by:{col}")),
             roles: vec![],
             cors: None,
             is_pub: false,

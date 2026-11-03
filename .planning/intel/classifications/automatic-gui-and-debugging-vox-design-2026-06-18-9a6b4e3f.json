@@ -1,0 +1,31 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/automatic-gui-and-debugging-vox-design-2026-06-18.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Vox Design — Auto-GUI & Zero-Annotation Severity-Graded Debugging",
+  "summary": "Concept design (roadmap status) for three tracks: (A) naked-objects auto-GUI via @admin, (B) zero-annotation severity-graded interpreter debugging, (C) Vox-as-target for AI UI generators.",
+  "scope": [
+    "concept design",
+    "auto-GUI",
+    "naked-objects",
+    "@admin annotation",
+    "execution tracer",
+    "severity inference",
+    "MCP tools",
+    "design-system interop"
+  ],
+  "cross_refs": [
+    "auto-gui-from-pure-logic-research-2026-06-18.md",
+    "auto-debugging-zero-annotation-research-2026-06-18.md",
+    "error-surfacing-dual-audience-research-2026-06-18.md",
+    "auto-derivation-design-hygiene-2026-06-18.md",
+    "ai-ui-generators-and-vox-as-target-research-2026-06-18.md",
+    "../superpowers/plans/2026-06-18-track-a-naked-objects-auto-gui.md",
+    "../superpowers/plans/2026-06-18-track-b-zero-annotation-debugging.md",
+    "../superpowers/plans/2026-06-18-track-c-vox-as-ai-ui-target.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Status: roadmap (not Accepted ADR); concept design deliverable, not yet an approved execution plan."
+}

@@ -55,7 +55,7 @@ fn dominates(a: &ParetoPoint, b: &ParetoPoint) -> bool {
 
 /// Positions of every point that no other point dominates, in input order.
 ///
-/// Never returns empty for non-empty input: [`dominates`] is irreflexive and transitive —
+/// Never returns empty for non-empty input: `dominates` is irreflexive and transitive —
 /// transitive *because* an unknown axis is incomparable rather than neutral, so no chain of
 /// comparisons can cycle — and a strict partial order on a finite set always has a maximal
 /// element. A `NaN` quality is incomparable in both directions, so such a point is always
@@ -176,6 +176,23 @@ mod tests {
         assert_eq!(
             pareto_frontier(&[p(0.90, 0.02, 900), p(0.70, 0.02, 100)]),
             vec![0, 1]
+        );
+    }
+
+    #[test]
+    fn model_scores_reach_the_frontier_through_all_three_reporting_axes() {
+        let reliable = score(95, 100, Some(0.02), Some(900));
+        let fast = score(70, 100, Some(0.02), Some(100));
+        let dominated = score(50, 100, Some(0.02), Some(900));
+        let points = [reliable, fast, dominated]
+            .iter()
+            .map(|row| pareto_point_for(Some(row)))
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            pareto_frontier(&points),
+            vec![0, 1],
+            "lower latency alone must preserve row 1 while row 2 stays dominated"
         );
     }
 
@@ -384,5 +401,42 @@ mod tests {
         assert!(!is_observed(None));
         assert!(!is_observed(Some(&score(0, 0, None, None))));
         assert!(is_observed(Some(&score(1, 1, None, None))));
+    }
+
+    #[test]
+    fn reporting_surfaces_share_explicit_reliability_axis_language() {
+        let scoreboard = include_str!("../../../vox-cli/src/commands/model/scoreboard.rs");
+        let explain = include_str!("../../../vox-cli/src/commands/model/explain.rs");
+
+        assert!(
+            scoreboard.contains("reliability, cost and latency"),
+            "the shared legend must name the reliability/cost/latency axes"
+        );
+        assert!(
+            explain.contains("scoreboard::pareto_legend()"),
+            "explain must reuse the scoreboard legend verbatim"
+        );
+    }
+
+    #[test]
+    fn live_selector_source_does_not_reference_reporting_helpers() {
+        let source = include_str!("select.rs");
+        let production = source
+            .split("#[cfg(test)]")
+            .next()
+            .expect("select.rs has production source");
+        let uncommented = production
+            .lines()
+            .map(|line| line.split("//").next().unwrap_or_default())
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        for reporting_symbol in ["pareto_point_for", "pareto_frontier", "frontier_marker"] {
+            assert!(
+                !uncommented.contains(reporting_symbol),
+                "live models::select production code must not reference reporting helper \
+                 {reporting_symbol}"
+            );
+        }
     }
 }

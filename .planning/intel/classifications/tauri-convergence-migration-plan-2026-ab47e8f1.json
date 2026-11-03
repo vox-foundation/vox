@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/tauri-convergence-migration-plan-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Tauri convergence migration plan (2026-Q2)",
+  "summary": "Executable roadmap for converging desktop/mobile packaging on Tauri 2 while retiring Capacitor and Axum.",
+  "scope": ["Tauri", "desktop packaging", "mobile packaging", "Capacitor retirement", "Axum retirement", "migration phases"],
+  "cross_refs": ["docs/src/adr/037-tauri-convergence.md", "docs/src/architecture/tauri-audit-2026.md", "docs/src/architecture/vox-application-packaging-ssot-2026.md", "docs/src/architecture/where-things-live.md", "docs/src/architecture/layers.toml", "AGENTS.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

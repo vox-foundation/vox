@@ -1,40 +1,12 @@
-//! Integration-style tests: real HTTP to a local mock server (no production endpoints).
+//! Integration tests for local `Publisher::publish_all` and `SyndicationHandoffPayloadV1` handoff (`SOCIAL-03`, `SOCIAL-04`).
 
-use axum::{Json, Router, routing::post};
 use chrono::Utc;
-use serde_json::json;
-use tokio::net::TcpListener;
+use vox_publisher::handoff::build_syndication_handoff_payload;
 use vox_publisher::types::{OpenCollectiveConfig, SyndicationConfig, UnifiedNewsItem};
-use vox_publisher::{Publisher, PublisherConfig};
+use vox_publisher::{ChannelOutcome, Publisher, PublisherConfig};
 
 #[tokio::test]
-async fn twitter_and_opencollective_use_configured_bases_only() {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-
-    let app = Router::new()
-        .route(
-            "/2/tweets",
-            post(|Json(body): Json<serde_json::Value>| async move {
-                assert!(body.get("text").is_some());
-                Json(json!({ "data": { "id": "mocktweet1" } }))
-            }),
-        )
-        .route(
-            "/graphql/v2",
-            post(|Json(body): Json<serde_json::Value>| async move {
-                assert!(body.get("query").is_some());
-                Json(json!({ "data": { "createUpdate": { "id": "mockoc1" } } }))
-            }),
-        );
-
-    let _guard = tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
-    });
-
-    tokio::time::sleep(vox_config::timeouts::D_80MS).await;
-
-    let base = format!("http://{}", addr);
+async fn twitter_and_opencollective_queue_handoff_to_vox_ops_syndication() {
     let item = UnifiedNewsItem {
         id: "mock-item".to_string(),
         title: "T".to_string(),
@@ -61,43 +33,23 @@ async fn twitter_and_opencollective_use_configured_bases_only() {
         twitter_bearer_token: Some("bearer".into()),
         open_collective_token: Some("oc-key".into()),
         dry_run: false,
-        twitter_api_base: Some(base.clone()),
-        opencollective_graphql_url: Some(format!("{}/graphql/v2", base)),
         ..Default::default()
     });
 
     let out = publisher.publish_all(&item).await.expect("publish");
-    assert_eq!(out.twitter_id(), Some("mocktweet1"));
-    assert_eq!(out.oc_id(), Some("mockoc1"));
+    assert_eq!(out.twitter_id(), Some("queued:vox-ops-syndication"));
+    assert_eq!(out.oc_id(), Some("queued:vox-ops-syndication"));
+
+    let handoff = build_syndication_handoff_payload(&item, None).expect("build handoff");
+    assert_eq!(handoff.item_id, "mock-item");
+    assert_eq!(
+        handoff.channels,
+        vec!["twitter".to_string(), "opencollective".to_string()]
+    );
 }
 
 #[tokio::test]
 async fn partial_channel_failure_is_reported_without_short_circuiting() {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-
-    let app = Router::new()
-        .route(
-            "/2/tweets",
-            post(|Json(_body): Json<serde_json::Value>| async move {
-                Json(json!({ "data": { "id": "mocktweet1" } }))
-            }),
-        )
-        .route(
-            "/graphql/v2",
-            post(|Json(_body): Json<serde_json::Value>| async move {
-                (
-                    axum::http::StatusCode::BAD_GATEWAY,
-                    Json(json!({ "errors": [{ "message": "upstream unavailable" }] })),
-                )
-            }),
-        );
-    let _guard = tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
-    });
-    tokio::time::sleep(vox_config::timeouts::D_80MS).await;
-
-    let base = format!("http://{}", addr);
     let item = UnifiedNewsItem {
         id: "mock-item-failure".to_string(),
         title: "T".to_string(),
@@ -120,15 +72,15 @@ async fn partial_channel_failure_is_reported_without_short_circuiting() {
         topic_pack: None,
     };
 
+    // Provide twitter token so twitter queues, omit open_collective token so open_collective fails
     let publisher = Publisher::new(PublisherConfig {
         twitter_bearer_token: Some("bearer".into()),
-        open_collective_token: Some("oc-key".into()),
+        open_collective_token: None,
         dry_run: false,
-        twitter_api_base: Some(base.clone()),
-        opencollective_graphql_url: Some(format!("{}/graphql/v2", base)),
         ..Default::default()
     });
     let out = publisher.publish_all(&item).await.expect("publish");
-    assert_eq!(out.twitter_id(), Some("mocktweet1"));
+    assert_eq!(out.twitter_id(), Some("queued:vox-ops-syndication"));
+    assert!(matches!(out.open_collective, ChannelOutcome::Failed { .. }));
     assert!(out.has_failures());
 }

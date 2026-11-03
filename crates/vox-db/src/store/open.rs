@@ -161,6 +161,102 @@ impl crate::VoxDb {
             )
             .await?;
 
+            let has_misguidance_status = {
+                let mut cols = conn
+                    .query("PRAGMA table_info(research_misguidance_events)", ())
+                    .await?;
+                let mut found = false;
+                while let Some(row) = cols.next().await? {
+                    let name: String = row.get(1)?;
+                    if name == "status" {
+                        found = true;
+                        break;
+                    }
+                }
+                found
+            };
+            if !has_misguidance_status {
+                let _ = conn
+                    .execute_batch(
+                        "ALTER TABLE research_misguidance_events ADD COLUMN status TEXT NOT NULL DEFAULT 'open'; \
+                         ALTER TABLE research_misguidance_events ADD COLUMN resolved_at_ms INTEGER;",
+                    )
+                    .await;
+            }
+
+            // Schema baseline 94 (Phase 5 D-08): hopper_inbox.resource_id for resource-locked hopper tasks.
+            let has_hopper_resource_id = {
+                let mut cols = conn.query("PRAGMA table_info(hopper_inbox)", ()).await?;
+                let mut found = false;
+                while let Some(row) = cols.next().await? {
+                    let name: String = row.get(1)?;
+                    if name == "resource_id" {
+                        found = true;
+                        break;
+                    }
+                }
+                found
+            };
+            if !has_hopper_resource_id {
+                conn.execute_batch("ALTER TABLE hopper_inbox ADD COLUMN resource_id TEXT;")
+                    .await?;
+            }
+
+            // Schema baseline 95 (KB Phase 2): library-index columns. Same PRAGMA-guarded shape as
+            // above; the indexes are created AFTER the ALTERs because a v94 database lacks these
+            // columns when `baseline_sql()` runs.
+            Self::ensure_kb_library_columns(conn).await?;
+            Self::backfill_search_document_trust_tiers(conn).await?;
+            Self::retier_agent_knowledge_nodes(conn).await?;
+            conn.execute_batch(
+                "CREATE INDEX IF NOT EXISTS idx_search_documents_corpus ON search_documents(corpus);
+                 CREATE UNIQUE INDEX IF NOT EXISTS idx_search_chunks_doc_hash ON search_document_chunks(document_id, chunk_hash);
+                 CREATE INDEX IF NOT EXISTS idx_search_chunks_hash ON search_document_chunks(chunk_hash);",
+            )
+            .await?;
+
+            // Same idempotent-ALTER pattern as `archived_at` above: `workflow_run_log`
+            // predates `args_json` (G27, added in Task 1.4 of true-workflow-durability),
+            // so existing databases need it added explicitly.
+            let has_args_json = {
+                let mut cols = conn
+                    .query("PRAGMA table_info(workflow_run_log)", ())
+                    .await?;
+                let mut found = false;
+                while let Some(row) = cols.next().await? {
+                    let name: String = row.get(1)?;
+                    if name == "args_json" {
+                        found = true;
+                        break;
+                    }
+                }
+                found
+            };
+            if !has_args_json {
+                conn.execute_batch("ALTER TABLE workflow_run_log ADD COLUMN args_json TEXT;")
+                    .await?;
+            }
+
+            let mut has_wake_at_ms = false;
+            let mut has_parked_reason = false;
+            let mut cols = conn
+                .query("PRAGMA table_info(workflow_run_log)", ())
+                .await?;
+            while let Some(row) = cols.next().await? {
+                let name: String = row.get(1)?;
+                has_wake_at_ms |= name == "wake_at_ms";
+                has_parked_reason |= name == "parked_reason";
+            }
+            drop(cols);
+            if !has_wake_at_ms {
+                conn.execute_batch("ALTER TABLE workflow_run_log ADD COLUMN wake_at_ms INTEGER;")
+                    .await?;
+            }
+            if !has_parked_reason {
+                conn.execute_batch("ALTER TABLE workflow_run_log ADD COLUMN parked_reason TEXT;")
+                    .await?;
+            }
+
             crate::schema_extensions::apply_schema_extensions(conn).await?;
 
             conn.execute(
@@ -169,8 +265,165 @@ impl crate::VoxDb {
                 (BASELINE_VERSION,),
             )
             .await?;
+        } else {
+            for tbl in crate::schema::domains::trials::TRIAL_REQUIRED_TABLES {
+                let mut rows = conn
+                    .query(
+                        "SELECT name FROM sqlite_master WHERE type='table' AND name = ?1",
+                        turso::params![*tbl],
+                    )
+                    .await?;
+                if rows.next().await?.is_none() {
+                    return Err(StoreError::BaselineStampedWithoutTables {
+                        missing_table: (*tbl).to_string(),
+                    });
+                }
+            }
         }
 
+        Self::ensure_latency_columns(conn).await?;
+
+        Ok(())
+    }
+
+    /// Baseline 95: add the KB Library columns to a pre-95 `search_documents` /
+    /// `search_document_chunks`. Idempotent (PRAGMA-guarded); a fresh database already has them.
+    async fn ensure_kb_library_columns(conn: &turso::Connection) -> Result<(), StoreError> {
+        const COLUMNS: [(&str, &str, &str); 11] = [
+            ("search_documents", "corpus", "TEXT NOT NULL DEFAULT ''"),
+            ("search_documents", "rel_path", "TEXT"),
+            ("search_documents", "frontmatter_json", "TEXT"),
+            ("search_documents", "indexed_commit", "TEXT"),
+            ("search_documents", "index_error", "TEXT"),
+            // Baseline 96 (KB Phase 3): stored, fail-closed tier on every corpus row.
+            (
+                "search_documents",
+                "trust_tier",
+                "TEXT NOT NULL DEFAULT 'untrusted'",
+            ),
+            ("search_document_chunks", "chunk_hash", "TEXT"),
+            (
+                "search_document_chunks",
+                "chunk_kind",
+                "TEXT NOT NULL DEFAULT 'section'",
+            ),
+            (
+                "search_document_chunks",
+                "heading_path",
+                "TEXT NOT NULL DEFAULT ''",
+            ),
+            ("search_document_chunks", "anchor", "TEXT"),
+            ("search_document_chunks", "token_estimate", "INTEGER"),
+        ];
+        for (table, column, decl) in COLUMNS {
+            let mut rows = conn
+                .query(&format!("PRAGMA table_info({table})"), ())
+                .await?;
+            let mut has_column = false;
+            while let Some(row) = rows.next().await? {
+                if row.get::<String>(1)? == column {
+                    has_column = true;
+                }
+            }
+            drop(rows);
+            if !has_column {
+                conn.execute_batch(&format!("ALTER TABLE {table} ADD COLUMN {column} {decl};"))
+                    .await?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Baseline 96 (D-01, D-03): one-time re-tiering of existing `search_documents` rows, run
+    /// inside the version gate. A corpus row takes its tier from `kb_index_state.trust_tier`
+    /// (the single corpus-level source; an unrecognised string canonicalizes to `untrusted`),
+    /// `vox://publication/*` rows become `advisory`, and everything else keeps the fail-closed
+    /// column default. Rows are re-tiered, never deleted.
+    async fn backfill_search_document_trust_tiers(
+        conn: &turso::Connection,
+    ) -> Result<(), StoreError> {
+        let mut rows = conn
+            .query("SELECT corpus, trust_tier FROM kb_index_state", ())
+            .await?;
+        let mut corpora = Vec::new();
+        while let Some(row) = rows.next().await? {
+            corpora.push((row.get::<String>(0)?, row.get::<String>(1)?));
+        }
+        drop(rows);
+        for (corpus, tier) in corpora {
+            // The empty corpus holds web/legacy rows, which must stay fail-closed.
+            if corpus.is_empty() {
+                continue;
+            }
+            let tier = crate::ContextTrustTier::from_db_str(&tier).as_db_str();
+            conn.execute(
+                "UPDATE search_documents SET trust_tier = ?1 WHERE corpus = ?2",
+                (tier, corpus.as_str()),
+            )
+            .await?;
+        }
+        conn.execute(
+            "UPDATE search_documents SET trust_tier = 'advisory' \
+             WHERE source_uri LIKE 'vox://publication/%'",
+            (),
+        )
+        .await?;
+        Ok(())
+    }
+
+    /// Baseline 96 (D-03, D-07): one-time re-type of legacy agent-written knowledge nodes, run
+    /// inside the version gate. Before baseline 96, `MemoryManager::persist_fact` was the only
+    /// producer of the `fact` and `concept` node types (graphify ingest ids are prefixed
+    /// `graphify:` and are left alone), so every such row is model-originated and becomes
+    /// `agent_fact` / `agent_concept` (Untrusted). Rows are re-typed, never deleted.
+    async fn retier_agent_knowledge_nodes(conn: &turso::Connection) -> Result<(), StoreError> {
+        use vox_orchestrator_types::trust::{AGENT_CONCEPT_NODE_TYPE, AGENT_FACT_NODE_TYPE};
+        for (from, to) in [
+            ("fact", AGENT_FACT_NODE_TYPE),
+            ("concept", AGENT_CONCEPT_NODE_TYPE),
+        ] {
+            conn.execute(
+                "UPDATE knowledge_nodes SET node_type = ?1 \
+                 WHERE node_type = ?2 AND id NOT LIKE 'graphify:%'",
+                (to, from),
+            )
+            .await?;
+        }
+        Ok(())
+    }
+
+    /// Task M3 added `ttft_ms`/`tpot_ms` (and the scoreboard's p95/goodput columns) to the
+    /// version-94 baseline DDL without bumping the version, so a database already recorded at
+    /// [`BASELINE_VERSION`] never received them: the telemetry `INSERT` into `llm_interactions`
+    /// failed and the scoreboard rollup died on `no such column: ttft_ms`. This runs on every
+    /// open, outside the version gate; it is a cheap `PRAGMA` per table and a no-op on a fresh
+    /// database or one that already has the columns. A table that does not exist is skipped.
+    async fn ensure_latency_columns(conn: &turso::Connection) -> Result<(), StoreError> {
+        const COLUMNS: [(&str, &str, &str); 6] = [
+            ("llm_interactions", "ttft_ms", "INTEGER"),
+            ("llm_interactions", "tpot_ms", "REAL"),
+            ("llm_interactions", "trial_run_label", "TEXT"),
+            ("model_scoreboard", "p95_ttft_ms", "INTEGER"),
+            ("model_scoreboard", "p95_tpot_ms", "REAL"),
+            ("model_scoreboard", "goodput_tokens_per_sec", "REAL"),
+        ];
+        for (table, column, decl) in COLUMNS {
+            let mut rows = conn
+                .query(&format!("PRAGMA table_info({table})"), ())
+                .await?;
+            let (mut table_exists, mut has_column) = (false, false);
+            while let Some(row) = rows.next().await? {
+                table_exists = true;
+                if row.get::<String>(1)? == column {
+                    has_column = true;
+                }
+            }
+            drop(rows);
+            if table_exists && !has_column {
+                conn.execute_batch(&format!("ALTER TABLE {table} ADD COLUMN {column} {decl};"))
+                    .await?;
+            }
+        }
         Ok(())
     }
 
@@ -310,5 +563,35 @@ mod tests {
             .get(0)
             .expect("v");
         assert_eq!(v, crate::schema::BASELINE_VERSION);
+    }
+
+    #[tokio::test]
+    async fn baseline_stamped_without_tables_errors() {
+        let db = Builder::new_local(":memory:").build().await.expect("mem");
+        let conn = db.connect().expect("conn");
+        VoxDb::apply_pragmas(&conn).await.expect("pragmas");
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS schema_version (
+                version INTEGER PRIMARY KEY,
+                applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );",
+        )
+        .await
+        .expect("create schema_version");
+        conn.execute(
+            "INSERT INTO schema_version (version) VALUES (?1)",
+            (crate::schema::BASELINE_VERSION,),
+        )
+        .await
+        .expect("stamp baseline");
+        let err = VoxDb::migrate(&conn)
+            .await
+            .expect_err("must fail when trial tables are missing");
+        match err {
+            crate::StoreError::BaselineStampedWithoutTables { missing_table } => {
+                assert_eq!(missing_table, "trial_campaigns");
+            }
+            other => panic!("unexpected error: {other:?}"),
+        }
     }
 }

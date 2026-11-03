@@ -6,7 +6,12 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => invokeMock(...args),
 }));
 
-import { startResearchAsync } from './researchActions';
+import {
+  startResearchAsync,
+  executeSandboxProbe,
+  probeSearchProvider,
+  probeAllSearchProviders,
+} from './researchActions';
 
 describe('startResearchAsync (A2)', () => {
   beforeEach(() => {
@@ -36,5 +41,40 @@ describe('startResearchAsync (A2)', () => {
 
     const [, payload] = invokeMock.mock.calls[0];
     expect(payload).toEqual({ query: 'q', scope: 'web', maxSources: 5, verifyClaims: true });
+  });
+
+  it('executeSandboxProbe invokes execute_sandbox_probe with code and language', async () => {
+    invokeMock.mockResolvedValue({ passed: true, stdout: 'ok', stderr: '' });
+
+    const res = await executeSandboxProbe('fn main() {}', 'rust');
+
+    expect(invokeMock).toHaveBeenCalledWith('execute_sandbox_probe', {
+      code: 'fn main() {}',
+      language: 'rust',
+    });
+    expect(res).toEqual({ passed: true, stdout: 'ok', stderr: '' });
+  });
+
+  it('probeSearchProvider invokes probe_search_provider with provider and query', async () => {
+    invokeMock.mockResolvedValue({ provider: 'duckduckgo', success: true });
+
+    const res = await probeSearchProvider('duckduckgo', 'vox query');
+
+    expect(invokeMock).toHaveBeenCalledWith('probe_search_provider', {
+      provider: 'duckduckgo',
+      query: 'vox query',
+    });
+    expect(res).toEqual({ provider: 'duckduckgo', success: true });
+  });
+
+  it('probeAllSearchProviders invokes probe_all_search_providers with query', async () => {
+    invokeMock.mockResolvedValue([{ provider: 'all', success: true }]);
+
+    const res = await probeAllSearchProviders('all query');
+
+    expect(invokeMock).toHaveBeenCalledWith('probe_all_search_providers', {
+      query: 'all query',
+    });
+    expect(res).toEqual([{ provider: 'all', success: true }]);
   });
 });

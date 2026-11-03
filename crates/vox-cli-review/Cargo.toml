@@ -25,7 +25,6 @@ tracing = { workspace = true }
 walkdir = { workspace = true }
 vox-bounded-fs = { workspace = true }
 vox-code-audit = { workspace = true }
-vox-config = { workspace = true }
 vox-corpus = { workspace = true, features = ["database", "ast-extract"] }
 vox-db = { workspace = true }
 vox-forge = { workspace = true, features = ["github"] }

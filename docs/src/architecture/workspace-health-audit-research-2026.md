@@ -1,7 +1,7 @@
 ---
 title: "workspace-health-audit-research-2026"
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: false
 ---
 # Research: Workspace Health & Dependency Governance (2026)

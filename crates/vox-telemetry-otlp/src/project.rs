@@ -69,10 +69,10 @@ fn normalize_error_class(raw: &str) -> &'static str {
 /// - `session_id` → prefix kept as enum under `session_prefix`; suffix is salt-hashed
 ///   under `session_suffix_hash` (salt comes from `vox_telemetry::config::install_salt`).
 /// - `metadata_json` and any free-form `String` → dropped entirely.
-/// - Open/growing identifiers (`model_id`, `rule_id`) → salt-hashed via [`salted_hash`],
+/// - Open/growing identifiers (`model_id`, `rule_id`) → salt-hashed via `salted_hash`,
 ///   matching the `skill_id_hash` pattern.
 /// - `ErrorEvent`'s free-form `subsystem`/`error_class` → bucketed onto the same bounded
-///   enums as `ErrorSurfaceEvent` via [`normalize_error_subsystem`]/[`normalize_error_class`].
+///   enums as `ErrorSurfaceEvent` via `normalize_error_subsystem`/`normalize_error_class`.
 /// - Numeric/enum/bool fields → passed through under their taxonomy field name.
 pub fn project_event(event: &TelemetryEvent) -> Option<(String, serde_json::Map<String, Value>)> {
     match event {
@@ -165,7 +165,6 @@ pub fn project_event(event: &TelemetryEvent) -> Option<(String, serde_json::Map<
                 AiFixtureEvent::PromptDispatch(_) => "prompt_dispatch",
                 AiFixtureEvent::SearchDispatch(_) => "search_dispatch",
                 AiFixtureEvent::HoleObserved(_) => "hole_observed",
-                _ => return None,
             };
             map.insert("fixture_kind".into(), Value::String(kind.to_string()));
             Some(("agent_orchestration".into(), map))
@@ -344,6 +343,58 @@ pub fn project_event(event: &TelemetryEvent) -> Option<(String, serde_json::Map<
                 Value::String(e.quality_bucket.clone()),
             );
             Some(("model_prompt".into(), map))
+        }
+
+        TelemetryEvent::ModelBenchCase(e) => {
+            let mut map = serde_json::Map::new();
+            map.insert(
+                "model_id_hash".into(),
+                Value::String(salted_hash(&e.model_id)),
+            );
+            map.insert(
+                "fixture_id_hash".into(),
+                Value::String(salted_hash(&e.fixture_id)),
+            );
+            map.insert(
+                "task_category".into(),
+                Value::String(e.task_category.clone()),
+            );
+            map.insert("passed".into(), Value::Bool(e.passed));
+            map.insert(
+                "duration_bucket".into(),
+                Value::String(duration_bucket(e.latency_ms)),
+            );
+            Some(("model_bench_case".into(), map))
+        }
+
+        TelemetryEvent::TrainingThroughput(e) => {
+            let mut map = serde_json::Map::new();
+            map.insert("gpu_vendor".into(), Value::String(e.gpu_vendor.clone()));
+            map.insert("vram_bucket".into(), Value::String(e.vram_bucket.clone()));
+            map.insert(
+                "seq_len_bucket".into(),
+                Value::String(e.seq_len_bucket.clone()),
+            );
+            map.insert(
+                "tok_per_sec_bucket".into(),
+                Value::String(e.tok_per_sec_bucket.clone()),
+            );
+            map.insert("success".into(), Value::Bool(e.success));
+            Some(("training_throughput".into(), map))
+        }
+
+        TelemetryEvent::DomainMisguidance(e) => {
+            let mut map = serde_json::Map::new();
+            map.insert(
+                "domain_hash".into(),
+                Value::String(salted_hash(&e.culprit_domain)),
+            );
+            map.insert(
+                "domain_category".into(),
+                Value::String(e.domain_category.clone()),
+            );
+            map.insert("defect_class".into(), Value::String(e.defect_class.clone()));
+            Some(("domain_misguidance".into(), map))
         }
 
         // Unhandled variants that don't yet have a product-category mapping.

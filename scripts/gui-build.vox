@@ -48,6 +48,11 @@ fn main() {
         return
     }
 
+    print("  - Building vox-ml-cli (mens status/models/probe)...")
+    if not run_in("cargo", ["build", "-p", "vox-ml-cli", "--release", "--features", "gpu,execution-api"], ".", "vox-ml-cli build") {
+        return
+    }
+
     print("  - Preparing Tauri external sidecar binaries...")
 
     let rustc_res = std.process.run_capture_ex("rustc", ["-vV"], ".", [])
@@ -62,14 +67,17 @@ fn main() {
     }
 
     let ext = if host_triple.contains("windows") { ".exe" } else { "" }
-    let source_bin = "target/release/vox" + ext
-    let target_bin = "target/release/vox-" + host_triple + ext
 
-    if fs.exists(source_bin) {
-        let _ = fs.copy(source_bin, target_bin)
-        print("  Copied " + source_bin + " to " + target_bin)
-    } else {
-        log.warn("Source binary not found: " + source_bin)
+    for bin_name in ["vox", "vox-ml-cli"] {
+        let source_bin = "target/release/" + bin_name + ext
+        let target_bin = "target/release/" + bin_name + "-" + host_triple + ext
+
+        if fs.exists(source_bin) {
+            let _ = fs.copy(source_bin, target_bin)
+            print("  Copied " + source_bin + " to " + target_bin)
+        } else {
+            log.warn("Source binary not found: " + source_bin)
+        }
     }
 
     print("GUI build pipeline complete.")

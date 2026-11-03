@@ -133,7 +133,7 @@ it). Severity is the agent's; the tier grouping is editorial.
   disagreement is accepted and every build pays to render twice. Migration scaffolding past
   its purpose; remove once a one-time CI assertion confirms parity.
 - **T1-4 · `VoxIrModule` is a clone of HIR.**
-  [`vox_ir/lower.rs`](../../../crates/vox-codegen/src/vox_ir/lower.rs) copies 11 HIR fields
+  [`hir_export/lower.rs`](../../../crates/vox-codegen/src/hir_export/lower.rs) copies 11 HIR fields
   verbatim and embeds a *second* WebIR derivation. Nothing in the real emit pipeline reads
   it — only `vox check --emit-ir` (a debug dump) and a schema test. Since `HirModule`
   already derives `serde`, this could be a thin metadata wrapper over HIR instead of a

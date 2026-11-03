@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/planning-meta/10-document-maintenance-protocol.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Document maintenance protocol",
+  "summary": "Tier 1 normative lifecycle, versioning, ownership, and change-control protocol for the planning-meta corpus.",
+  "scope": ["document lifecycle", "versioning", "ownership", "change control", "maintenance protocol", "supersession", "consistency protocol"],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

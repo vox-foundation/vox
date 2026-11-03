@@ -73,7 +73,9 @@ rewards:
   plan_handoff: { xp: 40, crystals: 8 }
   agent_handoff_accepted: { xp: 50, crystals: 10 }
   peer_teach_session: { xp: 500, crystals: 100, lumens: 50 }
-  message_sent: { xp: 1, crystals: 0 }
+  message_sent: { xp: 0, crystals: 0 }
+  single_shot_verified: { xp: 35, crystals: 8 }
+  local_mens_verified: { xp: 25, crystals: 6 }
   pr_merged: { xp: 200, crystals: 40, lumens: 15 }
   code_reviewed: { xp: 100, crystals: 20, lumens: 10 }
   issue_closed: { xp: 150, crystals: 30 }

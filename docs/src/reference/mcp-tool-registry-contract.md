@@ -29,6 +29,6 @@ List tools returned to MCP clients include **`_meta.vox_product_lane`** and **`_
 - Legacy-only recovery path (disabled by default): set `VOX_ALLOW_LEGACY_MCP_EXTRACT=1` and run `python scripts/extract_mcp_tool_registry.py --allow-legacy write`, then **`python scripts/mcp_registry_fill_product_lanes.py`**.
 - Compliance: `vox ci command-compliance` checks the registry YAML against JSON Schema, `product_lane` enums, YAML ↔ `handle_tool_call` wiring, and read-role policy parity with [MCP HTTP read-role governance contract](mcp-http-read-role-governance-contract.md).
 
-Optional **orchestrator daemon IPC pilots** (TCP **`VOX_ORCHESTRATOR_DAEMON_SOCKET`** on MCP as peer): see [Environment variables](env-vars.md) — read umbrella **`VOX_MCP_ORCHESTRATOR_RPC_READS`**, write umbrella **`VOX_MCP_ORCHESTRATOR_RPC_WRITES`**, per-slice overrides (**`*_TASK_*` / `*_AGENT_*`), plus **`VOX_MCP_ORCHESTRATOR_DAEMON_REPOSITORY_ID_STRICT`**.
+Optional **orchestrator daemon IPC pilots** (TCP **`VOX_ORCHESTRATOR_DAEMON_SOCKET`** on MCP as peer): see [Environment variables](env-vars.md) — read umbrella **`VOX_MCP_ORCHESTRATOR_RPC_READS`** or **`VOX_MCP_ORCHESTRATOR_STATUS_TOOL_RPC`** (status tool only), plus **`VOX_MCP_ORCHESTRATOR_DAEMON_REPOSITORY_ID_STRICT`**.
 
 See also [`contracts/README.md`](../../../contracts/README.md) and [SSOT convergence roadmap](../archive/research-2026-q1/ssot-convergence-roadmap.md).

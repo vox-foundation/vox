@@ -11,7 +11,7 @@ schema_type: "TechArticle"
 
 ## Status
 
-**Accepted.** Narrows product/engineering choices for scaling personal and lab clusters described in [Populi GPU mesh implementation plan 2026](../archive/research-2026-q1/populi-gpu-mesh-implementation-plan-2026.md).
+**Superseded** (2026-09-04) by [ADR-047](047-iroh-transport.md) — ADR-047 names this ADR's §Decision.1 as the pre-authorization for its QUIC/iroh adoption. Original status: Accepted. Narrowed product/engineering choices for scaling personal and lab clusters described in [Populi GPU mesh implementation plan 2026](../archive/research-2026-q1/populi-gpu-mesh-implementation-plan-2026.md).
 
 ## Context
 

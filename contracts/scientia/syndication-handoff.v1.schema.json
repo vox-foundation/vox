@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voxlang.org/schemas/scientia/syndication-handoff.v1.schema.json",
+  "title": "SyndicationHandoffPayloadV1",
+  "description": "Approval-gated Scientia syndication handoff payload exported by public vox-publisher for server-side execution by vox-ops-syndication.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "idempotency_key",
+    "item_id",
+    "content_sha3_256",
+    "channels",
+    "item",
+    "generated_at_ms"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 16
+    },
+    "item_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "content_sha3_256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "approval_token_digest": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "channels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "twitter",
+          "reddit",
+          "youtube",
+          "discord",
+          "bluesky",
+          "mastodon",
+          "linkedin",
+          "hacker_news",
+          "opencollective"
+        ]
+      }
+    },
+    "item": {
+      "type": "object"
+    },
+    "generated_at_ms": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

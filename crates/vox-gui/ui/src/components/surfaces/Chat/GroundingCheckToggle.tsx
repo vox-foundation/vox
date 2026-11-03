@@ -1,4 +1,5 @@
 import React from 'react';
+import { Tooltip } from '../../ui/Tooltip';
 
 /**
  * Opt-in toggle for the post-reply grounding/hallucination check (see
@@ -16,19 +17,20 @@ export function GroundingCheckToggle({
   onToggle: (next: boolean) => void;
 }) {
   return (
-    <button
-      type="button"
-      aria-pressed={enabled}
-      aria-label={`Grounding check ${enabled ? 'on' : 'off'}`}
-      onClick={() => onToggle(!enabled)}
-      title="When on, replies get a non-blocking post-reply confidence check"
-      className={`rounded-lg border px-2 py-1 font-mono text-[10px] ${
-        enabled
-          ? 'border-brass/40 text-brass'
-          : 'border-border-subtle text-text-muted hover:text-brass'
-      }`}
-    >
-      grounding: {enabled ? 'on' : 'off'}
-    </button>
+    <Tooltip content="When on, each reply gets a background check for unsupported claims; it never blocks the reply" side="top">
+      <button
+        type="button"
+        aria-pressed={enabled}
+        aria-label={`Check replies ${enabled ? 'on' : 'off'}`}
+        onClick={() => onToggle(!enabled)}
+        className={`rounded-lg border px-2 py-1 font-mono text-[11px] ${
+          enabled
+            ? 'border-brass/40 text-brass'
+            : 'border-border-subtle text-text-muted hover:text-brass'
+        }`}
+      >
+        Check replies: {enabled ? 'on' : 'off'}
+      </button>
+    </Tooltip>
   );
 }

@@ -2,7 +2,7 @@
 title: "Vox Harness Parity Plan 2026-07-30"
 description: "Sequenced remediation plan turning the eleven-document Claude-Code-parity research set into concrete Vox changes: fix the inert model scorer and the loop-less GUI chat first, then wire the model catalog to local inference, then the skill promotion/registry/provenance gate, then panel and noise-control UX, then the multi-sample eval gate — each phase scoped to what's already built versus what's net-new."
 category: "Architecture SSOTs"
-status: "current"
+status: "roadmap"
 training_eligible: false
 ---
 

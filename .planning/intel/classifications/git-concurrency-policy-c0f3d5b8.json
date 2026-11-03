@@ -1,0 +1,25 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/git-concurrency-policy.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Git Concurrency Policy",
+  "summary": "Rules for safe git use by agentic workers: static denylist of unsafe commands, VCS capability tokens, commit trailers, secret scan gates, and telemetry.",
+  "scope": [
+    "git command restrictions",
+    "agentic git operations",
+    "GitExec wrapper",
+    "VCS capability tokens",
+    "commit trailers",
+    "secret scanning",
+    "telemetry events"
+  ],
+  "cross_refs": [
+    "crates/vox-orchestrator-mcp/src/git_exec.rs",
+    "crates/vox-orchestrator-mcp/src/vcs_tools/commit_tools.rs",
+    "crates/vox-orchestrator-mcp/src/vcs_tools/secret_scan.rs",
+    "crates/vox-orchestrator-types/src/vcs_capability.rs"
+  ],
+  "locked": false,
+  "precedence": null
+}

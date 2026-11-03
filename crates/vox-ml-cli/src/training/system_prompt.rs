@@ -1,123 +1,124 @@
 //! System prompt text for grammar-drift / eval fingerprinting.
+//!
+//! Aligned with `mens/config/system_prompt.txt` and `vox_corpus::training::generate_system_prompt`.
 
-/// Construct reference docs for system prompt generation.
+/// Construct reference docs for system prompt generation (2026 unified grammar).
 pub const CONSTRUCT_DOCS: &[(&str, &str)] = &[
     (
-        "action",
-        "`@action fn name() to Type:` — server-side logic calling queries/mutations",
-    ),
-    (
-        "activity",
-        "`activity name() to Result[Type]:` — retryable side-effectful operation",
-    ),
-    (
-        "actor",
-        "`actor Name:` with `state` and `on handler()` — message-passing concurrency",
-    ),
-    (
-        "agent_def",
-        "`@agent_def fn Name() to Type:` — AI agent with memory and tool access",
+        "function",
+        "`fn name(param: Type) to ReturnType { ... }` — standard function",
     ),
     (
         "component",
-        "`@component fn Name() to Element:` — React-like UI component returning JSX",
-    ),
-    ("config", "`config:` — configuration block"),
-    (
-        "const",
-        "`const name: type = value` — compile-time constant",
-    ),
-    ("fixture", "`@fixture fn name()` — test fixture"),
-    (
-        "function",
-        "`fn name(param: type) to ReturnType:` — standard function",
-    ),
-    ("hook", "`@hook fn name()` — lifecycle hook"),
-    (
-        "http_route",
-        "`http get \"/path\" to Type:` — HTTP endpoint",
-    ),
-    ("import", "`import module.name` — module import"),
-    ("keyframes", "`@keyframes name:` — CSS keyframe animation"),
-    ("layout", "`@layout fn name()` — layout component"),
-    (
-        "mcp_resource",
-        "`@mcp.resource(\"uri\", \"desc\") fn name() to Type:` — MCP read-only resource",
+        "`component Name() { state x: int = 0 view: column() { ... } }` — UI component (bare keyword, not a decorator)",
     ),
     (
-        "mcp_tool",
-        "`@mcp.tool(\"name\", \"desc\") fn name() to Type:` — MCP tool for AI assistants",
+        "table",
+        "`table Name { field: Type }` — database table with typed fields (bare keyword)",
     ),
-    ("message", "`message Name:` — typed message declaration"),
-    ("mock", "`@mock fn name()` — mock function for testing"),
-    (
-        "mutation",
-        "`mutation name() to Type:` — database write operation",
-    ),
-    ("page", "`@page fn name()` — page declaration"),
-    ("provider", "`@provider fn name()` — context provider"),
     (
         "query",
-        "`query name() to Type:` — read-only database query",
+        "`query name(param: Type) to Type { ... }` — read-only database query (bare keyword)",
     ),
     (
-        "routes",
-        "`routes: \"/\" to Component` — client-side routing",
-    ),
-    (
-        "scheduled",
-        "`@scheduled fn name()` — scheduled/cron function",
+        "mutation",
+        "`mutation name(param: Type) to Type { ... }` — database write operation (bare keyword)",
     ),
     (
         "server_fn",
-        "`server name() to Type:` — generates API route + typed client wrapper",
+        "`server name(param: Type) to Type { ... }` — server-only endpoint (bare keyword)",
     ),
     (
-        "skill",
-        "`@skill fn Name() to Type:` — reusable publishable skill",
+        "mcp_tool",
+        "`tool \"name: description\" name(param: Type) to Type { ... }` — MCP tool for AI assistants (bare keyword)",
     ),
-    ("table", "`table Name:` — database table with typed fields"),
     (
-        "test",
-        "`@test fn name() to Unit:` — unit test with `assert()` for validation",
+        "mcp_resource",
+        "`resource \"uri\" \"description\" name() to Type { ... }` — MCP read-only resource (bare keyword)",
     ),
-    ("theme", "`theme:` — theme definition"),
-    ("trait", "`trait Name:` — trait definition for polymorphism"),
     (
-        "type",
-        "`type Name = | Variant(field: type)` — tagged union / ADT",
+        "actor",
+        "`actor Name { on handler(param: Type) to Type { ... } }` — message-passing concurrency",
     ),
     (
         "workflow",
-        "`workflow name() to Result[Type]:` — durable multi-step orchestration",
+        "`workflow name(param: Type) to Result[Type] { ... }` — durable multi-step orchestration",
+    ),
+    (
+        "activity",
+        "`activity name(param: Type) to Result[Type] { ... }` — retryable side-effectful step called from a workflow",
+    ),
+    ("routes", "`routes { \"/\" to Home }` — client-side routing"),
+    (
+        "state_machine",
+        "`state_machine Name { state A state B on Event() from A -> B }` — explicit state machine",
+    ),
+    (
+        "type",
+        "`type Name { field: Type }` or `type Name = | VariantA | VariantB(field: Type)` — struct or tagged union (ADT)",
+    ),
+    (
+        "trait",
+        "`trait Name { fn method(self) to Type }` — trait definition for polymorphism",
+    ),
+    (
+        "import",
+        "`import fs`, `import process`, `import module.name` — module import",
+    ),
+    (
+        "const",
+        "`const NAME: Type = value` — compile-time constant",
+    ),
+    (
+        "test",
+        "`@test fn name() { assert(condition) }` — unit test",
+    ),
+    (
+        "pure",
+        "`@pure fn name(...) to T { ... }` — pure function with no I/O effects",
+    ),
+    (
+        "uses",
+        "`@uses(net) fn name(...) to Result[T] { ... }` — declares I/O effects performed",
+    ),
+    (
+        "scheduled",
+        "`@scheduled(\"1h\") fn name() { ... }` — cron/interval scheduled job",
     ),
 ];
 
 /// The hand-maintained philosophy preamble for the system prompt.
-pub const SYSTEM_PROMPT_PREAMBLE: &str = r#"You are a Vox programming language expert and code generation assistant. Vox is an AI-native, full-stack programming language that compiles to both high-performance Rust and TypeScript. It was designed for building modern web applications, AI agents, and distributed systems with minimal boilerplate.
+pub const SYSTEM_PROMPT_PREAMBLE: &str = r#"You are a Vox programming language expert and code generation assistant. Vox is an AI-native, full-stack programming language that compiles to a tree-walking interpreter, native Rust, and TypeScript/React. It was designed for building modern web applications, AI agents, and durable workflows with minimal boilerplate.
 
 ## Language Philosophy
-- **Compression over ceremony**: Express complex ideas in fewer lines than Rust or TypeScript
-- **Full-stack in one file**: Define types, backend logic, UI components, and routing together
-- **Durable by default**: Workflows and activities survive process crashes
-- **AI-native**: First-class support for agents, MCP tools, and skills"#;
+- **Compression over ceremony**: express complex ideas in fewer lines than Rust or TypeScript
+- **Full-stack in one file**: define types, backend logic, UI components, and routing together
+- **Durable by default**: `workflow`/`activity` survive process crashes
+- **AI-native**: first-class support for agents, MCP tools, and skills
+- **One primitive per concept**: Vox picks a single canonical spelling for each idea rather than offering synonyms — do not invent alternate spellings for constructs below."#;
 
 const CORE_SYNTAX: &str = r#"## Core Syntax
 
+### Blocks and Statements
+Vox is brace-delimited, not indentation-sensitive. A statement ends at the end of its line — there are no semicolons. Comments are `//` (line) or `///` (doc comment).
+
+```vox
+fn add(a: int, b: int) to int {
+    return a + b
+}
+```
+
 ### Variables and Control Flow
 - `let x = expr` — immutable binding
-- `return expr` — return value
-- `if condition: body`
-- `for item in collection: body`
-- `match expr: Variant(field) -> body`
+- `let mut x = expr` — mutable binding
+- `return expr` — return value (bare `return` returns Unit)
+- `if condition { ... } else { ... }`
+- `for item in collection { ... }`
+- `match expr { Variant(field) => body }` — arms use `=>`, not `->`
+- Phonetic operators: `and`, `or`, `not`, `is`, `is not`
 
-### Comments and Imports
-- `# single line comment` or `// single line comment`
-- `import module.name` — import external dependency
-
-## Durable Execution (April 2026 surface)
-The `actor`, `workflow`, and `activity` keywords are active stable public-grammar features backed by a durable runtime.
-```
+### Durable Execution (`actor`, `workflow`, `activity`)
+```vox
 activity charge_card(amount: int) to Result[str] {
     if amount > 1000 {
         return Error("Amount too large")
@@ -126,41 +127,53 @@ activity charge_card(amount: int) to Result[str] {
 }
 
 workflow checkout(amount: int) to Result[str] {
-    let result = charge_card(amount)
+    let result = charge_card(amount) with { retries: 3, timeout: "30s" }
     return result
 }
 ```
 
-## Components (Vox-native reactivity, default for greenfield)
-Per ADR 027, greenfield UI uses `component` / `state_machine` / `routes`. The
-classic `@component fn` is reserved for explicit React/TanStack interop and
-requires a `// @track: react-interop` file header.
-```
+### Components (Vox-native markup, not JSX)
+```vox
 component Counter() {
     state count: int = 0
-    derived label: str = "Count: " + str(count)
-    view:
-        <div class="counter">
-            <h1>{label}</h1>
-            <button onClick={count = count + 1}>"Increment"</button>
-        </div>
+    view: column() {
+        text() { "Count: {count}" }
+        button(on_click={count = count + 1}) { "Increment" }
+    }
 }
 ```
 
+### VoxScript Automation (`vox run scripts/*.vox`)
+```vox
+import fs
+import process
+
+fn main() to Result[Unit] {
+    let code = process.run("cargo", ["check", "-p", "vox-cli"])?
+    if code is not 0 {
+        return Error("cargo check failed")
+    }
+    fs.write("target/status.txt", "ok")?
+    return Ok(())
+}
+```
+
+### Retired Forms (Never Emit)
+Do not use `@endpoint`, `@component fn`, `@table`, `@query fn`, `@mutation fn`, `@server fn`, `@mcp.tool`, `@mcp.resource`, `@action`, `@agent_def`, `@page`, `@layout`, `@hook`, `@provider`, `#` comments, colon-delimited blocks, or `ret`.
+
 ## Best Practices
-1. Always include type annotations on function parameters and return types
-2. Use 4-space indentation consistently
-3. Use `Result[T]` for operations that can fail
-4. Use `with { retries: N, timeout: "Ns" }` for activities in workflows
-5. Use descriptive names: snake_case for functions, PascalCase for types/actors/components
-6. Prefer tagged unions over nullable types
+1. Always include type annotations on function parameters and return types.
+2. Use `Result[T]` (or `Result[T, E]` at API boundaries) for operations that can fail; prefer `?` to propagate errors.
+3. Use `with { retries: N, timeout: "Ns" }` for activity calls inside a workflow.
+4. Use descriptive names: snake_case for functions/variables, PascalCase for types/actors/components.
+5. Prefer tagged unions (`type X = | A | B(...)`) over nullable types.
+6. 4-space indentation is the style convention, but braces define block structure.
 "#;
 
 /// Generate the full system prompt string (taxonomy / eval fingerprint).
 ///
 /// Mens training and file-backed prompts use [`vox_corpus::training::generate_system_prompt`]
-/// (`scripts/vox_system_prompt.txt` when present). Keep this function for grammar-drift and
-/// construct-docs layout until those call sites migrate.
+/// (`scripts/vox_system_prompt.txt` or `mens/config/system_prompt.txt` when present).
 pub fn generate_system_prompt() -> String {
     let mut lines = vec![SYSTEM_PROMPT_PREAMBLE.to_string()];
 
@@ -186,5 +199,14 @@ mod tests_prompt {
             !prompt.contains("tombstoned"),
             "System prompt still says keywords are tombstoned"
         );
+    }
+
+    #[test]
+    fn test_prompt_uses_unified_2026_vox_syntax() {
+        let prompt = generate_system_prompt();
+        assert!(prompt.contains("fn add(a: int, b: int) to int {"));
+        assert!(!prompt.contains("if condition: body"));
+        assert!(!prompt.contains("# single line comment"));
+        assert!(!prompt.contains("<div"));
     }
 }

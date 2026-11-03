@@ -7,7 +7,7 @@
 mod client;
 mod dei_dispatch;
 
-pub use client::OrchDaemonClient;
+pub use client::{ORCH_CLIENT_READ_DEADLINE, OrchClientError, OrchDaemonClient};
 
 use std::sync::Arc;
 
@@ -20,6 +20,25 @@ use vox_foundation::protocol::{DispatchPayload, DispatchRequest, DispatchRespons
 use crate::Orchestrator;
 use crate::types::TaskId;
 use crate::{CompletionAttestation, FileAffinity, TaskEnqueueHints, TaskPriority};
+
+fn ping_caller_role() -> &'static str {
+    match std::env::var("VOX_MCP_CALLER_ROLE")
+        .ok()
+        .as_deref()
+        .map(|s| s.trim().to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("human") => "human",
+        _ => "agent",
+    }
+}
+
+/// Canonical capability-profile id this daemon serves (from `VOX_PROFILE`).
+fn ping_profile() -> String {
+    vox_mcp_registry::ActiveProfile::from_env()
+        .map(|p| p.id_string())
+        .unwrap_or_else(|e| e.to_string())
+}
 
 /// Strip optional `tcp://` prefix and whitespace.
 #[must_use]
@@ -380,6 +399,8 @@ pub async fn dispatch_request(
                 "repository_id": repository_id,
                 "protocol": "vox.orchestrator_daemon/v1",
                 "version": env!("CARGO_PKG_VERSION"),
+                "caller_role": ping_caller_role(),
+                "profile": ping_profile(),
             }),
         ),
         orch_daemon_method::WORKSPACE_JOURNEY => {
@@ -769,6 +790,25 @@ pub async fn dispatch_request(
             };
             match orch.edit_task_description(TaskId(task_id), description.to_string()) {
                 Ok(()) => response_result(&req.id, serde_json::json!({ "ok": true })),
+                Err(e) => response_err(&req.id, e),
+            }
+        }
+        orch_daemon_method::SET_MESH_POLICY => {
+            let Some(task_id) = req.params.get("task_id").and_then(|x| x.as_u64()) else {
+                return response_err(&req.id, "params.task_id (u64) required");
+            };
+            let Some(policy_val) = req.params.get("policy") else {
+                return response_err(&req.id, "params.policy required");
+            };
+            let policy =
+                match serde_json::from_value::<crate::types::MeshPolicy>(policy_val.clone()) {
+                    Ok(p) => p,
+                    Err(e) => return response_err(&req.id, format!("invalid policy: {e}")),
+                };
+            match orch.set_task_mesh_policy(TaskId(task_id), policy) {
+                Ok(()) => {
+                    response_result(&req.id, serde_json::json!({ "ok": true, "message": "ok" }))
+                }
                 Err(e) => response_err(&req.id, e),
             }
         }
@@ -1370,6 +1410,26 @@ mod isolation_dispatch_tests {
             Some(env!("CARGO_PKG_VERSION")),
             "ping response must report the running daemon's own workspace version"
         );
+        assert!(
+            matches!(
+                value.get("caller_role").and_then(|v| v.as_str()),
+                Some("human") | Some("agent")
+            ),
+            "ping must report caller_role so the GUI can refuse a non-human adopt"
+        );
+        assert_eq!(
+            value.get("profile").and_then(|v| v.as_str()),
+            Some(super::ping_profile().as_str()),
+            "ping must report the daemon's capability profile for adopt checks"
+        );
+    }
+
+    #[test]
+    fn ping_profile_is_the_canonical_env_profile() {
+        let want = vox_mcp_registry::ActiveProfile::from_env()
+            .map(|p| p.id_string())
+            .unwrap_or_else(|e| e.to_string());
+        assert_eq!(super::ping_profile(), want);
     }
 }
 
@@ -1653,6 +1713,93 @@ pub trait ExtraDispatch: Send + Sync {
     /// Return `Some(response)` to handle `req`; `None` to fall through to the
     /// built-in `orch.*` dispatch.
     async fn try_handle(&self, req: &DispatchRequest) -> Option<DispatchResponse>;
+
+    /// Serve `req` as a long-lived push stream (e.g. `term.attach`). Return
+    /// `Some(result)` to claim it: frames go out through `out` until the stream
+    /// ends, then the connection closes (same as the built-in `SUBSCRIBE*`
+    /// methods). `None` falls through to `try_handle` / built-in dispatch.
+    /// Runs after the daemon auth gate, so a stream never starts unauthenticated.
+    async fn try_stream(
+        &self,
+        _req: &DispatchRequest,
+        _out: &mut dyn FrameSink,
+    ) -> Option<anyhow::Result<()>> {
+        None
+    }
+}
+
+/// Where a streaming [`ExtraDispatch`] writes its frames (TCP or stdio peer).
+#[async_trait::async_trait]
+pub trait FrameSink: Send {
+    async fn send(&mut self, resp: &DispatchResponse) -> anyhow::Result<()>;
+}
+
+struct WriteSink<'a, W>(&'a mut W);
+
+#[async_trait::async_trait]
+impl<W: AsyncWriteExt + Unpin + Send> FrameSink for WriteSink<'_, W> {
+    async fn send(&mut self, resp: &DispatchResponse) -> anyhow::Result<()> {
+        write_frame(&mut *self.0, resp).await
+    }
+}
+
+/// Several [`ExtraDispatch`] hooks behind one: the first that claims a request wins.
+pub struct ChainDispatch(pub Vec<Arc<dyn ExtraDispatch>>);
+
+#[async_trait::async_trait]
+impl ExtraDispatch for ChainDispatch {
+    async fn try_handle(&self, req: &DispatchRequest) -> Option<DispatchResponse> {
+        for ex in &self.0 {
+            if let Some(resp) = ex.try_handle(req).await {
+                return Some(resp);
+            }
+        }
+        None
+    }
+
+    async fn try_stream(
+        &self,
+        req: &DispatchRequest,
+        out: &mut dyn FrameSink,
+    ) -> Option<anyhow::Result<()>> {
+        for ex in &self.0 {
+            if let Some(r) = ex.try_stream(req, out).await {
+                return Some(r);
+            }
+        }
+        None
+    }
+}
+
+/// Run one non-subscribe request to a [`DispatchResponse`], catching panics
+/// from ExtraDispatch / built-in handlers so the TCP peer always gets a frame.
+async fn dispatch_one_framed(
+    repository_id: String,
+    orch: Arc<Orchestrator>,
+    extra: Option<Arc<dyn ExtraDispatch>>,
+    req: DispatchRequest,
+) -> DispatchResponse {
+    let id = req.id.clone();
+    let join = tokio::spawn(async move {
+        if let Some(ex) = extra.as_ref() {
+            if let Some(resp) = ex.try_handle(&req).await {
+                return resp;
+            }
+        }
+        dispatch_request(&repository_id, orch, &req).await
+    });
+    match join.await {
+        Ok(resp) => resp,
+        Err(join_err) => {
+            let msg = if join_err.is_panic() {
+                "orchestrator handler panicked; see daemon stderr"
+            } else {
+                "orchestrator handler task cancelled"
+            };
+            tracing::error!(error = %join_err, %id, "{msg}");
+            response_err(id, msg)
+        }
+    }
 }
 
 async fn handle_connection(
@@ -1714,12 +1861,13 @@ async fn handle_connection(
             break;
         }
         if let Some(ex) = extra.as_ref() {
-            if let Some(resp) = ex.try_handle(&req).await {
-                write_frame(&mut write_half, &resp).await?;
-                continue;
+            if let Some(r) = ex.try_stream(&req, &mut WriteSink(&mut write_half)).await {
+                r?;
+                break;
             }
         }
-        let resp = dispatch_request(&repository_id, orch.clone(), &req).await;
+        let resp =
+            dispatch_one_framed(repository_id.clone(), orch.clone(), extra.clone(), req).await;
         write_frame(&mut write_half, &resp).await?;
     }
     Ok(())
@@ -1849,13 +1997,227 @@ pub async fn run_stdio_server_with_extra(
             break;
         }
         if let Some(ex) = extra.as_ref() {
-            if let Some(resp) = ex.try_handle(&req).await {
-                write_frame(&mut stdout, &resp).await?;
-                continue;
+            if let Some(r) = ex.try_stream(&req, &mut WriteSink(&mut stdout)).await {
+                r?;
+                break;
             }
         }
-        let resp = dispatch_request(&repository_id, orch.clone(), &req).await;
+        let resp =
+            dispatch_one_framed(repository_id.clone(), orch.clone(), extra.clone(), req).await;
         write_frame(&mut stdout, &resp).await?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod panic_frame_tests {
+    use super::*;
+    use crate::OrchestratorConfig;
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+
+    struct PanicExtra;
+
+    #[async_trait::async_trait]
+    impl ExtraDispatch for PanicExtra {
+        async fn try_handle(&self, req: &DispatchRequest) -> Option<DispatchResponse> {
+            if req.method == "test.panic" {
+                panic!("intentional ExtraDispatch panic for framing test");
+            }
+            None
+        }
+    }
+
+    #[tokio::test]
+    async fn panicking_extra_dispatch_writes_error_frame_not_eof() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
+        let extra: Arc<dyn ExtraDispatch> = Arc::new(PanicExtra);
+        tokio::spawn(async move {
+            let (socket, _) = listener.accept().await.expect("accept");
+            let _ = handle_connection(socket, "repo".into(), orch, Some(extra), None).await;
+        });
+
+        let mut stream = TcpStream::connect(addr).await.expect("connect");
+        let (read_half, mut write_half) = stream.split();
+        let req = DispatchRequest {
+            id: "panic-1".into(),
+            method: "test.panic".into(),
+            params: serde_json::json!({}),
+            auth_token: None,
+            permission_mode: None,
+        };
+        let mut line = serde_json::to_string(&req).unwrap();
+        line.push('\n');
+        write_half.write_all(line.as_bytes()).await.unwrap();
+        write_half.flush().await.unwrap();
+
+        let mut reader = BufReader::new(read_half);
+        let mut resp_line = String::new();
+        let n = reader.read_line(&mut resp_line).await.expect("read");
+        assert!(n > 0, "expected Error frame, got EOF");
+        let resp: DispatchResponse = serde_json::from_str(resp_line.trim()).expect("json");
+        match resp.payload {
+            DispatchPayload::Error { message, .. } => {
+                assert!(
+                    message.contains("panicked"),
+                    "unexpected message: {message}"
+                );
+            }
+            other => panic!("expected Error payload, got {other:?}"),
+        }
+    }
+}
+
+#[cfg(test)]
+mod stream_tests {
+    use super::*;
+    use crate::OrchestratorConfig;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+
+    /// Streams two `Event` frames for `test.stream`; answers `test.ping2` as a plain request.
+    struct StreamExtra {
+        streamed: Arc<AtomicBool>,
+    }
+
+    #[async_trait::async_trait]
+    impl ExtraDispatch for StreamExtra {
+        async fn try_handle(&self, req: &DispatchRequest) -> Option<DispatchResponse> {
+            (req.method == "test.ping2")
+                .then(|| response_result(&req.id, serde_json::json!("pong")))
+        }
+
+        async fn try_stream(
+            &self,
+            req: &DispatchRequest,
+            out: &mut dyn FrameSink,
+        ) -> Option<anyhow::Result<()>> {
+            if req.method != "test.stream" {
+                return None;
+            }
+            self.streamed.store(true, Ordering::SeqCst);
+            for n in 1..=2 {
+                let frame = DispatchResponse {
+                    id: req.id.clone(),
+                    payload: DispatchPayload::Event {
+                        value: serde_json::json!({ "n": n }),
+                    },
+                };
+                if let Err(e) = out.send(&frame).await {
+                    return Some(Err(e));
+                }
+            }
+            Some(Ok(()))
+        }
+    }
+
+    struct Plain;
+
+    #[async_trait::async_trait]
+    impl ExtraDispatch for Plain {
+        async fn try_handle(&self, req: &DispatchRequest) -> Option<DispatchResponse> {
+            (req.method == "test.plain")
+                .then(|| response_result(&req.id, serde_json::json!("plain")))
+        }
+    }
+
+    fn req(method: &str, token: Option<&str>) -> String {
+        let r = DispatchRequest {
+            id: "1".into(),
+            method: method.into(),
+            params: serde_json::json!({}),
+            auth_token: token.map(Into::into),
+            permission_mode: None,
+        };
+        let mut l = serde_json::to_string(&r).unwrap();
+        l.push('\n');
+        l
+    }
+
+    /// Serve one connection with `extra`/`token`; send `lines`; return every frame read until EOF.
+    async fn roundtrip(
+        extra: Arc<dyn ExtraDispatch>,
+        token: Option<&str>,
+        lines: &[String],
+    ) -> Vec<DispatchPayload> {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
+        let token: Option<Arc<str>> = token.map(Arc::from);
+        tokio::spawn(async move {
+            let (socket, _) = listener.accept().await.expect("accept");
+            let _ = handle_connection(socket, "repo".into(), orch, Some(extra), token).await;
+        });
+        let mut stream = TcpStream::connect(addr).await.expect("connect");
+        let (rd, mut wr) = stream.split();
+        for l in lines {
+            wr.write_all(l.as_bytes()).await.unwrap();
+        }
+        wr.flush().await.unwrap();
+        let mut rd = BufReader::new(rd);
+        let mut out = vec![];
+        let mut buf = String::new();
+        // A stream closes the connection when it ends; plain requests are ended by
+        // the caller dropping the socket, so cap the number of frames we wait for.
+        while out.len() < 8 {
+            buf.clear();
+            let read = tokio::time::timeout(
+                // drift-allow(timeout-literal,duplicate-numeric-literal): local test socket drain bound
+                std::time::Duration::from_millis(500),
+                rd.read_line(&mut buf),
+            )
+            .await;
+            match read {
+                Ok(Ok(n)) if n > 0 => out.push(
+                    serde_json::from_str::<DispatchResponse>(buf.trim())
+                        .unwrap()
+                        .payload,
+                ),
+                _ => break,
+            }
+        }
+        out
+    }
+
+    #[tokio::test]
+    async fn streaming_extra_pushes_frames_then_closes() {
+        let streamed = Arc::new(AtomicBool::new(false));
+        let extra = Arc::new(StreamExtra {
+            streamed: streamed.clone(),
+        });
+        let frames = roundtrip(extra, None, &[req("test.stream", None)]).await;
+        assert_eq!(frames.len(), 2, "{frames:?}");
+        assert!(matches!(&frames[1], DispatchPayload::Event { value } if value["n"] == 2));
+        assert!(streamed.load(Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn chain_routes_streams_and_plain_requests_to_the_right_extra() {
+        let streamed = Arc::new(AtomicBool::new(false));
+        let chain: Arc<dyn ExtraDispatch> = Arc::new(ChainDispatch(vec![
+            Arc::new(Plain),
+            Arc::new(StreamExtra { streamed }),
+        ]));
+        let plain = roundtrip(chain.clone(), None, &[req("test.plain", None)]).await;
+        assert!(matches!(&plain[0], DispatchPayload::Result { value } if value == "plain"));
+        let stream = roundtrip(chain, None, &[req("test.stream", None)]).await;
+        assert_eq!(stream.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn stream_without_the_daemon_token_is_rejected_before_it_starts() {
+        let streamed = Arc::new(AtomicBool::new(false));
+        let extra = Arc::new(StreamExtra {
+            streamed: streamed.clone(),
+        });
+        let frames = roundtrip(extra, Some("secret"), &[req("test.stream", None)]).await;
+        assert!(
+            matches!(&frames[0], DispatchPayload::Error { message, .. } if message.contains("unauthorized"))
+        );
+        assert!(
+            !streamed.load(Ordering::SeqCst),
+            "stream must not start unauthenticated"
+        );
+    }
 }

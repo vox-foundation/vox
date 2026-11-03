@@ -1,0 +1,5 @@
+// expect: diagram/trailing-content
+graph {
+    node a: "A"
+}
+}

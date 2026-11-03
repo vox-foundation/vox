@@ -1,0 +1,99 @@
+docs:
+  - path: docs/src/adr/001-burn-backend-selection.md
+    type: ADR
+  - path: docs/src/adr/002-diataxis-doc-architecture.md
+    type: ADR
+  - path: docs/src/adr/003-native-training-over-python.md
+    type: ADR
+  - path: docs/src/adr/004-codex-arca-turso-ssot.md
+    type: ADR
+  - path: docs/src/adr/005-socrates-anti-hallucination-ssot.md
+    type: ADR
+  - path: docs/src/adr/006-mens-full-graph-qlora-qlora-rs.md
+    type: ADR
+  - path: docs/src/adr/007-qlora-rs-multi-layer-training-api.md
+    type: ADR
+  - path: docs/src/adr/008-populi-transport.md
+    type: ADR
+  - path: docs/src/adr/009-populi-hosted-baas.md
+    type: ADR
+  - path: docs/src/adr/010-tanstack-web-spine.md
+    type: ADR
+  - path: docs/src/adr/011-scientia-publication-ssot.md
+    type: ADR
+  - path: docs/src/adr/012-internal-web-ir-strategy.md
+    type: ADR
+  - path: docs/src/adr/013-openclaw-ws-native-strategy.md
+    type: ADR
+  - path: docs/src/adr/014-async-openai-selective-adoption-spike.md
+    type: ADR
+  - path: docs/src/adr/015-vox-docker-oci-portability-ssot.md
+    type: ADR
+  - path: docs/src/adr/016-oratio-streaming-whisper-and-constrained-decode.md
+    type: ADR
+  - path: docs/src/adr/017-populi-lease-remote-execution.md
+    type: ADR
+  - path: docs/src/adr/018-populi-gpu-truth-layering.md
+    type: ADR
+  - path: docs/src/adr/019-durable-workflow-journal-contract-v1.md
+    type: ADR
+  - path: docs/src/adr/020-populi-mesh-scaling-transport-default.md
+    type: ADR
+  - path: docs/src/adr/021-generated-workflow-durability-parity.md
+    type: ADR
+  - path: docs/src/adr/022-orchestrator-bootstrap-and-daemon-boundaries.md
+    type: ADR
+  - path: docs/src/adr/023-optional-telemetry-remote-upload.md
+    type: ADR
+  - path: docs/src/adr/024-dashboard-axum-spa.md
+    type: ADR
+  - path: docs/src/adr/025-multi-agent-lock-coherence.md
+    type: ADR
+  - path: docs/src/adr/026-third-party-code-provenance.md
+    type: ADR
+  - path: docs/src/adr/027-dual-track-ui-surfaces.md
+    type: ADR
+  - path: docs/src/adr/028-deprecate-stub-durability-grammar.md
+    type: ADR
+  - path: docs/src/adr/029-formal-intent.md
+    type: ADR
+  - path: docs/src/adr/030-state-machine-ssot.md
+    type: ADR
+  - path: docs/src/adr/031-deprecate-vox-vscode.md
+    type: ADR
+  - path: docs/src/adr/032-vox-ui-reactive-modules.md
+    type: ADR
+  - path: docs/src/adr/033-typed-fragment-primitive.md
+    type: ADR
+  - path: docs/src/adr/034-candle-qlora-stack-upgrades.md
+    type: ADR
+  - path: docs/src/adr/035-swc-parser-alternatives-eval.md
+    type: ADR
+  - path: docs/src/adr/036-webir-hir-unification-compare-both.md
+    type: ADR
+  - path: docs/src/adr/037-tauri-convergence.md
+    type: ADR
+  - path: docs/src/adr/038-ai-fixture-prompt-decorator.md
+    type: ADR
+  - path: docs/src/adr/039-ai-fixture-hole-decorator.md
+    type: ADR
+  - path: docs/src/adr/040-ai-fixture-search-decorator.md
+    type: ADR
+  - path: docs/src/adr/041-durable-functions-completion-2026.md
+    type: ADR
+  - path: docs/src/adr/044-ai-fixture-subagent-decorator.md
+    type: ADR
+  - path: docs/src/adr/045-tauri-gui-replaces-axum-dashboard.md
+    type: ADR
+  - path: docs/src/adr/046-pareto-frontier-reporting.md
+    type: ADR
+  - path: docs/src/adr/047-iroh-transport.md
+    type: ADR
+  - path: docs/src/adr/048-interpreter-is-the-execution-and-sandbox-tier.md
+    type: ADR
+  - path: docs/src/adr/README.md
+    type: DOC
+  - path: docs/src/adr/index.md
+    type: DOC
+  - path: docs/src/adr/internal-web-ir-side-by-side-schema.md
+    type: SPEC

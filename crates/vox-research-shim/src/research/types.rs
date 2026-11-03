@@ -18,17 +18,70 @@ pub enum ResearchScope {
     Both,
 }
 
+/// Domain engine mode for specialized research decomposition and synthesis.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ResearchDomainMode {
+    #[default]
+    General,
+    Shopping,
+    CodeGen,
+}
+
+impl std::str::FromStr for ResearchDomainMode {
+    type Err = String;
+
+    /// Parse the `general` / `shopping` / `codegen` wire and CLI label (case-insensitive).
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "general" => Ok(Self::General),
+            "shopping" => Ok(Self::Shopping),
+            "codegen" | "code_gen" => Ok(Self::CodeGen),
+            other => Err(format!(
+                "invalid domain mode {other:?}: use general|shopping|codegen"
+            )),
+        }
+    }
+}
+
+fn default_waves() -> usize {
+    1
+}
+
 /// A single research query.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResearchQuery {
     pub query: String,
     pub scope: ResearchScope,
     pub max_sources: usize,
+    // vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="kb-leak-closure: research answers no longer write docs/src" canonical="kb_findings inbox"
     pub persist_to_docs: bool,
     pub verify_claims: bool,
     /// Optional site-scoped crawl restriction (domain only, no scheme).
     /// When set, `web_gather` will also call `ProviderRegistry::map_site`.
     pub site_scope: Option<String>,
+    #[serde(default)]
+    pub domain_mode: ResearchDomainMode,
+    #[serde(default = "default_waves")]
+    pub waves: usize,
+    #[serde(default)]
+    pub lane: vox_search::policy::ResearchLane,
+}
+
+impl Default for ResearchQuery {
+    fn default() -> Self {
+        Self {
+            query: String::new(),
+            scope: ResearchScope::Web,
+            max_sources: 10,
+            persist_to_docs: false,
+            verify_claims: true,
+            site_scope: None,
+            domain_mode: ResearchDomainMode::General,
+            waves: 1,
+            lane: vox_search::policy::ResearchLane::Fast,
+        }
+    }
 }
 
 /// A decomposed research plan: original query + N subqueries.
@@ -72,6 +125,63 @@ pub struct RetrievalDiagnostics {
     /// True when `distinct_domain_count` is below `ResearchConfig::min_distinct_domains`.
     #[serde(default)]
     pub citation_diversity_below_threshold: bool,
+    /// Per-provider web-search outcomes across every subquery of the run —
+    /// the deep chat trace's provider table (same shape as quick mode's).
+    #[serde(default)]
+    pub providers: Vec<ProviderCallSummary>,
+    /// Session Tavily credits after the run's last web search; `None` when
+    /// Tavily is not configured.
+    #[serde(default)]
+    pub tavily_credits: Option<TavilyCredits>,
+}
+
+/// One (provider, outcome) row aggregated over a run's web-search calls.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProviderCallSummary {
+    pub provider: String,
+    /// Representative status; for `Ok` the hits are summed over `calls`.
+    pub status: vox_search::web_dispatcher::ProviderStatus,
+    /// Slowest call in this row.
+    pub elapsed_ms: u64,
+    pub calls: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TavilyCredits {
+    pub used: usize,
+    pub remaining: usize,
+}
+
+/// A research run that failed after retrieval started, carrying the run's
+/// per-provider log (and the sources it had kept) so a trace can show which
+/// provider failed. Recover it with
+/// `anyhow::Error::downcast_ref::<ResearchRunFailure>()`.
+///
+/// Transparent for printing: `Display` and `source()` are the wrapped error's,
+/// so `{}`, `{:#}`, `chain()` and `root_cause()` read exactly as before.
+/// NOT transparent for type inspection: `err.downcast_ref::<InnerType>()` on
+/// the outer error now returns `None` (downcast `.error` instead), and the
+/// captured backtrace is the wrapper's, not the inner error's.
+#[derive(Debug)]
+pub struct ResearchRunFailure {
+    pub error: anyhow::Error,
+    pub providers: Vec<ProviderCallSummary>,
+    pub tavily_credits: Option<TavilyCredits>,
+    /// Hits kept after dedupe/filtering when the run failed (empty on the
+    /// zero-hits halt).
+    pub sources: Vec<ResearchHit>,
+}
+
+impl std::fmt::Display for ResearchRunFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(&*self.error, f)
+    }
+}
+
+impl std::error::Error for ResearchRunFailure {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.error.source()
+    }
 }
 
 impl Default for RetrievalDiagnostics {
@@ -85,6 +195,8 @@ impl Default for RetrievalDiagnostics {
             hit_rate: 0.0,
             distinct_domain_count: 0,
             citation_diversity_below_threshold: false,
+            providers: Vec::new(),
+            tavily_credits: None,
         }
     }
 }
@@ -194,6 +306,48 @@ pub struct ResearchMetadata {
     /// data. Empty when no claims were verified.
     #[serde(default)]
     pub corroboration_counts: Vec<(u64, usize)>,
+    #[serde(default = "default_waves")]
+    pub wave_count: usize,
+    #[serde(default)]
+    pub wave_stability: Option<f64>,
+    #[serde(default)]
+    pub low_grounding_evidence: bool,
+    #[serde(default)]
+    pub subqueries: Vec<String>,
+    /// Model that produced `answer` (the pin when `VOX_MODEL_FORCE` is set).
+    #[serde(default)]
+    pub synthesis_model: String,
+    /// Set when the judge could not score the answer; `quality_score` is then 0, never a synthetic default.
+    #[serde(default)]
+    pub judge_error: Option<String>,
+    #[serde(default)]
+    pub served_from_cache: bool,
+    /// Task 15d: total claims extracted (`draft_claims.len()` in
+    /// `orchestrator/pipeline.rs`) before the per-run verification cap
+    /// (`verifier::MAX_CLAIMS_VERIFIED_PER_RUN`) was applied. Review round 1
+    /// correction: this is **not** always equal to `claim_verdicts.len()` —
+    /// when `query.verify_claims` is false, or when there is no retrieval
+    /// evidence at all (`verify_claims_with_config` returns an empty `Vec` for
+    /// an empty `evidence_hits`), claims were extracted but never verified, so
+    /// `claim_verdicts` stays empty while this count does not.
+    #[serde(default)]
+    pub claims_extracted_count: usize,
+    /// Task 15d: how many of `claims_extracted_count` actually went through a
+    /// real verification this run — at most `verifier::MAX_CLAIMS_VERIFIED_PER_RUN`
+    /// fresh LLM calls, **plus every cache hit** (`cached_verdicts.len()` in
+    /// `orchestrator/pipeline.rs` — a cache hit is a real verification from a
+    /// prior run, not a fresh one, but it is not capped and it is not
+    /// "unverified"). Review round 1 correction: this can therefore exceed
+    /// `verifier::MAX_CLAIMS_VERIFIED_PER_RUN` when most claims are cache
+    /// hits — it is not itself capped at that constant, only the *fresh* LLM
+    /// calls within it are. The remainder of `claims_extracted_count` were
+    /// capped out and marked `Unverified`. Surfaced in the chat "claims" trace
+    /// stage as "K verified of M extracted".
+    #[serde(default)]
+    pub claims_verified_count: usize,
+    /// LLM tokens, cost, latency, and call counts for this run; empty when served from cache.
+    #[serde(default)]
+    pub usage: super::metering::RunUsage,
 }
 
 /// Final research result.
@@ -270,7 +424,15 @@ pub struct ResearchRunArtifact {
 
 #[cfg(test)]
 mod tests {
-    use super::ResearchStage;
+    use super::{ResearchDomainMode, ResearchStage};
+
+    #[test]
+    fn domain_mode_parses_wire_labels() {
+        assert_eq!("shopping".parse(), Ok(ResearchDomainMode::Shopping));
+        assert_eq!("Code_Gen".parse(), Ok(ResearchDomainMode::CodeGen));
+        assert_eq!("general".parse(), Ok(ResearchDomainMode::General));
+        assert!("legal".parse::<ResearchDomainMode>().is_err());
+    }
 
     #[test]
     fn research_stage_as_str_round_trips() {

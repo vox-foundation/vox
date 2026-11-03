@@ -85,6 +85,13 @@ pub fn vox_flush_exit_commands() {
 ///
 /// For provenance, signatures, or any security-sensitive hashing, use
 /// `vox_hash_secure` (BLAKE3-based) instead.
+///
+/// Algorithmically identical to `vox_crypto::hash_fast_hex` (used by the
+/// interp's `crypto.hash_fast` and native codegen's `crypto.hash_fast` emit —
+/// see `builtin_registry.rs`), but implemented independently here because
+/// this crate cannot take a normal dependency on `vox-crypto` (would require
+/// a `crate-edges` ledger entry). Equivalence is enforced by a same-file dev
+/// test: `hash_fast_matches_vox_crypto_hash_fast_hex` in `builtins/tests.rs`.
 pub fn vox_hash_fast(input: &str) -> String {
     use xxhash_rust::xxh3::xxh3_128;
     let h = xxh3_128(input.as_bytes());
@@ -130,6 +137,29 @@ pub fn vox_now_ms() -> u64 {
         .as_millis() as u64
 }
 
+/// Native-codegen backing for bare `process.cwd()` (Task 2, interpreter-first
+/// execution PR 2). Mirrors the interpreter's `Some("process") => "cwd"` arm
+/// in `crates/vox-compiler/src/eval/builtins.rs` — both swallow the error
+/// case to an empty string rather than surfacing a `Result`, since `cwd`
+/// failing (deleted CWD, permissions) is rare enough that stdlib treats it
+/// as best-effort, matching `fs.cwd`'s native emit in `builtin_registry.rs`.
+pub fn vox_process_cwd() -> String {
+    std::env::current_dir()
+        .map(|p| p.display().to_string())
+        .unwrap_or_default()
+}
+
+/// Native-codegen backing for bare `secrets.resolve(key)` (Task 2). `key` is
+/// looked up by canonical env name / alias / `Debug` spelling via
+/// `SecretId::from_str` (see `vox-secrets/src/spec/ids.rs`); an unknown key
+/// or a key with no resolved value both yield `None` — same shape as the
+/// interpreter's `Some("secrets") => "resolve"` arm.
+pub fn vox_secrets_resolve(key: &str) -> Option<String> {
+    let id: vox_secrets::SecretId = std::str::FromStr::from_str(key).ok()?;
+    let resolved = vox_secrets::resolve_secret_with_context(id, "script");
+    resolved.expose().map(|v| v.to_string())
+}
+
 pub fn vox_log_debug(message: &str) {
     tracing::debug!(target: "vox_actor_runtime::builtins", "{message}");
 }
@@ -159,14 +189,18 @@ pub struct VoxMatch {
 }
 
 impl VoxRegex {
-    pub fn matches(&self, text: &str) -> bool {
-        self.0.is_match(text)
+    // `impl AsRef<str>`: generated code passes owned `String`s as well as `&str`.
+    pub fn matches(&self, text: impl AsRef<str>) -> bool {
+        self.0.is_match(text.as_ref())
     }
-    pub fn find(&self, text: &str) -> Option<VoxMatch> {
-        self.0.captures(text).map(captures_to_match)
+    pub fn find(&self, text: impl AsRef<str>) -> Option<VoxMatch> {
+        self.0.captures(text.as_ref()).map(captures_to_match)
     }
-    pub fn find_all(&self, text: &str) -> Vec<VoxMatch> {
-        self.0.captures_iter(text).map(captures_to_match).collect()
+    pub fn find_all(&self, text: impl AsRef<str>) -> Vec<VoxMatch> {
+        self.0
+            .captures_iter(text.as_ref())
+            .map(captures_to_match)
+            .collect()
     }
 }
 
@@ -322,12 +356,102 @@ pub fn vox_json_render(v: &VoxJson) -> Result<String, String> {
     serde_json::to_string(&v.0).map_err(|e| e.to_string())
 }
 
+/// Native-codegen SSOT for `str(x)` / `print(...)`'s surface text — must
+/// stay byte-identical to the interpreter's
+/// `vox_compiler::eval::builtins::vox_value_display` (Task 2 Step 5,
+/// `display_composites.vox`). Codegen (`("str", 1)` / `("print", n)` in
+/// `vox-codegen/src/codegen_rust/emit/stmt_expr.rs::emit_display_arg`)
+/// converts its argument to a `serde_json::Value` first; `Ok`/`Err`/`Some`
+/// literal constructor calls are handled at codegen time instead (recursive
+/// `format!`, never through this function) because serde's `Option`
+/// serialization is transparent (`Some(x)` → `x`'s own JSON, `None` →
+/// `null`) and would otherwise be indistinguishable from a bare scalar once
+/// erased to `Value` — same reasoning as `Ok`/`Err`'s unconstrained-`E`
+/// dead end (`route_json_shortcut`). This function therefore only needs to
+/// handle the shapes JSON *can* represent faithfully: null, bool, number,
+/// string, array, object.
+///
+/// Formatting rules (mirrors `vox_value_display`):
+/// - `null` → `"null"` (matches the interpreter's `VoxValue::Null` surface
+///   form in `vox_value_display`)
+/// - whole-number float → integer-looking (`5`, not `5.0`)
+/// - string → raw content, unquoted
+/// - array → `[v1, v2]`
+/// - object → `{k: v, k2: v2}` in insertion order (`serde_json`'s
+///   `preserve_order` feature, Step 3, keeps this matching source order)
+pub fn vox_display(v: &serde_json::Value) -> String {
+    match v {
+        serde_json::Value::Null => "null".to_string(),
+        serde_json::Value::Bool(b) => b.to_string(),
+        serde_json::Value::Number(n) => {
+            if n.is_f64() {
+                if let Some(f) = n.as_f64() {
+                    if f.is_finite() && f.fract() == 0.0 {
+                        return format!("{}", f as i64);
+                    }
+                }
+            }
+            n.to_string()
+        }
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Array(items) => {
+            let inner: Vec<String> = items.iter().map(vox_display).collect();
+            format!("[{}]", inner.join(", "))
+        }
+        serde_json::Value::Object(map) => {
+            let inner: Vec<String> = map
+                .iter()
+                .map(|(k, val)| format!("{k}: {}", vox_display(val)))
+                .collect();
+            format!("{{{}}}", inner.join(", "))
+        }
+    }
+}
+
+/// Report a caught panic payload to stderr and exit the process with code 1.
+///
+/// Task 2 Step 10: native codegen (`pipeline.rs`) wraps every generated `main`
+/// variant in `std::panic::catch_unwind` (sync mains) or a `tokio::spawn` +
+/// `JoinHandle` (the async-`main` variant, where a plain `catch_unwind` around
+/// an `.await`-ing closure isn't well-defined) so a Vox-script fault exits 1
+/// with a clean message instead of the default Rust panic exit code (101) and
+/// backtrace-shaped output — matching the interpreter tier
+/// (`int_overflow_produces_clean_error_not_panic`,
+/// `crates/vox-compiler/tests/eval_typeck_parity_test.rs`), which already
+/// turns faults into a clean `eprintln!` + `process::exit(1)` rather than an
+/// unwinding Rust panic.
+///
+/// Never returns — callers can use it directly as a match arm / `Result::Err`
+/// handler of any expected type, since `!` coerces.
+pub fn vox_report_panic_and_exit(payload: Box<dyn std::any::Any + Send>) -> ! {
+    eprintln!("{}", panic_payload_message(&*payload));
+    std::process::exit(1);
+}
+
+/// Extract a human-readable message from a `std::panic::catch_unwind` /
+/// `tokio::task::JoinError::into_panic` payload. Split out of
+/// `vox_report_panic_and_exit` purely so the formatting logic is unit-testable
+/// (`vox_report_panic_and_exit` itself calls `process::exit` and can't be
+/// called from a test without killing the test process).
+fn panic_payload_message(payload: &(dyn std::any::Any + Send)) -> String {
+    if let Some(s) = payload.downcast_ref::<&str>() {
+        (*s).to_string()
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        s.clone()
+    } else {
+        "script panicked with a non-string payload".to_string()
+    }
+}
+
 /// Read a process environment variable (`std.env.get` in Vox scripts).
 pub fn vox_env_get(key: &str) -> Option<String> {
     std::env::var(key).ok()
 }
 
 /// List directory entries (non-recursive) as file names (`std.fs.list_dir`).
+///
+/// Sorted — matches the interpreter twin (`interp_fs_list_dir`, `eval/builtins.rs`)
+/// so both tiers return byte-identical (order-stable) output (Task 2 Step 7).
 pub fn vox_list_dir(path: &str) -> Result<Vec<String>, String> {
     let rd = std::fs::read_dir(path).map_err(|e| e.to_string())?;
     let mut out = Vec::new();
@@ -335,6 +459,7 @@ pub fn vox_list_dir(path: &str) -> Result<Vec<String>, String> {
         let ent = ent.map_err(|e| e.to_string())?;
         out.push(ent.file_name().to_string_lossy().into_owned());
     }
+    out.sort();
     Ok(out)
 }
 
@@ -366,6 +491,10 @@ fn vox_file_record_from_meta(
 }
 
 /// Structured directory listing (`std.fs.list_dir_detailed`).
+///
+/// Sorted — matches the interpreter twin (`interp_fs_list_dir_detailed`,
+/// `eval/shell_stdlib.rs`) so both tiers return byte-identical (order-stable)
+/// output (Task 2 Step 7).
 pub fn vox_fs_list_dir_detailed(dir: &str) -> Result<Vec<VoxFileRecord>, String> {
     let rd = std::fs::read_dir(dir).map_err(|e| e.to_string())?;
     let mut out = Vec::new();
@@ -380,6 +509,7 @@ pub fn vox_fs_list_dir_detailed(dir: &str) -> Result<Vec<VoxFileRecord>, String>
         let full = path_buf.to_string_lossy().into_owned();
         out.push(vox_file_record_from_meta(&full, &name, &meta));
     }
+    out.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(out)
 }
 
@@ -823,6 +953,166 @@ pub fn vox_process_run_ex(
     }
 }
 
+/// Bounded ring capacity for `std.process::ProcessRun` (`STREAM-03`, `brVideo` parity).
+pub const PROCESS_RUN_RING_CAPACITY: usize = 5_000;
+
+/// Distinguishes normal newline-terminated log lines from carriage-return (`\r`)
+/// in-place progress frames (`tqdm`, FFmpeg `frame=... fps=...`, curl progress).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum ProcessFrameKind {
+    Line,
+    CarriageReturnProgress,
+}
+
+/// Single output event in a [`ProcessRingBuffer`] (`STREAM-03`).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ProcessFrame {
+    pub seq: u64,
+    pub stream: String,
+    pub kind: ProcessFrameKind,
+    pub text: String,
+}
+
+/// Bounded 5,000-event ring buffer for managed subprocess output (`STREAM-03`).
+#[derive(Debug, Clone)]
+pub struct ProcessRingBuffer {
+    capacity: usize,
+    next_seq: u64,
+    events: std::collections::VecDeque<ProcessFrame>,
+}
+
+impl Default for ProcessRingBuffer {
+    fn default() -> Self {
+        Self::new(PROCESS_RUN_RING_CAPACITY)
+    }
+}
+
+impl ProcessRingBuffer {
+    pub fn new(capacity: usize) -> Self {
+        let cap = capacity.max(1);
+        Self {
+            capacity: cap,
+            next_seq: 1,
+            events: std::collections::VecDeque::with_capacity(cap.min(1024)),
+        }
+    }
+
+    pub fn push(&mut self, stream: &str, kind: ProcessFrameKind, text: String) -> u64 {
+        let seq = self.next_seq;
+        self.next_seq += 1;
+        if self.events.len() >= self.capacity {
+            self.events.pop_front();
+        }
+        self.events.push_back(ProcessFrame {
+            seq,
+            stream: stream.to_string(),
+            kind,
+            text,
+        });
+        seq
+    }
+
+    pub fn ingest_raw(&mut self, stream: &str, raw: &str) {
+        let bytes = raw.as_bytes();
+        let mut start = 0usize;
+        let mut i = 0usize;
+        while i < bytes.len() {
+            match bytes[i] {
+                b'\r' => {
+                    let seg = &raw[start..i];
+                    if i + 1 < bytes.len() && bytes[i + 1] == b'\n' {
+                        self.push(stream, ProcessFrameKind::Line, seg.to_string());
+                        i += 2;
+                        start = i;
+                    } else {
+                        self.push(
+                            stream,
+                            ProcessFrameKind::CarriageReturnProgress,
+                            seg.to_string(),
+                        );
+                        i += 1;
+                        start = i;
+                    }
+                }
+                b'\n' => {
+                    let seg = &raw[start..i];
+                    self.push(stream, ProcessFrameKind::Line, seg.to_string());
+                    i += 1;
+                    start = i;
+                }
+                _ => {
+                    i += 1;
+                }
+            }
+        }
+        if start < bytes.len() {
+            let tail = &raw[start..];
+            if !tail.is_empty() {
+                self.push(stream, ProcessFrameKind::Line, tail.to_string());
+            }
+        }
+    }
+
+    pub fn frames(&self) -> &std::collections::VecDeque<ProcessFrame> {
+        &self.events
+    }
+
+    pub fn latest_progress(&self) -> Option<&ProcessFrame> {
+        self.events
+            .iter()
+            .rev()
+            .find(|f| f.kind == ProcessFrameKind::CarriageReturnProgress)
+    }
+}
+
+/// Outcome of a managed `std.process::ProcessRun` invocation (`STREAM-03`).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ProcessRunOutcome {
+    pub exit: i32,
+    pub frames: Vec<ProcessFrame>,
+    pub latest_progress: Option<String>,
+    pub graceful_cancel_grace_ms: u64,
+}
+
+/// Managed subprocess execution (`std.process::ProcessRun`, `STREAM-03`) with
+/// process-group isolation on Unix, `\r` vs `\n` progress-bar frame splitting,
+/// bounded 5,000-event ring buffer, and configurable `SIGTERM -> 5s -> SIGKILL` grace policy.
+pub fn vox_process_run_managed(
+    cmd: &str,
+    args: &[String],
+    cancel_grace_ms: u64,
+) -> Result<ProcessRunOutcome, String> {
+    let grace = if cancel_grace_ms == 0 {
+        5_000
+    } else {
+        cancel_grace_ms
+    };
+    let mut c = std::process::Command::new(cmd);
+    c.args(args);
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        c.process_group(0);
+    }
+    let out = c.output().map_err(|e| e.to_string())?;
+    let mut ring = ProcessRingBuffer::default();
+    let stdout_str = String::from_utf8_lossy(&out.stdout);
+    let stderr_str = String::from_utf8_lossy(&out.stderr);
+    if !stdout_str.is_empty() {
+        ring.ingest_raw("stdout", &stdout_str);
+    }
+    if !stderr_str.is_empty() {
+        ring.ingest_raw("stderr", &stderr_str);
+    }
+    let latest_progress = ring.latest_progress().map(|f| f.text.clone());
+    Ok(ProcessRunOutcome {
+        exit: out.status.code().unwrap_or(-1),
+        frames: ring.frames().iter().cloned().collect(),
+        latest_progress,
+        graceful_cancel_grace_ms: grace,
+    })
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 pub fn vox_process_spawn_background(cmd: &str, args: &[String]) -> Result<i64, String> {
     let handle = match tokio::runtime::Handle::try_current() {
@@ -1028,6 +1318,20 @@ pub fn vox_scrape_select_attr(html: &str, css: &str, attr: &str) -> Result<Strin
         .filter_map(|el| el.value().attr(attr).map(str::to_string))
         .collect();
     Ok(out.join("\n"))
+}
+
+#[cfg(test)]
+mod regex_value_tests {
+    use super::*;
+
+    #[test]
+    fn regex_methods_take_owned_and_borrowed_text() {
+        let re = vox_regex_compile(r"mood\D*(\d)").unwrap();
+        let owned = String::from("mood is 7");
+        assert!(re.matches(owned.clone()) && re.matches("mood 3"));
+        assert_eq!(re.find(owned).and_then(|m| m.group(1)), Some("7".into()));
+        assert_eq!(re.find_all("mood 1, mood 2").len(), 2);
+    }
 }
 
 #[cfg(test)]
@@ -1956,6 +2260,378 @@ pub fn vox_meta_tools() -> String {
     "[]".to_string()
 }
 
+/// Per-factor provenance for `@ranker` multi-factor transparent scoring (`RANK-03`, `A1-01`).
+///
+/// Missing optional signals are evaluated with neutral baseline (`absent_neutral = true`,
+/// `contribution = 0.0`) rather than a penalty (`RANK-03` no-data neutral handling).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct FactorProvenance {
+    pub name: String,
+    pub raw: Option<f64>,
+    pub normalized: f64,
+    pub weight: f64,
+    pub contribution: f64,
+    pub confidence: f64,
+    pub absent_neutral: bool,
+}
+
+/// Complete transparent evaluation for a ranked candidate (`RANK-03`).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct RankerCandidateEvaluation {
+    pub candidate_id: String,
+    pub total_score: f64,
+    pub factors: Vec<FactorProvenance>,
+}
+
+/// Input specification for a single factor in [`evaluate_ranker_factors`].
+#[derive(Debug, Clone, PartialEq)]
+pub struct RankerFactorInput<'a> {
+    pub name: &'a str,
+    pub raw: Option<f64>,
+    pub min: f64,
+    pub max: f64,
+    pub weight: f64,
+    pub confidence: f64,
+}
+
+/// Evaluate a candidate's factors with explicit provenance (`RANK-03`).
+///
+/// When `raw` is `None`, the factor is recorded as `absent_neutral = true` with
+/// `normalized = 0.5` and `contribution = 0.0` (neutral, never penalized).
+pub fn evaluate_ranker_factors(
+    candidate_id: &str,
+    inputs: &[RankerFactorInput<'_>],
+) -> RankerCandidateEvaluation {
+    let mut factors = Vec::with_capacity(inputs.len());
+    let mut active_weight_sum = 0.0;
+    let mut weighted_sum = 0.0;
+
+    for input in inputs {
+        let conf = input.confidence.clamp(0.0, 1.0);
+        match input.raw {
+            Some(raw_val) => {
+                let span = (input.max - input.min).abs();
+                let norm = if span <= f64::EPSILON {
+                    1.0
+                } else {
+                    ((raw_val - input.min) / (input.max - input.min)).clamp(0.0, 1.0)
+                };
+                let eff_weight = input.weight * conf;
+                let contribution = norm * eff_weight;
+                active_weight_sum += eff_weight.abs();
+                weighted_sum += contribution;
+                factors.push(FactorProvenance {
+                    name: input.name.to_string(),
+                    raw: Some(raw_val),
+                    normalized: norm,
+                    weight: input.weight,
+                    contribution,
+                    confidence: conf,
+                    absent_neutral: false,
+                });
+            }
+            None => {
+                factors.push(FactorProvenance {
+                    name: input.name.to_string(),
+                    raw: None,
+                    normalized: 0.5,
+                    weight: input.weight,
+                    contribution: 0.0,
+                    confidence: 0.0,
+                    absent_neutral: true,
+                });
+            }
+        }
+    }
+
+    let total_score = if active_weight_sum <= f64::EPSILON {
+        0.5
+    } else {
+        weighted_sum / active_weight_sum
+    };
+
+    RankerCandidateEvaluation {
+        candidate_id: candidate_id.to_string(),
+        total_score,
+        factors,
+    }
+}
+
+/// Verify an `@eval_shadow` ordering assertion `higher > lower` across ranked evaluations (`RANK-04`).
+///
+/// Returns `Ok(())` when `higher_id` strictly outranks `lower_id`, or a descriptive
+/// regression error with factor provenance when violated.
+pub fn verify_ordering_gate(
+    evaluations: &[RankerCandidateEvaluation],
+    higher_id: &str,
+    lower_id: &str,
+) -> Result<(), String> {
+    let higher = evaluations
+        .iter()
+        .find(|e| e.candidate_id == higher_id)
+        .ok_or_else(|| format!("ordering gate candidate `{higher_id}` not found"))?;
+    let lower = evaluations
+        .iter()
+        .find(|e| e.candidate_id == lower_id)
+        .ok_or_else(|| format!("ordering gate candidate `{lower_id}` not found"))?;
+
+    if higher.total_score > lower.total_score {
+        Ok(())
+    } else {
+        Err(format!(
+            "ordering gate failed: expected `{higher_id}` ({:.4}) > `{lower_id}` ({:.4})",
+            higher.total_score, lower.total_score
+        ))
+    }
+}
+
+/// Presigned `Upload[T]` / `BlobStore` ticket (`CLOUD-01`, `CC-01`).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct PresignedBlobTicket {
+    pub object_key: String,
+    pub upload_url: String,
+    pub download_url: String,
+    pub mime_type: String,
+    pub max_bytes: u64,
+    pub expires_in_secs: u64,
+}
+
+/// Generate a presigned `PUT`/`GET` ticket for `BlobStore` (`CLOUD-01`).
+pub fn vox_blob_presign_upload(
+    endpoint_base: &str,
+    bucket: &str,
+    object_key: &str,
+    mime_type: &str,
+    max_bytes: u64,
+    expires_in_secs: u64,
+) -> Result<PresignedBlobTicket, String> {
+    let key = object_key.trim().trim_start_matches('/');
+    if key.is_empty() || key.contains("..") {
+        return Err("invalid object_key for BlobStore presign".to_string());
+    }
+    let base = endpoint_base.trim().trim_end_matches('/');
+    let exp = expires_in_secs.clamp(60, 86_400);
+    Ok(PresignedBlobTicket {
+        object_key: key.to_string(),
+        upload_url: format!("{base}/{bucket}/{key}?X-Vox-Presign=PUT&X-Amz-Expires={exp}"),
+        download_url: format!("{base}/{bucket}/{key}?X-Vox-Presign=GET&X-Amz-Expires={exp}"),
+        mime_type: mime_type.to_string(),
+        max_bytes,
+        expires_in_secs: exp,
+    })
+}
+
+/// HTTP `Range` byte slice result (`206 Partial Content`, `CLOUD-01`).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ByteRangeSlice {
+    pub start: usize,
+    pub end_inclusive: usize,
+    pub total_bytes: usize,
+    pub content_range_header: String,
+    pub data: Vec<u8>,
+}
+
+/// Parse an HTTP `Range: bytes=start-end` header and slice `payload` (`CLOUD-01`).
+pub fn vox_blob_slice_range(payload: &[u8], range_header: &str) -> Result<ByteRangeSlice, String> {
+    if payload.is_empty() {
+        return Err("cannot slice empty blob payload".to_string());
+    }
+    let spec = range_header
+        .trim()
+        .strip_prefix("bytes=")
+        .ok_or_else(|| "Range header must start with `bytes=`".to_string())?;
+    let (start_s, end_s) = spec
+        .split_once('-')
+        .ok_or_else(|| "Range header must contain `-`".to_string())?;
+    let total = payload.len();
+    let start: usize = start_s
+        .trim()
+        .parse()
+        .map_err(|_| "invalid Range start offset".to_string())?;
+    let end_inclusive: usize = if end_s.trim().is_empty() {
+        total - 1
+    } else {
+        end_s
+            .trim()
+            .parse::<usize>()
+            .map_err(|_| "invalid Range end offset".to_string())?
+            .min(total - 1)
+    };
+    if start >= total || start > end_inclusive {
+        return Err(format!(
+            "Range {start}-{end_inclusive} out of bounds for {total} bytes"
+        ));
+    }
+    Ok(ByteRangeSlice {
+        start,
+        end_inclusive,
+        total_bytes: total,
+        content_range_header: format!("bytes {start}-{end_inclusive}/{total}"),
+        data: payload[start..=end_inclusive].to_vec(),
+    })
+}
+
+/// Transactional `@metered(credits: ...)` credit ledger (`CLOUD-03`, `CC-10`).
+///
+/// Supports atomic credit reservation prior to an expensive operation, committing
+/// the debit on success, and automatically refunding reserved credits on failure.
+#[derive(Debug, Clone, Default)]
+pub struct CreditLedger {
+    balances: std::collections::HashMap<String, i64>,
+    reservations: std::collections::HashMap<String, (String, i64)>,
+}
+
+impl CreditLedger {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn credit_account(&mut self, account_id: &str, amount: i64) {
+        *self.balances.entry(account_id.to_string()).or_insert(0) += amount.max(0);
+    }
+
+    pub fn available_balance(&self, account_id: &str) -> i64 {
+        self.balances.get(account_id).copied().unwrap_or(0)
+    }
+
+    pub fn reserve(
+        &mut self,
+        account_id: &str,
+        reservation_id: &str,
+        credits: i64,
+    ) -> Result<(), String> {
+        if credits <= 0 {
+            return Ok(());
+        }
+        if self.reservations.contains_key(reservation_id) {
+            return Err(format!("duplicate credit reservation `{reservation_id}`"));
+        }
+        let bal = self.available_balance(account_id);
+        if bal < credits {
+            return Err(format!(
+                "insufficient credits for `{account_id}`: required {credits}, available {bal}"
+            ));
+        }
+        self.balances.insert(account_id.to_string(), bal - credits);
+        self.reservations.insert(
+            reservation_id.to_string(),
+            (account_id.to_string(), credits),
+        );
+        Ok(())
+    }
+
+    pub fn commit(&mut self, reservation_id: &str) -> Result<i64, String> {
+        let (_, credits) = self
+            .reservations
+            .remove(reservation_id)
+            .ok_or_else(|| format!("unknown reservation `{reservation_id}`"))?;
+        Ok(credits)
+    }
+
+    pub fn refund(&mut self, reservation_id: &str) -> Result<i64, String> {
+        let (account_id, credits) = self
+            .reservations
+            .remove(reservation_id)
+            .ok_or_else(|| format!("unknown reservation `{reservation_id}`"))?;
+        *self.balances.entry(account_id).or_insert(0) += credits;
+        Ok(credits)
+    }
+
+    /// Execute `op` under a transactional credit reservation: commits on `Ok`, refunds on `Err`.
+    pub fn run_metered<T, F>(
+        &mut self,
+        account_id: &str,
+        reservation_id: &str,
+        credits: i64,
+        op: F,
+    ) -> Result<T, String>
+    where
+        F: FnOnce() -> Result<T, String>,
+    {
+        self.reserve(account_id, reservation_id, credits)?;
+        match op() {
+            Ok(val) => {
+                let _ = self.commit(reservation_id);
+                Ok(val)
+            }
+            Err(err) => {
+                let _ = self.refund(reservation_id);
+                Err(err)
+            }
+        }
+    }
+}
+
+/// Deterministic offline tick catch-up (`SIM-02`, `fableforge` Melvor Engine parity).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct OfflineTickProgress {
+    pub completed_ticks: u64,
+    pub remainder_ms: u64,
+    pub clamped_elapsed_ms: u64,
+}
+
+/// Compute deterministic tick completions with an offline cap and sub-tick remainder (`SIM-02`).
+pub fn simulate_offline_progress(
+    elapsed_ms: u64,
+    carryover_ms: u64,
+    action_interval_ms: u64,
+    max_offline_ms: u64,
+) -> OfflineTickProgress {
+    let interval = action_interval_ms.max(50);
+    let clamped = elapsed_ms.min(max_offline_ms.max(interval));
+    let total_ms = clamped.saturating_add(carryover_ms);
+    OfflineTickProgress {
+        completed_ticks: total_ms / interval,
+        remainder_ms: total_ms % interval,
+        clamped_elapsed_ms: clamped,
+    }
+}
+
+/// 3-Axis Skill Progression state (`Competence * Sharpness` + `ActionMastery` + `MasteryPool` checkpoints, `SIM-02`).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Skill3AxisState {
+    pub competence_level: u32,
+    pub sharpness: f64,
+    pub action_mastery_xp: u64,
+    pub mastery_pool_pct: f64,
+}
+
+impl Skill3AxisState {
+    /// Effective power (`Competence * Sharpness`) plus unlocked `MasteryPool` checkpoint tier (`0..=4` at 10/25/50/95%).
+    pub fn effective_power_and_checkpoints(&self) -> (f64, u8) {
+        let clamped_sharpness = self.sharpness.clamp(0.5, 1.25);
+        let base_power = (self.competence_level as f64) * clamped_sharpness;
+        let pool = self.mastery_pool_pct.clamp(0.0, 100.0);
+        let tier = if pool >= 95.0 {
+            4
+        } else if pool >= 50.0 {
+            3
+        } else if pool >= 25.0 {
+            2
+        } else if pool >= 10.0 {
+            1
+        } else {
+            0
+        };
+        (base_power, tier)
+    }
+
+    /// Apply `ticks` of deterministic skill progression with `NearnessSplash` pool transfer (`SIM-02`).
+    pub fn apply_ticks(
+        &mut self,
+        ticks: u64,
+        mastery_xp_per_tick: u64,
+        nearness_splash_ratio: f64,
+    ) -> f64 {
+        let gained = ticks.saturating_mul(mastery_xp_per_tick);
+        self.action_mastery_xp = self.action_mastery_xp.saturating_add(gained);
+        let pool_delta = (gained as f64) * 0.01;
+        self.mastery_pool_pct = (self.mastery_pool_pct + pool_delta).clamp(0.0, 100.0);
+        self.sharpness = (self.sharpness + (ticks as f64) * 0.005).clamp(0.5, 1.25);
+        (gained as f64) * nearness_splash_ratio.clamp(0.0, 0.5)
+    }
+}
+
 #[cfg(test)]
 mod tests;
 
@@ -1999,5 +2675,134 @@ mod fs_text_robustness_tests {
         // The real emoji-rendering check is the manual Windows smoke test.
         vox_console_init_utf8();
         vox_console_init_utf8();
+    }
+
+    #[test]
+    fn process_ring_buffer_splits_cr_progress_and_evicts_past_capacity() {
+        let mut ring = ProcessRingBuffer::default();
+        ring.ingest_raw(
+            "stderr",
+            "Starting encode\nframe=10 fps=30\rframe=50 fps=60\rDone\r\n",
+        );
+        let frames: Vec<_> = ring.frames().iter().collect();
+        assert_eq!(frames.len(), 4);
+        assert_eq!(frames[0].kind, ProcessFrameKind::Line);
+        assert_eq!(frames[0].text, "Starting encode");
+        assert_eq!(frames[1].kind, ProcessFrameKind::CarriageReturnProgress);
+        assert_eq!(frames[1].text, "frame=10 fps=30");
+        assert_eq!(frames[2].kind, ProcessFrameKind::CarriageReturnProgress);
+        assert_eq!(frames[2].text, "frame=50 fps=60");
+        assert_eq!(frames[3].kind, ProcessFrameKind::Line);
+        assert_eq!(frames[3].text, "Done");
+        assert_eq!(
+            ring.latest_progress().map(|f| f.text.as_str()),
+            Some("frame=50 fps=60")
+        );
+
+        let mut bounded = ProcessRingBuffer::new(5_000);
+        for idx in 0..5_100 {
+            bounded.push("stdout", ProcessFrameKind::Line, format!("line-{idx}"));
+        }
+        assert_eq!(bounded.frames().len(), 5_000);
+        assert_eq!(bounded.frames().front().unwrap().text, "line-100");
+        assert_eq!(bounded.frames().back().unwrap().text, "line-5099");
+    }
+
+    #[test]
+    fn ranker_factor_provenance_handles_absent_neutral_and_ordering_gates() {
+        let gold = evaluate_ranker_factors(
+            "verified_shelter",
+            &[
+                RankerFactorInput {
+                    name: "inspection_score",
+                    raw: Some(95.0),
+                    min: 0.0,
+                    max: 100.0,
+                    weight: 0.7,
+                    confidence: 1.0,
+                },
+                RankerFactorInput {
+                    name: "optional_review_count",
+                    raw: None,
+                    min: 0.0,
+                    max: 500.0,
+                    weight: 0.3,
+                    confidence: 1.0,
+                },
+            ],
+        );
+        assert!(gold.factors[1].absent_neutral);
+        assert_eq!(gold.factors[1].contribution, 0.0);
+        assert!((gold.total_score - 0.95).abs() < 1e-6);
+
+        let bronze = evaluate_ranker_factors(
+            "unverified_listing",
+            &[RankerFactorInput {
+                name: "inspection_score",
+                raw: Some(40.0),
+                min: 0.0,
+                max: 100.0,
+                weight: 0.7,
+                confidence: 1.0,
+            }],
+        );
+        let evals = vec![gold, bronze];
+        assert!(verify_ordering_gate(&evals, "verified_shelter", "unverified_listing").is_ok());
+        assert!(verify_ordering_gate(&evals, "unverified_listing", "verified_shelter").is_err());
+    }
+
+    #[test]
+    fn blob_store_presign_range_slice_and_metered_credit_rollback() {
+        let ticket = vox_blob_presign_upload(
+            "https://r2.vox.local",
+            "media",
+            "renders/clip.mp4",
+            "video/mp4",
+            100_000_000,
+            900,
+        )
+        .expect("presign");
+        assert!(ticket.upload_url.contains("X-Vox-Presign=PUT"));
+        assert!(ticket.download_url.contains("X-Vox-Presign=GET"));
+
+        let payload = b"0123456789abcdef";
+        let slice = vox_blob_slice_range(payload, "bytes=4-9").expect("range slice");
+        assert_eq!(slice.data, b"456789");
+        assert_eq!(slice.content_range_header, "bytes 4-9/16");
+
+        let mut ledger = CreditLedger::new();
+        ledger.credit_account("user_1", 100);
+        let ok_res = ledger.run_metered("user_1", "res_ok", 40, || Ok("done"));
+        assert_eq!(ok_res.as_deref(), Ok("done"));
+        assert_eq!(ledger.available_balance("user_1"), 60);
+
+        let err_res: Result<(), String> =
+            ledger.run_metered("user_1", "res_fail", 50, || Err("encode failed".into()));
+        assert!(err_res.is_err());
+        assert_eq!(
+            ledger.available_balance("user_1"),
+            60,
+            "failed metered operation must refund reserved credits"
+        );
+    }
+
+    #[test]
+    fn deterministic_tick_and_3axis_skill_engine_parity() {
+        let prog = simulate_offline_progress(10_500, 200, 2_000, 60_000);
+        assert_eq!(prog.completed_ticks, 5);
+        assert_eq!(prog.remainder_ms, 700);
+
+        let mut skill = Skill3AxisState {
+            competence_level: 20,
+            sharpness: 1.0,
+            action_mastery_xp: 0,
+            mastery_pool_pct: 20.0,
+        };
+        let splash = skill.apply_ticks(prog.completed_ticks, 150, 0.2);
+        assert_eq!(skill.action_mastery_xp, 750);
+        assert!((splash - 150.0).abs() < 1e-6);
+        let (power, tier) = skill.effective_power_and_checkpoints();
+        assert!(power > 20.0);
+        assert_eq!(tier, 2, "27.5% mastery pool should unlock tier 2 (25%)");
     }
 }

@@ -1,6 +1,6 @@
 ---
 title: "CI/CD Compute Placement Policy"
-description: "Where each CI, CD, and nightly job runs — Hetzner VPS (always-on) vs local self-hosted fleet (CPU/disk/GPU) vs GitHub-hosted (neutral/free) — for vox (public) and FableForge (private), chosen by the gating resource."
+description: "Where each CI, CD, and nightly job runs — GitHub-hosted (the default for vox since the 2026-09 fleet retirement) vs Hetzner VPS (always-on) vs a local fleet — chosen by the job's gating resource."
 category: "CI & Quality"
 status: "current"
 ---
@@ -25,22 +25,34 @@ cheapest, subject to the free-tier economics below.
 
 - **vox = PUBLIC** → unlimited free GitHub-hosted minutes. Run the entire **deploy
   critical path** (image build, Coolify trigger, Gate-3 probe) on `ubuntu-latest`
-  so deploys never wait on the workstation. Use the local fleet only for raw speed
-  / GPU on latency-tolerant heavy jobs.
+  so deploys never wait on the workstation. Since minutes are free and the fleet is
+  retired (see below), run everything else hosted too — the only thing a local host
+  would buy back is GPU, which no hosted runner has.
 - **FableForge = PRIVATE** → 2,000 free min/mo. Keep only the light merge gate +
   the deploy trigger on hosted; push all heavy jobs to the local fleet to conserve
   minutes.
 
 ## vox placement
 
+> **The local fleet row is gone (2026-09).** The hosted-primary migration moved
+> every workflow to GitHub-hosted runners and Tasks 9/10/14 of
+> `docs/superpowers/plans/2026-09-22-ci-audit-remediation.md` deleted the fleet
+> and its tooling. The decision rule above still holds *in principle* — it is
+> how you would place a job if a fleet existed — but for vox today the "Local
+> fleet" column has no host behind it, and picking it would mean standing a new
+> one up. Assume GitHub-hosted unless the job needs always-on uptime, which is
+> the VPS.
+
 | Tier | Jobs |
 |---|---|
-| Local fleet (`[self-hosted, linux, x64]`) | `ci.yml` build+clippy+test, `mutation-nightly`, `compile-matrix`, `bench-nightly` (pinned to one host for comparable timings), `qwen35-native-nightly` (GPU), `ml_data_extraction` |
-| Hetzner VPS | deploy triggers + Gate-3 probes (`deploy-hetzner`, `deploy-telemetry`), nightly ClickHouse maintenance (TTL/OPTIMIZE, backup → object storage), live-endpoint uptime, link/dep bots |
-| GitHub-hosted | Gate-1 portability build, `docker-telemetry` / `docker-eval` image builds, `release-*` cross-OS, mobile EAS, `codeql`/`scorecard`/`gitleaks`; `ci-fallback-hosted.yml` = safety valve |
+| GitHub-hosted | **Every gate, nightly, and release lane**: the `ci.yml` PR gate (`linux` + `ui` under `gate`, plus the advisory merge-queue `windows` leg), `nightly.yml`'s slow lanes, `mutation-nightly`, `compile-matrix`, `bench-nightly`, `docker-eval` image builds, `release-*` cross-OS, mobile EAS, `codeql`/`scorecard`/`gitleaks` |
+| Hetzner VPS | deploy triggers + Gate-3 probes (`deploy-hetzner`), nightly ClickHouse maintenance (TTL/OPTIMIZE, backup → object storage), live-endpoint uptime, link/dep bots |
+| GPU (no host) | `ml_data_extraction.yml`'s `extract`/`train` and the `mens-candle-cuda` plugin row still name `self-hosted` GPU labels. **No runners are registered**, so they starve; both lanes are nightly/dispatch-only and the plugin row is `if:`-skipped, so nothing on the PR path waits on them. Run CUDA work locally. |
+| Local fleet | **None.** Retired; see the note above. `bench-nightly` timings are now hosted-runner timings, so they are comparable only in aggregate. |
 
-> The telemetry workflows (`docker-telemetry.yml`, `deploy-telemetry.yml`) both use
-> `runs-on: ubuntu-latest` — deploy critical path on free hosted minutes, by policy.
+> The telemetry workflows (`docker-telemetry.yml`, `deploy-telemetry.yml`) are
+> parked to `workflow_dispatch` only (Task 9) pending a telemetry-deploy revival;
+> both still use `runs-on: ubuntu-latest`.
 
 ## FableForge placement
 
@@ -52,14 +64,12 @@ cheapest, subject to the free-tier economics below.
 
 ## Invariants
 
-1. The merge gate never hard-depends on the workstation — Gate-1 portability +
-   `ci-fallback-hosted` keep PRs unblockable when the fleet is down.
-2. `bench-nightly` is pinned to one host (local) so timings stay comparable run-to-run.
-3. DB maintenance + backups run where the data lives (Hetzner → object storage).
-4. The telemetry and eval deploy critical paths stay on GitHub-hosted runners; the
-   self-hosted fleet is never on the path between a green `main` and a live deploy.
-
-> **Out of scope (follow-up):** reconciling the `runs-on` of the ~40 existing
-> workflows to these matrices. This doc states the policy and applies it to the new
-> telemetry workflows; a separate sweep PR should migrate existing workflows one at
-> a time with CI green between each.
+1. The merge gate never hard-depends on the workstation — `ci.yml` runs entirely
+   on GitHub-hosted runners, so no local outage can block PRs.
+2. DB maintenance + backups run where the data lives (Hetzner → object storage).
+3. The telemetry and eval deploy critical paths stay on GitHub-hosted runners;
+   nothing private-hardware is ever on the path between a green `main` and a
+   live deploy.
+4. If a local fleet is ever reintroduced, it may not host the merge gate or any
+   deploy step — that is what invariants 1 and 3 protect, independent of whether
+   a fleet exists.

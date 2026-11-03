@@ -2,7 +2,7 @@
 title: "Deep Research Domain-Agnosticism Audit (2026-08-01)"
 description: "Code-level audit of Vox's deep-research pipeline for academic-paper or code/technical bias. Finds a live ranking bias favoring github.com/docs.rs over Wikipedia/Reuters/BBC in web_dispatcher.rs, coding-agent boilerplate (ANTI_LAZINESS_RIDER) leaking into research judge/synthesis prompts, an unguarded per-hit OpenAlex title search, and a worthiness taxonomy that would force-bucket all non-academic sources into one low-trust class once wired in. Confirms novelty/dedup, the planner, and the confidence gate are already genuinely domain-neutral."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
 training_rationale: "Normative code-level bias audit for the deep-research domain-agnosticism work; identifies concrete, file:line-cited fixes."
 ---
@@ -10,7 +10,7 @@ training_rationale: "Normative code-level bias audit for the deep-research domai
 # Deep Research Domain-Agnosticism Audit
 
 **Date:** 2026-08-01 (Stage 2)
-**Scope:** Does Vox's deep-research pipeline structurally assume an academic/scholarly or code/technical research query? Audited against the actual current code (not docs). Companion to [deep-research-cross-domain-methods-survey-2026-08-01.md](deep-research-cross-domain-methods-survey-2026-08-01.md) and [research-index.md](research-index.md).
+**Scope:** Does Vox's deep-research pipeline structurally assume an academic/scholarly or code/technical research query? Audited against the actual current code (not docs). Companion to [deep-research-cross-domain-methods-survey-2026-08-01.md](deep-research-cross-domain-methods-survey-2026-08-01.md).
 
 ---
 

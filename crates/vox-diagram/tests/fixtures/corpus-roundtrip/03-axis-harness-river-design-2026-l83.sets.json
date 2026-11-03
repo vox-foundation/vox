@@ -1,0 +1,286 @@
+{
+  "kind": "graph",
+  "direction": "right",
+  "nodes": [
+    [
+      "ChatMessage.events\n(TurnEventDto: tool_called,\nverify_passed, routing_decision)",
+      "rect",
+      [
+        "Live Orchestrator Telemetry"
+      ]
+    ],
+    [
+      "ChatModelPicker\n(Auto / Pinned Family)",
+      "rect",
+      [
+        "Loquela & Model Selector"
+      ]
+    ],
+    [
+      "DriveConsole\n(ClutchId + RiskId)",
+      "rect",
+      [
+        "Loquela & Model Selector"
+      ]
+    ],
+    [
+      "RailRouting\n(Decision Preview + Alternatives)",
+      "rect",
+      [
+        "Loquela & Model Selector"
+      ]
+    ],
+    [
+      "Zone A: WaveformTierStrip",
+      "rect",
+      [
+        "HarnessRiverPanel (Dockable + Full Surface)"
+      ]
+    ],
+    [
+      "Zone B: RiverCanvas (Alluvial Béziers + Singularity + Laser)",
+      "rect",
+      [
+        "HarnessRiverPanel (Dockable + Full Surface)"
+      ]
+    ],
+    [
+      "Zone C: AgentTrajectoryBraid (8-Slice SVG)",
+      "rect",
+      [
+        "HarnessRiverPanel (Dockable + Full Surface)"
+      ]
+    ],
+    [
+      "Zone D: VerificationFunnelFooter (3-Col Evidence + Ludus Yield)",
+      "rect",
+      [
+        "HarnessRiverPanel (Dockable + Full Surface)"
+      ]
+    ],
+    [
+      "deriveRiverSnapshot()\nThroughput · BLAKE3 Thrift % · 4-Stage Funnel · 8-Slice Braid",
+      "rect",
+      [
+        "Pure Correlation Layer (riverMath.ts)"
+      ]
+    ],
+    [
+      "deriveTierCascade()\nTier 1 Intercept · Tier 2 Fan-Out · Tier 3 Verifier",
+      "rect",
+      [
+        "Pure Correlation Layer (riverMath.ts)"
+      ]
+    ],
+    [
+      "vox://agent-events\n(task_started, token_streamed,\ntask_doubted, task_completed)",
+      "rect",
+      [
+        "Live Orchestrator Telemetry"
+      ]
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "ChatMessage.events\n(TurnEventDto: tool_called,\nverify_passed, routing_decision)",
+        "rect",
+        [
+          "Live Orchestrator Telemetry"
+        ]
+      ],
+      [
+        "deriveRiverSnapshot()\nThroughput · BLAKE3 Thrift % · 4-Stage Funnel · 8-Slice Braid",
+        "rect",
+        [
+          "Pure Correlation Layer (riverMath.ts)"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "ChatModelPicker\n(Auto / Pinned Family)",
+        "rect",
+        [
+          "Loquela & Model Selector"
+        ]
+      ],
+      [
+        "deriveTierCascade()\nTier 1 Intercept · Tier 2 Fan-Out · Tier 3 Verifier",
+        "rect",
+        [
+          "Pure Correlation Layer (riverMath.ts)"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "DriveConsole\n(ClutchId + RiskId)",
+        "rect",
+        [
+          "Loquela & Model Selector"
+        ]
+      ],
+      [
+        "deriveTierCascade()\nTier 1 Intercept · Tier 2 Fan-Out · Tier 3 Verifier",
+        "rect",
+        [
+          "Pure Correlation Layer (riverMath.ts)"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "RailRouting\n(Decision Preview + Alternatives)",
+        "rect",
+        [
+          "Loquela & Model Selector"
+        ]
+      ],
+      [
+        "deriveTierCascade()\nTier 1 Intercept · Tier 2 Fan-Out · Tier 3 Verifier",
+        "rect",
+        [
+          "Pure Correlation Layer (riverMath.ts)"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "deriveRiverSnapshot()\nThroughput · BLAKE3 Thrift % · 4-Stage Funnel · 8-Slice Braid",
+        "rect",
+        [
+          "Pure Correlation Layer (riverMath.ts)"
+        ]
+      ],
+      [
+        "Zone A: WaveformTierStrip",
+        "rect",
+        [
+          "HarnessRiverPanel (Dockable + Full Surface)"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "deriveRiverSnapshot()\nThroughput · BLAKE3 Thrift % · 4-Stage Funnel · 8-Slice Braid",
+        "rect",
+        [
+          "Pure Correlation Layer (riverMath.ts)"
+        ]
+      ],
+      [
+        "Zone B: RiverCanvas (Alluvial Béziers + Singularity + Laser)",
+        "rect",
+        [
+          "HarnessRiverPanel (Dockable + Full Surface)"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "deriveRiverSnapshot()\nThroughput · BLAKE3 Thrift % · 4-Stage Funnel · 8-Slice Braid",
+        "rect",
+        [
+          "Pure Correlation Layer (riverMath.ts)"
+        ]
+      ],
+      [
+        "Zone C: AgentTrajectoryBraid (8-Slice SVG)",
+        "rect",
+        [
+          "HarnessRiverPanel (Dockable + Full Surface)"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "deriveRiverSnapshot()\nThroughput · BLAKE3 Thrift % · 4-Stage Funnel · 8-Slice Braid",
+        "rect",
+        [
+          "Pure Correlation Layer (riverMath.ts)"
+        ]
+      ],
+      [
+        "Zone D: VerificationFunnelFooter (3-Col Evidence + Ludus Yield)",
+        "rect",
+        [
+          "HarnessRiverPanel (Dockable + Full Surface)"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "deriveTierCascade()\nTier 1 Intercept · Tier 2 Fan-Out · Tier 3 Verifier",
+        "rect",
+        [
+          "Pure Correlation Layer (riverMath.ts)"
+        ]
+      ],
+      [
+        "Zone A: WaveformTierStrip",
+        "rect",
+        [
+          "HarnessRiverPanel (Dockable + Full Surface)"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "deriveTierCascade()\nTier 1 Intercept · Tier 2 Fan-Out · Tier 3 Verifier",
+        "rect",
+        [
+          "Pure Correlation Layer (riverMath.ts)"
+        ]
+      ],
+      [
+        "Zone B: RiverCanvas (Alluvial Béziers + Singularity + Laser)",
+        "rect",
+        [
+          "HarnessRiverPanel (Dockable + Full Surface)"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "vox://agent-events\n(task_started, token_streamed,\ntask_doubted, task_completed)",
+        "rect",
+        [
+          "Live Orchestrator Telemetry"
+        ]
+      ],
+      [
+        "deriveRiverSnapshot()\nThroughput · BLAKE3 Thrift % · 4-Stage Funnel · 8-Slice Braid",
+        "rect",
+        [
+          "Pure Correlation Layer (riverMath.ts)"
+        ]
+      ],
+      ""
+    ]
+  ],
+  "containers": [
+    [
+      "HarnessRiverPanel (Dockable + Full Surface)"
+    ],
+    [
+      "Live Orchestrator Telemetry"
+    ],
+    [
+      "Loquela & Model Selector"
+    ],
+    [
+      "Pure Correlation Layer (riverMath.ts)"
+    ]
+  ]
+}

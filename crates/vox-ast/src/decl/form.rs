@@ -40,5 +40,11 @@ pub enum FieldConstraint {
     MinLen(usize),
     Pattern(String),
     Enum(Vec<Expr>),
+    Step(f64),
+    Unit(String),
+    FileKind(String),
+    MutuallyExclusiveGroup(String),
+    Preset(String, Expr),
+    CostCredits(u32),
     Custom(String),
 }

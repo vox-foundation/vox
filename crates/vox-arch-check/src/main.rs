@@ -995,6 +995,39 @@ fn git_paths_touched_since(repo: &Path, release_date: &str) -> Option<HashSet<St
     Some(paths)
 }
 
+/// hakari feature-unification crate: exempt both directions from fan-in tracking,
+/// by design. Mirrors `vox_cli_ci::crate_edges::EXEMPT` (a separate crate at a
+/// higher layer, so the constant is duplicated rather than depended on).
+const FAN_IN_EXEMPT: &str = "workspace-hack";
+
+/// Rule 2 fan-in counter: normal + build dependency edges among workspace
+/// crates, deduped per (from, to) pair and excluding `FAN_IN_EXEMPT`. Mirrors
+/// `vox_cli_ci::crate_edges::collect_live_edges`'s semantics (dev-deps don't
+/// ship in the binary closure, so they don't count toward an architectural
+/// fan-in budget) so this rule and `vox ci fan-in-budget` agree on what "fan-in"
+/// means.
+fn compute_dependent_counts(
+    edges: &[(String, String, cargo_metadata::DependencyKind)],
+) -> HashMap<String, usize> {
+    let mut seen: HashSet<(&str, &str)> = HashSet::new();
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for (from, to, kind) in edges {
+        if from == FAN_IN_EXEMPT || to == FAN_IN_EXEMPT {
+            continue;
+        }
+        if !matches!(
+            kind,
+            cargo_metadata::DependencyKind::Normal | cargo_metadata::DependencyKind::Build
+        ) {
+            continue;
+        }
+        if seen.insert((from.as_str(), to.as_str())) {
+            *counts.entry(to.clone()).or_insert(0) += 1;
+        }
+    }
+    counts
+}
+
 fn run(warn_only_flag: bool) -> Result<Report> {
     // `--no-deps` skips transitive dependency resolution. arch-check never reads
     // `metadata.resolve`; each package's declared `dependencies` is still
@@ -1067,12 +1100,18 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     };
     prof("setup (metadata+layers+cache)", &mut prof_last);
 
-    // ── Rule 1: Layer ordering + Rule 2: Fan-in + Rule 15: Workspace-dep budget + Rule 17: Cycles (single pass) ──
+    // ── Rule 1: Layer ordering + Rule 2: Fan-in + Rule 4: Orphan + Rule 15: Workspace-dep budget + Rule 17: Cycles (single pass) ──
+    // `dependent_count` (Rule 4, orphan detection: "does anyone at all depend on
+    // this, even via a dev-dep") counts every dependency edge, unfiltered.
+    // `raw_fan_in_edges` narrows to Rule 2's architectural fan-in question
+    // ("how many production consumers") via `compute_dependent_counts` below.
     let mut dependent_count: HashMap<String, usize> = HashMap::new();
     let mut workspace_dep_count: HashMap<String, usize> = HashMap::new();
     let mut unlisted: Vec<String> = Vec::new();
     // Rule 17: collect normal dep edges for Tarjan SCC cycle detection.
     let mut normal_dep_edges: Vec<(String, String)> = Vec::new();
+    // Rule 2: raw (from, to, kind) edges, filtered down to a live fan-in count below.
+    let mut raw_fan_in_edges: Vec<(String, String, cargo_metadata::DependencyKind)> = Vec::new();
 
     for pkg in metadata_full.workspace_packages() {
         let from_name = pkg.name.as_str();
@@ -1089,6 +1128,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
                 continue;
             }
             *dependent_count.entry(to_name.to_string()).or_insert(0) += 1;
+            raw_fan_in_edges.push((from_name.to_string(), to_name.to_string(), dep.kind));
             if dep.kind == cargo_metadata::DependencyKind::Normal {
                 *workspace_dep_count
                     .entry(from_name.to_string())
@@ -1122,6 +1162,8 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             }
         }
     }
+
+    let fan_in_count = compute_dependent_counts(&raw_fan_in_edges);
 
     if !unlisted.is_empty() {
         unlisted.sort();
@@ -1272,7 +1314,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     // Rule 2: fan-in budget
     for (name, entry) in &layers.crates {
         if let Some(budget) = entry.max_dependents {
-            let count = dependent_count.get(name).copied().unwrap_or(0);
+            let count = fan_in_count.get(name).copied().unwrap_or(0);
             if count > budget {
                 report.fan_in_warns.push((name.clone(), count, budget));
             }
@@ -2107,6 +2149,70 @@ fn check_profile_forbidden(profile: &str, tree: &[String], forbidden: &[String])
 #[cfg(test)]
 mod walk_and_staleness_tests {
     use super::*;
+
+    #[test]
+    fn compute_dependent_counts_dedupes_same_pair_across_kinds() {
+        // vox-codegen-ts depends on vox-compiler as both a normal and a dev
+        // dependency in real Cargo.tomls; that must count as one dependent,
+        // not two.
+        let edges = vec![
+            (
+                "vox-codegen-ts".to_string(),
+                "vox-compiler".to_string(),
+                cargo_metadata::DependencyKind::Normal,
+            ),
+            (
+                "vox-codegen-ts".to_string(),
+                "vox-compiler".to_string(),
+                cargo_metadata::DependencyKind::Development,
+            ),
+        ];
+        let counts = compute_dependent_counts(&edges);
+        assert_eq!(counts.get("vox-compiler"), Some(&1));
+    }
+
+    #[test]
+    fn compute_dependent_counts_excludes_dev_only_edges() {
+        // A crate that only reaches another via a dev-dependency (e.g. an
+        // integration-test crate) doesn't ship in the binary closure, so it
+        // must not count toward the fan-in budget.
+        let edges = vec![(
+            "vox-integration-tests".to_string(),
+            "vox-compiler".to_string(),
+            cargo_metadata::DependencyKind::Development,
+        )];
+        let counts = compute_dependent_counts(&edges);
+        assert_eq!(counts.get("vox-compiler"), None);
+    }
+
+    #[test]
+    fn compute_dependent_counts_includes_build_kind() {
+        let edges = vec![(
+            "vox-foo".to_string(),
+            "vox-bar".to_string(),
+            cargo_metadata::DependencyKind::Build,
+        )];
+        let counts = compute_dependent_counts(&edges);
+        assert_eq!(counts.get("vox-bar"), Some(&1));
+    }
+
+    #[test]
+    fn compute_dependent_counts_excludes_workspace_hack_either_direction() {
+        let edges = vec![
+            (
+                "vox-foo".to_string(),
+                "workspace-hack".to_string(),
+                cargo_metadata::DependencyKind::Normal,
+            ),
+            (
+                "workspace-hack".to_string(),
+                "vox-bar".to_string(),
+                cargo_metadata::DependencyKind::Normal,
+            ),
+        ];
+        let counts = compute_dependent_counts(&edges);
+        assert!(counts.is_empty(), "{counts:?}");
+    }
 
     #[test]
     fn walk_prune_skips_target_directory() {

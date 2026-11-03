@@ -1,3 +1,6 @@
+// Task 8e fix round 1: pull in the hermetic-VOX_HOME ctor (see tests/common/mod.rs).
+mod common;
+
 use vox_orchestrator_mcp::chat_tools::chat_message;
 use vox_orchestrator_mcp::chat_tools::params::ChatMessageParams;
 use vox_orchestrator_mcp::server_state::ServerState;
@@ -19,6 +22,7 @@ async fn test_forced_autonomous_chat_research_triggers() {
         cognitive_profile: None,
         json_mode: false,
         trace_id: None,
+        turn_id: None,
         correlation_id: None,
         attachment_manifest: None,
         temperature: None,
@@ -34,6 +38,8 @@ async fn test_forced_autonomous_chat_research_triggers() {
         dry_run: None,
         force_research: Some(true),
         research_scope: Some("web".to_string()),
+        domain_mode: None,
+        site_scope: None,
     };
 
     // Since network backends and API keys might not be present in local test environments,

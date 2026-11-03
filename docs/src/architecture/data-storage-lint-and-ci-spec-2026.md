@@ -87,7 +87,7 @@ Every row pairs the check name → finding → the migration item that flips it 
 | `abandoned-target-dir` | new | F64, M-70 | No tracked path matches `^target-[a-z]+/`; the policy YAML's `forbidden_root_glob_prefixes: ["target-"]` carries the list. |
 | `dist-schemas-drift` | new | F63, M-69 | After `vox schema generate --ts`, `dist/schemas.ts` is byte-identical to the regenerated output. Enforced only when `generated_files[].enforced: true` (flipped by M-69). |
 | `bom-config-files` | new | F68, M-74 | `.gitignore`, `.gitattributes`, `rust-toolchain.toml`, `contracts/**/*.yaml` do not start with a UTF-8 BOM (`0xEF 0xBB 0xBF`). |
-| `frozen-core-ddl-guard` | extends existing `vox ci check-frozen` | F62, M-68 | Row-struct or DDL changes in a crate under `data-storage-policy.v1.yaml::frozen_core_crates` require the governance token from `crates/_frozen.md` in the PR body. |
+| `frozen-core-ddl-guard` | new | F62, M-68 | Row-struct or DDL changes in a crate under `data-storage-policy.v1.yaml::frozen_core_crates` require the governance token from `crates/_frozen.md` in the PR body. |
 | `grammar-ssot-drift` | extends existing `vox ci grammar-ssot-parity` | F67, M-72 | Any change to `tree-sitter-vox/grammar.js` or `tree-sitter-vox/src/grammar.json` requires a sibling edit to `tree-sitter-vox/GRAMMAR_SSOT.md`. |
 | `forbidden-file-exceptions` | new | F66 | Every `temporary_exceptions` / `temporary_file_exceptions` entry in `data-storage-policy.v1.yaml` has an `expiry`, `retired_by: M-NN`, and `owner`; entries past their `expiry` window fail. |
 
@@ -279,7 +279,7 @@ Each rule is listed as `(name, pattern, glob, where-not-allowed, motivating-find
 17. **`abandoned-target-dir`** — check: `git ls-files | rg '^target-[a-z]+/'` is empty; `.gitignore` contains `target-*/`. Finding: F64. Ticket: M-70.
 18. **`dist-schemas-drift`** — check: after `vox schema generate --ts`, `git diff --exit-code dist/schemas.ts`. Enforced only when `data-storage-policy.v1.yaml::generated_files[0].enforced: true` (flipped by M-69). Finding: F63. Ticket: M-69.
 19. **`bom-config-files`** — check: first three bytes of `.gitignore`, `.gitattributes`, `rust-toolchain.toml`, `contracts/**/*.yaml` are not `0xEF 0xBB 0xBF`. Finding: F68. Ticket: M-74.
-20. **`frozen-core-ddl-guard`** — check: any diff touching `crates/<frozen_core_crate>/src/**/schema/**` or adding/removing `row`/`dto` module files for a crate in `data-storage-policy.v1.yaml::frozen_core_crates` must carry the governance token string `FROZEN-CORE-TOKEN: <sha256>` (format per `crates/_frozen.md`) in the PR body or top commit message. The existing `vox ci check-frozen` (`crates/vox-cli/src/commands/ci/frozen_crates.rs`) covers "no new crate added"; this rule covers "no DDL change without token". Finding: F62. Ticket: M-68.
+20. **`frozen-core-ddl-guard`** — check: any diff touching `crates/<frozen_core_crate>/src/**/schema/**` or adding/removing `row`/`dto` module files for a crate in `data-storage-policy.v1.yaml::frozen_core_crates` must carry the governance token string `FROZEN-CORE-TOKEN: <sha256>` (format per `crates/_frozen.md`) in the PR body or top commit message. This is a **new** guard: the old `vox ci check-frozen` no-op was deleted with the self-hosted fleet tooling (2026-09), so there is nothing to extend. Finding: F62. Ticket: M-68.
 21. **`grammar-ssot-drift`** — check: any diff touching `tree-sitter-vox/grammar.js` or `tree-sitter-vox/src/grammar.json` must also touch `tree-sitter-vox/GRAMMAR_SSOT.md`. The existing `vox ci grammar-ssot-parity` (`crates/vox-cli/src/commands/ci/grammar_ssot_parity.rs`) validates parity of keyword lists; this rule adds the sibling-edit requirement. Finding: F67. Ticket: M-72.
 
 ### 4.2 Rule table location
@@ -482,7 +482,6 @@ for p in \
   crates/vox-cli/src/commands/ci/cmd_enums.rs \
   crates/vox-cli/src/commands/ci/run_body.rs \
   crates/vox-cli/src/commands/ci/run_body_helpers/data_ssot_guards.rs \
-  crates/vox-cli/src/commands/ci/frozen_crates.rs \
   crates/vox-cli/src/commands/ci/grammar_ssot_parity.rs \
   crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs \
   crates/vox-jsonschema-util/src/lib.rs \

@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/031-deprecate-vox-vscode.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 031 — Deprecate `vox-vscode`; `vox-dashboard` is the primary user surface",
+  "summary": "Deprecates vox-vscode; vox-dashboard is primary surface. VS Code extension retained for LSP only.",
+  "scope": ["vox-vscode", "vox-dashboard", "VS Code extension", "LSP", "orchestration"],
+  "cross_refs": ["024-dashboard-axum-spa.md", "030-state-machine-ssot.md", "../reference/vox-web-stack.md", "docs/superpowers/plans/2026-05-01-vox-frontend-convergence.md"],
+  "locked": true,
+  "precedence": null
+}

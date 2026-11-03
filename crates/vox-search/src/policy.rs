@@ -1,8 +1,9 @@
-#![cfg_attr(test, allow(unsafe_code))] // test-only std::env::set_var (unsafe on edition 2024)
 //! Versioned search policy loaded from defaults with `VOX_SEARCH_*` environment overrides.
 //!
 //! SearXNG `engines` / `language` defaults are embedded from
 //! [`contracts/scientia/searxng-query.defaults.v1.yaml`](../../../contracts/scientia/searxng-query.defaults.v1.yaml).
+
+use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -10,6 +11,21 @@ use crate::searxng_defaults::embedded_searxng_query_defaults;
 
 /// Policy version mirrored into [`vox_db::SearchDiagnostics::policy_version`] and notes.
 pub const SEARCH_POLICY_DEFAULT_VERSION: u32 = 1;
+
+/// Parse prefer_rrf_merge from an optional environment override string (default true).
+#[inline]
+pub fn parse_prefer_rrf_merge(raw: Option<&str>) -> bool {
+    match raw {
+        Some(v) => {
+            let v = v.trim();
+            v == "1"
+                || v.eq_ignore_ascii_case("true")
+                || v.eq_ignore_ascii_case("yes")
+                || v.eq_ignore_ascii_case("on")
+        }
+        None => true, // default ON
+    }
+}
 
 #[inline]
 fn default_chunk_vector_fusion_weight() -> f32 {
@@ -31,14 +47,56 @@ fn default_rrf_k() -> f64 {
     60.0
 }
 
+fn default_candidate_depth() -> usize {
+    10
+}
+
 #[inline]
 fn default_persist_web_hits() -> bool {
     true
 }
 
 #[inline]
+// drift-allow(serde-default-dup): local default; vox_config::serde_defaults would add a crate edge (owner-approved edges only)
+fn default_true() -> bool {
+    true
+}
+
+#[inline]
 fn default_novelty_min_score() -> f64 {
     0.15
+}
+
+#[inline]
+fn default_fast_timeout_ms() -> u64 {
+    1500
+}
+
+#[inline]
+fn default_deep_timeout_ms() -> u64 {
+    4000
+}
+
+/// Retrieval lane: `Fast` (parallel keyless fan-out with tight timeout) or `Deep` (exhaustive search with Tavily/hops).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ResearchLane {
+    #[default]
+    Fast,
+    Deep,
+}
+
+impl std::str::FromStr for ResearchLane {
+    type Err = String;
+
+    /// Parse the `fast` / `deep` wire and CLI label (case-insensitive).
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "fast" => Ok(Self::Fast),
+            "deep" => Ok(Self::Deep),
+            other => Err(format!("invalid research lane {other:?}: use fast|deep")),
+        }
+    }
 }
 
 /// Tunable retrieval weights and safety rails (replaces ad hoc literals in tool surfaces).
@@ -67,11 +125,10 @@ pub struct SearchPolicy {
     pub qdrant_collection: String,
     /// When the collection uses **named** dense vectors, set to the config name (e.g. `default`).
     pub qdrant_vector_name: Option<String>,
-    /// Root directory for on-disk Tantivy indices (under `.vox/search/tantivy` by default).
-    pub tantivy_index_root: Option<std::path::PathBuf>,
     /// Enable reciprocal rank fusion across corpus hit lists (`VOX_SEARCH_PREFER_RRF`).
     pub prefer_rrf_merge: bool,
-    /// Master switch for live web retrieval.
+    /// Tavily master switch. `false` in `Default`; `from_env` enables it when a key is
+    /// present unless `VOX_SEARCH_TAVILY_ENABLED` says otherwise.
     pub tavily_enabled: bool,
     /// API depth: basic or advanced.
     pub tavily_search_depth: String,
@@ -83,18 +140,46 @@ pub struct SearchPolicy {
     pub tavily_fire_on_weak: bool,
     /// Max credits per session (safety rail).
     pub tavily_credit_budget_per_session: usize,
-    /// SearXNG base URL (`None` disables Tier 2).
+    /// SearXNG base URL (`None` disables Tier 2). `None` in `Default`; `from_env`
+    /// resolves `VOX_SEARCH_SEARXNG_URL`.
     pub searxng_url: Option<String>,
     /// Max search results to request from SearXNG/DDG.
     pub searxng_max_results: usize,
     /// Max top hits to deep-scrape for markdown extraction.
     pub searxng_max_urls_to_scrape: usize,
+    /// Overrides the pipeline's final kept-hit count
+    /// (`max(searxng_max_results, searxng_max_urls_to_scrape)` when `None`).
+    /// Task 8c: lets a caller that already fetched a deep-enough candidate
+    /// pool (via `candidate_depth`) ask for more than the scrape-driven
+    /// default — e.g. quick research's spec-mandated top N=8 (`run_quick`
+    /// sets this on its own policy clone rather than on the shared default).
+    #[serde(default)]
+    pub kept_limit: Option<usize>,
+    /// Master switch for the web leg of `execute_search_plan` (Task 8d). `true`
+    /// by default, matching every existing caller's behavior. A caller that
+    /// already has its own numbered web evidence for this call — e.g. the chat
+    /// preamble on a Quick/Deep research turn — clones the policy and sets this
+    /// `false` so `execute_search_plan` skips `SearchCorpus::WebResearch` even
+    /// when the heuristic plan selected it. `WebSearchDispatcher` honours it too
+    /// (Task 9b r2): with `false` it contacts no provider and reports each as
+    /// `Disabled`, so deep research, chat quick research and autonomous
+    /// research obey the switch as well.
+    #[serde(default = "default_true")]
+    pub web_research_enabled: bool,
+    /// How many hits each web provider (SearXNG, Wikipedia, OpenAlex, arXiv) is asked for.
+    /// Deeper than the kept output (`max(searxng_max_results, searxng_max_urls_to_scrape)`)
+    /// so the relevance rerank chooses from a real candidate pool (Task 15 Step 3b).
+    #[serde(default = "default_candidate_depth")]
+    pub candidate_depth: usize,
     /// SearXNG `engines=` query parameter (comma-separated engine ids).
     pub searxng_engines: String,
     /// SearXNG `language=` query parameter (short language tag).
     pub searxng_language: String,
     /// Enable Tier 3 DuckDuckGo fallback when SearXNG is unavailable.
     pub duckduckgo_fallback_enabled: bool,
+    /// Enable Tier 4 Wikipedia encyclopedic fallback when all prior tiers return empty.
+    #[serde(default = "default_true")]
+    pub wikipedia_fallback_enabled: bool,
     /// Scraper fetch timeout.
     pub scraper_timeout_ms: u64,
     /// Honor robots.txt (experimental).
@@ -112,13 +197,57 @@ pub struct SearchPolicy {
     /// Reciprocal rank fusion smoothing constant (`VOX_SEARCH_RRF_K`).
     #[serde(default = "default_rrf_k")]
     pub rrf_k: f64,
-    /// When true, web-retrieval hits are mirrored into `search_documents` (async best-effort).
+    /// When true (default), web-retrieval hits are captured into the `kb_findings` inbox
+    /// (Untrusted, pending, deduped) through the injected `WebFindingCapture` sink. They are
+    /// never written to the searchable corpus; with no sink injected nothing is persisted.
     #[serde(default = "default_persist_web_hits")]
     pub persist_web_hits: bool,
+    /// Execution knob, not a stored tier: drop `Untrusted` chunk, knowledge and web hits (and
+    /// their typed `unified_hits`) before fusion. The MCP chat preamble sets it so a legacy web row
+    /// never reaches an unprompted prompt (D-03, D-05); explicit tool queries leave it false and
+    /// get the hit back labelled `[tier:untrusted]`. Default false.
+    #[serde(default)]
+    pub exclude_untrusted_hits: bool,
     /// Minimum novelty score (0.0-1.0) for a hit to appear in synthesis context.
     /// Env: `VOX_SEARCH_NOVELTY_MIN_SCORE`. Default: 0.15.
     #[serde(default = "default_novelty_min_score")]
     pub novelty_min_score: f64,
+    /// Penalties applied to search results by domain (0.0 to 1.0).
+    #[serde(default)]
+    pub domain_penalties: HashMap<String, f64>,
+    /// Domains completely excluded from search results.
+    #[serde(default)]
+    pub blacklisted_domains: HashSet<String>,
+    /// Default lane to use for research queries.
+    #[serde(default)]
+    pub default_lane: ResearchLane,
+    /// Fast lane timeout in milliseconds.
+    #[serde(default = "default_fast_timeout_ms")]
+    pub fast_timeout_ms: u64,
+    /// Deep lane timeout in milliseconds.
+    #[serde(default = "default_deep_timeout_ms")]
+    pub deep_timeout_ms: u64,
+    /// Enable Wikipedia provider in parallel retrieval fan-out.
+    #[serde(default = "default_true")]
+    pub enable_wikipedia: bool,
+    /// Enable OpenAlex provider in parallel retrieval fan-out.
+    #[serde(default = "default_true")]
+    pub enable_openalex: bool,
+    /// Enable arXiv provider in parallel retrieval fan-out.
+    #[serde(default = "default_true")]
+    pub enable_arxiv: bool,
+    /// Optional Wikipedia API endpoint override (for Wiremock CI and mirrors).
+    #[serde(default)]
+    pub wikipedia_api_url: Option<String>,
+    /// Optional OpenAlex API endpoint override (for Wiremock CI and mirrors).
+    #[serde(default)]
+    pub openalex_api_url: Option<String>,
+    /// Optional arXiv API endpoint override (for Wiremock CI and mirrors).
+    #[serde(default)]
+    pub arxiv_api_url: Option<String>,
+    /// Optional Tavily API endpoint override (for Wiremock CI and mirrors).
+    #[serde(default)]
+    pub tavily_api_url: Option<String>,
 }
 
 /// Aggregated SCIENTIA observations that can tune retrieval policy for a run.
@@ -168,27 +297,14 @@ impl Default for SearchPolicy {
             .expose()
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty()),
-            tantivy_index_root: vox_secrets::resolve_secret(
-                vox_secrets::SecretId::VoxSearchTantivyRoot,
-            )
-            .expose()
-            .filter(|s| !s.trim().is_empty())
-            .map(std::path::PathBuf::from),
-            prefer_rrf_merge: match vox_secrets::resolve_secret(
-                vox_secrets::SecretId::VoxSearchPreferRrf,
-            )
-            .expose()
-            {
-                Some(v) => {
-                    let v = v.trim();
-                    v == "1"
-                        || v.eq_ignore_ascii_case("true")
-                        || v.eq_ignore_ascii_case("yes")
-                        || v.eq_ignore_ascii_case("on")
-                }
-                None => true, // default ON
-            },
-            tavily_enabled: parse_truthy_env(vox_secrets::SecretId::VoxSearchTavilyEnabled),
+            prefer_rrf_merge: parse_prefer_rrf_merge(
+                vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchPreferRrf).expose(),
+            ),
+            // Network providers that spend credits or reach the operator's instance are
+            // off in `Default` and resolved from Clavis only in `from_env` (Task 15 fix
+            // round 1): a test built on `SearchPolicy::default()` must never reach
+            // api.tavily.com or the local SearXNG because of what the vault holds.
+            tavily_enabled: false,
             tavily_search_depth: vox_secrets::resolve_secret(
                 vox_secrets::SecretId::VoxSearchTavilyDepth,
             )
@@ -222,10 +338,16 @@ impl Default for SearchPolicy {
             .expose()
             .and_then(|v| v.parse().ok())
             .unwrap_or(50),
-            searxng_url: vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchSearxngUrl)
-                .expose()
-                .filter(|s| !s.trim().is_empty())
-                .map(|s| s.to_string()),
+            searxng_url: None,
+            // NOTE (D9, Task 8 fix round 2 diagnosis): raising this alone does NOT
+            // fix arXiv dominating the fused top-N (tried 10, still 100% arXiv —
+            // see the fix-round-2 report). At `rrf_k=60`, arXiv's 1.20 authority
+            // weight beats every rank of an equal-size 1.00-weighted competing
+            // list as long as the list size stays under `k` (`1.2*(k+1) >
+            // 1.0*(k+list_len)`), so widening the cap alone can't out-run it.
+            // Left at the original default; a real fix needs to touch
+            // `true_rrf_fuse`'s weights/k in web_dispatcher.rs, which is out of
+            // this round's scope (reported, not fixed — see finding (c) part 2).
             searxng_max_results: vox_secrets::resolve_secret(
                 vox_secrets::SecretId::VoxSearchSearxngMaxResults,
             )
@@ -238,11 +360,15 @@ impl Default for SearchPolicy {
             .expose()
             .and_then(|v| v.parse().ok())
             .unwrap_or(3),
+            kept_limit: None,
+            web_research_enabled: true,
+            candidate_depth: default_candidate_depth(),
             searxng_engines: searxng_embedded.engines.clone(),
             searxng_language: searxng_embedded.language.clone(),
             duckduckgo_fallback_enabled: !parse_falsy_env(
                 vox_secrets::SecretId::VoxSearchDdgFallbackDisabled,
             ),
+            wikipedia_fallback_enabled: true,
             scraper_timeout_ms: vox_secrets::resolve_secret(
                 vox_secrets::SecretId::VoxSearchScraperTimeout,
             )
@@ -282,6 +408,7 @@ impl Default for SearchPolicy {
             persist_web_hits: !parse_truthy_env(
                 vox_secrets::SecretId::VoxSearchPersistWebHitsDisabled,
             ),
+            exclude_untrusted_hits: false,
             novelty_min_score: vox_secrets::resolve_secret(
                 vox_secrets::SecretId::VoxSearchNoveltyMinScore,
             )
@@ -289,6 +416,18 @@ impl Default for SearchPolicy {
             .and_then(|v| v.parse::<f64>().ok())
             .filter(|x| x.is_finite() && *x >= 0.0 && *x <= 1.0)
             .unwrap_or_else(default_novelty_min_score),
+            domain_penalties: HashMap::new(),
+            blacklisted_domains: HashSet::new(),
+            default_lane: ResearchLane::Fast,
+            fast_timeout_ms: 1500,
+            deep_timeout_ms: 4000,
+            enable_wikipedia: true,
+            enable_openalex: true,
+            enable_arxiv: true,
+            wikipedia_api_url: None,
+            openalex_api_url: None,
+            arxiv_api_url: None,
+            tavily_api_url: None,
         }
     }
 }
@@ -298,6 +437,17 @@ impl SearchPolicy {
     #[must_use]
     pub fn from_env() -> Self {
         let mut p = Self::default();
+        // Task 8e: test-hermeticity kill switch. `run_retrieval_bundle`'s
+        // "unified autonomous retrieval injection" preamble calls
+        // `from_env()` fresh on every chat turn regardless of research
+        // intent, so a plain `skip_web` per-call override (Task 8d) does not
+        // stop it for turns that never asked for research — a "unit" test
+        // could still make a real, non-deterministic web request. Never set
+        // by production code; `vox-orchestrator-mcp`'s hermetic test ctors
+        // (`src/lib.rs`, `tests/common/mod.rs`) set it for every test.
+        if parse_truthy_env(vox_secrets::SecretId::VoxSearchWebResearchDisabled) {
+            p.web_research_enabled = false;
+        }
         if let Some(v) =
             vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchPolicyVersion).expose()
             && let Ok(n) = v.parse::<u32>()
@@ -342,11 +492,24 @@ impl SearchPolicy {
                 p.repo_inventory_skip_dirs = dirs;
             }
         }
-        if vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchTavilyEnabled)
+        p.searxng_url = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchSearxngUrl)
             .expose()
-            .is_some()
+            .filter(|s| !s.trim().is_empty())
+            .map(|s| s.to_string());
+        #[cfg(feature = "tavily")]
         {
-            p.tavily_enabled = parse_truthy_env(vox_secrets::SecretId::VoxSearchTavilyEnabled);
+            let key = vox_secrets::resolve_secret(vox_secrets::SecretId::TavilyApiKey);
+            let override_val =
+                vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchTavilyEnabled);
+            p.tavily_enabled = crate::tavily_research::tavily_research_enabled_with_values(
+                key.expose(),
+                override_val.expose(),
+            );
+        }
+        if let Some(v) =
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchPreferRrf).expose()
+        {
+            p.prefer_rrf_merge = parse_prefer_rrf_merge(Some(v));
         }
         if let Some(v) =
             vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchTavilyDepth).expose()
@@ -443,6 +606,60 @@ impl SearchPolicy {
                     "VOX_SEARCH_SEARXNG_LANGUAGE ignored (allowed: ASCII alnum and hyphen, max 16 chars)"
                 );
             }
+        }
+        if let Ok(u) = std::env::var("VOX_SEARCH_WIKIPEDIA_URL")
+            && !u.trim().is_empty()
+        {
+            p.wikipedia_api_url = Some(u);
+        }
+        if let Ok(u) = std::env::var("VOX_SEARCH_OPENALEX_URL")
+            && !u.trim().is_empty()
+        {
+            p.openalex_api_url = Some(u);
+        }
+        if let Ok(u) = std::env::var("VOX_SEARCH_ARXIV_URL")
+            && !u.trim().is_empty()
+        {
+            p.arxiv_api_url = Some(u);
+        }
+        if let Ok(u) = std::env::var("VOX_SEARCH_TAVILY_URL")
+            && !u.trim().is_empty()
+        {
+            p.tavily_api_url = Some(u);
+        }
+        if let Ok(lane) = std::env::var("VOX_SEARCH_DEFAULT_LANE") {
+            if lane.eq_ignore_ascii_case("deep") {
+                p.default_lane = ResearchLane::Deep;
+            } else if lane.eq_ignore_ascii_case("fast") {
+                p.default_lane = ResearchLane::Fast;
+            }
+        }
+        if let Ok(v) = std::env::var("VOX_SEARCH_CANDIDATE_DEPTH")
+            && let Ok(n) = v.parse::<usize>()
+        {
+            p.candidate_depth = n.max(1);
+        }
+        if let Ok(v) = std::env::var("VOX_SEARCH_FAST_TIMEOUT_MS")
+            && let Ok(n) = v.parse::<u64>()
+        {
+            p.fast_timeout_ms = n;
+        }
+        if let Ok(v) = std::env::var("VOX_SEARCH_DEEP_TIMEOUT_MS")
+            && let Ok(n) = v.parse::<u64>()
+        {
+            p.deep_timeout_ms = n;
+        }
+        if let Ok(v) = std::env::var("VOX_SEARCH_ENABLE_WIKIPEDIA") {
+            p.enable_wikipedia =
+                v == "1" || v.eq_ignore_ascii_case("true") || v.eq_ignore_ascii_case("yes");
+        }
+        if let Ok(v) = std::env::var("VOX_SEARCH_ENABLE_OPENALEX") {
+            p.enable_openalex =
+                v == "1" || v.eq_ignore_ascii_case("true") || v.eq_ignore_ascii_case("yes");
+        }
+        if let Ok(v) = std::env::var("VOX_SEARCH_ENABLE_ARXIV") {
+            p.enable_arxiv =
+                v == "1" || v.eq_ignore_ascii_case("true") || v.eq_ignore_ascii_case("yes");
         }
         p
     }
@@ -572,10 +789,19 @@ fn parse_falsy_env(id: vox_secrets::SecretId) -> bool {
 
 #[cfg(test)]
 mod tests {
-    // Rust 2024 made std::env::{set_var,remove_var} unsafe; mutated single-threaded.
     // field_reassign is a stylistic test-setup pattern here.
-    #![allow(unsafe_code, clippy::field_reassign_with_default)]
+    #![allow(clippy::field_reassign_with_default)]
     use super::*;
+
+    #[test]
+    fn exclude_untrusted_hits_defaults_off_and_deserializes_when_absent() {
+        assert!(!SearchPolicy::default().exclude_untrusted_hits);
+        let v = serde_json::to_value(SearchPolicy::default()).unwrap();
+        let mut obj = v.as_object().unwrap().clone();
+        obj.remove("exclude_untrusted_hits");
+        let p: SearchPolicy = serde_json::from_value(serde_json::Value::Object(obj)).unwrap();
+        assert!(!p.exclude_untrusted_hits);
+    }
 
     #[test]
     fn searxng_engine_csv_accepts_baseline() {
@@ -614,31 +840,49 @@ mod tests {
     }
 
     #[test]
-    fn rrf_is_enabled_by_default_when_env_unset() {
-        // This test modifies env which is process-global — run tests with --test-threads=1
-        // if env collision becomes a flake.
-        unsafe {
-            std::env::remove_var("VOX_SEARCH_PREFER_RRF");
-        }
-        let policy = SearchPolicy::from_env();
-        assert!(
-            policy.prefer_rrf_merge,
-            "prefer_rrf_merge must default to true; operators set VOX_SEARCH_PREFER_RRF=false to disable"
-        );
+    fn prefer_rrf_merge_pure_parsing() {
+        assert!(parse_prefer_rrf_merge(None));
+        assert!(parse_prefer_rrf_merge(Some("true")));
+        assert!(parse_prefer_rrf_merge(Some("TRUE")));
+        assert!(parse_prefer_rrf_merge(Some("1")));
+        assert!(parse_prefer_rrf_merge(Some("yes")));
+        assert!(parse_prefer_rrf_merge(Some("on")));
+
+        assert!(!parse_prefer_rrf_merge(Some("false")));
+        assert!(!parse_prefer_rrf_merge(Some("FALSE")));
+        assert!(!parse_prefer_rrf_merge(Some("0")));
+        assert!(!parse_prefer_rrf_merge(Some("no")));
+        assert!(!parse_prefer_rrf_merge(Some("off")));
+        assert!(!parse_prefer_rrf_merge(Some("anything_else")));
     }
 
     #[test]
-    fn rrf_disabled_when_env_set_to_false() {
-        unsafe {
-            std::env::set_var("VOX_SEARCH_PREFER_RRF", "false");
-        }
-        let policy = SearchPolicy::from_env();
-        assert!(
-            !policy.prefer_rrf_merge,
-            "VOX_SEARCH_PREFER_RRF=false must disable RRF"
-        );
-        unsafe {
-            std::env::remove_var("VOX_SEARCH_PREFER_RRF");
-        }
+    fn default_policy_never_enables_vault_backed_network_providers() {
+        // Holds whatever the machine's Clavis vault contains: only `from_env` may turn
+        // Tavily or SearXNG on, so tests built on `Default` cannot spend or reach them.
+        let d = SearchPolicy::default();
+        assert!(!d.tavily_enabled);
+        assert_eq!(d.searxng_url, None);
+    }
+
+    #[test]
+    fn tavily_auto_activation_respects_key_and_override() {
+        use crate::tavily_research::tavily_research_enabled_with_values;
+        // Key present, no explicit override -> auto-enabled
+        assert!(tavily_research_enabled_with_values(Some("tvly-xxx"), None));
+        // Key present, explicit false -> disabled
+        assert!(!tavily_research_enabled_with_values(
+            Some("tvly-xxx"),
+            Some("false")
+        ));
+        assert!(!tavily_research_enabled_with_values(
+            Some("tvly-xxx"),
+            Some("0")
+        ));
+        // Key absent, no explicit override -> disabled
+        assert!(!tavily_research_enabled_with_values(None, None));
+        // Key absent, explicit true -> enabled
+        assert!(tavily_research_enabled_with_values(None, Some("true")));
+        assert!(tavily_research_enabled_with_values(None, Some("1")));
     }
 }

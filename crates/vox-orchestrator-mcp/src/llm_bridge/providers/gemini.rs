@@ -18,8 +18,9 @@ pub(crate) async fn http_gemini_with_metadata(
     top_p: Option<f32>,
     json_mode: bool,
 ) -> Result<(String, u32, u32, HttpCallMetadata), HttpInferError> {
+    let clean_model = sanitize_gemini_model_id(model_id);
     let url = format!(
-        "https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={api_key}"
+        "https://generativelanguage.googleapis.com/v1beta/models/{clean_model}:generateContent?key={api_key}"
     );
 
     let system_instruction = if system.is_empty() {
@@ -165,4 +166,38 @@ pub(crate) async fn http_gemini_with_metadata(
             cache_creation_input_tokens: None,
         },
     ))
+}
+
+pub(crate) fn sanitize_gemini_model_id(model_id: &str) -> &str {
+    let clean = model_id.strip_prefix("google/").unwrap_or(model_id);
+    if !clean.is_empty()
+        && clean
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.')
+    {
+        clean
+    } else {
+        "gemini-2.0-flash"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_gemini_url_strips_google_prefix() {
+        assert_eq!(
+            sanitize_gemini_model_id("google/gemini-2.5-flash"),
+            "gemini-2.5-flash"
+        );
+        assert_eq!(
+            sanitize_gemini_model_id("gemini-2.5-flash"),
+            "gemini-2.5-flash"
+        );
+        assert_eq!(
+            sanitize_gemini_model_id("google/gemini-2.0-flash?attack=true"),
+            "gemini-2.0-flash"
+        );
+    }
 }

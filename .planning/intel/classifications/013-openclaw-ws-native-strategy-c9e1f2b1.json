@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/013-openclaw-ws-native-strategy.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 013 — OpenClaw WS-first native interop",
+  "summary": "Adopts WS-first integration strategy with stable Rust adapter boundary for OpenClaw Gateway protocol.",
+  "scope": ["OpenClaw", "Gateway protocol", "WebSocket", "vox-skills", "OpenClawRuntimeAdapter", "TLS verification", "secrets"],
+  "cross_refs": ["contracts/openclaw/protocol/connect.challenge.json", "contracts/openclaw/protocol/connect.hello-ok.json", "contracts/openclaw/protocol/subscriptions.list.response.json"],
+  "locked": true,
+  "precedence": null
+}

@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/semantic-coverage-status-2026-06-15.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Semantic Coverage — Honest Status (2026-06-15)",
+  "summary": "Verified accounting of test coverage: 3,088 proven (15.9%), 5,793 reached-but-unproven, with audit of weak patterns and priority targets.",
+  "scope": ["test-coverage-audit", "coverage-metrics", "semantic-proof", "reached-vs-proven", "priority-crates", "status-report"],
+  "cross_refs": ["docs/src/architecture/semantic-test-coverage-graph-strategy-2026-06-07.md", "docs/src/architecture/semantic-coverage-remediation-plan-2026-06-13.md"],
+  "locked": false,
+  "precedence": null
+}

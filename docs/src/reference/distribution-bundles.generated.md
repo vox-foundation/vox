@@ -12,17 +12,17 @@ training_eligible: true
 
 First-party Vox distribution bundles. Each bundle is the same host binary plus a curated `plugins/` directory. See [distribution-bundles.md](distribution-bundles.md) for the decision tree.
 
-| bundle | extends | direct plugins | total resolved plugins |
-|--------|---------|----------------|------------------------|
-| `vox-base` | — | 0 | 0 |
-| `vox-fullstack` | — | 9 | 9 |
-| `vox-ml` | `vox-fullstack` | 2 | 11 |
-| `vox-ml-metal` | `vox-fullstack` | 1 | 10 |
-| `vox-mesh` | `vox-base` | 2 | 2 |
-| `vox-server` | `vox-base` | 5 | 5 |
-| `vox-edge` | `vox-base` | 4 | 4 |
-| `vox-dev` | `vox-fullstack` | 7 | 16 |
-| `vox-mobile` | `vox-base` | 0 | 0 |
+| bundle | extends | direct plugins | total resolved plugins | default profile |
+|--------|---------|----------------|------------------------|-----------------|
+| `vox-base` | — | 0 | 0 | — |
+| `vox-fullstack` | — | 9 | 9 | `dev` |
+| `vox-ml` | `vox-fullstack` | 2 | 11 | `dev` |
+| `vox-ml-metal` | `vox-fullstack` | 1 | 10 | `dev` |
+| `vox-mesh` | `vox-base` | 2 | 2 | `mesh` |
+| `vox-server` | `vox-base` | 5 | 5 | `orchestrator,knowledge,mesh` |
+| `vox-edge` | `vox-base` | 4 | 4 | `lang,skills` |
+| `vox-dev` | `vox-fullstack` | 7 | 16 | `dev` |
+| `vox-mobile` | `vox-base` | 0 | 0 | — |
 
 ## Per-bundle plugin lists
 

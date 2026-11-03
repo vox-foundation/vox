@@ -66,8 +66,8 @@ fn research_cache_key(query: &ResearchQuery) -> String {
         .join(" ")
         .to_ascii_lowercase();
     let raw = format!(
-        "{}|{:?}|{}|{}",
-        normalized_query, query.scope, query.max_sources, query.verify_claims
+        "{}|{:?}|{}|{}|{:?}",
+        normalized_query, query.scope, query.max_sources, query.verify_claims, query.lane
     );
     format!("{:016x}", super::helpers::fnv1a_hash(&raw))
 }
@@ -94,6 +94,9 @@ mod tests {
             persist_to_docs: false,
             verify_claims: true,
             site_scope: None,
+            domain_mode: Default::default(),
+            waves: 1,
+            lane: vox_search::policy::ResearchLane::Fast,
         }
     }
 
@@ -118,8 +121,28 @@ mod tests {
                 self_verification: None,
                 citation_audit: None,
                 corroboration_counts: vec![],
+                wave_count: 1,
+                wave_stability: None,
+                low_grounding_evidence: false,
+                subqueries: vec![],
+                synthesis_model: String::new(),
+                judge_error: None,
+                served_from_cache: false,
+                claims_extracted_count: 0,
+                claims_verified_count: 0,
+                usage: Default::default(),
             },
         }
+    }
+
+    #[test]
+    fn cache_key_distinguishes_lanes() {
+        let mut q = query("same question", ResearchScope::Web);
+        q.lane = vox_search::policy::ResearchLane::Fast;
+        let fast = research_cache_key(&q);
+        q.lane = vox_search::policy::ResearchLane::Deep;
+        let deep = research_cache_key(&q);
+        assert_ne!(fast, deep);
     }
 
     #[test]

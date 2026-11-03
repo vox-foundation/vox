@@ -25,4 +25,21 @@ fn snippet_handles_exe_suffix() {
 fn snippet_emits_osc633_markers() {
     assert!(shell_integration_snippet("pwsh").unwrap().contains("]633;"));
     assert!(shell_integration_snippet("bash").unwrap().contains("]633;"));
+    let nu = shell_integration_snippet("nu").unwrap();
+    assert!(nu.contains("]633;A"));
+    assert!(nu.contains("]633;B"));
+    assert!(nu.contains("]633;C"));
+    assert!(nu.contains("]633;D;"));
+    assert!(nu.contains("]633;E;"));
+}
+
+#[test]
+fn nu_posix_isms_diagnosis() {
+    let hints = vox_terminal_core::pty::diagnose_nu_posix_isms(
+        "cargo check && cargo test 2>&1 || echo $HOME",
+    );
+    assert!(hints.iter().any(|h| h.contains("&&")));
+    assert!(hints.iter().any(|h| h.contains("||")));
+    assert!(hints.iter().any(|h| h.contains("2>&1")));
+    assert!(hints.iter().any(|h| h.contains("$HOME")));
 }

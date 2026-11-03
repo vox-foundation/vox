@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "max_unresolved": 14,
+  "unresolved": [
+    "architect",
+    "attention",
+    "dei",
+    "gui",
+    "live",
+    "mcp",
+    "openclaw",
+    "recensio",
+    "review",
+    "safety",
+    "stop",
+    "stub-check",
+    "train",
+    "visus"
+  ]
+}

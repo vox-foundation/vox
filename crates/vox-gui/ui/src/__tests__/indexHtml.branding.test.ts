@@ -12,9 +12,13 @@ describe('Axis branding — index.html', () => {
     expect(html).toMatch(/<title>Axis<\/title>/);
   });
   it('links the favicon', () => {
-    expect(html).toMatch(/rel="icon"[^>]*href="\/favicon\.svg"/);
+    expect(html).toMatch(/rel="icon"[^>]*href="\.\/favicon\.svg"/);
   });
   it('ships the favicon asset', () => {
     expect(existsSync(resolve(here, '../../public/favicon.svg'))).toBe(true);
+  });
+  it('loads drive-bootstrap before the module', () => {
+    expect(html).toMatch(/<script src="\.\/drive-bootstrap\.js"><\/script>/);
+    expect(existsSync(resolve(here, '../../public/drive-bootstrap.js'))).toBe(true);
   });
 });

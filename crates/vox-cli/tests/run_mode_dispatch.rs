@@ -64,27 +64,21 @@ fn run_mode_script_executes_minimal_main() {
 }
 
 #[test]
-#[ignore = "heavyweight: the script lane compiles the .vox to native via the script-cache (~764 crates) and needs `--features script-execution` in the vox binary; far too slow/heavy for the default `cargo nextest run -p vox-cli` gate. Run: cargo test -p vox-cli --features script-execution --test run_mode_dispatch -- --ignored — owner: vox-cli sunset: 2026-12-31"]
-fn run_mode_auto_matches_script_for_script_shaped_file() {
-    let tmp = tempfile::tempdir().expect("tempdir");
-    let vox_file = tmp.path().join("smoke_auto.vox");
-    fs::write(&vox_file, "fn main() {\n    print(str(\"auto_lane\"))\n}\n").expect("write vox");
-
-    let repo = workspace_root();
-    let st = Command::new(vox_bin())
-        .current_dir(&repo)
-        .args([
-            "run",
-            "--mode",
-            "auto",
-            vox_file.to_str().expect("utf8 path"),
-        ])
-        .status()
-        .expect("spawn vox run");
+fn auto_mode_runs_script_shaped_files_under_the_interpreter() {
+    let f = std::env::temp_dir().join(format!("vox-auto-{}.vox", std::process::id()));
+    std::fs::write(&f, r#"pub fn main() { print("AUTO_INTERP_OK") }"#).unwrap();
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_vox"))
+        .env("PATH", "")
+        .args(["run"])
+        .arg(&f)
+        .output()
+        .unwrap();
     assert!(
-        st.success(),
-        "vox run --mode auto should route script-shaped files to the script lane"
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
     );
+    assert!(String::from_utf8_lossy(&out.stdout).contains("AUTO_INTERP_OK"));
 }
 
 #[test]
@@ -139,4 +133,33 @@ fn run_mode_app_builds_examples_chatbot() {
         st.success(),
         "vox run --mode app on a UI example should complete (may take several minutes)"
     );
+}
+
+#[test]
+fn script_shaped_predicate_keeps_service_surfaces_on_the_native_lane() {
+    use vox_cli::commands::runtime::run::run::is_script_shaped;
+    for src in [
+        "table T { id: Id[T] }\npub fn main() {}",
+        "routes { }\npub fn main() {}",
+        "server hello() to str { return \"x\" }\npub fn main() {}",
+        "workflow w() { }\npub fn main() {}",
+        "actor A { }\npub fn main() {}",
+        "@page fn home() {}",
+    ] {
+        assert!(
+            !is_script_shaped(src),
+            "must keep the native/app lane: {src:?}"
+        );
+    }
+    assert!(is_script_shaped("pub fn main() { print(1) }"));
+}
+
+#[test]
+fn three_escape_hatches_still_name_the_native_lane() {
+    let help = std::process::Command::new(env!("CARGO_BIN_EXE_vox"))
+        .args(["run", "--help"])
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&help.stdout);
+    assert!(s.contains("--mode"), "{s}");
 }

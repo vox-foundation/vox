@@ -48,3 +48,53 @@ pub fn nvcc_available() -> bool {
         .map(|s| s.success())
         .unwrap_or(false)
 }
+
+/// Where a dev tool binary (`toestub`, `vox-drift-check`) comes from for a `vox ci` step.
+/// Steps never `cargo run` a tool: locally a missing tool is skipped (hosted CI runs the check),
+/// and on hosted CI a missing tool is an error, because the workflow builds the tools first.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ToolPath {
+    Found(PathBuf),
+    SkipLocal,
+    MissingOnCi,
+}
+
+/// Pure core of [`installed_tool`].
+pub fn resolve_tool(found: Option<PathBuf>, hosted_ci: bool) -> ToolPath {
+    match (found, hosted_ci) {
+        (Some(p), _) => ToolPath::Found(p),
+        (None, true) => ToolPath::MissingOnCi,
+        (None, false) => ToolPath::SkipLocal,
+    }
+}
+
+/// `name` on `PATH` (with `.exe` on Windows), resolved per [`ToolPath`].
+pub fn installed_tool(name: &str) -> ToolPath {
+    let found = std::env::var_os("PATH").and_then(|path| {
+        std::env::split_paths(&path)
+            .flat_map(|dir| [dir.join(name), dir.join(format!("{name}.exe"))])
+            .find(|p| p.is_file())
+    });
+    resolve_tool(found, std::env::var_os("GITHUB_ACTIONS").is_some())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_installed_tool_is_used_everywhere() {
+        let p = PathBuf::from("/x/toestub");
+        assert_eq!(
+            resolve_tool(Some(p.clone()), false),
+            ToolPath::Found(p.clone())
+        );
+        assert_eq!(resolve_tool(Some(p.clone()), true), ToolPath::Found(p));
+    }
+
+    #[test]
+    fn a_missing_tool_is_skipped_locally_but_fails_on_hosted_ci() {
+        assert_eq!(resolve_tool(None, false), ToolPath::SkipLocal);
+        assert_eq!(resolve_tool(None, true), ToolPath::MissingOnCi);
+    }
+}

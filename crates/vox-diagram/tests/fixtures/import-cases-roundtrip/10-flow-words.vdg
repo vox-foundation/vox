@@ -1,0 +1,14 @@
+graph {
+    node Default: "Default"
+    container style: "Styles" {
+        node click: "Click me"
+        node Class: "Class"
+        click -> Class
+    }
+    container end: "Ended" {
+        node x-end: "x-end"
+        node End: "End"
+        x-end -> End
+    }
+    style.Class -> Default
+}

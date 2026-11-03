@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mesh-phase4-dashboard-control-plan-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Mesh Phase 4 — Dashboard Mesh-Control Surface Implementation Plan (2026-05-09)",
+  "summary": "TDD implementation plan for Phase 4: mesh control surface in dashboard with provisioning wizard, topology canvas, audit-log scrubber, spend gauges, workflow debugger, and hopper panel.",
+  "scope": ["dashboard", "mesh topology", "wizard UI", "donation policy editor", "audit log", "workflow debugger", "hopper panel"],
+  "cross_refs": ["mesh-and-language-distribution-ssot-2026.md", "vox-dashboard-design-brief-2026.md", "populi-mesh-local-observability-spec-2026.md", "unified-task-hopper-research-2026.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

@@ -1,0 +1,559 @@
+x-vox-version: 1
+schema_version: 1
+# Vox KB controlled vocabulary (SKOS-lite), KB Phase 4 / TAX-01 / D-07.
+#
+# - prefLabel is the exact value docs write in `topic:` / `domain:` frontmatter (lowercase kebab-case).
+# - altLabel entries are synonyms: lexical search expands a query containing one into a quoted
+#   facet phrase for the prefLabel (vox-search), and the facet lint uses them for did-you-mean hints.
+# - Retire a label by moving it into the replacement concept's deprecatedAliases; never delete it.
+# - Growth is by PR review of this file; every label may resolve to exactly one concept.
+# - Read by vox-doc-pipeline (facet lint) and vox_kb_search via vox_kb_facets::Taxonomy.
+domains:
+  - prefLabel: language
+    scopeNote: "The Vox language itself: compiler, syntax, types, code generation and editor tooling."
+  - prefLabel: runtime
+    scopeNote: "Executing Vox programs: actors, durable workflows, sandboxes and the shell stdlib."
+  - prefLabel: orchestration
+    scopeNote: "Agents, the orchestrator, MCP tools, skills and model routing."
+  - prefLabel: knowledge
+    scopeNote: "Search, retrieval, the knowledge base and research pipelines."
+  - prefLabel: ml
+    scopeNote: "MENS training, corpora, evaluation, quantization and speech models."
+  - prefLabel: gui
+    scopeNote: "The desktop app, terminal UI, mobile shells and other user-facing surfaces."
+  - prefLabel: data
+    scopeNote: "Databases, SQL backends and data contracts."
+  - prefLabel: platform
+    scopeNote: "CLI, build, CI, release, packaging, plugins, configuration and the toolchain."
+  - prefLabel: security
+    scopeNote: "Secrets, cryptography, identity, telemetry trust and privacy."
+  - prefLabel: mesh
+    scopeNote: "Populi mesh networking and shared transport."
+  - prefLabel: documentation
+    scopeNote: "Documentation governance, the doc pipeline and the contributor process."
+topics:
+  # ---- language ----
+  - prefLabel: compiler-frontend
+    broader: language
+    scopeNote: "Lexing, parsing, the AST and HIR, and the type checker."
+    altLabel:
+      - vox-compiler
+      - vox-ast
+      - vox-rename-registry
+      - parser
+      - type checker
+      - hir
+    deprecatedAliases:
+      - vox-lexer
+      - vox-parser
+      - vox-hir
+      - vox-typeck
+  - prefLabel: code-generation
+    broader: language
+    scopeNote: "Emitting Rust, TypeScript, React Native and schema-derived code from the compiler IR."
+    altLabel:
+      - vox-codegen
+      - vox-rn-codegen
+      - vox-scientia-jsonschema-codegen
+      - codegen
+      - webir
+      - emitter
+  - prefLabel: language-grammar
+    broader: language
+    scopeNote: "Keyword and decorator surface, grammar export and syntax rules."
+    altLabel:
+      - vox-grammar-export
+      - vox-language-surface
+      - grammar
+      - decorators
+      - syntax
+  - prefLabel: language-tooling
+    broader: language
+    scopeNote: "Language server, formatter and the DB-free language CLI."
+    altLabel:
+      - vox-lsp
+      - vox-langtool
+      - language server
+      - lsp
+  # ---- runtime ----
+  - prefLabel: actor-runtime
+    broader: runtime
+    scopeNote: "Actors, mailboxes, supervision, scheduling and the runtime profile foundation."
+    altLabel:
+      - vox-actor-runtime
+      - vox-runtime
+      - actors
+      - mailbox
+      - supervision
+  - prefLabel: durable-workflows
+    broader: runtime
+    scopeNote: "Durable workflows, activities and the append-only journal."
+    related:
+      - actor-runtime
+    altLabel:
+      - vox-workflow-runtime
+      - vox-journal
+      - workflow
+      - durable
+      - activity
+  - prefLabel: wasm-sandbox
+    broader: runtime
+    scopeNote: "Wasmtime and WASI execution and the abstract skill sandbox runtime."
+    altLabel:
+      - vox-wasm-engine
+      - vox-skill-runtime
+      - wasmtime
+      - wasi
+      - sandbox
+  - prefLabel: shell-stdlib
+    broader: runtime
+    scopeNote: "The argv-first shell-tier stdlib (std.fs, std.process) and its shared types."
+    altLabel:
+      - vox-shell-stdlib-types
+      - std.fs
+      - std.process
+  - prefLabel: container-runtime
+    broader: runtime
+    scopeNote: "OCI container runtime backends (Docker and Podman) and their shared types."
+    altLabel:
+      - vox-container
+      - vox-container-types
+      - docker
+      - podman
+      - oci
+  # ---- orchestration ----
+  - prefLabel: agent-orchestrator
+    broader: orchestration
+    scopeNote: "The multi-agent file-affinity router, its queue, driver and daemon."
+    related:
+      - mcp-tools
+    altLabel:
+      - vox-orchestrator
+      - vox-orchestrator-types
+      - vox-orchestrator-queue
+      - vox-orchestrator-driver
+      - vox-orchestrator-d
+      - vox-orchestrator-test-helpers
+      - multi-agent
+      - file affinity
+      - agent orchestration
+  - prefLabel: mcp-tools
+    broader: orchestration
+    scopeNote: "The MCP tool layer, tool registry and capability descriptors."
+    altLabel:
+      - vox-orchestrator-mcp
+      - vox-mcp-registry
+      - vox-capability-registry
+      - mcp
+      - model context protocol
+      - tool registry
+  - prefLabel: agent-skills
+    broader: orchestration
+    scopeNote: "Agent skills: the marketplace, on-demand discovery and the OpenClaw adapter."
+    altLabel:
+      - vox-skills
+      - vox-skill-discovery
+      - vox-openclaw-runtime
+      - skill discovery
+      - agentskills
+    deprecatedAliases:
+      - vox-ars
+  - prefLabel: model-routing
+    broader: orchestration
+    scopeNote: "Model-agnostic LLM facade, provider egress, model registry and selection."
+    altLabel:
+      - vox-llm-config
+      - vox-llm-egress
+      - vox-openai
+      - llm facade
+      - model registry
+      - model selection
+  - prefLabel: agent-memory
+    broader: orchestration
+    scopeNote: "Agent memory facts, persistence and recall."
+    related:
+      - search-retrieval
+    altLabel:
+      - memory manager
+      - persist-fact
+      - agent memory
+  # ---- knowledge ----
+  - prefLabel: search-retrieval
+    broader: knowledge
+    scopeNote: "Hybrid lexical and semantic retrieval, near-duplicate detection and graph queries."
+    altLabel:
+      - vox-search
+      - vox-similarity
+      - vox-graph-reader
+      - retrieval
+      - tantivy
+      - rrf
+      - code intelligence
+  - prefLabel: knowledge-base
+    broader: knowledge
+    scopeNote: "The KB library: facets, taxonomy, summaries, provenance and training eligibility."
+    related:
+      - search-retrieval
+    altLabel:
+      - vox-kb-facets
+      - kb
+      - facets
+      - taxonomy
+      - frontmatter facets
+  - prefLabel: scientia-research
+    broader: knowledge
+    scopeNote: "SCIENTIA research events, the research pipeline and publishing."
+    altLabel:
+      - vox-scientia
+      - vox-research-events
+      - vox-research-shim
+      - vox-publisher
+      - scientia
+      - research pipeline
+    deprecatedAliases:
+      - vox-dei-shim
+  # ---- ml ----
+  - prefLabel: mens-training
+    broader: ml
+    scopeNote: "MENS model training, tensors, Hugging Face layouts and the ML CLI."
+    altLabel:
+      - vox-ml-cli
+      - vox-tensor
+      - vox-hf-layout
+      - mens
+      - qlora
+      - fine-tuning
+  - prefLabel: training-corpus
+    broader: ml
+    scopeNote: "Training data contracts, preflight and corpus assembly."
+    related:
+      - mens-training
+    altLabel:
+      - vox-corpus
+      - corpus
+      - training data
+      - training eligibility
+  - prefLabel: model-evaluation
+    broader: ml
+    scopeNote: "Deterministic scoring and evaluation of model outputs."
+    altLabel:
+      - vox-eval
+      - eval metrics
+      - scoring
+  - prefLabel: speech-stt
+    broader: ml
+    scopeNote: "Speech-to-text, transcript refinement and the on-device Tauri STT plugin."
+    altLabel:
+      - vox-speech
+      - vox-tauri-stt
+      - speech
+      - stt
+      - whisper
+    deprecatedAliases:
+      - vox-oratio
+  - prefLabel: constrained-decoding
+    broader: ml
+    scopeNote: "Grammar-constrained inference (Earley and PDA backends)."
+    altLabel:
+      - vox-constrained-gen
+      - constrained generation
+      - constrained inference
+  - prefLabel: model-quantization
+    broader: ml
+    scopeNote: "Post-training quantization of model weights."
+    altLabel:
+      - vox-quantize
+      - quantization
+      - ptq
+      - gguf
+  # ---- gui ----
+  - prefLabel: desktop-app
+    broader: gui
+    scopeNote: "The Tauri desktop shell and its UI."
+    altLabel:
+      - vox-gui
+      - tauri
+      - desktop shell
+    deprecatedAliases:
+      - vox-dashboard
+  - prefLabel: tauri-packaging
+    broader: gui
+    scopeNote: "Generated Tauri 2 packaging hints and runtime capability projections."
+    altLabel:
+      - vox-tauri-codegen
+      - tauri packaging
+      - runtime capabilities
+  - prefLabel: mobile-apps
+    broader: gui
+    scopeNote: "React Native and Expo mobile shells and the uniffi runtime."
+    altLabel:
+      - vox-runtime-rn
+      - react native
+      - expo
+      - uniffi
+  - prefLabel: terminal-ui
+    broader: gui
+    scopeNote: "The terminal engine and its ratatui front-end."
+    altLabel:
+      - vox-terminal-core
+      - vox-term
+      - ratatui
+      - pty
+  - prefLabel: gamification
+    broader: gui
+    scopeNote: "Companions, quests and battles."
+    altLabel:
+      - vox-gamify
+      - companions
+      - quests
+    deprecatedAliases:
+      - vox-ludus
+  - prefLabel: web-frontend
+    broader: gui
+    scopeNote: "Generated web frontends, components and routes."
+    altLabel:
+      - react
+      - tsx
+      - web ui
+  # ---- data ----
+  - prefLabel: database
+    broader: data
+    scopeNote: "The Codex/VoxDb facade, schema migrations and row types."
+    altLabel:
+      - vox-db
+      - vox-db-types
+      - codex
+      - libsql
+      - turso
+      - schema migration
+  - prefLabel: sql-backends
+    broader: data
+    scopeNote: "Engine-agnostic SQL dialects and backends for application data planes."
+    related:
+      - database
+    altLabel:
+      - vox-sql
+      - sql dialect
+      - sql backend
+  - prefLabel: schema-contracts
+    broader: data
+    scopeNote: "JSON Schema compile and validate helpers and contract files."
+    altLabel:
+      - vox-jsonschema-util
+      - json schema
+      - contracts
+  # ---- platform ----
+  - prefLabel: cli-surface
+    broader: platform
+    scopeNote: "The vox command-line interface, its extracted command crates and scaffolding."
+    altLabel:
+      - vox-cli
+      - vox-cli-core
+      - vox-cli-contracts
+      - vox-cli-research
+      - vox-cli-review
+      - vox-cli-share
+      - vox-project-scaffold
+      - cli
+      - subcommand
+  - prefLabel: ci-guards
+    broader: platform
+    scopeNote: "CI gates and guard checks."
+    altLabel:
+      - vox-cli-ci
+      - vox-arch-check
+      - vox-wire-format-validator
+      - ci gate
+      - workflow guard
+      - layer rules
+  - prefLabel: testing
+    broader: platform
+    scopeNote: "Test harnesses and integration test suites."
+    altLabel:
+      - vox-test-harness
+      - vox-cli-tests
+      - vox-integration-tests
+      - vox-plugin-test-harness
+      - nextest
+      - test harness
+  - prefLabel: build-system
+    broader: platform
+    scopeNote: "Build metadata, the build broker, cargo queueing and workspace-hack."
+    altLabel:
+      - vox-build-meta
+      - vox-build-queue
+      - vox-cargo-shim
+      - workspace-hack
+      - cargo
+      - build broker
+      - hakari
+  - prefLabel: installer
+    broader: platform
+    scopeNote: "The desktop and CLI environment installer and release channels."
+    altLabel:
+      - voxup
+      - install
+      - release
+      - nightly build
+  - prefLabel: deployment
+    broader: platform
+    scopeNote: "Deployment artifact generation (Dockerfile, Compose, Kubernetes, Fly, systemd)."
+    altLabel:
+      - vox-deploy-codegen
+      - compose
+      - kubernetes
+      - systemd
+  - prefLabel: package-management
+    broader: platform
+    scopeNote: "The Vox package manager, manifests and lockfiles."
+    altLabel:
+      - vox-package
+      - vox-package-types
+      - lockfile
+      - package manager
+  - prefLabel: plugin-system
+    broader: platform
+    scopeNote: "Plugin ABI, host, SDK, manifests and the first-party catalog."
+    related:
+      - agent-skills
+    altLabel:
+      - vox-plugin-api
+      - vox-plugin-sdk
+      - vox-plugin-types
+      - vox-plugin-host
+      - vox-plugin-catalog
+      - plugin
+      - plugin.toml
+  - prefLabel: configuration
+    broader: platform
+    scopeNote: "Centralized configuration, env resolution and scaling policy."
+    altLabel:
+      - vox-config
+      - vox-config-derive
+      - vox-scaling-policy
+      - voxconfig
+      - env resolution
+  - prefLabel: shared-utilities
+    broader: platform
+    scopeNote: "Small cross-cutting helpers and the utility umbrella."
+    altLabel:
+      - vox-foundation
+      - vox-bounded-fs
+      - backoff
+      - trace id
+  - prefLabel: version-control
+    broader: platform
+    scopeNote: "Git and jj bridges, forge APIs and repository discovery."
+    altLabel:
+      - vox-git
+      - vox-vcs
+      - vox-forge
+      - vox-repository
+      - gix
+      - jj
+      - github api
+  - prefLabel: code-audit
+    broader: platform
+    scopeNote: "Source-policy detectors, drift checks, effort audit and the audit umbrella."
+    altLabel:
+      - vox-code-audit
+      - vox-audit
+      - vox-drift-check
+      - vox-effort-audit
+      - vox-effort-route
+      - vox-rule-pack
+      - toestub
+      - detectors
+  # ---- security ----
+  - prefLabel: secrets-management
+    broader: security
+    scopeNote: "Clavis secret resolution and the secret registry."
+    altLabel:
+      - vox-secrets
+      - clavis
+      - secret resolution
+      - api keys
+  - prefLabel: cryptography
+    broader: security
+    scopeNote: "Application cryptography primitives and the transport-provider ledger."
+    altLabel:
+      - vox-crypto
+      - aead
+      - ed25519
+      - blake3
+      - transport providers
+  - prefLabel: identity-trust
+    broader: security
+    scopeNote: "Signing keys, trust ledger and OAuth PKCE provisioning."
+    altLabel:
+      - vox-identity
+      - vox-oauth-pkce
+      - oauth
+      - pkce
+      - trust ledger
+  - prefLabel: telemetry
+    broader: security
+    scopeNote: "Telemetry facade, OTLP egress and the telemetry trust boundary."
+    altLabel:
+      - vox-telemetry
+      - vox-telemetry-otlp
+      - otlp
+      - telemetry trust
+  - prefLabel: privacy-redaction
+    broader: security
+    scopeNote: "Redaction of secrets and PII from logs and values."
+    altLabel:
+      - vox-redact
+      - redaction
+      - pii
+  # ---- mesh ----
+  - prefLabel: populi-mesh
+    broader: mesh
+    scopeNote: "The Populi worker registry, control plane and mesh types."
+    altLabel:
+      - vox-populi
+      - vox-populi-types
+      - populi
+      - worker registry
+  - prefLabel: mesh-transport
+    broader: mesh
+    scopeNote: "QUIC mesh transport, identity allowlist and donation policy."
+    altLabel:
+      - vox-mesh-transport
+      - vox-mesh-types
+      - vox-mesh-policy
+      - iroh
+      - quic
+      - donations
+  - prefLabel: http-transport
+    broader: mesh
+    scopeNote: "Shared HTTP client presets and transport conventions."
+    altLabel:
+      - vox-http-client
+      - http client
+      - reqwest
+  # ---- documentation ----
+  - prefLabel: doc-pipeline
+    broader: documentation
+    scopeNote: "Docs lint, doctests and the doc inventory."
+    altLabel:
+      - vox-doc-pipeline
+      - vox-doc-inventory
+      - doc lint
+      - doctest
+      - doc inventory
+  - prefLabel: doc-governance
+    broader: documentation
+    scopeNote: "Documentation authority, frontmatter rules and SSOT policy."
+    altLabel:
+      - documentation governance
+      - ssot
+      - agents policy
+      - frontmatter
+  - prefLabel: adr-records
+    broader: documentation
+    scopeNote: "Architecture decision records and the contributor process."
+    altLabel:
+      - adr
+      - decision record
+      - contributor guide

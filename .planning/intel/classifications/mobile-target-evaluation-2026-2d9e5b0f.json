@@ -1,0 +1,24 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mobile-target-evaluation-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Mobile target evaluation 2026 — Tauri-mobile vs RN + Expo",
+  "summary": "Research and hands-on bake-off comparing Tauri-mobile and React Native + Expo as Vox's mobile target, with methodology, findings, and open questions.",
+  "scope": [
+    "Tauri",
+    "React Native",
+    "Expo",
+    "mobile targets",
+    "Windows host",
+    "Android emulator"
+  ],
+  "cross_refs": [
+    "docs/src/architecture/adr-037.md",
+    "docs/src/architecture/codegen-ssot-unification-design-2026.md",
+    "docs/src/architecture/tauri-convergence-migration-plan-2026.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Research document informing a decision on mobile target selection. Contains methodology, findings, and open questions; not a binding specification."
+}

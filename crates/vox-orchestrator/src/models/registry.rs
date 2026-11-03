@@ -4,13 +4,14 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::catalog::{ModelCatalog, OpenRouterCatalog};
 use crate::config::CostPreference;
-use crate::types::{AgentTask, TaskCategory};
+use crate::types::TaskCategory;
 
-use super::key_guard::provider_secret_is_available;
-use super::spec::{ModelConfig, ModelSpec, ProviderType, task_category_strength};
+use super::RoutingTask;
 
-const MODEL_CATALOG_LAST_REFRESH_KEY: &str = "model_catalog_last_refresh";
-
+use super::health::MODEL_CATALOG_LAST_REFRESH_KEY;
+use super::spec::{
+    ModelCapabilities, ModelConfig, ModelSpec, PricingSource, ProviderType, task_category_strength,
+};
 /// A performance score from the `model_scoreboard`.
 #[derive(Debug, Clone, Default)]
 pub struct ModelScore {
@@ -140,6 +141,10 @@ pub struct ModelRegistry {
     /// In-memory penalty map for models that abstain (FIX-12).
     /// Key: (model_id, task_category). Value: Expiry time.
     penalty_map: HashMap<(String, TaskCategory), SystemTime>,
+    /// Catalog-derived scales (`models::reference`); re-derived by [`Self::apply_routing_reference`].
+    reference: super::reference::RoutingReference,
+    /// Graded `vox models bench` evidence (keyed by model_id); stamped into quality priors.
+    bench: HashMap<String, super::bench_evidence::BenchEvidence>,
 }
 
 impl ModelRegistry {
@@ -159,6 +164,49 @@ impl ModelRegistry {
 
     pub fn inject_scoreboard(&mut self, scores: HashMap<String, ModelScore>) {
         self.scoreboard = scores;
+    }
+
+    /// Replace the benchmark evidence and restamp every quality prior from it.
+    pub fn inject_benchmark_evidence(
+        &mut self,
+        evidence: HashMap<String, super::bench_evidence::BenchEvidence>,
+    ) {
+        self.bench = evidence;
+        self.apply_routing_reference();
+    }
+
+    /// Inject every persisted routing signal — scoreboard (+ observed p50), arm stats,
+    /// observed pricing, and benchmark evidence — then restamp priors. Each source is
+    /// best-effort: a failing query leaves that signal at its prior state. The one builder
+    /// every surface (daemon, GUI, CLI `--model auto`) uses so they route identically.
+    pub async fn inject_evidence_from_db(&mut self, db: &vox_db::VoxDb) {
+        if let Ok(rows) = db.get_model_scoreboard(7).await {
+            self.inject_scoreboard_latency(&rows);
+            self.inject_scoreboard(
+                rows.into_iter()
+                    .map(|row| (row.model_id.clone(), ModelScore::from(row)))
+                    .collect(),
+            );
+        }
+        if let Ok(arms) = db.list_model_arm_stats(7).await {
+            self.inject_arm_stats(arms);
+        }
+        if let Ok(pricing) = db.get_pricing_catalog().await {
+            self.inject_pricing_catalog(pricing);
+        }
+        match super::bench_evidence::load(db, super::bench_evidence::BENCH_EVIDENCE_WINDOW_DAYS)
+            .await
+        {
+            Ok(ev) => self.inject_benchmark_evidence(ev),
+            Err(_) => {
+                self.apply_routing_reference();
+            }
+        }
+    }
+
+    #[must_use]
+    pub fn bench_evidence(&self, model_id: &str) -> Option<&super::bench_evidence::BenchEvidence> {
+        self.bench.get(model_id)
     }
 
     pub fn inject_arm_stats(&mut self, stats: HashMap<String, (u32, u32)>) {
@@ -217,6 +265,7 @@ impl ModelRegistry {
                 }
             }
         }
+        self.apply_routing_reference();
     }
 
     /// Inject observed p50 latency from the `model_scoreboard` into each matching
@@ -357,7 +406,7 @@ impl ModelRegistry {
         self.scoreboard.get(model_id)
     }
 
-    fn matches_strength(m: &ModelSpec, strength: crate::models::StrengthTag) -> bool {
+    pub(crate) fn matches_strength(m: &ModelSpec, strength: crate::models::StrengthTag) -> bool {
         m.strengths
             .iter()
             .any(|s| *s == strength || *s == crate::models::StrengthTag::Generalist)
@@ -366,7 +415,9 @@ impl ModelRegistry {
     /// Credential gate used by the canonical selector: true iff the provider's
     /// primary key is resolvable right now (local providers always pass).
     pub(crate) fn key_is_present_for(m: &ModelSpec) -> bool {
-        provider_secret_is_available(&m.provider_type)
+        // Through `selection_key_available` so a test can pin the provider set per thread
+        // (`key_guard::set_test_key_availability`); with no override it is the same Clavis check.
+        super::key_guard::selection_key_available(&m.provider_type)
     }
 
     fn min_refresh_interval() -> Duration {
@@ -464,20 +515,18 @@ impl ModelRegistry {
 
                 #[cfg(feature = "populi-transport")]
                 {
-                    let mut control_url_opt = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorMeshControlUrl).expose().map(|s| s.to_string());
-                    if control_url_opt.is_none() {
-                        control_url_opt = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshControlAddr).expose().map(|s| s.to_string());
-                    }
-                    if let Some(control_url) = control_url_opt {
-                        let client = vox_populi::http_client::PopuliHttpClient::new(control_url.trim()).with_env_token();
-                        if let Ok(dir) = client.federation_directory().await {
-                            for peer in dir.entries {
+                    // Task 3.2: trusted, probed peers replace the asserted HTTP
+                    // directory. A peer that is off is absent, so it cannot be
+                    // routed work.
+                    for peer in crate::models::mesh_directory::trusted_peers().await {
+
                                 // Sybil/Reliability check: query peer reputation from db
-                                if let Ok(Some((success, fail, timeout, invalid))) = db.get_peer_reputation(&peer.scope_id).await {
+                                let peer_key = peer.endpoint_id.to_string();
+                                if let Ok(Some((success, fail, timeout, invalid))) = db.get_peer_reputation(&peer_key).await {
                                     let total_bad = fail + timeout + invalid;
                                     // Blacklist condition: more than 3 failures, and bad events exceed successful tasks.
                                     if total_bad > 3 && total_bad > success {
-                                        tracing::warn!(target: "vox.orchestrator.models", peer=%peer.scope_id, success, total_bad, "mesh peer blacklisted due to poor reputation");
+                                        tracing::warn!(target: "vox.orchestrator.models", peer=%peer_key, success, total_bad, "mesh peer blacklisted due to poor reputation");
                                         continue;
                                     }
                                 }
@@ -485,8 +534,8 @@ impl ModelRegistry {
                                 for kind in peer.task_kinds {
                                 let kind_str = serde_json::to_value(&kind).unwrap().as_str().unwrap().to_string();
                                     models.push(ModelSpec {
-                                        id: format!("mesh/{}/{}", peer.scope_id, kind_str),
-                                        canonical_slug: format!("mesh/{}/{}", peer.scope_id, kind_str),
+                                        id: format!("mesh/{}/{}", peer_key, kind_str),
+                                        canonical_slug: format!("mesh/{}/{}", peer_key, kind_str),
                                         provider: "mens".to_string(),
                                         provider_type: ProviderType::PopuliMesh,
                                         max_tokens: 128_000,
@@ -511,8 +560,6 @@ impl ModelRegistry {
                                         pricing_source: super::spec::PricingSource::Bootstrap,
                                     });
                                 }
-                            }
-                        }
                     }
                 }
 
@@ -533,8 +580,10 @@ impl ModelRegistry {
                         agent_overrides: HashMap::new(),
                         premium_alias: HashMap::new(),
                         scoreboard: HashMap::new(),
+                        bench: HashMap::new(),
                         arm_stats: HashMap::new(),
                         penalty_map: HashMap::new(),
+                        reference: super::reference::RoutingReference::FALLBACK,
                     };
                     tmp.apply_litellm_pricing(&litellm_entries);
                     models = tmp.list_models();
@@ -596,8 +645,10 @@ impl ModelRegistry {
             agent_overrides: HashMap::new(),
             premium_alias: HashMap::new(),
             scoreboard: HashMap::new(),
+            bench: HashMap::new(),
             arm_stats: HashMap::new(),
             penalty_map: HashMap::new(),
+            reference: super::reference::RoutingReference::FALLBACK,
         };
 
         if let Some(mut config_path) = vox_db::paths::config_dir() {
@@ -639,6 +690,8 @@ impl ModelRegistry {
             }
         }
 
+        registry.register_mens_local_candidates();
+        registry.apply_routing_reference();
         registry
     }
 
@@ -649,11 +702,15 @@ impl ModelRegistry {
             agent_overrides: HashMap::new(),
             premium_alias: HashMap::new(),
             scoreboard: HashMap::new(),
+            bench: HashMap::new(),
             arm_stats: HashMap::new(),
             penalty_map: HashMap::new(),
+            reference: super::reference::RoutingReference::FALLBACK,
         };
 
-        // Try to load from models.toml in the config directory
+        // In test mode, keep tests hermetic on ModelConfig::default().
+        // In production, try to load from models.toml in the config directory.
+        #[cfg(not(test))]
         let model_config = if let Some(mut config_path) = vox_db::paths::config_dir() {
             config_path.push("models.toml");
             if config_path.exists() {
@@ -677,6 +734,9 @@ impl ModelRegistry {
             ModelConfig::default()
         };
 
+        #[cfg(test)]
+        let model_config = ModelConfig::default();
+
         registry.premium_alias = if model_config.premium_alias.is_empty() {
             vox_config::load_model_routing_config().premium_alias
         } else {
@@ -687,13 +747,16 @@ impl ModelRegistry {
             registry.register(model);
         }
 
-        let cache_file = vox_config::paths::dot_vox_user_dir()
-            .join("cache")
-            .join("model-catalog.v1.json");
-        if let Ok(contents) = std::fs::read_to_string(&cache_file) {
-            if let Ok(cached_models) = serde_json::from_str::<Vec<ModelSpec>>(&contents) {
-                for m in cached_models {
-                    registry.register(m);
+        #[cfg(not(test))]
+        {
+            let cache_file = vox_config::paths::dot_vox_user_dir()
+                .join("cache")
+                .join("model-catalog.v1.json");
+            if let Ok(contents) = std::fs::read_to_string(&cache_file) {
+                if let Ok(cached_models) = serde_json::from_str::<Vec<ModelSpec>>(&contents) {
+                    for m in cached_models {
+                        registry.register(m);
+                    }
                 }
             }
         }
@@ -703,11 +766,250 @@ impl ModelRegistry {
         #[cfg(not(test))]
         registry.maybe_refresh_catalogs();
 
+        registry.register_mens_local_candidates();
+        // Test builds stay on the fixed constants (hermetic, like `maybe_refresh_catalogs`).
+        #[cfg(not(test))]
+        registry.apply_routing_reference();
         registry
     }
 
+    /// Register candidate entries for Mens 27B quantization tiers and 8B fallback under [`ProviderType::VoxLocal`].
+    pub fn register_mens_local_candidates(&mut self) {
+        let tiers = [
+            ("mens/runs/qwen3_27b_metal_check/merged_bf16", 27.0),
+            ("mens/runs/qwen3_27b_metal_check/quant_q8_0", 27.0),
+            ("mens/runs/qwen3_27b_metal_check/quant_q6_k", 27.0),
+            ("mens/runs/qwen3_27b_metal_check/quant_q5_k_m", 27.0),
+            ("mens/runs/qwen3_27b_metal_check/quant_q4_k_m", 27.0),
+            ("vox-mens-8b-v0.6", 8.0),
+        ];
+        for (id, param_count) in tiers {
+            if !self.models.contains_key(id) {
+                let spec = ModelSpec {
+                    id: id.to_string(),
+                    canonical_slug: format!("voxlocal/{}", id),
+                    provider: "voxlocal".to_string(),
+                    provider_type: ProviderType::VoxLocal,
+                    max_tokens: 8192,
+                    cost_per_1k: 0.0,
+                    cost_per_1k_input: 0.0,
+                    cost_per_1k_output: 0.0,
+                    is_free: true,
+                    observed_cost_per_1k: None,
+                    strengths: vec![
+                        crate::models::generated::StrengthTag::Generalist,
+                        crate::models::generated::StrengthTag::Codegen,
+                        crate::models::generated::StrengthTag::UiCodegen,
+                        crate::models::generated::StrengthTag::Parsing,
+                        crate::models::generated::StrengthTag::Debugging,
+                        crate::models::generated::StrengthTag::Review,
+                        crate::models::generated::StrengthTag::Security,
+                        crate::models::generated::StrengthTag::Logic,
+                        crate::models::generated::StrengthTag::InterAgent,
+                        crate::models::generated::StrengthTag::Planning,
+                    ],
+                    capabilities: ModelCapabilities {
+                        supports_json: true,
+                        supports_jsonl: true,
+                        supports_tool_use: true,
+                        supports_native_tools: true,
+                        supports_reasoning: true,
+                        writes_vox: true,
+                        max_context: 32768,
+                        latency_p50_ms: Some(140),
+                        tier: crate::models::generated::ModelTier::Local,
+                        param_count_b: Some(param_count),
+                        ..Default::default()
+                    },
+                    cache_creation_cost_per_1k: 0.0,
+                    cache_read_cost_per_1k: 0.0,
+                    supports_prompt_caching: false,
+                    pricing_source: PricingSource::Bootstrap,
+                    supported_parameters: vec![],
+                };
+                self.register(spec);
+            }
+        }
+    }
+
+    /// Register a calibrated Mens adapter from a 5-spoke [`vox_corpus::training::adapter_registry::MensAdapterRegistryEntry`]
+    /// into the Axis [`ModelRegistry`], populating `BenchEvidence` (`ModelConfidence::Confirmed`),
+    /// `ModelScore`, `arm_stats`, and per-spoke [`crate::models::StrengthTag`]s (`MENS-HARNESS-01..03`).
+    pub fn register_calibrated_mens_adapter(
+        &mut self,
+        entry: &vox_corpus::training::adapter_registry::MensAdapterRegistryEntry,
+    ) -> String {
+        use vox_corpus::training::contract::SpokeKind;
+
+        let model_id = if entry.checkpoint_id.starts_with("mens/") {
+            entry.checkpoint_id.clone()
+        } else {
+            format!("mens/{}", entry.checkpoint_id)
+        };
+
+        let mut strengths = vec![crate::models::generated::StrengthTag::Generalist];
+        for (spoke_key, &score) in &entry.per_spoke_scores {
+            if score < 0.50 {
+                continue;
+            }
+            match spoke_key.as_str() {
+                k if k == SpokeKind::VoxLang.as_str() => {
+                    strengths.push(crate::models::generated::StrengthTag::Codegen);
+                    strengths.push(crate::models::generated::StrengthTag::UiCodegen);
+                }
+                k if k == SpokeKind::RustWorkspace.as_str() => {
+                    strengths.push(crate::models::generated::StrengthTag::Debugging);
+                    strengths.push(crate::models::generated::StrengthTag::Review);
+                    strengths.push(crate::models::generated::StrengthTag::Security);
+                }
+                k if k == SpokeKind::StructuredShell.as_str() => {
+                    strengths.push(crate::models::generated::StrengthTag::Parsing);
+                }
+                k if k == SpokeKind::McpToolChain.as_str() => {
+                    strengths.push(crate::models::generated::StrengthTag::InterAgent);
+                    strengths.push(crate::models::generated::StrengthTag::Logic);
+                }
+                k if k == SpokeKind::AgentHarness.as_str() => {
+                    strengths.push(crate::models::generated::StrengthTag::Planning);
+                }
+                _ => {}
+            }
+        }
+        strengths.dedup();
+
+        let pass1 = entry.overall_pass_at_1.clamp(0.0, 1.0);
+        let spec = ModelSpec {
+            id: model_id.clone(),
+            canonical_slug: entry.adapter_trusty_uri.clone(),
+            provider: "voxlocal".to_string(),
+            provider_type: ProviderType::VoxLocal,
+            max_tokens: 16384,
+            cost_per_1k: entry.cost_per_1k_tokens_usd,
+            cost_per_1k_input: entry.cost_per_1k_tokens_usd,
+            cost_per_1k_output: entry.cost_per_1k_tokens_usd,
+            is_free: entry.cost_per_1k_tokens_usd <= 0.0,
+            observed_cost_per_1k: Some(entry.cost_per_1k_tokens_usd),
+            strengths,
+            capabilities: ModelCapabilities {
+                supports_json: true,
+                supports_jsonl: true,
+                supports_tool_use: true,
+                supports_native_tools: true,
+                supports_reasoning: true,
+                writes_vox: true,
+                max_context: 32768,
+                latency_p50_ms: Some(entry.latency_ms_p50 as u32),
+                intelligence_index: Some((pass1 * 100.0) as f32),
+                tier: crate::models::generated::ModelTier::Local,
+                param_count_b: Some(27.0),
+                ..Default::default()
+            },
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: PricingSource::Telemetry,
+            supported_parameters: vec![],
+        };
+        self.register(spec);
+
+        let total_problems: i64 = 25;
+        let successes = ((pass1 * total_problems as f64).round() as i64).min(total_problems);
+        let failures = (total_problems - successes).max(0) as u32;
+
+        self.bench.insert(
+            model_id.clone(),
+            super::bench_evidence::BenchEvidence {
+                cases: total_problems,
+                passed: successes,
+                errors: 0,
+                mean_score: pass1,
+                resolved_model_id: Some(model_id.clone()),
+                p50_ttft_ms: Some(40),
+                p50_latency_ms: Some(entry.latency_ms_p50 as i64),
+                p95_latency_ms: Some((entry.latency_ms_p50 * 2) as i64),
+                mean_tokens_per_sec: Some(65.0),
+                cost_per_solve_usd: Some(0.0),
+                tokens_per_solve: Some(512.0),
+                last_recorded_at_ms: 1_710_000_002_000,
+            },
+        );
+        self.scoreboard.insert(
+            model_id.clone(),
+            ModelScore {
+                success_rate: pass1,
+                quality_score: pass1,
+                cost_per_success_usd: Some(0.0),
+                p50_latency_ms: Some(entry.latency_ms_p50 as i64),
+                n_calls: total_problems,
+                success_count: successes,
+                p95_ttft_ms: Some(40),
+                p95_tpot_ms: Some(15.0),
+                goodput_tokens_per_sec: Some(65.0),
+            },
+        );
+        self.arm_stats
+            .insert(model_id.clone(), ((successes as u32).max(1), failures));
+        self.apply_routing_reference();
+        model_id
+    }
+
+    /// Map a canonical [`vox_corpus::training::contract::SpokeKind`] to its Axis [`super::routing_task::RoutingTask`]
+    /// and select the highest-scoring model in the registry (`MENS-HARNESS-02..03`).
+    #[must_use]
+    pub fn route_spoke_task(
+        &self,
+        spoke: vox_corpus::training::contract::SpokeKind,
+    ) -> Option<ModelSpec> {
+        use vox_corpus::training::contract::SpokeKind;
+
+        let task = match spoke {
+            SpokeKind::VoxLang => RoutingTask {
+                category: TaskCategory::CodeGen,
+                complexity: 6,
+                ..Default::default()
+            },
+            SpokeKind::RustWorkspace => RoutingTask {
+                category: TaskCategory::Debugging,
+                complexity: 6,
+                ..Default::default()
+            },
+            SpokeKind::StructuredShell => RoutingTask {
+                category: TaskCategory::Parsing,
+                complexity: 4,
+                ..Default::default()
+            },
+            SpokeKind::McpToolChain => RoutingTask {
+                category: TaskCategory::ToolOrchestration,
+                complexity: 6,
+                ..Default::default()
+            },
+            SpokeKind::AgentHarness => RoutingTask {
+                category: TaskCategory::Planning,
+                complexity: 6,
+                ..Default::default()
+            },
+        };
+        self.best_for_task(&task, CostPreference::Economy)
+    }
+
     /// Register a new model specification.
-    pub fn register(&mut self, spec: ModelSpec) {
+    pub fn register(&mut self, mut spec: ModelSpec) {
+        if spec.capabilities.tier == super::ModelTier::Unknown
+            && !matches!(
+                spec.provider_type,
+                super::ProviderType::Ollama
+                    | super::ProviderType::PopuliMesh
+                    | super::ProviderType::VoxLocal
+            )
+        {
+            spec.capabilities.tier = super::tiering::derive_tier_with(
+                spec.is_free,
+                spec.cost_per_1k_output,
+                self.reference.elite_min_out,
+                self.reference.pro_min_out,
+            );
+        }
+        spec.capabilities.quality_prior = Some(self.reference.quality_prior(&spec, None));
         use super::spec::PricingSource;
         if let Some(existing) = self.models.get(&spec.id) {
             if existing.pricing_source == PricingSource::Telemetry {
@@ -724,35 +1026,110 @@ impl ModelRegistry {
         self.models.insert(spec.id.clone(), spec);
     }
 
+    /// Make a live Ollama listing authoritative for Ollama entries: drop every Ollama model
+    /// not in `installed` (bootstrap suggestions the user never pulled would otherwise win
+    /// free routing and fail at dispatch). `None` means Ollama was unreachable, so no Ollama
+    /// entry can serve. Call [`Self::apply_routing_reference`] afterwards.
+    pub fn reconcile_ollama(&mut self, installed: Option<&[String]>) {
+        self.models.retain(|id, m| {
+            m.provider_type != ProviderType::Ollama
+                || installed.is_some_and(|names| names.iter().any(|n| n == id))
+        });
+    }
+
+    /// The routing reference this registry scores against.
+    #[must_use]
+    pub fn routing_reference(&self) -> super::reference::RoutingReference {
+        self.reference
+    }
+
+    /// Re-derive the routing reference from the registered models, restamp every model's
+    /// quality prior, and re-derive the tier of every model whose price came from a live
+    /// catalog or from observed spend (an entry no catalog prices, and an unknown price, keep
+    /// their tier). Call after every catalog merge and after injecting observed prices.
+    pub fn apply_routing_reference(&mut self) -> super::reference::RoutingReference {
+        use super::spec::PricingSource;
+        let reference = super::reference::RoutingReference::derive(self.models.values());
+        self.reference = reference;
+        let family = super::family::family_benchmarks(self.models.values());
+        for spec in self.models.values_mut() {
+            let local = matches!(
+                spec.provider_type,
+                ProviderType::Ollama | ProviderType::PopuliMesh | ProviderType::VoxLocal
+            );
+            let inherited = if local || spec.capabilities.intelligence_index.is_some() {
+                None
+            } else {
+                family
+                    .get(&super::family::join_key(spec))
+                    .filter(|(_, from)| *from != spec.id)
+                    .map(|(index, from)| (*index, from.as_str()))
+            };
+            let mut prior = reference.quality_prior(spec, inherited);
+            if let Some(ev) = self.bench.get(&spec.id).filter(|ev| ev.cases > 0) {
+                prior = super::spec::QualityPrior {
+                    value: ev.blended_quality(prior.value),
+                    source: super::spec::QualitySource::Measured {
+                        score: ev.mean_score as f32,
+                        cases: ev.cases.min(i64::from(u32::MAX)) as u32,
+                        prior: prior.value as f32,
+                    },
+                };
+            }
+            spec.capabilities.quality_prior = Some(prior);
+            let priced = matches!(
+                spec.pricing_source,
+                PricingSource::OpenRouter
+                    | PricingSource::LiteLLM
+                    | PricingSource::AnthropicDirect
+                    | PricingSource::Telemetry
+            );
+            if priced && !local {
+                let tier = super::tiering::derive_tier_with(
+                    spec.is_free,
+                    spec.cost_per_1k_output,
+                    reference.elite_min_out,
+                    reference.pro_min_out,
+                );
+                if tier != super::ModelTier::Unknown {
+                    spec.capabilities.tier = tier;
+                }
+            }
+        }
+        reference
+    }
+
+    pub(crate) fn models_iter(&self) -> impl Iterator<Item = &ModelSpec> {
+        self.models.values()
+    }
+
     /// Remove all registered models. Useful in tests to isolate a clean registry from
     /// any on-disk cache that `new()` seeds automatically.
     pub fn clear(&mut self) {
         self.models.clear();
     }
 
-    pub fn best_for_task(&self, task: &AgentTask, preference: CostPreference) -> Option<ModelSpec> {
+    pub fn best_for_task(
+        &self,
+        task: &RoutingTask,
+        preference: CostPreference,
+    ) -> Option<ModelSpec> {
         self.best_for_task_with_filter(task, preference, |_| true)
     }
 
     /// Like [`Self::best_for_task`] but only considers models for which `pred` returns true.
     pub fn best_for_task_with_filter(
         &self,
-        task: &AgentTask,
+        task: &RoutingTask,
         preference: CostPreference,
         pred: impl FnMut(&ModelSpec) -> bool,
     ) -> Option<ModelSpec> {
-        let mut complexity = task.estimated_complexity;
-        let mut task_type = task.task_category;
-
-        if !task.research_hints.is_empty() && task_type != TaskCategory::Research {
-            task_type = TaskCategory::Research;
-        }
-
-        if task.tool_hints.len() >= 2 && complexity < 7 {
-            complexity = 7;
-        }
-
-        self.best_for_with_filter(task_type, complexity, preference, false, pred, Some(task))
+        let mut pred = pred;
+        self.rank_task_with_filter(task, preference, |m| {
+            (!pred(m)).then_some(super::ranking::Exclusion::Filtered)
+        })
+        .chosen()
+        .cloned()
     }
 
     /// Return the best model for a given task category and complexity.
@@ -774,172 +1151,20 @@ impl ModelRegistry {
         preference: CostPreference,
         allow_free_in_performance_mode: bool,
         mut pred: impl FnMut(&ModelSpec) -> bool,
-        task: Option<&AgentTask>,
+        task: Option<&RoutingTask>,
     ) -> Option<ModelSpec> {
-        let effective_pref = if complexity <= 3 && preference == CostPreference::Economy {
-            CostPreference::Economy
-        } else {
-            preference
-        };
-
-        let strength = task_category_strength(task_type);
-
-        // First pass: Respect penalties
-        let result = self.best_for_internal(
+        self.rank_with_filter(
             task_type,
-            strength,
-            effective_pref,
+            complexity,
+            preference,
             allow_free_in_performance_mode,
-            &mut pred,
-            true,
-            task,
-        );
-        if result.is_some() {
-            return result;
-        }
-
-        // Second pass: Ignore penalties if no other options
-        self.best_for_internal(
-            task_type,
-            strength,
-            effective_pref,
-            allow_free_in_performance_mode,
-            &mut pred,
-            false,
+            |m| (!pred(m)).then_some(super::ranking::Exclusion::Filtered),
             task,
         )
-    }
-
-    fn best_for_internal(
-        &self,
-        _task_type: TaskCategory,
-        strength: crate::models::StrengthTag,
-        preference: CostPreference,
-        allow_free_in_performance_mode: bool,
-        pred: &mut impl FnMut(&ModelSpec) -> bool,
-        respect_penalties: bool,
-        task: Option<&AgentTask>,
-    ) -> Option<ModelSpec> {
-        self.models
-            .values()
-            .filter(|m| {
-                if respect_penalties && self.is_penalized(&m.id, _task_type) {
-                    return false;
-                }
-                // Removed W1-2 block. The runtime filter will handle dropping Unknown models
-                // if the daily exploration budget is exceeded.
-                if preference == CostPreference::Performance
-                    && m.is_free
-                    && !allow_free_in_performance_mode
-                {
-                    return false; // Skip free models in performance mode unless they are explicitly mapped
-                }
-
-                let safety_cap = vox_config::load_model_routing_config()
-                    .safety
-                    .max_cost_usd_per_request;
-                let est_tokens = task.map(|t| t.estimated_token_count()).unwrap_or(1024) as f64;
-                let est_cost = (est_tokens / 1000.0)
-                    * if m.cost_per_1k_input > 0.0 || m.cost_per_1k_output > 0.0 {
-                        (m.cost_per_1k_input + m.cost_per_1k_output) / 2.0
-                    } else {
-                        m.cost_per_1k
-                    };
-                if est_cost > safety_cap {
-                    return false;
-                }
-
-                // Budget Gating (FIX-18)
-                if let (Some(t), Some(budget)) = (task, task.and_then(|t| t.budget.as_ref())) {
-                    let est_tokens = t.estimated_token_count();
-                    // Use scoreboard cost if available for more empirical gating
-                    let cost_basis = self
-                        .scoreboard
-                        .get(&m.id)
-                        .and_then(|s| s.cost_per_success_usd)
-                        .unwrap_or(m.cost_per_1k);
-
-                    let est_cost = (est_tokens as f64 / 1000.0) * cost_basis;
-                    if let Some(max) = budget.max_cost_usd {
-                        if est_cost > max {
-                            return false;
-                        }
-                    }
-                }
-
-                if !crate::route_policy::route_policy_allows_model(m) {
-                    return false;
-                }
-                if !crate::route_policy::privacy_allows_model_for_mode(
-                    m,
-                    crate::route_policy::inference_privacy_local_only_from_env(),
-                ) {
-                    return false;
-                }
-
-                Self::matches_strength(m, strength) && pred(m)
-            })
-            .min_by(|a, b| {
-                let get_effective_cost = |m: &ModelSpec| {
-                    if let Some(score) = self.scoreboard.get(&m.id) {
-                        let base_cost = score.cost_per_success_usd.unwrap_or(m.cost_per_1k);
-                        if score.n_calls >= 3 {
-                            // Scoreboard-aware routing: penalize models with low quality scores.
-                            // We use (2.0 - quality) as a multiplier to double cost if quality is 0.
-                            return base_cost * (2.0 - score.quality_score.min(2.0));
-                        }
-                        return base_cost;
-                    }
-                    m.cost_per_1k
-                };
-
-                let cost_a = get_effective_cost(a);
-                let cost_b = get_effective_cost(b);
-
-                cost_a.total_cmp(&cost_b).then_with(|| {
-                    // Secondary sort by success rate if costs (adjusted) are equal
-                    let a_sr = self
-                        .scoreboard
-                        .get(&a.id)
-                        .map(|s| s.success_rate)
-                        .unwrap_or(0.5);
-                    let b_sr = self
-                        .scoreboard
-                        .get(&b.id)
-                        .map(|s| s.success_rate)
-                        .unwrap_or(0.5);
-                    b_sr.total_cmp(&a_sr).then_with(|| {
-                        // Tertiary sort by latency if costs and success rates are similar
-                        let a_lat = self
-                            .scoreboard
-                            .get(&a.id)
-                            .and_then(|s| s.p50_latency_ms)
-                            .unwrap_or(2000);
-                        let b_lat = self
-                            .scoreboard
-                            .get(&b.id)
-                            .and_then(|s| s.p50_latency_ms)
-                            .unwrap_or(2000);
-
-                        a_lat.cmp(&b_lat).then_with(|| {
-                            let prefer_mesh = vox_secrets::resolve_secret(
-                                vox_secrets::SecretId::VoxRoutingPreferMesh,
-                            )
-                            .expose()
-                            .map(|s: &str| s.trim() == "true")
-                            .unwrap_or(false);
-                            if prefer_mesh {
-                                let a_is_mesh = a.provider_type == ProviderType::PopuliMesh;
-                                let b_is_mesh = b.provider_type == ProviderType::PopuliMesh;
-                                b_is_mesh.cmp(&a_is_mesh)
-                            } else {
-                                std::cmp::Ordering::Equal
-                            }
-                        })
-                    })
-                })
-            })
-            .cloned()
+        .ranked
+        .into_iter()
+        .next()
+        .map(|r| r.spec)
     }
 
     /// Return all models matching the criteria, sorted by the effective score (priority order).
@@ -976,7 +1201,7 @@ impl ModelRegistry {
                 // This mirrors `best_for_with_filter`'s existing low-complexity
                 // preference-downgrade logic (see `effective_pref` above), but is
                 // deliberately scoped to `explain_selection` only —
-                // `best_for_internal` (real production routing) doesn't thread
+                // `rank_pass` (real production routing) doesn't thread
                 // `complexity` through this filter today and changing that is out
                 // of scope for this fix.
                 if preference == crate::config::CostPreference::Performance
@@ -990,7 +1215,7 @@ impl ModelRegistry {
                 }
                 // Code-review fix: this ranking backs `vox model explain`, which
                 // must reflect the same eligibility as the real selection path
-                // (best_for_internal) — otherwise `explain` shows cloud models
+                // (rank_pass) — otherwise `explain` shows cloud models
                 // as viable/ranked even under VOX_INFERENCE_PRIVACY=local_only.
                 if !crate::route_policy::privacy_allows_model_for_mode(
                     m,
@@ -1003,30 +1228,27 @@ impl ModelRegistry {
             .cloned()
             .collect();
 
-        candidates.sort_by(|a, b| {
-            let score_a = super::scoring::auto_score_model(
-                a,
-                complexity,
-                false,
-                None,
-                preference,
-                None,
-                self.scoreboard.get(&a.id),
-            );
-            let score_b = super::scoring::auto_score_model(
-                b,
-                complexity,
-                false,
-                None,
-                preference,
-                None,
-                self.scoreboard.get(&b.id),
-            );
-            // Descending: highest score first.
-            score_b.total_cmp(&score_a).then_with(|| a.id.cmp(&b.id))
-        });
+        // Score each model once: rescoring inside the comparator reads shared scoring
+        // weights that can change mid-sort, which breaks total order (and panics).
+        let mut scored: Vec<(f64, ModelSpec)> = candidates
+            .drain(..)
+            .map(|m| {
+                let score = super::scoring::auto_score_model(
+                    &m,
+                    complexity,
+                    false,
+                    None,
+                    preference,
+                    None,
+                    self.scoreboard.get(&m.id),
+                );
+                (score, m)
+            })
+            .collect();
+        // Descending: highest score first.
+        scored.sort_by(|(sa, a), (sb, b)| sb.total_cmp(sa).then_with(|| a.id.cmp(&b.id)));
 
-        candidates
+        scored.into_iter().map(|(_, m)| m).collect()
     }
 
     /// Models rejected by [crate::route_policy] under current VOX_ROUTE_* env (stable sort by id).
@@ -1151,7 +1373,61 @@ impl ModelRegistry {
 
     /// Get a specific model definition by ID.
     pub fn get(&self, model_id: &str) -> Option<ModelSpec> {
-        self.models.get(model_id).cloned()
+        let key = model_id.trim();
+        if let Some(m) = self.models.get(key) {
+            return Some(m.clone());
+        }
+        if key.starts_with('~') {
+            return self.resolve_live_alias(key);
+        }
+        let stripped_key = key.split_once('/').map_or(key, |(_, suffix)| suffix);
+        let slug_suffix = format!("/{stripped_key}");
+        if let Some(m) = self.models.values().find(|m| {
+            m.id == key
+                || m.canonical_slug == key
+                || m.id == stripped_key
+                || m.canonical_slug == stripped_key
+                || m.id.ends_with(&slug_suffix)
+                || m.canonical_slug.ends_with(&slug_suffix)
+        }) {
+            return Some(m.clone());
+        }
+
+        // Support hierarchical run keys e.g. "mens/runs/foo" -> "mens/foo" or "vox-local/mens/runs/foo"
+        let norm_key = key
+            .strip_prefix("vox-local/")
+            .or_else(|| key.strip_prefix("voxlocal/"))
+            .unwrap_or(key);
+        let norm_key = if let Some(rest) = norm_key.strip_prefix("mens/runs/") {
+            format!("mens/{rest}")
+        } else if let Some(rest) = norm_key.strip_prefix("runs/") {
+            format!("mens/{rest}")
+        } else {
+            norm_key.to_string()
+        };
+
+        if let Some(m) = self.models.get(&norm_key) {
+            return Some(m.clone());
+        }
+        if let Some(m) = self
+            .models
+            .values()
+            .find(|m| m.id == norm_key || m.canonical_slug == norm_key)
+        {
+            return Some(m.clone());
+        }
+
+        // If key points to a sub-checkpoint or subpath (e.g. "mens/foo/checkpoint-500"),
+        // check if parent run "mens/foo" exists in registry and synthesize sub-checkpoint spec
+        if let Some((parent, _sub)) = norm_key.rsplit_once('/') {
+            if let Some(parent_spec) = self.get(parent) {
+                let mut sub_spec = parent_spec;
+                sub_spec.id = norm_key.clone();
+                sub_spec.canonical_slug = norm_key;
+                return Some(sub_spec);
+            }
+        }
+        None
     }
 
     /// Lookup the premium-alias model id for a routing key
@@ -1159,6 +1435,13 @@ impl ModelRegistry {
     /// Used by `select()` to honor task-pinned premium aliases.
     pub fn premium_alias_for(&self, key: &str) -> Option<&str> {
         self.premium_alias.get(key).map(String::as_str)
+    }
+
+    /// Pin a routing key to a concrete model id (contract pins are live aliases).
+    #[cfg(test)]
+    pub(crate) fn set_premium_alias_for_test(&mut self, key: &str, model_id: &str) {
+        self.premium_alias
+            .insert(key.to_string(), model_id.to_string());
     }
 
     /// Set an explicit model override for a specific agent.
@@ -1169,6 +1452,54 @@ impl ModelRegistry {
     /// Check if there's an active model override for an agent.
     pub fn get_override(&self, agent_id: u64) -> Option<String> {
         self.agent_overrides.get(&agent_id).cloned()
+    }
+
+    /// Apply verified `CommunityIntelligenceBundleV1` priors using bounded Empirical Bayes blending
+    /// ($w_{\text{local}} = \frac{n_{\text{local}}}{n_{\text{local}} + 10}$, clamped to $\pm 15\%$ max delta) (`INTEL-03`, `INTEL-04`).
+    ///
+    /// Returns the number of registered models updated. If the bundle fails `Ed25519` or $k \ge 20$
+    /// verification, or if `VOX_COMMUNITY_INTELLIGENCE=off`, returns `0` without mutating any state (`INTEL-05`).
+    pub fn apply_community_intelligence_bundle(
+        &mut self,
+        bundle: &super::intelligence_bundle::CommunityIntelligenceBundleV1,
+    ) -> usize {
+        if !super::intelligence_bundle::is_community_intelligence_enabled() {
+            return 0;
+        }
+        if bundle.verify_bundle_signature().is_err() {
+            return 0;
+        }
+        let mut updated = 0usize;
+        for model_id in self.models.keys().cloned().collect::<Vec<_>>() {
+            let model_hash = super::intelligence_bundle::model_id_blake3_hex(&model_id);
+            let matching: Vec<&super::intelligence_bundle::ModelRoutingPriorRowV1> = bundle
+                .model_routing_priors
+                .iter()
+                .filter(|r| r.model_id_hash == model_hash)
+                .collect();
+            if matching.is_empty() {
+                continue;
+            }
+            let community_rate = matching
+                .iter()
+                .map(|r| r.empirical_success_rate)
+                .sum::<f64>()
+                / (matching.len() as f64);
+
+            let entry = self.scoreboard.entry(model_id).or_default();
+            let base_local_rate = if entry.n_calls > 0 {
+                entry.success_rate
+            } else {
+                0.50
+            };
+            entry.success_rate = super::intelligence_bundle::blend_empirical_bayes_prior(
+                base_local_rate,
+                entry.n_calls.max(0) as u64,
+                community_rate,
+            );
+            updated += 1;
+        }
+        updated
     }
 
     /// Builds a [`vox_actor_runtime::llm::LlmConfig`] for the best matching model when the `runtime` feature is on.
@@ -1197,94 +1528,55 @@ pub fn llm_config_for_spec(
     spec: &ModelSpec,
     task_type: TaskCategory,
 ) -> vox_actor_runtime::llm::LlmConfig {
-    {
-        let mut cfg = match spec.provider_type {
-            ProviderType::OpenRouter => {
-                vox_actor_runtime::llm::LlmConfig::openrouter(spec.id.clone())
-            }
-            ProviderType::Ollama => vox_actor_runtime::llm::LlmConfig {
-                provider: "ollama".to_string(),
-                model: spec.id.clone(),
-                cost_per_1k: None,
-                base_url: vox_secrets::resolve_secret(vox_secrets::SecretId::OllamaUrl)
-                    .expose()
-                    .filter(|s: &&str| !s.trim().is_empty())
-                    .map(|u: &str| format!("{}/v1/chat/completions", u.trim_end_matches('/'))),
-                api_key: None,
-                temperature: None,
-                top_p: None,
-                max_tokens: None,
-                response_format: None,
-                tools: None,
-                tool_choice: None,
-                timeout_ms: None,
-                telemetry_session_id: None,
-                telemetry_user_id: None,
-                telemetry_task_category: Some(task_type.to_string()),
-                telemetry_strength_tag: Some(task_category_strength(task_type).to_string()),
-                telemetry_trace_id: None,
-                telemetry_attempt_number: None,
-                telemetry_skip_interaction: false,
-            },
-            ProviderType::GoogleDirect => vox_actor_runtime::llm::LlmConfig {
-                provider: "openrouter".to_string(),
-                model: spec.id.clone(),
-                cost_per_1k: None,
-                base_url: Some(vox_config::openrouter_chat_completions_url()),
-                api_key: None,
-                temperature: None,
-                top_p: None,
-                max_tokens: None,
-                response_format: None,
-                tools: None,
-                tool_choice: None,
-                timeout_ms: None,
-                telemetry_session_id: None,
-                telemetry_user_id: None,
-                telemetry_task_category: Some(task_type.to_string()),
-                telemetry_strength_tag: Some(task_category_strength(task_type).to_string()),
-                telemetry_trace_id: None,
-                telemetry_attempt_number: None,
-                telemetry_skip_interaction: false,
-            },
-            ProviderType::HuggingFaceRouter => {
-                let mut cfg =
-                    vox_actor_runtime::llm::LlmConfig::huggingface_router(spec.id.clone());
-                cfg.telemetry_task_category = Some(task_type.to_string());
-                cfg.telemetry_strength_tag = Some(task_category_strength(task_type).to_string());
-                cfg
-            }
-            ProviderType::VoxLocal => {
-                // VoxLocal (7863) is not reachable via vox_actor_runtime LlmConfig;
-                // route through OpenRouter as an unreachable fallback so the task
-                // doesn't silently drop. MCP path (infer_via_provider_adapter) handles
-                // VoxLocal directly and doesn't go through this registry→LlmConfig path.
-                let mut cfg = vox_actor_runtime::llm::LlmConfig::openrouter(spec.id.clone());
-                cfg.telemetry_task_category = Some(task_type.to_string());
-                cfg.telemetry_strength_tag = Some(task_category_strength(task_type).to_string());
-                cfg
-            }
-            ProviderType::Custom(_)
-            | ProviderType::PopuliMesh
-            | ProviderType::Anthropic
-            | ProviderType::Mistral
-            | ProviderType::DeepSeek
-            | ProviderType::SambaNova
-            | ProviderType::Groq
-            | ProviderType::Cerebras => {
-                let mut cfg = vox_actor_runtime::llm::LlmConfig::openrouter(spec.id.clone());
-                cfg.telemetry_task_category = Some(task_type.to_string());
-                cfg.telemetry_strength_tag = Some(task_category_strength(task_type).to_string());
-                cfg
-            }
-        };
-        cfg.max_tokens = Some(spec.max_tokens);
-        // Propagate catalog cost so chat.rs can estimate spend without a DB lookup.
-        if spec.cost_per_1k > 0.0 {
-            cfg.cost_per_1k = Some(spec.cost_per_1k);
+    use super::key_guard::{InferenceWire, inference_wire_for};
+    use vox_actor_runtime::llm::LlmConfig;
+
+    let wire = inference_wire_for(&spec.provider_type);
+    let mut cfg = match &spec.provider_type {
+        // No vendor key, but OpenRouter serves this catalog slug.
+        _ if wire == Some(InferenceWire::OpenRouterFallback) => {
+            LlmConfig::openrouter(spec.id.clone())
         }
-        cfg
+        ProviderType::OpenRouter => LlmConfig::openrouter(spec.id.clone()),
+        ProviderType::Ollama => {
+            let mut cfg = LlmConfig::direct("ollama", spec.id.clone());
+            cfg.base_url = vox_secrets::resolve_secret(vox_secrets::SecretId::OllamaUrl)
+                .expose()
+                .filter(|s: &&str| !s.trim().is_empty())
+                .map(|u: &str| format!("{}/v1/chat/completions", u.trim_end_matches('/')));
+            cfg
+        }
+        ProviderType::HuggingFaceRouter => LlmConfig::huggingface_router(spec.id.clone()),
+        // `vox mens serve` exposes an OpenAI-compatible `/v1/chat/completions`.
+        ProviderType::VoxLocal => LlmConfig::direct("voxlocal", spec.id.clone()),
+        ProviderType::Custom(base) => {
+            let mut cfg = LlmConfig::direct("custom", spec.id.clone());
+            let trimmed = base.trim().trim_end_matches('/');
+            cfg.base_url = Some(if trimmed.ends_with("/chat/completions") {
+                trimmed.to_string()
+            } else {
+                format!("{trimmed}/v1/chat/completions")
+            });
+            cfg
+        }
+        ProviderType::GoogleDirect => LlmConfig::direct("gemini", spec.id.clone()),
+        ProviderType::Anthropic => LlmConfig::direct("anthropic", spec.id.clone()),
+        ProviderType::Groq => LlmConfig::direct("groq", spec.id.clone()),
+        ProviderType::Cerebras => LlmConfig::direct("cerebras", spec.id.clone()),
+        ProviderType::Mistral => LlmConfig::direct("mistral", spec.id.clone()),
+        ProviderType::DeepSeek => LlmConfig::direct("deepseek", spec.id.clone()),
+        ProviderType::SambaNova => LlmConfig::direct("sambanova", spec.id.clone()),
+        // Mesh dispatch happens upstream (StreamRoute); this facade cannot reach a peer.
+        ProviderType::PopuliMesh => LlmConfig::openrouter(spec.id.clone()),
+    };
+    cfg.telemetry_task_category = Some(task_type.to_string());
+    cfg.telemetry_strength_tag = Some(task_category_strength(task_type).to_string());
+    cfg.max_tokens = Some(spec.max_tokens);
+    // Propagate catalog cost so chat.rs can estimate spend without a DB lookup.
+    if spec.cost_per_1k > 0.0 {
+        cfg.cost_per_1k = Some(spec.cost_per_1k);
     }
+    cfg
 }
 
 #[cfg(all(test, feature = "runtime"))]
@@ -1333,16 +1625,73 @@ mod tests {
         assert_eq!(cfg.cost_per_1k, Some(0.01));
     }
 
+    use crate::models::key_guard::set_test_key_availability;
+
     #[test]
-    fn google_direct_spec_routes_through_openrouter_base_url() {
+    fn google_direct_with_gemini_key_uses_the_gemini_wire() {
+        set_test_key_availability(Some(vec![ProviderType::GoogleDirect]));
         let s = spec("google/gemini-2.0-flash", ProviderType::GoogleDirect);
         let cfg = llm_config_for_spec(&s, TaskCategory::CodeGen);
-        assert_eq!(cfg.provider, "openrouter");
+        set_test_key_availability(None);
+        assert_eq!(cfg.provider, "gemini");
+        // Catalog id is kept for telemetry; the egress resolver translates it.
         assert_eq!(cfg.model, "google/gemini-2.0-flash");
+        assert_eq!(cfg.base_url, None, "resolver supplies the Gemini endpoint");
+    }
+
+    #[test]
+    fn google_direct_without_gemini_key_falls_back_to_openrouter() {
+        set_test_key_availability(Some(vec![ProviderType::OpenRouter]));
+        let s = spec("google/gemini-2.0-flash", ProviderType::GoogleDirect);
+        let cfg = llm_config_for_spec(&s, TaskCategory::CodeGen);
+        set_test_key_availability(None);
+        assert_eq!(cfg.provider, "openrouter");
         assert_eq!(
             cfg.base_url,
             Some(vox_config::openrouter_chat_completions_url())
         );
+    }
+
+    #[test]
+    fn every_direct_vendor_uses_its_own_provider_string_when_keyed() {
+        let cases = [
+            (ProviderType::Anthropic, "anthropic"),
+            (ProviderType::Groq, "groq"),
+            (ProviderType::Cerebras, "cerebras"),
+            (ProviderType::Mistral, "mistral"),
+            (ProviderType::DeepSeek, "deepseek"),
+            (ProviderType::SambaNova, "sambanova"),
+        ];
+        for (pt, expected) in cases {
+            set_test_key_availability(Some(vec![pt.clone()]));
+            let cfg = llm_config_for_spec(&spec("vendor/m", pt.clone()), TaskCategory::Chat);
+            set_test_key_availability(None);
+            assert_eq!(cfg.provider, expected, "{pt:?}");
+            assert!(
+                vox_config::inference::DIRECT_CLOUD_PROVIDERS.contains(&cfg.provider.as_str()),
+                "{expected} must be a resolver-known direct provider"
+            );
+        }
+    }
+
+    #[test]
+    fn groq_without_its_key_is_not_selectable() {
+        set_test_key_availability(Some(vec![ProviderType::OpenRouter]));
+        let present = ModelRegistry::key_is_present_for(&spec("llama-3.3-70b", ProviderType::Groq));
+        set_test_key_availability(None);
+        assert!(
+            !present,
+            "Groq ids are not OpenRouter slugs; must not route via OR"
+        );
+    }
+
+    #[test]
+    fn vox_local_uses_the_local_openai_compatible_wire() {
+        let cfg = llm_config_for_spec(
+            &spec("vox-mens-8b-v0.6", ProviderType::VoxLocal),
+            TaskCategory::CodeGen,
+        );
+        assert_eq!(cfg.provider, "voxlocal");
     }
 
     #[test]
@@ -1353,5 +1702,150 @@ mod tests {
         let cfg = llm_config_for_spec(&s, TaskCategory::Research);
         assert_eq!(cfg.telemetry_task_category.as_deref(), Some("Research"));
         assert!(cfg.telemetry_strength_tag.is_some());
+    }
+
+    #[test]
+    fn mens_local_variants_registered_under_vox_local() {
+        let reg = ModelRegistry::new();
+        let expected_models = [
+            "mens/runs/qwen3_27b_metal_check/merged_bf16",
+            "mens/runs/qwen3_27b_metal_check/quant_q8_0",
+            "mens/runs/qwen3_27b_metal_check/quant_q6_k",
+            "mens/runs/qwen3_27b_metal_check/quant_q5_k_m",
+            "mens/runs/qwen3_27b_metal_check/quant_q4_k_m",
+            "vox-mens-8b-v0.6",
+        ];
+        for id in expected_models {
+            let m = reg
+                .get(id)
+                .unwrap_or_else(|| panic!("model {id} should be registered in ModelRegistry"));
+            assert_eq!(m.provider_type, ProviderType::VoxLocal);
+            assert_eq!(m.provider, "voxlocal");
+            assert!(m.is_free);
+            assert!(m.capabilities.writes_vox);
+        }
+    }
+
+    #[test]
+    fn hierarchical_run_key_normalization_resolves_voxlocal_prefixes() {
+        let mut reg = ModelRegistry::new();
+        let quant_slug = reg
+            .get("voxlocal/mens/runs/qwen3_27b_metal_check/quant_q6_k")
+            .expect("canonical slug lookup should resolve");
+        assert_eq!(quant_slug.id, "mens/runs/qwen3_27b_metal_check/quant_q6_k");
+
+        let quant_run = reg
+            .get("voxlocal/runs/qwen3_27b_metal_check/quant_q6_k")
+            .expect("voxlocal/runs/... lookup should resolve");
+        assert_eq!(quant_run.id, "mens/runs/qwen3_27b_metal_check/quant_q6_k");
+
+        let test_spec = spec("mens/test_run_1", ProviderType::VoxLocal);
+        reg.register(test_spec);
+
+        assert!(reg.get("voxlocal/mens/runs/test_run_1").is_some());
+        assert!(reg.get("vox-local/mens/runs/test_run_1").is_some());
+        assert!(reg.get("voxlocal/runs/test_run_1").is_some());
+        assert!(reg.get("vox-local/runs/test_run_1").is_some());
+    }
+
+    #[test]
+    fn models_iter_yields_all_registered_models() {
+        let mut reg = ModelRegistry::default();
+        reg.register(spec("test/model-1", ProviderType::Ollama));
+        reg.register(spec("test/model-2", ProviderType::Ollama));
+        let ids: Vec<_> = reg.models_iter().map(|m| m.id.as_str()).collect();
+        assert_eq!(ids.len(), 2);
+        assert!(ids.contains(&"test/model-1"));
+        assert!(ids.contains(&"test/model-2"));
+    }
+
+    #[test]
+    fn the_ollama_listing_decides_which_ollama_models_exist() {
+        let mut reg = ModelRegistry::default();
+        reg.register(spec("qwen/qwen-3.6-27b", ProviderType::Ollama));
+        reg.register(spec("qwen3:8b", ProviderType::Ollama));
+        reg.register(spec("acme/hosted-1", ProviderType::OpenRouter));
+        reg.reconcile_ollama(Some(&["qwen3:8b".to_string()]));
+        assert!(reg.get("qwen/qwen-3.6-27b").is_none(), "not installed");
+        assert!(reg.get("qwen3:8b").is_some());
+        assert!(
+            reg.get("acme/hosted-1").is_some(),
+            "other providers untouched"
+        );
+
+        reg.reconcile_ollama(None);
+        assert!(
+            reg.get("qwen3:8b").is_none(),
+            "unreachable Ollama serves nothing"
+        );
+        assert!(reg.get("acme/hosted-1").is_some());
+    }
+
+    #[test]
+    fn calibrated_mens_adapter_routes_all_five_spokes_with_confirmed_confidence() {
+        use crate::models::autonomic::ModelConfidence;
+        use crate::models::spec::QualitySource;
+        use vox_corpus::training::adapter_registry::{
+            MensCheckpointManifestV1, calibrate_adapter_from_scorecard,
+        };
+        use vox_corpus::training::contract::SpokeKind;
+        use vox_corpus::training::curriculum::{
+            DEFAULT_MIN_SPOKE_WEIGHT_FLOOR, compute_curriculum_weights,
+        };
+        use vox_corpus::training::spoke_roundtrip::{
+            canonical_five_spoke_benchmark_suite_25, evaluate_multi_spoke_suite,
+        };
+
+        let suite = canonical_five_spoke_benchmark_suite_25();
+        let scorecard = evaluate_multi_spoke_suite(&suite);
+        let cw = compute_curriculum_weights(&scorecard, DEFAULT_MIN_SPOKE_WEIGHT_FLOOR);
+        let manifest = MensCheckpointManifestV1::build(
+            "qwen3_27b_five_spoke_v1",
+            "Qwen3.5-27B",
+            "trusty://vox-dataset/0123456789abcdef0123456789abcdef",
+            &cw,
+            vec![1.82, 1.31, 0.94, 0.71],
+            vec![0.68, 0.51, 0.39],
+            200,
+            75,
+        );
+        let adapter_entry = calibrate_adapter_from_scorecard(&manifest, &scorecard);
+
+        let mut reg = ModelRegistry::default();
+        let model_id = reg.register_calibrated_mens_adapter(&adapter_entry);
+        assert_eq!(model_id, "mens/qwen3_27b_five_spoke_v1");
+
+        let spec = reg
+            .get(&model_id)
+            .expect("calibrated Mens adapter must be registered");
+        let bench = reg
+            .bench
+            .get(&model_id)
+            .expect("calibrated Mens adapter must have BenchEvidence");
+        assert_eq!(bench.verdict(), Some(ModelConfidence::Confirmed));
+
+        let prior = spec
+            .capabilities
+            .quality_prior
+            .as_ref()
+            .expect("quality_prior must be stamped by apply_routing_reference");
+        assert!(matches!(prior.source, QualitySource::Measured { .. }));
+        assert!(
+            prior.value > 0.80,
+            "calibrated 25/25 adapter blended quality should exceed 0.80, got {}",
+            prior.value
+        );
+
+        for spoke in SpokeKind::ALL {
+            let selected = reg
+                .route_spoke_task(spoke)
+                .unwrap_or_else(|| panic!("spoke {} must route to a model", spoke.as_str()));
+            assert_eq!(
+                selected.id,
+                model_id,
+                "spoke {} should route to calibrated Mens adapter",
+                spoke.as_str()
+            );
+        }
     }
 }

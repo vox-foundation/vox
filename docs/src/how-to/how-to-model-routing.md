@@ -68,7 +68,7 @@ The minimal **`vox`** binary does not ship the historical interactive `vox chat`
 
 ### Mens / Ollama base URL
 
-Local inference uses a single resolution order: **`OLLAMA_URL` → `POPULI_URL` →** default `http://localhost:11434`, exposed as **`vox_config::inference::local_ollama_populi_base_url()`** (SSOT in `crates/vox-config/src/inference.rs`). The Mens client (`vox_actor_runtime::mens::MensConfig::from_env`) uses the same precedence.
+Local inference uses a single resolution order: **`VOX_POPULI_LOCAL_OLLAMA_URL` → `POPULI_URL` → `OLLAMA_URL` →** default `http://localhost:11434`, exposed as **`vox_config::inference::local_ollama_populi_base_url()`** (SSOT in `crates/vox-config/src/inference.rs`). The Mens client (`vox_actor_runtime::mens::MensConfig::from_env`) uses the same precedence.
 
 ### Hugging Face Inference Providers (router)
 
@@ -223,7 +223,7 @@ Operational MCP tools for rollout verification:
 | --- | --- |
 | **Agent `model:`** | Optional in `.vox/agents/*.md`. Use a catalog id (`openrouter/...`, `google/gemini-...`). MCP task submit refreshes inference from the file each time so you do not need to respawn agents after edits. |
 | **Efficient / free-only** | `vox_orchestrator_MODE_PROFILE=efficient` or MCP `mode_profile: efficient` keeps `free_only` routing; OpenRouter defaults stay on free/auto when the usage tracker runs with `free_only`. |
-| **Local Ollama URL** | `vox_config::inference::local_ollama_populi_base_url()` — `OLLAMA_URL` → `POPULI_URL` → `http://localhost:11434`. |
+| **Local Ollama URL** | `vox_config::inference::local_ollama_populi_base_url()` — `VOX_POPULI_LOCAL_OLLAMA_URL` → `POPULI_URL` → `OLLAMA_URL` → `http://localhost:11434`. |
 | **OpenRouter key** | `vox_config::inference::openrouter_api_key()` (env `OPENROUTER_API_KEY`). |
 | **Hugging Face token** | `vox_config::inference::huggingface_hub_token()` (`HF_TOKEN` / `HUGGING_FACE_HUB_TOKEN`). |
 | **Research stage models** | Defaults come from `ModelRegistry::best_for_config` per stage (`research::model_select::resolve_research_models`). Last-resort string fallbacks exist only if the registry returns no candidate. |

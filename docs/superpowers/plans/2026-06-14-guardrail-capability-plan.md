@@ -283,7 +283,7 @@ Expected: all rules ≥ new floor; CI gate raised.
 
 - [ ] **Step 2: Link from AGENTS.md**
 
-In §"Perennial Bug Patterns (catch early)" add one line: "Coverage of these classes by detector + F1 is tracked in [detector-coverage-ledger.md](docs/src/contributors/detector-coverage-ledger.md); add a row when you add a detector."
+In §"Perennial Bug Patterns (catch early)" add one line: `"Coverage of these classes by detector + F1 is tracked in [detector-coverage-ledger.md](docs/src/contributors/detector-coverage-ledger.md); add a row when you add a detector."` (path is relative to `AGENTS.md` at the repo root)
 
 - [ ] **Step 3: Verify frontmatter + doc lint**
 

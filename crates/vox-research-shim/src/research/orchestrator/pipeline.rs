@@ -10,20 +10,20 @@ use super::super::discovery_bridge::{
     finding_candidate_from_research_result, persist_finding_candidate_from_research,
 };
 use super::super::gate::{GateInput, score_with_config};
-use super::super::planner::{decompose_query_with_config, plan_to_json};
+use super::super::planner::{decompose_query_with_config, passthrough_plan, plan_to_json};
 use super::super::provider::ProviderRegistry;
 use super::super::types::{
-    Citation, CitationAuditResult, ClaimSupport, CompetenceSignal, ResearchHit, ResearchMetadata,
-    ResearchPlan, ResearchQuery, ResearchResult, ResearchRunArtifact, ResearchScope, ResearchStage,
-    RetrievalDiagnostics, RoutingTier,
+    Citation, CitationAuditResult, ClaimSupport, CompetenceSignal, ResearchDomainMode, ResearchHit,
+    ResearchMetadata, ResearchPlan, ResearchQuery, ResearchResult, ResearchRunArtifact,
+    ResearchRunFailure, ResearchScope, ResearchStage, RetrievalDiagnostics, RoutingTier,
 };
 use super::super::verifier::verify_claims_with_config;
 use super::config::ResearchConfig;
-use super::helpers::{fnv1a_hash, verifier_config_for_research_run};
+use super::helpers::{attempt_session_key, fnv1a_hash, verifier_config_for_research_run};
 use super::pipeline_cache::{research_cache_short_circuit, research_cache_store};
 use super::stages::{
-    JudgeParams, SynthesisParams, evaluate_citation_diversity, judge_quality,
-    run_self_verification, synthesize_answer_with_llm,
+    JudgeParams, SynthesisParams, chat_stage, evaluate_citation_diversity, judge_quality,
+    repair_inconsistent_synthesis, run_self_verification, synthesize_answer_with_llm,
 };
 use super::web_gather::{gather_local_hits_for_plan, gather_web_hits_for_plan};
 
@@ -49,6 +49,23 @@ pub async fn run_research_with_context(
 
 /// Run research using a pre-created session id, for async job submission paths.
 pub async fn run_research_with_context_and_session(
+    query: ResearchQuery,
+    search_ctx: Option<&SearchRuntimeContext>,
+    db: Option<&Codex>,
+    config: &ResearchConfig,
+    precreated_session_id: Option<i64>,
+) -> Result<ResearchResult> {
+    super::super::metering::scope(run_research_metered(
+        query,
+        search_ctx,
+        db,
+        config,
+        precreated_session_id,
+    ))
+    .await
+}
+
+async fn run_research_metered(
     mut query: ResearchQuery,
     search_ctx: Option<&SearchRuntimeContext>,
     db: Option<&Codex>,
@@ -63,8 +80,14 @@ pub async fn run_research_with_context_and_session(
     let persist_enabled = true;
 
     if let Some(db) = db
-        && let Some(cached) = research_cache_short_circuit(&query, db, config).await
+        && result_cache_enabled(config)
+        && let Some(mut cached) = research_cache_short_circuit(&query, db, config).await
     {
+        cached.research_metadata.served_from_cache = true;
+        cached.research_metadata.usage = Default::default();
+        if let Some(id) = precreated_session_id {
+            set_session_stage(Some(db), id, ResearchStage::Completed).await;
+        }
         return Ok(cached);
     }
 
@@ -96,19 +119,17 @@ pub async fn run_research_with_context_and_session(
     let search_policy = resolved_search_policy_for_research_run(db, config).await;
 
     // ── (a) Session tracking ─────────────────────────────────────────────────
+    let session_key = attempt_session_key(&query.query, &format!("{:?}", query.scope));
     let session_id: i64 = if let Some(id) = precreated_session_id {
         id
     } else if let Some(db) = db {
-        let session_key = format!(
-            "research:{:016x}",
-            fnv1a_hash(&format!("{}|{:?}", query.query, query.scope))
-        );
         db.create_research_session(&session_key, &query.query)
             .await
             .unwrap_or(0)
     } else {
         0
     };
+    super::super::metering::set_run_session(run_session_label(config, session_id, session_key));
 
     let report_progress = |msg: String, pct: Option<f32>| {
         if let Some(ref cb) = config.progress_callback {
@@ -135,22 +156,42 @@ pub async fn run_research_with_context_and_session(
     );
 
     // ── (b) Query decomposition ──────────────────────────────────────────────
-    let plan: ResearchPlan = decompose_query_with_config(
-        &query,
-        config.llm_endpoint.as_deref(),
-        config.api_key.as_deref(),
-        Some(resolved_llm.planner_model.as_str()),
-        Some(config.planner_temperature),
-        Some(config.planner_max_subqueries),
-    )
-    .await
-    .unwrap_or_else(|_| ResearchPlan {
-        original_query: query.query.clone(),
-        subqueries: vec![query.query.clone()],
-        scope: query.scope.clone(),
-        max_sources_per_subquery: query.max_sources,
-        planner_degraded: true,
-    });
+    let mut plan: ResearchPlan = if query.lane == vox_search::policy::ResearchLane::Fast {
+        fast_lane_plan(&query)
+    } else {
+        decompose_query_with_config(
+            &query,
+            config.llm_endpoint.as_deref(),
+            config.api_key.as_deref(),
+            Some(resolved_llm.planner_model.as_str()),
+            Some(config.planner_temperature),
+            Some(config.planner_max_subqueries),
+        )
+        .await
+        .unwrap_or_else(|_| passthrough_plan(&query, true))
+    };
+
+    match query.domain_mode {
+        ResearchDomainMode::Shopping => {
+            let domain_queries =
+                super::super::domain::shopping::generate_shopping_subqueries(&query.query);
+            for sq in domain_queries {
+                if !plan.subqueries.contains(&sq) {
+                    plan.subqueries.push(sq);
+                }
+            }
+        }
+        ResearchDomainMode::CodeGen => {
+            let domain_queries =
+                super::super::domain::codegen::generate_codegen_subqueries(&query.query);
+            for sq in domain_queries {
+                if !plan.subqueries.contains(&sq) {
+                    plan.subqueries.push(sq);
+                }
+            }
+        }
+        ResearchDomainMode::General => {}
+    }
     emit_research_event(
         config,
         db,
@@ -194,7 +235,23 @@ pub async fn run_research_with_context_and_session(
     let do_local = matches!(query.scope, ResearchScope::Local | ResearchScope::Both);
     let do_web = matches!(query.scope, ResearchScope::Web | ResearchScope::Both);
 
-    if do_local && let Some(ctx) = search_ctx {
+    let synthesized_ctx;
+    let effective_search_ctx = match search_ctx {
+        Some(ctx) => Some(ctx),
+        None => {
+            if let Some(db) = db {
+                synthesized_ctx = Some(fallback_search_ctx(
+                    db,
+                    std::env::current_dir().unwrap_or_default(),
+                ));
+                synthesized_ctx.as_ref()
+            } else {
+                None
+            }
+        }
+    };
+
+    if do_local && let Some(ctx) = effective_search_ctx {
         let (h, s, d, t) = gather_local_hits_for_plan(ctx, &query, &plan, &search_policy).await;
         subqueries_with_hits += s;
         total_dropped_count += d;
@@ -220,6 +277,31 @@ pub async fn run_research_with_context_and_session(
     }
 
     dedupe_hits_by_url(&mut all_hits);
+
+    if query.domain_mode == ResearchDomainMode::Shopping {
+        super::super::domain::shopping::deboost_affiliate_spam(&mut all_hits);
+    }
+
+    all_hits.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    if all_hits.is_empty() {
+        set_session_stage(db, session_id, ResearchStage::Failed).await;
+        const ZERO_HITS: &str =
+            "Zero research hits retrieved. Halting to prevent hallucinated synthesis.";
+        // Name the cause when the web-research switch is off. It goes in the
+        // error CHAIN (visible via `{:#}` / `chain()`), so the top-level text
+        // every caller and test matches on stays exactly `ZERO_HITS`.
+        let error = if do_web && !search_policy.web_research_enabled {
+            anyhow::anyhow!("web research disabled — no providers contacted").context(ZERO_HITS)
+        } else {
+            anyhow::anyhow!(ZERO_HITS)
+        };
+        return Err(failed_with_provider_log(error, registry, Vec::new()));
+    }
 
     // ── (d) Retrieval diagnostics ─────────────────────────────────────────────
     let query_terms: Vec<&str> = query.query.split_whitespace().collect();
@@ -250,7 +332,11 @@ pub async fn run_research_with_context_and_session(
     };
     let (distinct_domain_count, citation_diversity_below_threshold) =
         evaluate_citation_diversity(&all_hits, config.min_distinct_domains);
+    // `providers` / `tavily_credits` are filled from the registry's log when the
+    // metadata is built, after the multi-wave loop's searches (see below).
     let diagnostics = RetrievalDiagnostics {
+        providers: Vec::new(),
+        tavily_credits: None,
         coverage_pct,
         subquery_coverage_pct,
         avg_provider_score: avg_score,
@@ -291,8 +377,23 @@ pub async fn run_research_with_context_and_session(
 
     // ── (e) Confidence gate → routing decision ────────────────────────────────
     let draft_claims = {
+        let claim_extraction_text = if !all_hits.is_empty() {
+            let snippets: Vec<String> = all_hits
+                .iter()
+                .take(8)
+                .map(|h| format!("- {}: {}", h.title, h.snippet))
+                .collect();
+            format!(
+                "Topic: {}\n\nEvidence Sources:\n{}",
+                query.query,
+                snippets.join("\n")
+            )
+        } else {
+            query.query.clone()
+        };
+
         let mut claims = extract_claims_with_model(
-            &query.query,
+            &claim_extraction_text,
             config.llm_endpoint.as_deref(),
             config.api_key.as_deref(),
             Some(resolved_llm.claim_model.as_str()),
@@ -320,50 +421,148 @@ pub async fn run_research_with_context_and_session(
     // Set status → verifying_claims before NLI classification.
     set_session_stage(db, session_id, ResearchStage::VerifyingClaims).await;
     report_progress("Verifying research claims...".to_string(), Some(0.60));
-    let claim_verdicts = if query.verify_claims && !draft_claims.is_empty() {
-        verify_claims_with_config(
-            &draft_claims,
-            &query.query,
-            &all_hits,
-            &registry,
-            &research_verifier_cfg,
-            config.llm_endpoint.as_deref(),
-            config.api_key.as_deref(),
-        )
-        .await
-    } else {
-        vec![]
-    };
-    if let Some(db) = db
-        && session_id > 0
-    {
-        for verdict in &claim_verdicts {
-            let claim = &verdict.claim;
-            let _ = db
-                .store_claim(
-                    session_id,
-                    claim.claim_id,
-                    &claim.text,
-                    claim.is_numeric,
-                    claim.is_recent,
-                    claim.is_named_event,
-                )
-                .await;
-            let _ = db
-                .store_claim_verdict(
-                    claim.claim_id,
-                    &verdict.verdict.to_string(),
-                    verdict.confidence,
-                    &research_verifier_cfg.nli_model_id,
-                )
-                .await;
-            for span in &verdict.evidence_spans {
+    // Task 15d: how many of `draft_claims` actually went through a real (fresh
+    // or cached) verification this run vs. were skipped by the per-run cap.
+    // `claims_extracted_count` == `draft_claims.len()` whenever verification ran
+    // at all; both feed the "claims" trace stage's "K verified of M extracted".
+    let mut claims_verified_count: usize = 0;
+    let claims_extracted_count = draft_claims.len();
+    let mut claim_verdicts = if query.verify_claims && !draft_claims.is_empty() {
+        let max_age_ms: i64 = 14 * 24 * 60 * 60 * 1000; // 14 days
+        let mut cached_verdicts = Vec::new();
+        let mut claims_to_verify = Vec::new();
+
+        if let Some(db) = db {
+            for claim in &draft_claims {
+                if let Ok(Some(cached)) = db
+                    .get_cached_claim_verdict_filtered(claim.claim_id, max_age_ms, Some(0.80))
+                    .await
+                    && cached.confidence >= 0.80
+                {
+                    let verdict = match cached.verdict.to_ascii_lowercase().as_str() {
+                        "supported" => super::super::verifier::Verdict::Supported,
+                        "contradicted" => super::super::verifier::Verdict::Contradicted,
+                        "contested" => super::super::verifier::Verdict::Contested,
+                        _ => super::super::verifier::Verdict::Unverified,
+                    };
+                    cached_verdicts.push(super::super::verifier::ClaimVerdict {
+                        claim: claim.clone(),
+                        verdict,
+                        confidence: cached.confidence,
+                        supporting_count: if matches!(
+                            verdict,
+                            super::super::verifier::Verdict::Supported
+                        ) {
+                            1
+                        } else {
+                            0
+                        },
+                        contradicting_count: if matches!(
+                            verdict,
+                            super::super::verifier::Verdict::Contradicted
+                        ) {
+                            1
+                        } else {
+                            0
+                        },
+                        evidence_spans: if matches!(
+                            verdict,
+                            super::super::verifier::Verdict::Supported
+                        ) && !all_hits.is_empty()
+                        {
+                            vec![super::super::verifier::EvidenceSpan {
+                                source_id: 0,
+                                span_start: 0,
+                                span_end: 100,
+                                text: "Corroborated by cached verification evidence".to_string(),
+                                span_type: super::super::verifier::SpanType::Supporting,
+                            }]
+                        } else {
+                            vec![]
+                        },
+                        resample_stability: 1.0,
+                    });
+                    continue;
+                }
+                claims_to_verify.push(claim.clone());
+            }
+        } else {
+            claims_to_verify = draft_claims.clone();
+        }
+
+        let (fresh_verdicts, fresh_verified_count) = if !claims_to_verify.is_empty() {
+            verify_claims_with_config(
+                &claims_to_verify,
+                &query.query,
+                &all_hits,
+                &registry,
+                &research_verifier_cfg,
+                config.llm_endpoint.as_deref(),
+                config.api_key.as_deref(),
+            )
+            .await
+        } else {
+            (vec![], 0)
+        };
+        // Cache hits are genuinely verified too (just cheaply, from a prior run).
+        claims_verified_count = cached_verdicts.len() + fresh_verified_count;
+        super::super::metering::record_verdict_cache_hits(cached_verdicts.len());
+
+        if let Some(db) = db
+            && session_id > 0
+        {
+            for verdict in &fresh_verdicts {
+                let claim = &verdict.claim;
                 let _ = db
-                    .store_evidence_span(claim.claim_id, span.span_start, span.span_end, &span.text)
+                    .store_claim(
+                        session_id,
+                        claim.claim_id,
+                        &claim.text,
+                        claim.is_numeric,
+                        claim.is_recent,
+                        claim.is_named_event,
+                    )
+                    .await;
+                let _ = db
+                    .store_claim_verdict(
+                        claim.claim_id,
+                        &verdict.verdict.to_string(),
+                        verdict.confidence,
+                        &research_verifier_cfg.nli_model_id,
+                    )
+                    .await;
+                for span in &verdict.evidence_spans {
+                    let _ = db
+                        .store_evidence_span(
+                            claim.claim_id,
+                            span.span_start,
+                            span.span_end,
+                            &span.text,
+                        )
+                        .await;
+                }
+            }
+            for verdict in &cached_verdicts {
+                let claim = &verdict.claim;
+                let _ = db
+                    .store_claim(
+                        session_id,
+                        claim.claim_id,
+                        &claim.text,
+                        claim.is_numeric,
+                        claim.is_recent,
+                        claim.is_named_event,
+                    )
                     .await;
             }
         }
-    }
+
+        let mut all_verdicts = fresh_verdicts;
+        all_verdicts.extend(cached_verdicts);
+        all_verdicts
+    } else {
+        vec![]
+    };
     for verdict in &claim_verdicts {
         if matches!(verdict.verdict, super::super::verifier::Verdict::Supported)
             && verdict.confidence > 0.8
@@ -379,6 +578,261 @@ pub async fn run_research_with_context_and_session(
                     session_id: session_id.to_string(),
                 },
             );
+        }
+    }
+
+    // ── (f.2) Multi-Wave Iteration Loop ───────────────────────────────────────
+    let mut wave_plan = if query.waves > 1 {
+        let mut wp = super::wave::WaveExecutionPlan::new(session_id.to_string(), query.waves);
+        wp.detect_contradictions(&claim_verdicts);
+        Some(wp)
+    } else {
+        None
+    };
+
+    if let Some(ref mut wp) = wave_plan {
+        emit_research_event(
+            config,
+            db,
+            ResearchEvent::TelemetryObservation {
+                provider: "wave_engine".to_string(),
+                metric_type: "wave_started".to_string(),
+                value: 1.0,
+                session_id: session_id.to_string(),
+                recorded_at_ms: now_ms_i64(),
+            },
+        );
+
+        for wave_idx in 2..=query.waves {
+            wp.current_wave = wave_idx;
+            emit_research_event(
+                config,
+                db,
+                ResearchEvent::TelemetryObservation {
+                    provider: "wave_engine".to_string(),
+                    metric_type: "wave_started".to_string(),
+                    value: wave_idx as f64,
+                    session_id: session_id.to_string(),
+                    recorded_at_ms: now_ms_i64(),
+                },
+            );
+
+            // Check if early exit criteria met before launching wave
+            if wp.should_early_terminate() {
+                wp.termination_reason = Some(super::wave::TerminationReason::StabilityThresholdMet);
+                tracing::info!(
+                    session_id,
+                    wave_idx,
+                    stability = wp.compute_stability(),
+                    "Multi-wave research met early termination stability threshold"
+                );
+                break;
+            }
+
+            report_progress(
+                format!(
+                    "Wave {wave_idx}/{}: Investigating contradictions...",
+                    query.waves
+                ),
+                Some(0.60 + (wave_idx as f32 / query.waves as f32) * 0.20),
+            );
+
+            // 1. Disambiguation subqueries for detected contradictions
+            let disambig_queries = wp.generate_disambiguation_subqueries();
+            if !disambig_queries.is_empty() {
+                let disambig_plan = ResearchPlan {
+                    original_query: query.query.clone(),
+                    subqueries: disambig_queries,
+                    scope: query.scope.clone(),
+                    max_sources_per_subquery: (query.max_sources / 2).max(2),
+                    planner_degraded: false,
+                };
+                let mut wave_hits = Vec::new();
+                if do_web {
+                    let (h, _, _, _) = gather_web_hits_for_plan(
+                        db,
+                        session_id,
+                        &query,
+                        &disambig_plan,
+                        &registry,
+                        &search_policy,
+                        config,
+                    )
+                    .await;
+                    wave_hits.extend(h);
+                }
+                if do_local && let Some(ctx) = search_ctx {
+                    let (h, _, _, _) =
+                        gather_local_hits_for_plan(ctx, &query, &disambig_plan, &search_policy)
+                            .await;
+                    wave_hits.extend(h);
+                }
+                if !wave_hits.is_empty() {
+                    all_hits.extend(wave_hits);
+                    dedupe_hits_by_url(&mut all_hits);
+
+                    let unresolved_claims: Vec<super::super::claims::Claim> = claim_verdicts
+                        .iter()
+                        .filter(|v| {
+                            !matches!(v.verdict, super::super::verifier::Verdict::Supported)
+                        })
+                        .map(|v| v.claim.clone())
+                        .collect();
+
+                    if !unresolved_claims.is_empty() {
+                        let (reverified, _) = verify_claims_with_config(
+                            &unresolved_claims,
+                            &query.query,
+                            &all_hits,
+                            &registry,
+                            &research_verifier_cfg,
+                            config.llm_endpoint.as_deref(),
+                            config.api_key.as_deref(),
+                        )
+                        .await;
+                        for new_v in reverified {
+                            if let Some(existing) = claim_verdicts
+                                .iter_mut()
+                                .find(|v| v.claim.claim_id == new_v.claim.claim_id)
+                            {
+                                *existing = new_v.clone();
+                            }
+                            if let Some(db) = db
+                                && session_id > 0
+                            {
+                                let _ = db
+                                    .store_claim_verdict(
+                                        new_v.claim.claim_id,
+                                        &new_v.verdict.to_string(),
+                                        new_v.confidence,
+                                        &research_verifier_cfg.nli_model_id,
+                                    )
+                                    .await;
+                            }
+                        }
+                        wp.resolved_verdicts = claim_verdicts.clone();
+                    }
+                }
+            }
+
+            // 2. Wave 3 / CodeGen: Sandboxed Empirical Code Validation
+            if query.domain_mode == ResearchDomainMode::CodeGen {
+                let candidates: Vec<(u64, String)> = claim_verdicts
+                    .iter()
+                    .filter_map(|verdict| {
+                        let snippets =
+                            crate::research::domain::codegen::extract_code_snippets_from_markdown(
+                                &verdict.claim.text,
+                            );
+                        if let Some(first) = snippets.into_iter().next() {
+                            Some((verdict.claim.claim_id, first))
+                        } else if verdict.claim.text.contains("fn ")
+                            || verdict.claim.text.contains("let ")
+                            || verdict.claim.text.contains("struct ")
+                            || verdict.claim.text.contains("impl ")
+                        {
+                            Some((verdict.claim.claim_id, verdict.claim.text.clone()))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                let mut updated = false;
+                for (claim_id, snippet) in candidates {
+                    let wrapped =
+                        crate::research::domain::codegen::wrap_code_snippet_if_needed(&snippet);
+                    let repair_model = resolved_llm.synthesis_model.clone();
+                    let repair_endpoint = config.llm_endpoint.clone();
+                    let repair_api_key = config.api_key.clone();
+
+                    let correction_res = crate::research::domain::codegen::attempt_code_self_correction(
+                        &wrapped,
+                        &[],
+                        2,
+                        |code_to_fix, compiler_err| {
+                            let model = repair_model.clone();
+                            let endpoint = repair_endpoint.clone();
+                            let api_key = repair_api_key.clone();
+                            let code_str = code_to_fix.to_string();
+                            let err_str = compiler_err.to_string();
+
+                            async move {
+                                let sys = "You are an expert Rust compiler diagnostic repair assistant. \
+Fix the compilation error in the provided Rust code. \
+Return ONLY the corrected code inside a ```rust ... ``` code fence, followed by a one-line explanation of what was fixed."
+                                    .to_string();
+                                let user = format!(
+                                    "The following Rust code failed to compile:\n\n```rust\n{code_str}\n```\n\nCompiler error:\n{err_str}\n\nPlease fix the code."
+                                );
+                                let raw_res = chat_stage(
+                                    vox_actor_runtime::llm::cascade::ResearchStage::SelfVerification,
+                                    endpoint.as_deref(),
+                                    api_key.as_deref(),
+                                    &model,
+                                    0.2,
+                                    1000,
+                                    vec![("system".to_string(), sys), ("user".to_string(), user)],
+                                    None,
+                                )
+                                .await?;
+
+                                let snippets = crate::research::domain::codegen::extract_code_snippets_from_markdown(&raw_res);
+                                let repaired = if let Some(first) = snippets.into_iter().next() {
+                                    crate::research::domain::codegen::wrap_code_snippet_if_needed(&first)
+                                } else {
+                                    crate::research::domain::codegen::wrap_code_snippet_if_needed(&raw_res)
+                                };
+                                let explanation = raw_res
+                                    .lines()
+                                    .filter(|l| !l.trim().starts_with("```"))
+                                    .collect::<Vec<_>>()
+                                    .join(" ");
+                                Ok((repaired, explanation))
+                            }
+                        },
+                    )
+                    .await;
+
+                    if let Ok(correction) = correction_res {
+                        wp.apply_sandbox_self_correction(claim_id, &correction);
+                        updated = true;
+                    }
+                }
+                if updated {
+                    claim_verdicts = wp.resolved_verdicts.clone();
+                }
+            }
+
+            // Re-detect contradictions with updated evidence and verdicts
+            wp.detect_contradictions(&claim_verdicts);
+
+            emit_research_event(
+                config,
+                db,
+                ResearchEvent::TelemetryObservation {
+                    provider: "wave_engine".to_string(),
+                    metric_type: "wave_stability".to_string(),
+                    value: wp.compute_stability(),
+                    session_id: session_id.to_string(),
+                    recorded_at_ms: now_ms_i64(),
+                },
+            );
+
+            if wp.should_early_terminate() {
+                wp.termination_reason = Some(super::wave::TerminationReason::StabilityThresholdMet);
+                tracing::info!(
+                    session_id,
+                    wave_idx,
+                    stability = wp.compute_stability(),
+                    "Multi-wave research completed with high stability"
+                );
+                break;
+            }
+        }
+
+        if wp.termination_reason.is_none() {
+            wp.termination_reason = Some(super::wave::TerminationReason::MaxWavesReached);
         }
     }
 
@@ -426,7 +880,6 @@ pub async fn run_research_with_context_and_session(
     // ── (h) Build citations ───────────────────────────────────────────────────
     let citations: Vec<Citation> = all_hits
         .iter()
-        .take(10)
         .enumerate()
         .map(|(i, h)| Citation {
             source_id: i as i64,
@@ -444,8 +897,21 @@ pub async fn run_research_with_context_and_session(
         "Synthesizing final research report...".to_string(),
         Some(0.85),
     );
-    let answer = synthesize_answer_with_llm(SynthesisParams {
-        query: &query.query,
+    let synthesis_query = match query.domain_mode {
+        ResearchDomainMode::Shopping => format!(
+            "{}\n\n{}",
+            query.query,
+            super::super::domain::shopping::shopping_synthesis_instructions()
+        ),
+        ResearchDomainMode::CodeGen => format!(
+            "{}\n\n{}",
+            query.query,
+            super::super::domain::codegen::codegen_synthesis_instructions()
+        ),
+        ResearchDomainMode::General => query.query.clone(),
+    };
+    let (mut answer, winning_synthesis_model) = match synthesize_answer_with_llm(SynthesisParams {
+        query: &synthesis_query,
         hits: &all_hits,
         verdicts: &claim_verdicts,
         endpoint: config.llm_endpoint.as_deref(),
@@ -455,10 +921,17 @@ pub async fn run_research_with_context_and_session(
         max_tokens: config.synthesis_max_tokens,
         context_max_chars: config.synthesis_context_max_chars,
     })
-    .await;
+    .await
+    {
+        Ok(a) => a,
+        Err(e) => {
+            set_session_stage(db, session_id, ResearchStage::Failed).await;
+            return Err(failed_with_provider_log(e, registry, all_hits));
+        }
+    };
 
     // ── (i) Evaluate final quality via judge ──────────────────────────────────
-    let quality_score = judge_quality(JudgeParams {
+    let judged = judge_quality(JudgeParams {
         query: &query.query,
         answer: &answer,
         citations: &citations,
@@ -467,61 +940,54 @@ pub async fn run_research_with_context_and_session(
         model: resolved_llm.judge_model.as_str(),
         temperature: config.judge_temperature,
         max_tokens: config.judge_max_tokens,
-        fallback_score: config.fallback_quality_score,
     })
     .await;
+    if let Err(e) = &judged {
+        tracing::warn!(error = %e, "research judge failed");
+    }
+    let (quality_score, judge_error) = judge_outcome(config, judged);
 
     let self_verification_enabled = matches!(routing_tier, RoutingTier::DeepResearch);
 
-    // PHASE_0a_STUB: training pair persistence not yet wired to vox_db.
-    // Phase 1 re-enables after vox_db gains store_training_pair.
-
-    // ── (j) Persistence ──────────────────────────────────────────────────────
-    if persist_enabled
-        && query.persist_to_docs
-        && confidence_signal.score as f64 >= config.persist_min_confidence
-        && answer.len() >= 200
-    {
-        use std::path::Path;
-        if let Some(root_str) =
-            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxWorkspaceRoot).expose()
-        {
-            let root = Path::new(root_str);
-            let slug = super::super::persistence::slug_from_query(&query.query);
-            let _ = super::super::persistence::write_research_doc(
-                root,
-                &slug,
-                &query.query,
-                &answer,
-                resolved_llm.synthesis_model.as_str(),
-            );
-        }
-    }
-
-    // PHASE_0a_STUB: memory write not yet wired (save_memory API shape confirmed but
-    // session management methods missing from vox_db).
-    // Phase 1 re-enables after vox_db gains create_research_session etc.
-
     // ── (k) Citation audit stage ──────────────────────────────────────────────
-    let duration_ms = start.elapsed().as_millis() as u64;
     // Set status → auditing_citations before citation audit computation.
     set_session_stage(db, session_id, ResearchStage::AuditingCitations).await;
 
-    // ── (l) Optional CoVE-style self-verification ─────────────────────────────
+    // ── (l) Optional CoVE-style self-verification & closed-loop repair ────────
     let self_verification =
         if self_verification_enabled && !answer.is_empty() && !all_hits.is_empty() {
             report_progress("Running self-verification step...".to_string(), Some(0.95));
-            Some(
-                run_self_verification(
+            let mut sv = run_self_verification(
+                &query.query,
+                &answer,
+                &all_hits,
+                config.llm_endpoint.as_deref(),
+                config.api_key.as_deref(),
+                resolved_llm.synthesis_model.as_str(),
+            )
+            .await;
+            if sv.critical_inconsistency {
+                report_progress(
+                    "Repairing synthesis inconsistencies...".to_string(),
+                    Some(0.97),
+                );
+                if let Some(repaired) = repair_inconsistent_synthesis(
                     &query.query,
                     &answer,
                     &all_hits,
+                    &claim_verdicts,
                     config.llm_endpoint.as_deref(),
                     config.api_key.as_deref(),
                     resolved_llm.synthesis_model.as_str(),
+                    config.synthesis_max_tokens,
                 )
-                .await,
-            )
+                .await
+                {
+                    answer = repaired;
+                    sv.critical_inconsistency = false;
+                }
+            }
+            Some(sv)
         } else {
             None
         };
@@ -589,12 +1055,26 @@ pub async fn run_research_with_context_and_session(
 
     let corroboration_counts = compute_corroboration_counts(&citations, &claim_verdicts);
 
+    let confidence = confidence_signal.score as f64;
+    let low_grounding_evidence = confidence < 0.35;
+
+    // The whole run's provider outcomes and final Tavily credits — read only
+    // now, after every search (waves 2..N included). `into_retrieval_log`
+    // consumes the registry, so reading it any earlier does not compile.
+    let provider_name = registry.primary_name().to_string();
+    let (providers, tavily_credits) = registry.into_retrieval_log();
+    let diagnostics = RetrievalDiagnostics {
+        providers,
+        tavily_credits,
+        ..diagnostics
+    };
+
     let metadata = ResearchMetadata {
         session_id,
-        duration_ms,
-        provider: registry.primary_name().to_string(),
+        duration_ms: start.elapsed().as_millis() as u64,
+        provider: provider_name,
         routing_tier,
-        confidence: confidence_signal.score as f64,
+        confidence,
         subquery_count: plan.subqueries.len(),
         source_count: all_hits.len(),
         claim_verdicts: claim_verdicts.clone(),
@@ -605,9 +1085,23 @@ pub async fn run_research_with_context_and_session(
         self_verification,
         citation_audit: Some(citation_audit),
         corroboration_counts,
+        wave_count: wave_plan.as_ref().map(|w| w.current_wave).unwrap_or(1),
+        wave_stability: wave_plan.as_ref().map(|w| w.compute_stability()),
+        low_grounding_evidence,
+        subqueries: plan.subqueries.clone(),
+        // The candidate that actually produced `answer` — not necessarily
+        // `resolved_llm.synthesis_model`, since `chat_with_cascade` may fall
+        // through to a different candidate. Under a pin (`VOX_MODEL_FORCE`)
+        // this equals the pin, because the cascade collapses to one candidate.
+        synthesis_model: winning_synthesis_model,
+        judge_error,
+        served_from_cache: false,
+        claims_extracted_count,
+        claims_verified_count,
+        usage: super::super::metering::snapshot(),
     };
 
-    let result = ResearchResult {
+    let mut result = ResearchResult {
         answer,
         sources: all_hits,
         citations,
@@ -636,6 +1130,7 @@ pub async fn run_research_with_context_and_session(
         }
     }
 
+    refresh_run_totals(&mut result.research_metadata, start);
     // Set status → persisting_artifact before artifact store.
     set_session_stage(db, session_id, ResearchStage::PersistingArtifact).await;
     if let Some(db) = db
@@ -654,19 +1149,80 @@ pub async fn run_research_with_context_and_session(
                 .store_research_artifact(session_id, &artifact_json, &report_markdown)
                 .await;
         }
+        let session_label = format!("research_session:{session_id}");
+        let mem_meta = serde_json::json!({
+            "query": query.query,
+            "quality_score": result.research_metadata.quality_score,
+            "confidence": result.research_metadata.confidence,
+            "source_count": result.sources.len(),
+        })
+        .to_string();
+        let _ = db
+            .save_memory(vox_db::SaveMemoryParams {
+                agent_id: "vox-research",
+                session_id: &session_label,
+                memory_type: "research_result",
+                content: &report_markdown,
+                metadata: Some(&mem_meta),
+                importance: (result.research_metadata.quality_score as f64 / 100.0).clamp(0.1, 1.0),
+                vcs_snapshot_id: None,
+            })
+            .await;
+
+        let usage = &result.research_metadata.usage;
+        let _ = db
+            .insert_scientia_cost_telemetry(
+                "vox-research",
+                &session_label,
+                "vox-workspace",
+                "scholarly",
+                Some(&result.research_metadata.provider),
+                Some(&result.research_metadata.synthesis_model),
+                Some(usage.prompt_tokens as i64),
+                Some(usage.completion_tokens as i64),
+                usage.cost_usd,
+                Some(&mem_meta),
+            )
+            .await;
     }
 
+    refresh_run_totals(&mut result.research_metadata, start);
     // Set status → completed after all work is done.
     set_session_stage(db, session_id, ResearchStage::Completed).await;
 
     if persist_enabled
         && session_id > 0
+        && result_cache_enabled(config)
         && let Some(db) = db
     {
         research_cache_store(&query, &result, db, config).await;
     }
 
     Ok(result)
+}
+
+/// Wrap a run failure with the provider log gathered so far and the sources
+/// kept at that point (see [`ResearchRunFailure`]); the error text callers see
+/// is unchanged.
+fn failed_with_provider_log(
+    error: anyhow::Error,
+    registry: ProviderRegistry,
+    sources: Vec<ResearchHit>,
+) -> anyhow::Error {
+    let (providers, tavily_credits) = registry.into_retrieval_log();
+    anyhow::Error::new(ResearchRunFailure {
+        error,
+        providers,
+        tavily_credits,
+        sources,
+    })
+}
+
+/// Re-reads run duration and metered usage so they include work done after
+/// the metadata was first built (finding and artifact persistence).
+fn refresh_run_totals(metadata: &mut ResearchMetadata, start: Instant) {
+    metadata.duration_ms = start.elapsed().as_millis() as u64;
+    metadata.usage = super::super::metering::snapshot();
 }
 
 /// Best-effort stage status update. Errors are logged and swallowed so a
@@ -708,20 +1264,49 @@ fn dedupe_hits_by_url(hits: &mut Vec<ResearchHit>) {
     hits.retain(|hit| seen.insert(hit.url.clone()));
 }
 
+/// LLM telemetry session for the run: the trial run id when set, else today's rule.
+fn run_session_label(config: &ResearchConfig, session_id: i64, session_key: String) -> String {
+    match &config.trial_run_label {
+        Some(label) => label.clone(),
+        None if session_id > 0 => format!("research_session:{session_id}"),
+        None => session_key,
+    }
+}
+
+/// Whether the result cache is read and written for this run.
+fn result_cache_enabled(config: &ResearchConfig) -> bool {
+    !config.bypass_result_cache
+}
+
+/// A judge failure is Missing: quality 0 plus the error, never the configured fallback score.
+fn judge_outcome(_config: &ResearchConfig, result: Result<i32, String>) -> (i32, Option<String>) {
+    match result {
+        Ok(score) => (score, None),
+        Err(e) => (0, Some(e)),
+    }
+}
+
+/// The content-bearing event bridge writes query/claim JSON into `research_metrics`; trial runs must not (D-12).
+pub fn content_metrics_bridge_enabled(config: &ResearchConfig) -> bool {
+    config.trial_run_label.is_none()
+}
+
 fn emit_research_event(config: &ResearchConfig, db: Option<&Codex>, event: ResearchEvent) {
     if let Some(emitter) = config.event_emitter.as_ref() {
         emitter.emit(event.clone());
     }
-    if let Some(db) = db {
+    if let Some(db) = db
+        && content_metrics_bridge_enabled(config)
+    {
         crate::research::spawn_persist_research_event_for_metrics(db.clone(), event);
     }
 }
 
-async fn resolved_search_policy_for_research_run(
+pub async fn resolved_search_policy_for_research_run(
     db: Option<&Codex>,
     config: &ResearchConfig,
 ) -> SearchPolicy {
-    let mut policy = SearchPolicy::from_env();
+    let mut policy = config.search_policy.clone();
     let feedback = if let Some(fb) = config.search_policy_feedback {
         Some(fb)
     } else if let Some(db) = db {
@@ -731,6 +1316,14 @@ async fn resolved_search_policy_for_research_run(
     };
     if let Some(fb) = feedback {
         policy = policy.with_scientia_feedback(fb);
+    }
+    if let Some(db) = db {
+        if let Ok(penalties) = db.get_domain_penalties().await {
+            policy.domain_penalties.extend(penalties);
+        }
+        if let Ok(blacklist) = db.get_blacklisted_domains().await {
+            policy.blacklisted_domains.extend(blacklist);
+        }
     }
     policy
 }
@@ -804,11 +1397,16 @@ fn compute_corroboration_counts(
                     supports_claim: supporting_source_ids.contains(&citation.source_id),
                 })
                 .collect();
-            let count = vox_search::corroboration::count_corroboration(
+            let mut count = vox_search::corroboration::count_corroboration(
                 &verdict.claim.claim_id.to_string(),
                 &hits,
             )
             .count();
+            // Preserve honest domain corroboration count: if zero distinct web domains were verified,
+            // report 0 or the citation hit count without forging multi-domain corroboration.
+            if count == 0 && verdict.verdict == super::super::verifier::Verdict::Supported {
+                count = verdict.supporting_count.min(1);
+            }
             (verdict.claim.claim_id, count)
         })
         .collect()
@@ -834,6 +1432,18 @@ fn now_ms_i64() -> i64 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis().min(i64::MAX as u128) as i64)
         .unwrap_or(0)
+}
+
+/// Search context for a run given a DB but no caller context: the repo's own memory
+/// layout under `cwd`, as `vox research` and `vox memory search` resolve it.
+fn fallback_search_ctx(db: &Codex, cwd: std::path::PathBuf) -> SearchRuntimeContext {
+    let mem = vox_orchestrator::MemoryConfig::default();
+    SearchRuntimeContext::new(
+        cwd.clone(),
+        Some(std::sync::Arc::new(db.clone())),
+        cwd.join(&mem.log_dir),
+        cwd.join(&mem.memory_md_path),
+    )
 }
 
 fn render_research_report_markdown(
@@ -903,10 +1513,117 @@ fn render_research_report_markdown(
     out
 }
 
+/// Fast lane runs no LLM planner, but its single subquery still goes through the keyword
+/// condenser: a long conversational prompt sent verbatim matches unrelated pages.
+fn fast_lane_plan(query: &ResearchQuery) -> ResearchPlan {
+    passthrough_plan(query, false)
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::super::verifier::{EvidenceSpan, SpanType, Verdict};
     use super::*;
+
+    fn fast_query(text: &str) -> ResearchQuery {
+        ResearchQuery {
+            query: text.to_string(),
+            scope: ResearchScope::Web,
+            max_sources: 5,
+            persist_to_docs: false,
+            verify_claims: false,
+            site_scope: None,
+            domain_mode: Default::default(),
+            waves: 1,
+            lane: vox_search::policy::ResearchLane::Fast,
+        }
+    }
+
+    #[tokio::test]
+    async fn fallback_search_ctx_reads_repo_memory_not_the_system_temp_dir() {
+        let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+            .await
+            .expect("memory db");
+        let cwd = std::path::PathBuf::from("/work/repo");
+        let ctx = fallback_search_ctx(&db, cwd.clone());
+        let mem = vox_orchestrator::MemoryConfig::default();
+        // The memory corpus is walked recursively; the system temp dir can hold
+        // hundreds of thousands of entries and stalled every DB-backed run.
+        assert!(!ctx.memory_log_dir.starts_with(std::env::temp_dir()));
+        assert_eq!(ctx.memory_log_dir, cwd.join(&mem.log_dir));
+        assert_eq!(ctx.memory_md_path, cwd.join(&mem.memory_md_path));
+        assert_eq!(ctx.repo_root, cwd);
+        assert!(ctx.db.is_some());
+    }
+
+    #[test]
+    fn fast_lane_plan_condenses_long_prompt_and_keeps_original() {
+        let long = "Find all high-value sources of data for events in Tucson that are updated \
+                    regularly so that I can build an aggregator app modeled after nerdyorkcity";
+        let plan = fast_lane_plan(&fast_query(long));
+        assert_eq!(plan.original_query, long);
+        assert_eq!(plan.subqueries.len(), 1);
+        let sub = &plan.subqueries[0];
+        assert_ne!(
+            sub, long,
+            "fast lane must not send the raw prompt to web search"
+        );
+        assert!(sub.split_whitespace().count() <= 8, "{sub}");
+        assert!(sub.contains("Tucson"), "{sub}");
+        assert!(!plan.planner_degraded);
+    }
+
+    #[test]
+    fn fast_lane_plan_passes_short_query_through() {
+        let plan = fast_lane_plan(&fast_query("tucson tech events"));
+        assert_eq!(plan.subqueries, vec!["tucson tech events".to_string()]);
+    }
+
+    fn sample_metadata() -> ResearchMetadata {
+        ResearchMetadata {
+            session_id: 1,
+            duration_ms: 10,
+            provider: "test".to_string(),
+            routing_tier: RoutingTier::Direct,
+            confidence: 0.5,
+            subquery_count: 1,
+            source_count: 0,
+            claim_verdicts: vec![],
+            retrieval_diagnostics: RetrievalDiagnostics::default(),
+            quality_score: 50,
+            planner_degraded: false,
+            competence: None,
+            self_verification: None,
+            citation_audit: None,
+            corroboration_counts: vec![],
+            wave_count: 1,
+            wave_stability: None,
+            low_grounding_evidence: false,
+            subqueries: vec![],
+            synthesis_model: String::new(),
+            judge_error: None,
+            served_from_cache: false,
+            claims_extracted_count: 0,
+            claims_verified_count: 0,
+            usage: Default::default(),
+        }
+    }
+
+    #[tokio::test]
+    async fn run_totals_include_work_after_metadata_was_built() {
+        let start = Instant::now();
+        let metadata = crate::research::metering::scope(async {
+            let mut metadata = sample_metadata();
+            metadata.duration_ms = 0;
+            // drift-allow(duplicate-numeric-literal): test delay
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+            crate::research::metering::meter_failure();
+            refresh_run_totals(&mut metadata, start);
+            metadata
+        })
+        .await;
+        assert!(metadata.duration_ms >= 5, "{}", metadata.duration_ms);
+        assert_eq!(metadata.usage.failed_llm_calls, 1);
+    }
 
     #[test]
     fn research_run_artifact_matches_report_schema() {
@@ -917,6 +1634,9 @@ mod tests {
             persist_to_docs: false,
             verify_claims: false,
             site_scope: None,
+            domain_mode: ResearchDomainMode::default(),
+            waves: 1,
+            lane: vox_search::policy::ResearchLane::Fast,
         };
         let plan = ResearchPlan {
             original_query: query.query.clone(),
@@ -929,23 +1649,7 @@ mod tests {
             answer: "A concise answer.".to_string(),
             sources: vec![],
             citations: vec![],
-            research_metadata: ResearchMetadata {
-                session_id: 1,
-                duration_ms: 10,
-                provider: "test".to_string(),
-                routing_tier: RoutingTier::Direct,
-                confidence: 0.5,
-                subquery_count: 1,
-                source_count: 0,
-                claim_verdicts: vec![],
-                retrieval_diagnostics: RetrievalDiagnostics::default(),
-                quality_score: 50,
-                planner_degraded: false,
-                competence: None,
-                self_verification: None,
-                citation_audit: None,
-                corroboration_counts: vec![],
-            },
+            research_metadata: sample_metadata(),
         };
         let report_markdown = render_research_report_markdown(&query, &plan, &result);
         let artifact = ResearchRunArtifact {
@@ -981,6 +1685,7 @@ mod tests {
                 is_numeric: false,
                 is_recent: false,
                 is_named_event: false,
+                salience_score: 0.5,
             },
             verdict: Verdict::Supported,
             confidence: 0.9,
@@ -1041,6 +1746,7 @@ mod tests {
                 is_numeric: false,
                 is_recent: false,
                 is_named_event: false,
+                salience_score: 0.5,
             },
             verdict: Verdict::Supported,
             confidence: 0.9,
@@ -1066,6 +1772,37 @@ mod tests {
     }
 
     #[test]
+    fn uncorroborated_supported_claim_does_not_inflate_to_two() {
+        use super::super::super::claims::Claim;
+        use super::super::super::verifier::ClaimVerdict;
+
+        let citations = vec![];
+        let verdict = ClaimVerdict {
+            claim: Claim {
+                claim_id: 42,
+                text: "Uncorroborated supported claim".to_string(),
+                is_numeric: false,
+                is_recent: false,
+                is_named_event: false,
+                salience_score: 0.5,
+            },
+            verdict: Verdict::Supported,
+            confidence: 0.9,
+            supporting_count: 1,
+            contradicting_count: 0,
+            evidence_spans: vec![],
+            resample_stability: 1.0,
+        };
+
+        let counts = compute_corroboration_counts(&citations, &[verdict]);
+        assert_eq!(
+            counts,
+            vec![(42, 1)],
+            "must not inflate to 2 when zero distinct domains match"
+        );
+    }
+
+    #[test]
     fn supported_claim_weighted_by_resample_stability() {
         use super::super::super::claims::Claim;
         use super::super::super::verifier::ClaimVerdict;
@@ -1077,6 +1814,7 @@ mod tests {
                 is_numeric: false,
                 is_recent: false,
                 is_named_event: false,
+                salience_score: 0.5,
             },
             verdict: Verdict::Supported,
             confidence: 0.9,
@@ -1092,6 +1830,7 @@ mod tests {
                 is_numeric: false,
                 is_recent: false,
                 is_named_event: false,
+                salience_score: 0.5,
             },
             verdict: Verdict::Supported,
             confidence: 0.6,
@@ -1110,5 +1849,137 @@ mod tests {
         );
         assert_eq!(weighted_stable, 1.0);
         assert_eq!(weighted_flaky, 0.34);
+    }
+
+    fn trial_config(label: &str) -> ResearchConfig {
+        ResearchConfig {
+            trial_run_label: Some(label.to_string()),
+            ..Default::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn trial_label_reaches_llm_telemetry_session() {
+        use super::super::super::metering;
+        let cfg = trial_config("run-abc");
+        let tagged = metering::scope(async {
+            metering::set_run_session(run_session_label(&cfg, 42, "key".into()));
+            let mut candidates = vec![vox_actor_runtime::llm::LlmConfig::ollama("m")];
+            metering::tag_candidates(&mut candidates);
+            candidates
+        })
+        .await;
+        assert_eq!(tagged[0].telemetry_session_id.as_deref(), Some("run-abc"));
+    }
+
+    #[test]
+    fn session_label_unchanged_without_trial() {
+        let cfg = ResearchConfig::default();
+        assert_eq!(
+            run_session_label(&cfg, 42, "key".into()),
+            "research_session:42"
+        );
+        assert_eq!(run_session_label(&cfg, 0, "k".into()), "k");
+    }
+
+    #[test]
+    fn bypass_disables_result_cache() {
+        let mut cfg = ResearchConfig::default();
+        assert!(result_cache_enabled(&cfg));
+        cfg.bypass_result_cache = true;
+        assert!(!result_cache_enabled(&cfg));
+    }
+
+    #[test]
+    fn judge_error_is_missing() {
+        let cfg = ResearchConfig {
+            fallback_quality_score: 40,
+            ..Default::default()
+        };
+        assert_eq!(
+            judge_outcome(&cfg, Err("boom".into())),
+            (0, Some("boom".into()))
+        );
+        assert_eq!(judge_outcome(&cfg, Ok(73)), (73, None));
+    }
+
+    const CANARY: &str = "canary-claim-text-7f3a";
+
+    fn candidate_event(session: i64) -> ResearchEvent {
+        ResearchEvent::FindingCandidateProposed {
+            finding_id: "f-1".into(),
+            claim_ids: vec![1],
+            worthiness_score: 0.9,
+            session_id: session.to_string(),
+            finding_candidate: Some(serde_json::json!({ "claim": CANARY })),
+        }
+    }
+
+    fn started_event(session: i64) -> ResearchEvent {
+        ResearchEvent::TelemetryObservation {
+            provider: "unit".into(),
+            metric_type: "research_started".into(),
+            value: 1.0,
+            session_id: session.to_string(),
+            recorded_at_ms: 1,
+        }
+    }
+
+    /// Polls up to 2 s until `metric` has at least one row for `session`.
+    async fn wait_for_metric(db: &Codex, session: i64, metric: &str) -> Vec<Option<String>> {
+        let deadline = Instant::now() + std::time::Duration::from_secs(2);
+        loop {
+            let rows = db
+                .list_research_metrics_by_session(&session.to_string(), Some(metric), 10)
+                .await
+                .expect("list");
+            if !rows.is_empty() || Instant::now() >= deadline {
+                return rows.into_iter().map(|r| r.3).collect();
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        }
+    }
+
+    async fn memory_db_with_session() -> (Codex, i64) {
+        let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+            .await
+            .expect("memory db");
+        let sid = db
+            .create_research_session("bridge:test", "q")
+            .await
+            .expect("session");
+        (db, sid)
+    }
+
+    #[tokio::test]
+    async fn trial_run_skips_content_metrics_bridge() {
+        let (db, sid) = memory_db_with_session().await;
+        let trial = trial_config("run-abc");
+        assert!(!content_metrics_bridge_enabled(&trial));
+        emit_research_event(&trial, Some(&db), candidate_event(sid));
+        // Sentinel through the non-trial path proves the bridge task ran before we assert absence.
+        emit_research_event(&ResearchConfig::default(), Some(&db), started_event(sid));
+        assert_eq!(wait_for_metric(&db, sid, "research_started").await.len(), 1);
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        let rows = db
+            .list_research_metrics_by_session(
+                &sid.to_string(),
+                Some("scientia.finding_candidate_proposed"),
+                10,
+            )
+            .await
+            .expect("list");
+        assert!(rows.is_empty(), "trial run leaked content row: {rows:?}");
+    }
+
+    #[tokio::test]
+    async fn non_trial_run_keeps_metrics_bridge() {
+        let (db, sid) = memory_db_with_session().await;
+        let cfg = ResearchConfig::default();
+        assert!(content_metrics_bridge_enabled(&cfg));
+        emit_research_event(&cfg, Some(&db), candidate_event(sid));
+        let rows = wait_for_metric(&db, sid, "scientia.finding_candidate_proposed").await;
+        assert_eq!(rows.len(), 1);
+        assert!(rows[0].as_deref().is_some_and(|m| m.contains(CANARY)));
     }
 }

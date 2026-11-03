@@ -40,6 +40,7 @@ dispatch automatically — no rebuild of the core required.
 - **Global (before subcommand):** **`--color auto|always|never`** (see `NO_COLOR`), **`--json`** (sets `VOX_CLI_GLOBAL_JSON` for subcommands that support machine JSON), **`--verbose` / `-v`** (if `RUST_LOG` is unset, tracing uses `debug`), **`--quiet` / `-q`** (`VOX_CLI_QUIET`).
 - **Completions:** **`vox completions bash`** | **`zsh`** | **`fish`** | **`powershell`** | **`elvish`** — print to stdout and install per your shell (e.g. bash: `vox completions bash > /path/to/bash_completion.d/vox`).
 - **Dynamic command catalog:** **`vox commands`** — clap-derived list from the actual compiled binary; add `--recommended` for first-time essentials or `--format json --include-nested` for tooling.
+- **Discover capabilities:** **`vox explain <thing>`** prints what a capability is, its owning crate and layer, CLI/MCP/GUI equivalents and docs link (accepts a capability id, CLI path, MCP tool name, GUI view key, crate or skill; near misses give a numbered shortlist). **`vox features [--domain <d>]`** lists every domain with counts, or one domain's capabilities. Both answer from the embedded capability index; add the global `--json` for the raw index rows (the MCP tools `vox_capability_explain` / `vox_capability_features` return the same rows).
 - **Secrets namespace:** **`vox secrets`** (deprecated alias **`vox clavis`**) centralizes token health checks and credential compatibility storage.
 - **Latin aliases (same behavior as flat commands):** **`vox fabrica`** (`fab`) — build/check/test/run/dev/**`bundle` (web app)** /fmt/script; top-level **`vox bundle`** is **plugin** bundles (`list` / `build` / `apply`), not the web-app bundler. **`vox diag`** — doctor, architect, stub-check; **`vox ars`** — snippet, share, skill, openclaw, ludus; **`vox recensio`** (`rec`, feature **`coderabbit`**) — same as **`vox review`**.
 
@@ -141,7 +142,7 @@ Top-level **`vox generate`** (`crates/vox-cli/src/commands/generate.rs`) posts t
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--port` | _(from `VOX_PORT` or 3000)_ | Sets `VOX_PORT` for the generated Axum server and Vite `/api` proxy |
-| `--mode` | `auto` | `app` = always generated server; `script` = `fn main()` script lane (**needs** `cargo build -p vox-cli --features script-execution`); `auto` = script lane when the file has no `@page` and the binary was built with `script-execution`. |
+| `--mode` | `auto` | `app` = always generated server; `script` = native `fn main()` lane (**needs** `cargo build -p vox-cli --features script-execution`); `auto` = HIR interpreter for script-shaped files (`fn main()`, no service surfaces — no cargo on PATH); service-shaped files stay on the native/app lane. Native escape hatches: `--mode script`, `Vox.toml [web] run_mode = "script"`, `VOX_WEB_RUN_MODE=script`. |
 
 Backend listens on the port from **`VOX_PORT`** (or **3000**) — same variable the generated `main.rs` reads.
 
@@ -149,7 +150,7 @@ Backend listens on the port from **`VOX_PORT`** (or **3000**) — same variable 
 
 ### `vox script <file> [-- <args>…]` (feature `script-execution`)
 
-**Not in default builds.** Same script runner as `vox run --mode script`, with explicit flags: `--sandbox`, `--no-cache`, `--isolation`, `--trust-class`. Build: `cargo build -p vox-cli --features script-execution`.
+**Not in default builds.** Same script runner as `vox run --mode script`, with explicit flags: `--sandbox`, `--no-cache`, `--trust-class`. Build: `cargo build -p vox-cli --features script-execution`.
 
 When **`VOX_MESH_ENABLED=1`** and the binary is built with **`--features populi`** (pulls in `vox-populi`; optionally combine with **`script-execution`**), `vox script` / script-mode `vox run` **best-effort** publishes a node record to the local registry file (see [mens SSOT](populi.md)).
 
@@ -172,6 +173,26 @@ When **`VOX_MESH_ENABLED=1`** and the binary is built with **`--features populi`
 
 Interpreted **`vox mens workflow run`** (journal + `mesh_*` activity hooks; there is no top-level `vox workflow`) requires **`--features workflow-runtime`** (implies `mens-dei` + `vox-workflow-runtime`). The runtime emits versioned journal events (`journal_version: 1`) and durable rows keyed by a **run id** plus **`activity_id`**. Use `--run-id <id>` to resume the same interpreted workflow run; omit it to start a fresh run id. The interpreted runner can replay stored step results for linear workflows. Mens steps use **env-derived** `VOX_MESH_CONTROL_ADDR` / `Vox.toml` `[mens]` only — use `with { timeout: …, retries: …, initial_backoff: …, activity_id: …, id: …, mens: "noop" | "join" | "snapshot" | "heartbeat" }` on `mesh_*` calls (`id` is an alias for `activity_id`). Retry/backoff support currently applies to interpreted `mesh_*` activity execution; other interpreted activities remain journal-only no-ops. Codex append is enabled by default when DB config resolves and can be disabled with **`VOX_WORKFLOW_JOURNAL_CODEX_OFF=1`** ([orchestration SSOT](orchestration-unified.md), [durable execution](../explanation/expl-durable-execution.md)).
 
+### `vox gui …`
+
+Launch Axis, or drive a dedicated hidden debug Axis. Feature-gated (`--features gui`). `vox gui --command chat` still opens a view in the user's window; Drive never attaches there.
+
+| Subcommand | Role |
+|------------|------|
+| `vox gui` | Launch Axis (optional `--command <view>`). |
+| `vox gui drive` | Drive a dedicated debug Axis (hidden unless `--show`). |
+| `vox gui drive start` | Detached start; `--show` to watch; `--profile <id>` isolates store. |
+| `vox gui drive stop` | Tear down the Drive session. |
+| `vox gui drive show` | Reveal the hidden Drive Axis. |
+| `vox gui drive set` | Set knobs (`--knob key=value`, repeatable). Unselectable pin is Drive-only 409. |
+| `vox gui drive send` | Submit text through the live composer (`--text`). |
+| `vox gui drive state` | Snapshot Drive state (pin, catalog, knobs). |
+| `vox gui drive wait` | Block until a catalog/state predicate (`--until reply|reply_ok|error|event=<kind>|selectable=<id>`, `--timeout`). `reply` accepts settled errors; `reply_ok` requires a non-empty, non-error assistant bubble. |
+| `vox gui drive headless` | Stdin/stdout JSON plane (`picker_ui`/`composer_knobs`/`bubbles` all false). |
+| `vox gui drive headless state` | Headless state snapshot. |
+| `vox gui drive headless set` | Headless knob set. |
+| `vox gui drive headless send` | Headless send. |
+
 ### `vox graph …`
 
 Corpus registry and freshness status/ingest operations for Vox Graph knowledge maps (`contracts/retrieval/graphify-corpora.v1.yaml`). Aliases: `vox graphify`, `vox search`.
@@ -181,6 +202,49 @@ Corpus registry and freshness status/ingest operations for Vox Graph knowledge m
 | `vox graph status` | Report per-corpus freshness (node/edge counts, graph path). `--corpus <id>` limits output; `--strict` exits non-zero when any corpus is stale; `--json` emits machine-readable status. |
 | `vox graph ingest` | Project graph nodes into Turso `knowledge_nodes` via VoxDb. |
 | `vox graph rebuild` | Rebuild the base AST code graph and cluster it. |
+| `vox graph history <log\|focus\|forgotten\|search\|timeline\|brief>` | First-parent history of `origin/main` (else `main`) with rename/split/merge lineage. Mechanical (fmt/generated/import-only) changes are flagged and hidden unless `--include-mechanical`. Every subcommand except `brief` catches up on new commits first. One store is shared by all worktrees, at `<git-common-dir>/vox-cache/repo-history/`. `brief` prints one line from disk and says how many commits it is behind. Forms: `vox graph history log`, `vox graph history focus`, `vox graph history forgotten`, `vox graph history search`, `vox graph history timeline`, `vox graph history brief`. |
+
+### `vox diagram`
+
+Check VoxDiagram sources (the `graph` and `sequence` diagram languages) from a file or from stdin (`-`). The command reaches the diagram core through `vox_doc_pipeline::diagram`, and the global `--json` prints the bare envelope, which is the `data` field of the `vox_validate_diagram` MCP tool response. See the [VoxDiagram reference](vox-diagram.md) for the grammar card and the tool envelope.
+
+| Subcommand | Role |
+|------------|------|
+| `vox diagram check <file\|->` | Print every diagnostic as `<file>:<line>:<col>: <code>: <message>` on stderr (`<stdin>` for `-`). Warnings print and do not fail. |
+| `vox diagram fmt <file\|-> [--check \| --write]` | Print the canonical form. `--check` exits 1 when the file is not canonical. `--write` rewrites the file in place through a sibling temp file and rename, only for a valid source, and refuses `-`. |
+| `vox diagram render <file\|-> [-o FILE]` | Write deterministic SVG to stdout or `FILE`. A diagram over the render caps exits 1 with the reason. |
+| `vox diagram export <file\|-> [-o FILE]` | Write Mermaid to stdout or `FILE`. |
+| `vox diagram import <file\|-> [-o FILE]` | Convert one Mermaid block to canonical VoxDiagram, or print `<file>:<line>: unsupported: <construct>` lines and exit 1. |
+
+| Exit code | Meaning |
+|-----------|---------|
+| 0 | The diagram is valid (warnings allowed) |
+| 1 | At least one Error diagnostic, a non-canonical `fmt --check`, unsupported `import` lines, or a failed render |
+| 2 | Usage error, unreadable input or unwritable output, or `--json` combined with `-o`, `--write` or `--check` |
+
+### `vox kb eval`
+
+Deterministic retrieval eval over the golden set in `contracts/kb/eval/` (scored on doc and chunk ids through the Library index, `library-tantivy-v1`, over the frozen corpus snapshot). Plain `vox kb eval` prints the metric report for the chosen split.
+
+| Flag | Role |
+|------|------|
+| `--split <dev\|test>` | Golden-set split to score (default `dev`). `--split test` is milestone-close only. |
+| `--json` | Emit the report as JSON. |
+| `--query <TEXT>` / `--top <N>` | Print the top-N (default 20) Library-index chunk ids for the text, for qrel pooling. `--top` requires `--query`. |
+| `--headings <DOC_ID>` | Print every valid `heading_path` of a corpus snapshot doc. |
+| `--snapshot-corpus` | Rewrite the frozen `contracts/kb/eval/corpus.jsonl` from tracked non-archive `docs/src` markdown. |
+
+`--query`, `--headings` and `--snapshot-corpus` are mutually exclusive modes.
+
+Ratchet modes guard the committed baseline `contracts/kb/retrieval-baseline.v1.json`. They always score the dev split and refuse `--split`, `--query`, `--headings` and `--snapshot-corpus`; they are mutually exclusive.
+
+| Flag | Role |
+|------|------|
+| `--gate` / `--base <REF>` | One report of every failure, exit non-zero on any. Categories: `[regression]` (a dev metric fell below the baseline by more than the tolerance, or no baseline), `[tighten-only]` (the baseline loosened versus `REF`, default `origin/main`, read via `git show`; an unresolvable `REF` fails closed), `[canary]` (the golden-set GUID reached tracked files, indexer roots, the MENS docs extractor output, local MENS jsonl, or a query of 40+ characters was pasted into tracked `docs/` or `crates/` markdown). `--base` requires `--gate`. |
+| `--tighten` | Raise baseline values to the current dev report. Never lowers a value; writes nothing when nothing improved. |
+| `--write-baseline --epoch-note <TEXT>` | Bootstrap or re-epoch the baseline: epoch +1 (1 when absent), tolerance kept (0.01 first). The note is required. Human-reviewed; this is the only way to loosen a value. |
+
+Every mode that builds an index first asserts that no corpus doc contains the canary GUID.
 
 ### `vox ci …`
 
@@ -191,6 +255,8 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | Subcommand | Role |
 |------------|------|
 | `manifest` | `cargo metadata --locked` |
+| `capability-index [--write] [--tighten] [--refresh-coverage]` | Generate or verify [`contracts/capabilities/capability-index.v1.json`](../../../contracts/capabilities/capability-index.v1.json): one row per CLI and MCP projection of the operations catalog (committed inputs only; never builds the code graph). Check mode also runs inside **`ssot-drift`** and enforces three ratchets: (1) the owner ratchet ([`contracts/capabilities/owner-ratchet.v1.json`](../../../contracts/capabilities/owner-ratchet.v1.json), D-05) when a cli/mcp row has no resolvable owner; (2) the side-effect ratchet ([`contracts/capabilities/side-effect-ratchet.v1.json`](../../../contracts/capabilities/side-effect-ratchet.v1.json), D-02; classify the op in `contracts/operations/catalog.v1.yaml` from its handler) when a cli row has no `side_effect_class`; and (3) the zero orphan ratchet ([`contracts/capabilities/orphan-ratchet.v1.json`](../../../contracts/capabilities/orphan-ratchet.v1.json), `max_unresolved: 0`, D-04 / D-21 / D-22) over `orphan_backend` / `dead_end` nodes in the `tool` and `cli-command` snapshot kinds (`surface` is excluded because a UI entry point has no callers by design, and the Tauri `command` kind is deferred). `--tighten` shrinks the ratchets (removal-only); `--write` never touches them. `--refresh-coverage` re-snapshots graph coverage into [`contracts/reports/graph-coverage.v1.json`](../../../contracts/reports/graph-coverage.v1.json) from the already-built `vox-gui-surface` corpus; it does not build the graph, and check mode / `ssot-drift` read only the committed snapshot, so a new orphan is seen only after running `vox graph rebuild --corpus vox-gui-surface` followed by `vox ci capability-index --refresh-coverage --write`. Each run also prints an informational MCP-only count line (`N of M MCP tools are MCP-only (no CLI twin); warning only (D-17)`) and emits `::warning::` on `--write` for newly added MCP-only tools. |
+| `gui-surface-registry [--write] [--tighten] [--today YYYY-MM-DD]` | Generate or verify the GUI surface registry and enforce the CLI-to-GUI coverage gate (`crates/vox-cli/src/commands/ci/gui_coverage_gate.rs`). The unit of coverage is the top-level CLI group (92 groups: 12 dedicated, 66 derived `generic_form`, 14 exempt). `generic_form` coverage is derived automatically when at least one verb in the group is compiled into `vox-cli`'s default features, so most groups pass by derivation and the gate's real bite is on feature-gated groups and the dedicated floor; partially compiled groups (such as `ars` and `ext`) pass at the group level and show per-verb `CLI-only` badges in the Explorer, while MCP-only tools are counted and warned about in `capability-index` but not gated here. Unrepresented top-level groups must appear in [`contracts/gui/coverage-exemptions.v1.yaml`](../../../contracts/gui/coverage-exemptions.v1.yaml) with `group`, `owner`, `reason`, and `review_by` (`YYYY-MM-DD`); the gate fails on unrepresented groups, unknown/non-top-level groups, stale exemptions (group already has a `dedicated` or derived `generic_form` path), expired `review_by` dates (evaluated against UTC today or `--today YYYY-MM-DD`), duplicate groups, empty `owner`/`reason`, or an `owner` crate missing from `docs/src/architecture/layers.toml`, and warns when `review_by` is within 30 days. Check mode also enforces the shrink-only exemption baseline [`contracts/gui/coverage-exemption-ratchet.v1.json`](../../../contracts/gui/coverage-exemption-ratchet.v1.json) and the add-only dedicated surface floor [`contracts/gui/dedicated-floor-ratchet.v1.json`](../../../contracts/gui/dedicated-floor-ratchet.v1.json). Only `--tighten` writes those baselines (`--write` updates the generated registry and coverage report without touching baselines); adding a new exemption is a user-authorized edit of both the ledger and its baseline. |
 | `check-docs-ssot` / `check-codex-ssot` | Required doc / Codex files + inventory / OpenAPI checks |
 | `check-summary-drift` | Runs `cargo run -p vox-doc-pipeline -- --check`; fails if `SUMMARY.md` is out of sync with `docs/src` |
 | `build-docs` | Regenerates `SUMMARY.md`, runs `mdbook build docs`, then `mdbook-sitemap-generator` (optional `MDBOOK_SITEMAP_DOMAIN`) |
@@ -217,7 +283,6 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `line-endings` | Forward-only: changed LF-policy files must not contain CR/CRLF (`*.ps1` exempt). Env: `GITHUB_BASE_SHA` / `GITHUB_SHA`, or `VOX_LINE_ENDINGS_BASE` (+ optional `VOX_LINE_ENDINGS_HEAD`). Flags: `--all`, `--base <ref>` |
 | `parse-status [--write]` | Regenerate or verify [`examples/PARSE_STATUS.md`](../../../examples/PARSE_STATUS.md) from `examples/golden/*.vox` parse results (`--write` updates the file). |
 | `mesh-gate --profile ci_full \| m1m4 \| training` | Runs `scripts/populi/gates.yaml` steps (CLI falls back to `scripts/mens/gates.yaml` if present). **`--isolated-runner`** builds `vox-cli` under OS temp `…/vox-targets/<repo-hash>/mens-gate-safe` by default (override `--gate-build-target-dir`), copies `vox` to a temp path, and re-invokes the gate (**Windows + Unix**; avoids file locks). Hidden alias: `--windows-isolated-runner`. Legacy argv alias: `mens-gate`. Optional `--gate-log-file <path>` tees child output. |
-| `mens-corpus-health`, `grpo-reward-baseline`, `collateral-damage-gate`, `constrained-gen-smoke` | **Placeholders** (print-only; no DB, corpus, or GRPO checks). Prefer **`mesh-gate`** and **`vox mens corpus …`** for real gates. Clap `--help` on each subcommand also marks placeholder intent. |
 | `toestub-self-apply` | `cargo build -p vox-code-audit --release` then full-repo `toestub` scan (replaces `scripts/toestub_self_apply.*`) |
 | `toestub-scoped` | Default scan `crates/vox-repository` |
 | `scaling-audit verify \| emit-reports` | Scaling SSOT: validate `contracts/scaling/policy.yaml`; `emit-reports` regenerates per-crate backlog markdown + rollup + TOESTUB JSON on `crates/` |
@@ -246,9 +311,8 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `rust-ecosystem-policy` | Runs focused rust ecosystem contract parity checks (`cargo test -p vox-compiler --test rust_ecosystem_support_parity`) for faster local iteration than full CI suites |
 | `policy-smoke` | Fast bundle: `cargo check -p vox-orchestrator`, in-process `command-compliance`, and `cargo test -p vox-compiler --test rust_ecosystem_support_parity` (same parity test as `rust-ecosystem-policy`) |
 | `workflow-concurrency-guard [--strict]` | Requires a top-level `concurrency:` block containing `cancel-in-progress: true` on every `push`/`pull_request`-triggered workflow (a bare group string or a non-cancelling group does not count) — flood prevention for the local runner fleet; exceptions registered in [`concurrency-exceptions.md`](../ci/concurrency-exceptions.md). Advisory by default; `--strict` fails (used in `pre-push`). |
-| `queue [--json] [--brief] [--from-snapshot] [--clear] [--dry-run] [--ttl-mins <n>] [--hook-guard]` | Local-first CI queue signal: classifies GitHub Actions runs active/superseded/stale, carries the async failure signal, and clears cancellable backlog. `--json`/`--brief`/plain read; `--from-snapshot` reads `~/.vox/ci-queue-snapshot.json` with no network; `--clear` cancels (live data only, capped, exempt-aware); `--hook-guard` is the PreToolUse enforcement mode. See [local-first-ci.md](../ci/local-first-ci.md). |
 | `compile-matrix` | Smoke-checks `vox compile --help` through the CLI binary for cross-host parity with `compile-matrix.yml`. |
-| `pre-push [--dry-run] [--quick] [--complete] [--full] [--report-json <path>]` | **Default (fast):** `cargo fmt --check`, line-endings, ssot-drift, `runner-policy-check`, `workflow-concurrency-guard`, **scoped** doc lint + doctest on changed `docs/src/**/*.md` (excludes `archive/`), and **`vox-drift-check`** — tuned for responsive `git push`. **`--complete`:** full static gate (whole-tree doc lint + doctest under `docs/src/`, doc-inventory, workspace **`clippy -D warnings`**, scoped TOESTUB). **`--full`:** **`--complete`** plus **`cargo nextest run --workspace --profile ci --no-fail-fast`**. **`--quick`** is a legacy alias for the default fast profile (conflicts with **`--complete`** / **`--full`**). Long steps print a ~3s heartbeat on stderr. **`--dry-run`** prints planned steps only. **`--report-json`** writes timings (`contracts/reports/pre-push-report.v1.schema.json`, `schema_version` 2 adds `profile`). Env **`VOX_PREPUSH_AUDIT_LOG`**: append one JSON line per successful run. CI still runs full docs-quality / merge gates. |
+| `pre-push [--dry-run] [--quick] [--complete] [--full] [--report-json <path>]` | **Default (fast):** `cargo fmt --check`, line-endings, ssot-drift, `workflow-concurrency-guard`, **scoped** doc lint + doctest on changed `docs/src/**/*.md` (excludes `archive/`), and **`vox-drift-check`** — tuned for responsive `git push`. **`--complete`:** full static gate (whole-tree doc lint + doctest under `docs/src/`, doc-inventory, workspace **`clippy -D warnings`**, scoped TOESTUB). **`--full`:** **`--complete`** plus **`cargo nextest run --workspace --profile ci --no-fail-fast`**. **`--quick`** is a legacy alias for the default fast profile (conflicts with **`--complete`** / **`--full`**). Long steps print a ~3s heartbeat on stderr. **`--dry-run`** prints planned steps only. **`--report-json`** writes timings (`contracts/reports/pre-push-report.v1.schema.json`, `schema_version` 2 adds `profile`). Env **`VOX_PREPUSH_AUDIT_LOG`**: append one JSON line per successful run. CI still runs full docs-quality / merge gates. |
 | `dep-cycles` | Runs Tarjan SCC over `cargo metadata` to detect workspace dependency cycles. **Hard-fails** (non-zero exit) on normal link-time cycles (cargo would reject them anyway, but this surfaces them earlier). Reports dev/build back-edge cycles as advisory (legal in cargo; written to `graphify-out/DEP_CYCLES.md`). Blocking gate in CI after arch-check. |
 | `dev-loop-audit [--json]` | Heuristics for AI/local **inner-loop** overhead: detects **`CARGO_TARGET_DIR`** fragmentation vs repo **`target/`**, prints hints (use **`cargo check -p` / `cargo nextest run -p`** before **`vox ci pre-push`**). **`--json`** matches **`contracts/reports/dev-loop-audit.v1.schema.json`**. |
 | `gui-smoke` | GUI regression bundle: runs ignored-only **`cargo nextest`** on **`web_ir_lower_emit_test`** (TanStack/router codegen guard — matches compiler CI smoke); when **`VOX_WEB_VITE_SMOKE=1`**, also ignored-only **`web_vite_smoke_test`**; when **`VOX_GUI_PLAYWRIGHT=1`**, ignored-only **`playwright_golden_route_test`** (requires `pnpm install` + `pnpm exec playwright install chromium` under `crates/vox-integration-tests`). Requires **`cargo-nextest`** on `PATH`. |
@@ -267,6 +331,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `scientia-novelty-ledger-contracts` | Validates example `contracts/reports/scientia-finding-candidate.example.v1.json` and `scientia-novelty-evidence-bundle.example.v1.json` against `finding-candidate.v1.schema.json` and `novelty-evidence-bundle.v1.schema.json` |
 | `speech-runtime-suite [--run-id <id>] [--plugins-dir <dir>] [--limit <n>] [--skip-runtime]` | Runs the speech-to-code MUST+SHOULD audit matrix from `contracts/speech-to-code/audit-matrix.v1.yaml`, executes the CPU Candle Oratio eval when runtime is enabled, and writes per-cell `cell_result.json`, `cell_result.kpi.json`, and aggregate `scorecard.json` under `.vox/audit/<run-id>/`. |
 | `ssot-drift` | Runs `check-docs-ssot`, `check-codex-ssot`, `sql-surface-guard --all` (includes `sqlx` isolation enforcement), `query-all-guard --all`, `turso-import-guard --all`, `operations-verify`, `command-compliance`, `capability-sync` (verify-only), `contracts-index`, **`docs-reality-audit verify`**, `exec-policy-contract`, in-process completion-policy Tier A scan (no audit JSON write), `scientia-worthiness-contract`, `scientia-novelty-ledger-contracts`, and `data-ssot-guards` in one pass |
+| `status [--hook]` | Prints this branch's failed or timed-out GitHub CI jobs, open `nightly-failure` issues, and how far local `main` is ahead of `origin/main`. **`--hook`** is the never-failing form the pre-commit hook runs. |
 
 ### Bootstrap / dev launcher (missing `vox` on `PATH`)
 
@@ -458,7 +523,7 @@ Formats a **`.vox`** file using [`vox_compiler::fmt::try_format`](../../../crate
 
 **Grouped Latin path:** `vox diag doctor …` — identical behavior; `diag` is the **registry `latin_ns`** bucket for diagnostics (see [Nomenclature migration map](../archive/research-2026-q1/nomenclature-migration-map.md#latin_ns-command-registry-group-labels)). Prefer `vox doctor` in new prose; use `vox diag doctor` when teaching the Latin lane.
 
-Development environment checks (Rust/Cargo, Node/pnpm, Git, optional Docker/Podman, `Vox.toml`, Codex workspace registration, API keys, etc.). With **`VOX_WEB_TS_OUT`** set to your **`vox build`** TypeScript output directory, doctor also verifies **`@v0`** components use **named** exports for TanStack **`routes {`** (see [`env-vars.md`](env-vars.md#web--vite--tanstack-codegen)).
+Development environment checks (Rust/Cargo, Node/pnpm, Git, optional Docker/Podman, `Vox.toml`, Codex workspace registration, API keys, etc.). With **`VOX_WEB_TS_OUT`** set to your **`vox build`** TypeScript output directory, doctor also verifies **`@v0`** components use **named** exports for TanStack **`routes {`** (see [`env-vars.md`](env-vars.md)).
 
 **Cross-compile preflight:** **`--compile-target <TRIPLE>`** runs rustup-target / Android SDK / Xcode probes aligned with **`vox compile --triple`** (e.g. `aarch64-linux-android`, `aarch64-apple-ios-sim`).
 
@@ -491,7 +556,7 @@ Discovery/data-prep operator commands: `vox db publication-discovery-scan`, `vox
 
 ### `vox telemetry`
 
-**Optional operator upload path** — not default-on, not product telemetry. Local JSON spool under `.vox/telemetry-upload-queue` (or `VOX_TELEMETRY_SPOOL_DIR`), explicit **`vox telemetry upload`**, secrets via Clavis (`VOX_TELEMETRY_UPLOAD_URL`, `VOX_TELEMETRY_UPLOAD_TOKEN`). Subcommands: **`vox telemetry status`**, **`vox telemetry export`**, **`vox telemetry enqueue --json <file>`**, **`vox telemetry upload`** (`--dry-run` supported). See [ADR 023](../adr/023-optional-telemetry-remote-upload.md), [telemetry remote sink spec](../archive/research-2026-q1/telemetry-remote-sink-spec.md), [env-vars](env-vars.md#optional-telemetry-upload-vox-telemetry).
+**Optional operator upload path** — not default-on, not product telemetry. Local JSON spool under `.vox/telemetry-upload-queue` (or `VOX_TELEMETRY_SPOOL_DIR`), explicit **`vox telemetry upload`**, secrets via Clavis (`VOX_TELEMETRY_UPLOAD_URL`, `VOX_TELEMETRY_UPLOAD_TOKEN`). Subcommands: **`vox telemetry status`**, **`vox telemetry export`**, **`vox telemetry preview`** (offline render of the redacted batch that would be uploaded; `--format table|json`, `--limit N`), **`vox telemetry enqueue --json <file>`**, **`vox telemetry upload`** (`--dry-run` supported). See [ADR 023](../adr/023-optional-telemetry-remote-upload.md), [telemetry remote sink spec](../archive/research-2026-q1/telemetry-remote-sink-spec.md), [env-vars](env-vars.md).
 
 ### `vox scientia`
 
@@ -646,11 +711,21 @@ Without `--allow-unverified`, an install with no matching `sha256` fails closed:
 
 Spawns the **`vox-lsp`** binary (from the `vox-lsp` crate) with stdio inherited. Ensure `vox-lsp` is on `PATH` (e.g. `cargo build -p vox-lsp` and use `target/debug`).
 
+### `vox mcp`
+
+Starts the stdio MCP server (feature `mcp-server`). Tool calls are forwarded to the shared `vox-orchestrator-d`. `--profile <ids>` scopes `tools/list` and dispatch to a capability profile (default: `VOX_PROFILE`, then `VOX_PROFILE` in `~/.vox/config.toml`, then `dev` = every tool). A running daemon with a different profile is not adopted (`profile_mismatch`). See [capability-profiles.md](capability-profiles.md).
+
+### `vox serve`
+
+Runs `vox-orchestrator-d` in the foreground with the HTTP gateway enabled and no stdio transport, scoped by `--profile <ids>` (same defaults as `vox mcp`). Requires gateway auth (`VOX_MCP_HTTP_BEARER_TOKEN` / `VOX_MCP_HTTP_READ_BEARER_TOKEN`, or `VOX_MCP_HTTP_ALLOW_UNAUTHENTICATED=1` for local testing). Refuses to start when a daemon is already running. See [capability-profiles.md](capability-profiles.md).
+
 ## Mens / DeI (feature-gated)
 
 **Normative semantics** (defaults, train / merge / serve matrix, data-prep SSOT, deferred trainer flags): **[`reference/mens-training.md`](mens-training.md)**. This section lists **CLI surfaces and build features** only; do not treat it as a second SSOT for training behavior.
 
-**Doc parity (`vox ci command-compliance`):** **`vox mens corpus`**, **`vox mens pipeline`**, **`vox mens status`**, **`vox mens watch-telemetry`** (alias **`vox mens watch`**; tails stderr + training JSONL ~3s), **`vox mens plan`**, **`vox mens eval-gate`**, **`vox mens bench-completion`**, **`vox mens system-prompt-template`**, **`vox mens train`** (GPU / Candle QLoRA; same intent as **`vox-ml-cli` shim** (`vox mens …`)), **`vox oratio`**, **`vox mens serve`**, **`vox mens probe`**, **`vox mens merge-weights`**, **`vox mens merge-qlora`**, **`vox mens eval-local`**, **`vox mens generate`**, **`vox mens review`**, **`vox mens check`**, **`vox mens fix`**, **`vox mens workflow list`**, **`vox mens workflow inspect`**, **`vox mens workflow check`**, **`vox mens workflow run`**.
+**Doc parity (`vox ci command-compliance`):** **`vox mens corpus`**, **`vox mens pipeline`**, **`vox mens status`**, **`vox mens watch-telemetry`** (alias **`vox mens watch`**; tails stderr + training JSONL ~3s), **`vox mens plan`**, **`vox mens eval-gate`**, **`vox mens bench-completion`**, **`vox mens system-prompt-template`**, **`vox mens train`** (GPU / Candle QLoRA; same intent as **`vox-ml-cli` shim** (`vox mens …`)), **`vox oratio`**, **`vox mens serve`**, **`vox mens probe`**, **`vox mens merge-weights`**, **`vox mens merge-qlora`**, **`vox mens eval-local`**, **`vox mens generate`**, **`vox mens review`**, **`vox mens check`**, **`vox mens fix`**, **`vox mens workflow list`**, **`vox mens workflow inspect`**, **`vox mens workflow check`**, **`vox mens workflow run`**, **`vox mens cloud-estimate`**.
+
+**`vox mens cloud-estimate`** (feature `cloud`) — read-only: resolves and ranks live cloud GPU offers (Vast.ai / RunPod) plus the free local row, printing the estimated bill without provisioning anything. It is the dry-run companion to **`vox mens train --cloud`**, which resolves, ranks, **and dispatches** in one step. Prints the local row first, then surviving rented offers (`format_row`), then each rejected offer's `UnsuitableReason`. Fails closed when sizing a lane the memory model has no measured constant for (`Verdict::Refused` with no `predicted_bytes`), rather than borrowing another lane's constant.
 
 With default features (**`mens-base` only** — corpus + `vox-actor-runtime`, **no** Oratio / `vox-oratio` and **no** native training deps), **`vox mens`** covers corpus / pipeline / status / plan / eval-gate / bench-completion / system templates / etc. **`vox oratio`** (alias **`vox speech`**) requires **`--features oratio`** (STT stack; separate from the **`mens`** command tree). **Native train** / **serve** / **probe** / **merge-weights** / **merge-qlora** / **eval-local** (Burn + Candle) require **`cargo build -p vox-cli --features gpu`** (alias **`mens-qlora`**). For **Candle QLoRA on NVIDIA** with linked CUDA kernels, use **`cargo vox-cuda-release`** (workspace alias → `gpu,mens-candle-cuda`; see `.cargo/config.toml`). Optional: **`vox-ml-cli`** shim binary inserts the **`mens`** subcommand for argv ergonomics — use **`vox oratio`** for speech. `cargo build -p vox-cli --features mens-base`; add **`oratio`** on the same build for Oratio. See [vox-cli build feature inventory](../archive/research-2026-q1/vox-cli-build-feature-inventory.md). **`vox mens pipeline`** runs the dogfood corpus → eval → optional native train stages (replaces heavy orchestration in `scripts/run_mens_pipeline.ps1`). **`vox mens serve`** (HTTP/OpenAI-compatible API) requires **`gpu`** (Axum/control-plane pieces may additionally need **`execution-api`** for other REST surfaces — see `crates/vox-cli/Cargo.toml`). **`serve`** loads **Burn** LoRA `*.bin` or merged **`model_merged.bin`** (`merge-weights`); it does **not** load Candle **`merge-qlora`** f32 safetensor outputs. Corpus lives under **`vox mens corpus`** (e.g. `extract`, `validate`, `pairs`, **`mix`**, `eval`).
 
@@ -708,7 +783,7 @@ For full-repo waves (`--full-repo`), the semantic manifest persists coverage cou
 
 ## Related docs
 
-- **Rustdoc / layout**: [`docs/src/reference/cli.md`](#)
+- **Rustdoc / layout**: `docs/src/reference/cli.md`
 - **Ecosystem narrative** (may include commands beyond this binary): [`how-to-cli-ecosystem.md`](../how-to/how-to-cli-ecosystem.md)
 - **Compiler pipeline** (orientation): [`architecture/vox-compiler-architecture-research-2026.md`](../architecture/vox-compiler-architecture-research-2026.md)
 
@@ -836,6 +911,7 @@ The sections above document 50 of the 76 top-level `vox` commands. The remaining
 | `vox container` | Manage OCI containers: build/run the current project with resource limits |
 | `vox dispatch` | Dispatch-time routing preview — project what the dispatcher would do (P2-T6) |
 | `vox drift-check` | Workspace drift and pattern-repetition linter |
+| `vox diagram` | Check, format, render, export and import VoxDiagram diagrams from a file or stdin |
 | `vox ext` | Extensions lane — unified entry for legacy and ML subcommands (`ext`) |
 | `vox grammar` | Export the Vox language grammar in various formats for MENS training |
 | `vox harness` | Evaluate the harness itself (not a model) against a golden task set with a pass^k multi-sample gate (`vox harness eval`) |
@@ -848,11 +924,10 @@ The sections above document 50 of the 76 top-level `vox` commands. The remaining
 | `vox policy` | View the unified policy catalog (CI gates, language rules, audits) |
 | `vox repair` | Automatically repair syntax and type errors in a `.vox` file via LLM (`vox repair`) |
 | `vox repl` | Interactive Vox expression REPL (read-eval-print loop) |
-| `vox rollback` | Roll back the orchestration stack or task execution state using the vox-bounded-fs ledger |
+| `vox rollback` | Undo an operation recorded in the live vox-orchestrator-d daemon's operation log (requires a running daemon) |
 | `vox snapshot` | Insta snapshot helpers: detect and clean up orphaned `.snap` files (`vox snapshot orphans [--clean]`) |
 | `vox stop` | Emergency stop the orchestrator (MCP/daemon local stop request) |
 | `vox term` | Headless-capable ratatui terminal UI — block-model shell + AI agent strip |
-| `vox wasm` | Raw precompiled WASI module execution (needs `--features script-wasi`) |
 
 ## CLI command reachability
 
@@ -870,9 +945,21 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `dev` | default | `commands::dev` |
 | `live` | `live` | `commands::live` |
 | `bundle` | default | `commands::bundle` |
+| `bundle-app` | default | `commands::bundle` — web-application bundling entry point |
 | `compile` | default | `commands::compile` — **`vox compile`** packaging umbrella (also **`vox fabrica compile`**) |
+| `component` | default | `commands::add_component` |
+| `config` | default | `commands::config` |
+| `container` | default | `commands::container` |
 | `fmt` | default | `commands::fmt` (`vox_compiler::fmt::try_format`; `--check` supported) |
+| `emit` | default | `commands::emit` |
+| `ext` | default | `commands::ext` |
 | `graph` | default | `commands::graphify` (aliases: `graphify`, `search`) |
+| `grammar` | default | `commands::grammar::handle` |
+| `diagram` | default | `commands::diagram::run` |
+| `gui` | `gui` | `commands::gui` — launch Axis; `vox gui drive` is `commands::gui::drive` |
+| `harness` | default | `commands::harness` |
+| `mcp` | `mcp-server` | `commands::mcp::run` — start the Model Context Protocol server; without the feature it fails with a rebuild instruction |
+| `serve` | default | `commands::serve::run` — foreground `vox-orchestrator-d` with the HTTP gateway enabled and no stdio MCP, scoped by `--profile` |
 | `add` | default | `commands::add` |
 | `audit` | default | `commands::audit` |
 | `auth` | default | `commands::auth` |
@@ -881,12 +968,21 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `lock` | default | `commands::lock` |
 | `sync` | default | `commands::sync` |
 | `deploy` | default | `commands::deploy` |
+| `dispatch` | default | `commands::dispatch` |
+| `drift-check` | default | `commands::drift_check` |
+| `kb` | default | `commands::kb` (`kb eval`: `commands::kb::eval`) |
 | `upgrade` | default | `commands::upgrade` (toolchain only) |
 | `init` | default | `commands::init` |
+| `llm` | default | `commands::llm` |
 | `pm` | default | `commands::pm` |
 | `login` | default | `commands::login_shared::run_login` |
 | `logout` | default | `commands::login_shared::run_logout` |
 | `lsp` | default | `commands::lsp` |
+| `new` | default | `commands::new` |
+| `play` | default | `commands::play` |
+| `plugin` | default | `commands::plugin` |
+| `policy` | default | `commands::policy` |
+| `populi` | default | delegated to `vox-ml-cli` |
 | `doctor` | default / `codex` | `commands::doctor` or `commands::diagnostics::doctor` |
 | `secrets` | default | `commands::secrets` |
 | `clavis` | default | deprecated alias of `secrets` |
@@ -894,17 +990,26 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `snippet` | default | `commands::extras::snippet_cli` |
 | `share` | default | `commands::extras::share_cli` |
 | `codex` | default | `commands::codex` |
+| `dei` | `dei` | `commands::dei` |
 | `repo` | default | `commands::repo` |
-| `research` | default | `commands::research`: infra **`vox research up`** / **`vox research down`** / **`vox research status`** / **`vox research eval`**; **`vox research run`** calls orchestrator `run_research` (`--json`, `--scope`, `--site-scope`, …) |
+| `research` | default | `commands::research`: infra **`vox research up`** / **`vox research down`** / **`vox research status`** / **`vox research eval`**; **`vox research run`** calls orchestrator `run_research` (`--json`, `--scope`, `--site-scope`, `--lane fast\|deep`, `--waves N`, `--domain-mode`, …); **`vox research search <query>`** full-text search over past research artifacts; **`vox research probe [query] [--provider P] [--json]`** sends a live query to the search providers and reports status, latency and remediation; **`vox research flag <session> --url <u> [--defect D] [--notes …]`** marks a cited source misleading (penalizes its domain in later retrieval); **`vox research publish <session> [--slug S]`** writes the session report as a local draft to `.vox/cache/research-drafts/<slug>-2026.md` (gitignored; it enters `docs/src` only through a reviewed PR) |
+| `repair` | default | `commands::repair` |
+| `review` | `coderabbit` | `commands::review` |
+| `rollback` | default | `commands::rollback` |
 | `db` | default | `commands::db` + `commands::db_cli` dispatch |
 | `scientia` | default | `commands::scientia` (facade over `db_cli` research helpers) |
+| `speech` | default | delegated to `vox-ml-cli` (alias: `oratio`) |
+| `stop` | `dei` | `commands::dei::stop` |
 | `telemetry` | default | `commands::telemetry` (optional upload queue; ADR 023) |
+| `term` | default | `vox_term::app::run` |
 | `openclaw` | `ars` | `commands::openclaw` |
 | `skill` | `ars` | `commands::extras::skill_cmd` |
 | `gamify` | `extras-ludus` | `commands::extras::ludus_cli` |
 | `stub-check` | `stub-check` | `commands::stub_check` |
 | `ci` | default | `commands::ci` |
 | `commands` | default | `command_catalog` |
+| `explain` | default | `commands::capability_cmds` |
+| `features` | default | `commands::capability_cmds` |
 | `mens` | `mens-base` or `gpu` | `commands::mens` |
 | `populi` | `populi` | `commands::populi_cli` |
 | `oratio` | `oratio` | `commands::oratio_cmd` |
@@ -931,7 +1036,6 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `repair` | default | `commands::repair` |
 | `rollback` | default | `commands::rollback` |
 | `term` | default | `vox_term::app::run` |
-| `wasm` | `script-wasi` | `commands::wasm` |
 
 ### `vox-compilerd` RPC (not CLI variants)
 
@@ -945,7 +1049,7 @@ Daemon dispatch lives in [`crates/vox-cli/src/compilerd.rs`](../../../crates/vox
 - Run (TCP): `VOX_ORCHESTRATOR_DAEMON_SOCKET=127.0.0.1:9745 target/debug/vox-orchestrator-d`
 - Run (stdio): `VOX_ORCHESTRATOR_DAEMON_SOCKET=stdio target/debug/vox-orchestrator-d`
 
-When using with MCP, set MCP-side `VOX_ORCHESTRATOR_DAEMON_SOCKET` to the same TCP peer and optionally enable pilots with `VOX_MCP_ORCHESTRATOR_RPC_READS=1` / `VOX_MCP_ORCHESTRATOR_RPC_WRITES=1`. Repo-id mismatch warning/error behavior is controlled by `VOX_MCP_ORCHESTRATOR_DAEMON_REPOSITORY_ID_STRICT`.
+When using with MCP, set MCP-side `VOX_ORCHESTRATOR_DAEMON_SOCKET` to the same TCP peer and optionally enable the status-tool read pilot with `VOX_MCP_ORCHESTRATOR_STATUS_TOOL_RPC=1` (or its umbrella `VOX_MCP_ORCHESTRATOR_RPC_READS=1`; see [Environment variables](env-vars.md)). Repo-id mismatch warning/error behavior is controlled by `VOX_MCP_ORCHESTRATOR_DAEMON_REPOSITORY_ID_STRICT`.
 
 ### Removed / non-compiled trees (historical)
 

@@ -9,6 +9,7 @@ import {
   CHILD_ORDER_BY_PARENT,
   orderedChildren,
   labelForNavKey,
+  childLabelFor,
 } from './navigation';
 import { SURFACE_REGISTRY } from '../generated/surfaceRegistry.generated';
 
@@ -81,8 +82,12 @@ describe('legacy alias redirects (deep-links must not break)', () => {
   it('search resolves to memory', () => {
     expect(resolveNavigation('search')).toEqual({ parent: 'knowledge', child: 'memory' });
   });
+  it('coverage resolves to explorer', () => {
+    expect(resolveNavigation('coverage')).toEqual({ parent: 'explorer', child: 'explorer' });
+  });
   it('exposes the alias map for callers that seed presets', () => {
     expect(LEGACY_VIEW_ALIASES['discovery-inbox']).toBe('activity');
+    expect(LEGACY_VIEW_ALIASES['coverage']).toBe('explorer');
   });
 });
 
@@ -120,6 +125,15 @@ describe('unchanged plumbing', () => {
     expect(parseViewFromLocation({ hash: '#view=console', search: '' })).toBe('console');
     expect(parseViewFromLocation({ hash: '', search: '?view=memory' })).toBe('memory');
     expect(parseViewFromLocation({ hash: '', search: '' })).toBeNull();
+  });
+  it('child rows use the child label, not the parent override (runs reads Runs under Review)', () => {
+    expect(childLabelFor('runs')).toBe('Runs');
+    expect(labelForNavKey('runs')).toBe('Review');
+    expect(childLabelFor('runs', 'la')).toBe('Cursus');
+  });
+  it('breadcrumbs name the runs child "Runs" under the "Review" parent, in either language', () => {
+    expect(breadcrumbsForView('runs').map(c => c.label)).toEqual(['Review', 'Runs']);
+    expect(breadcrumbsForView('runs', 'la').map(c => c.label)).toEqual(['Recensio', 'Cursus']);
   });
   it('breadcrumbsForView includes parent and child', () => {
     expect(breadcrumbsForView('console').map(c => c.key)).toEqual(['workspace', 'console']);

@@ -82,6 +82,83 @@ impl RsTrainingPair {
         });
         v.to_string()
     }
+
+    /// Gate this extracted Rust item through [`verify_rust_item_admission`] and convert to
+    /// [`crate::training::TrainingRecordV2`] when AST parse and quality checks pass (`CORPUS-03`).
+    #[must_use]
+    pub fn to_training_record_v2(&self) -> Option<crate::training::TrainingRecordV2> {
+        let receipt = verify_rust_item_admission(&self.response);
+        if !receipt.passed {
+            return None;
+        }
+        let prov = crate::training::RecordProvenance {
+            origin: "repo_rust".to_string(),
+            source_id: self.source_path.display().to_string(),
+            task_family: self.category.clone(),
+            difficulty: self.difficulty,
+        };
+        Some(crate::training::TrainingRecordV2::new(
+            crate::training::SpokeKind::RustWorkspace,
+            self.prompt.clone(),
+            "You are a Rust systems engineer working in the Vox workspace.",
+            self.response.clone(),
+            receipt,
+            prov,
+        ))
+    }
+}
+
+/// Deterministic Rust item admission oracle (`CORPUS-03`):
+/// 1. Parses the snippet with `syn::parse_file` to guarantee valid Rust AST syntax.
+/// 2. Rejects unfinished stubs (`todo!`, `unimplemented!`) so Mens never trains on placeholder bodies.
+#[must_use]
+pub fn verify_rust_item_admission(source: &str) -> crate::training::OracleReceipt {
+    use crate::training::{OracleReceipt, SpokeKind};
+
+    let trimmed = source.trim();
+    if trimmed.is_empty() {
+        return OracleReceipt {
+            spoke: SpokeKind::RustWorkspace,
+            passed: false,
+            stage: "empty_check".to_string(),
+            diagnostics: vec!["empty Rust snippet".to_string()],
+            exit_code: Some(1),
+        };
+    }
+
+    if trimmed.contains("todo!(") || trimmed.contains("unimplemented!(") {
+        return OracleReceipt {
+            spoke: SpokeKind::RustWorkspace,
+            passed: false,
+            stage: "quality_stub_filter".to_string(),
+            diagnostics: vec!["Rust snippet contains todo!/unimplemented! stub macro".to_string()],
+            exit_code: Some(1),
+        };
+    }
+
+    match syn::parse_file(trimmed) {
+        Ok(ast) if !ast.items.is_empty() => OracleReceipt {
+            spoke: SpokeKind::RustWorkspace,
+            passed: true,
+            stage: "syn_ast+quality".to_string(),
+            diagnostics: Vec::new(),
+            exit_code: Some(0),
+        },
+        Ok(_) => OracleReceipt {
+            spoke: SpokeKind::RustWorkspace,
+            passed: false,
+            stage: "syn_ast".to_string(),
+            diagnostics: vec!["Rust snippet parsed to 0 top-level items".to_string()],
+            exit_code: Some(1),
+        },
+        Err(err) => OracleReceipt {
+            spoke: SpokeKind::RustWorkspace,
+            passed: false,
+            stage: "syn_ast".to_string(),
+            diagnostics: vec![err.to_string()],
+            exit_code: Some(1),
+        },
+    }
 }
 
 /// Infer a corpus category tag from a crate path component.
@@ -100,6 +177,17 @@ fn infer_category(path: &Path) -> String {
 fn is_cfg_test_attr(line: &str) -> bool {
     let t = line.trim();
     t == "#[cfg(test)]" || t.starts_with("#[cfg(test,") || t.starts_with("#[cfg(any(test")
+}
+
+/// Generator output (`*.generated.rs`, `archive/`, `patches/`) is not authored code
+/// and repeats boilerplate (e.g. one `try_from` 180 times), so it is never training data.
+fn is_generated_rs(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|n| n.to_str())
+        .is_some_and(|n| n.ends_with(".generated.rs"))
+        || path
+            .components()
+            .any(|c| matches!(c.as_os_str().to_str(), Some("archive" | "patches")))
 }
 
 /// Return true if the line (trimmed) is a `#[test]` attribute.
@@ -365,7 +453,7 @@ fn walk_dir_rs(
                 continue;
             }
             walk_dir_rs(&path, config, out)?;
-        } else if path.extension().is_some_and(|e| e == "rs") {
+        } else if path.extension().is_some_and(|e| e == "rs") && !is_generated_rs(&path) {
             let category = infer_category(&path);
             match extract_from_file(&path, config, &category) {
                 Ok(mut pairs) => {
@@ -484,6 +572,20 @@ mod tests {
     }
 
     #[test]
+    fn generated_and_vendored_rust_is_excluded() {
+        assert!(is_generated_rs(Path::new(
+            "crates/vox-research-events/src/schema_types.generated.rs"
+        )));
+        assert!(is_generated_rs(Path::new(
+            "patches/qlora-rs-1.0.5/src/training.rs"
+        )));
+        assert!(is_generated_rs(Path::new("archive/old/src/lib.rs")));
+        assert!(!is_generated_rs(Path::new(
+            "crates/vox-publisher/src/archive_run.rs"
+        )));
+    }
+
+    #[test]
     fn infers_category_from_crate_path() {
         let p = Path::new("crates/vox-compiler/src/parser/grammar.rs");
         assert_eq!(infer_category(p), "compiler");
@@ -508,5 +610,19 @@ mod tests {
             "generic prompt should contain fn name: {}",
             pairs[0].prompt
         );
+        let rec = pairs[0]
+            .to_training_record_v2()
+            .expect("valid Rust fn should convert to TrainingRecordV2");
+        assert!(rec.verify_integrity());
+        assert_eq!(rec.spoke, crate::training::SpokeKind::RustWorkspace);
+    }
+
+    #[test]
+    fn rust_admission_rejects_todo_stubs_and_syntax_errors() {
+        let stub = "pub fn incomplete(x: i32) -> i32 {\n    todo!(\"finish later\")\n}";
+        assert!(!verify_rust_item_admission(stub).passed);
+
+        let broken = "pub fn broken( -> i32 { 1 }";
+        assert!(!verify_rust_item_admission(broken).passed);
     }
 }

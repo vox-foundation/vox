@@ -347,10 +347,6 @@
     ],
     [
       "vox-cli",
-      "vox-wasm-engine"
-    ],
-    [
-      "vox-cli",
       "vox-workflow-runtime"
     ],
     [
@@ -471,10 +467,6 @@
     ],
     [
       "vox-cli-research",
-      "vox-config"
-    ],
-    [
-      "vox-cli-research",
       "vox-db"
     ],
     [
@@ -515,10 +507,6 @@
     ],
     [
       "vox-cli-review",
-      "vox-config"
-    ],
-    [
-      "vox-cli-review",
       "vox-corpus"
     ],
     [
@@ -544,10 +532,6 @@
     [
       "vox-cli-review",
       "vox-secrets"
-    ],
-    [
-      "vox-cli-share",
-      "vox-config"
     ],
     [
       "vox-cli-share",
@@ -619,10 +603,6 @@
     ],
     [
       "vox-codegen-ts",
-      "vox-config"
-    ],
-    [
-      "vox-codegen-ts",
       "vox-deploy-codegen"
     ],
     [
@@ -644,6 +624,10 @@
     [
       "vox-compiler",
       "vox-config"
+    ],
+    [
+      "vox-compiler",
+      "vox-crypto"
     ],
     [
       "vox-compiler",
@@ -819,10 +803,6 @@
     ],
     [
       "vox-effort-audit",
-      "vox-secrets"
-    ],
-    [
-      "vox-effort-audit",
       "vox-telemetry"
     ],
     [
@@ -848,6 +828,10 @@
     [
       "vox-forge",
       "vox-http-client"
+    ],
+    [
+      "vox-gamify",
+      "vox-actor-runtime"
     ],
     [
       "vox-gamify",
@@ -1007,10 +991,6 @@
     ],
     [
       "vox-langtool",
-      "vox-foundation"
-    ],
-    [
-      "vox-langtool",
       "vox-lsp"
     ],
     [
@@ -1020,10 +1000,6 @@
     [
       "vox-llm-egress",
       "vox-openai"
-    ],
-    [
-      "vox-lsp",
-      "vox-bounded-fs"
     ],
     [
       "vox-lsp",
@@ -1047,6 +1023,10 @@
     ],
     [
       "vox-mesh-policy",
+      "vox-mesh-types"
+    ],
+    [
+      "vox-mesh-transport",
       "vox-mesh-types"
     ],
     [
@@ -1096,6 +1076,10 @@
     [
       "vox-ml-cli",
       "vox-foundation"
+    ],
+    [
+      "vox-ml-cli",
+      "vox-git"
     ],
     [
       "vox-ml-cli",
@@ -1211,7 +1195,15 @@
     ],
     [
       "vox-orchestrator",
+      "vox-mesh-transport"
+    ],
+    [
+      "vox-orchestrator",
       "vox-mesh-types"
+    ],
+    [
+      "vox-orchestrator",
+      "vox-orchestrator-models"
     ],
     [
       "vox-orchestrator",
@@ -1303,6 +1295,10 @@
     ],
     [
       "vox-orchestrator-mcp",
+      "vox-cli-core"
+    ],
+    [
+      "vox-orchestrator-mcp",
       "vox-code-audit"
     ],
     [
@@ -1364,10 +1360,6 @@
     [
       "vox-orchestrator-mcp",
       "vox-mcp-registry"
-    ],
-    [
-      "vox-orchestrator-mcp",
-      "vox-mesh-transport"
     ],
     [
       "vox-orchestrator-mcp",
@@ -1451,6 +1443,10 @@
     ],
     [
       "vox-orchestrator-mcp",
+      "vox-similarity"
+    ],
+    [
+      "vox-orchestrator-mcp",
       "vox-skill-discovery"
     ],
     [
@@ -1464,6 +1460,22 @@
     [
       "vox-orchestrator-mcp",
       "vox-telemetry"
+    ],
+    [
+      "vox-orchestrator-models",
+      "vox-bounded-fs"
+    ],
+    [
+      "vox-orchestrator-models",
+      "vox-config"
+    ],
+    [
+      "vox-orchestrator-models",
+      "vox-db"
+    ],
+    [
+      "vox-orchestrator-models",
+      "vox-secrets"
     ],
     [
       "vox-orchestrator-queue",
@@ -1488,10 +1500,6 @@
     [
       "vox-orchestrator-test-helpers",
       "vox-orchestrator-types"
-    ],
-    [
-      "vox-package",
-      "vox-compiler"
     ],
     [
       "vox-package",
@@ -1534,16 +1542,24 @@
       "vox-telemetry"
     ],
     [
+      "vox-plugin-mens-candle-core",
+      "vox-db"
+    ],
+    [
+      "vox-plugin-mens-candle-core",
+      "vox-hf-layout"
+    ],
+    [
+      "vox-plugin-mens-candle-core",
+      "vox-tensor"
+    ],
+    [
       "vox-plugin-mens-candle-cuda",
       "vox-compiler"
     ],
     [
       "vox-plugin-mens-candle-cuda",
       "vox-config"
-    ],
-    [
-      "vox-plugin-mens-candle-cuda",
-      "vox-db"
     ],
     [
       "vox-plugin-mens-candle-cuda",
@@ -1556,6 +1572,10 @@
     [
       "vox-plugin-mens-candle-cuda",
       "vox-plugin-api"
+    ],
+    [
+      "vox-plugin-mens-candle-cuda",
+      "vox-plugin-mens-candle-core"
     ],
     [
       "vox-plugin-mens-candle-cuda",
@@ -1575,10 +1595,6 @@
     ],
     [
       "vox-plugin-mens-candle-metal",
-      "vox-db"
-    ],
-    [
-      "vox-plugin-mens-candle-metal",
       "vox-eval"
     ],
     [
@@ -1588,6 +1604,10 @@
     [
       "vox-plugin-mens-candle-metal",
       "vox-plugin-api"
+    ],
+    [
+      "vox-plugin-mens-candle-metal",
+      "vox-plugin-mens-candle-core"
     ],
     [
       "vox-plugin-mens-candle-metal",
@@ -1743,10 +1763,6 @@
     ],
     [
       "vox-populi",
-      "vox-compiler"
-    ],
-    [
-      "vox-populi",
       "vox-config"
     ],
     [
@@ -1772,10 +1788,6 @@
     [
       "vox-populi",
       "vox-foundation"
-    ],
-    [
-      "vox-populi",
-      "vox-grammar-export"
     ],
     [
       "vox-populi",
@@ -1888,6 +1900,10 @@
     [
       "vox-research-shim",
       "vox-orchestrator-types"
+    ],
+    [
+      "vox-research-shim",
+      "vox-publisher"
     ],
     [
       "vox-research-shim",
@@ -2131,6 +2147,10 @@
     ],
     [
       "vox-workflow-runtime",
+      "vox-mesh-transport"
+    ],
+    [
+      "vox-workflow-runtime",
       "vox-populi"
     ],
     [
@@ -2139,6 +2159,41 @@
     ]
   ],
   "exceptions": [
+    {
+      "from": "vox-research-shim",
+      "to": "vox-compiler",
+      "reason": "polyglot_sandbox::verify_vox_in_sandbox parse-checks Vox source with vox_compiler::lexer/parser; no narrower parser crate exists and vox-compiler is already in the shim's graph via vox-orchestrator",
+      "date": "2026-09-27",
+      "authorized_by": "user (explicit chat approval, 2026-09-27)"
+    },
+    {
+      "from": "vox-gui",
+      "to": "vox-research-shim",
+      "reason": "SandboxReplModal Tauri command verifies user code via vox_research_shim::research::domain::polyglot_sandbox::verify_in_polyglot_sandbox (same-layer L4)",
+      "date": "2026-09-27",
+      "authorized_by": "user (explicit chat approval, 2026-09-27)"
+    },
+    {
+      "from": "vox-plugin-host",
+      "to": "vox-secrets",
+      "reason": "workspace_local_plugin_source reads VOX_WORKSPACE_ROOT via vox_secrets::resolve_secret(SecretId::VoxWorkspaceRoot) instead of a direct std::env::var, Clavis migration of the direct env read",
+      "date": "2026-09-27",
+      "authorized_by": "user (explicit chat approval, 2026-09-27)"
+    },
+    {
+      "from": "voxup",
+      "to": "vox-secrets",
+      "reason": "channel::make_client reads the forge auth token via vox_secrets::resolve_secret(SecretId::ForgeToken) instead of direct std::env::var(\"GITHUB_TOKEN\")/(\"GH_TOKEN\") reads, Clavis migration of the direct env read",
+      "date": "2026-09-27",
+      "authorized_by": "user (explicit chat approval, 2026-09-27)"
+    },
+    {
+      "from": "vox-orchestrator",
+      "to": "vox-mcp-registry",
+      "reason": "ToolReceiptLedger::issue_intent fails closed on tool names absent from vox_mcp_registry::TOOL_REGISTRY, dead-crate wire-up plan (phase 2, REQ-dead-crate-wire-up)",
+      "date": "2026-09-25",
+      "authorized_by": "user (explicit chat approval, 2026-09-25)"
+    },
     {
       "from": "vox-cli",
       "to": "vox-oauth-pkce",
@@ -2376,6 +2431,76 @@
       "reason": "grandfathered at 2026-07-03 bootstrap (pre-existing upward edge; Phase 2 decoupling target)",
       "date": "2026-07-03",
       "authorized_by": "brbrainerd (bootstrap grandfather, plan-approved)"
+    },
+    {
+      "from": "vox-audit",
+      "to": "vox-http-client",
+      "reason": "OpenRouterPanelClient::complete now builds its Authorization header via vox_http_client::bearer_auth_header instead of a hand-rolled format!, which also marks the header sensitive",
+      "date": "2026-09-27",
+      "authorized_by": "user (explicit chat approval, 2026-09-27)"
+    },
+    {
+      "from": "vox-gui",
+      "to": "vox-db-types",
+      "reason": "GUI citation-misguidance flagging IPC (commands/research.rs) takes vox_db_types::RecordMisguidanceParams / ResearchDefectClass; added 0d999cbeb. L4 -> L0 types crate, the narrowest dependency available.",
+      "date": "2026-09-22",
+      "authorized_by": "user (explicit chat approval, 2026-09-22)"
+    },
+    {
+      "from": "vox-gui",
+      "to": "vox-research-shim",
+      "reason": "GUI SandboxReplModal backend (commands/research.rs) calls research::domain::polyglot_sandbox::verify_in_polyglot_sandbox; added c4a4b700f. Same layer (L4).",
+      "date": "2026-09-22",
+      "authorized_by": "user (explicit chat approval, 2026-09-22)"
+    },
+    {
+      "from": "vox-research-shim",
+      "to": "vox-compiler",
+      "reason": "polyglot sandbox parses Vox snippets with vox_compiler::lexer/parser (polyglot_sandbox.rs); added bcc057f09. L4 -> L2, downward.",
+      "date": "2026-09-22",
+      "authorized_by": "user (explicit chat approval, 2026-09-22)"
+    },
+    {
+      "from": "vox-doc-pipeline",
+      "to": "vox-kb-facets",
+      "reason": "Facet lint reads vox_kb_facets::Facets, the taxonomy loader, the summary/provenance validators and the facet backlog types (KB Phase 4, D-09). L3 -> L0, downward.",
+      "date": "2026-10-10",
+      "authorized_by": "user (explicit chat approval, 2026-10-10)"
+    },
+    {
+      "from": "vox-doc-pipeline",
+      "to": "vox-diagram",
+      "reason": "Doc lint validates vox-diagram fences with vox_diagram::fence::extract and vox_diagram::check and counts legacy mermaid fences for the shrink-only baseline; vox_doc_pipeline re-exports vox_diagram as diagram so vox-cli needs no further edge (VoxDiagram Phase 87, DOCS-01/DOCS-02). L3 -> L2, downward.",
+      "date": "2026-10-16",
+      "authorized_by": "user (explicit chat approval, 2026-10-16)"
+    },
+    {
+      "from": "vox-orchestrator-mcp",
+      "to": "vox-diagram",
+      "reason": "The vox_validate_diagram MCP tool calls vox_diagram::validate (check, fmt, Mermaid import and export, SVG render), so the MCP tool, doc lint and the vox diagram CLI share one deterministic envelope and the MCP crate carries no copy of the parser (VoxDiagram Phase 88, TOOL-01). L3 -> L2, downward.",
+      "date": "2026-10-16",
+      "authorized_by": "user (explicit chat approval, 2026-10-16)"
+    },
+    {
+      "from": "vox-search",
+      "to": "vox-kb-facets",
+      "reason": "Library indexer reads Facets for the card facet lines and the shared frontmatter splitter; search applies Taxonomy altLabel query expansion (KB Phase 4, D-09). L3 -> L0, downward.",
+      "date": "2026-10-10",
+      "authorized_by": "user (explicit chat approval, 2026-10-10)"
+    },
+    {
+      "from": "vox-corpus",
+      "to": "vox-kb-facets",
+      "reason": "MENS doc extractor calls parse_facets, effective_training_eligible and strip_summary_blocks (KB Phase 4, D-09). L3 -> L0, downward.",
+      "date": "2026-10-10",
+      "authorized_by": "user (explicit chat approval, 2026-10-10)"
+    },
+    {
+      "from": "vox-orchestrator-d",
+      "to": "vox-terminal-core",
+      "reason": "TermDispatch serves the term.* daemon methods (daemon-hosted terminal sessions, design: docs/src/architecture/terminal-session-host-design-2026.md task H4) over vox-terminal-core::LocalHost; L5 -> L3, downward. Lives in the daemon crate so vox-terminal-core needs no vox-foundation edge.",
+      "date": "2026-10-09",
+      "authorized_by": "user (explicit chat approval, 2026-10-08: \"then start approved edge\")"
     }
   ]
 }

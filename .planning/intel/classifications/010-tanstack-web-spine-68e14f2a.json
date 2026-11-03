@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/010-tanstack-web-spine.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 010 — TanStack as the Vox web spine",
+  "summary": "Adopt TanStack React Router for routing codegen, plan TanStack Start for SSR with Axum reverse-proxy topology.",
+  "scope": ["TanStack Router", "React", "Vite", "routing", "SSR", "vox-codegen", "Axum", "code generation"],
+  "cross_refs": ["https://tanstack.com/router/latest/docs/installation/with-vite", "https://tanstack.com/start/latest/docs/framework/react/overview", "../reference/vox-web-stack.md", "../reference/vox-fullstack-artifacts.md"],
+  "locked": true,
+  "precedence": null
+}

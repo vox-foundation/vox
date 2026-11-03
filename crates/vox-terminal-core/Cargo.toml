@@ -15,6 +15,8 @@ serde        = { workspace = true, features = ["derive"] }
 tokio        = { workspace = true, features = ["sync", "rt", "macros"] }
 portable-pty = { workspace = true }
 anyhow       = { workspace = true }
+async-trait  = { workspace = true }
+base64       = { workspace = true }
 # vox-compiler is ~47k LoC; included directly for now.
 # TODO: make optional behind vox-lang feature once feature-cfg wiring is done.
 vox-compiler     = { path = "../vox-compiler" }

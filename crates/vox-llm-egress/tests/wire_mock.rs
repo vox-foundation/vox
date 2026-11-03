@@ -43,6 +43,7 @@ async fn chat_once_sends_bearer_headers_and_parses_usage() {
         tool_calls: None,
         tool_call_id: None,
         name: None,
+        content_parts: None,
     }];
     let out = chat_once(&r, &msgs, &ChatParams::default())
         .await
@@ -56,6 +57,37 @@ async fn chat_once_sends_bearer_headers_and_parses_usage() {
         "response with no tool_calls field must parse as None (no regression for \
          existing non-tool callers like ghost_text/inline_edit/plan)"
     );
+}
+
+/// A reasoning model that spends its whole budget thinking returns empty `content`;
+/// the stop cause and the reasoning must survive so callers can tell why.
+#[tokio::test]
+async fn chat_once_keeps_finish_reason_and_reasoning_when_content_is_empty() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "model": "test/model",
+            "choices": [{
+                "finish_reason": "length",
+                "message": {"role": "assistant", "content": "", "reasoning": "let me think"}
+            }],
+            "usage": {
+                "prompt_tokens": 5,
+                "completion_tokens": 4096,
+                "completion_tokens_details": {"reasoning_tokens": 4090}
+            }
+        })))
+        .mount(&server)
+        .await;
+
+    let r = req(format!("{}/chat/completions", server.uri()));
+    let out = chat_once(&r, &[], &ChatParams::default())
+        .await
+        .expect("ok");
+    assert_eq!(out.content, "");
+    assert_eq!(out.finish_reason.as_deref(), Some("length"));
+    assert_eq!(out.reasoning_tokens, 4090);
+    assert_eq!(out.reasoning.as_deref(), Some("let me think"));
 }
 
 #[tokio::test]
@@ -186,6 +218,51 @@ async fn chat_once_serializes_tools() {
     assert_eq!(out.content, "ok");
 }
 
+#[tokio::test]
+async fn chat_once_sends_seed_when_set() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(body_partial_json(serde_json::json!({"seed": 1234})))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "choices": [{"message": {"content": "ok"}}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1}
+        })))
+        .mount(&server)
+        .await;
+    let r = req(format!("{}/chat/completions", server.uri()));
+    let params = ChatParams {
+        seed: Some(1234),
+        ..Default::default()
+    };
+    let out = chat_once(&r, &[], &params)
+        .await
+        .expect("seed request must match + succeed");
+    assert_eq!(out.content, "ok");
+}
+
+#[tokio::test]
+async fn chat_once_omits_seed_when_none() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "choices": [{"message": {"content": "ok"}}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1}
+        })))
+        .mount(&server)
+        .await;
+    let r = req(format!("{}/chat/completions", server.uri()));
+    chat_once(&r, &[], &ChatParams::default())
+        .await
+        .expect("ok");
+    let reqs = server.received_requests().await.expect("recording on");
+    assert_eq!(reqs.len(), 1);
+    let body: serde_json::Value = serde_json::from_slice(&reqs[0].body).expect("json body");
+    assert!(
+        body.get("seed").is_none(),
+        "None seed must not be serialized"
+    );
+}
+
 /// Task 1.3b: a full assistant-tool_calls + tool-result turn must reach the wire with
 /// `function.arguments` re-serialized as a JSON **string** (the inverse of
 /// `EgressToolCall::arguments`'s eagerly-parsed `Value`), and the tool-result message's
@@ -232,6 +309,7 @@ async fn chat_once_serializes_assistant_tool_calls_and_tool_result_message() {
             }]),
             tool_call_id: None,
             name: None,
+            content_parts: None,
         },
         ChatMessage {
             role: "tool".into(),
@@ -239,12 +317,63 @@ async fn chat_once_serializes_assistant_tool_calls_and_tool_result_message() {
             tool_calls: None,
             tool_call_id: Some("call_1".into()),
             name: Some("get_weather".into()),
+            content_parts: None,
         },
     ];
     let out = chat_once(&r, &msgs, &ChatParams::default())
         .await
         .expect("request must match the mock's exact tool-call wire shape");
     assert_eq!(out.content, "It's 72F and sunny in Paris.");
+}
+
+#[tokio::test]
+async fn chat_once_sends_image_url_array_content() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/chat/completions"))
+        .and(body_partial_json(serde_json::json!({
+            "messages": [
+                {
+                    "role": "tool",
+                    "content": "{\"ok\":true}",
+                    "tool_call_id": "c1"
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "Latest browser frame from the preceding tool results."
+                        },
+                        {"type": "image_url", "image_url": {"url": "data:image/png;base64,aaa"}}
+                    ]
+                }
+            ]
+        })))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "model": "test/model",
+            "choices": [{"message": {"role": "assistant", "content": "saw"}}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1}
+        })))
+        .mount(&server)
+        .await;
+    let r = req(format!("{}/chat/completions", server.uri()));
+    let msgs = vec![ChatMessage {
+        role: "tool".into(),
+        content: "{\"ok\":true}".into(),
+        tool_calls: None,
+        tool_call_id: Some("c1".into()),
+        name: None,
+        content_parts: Some(vec![vox_llm_egress::LlmContentPart::ImageUrl {
+            image_url: vox_llm_egress::LlmImageUrl {
+                url: "data:image/png;base64,aaa".into(),
+            },
+        }]),
+    }];
+    let out = chat_once(&r, &msgs, &ChatParams::default())
+        .await
+        .expect("ok");
+    assert_eq!(out.content, "saw");
 }
 
 #[tokio::test]

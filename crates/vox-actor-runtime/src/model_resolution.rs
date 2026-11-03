@@ -1,5 +1,5 @@
 //! Chat-route → [`crate::llm::LlmConfig`] conversion (`chat_route_to_llm_config`),
-//! telemetry labels (`route_telemetry_labels`), and [`RouteResolutionInput`] model
+//! telemetry labels (`route_telemetry_labels`), and `RouteResolutionInput` model
 //! preferences for the research cascade builders.
 //!
 //! The former 7-way provider-route resolver (`resolve_chat_provider_route`) was
@@ -80,6 +80,7 @@ pub fn chat_route_to_llm_config(route: &ChatProviderRouteKind) -> LlmConfig {
             telemetry_trace_id: None,
             telemetry_attempt_number: None,
             telemetry_skip_interaction: false,
+            seed: None,
         },
         ChatProviderRouteKind::PopuliLocal { base_url, model }
         | ChatProviderRouteKind::PopuliMesh { base_url, model } => {
@@ -104,6 +105,7 @@ pub fn chat_route_to_llm_config(route: &ChatProviderRouteKind) -> LlmConfig {
                 telemetry_trace_id: None,
                 telemetry_attempt_number: None,
                 telemetry_skip_interaction: false,
+                seed: None,
             }
         }
         ChatProviderRouteKind::HuggingFaceRouter(ep) => LlmConfig {
@@ -126,6 +128,7 @@ pub fn chat_route_to_llm_config(route: &ChatProviderRouteKind) -> LlmConfig {
             telemetry_trace_id: None,
             telemetry_attempt_number: None,
             telemetry_skip_interaction: false,
+            seed: None,
         },
         ChatProviderRouteKind::HuggingFaceDedicated(ep) => LlmConfig {
             provider: "hf_endpoint".to_string(),
@@ -147,6 +150,7 @@ pub fn chat_route_to_llm_config(route: &ChatProviderRouteKind) -> LlmConfig {
             telemetry_trace_id: None,
             telemetry_attempt_number: None,
             telemetry_skip_interaction: false,
+            seed: None,
         },
         ChatProviderRouteKind::OpenRouter { model } => LlmConfig::openrouter(model.clone()),
     }

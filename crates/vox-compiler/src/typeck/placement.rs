@@ -37,6 +37,9 @@ fn is_native_capability(cap: &HirCapability) -> bool {
             | HirCapability::Spawn
             | HirCapability::GpuCompute
             | HirCapability::Vcs
+            | HirCapability::Spend
+            | HirCapability::Write
+            | HirCapability::ExternalApi
             | HirCapability::Mcp(_)
     )
 }

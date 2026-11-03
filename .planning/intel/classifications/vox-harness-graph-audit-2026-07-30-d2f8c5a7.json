@@ -1,0 +1,28 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/vox-harness-graph-audit-2026-07-30.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Vox Harness Audit — Graph-Backed (2026-07-30)",
+  "summary": "Graphify-backed audit of Vox agent harness against Claude Code baseline: chat window has no agent loop, skill activation is unwired from GUI, and subsystems are structurally disconnected.",
+  "scope": [
+    "harness audit",
+    "structural disconnection",
+    "skill activation",
+    "model routing",
+    "chat quality",
+    "code graph",
+    "29,315 nodes",
+    "27 critical findings"
+  ],
+  "cross_refs": [
+    "docs/src/architecture/claude-code-harness-mechanics-2026-07-30.md",
+    "docs/src/architecture/vox-harness-parity-plan-2026-07-30.md",
+    "docs/src/architecture/orchestrator-gui-dispatch-audit-2026-07-02.md",
+    "crates/vox-gui/src/commands/chat.rs",
+    "crates/vox-orchestrator/",
+    "crates/vox-orchestrator-mcp/"
+  ],
+  "locked": false,
+  "precedence": null
+}

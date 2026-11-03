@@ -1,66 +1,475 @@
 {
   "schema": "vox_mens_bench_manifest_v1",
-  "description": "Heldout benchmark for vox-lang adapter — covers core Vox constructs. Tasks are description-based (no starter file required). Extend with additional tasks as corpus coverage grows.",
+  "description": "Heldout benchmark for vox-lang adapter \u2014 covers core Vox constructs. Tasks are description-based (no starter file required). Expanded 2026-09-12 (Task D3) from 10 to 52 tasks: dropped fn_add, fn_greet, query_list_items, component_button (answers verbatim in training corpus per docs/superpowers/plans/2026-09-12-mens-end-to-end-completion.md L-4); added 15 new hand-authored tasks (verified absent from the repo, which is the source material for the vox-lang training corpus) and all 31 humaneval-vox problems already marked training_eligible: false (contracts/eval/humaneval-vox). Every task now carries an `answer` field so eval-gate/leakage.rs can check bench-answer vs. corpus-completion text n-gram overlap.",
   "benchmarks": [
-    {
-      "id": "fn_add",
-      "category": "function",
-      "description": "define a function named `add` that takes two integer parameters `a` and `b` and returns their sum",
-      "semantic_expected_contains": ["fn add", "return"]
-    },
-    {
-      "id": "fn_greet",
-      "category": "function",
-      "description": "define a function named `greet` that takes a string parameter `name` and returns the string 'Hello, ' concatenated with name",
-      "semantic_expected_contains": ["fn greet", "Hello"]
-    },
     {
       "id": "workflow_fetch_save",
       "category": "workflow",
       "description": "define a workflow named `fetch_and_save` that fetches data from a URL stored in a variable `url` and saves the result to a variable `data`",
-      "semantic_expected_contains": ["workflow fetch_and_save"]
+      "semantic_expected_contains": [
+        "workflow fetch_and_save"
+      ],
+      "answer": "workflow fetch_and_save(url: str) to str {\n    let data = http.get(url)\n    fs.write_file(\"output.txt\", data)\n    return data\n}"
     },
     {
       "id": "action_create_item",
       "category": "action",
       "description": "define an action named `create_item` that takes a string parameter `title` and returns a new record with an `id` and the given `title`",
-      "semantic_expected_contains": ["action create_item"]
+      "semantic_expected_contains": [
+        "action create_item"
+      ],
+      "answer": "action create_item(title: str) to Item {\n    return Item { id: 1, title: title }\n}"
     },
     {
       "id": "action_delete",
       "category": "action",
       "description": "define an action named `delete_item` that takes an integer parameter `id` and returns a boolean indicating success",
-      "semantic_expected_contains": ["action delete_item"]
+      "semantic_expected_contains": [
+        "action delete_item"
+      ],
+      "answer": "action delete_item(id: int) to bool {\n    return true\n}"
     },
     {
       "id": "test_smoke",
       "category": "test",
       "description": "write a test named `smoke` that calls `add(1, 2)` and asserts the result equals 3",
-      "semantic_expected_contains": ["test smoke", "assert"]
-    },
-    {
-      "id": "query_list_items",
-      "category": "query",
-      "description": "define a query named `list_items` that returns a list of items, each with an `id` integer and a `name` string",
-      "semantic_expected_contains": ["query list_items"]
+      "semantic_expected_contains": [
+        "test smoke",
+        "assert"
+      ],
+      "answer": "test smoke {\n    assert(add(1, 2) == 3)\n}"
     },
     {
       "id": "mutation_update",
       "category": "mutation",
       "description": "define a mutation named `update_item` that takes an integer `id` and a string `title` and updates the item with the matching id",
-      "semantic_expected_contains": ["mutation update_item"]
-    },
-    {
-      "id": "component_button",
-      "category": "component",
-      "description": "define a component named `Button` that accepts a string prop `label` and renders a clickable element displaying the label",
-      "semantic_expected_contains": ["component Button"]
+      "semantic_expected_contains": [
+        "mutation update_item"
+      ],
+      "answer": "mutation update_item(id: int, title: str) to str {\n    return \"updated\"\n}"
     },
     {
       "id": "page_index",
       "category": "page",
       "description": "define a page named `IndexPage` with a title 'Home' that displays a heading with the text 'Welcome'",
-      "semantic_expected_contains": ["page IndexPage"]
+      "semantic_expected_contains": [
+        "page IndexPage"
+      ],
+      "answer": "page IndexPage {\n    title: \"Home\"\n    heading(\"Welcome\")\n}"
+    },
+    {
+      "id": "count_multiples_of_3_or_5",
+      "category": "function",
+      "description": "define a function named `count_multiples_of_3_or_5` that takes an integer `n` and returns the sum of all positive multiples of 3 or 5 strictly below `n`",
+      "semantic_expected_contains": [
+        "fn count_multiples_of_3_or_5"
+      ],
+      "answer": "fn count_multiples_of_3_or_5(n: int) to int {\n    let mut sum: int = 0\n    let mut i: int = 1\n    while i < n {\n        if i % 3 == 0 or i % 5 == 0 {\n            sum = sum + i\n        }\n        i = i + 1\n    }\n    return sum\n}"
+    },
+    {
+      "id": "matrix_row_sums",
+      "category": "function",
+      "description": "define a function named `matrix_row_sums` that takes a list of lists of integers `matrix` and returns a list of the sum of each row",
+      "semantic_expected_contains": [
+        "fn matrix_row_sums"
+      ],
+      "answer": "fn matrix_row_sums(matrix: list[list[int]]) to list[int] {\n    let mut sums: list[int] = []\n    let mut i: int = 0\n    while i < matrix.len() {\n        let row: list[int] = matrix[i].unwrap()\n        let mut s: int = 0\n        let mut j: int = 0\n        while j < row.len() {\n            s = s + row[j].unwrap()\n            j = j + 1\n        }\n        sums = sums.push(s)\n        i = i + 1\n    }\n    return sums\n}"
+    },
+    {
+      "id": "matrix_col_sums",
+      "category": "function",
+      "description": "define a function named `matrix_col_sums` that takes a list of lists of integers `matrix` (all rows same length) and returns a list of the sum of each column",
+      "semantic_expected_contains": [
+        "fn matrix_col_sums"
+      ],
+      "answer": "fn matrix_col_sums(matrix: list[list[int]]) to list[int] {\n    let mut sums: list[int] = []\n    let cols: int = matrix[0].unwrap().len()\n    let mut c: int = 0\n    while c < cols {\n        let mut s: int = 0\n        let mut r: int = 0\n        while r < matrix.len() {\n            s = s + matrix[r].unwrap()[c].unwrap()\n            r = r + 1\n        }\n        sums = sums.push(s)\n        c = c + 1\n    }\n    return sums\n}"
+    },
+    {
+      "id": "is_symmetric_matrix",
+      "category": "function",
+      "description": "define a function named `is_symmetric_matrix` that takes a square list of lists of integers `matrix` and returns true if matrix[i][j] equals matrix[j][i] for all i, j",
+      "semantic_expected_contains": [
+        "fn is_symmetric_matrix"
+      ],
+      "answer": "fn is_symmetric_matrix(matrix: list[list[int]]) to bool {\n    let n: int = matrix.len()\n    let mut i: int = 0\n    while i < n {\n        let mut j: int = 0\n        while j < n {\n            if matrix[i].unwrap()[j].unwrap() != matrix[j].unwrap()[i].unwrap() {\n                return false\n            }\n            j = j + 1\n        }\n        i = i + 1\n    }\n    return true\n}"
+    },
+    {
+      "id": "char_histogram",
+      "category": "function",
+      "description": "define a function named `char_histogram` that takes a string `s` and returns a list of (character, count) pairs for every distinct character in `s`",
+      "semantic_expected_contains": [
+        "fn char_histogram"
+      ],
+      "answer": "fn char_histogram(s: str) to list[(str, int)] {\n    let mut keys: list[str] = []\n    let mut counts: list[int] = []\n    let mut i: int = 0\n    while i < s.len() {\n        let ch: str = s.slice(i, i + 1)\n        let mut found: bool = false\n        let mut k: int = 0\n        while k < keys.len() {\n            if keys[k].unwrap() == ch {\n                counts[k] = counts[k].unwrap() + 1\n                found = true\n            }\n            k = k + 1\n        }\n        if not found {\n            keys = keys.push(ch)\n            counts = counts.push(1)\n        }\n        i = i + 1\n    }\n    let mut out: list[(str, int)] = []\n    let mut m: int = 0\n    while m < keys.len() {\n        out = out.push((keys[m].unwrap(), counts[m].unwrap()))\n        m = m + 1\n    }\n    return out\n}"
+    },
+    {
+      "id": "longest_increasing_run",
+      "category": "function",
+      "description": "define a function named `longest_increasing_run` that takes a list of integers `nums` and returns the length of the longest run of strictly increasing consecutive elements",
+      "semantic_expected_contains": [
+        "fn longest_increasing_run"
+      ],
+      "answer": "fn longest_increasing_run(nums: list[int]) to int {\n    if nums.len() == 0 {\n        return 0\n    }\n    let mut best: int = 1\n    let mut cur: int = 1\n    let mut i: int = 1\n    while i < nums.len() {\n        if nums[i].unwrap() > nums[i - 1].unwrap() {\n            cur = cur + 1\n        } else {\n            cur = 1\n        }\n        if cur > best {\n            best = cur\n        }\n        i = i + 1\n    }\n    return best\n}"
+    },
+    {
+      "id": "is_valid_ipv4",
+      "category": "function",
+      "description": "define a function named `is_valid_ipv4` that takes a string `s` and returns true if it is a valid dotted-quad IPv4 address (four dot-separated numbers each between 0 and 255)",
+      "semantic_expected_contains": [
+        "fn is_valid_ipv4"
+      ],
+      "answer": "fn is_valid_ipv4(s: str) to bool {\n    let parts: list[str] = s.split(\".\")\n    if parts.len() != 4 {\n        return false\n    }\n    let mut i: int = 0\n    while i < 4 {\n        let part: str = parts[i].unwrap()\n        if part.len() == 0 {\n            return false\n        }\n        let n: int = int(part)\n        if n < 0 or n > 255 {\n            return false\n        }\n        i = i + 1\n    }\n    return true\n}"
+    },
+    {
+      "id": "string_is_rotation",
+      "category": "function",
+      "description": "define a function named `string_is_rotation` that takes two strings `a` and `b` of equal length and returns true if `b` is a rotation of `a`",
+      "semantic_expected_contains": [
+        "fn string_is_rotation"
+      ],
+      "answer": "fn string_is_rotation(a: str, b: str) to bool {\n    if a.len() != b.len() {\n        return false\n    }\n    let doubled: str = a + a\n    return doubled.contains(b)\n}"
+    },
+    {
+      "id": "balanced_multi_brackets",
+      "category": "function",
+      "description": "define a function named `balanced_multi_brackets` that takes a string `s` containing `()`, `[]`, and `{}` and returns true if every bracket type is properly matched and nested",
+      "semantic_expected_contains": [
+        "fn balanced_multi_brackets"
+      ],
+      "answer": "fn balanced_multi_brackets(s: str) to bool {\n    let mut stack: list[str] = []\n    let mut i: int = 0\n    while i < s.len() {\n        let ch: str = s.slice(i, i + 1)\n        if ch == \"(\" or ch == \"[\" or ch == \"{\" {\n            stack = stack.push(ch)\n        } else if ch == \")\" or ch == \"]\" or ch == \"}\" {\n            if stack.len() == 0 {\n                return false\n            }\n            let top: str = stack[stack.len() - 1].unwrap()\n            let matches: bool = (ch == \")\" and top == \"(\") or (ch == \"]\" and top == \"[\") or (ch == \"}\" and top == \"{\")\n            if not matches {\n                return false\n            }\n            stack = stack.slice(0, stack.len() - 1)\n        }\n        i = i + 1\n    }\n    return stack.len() == 0\n}"
+    },
+    {
+      "id": "count_words_starting_with",
+      "category": "function",
+      "description": "define a function named `count_words_starting_with` that takes a string `s` and a single-character string `letter`, and returns the count of whitespace-separated words in `s` that start with `letter`",
+      "semantic_expected_contains": [
+        "fn count_words_starting_with"
+      ],
+      "answer": "fn count_words_starting_with(s: str, letter: str) to int {\n    let words: list[str] = s.split(\" \")\n    let mut count: int = 0\n    let mut i: int = 0\n    while i < words.len() {\n        let w: str = words[i].unwrap()\n        if w.len() > 0 and w.slice(0, 1) == letter {\n            count = count + 1\n        }\n        i = i + 1\n    }\n    return count\n}"
+    },
+    {
+      "id": "weighted_average",
+      "category": "function",
+      "description": "define a function named `weighted_average` that takes a list of integers `values` and a list of integers `weights` of the same length and returns the weighted average as a float",
+      "semantic_expected_contains": [
+        "fn weighted_average"
+      ],
+      "answer": "fn weighted_average(values: list[int], weights: list[int]) to float {\n    let mut total: float = 0.0\n    let mut weight_sum: float = 0.0\n    let mut i: int = 0\n    while i < values.len() {\n        total = total + (values[i].unwrap() as float) * (weights[i].unwrap() as float)\n        weight_sum = weight_sum + (weights[i].unwrap() as float)\n        i = i + 1\n    }\n    return total / weight_sum\n}"
+    },
+    {
+      "id": "dedupe_case_insensitive",
+      "category": "function",
+      "description": "define a function named `dedupe_case_insensitive` that takes a list of strings `items` and returns a new list with case-insensitive duplicates removed, keeping the first occurrence",
+      "semantic_expected_contains": [
+        "fn dedupe_case_insensitive"
+      ],
+      "answer": "fn dedupe_case_insensitive(items: list[str]) to list[str] {\n    let mut seen: list[str] = []\n    let mut out: list[str] = []\n    let mut i: int = 0\n    while i < items.len() {\n        let lower: str = items[i].unwrap().to_lower()\n        if not seen.contains(lower) {\n            seen = seen.push(lower)\n            out = out.push(items[i].unwrap())\n        }\n        i = i + 1\n    }\n    return out\n}"
+    },
+    {
+      "id": "sum_of_even_indexed",
+      "category": "function",
+      "description": "define a function named `sum_of_even_indexed` that takes a list of integers `nums` and returns the sum of the elements at even indices (0, 2, 4, ...)",
+      "semantic_expected_contains": [
+        "fn sum_of_even_indexed"
+      ],
+      "answer": "fn sum_of_even_indexed(nums: list[int]) to int {\n    let mut sum: int = 0\n    let mut i: int = 0\n    while i < nums.len() {\n        sum = sum + nums[i].unwrap()\n        i = i + 2\n    }\n    return sum\n}"
+    },
+    {
+      "id": "max_consecutive_ones",
+      "category": "function",
+      "description": "define a function named `max_consecutive_ones` that takes a list of integers `bits` (each 0 or 1) and returns the length of the longest run of consecutive 1s",
+      "semantic_expected_contains": [
+        "fn max_consecutive_ones"
+      ],
+      "answer": "fn max_consecutive_ones(bits: list[int]) to int {\n    let mut best: int = 0\n    let mut cur: int = 0\n    let mut i: int = 0\n    while i < bits.len() {\n        if bits[i].unwrap() == 1 {\n            cur = cur + 1\n        } else {\n            cur = 0\n        }\n        if cur > best {\n            best = cur\n        }\n        i = i + 1\n    }\n    return best\n}"
+    },
+    {
+      "id": "interleave_lists",
+      "category": "function",
+      "description": "define a function named `interleave_lists` that takes two lists of integers `a` and `b` of equal length and returns a single list alternating elements from `a` and `b`, starting with `a`",
+      "semantic_expected_contains": [
+        "fn interleave_lists"
+      ],
+      "answer": "fn interleave_lists(a: list[int], b: list[int]) to list[int] {\n    let mut out: list[int] = []\n    let mut i: int = 0\n    while i < a.len() {\n        out = out.push(a[i].unwrap())\n        out = out.push(b[i].unwrap())\n        i = i + 1\n    }\n    return out\n}"
+    },
+    {
+      "id": "humaneval_vox_041_nth_prime",
+      "category": "humaneval-vox",
+      "description": "Return the nth prime number (1-indexed). nth_prime(1) = 2, nth_prime(2) = 3, nth_prime(3) = 5.",
+      "semantic_expected_contains": [
+        "fn nth_prime"
+      ],
+      "answer": "// training_eligible: false\nfn is_prime(x: int) to bool {\n    if x < 2 {\n        return false\n    }\n    let mut i: int = 2\n    while i * i <= x {\n        if x % i == 0 {\n            return false\n        }\n        i = i + 1\n    }\n    return true\n}\n\nfn nth_prime(n: int) to int {\n    let mut count: int = 0\n    let mut candidate: int = 1\n    while count < n {\n        candidate = candidate + 1\n        if is_prime(candidate) {\n            count = count + 1\n        }\n    }\n    return candidate\n}"
+    },
+    {
+      "id": "humaneval_vox_042_reverse_list",
+      "category": "humaneval-vox",
+      "description": "Return a new list with the elements in reverse order.",
+      "semantic_expected_contains": [
+        "fn reverse_list"
+      ],
+      "answer": "// training_eligible: false\nfn reverse_list(xs: list[int]) to list[int] {\n    let mut result: list[int] = []\n    let n: int = xs.len()\n    let mut i: int = n - 1\n    while i >= 0 {\n        match xs[i] {\n            Some(v) => { result.push(v) }\n            None => {}\n        }\n        i = i - 1\n    }\n    return result\n}"
+    },
+    {
+      "id": "humaneval_vox_043_triangle_valid",
+      "category": "humaneval-vox",
+      "description": "Return true if three side lengths (positive integers) can form a valid triangle (each side < sum of the other two).",
+      "semantic_expected_contains": [
+        "fn triangle_valid"
+      ],
+      "answer": "// training_eligible: false\nfn triangle_valid(a: int, b: int, c: int) to bool {\n    return a + b > c and b + c > a and a + c > b\n}"
+    },
+    {
+      "id": "humaneval_vox_044_digital_root",
+      "category": "humaneval-vox",
+      "description": "Compute the digital root of a non-negative integer: repeatedly sum its digits until a single digit remains. digital_root(0) = 0.",
+      "semantic_expected_contains": [
+        "fn digital_root"
+      ],
+      "answer": "// training_eligible: false\nfn sum_digits(n: int) to int {\n    let mut total: int = 0\n    let mut x: int = n\n    while x > 0 {\n        total = total + x % 10\n        x = x / 10\n    }\n    return total\n}\n\nfn digital_root(n: int) to int {\n    if n == 0 {\n        return 0\n    }\n    let mut x: int = n\n    while x >= 10 {\n        x = sum_digits(x)\n    }\n    return x\n}"
+    },
+    {
+      "id": "humaneval_vox_045_caesar_shift",
+      "category": "humaneval-vox",
+      "description": "Apply a Caesar cipher shift of k positions to the string. Uppercase and lowercase letters are shifted within their own range. Non-letter characters are left unchanged. k may be any integer (negative = left shift).",
+      "semantic_expected_contains": [
+        "fn caesar_shift"
+      ],
+      "answer": "// training_eligible: false\nfn caesar_shift(s: str, k: int) to str {\n    let lowers: list[str] = [\"a\",\"b\",\"c\",\"d\",\"e\",\"f\",\"g\",\"h\",\"i\",\"j\",\"k\",\"l\",\"m\",\"n\",\"o\",\"p\",\"q\",\"r\",\"s\",\"t\",\"u\",\"v\",\"w\",\"x\",\"y\",\"z\"]\n    let uppers: list[str] = [\"A\",\"B\",\"C\",\"D\",\"E\",\"F\",\"G\",\"H\",\"I\",\"J\",\"K\",\"L\",\"M\",\"N\",\"O\",\"P\",\"Q\",\"R\",\"S\",\"T\",\"U\",\"V\",\"W\",\"X\",\"Y\",\"Z\"]\n    let mut result: str = \"\"\n    for c in s.chars() {\n        if lowers.contains(c) {\n            let idx: int = ((c.ord() - 97 + k) % 26 + 26) % 26\n            match lowers[idx] {\n                Some(nc) => { result = result + nc }\n                None => {}\n            }\n        } else {\n            if uppers.contains(c) {\n                let idx: int = ((c.ord() - 65 + k) % 26 + 26) % 26\n                match uppers[idx] {\n                    Some(nc) => { result = result + nc }\n                    None => {}\n                }\n            } else {\n                result = result + c\n            }\n        }\n    }\n    return result\n}"
+    },
+    {
+      "id": "humaneval_vox_046_count_primes_up_to",
+      "category": "humaneval-vox",
+      "description": "Return the count of prime numbers in the range [2, n] inclusive. Return 0 if n < 2.",
+      "semantic_expected_contains": [
+        "fn count_primes_up_to"
+      ],
+      "answer": "// training_eligible: false\nfn is_prime(x: int) to bool {\n    if x < 2 {\n        return false\n    }\n    let mut i: int = 2\n    while i * i <= x {\n        if x % i == 0 {\n            return false\n        }\n        i = i + 1\n    }\n    return true\n}\n\nfn count_primes_up_to(n: int) to int {\n    let mut count: int = 0\n    let mut i: int = 2\n    while i <= n {\n        if is_prime(i) {\n            count = count + 1\n        }\n        i = i + 1\n    }\n    return count\n}"
+    },
+    {
+      "id": "humaneval_vox_047_partition_by_sign",
+      "category": "humaneval-vox",
+      "description": "Partition a list of integers into two lists: the first contains non-negative integers (>= 0) in original order, the second contains negative integers in original order. Return as a list of two lists.",
+      "semantic_expected_contains": [
+        "fn partition_by_sign"
+      ],
+      "answer": "// training_eligible: false\nfn partition_by_sign(xs: list[int]) to list[list[int]] {\n    let mut nonneg: list[int] = []\n    let mut neg: list[int] = []\n    for x in xs {\n        if x >= 0 {\n            nonneg.push(x)\n        } else {\n            neg.push(x)\n        }\n    }\n    return [nonneg, neg]\n}"
+    },
+    {
+      "id": "humaneval_vox_048_collatz_length",
+      "category": "humaneval-vox",
+      "description": "Return the number of steps in the Collatz sequence starting from n until reaching 1. n is a positive integer. collatz_length(1) = 0.",
+      "semantic_expected_contains": [
+        "fn collatz_length"
+      ],
+      "answer": "// training_eligible: false\nfn collatz_length(n: int) to int {\n    let mut steps: int = 0\n    let mut x: int = n\n    while x != 1 {\n        if x % 2 == 0 {\n            x = x / 2\n        } else {\n            x = 3 * x + 1\n        }\n        steps = steps + 1\n    }\n    return steps\n}"
+    },
+    {
+      "id": "humaneval_vox_049_merge_sorted",
+      "category": "humaneval-vox",
+      "description": "Given two lists of integers already sorted in non-decreasing order, return a merged list also in non-decreasing order.",
+      "semantic_expected_contains": [
+        "fn merge_sorted"
+      ],
+      "answer": "// training_eligible: false\nfn merge_sorted(xs: list[int], ys: list[int]) to list[int] {\n    let mut result: list[int] = []\n    let mut i: int = 0\n    let mut j: int = 0\n    while i < xs.len() and j < ys.len() {\n        match xs[i] {\n            Some(x) => {\n                match ys[j] {\n                    Some(y) => {\n                        if x <= y {\n                            result.push(x)\n                            i = i + 1\n                        } else {\n                            result.push(y)\n                            j = j + 1\n                        }\n                    }\n                    None => {\n                        result.push(x)\n                        i = i + 1\n                    }\n                }\n            }\n            None => {\n                j = j + 1\n            }\n        }\n    }\n    while i < xs.len() {\n        match xs[i] {\n            Some(v) => { result.push(v) }\n            None => {}\n        }\n        i = i + 1\n    }\n    while j < ys.len() {\n        match ys[j] {\n            Some(v) => { result.push(v) }\n            None => {}\n        }\n        j = j + 1\n    }\n    return result\n}"
+    },
+    {
+      "id": "humaneval_vox_050_selection_sort",
+      "category": "humaneval-vox",
+      "description": "Sort a list of integers in non-decreasing order using selection sort. Return the sorted list (do not modify the input).",
+      "semantic_expected_contains": [
+        "fn selection_sort"
+      ],
+      "answer": "// training_eligible: false\nfn selection_sort(xs: list[int]) to list[int] {\n    let n: int = xs.len()\n    let mut arr: list[int] = []\n    for x in xs {\n        arr.push(x)\n    }\n    let mut i: int = 0\n    while i < n {\n        let mut min_idx: int = i\n        let mut j: int = i + 1\n        while j < n {\n            match arr[j] {\n                Some(vj) => {\n                    match arr[min_idx] {\n                        Some(vm) => {\n                            if vj < vm {\n                                min_idx = j\n                            }\n                        }\n                        None => {}\n                    }\n                }\n                None => {}\n            }\n            j = j + 1\n        }\n        match arr[i] {\n            Some(vi) => {\n                match arr[min_idx] {\n                    Some(vm) => {\n                        arr[i] = vm\n                        arr[min_idx] = vi\n                    }\n                    None => {}\n                }\n            }\n            None => {}\n        }\n        i = i + 1\n    }\n    return arr\n}"
+    },
+    {
+      "id": "humaneval_vox_065_rotate_right",
+      "category": "humaneval-vox",
+      "description": "Rotate the list xs to the right by k positions.\nFor example: rotate_right([1, 2, 3, 4, 5], 2) -> [4, 5, 1, 2, 3].\nIf the list is empty or k is 0, return the list unchanged.\nk may be larger than the list length (use k % len).",
+      "semantic_expected_contains": [
+        "fn rotate_right"
+      ],
+      "answer": "// training_eligible: false\nfn rotate_right(xs: list[int], k: int) to list[int] {\n    let n: int = xs.len()\n    if n == 0 {\n        return xs\n    }\n    let shift: int = k % n\n    if shift == 0 {\n        let mut result: list[int] = []\n        for x in xs {\n            result.push(x)\n        }\n        return result\n    }\n    let mut result: list[int] = []\n    let start: int = n - shift\n    let mut i: int = start\n    while i < n {\n        match xs[i] {\n            Some(v) => { result.push(v) }\n            None => {}\n        }\n        i = i + 1\n    }\n    let mut j: int = 0\n    while j < start {\n        match xs[j] {\n            Some(v) => { result.push(v) }\n            None => {}\n        }\n        j = j + 1\n    }\n    return result\n}"
+    },
+    {
+      "id": "humaneval_vox_066_max_subarray_sum",
+      "category": "humaneval-vox",
+      "description": "Find the maximum sum of any contiguous subarray of xs using Kadane's algorithm.\nIf the list is empty, return 0.\nThe subarray must contain at least one element.",
+      "semantic_expected_contains": [
+        "fn max_subarray_sum"
+      ],
+      "answer": "// training_eligible: false\nfn max_subarray_sum(xs: list[int]) to int {\n    if xs.len() == 0 {\n        return 0\n    }\n    let mut max_sum: int = 0\n    let mut current_sum: int = 0\n    let mut first: bool = true\n    for x in xs {\n        if first {\n            max_sum = x\n            current_sum = x\n            first = false\n        } else {\n            if current_sum + x > x {\n                current_sum = current_sum + x\n            } else {\n                current_sum = x\n            }\n            if current_sum > max_sum {\n                max_sum = current_sum\n            }\n        }\n    }\n    return max_sum\n}"
+    },
+    {
+      "id": "humaneval_vox_067_bubble_sort",
+      "category": "humaneval-vox",
+      "description": "Sort a list of integers in non-decreasing order using bubble sort.\nReturn the sorted list without modifying the original input.",
+      "semantic_expected_contains": [
+        "fn bubble_sort"
+      ],
+      "answer": "// training_eligible: false\nfn bubble_sort(xs: list[int]) to list[int] {\n    let n: int = xs.len()\n    let mut arr: list[int] = []\n    for x in xs {\n        arr.push(x)\n    }\n    let mut i: int = 0\n    while i < n {\n        let mut j: int = 0\n        while j < n - 1 - i {\n            match arr[j] {\n                Some(vj) => {\n                    match arr[j + 1] {\n                        Some(vj1) => {\n                            if vj > vj1 {\n                                arr[j] = vj1\n                                arr[j + 1] = vj\n                            }\n                        }\n                        None => {}\n                    }\n                }\n                None => {}\n            }\n            j = j + 1\n        }\n        i = i + 1\n    }\n    return arr\n}"
+    },
+    {
+      "id": "humaneval_vox_068_insertion_sort",
+      "category": "humaneval-vox",
+      "description": "Sort a list of integers in non-decreasing order using insertion sort.\nReturn the sorted list without modifying the original input.",
+      "semantic_expected_contains": [
+        "fn insertion_sort"
+      ],
+      "answer": "// training_eligible: false\nfn insertion_sort(xs: list[int]) to list[int] {\n    let n: int = xs.len()\n    let mut arr: list[int] = []\n    for x in xs {\n        arr.push(x)\n    }\n    let mut i: int = 1\n    while i < n {\n        match arr[i] {\n            Some(key) => {\n                let mut j: int = i - 1\n                let mut done: bool = false\n                while j >= 0 and not done {\n                    match arr[j] {\n                        Some(vj) => {\n                            if vj > key {\n                                arr[j + 1] = vj\n                                j = j - 1\n                            } else {\n                                done = true\n                            }\n                        }\n                        None => {\n                            done = true\n                        }\n                    }\n                }\n                arr[j + 1] = key\n            }\n            None => {}\n        }\n        i = i + 1\n    }\n    return arr\n}"
+    },
+    {
+      "id": "humaneval_vox_069_binary_search",
+      "category": "humaneval-vox",
+      "description": "Search for target in a sorted list xs using binary search.\nReturn the index of target if found, or -1 if not found.",
+      "semantic_expected_contains": [
+        "fn binary_search"
+      ],
+      "answer": "// training_eligible: false\nfn binary_search(xs: list[int], target: int) to int {\n    let mut lo: int = 0\n    let mut hi: int = xs.len() - 1\n    while lo <= hi {\n        let mid: int = lo + (hi - lo) / 2\n        match xs[mid] {\n            Some(v) => {\n                if v == target {\n                    return mid\n                }\n                if v < target {\n                    lo = mid + 1\n                } else {\n                    hi = mid - 1\n                }\n            }\n            None => {\n                return -1\n            }\n        }\n    }\n    return -1\n}"
+    },
+    {
+      "id": "humaneval_vox_070_count_set_bits",
+      "category": "humaneval-vox",
+      "description": "Count the number of 1 bits (set bits) in the binary representation of non-negative integer n.\nFor example: count_set_bits(5) = 2 because 5 = 0b101 has two 1 bits.\ncount_set_bits(0) = 0.",
+      "semantic_expected_contains": [
+        "fn count_set_bits"
+      ],
+      "answer": "// training_eligible: false\nfn count_set_bits(n: int) to int {\n    let mut count: int = 0\n    let mut x: int = n\n    while x > 0 {\n        if x % 2 == 1 {\n            count = count + 1\n        }\n        x = x / 2\n    }\n    return count\n}"
+    },
+    {
+      "id": "humaneval_vox_071_is_perfect",
+      "category": "humaneval-vox",
+      "description": "Return true if n is a perfect number: a positive integer equal to the sum of its\nproper divisors (all divisors excluding n itself).\nFor example: 6 = 1 + 2 + 3, 28 = 1 + 2 + 4 + 7 + 14.\nReturn false for n <= 1.",
+      "semantic_expected_contains": [
+        "fn is_perfect"
+      ],
+      "answer": "// training_eligible: false\nfn is_perfect(n: int) to bool {\n    if n <= 1 {\n        return false\n    }\n    let mut total: int = 0\n    let mut i: int = 1\n    while i < n {\n        if n % i == 0 {\n            total = total + i\n        }\n        i = i + 1\n    }\n    return total == n\n}"
+    },
+    {
+      "id": "humaneval_vox_072_triangular_number",
+      "category": "humaneval-vox",
+      "description": "Return the nth triangular number, defined as n * (n + 1) / 2.\nFor example: triangular_number(1) = 1, triangular_number(4) = 10, triangular_number(10) = 55.\nAssume n >= 0. Return 0 for n = 0.",
+      "semantic_expected_contains": [
+        "fn triangular_number"
+      ],
+      "answer": "// training_eligible: false\nfn triangular_number(n: int) to int {\n    return n * (n + 1) / 2\n}"
+    },
+    {
+      "id": "humaneval_vox_073_two_sum_exists",
+      "category": "humaneval-vox",
+      "description": "Return true if any two distinct elements in xs sum to target.\n\"Distinct\" means different positions (the same value may be used if it appears at\ntwo different indices). Return false for a list with fewer than 2 elements.",
+      "semantic_expected_contains": [
+        "fn two_sum_exists"
+      ],
+      "answer": "// training_eligible: false\nfn two_sum_exists(xs: list[int], target: int) to bool {\n    let n: int = xs.len()\n    let mut i: int = 0\n    while i < n {\n        let mut j: int = i + 1\n        while j < n {\n            match xs[i] {\n                Some(a) => {\n                    match xs[j] {\n                        Some(b) => {\n                            if a + b == target {\n                                return true\n                            }\n                        }\n                        None => {}\n                    }\n                }\n                None => {}\n            }\n            j = j + 1\n        }\n        i = i + 1\n    }\n    return false\n}"
+    },
+    {
+      "id": "humaneval_vox_074_chunk_list",
+      "category": "humaneval-vox",
+      "description": "Return the first chunk of up to k elements from xs.\nIf xs has fewer than k elements, return all of them.\nIf k <= 0 or xs is empty, return an empty list.",
+      "semantic_expected_contains": [
+        "fn chunk_list"
+      ],
+      "answer": "// training_eligible: false\nfn chunk_list(xs: list[int], k: int) to list[int] {\n    if k <= 0 {\n        return []\n    }\n    let mut result: list[int] = []\n    let mut count: int = 0\n    for x in xs {\n        if count < k {\n            result.push(x)\n            count = count + 1\n        }\n    }\n    return result\n}"
+    },
+    {
+      "id": "humaneval_vox_075_sum_even_squares",
+      "category": "humaneval-vox",
+      "description": "Return the sum of squares of all even numbers from 2 up to n (inclusive).\nFor example: sum_even_squares(6) = 2^2 + 4^2 + 6^2 = 4 + 16 + 36 = 56.\nIf n < 2, return 0.",
+      "semantic_expected_contains": [
+        "fn sum_even_squares"
+      ],
+      "answer": "// training_eligible: false\nfn sum_even_squares(n: int) to int {\n    let mut total: int = 0\n    let mut i: int = 2\n    while i <= n {\n        total = total + i * i\n        i = i + 2\n    }\n    return total\n}"
+    },
+    {
+      "id": "humaneval_vox_098_is_power_of_n",
+      "category": "humaneval-vox",
+      "description": "Write a Vox function is_power_of_n(x: int, base: int) to bool that returns true if x is a power of base (base >= 2, x >= 1). For example, is_power_of_n(8, 2) == true because 2^3 = 8.",
+      "semantic_expected_contains": [
+        "fn is_power_of_n"
+      ],
+      "answer": "// training_eligible: false\nfn is_power_of_n(x: int, base: int) to bool {\n    if x < 1 {\n        return false\n    }\n    let mut n: int = x\n    while n > 1 {\n        if n % base != 0 {\n            return false\n        }\n        n = n / base\n    }\n    return true\n}"
+    },
+    {
+      "id": "humaneval_vox_099_hamming_distance",
+      "category": "humaneval-vox",
+      "description": "Write a Vox function hamming_distance(a: str, b: str) to int that returns the number of positions at which the corresponding characters differ. Both strings have equal length.",
+      "semantic_expected_contains": [
+        "fn hamming_distance"
+      ],
+      "answer": "// training_eligible: false\nfn hamming_distance(a: str, b: str) to int {\n    let ca: list[str] = a.chars()\n    let cb: list[str] = b.chars()\n    let mut count: int = 0\n    let mut i: int = 0\n    while i < ca.len() {\n        let mut va: str = \"\"\n        let mut vb: str = \"\"\n        match ca[i] {\n            Some(c) => {\n                va = c\n            }\n            None => {}\n        }\n        match cb[i] {\n            Some(c) => {\n                vb = c\n            }\n            None => {}\n        }\n        if va != vb {\n            count = count + 1\n        }\n        i = i + 1\n    }\n    return count\n}"
+    },
+    {
+      "id": "humaneval_vox_100_pangram_check",
+      "category": "humaneval-vox",
+      "description": "Write a Vox function is_pangram(s: str) to bool that returns true if the string contains every letter of the alphabet at least once (case-insensitive).",
+      "semantic_expected_contains": [
+        "fn is_pangram"
+      ],
+      "answer": "// training_eligible: false\nfn is_pangram(s: str) to bool {\n    let lower: str = s.to_lower()\n    let letters: list[str] = [\"a\", \"b\", \"c\", \"d\", \"e\", \"f\", \"g\", \"h\", \"i\", \"j\", \"k\", \"l\", \"m\", \"n\", \"o\", \"p\", \"q\", \"r\", \"s\", \"t\", \"u\", \"v\", \"w\", \"x\", \"y\", \"z\"]\n    let mut i: int = 0\n    while i < letters.len() {\n        match letters[i] {\n            Some(ch) => {\n                if not lower.contains(ch) {\n                    return false\n                }\n            }\n            None => {}\n        }\n        i = i + 1\n    }\n    return true\n}"
+    },
+    {
+      "id": "humaneval_vox_128_caesar_decode",
+      "category": "humaneval-vox",
+      "description": "Decode a Caesar cipher: shift each lowercase letter backwards by k positions (wrapping around). Non-letter characters are unchanged.",
+      "semantic_expected_contains": [
+        "fn caesar_decode"
+      ],
+      "answer": "// training_eligible: false\nfn caesar_decode(s: str, k: int) to str {\n    let shift: int = 26 - k % 26\n    let mut result: str = \"\"\n    let chars: list[str] = s.chars()\n    for c in chars {\n        let code: int = c.ord()\n        if code >= 97 and code <= 122 {\n            let new_code: int = (code - 97 + shift) % 26 + 97\n            result = result + chr(new_code)\n        } else {\n            result = result + c\n        }\n    }\n    return result\n}"
+    },
+    {
+      "id": "humaneval_vox_148_is_sorted_unique",
+      "category": "humaneval-vox",
+      "description": "Check if a list of ints has no duplicate values AND is sorted in strictly ascending order. Return true only if both conditions hold. An empty list or single-element list returns true.",
+      "semantic_expected_contains": [
+        "fn is_sorted_unique"
+      ],
+      "answer": "// training_eligible: false\nfn is_sorted_unique(xs: list[int]) to bool {\n    let n: int = xs.len()\n    if n <= 1 {\n        return true\n    }\n    let mut i: int = 1\n    while i < n {\n        let prev_ok: bool = false\n        let curr_ok: bool = false\n        let mut prev: int = 0\n        let mut curr: int = 0\n        match xs[i - 1] {\n            Some(v) => { prev = v }\n            None => { return false }\n        }\n        match xs[i] {\n            Some(v) => { curr = v }\n            None => { return false }\n        }\n        if curr <= prev {\n            return false\n        }\n        i = i + 1\n    }\n    return true\n}"
+    },
+    {
+      "id": "humaneval_vox_160_list_intersection_sorted",
+      "category": "humaneval-vox",
+      "description": "Given two sorted lists of ints, return their intersection as a sorted list with no duplicate values. Only include values that appear in both lists.",
+      "semantic_expected_contains": [
+        "fn list_intersection_sorted"
+      ],
+      "answer": "// training_eligible: false\nfn list_intersection_sorted(a: list[int], b: list[int]) to list[int] {\n    let mut result: list[int] = []\n    let mut i: int = 0\n    let mut j: int = 0\n    let la: int = a.len()\n    let lb: int = b.len()\n    while i < la and j < lb {\n        let mut av: int = 0\n        let mut bv: int = 0\n        match a[i] {\n            Some(v) => { av = v }\n            None => { i = la }\n        }\n        match b[j] {\n            Some(v) => { bv = v }\n            None => { j = lb }\n        }\n        if av == bv {\n            let already: bool = result.contains(av)\n            if not already {\n                result.push(av)\n            }\n            i = i + 1\n            j = j + 1\n        } else {\n            if av < bv {\n                i = i + 1\n            } else {\n                j = j + 1\n            }\n        }\n    }\n    return result\n}"
+    },
+    {
+      "id": "humaneval_vox_161_to_hex",
+      "category": "humaneval-vox",
+      "description": "Convert a non-negative integer to its lowercase hexadecimal string representation (without \"0x\" prefix). For example, 255 -> \"ff\", 0 -> \"0\".",
+      "semantic_expected_contains": [
+        "fn to_hex"
+      ],
+      "answer": "// training_eligible: false\nfn to_hex(n: int) to str {\n    if n == 0 {\n        return \"0\"\n    }\n    let hex_chars: list[str] = [\"0\", \"1\", \"2\", \"3\", \"4\", \"5\", \"6\", \"7\", \"8\", \"9\", \"a\", \"b\", \"c\", \"d\", \"e\", \"f\"]\n    let mut digits: list[str] = []\n    let mut val: int = n\n    while val > 0 {\n        let rem: int = val % 16\n        match hex_chars[rem] {\n            Some(c) => { digits.push(c) }\n            None => {}\n        }\n        val = val / 16\n    }\n    let reversed: list[str] = digits.reversed()\n    return reversed.join(\"\")\n}"
+    },
+    {
+      "id": "humaneval_vox_162_from_hex",
+      "category": "humaneval-vox",
+      "description": "Convert a lowercase hexadecimal string (no \"0x\" prefix) to a non-negative integer. For example, \"ff\" -> 255, \"0\" -> 0.",
+      "semantic_expected_contains": [
+        "fn from_hex"
+      ],
+      "answer": "// training_eligible: false\nfn hex_digit_val(c: str) to int {\n    let code: int = c.ord()\n    if code >= 48 and code <= 57 {\n        return code - 48\n    }\n    return code - 87\n}\n\nfn from_hex(s: str) to int {\n    let chars: list[str] = s.chars()\n    let mut result: int = 0\n    for c in chars {\n        result = result * 16 + hex_digit_val(c)\n    }\n    return result\n}"
+    },
+    {
+      "id": "humaneval_vox_163_str_compress",
+      "category": "humaneval-vox",
+      "description": "Run-length encode a string: replace each run of consecutive identical characters with the character followed by its count. For example, \"aaabbc\" -> \"a3b2c1\". An empty string returns \"\".",
+      "semantic_expected_contains": [
+        "fn str_compress"
+      ],
+      "answer": "// training_eligible: false\nfn str_compress(s: str) to str {\n    if s.len() == 0 {\n        return \"\"\n    }\n    let chars: list[str] = s.chars()\n    let mut result: list[str] = []\n    let mut current: str = \"\"\n    let mut count: int = 0\n    let mut first: bool = true\n    for c in chars {\n        if first {\n            current = c\n            count = 1\n            first = false\n        } else {\n            if c == current {\n                count = count + 1\n            } else {\n                result.push(current)\n                result.push(str(count))\n                current = c\n                count = 1\n            }\n        }\n    }\n    result.push(current)\n    result.push(str(count))\n    return result.join(\"\")\n}"
+    },
+    {
+      "id": "humaneval_vox_164_str_decompress",
+      "category": "humaneval-vox",
+      "description": "Run-length decode a string: parse alternating character and single-digit count pairs to reconstruct the original string. For example, \"a3b2c1\" -> \"aaabbc\". Assumes well-formed input with single-digit counts (1-9).",
+      "semantic_expected_contains": [
+        "fn str_decompress"
+      ],
+      "answer": "// training_eligible: false\nfn str_decompress(s: str) to str {\n    let chars: list[str] = s.chars()\n    let n: int = chars.len()\n    let mut result: list[str] = []\n    let mut i: int = 0\n    while i < n - 1 {\n        let mut ch: str = \"\"\n        let mut digit_str: str = \"\"\n        match chars[i] {\n            Some(c) => { ch = c }\n            None => {}\n        }\n        match chars[i + 1] {\n            Some(c) => { digit_str = c }\n            None => {}\n        }\n        let mut count: int = 1\n        match digit_str.to_int() {\n            Some(d) => { count = d }\n            None => {}\n        }\n        let mut k: int = 0\n        while k < count {\n            result.push(ch)\n            k = k + 1\n        }\n        i = i + 2\n    }\n    return result.join(\"\")\n}"
     }
   ]
 }

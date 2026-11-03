@@ -2,10 +2,12 @@
 title: "Knowledge Base Systems — State of the Art (2026)"
 description: "Research synthesis of persistent KB architectures, routing, chunking, retrieval, dedup, staleness, and failure modes for AI coding tools as of mid-2026."
 category: "Architecture SSOTs"
-status: "current"
+status: "legacy"
 training_eligible: true
 training_rationale: "Architecture context for Vox KB/memory system design."
 ---
+
+> **Superseded** by [knowledge-base-practices-research-2026.md](knowledge-base-practices-research-2026.md) (2026-10-03).
 
 # Knowledge Base Systems — State of the Art (2026)
 

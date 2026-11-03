@@ -25,11 +25,10 @@ pub fn select(pref: DevicePref) -> Result<Device, QuantizeError> {
                 tracing::info!("vox-quantize: using CUDA:0");
                 return Ok(d);
             }
-            if let Ok(d) = Device::new_metal(0) {
-                tracing::info!("vox-quantize: using Metal");
-                return Ok(d);
-            }
-            tracing::info!("vox-quantize: no GPU available, using CPU");
+            // Note: Candle performs GGML quantization on CPU via NEON/AVX kernels.
+            // Placing QTensor on Metal triggers uncollected Metal buffer cache allocations.
+            // Auto defaults to CPU for fast, leak-free quantization.
+            tracing::info!("vox-quantize: using CPU (NEON/AVX vectorized quantization)");
             Ok(Device::Cpu)
         }
     }

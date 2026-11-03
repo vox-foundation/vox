@@ -39,7 +39,7 @@
     },
     "permission_mode": {
       "type": ["string", "null"],
-      "description": "Optional GUI-selected PermissionMode wire string (T0.3, vox-orchestrator-d `orch.tool_call` only — see contracts/orchestration/permission-modes.v1.yaml). A top-level field set exclusively by the transport layer (`OrchDaemonClient::with_permission_mode`), never by params-composing tool-call code. Absent in this DeI plan/control RPC surface (which has no dangerous-tool HITL gate), but declared here so `#[serde(default)] permission_mode: Option<String>` on the shared `DispatchRequest` wire type does not fail schema validation."
+      "description": "Optional GUI-selected PermissionMode wire string (T0.3, vox-orchestrator-d `orch.tool_call` only — see contracts/orchestration/permission-modes.v2.yaml). A top-level field set exclusively by the transport layer (`OrchDaemonClient::with_permission_mode`), never by params-composing tool-call code. Absent in this DeI plan/control RPC surface (which has no dangerous-tool HITL gate), but declared here so `#[serde(default)] permission_mode: Option<String>` on the shared `DispatchRequest` wire type does not fail schema validation."
     }
   },
   "allOf": [

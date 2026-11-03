@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/027-dual-track-ui-surfaces.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR-027: Dual-Track UI Surfaces (Vox-Native vs React/TanStack Interop)",
+  "summary": "Splits UI primitives into Vox-native and React/TanStack interop tracks with explicit boundary.",
+  "scope": ["UI surfaces", "reactivity", "Vox-native", "React interop", "training corpus", "component model", "state machine"],
+  "cross_refs": ["architecture/external-frontend-interop-plan-2026.md", "031-deprecate-vox-vscode.md", "010-tanstack-web-spine.md", "012-internal-web-ir-strategy.md", "architecture/path-b-decommission-2026.md", "crates/vox-compiler/src/hir/nodes/decl.rs", "crates/vox-codegen-ts/src/reactive/mod.rs"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Superseded 2026-05-03 by external-frontend-interop-plan-2026.md; original status was Accepted"
+}

@@ -39,6 +39,9 @@ pub struct LlmChatMessage {
     /// Optionally set on a `role: "tool"` result message alongside `tool_call_id`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    /// Optional structured multimodal content appended to the text body.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content_parts: Option<Vec<vox_llm_egress::LlmContentPart>>,
 }
 
 /// Deprecated alias kept for callers within this crate during the rename.
@@ -62,6 +65,9 @@ pub struct LlmConfig {
     pub temperature: Option<f32>,
     /// Sampling top_p when supported by the endpoint.
     pub top_p: Option<f32>,
+    /// Sampling seed requested from the provider. Providers that do not support seeds ignore it,
+    /// so a recorded seed is a request, not a reproducibility guarantee.
+    pub seed: Option<u64>,
     /// Maximum tokens to generate when supported.
     pub max_tokens: Option<u64>,
     /// Optional JSON Schema / response-format object for structured output.
@@ -114,6 +120,7 @@ impl LlmConfig {
             telemetry_trace_id: None,
             telemetry_attempt_number: None,
             telemetry_skip_interaction: false,
+            seed: None,
         }
     }
 
@@ -140,6 +147,36 @@ impl LlmConfig {
             telemetry_trace_id: None,
             telemetry_attempt_number: None,
             telemetry_skip_interaction: false,
+            seed: None,
+        }
+    }
+
+    pub fn ollama(model: impl Into<String>) -> Self {
+        let m = model.into();
+        let model_name = m.strip_prefix("ollama/").unwrap_or(&m).to_string();
+        let base = vox_config::inference::local_ollama_populi_base_url();
+        let base_url = format!("{}/v1/chat/completions", base.trim_end_matches('/'));
+        Self {
+            provider: "ollama".into(),
+            model: model_name,
+            cost_per_1k: None,
+            base_url: Some(base_url),
+            api_key: None,
+            temperature: None,
+            top_p: None,
+            max_tokens: None,
+            response_format: None,
+            tools: None,
+            tool_choice: None,
+            timeout_ms: None,
+            telemetry_session_id: None,
+            telemetry_user_id: None,
+            telemetry_task_category: None,
+            telemetry_strength_tag: None,
+            telemetry_trace_id: None,
+            telemetry_attempt_number: None,
+            telemetry_skip_interaction: false,
+            seed: None,
         }
     }
 
@@ -164,6 +201,36 @@ impl LlmConfig {
             telemetry_trace_id: None,
             telemetry_attempt_number: None,
             telemetry_skip_interaction: false,
+            seed: None,
+        }
+    }
+
+    /// A provider reached with its own endpoint and key (`groq`, `anthropic`, `gemini`,
+    /// `voxlocal`, `custom`, ...). `model` stays the catalog id so telemetry and the
+    /// scoreboard key on it; the egress resolver supplies the URL, the Clavis key, and the
+    /// vendor-native model id.
+    pub fn direct(provider: impl Into<String>, model: impl Into<String>) -> Self {
+        Self {
+            provider: provider.into(),
+            model: model.into(),
+            cost_per_1k: None,
+            base_url: None,
+            api_key: None,
+            temperature: None,
+            top_p: None,
+            max_tokens: None,
+            response_format: None,
+            tools: None,
+            tool_choice: None,
+            timeout_ms: None,
+            telemetry_session_id: None,
+            telemetry_user_id: None,
+            telemetry_task_category: None,
+            telemetry_strength_tag: None,
+            telemetry_trace_id: None,
+            telemetry_attempt_number: None,
+            telemetry_skip_interaction: false,
+            seed: None,
         }
     }
 
@@ -230,6 +297,7 @@ impl LlmConfig {
             telemetry_trace_id: None,
             telemetry_attempt_number: None,
             telemetry_skip_interaction: false,
+            seed: None,
         })
     }
 }
@@ -342,6 +410,16 @@ pub struct LlmResponse {
     /// `latency_ms / completion_tokens` non-streaming. `None` when `completion_tokens == 0`.
     #[serde(default)]
     pub tpot_ms: Option<f64>,
+    /// Why generation stopped (`stop`, `length`, ...), from
+    /// `vox_llm_egress::EgressChatResponse::finish_reason`. `None` when unknown.
+    #[serde(default)]
+    pub finish_reason: Option<String>,
+    /// Reasoning tokens the provider counted inside `completion_tokens`; 0 when unknown.
+    #[serde(default)]
+    pub reasoning_tokens: u32,
+    /// Reasoning text when the provider returns it; never part of `content`.
+    #[serde(default)]
+    pub reasoning: Option<String>,
 }
 
 #[cfg(test)]
@@ -365,6 +443,9 @@ mod tests {
             cache_read_tokens: 7,
             ttft_ms: Some(15),
             tpot_ms: Some(5.4),
+            finish_reason: None,
+            reasoning_tokens: 0,
+            reasoning: None,
         };
         let json = serde_json::to_string(&resp).expect("serialize");
         let back: LlmResponse = serde_json::from_str(&json).expect("deserialize");
@@ -403,6 +484,9 @@ mod tests {
             cache_read_tokens: 0,
             ttft_ms: None,
             tpot_ms: None,
+            finish_reason: None,
+            reasoning_tokens: 0,
+            reasoning: None,
         };
         let json = serde_json::to_string(&resp).expect("serialize");
         let back: LlmResponse = serde_json::from_str(&json).expect("deserialize");

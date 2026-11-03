@@ -130,9 +130,9 @@ providers:
       migration_window_days: 90
 
   - name: VoxLocal
-    description: "Vox-trained MENS checkpoint served by in-tree `vox-ml-cli mens serve`. Default endpoint http://127.0.0.1:11434 (Ollama-compat port). Speaks OpenAI v1/completions (text-prompt) — NOT v1/chat/completions (messages). Requires `--features execution-api` + trained `model_final.bin`. Source: crates/vox-ml-cli/src/commands/ai/serve/mod.rs. Panel client: vox_audit::panel::MensPanelClient."
+    description: "Vox-trained MENS checkpoint served by in-tree `vox-ml-cli mens serve`. Default endpoint http://127.0.0.1:11434 (Ollama-compat port). Speaks OpenAI v1/completions (text-prompt) AND, as of Task B2 (MENS end-to-end completion), v1/chat/completions (messages[]/tools[]) — a thin adapter over the same worker pipeline that populates choices[].message.tool_calls on a schema-valid, offered-tool-naming reply, with the agent loop salvaging a near-miss text-embedded call otherwise (never hard-failing the turn). Requires `--features execution-api,gpu` (both flags, independently) + trained `model_final.bin`. Source: crates/vox-ml-cli/src/commands/ai/serve/mod.rs. Panel client: vox_audit::panel::MensPanelClient."
     secret_id: null
-    supports_openai_compat: false
+    supports_openai_compat: true
     default_route_kind: "VoxLocal"
     fallback_kind: "Ollama"
     lifecycle:

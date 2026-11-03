@@ -1,0 +1,153 @@
+schema_version: 1
+contract_id: vox.orchestration.oversight-levels.v1
+description: >-
+  Canonical SSOT for Vox Unified Autonomy Oversight levels (Phases 13-17, OVR-01..06).
+  Strictness is strictly monotonic in level order (relaxed < trusted < standard < cautious < strict).
+  Oversight level never modifies Mode (cost/intelligence) selection axes.
+invariants:
+  strictness_monotonic: true
+  modifies_mode_axes: false
+  allows_accept_all: false
+hard_floors:
+  - id: force_push_history_rewrite
+    label: "Force-push or Git history rewrite"
+    always_requires_human: true
+  - id: allowlist_policy_grant
+    label: "Allowlist or permission policy grant"
+    always_requires_human: true
+  - id: deploy_external_publish
+    label: "Production deploy or external package publish"
+    always_requires_human: true
+  - id: secrets_write
+    label: "Secrets or credential store mutation"
+    always_requires_human: true
+legacy_risk_inversion:
+  high: relaxed
+  moderate: standard
+  low: strict
+levels:
+  - id: relaxed
+    ordinal: 1
+    label: "Relaxed"
+    approval_floor: auto_approve
+    trust_auto_approve: true
+    trust_relax_gates: true
+    tool_auto_approve: accept_edits
+    grounding: advisory
+    socrates: shadow
+    reply_verification: false
+    admission_offset_bps: 1000
+    per_agent_quota_15m: 2
+    effects:
+      - id: chat_file_edits
+        label: "Chat file edits"
+        value: "Auto-approved (AcceptEdits)"
+        consumer: "sync_chat"
+      - id: background_gate
+        label: "Background task approval floor"
+        value: "AutoApprove (trust graduation active)"
+        consumer: "background_tasks"
+      - id: reply_check
+        label: "Daemon reply verification"
+        value: "Advisory only"
+        consumer: "sync_chat"
+  - id: trusted
+    ordinal: 2
+    label: "Trusted"
+    approval_floor: confirm
+    trust_auto_approve: true
+    trust_relax_gates: true
+    tool_auto_approve: accept_edits
+    grounding: enforce
+    socrates: shadow
+    reply_verification: false
+    admission_offset_bps: 500
+    per_agent_quota_15m: 3
+    effects:
+      - id: chat_file_edits
+        label: "Chat file edits"
+        value: "Auto-approved (AcceptEdits)"
+        consumer: "sync_chat"
+      - id: background_gate
+        label: "Background task approval floor"
+        value: "Confirm (grounding enforced)"
+        consumer: "background_tasks"
+      - id: reply_check
+        label: "Daemon reply verification"
+        value: "Advisory only"
+        consumer: "sync_chat"
+  - id: standard
+    ordinal: 3
+    label: "Standard"
+    approval_floor: confirm
+    trust_auto_approve: true
+    trust_relax_gates: true
+    tool_auto_approve: ask
+    grounding: enforce
+    socrates: shadow
+    reply_verification: true
+    admission_offset_bps: 0
+    per_agent_quota_15m: 4
+    effects:
+      - id: chat_file_edits
+        label: "Chat file edits"
+        value: "Asks before writing (Ask)"
+        consumer: "sync_chat"
+      - id: background_gate
+        label: "Background task approval floor"
+        value: "Confirm (grounding enforced)"
+        consumer: "background_tasks"
+      - id: reply_check
+        label: "Daemon reply verification"
+        value: "Enabled (non-blocking badge)"
+        consumer: "sync_chat"
+  - id: cautious
+    ordinal: 4
+    label: "Cautious"
+    approval_floor: review
+    trust_auto_approve: true
+    trust_relax_gates: false
+    tool_auto_approve: ask
+    grounding: enforce
+    socrates: enforce
+    reply_verification: true
+    admission_offset_bps: -500
+    per_agent_quota_15m: 8
+    effects:
+      - id: chat_file_edits
+        label: "Chat file edits"
+        value: "Asks before writing (Ask)"
+        consumer: "sync_chat"
+      - id: background_gate
+        label: "Background task approval floor"
+        value: "Review in inbox (Socrates enforced)"
+        consumer: "background_tasks"
+      - id: reply_check
+        label: "Daemon reply verification"
+        value: "Enabled + bounded self-check"
+        consumer: "sync_chat"
+  - id: strict
+    ordinal: 5
+    label: "Strict"
+    approval_floor: review
+    trust_auto_approve: false
+    trust_relax_gates: false
+    tool_auto_approve: ask
+    grounding: enforce
+    socrates: enforce
+    reply_verification: true
+    admission_offset_bps: -10000
+    per_agent_quota_15m: 1000
+    effects:
+      - id: chat_file_edits
+        label: "Chat file edits"
+        value: "Asks before writing (Ask)"
+        consumer: "sync_chat"
+      - id: background_gate
+        label: "Background task approval floor"
+        value: "Review in inbox (no trust auto-approve)"
+        consumer: "background_tasks"
+      - id: reply_check
+        label: "Daemon reply verification"
+        value: "Strict daemon verification"
+        consumer: "sync_chat"

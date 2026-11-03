@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use vox_db::Codex;
 use vox_search::crag::CragRouter;
 use vox_search::memory_hybrid::HybridSearchHit;
-use vox_search::policy::SearchPolicy;
+use vox_search::policy::{ResearchLane, SearchPolicy};
 use vox_search::{
     RetrievalTriggerMode, SearchExecution, SearchRuntimeContext, run_search_with_verification,
 };
@@ -54,12 +54,6 @@ fn research_hits_from_search_execution(execution: SearchExecution) -> Vec<Resear
     );
     append_local_lines(&mut out, "chunk", "vox://chunk", execution.chunk_lines);
     append_local_lines(&mut out, "repo", "repo://", execution.repo_lines);
-    append_local_lines(
-        &mut out,
-        "tantivy",
-        "repo://tantivy",
-        execution.tantivy_doc_lines,
-    );
     append_local_lines(&mut out, "qdrant", "vox://qdrant", execution.qdrant_lines);
     append_local_lines(&mut out, "rrf", "vox://rrf", execution.rrf_fused_lines);
     append_local_lines(
@@ -119,9 +113,18 @@ fn local_line_ref(
 
 /// Returns true when `url`'s host matches `site_scope` (domain only, no scheme).
 fn host_matches_site_scope(url: &str, site_scope: &str) -> bool {
-    let scope = site_scope
-        .trim()
+    let raw_scope = site_scope.trim();
+    let rest_scope = raw_scope
+        .strip_prefix("https://")
+        .or_else(|| raw_scope.strip_prefix("http://"))
+        .unwrap_or(raw_scope);
+    let scope_host = rest_scope.split('/').next().unwrap_or(rest_scope);
+    let scope = scope_host
+        .split(':')
+        .next()
+        .unwrap_or(scope_host)
         .trim_start_matches("www.")
+        .trim_end_matches('/')
         .to_ascii_lowercase();
     if scope.is_empty() {
         return true;
@@ -136,11 +139,15 @@ fn host_matches_site_scope(url: &str, site_scope: &str) -> bool {
         .next()
         .unwrap_or(rest)
         .trim_start_matches("www.");
-    host == scope.as_str() || host.ends_with(&format!(".{}", scope))
+    host == scope
+        || host
+            .strip_suffix(&scope)
+            .is_some_and(|prefix| prefix.ends_with('.'))
 }
 
 async fn search_one_subquery(
     subquery: &str,
+    lane: ResearchLane,
     policy: &SearchPolicy,
     registry: &ProviderRegistry,
     site_scope: Option<&str>,
@@ -148,7 +155,12 @@ async fn search_one_subquery(
     all_hits: &mut Vec<ResearchHit>,
     novelty_scorer: &mut vox_search::novelty::NoveltyScorer,
 ) -> (usize, usize) {
-    let (mut hits, _) = registry.search(subquery, policy).await;
+    let site_scope = site_scope.map(str::trim).filter(|s| !s.is_empty());
+    let query_string = match site_scope {
+        Some(scope) => format!("{subquery} site:{scope}"),
+        None => subquery.to_string(),
+    };
+    let (mut hits, _) = registry.search_with_lane(&query_string, lane, policy).await;
     if let Some(scope) = site_scope {
         hits.retain(|hit| host_matches_site_scope(&hit.url, scope));
     }
@@ -177,9 +189,53 @@ fn avg_score(hits: &[ResearchHit]) -> f64 {
     hits.iter().map(|h| h.score).sum::<f64>() / hits.len() as f64
 }
 
+/// Session bookkeeping for gathered hits, plus the hand-off of their text to the findings
+/// inbox. Gathered page text is attacker-controlled: it is never ingested into the searchable
+/// corpus, graph or snippets here. With no `finding_capture` sink nothing is persisted.
+async fn file_gathered_hits(
+    db: Option<&Codex>,
+    session_id: i64,
+    query_text: &str,
+    hits: &[ResearchHit],
+    config: &super::config::ResearchConfig,
+) {
+    if let Some(db) = db
+        && session_id > 0
+    {
+        for hit in hits {
+            let _ = db
+                .create_research_source(session_id, &hit.url, Some(&hit.title))
+                .await;
+        }
+    }
+    let Some(sink) = &config.finding_capture else {
+        return;
+    };
+    if hits.is_empty() {
+        return;
+    }
+    sink.capture(
+        hits.iter()
+            .map(|h| vox_search::capture::CapturedWebHit {
+                url: h.url.clone(),
+                title: h.title.clone(),
+                snippet: h.snippet.clone(),
+                full_text: Some(if h.raw_content.trim().is_empty() {
+                    h.snippet.clone()
+                } else {
+                    h.raw_content.clone()
+                }),
+                engine: "research_gather".to_string(),
+                query: query_text.to_string(),
+                origin: vox_db::kb_text::FindingOrigin::ResearchGather,
+            })
+            .collect(),
+    );
+}
+
 pub(super) async fn gather_web_hits_for_plan(
-    _db: Option<&Codex>,
-    _session_id: i64,
+    db: Option<&Codex>,
+    session_id: i64,
     query: &ResearchQuery,
     plan: &ResearchPlan,
     registry: &ProviderRegistry,
@@ -206,7 +262,8 @@ pub(super) async fn gather_web_hits_for_plan(
     // Resolve trust-scored ResearchHits concurrently (bounded, order-preserving),
     // then apply the seen_urls/novelty logic sequentially below — that part is
     // cheap synchronous stateful work and doesn't benefit from concurrency.
-    let tavily_rows = vox_search::tavily_research::try_tavily_research_hits(&query.query).await;
+    let tavily_rows =
+        vox_search::tavily_research::try_tavily_research_hits(&query.query, policy).await;
     let tavily_hits: Vec<ResearchHit> = {
         use futures::stream::{self, StreamExt};
         stream::iter(tavily_rows)
@@ -228,6 +285,11 @@ pub(super) async fn gather_web_hits_for_plan(
             .await
     };
     for rh in tavily_hits {
+        if let Some(scope) = site_scope
+            && !host_matches_site_scope(&rh.url, scope)
+        {
+            continue;
+        }
         if !seen_urls.insert(rh.url.clone()) {
             continue;
         }
@@ -244,6 +306,7 @@ pub(super) async fn gather_web_hits_for_plan(
     for sq in &plan.subqueries {
         let (att, got) = search_one_subquery(
             sq,
+            query.lane,
             policy,
             registry,
             site_scope,
@@ -291,6 +354,7 @@ pub(super) async fn gather_web_hits_for_plan(
         for rq in refined {
             let (att, got) = search_one_subquery(
                 &rq,
+                query.lane,
                 policy,
                 registry,
                 site_scope,
@@ -311,6 +375,8 @@ pub(super) async fn gather_web_hits_for_plan(
         }
         rounds_done += 1;
     }
+
+    file_gathered_hits(db, session_id, &query.query, &all_hits, config).await;
 
     let dropped_source_count = total_sources_attempted.saturating_sub(all_hits.len());
     (
@@ -357,6 +423,26 @@ pub(super) async fn gather_local_hits_for_plan(
                         got += 1;
                     }
                 }
+                if let Some(db) = &ctx.db
+                    && let Ok(snippets) = db.search_snippets(sq, None).await
+                {
+                    for snip in snippets {
+                        let url = format!("vox://snippet/{}", snip.id);
+                        if seen_urls.insert(url.clone()) {
+                            let snippet_text = snip.description.unwrap_or(snip.code);
+                            all_hits.push(ResearchHit {
+                                url,
+                                title: snip.title,
+                                snippet: snippet_text,
+                                score: 1.0,
+                                http_status: 200,
+                                trust_score: 1.0,
+                                raw_content: String::new(),
+                            });
+                            got += 1;
+                        }
+                    }
+                }
                 if got > 0 {
                     subqueries_with_hits += 1;
                 }
@@ -376,6 +462,81 @@ pub(super) async fn gather_local_hits_for_plan(
 
 #[cfg(test)]
 mod tests {
+
+    use super::file_gathered_hits;
+    use crate::research::types::ResearchHit;
+
+    /// `create_research_source` session bookkeeping leaves empty-content `research_source`
+    /// nodes (label + URL only); gathered page text must never reach the graph.
+    async fn assert_only_bookkeeping_nodes(db: &vox_db::VoxDb) {
+        for n in db.list_knowledge_nodes(None, 0, 100).await.unwrap() {
+            assert_eq!(n.node_type.as_deref(), Some("research_source"), "{n:?}");
+            assert!(n.content.is_empty(), "{n:?}");
+        }
+    }
+
+    // ---- finding_capture: gathered web text reaches only the injected sink ----
+
+    #[derive(Default)]
+    struct Recorder(std::sync::Mutex<Vec<vox_search::capture::CapturedWebHit>>);
+    impl vox_search::capture::WebFindingCapture for Recorder {
+        fn capture(&self, hits: Vec<vox_search::capture::CapturedWebHit>) {
+            self.0.lock().unwrap().extend(hits);
+        }
+    }
+
+    fn gathered(url: &str, snippet: &str, raw: &str) -> ResearchHit {
+        ResearchHit {
+            url: url.into(),
+            title: format!("t {url}"),
+            snippet: snippet.into(),
+            score: 0.5,
+            http_status: 200,
+            trust_score: 1.0,
+            raw_content: raw.into(),
+        }
+    }
+
+    #[tokio::test]
+    async fn finding_capture_sink_receives_gathered_hits_and_corpus_stays_empty() {
+        let db = vox_db::VoxDb::open_memory().await.unwrap();
+        let session_id = db.create_research_session("k", "q").await.unwrap();
+        assert!(session_id > 0);
+        let rec = std::sync::Arc::new(Recorder::default());
+        let config = super::super::config::ResearchConfig {
+            finding_capture: Some(rec.clone()),
+            ..Default::default()
+        };
+        let hits = vec![
+            gathered("https://a.test/1", "snip one", "FULL BODY ONE"),
+            gathered("https://a.test/2", "snip two", ""),
+        ];
+        file_gathered_hits(Some(&db), session_id, "the query", &hits, &config).await;
+
+        let got = rec.0.lock().unwrap().clone();
+        assert_eq!(got.len(), 2);
+        assert!(
+            got.iter()
+                .all(|h| h.origin == vox_db::kb_text::FindingOrigin::ResearchGather)
+        );
+        assert_eq!(got[0].full_text.as_deref(), Some("FULL BODY ONE"));
+        assert_eq!(got[1].full_text.as_deref(), Some("snip two"));
+        assert_eq!(got[0].query, "the query");
+        assert_eq!(db.search_corpus_row_counts().await.unwrap(), (0, 0));
+        assert_only_bookkeeping_nodes(&db).await;
+    }
+
+    #[tokio::test]
+    async fn finding_capture_none_captures_nothing_and_writes_no_corpus_rows() {
+        let db = vox_db::VoxDb::open_memory().await.unwrap();
+        let session_id = db.create_research_session("k", "q").await.unwrap();
+        let config = super::super::config::ResearchConfig::default();
+        assert!(config.finding_capture.is_none());
+        let hits = vec![gathered("https://a.test/1", "snip", "BODY")];
+        file_gathered_hits(Some(&db), session_id, "q", &hits, &config).await;
+        assert_eq!(db.search_corpus_row_counts().await.unwrap(), (0, 0));
+        assert_only_bookkeeping_nodes(&db).await;
+    }
     use super::{gather_local_hits_for_plan, host_matches_site_scope};
     use crate::research::types::{ResearchPlan, ResearchQuery, ResearchScope};
     use vox_search::{SearchPolicy, SearchRuntimeContext};
@@ -424,6 +585,9 @@ mod tests {
             persist_to_docs: false,
             verify_claims: false,
             site_scope: None,
+            domain_mode: Default::default(),
+            waves: 1,
+            lane: vox_search::policy::ResearchLane::Fast,
         };
         let plan = ResearchPlan {
             original_query: query.query.clone(),
@@ -485,5 +649,42 @@ mod tests {
         }
         let parsed: Expansion = serde_json::from_str(json_str).unwrap();
         assert_eq!(parsed.followup_queries, vec!["q1"]);
+    }
+
+    #[test]
+    fn test_host_matches_site_scope() {
+        use super::host_matches_site_scope;
+
+        assert!(host_matches_site_scope(
+            "https://example.com/foo",
+            "example.com"
+        ));
+        assert!(host_matches_site_scope(
+            "https://sub.example.com/foo",
+            "example.com"
+        ));
+        assert!(host_matches_site_scope(
+            "https://www.example.com",
+            "example.com"
+        ));
+        assert!(!host_matches_site_scope(
+            "https://notexample.com",
+            "example.com"
+        ));
+        assert!(!host_matches_site_scope(
+            "https://example.org",
+            "example.com"
+        ));
+
+        // Normalization of site_scope with schemes, www, and trailing slashes
+        assert!(host_matches_site_scope(
+            "https://example.com",
+            "https://example.com/"
+        ));
+        assert!(host_matches_site_scope(
+            "http://sub.example.com/api",
+            "http://www.example.com/"
+        ));
+        assert!(host_matches_site_scope("https://example.com", ""));
     }
 }

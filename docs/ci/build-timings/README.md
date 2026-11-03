@@ -43,7 +43,7 @@ When installing a **new** CUDA Toolkit version, update every pinned path so agen
 | Location | What to change |
 |----------|----------------|
 | [`.vscode/settings.json`](../../../.vscode/settings.json) | `CUDA_PATH` and `PATH` prefixes under `terminal.integrated.env.windows` |
-| [`scripts/windows/ensure_cuda_path.ps1`](../../../scripts/windows/ensure_cuda_path.ps1) | Default `-CudaRoot` parameter |
+| `vox doctor --fix-cuda-path` (replaced the removed `scripts/windows/ensure_cuda_path.ps1`) | CUDA root it writes to the user `Path` and `CUDA_PATH` |
 | User **Environment Variables** (optional) | `Path` entries and `CUDA_PATH` (re-run script or edit in System Properties) |
 | [`docs/ci/build-timings/snapshot-metadata.json`](snapshot-metadata.json) | `cuda_toolchain.reported_release` when you refresh snapshots |
 

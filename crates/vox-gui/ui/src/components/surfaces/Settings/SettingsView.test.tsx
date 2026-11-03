@@ -88,6 +88,7 @@ vi.mock('./PriorityChainEditor', () => ({
 }));
 
 import { SettingsView } from './SettingsView';
+import { getBindings, resetKeybindStoreForTests } from '../../../lib/keybindStore';
 import { LanguageProvider } from '../../../hooks/useLanguage';
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -103,6 +104,7 @@ describe('SettingsView', () => {
   beforeEach(() => {
     invokeMock.mockClear();
     recordGamifyMock.mockClear();
+    resetKeybindStoreForTests();
   });
 
   it('renders without crashing', () => {
@@ -117,6 +119,32 @@ describe('SettingsView', () => {
     buttons.forEach(btn => {
       expect(btn.getAttribute('type')).toBe('button');
     });
+  });
+
+  it('names each range control by its row label (axe label, critical)', () => {
+    render(<SettingsView pushToast={vi.fn()} />, { wrapper });
+    for (const name of [
+      'Max concurrent agents',
+      'Global budget cap (USD)',
+      'Auto-doubt threshold',
+      'Durable checkpoint cadence',
+    ]) {
+      expect(screen.getByRole('slider', { name })).toBeDefined();
+    }
+  });
+
+  it('renders when the backend has no orchestrator config (get_orchestrator_config -> null)', async () => {
+    const defaultImpl = invokeMock.getMockImplementation()!;
+    invokeMock.mockImplementation((cmd: string) =>
+      Promise.resolve(cmd === 'get_orchestrator_config' ? null : cmd === 'list_secret_status' ? [] : null),
+    );
+    try {
+      render(<SettingsView pushToast={vi.fn()} />, { wrapper });
+      await new Promise((r) => setTimeout(r, 50));
+      expect(screen.getByRole('slider', { name: 'Max concurrent agents' })).toBeDefined();
+    } finally {
+      invokeMock.mockImplementation(defaultImpl);
+    }
   });
 
   it('search input is accessible via aria-label', () => {
@@ -208,6 +236,43 @@ describe('SettingsView', () => {
       'gui.keybinds',
       expect.stringContaining('"open-palette":"Mod+P"'),
     ));
+  });
+
+  it('keybinds: a rebind lands in the shared store, and reset restores defaults (D-17)', async () => {
+    const user = userEvent.setup();
+    render(<SettingsView pushToast={vi.fn()} />, { wrapper });
+    await user.click(screen.getByRole('button', { name: /keybinds/i }));
+    const btn = await screen.findByTestId('keybind-btn-open-palette');
+    await user.click(btn);
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true, cancelable: true }, { capture: true });
+    await waitFor(() => expect(getBindings()['open-palette']).toBe('Mod+P'));
+    await user.click(screen.getByRole('button', { name: /reset to defaults/i }));
+    await waitFor(() => expect(getBindings()['open-palette']).toBe('Mod+K'));
+    expect(btn.textContent).toBe('Mod+K');
+  });
+
+  it('keybinds: a bare modifier keydown does not end capture; the chord completes on the real key', async () => {
+    const user = userEvent.setup();
+    render(<SettingsView pushToast={vi.fn()} />, { wrapper });
+    await user.click(screen.getByRole('button', { name: /keybinds/i }));
+    const btn = await screen.findByTestId('keybind-btn-toggle-sidebar');
+    await user.click(btn);
+    fireEvent.keyDown(window, { key: 'Control', ctrlKey: true, cancelable: true });
+    fireEvent.keyDown(window, { key: 'Shift', ctrlKey: true, shiftKey: true, cancelable: true });
+    expect(btn.textContent).toBe('press keys…');
+    fireEvent.keyDown(window, { key: 'y', ctrlKey: true, shiftKey: true, cancelable: true });
+    await waitFor(() => expect(btn.textContent).toBe('Mod+Shift+Y'));
+  });
+
+  it('keybinds: a change made elsewhere in the store shows in Settings (D-17)', async () => {
+    const user = userEvent.setup();
+    const { setBindings } = await import('../../../lib/keybindStore');
+    const { DEFAULT_BINDINGS } = await import('../../../lib/keybinds');
+    render(<SettingsView pushToast={vi.fn()} />, { wrapper });
+    await user.click(screen.getByRole('button', { name: /keybinds/i }));
+    const btn = await screen.findByTestId('keybind-btn-toggle-sidebar');
+    React.act(() => setBindings({ ...DEFAULT_BINDINGS, 'toggle-sidebar': 'Mod+Shift+Y' }));
+    expect(btn.textContent).toBe('Mod+Shift+Y');
   });
 
   it('toggles display language and persists vox.lang', () => {

@@ -47,6 +47,7 @@ fn snapshot_returns_env_override_not_just_defaults() {
 
 #[test]
 fn snapshot_100_calls_under_10ms() {
+    let _guard = ENV_MUTEX.lock().expect("env mutex");
     // Warm the cache with one call first.
     let _ = OrchestratorConfig::snapshot();
 

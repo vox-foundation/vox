@@ -3,7 +3,6 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use candle_transformers::models::whisper::SAMPLE_RATE;
 use symphonia::core::audio::{AudioBufferRef, Signal};
 use symphonia::core::codecs::{CODEC_TYPE_NULL, DecoderOptions};
 use symphonia::core::conv::FromSample;
@@ -11,6 +10,9 @@ use symphonia::core::formats::FormatOptions;
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
+
+/// Whisper's (and Sherpa's) expected input sample rate.
+const SAMPLE_RATE: u32 = 16_000;
 
 /// Decode the first audio track to mono `f32` samples at the source sample rate.
 pub fn pcm_decode(path: &Path) -> Result<(Vec<f32>, u32)> {
@@ -120,5 +122,23 @@ pub fn resample_pcm(pcm_in: &[f32], sr_in: u32, sr_out: u32) -> Result<Vec<f32>>
 /// Decode and resample to 16 kHz mono (Whisper requirement).
 pub fn pcm_decode_to_16k_mono(path: &Path) -> Result<Vec<f32>> {
     let (pcm, sr) = pcm_decode(path)?;
-    resample_pcm(&pcm, sr, SAMPLE_RATE as u32)
+    resample_pcm(&pcm, sr, SAMPLE_RATE)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resample_pcm;
+
+    #[test]
+    fn resample_pcm_scales_length() {
+        let one_second: Vec<f32> = (0..48_000)
+            .map(|i| (i as f32 * 440.0 * std::f32::consts::TAU / 48_000.0).sin())
+            .collect();
+        let out = resample_pcm(&one_second, 48_000, 16_000).expect("resample");
+        let err = (out.len() as f64 - 16_000.0).abs() / 16_000.0;
+        assert!(err <= 0.02, "resampled to {} samples", out.len());
+
+        let same = resample_pcm(&one_second, 16_000, 16_000).expect("identity");
+        assert_eq!(same, one_second);
+    }
 }

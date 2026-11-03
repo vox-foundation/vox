@@ -47,6 +47,13 @@ describe('MeshView', () => {
     }
   });
 
+  it('associates the dispatch form labels with their controls (axe select-name, label)', async () => {
+    render(<MeshView pushToast={vi.fn()} />);
+    await waitFor(() => expect(screen.getAllByText('node-1').length).toBeGreaterThan(0));
+    expect(screen.getByRole('combobox', { name: 'Target node (optional)' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: 'Task kind (optional)' })).toBeTruthy();
+  });
+
   it('marks column headers with scope=col', async () => {
     render(<MeshView pushToast={vi.fn()} />);
     await waitFor(() => expect(screen.getAllByText('node-1').length).toBeGreaterThan(0));

@@ -27,7 +27,7 @@ export function Segment({ value, onChange, options, size = 'sm' }: SegmentProps)
             title={o.hint}
             aria-pressed={on}
             onClick={() => onChange(o.id)}
-            className={`${pad} font-display uppercase tracking-[0.15em] rounded-[5px] transition ${on ? (o.tone || 'bg-white/10 text-zinc-50') : 'text-zinc-500 hover:text-zinc-300'}`}
+            className={`${pad} font-display uppercase tracking-[0.15em] rounded-[5px] transition ${on ? (o.tone || 'bg-white/10 text-zinc-50') : 'text-text-muted hover:text-text-secondary'}`}
           >
             {o.label}
           </button>

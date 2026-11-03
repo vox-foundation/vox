@@ -1,0 +1,11 @@
+graph {
+    container One: "First scope" {
+        node shared: "Used first at root"
+        node inside: "Inside one"
+        shared -> inside
+    }
+    container Two: "Second scope" {
+        node other: "Other"
+    }
+    Two.other -> One.shared
+}

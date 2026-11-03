@@ -55,7 +55,7 @@ fn collect_vox_recursive(dir: &Path, out: &mut Vec<PathBuf>) {
 
 /// Run all `@test` fns from one `.vox` source string.
 /// Returns a list of `(test_name, error_message)` for any that fail.
-fn run_vox_tests(src: &str, file_label: &str) -> Vec<(String, String)> {
+fn run_vox_tests(src: &str, file_label: &str, path: &Path) -> Vec<(String, String)> {
     let tokens = lex(src);
     let module = match parse(tokens) {
         Ok(m) => m,
@@ -74,6 +74,9 @@ fn run_vox_tests(src: &str, file_label: &str) -> Vec<(String, String)> {
     }
 
     let mut interp = Interpreter::new(STEP_LIMIT);
+    // Like `vox run`: `env.args()` is `[source_path] ++ script_args`, and
+    // relative imports resolve against the source file.
+    interp.set_source_path(path);
     if let Err(e) = interp.run_module(&hir) {
         return vec![(
             "<module_setup>".to_string(),
@@ -136,7 +139,7 @@ fn all_golden_at_test_fns_pass() {
             .to_string_lossy()
             .into_owned();
 
-        let failures = run_vox_tests(&src, &label);
+        let failures = run_vox_tests(&src, &label, path);
 
         // Count test fns in this file (heuristic: count "@test" occurrences).
         let count = src.matches("@test").count();

@@ -6,9 +6,14 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
+pub mod compare;
 pub mod corpus_score;
 pub mod corpus_stats;
 pub mod mens;
+pub mod paired_ni;
+pub mod provenance;
+pub mod report;
+pub mod trial_flywheel;
 
 /// Aggregated scores from a single eval run (format, safety, quality proxy, parse validity, coverage).
 pub struct EvalMetrics {
@@ -699,7 +704,7 @@ mod semcov_wave5_tests {
     // --- cargo_build_reward ---
 
     #[test]
-    #[ignore = "spawns cargo — run with --ignored in CI environments that have a Rust toolchain"]
+    #[ignore = "owner:eval sunset:never spawns cargo — run with --ignored in CI environments that have a Rust toolchain"]
     fn cargo_build_reward_valid_rust_returns_one() {
         let snippet = "fn main() { let _x: u32 = 42; }";
         let score = cargo_build_reward(snippet);
@@ -707,7 +712,7 @@ mod semcov_wave5_tests {
     }
 
     #[test]
-    #[ignore = "spawns cargo — run with --ignored in CI environments that have a Rust toolchain"]
+    #[ignore = "owner:eval sunset:never spawns cargo — run with --ignored in CI environments that have a Rust toolchain"]
     fn cargo_build_reward_invalid_rust_returns_zero() {
         let snippet = "fn main() { let x: u32 = \"not a number\"; }";
         let score = cargo_build_reward(snippet);
@@ -717,7 +722,7 @@ mod semcov_wave5_tests {
     // --- cargo_test_reward ---
 
     #[test]
-    #[ignore = "spawns cargo — run with --ignored in CI environments that have a Rust toolchain"]
+    #[ignore = "owner:eval sunset:never spawns cargo — run with --ignored in CI environments that have a Rust toolchain"]
     fn cargo_test_reward_passing_test_returns_one() {
         let snippet = "fn main() {}\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn it_works() { assert_eq!(2 + 2, 4); }\n}";
         let score = cargo_test_reward(snippet);
@@ -725,7 +730,7 @@ mod semcov_wave5_tests {
     }
 
     #[test]
-    #[ignore = "spawns cargo — run with --ignored in CI environments that have a Rust toolchain"]
+    #[ignore = "owner:eval sunset:never spawns cargo — run with --ignored in CI environments that have a Rust toolchain"]
     fn cargo_test_reward_failing_test_returns_zero() {
         let snippet = "fn main() {}\n#[cfg(test)]\nmod tests {\n    #[test]\n    fn it_fails() { assert_eq!(1, 2); }\n}";
         let score = cargo_test_reward(snippet);

@@ -571,3 +571,16 @@ async fn diagnose_adapters(live: bool) -> anyhow::Result<()> {
 
     Ok(())
 }
+
+/// Export a digest-bound `SyndicationHandoffPayloadV1` JSON document for server-side execution by `vox-ops-syndication`.
+pub fn export_syndication_handoff_json(
+    item: &vox_publisher::types::UnifiedNewsItem,
+    out_path: Option<&std::path::Path>,
+) -> anyhow::Result<vox_publisher::handoff::SyndicationHandoffPayloadV1> {
+    let payload = vox_publisher::handoff::build_syndication_handoff_payload(item, None)?;
+    let encoded = serde_json::to_string_pretty(&payload)?;
+    if let Some(p) = out_path {
+        std::fs::write(p, &encoded)?;
+    }
+    Ok(payload)
+}

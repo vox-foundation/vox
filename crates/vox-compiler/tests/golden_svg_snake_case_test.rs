@@ -34,7 +34,6 @@ fn read_fixture(name: &str) -> String {
 // ── snake_case attribute aliases on <svg> + children ─────────────────────────
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn svg_attribute_snake_case_normalises_to_camel() {
     let src = read_fixture("snake_case.vox");
     let files = compile_components(&src);
@@ -58,7 +57,6 @@ fn svg_attribute_snake_case_normalises_to_camel() {
 }
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn svg_tag_snake_case_normalises_to_camel() {
     let src = read_fixture("snake_case.vox");
     let files = compile_components(&src);
@@ -94,7 +92,6 @@ fn svg_tag_snake_case_normalises_to_camel() {
 // ── linear_gradient / fe_gaussian_blur / foreign_object / filter ─────────────
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn additional_svg_snake_case_tags_normalise() {
     let src = read_fixture("uncovered_tags.vox");
     let files = compile_components(&src);

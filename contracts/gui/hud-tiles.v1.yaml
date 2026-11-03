@@ -7,20 +7,22 @@ description: >
 
 tile_kinds:
   - active_agents
-  - queue_depth
   - budget_burn
   - mesh_peers
   - active_model
-  - openrouter_spend
   - pending_approvals
+
+# Retired 2026-09-28 (chat-surfaces consolidation): queue_depth merged into the
+# Engine card (active_agents), openrouter_spend into the Spend card popover
+# (budget_burn). Stored configs that list them load with those entries dropped.
+retired_tile_kinds:
+  - queue_depth
+  - openrouter_spend
 
 data_bindings:
   active_agents:
     source: orchestrator_status
     field: agent_count
-  queue_depth:
-    source: orchestrator_status
-    field: queue_depth
   budget_burn:
     source: orchestrator_status
     field: budget_burn_usd
@@ -30,9 +32,6 @@ data_bindings:
   active_model:
     source: transport
     method: get_active_model
-  openrouter_spend:
-    source: transport
-    method: get_llm_spend
   pending_approvals:
     source: orchestrator_status
     field: approvals_pending
@@ -53,9 +52,6 @@ default_profile:
     - id: active_agents
       kind: active_agents
       enabled: true
-    - id: queue_depth
-      kind: queue_depth
-      enabled: true
     - id: budget_burn
       kind: budget_burn
       enabled: true
@@ -64,9 +60,6 @@ default_profile:
       enabled: true
     - id: active_model
       kind: active_model
-      enabled: true
-    - id: openrouter_spend
-      kind: openrouter_spend
       enabled: true
     - id: pending_approvals
       kind: pending_approvals

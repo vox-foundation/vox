@@ -41,8 +41,8 @@ Canonical source: vox-secrets/llm.rs unless noted. Secret keys resolve via Clavi
 | GROQ_API_KEY / MISTRAL_API_KEY / DEEPSEEK_API_KEY / SAMBANOVA_API_KEY / TOGETHER_API_KEY / CEREBRAS_API_KEY / RUNPOD_API_KEY / VAST_API_KEY / V0_API_KEY / CUSTOM_OPENAI_API_KEY | String | y | Models | resolve_secret | per-provider keys |
 | HF_TOKEN (+HUGGING_FACE_HUB_TOKEN, VOX_ aliases) | String | y | Models | huggingface_hub_token() | |
 | OPENCLAW_TOKEN / OPENCLAW_API_KEY | String | y | Models | resolve_secret | skill publishing |
-| OPENROUTER_BASE_URL | Url | n | Models | openrouter_base_url() | default https://openrouter.ai/api |
-| VOX_OPENAI_BASE_URL (+legacy OPENAI_BASE_URL) | Url | n | Models | openai_compatible_base_url() | default https://api.openai.com/v1 |
+| OPENROUTER_BASE_URL | Url | n | Models | openrouter_base_url() | default `https://openrouter.ai/api` |
+| VOX_OPENAI_BASE_URL (+legacy OPENAI_BASE_URL) | Url | n | Models | openai_compatible_base_url() | default `https://api.openai.com/v1` |
 | VOX_POPULI_LOCAL_OLLAMA_URL / POPULI_URL / OLLAMA_URL / OLLAMA_HOST | Url | mixed | Models | local_ollama_populi_base_url() | 3-tier precedence; first is secret |
 | {OPENROUTER,OPENAI}_{CHAT_COMPLETIONS,EMBEDDINGS,MODELS_LIST}_URL | Url | n | Models | const fns inference.rs | hardcoded endpoint fallbacks |
 | VOX_{GROQ,CEREBRAS,MISTRAL,DEEPSEEK,SAMBANOVA,ANTHROPIC}_CHAT_COMPLETIONS_URL | Url | n | Models | resolve_secret | per-provider endpoint overrides |

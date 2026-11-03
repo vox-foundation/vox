@@ -164,14 +164,11 @@ fn resolve_ide_context() -> vox_speech::routing::IdeContext {
             .map(|mt| mt.elapsed().map(|e| e.as_secs() < 300).unwrap_or(false))
             .unwrap_or(false);
 
-        if is_fresh {
-            if let Ok(content) = std::fs::read_to_string(&state_file) {
-                if let Ok(file_ctx) =
-                    serde_json::from_str::<vox_speech::routing::IdeContext>(&content)
-                {
-                    ctx = file_ctx;
-                }
-            }
+        if is_fresh
+            && let Ok(content) = std::fs::read_to_string(&state_file)
+            && let Ok(file_ctx) = serde_json::from_str::<vox_speech::routing::IdeContext>(&content)
+        {
+            ctx = file_ctx;
         }
     }
 
@@ -189,19 +186,17 @@ fn resolve_ide_context() -> vox_speech::routing::IdeContext {
     }
 
     // Best-effort pull of build errors from vox-db
-    if let Ok(rt) = tokio::runtime::Runtime::new() {
-        if let Ok(db) =
+    if let Ok(rt) = tokio::runtime::Runtime::new()
+        && let Ok(db) =
             rt.block_on(async { crate::workspace_db::connect_cli_workspace_voxdb().await })
-        {
-            // Use repository_id if available, otherwise "workspace"
-            let repo_id =
-                std::env::var("VOX_REPOSITORY_ID").unwrap_or_else(|_| "workspace".to_string());
-            if let Ok(warnings) = rt.block_on(async { db.query_build_warnings(&repo_id, 3).await })
-            {
-                for w in warnings {
-                    ctx.recent_errors
-                        .push(format!("[{}] {}", w.crate_name, w.message));
-                }
+    {
+        // Use repository_id if available, otherwise "workspace"
+        let repo_id =
+            std::env::var("VOX_REPOSITORY_ID").unwrap_or_else(|_| "workspace".to_string());
+        if let Ok(warnings) = rt.block_on(async { db.query_build_warnings(&repo_id, 3).await }) {
+            for w in warnings {
+                ctx.recent_errors
+                    .push(format!("[{}] {}", w.crate_name, w.message));
             }
         }
     }
@@ -326,8 +321,34 @@ pub enum OratioAction {
     },
 }
 
+/// vox-speech's `ExternalWhisperTranscribe` over the `oratio` plugin's
+/// `SpeechToText::transcribe` (mono f32 LE PCM bytes + config JSON in, transcription JSON out).
+// Copied rather than shared: vox-ml-cli and vox-gui both reach vox-plugin-host, but a shared
+// home would need a new crate edge for ~15 lines (AGENTS.md defactor rule).
+// vox:defactored-from vox-gui 2026-09-25 (commands::speech_plugin_backend::transcribe_with_oratio_plugin, ~15 lines)
+fn transcribe_with_oratio_plugin(pcm_le_f32: &[u8], config_json: &str) -> Result<String, String> {
+    let plugin = vox_plugin_host::cached_code_plugin("oratio")
+        .map_err(|e| format!("oratio plugin load: {e}"))?;
+    let stt = plugin
+        .plugin
+        .as_speech_to_text()
+        .into_option()
+        .ok_or_else(|| "oratio plugin missing SpeechToText accessor".to_string())?;
+    stt.transcribe(pcm_le_f32.into(), config_json.into())
+        .into_result()
+        .map(|json| json.into_string())
+        .map_err(|e| e.to_string())
+}
+
+/// Route vox-speech's Whisper selection (`serve`, `session`, `subtitle`) through the
+/// `oratio` plugin (Phase 3 D-12); the plugin loads lazily on first use.
+fn register_oratio_whisper_transcriber() {
+    vox_speech::backend_dispatch::register_whisper_transcriber(transcribe_with_oratio_plugin);
+}
+
 /// Run **`vox oratio …`**.
 pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
+    register_oratio_whisper_transcriber();
     let runtime = vox_speech::resolved_runtime_config();
     match action {
         OratioAction::Transcribe {
@@ -451,27 +472,25 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
             let mut ctx = resolve_ide_context();
 
             // Best-effort global symbol matching based on transcript keywords
-            if let Ok(rt) = tokio::runtime::Runtime::new() {
-                if let Ok(db) =
+            if let Ok(rt) = tokio::runtime::Runtime::new()
+                && let Ok(db) =
                     rt.block_on(async { crate::workspace_db::connect_cli_workspace_voxdb().await })
-                {
-                    // Extract potential symbol names from transcript
-                    let keywords: Vec<&str> = session
-                        .text
-                        .split_whitespace()
-                        .filter(|w| w.len() > 3) // Ignore short words
-                        .collect();
-                    for k in keywords {
-                        let clean = k.trim_matches(|c: char| !c.is_alphanumeric() && c != '_');
-                        if !clean.is_empty() {
-                            if let Ok(symbols) =
-                                rt.block_on(async { db.search_project_symbols(clean, 3).await })
-                            {
-                                for (_, label, _) in symbols {
-                                    if !ctx.symbol_stack.contains(&label) {
-                                        ctx.symbol_stack.push(label);
-                                    }
-                                }
+            {
+                // Extract potential symbol names from transcript
+                let keywords: Vec<&str> = session
+                    .text
+                    .split_whitespace()
+                    .filter(|w| w.len() > 3) // Ignore short words
+                    .collect();
+                for k in keywords {
+                    let clean = k.trim_matches(|c: char| !c.is_alphanumeric() && c != '_');
+                    if !clean.is_empty()
+                        && let Ok(symbols) =
+                            rt.block_on(async { db.search_project_symbols(clean, 3).await })
+                    {
+                        for (_, label, _) in symbols {
+                            if !ctx.symbol_stack.contains(&label) {
+                                ctx.symbol_stack.push(label);
                             }
                         }
                     }
@@ -604,13 +623,12 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
                 let _ = db.record_oratio_eval_run_start(&params).await;
             }
 
-            let mut rec_idx = 0usize;
-            for line in file.lines().filter(|l| !l.trim().is_empty()) {
-                rec_idx += 1;
-                if let Some(l) = limit {
-                    if count >= l {
-                        break;
-                    }
+            for (i, line) in file.lines().filter(|l| !l.trim().is_empty()).enumerate() {
+                let rec_idx = i + 1; // 1-based in error messages
+                if let Some(l) = limit
+                    && count >= l
+                {
+                    break;
                 }
                 let val: serde_json::Value = serde_json::from_str(line)
                     .with_context(|| format!("JSONL parse error at record {rec_idx}"))?;
@@ -728,43 +746,41 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
                 ground_truth_srt.clone(),
                 persist,
             )?;
-            if persist {
-                if let Some((wer, cer, offset)) = metrics {
-                    let rt = tokio::runtime::Runtime::new()?;
-                    let db_opt = rt.block_on(async {
-                        crate::workspace_db::connect_cli_workspace_voxdb()
-                            .await
-                            .ok()
+            if persist && let Some((wer, cer, offset)) = metrics {
+                let rt = tokio::runtime::Runtime::new()?;
+                let db_opt = rt.block_on(async {
+                    crate::workspace_db::connect_cli_workspace_voxdb()
+                        .await
+                        .ok()
+                });
+                if let Some(db) = db_opt {
+                    let run_id = uuid::Uuid::new_v4().to_string();
+                    let params = vox_db::OratioEvalRunStartParams {
+                        run_id: run_id.clone(),
+                        run_type: "srt_ground_truth".to_string(),
+                        backend: "candle-whisper".to_string(),
+                        model_id: None,
+                        dataset_name: ground_truth_srt.unwrap_or_default(),
+                    };
+                    rt.block_on(async {
+                        if db.record_oratio_eval_run_start(&params).await.is_ok() {
+                            let _ = db
+                                .append_oratio_eval_sample(
+                                    &run_id, &path, "srts", "srts", wer as f32, cer as f32, None,
+                                    None, 0,
+                                )
+                                .await;
+                            let _ = db
+                                .complete_oratio_eval_run(
+                                    &run_id,
+                                    Some(wer as f32),
+                                    Some(cer as f32),
+                                    None,
+                                    Some(offset),
+                                )
+                                .await;
+                        }
                     });
-                    if let Some(db) = db_opt {
-                        let run_id = uuid::Uuid::new_v4().to_string();
-                        let params = vox_db::OratioEvalRunStartParams {
-                            run_id: run_id.clone(),
-                            run_type: "srt_ground_truth".to_string(),
-                            backend: "candle-whisper".to_string(),
-                            model_id: None,
-                            dataset_name: ground_truth_srt.unwrap_or_default(),
-                        };
-                        let _ = rt.block_on(async {
-                            if db.record_oratio_eval_run_start(&params).await.is_ok() {
-                                let _ = db
-                                    .append_oratio_eval_sample(
-                                        &run_id, &path, "srts", "srts", wer as f32, cer as f32,
-                                        None, None, 0,
-                                    )
-                                    .await;
-                                let _ = db
-                                    .complete_oratio_eval_run(
-                                        &run_id,
-                                        Some(wer as f32),
-                                        Some(cer as f32),
-                                        None,
-                                        Some(offset),
-                                    )
-                                    .await;
-                            }
-                        });
-                    }
                 }
             }
             Ok(())
@@ -772,6 +788,66 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
         OratioAction::Serve { port } => {
             vox_speech::serve::run_serve_worker(port).await?;
             Ok(())
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn run_setup_registers_the_oratio_plugin_transcriber() {
+        register_oratio_whisper_transcriber();
+        assert!(vox_speech::backend_dispatch::has_registered_whisper_transcriber());
+    }
+
+    /// Live check (Phase 3 UAT test 3): the transcriber `run` registers, called the way
+    /// `vox oratio serve`'s handler calls it (`whisper_backend()?.transcribe_pcm`), reaches
+    /// the installed `oratio` plugin's Candle Whisper at 16 kHz and at a declared 44.1 kHz.
+    /// Skips unless that plugin loads (`VOX_PLUGINS_DIR` or the default root) and
+    /// openai/whisper-tiny.en is already in the Hugging Face cache; no download here.
+    #[test]
+    fn serve_transcriber_reaches_installed_oratio_plugin() {
+        if let Err(e) = vox_plugin_host::cached_code_plugin("oratio") {
+            eprintln!("skipping: oratio plugin not loadable: {e}");
+            return;
+        }
+        let hub = std::env::var_os("HF_HUB_CACHE")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HF_HOME").map(|h| PathBuf::from(h).join("hub")))
+            .or_else(|| dirs::home_dir().map(|h| h.join(".cache/huggingface/hub")));
+        if !hub.is_some_and(|h| h.join("models--openai--whisper-tiny.en").is_dir()) {
+            eprintln!("skipping: openai/whisper-tiny.en is not in the Hugging Face cache");
+            return;
+        }
+
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/speech-to-code/fixtures/corpus_v1/utt_11.wav");
+        let pcm_16k = vox_speech::backends::audio_io::pcm_decode_to_16k_mono(&fixture)
+            .expect("decode fixture");
+        let pcm_44k = vox_speech::backends::audio_io::resample_pcm(&pcm_16k, 16_000, 44_100)
+            .expect("resample fixture");
+        register_oratio_whisper_transcriber();
+        for (pcm, rate) in [(pcm_16k, 16_000), (pcm_44k, 44_100)] {
+            let backend = vox_speech::backend_dispatch::whisper_backend().expect("backend");
+            assert_eq!(backend.name(), "whisper (oratio plugin)");
+            let out = backend
+                .transcribe_pcm(&pcm, rate, None)
+                .expect("transcribe through the oratio plugin");
+            eprintln!("{rate} Hz: {:?}", out.raw_text);
+            assert!(
+                out.raw_text.to_lowercase().contains("canary"),
+                "{rate} Hz: expected the fixture's 'run speech canary sample 1', got {:?}",
+                out.raw_text
+            );
+            // One ~2.7 s utterance fits the first 30 s Whisper window.
+            let first = out.segments.first().expect("a timed segment");
+            assert_eq!(
+                (first.start_ms, first.end_ms),
+                (0, 30_000),
+                "{rate} Hz segment"
+            );
         }
     }
 }

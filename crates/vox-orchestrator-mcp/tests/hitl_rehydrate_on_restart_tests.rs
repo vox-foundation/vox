@@ -8,6 +8,9 @@
 //! caller waiting on the other end after a real process restart, and these
 //! tests do not pretend otherwise (see `hitl_rehydrate` module docs).
 
+// Task 8e fix round 1: pull in the hermetic-VOX_HOME ctor (see tests/common/mod.rs).
+mod common;
+
 use std::sync::Arc;
 
 use vox_orchestrator_mcp::ServerState;

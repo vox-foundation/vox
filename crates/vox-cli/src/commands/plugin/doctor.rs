@@ -2,11 +2,12 @@
 
 use super::list::{installed_version, plugins_root};
 use anyhow::Result;
-use vox_plugin_host::VOX_PLUGIN_ABI_VERSION;
+use vox_plugin_host::{CapabilitySet, VOX_PLUGIN_ABI_VERSION};
 
 pub fn run() -> Result<()> {
     let root = plugins_root();
     let catalog = vox_plugin_catalog::all_plugins();
+    let caps = vox_plugin_host::probe();
     let mut issues = 0usize;
     let mut checked = 0usize;
 
@@ -57,7 +58,13 @@ pub fn run() -> Result<()> {
             }
         }
 
-        if abi_ok {
+        // Platform/hardware check: an installed plugin whose catalog
+        // `requires-tag` (e.g. "nvidia-gpu") this host doesn't have is
+        // installed but cannot run — ABI matching alone can't see that.
+        let platform_ok =
+            check_platform(&entry.id, entry.requires_tag.as_deref(), &caps, &mut issues);
+
+        if abi_ok && platform_ok {
             println!("✓ {} v{} — ok", entry.id, version);
         }
     }
@@ -107,6 +114,29 @@ fn check_abi_from_toml(id: &str, raw: &str, issues: &mut usize) -> bool {
     true
 }
 
+/// Report (and count) an installed plugin whose declared `requires-tag`
+/// capability this host does not have — e.g. `mens-candle-cuda` on a Mac with
+/// no CUDA driver. Doctor previously only checked ABI, so a wrong-platform
+/// plugin was reported "ok" as long as its ABI matched, even though it can
+/// never load or run correctly here. Returns `false` on a mismatch.
+fn check_platform(
+    id: &str,
+    requires_tag: Option<&str>,
+    caps: &CapabilitySet,
+    issues: &mut usize,
+) -> bool {
+    if caps.satisfies(requires_tag) {
+        return true;
+    }
+    eprintln!(
+        "✗ {}: requires capability '{}', which this host does not have — installed but cannot run here",
+        id,
+        requires_tag.unwrap_or("<none>")
+    );
+    *issues += 1;
+    false
+}
+
 /// Extract `requires.native-libs` array from Plugin.toml if present.
 fn check_native_libs_from_toml(raw: &str) -> Option<Vec<String>> {
     let val = toml::from_str::<toml::Value>(raw).ok()?;
@@ -120,4 +150,43 @@ fn check_native_libs_from_toml(raw: &str) -> Option<Vec<String>> {
         .filter_map(|v| v.as_str().map(str::to_string))
         .collect();
     if out.is_empty() { None } else { Some(out) }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn platform_check_passes_when_capability_present() {
+        let caps = CapabilitySet::from_tags(["cpu-only", "apple-silicon", "metal"]);
+        let mut issues = 0usize;
+        assert!(check_platform(
+            "mens-candle-metal",
+            Some("apple-silicon"),
+            &caps,
+            &mut issues
+        ));
+        assert_eq!(issues, 0);
+    }
+
+    #[test]
+    fn platform_check_fails_and_counts_an_issue_when_capability_absent() {
+        let caps = CapabilitySet::from_tags(["cpu-only", "apple-silicon", "metal"]);
+        let mut issues = 0usize;
+        assert!(!check_platform(
+            "mens-candle-cuda",
+            Some("nvidia-gpu"),
+            &caps,
+            &mut issues
+        ));
+        assert_eq!(issues, 1);
+    }
+
+    #[test]
+    fn platform_check_passes_when_no_tag_required() {
+        let caps = CapabilitySet::from_tags(["cpu-only"]);
+        let mut issues = 0usize;
+        assert!(check_platform("oratio", None, &caps, &mut issues));
+        assert_eq!(issues, 0);
+    }
 }

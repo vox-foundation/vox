@@ -1,0 +1,50 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "classDef x:#f00;",
+      "rect",
+      []
+    ],
+    [
+      "style a fill:#f00;",
+      "rect",
+      []
+    ],
+    [
+      "style: say \"hi\"",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "classDef x:#f00;",
+        "rect",
+        []
+      ],
+      [
+        "style a fill:#f00;",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "style: say \"hi\"",
+        "rect",
+        []
+      ],
+      [
+        "classDef x:#f00;",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

@@ -45,7 +45,7 @@ pub enum ReviewProvider {
     /// Local Ollama instance — zero auth, zero cost.
     Ollama {
         #[serde(default = "default_ollama_url")]
-        /// Base URL for Ollama (no `/v1` suffix); default `http://localhost:11434`.
+        /// Base URL for Ollama (no `/v1` suffix); resolved via `local_ollama_populi_base_url()`.
         url: String,
         #[serde(default = "default_ollama_model")]
         /// Tag pulled into Ollama (e.g. `codellama`).
@@ -59,34 +59,37 @@ pub enum ReviewProvider {
     },
 }
 
-/// Default OpenRouter model when `OPENROUTER_MODEL` is unset.
-/// 2026-Q2 refresh: Sonnet 4.6 (prompt-cacheable, best price/quality for review).
+/// Default OpenRouter model when `OPENROUTER_MODEL` is unset — contract role
+/// `code_review` (`contracts/orchestration/model-defaults.v1.yaml`).
 pub fn default_openrouter_model() -> String {
-    "anthropic/claude-sonnet-4.6".to_string()
+    vox_config::model_defaults::CODE_REVIEW.to_string()
 }
 /// `HTTP-Referer` value required by OpenRouter; embedded in serde defaults for configs.
 pub fn default_site_url() -> String {
     "https://github.com/vox-foundation/vox".to_string()
 }
-/// Default OpenAI chat model when `OPENAI_MODEL` is unset.
-/// 2026-Q2 refresh: GPT-5-Mini supersedes retired gpt-4o-mini.
+/// Default OpenAI chat model when `OPENAI_MODEL` is unset — contract role
+/// `openai_direct`.
 pub fn default_openai_model() -> String {
-    "gpt-5-mini".to_string()
+    vox_config::model_defaults::OPENAI_DIRECT.to_string()
 }
 
 /// Default OpenAI API base (`https://api.openai.com/v1`) when `OPENAI_BASE_URL` is unset.
 pub fn default_openai_base_url() -> String {
     "https://api.openai.com/v1".to_string()
 }
-/// Default Gemini model id when `GEMINI_MODEL` is unset.
-/// 2026-Q2 refresh: Gemini 3 Flash supersedes 2.5-flash (1M ctx, cheaper).
+/// Default Gemini model id when `GEMINI_MODEL` is unset — contract role
+/// `gemini_direct` (Google-native id).
 pub fn default_gemini_model() -> String {
-    "gemini-3-flash".to_string()
+    vox_config::model_defaults::GEMINI_DIRECT.to_string()
 }
-/// Default Ollama listen URL when `OLLAMA_URL` is unset.
-pub fn default_ollama_url() -> String {
-    "http://localhost:11434".to_string()
-}
+/// Default Ollama listen URL. Re-exports the config SSOT resolver
+/// (`VOX_POPULI_LOCAL_OLLAMA_URL` -> `POPULI_URL` -> `OLLAMA_URL` -> default)
+/// so a self-hosted server can be targeted without a code change. A re-export
+/// rather than a wrapper fn: there is no body here that could drift back to a
+/// hardcoded literal, and the precedence is tested in `vox-config`
+/// (`local_base_prefers_populi_then_ollama`) without env races in this crate.
+pub use vox_config::inference::local_ollama_populi_base_url as default_ollama_url;
 /// Default Ollama model tag when `OLLAMA_MODEL` is unset.
 pub fn default_ollama_model() -> String {
     "codellama".to_string()
@@ -199,4 +202,34 @@ pub fn probe_ollama(url: &str) -> bool {
             code.trim() == "200"
         })
         .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Env-free: a config that omits Ollama's url/model gets the serde
+    /// defaults, and the url default is the config SSOT's value.
+    #[test]
+    fn ollama_config_defaults_come_from_the_ssot() {
+        let p: ReviewProvider = serde_json::from_str(r#"{"provider":"ollama"}"#).unwrap();
+        let ReviewProvider::Ollama { url, model } = p else {
+            panic!("expected Ollama, got {p:?}");
+        };
+        assert_eq!(url, vox_config::inference::local_ollama_populi_base_url());
+        assert_eq!(model, default_ollama_model());
+    }
+
+    #[test]
+    #[allow(unsafe_code)] // test-only env mutation (Rust 2024 set_var); see SAFETY below
+    fn ollama_default_url_resolves_through_the_config_ssot() {
+        // SAFETY: single-threaded scope; the var is restored below and no
+        // other test in this crate reads OLLAMA_URL.
+        unsafe { std::env::set_var("OLLAMA_URL", "http://ssot-probe:1234") };
+        vox_config::snapshot::bump(&["OLLAMA_URL"]);
+        let got = default_ollama_url();
+        unsafe { std::env::remove_var("OLLAMA_URL") };
+        vox_config::snapshot::bump(&["OLLAMA_URL"]);
+        assert_eq!(got, "http://ssot-probe:1234");
+    }
 }

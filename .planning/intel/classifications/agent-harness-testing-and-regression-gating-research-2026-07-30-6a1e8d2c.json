@@ -1,0 +1,23 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/agent-harness-testing-and-regression-gating-research-2026-07-30.md",
+  "type": "SPEC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "Testing & Regression-Gating an Agent Harness (2026-07-30)",
+  "summary": "Specification establishing tau-bench as deterministic outcome-checking standard and pass^k reliability metric for harness regression gates.",
+  "scope": [
+    "harness testing",
+    "regression gates",
+    "tau-bench methodology",
+    "deterministic evaluation",
+    "benchmark contamination",
+    "pass^k reliability metric"
+  ],
+  "cross_refs": [
+    "docs/src/architecture/skill-discovery-and-induction-research-2026-07-30.md",
+    "docs/src/architecture/skill-registry-trust-and-curation-research-2026-07-30.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Research-framed but establishes binding testing specifications: SWE-Bench contamination finding informs rejection; tau-bench and pass^k are required methodologies."
+}

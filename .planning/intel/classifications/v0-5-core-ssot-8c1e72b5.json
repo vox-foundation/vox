@@ -1,0 +1,19 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/v0.5-core-ssot.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "v0.5-core-ssot",
+  "summary": "Authoritative architecture snapshot for v0.5 release covering CLI, persistence, MENS intelligence layer, and DEI orchestrator components.",
+  "scope": [
+    "v0.5 release",
+    "CLI",
+    "database",
+    "MENS",
+    "orchestrator",
+    "deployment"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null
+}

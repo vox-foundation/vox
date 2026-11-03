@@ -20,6 +20,20 @@ fn test_ebnf_export() {
 }
 
 #[test]
+fn test_ebnf_header_uses_workspace_version() {
+    let ebnf = emit_ebnf();
+    let header = ebnf.lines().next().unwrap();
+    assert!(
+        header.contains(env!("CARGO_PKG_VERSION")),
+        "EBNF header must embed the workspace version, got: {header}"
+    );
+    assert!(
+        !header.contains("Vox 0.4"),
+        "EBNF header must not hardcode a stale version: {header}"
+    );
+}
+
+#[test]
 fn test_ebnf_non_empty() {
     let ebnf = emit_ebnf();
     assert!(!ebnf.is_empty(), "EBNF must not be empty");
@@ -360,7 +374,7 @@ fn test_export_dispatch_all_formats() {
 
 #[test]
 fn test_versioning_alignment() {
-    assert!(verify_grammar_alignment().is_ok());
+    verify_grammar_alignment().unwrap();
     assert_eq!(get_version(), get_compiler_version());
 }
 

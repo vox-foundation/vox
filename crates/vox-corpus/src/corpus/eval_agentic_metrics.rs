@@ -37,7 +37,13 @@ fn extract_json_block(s: &str) -> String {
 
 /// Compute agentic metrics (tool_call_valid_json_rate, tool_name_exists_rate) for
 /// agentic/tool-use samples in `input_jsonl`.
-pub fn compute_agentic_spoke_metrics(input_jsonl: &Path) -> anyhow::Result<(f64, f64)> {
+///
+/// Returns `Ok(None)` when the corpus contains **no** agent_trace/tool_trace
+/// rows (the metric is not applicable — mirrors
+/// `eval_rust_metrics::compute_rust_spoke_metrics`'s "not applicable" vs.
+/// "0% passed" distinction, so a blocking agentic gate never misreads an
+/// absent spoke as a total failure).
+pub fn compute_agentic_spoke_metrics(input_jsonl: &Path) -> anyhow::Result<Option<(f64, f64)>> {
     let content = std::fs::read_to_string(input_jsonl)?;
     let mut total_checks = 0;
     let mut valid_json_count = 0;
@@ -108,18 +114,15 @@ pub fn compute_agentic_spoke_metrics(input_jsonl: &Path) -> anyhow::Result<(f64,
         }
     }
 
-    let json_rate = if total_checks > 0 {
-        valid_json_count as f64 / total_checks as f64
-    } else {
-        0.0
-    };
-    let name_rate = if total_checks > 0 {
-        known_tool_count as f64 / total_checks as f64
-    } else {
-        0.0
-    };
+    if total_checks == 0 {
+        // Not applicable — no agentic rows. Distinct from "0% valid".
+        return Ok(None);
+    }
 
-    Ok((json_rate, name_rate))
+    let json_rate = valid_json_count as f64 / total_checks as f64;
+    let name_rate = known_tool_count as f64 / total_checks as f64;
+
+    Ok(Some((json_rate, name_rate)))
 }
 
 #[cfg(test)]
@@ -151,5 +154,54 @@ mod tests {
         assert!(tool_name_exists("vox_skill_list"));
         assert!(tool_name_exists("vox ci affected-crates"));
         assert!(!tool_name_exists("nonexistent_tool"));
+    }
+
+    #[test]
+    fn compute_agentic_spoke_metrics_none_when_no_agentic_rows() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("train.jsonl");
+        std::fs::write(
+            &path,
+            r#"{"category":"rust_authoring","response":"fn main(){}"}"#,
+        )
+        .unwrap();
+        let result = compute_agentic_spoke_metrics(&path).unwrap();
+        assert!(
+            result.is_none(),
+            "no agent_trace/tool_trace rows must be 'not applicable', not 0.0"
+        );
+    }
+
+    #[test]
+    fn compute_agentic_spoke_metrics_rates_from_agent_rows() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("train.jsonl");
+        let lines = [
+            // valid JSON tool call, known tool name
+            serde_json::json!({
+                "category": "agent_trace",
+                "response": {"tool_name": "vox_skill_list", "arguments": {}, "result": "[]", "success": true}
+            }),
+            // valid JSON tool call, unknown tool name
+            serde_json::json!({
+                "category": "tool_trace",
+                "response": {"tool_name": "nonexistent_tool", "arguments": {}, "result": "[]", "success": true}
+            }),
+            // malformed (missing keys) -> invalid json shape
+            serde_json::json!({
+                "category": "agent_trace",
+                "response": {"tool_name": "vox_skill_list"}
+            }),
+        ];
+        let content = lines
+            .iter()
+            .map(|v| v.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::fs::write(&path, content).unwrap();
+
+        let (json_rate, name_rate) = compute_agentic_spoke_metrics(&path).unwrap().unwrap();
+        assert!((json_rate - (2.0 / 3.0)).abs() < 1e-9, "got {json_rate}");
+        assert!((name_rate - (1.0 / 3.0)).abs() < 1e-9, "got {name_rate}");
     }
 }

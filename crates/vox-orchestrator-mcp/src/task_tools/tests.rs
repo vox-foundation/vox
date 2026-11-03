@@ -24,6 +24,7 @@ fn base_params(description: &str) -> SubmitTaskParams {
         campaign_id: None,
         benchmark_tier: None,
         trace_id: None,
+        turn_id: None,
         correlation_id: None,
         tool_hints: vec![],
         research_hints: vec![],
@@ -134,6 +135,7 @@ fn socrates_context_from_retrieval_preserves_verification_and_quality_signals() 
         sqlite_fts5_reported: None,
         sqlite_foreign_keys_on: None,
         rrf_fused_hit_count: 0,
+        min_trust_tier: None,
     };
     let ctx = submission::socrates_context_from_retrieval(&retrieval);
     assert_eq!(ctx.source_diversity, 3);

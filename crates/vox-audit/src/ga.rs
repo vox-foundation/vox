@@ -162,6 +162,47 @@ pub fn product_binary_gates(_args: &crate::CommonArgs) -> Vec<GateRow> {
         .collect()
 }
 
+/// Outcome of comparing a GA snapshot with the committed known-unmet baseline.
+#[derive(Debug, Default, PartialEq)]
+pub struct GaRatchet {
+    /// GA-relevant gates that are unmet now but not in the baseline (fail the job).
+    pub regressions: Vec<String>,
+    /// Baseline gates that are met now (tighten the baseline).
+    pub newly_met: Vec<String>,
+}
+
+/// Compare a GA snapshot with the committed known-unmet baseline. Only GA-relevant gates
+/// count (not `tooling`, matching `ga_met`). This never changes the honest GA verdict
+/// (`ga_met`); it lets CI fail on *regressions* instead of on "v1.0 is not done yet".
+pub fn ratchet(snap: &GaSnapshot, known_unmet: &[String]) -> GaRatchet {
+    let mut out = GaRatchet::default();
+    for g in snap.gates.iter().filter(|g| g.tier != "tooling") {
+        let known = known_unmet.iter().any(|k| k == &g.thing);
+        if !g.met && !known {
+            out.regressions.push(g.thing.clone());
+        } else if g.met && known {
+            out.newly_met.push(g.thing.clone());
+        }
+    }
+    out
+}
+
+/// Parse `contracts/reports/cr-l-ga-baseline.v1.json`: `{"known_unmet": ["gate", ...]}`.
+pub fn parse_ga_baseline(text: &str) -> Result<Vec<String>, String> {
+    let v: serde_json::Value = serde_json::from_str(text).map_err(|e| e.to_string())?;
+    let arr = v
+        .get("known_unmet")
+        .and_then(|x| x.as_array())
+        .ok_or("GA baseline needs a `known_unmet` array")?;
+    arr.iter()
+        .map(|x| {
+            x.as_str()
+                .map(str::to_string)
+                .ok_or_else(|| "known_unmet entries must be strings".to_string())
+        })
+        .collect()
+}
+
 fn now_rfc3339() -> String {
     chrono::Utc::now().to_rfc3339()
 }
@@ -182,6 +223,45 @@ mod tests {
             exit_code: if met { 0 } else { 1 },
             external_infra: false,
         }
+    }
+
+    #[test]
+    fn ratchet_fails_only_on_gates_outside_the_known_unmet_baseline() {
+        let rows = vec![
+            row("behavioral-goldens", crate::Tier::Foundation, true),
+            row("deploy", crate::Tier::Product, false), // known, still red: fine
+            row("retirement", crate::Tier::Product, false), // was green: regression
+            row("cr-e1", crate::Tier::Product, true),   // known, now green: tighten
+            row("stdlib-coverage", crate::Tier::Tooling, false), // tooling: not GA
+        ];
+        let snap = GaSnapshot::from_rows(rows, true);
+        let known = vec!["deploy".to_string(), "cr-e1".to_string()];
+        let r = ratchet(&snap, &known);
+        assert_eq!(r.regressions, vec!["retirement".to_string()]);
+        assert_eq!(r.newly_met, vec!["cr-e1".to_string()]);
+    }
+
+    #[test]
+    fn ratchet_is_clean_when_only_known_gates_are_red() {
+        let rows = vec![
+            row("behavioral-goldens", crate::Tier::Foundation, true),
+            row("deploy", crate::Tier::Product, false),
+        ];
+        let snap = GaSnapshot::from_rows(rows, true);
+        let r = ratchet(&snap, &["deploy".to_string()]);
+        assert!(r.regressions.is_empty() && r.newly_met.is_empty());
+        assert!(
+            !snap.ga_met,
+            "the ratchet never changes the honest GA verdict"
+        );
+    }
+
+    #[test]
+    fn ga_baseline_parses_known_unmet() {
+        let parsed =
+            parse_ga_baseline(r#"{"schema_version":1,"known_unmet":["deploy","cr-p1"]}"#).unwrap();
+        assert_eq!(parsed, vec!["deploy".to_string(), "cr-p1".to_string()]);
+        assert!(parse_ga_baseline("{}").is_err(), "known_unmet is required");
     }
 
     #[test]

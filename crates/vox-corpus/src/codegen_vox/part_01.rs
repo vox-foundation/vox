@@ -185,23 +185,20 @@ fn gen_string_interp(rng: &mut Rng) -> String {
 }
 
 fn gen_jsx_element(rng: &mut Rng) -> String {
-    let tag = ["div", "section", "main", "article"][rng.usize(4)];
-    let cls = NOUNS[rng.usize(NOUNS.len())];
+    let prim = ["column", "row", "card", "box"][rng.usize(4)];
     let child = NOUNS[rng.usize(NOUNS.len())];
-    format!("<{tag} className=\"{cls}\">{{{child}}}</{tag}>")
+    format!("{prim}() {{ text() {{ \"{child}\" }} }}")
 }
 
 fn gen_jsx_self_closing(rng: &mut Rng) -> String {
-    let tag = ["input", "img", "hr", "br"][rng.usize(4)];
-    let (attr, _) = FIELD_POOL[rng.usize(FIELD_POOL.len())];
     let val = NOUNS[rng.usize(NOUNS.len())];
-    format!("<{tag} {attr}=\"{val}\" />")
+    format!("text() {{ \"{val}\" }}")
 }
 
 fn gen_literal_for_type(rng: &mut Rng, ty: &str) -> String {
     match ty {
         "int" => format!("{}", rng.next() % 1000),
-        "float" => format!("{}.{}", rng.next() % 100, rng.next() % 99),
+        "float" => format!("{}.{}", rng.next() % 100, rng.next() % 99 + 1),
         "bool" => if rng.coin() { "true" } else { "false" }.to_string(),
         "Unit" => "()".to_string(),
         _ => format!("\"{}\"", NOUNS[rng.usize(NOUNS.len())]),
@@ -209,9 +206,9 @@ fn gen_literal_for_type(rng: &mut Rng, ty: &str) -> String {
 }
 
 fn gen_binary(rng: &mut Rng, depth: u8) -> String {
-    // All 13 BinOp variants: +, -, *, /, <, >, <=, >=, and, or, is, isnt, |>
+    // Canonical BinOp variants: +, -, *, /, <, >, <=, >=, and, or, is, is not
     let ops = [
-        "+", "-", "*", "/", ">", "<", ">=", "<=", "and", "or", "is", "isnt",
+        "+", "-", "*", "/", ">", "<", ">=", "<=", "and", "or", "is", "is not",
     ];
     let op = ops[rng.usize(ops.len())];
     let left = NOUNS[rng.usize(NOUNS.len())];
@@ -220,10 +217,10 @@ fn gen_binary(rng: &mut Rng, depth: u8) -> String {
             "{} {} {}",
             NOUNS[rng.usize(NOUNS.len())],
             ops[rng.usize(4)],
-            rng.next() % 50
+            rng.next() % 50 + 1
         )
     } else {
-        format!("{}", rng.next() % 100)
+        format!("{}", rng.next() % 100 + 1)
     };
     format!("{left} {op} {right}")
 }
@@ -232,7 +229,7 @@ fn gen_unary(rng: &mut Rng, _depth: u8, _tags: &mut Vec<String>) -> String {
     if rng.coin() {
         format!("not {}", NOUNS[rng.usize(NOUNS.len())])
     } else {
-        format!("-{}", rng.next() % 100)
+        format!("-{}", rng.next() % 100 + 1)
     }
 }
 
@@ -255,47 +252,48 @@ fn gen_method_call(rng: &mut Rng) -> String {
 
 fn gen_if(rng: &mut Rng, depth: u8, tags: &mut Vec<String>) -> String {
     let cond = gen_binary(rng, 0);
-    let then_val = gen_expr(rng, depth - 1, tags);
-    let else_val = gen_expr(rng, depth - 1, tags);
+    let then_val = gen_literal(rng, tags);
+    let else_val = gen_literal(rng, tags);
+    let _ = depth;
     format!("if {cond} {{ {then_val} }} else {{ {else_val} }}")
 }
 
-/// Match with all 5 Pattern variants exercised across calls.
-fn gen_match(rng: &mut Rng, depth: u8, tags: &mut Vec<String>) -> String {
+/// Match with all Pattern variants exercised across calls using canonical `=>` arms.
+fn gen_match(rng: &mut Rng, _depth: u8, tags: &mut Vec<String>) -> String {
     let subject = NOUNS[rng.usize(NOUNS.len())];
-    let arm1_body = gen_expr(rng, depth.saturating_sub(1), tags);
-    let arm2_body = gen_expr(rng, depth.saturating_sub(1), tags);
-    let arm3_body = gen_expr(rng, depth.saturating_sub(1), tags);
+    let arm1_body = gen_literal(rng, tags);
+    let arm2_body = gen_literal(rng, tags);
+    let arm3_body = gen_literal(rng, tags);
 
     // Rotate through all Pattern variants based on RNG
     let arms = match rng.usize(5) {
         // Ident pattern
-        0 => format!("match {subject} {{ {subject} to {arm1_body}, _ to {arm2_body} }}"),
+        0 => format!("match {subject} {{ {subject} => {arm1_body}, _ => {arm2_body} }}"),
         // Literal pattern
-        1 => format!("match {subject} {{ 0 to {arm1_body}, 1 to {arm2_body}, _ to {arm3_body} }}"),
+        1 => format!("match {subject} {{ 0 => {arm1_body}, 1 => {arm2_body}, _ => {arm3_body} }}"),
         // Constructor pattern (ADT)
         2 => {
             tags.push("pattern:constructor".into());
-            format!("match {subject} {{ Ok(value) to {arm1_body}, Error(msg) to {arm2_body} }}")
+            format!("match {subject} {{ Ok(value) => {arm1_body}, Error(msg) => {arm2_body} }}")
         }
         // Tuple destructuring pattern
         3 => {
             tags.push("pattern:tuple".into());
             let (f1, _) = FIELD_POOL[rng.usize(FIELD_POOL.len())];
-            let (f2, _) = FIELD_POOL[rng.usize(FIELD_POOL.len())];
-            format!("match {subject} {{ ({f1}, {f2}) to {arm1_body}, _ to {arm2_body} }}")
+            let (f2, _) = FIELD_POOL[(rng.usize(FIELD_POOL.len()) + 1) % FIELD_POOL.len()];
+            format!("match {subject} {{ ({f1}, {f2}) => {arm1_body}, _ => {arm2_body} }}")
         }
-        // Wildcard + guard
-        _ => format!("match {subject} {{ x if x > 0 to {arm1_body}, _ to {arm2_body} }}"),
+        // Wildcard + constructor
+        _ => format!("match {subject} {{ Some(x) => {arm1_body}, None => {arm2_body} }}"),
     };
     tags.push("expr:match".into());
     arms
 }
 
-fn gen_lambda(rng: &mut Rng, depth: u8, tags: &mut Vec<String>) -> String {
+fn gen_lambda(rng: &mut Rng, _depth: u8, tags: &mut Vec<String>) -> String {
     let param = NOUNS[rng.usize(NOUNS.len())];
-    let body = gen_expr(rng, depth - 1, tags);
-    format!("fn({param}: int) to {body}")
+    let body = gen_literal(rng, tags);
+    format!("fn({param}: int) to int {{ return {body} }}")
 }
 
 fn gen_pipe(rng: &mut Rng, _depth: u8, _tags: &mut Vec<String>) -> String {
@@ -305,20 +303,20 @@ fn gen_pipe(rng: &mut Rng, _depth: u8, _tags: &mut Vec<String>) -> String {
     format!("{source} |> {f1} |> {f2}")
 }
 
-fn gen_list(rng: &mut Rng, depth: u8, tags: &mut Vec<String>) -> String {
-    let n = 2 + rng.usize(4);
-    let items: Vec<String> = (0..n).map(|_| gen_expr(rng, depth - 1, tags)).collect();
+fn gen_list(rng: &mut Rng, _depth: u8, tags: &mut Vec<String>) -> String {
+    let n = 2 + rng.usize(3);
+    let items: Vec<String> = (0..n).map(|_| gen_literal(rng, tags)).collect();
     format!("[{}]", items.join(", "))
 }
 
-fn gen_tuple(rng: &mut Rng, depth: u8, tags: &mut Vec<String>) -> String {
-    let n = 2 + rng.usize(3);
-    let items: Vec<String> = (0..n).map(|_| gen_expr(rng, depth - 1, tags)).collect();
+fn gen_tuple(rng: &mut Rng, _depth: u8, tags: &mut Vec<String>) -> String {
+    let n = 2 + rng.usize(2);
+    let items: Vec<String> = (0..n).map(|_| gen_literal(rng, tags)).collect();
     format!("({})", items.join(", "))
 }
 
-fn gen_object(rng: &mut Rng, depth: u8, tags: &mut Vec<String>) -> String {
-    let n = 2 + rng.usize(4);
+fn gen_object(rng: &mut Rng, _depth: u8, tags: &mut Vec<String>) -> String {
+    let n = 2 + rng.usize(2);
     let mut used = std::collections::HashSet::new();
     let mut fields = Vec::new();
     for _ in 0..n {
@@ -328,7 +326,7 @@ fn gen_object(rng: &mut Rng, depth: u8, tags: &mut Vec<String>) -> String {
                 break e;
             }
         };
-        let val = gen_expr(rng, depth.saturating_sub(1), tags);
+        let val = gen_literal(rng, tags);
         fields.push(format!("{name}: {val}"));
     }
     format!("{{{}}}", fields.join(", "))
@@ -337,7 +335,7 @@ fn gen_object(rng: &mut Rng, depth: u8, tags: &mut Vec<String>) -> String {
 fn gen_for_expr(rng: &mut Rng, _depth: u8, _tags: &mut Vec<String>) -> String {
     let binding = NOUNS[rng.usize(NOUNS.len())];
     let iterable = NOUNS[rng.usize(NOUNS.len())];
-    format!("for {binding} in {iterable}: <li>{{{binding}.name}}</li>")
+    format!("for {binding} in {iterable} {{ {binding} }}")
 }
 
 fn gen_spawn_expr(rng: &mut Rng) -> String {
@@ -362,9 +360,8 @@ fn gen_field_access(rng: &mut Rng) -> String {
     format!("{obj}.{field}")
 }
 
-fn gen_block(rng: &mut Rng, depth: u8, tags: &mut Vec<String>) -> String {
-    let val = gen_expr(rng, depth - 1, tags);
+fn gen_block(rng: &mut Rng, _depth: u8, tags: &mut Vec<String>) -> String {
+    let val = gen_literal(rng, tags);
     let (name, _) = FIELD_POOL[rng.usize(FIELD_POOL.len())];
-    format!("{{ let {name} = {val}; {name} }}")
+    format!("{{\n        let {name} = {val}\n        {name}\n    }}")
 }
-

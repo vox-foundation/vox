@@ -1,0 +1,20 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/dependency-consolidation-plan-2026.md",
+  "type": "DOC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "Dependency consolidation plan (2026)",
+  "summary": "Draft plan for unified Rust installer extending vox doctor; audits current externals and proposes phased vox doctor --install migration.",
+  "scope": ["installer design", "vox doctor", "tool consolidation", "PATH setup", "cross-platform", "vox-install-policy"],
+  "cross_refs": [
+    "crates/vox-cli/src/commands/diagnostics/doctor/",
+    "crates/vox-install-policy/",
+    "crates/vox-bootstrap",
+    "crates/vox-cli-ci/src/install_hooks.rs",
+    "crates/vox-cli/src/commands/runtime/shell/",
+    "docs/src/contributors/local-ci-pre-push.md"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Status is 'roadmap' (aspirational); explicitly states 'draft, awaiting approval'. Phased handoff plan suggests implementable requirements, but not yet an active decision; classified as DOC (plan/design context) rather than PRD."
+}

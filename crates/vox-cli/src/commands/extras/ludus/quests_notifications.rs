@@ -257,24 +257,8 @@ pub async fn hint_show(context: Option<&str>) -> Result<()> {
     vox_gamify::db::upsert_teaching_profile(db, &profile).await?;
 
     let hint = if let Some(ref r) = req {
-        let _ = vox_gamify::db::log_hint_event(
-            db,
-            user_id,
-            &format!("{:?}", r.kind),
-            "pull_hint",
-            context,
-        )
-        .await;
         vox_gamify::teaching::Hint::deterministic(r).body
     } else {
-        let _ = vox_gamify::db::log_hint_event(
-            db,
-            user_id,
-            &format!("{kind:?}"),
-            "suppressed",
-            context,
-        )
-        .await;
         match context {
             Some("build") => {
                 "Try using `vox check` before `vox build` to catch errors faster.".to_string()

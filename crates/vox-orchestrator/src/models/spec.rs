@@ -82,6 +82,23 @@ pub struct ModelCapabilities {
     /// Provider-reported uptime score 0.0–1.0 (1.0 = fully available).
     #[serde(default)]
     pub uptime_score: Option<f32>,
+    /// Unix time the provider published this model (OpenRouter `/models` `created`).
+    /// `None` when the source does not report it; never defaulted to 0 or "now",
+    /// because recency ordering (`models::family`) must not invent a date.
+    #[serde(default)]
+    pub released_at: Option<u64>,
+    /// Artificial Analysis intelligence index as published in OpenRouter's catalog
+    /// (`benchmarks.artificial_analysis.intelligence_index`, ~0–60 today). `None` = unbenchmarked.
+    #[serde(default)]
+    pub intelligence_index: Option<f32>,
+    /// Quality prior stamped by the registry (`ModelRegistry::register` / `apply_routing_reference`).
+    /// `None` on a spec that was never registered; scoring then uses the fixed-constant formula.
+    #[serde(default)]
+    pub quality_prior: Option<QualityPrior>,
+    /// OpenRouter lists this model as the current target of a `~vendor/…-latest` alias. An alias
+    /// target is never treated as superseded, whatever `models::family::family_key` infers.
+    #[serde(default)]
+    pub is_alias_target: bool,
     /// Parameter count in billions, when known (e.g. parsed from Ollama's
     /// `/api/tags` `details.parameter_size` field, "8.2B" -> `8.2`). Used only
     /// as an advisory VRAM-fit signal (see `models::vram`); `None` means no
@@ -118,6 +135,29 @@ impl ModelCapabilities {
         self.supports_audio_input |= flags.supports_audio_input;
         self.supports_audio_output |= flags.supports_audio_output;
     }
+}
+
+/// A model's quality prior (0–1) and where it came from, so every surface can say why a model is
+/// rated as it is. Stamped by the registry from its `models::reference::RoutingReference`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct QualityPrior {
+    pub value: f64,
+    pub source: QualitySource,
+}
+
+/// Provenance of a [`QualityPrior`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum QualitySource {
+    /// The model's own Artificial Analysis intelligence index.
+    Benchmark { index: f32 },
+    /// The index of the newest benchmarked member of its family (`models::family`).
+    Inherited { index: f32, from: String },
+    /// No benchmark: the context-length and paid/free proxy.
+    Estimate,
+    /// Vox's own graded benchmark (`vox models bench`): `score` is the mean graded score over
+    /// `cases`, blended with `prior` (the external value it was shrunk toward).
+    Measured { score: f32, cases: u32, prior: f32 },
 }
 
 /// Specification for an LLM model in the registry.

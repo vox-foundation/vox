@@ -1,0 +1,62 @@
+# SSOT: which `.vox` files feed the vox-lang corpus (`vox mens corpus extract`, pipeline
+# Extract stage). Paths are repo-root relative. A file is used only if it lies under a
+# root, matches no `exclude` glob, is not marked `// training_eligible: false`, has no
+# `@generated` header, does not overlap a `heldout_bench` answer, and compiles cleanly.
+# Every decision is written per file by `corpus extract --report <path>`; the committed
+# inventory is contracts/reports/mens-vox-source-inventory.v1.json.
+
+# Deliberately NOT roots (reported as `not_in_roots`):
+#   contracts/eval/**          eval sets — humaneval-vox problems/tests, repair-corpus
+#                              buggy/fixed pairs (buggy compiles but is wrong), plan-fidelity bases
+#   tests/speech-to-code/**    expected outputs of the speech-to-code benchmark
+#   tests/*.vox, test_syntax.vox  scratch snippets / vox:skip placeholders
+
+heldout_bench: mens/data/heldout_bench/manifest.json
+
+roots:
+  - path: examples
+    reason: "Golden + sandbox examples (the original examples-only baseline)."
+  - path: scripts
+    reason: "Repo automation in VoxScript (AGENTS.md: all glue is .vox) — real, idiomatic, maintained code."
+  - path: apps
+    reason: "Full sample applications and their build scripts."
+  - path: infra/containers
+    reason: "Container entrypoints — small real programs."
+  - path: crates/vox-compiler/src/builtin/std
+    reason: "Stdlib written in Vox."
+  - path: crates/vox-compiler/tests/llm_fixtures
+    reason: "Positive fixtures; llm_fixtures_test asserts each one compiles."
+  - path: crates/vox-compiler/tests/fixtures
+    reason: "Golden codegen fixtures (for/props/svg)."
+  - path: crates/vox-cli-tests/tests/fixtures
+    reason: "End-to-end build fixtures (full apps, mobile, routes, forms)."
+  - path: crates/vox-cli/tests/fixtures
+    reason: "CLI fixtures; the migrate 'after' side is current syntax."
+  - path: crates/vox-integration-tests/tests/fixtures
+    reason: "Integration app fixtures (chatbot, full-stack)."
+  - path: crates/vox-langtool/tests/fixtures
+    reason: "Formatter / langtool fixtures."
+  - path: tests/fixtures
+    reason: "Workflow-preview fixtures."
+
+exclude:
+  # Intentionally invalid or not-yet-supported (examples/examples.ssot.v1.yaml).
+  - glob: "examples/forbidden/**"
+    reason: "negative_roots: must fail compilation (forbidden_corpus_test)."
+  - glob: "examples/parser-inventory/**"
+    reason: "negative_roots: intentionally malformed parser fixtures."
+  - glob: "examples/aspirational/**"
+    reason: "aspirational_roots: planned features, may not match current semantics."
+  # Negative fixtures that can still type-check: their tests expect a diagnostic.
+  - glob: "crates/vox-compiler/tests/fixtures/diagnostics/**"
+    reason: "Diagnostic fixtures (expected-error cases)."
+  - glob: "crates/vox-cli-tests/tests/fixtures/mobile_bad_contrast/**"
+    reason: "build_e2e expects a contrast failure."
+  - glob: "crates/vox-cli-tests/tests/fixtures/mobile_modal_unsupported/**"
+    reason: "build_e2e expects an unsupported-construct failure."
+  - glob: "crates/vox-integration-tests/tests/fixtures/web_ir_validate_dup_routes.vox"
+    reason: "Expects a duplicate-route validation error."
+  - glob: "crates/vox-langtool/tests/fixtures/type_error.vox"
+    reason: "Expects a type error."
+  - glob: "crates/vox-cli/tests/fixtures/migrate/before/**"
+    reason: "Legacy syntax, input to the migrator."

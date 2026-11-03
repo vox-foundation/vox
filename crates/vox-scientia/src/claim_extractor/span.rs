@@ -14,11 +14,15 @@ impl Default for SpanChecker {
 
 impl SpanChecker {
     pub fn check(&self, claim_text: &str, span: &SpanBound, source: &str) -> bool {
-        if span.end > source.len() || span.start >= span.end {
+        if span.start >= span.end {
             return false;
         }
-        // Word-overlap against the span slice (not the entire source)
-        let span_slice = &source[span.start..span.end];
+        // Offsets are not guaranteed to belong to `source` (see ExtractionPipeline::extract):
+        // out of range or off a char boundary (e.g. inside an emoji in web text) means the
+        // span cannot be verified — never a panic.
+        let Some(span_slice) = source.get(span.start..span.end) else {
+            return false;
+        };
         let claim_words: std::collections::HashSet<&str> = claim_text.split_whitespace().collect();
         let span_words: std::collections::HashSet<&str> = span_slice.split_whitespace().collect();
         if claim_words.is_empty() {
@@ -49,5 +53,33 @@ mod tests {
         let checker = SpanChecker::default();
         let source = "short text";
         assert!(!checker.check("other claim", &SpanBound { start: 0, end: 50 }, source));
+    }
+
+    /// Live Task 15 crash: a span's byte offsets landed inside '🥈' in Tavily content
+    /// and `&source[start..end]` panicked, killing the whole chat turn.
+    #[test]
+    fn span_off_char_boundary_is_unverifiable_not_a_panic() {
+        let checker = SpanChecker::default();
+        let source = "SearXNG 🥈 second place; 検索エンジン Tavily first.";
+        let emoji_start = source.find('🥈').unwrap();
+        // End inside the 4-byte emoji.
+        let mid_emoji = SpanBound {
+            start: 0,
+            end: emoji_start + 2,
+        };
+        assert!(!checker.check("SearXNG", &mid_emoji, source));
+        // Start inside a 3-byte CJK char.
+        let cjk = source.find('検').unwrap();
+        let mid_cjk = SpanBound {
+            start: cjk + 1,
+            end: source.len(),
+        };
+        assert!(!checker.check("Tavily first.", &mid_cjk, source));
+        // A boundary-aligned span over the same text still verifies.
+        let ok = SpanBound {
+            start: 0,
+            end: emoji_start,
+        };
+        assert!(checker.check("SearXNG", &ok, source));
     }
 }

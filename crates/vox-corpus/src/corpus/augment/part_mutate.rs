@@ -108,6 +108,15 @@ fn apply_synonym(prompt: &str, rng: &mut impl Rng) -> String {
 
 /// Apply word-order shuffle to the non-`{name}` prefix words.
 /// Splits prompt at first `{name}` or after the 3rd word, whichever comes first.
+/// Tokens a typo must never touch: placeholders, code spans, identifiers, paths,
+/// flags. The response keeps the correct spelling, so mangling these teaches the
+/// model that `vox_budjet_status` means `vox_budget_status`.
+fn is_protected_token(w: &str) -> bool {
+    w.contains(['{', '`', '_', '.', '/', ':', '-', '"', '(', '@'])
+        || w.chars().any(|c| c.is_ascii_digit())
+        || w.chars().skip(1).any(|c| c.is_ascii_uppercase())
+}
+
 fn apply_word_shuffle(prompt: &str, rng: &mut impl Rng) -> String {
     // Find the boundary before a template variable or after the first clause
     let words: Vec<&str> = prompt.split_whitespace().collect();
@@ -179,7 +188,7 @@ pub fn augment_prompt(prompt: &str, config: &AugmentConfig, seed: u64) -> Vec<St
                 let out: Vec<String> = words
                     .iter()
                     .map(|&w| {
-                        if !w.contains('{')
+                        if !is_protected_token(w)
                             && rng.gen_bool((config.typo_char_rate * w.len() as f64).min(1.0))
                         {
                             typo_mutate(w, &mut rng)
@@ -201,7 +210,17 @@ pub fn augment_prompt(prompt: &str, config: &AugmentConfig, seed: u64) -> Vec<St
             3 => {
                 // Lowercase
                 if config.case_variants {
-                    prompt.to_lowercase()
+                    prompt
+                        .split_whitespace()
+                        .map(|w| {
+                            if is_protected_token(w) {
+                                w.to_string()
+                            } else {
+                                w.to_lowercase()
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" ")
                 } else {
                     apply_synonym(prompt, &mut rng)
                 }
@@ -211,7 +230,7 @@ pub fn augment_prompt(prompt: &str, config: &AugmentConfig, seed: u64) -> Vec<St
                 let with_synonym = apply_synonym(prompt, &mut rng);
                 let words: Vec<&str> = with_synonym.split_whitespace().collect();
                 let mut out: Vec<String> = words.iter().map(|w| w.to_string()).collect();
-                for w in out.iter_mut().filter(|w| !w.contains('{')) {
+                for w in out.iter_mut().filter(|w| !is_protected_token(w)) {
                     if rng.gen_bool(config.typo_char_rate) {
                         *w = typo_mutate(w, &mut rng);
                     }

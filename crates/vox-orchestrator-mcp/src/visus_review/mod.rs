@@ -1,6 +1,6 @@
 //! GUI visual AI adversarial review. Advisory: never gates CI.
 //!
-//! Deprecated-pending-removal: the legacy `Manifest`/[`run()`] capture-manifest
+//! Deprecated-pending-removal: the legacy `Manifest`/`run()` capture-manifest
 //! path (screenshots-variants/visual-review specs + `screenshotManifest.ts`) is
 //! unreachable from CI as of Task 12 of the Axis frontend review harness plan
 //! (`docs/superpowers/plans/2026-07-18-axis-frontend-review-harness.md`) — CI
@@ -14,30 +14,6 @@ pub mod spike;
 pub mod types;
 pub mod vision_call;
 pub use types::*;
-
-/// One rendering defect the model reported for a review-bundle capture.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
-pub struct Defect {
-    #[serde(default)]
-    pub severity: String,
-    #[serde(default)]
-    pub kind: String,
-    #[serde(default)]
-    pub description: String,
-    #[serde(default)]
-    pub location: String,
-}
-
-/// Parsed model output for a bundle-entry defect review.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
-pub struct DefectReport {
-    #[serde(default)]
-    pub score: u32,
-    #[serde(default)]
-    pub verdict: String,
-    #[serde(default)]
-    pub defects: Vec<Defect>,
-}
 
 /// Slice a model response from its first `{` to its last `}`, tolerating
 /// markdown fences and surrounding prose. Shared by `parse_verdict` and
@@ -60,6 +36,13 @@ pub fn parse_verdict(raw: &str) -> Result<ReviewVerdict, String> {
 pub fn parse_defect_report(raw: &str) -> Result<DefectReport, String> {
     let obj = extract_json_object(raw)?;
     serde_json::from_str(obj).map_err(|e| format!("defect report parse: {e}"))
+}
+
+/// Extract the JSON UX-audit report object from a model response (same fenced-
+/// output tolerance as `parse_verdict`).
+pub fn parse_ux_report(raw: &str) -> Result<types::UxAuditReport, String> {
+    let obj = extract_json_object(raw)?;
+    serde_json::from_str(obj).map_err(|e| format!("ux audit report parse: {e}"))
 }
 
 #[cfg(test)]
@@ -140,6 +123,8 @@ mod decide_tests {
                 model: model.into(),
                 reviewed_at: "t".into(),
                 prompt_version: prompt_version.into(),
+                defects: Vec::new(),
+                ux_report: None,
             },
         );
         c
@@ -248,14 +233,11 @@ pub struct RunArgs<'a> {
 fn default_config() -> VisualReviewConfig {
     VisualReviewConfig {
         schema_version: 1,
-        model_preference: vec![
-            "google/gemini-3-flash-preview".into(),
-            "google/gemini-2.5-flash".into(),
-        ],
-        escalation_model: "anthropic/claude-opus-4.8".into(),
-        per_surface_review_budget_ms: 8_000,
-        total_review_budget_ms: 90_000,
-        max_concurrent_reviews: 3,
+        model_preference: types::default_model_preference(),
+        escalation_model: types::default_escalation_model(),
+        per_surface_review_budget_ms: 12_000,
+        total_review_budget_ms: 180_000,
+        max_concurrent_reviews: 4,
         max_image_edge_px: 2880,
         spike_factor: 1.5,
     }
@@ -281,20 +263,18 @@ pub async fn review_image(
 }
 
 /// Pick the vision model to review with: registry-backed if the registry
-/// loads, else the always-fallback `NullCatalog`. Extracted from `run()` so
+/// loads, else the preference-order fallback. Extracted from `run()` so
 /// `run_bundle` shares the exact same selection policy.
 pub fn select_review_model(cfg: &VisualReviewConfig) -> String {
     let registry =
         std::panic::catch_unwind(vox_orchestrator::models::ModelRegistry::from_cache).ok();
-    match &registry {
-        Some(reg) => model_select::choose_vision_model(
-            &cfg.model_preference,
-            &model_select::RegistryCatalog(reg),
-        ),
-        None => {
-            model_select::choose_vision_model(&cfg.model_preference, &model_select::NullCatalog)
-        }
-    }
+    let catalog = registry.as_ref().map(model_select::RegistryCatalog);
+    model_select::choose_vision_model(
+        &cfg.model_preference,
+        catalog
+            .as_ref()
+            .map(|c| c as &dyn model_select::VisionCatalog),
+    )
 }
 
 pub async fn run(args: &RunArgs<'_>) -> RunReport {
@@ -324,8 +304,8 @@ pub async fn run(args: &RunArgs<'_>) -> RunReport {
             .and_then(|s| serde_json::from_str(&s).ok())
             .unwrap_or_else(default_config);
 
-    // Model selection: try the registry; on any failure use the NullCatalog
-    // (always-fallback).
+    // Model selection: try the registry; on any failure fall back to the
+    // preference order.
     let model = select_review_model(&cfg);
 
     let mut surfaces = Vec::new();
@@ -411,6 +391,8 @@ pub async fn run(args: &RunArgs<'_>) -> RunReport {
                                 model: report.model.clone().unwrap_or_else(|| model.clone()),
                                 reviewed_at: args.now_iso.clone(),
                                 prompt_version: prompt::PROMPT_VERSION.to_string(),
+                                defects: Vec::new(),
+                                ux_report: None,
                             },
                         );
                     }
@@ -677,6 +659,8 @@ pub struct BundleReportEntry {
     pub score: Option<u32>,
     pub verdict: Option<String>,
     pub defects: Vec<Defect>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ux_report: Option<types::UxAuditReport>,
     pub programmatic: ProgrammaticFindings,
 }
 
@@ -715,6 +699,7 @@ pub struct BundleRunArgs<'a> {
     pub report_dir: &'a Path,
     pub now_iso: String,
     pub do_ai: bool,
+    pub ux_mode: bool,
     /// Total wall-clock budget for AI reviews this run, in milliseconds.
     /// Default 1_800_000 (30 minutes) at the call site.
     pub total_budget_ms: u64,
@@ -806,6 +791,28 @@ fn render_bundle_digest(report: &BundleReport) -> String {
                     d.severity, d.kind, d.description, d.location
                 );
             }
+            if let Some(ux) = &e.ux_report {
+                if !ux.jargon_retirements.is_empty() {
+                    let _ = writeln!(out, "  - **Jargon Retirements:**");
+                    for j in &ux.jargon_retirements {
+                        let _ = writeln!(
+                            out,
+                            "    - `{}` ➔ **{}**: {}",
+                            j.current_term, j.replacement, j.rationale
+                        );
+                    }
+                }
+                if !ux.missing_capabilities.is_empty() {
+                    let _ = writeln!(out, "  - **Missing Capabilities:**");
+                    for m in &ux.missing_capabilities {
+                        let _ = writeln!(
+                            out,
+                            "    - **{}**: {} (Hint: {})",
+                            m.feature_name, m.user_benefit, m.implementation_hint
+                        );
+                    }
+                }
+            }
         }
         let _ = writeln!(out);
     }
@@ -835,9 +842,15 @@ pub async fn run_bundle(args: &BundleRunArgs<'_>) -> BundleReport {
 
     let browsers_allowed: BTreeSet<String> = args.browsers.iter().cloned().collect();
 
+    let prompt_ver = if args.ux_mode {
+        prompt::UX_PROMPT_VERSION
+    } else {
+        prompt::DEFECT_PROMPT_VERSION
+    };
+
     let decisions: Vec<ReviewDecision> = entries
         .iter()
-        .map(|e| decide_status(&cache, &e.id, &e.sha256, &model, prompt::PROMPT_VERSION))
+        .map(|e| decide_status(&cache, &e.id, &e.sha256, &model, prompt_ver))
         .collect();
 
     // Frontier candidates: not cached, browser-eligible, AI enabled.
@@ -859,18 +872,22 @@ pub async fn run_bundle(args: &BundleRunArgs<'_>) -> BundleReport {
         (viewport_rank, state_rank, browser_rank, e.id.clone())
     });
 
+    if let Some(max) = args.max_reviews {
+        candidates.truncate(max);
+    }
+
     let mut ai_status: Vec<Option<&'static str>> = vec![None; entries.len()];
     let mut ai_score: Vec<Option<u32>> = vec![None; entries.len()];
     let mut ai_verdict: Vec<Option<String>> = vec![None; entries.len()];
     let mut ai_defects: Vec<Vec<Defect>> = vec![Vec::new(); entries.len()];
+    let mut ai_ux: Vec<Option<types::UxAuditReport>> = vec![None; entries.len()];
+
+    let concurrency = cfg.max_concurrent_reviews.clamp(1, 16);
+    let sem = std::sync::Arc::new(tokio::sync::Semaphore::new(concurrency));
+    let mut tasks = tokio::task::JoinSet::new();
 
     let start = std::time::Instant::now();
-    for (attempt, i) in candidates.into_iter().enumerate() {
-        if let Some(max) = args.max_reviews {
-            if attempt >= max {
-                break;
-            }
-        }
+    for i in candidates {
         if (start.elapsed().as_millis() as u64) >= args.total_budget_ms {
             eprintln!(
                 "::warning::gui-visual-review-bundle: total budget {}ms exhausted — remaining entries deferred",
@@ -878,37 +895,139 @@ pub async fn run_bundle(args: &BundleRunArgs<'_>) -> BundleReport {
             );
             break;
         }
-        let e = &entries[i];
+        let sem = sem.clone();
+        let e = entries[i].clone();
         let png_path = args.bundle_dir.join(&e.file);
-        let system = prompt::defect_system_prompt();
-        let user = prompt::defect_user_prompt(e);
-        match review_image(&png_path, &model, &system, &user).await {
-            Ok((content, _usage, _ms)) => match parse_defect_report(&content) {
-                Ok(dr) => {
-                    ai_status[i] = Some("reviewed");
-                    ai_score[i] = Some(dr.score);
-                    ai_verdict[i] = Some(dr.verdict.clone());
-                    ai_defects[i] = dr.defects.clone();
-                    cache.entries.insert(
-                        e.id.clone(),
-                        CacheEntry {
-                            screenshot_sha256: e.sha256.clone(),
-                            score: dr.score,
-                            verdict: dr.verdict,
-                            model: model.clone(),
-                            reviewed_at: args.now_iso.clone(),
-                            prompt_version: prompt::PROMPT_VERSION.to_string(),
-                        },
-                    );
+        let (system, user) = if args.ux_mode {
+            (prompt::ux_system_prompt(), prompt::ux_user_prompt(&e))
+        } else {
+            (
+                prompt::defect_system_prompt(),
+                prompt::defect_user_prompt(&e),
+            )
+        };
+        let model = model.clone();
+        tasks.spawn(async move {
+            let _permit = match sem.acquire().await {
+                Ok(p) => p,
+                Err(err) => return (i, Err(format!("semaphore acquire failed: {err}"))),
+            };
+            let res = review_image(&png_path, &model, &system, &user).await;
+            (i, res)
+        });
+    }
+
+    while let Some(task_res) = tasks.join_next().await {
+        let (i, res) = match task_res {
+            Ok(pair) => pair,
+            Err(e) => {
+                eprintln!("::warning::gui-visual-review-bundle: review task failed: {e}");
+                continue;
+            }
+        };
+        let e = &entries[i];
+        match res {
+            Ok((content, _usage, _ms)) => {
+                if args.ux_mode {
+                    match parse_ux_report(&content) {
+                        Ok(ux) => {
+                            ai_status[i] = Some("reviewed");
+                            ai_score[i] = Some(ux.score);
+                            ai_verdict[i] = Some(ux.verdict.clone());
+                            let mut defects = Vec::new();
+                            for j in &ux.jargon_retirements {
+                                defects.push(Defect {
+                                    severity: "major".into(),
+                                    kind: "jargon".into(),
+                                    description: format!(
+                                        "Replace '{}' with '{}': {}",
+                                        j.current_term, j.replacement, j.rationale
+                                    ),
+                                    location: j.current_term.clone(),
+                                });
+                            }
+                            for r in &ux.readability_issues {
+                                defects.push(Defect {
+                                    severity: "minor".into(),
+                                    kind: "readability".into(),
+                                    description: format!("{}: {}", r.issue, r.recommendation),
+                                    location: r.region.clone(),
+                                });
+                            }
+                            for c in &ux.controllability_gaps {
+                                defects.push(Defect {
+                                    severity: "major".into(),
+                                    kind: "controllability".into(),
+                                    description: format!("{}: {}", c.issue, c.fix),
+                                    location: c.control.clone(),
+                                });
+                            }
+                            for m in &ux.missing_capabilities {
+                                defects.push(Defect {
+                                    severity: "minor".into(),
+                                    kind: "missing-capability".into(),
+                                    description: format!(
+                                        "{}: {} (Hint: {})",
+                                        m.feature_name, m.user_benefit, m.implementation_hint
+                                    ),
+                                    location: m.feature_name.clone(),
+                                });
+                            }
+                            ai_defects[i] = defects.clone();
+                            ai_ux[i] = Some(ux.clone());
+                            cache.entries.insert(
+                                e.id.clone(),
+                                CacheEntry {
+                                    screenshot_sha256: e.sha256.clone(),
+                                    score: ux.score,
+                                    verdict: ux.verdict.clone(),
+                                    model: model.clone(),
+                                    reviewed_at: args.now_iso.clone(),
+                                    prompt_version: prompt_ver.to_string(),
+                                    defects,
+                                    ux_report: Some(ux),
+                                },
+                            );
+                        }
+                        Err(e2) => {
+                            eprintln!(
+                                "::warning::gui-visual-review-bundle: '{}' ux-report parse failed: {e2}",
+                                e.id
+                            );
+                            ai_status[i] = Some("deferred");
+                        }
+                    }
+                } else {
+                    match parse_defect_report(&content) {
+                        Ok(dr) => {
+                            ai_status[i] = Some("reviewed");
+                            ai_score[i] = Some(dr.score);
+                            ai_verdict[i] = Some(dr.verdict.clone());
+                            ai_defects[i] = dr.defects.clone();
+                            cache.entries.insert(
+                                e.id.clone(),
+                                CacheEntry {
+                                    screenshot_sha256: e.sha256.clone(),
+                                    score: dr.score,
+                                    verdict: dr.verdict,
+                                    model: model.clone(),
+                                    reviewed_at: args.now_iso.clone(),
+                                    prompt_version: prompt_ver.to_string(),
+                                    defects: dr.defects,
+                                    ux_report: None,
+                                },
+                            );
+                        }
+                        Err(e2) => {
+                            eprintln!(
+                                "::warning::gui-visual-review-bundle: '{}' defect-report parse failed: {e2}",
+                                e.id
+                            );
+                            ai_status[i] = Some("deferred");
+                        }
+                    }
                 }
-                Err(e2) => {
-                    eprintln!(
-                        "::warning::gui-visual-review-bundle: '{}' defect-report parse failed: {e2}",
-                        e.id
-                    );
-                    ai_status[i] = Some("deferred");
-                }
-            },
+            }
             Err(e2) => {
                 eprintln!(
                     "::warning::gui-visual-review-bundle: '{}' review failed: {e2}",
@@ -935,13 +1054,23 @@ pub async fn run_bundle(args: &BundleRunArgs<'_>) -> BundleReport {
             "cached" => cached_n += 1,
             _ => deferred_n += 1,
         }
-        let (score, verdict, defects) = match status.as_str() {
-            "reviewed" => (ai_score[i], ai_verdict[i].clone(), ai_defects[i].clone()),
+        let (score, verdict, defects, ux_report) = match status.as_str() {
+            "reviewed" => (
+                ai_score[i],
+                ai_verdict[i].clone(),
+                ai_defects[i].clone(),
+                ai_ux[i].clone(),
+            ),
             "cached" => {
                 let c = &cache.entries[&e.id];
-                (Some(c.score), Some(c.verdict.clone()), Vec::new())
+                (
+                    Some(c.score),
+                    Some(c.verdict.clone()),
+                    c.defects.clone(),
+                    c.ux_report.clone(),
+                )
             }
-            _ => (None, None, Vec::new()),
+            _ => (None, None, Vec::new(), None),
         };
         defects_found += defects.len();
 
@@ -972,6 +1101,7 @@ pub async fn run_bundle(args: &BundleRunArgs<'_>) -> BundleReport {
             score,
             verdict,
             defects,
+            ux_report,
             programmatic: ProgrammaticFindings {
                 axe_serious_critical,
                 axe_total: e.axe_violations.len(),
@@ -1025,17 +1155,26 @@ pub async fn run_bundle(args: &BundleRunArgs<'_>) -> BundleReport {
             "defects_found": report.defects_found,
         }
     });
+    let report_filename = if args.ux_mode {
+        "bundle-ux-report.v1.json"
+    } else {
+        "bundle-report.v1.json"
+    };
+    let digest_filename = if args.ux_mode {
+        "bundle-ux-digest.md"
+    } else {
+        "bundle-digest.md"
+    };
     match serde_json::to_string_pretty(&report_json) {
         Ok(s) => {
-            if let Err(e) = std::fs::write(args.report_dir.join("bundle-report.v1.json"), s + "\n")
-            {
+            if let Err(e) = std::fs::write(args.report_dir.join(report_filename), s + "\n") {
                 eprintln!("::warning::gui-visual-review-bundle: report write failed: {e}");
             }
         }
         Err(e) => eprintln!("::warning::gui-visual-review-bundle: report serialize failed: {e}"),
     }
     if let Err(e) = std::fs::write(
-        args.report_dir.join("bundle-digest.md"),
+        args.report_dir.join(digest_filename),
         render_bundle_digest(&report),
     ) {
         eprintln!("::warning::gui-visual-review-bundle: digest write failed: {e}");
@@ -1067,6 +1206,8 @@ mod bundle_run_tests {
                 model: "m".into(),
                 reviewed_at: "t".into(),
                 prompt_version: crate::visus_review::prompt::PROMPT_VERSION.into(),
+                defects: Vec::new(),
+                ux_report: None,
             },
         );
         let pv = crate::visus_review::prompt::PROMPT_VERSION;
@@ -1105,6 +1246,8 @@ mod bundle_run_tests {
                     model: "m".into(),
                     reviewed_at: "t".into(),
                     prompt_version: crate::visus_review::prompt::PROMPT_VERSION.into(),
+                    defects: Vec::new(),
+                    ux_report: None,
                 },
             );
         }
@@ -1136,6 +1279,7 @@ mod bundle_run_tests {
             report_dir: report_dir.path(),
             now_iso: "t".into(),
             do_ai: false,
+            ux_mode: false,
             total_budget_ms: 1000,
             max_reviews: None,
             browsers: vec!["chromium".into()],
@@ -1145,5 +1289,30 @@ mod bundle_run_tests {
         assert!(report_dir.path().join("bundle-digest.md").exists());
         assert!(!cache_path.exists(), "cache persisted only when do_ai");
         assert_eq!(report.total_surfaces, 1);
+    }
+
+    #[test]
+    fn parses_fenced_ux_report() {
+        let raw = r#"```json
+{
+  "score": 85,
+  "verdict": "needs_improvement",
+  "jargon_retirements": [
+    {
+      "current_term": "Mercatus",
+      "replacement": "Compute Marketplace",
+      "rationale": "Clearer to end users"
+    }
+  ],
+  "readability_issues": [],
+  "controllability_gaps": [],
+  "missing_capabilities": []
+}
+```"#;
+        let r = parse_ux_report(raw).expect("ux report parses");
+        assert_eq!(r.score, 85);
+        assert_eq!(r.verdict, "needs_improvement");
+        assert_eq!(r.jargon_retirements.len(), 1);
+        assert_eq!(r.jargon_retirements[0].current_term, "Mercatus");
     }
 }

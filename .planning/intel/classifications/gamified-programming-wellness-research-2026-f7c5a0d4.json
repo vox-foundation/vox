@@ -1,0 +1,20 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/gamified-programming-wellness-research-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Gamified Programming & Wellness Research (2026)",
+  "summary": "Research synthesis on developer wellness metrics, intentional-friction anti-addiction loops, cost-thrift gamification, and AI-driven SVG asset marketplaces.",
+  "scope": [
+    "developer wellness",
+    "intentional friction",
+    "self-determination theory",
+    "burnout prevention",
+    "cost-conscious coding",
+    "SVG asset generation",
+    "peer-to-peer art marketplace"
+  ],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null
+}

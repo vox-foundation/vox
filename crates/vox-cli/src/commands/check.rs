@@ -66,6 +66,8 @@ fn is_script_like(source: &str) -> bool {
         "actor ",
         "tool ",
         "resource ",
+        "state_machine ",
+        "partial ",
     ];
     let has_decl_keyword = source.lines().any(|line| {
         decl_keywords
@@ -135,22 +137,12 @@ pub async fn run(args: &CheckArgs) -> Result<()> {
 
     if args.emit_ir {
         let vox_ir =
-            vox_codegen::vox_ir::lower::lower_hir_to_vox_ir(&result.hir, Some(&result.source));
+            vox_codegen::hir_export::lower::lower_hir_to_vox_ir(&result.hir, Some(&result.source));
         let json_ir = serde_json::to_string_pretty(&vox_ir)?;
         let mut ir_path = file.clone();
         ir_path.set_extension("vox-ir.json");
         std::fs::write(&ir_path, json_ir)?;
         println!("{} IR to {}", "Emitted".green(), ir_path.display());
-    }
-
-    #[cfg(feature = "extras-ludus")]
-    {
-        if vox_gamify::config_gate::is_enabled() {
-            if let Ok(db) = crate::workspace_db::connect_cli_workspace_voxdb().await {
-                let key = format!("vox-check:{}", file.display());
-                vox_gamify::lsp_telemetry::after_cli_check_clean(&db, &key).await;
-            }
-        }
     }
 
     println!("Check passed with {warning_count} warning(s)");

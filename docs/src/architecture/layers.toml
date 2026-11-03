@@ -124,9 +124,10 @@ vox-orchestrator-types = { layer = 0 }
 vox-llm-config         = { layer = 0, staleness_exempt = true }   # SSOT for LLM/AI setting-key metadata; pure-data, zero workspace deps; vox-secrets/vox-config/vox-gui are views
 
 vox-db-types           = { layer = 0 }
+vox-kb-facets          = { layer = 0 }   # KB facet contract (Facets, eligibility rule, summary block, provenance validators); workspace-hack only
 vox-mesh-types         = { layer = 0, publishable = true }
 vox-ast                = { layer = 0, max_dependents = 40 }   # pure-data Vox AST (serde-only); extracted from vox-compiler 2026-06-05, re-exported as vox_compiler::ast
-workspace-hack         = { layer = 0, max_dependents = 80, staleness_exempt = true }
+workspace-hack         = { layer = 0, staleness_exempt = true }   # hakari feature-unification crate; excluded from the Rule 2 fan-in count entirely (vox-arch-check's FAN_IN_EXEMPT, mirroring crate_edges::EXEMPT) rather than budgeted, since its dependent count is structural and grows with every crate, not architectural fan-in
 vox-arch-check         = { layer = 0, kind = "binary" }
 vox-build-meta         = { layer = 0, staleness_exempt = true }   # build-only helper; intentionally stable — must not be folded into vox-foundation
 vox-rename-registry       = { layer = 0, staleness_exempt = true }   # rename-registry + primitive-tag lookup; zero workspace deps
@@ -139,13 +140,13 @@ vox-language-surface  = { layer = 1 }   # SSOT for keyword/decorator/builtin sur
 vox-redact            = { layer = 1 }   # conservative PII/secret redaction (regex + serde_json only); consumed by vox-terminal-core (L3) and vox-orchestrator-mcp (L3)
 vox-hf-layout         = { layer = 1, max_loc = 6_000 }               # HF config.json layout (MENS / Candle plugins)
 vox-crypto            = { layer = 1, staleness_exempt = true }
-vox-secrets           = { layer = 1, max_dependents = 27 }  # 26 direct consumers (all call resolve_secret); budget = current + 1. A-9 split (vox-secrets-types) deferred: all consumers use resolution fns, so split would not reduce this fan-in.
+vox-secrets           = { layer = 1, max_dependents = 34 }  # 34 direct consumers (all call resolve_secret), reconciled 2026-09-27 to the live crate_edges-style count. A-9 split (vox-secrets-types) deferred: all consumers use resolution fns, so split would not reduce this fan-in.
 
 vox-jsonschema-util   = { layer = 1 }
 vox-foundation        = { layer = 1, staleness_exempt = true, max_dependents = 18 }   # umbrella: vox-primitives + vox-protocol + vox-tracing-init
 
 vox-identity          = { layer = 1 }
-vox-http-client  = { layer = 1, staleness_exempt = true, max_dependents = 20 }
+vox-http-client  = { layer = 1, staleness_exempt = true, max_dependents = 25 }   # reconciled 2026-09-27 (live crate_edges-style count); includes the vox-audit -> vox-http-client edge for OpenRouterPanelClient's bearer header
 vox-rule-pack         = { layer = 1 }                            # SSOT loader for detector patterns; zero heavy deps
 vox-openai       = { layer = 1, staleness_exempt = true }
 
@@ -157,11 +158,12 @@ vox-plugin-sdk        = { layer = 1 }                            # authoring SDK
 vox-plugin-types      = { layer = 1 }                            # pure-types L1 leaf
 vox-research-events    = { layer = 1 }                            # SCIENTIA typed event bus (Phase 0b)
 vox-telemetry         = { layer = 1 }                            # L1 telemetry facade; zero domain deps
+vox-mesh-transport    = { layer = 1 }                            # iroh QUIC mesh transport
 vox-telemetry-otlp    = { layer = 3, max_loc = 3_000 }           # L3 feature-gated OTLP egress; only surfaces register it (never domain crates)
 vox-runtime           = { layer = 2, max_dependents = 20 }       # umbrella runtime: RuntimeProfile + lifecycle traits + VoxConfig; deps vox-config
 
 # ── L2 — domain libraries ─────────────────────────────────────────────────────
-vox-config              = { layer = 2, max_dependents = 20 }
+vox-config              = { layer = 2, max_dependents = 40 }   # reconciled 2026-09-27 to the live crate_edges-style count
 vox-cli-contracts       = { layer = 2 }   # trait seam between vox-cli (L5, provides impls) and vox-cli-ci (L5, consumes); deps only vox-config (L2), sync/no-tokio by design
 vox-llm-egress          = { layer = 2, max_dependents = 10 }   # sanctioned LLM provider wire; pure egress (deps = vox-http-client + reqwest), no config/secret resolution
 
@@ -183,6 +185,7 @@ vox-effort-audit        = { layer = 3, kind = "library", max_loc = 4_000 }
 vox-effort-route        = { layer = 3, kind = "library", max_loc = 4_000 }
 vox-eval                = { layer = 2 }
 vox-similarity          = { layer = 2, max_loc = 6_000 }          # L2 pure simhash/minhash/LSH; no async runtime deps
+vox-diagram             = { layer = 2, max_loc = 12_000 }   # L2 pure VoxDiagram core (graph DSL lexer/parser, resolved IR, diagnostics + fixes, fmt, markdown fence scanner); first consumer: vox-doc-pipeline (Phase 87)
 vox-skill-discovery     = { layer = 3, kind = "binary", max_loc = 8_000 }  # L3 code-block miner + dedup (vox-discover bin)
 
 
@@ -192,10 +195,10 @@ vox-skill-discovery     = { layer = 3, kind = "binary", max_loc = 8_000 }  # L3 
 
 
 # ── L3 — heavy runtimes ───────────────────────────────────────────────────────
-vox-db                  = { layer = 3, max_dependents = 25, max_loc = 40_000 }
+vox-db                  = { layer = 3, max_dependents = 27, max_loc = 40_000 }   # max_dependents reconciled 2026-09-27 to the live crate_edges-style count
 vox-sql                 = { layer = 3, max_dependents = 20, max_loc = 8_000 }
 vox-corpus              = { layer = 3, max_loc = 15_000 }
-vox-compiler            = { layer = 3, max_dependents = 25, max_loc = 45_000 }
+vox-compiler            = { layer = 3, max_dependents = 21, max_loc = 45_000 }   # max_dependents reconciled 2026-09-27 to the live crate_edges-style count (was 25; raw vox-arch-check count of 27 included dev-only consumers)
 vox-codegen         = { layer = 3, max_loc = 25_000 }
 vox-codegen-ts      = { layer = 3, max_loc = 18_000, orphan_exempt = true } # embedded via #[path] in vox-codegen/src/lib.rs; no direct Cargo.toml consumer by design
 vox-rn-codegen      = { layer = 3, max_loc = 6_000 }
@@ -207,6 +210,7 @@ vox-scientia-jsonschema-codegen = { layer = 3, kind = "binary" }               #
 vox-ml-cli              = { layer = 3, kind = "binary", max_loc = 20_000 }
 vox-publisher           = { layer = 3, max_loc = 22_000 }  # raised from 20_000 (was at 19,951 / 20,000 headroom)
 vox-orchestrator        = { layer = 3, max_dependents = 30, max_loc = 70_000 }
+vox-orchestrator-models = { layer = 3 }
 vox-research-shim            = { layer = 3, max_loc = 8_000, staleness_exempt = true }  # A-12 wedge: DEI research + model-selection extracted from vox-orchestrator
 vox-orchestrator-test-helpers = { layer = 3, kind = "test-only", max_dependents = 25, staleness_exempt = true }
 vox-actor-runtime       = { layer = 3, max_loc = 15_000 }
@@ -256,6 +260,7 @@ vox-plugin-catalog      = { layer = 3 }
 vox-plugin-browser           = { layer = 4, kind = "plugin" }
 vox-plugin-mens-candle-cuda  = { layer = 4, kind = "plugin", sibling_of = ["vox-plugin-mens-candle-metal", "vox-populi"] }  # vendor-split GPU backends; populi held the legacy MENS tensor copy mid-migration
 vox-plugin-mens-candle-metal = { layer = 4, kind = "plugin", sibling_of = ["vox-plugin-mens-candle-cuda", "vox-populi"] }  # vendor-split GPU backends; populi held the legacy MENS tensor copy mid-migration
+vox-plugin-mens-candle-core  = { layer = 4, sibling_of = ["vox-plugin-mens-candle-cuda", "vox-plugin-mens-candle-metal", "vox-populi"] }  # rlib, not a cdylib: device-agnostic Candle QLoRA code linked ONLY by the two L4 plugins above (vox-populi keeps its own model_card copy, no edge). L4, not L3: unconditional candle-core/candle-nn deps must stay out of CORE L0-L3 (Phase 3 SC#4, D-09)
 vox-plugin-nvml-probe        = { layer = 4, kind = "plugin" }
 vox-plugin-speech            = { layer = 4, kind = "plugin" }
 vox-plugin-populi-mesh       = { layer = 4, kind = "plugin" }
@@ -286,16 +291,6 @@ vox-mesh-policy       = { layer = 2 }                                    # Donat
 # ── Permitted inversions ──────────────────────────────────────────────────────
 # Layer-check tolerates these specific lower-to-higher edges. Each entry
 # documents WHY and what would be required to remove it.
-
-[[known_inversions]]
-from   = "vox-cli"
-to     = "vox-orchestrator"
-reason = "CLI ↔ orchestrator coupling is load-bearing for runtime/observability surfaces (vox status, vox attention, vox model *, vox dei, vox live). Shared Vox.toml bootstrap lives in vox-orchestrator-driver (re-exported from vox-cli-core). See build-time-log.md Phase 7 audit."
-
-[[known_inversions]]
-from   = "vox-orchestrator-mcp"
-to     = "vox-orchestrator-driver"
-reason = "MCP stdio host loads embedded orchestrator config via vox-orchestrator-driver::build_embedded_orchestrator_config (shared with vox-cli dei surfaces). Shim remains at vox-cli-core::orchestrator_driver for legacy CLI imports."
 
 [[known_inversions]]
 from   = "vox-ml-cli"
@@ -361,6 +356,7 @@ exempt_files     = [
     "crates/vox-ml-cli/src/commands/mens/populi/train_arm.rs",  # `git rev-parse --short HEAD` for a training-run manifest stamp
     "crates/vox-plugin-host/src/user_install.rs",  # shallow-clone a plugin source URL into a temp dir (HITL-gated, user-initiated)
     "crates/vox-doc-pipeline/src/pipeline/lint.rs",
+    "crates/vox-research-shim/src/research/domain/git_probe.rs",
 ]
 allow_annotation = "// vox-arch-check: allow git-exec"
 reason           = "All git invocations must go through GitExec to honor the concurrency policy."

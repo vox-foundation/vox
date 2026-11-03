@@ -63,6 +63,12 @@ describe('HarnessHealthView', () => {
     });
   });
 
+  it('titles the empty state at h2, directly under the shell h1 (axe heading-order)', async () => {
+    vi.mocked(voxTransport.harnessEvalHistory).mockResolvedValue([]);
+    renderWithClient(<HarnessHealthView />);
+    expect(await screen.findByRole('heading', { level: 2, name: 'No harness eval runs yet' })).toBeInTheDocument();
+  });
+
   it('shows a regression banner when harness_eval_regressions returns a flag', async () => {
     vi.mocked(voxTransport.harnessEvalHistory).mockResolvedValue([
       {

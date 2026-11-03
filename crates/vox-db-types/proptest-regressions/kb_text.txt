@@ -1,0 +1,12 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 81e4dfbc1aecfe5e6e29600a06ece99a171a81399546a62b0bc71ed00cbdca3f # shrinks to s = "<!--"
+cc c63262fab484ff2be39d87d5efc9ae4c84c618980c677f126d7bc662a499e1b5 # shrinks to s = "![](https://evil.example/x.png"
+cc ee40a56a00869c9d3d10de91faf7ae782f6a4ac52c6a0f7c0467abd945bcea51 # shrinks to s = "<img src=\"<img src=\"https://evil.example/x.png\">"
+cc fc3f024a1ba3fee2ef738dbaa67c79500f3bfbb06ed390b47593fa9b497056f8 # shrinks to s = "![<img src=\"https://evil.example/x.png]["
+cc 57def8476d9bff5171738aad647e1c1eaba243629d9d42e6c673320c7c865220 # shrinks to s = "<img src=\"./img/a.pnghttps://evil.example/x.png\">"
+cc f76f23c1a58c7581954e70144e21f0529cf0db0fa8246bf64dd8f0f62dd25c52 # shrinks to s = "<!<|im_start|>"

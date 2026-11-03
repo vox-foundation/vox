@@ -54,12 +54,14 @@ pub struct VoxLocalGenerateResult {
 /// Generate Vox code via the local MENS inference server.
 ///
 /// Benefits over a raw HTTP call: the health probe result is TTL-cached (30 s),
-/// and the endpoint is resolved from `VOX_LOCAL_ENDPOINT` (default 127.0.0.1:7863).
+/// and the endpoint walks `vox_local_endpoint_probe_candidates` (explicit
+/// `VOX_LOCAL_ENDPOINT`, else `:11434` then `:11435`).
 pub async fn vox_local_generate(
     client: &reqwest::Client,
     prompt: &str,
     validate: bool,
     max_retries: u32,
+    model: Option<&str>,
 ) -> Result<VoxLocalGenerateResult, String> {
     use error::HttpInferError;
     use providers::probe_vox_local_health;
@@ -68,8 +70,7 @@ pub async fn vox_local_generate(
         .await
         .map_err(|e: HttpInferError| e.message)?;
 
-    let base =
-        std::env::var("VOX_LOCAL_ENDPOINT").unwrap_or_else(|_| "http://127.0.0.1:7863".to_string());
+    let base = providers::vox_local_generate_base_url();
     let endpoint = format!("{}/generate", base.trim_end_matches('/'));
 
     #[derive(serde::Serialize)]
@@ -77,6 +78,8 @@ pub async fn vox_local_generate(
         prompt: &'a str,
         validate: bool,
         max_retries: u32,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        model: Option<&'a str>,
     }
     #[derive(serde::Deserialize)]
     struct Resp {
@@ -96,6 +99,7 @@ pub async fn vox_local_generate(
             prompt,
             validate,
             max_retries,
+            model,
         })
         .send()
         .await
@@ -119,4 +123,26 @@ pub async fn vox_local_generate(
         warnings: parsed.warnings,
         attempts: parsed.attempts,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn output_token_clamp_enforces_both_bounds() {
+        assert_eq!(clamp_http_max_output_tokens(0), 1);
+        assert_eq!(
+            clamp_http_max_output_tokens(u64::MAX),
+            limits::HTTP_MAX_OUTPUT_TOKENS_CAP
+        );
+        assert_eq!(clamp_http_max_output_tokens(128), 128);
+    }
+
+    #[test]
+    fn vox_local_generate_base_url_is_nonempty() {
+        let base = providers::vox_local_generate_base_url();
+        assert!(!base.trim().is_empty());
+        assert!(base.starts_with("http"));
+    }
 }

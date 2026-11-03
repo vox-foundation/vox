@@ -1,0 +1,13 @@
+graph {
+    direction: right
+    node s: "Source"
+    node m: "Middle"
+    node t: "Target"
+    node u: "Loop"
+    s -> m: "first"
+    m -> t
+    t -> s: "cycle"
+    m -> m
+    t -> u
+    u -> u: "again"
+}

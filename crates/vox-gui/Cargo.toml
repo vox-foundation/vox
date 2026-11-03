@@ -11,8 +11,9 @@ build = "build.rs"
 gui = []
 default = ["gui"]
 # Desktop speech-to-text: pulls cpal/hound mic capture (via vox-ml-cli's
-# `oratio-mic`) + the Oratio plugin host. Default-OFF to keep the stock GUI lean.
-oratio = ["dep:vox-ml-cli", "dep:vox-plugin-host"]
+# `oratio-mic`). Default-OFF to keep the stock GUI lean. The plugin host is always
+# linked: dictation's Whisper transcriber reaches the `oratio` plugin through it.
+oratio = ["dep:vox-ml-cli"]
 
 [dependencies]
 vox-cli = { workspace = true }
@@ -30,7 +31,12 @@ vox-gamify = { path = "../vox-gamify" }
 vox-secrets = { workspace = true }
 vox-oauth-pkce = { workspace = true }
 vox-http-client = { workspace = true }
+reqwest = { workspace = true }
+rustls = { workspace = true }
+tokio-tungstenite = { workspace = true, default-features = false, features = ["connect", "rustls-tls-webpki-roots"] }
+futures-util = { workspace = true }
 vox-scientia = { workspace = true }
+vox-research-shim = { workspace = true }
 vox-publisher = { workspace = true }
 chrono = { workspace = true }
 vox-actor-runtime = { workspace = true }
@@ -38,8 +44,8 @@ vox-identity = { workspace = true }
 vox-crypto = { workspace = true }
 vox-search = { workspace = true, features = ["web-scrape"] }
 vox-ml-cli = { workspace = true, optional = true, features = ["oratio-mic"] }
-vox-plugin-host = { workspace = true, optional = true }
-vox-speech = { workspace = true, features = ["stt-candle", "stt-sherpa", "compiler-rerank"] }
+vox-plugin-host = { workspace = true }
+vox-speech = { workspace = true, features = ["stt-sherpa", "compiler-rerank"] }
 cpal = { workspace = true }
 hound = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
@@ -63,10 +69,12 @@ dirs = { workspace = true }
 ignore = { workspace = true }
 similar = { workspace = true }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
+libc = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
 tauri = { workspace = true, features = ["test"] }
+vox-orchestrator = { workspace = true, features = ["test-support"] }
 wiremock = { workspace = true }
 
 [build-dependencies]

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { sanitizeErrorForToast } from '../../../lib/backendGuard';
 import { useVirtualList } from '../../../hooks/useVirtualList';
 import { shardSparkColor } from '../../../lib/visualTokens';
@@ -11,6 +11,28 @@ import { Sparkline } from '../../ui/Sparkline';
 import { renderHighlights, UnifiedHit, SearchResponse } from '../Search/searchHelpers';
 import { attachItemsFromHits, AttachItem } from '../../../lib/loquelaContext';
 import { MEMORY_RECALL_DEBOUNCE_MS } from '../../../config/constants';
+import type { Toast } from '../../../types/tauri';
+
+export interface KnowledgeNodeRow {
+  id: string;
+  label: string;
+  snippet: string;
+  node_type?: string | null;
+  created_at: string;
+}
+
+/** Mirrors the Rust `FindingFiled` DTO: `pending` (new) or `duplicate` (already in the inbox). */
+export interface FindingFiled {
+  finding_id: string | null;
+  status: string;
+}
+
+export interface KbHealthDto {
+  node_count: number;
+  edge_count: number;
+  fts_available: boolean;
+  corpus_counts: Record<string, number>;
+}
 
 // Corpus vocabulary aligned with vox_db SearchCorpus variants.
 // Scope ids must match the corpus names accepted by vox_search_query.
@@ -138,7 +160,7 @@ interface MemoryStatusPayload {
 }
 
 interface MemoryViewProps {
-  pushToast: (t: any) => void;
+  pushToast: (t: Toast) => void;
   /**
    * Pin recall hits into the shared Loquela context set. When absent (e.g. a
    * standalone render), pinning is unavailable and the controls report that
@@ -160,6 +182,116 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
   const [recallOn, setRecallOn] = useState(false);
   const [hits, setHits] = useState<UnifiedHit[]>([]);
   const [recalling, setRecalling] = useState(false);
+
+  const [activeTab, setActiveTab] = useState<'search' | 'browse' | 'ingest' | 'health'>('search');
+
+  // Browse state
+  const [nodes, setNodes] = useState<KnowledgeNodeRow[]>([]);
+  const [nodeTypeFilter, setNodeTypeFilter] = useState<string>('all');
+  const [page, setPage] = useState<number>(0);
+  const [loadingNodes, setLoadingNodes] = useState(false);
+
+  // Ingest state
+  const [ingestUrl, setIngestUrl] = useState('');
+  const [ingestingUrl, setIngestingUrl] = useState(false);
+  const [ingestTitle, setIngestTitle] = useState('');
+  const [ingestContent, setIngestContent] = useState('');
+  const [ingestSourceUrl, setIngestSourceUrl] = useState('');
+  const [ingestingText, setIngestingText] = useState(false);
+
+  // Health state
+  const [health, setHealth] = useState<KbHealthDto | null>(null);
+  const [loadingHealth, setLoadingHealth] = useState(false);
+
+  const fetchNodes = useCallback(async (selectedType: string, selectedPage: number) => {
+    setLoadingNodes(true);
+    try {
+      const typeArg = selectedType === 'all' ? null : selectedType;
+      const res = await invoke<KnowledgeNodeRow[]>('list_knowledge_nodes', {
+        nodeType: typeArg,
+        page: selectedPage,
+        limit: 50,
+      });
+      setNodes(res);
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Failed to load nodes', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+    } finally {
+      setLoadingNodes(false);
+    }
+  }, [pushToast]);
+
+  const deleteNode = async (id: string) => {
+    try {
+      await invoke('delete_knowledge_node', { id });
+      pushToast({ tone: 'ok', title: 'Node deleted', body: `Node ${id} deleted`, cause: 'backend-ok' });
+      void fetchNodes(nodeTypeFilter, page);
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Delete failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+    }
+  };
+
+  const fetchHealth = useCallback(async () => {
+    setLoadingHealth(true);
+    try {
+      const res = await invoke<KbHealthDto>('get_kb_health');
+      setHealth(res);
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Failed to fetch KB health', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+    } finally {
+      setLoadingHealth(false);
+    }
+  }, [pushToast]);
+
+  // Side-door content lands in the findings inbox, not the searchable KB (D-05 interim copy).
+  const toastFiled = (res: FindingFiled, what: string) => {
+    if (res.status === 'duplicate') {
+      pushToast({ tone: 'ok', title: 'Already pending review', body: `${what} is already in the review inbox.`, cause: 'backend-ok' });
+    } else {
+      pushToast({ tone: 'ok', title: 'Filed for review', body: `${what} is pending review and not yet searchable.`, cause: 'backend-ok' });
+    }
+  };
+
+  const handleIngestUrl = async () => {
+    if (!ingestUrl.trim()) return;
+    setIngestingUrl(true);
+    try {
+      const res = await invoke<FindingFiled>('ingest_url', { url: ingestUrl.trim() });
+      toastFiled(res, 'The page');
+      setIngestUrl('');
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Scrape failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+    } finally {
+      setIngestingUrl(false);
+    }
+  };
+
+  const handleIngestText = async () => {
+    if (!ingestContent.trim()) return;
+    setIngestingText(true);
+    try {
+      const res = await invoke<FindingFiled>('ingest_text', {
+        title: ingestTitle.trim(),
+        content: ingestContent.trim(),
+        sourceUrl: ingestSourceUrl.trim() || null,
+      });
+      toastFiled(res, 'The text');
+      setIngestTitle('');
+      setIngestContent('');
+      setIngestSourceUrl('');
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Store failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+    } finally {
+      setIngestingText(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'browse') {
+      void fetchNodes(nodeTypeFilter, page);
+    } else if (activeTab === 'health') {
+      void fetchHealth();
+    }
+  }, [activeTab, nodeTypeFilter, page, fetchNodes, fetchHealth]);
 
   const recallsRef = useRef<HTMLDivElement>(null);
   const shardsRef = useRef<HTMLDivElement>(null);
@@ -191,7 +323,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
   useEffect(() => {
     invoke<MemoryStatusPayload>('get_memory_status')
       .then(setMemStatus)
-      .catch((err) => pushToast({ tone: 'warn', title: 'Memory status unavailable', body: sanitizeErrorForToast(err) }));
+      .catch((err) => pushToast({ tone: 'error', title: 'Memory status unavailable', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
   }, [pushToast]);
 
   // Hydrate the persisted auto-recall preference on mount.
@@ -205,15 +337,21 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
     setRecallOn((prev) => {
       const next = !prev;
       voxTransport.setGuiPreference('gui.memory.autoRecall', String(next))
-        .catch((err) => pushToast({ tone: 'warn', title: 'Could not persist auto-recall', body: sanitizeErrorForToast(err) }));
+        .catch((err) => pushToast({ tone: 'error', title: 'Could not persist auto-recall', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
       return next;
     });
   };
 
-  const corpora = MEM_CORPORA.map((c) => ({
-    ...c,
-    entries: memStatus?.corpus_counts?.[c.id] ?? 0,
-  }));
+  const corpora = MEM_CORPORA.map((c) => {
+    const counts = memStatus?.corpus_counts;
+    let entries = counts?.[c.id] ?? 0;
+    if (entries === 0 && counts) {
+      if (c.id === 'memory') entries = (counts.chats ?? 0) + (counts.rules ?? 0);
+      else if (c.id === 'knowledge') entries = (counts.docs ?? 0) + (counts.web ?? 0);
+      else if (c.id === 'chunk') entries = counts.proj ?? 0;
+    }
+    return { ...c, entries };
+  });
   const corpusTotal = corpora.reduce(
     (s, c) => s + (scope.includes(c.id) ? c.entries : 0),
     0
@@ -244,9 +382,10 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
         title: 'Recall complete',
         body: `Top hits across ${scope.length} corpora`,
         cmd: `vox_search_query • "${qq}"`,
+        cause: 'backend-ok',
       });
     } catch (err) {
-      pushToast({ tone: 'warn', title: 'Recall backend error', body: sanitizeErrorForToast(err) });
+      pushToast({ tone: 'error', title: 'Recall backend error', body: sanitizeErrorForToast(err), cause: 'backend-error' });
     } finally {
       setRecalling(false);
       invoke<MemoryStatusPayload>('get_memory_status').then(setMemStatus).catch(() => {});
@@ -274,6 +413,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
         tone: 'warn',
         title: 'Nothing to pin',
         body: 'These hits have no file/web locator the agent can read.',
+        cause: 'validation',
       });
       return;
     }
@@ -282,6 +422,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
         tone: 'warn',
         title: 'Context unavailable',
         body: 'Pin-to-context is only available inside the main shell.',
+        cause: 'validation',
       });
       return;
     }
@@ -293,7 +434,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
       try {
         await voxTransport.openLocator(hit.locator);
       } catch (err) {
-        pushToast({ tone: 'warn', title: 'Could not open', body: sanitizeErrorForToast(err) });
+        pushToast({ tone: 'error', title: 'Could not open', body: sanitizeErrorForToast(err), cause: 'backend-error' });
       }
     }
   };
@@ -329,8 +470,8 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
               type="button"
               onClick={() =>
                 invoke('mnemosyne_reindex')
-                  .then(() => pushToast({ tone: 'ok', title: 'Reindex complete', cmd: 'mnemosyne reindex' }))
-                  .catch((err) => pushToast({ tone: 'warn', title: 'Reindex failed', body: sanitizeErrorForToast(err) }))
+                  .then(() => pushToast({ tone: 'ok', title: 'Reindex complete', cmd: 'mnemosyne reindex', cause: 'backend-ok' }))
+                  .catch((err) => pushToast({ tone: 'error', title: 'Reindex failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }))
               }
               className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1.5 font-mono text-[10px] text-text-muted hover:text-text-secondary"
             >
@@ -339,100 +480,132 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
           </div>
         </div>
 
-        {/* Search bar */}
-        <div className="mt-4 flex items-center gap-2 rounded-xl border border-border-subtle bg-overlay-subtle px-3 py-2">
-          <Icon.search aria-hidden="true" className="size-3.5 text-text-muted" />
-          <input
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && recall()}
-            aria-label="Recall query"
-            placeholder="Recall… e.g. 'ed25519 invariants', 'checkpoint stall'"
-            className="flex-1 bg-transparent text-[13px] text-text-primary placeholder:text-text-muted outline-hidden"
-          />
-          <span className="font-mono text-[10px] text-text-muted">top</span>
-          <input
-            type="number" min={1} max={50} value={topK}
-            onChange={e => setTopK(parseInt(e.target.value) || 8)}
-            aria-label="Number of top hits"
-            className="w-12 rounded-sm border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 text-center font-mono text-[11px] text-text-secondary outline-hidden"
-          />
-          <button
-            type="button"
-            onClick={() => recall()}
-            disabled={!query.trim() || recalling}
-            className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 font-display text-[10px] uppercase tracking-widest transition ${
-              query.trim()
-                ? 'border-brass/40 bg-brass/15 text-brass hover:bg-brass/25'
-                : 'border-border-subtle bg-overlay-subtle text-text-muted cursor-not-allowed'
-            }`}
-          >
-            {recalling ? '…' : 'Recall'}
-          </button>
-        </div>
-
-        {/* Scope chips — corpus vocabulary: memory / knowledge / chunk */}
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          <span className="font-display text-[9px] uppercase tracking-[0.22em] text-text-muted">Scope</span>
-          {corpora.map(c => (
-            <CorpusChip
-              key={c.id}
-              corpus={c}
-              active={scope.includes(c.id)}
-              onToggle={() => toggleScope(c.id)}
-            />
+        {/* Navigation Tabs */}
+        <div className="mt-4 flex items-center gap-1 border-b border-border-subtle pb-2">
+          {(['search', 'browse', 'ingest', 'health'] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              data-testid={`tab-${tab}`}
+              onClick={() => setActiveTab(tab)}
+              className={`rounded-md px-3 py-1 text-xs font-medium capitalize transition ${
+                activeTab === tab
+                  ? 'bg-overlay-hover text-text-primary font-semibold shadow-xs'
+                  : 'text-text-muted hover:text-text-secondary'
+              }`}
+            >
+              {tab === 'search' ? 'Search & Recall' : tab === 'browse' ? 'Browse Nodes' : tab === 'ingest' ? 'Ingest Content' : 'KB Health'}
+            </button>
           ))}
         </div>
+
+        {activeTab === 'search' && (
+          <>
+            {/* Search bar */}
+            <div className="mt-4 flex items-center gap-2 rounded-xl border border-border-subtle bg-overlay-subtle px-3 py-2">
+              <Icon.search aria-hidden="true" className="size-3.5 text-text-muted" />
+              <input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && recall()}
+                aria-label="Recall query"
+                placeholder="Recall… e.g. 'ed25519 invariants', 'checkpoint stall'"
+                className="flex-1 bg-transparent text-[13px] text-text-primary placeholder:text-text-muted outline-hidden"
+              />
+              <span className="font-mono text-[10px] text-text-muted">top</span>
+              <input
+                type="number" min={1} max={50} value={topK}
+                onChange={e => setTopK(parseInt(e.target.value) || 8)}
+                aria-label="Number of top hits"
+                className="w-12 rounded-sm border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 text-center font-mono text-[11px] text-text-secondary outline-hidden"
+              />
+              <button
+                type="button"
+                onClick={() => recall()}
+                disabled={!query.trim() || recalling}
+                className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 font-display text-[10px] uppercase tracking-widest transition ${
+                  query.trim()
+                    ? 'border-brass/40 bg-brass/15 text-brass hover:bg-brass/25'
+                    : 'border-border-subtle bg-overlay-subtle text-text-muted cursor-not-allowed'
+                }`}
+              >
+                {recalling ? '…' : 'Recall'}
+              </button>
+            </div>
+
+            {/* Scope chips — corpus vocabulary: memory / knowledge / chunk */}
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <span className="font-display text-[9px] uppercase tracking-[0.22em] text-text-muted">Scope</span>
+              {corpora.map(c => (
+                <CorpusChip
+                  key={c.id}
+                  corpus={c}
+                  active={scope.includes(c.id)}
+                  onToggle={() => toggleScope(c.id)}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </Glass>
 
-      {/* Recent recalls */}
+      {/* Search Tab Content */}
+      {activeTab === 'search' && (
+        <>
+          {/* Recent recalls */}
       <Glass className="col-span-12 xl:col-span-4 p-5">
         <div className="flex items-center justify-between">
           <h3 className="font-display text-[13px] uppercase tracking-[0.18em] text-text-secondary">Recent recalls</h3>
           <Icon.clock className="size-3.5 text-text-muted" />
         </div>
-        <div
-          ref={recallsRef}
-          style={{
-            height: Math.min(Math.max(recentRecalls.length, 1) * (RECALL_ITEM_HEIGHT + RECALL_GAP), 312),
-            overflow: 'auto',
-            marginTop: '0.75rem',
-          }}
-          className="custom-scrollbar"
-        >
-          <div style={{ height: recallsVL.totalSize, position: 'relative' }}>
-            {recallsVL.virtualItems.map(vItem => {
-              const r = recentRecalls[vItem.index];
-              return (
-                <div
-                  key={String(vItem.key)}
-                  ref={recallsVL.virtualizer.measureElement}
-                  data-index={vItem.index}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    transform: `translateY(${vItem.start}px)`,
-                    width: '100%',
-                    paddingBottom: RECALL_GAP,
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => { setQuery(r.q); recall(r.q); }}
-                    aria-label={`Re-run recall: ${r.q}`}
-                    className="flex w-full items-center justify-between rounded-md border border-border-subtle bg-overlay-subtle px-2.5 py-1.5 text-left hover:border-white/15 hover:bg-overlay-subtle transition"
-                  >
-                    <div className="min-w-0">
-                      <div className="truncate text-[12px] text-text-secondary">{r.q}</div>
-                      <div className="font-mono text-[9px] text-text-muted">{r.n} hits · {r.when} ago</div>
-                    </div>
-                    <Icon.chevR className="size-3 text-text-muted shrink-0" />
-                  </button>
-                </div>
-              );
-            })}
+        {recentRecalls.length === 0 ? (
+          <div className="mt-3 rounded-lg border border-dashed border-border-subtle bg-overlay-subtle p-4 text-center font-mono text-[11px] text-text-muted">
+            No recall queries recorded in this session.
           </div>
-        </div>
+        ) : (
+          <div
+            ref={recallsRef}
+            style={{
+              height: Math.min(Math.max(recentRecalls.length, 1) * (RECALL_ITEM_HEIGHT + RECALL_GAP), 312),
+              overflow: 'auto',
+              marginTop: '0.75rem',
+            }}
+            className="custom-scrollbar"
+          >
+            <div style={{ height: recallsVL.totalSize, position: 'relative' }}>
+              {recallsVL.virtualItems.map(vItem => {
+                const r = recentRecalls[vItem.index];
+                return (
+                  <div
+                    key={String(vItem.key)}
+                    ref={recallsVL.virtualizer.measureElement}
+                    data-index={vItem.index}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      transform: `translateY(${vItem.start}px)`,
+                      width: '100%',
+                      paddingBottom: RECALL_GAP,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => { setQuery(r.q); recall(r.q); }}
+                      aria-label={`Re-run recall: ${r.q}`}
+                      className="flex w-full items-center justify-between rounded-md border border-border-subtle bg-overlay-subtle px-2.5 py-1.5 text-left hover:border-white/15 hover:bg-overlay-subtle transition"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate text-[12px] text-text-secondary">{r.q}</div>
+                        <div className="font-mono text-[9px] text-text-muted">{r.n} hits · {r.when} ago</div>
+                      </div>
+                      <Icon.chevR className="size-3 text-text-muted shrink-0" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </Glass>
 
       {/* Hits */}
@@ -550,6 +723,278 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
           </div>
         </div>
       </Glass>
+        </>
+      )}
+
+      {/* Browse Tab */}
+      {activeTab === 'browse' && (
+        <Glass className="col-span-12 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-4">
+            <div className="flex items-center gap-3">
+              <h3 className="font-display text-[14px] font-semibold text-text-primary">Knowledge Graph Nodes</h3>
+              <select
+                aria-label="Filter by node type"
+                value={nodeTypeFilter}
+                onChange={(e) => {
+                  setNodeTypeFilter(e.target.value);
+                  setPage(0);
+                }}
+                className="rounded-md border border-border-subtle bg-overlay-subtle px-2.5 py-1 text-xs text-text-secondary outline-hidden"
+              >
+                <option value="all">All Node Types</option>
+                <option value="research_synthesis">Research Synthesis</option>
+                <option value="web_research_source">Web Source</option>
+                <option value="document">Document</option>
+                <option value="web_scrape">Web Scrape</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void fetchNodes(nodeTypeFilter, page)}
+                disabled={loadingNodes}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-overlay-subtle px-2.5 py-1 text-xs text-text-secondary hover:text-text-primary transition"
+              >
+                <Icon.refresh className={`size-3 ${loadingNodes ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 overflow-x-auto">
+            {loadingNodes ? (
+              <div className="py-8 text-center text-xs text-text-muted">Loading knowledge nodes…</div>
+            ) : nodes.length === 0 ? (
+              <div className="py-8 text-center text-xs text-text-muted">No knowledge nodes found for this criteria.</div>
+            ) : (
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-border-subtle text-[11px] text-text-muted">
+                    <th className="pb-2 font-medium">Label / ID</th>
+                    <th className="pb-2 font-medium">Type</th>
+                    <th className="pb-2 font-medium">Snippet Preview</th>
+                    <th className="pb-2 font-medium">Created</th>
+                    <th className="pb-2 text-right font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-subtle/50">
+                  {nodes.map((n) => (
+                    <tr key={n.id} className="hover:bg-overlay-subtle/40 transition">
+                      <td className="py-2.5 pr-3 font-mono">
+                        <div className="font-semibold text-text-primary text-[12px]">{n.label}</div>
+                        <div className="text-[10px] text-text-muted truncate max-w-xs">{n.id}</div>
+                      </td>
+                      <td className="py-2.5 pr-3">
+                        <span className="rounded-full bg-brass/10 px-2 py-0.5 text-[10px] text-brass">
+                          {n.node_type || 'untyped'}
+                        </span>
+                      </td>
+                      <td className="py-2.5 pr-3 text-text-secondary line-clamp-2 max-w-md">
+                        {n.snippet}
+                      </td>
+                      <td className="py-2.5 pr-3 text-text-muted whitespace-nowrap text-[11px]">
+                        {n.created_at}
+                      </td>
+                      <td className="py-2.5 text-right whitespace-nowrap">
+                        <button
+                          type="button"
+                          data-testid={`delete-node-${n.id}`}
+                          onClick={() => void deleteNode(n.id)}
+                          title="Delete knowledge node and associated edges"
+                          className="inline-flex items-center gap-1 rounded border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-[11px] text-rose-300 hover:bg-rose-500/20 transition"
+                        >
+                          <Icon.trash className="size-3" />
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <div className="mt-4 flex items-center justify-between border-t border-border-subtle pt-3 text-xs text-text-muted">
+            <button
+              type="button"
+              disabled={page === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              className="rounded border border-border-subtle bg-overlay-subtle px-2.5 py-1 disabled:opacity-40"
+            >
+              Previous
+            </button>
+            <span>Page {page + 1}</span>
+            <button
+              type="button"
+              disabled={nodes.length < 50}
+              onClick={() => setPage((p) => p + 1)}
+              className="rounded border border-border-subtle bg-overlay-subtle px-2.5 py-1 disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
+        </Glass>
+      )}
+
+      {/* Ingest Tab */}
+      {activeTab === 'ingest' && (
+        <>
+          <Glass className="col-span-12 xl:col-span-6 p-5">
+            <h3 className="font-display text-[14px] font-semibold text-text-primary flex items-center gap-2">
+              <Icon.globe className="size-4 text-brass" />
+              Scrape & Ingest URL
+            </h3>
+            <p className="mt-1 text-xs text-text-muted">
+              Extract and clean webpage markdown using the native Vox search scraper (respecting robots.txt) and file it in the review inbox. It is not searchable until reviewed.
+            </p>
+            <div className="mt-4 space-y-3">
+              <div>
+                <label className="block text-[11px] font-medium text-text-secondary mb-1">Target URL</label>
+                <input
+                  type="url"
+                  placeholder="https://example.com/article"
+                  value={ingestUrl}
+                  onChange={(e) => setIngestUrl(e.target.value)}
+                  className="w-full rounded-md border border-border-subtle bg-overlay-subtle px-3 py-2 text-xs text-text-primary placeholder:text-text-muted outline-hidden"
+                />
+              </div>
+              <button
+                type="button"
+                data-testid="ingest-url-btn"
+                disabled={ingestingUrl || !ingestUrl.trim()}
+                onClick={() => void handleIngestUrl()}
+                className="inline-flex items-center gap-1.5 rounded-md border border-brass/40 bg-brass/15 px-3 py-1.5 text-xs font-medium text-brass hover:bg-brass/25 disabled:opacity-40 transition"
+              >
+                {ingestingUrl ? 'Scraping & Ingesting…' : 'Fetch & Store into KB'}
+              </button>
+            </div>
+          </Glass>
+
+          <Glass className="col-span-12 xl:col-span-6 p-5">
+            <h3 className="font-display text-[14px] font-semibold text-text-primary flex items-center gap-2">
+              <Icon.edit className="size-4 text-brass" />
+              Direct Text / Markdown Ingest
+            </h3>
+            <p className="mt-1 text-xs text-text-muted">
+              File notes, reference documents, or manual excerpts in the review inbox. They are not searchable until reviewed.
+            </p>
+            <div className="mt-4 space-y-3">
+              <div>
+                <label className="block text-[11px] font-medium text-text-secondary mb-1">Title / Label</label>
+                <input
+                  type="text"
+                  placeholder="Architecture invariants overview"
+                  value={ingestTitle}
+                  onChange={(e) => setIngestTitle(e.target.value)}
+                  className="w-full rounded-md border border-border-subtle bg-overlay-subtle px-3 py-2 text-xs text-text-primary placeholder:text-text-muted outline-hidden"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-text-secondary mb-1">Source URL (Optional)</label>
+                <input
+                  type="url"
+                  placeholder="https://internal.wiki/page"
+                  value={ingestSourceUrl}
+                  onChange={(e) => setIngestSourceUrl(e.target.value)}
+                  className="w-full rounded-md border border-border-subtle bg-overlay-subtle px-3 py-2 text-xs text-text-primary placeholder:text-text-muted outline-hidden"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-text-secondary mb-1">Content (Markdown or Text)</label>
+                <textarea
+                  rows={5}
+                  placeholder="Paste contents here..."
+                  value={ingestContent}
+                  onChange={(e) => setIngestContent(e.target.value)}
+                  className="w-full rounded-md border border-border-subtle bg-overlay-subtle px-3 py-2 text-xs text-text-primary placeholder:text-text-muted outline-hidden resize-y"
+                />
+              </div>
+              <button
+                type="button"
+                data-testid="ingest-text-btn"
+                disabled={ingestingText || !ingestContent.trim()}
+                onClick={() => void handleIngestText()}
+                className="inline-flex items-center gap-1.5 rounded-md border border-brass/40 bg-brass/15 px-3 py-1.5 text-xs font-medium text-brass hover:bg-brass/25 disabled:opacity-40 transition"
+              >
+                {ingestingText ? 'Filing…' : 'File for Review'}
+              </button>
+            </div>
+          </Glass>
+        </>
+      )}
+
+      {/* Health Tab */}
+      {activeTab === 'health' && (
+        <Glass className="col-span-12 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-4">
+            <div>
+              <h3 className="font-display text-[14px] font-semibold text-text-primary">Knowledge Graph Health & Topology</h3>
+              <p className="mt-0.5 text-xs text-text-muted">
+                Runtime database metrics, SQLite FTS5 search index status, and node type breakdown.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void fetchHealth()}
+              disabled={loadingHealth}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border-subtle bg-overlay-subtle px-2.5 py-1 text-xs text-text-secondary hover:text-text-primary transition"
+            >
+              <Icon.refresh className={`size-3 ${loadingHealth ? 'animate-spin' : ''}`} />
+              Refresh Health
+            </button>
+          </div>
+
+          {loadingHealth ? (
+            <div className="py-8 text-center text-xs text-text-muted">Inspecting knowledge base health…</div>
+          ) : !health ? (
+            <div className="py-8 text-center text-xs text-text-muted">No health data available. Click Refresh to probe.</div>
+          ) : (
+            <div className="mt-5 space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-4">
+                  <div className="text-[11px] uppercase tracking-wider text-text-muted font-medium">Total Nodes</div>
+                  <div className="mt-1 text-2xl font-bold font-mono text-text-primary">
+                    {health.node_count.toLocaleString()}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-4">
+                  <div className="text-[11px] uppercase tracking-wider text-text-muted font-medium">Total Edges</div>
+                  <div className="mt-1 text-2xl font-bold font-mono text-text-primary">
+                    {health.edge_count.toLocaleString()}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-4">
+                  <div className="text-[11px] uppercase tracking-wider text-text-muted font-medium">FTS5 Search Index</div>
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className={`size-2.5 rounded-full ${health.fts_available ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                    <span className="font-semibold text-sm text-text-primary">
+                      {health.fts_available ? 'Ready & Available' : 'Offline / Degraded'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">Corpus Distribution by Node Type</h4>
+                {Object.keys(health.corpus_counts).length === 0 ? (
+                  <p className="text-xs text-text-muted">No classified node types yet.</p>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {Object.entries(health.corpus_counts).map(([type, count]) => (
+                      <div key={type} className="rounded-lg border border-border-subtle bg-overlay-subtle p-3">
+                        <div className="font-mono text-xs text-brass font-medium truncate">{type}</div>
+                        <div className="mt-1 text-lg font-bold text-text-primary font-mono">{count.toLocaleString()}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </Glass>
+      )}
     </div>
   );
 }

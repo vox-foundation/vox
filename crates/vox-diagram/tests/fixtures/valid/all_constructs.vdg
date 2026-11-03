@@ -1,0 +1,41 @@
+// Every DGM-01 construct in one document.
+graph { // header
+    direction: right
+
+    // shapes
+    node client: "Client" { shape: start }
+    node done: "Done" { shape: end }
+    node pick: "Choose?" { shape: diamond }
+    node soft: "Say \"hi\" \\ then\nnext line" { shape: rounded }
+    node plain: "Plain" { shape: rect }
+    node api-gw: "API Gateway" // kebab id
+
+    container backend: "Backend" { // outer
+        node gateway: "Gateway"
+        node store: "Store" {
+            shape: cylinder
+        }
+
+        container core: "Core" {
+            node engine: "Engine"
+
+            container deep: "Deep" {
+                node worker: "Worker"
+                worker -> worker // self-loop
+                worker -> engine: "calls up" // innermost, then outward
+                worker -> client: "reaches the root"
+            } // end deep
+        } // end core
+
+        core.engine -> store: "persists"
+    } // end backend
+
+    client -> pick
+    pick -> done: "yes"
+    pick -> soft: "no"
+    soft -> plain
+    plain -> api-gw
+    api-gw -> backend.gateway: "HTTPS"
+    backend.core.deep.worker -> done
+} // end graph
+// after the graph

@@ -51,32 +51,19 @@ pub fn run(root: &Path) -> Result<()> {
         anyhow::bail!("safety.max_cost_usd_per_request must be > 0.0");
     }
 
-    // Premium alias drift guard: pins.yaml is SSOT; routing.yaml aliases must not diverge.
-    if let Some(pins) = vox_config::load_model_pins_config() {
-        let mut drift = Vec::new();
-        for (k, v) in &config.premium_alias {
-            if let Some(pin_v) = pins.premium_alias.get(k)
-                && pin_v != v
-            {
-                drift.push(format!("{k}: routing={v} pins={pin_v}"));
-            }
-        }
-        if !drift.is_empty() {
-            anyhow::bail!(
-                "premium_alias drift between model-routing.v1.yaml and model-pins.v1.yaml: {}",
-                drift.join("; ")
-            );
-        }
-        println!(
-            "{} premium_alias keys aligned with model-pins.v1.yaml",
-            "✓".green()
+    // Task 14: premium_alias ids live only in model-defaults.v1.yaml (no second
+    // copy here or in model-pins to drift), so check the loaded aliases.
+    if !config.premium_alias.is_empty() {
+        anyhow::bail!(
+            "model-routing.v1.yaml must not define premium_alias ids; they live in model-defaults.v1.yaml"
         );
     }
+    let aliases = vox_config::load_model_routing_config().premium_alias;
 
     // Retired ids must never appear as live premium aliases.
     if let Some(pins) = vox_config::load_model_pins_config() {
         let retired: HashSet<&str> = pins.retired_ids.iter().map(String::as_str).collect();
-        for (k, v) in &config.premium_alias {
+        for (k, v) in &aliases {
             if retired.contains(v.as_str()) {
                 anyhow::bail!(
                     "premium_alias {k} -> {v} references a retired model id from model-pins.v1.yaml"

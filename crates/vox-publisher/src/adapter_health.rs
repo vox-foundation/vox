@@ -1,6 +1,4 @@
 use crate::PublisherConfig;
-#[cfg(feature = "live-api-canary")]
-use crate::adapters::canary;
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]
@@ -34,48 +32,32 @@ pub async fn report_health(
     live: bool,
 ) -> anyhow::Result<AdapterHealthReport> {
     let mut adapters = Vec::new();
+    let moved_status = || {
+        if live {
+            Some(HeartbeatStatus::Skipped {
+                reason: "moved to vox-ops-syndication".to_string(),
+            })
+        } else {
+            None
+        }
+    };
 
-    // Mastodon
     adapters.push(AdapterHealthEntry {
         name: "mastodon",
         feature_enabled: cfg!(feature = "scientia-mastodon"),
         credentials_present: cfg.mastodon_access_token.is_some(),
-        heartbeat_status: if live && cfg!(feature = "scientia-mastodon") {
-            #[cfg(feature = "live-api-canary")]
-            {
-                Some(canary::probe_mastodon(cfg).await)
-            }
-            #[cfg(not(feature = "live-api-canary"))]
-            {
-                None
-            }
-        } else {
-            None
-        },
+        heartbeat_status: moved_status(),
         diagnostic_message: None,
     });
 
-    // Bluesky
     adapters.push(AdapterHealthEntry {
         name: "bluesky",
         feature_enabled: cfg!(feature = "scientia-bluesky"),
         credentials_present: cfg.bluesky_handle.is_some() && cfg.bluesky_password.is_some(),
-        heartbeat_status: if live && cfg!(feature = "scientia-bluesky") {
-            #[cfg(feature = "live-api-canary")]
-            {
-                Some(canary::probe_bluesky(cfg).await)
-            }
-            #[cfg(not(feature = "live-api-canary"))]
-            {
-                None
-            }
-        } else {
-            None
-        },
+        heartbeat_status: moved_status(),
         diagnostic_message: None,
     });
 
-    // Discord
     adapters.push(AdapterHealthEntry {
         name: "discord",
         feature_enabled: cfg!(feature = "scientia-discord"),
@@ -84,22 +66,10 @@ pub async fn report_health(
         )
         .expose()
         .is_some(),
-        heartbeat_status: if live && cfg!(feature = "scientia-discord") {
-            #[cfg(feature = "live-api-canary")]
-            {
-                Some(canary::probe_discord(cfg).await)
-            }
-            #[cfg(not(feature = "live-api-canary"))]
-            {
-                None
-            }
-        } else {
-            None
-        },
+        heartbeat_status: moved_status(),
         diagnostic_message: None,
     });
 
-    // Twitter
     adapters.push(AdapterHealthEntry {
         name: "twitter",
         feature_enabled: cfg!(feature = "scientia-twitter"),
@@ -107,24 +77,10 @@ pub async fn report_health(
             || vox_secrets::resolve_secret(vox_secrets::SecretId::VoxNewsTwitterBearer)
                 .expose()
                 .is_some(),
-        heartbeat_status: if live && cfg!(feature = "scientia-twitter") {
-            #[cfg(feature = "live-api-canary")]
-            {
-                Some(canary::probe_twitter(cfg).await)
-            }
-            #[cfg(not(feature = "live-api-canary"))]
-            {
-                Some(HeartbeatStatus::Skipped {
-                    reason: "live-api-canary feature inactive".to_string(),
-                })
-            }
-        } else {
-            None
-        },
+        heartbeat_status: moved_status(),
         diagnostic_message: None,
     });
 
-    // LinkedIn
     adapters.push(AdapterHealthEntry {
         name: "linkedin",
         feature_enabled: cfg!(feature = "scientia-linkedin"),
@@ -132,24 +88,10 @@ pub async fn report_health(
             || vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSocialLinkedinAccessToken)
                 .expose()
                 .is_some(),
-        heartbeat_status: if live && cfg!(feature = "scientia-linkedin") {
-            #[cfg(feature = "live-api-canary")]
-            {
-                Some(canary::probe_linkedin(cfg).await)
-            }
-            #[cfg(not(feature = "live-api-canary"))]
-            {
-                Some(HeartbeatStatus::Skipped {
-                    reason: "live-api-canary feature inactive".to_string(),
-                })
-            }
-        } else {
-            None
-        },
+        heartbeat_status: moved_status(),
         diagnostic_message: None,
     });
 
-    // OpenCollective
     adapters.push(AdapterHealthEntry {
         name: "opencollective",
         feature_enabled: cfg!(feature = "scientia-opencollective"),
@@ -157,24 +99,10 @@ pub async fn report_health(
             || vox_secrets::resolve_secret(vox_secrets::SecretId::VoxNewsOpenCollectiveToken)
                 .expose()
                 .is_some(),
-        heartbeat_status: if live && cfg!(feature = "scientia-opencollective") {
-            #[cfg(feature = "live-api-canary")]
-            {
-                Some(canary::probe_opencollective(cfg).await)
-            }
-            #[cfg(not(feature = "live-api-canary"))]
-            {
-                Some(HeartbeatStatus::Skipped {
-                    reason: "live-api-canary feature inactive".to_string(),
-                })
-            }
-        } else {
-            None
-        },
+        heartbeat_status: moved_status(),
         diagnostic_message: None,
     });
 
-    // Reddit
     adapters.push(AdapterHealthEntry {
         name: "reddit",
         feature_enabled: cfg!(feature = "scientia-reddit"),
@@ -188,33 +116,24 @@ pub async fn report_health(
         diagnostic_message: None,
     });
 
-    // Zenodo
     adapters.push(AdapterHealthEntry {
         name: "zenodo",
-        feature_enabled: true, // usually enabled if scholarly
+        feature_enabled: true,
         credentials_present: vox_secrets::resolve_secret(
             vox_secrets::SecretId::VoxZenodoAccessToken,
         )
         .expose()
         .is_some(),
         heartbeat_status: if live {
-            #[cfg(feature = "live-api-canary")]
-            {
-                Some(canary::probe_zenodo(cfg).await)
-            }
-            #[cfg(not(feature = "live-api-canary"))]
-            {
-                Some(HeartbeatStatus::Skipped {
-                    reason: "live-api-canary feature inactive".to_string(),
-                })
-            }
+            Some(HeartbeatStatus::Skipped {
+                reason: "live-api-canary feature inactive".to_string(),
+            })
         } else {
             None
         },
         diagnostic_message: None,
     });
 
-    // OpenReview
     adapters.push(AdapterHealthEntry {
         name: "openreview",
         feature_enabled: true,
@@ -224,7 +143,7 @@ pub async fn report_health(
             && vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenReviewPassword)
                 .expose()
                 .is_some(),
-        heartbeat_status: None, // No probe yet
+        heartbeat_status: None,
         diagnostic_message: None,
     });
 
@@ -247,7 +166,6 @@ mod semcov_wave1d_tests {
             .await
             .expect("report_health should succeed");
 
-        // Exactly nine adapters in a fixed, documented order.
         let names: Vec<&str> = report.adapters.iter().map(|a| a.name).collect();
         assert_eq!(
             names,
@@ -266,13 +184,11 @@ mod semcov_wave1d_tests {
 
         let by_name = |n: &str| report.adapters.iter().find(|a| a.name == n).unwrap();
 
-        // Reddit always reports the "unimplemented" Skipped heartbeat, regardless of live flag.
         match &by_name("reddit").heartbeat_status {
             Some(HeartbeatStatus::Skipped { reason }) => assert_eq!(reason, "unimplemented"),
             other => panic!("expected reddit Skipped(unimplemented), got {other:?}"),
         }
 
-        // With live=false, mastodon/bluesky/twitter/linkedin perform no probe.
         for n in [
             "mastodon",
             "bluesky",
@@ -287,14 +203,9 @@ mod semcov_wave1d_tests {
             );
         }
 
-        // Default config carries no mastodon/bluesky credentials.
         assert!(!by_name("mastodon").credentials_present);
         assert!(!by_name("bluesky").credentials_present);
-
-        // openreview never has a probe wired yet.
         assert!(by_name("openreview").heartbeat_status.is_none());
-
-        // diagnostic_message is never populated.
         assert!(
             report
                 .adapters

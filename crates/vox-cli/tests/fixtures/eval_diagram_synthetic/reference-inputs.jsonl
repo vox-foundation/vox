@@ -1,0 +1,4 @@
+{"id":"g001","text":"flowchart LR\n    client[\"Client\"]\n    server[\"Server\"]\n    client -->|\"request\"| server\n"}
+{"id":"g002","text":"flowchart TD\n    subgraph backend [\"Backend (v2)\"]\n        queue[\"Queue\"]\n        worker[\"Worker\"]\n    end\n    queue --> worker\n    worker -->|\"retry\"| worker\n"}
+{"id":"s001","text":"sequenceDiagram\n    participant p0 as User\n    participant p1 as Gateway\n    p0->>p1: GET /status\n    Note over p1: cached\n    p1-->>p0: 200 OK\n"}
+{"id":"g003","text":"flowchart LR\n    router[\"Router\"]\n    cache[\"Cache\"]\n    store[\"Store\"]\n    router --> cache\n    router --> store\n"}

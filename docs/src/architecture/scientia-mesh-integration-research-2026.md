@@ -2,7 +2,7 @@
 title: "Scientia × Mesh/Model-Routing Integration Research (2026)"
 description: "Fundamental limitations of the Vox-Scientia publication pipeline and a concrete proposal to close the scientia ↔ mesh/orchestrator feedback loop so that provider and model behaviour become first-class, publishable scientific artifacts."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
 training_rationale: "Identifies the canonical seam between the scientia publication SSOT (ADR-011), the model-orchestration SSOT audit, and telemetry-trust, and specifies the contracts that make model/provider observations a publishable finding class. Authoritative for the next-gen routing feedback loop."
 sourced_at: "2026-04-23"

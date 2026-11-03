@@ -7,6 +7,17 @@
 
 mod browser;
 mod engine;
+mod host;
+mod hosts;
+mod input;
+mod policy;
+mod ref_actions;
+mod resolve;
+mod snapshot;
+
+pub use snapshot::{
+    AxBox, AxRef, AxSnapshot, SnapshotOptions, compact_ax_snapshot, wrap_snapshot_tree,
+};
 
 use abi_stable::{
     erased_types::TD_Opaque, export_root_module, prefix_type::PrefixTypeTrait, sabi_extern_fn,
@@ -29,7 +40,11 @@ fn root_module() -> VoxPluginRootRef {
 
 #[sabi_extern_fn]
 fn manifest_json() -> RString {
-    RString::from(r#"{"id":"browser","version":"0.1.0"}"#)
+    RString::from(concat!(
+        r#"{"id":"browser","version":""#,
+        env!("CARGO_PKG_VERSION"),
+        r#""}"#
+    ))
 }
 
 #[sabi_extern_fn]
@@ -60,6 +75,13 @@ impl VoxPlugin for BrowserPluginHost {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn manifest_json_version_is_the_crate_version() {
+        let m: serde_json::Value =
+            serde_json::from_str(manifest_json().as_str()).expect("manifest_json is JSON");
+        assert_eq!(m["version"], env!("CARGO_PKG_VERSION"));
+    }
 
     #[test]
     fn manifest_advertises_browser_id() {

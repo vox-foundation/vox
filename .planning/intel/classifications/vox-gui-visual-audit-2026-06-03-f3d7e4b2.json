@@ -1,0 +1,24 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/vox-gui-visual-audit-2026-06-03.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Vox GUI Visual Audit & Fix Handoff (2026-06-03)",
+  "summary": "Full-surface screenshot audit of Tauri GUI frontend with critical app-blanking bug found and fixed, plus prioritized visual/robustness fixes and reusable Playwright harness.",
+  "scope": [
+    "visual audit",
+    "GUI robustness",
+    "icon registry fixes",
+    "typecheck gate",
+    "Playwright e2e testing",
+    "bug catalog",
+    "empty states"
+  ],
+  "cross_refs": [
+    "crates/vox-gui/ui/e2e/screenshots.spec.ts",
+    "crates/vox-gui/ui/playwright.config.ts",
+    "crates/vox-gui/ui/src/components/ui/Icons.tsx"
+  ],
+  "locked": false,
+  "precedence": null
+}

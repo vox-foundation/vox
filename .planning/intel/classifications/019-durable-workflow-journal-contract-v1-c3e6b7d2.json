@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/019-durable-workflow-journal-contract-v1.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 019: Durable workflow journal contract v1",
+  "summary": "Freezes interpreted workflow durability boundary, replay source of truth, and v1 event contract.",
+  "scope": ["workflow", "durability", "journal contract", "replay", "durable execution", "interpreted workflows", "event schema"],
+  "cross_refs": ["crates/vox-workflow-runtime/src/workflow/run.rs", "crates/vox-db/src/facade/workflow.rs", "crates/vox-db/src/schema/domains/execution.rs", "contracts/workflow/workflow-journal.v1.schema.json", "../explanation/expl-durable-execution.md", "../reference/cli.md", "004-codex-arca-turso-ssot.md"],
+  "locked": true,
+  "precedence": null
+}

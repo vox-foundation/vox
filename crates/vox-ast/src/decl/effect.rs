@@ -26,6 +26,12 @@ pub enum EffectAnnotation {
     Mutate,
     /// Version-control / repository operations (`repo.*` / `vcs.*` builtins).
     Vcs,
+    /// Incurs paid API / scrape / compute spend (`RANK-01`).
+    Spend,
+    /// Mutates persistent production state (`RANK-01`).
+    Write,
+    /// Calls an external third-party API (`RANK-01`).
+    ExternalApi,
     /// Calls a specific MCP tool: `mcp(tool_name)`.
     Mcp(String),
     /// Explicit `uses nothing` — equivalent to `@pure`.
@@ -45,6 +51,9 @@ impl EffectAnnotation {
             "gpu_compute" => Some(Self::GpuCompute),
             "mutate" => Some(Self::Mutate),
             "vcs" => Some(Self::Vcs),
+            "spend" | "Spend" => Some(Self::Spend),
+            "write" | "Write" => Some(Self::Write),
+            "external_api" | "ExternalApi" => Some(Self::ExternalApi),
             "nothing" => Some(Self::Nothing),
             _ => None,
         }
@@ -62,6 +71,9 @@ impl EffectAnnotation {
             Self::GpuCompute => "gpu_compute",
             Self::Mutate => "mutate",
             Self::Vcs => "vcs",
+            Self::Spend => "spend",
+            Self::Write => "write",
+            Self::ExternalApi => "external_api",
             Self::Mcp(_) => "mcp",
             Self::Nothing => "nothing",
         }

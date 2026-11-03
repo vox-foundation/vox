@@ -161,6 +161,202 @@ pub fn openai_embeddings_url() -> String {
     format!("{}/embeddings", openai_compatible_base_url())
 }
 
+/// Groq chat completions endpoint (OpenAI-compatible).
+pub const GROQ_CHAT_COMPLETIONS_URL: &str = "https://api.groq.com/openai/v1/chat/completions";
+/// Cerebras chat completions endpoint (OpenAI-compatible).
+pub const CEREBRAS_CHAT_COMPLETIONS_URL: &str = "https://api.cerebras.ai/v1/chat/completions";
+/// Mistral chat completions endpoint (OpenAI-compatible).
+pub const MISTRAL_CHAT_COMPLETIONS_URL: &str = "https://api.mistral.ai/v1/chat/completions";
+/// DeepSeek chat completions endpoint (OpenAI-compatible).
+pub const DEEPSEEK_CHAT_COMPLETIONS_URL: &str = "https://api.deepseek.com/chat/completions";
+/// SambaNova chat completions endpoint (OpenAI-compatible).
+pub const SAMBANOVA_CHAT_COMPLETIONS_URL: &str = "https://api.sambanova.ai/v1/chat/completions";
+/// Anthropic's OpenAI-compatible chat completions endpoint (Bearer auth).
+pub const ANTHROPIC_OPENAI_COMPAT_CHAT_COMPLETIONS_URL: &str =
+    "https://api.anthropic.com/v1/chat/completions";
+/// Google AI Studio's OpenAI-compatible chat completions endpoint (Bearer auth).
+pub const GEMINI_OPENAI_COMPAT_CHAT_COMPLETIONS_URL: &str =
+    "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+
+/// Egress provider strings that reach a vendor directly with that vendor's own key.
+pub const DIRECT_CLOUD_PROVIDERS: &[&str] = &[
+    "groq",
+    "cerebras",
+    "mistral",
+    "deepseek",
+    "sambanova",
+    "anthropic",
+    "gemini",
+];
+
+fn secret_url_or(id: vox_secrets::SecretId, default: &str) -> String {
+    vox_secrets::resolve_secret(id)
+        .expose()
+        .map(str::trim)
+        .filter(|v| !v.is_empty() && v.contains("://"))
+        .map(|v| v.trim_end_matches('/').to_string())
+        .unwrap_or_else(|| default.to_string())
+}
+
+/// Chat completions URL for a direct (non-OpenRouter) cloud provider, honoring the
+/// per-provider `VOX_*_CHAT_COMPLETIONS_URL` overrides. `None` for anything else.
+#[must_use]
+pub fn direct_chat_completions_url(provider: &str) -> Option<String> {
+    use vox_secrets::SecretId;
+    Some(match provider {
+        "groq" => secret_url_or(
+            SecretId::VoxGroqChatCompletionsUrl,
+            GROQ_CHAT_COMPLETIONS_URL,
+        ),
+        "cerebras" => secret_url_or(
+            SecretId::VoxCerebrasChatCompletionsUrl,
+            CEREBRAS_CHAT_COMPLETIONS_URL,
+        ),
+        "mistral" => secret_url_or(
+            SecretId::VoxMistralChatCompletionsUrl,
+            MISTRAL_CHAT_COMPLETIONS_URL,
+        ),
+        "deepseek" => secret_url_or(
+            SecretId::VoxDeepseekChatCompletionsUrl,
+            DEEPSEEK_CHAT_COMPLETIONS_URL,
+        ),
+        "sambanova" => secret_url_or(
+            SecretId::VoxSambanovaChatCompletionsUrl,
+            SAMBANOVA_CHAT_COMPLETIONS_URL,
+        ),
+        "anthropic" => secret_url_or(
+            SecretId::VoxAnthropicChatCompletionsUrl,
+            ANTHROPIC_OPENAI_COMPAT_CHAT_COMPLETIONS_URL,
+        ),
+        "gemini" => GEMINI_OPENAI_COMPAT_CHAT_COMPLETIONS_URL.to_string(),
+        _ => return None,
+    })
+}
+
+/// Translate a catalog id (OpenRouter-style `vendor/model`) into the id the vendor's own
+/// API expects. Groq/Cerebras/SambaNova ids legitimately contain `/`, so they pass through.
+#[must_use]
+pub fn native_model_id(provider: &str, catalog_id: &str) -> String {
+    match provider {
+        "gemini" => catalog_id
+            .strip_prefix("google/")
+            .unwrap_or(catalog_id)
+            .to_string(),
+        // OpenRouter spells Anthropic versions with dots (`claude-opus-4.7`); the
+        // Anthropic API uses dashes (`claude-opus-4-7`).
+        "anthropic" => catalog_id
+            .strip_prefix("anthropic/")
+            .unwrap_or(catalog_id)
+            .replace('.', "-"),
+        "deepseek" => catalog_id
+            .strip_prefix("deepseek/")
+            .unwrap_or(catalog_id)
+            .to_string(),
+        "mistral" => catalog_id
+            .strip_prefix("mistralai/")
+            .or_else(|| catalog_id.strip_prefix("mistral/"))
+            .unwrap_or(catalog_id)
+            .to_string(),
+        _ => catalog_id.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod direct_provider_tests {
+    use super::*;
+
+    #[test]
+    fn every_direct_provider_has_an_https_endpoint() {
+        for p in DIRECT_CLOUD_PROVIDERS {
+            let url = direct_chat_completions_url(p).expect("direct provider url");
+            assert!(url.starts_with("https://"), "{p}: {url}");
+            assert!(url.ends_with("/chat/completions"), "{p}: {url}");
+        }
+        assert!(direct_chat_completions_url("openrouter").is_none());
+        assert!(direct_chat_completions_url("ollama").is_none());
+    }
+
+    #[test]
+    fn native_ids_strip_openrouter_vendor_prefixes() {
+        assert_eq!(
+            native_model_id("gemini", "google/gemini-3.1-pro"),
+            "gemini-3.1-pro"
+        );
+        assert_eq!(
+            native_model_id("anthropic", "anthropic/claude-opus-4.7"),
+            "claude-opus-4-7"
+        );
+        assert_eq!(
+            native_model_id("deepseek", "deepseek/deepseek-chat"),
+            "deepseek-chat"
+        );
+        assert_eq!(
+            native_model_id("mistral", "mistralai/mistral-large"),
+            "mistral-large"
+        );
+        assert_eq!(
+            native_model_id("groq", "meta-llama/llama-4-scout-17b-16e-instruct"),
+            "meta-llama/llama-4-scout-17b-16e-instruct"
+        );
+    }
+}
+
+/// Default VoxLocal (`vox mens serve`) base URL — same port as Ollama for co-location.
+pub const VOX_LOCAL_ENDPOINT_DEFAULT: &str = "http://127.0.0.1:11434";
+
+/// Alternate loopback port when Ollama already binds `:11434` (macOS Metal how-to).
+pub const VOX_LOCAL_ENDPOINT_OLLAMA_CONFLICT_ALT: &str = "http://127.0.0.1:11435";
+
+/// Probe order when **`VOX_LOCAL_ENDPOINT`** is unset (first `vox-ml-cli` health wins).
+pub const VOX_LOCAL_ENDPOINT_PROBE_CANDIDATES: &[&str] = &[
+    VOX_LOCAL_ENDPOINT_DEFAULT,
+    VOX_LOCAL_ENDPOINT_OLLAMA_CONFLICT_ALT,
+];
+
+/// Trim trailing slashes from a VoxLocal base URL.
+#[must_use]
+pub fn normalize_vox_local_base_url(base: &str) -> String {
+    base.trim().trim_end_matches('/').to_string()
+}
+
+/// Returns VoxLocal base URLs to probe, in order.
+///
+/// When `explicit` is [`Some`], only that URL is returned (honors `VOX_LOCAL_ENDPOINT`
+/// override). When [`None`], returns [`VOX_LOCAL_ENDPOINT_PROBE_CANDIDATES`].
+#[must_use]
+pub fn vox_local_endpoint_probe_candidates_from(explicit: Option<&str>) -> Vec<String> {
+    if let Some(url) = explicit {
+        let trimmed = url.trim();
+        if trimmed.is_empty() {
+            return Vec::new();
+        }
+        return vec![normalize_vox_local_base_url(trimmed)];
+    }
+    VOX_LOCAL_ENDPOINT_PROBE_CANDIDATES
+        .iter()
+        .map(|candidate| normalize_vox_local_base_url(candidate))
+        .collect()
+}
+
+/// VoxLocal probe targets: explicit **`VOX_LOCAL_ENDPOINT`** or the default candidate list.
+#[must_use]
+pub fn vox_local_endpoint_probe_candidates() -> Vec<String> {
+    vox_local_endpoint_probe_candidates_from(std::env::var("VOX_LOCAL_ENDPOINT").ok().as_deref())
+}
+
+/// True when a `/health` or `/ready` body identifies `vox mens serve` (`vox-ml-cli`).
+#[must_use]
+pub fn vox_local_health_identifies_serve(body: &str) -> bool {
+    serde_json::from_str::<serde_json::Value>(body)
+        .ok()
+        .and_then(|v| {
+            v.get("service")
+                .and_then(|s| s.as_str())
+                .map(|s| s == "vox-ml-cli")
+        })
+        .unwrap_or(false)
+}
+
 /// Local Ollama-compatible API base URL.
 ///
 /// Precedence: **`VOX_POPULI_LOCAL_OLLAMA_URL`** → **`POPULI_URL`** → **`OLLAMA_URL`** → `http://localhost:11434`.
@@ -430,11 +626,243 @@ pub fn ollama_tuning_num_ctx() -> Option<i32> {
     })
 }
 
+/// Strict model pin shared by chat and research: `VOX_MODEL_FORCE`, read from the
+/// environment first, then `~/.vox/config.toml`. `None` when unset, blank or `auto`
+/// (so `VOX_MODEL_FORCE=auto` in the environment lifts a config-file pin for one process).
+#[must_use]
+pub fn forced_model() -> Option<String> {
+    forced_model_from(&crate::env_parse::resolve_config_str("VOX_MODEL_FORCE", ""))
+}
+
+/// Pure half of [`forced_model`]: trims, and treats blank or `auto` as unset.
+#[must_use]
+pub fn forced_model_from(raw: &str) -> Option<String> {
+    let v = raw.trim();
+    (!v.is_empty() && !v.eq_ignore_ascii_case("auto")).then(|| v.to_string())
+}
+
+/// A role a model can be pinned for independently (Task 13). Each role reads
+/// its own key first; research roles then fall back to the research group pin;
+/// every role finally falls back to the single global pin (`VOX_MODEL_FORCE`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ModelRole {
+    /// The chat reply model.
+    Chat,
+    /// Research query planner / subquery decomposition.
+    Planner,
+    /// Research answer synthesis.
+    Synthesis,
+    /// Research LLM-as-judge quality score.
+    Judge,
+    /// Research claim extraction and claim verification.
+    Verifier,
+}
+
+impl ModelRole {
+    pub const ALL: [Self; 5] = [
+        Self::Chat,
+        Self::Planner,
+        Self::Synthesis,
+        Self::Judge,
+        Self::Verifier,
+    ];
+
+    /// The role's own pin key.
+    #[must_use]
+    pub const fn env_key(self) -> &'static str {
+        match self {
+            Self::Chat => "VOX_MODEL_FORCE_CHAT",
+            Self::Planner => "VOX_MODEL_FORCE_PLANNER",
+            Self::Synthesis => "VOX_MODEL_FORCE_SYNTHESIS",
+            Self::Judge => "VOX_MODEL_FORCE_JUDGE",
+            Self::Verifier => "VOX_MODEL_FORCE_VERIFIER",
+        }
+    }
+
+    /// The group pin a research role falls back to before the global pin.
+    #[must_use]
+    pub const fn group_key(self) -> Option<&'static str> {
+        match self {
+            Self::Chat => None,
+            _ => Some("VOX_MODEL_FORCE_RESEARCH"),
+        }
+    }
+
+    /// Lower-case label used in traces (`chat`, `planner`, …).
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Chat => "chat",
+            Self::Planner => "planner",
+            Self::Synthesis => "synthesis",
+            Self::Judge => "judge",
+            Self::Verifier => "verifier",
+        }
+    }
+}
+
+/// Pure half of the role-scoped pin: the role value wins, else the fallback;
+/// blanks are unset.
+#[must_use]
+pub fn resolve_role_pin(role_value: Option<&str>, fallback: Option<&str>) -> Option<String> {
+    forced_model_from(role_value.unwrap_or(""))
+        .or_else(|| forced_model_from(fallback.unwrap_or("")))
+}
+
+/// Strict model pin for `role`: its own key, then (research roles) the
+/// `VOX_MODEL_FORCE_RESEARCH` group pin, then the global [`forced_model`].
+/// Every key is read env-first, then `~/.vox/config.toml`. Strictness is the
+/// caller's: a pinned model that is missing or gated must still error.
+#[must_use]
+pub fn forced_model_for(role: ModelRole) -> Option<String> {
+    let read = |key: &str| crate::env_parse::resolve_config_str(key, "");
+    let global = read("VOX_MODEL_FORCE");
+    let fallback = match role.group_key() {
+        Some(group) => resolve_role_pin(Some(&read(group)), Some(&global)),
+        None => forced_model_from(&global),
+    };
+    resolve_role_pin(Some(&read(role.env_key())), fallback.as_deref())
+}
+
 #[cfg(test)]
 #[allow(unsafe_code)] // serialized with TEST_ENV_LOCK
 mod tests {
     use super::*;
     use crate::toml_config::test_support::{CONFIG_TEST_LOCK as TEST_ENV_LOCK, HomeGuard};
+
+    #[test]
+    fn forced_model_from_trims_and_rejects_blank() {
+        assert_eq!(
+            super::forced_model_from("  google/gemini-3.8-flash \n"),
+            Some("google/gemini-3.8-flash".to_string())
+        );
+        assert_eq!(super::forced_model_from("   "), None);
+        assert_eq!(super::forced_model_from(""), None);
+        assert_eq!(super::forced_model_from(" Auto "), None);
+    }
+
+    /// Task 13: pure pin precedence — the role value wins, else the fallback;
+    /// blanks are unset at every level.
+    #[test]
+    fn role_pin_falls_back_to_the_global_pin() {
+        assert_eq!(
+            super::resolve_role_pin(Some("vendor/role-model"), Some("vendor/global-model")),
+            Some("vendor/role-model".to_string()),
+            "role-specific pin wins"
+        );
+        assert_eq!(
+            super::resolve_role_pin(None, Some("vendor/global-model")),
+            Some("vendor/global-model".to_string()),
+            "falls back to the global pin"
+        );
+        assert_eq!(super::resolve_role_pin(None, None), None);
+        assert_eq!(
+            super::resolve_role_pin(Some("  "), Some("vendor/global-model")),
+            Some("vendor/global-model".to_string())
+        );
+    }
+
+    /// Task 13: every research role falls back role → `VOX_MODEL_FORCE_RESEARCH`
+    /// → `VOX_MODEL_FORCE`; chat falls back straight to `VOX_MODEL_FORCE`; each
+    /// key is read env-first, then `~/.vox/config.toml` (a temp `VOX_HOME`/`HOME`
+    /// here — never the user's real config).
+    #[test]
+    fn forced_model_for_walks_role_then_group_then_global_through_env_and_toml() {
+        let _g = TEST_ENV_LOCK.lock().expect("env lock");
+        let home = HomeGuard::new();
+        let prev_vox_home = std::env::var("VOX_HOME").ok();
+        let all_keys = [
+            "VOX_MODEL_FORCE",
+            "VOX_MODEL_FORCE_RESEARCH",
+            "VOX_MODEL_FORCE_CHAT",
+            "VOX_MODEL_FORCE_PLANNER",
+            "VOX_MODEL_FORCE_SYNTHESIS",
+            "VOX_MODEL_FORCE_JUDGE",
+            "VOX_MODEL_FORCE_VERIFIER",
+        ];
+        let prev_env: Vec<_> = all_keys
+            .iter()
+            .map(|k| (*k, std::env::var(k).ok()))
+            .collect();
+        unsafe {
+            std::env::set_var("VOX_HOME", home.home());
+            for k in all_keys {
+                std::env::remove_var(k);
+            }
+        }
+        // Drop any cached real-config values; from here reads/writes hit the temp home.
+        crate::toml_config::reload_user_config();
+        assert!(crate::paths::dot_vox_user_dir().starts_with(home.home()));
+
+        assert_eq!(forced_model_for(ModelRole::Judge), None);
+
+        unsafe { std::env::set_var("VOX_MODEL_FORCE", "vendor/global") };
+        crate::snapshot::bump(&["VOX_MODEL_FORCE"]);
+        for role in ModelRole::ALL {
+            assert_eq!(
+                forced_model_for(role).as_deref(),
+                Some("vendor/global"),
+                "{role:?}"
+            );
+        }
+
+        // Group pin from the config file covers the research roles, not chat.
+        crate::toml_config::set_user_config_value("VOX_MODEL_FORCE_RESEARCH", "vendor/research")
+            .expect("temp config write");
+        for role in [
+            ModelRole::Planner,
+            ModelRole::Synthesis,
+            ModelRole::Judge,
+            ModelRole::Verifier,
+        ] {
+            assert_eq!(
+                forced_model_for(role).as_deref(),
+                Some("vendor/research"),
+                "{role:?}"
+            );
+        }
+        assert_eq!(
+            forced_model_for(ModelRole::Chat).as_deref(),
+            Some("vendor/global")
+        );
+
+        // Each role key wins for its own role only.
+        unsafe {
+            std::env::set_var("VOX_MODEL_FORCE_JUDGE", "vendor/judge");
+            std::env::set_var("VOX_MODEL_FORCE_CHAT", "~vendor/chat-latest");
+        }
+        crate::snapshot::bump(&["VOX_MODEL_FORCE_JUDGE", "VOX_MODEL_FORCE_CHAT"]);
+        assert_eq!(
+            forced_model_for(ModelRole::Judge).as_deref(),
+            Some("vendor/judge")
+        );
+        assert_eq!(
+            forced_model_for(ModelRole::Planner).as_deref(),
+            Some("vendor/research")
+        );
+        assert_eq!(
+            forced_model_for(ModelRole::Chat).as_deref(),
+            Some("~vendor/chat-latest")
+        );
+        // The unscoped reader keeps meaning exactly `VOX_MODEL_FORCE`.
+        assert_eq!(forced_model().as_deref(), Some("vendor/global"));
+
+        let _ = crate::toml_config::unset_user_config_value("VOX_MODEL_FORCE_RESEARCH");
+        unsafe {
+            for (k, v) in &prev_env {
+                match v {
+                    Some(v) => std::env::set_var(k, v),
+                    None => std::env::remove_var(k),
+                }
+            }
+            match &prev_vox_home {
+                Some(v) => std::env::set_var("VOX_HOME", v),
+                None => std::env::remove_var("VOX_HOME"),
+            }
+        }
+        drop(home);
+        crate::toml_config::reload_user_config();
+    }
 
     #[test]
     fn local_base_prefers_populi_then_ollama() {
@@ -713,5 +1141,34 @@ mod tests {
         assert!(!research_prefer_free_tier_from(Some("false")));
         assert!(!research_prefer_free_tier_from(Some("")));
         assert!(!research_prefer_free_tier_from(None));
+    }
+
+    #[test]
+    fn vox_local_probe_candidates_default_when_env_unset() {
+        assert_eq!(
+            vox_local_endpoint_probe_candidates_from(None),
+            vec![
+                "http://127.0.0.1:11434".to_string(),
+                "http://127.0.0.1:11435".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn vox_local_probe_candidates_honors_explicit_override() {
+        assert_eq!(
+            vox_local_endpoint_probe_candidates_from(Some("http://127.0.0.1:17863/")),
+            vec!["http://127.0.0.1:17863".to_string()]
+        );
+        assert!(vox_local_endpoint_probe_candidates_from(Some("  ")).is_empty());
+    }
+
+    #[test]
+    fn vox_local_health_identifies_serve_requires_ml_cli_service() {
+        assert!(vox_local_health_identifies_serve(
+            r#"{"status":"ok","service":"vox-ml-cli"}"#
+        ));
+        assert!(!vox_local_health_identifies_serve(r#"{"status":"ok"}"#));
+        assert!(!vox_local_health_identifies_serve("Ollama is running"));
     }
 }

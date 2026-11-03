@@ -75,7 +75,12 @@ impl ToolDispatcher for McpToolDispatcher {
             });
         }
 
-        crate::dispatch::handle_tool_call_with_mode(&self.state, tool_name, args, permission_mode)
-            .await
+        crate::floor_gate::with_agent_origin(crate::dispatch::handle_tool_call_with_mode(
+            &self.state,
+            tool_name,
+            args,
+            permission_mode,
+        ))
+        .await
     }
 }

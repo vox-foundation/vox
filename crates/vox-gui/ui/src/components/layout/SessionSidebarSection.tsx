@@ -90,13 +90,17 @@ function SessionRow({
           </span>
         )}
         {showArchive && (
-          <button
-            type="button"
+          <span
+            role="button"
+            tabIndex={0}
             onClick={e => { e.stopPropagation(); onArchiveSession(s.session_id); }}
-            className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-[10px] text-text-muted hover:text-text-primary"
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onArchiveSession(s.session_id); }
+            }}
+            className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-[10px] text-text-muted hover:text-text-primary"
           >
             Archive
-          </button>
+          </span>
         )}
       </span>
     </div>

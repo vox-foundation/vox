@@ -29,6 +29,13 @@ pub struct ResourceLockManager {
     locks: Arc<std::sync::RwLock<HashMap<String, ResourceLock>>>,
 }
 
+/// Purge all expired resource lock entries lazily (D-06).
+///
+/// Follows the stale-cleanup precedent established by `force_release_stale`.
+fn sweep_expired(locks: &mut HashMap<String, ResourceLock>, now: u64) {
+    locks.retain(|_, l| l.expires_ms > now);
+}
+
 impl ResourceLockManager {
     pub fn new() -> Self {
         Self::default()
@@ -47,6 +54,7 @@ impl ResourceLockManager {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_millis() as u64;
+        sweep_expired(&mut locks, now);
 
         if let Some(existing) = locks.get(resource_id)
             && existing.expires_ms > now
@@ -72,6 +80,11 @@ impl ResourceLockManager {
     /// Release a resource lock.
     pub fn release(&self, resource_id: &str, agent_id: AgentId) {
         let mut locks = self.locks.write().unwrap();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+        sweep_expired(&mut locks, now);
         if let Some(existing) = locks.get(resource_id)
             && existing.holder == agent_id
         {
@@ -94,16 +107,91 @@ impl ResourceLockManager {
     }
 
     /// Check if a resource is currently locked.
+    ///
+    /// Takes a write lock to purge expired leases lazily (D-06).
+    /// No caller holds this manager's lock re-entrantly — the only production caller is `ResourceGate::park`.
     pub fn is_locked(&self, resource_id: &str) -> bool {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_millis() as u64;
-        let locks = self.locks.read().unwrap();
+        let mut locks = self.locks.write().unwrap();
+        sweep_expired(&mut locks, now);
         if let Some(lock) = locks.get(resource_id) {
             lock.expires_ms > now
         } else {
             false
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const D_10MS: std::time::Duration = std::time::Duration::from_millis(10);
+
+    #[test]
+    fn acquire_sweeps_every_expired_entry() {
+        let mgr = ResourceLockManager::new();
+        mgr.try_acquire("res://a", AgentId(1), ResourceLockKind::Exclusive, 1)
+            .unwrap();
+        mgr.try_acquire("res://b", AgentId(2), ResourceLockKind::Exclusive, 1)
+            .unwrap();
+        std::thread::sleep(D_10MS);
+        mgr.try_acquire("res://c", AgentId(3), ResourceLockKind::Exclusive, 60_000)
+            .unwrap();
+        assert_eq!(mgr.len(), 1);
+        let snap = mgr.snapshot();
+        assert_eq!(snap.len(), 1);
+        assert_eq!(snap[0].resource_id, "res://c");
+    }
+
+    #[test]
+    fn is_locked_sweeps_expired_entries() {
+        let mgr = ResourceLockManager::new();
+        mgr.try_acquire("res://exp", AgentId(1), ResourceLockKind::Exclusive, 1)
+            .unwrap();
+        std::thread::sleep(D_10MS);
+        assert!(!mgr.is_locked("res://other"));
+        assert_eq!(mgr.len(), 0);
+    }
+
+    #[test]
+    fn live_locks_survive_the_sweep() {
+        let mgr = ResourceLockManager::new();
+        mgr.try_acquire(
+            "res://live",
+            AgentId(1),
+            ResourceLockKind::Exclusive,
+            60_000,
+        )
+        .unwrap();
+        mgr.try_acquire("res://dead", AgentId(2), ResourceLockKind::Exclusive, 1)
+            .unwrap();
+        std::thread::sleep(D_10MS);
+        mgr.try_acquire("res://new", AgentId(3), ResourceLockKind::Exclusive, 60_000)
+            .unwrap();
+        assert_eq!(mgr.len(), 2);
+        assert!(mgr.is_locked("res://live"));
+        assert!(mgr.is_locked("res://new"));
+        assert!(!mgr.is_locked("res://dead"));
+    }
+
+    #[test]
+    fn release_sweeps_expired_entries() {
+        let mgr = ResourceLockManager::new();
+        mgr.try_acquire("res://dead", AgentId(1), ResourceLockKind::Exclusive, 1)
+            .unwrap();
+        mgr.try_acquire(
+            "res://live",
+            AgentId(2),
+            ResourceLockKind::Exclusive,
+            60_000,
+        )
+        .unwrap();
+        std::thread::sleep(D_10MS);
+        mgr.release("res://live", AgentId(2));
+        assert_eq!(mgr.len(), 0);
     }
 }

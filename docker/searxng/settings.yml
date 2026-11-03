@@ -11,6 +11,9 @@ search:
   safe_search: 0
   autocomplete: ""
   default_lang: "en"
+  formats:
+    - html
+    - json
 
 engines:
   - name: google
@@ -28,6 +31,3 @@ engines:
 
 ui:
   static_use_hash: true
-
-format:
-  json: true

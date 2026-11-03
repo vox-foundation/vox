@@ -39,22 +39,20 @@ use candle_core::backprop::GradStore;
 /// against loss-spike gradient blowups.
 ///
 /// No-op when `total_norm <= max_norm`. Returns the pre-clip `total_norm`.
-pub(crate) fn clip_grad_norm(
-    grads: &mut GradStore,
-    vars: &[Var],
-    max_norm: f64,
-) -> Result<f64> {
+pub(crate) fn clip_grad_norm(grads: &mut GradStore, vars: &[Var], max_norm: f64) -> Result<f64> {
     // Accumulate the sum of squares across all gradients as an f64 scalar.
     let mut sum_sq = 0.0f64;
     for var in vars {
         if let Some(grad) = grads.get(var.as_tensor()) {
             let sq = grad.sqr().map_err(QLoraError::Candle)?;
             let s = sq.sum_all().map_err(QLoraError::Candle)?;
+            // Metal has no F32→F64 contiguous kernel. Read the scalar as F32
+            // and widen on the host (CPU path still works).
             let s = s
-                .to_dtype(DType::F64)
+                .to_dtype(DType::F32)
                 .map_err(QLoraError::Candle)?
-                .to_scalar::<f64>()
-                .map_err(QLoraError::Candle)?;
+                .to_scalar::<f32>()
+                .map_err(QLoraError::Candle)? as f64;
             sum_sq += s;
         }
     }
@@ -117,11 +115,7 @@ pub fn backward_from_cotangent(y: &Tensor, upstream_grad: &Tensor) -> Result<Gra
 ///
 /// # Errors
 /// Returns an error if a tensor add fails.
-pub fn accumulate_grads_for_vars(
-    dst: &mut GradStore,
-    src: &GradStore,
-    vars: &[Var],
-) -> Result<()> {
+pub fn accumulate_grads_for_vars(dst: &mut GradStore, src: &GradStore, vars: &[Var]) -> Result<()> {
     for var in vars {
         if let Some(g) = src.get(var.as_tensor()) {
             let merged = match dst.get(var.as_tensor()) {
@@ -535,6 +529,10 @@ pub struct QLoraTrainer {
     paged_optimizer: Option<PagedAdamW>,
     /// Current accumulation step.
     accumulation_step: usize,
+    /// Per-`Var` gradients summed over the micro-steps of the current
+    /// accumulation window. candle returns a fresh `GradStore` from every
+    /// `backward()` and never accumulates into `Var`s, so the trainer must.
+    pending_grads: HashMap<candle_core::TensorId, Tensor>,
 }
 
 impl QLoraTrainer {
@@ -557,6 +555,7 @@ impl QLoraTrainer {
             optimizer: None,
             paged_optimizer: None,
             accumulation_step: 0,
+            pending_grads: HashMap::new(),
         }
     }
 
@@ -711,10 +710,9 @@ impl QLoraTrainer {
             .iter()
             .map(|(k, v)| (k.clone(), v.as_tensor().clone()))
             .collect();
-        
-        candle_core::safetensors::save(&map, path)
-            .map_err(QLoraError::Candle)?;
-            
+
+        candle_core::safetensors::save(&map, path).map_err(QLoraError::Candle)?;
+
         Ok(())
     }
 
@@ -734,54 +732,78 @@ impl QLoraTrainer {
 
     /// Exposes backward step logic for manual loops
     pub fn backward_step(&mut self, loss: &Tensor) -> Result<()> {
-        let accum_steps = self.config.adapter_config.gradient_accumulation_steps.max(1);
+        let accum_steps = self
+            .config
+            .adapter_config
+            .gradient_accumulation_steps
+            .max(1);
         let scaled_loss = if accum_steps > 1 {
             let scale = Tensor::new(1.0f32 / accum_steps as f32, loss.device())?;
             loss.broadcast_mul(&scale)?
         } else {
             loss.clone()
         };
+        let grads = scaled_loss.backward()?;
+        self.accumulate_and_maybe_step(grads)?;
+        let _should_log = self.state.step();
+        Ok(())
+    }
 
+    /// Fold one micro-step's `grads` into the accumulation window and, when the
+    /// window closes, clip (global L2) and apply the optimizer step.
+    ///
+    /// Single path for every public step entry point so eager, checkpointed,
+    /// standard-AdamW and paged-AdamW training accumulate identically.
+    ///
+    /// # Panics
+    /// Panics if the `VarMap` mutex is poisoned.
+    fn accumulate_and_maybe_step(&mut self, mut grads: GradStore) -> Result<()> {
+        let accum_steps = self
+            .config
+            .adapter_config
+            .gradient_accumulation_steps
+            .max(1);
         self.accumulation_step += 1;
-
-        if let Some(ref mut optimizer) = self.optimizer {
-            if self.accumulation_step >= accum_steps {
-                // Compute gradients explicitly so we can clip them (by global L2
-                // norm) before the optimizer step. `backward_step` would fold
-                // backward + step together and give us no hook to clip.
-                let mut grads = scaled_loss.backward()?;
-                if let Some(max_norm) = self.config.adapter_config.max_grad_norm {
-                    let vars = self.varmap.all_vars();
-                    clip_grad_norm(&mut grads, &vars, max_norm)?;
-                }
-                optimizer.step(&grads)?;
-                self.accumulation_step = 0;
-            } else {
-                let _ = scaled_loss.backward();
-            }
-        } else if let Some(ref mut paged_optimizer) = self.paged_optimizer {
-            if self.accumulation_step >= accum_steps {
-                let grads = scaled_loss.backward()?;
-                let mut varmap_data = self.varmap.data().lock().unwrap();
-                for (name, var) in varmap_data.iter_mut() {
-                    if let Some(grad) = grads.get(var.as_tensor()) {
-                        let mut param = var.as_tensor().clone();
-                        paged_optimizer.step_param(name, &mut param, grad)?;
-                        // step_param updates a *clone*; write the result back into the
-                        // Var or the optimizer step is silently discarded and the
-                        // parameter never changes (frozen at init).
-                        var.set(&param)?;
-                    }
-                }
-                drop(varmap_data);
-                self.accumulation_step = 0;
-            } else {
-                let _ = scaled_loss.backward();
+        let vars = self.varmap.all_vars();
+        for var in &vars {
+            let t = var.as_tensor();
+            if let Some(prev) = self.pending_grads.remove(&t.id()) {
+                let merged = match grads.get(t) {
+                    Some(g) => g.add(&prev)?,
+                    None => prev,
+                };
+                grads.insert(t, merged);
             }
         }
-        
-        let _should_log = self.state.step();
-        
+
+        if self.accumulation_step < accum_steps {
+            // Keep only the trainable grads; dropping the rest of the store frees
+            // the activation-sized intermediate grads immediately.
+            for var in &vars {
+                if let Some(g) = grads.get(var.as_tensor()) {
+                    self.pending_grads.insert(var.as_tensor().id(), g.clone());
+                }
+            }
+            return Ok(());
+        }
+
+        self.accumulation_step = 0;
+        if let Some(max_norm) = self.config.adapter_config.max_grad_norm {
+            clip_grad_norm(&mut grads, &vars, max_norm)?;
+        }
+        if let Some(ref mut optimizer) = self.optimizer {
+            optimizer.step(&grads)?;
+        } else if let Some(ref mut paged_optimizer) = self.paged_optimizer {
+            let mut varmap_data = self.varmap.data().lock().unwrap();
+            for (name, var) in varmap_data.iter_mut() {
+                if let Some(grad) = grads.get(var.as_tensor()) {
+                    let mut param = var.as_tensor().clone();
+                    paged_optimizer.step_param(name, &mut param, grad)?;
+                    // step_param updates a *clone*; write it back or the step is lost.
+                    var.set(&param)?;
+                }
+            }
+        }
         Ok(())
     }
 
@@ -807,49 +829,16 @@ impl QLoraTrainer {
     ///
     /// `grads` must already be scaled for gradient accumulation by the caller
     /// (the checkpointed loss is scaled before backward, mirroring
-    /// [`Self::backward_step`]). On non-step accumulation cycles, pass the grads
-    /// anyway — they are dropped and only the accumulation counter advances, which
-    /// keeps the step cadence identical to the eager path.
+    /// [`Self::backward_step`]). On non-step accumulation cycles the grads are
+    /// held and summed into the next step, exactly like the eager path.
     ///
     /// # Errors
     /// Returns an error if clipping or the optimizer step fails.
     ///
     /// # Panics
     /// Panics if the `VarMap` mutex is poisoned.
-    pub fn optimizer_step_with_grads(&mut self, mut grads: GradStore) -> Result<()> {
-        let accum_steps = self.config.adapter_config.gradient_accumulation_steps.max(1);
-        self.accumulation_step += 1;
-        let do_step = self.accumulation_step >= accum_steps;
-
-        if do_step {
-            if let Some(ref mut optimizer) = self.optimizer {
-                if let Some(max_norm) = self.config.adapter_config.max_grad_norm {
-                    let vars = self.varmap.all_vars();
-                    clip_grad_norm(&mut grads, &vars, max_norm)?;
-                }
-                optimizer.step(&grads)?;
-            } else if let Some(ref mut paged_optimizer) = self.paged_optimizer {
-                if let Some(max_norm) = self.config.adapter_config.max_grad_norm {
-                    let vars = self.varmap.all_vars();
-                    clip_grad_norm(&mut grads, &vars, max_norm)?;
-                }
-                let mut varmap_data = self.varmap.data().lock().unwrap();
-                for (name, var) in varmap_data.iter_mut() {
-                    if let Some(grad) = grads.get(var.as_tensor()) {
-                        let mut param = var.as_tensor().clone();
-                        paged_optimizer.step_param(name, &mut param, grad)?;
-                        var.set(&param)?;
-                    }
-                }
-                drop(varmap_data);
-            }
-            self.accumulation_step = 0;
-        }
-        // NOTE: when accumulating (no step) we cannot keep candle GradStores summed
-        // across micro-steps cheaply without holding tensors alive; the eager
-        // `backward_step` relies on candle accumulating into Var grads via repeated
-        // `backward()`. For the checkpointed path the supported/validated config is
-        // grad_accum == 1 (the 16GB-tight 3B case), where every micro-step is a step.
+    pub fn optimizer_step_with_grads(&mut self, grads: GradStore) -> Result<()> {
+        self.accumulate_and_maybe_step(grads)?;
         let _should_log = self.state.step();
         Ok(())
     }
@@ -905,52 +894,8 @@ impl QLoraTrainer {
 
         let loss_value = f64::from(loss.to_scalar::<f32>()?);
 
-        // Backward pass with gradient accumulation
-        self.accumulation_step += 1;
-
-        // Handle standard AdamW optimizer
-        if let Some(ref mut optimizer) = self.optimizer {
-            if self.accumulation_step >= accum_steps {
-                // Compute gradients explicitly so they can be clipped (global L2
-                // norm) before the optimizer step. `backward_step` folds backward
-                // and step together, leaving no hook to clip in between.
-                let mut grads = scaled_loss.backward()?;
-                if let Some(max_norm) = self.config.adapter_config.max_grad_norm {
-                    let vars = self.varmap.all_vars();
-                    clip_grad_norm(&mut grads, &vars, max_norm)?;
-                }
-
-                // Perform optimizer step on the (possibly clipped) gradients
-                optimizer.step(&grads)?;
-                self.accumulation_step = 0;
-            } else {
-                // Just accumulate gradients without stepping
-                // In candle, backward() accumulates gradients
-                let _ = scaled_loss.backward();
-            }
-        } else if let Some(ref mut paged_optimizer) = self.paged_optimizer {
-            // Handle paged optimizer
-            if self.accumulation_step >= accum_steps {
-                // Compute gradients first
-                let grads = scaled_loss.backward()?;
-
-                // Step each parameter with the paged optimizer
-                let mut varmap_data = self.varmap.data().lock().unwrap();
-                for (name, var) in varmap_data.iter_mut() {
-                    if let Some(grad) = grads.get(var.as_tensor()) {
-                        let mut param = var.as_tensor().clone();
-                        paged_optimizer.step_param(name, &mut param, grad)?;
-                        // Note: In candle, Var doesn't support direct assignment,
-                        // but the optimizer state is updated which matters for subsequent steps
-                    }
-                }
-                drop(varmap_data);
-                self.accumulation_step = 0;
-            } else {
-                // Just accumulate gradients without stepping
-                let _ = scaled_loss.backward();
-            }
-        }
+        let grads = scaled_loss.backward()?;
+        self.accumulate_and_maybe_step(grads)?;
 
         // Update training state
         let should_log = self.state.step();
@@ -1043,7 +988,11 @@ impl QLoraTrainer {
         let loss = cross_entropy_loss(&logits, target_ids)?;
         let loss_value = f64::from(loss.to_scalar::<f32>()?);
 
-        let accum_steps = self.config.adapter_config.gradient_accumulation_steps.max(1);
+        let accum_steps = self
+            .config
+            .adapter_config
+            .gradient_accumulation_steps
+            .max(1);
         let scaled_loss = if accum_steps > 1 {
             let scale = Tensor::new(1.0f32 / accum_steps as f32, loss.device())?;
             loss.broadcast_mul(&scale)?
@@ -1051,36 +1000,8 @@ impl QLoraTrainer {
             loss.clone()
         };
 
-        self.accumulation_step += 1;
-
-        if let Some(ref mut optimizer) = self.optimizer {
-            if self.accumulation_step >= accum_steps {
-                optimizer.backward_step(&scaled_loss)?;
-                self.accumulation_step = 0;
-            } else {
-                let _ = scaled_loss.backward();
-            }
-        } else if let Some(ref mut paged_optimizer) = self.paged_optimizer {
-            if self.accumulation_step >= accum_steps {
-                let grads = scaled_loss.backward()?;
-
-                let mut varmap_data = self.varmap.data().lock().unwrap();
-                for (name, var) in varmap_data.iter_mut() {
-                    if let Some(grad) = grads.get(var.as_tensor()) {
-                        let mut param = var.as_tensor().clone();
-                        paged_optimizer.step_param(name, &mut param, grad)?;
-                        // step_param updates a *clone*; write the result back into the
-                        // Var or the optimizer step is silently discarded and the
-                        // parameter never changes (frozen at init).
-                        var.set(&param)?;
-                    }
-                }
-                drop(varmap_data);
-                self.accumulation_step = 0;
-            } else {
-                let _ = scaled_loss.backward();
-            }
-        }
+        let grads = scaled_loss.backward()?;
+        self.accumulate_and_maybe_step(grads)?;
 
         let should_log = self.state.step();
         if should_log && self.state.global_step.is_multiple_of(self.config.log_every) {
@@ -1100,6 +1021,7 @@ impl QLoraTrainer {
     pub fn start_epoch(&mut self) {
         self.state.new_epoch();
         self.accumulation_step = 0;
+        self.pending_grads.clear();
         #[cfg(feature = "logging")]
         log::info!("Starting epoch {}", self.state.epoch);
     }
@@ -1304,7 +1226,10 @@ mod tests {
         let vars = vec![v1.clone(), v2.clone()];
         let max_norm = 1.0;
         let pre = clip_grad_norm(&mut grads, &vars, max_norm).unwrap();
-        assert!((pre - 5.0).abs() < 1e-5, "pre-clip norm should be 5, got {pre}");
+        assert!(
+            (pre - 5.0).abs() < 1e-5,
+            "pre-clip norm should be 5, got {pre}"
+        );
 
         // Post-clip global norm must be <= max_norm (+ tiny epsilon).
         let c1 = grads.get(v1.as_tensor()).unwrap();
@@ -1327,7 +1252,10 @@ mod tests {
             "scale factor must be uniform: {factor1} vs {factor2}"
         );
         // Expected uniform factor ~= max_norm / (5 + eps) ~= 0.2.
-        assert!((factor1 - 0.2).abs() < 1e-4, "factor should be ~0.2, got {factor1}");
+        assert!(
+            (factor1 - 0.2).abs() < 1e-4,
+            "factor should be ~0.2, got {factor1}"
+        );
     }
 
     #[test]
@@ -1373,8 +1301,20 @@ mod tests {
         let y1 = y0.matmul(w1.as_tensor()).unwrap();
         let loss = y1.sum_all().unwrap();
         let full = loss.backward().unwrap();
-        let g_w0_full: Vec<f32> = full.get(w0.as_tensor()).unwrap().flatten_all().unwrap().to_vec1().unwrap();
-        let g_w1_full: Vec<f32> = full.get(w1.as_tensor()).unwrap().flatten_all().unwrap().to_vec1().unwrap();
+        let g_w0_full: Vec<f32> = full
+            .get(w0.as_tensor())
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
+        let g_w1_full: Vec<f32> = full
+            .get(w1.as_tensor())
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
 
         // ── Checkpointed: forward with detached segment boundary, then recompute ──
         // Segment 0 forward, detach its output (the checkpoint boundary).
@@ -1398,8 +1338,20 @@ mod tests {
         let mut combined = grads_seg1;
         accumulate_grads_for_vars(&mut combined, &grads_seg0, &[w0.clone()]).unwrap();
 
-        let g_w0_ck: Vec<f32> = combined.get(w0.as_tensor()).unwrap().flatten_all().unwrap().to_vec1().unwrap();
-        let g_w1_ck: Vec<f32> = combined.get(w1.as_tensor()).unwrap().flatten_all().unwrap().to_vec1().unwrap();
+        let g_w0_ck: Vec<f32> = combined
+            .get(w0.as_tensor())
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
+        let g_w1_ck: Vec<f32> = combined
+            .get(w1.as_tensor())
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
 
         for (a, b) in g_w0_full.iter().zip(g_w0_ck.iter()) {
             assert!((a - b).abs() < 1e-4, "w0 grad mismatch: full={a} ck={b}");
@@ -1414,7 +1366,8 @@ mod tests {
     #[test]
     fn cotangent_backward_seeds_exact_upstream_grad() {
         let device = Device::Cpu;
-        let w = Var::from_tensor(&Tensor::new(&[[1.0f32, 2.0], [3.0, 4.0]], &device).unwrap()).unwrap();
+        let w =
+            Var::from_tensor(&Tensor::new(&[[1.0f32, 2.0], [3.0, 4.0]], &device).unwrap()).unwrap();
         let x = Tensor::new(&[[1.0f32, 1.0], [1.0, 1.0]], &device).unwrap();
         let y = x.matmul(w.as_tensor()).unwrap();
         // arbitrary upstream cotangent
@@ -1422,11 +1375,95 @@ mod tests {
         let grads = backward_from_cotangent(&y, &g).unwrap();
         // dL/dw = x^T @ g
         let expected = x.t().unwrap().matmul(&g).unwrap();
-        let got: Vec<f32> = grads.get(w.as_tensor()).unwrap().flatten_all().unwrap().to_vec1().unwrap();
+        let got: Vec<f32> = grads
+            .get(w.as_tensor())
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
         let exp: Vec<f32> = expected.flatten_all().unwrap().to_vec1().unwrap();
         for (a, b) in got.iter().zip(exp.iter()) {
-            assert!((a - b).abs() < 1e-5, "cotangent grad mismatch: got={a} exp={b}");
+            assert!(
+                (a - b).abs() < 1e-5,
+                "cotangent grad mismatch: got={a} exp={b}"
+            );
         }
+    }
+
+    /// Build a trainer with a single scalar `w` (init 1.0), no weight decay, no
+    /// clipping, and `accum` micro-steps per optimizer step.
+    fn accum_trainer(accum: usize, paged: bool) -> (QLoraTrainer, Tensor) {
+        let mut config = QLoraTrainingConfig::default();
+        config.adapter_config.gradient_accumulation_steps = accum;
+        config.adapter_config.weight_decay = 0.0;
+        config.adapter_config.max_grad_norm = None;
+        config.use_paged_optimizer = paged;
+        let mut trainer = QLoraTrainer::new(config, Device::Cpu);
+        let w = trainer
+            .var_builder()
+            .get_with_hints(1, "w", candle_nn::Init::Const(1.0))
+            .unwrap();
+        trainer.init_optimizer(&[]).unwrap();
+        (trainer, w)
+    }
+
+    fn scalar(t: &Tensor) -> f32 {
+        t.flatten_all().unwrap().to_vec1::<f32>().unwrap()[0]
+    }
+
+    /// Gradients from every micro-step in an accumulation window must reach the
+    /// optimizer. Micro-step 1 has a non-zero gradient and micro-step 2 has a zero
+    /// gradient; if micro-step 1's grads were dropped, AdamW would see g = 0 and
+    /// (with weight decay off) leave `w` unchanged.
+    #[test]
+    fn grad_accumulation_keeps_earlier_micro_step_grads() {
+        for paged in [false, true] {
+            let (mut trainer, w) = accum_trainer(2, paged);
+            let before = scalar(&w);
+            trainer
+                .backward_step(&w.affine(3.0, 0.0).unwrap().sum_all().unwrap())
+                .unwrap();
+            assert!(
+                (scalar(&w) - before).abs() < 1e-9,
+                "stepped before window closed (paged={paged})"
+            );
+            trainer
+                .backward_step(&w.affine(0.0, 0.0).unwrap().sum_all().unwrap())
+                .unwrap();
+            assert!(
+                scalar(&w) < before - 1e-6,
+                "micro-step 1 gradient was dropped (paged={paged}): w stayed {}",
+                scalar(&w)
+            );
+        }
+    }
+
+    /// Same invariant for the pre-computed-grads (checkpointed) entry point.
+    #[test]
+    fn optimizer_step_with_grads_accumulates_across_micro_steps() {
+        let (mut trainer, w) = accum_trainer(2, false);
+        let before = scalar(&w);
+        let g1 = w
+            .affine(3.0, 0.0)
+            .unwrap()
+            .sum_all()
+            .unwrap()
+            .backward()
+            .unwrap();
+        trainer.optimizer_step_with_grads(g1).unwrap();
+        let g2 = w
+            .affine(0.0, 0.0)
+            .unwrap()
+            .sum_all()
+            .unwrap()
+            .backward()
+            .unwrap();
+        trainer.optimizer_step_with_grads(g2).unwrap();
+        assert!(
+            scalar(&w) < before - 1e-6,
+            "checkpointed path dropped micro-step 1 grads"
+        );
     }
 
     #[test]

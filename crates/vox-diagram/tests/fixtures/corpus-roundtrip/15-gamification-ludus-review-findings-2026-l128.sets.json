@@ -1,0 +1,86 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "Phase 1: Guardian Config & Curfew Logic",
+      "rect",
+      []
+    ],
+    [
+      "Phase 2: Cost-Thrift & Quality Rewards",
+      "rect",
+      []
+    ],
+    [
+      "Phase 3: AI SVG Companion Customization",
+      "rect",
+      []
+    ],
+    [
+      "Phase 4: GUI Wellness & Gallery Views",
+      "rect",
+      []
+    ],
+    [
+      "Phase 5: Populi Mesh Marketplace",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Phase 1: Guardian Config & Curfew Logic",
+        "rect",
+        []
+      ],
+      [
+        "Phase 2: Cost-Thrift & Quality Rewards",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Phase 2: Cost-Thrift & Quality Rewards",
+        "rect",
+        []
+      ],
+      [
+        "Phase 3: AI SVG Companion Customization",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Phase 3: AI SVG Companion Customization",
+        "rect",
+        []
+      ],
+      [
+        "Phase 4: GUI Wellness & Gallery Views",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Phase 4: GUI Wellness & Gallery Views",
+        "rect",
+        []
+      ],
+      [
+        "Phase 5: Populi Mesh Marketplace",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

@@ -42,7 +42,7 @@ fn indexed_for_loop_binds_index_in_body() {
         "index binding must be shadowed as i64 for Vox int arithmetic; got:\n{out}"
     );
     assert!(
-        out.contains("(i + 1)"),
+        out.contains("(i + 1i64)"),
         "loop body must reference the index binding; got:\n{out}"
     );
 }
@@ -61,7 +61,8 @@ fn indexed_for_loop_index_used_in_string_concat() {
     );
 
     assert!(
-        out.contains(".enumerate()") && out.contains("as_string(&(i))"),
+        // `str(i)` lowers to the interpreter-parity `vox_display` path (d9e5cd4c3).
+        out.contains(".enumerate()") && out.contains("vox_display(&serde_json::to_value(&(i))"),
         "indexed loop body must reference index in expressions; got:\n{out}"
     );
 }

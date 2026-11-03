@@ -227,6 +227,7 @@ impl ReviewClient {
                 tool_calls: None,
                 tool_call_id: None,
                 name: None,
+                content_parts: None,
             },
             vox_llm_egress::ChatMessage {
                 role: "user".to_string(),
@@ -234,6 +235,7 @@ impl ReviewClient {
                 tool_calls: None,
                 tool_call_id: None,
                 name: None,
+                content_parts: None,
             },
         ];
         let params = vox_llm_egress::ChatParams {
@@ -400,5 +402,16 @@ fn resolve_key(stored: &str, secret_id: vox_secrets::SecretId) -> String {
             .unwrap_or_default()
     } else {
         stored.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_provider_list_reports_none_as_primary() {
+        let client = ReviewClient::new(Vec::new());
+        assert_eq!(client.primary_provider_name(), "none");
     }
 }

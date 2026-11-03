@@ -5,6 +5,7 @@ import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { mapDiscoveredSkills, type DiscoveredSkill } from './discovery';
 import { SkillDetailPanel, type SkillDetail } from './SkillDetailPanel';
+import type { Toast } from '../../../types/tauri';
 
 // ── Wire types (mirror the MCP tool JSON envelopes) ────────────────────────
 interface SkillInfo {
@@ -35,7 +36,7 @@ interface CatalogPlugin {
 }
 
 interface SkillsPluginsViewProps {
-  pushToast: (t: any) => void;
+  pushToast: (t: Toast) => void;
 }
 
 type Tab = 'installed' | 'marketplace' | 'discovered';

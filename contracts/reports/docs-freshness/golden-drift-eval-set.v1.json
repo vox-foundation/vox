@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-vox-version": 1,
+  "title": "DocsFreshnessGoldenDriftEvalSetV1",
+  "type": "object",
+  "generated_by": "vox audit docs (historical forensic eval extraction)",
+  "updated_at": "2026-10-13T14:22:00Z",
+  "cases": [
+    {
+      "id": "DRIFT-01",
+      "title": "Factual claim contradiction on auto-injected ID fields",
+      "fix_commit": "e2bb133a1",
+      "doc_path": "docs/src/api/DOC_GAPS.md",
+      "category": "factual_contradiction",
+      "drift_description": "Two crates defined table_to_ddl. Author inspected vox-codegen instead of vox-db and claimed tables have no auto-injected fields; in fact vox-db prepends _id. Example tables with literal id failed lints.",
+      "code_anchor": "crates/vox-db/src/schema.rs::table_to_ddl",
+      "snippet_stale": "Tables in Vox have no implicit primary keys or auto-injected fields.",
+      "snippet_fixed": "Vox database tables automatically inject a synthetic `_id` field as the default primary key unless overridden.",
+      "detection_strategy": "deterministic_anchor_hash"
+    },
+    {
+      "id": "DRIFT-02",
+      "title": "Removed grammar syntax surviving in prose and skip fences",
+      "fix_commit": "49a08f34e",
+      "doc_path": "docs/src/architecture/wire-format-v1-ssot.md",
+      "category": "removed_grammar_syntax",
+      "drift_description": "SSOT specified v1 wire format using @endpoint(...), which was removed in v0.6.0 and made a hard parse error. Survived because 2 examples hid inside // vox:skip and 6 in prose.",
+      "code_anchor": "contracts/documentation/retired-symbols.v1.yaml::endpoint",
+      "snippet_stale": "@endpoint(\"/api/v1/query\") fn handle_query() -> Response",
+      "snippet_fixed": "query handle_query() -> Response",
+      "detection_strategy": "ast_decl_lint"
+    },
+    {
+      "id": "DRIFT-03",
+      "title": "Invisible byte corruption from Python heredoc escape sequences",
+      "fix_commit": "f48dbc810",
+      "doc_path": "contracts/crypto/transport-providers.v1.json",
+      "category": "invisible_byte_corruption",
+      "drift_description": "Python heredoc string escapes turned \\a into BEL (0x07) and \\v into VT (0x0B). Document also confused Cargo version constraints (3.0-rc) with resolved lockfile versions (3.0.0 stable).",
+      "code_anchor": "contracts/crypto/transport-providers.v1.json",
+      "snippet_stale": "path: \"crates\\actor\\transport.rs\"",
+      "snippet_fixed": "path: \"crates/actor/transport.rs\"",
+      "detection_strategy": "deterministic_anchor_hash"
+    },
+    {
+      "id": "DRIFT-04",
+      "title": "Dead archive reference advertised in agent index",
+      "fix_commit": "59e30f6b6",
+      "doc_path": "docs/src/.well-known/llms.txt",
+      "category": "dead_agent_index_target",
+      "drift_description": "llms.txt advertised Architecture Index, which pointed to a 404 URL whose source only existed in docs/src/archive/, violating the Archival Protocol.",
+      "code_anchor": "docs/src/archive/research-2026-q1/architecture-index.md",
+      "snippet_stale": "- [Architecture Index](https://voxlang.org/architecture/architecture-index/)",
+      "snippet_fixed": "- [Contributor Hub](https://voxlang.org/contributors/contributor-hub/)",
+      "detection_strategy": "deterministic_anchor_hash"
+    },
+    {
+      "id": "DRIFT-05",
+      "title": "Generator hardcoding non-existent file path",
+      "fix_commit": "94822d35d",
+      "doc_path": "crates/vox-doc-inventory/src/inventory_gen.rs",
+      "category": "generator_hardcoded_path",
+      "drift_description": "Inventory generator hardcoded crates/vox-mcp/src/tools/mod.rs into first_read_for_agents; CONTRIBUTING.md prescribed cargo fmt which crashes on Windows with error 206.",
+      "code_anchor": "crates/vox-doc-inventory/src/inventory_gen.rs",
+      "snippet_stale": "first_read.push(\"crates/vox-mcp/src/tools/mod.rs\");",
+      "snippet_fixed": "first_read.push(\"crates/vox-mcp-registry/src/lib.rs\");",
+      "detection_strategy": "deterministic_anchor_hash"
+    },
+    {
+      "id": "DRIFT-06",
+      "title": "Policy documentation out of sync with frontmatter linter",
+      "fix_commit": "0bae3b6a2",
+      "doc_path": "docs/src/contributors/documentation-governance.md",
+      "category": "policy_linter_discrepancy",
+      "drift_description": "Governance doc advertised a frontmatter category vocabulary that the vox-doc-pipeline linter explicitly rejected.",
+      "code_anchor": "crates/vox-doc-pipeline/src/pipeline/lint.rs::validate_category",
+      "snippet_stale": "category: \"Guides & Walkthroughs\"",
+      "snippet_fixed": "category: \"How-To Guides\"",
+      "detection_strategy": "ast_decl_lint"
+    },
+    {
+      "id": "DRIFT-07",
+      "title": "Status contradiction between base policy and implemented ADR",
+      "fix_commit": "7fa4d0ead",
+      "doc_path": "docs/src/AGENTS.md",
+      "category": "adr_implementation_conflict",
+      "drift_description": "AGENTS.md described workflow and activity as 'reserved, not implemented', directly contradicting ADR-041 which had already implemented and stabilized them.",
+      "code_anchor": "docs/src/adr/041-durable-functions-completion-2026.md",
+      "snippet_stale": "Bare-keyword blocks: `workflow`, `activity` (reserved, not yet implemented).",
+      "snippet_fixed": "Bare-keyword blocks: `workflow`, `activity` (stable per ADR-041).",
+      "detection_strategy": "llm_claim_judge"
+    },
+    {
+      "id": "DRIFT-08",
+      "title": "Contradictory retirement claims across contracts",
+      "fix_commit": "2875eacba",
+      "doc_path": "contracts/documentation/retired-symbols.v1.yaml",
+      "category": "retired_symbol_confusion",
+      "drift_description": "Split-brain documentation claiming both recall and recall_async were retired, confusing migration paths for agents.",
+      "code_anchor": "contracts/documentation/retired-symbols.v1.yaml",
+      "snippet_stale": "- symbol: recall\n  retired_in: \"0.5.0\"\n- symbol: recall_async\n  retired_in: \"0.5.0\"",
+      "snippet_fixed": "- symbol: recall_async\n  retired_in: \"0.6.0\"\n  replacement: memory.recall",
+      "detection_strategy": "deterministic_anchor_hash"
+    },
+    {
+      "id": "DRIFT-09",
+      "title": "Crate boundary rename breaking public links and mentions",
+      "fix_commit": "58539cd17",
+      "doc_path": "README.md",
+      "category": "factual_contradiction",
+      "drift_description": "Stale links and crate references to vox-cli vs vox-mens after crate boundary refactoring.",
+      "code_anchor": "crates/vox-mens/Cargo.toml",
+      "snippet_stale": "cargo run -p vox-cli -- mens train",
+      "snippet_fixed": "cargo run -p vox-ml-cli -- train",
+      "detection_strategy": "deterministic_anchor_hash"
+    },
+    {
+      "id": "DRIFT-10",
+      "title": "Stale doctest skip reasons citing already-merged features",
+      "fix_commit": "fb9fab9fd",
+      "doc_path": "docs/src/architecture/wire-format-v1-ssot.md",
+      "category": "stale_skip_marker",
+      "drift_description": "Fences marked with // vox:skip citing unimplemented features that had actually been implemented and merged weeks earlier.",
+      "code_anchor": "crates/vox-compiler/src/parser/mod.rs",
+      "snippet_stale": "// vox:skip actor grammar not yet supported by parser",
+      "snippet_fixed": "// vox:skip excerpt referencing external schema definitions",
+      "detection_strategy": "doctest_compiler"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+[package]
+name = "vox-diagram"
+description = "Pure VoxDiagram core: graph DSL lexer, error-recovering parser, resolved IR, diagnostics with machine-applicable fixes, canonical formatter, markdown fence scanner, dagre graph layout and a deterministic SVG renderer."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+pulldown-cmark = { workspace = true }
+strsim = { workspace = true }
+dagre = { workspace = true }
+unicode-width = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
+
+[dev-dependencies]
+insta = { workspace = true }
+proptest = { workspace = true }
+serde_json = { workspace = true }
+quick-xml = { workspace = true }
+
+[lints]
+workspace = true

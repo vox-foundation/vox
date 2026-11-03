@@ -62,7 +62,8 @@ pub(crate) fn run_grammar_export_check(_root: &Path) -> Result<()> {
 
     let formats = [
         GrammarFormat::Ebnf,
-        GrammarFormat::Gbnf,
+        // GBNF is refused by the exporter (CVE-2026-2069); XGrammar-2 is its replacement.
+        GrammarFormat::XGrammar2,
         GrammarFormat::Lark,
         GrammarFormat::JsonSchema,
     ];
@@ -111,4 +112,17 @@ pub(crate) fn run_grammar_export_check(_root: &Path) -> Result<()> {
 
     println!("grammar-export-check OK");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::run_grammar_export_check;
+    use std::path::Path;
+
+    /// The gate must pass on a healthy tree: every format it exports has to be one the
+    /// exporter still supports (GBNF is refused outright since CVE-2026-2069).
+    #[test]
+    fn grammar_export_check_passes() {
+        run_grammar_export_check(Path::new(".")).expect("grammar-export-check should pass");
+    }
 }

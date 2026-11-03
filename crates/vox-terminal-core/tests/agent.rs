@@ -38,3 +38,32 @@ fn non_token_events_return_none() {
     let cfg = AgentAdapterConfig { agent_id: None };
     assert!(translate_event(&ev, &cfg).is_none());
 }
+
+#[test]
+fn route_agent_prompt_classifies_tasks_and_axes_intelligently() {
+    use vox_terminal_core::agent::route_agent_prompt;
+
+    let debug = route_agent_prompt("fix the failing cargo test with exit code 101");
+    assert_eq!(debug.task, "Debugging");
+    assert!(
+        debug.precision_axis >= 70,
+        "debug should be precision-weighted: {debug:?}"
+    );
+    assert!(!debug.model_id.is_empty());
+
+    let plan = route_agent_prompt("architect a multi-node terminal session roadmap");
+    assert_eq!(plan.task, "Planning");
+    assert_eq!(plan.complexity, 8);
+    assert!(!plan.model_id.is_empty());
+
+    let parse = route_agent_prompt("summarize and classify this log line");
+    assert_eq!(parse.task, "Parsing");
+    assert!(
+        parse.efficiency_axis >= 70,
+        "parsing should be cost-first: {parse:?}"
+    );
+
+    let research = route_agent_prompt("why does WebGL outperform DOM canvas rendering");
+    assert_eq!(research.task, "Research");
+    assert!(research.summary().contains("task=Research"));
+}

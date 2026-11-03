@@ -4,6 +4,8 @@ mod lanes;
 
 use crate::codex_cmd::CodexCmd;
 use crate::command_catalog;
+#[allow(unused_imports)]
+use clap::CommandFactory;
 // use crate::latin_cmd; // Unused after alias retirement
 use crate::{Cli, GlobalOpts, VoxCliRoot};
 use vox_telemetry::{CommandUsageEvent, TelemetryEvent};
@@ -42,7 +44,10 @@ fn universal_reward_command_path(cli: &Cli) -> Option<&'static str> {
         | Cli::Fmt { .. }
         | Cli::Fabrica { .. } => None,
         // Meta / introspection: rewarding these is noise.
-        Cli::Completions { .. } | Cli::Commands { .. } => None,
+        Cli::Completions { .. }
+        | Cli::Commands { .. }
+        | Cli::Explain { .. }
+        | Cli::Features { .. } => None,
         // Named paths for common surfaces (richer telemetry); the long tail and
         // feature-gated commands fall through to a generic path.
         Cli::Scientia { .. } => Some("scientia"),
@@ -54,6 +59,7 @@ fn universal_reward_command_path(cli: &Cli) -> Option<&'static str> {
         Cli::Mens { .. } => Some("mens"),
         Cli::Populi { .. } => Some("populi"),
         Cli::Research { .. } => Some("research"),
+        Cli::Kb { .. } => Some("kb"),
         Cli::Deploy { .. } => Some("deploy"),
         Cli::Container { .. } => Some("container"),
         Cli::Plan { .. } => Some("plan"),
@@ -137,6 +143,7 @@ fn command_verb(cli: &Cli) -> &'static str {
         Cli::Mens { .. } => "mens",
         Cli::Populi { .. } => "populi",
         Cli::Research { .. } => "research",
+        Cli::Kb { .. } => "kb",
         Cli::Deploy { .. } => "deploy",
         Cli::Container { .. } => "container",
         Cli::Plan { .. } => "plan",
@@ -167,8 +174,24 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         }
         Cli::Completions { shell } => {
             use clap::CommandFactory;
-            let mut cmd = VoxCliRoot::command();
-            clap_complete::generate(shell, &mut cmd, "vox", &mut std::io::stdout());
+            match shell {
+                crate::CompletionShell::Nushell => {
+                    let catalog = command_catalog::build_catalog();
+                    print!("{}", command_catalog::render_nushell_completions(&catalog));
+                }
+                other => {
+                    let clap_shell = match other {
+                        crate::CompletionShell::Bash => clap_complete::Shell::Bash,
+                        crate::CompletionShell::Elvish => clap_complete::Shell::Elvish,
+                        crate::CompletionShell::Fish => clap_complete::Shell::Fish,
+                        crate::CompletionShell::PowerShell => clap_complete::Shell::PowerShell,
+                        crate::CompletionShell::Zsh => clap_complete::Shell::Zsh,
+                        crate::CompletionShell::Nushell => unreachable!(),
+                    };
+                    let mut cmd = VoxCliRoot::command();
+                    clap_complete::generate(clap_shell, &mut cmd, "vox", &mut std::io::stdout());
+                }
+            }
         }
         Cli::Emit { cmd } => {
             crate::commands::emit::run(cmd).await?;
@@ -228,6 +251,28 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
                     }
                 }
             }
+        }
+        Cli::Explain { query } => {
+            let index = vox_capability_registry::bundled_index();
+            println!(
+                "{}",
+                crate::commands::capability_cmds::explain_output(
+                    index,
+                    &query.join(" "),
+                    global.json
+                )?
+            );
+        }
+        Cli::Features { domain } => {
+            let index = vox_capability_registry::bundled_index();
+            println!(
+                "{}",
+                crate::commands::capability_cmds::features_output(
+                    index,
+                    domain.as_deref(),
+                    global.json
+                )?
+            );
         }
         Cli::Fabrica { cmd } => {
             run_fabrica_cmd(cmd).await?;
@@ -398,8 +443,11 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         Cli::Migrate { cmd } => {
             crate::commands::migrate::run(cmd)?;
         }
-        Cli::Mcp => {
-            crate::commands::mcp::run().await?;
+        Cli::Mcp { profile } => {
+            crate::commands::mcp::run(profile).await?;
+        }
+        Cli::Serve { profile, network } => {
+            crate::commands::serve::run(profile.as_deref(), &network).await?;
         }
         Cli::Shell { cmd } => {
             crate::commands::runtime::shell::run(cmd).await?;
@@ -424,22 +472,6 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         }
         Cli::Chat { args } => {
             crate::commands::chat::run(args).await?;
-        }
-        #[cfg(feature = "script-wasi")]
-        Cli::Wasm { cmd } => {
-            crate::commands::wasm::run(cmd)?;
-        }
-        #[cfg(not(feature = "script-wasi"))]
-        Cli::WasmStub { .. } => {
-            anyhow::bail!(
-                "{}\n\nThis binary was built without the `script-wasi` cargo feature. \
-                 Rebuild with the feature to run raw WASI modules:\n\n{}",
-                "vox wasm run requires the 'script-wasi' capability (Wasmtime), which is not available in this build.",
-                vox_plugin_host::format_install_hint(
-                    "script-wasi",
-                    Some("cargo build -p vox-cli --release --features script-wasi")
-                )
-            );
         }
         #[cfg(feature = "dei")]
         Cli::Dei { cmd } => {
@@ -524,7 +556,9 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
             #[cfg(not(feature = "dei"))]
             {
                 let _ = reason;
-                eprintln!("Feature 'dei' is not enabled.");
+                anyhow::bail!(
+                    "Feature 'dei' is not enabled in this build. Rebuild with: cargo build -p vox-cli --features dei"
+                );
             }
         }
 
@@ -559,6 +593,7 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
             crate::commands::drift_check::run(args).await?;
         }
         Cli::Research { cmd } => vox_cli_research::run(cmd).await?,
+        Cli::Kb { cmd } => crate::commands::kb::run(cmd).await?,
         #[cfg(feature = "coderabbit")]
         Cli::Review { cmd } => {
             run_review_subcommand(cmd).await?;
@@ -590,6 +625,9 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         Cli::Grammar { args } => {
             crate::commands::grammar::handle(args);
         }
+        Cli::Diagram { cmd } => {
+            crate::commands::diagram::run(cmd)?;
+        }
         Cli::Mens { .. } | Cli::Populi { .. } | Cli::Oratio { .. } => {
             std::unreachable!(
                 "ML/AI commands are intercepted in main.rs and delegated to external binaries"
@@ -616,7 +654,27 @@ mod tests {
             Some("populi")
         );
         // Long-tail commands fall through to the generic path.
-        assert_eq!(universal_reward_command_path(&Cli::Mcp), Some("command"));
+        assert_eq!(
+            universal_reward_command_path(&Cli::Mcp { profile: None }),
+            Some("command")
+        );
+    }
+
+    /// When `dei` is off, `vox stop` must fail closed (non-zero exit) with the
+    /// exact rebuild command instead of printing a message and exiting 0 — see
+    /// the 2026-09-21 feature-gated-command-honesty fix.
+    #[cfg(not(feature = "dei"))]
+    #[tokio::test]
+    async fn stop_without_dei_feature_errors_with_rebuild_instruction() {
+        let global = GlobalOpts::default();
+        let err = dispatch_cli_inner(Cli::Stop { reason: None }, &global)
+            .await
+            .expect_err("vox stop must fail when dei is off");
+        assert!(
+            err.to_string()
+                .contains("cargo build -p vox-cli --features dei"),
+            "error should name the exact rebuild command; got: {err}"
+        );
     }
 
     #[test]
@@ -625,7 +683,7 @@ mod tests {
         // via their explicit None arm so they don't double-reward).
         assert_eq!(
             universal_reward_command_path(&Cli::Completions {
-                shell: clap_complete::Shell::Bash,
+                shell: crate::CompletionShell::Bash,
             }),
             None
         );

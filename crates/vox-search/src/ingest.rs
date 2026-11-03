@@ -12,36 +12,21 @@ pub fn resolve_chunk_bytes(raw: Option<&str>) -> usize {
 
 use walkdir::WalkDir;
 
-use vox_db::{StoreError, VoxDb};
+use vox_db::{ContextTrustTier, StoreError, VoxDb};
 
 fn blake3_hex(data: &[u8]) -> String {
     blake3::hash(data).to_hex().to_string()
 }
 
-/// Upsert a single document body as one chunk row (used by web retrieval mirrors).
-pub async fn persist_text_document_chunk(
-    db: &VoxDb,
-    source_uri: &str,
-    title: &str,
-    body: &str,
-    mime: &str,
-) -> Result<(), StoreError> {
-    let hash = blake3_hex(body.as_bytes());
-    let doc_id = db
-        .upsert_search_document(source_uri, title, mime, &hash)
-        .await?;
-    db.replace_search_document_chunks_with_refs(doc_id, &[body.to_string()], &[None])
-        .await?;
-    Ok(())
-}
-
 /// Ingest all `.md` files under `root` (e.g. `docs/src`) into the searchable corpus.
 ///
 /// `source_uri_prefix` becomes the `search_documents.source_uri` prefix (e.g. `vox-docs:`).
+/// `tier` is the trust tier stamped on every row; there is no default (TRUST-01).
 pub async fn ingest_markdown_tree(
     db: &VoxDb,
     root: &Path,
     source_uri_prefix: &str,
+    tier: ContextTrustTier,
 ) -> Result<usize, StoreError> {
     if !root.is_dir() {
         return Ok(0);
@@ -69,7 +54,7 @@ pub async fn ingest_markdown_tree(
             .unwrap_or_else(|| rel_slash.clone());
         let hash = blake3_hex(body.as_bytes());
         let doc_id = db
-            .upsert_search_document(&source_uri, &title, "text/markdown", &hash)
+            .upsert_search_document(&source_uri, &title, "text/markdown", &hash, tier)
             .await?;
         let chunk_bytes = resolve_chunk_bytes(std::env::var("VOX_RAG_CHUNK_BYTES").ok().as_deref());
         let chunks = chunk_markdown_sections_with_size(&body, chunk_bytes);
@@ -86,7 +71,7 @@ fn chunk_markdown_sections(text: &str) -> Vec<String> {
     chunk_markdown_sections_with_size(text, DEFAULT_RAG_CHUNK_CHARS)
 }
 
-fn chunk_markdown_sections_with_size(text: &str, max_chars: usize) -> Vec<String> {
+pub(crate) fn chunk_markdown_sections_with_size(text: &str, max_chars: usize) -> Vec<String> {
     let mut chunks = Vec::new();
     let mut cur = String::new();
     for line in text.lines() {

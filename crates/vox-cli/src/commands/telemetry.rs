@@ -19,6 +19,17 @@ pub enum ConsentAction {
     Status,
 }
 
+/// Actions for `vox telemetry intelligence` (`INTEL-03`).
+#[derive(Subcommand, Clone)]
+pub enum IntelligenceAction {
+    /// Show cached CommunityIntelligenceBundleV1 status, Ed25519 signature health, and opt-out state.
+    Status,
+    /// Verify cached bundle or report offline fallback readiness (non-blocking).
+    Sync,
+    /// Print the cached CommunityIntelligenceBundleV1 JSON (or schema summary if no cache file exists).
+    Inspect,
+}
+
 use crate::telemetry_spool;
 fn resolve_spool(spool: Option<PathBuf>) -> PathBuf {
     spool.unwrap_or_else(telemetry_spool::spool_root)
@@ -52,6 +63,17 @@ pub enum TelemetryCmd {
         #[arg(long)]
         out: Option<PathBuf>,
     },
+    /// Render the exact redacted OTLP/HTTP JSON batch or tabular summary that would be uploaded (offline, no network).
+    Preview {
+        #[arg(long)]
+        spool: Option<PathBuf>,
+        /// Maximum number of pending files to include in the preview batch.
+        #[arg(long, default_value_t = 50)]
+        limit: usize,
+        /// Output format: `table` or `json`.
+        #[arg(long, default_value = "json")]
+        format: String,
+    },
     /// Append one JSON object file to the pending queue.
     Enqueue {
         #[arg(long)]
@@ -70,6 +92,11 @@ pub enum TelemetryCmd {
         /// Override ingest URL (else `VOX_TELEMETRY_UPLOAD_URL` via Clavis).
         #[arg(long)]
         url: Option<String>,
+    },
+    /// Inspect or verify the Ed25519-signed CommunityIntelligenceBundleV1 cache (`INTEL-03`).
+    Intelligence {
+        #[command(subcommand)]
+        action: IntelligenceAction,
     },
 }
 
@@ -195,6 +222,31 @@ pub async fn run(cmd: TelemetryCmd) -> Result<()> {
             };
             eprintln!("exported {n} record(s)");
         }
+        TelemetryCmd::Preview {
+            spool,
+            limit,
+            format,
+        } => {
+            let root = resolve_spool(spool);
+            if format.eq_ignore_ascii_case("table") {
+                let paths = telemetry_spool::list_pending(&root)?;
+                println!("spool_root:    {}", root.display());
+                println!("pending_total: {}", paths.len());
+                println!("showing:       {}", paths.len().min(limit));
+                for p in paths.into_iter().take(limit) {
+                    let val = telemetry_spool::read_payload(&p)?;
+                    println!(
+                        "{}  {}",
+                        p.file_name().and_then(|s| s.to_str()).unwrap_or("unknown"),
+                        serde_json::to_string(&val).unwrap_or_default()
+                    );
+                }
+            } else {
+                let mut stdout = std::io::stdout().lock();
+                let n = telemetry_spool::preview_pending(&root, limit, &mut stdout)?;
+                eprintln!("previewed {n} record(s) (no network calls made; spool unchanged)");
+            }
+        }
         TelemetryCmd::Enqueue { spool, json } => {
             let root = resolve_spool(spool);
             let raw =
@@ -229,6 +281,49 @@ pub async fn run(cmd: TelemetryCmd) -> Result<()> {
                 anyhow::bail!("upload: {ok} ok, {fail} failed (see logs)");
             }
             eprintln!("upload: {ok} file(s) processed successfully");
+        }
+        TelemetryCmd::Intelligence { action } => {
+            use vox_orchestrator::models::intelligence_bundle::{
+                default_bundle_cache_path, is_community_intelligence_enabled,
+                load_cached_bundle_if_valid,
+            };
+            let enabled = is_community_intelligence_enabled();
+            let cache_path = default_bundle_cache_path();
+            match action {
+                IntelligenceAction::Status | IntelligenceAction::Sync => {
+                    println!("community_intelligence_enabled: {enabled}");
+                    println!("cache_path:                     {}", cache_path.display());
+                    if let Some(bundle) = load_cached_bundle_if_valid(Some(&cache_path)) {
+                        println!("bundle_status:                  VERIFIED (Ed25519 + k>=20)");
+                        println!("bundle_version:                 {}", bundle.bundle_version);
+                        println!(
+                            "model_routing_priors_count:     {}",
+                            bundle.model_routing_priors.len()
+                        );
+                    } else {
+                        println!(
+                            "bundle_status:                  OFFLINE_FALLBACK (static local priors active)"
+                        );
+                    }
+                }
+                IntelligenceAction::Inspect => {
+                    if let Some(bundle) = load_cached_bundle_if_valid(Some(&cache_path)) {
+                        println!("{}", serde_json::to_string_pretty(&bundle)?);
+                    } else {
+                        println!(
+                            "{}",
+                            serde_json::to_string_pretty(&serde_json::json!({
+                                "status": "offline_fallback",
+                                "enabled": enabled,
+                                "cache_path": cache_path,
+                                "k_anonymity_floor": 20,
+                                "min_events_floor": 50,
+                                "laplace_epsilon": 1.0,
+                            }))?
+                        );
+                    }
+                }
+            }
         }
     }
     Ok(())

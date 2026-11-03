@@ -10,7 +10,9 @@
     "build": "pnpm tokens:build && run-p typecheck bundle",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "review:cv-flywheel": "playwright test e2e/review/cv-flywheel.spec.ts --project=chromium",
     "review:capture": "playwright test e2e/review/capture.spec.ts --project=chromium --project=firefox-review --workers=4",
+    "review:all": "pnpm review:cv-flywheel && VOX_REVIEW_CAPTURE=1 pnpm review:capture",
     "lint": "tsc --noEmit && vite build"
   },
   "dependencies": {
@@ -56,10 +58,5 @@
     "typescript": "^5.0.2",
     "vite": "^8.2.2",
     "vitest": "^3.2.6"
-  },
-  "pnpm": {
-    "overrides": {
-      "esbuild": ">=0.28.1"
-    }
   }
 }

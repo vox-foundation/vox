@@ -36,7 +36,7 @@ corpus-db = ["vox-corpus/database"]
 # can drive them. Never enabled by a shipping binary's default features.
 test-support = []
 # Populi HTTP mesh client (`vox-populi` transport).
-populi-transport = ["dep:vox-populi", "vox-populi/transport", "dep:aes-gcm"]
+populi-transport = ["dep:vox-populi", "vox-populi/transport", "dep:aes-gcm", "dep:vox-mesh-transport", "dep:iroh"]
 # `vox-speech` speech-to-text / refinement tools.
 oratio-rerank = ["dep:vox-speech"]
 # `vox-publisher` syndication / scientia surfaces.
@@ -93,17 +93,16 @@ tower-lsp-server = { workspace = true, optional = true }
 vox-db.workspace = true
 turso = { workspace = true }
 # Lean by default (qdrant-vector + tavily); tantivy/web-scrape are turned on
-# graph-wide by vox-cli's `heavy-retrieval` feature (WS2-T3). Code paths here use
-# the feature-agnostic execution.tantivy_doc_lines field (empty when tantivy is off).
+# graph-wide by vox-cli's `heavy-retrieval` feature (WS2-T3). tantivy-lexical backs
+# the KB Library lexical index (`vox_search::library`); it is also a vox-search default.
 vox-search = { workspace = true }
 vox-orchestrator-types.workspace = true
+vox-orchestrator-models.workspace = true
 vox-orchestrator-queue.workspace = true
 vox-config.workspace = true
 vox-repository.workspace = true
-# In-process VRAM telemetry for the advisory VRAM-fit scoring signal (Task 2.6).
-# Same-workspace rlib call (not the dylib plugin ABI) — see
-# `vox-plugin-nvml-probe/src/lib.rs` module doc.
-vox-plugin-nvml-probe = { workspace = true }
+# Canonical MCP tool-name allow-list; tool_receipt.rs fails closed on names absent from TOOL_REGISTRY.
+vox-mcp-registry.workspace = true
 vox-populi = { path = "../vox-populi", optional = true, default-features = false }
 vox-publisher = { workspace = true, optional = true, default-features = false }
 async-trait = { workspace = true }
@@ -131,6 +130,8 @@ vox-skill-runtime = { workspace = true }
 vox-research-events.workspace = true
 vox-telemetry.workspace = true
 vox-mesh-types.workspace = true
+vox-mesh-transport = { workspace = true, optional = true }
+iroh = { workspace = true, optional = true }
 vox-mesh-policy = { workspace = true }
 blake3.workspace = true
 crossbeam-queue = { workspace = true }
@@ -158,8 +159,6 @@ axum = { workspace = true, features = ["tokio", "http1", "json"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
 jsonschema = { workspace = true, default-features = false }
 tower = { workspace = true, features = ["util"] }
-# WAT→WASM for the mesh bundle-execution test (synthesize a real WASI module).
-wat = "1.220"
 wiremock = { workspace = true }
 
 [[test]]
@@ -168,6 +167,10 @@ name = "skill_runtime_inproc"
 [[test]]
 name = "mesh_ai_fixture_relay"
 required-features = ["populi-transport"]
+
+[[test]]
+name = "api_v2_health_test"
+required-features = ["http-server"]
 
 [lints]
 workspace = true

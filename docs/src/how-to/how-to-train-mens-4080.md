@@ -39,7 +39,7 @@ This runbook covers **two** native paths:
 
 1. **Shell**: VS Developer / MSVC environment so **`cargo vox-cuda-release`** (or `cargo check -p vox-cli --features gpu,mens-candle-cuda`) succeeds.
 2. **CLI**: `vox mens train --help` lists **`--qlora-*`** flags including **`--qlora-ce-last-k`**.
-3. **Corpus**: refresh `train.jsonl` or set **`VOX_TRAIN_SKIP_CORPUS_MIX=1`** when the mix step is unnecessary.
+3. **Corpus**: refresh `train.jsonl` or set **`VOX_TRAIN_SKIP_CORPUS_MIX=1`** (or `--fast-corpus`) to train on `<data-dir>/train.jsonl` without mixing.
 4. **Run**: canonical QLoRA command from above with **`--log-dir mens/runs/logs`** (or your path); tail the log.
 5. **Acceptance**: first log lines show **finite** loss; optional **`--qlora-ce-last-k 4`** for a stronger suffix LM signal (see SSOT).
 6. Thin wrapper (optional): [`scripts/mens/train_dogfood.vox`](../../../scripts/mens/train_dogfood.vox).
@@ -96,11 +96,7 @@ Use this when you want **all sources** from `mens/config/mix.yaml` (not a tiny d
    ```
    Writes `target/dogfood/train_mixed.jsonl` per mix config plus **`target/dogfood/train_mixed.mix_report.json`**. If your tree is missing generated files, use **`--allow-missing-sources`** once (same as legacy warn-only mix) or run the corpus pipeline stages first.
 
-3. **Point training** at that file as `train.jsonl` (preflight requires this exact name inside `--data-dir`):
-   ```powershell
-   New-Item -ItemType Directory -Force -Path target/dogfood | Out-Null
-   Copy-Item -Force target/dogfood/train_mixed.jsonl target/dogfood/train.jsonl
-   ```
+3. **Do not copy** the mix output over `train.jsonl`: `target/dogfood/train.jsonl` is the pairs file and the mix's primary *input*. With the default `--data-dir` the trainer re-runs the mix (incremental skip when unchanged) and trains on `train_mixed.jsonl` automatically. An explicit non-default `--data-dir` is trained on as-is (its `train.jsonl`, no mix).
 
 4. **Train (Qwen + Candle QLoRA)** with the **`qwen_4080_16g`** preset (16GB-oriented; see SSOT [mens-training.md](../reference/mens-training.md)):
    ```powershell
@@ -173,7 +169,7 @@ Use this before claiming a full dogfood run is complete (CI cannot substitute fo
 
 **Cursor / agents:** full **`vox ci mens-gate`** can exceed tool timeouts — use **`pwsh scripts/populi/release_training_gate.ps1 -Detach`** and tail **`target/mens-gate-logs/`** (see [mens-training.md](../reference/mens-training.md)).
 
-1. **Corpus**: `mens corpus mix --config mens/config/mix.yaml` → copy/rename to **`target/dogfood/train.jsonl`** (preflight requires that filename in `--data-dir`).
+1. **Corpus**: `mens corpus pairs` → **`target/dogfood/train.jsonl`**; `mens corpus mix --config mens/config/mix.yaml` → **`target/dogfood/train_mixed.jsonl`** (the trainer reads it with the default `--data-dir`; never copy it over `train.jsonl`).
 2. **Build**: **`cargo vox-cuda-release`** natively from a `vcvars64.bat` loaded interactive terminal (`nvcc` relies on absolute discovery and crashes in subshells).
 3. **Train**: `vox mens train --backend qlora --tokenizer hf --preset qwen_4080_16g` (or **`--preset 4080`**, same profile) + `--model`, `--data-dir`, `--output-dir`, `--device cuda`; keep `--qlora-require-full-proxy-stack` on for strict native shard completeness.
 4. **Artifacts**: Confirm **`candle_qlora_adapter.safetensors`**, **`candle_qlora_adapter_meta.json`**, **`populi_adapter_manifest_v3.json`**, **`training_manifest.json`**, **`telemetry.jsonl`** under the output dir.

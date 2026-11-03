@@ -77,7 +77,6 @@ pub struct GrammarExportResult {
     pub grammar_hash: String,
 }
 
-pub mod automaton;
 pub mod compact_prompt;
 pub mod ebnf;
 pub mod gbnf;
@@ -127,5 +126,42 @@ pub fn grammar_version_matches_compiler(version: &Version) -> bool {
         version == &compiler_version
     } else {
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn as_str_names_every_format() {
+        let cases = [
+            (GrammarFormat::Ebnf, "ebnf"),
+            (GrammarFormat::Gbnf, "gbnf"),
+            (GrammarFormat::JsonSchema, "json-schema"),
+            (GrammarFormat::Lark, "lark"),
+            (GrammarFormat::TreeSitterGrammar, "tree-sitter"),
+            (GrammarFormat::SsotMarkdown, "ssot-markdown"),
+            (GrammarFormat::XGrammar2, "x-grammar-2"),
+        ];
+        for (format, name) in cases {
+            assert_eq!(format.as_str(), name);
+        }
+    }
+
+    #[test]
+    fn export_ebnf_returns_non_empty_grammar() {
+        let result = export(&GrammarExportConfig::default()).expect("ebnf export");
+        assert!(!result.grammar_text.trim().is_empty());
+        assert!(result.rule_count > 0);
+        assert_eq!(result.version, "0.4.0");
+    }
+
+    #[test]
+    fn grammar_version_matches_own_crate_version_only() {
+        let own = Version::parse(env!("CARGO_PKG_VERSION")).expect("crate version");
+        assert!(grammar_version_matches_compiler(&own));
+        let other = Version::new(own.major + 1, 0, 0);
+        assert!(!grammar_version_matches_compiler(&other));
     }
 }

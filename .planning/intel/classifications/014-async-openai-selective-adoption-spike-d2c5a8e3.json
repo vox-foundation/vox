@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/014-async-openai-selective-adoption-spike.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 014: async-openai selective adoption (spike outcome)",
+  "summary": "Spike outcome: no-go on async-openai as mandatory core dependency; use bespoke wiring for multi-provider matrix.",
+  "scope": ["async-openai", "OpenAI API", "Clavis", "vox-openai-wire", "vox-openai-sse", "vox-reqwest-defaults"],
+  "cross_refs": ["vox-openai-wire", "vox-openai-sse", "vox-reqwest-defaults", "vox-runtime"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Spike completed; decision recorded for future revisits"
+}

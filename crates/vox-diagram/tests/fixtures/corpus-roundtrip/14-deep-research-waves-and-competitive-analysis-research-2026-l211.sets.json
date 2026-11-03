@@ -1,0 +1,104 @@
+{
+  "kind": "graph",
+  "direction": "right",
+  "nodes": [
+    [
+      "Dense, High-Density Synthesis Prompt (<8k tokens)",
+      "rect",
+      []
+    ],
+    [
+      "Factual Subgraph & Corroboration Matrix",
+      "rect",
+      []
+    ],
+    [
+      "Local MENS Model (Fast)",
+      "rect",
+      []
+    ],
+    [
+      "RAG Context Budgeter (Top-K Verified Spans)",
+      "rect",
+      []
+    ],
+    [
+      "Raw Web Pages (100k+ tokens)",
+      "rect",
+      []
+    ],
+    [
+      "Structured Claim Triplets & Evidence Spans",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Factual Subgraph & Corroboration Matrix",
+        "rect",
+        []
+      ],
+      [
+        "RAG Context Budgeter (Top-K Verified Spans)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Local MENS Model (Fast)",
+        "rect",
+        []
+      ],
+      [
+        "Structured Claim Triplets & Evidence Spans",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "RAG Context Budgeter (Top-K Verified Spans)",
+        "rect",
+        []
+      ],
+      [
+        "Dense, High-Density Synthesis Prompt (<8k tokens)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Raw Web Pages (100k+ tokens)",
+        "rect",
+        []
+      ],
+      [
+        "Local MENS Model (Fast)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Structured Claim Triplets & Evidence Spans",
+        "rect",
+        []
+      ],
+      [
+        "Factual Subgraph & Corroboration Matrix",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

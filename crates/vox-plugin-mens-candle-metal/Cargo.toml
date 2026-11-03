@@ -14,10 +14,10 @@ vox-config = { workspace = true }
 vox-plugin-api = { workspace = true }
 vox-hf-layout = { workspace = true }
 vox-tensor = { workspace = true }
-vox-db = { workspace = true, features = ["host-integration"] }
 vox-secrets = { workspace = true }
 vox-eval = { workspace = true }
 vox-compiler = { workspace = true }
+vox-plugin-mens-candle-core = { path = "../vox-plugin-mens-candle-core" }
 abi_stable = { workspace = true }
 candle-core = { workspace = true }
 candle-nn = { workspace = true }
@@ -26,6 +26,7 @@ qlora-rs = { workspace = true }
 peft-rs = { workspace = true }
 safetensors = { workspace = true }
 tokenizers = { workspace = true }
+dirs = { workspace = true }
 memmap2 = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
@@ -39,12 +40,21 @@ rand = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "sync"] }
 workspace-hack = { version = "0.6", path = "../workspace-hack" }
 
+# Metal on every macOS build, not only when `--features metal` is passed:
+# a plain `cargo build` on a Mac used to produce a CPU-only plugin that
+# silently fell back. Target-specific so Linux builds of this crate (e.g. a
+# workspace-wide `cargo check` in CI) never try to compile Metal.
+[target.'cfg(target_os = "macos")'.dependencies]
+candle-core = { workspace = true, features = ["metal"] }
+candle-nn = { workspace = true, features = ["metal"] }
+vox-plugin-mens-candle-core = { path = "../vox-plugin-mens-candle-core", features = ["metal"] }
+
 [features]
 default = []
 # Opt-in Metal kernel compilation. Requires macOS.
 # Without this feature, the plugin compiles against CPU candle and GPU-only
 # ops return a clear runtime error.
-metal = ["candle-core/metal", "candle-nn/metal"]
+metal = ["candle-core/metal", "candle-nn/metal", "vox-plugin-mens-candle-core/metal"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

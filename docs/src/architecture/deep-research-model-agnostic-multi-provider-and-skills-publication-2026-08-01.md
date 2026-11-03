@@ -2,7 +2,7 @@
 title: "Deep Research: Multi-Provider Model Routing, GUI Key Wiring, Skills Packaging & Publication Handoff (2026-08-01)"
 description: "Code-audited finding that Vox's key-presence-aware multi-provider gating (key_guard.rs/decide()) and 9-provider GUI settings surface already exist but the research pipeline bypasses both via an older selection path and a 2-lane (local+OpenRouter) LLM egress cascade; surveys free-tier APIs beyond OpenRouter; sketches deep-research skill packaging and SCIENTIA/VoxGiantia publication handoff."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
 training_rationale: "Normative code audit of the multi-provider routing split-brain plus free-tier survey and skills/publication design considerations; direct input to the deep-research enhancement implementation plan."
 ---

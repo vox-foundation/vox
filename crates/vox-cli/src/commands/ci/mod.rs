@@ -1,29 +1,30 @@
 //! `vox ci` — repository guard checks (SSOT, manifests, feature matrix) without shell/Python.
 
+pub mod capability_index;
 mod capability_sync;
 mod command_compliance;
-mod command_sync;
+pub mod command_sync;
 mod eval_matrix;
 mod exec_policy_contract;
 mod gui_catalog_parity;
+mod gui_command_backends;
+pub(crate) mod gui_coverage_exemptions;
+pub(crate) mod gui_coverage_gate;
 mod gui_surface_coverage;
 pub mod gui_surface_registry;
-#[cfg(test)]
-mod merge_group_fanout_guard;
-mod oom_watch;
+mod mermaid_baseline;
 mod operations_catalog;
+mod operations_catalog_exposure;
 mod pipeline_parity;
 mod policy_allowlist_parity;
 mod policy_registry;
 mod pre_push;
 mod profile_parity;
 mod providers;
-mod queue;
 mod release_build;
-mod runner_scale;
 #[cfg(test)]
 mod sccache_workflow_guard;
-mod unexpected_exit_watch;
+mod status;
 pub mod workspace_artifacts;
 
 pub(crate) mod run_body;

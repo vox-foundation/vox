@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/true-workflow-durability-design-2026.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "True workflow durability: corrected design",
+  "summary": "Audit-corrected design for durable workflow replay: execute workflow body in interpreter, intercept activity calls, journal results.",
+  "scope": ["workflow durability", "replay engine", "activity interception", "journaling", "interpreter design", "determinism"],
+  "cross_refs": ["docs/src/architecture/durability-runtime-audit-2026.md", "docs/src/adr/019-durable-workflow-journal-contract-v1.md", "docs/src/adr/021-generated-workflow-durability-parity.md", "docs/src/adr/041-durable-functions-completion-2026.md", "docs/superpowers/plans/2026-09-05-true-workflow-durability.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

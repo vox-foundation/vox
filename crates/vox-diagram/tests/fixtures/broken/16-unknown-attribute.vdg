@@ -1,0 +1,4 @@
+// expect: diagram/unknown-attribute
+graph {
+    node a: "A" { colour: red }
+}

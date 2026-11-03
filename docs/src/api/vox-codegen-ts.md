@@ -24,6 +24,6 @@ For the strategic rationale, see [ADR 012](../adr/012-internal-web-ir-strategy.m
 |------|-------------|
 | `<Component>.tsx` | React component for each `component` declaration |
 | `routes.manifest.ts` | Route manifest for TanStack Start / Vite adapter |
-| `vox-client.ts` | Type-safe client hooks for `@endpoint(kind: query/mutation)` |
+| `vox-client.ts` | Type-safe client hooks for `query` and `mutation` declarations |
 | `types.ts` | TypeScript union types for `type` declarations |
-| `server.ts` | Express/Axum route handlers for `@endpoint(kind: server)` |
+| `server.ts` | Express/Axum route handlers for `server` declarations |

@@ -1,0 +1,9 @@
+graph {
+    node a: Alpha service
+    node b: 'Beta'
+    container c: Gamma group {
+        node d: "D"
+    }
+    a -> b: sends it
+    b -> c.d
+}

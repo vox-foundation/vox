@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/planning-meta/05-anti-foot-gun-planning-standard.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Anti-foot-gun planning standard",
+  "summary": "Tier 1 normative standard defining blocker classes and mandatory controls for planning document quality.",
+  "scope": ["planning documents", "quality standards", "blocker classes", "enforcement", "planning-meta", "normative policy"],
+  "cross_refs": ["docs/src/architecture/planning-meta/06-planning-taxonomy-glossary.md", "docs/src/architecture/planning-meta/08-milestone-gate-definition-spec.md", "docs/src/architecture/planning-meta/09-exception-deferral-policy.md", "docs/src/architecture/planning-meta/01-master-planning-index.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

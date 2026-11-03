@@ -24,6 +24,9 @@ pub struct VoxManifest {
     /// Orchestrator configuration overrides
     #[serde(default)]
     pub orchestrator: Option<toml::Table>,
+    /// Search engine and retrieval configuration overrides
+    #[serde(default)]
+    pub search: Option<toml::Table>,
     /// Deployment configuration
     #[serde(default)]
     pub deploy: Option<DeploySection>,
@@ -346,6 +349,7 @@ impl VoxManifest {
             workspace: None,
             skills: BTreeMap::new(),
             orchestrator: None,
+            search: None,
             deploy: None,
         }
     }
@@ -481,5 +485,36 @@ auth = ["auth-utils"]
         let parsed = VoxManifest::from_str(&toml_str).unwrap();
         assert_eq!(parsed.package.name, "roundtrip-test");
         assert_eq!(parsed.package.kind, "skill");
+    }
+
+    #[test]
+    fn test_search_section_roundtrip() {
+        let toml = r#"
+[package]
+name = "search-app"
+
+[search]
+active_lane = "deep"
+fast_timeout_ms = 2000
+deep_timeout_ms = 6000
+enabled_providers = ["wikipedia", "arxiv"]
+"#;
+        let manifest = VoxManifest::from_str(toml).unwrap();
+        let search = manifest.search.as_ref().expect("search table");
+        assert_eq!(
+            search.get("active_lane").and_then(|v| v.as_str()),
+            Some("deep")
+        );
+        assert_eq!(
+            search.get("fast_timeout_ms").and_then(|v| v.as_integer()),
+            Some(2000)
+        );
+        assert_eq!(
+            search.get("deep_timeout_ms").and_then(|v| v.as_integer()),
+            Some(6000)
+        );
+        let toml_str = manifest.to_toml_string().unwrap();
+        assert!(toml_str.contains("[search]"));
+        assert!(toml_str.contains("active_lane = \"deep\""));
     }
 }

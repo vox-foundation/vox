@@ -1,0 +1,25 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/model-catalog-ssot-2026.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Model Catalog SSOT — Architecture & Implementation Plan 2026",
+  "summary": "Audit of split-brain model catalog bugs and complete plan to achieve single source of truth with automatic model adoption; defines data flows, implementation waves, and traceability.",
+  "scope": [
+    "ModelRegistry",
+    "model discovery",
+    "pricing",
+    "scoring",
+    "routing",
+    "automatic adoption"
+  ],
+  "cross_refs": [
+    "crates/vox-orchestrator/src/catalog.rs",
+    "crates/vox-orchestrator/src/models/",
+    "contracts/orchestration/model-catalog.bootstrap.v1.json",
+    "contracts/orchestration/model-routing.v1.yaml"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

@@ -57,7 +57,7 @@ describe('VoxGraphStatusPanel', () => {
     expect(screen.getByText('Repo')).toBeDefined();
     expect(screen.getByText('Stale')).toBeDefined();
     expect(screen.getByText(/graph_missing/)).toBeDefined();
-    expect(screen.getByText(/vox graphify rebuild --corpus repo-code-graph/)).toBeDefined();
+    expect(screen.getByText(/vox graph rebuild --corpus repo-code-graph/)).toBeDefined();
   });
 
   it('condensed prop renders only a fresh/total corpora summary, not the per-corpus cards', () => {
@@ -284,6 +284,30 @@ describe('VoxGraphStatusPanel', () => {
   it('shows loading state', () => {
     mockUse.mockReturnValue({ isLoading: true, isError: false });
     renderWithClient(<VoxGraphStatusPanel />);
-    expect(screen.getByText(/Loading graphify status/i)).toBeDefined();
+    expect(screen.getByText(/Loading code graph status/i)).toBeDefined();
+  });
+
+  it('renders CodeAtlasCanvas with viewport budget, branch diff overlay, active agent badges, and @ mention chip (Phases 26-30)', async () => {
+    mockUse.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { default_corpus_id: 'repo-code-graph', corpora: [STALE_CORPUS] },
+    });
+    renderWithClient(<VoxGraphStatusPanel />);
+
+    expect(screen.getByTestId('code-atlas-canvas')).toBeDefined();
+    expect(screen.getByTestId('atlas-budget-pill').textContent).toContain('/400 nodes');
+    expect(screen.getByTestId('atlas-agent-badge-crate:vox-compiler').textContent).toContain(
+      'agent:compiler-verifier',
+    );
+
+    // Trigger @ Mention in Chat (Phase 30)
+    fireEvent.click(screen.getByTestId('atlas-mention-btn-crate:vox-compiler'));
+    await waitFor(() => {
+      expect(screen.getByTestId('atlas-last-mention-chip').textContent).toContain(
+        '@file:crates/vox-compiler/src/lib.rs',
+      );
+    });
   });
 });
+

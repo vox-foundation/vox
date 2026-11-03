@@ -1,0 +1,41 @@
+flowchart TD
+    UserAsk["User / Chat Query"]
+    Triage{"Dynamic Triage Classifier"}
+    ReturnMem["Return VoxDB FTS5 Cached Knowledge (#lt;50ms)"]
+    FastWeb["Fast 1-Hop Search + Direct Synth (#lt;1s)"]
+    ContextPacker["Context Window Budgeter (Top-K Spans)"]
+    FrontierSynth["Frontier Model Synthesis (OpenRouter / Claude / Gemini)"]
+    PostAudit["Post-Hoc Citation Span #amp; DOI Audit"]
+    StoreDB["Persist to VoxDB FTS5 #amp; Claim Cache"]
+    PresentGUI["Interactive GUI Report + Claim Accordion + Chat Card"]
+    subgraph MultiWaveEngine ["Autonomous Multi-Wave DAG Engine"]
+        Wave1["Wave 1: Reconnaissance"]
+        Distill1["MENS Local Claim Extraction #amp; Triplets"]
+        GapAnalysis{"Gap #amp; Contradiction Analyzer"}
+        Wave2["Wave 2: Targeted Deep-Dive #amp; Citation Crawling"]
+        Distill2["MENS Local Evidence Triangulation"]
+        AdversarialCheck{"Adversarial Bar Met?"}
+        Wave3["Wave 3: Adversarial Verification #amp; Sandbox Execution"]
+        SandboxRun["Run Sandboxed Compiler / Schema Validator"]
+        FinalDistill["Consolidated Knowledge Subgraph"]
+    end
+    Wave1 --> Distill1
+    Distill1 --> GapAnalysis
+    GapAnalysis -->|"Contradiction / Missing Depth"| Wave2
+    Wave2 --> Distill2
+    Distill2 --> AdversarialCheck
+    AdversarialCheck -->|"High Uncertainty / Code Query"| Wave3
+    Wave3 --> SandboxRun
+    SandboxRun --> FinalDistill
+    GapAnalysis -->|"Sufficient Evidence"| FinalDistill
+    AdversarialCheck -->|"Sufficient"| FinalDistill
+    UserAsk --> Triage
+    Triage -->|"Tier 0: Exact Memory"| ReturnMem
+    Triage -->|"Tier 1: Shallow Fact"| FastWeb
+    Triage -->|"Tier 2: Standard Deep"| Wave1
+    Triage -->|"Tier 3: Multi-Wave"| Wave1
+    FinalDistill --> ContextPacker
+    ContextPacker --> FrontierSynth
+    FrontierSynth --> PostAudit
+    PostAudit --> StoreDB
+    StoreDB --> PresentGUI

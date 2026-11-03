@@ -5,7 +5,6 @@ use vox_db::Codex;
 
 use crate::companion::Companion;
 
-use super::collegium::{get_user_collegium, update_collegium_lumens};
 use super::companion::{list_companions, upsert_companion};
 use super::counters::{increment_counter, set_counter};
 use super::notifications::insert_notification;
@@ -175,11 +174,6 @@ pub async fn process_event_rewards(
             if reward.lumens != 0 {
                 profile.add_lumens(reward.lumens);
                 profile_changed = true;
-
-                // Aggregate lumens for the player's collegium
-                if let Ok(Some((cid, _, _, _))) = get_user_collegium(db, user_id).await {
-                    let _ = update_collegium_lumens(db, &cid, reward.lumens).await;
-                }
             }
             if reward.grant_shield {
                 profile.earn_shield();

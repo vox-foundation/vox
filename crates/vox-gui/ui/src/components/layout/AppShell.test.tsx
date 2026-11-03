@@ -61,6 +61,19 @@ const baseProps = {
   meshNodes: undefined,
 };
 
+describe('AppShell page heading', () => {
+  it('supplies the page\'s single h1, named for the surface (axe page-has-heading-one)', () => {
+    render(
+      <AppShell {...baseProps} surfaceLabel="Approvals" chatDocked={false}>
+        <div data-testid="main-surface">surface</div>
+      </AppShell>,
+    );
+    const h1s = screen.getAllByRole('heading', { level: 1 });
+    expect(h1s).toHaveLength(1);
+    expect(h1s[0]).toHaveTextContent('Approvals');
+  });
+});
+
 describe('AppShell', () => {
   it('renders sidebar, breadcrumb, status bar, and main children', () => {
     render(

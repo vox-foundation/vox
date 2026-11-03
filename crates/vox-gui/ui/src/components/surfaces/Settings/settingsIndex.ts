@@ -13,6 +13,7 @@ export const SETTINGS_INDEX: SettingEntry[] = [
   { id: 'orch-budget', section: 'orchestrator', label: 'Global budget cap', hint: 'Soft + hard USD cap', keywords: ['cost', 'cap', 'spend', 'usd'] },
   { id: 'orch-doubt-threshold', section: 'orchestrator', label: 'Auto-doubt threshold', hint: 'Confidence floor for Augur', keywords: ['trust', 'augur', 'verify'] },
   { id: 'orch-isolation', section: 'orchestrator', label: 'Default isolation tier', hint: 'Runtime sandbox: wasm, container, native', keywords: ['sandbox', 'wasm', 'container', 'scope'] },
+  { id: 'orch-chat-research', section: 'orchestrator', label: 'Autonomous chat research', hint: 'Allow orchestrator to trigger live deep research during chat', keywords: ['research', 'chat', 'search', 'lane', 'autonomous', 'investigation'] },
   { id: 'scaling-enabled', section: 'scaling', label: 'Auto-scaling', hint: 'Spawn/retire agents based on load and resources', keywords: ['scale', 'autoscale', 'dynamic'] },
   { id: 'harness-issue-detection-enabled', section: 'scaling', label: 'Harness issue detection', hint: 'Detect repeated chat/agent mistakes and surface a review queue', keywords: ['harness', 'issue', 'discovery', 'scientia'] },
   { id: 'scaling-min-agents', section: 'scaling', label: 'Min agents', hint: 'Never retire below this fleet size', keywords: ['floor', 'scale down'] },
@@ -31,6 +32,7 @@ export const SETTINGS_INDEX: SettingEntry[] = [
   { id: 'theme', section: 'theme', label: 'Theme', hint: 'Arcane, Void, or Glacier', keywords: ['dark', 'appearance', 'color'] },
   { id: 'display-hud-tiles', section: 'display', label: 'HUD tiles', hint: 'Enable, disable, and reorder top status tiles', keywords: ['hud', 'status bar', 'kpi', 'tiles', 'display'] },
   { id: 'gamify', section: 'gamify', label: 'Gamification', hint: 'Enable and pick a mode', keywords: ['ludus', 'rewards', 'xp'] },
+  { id: 'server-connection', section: 'server', label: 'Connect to server', hint: 'Attach Axis to a remote Vox server', keywords: ['remote', 'server', 'lan', 'profile', 'connect', 'gateway'] },
   // Registry-derived entries (generated from CONFIG_KEYS by `vox ci config-gui-codegen`).
   ...GENERATED_SETTINGS_INDEX,
 ];

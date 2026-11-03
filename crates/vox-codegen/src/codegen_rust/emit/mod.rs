@@ -3,6 +3,7 @@
 //! Split from the historical single `emit.rs` (OP-0204).
 
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 use crate::projection_bundle::project_bundle_from_hir;
 use vox_compiler::hir::HirModule;
@@ -29,6 +30,9 @@ mod types;
 mod usage;
 mod with_emit;
 mod workflow;
+
+pub use client::{PolyglotToolBundle, emit_tool_polyglot_artifacts};
+pub use http::emit_realtime_stream_and_channel_routes;
 
 /// Generated bundles that call `execute_search_plan` need local path resolution.
 fn module_has_distributed_subagent(module: &HirModule) -> bool {
@@ -61,21 +65,167 @@ fn module_needs_vox_search_docs(module: &HirModule) -> bool {
         || module.foralls.iter().any(|forall| scan(&forall.func))
 }
 
+/// True iff `module` needs `vox-orchestrator`: an `@ai(subagent(...))`
+/// fixture (local or distributed dispatch both call
+/// `vox_orchestrator::subagent_dispatch` / `a2a::bus` — see
+/// `ai_fixture/llm.rs::emit_subagent_body`) or an
+/// `@ai(search(corpus: "memory"))` fixture
+/// (`vox_orchestrator::memory::manager::MemoryManager` — see
+/// `emit_search_memory_body`). Other search corpora (`web`, `docs`) and
+/// prompt/model-pin fixtures don't touch `vox-orchestrator`.
+fn module_needs_vox_orchestrator(module: &HirModule) -> bool {
+    use vox_compiler::hir::nodes::boilerplate_grafts::HirAiFixture;
+    let scan = |f: &vox_compiler::hir::HirFn| {
+        matches!(&f.ai_fixture, Some(HirAiFixture::Subagent(_)))
+            || matches!(
+                &f.ai_fixture,
+                Some(HirAiFixture::Search(s)) if s.corpus.eq_ignore_ascii_case("memory")
+            )
+    };
+    module.functions.iter().any(scan)
+        || module.tests.iter().any(scan)
+        || module.mcp_tools.iter().any(|t| scan(&t.func))
+        || module.mcp_resources.iter().any(|r| scan(&r.func))
+        || module.foralls.iter().any(|forall| scan(&forall.func))
+}
+
+/// True iff `module` calls the `Speech.transcribe(...)` builtin anywhere —
+/// the only thing `vox-speech` is for (see
+/// `method_emit.rs::emit_method_call`).
+///
+/// Detected as a substring search over the JSON-serialized HIR rather than
+/// a bespoke recursive `HirExpr`/`HirStmt` walker: the walker would have to
+/// track every enum variant (including ones nested inside `if`/`match`
+/// arms), and a variant it forgets silently under-detects, which breaks the
+/// generated build by dropping a dependency real code still references. A
+/// stray substring false positive here just keeps the dep — always safe.
+/// Reuses the same `serde_json::to_string(module)` call already made by
+/// `emit_hir_embed_helper` for the embedded-HIR const, so this costs
+/// nothing extra at runtime that the durable boot prelude doesn't already
+/// pay.
+fn module_needs_vox_speech(module: &HirModule) -> bool {
+    let json = serde_json::to_string(module).unwrap_or_default();
+    json.contains("\"Speech\"") && json.contains("\"transcribe\"")
+}
+
+/// Absolute path to the vox workspace root this `vox` binary was compiled
+/// from, embedded at `vox-codegen`'s own build time (see `build.rs`).
+/// Reliable only when `vox` was built
+/// locally from a checkout; see `resolve_vox_repo_root`.
+const COMPILED_REPO_ROOT: &str = env!("VOX_COMPILER_REPO_ROOT");
+
+/// A path "looks like" a vox checkout iff it has a `crates/vox-db/Cargo.toml`
+/// — cheap, and every candidate root below is validated against it before
+/// use so a wrong guess falls through to the next tier instead of emitting
+/// an absolute path to nowhere.
+fn looks_like_vox_checkout(root: &Path) -> bool {
+    root.join("crates")
+        .join("vox-db")
+        .join("Cargo.toml")
+        .is_file()
+}
+
+/// Resolve where the vox runtime crates (`vox-db`, `vox-actor-runtime`, …)
+/// live on disk, so a generated `Cargo.toml`'s path dependencies work when
+/// the generated project is built outside a vox checkout. See
+/// `docs/src/architecture/generated-project-runtime-deps.md` for the full
+/// design (including why a git dependency isn't tier 3 yet).
+///
+/// 1. `VOX_REPO_ROOT` env var — explicit override.
+/// 2. The path this `vox` binary was itself compiled from.
+/// 3. `None` — caller falls back to the historical repo-relative path,
+///    which still works when generating inside a vox checkout.
+fn resolve_vox_repo_root() -> Option<PathBuf> {
+    if let Some(root) =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRepositoryRoot).expose()
+    {
+        let p = PathBuf::from(root);
+        if looks_like_vox_checkout(&p) {
+            return Some(p);
+        }
+    }
+    let embedded = PathBuf::from(COMPILED_REPO_ROOT);
+    if looks_like_vox_checkout(&embedded) {
+        return Some(embedded);
+    }
+    None
+}
+
+/// Canonical repository URL used when a standalone `vox` binary (without a
+/// local Vox source checkout on disk) emits `git` dependencies for generated
+/// Rust projects.
+const VOX_RUNTIME_GIT_REPO: &str = "https://github.com/vox-foundation/vox.git";
+
+/// Format a `<crate_name> = { ... }` dependency line across the four resolution tiers:
+/// 1–2. `resolved_root` (`Some(root)`) -> `{ path = "<root>/crates/<crate_name>"<extra> }`
+/// 2.5. `git_rev` (`Some(rev)` non-empty and not `"unknown"`) -> `{ git = "https://github.com/vox-foundation/vox.git", rev = "<rev>"<extra> }`
+/// 3. Fallback -> `{ path = "<relative_prefix>/crates/<crate_name>"<extra> }`
+pub(crate) fn format_vox_crate_dep_line(
+    crate_name: &str,
+    resolved_root: Option<&Path>,
+    git_rev: Option<&str>,
+    relative_prefix: &str,
+    extra: &str,
+) -> String {
+    if let Some(root) = resolved_root {
+        let path = root.join("crates").join(crate_name).display().to_string();
+        return format!("{crate_name} = {{ path = \"{path}\"{extra} }}\n");
+    }
+    if let Some(rev) = git_rev
+        .map(str::trim)
+        .filter(|r| !r.is_empty() && *r != "unknown")
+    {
+        return format!(
+            "{crate_name} = {{ git = \"{VOX_RUNTIME_GIT_REPO}\", rev = \"{rev}\"{extra} }}\n"
+        );
+    }
+    let path = format!("{relative_prefix}/crates/{crate_name}");
+    format!("{crate_name} = {{ path = \"{path}\"{extra} }}\n")
+}
+
+/// Render a `<crate_name> = { path = "...", ... }` (or `git = ...` fallback)
+/// dependency line for a vox-owned runtime crate. Uses an absolute path via
+/// `resolve_vox_repo_root` when possible; otherwise falls back to a pinned
+/// `git` dependency when `VOX_GIT_HASH` is embedded, or
+/// `<relative_prefix>/crates/<crate_name>` as a last resort.
+fn vox_crate_dep_line(crate_name: &str, relative_prefix: &str, extra: &str) -> String {
+    let root = resolve_vox_repo_root();
+    let git_rev = option_env!("VOX_GIT_HASH");
+    format_vox_crate_dep_line(crate_name, root.as_deref(), git_rev, relative_prefix, extra)
+}
+
+/// vox-workflow-runtime plus `anyhow`, which activity lowering names in its return
+/// type (`durability_lower::activity_inner_return_type`) — same pairing as the script lane.
+fn workflow_runtime_deps(relative_prefix: &str) -> String {
+    format!(
+        "{}anyhow = \"1\"\n",
+        vox_crate_dep_line(
+            "vox-workflow-runtime",
+            relative_prefix,
+            ", default-features = false, features = [\"sql\"]"
+        )
+    )
+}
+
 fn emit_generated_extra_deps(module: &HirModule) -> String {
     let mut out = String::new();
-    out.push_str("vox-telemetry = { path = \"../../crates/vox-telemetry\" }\n");
+    out.push_str(&vox_crate_dep_line("vox-telemetry", "../..", ""));
     if module_needs_vox_search_docs(module) {
-        out.push_str(
-            "vox-search = { path = \"../../crates/vox-search\", default-features = false }\n",
-        );
-        out.push_str("vox-repository = { path = \"../../crates/vox-repository\" }\n");
+        out.push_str(&vox_crate_dep_line(
+            "vox-search",
+            "../..",
+            ", default-features = false",
+        ));
+        out.push_str(&vox_crate_dep_line("vox-repository", "../..", ""));
     }
     out
 }
 
 pub use client::{emit_api_client, emit_mcp_server};
 pub use http::emit_main;
-pub use main_boot::{emit_durable_boot_helpers, emit_durable_boot_prelude, emit_main_boot};
+pub use main_boot::{
+    BootPropagation, emit_durable_boot_helpers, emit_durable_boot_prelude, emit_main_boot,
+};
 pub use stmt_expr::{emit_expr, emit_main_stmt};
 pub use tables::{
     emit_index_ddl, emit_schema_drift_verify, emit_table_ddl, emit_table_struct,
@@ -226,13 +376,14 @@ fn generate_tauri_workspace(
         emit_tauri_build_rs(needs_stt),
     );
 
+    let app = script_db::prepare_app_module(module);
     let marker = rust_app_shell_marker(RustAppShell::TauriApp);
     files.insert(
         "src-tauri/src/main.rs".to_string(),
-        emit_tauri_main_rs(marker, module, package_name, needs_stt),
+        emit_tauri_main_rs(marker, &app, package_name, needs_stt),
     );
 
-    let lib_rs = emit_lib(module);
+    let lib_rs = script_db::with_app_lane(&app, || emit_lib(&app));
     files.insert(
         "src-tauri/src/lib.rs".to_string(),
         format_generated_lib_rs(&lib_rs),
@@ -308,6 +459,61 @@ fn emit_tauri_build_rs(needs_stt: bool) -> String {
     .to_string()
 }
 
+/// A `#[tauri::command]` wrapper over the endpoint's lib fn (see
+/// `script_db::prepare_app_module`): deserialize each declared param, call the
+/// lib fn by path (the command shares its name), and return `Result` as Tauri
+/// requires for async commands.
+fn emit_tauri_command(
+    sf: &vox_compiler::hir::HirEndpointFn,
+    module: &HirModule,
+    crate_ident: &str,
+) -> String {
+    let mut out = format!(
+        "#[tauri::command]\nasync fn {}(request: serde_json::Value) -> Result<",
+        sf.name
+    );
+    let ret = sf.return_type.as_ref().map(types::emit_type);
+    let returns_json = ret.as_deref() == Some("Json");
+    out.push_str(match ret.as_deref() {
+        None => "()",
+        Some("Json") => "serde_json::Value",
+        Some(r) => r,
+    });
+    out.push_str(", String> {\n");
+    let mut args = Vec::new();
+    for p in &sf.params {
+        let name = &p.name;
+        let get = format!("request[\"{name}\"].clone()");
+        match p.type_ann.as_ref().map(types::emit_type).as_deref() {
+            None | Some("serde_json::Value") => out.push_str(&format!("    let {name} = {get};\n")),
+            Some("Json") => out.push_str(&format!(
+                "    let {name} = {}({get});\n",
+                types::VOX_JSON_RUST_TYPE
+            )),
+            Some(ty) => out.push_str(&format!(
+                "    let {name}: {ty} = serde_json::from_value({get}).map_err(|e| format!(\"invalid parameter `{name}`: {{e}}\"))?;\n"
+            )),
+        }
+        args.push(name.clone());
+    }
+    let is_async = module
+        .functions
+        .iter()
+        .any(|f| f.name == sf.name && f.is_async);
+    let call = format!(
+        "{crate_ident}::{}({}){}",
+        sf.name,
+        args.join(", "),
+        if is_async { ".await" } else { "" }
+    );
+    if returns_json {
+        out.push_str(&format!("    Ok({call}.0)\n}}\n\n"));
+    } else {
+        out.push_str(&format!("    Ok({call})\n}}\n\n"));
+    }
+    out
+}
+
 fn emit_tauri_main_rs(
     shell_header: &str,
     module: &HirModule,
@@ -333,56 +539,10 @@ use {}::*;
     let needs_setup = has_tables || has_scheduled;
     let mut command_names = Vec::new();
 
+    let crate_ident = package_name.replace('-', "_");
     for sf in &module.endpoint_fns {
         command_names.push(sf.name.clone());
-
-        out.push_str("#[tauri::command]\n");
-        out.push_str(&format!("async fn {}(", sf.name));
-
-        if has_tables {
-            out.push_str("db: tauri::State<'_, std::sync::Arc<vox_db::Codex>>, ");
-        }
-        out.push_str("request: serde_json::Value)");
-
-        let ret_type = sf
-            .return_type
-            .as_ref()
-            .map(types::emit_type)
-            .unwrap_or_else(|| "()".to_string());
-
-        if ret_type != "()" {
-            out.push_str(&format!(" -> {} {{\n", ret_type));
-        } else {
-            out.push_str(" {\n");
-        }
-
-        if has_tables {
-            out.push_str("    let db = &*db;\n");
-        }
-
-        for param in &sf.params {
-            out.push_str(&format!(
-                "    let {} = request[\"{}\"].clone();\n",
-                param.name, param.name
-            ));
-        }
-
-        for stmt in &sf.body {
-            let emitted = stmt_expr::emit_stmt(
-                stmt,
-                1,
-                false,
-                false,
-                false,
-                Some(&module.inferred_types),
-                None,
-                None,
-                None,
-            );
-            out.push_str(&emitted);
-        }
-
-        out.push_str("}\n\n");
+        out.push_str(&emit_tauri_command(sf, module, &crate_ident));
     }
 
     out.push_str("fn main() {\n");
@@ -481,7 +641,12 @@ use {}::*;
             );
             out.push_str(&emit_schema_drift_verify(module));
             out.push_str("            });\n");
-            out.push_str("            app.manage(std::sync::Arc::new(codex));\n");
+            out.push_str("            let codex = std::sync::Arc::new(codex);\n");
+            out.push_str(&format!(
+                "            {}\n",
+                script_db::set_app_db_stmt("codex.clone()")
+            ));
+            out.push_str("            app.manage(codex);\n");
         }
         if has_scheduled {
             // Tauri's `fn main()` is synchronous but the durable-boot prelude
@@ -543,9 +708,23 @@ fn emit_cargo_toml_tauri_app(name: &str, module: &HirModule, needs_stt: bool) ->
     let fixture_deps =
         adjust_crate_paths_for_src_tauri_manifest(&emit_generated_extra_deps(module));
     let stt_dep = if needs_stt {
-        "vox-tauri-stt = { path = \"../../../crates/vox-tauri-stt\", features = [\"tauri-plugin\"] }\n"
+        vox_crate_dep_line(
+            "vox-tauri-stt",
+            "../../..",
+            ", features = [\"tauri-plugin\"]",
+        )
     } else {
-        ""
+        String::new()
+    };
+    let orchestrator_dep = if module_needs_vox_orchestrator(module) {
+        vox_crate_dep_line("vox-orchestrator", "../../..", "")
+    } else {
+        String::new()
+    };
+    let speech_dep = if module_needs_vox_speech(module) {
+        vox_crate_dep_line("vox-speech", "../../..", "")
+    } else {
+        String::new()
     };
     let features_section = if module_has_distributed_subagent(module) {
         "[features]\ndefault = [\"populi-transport\"]\npopuli-transport = [\"vox-orchestrator/populi-transport\"]\n\n"
@@ -586,19 +765,12 @@ tokio = {{ version = "1", features = ["full"] }}
 serde = {{ version = "1", features = ["derive"] }}
 serde_json = "1"
 reqwest = {{ version = "0.12", default-features = false, features = ["rustls-tls"] }}
-vox-http-client = {{ path = "../../../crates/vox-http-client" }}
-tracing = "0.1"
+{vox_http_client_dep}tracing = "0.1"
 tracing-subscriber = "0.3"
 turso = {{ version = "0.6", default-features = false, features = ["sync"] }}
-vox-db = {{ path = "../../../crates/vox-db" }}
-vox-actor-runtime = {{ path = "../../../crates/vox-actor-runtime" }}
-vox-orchestrator = {{ path = "../../../crates/vox-orchestrator" }}
-vox-speech = {{ path = "../../../crates/vox-speech" }}
-{stt_dep}# P9 (2026-05-24): durable boot prelude — see vox-codegen emit/main_boot.rs.
+{vox_db_dep}{vox_actor_runtime_dep}{orchestrator_dep}{speech_dep}{stt_dep}# P9 (2026-05-24): durable boot prelude — see vox-codegen emit/main_boot.rs.
 # Tauri main.rs now emits the prelude (inside .setup) when @scheduled fns are present.
-vox-compiler = {{ path = "../../../crates/vox-compiler" }}
-vox-workflow-runtime = {{ path = "../../../crates/vox-workflow-runtime", default-features = false }}
-{fixture_deps}{rust_import_deps}
+{vox_compiler_dep}{vox_workflow_runtime_dep}{fixture_deps}{rust_import_deps}
 
 [dev-dependencies]
 proptest = "1"
@@ -608,6 +780,14 @@ proptest = "1"
         fixture_deps = fixture_deps,
         rust_import_deps = rust_import_deps,
         stt_dep = stt_dep,
+        orchestrator_dep = orchestrator_dep,
+        speech_dep = speech_dep,
+        vox_http_client_dep = vox_crate_dep_line("vox-http-client", "../../..", ""),
+        vox_db_dep =
+            vox_crate_dep_line("vox-db", "../../..", ", features = [\"host-integration\"]"),
+        vox_actor_runtime_dep = vox_crate_dep_line("vox-actor-runtime", "../../..", ""),
+        vox_compiler_dep = vox_crate_dep_line("vox-compiler", "../../..", ""),
+        vox_workflow_runtime_dep = workflow_runtime_deps("../../.."),
         mcp_bin = mcp_bin,
         edition = crate::codegen_rust::GENERATED_CARGO_EDITION,
     )
@@ -654,6 +834,16 @@ fn emit_rust_import_dependencies(module: &HirModule) -> String {
 pub fn emit_cargo_toml(name: &str, module: &HirModule) -> String {
     let rust_import_deps = emit_rust_import_dependencies(module);
     let fixture_deps = emit_generated_extra_deps(module);
+    let orchestrator_dep = if module_needs_vox_orchestrator(module) {
+        vox_crate_dep_line("vox-orchestrator", "../..", "")
+    } else {
+        String::new()
+    };
+    let speech_dep = if module_needs_vox_speech(module) {
+        vox_crate_dep_line("vox-speech", "../..", "")
+    } else {
+        String::new()
+    };
     let features_section = if module_has_distributed_subagent(module) {
         "[features]\ndefault = [\"populi-transport\"]\npopuli-transport = [\"vox-orchestrator/populi-transport\"]\n\n"
     } else {
@@ -695,24 +885,70 @@ governor = "0.10"
 rust-embed = "8"
 mime_guess = "2"
 reqwest = {{ version = "0.12", default-features = false, features = ["rustls-tls"] }}
-vox-http-client = {{ path = "../../crates/vox-http-client" }}
-tracing = "0.1"
+{vox_http_client_dep}tracing = "0.1"
 tracing-subscriber = "0.3"
 turso = {{ version = "0.6", default-features = false, features = ["sync"] }}
-vox-db = {{ path = "../../crates/vox-db" }}
-vox-actor-runtime = {{ path = "../../crates/vox-actor-runtime" }}
-vox-orchestrator = {{ path = "../../crates/vox-orchestrator" }}
-vox-speech = {{ path = "../../crates/vox-speech" }}
-# P9 (2026-05-24): durable boot prelude in main.rs references both — see
+{vox_db_dep}{vox_actor_runtime_dep}{orchestrator_dep}{speech_dep}# P9 (2026-05-24): durable boot prelude in main.rs references both — see
 # crates/vox-codegen/src/codegen_rust/emit/main_boot.rs (HirModule embed
 # + scheduled runner + set_current_hir_module).
-vox-compiler = {{ path = "../../crates/vox-compiler" }}
-vox-workflow-runtime = {{ path = "../../crates/vox-workflow-runtime", default-features = false }}
-{fixture_deps}{rust_import_deps}{mcp_bin}"#,
+{vox_compiler_dep}{vox_workflow_runtime_dep}{fixture_deps}{rust_import_deps}{mcp_bin}"#,
         features_section = features_section,
         fixture_deps = fixture_deps,
         rust_import_deps = rust_import_deps,
+        orchestrator_dep = orchestrator_dep,
+        speech_dep = speech_dep,
+        vox_http_client_dep = vox_crate_dep_line("vox-http-client", "../..", ""),
+        vox_db_dep = vox_crate_dep_line("vox-db", "../..", ", features = [\"host-integration\"]"),
+        vox_actor_runtime_dep = vox_crate_dep_line("vox-actor-runtime", "../..", ""),
+        vox_compiler_dep = vox_crate_dep_line("vox-compiler", "../..", ""),
+        vox_workflow_runtime_dep = workflow_runtime_deps("../.."),
         mcp_bin = mcp_bin,
         edition = crate::codegen_rust::GENERATED_CARGO_EDITION,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn format_dep_prefers_local_repo_root_when_present() {
+        let root = Path::new("/opt/vox-checkout");
+        let line = format_vox_crate_dep_line(
+            "vox-db",
+            Some(root),
+            Some("deadbeef1234"),
+            "../..",
+            ", features = [\"host-integration\"]",
+        );
+        assert_eq!(
+            line,
+            "vox-db = { path = \"/opt/vox-checkout/crates/vox-db\", features = [\"host-integration\"] }\n"
+        );
+    }
+
+    #[test]
+    fn format_dep_uses_git_rev_when_no_local_checkout_exists() {
+        let line = format_vox_crate_dep_line(
+            "vox-db",
+            None,
+            Some("deadbeef1234"),
+            "../..",
+            ", features = [\"host-integration\"]",
+        );
+        assert_eq!(
+            line,
+            "vox-db = { git = \"https://github.com/vox-foundation/vox.git\", rev = \"deadbeef1234\", features = [\"host-integration\"] }\n"
+        );
+    }
+
+    #[test]
+    fn format_dep_falls_back_to_relative_path_when_git_rev_unknown() {
+        let line =
+            format_vox_crate_dep_line("vox-actor-runtime", None, Some("unknown"), "../..", "");
+        assert_eq!(
+            line,
+            "vox-actor-runtime = { path = \"../../crates/vox-actor-runtime\" }\n"
+        );
+    }
 }

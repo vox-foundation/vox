@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/os-agent-computer-use-and-accessibility-tree-research-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "OS-Level Computer Use and Accessibility-Tree Semantic Grounding (2026)",
+  "summary": "Research on native OS accessibility APIs (macOS AXUIElement, Windows UIA, Linux AT-SPI2), vision-AX hybrid grounding, token serialization, adversarial defenses, multi-monitor geometry, Wayland protocols.",
+  "scope": ["OS accessibility APIs", "desktop automation", "computer use", "AXUIElement", "UI Automation", "AT-SPI2", "vision grounding", "Set-of-Marks", "security defenses", "multi-monitor"],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

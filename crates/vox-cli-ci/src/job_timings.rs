@@ -6,9 +6,8 @@
 //! startup wait (`started_at` is stamped when the runner picks the job up). Jobs
 //! that never started (queued/skipped) are ignored, per spec.
 //!
-//! Designed to run both on-demand (`vox ci job-timings`) and automatically after
-//! every CI run (see `.github/workflows/ci-timings.yml`, which passes
-//! `--run-id` and `--annotate` so slow jobs surface as GitHub check annotations).
+//! Designed to run on demand (`vox ci job-timings --run-id <id> --annotate`
+//! surfaces slow jobs as GitHub check annotations for a given run).
 
 use anyhow::{Context, Result, anyhow};
 use chrono::DateTime;
@@ -18,7 +17,6 @@ use std::process::Command;
 use crate::constants::REPO_SLUG;
 
 /// The budget: a CI job that *executes* longer than this is "too long" (10 min).
-/// SSOT for the threshold — mirrored as `THRESHOLD_SECS` in `ci-timings.yml`.
 pub const SLOW_JOB_THRESHOLD_SECS: i64 = 600;
 
 #[derive(Debug, Deserialize)]
@@ -117,9 +115,8 @@ fn parse_jobs(raw: &str) -> Vec<JobRow> {
 fn timings_from_rows(rows: &[JobRow]) -> Vec<JobTiming> {
     let mut t: Vec<JobTiming> = rows
         .iter()
-        // SSOT: cancelled-exclusion mirrored in .github/workflows/ci-timings.yml jq
-        // (keep the "cancelled" literal in sync). Concurrency-cancelled runs have
-        // truncated durations that skew the dataset.
+        // Concurrency-cancelled runs have truncated durations that skew the
+        // dataset.
         .filter(|j| j.conclusion.as_deref() != Some("cancelled"))
         .filter_map(|j| {
             run_seconds(j.started_at.as_deref(), j.completed_at.as_deref()).map(|secs| JobTiming {

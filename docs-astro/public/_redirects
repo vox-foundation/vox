@@ -21,9 +21,28 @@
 /reference/clavis-ssot               /reference/secrets-ssot/          301
 /reference/secrets-ssot.html          /reference/secrets-ssot/          301
 
-/architecture/research-index.html     /architecture/research-index/     301
+/architecture/research-index.html     /contributors/contributor-hub/    301
+/architecture/research-index          /contributors/contributor-hub/    301
+/architecture/research-index/         /contributors/contributor-hub/    301
+/architecture/architecture-index.html /contributors/contributor-hub/    301
+/architecture/architecture-index      /contributors/contributor-hub/    301
+/architecture/architecture-index/     /contributors/contributor-hub/    301
 
 /contributors/contributor-hub.html    /contributors/contributor-hub/    301
 
 # Legacy book/ prefix from old mdBook deployment
 /book/*                               /:splat                           301
+
+# /.well-known/llms.txt is a static copy of docs/src/.well-known/llms.txt
+# (setup-content.mjs). Do not add a _redirects rule for it — CF Pages
+# serves the static file first, so a redirect would never fire and would
+# imply the hand file and the Starlight-generated /llms.txt are the same.
+
+/reference/stability.html             /reference/stability/             301
+
+# P20-D8: Redirect retired research archive to retired notice page
+/archive/* /retired/ 301
+
+# P24-TRUST-03: Retire hand-committed .well-known/llms-full.txt in favor of single-source generated /llms-full.txt
+/.well-known/llms-full.txt   /llms-full.txt   301
+

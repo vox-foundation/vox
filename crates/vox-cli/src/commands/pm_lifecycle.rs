@@ -86,7 +86,8 @@ pub async fn resolve_lockfile_from_manifest_local(
             if strict {
                 anyhow::bail!(
                     "dependency `{name}` is not present in the local PM index (.vox_modules/local_store.db); \
-                     run `vox sync` after publishing or mirroring packages, or use a path/git dependency"
+                     there is no public VoxPM registry yet, so run `vox sync` after publishing or mirroring \
+                     packages yourself, or use a path/git dependency"
                 );
             }
             eprintln!("  ⚠ {name}: not in local registry, skipping (non-strict update mode)");

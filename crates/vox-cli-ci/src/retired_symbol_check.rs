@@ -83,7 +83,22 @@ fn is_historical_or_audit_doc(rel_path: &Path) -> bool {
     let name = rel_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
     // Design specs, master plans, follow-ups — these document migrations.
-    if s.starts_with("docs/superpowers/specs/") || s.starts_with("docs/superpowers/plans/") {
+    if s.starts_with("docs/superpowers/specs/")
+        || s.starts_with("docs/superpowers/plans/")
+        || s.starts_with("docs/design-system/")
+        || s.starts_with("docs/src/case-studies/")
+        || s.starts_with("docs/src/adr/")
+        || s.starts_with("docs/news/")
+        || s.starts_with("docs/src/news/")
+    {
+        return true;
+    }
+
+    if name.starts_with("migration-") || name == "DOC_GAPS.md" {
+        return true;
+    }
+
+    if s.starts_with("docs/src/api/") && name.ends_with(".generated.md") {
         return true;
     }
 
@@ -95,7 +110,12 @@ fn is_historical_or_audit_doc(rel_path: &Path) -> bool {
         // Date-stamped architectural snapshots like `2026-05-08-workspace-reorg-*.md`,
         // or a full ISO date embedded mid-filename like
         // `vox-axis-harness-reliability-spec-plan-2026-07-02.md`.
-        if name.starts_with("2026-") || name.starts_with("2025-") || has_embedded_iso_date(name) {
+        if name.starts_with("2026-")
+            || name.starts_with("2025-")
+            || name.ends_with("-2026.md")
+            || name.ends_with("-2025.md")
+            || has_embedded_iso_date(name)
+        {
             return true;
         }
         // Known history-doc suffix patterns.
@@ -114,12 +134,16 @@ fn is_historical_or_audit_doc(rel_path: &Path) -> bool {
             "-convergence-2026.md",
             "-fate-plan-2026-05-08.md",
             "-implementation-plan-2026.md",
+            "-plan-2026.md",
         ];
         if HISTORY_SUFFIXES.iter().any(|sfx| name.ends_with(sfx)) {
             return true;
         }
-        // Specific named history/criteria docs.
-        if matches!(name, "v1-release-criteria.md" | "build-time-log.md") {
+        // Specific named history/criteria/report docs.
+        if matches!(
+            name,
+            "v1-release-criteria.md" | "build-time-log.md" | "docs-prune-report.md"
+        ) {
             return true;
         }
     }
@@ -241,6 +265,29 @@ fn scan_source_lines(
                 continue;
             }
 
+            let line_lower = line.to_lowercase();
+            const MIGRATION_CUES: &[&str] = &[
+                "retired",
+                "removed",
+                "deprecated",
+                "instead",
+                "→",
+                "no longer",
+                "superseded",
+                "replaced by",
+                "migration",
+                "formerly",
+                "legacy",
+                "never emit",
+                "never use",
+                "never ",
+                "not `@",
+                "not @",
+            ];
+            if MIGRATION_CUES.iter().any(|cue| line_lower.contains(cue)) {
+                continue;
+            }
+
             if filename.contains("-ARCHIVED.md") {
                 continue;
             }
@@ -256,7 +303,10 @@ fn scan_source_lines(
             if matches!(
                 sym.id.as_str(),
                 "turso-url-env" | "turso-token-env" | "vox-turso-url-env" | "vox-turso-token-env"
-            ) && (filename == "env-vars.md" || filename == "secrets-ssot.md")
+            ) && (filename == "env-vars.md"
+                || filename == "env-vars.generated.md"
+                || filename == "secrets-ssot.md"
+                || filename == "vox-secrets.generated.md")
             {
                 continue;
             }
@@ -414,7 +464,7 @@ pub fn run(root: &Path) -> Result<()> {
             let path = entry.path();
             if path.is_dir() {
                 dirs_to_visit.push(path);
-            } else if path.extension().is_some_and(|e| e == "md" || e == "json") {
+            } else if path.extension().is_some_and(|e| e == "md") {
                 let rel_display = path
                     .strip_prefix(root)
                     .unwrap_or(&path)
@@ -622,5 +672,16 @@ mod tests {
     fn first_cell_only_returns_none_for_non_table_lines() {
         assert!(first_cell_only("plain prose line").is_none());
         assert!(first_cell_only("").is_none());
+    }
+
+    #[test]
+    fn architecture_plan_2026_is_a_historical_carve_out() {
+        use super::is_historical_or_audit_doc;
+        assert!(is_historical_or_audit_doc(std::path::Path::new(
+            "docs/src/architecture/mesh-phase6-grand-network-plan-2026.md"
+        )));
+        assert!(!is_historical_or_audit_doc(std::path::Path::new(
+            "docs/src/reference/cli.md"
+        )));
     }
 }

@@ -16,6 +16,11 @@
 //! - `GET  /v1/models`        — List loaded model
 //! - `POST /v1/generate`      — Legacy single-prompt generation
 //! - `POST /v1/completions`   — OpenAI-compatible completions endpoint
+//! - `POST /v1/chat/completions` — OpenAI-chat-shaped adapter (Task B2, MENS
+//!   end-to-end completion): flattens `messages[]`/`tools[]` onto the same
+//!   `do_generate` pipeline as the routes above and re-wraps the result into
+//!   `choices[].message`, including `tool_calls` when the model's reply is a
+//!   schema-valid, offered-tool-naming JSON object.
 
 mod config;
 #[cfg(feature = "execution-api")]
@@ -30,7 +35,9 @@ pub use config::ServeConfig;
 pub use prompt::validate_structured_output;
 #[cfg(feature = "execution-api")]
 #[allow(unused_imports)]
-pub use schema::{GenerateRequest, GenerateResponse};
+pub use schema::{
+    ChatCompletionRequest, ChatCompletionResponse, GenerateRequest, GenerateResponse,
+};
 
 use anyhow::Result;
 
@@ -106,11 +113,12 @@ fn run_serve_inner(config: &ServeConfig) -> Result<()> {
         .system_prompt
         .clone()
         .unwrap_or_else(vox_corpus::training::generate_training_system_prompt);
-    let tx = worker::spawn_inference_worker(config, &model_name, &system_prompt);
+    let (tx, ready) = worker::spawn_inference_worker(config, &model_name, &system_prompt);
 
     let state = handlers::AppState {
         tx,
         model_name: Arc::from(model_name.as_str()),
+        ready,
     };
 
     let app = Router::new()
@@ -120,10 +128,7 @@ fn run_serve_inner(config: &ServeConfig) -> Result<()> {
         .route("/v1/generate", post(handlers::do_generate))
         .route("/generate", post(handlers::do_generate))
         .route("/v1/completions", post(handlers::do_generate))
-        .route(
-            "/v1/completions/stream",
-            post(handlers::do_completions_stream),
-        )
+        .route("/v1/chat/completions", post(handlers::do_chat_completions))
         .with_state(state);
 
     let addr = format!("{}:{}", config.host, config.port);
@@ -160,7 +165,10 @@ fn run_serve_inner(config: &ServeConfig) -> Result<()> {
         "  Server would bind to http://{}:{}",
         config.host, config.port
     );
-    eprintln!("  Endpoints: GET /health, GET /ready, GET /v1/models, POST /v1/completions");
+    eprintln!(
+        "  Endpoints: GET /health, GET /ready, GET /v1/models, POST /v1/completions, \
+         POST /v1/chat/completions"
+    );
     Ok(())
 }
 
@@ -242,7 +250,7 @@ mod tests {
     #[test]
     fn serve_config_defaults() {
         let cfg = ServeConfig::default();
-        assert_eq!(cfg.port, 8080);
+        assert_eq!(cfg.port, 11435);
         assert_eq!(cfg.max_tokens, 256);
         assert!((cfg.temperature - 0.7).abs() < 1e-6);
         assert_eq!(cfg.host, "127.0.0.1");

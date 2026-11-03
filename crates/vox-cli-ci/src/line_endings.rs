@@ -146,20 +146,25 @@ fn resolve_diff_refs(
     repo_root: &Path,
     base_override: Option<&str>,
 ) -> Result<Option<(String, String)>> {
+    use vox_secrets::{SecretId, resolve_secret};
+    let head_ref = || {
+        resolve_secret(SecretId::VoxLineEndingsHead)
+            .expose()
+            .unwrap_or("HEAD")
+            .to_string()
+    };
     if let Some(b) = base_override.filter(|s| !s.is_empty()) {
-        let head = std::env::var("VOX_LINE_ENDINGS_HEAD").unwrap_or_else(|_| "HEAD".to_string());
-        return Ok(Some((b.to_string(), head)));
+        return Ok(Some((b.to_string(), head_ref())));
     }
-    if let Ok(b) = std::env::var("VOX_LINE_ENDINGS_BASE")
-        && !b.is_empty()
-    {
-        let head = std::env::var("VOX_LINE_ENDINGS_HEAD").unwrap_or_else(|_| "HEAD".to_string());
-        return Ok(Some((b, head)));
+    if let Some(b) = resolve_secret(SecretId::VoxLineEndingsBase).expose() {
+        return Ok(Some((b.to_string(), head_ref())));
     }
     let base_sha = std::env::var("GITHUB_BASE_SHA")
         .ok()
         .filter(|s| !s.is_empty());
-    let sha = std::env::var("GITHUB_SHA").ok().filter(|s| !s.is_empty());
+    let sha = resolve_secret(SecretId::VoxGithubSha)
+        .expose()
+        .map(str::to_string);
     if let (Some(b), Some(h)) = (base_sha, sha) {
         return Ok(Some((b, h)));
     }
@@ -250,7 +255,7 @@ pub fn check_bom(repo_root: &Path) -> anyhow::Result<()> {
         Ok(())
     } else {
         Err(anyhow::anyhow!(
-            "BOM violations ({} file(s)) — strip with `python -c \"import sys; open(f,'wb').write(open(f,'rb').read()[3:])\" <file>`:\n{}",
+            "BOM violations ({} file(s)) — strip with `tail -c +4 <file> > <file>.tmp && mv <file>.tmp <file>`:\n{}",
             violations.len(),
             violations.join("\n")
         ))
@@ -274,5 +279,58 @@ mod tests {
         assert!(extension_matches_policy(Path::new("bar.MD")));
         assert!(!extension_matches_policy(Path::new("x.ps1")));
         assert!(!extension_matches_policy(Path::new("bin.exe")));
+    }
+
+    #[test]
+    fn check_bom_flags_bom_and_ignores_clean_files() {
+        let dir = std::env::temp_dir().join(format!("vox-bom-check-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+
+        Command::new("git")
+            .args(["init", "-q"])
+            .current_dir(&dir)
+            .status()
+            .unwrap();
+        Command::new("git")
+            .args(["config", "user.email", "test@example.com"])
+            .current_dir(&dir)
+            .status()
+            .unwrap();
+        Command::new("git")
+            .args(["config", "user.name", "test"])
+            .current_dir(&dir)
+            .status()
+            .unwrap();
+
+        std::fs::write(dir.join("clean.txt"), b"no bom here\n").unwrap();
+        let mut bom_content = vec![0xEFu8, 0xBB, 0xBF];
+        bom_content.extend_from_slice(b"has a bom\n");
+        std::fs::write(dir.join("bommed.txt"), &bom_content).unwrap();
+
+        Command::new("git")
+            .args(["add", "."])
+            .current_dir(&dir)
+            .status()
+            .unwrap();
+
+        let err = check_bom(&dir).expect_err("BOM file should be flagged");
+        let msg = err.to_string();
+        assert!(msg.contains("bommed.txt"), "message was: {msg}");
+        assert!(!msg.contains("clean.txt"), "message was: {msg}");
+        assert!(
+            !msg.contains("python"),
+            "hint must not suggest python: {msg}"
+        );
+
+        std::fs::remove_file(dir.join("bommed.txt")).unwrap();
+        Command::new("git")
+            .args(["add", "."])
+            .current_dir(&dir)
+            .status()
+            .unwrap();
+        check_bom(&dir).expect("clean repo should pass");
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

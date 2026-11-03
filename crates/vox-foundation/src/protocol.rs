@@ -131,6 +131,13 @@ pub mod orch_daemon_method {
     /// real-time cognitive attention budget/threshold summary (T2.3 follow-up:
     /// `vox attention snapshot`). Mirrors `BudgetManager::attention_snapshot`.
     pub const ATTENTION_SNAPSHOT: &str = "orch.attention_snapshot";
+    /// Params: `{}` → the daemon's `BootReport` (`{"booted": [subsystem ids], "failed":
+    /// {subsystem id: error}}`) — which capability-profile subsystems this daemon booted.
+    /// Read by stdio `vox mcp` to filter `tools/list` (capability profiles plan 03).
+    pub const BOOT_REPORT: &str = "orch.boot_report";
+    /// Params: `{"path": "/models/cards?limit=10"}` → the `/api/v2` JSON envelope. GET-only;
+    /// runs the dashboard router in-process inside the daemon (Axis local mode).
+    pub const API_V2_GET: &str = "orch.api_v2_get";
 }
 
 pub mod dei_method {
@@ -151,11 +158,39 @@ pub mod dei_method {
     /// immediately while the daemon advances the session to a terminal
     /// `completed`/`failed` status in the background.
     pub const RESEARCH_RUN: &str = "research.run";
+    /// `research.persist_claims` — persist verified claims directly into VoxDB
+    /// `scientia_claims` / `scientia_research_fts`.
+    /// Params: `{"session_id": i64?, "claims": [...]}`.
+    pub const RESEARCH_PERSIST_CLAIMS: &str = "research.persist_claims";
+}
+
+/// Deserializes a JSON-RPC-style `id` that may be sent as either a string or
+/// a number, coercing either into a `String`. Some JSON-RPC clients emit
+/// numeric ids (the JSON-RPC 2.0 spec permits string, number, or null); a
+/// bare `id: String` field rejects those with a deserialize error instead of
+/// accepting the request. Always serializes back out as a string (matching
+/// this crate's existing wire shape); callers that need to echo the caller's
+/// original numeric-vs-string id distinction are not yet supported.
+fn deserialize_id_as_string<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum IdOrNumber {
+        String(String),
+        Number(serde_json::Number),
+    }
+    match IdOrNumber::deserialize(deserializer)? {
+        IdOrNumber::String(s) => Ok(s),
+        IdOrNumber::Number(n) => Ok(n.to_string()),
+    }
 }
 
 /// Outgoing request from thin clients to Dei-style JSON-line daemons.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DispatchRequest {
+    #[serde(deserialize_with = "deserialize_id_as_string")]
     pub id: String,
     pub method: String,
     pub params: Value,
@@ -185,6 +220,27 @@ pub struct DispatchRequest {
 pub struct DispatchResponse {
     pub id: String,
     pub payload: DispatchPayload,
+}
+
+/// Method ids for daemon-hosted terminal sessions (`vox-terminal-core::LocalHost`).
+/// Design: `docs/src/architecture/terminal-session-host-design-2026.md`.
+pub mod term_method {
+    /// Params: `{cols?, rows?}` → `{session_id}`.
+    pub const OPEN: &str = "term.open";
+    /// Params: `{}` → `[{session_id, blocks}]`.
+    pub const LIST: &str = "term.list";
+    /// Params: `{session_id}` → a push stream: one `snapshot` frame (blocks, base64
+    /// replay bytes, `seq`) then `output` / `block_*` / `agent` frames until the
+    /// session ends (`exit`) or the receiver lags (`lagged`; re-attach).
+    pub const ATTACH: &str = "term.attach";
+    /// Params: `{session_id, bytes_b64, origin?}` → `{}` (raw keystrokes to the PTY).
+    pub const INPUT: &str = "term.input";
+    /// Params: `{session_id, line, origin?}` → `{block_id}` (classified like typed input).
+    pub const SUBMIT: &str = "term.submit";
+    /// Params: `{session_id, cols, rows}` → `{}`.
+    pub const RESIZE: &str = "term.resize";
+    /// Params: `{session_id}` → `{}`.
+    pub const CLOSE: &str = "term.close";
 }
 
 /// Payload variants for streaming and final Dei responses.
@@ -228,4 +284,26 @@ pub enum DispatchPayload {
     Done {
         exit: i32,
     },
+}
+
+#[cfg(test)]
+mod dispatch_request_id_tests {
+    use super::*;
+
+    /// RED test: a JSON-RPC-style numeric `id` (permitted by the JSON-RPC 2.0
+    /// spec) must deserialize into `DispatchRequest`, not be rejected as a
+    /// type mismatch against a bare `id: String` field.
+    #[test]
+    fn numeric_id_deserializes_as_string() {
+        let json = r#"{"id":1,"method":"orch.ping","params":{}}"#;
+        let req: DispatchRequest = serde_json::from_str(json).expect("numeric id must parse");
+        assert_eq!(req.id, "1");
+    }
+
+    #[test]
+    fn string_id_still_deserializes() {
+        let json = r#"{"id":"abc","method":"orch.ping","params":{}}"#;
+        let req: DispatchRequest = serde_json::from_str(json).expect("string id must parse");
+        assert_eq!(req.id, "abc");
+    }
 }

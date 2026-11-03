@@ -8,7 +8,7 @@ use crate::ai::constants::*;
 pub enum FreeAiProvider {
     /// Local Ollama — zero auth, recommended default.
     Ollama {
-        /// URL of the local Ollama server (default: `http://localhost:11434`).
+        /// URL of the local Ollama server (default: resolved via `local_ollama_populi_base_url()`).
         #[serde(default = "default_ollama_url")]
         url: String,
         /// Model name to use (default: `codellama`).
@@ -40,7 +40,7 @@ pub enum FreeAiProvider {
 }
 
 fn default_ollama_url() -> String {
-    OLLAMA_DEFAULT_URL.to_string()
+    ollama_default_url()
 }
 fn default_ollama_model() -> String {
     OLLAMA_DEFAULT_MODEL.to_string()
@@ -76,5 +76,34 @@ impl FreeAiProvider {
                     .unwrap_or_else(|| OPENROUTER_FREE_MODELS[0].to_string()),
             ),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn name_is_human_readable_per_variant() {
+        assert_eq!(
+            FreeAiProvider::Pollinations.name(),
+            "Pollinations.ai (free)"
+        );
+        assert_eq!(
+            FreeAiProvider::Deterministic.name(),
+            "Deterministic (offline)"
+        );
+    }
+
+    #[test]
+    fn provider_and_model_reports_ollama_pair() {
+        let p = FreeAiProvider::Ollama {
+            url: "http://example:1234".to_string(),
+            model: "codellama".to_string(),
+        };
+        assert_eq!(
+            p.provider_and_model(),
+            ("ollama".to_string(), "codellama".to_string())
+        );
     }
 }

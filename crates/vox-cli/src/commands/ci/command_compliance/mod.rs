@@ -27,8 +27,8 @@ use registry::{
 };
 use validators::{
     check_catalog_feature_gates_match_registry, check_catalog_generation_smoke,
-    check_command_registry_embed_matches_disk, check_compilerd, check_dei,
-    check_dockerfiles_cargo_locked_policy, check_env_var_ssot_index,
+    check_catalog_top_level_command_presence, check_command_registry_embed_matches_disk,
+    check_compilerd, check_dei, check_dockerfiles_cargo_locked_policy, check_env_var_ssot_index,
     check_env_vars_doc_tokens_registered, check_feature_growth_boundaries_projection_gate,
     check_install_policy_surfaces, check_latin_alias_parity_with_catalog,
     check_mcp_http_read_role_governance, check_operator_docs_no_legacy_vox_install_pm_nudge,
@@ -123,6 +123,7 @@ pub fn run(repo_root: &Path) -> Result<()> {
     check_catalog_generation_smoke()?;
     check_command_registry_embed_matches_disk(repo_root)?;
     check_catalog_feature_gates_match_registry(&reg)?;
+    check_catalog_top_level_command_presence(&reg)?;
     command_sync::verify(repo_root)?;
     check_latin_alias_parity_with_catalog(repo_root, &lib_rs)?;
     check_root_readme_cli_drift(&root_readme)?;

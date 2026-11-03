@@ -1,0 +1,138 @@
+//! Loose semver normalization and half-open interval claim validity checking.
+
+use semver::{Version, VersionReq};
+
+/// Normalizes loose semver strings into a strict [`semver::Version`].
+///
+/// Supports:
+/// - Leading 'v', 'V', or '=' (e.g. "v1.25.0", "= 1.2.3")
+/// - 1-part versions ("2" -> "2.0.0")
+/// - 2-part versions ("1.0" -> "1.0.0")
+/// - 3-part versions with optional prerelease and build metadata ("v2.1.0-alpha.1")
+pub fn normalize_semver(s: &str) -> Option<Version> {
+    let mut s = s.trim();
+    if let Some(rest) = s.strip_prefix('=') {
+        s = rest.trim();
+    }
+    if let Some(rest) = s.strip_prefix('v').or_else(|| s.strip_prefix('V')) {
+        s = rest.trim();
+    }
+    if let Some(rest) = s.strip_prefix('=') {
+        s = rest.trim();
+    }
+
+    if let Ok(v) = Version::parse(s) {
+        return Some(v);
+    }
+
+    let (ver_core, extra) = if let Some(idx) = s.find(['-', '+']) {
+        (&s[..idx], Some(&s[idx..]))
+    } else {
+        (s, None)
+    };
+
+    let parts: Vec<&str> = ver_core.split('.').collect();
+    let padded = match parts.len() {
+        1 if !parts[0].is_empty() => format!("{}.0.0", parts[0]),
+        2 => format!("{}.{}.0", parts[0], parts[1]),
+        3 => format!("{}.{}.{}", parts[0], parts[1], parts[2]),
+        _ => return None,
+    };
+
+    let reconstructed = match extra {
+        Some(ext) => format!("{}{}", padded, ext),
+        None => padded,
+    };
+
+    Version::parse(&reconstructed).ok()
+}
+
+/// Evaluates whether a claim is valid for a given target version according to:
+/// 1. An optional semver requirement (e.g. "^1.2")
+/// 2. A half-open interval `[valid_since, valid_until)`
+///
+/// Returns `Err(String)` if `target_version_str` or `version_req` cannot be parsed.
+pub fn is_claim_valid_at_version(
+    valid_since: Option<&str>,
+    valid_until: Option<&str>,
+    version_req: Option<&str>,
+    target_version_str: &str,
+) -> Result<bool, String> {
+    let target = normalize_semver(target_version_str)
+        .ok_or_else(|| format!("Invalid target version: '{target_version_str}'"))?;
+
+    if let Some(req_str) = version_req {
+        let req = VersionReq::parse(req_str)
+            .map_err(|e| format!("Invalid version requirement '{req_str}': {e}"))?;
+        if !req.matches(&target) {
+            return Ok(false);
+        }
+    }
+
+    if let Some(since_str) = valid_since
+        && let Some(since) = normalize_semver(since_str)
+        && target < since
+    {
+        return Ok(false);
+    }
+
+    if let Some(until_str) = valid_until
+        && let Some(until) = normalize_semver(until_str)
+        && target >= until
+    {
+        return Ok(false);
+    }
+
+    Ok(true)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalize_semver_pads_and_strips_prefixes() {
+        assert_eq!(normalize_semver("2").unwrap(), Version::new(2, 0, 0));
+        assert_eq!(normalize_semver("1.0").unwrap(), Version::new(1, 0, 0));
+        assert_eq!(normalize_semver("v1.25.0").unwrap(), Version::new(1, 25, 0));
+        assert_eq!(normalize_semver("= 1.2.3").unwrap(), Version::new(1, 2, 3));
+        assert!(normalize_semver("not-a-version").is_none());
+    }
+
+    #[test]
+    fn is_claim_valid_at_version_checks_half_open_interval_and_req() {
+        // Within [1.0.0, 2.0.0)
+        assert_eq!(
+            is_claim_valid_at_version(Some("1.0.0"), Some("2.0.0"), None, "1.5.0"),
+            Ok(true)
+        );
+        // At the exclusive upper bound (until is excluded from the interval)
+        assert_eq!(
+            is_claim_valid_at_version(Some("1.0.0"), Some("2.0.0"), None, "2.0.0"),
+            Ok(false)
+        );
+        // Before the lower bound
+        assert_eq!(
+            is_claim_valid_at_version(Some("1.0.0"), None, None, "0.9.0"),
+            Ok(false)
+        );
+        // version_req excludes the target
+        assert_eq!(
+            is_claim_valid_at_version(None, None, Some("^2.0"), "1.5.0"),
+            Ok(false)
+        );
+        // Unparseable target version
+        assert!(is_claim_valid_at_version(None, None, None, "nonsense").is_err());
+    }
+
+    #[test]
+    fn claim_validity_is_half_open_interval() {
+        let at = |v| is_claim_valid_at_version(Some("1.2"), Some("v2"), None, v).unwrap();
+        assert!(!at("1.1.9"));
+        assert!(at("1.2.0"));
+        assert!(at("1.9.9"));
+        assert!(!at("2.0.0"));
+        assert!(is_claim_valid_at_version(Some("not-a-version"), None, None, "0.1.0").unwrap());
+        assert_eq!(normalize_semver("= v1.0"), normalize_semver("1.0.0"));
+    }
+}

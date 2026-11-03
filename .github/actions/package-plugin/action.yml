@@ -1,0 +1,60 @@
+name: package-plugin
+description: >-
+  Zip a built code-plugin cdylib and its Plugin.toml into the flat
+  `<id>-v<version>-<plugin triple>.zip` that `vox plugin install` fetches.
+  Flat by construction: install_from_path reads only top-level files, so a
+  nested entry would extract fine and then be silently ignored. Expects the
+  cdylib at target/<rust-target>/dist/<lib> (a `--profile dist --target` build).
+
+inputs:
+  crate:
+    description: Workspace package, e.g. vox-plugin-speech (its crate dir holds Plugin.toml).
+    required: true
+  id:
+    description: Plugin id from Plugin.toml, e.g. oratio.
+    required: true
+  triple:
+    description: Plugin triple key from Plugin.toml's artifacts table, e.g. linux-x86_64.
+    required: true
+  rust-target:
+    description: Rust target triple the cdylib was built for.
+    required: true
+  lib:
+    description: The artifact filename Plugin.toml declares for this triple.
+    required: true
+
+outputs:
+  zip:
+    description: Path of the packaged zip, relative to the workspace.
+    value: ${{ steps.pack.outputs.zip }}
+
+runs:
+  using: composite
+  steps:
+    - id: pack
+      shell: bash
+      env:
+        CRATE: ${{ inputs.crate }}
+        PLUGIN_ID: ${{ inputs.id }}
+        TRIPLE: ${{ inputs.triple }}
+        RUST_TARGET: ${{ inputs.rust-target }}
+        LIB: ${{ inputs.lib }}
+      run: |
+        set -euo pipefail
+        version="$(cargo pkgid -p "$CRATE" | sed -E 's/.*[#@]//')"
+        staging="$(mktemp -d)"
+        cp "crates/$CRATE/Plugin.toml" "$staging/"
+        cp "target/$RUST_TARGET/dist/$LIB" "$staging/"
+        mkdir -p dist
+        zip="dist/${PLUGIN_ID}-v${version}-${TRIPLE}.zip"
+        if [ "$RUNNER_OS" = "Windows" ]; then
+          pwsh -NoProfile -Command "Compress-Archive -Path '$(cygpath -w "$staging")\\*' -DestinationPath '$zip' -Force"
+        else
+          # The self-hosted Linux runner image does not ship zip.
+          if ! command -v zip >/dev/null; then
+            sudo apt-get update -y && sudo apt-get install -y zip
+          fi
+          zip -j "$zip" "$staging"/*
+        fi
+        echo "zip=$zip" >> "$GITHUB_OUTPUT"
+        echo "Packaged: $zip"

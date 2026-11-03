@@ -4,6 +4,15 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
+/// Atomic outcome of waiting for a durable workflow signal.
+#[derive(Debug, Clone, PartialEq)]
+pub enum SignalDecision {
+    /// A pending signal was consumed with its journal-JSON payload.
+    Consumed(Value),
+    /// No signal was pending, so the workflow run was parked.
+    Parked,
+}
+
 /// An engine tracker that allows the interpreted runner to persist durable states.
 pub trait WorkflowTracker: Send + Sync {
     /// Check if a specific step was already completed in a prior, durable run.
@@ -13,6 +22,15 @@ pub trait WorkflowTracker: Send + Sync {
         _activity_id: &str,
     ) -> impl std::future::Future<Output = anyhow::Result<bool>> + Send {
         async { Ok(false) }
+    }
+
+    /// Return whether an activity id has already been recorded in this run.
+    fn is_activity_recorded(
+        &self,
+        workflow_name: &str,
+        activity_id: &str,
+    ) -> impl std::future::Future<Output = anyhow::Result<bool>> + Send {
+        self.is_activity_completed(workflow_name, activity_id)
     }
 
     /// Load the stored result payload for a completed durable step, when available.
@@ -115,14 +133,23 @@ pub trait WorkflowTracker: Send + Sync {
         async { Ok(None) }
     }
 
-    /// Persist the chosen version for a `workflow.version` patch marker.
+    /// Persist the chosen version for a `workflow.version` patch marker and
+    /// return the canonical stored version.
+    ///
+    /// This is a first-write-wins decision keyed by `(workflow_name,
+    /// change_id)`: a concurrent caller may have already recorded a
+    /// *different* version for this exact key before this call lands. The
+    /// caller MUST use the returned value, not the `_version` argument it
+    /// passed in — the default (stateless) implementation has no prior
+    /// decision to lose a race against, so it always echoes `_version`
+    /// back unchanged.
     fn record_workflow_patch(
         &mut self,
         _workflow_name: &str,
         _change_id: &str,
         _version: u32,
-    ) -> impl std::future::Future<Output = anyhow::Result<()>> + Send {
-        async { Ok(()) }
+    ) -> impl std::future::Future<Output = anyhow::Result<u32>> + Send {
+        async move { Ok(_version) }
     }
 
     /// P2-T5: try the activity result cache. `Ok(None)` for miss; `Ok(Some(_))`
@@ -146,6 +173,66 @@ pub trait WorkflowTracker: Send + Sync {
         _dedup_window_ms: u64,
     ) -> impl std::future::Future<Output = anyhow::Result<()>> + Send {
         async { Ok(()) }
+    }
+
+    /// G27: persist the workflow's call arguments (journal-JSON) on the run
+    /// row at start, so a crashed/resumed run can be inspected or replayed
+    /// without the original caller. Default: no-op (non-durable tracker).
+    fn persist_run_args(
+        &mut self,
+        _args_json: &Value,
+    ) -> impl std::future::Future<Output = anyhow::Result<()>> + Send {
+        async { Ok(()) }
+    }
+
+    /// Load the previously persisted call arguments for the current run, when
+    /// available. Default: `None` (non-durable tracker).
+    fn load_run_args(
+        &self,
+    ) -> impl std::future::Future<Output = anyhow::Result<Option<Value>>> + Send {
+        async { Ok(None) }
+    }
+
+    /// Return the current durable run status, or `None` for a new/non-durable run.
+    fn run_status(
+        &self,
+    ) -> impl std::future::Future<Output = anyhow::Result<Option<String>>> + Send {
+        async { Ok(None) }
+    }
+
+    /// Return whether a previously parked timer is now ready, consuming its
+    /// persisted wake marker when it is.
+    fn consume_ready_timer(
+        &mut self,
+        _now_ms: i64,
+    ) -> impl std::future::Future<Output = anyhow::Result<bool>> + Send {
+        async { Ok(false) }
+    }
+
+    /// Persisted timer deadline for this run, if a wake is still outstanding.
+    ///
+    /// Used on `Wait` replay: a future `wake_at_ms` must be re-parked as-is,
+    /// not recomputed as `now + deadline`. Default: no persisted deadline.
+    fn persisted_wake_at_ms(
+        &self,
+    ) -> impl std::future::Future<Output = anyhow::Result<Option<i64>>> + Send {
+        async { Ok(None) }
+    }
+
+    /// Park the current workflow run until the absolute wall-clock deadline.
+    fn park_timer(
+        &mut self,
+        _wake_at_ms: i64,
+    ) -> impl std::future::Future<Output = anyhow::Result<()>> + Send {
+        async { Ok(()) }
+    }
+
+    /// Atomically consume a pending signal payload or park the current run.
+    fn consume_or_park_signal(
+        &mut self,
+        _key: &str,
+    ) -> impl std::future::Future<Output = anyhow::Result<SignalDecision>> + Send {
+        async { Ok(SignalDecision::Parked) }
     }
 }
 

@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mac-hub-qwen3-quantization-pipeline-decision-2026-09-05.md",
+  "type": "SPEC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "Mac-as-hub, Qwen3, and the quantization ladder — a decision record (2026-09-05)",
+  "summary": "Establishes Mac hub / 4080 spoke topology, Qwen3-32B base, quantization ladder tiers, unified-memory safety reserve requirement.",
+  "scope": ["hub-and-spoke topology", "Qwen3-32B base model", "quantization ladder", "Metal training", "unified memory safety", "Q4_K_M/Q5_K_M/Q6_K/Q8_0 rungs"],
+  "cross_refs": ["docs/superpowers/specs/2026-09-06-macos-mens-training-lane-design.md", "docs/src/adr/043-quantized-safetensors-ondisk-format.md", "voxmens-hub-and-spoke-ssot-research-2026-06-18.md", "voxmens-serving-topology-decision-2026-06-19.md", "vox-efficacy-benchmark-execution-handoff-2026-09-04.md", "mesh-mens-distributed-training-and-execution-plan-2026.md", "docs/superpowers/plans/2026-09-05-mens-mac-training-enablement.md", "burn-necessity-audit-2026-05-08.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Document is structured as decision record with revision history, but lacks formal ADR Status field. Contains extensive background (§1-4), explicit Decision section (§3 with topology/base-model/quantization subsections), and action items (§6). Classified as SPEC rather than ADR because it establishes technical architecture and contracts (ladder mappings, hardware sizing formulas) rather than a single locked decision point; status='current' not Accepted."
+}

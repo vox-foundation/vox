@@ -18,12 +18,13 @@ use vox_db::Codex;
 use crate::companion::{Companion, Mood, Personality};
 use crate::config_gate;
 use crate::db::{
-    canonical_user_id, get_companion, get_teaching_profile, insert_event, log_hint_event,
-    process_event_rewards, try_claim_processed_event, upsert_companion, upsert_teaching_profile,
+    canonical_user_id, get_companion, get_teaching_profile, process_event_rewards,
+    try_claim_processed_event, upsert_companion, upsert_teaching_profile,
 };
 use crate::sprite_svg::{AgentPose, character_for_agent, generate_svg};
 use crate::teaching::{MistakeKind, TeachingProfile};
 use crate::util::now_unix;
+use vox_db::ops_agent_telemetry::insert_event;
 
 /// Extract (agent_id_u64, event_type_str) from a serialised `AgentEventKind` value.
 fn parse_agent_event(event_json: &serde_json::Value) -> (u64, &str) {
@@ -222,18 +223,8 @@ async fn teaching_hook(db: &Codex, user_id: &str, event_type: &str) -> Result<()
         .unwrap_or_else(|_| TeachingProfile::new(user_id));
     let freq =
         config_gate::mode().hint_frequency() * config_gate::experiment_hint_frequency_multiplier();
-    let req = profile.record_mistake(kind, freq);
+    let _ = profile.record_mistake(kind, freq);
     let _ = upsert_teaching_profile(db, &profile).await;
-    if req.is_some() {
-        let _ = log_hint_event(
-            db,
-            user_id,
-            &format!("{kind:?}"),
-            "shown",
-            Some("route_event"),
-        )
-        .await;
-    }
     Ok(())
 }
 

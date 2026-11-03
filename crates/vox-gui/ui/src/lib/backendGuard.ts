@@ -49,7 +49,7 @@ export class BackendUnavailableError extends Error {
  * invoke_mcp_tool (underscore is a word char); prose like "failed to invoke X"
  * degrades to the generic message, which is acceptable.
  */
-const LEAK_PATTERN = /__TAURI_INTERNALS__|\binvoke\b/;
+export const LEAK_PATTERN = /__TAURI_INTERNALS__|\binvoke\b/;
 
 export function sanitizeErrorForToast(err: unknown): string {
   if (err instanceof BackendUnavailableError) return err.message;

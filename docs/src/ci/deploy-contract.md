@@ -11,14 +11,21 @@ This document outlines the deployment contract and automated CI/CD pipeline for 
 
 Deploys are managed by the `.github/workflows/deploy-hetzner.yml` GitHub Actions workflow. The workflow is triggered automatically on `push: main`.
 
-```mermaid
-graph TD
-  A[Push to main] --> B[smoke-ci]
-  B -->|Success or skipped| D[deploy-coolify]
-  D -->|Poll & verify| E[health-check]
-  E --> F[notify]
-  D -->|Failure| G[Fetch logs & artifact]
-  G --> F
+```vox-diagram
+graph {
+    node A: "Push to main"
+    node B: "smoke-ci"
+    node D: "deploy-coolify"
+    node E: "health-check"
+    node F: "notify"
+    node G: "Fetch logs & artifact"
+    A -> B
+    B -> D: "Success or skipped"
+    D -> E: "Poll & verify"
+    E -> F
+    D -> G: "Failure"
+    G -> F
+}
 ```
 
 ## Gate 1 — Deploy smoke (minimal)

@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/burn-necessity-audit-2026-05-08.md",
+  "type": "DOC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "Burn Framework Necessity Audit (2026-05-08)",
+  "summary": "Audit of Burn framework usage in Vox codebase; production fine-tuning uses Candle, Burn is legacy dogfood + 4,526 LOC behind feature flag. Proposes three options (delete/plugin/status-quo) with recommendation.",
+  "scope": ["Burn", "Candle", "fine-tuning", "ML frameworks", "GPU training"],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": "Audit document with recommendation tree (three options) but decision was already executed: frontmatter intro states 'Status: EXECUTED 2026-05-08. Burn deleted per Option A.' Document presents the audit and options, but actual decision (Option A chosen) was made and executed outside this document. Frontmatter status=deprecated."
+}

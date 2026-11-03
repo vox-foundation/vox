@@ -157,11 +157,12 @@ pub enum PopuliAction {
         /// Candle QLoRA: reserved/deferred partial-depth flag; values below model depth are currently rejected by trainer.
         #[arg(long)]
         qlora_proxy_max_layers: Option<usize>,
-        /// Candle QLoRA: next-token CE on the last **K** positions per JSONL row (default 64). Capped by effective `--seq-len` and 64.
-        #[arg(long, default_value_t = 64)]
+        /// Candle QLoRA: restrict next-token CE to the last **K** positions of each row (still masked to the
+        /// assistant turn). Default 0 = supervise the whole assistant response. Capped by effective `--seq-len` and 64.
+        #[arg(long, default_value_t = 0)]
         qlora_ce_last_k: usize,
-        /// Steps between mid-epoch checkpoints. Saves adapter and resume state to `--output-dir/checkpoint_state.json`.
-        #[arg(long)]
+        /// Steps between mid-epoch checkpoints. Saves adapter and resume state to `--output-dir/checkpoint_state.json`. Default: 500.
+        #[arg(long, default_value = "500")]
         checkpoint_every: Option<usize>,
         /// Fraction (0.0–1.0) of training pairs held out for mid-epoch validation. Default 0.05.
         #[arg(long, default_value_t = 0.05)]
@@ -358,6 +359,32 @@ pub enum PopuliAction {
         /// Show detailed hardware metadata and recommended hyperparameter presets.
         #[arg(long, short = 'd')]
         detailed: bool,
+        /// HF Hub model to check with `--detailed`: the dry run of `vox mens
+        /// train --model <repo>` — downloads (or reuses the cached) model
+        /// and reports the real `sweep`/`plan_for` fit verdict against this
+        /// host's actual memory budget, instead of a VRAM-only estimate.
+        #[arg(long)]
+        model: Option<String>,
+        /// Report this host's real accelerator memory budget (working-set /
+        /// max single-allocation bytes) as a calibration measurement — the
+        /// fix named by an "uncalibrated lane" error from `vox mens train`.
+        #[arg(long)]
+        measure: bool,
+        /// Sweep batch sizes at a fixed --seq-len and print the largest one
+        /// that fits this host's real memory budget for --model-dir, using
+        /// the same `plan_for`/`sweep` memory model `vox mens train` uses.
+        #[arg(long)]
+        sweep: bool,
+        /// Local model directory (config.json + *.safetensors) to size for
+        /// `--sweep`.
+        #[arg(long)]
+        model_dir: Option<PathBuf>,
+        /// Fixed sequence length to sweep batch sizes at.
+        #[arg(long, default_value_t = 512)]
+        seq_len: u64,
+        /// Enable the gradient-checkpointing calibration cell for --sweep.
+        #[arg(long)]
+        gradient_checkpointing: bool,
     },
 
     /// Show training run status or BYOK quota usage
@@ -418,11 +445,37 @@ pub enum PopuliAction {
         /// (q4_k_m|q5_k_m|q6_k|q8_0). Writes a quantized artifact next to --output.
         #[arg(long)]
         quantize: Option<String>,
+        /// Keep `recombined_full/` (merged SafeTensors + config + tokenizer +
+        /// Modelfile) so `ollama create -q q4_K_M <name> -f Modelfile` can
+        /// consume it. Without this the directory is deleted after quantizing.
+        #[arg(long, default_value_t = false)]
+        keep_merged: bool,
+        /// Write a quantized GGUF here via llama.cpp. Required for Qwen3
+        /// bases, which `ollama create` refuses. Implies --keep-merged.
+        #[arg(long)]
+        gguf_out: Option<PathBuf>,
+        /// Path to a cloned and built llama.cpp checkout (provides
+        /// convert_hf_to_gguf.py and llama-quantize). Required with
+        /// --gguf-out. A flag rather than an env var: the checkout is a
+        /// per-invocation input, and a new VOX_* var would need rows in
+        /// registry.v1.yaml, env-vars.v1.yaml and config-registry-baseline.txt
+        /// plus bumps to two exact-count config gates.
+        #[arg(long, requires = "gguf_out")]
+        llama_cpp: Option<PathBuf>,
+        /// Provenance override: license class for the Ollama Modelfile's `LICENSE`
+        /// block (only consulted with `--keep-merged`). Overrides the base model's
+        /// resolved `license:` entry in `mens/config/gpu-specs.yaml`; required when
+        /// the base has no such entry (hard error otherwise, never a silent default).
+        #[arg(long)]
+        license_class: Option<String>,
     },
 
     /// Export merged safetensors weights to GGUF (not yet implemented).
     ///
-    /// Prerequisite: run `vox mens merge-qlora` to produce merged `.safetensors` first.
+    /// Prerequisite: run `vox mens merge-qlora` to produce merged `.safetensors`
+    /// first. `merge-qlora` is only available in GPU-enabled builds (`--features
+    /// gpu`, or the `gpu` distribution bundle) — it does not appear in a
+    /// non-GPU build's `vox mens --help`.
     #[command(name = "export-gguf")]
     ExportGguf {
         /// Merged safetensors path (output of `merge-qlora`).
@@ -537,9 +590,15 @@ pub enum PopuliAction {
     #[cfg(feature = "gpu")]
     #[command(name = "eval-local")]
     EvalLocal {
-        /// Path to model checkpoint (.safetensors from `vox mens train`)
-        #[arg(long, required = true)]
-        model: PathBuf,
+        /// Path to model checkpoint (.safetensors from `vox mens train`).
+        /// Exactly one of `--model`/`--base` is required.
+        #[arg(long)]
+        model: Option<PathBuf>,
+        /// Path to a base-model snapshot directory (no adapter present) —
+        /// produces the baseline side of a pass@k/BFCL candidate-vs-base
+        /// comparison. Exactly one of `--model`/`--base` is required.
+        #[arg(long)]
+        base: Option<PathBuf>,
         /// Path to heldout benchmark directory (default: mens/data/heldout_bench)
         #[arg(long, default_value = "mens/data/heldout_bench")]
         bench: PathBuf,
@@ -549,9 +608,13 @@ pub enum PopuliAction {
         /// Sampling temperature (0.0 = greedy)
         #[arg(long, default_value = "0.0")]
         temperature: f32,
-        /// Number of samples per benchmark item for pass@k (k)
+        /// Samples drawn per benchmark item (n). All n are always drawn; pass@k
+        /// uses the unbiased estimator.
         #[arg(long, default_value = "1")]
         samples: usize,
+        /// k for pass@k; must satisfy 1 <= k <= --samples
+        #[arg(long, default_value = "1")]
+        k: usize,
         /// Base RNG seed for sampled generations (used when temperature > 0)
         #[arg(long, default_value = "1337")]
         seed_base: u64,
@@ -559,6 +622,10 @@ pub enum PopuliAction {
         #[arg(short = 'o', long)]
         output: Option<PathBuf>,
     },
+
+    /// Hugging Face Hub operations (upload / download model artifacts)
+    #[command(subcommand)]
+    Hub(crate::commands::mens::hub::HubAction),
 
     #[command(flatten)]
     MensTail(super::mens_tail_subcommands::PopuliMensTail),

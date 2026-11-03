@@ -25,4 +25,12 @@ describe('EmptyState Primitive', () => {
     expect(onPrimary).toHaveBeenCalledTimes(1);
     expect(onSecondary).toHaveBeenCalledTimes(1);
   });
+
+  it('renders the title as h3 by default and as h2 when headingLevel is 2', () => {
+    const { unmount } = render(<EmptyState title="Default level" />);
+    expect(screen.getByRole('heading', { level: 3, name: 'Default level' })).toBeInTheDocument();
+    unmount();
+    render(<EmptyState title="Raised" headingLevel={2} />);
+    expect(screen.getByRole('heading', { level: 2, name: 'Raised' })).toBeInTheDocument();
+  });
 });

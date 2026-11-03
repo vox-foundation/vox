@@ -277,7 +277,7 @@ impl Orchestrator {
             let db_opt = crate::sync_lock::rw_read(&*self.db).clone();
             if let Some(db) = db_opt {
                 let monthly_usage: i64 =
-                    vox_gamify::db::get_tenant_monthly_token_usage(&db, tenant_id)
+                    vox_db::ops_agent_telemetry::get_tenant_monthly_token_usage(&db, tenant_id)
                         .await
                         .unwrap_or(0);
                 let estimated_tokens = task.estimated_token_count();
@@ -645,7 +645,7 @@ impl Orchestrator {
                                     && n.quarantined != Some(true)
                                     && n.capabilities
                                         .min_vram_mb
-                                        .map_or(false, |v| v >= required_vram)
+                                        .is_some_and(|v| v >= required_vram)
                             });
                             if !fits {
                                 tracing::info!(
@@ -811,7 +811,7 @@ impl Orchestrator {
                         self.attach_goal_search_context_with_retrieval(
                             task_id,
                             &lineage_desc_preview,
-                            &file_manifest,
+                            file_manifest,
                         )
                         .await;
                     }
@@ -858,8 +858,6 @@ impl Orchestrator {
                         // when a script-dispatch sender populates these.
                         exec_source_b64: None,
                         exec_source_blake3_hex: None,
-                        exec_bundle_b64: None,
-                        exec_bundle_blake3_hex: None,
                     };
                     let relay_client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(
                         &base,
@@ -1114,8 +1112,6 @@ impl Orchestrator {
                         bundle_inline_b64: None,
                         exec_source_b64: None,
                         exec_source_blake3_hex: None,
-                        exec_bundle_b64: None,
-                        exec_bundle_blake3_hex: None,
                     };
                     if let Err(err) = crate::a2a::relay_remote_task_envelope(
                         &client,

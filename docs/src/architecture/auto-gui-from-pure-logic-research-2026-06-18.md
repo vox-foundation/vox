@@ -2,8 +2,9 @@
 title: "Automatic GUIs from Pure Logic — Feasibility Research"
 description: "Prior art, feasibility, gains, and limits of deriving user interfaces automatically from program types/logic/data structures, with a Vox-specific gap analysis. Confirms type-driven and naked-objects UI generation as production-proven within the structurally-regular envelope."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
+training_rationale: "Project architecture and research context."
 ---
 
 # Automatic GUIs from Pure Logic — Feasibility Research

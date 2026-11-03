@@ -28,7 +28,7 @@ pub(crate) fn built_binary_path(repo_root: &Path, target: &str, bin: &str) -> Pa
 
 /// Crates the release builder shells `cargo build -p` for. Asserted against the
 /// workspace by `every_release_package_exists_in_the_workspace`.
-pub(crate) const RELEASE_PACKAGES: &[&str] = &["vox-cli", "vox-ml-cli", "vox-langtool"];
+pub(crate) const RELEASE_PACKAGES: &[&str] = &["vox-cli", "vox-ml-cli", "vox-langtool", "vox-lsp"];
 
 pub(crate) fn validate_release_target(target: &str) -> Result<()> {
     if SUPPORTED_RELEASE_TARGETS.contains(&target) {
@@ -58,6 +58,7 @@ pub fn run(
     let want_vox = matches!(package, ReleasePackage::Vox | ReleasePackage::All);
     let want_mens = matches!(package, ReleasePackage::Mens | ReleasePackage::All);
     let want_langtool = matches!(package, ReleasePackage::Langtool | ReleasePackage::All);
+    let want_lsp = matches!(package, ReleasePackage::Lsp | ReleasePackage::All);
 
     if want_vox {
         let artifact_name = build_and_package_binary(
@@ -96,6 +97,20 @@ pub fn run(
             "vox-langtool",
             &langtool_bin,
             "vox-langtool",
+        )?;
+        let digest = sha256_file(&out_dir_abs.join(&artifact_name))?;
+        checksum_lines.push(checksum_line(&digest, &artifact_name));
+    }
+    if want_lsp {
+        let lsp_bin = plugin_executable_name(target, "vox-lsp");
+        let artifact_name = build_and_package_binary(
+            repo_root,
+            out_dir_abs.as_path(),
+            target,
+            artifact_version,
+            "vox-lsp",
+            &lsp_bin,
+            "vox-lsp",
         )?;
         let digest = sha256_file(&out_dir_abs.join(&artifact_name))?;
         checksum_lines.push(checksum_line(&digest, &artifact_name));
@@ -139,6 +154,22 @@ fn plugin_executable_name(target: &str, plugin: &str) -> String {
     }
 }
 
+/// Optional cargo features a shipped binary re-enables.
+///
+/// - `vox`: full on-disk retrieval (tantivy full-text + web-scrape) sits behind
+///   `heavy-retrieval`, OFF by default so lean dev/CI/mobile builds stay slim
+///   (WS2-T3).
+/// - `vox-ml-cli`: `oratio` (`vox oratio`, including `serve`). It adds only pure-Rust
+///   audio decoding (symphonia, rubato) and vox-speech; Candle Whisper stays in the
+///   `oratio` plugin.
+fn release_features(package_name: &str) -> Option<&'static str> {
+    match package_name {
+        "vox-cli" => Some("heavy-retrieval"),
+        "vox-ml-cli" => Some("oratio"),
+        _ => None,
+    }
+}
+
 fn build_and_package_binary(
     repo_root: &Path,
     out_dir_abs: &Path,
@@ -166,12 +197,8 @@ fn build_and_package_binary(
         "--target",
         target,
     ]);
-    // The shipped `vox` binary keeps full on-disk retrieval (tantivy full-text +
-    // web-scrape). That stack is gated behind the `heavy-retrieval` feature, which
-    // is OFF by default so lean dev/CI/mobile builds stay slim (WS2-T3). Re-enable
-    // it here so end users are unaffected. Other packages don't have the feature.
-    if package_name == "vox-cli" {
-        cmd.args(["--features", "heavy-retrieval"]);
+    if let Some(features) = release_features(package_name) {
+        cmd.args(["--features", features]);
     }
     let status = cmd
         .status()
@@ -385,6 +412,136 @@ mod tests {
         }
     }
 
+    /// Shipped binaries re-enable the optional features end users rely on: full
+    /// retrieval in `vox`, and `vox oratio` (incl. `serve`) in `vox-ml-cli`.
+    #[test]
+    fn release_features_cover_retrieval_and_oratio() {
+        assert_eq!(super::release_features("vox-cli"), Some("heavy-retrieval"));
+        assert_eq!(super::release_features("vox-ml-cli"), Some("oratio"));
+        assert_eq!(super::release_features("vox-langtool"), None);
+    }
+
+    /// `(crate, id, triple, lib)` for each matrix row of `job` that packages through
+    /// `./.github/actions/package-plugin`, resolving `${{ matrix.<field> }}` inputs.
+    fn packaged_plugin_rows(
+        wf: &serde_yaml::Value,
+        job: &str,
+    ) -> Vec<(String, String, String, String)> {
+        let j = &wf["jobs"][job];
+        let step = j["steps"]
+            .as_sequence()
+            .unwrap_or_else(|| panic!("job {job} has no steps"))
+            .iter()
+            .find(|s| s["uses"].as_str() == Some("./.github/actions/package-plugin"))
+            .unwrap_or_else(|| panic!("{job} does not package through package-plugin"));
+        let rows = j["strategy"]["matrix"]["include"]
+            .as_sequence()
+            .unwrap_or_else(|| panic!("{job} has no matrix include list"));
+        let input = |key: &str, row: &serde_yaml::Value| -> String {
+            let raw = step["with"][key]
+                .as_str()
+                .unwrap_or_else(|| panic!("{job}: package-plugin input {key} missing"));
+            match raw
+                .strip_prefix("${{ matrix.")
+                .and_then(|r| r.strip_suffix(" }}"))
+            {
+                Some(field) => row[field]
+                    .as_str()
+                    .unwrap_or_else(|| panic!("{job}: matrix row lacks {field}"))
+                    .to_string(),
+                None => raw.to_string(),
+            }
+        };
+        rows.iter()
+            .map(|row| {
+                (
+                    input("crate", row),
+                    input("id", row),
+                    input("triple", row),
+                    input("lib", row),
+                )
+            })
+            .collect()
+    }
+
+    /// Every plugin zip the release and nightly workflows build must install: its
+    /// id, triple and library must be what the crate's Plugin.toml declares, and
+    /// oratio must cover every declared triple (a missing one is a 404 for users).
+    /// The shared action names zips `{id}-v{version}-{triple}.zip` and ships
+    /// Plugin.toml next to the library.
+    #[test]
+    fn workflow_plugin_zips_match_their_plugin_manifests() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let action =
+            std::fs::read_to_string(root.join(".github/actions/package-plugin/action.yml"))
+                .expect("read package-plugin action");
+        assert!(action.contains("${PLUGIN_ID}-v${version}-${TRIPLE}.zip"));
+        assert!(action.contains("cp \"crates/$CRATE/Plugin.toml\" \"$staging/\""));
+
+        for (rel, job) in [
+            (".github/workflows/release-binaries.yml", "oratio-plugin"),
+            (
+                ".github/workflows/nightly-artifacts.yml",
+                "build-plugin-zips",
+            ),
+        ] {
+            let text = std::fs::read_to_string(root.join(rel)).expect("read workflow");
+            let wf: serde_yaml::Value = serde_yaml::from_str(&text).expect("workflow is YAML");
+            let rows = packaged_plugin_rows(&wf, job);
+            for (krate, id, triple, lib) in &rows {
+                let manifest: toml::Value =
+                    std::fs::read_to_string(root.join("crates").join(krate).join("Plugin.toml"))
+                        .unwrap_or_else(|e| panic!("{rel}: read {krate}/Plugin.toml: {e}"))
+                        .parse()
+                        .expect("Plugin.toml is TOML");
+                assert_eq!(
+                    manifest["plugin"]["id"].as_str(),
+                    Some(id.as_str()),
+                    "{rel}: {krate} zip id"
+                );
+                assert_eq!(
+                    manifest["plugin"]["payload"]["artifacts"]
+                        .get(triple.as_str())
+                        .and_then(|l| l.as_str()),
+                    Some(lib.as_str()),
+                    "{rel}: {krate} does not declare {lib} for {triple}"
+                );
+            }
+            let speech: toml::Value =
+                std::fs::read_to_string(root.join("crates/vox-plugin-speech/Plugin.toml"))
+                    .expect("read speech Plugin.toml")
+                    .parse()
+                    .expect("Plugin.toml is TOML");
+            for triple in speech["plugin"]["payload"]["artifacts"]
+                .as_table()
+                .expect("speech artifacts")
+                .keys()
+            {
+                assert!(
+                    rows.iter()
+                        .any(|(k, _, t, _)| k == "vox-plugin-speech" && t == triple),
+                    "{rel}: {job} does not package oratio for {triple}"
+                );
+            }
+        }
+
+        let release: serde_yaml::Value = serde_yaml::from_str(
+            &std::fs::read_to_string(root.join(".github/workflows/release-binaries.yml"))
+                .expect("read release-binaries.yml"),
+        )
+        .expect("workflow is YAML");
+        let needs: Vec<&str> = release["jobs"]["publish"]["needs"]
+            .as_sequence()
+            .expect("publish needs")
+            .iter()
+            .filter_map(|n| n.as_str())
+            .collect();
+        assert!(
+            needs.contains(&"oratio-plugin"),
+            "publish must wait for oratio-plugin, or checksums.txt misses its zips"
+        );
+    }
+
     /// `--package all` must still parse, and the retired tiers must not.
     #[test]
     fn release_package_value_enum_matches_the_shipped_tiers() {
@@ -399,6 +556,7 @@ mod tests {
                 "vox".to_string(),
                 "mens".to_string(),
                 "langtool".to_string(),
+                "lsp".to_string(),
                 "all".to_string()
             ],
             "ReleasePackage tiers changed; `bootstrap` and `both` built a deleted crate"

@@ -139,7 +139,7 @@ The EIG threshold for question approval scales with focus depth and budget state
 | `BudgetSignal::CostExceeded` | Questions suppressed | None; proceed on safe default |
 | `interrupt_ewma > 0.8` | +50% (backlog penalty) | Defer non-critical; batch with next checkpoint |
 
-MCP records estimated wall-time per `session_id` and can mirror those debits into the orchestrator global attention budget. Cap override and mirror toggle: **`VOX_QUESTIONING_MAX_ATTENTION_MS`**, **`VOX_QUESTIONING_MIRROR_GLOBAL_ATTENTION`** — see [Environment variables (SSOT)](env-vars.md#mcp-socrates-questioning).
+MCP records estimated wall-time per `session_id` and can mirror those debits into the orchestrator global attention budget. Cap override and mirror toggle: **`VOX_QUESTIONING_MAX_ATTENTION_MS`**, **`VOX_QUESTIONING_MIRROR_GLOBAL_ATTENTION`** — see [Environment variables (SSOT)](env-vars.md).
 
 ### Dynamic interruption control (runtime)
 
@@ -206,7 +206,7 @@ Policy and telemetry must be persisted in dual-write form:
 
 Question-level runtime telemetry must be queryable in VoxDB via dedicated questioning tables.
 
-**MCP (clients and agents):** `vox_questioning_pending` returns open sessions, unanswered assistant prompts, and structured multiple-choice options (plus parsed `belief_state_json`). `vox_questioning_submit_answer` persists free-text and optional `selected_option_id` (posteriors in `belief_state_json` and `question_options.posterior_probability` are updated for MC). Env vars for attention caps, global budget mirroring, and task-gate bypass are listed under [MCP / Socrates questioning](env-vars.md#mcp-socrates-questioning) in `env-vars.md`.
+**MCP (clients and agents):** `vox_questioning_pending` returns open sessions, unanswered assistant prompts, and structured multiple-choice options (plus parsed `belief_state_json`). `vox_questioning_submit_answer` persists free-text and optional `selected_option_id` (posteriors in `belief_state_json` and `question_options.posterior_probability` are updated for MC). Env vars for attention caps, global budget mirroring, and task-gate bypass are listed in [`env-vars.md`](env-vars.md).
 
 ## Related SSOTs
 

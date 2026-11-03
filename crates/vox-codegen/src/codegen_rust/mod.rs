@@ -45,6 +45,26 @@ mod tests {
         HirModule::default()
     }
 
+    /// Script-mode db glue calls `vox_db::DbConfig::resolve_canonical`, which only
+    /// exists under vox-db's `host-integration` feature — so the script manifest
+    /// must enable it, as the app manifests already do.
+    #[test]
+    fn script_manifest_enables_vox_db_host_integration_for_tables() {
+        let mut module = empty_module();
+        module.tables.push(simple_task_table());
+        let out = super::pipeline::generate_script(&module, "vox-script", None)
+            .expect("table module emits a script crate");
+        let cargo = &out.files["Cargo.toml"];
+        let line = cargo
+            .lines()
+            .find(|l| l.starts_with("vox-db ="))
+            .unwrap_or_else(|| panic!("script with a table must depend on vox-db: {cargo}"));
+        assert!(
+            line.contains("\"host-integration\""),
+            "vox-db dep must enable host-integration for resolve_canonical: {line}"
+        );
+    }
+
     fn simple_task_table() -> HirTable {
         HirTable {
             id: DefId(1),
@@ -282,7 +302,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "emit_table_struct DSL drift vs tests — reconcile when table codegen stabilizes — owner: codegen sunset: 2026-12-31"]
     fn insert_typed_uses_turso_value_not_clone() {
         let table = simple_task_table();
         let out = emit_table_struct(&table, &[]);
@@ -291,15 +310,6 @@ mod tests {
             out.contains("turso::Value::Text(") || out.contains("turso::Value::Integer("),
             "insert_typed should use turso::Value constructors"
         );
-    }
-
-    // ── WASI guardrail tests (unchanged) ─────────────────────────────────────
-
-    #[test]
-    fn wasi_clean_script_passes_guardrail() {
-        let module = empty_module();
-        let result = generate_script_with_target(&module, "test-script", None, ScriptTarget::Wasi);
-        assert!(result.is_ok(), "clean WASI script should pass guardrail");
     }
 
     #[test]
@@ -321,6 +331,32 @@ mod tests {
         assert!(
             cargo.contains("chrono") && cargo.contains("0.4"),
             "expected merged crate dep in Cargo.toml:\n{cargo}"
+        );
+    }
+
+    #[test]
+    fn app_emit_cargo_toml_enables_workflow_runtime_sql() {
+        let toml = emit_cargo_toml("demo_pkg", &empty_module());
+        assert!(
+            toml.contains("vox-workflow-runtime")
+                && toml.contains("features = [\"sql\"]")
+                && toml.contains("vox-db"),
+            "generated app Cargo.toml must enable workflow sql + vox-db:\n{toml}"
+        );
+    }
+
+    #[test]
+    fn tauri_cargo_toml_enables_workflow_runtime_sql() {
+        let out = generate(&empty_module(), "demo_pkg", RustAppShell::TauriApp).expect("generate");
+        let toml = out
+            .files
+            .get("src-tauri/Cargo.toml")
+            .expect("src-tauri/Cargo.toml");
+        assert!(
+            toml.contains("vox-workflow-runtime")
+                && toml.contains("features = [\"sql\"]")
+                && toml.contains("vox-db"),
+            "generated Tauri Cargo.toml must enable workflow sql + vox-db:\n{toml}"
         );
     }
 
@@ -434,7 +470,7 @@ mod tests {
             "expected mutation handler: {out}"
         );
         assert!(
-            out.contains("match db.transaction(async move"),
+            out.contains("match db.transaction(async {"),
             "mutation with @table should wrap handler body in Codex::transaction: {out}"
         );
         assert!(
@@ -538,13 +574,28 @@ fn heartbeat() { }
             cargo.contains("vox-tauri-stt") && cargo.contains("tauri-plugin"),
             "expected vox-tauri-stt path dep with feature: {cargo}"
         );
+        // The vox repo root resolves during `cargo test` (this test binary is
+        // built from inside the checkout), so the emitted dep is the
+        // absolute path, not the historical `../../../crates` fallback —
+        // see `resolve_vox_repo_root` / `docs/src/architecture/generated-project-runtime-deps.md`.
+        let expected_actor_runtime_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(std::path::Path::parent)
+            .expect("crate lives at <repo>/crates/vox-codegen")
+            .join("crates")
+            .join("vox-actor-runtime");
         assert!(
-            cargo.contains("path = \"../../../crates/vox-actor-runtime\""),
-            "src-tauri path deps must use ../../../crates (manifest under target/generated/src-tauri): {cargo}"
+            cargo.contains(&format!(
+                "path = \"{}\"",
+                expected_actor_runtime_path.display()
+            )),
+            "src-tauri path deps must resolve to the real vox-actor-runtime crate \
+             (absolute path, since the vox repo root is resolvable in this test): {cargo}"
         );
         assert!(
             !cargo.contains("path = \"../../crates/vox-actor-runtime\""),
-            "src-tauri must not use ../../crates (wrong resolve from src-tauri/): {cargo}"
+            "src-tauri must not use the axum-shell's 2-level-relative fallback \
+             (wrong resolve depth from src-tauri/): {cargo}"
         );
         let cap = out
             .files

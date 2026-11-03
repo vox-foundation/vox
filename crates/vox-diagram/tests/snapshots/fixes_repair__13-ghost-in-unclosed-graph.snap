@@ -1,0 +1,10 @@
+---
+source: crates/vox-diagram/tests/fixes_repair.rs
+expression: r.text
+---
+graph {
+    node ghost: "ghost"
+    node a: "A"
+    a -> ghost
+
+}

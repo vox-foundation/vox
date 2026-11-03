@@ -144,18 +144,30 @@ Companion modules (`tier_cascade`, `budget_gate`, `risk_matrix`, …) implement 
 
 ## Part 5 — Lifecycle pipeline
 
-```mermaid
-flowchart TD
-  voxSource["voxSource (.vox)"] --> lexer["lexer voxCompilerLexer"]
-  lexer --> parserDecl["parser parseFnDecl head.rs"]
-  parserDecl --> hirLower["hir lower decl.rs"]
-  hirLower --> typeckEffects["typeck effect_deps_lint cuda_gate ast_decl_lints"]
-  typeckEffects --> codegenRust["codegen vox_codegen emit workflow.rs"]
-  codegenRust --> runtimeLlm["runtime vox_actor_runtime llm chat cascade stream"]
-  runtimeLlm --> orchestratorRouter["orchestrator subagent_dispatch tier_cascade"]
-  orchestratorRouter --> mcpAci["mcp dispatch aci mutation_kind"]
-  mcpAci --> telemetryEvents["telemetry record_event fixture_catalog"]
-  telemetryEvents --> auditDb["vox_db llm_interactions research_metrics"]
+```vox-diagram
+graph {
+    node voxSource: "voxSource (.vox)"
+    node lexer: "lexer voxCompilerLexer"
+    node parserDecl: "parser parseFnDecl head.rs"
+    node hirLower: "hir lower decl.rs"
+    node typeckEffects: "typeck effect_deps_lint cuda_gate ast_decl_lints"
+    node codegenRust: "codegen vox_codegen emit workflow.rs"
+    node runtimeLlm: "runtime vox_actor_runtime llm chat cascade stream"
+    node orchestratorRouter: "orchestrator subagent_dispatch tier_cascade"
+    node mcpAci: "mcp dispatch aci mutation_kind"
+    node telemetryEvents: "telemetry record_event fixture_catalog"
+    node auditDb: "vox_db llm_interactions research_metrics"
+    voxSource -> lexer
+    lexer -> parserDecl
+    parserDecl -> hirLower
+    hirLower -> typeckEffects
+    typeckEffects -> codegenRust
+    codegenRust -> runtimeLlm
+    runtimeLlm -> orchestratorRouter
+    orchestratorRouter -> mcpAci
+    mcpAci -> telemetryEvents
+    telemetryEvents -> auditDb
+}
 ```
 
 ### Per-fixture pipeline touches
@@ -731,7 +743,6 @@ fixtures:
 - [`search-retrieval-ssot-2026.md`](search-retrieval-ssot-2026.md)
 - [`boilerplate-reduction-gap-analysis-2026.md`](boilerplate-reduction-gap-analysis-2026.md)
 - [`where-things-live.md`](where-things-live.md)
-- [`research-index.md`](research-index.md)
 
 ## Appendix — Self-review checklist (plan §17)
 
@@ -745,7 +756,6 @@ fixtures:
 - [x] No banned tooling/crates list items in prose.
 - [x] Mermaid node IDs are alphanumeric/underscore safe.
 - [x] `contracts/index.yaml` lists ai-first catalog + schema + telemetry schemas.
-- [x] `research-index.md` includes **AI-First Language Fixtures** section.
 - [x] Open questions between 3 and 8.
 - [x] Follow-on plan filename declared (Part 13).
 - [x] No emoji in this document.

@@ -1,0 +1,18 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/deep-research-waves-and-competitive-analysis-research-2026.md",
+  "type": "DOC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "Deep Research Waves, Batches, and Competitive SOTA Analysis (September 2026)",
+  "summary": "Architectural comparison of Vox, Gemini, and Claude deep research; proposes multi-wave DAG engine, dynamic triage, context distillation, and batch orchestration.",
+  "scope": ["deep research", "multi-wave execution", "Google Gemini", "Anthropic Claude", "context distillation", "adversarial verification", "dynamic triage"],
+  "cross_refs": [
+    "vox-research-shim",
+    "vox-orchestrator",
+    "vox-db",
+    "vox-gui"
+  ],
+  "locked": false,
+  "precedence": null,
+  "notes": "Mixed research + design proposal signals: labeled research/analysis but includes aspirational target architecture and technical gap table; phased implementation roadmap suggests PRD-like signals, but status and framing are research/competitive-landscape focused."
+}

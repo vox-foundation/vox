@@ -15,7 +15,8 @@ use vox_codegen::codegen_ts::{CodegenOptions, generate_with_options};
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
-use vox_integration_tests::{EnvVarGuard, collect_vox_files};
+use vox_integration_tests::{collect_vox_files, env_var_lock};
+use vox_test_harness::env_scratch::EnvScratch;
 
 fn golden_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/golden")
@@ -33,7 +34,8 @@ fn try_emit(src: &str) -> Result<usize, String> {
         ..Default::default()
     };
     let result = {
-        let _guard = EnvVarGuard::set(&[("VOX_WEBIR_VALIDATE", "0")]);
+        let _lock = env_var_lock();
+        let _env = EnvScratch::empty().set("VOX_WEBIR_VALIDATE", "0");
         generate_with_options(&hir, opts)
     };
 

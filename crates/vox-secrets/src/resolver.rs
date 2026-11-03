@@ -281,4 +281,138 @@ impl<B: SecretBackend> SecretResolver<B> {
             detail: None,
         }
     }
+
+    /// Resolve a portable `clavis://<provider>/<key>` URI reference (`CLAVIS-02`).
+    pub fn resolve_clavis_uri(
+        &self,
+        uri: &str,
+        opts: &ResolveOptions,
+    ) -> Result<ResolvedSecret, String> {
+        let id = parse_clavis_uri(uri)?;
+        Ok(self.resolve(id, opts))
+    }
+}
+
+/// Parse a portable `clavis://<provider>/<key>` URI into its canonical [`SecretId`] (`CLAVIS-02`).
+///
+/// Supported forms:
+/// - `clavis://<provider>/<key>` (e.g., `clavis://openrouter/api_key`, `clavis://gemini/api_key`, `clavis://github/token`)
+/// - `clavis://env/<CANONICAL_OR_ALIAS_ENV>` (e.g., `clavis://env/OPENROUTER_API_KEY`)
+/// - `clavis://vox/<CANONICAL_ENV_LOWER_OR_UPPER>` (e.g., `clavis://vox/vox_mesh_token`)
+pub fn parse_clavis_uri(uri: &str) -> Result<SecretId, String> {
+    let trimmed = uri.trim();
+    let Some(rest) = trimmed.strip_prefix("clavis://") else {
+        return Err(format!(
+            "invalid Clavis URI `{trimmed}`: must start with `clavis://`"
+        ));
+    };
+    let Some((provider, key)) = rest.split_once('/') else {
+        return Err(format!(
+            "invalid Clavis URI `{trimmed}`: expected `clavis://<provider>/<key>`"
+        ));
+    };
+    let provider_norm = provider.trim().to_ascii_lowercase();
+    let key_norm = key.trim();
+    if provider_norm.is_empty() || key_norm.is_empty() {
+        return Err(format!(
+            "invalid Clavis URI `{trimmed}`: provider and key must be non-empty"
+        ));
+    }
+
+    // 1. Direct provider/key shorthand mappings for the most common developer providers.
+    let direct = match (
+        provider_norm.as_str(),
+        key_norm.to_ascii_lowercase().as_str(),
+    ) {
+        ("openrouter", "api_key" | "key" | "openrouter_api_key") => {
+            Some(SecretId::OpenRouterApiKey)
+        }
+        ("gemini" | "google", "api_key" | "key" | "gemini_api_key") => Some(SecretId::GeminiApiKey),
+        ("openai", "api_key" | "key" | "openai_api_key") => Some(SecretId::OpenaiApiKey),
+        ("anthropic", "api_key" | "key" | "anthropic_api_key") => Some(SecretId::AnthropicApiKey),
+        ("groq", "api_key" | "key" | "groq_api_key") => Some(SecretId::GroqApiKey),
+        ("deepseek", "api_key" | "key" | "deepseek_api_key") => Some(SecretId::DeepSeekApiKey),
+        ("mistral", "api_key" | "key" | "mistral_api_key") => Some(SecretId::MistralApiKey),
+        ("cerebras", "api_key" | "key" | "cerebras_api_key") => Some(SecretId::CerebrasApiKey),
+        ("sambanova", "api_key" | "key" | "sambanova_api_key") => Some(SecretId::SambaNovaApiKey),
+        ("together", "api_key" | "key" | "together_api_key") => Some(SecretId::TogetherApiKey),
+        ("huggingface" | "hf", "token" | "api_key" | "hf_token") => {
+            Some(SecretId::HuggingFaceToken)
+        }
+        ("tavily", "api_key" | "key" | "tavily_api_key") => Some(SecretId::TavilyApiKey),
+        ("github" | "forge", "token" | "forge_token" | "github_token") => {
+            Some(SecretId::ForgeToken)
+        }
+        ("runpod", "api_key" | "key" | "vox_runpod_api_key") => Some(SecretId::VoxRunpodApiKey),
+        ("vast", "api_key" | "key" | "vox_vast_api_key") => Some(SecretId::VoxVastApiKey),
+        ("turso" | "db", "url" | "vox_db_url") => Some(SecretId::VoxDbUrl),
+        ("turso" | "db", "token" | "vox_db_token") => Some(SecretId::VoxDbToken),
+        ("mesh" | "populi", "token" | "vox_mesh_token") => Some(SecretId::VoxMeshToken),
+        _ => None,
+    };
+    if let Some(id) = direct {
+        return Ok(id);
+    }
+
+    // 2. Fallback: match against canonical_env, aliases, deprecated_aliases, or `<PROVIDER>_<KEY>`.
+    let candidate_upper = key_norm.to_ascii_uppercase().replace('-', "_");
+    let combined_upper = format!(
+        "{}_{}",
+        provider_norm.to_ascii_uppercase().replace('-', "_"),
+        candidate_upper
+    );
+    for spec in crate::spec::all_specs() {
+        if spec.canonical_env == candidate_upper
+            || spec.canonical_env == combined_upper
+            || spec
+                .aliases
+                .iter()
+                .any(|a| *a == candidate_upper || *a == combined_upper)
+            || spec
+                .deprecated_aliases
+                .iter()
+                .any(|a| *a == candidate_upper || *a == combined_upper)
+            || spec
+                .auth_registry
+                .is_some_and(|r| r.eq_ignore_ascii_case(&provider_norm))
+        {
+            return Ok(spec.id);
+        }
+    }
+
+    Err(format!(
+        "unrecognized Clavis URI `{trimmed}`: no managed SecretSpec matched provider `{provider_norm}` and key `{key_norm}`"
+    ))
+}
+
+#[cfg(test)]
+mod clavis_uri_tests {
+    use super::*;
+
+    #[test]
+    fn parse_clavis_uri_resolves_provider_shorthands_and_env_names() {
+        assert_eq!(
+            parse_clavis_uri("clavis://openrouter/api_key").unwrap(),
+            SecretId::OpenRouterApiKey
+        );
+        assert_eq!(
+            parse_clavis_uri("clavis://gemini/api_key").unwrap(),
+            SecretId::GeminiApiKey
+        );
+        assert_eq!(
+            parse_clavis_uri("clavis://env/ANTHROPIC_API_KEY").unwrap(),
+            SecretId::AnthropicApiKey
+        );
+        assert_eq!(
+            parse_clavis_uri("clavis://vox/mesh_token").unwrap(),
+            SecretId::VoxMeshToken
+        );
+    }
+
+    #[test]
+    fn parse_clavis_uri_rejects_malformed_or_unknown_refs() {
+        assert!(parse_clavis_uri("http://openrouter/api_key").is_err());
+        assert!(parse_clavis_uri("clavis://openrouter").is_err());
+        assert!(parse_clavis_uri("clavis://unknown_provider/nonexistent_key").is_err());
+    }
 }

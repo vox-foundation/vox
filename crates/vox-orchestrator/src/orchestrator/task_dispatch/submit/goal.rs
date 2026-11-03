@@ -44,9 +44,7 @@ fn socrates_task_from_search_pass(
 ) -> crate::socrates::SocratesTaskContext {
     let memory_hits = execution.memory_lines.len();
     let knowledge_hits = execution.knowledge_lines.len();
-    let chunk_hits = execution.chunk_lines.len()
-        + execution.tantivy_doc_lines.len()
-        + execution.qdrant_lines.len();
+    let chunk_hits = execution.chunk_lines.len() + execution.qdrant_lines.len();
     let repo_hits = execution.repo_lines.len();
     let doc_graph_hits = knowledge_hits + chunk_hits + repo_hits;
     let required_citations = if memory_hits == 0 && doc_graph_hits == 0 {
@@ -751,5 +749,58 @@ impl Orchestrator {
             tenant_id,
         )
         .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::socrates_task_from_search_pass;
+    use vox_db::{SearchCorpus, SearchDiagnostics, SearchPlan};
+    use vox_search::{SearchExecution, SearchPolicy};
+
+    fn execution(chunk: &[&str], qdrant: &[&str]) -> SearchExecution {
+        SearchExecution {
+            memory_lines: Vec::new(),
+            knowledge_lines: Vec::new(),
+            chunk_lines: chunk.iter().map(|s| (*s).to_string()).collect(),
+            repo_lines: Vec::new(),
+            qdrant_lines: qdrant.iter().map(|s| (*s).to_string()).collect(),
+            rrf_fused_lines: Vec::new(),
+            web_lines: Vec::new(),
+            symbol_proximity_lines: Vec::new(),
+            unified_hits: Vec::new(),
+            durable_artifacts: Vec::new(),
+            warnings: Vec::new(),
+            used_vector: false,
+            used_bm25: true,
+            lexical_fallback_used: false,
+            contradiction_count: 0,
+            top_score: None,
+            backend_mix: Vec::new(),
+            source_diversity: 1,
+            evidence_quality: 0.5,
+            citation_coverage: 0.5,
+            recommended_next_action: None,
+            repo_truncated: false,
+            min_trust_tier: None,
+        }
+    }
+
+    #[test]
+    fn chunk_hits_count_chunk_and_qdrant_lines_only() {
+        let plan = SearchPlan {
+            corpora: vec![SearchCorpus::DocumentChunks],
+            ..SearchPlan::default()
+        };
+        let ctx = socrates_task_from_search_pass(
+            &execution(&["[chunk:a] x"], &["[qdrant:9] z"]),
+            &SearchDiagnostics::default(),
+            &plan,
+            &SearchPolicy::default(),
+        );
+        assert_eq!(ctx.evidence_count, 2);
+        let diag = ctx.retrieval_diagnosis.expect("diagnosis");
+        assert_eq!(diag.corpora_with_hits, vec!["documentchunks".to_string()]);
+        assert!(diag.corpora_empty.is_empty());
     }
 }

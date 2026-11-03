@@ -1,0 +1,49 @@
+Mermaid: flowchart or sequenceDiagram. Put it in a mermaid fenced block. EVERY label is quoted: id["Label"].
+
+flowchart LR
+    %% LR right, TD down, RL left, BT up: the first line sets the direction
+    client["Desktop Client"]
+    %% shapes: ["rect"] ("rounded") {"diamond"} [("cylinder")] (("start")) ((("end")))
+    db[("Task DB")]
+    ok{"Healthy?"}
+    subgraph backend ["Orchestrator"]
+        gateway["Gateway"]
+        subgraph core ["Core"]
+            engine["Agent Runtime"]
+        end
+        gateway -->|"dispatch"| engine
+        engine -->|"retry"| engine
+    end
+    %% edges name node ids, also for a node inside a subgraph
+    client -->|"TLS"| gateway
+    engine --> ok
+    ok -->|"yes"| db
+
+sequenceDiagram
+    participant ui as Desktop Client
+    participant api as Gateway
+    ui->>api: POST /run
+    Note over api: validates input
+    api-->>ui: 202 Accepted
+
+Rules
+1. Declare every node with its label: id["Label"]. Inside a label write " as #quot; and # as #35;.
+2. The arrow is -->, with a label -->|"text"|. Endpoints are node ids, never subgraph ids.
+3. Ids: letters, digits and _. Never use end as an id; after an arrow an id starting with o or x (a --> ox) turns into a circle or cross edge, so prefix it (n_ox).
+4. One statement per line, one arrow per statement. Comments are %% on their own line.
+5. Sequences: declare every participant first. a->>b: text is a message, a-->>b: text a dashed reply, Note over a,b: text a note. Text after the colon is not quoted; write ; as #59; and # as #35;.
+6. Limits: 50000 characters, 500 edges (Mermaid defaults), labels 200 chars.
+
+Avoid these Mermaid traps (each breaks the parse or changes the diagram):
+  A[Label (x)] --> B       => a["Label (x)"] --> b
+  end --> b                => n_end["end"] --> b
+  a --> ox                 => a --> n_ox
+  subgraph Big Box         => subgraph big ["Big Box"]
+  a -- text --> b          => a -->|"text"| b
+  a & b --> c              => a --> c and b --> c on two lines
+  a --> b --> c            => a --> b and b --> c on two lines
+  a --> b; b --> c         => one statement per line, no semicolon
+  ui->>api: a; b           => ui->>api: a#59; b
+  style a fill:red         => styling is not supported
+
+Run the parser; fix the reported line; repeat until it parses.

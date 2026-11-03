@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/030-state-machine-ssot.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 030 — state_machine as Single Source of Truth for reactive UI state",
+  "summary": "Formally adopts state_machine compiler primitive as SSoT for all reactive browser UI state.",
+  "scope": ["state_machine", "reactive UI", "dashboard", "SSoT", "vox-dashboard", "Vox-native reactivity"],
+  "cross_refs": ["027-dual-track-ui-surfaces.md", "010-tanstack-web-spine.md", "031-deprecate-vox-vscode.md", "reference/vox-web-stack.md", "crates/vox-compiler/src/hir/nodes/state_machine.rs", "crates/vox-compiler/src/typeck/state_machine_check.rs", "crates/vox-codegen-ts/src/state_machine_emit.ts", "docs/superpowers/plans/2026-05-01-vox-frontend-convergence.md"],
+  "locked": true,
+  "precedence": null
+}

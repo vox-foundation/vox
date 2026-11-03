@@ -1,0 +1,14 @@
+// Order placement as the web tier sees it.
+sequence {
+    actor web: "Web"
+    actor api: "API" // the gateway
+    actor db: "Database"
+
+    web -> api: "POST /orders"
+    api -> db
+    reply db -> api: "id"
+    api -> api: "validate"
+    note over api: "idempotent by key"
+    // storage is one unit
+    note over web, db: "one transaction"
+}

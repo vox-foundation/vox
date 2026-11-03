@@ -168,9 +168,9 @@ fn render_budget_line(
 /// the sentence that stops a reader reading `*` as *answer* quality, and naming the Wilson lower
 /// bound stops them trying to reproduce the ranking from the raw `Success %` column beside it.
 pub(super) fn pareto_legend() -> &'static str {
-    "* Pareto-optimal: no other row is at least as good on success rate, cost and latency \
-     while being strictly better on at least one. Ranked on the Wilson lower bound of the \
-     success rate, not the raw percentage shown. Success counts non-error provider responses, \
+    "* Pareto-optimal: no other row is at least as good on reliability, cost and latency \
+     while being strictly better on at least one. Reliability is ranked on the Wilson lower \
+     bound of the success rate, not the raw percentage shown. Success counts non-error provider responses, \
      not answer correctness. Rows below the observation threshold are never marked."
 }
 
@@ -349,6 +349,39 @@ mod tests {
     }
 
     #[test]
+    fn reporting_fixture_marks_only_confident_frontier_rows_in_router_order() {
+        let scores = [
+            score(95, 100, Some(0.02), Some(900)),
+            score(70, 100, Some(0.02), Some(100)),
+            score(50, 100, Some(0.02), Some(900)),
+            score(1, 1, Some(0.001), Some(10)),
+            score(0, 0, None, None),
+        ];
+        let points: Vec<_> = scores
+            .iter()
+            .map(|row| pareto_point_for(Some(row)))
+            .collect();
+        let observed: Vec<_> = scores
+            .iter()
+            .enumerate()
+            .filter_map(|(i, row)| is_observed(Some(row)).then_some(i))
+            .collect();
+        let observed_points: Vec<_> = observed.iter().map(|&i| points[i]).collect();
+        let frontier: Vec<_> = pareto_frontier(&observed_points)
+            .into_iter()
+            .map(|i| observed[i])
+            .collect();
+        let markers: Vec<_> = scores
+            .iter()
+            .enumerate()
+            .map(|(i, row)| frontier_marker(&frontier, i, row.n_calls))
+            .collect();
+
+        assert_eq!(frontier, vec![0, 1, 3], "frontier preserves router order");
+        assert_eq!(markers, vec![" *", " *", "", "", ""]);
+    }
+
+    #[test]
     fn frontier_marker_never_marks_a_low_n_row() {
         // `success_rate_cell` already prints "(low-N)" on these. A row reading
         // "100.0% (low-N) *" claims both "untrustworthy" and "unbeaten" at once.
@@ -440,6 +473,7 @@ mod tests {
         let legend = pareto_legend();
         assert!(legend.contains("not answer correctness"), "{legend}");
         assert!(legend.contains("Wilson lower bound"), "{legend}");
+        assert!(legend.contains("reliability"), "{legend}");
         assert!(legend.contains("observation threshold"), "{legend}");
     }
 

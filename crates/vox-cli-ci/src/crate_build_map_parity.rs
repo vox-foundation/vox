@@ -60,7 +60,24 @@ pub fn diff_summaries(
     drift
 }
 
-pub fn run_crate_build_map_parity(root: &Path) -> Result<()> {
+/// The summary `--write` saves: the recomputed one (derived fields from the committed graph
+/// and the committed `compile_s`), plus committed top-level metadata it does not carry
+/// (`measured_on`). Unlike `graphify crate-map --write-summary`, no timing build is needed
+/// and no `compile_s` is lost.
+pub fn regenerated_summary(
+    committed: &serde_json::Value,
+    recomputed: &serde_json::Value,
+) -> serde_json::Value {
+    let mut out = recomputed.clone();
+    if let (Some(dst), Some(src)) = (out.as_object_mut(), committed.as_object()) {
+        for (k, v) in src {
+            dst.entry(k.clone()).or_insert_with(|| v.clone());
+        }
+    }
+    out
+}
+
+pub fn run_crate_build_map_parity(root: &Path, write: bool) -> Result<()> {
     let graph_path = root.join("contracts/ci/crate-graph.v1.json");
     let summary_path = root.join("contracts/ci/crate-build-map.v1.json");
 
@@ -97,13 +114,24 @@ pub fn run_crate_build_map_parity(root: &Path) -> Result<()> {
         println!("crate-build-map-parity: committed summary matches crate-graph.v1.json.");
         return Ok(());
     }
+    if write {
+        let out = regenerated_summary(&committed, &recomputed);
+        std::fs::write(&summary_path, serde_json::to_string_pretty(&out)? + "\n")
+            .with_context(|| format!("write {}", summary_path.display()))?;
+        println!(
+            "crate-build-map-parity: rewrote {} ({} drifted crate(s))",
+            summary_path.display(),
+            drift.len()
+        );
+        return Ok(());
+    }
     eprintln!("crate-build-map-parity DRIFT ({}):", drift.len());
     for d in &drift {
         eprintln!("{d}");
     }
     anyhow::bail!(
         "crate-build-map.v1.json is stale vs crate-graph.v1.json — \
-         run `vox graphify crate-map --write-summary` and commit the result"
+         run `vox ci crate-build-map-parity --write` and commit the result"
     )
 }
 
@@ -111,6 +139,18 @@ pub fn run_crate_build_map_parity(root: &Path) -> Result<()> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn regenerated_summary_takes_recomputed_crates_and_keeps_committed_metadata() {
+        let committed = json!({ "schema_version": 1, "measured_on": "x86_64 (cargo check)",
+            "crates": [ { "crate": "a", "compile_s": 1.0, "dependents": 2, "blast_s": 6.0, "fan_in": 1 } ]});
+        let recomputed = json!({ "schema_version": 1,
+            "crates": [ { "crate": "a", "compile_s": 1.0, "dependents": 3, "blast_s": 9.0, "fan_in": 1 } ]});
+        let merged = regenerated_summary(&committed, &recomputed);
+        assert_eq!(merged["measured_on"], "x86_64 (cargo check)");
+        assert_eq!(merged["crates"][0]["dependents"], 3);
+        assert!(diff_summaries(&merged, &recomputed).is_empty());
+    }
 
     #[test]
     fn identical_summaries_have_no_drift() {

@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/skill-ecosystem-audit-2026-08-01.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Skill Ecosystem Audit — All 50 Skill Files, Read in Full (2026-08-01)",
+  "summary": "Per-file audit of 50 skill files with findings on format, gaps, duplication, and architecture defects.",
+  "scope": ["skill files", "frontmatter dialect", "MCP tool registry", "skill selection", "GUI surface", "vox-graph skill", "format migration", "Vox-native skills"],
+  "cross_refs": ["skill-discovery-and-induction-research-2026-07-30.md", "skill-marketplace-security-and-provenance-research-2026-07-30.md", "skill-registry-trust-and-curation-research-2026-07-30.md", "skill-code-marketplace-research-and-audit-2026-06-18.md", "skill-ecosystem-interop-research-2026-06-12.md", "docs/superpowers/specs/2026-08-01-skill-ecosystem-improvements-design.md"],
+  "locked": false,
+  "precedence": null
+}

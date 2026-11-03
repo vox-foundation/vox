@@ -6,6 +6,7 @@ surfaces:
     path: crates/vox-gui
     status: canonical
     role: Primary user-facing native operator GUI surface for Vox.
+    authoring_track: react-hand-authored
     source_of_truth:
       - crates/vox-gui/src/main.rs
       - crates/vox-gui/ui/src/App.tsx
@@ -17,6 +18,9 @@ surfaces:
       - Tauri IPC handlers in crates/vox-gui/src/commands define backend capability.
       - UI panels in crates/vox-gui/ui/src/components/surfaces must map to real handlers.
       - Browser surface (preview iframe + agent CDP live view) lives in ui/src/components/surfaces/Browser/; backend in src/commands/browser.rs.
+      - "GUI-02 audit (2026-09-22): all crates/vox-gui/src Rust command-catalog consumers (catalog.rs, action_manifest.rs, discovery.rs) call vox_cli::command_catalog::build_catalog() live; the only crates/vox-gui/ui/src consumer routes through the get_command_catalog Tauri invoke (transport.ts); zero hardcoded command definitions exist in ui/src. No orphaned or duplicated command surface found."
+      - "GUI-02 exemption: crates/vox-gui/src/commands/coderabbit.rs's sidecar_path_tests validates against contracts/operations/catalog.v1.yaml, not build_catalog(), because coderabbit is not a default vox-cli feature and vox-gui links vox-cli with default features only — the compiled clap catalog would never contain those paths. Test-only assertion about a sidecar subprocess, not a UI-side command declaration; does not violate ADR-045 rule 1."
+      - "authoring_track invariant (2026-09-22): zero .vox source files exist under crates/vox-gui/ui/src; any .vox-derived component appearing there would cross the react-hand-authored boundary. crates/vox-gui/.vox is a directory, not a source file — checks must be scoped to ui/src."
 
   - id: vox-dashboard
     path: crates/vox-gui
@@ -36,6 +40,7 @@ surfaces:
     path: apps/interop/marquee_app
     status: interoperability-reference
     role: External React integration exemplar consuming generated Vox artifacts.
+    authoring_track: vox-native-interop-reference
     source_of_truth:
       - docs/src/case-studies/v0.5-production-deployment.md
       - docs/src/architecture/external-frontend-interop-plan-2026.md

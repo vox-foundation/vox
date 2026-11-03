@@ -10,6 +10,7 @@ use crate::store::StoreError;
 use crate::store::types::PublicationManifestParams;
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Sha3_256};
+use vox_orchestrator_types::trust::ContextTrustTier;
 
 /// Canonical artifact payload persisted to publication + searchable document stores.
 #[derive(Debug, Clone)]
@@ -88,6 +89,8 @@ impl VoxDb {
                 artifact.title,
                 "text/markdown",
                 &content_sha3_256,
+                // Publication copy is vox-authored but unreviewed text: Advisory (D-06).
+                ContextTrustTier::Advisory,
             )
             .await?;
         let chunks = split_markdown_chunks(artifact.body_markdown, 1200);
@@ -224,6 +227,16 @@ mod tests {
             .await
             .expect("get manifest");
         assert!(manifest.is_some(), "manifest missing");
+        let mut rows = db
+            .connection()
+            .query(
+                "SELECT trust_tier FROM search_documents WHERE id = ?1",
+                [doc_id],
+            )
+            .await
+            .unwrap();
+        let tier: String = rows.next().await.unwrap().unwrap().get(0).unwrap();
+        assert_eq!(tier, "advisory");
         let chunks = db
             .query_search_document_chunks("Body", 10)
             .await

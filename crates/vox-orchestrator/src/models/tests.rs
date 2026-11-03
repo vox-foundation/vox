@@ -177,14 +177,79 @@ mod premium_alias_tests {
 
     #[test]
     fn default_premium_alias_targets_exist_in_models_list() {
+        // Premium aliases are live `~vendor/family-latest` OpenRouter aliases, never
+        // literal catalog rows: each must resolve to a registered family member.
         let cfg = ModelConfig::default();
+        let registry = crate::models::ModelRegistry::new();
         let ids: HashSet<_> = cfg.models.iter().map(|m| m.id.as_str()).collect();
         for (k, v) in &cfg.premium_alias {
             assert!(
-                ids.contains(v.as_str()),
-                "premium_alias {k} -> {v} not in default models list"
+                ids.contains(v.as_str()) || registry.get(v).is_some(),
+                "premium_alias {k} -> {v} resolves to no default model"
             );
         }
+    }
+
+    #[test]
+    fn test_bootstrap_catalog_valid_and_non_zero_context() {
+        let raw_json =
+            include_str!("../../../../contracts/orchestration/model-catalog.bootstrap.v1.json");
+        let raw_models: Vec<crate::models::ModelSpec> =
+            serde_json::from_str(raw_json).expect("Invalid raw bootstrap catalog");
+        assert!(
+            !raw_models.is_empty(),
+            "raw bootstrap catalog must not be empty"
+        );
+        for m in &raw_models {
+            assert!(
+                m.capabilities.max_context > 0,
+                "model {} has zero max_context",
+                m.id
+            );
+            assert!(
+                m.cost_per_1k >= 0.0,
+                "model {} has negative cost_per_1k",
+                m.id
+            );
+        }
+
+        let cfg = ModelConfig::default();
+        assert!(
+            !cfg.models.is_empty(),
+            "bootstrap catalog must not be empty"
+        );
+        for m in &cfg.models {
+            assert!(
+                m.capabilities.max_context > 0,
+                "model {} has zero max_context",
+                m.id
+            );
+            assert!(
+                m.cost_per_1k >= 0.0,
+                "model {} has negative cost_per_1k",
+                m.id
+            );
+        }
+    }
+
+    #[test]
+    fn test_registry_get() {
+        let registry = crate::models::ModelRegistry::new();
+        assert!(registry.get("anthropic/claude-3-7-sonnet").is_some());
+        assert!(registry.get("claude-3-7-sonnet").is_some());
+        assert_eq!(
+            registry.get("anthropic/claude-3-7-sonnet").map(|m| m.id),
+            registry.get("claude-3-7-sonnet").map(|m| m.id)
+        );
+
+        assert!(registry.get("openai/o3-mini").is_some());
+        assert!(registry.get("o3-mini").is_some());
+        assert_eq!(
+            registry.get("openai/o3-mini").map(|m| m.id),
+            registry.get("o3-mini").map(|m| m.id)
+        );
+
+        assert!(registry.get("nonexistent-model").is_none());
     }
 }
 
@@ -1362,5 +1427,741 @@ mod semcov_wave34_tests {
             Some(u32::MAX),
             "i64::MAX must clamp to u32::MAX"
         );
+    }
+}
+
+#[cfg(test)]
+mod superseded_selection_tests {
+    use crate::config::CostPreference;
+    use crate::models::spec::PricingSource;
+    use crate::models::{ModelCapabilities, ModelRegistry, ModelSpec, ProviderType, StrengthTag};
+    use crate::types::TaskCategory;
+
+    fn dated(id: &str, released_at: Option<u64>, cost: f64) -> ModelSpec {
+        ModelSpec {
+            id: id.into(),
+            canonical_slug: id.into(),
+            provider: "test".into(),
+            provider_type: ProviderType::Ollama,
+            max_tokens: 8192,
+            cost_per_1k: cost,
+            cost_per_1k_input: cost,
+            cost_per_1k_output: cost,
+            is_free: false,
+            observed_cost_per_1k: None,
+            strengths: vec![StrengthTag::Codegen, StrengthTag::Generalist],
+            capabilities: ModelCapabilities {
+                released_at,
+                ..Default::default()
+            },
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: PricingSource::Bootstrap,
+            supported_parameters: vec![],
+        }
+    }
+
+    fn pick(r: &ModelRegistry, pred: impl FnMut(&ModelSpec) -> bool) -> Option<String> {
+        r.best_for_with_filter(
+            TaskCategory::CodeGen,
+            5,
+            CostPreference::Economy,
+            false,
+            pred,
+            None,
+        )
+        .map(|m| m.id)
+    }
+
+    #[test]
+    fn older_member_of_a_family_is_never_selected() {
+        let mut r = ModelRegistry::default();
+        // The older member is cheaper, so it wins on cost today unless recency filters it.
+        r.register(dated("acme/widget-4.8", Some(1_700_000_000), 0.1));
+        r.register(dated("acme/widget-5.5", Some(1_760_000_000), 1.0));
+        assert_eq!(pick(&r, |_| true), Some("acme/widget-5.5".to_string()));
+    }
+
+    #[test]
+    fn a_filtered_out_newest_member_does_not_hide_the_family() {
+        let mut r = ModelRegistry::default();
+        r.register(dated("acme/widget-4.8", Some(1_700_000_000), 0.1));
+        r.register(dated("acme/widget-5.5", Some(1_760_000_000), 1.0));
+        assert_eq!(
+            pick(&r, |m| m.id != "acme/widget-5.5"),
+            Some("acme/widget-4.8".to_string())
+        );
+    }
+
+    #[test]
+    fn undated_specs_still_compete() {
+        let mut r = ModelRegistry::default();
+        r.register(dated("acme/widget-4.8", None, 0.1));
+        assert_eq!(pick(&r, |_| true), Some("acme/widget-4.8".to_string()));
+    }
+}
+
+#[cfg(test)]
+mod tier_stamp_tests {
+    use crate::models::spec::PricingSource;
+    use crate::models::{ModelCapabilities, ModelRegistry, ModelSpec, ModelTier, ProviderType};
+
+    fn priced(id: &str, provider_type: ProviderType, out_per_1k: f64, is_free: bool) -> ModelSpec {
+        ModelSpec {
+            id: id.into(),
+            canonical_slug: id.into(),
+            provider: "test".into(),
+            provider_type,
+            max_tokens: 8192,
+            cost_per_1k: out_per_1k,
+            cost_per_1k_input: out_per_1k / 5.0,
+            cost_per_1k_output: out_per_1k,
+            is_free,
+            observed_cost_per_1k: None,
+            strengths: vec![],
+            capabilities: ModelCapabilities::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: PricingSource::OpenRouter,
+            supported_parameters: vec![],
+        }
+    }
+
+    #[test]
+    fn register_derives_the_tier_from_price_when_unknown() {
+        let mut r = ModelRegistry::default();
+        r.register(priced(
+            "acme/flagship",
+            ProviderType::OpenRouter,
+            0.025,
+            false,
+        ));
+        r.register(priced("acme/mid", ProviderType::OpenRouter, 0.010, false));
+        r.register(priced(
+            "acme/cheap",
+            ProviderType::OpenRouter,
+            0.0005,
+            false,
+        ));
+        assert_eq!(
+            r.get("acme/flagship").unwrap().capabilities.tier,
+            ModelTier::Elite
+        );
+        assert_eq!(r.get("acme/mid").unwrap().capabilities.tier, ModelTier::Pro);
+        assert_eq!(
+            r.get("acme/cheap").unwrap().capabilities.tier,
+            ModelTier::Fast
+        );
+    }
+
+    #[test]
+    fn register_keeps_an_explicit_tier_and_leaves_local_models_alone() {
+        let mut r = ModelRegistry::default();
+        let mut explicit = priced("acme/pinned", ProviderType::OpenRouter, 0.025, false);
+        explicit.capabilities.tier = ModelTier::Pro;
+        r.register(explicit);
+        r.register(priced("local/qwen", ProviderType::Ollama, 0.0, true));
+        assert_eq!(
+            r.get("acme/pinned").unwrap().capabilities.tier,
+            ModelTier::Pro
+        );
+        assert_ne!(
+            r.get("local/qwen").unwrap().capabilities.tier,
+            ModelTier::Free,
+            "local models are not cloud-free"
+        );
+    }
+}
+
+#[cfg(test)]
+mod routing_reference_tests {
+    use crate::models::reference::{ReferenceSource, RoutingReference};
+    use crate::models::spec::{PricingSource, QualitySource};
+    use crate::models::{
+        ModelCapabilities, ModelRegistry, ModelSpec, ModelTier, ProviderType, StrengthTag,
+    };
+
+    fn spec(
+        id: &str,
+        provider_type: ProviderType,
+        out: f64,
+        index: Option<f32>,
+        source: PricingSource,
+    ) -> ModelSpec {
+        ModelSpec {
+            id: id.into(),
+            canonical_slug: id.into(),
+            provider: "test".into(),
+            provider_type,
+            max_tokens: 128_000,
+            cost_per_1k: out,
+            cost_per_1k_input: out / 4.0,
+            cost_per_1k_output: out,
+            is_free: false,
+            observed_cost_per_1k: None,
+            strengths: vec![StrengthTag::Generalist],
+            capabilities: ModelCapabilities {
+                intelligence_index: index,
+                ..Default::default()
+            },
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: source,
+            supported_parameters: vec![],
+        }
+    }
+
+    /// 40 paid, benchmarked OpenRouter models (derived bands: Elite 0.0365, Pro 0.0275 per 1k).
+    fn catalog_registry() -> ModelRegistry {
+        let mut r = ModelRegistry::default();
+        for i in 0..40 {
+            r.register(spec(
+                &format!("acme/m-{i}"),
+                ProviderType::OpenRouter,
+                0.0005 + 0.001 * f64::from(i),
+                Some((10 + i) as f32),
+                PricingSource::OpenRouter,
+            ));
+        }
+        r
+    }
+
+    #[test]
+    fn a_registry_starts_on_the_fallback_reference() {
+        assert_eq!(
+            ModelRegistry::default().routing_reference(),
+            RoutingReference::FALLBACK
+        );
+    }
+
+    #[test]
+    fn register_stamps_a_quality_prior() {
+        let mut r = ModelRegistry::default();
+        r.register(spec(
+            "acme/b",
+            ProviderType::OpenRouter,
+            0.01,
+            Some(30.0),
+            PricingSource::OpenRouter,
+        ));
+        let prior = r
+            .get("acme/b")
+            .unwrap()
+            .capabilities
+            .quality_prior
+            .expect("stamped");
+        assert_eq!(prior.source, QualitySource::Benchmark { index: 30.0 });
+        assert!(
+            (prior.value - 0.5).abs() < 1e-12,
+            "fallback reference is 60"
+        );
+    }
+
+    #[test]
+    fn apply_derives_the_reference_and_restamps_priors() {
+        let mut r = catalog_registry();
+        let before = r
+            .get("acme/m-39")
+            .unwrap()
+            .capabilities
+            .quality_prior
+            .unwrap()
+            .value;
+        let reference = r.apply_routing_reference();
+        assert_eq!(reference.quality_source, ReferenceSource::Derived);
+        assert_eq!(r.routing_reference(), reference);
+        let after = r
+            .get("acme/m-39")
+            .unwrap()
+            .capabilities
+            .quality_prior
+            .unwrap()
+            .value;
+        assert!((before - 49.0 / 60.0).abs() < 1e-12);
+        assert!(
+            (after - 1.0).abs() < 1e-12,
+            "the top benchmark is 1.0 under the derived reference"
+        );
+    }
+
+    #[test]
+    fn apply_restamps_priced_tiers_and_nothing_else() {
+        let mut r = catalog_registry();
+        let mut hand = spec(
+            "acme/hand-tiered",
+            ProviderType::OpenRouter,
+            0.0385,
+            None,
+            PricingSource::Bootstrap,
+        );
+        hand.capabilities.tier = ModelTier::Pro;
+        let mut unpriced = spec(
+            "acme/direct-flagship",
+            ProviderType::Anthropic,
+            0.0,
+            None,
+            PricingSource::AnthropicDirect,
+        );
+        unpriced.capabilities.tier = ModelTier::Elite;
+        let mut stale = spec(
+            "acme/m-stale",
+            ProviderType::OpenRouter,
+            0.0385,
+            None,
+            PricingSource::OpenRouter,
+        );
+        stale.capabilities.tier = ModelTier::Fast;
+        let mut observed = spec(
+            "acme/observed",
+            ProviderType::OpenRouter,
+            0.0385,
+            None,
+            PricingSource::Telemetry,
+        );
+        observed.capabilities.tier = ModelTier::Fast;
+        r.register(hand);
+        r.register(unpriced);
+        r.register(stale);
+        r.register(observed);
+        r.apply_routing_reference();
+        assert_eq!(
+            r.get("acme/hand-tiered").unwrap().capabilities.tier,
+            ModelTier::Pro,
+            "an entry no catalog prices keeps its tier"
+        );
+        assert_eq!(
+            r.get("acme/direct-flagship").unwrap().capabilities.tier,
+            ModelTier::Elite,
+            "an unknown price keeps the tier"
+        );
+        assert_eq!(
+            r.get("acme/m-stale").unwrap().capabilities.tier,
+            ModelTier::Elite,
+            "a catalog price decides the tier"
+        );
+        assert_eq!(
+            r.get("acme/observed").unwrap().capabilities.tier,
+            ModelTier::Elite,
+            "an observed price decides the tier"
+        );
+    }
+
+    /// A high-confidence observed price (`ModelPricingCatalogRow` derives no `Default`).
+    fn observed_row(model_id: &str, per_1k: f64) -> vox_db::store::types::ModelPricingCatalogRow {
+        vox_db::store::types::ModelPricingCatalogRow {
+            model_id: model_id.into(),
+            provider: "acme".into(),
+            observed_blended_per_1k: Some(per_1k),
+            observed_input_per_1k: Some(per_1k / 4.0),
+            observed_output_per_1k: Some(per_1k),
+            catalog_input_per_1k: 0.00025,
+            catalog_output_per_1k: 0.001,
+            n_provider_reported: 10,
+            n_estimated: 0,
+            n_free: 0,
+            confidence: "high".into(),
+            last_observed_at_ms: Some(0),
+            updated_at_ms: 0,
+        }
+    }
+    #[test]
+    fn injecting_observed_prices_re_derives_the_tier() {
+        let mut r = catalog_registry();
+        r.register(spec(
+            "acme/listed",
+            ProviderType::OpenRouter,
+            0.001,
+            None,
+            PricingSource::OpenRouter,
+        ));
+        r.apply_routing_reference();
+        assert_eq!(
+            r.get("acme/listed").unwrap().capabilities.tier,
+            ModelTier::Fast
+        );
+        r.inject_pricing_catalog(vec![observed_row("acme/listed", 0.05)]);
+        assert_eq!(
+            r.get("acme/listed").unwrap().capabilities.tier,
+            ModelTier::Elite,
+            "the observed price decides"
+        );
+    }
+
+    #[test]
+    fn a_model_registered_after_apply_uses_the_derived_bands() {
+        let mut r = catalog_registry();
+        r.apply_routing_reference();
+        r.register(spec(
+            "acme/new",
+            ProviderType::OpenRouter,
+            0.025,
+            None,
+            PricingSource::OpenRouter,
+        ));
+        assert_eq!(
+            crate::models::tiering::derive_tier(false, 0.025),
+            ModelTier::Elite,
+            "fixed bands say Elite"
+        );
+        assert_eq!(
+            r.get("acme/new").unwrap().capabilities.tier,
+            ModelTier::Fast,
+            "derived bands say Fast"
+        );
+    }
+}
+
+#[cfg(test)]
+mod family_inheritance_tests {
+    use crate::models::reference::RoutingReference;
+    use crate::models::spec::{PricingSource, QualitySource};
+    use crate::models::{ModelCapabilities, ModelRegistry, ModelSpec, ProviderType, StrengthTag};
+
+    fn spec(
+        id: &str,
+        provider_type: ProviderType,
+        index: Option<f32>,
+        released_at: Option<u64>,
+    ) -> ModelSpec {
+        ModelSpec {
+            id: id.into(),
+            canonical_slug: id.into(),
+            provider: "test".into(),
+            provider_type,
+            max_tokens: 128_000,
+            cost_per_1k: 0.01,
+            cost_per_1k_input: 0.0025,
+            cost_per_1k_output: 0.01,
+            is_free: false,
+            observed_cost_per_1k: None,
+            strengths: vec![StrengthTag::Generalist],
+            capabilities: ModelCapabilities {
+                intelligence_index: index,
+                released_at,
+                ..Default::default()
+            },
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: PricingSource::OpenRouter,
+            supported_parameters: vec![],
+        }
+    }
+
+    fn prior_source(r: &ModelRegistry, id: &str) -> QualitySource {
+        r.get(id)
+            .unwrap()
+            .capabilities
+            .quality_prior
+            .unwrap()
+            .source
+    }
+
+    fn registry_with_benchmarked_5_0() -> ModelRegistry {
+        let mut r = ModelRegistry::default();
+        r.register(spec(
+            "acme/widget-5.0",
+            ProviderType::OpenRouter,
+            Some(38.0),
+            Some(1_750_000_000),
+        ));
+        r
+    }
+
+    #[test]
+    fn a_new_release_inherits_its_familys_benchmark() {
+        let mut r = registry_with_benchmarked_5_0();
+        r.register(spec(
+            "acme/widget-5.5",
+            ProviderType::OpenRouter,
+            None,
+            Some(1_760_000_000),
+        ));
+        r.apply_routing_reference();
+        assert_eq!(
+            prior_source(&r, "acme/widget-5.5"),
+            QualitySource::Inherited {
+                index: 38.0,
+                from: "acme/widget-5.0".into()
+            }
+        );
+        assert_eq!(
+            prior_source(&r, "acme/widget-5.0"),
+            QualitySource::Benchmark { index: 38.0 }
+        );
+    }
+
+    #[test]
+    fn a_direct_provider_model_joins_its_openrouter_family() {
+        let mut r = registry_with_benchmarked_5_0();
+        let mut direct = spec("widget-5-5-20260101", ProviderType::Anthropic, None, None);
+        direct.canonical_slug = "acme/widget-5-5-20260101".into();
+        direct.pricing_source = PricingSource::AnthropicDirect;
+        r.register(direct);
+        r.apply_routing_reference();
+        assert_eq!(
+            prior_source(&r, "widget-5-5-20260101"),
+            QualitySource::Inherited {
+                index: 38.0,
+                from: "acme/widget-5.0".into()
+            }
+        );
+    }
+
+    #[test]
+    fn local_models_never_inherit() {
+        let mut r = registry_with_benchmarked_5_0();
+        r.register(spec(
+            "acme/widget-5.9",
+            ProviderType::Ollama,
+            None,
+            Some(1_770_000_000),
+        ));
+        r.apply_routing_reference();
+        assert_eq!(prior_source(&r, "acme/widget-5.9"), QualitySource::Estimate);
+    }
+
+    #[test]
+    fn an_openrouter_inherited_prior_outranks_its_estimate() {
+        let mut r = registry_with_benchmarked_5_0();
+        let fresh = spec(
+            "acme/widget-5.5",
+            ProviderType::OpenRouter,
+            None,
+            Some(1_760_000_000),
+        );
+        let estimate = RoutingReference::FALLBACK.quality_prior(&fresh, None).value;
+        r.register(fresh);
+        r.apply_routing_reference();
+        let inherited = r
+            .get("acme/widget-5.5")
+            .unwrap()
+            .capabilities
+            .quality_prior
+            .unwrap()
+            .value;
+        assert!(inherited > estimate, "{inherited} vs {estimate}");
+    }
+
+    // The invariant is "same line, same prior, whichever key the user has"; for a
+    // direct-provider model inheritance can LOWER the prior (its unscaled context proxy is ~0.83).
+    #[test]
+    fn a_direct_model_scores_like_its_openrouter_sibling() {
+        let mut r = registry_with_benchmarked_5_0();
+        r.register(spec(
+            "acme/widget-5.5",
+            ProviderType::OpenRouter,
+            None,
+            Some(1_760_000_000),
+        ));
+        let mut direct = spec("widget-5-5-20260101", ProviderType::Anthropic, None, None);
+        direct.canonical_slug = "acme/widget-5-5-20260101".into();
+        direct.pricing_source = PricingSource::AnthropicDirect;
+        let direct_estimate = RoutingReference::FALLBACK
+            .quality_prior(&direct, None)
+            .value;
+        r.register(direct);
+        r.apply_routing_reference();
+        let prior = |id: &str| r.get(id).unwrap().capabilities.quality_prior.unwrap().value;
+        assert_eq!(prior("widget-5-5-20260101"), prior("acme/widget-5.5"));
+        assert!(
+            prior("widget-5-5-20260101") < direct_estimate,
+            "the family's measured index replaces the proxy"
+        );
+    }
+}
+
+#[cfg(test)]
+mod multi_surface_model_router_and_db_shape_audit {
+    use crate::models::{
+        ModelRegistry, SelectionAxisKind, SelectionIntent, SelectionPolicy, SelectionStep,
+        install_active_policy, install_base_routing_priority, select,
+    };
+    use crate::types::TaskCategory;
+
+    #[tokio::test]
+    async fn multi_surface_model_router_and_db_shape_audit() {
+        // Hermetic: CI runners hold no provider keys, which leaves the router nothing to pick.
+        crate::models::key_guard::set_test_key_availability(Some(vec![
+            crate::models::ProviderType::OpenRouter,
+        ]));
+        let db = vox_db::VoxDb::in_memory().await.expect("in-memory VoxDb");
+        let sink = vox_db::telemetry_sink::ResearchMetricsSink::new(db.clone());
+
+        let registry = ModelRegistry::new();
+        assert!(
+            !registry.list_models().is_empty(),
+            "ModelRegistry must populate default models"
+        );
+
+        // 1. CLI / Orchestrator surface (ROUTER-01): default selection across CodeGen, Research, Debugging, Review
+        for cat in [
+            TaskCategory::CodeGen,
+            TaskCategory::Research,
+            TaskCategory::Debugging,
+            TaskCategory::Review,
+        ] {
+            let intent = SelectionIntent::for_task(cat);
+            let chosen = select(&intent, &registry).expect("router must select a model");
+            assert!(!chosen.model_id.is_empty());
+            sink.record_async(&vox_telemetry::TelemetryEvent::SelectionDecision(
+                vox_telemetry::SelectionDecisionEvent {
+                    intent_caller: None,
+                    task: format!("{cat:?}").to_lowercase(),
+                    axes: (34, 33, 33),
+                    chosen_model: chosen.model_id.clone(),
+                    reason: "scored".into(),
+                    premium_alias_key: None,
+                    repository_id: Some("repo-router".into()),
+                },
+            ))
+            .await
+            .expect("record SelectionDecision");
+        }
+
+        // 2. MCP / Flywheel Telemetry surface (ROUTER-03): ModelCall, ModelPrompt, ModelBenchCase, TrainingThroughput, DomainMisguidance
+        sink.record_async(&vox_telemetry::TelemetryEvent::ModelCall(
+            vox_telemetry::ModelCallEvent {
+                model: "mens-qwen35".into(),
+                provider: "ollama".into(),
+                route_profile: Some("local".into()),
+                selection_rationale: None,
+                prompt_tokens: 100,
+                completion_tokens: 50,
+                cache_read_input_tokens: None,
+                cache_creation_input_tokens: None,
+                latency_ms: 120,
+                cost_usd: 0.0,
+                cost_source: "local".into(),
+                error_class: None,
+                retry_attempt: 0,
+                task_id: Some(1),
+                parent_task_id: None,
+                trace_id: None,
+                caller_agent_id: None,
+            },
+        ))
+        .await
+        .expect("record ModelCall");
+        sink.record_async(&vox_telemetry::TelemetryEvent::ModelPrompt(
+            vox_telemetry::ModelPromptEvent {
+                canonical_model_id: "local_ollama".into(),
+                profile_variant_id: "confirmed_v1".into(),
+                task_category: "coding".into(),
+                quality_bucket: "excellent".into(),
+            },
+        ))
+        .await
+        .expect("record ModelPrompt");
+        sink.record_async(&vox_telemetry::TelemetryEvent::ModelBenchCase(
+            vox_telemetry::ModelBenchCaseEvent {
+                model_id: "mens-qwen35".into(),
+                fixture_id: "spoke_vox_01".into(),
+                task_category: "codegen".into(),
+                passed: true,
+                latency_ms: 95,
+            },
+        ))
+        .await
+        .expect("record ModelBenchCase");
+        sink.record_async(&vox_telemetry::TelemetryEvent::TrainingThroughput(
+            vox_telemetry::TrainingThroughputEvent {
+                gpu_vendor: "apple_metal".into(),
+                vram_bucket: "24_to_48gb".into(),
+                seq_len_bucket: "512_to_2k".into(),
+                tok_per_sec_bucket: "50_to_200".into(),
+                success: true,
+            },
+        ))
+        .await
+        .expect("record TrainingThroughput");
+        sink.record_async(&vox_telemetry::TelemetryEvent::DomainMisguidance(
+            vox_telemetry::DomainMisguidanceEvent {
+                culprit_domain: "docs.example.org".into(),
+                domain_category: "official_docs".into(),
+                defect_class: "hallucinated_api".into(),
+            },
+        ))
+        .await
+        .expect("record DomainMisguidance");
+
+        // 3. GUI / Daemon surface: persisted routing_priority + SelectionPolicy JSON round-trip
+        db.set_user_preference(
+            "local_user",
+            "routing_priority",
+            "quality=60,latency=25,cost=15",
+        )
+        .await
+        .expect("set routing_priority");
+        let csv = db
+            .get_user_preference("local_user", "routing_priority")
+            .await
+            .expect("get routing_priority")
+            .expect("routing_priority present");
+        let axes = vox_config::AutoRoutingPriority::try_parse_csv(&csv)
+            .expect("parse routing_priority csv");
+        install_base_routing_priority(Some(axes));
+
+        let policy = SelectionPolicy {
+            steps: vec![SelectionStep::EmphasizeAxis {
+                axis: SelectionAxisKind::Intelligence,
+                weight: 80,
+            }],
+        };
+        let policy_json = serde_json::to_string(&policy).expect("serialize SelectionPolicy");
+        db.set_user_preference("local_user", "selection_policy", &policy_json)
+            .await
+            .expect("set selection_policy");
+        let loaded_json = db
+            .get_user_preference("local_user", "selection_policy")
+            .await
+            .expect("get selection_policy")
+            .expect("selection_policy present");
+        let decoded_policy =
+            SelectionPolicy::from_json(&loaded_json).expect("SelectionPolicy::from_json");
+        assert_eq!(decoded_policy.steps.len(), 1);
+        install_active_policy(Some(decoded_policy));
+
+        let policy_pick = select(&SelectionIntent::for_task(TaskCategory::CodeGen), &registry)
+            .expect("router must select under SelectionPolicy");
+        assert!(!policy_pick.model_id.is_empty());
+
+        // Reset global policy / priority after test
+        install_active_policy(None);
+        install_base_routing_priority(None);
+
+        // 4. DBAUDIT-02: Verify clean shape audit + negative malformed metadata detection
+        let report = db
+            .audit_research_metric_shapes("")
+            .await
+            .expect("audit_research_metric_shapes");
+        assert!(
+            report.total_rows_checked >= 9,
+            "expected >=9 persisted rows, got {}",
+            report.total_rows_checked
+        );
+        assert_eq!(report.valid_typed_rows, report.total_rows_checked);
+        assert!(report.is_clean(), "expected clean report, got {report:?}");
+
+        // Negative detection: insert malformed JSON metadata row
+        db.append_research_metric(
+            "telemetry:malformed:test",
+            vox_telemetry::METRIC_TYPE_SELECTION_DECISION,
+            None,
+            Some("{invalid-json"),
+        )
+        .await
+        .expect("insert malformed row");
+        let neg_report = db
+            .audit_research_metric_shapes("telemetry:malformed:")
+            .await
+            .expect("negative audit");
+        assert_eq!(neg_report.total_rows_checked, 1);
+        assert_eq!(neg_report.malformed_metadata_rows.len(), 1);
+        assert!(!neg_report.is_clean());
+        crate::models::key_guard::set_test_key_availability(None);
     }
 }

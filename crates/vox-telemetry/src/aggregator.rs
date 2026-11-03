@@ -374,6 +374,7 @@ mod semcov_wave6_tests {
         let tid = 70005_u64;
         record_task_started(tid);
         // Wait a bit so a reset would produce a noticeably later started_at.
+        // drift-allow(duplicate-numeric-literal): test clock tick
         std::thread::sleep(std::time::Duration::from_millis(5));
         // Second call must NOT reset started_at.
         record_task_started(tid);

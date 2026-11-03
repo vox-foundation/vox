@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/vox-runtime-rn-mobile-cross-compile.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "vox-runtime-rn mobile cross-compile (Android + iOS)",
+  "summary": "Toolchain setup and build commands for cross-compiling vox-runtime-rn to four Android and iOS architectures.",
+  "scope": ["vox-runtime-rn", "mobile", "Android", "iOS", "cross-compile", "NDK"],
+  "cross_refs": ["crates/vox-runtime-rn", "crates/vox-cli-tests", "mobile-e2e-testing-strategy-2026.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

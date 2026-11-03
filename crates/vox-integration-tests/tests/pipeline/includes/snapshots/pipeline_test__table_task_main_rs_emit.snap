@@ -281,6 +281,7 @@ CREATE INDEX IF NOT EXISTS idx_task_by_done ON task (done, priority);
         }
     }
     let db = Arc::new(codex);
+    let _ = VOX_APP_DB.set(db.clone());
 
     // 1. Initialize the durable database.
     //    Uses `DbConfig::resolve_canonical()` so the binary picks up

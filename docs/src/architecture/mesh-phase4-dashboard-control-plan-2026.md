@@ -2,7 +2,7 @@
 title: "Mesh Phase 4 — Dashboard Mesh-Control Surface Implementation Plan (2026-05-09)"
 description: "Step-by-step TDD implementation plan for Phase 4 of the mesh-and-language-distribution SSOT. 12 tasks (P4-T1..P4-T12) wiring the dashboard's mesh surface to live orchestrator state, adding the Add-a-Node wizard, donations.vox round-trip editor, force-graph topology canvas, audit-log scrubber, spend gauges, ⌘K mesh actions, workflow visual debugger, run-row drawer, privacy-class indicator, join-someone-else's-mesh wizard, and mesh-wide model registry view. Crosses Rust + Vox view-language + TSX boundaries."
 category: "Architecture SSOTs"
-status: "current"
+status: "roadmap"
 training_eligible: false
 training_rationale: "Implementation plan; gets stale as tasks are completed. SSOT (mesh-and-language-distribution-ssot-2026.md) and the design brief are the durable artifacts."
 ---
@@ -117,7 +117,7 @@ training_rationale: "Implementation plan; gets stale as tasks are completed. SSO
 - `crates/vox-mesh-types/src/donation_policy.rs` — add `per_peer_overrides: Vec<PeerOverride>` field.
 - `crates/vox-orchestrator/Cargo.toml`, `crates/vox-dashboard/Cargo.toml` — add `vox-mesh-policy`, `vox-mesh-models`, `qrcode`.
 
-**Do NOT edit:** `docs/SUMMARY.md`, `docs/src/architecture/architecture-index.md`, `docs/src/architecture/research-index.md`, `docs/feed.xml`, any `*.generated.md`, `.cursorignore` — all of these are tool-regenerated. Re-run the doc generator after merging this plan; never hand-edit.
+**Do NOT edit:** `docs/SUMMARY.md`, `docs/src/architecture/architecture-index.md`, `docs/feed.xml`, any `*.generated.md`, `.cursorignore` — all of these are tool-regenerated. Re-run the doc generator after merging this plan; never hand-edit. `research-index.md` is retired (archived 2026-09). The Starlight sidebar is the browse surface. `architecture-index.md` stays gitignored.
 
 ---
 

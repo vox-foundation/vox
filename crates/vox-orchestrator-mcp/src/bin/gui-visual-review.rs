@@ -14,10 +14,15 @@ async fn main() {
             .cloned()
     };
     let do_ai = a.iter().any(|x| x == "--ai");
+    let ux_mode = a.iter().any(|x| x == "--ux-mode");
 
     if let Some(bundle_dir) = get("--bundle") {
-        let cache = get("--cache")
-            .unwrap_or_else(|| "contracts/reports/gui-visual-review/bundle-cache.v1.json".into());
+        let default_cache = if ux_mode {
+            "contracts/reports/gui-visual-review/bundle-ux-cache.v1.json"
+        } else {
+            "contracts/reports/gui-visual-review/bundle-cache.v1.json"
+        };
+        let cache = get("--cache").unwrap_or_else(|| default_cache.into());
         let report_dir =
             get("--report-dir").unwrap_or_else(|| "contracts/reports/gui-visual-review".into());
         let now = get("--now").unwrap_or_default();
@@ -34,6 +39,7 @@ async fn main() {
             report_dir: Path::new(&report_dir),
             now_iso: now,
             do_ai,
+            ux_mode,
             total_budget_ms,
             max_reviews,
             browsers,

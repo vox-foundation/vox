@@ -74,8 +74,8 @@ pub fn set_test_privacy_override(v: Option<&str>) {
         .unwrap_or_else(|e| e.into_inner()) = v.map(str::to_string);
 }
 
-/// Reads `VOX_INFERENCE_PRIVACY` (`any` [default] | `local_only`), or the
-/// test-only override set via [`set_test_privacy_override`], and returns
+/// Reads `VOX_INFERENCE_PRIVACY` (`any` (default) | `local_only`), or the
+/// test-only override set via `set_test_privacy_override`, and returns
 /// whether `local_only` is in effect.
 #[must_use]
 pub fn inference_privacy_local_only_from_env() -> bool {

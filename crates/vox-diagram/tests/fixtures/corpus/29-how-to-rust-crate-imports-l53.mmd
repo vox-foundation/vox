@@ -1,0 +1,7 @@
+flowchart LR
+  A["`.vox` source"] --> B["Lexer / Parser"]
+  B --> C["AST `ImportPathKind::RustCrate`"]
+  C --> D["HIR `HirRustImport`"]
+  D --> E["Type registration"]
+  D --> F["`Cargo.toml` synthesis"]
+  F --> G["`cargo build` in cache / generated crate"]

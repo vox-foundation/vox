@@ -55,9 +55,26 @@ fn build_adapter_manifest_v3(
         d_model,
         rank,
         alpha,
-        config.base_model.clone(),
+        resolved_serve_base_model(config),
         adapter_provenance_from_config(config),
     )
+}
+
+/// Prefer a local snapshot directory for serve. HF ids like `Qwen/Qwen3-0.6B`
+/// are not loadable by the plugin inference engine (`base_model` must be a dir).
+fn resolved_serve_base_model(config: &LoraTrainingConfig) -> Option<String> {
+    if let Some(ref id) = config.base_model
+        && Path::new(id).is_dir()
+    {
+        return Some(id.clone());
+    }
+    if let Some((_, ref cfg)) = config.base_model_paths
+        && let Some(parent) = cfg.parent()
+        && parent.is_dir()
+    {
+        return Some(parent.display().to_string());
+    }
+    config.base_model.clone()
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -79,11 +96,34 @@ pub(super) fn finalize_training_run(
     last_avg_val_loss: Option<f64>,
     stats: TrainingLoopStats,
     run_start_inst: Instant,
+    peak_metal_bytes: u64,
 ) -> Result<TrainingSummary> {
     let final_path = out.join("candle_qlora_adapter.safetensors");
     trainer
         .save_adapter(&final_path)
         .context("save final adapter")?;
+
+    // Copy tokenizer.json and config.json so the output directory is completely self-contained for eval & serving.
+    let out_tokenizer = out.join("tokenizer.json");
+    if !out_tokenizer.exists() && bundle.tokenizer_path.is_file() {
+        let copy_res = std::fs::copy(&bundle.tokenizer_path, &out_tokenizer);
+        if let Err(e) = copy_res {
+            train_log::warn(&format!(
+                "failed to copy tokenizer.json to {}: {e}",
+                out.display()
+            ));
+        }
+    }
+    let out_config = out.join("config.json");
+    if !out_config.exists() && bundle.config_path.is_file() {
+        let copy_res = std::fs::copy(&bundle.config_path, &out_config);
+        if let Err(e) = copy_res {
+            train_log::warn(&format!(
+                "failed to copy config.json to {}: {e}",
+                out.display()
+            ));
+        }
+    }
 
     let final_avg_loss = if total_step_count > 0 {
         total_loss_sum / total_step_count as f64
@@ -114,6 +154,8 @@ pub(super) fn finalize_training_run(
             device = device_label,
             ckpt = final_path.display(),
         ),
+        license_class: config.license_class.clone(),
+        attribution_required: config.attribution_required,
     };
     if let Err(e) = model_card::write(out, &card) {
         train_log::warn(&format!("MODEL_CARD.md could not be written: {e}"));
@@ -138,6 +180,16 @@ pub(super) fn finalize_training_run(
 
     CheckpointState::delete(out);
 
+    // Delete intermediate step checkpoints to avoid leaking tens of gigabytes of disk space
+    if let Ok(entries) = std::fs::read_dir(out) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.starts_with("checkpoint_step_") && name.ends_with(".safetensors") {
+                let _ = std::fs::remove_file(entry.path());
+            }
+        }
+    }
+
     let _ = db_tx.send(TrainingDbEvent::Complete {
         run_id: run_id.to_string(),
         global_step,
@@ -156,6 +208,7 @@ pub(super) fn finalize_training_run(
             "skip_token_id_oob": stats.skip_token_id_oob,
             "final_adapter": final_path.display().to_string(),
             "run_id": run_id,
+            "peak_metal_allocated_bytes": peak_metal_bytes,
         }),
     )?;
 
@@ -199,6 +252,7 @@ pub(super) fn finalize_training_run(
             "avg_train_loss": final_avg_loss,
             "avg_val_loss_last_epoch": last_avg_val_loss,
             "total_tokens": total_tokens,
+            "peak_metal_allocated_bytes": peak_metal_bytes,
             "artifacts": {
                 "final_adapter": final_path.display().to_string(),
                 "training_skip_stats": out.join("training_skip_stats.json").display().to_string(),
@@ -248,4 +302,53 @@ pub(super) fn finalize_training_run(
         total_tokens,
         ms_per_step,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolved_serve_base_model;
+    use crate::config::LoraTrainingConfig;
+    use std::fs;
+
+    #[test]
+    fn resolved_serve_base_model_keeps_existing_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().display().to_string();
+        let cfg = LoraTrainingConfig {
+            base_model: Some(path.clone()),
+            ..Default::default()
+        };
+        assert_eq!(resolved_serve_base_model(&cfg), Some(path));
+    }
+
+    #[test]
+    fn resolved_serve_base_model_uses_config_parent_for_hf_id() {
+        let snap = tempfile::tempdir().unwrap();
+        let cfg_path = snap.path().join("config.json");
+        fs::write(&cfg_path, "{}").unwrap();
+        let expected = snap.path().display().to_string();
+        let cfg = LoraTrainingConfig {
+            base_model: Some("Qwen/Qwen3-0.6B".into()),
+            base_model_paths: Some((vec![], cfg_path)),
+            ..Default::default()
+        };
+        assert_eq!(resolved_serve_base_model(&cfg), Some(expected));
+    }
+
+    /// The one case where this differs from `config.json`'s parent: a local
+    /// `base_model` directory wins over wherever config.json was read from.
+    #[test]
+    fn resolved_serve_base_model_prefers_a_local_base_model_dir() {
+        let local = tempfile::tempdir().unwrap();
+        let snap = tempfile::tempdir().unwrap();
+        let cfg_path = snap.path().join("config.json");
+        fs::write(&cfg_path, "{}").unwrap();
+        let path = local.path().display().to_string();
+        let cfg = LoraTrainingConfig {
+            base_model: Some(path.clone()),
+            base_model_paths: Some((vec![], cfg_path)),
+            ..Default::default()
+        };
+        assert_eq!(resolved_serve_base_model(&cfg), Some(path));
+    }
 }

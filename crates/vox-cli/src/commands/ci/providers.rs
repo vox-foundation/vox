@@ -112,7 +112,42 @@ impl vox_cli_ci::HeavyGuardHost for VoxCliProviders {
             }
             CiCmd::GuiCatalogParity => super::gui_catalog_parity::run(root),
             CiCmd::GuiSurfaceCoverage { write } => super::gui_surface_coverage::run(root, *write),
-            CiCmd::GuiSurfaceRegistry { write } => super::gui_surface_registry::run(root, *write),
+            CiCmd::GuiSurfaceRegistry {
+                write,
+                tighten,
+                today,
+            } => {
+                if *tighten {
+                    super::gui_surface_registry::tighten_baselines(root)
+                } else {
+                    let parsed_today = today
+                        .as_deref()
+                        .map(super::gui_surface_registry::parse_today)
+                        .transpose();
+                    match parsed_today {
+                        Ok(t) => super::gui_surface_registry::run(root, *write, t),
+                        Err(e) => Err(e),
+                    }
+                }
+            }
+            CiCmd::CapabilityIndex {
+                write,
+                tighten,
+                refresh_coverage,
+            } => {
+                let refreshed = if *refresh_coverage {
+                    super::capability_index::refresh_coverage_snapshot(root)
+                } else {
+                    Ok(())
+                };
+                refreshed.and_then(|()| {
+                    if *tighten {
+                        super::capability_index::tighten_baseline(root)
+                    } else {
+                        super::capability_index::run(root, *write)
+                    }
+                })
+            }
             CiCmd::ExecPolicyContract => super::exec_policy_contract::run(root),
             CiCmd::OperationsVerify => super::operations_catalog::verify(root),
             CiCmd::OperationsSync { target, write } => {
@@ -133,9 +168,6 @@ impl vox_cli_ci::HeavyGuardHost for VoxCliProviders {
                 out_dir,
                 package,
             } => super::release_build::run(root, target, version.as_deref(), out_dir, *package),
-            CiCmd::RunnerScale { apply } => super::runner_scale::run_scale(*apply),
-            CiCmd::RunnerPreflight => super::runner_scale::run_preflight(),
-            CiCmd::RunnerStatus => super::runner_scale::run_status(),
             _ => return None,
         })
     }

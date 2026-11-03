@@ -119,7 +119,7 @@ fn agent_id_from_kind_json(v: &serde_json::Value) -> u64 {
 fn agent_event_to_record(
     ev: &vox_orchestrator::AgentEvent,
     repo_id: &str,
-) -> vox_gamify::db::AgentEventRecord {
+) -> vox_db::ops_agent_telemetry::AgentEventRecord {
     let mut kind_json = serde_json::to_value(&ev.kind).unwrap_or_default();
     let event_type = kind_json
         .get("type")
@@ -134,7 +134,7 @@ fn agent_event_to_record(
         );
     }
     let payload = serde_json::to_string(&kind_json).unwrap_or_default();
-    vox_gamify::db::AgentEventRecord {
+    vox_db::ops_agent_telemetry::AgentEventRecord {
         id: ev.id.0 as i64,
         agent_id: agent_id.to_string(),
         event_type,
@@ -159,7 +159,7 @@ pub async fn poll_events(state: &ServerState, params: PollEventsParams) -> Strin
 
         for id in agent_ids {
             if let Ok(records) =
-                vox_gamify::db::get_events(db, &id.0.to_string(), Some(lim_i64)).await
+                vox_db::ops_agent_telemetry::get_events(db, &id.0.to_string(), Some(lim_i64)).await
             {
                 all_events.extend(records);
             }
@@ -261,13 +261,13 @@ pub async fn record_cost(state: &ServerState, params: RecordCostParams) -> Strin
 
     if let Some(id) = target_id {
         if let Some(db) = &state.db {
-            let tenant_id = vox_gamify::db::get_agent_session(db, &params.session_id)
+            let tenant_id = vox_db::ops_agent_telemetry::get_agent_session(db, &params.session_id)
                 .await
                 .ok()
                 .flatten()
                 .and_then(|s| s.tenant_id);
 
-            let _ = vox_gamify::db::insert_cost_record(
+            let _ = vox_db::ops_agent_telemetry::insert_cost_record(
                 db,
                 &id.0.to_string(),
                 Some(&params.session_id),

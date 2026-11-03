@@ -1,6 +1,10 @@
 //! Effect-level proof that validate_vuv_source catches real GUI-guarantee
 //! violations — fed the forbidden-corpus fixtures, not substrings. Closes the
 //! AGH-0007 follow-up (a) and enforces the §B-9 "prove the effect" rule.
+
+// Task 8e fix round 1: pull in the hermetic-VOX_HOME ctor (see tests/common/mod.rs).
+mod common;
+
 use vox_orchestrator_mcp::gui_registry_tools::validate_vuv_source;
 
 fn errors(v: &serde_json::Value) -> u64 {

@@ -1,0 +1,3 @@
+{"_id":"q001","text":"zephyrine installer setup","metadata":{"origin":"human","author":"fixture","approved_by":"fixture","created":"2026-10-04","intent":"where","canary":"00000000-0000-0000-0000-000000000000"}}
+{"_id":"q002","text":"quokka flag verbose mode","metadata":{"origin":"llm-expansion","author":"fixture","approved_by":"fixture","created":"2026-10-04","intent":"how-to","canary":"00000000-0000-0000-0000-000000000000"}}
+{"_id":"q003","text":"marmoset daemon beta setup","metadata":{"origin":"human","author":"fixture","approved_by":"fixture","created":"2026-10-04","intent":"concept","canary":"00000000-0000-0000-0000-000000000000"}}

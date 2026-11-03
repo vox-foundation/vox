@@ -1,0 +1,27 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/vox-gui-native-roadmap-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Vox GUI-Native Language Roadmap (April 2026)",
+  "summary": "Executable roadmap for 30 tasks across 8 phases to make Vox into a GUI-native language whose compiler catches correctness invariants React+TypeScript cannot.",
+  "scope": [
+    "GUI-native language",
+    "compiler primitives",
+    "grammar unification",
+    "Web IR correctness",
+    "Vox GUI authoring DSL",
+    "dashboard re-authoring",
+    "MENS training",
+    "eight phases of work"
+  ],
+  "cross_refs": [
+    "docs/src/architecture/phase-numbering-index.md",
+    "crates/vox-compiler/",
+    "crates/vox-dashboard/",
+    "docs/src/adr/",
+    "examples/golden/"
+  ],
+  "locked": false,
+  "precedence": null
+}

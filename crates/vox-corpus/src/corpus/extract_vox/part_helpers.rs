@@ -89,44 +89,58 @@ fn extract_construct_blocks_heuristic(source: &str) -> Vec<(String, String, Stri
         let trimmed = lines[i].trim();
 
         // Detect construct starts
-        let (construct_type, name): (&str, String) = if trimmed.starts_with("fn ") || trimmed.starts_with("pub fn ")
-        {
-            let n = extract_vox_name(trimmed, "fn ");
-            ("fn", n)
-        } else if trimmed.starts_with("actor ") {
-            let n = extract_vox_name(trimmed, "actor ");
-            ("actor", n)
-        } else if trimmed.starts_with("@workflow") || trimmed.contains("workflow fn") {
-            let n = extract_vox_name(trimmed, "fn ");
-            ("workflow", n)
-        } else if trimmed.starts_with("@table")
-            || trimmed.starts_with("table ")
-            || trimmed.starts_with("table(")
-        {
-            let n = extract_vox_type_name(trimmed);
-            ("table", n)
-        } else if trimmed.starts_with("type ") {
-            let n = extract_vox_name(trimmed, "type ");
-            ("type", n)
-        } else if trimmed.starts_with("@component") || trimmed.starts_with("component fn") {
-            let n = extract_vox_name(trimmed, "fn ");
-            ("component", n)
-        } else if trimmed.starts_with("@mcp.tool") {
-            let n = extract_vox_name(trimmed, "fn ");
-            ("mcp_tool", n)
-        } else if trimmed.starts_with("@query") || trimmed.starts_with("query ") {
-            let n = extract_vox_name(trimmed, if trimmed.starts_with("query ") { "query " } else { "fn " });
-            ("query", n)
-        } else if trimmed.starts_with("@mutation") || trimmed.starts_with("mutation ") {
-            let n = extract_vox_name(trimmed, if trimmed.starts_with("mutation ") { "mutation " } else { "fn " });
-            ("mutation", n)
-        } else if trimmed.starts_with("@test") || trimmed.starts_with("test fn") {
-            let n = extract_vox_name(trimmed, "fn ");
-            ("test", n)
-        } else {
-            i += 1;
-            continue;
-        };
+        let (construct_type, name): (&str, String) =
+            if trimmed.starts_with("fn ") || trimmed.starts_with("pub fn ") {
+                let n = extract_vox_name(trimmed, "fn ");
+                ("fn", n)
+            } else if trimmed.starts_with("actor ") {
+                let n = extract_vox_name(trimmed, "actor ");
+                ("actor", n)
+            } else if trimmed.starts_with("@workflow") || trimmed.contains("workflow fn") {
+                let n = extract_vox_name(trimmed, "fn ");
+                ("workflow", n)
+            } else if trimmed.starts_with("@table")
+                || trimmed.starts_with("table ")
+                || trimmed.starts_with("table(")
+            {
+                let n = extract_vox_type_name(trimmed);
+                ("table", n)
+            } else if trimmed.starts_with("type ") {
+                let n = extract_vox_name(trimmed, "type ");
+                ("type", n)
+            } else if trimmed.starts_with("@component") || trimmed.starts_with("component fn") {
+                let n = extract_vox_name(trimmed, "fn ");
+                ("component", n)
+            } else if trimmed.starts_with("@mcp.tool") {
+                let n = extract_vox_name(trimmed, "fn ");
+                ("mcp_tool", n)
+            } else if trimmed.starts_with("@query") || trimmed.starts_with("query ") {
+                let n = extract_vox_name(
+                    trimmed,
+                    if trimmed.starts_with("query ") {
+                        "query "
+                    } else {
+                        "fn "
+                    },
+                );
+                ("query", n)
+            } else if trimmed.starts_with("@mutation") || trimmed.starts_with("mutation ") {
+                let n = extract_vox_name(
+                    trimmed,
+                    if trimmed.starts_with("mutation ") {
+                        "mutation "
+                    } else {
+                        "fn "
+                    },
+                );
+                ("mutation", n)
+            } else if trimmed.starts_with("@test") || trimmed.starts_with("test fn") {
+                let n = extract_vox_name(trimmed, "fn ");
+                ("test", n)
+            } else {
+                i += 1;
+                continue;
+            };
 
         // Collect the construct block by brace depth
         let block_start = i;
@@ -226,12 +240,13 @@ pub(super) fn extract_golden_prompt_summary(source: &str) -> Option<String> {
     for line in source.lines() {
         let t = line.trim();
         if let Some(rest) = t.strip_prefix("//").map(str::trim)
-            && let Some(p) = rest.strip_prefix("@training_prompt:") {
-                let p = p.trim();
-                if !p.is_empty() {
-                    return Some(p.to_string());
-                }
+            && let Some(p) = rest.strip_prefix("@training_prompt:")
+        {
+            let p = p.trim();
+            if !p.is_empty() {
+                return Some(p.to_string());
             }
+        }
     }
     let mut in_fm = false;
     let mut desc: Option<String> = None;
@@ -243,18 +258,23 @@ pub(super) fn extract_golden_prompt_summary(source: &str) -> Option<String> {
         }
         if in_fm
             && let Some(rest) = t.strip_prefix("//").map(str::trim)
-                && let Some(d) = rest.strip_prefix("description:") {
-                    let d = d.trim().trim_matches('"').trim_matches('\'').trim();
-                    if !d.is_empty() {
-                        desc = Some(d.to_string());
-                    }
-                }
+            && let Some(d) = rest.strip_prefix("description:")
+        {
+            let d = d.trim().trim_matches('"').trim_matches('\'').trim();
+            if !d.is_empty() {
+                desc = Some(d.to_string());
+            }
+        }
     }
     desc
 }
 
 /// Check if content contains frontmatter indicating it should be excluded from training.
-fn is_eligible_for_training(content: &str) -> bool {
+///
+/// `pub` so other extractors (e.g. `vox-ml-cli`'s `vox mens corpus extract`) can reuse this
+/// exact check instead of re-implementing it — see the leakage incident where a second,
+/// unfiltered extractor pulled `training_eligible: false` held-out eval tasks into the corpus.
+pub fn is_eligible_for_training(content: &str) -> bool {
     // Vox golden examples have frontmatter commented out with //
     if content.contains("training_eligible: false") || content.contains("training_eligible:false") {
         return false;
@@ -266,4 +286,31 @@ fn is_eligible_for_training(content: &str) -> bool {
         return false;
     }
     true
+}
+
+#[cfg(test)]
+mod is_eligible_for_training_tests {
+    use super::is_eligible_for_training;
+
+    #[test]
+    fn rejects_training_eligible_false_marker() {
+        assert!(!is_eligible_for_training(
+            "// training_eligible: false\nfn f() {}\n"
+        ));
+        assert!(!is_eligible_for_training(
+            "// training_eligible:false\nfn f() {}\n"
+        ));
+    }
+
+    #[test]
+    fn rejects_deprecated_status() {
+        assert!(!is_eligible_for_training(
+            "// status: deprecated\nfn f() {}\n"
+        ));
+    }
+
+    #[test]
+    fn accepts_ordinary_source() {
+        assert!(is_eligible_for_training("fn f() {}\n"));
+    }
 }

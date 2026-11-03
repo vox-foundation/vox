@@ -17,6 +17,7 @@ pub mod reply_window;
 pub mod retraction;
 pub mod signing;
 pub mod symbolic;
+pub mod trial_core;
 pub mod trusty_uri;
 
 pub use deviation::{DeviationDetector, DeviationReport};
@@ -30,4 +31,7 @@ pub use signing::{SignError, Signature, VerifyError, sign_prereg, verify_prereg}
 pub use symbolic::{
     BayesianStoppingRule, NumericComparatorVerifier, StopDecision, SymbolicVerdict,
 };
-pub use trusty_uri::compute_trusty_uri;
+pub use trial_core::*;
+pub use trusty_uri::{
+    CanonicalError, canonical_json_bytes, compute_trusty_uri, compute_value_trusty_uri,
+};

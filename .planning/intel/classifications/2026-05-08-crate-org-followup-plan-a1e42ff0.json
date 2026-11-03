@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/2026-05-08-crate-org-followup-plan.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Crate Org Follow-up — Implementation Plan",
+  "summary": "Step-by-step implementation plan to land 6 PRs from the crate-org-followup design specification.",
+  "scope": ["crate-organization", "implementation", "SSOT", "naming", "descriptions", "vox-mcp-meta", "vox-package-types", "vox-cli-ci", "vox-orchestrator-core"],
+  "cross_refs": ["docs/src/architecture/2026-05-08-crate-org-followup-design.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Implementation plan with 156+ checkboxes across 6 PRs. Header states PR1-6 all landed on 2026-05-15 in one session."
+}

@@ -1,0 +1,30 @@
+diff --git a/llms-custom.txt.ts b/llms-custom.txt.ts
+index f96dbbdd844b7eef9913da53f777ff0124b74ee7..7f19ab5a8df78a3541a6fd6f5e7e4b818d23e681 100644
+--- a/llms-custom.txt.ts
++++ b/llms-custom.txt.ts
+@@ -30,6 +30,7 @@ export const GET: APIRoute<Props, Params> = async (context) => {
+ 		minify: true,
+ 		description,
+ 		include: context.props.paths,
++		exclude: starlightLllmsTxtContext.exclude,
+ 	});
+ 	return new Response(body);
+ };
+diff --git a/llms-full.txt.ts b/llms-full.txt.ts
+index 03f408bf7106a64f1730c381d422ac4a911aeea9..9907aed55358cab7e652991f2946a6e4ecbbccde 100644
+--- a/llms-full.txt.ts
++++ b/llms-full.txt.ts
+@@ -1,4 +1,5 @@
+ import type { APIRoute } from 'astro';
++import { starlightLllmsTxtContext } from 'virtual:starlight-llms-txt/context';
+ import { generateLlmsTxt } from './generator';
+ import { getSiteTitle } from './utils';
+ 
+@@ -13,6 +14,7 @@ export const GET: APIRoute = async (context) => {
+ 	const body = await generateLlmsTxt(context, {
+ 		minify: false,
+ 		description: `This is the full developer documentation for ${getSiteTitle()}`,
++		exclude: starlightLllmsTxtContext.exclude,
+ 	});
+ 	return new Response(body);
+ };

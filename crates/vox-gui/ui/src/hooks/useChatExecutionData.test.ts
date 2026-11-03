@@ -3,16 +3,19 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import type { TaskRow } from '../components/surfaces/Tasks/tasksHelpers';
 import type { RoutingSummary } from '../types/tauri';
+import type { ActivityRowDto } from '../transport';
 import {
   useChatExecutionData,
   mapOrchestratorTasksForSession,
-  intentsFromRoutingSummary,
   CHAT_EXECUTION_POLL_MS,
+  CHAT_LOCK_ACTIVITY_LIMIT,
+  lockStatesFromActivity,
 } from './useChatExecutionData';
 
 const mockListOrchestratorTasks = vi.fn();
 const mockGetRoutingSummaryLive = vi.fn();
 const mockGetOrchestratorStatusBin = vi.fn();
+const mockActivityQuery = vi.fn();
 
 vi.mock('@msgpack/msgpack', () => ({
   decode: vi.fn(() => ({ peers: [{ id: 'p1' }, { id: 'p2' }] })),
@@ -24,7 +27,9 @@ vi.mock('../transport', () => ({
     getRoutingSummaryLive: () => mockGetRoutingSummaryLive(),
     getOrchestratorStatusBin: () => mockGetOrchestratorStatusBin(),
   },
+  activityQuery: (filter: unknown) => mockActivityQuery(filter),
 }));
+
 
 const taskRow = (over: Partial<TaskRow>): TaskRow => ({
   id: 1,
@@ -41,7 +46,7 @@ const taskRow = (over: Partial<TaskRow>): TaskRow => ({
 });
 
 const routingSummary = (preview: RoutingSummary['decision_preview']): RoutingSummary => ({
-  active_model: 'claude-sonnet-4',
+  active_model: 'deepseek/deepseek-flash',
   exploration_spent_usd: 0,
   exploration_budget_usd: 1,
   routing_priority: {
@@ -76,27 +81,144 @@ describe('mapOrchestratorTasksForSession', () => {
   });
 });
 
-describe('intentsFromRoutingSummary', () => {
-  it('maps routing summary decision_preview into intent labels for rail', () => {
-    const summary = routingSummary({
-      selected_model: 'claude-sonnet-4',
-      discovery_state: 'exploit',
-      alternatives: ['gpt-4o', 'gemini-pro', 'mistral-large'],
-      rejection_reasons: ['latency cap'],
-      intelligence_score: 0.82,
-      efficiency_score: 0.71,
-      latency_score: 0.9,
-    });
+const activityRow = (over: Partial<ActivityRowDto>): ActivityRowDto => ({
+  id: 1,
+  ts_ms: 1000,
+  agent_id: 'agent-1',
+  session_id: 'sess-a',
+  kind: 'LockAcquired',
+  summary: 'Lock acquired',
+  detail_json: JSON.stringify({ task_id: 1, path: 'db://a' }),
+  ...over,
+});
 
-    expect(intentsFromRoutingSummary(summary)).toEqual([
-      'claude-sonnet-4 · exploit',
-      'Alt: gpt-4o',
-      'Alt: gemini-pro',
-    ]);
+describe('lockStatesFromActivity', () => {
+  it('derives holding lock state from newest row and respects LockReleased tombstones', () => {
+    const rows = [
+      activityRow({
+        id: 3,
+        kind: 'LockReleased',
+        detail_json: JSON.stringify({ task_id: 5, path: 'db://a' }),
+      }),
+      activityRow({
+        id: 2,
+        kind: 'LockAcquired',
+        detail_json: JSON.stringify({ task_id: 5, path: 'db://a' }),
+      }),
+      activityRow({
+        id: 1,
+        kind: 'LockAcquired',
+        detail_json: JSON.stringify({ task_id: 7, path: 'db://b' }),
+      }),
+    ];
+
+    const result = lockStatesFromActivity(rows);
+    expect(result.get('7')).toEqual({ resourceId: 'db://b', state: 'holding' });
+    expect(result.has('5')).toBe(false);
   });
 
-  it('returns empty intents when decision_preview is null', () => {
-    expect(intentsFromRoutingSummary(routingSummary(null))).toEqual([]);
+  it('ignores rows whose detail_json is not JSON or lacks numeric task_id or string path', () => {
+    const rows = [
+      activityRow({ id: 1, kind: 'LockAcquired', detail_json: 'not valid json' }),
+      activityRow({ id: 2, kind: 'LockAcquired', detail_json: JSON.stringify({ task_id: 'nan', path: 'db://a' }) }),
+      activityRow({ id: 3, kind: 'LockAcquired', detail_json: JSON.stringify({ task_id: 10, path: 12345 }) }),
+      activityRow({ id: 4, kind: 'LockAcquired', detail_json: JSON.stringify({ missing: true }) }),
+      activityRow({ id: 5, kind: 'TaskStarted', detail_json: JSON.stringify({ task_id: 11, path: 'db://valid' }) }),
+    ];
+
+    const result = lockStatesFromActivity(rows);
+    expect(result.size).toBe(0);
+  });
+
+  it('bounds long resource paths to 64 chars ending in an ellipsis', () => {
+    const longPath = 'db://' + 'x'.repeat(300);
+    const rows = [
+      activityRow({
+        id: 1,
+        kind: 'LockAcquired',
+        detail_json: JSON.stringify({ task_id: 42, path: longPath }),
+      }),
+    ];
+
+    const result = lockStatesFromActivity(rows);
+    const lock = result.get('42');
+    expect(lock).toBeDefined();
+    expect(lock?.resourceId.length).toBe(64);
+    expect(lock?.resourceId.endsWith('...')).toBe(true);
+  });
+
+  it('derives waiting lock state from LockWaiting and handles supersession by LockAcquired and clearing by LockReleased', () => {
+    const waitingRows = [
+      activityRow({
+        id: 1,
+        kind: 'LockWaiting',
+        session_id: 'sess-a',
+        detail_json: JSON.stringify({
+          type: 'lock_waiting',
+          resource_id: 'db://orders/42',
+          task_id: 88,
+          session_id: 'sess-a',
+        }),
+      }),
+    ];
+    const waitingResult = lockStatesFromActivity(waitingRows);
+    expect(waitingResult.get('88')).toEqual({
+      resourceId: 'db://orders/42',
+      state: 'waiting',
+    });
+
+    const acquiredSuperRows = [
+      activityRow({
+        id: 2,
+        kind: 'LockAcquired',
+        session_id: 'sess-a',
+        detail_json: JSON.stringify({
+          task_id: 88,
+          path: 'db://orders/42',
+        }),
+      }),
+      activityRow({
+        id: 1,
+        kind: 'LockWaiting',
+        session_id: 'sess-a',
+        detail_json: JSON.stringify({
+          type: 'lock_waiting',
+          resource_id: 'db://orders/42',
+          task_id: 88,
+          session_id: 'sess-a',
+        }),
+      }),
+    ];
+    const superResult = lockStatesFromActivity(acquiredSuperRows);
+    expect(superResult.get('88')).toEqual({
+      resourceId: 'db://orders/42',
+      state: 'holding',
+    });
+
+    const releasedSuperRows = [
+      activityRow({
+        id: 3,
+        kind: 'LockReleased',
+        session_id: 'sess-a',
+        detail_json: JSON.stringify({
+          task_id: 88,
+          path: 'db://orders/42',
+        }),
+      }),
+      activityRow({
+        id: 1,
+        kind: 'LockWaiting',
+        session_id: 'sess-a',
+        detail_json: JSON.stringify({
+          type: 'lock_waiting',
+          resource_id: 'db://orders/42',
+          task_id: 88,
+          session_id: 'sess-a',
+        }),
+      }),
+    ];
+    const releasedResult = lockStatesFromActivity(releasedSuperRows);
+    expect(releasedResult.has('88')).toBe(false);
   });
 });
 
@@ -104,6 +226,7 @@ describe('useChatExecutionData', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
+    mockActivityQuery.mockResolvedValue([]);
     mockListOrchestratorTasks.mockResolvedValue([
       taskRow({ id: 10, session_id: 'sess-a', description: 'Rail task' }),
     ]);
@@ -125,7 +248,7 @@ describe('useChatExecutionData', () => {
     vi.useRealTimers();
   });
 
-  it('loads tasks and intents for the active session', async () => {
+  it("loads tasks for the active session; routing and mesh are not this hook's job", async () => {
     const { result } = renderHook(() => useChatExecutionData('sess-a'));
 
     await waitFor(() => expect(result.current.tasks).toHaveLength(1));
@@ -134,10 +257,57 @@ describe('useChatExecutionData', () => {
       title: 'Rail task',
       status: 'in_progress',
     });
-    expect(result.current.intents).toEqual(['mens-v1 · explore']);
-    expect(result.current.meshPeers).toBe(2);
+    expect(Object.keys(result.current)).toEqual(['tasks']);
     expect(mockListOrchestratorTasks).toHaveBeenCalled();
-    expect(mockGetRoutingSummaryLive).toHaveBeenCalled();
+    expect(mockGetRoutingSummaryLive).not.toHaveBeenCalled();
+    expect(mockGetOrchestratorStatusBin).not.toHaveBeenCalled();
+  });
+
+  it('queries activity log with session_id and attaches holding lock to matching task', async () => {
+    mockListOrchestratorTasks.mockResolvedValue([
+      taskRow({ id: 7, session_id: 'sess-a', description: 'Task 7' }),
+    ]);
+    mockActivityQuery.mockResolvedValue([
+      activityRow({
+        id: 1,
+        kind: 'LockAcquired',
+        session_id: 'sess-a',
+        detail_json: JSON.stringify({ task_id: 7, path: 'db://b' }),
+      }),
+    ]);
+
+    const { result } = renderHook(() => useChatExecutionData('sess-a'));
+
+    await waitFor(() => expect(result.current.tasks).toHaveLength(1));
+    expect(result.current.tasks[0]).toEqual({
+      id: '7',
+      title: 'Task 7',
+      status: 'in_progress',
+      lock: { resourceId: 'db://b', state: 'holding' },
+    });
+    expect(mockActivityQuery).toHaveBeenCalledWith({
+      agent_id: null,
+      kind: null,
+      session_id: 'sess-a',
+      limit: CHAT_LOCK_ACTIVITY_LIMIT,
+      before_id: null,
+    });
+  });
+
+  it('still loads tasks when activityQuery rejects', async () => {
+    mockListOrchestratorTasks.mockResolvedValue([
+      taskRow({ id: 7, session_id: 'sess-a', description: 'Task 7' }),
+    ]);
+    mockActivityQuery.mockRejectedValue(new Error('activity db unavailable'));
+
+    const { result } = renderHook(() => useChatExecutionData('sess-a'));
+
+    await waitFor(() => expect(result.current.tasks).toHaveLength(1));
+    expect(result.current.tasks[0]).toEqual({
+      id: '7',
+      title: 'Task 7',
+      status: 'in_progress',
+    });
   });
 
   it('does not poll when sessionId is empty', async () => {
@@ -160,6 +330,59 @@ describe('useChatExecutionData', () => {
       await vi.advanceTimersByTimeAsync(CHAT_EXECUTION_POLL_MS);
     });
     expect(mockListOrchestratorTasks).toHaveBeenCalledTimes(2);
-    expect(mockGetRoutingSummaryLive).toHaveBeenCalledTimes(2);
+  });
+
+  it('appends a synthetic task when a waiting task is absent from listOrchestratorTasks, and avoids duplicate when row exists', async () => {
+    mockListOrchestratorTasks.mockResolvedValue([
+      taskRow({ id: 7, session_id: 'sess-a', description: 'Task 7' }),
+    ]);
+    mockActivityQuery.mockResolvedValue([
+      activityRow({
+        id: 2,
+        kind: 'LockWaiting',
+        session_id: 'sess-a',
+        detail_json: JSON.stringify({
+          type: 'lock_waiting',
+          resource_id: 'db://orders/42',
+          task_id: 88,
+          session_id: 'sess-a',
+        }),
+      }),
+    ]);
+
+    const { result, unmount } = renderHook(() => useChatExecutionData('sess-a'));
+
+    await waitFor(() => expect(result.current.tasks).toHaveLength(2));
+    expect(result.current.tasks[0]).toEqual({
+      id: '7',
+      title: 'Task 7',
+      status: 'in_progress',
+    });
+    expect(result.current.tasks[1]).toEqual({
+      id: '88',
+      title: 'Waiting for resource lock',
+      status: 'waiting',
+      lock: { resourceId: 'db://orders/42', state: 'waiting' },
+    });
+
+    unmount();
+
+    mockListOrchestratorTasks.mockResolvedValue([
+      taskRow({ id: 7, session_id: 'sess-a', description: 'Task 7' }),
+      taskRow({ id: 88, session_id: 'sess-a', description: 'Task 88 real' }),
+    ]);
+
+    const { result: resultWithRow } = renderHook(() => useChatExecutionData('sess-a'));
+    await waitFor(() => expect(resultWithRow.current.tasks).toHaveLength(2));
+    expect(resultWithRow.current.tasks).toEqual([
+      { id: '7', title: 'Task 7', status: 'in_progress' },
+      {
+        id: '88',
+        title: 'Task 88 real',
+        status: 'in_progress',
+        lock: { resourceId: 'db://orders/42', state: 'waiting' },
+      },
+    ]);
   });
 });
+

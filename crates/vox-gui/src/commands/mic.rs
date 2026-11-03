@@ -6,8 +6,9 @@
 //!   stores the live stream handle in Tauri managed state.
 //! - [`stop_mic_capture_and_transcribe`] tears the stream down, writes the
 //!   captured samples to a 16 kHz mono WAV (Whisper's expected format) with
-//!   `hound`, runs [`vox_speech::transcribe_path_detailed`], and returns the
-//!   refined transcript. The temp WAV is always cleaned up.
+//!   `hound`, runs [`vox_speech::transcribe_path_detailed`] (Sherpa in-process, or
+//!   Candle Whisper through the `oratio` plugin), and returns the refined
+//!   transcript. The temp WAV is always cleaned up.
 //!
 //! The cpal capture itself cannot be unit-tested without an audio device, so the
 //! testable surface — turning a WAV/transcript file on disk into refined text —
@@ -28,7 +29,7 @@ const TARGET_SAMPLE_RATE: u32 = 16_000;
 /// a live microphone, only on the file path.
 ///
 /// Returns the refined transcript text. Errors are surfaced verbatim (e.g. a
-/// missing `stt-candle` backend or an undecodable file) — never a panic.
+/// missing `oratio` plugin or model, or an undecodable file) — never a panic.
 pub fn transcribe_audio_file(path: &Path) -> Result<String, String> {
     // Built from a FRESH `OratioRuntimeConfig::resolve()` (not the
     // process-cached `vox_speech::resolved_runtime_config()`, and not
@@ -377,9 +378,10 @@ mod tests {
     }
 
     /// A synthetic WAV is written correctly by the hound glue (valid 16 kHz mono
-    /// 16-bit file) and is accepted by the transcription seam. With `stt-candle`
-    /// compiled, a real Whisper backend runs; if a model isn't fetchable at test
-    /// time we still must get a clear error string, never a panic.
+    /// 16-bit file) and is accepted by the transcription seam. A real backend runs
+    /// (Sherpa, or Whisper through the `oratio` plugin); if the plugin or a model
+    /// isn't available at test time we still must get a clear error string, never
+    /// a panic.
     #[test]
     fn synthetic_wav_is_well_formed_and_routed() {
         let dir = tempfile::tempdir().unwrap();
@@ -433,6 +435,64 @@ mod tests {
         assert!(
             (15_000..=17_000).contains(&n),
             "expected ~16000 samples, got {n}"
+        );
+    }
+
+    /// Live check (Phase 3 UAT test 2): everything dictation does after cpal capture —
+    /// `write_wav_16k_mono` then `transcribe_audio_file`, as in
+    /// `stop_mic_capture_and_transcribe` — with Whisper selected and the startup
+    /// registration, so the text comes from the installed `oratio` plugin's Candle Whisper.
+    /// Skips unless that plugin loads (`VOX_PLUGINS_DIR` or the default root) and
+    /// openai/whisper-tiny.en is already in the Hugging Face cache; no download here.
+    #[test]
+    fn dictation_transcribes_through_installed_oratio_plugin() {
+        if let Err(e) = vox_plugin_host::cached_code_plugin("oratio") {
+            eprintln!("skipping: oratio plugin not loadable: {e}");
+            return;
+        }
+        let hub = std::env::var_os("HF_HUB_CACHE")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HF_HOME").map(|h| PathBuf::from(h).join("hub")))
+            .or_else(|| dirs::home_dir().map(|h| h.join(".cache/huggingface/hub")));
+        if !hub.is_some_and(|h| h.join("models--openai--whisper-tiny.en").is_dir()) {
+            eprintln!("skipping: openai/whisper-tiny.en is not in the Hugging Face cache");
+            return;
+        }
+
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/speech-to-code/fixtures/corpus_v1/utt_11.wav");
+        let mut reader = hound::WavReader::open(&fixture).expect("fixture WAV");
+        let spec = reader.spec();
+        let buf = CaptureBuffer {
+            samples: reader
+                .samples::<i16>()
+                .map(|s| s.expect("fixture sample") as f32 / 32768.0)
+                .collect(),
+            source_sample_rate: spec.sample_rate,
+            channels: spec.channels,
+        };
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("dictation.wav");
+        write_wav_16k_mono(&buf, &wav).expect("write 16k mono WAV");
+
+        // Whisper is what the Settings backend choice selects; auto prefers in-process Sherpa.
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var("VOX_ORATIO_BACKEND", "whisper");
+        }
+        super::super::speech_plugin_backend::register();
+        let out = transcribe_audio_file(&wav);
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("VOX_ORATIO_BACKEND");
+        }
+        vox_speech::backend_dispatch::invalidate_cache();
+
+        let text = out.expect("dictation through the oratio plugin");
+        eprintln!("oratio plugin transcript: {text:?}");
+        assert!(
+            text.to_lowercase().contains("canary"),
+            "expected the fixture's 'run speech canary sample 1', got {text:?}"
         );
     }
 

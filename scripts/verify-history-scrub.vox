@@ -1,0 +1,62 @@
+// vox:caps subprocess fs env
+// scripts/verify-history-scrub.vox
+//
+// Verifies the moved-data working-tree scrub guard (SCRUB-01) and deterministic
+// git filter-repo history/commit-log scrub contract (SCRUB-02..04) while preserving
+// opt-in vox-telemetry transparency surfaces.
+
+fn main() {
+    print("Verifying moved-data working-tree scrub manifest and git-history-scrub contract...")
+
+    let forbidden = [
+        "crates/vox-publisher/src/adapters/twitter.rs",
+        "crates/vox-publisher/src/adapters/bluesky.rs",
+        "crates/vox-publisher/src/adapters/mastodon.rs",
+        "crates/vox-publisher/src/adapters/discord.rs",
+        "crates/vox-publisher/src/adapters/reddit.rs",
+        "crates/vox-publisher/src/adapters/hacker_news.rs",
+        "crates/vox-publisher/src/adapters/youtube.rs",
+        "crates/vox-publisher/src/adapters/linkedin.rs",
+        "crates/vox-publisher/src/adapters/forge.rs",
+        "crates/vox-publisher/src/adapters/canary.rs",
+        "crates/vox-gamify/src/db/agent_telemetry.rs",
+        "crates/vox-gamify/src/db/hint_telemetry.rs",
+        "crates/vox-gamify/src/lsp_telemetry.rs",
+        "crates/vox-gamify/src/db/collegium.rs",
+        "crates/vox-gamify/src/db/arena.rs",
+        "crates/vox-gamify/src/db/disputes.rs",
+        "crates/vox-gamify/src/db/leaderboards.rs",
+        "crates/vox-cli/src/commands/extras/ludus/arena.rs",
+        "crates/vox-cli/src/commands/extras/ludus/auth.rs",
+        "crates/vox-cli/src/commands/extras/ludus/collegium.rs",
+        "crates/vox-cli/src/commands/extras/ludus/disputes.rs",
+        "crates/vox-cli/src/commands/extras/ludus/sync.rs"
+    ]
+
+    for p in forbidden {
+        if fs.exists(p) {
+            log.error("verify-history-scrub: forbidden moved path still exists in working tree: " + p)
+            process.exit(1)
+        }
+    }
+
+    let preserved = [
+        "contracts/ci/moved-data-scrub-manifest.v1.json",
+        "contracts/ci/git-history-scrub.v1.json",
+        "crates/vox-telemetry/src/lib.rs",
+        "crates/vox-telemetry/src/config.rs",
+        "crates/vox-db/src/store/ops_agent_telemetry.rs",
+        "crates/vox-gamify/src/verified_leaderboard.rs",
+        "crates/vox-publisher/src/handoff.rs",
+        "crates/vox-orchestrator/src/models/intelligence_bundle.rs"
+    ]
+
+    for p in preserved {
+        if not fs.exists(p) {
+            log.error("verify-history-scrub: required preserved path missing: " + p)
+            process.exit(1)
+        }
+    }
+
+    print("verify-history-scrub: OK (22 forbidden paths absent, 8 preserved surfaces verified)")
+}

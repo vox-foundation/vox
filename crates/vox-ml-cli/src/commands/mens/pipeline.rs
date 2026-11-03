@@ -9,6 +9,58 @@ pub fn selected_profile(profile: &Option<String>) -> &str {
     profile.as_deref().unwrap_or("default")
 }
 
+/// Canonical stage order. Mix-source producers must run BEFORE Mix so their
+/// outputs are consumed in the same run (Mix is the only stage that reads
+/// mix_sources/*).
+const ALL_STAGES: [PipelineStage; 18] = [
+    PipelineStage::Generate,
+    PipelineStage::ResearchGen,
+    PipelineStage::Extract,
+    PipelineStage::HealToDpo,
+    PipelineStage::Replay,
+    PipelineStage::ReviewIngest,
+    PipelineStage::ReviewDatasetBuild,
+    PipelineStage::ReviewEvalPackBuild,
+    PipelineStage::ReviewToDpo,
+    PipelineStage::AgentTraceIngest,
+    PipelineStage::Validate,
+    PipelineStage::Pairs,
+    PipelineStage::BackTranslate,
+    PipelineStage::Rft,
+    PipelineStage::Mix,
+    PipelineStage::Eval,
+    PipelineStage::KbSignals,
+    PipelineStage::Train,
+];
+
+/// Stages to run: the requested subset (comma-separated `as_str` names) in
+/// canonical order, or every non-opt-in stage when none are requested.
+fn plan_stages(stages: Option<&str>, skip_train: bool) -> Vec<PipelineStage> {
+    let requested: Option<HashSet<String>> =
+        stages.map(|s| s.split(',').map(|x| x.trim().to_lowercase()).collect());
+    ALL_STAGES
+        .into_iter()
+        .filter(|st| !(skip_train && *st == PipelineStage::Train))
+        .filter(|st| match &requested {
+            Some(r) => r.contains(st.as_str()),
+            None => !st.is_opt_in(),
+        })
+        .collect()
+}
+
+/// Synthesis-stage LLM flags: real calls only with `VOX_MENS_ALLOW_SPEND=1`
+/// (the cloud spend gate), otherwise the command prints its dry-run plan.
+fn synth_llm_args() -> crate::commands::corpus::SynthLlmArgs {
+    crate::commands::corpus::SynthLlmArgs {
+        provider: "openrouter".into(),
+        model: None,
+        base_url: None,
+        max_spend_usd: 1.0,
+        usd_per_1k_tokens: 0.002,
+        apply: std::env::var("VOX_MENS_ALLOW_SPEND").is_ok_and(|v| v.trim() == "1"),
+    }
+}
+
 /// Run the dogfood pipeline: corpus extract → validate → pairs → eval → optional native train.
 pub async fn run(
     data_dir: PathBuf,
@@ -39,52 +91,11 @@ pub async fn run(
 
     let run_id = vox_corpus::training::timestamp_string();
 
-    let all_possible_stages = [
-        PipelineStage::Generate,
-        PipelineStage::ResearchGen,
-        PipelineStage::Extract,
-        PipelineStage::HealToDpo,
-        PipelineStage::Replay,
-        PipelineStage::ReviewIngest,
-        PipelineStage::ReviewDatasetBuild,
-        PipelineStage::ReviewEvalPackBuild,
-        // Mix-source producers must run BEFORE Mix so their outputs are consumed
-        // in the same run (Mix is the only stage that reads mix_sources/*).
-        PipelineStage::ReviewToDpo,
-        PipelineStage::AgentTraceIngest,
-        PipelineStage::Validate,
-        PipelineStage::Pairs,
-        PipelineStage::Mix,
-        PipelineStage::Eval,
-        PipelineStage::KbSignals,
-        PipelineStage::Train,
-    ];
-
-    let mut planned_stages = Vec::new();
-    if let Some(s) = stages {
-        let requested: HashSet<String> = s.split(',').map(|x| x.trim().to_lowercase()).collect();
-        for stage in all_possible_stages {
-            if requested.contains(stage.as_str()) {
-                if stage == PipelineStage::Train && skip_train {
-                    continue;
-                }
-                planned_stages.push(stage);
-            }
-        }
-    } else {
-        for stage in all_possible_stages {
-            if stage == PipelineStage::Train && skip_train {
-                continue;
-            }
-            planned_stages.push(stage);
-        }
-    }
+    let planned_stages = plan_stages(stages.as_deref(), skip_train);
 
     let total_stages = planned_stages.len();
-    let validated = PathBuf::from("mens/data/validated.jsonl");
+    let validated = data_dir.join("validated.jsonl");
     let train_jsonl = data_dir.join("train.jsonl");
-    let _train_mixed_jsonl = data_dir.join("train_mixed.jsonl");
-    let validated_mixed_jsonl = data_dir.join("validated_mixed.jsonl");
     let eval_out = output_dir.join("eval_results.json");
 
     tracing::info!(
@@ -100,7 +111,7 @@ pub async fn run(
         }
         std::fs::create_dir_all(&data_dir)?;
         std::fs::create_dir_all(&output_dir)?;
-        std::fs::create_dir_all("mens/data/mix_sources")?;
+        std::fs::create_dir_all(data_dir.join("mix_sources"))?;
     }
 
     for (completed_stages, stage) in planned_stages.into_iter().enumerate() {
@@ -133,18 +144,16 @@ pub async fn run(
             }
             PipelineStage::Extract => {
                 if !dry_run {
-                    // Extract from .vox examples
-                    let examples_dir = PathBuf::from("examples");
-                    if examples_dir.is_dir() {
-                        crate::commands::corpus::run(
-                            crate::commands::corpus::CorpusAction::Extract {
-                                dir: examples_dir,
-                                output: validated.clone(),
-                            },
-                        )
-                        .await
-                        .map_err(|e| anyhow::anyhow!("pipeline extract examples failed: {e}"))?;
-                    }
+                    // Extract from every approved .vox source root
+                    // (SSOT: mens/config/vox-source-pool.yaml).
+                    crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Extract {
+                        dir: None,
+                        output: validated.clone(),
+                        pool: PathBuf::from(crate::commands::corpus::source_pool::DEFAULT_CONFIG),
+                        report: None,
+                    })
+                    .await
+                    .map_err(|e| anyhow::anyhow!("pipeline extract vox sources failed: {e}"))?;
 
                     // Extract from Rust source
                     let crates_dir = PathBuf::from("crates");
@@ -327,6 +336,42 @@ pub async fn run(
                     tracing::info!("AgentTraceIngest: dry_run, skipping");
                 }
             }
+            PipelineStage::BackTranslate => {
+                if !dry_run {
+                    crate::commands::corpus::run(
+                        crate::commands::corpus::CorpusAction::BackTranslate {
+                            input: validated.clone(),
+                            output: PathBuf::from("mens/data/mix_sources/back_translated.jsonl"),
+                            cache: PathBuf::from("target/dogfood/back_translate_cache.jsonl"),
+                            bench: PathBuf::from("mens/data/heldout_bench/manifest.json"),
+                            max_rows: 200,
+                            round_trip: false,
+                            llm: synth_llm_args(),
+                        },
+                    )
+                    .await
+                    .map_err(|e| anyhow::anyhow!("pipeline back_translate failed: {e}"))?;
+                }
+            }
+            PipelineStage::Rft => {
+                let tasks = PathBuf::from("mens/data/mix_sources/back_translated.jsonl");
+                if !dry_run && tasks.is_file() {
+                    crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Rft {
+                        input: tasks,
+                        output: PathBuf::from("mens/data/mix_sources/rft_vox.jsonl"),
+                        bench: PathBuf::from("mens/data/heldout_bench/manifest.json"),
+                        k: 4,
+                        max_per_task: 2,
+                        max_tasks: 100,
+                        temperature: 0.8,
+                        llm: synth_llm_args(),
+                    })
+                    .await
+                    .map_err(|e| anyhow::anyhow!("pipeline rft failed: {e}"))?;
+                } else if !dry_run {
+                    tracing::debug!("Rft: no back_translated.jsonl task file, skipping");
+                }
+            }
             PipelineStage::KbSignals => {
                 if !dry_run {
                     run_kb_signals_stage(&data_dir).await?;
@@ -352,14 +397,14 @@ pub async fn run(
             }
             PipelineStage::Eval => {
                 if !dry_run {
-                    if !validated_mixed_jsonl.is_file() {
+                    if !train_jsonl.is_file() {
                         anyhow::bail!(
-                            "Eval stage: missing input file '{}'. Make sure Mix/Pairs stage ran successfully.",
-                            validated_mixed_jsonl.display()
+                            "Eval stage: missing input file '{}'. Make sure the Pairs stage ran successfully.",
+                            train_jsonl.display()
                         );
                     }
                     crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Eval {
-                        input: validated_mixed_jsonl.clone(),
+                        input: train_jsonl.clone(),
                         output: eval_out.clone(),
                         print_summary: false,
                     })
@@ -371,12 +416,19 @@ pub async fn run(
                     let ws = vox_corpus::training::contract::find_workspace_root();
                     let mix_config =
                         vox_corpus::training::mix_prepare::resolve_mix_config_path(ws.as_deref());
-                    if mix_config.is_file() {
-                        vox_corpus::training::mix_prepare::sync_mix_primary_with_train_jsonl(
-                            ws.as_deref(),
-                            &data_dir,
-                            &mix_config,
-                        )?;
+                    // Mix sources are workspace paths (pairs = target/dogfood/train.jsonl);
+                    // pairs written to a non-canonical --data-dir are not a mix input.
+                    let canonical = vox_corpus::training::mix_prepare::is_canonical_data_dir(
+                        ws.as_deref(),
+                        &data_dir,
+                    );
+                    if !canonical {
+                        eprintln!(
+                            "  ⏭ Mix stage skipped: --data-dir {} is not the canonical {}; its train.jsonl is used as-is.",
+                            data_dir.display(),
+                            vox_corpus::training::CANONICAL_TRAIN_DATA_DIR
+                        );
+                    } else if mix_config.is_file() {
                         let is_active_spoke_mix = if let Some(name) = profile.as_deref() {
                             let eff = vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile
                                 ::load_domain_profile(name, ws.as_deref())?;
@@ -486,7 +538,7 @@ pub async fn run(
                                     None,  // qlora_max_skip_rate
                                     false, // qlora_lm_head_only
                                     None,  // qlora_proxy_max_layers
-                                    64,    // qlora_ce_last_k
+                                    0,     // qlora_ce_last_k (whole assistant response)
                                     None,  // checkpoint_every
                                     false, // force_restart
                                     curriculum,
@@ -537,8 +589,51 @@ pub async fn run(
     Ok(())
 }
 
+/// DPO preference pairs from human-reviewed findings (D-06, GROW-06). Rows without a
+/// `reviewed_by` are ignored (defense in depth beyond the SQL filter). Rows are grouped by the
+/// provenance `query`; each approved/rejected pair in a group yields one record. Never emits SFT:
+/// finding text is web or LLM text and may not train MENS on its own. Returns the records and the
+/// ids that appear in them (only those may be marked queued).
+fn kb_findings_dpo_records(rows: &[vox_db::KbFindingRow]) -> (Vec<serde_json::Value>, Vec<String>) {
+    use std::collections::BTreeMap;
+    use vox_db::kb_text::FindingStatus;
+
+    let mut groups: BTreeMap<&str, (Vec<&vox_db::KbFindingRow>, Vec<&vox_db::KbFindingRow>)> =
+        BTreeMap::new();
+    for r in rows.iter().filter(|r| r.reviewed_by.is_some()) {
+        let Some(q) = r.provenance.get("query").and_then(|q| q.as_str()) else {
+            continue;
+        };
+        let g = groups.entry(q).or_default();
+        match r.status {
+            FindingStatus::Approved => g.0.push(r),
+            FindingStatus::Rejected => g.1.push(r),
+            _ => {}
+        }
+    }
+    let (mut records, mut ids) = (Vec::new(), Vec::new());
+    for (query, (approved, rejected)) in groups {
+        for a in &approved {
+            for r in &rejected {
+                records.push(serde_json::json!({
+                    "type": "dpo",
+                    "source": "kb_findings",
+                    "prompt": query,
+                    "chosen": a.summary,
+                    "rejected": r.summary,
+                }));
+                for id in [&a.id, &r.id] {
+                    if !ids.contains(id) {
+                        ids.push(id.clone());
+                    }
+                }
+            }
+        }
+    }
+    (records, ids)
+}
+
 async fn run_kb_signals_stage(data_dir: &std::path::Path) -> anyhow::Result<()> {
-    use std::collections::HashMap;
     use std::io::{BufWriter, Write};
 
     let db_path = vox_config::paths::REPO_DB_PATH;
@@ -554,83 +649,41 @@ async fn run_kb_signals_stage(data_dir: &std::path::Path) -> anyhow::Result<()> 
         .await
         .map_err(|e| anyhow::anyhow!("KbSignals: failed to open VoxDb at {db_path}: {e}"))?;
 
-    let entries = db
-        .kb_unqueued_training_entries(10_000)
+    let rows = db
+        .kb_findings_unqueued_reviewed(10_000)
         .await
         .map_err(|e| anyhow::anyhow!("KbSignals: query failed: {e}"))?;
 
-    if entries.is_empty() {
-        tracing::info!("KbSignals: no unqueued entries; skipping");
+    if rows.is_empty() {
+        tracing::info!("KbSignals: no unqueued reviewed findings; skipping");
+        return Ok(());
+    }
+
+    let (records, ids) = kb_findings_dpo_records(&rows);
+    if records.is_empty() {
+        tracing::info!("KbSignals: no approved/rejected pairs yet; leaving rows unqueued");
         return Ok(());
     }
 
     let out_dir = data_dir.join("mix_sources");
     std::fs::create_dir_all(&out_dir)?;
     let out_path = out_dir.join("kb_signals.jsonl");
-    let file = std::fs::File::create(&out_path)?;
-    let mut writer = BufWriter::new(file);
-    let mut written = 0usize;
-
-    // Group by kb_id to pair accepted/rejected within the same KB
-    let mut by_kb: HashMap<String, Vec<_>> = HashMap::new();
-    for entry in &entries {
-        by_kb.entry(entry.kb_id.clone()).or_default().push(entry);
+    let mut writer = BufWriter::new(std::fs::File::create(&out_path)?);
+    for record in &records {
+        writeln!(writer, "{record}")?;
     }
-
-    for (kb_id, kb_entries) in &by_kb {
-        let accepted: Vec<_> = kb_entries.iter().filter(|e| e.accepted == 1).collect();
-        let rejected: Vec<_> = kb_entries.iter().filter(|e| e.accepted == 0).collect();
-
-        // Accepted → SFT instruction-completion pairs
-        for entry in &accepted {
-            let record = serde_json::json!({
-                "type": "sft",
-                "source": "kb",
-                "kb_id": kb_id,
-                "instruction": format!(
-                    "What do you know about the following topic based on accumulated research?\n\nTopic: {}",
-                    entry.source_signal
-                ),
-                "completion": entry.content,
-                "routing_confidence": entry.routing_confidence,
-            });
-            writeln!(writer, "{record}")?;
-            written += 1;
-        }
-
-        // Accepted + rejected same-signal same-session pairs → DPO preference pairs
-        for acc in &accepted {
-            for rej in &rejected {
-                if acc.source_signal == rej.source_signal
-                    && acc.source_ref.is_some()
-                    && acc.source_ref == rej.source_ref
-                {
-                    let record = serde_json::json!({
-                        "type": "dpo",
-                        "source": "kb",
-                        "prompt": "Provide accurate technical information:",
-                        "chosen": acc.content,
-                        "rejected": rej.content,
-                    });
-                    writeln!(writer, "{record}")?;
-                    written += 1;
-                }
-            }
-        }
-    }
-
     writer.flush()?;
     tracing::info!(
-        "KbSignals: wrote {written} records to {}",
+        "KbSignals: wrote {} records to {}",
+        records.len(),
         out_path.display()
     );
 
-    // Mark all fetched entries as MENS-queued to avoid re-export
-    let ids: Vec<String> = entries.iter().map(|e| e.id.clone()).collect();
-    db.kb_mark_mens_queued(&ids)
+    // Mark only the findings that made it into a record, to avoid re-export.
+    db.kb_findings_mark_mens_queued(&ids)
         .await
         .map_err(|e| anyhow::anyhow!("KbSignals: mark_queued failed: {e}"))?;
-    tracing::info!("KbSignals: marked {} entries as mens_queued", ids.len());
+    tracing::info!("KbSignals: marked {} findings as mens_queued", ids.len());
 
     Ok(())
 }
@@ -687,6 +740,77 @@ mod tests {
         );
     }
 
+    fn finding(
+        id: &str,
+        status: vox_db::kb_text::FindingStatus,
+        reviewer: Option<&str>,
+        query: Option<&str>,
+        summary: &str,
+    ) -> vox_db::KbFindingRow {
+        vox_db::KbFindingRow {
+            id: id.into(),
+            dedupe_key: id.into(),
+            status,
+            trust_tier: vox_db::ContextTrustTier::Untrusted,
+            origin: vox_db::kb_text::FindingOrigin::WebSearch,
+            title: "t".into(),
+            summary: summary.into(),
+            quotes: vec![],
+            source_url: None,
+            fetched_at_ms: 0,
+            content_hash: String::new(),
+            snapshot_relpath: None,
+            provenance: query.map_or(serde_json::json!({}), |q| serde_json::json!({ "query": q })),
+            review_note: None,
+            reviewed_by: reviewer.map(Into::into),
+            reviewed_at_ms: None,
+            mens_queued: false,
+            created_at_ms: 0,
+        }
+    }
+
+    #[test]
+    fn kb_signals_unreviewed_rows_emit_nothing() {
+        use vox_db::kb_text::FindingStatus::{Approved, Rejected};
+        let rows = [
+            finding("a", Approved, None, Some("q"), "good"),
+            finding("b", Rejected, None, Some("q"), "bad"),
+        ];
+        let (records, ids) = kb_findings_dpo_records(&rows);
+        assert!(records.is_empty() && ids.is_empty());
+    }
+
+    #[test]
+    fn kb_signals_reviewed_pair_emits_one_dpo_record() {
+        use vox_db::kb_text::FindingStatus::{Approved, Pending, Rejected};
+        let rows = [
+            finding("a", Approved, Some("me"), Some("q"), "good"),
+            finding("b", Rejected, Some("me"), Some("q"), "bad"),
+            finding("c", Approved, Some("me"), Some("other"), "lonely"),
+            finding("d", Pending, Some("me"), Some("q"), "pending"),
+        ];
+        let (records, ids) = kb_findings_dpo_records(&rows);
+        assert_eq!(
+            records,
+            vec![serde_json::json!({
+                "type": "dpo", "source": "kb_findings", "prompt": "q",
+                "chosen": "good", "rejected": "bad",
+            })]
+        );
+        assert_eq!(ids, ["a", "b"], "unpaired rows are not marked queued");
+        assert!(records.iter().all(|r| r["type"] != "sft"));
+    }
+
+    #[test]
+    fn kb_signals_rows_without_a_query_emit_nothing() {
+        use vox_db::kb_text::FindingStatus::{Approved, Rejected};
+        let rows = [
+            finding("a", Approved, Some("me"), None, "good"),
+            finding("b", Rejected, Some("me"), None, "bad"),
+        ];
+        assert!(kb_findings_dpo_records(&rows).0.is_empty());
+    }
+
     #[test]
     fn test_is_lock_error_recognizes_windows_lock() {
         let e = anyhow::anyhow!(
@@ -708,6 +832,24 @@ mod tests {
     }
 
     #[test]
+    fn synth_stages_are_opt_in_and_run_before_mix() {
+        let default = plan_stages(None, false);
+        assert!(!default.contains(&PipelineStage::BackTranslate));
+        assert!(!default.contains(&PipelineStage::Rft));
+        assert!(default.contains(&PipelineStage::Mix));
+
+        let picked = plan_stages(Some("mix, rft,back_translate,train"), true);
+        assert_eq!(
+            picked,
+            vec![
+                PipelineStage::BackTranslate,
+                PipelineStage::Rft,
+                PipelineStage::Mix
+            ]
+        );
+    }
+
+    #[test]
     fn test_selected_profile_helper() {
         assert_eq!(selected_profile(&None), "default");
         assert_eq!(
@@ -717,16 +859,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_eval_stage_targets_validated_mixed_jsonl() {
+    async fn test_eval_stage_targets_pairs_train_jsonl() {
         let temp_dir = tempfile::tempdir().unwrap();
         let data_dir = temp_dir.path().join("data");
         let output_dir = temp_dir.path().join("output");
         std::fs::create_dir_all(&data_dir).unwrap();
         std::fs::create_dir_all(&output_dir).unwrap();
 
-        // Create validated_mixed.jsonl but NOT train_mixed.jsonl
-        let mixed_path = data_dir.join("validated_mixed.jsonl");
-        std::fs::write(&mixed_path, r#"{"prompt":"hello","completion":"world"}"#).unwrap();
+        // Only the pairs file exists (no mix output): eval reads the pairs.
+        let pairs_path = data_dir.join("train.jsonl");
+        std::fs::write(&pairs_path, r#"{"prompt":"hello","completion":"world"}"#).unwrap();
 
         let res = run(
             data_dir.clone(),
@@ -747,8 +889,8 @@ mod tests {
         if let Err(e) = res {
             let err_msg = e.to_string();
             assert!(
-                !err_msg.contains("train_mixed.jsonl"),
-                "Should not expect train_mixed.jsonl, error was: {}",
+                !err_msg.contains("missing input file"),
+                "eval must read data_dir/train.jsonl, error was: {}",
                 err_msg
             );
         }

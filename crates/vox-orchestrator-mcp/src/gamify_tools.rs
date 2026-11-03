@@ -680,15 +680,9 @@ pub async fn ludus_collegium_join(state: &ServerState, params: LudusCollegiumJoi
         )
         .to_json();
     }
-    if let Err(e) = vox_gamify::db::join_collegium(db, cid, &uid, "legionnaire").await {
-        return ToolResult::<serde_json::Value>::err_with_remediation(
-            e.to_string(),
-            REM_LUDUS_DB_QUERY,
-        )
-        .to_json();
-    }
     let ev = serde_json::json!({
         "type": "collegium_joined",
+        "collegium_id": cid,
         "agent_id": 0u64,
     });
     match vox_gamify::event_router::route_event(db, &uid, &ev).await {

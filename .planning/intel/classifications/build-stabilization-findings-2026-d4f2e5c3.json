@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/build-stabilization-findings-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Build Orchestration Stabilization Findings (2026-04-21)",
+  "summary": "Findings and fixes from April 2026 stabilization sweep of Vox orchestration build system; records five problems (F1–F5) and resolutions per category.",
+  "scope": ["schema hardening", "serving layer", "feature gates", "cloud provider traits", "CLI tests", "orchestration"],
+  "cross_refs": [],
+  "locked": false,
+  "precedence": null,
+  "notes": "Findings document recording problems discovered and fixes implemented. Frontmatter status=current. No decisions or requirements; documents past work and results. Training_eligible=false."
+}

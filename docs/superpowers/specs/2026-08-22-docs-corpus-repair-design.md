@@ -2,8 +2,10 @@
 title: "Docs Corpus Repair and Visual Enablement"
 description: "Evidence-backed repair of the documentation corpus: agent-facing artifact drift, retired-surface references, detector holes, retirement/archival, and mermaid rendering. No new subsystems."
 category: "architecture"
-status: "roadmap"
+status: "deprecated"
 ---
+
+> **Superseded (2026-10-08) by the docs-freshness workstream.** This design is retained for history only. The authoritative plan is `.planning/workstreams/docs-freshness/ROADMAP.md` (v1.3 Self-Maintaining Public Docs, phases 20–24). Do not implement from this document.
 
 # Docs Corpus Repair and Visual Enablement — Design
 
@@ -477,7 +479,7 @@ completed; the `status` vocabulary is uncontrolled free text. Fix: a
 file count; revision 1's 243 was wrong.
 `git mv`; set `status: "deprecated"`, `archived_date:`,
 `training_eligible: false`, `superseded_by:`; leave `category` unchanged. Rewrite
-inbound edges; hand-edit `research-index.md`; never touch `architecture-index.md`
+inbound edges; set valid frontmatter on moved pages (`title`, `description`, `category`, `status`) — Starlight lists them; do **not** create or edit `docs/src/architecture/research-index.md` (retired 2026-09); never touch `architecture-index.md`
 or `SUMMARY.md` (gitignored, regenerated). Move `planning-meta/` whole or not at
 all. **Links *from* moved files are already safe** — `check_links.rs:318` skips
 archive as a source.

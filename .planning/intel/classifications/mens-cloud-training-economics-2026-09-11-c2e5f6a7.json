@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/mens-cloud-training-economics-2026-09-11.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "MENS Cloud Training Economics (surveyed 2026-09-11)",
+  "summary": "Survey of 18 GPU rental providers (on-demand/spot pricing, billing granularity, SLAs) for 27-32B QLoRA; ranks by fitness for this job size; recommends local default with RunPod Secure as contingency.",
+  "scope": ["cloud GPU rental", "pricing survey", "provider comparison", "Vast.ai", "RunPod", "SLA analysis", "cost analysis"],
+  "cross_refs": ["vox mens cloud-estimate", "offer_filter.rs", "CloudResolver"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Research document with measured pricing and verified uptime SLAs. Status=research (not current), marked training_eligible=false. Provides data for decision-making but doesn't itself decide. Includes gotchas (egress dominates bill, storage billing on stop) and gap disclosures."
+}

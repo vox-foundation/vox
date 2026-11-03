@@ -250,6 +250,7 @@ const CONSTRUCTOR_PATTERNS: &[&str] = &[
 const FILE_ALLOWLIST: &[&str] = &[
     // vox-orchestrator-d's own daemon bootstrap: the single state owner.
     "vox-orchestrator-d/src/bin/vox_orchestrator_d.rs",
+    "vox-orchestrator-d/src/daemon_steps/mod.rs",
     // ServerState::new_full's own definition body (not a client call site).
     "vox-orchestrator-mcp/src/server_state.rs",
     // vox mcp's protocol-level-only ServerState::new_full (T2.2).
@@ -590,6 +591,7 @@ mod tests {
                              delete the file and retry",
                             path.display()
                         );
+                        // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
                         std::thread::sleep(std::time::Duration::from_millis(50));
                     }
                     Err(e) => panic!("failed to acquire lock file {}: {e}", path.display()),
@@ -609,6 +611,7 @@ mod tests {
         std::fs::create_dir_all(&lock_dir).ok();
         CrossProcessLock::acquire(
             lock_dir.join(".harness_trust_guard_real_tree.lock"),
+            // drift-allow(timeout-literal,duplicate-numeric-literal): test fixture duration, not an HTTP request timeout; a shared constant needs a vox-config edge
             std::time::Duration::from_secs(30),
         )
     }

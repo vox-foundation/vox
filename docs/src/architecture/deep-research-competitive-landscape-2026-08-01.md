@@ -2,7 +2,7 @@
 title: "Deep Research Competitive Landscape & User Sentiment (2026-08-01)"
 description: "Product-by-product research on Google Deep Research, Claude Research, OpenAI Deep Research, Perplexity Deep Research, Elicit, You.com/Grok/Manus/Genspark: capabilities, disclosed technical details, and real user sentiment (praise and complaints), with synthesis on where deep research is most/least useful and the open differentiator opportunity for Vox."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: true
 training_rationale: "Normative competitive research grounding the deep-research enhancement program's differentiation strategy; identifies verifiable-trust-infrastructure as the open competitive gap as of 2026-08-01."
 ---
@@ -10,7 +10,7 @@ training_rationale: "Normative competitive research grounding the deep-research 
 # Deep Research Competitive Landscape & User Sentiment
 
 **Date:** 2026-08-01
-**Scope:** Google Deep Research, Anthropic Claude Research, OpenAI Deep Research, Perplexity Deep Research, Elicit, and other notable agentic-research tools (You.com/ARI, Grok DeepSearch, Manus, Genspark) — capabilities, disclosed technical details, and synthesized user sentiment from reviews, benchmarks, and discussion threads. Companion to [deep-research-fundamentals-2026-08-01.md](deep-research-fundamentals-2026-08-01.md) (general architecture) and [research-index.md](research-index.md).
+**Scope:** Google Deep Research, Anthropic Claude Research, OpenAI Deep Research, Perplexity Deep Research, Elicit, and other notable agentic-research tools (You.com/ARI, Grok DeepSearch, Manus, Genspark) — capabilities, disclosed technical details, and synthesized user sentiment from reviews, benchmarks, and discussion threads. Companion to [deep-research-fundamentals-2026-08-01.md](deep-research-fundamentals-2026-08-01.md) (general architecture).
 
 ---
 

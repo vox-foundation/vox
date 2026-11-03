@@ -49,7 +49,8 @@ pub fn toolchain_rust_version(yaml: &str) -> Option<String> {
     v["versions"]["rust"].as_str().map(String::from)
 }
 
-/// Extract the top-level `crates = [...]` string array from `_public.toml`.
+/// Extract crate names from `_public.toml`: `[[crates]] name = "..."` tables
+/// (current format) or a legacy `crates = ["..."]` string array.
 // Used by crates/voxup/tests/distribution_parity.rs; clippy can't see cross-unit usage.
 #[allow(dead_code)]
 pub fn public_toml_crates(toml_text: &str) -> Vec<String> {
@@ -61,7 +62,8 @@ pub fn public_toml_crates(toml_text: &str) -> Vec<String> {
         .and_then(|c| c.as_array())
         .map(|a| {
             a.iter()
-                .filter_map(|x| x.as_str().map(String::from))
+                .filter_map(|x| x.as_str().or_else(|| x.get("name")?.as_str()))
+                .map(String::from)
                 .collect()
         })
         .unwrap_or_default()

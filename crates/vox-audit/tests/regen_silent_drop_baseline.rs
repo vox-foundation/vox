@@ -24,7 +24,7 @@ fn crates_root() -> PathBuf {
 }
 
 #[test]
-#[ignore = "regenerator: writes contracts/toestub/silent-drop-baseline.v1.json"]
+#[ignore = "owner:audit sunset:never regenerator: writes contracts/toestub/silent-drop-baseline.v1.json"]
 fn regenerate_silent_drop_baseline() {
     let crates = crates_root();
     let repo = crates.parent().unwrap().to_path_buf();

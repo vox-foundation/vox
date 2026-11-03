@@ -16,12 +16,21 @@
 //! 3. **Pairing grants reachability, never native execution.** A trusted peer
 //!    gets a sandbox by default.
 
+pub mod caps_spec;
+pub mod directory;
 pub mod endpoint;
 pub mod identity;
+pub mod interp_executor;
+pub mod mailbox;
 pub mod protocol;
 pub mod trust;
 
+pub use caps_spec::CapsSpec;
+pub use directory::{MeshQueueTotals, PeerEntry, directory, queue_stats};
 pub use endpoint::{JobExecutor, ReceivedJob, bind, serve};
 pub use identity::load_or_create;
-pub use protocol::{ALPN, Hello, Isolation, JobLimits, JobRequest, PROTO, check_hello};
+pub use interp_executor::InterpExecutor;
+pub use mailbox::{Inbox, MailboxLimits, Outbox};
+pub use protocol::{ALPN, Hello, Isolation, JobId, JobLimits, JobRequest, PROTO, check_hello};
 pub use trust::{MeshTrust, TrustLevel, TrustedEndpoint};
+pub use vox_mesh_types::TaskKind;

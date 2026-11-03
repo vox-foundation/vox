@@ -1,0 +1,167 @@
+{
+  "source": ".superpowers/sdd/2026-09-22-chat-research-real-e2e/round15d-live-deep-1.json (DERIVED for Task 9b: a retrieval stage inserted before deep_pipeline in the exact shape failed_deep_stages emits, plus sources/source_count as failed_run_sources emits them; provider rows and the 5 kept sources are taken from the real quick-provider-errors.json run (round3-live-2), with source engines shown as \"pipeline\" like every deep source. This run predates failed runs carrying their provider log.)",
+  "user": "/deepresearch compare SearXNG and Tavily for agent web search (round15d run 1)",
+  "reply": {
+    "content": "Deep research failed: synthesis failed: Candidate google/gemini-3.8-flash failed: No API key available for LLM provider\n\nNo answer was generated. The research trace below shows which stage failed and what was retrieved.",
+    "model_used": "none",
+    "latency_ms": 69,
+    "selection_reason": "deep research failed",
+    "events": [
+      {
+        "kind": "research_trace",
+        "mode": "deep",
+        "explicit": true,
+        "reasons": [
+          "explicit: /deepresearch"
+        ],
+        "query": "compare SearXNG and Tavily for agent web search (round15d run 1)",
+        "source_count": 5,
+        "model": null,
+        "total_ms": 17827,
+        "status": "failed",
+        "stages": [
+          {
+            "stage": "detection",
+            "status": "ok",
+            "elapsed_ms": null,
+            "summary": "deep — explicit: /deepresearch",
+            "detail": {
+              "explicit": true,
+              "reasons": [
+                "explicit: /deepresearch"
+              ]
+            }
+          },
+          {
+            "stage": "preamble",
+            "status": "skipped",
+            "elapsed_ms": null,
+            "summary": "autonomous web retrieval skipped: numbered research sources are the web evidence this turn",
+            "detail": {}
+          },
+          {
+            "stage": "pipeline_progress",
+            "status": "ok",
+            "elapsed_ms": 17529,
+            "summary": "4 progress events",
+            "detail": [
+              {
+                "message": "Decomposing query into subqueries...",
+                "pct": 0.05000000074505806,
+                "at_ms": 43
+              },
+              {
+                "message": "Running 1 subqueries...",
+                "pct": 0.15000000596046448,
+                "at_ms": 46
+              },
+              {
+                "message": "Verifying research claims...",
+                "pct": 0.6000000238418579,
+                "at_ms": 17454
+              },
+              {
+                "message": "Synthesizing final research report...",
+                "pct": 0.8500000238418579,
+                "at_ms": 17526
+              }
+            ]
+          },
+          {
+            "stage": "retrieval",
+            "status": "degraded",
+            "elapsed_ms": null,
+            "summary": "10 raw hits, 5 kept after filtering, from 2/5 providers",
+            "detail": {
+              "providers": [
+                {
+                  "provider": "arxiv",
+                  "status": {
+                    "state": "ok",
+                    "hits": 5
+                  },
+                  "elapsed_ms": 1069,
+                  "calls": 1
+                },
+                {
+                  "provider": "openalex",
+                  "status": {
+                    "state": "error",
+                    "message": "OpenAlex API returned status 429 Too Many Requests"
+                  },
+                  "elapsed_ms": 173,
+                  "calls": 1
+                },
+                {
+                  "provider": "wikipedia",
+                  "status": {
+                    "state": "ok",
+                    "hits": 5
+                  },
+                  "elapsed_ms": 567,
+                  "calls": 1
+                },
+                {
+                  "provider": "searxng",
+                  "status": {
+                    "state": "circuit_open"
+                  },
+                  "elapsed_ms": 0,
+                  "calls": 1
+                },
+                {
+                  "provider": "tavily",
+                  "status": {
+                    "state": "not_configured"
+                  },
+                  "elapsed_ms": 0,
+                  "calls": 1
+                }
+              ],
+              "tavily_credits": null
+            }
+          },
+          {
+            "stage": "deep_pipeline",
+            "status": "failed",
+            "elapsed_ms": 17529,
+            "summary": "synthesis failed: Candidate google/gemini-3.8-flash failed: No API key available for LLM provider",
+            "detail": {}
+          }
+        ],
+        "sources": [
+          {
+            "n": 1,
+            "url": "https://arxiv.org/abs/2503.20020",
+            "title": "Gemini Robotics: Bringing AI into the Physical World",
+            "engine": "pipeline"
+          },
+          {
+            "n": 2,
+            "url": "https://arxiv.org/abs/1705.09827",
+            "title": "Mini-Flash Crashes, Model Risk, and Optimal Execution",
+            "engine": "pipeline"
+          },
+          {
+            "n": 3,
+            "url": "https://arxiv.org/abs/2312.11805",
+            "title": "Gemini: A Family of Highly Capable Multimodal Models",
+            "engine": "pipeline"
+          },
+          {
+            "n": 4,
+            "url": "https://en.wikipedia.org/wiki/List_of_large_language_models",
+            "title": "List of large language models",
+            "engine": "pipeline"
+          },
+          {
+            "n": 5,
+            "url": "https://en.wikipedia.org/wiki/Google_DeepMind",
+            "title": "Google DeepMind",
+            "engine": "pipeline"
+          }
+        ]
+      }
+    ]
+  }
+}

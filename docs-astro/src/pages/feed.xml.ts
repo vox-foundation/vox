@@ -7,11 +7,18 @@ export async function GET(context: APIContext) {
   const docs = await getCollection('docs');
   const gitDates = getGitDates();
 
-  // Dates come from Git, not frontmatter. `last_updated:` is a hard lint
-  // error in authored docs (documentation-governance.md), so filtering on it
-  // matched zero documents and the feed shipped empty.
+  // Dates come from Git, not frontmatter. Keyed by repo-relative path (docs/src/...)
   const items = docs
-    .map(doc => ({ doc, date: gitDates.get(doc.id) }))
+    .map((doc) => {
+      const cleanPath = doc.filePath
+        ? doc.filePath.replace(/^src\/content\/docs\//, '')
+        : doc.id.endsWith('.md') || doc.id.endsWith('.mdx')
+        ? doc.id
+        : `${doc.id}.md`;
+      const key = `docs/src/${cleanPath}`;
+      const date = gitDates.get(key) ?? gitDates.get(`docs/src/${doc.id}.md`) ?? gitDates.get(`docs/src/${doc.id}.mdx`);
+      return { doc, date };
+    })
     .filter((entry): entry is { doc: typeof entry.doc; date: string } => Boolean(entry.date))
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 30)
@@ -22,10 +29,7 @@ export async function GET(context: APIContext) {
       description: doc.data.description ?? '',
     }));
 
-  // Fail the build rather than shipping an empty feed. Both known breakages
-  // of this endpoint -- filtering on a `last_updated` key no live doc carries,
-  // and a Windows cwd that made `git` unspawnable -- produced a well-formed
-  // RSS document with zero items and a green build. Nothing noticed either.
+  // Fail the build rather than shipping an empty feed.
   if (items.length === 0) {
     throw new Error(
       `feed.xml produced 0 items from ${docs.length} docs and ` +

@@ -60,6 +60,14 @@ fn trust_path() -> PathBuf {
     vox_config::paths::dot_vox_user_dir().join("mesh_trust.json")
 }
 
+/// `~/.vox/mesh_inbox/` — durably accepted A2A messages, one file per message
+/// under a directory per sending peer. Beside `mesh.key` and the trust store
+/// because it is the same piece of state: what this node's mesh identity has
+/// agreed to hold.
+fn inbox_path() -> PathBuf {
+    vox_config::paths::dot_vox_user_dir().join("mesh_inbox")
+}
+
 /// Decode a ticket to the `EndpointId` it would admit, so the user is shown the
 /// identity **before** being asked to approve it.
 fn peer_of(ticket: &str) -> Result<(EndpointTicket, EndpointId)> {
@@ -106,11 +114,17 @@ pub async fn run(cmd: MeshCli, json: bool) -> Result<()> {
                         TrustLevel::Sandboxed => "sandboxed",
                         TrustLevel::Native => "NATIVE",
                     };
+                    let reach = if r.addrs.is_empty() {
+                        " (no address — re-pair; not reachable)"
+                    } else {
+                        ""
+                    };
                     println!(
-                        "{}  {:<10}  {}",
+                        "{}  {:<10}  {}{}",
                         r.endpoint_id,
                         level,
-                        r.label.as_deref().unwrap_or("")
+                        r.label.as_deref().unwrap_or(""),
+                        reach
                     );
                 }
             }
@@ -178,10 +192,52 @@ pub async fn run(cmd: MeshCli, json: bool) -> Result<()> {
                 {
                     println!("\n! {advice}");
                 }
-                println!("\nWaiting for the peer to pair. Ctrl-C to stop.");
+                println!(
+                    "\nThis node now executes Vox received over the mesh \
+                     (interpreter, sandboxed). Waiting for the peer to pair. Ctrl-C to stop."
+                );
                 let trust = std::sync::Arc::new(MeshTrust::at(&trust_path()));
-                let exec = std::sync::Arc::new(vox_mesh_transport::endpoint::ProbeOnlyExecutor);
-                vox_mesh_transport::endpoint::serve(ep, trust, exec).await;
+                let vox_bin = std::env::current_exe()
+                    .ok()
+                    .and_then(|p| {
+                        p.parent()
+                            .map(|d| d.join(if cfg!(windows) { "vox.exe" } else { "vox" }))
+                    })
+                    .filter(|p| p.exists())
+                    .unwrap_or_else(|| std::path::PathBuf::from("vox"));
+                match std::process::Command::new(&vox_bin)
+                    .arg("--version")
+                    .output()
+                {
+                    Ok(out) => {
+                        let version = String::from_utf8_lossy(&out.stdout);
+                        let version = version.trim();
+                        tracing::info!(
+                            vox_bin = %vox_bin.display(),
+                            version,
+                            "mesh join executor"
+                        );
+                        if !version.contains(env!("CARGO_PKG_VERSION")) {
+                            tracing::warn!(
+                                binary_version = version,
+                                crate_version = env!("CARGO_PKG_VERSION"),
+                                "vox --version does not match this crate; mesh jobs may disagree with the CLI"
+                            );
+                        }
+                    }
+                    Err(e) => tracing::warn!(
+                        vox_bin = %vox_bin.display(),
+                        error = %e,
+                        "could not run vox --version at executor construction"
+                    ),
+                }
+                let exec = std::sync::Arc::new(vox_mesh_transport::InterpExecutor::new(
+                    trust.clone(),
+                    vox_bin,
+                    vox_mesh_transport::protocol::JobLimits::default(),
+                ));
+                let inbox = std::sync::Arc::new(vox_mesh_transport::Inbox::at(&inbox_path()));
+                vox_mesh_transport::endpoint::serve(ep, trust, exec, Some(inbox)).await;
                 Ok(())
             }
             Some(t) => {
@@ -190,8 +246,8 @@ pub async fn run(cmd: MeshCli, json: bool) -> Result<()> {
                     println!("This ticket admits:\n");
                     println!("  {peer}\n");
                     println!(
-                        "Pairing lets that peer send this machine work. Received work runs\n\
-                         SANDBOXED — pairing never grants native execution."
+                        "Pairing lets that peer send this machine work. This node now executes\n\
+                         Vox received over the mesh (interpreter). Pairing never grants native execution."
                     );
                     let ok = dialoguer::Confirm::new()
                         .with_prompt("Trust this peer?")
@@ -203,7 +259,13 @@ pub async fn run(cmd: MeshCli, json: bool) -> Result<()> {
                     }
                 }
                 let trust = MeshTrust::at(&trust_path());
-                trust.trust(&peer, label.as_deref())?;
+                // Capture the ticket's addresses. Pairing is the only moment they
+                // are known, and without them the peer directory can never reach
+                // this peer -- mDNS does not announce, so an EndpointId alone is
+                // not dialable.
+                let addrs: Vec<std::net::SocketAddr> =
+                    ticket.endpoint_addr().ip_addrs().copied().collect();
+                trust.trust_with_addrs(&peer, label.as_deref(), &addrs)?;
                 println!("Trusted {peer} (sandboxed).");
 
                 let sk = identity::load_or_create(&key_path())?;

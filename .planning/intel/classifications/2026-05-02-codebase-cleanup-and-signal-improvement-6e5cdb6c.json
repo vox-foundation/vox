@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/2026-05-02-codebase-cleanup-and-signal-improvement.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Codebase Cleanup & Signal Improvement Plan (2026-05-02)",
+  "summary": "Six-phase plan to retire stale code, fix broken references, and converge on single sources of truth.",
+  "scope": ["code-cleanup", "signal-improvement", "documentation", "references", "golden-examples", "@island", "retired-surfaces"],
+  "cross_refs": ["docs/src/architecture/2026-05-08-llm-misleading-content-cleanup-plan.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Partially superseded by 2026-05-08-llm-misleading-content-cleanup-plan per document header. Phase 5 (@island cleanup) is consolidated in the superseding plan."
+}

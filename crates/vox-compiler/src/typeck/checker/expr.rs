@@ -356,19 +356,56 @@ impl<'a> Checker<'a> {
                             let _ = self.uf.unify(&Ty::Int, &arg_ty);
                             return ret.as_ref().clone();
                         }
-                        // Special case: `print(value)` accepts any type.  The
-                        // stdlib registers print as `(str) → Unit` for the common
-                        // case but LLM-generated code frequently calls
-                        // `print(42)`, `print(true)`, `print(list)`, etc.  Rather
-                        // than force every caller to `print(str(x))`, we skip the
-                        // strict Str constraint when the callee is the builtin
-                        // `print` and there is exactly one argument.
-                        let is_print_call = args.len() == 1
+                        // Special case (Task 2 corollary — `float_formatting.vox`,
+                        // one of Task 1b's eight goldens): `abs` is registered
+                        // above as `(int) -> int` for the common integer case,
+                        // but the interpreter's free-function dispatch
+                        // (`call_global_builtin` in `eval/builtins.rs`) already
+                        // accepts a Float receiver too, returning Float. Peek
+                        // the single argument's type; a Float argument reports
+                        // Float directly instead of a spurious "Cannot unify
+                        // Int with Float". Either way, `args[0].value` is
+                        // checked exactly once here and this arm returns
+                        // unconditionally (matching the `is_range_one_arg`
+                        // pattern above) — it must NOT fall through into
+                        // `check_arguments` below, which would re-run
+                        // `check_expr` on the same argument node a second
+                        // time (double allocation of fresh type vars /
+                        // duplicate diagnostics on a genuine type error).
+                        let is_abs_call = args.len() == 1
+                            && params.len() == 1
+                            && matches!(callee.as_ref(), HirExpr::Ident(name, _) if name == "abs");
+                        if is_abs_call {
+                            let arg_ty = self.check_expr(&args[0].value, None);
+                            if matches!(self.uf.resolve(&arg_ty), Ty::Float) {
+                                return Ty::Float;
+                            }
+                            let _ = self.uf.unify(&Ty::Int, &arg_ty);
+                            return ret.as_ref().clone();
+                        }
+                        // Special case: `print(value, ...)` accepts any
+                        // type(s), n >= 1.  The stdlib registers print as
+                        // `(str) → Unit` for the common case but
+                        // LLM-generated code frequently calls
+                        // `print(42)`, `print(true)`, `print(list)`, etc.,
+                        // and (Task 2 Step 5) `print` joins n >= 1 args
+                        // with a space — see `call_global_builtin`
+                        // (`crates/vox-compiler/src/eval/builtins.rs`) and
+                        // the native `("print", n)` codegen arm
+                        // (`vox-codegen/src/codegen_rust/emit/stmt_expr.rs`).
+                        // Rather than force every caller to
+                        // `print(str(x))`, we skip the strict Str
+                        // constraint (and the fixed 1-param arity) when the
+                        // callee is the builtin `print`.
+                        let is_print_call = !args.is_empty()
                             && matches!(callee.as_ref(), HirExpr::Ident(name, _) if name == "print");
                         if is_print_call {
-                            // Type-check the argument (so inner errors are still caught)
-                            // but don't enforce the Str param constraint.
-                            let _ = self.check_expr(&args[0].value, None);
+                            // Type-check every argument (so inner errors are
+                            // still caught) but don't enforce the Str param
+                            // constraint or the 1-arg arity.
+                            for a in args {
+                                let _ = self.check_expr(&a.value, None);
+                            }
                             return Ty::Unit;
                         }
                         // Pre-bind generic type variables by unifying the declared return type

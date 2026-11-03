@@ -70,9 +70,11 @@ use cargo_spawn_log::{
 
 /// Resolve cargo binary path. Precedence: VOX_CARGO_BIN, CARGO, "cargo".
 fn cargo_binary() -> String {
-    std::env::var("VOX_CARGO_BIN")
-        .or_else(|_| std::env::var("CARGO"))
-        .unwrap_or_else(|_| "cargo".to_string())
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxCargoBin)
+        .expose()
+        .map(str::to_string)
+        .or_else(|| std::env::var("CARGO").ok())
+        .unwrap_or_else(|| "cargo".to_string())
 }
 
 /// Request for a Cargo invocation (BL064).

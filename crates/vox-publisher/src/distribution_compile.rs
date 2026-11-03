@@ -307,21 +307,10 @@ fn resolve_caps(
 
 fn channel_contract_defaults(channel: &str) -> (usize, usize) {
     match channel {
-        "twitter" => (
-            crate::adapters::twitter::TWEET_MAX_CHARS,
-            crate::adapters::twitter::TWEET_MAX_CHARS,
-        ),
-        #[cfg(feature = "scientia-reddit")]
-        "reddit" => (
-            crate::adapters::reddit::TITLE_MAX,
-            crate::adapters::reddit::SELFPOST_SUMMARY_MAX,
-        ),
-        "hacker_news" => (crate::adapters::hacker_news::TITLE_MAX, 500),
-        #[cfg(feature = "scientia-youtube")]
-        "youtube" => (
-            crate::adapters::youtube::TITLE_MAX,
-            crate::adapters::youtube::DESCRIPTION_MAX,
-        ),
+        "twitter" => (280, 280),
+        "reddit" => (300, 700),
+        "hacker_news" => (80, 500),
+        "youtube" => (100, 5000),
         "github" => (500, 50_000),
         "open_collective" => (200, 10_000),
         "rss" => (500, 100_000),

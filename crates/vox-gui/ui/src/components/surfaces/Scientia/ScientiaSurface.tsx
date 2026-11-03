@@ -2,10 +2,14 @@ import React, { useState } from 'react';
 import { ScientiaDashboard } from './ScientiaDashboard';
 import { ClaimsView } from './ClaimsView';
 import { HarnessIssuesPanel } from './HarnessIssuesPanel';
+import { DiscoveryInbox } from './DiscoveryInbox';
+import { DiscoveryReview } from './DiscoveryReview';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
+  { id: 'inbox', label: 'Inbox' },
+  { id: 'studio', label: 'Studio & Review' },
   { id: 'claims', label: 'Claims' },
   { id: 'harness', label: 'Harness Issues' },
 ] as const;
@@ -21,12 +25,13 @@ export function ScientiaSurface(props: SurfaceDecoratorProps) {
   const [tab, setTab] = useState<ScientiaTab>('dashboard');
   return (
     <div className="flex min-h-0 flex-col">
-      <div role="tablist" aria-label="Findings sections" className="flex gap-1 px-4 pt-3">
+      <div role="tablist" aria-label="Findings sections" className="flex flex-wrap gap-1 px-4 pt-3">
         {TABS.map(t => (
           <button
             key={t.id}
             type="button"
             role="tab"
+            data-testid={`scientia-tab-${t.id}`}
             aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
             className={`rounded-md px-3 py-1.5 font-display text-[11px] uppercase tracking-[0.16em] transition ${
@@ -41,6 +46,14 @@ export function ScientiaSurface(props: SurfaceDecoratorProps) {
       </div>
       {tab === 'dashboard' ? (
         <ScientiaDashboard {...props} />
+      ) : tab === 'inbox' ? (
+        <div className="p-4">
+          <DiscoveryInbox {...props} />
+        </div>
+      ) : tab === 'studio' ? (
+        <div className="p-4">
+          <DiscoveryReview {...props} />
+        </div>
       ) : tab === 'claims' ? (
         <ClaimsView {...props} />
       ) : (

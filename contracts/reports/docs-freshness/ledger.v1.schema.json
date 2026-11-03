@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/reports/docs-freshness/ledger.v1.schema.json",
+  "title": "DocsFreshnessLedgerV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "generated_by", "head_commit", "pages", "metrics"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "generated_by": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": "string"
+    },
+    "head_commit": {
+      "type": "string"
+    },
+    "pages": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "category",
+          "status",
+          "state",
+          "last_verified_commit",
+          "anchors",
+          "broken_mentions"
+        ],
+        "properties": {
+          "title": { "type": "string" },
+          "category": { "type": "string" },
+          "status": { "type": "string" },
+          "owner": { "type": ["string", "null"] },
+          "review_cadence": { "type": ["string", "null"] },
+          "state": {
+            "type": "string",
+            "enum": ["verified", "drifting", "broken", "unanchored", "historical"]
+          },
+          "last_verified_commit": { "type": ["string", "null"] },
+          "anchors": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/AnchorRecord" }
+          },
+          "broken_mentions": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_pages",
+        "verified_count",
+        "drifting_count",
+        "broken_count",
+        "unanchored_count",
+        "historical_count"
+      ],
+      "properties": {
+        "total_pages": { "type": "integer", "minimum": 0 },
+        "verified_count": { "type": "integer", "minimum": 0 },
+        "drifting_count": { "type": "integer", "minimum": 0 },
+        "broken_count": { "type": "integer", "minimum": 0 },
+        "unanchored_count": { "type": "integer", "minimum": 0 },
+        "historical_count": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "AnchorRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "target", "content_hash", "verified_hash", "source"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": {
+          "type": "string",
+          "enum": ["path", "crate", "symbol", "command", "env_var", "contract"]
+        },
+        "target": { "type": "string" },
+        "content_hash": { "type": "string" },
+        "verified_hash": { "type": "string" },
+        "source": {
+          "type": "string",
+          "enum": ["frontmatter", "extracted_claim"]
+        }
+      }
+    }
+  }
+}

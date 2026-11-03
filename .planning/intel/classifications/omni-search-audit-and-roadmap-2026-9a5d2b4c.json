@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/omni-search-audit-and-roadmap-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Omni-Search Audit & Roadmap (2026)",
+  "summary": "Comprehensive audit of search capabilities, surfaces, gaps, bugs across full stack. Maps current architecture, identifies 20 bugs, proposes 28 improvements in three tiers.",
+  "scope": ["search", "indexing", "retrieval", "GUI search surfaces", "corpus types", "telemetry", "RRF fusion", "vector search"],
+  "cross_refs": ["search-retrieval-ssot-2026.md", "vox-search", "vox-db-types/src/retrieval.rs", "vox-gui/src/commands/search.rs", "SearchView.tsx"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

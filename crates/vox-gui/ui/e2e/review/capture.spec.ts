@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SURFACE_REGISTRY } from '../../src/generated/surfaceRegistry.generated';
 import { VIEWPORTS, statesFor, AUDIT_THEMES, type ReviewState } from './states';
-import { auditIconsInPage, auditOverflowInPage } from './audits';
+import { auditDomQualityInPage, auditIconsInPage, auditOverflowInPage } from './audits';
 import { addRichMockInitScript } from '../lib/tauriMockRich';
 import { addMockInitScript } from '../lib/tauriMockShared';
 import { installEmptyStateMock, installErrorStateMock } from '../lib/tauriMockVariants';
@@ -86,6 +86,7 @@ async function captureOne(
   }
   const iconIssues = await page.evaluate(auditIconsInPage);
   const overflow = await page.evaluate(auditOverflowInPage);
+  const domQuality = await page.evaluate(auditDomQualityInPage, surface);
 
   const entry = {
     id, surface, state: state.name, viewport: vpName, browser: browserName,
@@ -97,6 +98,7 @@ async function captureOne(
     page_errors: pageErrors,
     icon_issues: iconIssues,
     overflow,
+    dom_quality: domQuality,
     capture_ms: Date.now() - t0,
     captured_at: new Date().toISOString(),
   };

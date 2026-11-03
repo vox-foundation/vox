@@ -186,6 +186,62 @@ pub fn min_detectable_difference(n: usize) -> f64 {
     }
 }
 
+/// Verdict from applying the hub gate's fixed thresholds (spec §6.2) to an
+/// already-computed [`PairedResult`] plus the challenger's absolute metrics.
+///
+/// `difference` is carried through for reporting only — it must never itself
+/// drive `blocked`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GateVerdict {
+    pub blocked: bool,
+    pub reason: String,
+    pub difference: f64,
+}
+
+/// Apply the hub gate's decision rules to a challenger-vs-baseline paired
+/// comparison plus the challenger's absolute metrics.
+///
+/// `paired` MUST come from `paired_compare(baseline, challenger)` — so
+/// `paired.b_only` is "baseline passed, challenger failed" (regression) and
+/// `paired.c_only` is "challenger passed, baseline failed" (improvement).
+#[must_use]
+pub fn evaluate_gate(
+    paired: &PairedResult,
+    n_infra_errors: usize,
+    n_cheated: usize,
+    compile_rate: f64,
+    pass_at_1: f64,
+) -> GateVerdict {
+    let blocked = |reason: &str| GateVerdict {
+        blocked: true,
+        reason: reason.to_string(),
+        difference: paired.difference,
+    };
+    if n_infra_errors > 0 {
+        return blocked("infra hard-fail: n_infra_errors > 0");
+    }
+    if n_cheated != 0 {
+        return blocked("absolute floor: n_cheated != 0");
+    }
+    if compile_rate < 0.90 {
+        return blocked("absolute floor: compile_rate < 0.90");
+    }
+    if pass_at_1 < 0.60 {
+        return blocked("absolute floor: pass_at_1 < 0.60");
+    }
+    if paired.b_only > 3 {
+        return blocked("paired regression: baseline-passes/challenger-fails > 3");
+    }
+    if paired.b_only > paired.c_only && paired.p_value < 0.05 {
+        return blocked("paired regression: significant net regression (mcnemar p < 0.05)");
+    }
+    GateVerdict {
+        blocked: false,
+        reason: "pass".to_string(),
+        difference: paired.difference,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -259,6 +315,62 @@ mod tests {
         assert!(all_fail.low >= 0.0 && all_fail.high <= 1.0);
         let all_pass = wilson_interval(10, 10, Z_95);
         assert!(all_pass.low >= 0.0 && all_pass.high <= 1.0);
+    }
+
+    #[test]
+    fn paired_compare_flags_regression_and_hard_fails_on_infra_errors() {
+        // 1. Infra hard-fail overrides everything, even otherwise-perfect
+        //    inputs: identical pass/fail vectors (no paired regression),
+        //    zero cheated, high compile rate, high pass@1.
+        let identical = [true; 20];
+        let perfect = paired_compare(&identical, &identical);
+        let v = evaluate_gate(&perfect, 1, 0, 1.0, 1.0);
+        assert!(v.blocked, "n_infra_errors > 0 must block regardless");
+        assert!(v.reason.contains("infra"));
+
+        // 2. Clean pass: no regressions, floors met, zero infra errors.
+        let baseline = [true, true, true, true, true, false, false, false];
+        let challenger = [true, true, true, true, true, false, false, false];
+        let clean = paired_compare(&baseline, &challenger);
+        let v = evaluate_gate(&clean, 0, 0, 0.95, 0.80);
+        assert!(!v.blocked, "clean paired comparison should pass");
+
+        // 3. A real regression: challenger fails 4 fixtures the baseline
+        //    passes (baseline-passes/challenger-fails = 4 > 3). Directionality
+        //    matters here: paired_compare(baseline, challenger) must be
+        //    called in that argument order, and evaluate_gate must read
+        //    b_only (not c_only) as "baseline passed, challenger failed".
+        let baseline_regresses = [true, true, true, true, false, false, false, false];
+        let challenger_worse = [false, false, false, false, false, false, false, false];
+        let regressed = paired_compare(&baseline_regresses, &challenger_worse);
+        assert_eq!(
+            regressed.b_only, 4,
+            "sanity: baseline passed 4 that challenger failed"
+        );
+        let v = evaluate_gate(&regressed, 0, 0, 0.95, 0.80);
+        assert!(v.blocked, "4 baseline-only passes (>3) must block");
+        assert!(v.reason.contains("regression"));
+
+        // Mirror image: challenger clearly *improves* over baseline (4
+        // fixtures the baseline fails but the challenger passes, zero the
+        // reverse) must PASS. A gate with baseline/challenger swapped would
+        // get this backwards and block a genuine improvement.
+        let baseline_worse = [false, false, false, false, false, false, false, false];
+        let challenger_improves = [true, true, true, true, false, false, false, false];
+        let improved = paired_compare(&baseline_worse, &challenger_improves);
+        assert_eq!(
+            improved.c_only, 4,
+            "sanity: challenger passed 4 that baseline failed"
+        );
+        assert_eq!(improved.b_only, 0, "sanity: no baseline-only passes");
+        let v = evaluate_gate(&improved, 0, 0, 0.95, 0.80);
+        assert!(!v.blocked, "a real challenger improvement must pass");
+
+        // 4. Absolute-floor case: n_cheated != 0 blocks even with a clean
+        //    paired comparison.
+        let v = evaluate_gate(&clean, 0, 1, 0.95, 0.80);
+        assert!(v.blocked, "n_cheated != 0 must block");
+        assert!(v.reason.contains("cheated"));
     }
 
     #[test]

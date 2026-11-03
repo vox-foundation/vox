@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/scientia-automated-research-historical-extension-research-2026.md",
+  "type": "DOC",
+  "confidence": "medium",
+  "manifest_override": false,
+  "title": "SCIENTIA Automated Research: Historical Roles and Extension Research (2026)",
+  "summary": "Research document mapping historical computer-assisted research roles to Vox capabilities, code-review findings from June 2026, and phased extension plan for unified research loop.",
+  "scope": ["SCIENTIA architecture", "research capability mapping", "code review findings", "extension roadmap", "deep research"],
+  "cross_refs": ["deep-research-prior-art-and-vox-roadmap-2026.md", "scientia-micropublication-ssot-and-surfacing-design-2026.md", "scientia-mesh-integration-research-2026.md", "graphify-integration-research-2026-06-16.md", "search-retrieval-ssot-2026.md", "tavily-integration-ssot.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": "Frontmatter marks status: research; June 2026 implementation waves have shipped. Classification as DOC (not SPEC) because it is primarily historical analysis and roadmap context, not locked architectural decisions."
+}

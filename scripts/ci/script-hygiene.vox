@@ -15,19 +15,29 @@ fn main() {
     
     // Canonical allowlist (all lowercase, forward slashes)
     let allowlist = [
+        "scripts/install.ps1",
+        "scripts/install.sh",
         "scripts/vox-dev.sh",
         "scripts/windows/vox-dev.ps1",
+        "scripts/broker-bypass-fixtures/known-bypass-rustup-run-continuation.sh",
+        "scripts/broker-bypass-fixtures/known-bypass-rustup-which.sh",
+        "scripts/broker-bypass-fixtures/known-bypass.sh",
+        "scripts/broker-bypass-fixtures/no-bypass-bare-cargo.sh",
         "scripts/coverage-graph/build_index.py",
         "scripts/coverage-graph/candidate_gaps.py",
         "scripts/coverage-graph/dup_and_wiring.py",
         "scripts/coverage-graph/emit_baseline.py",
+        "scripts/coverage-graph/emit_unproven_worklist.py",
         "scripts/coverage-graph/export_lcov_chunked.py",
         "scripts/coverage-graph/ingest_reaches.py",
         "scripts/coverage-graph/merge_behaviors_to_graph.py",
         "scripts/coverage-graph/os_compat.py",
         "scripts/coverage-graph/overlay_tests.py",
+        "scripts/coverage-graph/prune_graph_snapshot.py",
+        "scripts/coverage-graph/ratchet_check.py",
         "scripts/coverage-graph/rebuild_full_graph.py",
         "scripts/coverage-graph/recover_and_synth.py",
+        "scripts/coverage-graph/test_manifest_writer.py",
         "scripts/coverage-graph/test_overlay_tests.py"
     ];
 
@@ -55,7 +65,10 @@ fn main() {
                 
                 // Trim root prefix if present
                 let mut f_rel = f_norm;
-                if root isnt "." {
+                if f_rel.contains("/scripts/") {
+                    let parts = f_rel.split("/scripts/");
+                    f_rel = "scripts/" + parts.get(parts.len() - 1).unwrap_or("");
+                } else if root isnt "." {
                     let mut root_norm = root.replace("\\", "/").to_lower();
                     if not root_norm.ends_with("/") {
                         root_norm = root_norm + "/";

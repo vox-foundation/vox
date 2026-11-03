@@ -2,7 +2,7 @@
 title: "Gap-Fill: Aider/Zed/Cursor Local-Model Mechanisms — Verified Research 2026-07-30"
 description: "Closes the tool-comparison research's remaining gaps: Aider's ollama_chat/ prefix convention, Zed's language_models config block with unconfirmed exact field names, and the corrected finding that Cursor has no built-in Ollama support — only an OpenAI-compatible base-URL workaround. Recovered from a workflow run whose synthesis stage failed, reconstructed directly from per-claim verification votes."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 training_eligible: false
 ---
 

@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
 import { PUBLICATION_STAGES, groupByStage, PublicationManifest } from '../../../lib/pipeline';
 import { useLabel } from '../../../hooks/useLanguage';
+import { draftManuscript, renderLatex } from '../../../api/scientia';
 
 interface ExecuteOutput {
   exit_code: number;
@@ -57,14 +58,14 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-lg text-text-primary tracking-wider uppercase">{useLabel('pub-pipeline')}</h2>
-        <button onClick={refresh} disabled={loading}
+        <button type="button" onClick={refresh} disabled={loading}
           className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs hover:bg-overlay-subtle">
           {loading ? 'Loading…' : 'Refresh'}
         </button>
       </div>
-      <div className="flex gap-3 overflow-x-auto pb-3 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.15)_transparent]">
+      <div className="grid grid-cols-2 gap-2.5 pb-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
         {PUBLICATION_STAGES.map(stage => (
-          <div key={stage} className="w-44 shrink-0">
+          <div key={stage} className="min-w-0">
             <div className="mb-2 flex items-center justify-between">
               <span className="font-mono text-[10px] uppercase tracking-wide text-text-muted">{stage.replace(/_/g, ' ')}</span>
               <span className="rounded-full bg-overlay-subtle px-1.5 font-mono text-[9px] text-text-muted">{groups[stage].length}</span>
@@ -72,6 +73,7 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
             <div className="space-y-2">
               {groups[stage].map(m => (
                 <button
+                  type="button"
                   key={m.publication_id}
                   onClick={() => setSelected(m)}
                   className={`w-full rounded-lg border bg-overlay-subtle p-2 text-left transition-colors hover:bg-overlay-subtle ${
@@ -88,12 +90,51 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
         ))}
       </div>
 
-      {selected && (
+      {selected ? (
         <PublicationDetail
           manifest={selected}
           onClose={() => setSelected(null)}
           pushToast={pushToast}
         />
+      ) : (
+        <div
+          data-testid="publications-pipeline-overview"
+          className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-3"
+        >
+          <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+            <div className="flex items-center justify-between">
+              <span className="font-display text-[10px] tracking-widest text-brass uppercase">IMRaD &amp; LaTeX</span>
+              <span className="rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 font-mono text-[9px] text-brass">
+                {manifests.length} manifests
+              </span>
+            </div>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+              Select any card above to preview its generated IMRaD manuscript, compile LaTeX source, or inspect extracted epistemic claims.
+            </p>
+          </div>
+          <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+            <div className="flex items-center justify-between">
+              <span className="font-display text-[10px] tracking-widest text-cyan uppercase">Claim Verification</span>
+              <span className="rounded border border-cyan/30 bg-cyan/10 px-1.5 py-0.5 font-mono text-[9px] text-cyan">
+                MiniCheck
+              </span>
+            </div>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+              Every candidate paper undergoes automated claim extraction (<code className="text-brass">vox scientia claims</code>) and confidence scoring before approval.
+            </p>
+          </div>
+          <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-3.5">
+            <div className="flex items-center justify-between">
+              <span className="font-display text-[10px] tracking-widest text-text-primary uppercase">Archival Deposit</span>
+              <span className="font-mono text-[10px] text-emerald-300">
+                DOI + SWHID
+              </span>
+            </div>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-text-secondary">
+              Tracks Zenodo DOI reservation, ORCID attribution, and Software Heritage (SWHID) source archival across 7 lifecycle stages.
+            </p>
+          </div>
+        </div>
       )}
     </section>
   );
@@ -117,6 +158,8 @@ function PublicationDetail({
   const [claims, setClaims] = useState<ClaimsPayload | null>(null);
   const [venue, setVenue] = useState<VenueRecommendation | null>(null);
   const [busy, setBusy] = useState(false);
+  const [previewText, setPreviewText] = useState<string | null>(null);
+  const [previewKind, setPreviewKind] = useState<'imrad' | 'latex' | null>(null);
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -168,22 +211,85 @@ function PublicationDetail({
 
   return (
     <div className="rounded-xl border border-cyan/30 bg-cyan/[0.02] p-4">
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="truncate font-mono text-sm text-text-primary">{manifest.publication_id}</div>
           <div className="font-mono text-[11px] text-text-muted">{manifest.content_type} · {manifest.state}</div>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={load} disabled={busy}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            data-testid="pub-preview-imrad-btn"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                const res = await draftManuscript(manifest.publication_id);
+                setPreviewKind('imrad');
+                setPreviewText(res.markdown);
+              } catch (err) {
+                pushToast({ tone: 'warn', title: 'IMRaD preview failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+              } finally {
+                setBusy(false);
+              }
+            }}
+            className="rounded-lg border border-brass/30 bg-brass/10 px-3 py-1.5 text-xs text-brass hover:bg-brass/20"
+          >
+            Preview IMRaD
+          </button>
+          <button
+            type="button"
+            data-testid="pub-preview-latex-btn"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                const res = await renderLatex(manifest.publication_id);
+                setPreviewKind('latex');
+                setPreviewText(res.latex);
+              } catch (err) {
+                pushToast({ tone: 'warn', title: 'LaTeX preview failed', body: sanitizeErrorForToast(err), cause: 'backend-error' });
+              } finally {
+                setBusy(false);
+              }
+            }}
+            className="rounded-lg border border-cyan/30 bg-cyan/10 px-3 py-1.5 text-xs text-cyan hover:bg-cyan/20"
+          >
+            Preview LaTeX
+          </button>
+          <button type="button" onClick={load} disabled={busy}
             className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs hover:bg-overlay-subtle">
             {busy ? 'Loading…' : 'Reload'}
           </button>
-          <button onClick={onClose}
+          <button type="button" onClick={onClose}
             className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs hover:bg-overlay-subtle">
             Close
           </button>
         </div>
       </div>
+
+      {previewText && (
+        <div data-testid="publication-artifact-preview" className="mb-4 rounded-lg border border-border-subtle bg-black/50 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="font-mono text-xs uppercase tracking-wider text-brass">
+              {previewKind === 'latex' ? 'LaTeX Document Preview' : 'IMRaD Manuscript Preview'}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setPreviewText(null);
+                setPreviewKind(null);
+              }}
+              className="font-mono text-[11px] text-text-muted hover:text-text-secondary"
+            >
+              Close Preview
+            </button>
+          </div>
+          <pre className="max-h-52 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-text-secondary">
+            {previewText}
+          </pre>
+        </div>
+      )}
 
       {/* Lifecycle stepper */}
       <div className="mb-4 flex flex-wrap items-center gap-1.5">

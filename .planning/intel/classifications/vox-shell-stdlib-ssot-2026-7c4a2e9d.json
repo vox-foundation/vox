@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/vox-shell-stdlib-ssot-2026.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Vox shell-tier stdlib SSOT (2026)",
+  "summary": "Specification of argv-first Rust builtins for std.fs, std.process, std.csv, std.io, std.agentos; separation from host shells.",
+  "scope": ["stdlib", "std.fs", "std.process", "std.csv", "std.toml", "std.yaml", "std.io"],
+  "cross_refs": ["builtin_registry.rs", "vox_actor_runtime/builtins", "shell_stdlib.rs", "terminal-exec-policy-ssot.md", "agentos-ssot-2026.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

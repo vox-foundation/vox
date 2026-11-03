@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 use crate::backend::{NoopBackend, UnavailableBackend};
 use crate::resolver::{ResolveOptions, ResolveProfile, SecretResolver};
 use crate::spec::{
@@ -9,12 +7,12 @@ use crate::spec::{
 use crate::{ResolutionStatus, resolve_env_only};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-static ENV_LOCK: Mutex<()> = Mutex::new(());
-
 #[test]
 #[allow(unsafe_code)]
 fn canonical_env_wins_over_alias() {
-    let _g = ENV_LOCK.lock().expect("env lock");
+    let _g = crate::TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     unsafe {
         std::env::set_var("GEMINI_API_KEY", "canonical");
         std::env::set_var("GOOGLE_AI_STUDIO_KEY", "alias");
@@ -31,7 +29,9 @@ fn canonical_env_wins_over_alias() {
 #[test]
 #[allow(unsafe_code)]
 fn backend_unavailable_status_is_explicit() {
-    let _g = ENV_LOCK.lock().expect("env lock");
+    let _g = crate::TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     unsafe {
         std::env::remove_var("OPENROUTER_API_KEY");
     }
@@ -63,7 +63,9 @@ fn backend_unavailable_status_is_explicit() {
 #[test]
 #[allow(unsafe_code)]
 fn env_only_ignores_backend() {
-    let _g = ENV_LOCK.lock().expect("env lock");
+    let _g = crate::TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     unsafe {
         std::env::remove_var("OPENROUTER_API_KEY");
     }
@@ -129,7 +131,9 @@ fn bundle_requirements_are_defined() {
 #[test]
 #[allow(unsafe_code)]
 fn deprecated_alias_marks_status() {
-    let _g = ENV_LOCK.lock().expect("env lock");
+    let _g = crate::TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     unsafe {
         std::env::set_var("GOOGLE_AI_STUDIO_KEY", "legacy");
         std::env::remove_var("GEMINI_API_KEY");
@@ -147,7 +151,9 @@ fn deprecated_alias_marks_status() {
 #[test]
 #[allow(unsafe_code)]
 fn strict_profile_rejects_deprecated_alias() {
-    let _g = ENV_LOCK.lock().expect("env lock");
+    let _g = crate::TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     unsafe {
         std::env::set_var("GOOGLE_AI_STUDIO_KEY", "legacy");
         std::env::remove_var("GEMINI_API_KEY");
@@ -175,7 +181,9 @@ fn strict_profile_rejects_deprecated_alias() {
 #[test]
 #[allow(unsafe_code)]
 fn strict_profile_rejects_transport_env_source() {
-    let _g = ENV_LOCK.lock().expect("env lock");
+    let _g = crate::TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     unsafe {
         std::env::set_var("VOX_WEBHOOK_SIGNING_SECRET", "super-secret");
     }
@@ -213,7 +221,9 @@ fn secret_metadata_is_defined_for_all_specs() {
 #[test]
 #[allow(unsafe_code)]
 fn strict_cloudless_can_disable_env_plaintext_fallback() {
-    let _g = ENV_LOCK.lock().expect("env lock");
+    let _g = crate::TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     unsafe {
         std::env::set_var("OPENROUTER_API_KEY", "plaintext-env-secret");
     }
@@ -238,7 +248,9 @@ fn strict_cloudless_can_disable_env_plaintext_fallback() {
 #[test]
 #[allow(unsafe_code)]
 fn resolved_secret_redaction_never_leaks_raw_value() {
-    let _g = ENV_LOCK.lock().expect("env lock");
+    let _g = crate::TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     unsafe {
         std::env::set_var("OPENAI_API_KEY", "super-secret-value-123456");
     }
@@ -273,15 +285,14 @@ impl crate::backend::SecretBackend for ChaosBackend {
         }
     }
 
-    fn write_audit_log(
-        &self,
-        _secret_id: &str,
-        _status: &str,
-        _resolved_source: Option<&str>,
-        _profile: &str,
-        _caller_context: &str,
-        _detail: Option<&str>,
-    ) -> Result<(), crate::errors::SecretError> {
+    // Intentional no-op: `ChaosBackend` is a test double for
+    // `resolver_chaos_backend_alternates_missing_and_backend_unavailable`,
+    // which only exercises `resolve`'s alternating outage behavior and has no
+    // audit log to assert against. `#[rustfmt::skip]` pins the signature to
+    // one line so the `toestub-ignore` marker (which the detector requires
+    // on the same line as the function's identifier) survives reformatting.
+    #[rustfmt::skip]
+    fn write_audit_log(&self, _secret_id: &str, _status: &str, _resolved_source: Option<&str>, _profile: &str, _caller_context: &str, _detail: Option<&str>) -> Result<(), crate::errors::SecretError> { // toestub-ignore(skeleton)
         Ok(())
     }
 }
@@ -314,7 +325,9 @@ fn resolver_chaos_backend_alternates_missing_and_backend_unavailable() {
 #[test]
 #[allow(unsafe_code)]
 fn resolver_fuzz_like_env_payloads_never_panic() {
-    let _g = ENV_LOCK.lock().expect("env lock");
+    let _g = crate::TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     use rand::Rng;
     let mut rng = rand::thread_rng();
     for spec in crate::all_specs().iter().take(24) {
@@ -357,7 +370,9 @@ fn cutover_phase_choreography_transitions_as_expected() {
 #[test]
 #[allow(unsafe_code)]
 fn decommission_phase_disables_env_only_fallback_and_forces_vox_cloud() {
-    let _g = ENV_LOCK.lock().expect("env lock");
+    let _g = crate::TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     let prev_cutover = std::env::var("VOX_SECRETS_CUTOVER_PHASE").ok();
     let prev_backend = std::env::var("VOX_SECRETS_BACKEND").ok();
     unsafe {
@@ -383,7 +398,9 @@ fn decommission_phase_disables_env_only_fallback_and_forces_vox_cloud() {
 #[test]
 #[allow(unsafe_code)]
 fn cutover_phase_compat_alias_is_honored() {
-    let _g = ENV_LOCK.lock().expect("env lock");
+    let _g = crate::TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     let prev_cutover = std::env::var("VOX_SECRETS_CUTOVER_PHASE").ok();
     let prev_migration = std::env::var("VOX_SECRETS_MIGRATION_PHASE").ok();
     unsafe {
@@ -482,7 +499,9 @@ fn store_secret_round_trips_user_rsa_nanopub_key_via_temp_vault() {
     // wrote to. The OS keyring holds only the bootstrap master key (shared, not
     // per-secret); if it's unavailable in the sandbox the backend can't init and
     // we skip cleanly.
-    let _g = ENV_LOCK.lock().expect("env lock");
+    let _g = crate::TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
 
     let tmp_dir = tempfile::tempdir().expect("tempdir");
     let db_path = tmp_dir.path().join("store_secret_vault.db");
@@ -611,7 +630,9 @@ fn test_redact_skips_short_patterns() {
 #[test]
 #[allow(unsafe_code)]
 fn store_secret_round_trips_sonatype_guide_token_via_temp_vault() {
-    let _g = ENV_LOCK.lock().expect("env lock");
+    let _g = crate::TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
 
     let tmp_dir = tempfile::tempdir().expect("tempdir");
     let db_path = tmp_dir.path().join("sonatype_vault.db");
@@ -714,7 +735,9 @@ fn restore_import_env_test_env(
 #[test]
 #[allow(unsafe_code)]
 fn import_env_round_trips_sonatype_guide_token_via_temp_vault() {
-    let _g = ENV_LOCK.lock().expect("env lock");
+    let _g = crate::TEST_ENV_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
 
     let tmp_dir = tempfile::tempdir().expect("tempdir");
     let db_path = tmp_dir.path().join("import_env_vault.db");

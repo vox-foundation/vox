@@ -2,6 +2,11 @@
 //!
 //! Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 
+// Linux-only: with `--all-features`, proving the websocket upgrade future is `Send`
+// walks netlink-packet-route's recursive `Tc*` option enums past the default limit
+// (E0275 in `http_gateway/ws.rs`). rustc's own suggested fix.
+#![recursion_limit = "256"]
+
 extern crate vox_codegen;
 
 /// HTTP routes (moved from vox-orchestrator/services/routes).
@@ -23,12 +28,14 @@ pub mod feedback_tools;
 pub mod hitl_rehydrate;
 pub mod params;
 pub mod pending_approvals;
+pub mod profiles;
 pub mod server_state;
 pub mod skill_promotion;
 
 /// T0.3: persisted per-repo "always allow this tool" allowlist (tier 3 of the
 /// dangerous-tool gate's precedence order).
 pub mod approval_allowlist;
+mod floor_gate;
 /// T0.3: registry-driven risk classification + `PermissionMode` auto-approve
 /// matrix (tier 2 of the dangerous-tool gate's precedence order).
 pub mod permission_modes;
@@ -45,6 +52,9 @@ pub mod benchmark_tools;
 pub mod browser_tools;
 /// Trusted caller role for browser control-lock authorization.
 pub mod caller_role;
+/// `vox_capability_explain` / `vox_capability_features`: answers from the embedded capability index.
+pub mod capability_tools;
+pub mod chat_hop;
 /// Shared LLM model resolution for chat tools.
 pub mod chat_model_resolve;
 /// Socrates grounding + telemetry helpers for chat tools.
@@ -59,6 +69,8 @@ pub mod codex_tools;
 pub mod compiler_tools;
 /// Codex schema digest + sample row tools for `.vox` modules.
 pub mod db_tools;
+/// VoxDiagram validation (`vox_validate_diagram`).
+pub mod diagram_tools;
 pub mod dispatch;
 /// T4.3: per-tool-call execution timeout table (outer `tokio::time::timeout`
 /// wrapping actual tool dispatch — independent of the HITL approval-wait).
@@ -74,7 +86,10 @@ pub mod grammar_tools;
 /// Graphify corpus freshness and lexical search (`vox_graphify_status`, `vox_graphify_search`).
 pub mod graph_tools;
 /// GUI registry + validation tools (`vox_gui_components`, `vox_gui_tokens`, `vox_gui_rules`, `vox_validate_vuv`).
+pub mod gui_ops;
 pub mod gui_registry_tools;
+/// `vox_search_history`: first-parent repo history for agents (same facade as `vox graph history`).
+pub mod history_tools;
 pub mod input_schemas;
 /// Introspection tools for language visualization (AST, surface, pipeline).
 pub mod introspection_tools;
@@ -102,6 +117,8 @@ pub mod project_init_tools;
 pub mod questioning_tools;
 /// Multi-modal Visual Retrieval-Augmented Generation RAG handler.
 pub mod rag_tools;
+/// Tool execution receipt claim verification.
+pub mod receipt_tools;
 pub mod registry;
 /// Explicit repo catalog + read-only polyrepo query tools.
 pub mod repo_catalog_tools;
@@ -125,6 +142,9 @@ pub(crate) mod text_normalization;
 #[cfg(feature = "toestub-gate")]
 pub mod toestub_tools;
 pub mod tool_aliases;
+pub mod tool_envelope;
+/// Strip `image_base64` from MCP tool JSON and build image parts for chat.
+pub mod tool_images;
 /// `vox_tool_search` — keyword search over the tool registry (progressive disclosure).
 pub mod tool_search;
 /// Training-intent submission via orchestrator (Mens CLI remains canonical executor).
@@ -166,6 +186,7 @@ pub use plugin_tools as plugins;
 pub mod trace_tools;
 pub use trace_tools as trace;
 pub mod dei_tools;
+pub mod kb_resources;
 pub mod kb_tools;
 pub use kb_tools as kb;
 
@@ -204,7 +225,79 @@ pub mod lifecycle;
 pub mod plugin_skills_bridge;
 pub mod server;
 
-pub use lifecycle::{load_config, mcp_agent_fleet_env_enabled, run_stdio_server_blocking};
+pub use lifecycle::{
+    load_config, mcp_agent_fleet_env_enabled, run_stdio_server_blocking,
+    run_stdio_server_blocking_with_profile,
+};
 pub use params::ToolResult;
 pub use server::VoxMcpServer;
 pub use server_state::{CachedCatalog, ServerState};
+
+/// Task 8e: keep this crate's tests hermetic — none of them may read the
+/// developer's real `~/.vox/config.toml`.
+///
+/// `vox_config::toml_config::load_user_config()` caches `~/.vox/config.toml`
+/// (via `vox_config::paths::dot_vox_user_dir()`, which honors `VOX_HOME`) in a
+/// process-wide `OnceLock`, populated lazily on first access and never
+/// refreshed. On a machine where `~/.vox/config.toml` pins
+/// `VOX_MODEL_FORCE`, any test in this binary that resolves a chat model
+/// against its own (unpinned) test registry fails with "pinned model ... is
+/// not in the model registry" — see `resolve.rs::check_strict_pin`.
+///
+/// A `std::sync::Once` guard placed in a shared test helper (e.g.
+/// `ServerState::hermetic_stub`/`new_test`) is not enough: several of the
+/// affected tests (`llm_bridge::model_route_policy::tests::*`) call
+/// `Orchestrator`/`resolve_mcp_chat_model_sync` directly and never construct
+/// a `ServerState`, so no single in-test-code choke point runs ahead of
+/// every other test in the (parallel, multi-threaded) binary. Only code that
+/// runs before `main()` — i.e. before any `#[test]` fn can race it — closes
+/// that gap, hence `#[ctor]` rather than a lazily-invoked `Once`.
+///
+/// Also sets `VOX_SEARCH_WEB_RESEARCH_DISABLED` (Task 8e fix round 1): the
+/// chat preamble's autonomous-retrieval leg calls `SearchPolicy::from_env()`
+/// fresh on every turn, so without this a "unit" test could still make a
+/// real, unmocked web request (Wikipedia/arXiv/SearXNG/...) regardless of
+/// research intent. See `vox_search::policy::SearchPolicy::from_env`.
+#[cfg(test)]
+#[allow(unsafe_code)] // test-only std::env::set_var, run pre-main by #[ctor]/#[dtor] — see module docs
+mod hermetic_test_env {
+    /// The directory this binary's `VOX_HOME` points at. Deterministic from
+    /// the process id alone (stable for the process's whole lifetime), so
+    /// the matching `#[dtor]` below can remove it without any shared state.
+    fn vox_home_dir() -> std::path::PathBuf {
+        std::env::temp_dir().join(format!(
+            "vox-orchestrator-mcp-test-home-{}",
+            std::process::id()
+        ))
+    }
+
+    /// Points `VOX_HOME` at an empty, per-process temp directory before any
+    /// test in this binary runs, so `load_user_config()`'s first (and only)
+    /// read of `~/.vox/config.toml` sees an empty config regardless of which
+    /// test happens to trigger it first. Production code never compiles this
+    /// module (`#[cfg(test)]`), so `vox` itself still reads the real
+    /// `~/.vox/config.toml`.
+    #[ctor::ctor(unsafe)]
+    fn set_hermetic_vox_home() {
+        let dir = vox_home_dir();
+        let _ = std::fs::create_dir_all(&dir);
+        // SAFETY: `#[ctor]` functions run before any other code in the
+        // binary (including test threads), so this mutation cannot race any
+        // concurrent env read/write.
+        unsafe {
+            std::env::set_var("VOX_HOME", &dir);
+            std::env::set_var("VOX_SEARCH_WEB_RESEARCH_DISABLED", "1");
+        }
+    }
+
+    /// Removes the per-process temp `VOX_HOME` at process exit — Task 8e fix
+    /// round 1: without this the directory (and whatever the catalog cache
+    /// or other code under `dot_vox_user_dir()` writes into it) leaks for
+    /// every `cargo test` invocation. `ctor` 1.x dropped the `#[dtor]`
+    /// companion it had in 0.x, so this uses the standalone `dtor` crate
+    /// instead (same `#[ctor]`-style pre-/post-main mechanism, exit side).
+    #[dtor::dtor]
+    fn remove_hermetic_vox_home() {
+        let _ = std::fs::remove_dir_all(vox_home_dir());
+    }
+}

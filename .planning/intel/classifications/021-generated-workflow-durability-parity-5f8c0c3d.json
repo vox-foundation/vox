@@ -1,0 +1,12 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/adr/021-generated-workflow-durability-parity.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "ADR 021: Generated workflow durability parity",
+  "summary": "Defines compatibility contract for bringing generated Rust workflows to durable replay parity.",
+  "scope": ["generated workflows", "durability", "replay", "Rust codegen", "durable contracts", "activity execution"],
+  "cross_refs": ["019-durable-workflow-journal-contract-v1.md", "explanation/expl-durable-execution.md"],
+  "locked": true,
+  "precedence": null
+}

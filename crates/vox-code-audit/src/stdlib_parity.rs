@@ -316,6 +316,36 @@ fn parse_registry_entries(source_path: &Path) -> Result<BTreeSet<String>, Parity
     Ok(symbols)
 }
 
+/// Parse `crates/vox-compiler/src/eval/expr.rs` for namespace builtins the
+/// interpreter intercepts in its method-call dispatch before falling through
+/// to `call_builtin_method` (e.g. `env.args`, which needs `&Interpreter`).
+///
+/// Shape: `if method == "<name>" ... k == "__namespace__" && matches!(v,
+/// VoxValue::Str(s) if s.as_ref() == "<ns>")`. Each `if method == "` opens a
+/// chunk that ends at the next one, so a guard is never paired with another
+/// intercept's method name; intercepts without a namespace guard are skipped.
+fn parse_method_intercepts(source_path: &Path) -> Result<BTreeSet<String>, ParityError> {
+    let source =
+        std::fs::read_to_string(source_path).map_err(|e| ParityError::ReadBinarySource {
+            path: source_path.to_path_buf(),
+            source: e,
+        })?;
+    let ns_re = regex::Regex::new(
+        r#"__namespace__"\s*&&\s*matches!\(v,\s*VoxValue::Str\(s\)\s+if\s+s\.as_ref\(\)\s*==\s*"(\w+)""#,
+    )
+    .expect("namespace guard regex compiles");
+    let mut symbols = BTreeSet::new();
+    for chunk in source.split(r#"if method == ""#).skip(1) {
+        let Some((method, rest)) = chunk.split_once('"') else {
+            continue;
+        };
+        if let Some(c) = ns_re.captures(rest) {
+            symbols.insert(format!("{}.{method}", &c[1]));
+        }
+    }
+    Ok(symbols)
+}
+
 // ── Docs side: parse ref-builtins-stdlib.md markdown tables ────────────────
 
 /// Set of `namespace.method` (or `method` for globals) names extracted from
@@ -441,12 +471,21 @@ fn scan_corpus_call_sites(root: &Path) -> Result<BTreeMap<String, Vec<CorpusSite
 /// `docs/src/reference/ref-builtins-stdlib.md`. `corpus_root` at `scripts/`
 /// (the audit only covers committed automation scripts today; extend to
 /// `examples/` once the corpus is healthy).
+/// Builtins dispatched in `eval/expr.rs`'s method-call intercept rather than
+/// `call_builtin_method`'s match table, because they need `&Interpreter`
+/// state (`source_path`/`script_args`) that `parse_binary_registrations`'s
+/// AST walk over `eval/builtins.rs` never sees. Each entry needs its own
+/// `## `-level row in `ref-builtins-stdlib.md` too, since the doc side has
+/// no equivalent escape hatch.
+const EVAL_FAST_PATH_BUILTINS: &[&str] = &["env.args"];
+
 pub fn check_parity_at_paths(
     binary_source_path: &Path,
     doc_path: &Path,
     corpus_root: &Path,
 ) -> Result<ParityReport, ParityError> {
     let mut binary = parse_binary_registrations(binary_source_path)?;
+    binary.extend(EVAL_FAST_PATH_BUILTINS.iter().map(|s| s.to_string()));
 
     // Also fold in the registry-driven entries from
     // `crates/vox-compiler/src/builtin_registry.rs`. These are dispatched
@@ -454,6 +493,12 @@ pub fn check_parity_at_paths(
     // file path is derived by walking up from eval/builtins.rs to the
     // crate root and then into the sibling module.
     if let Some(builtins_parent) = binary_source_path.parent() {
+        // Sibling `eval/expr.rs`: builtins intercepted in the interpreter's
+        // method-call dispatch rather than registered in builtins.rs.
+        let expr_path = builtins_parent.join("expr.rs");
+        if expr_path.exists() {
+            binary.extend(parse_method_intercepts(&expr_path)?);
+        }
         let registry_path = builtins_parent
             .parent() // src/
             .map(|p| p.join("builtin_registry.rs"));
@@ -615,6 +660,28 @@ mod tests {
     }
 
     #[test]
+    fn check_parity_at_paths_counts_env_args_as_registered_and_documented() {
+        let root = workspace_root();
+        let binary = root.join("crates/vox-compiler/src/eval/builtins.rs");
+        let doc = root.join("docs/src/reference/ref-builtins-stdlib.md");
+        let corpus = root.join("scripts");
+        let report = check_parity_at_paths(&binary, &doc, &corpus).expect("parity should run");
+        let unregistered = report.mismatches.iter().find(|m| {
+            m.symbol == "env.args" && matches!(m.kind, MismatchKind::CorpusUsesUnregistered)
+        });
+        assert!(
+            unregistered.is_none(),
+            "env.args is dispatched in expr.rs's method-call intercept (builtins.rs:1484-1488), \
+             invisible to parse_binary_registrations's AST walk over eval/builtins.rs; it must be \
+             folded in via EVAL_FAST_PATH_BUILTINS, or the fake-corpus-unregistered error returns"
+        );
+        let undoc = report.mismatches.iter().find(|m| {
+            m.symbol == "env.args" && matches!(m.kind, MismatchKind::DocClaimsUnregistered)
+        });
+        assert!(undoc.is_none(), "env.args must also be documented");
+    }
+
+    #[test]
     fn check_parity_at_paths_runs_against_workspace() {
         let root = workspace_root();
         let binary = root.join("crates/vox-compiler/src/eval/builtins.rs");
@@ -633,6 +700,40 @@ mod tests {
         // expect some RegisteredButUndocumented warns.
         let summary = report.summary();
         assert!(!summary.is_empty(), "summary must be non-empty");
+    }
+
+    #[test]
+    fn parse_method_intercepts_finds_env_args() {
+        let root = workspace_root();
+        let expr = root.join("crates/vox-compiler/src/eval/expr.rs");
+        let symbols = parse_method_intercepts(&expr).expect("parse should succeed");
+        assert!(
+            symbols.contains("env.args"),
+            "expected `env.args` intercept; got: {symbols:?}"
+        );
+        // A method intercept without a namespace guard (list `push`) is not
+        // a namespace builtin and must not leak in.
+        assert!(
+            !symbols.iter().any(|s| s.ends_with(".push")),
+            "got: {symbols:?}"
+        );
+    }
+
+    /// `env.args()` is dispatched in `eval/expr.rs`, not `eval/builtins.rs`;
+    /// the corpus calling it must not be reported as unregistered.
+    #[test]
+    fn check_parity_counts_expr_intercepts_as_registered() {
+        let root = workspace_root();
+        let binary = root.join("crates/vox-compiler/src/eval/builtins.rs");
+        let doc = root.join("docs/src/reference/ref-builtins-stdlib.md");
+        let corpus = root.join("scripts");
+        let report = check_parity_at_paths(&binary, &doc, &corpus).expect("parity should run");
+        let flagged: Vec<_> = report
+            .mismatches
+            .iter()
+            .filter(|m| m.symbol == "env.args" && m.severity == Severity::Error)
+            .collect();
+        assert!(flagged.is_empty(), "env.args flagged: {flagged:?}");
     }
 
     /// Diagnostic dump — surface every `corpus_uses_unregistered` mismatch

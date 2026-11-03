@@ -1,0 +1,98 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "Class",
+      "rect",
+      [
+        "Styles"
+      ]
+    ],
+    [
+      "Click me",
+      "rect",
+      [
+        "Styles"
+      ]
+    ],
+    [
+      "Default",
+      "rect",
+      []
+    ],
+    [
+      "End",
+      "rect",
+      [
+        "Ended"
+      ]
+    ],
+    [
+      "x-end",
+      "rect",
+      [
+        "Ended"
+      ]
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Class",
+        "rect",
+        [
+          "Styles"
+        ]
+      ],
+      [
+        "Default",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Click me",
+        "rect",
+        [
+          "Styles"
+        ]
+      ],
+      [
+        "Class",
+        "rect",
+        [
+          "Styles"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "x-end",
+        "rect",
+        [
+          "Ended"
+        ]
+      ],
+      [
+        "End",
+        "rect",
+        [
+          "Ended"
+        ]
+      ],
+      ""
+    ]
+  ],
+  "containers": [
+    [
+      "Ended"
+    ],
+    [
+      "Styles"
+    ]
+  ]
+}

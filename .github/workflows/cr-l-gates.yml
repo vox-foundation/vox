@@ -10,8 +10,9 @@
 # artifacts so reviewers can audit the numbers without re-running locally.
 #
 # Two jobs:
-#   - `umbrella`: runs `--gate all` with `--strict-block-ga`. Fails the PR
-#     if any block-GA gate is unmet. This is the canonical v1.0 gate.
+#   - `umbrella`: runs `--gate all --strict-block-ga --ga-baseline`. Fails on a
+#     regression (a GA gate unmet that the baseline does not list). The snapshot's
+#     `ga_met` is the canonical v1.0 verdict; the baseline only shrinks.
 #   - `arch-check-evidence`: runs `vox-arch-check` (which includes the
 #     evidence-ledger lint as Rule 14). Defaults to warn-only until the
 #     block-GA gates are met by real measurements — see the §10 acceptance
@@ -55,13 +56,34 @@ permissions:
 jobs:
   umbrella:
     name: vox audit --gate all --strict-block-ga
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
-      - name: Cache cargo registry
+      # Only `main` WRITES: a PR-scoped cache entry is unreadable from any
+      # other ref and evicts the main-scope entries every job restores from
+      # (the repository cache is a 10 GB LRU bucket). Machine-checked by
+      # `vox ci cache-key-lint`.
+      - name: Cache cargo registry (main saves)
+        if: github.ref == 'refs/heads/main'
         uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          # This job installs no toolchain of its own (relies on the self-hosted
+          # image's rustup auto-switching on rust-toolchain.toml), so there's no
+          # setup-rust `toolchain` output to key on. Hashing rust-toolchain.toml
+          # alongside Cargo.lock makes the key toolchain-sensitive without one --
+          # anchored to the top-level Cargo.lock only, per the setup-rust action's
+          # rationale (the `**/` glob also matches server/telemetry/Cargo.lock,
+          # a deliberately excluded separate workspace).
+          key: ${{ runner.os }}-cargo-cr-l-gates-${{ hashFiles('rust-toolchain.toml', 'Cargo.lock') }}
+      - name: Cache cargo registry (restore only, off main)
+        if: github.ref != 'refs/heads/main'
+        uses: actions/cache/restore@v5
         with:
           path: |
             ~/.cargo/registry
@@ -109,8 +131,11 @@ jobs:
         # records `incomplete: true` on those rows. `--strict-block-ga`
         # fails only on block-GA gates that are unmet — that's the v1.0
         # acceptance bar.
+        # --ga-baseline: fail only on REGRESSIONS (a GA gate unmet that is not listed as
+        # known-unmet). Red-by-design while v1.0 was in progress kept #577 permanently
+        # open and buried real breakage; ga_met in the snapshot stays the v1.0 verdict.
         run: |
-          target/debug/vox audit --gate all --strict-block-ga
+          target/debug/vox audit --gate all --strict-block-ga --ga-baseline contracts/reports/cr-l-ga-baseline.v1.json
         continue-on-error: true
 
       - name: Upload canonical snapshot
@@ -137,11 +162,15 @@ jobs:
             contracts/reports/deploy/
             contracts/reports/corpus-feedback/
             contracts/reports/spec-to-app/
+            # cr-a1/a4/d3 and cr-p1/p2 write here; without these the offenders behind
+            # an unmet gate were invisible without rebuilding and re-running the bins.
+            contracts/reports/arch/
+            contracts/reports/perf/
 
       - name: Fail if umbrella reported block-GA violations
         if: steps.umbrella.outcome == 'failure'
         run: |
-          echo "::error::vox audit --strict-block-ga reported violations."
+          echo "::error::vox audit --strict-block-ga reported a GA regression (a gate not in contracts/reports/cr-l-ga-baseline.v1.json is unmet)."
           echo "::error::See the cr-l-gates-snapshot artifact for the snapshot JSON."
           echo "::error::Per docs/superpowers/specs/2026-05-21-v1-honest-completion-plan.md §10,"
           echo "::error::no 'v1.0 ready' claim is permitted until this job exits 0."
@@ -149,13 +178,30 @@ jobs:
 
   arch-check-evidence:
     name: vox-arch-check evidence-ledger lint
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
-      - name: Cache cargo
+      # Only `main` WRITES: a PR-scoped cache entry is unreadable from any
+      # other ref and evicts the main-scope entries every job restores from
+      # (the repository cache is a 10 GB LRU bucket). Machine-checked by
+      # `vox ci cache-key-lint`.
+      - name: Cache cargo (main saves)
+        if: github.ref == 'refs/heads/main'
         uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          # See the `umbrella` job's cache step for why rust-toolchain.toml is
+          # hashed alongside Cargo.lock here (no setup-rust toolchain output to
+          # key on in this job).
+          key: ${{ runner.os }}-cargo-arch-check-${{ hashFiles('rust-toolchain.toml', 'Cargo.lock') }}
+      - name: Cache cargo (restore only, off main)
+        if: github.ref != 'refs/heads/main'
+        uses: actions/cache/restore@v5
         with:
           path: |
             ~/.cargo/registry

@@ -1,0 +1,15 @@
+// ---
+// title: "argv is the script's own"
+// description: "env.args()[0] is the script path on both tiers."
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// constructs: [fn, print, env.args]
+// training_eligible: true
+// difficulty: beginner
+// ---
+// EXPECT: 1
+pub fn main() {
+  let a = env.args()
+  print(str(len(a)))
+}

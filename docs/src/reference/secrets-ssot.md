@@ -3,6 +3,7 @@ title: "Secrets SSOT"
 description: "Canonical secret-management source of truth for Vox Secrets"
 category: "Language Reference"
 training_eligible: true
+capabilities: [cli.secrets, crate.vox-secrets]
 
 schema_type: "TechArticle"
 ---
@@ -38,13 +39,14 @@ Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. H
 | `GROQ_API_KEY`, `CEREBRAS_API_KEY`, `MISTRAL_API_KEY`, `DEEPSEEK_API_KEY`, `SAMBANOVA_API_KEY`, `CUSTOM_OPENAI_API_KEY` | Alternative LLM providers | Optional power-user | provider-specific runtime/mcp paths |
 | `VOX_RUNPOD_API_KEY`, `VOX_VAST_API_KEY` | Cloud GPU infra | Optional cloud GPU | `vox-populi` cloud providers |
 | `TOGETHER_API_KEY` | Remote fine-tune API | Optional cloud training | `vox-cli train --provider together` |
-| `GITHUB_TOKEN` | Publishing/review automation | Workflow-specific required | `vox-cli review/publish` |
+| `GITHUB_TOKEN` | Publishing/review automation | Workflow-specific required | `vox-cli review/publish`; `voxup channel::make_client` (release/install auth, via `SecretId::ForgeToken`) |
 | `VOX_NEWS_TWITTER_TOKEN`, `VOX_NEWS_OPENCOLLECTIVE_TOKEN`, `VOX_SOCIAL_REDDIT_*`, `VOX_SOCIAL_YOUTUBE_*` | Scientia/news syndication | Optional (per channel) | `vox-publisher` resolves via Secrets `SecretId` specs; GitHub syndication also accepts `VOX_NEWS_GITHUB_TOKEN` as an alias of `GITHUB_TOKEN` |
 | `ZENODO_ACCESS_TOKEN`, `OPENREVIEW_EMAIL`, `OPENREVIEW_ACCESS_TOKEN`, `OPENREVIEW_PASSWORD`, `CROSSREF_PLUS_API_KEY`, `DATACITE_REPOSITORY`, `DATACITE_PASSWORD`, `ORCID_CLIENT_ID`, `ORCID_CLIENT_SECRET`, `TAVILY_API_KEY`, `TAVILY_PROJECT`, `X_TAVILY_API_KEY`, `VOX_ARXIV_ASSIST_HANDOFF_SECRET` (plus `VOX_*` aliases for DataCite, ORCID, Tavily where listed below) | Scholarly repository adapters | Optional (`Workflow::Publish` / `publish_review` bundle) | Zenodo / OpenReview / Crossref / DataCite / ORCID / Tavily clients resolve via Secrets; VOX-prefixed aliases accepted where listed |
 | `VOX_DB_URL`, `VOX_DB_TOKEN` | Remote Codex DB | Workflow-specific required | Codex / Arca remote DB flows |
 | `VOX_APP_DB_URL` | App data-plane SQL URL (postgres/mysql/libsql/sqlite) | Optional | `vox-sql` backend selection for app-plane execution |
 | `VOX_TELEMETRY_UPLOAD_URL`, `VOX_TELEMETRY_UPLOAD_TOKEN` | Optional telemetry ingest (explicit `vox telemetry upload`) | Optional | `vox-cli` resolves via `SecretId::VoxTelemetryUploadUrl` / `VoxTelemetryUploadToken`; see [ADR 023](../adr/023-optional-telemetry-remote-upload.md) |
 | `VOX_SEARCH_QDRANT_API_KEY` | Qdrant HTTP `api-key` (optional RAG sidecar) | Optional | [`vox_search::vector_qdrant`](../../../crates/vox-search/src/vector_qdrant.rs) via `SecretId::VoxSearchQdrantApiKey` |
+| `VOX_SEARCH_WEB_RESEARCH_DISABLED` | **Not a credential** — an operator/test kill switch. When truthy (`1`/`true`/`yes`/`on`), forces `SearchPolicy::web_research_enabled = false`, so no search leg (SearXNG, Tavily, Wikipedia/arXiv/DuckDuckGo fallbacks) can reach a live network endpoint regardless of research intent. Default: unset, i.e. web research **enabled** | Optional (operator/CI/test hermeticity only) | [`vox_search::policy::SearchPolicy::from_env`](../../../crates/vox-search/src/policy.rs) via `SecretId::VoxSearchWebResearchDisabled`; set by `vox-orchestrator-mcp`'s hermetic test init (`src/lib.rs`, `tests/common/mod.rs`) so no test process ever reaches a live search engine — never set by production code |
 | `VOX_MESH_TOKEN` | Populi control-plane auth (legacy full-access token) | Workflow-specific required (any mesh-class token) | Mesh transport/auth |
 | `VOX_MESH_WORKER_TOKEN` | Worker-scoped populi HTTP bearer | Optional (advance pools) | `POST` join/heartbeat/inbox/ack |
 | `VOX_MESH_SUBMITTER_TOKEN` | Submitter-scoped populi HTTP bearer | Optional | `POST` A2A deliver only |
@@ -54,6 +56,7 @@ Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. H
 | `VOX_API_KEY`, `VOX_BEARER_TOKEN` | Runtime ingress auth | Optional hardening | `vox-actor-runtime` auth gate |
 | `VOX_MCP_HTTP_BEARER_TOKEN`, `VOX_MCP_HTTP_READ_BEARER_TOKEN` | MCP HTTP gateway auth | Optional hardening | `vox-mcp` HTTP gateway auth surfaces |
 | `V0_API_KEY`, `VOX_OPENCLAW_TOKEN` | Auxiliary tooling | Optional | island generation / OpenClaw |
+| `VOX_RESEARCH_TRIAL_SIGNING_KEY_HEX`, `VOX_RESEARCH_TRIAL_SIGNER_ALLOWLIST` | Research-trial campaign and benchmark-bundle signing (one trust root, D-07): Ed25519 private key (hex) and CSV of hex Ed25519 public keys trusted to sign | Optional (required only to sign or run a campaign) | `vox-cli-research` trial runner (`vox research eval --sign/--campaign`) and Phase 12 eval bundles via `vox_cli_research::trial_core`, resolved through `SecretId::VoxResearchTrialSigningKeyHex` / `VoxResearchTrialSignerAllowlist`; the signing key is vault-only in strict mode; an unset allowlist trusts no signer |
 | `*_TUNING_TEMPERATURE`, `*_TUNING_TOP_P` | LLM inference overrides (Gemini, Ollama, OpenAI, Anthropic, Together) | Optional | Resolution precedence: Request > Env > Tool Default |
 
 ## Managed Secret Env Names
@@ -90,6 +93,13 @@ master-key fallback. **Never** commit vault files or `.env` import fragments.
 - Optional keys are reported separately as capability unlocks (not startup blockers).
 - OpenRouter does not replace RunPod/Vast keys: LLM gateway credentials and cloud GPU credentials are distinct domains.
 
+### Tavily web search (optional)
+
+- **Add the key (user action — agents never enter keys):** create one at <https://app.tavily.com>, copy it, then run `pbpaste | vox secrets set TAVILY_API_KEY --stdin` and confirm `vox secrets get TAVILY_API_KEY` shows a redacted `tvly-…`. Restart the daemon so the web dispatcher picks it up.
+- **Free tier:** 1,000 API credits per month. A `basic` search costs 1 credit, `advanced` costs 2 (`VOX_SEARCH_TAVILY_DEPTH`); `/extract` snippet uplift costs 1 credit per 5 URLs.
+- **Session budget:** `VOX_SEARCH_TAVILY_BUDGET` (default 50) caps credits per process (one daemon or CLI run). Once spent, the Tavily leg reports `budget_exhausted` and makes no request; the research trace's retrieval stage shows `tavily_credits: {used, remaining}`.
+- **Switches:** a present key auto-enables the Tavily leg; `VOX_SEARCH_TAVILY_ENABLED=0` turns it off (reported as `disabled`). `VOX_SEARCH_TAVILY_URL` points the client at a mirror or mock. `VOX_TAVILY_RESEARCH=1` opts into the `/research` tier, which is **not** auto-enabled by the key because its async polling is not implemented yet.
+
 ## Canonical Bundles
 
 - `minimal_local_dev`: zero required cloud keys.
@@ -109,9 +119,17 @@ master-key fallback. **Never** commit vault files or `.env` import fragments.
 
 - `vox secrets doctor --workflow <...> --profile <dev|ci|mobile|prod> --mode <auto|local|cloud> [--bundle <minimal-local-dev|minimal-cloud-dev|gpu-cloud|publish-review>]`
 - `vox secrets set <CANONICAL_ENV_NAME> --stdin`
-- `vox secrets get <CANONICAL_ENV_NAME>`
+- `vox secrets get <CANONICAL_ENV_NAME | clavis://<secret_id>>`
 - `vox secrets backend-status`
 - `vox secrets migrate-auth-store`
+
+## Clavis Next: Provider Manifests, `clavis://` URIs, Zero-Trust Broker & Lifecycle (`CLAVIS-01..08`)
+
+- **Provider Secret Manifest (`CLAVIS-01`, `CLAVIS-04`):** `vox_secrets::provider_manifest_for(SecretId)` and `vox_secrets::all_provider_manifests()` expose structured provider metadata (`provider_slug`, `creation_url`, `key_prefix_hint`, `setup_recipe`, and `supports_validation_probe`) for top-tier AI and search providers.
+- **`clavis://` Secret Reference URIs (`CLAVIS-02`):** Config files, `.vox` scripts, and CLI targets (`vox secrets get clavis://openrouter_api_key`) can reference secrets via `clavis://<secret_id_or_canonical_env>` (`vox_secrets::parse_clavis_uri` and `vox_secrets::resolve_clavis_uri`) so plaintext tokens never land in committed configuration.
+- **External Manager Import & Pre-Flight Recipes (`CLAVIS-03`, `CLAVIS-04`):** `vox_secrets::sources::parse_external_manager_export` normalizes exports from 1Password, Bitwarden, Doppler, and Infisical (`ExternalSecretManager`) into `SecretId` entries, while `vox_secrets::sources::compute_missing_key_recipes` generates actionable setup recipes before a workflow starts.
+- **Zero-Trust Capability-Scoped Agent Credential Broker (`CLAVIS-05`):** [`vox_actor_runtime::credential_broker::CredentialBroker`](../../../crates/vox-actor-runtime/src/credential_broker.rs) checks an agent's `BrokerAgentGrant` against `vox_secrets::capabilities_for_secret`, produces a `SealedHeaderInjection` whose `Debug` and serialized output are strictly redacted, and scrubs tool outputs/logs via `CredentialBroker::scrub_tool_output`.
+- **Rotation Health, Validation Probes & Pull Sync (`CLAVIS-06..08`):** [`vox_secrets::lifecycle`](../../../crates/vox-secrets/src/lifecycle.rs) provides `evaluate_lifecycle_health`, `validation_probe_for`, `rotation_runbook_for`, and `prepare_pull_sync_manifest` (which enforces `SecretClass::Shareable` for mesh pull-sync).
 
 Copy an OpenRouter key, then run the following in PowerShell. The key travels
 from the clipboard through standard input and is never included in shell
@@ -120,6 +138,12 @@ history or as a process argument:
 ```powershell
 Get-Clipboard | .\target\debug\vox.exe secrets set OPENROUTER_API_KEY --stdin
 ```
+
+On macOS/Linux, `pbpaste | vox secrets set OPENROUTER_API_KEY --stdin` (or
+`xclip -o` / `wl-paste`) does the same. When standard input is an interactive
+terminal, `set --stdin` prompts on stderr and reads one line with echo disabled,
+so you can paste the key and press Enter. Piped input is read to EOF. Leading
+and trailing whitespace is trimmed; empty input is rejected.
 
 `~/.vox/auth.json` is a legacy compatibility and migration source only. Normal
 secret creation, replacement, and deletion use the Clavis vault through the

@@ -24,7 +24,9 @@ export function useChatSessions(onLoadError?: (err: unknown) => void) {
       limit: 200,
       includeArchived: opts?.includeArchived ?? includeArchived,
     });
-    setSessions(list ?? []);
+    const valid = Array.isArray(list) ? list.filter((s): s is ChatSession => Boolean(s?.session_id)) : [];
+    setSessions(valid);
+    return valid;
   }, [includeArchived]);
 
   useEffect(() => {
@@ -32,12 +34,19 @@ export function useChatSessions(onLoadError?: (err: unknown) => void) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const upsertSession = useCallback((s: ChatSession) => {
+    if (!s?.session_id) return;
+    setSessions(prev => [s, ...prev.filter(item => item.session_id !== s.session_id)]);
+  }, []);
+
   // No optimistic update: on failure, invoke() rejects and this function rethrows without
   // touching `sessions` state, matching ChatSurface.tsx's existing await-then-update-on-success
   // pattern (there is no rollback anywhere in the current codebase to replicate).
   const createSession = useCallback(async (title?: string) => {
     const created = await invoke<ChatSession>('chat_create_session', { title });
-    setSessions(prev => [created, ...prev]);
+    if (created?.session_id) {
+      setSessions(prev => [created, ...prev.filter(s => s.session_id !== created.session_id)]);
+    }
     return created;
   }, []);
 
@@ -72,6 +81,7 @@ export function useChatSessions(onLoadError?: (err: unknown) => void) {
     sessions,
     includeArchived,
     createSession,
+    upsertSession,
     renameSession,
     archiveSession,
     unarchiveSession,

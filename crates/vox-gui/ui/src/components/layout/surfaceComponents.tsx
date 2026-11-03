@@ -8,6 +8,7 @@ import { RunsView } from '../surfaces/Runs/RunsView';
 import { TasksView } from '../surfaces/Tasks/TasksView';
 import { SettingsView } from '../surfaces/Settings/SettingsView';
 import { RepositoryView } from '../surfaces/Repository/RepositoryView';
+import { SurfaceGate } from './SurfaceUnavailable';
 import { MeshView } from '../surfaces/Mesh/MeshView';
 import { GamifyView } from '../surfaces/Gamify/GamifyView';
 import { HarnessRedirect } from '../surfaces/Harness/HarnessRedirect';
@@ -19,14 +20,15 @@ import { DiscoverySurface } from '../surfaces/Discovery/DiscoverySurface';
 import { SkillsPluginsView } from '../surfaces/SkillsPlugins/SkillsPluginsView';
 import { PoliciesView } from '../surfaces/Policies/PoliciesView';
 import { NeedsYouSurface } from '../surfaces/NeedsYou/NeedsYouSurface';
+import { ExplorerView } from '../surfaces/Explorer/ExplorerView';
 import { surfaceDecorators } from '../surfaces/decoratorRegistry';
 import { VoxGraphStatusPanel } from '../surfaces/VoxGraph/VoxGraphStatusPanel';
 import { Mercatus } from '../surfaces/Mercatus';
 import { ChatSurface } from '../surfaces/Chat/ChatSurface';
 import type {
-  ChatExecutionRailKpis,
   ChatExecutionTask,
 } from '../surfaces/Chat/ChatExecutionRail';
+import type { RailRouting } from '../../lib/routingSummary';
 import { Console } from '../surfaces/Console/Console';
 import type { DashboardData, Agent, LudusAlert, StreamItem } from '../../types/dashboard';
 import type { CatalogEntry, Toast, AttentionBudgetSnapshot } from '../../types/tauri';
@@ -48,6 +50,12 @@ export interface SurfaceProps {
   selectedAgentId?: string;
   setSelectedAgentId?: (id: string) => void;
   skills?: CatalogEntry[];
+  catalogPrefill?: { path: string[]; nonce: number } | null;
+  explorerSeed?: { query: string; nonce: number } | null;
+  onOpenCatalogForm?: (path: string[]) => void;
+  onExplain?: (rowId: string) => void;
+  onOpenDoc?: (path: string) => void;
+  commandCatalog?: CatalogEntry[];
   onAttachContext?: (items: Array<{ kind: 'file' | 'url' | 'image'; label: string }>) => void;
   onNavigate?: (viewKey: string) => void;
   onOpenChat?: () => void;
@@ -59,12 +67,9 @@ export interface SurfaceProps {
   chatMessages?: ChatMessage[];
   onFocusComposer?: () => void;
   chatTasks?: ChatExecutionTask[];
-  chatIntents?: string[];
-  chatExecutionKpis?: ChatExecutionRailKpis;
-  chatActiveModel?: string | null;
-  chatOpenrouterSpendUsd?: number | null;
+  chatRouting?: RailRouting | null;
+  chatSessionSpentUsd?: number | null;
   chatAgentStreamItems?: StreamItem[];
-  onOpenAgentInFlow?: (agentId: string) => void;
   chatComposer?: React.ReactNode;
   gamifyEnabled?: boolean;
   hudTilesConfig?: HudTilesConfig;
@@ -114,7 +119,7 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
         />
       );
     case 'catalog':
-      return <Catalog skills={props.data.skills} />;
+      return <Catalog catalog={props.data.skills} prefill={props.catalogPrefill} />;
     case 'memory':
       return <MemoryView pushToast={props.pushToast} onAttachContext={props.onAttachContext} />;
     case 'vox-search':
@@ -138,6 +143,18 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
           onHudTilesChange={props.onHudTilesChange}
         />
       );
+    case 'explorer':
+      return (
+        <ExplorerView
+          pushToast={props.pushToast}
+          onNavigate={props.onNavigate}
+          onOpenForm={props.onOpenCatalogForm}
+          onExplain={props.onExplain}
+          onOpenDoc={props.onOpenDoc}
+          commandCatalog={props.commandCatalog ?? props.data.skills}
+          seed={props.explorerSeed}
+        />
+      );
     case 'repository':
       return <RepositoryView pushToast={props.pushToast} gamifyEnabled={props.gamifyEnabled} />;
     case 'mesh':
@@ -147,6 +164,10 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
     case 'harness':
       return (
         <HarnessRedirect
+          tasks={props.chatTasks}
+          messages={props.chatMessages}
+          routing={props.chatRouting}
+          sessionSpentUsd={props.chatSessionSpentUsd}
           onFocusComposer={props.onFocusComposer}
           gamifyEnabled={props.gamifyEnabled}
         />
@@ -194,21 +215,18 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
           activeSessionId={props.activeSessionId}
           onSessionChange={props.onSessionChange}
           tasks={props.chatTasks}
-          intents={props.chatIntents}
-          executionKpis={props.chatExecutionKpis}
-          activeModel={props.chatActiveModel}
-          openrouterSpendUsd={props.chatOpenrouterSpendUsd}
+          routing={props.chatRouting}
+          sessionSpentUsd={props.chatSessionSpentUsd}
           agentStreamItems={props.chatAgentStreamItems}
-          onOpenAgentInFlow={props.onOpenAgentInFlow}
-          flowAgents={props.data.agents}
-          flowSelectedAgentId={props.selectedAgentId}
-          onFlowSelectAgent={props.setSelectedAgentId}
           composer={props.chatComposer}
           focusedFeedbackId={props.focusedFeedbackId}
           gamifyEnabled={props.gamifyEnabled}
           attention_budget={props.attention_budget}
           waitingQuestions={props.attention?.needsYou.length}
           blockedTasks={props.attention?.blockedTasksCount}
+          attention={props.attention}
+          onOpenFeedbackContext={props.onOpenFeedbackContext}
+          pendingApprovals={props.attention?.approvals.length ?? 0}
           planSessionId={props.chatPlanSessionId}
           planVersion={props.chatPlanVersion}
           onDiscardPlan={props.onDiscardPlan}
@@ -222,7 +240,7 @@ export function childRenderer(props: SurfaceProps, viewKey: string): React.React
 }
 
 export function renderSurfaceContent(viewKey: string, props: SurfaceProps): React.ReactNode {
-  return childRenderer(props, viewKey);
+  return <SurfaceGate viewKey={viewKey}>{childRenderer(props, viewKey)}</SurfaceGate>;
 }
 
 /** @deprecated Prefer {@link renderSurfaceContent} with a leaf view key. */

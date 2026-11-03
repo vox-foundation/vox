@@ -8,6 +8,15 @@
 # See: docs/src/architecture/plugin-system-redesign-2026.md
 # See: docs/src/reference/plugin-catalog.md
 
+# ── KEEP-FROZEN crates (not plugins) ───────────────────────────────────────────
+#
+# vox-workflow-runtime, vox-integration-tests, and vox-test-harness are not
+# plugins and deliberately have no [[plugin]] entry here -- do not go looking
+# for one. Their disposition per docs/src/architecture/dead-crate-fate-plan-2026-05-08.md
+# is KEEP-FROZEN: present in the workspace, unmodified, intentionally inactive.
+# This comment is their disposition record. They are not to be removed as dead
+# crates; that disposition is revisited only through a new PRD.
+
 # ── Hardware / ML plugins ──────────────────────────────────────────────────────
 
 [[plugin]]
@@ -40,10 +49,25 @@ payload-kind = "code"
 description = "ML training backend using Candle with Metal acceleration."
 status = "beta"
 extension-points = ["MlBackend"]
-requires-tag = "apple-silicon"
+requires-tag = "metal"
 # Same first-party release-asset model as mens-candle-cuda above.
 default-source = "github:vox-foundation/vox"
 bundled-in = ["vox-ml-metal", "vox-dev"]
+
+[[plugin]]
+id = "mens-candle-cpu"
+payload-kind = "code"
+description = "ML training/inference backend using Candle on the CPU, for hosts without a supported GPU."
+status = "beta"
+extension-points = ["MlBackend"]
+# Every host has cpu-only. On macOS the selector uses mens-candle-metal for
+# CPU work instead, and no macOS artifact of this plugin is published.
+requires-tag = "cpu-only"
+# Same first-party release-asset model as mens-candle-cuda above; built from
+# vox-plugin-mens-candle-cuda without the `cuda` feature. In no bundle: only
+# linux-x86_64 has an artifact, and the pre-train self-heal installs it there.
+default-source = "github:vox-foundation/vox"
+bundled-in = []
 
 # ── Audio / speech ─────────────────────────────────────────────────────────────
 
@@ -53,7 +77,9 @@ payload-kind = "code"
 description = "Audio capture + speech-to-text (Candle Whisper). Extracted from vox-speech in Unit 4."
 status = "beta"
 extension-points = ["AudioCapture", "SpeechToText"]
-default-source = "github:vox-foundation/vox-plugin-oratio"
+# First-party release asset (release-binaries.yml's oratio-plugin job), same
+# model as mens-candle-cuda: version and checksum derive at install time.
+default-source = "github:vox-foundation/vox"
 bundled-in = ["vox-dev"]
 
 # ── Cloud / mesh ───────────────────────────────────────────────────────────────
@@ -67,7 +93,7 @@ description = "Populi mesh transport (HTTP control plane, A2A dispatch) + agent 
 status = "alpha"
 extension-points = ["MeshDriver"]
 exposes-tools = ["vox_populi_local_status", "vox_orchestrator_status", "vox_submit_task"]
-default-source = "github:vox-foundation/vox-plugin-populi-mesh"
+default-source = "local:crates/vox-plugin-populi-mesh"
 bundled-in = ["vox-mesh", "vox-server", "vox-dev"]
 
 # ── Skill plugins ──────────────────────────────────────────────────────────────
@@ -82,7 +108,7 @@ payload-kind = "skill"
 description = "Agent-facing skill describing the Vox compiler tools."
 status = "stable"
 exposes-tools = ["vox_validate_file", "vox_run_tests", "vox_check_workspace"]
-default-source = "github:vox-foundation/vox-plugin-skill-compiler"
+default-source = "local:crates/vox-plugin-skill-compiler"
 bundled-in = ["vox-fullstack", "vox-ml", "vox-dev"]
 
 [[plugin]]
@@ -91,7 +117,7 @@ payload-kind = "skill"
 description = "Agent-facing skill describing Vox git integration tools."
 status = "stable"
 exposes-tools = ["vox_my_files", "vox_claim_file", "vox_transfer_file", "vox_check_file_owner"]
-default-source = "github:vox-foundation/vox-plugin-skill-git"
+default-source = "local:crates/vox-plugin-skill-git"
 bundled-in = ["vox-fullstack", "vox-dev"]
 
 [[plugin]]
@@ -100,7 +126,7 @@ payload-kind = "skill"
 description = "Agent-facing skill for memory and context management."
 status = "stable"
 exposes-tools = ["vox_memory_store", "vox_memory_recall", "vox_memory_search", "vox_memory_log", "vox_memory_list_keys", "vox_knowledge_query", "vox_session_create", "vox_session_list", "vox_session_info", "vox_session_compact", "vox_session_cleanup"]
-default-source = "github:vox-foundation/vox-plugin-skill-memory"
+default-source = "local:crates/vox-plugin-skill-memory"
 bundled-in = ["vox-fullstack", "vox-edge", "vox-server", "vox-dev"]
 
 [[plugin]]
@@ -109,7 +135,7 @@ payload-kind = "skill"
 description = "Agent-facing skill for task submission, status, budget, multi-agent coordination."
 status = "stable"
 exposes-tools = ["vox_submit_task", "vox_task_status", "vox_orchestrator_status", "vox_complete_task", "vox_fail_task", "vox_cancel_task", "vox_rebalance", "vox_queue_status", "vox_lock_status", "vox_budget_status", "vox_agent_events"]
-default-source = "github:vox-foundation/vox-plugin-skill-orchestrator"
+default-source = "local:crates/vox-plugin-skill-orchestrator"
 bundled-in = ["vox-fullstack", "vox-server", "vox-mesh", "vox-dev"]
 
 [[plugin]]
@@ -118,7 +144,7 @@ payload-kind = "skill"
 description = "Agent-facing skill for retrieval-augmented generation."
 status = "beta"
 exposes-tools = ["vox_visual_rag_query"]
-default-source = "github:vox-foundation/vox-plugin-skill-rag"
+default-source = "local:crates/vox-plugin-skill-rag"
 bundled-in = ["vox-fullstack", "vox-dev"]
 
 [[plugin]]
@@ -127,7 +153,7 @@ payload-kind = "skill"
 description = "Agent-facing skill for test-runner integration."
 status = "stable"
 exposes-tools = ["vox_run_tests", "vox_test_all"]
-default-source = "github:vox-foundation/vox-plugin-skill-testing"
+default-source = "local:crates/vox-plugin-skill-testing"
 bundled-in = ["vox-fullstack", "vox-dev"]
 
 [[plugin]]
@@ -136,7 +162,7 @@ payload-kind = "skill"
 description = "Agent-facing skill for test validation diagnostics."
 status = "stable"
 exposes-tools = ["vox_validate_file", "vox_validate_source"]
-default-source = "github:vox-foundation/vox-plugin-skill-testing-validate"
+default-source = "local:crates/vox-plugin-skill-testing-validate"
 bundled-in = ["vox-fullstack", "vox-dev"]
 
 [[plugin]]
@@ -145,7 +171,7 @@ payload-kind = "skill"
 description = "Generate React/Vox UI components from text prompts (v0.dev-style synthesis)."
 status = "deprecated"
 exposes-tools = ["vox_generate_code", "vox_write_file"]
-default-source = "github:vox-foundation/vox-plugin-skill-v0"
+default-source = "local:crates/vox-plugin-skill-v0"
 bundled-in = ["vox-fullstack", "vox-edge"]
 
 # ── Infrastructure ─────────────────────────────────────────────────────────────
@@ -155,7 +181,7 @@ id = "webhook"
 payload-kind = "code"
 description = "Inbound webhook HTTP listener with HMAC signature verification (GitHub, generic; GitLab deprecated)."
 status = "stable"
-extension-points = ["HttpListener"]
+extension-points = ["HttpListener", "WebhookInbox"]
 default-source = "local:crates/vox-plugin-webhook"
 bundled-in = ["vox-server", "vox-dev"]
 
@@ -165,7 +191,7 @@ payload-kind = "code"
 description = "Chrome DevTools Protocol browser automation via chromiumoxide."
 status = "alpha"
 extension-points = ["BrowserAutomation"]
-default-source = "github:vox-foundation/vox-plugin-browser"
+default-source = "local:crates/vox-plugin-browser"
 bundled-in = ["vox-dev"]
 
 [[plugin]]
@@ -230,6 +256,7 @@ plugins = [
     "skill-git", "skill-orchestrator", "skill-rag", "skill-v0",
     "runtime-wasm",
 ]
+profiles = ["dev"]
 
 [[bundle]]
 id = "vox-ml"
@@ -237,6 +264,7 @@ description = "Fullstack plus ML/GPU code plugins (NVIDIA CUDA stack)."
 status = "beta"
 extends = "vox-fullstack"
 plugins = ["mens-candle-cuda", "nvml-probe"]
+profiles = ["dev"]
 
 [[bundle]]
 id = "vox-ml-metal"
@@ -244,6 +272,7 @@ description = "Fullstack plus ML/GPU code plugins (Apple Metal stack)."
 status = "beta"
 extends = "vox-fullstack"
 plugins = ["mens-candle-metal"]
+profiles = ["dev"]
 
 [[bundle]]
 id = "vox-mesh"
@@ -251,6 +280,7 @@ description = "Server-side mesh deployment."
 status = "alpha"
 extends = "vox-base"
 plugins = ["populi-mesh", "skill-orchestrator"]
+profiles = ["mesh"]
 
 [[bundle]]
 id = "vox-server"
@@ -258,6 +288,7 @@ description = "Headless backend deployment: orchestrator + mesh, no GUI/ML."
 status = "beta"
 extends = "vox-base"
 plugins = ["populi-mesh", "skill-orchestrator", "skill-memory", "webhook", "runtime-container"]
+profiles = ["orchestrator", "knowledge", "mesh"]
 
 [[bundle]]
 id = "vox-edge"
@@ -265,6 +296,7 @@ description = "Edge / on-device deployment: lightweight runtime + local skills, 
 status = "beta"
 extends = "vox-base"
 plugins = ["skill-compiler", "skill-memory", "skill-v0", "runtime-wasm"]
+profiles = ["lang", "skills"]
 
 [[bundle]]
 id = "vox-dev"
@@ -276,6 +308,7 @@ plugins = [
     "populi-mesh", "oratio",
     "browser", "webhook",
 ]
+profiles = ["dev"]
 
 [[bundle]]
 id = "vox-mobile"
@@ -493,6 +526,15 @@ license = "Apache-2.0"
 source = "https://github.com/vox-foundation/vox"
 pin = "f0c7f14e3bc5"
 bundle-path = "assets/skills/vox-graph"
+
+[[skill-bundle]]
+id = "browser-research"
+description = "Use when the user wants to research, summarize, or cite what a web page shows in the agent browser. Snapshot first, then screenshot so you can see the page, then extract and quote — never invent CSS or dump cookies."
+status = "stable"
+license = "Apache-2.0"
+source = "https://github.com/vox-foundation/vox"
+pin = "2026-09-08-chat-research-loop"
+bundle-path = "assets/skills/browser-research"
 
 [[skill-bundle]]
 id = "web-artifacts-builder"

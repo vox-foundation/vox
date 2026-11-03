@@ -13,6 +13,7 @@
 //! This test exercises the runtime interpreter against the lowered HIR. It does
 //! NOT compile the emitted Rust — the compile-link proof landed in Phase 1.4.
 
+use serde_json::json;
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
@@ -31,7 +32,7 @@ async fn durable_checkout_workflow_executes_end_to_end() {
     let hir = lower_module(&module);
 
     let mut tracker = InMemoryTracker::default();
-    let journal = interpret_workflow_durable(&hir, "checkout", &mut tracker)
+    let journal = interpret_workflow_durable(&hir, "checkout", vec![json!(500)], &mut tracker)
         .await
         .expect("checkout workflow runs to completion");
 

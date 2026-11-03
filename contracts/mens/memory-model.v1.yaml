@@ -1,0 +1,39 @@
+# SSOT for the Mens memory model: one measured (or honestly-seeded)
+# act_bytes_per_lht (bytes per layer x hidden-unit x token) per
+# (lane, gradient_checkpointing) cell. See
+# crates/vox-populi/src/mens/tensor/memory_model.rs for the loader and
+# crates/vox-populi/src/mens/tensor/calibration.rs for how a row gets
+# measured.
+#
+# candle-metal has NO row here as of 2026-09-11: exactly one real
+# candle-metal measurement exists (Qwen3-0.6B, batch=2 x seq=512, on
+# docs/src/architecture/measurements/2026-09-11-candle-metal-calibration.json)
+# and one point cannot determine a slope, so `fit_a_lane` correctly refuses
+# to fit it. `MemoryModels::get` fails closed for candle-metal today,
+# pointing at `vox mens probe --measure`. Do not seed this row from the old
+# MLX-based estimate or any other external reference — measure it for real.
+#
+# candle-cuda is seeded (not measured) from constants that were calibrated
+# in memory_budget.rs (RESIDENT_GIB_PER_B_PARAMS=3.5, FIXED_OVERHEAD_GIB=1.6,
+# ACT_GIB_PER_KTOK_PER_SQRTB=9.5) at the time this row was seeded. Those
+# constants (and the QWEN3_LADDER rungs the value below was checked against)
+# were DELETED from memory_budget.rs by Task 8 of
+# 2026-09-11-1-memory-ssot-and-fit-benchmark — this SSOT migration's own
+# ladder-deletion sweep — since they were superseded by this very file.
+# `git log -p -- crates/vox-populi/src/mens/tensor/memory_budget.rs` at the
+# commit that deleted them (Task 8) has their exact values and hardware
+# provenance; do not re-derive it by hand from this comment alone. The
+# value below still reproduces that historical formula's activation
+# estimate at the Qwen3-14B rung exactly, and stays within 10% of it at the
+# Qwen3-8B and Qwen3-32B rungs — this is now pinned SOLELY by
+# crates/vox-populi/src/mens/tensor/memory_model.rs's
+# `seeded_candle_cuda_row_reproduces_the_old_activation_formula_on_real_rungs`
+# test, which independently re-derives the old formula inline (it does not
+# import the deleted constants). Replace with a real measured row once
+# `vox mens probe --measure` has run for candle-cuda.
+schema: vox.mens.memory-model.v1
+lanes:
+  - lane: candle-cuda
+    gradient_checkpointing: true
+    act_bytes_per_lht: 186.3620764597089
+    source: seeded

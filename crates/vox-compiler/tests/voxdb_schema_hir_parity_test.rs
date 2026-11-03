@@ -15,7 +15,6 @@ index User.user_name on (name)
 "#;
 
 #[test]
-#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn voxdb_schema_ast_matches_hir() {
     let tokens = lex(VOXDB_FIXTURE);
     let module = parse(tokens).expect("parse");

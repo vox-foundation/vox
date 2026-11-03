@@ -1,13 +1,25 @@
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SearxngResult {
     pub url: String,
     pub title: String,
     pub content: String,
+    /// Raw sub-engine/source label. For SearXNG hits this is whatever
+    /// SearXNG's own response says (e.g. "brave", "yahoo", "yep") — kept
+    /// for display provenance. Not a stable "who produced this" key; use
+    /// `provider` for that (Task 8c).
     pub engine: Option<String>,
     pub score: Option<f64>,
+    /// The top-level provider that fetched this hit (arxiv / openalex /
+    /// wikipedia / tavily / searxng), set once by the provider task in
+    /// `web_dispatcher::search_core` — never inferred from `engine`, since
+    /// SearXNG's sub-engine names vary and don't identify the provider.
+    /// `None` for hits built outside that path (e.g. raw SearXNG API
+    /// deserialization before tagging, or test fixtures that don't need it).
+    #[serde(default)]
+    pub provider: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

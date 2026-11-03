@@ -1,0 +1,13 @@
+{
+  "source_path": "/Users/brbrainerd/dev/vox/docs/src/architecture/repo-layout-sprawl-audit-2026.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": false,
+  "title": "Repository layout sprawl audit (2026)",
+  "summary": "Organization audit identifying sparse directories, overlapping categories, non-Rust artifact producers/consumers, with prioritized consolidation backlog.",
+  "scope": ["repository layout", "folder taxonomy", "artifact management", "operational duplication"],
+  "cross_refs": ["where-things-live.md"],
+  "locked": false,
+  "precedence": null,
+  "notes": ""
+}

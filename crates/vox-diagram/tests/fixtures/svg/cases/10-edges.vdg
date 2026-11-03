@@ -1,0 +1,22 @@
+graph {
+    node a: "Alpha"
+    node b: "Beta"
+    node p: "Pivot"
+    node q: "Peer"
+    node l: "Left"
+    node d: "Decide?" { shape: diamond }
+    node y: "Yes"
+    node n: "No"
+    a -> b: "go"
+    b -> a: "back"
+    b -> b: "retry"
+    p -> q: "one"
+    p -> q: "two"
+    p -> q: "three"
+    a -> l
+    l -> d: "in"
+    a -> d: "also in"
+    d -> y: "yes"
+    d -> n: "no"
+    y -> p: "a label on\ntwo lines"
+}

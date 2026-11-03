@@ -5,19 +5,19 @@ import React from 'react';
 import { AgentFlow } from './AgentFlow';
 import type { Agent } from '../../../types/dashboard';
 
-const agents: Agent[] = [
-  {
-    id: 'a1',
-    codename: 'Falcon',
-    phase: 'Executing',
-    task: 'compile',
-    progress: 0.5,
-    cost: 1,
-    budget: 5,
-    eta: '2m',
-    skill: 'compiler',
-  } as Agent,
-];
+const base = {
+  id: 'a1',
+  codename: 'Falcon',
+  phase: 'Executing',
+  task: 'compile',
+  progress: 0.5,
+  cost: 1,
+  budget: 5,
+  eta: '2m',
+  skill: 'compiler',
+} as Agent;
+
+const agents: Agent[] = [base];
 
 describe('AgentFlow', () => {
   it('renders nodes as keyboard-operable buttons', () => {
@@ -43,6 +43,12 @@ describe('AgentFlow', () => {
     expect(bar.getAttribute('aria-valuenow')).toBe('50');
   });
 
+  it('omits the progressbar when progress is null', () => {
+    render(<AgentFlow agents={[{ ...base, progress: null, budget: 5 }]} selectedId="a1" />);
+    expect(screen.queryByRole('progressbar')).toBeNull();
+    expect(screen.getByTestId('agent-inspector-progress')).toHaveTextContent('…');
+  });
+
   it('renders the inspector without crashing when budget is null (chat-category tasks have no budget)', () => {
     const noBudgetAgents: Agent[] = [
       { ...agents[0], budget: null },
@@ -53,7 +59,7 @@ describe('AgentFlow', () => {
 
   it('allows the header title to shrink and the legend row to wrap on narrow panels', () => {
     render(<AgentFlow agents={agents} />);
-    const heading = screen.getByText('Mind-Map · Agent Shards');
+    const heading = screen.getByText('Agent topology');
     const titleContainer = heading.parentElement;
     expect(titleContainer?.className).toContain('min-w-0');
 

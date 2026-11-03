@@ -1,0 +1,26 @@
+flowchart TD
+    UserAsk["User / Chat Query"] --> Triage{"Dynamic Triage Classifier"}
+    Triage -- "Tier 0: Exact Memory" --> ReturnMem["Return VoxDB FTS5 Cached Knowledge (<50ms)"]
+    Triage -- "Tier 1: Shallow Fact" --> FastWeb["Fast 1-Hop Search + Direct Synth (<1s)"]
+    Triage -- "Tier 2: Standard Deep" --> Wave1["Wave 1: Reconnaissance"]
+    Triage -- "Tier 3: Multi-Wave" --> Wave1
+
+    subgraph MultiWaveEngine["Autonomous Multi-Wave DAG Engine"]
+        Wave1 --> Distill1["MENS Local Claim Extraction & Triplets"]
+        Distill1 --> GapAnalysis{"Gap & Contradiction Analyzer"}
+        GapAnalysis -- "Contradiction / Missing Depth" --> Wave2["Wave 2: Targeted Deep-Dive & Citation Crawling"]
+        Wave2 --> Distill2["MENS Local Evidence Triangulation"]
+        Distill2 --> AdversarialCheck{"Adversarial Bar Met?"}
+        AdversarialCheck -- "High Uncertainty / Code Query" --> Wave3["Wave 3: Adversarial Verification & Sandbox Execution"]
+        Wave3 --> SandboxRun["Run Sandboxed Compiler / Schema Validator"]
+        SandboxRun --> FinalDistill["Consolidated Knowledge Subgraph"]
+    end
+
+    GapAnalysis -- "Sufficient Evidence" --> FinalDistill
+    AdversarialCheck -- "Sufficient" --> FinalDistill
+
+    FinalDistill --> ContextPacker["Context Window Budgeter (Top-K Spans)"]
+    ContextPacker --> FrontierSynth["Frontier Model Synthesis (OpenRouter / Claude / Gemini)"]
+    FrontierSynth --> PostAudit["Post-Hoc Citation Span & DOI Audit"]
+    PostAudit --> StoreDB["Persist to VoxDB FTS5 & Claim Cache"]
+    StoreDB --> PresentGUI["Interactive GUI Report + Claim Accordion + Chat Card"]

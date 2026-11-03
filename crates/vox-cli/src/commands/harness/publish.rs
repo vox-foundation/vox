@@ -102,25 +102,82 @@ pub async fn sync_from_jsonl(db: &vox_db::VoxDb, path: &std::path::Path) -> anyh
     ingest_runs(db, &runs).await
 }
 
+/// Every history file under `history_dir`: the legacy append-only `runs.jsonl` (kept as
+/// read-only history) plus one `runs/<run_id>.jsonl` per published run. One file per run
+/// means two results PRs can never conflict (GitHub's merge ignores `merge=union`).
+fn history_files(history_dir: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let mut files = vec![history_dir.join("runs.jsonl")];
+    if let Ok(entries) = std::fs::read_dir(history_dir.join("runs")) {
+        let mut per_run: Vec<_> = entries
+            .filter_map(|e| e.ok().map(|e| e.path()))
+            .filter(|p| p.extension().is_some_and(|x| x == "jsonl"))
+            .collect();
+        per_run.sort();
+        files.extend(per_run);
+    }
+    files
+}
+
+/// Run ids already published anywhere under `history_dir`.
+pub fn published_run_ids(history_dir: &std::path::Path) -> std::collections::HashSet<String> {
+    history_files(history_dir)
+        .iter()
+        .filter_map(|p| std::fs::read_to_string(p).ok())
+        .flat_map(|blob| from_jsonl(&blob).0)
+        .map(|p| p.run.run_id)
+        .collect()
+}
+
+/// Write one run to `<history_dir>/runs/<run_id>.jsonl`. The run id becomes a file name, so
+/// only `[A-Za-z0-9._-]` is accepted (and not `.`/`..`).
+pub fn write_run_file(
+    history_dir: &std::path::Path,
+    run: &PublishedRun,
+) -> anyhow::Result<std::path::PathBuf> {
+    let id = &run.run.run_id;
+    let safe = !id.is_empty()
+        && id != "."
+        && id != ".."
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'));
+    if !safe {
+        anyhow::bail!("run id {id:?} is not a safe file name");
+    }
+    let dir = history_dir.join("runs");
+    std::fs::create_dir_all(&dir)?;
+    let path = dir.join(format!("{id}.jsonl"));
+    std::fs::write(&path, to_jsonl(std::slice::from_ref(run)) + "\n")?;
+    Ok(path)
+}
+
+/// Sync the local DB from every git-committed history file (idempotent per run id). Called
+/// before querying, so a fresh `git pull` is reflected without a manual `publish`.
+pub async fn sync_from_history(
+    db: &vox_db::VoxDb,
+    history_dir: &std::path::Path,
+) -> anyhow::Result<usize> {
+    let mut ingested = 0;
+    for path in history_files(history_dir) {
+        ingested += sync_from_jsonl(db, &path).await?;
+    }
+    Ok(ingested)
+}
+
 /// `vox harness publish` arguments.
 #[derive(Parser)]
 pub struct PublishArgs {
-    /// Path to the git-tracked JSONL history file.
-    #[arg(long, default_value = "docs/harness-eval-history/runs.jsonl")]
-    pub path: std::path::PathBuf,
+    /// Git-tracked history directory: each run is written to `<dir>/runs/<run_id>.jsonl`
+    /// (the legacy `<dir>/runs.jsonl` is still read, never written).
+    #[arg(long, default_value = "docs/harness-eval-history")]
+    pub dir: std::path::PathBuf,
 }
 
-/// Export every local `harness_eval_run` not already present in the JSONL file at `args.path`,
-/// appending them (auto-generated file — never hand-edit, per this repo's convention for
-/// generated docs).
+/// Export every local `harness_eval_run` not already published under `args.dir`, one file per
+/// run (auto-generated files: never hand-edit, per this repo's convention for generated docs).
 pub async fn run(args: PublishArgs) -> anyhow::Result<()> {
     let db = vox_db::open_project_db().await?;
-    let existing_blob = std::fs::read_to_string(&args.path).unwrap_or_default();
-    let (already_published, _) = from_jsonl(&existing_blob);
-    let already_published_ids: std::collections::HashSet<String> = already_published
-        .iter()
-        .map(|p| p.run.run_id.clone())
-        .collect();
+    let already_published_ids = published_run_ids(&args.dir);
 
     let local_runs = db.list_harness_eval_runs(10_000).await?;
     let mut newly_published = Vec::new();
@@ -142,25 +199,11 @@ pub async fn run(args: PublishArgs) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let new_lines = to_jsonl(&newly_published);
-    if let Some(parent) = args.path.parent() {
-        std::fs::create_dir_all(parent)?;
+    for run in &newly_published {
+        let path = write_run_file(&args.dir, run)?;
+        println!("published {}", path.display());
     }
-    let mut file = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&args.path)?;
-    use std::io::Write;
-    if !existing_blob.is_empty() && !existing_blob.ends_with('\n') {
-        writeln!(file)?;
-    }
-    writeln!(file, "{new_lines}")?;
-
-    println!(
-        "published {} run(s) to {}",
-        newly_published.len(),
-        args.path.display()
-    );
+    println!("published {} run(s)", newly_published.len());
     Ok(())
 }
 
@@ -317,6 +360,79 @@ mod tests {
         let listed = db.list_harness_eval_runs(10).await.expect("list");
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0].run_id, "run-good-sha");
+    }
+
+    fn tmp_history(tag: &str) -> std::path::PathBuf {
+        let d = std::env::temp_dir().join(format!(
+            "harness-history-{tag}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        std::fs::create_dir_all(&d).expect("tmp dir");
+        d
+    }
+
+    #[test]
+    fn published_run_ids_reads_the_legacy_file_and_per_run_files() {
+        let dir = tmp_history("ids");
+        std::fs::write(
+            dir.join("runs.jsonl"),
+            to_jsonl(&[fixture_run("legacy-1")]) + "\n",
+        )
+        .expect("legacy");
+        write_run_file(&dir, &fixture_run("per-run-1")).expect("per-run");
+        let ids = published_run_ids(&dir);
+        assert!(
+            ids.contains("legacy-1") && ids.contains("per-run-1"),
+            "{ids:?}"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn write_run_file_names_the_file_by_run_id_and_rejects_unsafe_ids() {
+        let dir = tmp_history("write");
+        let path = write_run_file(&dir, &fixture_run("run-abc_1.2")).expect("write");
+        assert_eq!(path, dir.join("runs").join("run-abc_1.2.jsonl"));
+        let (parsed, skipped) = from_jsonl(&std::fs::read_to_string(&path).expect("read"));
+        assert!(skipped.is_empty() && parsed.len() == 1);
+        for bad in ["../escape", "a/b", "", "a b"] {
+            assert!(
+                write_run_file(&dir, &fixture_run(bad)).is_err(),
+                "accepted {bad:?}"
+            );
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn sync_from_history_ingests_legacy_and_per_run_files_idempotently() {
+        let dir = tmp_history("sync");
+        std::fs::write(
+            dir.join("runs.jsonl"),
+            to_jsonl(&[fixture_run("legacy-1")]) + "\n",
+        )
+        .expect("legacy");
+        write_run_file(&dir, &fixture_run("per-run-1")).expect("a");
+        write_run_file(&dir, &fixture_run("per-run-2")).expect("b");
+        let db = vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
+            .await
+            .expect("db");
+        sync_from_history(&db, &dir).await.expect("sync 1");
+        sync_from_history(&db, &dir).await.expect("sync 2");
+        let mut ids: Vec<String> = db
+            .list_harness_eval_runs(10)
+            .await
+            .expect("list")
+            .into_iter()
+            .map(|r| r.run_id)
+            .collect();
+        ids.sort();
+        assert_eq!(ids, vec!["legacy-1", "per-run-1", "per-run-2"]);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[tokio::test]
