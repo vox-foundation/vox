@@ -67,11 +67,10 @@ A typical web app restates one domain model in four places:
 Names and types can drift at each boundary. People and coding agents both spend time keeping the copies aligned.
 
 <div align="center">
-  <img src="./assets/old_internet_knot_abstract.png" alt="Schema Fragmentation in Traditional Web Stacks — 4-layer technical schematic" width="760" />
+  <img src="./assets/schema-fragmentation.svg" alt="One field written four times: SQL completed_at, Rust Option DateTime, JSON completedAt null, and TypeScript isDone, beside one Vox table that emits done: bool to every layer" width="760" />
   <p>
-    <strong>Schema Fragmentation Across Traditional Web Stacks</strong><br />
-    <em>Restating one domain model across SQL migrations, backend structs, JSON wire schemas, and frontend state introduces field drift, type mismatches, and glue-code overhead at every boundary.</em><br />
-    <sub>Diagram: Google Imagen 3 (<code>imagen-3.0-generate-002</code> / <code>gemini-3.1-flash-image</code>) · Signed 2026-10-14 · Bertrand Reyna-Brainerd &amp; Vox Foundation</sub>
+    <strong>One field, written four times</strong><br />
+    <em>completed_at, completedAt, and isDone are the same fact. Each boundary renames it or changes its type. A Vox table states it once, and every layer keeps that name and type.</em>
   </p>
 </div>
 
