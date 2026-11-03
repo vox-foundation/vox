@@ -83,11 +83,19 @@ Names and types can drift at each boundary. People and coding agents both spend 
   </p>
 </div>
 
-Vox puts those layers in one language:
+These are the choices that follow from that, and what each one buys.
 
-- **One declaration.** A `table` is the source for the SQL schema, backend types, HTTP shape, and TypeScript client.
-- **No `null`, no uncaught exceptions.** Missing values are `Option[T]` (`Some(x)` or `None`). Fallible calls return `Result[T]` (`Ok(x)` or `Error(msg)`). Code that ignores either case does not type-check.
-- **Two ways to run the same file.** `query`, `mutation`, `server`, `component`, `workflow`, `activity`, `tool`, and `resource` follow one rule: bare keywords open scopes, and `@decorators` modify declarations. `vox run` interprets the file in a sandbox. `vox build` emits SQLite/Turso, a Rust (Axum) server, and a TypeScript/React client.
+**One declaration, projected.** A second schema, written by hand, drifts, and an agent copying it drifts the same way. A `table` is the source. SQL, the server types, the JSON shape, and the TypeScript client are generated from it. `vox build` emits SQLite/Turso, Rust (Axum), and React/TypeScript, because one stack is what the tests can actually cover. Django, Vue, and other frameworks are outside that path.
+
+**Missing values and failures are typed.** Generated code skips a failure it cannot see. `Option[T]` is `Some(x)` or `None`. `Result[T]` is `Ok(x)` or `Error(msg)`. Code that ignores either case does not type-check. `?` returns the error to the caller.
+
+**Ids are typed.** A task id and a user id are different facts. A boundary takes `Id[Task]` rather than a bare string, so the two cannot be swapped.
+
+**Keywords open scopes. Decorators modify them.** `table`, `query`, `mutation`, `server`, `component`, `workflow`, `activity`, `tool`, and `resource` each open a scope. `@auth`, `@pure`, `@durable`, and `@uses` change how a declaration runs. One spelling means people and agents copy the same form. A new behavior is a decorator, so the keyword list stays stable.
+
+**The same file runs now, or compiles.** Scripts, repo automation, and the browser playground should start without a Rust build. A shipped app should be ordinary Rust and TypeScript. `vox run` interprets the file. `--caps` is the list of effects the host grants (filesystem, network, and the rest). `vox build` emits the database, the server, and the client from that same file. The two executors are still being matched, and a generated server build needs a Vox source checkout (`VOX_REPO_ROOT`).
+
+**A tool is a function in the same file.** An agent tool kept in a side schema drifts like a hand-written JSON contract. `tool` is a typed function plus a short description. The program and an MCP client call that declaration, and a failure comes back as `Result`.
 <!-- ANCHOR_END: why_vox -->
 
 > Measured comparison with TypeScript: [The central claim](#the-central-claim). The harness is `vox model eval-compare` and `eval-corpus`.
@@ -157,7 +165,7 @@ Vox started as a compiler, but testing an AI-native language required building t
 
 ## Tradeoffs: What Vox Optimizes For (and What It Costs)
 
-Every programming tool makes tradeoffs. Understanding what Vox gives up to achieve its goals will save you time deciding whether to explore it:
+The reasons and the benefits are in [Why Vox](#why-vox). This table is the cost of each choice:
 
 | Design Choice | What You Gain (The Upside) | What It Costs (The Tradeoff) |
 |:---|:---|:---|
@@ -291,6 +299,7 @@ Longer-horizon targets: [v1.0 release criteria](docs/src/architecture/v1-release
 
 Newest first.
 
+- **2026-11-02**: Why Vox now states the reason and the benefit for each language choice (one declaration, `Option`/`Result`, `Id[T]`, keywords versus decorators, `vox run` versus `vox build`, and `tool` as a function). The same text is on the voxlang.org homepage.
 - **2026-11-02**: Re-checked Language & compiler and every status table below it against `main`. Named `vox` commands are still registered, including `vox diagram`. The MCP registry lists 376 tools. Chat ranks offered tools before the cap (`#686`). The docs site uses one chevron per sidebar edge (`#687`).
 - **2026-11-02**: Re-checked this README against `main`. Published adapters are public on Hugging Face ([0.6B](https://huggingface.co/brbrainerd/vox-mens-qwen3-0.6b), [1.7B](https://huggingface.co/brbrainerd/vox-mens-qwen3-1.7b), [4B](https://huggingface.co/brbrainerd/vox-mens-qwen3-4b), [index](https://huggingface.co/brbrainerd/vox-mens-index)); current `VoxDb` baseline is 97; OpenRouter defaults are `~family-latest` aliases. No stable release tag.
 - **2026-10-31**: Re-verified tutorials and docs CI on the mounted roadmap (`#683`). Model defaults moved from pinned versions to live `~family-latest` aliases (`#682`).
