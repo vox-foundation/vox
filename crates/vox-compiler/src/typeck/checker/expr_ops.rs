@@ -199,6 +199,46 @@ impl<'a> Checker<'a> {
         }
     }
 
+    /// `sort` accepts only the name `nulls` bound to the string `first` or
+    /// `last`. A missing name, a positional string, and any other string are
+    /// diagnostics. The name is checked before any positional argument zip.
+    /// `nulls` is not defaulted.
+    pub(super) fn check_array_sort_args(&mut self, args: &[HirArg], span: Span) {
+        let names: Vec<Option<String>> = args.iter().map(|arg| arg.name.clone()).collect();
+        tracing::debug!(
+            arg_count = args.len(),
+            ?names,
+            "std.array sort arguments sent to nulls check"
+        );
+        let named = args.len() == 1 && args[0].name.as_deref() == Some("nulls");
+        if !named {
+            self.diags.push(Diagnostic::error(
+                "sort requires a named argument `nulls` of \"first\" or \"last\"".into(),
+                span,
+                self.source,
+            ));
+            for arg in args {
+                let _ = self.check_expr(&arg.value, None);
+            }
+            return;
+        }
+        let value_ty = self.check_expr(&args[0].value, Some(&Ty::Str));
+        let literal = match &args[0].value {
+            HirExpr::StringLit(text, _) => Some(text.as_str()),
+            _ => None,
+        };
+        tracing::debug!(?literal, ?value_ty, "std.array sort nulls payload");
+        if self.uf.unify(&Ty::Str, &value_ty).is_err() || !matches!(literal, Some("first" | "last"))
+        {
+            let arg_span = hir_expr_span(&args[0].value);
+            self.diags.push(Diagnostic::error(
+                "sort argument `nulls` must be the string \"first\" or \"last\"".into(),
+                arg_span,
+                self.source,
+            ));
+        }
+    }
+
     pub(super) fn check_arguments(&mut self, expected: &[Ty], actual: &[HirArg], span: Span) {
         if expected.len() != actual.len() {
             self.diags.push(

@@ -552,6 +552,8 @@ impl<'a> Checker<'a> {
                     if let Ty::Fn(params, ret) = method_ty {
                         if method == "std" && matches!(obj_ty, Ty::Array(_)) {
                             self.check_array_std_args(args, *span);
+                        } else if method == "sort" && matches!(obj_ty, Ty::Array(_)) {
+                            self.check_array_sort_args(args, *span);
                         } else {
                             self.check_arguments(&params, args, *span);
                         }
