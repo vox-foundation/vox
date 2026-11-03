@@ -10221,6 +10221,41 @@ operations:
   handler_rust: null
 - surface: vox-cli
   path:
+  - py
+  status: active
+  latin_ns: codex
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::py
+- surface: vox-cli
+  path:
+  - py
+  - doctor
+  status: active
+  latin_ns: codex
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::py
+- surface: vox-cli
+  path:
+  - py
+  - sync
+  status: active
+  latin_ns: codex
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::py
+- surface: vox-cli
+  path:
   - recensio
   status: active
   latin_ns: recensio

@@ -416,6 +416,12 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::pm::PmCli,
     },
+    /// Python bridge environment (`vox py sync`, `vox py doctor`).
+    Py {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::py::PyCmd,
+    },
     /// Agentic Planning tools: Create, replan, and bypass planning steps (`vox plan`).
     Plan {
         /// Subcommand.

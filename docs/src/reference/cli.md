@@ -353,6 +353,15 @@ Centralized secret diagnostics and compatibility credential storage.
 | `vox secrets backend-status` | Prints backend mode (`env_only`/`infisical`/`vault`/`auto`) and backend availability diagnostics. |
 | `vox secrets migrate-auth-store` | Migrates plaintext `auth.json` tokens to secure local store and leaves compatibility sentinels in JSON. |
 
+### `vox py`
+
+Creates and inspects the project Python environment declared by `[python]` in `Vox.toml`. `vox py sync` writes `.vox/python/pyproject.toml`, runs `uv lock` and `uv sync --frozen`, and records the BLAKE3 hash of `uv.lock` in `vox.lock`. `vox py doctor` prints uv, the venv Python, packages, whether that hash matches, and an unsandboxed-worker warning. The worker is not sandboxed in this phase.
+
+| Subcommand | Role |
+|------------|------|
+| `vox py sync` | Install `[python]` packages into `.vox/python` and store `python_uv_lock_hash` in `vox.lock`. |
+| `vox py doctor` | Print uv, Python, packages, lock-hash status, and `sandbox: unsandboxed`. |
+
 ### `vox repo`
 
 Repository discovery from the current directory (`vox repo` with no subcommand defaults to **`status`**) plus explicit multi-repo catalog tools under `.vox/repositories.yaml`. Catalog query commands are **read-only** and treat remote repositories as adapter descriptors unless a later backend is configured.

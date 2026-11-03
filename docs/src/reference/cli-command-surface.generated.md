@@ -21,7 +21,7 @@ category: "Language Reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 1005
+**schema_version:** `1` · **vox-cli operations:** 1008
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -847,6 +847,9 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox populi serve` | active | populi | — | workflow | — |
 | `vox populi status` | active | populi | — | workflow | — |
 | `vox populi up` | active | populi | — | workflow | — |
+| `vox py` | active | — | codex | platform | — |
+| `vox py doctor` | active | — | codex | platform | — |
+| `vox py sync` | active | — | codex | platform | — |
 | `vox recensio` | active | coderabbit | recensio | ai | — |
 | `vox recensio coderabbit` | active | coderabbit | recensio | ai | — |
 | `vox recensio coderabbit batch-submit` | active | coderabbit | recensio | ai | — |

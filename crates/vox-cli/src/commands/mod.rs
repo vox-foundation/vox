@@ -126,6 +126,8 @@ pub mod pm;
 pub mod pm_lifecycle;
 /// `--profile <ids>` resolution shared by `vox mcp` / `vox serve`.
 pub mod profile_arg;
+/// `vox py sync` / `vox py doctor` for the `[python]` uv environment.
+pub mod py;
 pub mod repair;
 /// Explicit multi-repo catalog and read-only polyrepo queries (`vox repo`).
 pub mod repo;

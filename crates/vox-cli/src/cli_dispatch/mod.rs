@@ -458,6 +458,9 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         Cli::Db { cmd } => {
             crate::commands::db_cli::run(cmd).await?;
         }
+        Cli::Py { cmd } => {
+            crate::commands::py::run(cmd).await?;
+        }
         Cli::Memory { cmd } => {
             crate::commands::memory_cli::run(cmd).await?;
         }
