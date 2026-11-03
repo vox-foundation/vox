@@ -11,8 +11,8 @@
 
 import std.array
 
-@uses(python)
-pub fn zscore(xs: list[float]) to Result[list[float]] {
+pub @uses(python)
+fn zscore(xs: list[float]) to Result[list[float]] {
     let a = array.from_list(xs).astype(f64)
     return ((a - a.mean()) / a.std(correction=0)).to_list()
 }

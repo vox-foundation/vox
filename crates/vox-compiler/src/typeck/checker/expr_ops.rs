@@ -62,17 +62,14 @@ impl<'a> Checker<'a> {
                     Ty::Error
                 }
             }
-            HirBinOp::Sub | HirBinOp::Mul | HirBinOp::Div | HirBinOp::Mod => {
-                if l == Ty::Int && r == Ty::Int {
-                    Ty::Int
-                } else if l == Ty::Decimal && r == Ty::Decimal {
-                    Ty::Decimal
-                } else if (l == Ty::Float || l == Ty::Int) && (r == Ty::Float || r == Ty::Int) {
-                    Ty::Float
+            HirBinOp::Sub | HirBinOp::Div => {
+                if matches!(l, Ty::Array(_)) || matches!(r, Ty::Array(_)) {
+                    self.array_same_dtype_op(&l, &r, span)
                 } else {
-                    Ty::Error
+                    host_numeric_binop(&l, &r)
                 }
             }
+            HirBinOp::Mul | HirBinOp::Mod => host_numeric_binop(&l, &r),
             HirBinOp::Lt | HirBinOp::Gt | HirBinOp::Lte | HirBinOp::Gte => Ty::Bool,
             HirBinOp::Is | HirBinOp::Isnt => Ty::Bool,
             HirBinOp::And | HirBinOp::Or => {
@@ -145,6 +142,49 @@ impl<'a> Checker<'a> {
                     self.source,
                 ));
             }
+        }
+    }
+
+    /// Sub and div of two arrays. Same inner dtype yields that array, including
+    /// a rank-0 plan against a rank-1 plan (rank is not part of `Ty::Array`).
+    /// A mismatch names `astype` and does not fall through to host promotion.
+    fn array_same_dtype_op(&mut self, l: &Ty, r: &Ty, span: Span) -> Ty {
+        match (l, r) {
+            (Ty::Array(a), Ty::Array(b)) if a == b => Ty::Array(a.clone()),
+            _ => {
+                self.diags.push(Diagnostic::error(
+                    "Array sub and div need the same inner dtype; use astype to align them".into(),
+                    span,
+                    self.source,
+                ));
+                Ty::Error
+            }
+        }
+    }
+
+    /// `std` accepts only `correction` by name. Positional `std(0)` and a
+    /// missing name are diagnostics. `correction` is not defaulted.
+    pub(super) fn check_array_std_args(&mut self, args: &[HirArg], span: Span) {
+        let named = args.len() == 1 && args[0].name.as_deref() == Some("correction");
+        if !named {
+            self.diags.push(Diagnostic::error(
+                "std requires a named argument `correction` of type int".into(),
+                span,
+                self.source,
+            ));
+            for arg in args {
+                let _ = self.check_expr(&arg.value, None);
+            }
+            return;
+        }
+        let value_ty = self.check_expr(&args[0].value, Some(&Ty::Int));
+        if self.uf.unify(&Ty::Int, &value_ty).is_err() {
+            let arg_span = hir_expr_span(&args[0].value);
+            self.diags.push(Diagnostic::error(
+                "std argument `correction` must be int".into(),
+                arg_span,
+                self.source,
+            ));
         }
     }
 
@@ -257,5 +297,17 @@ impl<'a> Checker<'a> {
                 }
             },
         }
+    }
+}
+
+fn host_numeric_binop(l: &Ty, r: &Ty) -> Ty {
+    if l == &Ty::Int && r == &Ty::Int {
+        Ty::Int
+    } else if l == &Ty::Decimal && r == &Ty::Decimal {
+        Ty::Decimal
+    } else if (l == &Ty::Float || l == &Ty::Int) && (r == &Ty::Float || r == &Ty::Int) {
+        Ty::Float
+    } else {
+        Ty::Error
     }
 }

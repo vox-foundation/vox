@@ -13,6 +13,8 @@ pub enum Ty {
     /// Bottom type for early return / break.
     Never,
     List(Box<Ty>),
+    /// Lazy `std.array` plan. Lowered as `HirType::Generic`, not a new `HirType` variant.
+    Array(Box<Ty>),
     Option(Box<Ty>),
     /// `Result[T, E]`. The error slot defaults to `Ty::Str` for the
     /// single-parameter `Result[T]` form (the historical shape), so existing
@@ -55,6 +57,7 @@ impl Ty {
             Ty::Decimal => "dec".to_string(),
             Ty::Never => "never".to_string(),
             Ty::List(inner) => format!("List[{}]", inner.signature()),
+            Ty::Array(inner) => format!("Array of {}", inner.signature()),
             Ty::Option(inner) => format!("Option[{}]", inner.signature()),
             Ty::Result(ok, err) => {
                 // Keep the common `Result[T, str]` form displaying as `Result[T]`
@@ -118,6 +121,7 @@ impl Ty {
             Ty::Unit => HirType::Unit,
             Ty::Decimal => HirType::Decimal,
             Ty::List(inner) => HirType::Generic("list".into(), vec![inner.to_hir_type()]),
+            Ty::Array(inner) => HirType::Generic("Array".into(), vec![inner.to_hir_type()]),
             Ty::Option(inner) => HirType::Generic("option".into(), vec![inner.to_hir_type()]),
             Ty::Result(ok, err) => {
                 let ok_hir = ok.to_hir_type();
@@ -157,6 +161,16 @@ mod tests {
         assert_eq!(
             ty.to_hir_type(),
             HirType::Generic("Result".into(), vec![HirType::Named("Widget".into())])
+        );
+    }
+
+    #[test]
+    fn array_to_hir_type_is_generic_named_array() {
+        let ty = Ty::Array(Box::new(Ty::Named("f64".into())));
+        assert_eq!(ty.signature(), "Array of f64");
+        assert_eq!(
+            ty.to_hir_type(),
+            HirType::Generic("Array".into(), vec![HirType::Named("f64".into())])
         );
     }
 }

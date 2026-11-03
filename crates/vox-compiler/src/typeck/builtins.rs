@@ -17,6 +17,87 @@ pub struct BuiltinTypes {
     methods: std::collections::HashMap<String, std::collections::HashMap<String, Ty>>,
 }
 
+/// Parse one `python_array_ops` signature into a function type.
+///
+/// `generic_array` rewrites `Array[...]` as `GenericParam(0)` so `MethodCall`
+/// can substitute the receiver dtype the way it does for `List`.
+fn array_op_fn_ty(signature: &str, generic_array: bool) -> Ty {
+    tracing::debug!(
+        %signature,
+        generic_array,
+        "std.array signature sent to type parser"
+    );
+    let Some((params_src, ret_src)) = signature.split_once("->") else {
+        tracing::debug!(%signature, "std.array signature missing ->");
+        return Ty::Error;
+    };
+    let params_src = params_src.trim();
+    let Some(open) = params_src.rfind('(') else {
+        tracing::debug!(%params_src, "std.array signature missing '('");
+        return Ty::Error;
+    };
+    let Some(close) = params_src.rfind(')') else {
+        tracing::debug!(%params_src, "std.array signature missing ')'");
+        return Ty::Error;
+    };
+    if close < open {
+        return Ty::Error;
+    }
+    let inner = params_src[open + 1..close].trim();
+    let params = if inner.is_empty() {
+        Vec::new()
+    } else {
+        inner
+            .split(',')
+            .map(|param| {
+                let ty_src = param
+                    .split_once(':')
+                    .map(|(_, ty)| ty.trim())
+                    .unwrap_or(param.trim());
+                array_sig_ty(ty_src, generic_array)
+            })
+            .collect()
+    };
+    Ty::Fn(
+        params,
+        Box::new(array_sig_ty(ret_src.trim(), generic_array)),
+    )
+}
+
+fn array_sig_ty(text: &str, generic_array: bool) -> Ty {
+    tracing::debug!(%text, generic_array, "std.array type fragment");
+    if let Some(inner) = text
+        .strip_prefix("Array[")
+        .and_then(|s| s.strip_suffix(']'))
+    {
+        let inner_ty = if generic_array {
+            Ty::GenericParam(0)
+        } else {
+            array_sig_ty(inner, false)
+        };
+        return Ty::Array(Box::new(inner_ty));
+    }
+    if let Some(rest) = text.strip_prefix("Result[") {
+        let inner = rest.strip_suffix(']').unwrap_or(rest);
+        return Ty::Result(
+            Box::new(array_sig_ty(inner, generic_array)),
+            Box::new(Ty::Str),
+        );
+    }
+    if let Some(rest) = text.strip_prefix("list[") {
+        let inner = rest.strip_suffix(']').unwrap_or(rest);
+        return Ty::List(Box::new(array_sig_ty(inner, generic_array)));
+    }
+    match text {
+        "int" => Ty::Int,
+        "float" => Ty::Float,
+        "f64" => Ty::Named("f64".into()),
+        "str" => Ty::Str,
+        "bool" => Ty::Bool,
+        other => Ty::Named(other.into()),
+    }
+}
+
 impl BuiltinTypes {
     /// Populate the given TypeEnv with all built-in definitions.
     pub fn register_all(env: &mut TypeEnv) -> Self {
@@ -313,6 +394,28 @@ impl BuiltinTypes {
                 ty: Ty::Named("StdNamespace".into()),
                 mutable: false,
                 kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
+        // `import std.array` binds the name `array`. Pre-register it so the
+        // import pass does not replace it with `Ty::ImportPlaceholder`.
+        env.define(
+            "array".into(),
+            Binding {
+                ty: Ty::Named("StdArrayNs".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+        // Dtype token for `astype(f64)`. This is not a host numeric type.
+        env.define(
+            "f64".into(),
+            Binding {
+                ty: Ty::Named("f64".into()),
+                mutable: false,
+                kind: BindingKind::Constructor,
                 is_deprecated: false,
             },
         );
@@ -1766,6 +1869,14 @@ impl BuiltinTypes {
         }
         methods.insert("Bool".into(), bool_methods);
 
+        let mut array_ns = std::collections::HashMap::new();
+        for op in crate::python_array_support::python_array_ops() {
+            if op.name == "from_list" {
+                array_ns.insert(op.name.to_string(), array_op_fn_ty(op.signature, false));
+            }
+        }
+        methods.insert("StdArrayNs".into(), array_ns);
+
         Self { methods }
     }
 
@@ -1923,6 +2034,15 @@ impl BuiltinTypes {
             };
         }
 
+        // Array methods come from `python_array_ops`, ahead of the string-key map.
+        // `from_list` stays on `StdArrayNs` and is not a method of `Ty::Array`.
+        if let Ty::Array(_) = obj_ty {
+            return crate::python_array_support::python_array_ops()
+                .iter()
+                .find(|op| op.name == method && op.name != "from_list")
+                .map(|op| array_op_fn_ty(op.signature, true));
+        }
+
         let type_key = match obj_ty {
             Ty::Named(n) => n.as_str(),
             Ty::List(_) => "List",
@@ -1978,6 +2098,209 @@ mod tests {
                 Box::new(Ty::Option(Box::new(note.clone()))),
                 Box::new(Ty::Str)
             )
+        );
+    }
+
+    fn check_source(
+        source: &str,
+    ) -> (
+        Vec<crate::typeck::diagnostics::Diagnostic>,
+        crate::hir::HirModule,
+    ) {
+        let tokens = crate::lexer::lex(source);
+        let module = crate::parser::parse(tokens)
+            .unwrap_or_else(|errs| panic!("parse failed: {errs:?}\n{source}"));
+        let mut hir = crate::hir::lower::lower_module(&module);
+        let diags = crate::typeck::typecheck_hir_module(source, &mut hir);
+        (diags, hir)
+    }
+
+    fn error_messages(diags: &[crate::typeck::diagnostics::Diagnostic]) -> Vec<&str> {
+        diags
+            .iter()
+            .filter(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error)
+            .map(|d| d.message.as_str())
+            .collect()
+    }
+
+    fn inferred_of<'a>(
+        hir: &'a crate::hir::HirModule,
+        span: crate::ast::span::Span,
+    ) -> &'a crate::hir::HirType {
+        hir.inferred_types
+            .get(&span)
+            .unwrap_or_else(|| panic!("no inferred type at {span:?}"))
+    }
+
+    #[test]
+    fn zscore_golden_typechecks() {
+        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../examples/golden/py_array_stats.vox");
+        let source = std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+        let (diags, hir) = check_source(&source);
+        let errors = error_messages(&diags);
+        assert!(
+            errors.is_empty(),
+            "py_array_stats.vox type diagnostics: {errors:?}"
+        );
+
+        let zscore = hir
+            .functions
+            .iter()
+            .find(|f| f.name == "zscore")
+            .expect("zscore");
+        let ret = zscore.body.iter().find_map(|stmt| match stmt {
+            crate::hir::HirStmt::Return {
+                value: Some(expr), ..
+            } => Some(expr),
+            _ => None,
+        });
+        let crate::hir::HirExpr::MethodCall(object, method, _, _, span) = ret.expect("return expr")
+        else {
+            panic!("zscore return is not a method call");
+        };
+        assert_eq!(method, "to_list");
+        let list_of_float = crate::hir::HirType::Generic(
+            "list".into(),
+            vec![crate::hir::HirType::Named("float".into())],
+        );
+        assert_eq!(
+            inferred_of(&hir, *span),
+            &crate::hir::HirType::Generic("Result".into(), vec![list_of_float]),
+            "to_list on Array of f64 is Result of list of float"
+        );
+        let crate::hir::HirExpr::Binary(_, _, _, bin_span) = object.as_ref() else {
+            panic!("to_list receiver is not the z-score division");
+        };
+        assert_eq!(
+            inferred_of(&hir, *bin_span),
+            &crate::hir::HirType::Generic(
+                "Array".into(),
+                vec![crate::hir::HirType::Named("f64".into())]
+            ),
+            "0-d std divided into a 1-d array stays Array of f64"
+        );
+
+        let stripped = source.replacen("@uses(python)\n", "", 1);
+        let (stripped_diags, _) = check_source(&stripped);
+        let stripped_errors = error_messages(&stripped_diags);
+        assert!(
+            stripped_errors.iter().any(|m| m.contains("python")),
+            "to_list without uses python must diagnose, got {stripped_errors:?}"
+        );
+
+        let plans = r#"
+import std.array
+fn plans(xs: list[float]) {
+    let a = array.from_list(xs).astype(f64)
+    let _ = (a - a.mean()) / a.std(correction=0)
+}
+"#;
+        let (plan_diags, _) = check_source(plans);
+        let plan_errors = error_messages(&plan_diags);
+        assert!(
+            plan_errors.is_empty(),
+            "plan methods must not require python: {plan_errors:?}"
+        );
+
+        let std_ok = r#"
+import std.array
+fn std_ok(xs: list[float]) {
+    let a = array.from_list(xs)
+    let _ = a.std(correction=0)
+}
+"#;
+        let (std_ok_diags, _) = check_source(std_ok);
+        let std_ok_errors = error_messages(&std_ok_diags);
+        assert!(
+            std_ok_errors.is_empty(),
+            "std(correction=0) typechecks: {std_ok_errors:?}"
+        );
+
+        for (label, src) in [
+            (
+                "missing",
+                "import std.array\nfn missing(xs: list[float]) {\n    let a = array.from_list(xs)\n    let _ = a.std()\n}\n",
+            ),
+            (
+                "positional",
+                "import std.array\nfn positional(xs: list[float]) {\n    let a = array.from_list(xs)\n    let _ = a.std(0)\n}\n",
+            ),
+        ] {
+            let (diags, _) = check_source(src);
+            let errors = error_messages(&diags);
+            assert!(
+                !errors.is_empty(),
+                "std {label} must be a diagnostic, got none"
+            );
+        }
+
+        let arith = r#"
+fn same(a: Array[f64], z: Array[f64]) {
+    let s = a - z
+    let d = a / z
+}
+fn mismatch(a: Array[int], b: Array[f64]) {
+    let _ = a - b
+    let _ = a / b
+}
+fn scalar_mix(a: Array[f64]) {
+    let _ = a - 1.0
+}
+fn host_promo() {
+    let x = 1 + 1.0
+}
+"#;
+        let (arith_diags, arith_hir) = check_source(arith);
+        let arith_errors = error_messages(&arith_diags);
+        assert!(
+            arith_errors.iter().all(|m| m.contains("astype")),
+            "only dtype mismatches should fail, and they must name astype: {arith_errors:?}"
+        );
+        assert!(
+            arith_errors.len() >= 3,
+            "sub, div, and scalar mix must each name astype: {arith_errors:?}"
+        );
+        let same = arith_hir
+            .functions
+            .iter()
+            .find(|f| f.name == "same")
+            .expect("same");
+        let mut array_results = 0;
+        for stmt in &same.body {
+            let crate::hir::HirStmt::Let { value, .. } = stmt else {
+                continue;
+            };
+            let crate::hir::HirExpr::Binary(_, _, _, span) = value else {
+                continue;
+            };
+            assert_eq!(
+                inferred_of(&arith_hir, *span),
+                &crate::hir::HirType::Generic(
+                    "Array".into(),
+                    vec![crate::hir::HirType::Named("f64".into())]
+                )
+            );
+            array_results += 1;
+        }
+        assert_eq!(array_results, 2, "sub and div of Array of f64");
+
+        let promo = arith_hir
+            .functions
+            .iter()
+            .find(|f| f.name == "host_promo")
+            .expect("host_promo");
+        let crate::hir::HirStmt::Let { value, .. } = &promo.body[0] else {
+            panic!("host promo let");
+        };
+        let crate::hir::HirExpr::Binary(_, _, _, span) = value else {
+            panic!("host promo is not binary");
+        };
+        assert_eq!(
+            inferred_of(&arith_hir, *span),
+            &crate::hir::HirType::Named("float".into()),
+            "1 + 1.0 stays host float promotion"
         );
     }
 }

@@ -539,7 +539,8 @@ impl<'a> Checker<'a> {
                         Ty::List(inner)
                         | Ty::Option(inner)
                         | Ty::Stream(inner)
-                        | Ty::Set(inner) => {
+                        | Ty::Set(inner)
+                        | Ty::Array(inner) => {
                             vec![inner.as_ref().clone()]
                         }
                         Ty::Result(ok, _err) => vec![ok.as_ref().clone()],
@@ -549,7 +550,24 @@ impl<'a> Checker<'a> {
                     let method_ty = self.uf.instantiate_with(&method_ty, &bindings);
 
                     if let Ty::Fn(params, ret) = method_ty {
-                        self.check_arguments(&params, args, *span);
+                        if method == "std" && matches!(obj_ty, Ty::Array(_)) {
+                            self.check_array_std_args(args, *span);
+                        } else {
+                            self.check_arguments(&params, args, *span);
+                        }
+                        if method == "to_list"
+                            && matches!(obj_ty, Ty::Array(_))
+                            && !self
+                                .current_caps
+                                .iter()
+                                .any(|cap| matches!(cap, crate::hir::HirCapability::Python))
+                        {
+                            self.diags.push(Diagnostic::error(
+                                "to_list on Array requires `uses python`".into(),
+                                *span,
+                                self.source,
+                            ));
+                        }
                         ret.as_ref().clone()
                     } else {
                         Ty::Error
@@ -1013,4 +1031,22 @@ fn method_not_found_diag(
         source,
     )
     .with_code(crate::typeck::diagnostics::codes::TYPES_METHOD_NOT_FOUND)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn array_sub_mismatch_names_astype() {
+        let src = "fn mismatch(a: Array[int], b: Array[f64]) {\n    let _ = a - b\n}\n";
+        let tokens = crate::lexer::lex(src);
+        let module = crate::parser::parse(tokens).expect("parse");
+        let mut hir = crate::hir::lower_module(&module);
+        let diags = crate::typeck::typecheck_hir_module(src, &mut hir);
+        let errors: Vec<_> = diags
+            .iter()
+            .filter(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error)
+            .map(|d| d.message.as_str())
+            .collect();
+        assert!(errors.iter().any(|m| m.contains("astype")), "{errors:?}");
+    }
 }

@@ -16,6 +16,8 @@ pub struct Checker<'a> {
     pub diags: &'a mut Vec<Diagnostic>,
     pub inferred_types: &'a mut std::collections::HashMap<Span, HirType>,
     pub source: &'a str,
+    /// Capabilities of the function whose body is being checked.
+    current_caps: Vec<HirCapability>,
 }
 
 pub(crate) fn hir_expr_span(expr: &HirExpr) -> Span {
@@ -72,6 +74,7 @@ impl<'a> Checker<'a> {
             diags,
             inferred_types,
             source,
+            current_caps: Vec::new(),
         }
     }
 
@@ -117,6 +120,7 @@ impl<'a> Checker<'a> {
         if f.ts_extern_module.is_some() {
             return;
         }
+        self.current_caps.clone_from(&f.capabilities);
         let was_inferred = f.return_type.is_none();
         let mut ret_ty = f
             .return_type
@@ -176,6 +180,7 @@ impl<'a> Checker<'a> {
 
         self.env.pop_return_type();
         self.env.pop_scope();
+        self.current_caps.clear();
     }
 
     fn check_endpoint_fn(&mut self, sf: &mut HirEndpointFn) {
@@ -928,4 +933,18 @@ pub fn typecheck_hir(
     }
     module.inferred_types = inferred_types;
     diags
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_module_typechecks_without_diagnostics() {
+        let mut env = TypeEnv::new();
+        let builtins = BuiltinTypes::register_all(&mut env);
+        let mut module = HirModule::default();
+        let diags = typecheck_hir(&mut module, &mut env, &builtins, "");
+        assert!(diags.is_empty(), "{diags:?}");
+    }
 }
