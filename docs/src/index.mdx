@@ -48,7 +48,7 @@ You do **not** need to know Rust, SQL migrations, or React build tools to read a
   <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 10px; padding: 1.1rem; background: var(--sl-color-bg-nav);">
     <p style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sl-color-accent-high); margin: 0 0 0.35rem;">Step 3 · Concept Wiki</p>
     <h3 style="margin: 0 0 0.45rem; font-size: 1.05rem;"><a href="/explanation/why-vox-for-ai/" style="text-decoration: none;">Why Vox Works This Way →</a></h3>
-    <p style="margin: 0; font-size: 0.92rem; line-height: 1.5; color: var(--sl-color-gray-2);">Plain-language explanations of how one file replaces SQL + backend + frontend glue code.</p>
+    <p style="margin: 0; font-size: 0.92rem; line-height: 1.5; color: var(--sl-color-gray-2);">Why each language choice was made, and what it buys, is in <a href="#why-vox">Why Vox</a> on this page. The concept page goes further on compiler feedback for generated code.</p>
   </div>
 </div>
 
@@ -74,11 +74,19 @@ Names and types can drift at each boundary. People and coding agents both spend 
   </p>
 </div>
 
-Vox puts those layers in one language:
+These are the choices that follow from that, and what each one buys.
 
-- **One declaration.** A `table` is the source for the SQL schema, backend types, HTTP shape, and TypeScript client.
-- **No `null`, no uncaught exceptions.** Missing values are `Option[T]` (`Some(x)` or `None`). Fallible calls return `Result[T]` (`Ok(x)` or `Error(msg)`). Code that ignores either case does not type-check.
-- **Two ways to run the same file.** `query`, `mutation`, `server`, `component`, `workflow`, `activity`, `tool`, and `resource` follow one rule: bare keywords open scopes, and `@decorators` modify declarations. `vox run` interprets the file in a sandbox. `vox build` emits SQLite/Turso, a Rust (Axum) server, and a TypeScript/React client.
+**One declaration, projected.** A second schema, written by hand, drifts, and an agent copying it drifts the same way. A `table` is the source. SQL, the server types, the JSON shape, and the TypeScript client are generated from it. `vox build` emits SQLite/Turso, Rust (Axum), and React/TypeScript, because one stack is what the tests can actually cover. Django, Vue, and other frameworks are outside that path.
+
+**Missing values and failures are typed.** Generated code skips a failure it cannot see. `Option[T]` is `Some(x)` or `None`. `Result[T]` is `Ok(x)` or `Error(msg)`. Code that ignores either case does not type-check. `?` returns the error to the caller.
+
+**Ids are typed.** A task id and a user id are different facts. A boundary takes `Id[Task]` rather than a bare string, so the two cannot be swapped.
+
+**Keywords open scopes. Decorators modify them.** `table`, `query`, `mutation`, `server`, `component`, `workflow`, `activity`, `tool`, and `resource` each open a scope. `@auth`, `@pure`, `@durable`, and `@uses` change how a declaration runs. One spelling means people and agents copy the same form. A new behavior is a decorator, so the keyword list stays stable.
+
+**The same file runs now, or compiles.** Scripts, repo automation, and the browser playground should start without a Rust build. A shipped app should be ordinary Rust and TypeScript. `vox run` interprets the file. `--caps` is the list of effects the host grants (filesystem, network, and the rest). `vox build` emits the database, the server, and the client from that same file. The two executors are still being matched, and a generated server build needs a Vox source checkout (`VOX_REPO_ROOT`).
+
+**A tool is a function in the same file.** An agent tool kept in a side schema drifts like a hand-written JSON contract. `tool` is a typed function plus a short description. The program and an MCP client call that declaration, and a failure comes back as `Result`.
 {/* SYNC-END: why_vox */}
 
 ### How One `.vox` File Compiles Across the Stack
