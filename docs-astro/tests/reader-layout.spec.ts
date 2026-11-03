@@ -52,92 +52,47 @@ test.describe('SITE-01..05 Reader Layout Matrix', () => {
               fullPage: false,
             });
           } else {
-            // Desktop and Tablet (>= 50rem): Left sidebar present with pin toggle
+            // Desktop and tablet: one left chevron closes and reopens the navigation.
             const pinBtn = page.locator('#vox-sidebar-pin-toggle');
             if (await pinBtn.isVisible()) {
-              // 2. Collapse Left Sidebar
               await pinBtn.click();
-              await expect(page.locator('html')).toHaveAttribute('data-sidebar-state', 'collapsed');
+              await expect(page.locator('html')).toHaveAttribute('data-sidebar-state', 'hidden');
+              await expect(pinBtn).toBeVisible();
 
-              // Move mouse away and blur button so hover/focus overlay does not expand it
-              await page.mouse.move(600, 600);
-              await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-
-              // Wait for 200ms width transition to settle to 56px (3.5rem)
               await page.waitForFunction(() => {
                 const el = document.querySelector('.sidebar-pane');
-                return el && window.getComputedStyle(el).width === '56px';
+                return el && window.getComputedStyle(el).width === '0px';
               }, { timeout: 3000 });
 
               await page.screenshot({
-                path: join(bundleDir, `${pageInfo.name}-${vpName}-${theme}-02-left-collapsed.png`),
+                path: join(bundleDir, `${pageInfo.name}-${vpName}-${theme}-02-left-hidden.png`),
                 fullPage: false,
               });
 
-              // 3. Hover Rail Expansion Overlay (on desktop with hover)
               if (vpName === 'desktop') {
-                await page.locator('.sidebar-pane').hover();
-                // Wait for hover transition to expand to 300px (18.75rem)
-                await page.waitForFunction(() => {
-                  const el = document.querySelector('.sidebar-pane');
-                  return el && window.getComputedStyle(el).width === '300px';
-                }, { timeout: 3000 });
-
-                await page.screenshot({
-                  path: join(bundleDir, `${pageInfo.name}-${vpName}-${theme}-03-left-hover.png`),
-                  fullPage: false,
-                });
-                await page.mouse.move(600, 600); // unhover
-
-                // Wait for collapse back to 56px
-                await page.waitForFunction(() => {
-                  const el = document.querySelector('.sidebar-pane');
-                  return el && window.getComputedStyle(el).width === '56px';
-                }, { timeout: 3000 });
-              }
-
-              // 4. Hide Right Sidebar (if TOC present at >= 72rem)
-              if (vpName === 'desktop') {
-                const hideBtn = page.locator('#vox-toc-hide-btn');
-                if (await hideBtn.isVisible()) {
-                  await hideBtn.click();
+                const tocEdge = page.locator('#vox-toc-edge');
+                if (await tocEdge.isVisible()) {
+                  await tocEdge.click();
                   await expect(page.locator('html')).toHaveAttribute('data-toc-state', 'hidden');
-
-                  const restoreBtn = page.locator('#vox-toc-restore-btn');
-                  await expect(restoreBtn).toBeVisible();
+                  await expect(tocEdge).toBeVisible();
 
                   await page.screenshot({
-                    path: join(bundleDir, `${pageInfo.name}-${vpName}-${theme}-04-both-collapsed.png`),
+                    path: join(bundleDir, `${pageInfo.name}-${vpName}-${theme}-03-both-hidden.png`),
                     fullPage: false,
                   });
 
-                  // 5. Restore Right Sidebar
-                  await restoreBtn.click();
+                  await tocEdge.click();
                   await expect(page.locator('html')).toHaveAttribute('data-toc-state', 'visible');
                 }
               }
 
-              // 6. Completely Hide Left Sidebar and Restore via themed pill button
-              // First pin it back so #vox-sidebar-hide-btn is directly visible
               await pinBtn.click();
               await expect(page.locator('html')).toHaveAttribute('data-sidebar-state', 'pinned');
-              const leftHideBtn = page.locator('#vox-sidebar-hide-btn');
-              await expect(leftHideBtn).toBeVisible();
-              await leftHideBtn.click();
+
+              await pinBtn.click();
               await expect(page.locator('html')).toHaveAttribute('data-sidebar-state', 'hidden');
-
-              const leftRestoreBtn = page.locator('#vox-sidebar-restore-btn');
-              await expect(leftRestoreBtn).toBeVisible();
-              await leftRestoreBtn.click();
-              await expect(page.locator('html')).toHaveAttribute('data-sidebar-state', 'pinned');
-
-              // Collapse again for persistence check
-              await pinBtn.click();
-              await expect(page.locator('html')).toHaveAttribute('data-sidebar-state', 'collapsed');
-
-              // 7. Persistence across page reload
               await page.reload({ waitUntil: 'domcontentloaded' });
-              await expect(page.locator('html')).toHaveAttribute('data-sidebar-state', 'collapsed');
+              await expect(page.locator('html')).toHaveAttribute('data-sidebar-state', 'hidden');
             }
           }
         });
