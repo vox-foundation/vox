@@ -2035,11 +2035,12 @@ impl BuiltinTypes {
         }
 
         // Array methods come from `python_array_ops`, ahead of the string-key map.
-        // `from_list` stays on `StdArrayNs` and is not a method of `Ty::Array`.
+        // `from_list` stays on `StdArrayNs`. `add` and `mul` are binary
+        // operators, like the values `sub` and `div` produce, and are not methods.
         if let Ty::Array(_) = obj_ty {
             return crate::python_array_support::python_array_ops()
                 .iter()
-                .find(|op| op.name == method && op.name != "from_list")
+                .find(|op| op.name == method && !matches!(op.name, "from_list" | "add" | "mul"))
                 .map(|op| array_op_fn_ty(op.signature, true));
         }
 

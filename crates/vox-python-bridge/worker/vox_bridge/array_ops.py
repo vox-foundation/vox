@@ -24,6 +24,16 @@ def astype(stack, step, host):
     stack[-1] = np.asarray(stack[-1], dtype=np.float64)
 
 
+def add(stack, step, host):
+    import numpy as np
+
+    if len(stack) < 2:
+        raise PlanError("py-plan: add needs two values")
+    rhs = stack.pop()
+    lhs = stack.pop()
+    stack.append(np.asarray(lhs + rhs, dtype=np.float64))
+
+
 def sub(stack, step, host):
     import numpy as np
 
@@ -32,6 +42,16 @@ def sub(stack, step, host):
     rhs = stack.pop()
     lhs = stack.pop()
     stack.append(np.asarray(lhs - rhs, dtype=np.float64))
+
+
+def mul(stack, step, host):
+    import numpy as np
+
+    if len(stack) < 2:
+        raise PlanError("py-plan: mul needs two values")
+    rhs = stack.pop()
+    lhs = stack.pop()
+    stack.append(np.asarray(lhs * rhs, dtype=np.float64))
 
 
 def div(stack, step, host):
@@ -64,19 +84,64 @@ def std(stack, step, host):
     stack[-1] = np.asarray(np.std(stack[-1], correction=correction), dtype=np.float64)
 
 
+def sort(stack, step, host):
+    import numpy as np
+
+    if not stack:
+        raise PlanError("py-plan: sort on empty stack")
+    nulls = step.get("nulls")
+    if nulls not in ("first", "last"):
+        raise PlanError(f"py-plan: sort nulls {nulls!r}")
+    values = np.asarray(stack[-1], dtype=np.float64).reshape(-1)
+    # np.sort has no nulls argument. Partition, sort the finite values, then join.
+    finite_mask = ~np.isnan(values)
+    ordered = np.sort(values[finite_mask])
+    nans = values[~finite_mask]
+    if nulls == "first":
+        out = np.concatenate((nans, ordered))
+    else:
+        out = np.concatenate((ordered, nans))
+    stack[-1] = np.asarray(out, dtype=np.float64)
+
+
 def to_list(stack, step, host):
     if not stack:
         raise PlanError("py-plan: to_list on empty stack")
 
 
+def item(stack, step, host):
+    import numpy as np
+
+    if not stack:
+        raise PlanError("py-plan: item on empty stack")
+    values = np.asarray(stack[-1], dtype=np.float64).reshape(-1)
+    if values.size != 1:
+        raise PlanError("py-plan: item requires one value")
+    stack[-1] = np.asarray(values, dtype=np.float64)
+
+
+def shape(stack, step, host):
+    import numpy as np
+
+    if not stack:
+        raise PlanError("py-plan: shape on empty stack")
+    values = np.asarray(stack[-1])
+    stack[-1] = np.asarray(values.shape, dtype=np.float64)
+
+
 HANDLERS = {
     "from_list": from_list,
     "astype": astype,
+    "add": add,
     "sub": sub,
+    "mul": mul,
     "div": div,
     "mean": mean,
     "std": std,
+    "sort": sort,
     "to_list": to_list,
+    "item": item,
+    "shape": shape,
 }
 
 

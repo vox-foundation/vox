@@ -17,6 +17,8 @@ pub fn plan_worker_calls() -> u32 {
 pub struct PlanStep {
     pub op: &'static str,
     pub correction: Option<i64>,
+    /// `sort` records `first` or `last`. Other ops leave this empty.
+    pub nulls: Option<&'static str>,
 }
 
 /// A lazy numpy plan. `mean` and `std` stay rank 0. Nothing here calls
@@ -37,6 +39,7 @@ impl ArrayPlan {
             steps: vec![PlanStep {
                 op: "from_list",
                 correction: None,
+                nulls: None,
             }],
             host: values,
             rank: 1,
@@ -47,7 +50,13 @@ impl ArrayPlan {
     /// Append `astype`. This plan only records the op; it does not cast.
     #[must_use]
     pub fn astype(&self, _dtype: &str) -> Self {
-        self.push("astype", None, self.rank)
+        self.push("astype", None, None, self.rank)
+    }
+
+    /// Elementwise add. A rank-0 right-hand side broadcasts.
+    #[must_use]
+    pub fn add(&self, other: &Self) -> Self {
+        self.combine(other, "add")
     }
 
     /// Elementwise subtract. A rank-0 right-hand side broadcasts.
@@ -56,23 +65,41 @@ impl ArrayPlan {
         self.combine(other, "sub")
     }
 
+    /// Elementwise multiply. A rank-0 right-hand side broadcasts.
+    #[must_use]
+    pub fn mul(&self, other: &Self) -> Self {
+        self.combine(other, "mul")
+    }
+
     /// Elementwise divide. A rank-0 right-hand side broadcasts.
     #[must_use]
     pub fn div(&self, other: &Self) -> Self {
         self.combine(other, "div")
     }
 
+    /// Append `sort`. `nulls` is stored on the step. This does not call the worker
+    /// and does not pass `nulls` to `np.sort`.
+    #[must_use]
+    pub fn sort(&self, nulls: &str) -> Self {
+        let recorded = match nulls {
+            "first" => Some("first"),
+            "last" => Some("last"),
+            _ => None,
+        };
+        self.push("sort", None, recorded, self.rank)
+    }
+
     /// 0-d mean plan. Does not call the worker.
     #[must_use]
     pub fn mean(&self) -> Self {
-        self.push("mean", None, 0)
+        self.push("mean", None, None, 0)
     }
 
     /// 0-d std plan. `correction` is stored on the step and is not defaulted
     /// by a worker call.
     #[must_use]
     pub fn std(&self, correction: i64) -> Self {
-        self.push("std", Some(correction), 0)
+        self.push("std", Some(correction), None, 0)
     }
 
     /// `from_list`, `astype` f64, subtract `mean`, divide `std(correction)`.
@@ -104,6 +131,28 @@ impl ArrayPlan {
         self.worker_calls
     }
 
+    /// `nulls` stored on the `sort` step, if this plan has one.
+    #[must_use]
+    pub fn sort_nulls(&self) -> Option<&'static str> {
+        self.steps
+            .iter()
+            .rev()
+            .find(|step| step.op == "sort")
+            .and_then(|step| step.nulls)
+    }
+
+    /// Append a materializer op (`item` or `shape`) without calling the worker.
+    #[must_use]
+    pub(crate) fn appending(&self, op: &'static str) -> Self {
+        self.push(op, None, None, self.rank)
+    }
+
+    /// Steps in plan order, including `correction` and `nulls`.
+    #[must_use]
+    pub(crate) fn param_steps(&self) -> Vec<PlanStep> {
+        self.steps.clone()
+    }
+
     /// `correction` stored on the `std` step, if this plan has one.
     #[must_use]
     pub fn correction(&self) -> Option<i64> {
@@ -114,9 +163,19 @@ impl ArrayPlan {
             .and_then(|step| step.correction)
     }
 
-    fn push(&self, op: &'static str, correction: Option<i64>, rank: u8) -> Self {
+    fn push(
+        &self,
+        op: &'static str,
+        correction: Option<i64>,
+        nulls: Option<&'static str>,
+        rank: u8,
+    ) -> Self {
         let mut next = self.clone();
-        next.steps.push(PlanStep { op, correction });
+        next.steps.push(PlanStep {
+            op,
+            correction,
+            nulls,
+        });
         next.rank = rank;
         next.worker_calls = plan_worker_calls();
         next
@@ -128,6 +187,7 @@ impl ArrayPlan {
         next.steps.push(PlanStep {
             op,
             correction: None,
+            nulls: None,
         });
         next.rank = if self.rank == 0 {
             other.rank
@@ -206,16 +266,18 @@ mod tests {
             [
                 "from_list",
                 "astype",
+                "add",
                 "sub",
+                "mul",
                 "div",
                 "mean",
                 "std",
-                "to_list"
+                "sort",
+                "to_list",
+                "item",
+                "shape",
             ]
         );
-        for banned in ["add", "mul", "sort", "item", "shape"] {
-            assert!(!yaml_names.contains(&banned), "{banned} is plan 02");
-        }
         for op in ops {
             let name = op.get("name").and_then(serde_yaml::Value::as_str).unwrap();
             let expected = op
@@ -242,12 +304,12 @@ mod tests {
             assert_ne!(op.expected_yaml.trim(), "null");
             assert!(!op.signature.is_empty());
             assert_eq!(op.handler, op.name);
-            if op.name == "std" {
-                assert_eq!(op.required_named, &["correction"]);
-            } else {
-                assert!(op.required_named.is_empty(), "{}", op.name);
+            match op.name {
+                "std" => assert_eq!(op.required_named, &["correction"]),
+                "sort" => assert_eq!(op.required_named, &["nulls"]),
+                _ => assert!(op.required_named.is_empty(), "{}", op.name),
             }
-            let kind = if op.name == "to_list" {
+            let kind = if matches!(op.name, "to_list" | "item" | "shape") {
                 PythonArrayOpKind::Materializer
             } else {
                 PythonArrayOpKind::Plan
@@ -304,6 +366,50 @@ mod tests {
                 .and_then(serde_yaml::Value::as_f64)
                 .is_some_and(f64::is_nan)
         );
+    }
+
+    #[test]
+    fn sort_is_a_plan() {
+        let before = plan_worker_calls();
+        let plan = ArrayPlan::from_list(vec![3.0, f64::NAN, 1.0]).sort("first");
+        match VoxValue::ArrayPlan(plan.clone()) {
+            VoxValue::ArrayPlan(inner) => {
+                assert_eq!(inner.worker_calls(), 0);
+                assert!(inner.op_names().contains(&"sort"), "{:?}", inner.op_names());
+                assert_eq!(inner.sort_nulls(), Some("first"));
+                assert_eq!(inner.host().len(), 3);
+                assert_eq!(inner.host()[0], 3.0);
+                assert!(
+                    inner.host()[1].is_nan(),
+                    "sort stores the input; it does not reorder"
+                );
+                assert_eq!(inner.host()[2], 1.0);
+            }
+            other => panic!("expected ArrayPlan, got {other:?}"),
+        }
+        let last = ArrayPlan::from_list(vec![3.0, f64::NAN, 1.0]).sort("last");
+        assert_eq!(last.sort_nulls(), Some("last"));
+        assert_eq!(last.worker_calls(), 0);
+        assert!(matches!(VoxValue::ArrayPlan(last), VoxValue::ArrayPlan(_)));
+        assert_eq!(plan_worker_calls(), before);
+        assert_eq!(plan.worker_calls(), 0);
+    }
+
+    #[test]
+    fn add_mul_are_plans() {
+        let before = plan_worker_calls();
+        let left = ArrayPlan::from_list(vec![1.0, 3.0]);
+        let sum = left.add(&ArrayPlan::from_list(vec![1.0, 1.0]));
+        let prod = ArrayPlan::from_list(vec![2.0, 3.0]).mul(&ArrayPlan::from_list(vec![4.0, 5.0]));
+        let broadcast = left.add(&left.mean());
+        assert!(sum.op_names().contains(&"add"), "{:?}", sum.op_names());
+        assert!(prod.op_names().contains(&"mul"), "{:?}", prod.op_names());
+        assert_eq!(broadcast.rank(), 1, "a 0-d addend broadcasts");
+        assert_eq!(sum.worker_calls(), 0);
+        assert_eq!(prod.worker_calls(), 0);
+        assert_eq!(broadcast.worker_calls(), 0);
+        assert_eq!(plan_worker_calls(), before);
+        assert!(matches!(VoxValue::ArrayPlan(sum), VoxValue::ArrayPlan(_)));
     }
 
     fn f64_list(value: &serde_yaml::Value) -> Vec<f64> {

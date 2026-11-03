@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vox/contracts/python/plan-ir.v1.schema.json",
   "title": "std.array plan IR, stats slice",
-  "description": "Same op envelope as ecosystem-support. Only the seven z-score names are nodes. No linalg, fft, where, or slice.",
+  "description": "Same op envelope as ecosystem-support. Only the twelve stats-slice names are nodes. No linalg, fft, where, or slice.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "module", "engine", "ops"],
@@ -28,7 +28,7 @@
         "properties": {
           "name": {
             "type": "string",
-            "enum": ["from_list", "astype", "sub", "div", "mean", "std", "to_list"]
+            "enum": ["from_list", "astype", "add", "sub", "mul", "div", "mean", "std", "sort", "to_list", "item", "shape"]
           },
           "kind": {
             "type": "string",
