@@ -207,6 +207,10 @@ pub struct Interpreter {
     pub fs_quota: FsQuota,
     pub activity_names: std::collections::HashSet<String>,
     pub workflow_names: std::collections::HashSet<String>,
+    /// User functions whose HIR capabilities include `HirCapability::Python`.
+    python_fns: std::collections::HashSet<String>,
+    /// User functions whose HIR capabilities include `HirCapability::PythonUnverified`.
+    python_unverified_fns: std::collections::HashSet<String>,
     pub activity_hook: Option<crate::eval::activity_hook::ActivityHook>,
     /// Durable call-site ordinals installed from the loaded HIR.
     pub call_ordinals: std::collections::HashMap<crate::ast::span::Span, u32>,
@@ -436,6 +440,8 @@ impl Interpreter {
             fs_quota: FsQuota::default(),
             activity_names: std::collections::HashSet::new(),
             workflow_names: std::collections::HashSet::new(),
+            python_fns: std::collections::HashSet::new(),
+            python_unverified_fns: std::collections::HashSet::new(),
             activity_hook: None,
             call_ordinals: std::collections::HashMap::new(),
             call_keys: std::collections::HashMap::new(),
@@ -451,6 +457,24 @@ impl Interpreter {
             && let Some(seed) = self.caps.random_seed()
         {
             self.rng = Some(rand::SeedableRng::seed_from_u64(seed));
+        }
+    }
+
+    /// Record a declared Python effect from the HIR function, not from a
+    /// source scan at the call. Lambdas and builtin placeholders are not
+    /// `HirFn` registrations and stay out of these sets.
+    fn record_python_capabilities(&mut self, f: &crate::hir::HirFn) {
+        if f.capabilities
+            .iter()
+            .any(|c| matches!(c, crate::hir::HirCapability::Python))
+        {
+            self.python_fns.insert(f.name.clone());
+        }
+        if f.capabilities
+            .iter()
+            .any(|c| matches!(c, crate::hir::HirCapability::PythonUnverified))
+        {
+            self.python_unverified_fns.insert(f.name.clone());
         }
     }
 
@@ -508,6 +532,7 @@ impl Interpreter {
         // environment in the `eval::expr` Lambda arm — only top-level
         // registration is changed here.
         for f in &module.functions {
+            self.record_python_capabilities(f);
             let val = VoxValue::Fn {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
                 body: std::rc::Rc::new(f.body.clone()),
@@ -521,6 +546,7 @@ impl Interpreter {
         }
 
         for f in &module.tests {
+            self.record_python_capabilities(f);
             let val = VoxValue::Fn {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
                 body: std::rc::Rc::new(f.body.clone()),
@@ -540,6 +566,19 @@ impl Interpreter {
         // `UndefinedVariable`, since endpoint fns live in `module.endpoint_fns`,
         // not `module.functions`.
         for f in &module.endpoint_fns {
+            // Endpoint decls are `HirEndpointFn` (effects, not `HirFn.capabilities`).
+            if f.effects
+                .iter()
+                .any(|e| matches!(e, crate::hir::HirEffectKind::Python))
+            {
+                self.python_fns.insert(f.name.clone());
+            }
+            if f.effects
+                .iter()
+                .any(|e| matches!(e, crate::hir::HirEffectKind::PythonUnverified))
+            {
+                self.python_unverified_fns.insert(f.name.clone());
+            }
             let val = VoxValue::Fn {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
                 body: std::rc::Rc::new(f.body.clone()),
@@ -564,6 +603,7 @@ impl Interpreter {
             .chain(module.mcp_resources.iter().map(|r| &r.func))
             .chain(module.examples.iter())
         {
+            self.record_python_capabilities(f);
             let val = VoxValue::Fn {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
                 body: std::rc::Rc::new(f.body.clone()),
@@ -674,6 +714,7 @@ impl Interpreter {
             // so capturing `self.scope.clone()` per imported fn was both
             // unnecessary and a route back to the O(2^N) clone blow-up for
             // many-function imported modules.
+            self.record_python_capabilities(f);
             let val = VoxValue::Fn {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
                 body: std::rc::Rc::new(f.body.clone()),
@@ -745,6 +786,7 @@ impl Interpreter {
             is_traced,
         } = val
         {
+            crate::eval::expr::deny_declared_python(self, &fn_name)?;
             if params.len() != args.len() {
                 return Err(EvalError::ArityMismatch {
                     expected: params.len(),

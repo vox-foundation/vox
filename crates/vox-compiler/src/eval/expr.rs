@@ -24,6 +24,28 @@ pub(crate) fn normalize_constructor(val: VoxValue) -> VoxValue {
     }
 }
 
+/// Refuse a user function whose declared Python effect is outside the grant.
+///
+/// `Python` requires namespace `py`. `PythonUnverified` requires
+/// `py.unverified`. `py:allow` does not satisfy the unverified check.
+pub(crate) fn deny_declared_python(interp: &Interpreter, fn_name: &str) -> Result<(), EvalError> {
+    if interp.python_fns.contains(fn_name) && !interp.caps.allows_namespace("py") {
+        return Err(EvalError::CapabilityDenied {
+            ns: "py".into(),
+            method: fn_name.to_string(),
+        });
+    }
+    if interp.python_unverified_fns.contains(fn_name)
+        && !interp.caps.allows_namespace("py.unverified")
+    {
+        return Err(EvalError::CapabilityDenied {
+            ns: "py.unverified".into(),
+            method: fn_name.to_string(),
+        });
+    }
+    Ok(())
+}
+
 pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, EvalError> {
     interp.track_step()?;
     match expr {
@@ -160,6 +182,9 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     return Ok(result);
                 }
                 let callee = eval_expr(interp, right)?;
+                if let VoxValue::Fn { ref name, .. } = callee {
+                    deny_declared_python(interp, name)?;
+                }
                 return apply_closure(interp, &callee, vec![l]);
             }
             let r = eval_expr(interp, right)?;
@@ -466,6 +491,12 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 if let VoxValue::Fn {
                     name: ref fn_name, ..
                 } = c
+                {
+                    deny_declared_python(interp, fn_name)?;
+                }
+                if let VoxValue::Fn {
+                    name: ref fn_name, ..
+                } = c
                     && interp.activity_names.contains(fn_name)
                 {
                     return super::activity_hook::dispatch_activity(
@@ -665,7 +696,8 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 && let Some((_, val)) = fields.iter().find(|(k, _)| k == method)
             {
                 match val.clone() {
-                    VoxValue::Fn { .. } => {
+                    VoxValue::Fn { ref name, .. } => {
+                        deny_declared_python(interp, name)?;
                         return apply_closure(interp, &val.clone(), eval_args);
                     }
                     VoxValue::Constructor(name) => {
@@ -1057,8 +1089,15 @@ fn apply_closure(
 ) -> Result<VoxValue, EvalError> {
     let (params, body, env) = match closure {
         VoxValue::Fn {
-            params, body, env, ..
-        } => (params.clone(), body.clone(), env.clone()),
+            params,
+            body,
+            env,
+            name,
+            ..
+        } => {
+            deny_declared_python(interp, name)?;
+            (params.clone(), body.clone(), env.clone())
+        }
         other => {
             return Err(EvalError::TypeError {
                 expected: "function",
