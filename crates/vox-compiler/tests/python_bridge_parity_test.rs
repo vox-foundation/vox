@@ -130,6 +130,105 @@ fn on_disk_expected_matches_behavior_cases() {
     );
 }
 
+/// A row counts only with a signature, a real worker handler, and a non-null
+/// expected object.
+#[rustfmt::skip]
+fn check_row(_row: &Value, _worker: &str) -> Result<(), String> { // toestub-ignore(skeleton/hollow-fn): RED stub returns Ok until the checks land
+    Ok(())
+}
+
+#[test]
+fn synthetic_row_missing_signature_handler_or_expected_is_err() {
+    let root = workspace_root();
+    let yaml_path = root.join("contracts/python/ecosystem-support.yaml");
+    let before = std::fs::read(&yaml_path)
+        .unwrap_or_else(|err| panic!("read {}: {err}", yaml_path.display()));
+    let doc: Value = serde_yaml::from_slice(&before)
+        .unwrap_or_else(|err| panic!("parse {}: {err}", yaml_path.display()));
+    let ops = doc.get("ops").and_then(Value::as_sequence).expect("ops");
+    let mean = ops
+        .iter()
+        .find(|op| op.get("name").and_then(Value::as_str) == Some("mean"))
+        .expect("mean row")
+        .clone();
+    let worker_path = root.join("crates/vox-python-bridge/worker/vox_bridge/array_ops.py");
+    let worker = std::fs::read_to_string(&worker_path)
+        .unwrap_or_else(|err| panic!("read {}: {err}", worker_path.display()));
+
+    let mut dropped_signature = mean.clone();
+    dropped_signature
+        .as_mapping_mut()
+        .expect("row")
+        .remove("signature");
+    assert!(
+        check_row(&dropped_signature, &worker).is_err(),
+        "dropping signature must return Err"
+    );
+
+    let mut dropped_handler = mean.clone();
+    dropped_handler
+        .as_mapping_mut()
+        .expect("row")
+        .remove("handler");
+    assert!(
+        check_row(&dropped_handler, &worker).is_err(),
+        "dropping handler must return Err"
+    );
+
+    let mut unknown_handler = mean.clone();
+    unknown_handler.as_mapping_mut().expect("row").insert(
+        Value::String("handler".into()),
+        Value::String("no_such_op".into()),
+    );
+    assert!(
+        check_row(&unknown_handler, &worker).is_err(),
+        "a handler that is not a column-0 def and not a HANDLERS key must return Err"
+    );
+
+    // A comment that mentions the op is not a column-0 def and not a HANDLERS key.
+    let comment_only = "# def ghost(\n# \"ghost\": ghost\n";
+    let mut comment_row = mean.clone();
+    let comment_map = comment_row.as_mapping_mut().expect("row");
+    comment_map.insert(Value::String("name".into()), Value::String("ghost".into()));
+    comment_map.insert(
+        Value::String("handler".into()),
+        Value::String("ghost".into()),
+    );
+    assert!(
+        check_row(&comment_row, comment_only).is_err(),
+        "a comment that mentions an op name is not a handler"
+    );
+
+    let mut dropped_expected = mean.clone();
+    dropped_expected
+        .as_mapping_mut()
+        .expect("row")
+        .remove("expected");
+    assert!(
+        check_row(&dropped_expected, &worker).is_err(),
+        "dropping expected must return Err"
+    );
+
+    let mut null_expected = mean.clone();
+    null_expected
+        .as_mapping_mut()
+        .expect("row")
+        .insert(Value::String("expected".into()), Value::Null);
+    assert!(
+        check_row(&null_expected, &worker).is_err(),
+        "a null expected must return Err"
+    );
+
+    assert!(
+        check_row(&mean, &worker).is_ok(),
+        "a complete mean row against the worker must return Ok"
+    );
+
+    let after = std::fs::read(&yaml_path)
+        .unwrap_or_else(|err| panic!("reread {}: {err}", yaml_path.display()));
+    assert_eq!(before, after, "synthetic cases must not rewrite the yaml");
+}
+
 fn expected_of<'a>(ops: &'a [Value], name: &str) -> &'a Value {
     ops.iter()
         .find(|op| op.get("name").and_then(Value::as_str) == Some(name))
