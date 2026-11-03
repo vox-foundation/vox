@@ -15,9 +15,9 @@
   <h1>Vox</h1>
 
   <p>
-    <strong>An experimental, AI-native programming language and development suite</strong><br />
-    <em>Give humans and AI one coherent voice to express data, logic, interfaces, and workflows — without drowning in four layers of fragile glue code.</em><br />
-    Full-stack compiler &amp; script interpreter · unified CLI · multi-agent orchestrator · desktop operator console · curated knowledge base · native Rust ML training lane
+    <strong>An experimental programming language and development suite</strong><br />
+    <em>One <code>.vox</code> file can declare data, server logic, UI, and agent tools.</em><br />
+    Compiler and script interpreter · CLI · multi-agent orchestrator · desktop console · knowledge-base index · Rust ML training lane
   </p>
 
   <p>
@@ -39,7 +39,7 @@
 </div>
 
 > [!WARNING]
-> **Last reviewed: 2026-11-02.** Vox is an active pre-1.0 research project (`0.6.0` workspace), not hardened production software. Core paths — the parser and type checker (`vox check`), the sandboxed script interpreter (`vox run`), the SQLite/Turso data layer (`vox-db`, schema baseline 97), the curated knowledge-base index (`vox kb`), and the repository's CI/architecture guards — work and are tested daily. Full-stack app codegen (`vox build`), durable workflow replay, the Tauri operator GUI (`vox-gui`), deep research (`vox research`), and local QLoRA model training (`vox mens`) are active prototypes with known rough edges documented in the [Status](#status) tables below. Public Qwen3 adapters are on Hugging Face (see [ML lane](#ml-lane-mens)). There is no stable release tag yet; build from source. Draft nightly tags are not the supported install. Treat the repository as an open engineering lab notebook.
+> **Last reviewed: 2026-11-02.** Vox is an active pre-1.0 research project (`0.6.0` workspace), not production software. Core paths — the parser and type checker (`vox check`), the sandboxed script interpreter (`vox run`), the SQLite/Turso data layer (`vox-db`, schema baseline 97), the curated knowledge-base index (`vox kb`), and the repository's CI and architecture guards — work and are tested on `main`. Full-stack codegen (`vox build`), durable workflow replay, the Tauri operator GUI (`vox-gui`), deep research (`vox research`), and local QLoRA training (`vox mens`) are prototypes. Limits are in the [Status](#status) tables. Public Qwen3 adapters are on Hugging Face ([ML lane](#ml-lane-mens)). There is no stable release tag. Build from source. Draft nightly tags are not the supported install.
 
 <p align="center">
   <em>"Is it a fact — or have I dreamt it — that, by means of electricity, the world of matter has become a great nerve, vibrating thousands of miles in a breathless point of time? Rather, the round globe is a vast head, a brain, instinct with intelligence!"</em><br />
@@ -52,7 +52,7 @@
 
 1. [Why Vox](#why-vox)
 2. [A First Look at `.vox` Code](#a-first-look-at-vox-code)
-3. [What's in the Box](#whats-in-the-box)
+3. [What this repository contains](#what-this-repository-contains)
 4. [Tradeoffs: What Vox Optimizes For (and What It Costs)](#tradeoffs-what-vox-optimizes-for-and-what-it-costs)
 5. [How It's Built & Project Stewardship](#how-its-built--project-stewardship)
 6. [Status](#status)
@@ -66,15 +66,14 @@
 <!-- ANCHOR: why_vox -->
 ## Why Vox
 
-**Building software should feel like speaking a clear thought into existence — not translating the same idea into four incompatible dialects and praying the seams hold.**
+A typical web app restates one domain model in four places:
 
-Every time you bring an idea to life on the modern web, mainstream stacks force you to fracture that single thought across four separate worlds:
-1. A **database schema** (in SQL or an ORM migration) to store it.
-2. A **backend server** (in Rust, Go, Python, or Node) to validate and serve it.
-3. A **network wire contract** to serialize JSON across the gap.
-4. A **frontend interface** (in TypeScript/React) to unpack that JSON and put it in front of a human.
+1. A **database schema** (SQL or an ORM migration).
+2. A **backend** (Rust, Go, Python, or Node) that validates and serves it.
+3. A **wire contract**, usually JSON.
+4. A **frontend** (TypeScript/React) that reads that JSON.
 
-Those languages and frameworks were designed decades before artificial intelligence, for an era where developers manually wired every boundary and accepted that a hidden `null` pointer or an undeclared exception might quietly crash the app at 2 a.m. Today, that fragmentation is the single biggest tax on both human creativity and machine intelligence. Whether you are learning to build your first app or collaborating with an AI coding agent, every seam between layers is a place where field names drift, types mismatch, and intent gets lost in boilerplate. A million-token context window does not help when most of it is spent keeping glue code in sync.
+Names and types can drift at each boundary. People and coding agents both spend time keeping the copies aligned.
 
 <div align="center">
   <img src="docs/src/assets/old_internet_knot_abstract.png" alt="Schema Fragmentation in Traditional Web Stacks — 4-layer technical schematic" width="760" />
@@ -85,13 +84,14 @@ Those languages and frameworks were designed decades before artificial intellige
   </p>
 </div>
 
-**Vox (*"voice"*) is what falls out when you design a programming language for human clarity and AI collaboration from day one:**
-- **One voice, zero translation drift.** Express a concept once. One `table` declaration generates your SQL schema, your backend types, your HTTP wire format, and your TypeScript client — automatically and in lockstep.
-- **Honest code that cannot fail silently.** There is no `null` and no uncaught exception in Vox. Missing values use `Option[T]` (`Some(x)` or `None`) and operations that can fail return `Result[T]` (`Ok(x)` or `Error(msg)`). If you or an AI agent forget to handle a failure, the compiler refuses the code before it ever runs.
-- **From instant spark to full-stack reality.** Database queries (`query` / `mutation`), server endpoints (`server`), UI components (`component`), durable crash-safe workflows (`workflow` / `activity`), and AI agent tools (`tool` / `resource`) live in a single `.vox` grammar with one consistent rule: **bare keywords open scopes, and `@decorators` modify declarations**. Run it immediately in a sandboxed interpreter (`vox run`) or compile it into a full-stack SQLite/Turso, Rust (Axum), and TypeScript/React application (`vox build`).
+Vox puts those layers in one language:
+
+- **One declaration.** A `table` is the source for the SQL schema, backend types, HTTP shape, and TypeScript client.
+- **No `null`, no uncaught exceptions.** Missing values are `Option[T]` (`Some(x)` or `None`). Fallible calls return `Result[T]` (`Ok(x)` or `Error(msg)`). Code that ignores either case does not type-check.
+- **Two ways to run the same file.** `query`, `mutation`, `server`, `component`, `workflow`, `activity`, `tool`, and `resource` follow one rule: bare keywords open scopes, and `@decorators` modify declarations. `vox run` interprets the file in a sandbox. `vox build` emits SQLite/Turso, a Rust (Axum) server, and a TypeScript/React client.
 <!-- ANCHOR_END: why_vox -->
 
-> **Research honesty note:** Whether this language design measurably improves LLM pass rates over TypeScript or Python is our central research hypothesis — not an established fact. The statistical evaluation harness (`vox model eval-compare` and `eval-corpus` with seeded multi-turn compiler-feedback repair) landed in October 2026, and controlled benchmark trials are now being wired up (see [The central claim](#the-central-claim)).
+> Measured comparison with TypeScript: [The central claim](#the-central-claim). The harness is `vox model eval-compare` and `eval-corpus`.
 
 ---
 
@@ -139,7 +139,7 @@ Depending on what you are building, Vox gives you two execution lanes for the sa
 
 ---
 
-## What's in the Box
+## What this repository contains
 
 Vox started as a compiler, but testing an AI-native language required building the agent harness, knowledge base, and evaluation tools around it. Today one repository and one `vox` binary family cover six connected areas:
 
@@ -385,14 +385,12 @@ Curiosity, bug reports, sceptical benchmarks, and experiments are welcome. Expec
 - **CI & quality gates:** [TOESTUB Contributor Guide](docs/src/contributors/toestub-contributor-guide.md)
 - **Agent & contributor policy:** [`AGENTS.md`](AGENTS.md)
 
-## Sponsors & Backing
+## Sponsors
 
-Vox is independent, Apache-2.0 open-source research stewarded by **Bertrand Reyna-Brainerd** and the **Vox Foundation** (in formation). Funding supports public playground hosting (`eval.voxlang.org`), cross-platform CI, and open cross-model compiler benchmark runs (`vox model eval-compare`).
+Apache-2.0 project. Maintainer: Bertrand Reyna-Brainerd. GitHub org: Vox Foundation (legal entity still in formation). Sponsorship pays for `eval.voxlang.org`, CI, and `vox model eval-compare` runs.
 
-- **Back the project:** [Open Collective (`vox-foundation`)](https://opencollective.com/vox-foundation) · [GitHub Sponsors](https://github.com/sponsors/brbrainerd) · [Sustainability & Grant Playbook](docs/src/contributors/sustainability-and-funding-ssot-2026.md)
-- **Senator of the Republic Sponsors (\$500/mo):** *Become the first organization to back open AI-compiler verification research.*
-- **Centurion Sponsors (\$50/mo):** *Indie teams and builders supporting the Vox toolchain and standalone Rust crates (`vox-arch-check`, `vox-secrets`).*
-- **Plebeian Supporters (\$5/mo) & Custom Contributors:** *Every contribution goes to the public ledger.*
+- [Open Collective](https://opencollective.com/vox-foundation) · [GitHub Sponsors](https://github.com/sponsors/brbrainerd) · [Grant notes](docs/src/contributors/sustainability-and-funding-ssot-2026.md)
+- Suggested amounts, if you want a default: $500/mo, $50/mo, or $5/mo. The ledger is public.
 
 ## License & Contact
 
