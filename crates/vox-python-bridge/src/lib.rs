@@ -6,6 +6,10 @@
 use std::ffi::OsString;
 use std::time::Duration;
 
+mod frame;
+mod host;
+
+pub use host::Bridge;
 pub use vox_foundation::protocol::{DispatchRequest, DispatchResponse};
 
 /// Worker spawn and protocol limits. `worker_cmd` selects the real interpreter
@@ -56,46 +60,6 @@ pub enum BridgeError {
 impl BridgeError {
     pub fn protocol(msg: impl Into<String>) -> Self {
         Self::Protocol(msg.into())
-    }
-}
-
-/// One lazy worker. Requests are serialized and handles carry a generation.
-pub struct Bridge {
-    config: BridgeConfig,
-    stderr: std::sync::Mutex<String>,
-}
-
-impl Bridge {
-    pub fn new(config: BridgeConfig) -> Self {
-        Self {
-            config,
-            stderr: std::sync::Mutex::new(String::new()),
-        }
-    }
-
-    pub fn generation(&self) -> u32 {
-        let _ = &self.config;
-        0
-    }
-
-    /// Queue handle ids. The next [`Self::call`] sends them as one `release`.
-    pub fn enqueue_release(&self, id: u64) {
-        let _ = (self, id);
-    }
-
-    /// Stderr captured from the worker since spawn. `debug.print` lands here.
-    pub fn stderr_text(&self) -> String {
-        self.stderr.lock().expect("stderr lock").clone()
-    }
-
-    pub async fn call(
-        &self,
-        method: &str,
-        params: serde_json::Value,
-        body: Option<&[u8]>,
-    ) -> Result<Reply, BridgeError> {
-        let _ = (method, params, body, &self.config);
-        Err(BridgeError::protocol("not implemented"))
     }
 }
 
