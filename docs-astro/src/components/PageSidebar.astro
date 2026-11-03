@@ -4,42 +4,49 @@ import Default from '@astrojs/starlight/components/PageSidebar.astro';
 ---
 
 <button
-  id="vox-toc-restore-btn"
+  id="vox-toc-edge"
+  class="vox-edge-toggle"
   type="button"
-  aria-label="Show table of contents"
-  aria-expanded="false"
-  title="Show table of contents"
+  aria-label="Hide table of contents"
+  aria-expanded="true"
+  title="Hide table of contents"
 >
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <line x1="21" y1="10" x2="3" y2="10" />
-    <line x1="21" y1="6" x2="3" y2="6" />
-    <line x1="21" y1="14" x2="3" y2="14" />
-    <line x1="21" y1="18" x2="7" y2="18" />
+  <svg class="vox-edge-icon-close" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M9 6 L15 12 L9 18" />
   </svg>
-  <span class="vox-toc-restore-label">On this page</span>
+  <svg class="vox-edge-icon-open" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M15 6 L9 12 L15 18" />
+  </svg>
 </button>
 
 <Default {...Astro.props}><slot /></Default>
 
 <script is:inline>
   (function() {
-    function initTocRestore() {
-      var btn = document.getElementById('vox-toc-restore-btn');
+    function initTocEdge() {
+      var btn = document.getElementById('vox-toc-edge');
       if (!btn) return;
-      var hideBtn = document.getElementById('vox-toc-hide-btn');
-      var isHidden = document.documentElement.dataset.tocState === 'hidden';
-      btn.setAttribute('aria-expanded', isHidden ? 'false' : 'true');
+
+      function updateAria(state) {
+        var hidden = state === 'hidden';
+        btn.setAttribute('aria-expanded', hidden ? 'false' : 'true');
+        btn.setAttribute('aria-label', hidden ? 'Show table of contents' : 'Hide table of contents');
+        btn.setAttribute('title', hidden ? 'Show table of contents' : 'Hide table of contents');
+      }
+
+      updateAria(document.documentElement.dataset.tocState || 'visible');
 
       if (btn.dataset.voxBound === 'true') return;
       btn.dataset.voxBound = 'true';
 
       btn.addEventListener('click', function() {
-        document.documentElement.dataset.tocState = 'visible';
-        btn.setAttribute('aria-expanded', 'true');
-        if (hideBtn) hideBtn.setAttribute('aria-expanded', 'true');
+        var hidden = document.documentElement.dataset.tocState === 'hidden';
+        var nextState = hidden ? 'visible' : 'hidden';
+        document.documentElement.dataset.tocState = nextState;
         try {
-          localStorage.setItem('vox-toc-state', 'visible');
+          localStorage.setItem('vox-toc-state', nextState);
         } catch (e) {}
+        updateAria(nextState);
       });
     }
 
@@ -60,7 +67,17 @@ import Default from '@astrojs/starlight/components/PageSidebar.astro';
             var pre = node.tagName === 'PRE' ? node : node.parentElement;
             if (!pre || pre.dataset.mermaidProcessed === 'true') return;
             pre.dataset.mermaidProcessed = 'true';
-            var source = (pre.textContent || '').trim();
+            // Expressive Code lays each line out in its own element, so the
+            // pre's textContent is one line. Mermaid then fails with
+            // "Syntax error in text" because `flowchart LR` is not followed
+            // by a newline. Rebuild the source from those lines.
+            var lines = pre.querySelectorAll('.ec-line');
+            var source = lines.length
+              ? Array.prototype.map.call(lines, function(line) {
+                  var code = line.querySelector('.code') || line;
+                  return code.textContent || '';
+                }).join('\n').trim()
+              : (pre.textContent || '').trim();
             if (!source) return;
             var wrapper = pre.closest('.expressive-code') || pre;
             var container = document.createElement('div');
@@ -73,7 +90,8 @@ import Default from '@astrojs/starlight/components/PageSidebar.astro';
                 wrapper.style.display = 'none';
               })
               .catch(function() {
-                // Keep clean code block visible on parse/render failure
+                var failed = document.getElementById(renderId);
+                if (failed) failed.remove();
               });
           });
         })
@@ -83,7 +101,7 @@ import Default from '@astrojs/starlight/components/PageSidebar.astro';
     }
 
     function initAll() {
-      initTocRestore();
+      initTocEdge();
       initMermaidDiagrams();
     }
 
