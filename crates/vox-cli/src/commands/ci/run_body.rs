@@ -491,6 +491,20 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 Ok(())
             }
         }
+        CiCmd::PythonBridgeParity => {
+            let cargo = cargo_bin();
+            let st = Command::new(&cargo)
+                .current_dir(&root)
+                .args([
+                    "test",
+                    "-p",
+                    "vox-compiler",
+                    "--test",
+                    "python_bridge_parity",
+                ])
+                .status()?;
+            python_bridge_parity_from_status(st)
+        }
         CiCmd::PolicySmoke => {
             // Closure so every failure path EVALUATES to Err (flows through `result`),
             // letting the per-gate wrapper record Fail instead of a stale Pass.
@@ -941,8 +955,14 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
 }
 
 fn python_bridge_parity_from_status(status: std::process::ExitStatus) -> Result<()> {
-    let _ = status.success();
-    Ok(())
+    if status.success() {
+        println!("python-bridge-parity OK");
+        Ok(())
+    } else {
+        Err(anyhow!(
+            "python bridge parity failed; run `cargo test -p vox-compiler --test python_bridge_parity`"
+        ))
+    }
 }
 
 /// Pure mapping from a tracked gate's `Ok`/`Err` outcome to the `PolicyResult`

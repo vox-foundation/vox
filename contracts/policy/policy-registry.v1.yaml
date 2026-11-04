@@ -2608,6 +2608,22 @@ policies:
   default_enabled: true
   protected: false
   origin: builtin
+- id: ci-gate/ci.python-bridge-parity
+  domain: ci-gate
+  title: Ci Python-bridge-parity
+  group: CI Gates / python
+  description: CLI operation `vox ci python-bridge-parity`
+  severity: error
+  blocking: true
+  runs_on:
+  - ci
+  source:
+    kind: command
+    ref: contracts/operations/catalog.v1.yaml#ci.python-bridge-parity
+    detail: vox ci python-bridge-parity
+  default_enabled: true
+  protected: false
+  origin: builtin
 - id: ci-gate/ci.query-all-guard
   domain: ci-gate
   title: Ci Query-all-guard

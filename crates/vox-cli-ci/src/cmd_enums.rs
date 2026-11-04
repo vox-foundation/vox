@@ -743,6 +743,9 @@ pub enum CiCmd {
     /// Run rust ecosystem support parity checks (`vox-compiler` contract + classifier test).
     #[command(name = "rust-ecosystem-policy")]
     RustEcosystemPolicy,
+    /// Run `std.array` parity checks (`vox-compiler` signature, handler, and expected).
+    #[command(name = "python-bridge-parity")]
+    PythonBridgeParity,
     /// Fast local smoke: orchestrator compile + command-compliance + rust ecosystem policy.
     #[command(name = "policy-smoke")]
     PolicySmoke,
@@ -1382,6 +1385,7 @@ impl CiCmd {
             CiCmd::OperationsVerify => Some("ci-gate/ci.operations-verify"),
             CiCmd::NomenclatureGuard { .. } => Some("ci-gate/ci.nomenclature-guard"),
             CiCmd::RustEcosystemPolicy => Some("ci-gate/ci.rust-ecosystem-policy"),
+            CiCmd::PythonBridgeParity => Some("ci-gate/ci.python-bridge-parity"),
             CiCmd::PolicySmoke => Some("ci-gate/ci.policy-smoke"),
             CiCmd::SecretEnvGuard { .. } => Some("ci-gate/ci.secret-env-guard"),
             CiCmd::SecretsParity => Some("ci-gate/ci.secrets-parity"),
