@@ -365,6 +365,64 @@ fn reject_nulls(null_count: usize, name: &str, step: &str) -> Result<(), String>
     }
 }
 
+/// Encode named `i64` columns as an Arrow IPC stream (collect fixtures).
+pub fn encode_i64_frame(columns: &[(&str, &[i64])]) -> Result<Vec<u8>, String> {
+    use arrow_array::Int64Array;
+    let cols: Vec<(&str, ArrayRef)> = columns
+        .iter()
+        .map(|(name, values)| {
+            (
+                *name,
+                Arc::new(Int64Array::from(values.to_vec())) as ArrayRef,
+            )
+        })
+        .collect();
+    write_batch(cols)
+}
+
+/// Encode one nullable `i64` column (null-cell error fixtures).
+pub fn encode_nullable_i64_frame(name: &str, values: &[Option<i64>]) -> Result<Vec<u8>, String> {
+    use arrow_array::Int64Array;
+    write_batch(vec![(
+        name,
+        Arc::new(Int64Array::from(values.to_vec())) as ArrayRef,
+    )])
+}
+
+/// Encode the typed collect fixture: ints, decimal128, UTC timestamp, date32, duration.
+///
+/// All columns are padded to `revenue.len()` so the batch is rectangular.
+pub fn encode_typed_frame_fixture(
+    revenue: &[i64],
+    decimal_coefficient: i128,
+    decimal_scale: i8,
+    timestamp_us_utc: i64,
+    date32_days: i32,
+    duration_us: i64,
+) -> Result<Vec<u8>, String> {
+    use arrow_array::{
+        Date32Array, Decimal128Array, DurationMicrosecondArray, Int64Array,
+        TimestampMicrosecondArray,
+    };
+    let n = revenue.len();
+    let amount = Decimal128Array::from(vec![decimal_coefficient; n])
+        .with_precision_and_scale(38, decimal_scale)
+        .map_err(|err| format!("py: arrow encode: {err}"))?;
+    let when = TimestampMicrosecondArray::from(vec![timestamp_us_utc; n]).with_timezone_utc();
+    let days = Date32Array::from(vec![date32_days; n]);
+    let elapsed = DurationMicrosecondArray::from(vec![duration_us; n]);
+    write_batch(vec![
+        (
+            "revenue",
+            Arc::new(Int64Array::from(revenue.to_vec())) as ArrayRef,
+        ),
+        ("price", Arc::new(amount) as ArrayRef),
+        ("when", Arc::new(when) as ArrayRef),
+        ("day", Arc::new(days) as ArrayRef),
+        ("elapsed", Arc::new(elapsed) as ArrayRef),
+    ])
+}
+
 fn write_batch(columns: Vec<(&str, ArrayRef)>) -> Result<Vec<u8>, String> {
     let batch =
         RecordBatch::try_from_iter(columns).map_err(|err| format!("py: arrow encode: {err}"))?;

@@ -17,7 +17,10 @@ pub use array_ipc::{
     encode_host_columns, encode_i64_column,
 };
 pub use array_numeric::{DecodedColumn, decode_column, encode_f32_column, encode_u64_column};
-pub use frame_columns::{DecodedFrame, FrameCell, TemporalUnit, decode_frame_columns};
+pub use frame_columns::{
+    DecodedFrame, FrameCell, TemporalUnit, decode_frame_columns, encode_i64_frame,
+    encode_nullable_i64_frame, encode_typed_frame_fixture,
+};
 
 pub use host::Bridge;
 pub use vox_foundation::protocol::{DispatchRequest, DispatchResponse};
