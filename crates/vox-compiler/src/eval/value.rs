@@ -16,6 +16,22 @@ pub enum VoxValue {
     /// Pure `std.array` plan. Constructors store the host list and append
     /// op names; they do not call the Python worker.
     ArrayPlan(crate::eval::array_plan::ArrayPlan),
+    /// Pure `std.frame` plan. Constructors store the path and op names;
+    /// they do not call the Python worker.
+    FramePlan(crate::eval::frame_plan::FramePlan),
+    /// One expression inside a frame filter or aggregation.
+    FrameExpr(crate::eval::frame_plan::FrameExpr),
+    /// Collected frame. One concrete column per field. A missing name is an
+    /// error value, not an absent cell.
+    Records {
+        columns: Vec<(String, Vec<VoxValue>)>,
+    },
+    /// Calendar date.
+    Date(chrono::NaiveDate),
+    /// UTC timestamp.
+    DateTime(chrono::DateTime<chrono::Utc>),
+    /// Elapsed time.
+    Duration(chrono::Duration),
     /// A regex match: capture groups by index (group 0 = whole match). A `None`
     /// slot means that group did not participate. `m.group(i)` → `Option[str]`.
     Match(Vec<core::option::Option<String>>),
@@ -283,6 +299,12 @@ impl PartialEq for VoxValue {
             // zeros, so `8.2500dec == 8.25dec` is true.
             (Self::Decimal(a), Self::Decimal(b)) => a == b,
             (Self::Regex(a), Self::Regex(b)) => a.as_str() == b.as_str(),
+            (Self::FramePlan(a), Self::FramePlan(b)) => a == b,
+            (Self::FrameExpr(a), Self::FrameExpr(b)) => a == b,
+            (Self::Records { columns: a }, Self::Records { columns: b }) => a == b,
+            (Self::Date(a), Self::Date(b)) => a == b,
+            (Self::DateTime(a), Self::DateTime(b)) => a == b,
+            (Self::Duration(a), Self::Duration(b)) => a == b,
             (Self::Match(a), Self::Match(b)) => a == b,
             (Self::Str(a), Self::Str(b)) => a == b,
             (Self::Bool(a), Self::Bool(b)) => a == b,

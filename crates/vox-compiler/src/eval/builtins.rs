@@ -2608,6 +2608,28 @@ pub fn call_builtin_method(
             _ => None,
         },
 
+        // `num_rows` and `column` live on `Records`, not on `Ty::Record`.
+        VoxValue::Records { columns } => match method {
+            "num_rows" => {
+                let rows = columns.first().map(|(_, cells)| cells.len()).unwrap_or(0);
+                Some(VoxValue::Int(rows as i64))
+            }
+            "column" => {
+                let Some(VoxValue::Str(name)) = args.first() else {
+                    return Some(VoxValue::Result(Err(crate::eval::value::err_str(
+                        "column requires a name".into(),
+                    ))));
+                };
+                match columns.iter().find(|(field, _)| field == name.as_ref()) {
+                    Some((_, cells)) => Some(VoxValue::list(cells.clone())),
+                    None => Some(VoxValue::Result(Err(crate::eval::value::err_str(format!(
+                        "missing column: {name}"
+                    ))))),
+                }
+            }
+            _ => None,
+        },
+
         _ => None,
     }
 }
@@ -3215,6 +3237,12 @@ pub fn vox_value_type_name(v: &VoxValue) -> &'static str {
         VoxValue::Decimal(_) => "Decimal",
         VoxValue::Regex(_) => "Regex",
         VoxValue::ArrayPlan(_) => "ArrayPlan",
+        VoxValue::FramePlan(_) => "FramePlan",
+        VoxValue::FrameExpr(_) => "FrameExpr",
+        VoxValue::Records { .. } => "Records",
+        VoxValue::Date(_) => "Date",
+        VoxValue::DateTime(_) => "DateTime",
+        VoxValue::Duration(_) => "Duration",
         VoxValue::Match(_) => "Match",
         VoxValue::Str(_) => "Str",
         VoxValue::Bool(_) => "Bool",
@@ -3291,6 +3319,12 @@ pub fn vox_value_display(v: &VoxValue) -> String {
         }
         VoxValue::Match(_)
         | VoxValue::ArrayPlan(_)
+        | VoxValue::FramePlan(_)
+        | VoxValue::FrameExpr(_)
+        | VoxValue::Records { .. }
+        | VoxValue::Date(_)
+        | VoxValue::DateTime(_)
+        | VoxValue::Duration(_)
         | VoxValue::Fn { .. }
         | VoxValue::Constructor(_)
         | VoxValue::_Return(_)

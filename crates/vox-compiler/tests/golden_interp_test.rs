@@ -129,6 +129,8 @@ const KNOWN_INTERP_GAPS: &[(&str, &str)] = &[
     ),
     // Stats golden materializes through the uv python worker (plan 06).
     ("py_array_stats.vox", "needs the uv python worker"),
+    // Frame golden materializes through the uv python worker.
+    ("py_frame_report.vox", "needs the uv python worker"),
 ];
 
 fn is_known_gap(path: &Path) -> Option<&'static str> {
@@ -273,4 +275,33 @@ fn py_array_stats_is_an_interp_gap() {
     assert!(src.contains("assert(z is [-1.0, 1.0])"));
     assert!(src.contains("fn zscore"));
     assert!(src.contains("fn main"));
+}
+
+/// The frame report golden needs the uv worker. The in-process sweep must skip it.
+#[test]
+fn py_frame_report_is_an_interp_gap() {
+    assert!(
+        KNOWN_INTERP_GAPS.iter().any(|(name, reason)| {
+            *name == "py_frame_report.vox" && *reason == "needs the uv python worker"
+        }),
+        "py_frame_report.vox must be an interp gap"
+    );
+    let golden =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/golden/py_frame_report.vox");
+    let src = std::fs::read_to_string(&golden)
+        .unwrap_or_else(|e| panic!("read {}: {e}", golden.display()));
+    assert_eq!(src.matches(".collect()").count(), 1, "one collect only");
+    assert!(src.contains("assert(rows.num_rows() is 2)"));
+    assert!(src.contains("assert(rows.column(\"revenue\") is [10, 5])"));
+    assert!(src.contains("fn main"));
+    let csv = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../examples/golden/fixtures/py_frame_report.csv");
+    assert!(
+        csv.is_file(),
+        "csv fixture beside the golden at {}",
+        csv.display()
+    );
+    let csv_src =
+        std::fs::read_to_string(&csv).unwrap_or_else(|e| panic!("read {}: {e}", csv.display()));
+    assert!(csv_src.starts_with("month,region,amount\n"));
 }
