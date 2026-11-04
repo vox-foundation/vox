@@ -940,6 +940,11 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
     result
 }
 
+fn python_bridge_parity_from_status(status: std::process::ExitStatus) -> Result<()> {
+    let _ = status.success();
+    Ok(())
+}
+
 /// Pure mapping from a tracked gate's `Ok`/`Err` outcome to the `PolicyResult`
 /// recorded in the per-branch status store. Extracted so the honesty-critical
 /// "failure ⇒ Fail" contract is unit-testable without invoking a real gate:
@@ -1017,6 +1022,36 @@ mod gate_status_tests {
             after.results.iter().find(|r| r.id == id).unwrap().status,
             RunStatus::Fail,
             "failing tracked gate must overwrite stale Pass with Fail"
+        );
+    }
+
+    fn exit_status(code: u8) -> std::process::ExitStatus {
+        let script = format!("exit {code}");
+        let mut command = if cfg!(windows) {
+            let mut command = std::process::Command::new("cmd");
+            command.args(["/C", &script]);
+            command
+        } else {
+            let mut command = std::process::Command::new("sh");
+            command.args(["-c", &script]);
+            command
+        };
+        command
+            .status()
+            .unwrap_or_else(|err| panic!("spawn status helper: {err}"))
+    }
+
+    #[test]
+    fn python_bridge_parity_nonzero_status_is_err() {
+        let failed = exit_status(1);
+        assert!(
+            super::python_bridge_parity_from_status(failed).is_err(),
+            "a non-zero cargo status must return Err"
+        );
+        let ok = exit_status(0);
+        assert!(
+            super::python_bridge_parity_from_status(ok).is_ok(),
+            "a zero cargo status must return Ok"
         );
     }
 
