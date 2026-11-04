@@ -669,22 +669,25 @@ The step name is the plan step that produced the null (`scan_csv` for a null in 
 
 **If this table is empty:** It is not. A1–A3 need a look during implementation. They do not need a user decision before planning. The polars pin does: the checkpoint approves `2.1.0`.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Exact Rust type names for `FramePlan` and `Records`**
    - What we know: They are runtime values, not `HirType` variants. `ArrayPlan` is the pattern.
    - What's unclear: The identifier spelling.
    - Recommendation: `VoxValue::FramePlan` and `VoxValue::Records`. Planner may rename if a clash shows up. Do not add `HirType` variants either way.
+   - **RESOLVED:** Plans use `VoxValue::FramePlan` and `VoxValue::Records`. No new `HirType` variant.
 
 2. **Which plan step a null produced by `sum` of an empty group should name**
    - What we know: A null in the scanned file is `scan_csv`. CONTEXT says the message names the step that must drop or fill the cell.
    - What's unclear: Polars' null-from-aggregation step name, because `drop_nulls` / `fill_null` are deferred and were not probed.
    - Recommendation: Name the op that wrote the column (`sum`, `count`, `mean`, `min`, `max`, or `scan_csv`). The golden has no nulls, so this is the fixture's assertion, not the golden's.
+   - **RESOLVED:** The message names the op that wrote the column: `scan_csv`, `sum`, `count`, `mean`, `min`, or `max`.
 
 3. **`min` / `max` Python spelling**
-   - What we know: See A1.
-   - What's unclear: Method versus `pl.min` / `pl.max`.
-   - Recommendation: Resolve while writing the handler, after the checkpoint, against the installed 2.1 docs. Do not block the allowlist row names. Those stay `min` and `max`.
+   - What we know: See A1. The Vox names are already `min` and `max`.
+   - What's unclear: Method versus `pl.min` / `pl.max` was the open spelling. It is not chosen in this note.
+   - Recommendation: Confirm against the installed 2.1 docs inside plan 05, after the checkpoint. Do not block the allowlist row names.
+   - **RESOLVED:** Vox names stay `min` and `max`. The Python method-versus-function spelling is not selected here. Plan 05 records it after `polars==2.1.0` is approved.
 
 ## Environment Availability
 
