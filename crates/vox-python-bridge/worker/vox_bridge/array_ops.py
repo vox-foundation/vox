@@ -10,7 +10,12 @@ class PlanError(Exception):
 
 
 def from_list(stack, step, host):
-    stack.append(host.copy())
+    index = step.get("column", 0)
+    if isinstance(index, bool) or not isinstance(index, int):
+        raise PlanError(f"py-plan: from_list column {index!r}")
+    if index < 0 or index >= len(host):
+        raise PlanError(f"py-plan: from_list column {index} missing")
+    stack.append(host[index].copy())
 
 
 def astype(stack, step, host):
@@ -164,7 +169,7 @@ def execute_plan(params, body: bytes):
     sys.stderr.write(
         "vox_bridge array plan "
         f"payload={params!r} body_len={len(body) if body else 0} "
-        f"host_dtype={getattr(host, 'dtype', type(host).__name__)}\n"
+        f"host_columns={len(host)}\n"
     )
     sys.stderr.flush()
     stack = []
@@ -188,11 +193,40 @@ def execute_plan(params, body: bytes):
 def _decode_host(ipc, pa, np, body: bytes):
     if not body:
         raise PlanError("py-plan: missing arrow body")
+    if body.startswith(b"VXHC"):
+        return _decode_framed_hosts(ipc, pa, np, body)
     reader = ipc.open_stream(pa.py_buffer(body))
     batch = reader.read_next_batch()
     if batch is None or batch.num_columns < 1:
         raise PlanError("py-plan: arrow body has no column")
-    column = batch.column(0)
+    return [_numpy_column(pa, np, batch.column(index)) for index in range(batch.num_columns)]
+
+
+def _decode_framed_hosts(ipc, pa, np, body: bytes):
+    if len(body) < 8:
+        raise PlanError("py-plan: truncated host frame")
+    count = int.from_bytes(body[4:8], "little")
+    columns = []
+    offset = 8
+    for _ in range(count):
+        if offset + 4 > len(body):
+            raise PlanError("py-plan: truncated host frame")
+        size = int.from_bytes(body[offset : offset + 4], "little")
+        offset += 4
+        blob = body[offset : offset + size]
+        if len(blob) != size:
+            raise PlanError("py-plan: truncated host frame")
+        offset += size
+        decoded = _decode_host(ipc, pa, np, blob)
+        if len(decoded) != 1:
+            raise PlanError("py-plan: framed host column must be one column")
+        columns.append(decoded[0])
+    if offset != len(body):
+        raise PlanError("py-plan: trailing host frame bytes")
+    return columns
+
+
+def _numpy_column(pa, np, column):
     if pa.types.is_int64(column.type):
         return np.asarray(column.to_numpy(zero_copy_only=False), dtype=np.int64)
     if pa.types.is_floating(column.type):

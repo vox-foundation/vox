@@ -12,7 +12,8 @@ mod frame;
 mod host;
 
 pub use array_ipc::{
-    DecodedHost, decode_f64_column, decode_host_column, encode_f64_column, encode_i64_column,
+    DecodedHost, HostColumnEncode, decode_f64_column, decode_host_column, encode_f64_column,
+    encode_host_columns, encode_i64_column,
 };
 pub use array_numeric::{DecodedColumn, decode_column, encode_f32_column, encode_u64_column};
 

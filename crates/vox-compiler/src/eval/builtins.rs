@@ -2675,20 +2675,31 @@ fn take_reply_body_for_test() -> Option<Vec<u8>> {
 }
 
 fn encode_host_column(plan: &super::array_plan::ArrayPlan) -> Result<Vec<u8>, String> {
-    if let Some(ints) = plan.host_ints() {
-        tracing::debug!(
-            len = ints.len(),
-            first = ?ints.first().copied(),
-            "from_list int column sent to execute_plan"
-        );
-        return vox_python_bridge::encode_i64_column(ints);
+    let columns = plan.host_columns();
+    tracing::debug!(columns = columns.len(), "host columns sent to execute_plan");
+    let mut encoded = Vec::with_capacity(columns.len());
+    for (index, column) in columns.iter().enumerate() {
+        match column {
+            super::array_plan::HostPayload::I64(ints) => {
+                tracing::debug!(
+                    index,
+                    len = ints.len(),
+                    first = ?ints.first().copied(),
+                    "from_list int column sent to execute_plan"
+                );
+                encoded.push(vox_python_bridge::HostColumnEncode::I64(ints));
+            }
+            super::array_plan::HostPayload::F64(floats) => {
+                tracing::debug!(
+                    index,
+                    len = floats.len(),
+                    "from_list float column sent to execute_plan"
+                );
+                encoded.push(vox_python_bridge::HostColumnEncode::F64(floats));
+            }
+        }
     }
-    let floats = plan.host();
-    tracing::debug!(
-        len = floats.len(),
-        "from_list float column sent to execute_plan"
-    );
-    vox_python_bridge::encode_f64_column(floats)
+    vox_python_bridge::encode_host_columns(&encoded)
 }
 
 fn fetch_cap_bytes(interp: &super::Interpreter) -> u64 {
@@ -2794,7 +2805,11 @@ fn plan_params(plan: &super::array_plan::ArrayPlan) -> serde_json::Value {
                 "name".into(),
                 serde_json::Value::String(step.op.to_string()),
             );
-            if step.op == "std" {
+            if step.op == "from_list" {
+                if let Some(column) = step.column {
+                    op.insert("column".into(), serde_json::json!(column));
+                }
+            } else if step.op == "std" {
                 if let Some(correction) = step.correction {
                     op.insert("correction".into(), serde_json::json!(correction));
                 }
@@ -3824,6 +3839,178 @@ mod array_materialize_tests {
                 other => panic!("expected a list, got {other:?}"),
             },
             other => panic!("expected Ok, got {other:?}"),
+        }
+    }
+
+    fn float_list(value: VoxValue) -> Vec<f64> {
+        ok_list(value)
+            .into_iter()
+            .map(|item| match item {
+                VoxValue::Float(number) => number,
+                other => panic!("expected a float, got {other:?}"),
+            })
+            .collect()
+    }
+
+    /// `[1, 3] + [1, 1]` and `[2, 3] * [4, 5]` through `materialize_to_list`.
+    /// Op names alone stay green when `combine` drops the right-hand host.
+    #[test]
+    fn binary_plans_materialize_distinct_hosts() {
+        let mut interp = Interpreter::new(1_000);
+        interp.caps = CapabilitySet::parse("py:allow").expect("caps");
+        let root = python_project_root();
+        crate::eval::python::set_python_project(
+            &mut interp,
+            crate::eval::python::PythonProject {
+                root,
+                max_fetch_mb: 64,
+                timeout: std::time::Duration::from_secs(60),
+            },
+        );
+        let caps = interp.caps.clone();
+
+        let sum = ArrayPlan::from_list(vec![1.0, 3.0]).add(&ArrayPlan::from_list(vec![1.0, 1.0]));
+        assert_eq!(
+            float_list(materialize_to_list(&mut interp, &sum, &caps)),
+            vec![2.0, 4.0],
+            "distinct hosts must not both replay the left column"
+        );
+
+        let prod = ArrayPlan::from_list(vec![2.0, 3.0]).mul(&ArrayPlan::from_list(vec![4.0, 5.0]));
+        assert_eq!(
+            float_list(materialize_to_list(&mut interp, &prod, &caps)),
+            vec![8.0, 15.0]
+        );
+
+        let z = ArrayPlan::zscore(&[1.0, 3.0], 0);
+        assert!(
+            z.op_names().contains(&"mean") && z.op_names().contains(&"std"),
+            "mean and std stay inside the plan: {:?}",
+            z.op_names()
+        );
+        let before = super::materialize_calls();
+        assert_eq!(
+            float_list(materialize_to_list(&mut interp, &z, &caps)),
+            vec![-1.0, 1.0]
+        );
+        assert_eq!(
+            super::materialize_calls(),
+            before + 1,
+            "z-score is one execute_plan"
+        );
+    }
+
+    /// Project root whose worker can import numpy and pyarrow.
+    ///
+    /// Uses `python3` when those modules are already installed. Otherwise a
+    /// temp venv shim points at an interpreter that can already import the
+    /// cached wheels. This does not install packages.
+    fn python_project_root() -> std::path::PathBuf {
+        let root = std::env::temp_dir().join(format!(
+            "vox-array-plan-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        std::fs::create_dir_all(&root).expect("project root");
+        if python_imports_array_stack(std::path::Path::new("python3"), None) {
+            return root;
+        }
+        let Some((python, pythonpath)) = cached_array_stack() else {
+            panic!("numpy and pyarrow must import under python3 or a cached 3.12 interpreter");
+        };
+        write_venv_shim(&root, &python, &pythonpath);
+        root
+    }
+
+    fn python_imports_array_stack(
+        python: &std::path::Path,
+        pythonpath: Option<&std::ffi::OsStr>,
+    ) -> bool {
+        let mut cmd = std::process::Command::new(python);
+        cmd.arg("-c").arg("import numpy, pyarrow");
+        cmd.stdout(std::process::Stdio::null());
+        cmd.stderr(std::process::Stdio::null());
+        if let Some(pythonpath) = pythonpath {
+            cmd.env("PYTHONPATH", pythonpath);
+        }
+        cmd.status().is_ok_and(|status| status.success())
+    }
+
+    fn cached_array_stack() -> Option<(std::path::PathBuf, std::ffi::OsString)> {
+        let home = std::env::var_os("HOME")?;
+        let archive = std::path::PathBuf::from(home).join(".cache/uv/archive-v0");
+        let mut numpy_parent = None;
+        let mut pyarrow_parent = None;
+        for entry in std::fs::read_dir(&archive).ok()?.flatten() {
+            let path = entry.path();
+            if numpy_parent.is_none() {
+                let site = path.join("lib/python3.12/site-packages");
+                if site.join("numpy").is_dir() {
+                    numpy_parent = Some(site);
+                }
+            }
+            if pyarrow_parent.is_none() {
+                if path.join("pyarrow").join("__init__.py").is_file() {
+                    pyarrow_parent = Some(path.clone());
+                } else {
+                    let site = path.join("lib/python3.12/site-packages");
+                    if site.join("pyarrow").is_dir() {
+                        pyarrow_parent = Some(site);
+                    }
+                }
+            }
+            if numpy_parent.is_some() && pyarrow_parent.is_some() {
+                break;
+            }
+        }
+        let numpy_parent = numpy_parent?;
+        let pyarrow_parent = pyarrow_parent?;
+        let pythonpath = std::env::join_paths([&numpy_parent, &pyarrow_parent]).ok()?;
+        let python = python312_candidates().into_iter().find(|candidate| {
+            candidate.is_file() && python_imports_array_stack(candidate, Some(&pythonpath))
+        })?;
+        Some((python, pythonpath))
+    }
+
+    fn python312_candidates() -> Vec<std::path::PathBuf> {
+        let Some(home) = std::env::var_os("HOME") else {
+            return Vec::new();
+        };
+        let home = std::path::PathBuf::from(home);
+        let mut candidates = vec![home.join(".local/bin/python3.12")];
+        let uv_pythons = home.join(".local/share/uv/python");
+        if let Ok(entries) = std::fs::read_dir(uv_pythons) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                candidates.push(path.join("bin/python3.12"));
+                candidates.push(path.join("bin/python3"));
+            }
+        }
+        candidates
+    }
+
+    fn write_venv_shim(
+        root: &std::path::Path,
+        python: &std::path::Path,
+        pythonpath: &std::ffi::OsStr,
+    ) {
+        let bin_dir = root.join(".vox/python/.venv/bin");
+        std::fs::create_dir_all(&bin_dir).expect("venv bin");
+        let shim = bin_dir.join("python");
+        let pythonpath = pythonpath.to_string_lossy();
+        let script = format!(
+            "#!/bin/sh\nexport PYTHONPATH=\"{pythonpath}:$PYTHONPATH\"\nexec \"{}\" \"$@\"\n",
+            python.display()
+        );
+        std::fs::write(&shim, script).expect("venv python");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&shim, std::fs::Permissions::from_mode(0o755))
+                .expect("venv python mode");
         }
     }
 

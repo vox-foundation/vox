@@ -31,6 +31,80 @@ pub fn encode_i64_column(values: &[i64]) -> Result<Vec<u8>, String> {
     write_batch(array)
 }
 
+/// One host column in an `execute_plan` body.
+#[derive(Debug, Clone, Copy)]
+pub enum HostColumnEncode<'a> {
+    F64(&'a [f64]),
+    I64(&'a [i64]),
+}
+
+impl HostColumnEncode<'_> {
+    fn len(self) -> usize {
+        match self {
+            Self::F64(values) => values.len(),
+            Self::I64(values) => values.len(),
+        }
+    }
+
+    fn array(self) -> ArrayRef {
+        match self {
+            Self::F64(values) => Arc::new(Float64Array::from(values.to_vec())),
+            Self::I64(values) => Arc::new(Int64Array::from(values.to_vec())),
+        }
+    }
+}
+
+/// Encode every host column.
+///
+/// Equal lengths share one record batch. Unequal lengths are a `VXHC` frame
+/// of one-column streams so a shorter column is not padded onto a longer one.
+pub fn encode_host_columns(columns: &[HostColumnEncode<'_>]) -> Result<Vec<u8>, String> {
+    if columns.is_empty() {
+        return Err("py: arrow encode: no host column".to_string());
+    }
+    if columns.len() == 1 {
+        return match columns[0] {
+            HostColumnEncode::F64(values) => encode_f64_column(values),
+            HostColumnEncode::I64(values) => encode_i64_column(values),
+        };
+    }
+    let same_len = columns
+        .windows(2)
+        .all(|pair| pair[0].len() == pair[1].len());
+    if same_len {
+        let owned: Vec<(String, ArrayRef)> = columns
+            .iter()
+            .enumerate()
+            .map(|(index, column)| (format!("c{index}"), column.array()))
+            .collect();
+        let batch = RecordBatch::try_from_iter(
+            owned
+                .iter()
+                .map(|(name, array)| (name.as_str(), array.clone())),
+        )
+        .map_err(|err| format!("py: arrow encode: {err}"))?;
+        return write_record_batch(&batch);
+    }
+    let mut framed = Vec::from(&b"VXHC"[..]);
+    push_u32(&mut framed, columns.len())?;
+    for (index, column) in columns.iter().enumerate() {
+        let name = format!("c{index}");
+        let batch = RecordBatch::try_from_iter([(name.as_str(), column.array())])
+            .map_err(|err| format!("py: arrow encode: {err}"))?;
+        let bytes = write_record_batch(&batch)?;
+        push_u32(&mut framed, bytes.len())?;
+        framed.extend_from_slice(&bytes);
+    }
+    Ok(framed)
+}
+
+fn push_u32(buf: &mut Vec<u8>, value: usize) -> Result<(), String> {
+    let value = u32::try_from(value)
+        .map_err(|_| "py: arrow encode: column frame exceeds u32".to_string())?;
+    buf.extend_from_slice(&value.to_le_bytes());
+    Ok(())
+}
+
 /// Decode an f64 or i64 column from an Arrow IPC stream body.
 pub fn decode_host_column(bytes: &[u8]) -> Result<DecodedHost, String> {
     let column = read_column(bytes)?;
@@ -60,11 +134,15 @@ pub fn decode_f64_column(bytes: &[u8]) -> Result<Vec<f64>, String> {
 fn write_batch(array: ArrayRef) -> Result<Vec<u8>, String> {
     let batch = RecordBatch::try_from_iter([("values", array)])
         .map_err(|err| format!("py: arrow encode: {err}"))?;
+    write_record_batch(&batch)
+}
+
+fn write_record_batch(batch: &RecordBatch) -> Result<Vec<u8>, String> {
     let mut buf = Vec::new();
     let mut writer = StreamWriter::try_new(&mut buf, batch.schema().as_ref())
         .map_err(|err| format!("py: arrow encode: {err}"))?;
     writer
-        .write(&batch)
+        .write(batch)
         .map_err(|err| format!("py: arrow encode: {err}"))?;
     writer
         .finish()

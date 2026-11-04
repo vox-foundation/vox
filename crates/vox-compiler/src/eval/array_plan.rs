@@ -19,6 +19,8 @@ pub struct PlanStep {
     pub correction: Option<i64>,
     /// `sort` records `first` or `last`. Other ops leave this empty.
     pub nulls: Option<&'static str>,
+    /// Host column `from_list` reads. Other ops leave this empty.
+    pub column: Option<u32>,
 }
 
 /// Host numbers stored on a plan. Floats and ints stay in separate columns
@@ -29,12 +31,19 @@ enum HostColumn {
     I64(Vec<i64>),
 }
 
+/// One host column ready to encode. Owned so the plan can be borrowed.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum HostPayload {
+    F64(Vec<f64>),
+    I64(Vec<i64>),
+}
+
 /// A lazy numpy plan. `mean` and `std` stay rank 0. Nothing here calls
 /// `Bridge::call`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ArrayPlan {
     steps: Vec<PlanStep>,
-    host: HostColumn,
+    hosts: Vec<HostColumn>,
     rank: u8,
     worker_calls: u32,
 }
@@ -48,8 +57,9 @@ impl ArrayPlan {
                 op: "from_list",
                 correction: None,
                 nulls: None,
+                column: Some(0),
             }],
-            host: HostColumn::F64(values),
+            hosts: vec![HostColumn::F64(values)],
             rank: 1,
             worker_calls: plan_worker_calls(),
         }
@@ -64,8 +74,9 @@ impl ArrayPlan {
                 op: "from_list",
                 correction: None,
                 nulls: None,
+                column: Some(0),
             }],
-            host: HostColumn::I64(values),
+            hosts: vec![HostColumn::I64(values)],
             rank: 1,
             worker_calls: plan_worker_calls(),
         }
@@ -140,19 +151,35 @@ impl ArrayPlan {
 
     #[must_use]
     pub fn host(&self) -> &[f64] {
-        match &self.host {
-            HostColumn::F64(values) => values,
-            HostColumn::I64(_) => &[],
-        }
+        self.hosts
+            .iter()
+            .find_map(|column| match column {
+                HostColumn::F64(values) => Some(values.as_slice()),
+                HostColumn::I64(_) => None,
+            })
+            .unwrap_or(&[])
     }
 
     /// Host ints, when `from_list` was given a list of int.
+    #[cfg(test)]
     #[must_use]
     pub(crate) fn host_ints(&self) -> Option<&[i64]> {
-        match &self.host {
+        self.hosts.iter().find_map(|column| match column {
             HostColumn::I64(values) => Some(values.as_slice()),
             HostColumn::F64(_) => None,
-        }
+        })
+    }
+
+    /// Every host column, in `from_list` index order.
+    #[must_use]
+    pub(crate) fn host_columns(&self) -> Vec<HostPayload> {
+        self.hosts
+            .iter()
+            .map(|column| match column {
+                HostColumn::F64(values) => HostPayload::F64(values.clone()),
+                HostColumn::I64(values) => HostPayload::I64(values.clone()),
+            })
+            .collect()
     }
 
     #[must_use]
@@ -211,6 +238,7 @@ impl ArrayPlan {
             op,
             correction,
             nulls,
+            column: None,
         });
         next.rank = rank;
         next.worker_calls = plan_worker_calls();
@@ -219,11 +247,20 @@ impl ArrayPlan {
 
     fn combine(&self, other: &Self, op: &'static str) -> Self {
         let mut next = self.clone();
-        next.steps.extend(other.steps.iter().copied());
+        let offset = u32::try_from(next.hosts.len()).unwrap_or(u32::MAX);
+        next.hosts.extend(other.hosts.iter().cloned());
+        for step in &other.steps {
+            let mut copied = *step;
+            if copied.op == "from_list" {
+                copied.column = Some(copied.column.unwrap_or(0).saturating_add(offset));
+            }
+            next.steps.push(copied);
+        }
         next.steps.push(PlanStep {
             op,
             correction: None,
             nulls: None,
+            column: None,
         });
         next.rank = if self.rank == 0 {
             other.rank
