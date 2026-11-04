@@ -2635,6 +2635,11 @@ pub fn materialize_to_list(
     if !caps.allows_namespace("py") {
         return VoxValue::_Denied("py.to_list".into());
     }
+    let max_body = fetch_cap_bytes(interp);
+    #[cfg(test)]
+    if let Some(bytes) = take_reply_body_for_test() {
+        return host_list_from_body(&bytes, max_body);
+    }
     let params = plan_params(plan);
     let body = match encode_host_column(plan) {
         Ok(bytes) => bytes,
@@ -2642,13 +2647,31 @@ pub fn materialize_to_list(
     };
     match super::python::execute_plan(interp, params, body) {
         Ok(reply) => match reply.body.as_deref() {
-            Some(bytes) => host_list_from_body(bytes),
+            Some(bytes) => host_list_from_body(bytes, max_body),
             None => VoxValue::Result(Err(crate::eval::value::err_str(
                 "py: execute_plan reply missing body".to_string(),
             ))),
         },
         Err(err) => VoxValue::Result(Err(crate::eval::value::err_str(err))),
     }
+}
+
+#[cfg(test)]
+thread_local! {
+    static FORCED_REPLY_BODY: std::cell::RefCell<Option<Vec<u8>>> =
+        std::cell::RefCell::new(None);
+}
+
+/// Supply the Arrow body [`materialize_to_list`] decodes. The numeric test
+/// uses this so `i64::MIN` never has to be a Vox literal.
+#[cfg(test)]
+pub(crate) fn set_reply_body_for_test(body: Vec<u8>) {
+    FORCED_REPLY_BODY.with(|slot| *slot.borrow_mut() = Some(body));
+}
+
+#[cfg(test)]
+fn take_reply_body_for_test() -> Option<Vec<u8>> {
+    FORCED_REPLY_BODY.with(|slot| slot.borrow_mut().take())
 }
 
 fn encode_host_column(plan: &super::array_plan::ArrayPlan) -> Result<Vec<u8>, String> {
@@ -2668,16 +2691,30 @@ fn encode_host_column(plan: &super::array_plan::ArrayPlan) -> Result<Vec<u8>, St
     vox_python_bridge::encode_f64_column(floats)
 }
 
-fn host_list_from_body(bytes: &[u8]) -> VoxValue {
+fn fetch_cap_bytes(interp: &super::Interpreter) -> u64 {
+    interp
+        .python_project
+        .as_ref()
+        .map(|project| {
+            project
+                .max_fetch_mb
+                .saturating_mul(1024)
+                .saturating_mul(1024)
+        })
+        .unwrap_or(256 * 1024 * 1024)
+}
+
+fn host_list_from_body(bytes: &[u8], max_body: u64) -> VoxValue {
     tracing::debug!(
         body_len = bytes.len(),
-        "execute_plan reply body sent to host decode"
+        max_body,
+        "execute_plan reply body sent to decode_column"
     );
-    match vox_python_bridge::decode_host_column(bytes) {
-        Ok(vox_python_bridge::DecodedHost::F64(values)) => VoxValue::Result(Ok(Box::new(
+    match vox_python_bridge::decode_column(bytes, max_body) {
+        Ok(vox_python_bridge::DecodedColumn::Floats(values)) => VoxValue::Result(Ok(Box::new(
             VoxValue::list(values.into_iter().map(VoxValue::Float).collect()),
         ))),
-        Ok(vox_python_bridge::DecodedHost::I64(values)) => VoxValue::Result(Ok(Box::new(
+        Ok(vox_python_bridge::DecodedColumn::Ints(values)) => VoxValue::Result(Ok(Box::new(
             VoxValue::list(values.into_iter().map(VoxValue::Int).collect()),
         ))),
         Err(err) => VoxValue::Result(Err(crate::eval::value::err_str(err))),
@@ -3778,5 +3815,51 @@ mod array_materialize_tests {
             }
             other => panic!("from_list of an int must stay an int plan, got {other:?}"),
         }
+    }
+
+    fn ok_list(value: VoxValue) -> Vec<VoxValue> {
+        match value {
+            VoxValue::Result(Ok(inner)) => match *inner {
+                VoxValue::List(items) => items.to_vec(),
+                other => panic!("expected a list, got {other:?}"),
+            },
+            other => panic!("expected Ok, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn array_numeric_roundtrip() {
+        let mut interp = Interpreter::new(1_000);
+        interp.caps = CapabilitySet::parse("py:allow").expect("caps");
+        let caps = interp.caps.clone();
+        let plan = ArrayPlan::from_list(vec![0.0]);
+
+        let min_body = vox_python_bridge::encode_i64_column(&[i64::MIN]).expect("i64 body");
+        super::set_reply_body_for_test(min_body);
+        let mins = ok_list(materialize_to_list(&mut interp, &plan, &caps));
+        assert_eq!(mins, vec![VoxValue::Int(i64::MIN)]);
+
+        let overflow_body =
+            vox_python_bridge::encode_u64_column(&[i64::MAX as u64 + 1]).expect("u64 body");
+        super::set_reply_body_for_test(overflow_body);
+        match materialize_to_list(&mut interp, &plan, &caps) {
+            VoxValue::Result(Err(err)) => match *err {
+                VoxValue::Str(text) => {
+                    assert!(text.starts_with("py:"), "{text}");
+                    assert!(text.contains("uint64"), "{text}");
+                    assert!(!text.starts_with("py-plan:"), "{text}");
+                    assert!(!text.starts_with("py-env:"), "{text}");
+                }
+                other => panic!("uint64 error must be a string, got {other:?}"),
+            },
+            other => panic!("uint64 above i64::MAX must error, got {other:?}"),
+        }
+
+        let widened = f64::from(0.1f32);
+        assert_ne!(widened, 0.1f64);
+        let f32_body = vox_python_bridge::encode_f32_column(&[0.1f32]).expect("f32 body");
+        super::set_reply_body_for_test(f32_body);
+        let floats = ok_list(materialize_to_list(&mut interp, &plan, &caps));
+        assert_eq!(floats, vec![VoxValue::Float(widened)]);
     }
 }

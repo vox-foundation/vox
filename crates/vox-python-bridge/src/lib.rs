@@ -7,12 +7,14 @@ use std::ffi::OsString;
 use std::time::Duration;
 
 mod array_ipc;
+mod array_numeric;
 mod frame;
 mod host;
 
 pub use array_ipc::{
     DecodedHost, decode_f64_column, decode_host_column, encode_f64_column, encode_i64_column,
 };
+pub use array_numeric::{DecodedColumn, decode_column, encode_f32_column, encode_u64_column};
 
 pub use host::Bridge;
 pub use vox_foundation::protocol::{DispatchRequest, DispatchResponse};
