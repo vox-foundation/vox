@@ -1,6 +1,6 @@
 //! Dispatch for [`PopuliAction`](crate::commands::mens::PopuliAction).
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 
 use super::PopuliAction;
 
