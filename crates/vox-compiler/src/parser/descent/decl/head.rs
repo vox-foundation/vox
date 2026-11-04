@@ -500,6 +500,16 @@ impl Parser {
                 self.advance();
                 Ok("in".to_string())
             }
+            // `and` and `or` stay lexer keywords. After a dot they are method
+            // names, same as object keys in `parse_object_lit`.
+            Token::And => {
+                self.advance();
+                Ok("and".to_string())
+            }
+            Token::Or => {
+                self.advance();
+                Ok("or".to_string())
+            }
             _ => {
                 self.errors.push(ParseError::classified(
                     self.span(),

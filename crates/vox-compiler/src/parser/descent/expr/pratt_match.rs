@@ -1156,4 +1156,38 @@ mod tests {
         assert_eq!(r.to, "not");
         assert_eq!(r.code, "vox/lexer/bang-invalid");
     }
+
+    /// `.and(` and `.or(` are method names. `and` and `or` stay lexer keywords;
+    /// `parse_ident_name` maps those tokens after a dot.
+    #[test]
+    fn method_and_or_parse() {
+        fn outer_method(src: &str) -> String {
+            let tokens = lex(src);
+            let mut p = Parser::new(tokens);
+            let expr = p.parse_expr().unwrap_or_else(|_| {
+                panic!(
+                    "`{src}` must parse as a method chain, errors: {:?}",
+                    p.errors_for_test()
+                )
+            });
+            assert!(
+                p.errors_for_test().is_empty(),
+                "`{src}` must parse without errors: {:?}",
+                p.errors_for_test()
+            );
+            match expr {
+                crate::ast::expr::Expr::MethodCall { method, .. } => method,
+                other => panic!("expected method call, got {other:?}"),
+            }
+        }
+
+        assert_eq!(
+            outer_method("col(\"a\").gt(1).and(col(\"b\").lt(2))\n"),
+            "and"
+        );
+        assert_eq!(
+            outer_method("col(\"a\").gt(1).or(col(\"b\").lt(2))\n"),
+            "or"
+        );
+    }
 }

@@ -416,7 +416,17 @@ mod tests {
         assert_eq!(LEXER_KEYWORDS.len(), 54);
         assert_eq!(LEXER_KEYWORDS.first().copied(), Some("fn"));
         assert_eq!(LEXER_KEYWORDS.last().copied(), Some("form"));
-        for absent in ["array", "astype", "f32", "f64", "correction", "nulls"] {
+        for absent in [
+            "array",
+            "astype",
+            "f32",
+            "f64",
+            "correction",
+            "nulls",
+            "frame",
+            "scan_csv",
+            "collect",
+        ] {
             assert!(
                 !LEXER_KEYWORDS.contains(&absent),
                 "{absent} must not be a lexer keyword"
