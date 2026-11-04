@@ -239,6 +239,68 @@ impl<'a> Checker<'a> {
         }
     }
 
+    /// Frame `sort` is one positional column plus `nulls` bound to `first` or
+    /// `last`. The name is not defaulted and the column is not required to be named.
+    pub(super) fn check_frame_sort_args(&mut self, args: &[HirArg], span: Span) {
+        let names: Vec<Option<String>> = args.iter().map(|arg| arg.name.clone()).collect();
+        tracing::debug!(
+            arg_count = args.len(),
+            ?names,
+            "std.frame sort arguments sent to nulls check"
+        );
+        let shaped =
+            args.len() == 2 && args[0].name.is_none() && args[1].name.as_deref() == Some("nulls");
+        if !shaped {
+            self.diags.push(Diagnostic::error(
+                "sort requires one positional column and `nulls` of \"first\" or \"last\"".into(),
+                span,
+                self.source,
+            ));
+            for arg in args {
+                let _ = self.check_expr(&arg.value, None);
+            }
+            return;
+        }
+        let column_ty = self.check_expr(&args[0].value, Some(&Ty::Str));
+        if self.uf.unify(&Ty::Str, &column_ty).is_err() {
+            let arg_span = hir_expr_span(&args[0].value);
+            self.diags.push(Diagnostic::error(
+                "sort column must be str".into(),
+                arg_span,
+                self.source,
+            ));
+        }
+        let value_ty = self.check_expr(&args[1].value, Some(&Ty::Str));
+        let literal = match &args[1].value {
+            HirExpr::StringLit(text, _) => Some(text.as_str()),
+            _ => None,
+        };
+        tracing::debug!(?literal, ?value_ty, "std.frame sort nulls payload");
+        if self.uf.unify(&Ty::Str, &value_ty).is_err() || !matches!(literal, Some("first" | "last"))
+        {
+            let arg_span = hir_expr_span(&args[1].value);
+            self.diags.push(Diagnostic::error(
+                "sort argument `nulls` must be the string \"first\" or \"last\"".into(),
+                arg_span,
+                self.source,
+            ));
+        }
+    }
+
+    /// `sum`, `count`, `mean`, `min`, and `max` inside a literal `agg` list
+    /// require `.alias(name)`. A non-literal argument is left to runtime.
+    pub(super) fn check_frame_agg_alias(&mut self, args: &[HirArg], span: Span) {
+        for arg in args {
+            if agg_literal_missing_alias(&arg.value) {
+                self.diags.push(Diagnostic::error(
+                    "aggregation inside agg requires .alias(name)".into(),
+                    span,
+                    self.source,
+                ));
+            }
+        }
+    }
+
     /// `from_list` of a host list. `list[int]` is Array of i64, `list[bool]`
     /// is Array of bool, and `list[float]` is Array of f64. i32 and f32 are
     /// not host-list dtypes.
@@ -476,6 +538,26 @@ impl<'a> Checker<'a> {
                 }
             },
         }
+    }
+}
+
+fn agg_literal_missing_alias(expr: &HirExpr) -> bool {
+    match expr {
+        HirExpr::ListLit(items, _) => items.iter().any(agg_literal_missing_alias),
+        HirExpr::MethodCall(_, method, _, _, _)
+            if matches!(method.as_str(), "sum" | "count" | "mean" | "min" | "max") =>
+        {
+            true
+        }
+        HirExpr::MethodCall(object, method, _, _, _) if method == "alias" => {
+            agg_literal_missing_alias(object)
+                && !matches!(
+                    object.as_ref(),
+                    HirExpr::MethodCall(_, inner, _, _, _)
+                        if matches!(inner.as_str(), "sum" | "count" | "mean" | "min" | "max")
+                )
+        }
+        _ => false,
     }
 }
 

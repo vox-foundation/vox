@@ -524,6 +524,11 @@ impl<'a> Checker<'a> {
                 // receiver is a Ty::Record whose field with this method name
                 // is itself a Ty::Fn, route through that signature.
                 // See RFC §11 and audit §11.7.
+                if method == "alias" && matches!(&obj_ty, Ty::Named(name) if name == "Expr") {
+                    self.check_arguments(&[Ty::Str], args, *span);
+                    return Ty::Named("Expr".into());
+                }
+
                 if let Ty::Record(fields) = &obj_ty {
                     if let Some((_, field_ty)) = fields.iter().find(|(k, _)| k == method) {
                         let field_ty = self.uf.resolve(field_ty);
@@ -573,6 +578,15 @@ impl<'a> Checker<'a> {
                                 self.check_array_std_args(args, *span);
                             } else if method == "sort" && matches!(obj_ty, Ty::Array(_)) {
                                 self.check_array_sort_args(args, *span);
+                            } else if method == "sort"
+                                && matches!(&obj_ty, Ty::Named(name) if name == "Frame")
+                            {
+                                self.check_frame_sort_args(args, *span);
+                            } else if method == "agg"
+                                && matches!(&obj_ty, Ty::Named(name) if name == "Frame")
+                            {
+                                self.check_arguments(&params, args, *span);
+                                self.check_frame_agg_alias(args, *span);
                             } else {
                                 self.check_arguments(&params, args, *span);
                             }
@@ -588,6 +602,43 @@ impl<'a> Checker<'a> {
                                     *span,
                                     self.source,
                                 ));
+                            }
+                            if method == "collect"
+                                && matches!(&obj_ty, Ty::Named(name) if name == "Frame")
+                                && !self
+                                    .current_caps
+                                    .iter()
+                                    .any(|cap| matches!(cap, crate::hir::HirCapability::Python))
+                            {
+                                self.diags.push(Diagnostic::error(
+                                    "collect on Frame requires `uses python`".into(),
+                                    *span,
+                                    self.source,
+                                ));
+                            }
+                            if method == "scan_csv"
+                                && matches!(&obj_ty, Ty::Named(name) if name == "StdFrameNs")
+                            {
+                                let has_python = self
+                                    .current_caps
+                                    .iter()
+                                    .any(|cap| matches!(cap, crate::hir::HirCapability::Python));
+                                let has_fs = self
+                                    .current_caps
+                                    .iter()
+                                    .any(|cap| matches!(cap, crate::hir::HirCapability::Fs));
+                                if !has_python || !has_fs {
+                                    self.diags.push(Diagnostic::error(
+                                        "scan_csv requires `uses python` and `uses fs`".into(),
+                                        *span,
+                                        self.source,
+                                    ));
+                                }
+                            }
+                            if method == "col"
+                                && matches!(&obj_ty, Ty::Named(name) if name == "StdFrameNs")
+                            {
+                                self.check_frame_col_known_schema(args);
                             }
                             if !reduction_ok {
                                 Ty::Error
@@ -1034,6 +1085,198 @@ impl<'a> Checker<'a> {
             .insert(super::hir_expr_span(expr), hir_ty);
         ty
     }
+
+    pub(super) fn check_frame_col_known_schema(&mut self, args: &[HirArg]) {
+        if self.frame_headers.is_empty() {
+            return;
+        }
+        let Some(HirExpr::StringLit(name, span)) = args.first().map(|arg| &arg.value) else {
+            return;
+        };
+        let known = self
+            .frame_headers
+            .iter()
+            .any(|header| header.iter().any(|column| column == name));
+        if !known {
+            self.diags.push(Diagnostic::error(
+                format!("column \"{name}\" is not in the scanned header"),
+                *span,
+                self.source,
+            ));
+        }
+    }
+}
+
+/// Headers from literal `scan_csv` paths in this function. A runtime string,
+/// a missing file, or a `..` component contributes nothing.
+pub(super) fn frame_headers_in_stmts(
+    body: &[HirStmt],
+    source_path: Option<&std::path::Path>,
+) -> Vec<Vec<String>> {
+    let mut headers = Vec::new();
+    for stmt in body {
+        collect_scan_headers_stmt(stmt, source_path, &mut headers);
+    }
+    headers
+}
+
+fn csv_header_beside_source(
+    source_path: Option<&std::path::Path>,
+    lit: &str,
+) -> Option<Vec<String>> {
+    let path = std::path::Path::new(lit);
+    if path.is_absolute()
+        || path
+            .components()
+            .any(|component| matches!(component, std::path::Component::ParentDir))
+    {
+        return None;
+    }
+    let beside = source_path?.parent()?.join(path);
+    tracing::debug!(path = %beside.display(), literal = lit, "std.frame scan_csv header path");
+    let text = std::fs::read_to_string(&beside).ok()?;
+    let header = text.lines().next().unwrap_or("");
+    tracing::debug!(%header, "std.frame scan_csv header line");
+    let columns: Vec<String> = header
+        .split(',')
+        .map(str::trim)
+        .filter(|column| !column.is_empty())
+        .map(str::to_string)
+        .collect();
+    if columns.is_empty() {
+        None
+    } else {
+        Some(columns)
+    }
+}
+
+fn collect_scan_headers_stmt(
+    stmt: &HirStmt,
+    source_path: Option<&std::path::Path>,
+    headers: &mut Vec<Vec<String>>,
+) {
+    match stmt {
+        HirStmt::Let { value, .. } => collect_scan_headers_expr(value, source_path, headers),
+        HirStmt::Assign { target, value, .. } => {
+            collect_scan_headers_expr(target, source_path, headers);
+            collect_scan_headers_expr(value, source_path, headers);
+        }
+        HirStmt::Return { value, .. } => {
+            if let Some(value) = value {
+                collect_scan_headers_expr(value, source_path, headers);
+            }
+        }
+        HirStmt::Expr { expr, .. } => collect_scan_headers_expr(expr, source_path, headers),
+        HirStmt::While {
+            condition, body, ..
+        } => {
+            collect_scan_headers_expr(condition, source_path, headers);
+            for stmt in body {
+                collect_scan_headers_stmt(stmt, source_path, headers);
+            }
+        }
+        HirStmt::Loop { body, .. } => {
+            for stmt in body {
+                collect_scan_headers_stmt(stmt, source_path, headers);
+            }
+        }
+        HirStmt::Break { .. } | HirStmt::Continue { .. } => {}
+    }
+}
+
+fn collect_scan_headers_expr(
+    expr: &HirExpr,
+    source_path: Option<&std::path::Path>,
+    headers: &mut Vec<Vec<String>>,
+) {
+    match expr {
+        HirExpr::MethodCall(object, method, args, _, _) => {
+            if method == "scan_csv" {
+                if let Some(HirExpr::StringLit(text, _)) = args.first().map(|arg| &arg.value) {
+                    if let Some(columns) = csv_header_beside_source(source_path, text) {
+                        headers.push(columns);
+                    }
+                }
+            }
+            collect_scan_headers_expr(object, source_path, headers);
+            for arg in args {
+                collect_scan_headers_expr(&arg.value, source_path, headers);
+            }
+        }
+        HirExpr::Call(callee, args, _, _) => {
+            collect_scan_headers_expr(callee, source_path, headers);
+            for arg in args {
+                collect_scan_headers_expr(&arg.value, source_path, headers);
+            }
+        }
+        HirExpr::ListLit(items, _)
+        | HirExpr::TupleLit(items, _)
+        | HirExpr::JsxFragment(items, _) => {
+            for item in items {
+                collect_scan_headers_expr(item, source_path, headers);
+            }
+        }
+        HirExpr::ObjectLit(fields, _) => {
+            for (_, value) in fields {
+                collect_scan_headers_expr(value, source_path, headers);
+            }
+        }
+        HirExpr::Binary(_, left, right, _) | HirExpr::With(left, right, _) => {
+            collect_scan_headers_expr(left, source_path, headers);
+            collect_scan_headers_expr(right, source_path, headers);
+        }
+        HirExpr::Unary(_, inner, _)
+        | HirExpr::FieldAccess(inner, _, _)
+        | HirExpr::Spawn(inner, _) => collect_scan_headers_expr(inner, source_path, headers),
+        HirExpr::Index(object, index, _) => {
+            collect_scan_headers_expr(object, source_path, headers);
+            collect_scan_headers_expr(index, source_path, headers);
+        }
+        HirExpr::If(cond, then_body, else_body, _) => {
+            collect_scan_headers_expr(cond, source_path, headers);
+            for stmt in then_body {
+                collect_scan_headers_stmt(stmt, source_path, headers);
+            }
+            if let Some(else_body) = else_body {
+                for stmt in else_body {
+                    collect_scan_headers_stmt(stmt, source_path, headers);
+                }
+            }
+        }
+        HirExpr::Block(body, _) => {
+            for stmt in body {
+                collect_scan_headers_stmt(stmt, source_path, headers);
+            }
+        }
+        HirExpr::Match(subject, arms, _) => {
+            collect_scan_headers_expr(subject, source_path, headers);
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_scan_headers_expr(guard, source_path, headers);
+                }
+                collect_scan_headers_expr(&arm.body, source_path, headers);
+            }
+        }
+        HirExpr::For(_, _, iter, body, key, _) => {
+            collect_scan_headers_expr(iter, source_path, headers);
+            collect_scan_headers_expr(body, source_path, headers);
+            if let Some(key) = key {
+                collect_scan_headers_expr(key, source_path, headers);
+            }
+        }
+        HirExpr::Lambda(_, _, body, _, _) => collect_scan_headers_expr(body, source_path, headers),
+        HirExpr::Try(hir_try) => collect_scan_headers_expr(&hir_try.target, source_path, headers),
+        HirExpr::IntLit(_, _)
+        | HirExpr::FloatLit(_, _)
+        | HirExpr::StringLit(_, _)
+        | HirExpr::BoolLit(_, _)
+        | HirExpr::DecimalLit(_, _)
+        | HirExpr::Ident(_, _)
+        | HirExpr::Jsx(_)
+        | HirExpr::JsxSelfClosing(_)
+        | HirExpr::AsyncView(_)
+        | HirExpr::WorkflowVersion(_) => {}
+    }
 }
 
 /// Build a "method not found" diagnostic that uses the human-readable
@@ -1145,6 +1388,222 @@ fn sorted(xs: list[float]) {
         assert!(
             sort_errors.is_empty(),
             "sort must not require uses python: {sort_errors:?}"
+        );
+    }
+
+    fn check_at(src: &str, path: &std::path::Path) -> Vec<String> {
+        let tokens = crate::lexer::lex(src);
+        let module = crate::parser::parse(tokens)
+            .unwrap_or_else(|errs| panic!("parse failed: {errs:?}\n{src}"));
+        let mut hir = crate::hir::lower_module(&module);
+        crate::typeck::typecheck_hir_module_with_path(src, &mut hir, Some(path))
+            .into_iter()
+            .filter(|diag| diag.severity == crate::typeck::diagnostics::TypeckSeverity::Error)
+            .map(|diag| diag.message)
+            .collect()
+    }
+
+    #[test]
+    fn frame_typeck_scan_csv_requires_python_and_fs() {
+        let bare = "\
+import std.frame
+fn bare(path: str) {
+    let _ = frame.scan_csv(path)
+}
+";
+        let bare_errors = check(bare);
+        assert!(
+            bare_errors
+                .iter()
+                .any(|message| message.contains("python") && message.contains("fs")),
+            "scan_csv without python and fs must diagnose, got {bare_errors:?}"
+        );
+
+        let py_only = "\
+import std.frame
+@uses(python)
+fn py_only(path: str) {
+    let _ = frame.scan_csv(path)
+}
+";
+        let py_errors = check(py_only);
+        assert!(
+            py_errors.iter().any(|message| message.contains("fs")),
+            "scan_csv without fs must diagnose, got {py_errors:?}"
+        );
+
+        let fs_only = "\
+import std.frame
+@uses(fs)
+fn fs_only(path: str) {
+    let _ = frame.scan_csv(path)
+}
+";
+        let fs_errors = check(fs_only);
+        assert!(
+            fs_errors.iter().any(|message| message.contains("python")),
+            "scan_csv without python must diagnose, got {fs_errors:?}"
+        );
+
+        let both = "\
+import std.frame
+@uses(python, fs)
+fn both(path: str) {
+    let _ = frame.scan_csv(path)
+}
+";
+        let both_errors = check(both);
+        assert!(
+            both_errors.is_empty(),
+            "scan_csv with python and fs typechecks: {both_errors:?}"
+        );
+
+        let collect_bare = "\
+import std.frame
+fn collect_bare(plan: Frame) {
+    let _ = plan.collect()
+}
+";
+        let collect_errors = check(collect_bare);
+        assert!(
+            collect_errors
+                .iter()
+                .any(|message| message.contains("collect") && message.contains("python")),
+            "collect without python must diagnose, got {collect_errors:?}"
+        );
+
+        let only_sort = "\
+import std.frame
+fn only_sort(plan: Frame) {
+    let _ = plan.sort(\"month\", nulls=\"last\")
+}
+";
+        let sort_errors = check(only_sort);
+        assert!(
+            sort_errors.is_empty(),
+            "sort alone must not require an effect: {sort_errors:?}"
+        );
+    }
+
+    #[test]
+    fn frame_typeck_sort_requires_nulls() {
+        let ok = "\
+import std.frame
+fn ok(plan: Frame) {
+    let _ = plan.sort(\"month\", nulls=\"last\")
+    let _ = plan.sort(\"month\", nulls=\"first\")
+}
+";
+        let ok_errors = check(ok);
+        assert!(
+            ok_errors.is_empty(),
+            "sort with nulls first or last typechecks: {ok_errors:?}"
+        );
+
+        let missing = "\
+import std.frame
+fn missing(plan: Frame) {
+    let _ = plan.sort(\"month\", \"last\")
+}
+";
+        let missing_errors = check(missing);
+        assert!(
+            missing_errors
+                .iter()
+                .any(|message| message.contains("nulls")),
+            "sort without a nulls name must diagnose, got {missing_errors:?}"
+        );
+
+        let middle = "\
+import std.frame
+fn middle(plan: Frame) {
+    let _ = plan.sort(\"month\", nulls=\"middle\")
+}
+";
+        let middle_errors = check(middle);
+        assert!(
+            middle_errors
+                .iter()
+                .any(|message| message.contains("nulls")),
+            "sort nulls must be first or last, got {middle_errors:?}"
+        );
+    }
+
+    #[test]
+    fn frame_typeck_agg_requires_alias() {
+        let missing = "\
+import std.frame
+fn missing(plan: Frame) {
+    let _ = plan.agg([frame.col(\"amount\").sum()])
+}
+";
+        let missing_errors = check(missing);
+        assert!(
+            missing_errors
+                .iter()
+                .any(|message| message.contains("alias")),
+            "aggregation inside agg without alias must diagnose, got {missing_errors:?}"
+        );
+
+        let aliased = "\
+import std.frame
+fn aliased(plan: Frame) {
+    let _ = plan.agg([frame.col(\"amount\").sum().alias(\"revenue\")])
+}
+";
+        let aliased_errors = check(aliased);
+        assert!(
+            aliased_errors.is_empty(),
+            "sum().alias typechecks inside agg: {aliased_errors:?}"
+        );
+    }
+
+    #[test]
+    fn frame_typeck_missing_column_known_schema() {
+        let golden = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../examples/golden/py_frame_report.vox");
+        let missing = "\
+import std.frame
+@uses(python, fs)
+fn missing() {
+    let _ = frame.scan_csv(\"fixtures/py_frame_report.csv\")
+    let _ = frame.col(\"missing\")
+}
+";
+        let missing_errors = check_at(missing, &golden);
+        assert!(
+            missing_errors
+                .iter()
+                .any(|message| message.contains("missing")),
+            "known header must reject col(\"missing\"), got {missing_errors:?}"
+        );
+
+        let amount = "\
+import std.frame
+@uses(python, fs)
+fn amount() {
+    let _ = frame.scan_csv(\"fixtures/py_frame_report.csv\")
+    let _ = frame.col(\"amount\")
+}
+";
+        let amount_errors = check_at(amount, &golden);
+        assert!(
+            amount_errors.is_empty(),
+            "col(\"amount\") is in the fixture header: {amount_errors:?}"
+        );
+
+        let runtime = "\
+import std.frame
+@uses(python, fs)
+fn runtime(path: str) {
+    let _ = frame.scan_csv(path)
+    let _ = frame.col(\"missing\")
+}
+";
+        let runtime_errors = check_at(runtime, &golden);
+        assert!(
+            runtime_errors.is_empty(),
+            "a runtime scan path is not a missing-column error: {runtime_errors:?}"
         );
     }
 }

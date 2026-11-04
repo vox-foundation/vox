@@ -16,6 +16,10 @@ pub struct Checker<'a> {
     pub diags: &'a mut Vec<Diagnostic>,
     pub inferred_types: &'a mut std::collections::HashMap<Span, HirType>,
     pub source: &'a str,
+    /// File being checked. Literal `scan_csv` paths resolve beside it.
+    source_path: Option<&'a std::path::Path>,
+    /// CSV headers known from literal `scan_csv` paths in the current function.
+    frame_headers: Vec<Vec<String>>,
     /// Capabilities of the function whose body is being checked.
     current_caps: Vec<HirCapability>,
 }
@@ -66,6 +70,7 @@ impl<'a> Checker<'a> {
         diags: &'a mut Vec<Diagnostic>,
         inferred_types: &'a mut std::collections::HashMap<Span, HirType>,
         source: &'a str,
+        source_path: Option<&'a std::path::Path>,
     ) -> Self {
         Self {
             env,
@@ -74,6 +79,8 @@ impl<'a> Checker<'a> {
             diags,
             inferred_types,
             source,
+            source_path,
+            frame_headers: Vec::new(),
             current_caps: Vec::new(),
         }
     }
@@ -117,9 +124,11 @@ impl<'a> Checker<'a> {
         // Extern (TS-source FFI) functions have no Vox body to check — the body
         // lives in a sibling .ts file. Skip body unification but still consume
         // params/return type so call sites resolve correctly.
+        self.frame_headers.clear();
         if f.ts_extern_module.is_some() {
             return;
         }
+        self.frame_headers = expr::frame_headers_in_stmts(&f.body, self.source_path);
         self.current_caps.clone_from(&f.capabilities);
         let was_inferred = f.return_type.is_none();
         let mut ret_ty = f
@@ -181,6 +190,7 @@ impl<'a> Checker<'a> {
         self.env.pop_return_type();
         self.env.pop_scope();
         self.current_caps.clear();
+        self.frame_headers.clear();
     }
 
     fn check_endpoint_fn(&mut self, sf: &mut HirEndpointFn) {
@@ -915,6 +925,7 @@ pub fn typecheck_hir(
     env: &mut TypeEnv,
     builtins: &BuiltinTypes,
     source: &str,
+    source_path: Option<&std::path::Path>,
 ) -> Vec<Diagnostic> {
     let mut uf = InferenceContext::new();
     let mut diags = Vec::new();
@@ -927,6 +938,7 @@ pub fn typecheck_hir(
             &mut diags,
             &mut inferred_types,
             source,
+            source_path,
         );
         checker.check_module(module);
         checker.solve_constraints();
@@ -944,7 +956,7 @@ mod tests {
         let mut env = TypeEnv::new();
         let builtins = BuiltinTypes::register_all(&mut env);
         let mut module = HirModule::default();
-        let diags = typecheck_hir(&mut module, &mut env, &builtins, "");
+        let diags = typecheck_hir(&mut module, &mut env, &builtins, "", None);
         assert!(diags.is_empty(), "{diags:?}");
     }
 }

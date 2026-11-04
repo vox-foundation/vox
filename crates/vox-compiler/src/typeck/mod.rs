@@ -118,7 +118,7 @@ pub fn typecheck_hir_module_with_path(
             }
         }
     }
-    let mut diags = typecheck_hir(hir, &mut env, &builtins, source);
+    let mut diags = typecheck_hir(hir, &mut env, &builtins, source, source_path);
 
     // ── Phase 2: read-only lint passes (parallel fan-out) ─────────────────
     // Each closure captures a shared reference to `hir` and `source`.  They
@@ -681,4 +681,22 @@ pub fn typecheck_ast_module(source: &str, module: &Module) -> Vec<Diagnostic> {
 #[must_use]
 pub fn typecheck_module(module: &Module, source: &str) -> Vec<Diagnostic> {
     typecheck_ast_module(source, module)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{typecheck_hir_module, typecheck_hir_module_with_path};
+    use crate::hir::nodes::HirModule;
+    use std::path::Path;
+
+    #[test]
+    fn typecheck_hir_module_with_path_accepts_source_path() {
+        let mut hir = HirModule::default();
+        let path = Path::new("examples/golden/py_frame_report.vox");
+        let with_path = typecheck_hir_module_with_path("", &mut hir, Some(path));
+        let without = typecheck_hir_module("", &mut hir);
+        // Both paths return diagnostics for an empty module; the Some(path)
+        // arm must not panic and must stay callable for frame header checks.
+        let _ = (with_path.len(), without.len());
+    }
 }
