@@ -94,7 +94,21 @@ fn array_sig_ty(text: &str, generic_array: bool) -> Ty {
         "f64" => Ty::Named("f64".into()),
         "str" => Ty::Str,
         "bool" => Ty::Bool,
+        "Decimal" => Ty::Decimal,
+        "Date" | "DateTime" | "Duration" => Ty::Named(text.into()),
         other => Ty::Named(other.into()),
+    }
+}
+
+/// Which `python_frame_ops` name lives on which receiver.
+/// `StdFrameNs` is only the constructors. `Frame` and `Expr` are the plan.
+fn frame_op_receiver(name: &str) -> Option<&'static str> {
+    match name {
+        "scan_csv" | "col" => Some("StdFrameNs"),
+        "filter" | "group_by" | "agg" | "sort" | "collect" => Some("Frame"),
+        "sum" | "count" | "mean" | "min" | "max" | "eq" | "neq" | "gt" | "gte" | "lt" | "lte"
+        | "and" | "or" => Some("Expr"),
+        _ => None,
     }
 }
 
@@ -404,6 +418,17 @@ impl BuiltinTypes {
             "array".into(),
             Binding {
                 ty: Ty::Named("StdArrayNs".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+        // `import std.frame` binds the name `frame`. Pre-register it so the
+        // import pass does not replace it with `Ty::ImportPlaceholder`.
+        env.define(
+            "frame".into(),
+            Binding {
+                ty: Ty::Named("StdFrameNs".into()),
                 mutable: false,
                 kind: BindingKind::Import,
                 is_deprecated: false,
@@ -1880,6 +1905,15 @@ impl BuiltinTypes {
         }
         methods.insert("StdArrayNs".into(), array_ns);
 
+        let mut frame_ns = std::collections::HashMap::new();
+        for op in crate::python_frame_support::python_frame_ops() {
+            tracing::debug!(op = op.name, signature = op.signature, "std.frame op");
+            if frame_op_receiver(op.name) == Some("StdFrameNs") {
+                frame_ns.insert(op.name.to_string(), array_op_fn_ty(op.signature, false));
+            }
+        }
+        methods.insert("StdFrameNs".into(), frame_ns);
+
         Self { methods }
     }
 
@@ -2045,6 +2079,28 @@ impl BuiltinTypes {
                 .iter()
                 .find(|op| op.name == method && !matches!(op.name, "from_list" | "add" | "mul"))
                 .map(|op| array_op_fn_ty(op.signature, true));
+        }
+
+        // Frame and Expr methods come from `python_frame_ops`. `scan_csv` and
+        // `col` stay on `StdFrameNs`. `Ty::Named` is the carrier; there is no
+        // `Ty::Frame`. Records is a column store, not `Ty::Record`.
+        if let Ty::Named(name) = obj_ty {
+            if name == "Frame" || name == "Expr" {
+                tracing::debug!(receiver = name.as_str(), method, "std.frame method lookup");
+                return crate::python_frame_support::python_frame_ops()
+                    .iter()
+                    .find(|op| {
+                        op.name == method && frame_op_receiver(op.name) == Some(name.as_str())
+                    })
+                    .map(|op| array_op_fn_ty(op.signature, false));
+            }
+            if name == "Records" {
+                return match method {
+                    "num_rows" => Some(Ty::Fn(vec![], Box::new(Ty::Int))),
+                    "column" => Some(Ty::Fn(vec![Ty::Str], Box::new(Ty::List(Box::new(Ty::Int))))),
+                    _ => None,
+                };
+            }
         }
 
         let type_key = match obj_ty {
@@ -2305,6 +2361,154 @@ fn host_promo() {
             inferred_of(&arith_hir, *span),
             &crate::hir::HirType::Named("float".into()),
             "1 + 1.0 stays host float promotion"
+        );
+    }
+
+    #[test]
+    fn frame_typeck_namespace_methods() {
+        let mut env = TypeEnv::new();
+        let builtins = BuiltinTypes::register_all(&mut env);
+        let frame_binding = env
+            .lookup("frame")
+            .expect("import std.frame binds the name frame");
+        assert_eq!(frame_binding.ty, Ty::Named("StdFrameNs".into()));
+        assert_eq!(
+            crate::builtin_registry::std_root_field_ty("frame"),
+            Some(Ty::Named("StdFrameNs".into()))
+        );
+
+        let ns = Ty::Named("StdFrameNs".into());
+        for method in ["scan_csv", "col"] {
+            assert!(
+                builtins.lookup_method(&ns, method).is_some(),
+                "{method} is a StdFrameNs method"
+            );
+        }
+        assert!(
+            builtins.lookup_method(&ns, "filter").is_none(),
+            "filter stays on Frame"
+        );
+        assert!(
+            builtins.lookup_method(&ns, "amount").is_none(),
+            "frame.amount is not a method"
+        );
+
+        let frame_ty = Ty::Named("Frame".into());
+        for method in ["filter", "group_by", "agg", "sort", "collect"] {
+            let ty = builtins
+                .lookup_method(&frame_ty, method)
+                .unwrap_or_else(|| panic!("{method} missing on Frame"));
+            let Ty::Fn(_, ret) = ty else {
+                panic!("{method} is not a function");
+            };
+            if method == "collect" {
+                assert!(
+                    matches!(ret.as_ref(), Ty::Result(ok, _) if matches!(ok.as_ref(), Ty::Named(name) if name == "Records")),
+                    "collect returns Result[Records], got {ret:?}"
+                );
+            } else {
+                assert_eq!(ret.as_ref(), &Ty::Named("Frame".into()), "{method}");
+            }
+        }
+
+        let expr = Ty::Named("Expr".into());
+        for method in [
+            "sum", "count", "mean", "min", "max", "eq", "neq", "gt", "gte", "lt", "lte", "and",
+            "or",
+        ] {
+            let ty = builtins
+                .lookup_method(&expr, method)
+                .unwrap_or_else(|| panic!("{method} missing on Expr"));
+            let Ty::Fn(_, ret) = ty else {
+                panic!("{method} is not a function");
+            };
+            assert_eq!(ret.as_ref(), &Ty::Named("Expr".into()), "{method}");
+        }
+
+        assert_eq!(array_sig_ty("Decimal", false), Ty::Decimal);
+        assert_eq!(array_sig_ty("Date", false), Ty::Named("Date".into()));
+        assert_eq!(
+            array_sig_ty("DateTime", false),
+            Ty::Named("DateTime".into())
+        );
+        assert_eq!(
+            array_sig_ty("Duration", false),
+            Ty::Named("Duration".into())
+        );
+
+        let src = r#"
+import std.frame
+@uses(python, fs)
+fn pipeline(path: str) {
+    let scanned = frame.scan_csv(path)
+    let pred = frame.col("region").eq("west").and(frame.col("amount").gt(0)).or(frame.col("region").lt(1))
+    let filtered = scanned.filter(pred)
+    let grouped = filtered.group_by(["month"])
+    let summed = frame.col("amount").sum()
+    let counted = frame.col("amount").count()
+    let meaned = frame.col("amount").mean()
+    let mined = frame.col("amount").min()
+    let maxed = frame.col("amount").max()
+    let _cmp = frame.col("region").neq("east").gte(0).lte(1)
+    let agg = grouped.agg([summed, counted, meaned, mined, maxed])
+    let sorted = agg.sort("month", nulls="last")
+    let _rows = sorted.collect()
+}
+"#;
+        let (diags, _) = check_source(src);
+        let errors = error_messages(&diags);
+        assert!(
+            errors.is_empty(),
+            "frame pipeline type diagnostics: {errors:?}"
+        );
+
+        let amount = "import std.frame\nfn bad() {\n    let _ = frame.amount\n}\n";
+        let (amount_diags, _) = check_source(amount);
+        let amount_errors = error_messages(&amount_diags);
+        assert!(!amount_errors.is_empty(), "frame.amount is not a column");
+    }
+
+    #[test]
+    fn frame_typeck_records_column() {
+        let mut env = TypeEnv::new();
+        let builtins = BuiltinTypes::register_all(&mut env);
+        let records = Ty::Named("Records".into());
+        match builtins.lookup_method(&records, "num_rows") {
+            Some(Ty::Fn(params, ret)) => {
+                assert!(params.is_empty(), "num_rows takes no arguments");
+                assert_eq!(*ret, Ty::Int);
+            }
+            other => panic!("num_rows: {other:?}"),
+        }
+        match builtins.lookup_method(&records, "column") {
+            Some(Ty::Fn(params, ret)) => {
+                assert_eq!(params, vec![Ty::Str]);
+                match ret.as_ref() {
+                    Ty::List(inner) => assert!(
+                        !matches!(
+                            inner.as_ref(),
+                            Ty::Option(_) | Ty::GenericParam(_) | Ty::Error | Ty::Infer
+                        ),
+                        "column returns a concrete list, got {inner:?}"
+                    ),
+                    other => panic!("column return: {other:?}"),
+                }
+            }
+            other => panic!("column: {other:?}"),
+        }
+        let record = Ty::Record(vec![("revenue".into(), Ty::Int)]);
+        match builtins.lookup_method(&record, "get") {
+            Some(Ty::Fn(_, ret)) => {
+                assert!(
+                    matches!(ret.as_ref(), Ty::Option(_)),
+                    "Ty::Record get stays Option"
+                );
+            }
+            other => panic!("record get: {other:?}"),
+        }
+        assert!(
+            builtins.lookup_method(&records, "get").is_none(),
+            "Records must not reuse Ty::Record get"
         );
     }
 }
