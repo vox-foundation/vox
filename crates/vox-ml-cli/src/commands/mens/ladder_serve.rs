@@ -33,6 +33,18 @@ pub(crate) fn resolve_serve_run_dir(model: &Path) -> Result<PathBuf> {
             model.display()
         );
     }
+    #[cfg(any(feature = "gpu", feature = "mens-hf-hub"))]
+    let model_buf = if !model.exists()
+        && vox_populi::mens::hub_sync::resolve_ladder_adapter_target(model, None).is_some()
+    {
+        vox_populi::mens::hub_sync::pull_adapter_if_missing_blocking(model, None, None, true)?
+    } else {
+        model.to_path_buf()
+    };
+    #[cfg(not(any(feature = "gpu", feature = "mens-hf-hub")))]
+    let model_buf = model.to_path_buf();
+    let model = model_buf.as_path();
+
     let meta = std::fs::metadata(model).with_context(|| {
         format!(
             "--model {} must exist (run directory for serve)",

@@ -255,6 +255,9 @@ pub enum PopuliAction {
         /// Transition cloud deployments to long-lived mesh nodes after training.
         #[arg(long, default_value_t = false)]
         persistent: bool,
+        /// Disable automatic Hugging Face Hub adapter publish after gated training (`VOX_MENS_HF_SYNC=0` equivalent).
+        #[arg(long, default_value_t = false)]
+        no_hf_sync: bool,
     },
 
     #[cfg(not(feature = "gpu"))]

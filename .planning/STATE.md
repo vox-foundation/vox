@@ -44,9 +44,15 @@ Last activity: 2026-11-01 — 4B full reasoning compare, collateral pass, and la
 
 - Effect-TS-only oxlint rules; mobile Hermes/Uniwind/native static toolchain; CSS polish lints (see REQUIREMENTS Out of Scope).
 
+## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 334 added: Fix promote-gate wiring and re-gate ladder
+
 ## Next Step
 
-Phase 321 closed (document-close). Phase 319 (MESH-01) complete 2026-10-29, ported from the Cursor branch onto our selector (`319-PORT.md`). Phase 322 closed with gaps 2026-10-30 (3/3 plans, `322-VERIFICATION.md`): DEC-01, DEC-04, CAT-01 complete; DEC-03 and CAT-02 partial; DEC-02 blocked until the Cursor checkout's `agent_loop/` refactor lands on a mergeable ref. Open operator decisions: DEC-02/03 path (wait, build here, or descope); daemon command-provider gap (accept, authorize a crate edge, or approve a subprocess bridge); ChatARC recalibration (absolute score floor or stopword-aware tokenizer + fresh frozen split).
+Phase 334 added (promote-gate wiring). Next: `/gsd-plan-phase 334` or continue the in-session gate fix + re-gate from 0.6B. Phase 321 closed (document-close). Phase 319 (MESH-01) complete 2026-10-29. Phase 322 closed with gaps 2026-10-30.
 
 
 ## v5.5 Autonomous Progress (2026-10-25 America/Phoenix)

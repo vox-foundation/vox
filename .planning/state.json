@@ -4,9 +4,9 @@
   "milestone": "v5.6 — Reasoning Where the Lane Needs It",
   "phases": [],
   "next": {
-    "command": "/gsd-new-milestone",
-    "label": "Start a new milestone",
-    "reason": "All phases complete — start a new milestone"
+    "command": "/gsd-progress",
+    "label": "Show progress",
+    "reason": "Unsure of state — showing progress"
   },
-  "updated_at": "2026-11-03T00:08:00.339Z"
+  "updated_at": "2026-11-04T08:12:27.701Z"
 }

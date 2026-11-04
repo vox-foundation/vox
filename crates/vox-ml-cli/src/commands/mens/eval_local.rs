@@ -103,12 +103,23 @@ pub fn run_eval_local(
     // (adapter or merged run directory) entry point. Exactly one is required;
     // both being set would silently prefer one over the other.
     let is_base_only = base.is_some();
-    let model = match (model, base) {
+    #[cfg_attr(not(any(feature = "gpu", feature = "mens-hf-hub")), allow(unused_mut))]
+    let mut model = match (model, base) {
         (Some(m), None) => m,
         (None, Some(b)) => b,
         (None, None) => anyhow::bail!("either --model or --base is required"),
         (Some(_), Some(_)) => anyhow::bail!("--model and --base are mutually exclusive"),
     };
+
+    #[cfg(any(feature = "gpu", feature = "mens-hf-hub"))]
+    if !is_base_only
+        && !model.exists()
+        && vox_populi::mens::hub_sync::resolve_ladder_adapter_target(&model, None).is_some()
+    {
+        model = vox_populi::mens::hub_sync::pull_adapter_if_missing_blocking(
+            &model, None, None, false,
+        )?;
+    }
 
     if !model.exists() {
         anyhow::bail!(

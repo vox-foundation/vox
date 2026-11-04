@@ -24,6 +24,9 @@ pub mod hub;
 #[cfg(feature = "mens-hf-hub")]
 pub mod hub_repo;
 
+#[cfg(feature = "mens-hf-hub")]
+pub mod hub_sync;
+
 #[cfg(feature = "mens-cloud")]
 pub mod cloud;
 

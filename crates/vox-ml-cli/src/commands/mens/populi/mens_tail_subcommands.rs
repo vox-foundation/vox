@@ -22,6 +22,9 @@ pub enum PopuliMensTail {
         /// Run the 25-problem 5-spoke Mens before/after verification gate and write `mens_spoke_scorecard.json`.
         #[arg(long, default_value_t = false)]
         five_spokes: bool,
+        /// Disable automatic Hugging Face Hub adapter publish when all blocking gates pass (`VOX_MENS_HF_SYNC=0` equivalent).
+        #[arg(long, default_value_t = false)]
+        no_hf_sync: bool,
     },
 
     /// Capture a base-model BFCL baseline so the beat-base eval gate has a real

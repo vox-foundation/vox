@@ -88,5 +88,64 @@ pub fn run_eval_gate(run_dir: PathBuf, policy_path: Option<PathBuf>) -> Result<i
         }
     }
 
+    #[cfg(any(feature = "gpu", feature = "mens-hf-hub"))]
+    {
+        let sync_env = std::env::var(vox_populi::mens::hub_sync::HF_SYNC_ENV).ok();
+        let ns_env = std::env::var(vox_populi::mens::hub_repo::NAMESPACE_ENV).ok();
+        let skip = vox_populi::mens::hub_sync::explain_auto_publish_skip(
+            false,
+            sync_env.as_deref(),
+            ns_env.as_deref(),
+        );
+        if let Some(why) = skip {
+            if overall_passed {
+                eprintln!("  {} {why}", "⚠".yellow());
+            }
+        } else if !overall_passed {
+            eprintln!(
+                "  {} HF auto-publish skipped: blocking gates failed",
+                "⚠".yellow()
+            );
+            if let Err(e) =
+                vox_populi::mens::hub_sync::refresh_ladder_index_blocking(None, None, false)
+            {
+                eprintln!("  {} HF index refresh failed: {e}", "⚠".yellow());
+            }
+        } else {
+            match vox_populi::mens::hub_sync::publish_adapter_run_dir_blocking(
+                &run_dir, None, false, false,
+            ) {
+                Ok(vox_populi::mens::hub_sync::PublishOutcome::Uploaded {
+                    repo_id,
+                    commit_oid,
+                    version,
+                    ..
+                }) => {
+                    eprintln!(
+                        "  {} Auto-published adapter to Hugging Face Hub `{repo_id}` as {version} ({commit_oid})",
+                        "✓".green()
+                    );
+                }
+                Ok(vox_populi::mens::hub_sync::PublishOutcome::SkippedUnchanged {
+                    repo_id,
+                    ..
+                }) => {
+                    eprintln!(
+                        "  {} HF Hub `{repo_id}` already up-to-date (hash match; skipped upload)",
+                        "ℹ".cyan()
+                    );
+                }
+                Err(e) => {
+                    eprintln!("  {} HF auto-publish skipped: {e}", "⚠".yellow());
+                }
+            }
+            if let Err(e) =
+                vox_populi::mens::hub_sync::refresh_ladder_index_blocking(None, None, false)
+            {
+                eprintln!("  {} HF index refresh failed: {e}", "⚠".yellow());
+            }
+        }
+    }
+
     Ok(if overall_passed { 0 } else { 1 })
 }

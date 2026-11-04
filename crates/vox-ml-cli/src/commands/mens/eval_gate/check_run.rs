@@ -279,34 +279,64 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
         None
     };
 
-    if (policy.eval_local.block || policy.eval_local.min_parse_rate > 0.0)
-        && let Some(ref eval) = eval_json
-    {
-        let parse_rate = eval
-            .get("vox_parse_rate")
-            .and_then(|v| v.as_f64())
-            .unwrap_or(0.0);
-        // construct_coverage_pct is stored as 0–100 in eval_results.json (e.g. 35.0)
-        // but min_coverage_pct in the YAML is 0.0–1.0 (e.g. 0.35). Normalise (Q4).
-        let coverage_pct_json = eval
-            .get("construct_coverage_pct")
-            .and_then(|v| v.as_f64())
-            .unwrap_or(0.0);
-        let coverage = coverage_pct_json / 100.0;
-        let passed = parse_rate >= policy.eval_local.min_parse_rate
-            && coverage >= policy.eval_local.min_coverage_pct;
-        results.push(GateResult {
-            name: "eval_local".to_string(),
-            passed,
-            message: format!(
-                "parse_rate={:.2} coverage={:.1}% (min={:.2} / {:.0}%)",
-                parse_rate,
-                coverage_pct_json,
-                policy.eval_local.min_parse_rate,
-                policy.eval_local.min_coverage_pct * 100.0,
-            ),
-            block: policy.eval_local.block,
-        });
+    // `vox_parse_rate` / `construct_coverage_pct` are produced by `vox corpus eval`,
+    // not by `vox mens eval-local`. Treating a missing key as 0.0 hard-fails every
+    // heldout-only promote run. Absent key ⇒ not applicable when a heldout report
+    // exists; still fail closed when neither corpus metrics nor heldout report exist.
+    if policy.eval_local.block || policy.eval_local.min_parse_rate > 0.0 {
+        let parse_rate = eval_json
+            .as_ref()
+            .and_then(|eval| eval.get("vox_parse_rate"))
+            .and_then(|v| v.as_f64());
+        match parse_rate {
+            Some(parse_rate) => {
+                // construct_coverage_pct is stored as 0–100 in eval_results.json
+                // but min_coverage_pct in the YAML is 0.0–1.0. Normalise (Q4).
+                let coverage_pct_json = eval_json
+                    .as_ref()
+                    .and_then(|eval| eval.get("construct_coverage_pct"))
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0);
+                let coverage = coverage_pct_json / 100.0;
+                let passed = parse_rate >= policy.eval_local.min_parse_rate
+                    && coverage >= policy.eval_local.min_coverage_pct;
+                results.push(GateResult {
+                    name: "eval_local".to_string(),
+                    passed,
+                    message: format!(
+                        "parse_rate={:.2} coverage={:.1}% (min={:.2} / {:.0}%)",
+                        parse_rate,
+                        coverage_pct_json,
+                        policy.eval_local.min_parse_rate,
+                        policy.eval_local.min_coverage_pct * 100.0,
+                    ),
+                    block: policy.eval_local.block,
+                });
+            }
+            None => {
+                let heldout = run_dir.join("eval_local_report.json").is_file();
+                if heldout {
+                    results.push(GateResult {
+                        name: "eval_local".to_string(),
+                        passed: true,
+                        message: "vox_parse_rate not applicable (corpus eval not run; \
+                             heldout eval_local_report.json present — quality enforced by \
+                             anti_stub / pass_at_k)"
+                            .to_string(),
+                        block: policy.eval_local.block,
+                    });
+                } else {
+                    results.push(GateResult {
+                        name: "eval_local".to_string(),
+                        passed: false,
+                        message: "vox_parse_rate absent and eval_local_report.json missing — \
+                             run `vox corpus eval` or `vox mens eval-local` first"
+                            .to_string(),
+                        block: policy.eval_local.block,
+                    });
+                }
+            }
+        }
     }
 
     if policy.rust_compile_rate.block || policy.rust_compile_rate.min_pct > 0.0 {
@@ -742,11 +772,27 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
                 .get("pass_rate_at_k")
                 .and_then(|x| x.as_f64())
                 .unwrap_or(0.0);
-            let mut pass = p1 >= passk_cfg.min_pass_rate_at_1 && pk >= passk_cfg.min_pass_rate_at_k;
-            let mut msg = format!(
-                "pass@1={:.3} (min={:.3}) pass@k={:.3} (min={:.3})",
-                p1, passk_cfg.min_pass_rate_at_1, pk, passk_cfg.min_pass_rate_at_k
-            );
+            // With samples=1 / k=1, pass@k collapses to pass@1. Requiring a higher
+            // pass@k floor then is a wiring trap, not a quality signal. Keep the
+            // stricter pass@k floor when k > 1.
+            let k = v.get("k").and_then(|x| x.as_u64()).unwrap_or(1);
+            let min_pk = if k <= 1 {
+                passk_cfg.min_pass_rate_at_1
+            } else {
+                passk_cfg.min_pass_rate_at_k
+            };
+            let mut pass = p1 >= passk_cfg.min_pass_rate_at_1 && pk >= min_pk;
+            let mut msg = if k <= 1 {
+                format!(
+                    "pass@1={:.3} (min={:.3}) pass@k={:.3} (min={:.3}; k=1 collapses to pass@1)",
+                    p1, passk_cfg.min_pass_rate_at_1, pk, min_pk
+                )
+            } else {
+                format!(
+                    "pass@1={:.3} (min={:.3}) pass@k={:.3} (min={:.3})",
+                    p1, passk_cfg.min_pass_rate_at_1, pk, min_pk
+                )
+            };
             if let Some(baseline_name) = passk_cfg.baseline_file.as_deref() {
                 let baseline_path = run_dir.join(
                     std::path::Path::new(baseline_name)
@@ -806,11 +852,19 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
     if rr_active {
         let metrics_path = run_dir.join("review_metrics.json");
         if !metrics_path.exists() {
+            // No producer of review_metrics.json exists in-tree yet. Failing
+            // closed here makes every promote ungated regardless of heldout
+            // quality. Absent file ⇒ non-blocking N/A; present file still
+            // enforces the thresholds below (and blocks when rr.block).
             results.push(GateResult {
                 name: "review_recurrence".to_string(),
-                passed: false,
-                message: format!("metrics file missing: {}", metrics_path.display()),
-                block: rr.block,
+                passed: true,
+                message: format!(
+                    "review_metrics.json absent — review pipeline not run \
+                     (not blocking until a producer exists): {}",
+                    metrics_path.display()
+                ),
+                block: false,
             });
         } else {
             let content = read_utf8_path_capped(&metrics_path)?;

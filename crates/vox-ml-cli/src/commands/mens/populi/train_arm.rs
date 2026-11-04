@@ -652,6 +652,82 @@ pub async fn run_train(
                 "⚠️".yellow()
             ),
         }
+
+        #[cfg(any(feature = "gpu", feature = "mens-hf-hub"))]
+        {
+            let sync_env = std::env::var(vox_populi::mens::hub_sync::HF_SYNC_ENV).ok();
+            let ns_env = std::env::var(vox_populi::mens::hub_repo::NAMESPACE_ENV).ok();
+            if let Some(why) = vox_populi::mens::hub_sync::explain_auto_publish_skip(
+                false,
+                sync_env.as_deref(),
+                ns_env.as_deref(),
+            ) {
+                eprintln!("  {} {why}", "⚠️".yellow());
+            } else {
+                if let Err(e) = vox_populi::mens::hub_sync::ensure_ladder_repos(
+                    workspace_root.as_deref(),
+                    None,
+                    false,
+                )
+                .await
+                {
+                    eprintln!("  {} HF ladder repos were not reserved: {e}", "⚠️".yellow());
+                }
+                let force_ungated =
+                    match vox_populi::mens::hub_sync::verify_publish_gates(&card_output_dir, false)
+                    {
+                        Ok(_) => false,
+                        Err(e) => {
+                            eprintln!(
+                                "  {} Eval gate did not pass ({e}); publishing an ungated baseline",
+                                "⚠️".yellow()
+                            );
+                            true
+                        }
+                    };
+                match vox_populi::mens::hub_sync::publish_adapter_run_dir(
+                    &card_output_dir,
+                    None,
+                    false,
+                    force_ungated,
+                )
+                .await
+                {
+                    Ok(vox_populi::mens::hub_sync::PublishOutcome::Uploaded {
+                        repo_id,
+                        commit_oid,
+                        version,
+                        ..
+                    }) => {
+                        eprintln!(
+                            "  {} Auto-published adapter to Hugging Face Hub `{repo_id}` as {version} ({commit_oid})",
+                            "✓".green()
+                        );
+                    }
+                    Ok(vox_populi::mens::hub_sync::PublishOutcome::SkippedUnchanged {
+                        repo_id,
+                        ..
+                    }) => {
+                        eprintln!(
+                            "  {} HF Hub `{repo_id}` already up-to-date (hash match; skipped upload)",
+                            "✓".green()
+                        );
+                    }
+                    Err(e) => {
+                        eprintln!("  {} HF auto-publish skipped: {e}", "⚠️".yellow());
+                    }
+                }
+                if let Err(e) = vox_populi::mens::hub_sync::refresh_ladder_index(
+                    workspace_root.as_deref(),
+                    None,
+                    false,
+                )
+                .await
+                {
+                    eprintln!("  {} HF index refresh failed: {e}", "⚠️".yellow());
+                }
+            }
+        }
     }
 
     train_res.map(|_| ())

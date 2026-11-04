@@ -247,6 +247,16 @@ Plans:
 - [ ] `332-03`: Rebuilt binary end-to-end run: eval-gate pass auto-publishes + tags (smoke on a scratch repo namespace), gate failure publishes nothing
 - [ ] `332-04`: Skip empty evidence on bundle; `hub verify` report; republish 0.6B/1.7B/4B with v1 tags and publish 8B after its gates
 
+### Phase 334: Fix promote-gate wiring and re-gate ladder
+
+**Goal:** Make promote gates fail on real quality (anti_stub, pass@k with k>1, present review metrics, present corpus parse_rate) instead of wiring traps (empty `eval_results.json` → parse_rate=0, k=1 requiring pass@k 0.50, missing `review_metrics.json` producer). Re-run eval-gate + Hub publish from 0.6B upward so cards reflect the honest outcome.
+**Requirements**: TBD
+**Depends on:** Phase 332
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 334 to break down)
+
 ---
 
 # Roadmap: v5.5 — T3 CI/TOESTUB Deep Enforcement (`Phases 307–312`) — SHIPPED

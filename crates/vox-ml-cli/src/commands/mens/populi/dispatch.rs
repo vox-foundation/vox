@@ -202,7 +202,14 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             fast_corpus,
             plan_only,
             persistent,
+            no_hf_sync,
         } => {
+            if no_hf_sync {
+                #[allow(unsafe_code)]
+                unsafe {
+                    std::env::set_var("VOX_MENS_HF_SYNC", "0");
+                }
+            }
             // The plugin self-heal preflight (run_train.rs, cuda path) reads this
             // env var. Setting it here keeps the opt-out from threading a bool
             // through the ~60-arg train dispatch chain.
@@ -662,7 +669,14 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 run_dir,
                 policy,
                 five_spokes,
+                no_hf_sync,
             } => {
+                if no_hf_sync {
+                    #[allow(unsafe_code)]
+                    unsafe {
+                        std::env::set_var("VOX_MENS_HF_SYNC", "0");
+                    }
+                }
                 if five_spokes {
                     let eval = vox_corpus::flywheel::run_before_after_five_spoke_evaluation();
                     println!("{}", eval.to_markdown());
