@@ -9,6 +9,7 @@ use std::time::Duration;
 mod array_ipc;
 mod array_numeric;
 mod frame;
+mod frame_columns;
 mod host;
 
 pub use array_ipc::{
@@ -16,6 +17,7 @@ pub use array_ipc::{
     encode_host_columns, encode_i64_column,
 };
 pub use array_numeric::{DecodedColumn, decode_column, encode_f32_column, encode_u64_column};
+pub use frame_columns::{DecodedFrame, FrameCell, TemporalUnit, decode_frame_columns};
 
 pub use host::Bridge;
 pub use vox_foundation::protocol::{DispatchRequest, DispatchResponse};
