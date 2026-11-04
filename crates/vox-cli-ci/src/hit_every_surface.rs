@@ -22,7 +22,8 @@ fn classify(path: &str) -> Option<&'static str> {
         Some("gui")
     } else if p.starts_with("crates/vox-orchestrator-mcp/") || p.contains("/mcp") {
         Some("mcp")
-    } else if p.starts_with("crates/vox-orchestrator/") || p.starts_with("crates/vox-actor-runtime/")
+    } else if p.starts_with("crates/vox-orchestrator/")
+        || p.starts_with("crates/vox-actor-runtime/")
     {
         Some("harness")
     } else if p.starts_with("contracts/") {
@@ -77,7 +78,10 @@ pub fn run(root: &Path, args: HitEverySurfaceArgs) -> Result<()> {
     }
 
     let ack = std::env::var("HIT_EVERY_SURFACE").ok().as_deref() == Some("1");
-    println!("hit-every-surface: classes={classes:?} files={}", files.len());
+    println!(
+        "hit-every-surface: classes={classes:?} files={}",
+        files.len()
+    );
     if classes.len() >= 2 && !ack {
         println!("hit-every-surface: advisory — complete the multi-surface checklist:");
         for (i, row) in CHECKLIST.iter().enumerate() {

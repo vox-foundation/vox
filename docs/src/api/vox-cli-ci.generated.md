@@ -105,7 +105,9 @@ Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation w
 | `cache_key_lint` | — |
 | `canonical_docs` | — |
 | `capability_snapshot` | — |
+| `check_changed` | — |
 | `check_links` | — |
+| `ci_changes` | — |
 | `cmd_enums` | — |
 | `commit_lint` | — |
 | `compile_matrix` | — |
@@ -126,6 +128,8 @@ Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation w
 | `docs_reality_audit` | — |
 | `doctest_md` | — |
 | `doctor_build_cache` | — |
+| `dom_test_env_ban` | — |
+| `evidence_asset_ban` | — |
 | `fan_in_budget` | — |
 | `free_binary` | — |
 | `generate_plugin_catalog_docs` | — |
@@ -133,9 +137,11 @@ Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation w
 | `gui_version_sync` | — |
 | `gui_visual_review` | — |
 | `harness_trust_guard` | — |
+| `hit_every_surface` | — |
 | `install_hooks` | — |
 | `kb_facets_ts` | — |
 | `kill_stuck_tests` | — |
+| `knip_gui` | — |
 | `line_endings` | — |
 | `model_routing_check` | — |
 | `no_plugin_cdylib_as_compile_dep` | — |
@@ -154,6 +160,7 @@ Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation w
 | `plugin_surface` | — |
 | `pm_provenance` | — |
 | `pre_push_refs` | — |
+| `preview_trust_audit` | — |
 | `profile_parity` | — |
 | `release_draft_guard` | — |
 | `required_context_guard` | — |
@@ -163,6 +170,7 @@ Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation w
 | `scientia_heuristics_parity` | — |
 | `scientia_worthiness_contract` | — |
 | `string_id_lint` | — |
+| `suppression_review_gate` | — |
 | `sync_ignore_files` | — |
 | `test_governance` | — |
 | `test_inventory` | — |
@@ -171,6 +179,8 @@ Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation w
 | `toestub_budget` | — |
 | `toolchain_ssot` | — |
 | `toolchain_workflow_lint` | — |
+| `transfer_budget_report` | — |
+| `vouched_parse` | — |
 | `workflow_concurrency_guard` | — |
 | `workflow_permissions_guard` | — |
 | `workflow_policy_guard` | — |

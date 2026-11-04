@@ -361,7 +361,6 @@ pub fn run_affected_cmd(args: &[String]) -> i32 {
 mod tests {
     use super::{partition_crates, run_affected_cmd};
 
-
     #[test]
     fn shard_weights_file_lists_known_heavy_crates() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))

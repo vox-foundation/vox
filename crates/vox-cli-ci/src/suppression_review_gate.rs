@@ -58,15 +58,10 @@ pub fn run(root: &Path, args: SuppressionReviewArgs) -> Result<()> {
         .collect();
     let only_suppressions = !suppressionish.is_empty()
         && files.iter().all(|f| {
-            looks_like_suppression_path(f)
-                || f.ends_with(".md")
-                || f.starts_with(".planning/")
+            looks_like_suppression_path(f) || f.ends_with(".md") || f.starts_with(".planning/")
         });
 
-    let labeled = std::env::var("NEEDS_HUMAN_REVIEW")
-        .ok()
-        .as_deref()
-        == Some("1")
+    let labeled = std::env::var("NEEDS_HUMAN_REVIEW").ok().as_deref() == Some("1")
         || std::env::var("GITHUB_PR_LABELS")
             .unwrap_or_default()
             .contains("needs-human-review");

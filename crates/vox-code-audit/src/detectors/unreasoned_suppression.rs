@@ -205,7 +205,8 @@ mod tests {
             std::path::PathBuf::from("crates/example/src/lib.rs"),
             "#[allow(dead_code)]
 fn unused() {}
-".to_string(),
+"
+            .to_string(),
         );
         let hits = det.detect(&file, None);
         assert!(
@@ -213,5 +214,4 @@ fn unused() {}
             "unreasoned #[allow] in a PR-shaped snippet must fail closed"
         );
     }
-
 }

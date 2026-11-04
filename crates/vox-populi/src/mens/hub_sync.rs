@@ -71,14 +71,9 @@ pub fn explain_auto_publish_skip(
     namespace_env: Option<&str>,
 ) -> Option<&'static str> {
     if !hf_sync_enabled(no_hf_sync_flag, sync_env) {
-        return Some(
-            "HF auto-publish is off (`VOX_MENS_HF_SYNC=0` or `--no-hf-sync`)",
-        );
+        return Some("HF auto-publish is off (`VOX_MENS_HF_SYNC=0` or `--no-hf-sync`)");
     }
-    if namespace_env
-        .map(str::trim)
-        .is_none_or(|ns| ns.is_empty())
-    {
+    if namespace_env.map(str::trim).is_none_or(|ns| ns.is_empty()) {
         return Some("HF auto-publish skipped: `VOX_MENS_HF_NAMESPACE` is unset");
     }
     None
@@ -420,10 +415,8 @@ pub async fn ensure_ladder_repos(
             continue;
         }
         let card = render_reserved_model_card(size, &base_pin);
-        let tmp = std::env::temp_dir().join(format!(
-            "vox-mens-reserve-{size}-{}",
-            std::process::id()
-        ));
+        let tmp =
+            std::env::temp_dir().join(format!("vox-mens-reserve-{size}-{}", std::process::id()));
         std::fs::create_dir_all(&tmp)?;
         std::fs::write(tmp.join("README.md"), &card)?;
         std::fs::write(tmp.join("MODEL_CARD.md"), &card)?;
@@ -1516,7 +1509,10 @@ mod tests {
                     reason: reason.to_string(),
                 },
             );
-            assert!(card.contains(&format!("# Vox MENS — Qwen3-{size} adapter")), "{size}");
+            assert!(
+                card.contains(&format!("# Vox MENS — Qwen3-{size} adapter")),
+                "{size}"
+            );
             assert!(card.contains(pin), "{size}");
             assert!(card.contains("candle_qlora_adapter.safetensors"), "{size}");
             assert!(
