@@ -3,9 +3,18 @@ title: "T3→Vox CI/TOESTUB enforcement closure (v5.4)"
 description: "Scorecard anchors for Phases 301–306: change-gated CI, transfer budgets, knip/PR hygiene, agent-ops, thin-transport detectors, fingerprint/cache/graph closure."
 category: "Architecture SSOTs"
 status: "current"
+topic: "code-audit"
+domain: "platform"
+authorship: "llm-assisted"
+authorship_model: "claude-opus-4-6"
 ---
 
 # T3→Vox CI/TOESTUB enforcement closure (v5.4)
+
+<!-- kb:summary -->
+Closure record for T3 Vox CI toestub enforcement: which skeleton and quality detectors are live, how warnings versus errors map to gates, and remaining suppressions. Points agents at the contributor guide for fix patterns and at vox-code-audit for detector ownership.
+<!-- /kb:summary -->
+
 
 Machine-readable scorecard: [`contracts/reports/t3-vox-ci-enforcement-scorecard.v1.json`](../../../contracts/reports/t3-vox-ci-enforcement-scorecard.v1.json).
 

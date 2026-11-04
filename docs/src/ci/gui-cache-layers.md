@@ -3,9 +3,18 @@ title: "GUI cache layers (main-only save)"
 description: "How vox-gui UI CI restores pnpm/Vite caches without writing PR-scoped Actions caches (cache-key-lint compliant)."
 category: "CI & Quality"
 status: "current"
+topic: "ci-guards"
+domain: "platform"
+authorship: "llm-assisted"
+authorship_model: "claude-opus-4-6"
 ---
 
 # GUI cache layers (main-only save)
+
+<!-- kb:summary -->
+Describes GUI CI cache layers for pnpm, Vite, and Playwright artifacts on hosted runners. Explains restore versus save policy, main-only cache writes, and how agents should avoid thrashing the Actions cache budget. Reference for GUI pipeline changes and cache-key lint.
+<!-- /kb:summary -->
+
 
 ## Policy
 

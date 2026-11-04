@@ -1,3 +1,21 @@
+---
+title: "Jev / System One for Vox harness & orchestrator — research 2026-10-28"
+description: "Jev/System One for Vox: redundancy vs select/free_floor/hub-spoke, better harness surfaces, Oct 2026 research."
+category: "Architecture SSOTs"
+status: "research"
+topic: "agent-orchestrator"
+domain: "orchestration"
+authorship: "llm-assisted"
+authorship_model: "claude-opus-4-6"
+---
+
+# Jev / System One for Vox harness & orchestrator — research 2026-10-28
+
+<!-- kb:summary -->
+Research on integrating Jev System One style harness judgments into Vox agent orchestration. Covers typed judgment surfaces, probability routing, and how harness outputs should bind to existing vox-orchestrator model selection without vendor lock-in. Status is research; not a shipped SSOT contract.
+<!-- /kb:summary -->
+
+
 jev-system-one-harness-integration-research-2026.md 459L
 ---
 title: "Jev / System One for Vox harness & orchestrator — research 2026-10-28"

@@ -3,9 +3,18 @@ title: "Privileged preview trust-split"
 description: "Policy for workflows that deploy PR code with secrets vs trusted teardown that never executes PR code (t3code relay-preview pattern)."
 category: "CI & Quality"
 status: "current"
+topic: "ci-guards"
+domain: "platform"
+authorship: "llm-assisted"
+authorship_model: "claude-opus-4-6"
 ---
 
 # Privileged preview trust-split
+
+<!-- kb:summary -->
+Documents the privileged preview trust split for CI and deployment: which surfaces may accept elevated trust, how preview credentials are scoped, and the guardrails that keep privileged paths out of untrusted PR previews. Used by operators configuring CI trust boundaries and by agents auditing preview exposure.
+<!-- /kb:summary -->
+
 
 Vox adopts the t3code `relay-preview` / `relay-preview-cleanup` split:
 
