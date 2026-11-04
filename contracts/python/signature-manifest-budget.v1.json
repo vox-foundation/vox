@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "module": "std.array",
+  "op_order": [
+    "from_list",
+    "astype",
+    "add",
+    "sub",
+    "mul",
+    "div",
+    "mean",
+    "std",
+    "sort",
+    "to_list",
+    "item",
+    "shape"
+  ],
+  "ceiling": 135
+}

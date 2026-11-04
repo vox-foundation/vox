@@ -5,6 +5,7 @@
 use std::path::PathBuf;
 
 use serde_yaml::Value;
+use vox_codegen::syntax_k::{SyntaxKInput, measure_syntax_k_event};
 
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -127,6 +128,65 @@ fn on_disk_expected_matches_behavior_cases() {
     assert_eq!(
         yaml_ints(shape.get("values").expect("shape values")),
         vec![2]
+    );
+}
+
+/// K2 ceiling for the twelve signature strings, in D-01 order.
+///
+/// The number lives in `signature-manifest-budget.v1.json`, not the WebIR map.
+#[test]
+fn signature_manifest_stays_within_its_ceiling() {
+    let root = workspace_root();
+    let budget_path = root.join("contracts/python/signature-manifest-budget.v1.json");
+    assert!(budget_path.is_file(), "missing {}", budget_path.display());
+    let budget: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&budget_path).expect("read budget"))
+            .expect("parse budget");
+    assert_eq!(budget["schema_version"], 1);
+    assert_eq!(budget["module"], "std.array");
+    let order: Vec<&str> = budget["op_order"]
+        .as_array()
+        .expect("op_order")
+        .iter()
+        .map(|name| name.as_str().expect("op name"))
+        .collect();
+    assert_eq!(order, D01_OPS);
+    let ceiling = budget["ceiling"].as_u64().expect("ceiling") as usize;
+
+    let yaml_path = root.join("contracts/python/ecosystem-support.yaml");
+    let raw = std::fs::read_to_string(&yaml_path).expect("yaml");
+    let doc: Value = serde_yaml::from_str(&raw).expect("parse yaml");
+    let ops = doc.get("ops").and_then(Value::as_sequence).expect("ops");
+    let mut joined = String::new();
+    for name in &order {
+        let signature = ops
+            .iter()
+            .find(|op| op.get("name").and_then(Value::as_str) == Some(name))
+            .and_then(|op| op.get("signature").and_then(Value::as_str))
+            .unwrap_or_else(|| panic!("{name} missing signature"));
+        joined.push_str(signature);
+    }
+    let event = measure_syntax_k_event(SyntaxKInput {
+        fixture_id: "std.array.signatures",
+        target_kind: "signature_manifest",
+        bytes: joined.as_bytes(),
+        source_hash: None,
+        web_ir_hash: None,
+        baseline_bytes: None,
+        support_metrics: None,
+    })
+    .expect("measure signatures");
+    assert!(
+        event.k_est_bytes <= ceiling,
+        "signature manifest {} exceeds ceiling {ceiling}",
+        event.k_est_bytes
+    );
+
+    let complexity = std::fs::read_to_string(root.join("contracts/eval/complexity-budget.v1.json"))
+        .expect("complexity budget");
+    assert!(
+        !complexity.contains("signature-manifest") && !complexity.contains("\"ceiling\""),
+        "the WebIR budget must not store the signature ceiling"
     );
 }
 

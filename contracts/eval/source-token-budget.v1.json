@@ -48,6 +48,10 @@
     "dashboard_ui": {
       "tokens": 111,
       "bytes": 851
+    },
+    "py_array_stats": {
+      "tokens": 280,
+      "bytes": 1223
     }
   }
 }

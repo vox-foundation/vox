@@ -946,6 +946,15 @@ contracts:
     enforced_by:
       - vox ci contracts-index
 
+  - id: python-signature-manifest-budget
+    path: contracts/python/signature-manifest-budget.v1.json
+    owner: platform-ci
+    kind: json
+    description: K2 compressed-size ceiling for the twelve std.array signature strings.
+    enforced_by:
+      - cargo test -p vox-compiler --test python_bridge_parity
+      - vox ci contracts-index
+
   - id: repository-repo-path-resolution-schema
     path: contracts/repository/repo-path-resolution.schema.json
     owner: platform-ci
