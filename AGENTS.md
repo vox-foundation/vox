@@ -200,7 +200,7 @@ See: [`docs/src/architecture/cryptography-ssot-2026.md`](docs/src/architecture/c
 
 The unified `vox audit` umbrella hosts:
 
-- `vox audit code` — `vox-code-audit` source-policy detectors (see [`docs/src/architecture/t3-vox-toestub-rules-and-enforcement-research-2026.md`](docs/src/architecture/t3-vox-toestub-rules-and-enforcement-research-2026.md) for T3-adapted static detectors, wire/SQL transfer budget gates, and V8/CSS/process hygiene rules)
+- `vox audit code` — `vox-code-audit` source-policy detectors (see [`docs/src/architecture/t3-vox-ci-toestub-enforcement-closure-2026.md`](docs/src/architecture/t3-vox-ci-toestub-enforcement-closure-2026.md) for T3-adapted static detectors, wire/SQL transfer budget gates, and V8/CSS/process hygiene rules)
 - `vox audit arch` — `vox-arch-check`
 - `vox audit retirement` — `vox ci retirement-audit` (planned per CR-L6)
 - `vox audit effort` — AI-judged commit history audit (vox-effort-audit)
