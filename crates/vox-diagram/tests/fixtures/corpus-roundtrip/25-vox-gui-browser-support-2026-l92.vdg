@@ -1,0 +1,10 @@
+graph {
+    direction: right
+    node Click: "Frame click clientX/clientY"
+    node Map: "mapClickToViewport"
+    node Cmd: "vox_browser_click_xy"
+    node Page: "CDP page viewport 1280x800"
+    Click -> Map
+    Map -> Cmd
+    Cmd -> Page
+}

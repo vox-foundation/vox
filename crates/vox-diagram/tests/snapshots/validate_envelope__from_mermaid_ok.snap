@@ -1,0 +1,17 @@
+---
+source: crates/vox-diagram/tests/validate_envelope.rs
+expression: "validate(FLOW, mermaid(None))"
+---
+{
+  "schema_version": 1,
+  "valid": true,
+  "diagnostics": [],
+  "normalized_source": "graph {\n    node a: \"Start\"\n    node b: \"Ok?\" { shape: diamond }\n    node c: \"c\"\n    a -> b\n    b -> c\n}\n",
+  "stats": {
+    "nodes": 3,
+    "containers": 0,
+    "edges": 2,
+    "max_depth": 0
+  },
+  "unsupported": []
+}

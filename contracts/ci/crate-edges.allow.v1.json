@@ -2468,6 +2468,20 @@
       "authorized_by": "user (explicit chat approval, 2026-10-10)"
     },
     {
+      "from": "vox-doc-pipeline",
+      "to": "vox-diagram",
+      "reason": "Doc lint validates vox-diagram fences with vox_diagram::fence::extract and vox_diagram::check and counts legacy mermaid fences for the shrink-only baseline; vox_doc_pipeline re-exports vox_diagram as diagram so vox-cli needs no further edge (VoxDiagram Phase 87, DOCS-01/DOCS-02). L3 -> L2, downward.",
+      "date": "2026-10-16",
+      "authorized_by": "user (explicit chat approval, 2026-10-16)"
+    },
+    {
+      "from": "vox-orchestrator-mcp",
+      "to": "vox-diagram",
+      "reason": "The vox_validate_diagram MCP tool calls vox_diagram::validate (check, fmt, Mermaid import and export, SVG render), so the MCP tool, doc lint and the vox diagram CLI share one deterministic envelope and the MCP crate carries no copy of the parser (VoxDiagram Phase 88, TOOL-01). L3 -> L2, downward.",
+      "date": "2026-10-16",
+      "authorized_by": "user (explicit chat approval, 2026-10-16)"
+    },
+    {
       "from": "vox-search",
       "to": "vox-kb-facets",
       "reason": "Library indexer reads Facets for the card facet lines and the shared frontmatter splitter; search applies Taxonomy altLabel query expansion (KB Phase 4, D-09). L3 -> L0, downward.",

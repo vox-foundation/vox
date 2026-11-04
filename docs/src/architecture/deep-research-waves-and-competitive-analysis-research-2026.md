@@ -42,19 +42,30 @@ The table below contrasts the four systems across the key dimensions that govern
 
 Google Gemini Deep Research leverages Google's core competitive assets: native access to the Google web search index and Gemini's massive 1M–2M token context window.
 
-```mermaid
-flowchart TD
-    UserQuery["User Prompt"] --> PlanPhase["Collaborative Plan Formulation"]
-    PlanPhase --> UserApproval{"User Approves Plan?"}
-    UserApproval -- No --> PlanPhase
-    UserApproval -- Yes --> LoopStart["Start Recursive Agent Loop"]
-    LoopStart --> GenQueries["Generate 3-8 Subqueries"]
-    GenQueries --> GoogleSearch["Google Search Ingestion"]
-    GoogleSearch --> IngestPages["Ingest Full HTML Pages (up to 1M tokens)"]
-    IngestPages --> GapAnalysis{"Information Gap or Contradiction Detected?"}
-    GapAnalysis -- "Yes (Iter < Max)" --> RefineQueries["Formulate Refined / Follow-up Queries"]
-    RefineQueries --> GoogleSearch
-    GapAnalysis -- "No or Iter == Max" --> LongSynthesis["Synthesize 10-25 Page Report with Citations"]
+```vox-diagram
+graph {
+    node UserQuery: "User Prompt"
+    node PlanPhase: "Collaborative Plan Formulation"
+    node UserApproval: "User Approves Plan?" { shape: diamond }
+    node LoopStart: "Start Recursive Agent Loop"
+    node GenQueries: "Generate 3-8 Subqueries"
+    node GoogleSearch: "Google Search Ingestion"
+    node IngestPages: "Ingest Full HTML Pages (up to 1M tokens)"
+    node GapAnalysis: "Information Gap or Contradiction Detected?" { shape: diamond }
+    node RefineQueries: "Formulate Refined / Follow-up Queries"
+    node LongSynthesis: "Synthesize 10-25 Page Report with Citations"
+    UserQuery -> PlanPhase
+    PlanPhase -> UserApproval
+    UserApproval -> PlanPhase: "No"
+    UserApproval -> LoopStart: "Yes"
+    LoopStart -> GenQueries
+    GenQueries -> GoogleSearch
+    GoogleSearch -> IngestPages
+    IngestPages -> GapAnalysis
+    GapAnalysis -> RefineQueries: "Yes (Iter < Max)"
+    RefineQueries -> GoogleSearch
+    GapAnalysis -> LongSynthesis: "No or Iter == Max"
+}
 ```
 
 #### Key Architectural Strengths:
@@ -73,22 +84,38 @@ flowchart TD
 
 Anthropic's approach relies on **hierarchical multi-agent delegation** (an Orchestrator supervising specialized Worker Subagents) and a **virtual filesystem**.
 
-```mermaid
-flowchart TD
-    UserQuery["User Query"] --> LeadAgent["Lead Researcher (Supervisor Agent)"]
-    LeadAgent --> Decomp["Task Decomposition & Router (Claude Haiku)"]
-    Decomp --> Subagent1["Worker Subagent 1: Topic A"]
-    Decomp --> Subagent2["Worker Subagent 2: Topic B"]
-    Decomp --> SubagentN["Worker Subagent N: Topic C"]
-    Subagent1 --> VFS1["Write Notes to Virtual Filesystem"]
-    Subagent2 --> VFS2["Write Notes to Virtual Filesystem"]
-    SubagentN --> VFS3["Write Notes to Virtual Filesystem"]
-    VFS1 & VFS2 & VFS3 --> Distill["Subagents Distill Structured Findings"]
-    Distill --> LeadAgent
-    LeadAgent --> Reflection{"Gaps / Contradictions Found?"}
-    Reflection -- Yes --> SpawnSpecialist["Spawn Specialist Subagent (Tie-Breaker)"]
-    SpawnSpecialist --> Distill
-    Reflection -- No --> FinalReport["Synthesize Comprehensive Report (Claude Opus/Sonnet)"]
+```vox-diagram
+graph {
+    node UserQuery: "User Query"
+    node LeadAgent: "Lead Researcher (Supervisor Agent)"
+    node Decomp: "Task Decomposition & Router (Claude Haiku)"
+    node Subagent1: "Worker Subagent 1: Topic A"
+    node Subagent2: "Worker Subagent 2: Topic B"
+    node SubagentN: "Worker Subagent N: Topic C"
+    node VFS1: "Write Notes to Virtual Filesystem"
+    node VFS2: "Write Notes to Virtual Filesystem"
+    node VFS3: "Write Notes to Virtual Filesystem"
+    node Distill: "Subagents Distill Structured Findings"
+    node Reflection: "Gaps / Contradictions Found?" { shape: diamond }
+    node SpawnSpecialist: "Spawn Specialist Subagent (Tie-Breaker)"
+    node FinalReport: "Synthesize Comprehensive Report (Claude Opus/Sonnet)"
+    UserQuery -> LeadAgent
+    LeadAgent -> Decomp
+    Decomp -> Subagent1
+    Decomp -> Subagent2
+    Decomp -> SubagentN
+    Subagent1 -> VFS1
+    Subagent2 -> VFS2
+    SubagentN -> VFS3
+    VFS1 -> Distill
+    VFS2 -> Distill
+    VFS3 -> Distill
+    Distill -> LeadAgent
+    LeadAgent -> Reflection
+    Reflection -> SpawnSpecialist: "Yes"
+    SpawnSpecialist -> Distill
+    Reflection -> FinalReport: "No"
+}
 ```
 
 #### Key Architectural Strengths:
@@ -107,33 +134,49 @@ flowchart TD
 
 Vox can surpass both Gemini and Claude Deep Research by unifying five pillars into a cohesive architecture:
 
-```mermaid
-flowchart TD
-    UserAsk["User / Chat Query"] --> Triage{"Dynamic Triage Classifier"}
-    Triage -- "Tier 0: Exact Memory" --> ReturnMem["Return VoxDB FTS5 Cached Knowledge (<50ms)"]
-    Triage -- "Tier 1: Shallow Fact" --> FastWeb["Fast 1-Hop Search + Direct Synth (<1s)"]
-    Triage -- "Tier 2: Standard Deep" --> Wave1["Wave 1: Reconnaissance"]
-    Triage -- "Tier 3: Multi-Wave" --> Wave1
-
-    subgraph MultiWaveEngine["Autonomous Multi-Wave DAG Engine"]
-        Wave1 --> Distill1["MENS Local Claim Extraction & Triplets"]
-        Distill1 --> GapAnalysis{"Gap & Contradiction Analyzer"}
-        GapAnalysis -- "Contradiction / Missing Depth" --> Wave2["Wave 2: Targeted Deep-Dive & Citation Crawling"]
-        Wave2 --> Distill2["MENS Local Evidence Triangulation"]
-        Distill2 --> AdversarialCheck{"Adversarial Bar Met?"}
-        AdversarialCheck -- "High Uncertainty / Code Query" --> Wave3["Wave 3: Adversarial Verification & Sandbox Execution"]
-        Wave3 --> SandboxRun["Run Sandboxed Compiler / Schema Validator"]
-        SandboxRun --> FinalDistill["Consolidated Knowledge Subgraph"]
-    end
-
-    GapAnalysis -- "Sufficient Evidence" --> FinalDistill
-    AdversarialCheck -- "Sufficient" --> FinalDistill
-
-    FinalDistill --> ContextPacker["Context Window Budgeter (Top-K Spans)"]
-    ContextPacker --> FrontierSynth["Frontier Model Synthesis (OpenRouter / Claude / Gemini)"]
-    FrontierSynth --> PostAudit["Post-Hoc Citation Span & DOI Audit"]
-    PostAudit --> StoreDB["Persist to VoxDB FTS5 & Claim Cache"]
-    StoreDB --> PresentGUI["Interactive GUI Report + Claim Accordion + Chat Card"]
+```vox-diagram
+graph {
+    node UserAsk: "User / Chat Query"
+    node Triage: "Dynamic Triage Classifier" { shape: diamond }
+    node ReturnMem: "Return VoxDB FTS5 Cached Knowledge (<50ms)"
+    node FastWeb: "Fast 1-Hop Search + Direct Synth (<1s)"
+    node ContextPacker: "Context Window Budgeter (Top-K Spans)"
+    node FrontierSynth: "Frontier Model Synthesis (OpenRouter / Claude / Gemini)"
+    node PostAudit: "Post-Hoc Citation Span & DOI Audit"
+    node StoreDB: "Persist to VoxDB FTS5 & Claim Cache"
+    node PresentGUI: "Interactive GUI Report + Claim Accordion + Chat Card"
+    container MultiWaveEngine: "Autonomous Multi-Wave DAG Engine" {
+        node Wave1: "Wave 1: Reconnaissance"
+        node Distill1: "MENS Local Claim Extraction & Triplets"
+        node GapAnalysis: "Gap & Contradiction Analyzer" { shape: diamond }
+        node Wave2: "Wave 2: Targeted Deep-Dive & Citation Crawling"
+        node Distill2: "MENS Local Evidence Triangulation"
+        node AdversarialCheck: "Adversarial Bar Met?" { shape: diamond }
+        node Wave3: "Wave 3: Adversarial Verification & Sandbox Execution"
+        node SandboxRun: "Run Sandboxed Compiler / Schema Validator"
+        node FinalDistill: "Consolidated Knowledge Subgraph"
+        Wave1 -> Distill1
+        Distill1 -> GapAnalysis
+        GapAnalysis -> Wave2: "Contradiction / Missing Depth"
+        Wave2 -> Distill2
+        Distill2 -> AdversarialCheck
+        AdversarialCheck -> Wave3: "High Uncertainty / Code Query"
+        Wave3 -> SandboxRun
+        SandboxRun -> FinalDistill
+        GapAnalysis -> FinalDistill: "Sufficient Evidence"
+        AdversarialCheck -> FinalDistill: "Sufficient"
+    }
+    UserAsk -> Triage
+    Triage -> ReturnMem: "Tier 0: Exact Memory"
+    Triage -> FastWeb: "Tier 1: Shallow Fact"
+    Triage -> MultiWaveEngine.Wave1: "Tier 2: Standard Deep"
+    Triage -> MultiWaveEngine.Wave1: "Tier 3: Multi-Wave"
+    MultiWaveEngine.FinalDistill -> ContextPacker
+    ContextPacker -> FrontierSynth
+    FrontierSynth -> PostAudit
+    PostAudit -> StoreDB
+    StoreDB -> PresentGUI
+}
 ```
 
 ---
@@ -208,13 +251,21 @@ Feeding 30 full web pages into an LLM synthesis prompt creates **Context Poisoni
 
 Vox solves this through **Hierarchical Distillation**:
 
-```mermaid
-flowchart LR
-    RawHits["Raw Web Pages (100k+ tokens)"] --> LocalMENS["Local MENS Model (Fast)"]
-    LocalMENS --> FactTriplets["Structured Claim Triplets & Evidence Spans"]
-    FactTriplets --> GraphStore["Factual Subgraph & Corroboration Matrix"]
-    GraphStore --> RAGBudgeter["RAG Context Budgeter (Top-K Verified Spans)"]
-    RAGBudgeter --> PackedPrompt["Dense, High-Density Synthesis Prompt (<8k tokens)"]
+```vox-diagram
+graph {
+    direction: right
+    node RawHits: "Raw Web Pages (100k+ tokens)"
+    node LocalMENS: "Local MENS Model (Fast)"
+    node FactTriplets: "Structured Claim Triplets & Evidence Spans"
+    node GraphStore: "Factual Subgraph & Corroboration Matrix"
+    node RAGBudgeter: "RAG Context Budgeter (Top-K Verified Spans)"
+    node PackedPrompt: "Dense, High-Density Synthesis Prompt (<8k tokens)"
+    RawHits -> LocalMENS
+    LocalMENS -> FactTriplets
+    FactTriplets -> GraphStore
+    GraphStore -> RAGBudgeter
+    RAGBudgeter -> PackedPrompt
+}
 ```
 
 1. **Local Extraction**: For each retrieved web hit, a lightweight local model (or fast cloud model) extracts a list of `ClaimEvidenceUnit`:

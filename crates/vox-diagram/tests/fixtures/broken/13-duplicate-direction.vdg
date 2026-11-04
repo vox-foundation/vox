@@ -1,0 +1,6 @@
+// expect: diagram/duplicate-direction
+graph {
+    direction: right
+    direction: down
+    node a: "A"
+}

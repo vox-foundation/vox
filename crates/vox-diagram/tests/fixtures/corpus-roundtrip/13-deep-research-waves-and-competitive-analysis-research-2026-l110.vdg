@@ -1,0 +1,42 @@
+graph {
+    node UserAsk: "User / Chat Query"
+    node Triage: "Dynamic Triage Classifier" { shape: diamond }
+    node ReturnMem: "Return VoxDB FTS5 Cached Knowledge (<50ms)"
+    node FastWeb: "Fast 1-Hop Search + Direct Synth (<1s)"
+    node ContextPacker: "Context Window Budgeter (Top-K Spans)"
+    node FrontierSynth: "Frontier Model Synthesis (OpenRouter / Claude / Gemini)"
+    node PostAudit: "Post-Hoc Citation Span & DOI Audit"
+    node StoreDB: "Persist to VoxDB FTS5 & Claim Cache"
+    node PresentGUI: "Interactive GUI Report + Claim Accordion + Chat Card"
+    container MultiWaveEngine: "Autonomous Multi-Wave DAG Engine" {
+        node Wave1: "Wave 1: Reconnaissance"
+        node Distill1: "MENS Local Claim Extraction & Triplets"
+        node GapAnalysis: "Gap & Contradiction Analyzer" { shape: diamond }
+        node Wave2: "Wave 2: Targeted Deep-Dive & Citation Crawling"
+        node Distill2: "MENS Local Evidence Triangulation"
+        node AdversarialCheck: "Adversarial Bar Met?" { shape: diamond }
+        node Wave3: "Wave 3: Adversarial Verification & Sandbox Execution"
+        node SandboxRun: "Run Sandboxed Compiler / Schema Validator"
+        node FinalDistill: "Consolidated Knowledge Subgraph"
+        Wave1 -> Distill1
+        Distill1 -> GapAnalysis
+        GapAnalysis -> Wave2: "Contradiction / Missing Depth"
+        Wave2 -> Distill2
+        Distill2 -> AdversarialCheck
+        AdversarialCheck -> Wave3: "High Uncertainty / Code Query"
+        Wave3 -> SandboxRun
+        SandboxRun -> FinalDistill
+        GapAnalysis -> FinalDistill: "Sufficient Evidence"
+        AdversarialCheck -> FinalDistill: "Sufficient"
+    }
+    UserAsk -> Triage
+    Triage -> ReturnMem: "Tier 0: Exact Memory"
+    Triage -> FastWeb: "Tier 1: Shallow Fact"
+    Triage -> MultiWaveEngine.Wave1: "Tier 2: Standard Deep"
+    Triage -> MultiWaveEngine.Wave1: "Tier 3: Multi-Wave"
+    MultiWaveEngine.FinalDistill -> ContextPacker
+    ContextPacker -> FrontierSynth
+    FrontierSynth -> PostAudit
+    PostAudit -> StoreDB
+    StoreDB -> PresentGUI
+}

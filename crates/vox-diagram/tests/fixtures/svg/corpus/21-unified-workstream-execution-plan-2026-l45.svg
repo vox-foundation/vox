@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1378 758" role="img" aria-labelledby="vd-title vd-desc" class="vd-diagram" style="font-family:var(--vd-font,Arimo,Arial,Liberation Sans,Helvetica,sans-serif);font-size:14px">
+<title id="vd-title">Diagram</title>
+<desc id="vd-desc">14 nodes, 17 edges: Wave 0: Phase 05 Branch… → VoxDb Baseline 96 (kb P…; VoxDb Baseline 96 (kb P… → Wave 1: Phase 12 Safety…; VoxDb Baseline 96 (kb P… → Wave 1: Phase 07 &amp; 07.1…; VoxDb Baseline 96 (kb P… → Wave 1: Phase 25 vox-gr…; VoxDb Baseline 96 (kb P… → Wave 1: Phase 32 Docs T…; Wave 1: Phase …</desc>
+<defs>
+<marker id="vd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+<path d="M0 0L10 5L0 10z" style="fill:var(--vd-edge,#57606a)"/>
+</marker>
+</defs>
+<g class="vd-edges" style="fill:none;stroke:var(--vd-edge,#57606a);stroke-width:1.5">
+<path class="vd-edge" d="M667 90L667 150" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M765.5 206L765.5 213.5Q765.5 221 772.5 221L1236.5 250.5Q1244 251 1244 259L1244 275" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M753.5 206L753.5 213.5Q753.5 221 760.5 221.5L971 250.5Q978 251 978 258.5L978 266" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M667 206L667 266" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M580.5 206L580.5 213.5Q580.5 221 573.5 222L400.5 250Q393 251 393 259L393 275" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M719 340L719 409" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M491.5 331L491.5 347Q491.5 355 499 356.5L616.5 383.5Q624 385 624 393L624 409" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M385 331L385 409" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1244 331L1244 400" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M978 340L978 400" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M568.5 206L568.5 213.5Q568.5 221 561 221L127 236Q119 236 119 244L119 400" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M594 340L594 347.5Q594 355 593.5 362L578.5 512Q578 519 578 526.5L578 534" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M1244 474L1244 481.5Q1244 489 1237 489L686 519Q679 519 679 526.5L679 534" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M205.5 474L205.5 481.5Q205.5 489 212.5 489.5L470 518.5Q477 519 477 526.5L477 534" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M385 465L385 481Q385 489 377.5 491L299 517Q292 519 292 526.5L292 534" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M119 474L119 534" marker-end="url(#vd-arrow)"/>
+<path class="vd-edge" d="M578 608L578 668" marker-end="url(#vd-arrow)"/>
+</g>
+<g class="vd-nodes">
+<g class="vd-node">
+<rect class="vd-node-shape" x="558" y="16" width="218" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="667" y="40" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="667" dy="0">Wave 0: Phase 05 Branch &amp;</tspan><tspan x="667" dy="18">Worktree Convergence</tspan><tspan x="667" dy="18">(ARGON-4)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="552.5" y="150" width="229" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="667" y="174" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="667" dy="0">VoxDb Baseline 96 (kb Phase</tspan><tspan x="667" dy="18">03) + Merged catalog.v1.yaml</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="1144.5" y="275" width="199" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1244" y="299" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1244" dy="0">Wave 1: Phase 12 Safety</tspan><tspan x="1244" dy="18">Floor (12-01..08)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="878" y="266" width="199.5" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="977.5" y="290" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="977.5" dy="0">Wave 1: Phase 07 &amp; 07.1</tspan><tspan x="977.5" dy="18">Trials Domain (VoxDb</tspan><tspan x="977.5" dy="18">Baseline 97)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="578" y="266" width="177.5" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="666.5" y="290" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="666.5" dy="0">Wave 1: Phase 25</tspan><tspan x="666.5" dy="18">vox-graph-reader v5 +</tspan><tspan x="666.5" dy="18">vox_search_atlas</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="278.5" y="275" width="229" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="393" y="299" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="393" dy="0">Wave 1: Phase 32 Docs Trust</tspan><tspan x="393" dy="18">Signal Calibration</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="608" y="409" width="221.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="718.5" y="433" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="718.5" dy="0">Wave 2: Phase 33 OpenWiki</tspan><tspan x="718.5" dy="18">Subsystem Hubs &amp; Mermaid</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="271.5" y="409" width="226.5" height="56" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="384.5" y="433" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="384.5" dy="0">Wave 2: Phase 34 Docs Debt</tspan><tspan x="384.5" dy="18">Burn-Down (920 -&gt; &lt;100)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="1126" y="400" width="236" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="1244" y="424" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="1244" dy="0">Wave 2: Phases 13-17</tspan><tspan x="1244" dy="18">Autonomy Daemon &amp; Attention</tspan><tspan x="1244" dy="18">Inbox (Baseline 98)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="869.5" y="400" width="216.5" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="977.5" y="424" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="977.5" dy="0">Wave 2: Phases 08-11 &amp; 42</tspan><tspan x="977.5" dy="18">Trial Race Harness &amp;</tspan><tspan x="977.5" dy="18">Benchmarks</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="16" y="400" width="205.5" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="118.5" y="424" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="118.5" dy="0">Wave 2: Phases 37-41 KB</tspan><tspan x="118.5" dy="18">Embeddings, Context</tspan><tspan x="118.5" dy="18">Injection &amp; Staleness</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="461" y="534" width="234" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="578" y="558" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="578" dy="0">Wave 3: Sequenced GUI (06.4</tspan><tspan x="578" dy="18">-&gt; 26..31 Atlas -&gt; 43..45 KB</tspan><tspan x="578" dy="18">-&gt; 18..19 Oversight)</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="76.5" y="534" width="231.5" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="192" y="558" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="192" dy="0">Wave 4: Phases 35-36 Nightly</tspan><tspan x="192" dy="18">LLM Doc Verifier &amp;</tspan><tspan x="192" dy="18">Self-Healing Bot</tspan></text>
+</g>
+<g class="vd-node">
+<rect class="vd-node-shape" x="485" y="668" width="186" height="74" rx="3" style="fill:var(--vd-node-fill,#fff);stroke:var(--vd-node-stroke,#57606a);stroke-width:1.5"/>
+<text class="vd-label" x="578" y="692" text-anchor="middle" style="fill:var(--vd-text,#1f2328);stroke:none"><tspan x="578" dy="0">Wave 4: Phase 06.6</tspan><tspan x="578" dy="18">Cold-Start Time-to-Find</tspan><tspan x="578" dy="18">Journeys</tspan></text>
+</g>
+</g>
+</svg>

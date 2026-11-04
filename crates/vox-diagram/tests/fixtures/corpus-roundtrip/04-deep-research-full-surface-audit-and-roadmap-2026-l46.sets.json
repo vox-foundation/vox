@@ -1,0 +1,302 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "Cache Short-Circuit (Exact FNV-1a)",
+      "diamond",
+      []
+    ],
+    [
+      "Persist Artifact & Report to vox-db",
+      "rect",
+      []
+    ],
+    [
+      "Research Query (Topic, Scope, Max Sources)",
+      "rect",
+      []
+    ],
+    [
+      "Resolve Research Models (Planner, Claim, Synth, Judge)",
+      "rect",
+      []
+    ],
+    [
+      "Return Cached ResearchResult",
+      "rect",
+      []
+    ],
+    [
+      "Stage 10: Citation Audit & Corroboration Count",
+      "rect",
+      []
+    ],
+    [
+      "Stage 1: Decompose Query (3-6 Subqueries via LLM)",
+      "rect",
+      []
+    ],
+    [
+      "Stage 2: Gather Hits (Local Tantivy/Mem + Web Multi-Hop CRAG)",
+      "rect",
+      []
+    ],
+    [
+      "Stage 3: Diagnostics (Coverage %, Hit Rate, Domain Diversity)",
+      "rect",
+      []
+    ],
+    [
+      "Stage 4: Claim Extraction (vox-scientia or LLM)",
+      "rect",
+      []
+    ],
+    [
+      "Stage 5: Claim Verification (SelfCheckGPT 3x Resampling NLI)",
+      "rect",
+      []
+    ],
+    [
+      "Stage 6: Confidence Gate (Citation, Support, Diversity, Hit Scores)",
+      "rect",
+      []
+    ],
+    [
+      "Stage 7: Answer Synthesis (Dense Markdown + [N] Citations)",
+      "rect",
+      []
+    ],
+    [
+      "Stage 8: Quality Judge (Factual, Density, Coverage 0-100)",
+      "rect",
+      []
+    ],
+    [
+      "Stage 9: CoVE Self-Verification (If DeepResearch Tier)",
+      "rect",
+      []
+    ],
+    [
+      "update_research_session_status: completed",
+      "rect",
+      []
+    ],
+    [
+      "vox-db: create_research_session (status: planning)",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Cache Short-Circuit (Exact FNV-1a)",
+        "diamond",
+        []
+      ],
+      [
+        "Resolve Research Models (Planner, Claim, Synth, Judge)",
+        "rect",
+        []
+      ],
+      "Miss"
+    ],
+    [
+      [
+        "Cache Short-Circuit (Exact FNV-1a)",
+        "diamond",
+        []
+      ],
+      [
+        "Return Cached ResearchResult",
+        "rect",
+        []
+      ],
+      "Hit"
+    ],
+    [
+      [
+        "Persist Artifact & Report to vox-db",
+        "rect",
+        []
+      ],
+      [
+        "update_research_session_status: completed",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Research Query (Topic, Scope, Max Sources)",
+        "rect",
+        []
+      ],
+      [
+        "Cache Short-Circuit (Exact FNV-1a)",
+        "diamond",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Resolve Research Models (Planner, Claim, Synth, Judge)",
+        "rect",
+        []
+      ],
+      [
+        "vox-db: create_research_session (status: planning)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Stage 10: Citation Audit & Corroboration Count",
+        "rect",
+        []
+      ],
+      [
+        "Persist Artifact & Report to vox-db",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Stage 1: Decompose Query (3-6 Subqueries via LLM)",
+        "rect",
+        []
+      ],
+      [
+        "Stage 2: Gather Hits (Local Tantivy/Mem + Web Multi-Hop CRAG)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Stage 2: Gather Hits (Local Tantivy/Mem + Web Multi-Hop CRAG)",
+        "rect",
+        []
+      ],
+      [
+        "Stage 3: Diagnostics (Coverage %, Hit Rate, Domain Diversity)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Stage 3: Diagnostics (Coverage %, Hit Rate, Domain Diversity)",
+        "rect",
+        []
+      ],
+      [
+        "Stage 4: Claim Extraction (vox-scientia or LLM)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Stage 4: Claim Extraction (vox-scientia or LLM)",
+        "rect",
+        []
+      ],
+      [
+        "Stage 5: Claim Verification (SelfCheckGPT 3x Resampling NLI)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Stage 5: Claim Verification (SelfCheckGPT 3x Resampling NLI)",
+        "rect",
+        []
+      ],
+      [
+        "Stage 6: Confidence Gate (Citation, Support, Diversity, Hit Scores)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Stage 6: Confidence Gate (Citation, Support, Diversity, Hit Scores)",
+        "rect",
+        []
+      ],
+      [
+        "Stage 7: Answer Synthesis (Dense Markdown + [N] Citations)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Stage 7: Answer Synthesis (Dense Markdown + [N] Citations)",
+        "rect",
+        []
+      ],
+      [
+        "Stage 8: Quality Judge (Factual, Density, Coverage 0-100)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Stage 8: Quality Judge (Factual, Density, Coverage 0-100)",
+        "rect",
+        []
+      ],
+      [
+        "Stage 9: CoVE Self-Verification (If DeepResearch Tier)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Stage 9: CoVE Self-Verification (If DeepResearch Tier)",
+        "rect",
+        []
+      ],
+      [
+        "Stage 10: Citation Audit & Corroboration Count",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "vox-db: create_research_session (status: planning)",
+        "rect",
+        []
+      ],
+      [
+        "Stage 1: Decompose Query (3-6 Subqueries via LLM)",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

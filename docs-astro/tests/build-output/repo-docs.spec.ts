@@ -7,7 +7,9 @@ import { getGitDates } from '../../src/utils/git-dates.mjs';
 test.describe('Build Output: Mounted Repo Docs (LINKS-02, P20-D9)', () => {
   test('dist/repo/agents-md/index.html exists and contains root AGENTS.md content', () => {
     const agentsMdHtml = readDist('repo/agents-md');
-    expect(agentsMdHtml).toContain('Agents Policy');
+    // The leading H1 ("Agents Policy") is removed by remarkStripTitleH1;
+    // Starlight renders the frontmatter title instead. Assert body text.
+    expect(agentsMdHtml).toContain('always-loaded policy surface');
   });
 
   test('dist/agents/index.html still exists (the scoped docs page)', () => {

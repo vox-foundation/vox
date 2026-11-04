@@ -1,7 +1,7 @@
 {
   "x-vox-version": 1,
   "generated_by": "scripts/docs/tutorial-verify.vox",
-  "verified_at_commit": "b64377d402f207a588f9c6b2e71ede6679340105",
+  "verified_at_commit": "d3c6f62a8629581a9e6896f2c9d6d9749b1057a3",
   "tutorials": [
     {
       "path": "docs/src/tutorials/tut-actor-basics.md",
@@ -16,7 +16,7 @@
     },
     {
       "path": "docs/src/tutorials/tut-first-app.md",
-      "blob_sha": "0502fb7cb72bfa78f73f4a63e7544a0c1a57c7f6",
+      "blob_sha": "5d7fb22aaced4c2691fe4badd5da4fc4a864d5c9",
       "checks": {
         "commands_in_registry": "pass",
         "snippets_compile": "pass",
@@ -38,7 +38,7 @@
     },
     {
       "path": "docs/src/tutorials/tut-getting-started.md",
-      "blob_sha": "732a0192309b93d289884f8e433a818f2a8ddd29",
+      "blob_sha": "3e33bd49b0192f54189cfb35cb79fd0d99759721",
       "checks": {
         "commands_in_registry": "pass",
         "snippets_compile": "pass",

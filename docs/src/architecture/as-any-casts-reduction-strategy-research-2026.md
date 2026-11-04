@@ -113,12 +113,18 @@ Based on an AST-based parser run over the active `no-any-baseline.json` (8,871 t
 
 To ensure safe implementation without impacting active feature branches, we propose carrying out the casts reduction in five sequential, isolated sweeps:
 
-```mermaid
-graph TD
-  A["1. Zod Alignment & Validation Schemas — Removes ~500 casts"] --> B["2. Sliced Builders Migration — Removes ~1500 casts"]
-  B --> C["3. ES Imports & Centralized API Seams — Removes ~1200 casts"]
-  C --> D["4. Zod DTO Boundaries — Removes ~1000 casts"]
-  D --> E["5. Central Mock Builders — Removes ~800 casts"]
+```vox-diagram
+graph {
+    node A: "1. Zod Alignment & Validation Schemas — Removes ~500 casts"
+    node B: "2. Sliced Builders Migration — Removes ~1500 casts"
+    node C: "3. ES Imports & Centralized API Seams — Removes ~1200 casts"
+    node D: "4. Zod DTO Boundaries — Removes ~1000 casts"
+    node E: "5. Central Mock Builders — Removes ~800 casts"
+    A -> B
+    B -> C
+    C -> D
+    D -> E
+}
 ```
 
 ### Verification Pipeline

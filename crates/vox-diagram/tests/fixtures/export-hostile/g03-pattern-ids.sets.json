@@ -1,0 +1,150 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "first n0",
+      "rect",
+      []
+    ],
+    [
+      "first n1",
+      "rect",
+      []
+    ],
+    [
+      "kebab",
+      "rect",
+      []
+    ],
+    [
+      "second n1",
+      "rect",
+      [
+        "Group"
+      ]
+    ],
+    [
+      "style-ish",
+      "rect",
+      []
+    ],
+    [
+      "third",
+      "rect",
+      []
+    ],
+    [
+      "umlaut",
+      "rect",
+      []
+    ],
+    [
+      "underscore",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "first n0",
+        "rect",
+        []
+      ],
+      [
+        "first n1",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "first n1",
+        "rect",
+        []
+      ],
+      [
+        "second n1",
+        "rect",
+        [
+          "Group"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "kebab",
+        "rect",
+        []
+      ],
+      [
+        "underscore",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "second n1",
+        "rect",
+        [
+          "Group"
+        ]
+      ],
+      [
+        "kebab",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "style-ish",
+        "rect",
+        []
+      ],
+      [
+        "umlaut",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "umlaut",
+        "rect",
+        []
+      ],
+      [
+        "third",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "underscore",
+        "rect",
+        []
+      ],
+      [
+        "style-ish",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": [
+    [
+      "Group"
+    ]
+  ]
+}

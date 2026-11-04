@@ -6,16 +6,23 @@
 //! USER-AUTHORIZED-ONLY); `--tighten-facet-backlog` only removes rows and rule ids.
 
 pub mod anchors;
+mod diagrams;
 pub mod doctest;
 mod facet_backlog;
 mod facets;
 mod lint;
 pub mod mermaid;
+mod mermaid_base_gate;
+mod mermaid_gate;
 pub mod openwiki;
+mod render_manifest;
 pub mod types;
 
+pub use diagrams::fence_issues;
 pub use facet_backlog::facet_backlog_gate_failures;
 pub use lint::{sync_readme_to_frontpage, transform_readme_block_for_mdx};
+pub use mermaid_base_gate::{Rename, mermaid_baseline_gate_failures};
+pub use mermaid_gate::MERMAID_BASELINE_REL;
 pub use vox_kb_facets::BACKLOG_REL as FACET_BACKLOG_REL;
 
 use std::fs;
@@ -84,6 +91,8 @@ fn workflow_for_kind(kind: &LintKind) -> &'static str {
             "restore README.md and docs/src/index.mdx — the sync check can't run without both"
         }
         LintKind::Facet(i) => i.workflow(),
+        LintKind::Diagram(i) => i.workflow(),
+        LintKind::LegacyMermaid(i) => i.workflow(),
         LintKind::InvalidMermaid { .. } => {
             "quote special characters in Mermaid node/edge labels and balance subgraph/end blocks"
         }
@@ -115,6 +124,8 @@ fn kind_label(kind: &LintKind) -> &'static str {
         LintKind::ReadmeSyncMissingAnchor { .. } => "readme-sync-missing-anchor",
         LintKind::ReadmeSyncSourceMissing { .. } => "readme-sync-source-missing",
         LintKind::Facet(i) => i.rule_id(),
+        LintKind::Diagram(i) => i.rule_id(),
+        LintKind::LegacyMermaid(i) => i.rule_id(),
         LintKind::InvalidMermaid { .. } => "invalid-mermaid",
     }
 }
@@ -272,6 +283,15 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
     }
     if args.contains(&"--tighten-facet-backlog".to_string()) {
         return tool(facet_backlog::tighten(root));
+    }
+    if args.contains(&"--seed-mermaid-baseline".to_string()) {
+        return tool(mermaid_gate::seed(root));
+    }
+    if args.contains(&"--tighten-mermaid-baseline".to_string()) {
+        return tool(mermaid_gate::tighten(root));
+    }
+    if args.contains(&"--render-diagrams".to_string()) {
+        return render_manifest::run(root, args);
     }
     if args.contains(&"--sync-readme-frontpage".to_string()) {
         let write = args.contains(&"--write".to_string()) || fix_mode;
@@ -448,41 +468,52 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
     }
 
     let mut lint_errors: Vec<LintError> = Vec::new();
-    // Taxonomy + backlog load once, before the parallel file pass. A missing or invalid
-    // contract is one hard error (fail closed), never "no facet rules apply".
-    let facet_ctx = match facets::FacetCtx::load(root) {
-        Ok(ctx) => Some(ctx),
-        Err(issue) => {
-            lint_errors.push(LintError {
-                file: root.to_path_buf(),
-                line: 0,
-                kind: LintKind::Facet(issue),
-            });
-            None
-        }
-    };
-    if lint_targets.is_empty() {
-        collect_lint_errors_target_with_root(&docs_src, &mut lint_errors, root, facet_ctx.as_ref());
-    } else {
-        for target in &lint_targets {
+    // `--mermaid-only` (fast tier) skips everything but the whole-tree ratchet below, so a change
+    // to any extension (.md, .mdx, none) is still held to the baseline.
+    if !args.contains(&"--mermaid-only".to_string()) {
+        // Taxonomy + backlog load once, before the parallel file pass. A missing or invalid
+        // contract is one hard error (fail closed), never "no facet rules apply".
+        let facet_ctx = match facets::FacetCtx::load(root) {
+            Ok(ctx) => Some(ctx),
+            Err(issue) => {
+                lint_errors.push(LintError {
+                    file: root.to_path_buf(),
+                    line: 0,
+                    kind: LintKind::Facet(issue),
+                });
+                None
+            }
+        };
+        if lint_targets.is_empty() {
             collect_lint_errors_target_with_root(
-                target,
+                &docs_src,
                 &mut lint_errors,
                 root,
                 facet_ctx.as_ref(),
             );
+        } else {
+            for target in &lint_targets {
+                collect_lint_errors_target_with_root(
+                    target,
+                    &mut lint_errors,
+                    root,
+                    facet_ctx.as_ref(),
+                );
+            }
         }
+        // Always run, even in scoped mode: it's two cheap file reads (README.md,
+        // index.mdx), not a directory walk, so there's no cost reason to gate it
+        // behind an unscoped run — and gating it was the reason the local
+        // (scoped-by-default) `vox ci pre-push` never caught README<->homepage
+        // drift, only CI did.
+        lint::lint_readme_sync_paths(
+            &root.join("README.md"),
+            &docs_src.join("index.mdx"),
+            &mut lint_errors,
+        );
     }
-    // Always run, even in scoped mode: it's two cheap file reads (README.md,
-    // index.mdx), not a directory walk, so there's no cost reason to gate it
-    // behind an unscoped run — and gating it was the reason the local
-    // (scoped-by-default) `vox ci pre-push` never caught README<->homepage
-    // drift, only CI did.
-    lint::lint_readme_sync_paths(
-        &root.join("README.md"),
-        &docs_src.join("index.mdx"),
-        &mut lint_errors,
-    );
+    // Always scans the whole docs/src tree so files nobody changed are still held to the baseline.
+    mermaid_gate::lint(root, &mut lint_errors);
 
     if !lint_errors.is_empty() {
         eprintln!("\n── vox-doc-pipeline: doc lint errors ──────────────────────────────");
@@ -646,6 +677,21 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
                         i.rule_id()
                     );
                 }
+                LintKind::Diagram(i) => eprintln!(
+                    "  {}  {}",
+                    if i.is_hard() { "ERROR" } else { "WARN " },
+                    i.render(e.file.strip_prefix(root).unwrap_or(&e.file))
+                ),
+                LintKind::LegacyMermaid(i) => {
+                    // every legacy-Mermaid finding blocks, stale slack included (it could be re-spent)
+                    eprintln!(
+                        "  ERROR  {}:{} — {} ({})",
+                        rel.display(),
+                        e.line,
+                        i.message(),
+                        i.rule_id()
+                    );
+                }
                 LintKind::InvalidMermaid { code, msg } => {
                     eprintln!("  ERROR  {}:{} — {} ({})", rel.display(), e.line, msg, code);
                 }
@@ -656,6 +702,8 @@ pub fn lint_in(root: &Path, args: &[String]) -> i32 {
             .iter()
             .filter(|e| {
                 matches!(&e.kind, LintKind::Facet(i) if i.is_hard())
+                    || matches!(&e.kind, LintKind::Diagram(i) if i.is_hard())
+                    || matches!(&e.kind, LintKind::LegacyMermaid(_))
                     || matches!(
                         e.kind,
                         LintKind::UnclosedCodeFence
@@ -754,7 +802,7 @@ mod tests {
     /// block) under `root`, in the exact marker shapes
     /// `lint::lint_readme_sync_paths` / `readme_anchor` / `mdx_sync_block`
     /// expect (`why_vox` is the sole entry in `lint::SYNCED_BLOCKS`).
-    fn write_readme_sync_fixture(root: &Path, readme_body: &str, mdx_body: &str) {
+    pub(super) fn write_readme_sync_fixture(root: &Path, readme_body: &str, mdx_body: &str) {
         std::fs::write(
             root.join("README.md"),
             format!("<!-- ANCHOR: why_vox -->\n{readme_body}\n<!-- ANCHOR_END: why_vox -->\n"),
@@ -790,7 +838,7 @@ mod tests {
     const FACET_TAXONOMY: &str =
         include_str!("../../../../contracts/documentation/kb-taxonomy.v1.yaml");
 
-    fn write_facet_contracts(root: &Path, backlog_docs: &str) {
+    pub(super) fn write_facet_contracts(root: &Path, backlog_docs: &str) {
         let c = root.join("contracts/documentation");
         std::fs::create_dir_all(&c).unwrap();
         std::fs::write(c.join("kb-taxonomy.v1.yaml"), FACET_TAXONOMY).unwrap();
@@ -801,7 +849,7 @@ mod tests {
         .unwrap();
     }
 
-    const BASE_FM: &str = "title: \"Doc\"\ndescription: \"A specific hand-written description for this fixture page.\"\ncategory: \"Concepts\"";
+    pub(super) const BASE_FM: &str = "title: \"Doc\"\ndescription: \"A specific hand-written description for this fixture page.\"\ncategory: \"Concepts\"";
 
     #[test]
     fn lint_in_facet_backlog_tracer() {

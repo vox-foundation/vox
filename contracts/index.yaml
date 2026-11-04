@@ -155,6 +155,15 @@ contracts:
       - vox-doc-pipeline facet lint
       - vox ci pre-push facet backlog gate
 
+  - id: documentation-legacy-mermaid-baseline
+    path: contracts/documentation/legacy-mermaid-baseline.v1.yaml
+    owner: documentation
+    kind: yaml
+    description: "Shrink-only per-file count of legacy mermaid code fences under docs/src, archive excluded (VoxDiagram Phase 87, DOCS-01)."
+    enforced_by:
+      - vox-doc-pipeline legacy-Mermaid lint
+      - vox ci pre-push legacy-Mermaid baseline gate
+
   - id: documentation-docs-reality-audit-program-v1
     path: contracts/documentation/docs-reality-audit.program.v1.yaml
     owner: platform-ci

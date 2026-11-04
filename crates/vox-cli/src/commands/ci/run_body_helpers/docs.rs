@@ -977,10 +977,11 @@ mod stale_ref_guard_tests {
     }
 
     /// KB Phase 4 (D-02): `run_ssot_drift` must dispatch the kb-facets TS check, or a facet
-    /// schema change without a regenerated GUI type never blocks PR CI. Split needle as above.
+    /// schema change without a regenerated GUI type never blocks PR CI. Split needle as above;
+    /// whitespace stripped because the auto-heal `match` form is wrapped across lines.
     #[test]
     fn run_ssot_drift_dispatches_kb_facets_ts() {
-        let src = include_str!("docs.rs");
+        let src: String = include_str!("docs.rs").split_whitespace().collect();
         let needle = format!("{}{}", "ds!(\"kb_facets", "_ts\"");
         assert!(
             src.contains(&needle),

@@ -37,7 +37,7 @@ export function RiskPopover({ risk, open, onChange, onClose, children }: RiskPop
       onKeyDown={handleKeyDown}
       className="absolute bottom-full right-0 z-[99999] mb-1 w-64 whitespace-normal rounded-lg border border-border-subtle bg-bg-base/98 p-2.5 text-[11px] text-text-primary shadow-2xl backdrop-blur-xl"
     >
-      <div className="mb-1.5 text-[10px] uppercase tracking-[0.08em] text-text-muted">Acceptable risk</div>
+      <div className="mb-1.5 text-[11px] uppercase tracking-[0.08em] text-text-muted">Acceptable risk</div>
       {RISK_POSTURES.map(p => (
         <button
           key={p.id}
@@ -50,12 +50,12 @@ export function RiskPopover({ risk, open, onChange, onClose, children }: RiskPop
           }`}
         >
           <span className="font-medium capitalize text-text-primary">{p.label} risk</span>
-          <span className="text-[10px] leading-snug text-text-secondary">{COPY[p.id]}</span>
+          <span className="text-[11px] leading-snug text-text-secondary">{COPY[p.id]}</span>
         </button>
       ))}
       {children ? (
         <div className="mt-1.5 border-t border-border-subtle pt-1.5">
-          <div className="mb-1 text-[10px] uppercase tracking-[0.08em] text-text-muted">After each reply</div>
+          <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-text-muted">After each reply</div>
           {children}
         </div>
       ) : null}

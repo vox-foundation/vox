@@ -216,12 +216,11 @@ impl MensCheckpointManifestV1 {
             if let Some(expected) = val
                 .get("adapter_safetensors_blake3")
                 .and_then(|v| v.as_str())
+                && expected != computed_digest
             {
-                if expected != computed_digest {
-                    anyhow::bail!(
-                        "adapter.safetensors digest mismatch: expected {expected}, got {computed_digest}"
-                    );
-                }
+                anyhow::bail!(
+                    "adapter.safetensors digest mismatch: expected {expected}, got {computed_digest}"
+                );
             }
         }
         Ok(computed_digest)

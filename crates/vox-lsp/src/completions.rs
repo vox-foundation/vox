@@ -41,11 +41,7 @@ impl CompletionEngine {
         let mut items = Vec::new();
 
         if is_at_trigger {
-            let at_filter = if last_token.starts_with('@') {
-                &last_token[1..]
-            } else {
-                ""
-            };
+            let at_filter = last_token.strip_prefix('@').unwrap_or("");
             Self::add_decorators_filtered(&mut items, at_filter);
             return CompletionList {
                 is_incomplete: false,

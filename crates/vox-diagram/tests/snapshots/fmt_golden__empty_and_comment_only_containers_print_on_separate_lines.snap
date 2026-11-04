@@ -1,0 +1,13 @@
+---
+source: crates/vox-diagram/tests/fmt_golden.rs
+expression: a
+---
+graph {
+    container e: "E" {
+    }
+    container k: "K" {
+        // only
+
+        // two
+    }
+}

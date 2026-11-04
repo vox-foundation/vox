@@ -29,6 +29,8 @@ It starts by calibrating `ledger.v1.json` and the claim extractor so valid tutor
 - [ ] **Phase 34: Corpus Consolidation & Baseline Deficit Ratchet** - Merge/redirect the 29 duplicate clusters and 51 stale non-architecture pages from `prune-report.v1.json`, reclassify or repair the 122 broken `status: current` architecture docs, and systematically burn down the 920 baselined deficits in `baseline.v1.json`
 - [ ] **Phase 35: Constrained LLM Claim Verifier (`vox audit docs --verify-llm`)** - Implement DocPrism/LCEF-style structured claim verification in `vox-doc-pipeline` / `vox-cli` via `vox_actor_runtime::llm` (`TaskCategory::DocClaimJudge`) with mandatory `[path:Lstart-Lend]` citations, content-hash caching, budget caps, and golden eval set scoring ($\le 10\%$ FP, $\ge 80\%$ precision)
 - [ ] **Phase 36: Self-Healing Draft-PR Bot & Continuous Website Sync** - Ship `scripts/docs-fix-drafts.vox` and `.github/workflows/docs-self-heal.yml` (read-only LLM patch job → no-LLM draft-PR job using `SSOT_AUTOREGEN_TOKEN`), compiler/doctest/link-gated, capped at $\le 3$ open draft PRs with precision tracking and live `voxlang.org` post-deploy verification
+- [ ] **Phase 37: Vox Syntax Highlighting on voxlang.org and Editors** - One shared Vox TextMate grammar drives Shiki/expressive-code on `voxlang.org` and the VS Code (and TextMate-compatible) extension, the LSP adds semantic tokens, and a CV screenshot gate proves every Vox code block on the site is fully colored
+- [ ] **Phase 38: First-Read Docs Accuracy Pass** - Audit and correct every page a new reader meets first (README and the docs it links, the `voxlang.org` front page, and the top of the sidebar) against the current code, removing drift, contradictions and unsupported claims
 
 ### ✅ v1.3 Self-Maintaining Public Docs (Shipped 2026-10-13)
 
@@ -118,6 +120,45 @@ It starts by calibrating `ledger.v1.json` and the claim extractor so valid tutor
 
 **Plans**: TBD (to be planned via `/gsd-plan-phase 36 --ws docs-freshness`)
 
+### Phase 37: Vox Syntax Highlighting on voxlang.org and Editors
+
+**Goal**: Every Vox code block on `voxlang.org` and every `.vox` file in VS Code (and TextMate-compatible editors) is fully and consistently colored from one grammar, and a screenshot-based CV gate keeps it that way.
+**Depends on**: Nothing (independent of Phases 32–36)
+**Requirements**: TBD
+**Research flag**: Light — confirm which grammar `docs-astro/src/plugins/vox-grammar.mjs` loads versus `apps/editor/vox-vscode/syntaxes/vox.tmLanguage.json`, and whether `vox-lsp` already emits semantic tokens.
+**Baseline (CV check 2026-10-30, `voxlang.org/tutorials/tut-first-app/`)**: keywords (`table`, `query`, `mutation`, `component`, `routes`, `return`), builtin types (`str`, `int`, `bool`, `Result`), call names, strings and literals are colored; declared type/component names (`Task`, `TaskList`), constructors (`Ok`), record field names, and slot labels (`view:`) render as plain text.
+**Success Criteria** (what must be TRUE):
+
+  1. One Vox TextMate grammar is the single source for both the site's Shiki `langs` and the VS Code extension's `syntaxes/` (no forked copy), covering the full current keyword set from AGENTS.md §Grammar Unification (bare-keyword blocks, data-layer soft keywords, decorators) plus declaration names, constructors, field names and slot labels; retired spellings get no special scope.
+  2. `vox-lsp` provides semantic tokens for `.vox` files, so editors that support them color declarations and references beyond what the TextMate grammar can see.
+  3. Every fenced block whose source is Vox renders with `data-language="vox"` on `voxlang.org` (no Vox code falls back to `text`), except `vox-diagram`, which stays on its own renderer.
+  4. A Playwright CV gate over a set of Vox-heavy `voxlang.org` pages (tutorials, reference, golden examples) captures screenshots and asserts per-token computed colors: no identifier token in a Vox block keeps the default foreground color, in both light and dark themes; it runs in CI and fails on regression.
+  5. The VS Code extension, installed from the repo, colors the golden examples under `examples/golden/` identically to the site (screenshot evidence in the review bundle).
+
+**Plans**: TBD (to be planned via `/gsd-plan-phase 37 --ws docs-freshness`)
+
+### Phase 38: First-Read Docs Accuracy Pass
+
+**Goal**: The pages a new user reads first are accurate against the current code, consistent with each other, and ordered around what a newcomer needs (what Vox is, how to install it, a first program, what works today).
+**Depends on**: Nothing (independent of Phases 32–37; Phase 32's trust-signal calibration makes its banners more useful but is not required)
+**Requirements**: TBD
+**Research flag**: Skip — this is an audit against the repo, not new technology.
+**Scope (first-read set)**: `README.md`; every doc it links (Getting Started, Syntax Reference, Stability Matrix, Installing Vox, First Full-Stack App, CLI reference, Contributor Hub, `where-things-live.md`, v1.0 release criteria, the benchmark page); `docs/src/index.mdx` (the `voxlang.org` front page) and everything it links; and the first two sidebar sections as ordered by `docs-astro/src/utils/sidebar.mjs` / its section-order contract.
+**Baseline findings (2026-10-30, from reading README.md)**:
+  - "The central claim" row is graded **Working** with $N=100$ / McNemar results from `vox-vs-ts-empirical-benchmark-2026.md` (LLM-authored, `authorship_model: antigravity-flash`), while the README's own research-honesty note still calls the claim an unestablished hypothesis. One of them is wrong; the numbers must trace to committed run artifacts or the row goes back to Research.
+  - "What's in the Box" names `ars` skills and `dei` visual review; `vox-ars` and `vox-dei` are retired surfaces (AGENTS.md §Retired Surfaces), so feature-flag names need checking against `crates/vox-cli/Cargo.toml` and the prose updated.
+  - Many Status rows are still dated 2026-09-21 (LSP, REPL, VS Code extension, `vox emit`, registry); "Last reviewed" is 2026-10-14. The LSP row needs re-checking against Phase 37's findings.
+  - The `voxlang.org` tutorial page at `/tutorials/tut-first-app/` showed its title twice (fixed 2026-10-30 by `docs-astro/src/plugins/remark-strip-title-h1.mjs`); confirm no other first-read page has a duplicate or missing H1.
+**Success Criteria** (what must be TRUE):
+
+  1. Every command, flag, path, crate, feature flag and URL on the first-read set exists in the current tree or CLI registry (`vox ci check-links`, `vox audit docs`, and a manual pass over anything those tools cannot resolve), and every code sample on those pages compiles via the doctest pipeline or runs with `vox run`.
+  2. The README Status tables are re-walked: each row is re-verified and re-dated or explicitly left with its old date; no row claims more than its evidence shows, and the README and `index.mdx` agree on every shared claim (the `why_vox` sync lint passes).
+  3. Any quantitative claim on the first-read set (benchmark results, tool counts, test counts) links to a committed artifact that reproduces it; claims without one are removed or downgraded.
+  4. The first sidebar sections lead with Getting Started → Install → first program → language tour → Stability, in that order, with no Internals, research or archived pages ahead of them; the front page links resolve to those same pages.
+  5. A Playwright smoke check walks the front page and the first-read set on the deployed site (one H1 per page, no 404 links, no "Broken" trust banner) and runs in CI.
+
+**Plans**: TBD (to be planned via `/gsd-plan-phase 38 --ws docs-freshness`)
+
 ---
 
 ## Parallelism
@@ -126,6 +167,8 @@ It starts by calibrating `ledger.v1.json` and the claim extractor so valid tutor
 - **Phase 33** (OpenWiki Subsystem Hubs, Deep Crate API docs, Mermaid diagrams) and **Phase 34** (Corpus Consolidation & Baseline Deficit Ratchet) can run in parallel after Phase 32.
 - **Phase 35** (LLM Claim Verifier) depends on Phase 32 + 34 so LLM tokens aren't wasted on pre-existing dead mentions.
 - **Phase 36** (Draft-PR Bot & Continuous Website Sync) depends on Phase 33 + 35.
+- **Phase 37** (Vox Syntax Highlighting) is independent and can run at any time.
+- **Phase 38** (First-Read Docs Accuracy Pass) is independent and can run at any time; it re-checks the README LSP row after Phase 37 if both run.
 - Runs in parallel with `research-trial-flywheel` (Phases 7–11), `autonomy-ux` (Phases 12–19), and `code-atlas` (Phases 25–31); do not touch their files.
 
 ## Progress
@@ -143,3 +186,5 @@ It starts by calibrating `ledger.v1.json` and the claim extractor so valid tutor
 | 34. Corpus Consolidation & Baseline Deficit Ratchet (v1.4) | 0/TBD | Not started | — |
 | 35. Constrained LLM Claim Verifier (v1.4) | 0/TBD | Not started | — |
 | 36. Self-Healing Draft-PR Bot & Continuous Website Sync (v1.4) | 0/TBD | Not started | — |
+| 37. Vox Syntax Highlighting on voxlang.org and Editors (v1.4) | 0/TBD | Not started | — |
+| 38. First-Read Docs Accuracy Pass (v1.4) | 0/TBD | Not started | — |

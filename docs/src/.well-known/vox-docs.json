@@ -81,7 +81,7 @@
         "id": "compiler",
         "label": "Compiler",
         "cli": 30,
-        "mcp": 10,
+        "mcp": 11,
         "surfaces": 0
       },
       {
@@ -136,7 +136,7 @@
       {
         "id": "ci",
         "label": "CI & governance",
-        "cli": 215,
+        "cli": 217,
         "mcp": 0,
         "surfaces": 1
       },
@@ -157,7 +157,7 @@
       {
         "id": "runtime",
         "label": "Runtime & scripts",
-        "cli": 14,
+        "cli": 15,
         "mcp": 2,
         "surfaces": 0
       },
@@ -192,7 +192,7 @@
       {
         "id": "platform",
         "label": "Platform (other)",
-        "cli": 34,
+        "cli": 45,
         "mcp": 97,
         "surfaces": 3
       }

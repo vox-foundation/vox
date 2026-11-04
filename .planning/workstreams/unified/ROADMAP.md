@@ -27,7 +27,7 @@
 
 ## Previous Milestone: v1.9 Chat Default Surfaces CV & Code Audit Remediation, Progressive-Disclosure Composer, Rich Markdown Transcript, Full-Height Execution Rail & CV Flywheel Convergence (`Phases 104–107`)
 
-**Audit SSOT:** [`docs/src/architecture/chat-default-surfaces-cv-code-audit-findings-2026.md`](../docs/src/architecture/chat-default-surfaces-cv-code-audit-findings-2026.md)
+**Audit SSOT:** [`docs/src/architecture/chat-default-surfaces-cv-code-audit-findings-2026.md`](../../../docs/src/architecture/chat-default-surfaces-cv-code-audit-findings-2026.md)
 
 - [x] **Phase 104: P0 Composer CTA State Unification, Rich Markdown/Code Transcript Renderer & Live `@kb`/`Ludus` State Binding** (`104-01` — `CHAT-P0-01..04` — completed 2026-10-19)
 - [x] **Phase 105: P1 Progressive-Disclosure 1-Row Composer Toolbar, Telemetry Deduplication & Mode Consolidation** (`105-01` — `CHAT-P1-01..03` — completed 2026-10-19)

@@ -97,6 +97,7 @@ vox-db                    = { path = "crates/vox-db" }
 vox-sql                   = { path = "crates/vox-sql" }
 vox-db-types              = { path = "crates/vox-db-types" }
 vox-kb-facets             = { path = "crates/vox-kb-facets" }
+vox-diagram               = { path = "crates/vox-diagram" }
 vox-eval                  = { path = "crates/vox-eval" }
 
 vox-forge                 = { path = "crates/vox-forge" }
@@ -388,6 +389,8 @@ futures-core       = "0.3"
 quote              = "1"
 similar            = "2"
 strsim             = "0.11"
+dagre              = "=0.1.1"   # default features REQUIRED: default-features = false does not compile (json module is not cfg-gated)
+unicode-width      = "0.2"
 globset            = "0.4"
 swc_ecma_parser    = "41"
 swc_ecma_ast       = "25"

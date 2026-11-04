@@ -255,10 +255,10 @@ pub(crate) fn test_complete_external() -> RunProvenance {
         condition: s("zero-shot"),
         context_hash: s("ctx-hash"),
         harness_version: s("h1"),
-        model_id: s("openai/gpt-x"),
-        provider: s("openai"),
+        model_id: s("example/model-x"),
+        provider: s("example"),
         request_date: s("2026-10-11"),
-        provider_reported_models: vec!["gpt-x-2026-10-01".to_string()],
+        provider_reported_models: vec!["model-x-2026-10-01".to_string()],
         mens: None,
         sampling: Some(SamplingRecord {
             temperature: 0.2,

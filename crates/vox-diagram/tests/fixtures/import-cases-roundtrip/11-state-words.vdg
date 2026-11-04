@@ -1,0 +1,17 @@
+graph {
+    node start: "Start" { shape: start }
+    node Idle: "Idle"
+    node Scale: "Scale"
+    node Style: "Style"
+    node Class: "Class"
+    node State: "State"
+    node Done: "Done"
+    node end: "End" { shape: end }
+    start -> Idle
+    Idle -> Scale: "busy"
+    Idle -> Style: "styled"
+    Idle -> Class: "classy"
+    Idle -> State: "named"
+    Idle -> Done
+    Done -> end
+}

@@ -1,0 +1,5 @@
+// expect: diagram/undeclared-actor
+sequence {
+    actor a: "A"
+    a -> c
+}

@@ -22,7 +22,7 @@ status: current
 
 **Intended readers:** Platform engineers, crate contributors, and developers integrating with Vox internal and external crates.
 
-**Total Workspace Crates:** 129
+**Total Workspace Crates:** 130
 
 | Crate | Version | Description |
 |---|---|---|
@@ -56,6 +56,7 @@ status: current
 | [`vox-db`](./vox-db.generated.md) | `0.6.0` | Codex / VoxDb facade: schema migrations, store ops, Turso/libSQL access for the Vox workspace. |
 | [`vox-db-types`](./vox-db-types.generated.md) | `0.6.0` | Pure-data L0 leaf for vox-db: row types, IDs, schema descriptors. |
 | [`vox-deploy-codegen`](./vox-deploy-codegen.generated.md) | `0.6.0` | Deployment artifact codegen: Dockerfile, Compose, K8s, Fly, Coolify, systemd. Pure text generation. |
+| [`vox-diagram`](./vox-diagram.generated.md) | `0.6.0` | Pure VoxDiagram core: graph DSL lexer, error-recovering parser, resolved IR, diagnostics with machine-applicable fixes, canonical formatter, markdown fence scanner, dagre graph layout and a deterministic SVG renderer. |
 | [`vox-doc-inventory`](./vox-doc-inventory.generated.md) | `0.6.0` | Generate and verify docs/agents/doc-inventory.json (schema v3) without Python. |
 | [`vox-doc-pipeline`](./vox-doc-pipeline.generated.md) | `0.6.0` | Documentation linter + corpus export for docs/src (Starlight owns sidebar/RSS generation). |
 | [`vox-drift-check`](./vox-drift-check.generated.md) | `0.6.0` | Workspace-wide multi-language drift and pattern-repetition linter |

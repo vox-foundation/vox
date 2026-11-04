@@ -214,6 +214,13 @@
       "fan_in": 5
     },
     {
+      "crate": "vox-diagram",
+      "compile_s": 0.0,
+      "dependents": 8,
+      "blast_s": 229.0,
+      "fan_in": 2
+    },
+    {
       "crate": "vox-doc-inventory",
       "compile_s": 1.2,
       "dependents": 4,
@@ -909,9 +916,9 @@
     {
       "crate": "workspace-hack",
       "compile_s": 0.6,
-      "dependents": 119,
+      "dependents": 120,
       "blast_s": 653.0,
-      "fan_in": 116
+      "fan_in": 117
     }
   ],
   "measured_on": "x86_64-pc-windows-msvc (cargo check)"

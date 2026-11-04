@@ -1,0 +1,22 @@
+---
+source: crates/vox-diagram/tests/validate_envelope.rs
+expression: "validate(GANTT, mermaid(None))"
+---
+{
+  "schema_version": 1,
+  "valid": false,
+  "diagnostics": [],
+  "normalized_source": null,
+  "stats": {
+    "nodes": 0,
+    "containers": 0,
+    "edges": 0,
+    "max_depth": 0
+  },
+  "unsupported": [
+    {
+      "line": 3,
+      "construct": "styling:classDef"
+    }
+  ]
+}

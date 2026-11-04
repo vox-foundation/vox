@@ -1,0 +1,5 @@
+// expect: diagram/duplicate-id
+sequence {
+    actor a: "A"
+    actor a: "B"
+}

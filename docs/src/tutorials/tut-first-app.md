@@ -12,6 +12,8 @@ schema_type: "HowTo"
 
 Learn how to build a full-stack, collaborative task list app with Vox. This tutorial covers data modeling, server-side logic, and UI integration using a single `.vox` file.
 
+![Two laptops sharing one task list through a server and database](../assets/collaborative-task-list.png)
+
 ## 1. Project Initialization
 
 Create a new directory and initialize a Vox application:

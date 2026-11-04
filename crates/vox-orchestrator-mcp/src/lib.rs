@@ -69,6 +69,8 @@ pub mod codex_tools;
 pub mod compiler_tools;
 /// Codex schema digest + sample row tools for `.vox` modules.
 pub mod db_tools;
+/// VoxDiagram validation (`vox_validate_diagram`).
+pub mod diagram_tools;
 pub mod dispatch;
 /// T4.3: per-tool-call execution timeout table (outer `tokio::time::timeout`
 /// wrapping actual tool dispatch — independent of the HITL approval-wait).

@@ -43,24 +43,42 @@ However, a rigorous trace across the codebase reveals **several critical disconn
 
 The core research pipeline is implemented in `crates/vox-research-shim/src/research/orchestrator/pipeline.rs` via `run_research_with_context_and_session`.
 
-```mermaid
-flowchart TD
-    UserQuery["Research Query (Topic, Scope, Max Sources)"] --> CacheCheck{"Cache Short-Circuit (Exact FNV-1a)"}
-    CacheCheck -- Hit --> ReturnCached["Return Cached ResearchResult"]
-    CacheCheck -- Miss --> ModelRes["Resolve Research Models (Planner, Claim, Synth, Judge)"]
-    ModelRes --> CreateSession["vox-db: create_research_session (status: planning)"]
-    CreateSession --> Stage1["Stage 1: Decompose Query (3-6 Subqueries via LLM)"]
-    Stage1 --> Stage2["Stage 2: Gather Hits (Local Tantivy/Mem + Web Multi-Hop CRAG)"]
-    Stage2 --> Stage3["Stage 3: Diagnostics (Coverage %, Hit Rate, Domain Diversity)"]
-    Stage3 --> Stage4["Stage 4: Claim Extraction (vox-scientia or LLM)"]
-    Stage4 --> Stage5["Stage 5: Claim Verification (SelfCheckGPT 3x Resampling NLI)"]
-    Stage5 --> Stage6["Stage 6: Confidence Gate (Citation, Support, Diversity, Hit Scores)"]
-    Stage6 --> Stage7["Stage 7: Answer Synthesis (Dense Markdown + [N] Citations)"]
-    Stage7 --> Stage8["Stage 8: Quality Judge (Factual, Density, Coverage 0-100)"]
-    Stage8 --> Stage9["Stage 9: CoVE Self-Verification (If DeepResearch Tier)"]
-    Stage9 --> Stage10["Stage 10: Citation Audit & Corroboration Count"]
-    Stage10 --> PersistArtifact["Persist Artifact & Report to vox-db"]
-    PersistArtifact --> SetCompleted["update_research_session_status: completed"]
+```vox-diagram
+graph {
+    node UserQuery: "Research Query (Topic, Scope, Max Sources)"
+    node CacheCheck: "Cache Short-Circuit (Exact FNV-1a)" { shape: diamond }
+    node ReturnCached: "Return Cached ResearchResult"
+    node ModelRes: "Resolve Research Models (Planner, Claim, Synth, Judge)"
+    node CreateSession: "vox-db: create_research_session (status: planning)"
+    node Stage1: "Stage 1: Decompose Query (3-6 Subqueries via LLM)"
+    node Stage2: "Stage 2: Gather Hits (Local Tantivy/Mem + Web Multi-Hop CRAG)"
+    node Stage3: "Stage 3: Diagnostics (Coverage %, Hit Rate, Domain Diversity)"
+    node Stage4: "Stage 4: Claim Extraction (vox-scientia or LLM)"
+    node Stage5: "Stage 5: Claim Verification (SelfCheckGPT 3x Resampling NLI)"
+    node Stage6: "Stage 6: Confidence Gate (Citation, Support, Diversity, Hit Scores)"
+    node Stage7: "Stage 7: Answer Synthesis (Dense Markdown + [N] Citations)"
+    node Stage8: "Stage 8: Quality Judge (Factual, Density, Coverage 0-100)"
+    node Stage9: "Stage 9: CoVE Self-Verification (If DeepResearch Tier)"
+    node Stage10: "Stage 10: Citation Audit & Corroboration Count"
+    node PersistArtifact: "Persist Artifact & Report to vox-db"
+    node SetCompleted: "update_research_session_status: completed"
+    UserQuery -> CacheCheck
+    CacheCheck -> ReturnCached: "Hit"
+    CacheCheck -> ModelRes: "Miss"
+    ModelRes -> CreateSession
+    CreateSession -> Stage1
+    Stage1 -> Stage2
+    Stage2 -> Stage3
+    Stage3 -> Stage4
+    Stage4 -> Stage5
+    Stage5 -> Stage6
+    Stage6 -> Stage7
+    Stage7 -> Stage8
+    Stage8 -> Stage9
+    Stage9 -> Stage10
+    Stage10 -> PersistArtifact
+    PersistArtifact -> SetCompleted
+}
 ```
 
 ### Stage-by-Stage Functioning & Findings
@@ -214,13 +232,19 @@ Currently, model resolution is handled through two disjoint mechanisms:
 1. `primary_candidate_for_intent` via `vox_orchestrator::models::decide(&request, registry)`.
 2. `cascade_for_research_stage` in `vox_actor_runtime::llm::cascade`.
 
-```mermaid
-flowchart LR
-    subgraph Current [Current Monolithic Stage Model]
-        S[Stage Request] --> Primary{"decide() Primary"}
-        Primary -- Success --> ExecPrimary[Run Entire Stage on Primary Model]
-        Primary -- None/Fail --> Cascade["Local Ollama -> OpenRouter Free Floor -> OpenRouter Configured"]
-    end
+```vox-diagram
+graph {
+    direction: right
+    container Current: "Current Monolithic Stage Model" {
+        node S: "Stage Request"
+        node Primary: "decide() Primary" { shape: diamond }
+        node ExecPrimary: "Run Entire Stage on Primary Model"
+        node Cascade: "Local Ollama -> OpenRouter Free Floor -> OpenRouter Configured"
+        S -> Primary
+        Primary -> ExecPrimary: "Success"
+        Primary -> Cascade: "None/Fail"
+    }
+}
 ```
 
 **The Fatal Flaw**: This model selection is **monolithic per stage**.
@@ -235,34 +259,33 @@ flowchart LR
 
 To marry OpenRouter and local models effectively, research tasks must be split by cognitive complexity:
 
-```mermaid
-flowchart TD
-    subgraph LocalModels [Local Models: MENS / Ollama / Candle Metal / CUDA]
-        direction TB
-        L1["Query Normalization & Synonym Expansion"]
-        L2["Fast Snippet Relevance Scoring & De-duplication"]
-        L3["Atomic Claim Extraction from Search Snippets"]
-        L4["First-Pass NLI Filter (Eliminate obvious Non-Entailment)"]
-        L5["Local Vector Embeddings & Indexing"]
-    end
-
-    subgraph OpenRouter [OpenRouter / Frontier Cloud Models]
-        direction TB
-        C1["Complex Strategic Multi-Hop Planning (when ambiguous)"]
-        C2["Multi-Source Long-Form Synthesis with Grounded Citations"]
-        C3["Nuanced Contradiction Arbitration (resolving conflicting claims)"]
-        C4["Quality Evaluation & Rubric Scoring (LLM Judge)"]
-        C5["CoVE Adversarial Verification Question Generation"]
-    end
-
-    UserQuery --> L1
-    L1 --> WebSearch["Web / Local Search Retrieval"]
-    WebSearch --> L2
-    L2 --> L3
-    L3 --> L4
-    L4 --> C2
-    C2 --> C4
-    C4 --> C5
+```vox-diagram
+graph {
+    node UserQuery: "UserQuery"
+    node WebSearch: "Web / Local Search Retrieval"
+    container LocalModels: "Local Models: MENS / Ollama / Candle Metal / CUDA" {
+        node L1: "Query Normalization & Synonym Expansion"
+        node L2: "Fast Snippet Relevance Scoring & De-duplication"
+        node L3: "Atomic Claim Extraction from Search Snippets"
+        node L4: "First-Pass NLI Filter (Eliminate obvious Non-Entailment)"
+        node L5: "Local Vector Embeddings & Indexing"
+        L2 -> L3
+        L3 -> L4
+    }
+    container OpenRouter: "OpenRouter / Frontier Cloud Models" {
+        node C1: "Complex Strategic Multi-Hop Planning (when ambiguous)"
+        node C2: "Multi-Source Long-Form Synthesis with Grounded Citations"
+        node C3: "Nuanced Contradiction Arbitration (resolving conflicting claims)"
+        node C4: "Quality Evaluation & Rubric Scoring (LLM Judge)"
+        node C5: "CoVE Adversarial Verification Question Generation"
+        C2 -> C4
+        C4 -> C5
+    }
+    UserQuery -> LocalModels.L1
+    LocalModels.L1 -> WebSearch
+    WebSearch -> LocalModels.L2
+    LocalModels.L4 -> OpenRouter.C2
+}
 ```
 
 1. **Local Task: Snippet Triage & Extraction**:
@@ -337,14 +360,24 @@ Currently, Vox research treats all queries uniformly as academic/encyclopedic qu
 
 Shopping research requires structured tabular comparisons, merchant price verification, and review sentiment de-biasing.
 
-```mermaid
-flowchart TD
-    ShopQuery["Shopping Query: 'Best noise-canceling headphones under $300'"] --> EntityExtract["Product Entity Extractor (Identify Top 3-5 Candidate Models)"]
-    EntityExtract --> SpecGather["Spec Matrix Gatherer (Manufacturer specs, battery, weight, codecs)"]
-    EntityExtract --> MerchantGather["Merchant & Price Scraper (Current prices, stock, retailers)"]
-    EntityExtract --> ReviewGather["Community Review Harvester (Reddit, RTINGS, forum sentiment)"]
-    SpecGather & MerchantGather & ReviewGather --> MatrixSynthesis["Product Comparison Synthesizer"]
-    MatrixSynthesis --> Verdicts["Decision Engine (Best Overall, Best Budget, Known Flaws)"]
+```vox-diagram
+graph {
+    node ShopQuery: "Shopping Query: 'Best noise-canceling headphones under $300'"
+    node EntityExtract: "Product Entity Extractor (Identify Top 3-5 Candidate Models)"
+    node SpecGather: "Spec Matrix Gatherer (Manufacturer specs, battery, weight, codecs)"
+    node MerchantGather: "Merchant & Price Scraper (Current prices, stock, retailers)"
+    node ReviewGather: "Community Review Harvester (Reddit, RTINGS, forum sentiment)"
+    node MatrixSynthesis: "Product Comparison Synthesizer"
+    node Verdicts: "Decision Engine (Best Overall, Best Budget, Known Flaws)"
+    ShopQuery -> EntityExtract
+    EntityExtract -> SpecGather
+    EntityExtract -> MerchantGather
+    EntityExtract -> ReviewGather
+    SpecGather -> MatrixSynthesis
+    MerchantGather -> MatrixSynthesis
+    ReviewGather -> MatrixSynthesis
+    MatrixSynthesis -> Verdicts
+}
 ```
 
 #### Key Capabilities Required
@@ -365,13 +398,22 @@ flowchart TD
 
 Code generation research requires understanding programming language ecosystems, verifying API signatures, checking compatibility, and analyzing the local workspace.
 
-```mermaid
-flowchart TD
-    CodeGenQuery["Code Query: 'Implement async distributed worker queue in Rust'"] --> LocalRepoCheck["Local Codebase Scan (Existing crates, Cargo.lock, patterns)"]
-    CodeGenQuery --> EcosystemCheck["Ecosystem Discovery (crates.io/npm stars, downloads, maintenance)"]
-    CodeGenQuery --> DocsFetch["Official Spec & Docs Extractor (docs.rs signatures, API contracts)"]
-    EcosystemCheck & DocsFetch --> SandboxedCheck["Sandbox Typecheck & Syntax Validator (vox check / cargo check)"]
-    SandboxedCheck & LocalRepoCheck --> CodeGenSynthesis["Grounded Code & Architecture Plan"]
+```vox-diagram
+graph {
+    node CodeGenQuery: "Code Query: 'Implement async distributed worker queue in Rust'"
+    node LocalRepoCheck: "Local Codebase Scan (Existing crates, Cargo.lock, patterns)"
+    node EcosystemCheck: "Ecosystem Discovery (crates.io/npm stars, downloads, maintenance)"
+    node DocsFetch: "Official Spec & Docs Extractor (docs.rs signatures, API contracts)"
+    node SandboxedCheck: "Sandbox Typecheck & Syntax Validator (vox check / cargo check)"
+    node CodeGenSynthesis: "Grounded Code & Architecture Plan"
+    CodeGenQuery -> LocalRepoCheck
+    CodeGenQuery -> EcosystemCheck
+    CodeGenQuery -> DocsFetch
+    EcosystemCheck -> SandboxedCheck
+    DocsFetch -> SandboxedCheck
+    SandboxedCheck -> CodeGenSynthesis
+    LocalRepoCheck -> CodeGenSynthesis
+}
 ```
 
 #### Key Capabilities Required
@@ -404,29 +446,31 @@ Currently, deep research executes in a vacuum:
 
 ### The Required Persistent Research Loop
 
-```mermaid
-flowchart LR
-    subgraph ResearchRun [Active Research Run]
-        FetchPages["Scrape & Gather Web Pages"]
-        SynthReport["Synthesize Research Report"]
-    end
-
-    subgraph StorageLoop [Deep Research Storage & Indexing]
-        StoreDocs["Upsert into search_documents & chunks"]
-        StoreFTS["Index into SQLite FTS5 & Tantivy"]
-        StoreVec["Compute Local Embeddings -> Qdrant/MemoryHybrid"]
-        StoreKB["Create Knowledge Nodes & Claim Edges"]
-    end
-
-    subgraph FutureRetrieval [Subsequent Queries & Chat]
-        NewQuery["New Chat Turn or Research Query"] --> HybridSearch["Hybrid Search (BM25 + Dense Vector)"]
-        HybridSearch --> PriorKnowledge["Retrieve Past Research Evidence & Reports"]
-    end
-
-    FetchPages --> StoreDocs
-    StoreDocs --> StoreVec
-    SynthReport --> StoreFTS
-    SynthReport --> StoreKB
+```vox-diagram
+graph {
+    direction: right
+    container ResearchRun: "Active Research Run" {
+        node FetchPages: "Scrape & Gather Web Pages"
+        node SynthReport: "Synthesize Research Report"
+    }
+    container StorageLoop: "Deep Research Storage & Indexing" {
+        node StoreDocs: "Upsert into search_documents & chunks"
+        node StoreFTS: "Index into SQLite FTS5 & Tantivy"
+        node StoreVec: "Compute Local Embeddings -> Qdrant/MemoryHybrid"
+        node StoreKB: "Create Knowledge Nodes & Claim Edges"
+        StoreDocs -> StoreVec
+    }
+    container FutureRetrieval: "Subsequent Queries & Chat" {
+        node NewQuery: "New Chat Turn or Research Query"
+        node HybridSearch: "Hybrid Search (BM25 + Dense Vector)"
+        node PriorKnowledge: "Retrieve Past Research Evidence & Reports"
+        NewQuery -> HybridSearch
+        HybridSearch -> PriorKnowledge
+    }
+    ResearchRun.FetchPages -> StorageLoop.StoreDocs
+    ResearchRun.SynthReport -> StorageLoop.StoreFTS
+    ResearchRun.SynthReport -> StorageLoop.StoreKB
+}
 ```
 
 1. **Automatic Evidence Ingestion**:
@@ -482,6 +526,7 @@ In `crates/vox-search/src/policy.rs:620-643`:
 
 ## 9. Actionable Remediation Roadmap
 
+<!-- Kept as Mermaid: VoxDiagram has no Gantt kind (Gantt support is deferred). This is the legacy-Mermaid baseline's only allowlisted entry, by user decision 2026-10-16 (Phase 90). -->
 ```mermaid
 gantt
     title Deep Research Remediation & Capability Phases

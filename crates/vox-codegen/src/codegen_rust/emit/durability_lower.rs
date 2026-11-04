@@ -145,7 +145,7 @@ fn emit_workflow_body(func: &HirFn) -> String {
 }
 
 /// `pub async fn __vox_run_workflow(name, args)` — the dispatcher `main.rs` calls when
-/// `VOX_RUN_WORKFLOW` is set. Args are positional JSON values; the result is printed as JSON.
+/// `VOX_RUN_WORKFLOW` is set. Args are positional JSON values; the wrapper prints the journal.
 /// Empty when the module declares no workflows.
 pub(super) fn emit_workflow_dispatcher(functions: &[HirFn]) -> String {
     let workflows: Vec<&HirFn> = functions
@@ -184,8 +184,9 @@ pub(super) fn emit_workflow_dispatcher(functions: &[HirFn]) -> String {
         match &wf.return_type {
             None => out.push_str("            let () = out;\n            Ok(())\n"),
             Some(ret) => {
-                // Machine-readable result on stdout (a `Result` prints as {"Ok":..}/{"Err":..}).
-                out.push_str("            println!(\"{}\", serde_json::to_string(&out).map_err(|e| e.to_string())?);\n");
+                // No second print here: under `VOX_RUN_WORKFLOW` the wrapper already
+                // printed the journal, whose `WorkflowCompleted.return_value` carries the
+                // value, and the ADR-021 gate parses stdout as exactly one JSON document.
                 if is_result_type(ret) {
                     // A domain `Err` is a failed run for the caller's exit status.
                     out.push_str(&format!(
@@ -193,7 +194,7 @@ pub(super) fn emit_workflow_dispatcher(functions: &[HirFn]) -> String {
                         wf.name
                     ));
                 } else {
-                    out.push_str("            Ok(())\n");
+                    out.push_str("            let _ = out;\n            Ok(())\n");
                 }
             }
         }

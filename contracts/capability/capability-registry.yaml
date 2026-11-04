@@ -1854,6 +1854,24 @@ curated:
   - audit
   - core
   parameters: null
+- id: cli.audit.docs
+  title: Audit Docs
+  description_human: null
+  description_model: CLI operation `vox audit docs`
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - audit
+  - docs
+  parameters: null
 - id: cli.audit.effort
   title: Audit Effort
   description_human: null
@@ -2802,8 +2820,8 @@ curated:
   parameters: null
 - id: cli.ci.compile-matrix
   title: Ci Compile-matrix
-  description_human: null
-  description_model: CLI operation `vox ci compile-matrix`
+  description_human: CLI operation `vox ci compile-matrix` — smoke `vox compile --help` via cargo (matches compile-matrix workflow)
+  description_model: null
   intent_tags: []
   side_effect_class: spawns_process
   scope_kind: null
@@ -3036,6 +3054,24 @@ curated:
   - ci
   - coverage-gates
   parameters: null
+- id: cli.ci.crate-api-sync
+  title: Ci Crate-api-sync
+  description_human: null
+  description_model: CLI operation `vox ci crate-api-sync`
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - crate-api-sync
+  parameters: null
 - id: cli.ci.crate-budget
   title: Ci Crate-budget
   description_human: null
@@ -3164,8 +3200,8 @@ curated:
   parameters: null
 - id: cli.ci.db-schema-coverage
   title: Ci Db-schema-coverage
-  description_human: null
-  description_model: CLI operation `vox ci db-schema-coverage`
+  description_human: Verify every CREATE TABLE in the workspace is owned by a crate in tiers.a_relational.owners.
+  description_model: null
   intent_tags: []
   side_effect_class: read_only
   scope_kind: null
@@ -4294,8 +4330,8 @@ curated:
   parameters: null
 - id: cli.ci.pipeline-parity
   title: Ci Pipeline-parity
-  description_human: null
-  description_model: CLI operation `vox ci pipeline-parity`
+  description_human: CLI operation `vox ci pipeline-parity` — umbrella gate for script→emission SSOT (grammar parity, canonical ladder, feature matrix, k-budget)
+  description_model: null
   intent_tags: []
   side_effect_class: read_only
   scope_kind: null
@@ -4654,8 +4690,8 @@ curated:
   parameters: null
 - id: cli.ci.retirement-audit
   title: Ci Retirement-audit
-  description_human: null
-  description_model: CLI operation `vox ci retirement-audit`
+  description_human: CLI operation `vox ci retirement-audit` — scan `vox-deprecated-since` / `retire-by` markers vs workspace semver
+  description_model: null
   intent_tags: []
   side_effect_class: read_only
   scope_kind: null
@@ -7402,6 +7438,113 @@ curated:
   cli_path:
   - diag
   - doctor
+  parameters: null
+- id: cli.diagram
+  title: Diagram
+  description_human: null
+  description_model: Check, format, render, export and import VoxDiagram diagrams from a file or stdin
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - diagram
+  parameters: null
+- id: cli.diagram.check
+  title: Diagram Check
+  description_human: null
+  description_model: Check a diagram file or stdin and print each diagnostic as file:line:col with its code (exit 1 on any error)
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - diagram
+  - check
+  parameters: null
+- id: cli.diagram.export
+  title: Diagram Export
+  description_human: null
+  description_model: Export a diagram as Mermaid to stdout or -o FILE
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - diagram
+  - export
+  parameters: null
+- id: cli.diagram.fmt
+  title: Diagram Fmt
+  description_human: null
+  description_model: Print the canonical form of a diagram, or verify (--check) or rewrite (--write) the file
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - diagram
+  - fmt
+  parameters: null
+- id: cli.diagram.import
+  title: Diagram Import
+  description_human: null
+  description_model: Convert a Mermaid block to canonical VoxDiagram and list unsupported lines (exit 1)
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - diagram
+  - import
+  parameters: null
+- id: cli.diagram.render
+  title: Diagram Render
+  description_human: null
+  description_model: Render a diagram as deterministic SVG to stdout or -o FILE
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - diagram
+  - render
   parameters: null
 - id: cli.dispatch
   title: Dispatch
@@ -18216,6 +18359,99 @@ curated:
   - telemetry
   - export
   parameters: null
+- id: cli.telemetry.intelligence
+  title: Telemetry Intelligence
+  description_human: null
+  description_model: CLI operation `vox telemetry intelligence`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - telemetry
+  - intelligence
+  parameters: null
+- id: cli.telemetry.intelligence.inspect
+  title: Telemetry Intelligence Inspect
+  description_human: null
+  description_model: CLI operation `vox telemetry intelligence inspect`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - telemetry
+  - intelligence
+  - inspect
+  parameters: null
+- id: cli.telemetry.intelligence.status
+  title: Telemetry Intelligence Status
+  description_human: null
+  description_model: CLI operation `vox telemetry intelligence status`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - telemetry
+  - intelligence
+  - status
+  parameters: null
+- id: cli.telemetry.intelligence.sync
+  title: Telemetry Intelligence Sync
+  description_human: null
+  description_model: CLI operation `vox telemetry intelligence sync`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - telemetry
+  - intelligence
+  - sync
+  parameters: null
+- id: cli.telemetry.preview
+  title: Telemetry Preview
+  description_human: null
+  description_model: CLI operation `vox telemetry preview`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - telemetry
+  - preview
+  parameters: null
 - id: cli.telemetry.status
   title: Telemetry Status
   description_human: null
@@ -18433,6 +18669,24 @@ curated:
   cli_path:
   - workflow
   - preview
+  parameters: null
+- id: cli.workflow.signal
+  title: Workflow Signal
+  description_human: null
+  description_model: CLI operation `vox workflow signal`
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - workflow
+  - signal
   parameters: null
 - id: mcp.vox_a2a_ack
   title: A2a Ack
@@ -24246,6 +24500,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_undo
+  cli_path: null
+  parameters: null
+- id: mcp.vox_validate_diagram
+  title: VoxDiagram Validation
+  description_human: null
+  description_model: Validate a VoxDiagram (graph or sequence) and return every diagnostic with machine-applicable fixes, the canonical source and stats; optionally convert a Mermaid block or emit SVG or Mermaid. Deterministic, no model calls, writes nothing.
+  intent_tags: []
+  side_effect_class: none
+  scope_kind: session
+  reversible: false
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_validate_diagram
   cli_path: null
   parameters: null
 - id: mcp.vox_validate_file

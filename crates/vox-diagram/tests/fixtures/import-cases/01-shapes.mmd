@@ -1,0 +1,17 @@
+flowchart TD
+    a["Plain quoted"]
+    b(Rounded unquoted)
+    c("Rounded quoted")
+    d{Decision}
+    e{"Quoted decision"}
+    f[(Store)]
+    g[("Quoted store")]
+    h((Start))
+    i(("Quoted start"))
+    j(((End)))
+    k((("Quoted end")))
+    l[Unquoted rect]
+    a --> b --> c
+    d --> e
+    f --> g --> h
+    i --> j --> k --> l

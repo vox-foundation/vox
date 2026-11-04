@@ -1,0 +1,92 @@
+{
+  "kind": "graph",
+  "direction": "right",
+  "nodes": [
+    [
+      "Local Ollama -> OpenRouter Free Floor -> OpenRouter Configured",
+      "rect",
+      [
+        "Current Monolithic Stage Model"
+      ]
+    ],
+    [
+      "Run Entire Stage on Primary Model",
+      "rect",
+      [
+        "Current Monolithic Stage Model"
+      ]
+    ],
+    [
+      "Stage Request",
+      "rect",
+      [
+        "Current Monolithic Stage Model"
+      ]
+    ],
+    [
+      "decide() Primary",
+      "diamond",
+      [
+        "Current Monolithic Stage Model"
+      ]
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Stage Request",
+        "rect",
+        [
+          "Current Monolithic Stage Model"
+        ]
+      ],
+      [
+        "decide() Primary",
+        "diamond",
+        [
+          "Current Monolithic Stage Model"
+        ]
+      ],
+      ""
+    ],
+    [
+      [
+        "decide() Primary",
+        "diamond",
+        [
+          "Current Monolithic Stage Model"
+        ]
+      ],
+      [
+        "Local Ollama -> OpenRouter Free Floor -> OpenRouter Configured",
+        "rect",
+        [
+          "Current Monolithic Stage Model"
+        ]
+      ],
+      "None/Fail"
+    ],
+    [
+      [
+        "decide() Primary",
+        "diamond",
+        [
+          "Current Monolithic Stage Model"
+        ]
+      ],
+      [
+        "Run Entire Stage on Primary Model",
+        "rect",
+        [
+          "Current Monolithic Stage Model"
+        ]
+      ],
+      "Success"
+    ]
+  ],
+  "containers": [
+    [
+      "Current Monolithic Stage Model"
+    ]
+  ]
+}

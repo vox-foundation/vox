@@ -42,6 +42,11 @@ Last activity: 2026-10-13 — Milestone v1.4 roadmap & 19 requirements defined (
 - D14 (2026-10-13): Zero new crate edges — implement LLM claim verification inside `vox-doc-pipeline` / `vox-cli` via `vox_actor_runtime::llm`, authorize `TaskCategory::DocClaimJudge` in `model-routing.v1.yaml`, and reuse `SSOT_AUTOREGEN_TOKEN` for bot draft PRs.
 - D15 (2026-10-13): Global phase numbering continues at **Phases 32–36** (after `code-atlas` Phases 25–31).
 
+### Roadmap Evolution
+
+- Phase 37 added (2026-10-30): Vox syntax highlighting on voxlang.org and editors — one shared TextMate grammar, LSP semantic tokens, and a CV screenshot gate; baseline CV check found declared names, constructors, field names and slot labels uncolored.
+- Phase 38 added (2026-10-30): first-read docs accuracy pass over README, its linked docs, the voxlang.org front page and the top of the sidebar; baseline drift includes the README's "central claim" row contradicting its own honesty note and retired `ars`/`dei` names in "What's in the Box".
+
 ### Blockers / Gates
 
 - Runs in parallel with `research-trial-flywheel` (Phases 7–11), `autonomy-ux` (Phases 12–19), and `code-atlas` (Phases 25–31); do not touch their files.

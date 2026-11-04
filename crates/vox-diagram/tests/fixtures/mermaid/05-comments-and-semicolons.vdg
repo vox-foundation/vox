@@ -1,0 +1,4 @@
+%% pipeline overview
+graph TD;
+    ingest[Ingest] --> parse[Parse]; parse --> emit[Emit]
+    emit --> sink[(Warehouse)] %% final hop

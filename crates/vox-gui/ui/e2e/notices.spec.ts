@@ -111,7 +111,7 @@ test.describe('Notices', () => {
 
   test('a failed inbox source shows a degraded Review badge', async ({ page }) => {
     await open(page, 'chat', { rejectTools: ['vox_pending_approvals'] });
-    await expect(page.getByRole('button', { name: "Review, couldn't load approvals" })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Review, .*couldn't load approvals/ })).toBeVisible();
     await expect(page.getByTestId('bottom-status-bar-needs-you')).toContainText("couldn't load approvals");
     await shot(page, 'notices-degraded-review.png');
   });

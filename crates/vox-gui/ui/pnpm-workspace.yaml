@@ -6,10 +6,10 @@
 packages:
   - '.'
 
-# pnpm 11 reads settings from this file; the `pnpm` field in package.json is
-# ignored once this file exists. The overrides below MUST mirror
-# package.json#pnpm.overrides — without them pnpm silently drops the floor and
-# resolves esbuild below the pinned minimum.
+# pnpm 11+ reads settings only from this file (pnpm 12 refuses to run while
+# package.json still has a `pnpm` field), so the overrides live here alone.
+# Without them pnpm silently drops the floor and resolves esbuild below the
+# pinned minimum.
 overrides:
   esbuild: '>=0.28.1'
 

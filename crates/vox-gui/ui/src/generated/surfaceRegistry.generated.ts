@@ -53,6 +53,7 @@ export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: null, cliGroup: 'deploy', mcpNamespace: null, tier: 'generic_form', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'dev', mcpNamespace: null, tier: 'generic_form', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'diag', mcpNamespace: null, tier: 'generic_form', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
+  { viewKey: null, cliGroup: 'diagram', mcpNamespace: null, tier: 'generic_form', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'dispatch', mcpNamespace: null, tier: 'generic_form', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: 'explorer', cliGroup: 'doctor', mcpNamespace: null, tier: 'live_backend', navLabel: 'Explorer', navIcon: 'branch', navGroup: 'system', parentSurface: null },
   { viewKey: null, cliGroup: 'drift-check', mcpNamespace: null, tier: 'generic_form', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },

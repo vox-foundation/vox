@@ -530,6 +530,17 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
             scope: None,
             run: Box::new(step_facet_backlog_gate),
         },
+        OwnedStep {
+            label: "vox-doc-pipeline legacy-Mermaid baseline (shrink-only vs base)".into(),
+            scope: None,
+            run: Box::new(step_mermaid_baseline_gate),
+        },
+        // Whole tree, any changed extension: the scoped lint below skips when no `.md` changed.
+        OwnedStep {
+            label: "vox-doc-pipeline legacy-Mermaid ratchet (whole docs/src)".into(),
+            scope: None,
+            run: Box::new(step_mermaid_lint),
+        },
     ];
 
     if run_complete_static(opts) {
@@ -1154,6 +1165,17 @@ fn step_kb_eval_gate(root: &Path) -> Result<()> {
 
 fn step_facet_backlog_gate(root: &Path) -> Result<()> {
     crate::commands::kb::facet_backlog::run_facet_backlog_gate(root, &prepush_base_ref())
+}
+
+fn step_mermaid_baseline_gate(root: &Path) -> Result<()> {
+    super::mermaid_baseline::run_mermaid_baseline_gate(root, &prepush_base_ref())
+}
+
+fn step_mermaid_lint(root: &Path) -> Result<()> {
+    match vox_doc_pipeline::pipeline::lint_in(root, &["--mermaid-only".to_string()]) {
+        0 => Ok(()),
+        c => bail!("legacy-Mermaid ratchet failed (exit {c})"),
+    }
 }
 
 fn step_doc_inventory(root: &Path) -> Result<()> {
@@ -1783,6 +1805,18 @@ mod tests {
         assert_eq!(chunks[0].len(), 10);
         assert_eq!(chunks[1].len(), 10);
         assert_eq!(chunks[2].len(), 5);
+    }
+
+    #[test]
+    fn mermaid_lint_step_ignores_which_extensions_changed() {
+        // CR-01: an `.mdx`-only change leaves the scoped doc lint with nothing to do.
+        let dir = tempdir().unwrap();
+        let docs = dir.path().join("docs/src");
+        std::fs::create_dir_all(&docs).unwrap();
+        assert!(step_mermaid_lint(dir.path()).is_ok());
+        std::fs::write(docs.join("new.mdx"), "# T\n\n```mermaid\ngraph TD\n```\n").unwrap();
+        assert!(step_mermaid_lint(dir.path()).is_err());
+        assert!(step_doc_frontmatter_scoped(dir.path(), &[]).is_ok());
     }
 
     #[test]

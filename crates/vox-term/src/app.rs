@@ -53,10 +53,10 @@ impl TermCliArgs {
                 if let Some(next) = iter.next() {
                     parsed.attach = Some(next.as_ref().to_string());
                 }
-            } else if let Some(rest) = s.strip_prefix("--attach=") {
-                if !rest.is_empty() {
-                    parsed.attach = Some(rest.to_string());
-                }
+            } else if let Some(rest) = s.strip_prefix("--attach=")
+                && !rest.is_empty()
+            {
+                parsed.attach = Some(rest.to_string());
             }
         }
         parsed

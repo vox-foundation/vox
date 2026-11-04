@@ -408,7 +408,7 @@ pub fn validate_and_repair_markdown_mermaid(
             if in_mermaid {
                 let res = validate_and_repair_mermaid(&current_body);
                 for mut d in res.diagnostics {
-                    d.line = fence_start_line + d.line;
+                    d.line += fence_start_line;
                     all_diags.push(d);
                 }
                 for rep_line in res.repaired_code.lines() {

@@ -50,14 +50,23 @@ Keys are identifiers; values may be string literals or simple identifiers.
 
 The feature is implemented **inside the existing compiler and codegen crates**, not as a sidecar tool.
 
-```mermaid
-flowchart LR
-  A["`.vox` source"] --> B["Lexer / Parser"]
-  B --> C["AST `ImportPathKind::RustCrate`"]
-  C --> D["HIR `HirRustImport`"]
-  D --> E["Type registration"]
-  D --> F["`Cargo.toml` synthesis"]
-  F --> G["`cargo build` in cache / generated crate"]
+```vox-diagram
+graph {
+    direction: right
+    node A: ".vox source"
+    node B: "Lexer / Parser"
+    node C: "AST ImportPathKind::RustCrate"
+    node D: "HIR HirRustImport"
+    node E: "Type registration"
+    node F: "Cargo.toml synthesis"
+    node G: "cargo build in cache / generated crate"
+    A -> B
+    B -> C
+    C -> D
+    D -> E
+    D -> F
+    F -> G
+}
 ```
 
 1. **Parse** — `rust:` is recognized only when the first segment is the identifier `rust` followed by `:`; see `crates/vox-compiler/src/parser/descent/decl/head.rs` (`parse_import_path`).

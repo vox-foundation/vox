@@ -54,3 +54,32 @@ name = "vox-arch-check"
 layer = 1
 tier = 1
 rationale = "Standalone Cargo workspace layered-architecture, fan-in, and forbidden-edge guard."
+
+# Tier 2: Plugin ABI trio (publish in dependency order: types -> api -> sdk)
+# and the installer. Mirrors `publish.crates` in
+# contracts/distribution/profiles.v1.yaml (guarded by voxup distribution_parity).
+[[crates]]
+name = "vox-plugin-types"
+layer = 1
+tier = 2
+rationale = "Pure-types leaf for the plugin ABI."
+
+[[crates]]
+name = "vox-plugin-api"
+layer = 1
+tier = 2
+depends_on = ["vox-plugin-types"]
+rationale = "Plugin trait and type surface."
+
+[[crates]]
+name = "vox-plugin-sdk"
+layer = 1
+tier = 2
+depends_on = ["vox-plugin-api"]
+rationale = "Plugin authoring SDK: re-exports the API plus declare_plugin! glue."
+
+[[crates]]
+name = "voxup"
+layer = 5
+tier = 2
+rationale = "Toolchain installer and updater."

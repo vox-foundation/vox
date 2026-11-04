@@ -1282,7 +1282,7 @@ mod tests {
     #[file_serial]
     #[allow(unsafe_code)]
     fn select_with_premium_alias_honors_alias_when_intelligence_high() {
-        // The premium alias for codegen (anthropic/claude-3-7-sonnet) is gated by
+        // The premium alias for codegen (the contract's `premium_codegen` role) is gated by
         // the key-present check added in the B3 key-gated candidate filter
         // (`select_via_premium_alias` -> `ModelRegistry::key_is_present_for`).
         // A hosted CI runner with no OPENROUTER_API_KEY configured must still be
@@ -1313,12 +1313,12 @@ mod tests {
         }
         let outcome = outcome.expect("a model exists");
         // With QUALITY_FIRST axes (intelligence=70), premium alias should fire.
-        // The alias for codegen is `anthropic/claude-3-7-sonnet` per current routing.yaml.
+        // The alias for codegen is the contract's `premium_codegen` live alias.
         match outcome.reason {
             SelectionReason::PremiumAlias {
                 ref alias_model_id, ..
             } => {
-                assert_eq!(alias_model_id, "anthropic/claude-3-7-sonnet");
+                assert_eq!(alias_model_id, vox_config::model_defaults::PREMIUM_CODEGEN);
             }
             other => panic!("expected PremiumAlias, got {:?}", other),
         }
@@ -1842,9 +1842,14 @@ mod tests {
     #[test]
     #[file_serial]
     fn select_skips_a_premium_alias_pin_that_a_newer_family_member_supersedes() {
-        // ModelRegistry::new() carries the codegen pin `anthropic/claude-3-7-sonnet`. Re-register it as a
-        // dated local-provider spec (no key needed) and add a newer member of the same family.
+        // Contract pins are live `~…-latest` aliases (never superseded), so pin codegen to a
+        // concrete bootstrap id here. Re-register it as a dated local-provider spec (no key
+        // needed) and add a newer member of the same family.
         let mut registry = ModelRegistry::new();
+        registry.set_premium_alias_for_test(
+            crate::models::task_category_premium_key(TaskCategory::CodeGen),
+            "anthropic/claude-3-7-sonnet",
+        );
         let mut pin = registry
             .get("anthropic/claude-3-7-sonnet")
             .expect("bootstrap pin");

@@ -990,6 +990,63 @@ fn emit_handler_param(name: &str, ty: Option<&vox_compiler::hir::HirType>) -> St
     }
 }
 
+/// Emit real-time Axum routes and handlers for `Stream[T]` (SSE + `Last-Event-ID` replay, `STREAM-01`),
+/// `Channel[Send, Recv]` (WebSocket upgrade, `STREAM-01`), and `db.Table.subscribe` (`STREAM-02`).
+pub fn emit_realtime_stream_and_channel_routes(module: &HirModule) -> String {
+    let mut out = String::new();
+    for sf in &module.endpoint_fns {
+        match &sf.return_type {
+            Some(HirType::Generic(g, _)) if g == "Stream" => {
+                let name = &sf.name;
+                out.push_str(&format!(
+                    "// SSE Stream[T] route: /api/stream/{name} (with Last-Event-ID replay)\n\
+                     async fn handle_stream_{name}(\n\
+                         headers: axum::http::HeaderMap,\n\
+                         Extension(subs): Extension<std::sync::Arc<vox_actor_runtime::SubscriptionManager>>,\n\
+                     ) -> axum::response::Response {{\n\
+                         let last_id = headers\n\
+                             .get(\"last-event-id\")\n\
+                             .and_then(|v| v.to_str().ok())\n\
+                             .and_then(|s| s.parse::<u64>().ok())\n\
+                             .unwrap_or(0);\n\
+                         let replayed = subs.replay_since(\"{name}\", last_id).await;\n\
+                         let _rx = subs.subscribe_payload(\"{name}\").await;\n\
+                         axum::Json(serde_json::json!({{ \"stream\": \"{name}\", \"replayed\": replayed }})).into_response()\n\
+                     }}\n\n"
+                ));
+            }
+            Some(HirType::Generic(g, _)) if g == "Channel" => {
+                let name = &sf.name;
+                out.push_str(&format!(
+                    "// WebSocket Channel[Send, Recv] route: /api/channel/{name}\n\
+                     async fn handle_channel_{name}(\n\
+                         ws: axum::extract::ws::WebSocketUpgrade,\n\
+                         Extension(subs): Extension<std::sync::Arc<vox_actor_runtime::SubscriptionManager>>,\n\
+                     ) -> impl axum::response::IntoResponse {{\n\
+                         ws.on_upgrade(move |_socket| async move {{\n\
+                             let _rx = subs.subscribe_payload(\"{name}\").await;\n\
+                         }})\n\
+                     }}\n\n"
+                ));
+            }
+            _ => {}
+        }
+    }
+    for table in &module.tables {
+        let tname = &table.name;
+        out.push_str(&format!(
+            "// Reactive table subscription SSE route: /api/subscribe/{tname}\n\
+             async fn handle_table_subscribe_{tname}(\n\
+                 Extension(subs): Extension<std::sync::Arc<vox_actor_runtime::SubscriptionManager>>,\n\
+             ) -> axum::response::Response {{\n\
+                 let _rx = subs.subscribe(\"{tname}\").await;\n\
+                 axum::Json(serde_json::json!({{ \"subscribed_table\": \"{tname}\" }})).into_response()\n\
+             }}\n\n"
+        ));
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::emit_main;
@@ -1122,61 +1179,4 @@ server live_room() to Channel[str, str] {
         assert!(guard.contains("300"));
         assert!(guard.contains("WEBHOOK_SIGNATURE_INVALID"));
     }
-}
-
-/// Emit real-time Axum routes and handlers for `Stream[T]` (SSE + `Last-Event-ID` replay, `STREAM-01`),
-/// `Channel[Send, Recv]` (WebSocket upgrade, `STREAM-01`), and `db.Table.subscribe` (`STREAM-02`).
-pub fn emit_realtime_stream_and_channel_routes(module: &HirModule) -> String {
-    let mut out = String::new();
-    for sf in &module.endpoint_fns {
-        match &sf.return_type {
-            Some(HirType::Generic(g, _)) if g == "Stream" => {
-                let name = &sf.name;
-                out.push_str(&format!(
-                    "// SSE Stream[T] route: /api/stream/{name} (with Last-Event-ID replay)\n\
-                     async fn handle_stream_{name}(\n\
-                         headers: axum::http::HeaderMap,\n\
-                         Extension(subs): Extension<std::sync::Arc<vox_actor_runtime::SubscriptionManager>>,\n\
-                     ) -> axum::response::Response {{\n\
-                         let last_id = headers\n\
-                             .get(\"last-event-id\")\n\
-                             .and_then(|v| v.to_str().ok())\n\
-                             .and_then(|s| s.parse::<u64>().ok())\n\
-                             .unwrap_or(0);\n\
-                         let replayed = subs.replay_since(\"{name}\", last_id).await;\n\
-                         let _rx = subs.subscribe_payload(\"{name}\").await;\n\
-                         axum::Json(serde_json::json!({{ \"stream\": \"{name}\", \"replayed\": replayed }})).into_response()\n\
-                     }}\n\n"
-                ));
-            }
-            Some(HirType::Generic(g, _)) if g == "Channel" => {
-                let name = &sf.name;
-                out.push_str(&format!(
-                    "// WebSocket Channel[Send, Recv] route: /api/channel/{name}\n\
-                     async fn handle_channel_{name}(\n\
-                         ws: axum::extract::ws::WebSocketUpgrade,\n\
-                         Extension(subs): Extension<std::sync::Arc<vox_actor_runtime::SubscriptionManager>>,\n\
-                     ) -> impl axum::response::IntoResponse {{\n\
-                         ws.on_upgrade(move |_socket| async move {{\n\
-                             let _rx = subs.subscribe_payload(\"{name}\").await;\n\
-                         }})\n\
-                     }}\n\n"
-                ));
-            }
-            _ => {}
-        }
-    }
-    for table in &module.tables {
-        let tname = &table.name;
-        out.push_str(&format!(
-            "// Reactive table subscription SSE route: /api/subscribe/{tname}\n\
-             async fn handle_table_subscribe_{tname}(\n\
-                 Extension(subs): Extension<std::sync::Arc<vox_actor_runtime::SubscriptionManager>>,\n\
-             ) -> axum::response::Response {{\n\
-                 let _rx = subs.subscribe(\"{tname}\").await;\n\
-                 axum::Json(serde_json::json!({{ \"subscribed_table\": \"{tname}\" }})).into_response()\n\
-             }}\n\n"
-        ));
-    }
-    out
 }

@@ -504,6 +504,12 @@ pub enum Cli {
         #[command(flatten)]
         args: commands::grammar::GrammarParams,
     },
+    /// Check, format, render, export and import VoxDiagram diagrams from a file or stdin
+    Diagram {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::diagram::DiagramCmd,
+    },
     /// Start the Vox Language Server
     Lsp,
     /// Interactive shell or PowerShell AST exec-policy check (`shell check`, `shell repl`).

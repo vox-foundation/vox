@@ -1,0 +1,23 @@
+graph {
+    node voxSource: "voxSource (.vox)"
+    node lexer: "lexer voxCompilerLexer"
+    node parserDecl: "parser parseFnDecl head.rs"
+    node hirLower: "hir lower decl.rs"
+    node typeckEffects: "typeck effect_deps_lint cuda_gate ast_decl_lints"
+    node codegenRust: "codegen vox_codegen emit workflow.rs"
+    node runtimeLlm: "runtime vox_actor_runtime llm chat cascade stream"
+    node orchestratorRouter: "orchestrator subagent_dispatch tier_cascade"
+    node mcpAci: "mcp dispatch aci mutation_kind"
+    node telemetryEvents: "telemetry record_event fixture_catalog"
+    node auditDb: "vox_db llm_interactions research_metrics"
+    voxSource -> lexer
+    lexer -> parserDecl
+    parserDecl -> hirLower
+    hirLower -> typeckEffects
+    typeckEffects -> codegenRust
+    codegenRust -> runtimeLlm
+    runtimeLlm -> orchestratorRouter
+    orchestratorRouter -> mcpAci
+    mcpAci -> telemetryEvents
+    telemetryEvents -> auditDb
+}

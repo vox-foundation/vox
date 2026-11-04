@@ -1,0 +1,68 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "Phase 1: Rust-Native Leiden Integration (leiden-rs)",
+      "rect",
+      []
+    ],
+    [
+      "Phase 2: Syn/Tree-Sitter AST Extractor",
+      "rect",
+      []
+    ],
+    [
+      "Phase 3: Native Cache & Hash Walk",
+      "rect",
+      []
+    ],
+    [
+      "Phase 4: Deprecate Python Scripts & CLI Integration",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "Phase 1: Rust-Native Leiden Integration (leiden-rs)",
+        "rect",
+        []
+      ],
+      [
+        "Phase 2: Syn/Tree-Sitter AST Extractor",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Phase 2: Syn/Tree-Sitter AST Extractor",
+        "rect",
+        []
+      ],
+      [
+        "Phase 3: Native Cache & Hash Walk",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Phase 3: Native Cache & Hash Walk",
+        "rect",
+        []
+      ],
+      [
+        "Phase 4: Deprecate Python Scripts & CLI Integration",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

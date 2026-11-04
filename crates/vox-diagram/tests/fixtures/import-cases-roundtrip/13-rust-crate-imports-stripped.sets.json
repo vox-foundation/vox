@@ -1,0 +1,122 @@
+{
+  "kind": "graph",
+  "direction": "right",
+  "nodes": [
+    [
+      ".vox source",
+      "rect",
+      []
+    ],
+    [
+      "AST ImportPathKind::RustCrate",
+      "rect",
+      []
+    ],
+    [
+      "Cargo.toml synthesis",
+      "rect",
+      []
+    ],
+    [
+      "HIR HirRustImport",
+      "rect",
+      []
+    ],
+    [
+      "Lexer / Parser",
+      "rect",
+      []
+    ],
+    [
+      "Type registration",
+      "rect",
+      []
+    ],
+    [
+      "cargo build in cache / generated crate",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        ".vox source",
+        "rect",
+        []
+      ],
+      [
+        "Lexer / Parser",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "AST ImportPathKind::RustCrate",
+        "rect",
+        []
+      ],
+      [
+        "HIR HirRustImport",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Cargo.toml synthesis",
+        "rect",
+        []
+      ],
+      [
+        "cargo build in cache / generated crate",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "HIR HirRustImport",
+        "rect",
+        []
+      ],
+      [
+        "Cargo.toml synthesis",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "HIR HirRustImport",
+        "rect",
+        []
+      ],
+      [
+        "Type registration",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Lexer / Parser",
+        "rect",
+        []
+      ],
+      [
+        "AST ImportPathKind::RustCrate",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

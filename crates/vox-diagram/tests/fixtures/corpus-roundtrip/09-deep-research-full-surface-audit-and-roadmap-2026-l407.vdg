@@ -1,0 +1,24 @@
+graph {
+    direction: right
+    container ResearchRun: "Active Research Run" {
+        node FetchPages: "Scrape & Gather Web Pages"
+        node SynthReport: "Synthesize Research Report"
+    }
+    container StorageLoop: "Deep Research Storage & Indexing" {
+        node StoreDocs: "Upsert into search_documents & chunks"
+        node StoreFTS: "Index into SQLite FTS5 & Tantivy"
+        node StoreVec: "Compute Local Embeddings -> Qdrant/MemoryHybrid"
+        node StoreKB: "Create Knowledge Nodes & Claim Edges"
+        StoreDocs -> StoreVec
+    }
+    container FutureRetrieval: "Subsequent Queries & Chat" {
+        node NewQuery: "New Chat Turn or Research Query"
+        node HybridSearch: "Hybrid Search (BM25 + Dense Vector)"
+        node PriorKnowledge: "Retrieve Past Research Evidence & Reports"
+        NewQuery -> HybridSearch
+        HybridSearch -> PriorKnowledge
+    }
+    ResearchRun.FetchPages -> StorageLoop.StoreDocs
+    ResearchRun.SynthReport -> StorageLoop.StoreFTS
+    ResearchRun.SynthReport -> StorageLoop.StoreKB
+}

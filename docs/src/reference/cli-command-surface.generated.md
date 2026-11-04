@@ -21,7 +21,7 @@ category: "Language Reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 1005
+**schema_version:** `1` · **vox-cli operations:** 1019
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -123,6 +123,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox audit arch` | active | — | — | platform | — |
 | `vox audit code` | active | — | — | platform | — |
 | `vox audit core` | active | — | — | platform | — |
+| `vox audit docs` | active | — | — | platform | — |
 | `vox audit effort` | active | — | — | platform | — |
 | `vox audit effort-route` | active | — | — | platform | — |
 | `vox audit research-parity` | active | — | — | platform | — |
@@ -189,6 +190,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci coolify-eval sync-compose` | active | — | — | platform | — |
 | `vox ci corpus-decl-coverage` | active | — | ci | platform | — |
 | `vox ci coverage-gates` | active | — | — | platform | — |
+| `vox ci crate-api-sync` | active | — | ci | platform | — |
 | `vox ci crate-budget` | active | — | ci | platform | — |
 | `vox ci crate-build-map-parity` | active | — | ci | platform | — |
 | `vox ci crate-edges` | active | — | ci | platform | — |
@@ -431,6 +433,12 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox dev` | active | — | fabrica | app | — |
 | `vox diag` | active | — | diag | platform | — |
 | `vox diag doctor` | active | — | diag | platform | — |
+| `vox diagram` | active | — | — | ai | — |
+| `vox diagram check` | active | — | — | ai | — |
+| `vox diagram export` | active | — | — | ai | — |
+| `vox diagram fmt` | active | — | — | ai | — |
+| `vox diagram import` | active | — | — | ai | — |
+| `vox diagram render` | active | — | — | ai | — |
 | `vox dispatch` | active | — | — | platform | — |
 | `vox dispatch preview` | active | — | — | platform | — |
 | `vox doctor` | active | — | diag | platform | — |
@@ -1017,6 +1025,11 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox telemetry doctor` | active | — | ci | platform | — |
 | `vox telemetry enqueue` | active | — | ci | platform | — |
 | `vox telemetry export` | active | — | ci | platform | — |
+| `vox telemetry intelligence` | active | — | ci | platform | — |
+| `vox telemetry intelligence inspect` | active | — | ci | platform | — |
+| `vox telemetry intelligence status` | active | — | ci | platform | — |
+| `vox telemetry intelligence sync` | active | — | ci | platform | — |
+| `vox telemetry preview` | active | — | ci | platform | — |
 | `vox telemetry status` | active | — | ci | platform | — |
 | `vox telemetry upload` | active | — | ci | platform | — |
 | `vox term` | active | — | — | app | — |
@@ -1030,3 +1043,4 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox workflow drain` | active | — | — | workflow | — |
 | `vox workflow ls` | active | — | — | workflow | — |
 | `vox workflow preview` | active | — | — | workflow | — |
+| `vox workflow signal` | active | — | — | workflow | — |

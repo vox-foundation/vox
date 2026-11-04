@@ -294,7 +294,7 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
                     escape_table_cell(&en_str)
                 ));
             }
-            doc.push_str("\n");
+            doc.push('\n');
         }
 
         // Workspace dependencies
@@ -313,7 +313,7 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
                     dep.name, dep.name, dep.kind
                 ));
             }
-            doc.push_str("\n");
+            doc.push('\n');
         }
 
         // Public surface items
@@ -336,7 +336,7 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
                     let d = if desc.is_empty() { "—" } else { desc };
                     doc.push_str(&format!("| `{}` | {} |\n", name, escape_table_cell(d)));
                 }
-                doc.push_str("\n");
+                doc.push('\n');
             }
 
             if !surface.structs.is_empty() {
@@ -347,7 +347,7 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
                     let d = if desc.is_empty() { "—" } else { desc };
                     doc.push_str(&format!("| `{}` | {} |\n", name, escape_table_cell(d)));
                 }
-                doc.push_str("\n");
+                doc.push('\n');
             }
 
             if !surface.enums.is_empty() {
@@ -358,7 +358,7 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
                     let d = if desc.is_empty() { "—" } else { desc };
                     doc.push_str(&format!("| `{}` | {} |\n", name, escape_table_cell(d)));
                 }
-                doc.push_str("\n");
+                doc.push('\n');
             }
 
             if !surface.traits.is_empty() {
@@ -369,7 +369,7 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
                     let d = if desc.is_empty() { "—" } else { desc };
                     doc.push_str(&format!("| `{}` | {} |\n", name, escape_table_cell(d)));
                 }
-                doc.push_str("\n");
+                doc.push('\n');
             }
 
             if !surface.functions.is_empty() {
@@ -380,7 +380,7 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
                     let d = if desc.is_empty() { "—" } else { desc };
                     doc.push_str(&format!("| `{}` | {} |\n", name, escape_table_cell(d)));
                 }
-                doc.push_str("\n");
+                doc.push('\n');
             }
 
             if !surface.types.is_empty() {
@@ -391,7 +391,7 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
                     let d = if desc.is_empty() { "—" } else { desc };
                     doc.push_str(&format!("| `{}` | {} |\n", name, escape_table_cell(d)));
                 }
-                doc.push_str("\n");
+                doc.push('\n');
             }
 
             if !surface.constants.is_empty() {
@@ -402,7 +402,7 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
                     let d = if desc.is_empty() { "—" } else { desc };
                     doc.push_str(&format!("| `{}` | {} |\n", name, escape_table_cell(d)));
                 }
-                doc.push_str("\n");
+                doc.push('\n');
             }
         }
 

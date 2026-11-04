@@ -1,0 +1,14 @@
+graph {
+    node o1: "First"
+    node my_style: "Fourth"
+    node Click_me: "Fifth"
+    container n1: "Group" {
+        node x2: "Second"
+        node n5: "Third"
+        x2 -> n5
+    }
+    o1 -> n1.x2
+    n1.n5 -> my_style
+    my_style -> Click_me
+    Click_me -> o1
+}

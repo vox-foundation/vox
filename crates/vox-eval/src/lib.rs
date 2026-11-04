@@ -11,6 +11,7 @@ pub mod corpus_score;
 pub mod corpus_stats;
 pub mod ladder_before_after;
 pub mod mens;
+pub mod paired_ni;
 pub mod provenance;
 pub mod qwen_reasoning;
 pub mod reasoning_bench;

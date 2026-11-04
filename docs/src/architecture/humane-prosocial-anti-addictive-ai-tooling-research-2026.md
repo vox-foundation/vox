@@ -49,27 +49,28 @@ Between 2024 and 2026, mainstream commercial AI coding harnesses shifted from fl
 
 An audit of `crates/vox-orchestrator`, `crates/vox-gamify`, `crates/vox-cli`, and `crates/vox-gui` shows strong structural foundations already in-tree, alongside five concrete gaps that **Phase 76** closes.
 
-```mermaid
-flowchart TD
-    subgraph Shipped["Already In-Tree Foundations"]
-        A1["Clavis BYOK + Local MENS + Free Tier (Phase 75)"]
-        A2["BudgetManager + $2 Doom-Loop Breaker (budget/mod.rs)"]
-        A3["AttentionBudget + SAGE Epistemic Gate (interruption_policy.rs)"]
-        A4["FatigueMonitor 4h / 25-Switch Pacing (fatigue_monitor.rs)"]
-        A5["Anti-Grind Taper + Pro-Social Lumens (reward_policy.rs)"]
-    end
-    subgraph Phase76["Phase 76 Closures (Humane & Pro-Social Tooling)"]
-        B1["Zero-Markup Cost Ledger & Hard No-Auto-Reload Contract"]
-        B2["Anti-Sycophancy & Single-Shot Closure Score (Cost-per-Verified-Task)"]
-        B3["Anti-FOMO Streak Pause (Rest Mode) & Removal of Paid StreakShield"]
-        B4["Composer Context-Bloat & Cache-Hit Inspector + Session Compact Nudge"]
-        B5["Calm Mode / Craft Finish & Pro-Social Collegium Digest"]
-    end
-    A1 --> B1
-    A2 --> B4
-    A3 --> B2
-    A4 --> B5
-    A5 --> B3
+```vox-diagram
+graph {
+    container Shipped: "Already In-Tree Foundations" {
+        node A1: "Clavis BYOK + Local MENS + Free Tier (Phase 75)"
+        node A2: "BudgetManager + $2 Doom-Loop Breaker (budget/mod.rs)"
+        node A3: "AttentionBudget + SAGE Epistemic Gate (interruption_policy.rs)"
+        node A4: "FatigueMonitor 4h / 25-Switch Pacing (fatigue_monitor.rs)"
+        node A5: "Anti-Grind Taper + Pro-Social Lumens (reward_policy.rs)"
+    }
+    container Phase76: "Phase 76 Closures (Humane & Pro-Social Tooling)" {
+        node B1: "Zero-Markup Cost Ledger & Hard No-Auto-Reload Contract"
+        node B2: "Anti-Sycophancy & Single-Shot Closure Score (Cost-per-Verified-Task)"
+        node B3: "Anti-FOMO Streak Pause (Rest Mode) & Removal of Paid StreakShield"
+        node B4: "Composer Context-Bloat & Cache-Hit Inspector + Session Compact Nudge"
+        node B5: "Calm Mode / Craft Finish & Pro-Social Collegium Digest"
+    }
+    Shipped.A1 -> Phase76.B1
+    Shipped.A2 -> Phase76.B4
+    Shipped.A3 -> Phase76.B2
+    Shipped.A4 -> Phase76.B5
+    Shipped.A5 -> Phase76.B3
+}
 ```
 
 ### 2.1 Audited Strengths in the Current Codebase

@@ -410,6 +410,16 @@ pub struct LlmResponse {
     /// `latency_ms / completion_tokens` non-streaming. `None` when `completion_tokens == 0`.
     #[serde(default)]
     pub tpot_ms: Option<f64>,
+    /// Why generation stopped (`stop`, `length`, ...), from
+    /// `vox_llm_egress::EgressChatResponse::finish_reason`. `None` when unknown.
+    #[serde(default)]
+    pub finish_reason: Option<String>,
+    /// Reasoning tokens the provider counted inside `completion_tokens`; 0 when unknown.
+    #[serde(default)]
+    pub reasoning_tokens: u32,
+    /// Reasoning text when the provider returns it; never part of `content`.
+    #[serde(default)]
+    pub reasoning: Option<String>,
 }
 
 #[cfg(test)]
@@ -433,6 +443,9 @@ mod tests {
             cache_read_tokens: 7,
             ttft_ms: Some(15),
             tpot_ms: Some(5.4),
+            finish_reason: None,
+            reasoning_tokens: 0,
+            reasoning: None,
         };
         let json = serde_json::to_string(&resp).expect("serialize");
         let back: LlmResponse = serde_json::from_str(&json).expect("deserialize");
@@ -471,6 +484,9 @@ mod tests {
             cache_read_tokens: 0,
             ttft_ms: None,
             tpot_ms: None,
+            finish_reason: None,
+            reasoning_tokens: 0,
+            reasoning: None,
         };
         let json = serde_json::to_string(&resp).expect("serialize");
         let back: LlmResponse = serde_json::from_str(&json).expect("deserialize");

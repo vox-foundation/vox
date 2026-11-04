@@ -63,6 +63,7 @@ Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 | [`vox-corpus`](./vox-corpus.generated.md) | Normal |
 | [`vox-crypto`](./vox-crypto.generated.md) | Normal |
 | [`vox-db`](./vox-db.generated.md) | Normal |
+| [`vox-diagram`](./vox-diagram.generated.md) | Normal |
 | [`vox-foundation`](./vox-foundation.generated.md) | Normal |
 | [`vox-gamify`](./vox-gamify.generated.md) | Normal |
 | [`vox-grammar-export`](./vox-grammar-export.generated.md) | Normal |
@@ -133,6 +134,7 @@ Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 | `codex_tools` | Codex relational V17/V16 helpers over connected `VoxDb`. |
 | `compiler_tools` | `cargo`/LSP validation helpers (`vox_validate_file`, `vox_run_tests`, ...). |
 | `db_tools` | Codex schema digest + sample row tools for `.vox` modules. |
+| `diagram_tools` | VoxDiagram validation (`vox_validate_diagram`). |
 | `dispatch` | — |
 | `dispatch_timeout` | T4.3: per-tool-call execution timeout table (outer `tokio::time::timeout` wrapping actual tool dispatch — independent of the HITL approval-wait). |
 | `exec_time_tools` | Execution time tracking tools. |

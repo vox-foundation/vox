@@ -394,6 +394,10 @@
       "feature_gate": null
     },
     {
+      "path": "audit docs",
+      "feature_gate": null
+    },
+    {
       "path": "audit effort",
       "feature_gate": null
     },
@@ -655,6 +659,10 @@
     },
     {
       "path": "ci coverage-gates",
+      "feature_gate": null
+    },
+    {
+      "path": "ci crate-api-sync",
       "feature_gate": null
     },
     {
@@ -1623,6 +1631,30 @@
     },
     {
       "path": "diag doctor",
+      "feature_gate": null
+    },
+    {
+      "path": "diagram",
+      "feature_gate": null
+    },
+    {
+      "path": "diagram check",
+      "feature_gate": null
+    },
+    {
+      "path": "diagram export",
+      "feature_gate": null
+    },
+    {
+      "path": "diagram fmt",
+      "feature_gate": null
+    },
+    {
+      "path": "diagram import",
+      "feature_gate": null
+    },
+    {
+      "path": "diagram render",
       "feature_gate": null
     },
     {
@@ -3966,6 +3998,26 @@
       "feature_gate": null
     },
     {
+      "path": "telemetry intelligence",
+      "feature_gate": null
+    },
+    {
+      "path": "telemetry intelligence inspect",
+      "feature_gate": null
+    },
+    {
+      "path": "telemetry intelligence status",
+      "feature_gate": null
+    },
+    {
+      "path": "telemetry intelligence sync",
+      "feature_gate": null
+    },
+    {
+      "path": "telemetry preview",
+      "feature_gate": null
+    },
+    {
       "path": "telemetry status",
       "feature_gate": null
     },
@@ -4015,6 +4067,10 @@
     },
     {
       "path": "workflow preview",
+      "feature_gate": null
+    },
+    {
+      "path": "workflow signal",
       "feature_gate": null
     }
   ],
@@ -4148,6 +4204,7 @@
     "audit.arch",
     "audit.code",
     "audit.core",
+    "audit.docs",
     "audit.effort",
     "audit.effort-route",
     "audit.research-parity",
@@ -4269,6 +4326,7 @@
     "ci.coolify-eval.sync-compose",
     "ci.corpus-decl-coverage",
     "ci.coverage-gates",
+    "ci.crate-api-sync",
     "ci.crate-budget",
     "ci.crate-build-map-parity",
     "ci.crate-edges",
@@ -4537,6 +4595,13 @@
     "dev",
     "diag",
     "diag.doctor",
+    "diagram",
+    "diagram.check",
+    "diagram.export",
+    "diagram.fmt",
+    "diagram.import",
+    "diagram.render",
+    "diagram.validate",
     "dispatch",
     "dispatch.preview",
     "doctor",
@@ -5332,6 +5397,11 @@
     "telemetry.doctor",
     "telemetry.enqueue",
     "telemetry.export",
+    "telemetry.intelligence",
+    "telemetry.intelligence.inspect",
+    "telemetry.intelligence.status",
+    "telemetry.intelligence.sync",
+    "telemetry.preview",
     "telemetry.status",
     "telemetry.upload",
     "term",
@@ -5358,6 +5428,7 @@
     "workflow.drain",
     "workflow.ls",
     "workflow.preview",
+    "workflow.signal",
     "workspace.create",
     "workspace.mcp.refresh",
     "workspace.merge",

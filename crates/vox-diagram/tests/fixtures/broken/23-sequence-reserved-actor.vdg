@@ -1,0 +1,4 @@
+// expect: diagram/reserved-word
+sequence {
+    actor node: "N"
+}

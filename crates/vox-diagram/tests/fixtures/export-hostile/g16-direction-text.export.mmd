@@ -1,0 +1,19 @@
+flowchart TD
+    d0["p #100;irection LR q"]
+    d1["#100;irection TB"]
+    d2["x#100;irection BT"]
+    d3["#68;IRECTION td x"]
+    d4["#100;irection#9;LR"]
+    d5["#100;irection LRX"]
+    d6["direction"]
+    subgraph grp ["my #100;irection RL box"]
+        in["inside #100;irection BT"]
+    end
+    d0 --> d1
+    d1 --> d2
+    d2 --> d3
+    d3 --> d4
+    d4 --> d5
+    d5 --> d6
+    d6 --> in
+    d0 -->|"go #100;irection TB now"| d1

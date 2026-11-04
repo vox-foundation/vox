@@ -1,0 +1,8 @@
+graph TD
+    %% the desktop talks to the gateway
+    client[Desktop Client] --> gw[Gateway]
+    subgraph core["Core Runtime"]
+        orch[Orchestrator]
+        db[(Task DB)]
+        orch -->|persist| db
+    end

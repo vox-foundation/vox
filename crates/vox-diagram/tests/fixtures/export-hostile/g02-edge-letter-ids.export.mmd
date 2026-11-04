@@ -1,0 +1,20 @@
+flowchart TD
+    n0["id o"]
+    n1["id x"]
+    n2["id ox"]
+    n3["id xo"]
+    n4["id oa"]
+    n5["id xa"]
+    n6["id o1"]
+    X["id X"]
+    O["id O"]
+    n0 --> n1
+    n1 --> n2
+    n2 --> n3
+    n3 --> n4
+    n4 --> n5
+    n5 --> n6
+    n6 --> X
+    X --> O
+    n1 --> n0
+    n3 -->|"back"| n2

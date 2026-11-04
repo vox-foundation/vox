@@ -1,0 +1,244 @@
+use proptest::prelude::*;
+
+use super::*;
+
+fn owned(v: &[&str]) -> Vec<String> {
+    v.iter().map(|s| (*s).to_owned()).collect()
+}
+
+#[test]
+fn table_has_the_arimo_anchors() {
+    assert_eq!(ADV.len(), 95);
+    assert_eq!((ADV[0], ADV[b'A' as usize - 32], ADV[94]), (278, 667, 584));
+    assert_eq!(ADV[b'm' as usize - 32], 833);
+    assert_eq!(measure(""), 0);
+}
+
+#[test]
+fn wrap_keeps_explicit_newlines() {
+    assert_eq!(wrap("a\nb"), owned(&["a", "b"]));
+}
+
+#[test]
+fn wrap_breaks_a_sentence_at_spaces() {
+    let s = "alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu";
+    let lines = wrap(s);
+    assert!(lines.len() > 1, "{lines:?}");
+    assert!(lines.iter().all(|l| cells(l) <= WRAP_CELLS), "{lines:?}");
+    assert_eq!(lines.join(" "), s);
+}
+
+#[test]
+fn wrap_hard_breaks_only_an_overlong_word() {
+    let w = "x".repeat(WORD_CELLS + 12);
+    assert_eq!(wrap(&w), vec!["x".repeat(WORD_CELLS), "x".repeat(12)]);
+    let fits = "y".repeat(WORD_CELLS);
+    assert_eq!(wrap(&fits), vec![fits]);
+}
+
+/// Phase 90: an identifier longer than a line is shown whole (the box widens, as in Mermaid)
+/// rather than split mid-word; the neighbouring words still wrap around it.
+#[test]
+fn wrap_keeps_a_word_longer_than_a_line_whole() {
+    for w in [
+        "StrengthenBenchmarksAndMetrics",
+        "PrototypeGrammarConstrainedDecoding",
+    ] {
+        assert!(cells(w) > WRAP_CELLS, "{w} must exceed a line");
+        assert_eq!(wrap(w), owned(&[w]), "{w}");
+    }
+    let long = "AddRepoAwareRetrievalForCodegen";
+    assert_eq!(
+        wrap(&format!("see {long} now")),
+        owned(&["see", long, "now"])
+    );
+}
+
+#[test]
+fn wrap_separators_are_exactly_space_tab_cr() {
+    assert_eq!(wrap("a \t\r  b"), owned(&["a b"]));
+    assert_eq!(wrap("  a  "), owned(&["a"]));
+    assert_eq!(wrap("a\u{a0}b"), owned(&["a\u{a0}b"]));
+    assert_eq!(wrap("a\u{2028}b"), owned(&["a\u{2028}b"]));
+}
+
+#[test]
+fn wrap_drops_blank_lines() {
+    assert_eq!(wrap("\n\nx"), owned(&["x"]));
+    assert_eq!(wrap(""), Vec::<String>::new());
+    assert_eq!(wrap(" \n\t\n"), Vec::<String>::new());
+}
+
+/// Phase 90 review WR-03: CJK has no spaces, so a sentence is one "word"; it still breaks at the
+/// line width (14 wide characters), not at the 48-cell identifier allowance.
+#[test]
+fn wrap_counts_cjk_as_two_cells_and_breaks_it_at_the_line_width() {
+    let half = WRAP_CELLS / 2;
+    let s = "\u{65e5}".repeat(half + 1);
+    assert_eq!(
+        wrap(&s),
+        vec!["\u{65e5}".repeat(half), "\u{65e5}".to_owned()]
+    );
+    // A Latin identifier with one wide character is text too.
+    let mixed = format!("{}\u{65e5}", "a".repeat(WRAP_CELLS));
+    assert_eq!(
+        wrap(&mixed),
+        vec!["a".repeat(WRAP_CELLS), "\u{65e5}".to_owned()]
+    );
+}
+
+#[test]
+fn wrap_keeps_a_zero_width_follower_with_its_base() {
+    let s = format!("{}e\u{301}x", "a".repeat(WORD_CELLS - 1));
+    let lines = wrap(&s);
+    assert_eq!(lines.len(), 2, "{lines:?}");
+    assert!(lines[0].ends_with("e\u{301}"), "{lines:?}");
+    assert_eq!(lines[1], "x");
+}
+
+#[test]
+fn measure_follows_the_width_model() {
+    assert_eq!(measure("A"), 21);
+    assert_eq!(measure("\u{65e5}"), 31);
+    assert_eq!(measure("\u{1f680}"), 40);
+    assert_eq!(measure("\u{26a0}\u{fe0f}"), 40);
+    assert_eq!(measure("\u{301}"), 0);
+    assert_eq!(measure("\t"), measure(" "));
+    assert_eq!(measure("\u{e9}"), 19);
+}
+
+const SHAPES: [Shape; 6] = [
+    Shape::Rect,
+    Shape::Rounded,
+    Shape::Diamond,
+    Shape::Cylinder,
+    Shape::Start,
+    Shape::End,
+];
+
+#[test]
+fn node_size_minimums() {
+    let one = owned(&["A"]);
+    let want = [
+        (Shape::Rect, (128, 76)),
+        (Shape::Rounded, (128, 76)),
+        (Shape::Diamond, (192, 128)),
+        (Shape::Cylinder, (128, 108)),
+        (Shape::Start, (144, 76)),
+        (Shape::End, (144, 76)),
+    ];
+    for (shape, size) in want {
+        assert_eq!(node_size(shape, &one), size, "{shape:?}");
+    }
+}
+
+#[test]
+fn node_size_formulas_for_a_wide_label() {
+    let wide = owned(&["W".repeat(40).as_str()]);
+    let tw = measure(&wide[0]);
+    // The padding floor is active at this width: pad_x(tw, 28) is more than the 14 px base.
+    let p = pad_x(tw, 28);
+    assert!(p > 28, "{p}");
+    assert_eq!(node_size(Shape::Rect, &wide), (tw + 2 * p, 76));
+    assert_eq!(node_size(Shape::Rounded, &wide), (tw + 2 * p, 76));
+    assert_eq!(node_size(Shape::Diamond, &wide), (2 * (tw + p), 128));
+    assert_eq!(node_size(Shape::Cylinder, &wide), (tw + 2 * p, 108));
+    assert_eq!(node_size(Shape::Start, &wide), (tw + 80, 76));
+    assert_eq!(node_size(Shape::End, &wide), (tw + 80, 76));
+}
+
+#[test]
+fn pad_x_keeps_the_base_for_short_text() {
+    for b in [0, 8, 20, 28] {
+        assert_eq!(pad_x(0, b), b);
+        let edge = Half::try_from(200 * i64::from(b) / 12).unwrap_or(0);
+        assert_eq!(pad_x(edge, b), b, "base {b} edge {edge}");
+    }
+    assert_eq!(pad_x(-5, 8), 8);
+}
+
+#[test]
+fn pad_x_fits_a_font_21_percent_wider_than_the_table() {
+    for b in [0, 8, 20, 28] {
+        let mut prev = 0;
+        for tw in 0..=6000 {
+            let p = pad_x(tw, b);
+            assert!((tw + 2 * p) * 100 >= tw * 112, "tw {tw} base {b} pad {p}");
+            assert!(p >= b && p >= prev, "tw {tw} base {b} pad {p} prev {prev}");
+            prev = p;
+        }
+    }
+}
+
+#[test]
+fn node_boxes_fit_a_wide_font() {
+    let wide = owned(&["m".repeat(28).as_str()]);
+    let tw = measure(&wide[0]);
+    for shape in [Shape::Rect, Shape::Rounded, Shape::Cylinder] {
+        let (w, _) = node_size(shape, &wide);
+        assert!(
+            w * 100 >= tw * 112 && w >= tw + 4 * PAD_X,
+            "{shape:?} {w} for {tw}"
+        );
+    }
+    let (w, h) = node_size(Shape::Diamond, &wide);
+    let th = 36;
+    assert!(
+        (tw * 112 / 100) * h + th * w <= w * h,
+        "diamond {w}x{h} for {tw}"
+    );
+}
+
+fn label() -> impl Strategy<Value = String> {
+    let ch = prop_oneof![
+        4 => any::<char>(),
+        3 => Just(' '),
+        2 => Just('\n'),
+        1 => Just('\t'),
+        2 => Just('\u{65e5}'),
+        2 => Just('\u{1f680}'),
+        1 => Just('\u{301}'),
+        1 => Just('\u{200d}'),
+        1 => Just('\u{fe0f}'),
+        2 => prop::char::range('a', 'z'),
+    ];
+    prop::collection::vec(ch, 0..160).prop_map(|v| v.into_iter().collect())
+}
+
+fn payload(s: &str) -> String {
+    s.chars()
+        .filter(|c| !matches!(c, ' ' | '\t' | '\r' | '\n'))
+        .collect()
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(128))]
+
+    #[test]
+    fn wrapped_lines_are_short_clean_and_lossless(s in label()) {
+        let lines = wrap(&s);
+        for l in &lines {
+            // A line holding several words fits the line width; only a single narrow word may
+            // run to the identifier allowance (Phase 90 review WR-04).
+            let one_narrow_word = !l.contains(' ') && l.chars().all(|c| cell(c) <= 1);
+            prop_assert!(cells(l) <= WRAP_CELLS || (one_narrow_word && cells(l) <= WORD_CELLS), "{l:?}");
+            prop_assert!(!l.is_empty() && !l.starts_with(' ') && !l.ends_with(' ') && !l.contains("  "), "{l:?}");
+        }
+        prop_assert_eq!(payload(&lines.concat()), payload(&s));
+    }
+
+    #[test]
+    fn node_size_contains_the_text_block(s in label()) {
+        let lines = wrap(&s);
+        let tw = lines.iter().map(|l| measure(l)).max().unwrap_or(0);
+        let th = i32::try_from(lines.len()).unwrap_or(0) * 36;
+        for shape in SHAPES {
+            let (w, h) = node_size(shape, &lines);
+            if shape == Shape::Diamond {
+                prop_assert!(i64::from(tw) * i64::from(h) + i64::from(th) * i64::from(w) <= i64::from(w) * i64::from(h), "{w}x{h} for {tw}x{th}");
+            } else {
+                prop_assert!(w >= tw + 56 && h >= th + 40, "{shape:?} {w}x{h} for {tw}x{th}");
+            }
+        }
+    }
+}

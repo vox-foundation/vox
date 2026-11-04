@@ -1,0 +1,11 @@
+flowchart LR
+  VoxSource[".vox source"] --> Compile["vox compile"]
+  Compile --> NativeBinary["native-binary target"]
+  Compile --> AppTargets["desktop and mobile targets"]
+  NativeBinary --> AxumServer["Axum local server with embedded SPA"]
+  AppTargets --> TauriProject["Generated src-tauri project"]
+  TauriProject --> TauriBuild["cargo tauri build"]
+  TauriBuild --> DesktopBundle["Desktop installers"]
+  TauriBuild --> MobileBundle["Android and iOS artifacts"]
+  AppTargets --> CapabilityProjection["runtime-capabilities projection"]
+  CapabilityProjection --> TauriConfig["tauri.conf.json and permissions"]

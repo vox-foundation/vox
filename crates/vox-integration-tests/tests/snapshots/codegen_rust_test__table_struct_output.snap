@@ -137,6 +137,75 @@ impl Task {
         Ok(n as usize)
     }
 
+    pub async fn patch(db: &Codex, id: i64, patch_fields: &serde_json::Map<String, serde_json::Value>) -> Result<usize, turso::Error> {
+        let mut sets: Vec<String> = Vec::new();
+        let mut binds: Vec<turso::Value> = Vec::new();
+        if let Some(v) = patch_fields.get("title") {
+            binds.push(match v {
+                serde_json::Value::Null => turso::Value::Null,
+                serde_json::Value::Bool(b) => turso::Value::Integer(if *b { 1 } else { 0 }),
+                serde_json::Value::Number(n) => if let Some(i) = n.as_i64() { turso::Value::Integer(i) } else { turso::Value::Real(n.as_f64().unwrap_or(0.0)) },
+                serde_json::Value::String(s) => turso::Value::Text(s.clone()),
+                other => turso::Value::Text(other.to_string()),
+            });
+            sets.push(format!("title = ?{}", binds.len()));
+        }
+        if let Some(v) = patch_fields.get("done") {
+            binds.push(match v {
+                serde_json::Value::Null => turso::Value::Null,
+                serde_json::Value::Bool(b) => turso::Value::Integer(if *b { 1 } else { 0 }),
+                serde_json::Value::Number(n) => if let Some(i) = n.as_i64() { turso::Value::Integer(i) } else { turso::Value::Real(n.as_f64().unwrap_or(0.0)) },
+                serde_json::Value::String(s) => turso::Value::Text(s.clone()),
+                other => turso::Value::Text(other.to_string()),
+            });
+            sets.push(format!("done = ?{}", binds.len()));
+        }
+        if let Some(v) = patch_fields.get("priority") {
+            binds.push(match v {
+                serde_json::Value::Null => turso::Value::Null,
+                serde_json::Value::Bool(b) => turso::Value::Integer(if *b { 1 } else { 0 }),
+                serde_json::Value::Number(n) => if let Some(i) = n.as_i64() { turso::Value::Integer(i) } else { turso::Value::Real(n.as_f64().unwrap_or(0.0)) },
+                serde_json::Value::String(s) => turso::Value::Text(s.clone()),
+                other => turso::Value::Text(other.to_string()),
+            });
+            sets.push(format!("priority = ?{}", binds.len()));
+        }
+        if sets.is_empty() {
+            return Ok(0);
+        }
+        binds.push(turso::Value::from(id));
+        let sql = format!("UPDATE task SET {} WHERE _id = ?{}", sets.join(", "), binds.len());
+        let n = db.connection().execute(&sql, turso::params_from_iter(binds)).await?;
+        Ok(n as usize)
+    }
+
+    pub async fn search_hybrid(db: &Codex, query: &str, limit: usize) -> Result<Vec<Self>, turso::Error> {
+        let pattern = format!("%{}%", query.trim().to_ascii_lowercase());
+        let sql = format!("SELECT * FROM task WHERE (LOWER(title) LIKE ?1) LIMIT {}", limit.max(1));
+        let mut rows = db.connection().query(&sql, (turso::Value::Text(pattern),)).await?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            out.push(Self::from_row(&row)?);
+        }
+        Ok(out)
+    }
+
+    pub async fn bucket_count(db: &Codex, column: &str, limit: usize) -> Result<Vec<(String, i64)>, turso::Error> {
+        let allowed: &[&str] = &["title", "done", "priority"];
+        if !allowed.contains(&column) {
+            return Err(turso::Error::ConversionFailure(format!("invalid bucket column: {}", column)));
+        }
+        let sql = format!("SELECT CAST({} AS TEXT), COUNT(*) FROM task GROUP BY {} ORDER BY COUNT(*) DESC LIMIT {}", column, column, limit.max(1));
+        let mut rows = db.connection().query(&sql, ()).await?;
+        let mut buckets = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let key: String = row.get(0).unwrap_or_default();
+            let cnt: i64 = row.get(1)?;
+            buckets.push((key, cnt));
+        }
+        Ok(buckets)
+    }
+
     fn from_row(row: &turso::Row) -> Result<Self, turso::Error> {
         let _id_val: i64 = row.get(0)?;
         Ok(Self {

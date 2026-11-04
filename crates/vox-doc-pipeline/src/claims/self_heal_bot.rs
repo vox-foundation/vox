@@ -14,7 +14,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 use super::llm_verifier::is_valid_line_range_citation;
+use crate::pipeline::fence_issues;
 use crate::pipeline::mermaid::validate_and_repair_markdown_mermaid;
+use crate::pipeline::types::DiagramIssue;
 
 /// Maximum concurrent open draft PRs permitted across the repository (`BOT-04`).
 pub const MAX_CONCURRENT_BOT_DRAFT_PRS: usize = 3;
@@ -44,6 +46,8 @@ pub enum BotPatchRejection {
     MissingFrontmatter,
     UnbalancedCodeFence,
     MermaidValidationFailed(String),
+    /// A `vox-diagram` fence fails `vox_diagram::check` (warnings do not block).
+    DiagramValidationFailed(String),
 }
 
 /// Validates strict path scope (`BOT-02`): only `docs/src/**` (excluding `*.generated.md`
@@ -96,6 +100,15 @@ pub fn validate_bot_patch_scope_and_gates(
         return Err(BotPatchRejection::MermaidValidationFailed(format!(
             "{} at line {}: {}",
             first.code, first.line, first.message
+        )));
+    }
+
+    if let Some(issue) = fence_issues(md)
+        .into_iter()
+        .find(|i| !matches!(i, DiagramIssue::Check { error: false, .. }))
+    {
+        return Err(BotPatchRejection::DiagramValidationFailed(format!(
+            "{issue:?}"
         )));
     }
 
@@ -287,6 +300,22 @@ mod tests {
         assert!(ledger.plan_or_update_draft_pr(&p2).unwrap().is_some());
         assert!(ledger.plan_or_update_draft_pr(&p3).unwrap().is_some());
         assert!(ledger.plan_or_update_draft_pr(&p4).unwrap().is_none());
+    }
+
+    #[test]
+    fn bot_rejects_a_patch_with_an_invalid_vox_diagram_fence() {
+        let mut p = valid_patch("db", "docs/src/architecture/db.md");
+        p.updated_markdown.push_str(
+            "\n```vox-diagram\ngraph {\n  node a: \"A\"\n  node b: \"B\"\n  a -> b\n}\n```\n",
+        );
+        assert_eq!(validate_bot_patch_scope_and_gates(&p), Ok(()));
+
+        p.updated_markdown
+            .push_str("\n```vox-diagram\ngraph {\n  a -> \n}\n```\n");
+        assert!(matches!(
+            validate_bot_patch_scope_and_gates(&p),
+            Err(BotPatchRejection::DiagramValidationFailed(_))
+        ));
     }
 
     #[test]

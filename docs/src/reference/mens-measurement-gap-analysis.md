@@ -281,17 +281,28 @@ Examples:
 
 ## Proposed measurement architecture
 
-```mermaid
-flowchart TD
-    training[TrainingTelemetry] --> summary[RunSummaryContract]
-    corpus[CorpusQualitySignals] --> summary
-    evalLocal[HeldOutEvalLocal] --> benchmark[BenchmarkSummaryContract]
-    scorecard[MensScorecard] --> benchmark
-    mcpGen[McpGenerationMetrics] --> runtime[RuntimeMetricsContract]
-    cliGen[CliGenerationMetrics] --> runtime
-    summary --> decision[DecisionGate]
-    benchmark --> decision
-    runtime --> decision
+```vox-diagram
+graph {
+    node training: "TrainingTelemetry"
+    node summary: "RunSummaryContract"
+    node corpus: "CorpusQualitySignals"
+    node evalLocal: "HeldOutEvalLocal"
+    node benchmark: "BenchmarkSummaryContract"
+    node scorecard: "MensScorecard"
+    node mcpGen: "McpGenerationMetrics"
+    node runtime: "RuntimeMetricsContract"
+    node cliGen: "CliGenerationMetrics"
+    node decision: "DecisionGate"
+    training -> summary
+    corpus -> summary
+    evalLocal -> benchmark
+    scorecard -> benchmark
+    mcpGen -> runtime
+    cliGen -> runtime
+    summary -> decision
+    benchmark -> decision
+    runtime -> decision
+}
 ```
 
 ## Minimal durable contracts needed in second pass

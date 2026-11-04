@@ -29,7 +29,7 @@ The problem is not merely that LLMs make typos; rather, **Mermaid's grammar is f
        |--------------- [Agent Turn Auto-Repair Loop] <---------|
 ```
 
-In Phase 55, Vox implemented a defense-in-depth validator and auto-repair pipeline ([`crates/vox-doc-pipeline/src/pipeline/mermaid.rs`](file:///Users/brbrainerd/dev/vox/crates/vox-doc-pipeline/src/pipeline/mermaid.rs) and [`crates/vox-orchestrator-mcp/src/chat_tools/chat/mermaid_repair.rs`](file:///Users/brbrainerd/dev/vox/crates/vox-orchestrator-mcp/src/chat_tools/chat/mermaid_repair.rs)). While this system successfully catches common label unquoting and unclosed subgraphs before documentation merges, it treats the symptoms rather than the disease.
+In Phase 55, Vox implemented a defense-in-depth validator and auto-repair pipeline ([`crates/vox-doc-pipeline/src/pipeline/mermaid.rs`](../../../crates/vox-doc-pipeline/src/pipeline/mermaid.rs) and [`crates/vox-orchestrator-mcp/src/chat_tools/chat/mermaid_repair.rs`](../../../crates/vox-orchestrator-mcp/src/chat_tools/chat/mermaid_repair.rs)). While this system successfully catches common label unquoting and unclosed subgraphs before documentation merges, it treats the symptoms rather than the disease.
 
 This advisory documents:
 1. Why Mermaid diagrams fail systematically under AI generation.
@@ -100,7 +100,7 @@ In user-facing products and automated documentation pipelines, this destroys vis
 Vox currently operates a two-tiered defense against Mermaid failures:
 
 ### Tier 1: Static Pre-Commit & Doc Pipeline Linting
-- **Location:** [`crates/vox-doc-pipeline/src/pipeline/mermaid.rs`](file:///Users/brbrainerd/dev/vox/crates/vox-doc-pipeline/src/pipeline/mermaid.rs)
+- **Location:** [`crates/vox-doc-pipeline/src/pipeline/mermaid.rs`](../../../crates/vox-doc-pipeline/src/pipeline/mermaid.rs)
 - **Mechanism:**
   - Extracts fenced blocks via `extract_mermaid_blocks`.
   - Validates diagram headers against `SUPPORTED_DIAGRAM_HEADERS`.
@@ -111,7 +111,7 @@ Vox currently operates a two-tiered defense against Mermaid failures:
   - Blocks pre-push if unfixable syntax violations persist.
 
 ### Tier 2: Real-Time MCP Validation & Turn Interception
-- **Location:** [`crates/vox-orchestrator-mcp/src/chat_tools/chat/mermaid_repair.rs`](file:///Users/brbrainerd/dev/vox/crates/vox-orchestrator-mcp/src/chat_tools/chat/mermaid_repair.rs)
+- **Location:** [`crates/vox-orchestrator-mcp/src/chat_tools/chat/mermaid_repair.rs`](../../../crates/vox-orchestrator-mcp/src/chat_tools/chat/mermaid_repair.rs)
 - **Mechanism:**
   - Exposes `vox_validate_mermaid` over MCP.
   - Automatically intercepts agent response markdown in `observe_and_repair_turn_mermaid`.
@@ -138,11 +138,13 @@ To determine if a superior format exists, we evaluated four major candidates acr
 | Dimension | Mermaid.js | D2 (Terrastruct) | PlantUML | Graphviz (DOT) | Schema IR (JSON/YAML) |
 |---|---|---|---|---|---|
 | **Grammar Coherence** | Poor (15+ Jison parsers) | Excellent (Single recursive spec) | Moderate (Older domain DSL) | Excellent (Strict BNF) | Perfect (JSON Schema) |
-| **LLM Syntax Error Rate** | **High (18–35%)** | **Low (4–8%)** | Low (5–10%) | Very Low (2–5%) | **Near Zero (<1%)** |
+| **LLM Syntax Error Rate** (unsourced, see note) | **High (18–35%)** | **Low (4–8%)** | Low (5–10%) | Very Low (2–5%) | **Near Zero (<1%)** |
 | **Layout Quality** | Poor (Dagre hairballs) | Superior (TALA / ELK engines) | Good (Graphviz-backed) | Excellent (Mathematical) | N/A (Delegated) |
 | **GitHub Native Rendering** | Yes (Built-in) | No (Requires Action/SVG) | No (Requires Action/SVG) | No (Requires Action/SVG) | No (Requires renderer) |
 | **Runtime Dependencies** | JavaScript (Browser/Node) | Go binary or WASM | Java VM / Graphviz | C binary / WebAssembly | Zero (Pure Rust/JS) |
 | **AST Tooling in Rust** | Regex / Ad-hoc | Rust parser exists | External CLI | `layout-rs` / Graphviz | Native `serde` |
+
+> **Unsourced row.** The "LLM Syntax Error Rate" figures above cite no measurement and should not be read as evidence. For a measured comparison of VoxDiagram and Mermaid authoring validity, see [VoxDiagram authoring reliability findings](voxdiagram-authoring-reliability-findings-2026.md). That measurement does not support the Mermaid figure: on 200 tasks, two low-cost cloud models failed Mermaid at first pass 4.0% and 2.0% of the time, and VoxDiagram 2.0% and 2.5%, against the 18–35% claimed above.
 
 ### Detailed Findings by Candidate:
 
@@ -239,7 +241,7 @@ diagram SystemArchitecture {
 To transition from fragile Mermaid generation to the robust Vox native diagramming pipeline, we recommend a phased approach:
 
 ### Phase 1: Harden Existing Mermaid Validation (Immediate / Shipped)
-- Retain [`vox_validate_mermaid`](file:///Users/brbrainerd/dev/vox/crates/vox-orchestrator-mcp/src/chat_tools/chat/mermaid_repair.rs) and the doc pipeline lint.
+- Retain [`vox_validate_mermaid`](../../../crates/vox-orchestrator-mcp/src/chat_tools/chat/mermaid_repair.rs) and the doc pipeline lint.
 - Expand deterministic quote repairs for ER diagrams and state diagrams.
 - Maintain prompt directives in agent system prompts warning against unquoted punctuation.
 

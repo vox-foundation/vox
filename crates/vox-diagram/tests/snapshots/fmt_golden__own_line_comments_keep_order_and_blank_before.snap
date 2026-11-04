@@ -1,0 +1,14 @@
+---
+source: crates/vox-diagram/tests/fmt_golden.rs
+expression: a
+---
+graph {
+    // one
+
+    // two
+    node a: "A"
+
+    // three
+    // four
+    node b: "B"
+}

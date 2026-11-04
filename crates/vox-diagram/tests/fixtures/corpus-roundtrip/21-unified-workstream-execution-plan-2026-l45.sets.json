@@ -1,0 +1,300 @@
+{
+  "kind": "graph",
+  "direction": "down",
+  "nodes": [
+    [
+      "VoxDb Baseline 96 (kb Phase 03) + Merged catalog.v1.yaml",
+      "rect",
+      []
+    ],
+    [
+      "Wave 0: Phase 05 Branch & Worktree Convergence (ARGON-4)",
+      "rect",
+      []
+    ],
+    [
+      "Wave 1: Phase 07 & 07.1 Trials Domain (VoxDb Baseline 97)",
+      "rect",
+      []
+    ],
+    [
+      "Wave 1: Phase 12 Safety Floor (12-01..08)",
+      "rect",
+      []
+    ],
+    [
+      "Wave 1: Phase 25 vox-graph-reader v5 + vox_search_atlas",
+      "rect",
+      []
+    ],
+    [
+      "Wave 1: Phase 32 Docs Trust Signal Calibration",
+      "rect",
+      []
+    ],
+    [
+      "Wave 2: Phase 33 OpenWiki Subsystem Hubs & Mermaid",
+      "rect",
+      []
+    ],
+    [
+      "Wave 2: Phase 34 Docs Debt Burn-Down (920 -> <100)",
+      "rect",
+      []
+    ],
+    [
+      "Wave 2: Phases 08-11 & 42 Trial Race Harness & Benchmarks",
+      "rect",
+      []
+    ],
+    [
+      "Wave 2: Phases 13-17 Autonomy Daemon & Attention Inbox (Baseline 98)",
+      "rect",
+      []
+    ],
+    [
+      "Wave 2: Phases 37-41 KB Embeddings, Context Injection & Staleness",
+      "rect",
+      []
+    ],
+    [
+      "Wave 3: Sequenced GUI (06.4 -> 26..31 Atlas -> 43..45 KB -> 18..19 Oversight)",
+      "rect",
+      []
+    ],
+    [
+      "Wave 4: Phase 06.6 Cold-Start Time-to-Find Journeys",
+      "rect",
+      []
+    ],
+    [
+      "Wave 4: Phases 35-36 Nightly LLM Doc Verifier & Self-Healing Bot",
+      "rect",
+      []
+    ]
+  ],
+  "edges": [
+    [
+      [
+        "VoxDb Baseline 96 (kb Phase 03) + Merged catalog.v1.yaml",
+        "rect",
+        []
+      ],
+      [
+        "Wave 1: Phase 07 & 07.1 Trials Domain (VoxDb Baseline 97)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "VoxDb Baseline 96 (kb Phase 03) + Merged catalog.v1.yaml",
+        "rect",
+        []
+      ],
+      [
+        "Wave 1: Phase 12 Safety Floor (12-01..08)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "VoxDb Baseline 96 (kb Phase 03) + Merged catalog.v1.yaml",
+        "rect",
+        []
+      ],
+      [
+        "Wave 1: Phase 25 vox-graph-reader v5 + vox_search_atlas",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "VoxDb Baseline 96 (kb Phase 03) + Merged catalog.v1.yaml",
+        "rect",
+        []
+      ],
+      [
+        "Wave 1: Phase 32 Docs Trust Signal Calibration",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "VoxDb Baseline 96 (kb Phase 03) + Merged catalog.v1.yaml",
+        "rect",
+        []
+      ],
+      [
+        "Wave 2: Phases 37-41 KB Embeddings, Context Injection & Staleness",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Wave 0: Phase 05 Branch & Worktree Convergence (ARGON-4)",
+        "rect",
+        []
+      ],
+      [
+        "VoxDb Baseline 96 (kb Phase 03) + Merged catalog.v1.yaml",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Wave 1: Phase 07 & 07.1 Trials Domain (VoxDb Baseline 97)",
+        "rect",
+        []
+      ],
+      [
+        "Wave 2: Phases 08-11 & 42 Trial Race Harness & Benchmarks",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Wave 1: Phase 12 Safety Floor (12-01..08)",
+        "rect",
+        []
+      ],
+      [
+        "Wave 2: Phases 13-17 Autonomy Daemon & Attention Inbox (Baseline 98)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Wave 1: Phase 25 vox-graph-reader v5 + vox_search_atlas",
+        "rect",
+        []
+      ],
+      [
+        "Wave 2: Phase 33 OpenWiki Subsystem Hubs & Mermaid",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Wave 1: Phase 25 vox-graph-reader v5 + vox_search_atlas",
+        "rect",
+        []
+      ],
+      [
+        "Wave 3: Sequenced GUI (06.4 -> 26..31 Atlas -> 43..45 KB -> 18..19 Oversight)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Wave 1: Phase 32 Docs Trust Signal Calibration",
+        "rect",
+        []
+      ],
+      [
+        "Wave 2: Phase 33 OpenWiki Subsystem Hubs & Mermaid",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Wave 1: Phase 32 Docs Trust Signal Calibration",
+        "rect",
+        []
+      ],
+      [
+        "Wave 2: Phase 34 Docs Debt Burn-Down (920 -> <100)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Wave 2: Phase 34 Docs Debt Burn-Down (920 -> <100)",
+        "rect",
+        []
+      ],
+      [
+        "Wave 4: Phases 35-36 Nightly LLM Doc Verifier & Self-Healing Bot",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Wave 2: Phases 13-17 Autonomy Daemon & Attention Inbox (Baseline 98)",
+        "rect",
+        []
+      ],
+      [
+        "Wave 3: Sequenced GUI (06.4 -> 26..31 Atlas -> 43..45 KB -> 18..19 Oversight)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Wave 2: Phases 37-41 KB Embeddings, Context Injection & Staleness",
+        "rect",
+        []
+      ],
+      [
+        "Wave 3: Sequenced GUI (06.4 -> 26..31 Atlas -> 43..45 KB -> 18..19 Oversight)",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Wave 2: Phases 37-41 KB Embeddings, Context Injection & Staleness",
+        "rect",
+        []
+      ],
+      [
+        "Wave 4: Phases 35-36 Nightly LLM Doc Verifier & Self-Healing Bot",
+        "rect",
+        []
+      ],
+      ""
+    ],
+    [
+      [
+        "Wave 3: Sequenced GUI (06.4 -> 26..31 Atlas -> 43..45 KB -> 18..19 Oversight)",
+        "rect",
+        []
+      ],
+      [
+        "Wave 4: Phase 06.6 Cold-Start Time-to-Find Journeys",
+        "rect",
+        []
+      ],
+      ""
+    ]
+  ],
+  "containers": []
+}

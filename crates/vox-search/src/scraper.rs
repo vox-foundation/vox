@@ -1,5 +1,4 @@
 use crate::spa_fallback::is_bot_challenge_page;
-use ::html2text::from_read;
 use ::scraper::{Html, Selector};
 use std::time::Duration;
 use tracing::debug;
@@ -44,8 +43,17 @@ pub fn extract_document_from_html(url: &str, html_content: &str) -> ScrapedDocum
         }
     };
 
-    // 3. Convert to Markdown
-    let markdown = from_read(target_html.as_bytes(), 80);
+    // 3. Convert to Markdown. html2text cannot lay out nesting deeper than the width
+    // allows (`TooNarrow`), so such pages degrade to their raw text instead of panicking.
+    let markdown = ::html2text::config::plain()
+        .string_from_read(target_html.as_bytes(), 80)
+        .unwrap_or_else(|_| {
+            Html::parse_fragment(&target_html)
+                .root_element()
+                .text()
+                .collect::<Vec<_>>()
+                .join(" ")
+        });
 
     // 4. Text Density Heuristic
     let total_chars = html_content.len() as f64;
@@ -116,6 +124,18 @@ mod tests {
     use super::*;
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    #[test]
+    fn deeply_nested_html_degrades_to_text_instead_of_panicking() {
+        let depth = 60;
+        let html = format!(
+            "<html><body>{}deep text{}</body></html>",
+            "<blockquote>".repeat(depth),
+            "</blockquote>".repeat(depth)
+        );
+        let doc = extract_document_from_html("https://example.test/deep", &html);
+        assert!(doc.markdown.contains("deep text"), "{:?}", doc.markdown);
+    }
 
     #[tokio::test]
     async fn test_fetch_and_extract_bot_challenge() {

@@ -204,6 +204,24 @@ Corpus registry and freshness status/ingest operations for Vox Graph knowledge m
 | `vox graph rebuild` | Rebuild the base AST code graph and cluster it. |
 | `vox graph history <log\|focus\|forgotten\|search\|timeline\|brief>` | First-parent history of `origin/main` (else `main`) with rename/split/merge lineage. Mechanical (fmt/generated/import-only) changes are flagged and hidden unless `--include-mechanical`. Every subcommand except `brief` catches up on new commits first. One store is shared by all worktrees, at `<git-common-dir>/vox-cache/repo-history/`. `brief` prints one line from disk and says how many commits it is behind. Forms: `vox graph history log`, `vox graph history focus`, `vox graph history forgotten`, `vox graph history search`, `vox graph history timeline`, `vox graph history brief`. |
 
+### `vox diagram`
+
+Check VoxDiagram sources (the `graph` and `sequence` diagram languages) from a file or from stdin (`-`). The command reaches the diagram core through `vox_doc_pipeline::diagram`, and the global `--json` prints the bare envelope, which is the `data` field of the `vox_validate_diagram` MCP tool response. See the [VoxDiagram reference](vox-diagram.md) for the grammar card and the tool envelope.
+
+| Subcommand | Role |
+|------------|------|
+| `vox diagram check <file\|->` | Print every diagnostic as `<file>:<line>:<col>: <code>: <message>` on stderr (`<stdin>` for `-`). Warnings print and do not fail. |
+| `vox diagram fmt <file\|-> [--check \| --write]` | Print the canonical form. `--check` exits 1 when the file is not canonical. `--write` rewrites the file in place through a sibling temp file and rename, only for a valid source, and refuses `-`. |
+| `vox diagram render <file\|-> [-o FILE]` | Write deterministic SVG to stdout or `FILE`. A diagram over the render caps exits 1 with the reason. |
+| `vox diagram export <file\|-> [-o FILE]` | Write Mermaid to stdout or `FILE`. |
+| `vox diagram import <file\|-> [-o FILE]` | Convert one Mermaid block to canonical VoxDiagram, or print `<file>:<line>: unsupported: <construct>` lines and exit 1. |
+
+| Exit code | Meaning |
+|-----------|---------|
+| 0 | The diagram is valid (warnings allowed) |
+| 1 | At least one Error diagnostic, a non-canonical `fmt --check`, unsupported `import` lines, or a failed render |
+| 2 | Usage error, unreadable input or unwritable output, or `--json` combined with `-o`, `--write` or `--check` |
+
 ### `vox kb eval`
 
 Deterministic retrieval eval over the golden set in `contracts/kb/eval/` (scored on doc and chunk ids through the Library index, `library-tantivy-v1`, over the frozen corpus snapshot). Plain `vox kb eval` prints the metric report for the chosen split.
@@ -538,7 +556,7 @@ Discovery/data-prep operator commands: `vox db publication-discovery-scan`, `vox
 
 ### `vox telemetry`
 
-**Optional operator upload path** — not default-on, not product telemetry. Local JSON spool under `.vox/telemetry-upload-queue` (or `VOX_TELEMETRY_SPOOL_DIR`), explicit **`vox telemetry upload`**, secrets via Clavis (`VOX_TELEMETRY_UPLOAD_URL`, `VOX_TELEMETRY_UPLOAD_TOKEN`). Subcommands: **`vox telemetry status`**, **`vox telemetry export`**, **`vox telemetry enqueue --json <file>`**, **`vox telemetry upload`** (`--dry-run` supported). See [ADR 023](../adr/023-optional-telemetry-remote-upload.md), [telemetry remote sink spec](../archive/research-2026-q1/telemetry-remote-sink-spec.md), [env-vars](env-vars.md).
+**Optional operator upload path** — not default-on, not product telemetry. Local JSON spool under `.vox/telemetry-upload-queue` (or `VOX_TELEMETRY_SPOOL_DIR`), explicit **`vox telemetry upload`**, secrets via Clavis (`VOX_TELEMETRY_UPLOAD_URL`, `VOX_TELEMETRY_UPLOAD_TOKEN`). Subcommands: **`vox telemetry status`**, **`vox telemetry export`**, **`vox telemetry preview`** (offline render of the redacted batch that would be uploaded; `--format table|json`, `--limit N`), **`vox telemetry enqueue --json <file>`**, **`vox telemetry upload`** (`--dry-run` supported). See [ADR 023](../adr/023-optional-telemetry-remote-upload.md), [telemetry remote sink spec](../archive/research-2026-q1/telemetry-remote-sink-spec.md), [env-vars](env-vars.md).
 
 ### `vox scientia`
 
@@ -893,6 +911,7 @@ The sections above document 50 of the 76 top-level `vox` commands. The remaining
 | `vox container` | Manage OCI containers: build/run the current project with resource limits |
 | `vox dispatch` | Dispatch-time routing preview — project what the dispatcher would do (P2-T6) |
 | `vox drift-check` | Workspace drift and pattern-repetition linter |
+| `vox diagram` | Check, format, render, export and import VoxDiagram diagrams from a file or stdin |
 | `vox ext` | Extensions lane — unified entry for legacy and ML subcommands (`ext`) |
 | `vox grammar` | Export the Vox language grammar in various formats for MENS training |
 | `vox harness` | Evaluate the harness itself (not a model) against a golden task set with a pass^k multi-sample gate (`vox harness eval`) |
@@ -936,6 +955,7 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `ext` | default | `commands::ext` |
 | `graph` | default | `commands::graphify` (aliases: `graphify`, `search`) |
 | `grammar` | default | `commands::grammar::handle` |
+| `diagram` | default | `commands::diagram::run` |
 | `gui` | `gui` | `commands::gui` — launch Axis; `vox gui drive` is `commands::gui::drive` |
 | `harness` | default | `commands::harness` |
 | `mcp` | `mcp-server` | `commands::mcp::run` — start the Model Context Protocol server; without the feature it fails with a rebuild instruction |

@@ -1,0 +1,21 @@
+graph {
+    node training: "TrainingTelemetry"
+    node summary: "RunSummaryContract"
+    node corpus: "CorpusQualitySignals"
+    node evalLocal: "HeldOutEvalLocal"
+    node benchmark: "BenchmarkSummaryContract"
+    node scorecard: "MensScorecard"
+    node mcpGen: "McpGenerationMetrics"
+    node runtime: "RuntimeMetricsContract"
+    node cliGen: "CliGenerationMetrics"
+    node decision: "DecisionGate"
+    training -> summary
+    corpus -> summary
+    evalLocal -> benchmark
+    scorecard -> benchmark
+    mcpGen -> runtime
+    cliGen -> runtime
+    summary -> decision
+    benchmark -> decision
+    runtime -> decision
+}
