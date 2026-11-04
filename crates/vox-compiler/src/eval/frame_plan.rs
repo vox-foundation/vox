@@ -103,13 +103,14 @@ impl FrameExpr {
     }
 }
 
+/// One step on a [`FramePlan`], ready for `frame_plan_params`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct FrameStep {
-    op: &'static str,
-    column: Option<String>,
-    nulls: Option<&'static str>,
-    keys: Vec<String>,
-    exprs: Vec<FrameExpr>,
+pub struct FrameStep {
+    pub op: &'static str,
+    pub column: Option<String>,
+    pub nulls: Option<&'static str>,
+    pub keys: Vec<String>,
+    pub exprs: Vec<FrameExpr>,
 }
 
 /// A lazy polars plan. Constructors copy the worker counter and never
@@ -250,6 +251,12 @@ impl FramePlan {
             .rev()
             .find(|step| step.op == "sort")
             .and_then(|step| step.nulls)
+    }
+
+    /// Steps in plan order for the worker JSON.
+    #[must_use]
+    pub(crate) fn param_steps(&self) -> Vec<FrameStep> {
+        self.steps.clone()
     }
 
     fn push(

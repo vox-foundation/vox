@@ -1078,6 +1078,35 @@ pub fn call_builtin_method(
                 };
             }
 
+            if ns == Some("frame") {
+                return match method {
+                    "scan_csv" => {
+                        let Some(VoxValue::Str(path)) = args.first() else {
+                            return Some(VoxValue::_Panic(
+                                "scan_csv requires a path string".into(),
+                            ));
+                        };
+                        let Some(resolved) = fs_resolve_allowed(caps, path, false) else {
+                            return Some(VoxValue::_Denied("fs.scan_csv".into()));
+                        };
+                        Some(VoxValue::FramePlan(
+                            crate::eval::frame_plan::FramePlan::scan_csv(
+                                &resolved.to_string_lossy(),
+                            ),
+                        ))
+                    }
+                    "col" => {
+                        let Some(VoxValue::Str(name)) = args.first() else {
+                            return Some(VoxValue::_Panic("col requires a name".into()));
+                        };
+                        Some(VoxValue::FrameExpr(
+                            crate::eval::frame_plan::FrameExpr::col(name),
+                        ))
+                    }
+                    _ => None,
+                };
+            }
+
             if let Some(ns_str) = ns {
                 if !caps.allows_namespace(ns_str) {
                     return Some(VoxValue::_Denied(format!("{ns_str}.{method}")));
@@ -2608,6 +2637,76 @@ pub fn call_builtin_method(
             _ => None,
         },
 
+        VoxValue::FramePlan(plan) => match method {
+            "filter" => {
+                let Some(VoxValue::FrameExpr(expr)) = args.first() else {
+                    return Some(VoxValue::_Panic("filter requires an Expr".into()));
+                };
+                Some(VoxValue::FramePlan(plan.filter(expr)))
+            }
+            "group_by" => {
+                let Some(VoxValue::List(keys)) = args.first() else {
+                    return Some(VoxValue::_Panic("group_by requires a list of keys".into()));
+                };
+                let mut names: Vec<String> = Vec::with_capacity(keys.len());
+                for key in keys.iter() {
+                    let VoxValue::Str(name) = key else {
+                        return Some(VoxValue::_Panic("group_by keys must be strings".into()));
+                    };
+                    names.push(name.as_ref().to_string());
+                }
+                let key_refs: Vec<&str> = names.iter().map(String::as_str).collect();
+                Some(VoxValue::FramePlan(plan.group_by(&key_refs)))
+            }
+            "agg" => {
+                let Some(VoxValue::List(items)) = args.first() else {
+                    return Some(VoxValue::_Panic("agg requires a list of Expr".into()));
+                };
+                let mut exprs = Vec::with_capacity(items.len());
+                for item in items.iter() {
+                    let VoxValue::FrameExpr(expr) = item else {
+                        return Some(VoxValue::_Panic("agg items must be Expr".into()));
+                    };
+                    exprs.push(expr.clone());
+                }
+                Some(VoxValue::FramePlan(plan.agg(&exprs)))
+            }
+            "sort" => {
+                // Column is positional; nulls is the named argument's value.
+                // Do not use args.first() as the nulls string (array sort does).
+                let Some(VoxValue::Str(column)) = args.first() else {
+                    return Some(VoxValue::_Panic("sort requires a column".into()));
+                };
+                let Some(VoxValue::Str(nulls)) = args.get(1) else {
+                    return Some(VoxValue::_Panic("sort requires nulls".into()));
+                };
+                if nulls.as_ref() != "first" && nulls.as_ref() != "last" {
+                    return Some(VoxValue::_Panic(
+                        "sort nulls must be \"first\" or \"last\"".into(),
+                    ));
+                }
+                Some(VoxValue::FramePlan(plan.sort(column, nulls)))
+            }
+            _ => None,
+        },
+
+        VoxValue::FrameExpr(expr) => match method {
+            "eq" => {
+                let Some(VoxValue::Str(value)) = args.first() else {
+                    return Some(VoxValue::_Panic("eq requires a string".into()));
+                };
+                Some(VoxValue::FrameExpr(expr.eq(value)))
+            }
+            "sum" => Some(VoxValue::FrameExpr(expr.sum())),
+            "alias" => {
+                let Some(VoxValue::Str(name)) = args.first() else {
+                    return Some(VoxValue::_Panic("alias requires a name".into()));
+                };
+                Some(VoxValue::FrameExpr(expr.alias(name)))
+            }
+            _ => None,
+        },
+
         // `num_rows` and `column` live on `Records`, not on `Ty::Record`.
         VoxValue::Records { columns } => match method {
             "num_rows" => {
@@ -2846,6 +2945,83 @@ fn plan_params(plan: &super::array_plan::ArrayPlan) -> serde_json::Value {
         })
         .collect();
     serde_json::json!({ "ops": ops })
+}
+
+fn frame_expr_params(expr: &super::frame_plan::FrameExpr) -> serde_json::Value {
+    let mut op = serde_json::Map::new();
+    op.insert(
+        "name".into(),
+        serde_json::Value::String(expr.op().to_string()),
+    );
+    if let Some(column) = expr.column() {
+        op.insert(
+            "column".into(),
+            serde_json::Value::String(column.to_string()),
+        );
+    }
+    if let Some(literal) = expr.literal() {
+        op.insert(
+            "literal".into(),
+            serde_json::Value::String(literal.to_string()),
+        );
+    }
+    if let Some(alias) = expr.alias_name() {
+        op.insert("alias".into(), serde_json::Value::String(alias.to_string()));
+    }
+    if let Some(child) = expr.child() {
+        op.insert("expr".into(), frame_expr_params(child));
+    }
+    serde_json::Value::Object(op)
+}
+
+/// Frame family params for [`python::execute_plan`]. Array plans stay on
+/// [`plan_params`] with no `family` key.
+fn frame_plan_params(plan: &super::frame_plan::FramePlan) -> serde_json::Value {
+    let ops: Vec<serde_json::Value> = plan
+        .param_steps()
+        .into_iter()
+        .map(|step| {
+            let mut op = serde_json::Map::new();
+            op.insert(
+                "name".into(),
+                serde_json::Value::String(step.op.to_string()),
+            );
+            if step.op == "scan_csv" {
+                op.insert(
+                    "path".into(),
+                    serde_json::Value::String(plan.path().to_string()),
+                );
+            } else if step.op == "sort" {
+                if let Some(column) = step.column {
+                    op.insert("column".into(), serde_json::Value::String(column));
+                }
+                if let Some(nulls) = step.nulls {
+                    op.insert("nulls".into(), serde_json::Value::String(nulls.to_string()));
+                }
+            } else if step.op == "group_by" {
+                op.insert(
+                    "keys".into(),
+                    serde_json::Value::Array(
+                        step.keys
+                            .into_iter()
+                            .map(serde_json::Value::String)
+                            .collect(),
+                    ),
+                );
+            } else if step.op == "filter" {
+                if let Some(expr) = step.exprs.first() {
+                    op.insert("expr".into(), frame_expr_params(expr));
+                }
+            } else if step.op == "agg" {
+                op.insert(
+                    "exprs".into(),
+                    serde_json::Value::Array(step.exprs.iter().map(frame_expr_params).collect()),
+                );
+            }
+            serde_json::Value::Object(op)
+        })
+        .collect();
+    serde_json::json!({ "family": "frame", "ops": ops })
 }
 
 fn array_from_list(args: Vec<VoxValue>) -> VoxValue {
