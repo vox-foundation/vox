@@ -1,0 +1,3 @@
+f4bcc3b4aabd69af4093b13d537bb16136322279  mens/runs/320-smoke-0.6b-a3/checkpoint_state.json
+1c69b700b439e2cad367239a6cfcf7af2273252c  mens/runs/320-smoke-0.6b-a3/checkpoint_step_60.safetensors
+1c69b700b439e2cad367239a6cfcf7af2273252c  mens/runs/320-smoke-0.6b-a3/candle_qlora_adapter.safetensors

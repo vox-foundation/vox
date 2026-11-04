@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
@@ -604,6 +603,108 @@ describe('Loquela', () => {
     );
     const ta = screen.getByLabelText('Task composer') as HTMLTextAreaElement;
     expect(ta.value).toContain('@file:crates/vox-compiler/src/lib.rs');
+  });
+
+  it('allows inline editing of context chip labels', () => {
+    const setChips = vi.fn();
+    renderLoquela({
+      chips: [{ id: 'c1', kind: 'file', label: 'src/old.rs' }],
+      setChips,
+    });
+    fireEvent.click(screen.getByTestId('loquela-chip-edit-c1'));
+    const input = screen.getByTestId('loquela-chip-edit-input-c1');
+    fireEvent.change(input, { target: { value: 'src/new.rs' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(setChips).toHaveBeenCalledWith([{ id: 'c1', kind: 'file', label: 'src/new.rs' }]);
+  });
+
+  it('cycles all chat modifying knobs via Alt keybindings and persists real-time posture via set_session_chat_posture (v2.4)', () => {
+    const onSubmit = vi.fn();
+    renderLoquela({ onSubmit });
+    const ta = screen.getByLabelText('Task composer') as HTMLTextAreaElement;
+
+    // Alt+4 jumps to Genius clutch; Alt+1 jumps to Free; Alt+C cycles to Efficient
+    fireEvent.keyDown(ta, { key: '4', altKey: true });
+    expect(screen.getByRole('radio', { name: 'Genius' })).toHaveAttribute('aria-checked', 'true');
+    fireEvent.keyDown(ta, { key: '1', altKey: true });
+    expect(screen.getByRole('radio', { name: 'Free' })).toHaveAttribute('aria-checked', 'true');
+    fireEvent.keyDown(ta, { key: 'c', altKey: true });
+    expect(screen.getByRole('radio', { name: 'Efficient' })).toHaveAttribute('aria-checked', 'true');
+
+    // Alt+R cycles Risk (moderate -> low)
+    fireEvent.keyDown(ta, { key: 'r', altKey: true });
+    expect(screen.getByRole('button', { name: /^risk: low/i })).toBeTruthy();
+
+    // Alt+T cycles Destination Tier (auto -> local)
+    fireEvent.keyDown(ta, { key: 't', altKey: true });
+    expect(screen.getByRole('button', { name: /choose model tier/i })).toHaveTextContent(/Local/i);
+
+    // Alt+M cycles Send Mode (chat -> task) and Alt+V toggles Interaction mode (act -> verify)
+    fireEvent.keyDown(ta, { key: 'm', altKey: true });
+    expect(screen.getByRole('button', { name: /choose send mode/i })).toHaveTextContent(/Background task/i);
+    fireEvent.keyDown(ta, { key: 'v', altKey: true });
+    expect(screen.getByLabelText('Interaction mode')).toHaveTextContent(/Verify/i);
+
+    // Alt+O cycles Oversight (balanced -> cautious) and Alt+K cycles @kb scope (auto -> docs -> code)
+    fireEvent.keyDown(ta, { key: 'o', altKey: true });
+    expect((screen.getByTestId('loquela-oversight-select') as HTMLSelectElement).value).toBe('cautious');
+    fireEvent.keyDown(ta, { key: 'k', altKey: true });
+    expect((screen.getByTestId('loquela-kb-scope-select') as HTMLSelectElement).value).toBe('docs');
+    fireEvent.keyDown(ta, { key: 'k', altKey: true });
+    expect((screen.getByTestId('loquela-kb-scope-select') as HTMLSelectElement).value).toBe('code');
+
+    // Verify live posture badge reflects the real-time state
+    expect(screen.getByTestId('loquela-live-posture-badge')).toHaveTextContent(
+      'Live · efficiency/low · local · @code',
+    );
+
+    // Verify set_session_chat_posture was invoked to persist across future chat turns
+    expect(mockInvoke).toHaveBeenCalledWith(
+      'set_session_chat_posture',
+      expect.objectContaining({
+        sessionId: null,
+        posture: expect.objectContaining({
+          clutch: 'efficiency',
+          risk: 'low',
+          tier: 'local',
+          mode: 'verify',
+          execution_mode: 'task',
+          oversight_level: 'cautious',
+          kb_scope: 'code',
+        }),
+      }),
+    );
+  });
+
+  it('toggles the Keybind HUD overlay via Alt+/ and allows one-click cycling of real-time knobs (v2.5 KEYBIND-HUD)', () => {
+    renderLoquela();
+    const ta = screen.getByLabelText('Task composer') as HTMLTextAreaElement;
+
+    expect(screen.queryByTestId('loquela-keybind-hud-panel')).toBeNull();
+    fireEvent.keyDown(ta, { key: '/', altKey: true });
+    const hud = screen.getByTestId('loquela-keybind-hud-panel');
+    expect(hud).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('loquela-hud-cycle-clutch'));
+    expect(screen.getByRole('radio', { name: 'Balanced' })).toHaveAttribute('aria-checked', 'true');
+
+    fireEvent.click(screen.getByTestId('loquela-hud-cycle-kb'));
+    expect((screen.getByTestId('loquela-kb-scope-select') as HTMLSelectElement).value).toBe('docs');
+
+    fireEvent.keyDown(ta, { key: 'Escape' });
+    expect(screen.queryByTestId('loquela-keybind-hud-panel')).toBeNull();
+  });
+
+  it('collapses secondary posture knobs behind the progressive-disclosure Execution Posture & Routing popover trigger (v4.0 LOQUELA-CLEANUP)', () => {
+    renderLoquela();
+    const trigger = screen.getByTestId('loquela-posture-trigger');
+    const popover = screen.getByTestId('loquela-posture-popover');
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(popover.className).toContain('sr-only');
+
+    fireEvent.click(trigger);
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(popover.className).not.toContain('sr-only');
   });
 
 });

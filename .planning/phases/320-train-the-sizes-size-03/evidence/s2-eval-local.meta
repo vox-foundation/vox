@@ -1,0 +1,1 @@
+exit=0 wall_s=978.3 (marker mtimes 1793163764.629 -> 1793164742.905); bench = first 8 tasks of mens/data/heldout_bench/manifest.json (subset dir, --bench); --max-tokens 1024; temperature 0

@@ -1,0 +1,10 @@
+{
+  "n": 1,
+  "q": 0,
+  "first_quarter_mean": null,
+  "last_quarter_mean": null,
+  "any_non_finite": false,
+  "losses": [
+    3.1694371700286865
+  ]
+}

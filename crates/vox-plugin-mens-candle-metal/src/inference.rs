@@ -17,6 +17,7 @@ use candle_core::{Device, Tensor};
 use safetensors::Dtype;
 use safetensors::SafeTensors;
 use tokenizers::Tokenizer;
+use vox_eval::qwen_reasoning::Lane;
 
 use crate::hf_layout::HfArchitecture;
 use crate::model::{
@@ -174,11 +175,24 @@ pub fn weight_sources(model_dir: &Path, base_shards: &[PathBuf]) -> Vec<PathBuf>
 
 impl InferenceEngine {
     pub fn load(model_dir: &Path, device_kind: &crate::device::DeviceKind) -> Result<Self> {
+        let t0 = std::time::Instant::now();
         let tokenizer_path = model_dir.join("tokenizer.json");
         let _tokenizer = Tokenizer::from_file(&tokenizer_path)
             .map_err(|e| anyhow::anyhow!("load tokenizer: {e}"))?;
 
         let _device = resolve_inference_device(device_kind)?;
+        // Load phases on stderr, with the device's allocated bytes, so a slow
+        // or oversized load shows where its time and memory go.
+        let phase = |what: &str| {
+            let mem = metal_allocated_mib(&_device)
+                .map(|m| format!(", metal {m} MiB"))
+                .unwrap_or_default();
+            eprintln!(
+                "  load {}: {what} at {:.1}s{mem}",
+                model_dir.display(),
+                t0.elapsed().as_secs_f64()
+            );
+        };
 
         let quant_meta_path = model_dir.join("quant-metadata.json");
         let is_quantized = quant_meta_path.is_file();
@@ -212,6 +226,7 @@ impl InferenceEngine {
             let resolved = resolve_weights(model_dir, &adapter_path, &meta_path, &_device)?;
             let base_shards = resolved.base_shards;
             lora_factors = resolved.lora_factors;
+            phase(&format!("{} LoRA factors read", lora_factors.len()));
 
             for p in weight_sources(model_dir, &base_shards) {
                 let file = std::fs::File::open(&p)?;
@@ -224,10 +239,33 @@ impl InferenceEngine {
         for m in &all_buffers {
             weight_maps.push(SafeTensors::deserialize(m)?);
         }
+        phase("weights mapped");
 
         let mut qlora_cfg = qlora_rs::qlora::QLoraConfig::default();
         qlora_cfg.quantization.compute_dtype = compute_dtype_for_device(&_device);
         qlora_cfg.cache_dequantized = true;
+
+        // An unquantized checkpoint tensor as f32 on `dev`.
+        let checkpoint_tensor = |key: &str, dev: &Device| -> Result<Tensor> {
+            for st in &weight_maps {
+                if let Ok(view) = st.tensor(key) {
+                    let shape = view.shape().to_vec();
+                    let dtype = match view.dtype() {
+                        Dtype::F32 => candle_core::DType::F32,
+                        Dtype::BF16 => candle_core::DType::BF16,
+                        Dtype::F16 => candle_core::DType::F16,
+                        _ => continue,
+                    };
+                    let t = Tensor::from_raw_buffer(view.data(), dtype, &shape, dev)?;
+                    return if t.dtype() == candle_core::DType::F32 {
+                        Ok(t)
+                    } else {
+                        Ok(t.to_dtype(candle_core::DType::F32)?)
+                    };
+                }
+            }
+            anyhow::bail!("Weight not found: {key}");
+        };
 
         // Helper to find a non-linear tensor (layernorm, embedding, bias) in any map
         let get_tensor = |key: &str| -> Result<Tensor> {
@@ -263,24 +301,7 @@ impl InferenceEngine {
                 }
                 anyhow::bail!("Quantized tensor `{key}` not found in model.safetensors");
             } else {
-                for st in &weight_maps {
-                    if let Ok(view) = st.tensor(key) {
-                        let shape = view.shape().to_vec();
-                        let dtype = match view.dtype() {
-                            Dtype::F32 => candle_core::DType::F32,
-                            Dtype::BF16 => candle_core::DType::BF16,
-                            Dtype::F16 => candle_core::DType::F16,
-                            _ => continue,
-                        };
-                        let t = Tensor::from_raw_buffer(view.data(), dtype, &shape, &_device)?;
-                        return if t.dtype() == candle_core::DType::F32 {
-                            Ok(t)
-                        } else {
-                            Ok(t.to_dtype(candle_core::DType::F32)?)
-                        };
-                    }
-                }
-                anyhow::bail!("Weight not found: {key}");
+                checkpoint_tensor(key, &_device)
             }
         };
 
@@ -292,7 +313,12 @@ impl InferenceEngine {
             if is_quantized {
                 Ok(Tensor::zeros((1,), candle_core::DType::F32, &_device)?)
             } else {
-                fold_lora_delta(get_tensor(key)?, key, &lora_factors)
+                linear_weight_on_host(
+                    |dev| checkpoint_tensor(key, dev),
+                    key,
+                    &lora_factors,
+                    &_device,
+                )
             }
         };
 
@@ -534,6 +560,9 @@ impl InferenceEngine {
                     mlp,
                     inv_freq,
                 });
+                if (i + 1) % 8 == 0 || i + 1 == layout.num_hidden_layers {
+                    phase(&format!("layer {}/{}", i + 1, layout.num_hidden_layers));
+                }
             }
             let norm = candle_nn::RmsNorm::new(
                 get_tensor("model.language_model.norm.weight")
@@ -542,13 +571,11 @@ impl InferenceEngine {
             );
             let lm_head = get_linear(
                 "lm_head.weight",
-                &linear_weight("lm_head.weight").or_else(|_| {
-                    linear_weight("model.language_model.embed_tokens.weight")
-                        .or_else(|_| linear_weight("model.embed_tokens.weight"))
-                })?,
+                &lm_head_weight(layout.tie_word_embeddings, linear_weight)?,
             )?;
             let embed_tokens = get_tensor("model.language_model.embed_tokens.weight")
                 .or_else(|_| get_tensor("model.embed_tokens.weight"))?;
+            phase("head and embeddings built");
             InferenceModel::Qwen35(Qwen35Model {
                 embed_tokens,
                 layers,
@@ -597,6 +624,8 @@ impl InferenceEngine {
     ///     entropy-seeded)
     ///   - `"output_mode"`: optional structured-output label — see
     ///     `check_output_mode` for what this plugin does and does not enforce.
+    ///   - `"lane"`: optional serving lane — `codegen` (default), `hub` or `agent`;
+    ///     see `resolve_lane`.
     pub fn generate_from_json(&mut self, prompt_json: &str) -> Result<String> {
         #[derive(serde::Deserialize)]
         struct PromptRequest {
@@ -617,6 +646,9 @@ impl InferenceEngine {
             seed: Option<u64>,
             #[serde(default)]
             output_mode: Option<String>,
+            /// Serving lane (`codegen` default, `hub`, `agent`); see `resolve_lane`.
+            #[serde(default)]
+            lane: Option<String>,
         }
         fn default_max_tokens() -> usize {
             256
@@ -629,8 +661,9 @@ impl InferenceEngine {
             .map_err(|e| anyhow::anyhow!("parse prompt_json: {e}"))?;
 
         check_output_mode(req.output_mode.as_deref())?;
+        let lane = resolve_lane(req.lane.as_deref())?;
 
-        let prompt = assemble_prompt(req.system.as_deref(), &req.prompt);
+        let prompt = assemble_prompt(req.system.as_deref(), &req.prompt, lane);
 
         let generated = self.generate(
             &prompt,
@@ -758,6 +791,60 @@ impl InferenceEngine {
 /// base-only serve can never pick up a delta by accident.
 /// The dense delta is formed here and dropped at the end of this function — it
 /// is never stored, so peak extra memory is one weight, not one per layer.
+/// Bytes the Metal device has allocated, in MiB; `None` off Metal.
+#[cfg(feature = "metal")]
+fn metal_allocated_mib(device: &Device) -> Option<u64> {
+    match device {
+        Device::Metal(m) => Some(m.metal_device().current_allocated_size() as u64 >> 20),
+        _ => None,
+    }
+}
+
+#[cfg(not(feature = "metal"))]
+#[rustfmt::skip] // keeps the toestub-ignore comment pinned to the fn signature line
+fn metal_allocated_mib(_device: &Device) -> Option<u64> { // toestub-ignore(skeleton/hollow-fn): no Metal device without the `metal` feature, so there is nothing to read.
+    None
+}
+
+/// A linear projection's base weight with its adapter delta folded in, returned
+/// in host memory. Quantization reads the weight back to the host anyway
+/// (`quantize_nf4_with_config` takes `to_vec1`), so a device-resident copy only
+/// costs memory: at 0.6B an adapter load held 1.62x the base load. The upload,
+/// the f32 cast and the fold run on a throwaway Metal device whose buffer pool
+/// is released when it drops here, not in `device`'s pool, which Candle never
+/// releases. Same kernels on the same GPU, so the weight is bit-identical.
+fn linear_weight_on_host(
+    load: impl Fn(&Device) -> Result<Tensor>,
+    key: &str,
+    factors: &std::collections::HashMap<String, crate::merge::LoraFactors>,
+    device: &Device,
+) -> Result<Tensor> {
+    if !device.is_metal() {
+        return fold_lora_delta(load(device)?, key, factors);
+    }
+    let scratch = Device::new_metal(0)?;
+    let weight = load(&scratch)?;
+    let folded = match factors.get(key) {
+        None => weight,
+        Some(f) => {
+            let to_scratch = |t: &Tensor| -> Result<Tensor> {
+                Ok(t.to_device(&Device::Cpu)?.to_device(&scratch)?)
+            };
+            let one = std::collections::HashMap::from([(
+                key.to_string(),
+                crate::merge::LoraFactors {
+                    a: to_scratch(&f.a)?,
+                    b: to_scratch(&f.b)?,
+                    alpha: f.alpha,
+                    rank: f.rank,
+                },
+            )]);
+            fold_lora_delta(weight, key, &one)?
+        }
+    };
+    Ok(folded.to_device(&Device::Cpu)?)
+}
+
 fn fold_lora_delta(
     weight: Tensor,
     key: &str,
@@ -776,6 +863,27 @@ const LM_HEAD_KEYS: [&str; 3] = [
     "model.language_model.embed_tokens.weight",
     "model.embed_tokens.weight",
 ];
+
+/// The LM head's base weight, chosen as the trainer's `resolve_lm_head_source`
+/// does: a tied model's head is the embedding matrix, and its adapter delta is
+/// keyed by the embedding key, even when the checkpoint also stores a copy as
+/// `lm_head.weight` (Qwen3-0.6B and 1.7B do). Only the head takes that delta;
+/// the embedding lookup reads the base tensor.
+fn lm_head_weight(tied: bool, linear_weight: impl Fn(&str) -> Result<Tensor>) -> Result<Tensor> {
+    let keys = if tied {
+        &LM_HEAD_KEYS[1..]
+    } else {
+        &LM_HEAD_KEYS[..]
+    };
+    let mut err = None;
+    for key in keys {
+        match linear_weight(key) {
+            Ok(t) => return Ok(t),
+            Err(e) => err = Some(e),
+        }
+    }
+    Err(err.unwrap_or_else(|| anyhow::anyhow!("no LM head key to try")))
+}
 
 /// Every transformer-block base key the load path must fetch through
 /// `linear_weight` — i.e. every linear projection LoRA can train, for this
@@ -984,11 +1092,23 @@ fn sample_next_token(
     ranked[0].0 as u32
 }
 
-/// Build the ChatML prompt the adapter was trained on (`chatml_prefix_open_assistant`
-/// in `vox-plugin-mens-candle-core::training_text`): system turn, user turn, open
-/// assistant turn. A prompt that is already ChatML (eval-local, chat completions) is
-/// kept as-is, gaining the system turn only if it has none.
-fn assemble_prompt(system: Option<&str>, prompt: &str) -> String {
+/// Map the request's optional `lane` to a [`Lane`]. Absent means codegen. The
+/// host validates the value before it reaches the plugin; an unknown value is
+/// rejected here too, before any token is generated.
+fn resolve_lane(lane: Option<&str>) -> Result<Lane> {
+    match lane {
+        None => Ok(Lane::Codegen),
+        Some(s) => Lane::parse(s).map_err(|e| anyhow::anyhow!(e)),
+    }
+}
+
+/// Build the ChatML prompt for a serving lane (`chatml_prefix_for_lane` in
+/// `vox-plugin-mens-candle-core::training_text`): system turn, user turn, open
+/// assistant turn. Codegen matches what the adapter was trained on; hub and agent
+/// open a bare thinking turn. A prompt that is already ChatML (eval-local, chat
+/// completions) is kept as-is for every lane, gaining the system turn only if it
+/// has none.
+fn assemble_prompt(system: Option<&str>, prompt: &str, lane: Lane) -> String {
     let system = system.filter(|s| !s.is_empty());
     let system_turn = |s: &str| format!("<|im_start|>system\n{s}<|im_end|>\n");
     if prompt.starts_with("<|im_start|>") {
@@ -999,10 +1119,26 @@ fn assemble_prompt(system: Option<&str>, prompt: &str) -> String {
             _ => prompt.to_string(),
         };
     }
-    format!(
-        "{}<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n",
-        system.map(system_turn).unwrap_or_default()
-    )
+    // Codegen uses the non-thinking prefix training supervises (`/no_think` plus a
+    // prefilled empty think block); hub and agent leave the assistant turn open.
+    // An already-ChatML prompt (thinking-mode eval, chat completions) is returned
+    // above unchanged.
+    let cfg = vox_plugin_mens_candle_core::config::ChatmlConfig::default();
+    let wrapped = vox_plugin_mens_candle_core::training_text::chatml_prefix_for_lane(
+        system.unwrap_or(""),
+        prompt,
+        lane,
+        &cfg,
+    );
+    if system.is_none() {
+        let empty_system = "<|im_start|>system\n<|im_end|>\n";
+        wrapped
+            .strip_prefix(empty_system)
+            .unwrap_or(&wrapped)
+            .to_string()
+    } else {
+        wrapped
+    }
 }
 
 /// `model_dir_json` is a JSON string with a `"model_dir"` field pointing to the
@@ -1132,17 +1268,106 @@ mod live_metal_tests {
             "base-only inference produced no output at all"
         );
     }
+
+    /// Metal bytes held after loading `dir`, net of what was allocated before.
+    #[cfg(feature = "metal")]
+    fn allocated_after_load_mib(dir: &std::path::Path) -> u64 {
+        let probe = candle_core::Device::new_metal(0).expect("metal");
+        let candle_core::Device::Metal(m) = &probe else {
+            panic!("not metal")
+        };
+        let mtl = m.metal_device().clone();
+        let before = mtl.current_allocated_size() as u64;
+        let t0 = std::time::Instant::now();
+        let engine = InferenceEngine::load(dir, &crate::device::DeviceKind::Best).expect("load");
+        let held = (mtl.current_allocated_size() as u64).saturating_sub(before) / (1024 * 1024);
+        eprintln!(
+            "MEASURE dir={} held_after_load_mib={held} load_s={:.1}",
+            dir.display(),
+            t0.elapsed().as_secs_f64()
+        );
+        drop(engine);
+        held
+    }
+
+    /// Loading an adapter run must hold about what loading its base holds: the
+    /// LoRA fold may not leave extra full-size buffers behind (it did, 1.62x at
+    /// 0.6B, which at 4B pushed the machine into memory compression).
+    ///
+    /// ```text
+    /// VOX_MENS_MEASURE_BASE=<base snapshot> VOX_MENS_MEASURE_ADAPTER=<run dir> \
+    ///   cargo test --release -p vox-plugin-mens-candle-metal --features metal \
+    ///   -- --ignored --nocapture adapter_load_holds_about_what_base_load_holds
+    /// ```
+    #[cfg(feature = "metal")]
+    #[test]
+    #[ignore = "owner:mens sunset:never needs a real base snapshot, its adapter run and Metal hardware"]
+    fn adapter_load_holds_about_what_base_load_holds() {
+        let env = |k: &str| std::path::PathBuf::from(std::env::var(k).expect(k));
+        let base = allocated_after_load_mib(&env("VOX_MENS_MEASURE_BASE"));
+        let adapter = allocated_after_load_mib(&env("VOX_MENS_MEASURE_ADAPTER"));
+        assert!(
+            adapter * 10 <= base * 13,
+            "adapter load holds {adapter} MiB, base {base} MiB (> 1.3x)"
+        );
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "metal")]
+    #[test]
+    fn a_host_linear_weight_is_bit_identical_to_the_device_one() {
+        use candle_core::{DType, Tensor};
+        let device = candle_core::Device::new_metal(0).expect("metal");
+        let vals = |n: usize, k: f32| -> Vec<f32> {
+            (0..n).map(|i| (i as f32 * k).sin() * 0.05).collect()
+        };
+        let (out, inn, r) = (96, 160, 8);
+        // A bf16 checkpoint weight, cast to f32 on whichever device loads it.
+        let raw = vals(out * inn, 0.37);
+        let load = |dev: &candle_core::Device| -> anyhow::Result<Tensor> {
+            Ok(Tensor::from_vec(raw.clone(), (out, inn), dev)?
+                .to_dtype(DType::BF16)?
+                .to_dtype(DType::F32)?)
+        };
+        let a = Tensor::from_vec(vals(r * inn, 1.3), (r, inn), &device).unwrap();
+        let b = Tensor::from_vec(vals(out * r, 0.71), (out, r), &device).unwrap();
+        let factors = std::collections::HashMap::from([(
+            "k".to_string(),
+            crate::merge::LoraFactors {
+                a,
+                b,
+                alpha: 16.0,
+                rank: r,
+            },
+        )]);
+        let bits = |t: &Tensor| -> Vec<u32> {
+            let v = t.flatten_all().unwrap().to_vec1::<f32>().unwrap();
+            v.iter().map(|x| x.to_bits()).collect()
+        };
+        let old = super::fold_lora_delta(load(&device).unwrap(), "k", &factors).unwrap();
+        let new = super::linear_weight_on_host(load, "k", &factors, &device).unwrap();
+        assert!(
+            new.device().is_cpu(),
+            "the weight is returned in host memory"
+        );
+        assert_eq!(bits(&old), bits(&new));
+        let base = load(&device).unwrap();
+        assert_ne!(bits(&old), bits(&base), "the fixture delta is not zero");
+        let untouched = super::linear_weight_on_host(load, "other", &factors, &device).unwrap();
+        assert_eq!(bits(&untouched), bits(&base));
+    }
+
     use super::assemble_prompt;
     use super::check_output_mode;
     use super::generation_rng;
     use super::ranked_logits;
     use super::resolve_adapter_manifest_path;
+    use super::resolve_lane;
     use super::sample_next_token;
     use super::weight_sources;
+    use vox_eval::qwen_reasoning::Lane;
     use vox_plugin_mens_candle_core::weight_resolution::adapter_deltas_must_be_folded;
 
     #[test]
@@ -1268,6 +1493,65 @@ mod tests {
         }
     }
 
+    /// 320 S2: Qwen3-0.6B/1.7B set `tie_word_embeddings` AND store a copy of
+    /// the head as `lm_head.weight`. The trainer trains the head LoRA on the
+    /// embedding matrix and keys it `model.embed_tokens.weight`; serving must
+    /// take the same base so the delta lands on the output projection
+    /// (logits = h·Wᵀ + h·ΔWᵀ), not fall through to the stored copy unadapted.
+    #[test]
+    fn a_tied_head_serves_the_delta_trained_on_the_embedding_key() {
+        use candle_core::{Device, Tensor};
+        let dev = Device::Cpu;
+        let (vocab, d) = (8usize, 4usize);
+        let base = Tensor::randn(0f32, 1.0, (vocab, d), &dev).unwrap();
+        let store: std::collections::HashMap<&str, Tensor> = [
+            ("lm_head.weight", base.clone()),
+            ("model.embed_tokens.weight", base.clone()),
+        ]
+        .into();
+        let embed_key = "model.embed_tokens.weight";
+        let mut factors = std::collections::HashMap::new();
+        factors.insert(embed_key.to_string(), ones_factors(vocab, d, 2, 16));
+        let linear_weight = |k: &str| -> anyhow::Result<Tensor> {
+            let t = store
+                .get(k)
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("no {k}"))?;
+            super::fold_lora_delta(t, k, &factors)
+        };
+
+        let h = Tensor::randn(0f32, 1.0, (1, d), &dev).unwrap();
+        let logits = |w: &Tensor| h.matmul(&w.t().unwrap()).unwrap();
+        let delta = factors[embed_key].delta().unwrap();
+        let want = (logits(&base) + logits(&delta)).unwrap();
+
+        let tied = super::lm_head_weight(true, linear_weight).unwrap();
+        let diff = (logits(&tied) - &want)
+            .unwrap()
+            .abs()
+            .unwrap()
+            .max_all()
+            .unwrap()
+            .to_scalar::<f32>()
+            .unwrap();
+        assert!(
+            diff < 1e-4,
+            "tied head logits miss the trained delta by {diff}"
+        );
+
+        // Untied: the real `lm_head.weight` is the base, and it has no delta here.
+        let untied = super::lm_head_weight(false, linear_weight).unwrap();
+        let diff = (logits(&untied) - logits(&base))
+            .unwrap()
+            .abs()
+            .unwrap()
+            .max_all()
+            .unwrap()
+            .to_scalar::<f32>()
+            .unwrap();
+        assert!(diff < 1e-6, "untied head must read lm_head.weight as is");
+    }
+
     /// A three-layer Qwen-shaped layout: two full-attention blocks and one
     /// linear-attention block, so both projection branches are covered.
     fn test_layout() -> crate::hf_layout::HfTransformerLayout {
@@ -1323,19 +1607,26 @@ mod tests {
             "a QuantizedLinear is being built straight from get_tensor — that layer serves \
              base weights even with an adapter loaded. Use linear_weight instead."
         );
-        // 13 real call sites + 1 for the matcher literal on the line above,
+        // 12 layer call sites + 1 for the matcher literal on the line above,
         // which `include_str!` also sees. Exact, not `>=`: a lower bound lets a
         // refactor delete one call site and still pass.
         assert_eq!(
             adapted, EXPECTED_ADAPTED_OCCURRENCES,
-            "expected exactly {EXPECTED_ADAPTED_OCCURRENCES} occurrences (13 linear projections \
+            "expected exactly {EXPECTED_ADAPTED_OCCURRENCES} occurrences (12 layer projections \
              + this test's own matcher literal), found {adapted}. A projection is being loaded \
              without the adapter, or a call site moved — {offenders} QuantizedLinear built total."
         );
+        assert_eq!(
+            src.matches("&lm_head_weight(layout.tie_word_embeddings, linear_weight)")
+                .count(),
+            2, // the load call site + this matcher literal
+            "the LM head must be fetched through lm_head_weight with the adapter fold"
+        );
     }
 
-    /// 13 linear projections + the matcher string literal in the test above.
-    const EXPECTED_ADAPTED_OCCURRENCES: usize = 14;
+    /// 12 layer projections + the matcher string literal in the test above;
+    /// the LM head goes through `lm_head_weight`, asserted separately.
+    const EXPECTED_ADAPTED_OCCURRENCES: usize = 13;
 
     /// B3: the wiring guard. Reverting ONE call site to a plain `get_tensor`
     /// drops its key from the requested set — and that must be a hard load
@@ -1608,31 +1899,75 @@ mod tests {
 
     #[test]
     fn assemble_prompt_wraps_in_training_chatml() {
-        let out = assemble_prompt(Some("YOU ARE VOX"), "hello");
+        let out = assemble_prompt(Some("YOU ARE VOX"), "hello", Lane::Codegen);
         assert_eq!(
             out,
-            "<|im_start|>system\nYOU ARE VOX<|im_end|>\n<|im_start|>user\nhello<|im_end|>\n<|im_start|>assistant\n"
+            "<|im_start|>system\nYOU ARE VOX<|im_end|>\n<|im_start|>user\nhello /no_think<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
         );
     }
 
     #[test]
     fn assemble_prompt_without_system_still_opens_assistant_turn() {
         assert_eq!(
-            assemble_prompt(None, "hello"),
-            "<|im_start|>user\nhello<|im_end|>\n<|im_start|>assistant\n"
+            assemble_prompt(None, "hello", Lane::Codegen),
+            "<|im_start|>user\nhello /no_think<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
         );
     }
 
     #[test]
     fn assemble_prompt_keeps_prewrapped_chatml_and_adds_missing_system() {
         let wrapped = "<|im_start|>user\nhi<|im_end|>\n<|im_start|>assistant\n";
-        assert_eq!(assemble_prompt(None, wrapped), wrapped);
+        assert_eq!(assemble_prompt(None, wrapped, Lane::Codegen), wrapped);
         assert_eq!(
-            assemble_prompt(Some("S"), wrapped),
+            assemble_prompt(Some("S"), wrapped, Lane::Codegen),
             format!("<|im_start|>system\nS<|im_end|>\n{wrapped}")
         );
         let with_sys = format!("<|im_start|>system\nX<|im_end|>\n{wrapped}");
-        assert_eq!(assemble_prompt(Some("S"), &with_sys), with_sys);
+        assert_eq!(
+            assemble_prompt(Some("S"), &with_sys, Lane::Codegen),
+            with_sys
+        );
+    }
+
+    #[test]
+    fn assemble_prompt_hub_and_agent_open_a_bare_thinking_turn() {
+        for lane in [Lane::Hub, Lane::Agent] {
+            assert_eq!(
+                assemble_prompt(None, "hello", lane),
+                "<|im_start|>user\nhello<|im_end|>\n<|im_start|>assistant\n"
+            );
+            assert_eq!(
+                assemble_prompt(Some("YOU ARE VOX"), "hello", lane),
+                "<|im_start|>system\nYOU ARE VOX<|im_end|>\n<|im_start|>user\nhello<|im_end|>\n<|im_start|>assistant\n"
+            );
+            let out = assemble_prompt(None, "hello /no_think", lane);
+            assert!(!out.contains("/no_think"), "{out}");
+            assert!(!out.contains("<think>"), "{out}");
+        }
+    }
+
+    #[test]
+    fn assemble_prompt_keeps_prewrapped_chatml_for_every_lane() {
+        let wrapped = "<|im_start|>user\nhi<|im_end|>\n<|im_start|>assistant\n";
+        for sys in [None, Some("S")] {
+            let codegen = assemble_prompt(sys, wrapped, Lane::Codegen);
+            assert_eq!(assemble_prompt(sys, wrapped, Lane::Hub), codegen);
+            assert_eq!(assemble_prompt(sys, wrapped, Lane::Agent), codegen);
+        }
+    }
+
+    #[test]
+    fn resolve_lane_rejects_unknown_values() {
+        assert_eq!(resolve_lane(None).unwrap(), Lane::Codegen);
+        assert_eq!(resolve_lane(Some("codegen")).unwrap(), Lane::Codegen);
+        assert_eq!(resolve_lane(Some("hub")).unwrap(), Lane::Hub);
+        assert_eq!(resolve_lane(Some("agent")).unwrap(), Lane::Agent);
+        let err = resolve_lane(Some("bogus"))
+            .expect_err("unknown lane must error")
+            .to_string();
+        for want in ["codegen", "hub", "agent"] {
+            assert!(err.contains(want), "{err}");
+        }
     }
 
     #[test]

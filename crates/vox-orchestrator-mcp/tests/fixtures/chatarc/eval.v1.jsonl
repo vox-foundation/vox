@@ -1,0 +1,29 @@
+{"id": "e01", "pair_id": null, "control": null, "query": "what files have I changed but not committed yet", "gold": {"kind": "tool", "id": "vox_git_status"}}
+{"id": "e02", "pair_id": null, "control": null, "query": "run the tests for the vox-config crate", "gold": {"kind": "tool", "id": "vox_run_tests"}}
+{"id": "e03", "pair_id": null, "control": null, "query": "spawn a background agent to handle the docs cleanup", "gold": {"kind": "tool", "id": "vox_spawn_agent"}}
+{"id": "e04", "pair_id": null, "control": null, "query": "search the vox docs library for how durable workflows journal state", "gold": {"kind": "tool", "id": "vox_kb_search"}}
+{"id": "e05", "pair_id": null, "control": null, "query": "show me the last few commits on this branch", "gold": {"kind": "tool", "id": "vox_git_log"}}
+{"id": "e06", "pair_id": null, "control": null, "query": "does the whole workspace still type check after my edit", "gold": {"kind": "tool", "id": "vox_check_workspace"}}
+{"id": "e07", "pair_id": null, "control": null, "query": "this test fails intermittently and I can't tell why, help me find the root cause", "gold": {"kind": "skill", "id": "systematic-debugging"}}
+{"id": "e08", "pair_id": null, "control": null, "query": "turn this spec into a step by step implementation plan", "gold": {"kind": "skill", "id": "writing-plans"}}
+{"id": "e09", "pair_id": null, "control": null, "query": "I need to add a new API key for the Mistral provider", "gold": {"kind": "skill", "id": "secret-management"}}
+{"id": "e10", "pair_id": null, "control": null, "query": "draft the changelog entry for the 0.7 release", "gold": {"kind": "skill", "id": "release-notes"}}
+{"id": "e11", "pair_id": null, "control": null, "query": "can vox-search depend on vox-cli or does that break the layer rules", "gold": {"kind": "skill", "id": "dependency-discipline"}}
+{"id": "e12", "pair_id": null, "control": null, "query": "where is the build broker admission logic defined", "gold": {"kind": "command", "id": "vox graph query"}}
+{"id": "e13", "pair_id": null, "control": null, "query": "are any of the generated reference docs out of date with their sources", "gold": {"kind": "command", "id": "vox ci ssot-drift"}}
+{"id": "e14", "pair_id": null, "control": null, "query": "validate this vox-diagram block and tell me the fixes", "gold": {"kind": "command", "id": "vox diagram check"}}
+{"id": "e15", "pair_id": null, "control": null, "query": "something is wrong with my vox install, diagnose it", "gold": {"kind": "command", "id": "vox doctor"}}
+{"id": "e16", "pair_id": null, "control": null, "query": "the code graph is stale, rebuild it", "gold": {"kind": "command", "id": "vox graph refresh"}}
+{"id": "e17", "pair_id": null, "control": null, "query": "thanks, that's all for now", "gold": {"kind": "none", "id": null}}
+{"id": "e18", "pair_id": null, "control": null, "query": "what's the capital of Portugal", "gold": {"kind": "none", "id": null}}
+{"id": "e19", "pair_id": null, "control": null, "query": "write a haiku about autumn rain", "gold": {"kind": "none", "id": null}}
+{"id": "e20", "pair_id": null, "control": null, "query": "explain the difference between a mutex and a semaphore", "gold": {"kind": "none", "id": null}}
+{"id": "e21", "pair_id": null, "control": null, "query": "book me a flight to Denver next Tuesday", "gold": {"kind": "none", "id": null}}
+{"id": "e22", "pair_id": "p1", "control": "dual_wording", "query": "show the uncommitted diff for message.rs", "gold": {"kind": "tool", "id": "vox_git_diff"}}
+{"id": "e23", "pair_id": "p1", "control": "dual_wording", "query": "what did I change in message.rs that isn't committed", "gold": {"kind": "tool", "id": "vox_git_diff"}}
+{"id": "e24", "pair_id": "p2", "control": "dual_wording", "query": "write the failing test first for this new parser function", "gold": {"kind": "skill", "id": "test-driven-development"}}
+{"id": "e25", "pair_id": "p2", "control": "dual_wording", "query": "start with a red test before implementing the parser function", "gold": {"kind": "skill", "id": "test-driven-development"}}
+{"id": "e26", "pair_id": "p3", "control": "dual_wording", "query": "run the local CI gate before I push", "gold": {"kind": "command", "id": "vox ci pre-push"}}
+{"id": "e27", "pair_id": "p3", "control": "dual_wording", "query": "check everything passes locally prior to pushing my branch", "gold": {"kind": "command", "id": "vox ci pre-push"}}
+{"id": "e28", "pair_id": "p4", "control": "dual_wording", "query": "good morning!", "gold": {"kind": "none", "id": null}}
+{"id": "e29", "pair_id": "p4", "control": "dual_wording", "query": "hi there, how are you", "gold": {"kind": "none", "id": null}}

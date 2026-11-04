@@ -82,6 +82,9 @@ pub mod preset_schema;
 // calls its `load_overlay`, so it widens alongside.
 #[cfg(feature = "mens")]
 pub mod spoke_base_resolver;
+// Live VRAM size selector (SIZE-02); `mens` like the resolver whose overlay it reads.
+#[cfg(feature = "mens")]
+pub mod size_select;
 // `mens`: pure validation over `domain_profiles` + `std::path`; see the note
 // on `domain_profiles` above. Consumed by `vox ci spoke-check`.
 #[cfg(feature = "mens")]

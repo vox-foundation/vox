@@ -1,0 +1,75 @@
+vox doctor — checking your environment
+
+secrets-parity OK
+secret-env-guard OK
+All derived ignore files are perfectly in sync with .voxignore.
+  ✓  Rust / Cargo              cargo 1.98.1 (797e8a9bc 2026-08-05)
+  ✓  Node.js                   v26.11.1
+  ✓  pnpm                      v12.11.2
+  ✓  Git                       git version 2.56.0
+  ✗  Populi mesh security defaults mode=lan, token_set=false, scope_set=false (recommended: `vox populi up`)
+  ✓  Overlay networking (optional) tailscale=ok, wireguard=missing, tunnel=ok (use `vox populi status` for deeper diagnostics)
+  ✓  Docker                    Docker version 29.9.0, build f415da838b
+  ✓  Podman (optional)         not installed — install from https://podman.io/getting-started/installation
+  ✓  Interpreter default (script-shaped) script-shaped files (`fn main()`, no service surfaces) default to the interpreter; no cargo
+  ✓  Cargo (optional for scripts) on PATH: cargo 1.98.1 (797e8a9bc 2026-08-05) (not required for scripts)
+  ✓  rustc (optional for scripts) on PATH: rustc 1.98.1 (48a229cea 2026-09-01) (not required for scripts)
+  ✓  wasm32-wasip1 (not required) installed; unused — scripts run under the interpreter
+  ✓  Executor accepts --caps   vox run --help lists --caps
+  ✓  Zig (optional)            not found — suggested for advanced cross-compilation (https://ziglang.org)
+  ✓  toolchain: rustc identity rustc 1.98.1 (48a229cea 2026-09-01)
+  ✓  toolchain: rustup identity rustup 1.29.1 (2026-08-13)
+  ✗  docker: unreachable       Docker daemon not reachable | FIX: wsl -d Ubuntu -u root -- service docker start | [diag id=docker.daemon_down sev=error heal=false]
+  ✓  vox: schema version       binary baseline 97, DB on baseline (Local { path: "/Users/brbrainerd/Library/Application Support/vox/vox.db" })
+  ✓  sccache: setup            CARGO_INCREMENTAL must be 0 when using sccache (incremental builds bypass the cache); Add to ~/.cargo/config.toml:;   [build]
+  incremental = false
+  ✓  toolchain: compile probe  trivial crate compiled
+  ✓  Binary freshness          installed vox build 7421 matches the working tree
+  ✓  Binary SSOT (canonical vox) 1 vox binar(ies) agree on build 7208
+  ✓  vox-ml-cli build          /Users/brbrainerd/dev/vox-mens-compare/target/release/vox-ml-cli matches vox build 900ceb5bf
+  ✓  Secrets Parity            contract (managed-env-names.v1.json) and docs are in sync with live code
+  ✓  Secret Env Guard          no direct secret env reads found in changed files
+  ✓  MCP HTTP gateway bind policy disabled (VOX_MCP_HTTP_ENABLED unset); would bind 127.0.0.1:3921 — loopback only, plain HTTP
+  ✓  LLM routing (Secrets)     routing_profile=quality_first; openrouter_model=openrouter/auto; chat_completions_url=https://openrouter.ai/api/v1/chat/completions; provider_keys_present=[OpenRouter]; daily_budget_usd=5.00; per_session_budget_usd=1.00
+  ✓  LLM routing — VOX_ACCOUNT_ID not set (optional for local keys only); use `vox secrets login` for cross-machine sync
+  ✓  Cloud vault login (profile) login.toml_profile=/Users/brbrainerd/.vox/login.toml; vault_keyring_configured=false; account_id=(none); secrets_backend=(none); vault_handshake=reachable
+  ✓  LLM routing — model catalog cache /Users/brbrainerd/.vox/cache/model-catalog.v1.json exists (374 cached model entries)
+  ✓  GPU Discovery             Delegated to vox-ml-cli (run `vox mens probe`)
+  ✓  AI Ignore Sync (.voxignore derived) all derived files (.cursorignore, .aiignore, .aiexclude) are in sync
+  ✓  pnpm (frontend)           pnpm 12.11.2
+  ✓  node (frontend)           node v26.11.1
+  ✓  components.json (shadcn)  not present — optional; run `vox build --scaffold` or `VOX_WEB_EMIT_SCAFFOLD=1` to seed shadcn schema + app shell
+  ✓  tailwindcss v4 entry (globals.css) app/globals.css not found — optional until `vox build --scaffold`
+  ✓  vox-gui sidecar           present for aarch64-apple-darwin
+  ✗  Model Scoreboard          Scoreboard is empty. Run `vox model rollup`.
+  ✗  Model Catalog             Catalog is stale (last refreshed 578h ago). Run `vox model discover`.
+  ✓  Model routing             107 of 387 cloud models benchmarked (58 inherited); quality scale: live catalog; price bands: live catalog; Efficient picks deepseek-ai/DeepSeek-R1
+  ✓  Build broker: PATH precedence active: /Users/brbrainerd/.vox/build-broker/bin (broker shim wins over the rustup proxy)
+  ✓  Build broker: install state /Users/brbrainerd/.vox/build-broker exists with bin/cargo present
+  ✓  Build broker: concurrency cap effective cap 6 (18 logical core(s) detected)
+  ✗  Disk footprint: ~/.vox/bin (voxup toolchain installs) /Users/brbrainerd/.vox/bin — 653.9 MB — no environment variable relocates or bounds this directory; voxup's installer resolves it from the platform home directory directly, independent of VOX_HOME
+  ✓  Disk footprint: ~/.vox/cache (script + model catalog cache) /Users/brbrainerd/.vox/cache — 461.8 KB — relocated by VOX_HOME (see also the VOX_HOME relocation coverage check below for what VOX_HOME does and does not move)
+  ✓  Disk footprint: platform data dir (model telemetry, db) /Users/brbrainerd/Library/Application Support/vox — 99.6 MB — bounded by VOX_DATA_DIR (not set — using platform default)
+  ✓  Disk footprint: .vox/cache/graphify (legacy graphify corpus cache) /Users/brbrainerd/dev/vox-mens-compare/.vox/cache/graphify — absent (0 B) — VOX_GRAPHIFY_CACHE_DIR (declared in vox-config but NOT wired to the real writer (crates/vox-cli/src/commands/graphify/mod.rs) — setting it has no effect today); VOX_GRAPHIFY_DISABLE (declared in vox-config but NOT wired to the real writer (crates/vox-cli/src/commands/graphify/mod.rs) — setting it has no effect today)
+  ✓  Disk footprint: .vox/cache/vox-graph (current graphify corpus cache) /Users/brbrainerd/dev/vox-mens-compare/.vox/cache/vox-graph — absent (0 B) — no environment variable relocates or disables this directory today
+  ✓  Disk footprint: VOX_HOME relocation coverage VOX_HOME is not set — every .vox consumer uses the default $HOME/.vox, so there is no partial relocation to report
+  ✓  kubectl (optional)        not found — required for 'vox deploy --target k8s'
+  ✓  Vox.toml                  found in current directory
+  ✗  vox-lsp binary            not built — run: cargo build -p vox-lsp
+  ✓  Vox Config                found in ~/.vox/config.toml
+  ✗  Google AI Studio Key      not found — run: vox secrets set google YOUR_KEY
+                          get a free key at: https://aistudio.google.com/apikey
+  ✓  OpenRouter Key (optional) configured (free :free models + paid SOTA available) — sk-o…cc (redacted)
+  ✓  Ollama Local (optional)   running on localhost:11434 (local inference available)
+  ✓  Vox binary source         /Users/brbrainerd/dev/vox-mens-compare/target/release/vox (local dev build)
+  ✓  App Updates               to update natively, run: vox update (or redownload from GitHub Releases)
+  ✗  Graphify cache            no corpus graphs built — run: vox graph refresh --auto (code-intelligence queries return nothing until this is built)
+  ✓  VoxDB directory           /Users/brbrainerd/.vox (writable)
+  ✗  Workspace Registration    not registered — run: vox repo init (writes .vox/repositories.yaml)
+  ✓  @v0 TSX named exports (optional) skipped — set VOX_WEB_TS_OUT to the directory where `vox build` writes `*.tsx` (same path as the build output) to verify @v0 named exports
+  ✓  tier dep: agy             agy — found
+  ✗  tier dep: model-weights   No model weights found. Fetch a corpus/model via `vox mens corpus` or point VOX_MENS_MODEL_DIR at an existing weights directory.
+  ✗  tier dep: plugins         Run `vox plugin install <name>` to install a plugin.
+
+✗ 11 check(s) failed — resolve the issues above before building.
+Error: vox doctor: 2 required check(s) failed: docker: unreachable, Graphify cache

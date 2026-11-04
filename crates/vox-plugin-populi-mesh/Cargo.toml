@@ -23,7 +23,7 @@ workspace-hack = { version = "0.6", path = "../workspace-hack" }
 hex = { workspace = true }
 
 # Transport heavy deps (moved from vox-populi transport feature)
-vox-populi = { workspace = true }
+vox-populi = { workspace = true, features = ["mens"] }
 vox-secrets = { workspace = true }
 vox-crypto = { workspace = true }
 vox-identity = { workspace = true }  # D-7-rescope: needed by auth_ed25519 (TrustedNodeRegistry)

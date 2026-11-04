@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MessageBubble, ChatTranscript } from './ChatTranscript';
@@ -153,6 +152,49 @@ describe('ChatTranscript verbosity control', () => {
     expect(screen.getByTestId('chat-inline-code')).toHaveTextContent('vox check');
     expect(screen.getByTestId('chat-file-link')).toHaveTextContent('crates/vox-cli/src/main.rs:42');
     expect(screen.getByTestId('chat-session-brief-deck')).toBeInTheDocument();
+  });
+
+  it('renders Side-by-Side Arena Comparison card, branch lineage badge, and turn fork/rewind buttons (v3.3)', () => {
+    vi.mocked(listHarnessIssuesForSession).mockResolvedValue([]);
+    render(
+      <ChatTranscript
+        messages={[msg({ id: 'msg-12', text: 'Synthesize actor topology' })]}
+        sessionId="sess-1"
+        parentSessionId="sess-parent-0"
+        forkFromMessageId={9}
+        initialArenaComparison={{
+          comparison_id: 'arena-1',
+          session_id: 'sess-1',
+          prompt: 'Synthesize actor topology',
+          arm_a: {
+            arm: 'a',
+            model_id: 'cloud/primary-arm',
+            content: 'Cloud arm response',
+            latency_ms: 410,
+            estimated_tokens: 48,
+            is_local_or_mens: false,
+          },
+          arm_b: {
+            arm: 'b',
+            model_id: 'mens/five-spoke-challenger',
+            content: 'MENS local arm response',
+            latency_ms: 280,
+            estimated_tokens: 52,
+            is_local_or_mens: true,
+          },
+        }}
+      />,
+    );
+    expect(screen.getByTestId('chat-session-branch-badge')).toHaveTextContent(
+      'Branched from sess-parent-0 @ turn #9',
+    );
+    expect(screen.getByTestId('chat-arena-split-card')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-arena-vote-a')).toHaveTextContent('cloud/primary-arm');
+    expect(screen.getByTestId('chat-arena-vote-b')).toHaveTextContent(
+      'mens/five-spoke-challenger',
+    );
+    expect(screen.getByTestId('chat-turn-fork-btn-msg-12')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-turn-rewind-btn-msg-12')).toBeInTheDocument();
   });
 });
 

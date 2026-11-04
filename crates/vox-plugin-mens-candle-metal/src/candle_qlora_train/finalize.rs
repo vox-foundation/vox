@@ -77,6 +77,24 @@ fn resolved_serve_base_model(config: &LoraTrainingConfig) -> Option<String> {
     config.base_model.clone()
 }
 
+/// A finished run deletes its resume state and the step checkpoints (tens of
+/// GB on large bases). A run stopped by `--max-runtime-secs` keeps both, so a
+/// re-run into the same output dir continues from the step it stopped on.
+fn clean_resume_artifacts(out: &Path, capped: bool) {
+    if capped {
+        return;
+    }
+    CheckpointState::delete(out);
+    if let Ok(entries) = std::fs::read_dir(out) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.starts_with("checkpoint_step_") && name.ends_with(".safetensors") {
+                let _ = std::fs::remove_file(entry.path());
+            }
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(super) fn finalize_training_run(
     trainer: &mut QLoraTrainer,
@@ -178,17 +196,7 @@ pub(super) fn finalize_training_run(
     let manifest_json = serde_json::to_string_pretty(&adapter_manifest_v3)?;
     std::fs::write(out.join("adapter_manifest.json"), &manifest_json)?;
 
-    CheckpointState::delete(out);
-
-    // Delete intermediate step checkpoints to avoid leaking tens of gigabytes of disk space
-    if let Ok(entries) = std::fs::read_dir(out) {
-        for entry in entries.flatten() {
-            let name = entry.file_name().to_string_lossy().to_string();
-            if name.starts_with("checkpoint_step_") && name.ends_with(".safetensors") {
-                let _ = std::fs::remove_file(entry.path());
-            }
-        }
-    }
+    clean_resume_artifacts(out, stats.capped);
 
     let _ = db_tx.send(TrainingDbEvent::Complete {
         run_id: run_id.to_string(),
@@ -196,6 +204,11 @@ pub(super) fn finalize_training_run(
         adapter_path: final_path.display().to_string(),
     });
 
+    let wall_secs = run_start_inst.elapsed().as_secs_f64();
+    train_log::info(&format!(
+        "{} rows truncated, {} with the prompt middle-trimmed (seq_len {})",
+        stats.truncated_rows, stats.prompt_trimmed_rows, config.seq_len
+    ));
     telemetry::append(
         out,
         telemetry_schema::events::TRAIN_COMPLETE,
@@ -209,6 +222,11 @@ pub(super) fn finalize_training_run(
             "final_adapter": final_path.display().to_string(),
             "run_id": run_id,
             "peak_metal_allocated_bytes": peak_metal_bytes,
+            "capped": stats.capped,
+            "wall_secs": wall_secs,
+            "final_loss_ema": stats.final_loss_ema,
+            "truncated_rows": stats.truncated_rows,
+            "prompt_trimmed_rows": stats.prompt_trimmed_rows,
         }),
     )?;
 
@@ -253,6 +271,11 @@ pub(super) fn finalize_training_run(
             "avg_val_loss_last_epoch": last_avg_val_loss,
             "total_tokens": total_tokens,
             "peak_metal_allocated_bytes": peak_metal_bytes,
+            "capped": stats.capped,
+            "wall_secs": wall_secs,
+            "final_loss_ema": stats.final_loss_ema,
+            "truncated_rows": stats.truncated_rows,
+            "prompt_trimmed_rows": stats.prompt_trimmed_rows,
             "artifacts": {
                 "final_adapter": final_path.display().to_string(),
                 "training_skip_stats": out.join("training_skip_stats.json").display().to_string(),
@@ -289,7 +312,6 @@ pub(super) fn finalize_training_run(
         final_path.display(),
     ));
 
-    let wall_secs = run_start_inst.elapsed().as_secs_f64();
     let ms_per_step = if global_step > 0 {
         (wall_secs * 1000.0) / global_step as f64
     } else {
@@ -309,6 +331,31 @@ mod tests {
     use super::resolved_serve_base_model;
     use crate::config::LoraTrainingConfig;
     use std::fs;
+
+    /// 320: finalize deleted the resume state unconditionally, so a run stopped
+    /// by `--max-runtime-secs` could not be continued. A capped run keeps the
+    /// state and the step adapter it names; a finished run still cleans both.
+    #[test]
+    fn a_capped_run_keeps_its_resume_state_and_a_finished_run_does_not() {
+        for capped in [true, false] {
+            let d = tempfile::tempdir().unwrap();
+            let names = [
+                crate::checkpoint_state::CHECKPOINT_FILENAME,
+                "checkpoint_step_7.safetensors",
+            ];
+            for f in names {
+                fs::write(d.path().join(f), "{}").unwrap();
+            }
+            super::clean_resume_artifacts(d.path(), capped);
+            for f in names {
+                assert_eq!(
+                    d.path().join(f).exists(),
+                    capped,
+                    "{f} with capped={capped}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn resolved_serve_base_model_keeps_existing_directory() {

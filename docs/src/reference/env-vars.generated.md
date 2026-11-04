@@ -24,7 +24,7 @@ status: current
 
 Machine-derived from [`contracts/config/env-vars.v1.yaml`](../../../contracts/config/env-vars.v1.yaml).
 
-**Total variables:** 857
+**Total variables:** 860
 
 | Variable | Owner Crate | Type | Required | Introduced | Description |
 |---|---|---|---|---|---|
@@ -123,6 +123,7 @@ Machine-derived from [`contracts/config/env-vars.v1.yaml`](../../../contracts/co
 | `VOX_CARGO_BIN` | `vox-secrets` | string | No | 0.3.0 | TODO |
 | `VOX_CEREBRAS_API_KEY` | `vox-secrets` | string | No | 0.3.0 | TODO |
 | `VOX_CEREBRAS_CHAT_COMPLETIONS_URL` | `vox-secrets` | string | No | 0.3.0 | TODO |
+| `VOX_CHATARC` | `vox-config` | bool | No | 0.6.0 | 1/true/yes/on (case-insensitive, trimmed) enables ChatARC in chat turns; unset or any other value keeps it off. Its choice is currently disabled pending recalibration (chatarc.v2): it never acts and gathers no candidates. |
 | `VOX_CHROME_EXECUTABLE` | `vox-browser` | string | No | 0.3.0 | TODO |
 | `VOX_CI_RETIRED_SYMBOL_SCAN_CRATES` | `vox-cli` | bool | No | 0.5.0 | When set to 1/true/yes, `vox ci retired-symbol-check` also scans Rust sources under crates/**/*.rs (noisy; strict audits only). |
 | `VOX_CLAVIS_AUDIT_LOG` | `vox-cli` | string | No | 0.5.0 | Referenced from workspace sources; locate callsites with rg. |
@@ -648,6 +649,7 @@ Machine-derived from [`contracts/config/env-vars.v1.yaml`](../../../contracts/co
 | `VOX_QWEN35_NATIVE_CUTOVER` | `vox-secrets` | string | No | 0.3.0 | TODO |
 | `VOX_RATE_LIMIT_MAX_REQUESTS` | `vox-config` | string | No | 0.3.0 | TODO |
 | `VOX_RATE_LIMIT_WINDOW_SECONDS` | `vox-config` | string | No | 0.3.0 | TODO |
+| `VOX_REASONING_EVAL_MAX_TOKENS` | `vox-ml-cli` | int | No | 0.6.0 | Generation token cap for thinking-mode reasoning bench scoring in mens collateral-damage evaluation (default 2048; values below 1 are raised to 1). |
 | `VOX_REGISTRY_TOKEN` | `vox-secrets` | string | No | 0.3.0 | TODO |
 | `VOX_RENAMES_PATH` | `vox-compiler` | string | No | 0.5.0 | Optional path to a custom identifier rename registry (TOML); used by the compiler rename pass and codemods. |
 | `VOX_REPOSITORY_ID` | `vox-ml-cli` | string | No | 0.3.0 | TODO |
@@ -828,6 +830,7 @@ Machine-derived from [`contracts/config/env-vars.v1.yaml`](../../../contracts/co
 | `VOX_TRAIN_PROFILE` | `vox-secrets` | string | No | 0.3.0 | TODO |
 | `VOX_TRAIN_SKIP_CORPUS_MIX` | `vox-corpus` | string | No | 0.3.0 | TODO |
 | `VOX_TS_STRICT_AI` | `vox-codegen` | string | No | 0.5.0 | When truthy, TypeScript codegen errors if AI fixtures are present but not lowered to TS. |
+| `VOX_TURN_DECISION_PACK` | `vox-config` | bool | No | 0.6.0 | 1/true/yes/on (case-insensitive, trimmed) runs the DEC-01 turn decision pack ahead of chat model selection; unset or any other value keeps selection byte-identical to the pre-pack behavior. |
 | `VOX_TURSO_` | `vox-db` | string | No | 0.3.0 | TODO |
 | `VOX_TURSO_TOKEN` | `vox-secrets` | string | No | 0.3.0 | TODO |
 | `VOX_TURSO_URL` | `vox-secrets` | string | No | 0.3.0 | TODO |

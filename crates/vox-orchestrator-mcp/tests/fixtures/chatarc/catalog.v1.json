@@ -1,0 +1,40 @@
+{
+  "skills": [
+    {"id": "systematic-debugging", "name": "systematic-debugging", "description": "Debug failing tests, crashes and build errors: find the root cause before proposing a fix", "tags": ["debugging", "bugs"]},
+    {"id": "test-driven-development", "name": "test-driven-development", "description": "Write the failing test first, then implement until it passes", "tags": ["testing", "tdd"]},
+    {"id": "writing-plans", "name": "writing-plans", "description": "Turn a spec or requirements into a multi-step implementation plan", "tags": ["planning"]},
+    {"id": "brainstorming", "name": "brainstorming", "description": "Explore user intent and requirements before designing a new feature", "tags": ["design", "ideation"]},
+    {"id": "code-review", "name": "code-review", "description": "Review a diff or pull request for correctness bugs", "tags": ["review"]},
+    {"id": "vox-diagram-authoring", "name": "vox-diagram-authoring", "description": "Author vox-diagram fenced blocks for documentation pages", "tags": ["docs", "diagrams"]},
+    {"id": "docs-frontmatter", "name": "docs-frontmatter", "description": "Write the YAML frontmatter required for new pages under docs/src", "tags": ["docs", "frontmatter"]},
+    {"id": "secret-management", "name": "secret-management", "description": "Register an API key, token or credential through Clavis (vox-secrets) instead of reading env vars", "tags": ["security", "secrets"]},
+    {"id": "release-notes", "name": "release-notes", "description": "Draft release notes and a changelog entry for a version bump", "tags": ["release", "changelog"]},
+    {"id": "dependency-discipline", "name": "dependency-discipline", "description": "Decide whether a new crate dependency edge is allowed by the layer rules", "tags": ["architecture", "crates"]}
+  ],
+  "tools": [
+    {"name": "vox_git_status", "description": "Get current git working tree status."},
+    {"name": "vox_git_diff", "description": "Show uncommitted git diff for a file or the whole tree."},
+    {"name": "vox_git_log", "description": "Show recent git commits (default: last 10)."},
+    {"name": "vox_git_blame", "description": "Show line-by-line git blame for a file."},
+    {"name": "vox_run_tests", "description": "Run cargo test for a specific crate, optionally filtered by test name."},
+    {"name": "vox_test_all", "description": "Run cargo test for the entire workspace."},
+    {"name": "vox_build_crate", "description": "Run cargo build for a crate or the whole workspace."},
+    {"name": "vox_check_workspace", "description": "Run cargo check for the entire workspace and return diagnostics."},
+    {"name": "vox_kb_search", "description": "Search the curated KB Library (Vox docs plus docs/src/library) by BM25 over heading chunks; returns ranked hits."},
+    {"name": "vox_memory_search", "description": "Hybrid retrieval over memory logs, VoxDb document chunks, and repo inventory."},
+    {"name": "vox_spawn_agent", "description": "Spawn a new orchestrator agent queue (optional dynamic/transient agent for auto-retire)."},
+    {"name": "vox_submit_task", "description": "Submit a new task to the orchestrator. Routes to the best agent by file affinity."}
+  ],
+  "commands": [
+    {"invocation": "vox graph query", "about": "Query the code-intelligence graph for where a symbol or concept lives"},
+    {"invocation": "vox graph status", "about": "Report per-corpus freshness of the code graph"},
+    {"invocation": "vox graph refresh", "about": "Rebuild stale code graph corpora"},
+    {"invocation": "vox ci pre-push", "about": "Run the fast local CI gate tier before pushing"},
+    {"invocation": "vox ci ssot-drift", "about": "Check generated SSOT artifacts for drift from their sources"},
+    {"invocation": "vox ci status", "about": "Print failed CI jobs and open nightly failures for this branch"},
+    {"invocation": "vox diagram check", "about": "Validate a vox-diagram block and print suggested fixes"},
+    {"invocation": "vox doctor", "about": "Diagnose the local toolchain, caches and install health"},
+    {"invocation": "vox secrets doctor", "about": "Check which required secrets resolve for the current profile"},
+    {"invocation": "vox fmt", "about": "Format a Vox source file"}
+  ]
+}

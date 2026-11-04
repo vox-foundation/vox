@@ -1,0 +1,1 @@
+✓ Installed plugin 'mens-candle-metal' v0.6.0 (2 files) → /Users/brbrainerd/Library/Application Support/vox/plugins/mens-candle-metal/0.6.0

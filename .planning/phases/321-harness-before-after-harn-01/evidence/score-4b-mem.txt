@@ -1,0 +1,51 @@
+2026-10-30T17:34:46Z pre-heldout free_pages=3230393 (x16KiB) vm.swapusage: total = 3072.00M  used = 2144.56M  free = 927.44M  (encrypted) load={ 51.24 47.35 35.81 }
+== before heldout-adapter resume (plugin fix 9c8842f9b) 2026-10-30T19:25:28Z
+Pages free:                                  3840598.
+Pages occupied by compressor:                 665722.
+vm.swapusage: total = 3072.00M  used = 2104.56M  free = 967.44M  (encrypted)
+{ 11.99 24.59 19.77 }
+== during heldout-adapter resume 2026-10-30T19:35:54Z
+Pages free:                                   531922.
+Pages occupied by compressor:                 661713.
+vm.swapusage: total = 3072.00M  used = 2104.56M  free = 967.44M  (encrypted)
+{ 6.22 8.82 12.96 }
+== before slice legs (compare-vox, baseline-vox, collateral, serve) 2026-10-30T20:10:15Z
+Pages free:                                  3225980.
+Pages occupied by compressor:                 654294.
+vm.swapusage: total = 3072.00M  used = 2088.56M  free = 983.44M  (encrypted)
+{ 6.41 6.79 7.54 }
+== before heldout-nothink mens/runs/qwen3-0.6b/evidence/heldout_base_nothink.json 2026-10-31T02:25:01Z
+Pages free:                                  2021971.
+Pages occupied by compressor:                 442681.
+vm.swapusage: total = 3072.00M  used = 2072.56M  free = 999.44M  (encrypted)
+{ 79.19 67.44 47.97 }
+== before heldout-nothink mens/runs/qwen3-0.6b/evidence/heldout_adapter_nothink.json 2026-10-31T02:34:55Z
+Pages free:                                  1569612.
+Pages occupied by compressor:                 442318.
+vm.swapusage: total = 3072.00M  used = 2072.56M  free = 999.44M  (encrypted)
+{ 22.64 28.37 34.75 }
+== before heldout-nothink mens/runs/qwen3-1.7b/evidence/heldout_base_nothink.json 2026-10-31T02:50:01Z
+Pages free:                                  2409026.
+Pages occupied by compressor:                 441667.
+vm.swapusage: total = 3072.00M  used = 2072.56M  free = 999.44M  (encrypted)
+{ 41.78 45.88 43.13 }
+== before heldout-nothink mens/runs/qwen3-1.7b/evidence/heldout_adapter_nothink.json 2026-10-31T03:26:29Z
+Pages free:                                  1894658.
+Pages occupied by compressor:                 436241.
+vm.swapusage: total = 3072.00M  used = 2072.56M  free = 999.44M  (encrypted)
+{ 33.45 48.70 51.38 }
+== before heldout-nothink mens/runs/qwen3-4b/evidence/heldout_base_nothink.json 2026-10-31T03:43:19Z
+Pages free:                                  1902958.
+Pages occupied by compressor:                 434334.
+vm.swapusage: total = 3072.00M  used = 2064.56M  free = 1007.44M  (encrypted)
+{ 61.01 64.66 63.09 }
+== before heldout-nothink mens/runs/qwen3-4b/evidence/heldout_adapter_nothink.json 2026-10-31T04:49:00Z
+Pages free:                                  2654253.
+Pages occupied by compressor:                1490907.
+vm.swapusage: total = 3072.00M  used = 2064.56M  free = 1007.44M  (encrypted)
+{ 25.32 70.40 78.33 }
+== before think128 legs (gsm8k compare, collateral, gate) 2026-10-31T05:30:51Z
+Pages free:                                  2757253.
+Pages occupied by compressor:                1481631.
+vm.swapusage: total = 3072.00M  used = 2064.56M  free = 1007.44M  (encrypted)
+{ 56.99 73.43 82.34 }

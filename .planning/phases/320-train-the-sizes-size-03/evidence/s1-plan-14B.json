@@ -1,0 +1,29 @@
+{
+  "schema": "vox_mens_train_plan_v1",
+  "model": "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",
+  "size": "14B",
+  "explicit": true,
+  "pick_reason": "14B (explicit): floor 20000 MB fits 58402 MB free (Metal working set)",
+  "free_mb": 58402,
+  "free_source": "Metal working set",
+  "device": "metal",
+  "preset": "qwen3_24g",
+  "seq_len": 3072,
+  "epochs": 1,
+  "batch_size": 1,
+  "grad_accum": 8,
+  "base_cached": false,
+  "corpus_path": "/Users/brbrainerd/dev/vox-mens-compare/target/dogfood/train_mixed.jsonl",
+  "corpus_rows": 1166,
+  "license_class": "apache-2.0",
+  "floor_notes": [
+    "qlora floor 20000 MB is an estimate (floor unmeasured)",
+    "lora floor 44000 MB is an estimate (floor unmeasured)"
+  ],
+  "contamination": {
+    "status": "clean",
+    "slices": 3,
+    "heldout_questions": 96,
+    "rows_checked": 1166
+  }
+}

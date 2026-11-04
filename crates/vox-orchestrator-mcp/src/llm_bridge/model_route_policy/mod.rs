@@ -4,11 +4,16 @@ pub mod budget_guard;
 mod free_tier_adapter;
 mod policy;
 mod resolve;
+mod turn_pack;
 mod types;
 
 #[cfg(test)]
 #[allow(unsafe_code)] // tests use `set_var` / `remove_var` under a global lock (Rust 2024)
 mod tests;
+#[cfg(test)]
+mod turn_pack_eval_tests;
+#[cfg(test)]
+mod turn_pack_tests;
 
 pub use resolve::{
     mcp_global_llm_context_fill_ratio, mcp_provider_telemetry_labels, resolve_mcp_chat_model,

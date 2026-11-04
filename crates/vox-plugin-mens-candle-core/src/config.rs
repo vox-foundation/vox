@@ -195,6 +195,10 @@ pub struct LoraTrainingConfig {
     /// from a 6,754-row mix silently resumed against an 883-row corpus).
     #[serde(default)]
     pub data_fingerprint: Option<String>,
+    /// Local run cap in seconds, measured from the first training step; checked at
+    /// optimizer-step boundaries. Metal only; the CUDA plugin ignores it.
+    #[serde(default)]
+    pub max_runtime_secs: Option<u64>,
 }
 
 impl Default for LoraTrainingConfig {
@@ -252,6 +256,7 @@ impl Default for LoraTrainingConfig {
             launch_argv: Vec::new(),
             gradient_checkpointing: false,
             data_fingerprint: None,
+            max_runtime_secs: None,
         }
     }
 }
@@ -277,5 +282,21 @@ mod tests {
     #[test]
     fn launch_argv_defaults_empty() {
         assert!(LoraTrainingConfig::default().launch_argv.is_empty());
+    }
+
+    #[test]
+    fn max_runtime_secs_defaults_to_none_and_round_trips() {
+        // An older host request has no `max_runtime_secs` key at all.
+        let mut v = serde_json::to_value(LoraTrainingConfig::default()).unwrap();
+        v.as_object_mut().unwrap().remove("max_runtime_secs");
+        let old: LoraTrainingConfig = serde_json::from_value(v).unwrap();
+        assert_eq!(old.max_runtime_secs, None);
+        let capped = LoraTrainingConfig {
+            max_runtime_secs: Some(120),
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&capped).unwrap();
+        let back: LoraTrainingConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.max_runtime_secs, Some(120));
     }
 }

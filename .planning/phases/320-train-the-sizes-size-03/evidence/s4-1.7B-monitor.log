@@ -1,0 +1,15 @@
+2026-10-28T17:34:29Z CHECKIN steps=87 div=ok peak_B=0 |  [mens] E1/1 step 10/139 (7.2%) micro 86 | loss 1.2309 (last 4.7984) | lr 1.27e-4 | 29 tok/s | ETA 4h27m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+2026-10-28T17:54:37Z CHECKIN steps=167 div=ok |  [mens] E1/1 step 20/139 (14.4%) micro 167 | loss 1.2374 (last 1.9378) | lr 1.49e-4 | 10 tok/s | ETA 4h05m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+2026-10-28T18:14:44Z CHECKIN steps=253 div=ok |  [mens] E1/1 step 31/139 (22.3%) micro 253 | loss 0.8789 (last 0.6695) | lr 1.43e-4 | 37 tok/s | ETA 3h33m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+2026-10-28T18:44:52Z CHECKIN steps=389 div=ok |  [mens] E1/1 step 48/139 (34.5%) micro 388 | loss 0.5438 (last 0.3993) | lr 1.23e-4 | 7 tok/s | ETA 2h53m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+2026-10-28T19:15:12Z CHECKIN steps=532 div=ok |  [mens] E1/1 step 66/139 (47.5%) micro 532 | loss 0.7125 (last 0.1867) | lr 9.35e-5 | 6 tok/s | ETA 2h14m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+2026-10-28T19:45:35Z CHECKIN steps=675 div=ok |  [mens] E1/1 step 84/139 (60.4%) micro 675 | loss 0.7096 (last 1.1202) | lr 6.01e-5 | 5 tok/s | ETA 1h39m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+2026-10-28T20:15:43Z CHECKIN steps=824 div=ok |  [mens] E1/1 step 102/139 (73.4%) micro 822 | loss 0.7131 (last 0.3894) | lr 2.97e-5 | 36 tok/s | ETA 1h06m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+2026-10-28T20:46:21Z CHECKIN steps=957 div=ok |  [mens] E1/1 step 119/139 (85.6%) micro 956 | loss 0.5967 (last 0.6991) | lr 9.13e-6 | 4 tok/s | ETA 35m46s | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+2026-10-28T21:16:29Z CHECKIN steps=1093 div=ok |  [mens] E1/1 step 136/139 (97.8%) micro 1092 | loss 0.5840 (last 7.4822e-4) | lr 2.10e-7 | 7 tok/s | ETA 5m22s | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+2026-10-28T21:18:06Z finalizing |  [mens] E1/1 step 137/139 (98.6%) micro 1098 | loss 0.5131 (last 0.3225) | lr 9.32e-8 | 3 tok/s | ETA 3m34s | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+2026-10-28T21:19:36Z finalizing |  [mens] E1/1 step 138/139 (99.3%) micro 1107 | loss 0.6702 (last 1.0018) | lr 2.33e-8 | 9 tok/s | ETA 1m47s | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+2026-10-28T21:21:06Z finalizing |  [mens] Running validation on 58 pairs...
+2026-10-28T21:22:36Z finalizing |  [mens] Running validation on 58 pairs...
+2026-10-28T21:24:06Z DONE steps=1108 record=trained
+2026-10-28T21:26:39Z DONE steps=1108 record=trained

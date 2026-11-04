@@ -59,6 +59,7 @@ ci/canonical-map-verify
 ci/capability-index
 ci/capability-snapshot
 ci/capability-sync
+ci/check-changed
 ci/check-codex-ssot
 ci/check-docs-ssot
 ci/check-links
@@ -104,6 +105,7 @@ ci/doctest-md
 ci/eval-matrix
 ci/eval-matrix/run
 ci/eval-matrix/verify
+ci/evidence-asset-ban
 ci/exec-policy-contract
 ci/fan-in-budget
 ci/feature-matrix
@@ -122,12 +124,14 @@ ci/gui-surface-registry
 ci/gui-version-sync
 ci/gui-visual-review
 ci/harness-trust-guard
+ci/hit-every-surface
 ci/ignored-test-age
 ci/install-hooks
 ci/job-timings
 ci/json-parse-check
 ci/k-complexity-budget
 ci/kill-stuck-tests
+ci/knip-gui
 ci/line-endings
 ci/manifest
 ci/mcp-vox-surface-parity
@@ -194,6 +198,7 @@ ci/ssot-audit
 ci/ssot-drift
 ci/status
 ci/string-id-lint
+ci/suppression-review-gate
 ci/sync-ignore-files
 ci/test-inventory
 ci/test-runtime-report
@@ -203,6 +208,7 @@ ci/toestub-scoped
 ci/toestub-self-apply
 ci/toolchain-ssot
 ci/toolchain-workflow-lint
+ci/transfer-budget-report
 ci/turso-import-guard
 ci/vox-parse-check
 ci/watch-run

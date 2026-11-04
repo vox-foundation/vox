@@ -1,0 +1,9 @@
+{
+  "schema_version": "t3_snapshot_interning_status_v1",
+  "status": "shipped",
+  "anchor": "crates/vox-orchestrator/src/wire_compression.rs",
+  "tests": [
+    "wire_compression::tests::wire_id_table_and_body_deduper_roundtrip_losslessly"
+  ],
+  "notes": "Wave-2 leftover WireIdTableInterner is on the live compress_wire_snapshot path; duplicate IDs collapse to one table entry."
+}

@@ -30,24 +30,15 @@ struct SkillDoc {
 
 impl SkillSearchIndex {
     pub fn from_manifests(manifests: &[SkillManifest]) -> Self {
+        Self::from_docs(manifests.iter().map(|m| (m.id.clone(), manifest_text(m))))
+    }
+
+    /// Index arbitrary `(id, text)` documents with the same BM25 scorer
+    /// (ChatARC indexes skills, MCP tools and commands together).
+    pub fn from_docs(docs: impl IntoIterator<Item = (String, String)>) -> Self {
         let mut idx = Self::default();
-        for m in manifests {
-            let body_preview = m
-                .tags
-                .iter()
-                .chain(std::iter::once(&m.description))
-                .map(String::as_str)
-                .collect::<Vec<_>>()
-                .join(" ");
-            let text = format!(
-                "{} {} {} {} {}",
-                m.id,
-                m.name,
-                m.description,
-                m.tags.join(" "),
-                body_preview
-            );
-            idx.add_doc(m.id.clone(), text);
+        for (id, text) in docs {
+            idx.add_doc(id, text);
         }
         idx.recompute_stats();
         idx
@@ -130,6 +121,24 @@ impl SkillSearchIndex {
     }
 }
 
+fn manifest_text(m: &SkillManifest) -> String {
+    let body_preview = m
+        .tags
+        .iter()
+        .chain(std::iter::once(&m.description))
+        .map(String::as_str)
+        .collect::<Vec<_>>()
+        .join(" ");
+    format!(
+        "{} {} {} {} {}",
+        m.id,
+        m.name,
+        m.description,
+        m.tags.join(" "),
+        body_preview
+    )
+}
+
 fn tokenize(text: &str) -> Vec<String> {
     text.to_lowercase()
         .split(|c: char| !c.is_alphanumeric())
@@ -165,5 +174,23 @@ mod tests {
         let hits = idx.search("debug failing test", 3);
         assert!(!hits.is_empty());
         assert_eq!(hits[0].id, "systematic-debugging");
+    }
+
+    #[test]
+    fn from_docs_ranks_like_from_manifests() {
+        let manifests = [
+            manifest(
+                "systematic-debugging",
+                "Debug failing tests: find root cause before fixing",
+            ),
+            manifest("writing-plans", "Implementation plan authoring"),
+            manifest("test-driven-development", "Write the failing test first"),
+        ];
+        let a = SkillSearchIndex::from_manifests(&manifests);
+        let b =
+            SkillSearchIndex::from_docs(manifests.iter().map(|m| (m.id.clone(), manifest_text(m))));
+        for q in ["debug failing test", "plan", "write the test first", "zzz"] {
+            assert_eq!(a.search(q, 5), b.search(q, 5), "{q}");
+        }
     }
 }

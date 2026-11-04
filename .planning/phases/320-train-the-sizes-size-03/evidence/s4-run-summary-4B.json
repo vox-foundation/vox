@@ -1,0 +1,23 @@
+{
+  "schema": "vox_mens_run_summary_v1",
+  "run_id": "20261030T140123Z",
+  "base_model": "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",
+  "adapter_tag": null,
+  "global_step": 1108,
+  "optimizer_step_count": 138,
+  "avg_train_loss": 0.522649369292984,
+  "avg_val_loss_last_epoch": 0.6970950328960216,
+  "total_tokens": 67134,
+  "peak_metal_allocated_bytes": 36133076992,
+  "capped": false,
+  "wall_secs": 1378.1613285,
+  "final_loss_ema": 0.5434616348390439,
+  "truncated_rows": 0,
+  "prompt_trimmed_rows": 0,
+  "artifacts": {
+    "final_adapter": "/Users/brbrainerd/dev/vox-mens-compare/mens/runs/qwen3-4b/candle_qlora_adapter.safetensors",
+    "training_skip_stats": "/Users/brbrainerd/dev/vox-mens-compare/mens/runs/qwen3-4b/training_skip_stats.json",
+    "telemetry_jsonl": "/Users/brbrainerd/dev/vox-mens-compare/mens/runs/qwen3-4b/telemetry.jsonl",
+    "model_card": "/Users/brbrainerd/dev/vox-mens-compare/mens/runs/qwen3-4b/MODEL_CARD.md"
+  }
+}

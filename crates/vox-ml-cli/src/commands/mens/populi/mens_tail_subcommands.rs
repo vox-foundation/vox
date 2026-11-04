@@ -22,6 +22,9 @@ pub enum PopuliMensTail {
         /// Run the 25-problem 5-spoke Mens before/after verification gate and write `mens_spoke_scorecard.json`.
         #[arg(long, default_value_t = false)]
         five_spokes: bool,
+        /// Disable automatic Hugging Face Hub adapter publish when all blocking gates pass (`VOX_MENS_HF_SYNC=0` equivalent).
+        #[arg(long, default_value_t = false)]
+        no_hf_sync: bool,
     },
 
     /// Capture a base-model BFCL baseline so the beat-base eval gate has a real
@@ -54,6 +57,65 @@ pub enum PopuliMensTail {
         /// Adapter path to evaluate
         #[arg(long, id = "post")]
         post_adapter: PathBuf,
+        /// Fail-fast slice order (comma-separated). Default when omitted:
+        /// `gsm8k_think,math500_think,vox_think` (stop at first failing slice).
+        /// A subset is allowed for smoke tests; Hub-eligible pass still needs
+        /// all three slices scored.
+        #[arg(long, value_delimiter = ',')]
+        fail_fast: Option<Vec<String>>,
+        /// Score the full baseline suite without early exit (disables fail-fast).
+        #[arg(long, default_value_t = false)]
+        no_fail_fast: bool,
+        /// Discard this run's per-item checkpoint instead of resuming from it
+        #[arg(long)]
+        force_restart: bool,
+    },
+
+    /// Build collateral pre-score JSON from an `eval-reasoning-compare` report:
+    /// six reasoning keys from a compared report, or the keys of the scored
+    /// slices from a partial (`--slices`) one, which only `--fail-fast` accepts.
+    #[command(name = "baseline-from-compare")]
+    BaselineFromCompare {
+        /// Compared reasoning_before_after.v1 report path
+        #[arg(long)]
+        compare: PathBuf,
+        /// Write baseline JSON here (default: stdout)
+        #[arg(short = 'o', long)]
+        out: Option<PathBuf>,
+    },
+
+    /// Score a pinned base and its adapter on the 32-item reasoning slices; writes an absence record when either is not on disk. Not a serve-gate input.
+    #[command(name = "eval-reasoning-compare")]
+    EvalReasoningCompare {
+        /// Base: a Qwen3 size name (resolved through gpu-specs `train_bases`) or `hf_id@<40-hex sha>`
+        /// (default: the pinned Qwen/Qwen3-8B)
+        #[arg(long)]
+        base: Option<String>,
+        /// Adapter run directory trained on that base
+        #[arg(long)]
+        adapter: Option<PathBuf>,
+        /// Hugging Face hub cache root (default, hf-hub order: HF_HUB_CACHE, HUGGINGFACE_HUB_CACHE,
+        /// HF_HOME/hub, XDG_CACHE_HOME/huggingface/hub, ~/.cache/huggingface/hub)
+        #[arg(long)]
+        hub_root: Option<PathBuf>,
+        /// Directory holding the `<slice>/reasoning.jsonl` files
+        #[arg(long, default_value = "mens/data")]
+        bench_root: PathBuf,
+        /// Report path (default: mens/runs/reasoning_compare/<size>-<rev12>.json)
+        #[arg(long)]
+        out: Option<PathBuf>,
+        /// Score only these slices (comma-separated); the report is `partial`
+        /// unless every slice is named. Generations are kept in the per-item
+        /// checkpoint, so a later full run only generates the rest.
+        #[arg(long, value_delimiter = ',')]
+        slices: Option<Vec<String>>,
+        /// Build the report from the per-item checkpoint only; never load a
+        /// model. An item with no recorded generation leaves its slice not scored.
+        #[arg(long)]
+        merge_only: bool,
+        /// Discard this run's per-item checkpoint instead of resuming from it
+        #[arg(long)]
+        force_restart: bool,
     },
 
     /// Benchmark FIM completion server latency

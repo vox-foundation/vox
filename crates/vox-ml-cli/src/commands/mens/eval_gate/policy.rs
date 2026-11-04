@@ -59,6 +59,22 @@ pub struct EvalGatePolicy {
     /// Beat-base is the primary check; absolute threshold is optional.
     #[serde(default)]
     pub bfcl_accuracy: BfclGate,
+    /// Catastrophic-forgetting report from `mens eval-collateral-damage`.
+    /// Aligns gate_receipt with Hub publish (`status == pass`).
+    #[serde(default)]
+    pub collateral_damage: CollateralDamageGate,
+}
+
+/// Gate on `collateral_damage_report.json` in the run directory.
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct CollateralDamageGate {
+    /// If true, missing or non-pass report blocks the run (Hub parity).
+    #[serde(default)]
+    pub block: bool,
+    /// When false (default), the gate is only emitted if `block` is true or the
+    /// report file exists — so full `eval-gates.yaml` without this key stays quiet.
+    #[serde(default)]
+    pub require_report: bool,
 }
 
 /// Gate on optional `mcp_tool_schema_kpi.json` in the run directory (from `vox-mcp` diagnostics).
@@ -290,4 +306,30 @@ pub fn load_policy(path: &Path) -> Result<EvalGatePolicy> {
     let content = read_utf8_path_capped(path)?;
     let policy: EvalGatePolicy = serde_yaml::from_str(&content)?;
     Ok(policy)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn load_policy_reads_collateral_damage_block_from_ladder_yaml() {
+        let path =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../mens/config/eval-gates-ladder.yaml");
+        let policy = load_policy(&path).expect("ladder policy loads");
+        assert!(policy.collateral_damage.block);
+        assert!(policy.anti_stub.block);
+        assert!(policy.pass_at_k.block);
+        assert!(!policy.review_recurrence.block);
+    }
+
+    #[test]
+    fn load_policy_defaults_collateral_damage_when_key_absent() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("mini.yaml");
+        std::fs::write(&path, "version: \"1\"\n").unwrap();
+        let policy = load_policy(&path).expect("mini policy");
+        assert!(!policy.collateral_damage.block);
+        assert!(!policy.collateral_damage.require_report);
+    }
 }

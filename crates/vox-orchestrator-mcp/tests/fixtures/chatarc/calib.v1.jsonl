@@ -1,0 +1,34 @@
+{"id": "c01", "pair_id": null, "control": null, "query": "is my working tree clean", "gold": {"kind": "tool", "id": "vox_git_status"}}
+{"id": "c02", "pair_id": null, "control": null, "query": "run every test in the workspace", "gold": {"kind": "tool", "id": "vox_test_all"}}
+{"id": "c03", "pair_id": null, "control": null, "query": "submit a task to the orchestrator to refactor the parser", "gold": {"kind": "tool", "id": "vox_submit_task"}}
+{"id": "c04", "pair_id": null, "control": null, "query": "search my memory logs for what we decided about the cache", "gold": {"kind": "tool", "id": "vox_memory_search"}}
+{"id": "c05", "pair_id": null, "control": null, "query": "build the vox-cli crate", "gold": {"kind": "tool", "id": "vox_build_crate"}}
+{"id": "c06", "pair_id": null, "control": null, "query": "who last changed line 40 of resolve.rs", "gold": {"kind": "tool", "id": "vox_git_blame"}}
+{"id": "c07", "pair_id": null, "control": null, "query": "list recent commits", "gold": {"kind": "tool", "id": "vox_git_log"}}
+{"id": "c08", "pair_id": null, "control": null, "query": "run the tests for vox-orchestrator-mcp filtered to chatarc", "gold": {"kind": "tool", "id": "vox_run_tests"}}
+{"id": "c09", "pair_id": null, "control": null, "query": "I want to design a new feature for skill discovery, let's explore the requirements first", "gold": {"kind": "skill", "id": "brainstorming"}}
+{"id": "c10", "pair_id": null, "control": null, "query": "review this pull request for bugs", "gold": {"kind": "skill", "id": "code-review"}}
+{"id": "c11", "pair_id": null, "control": null, "query": "help me author a sequence diagram for the docs page", "gold": {"kind": "skill", "id": "vox-diagram-authoring"}}
+{"id": "c12", "pair_id": null, "control": null, "query": "what frontmatter does a new architecture page under docs/src need", "gold": {"kind": "skill", "id": "docs-frontmatter"}}
+{"id": "c13", "pair_id": null, "control": null, "query": "the build is failing with a weird linker error, debug it", "gold": {"kind": "skill", "id": "systematic-debugging"}}
+{"id": "c14", "pair_id": null, "control": null, "query": "use tdd to add the new validation function", "gold": {"kind": "skill", "id": "test-driven-development"}}
+{"id": "c15", "pair_id": null, "control": null, "query": "write an implementation plan for the migration", "gold": {"kind": "skill", "id": "writing-plans"}}
+{"id": "c16", "pair_id": null, "control": null, "query": "is the code graph fresh or stale", "gold": {"kind": "command", "id": "vox graph status"}}
+{"id": "c17", "pair_id": null, "control": null, "query": "which of my secrets are missing for this profile", "gold": {"kind": "command", "id": "vox secrets doctor"}}
+{"id": "c18", "pair_id": null, "control": null, "query": "did any CI jobs fail on my branch", "gold": {"kind": "command", "id": "vox ci status"}}
+{"id": "c19", "pair_id": null, "control": null, "query": "format this vox source file", "gold": {"kind": "command", "id": "vox fmt"}}
+{"id": "c20", "pair_id": null, "control": null, "query": "find where the skill parser symbol lives in the code", "gold": {"kind": "command", "id": "vox graph query"}}
+{"id": "c21", "pair_id": null, "control": null, "query": "check my local toolchain health", "gold": {"kind": "command", "id": "vox doctor"}}
+{"id": "c22", "pair_id": null, "control": null, "query": "tell me a joke", "gold": {"kind": "none", "id": null}}
+{"id": "c23", "pair_id": null, "control": null, "query": "what time zone is Tokyo in", "gold": {"kind": "none", "id": null}}
+{"id": "c24", "pair_id": null, "control": null, "query": "summarize the plot of Hamlet", "gold": {"kind": "none", "id": null}}
+{"id": "c25", "pair_id": null, "control": null, "query": "ok great", "gold": {"kind": "none", "id": null}}
+{"id": "c26", "pair_id": null, "control": null, "query": "translate hello into French", "gold": {"kind": "none", "id": null}}
+{"id": "c27", "pair_id": "p5", "control": "dual_wording", "query": "look up the docs on how the turn decision pack works", "gold": {"kind": "tool", "id": "vox_kb_search"}}
+{"id": "c28", "pair_id": "p5", "control": "dual_wording", "query": "find documentation explaining the turn decision pack", "gold": {"kind": "tool", "id": "vox_kb_search"}}
+{"id": "c29", "pair_id": "p6", "control": "dual_wording", "query": "store the new OpenRouter token properly", "gold": {"kind": "skill", "id": "secret-management"}}
+{"id": "c30", "pair_id": "p6", "control": "dual_wording", "query": "where should a provider API key be registered", "gold": {"kind": "skill", "id": "secret-management"}}
+{"id": "c31", "pair_id": "p7", "control": "dual_wording", "query": "check whether generated SSOT artifacts drifted", "gold": {"kind": "command", "id": "vox ci ssot-drift"}}
+{"id": "c32", "pair_id": "p7", "control": "dual_wording", "query": "did the generated reference files fall out of sync", "gold": {"kind": "command", "id": "vox ci ssot-drift"}}
+{"id": "c33", "pair_id": "p8", "control": "dual_wording", "query": "thanks a lot", "gold": {"kind": "none", "id": null}}
+{"id": "c34", "pair_id": "p8", "control": "dual_wording", "query": "thank you, bye", "gold": {"kind": "none", "id": null}}

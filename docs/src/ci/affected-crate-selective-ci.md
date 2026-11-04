@@ -77,12 +77,25 @@ Shadow exits `1` on miss; CI shadow step uses `continue-on-error: true` until F1
 ## Future work
 
 - **F1:** Make shadow blocking after calibration.
-- **F3:** `vox ci path-gate-plan` from `check-targets.v1.yaml`.
+- **F3:** ✅ `vox ci check-changed` + `contracts/ci/changed-path-owners.v1.yaml` (v5.4 Phase 301).
 - **F4:** Complete `pr_scope` on all CI checks.
 - **F5:** Update `rcicd-coverage-cost-matrix-2026.md`.
+
+
+## Weighted sharding (`--shards`)
+
+`vox ci affected-crates --shards N` partitions crates with longest-processing-time
+greedy balancing. Weights prefer `contracts/ci/shard-weights.v1.json` (seeded
+duration/size units); crates absent from that file fall back to `.rs` file-count.
+Ratchet: `contracts/reports/shard-balance-ratchet.v1.json`.
+
+Transfer-budget CI artifact: `vox ci transfer-budget-report` writes
+`contracts/reports/transfer-budget-ci.v1.json`; trusted PR comments come from
+`.github/workflows/thread-transfer-report.yml` (default-branch publisher only).
 
 ## Local parity
 
 - `vox ci affected-crates --changed <file>` — same closure as CI.
+- `vox ci check-changed [--base origin/main] [--dry-run] [--changed <list>]` — t3code `check:changed` analog over `contracts/ci/changed-path-owners.v1.yaml`. Inert-only diffs (e.g. `.planning/**`) exit 0 without spawning cargo; non-inert diffs print owners/gates and optional `$GITHUB_OUTPUT` (`inert`/`owners`/`file_count`).
 - `vox ci pre-push --full --since origin/main` — mirrors PR scope (note: pre-push may use a broader fallback for docs/scripts locally).
 - `vox ci pre-push --full --with-coverage --include-slow` — mirrors merge queue.

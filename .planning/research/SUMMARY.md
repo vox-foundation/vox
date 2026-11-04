@@ -1,46 +1,91 @@
-# Project Research Summary: Milestone v1.7 — Centralized Postgres Telemetry, Private `vox-ops` Extraction & Community Intelligence Flywheel
+# Project Research Summary
 
-**Date:** 2026-10-19
-**Canonical Architecture SSOT:** [`docs/src/architecture/centralized-postgres-telemetry-vox-ops-ssot-2026.md`](../../docs/src/architecture/centralized-postgres-telemetry-vox-ops-ssot-2026.md)
+**Project:** Vox
+**Domain:** Lane-scoped reasoning measurement for Mens
+**Researched:** 2026-10-26
+**Confidence:** HIGH
+
+## Executive Summary
+
+Mens already fine-tunes Qwen3-8B with Candle QLoRA. Direct-answer rows now use Qwen's non-thinking prefix (`/no_think` and a prefilled empty think block that is not in the loss). That prefix is also what inference and chat completions send for every raw user string. Hub and agent spokes, which are the lanes that need to think, currently have no way to ask for the bare thinking-mode entry point.
+
+The milestone is not a new model and not a new trainer. It is a lane switch, a fixed before/after on real items, and a serve gate that reads those numbers. The pieces of the scorer and the gate exist. What is missing is the spoke branch, a Vox item file that is not the boilerplate think template, and a base-model run. The Qwen3-8B weights are not on this machine, so no honest before/after number exists yet.
+
+The main risk is measuring thinking mode through the codegen prefix, which forces the empty think block and makes think-initiation look like zero. The second risk is trusting a 32- or 64-item slice at a 5% regression threshold. The report has to say it is a slice.
 
 ## Key Findings
 
-### 1. Stack & Datastore Consolidation (`helios-postgres` over ClickHouse)
-- **Replace ClickHouse with Shared Postgres 17 (`helios-postgres`):** The June 2026 `server/telemetry/` prototype used `clickhouse = "0.13.3"`. Across all production services on `helios` (`ramada` ADR-0008, `ngi.video`, `brFinancier`, `gigme`), the house standard is **one shared PostgreSQL 17 instance (`q40ck888ggkkcsosgcwgc0oo`, `pgvector/pgvector:pg17`)** (~7 MB marginal disk, ~0 extra RAM vs. 150–250 MB RSS for a separate database container).
-- **Three-Role Privilege Fencing (`vox_ops` database):**
-  - `vox_ops_owner` (`NOLOGIN`): owns schemas `telemetry`, `community`, `syndication`, all base tables (`telemetry.events_raw`, `community.intelligence_snapshots`, `syndication.outbox`, `syndication.attempt_ledger`), and all `SECURITY DEFINER` views.
-  - `vox_ingest_app` (`LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS CONNECTION LIMIT 10`, `statement_timeout = '5s'`): `INSERT`-only on `telemetry.events_raw`; zero `SELECT`/`UPDATE`/`DELETE`/`TRUNCATE` privileges anywhere.
-  - `vox_ops_app` (`LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS CONNECTION LIMIT 15`, `statement_timeout = '15s'`): reads telemetry exclusively through owner-owned `SECURITY DEFINER` (`security_barrier = true`) views enforcing `HAVING count(DISTINCT install_id) >= 20` (`k_anonymity = 20`), with `INSERT/UPDATE/DELETE` revoked on views (closing the `ramada` D-36 auto-updatable view gap), plus read/write grants on `syndication.*` and `community.*`.
-  - Provisioned idempotently via `deploy/helios/vox-ops-db-setup` using client-side `scram-verifier.py` (`SCRAM-SHA-256`, `SET log_min_error_statement = panic`), `REVOKE CONNECT, TEMPORARY ON DATABASE vox_ops FROM PUBLIC`, Coolify runtime-only `DATABASE_URL` injection via `php artisan tinker`, and a terminal privilege-verification row (`t|f|f|...`).
+### Recommended Stack
 
-### 2. Telemetry Surface Audit Across `vox`
-- **`vox-telemetry-otlp::upload::upload_pending_otlp`** (`crates/vox-telemetry-otlp/src/upload.rs`) is currently a stub (`Ok(0)`). Must be wired to batch pending redacted OTLP JSON files into `/v1/logs` with `governor` rate limiting and Clavis-backed URL/token resolution.
-- **`vox-orchestrator-d` and `vox-gui` missing recorder registration:** `set_global_recorder` is only invoked in `vox-cli` (`crates/vox-cli/src/lib.rs:808`), leaving all daemon and desktop GUI telemetry emissions as silent no-ops.
-- **`ResearchMetricsSink` incomplete variant mapping:** `crates/vox-db/src/telemetry_sink.rs` only persists 6 of 21 `TelemetryEvent` variants locally, dropping all Track E/F product and autonomic events (`CommandUsage`, `SkillActivation`, `EditPattern`, `HarnessUsage`, `ErrorSurface`, `DefaultDecision`, `ModelPrompt`, `LintFinding`, `RepairAttempt`, `RepairOutcome`, `AuditRun`, `SelectionDecision`, `ModelDiscovery`, `ModelClassification`, `ConfidencePromotion`, `DoctorProjectCheck`).
-- **Server DDL/Ingest column drop:** `server/telemetry/src/ingest.rs` (`EventRow`) hardcoded 19 fields and silently dropped 20+ taxonomy-allowlisted columns. The new Postgres DDL and `sqlx`/`tokio-postgres` ingest in `~/dev/vox-ops` will be 100% generated/verified against `contracts/telemetry/collection-taxonomy.v1.json`.
-- **Transparency & Control UX:** Add `vox telemetry preview` (inspect exact outgoing OTLP payload without network IO) and GUI telemetry transparency/consent controls in `SettingsView.tsx` so users can inspect, toggle, or completely disable telemetry at any time.
+Stay inside the repo. No lm-eval sidecar, no Unsloth run, no new base checkpoint.
 
-### 3. Private Repo Split (`~/dev/vox-ops` / `brbrainerd/vox-ops`)
-- **Remove `server/telemetry/` from public `vox`** (`Cargo.toml` exclude list + directory removal).
-- **Extract live social media syndication & community automation** (`vox-publisher` social adapters: X/Twitter, Reddit, YouTube, Discord, Bluesky, Mastodon, LinkedIn, Hacker News, OpenCollective + `social_retry.rs` + scheduled syndication outbox/workers) into `~/dev/vox-ops`, backed by Postgres `syndication.outbox` (`FOR UPDATE SKIP LOCKED`) and `syndication.attempt_ledger`.
-- **Retain local scholarly/academic manifest tooling in public `vox`:** `CITATION.cff`, BibTeX, Crossref/Zenodo/arXiv/OpenReview local bundle preparation remain in `vox-publisher`, with an optional non-blocking webhook/HTTP handoff to `vox-ops` when configured via Clavis.
+**Core technologies:**
+- Pinned Qwen3-8B: the only legal "before" in this milestone
+- `vox_eval::qwen_reasoning`: prefixes, grader, think-initiation
+- Existing collateral serve gate: refuse a missing or failing report
 
-### 4. Community-Collated Intelligence Flywheel (Offline-First)
-- `vox-ops` publishes an Ed25519-signed `CommunityIntelligenceBundleV1` (`GET /v1/intelligence/bundle.json`) derived strictly from $k \ge 20$ views: empirical model latency/error-rate/cost priors, OpenRouter free-tier slug liveness, empirical `default_decision` recommended constants, and council-approved `Confirmed` `ModelPromptProfile` segments.
-- `vox` clients operate 100% standalone/offline using compiled-in SSOT defaults and local `VoxDb`. When online and allowed (`VOX_COMMUNITY_INTEL != off` and `is_master_enabled()`), `vox` optionally fetches, Ed25519-verifies (`vox-crypto`), and caches `~/.vox/cache/community-intelligence.v1.json` to enrich routing and prompt selection without ever blocking or failing when offline.
+### Expected Features
+
+**Must have (table stakes):**
+- Codegen uses the non-thinking prefix; hub and agent use the bare thinking prefix
+- One item set for base and adapter, with accuracy and think-initiation stored separately
+- Serve blocks a drop on those keys
+
+**Should have (competitive):**
+- A short Vox plan/debug slice with checkable answers, beside GSM8K and MATH-500
+- The report states the slice size so the 5% gate is not mistaken for a full-benchmark claim
+
+**Defer (v2+):**
+- Base-model swap
+- New training techniques (replay, self-distill, KL anchor, the 75% mix)
+
+### Architecture Approach
+
+The spoke tag picks the prefix. Training and serve share that picker. A runner scores base and adapter on `reasoning.jsonl` files. The collateral report is the only artifact serve reads.
+
+**Major components:**
+1. Prefix picker — codegen versus hub/agent
+2. Bench files — `gsm8k_think`, `math500_think`, and a new `vox_think`
+3. Collateral gate — `bench` is accuracy, `bench_init` is think-initiation
+
+### Critical Pitfalls
+
+1. **Thinking benches that go through `assemble_prompt`** — pass a finished ChatML string ending at bare `assistant\n`
+2. **Vacuous baselines** — only real bench keys, and a load failure writes no report
+3. **Noisy 5% gate on a slice** — record `n` and do not treat the slice as GSM8K-full
+4. **One global direct-answer wrapper** — hub prompts must not contain `/no_think`
+5. **Boilerplate `<think>` rows** — keep them out of the held-out set
 
 ## Implications for Roadmap
 
-- **Phase 89 (`TELEM-AUDIT`):** Complete the client-side telemetry audit fixes in `vox` (`ResearchMetricsSink` 21-variant coverage, `vox-orchestrator-d` + `vox-gui` recorder registration, `vox-telemetry-otlp::upload` implementation, `vox telemetry preview` & GUI transparency controls) and remove `server/telemetry/` from public `vox`.
-- **Phase 90 (`PG-FENCE`):** Bootstrap `~/dev/vox-ops` (`brbrainerd/vox-ops`) and implement the three-role fenced PostgreSQL 17 schema (`vox_ops_owner`, `vox_ingest_app`, `vox_ops_app`), taxonomy-driven DDL + `SECURITY DEFINER` $k \ge 20$ views, OTLP `/v1/logs` ingest server, and `deploy/helios/vox-ops-db-setup` SCRAM provisioning + Coolify pull-timer deployment.
-- **Phase 91 (`SOCIAL-OPS`):** Extract live social media publication & community automation adapters from `vox-publisher` into `~/dev/vox-ops` with a Postgres-backed durable syndication outbox (`FOR UPDATE SKIP LOCKED`), keeping local scholarly/academic manifest prep and optional webhook handoff in public `vox`.
-- **Phase 92 (`COMM-INTEL`):** Ship the Ed25519-signed `CommunityIntelligenceBundleV1` endpoint in `vox-ops` and the strictly offline-safe, non-blocking client hydration in `vox-orchestrator` / `vox-config` / `vox-cli` (`vox telemetry intelligence status|sync|inspect`), plus end-to-end verification and CI gate closure.
+Phases continue at 313.
+
+### Phase 313: Lane prefix
+**Rationale:** Until hub and codegen use different prompts, every later number is about the wrong mode.
+**Delivers:** A spoke-selected prefix and tests for both strings.
+**Addresses:** Lane policy
+**Avoids:** One global `/no_think` wrapper
+
+### Phase 314: Held-out set
+**Rationale:** The gate needs items before it needs a threshold.
+**Delivers:** Vox items plus the existing GSM8K and MATH-500 slices, and the baseline file shape with empty scores refused.
+**Addresses:** Same items, two metrics
+**Avoids:** The boilerplate think template and invented base numbers
+
+### Phase 315: Serve gate
+**Rationale:** The report only matters if serve reads it.
+**Delivers:** Collateral keys for accuracy and think-initiation, including the slice-size note.
+**Addresses:** Refuse a drop
+**Avoids:** Config-field benchmarks and a silent pass when the model did not load
+
+### Phase 316: Show the comparison
+**Rationale:** The milestone promised a before/after, not only the wiring.
+**Delivers:** One base run and one adapter run on the same files, written to the report, when the weights are present. If the weights are absent, the phase stops with that fact instead of a filled-in score.
+**Addresses:** The operator can see the comparison
+**Avoids:** Copying pre into post
 
 ## Sources
 
-- [`docs/src/architecture/centralized-postgres-telemetry-vox-ops-ssot-2026.md`](../../docs/src/architecture/centralized-postgres-telemetry-vox-ops-ssot-2026.md)
-- [`docs/src/architecture/telemetry-trust-ssot.md`](../../docs/src/architecture/telemetry-trust-ssot.md)
-- [`docs/src/adr/023-optional-telemetry-remote-upload.md`](../../docs/src/adr/023-optional-telemetry-remote-upload.md)
-- [`contracts/telemetry/collection-taxonomy.v1.json`](../../contracts/telemetry/collection-taxonomy.v1.json)
-- `~/dev/ramada/docs/decisions/0008-one-shared-postgres-two-roles-per-app.md`
-- `~/dev/ngi.video/deploy/helios/ngi-video-db-setup` & `sql/ngi_video_early_access.sql`
+- `docs/src/architecture/mens-reasoning-preservation-research-2026-09-21.md`
+- Qwen3 Technical Report, arXiv:2505.09388
+- In-tree `qwen_reasoning`, `reasoning_eval`, and `eval_collateral` as of 2026-10-26

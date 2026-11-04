@@ -40,6 +40,27 @@ pub fn apply_checkpoint_resume(
                 checkpoint_root.display()
             );
         }
+        // The base is a resume invariant: the auto size pick reads live free
+        // memory, so a re-run into the same output dir can pick another size.
+        if let Some(was) = ckpt.base_model.as_deref()
+            && config.base_model.as_deref() != Some(was)
+        {
+            let now = config.base_model.as_deref().unwrap_or("(none)");
+            anyhow::bail!(
+                "Checkpoint in {} was trained on base {was}, but this run's base is {now}. \
+                 Resuming would attach that adapter to a different base model. Pass \
+                 --model {was} to keep training it, or --force-restart to discard the \
+                 checkpoint and start fresh on {now}.",
+                checkpoint_root.display()
+            );
+        }
+        if ckpt.base_model.is_none() {
+            train_log::warn(&format!(
+                "Checkpoint in {} records no base model (written before the base was \
+                 recorded); cannot confirm it matches this run's base.",
+                checkpoint_root.display()
+            ));
+        }
         train_log::info(&format!(
             "Checkpoint found in {} — resuming from epoch={} global_step={} pair_offset={}",
             checkpoint_root.display(),
@@ -52,10 +73,14 @@ pub fn apply_checkpoint_resume(
                 trainer,
                 std::path::Path::new(&ckpt.adapter_path),
             ) {
-                train_log::warn(&format!(
-                    "Resume adapter load failed for {}: {err}",
-                    ckpt.adapter_path
-                ));
+                anyhow::bail!(
+                    "Resume adapter {} failed to load ({err:#}); refusing to continue from \
+                     epoch {} step {} with fresh adapter weights. Pass --force-restart to \
+                     discard the checkpoint and start fresh.",
+                    ckpt.adapter_path,
+                    ckpt.epoch,
+                    ckpt.global_step
+                );
             }
         } else {
             train_log::warn(&format!(
@@ -195,6 +220,7 @@ mod tests {
             wall_seconds_elapsed: 0.0,
             saved_at_utc: String::new(),
             data_fingerprint: data_fingerprint.map(str::to_string),
+            base_model: None,
         };
         ckpt.save(dir).unwrap();
     }
@@ -254,6 +280,74 @@ mod tests {
         apply_checkpoint_resume(&mut trainer2, &config_no_fp, &dir, 3)
             .expect("checkpoint with no fingerprint must not block resume");
 
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    const PIN_8B: &str = "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218";
+    const PIN_14B: &str = "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18";
+
+    /// Rewrite the checkpoint `write_checkpoint` left in `dir`.
+    fn edit_checkpoint(dir: &std::path::Path, edit: impl FnOnce(&mut CheckpointState)) {
+        let mut ckpt = CheckpointState::load(dir).expect("checkpoint");
+        edit(&mut ckpt);
+        ckpt.save(dir).unwrap();
+    }
+
+    fn with_base(base: Option<&str>) -> LoraTrainingConfig {
+        LoraTrainingConfig {
+            base_model: base.map(str::to_string),
+            ..Default::default()
+        }
+    }
+
+    /// CR-02: an auto size pick can differ between runs into the same output dir;
+    /// a 14B checkpoint must never continue as an 8B run.
+    #[test]
+    fn refuses_to_resume_onto_a_different_base() {
+        let dir = std::env::temp_dir().join("vox_ckpt_resume_base_mismatch_test");
+        std::fs::create_dir_all(&dir).unwrap();
+        write_checkpoint(&dir, None);
+        edit_checkpoint(&dir, |c| c.base_model = Some(PIN_14B.to_string()));
+
+        let err = apply_checkpoint_resume(&mut cpu_trainer(), &with_base(Some(PIN_8B)), &dir, 3)
+            .expect_err("a different base must refuse to resume");
+        let msg = format!("{err:#}");
+        for part in [PIN_14B, PIN_8B, "--force-restart", "--model"] {
+            assert!(msg.contains(part), "{part}: {msg}");
+        }
+        let resume =
+            apply_checkpoint_resume(&mut cpu_trainer(), &with_base(Some(PIN_14B)), &dir, 3)
+                .expect("the same base resumes");
+        assert_eq!(resume.global_step, 5);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn checkpoint_without_a_recorded_base_still_resumes() {
+        let dir = std::env::temp_dir().join("vox_ckpt_resume_no_base_test");
+        std::fs::create_dir_all(&dir).unwrap();
+        write_checkpoint(&dir, None);
+        let resume = apply_checkpoint_resume(&mut cpu_trainer(), &with_base(Some(PIN_8B)), &dir, 3)
+            .expect("an old checkpoint without a base keeps loading");
+        assert_eq!(resume.global_step, 5);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// CR-02: fresh adapter weights must not inherit the old run's epoch and step.
+    #[test]
+    fn refuses_to_keep_counters_when_the_adapter_fails_to_load() {
+        let dir = std::env::temp_dir().join("vox_ckpt_resume_bad_adapter_test");
+        std::fs::create_dir_all(&dir).unwrap();
+        write_checkpoint(&dir, None);
+        let adapter = dir.join("broken_adapter.safetensors");
+        std::fs::write(&adapter, b"not a safetensors file").unwrap();
+        edit_checkpoint(&dir, |c| c.adapter_path = adapter.display().to_string());
+
+        let err = apply_checkpoint_resume(&mut cpu_trainer(), &with_base(None), &dir, 3)
+            .expect_err("an adapter that fails to load must refuse to resume");
+        let msg = format!("{err:#}");
+        assert!(msg.contains("--force-restart"), "{msg}");
+        assert!(msg.contains("broken_adapter.safetensors"), "{msg}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

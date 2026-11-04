@@ -1,0 +1,36 @@
+CMD: target/release/vox mens train --backend qlora --tokenizer hf --device metal --require-gpu --data-dir target/dogfood --epochs 1 --seq-len 3072 --fast-corpus --no-auto-heal --model Qwen3-4B --output-dir mens/runs/qwen3-4b --max-runtime-secs 86400
+warning: vox-ml-cli build 3ec31a00f does not match vox build c56e13a33; the ML command is running code from a different commit.
+  running: /Users/brbrainerd/dev/vox-mens-compare/target/release/vox-ml-cli
+  fix: cargo install --path crates/vox-ml-cli --features gpu --force
+  (set VOX_REQUIRE_MATCHING_ML_CLI=1 to make this an error)
+  [36mℹ[39m size: 4B (explicit): floor 33037 MB fits 57778 MB free (Metal working set)
+2026-10-30T03:06:06.196509Z  INFO vox_plugin_host::telemetry: event="plugin.discovered" id="mens-candle-metal" version="0.6.0" payload_kind="code" abi_or_format_version=13
+2026-10-30T03:06:06.197365Z  INFO vox_plugin_host::telemetry: event="plugin.discovered" id="mens-candle-cuda" version="0.6.0" payload_kind="code" abi_or_format_version=12
+2026-10-30T03:06:06.253085Z  INFO vox_plugin_host::telemetry: event="plugin.loaded" id="mens-candle-metal" version="0.6.0" payload_kind="code" load_ms=8
+[36m╔══════════════════════════════════════════╗[39m
+[36m║   VoxMens — native fine-tuning (QLoRA)  ║[39m
+[36m╚══════════════════════════════════════════╝[39m
+
+  Model:       [36mQwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c[39m
+  Device:      [36mmetal[39m
+  Data:        [36m/Users/brbrainerd/dev/vox-mens-compare/target/dogfood[39m
+  Output:      [36m/Users/brbrainerd/dev/vox-mens-compare/mens/runs/qwen3-4b[39m
+  Rank/Alpha:  16/32
+  Batch/Accum: 1/8 (effective=8)
+  Backend:     qlora
+  Tokenizer:   Hf
+  Seq len:     3072
+
+  [36m⏭[39m Skipping corpus mix (`VOX_TRAIN_SKIP_CORPUS_MIX`); using train file under data-dir
+  [36mℹ[39m held-out check: clean (3 slices, 96 held-out questions, 1166 rows)
+  [36mℹ[39m size: 4B (explicit): floor 33037 MB fits 57745 MB free (Metal working set)
+2026-10-30T03:06:06.583667Z  INFO vox_ml_cli::commands::schola::train::gpu: activation/gradient checkpointing ENABLED for this run explicit=false
+  [36mℹ[39m base Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c: qlora floor 33037 MB measured on silicon-gpu-metal (peak 33037 MB)
+  [36m📥[39m Downloading base model from Hugging Face: Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c
+vox-populi: downloading training model `Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c`; exact size is not known ahead of time (not the documented default model). The repo manifest lists 3 *.safetensors file(s) that will be fetched.
+  [32m✓[39m Cached at /Users/brbrainerd/.cache/huggingface/hub/models--Qwen--Qwen3-4B/snapshots/1cfa9a7208912126459214e8b04321603b3df60c
+  [33m⚠[39m VRAM check unavailable (no memory-model calibration for lane candle-metal (gradient_checkpointing=true); measure it with `vox mens probe --measure`); proceeding with batch_size=1, seq_len=3072 UNVERIFIED. This lane is uncalibrated, so nothing here has confirmed this config fits — measure it with `vox mens probe --measure`.
+  [36m📐[39m Architecture: qwen3 (36 layers, 36 full-attention, 0 linear-attention)
+  [36m🔤[39m Tokenizer: /Users/brbrainerd/.cache/huggingface/hub/models--Qwen--Qwen3-4B/snapshots/1cfa9a7208912126459214e8b04321603b3df60c/tokenizer.json
+  [32m✓[39m Wrote train record /Users/brbrainerd/dev/vox-mens-compare/mens/runs/qwen3-4b/train-record.json
+Error: estimated peak 61637 MB (every row at --seq-len 3072, gradient checkpointing true) exceeds 57695 MB free (Metal working set); lower --seq-len or free memory, or set VOX_MENS_FORCE_TRAIN=1 to try anyway

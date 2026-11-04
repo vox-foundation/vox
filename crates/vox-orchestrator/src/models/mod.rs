@@ -1,5 +1,6 @@
 pub mod adaptation;
 pub mod admission;
+#[cfg(feature = "runtime")]
 pub mod auto_select;
 pub mod autonomic;
 pub mod bench_evidence;
@@ -31,9 +32,9 @@ mod tests;
 pub mod tiering;
 pub mod vram;
 
+#[cfg(feature = "runtime")]
 pub use auto_select::{
-    AutoModelSelection, detect_hardware_vram_gb, is_host_apple_silicon, select_optimal_local_model,
-    select_optimal_local_model_for_host, select_tier_for_vram,
+    AutoModelSelection, select_for_free_memory, select_optimal_local_model_for_host,
 };
 pub use cost_tier::{
     CHEAP_COST_PER_1K_USD, CostTier, blended_cost_per_1k, cost_tier_for, cost_tier_for_blended,

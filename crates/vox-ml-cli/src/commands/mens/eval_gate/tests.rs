@@ -570,6 +570,201 @@ rust_compile_rate:
 }
 
 #[test]
+fn eval_local_gate_not_applicable_when_parse_rate_absent_but_heldout_report_exists() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    // Empty object used to be read as parse_rate=0.0 and hard-fail every heldout run.
+    std::fs::write(dir.path().join("eval_results.json"), "{}").unwrap();
+    std::fs::write(
+        dir.path().join("eval_local_report.json"),
+        r#"{"anti_stub_task_success":0.95,"placeholder_event_rate":0.0,"trivial_placeholder_event_rate":0.0,"construct_richness_mean":0.2}"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+eval_local:
+  min_parse_rate: 0.88
+  min_coverage_pct: 0.25
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let g = results
+        .iter()
+        .find(|r| r.name == "eval_local")
+        .expect("eval_local gate");
+    assert!(
+        g.passed,
+        "absent corpus parse_rate must be N/A when heldout report exists: {}",
+        g.message
+    );
+    assert!(
+        g.message.contains("not applicable"),
+        "message explains N/A: {}",
+        g.message
+    );
+}
+
+#[test]
+fn eval_local_gate_still_enforces_when_vox_parse_rate_present() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        dir.path().join("eval_results.json"),
+        r#"{"vox_parse_rate":0.50,"construct_coverage_pct":10.0}"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+eval_local:
+  min_parse_rate: 0.88
+  min_coverage_pct: 0.25
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let g = results
+        .iter()
+        .find(|r| r.name == "eval_local")
+        .expect("eval_local gate");
+    assert!(
+        !g.passed,
+        "low corpus parse_rate must still fail: {}",
+        g.message
+    );
+    assert!(g.block);
+}
+
+#[test]
+fn pass_at_k_when_k_is_one_collapses_min_k_to_pass_at_1() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    // 0.30 clears pass@1 min 0.25 but would fail a naive pass@k min 0.50.
+    std::fs::write(
+        dir.path().join("benchmark_passatk.json"),
+        r#"{"schema":"vox_mens_benchmark_passatk_v1","n":1,"k":1,"pass_rate_at_1":0.30,"pass_rate_at_k":0.30,"total":52}"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+pass_at_k:
+  min_pass_rate_at_1: 0.25
+  min_pass_rate_at_k: 0.50
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let g = results
+        .iter()
+        .find(|r| r.name == "pass_at_k")
+        .expect("pass_at_k gate");
+    assert!(
+        g.passed,
+        "k=1 must not require the k>1 pass@k floor: {}",
+        g.message
+    );
+    assert!(
+        g.message.contains("k=1"),
+        "message should note the collapse: {}",
+        g.message
+    );
+}
+
+#[test]
+fn pass_at_k_when_k_gt_one_still_requires_pass_at_k_floor() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        dir.path().join("benchmark_passatk.json"),
+        r#"{"schema":"vox_mens_benchmark_passatk_v1","n":5,"k":5,"pass_rate_at_1":0.30,"pass_rate_at_k":0.30,"total":52}"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+pass_at_k:
+  min_pass_rate_at_1: 0.25
+  min_pass_rate_at_k: 0.50
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let g = results
+        .iter()
+        .find(|r| r.name == "pass_at_k")
+        .expect("pass_at_k gate");
+    assert!(
+        !g.passed,
+        "k>1 must still enforce min_pass_rate_at_k: {}",
+        g.message
+    );
+}
+
+#[test]
+fn review_recurrence_absent_metrics_are_non_blocking_na() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+review_recurrence:
+  max_repeated_finding_rate: 0.30
+  max_post_training_regression_rate: 0.15
+  min_recurrence_delta: 0.01
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let g = results
+        .iter()
+        .find(|r| r.name == "review_recurrence")
+        .expect("review_recurrence gate");
+    assert!(
+        g.passed,
+        "absent producer must not fail promote: {}",
+        g.message
+    );
+    assert!(!g.block, "absent review_metrics must be non-blocking");
+}
+
+#[test]
+fn review_recurrence_present_metrics_still_block_on_bad_rates() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        dir.path().join("review_metrics.json"),
+        r#"{"repeated_finding_rate":0.90,"post_training_regression_rate":0.80,"recurrence_delta":0.0}"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+review_recurrence:
+  max_repeated_finding_rate: 0.30
+  max_post_training_regression_rate: 0.15
+  min_recurrence_delta: 0.01
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let g = results
+        .iter()
+        .find(|r| r.name == "review_recurrence")
+        .expect("review_recurrence gate");
+    assert!(!g.passed, "bad present metrics must fail: {}", g.message);
+    assert!(g.block);
+}
+
+#[test]
 fn pass_at_k_gate_hard_fails_when_baseline_configured_but_missing() {
     // Task A3 (c): a configured baseline_file that is absent must hard-fail
     // the gate, not silently skip the regression check — the defect class
@@ -1104,4 +1299,67 @@ fn check_leakage_precondition_reports_not_applicable_outside_workspace() {
         "message should say the precondition is not applicable: {}",
         g.message
     );
+}
+
+#[test]
+fn collateral_damage_gate_blocks_when_status_not_pass() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        dir.path().join("collateral_damage_report.json"),
+        r#"{"status":"fail","failed_on":"gsm8k_think","fail_fast":true}"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+collateral_damage:
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let g = results
+        .iter()
+        .find(|r| r.name == "collateral_damage")
+        .expect("collateral_damage gate");
+    assert!(!g.passed, "{}", g.message);
+    assert!(g.block);
+    assert!(g.message.contains("gsm8k_think"));
+}
+
+#[test]
+fn collateral_damage_gate_passes_on_status_pass() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        dir.path().join("collateral_damage_report.json"),
+        r#"{"status":"pass","failed_on":null,"fail_fast":true}"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+collateral_damage:
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let g = results
+        .iter()
+        .find(|r| r.name == "collateral_damage")
+        .expect("collateral_damage gate");
+    assert!(g.passed, "{}", g.message);
+}
+
+#[test]
+fn ladder_policy_loads_and_enables_collateral_block() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../mens/config/eval-gates-ladder.yaml");
+    let policy = super::policy::load_policy(&path).expect("load ladder policy");
+    assert!(policy.collateral_damage.block);
+    assert!(policy.anti_stub.block);
+    assert!(policy.pass_at_k.block);
+    assert!(!policy.review_recurrence.block);
 }

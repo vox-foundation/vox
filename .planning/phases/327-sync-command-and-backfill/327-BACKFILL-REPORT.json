@@ -1,0 +1,140 @@
+{
+  "schema": "vox_mens_hf_backfill_report_v1",
+  "push_rows": [
+    {
+      "size": "0.6B",
+      "base_pin": "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
+      "repo_id": "<namespace>/vox-mens-qwen3-0.6b",
+      "local_dir": "mens/runs/qwen3-0.6b",
+      "sync_status": "in_sync",
+      "gate_status": "ungated (collateral_damage_report.json (status != pass), gate_receipt.json (missing))",
+      "final_loss": 0.6897967601807622,
+      "measured_peak_mb": 15319,
+      "action_taken": null
+    },
+    {
+      "size": "1.7B",
+      "base_pin": "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+      "repo_id": "<namespace>/vox-mens-qwen3-1.7b",
+      "local_dir": "mens/runs/qwen3-1.7b",
+      "sync_status": "in_sync",
+      "gate_status": "ungated (collateral_damage_report.json (status != pass), gate_receipt.json (missing))",
+      "final_loss": 0.6170382260365842,
+      "measured_peak_mb": 27007,
+      "action_taken": null
+    },
+    {
+      "size": "4B",
+      "base_pin": "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",
+      "repo_id": "<namespace>/vox-mens-qwen3-4b",
+      "local_dir": "mens/runs/qwen3-4b",
+      "sync_status": "in_sync",
+      "gate_status": "ungated (gate_receipt.json (overall_passed != true))",
+      "final_loss": 0.5434616348390439,
+      "measured_peak_mb": 34460,
+      "action_taken": null
+    },
+    {
+      "size": "8B",
+      "base_pin": "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",
+      "repo_id": "<namespace>/vox-mens-qwen3-8b",
+      "local_dir": "mens/runs/qwen3-8b",
+      "sync_status": "not_trained",
+      "gate_status": null,
+      "final_loss": null,
+      "measured_peak_mb": null,
+      "action_taken": null
+    },
+    {
+      "size": "14B",
+      "base_pin": "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",
+      "repo_id": "<namespace>/vox-mens-qwen3-14b",
+      "local_dir": "mens/runs/qwen3-14b",
+      "sync_status": "not_trained",
+      "gate_status": null,
+      "final_loss": null,
+      "measured_peak_mb": null,
+      "action_taken": null
+    },
+    {
+      "size": "32B",
+      "base_pin": "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",
+      "repo_id": "<namespace>/vox-mens-qwen3-32b",
+      "local_dir": "mens/runs/qwen3-32b",
+      "sync_status": "not_trained",
+      "gate_status": null,
+      "final_loss": null,
+      "measured_peak_mb": null,
+      "action_taken": null
+    }
+  ],
+  "verify_rows": [
+    {
+      "size": "0.6B",
+      "base_pin": "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
+      "repo_id": "<namespace>/vox-mens-qwen3-0.6b",
+      "local_dir": "mens/runs/qwen3-0.6b",
+      "sync_status": "in_sync",
+      "gate_status": "ungated (collateral_damage_report.json (status != pass), gate_receipt.json (missing))",
+      "final_loss": 0.6897967601807622,
+      "measured_peak_mb": 15319,
+      "action_taken": null
+    },
+    {
+      "size": "1.7B",
+      "base_pin": "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+      "repo_id": "<namespace>/vox-mens-qwen3-1.7b",
+      "local_dir": "mens/runs/qwen3-1.7b",
+      "sync_status": "in_sync",
+      "gate_status": "ungated (collateral_damage_report.json (status != pass), gate_receipt.json (missing))",
+      "final_loss": 0.6170382260365842,
+      "measured_peak_mb": 27007,
+      "action_taken": null
+    },
+    {
+      "size": "4B",
+      "base_pin": "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",
+      "repo_id": "<namespace>/vox-mens-qwen3-4b",
+      "local_dir": "mens/runs/qwen3-4b",
+      "sync_status": "in_sync",
+      "gate_status": "ungated (gate_receipt.json (overall_passed != true))",
+      "final_loss": 0.5434616348390439,
+      "measured_peak_mb": 34460,
+      "action_taken": null
+    },
+    {
+      "size": "8B",
+      "base_pin": "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",
+      "repo_id": "<namespace>/vox-mens-qwen3-8b",
+      "local_dir": "mens/runs/qwen3-8b",
+      "sync_status": "not_trained",
+      "gate_status": null,
+      "final_loss": null,
+      "measured_peak_mb": null,
+      "action_taken": null
+    },
+    {
+      "size": "14B",
+      "base_pin": "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",
+      "repo_id": "<namespace>/vox-mens-qwen3-14b",
+      "local_dir": "mens/runs/qwen3-14b",
+      "sync_status": "not_trained",
+      "gate_status": null,
+      "final_loss": null,
+      "measured_peak_mb": null,
+      "action_taken": null
+    },
+    {
+      "size": "32B",
+      "base_pin": "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137",
+      "repo_id": "<namespace>/vox-mens-qwen3-32b",
+      "local_dir": "mens/runs/qwen3-32b",
+      "sync_status": "not_trained",
+      "gate_status": null,
+      "final_loss": null,
+      "measured_peak_mb": null,
+      "action_taken": null
+    }
+  ],
+  "pull_roundtrip_0_6b_verified": true
+}

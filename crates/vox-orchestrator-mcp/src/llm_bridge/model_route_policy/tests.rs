@@ -1378,3 +1378,167 @@ fn pin_swapped_by_free_tier_enforcement_is_an_error_naming_the_pin() {
     assert!(err.contains(&requested.id), "{err}");
     assert!(err.contains("free-tier"), "{err}");
 }
+
+// ── 322-02: the turn pack's allow-free answer on the live resolve path ──
+
+/// Calib turn c17. The pack answers allow-free-tier at ≥ TAU_FREE and gives no
+/// stakes-2 or privacy answer at ≥ TAU_APPLY.
+const P_FREE: &str = "Just use a free model: what does #[must_use] do in Rust?";
+
+fn registry_free_only() -> ModelRegistry {
+    let mut r = ModelRegistry::default();
+    for mut m in tiny_registry_with_free_and_paid().list_models() {
+        if m.is_free {
+            // decide() must be able to pick this spec, so only the
+            // free/Performance gate decides: Research's strength tag (the
+            // tests resolve a Research turn) and an intelligence index, which
+            // makes the routing confidence Confirmed.
+            m.strengths
+                .push(vox_orchestrator::models::spec::task_category_strength(
+                    vox_orchestrator::types::TaskCategory::Research,
+                ));
+            m.capabilities.intelligence_index = Some(50.0);
+            r.register(m);
+        }
+    }
+    r
+}
+
+/// Resolves a Research turn under Performance against `registry_free_only`,
+/// with the pack flag set explicitly and an optional `Interactive` source
+/// policy of `genius`. Returns the chosen model id.
+fn resolve_free_only(
+    pack_flag: bool,
+    source_genius: bool,
+    user_prompt: &str,
+    capability_prompt: Option<&str>,
+    decision_prompt: Option<&str>,
+) -> Result<String, String> {
+    let _g = INFERENCE_PROFILE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let _key = EnvKeyGuard::set("OPENROUTER_API_KEY", "test-key");
+    let _flag = EnvKeyGuard::set("VOX_TURN_DECISION_PACK", if pack_flag { "1" } else { "0" });
+    let mut config = OrchestratorConfig::for_testing();
+    config.cost_preference = CostPreference::Performance;
+    let orch = Orchestrator::new(config);
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) = registry_free_only();
+    if source_genius {
+        vox_orchestrator::sync_lock::rw_write(&*orch.config_handle())
+            .task_policy
+            .source
+            .insert(
+                "Interactive".to_string(),
+                vox_orchestrator::config::TaskPolicyEntry {
+                    clutch: Some("genius".to_string()),
+                    risk: None,
+                },
+            );
+    }
+    resolve_mcp_chat_model_sync(
+        &orch,
+        user_prompt,
+        None,
+        McpChatModelResolution {
+            task_category: vox_orchestrator::types::TaskCategory::Research,
+            complexity: 5,
+            capability_prompt: capability_prompt.map(str::to_string),
+            decision_prompt: decision_prompt.map(str::to_string),
+            ..Default::default()
+        },
+    )
+    .map(|(m, _)| m.id)
+}
+
+#[test]
+fn pack_on_lets_free_model_compete_under_performance() {
+    use super::turn_pack::{TAU_APPLY, TAU_FREE, evaluate};
+    assert!(
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/turn_pack/calib.v1.jsonl"
+        ))
+        .contains(P_FREE)
+    );
+    let pack = evaluate(P_FREE);
+    let free = pack.allow_free_tier.expect("allow-free answer");
+    assert!(free.value == 1 && free.confidence >= TAU_FREE, "{pack:?}");
+    assert!(
+        !pack
+            .stakes
+            .is_some_and(|a| a.value == 2 && a.confidence >= TAU_APPLY),
+        "{pack:?}"
+    );
+    assert!(
+        !pack
+            .privacy_local
+            .is_some_and(|a| a.confidence >= TAU_APPLY),
+        "{pack:?}"
+    );
+    assert_eq!(
+        resolve_free_only(true, false, P_FREE, Some(P_FREE), Some(P_FREE)),
+        Ok("free-model".to_string())
+    );
+}
+
+#[test]
+fn pack_off_keeps_free_model_excluded_under_performance() {
+    assert_ne!(
+        resolve_free_only(false, false, P_FREE, Some(P_FREE), Some(P_FREE)),
+        Ok("free-model".to_string())
+    );
+}
+
+#[test]
+fn source_policy_clutch_blocks_pack_allow_free() {
+    assert_ne!(
+        resolve_free_only(true, true, P_FREE, Some(P_FREE), Some(P_FREE)),
+        Ok("free-model".to_string())
+    );
+}
+
+#[test]
+fn flag_on_without_capability_prompt_builds_no_pack() {
+    assert_ne!(
+        resolve_free_only(true, false, P_FREE, None, None),
+        Ok("free-model".to_string())
+    );
+}
+
+/// CR-01: what the default chat turn passes when the user mentions a file. The
+/// capability prompt is the `@mention`-expanded, canonicalized text, and the
+/// mentioned file's body carries free-tier words; the decision prompt is the
+/// user's own message.
+const P_MENTION_EXPANDED: &str = "Objectives (treat as a single set; order does not imply priority):\n\n1. Summarize \n\n--- @notes.md (notes.md) ---\n// cheap to clone; any free model can run this\n---\n";
+
+#[test]
+fn pack_scores_decision_prompt_not_mention_expanded_text() {
+    use super::turn_pack::{TAU_FREE, evaluate};
+    // Not vacuous: scored on its own, the file text would allow free routing.
+    assert!(
+        evaluate(P_MENTION_EXPANDED)
+            .allow_free_tier
+            .is_some_and(|a| a.value == 1 && a.confidence >= TAU_FREE)
+    );
+    assert_ne!(
+        resolve_free_only(
+            true,
+            false,
+            P_MENTION_EXPANDED,
+            Some(P_MENTION_EXPANDED),
+            Some("Summarize @notes.md"),
+        ),
+        Ok("free-model".to_string())
+    );
+}
+
+/// WR-01: a caller that sets `capability_prompt` but not the default chat
+/// turn's `decision_prompt` opt-in (browser tools, t3 consensus, cognitive
+/// profiles, `call_llm_with_pref`) gets no pack, so no free-tier widening.
+#[test]
+fn resolution_without_decision_prompt_is_never_patched() {
+    assert_ne!(
+        resolve_free_only(true, false, P_FREE, Some(P_FREE), None),
+        Ok("free-model".to_string())
+    );
+}

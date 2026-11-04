@@ -12,6 +12,7 @@
 //!
 //! See: docs/src/architecture/plugin-system-redesign-2026.md
 
+mod attention;
 mod backend;
 pub mod candle_qlora_train;
 mod checkpoint;

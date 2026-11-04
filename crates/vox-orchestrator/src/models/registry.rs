@@ -690,7 +690,6 @@ impl ModelRegistry {
             }
         }
 
-        registry.register_mens_local_candidates();
         registry.apply_routing_reference();
         registry
     }
@@ -766,70 +765,10 @@ impl ModelRegistry {
         #[cfg(not(test))]
         registry.maybe_refresh_catalogs();
 
-        registry.register_mens_local_candidates();
         // Test builds stay on the fixed constants (hermetic, like `maybe_refresh_catalogs`).
         #[cfg(not(test))]
         registry.apply_routing_reference();
         registry
-    }
-
-    /// Register candidate entries for Mens 27B quantization tiers and 8B fallback under [`ProviderType::VoxLocal`].
-    pub fn register_mens_local_candidates(&mut self) {
-        let tiers = [
-            ("mens/runs/qwen3_27b_metal_check/merged_bf16", 27.0),
-            ("mens/runs/qwen3_27b_metal_check/quant_q8_0", 27.0),
-            ("mens/runs/qwen3_27b_metal_check/quant_q6_k", 27.0),
-            ("mens/runs/qwen3_27b_metal_check/quant_q5_k_m", 27.0),
-            ("mens/runs/qwen3_27b_metal_check/quant_q4_k_m", 27.0),
-            ("vox-mens-8b-v0.6", 8.0),
-        ];
-        for (id, param_count) in tiers {
-            if !self.models.contains_key(id) {
-                let spec = ModelSpec {
-                    id: id.to_string(),
-                    canonical_slug: format!("voxlocal/{}", id),
-                    provider: "voxlocal".to_string(),
-                    provider_type: ProviderType::VoxLocal,
-                    max_tokens: 8192,
-                    cost_per_1k: 0.0,
-                    cost_per_1k_input: 0.0,
-                    cost_per_1k_output: 0.0,
-                    is_free: true,
-                    observed_cost_per_1k: None,
-                    strengths: vec![
-                        crate::models::generated::StrengthTag::Generalist,
-                        crate::models::generated::StrengthTag::Codegen,
-                        crate::models::generated::StrengthTag::UiCodegen,
-                        crate::models::generated::StrengthTag::Parsing,
-                        crate::models::generated::StrengthTag::Debugging,
-                        crate::models::generated::StrengthTag::Review,
-                        crate::models::generated::StrengthTag::Security,
-                        crate::models::generated::StrengthTag::Logic,
-                        crate::models::generated::StrengthTag::InterAgent,
-                        crate::models::generated::StrengthTag::Planning,
-                    ],
-                    capabilities: ModelCapabilities {
-                        supports_json: true,
-                        supports_jsonl: true,
-                        supports_tool_use: true,
-                        supports_native_tools: true,
-                        supports_reasoning: true,
-                        writes_vox: true,
-                        max_context: 32768,
-                        latency_p50_ms: Some(140),
-                        tier: crate::models::generated::ModelTier::Local,
-                        param_count_b: Some(param_count),
-                        ..Default::default()
-                    },
-                    cache_creation_cost_per_1k: 0.0,
-                    cache_read_cost_per_1k: 0.0,
-                    supports_prompt_caching: false,
-                    pricing_source: PricingSource::Bootstrap,
-                    supported_parameters: vec![],
-                };
-                self.register(spec);
-            }
-        }
     }
 
     /// Register a calibrated Mens adapter from a 5-spoke [`vox_corpus::training::adapter_registry::MensAdapterRegistryEntry`]
@@ -1705,39 +1644,21 @@ mod tests {
     }
 
     #[test]
-    fn mens_local_variants_registered_under_vox_local() {
-        let reg = ModelRegistry::new();
-        let expected_models = [
-            "mens/runs/qwen3_27b_metal_check/merged_bf16",
-            "mens/runs/qwen3_27b_metal_check/quant_q8_0",
-            "mens/runs/qwen3_27b_metal_check/quant_q6_k",
-            "mens/runs/qwen3_27b_metal_check/quant_q5_k_m",
-            "mens/runs/qwen3_27b_metal_check/quant_q4_k_m",
-            "vox-mens-8b-v0.6",
-        ];
-        for id in expected_models {
-            let m = reg
-                .get(id)
-                .unwrap_or_else(|| panic!("model {id} should be registered in ModelRegistry"));
-            assert_eq!(m.provider_type, ProviderType::VoxLocal);
-            assert_eq!(m.provider, "voxlocal");
-            assert!(m.is_free);
-            assert!(m.capabilities.writes_vox);
-        }
-    }
-
-    #[test]
     fn hierarchical_run_key_normalization_resolves_voxlocal_prefixes() {
         let mut reg = ModelRegistry::new();
+        reg.register(spec(
+            "mens/runs/example_run/quant_q6_k",
+            ProviderType::VoxLocal,
+        ));
         let quant_slug = reg
-            .get("voxlocal/mens/runs/qwen3_27b_metal_check/quant_q6_k")
+            .get("voxlocal/mens/runs/example_run/quant_q6_k")
             .expect("canonical slug lookup should resolve");
-        assert_eq!(quant_slug.id, "mens/runs/qwen3_27b_metal_check/quant_q6_k");
+        assert_eq!(quant_slug.id, "mens/runs/example_run/quant_q6_k");
 
         let quant_run = reg
-            .get("voxlocal/runs/qwen3_27b_metal_check/quant_q6_k")
+            .get("voxlocal/runs/example_run/quant_q6_k")
             .expect("voxlocal/runs/... lookup should resolve");
-        assert_eq!(quant_run.id, "mens/runs/qwen3_27b_metal_check/quant_q6_k");
+        assert_eq!(quant_run.id, "mens/runs/example_run/quant_q6_k");
 
         let test_spec = spec("mens/test_run_1", ProviderType::VoxLocal);
         reg.register(test_spec);

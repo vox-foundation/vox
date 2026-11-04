@@ -1,0 +1,21 @@
+// Stamp a worktree isolation marker so agents do not share live userdata.
+// Usage: vox run scripts/worktree-setup.vox
+// Docs: docs/agents/worktree-isolation.md
+
+fn main() {
+    let marker_dir = ".vox";
+    let marker_path = ".vox/worktree-setup.marker";
+    let _ = process.run("mkdir", ["-p", marker_dir]);
+    let stamp = "worktree-setup ok\n";
+    match std.fs.write(marker_path, stamp) {
+        Ok(_) => {
+            print("worktree-setup: wrote ");
+            print(marker_path);
+            print("\n");
+        }
+        Err(e) => {
+            log.error("worktree-setup: failed to write marker: " + str(e));
+            process.exit(1);
+        }
+    }
+}

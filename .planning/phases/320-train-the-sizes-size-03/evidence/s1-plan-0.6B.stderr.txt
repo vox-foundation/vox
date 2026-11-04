@@ -1,0 +1,19 @@
+  [36mℹ[39m size: 0.6B (explicit): floor 2000 MB fits 58607 MB free (Metal working set)
+[36m╔══════════════════════════════════════════╗[39m
+[36m║   VoxMens — native fine-tuning (QLoRA)  ║[39m
+[36m╚══════════════════════════════════════════╝[39m
+
+  Model:       [36mQwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca[39m
+  Device:      [36mmetal[39m
+  Data:        [36m/Users/brbrainerd/dev/vox-mens-compare/target/dogfood[39m
+  Output:      [36m/Users/brbrainerd/dev/vox-mens-compare/mens/runs/320-plan-0.6B[39m
+  Rank/Alpha:  8/16
+  Batch/Accum: 2/4 (effective=8)
+  Backend:     qlora
+  Tokenizer:   Hf
+  Seq len:     3072
+
+  [36m⏭[39m Skipping corpus mix (`VOX_TRAIN_SKIP_CORPUS_MIX`); using train file under data-dir
+  [36mℹ[39m held-out check: clean (3 slices, 96 held-out questions, 1166 rows)
+  [36mℹ[39m size: 0.6B (explicit): floor 2000 MB fits 58547 MB free (Metal working set)
+  [36mℹ[39m base Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca: qlora floor 2000 MB is an estimate (floor unmeasured)

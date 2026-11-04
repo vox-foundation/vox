@@ -22,10 +22,11 @@ fn provider_allowed_by_route_policy(model: &ModelSpec) -> bool {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn build_selection_request(
+pub(super) fn build_selection_request(
     task: TaskCategory,
     complexity: u8,
     prefer_local: bool,
+    allow_free_in_performance_mode: bool,
     cacheable_workload: bool,
     preference: vox_orchestrator::config::CostPreference,
     required_capabilities: Vec<vox_orchestrator::models::Capability>,
@@ -35,6 +36,7 @@ fn build_selection_request(
     let mut intent = SelectionIntent::for_task(task);
     intent.complexity = complexity;
     intent.prefer_local = prefer_local;
+    intent.allow_free_in_performance_mode = allow_free_in_performance_mode;
     intent.cacheable_workload = cacheable_workload;
     intent.axes = if let Some(clutch) = clutch {
         // Task-driven axes: clutch/risk actually steer the scorer. `effective_axes`
@@ -135,7 +137,7 @@ fn secrets_capability_pin_model_id(
 }
 
 /// Task categories where the Vox-trained local model is preferred when available.
-const VOX_LOCAL_PREFERRED_TASKS: &[TaskCategory] = &[
+pub(super) const VOX_LOCAL_PREFERRED_TASKS: &[TaskCategory] = &[
     TaskCategory::CodeGen,
     TaskCategory::Testing,
     TaskCategory::Parsing,
@@ -505,15 +507,32 @@ fn resolve_mcp_chat_model_sync_inner(
         }
     }
 
-    let req = build_selection_request(
-        task,
-        res.complexity,
+    // DEC-01: the turn pack scores only `decision_prompt`, the user's own words
+    // (before `@mention` expansion and canonicalization). Only the default chat
+    // turn sets it, so `Some` is also the opt-in: every other caller gets no
+    // pack. It never reads `capability_prompt` (which inlines mentioned files)
+    // or the `user_prompt` fallback (history, file and web text), and it fills
+    // only the inputs the caller left unset. Flag off → `None` → today's request.
+    let pack = match res.decision_prompt.as_deref() {
+        Some(text) if vox_config::inference::turn_decision_pack_enabled() => {
+            Some(super::turn_pack::evaluate(text))
+        }
+        _ => None,
+    };
+    if let Some(pack) = pack.as_ref() {
+        tracing::debug!(
+            target: "vox_mcp::turn_pack",
+            version = super::turn_pack::PACK_VERSION,
+            ?pack,
+            "turn decision pack evaluated"
+        );
+    }
+    let req = super::turn_pack::turn_selection_request(
+        pack.as_ref(),
+        &res,
         vox_local_route_preferred,
-        res.free_tier_fill_in_middle,
         preference,
         required_capabilities.clone(),
-        res.clutch,
-        res.risk,
     );
 
     if let Some(decision) = decide(&req, &registry) {
@@ -691,6 +710,7 @@ mod tests {
             TaskCategory::CodeGen,
             7,
             true,
+            false,
             true,
             vox_orchestrator::config::CostPreference::Economy,
             vec![Capability::SupportsToolUse],
@@ -714,6 +734,7 @@ mod tests {
             7,
             false,
             false,
+            false,
             vox_orchestrator::config::CostPreference::Economy, // would be COST_FIRST without clutch
             vec![],
             Some(vox_orchestrator::mode::ClutchProfile::Genius),
@@ -731,6 +752,7 @@ mod tests {
             3,
             false,
             false,
+            false,
             vox_orchestrator::config::CostPreference::Performance, // would be BALANCED without clutch
             vec![],
             Some(vox_orchestrator::mode::ClutchProfile::Free),
@@ -746,6 +768,7 @@ mod tests {
         let req = build_selection_request(
             TaskCategory::CodeGen,
             3,
+            false,
             false,
             false,
             vox_orchestrator::config::CostPreference::Economy,

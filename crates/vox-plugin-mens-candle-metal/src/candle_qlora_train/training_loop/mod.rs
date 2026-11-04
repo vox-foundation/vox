@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use candle_core::Device;
@@ -62,6 +62,7 @@ fn checkpoint_and_bail_on_oom(
     shuffled_indices: &[usize],
     last_loss_val: f32,
     run_start_inst: Instant,
+    observed_peak_bytes: u64,
 ) -> anyhow::Error {
     if !super::oom::is_oom(&err) {
         return err;
@@ -85,6 +86,7 @@ fn checkpoint_and_bail_on_oom(
         wall_seconds_elapsed: run_start_inst.elapsed().as_secs_f64(),
         saved_at_utc: crate::checkpoint_state::CheckpointState::now_utc(),
         data_fingerprint: config.data_fingerprint.clone(),
+        base_model: config.base_model.clone(),
     };
     if let Err(e) = state.save(out) {
         train_log::warn(&format!("OOM CheckpointState save failed: {e}"));
@@ -97,13 +99,10 @@ fn checkpoint_and_bail_on_oom(
         adapter_path: ckpt_path.display().to_string(),
     });
 
-    // ponytail: this plugin crate has no live VRAM telemetry hookup yet
-    // (see training_loop/telem_helpers.rs — HardwareRegistry::monitor() is
-    // vox-populi-internal); 0 records "unknown observed peak", not a real
-    // reading. Wire a real reading when the host-capability reconnect lands.
+    // The sampler's running peak: a lower bound of the true peak at the failing allocation.
     let ev = super::oom::OomEvent {
         step: global_step,
-        observed_bytes: 0,
+        observed_bytes: observed_peak_bytes,
         batch_size: config.batch_size.max(1),
         seq_len: config.seq_len,
         predicted_bytes: 0,
@@ -272,6 +271,7 @@ pub fn run_training_loop(
     let mut skip_short_seq: u64 = 0;
     let mut skip_curriculum: u64 = 0;
     let mut skip_token_id_oob: u64 = 0;
+    let (mut truncated_rows, mut prompt_trimmed_rows) = (0u64, 0u64);
     let mut token_oob_warned = false;
     let mut trajectory_weighted_pairs: u64 = 0;
     let mut trajectory_clamped_pairs: u64 = 0;
@@ -292,7 +292,9 @@ pub fn run_training_loop(
     // drift-allow(timeout-literal,duplicate-numeric-literal): local wait/poll bound, not an HTTP request timeout; a shared constant needs a vox-config edge
     let peak_sampler = super::PeakSampler::start(device, std::time::Duration::from_millis(200));
     let run_start_inst = Instant::now();
-    for epoch in start_epoch..=config.epochs {
+    let mut capped = false;
+    let mut last_checkpoint = Instant::now();
+    'epochs: for epoch in start_epoch..=config.epochs {
         let shuffled_indices = checkpoint::build_epoch_shuffled_indices(
             epoch,
             start_epoch,
@@ -399,6 +401,12 @@ pub fn run_training_loop(
                 }
                 TryEncodeOutcome::Encoded(enc) => enc,
             };
+            if epoch == start_epoch {
+                let (cut, trimmed) =
+                    truncation_flags(enc.raw_token_len, enc.ids.len(), enc.trunc_offset);
+                truncated_rows += u64::from(cut);
+                prompt_trimmed_rows += u64::from(trimmed);
+            }
 
             total_tokens += enc.raw_token_len;
 
@@ -441,6 +449,7 @@ pub fn run_training_loop(
                         &shuffled_indices,
                         last_loss_val,
                         run_start_inst,
+                        peak_sampler.observed_peak_bytes(),
                     ));
                 }
             };
@@ -463,10 +472,17 @@ pub fn run_training_loop(
                     supervised_tokens,
                     theoretical_tokens,
                     syntax_weight_sum,
+                    ckpt,
                 } => {
-                    if let Err(e) = trainer.backward_step(&loss) {
+                    let stepped = match ckpt {
+                        Some(ckpt) => forward::checkpointed_backward_step(trainer, &model, ckpt),
+                        None => trainer
+                            .backward_step(&loss)
+                            .map_err(|e| anyhow::anyhow!("{e}")),
+                    };
+                    if let Err(e) = stepped {
                         return Err(checkpoint_and_bail_on_oom(
-                            anyhow::anyhow!("{e}"),
+                            e,
                             trainer,
                             out,
                             config,
@@ -478,6 +494,7 @@ pub fn run_training_loop(
                             &shuffled_indices,
                             last_loss_val,
                             run_start_inst,
+                            peak_sampler.observed_peak_bytes(),
                         ));
                     }
                     total_valid_tokens = total_valid_tokens.saturating_add(supervised_tokens);
@@ -595,7 +612,7 @@ pub fn run_training_loop(
                 } else {
                     None
                 };
-                let step_payload = telem_helpers::build_train_step_payload(
+                let mut step_payload = telem_helpers::build_train_step_payload(
                     epoch,
                     global_step,
                     optimizer_step_count,
@@ -616,6 +633,8 @@ pub fn run_training_loop(
                     config.seq_len as u64,
                     total_syntax_weight,
                 );
+                step_payload["peak_metal_allocated_bytes"] =
+                    serde_json::json!(peak_sampler.observed_peak_bytes());
                 telemetry::append(out, telemetry_schema::events::TRAIN_STEP, step_payload)?;
                 progress_anchor_step = optimizer_step_count;
                 progress_anchor_time = now;
@@ -640,6 +659,7 @@ pub fn run_training_loop(
                     wall_seconds_elapsed: run_start_inst.elapsed().as_secs_f64(),
                     saved_at_utc: crate::checkpoint_state::CheckpointState::now_utc(),
                     data_fingerprint: config.data_fingerprint.clone(),
+                    base_model: config.base_model.clone(),
                 };
                 state.save(out).context("save CheckpointState on pause")?;
                 let wall_secs = run_start_inst.elapsed().as_secs_f64();
@@ -660,6 +680,15 @@ pub fn run_training_loop(
                 });
             }
 
+            let optimizer_boundary = global_step.is_multiple_of(grad_accum);
+            capped = runtime_cap_reached(
+                config.max_runtime_secs,
+                run_start_inst.elapsed(),
+                optimizer_step_count,
+                optimizer_boundary,
+            );
+            // A capped run also saves here, so finalize can leave a resume
+            // point at the step it stopped on.
             super::checkpoint_mid::maybe_save_mid_epoch_checkpoint(
                 trainer,
                 out,
@@ -672,7 +701,17 @@ pub fn run_training_loop(
                 &shuffled_indices,
                 last_loss_val,
                 run_start_inst,
+                &mut last_checkpoint,
+                optimizer_boundary,
+                capped,
             )?;
+            if capped {
+                train_log::info(&format!(
+                    "run cap reached after {} s at optimizer step {optimizer_step_count}; finalizing",
+                    run_start_inst.elapsed().as_secs()
+                ));
+                break 'epochs;
+            }
         }
 
         let (val_loss_sum, val_steps) = validation::run_validation_pass(
@@ -729,8 +768,61 @@ pub fn run_training_loop(
             skip_short_seq,
             skip_curriculum,
             skip_token_id_oob,
+            capped,
+            truncated_rows,
+            prompt_trimmed_rows,
+            final_loss_ema: ema_loss_val,
         },
         run_start_inst,
         peak_metal_bytes,
     )
+}
+
+/// The local run cap fires only right after an optimizer step, never before the first.
+fn runtime_cap_reached(
+    cap_secs: Option<u64>,
+    elapsed: Duration,
+    optimizer_steps: u32,
+    at_optimizer_boundary: bool,
+) -> bool {
+    if optimizer_steps == 0 || !at_optimizer_boundary {
+        return false;
+    }
+    cap_secs.is_some_and(|c| elapsed.as_secs() >= c)
+}
+
+/// (any token dropped, prompt middle-trimmed) for one encoded row (D-04).
+fn truncation_flags(raw_token_len: usize, kept_len: usize, trunc_offset: usize) -> (bool, bool) {
+    (raw_token_len > kept_len, trunc_offset > 0)
+}
+
+#[cfg(test)]
+mod cap_tests {
+    fn cap(c: Option<u64>, secs: u64, steps: u32, boundary: bool) -> bool {
+        super::runtime_cap_reached(c, super::Duration::from_secs(secs), steps, boundary)
+    }
+
+    #[test]
+    fn no_cap_never_stops() {
+        assert!(!cap(None, 36_000, 100, true));
+    }
+    #[test]
+    fn cap_waits_for_the_first_optimizer_step() {
+        assert!(!cap(Some(60), 120, 0, true));
+    }
+    #[test]
+    fn cap_stops_only_at_an_optimizer_boundary() {
+        assert!(!cap(Some(60), 120, 3, false));
+        assert!(cap(Some(60), 120, 3, true));
+    }
+    #[test]
+    fn cap_not_reached_before_its_time() {
+        assert!(!cap(Some(60), 59, 3, true));
+    }
+    #[test]
+    fn truncation_flags_cover_fit_trimmed_and_cut() {
+        assert_eq!(super::truncation_flags(100, 100, 0), (false, false));
+        assert_eq!(super::truncation_flags(4000, 3072, 0), (true, false));
+        assert_eq!(super::truncation_flags(4000, 3072, 900), (true, true));
+    }
 }

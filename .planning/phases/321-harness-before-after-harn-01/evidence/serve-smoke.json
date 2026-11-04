@@ -1,0 +1,63 @@
+{
+  "schema": "321_serve_smoke.v1",
+  "recorded_at": "2026-11-01T08:59:30+00:00",
+  "decision": "close_ladder_at_4b_collateral_pass",
+  "file_serve_0_6b": {
+    "model": "mens/runs/qwen3-0.6b/candle_qlora_adapter.safetensors",
+    "refused": true,
+    "exit": 1,
+    "reason": "resolve_serve_run_dir — file path skips collateral (D-321-10)"
+  },
+  "file_serve_4b": {
+    "model": "mens/runs/qwen3-4b/candle_qlora_adapter.safetensors",
+    "refused": true,
+    "exit": 1,
+    "reason": "resolve_serve_run_dir — file path skips collateral (D-321-10)"
+  },
+  "dir_serve_0_6b": {
+    "model": "mens/runs/qwen3-0.6b",
+    "passed": false,
+    "refused": true,
+    "exit": 1,
+    "reason": "collateral status=fail — serve correctly refused"
+  },
+  "dir_serve_1_7b": {
+    "model": "mens/runs/qwen3-1.7b",
+    "passed": false,
+    "refused": true,
+    "reason": "collateral status=fail (vox_think) — same gate as 0.6B; not re-probed after 0.6B refuse"
+  },
+  "dir_serve_4b": {
+    "model": "mens/runs/qwen3-4b",
+    "collateral_gate_passed": true,
+    "passed": false,
+    "refused": true,
+    "exit": 1,
+    "reason": "collateral status=pass verified across vox_think/gsm8k_think/math500_think; refused at assert_serve_preconditions (eval-gate overall_passed=false)"
+  },
+  "harn_01_verdict": "PASS_gate_enforcement (4B passes assert_collateral_gate; eval-gate blocks live serve)",
+  "attempts": [
+    {
+      "label": "adapter_file",
+      "model": "mens/runs/qwen3-0.6b/candle_qlora_adapter.safetensors",
+      "exit": 1,
+      "refused": true,
+      "snippet": "Error: --model must be the adapter run directory (e.g. mens/runs/qwen3-0.6b), not the candle_qlora_adapter.safetensors file — serving the file skips collateral gate checks (see Phase 320 LADDER-REPORT finding / D-321-10)\n"
+    },
+    {
+      "label": "run_dir_fail_collateral",
+      "model": "mens/runs/qwen3-0.6b",
+      "exit": 1,
+      "refused": true,
+      "snippet": "Error: eval_collateral_damage check FAILED. The adapter degraded performance beyond acceptable thresholds and cannot be served.\n"
+    },
+    {
+      "label": "run_dir_4b_collateral_pass",
+      "model": "mens/runs/qwen3-4b",
+      "exit": 1,
+      "collateral_gate_passed": true,
+      "refused": true,
+      "snippet": "Error: eval-gate did not pass for this run; refusing to serve\n"
+    }
+  ]
+}

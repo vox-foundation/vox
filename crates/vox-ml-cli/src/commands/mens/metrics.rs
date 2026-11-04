@@ -166,43 +166,227 @@ pub fn extract_code(completion: &str) -> String {
     text.trim().to_string()
 }
 
-/// Counts occurrences of placeholder markers in code (anti-stub metric).
+/// Counts distinct placeholder-marker *categories* hit in code (anti-stub metric).
+///
+/// Matches genuine stub forms with word boundaries / macro shapes so short valid
+/// Vox is not over-flagged, while `todo!()`, `unimplemented!()`, `TODO`, and
+/// explicit stub phrases still fail.
 pub fn placeholder_marker_hits(source: &str) -> usize {
-    let lower = source.to_ascii_lowercase();
-    [
-        "todo",
-        "tbd",
-        "placeholder",
-        "stub",
-        "not implemented",
-        "coming soon",
-    ]
-    .iter()
-    .filter(|m| lower.contains(**m))
-    .count()
+    // One compiled regex per category; count how many categories match.
+    static CATEGORIES: std::sync::LazyLock<[Regex; 8]> = std::sync::LazyLock::new(|| {
+        [
+            Regex::new(r"(?i)todo!\s*\(").expect("todo! regex"),
+            Regex::new(r"(?i)unimplemented!\s*\(").expect("unimplemented! regex"),
+            Regex::new(r"(?i)\btodo\b").expect("todo word regex"),
+            Regex::new(r"(?i)\btbd\b").expect("tbd word regex"),
+            Regex::new(r"(?i)\bplaceholder\b").expect("placeholder word regex"),
+            Regex::new(r"(?i)\bstub\b").expect("stub word regex"),
+            Regex::new(r"(?i)not\s+implemented").expect("not implemented regex"),
+            Regex::new(r"(?i)coming\s+soon").expect("coming soon regex"),
+        ]
+    });
+    CATEGORIES.iter().filter(|re| re.is_match(source)).count()
 }
 
-/// Checks if output is a trivial placeholder/empty stub.
+/// True when a non-comment code line is itself a hollow stub token.
+fn is_hollow_stub_line(line: &str) -> bool {
+    let s = line.trim().trim_end_matches(';').trim();
+    if s.is_empty() {
+        return true;
+    }
+    let lower = s.to_ascii_lowercase();
+    lower == "..."
+        || lower == "todo!()"
+        || lower == "unimplemented!()"
+        || lower == "pass"
+        || lower == "return"
+        || lower == "return ()"
+        || lower == "()"
+}
+
+/// Checks if output is a trivial placeholder/empty/hollow stub body.
 pub fn is_trivial_placeholder_output(source: &str) -> bool {
     let trimmed = source.trim();
     if trimmed.is_empty() {
         return true;
     }
-    if trimmed.eq_ignore_ascii_case("return") || trimmed == ";" || trimmed == "{}" {
+    if trimmed.eq_ignore_ascii_case("return")
+        || trimmed == ";"
+        || trimmed == "{}"
+        || trimmed == "..."
+    {
         return true;
     }
-    let code_lines = trimmed
+    let code_lines: Vec<&str> = trimmed
         .lines()
         .map(str::trim)
         .filter(|l| !l.is_empty() && !l.starts_with("//"))
-        .count();
-    if code_lines <= 1 {
+        .collect();
+    if code_lines.is_empty() {
+        return true;
+    }
+    if code_lines.iter().all(|l| is_hollow_stub_line(l)) {
+        return true;
+    }
+    // Declaration with an empty or ellipsis-only body: `fn f() { }` / `{ ... }`.
+    if let (Some(open), Some(close)) = (trimmed.find('{'), trimmed.rfind('}')) {
+        if close > open {
+            let body = trimmed[open + 1..close].trim();
+            let body_lines: Vec<&str> = body
+                .lines()
+                .map(str::trim)
+                .filter(|l| !l.is_empty() && !l.starts_with("//"))
+                .collect();
+            if body_lines.is_empty() || body_lines.iter().all(|l| is_hollow_stub_line(l)) {
+                return true;
+            }
+        }
+    }
+    if code_lines.len() <= 1 {
         let stripped: String = trimmed.chars().filter(|c| !c.is_whitespace()).collect();
         if stripped.len() <= 5 || stripped.ends_with("{}") || stripped.ends_with("();") {
             return true;
         }
     }
     false
+}
+
+/// Live anti-stub verdict: no placeholder markers and not a trivial/hollow body.
+///
+/// Intentionally independent of parse/typecheck success — those are other gates.
+#[must_use]
+pub fn anti_stub_pass_from_flags(placeholder_hits: usize, trivial_placeholder: bool) -> bool {
+    placeholder_hits == 0 && !trivial_placeholder
+}
+
+/// Aggregate anti-stub run metrics from an `eval_local_report.json` value.
+///
+/// Prefer recomputing from per-sample `checks` so gate evaluation stays correct
+/// after scoring-rule fixes even when top-level header fields were written by an
+/// older binary (or drifted). Falls back to header fields when `results` is absent.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AntiStubRunMetrics {
+    pub anti_stub_task_success: f64,
+    pub placeholder_event_rate: f64,
+    pub trivial_placeholder_event_rate: f64,
+    /// Mean best construct-richness among tasks that had at least one `parse_ok` sample.
+    pub construct_richness_mean: f64,
+    pub source: AntiStubMetricsSource,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AntiStubMetricsSource {
+    RecomputedFromSamples,
+    ReportHeader,
+}
+
+#[must_use]
+pub fn anti_stub_metrics_from_eval_local_report(report: &serde_json::Value) -> AntiStubRunMetrics {
+    if let Some(results) = report.get("results").and_then(|v| v.as_array()) {
+        if !results.is_empty() {
+            let total = results.len() as f64;
+            let mut anti_pass = 0usize;
+            let mut ph_tasks = 0usize;
+            let mut triv_tasks = 0usize;
+            let mut rich_sum = 0.0_f64;
+            let mut rich_n = 0usize;
+            for task in results {
+                let samples = task
+                    .get("samples")
+                    .and_then(|s| s.as_array())
+                    .map(|a| a.as_slice())
+                    .unwrap_or(&[]);
+                let mut task_anti = false;
+                let mut task_ph = false;
+                let mut task_triv = false;
+                let mut best_parse_ok_richness: Option<f64> = None;
+                for sample in samples {
+                    let checks = sample.get("checks");
+                    let ph = checks
+                        .and_then(|c| c.get("placeholder_marker_hits"))
+                        .and_then(|x| x.as_u64())
+                        .unwrap_or(0) as usize;
+                    let triv = checks
+                        .and_then(|c| c.get("trivial_placeholder_output"))
+                        .and_then(|x| x.as_bool())
+                        .unwrap_or(false);
+                    if checks.is_some() {
+                        if anti_stub_pass_from_flags(ph, triv) {
+                            task_anti = true;
+                        }
+                    } else if sample
+                        .get("anti_stub_pass")
+                        .and_then(|x| x.as_bool())
+                        .unwrap_or(false)
+                    {
+                        task_anti = true;
+                    }
+                    if ph > 0 {
+                        task_ph = true;
+                    }
+                    if triv {
+                        task_triv = true;
+                    }
+                    let parse_ok = checks
+                        .and_then(|c| c.get("parse_ok"))
+                        .and_then(|x| x.as_bool())
+                        .unwrap_or(false);
+                    if parse_ok {
+                        if let Some(r) = checks
+                            .and_then(|c| c.get("construct_richness_score"))
+                            .and_then(|x| x.as_f64())
+                        {
+                            best_parse_ok_richness =
+                                Some(best_parse_ok_richness.map_or(r, |b| b.max(r)));
+                        }
+                    }
+                }
+                if task_anti {
+                    anti_pass += 1;
+                }
+                if task_ph {
+                    ph_tasks += 1;
+                }
+                if task_triv {
+                    triv_tasks += 1;
+                }
+                if let Some(r) = best_parse_ok_richness {
+                    rich_sum += r;
+                    rich_n += 1;
+                }
+            }
+            return AntiStubRunMetrics {
+                anti_stub_task_success: anti_pass as f64 / total,
+                placeholder_event_rate: ph_tasks as f64 / total,
+                trivial_placeholder_event_rate: triv_tasks as f64 / total,
+                construct_richness_mean: if rich_n > 0 {
+                    rich_sum / rich_n as f64
+                } else {
+                    0.0
+                },
+                source: AntiStubMetricsSource::RecomputedFromSamples,
+            };
+        }
+    }
+    AntiStubRunMetrics {
+        anti_stub_task_success: report
+            .get("anti_stub_task_success")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0),
+        placeholder_event_rate: report
+            .get("placeholder_event_rate")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0),
+        trivial_placeholder_event_rate: report
+            .get("trivial_placeholder_event_rate")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0),
+        construct_richness_mean: report
+            .get("construct_richness_mean")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0),
+        source: AntiStubMetricsSource::ReportHeader,
+    }
 }
 
 /// Verification results for a model completion candidate.
@@ -272,9 +456,11 @@ pub fn verify_completion(
     let trivial_placeholder = is_trivial_placeholder_output(code);
     let ast_report = vox_compiler::ast_eval(code);
     let construct_richness = ast_report.coverage_score();
-    let anti_stub_pass = placeholder_hits == 0
-        && !trivial_placeholder
-        && (ast_report.node_count >= 1 || construct_richness >= ANTI_STUB_MIN_CONSTRUCT_RICHNESS);
+    // Anti-stub is about stubs (placeholders / trivial empty bodies), not parse
+    // quality. Folding AST richness / node_count into anti_stub_pass made every
+    // unparseable answer look like a stub and double-counted the same failure
+    // under pass_compile and anti_stub. Richness stays a separate run-mean gate.
+    let anti_stub_pass = anti_stub_pass_from_flags(placeholder_hits, trivial_placeholder);
 
     let pass_ast = pass_compile && anti_stub_pass;
     let pass = pass_ast && exec_pass.unwrap_or(true);
@@ -360,6 +546,124 @@ mod tests {
         let res = crate::pipeline::run_frontend_str(code, &path, false).unwrap();
         let score = verify_symbol_binding(&res);
         assert!(score < 1.0, "Expected score < 1.0, got {score}");
+    }
+
+    #[test]
+    fn anti_stub_pass_does_not_require_parse_or_ast_richness() {
+        // Real (non-placeholder) code that the frontend cannot parse must not be
+        // labeled a stub — that failure belongs to pass_compile / pass_at_k.
+        let broken =
+            "fn is_symmetric_matrix(matrix: [[int]] ) to bool {\n    let n = matrix.length\n";
+        let dir = tempfile::tempdir().unwrap();
+        let v = verify_completion(broken, dir.path(), "", "broken_sym", 0, &[]);
+        assert!(!v.pass_compile, "fixture must fail compile: {:?}", v.checks);
+        assert!(
+            v.anti_stub_pass,
+            "unparseable non-placeholder output must still pass anti-stub: {:?}",
+            v.checks
+        );
+        assert_eq!(v.checks["placeholder_marker_hits"], 0);
+    }
+
+    #[test]
+    fn anti_stub_rejects_todo_unimplemented_ellipsis_and_hollow_bodies() {
+        let dir = tempfile::tempdir().unwrap();
+        let cases = [
+            "fn f() to int { todo!() }",
+            "fn f() to int { unimplemented!() }",
+            "fn f() to int { ... }",
+            "fn f() to int { }",
+            "workflow fetch_and_save(url: str) to str {\n    // TODO: implement\n}",
+            "// not implemented yet\nfn f() to int { return 1 }",
+        ];
+        for src in cases {
+            let v = verify_completion(src, dir.path(), "", "stub_case", 0, &[]);
+            assert!(
+                !v.anti_stub_pass,
+                "expected anti_stub fail for {src:?}: {:?}",
+                v.checks
+            );
+        }
+    }
+
+    #[test]
+    fn anti_stub_passes_clean_zero_placeholder_single_decl() {
+        let dir = tempfile::tempdir().unwrap();
+        let clean = "fn add(a: int, b: int) to int {\n    return a + b\n}";
+        let v = verify_completion(clean, dir.path(), "", "clean", 0, &[]);
+        assert_eq!(placeholder_marker_hits(clean), 0);
+        assert!(!is_trivial_placeholder_output(clean));
+        assert!(
+            v.anti_stub_pass,
+            "clean implementation must anti_stub_pass: {:?}",
+            v.checks
+        );
+    }
+
+    #[test]
+    fn anti_stub_metrics_recompute_ignores_stale_header_and_parse_failures() {
+        let report = serde_json::json!({
+            "anti_stub_task_success": 0.1,
+            "placeholder_event_rate": 0.9,
+            "trivial_placeholder_event_rate": 0.9,
+            "construct_richness_mean": 0.01,
+            "results": [
+                {
+                    "id": "a",
+                    "samples": [{
+                        "anti_stub_pass": false,
+                        "checks": {
+                            "placeholder_marker_hits": 0,
+                            "trivial_placeholder_output": false,
+                            "parse_ok": false,
+                            "construct_richness_score": 0.0
+                        }
+                    }]
+                },
+                {
+                    "id": "b",
+                    "samples": [{
+                        "anti_stub_pass": false,
+                        "checks": {
+                            "placeholder_marker_hits": 0,
+                            "trivial_placeholder_output": false,
+                            "parse_ok": true,
+                            "construct_richness_score": 0.125
+                        }
+                    }]
+                }
+            ]
+        });
+        let m = anti_stub_metrics_from_eval_local_report(&report);
+        assert_eq!(m.source, AntiStubMetricsSource::RecomputedFromSamples);
+        assert!((m.anti_stub_task_success - 1.0).abs() < 1e-9, "{m:?}");
+        assert!((m.placeholder_event_rate - 0.0).abs() < 1e-9, "{m:?}");
+        assert!(
+            (m.trivial_placeholder_event_rate - 0.0).abs() < 1e-9,
+            "{m:?}"
+        );
+        assert!((m.construct_richness_mean - 0.125).abs() < 1e-9, "{m:?}");
+    }
+
+    #[test]
+    fn anti_stub_metrics_recompute_still_fails_true_stub_samples() {
+        let report = serde_json::json!({
+            "results": [{
+                "id": "stub",
+                "samples": [{
+                    "checks": {
+                        "placeholder_marker_hits": 2,
+                        "trivial_placeholder_output": true,
+                        "parse_ok": true,
+                        "construct_richness_score": 0.125
+                    }
+                }]
+            }]
+        });
+        let m = anti_stub_metrics_from_eval_local_report(&report);
+        assert!((m.anti_stub_task_success - 0.0).abs() < 1e-9, "{m:?}");
+        assert!(m.placeholder_event_rate > 0.0);
+        assert!(m.trivial_placeholder_event_rate > 0.0);
     }
 
     #[test]

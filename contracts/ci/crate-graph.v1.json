@@ -664,6 +664,7 @@
     ],
     "vox-plugin-mens-candle-core": [
       "vox-db",
+      "vox-eval",
       "vox-hf-layout",
       "vox-tensor",
       "workspace-hack"

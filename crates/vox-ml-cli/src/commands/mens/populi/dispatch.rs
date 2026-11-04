@@ -1,6 +1,6 @@
 //! Dispatch for [`PopuliAction`](crate::commands::mens::PopuliAction).
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 use super::PopuliAction;
 
@@ -135,6 +135,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 None,               // curriculum_schedule
                 Default::default(), // chatml_config
                 None,               // mix_config
+                crate::commands::schola::train::TrainRunOpts::default(),
             )
             .await?;
             Ok(())
@@ -199,8 +200,16 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             optimizer_experiment_mode,
             data_mode,
             fast_corpus,
+            plan_only,
             persistent,
+            no_hf_sync,
         } => {
+            if no_hf_sync {
+                #[allow(unsafe_code)]
+                unsafe {
+                    std::env::set_var("VOX_MENS_HF_SYNC", "0");
+                }
+            }
             // The plugin self-heal preflight (run_train.rs, cuda path) reads this
             // env var. Setting it here keeps the opt-out from threading a bool
             // through the ~60-arg train dispatch chain.
@@ -279,6 +288,11 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 data_mode,
                 fast_corpus,
                 persistent,
+                crate::commands::schola::train::TrainRunOpts {
+                    plan_only,
+                    json: _global_json,
+                    max_runtime_secs,
+                },
             )
             .await
         }
@@ -349,27 +363,14 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
 
             let model = model
                 .ok_or_else(|| anyhow::anyhow!("--model <path> is required for local serve"))?;
+            let model =
+                crate::commands::mens::ladder_serve::resolve_serve_run_dir(model.as_path())?;
 
             // Gate: Ensure collateral damage eval has run and passed if we're serving an adapter
             let manifest_path = model.join("training_manifest.json");
             let adapter_path = model.join("candle_qlora_adapter.safetensors");
             if manifest_path.exists() || adapter_path.exists() {
-                let report_path = model.join("collateral_damage_report.json");
-                if !report_path.exists() {
-                    anyhow::bail!(
-                        "eval_collateral_damage check not found! Run `vox mens eval-collateral-damage --pre-score <baseline.json> --post-adapter <adapter>` before serving this adapter."
-                    );
-                }
-
-                let report_raw = std::fs::read_to_string(&report_path)?;
-                let report_json: serde_json::Value = serde_json::from_str(&report_raw)?;
-                let status = report_json.get("status").and_then(|s| s.as_str());
-                if status != Some("pass") {
-                    anyhow::bail!(
-                        "eval_collateral_damage check FAILED. The adapter degraded performance beyond acceptable thresholds and cannot be served."
-                    );
-                }
-
+                assert_collateral_gate(&model)?;
                 assert_serve_preconditions(&model)?;
             }
 
@@ -647,6 +648,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             k,
             seed_base,
             output,
+            force_restart,
         } => eval_local::run_eval_local(
             model,
             base,
@@ -657,6 +659,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             k,
             seed_base,
             output,
+            force_restart,
         ),
 
         PopuliAction::Hub(hub_action) => crate::commands::mens::hub::run_hub(hub_action).await,
@@ -666,7 +669,14 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 run_dir,
                 policy,
                 five_spokes,
+                no_hf_sync,
             } => {
+                if no_hf_sync {
+                    #[allow(unsafe_code)]
+                    unsafe {
+                        std::env::set_var("VOX_MENS_HF_SYNC", "0");
+                    }
+                }
                 if five_spokes {
                     let eval = vox_corpus::flywheel::run_before_after_five_spoke_evaluation();
                     println!("{}", eval.to_markdown());
@@ -733,17 +743,86 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             super::mens_tail_subcommands::PopuliMensTail::EvalCollateralDamage {
                 pre_score,
                 post_adapter,
+                fail_fast,
+                no_fail_fast,
+                force_restart,
             } => {
                 #[cfg(not(feature = "gpu"))]
-                let _ = (pre_score, post_adapter);
+                let _ = (
+                    pre_score,
+                    post_adapter,
+                    fail_fast,
+                    no_fail_fast,
+                    force_restart,
+                );
 
                 #[cfg(feature = "gpu")]
                 crate::commands::mens::eval_collateral::run_collateral_damage(
                     pre_score,
                     post_adapter,
+                    fail_fast,
+                    no_fail_fast,
+                    force_restart,
                 )?;
                 Ok(())
             }
+
+            // Without `gpu` nothing can be scored or recorded; a silent exit 0
+            // would read as success to a per-size loop.
+            #[cfg(not(feature = "gpu"))]
+            super::mens_tail_subcommands::PopuliMensTail::BaselineFromCompare { .. }
+            | super::mens_tail_subcommands::PopuliMensTail::EvalReasoningCompare { .. } => {
+                anyhow::bail!(
+                    "vox mens eval-reasoning-compare requires the `gpu` cargo feature, \
+                     which was not enabled when this binary was built; rebuild with \
+                     `cargo build -p vox-ml-cli --release --features gpu`"
+                )
+            }
+
+            #[cfg(feature = "gpu")]
+            super::mens_tail_subcommands::PopuliMensTail::BaselineFromCompare { compare, out } => {
+                let baseline =
+                    crate::commands::mens::baseline_from_compare::baseline_json_from_compare(
+                        &compare,
+                    )?;
+                match out {
+                    Some(path) => {
+                        if let Some(parent) = path.parent() {
+                            std::fs::create_dir_all(parent).with_context(|| {
+                                format!("create baseline output dir {}", parent.display())
+                            })?;
+                        }
+                        std::fs::write(&path, serde_json::to_string_pretty(&baseline)?)
+                            .with_context(|| format!("write baseline {}", path.display()))?;
+                        eprintln!("wrote {}", path.display());
+                    }
+                    None => println!("{}", serde_json::to_string_pretty(&baseline)?),
+                }
+                Ok(())
+            }
+
+            #[cfg(feature = "gpu")]
+            super::mens_tail_subcommands::PopuliMensTail::EvalReasoningCompare {
+                base,
+                adapter,
+                hub_root,
+                bench_root,
+                out,
+                slices,
+                merge_only,
+                force_restart,
+            } => crate::commands::mens::reasoning_compare::run_eval_reasoning_compare(
+                crate::commands::mens::reasoning_compare::CompareArgs {
+                    base,
+                    adapter,
+                    hub_root,
+                    bench_root,
+                    out,
+                    slices,
+                    merge_only,
+                    force_restart,
+                },
+            ),
 
             super::mens_tail_subcommands::PopuliMensTail::BenchCompletion {
                 url,
@@ -805,6 +884,81 @@ fn export_gguf_not_implemented_message(
         input.display(),
         output.display()
     )
+}
+
+/// Serve-boundary check of an adapter's collateral evidence. Reads only files on
+/// disk (`collateral_damage_report.json` and each
+/// `collateral_eval/<slice>/reasoning_report.json`); it never loads or runs a
+/// model and never writes. The stored `status` alone is not trusted: the
+/// per-slice drops are recomputed from the stored numbers.
+#[cfg(feature = "gpu")]
+fn assert_collateral_gate(model: &std::path::Path) -> Result<()> {
+    use anyhow::Context;
+    use vox_eval::reasoning_bench::{SLICE_NAMES, SLICE_SIZE};
+    let report_path = model.join("collateral_damage_report.json");
+    if !report_path.exists() {
+        anyhow::bail!(
+            "eval_collateral_damage check not found! Run `vox mens eval-collateral-damage --pre-score <baseline.json> --post-adapter <adapter>` before serving this adapter."
+        );
+    }
+    let report: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&report_path).with_context(|| {
+            format!(
+                "eval_collateral_damage report {} is unreadable",
+                report_path.display()
+            )
+        })?)
+        .with_context(|| {
+            format!(
+                "eval_collateral_damage report {} is not valid JSON",
+                report_path.display()
+            )
+        })?;
+    if report.get("status").and_then(|s| s.as_str()) != Some("pass") {
+        anyhow::bail!(
+            "eval_collateral_damage check FAILED. The adapter degraded performance beyond acceptable thresholds and cannot be served."
+        );
+    }
+    vox_eval::reasoning_slice::verify_reasoning_slices(
+        &report,
+        &vox_eval::CollateralDamageConfig::default(),
+    )
+    .map_err(|e| {
+        anyhow::anyhow!(
+            "eval_collateral_damage check refused: {e}. Re-run vox mens eval-collateral-damage for this adapter."
+        )
+    })?;
+    for name in SLICE_NAMES {
+        let path = model
+            .join("collateral_eval")
+            .join(name)
+            .join("reasoning_report.json");
+        let slice: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).with_context(|| {
+                format!(
+                    "eval_collateral_damage check refused: {name} has no readable {}",
+                    path.display()
+                )
+            })?)
+            .with_context(|| {
+                format!(
+                    "eval_collateral_damage check refused: {name} {} is not valid JSON",
+                    path.display()
+                )
+            })?;
+        let status = slice.get("status").and_then(|s| s.as_str());
+        anyhow::ensure!(
+            status == Some("scored"),
+            "eval_collateral_damage check refused: {name} reasoning report status is {}, expected scored",
+            status.unwrap_or("missing")
+        );
+        let n = slice.get("n").and_then(|n| n.as_u64());
+        anyhow::ensure!(
+            n == Some(SLICE_SIZE as u64),
+            "eval_collateral_damage check refused: {name} reasoning report n is {n:?}, expected {SLICE_SIZE}"
+        );
+    }
+    Ok(())
 }
 
 /// Refuse to serve a model whose `gate_receipt.json` says `overall_passed: true`
@@ -962,6 +1116,208 @@ mod serve_preconditions_tests {
             .unwrap_err()
             .to_string();
         assert!(err.contains("eval-gate did not pass"), "got: {err}");
+    }
+}
+
+#[cfg(all(test, feature = "gpu"))]
+mod collateral_gate_tests {
+    use super::*;
+    use crate::commands::mens::eval_collateral::{BenchScore, run_collateral_damage_with};
+    use std::path::Path;
+    use vox_eval::reasoning_bench::SLICE_NAMES;
+
+    /// The six reasoning keys at 20/32 (0.625) accuracy and think-initiation.
+    const SIX: &str = r#""gsm8k_think":0.625,"gsm8k_think_init":0.625,"math500_think":0.625,"math500_think_init":0.625,"vox_think":0.625,"vox_think_init":0.625"#;
+
+    fn slice_file(dir: &Path, slice: &str) -> std::path::PathBuf {
+        dir.join("collateral_eval")
+            .join(slice)
+            .join("reasoning_report.json")
+    }
+
+    /// An adapter dir as the real writer leaves it: a passing collateral report
+    /// from `run_collateral_damage_with`, plus one scored report per slice.
+    fn valid_adapter_dir() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        let pre = dir.path().join("pre.json");
+        std::fs::write(&pre, format!(r#"{{"benchmarks":{{{SIX}}}}}"#)).unwrap();
+        let mut scorer = |_: &str| {
+            Ok(BenchScore {
+                value: 0.625,
+                n: Some(32),
+            })
+        };
+        let code = run_collateral_damage_with(&pre, dir.path(), &mut scorer).unwrap();
+        assert_eq!(code, 0, "the fixture baseline must pass");
+        for name in SLICE_NAMES {
+            let path = slice_file(dir.path(), name);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(
+                path,
+                format!(
+                    r#"{{"benchmark":"{name}","status":"scored","n":32,"accuracy":0.625,"think_initiation_rate":0.625}}"#
+                ),
+            )
+            .unwrap();
+        }
+        dir
+    }
+
+    fn report_path(dir: &Path) -> std::path::PathBuf {
+        dir.join("collateral_damage_report.json")
+    }
+
+    fn gate_err(dir: &Path) -> String {
+        assert_collateral_gate(dir)
+            .expect_err("the gate must refuse")
+            .to_string()
+    }
+
+    #[test]
+    fn a_report_written_by_the_writer_is_accepted() {
+        let dir = valid_adapter_dir();
+        assert!(!dir.path().join("gate_receipt.json").exists());
+        assert_collateral_gate(dir.path()).unwrap();
+    }
+
+    #[test]
+    fn a_missing_report_is_refused() {
+        let dir = tempfile::tempdir().unwrap();
+        let e = gate_err(dir.path());
+        assert!(e.contains("eval_collateral_damage check not found"), "{e}");
+    }
+
+    #[test]
+    fn an_old_format_passing_report_is_refused() {
+        let dir = valid_adapter_dir();
+        std::fs::write(
+            report_path(dir.path()),
+            r#"{"status":"pass","failed_on":null,"threshold":0.05,"reports":[]}"#,
+        )
+        .unwrap();
+        let e = gate_err(dir.path());
+        assert!(e.contains("reasoning_slices"), "{e}");
+    }
+
+    /// Read the report back, set one field, write it again. The stored verdict
+    /// fields are left as the writer set them, so an edit looks like a hand-edit.
+    fn edit_report(dir: &Path, pointer: &str, value: serde_json::Value) {
+        let path = report_path(dir);
+        let mut report: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        *report.pointer_mut(pointer).unwrap() = value;
+        std::fs::write(path, serde_json::to_string_pretty(&report).unwrap()).unwrap();
+    }
+
+    #[test]
+    fn a_failed_status_is_refused_with_the_existing_text() {
+        let dir = valid_adapter_dir();
+        edit_report(dir.path(), "/status", serde_json::json!("fail"));
+        let e = gate_err(dir.path());
+        assert!(e.contains("eval_collateral_damage check FAILED."), "{e}");
+    }
+
+    #[test]
+    fn a_hand_edited_pass_over_a_ten_percent_accuracy_drop_is_refused() {
+        let dir = valid_adapter_dir();
+        edit_report(
+            dir.path(),
+            "/reasoning_slices/benches/gsm8k_think/accuracy/post",
+            serde_json::json!(0.5625),
+        );
+        let e = gate_err(dir.path());
+        assert!(e.contains("gsm8k_think"), "{e}");
+    }
+
+    #[test]
+    fn a_hand_edited_pass_over_a_think_initiation_drop_is_refused() {
+        let dir = valid_adapter_dir();
+        let base = "/reasoning_slices/benches/math500_think/think_initiation";
+        edit_report(dir.path(), &format!("{base}/pre"), serde_json::json!(0.5));
+        edit_report(
+            dir.path(),
+            &format!("{base}/post"),
+            serde_json::json!(0.46875),
+        );
+        let report: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(report_path(dir.path())).unwrap())
+                .unwrap();
+        assert_eq!(
+            report.pointer(&format!("{base}/exceeds_threshold")),
+            Some(&serde_json::json!(false)),
+            "the stored verdict must still claim no drop"
+        );
+        let e = gate_err(dir.path());
+        assert!(e.contains("math500_think_init"), "{e}");
+    }
+
+    #[test]
+    fn an_out_of_range_stored_number_is_refused() {
+        let dir = valid_adapter_dir();
+        // 1.5 is valid JSON (unlike 1e999, which serde_json rejects while
+        // parsing), so the refusal can only come from the [0, 1] range guard.
+        edit_report(
+            dir.path(),
+            "/reasoning_slices/benches/gsm8k_think/accuracy/post",
+            serde_json::json!(1.5),
+        );
+        let e = gate_err(dir.path());
+        assert!(e.contains("outside [0, 1]"), "{e}");
+        assert!(e.contains("gsm8k_think"), "{e}");
+    }
+
+    #[test]
+    fn a_malformed_collateral_report_is_refused() {
+        let dir = valid_adapter_dir();
+        std::fs::write(report_path(dir.path()), "{ not json").unwrap();
+        let e = gate_err(dir.path());
+        assert!(e.contains("eval_collateral_damage"), "{e}");
+    }
+
+    #[test]
+    fn a_missing_slice_report_is_refused_by_name() {
+        let dir = valid_adapter_dir();
+        std::fs::remove_file(slice_file(dir.path(), "vox_think")).unwrap();
+        let e = gate_err(dir.path());
+        assert!(e.contains("vox_think"), "{e}");
+    }
+
+    #[test]
+    fn a_not_scored_slice_report_is_refused() {
+        let dir = valid_adapter_dir();
+        std::fs::write(
+            slice_file(dir.path(), "math500_think"),
+            r#"{"benchmark":"math500_think","status":"not_scored","n":0,"n_requested":32,"reason":"model did not load"}"#,
+        )
+        .unwrap();
+        let e = gate_err(dir.path());
+        assert!(
+            e.contains("not_scored") && e.contains("math500_think"),
+            "{e}"
+        );
+    }
+
+    #[test]
+    fn a_slice_report_with_n_31_is_refused() {
+        let dir = valid_adapter_dir();
+        std::fs::write(
+            slice_file(dir.path(), "gsm8k_think"),
+            r#"{"benchmark":"gsm8k_think","status":"scored","n":31,"accuracy":0.625,"think_initiation_rate":0.625}"#,
+        )
+        .unwrap();
+        let e = gate_err(dir.path());
+        assert!(e.contains("gsm8k_think") && e.contains("31"), "{e}");
+    }
+
+    #[test]
+    fn an_unparseable_slice_report_is_refused() {
+        let dir = valid_adapter_dir();
+        std::fs::write(slice_file(dir.path(), "gsm8k_think"), "{ not json").unwrap();
+        let e = gate_err(dir.path());
+        assert!(
+            e.contains("gsm8k_think") && e.contains("not valid JSON"),
+            "{e}"
+        );
     }
 }
 

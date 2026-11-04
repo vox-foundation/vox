@@ -4,9 +4,9 @@
 //! `docs/src/architecture/mens-training-ssot.md` (“Training objective mismatch”).
 //! Do not assume loss curves match across kernels.
 //!
-//! Candle QLoRA uses [`plain_system_prompt_response`]. Burn + HF tokenizer uses
-//! [`hf_tokenize_chatml_supervised`] (requires `gpu`) to align masking with
-//! [`vox_tensor::data::VoxTokenizer::tokenize_for_training`].
+//! Both trainers encode ChatML through the functions below. Direct answers use
+//! Qwen3 non-thinking fusion (see [`chatml_prefix_open_assistant`]).
+//! [`hf_tokenize_chatml_supervised`] (feature `mens-candle-qlora`) masks the prompt.
 
 /// Plain `system \\n prompt \\n response` — matches historical Candle qlora encoding.
 #[must_use]
@@ -14,22 +14,35 @@ pub fn plain_system_prompt_response(system: &str, prompt: &str, response: &str) 
     format!("{system}\n{prompt}\n{response}")
 }
 
-/// ChatML prefix through the user turn (open assistant slot) — same structure as `VoxTokenizer`.
+/// ChatML prefix through the open assistant slot.
+///
+/// `assistant` selects the mode: a non-empty think block keeps the thinking-mode
+/// entry point; anything else is a direct answer and the returned prefix includes
+/// `/no_think` plus the empty think block (masked out of the loss).
 #[must_use]
 pub fn chatml_prefix_open_assistant(
     system: &str,
     user: &str,
+    assistant: &str,
     cfg: &crate::mens::tensor::training_config::ChatmlConfig,
 ) -> String {
+    let reasoning = vox_eval::qwen_reasoning::has_reasoning_trace(assistant);
+    let user = vox_eval::qwen_reasoning::user_for_mode(user, reasoning);
+    let tail = if reasoning {
+        ""
+    } else {
+        vox_eval::qwen_reasoning::QWEN_EMPTY_THINK
+    };
     format!(
         "{start}{sys}\n{system}{end}\n\
          {start}{usr}\n{user}{end}\n\
-         {start}{asst}\n",
+         {start}{asst}\n{tail}",
         start = cfg.im_start,
         end = cfg.im_end,
         sys = cfg.role_system,
         usr = cfg.role_user,
-        asst = cfg.role_assistant
+        asst = cfg.role_assistant,
+        tail = tail,
     )
 }
 
@@ -39,8 +52,9 @@ pub fn chatml_turns_text(
     turns: &[vox_tensor::data::ChatmlTurn],
     cfg: &crate::mens::tensor::training_config::ChatmlConfig,
 ) -> String {
+    let turns = fuse_turns(turns, cfg);
     let mut out = String::new();
-    for turn in turns {
+    for turn in &turns {
         out.push_str(&format!(
             "{start}{role}\n{content}{end}\n",
             start = cfg.im_start,
@@ -58,14 +72,18 @@ pub fn chatml_turns_prefix_open_assistant(
     turns: &[vox_tensor::data::ChatmlTurn],
     cfg: &crate::mens::tensor::training_config::ChatmlConfig,
 ) -> String {
+    let turns = fuse_turns(turns, cfg);
     let mut out = String::new();
     for (i, turn) in turns.iter().enumerate() {
-        if i == turns.len() - 1 && turn.role == "assistant" {
+        if i == turns.len() - 1 && turn.role == cfg.role_assistant {
             out.push_str(&format!(
                 "{start}{role}\n",
                 start = cfg.im_start,
                 role = cfg.role_assistant
             ));
+            if !vox_eval::qwen_reasoning::has_reasoning_trace(&turn.content) {
+                out.push_str(vox_eval::qwen_reasoning::QWEN_EMPTY_THINK);
+            }
             break;
         }
         out.push_str(&format!(
@@ -87,6 +105,9 @@ pub fn chatml_supervised_text(
     assistant: &str,
     cfg: &crate::mens::tensor::training_config::ChatmlConfig,
 ) -> String {
+    let reasoning = vox_eval::qwen_reasoning::has_reasoning_trace(assistant);
+    let user = vox_eval::qwen_reasoning::user_for_mode(user, reasoning);
+    let assistant = vox_eval::qwen_reasoning::assistant_body(assistant);
     format!(
         "{start}{sys}\n{system}{end}\n\
          {start}{usr}\n{user}{end}\n\
@@ -95,8 +116,30 @@ pub fn chatml_supervised_text(
         end = cfg.im_end,
         sys = cfg.role_system,
         usr = cfg.role_user,
-        asst = cfg.role_assistant
+        asst = cfg.role_assistant,
+        assistant = assistant,
     )
+}
+
+fn fuse_turns(
+    turns: &[vox_tensor::data::ChatmlTurn],
+    cfg: &crate::mens::tensor::training_config::ChatmlConfig,
+) -> Vec<vox_tensor::data::ChatmlTurn> {
+    use vox_eval::qwen_reasoning::{self, QWEN_EMPTY_THINK};
+    let mut out = turns.to_vec();
+    for i in 0..out.len() {
+        if out[i].role != cfg.role_assistant || qwen_reasoning::has_reasoning_trace(&out[i].content)
+        {
+            continue;
+        }
+        if !out[i].content.starts_with(QWEN_EMPTY_THINK) {
+            out[i].content = format!("{QWEN_EMPTY_THINK}{}", out[i].content);
+        }
+        if let Some(u) = out[..i].iter().rposition(|t| t.role == cfg.role_user) {
+            out[u].content = qwen_reasoning::user_for_mode(&out[u].content, false);
+        }
+    }
+    out
 }
 
 /// Tokenize ChatML SFT with HF tokenizer: prompt tokens masked with `-100`, assistant + EOS supervised.
@@ -115,7 +158,7 @@ pub fn hf_tokenize_chatml_supervised(
     cfg: &crate::mens::tensor::training_config::ChatmlConfig,
 ) -> anyhow::Result<(Vec<i64>, Vec<i64>)> {
     let full_text = chatml_supervised_text(system, user, assistant, cfg);
-    let prompt_text = chatml_prefix_open_assistant(system, user, cfg);
+    let prompt_text = chatml_prefix_open_assistant(system, user, assistant, cfg);
 
     let full_enc = tokenizer
         .encode(full_text.as_str(), true)
@@ -187,11 +230,41 @@ mod tests {
     fn chatml_supervised_starts_with_open_assistant_prefix() {
         let cfg = crate::mens::tensor::training_config::ChatmlConfig::default();
         let full = chatml_supervised_text("S", "U", "A", &cfg);
-        let prefix = chatml_prefix_open_assistant("S", "U", &cfg);
+        let prefix = chatml_prefix_open_assistant("S", "U", "A", &cfg);
         assert!(
             full.starts_with(prefix.as_str()),
             "supervised text must begin with the open-assistant prefix"
         );
         assert!(full.ends_with(&format!("A{}", cfg.im_end)));
+    }
+
+    #[test]
+    fn direct_answer_puts_empty_think_in_the_prompt_not_the_loss() {
+        let cfg = crate::mens::tensor::training_config::ChatmlConfig::default();
+        let full = chatml_supervised_text("S", "U", "code", &cfg);
+        let prefix = chatml_prefix_open_assistant("S", "U", "code", &cfg);
+        assert!(
+            full.starts_with(&prefix),
+            "{full} does not start with {prefix}"
+        );
+        assert!(prefix.contains(" /no_think"));
+        assert!(prefix.ends_with(vox_eval::qwen_reasoning::QWEN_EMPTY_THINK));
+        assert_eq!(
+            &full[prefix.len()..],
+            format!("code{}", cfg.im_end),
+            "loss span is the answer only"
+        );
+    }
+
+    #[test]
+    fn reasoning_trace_keeps_the_thinking_mode_entry_point() {
+        let cfg = crate::mens::tensor::training_config::ChatmlConfig::default();
+        let answer = "<think>\nplan\n</think>\n\ncode";
+        let full = chatml_supervised_text("S", "U", answer, &cfg);
+        let prefix = chatml_prefix_open_assistant("S", "U", answer, &cfg);
+        assert!(full.starts_with(&prefix));
+        assert!(!prefix.contains("/no_think"));
+        assert!(prefix.ends_with("<|im_start|>assistant\n"));
+        assert!(full.contains("<think>\nplan\n</think>"));
     }
 }

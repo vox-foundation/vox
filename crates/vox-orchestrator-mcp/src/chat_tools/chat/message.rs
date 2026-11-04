@@ -166,6 +166,8 @@ pub fn resolution_for_tier(
             allow_cheapest_fallback: false,
             enforce_free_tier_only: false,
             complexity: base.complexity.max(8),
+            // Raised above: a choice now, so the DEC-01 turn pack must not fill it.
+            complexity_unset: false,
             ..base
         },
         Some(other) => {
@@ -229,8 +231,14 @@ async fn try_run_agent_turn(
     // carries the full assembled prompt (history/files/retrieved context) for
     // everything else, including the actual LLM call below.
     capability_prompt: &str,
+    // CR-01 / WR-01: the user's own words (pre-`@mention`, pre-canonicalization)
+    // for the DEC-01 turn pack (`McpChatModelResolution::decision_prompt`).
+    // Setting it is the pack's opt-in, and only this default chat turn does.
+    decision_prompt: &str,
     session_id: &str,
     active_skill_id: Option<String>,
+    // ChatARC (phase 322-03) tool pick for `run_agent_turn`'s pins.
+    chatarc_tool_pin: Option<&'static str>,
     has_attachment: bool,
     temperature: Option<f32>,
     top_p: Option<f32>,
@@ -275,6 +283,11 @@ async fn try_run_agent_turn(
             risk: risk.and_then(vox_orchestrator::mode::RiskPosture::from_label),
             web_evidence_supplied,
             capability_prompt: Some(capability_prompt.to_string()),
+            // The default chat turn never chooses task or complexity, so the
+            // DEC-01 turn pack may fill them (VOX_TURN_DECISION_PACK).
+            task_unset: true,
+            complexity_unset: true,
+            decision_prompt: Some(decision_prompt.to_string()),
             ..Default::default()
         },
     );
@@ -352,6 +365,7 @@ async fn try_run_agent_turn(
         // permission mode; `handle_tool_call_with_mode`'s fail-safe default (Ask)
         // applies, matching every other MCP call path that doesn't have one.
         active_skill_id,
+        chatarc_tool_pin,
         llm_config,
         super::agent_loop::DEFAULT_MAX_ITERATIONS,
         // Task G1: stream tokens over the existing agent-events bus as they
@@ -485,6 +499,18 @@ async fn try_run_agent_turn(
             }))
         }
         Err(e) => Some(Err(e)),
+    }
+}
+
+/// CR-01: the text the DEC-01 turn pack and ChatARC score: the user's own
+/// words (`raw_prompt`, before `@mention` expansion and canonicalization), or a
+/// research slash command's query. Never the expanded prompt, whose inlined
+/// file bodies and "Objectives …" header are not the user's message.
+fn turn_decision_text(raw_prompt: &str, intent: &super::research_intent::ResearchIntent) -> String {
+    if intent.explicit && intent.mode != super::research_intent::ResearchMode::None {
+        intent.query.clone()
+    } else {
+        raw_prompt.to_string()
     }
 }
 
@@ -853,6 +879,8 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         } else {
             expanded_prompt
         };
+    // CR-01: what the turn pack and ChatARC score.
+    let decision_text = turn_decision_text(&raw_prompt_for_research, &intent);
 
     let all_context_files: Vec<String> = {
         let mut v = params.context_files.clone();
@@ -921,18 +949,30 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         }
         .as_deref(),
     );
-    let system_prompt = format!(
-        "{}{}\n\n{}",
-        build_system_prompt_with_skill(
-            state,
-            None,
-            params.skill.as_deref(),
-            sticky_model_key.as_deref(),
-            &params.skill_exclusions,
-        )
-        .await,
-        session_ts,
-        ANTI_LAZINESS_RIDER
+    // ChatARC (phase 322-03, VOX_CHATARC): scored on the user's own words
+    // (`decision_text`), never `expanded_prompt` (mentioned file bodies, the
+    // canonicalizer header) or the assembled `user_prompt` (history, files,
+    // retrieved text).
+    let chatarc_pick =
+        crate::chat_tools::chatarc::pick_for_turn(state, &decision_text, &params.skill_exclusions);
+    // A ChatARC command pick adds one trailing hint line; the cached prefix
+    // is unchanged.
+    let system_prompt = crate::chat_tools::chatarc::append_command_hint(
+        format!(
+            "{}{}\n\n{}",
+            build_system_prompt_with_skill(
+                state,
+                None,
+                params.skill.as_deref(),
+                chatarc_pick.as_ref().and_then(|p| p.skill_id()),
+                sticky_model_key.as_deref(),
+                &params.skill_exclusions,
+            )
+            .await,
+            session_ts,
+            ANTI_LAZINESS_RIDER
+        ),
+        chatarc_pick.as_ref(),
     );
     let llm_started = std::time::Instant::now();
 
@@ -1135,8 +1175,14 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                 // above (which carries `[CONVERSATION HISTORY]`/`[OPEN FILES]`/
                 // retrieved and web-research context).
                 &expanded_prompt,
+                // CR-01: the turn pack scores the user's own words.
+                &decision_text,
                 session_id.as_str(),
                 params.skill.clone(),
+                crate::chat_tools::chatarc::tool_pin_for(
+                    chatarc_pick.as_ref(),
+                    vox_mcp_registry::TOOL_REGISTRY,
+                ),
                 params.attachment_manifest.is_some(),
                 params.temperature,
                 params.top_p,
@@ -1801,7 +1847,9 @@ mod tests {
             "system prompt",
             "hello",
             "hello",
+            "hello",
             "default-path-test",
+            None,
             None,
             false,
             None,
@@ -2316,6 +2364,30 @@ mod tests {
         assert_eq!(effective_model_pref(Some(""), None), None);
     }
 
+    fn unset_base() -> McpChatModelResolution {
+        McpChatModelResolution {
+            task_unset: true,
+            complexity_unset: true,
+            ..Default::default()
+        }
+    }
+
+    /// DEC-01: the cloud tier raises complexity, so the turn pack must not fill it.
+    #[test]
+    fn resolution_for_tier_cloud_marks_complexity_set() {
+        let r = resolution_for_tier(Some("cloud"), unset_base());
+        assert!(!r.complexity_unset);
+        assert!(r.task_unset);
+    }
+
+    #[test]
+    fn resolution_for_tier_non_cloud_keeps_unset_flags() {
+        for tier in [Some("local"), Some("mesh"), None, Some("Cloud")] {
+            let r = resolution_for_tier(tier, unset_base());
+            assert!(r.task_unset && r.complexity_unset, "{tier:?}");
+        }
+    }
+
     #[test]
     fn tier_maps_to_resolution_not_cognitive_profile() {
         let r = resolution_for_tier(Some("local"), McpChatModelResolution::default());
@@ -2478,6 +2550,102 @@ mod tests {
                 "tier {tier:?} must not set cognitive_profile -- doing so would                  route the turn to mcp_infer_completion and kill tool calls"
             );
         }
+    }
+
+    /// Captured from the unmodified `build_system_prompt_with_skill` (no pin)
+    /// for `chatarc_state()` before 322-03 touched it; byte-identical to
+    /// `.planning/phases/322-*/evidence/322-03-system-prompt-golden.txt`.
+    const SYSTEM_PROMPT_GOLDEN: &str = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/chatarc/system_prompt_golden.txt"
+    ));
+
+    fn chatarc_state() -> ServerState {
+        let state = test_state();
+        for (id, body) in [
+            ("chatarc-golden-y", "BODY-Y: follow the y procedure."),
+            ("chatarc-golden-z", "BODY-Z: follow the z procedure."),
+        ] {
+            state
+                .orchestrator
+                .skill_registry
+                .install(vox_plugin_api::skill::LoadedSkill {
+                    plugin_id: id.to_string(),
+                    format_version: 1,
+                    manifest: vox_skills::SkillManifest {
+                        id: id.to_string(),
+                        name: id.to_string(),
+                        version: "1.0.0".to_string(),
+                        description: format!("Golden fixture skill {id} for ChatARC injection"),
+                        ..Default::default()
+                    },
+                    body: body.to_string(),
+                    exposed_tools: vec![],
+                });
+        }
+        state
+    }
+
+    /// Day-stable date -> `<DATE>`, and the repository-memory section is
+    /// dropped: it reads a shared, gitignored MEMORY.md that other tests may
+    /// create or edit, and ChatARC never touches it.
+    fn normalize_prompt(p: &str) -> String {
+        let p = p.replace(&ts_to_date_str(now_ts()), "<DATE>");
+        match (p.find("## Repository memory"), p.find("## Environment")) {
+            (Some(a), Some(b)) if a < b => format!("{}{}", &p[..a], &p[b..]),
+            _ => p,
+        }
+    }
+
+    #[tokio::test]
+    async fn chatarc_skill_reaches_system_prompt() {
+        let state = chatarc_state();
+        let (y, z) = (Some("chatarc-golden-y"), Some("chatarc-golden-z"));
+        let picked = build_system_prompt_with_skill(&state, None, None, y, None, &[]).await;
+        assert!(picked.contains("BODY-Y"), "ChatARC skill body missing");
+        let pinned = build_system_prompt_with_skill(&state, None, z, y, None, &[]).await;
+        assert!(pinned.contains("BODY-Z") && !pinned.contains("BODY-Y"));
+        let excluded = ["chatarc-golden-y".to_string()];
+        let gone = build_system_prompt_with_skill(&state, None, None, y, None, &excluded).await;
+        assert!(
+            !gone.contains("BODY-Y"),
+            "an excluded skill must never be injected"
+        );
+        let neither = build_system_prompt_with_skill(&state, None, None, None, None, &[]).await;
+        assert_eq!(
+            normalize_prompt(&neither),
+            normalize_prompt(SYSTEM_PROMPT_GOLDEN)
+        );
+    }
+
+    /// CR-01: a mentioned file's body and the canonicalizer header never reach
+    /// the turn pack or ChatARC; both score the user's own words.
+    #[test]
+    fn turn_decision_text_is_the_users_own_words() {
+        use super::super::research_intent::classify_research_intent;
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(
+            dir.path().join("notes.md"),
+            "// cheap to clone; any free model can run this\n",
+        )
+        .expect("write mentioned file");
+        let prompt = "Summarize @notes.md";
+        let cache = Arc::new(parking_lot::Mutex::new(None));
+        let (expanded, files) = resolve_mentions(prompt, dir.path(), &cache);
+        let canonical = prompt_canonical::canonicalize_prompt(&expanded, true, true)
+            .expect("canonicalize")
+            .text;
+        // Not vacuous: the prompt the model sees carries the file's words and
+        // the header.
+        assert_eq!(files, vec!["notes.md".to_string()]);
+        assert!(canonical.contains("free model") && canonical.contains("Objectives"));
+        let intent = classify_research_intent(prompt, None, None);
+        assert_eq!(turn_decision_text(prompt, &intent), prompt);
+        let slash = "/research rust slice patterns";
+        let intent = classify_research_intent(slash, None, None);
+        assert!(intent.explicit, "{intent:?}");
+        assert_eq!(turn_decision_text(slash, &intent), intent.query);
+        assert_ne!(intent.query, slash);
     }
 }
 

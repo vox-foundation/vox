@@ -294,9 +294,12 @@ export function installTauriMock(viewKey: string): void {
         case 'get_active_model': return 'anthropic/claude-sonnet';
         case 'get_auto_model_recommendation':
           return {
-            selected_model_id: 'mens/runs/qwen3_27b_metal_check/quant_q6_k',
-            detected_vram_gb: 27.0,
-            tier_reason: 'High-fidelity 6-bit quantized 27B',
+            selected_model_id: 'Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218',
+            size: '8B',
+            free_mb: 13926,
+            floor_mb: 12000,
+            // The exact select_size note format.
+            reason: 'picked 8B: largest size whose floor 12000 MB fits 13926 MB free (Metal working set)',
           };
         case 'get_routing_summary_live':
           // Family keys from the bootstrap catalog (see e2e/lib/tauriMock.families.test.ts); no live catalog in e2e.

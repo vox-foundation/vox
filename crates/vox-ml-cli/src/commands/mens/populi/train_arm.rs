@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use super::action::{
     MensTokenizerCli, PopuliTrainBackendCli, TrainDataModeCli, TrainingDeploymentTargetCli,
 };
+use super::train_record::{RecordInput, report_record, write_train_record};
 use crate::commands::schola::train;
 
 #[allow(clippy::too_many_arguments)]
@@ -66,7 +67,11 @@ pub async fn run_train(
     data_mode: TrainDataModeCli,
     fast_corpus: bool,
     #[cfg_attr(not(feature = "cloud"), allow(unused_variables))] persistent: bool,
+    opts: train::TrainRunOpts,
 ) -> anyhow::Result<()> {
+    if opts.plan_only && cloud != "local" {
+        anyhow::bail!("--plan-only is local-only (got --cloud {cloud})");
+    }
     if cloud != "local" {
         #[cfg(feature = "cloud")]
         {
@@ -325,6 +330,8 @@ pub async fn run_train(
     });
 
     // Never clear a user-set `VOX_TRAIN_SKIP_CORPUS_MIX`: the flag only adds the opt-out.
+    // Plan-only runs no refresh or mix (D-02).
+    let fast_corpus = fast_corpus || opts.plan_only;
     let skip_mix = vox_corpus::training::mix_prepare::corpus_mix_skipped(fast_corpus);
     if fast_corpus {
         // SAFETY: single-threaded CLI setup; read later by the trainer's mix step.
@@ -400,9 +407,8 @@ pub async fn run_train(
     // Never silently swapped for a smaller model by the VRAM budget below —
     // see `never_retreat_the_named_model`.
     let mut effective_model = model;
-    // Resolved alongside `effective_model` below when `--domain` is given, via
-    // the same `resolve_training_selection` the cloud path already uses (see
-    // `resolve_cloud_spoke_base`) — otherwise stays the raw CLI `--preset`.
+    // Stays the raw CLI `--preset` for local runs, `--domain` included: with no
+    // `--preset`, `run_train` takes the preset of its live size pick (D-03, D-06).
     let mut effective_preset = preset.clone();
     let mut effective_validation_split_ratio = validation_split_ratio;
     let mut _effective_max_grad_norm = None; // pass down if needed
@@ -463,13 +469,8 @@ pub async fn run_train(
                     eprintln!("    Mix config: {}", mix_path.display());
                 }
 
-                // BLOCKER (D1): resolve the domain spoke's base model + preset via
-                // the same real resolver the cloud path already uses
-                // (`resolve_cloud_spoke_base` → `resolve_training_selection`).
-                // Previously `--domain rust --cloud local` left `effective_model`
-                // as the raw (often `None`) `--model` and `preset` as the raw
-                // (often `None`) `--preset`, silently ignoring the domain's
-                // pinned base — CLI-supplied values still win.
+                // Checks the spoke is trainable and keeps the CLI values; `run_train`
+                // makes the one live size pick for the run (D-06).
                 let (resolved_model, resolved_preset) = resolve_local_spoke_base(
                     workspace_root.as_deref(),
                     domain_name,
@@ -477,7 +478,7 @@ pub async fn run_train(
                     effective_preset.as_deref(),
                 )?;
                 effective_model = resolved_model;
-                effective_preset = Some(resolved_preset);
+                effective_preset = resolved_preset;
             }
             Err(e) => {
                 anyhow::bail!("Failed to load domain profile '{}': {}", domain_name, e);
@@ -532,6 +533,7 @@ pub async fn run_train(
     let card_output_dir = output_dir.clone();
     let card_model = effective_model.clone();
     let card_preset = effective_preset.clone();
+    let run_start = RecordInput::start(epochs, effective_seq_len, opts.max_runtime_secs);
     let train_res = train::run_train(
         backend.into(),
         effective_model,
@@ -585,8 +587,14 @@ pub async fn run_train(
         effective_curriculum_schedule,
         effective_chatml,
         effective_mix_config,
+        opts,
     )
     .await;
+    if opts.plan_only {
+        return train_res.map(|_| ());
+    }
+    let record = run_start.finish(&card_output_dir, &card_model, &card_preset, &train_res);
+    report_record(write_train_record(&record, train_res.is_ok()));
 
     if train_res.is_ok()
         && let Some(ref r) = workspace_root
@@ -614,14 +622,14 @@ pub async fn run_train(
         }
     }
 
-    if train_res.is_ok() {
+    if let Ok(final_pick) = &train_res {
         use owo_colors::OwoColorize;
         let repo_root = workspace_root
             .clone()
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
         let meta = LocalCardMeta {
             base_model: card_model,
-            preset: card_preset,
+            preset: trained_preset(card_preset, final_pick.as_ref()),
             rank: rank.unwrap_or(16) as u32,
             alpha: alpha.unwrap_or(32.0),
             seed,
@@ -644,9 +652,95 @@ pub async fn run_train(
                 "⚠️".yellow()
             ),
         }
+
+        #[cfg(any(feature = "gpu", feature = "mens-hf-hub"))]
+        {
+            let sync_env = std::env::var(vox_populi::mens::hub_sync::HF_SYNC_ENV).ok();
+            let ns_env = std::env::var(vox_populi::mens::hub_repo::NAMESPACE_ENV).ok();
+            if let Some(why) = vox_populi::mens::hub_sync::explain_auto_publish_skip(
+                false,
+                sync_env.as_deref(),
+                ns_env.as_deref(),
+            ) {
+                eprintln!("  {} {why}", "⚠️".yellow());
+            } else {
+                if let Err(e) = vox_populi::mens::hub_sync::ensure_ladder_repos(
+                    workspace_root.as_deref(),
+                    None,
+                    false,
+                )
+                .await
+                {
+                    eprintln!("  {} HF ladder repos were not reserved: {e}", "⚠️".yellow());
+                }
+                let force_ungated =
+                    match vox_populi::mens::hub_sync::verify_publish_gates(&card_output_dir, false)
+                    {
+                        Ok(_) => false,
+                        Err(e) => {
+                            eprintln!(
+                                "  {} Eval gate did not pass ({e}); publishing an ungated baseline",
+                                "⚠️".yellow()
+                            );
+                            true
+                        }
+                    };
+                match vox_populi::mens::hub_sync::publish_adapter_run_dir(
+                    &card_output_dir,
+                    None,
+                    false,
+                    force_ungated,
+                )
+                .await
+                {
+                    Ok(vox_populi::mens::hub_sync::PublishOutcome::Uploaded {
+                        repo_id,
+                        commit_oid,
+                        version,
+                        ..
+                    }) => {
+                        eprintln!(
+                            "  {} Auto-published adapter to Hugging Face Hub `{repo_id}` as {version} ({commit_oid})",
+                            "✓".green()
+                        );
+                    }
+                    Ok(vox_populi::mens::hub_sync::PublishOutcome::SkippedUnchanged {
+                        repo_id,
+                        ..
+                    }) => {
+                        eprintln!(
+                            "  {} HF Hub `{repo_id}` already up-to-date (hash match; skipped upload)",
+                            "✓".green()
+                        );
+                    }
+                    Err(e) => {
+                        eprintln!("  {} HF auto-publish skipped: {e}", "⚠️".yellow());
+                    }
+                }
+                if let Err(e) = vox_populi::mens::hub_sync::refresh_ladder_index(
+                    workspace_root.as_deref(),
+                    None,
+                    false,
+                )
+                .await
+                {
+                    eprintln!("  {} HF index refresh failed: {e}", "⚠️".yellow());
+                }
+            }
+        }
     }
 
-    train_res
+    train_res.map(|_| ())
+}
+
+/// The preset the run trained with, which the card records as `base_rung` and
+/// `preset_version`: an explicit `--preset`, else the run's final size pick's
+/// preset (after any D-05 step-down).
+pub(super) fn trained_preset(
+    cli_preset: Option<String>,
+    pick: Option<&vox_populi::mens::tensor::size_select::SizePick>,
+) -> Option<String> {
+    cli_preset.or_else(|| pick.map(|p| p.rung.preset.to_string()))
 }
 
 /// Host-side facts the card needs that the run directory does not carry.
@@ -710,21 +804,17 @@ fn write_local_adapter_card(
     Ok(lineage.adapter_path.with_file_name("adapter_card.json"))
 }
 
-/// Resolve the local spoke base for `--domain <name> --cloud local`: returns
-/// `(model, preset)`.
-///
-/// Mirrors `resolve_cloud_spoke_base` below — same real resolver
-/// (`resolve_training_selection`), same "CLI wins" precedence — but sizes
-/// with VRAM autodetect (`None`) rather than a fixed cloud tier, matching how
-/// `pipeline.rs`'s `PipelineStage::Train` already calls this resolver for a
-/// local run. Not `cfg(feature = "cloud")`: the local path must resolve
-/// regardless of whether the cloud feature is compiled in.
+/// Check the spoke for `--domain <name> --cloud local` is trainable and pass the
+/// CLI `(model, preset)` through: `run_train` picks the size from live free
+/// memory (D-06), so the spoke's `base.model` tag and `base.preset` do not.
+/// Not `cfg(feature = "cloud")`: the local path must resolve regardless of
+/// whether the cloud feature is compiled in.
 fn resolve_local_spoke_base(
     workspace_root: Option<&Path>,
     domain: &str,
     cli_model: Option<&str>,
     cli_preset: Option<&str>,
-) -> anyhow::Result<(Option<String>, String)> {
+) -> anyhow::Result<(Option<String>, Option<String>)> {
     use crate::commands::mens::training_selection::{
         TrainingSelection, resolve_training_selection,
     };
@@ -736,11 +826,7 @@ fn resolve_local_spoke_base(
             anyhow::anyhow!("could not find workspace root for spoke base resolution")
         })?;
 
-    let vram_mb = vox_populi::mens::tensor::vram_autodetect::get_system_vram_gb()
-        .map(|gb| (gb * 1024.0) as u32)
-        .or(Some(16_384));
-    let selection =
-        resolve_training_selection(&root, Some(domain), cli_model, cli_preset, vram_mb)?;
+    let selection = resolve_training_selection(&root, Some(domain), cli_model, cli_preset, None)?;
 
     match selection {
         TrainingSelection::Train { model, preset, .. } => Ok((model, preset)),
@@ -785,7 +871,10 @@ fn resolve_cloud_spoke_base(
         resolve_training_selection(&root, domain, cli_model, cli_preset, Some(CLOUD_VRAM_MB))?;
 
     let (model, rung) = match selection {
-        TrainingSelection::Train { model, preset, .. } => (model, preset),
+        TrainingSelection::Train { model, preset, .. } => (
+            model,
+            preset.ok_or_else(|| anyhow::anyhow!("fixed-tier selection always names a preset"))?,
+        ),
         TrainingSelection::Skip { reason } => {
             anyhow::bail!("spoke '{domain:?}' is {reason} — nothing to train in the cloud")
         }
@@ -798,23 +887,25 @@ fn resolve_cloud_spoke_base(
 
     // Quantization: derive from the resolved TrainBase.method when the spoke base
     // is a capability tag; concrete ids default to qlora.
-    let quant = derive_quantization_for_base(&root, domain, &hf_id, CLOUD_VRAM_MB);
+    let quant = derive_quantization_for_base(&root, domain, &hf_id, CLOUD_VRAM_MB)?;
 
     Ok((hf_id, rung, quant))
 }
 
 /// Derive the quantization label ("qlora" / "lora") for the resolved base by
-/// re-inspecting the spoke's base tag in the overlay. Defaults to "qlora".
+/// re-inspecting the spoke's base tag in the overlay. Defaults to "qlora"; errs
+/// when gpu-specs.yaml does not parse, rather than mislabeling a LoRA rung.
 #[cfg(feature = "cloud")]
 fn derive_quantization_for_base(
     root: &Path,
     domain: Option<&str>,
     resolved_hf_id: &str,
     vram_mb: u32,
-) -> String {
+) -> anyhow::Result<String> {
     use vox_populi::mens::tensor::domain_profiles::EffectiveDomainProfile;
     use vox_populi::mens::tensor::spoke_base_resolver::{load_overlay, pick_base};
 
+    let overlay = load_overlay(root)?;
     let tag = domain
         .and_then(|d| EffectiveDomainProfile::load_domain_profile(d, Some(root)).ok())
         .and_then(|e| e.base.as_ref().map(|b| b.model.clone()));
@@ -822,14 +913,13 @@ fn derive_quantization_for_base(
     // The resolved id must match the picked base for the method to apply; an
     // un-quantized rung advertises "lora" / "full_lora", otherwise qlora.
     if let Some(tag) = tag
-        && let Ok(overlay) = load_overlay(root)
         && let Ok(base) = pick_base(&overlay, &tag, vram_mb)
         && base.hf_id == resolved_hf_id
         && base.methods.iter().any(|m| m == "lora" || m == "full_lora")
     {
-        return "lora".to_string();
+        return Ok("lora".to_string());
     }
-    "qlora".to_string()
+    Ok("qlora".to_string())
 }
 
 /// Run the REAL eval gate on a cloud-trained adapter (BLOCKER 1).
@@ -1064,6 +1154,21 @@ fn jsonl_row_count_counts_non_empty_lines() {
     assert_eq!(jsonl_row_count(&d.path().join("missing.jsonl")), None);
 }
 
+#[cfg(all(test, feature = "cloud"))]
+#[test]
+fn quantization_surfaces_a_malformed_overlay() {
+    let d = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(d.path().join("mens/config")).unwrap();
+    std::fs::write(
+        d.path().join("mens/config/gpu-specs.yaml"),
+        "train_bases:\n  t:\n    - { hf_id: \"org/M@x\", floor_mb: 1, methods: [lora] }\n",
+    )
+    .unwrap();
+    let e = derive_quantization_for_base(d.path(), None, "org/M@x", 24_000)
+        .expect_err("a malformed overlay must not default to qlora");
+    assert!(format!("{e:#}").contains("parse train_bases"), "{e:#}");
+}
+
 #[cfg(test)]
 mod local_spoke_base_wiring_tests {
     use super::resolve_local_spoke_base;
@@ -1077,14 +1182,11 @@ mod local_spoke_base_wiring_tests {
     }
 
     #[test]
-    fn domain_rust_resolves_spoke_base_and_preset_not_defaults() {
-        let (model, preset) = resolve_local_spoke_base(Some(&root()), "rust", None, None).unwrap();
-        let model = model.expect("rust spoke must resolve a base model, not None");
-        assert!(
-            model.contains("Qwen"),
-            "expected the rust spoke's Qwen base, got {model:?}"
-        );
-        assert!(!preset.is_empty(), "resolved preset must not be empty");
+    fn domain_rust_leaves_size_to_the_live_selector() {
+        // The spoke's base.model tag and base.preset must not choose the size;
+        // run_train makes the one live pick (D-06).
+        let got = resolve_local_spoke_base(Some(&root()), "rust", None, None).unwrap();
+        assert_eq!(got, (None, None));
     }
 
     #[test]
@@ -1150,6 +1252,53 @@ mod local_card_tests {
         assert_eq!(card.training_syntax_fingerprint, fp);
         assert_eq!(card.syntax_fingerprint_kind, kind);
         assert_eq!(kind, "ebnf-sha256");
+    }
+
+    /// CR-03: a local `--domain` run without `--preset` records the picked size's
+    /// preset, not `"local"`, so vLLM provenance and BFCL per-rung gates match.
+    #[test]
+    fn local_card_records_the_auto_pick_preset_as_base_rung() {
+        use vox_populi::mens::tensor::size_select::{self, FreeMemory, Selection};
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let overlay = size_select::load_ladder_overlay(Some(&root)).unwrap();
+        let floor_14b = overlay
+            .get("qwen3_code")
+            .and_then(|rungs| {
+                rungs.iter().find(|b| {
+                    b.hf_id.starts_with("Qwen/Qwen3-14B@") && b.methods.iter().any(|m| m == "qlora")
+                })
+            })
+            .map(|b| b.floor_mb)
+            .expect("14B QLoRA rung");
+        let free = FreeMemory {
+            mb: u64::from(floor_14b) + 1_000,
+            source: "test",
+        };
+        let Selection::Size(pick) =
+            size_select::select_size(&overlay, Some(&free), None, false).expect("14B fits")
+        else {
+            panic!("an auto pick is a size");
+        };
+        assert_eq!(pick.rung.preset, "qwen3_24g");
+
+        let (d, adapter, _train) = fixture("Qwen/Qwen3-14B@abc123");
+        let meta = LocalCardMeta {
+            preset: super::trained_preset(None, Some(&pick)),
+            ..meta()
+        };
+        write_local_adapter_card(d.path(), None, &meta).unwrap();
+        let card = vox_populi::mens::tensor::adapter_card::AdapterCard::read_sidecar(&adapter)
+            .unwrap()
+            .unwrap();
+        assert_eq!(card.base_rung, pick.rung.preset);
+        assert_eq!(card.preset_version, pick.rung.preset);
+
+        // An explicit --preset still wins over the pick's preset.
+        assert_eq!(
+            super::trained_preset(Some("qwen3_16g".into()), Some(&pick)).as_deref(),
+            Some("qwen3_16g")
+        );
+        assert_eq!(super::trained_preset(None, None), None);
     }
 
     #[test]

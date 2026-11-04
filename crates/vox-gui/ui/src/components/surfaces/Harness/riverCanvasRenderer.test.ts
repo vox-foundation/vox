@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { computeAlluvialControlPoints, renderRiverFrame } from './riverCanvasRenderer';
 import { deriveRiverSnapshot } from './riverMath';

@@ -28,6 +28,10 @@ pub struct InferenceRequest {
     /// startup-default system prompt for this request; otherwise the
     /// startup default is used unchanged.
     pub system_prompt: Option<String>,
+    /// Serving lane, resolved from `GenerateRequest::lane` by `do_generate`.
+    /// Carried by value (it is `Copy`) so every repair retry of one request
+    /// sends the same lane. The plugin picks the assistant-turn prefix from it.
+    pub lane: vox_eval::qwen_reasoning::Lane,
     pub reply: tokio::sync::oneshot::Sender<Result<String, String>>,
 }
 
@@ -129,7 +133,7 @@ pub fn spawn_inference_worker(
 /// default) entirely — never stacked with it. An absent or empty
 /// `req.system_prompt` falls back to `default_system_prompt` unchanged.
 #[cfg(feature = "execution-api")]
-fn inference_payload(default_system_prompt: &str, req: &InferenceRequest) -> String {
+pub(crate) fn inference_payload(default_system_prompt: &str, req: &InferenceRequest) -> String {
     let system_prompt = req
         .system_prompt
         .as_deref()
@@ -144,6 +148,7 @@ fn inference_payload(default_system_prompt: &str, req: &InferenceRequest) -> Str
         "seed": req.seed,
         "top_p": req.top_p,
         "output_mode": req.output_mode,
+        "lane": req.lane.as_str(),
     })
     .to_string()
 }
@@ -151,6 +156,7 @@ fn inference_payload(default_system_prompt: &str, req: &InferenceRequest) -> Str
 #[cfg(all(test, feature = "execution-api"))]
 mod tests {
     use super::{InferenceRequest, inference_payload};
+    use vox_eval::qwen_reasoning::Lane;
 
     #[test]
     fn the_payload_carries_the_system_prompt_and_the_sampling_parameters() {
@@ -164,6 +170,7 @@ mod tests {
             top_k: 40,
             output_mode: Some("strict_json".into()),
             system_prompt: None,
+            lane: Lane::Codegen,
             reply: tx,
         };
         let v: serde_json::Value =
@@ -191,6 +198,7 @@ mod tests {
             top_k: 40,
             output_mode: None,
             system_prompt: None,
+            lane: Lane::Codegen,
             reply: tx,
         };
         let v: serde_json::Value = serde_json::from_str(&inference_payload("S", &req)).unwrap();
@@ -217,6 +225,7 @@ mod tests {
             top_k: 40,
             output_mode: None,
             system_prompt: Some("CALLER OVERRIDE".into()),
+            lane: Lane::Codegen,
             reply: tx,
         };
         let v: serde_json::Value =
@@ -247,6 +256,7 @@ mod tests {
             top_k: 40,
             output_mode: None,
             system_prompt: None,
+            lane: Lane::Codegen,
             reply: tx,
         };
         let v: serde_json::Value =
@@ -269,10 +279,33 @@ mod tests {
             top_k: 40,
             output_mode: None,
             system_prompt: Some(String::new()),
+            lane: Lane::Codegen,
             reply: tx,
         };
         let v: serde_json::Value =
             serde_json::from_str(&inference_payload("STARTUP DEFAULT", &req)).unwrap();
         assert_eq!(v["system"], "STARTUP DEFAULT");
+    }
+
+    #[test]
+    fn the_payload_carries_the_lane() {
+        let (tx, _rx) = tokio::sync::oneshot::channel();
+        let mut req = InferenceRequest {
+            prompt: "hi".into(),
+            max_tokens: 8,
+            temperature: 0.0,
+            seed: None,
+            top_p: None,
+            top_k: 40,
+            output_mode: None,
+            system_prompt: None,
+            lane: Lane::Hub,
+            reply: tx,
+        };
+        let v: serde_json::Value = serde_json::from_str(&inference_payload("S", &req)).unwrap();
+        assert_eq!(v["lane"], "hub");
+        req.lane = Lane::Codegen;
+        let v: serde_json::Value = serde_json::from_str(&inference_payload("S", &req)).unwrap();
+        assert_eq!(v["lane"], "codegen");
     }
 }

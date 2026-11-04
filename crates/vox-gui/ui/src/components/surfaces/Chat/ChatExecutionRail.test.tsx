@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
@@ -20,6 +19,7 @@ vi.mock('@tauri-apps/api/core', () => ({
   }),
 }));
 
+import { invoke } from '@tauri-apps/api/core';
 import { ChatExecutionRail, sessionSpendSeriesKey } from './ChatExecutionRail';
 import { LanguageProvider } from '../../../hooks/useLanguage';
 import { fireEvent, within } from '@testing-library/react';
@@ -514,6 +514,156 @@ describe('ChatExecutionRail — this session only (plan 3a)', () => {
     const tasksRegion = screen.getByRole('region', { name: /active tasks/i });
     expect(within(tasksRegion).getByTestId('execution-rail-lock-chip')).toHaveTextContent('holding db://orders/42');
     expect(screen.getByRole('region', { name: 'Routing' })).toBeInTheDocument();
+  });
+
+  it('supports inline task addition, editing, status toggle, removal, and editable session context pins', async () => {
+    render(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[{ id: 't1', title: 'Initial task', status: 'running' }]}
+          {...old}
+        />
+      </LanguageProvider>,
+    );
+
+    // 1. Edit existing task title
+    fireEvent.click(screen.getByTestId('execution-rail-task-edit-t1'));
+    const editInput = screen.getByTestId('execution-rail-task-edit-input');
+    fireEvent.change(editInput, { target: { value: 'Updated task title' } });
+    fireEvent.keyDown(editInput, { key: 'Enter' });
+    expect(screen.getByText('Updated task title')).toBeInTheDocument();
+    expect(invoke).toHaveBeenCalledWith('hopper_rename', {
+      itemId: 't1',
+      intent: 'Updated task title',
+    });
+
+    // 2. Toggle task status -> calls hopper_mark_done with { itemId: 't1' }
+    fireEvent.click(screen.getByTestId('execution-rail-task-toggle-t1'));
+    expect(screen.getByText('completed')).toBeInTheDocument();
+    expect(invoke).toHaveBeenCalledWith('hopper_mark_done', { itemId: 't1' });
+
+    // 2b. Cycle priority P2 -> P3 -> calls hopper_reprioritize with { itemId: 't1', priority: 3 }
+    fireEvent.click(screen.getByTestId('execution-rail-task-priority-t1'));
+    expect(screen.getByTestId('execution-rail-task-priority-t1')).toHaveTextContent('P3');
+    expect(invoke).toHaveBeenCalledWith('hopper_reprioritize', { itemId: 't1', priority: 3 });
+
+    // 2c. Flag doubt -> calls doubt_orchestrator_task
+    fireEvent.click(screen.getByTestId('execution-rail-task-doubt-t1'));
+    expect(screen.getByText('doubted')).toBeInTheDocument();
+    expect(invoke).toHaveBeenCalledWith('doubt_orchestrator_task', {
+      taskId: 't1',
+      reason: 'Flagged from Execution Rail',
+    });
+
+    // 2d. Force verification gate -> calls force_orchestrator_verify
+    fireEvent.click(screen.getByTestId('execution-rail-task-verify-t1'));
+    expect(screen.getByText('verifying')).toBeInTheDocument();
+    expect(invoke).toHaveBeenCalledWith('force_orchestrator_verify', { taskId: 't1' });
+
+    // 3. Add a new task inline -> calls hopper_submit with { intent, affinity: [] }
+    const addInput = screen.getByTestId('execution-rail-add-task-input');
+    fireEvent.change(addInput, { target: { value: 'New inline task' } });
+    fireEvent.click(screen.getByTestId('execution-rail-add-task-btn'));
+    expect(screen.getByText('New inline task')).toBeInTheDocument();
+    expect(invoke).toHaveBeenCalledWith('hopper_submit', {
+      intent: 'New inline task',
+      affinity: [],
+    });
+
+    // 4. Remove initial task -> calls hopper_cancel with { itemId: 't1' }
+    fireEvent.click(screen.getByTestId('execution-rail-task-remove-t1'));
+    expect(screen.queryByText('Updated task title')).toBeNull();
+    expect(invoke).toHaveBeenCalledWith('hopper_cancel', { itemId: 't1' });
+    expect(screen.getByTestId('execution-rail-cas-rev')).toHaveTextContent(/Synced · v\d+/);
+    expect(screen.getByTestId('execution-rail-progress-svg')).toBeInTheDocument();
+    expect(screen.getByTestId('execution-rail-health-svg')).toBeInTheDocument();
+
+    // 5. Edit and add pinned session context items
+    fireEvent.click(screen.getByTestId('execution-rail-context-edit-ctx-1'));
+    const pinEditInput = screen.getByTestId('execution-rail-context-edit-input');
+    fireEvent.change(pinEditInput, { target: { value: '@kb:layers.toml' } });
+    fireEvent.keyDown(pinEditInput, { key: 'Enter' });
+    expect(screen.getByText(/@kb:layers\.toml/)).toBeInTheDocument();
+    expect(invoke).toHaveBeenCalledWith(
+      'set_session_context_pins',
+      expect.objectContaining({
+        pins: expect.arrayContaining([
+          expect.objectContaining({ id: 'ctx-1', label: '@kb:layers.toml' }),
+        ]),
+      }),
+    );
+
+    const addPinInput = screen.getByTestId('execution-rail-add-context-input');
+    fireEvent.change(addPinInput, { target: { value: 'crates/vox-gui/src/main.rs' } });
+    fireEvent.click(screen.getByTestId('execution-rail-add-context-btn'));
+    expect(screen.getByText(/crates\/vox-gui\/src\/main\.rs/)).toBeInTheDocument();
+  });
+
+  it('renders turn-level compaction and posture receipt badge (v2.5 RECEIPT-UI)', () => {
+    render(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[]}
+          compactionAudit={{
+            strategy: 'conservative',
+            budget_tokens: 8000,
+            head_anchor_preserved: true,
+            total_loaded: 14,
+            kept_messages: 10,
+            dropped_messages: 4,
+          }}
+          postureAudit={{
+            clutch: 'genius',
+            risk: 'low',
+            tier: 'local',
+            mode: 'verify',
+            oversight_level: 'cautious',
+            kb_scope: 'verified',
+            grounding_check_enabled: true,
+            hydrated_from_session_posture: true,
+          }}
+        />
+      </LanguageProvider>,
+    );
+    const badge = screen.getByTestId('chat-turn-receipt-badge');
+    expect(badge).toHaveTextContent('Goal Anchor: Kept · 8,000 BPE (10/14 msgs)');
+    expect(badge).toHaveTextContent('genius/low · @verified');
+  });
+
+  it('provides segmented inspector tabs (All, Plan & Tasks, Context, Routing) and circular progress ring (RAIL-UNIFY-01..02)', () => {
+    render(
+      <LanguageProvider>
+        <ChatExecutionRail
+          tasks={[
+            { id: 't1', title: 'Done step', status: 'completed' },
+            { id: 't2', title: 'Active step', status: 'running' },
+          ]}
+          routing={routing}
+          {...old}
+        />
+      </LanguageProvider>,
+    );
+    expect(screen.getByTestId('execution-rail-segmented-tabs')).toBeInTheDocument();
+    expect(screen.getByTestId('execution-rail-progress-ring')).toBeInTheDocument();
+
+    const tasksTab = screen.getByTestId('execution-rail-tab-tasks');
+    const contextTab = screen.getByTestId('execution-rail-tab-context');
+    const routingTab = screen.getByTestId('execution-rail-tab-routing');
+    const allTab = screen.getByTestId('execution-rail-tab-all');
+
+    fireEvent.click(tasksTab);
+    expect(tasksTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('execution-rail-context-pins').className).toContain('sr-only');
+
+    fireEvent.click(contextTab);
+    expect(contextTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('execution-rail-context-pins').className).not.toContain('sr-only');
+
+    fireEvent.click(routingTab);
+    expect(routingTab).toHaveAttribute('aria-selected', 'true');
+
+    fireEvent.click(allTab);
+    expect(allTab).toHaveAttribute('aria-selected', 'true');
   });
 });
 

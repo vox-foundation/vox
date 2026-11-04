@@ -95,6 +95,73 @@ mod corpus_threshold_tests {
     }
 }
 
+/// Live free accelerator memory for this run's device. A CPU run has no
+/// accelerator reading (D-01).
+pub(super) fn live_free_memory(
+    device_kind: vox_populi::mens::DeviceKind,
+) -> Option<vox_populi::mens::tensor::size_select::FreeMemory> {
+    match device_kind {
+        vox_populi::mens::DeviceKind::Cpu => None,
+        _ => vox_populi::mens::tensor::size_select::read_free_memory(),
+    }
+}
+
+/// The run's explicit size (D-04): `--model`, else a non-blank
+/// `VOX_MENS_DEFAULT_MODEL`.
+fn explicit_model(cli: Option<String>, env: Option<String>) -> Option<String> {
+    cli.or_else(|| env.map(|s| s.trim().to_string()).filter(|s| !s.is_empty()))
+}
+
+/// The run's one size pick (D-06): the largest Qwen3 size that fits live free
+/// memory, or the operator's explicit size (D-04).
+pub(super) fn pick_train_size(
+    explicit: Option<&str>,
+    workspace_root: Option<&Path>,
+    device_kind: vox_populi::mens::DeviceKind,
+) -> Result<vox_populi::mens::tensor::size_select::Selection> {
+    use vox_populi::mens::tensor::size_select;
+    let overlay = size_select::load_ladder_overlay(workspace_root)?;
+    size_select::select_size(
+        &overlay,
+        live_free_memory(device_kind).as_ref(),
+        explicit,
+        force_train_env(),
+    )
+}
+
+/// Re-read free memory once right before the download (D-05): an automatic
+/// pick that no longer fits steps down; an explicit size is never stepped down.
+/// Returns the reading it used, for `--plan-only`.
+pub(super) fn recheck_size_pick(
+    pick: vox_populi::mens::tensor::size_select::SizePick,
+    workspace_root: Option<&Path>,
+    device_kind: vox_populi::mens::DeviceKind,
+) -> Result<(
+    vox_populi::mens::tensor::size_select::SizePick,
+    Option<vox_populi::mens::tensor::size_select::FreeMemory>,
+)> {
+    use owo_colors::OwoColorize;
+    use vox_populi::mens::tensor::size_select;
+    let overlay = size_select::load_ladder_overlay(workspace_root)?;
+    let reading = live_free_memory(device_kind);
+    let pick =
+        size_select::recheck_before_load(pick, &overlay, reading.as_ref(), force_train_env())?;
+    eprintln!("  {} size: {}", "ℹ".cyan(), pick.note);
+    Ok((pick, reading))
+}
+
+/// `VOX_MENS_FORCE_TRAIN=1`/`true` — the registered operator override
+/// meaning "proceed past a failing gate": the explicit-size fit refusal here
+/// and the post-download `plan_for`/`sweep` VRAM-fit refusal in `gpu.rs`,
+/// which runs for every CUDA run regardless of how sizing was chosen. `vox mens
+/// serve` honors it for its fit check too.
+pub(crate) fn force_train_env() -> bool {
+    std::env::var("VOX_MENS_FORCE_TRAIN")
+        .ok()
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
 #[allow(
     clippy::too_many_arguments,
     unused_variables,
@@ -154,7 +221,8 @@ pub async fn run_train(
     curriculum_schedule: Option<vox_populi::mens::tensor::training_config::CurriculumSchedule>,
     chatml: vox_populi::mens::tensor::training_config::ChatmlConfig,
     mix_config: Option<PathBuf>,
-) -> Result<()> {
+    opts: super::TrainRunOpts,
+) -> Result<Option<vox_populi::mens::tensor::size_select::SizePick>> {
     use owo_colors::OwoColorize;
 
     super::super::process_priority::apply(&process_priority);
@@ -192,42 +260,22 @@ pub async fn run_train(
     let gpu_info = vox_populi::mens::probe_gpu();
     let workspace_root = vox_corpus::training::contract::find_workspace_root();
 
+    // One live size pick per run (D-01, D-04, D-06); no default size.
     let mut model = model;
-    let env_default_model = std::env::var("VOX_MENS_DEFAULT_MODEL")
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty());
-    if let Some(resolved) =
-        vox_populi::mens::tensor::spoke_base_resolver::maybe_resolve_metal_default_base(
-            model.as_deref(),
-            env_default_model.as_deref(),
-            &gpu_info.vendor,
-            matches!(
-                device_kind,
-                vox_populi::mens::DeviceKind::Best | vox_populi::mens::DeviceKind::Metal
-            ),
-            workspace_root.as_deref(),
-            gpu_info.vram_mb,
-        )?
-    {
-        tracing::info!(
-            model = %resolved,
-            vram_mb = gpu_info.vram_mb,
-            "Using Metal-resolved HF model (`--model` omitted; agentic_default ladder)."
-        );
-        model = Some(resolved);
-    }
+    let mut size_pick = None;
     if matches!(
         train_backend,
         vox_populi::mens::PopuliTrainBackend::CandleQlora
-    ) && model.is_none()
-    {
-        let resolved = vox_populi::mens::resolve_default_model_id(env_default_model.as_deref());
-        tracing::info!(
-            model = %resolved,
-            "Using default HF model for Candle QLoRA (`--model` omitted; see contracts/mens/training-presets.v1.yaml)."
-        );
-        model = Some(resolved);
+    ) {
+        let explicit = explicit_model(model.take(), std::env::var("VOX_MENS_DEFAULT_MODEL").ok());
+        match pick_train_size(explicit.as_deref(), workspace_root.as_deref(), device_kind)? {
+            vox_populi::mens::tensor::size_select::Selection::Size(pick) => {
+                eprintln!("  {} size: {}", "ℹ".cyan(), pick.note);
+                model = Some(pick.rung.hf_id.clone());
+                size_pick = Some(pick);
+            }
+            vox_populi::mens::tensor::size_select::Selection::PassThrough(id) => model = Some(id),
+        }
     }
 
     let effective_qlora_require_full_proxy_stack = !qlora_allow_partial_proxy_stack
@@ -251,30 +299,14 @@ pub async fn run_train(
     if matches!(
         train_backend,
         vox_populi::mens::PopuliTrainBackend::CandleQlora
-    ) {
-        if matches!(device_kind, vox_populi::mens::DeviceKind::Cuda) {
-            #[cfg(not(feature = "mens-candle-cuda"))]
-            anyhow::bail!(
-                "`--device cuda` for Candle QLoRA requires a CUDA-enabled build.\n\
-                 Rebuild: `cargo build -p vox-ml-cli --features gpu,mens-candle-cuda` (or `cargo vox-cuda-release`).\n\
-                 On Windows use a VS Developer shell so `nvcc` can find MSVC."
-            );
-        }
-        // Make sure the plugin the selector will dispatch to is installed and
-        // loadable, self-healing a missing/stale one (opt out with
-        // `--no-auto-heal` / VOX_MENS_NO_AUTO_HEAL). Same selector the training
-        // dispatch in vox-populi uses, so they can't disagree. Skip the heal
-        // where no release asset exists for this platform (it would try a
-        // download that can't succeed); dispatch then fails at load with a
-        // build-from-source hint.
-        #[cfg(feature = "gpu")]
-        {
-            let plugin_id =
-                vox_populi::mens::select_mens_backend(device_kind, &vox_plugin_host::probe());
-            if vox_populi::mens::has_prebuilt_artifact(plugin_id) {
-                crate::commands::mens::plugin_heal::ensure_plugin(plugin_id, true)?;
-            }
-        }
+    ) && matches!(device_kind, vox_populi::mens::DeviceKind::Cuda)
+    {
+        #[cfg(not(feature = "mens-candle-cuda"))]
+        anyhow::bail!(
+            "`--device cuda` for Candle QLoRA requires a CUDA-enabled build.\n\
+             Rebuild: `cargo build -p vox-ml-cli --features gpu,mens-candle-cuda` (or `cargo vox-cuda-release`).\n\
+             On Windows use a VS Developer shell so `nvcc` can find MSVC."
+        );
     }
 
     tracing::debug!(
@@ -368,7 +400,9 @@ pub async fn run_train(
         vram_limit_fraction,
     };
     let preview_profile = vox_populi::mens::resolve_effective_profile(
-        preset.as_deref(),
+        preset
+            .as_deref()
+            .or(size_pick.as_ref().map(|p| p.rung.preset)),
         device_profile.clone(),
         None,
         cli_overrides.clone(),
@@ -383,6 +417,29 @@ pub async fn run_train(
     );
 
     check_corpus_threshold(&data_dir)?;
+
+    // Make sure the plugin the selector will dispatch to is installed and
+    // loadable, self-healing a missing/stale one (opt out with
+    // `--no-auto-heal` / VOX_MENS_NO_AUTO_HEAL). Same selector the training
+    // dispatch in vox-populi uses, so they can't disagree. Skip the heal
+    // where no release asset exists for this platform (it would try a
+    // download that can't succeed); dispatch then fails at load with a
+    // build-from-source hint. Runs after the corpus check, so a missing corpus
+    // is refused the same way with or without --plan-only, whatever state the
+    // installed plugin is in. The heal can download a release asset; plan-only
+    // never runs it (D-02).
+    #[cfg(feature = "gpu")]
+    if matches!(
+        train_backend,
+        vox_populi::mens::PopuliTrainBackend::CandleQlora
+    ) && !opts.plan_only
+    {
+        let plugin_id =
+            vox_populi::mens::select_mens_backend(device_kind, &vox_plugin_host::probe());
+        if vox_populi::mens::has_prebuilt_artifact(plugin_id) {
+            crate::commands::mens::plugin_heal::ensure_plugin(plugin_id, true)?;
+        }
+    }
 
     eprintln!("{}", "╔══════════════════════════════════════════╗".cyan());
     eprintln!("{}", "║   VoxMens — native fine-tuning (QLoRA)  ║".cyan());
@@ -425,6 +482,7 @@ pub async fn run_train(
             output_dir,
             resume,
             preset,
+            size_pick,
             device_profile,
             cli_overrides,
             gpu_info,
@@ -461,6 +519,7 @@ pub async fn run_train(
             curriculum_schedule,
             chatml,
             mix_config,
+            opts,
         )
         .await
     }
@@ -513,6 +572,7 @@ pub async fn run_train(
             trajectory_quality_floor,
             trajectory_quality_boost,
             optimizer_experiment_mode,
+            opts,
         );
         eprintln!(
             "  {} LoRA training requires the 'gpu' feature.",
@@ -522,13 +582,130 @@ pub async fn run_train(
         eprintln!();
         eprintln!("  Canonical QLoRA (when `gpu` is enabled): `vox mens train --backend qlora …`");
         eprintln!("  See docs/src/reference/mens-training.md");
-        Ok(())
+        Ok(None)
     }
 }
 
-#[cfg(all(test, target_os = "macos"))]
+#[cfg(test)]
 mod tests {
+    use super::{
+        explicit_model, force_train_env, live_free_memory, pick_train_size, recheck_size_pick,
+    };
+    use std::path::{Path, PathBuf};
+    use vox_populi::mens::DeviceKind;
+    use vox_populi::mens::tensor::size_select::{self, FreeMemory, Selection};
+
+    fn root() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+    }
+
+    /// WR-05: `--model` beats `VOX_MENS_DEFAULT_MODEL`; a blank env value is unset.
     #[test]
+    fn cli_model_beats_the_default_model_env() {
+        let s = |v: &str| Some(v.to_string());
+        assert_eq!(explicit_model(s("Qwen3-4B"), s("Qwen3-14B")), s("Qwen3-4B"));
+        assert_eq!(explicit_model(None, s(" Qwen3-14B ")), s("Qwen3-14B"));
+        for blank in ["", "   "] {
+            assert_eq!(explicit_model(None, s(blank)), None, "{blank:?}");
+        }
+        assert_eq!(explicit_model(None, None), None);
+    }
+
+    #[test]
+    fn cpu_training_has_no_accelerator_reading() {
+        assert_eq!(live_free_memory(DeviceKind::Cpu), None);
+    }
+
+    #[test]
+    fn cpu_auto_pick_refuses_and_names_the_way_out() {
+        let err = pick_train_size(None, Some(&root()), DeviceKind::Cpu)
+            .expect_err("no reading on CPU must refuse")
+            .to_string();
+        assert!(err.contains("no live free-memory reading"), "{err}");
+        assert!(err.contains("--model"), "{err}");
+    }
+
+    #[test]
+    fn cpu_explicit_size_is_kept_unchecked() {
+        let Selection::Size(p) =
+            pick_train_size(Some("Qwen3-0.6B"), Some(&root()), DeviceKind::Cpu).expect("kept")
+        else {
+            panic!("a ladder size must not pass through");
+        };
+        assert!(
+            p.rung.hf_id.starts_with("Qwen/Qwen3-0.6B@"),
+            "{}",
+            p.rung.hf_id
+        );
+        assert_eq!(p.rung.preset, "qwen3_dev_cpu");
+        assert!(p.explicit);
+        assert!(p.note.contains("fit not checked"), "{}", p.note);
+    }
+
+    #[test]
+    fn cpu_concrete_id_passes_through() {
+        let got = pick_train_size(Some("org/Manual"), Some(&root()), DeviceKind::Cpu).expect("ok");
+        assert!(
+            matches!(got, Selection::PassThrough(ref id) if id == "org/Manual"),
+            "{got:?}"
+        );
+    }
+
+    #[test]
+    fn recheck_of_an_auto_pick_without_a_reading_refuses() {
+        let overlay = size_select::load_ladder_overlay(Some(&root())).expect("overlay");
+        let floor_8b = overlay
+            .get("qwen3_code")
+            .and_then(|rungs| {
+                rungs.iter().find(|b| {
+                    b.hf_id.starts_with("Qwen/Qwen3-8B@") && b.methods.iter().any(|m| m == "qlora")
+                })
+            })
+            .map(|b| b.floor_mb)
+            .expect("8B QLoRA rung");
+        let free = FreeMemory {
+            mb: u64::from(floor_8b) + 1_000,
+            source: "test",
+        };
+        let Selection::Size(pick) =
+            size_select::select_size(&overlay, Some(&free), None, false).expect("8B fits")
+        else {
+            panic!("automatic pick is a size");
+        };
+        assert!(!pick.explicit);
+        let err = recheck_size_pick(pick, Some(&root()), DeviceKind::Cpu)
+            .expect_err("no reading at re-check must refuse")
+            .to_string();
+        assert!(err.contains("no live free-memory reading"), "{err}");
+    }
+
+    #[test]
+    #[allow(unsafe_code)]
+    fn force_train_env_parses_truthy_and_falsy_values() {
+        // Guards concurrent mutation of the process-global env var — no
+        // other test in this binary reads or writes VOX_MENS_FORCE_TRAIN.
+        static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let prior = std::env::var("VOX_MENS_FORCE_TRAIN").ok();
+
+        // SAFETY: single-threaded section guarded by LOCK above.
+        unsafe { std::env::remove_var("VOX_MENS_FORCE_TRAIN") };
+        assert!(!force_train_env(), "unset -> false");
+        for on in ["1", "true", "TRUE"] {
+            unsafe { std::env::set_var("VOX_MENS_FORCE_TRAIN", on) };
+            assert!(force_train_env(), "{on} -> true");
+        }
+        unsafe { std::env::set_var("VOX_MENS_FORCE_TRAIN", "0") };
+        assert!(!force_train_env(), "0 -> false");
+
+        match prior {
+            Some(v) => unsafe { std::env::set_var("VOX_MENS_FORCE_TRAIN", v) },
+            None => unsafe { std::env::remove_var("VOX_MENS_FORCE_TRAIN") },
+        }
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
     fn metal_qlora_error_is_not_the_old_dead_gate_message() {
         let source = include_str!("run_train.rs");
         let old_gate = ["`--device metal` for Candle QLoRA", " is not supported yet"].concat();

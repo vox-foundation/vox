@@ -1,0 +1,77 @@
+version: "1"
+# Ladder re-gate policy — cheap, heldout-focused, no N/A theater.
+#
+# Use after `eval-local` (and optionally collateral) when promoting a size:
+#   vox-ml-cli mens eval-gate --run-dir mens/runs/qwen3-<size> \
+#     --policy mens/config/eval-gates-ladder.yaml
+#
+# Intentionally omits:
+#   - review_recurrence (no in-tree producer; always N/A on the ladder path)
+#   - corpus eval_local parse/coverage bars (heldout path uses anti_stub + pass_at_k)
+#   - trainer telemetry floors as hard requirements when re-gating an existing run
+#     (still checked if artifacts exist and thresholds are set below)
+#
+# Collateral is checked as its own gate row (collateral_damage) when
+# collateral_damage_report.json is present — same requirement Hub publish uses.
+# GPU collateral generation is separate: `mens eval-collateral-damage` defaults
+# to fail-fast order gsm8k_think → math500_think → vox_think.
+
+pass_at_k:
+  min_pass_rate_at_1: 0.25
+  # With k=1 smoke runs the checker collapses this to min_pass_rate_at_1.
+  min_pass_rate_at_k: 0.50
+  max_regression_drop: 0.03
+  metrics_file: benchmark_passatk.json
+  baseline_file: baseline_passatk.json
+  block: true
+
+anti_stub:
+  min_pass_rate: 0.92
+  max_placeholder_event_rate: 0.08
+  max_trivial_placeholder_event_rate: 0.08
+  min_construct_richness_mean: 0.125
+  block: true
+
+# Optional trainer signals — warn only on ladder re-gate so a pure quality
+# re-check is not blocked by missing throughput samples.
+supervised_ratio:
+  min_pct: 10.0
+  block: false
+
+truncation:
+  max_fraction: 0.50
+  block: false
+
+throughput:
+  min_tokens_per_sec:
+    cpu: 1.0
+    rtx_4080_super: 10.0
+  block: false
+
+# Heldout path does not produce vox_parse_rate; keep non-blocking.
+eval_local:
+  min_parse_rate: 0.0
+  min_coverage_pct: 0.0
+  block: false
+
+per_context: {}
+
+modal_mix:
+  max_voice_fraction: 0.30
+  block: false
+
+mcp_tool_schema:
+  min_strict_validity_rate: 0.0
+  block: false
+
+# Parked until a producer exists.
+review_recurrence:
+  max_repeated_finding_rate: 0.30
+  max_post_training_regression_rate: 0.15
+  min_recurrence_delta: 0.01
+  block: false
+
+# Collateral forgetting report (written by mens eval-collateral-damage).
+# block: true so ladder receipts match Hub publish requirements.
+collateral_damage:
+  block: true

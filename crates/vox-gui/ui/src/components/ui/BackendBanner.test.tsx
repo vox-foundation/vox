@@ -1,5 +1,4 @@
 // crates/vox-gui/ui/src/components/ui/BackendBanner.test.tsx
-// @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import React from 'react';

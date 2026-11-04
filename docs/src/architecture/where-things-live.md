@@ -145,6 +145,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-quantize`](../../../crates/vox-quantize/) | Data-free k-quant PTQ engine (SafeTensors → Candle GGML quantized SafeTensors; GPU-first, CPU fallback). |
 | [`vox-populi` — `inference`](../../../crates/vox-populi/src/inference/) | MENS Mn-T2: `InferenceBackend` trait + multi-backend dispatcher (Candle CPU/CUDA/Metal, llama.cpp RPC, Ollama). Merged from retired `vox-inference`. Feature `inference` / `mens-candle-qlora`. |
 | [`vox-populi` — `distributed_training`](../../../crates/vox-populi/src/distributed_training/) | MENS Mn-T1/Mn-T6: `TrainingSession`, signed `GradientShard` / `CheckpointBundle`, `OperationKind::TrainingCheckpoint` mapping. Merged from retired `vox-distributed-training`. |
+| [`vox-populi` — `mens::tensor::size_select`](../../../crates/vox-populi/src/mens/tensor/size_select.rs) | Live VRAM size selector (SIZE-02): reads free accelerator memory (Metal working set; CUDA free x0.88), picks the largest Qwen3 qwen3_code size whose floor fits, re-checks before load. Training, mens serve, chat auto-local and the GUI recommendation use it. |
 | [`vox-ml-cli`](../../../crates/vox-ml-cli/) | ML / Oratio / Populi / telemetry CLI binary (`vox-ml-cli`); Mens training, GPU features, optional workflow glue. |
 | [`vox-forge`](../../../crates/vox-forge/) | Platform-agnostic Git forge API — GitHub, Gitea, Forgejo (GitLab deprecated/unsupported as of 2026-06-03). |
 | [`vox-gamify`](../../../crates/vox-gamify/) | Gamification layer — companions, quests, battles, and free AI integration. |
@@ -318,6 +319,8 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Discover bare `SKILL.md` skill dirs (agentskills.io interop layout) | `crates/vox-plugin-host/src/external_skills.rs` (`discover_external_skills`) |
 | Standard skill discovery roots (`.vox`/`.agents`/`.claude` × ws+home) | `crates/vox-config/src/paths.rs` (`skill_search_roots`) |
 | Skill disclosure into the chat system prompt (tier-1 catalog + pinned body) | `crates/vox-orchestrator-mcp/src/chat_tools/skill_catalog.rs`; wired in `chat_tools/mod.rs` `build_system_prompt_with_skill` |
+| Turn decision pack (calibrated routing inputs, DEC-01) | `crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/turn_pack.rs` |
+| ChatARC action shortlist and choice (skills, MCP tools, commands) | `crates/vox-orchestrator-mcp/src/chat_tools/chatarc.rs`; command hints registered by `crates/vox-cli/src/main.rs` |
 | Ingest external skills into the CLI registry | `crates/vox-cli/src/commands/extras/ars/registry.rs` (`install_external_skills`) |
 | Add a plugin manifest field | `crates/vox-plugin-types/src/plugin_manifest.rs` |
 | Add a queue / lock / oplog method | `crates/vox-orchestrator-queue/src/{locks,oplog,affinity}/` |

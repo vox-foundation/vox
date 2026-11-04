@@ -16,10 +16,21 @@ version: "1"
 # Source file map:
 #   training_manifest.json  → truncation, device_profile              (trainer)
 #   telemetry.jsonl         → supervised_ratio, throughput            (trainer)
-#   eval_results.json       → vox_parse_rate, construct_coverage_pct (corpus eval, Step 4)
+#   eval_results.json       → vox_parse_rate, construct_coverage_pct (`vox corpus eval`)
+#                             Absent vox_parse_rate is N/A when eval_local_report.json
+#                             exists (heldout path); do not treat {} as parse_rate=0.
 #   benchmark_passatk.json  → pass_at_k                              (`vox mens eval-local`)
+#                             When metrics.k <= 1, pass@k min collapses to pass@1 min.
 #   eval_local_report.json  → anti_stub                              (`vox mens eval-local`)
+#                             anti_stub_task_success = no placeholders / trivial stubs
+#                             (NOT parse failure — that lives in pass_at_k).
+#                             construct_richness_mean = mean over parse_ok samples only.
 #   review_metrics.json     → review_recurrence                      (review pipeline)
+#                             Absent file is non-blocking N/A until a producer exists;
+#                             present file still enforces thresholds.
+#
+# Promote one size at a time. A failed receipt on 0.6B must not re-run eval-gate
+# on 1.7B/4B/… until that size's own quality work is done.
 
 supervised_ratio:
   min_pct: 10.0
@@ -46,6 +57,9 @@ eval_local:
   block: true
 
 pass_at_k:
+  # pass@1 floor always applies. pass@k floor applies when metrics.k > 1;
+  # with k=1 (smoke / samples=1) the checker collapses min_pass_rate_at_k to
+  # min_pass_rate_at_1 so a single-sample run is not auto-failed by wiring.
   min_pass_rate_at_1: 0.25
   min_pass_rate_at_k: 0.50
   max_regression_drop: 0.03

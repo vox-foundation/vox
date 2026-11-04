@@ -288,6 +288,7 @@ pub fn node_record_for_current_process(node_id: String, listen_addr: Option<Stri
         gpu_inventory_source: None,
         gpu_truth_layer: None,
         gpu_vram_total_mb: None,
+        accelerator_free_mb: None,
         gpu_model_name: None,
         nvidia_driver_version: None,
         cuda_driver_version: None,
@@ -319,6 +320,10 @@ pub fn node_record_for_current_process(node_id: String, listen_addr: Option<Stri
             // TODO: cuda_driver_version from precision layer if needed.
         }
         rec.probe_failures = summary.probe_failures.clone();
+        // MESH-01: live free accelerator MB from the phase 318 reading. Omitted,
+        // not zero and not total VRAM, when there is no reading.
+        rec.accelerator_free_mb =
+            crate::mens::tensor::size_select::read_free_memory().map(|free| free.mb);
     }
     rec
 }

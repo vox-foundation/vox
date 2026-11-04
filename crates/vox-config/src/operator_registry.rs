@@ -21,6 +21,20 @@ pub struct OperatorEnvSpec {
 
 pub const OPERATOR_TUNING_ENVS: &[OperatorEnvSpec] = &[
     OperatorEnvSpec {
+        name: "VOX_TURN_DECISION_PACK",
+        description: "Enable the DEC-01 turn decision pack ahead of chat model selection (1/true to enable).",
+        defaults: "false",
+
+        config_class: ConfigClass::NodeLocal,
+    },
+    OperatorEnvSpec {
+        name: "VOX_CHATARC",
+        description: "Enable ChatARC in chat turns (1/true to enable). Its choice is currently disabled pending recalibration (chatarc.v2), so it never acts.",
+        defaults: "false",
+
+        config_class: ConfigClass::NodeLocal,
+    },
+    OperatorEnvSpec {
         name: "VOX_DB_CIRCUIT_BREAKER",
         description: "Gate workflow durability writes under DB stress (1/true to enable).",
         defaults: "false",

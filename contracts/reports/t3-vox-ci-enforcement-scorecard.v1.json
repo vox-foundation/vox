@@ -1,0 +1,120 @@
+{
+  "schema_version": "t3_vox_ci_enforcement_scorecard_v1",
+  "milestone": "v5.5",
+  "phases": "307-312",
+  "generated_at": "2026-10-25",
+  "prior_milestone": "v5.4",
+  "status": "Complete",
+  "gems": [
+    {
+      "id": "pr-vouch-workflow",
+      "status": "Shipped",
+      "anchor": ".github/workflows/pr-vouch.yml + mitchellh/vouch",
+      "phase": 307,
+      "req": "T3-TRUST-01..04"
+    },
+    {
+      "id": "vouched-td-ssot",
+      "status": "Shipped",
+      "anchor": ".github/VOUCHED.td + vox ci vouched-parse",
+      "phase": 307,
+      "req": "T3-TRUST-01..04"
+    },
+    {
+      "id": "preview-trust-split-doc",
+      "status": "Shipped",
+      "anchor": "docs/src/ci/privileged-preview-trust-split.md",
+      "phase": 308,
+      "req": "T3-PREVIEW-01"
+    },
+    {
+      "id": "preview-trust-audit",
+      "status": "Shipped",
+      "anchor": "vox ci preview-trust-audit + contracts/ci/preview-trust-allowlist.v1.yaml",
+      "phase": 308,
+      "req": "T3-PREVIEW-02..04"
+    },
+    {
+      "id": "live-transfer-budget-sample-json",
+      "status": "Shipped",
+      "anchor": "vox ci transfer-budget-report --measure + ci.yml upload thread-transfer-results + thread-transfer-report prefers live artifact",
+      "phase": 309,
+      "req": "T3-LIVE-CI-01..02..04"
+    },
+    {
+      "id": "ci-changes-job-matrix",
+      "status": "Shipped",
+      "anchor": "vox ci ci-changes in ci.yml linux (GITHUB_OUTPUT + summary); ui/nextest flags exported",
+      "phase": 309,
+      "req": "T3-LIVE-CI-03"
+    },
+    {
+      "id": "test-wall-clock-detector",
+      "status": "Shipped",
+      "anchor": "vox/test/wall-clock",
+      "phase": 310,
+      "req": "T3-TEST-DET-01..02..04"
+    },
+    {
+      "id": "test-in-loop-detector",
+      "status": "Shipped",
+      "anchor": "vox/test/in-loop",
+      "phase": 310,
+      "req": "T3-TEST-DET-03"
+    },
+    {
+      "id": "host-runtime-probe",
+      "status": "Shipped",
+      "anchor": "vox/host/runtime-probe",
+      "phase": 311,
+      "req": "T3-HOST-SCHEMA-01"
+    },
+    {
+      "id": "inline-schema-compile",
+      "status": "Shipped",
+      "anchor": "vox/schema/inline-compile",
+      "phase": 311,
+      "req": "T3-HOST-SCHEMA-02"
+    },
+    {
+      "id": "knip-dual-deepen",
+      "status": "Shipped",
+      "anchor": "knip@5.50.0 pinned; dual files+dependencies then exports (exports warn); ui CI + vox ci knip-gui --check",
+      "phase": 311,
+      "req": "T3-HOST-SCHEMA-03"
+    },
+    {
+      "id": "dom-test-env-ban",
+      "status": "Shipped",
+      "anchor": "vitest environment jsdom project-wide; 230 per-file pragmas removed; vox ci dom-test-env-ban strict default + linux CI",
+      "phase": 311,
+      "req": "T3-HOST-SCHEMA-04"
+    },
+    {
+      "id": "sidecar-fingerprint-hash",
+      "status": "Shipped",
+      "anchor": ".github/workflows/gui-sidecar-fingerprint.yml content hash",
+      "phase": 312,
+      "req": "T3-FP-GRAPH-01"
+    },
+    {
+      "id": "surface-graph-regen",
+      "status": "Shipped",
+      "anchor": "contracts/reports/t3-ecosystem-surface-graph.v1.json milestone v5.5; SHAs verified against ~/dev clones; inventory.vox verifier green",
+      "phase": 312,
+      "req": "T3-FP-GRAPH-02"
+    },
+    {
+      "id": "v55-scorecard",
+      "status": "Shipped",
+      "anchor": "contracts/reports/t3-vox-ci-enforcement-scorecard.v1.json",
+      "phase": 312,
+      "req": "T3-FP-GRAPH-03"
+    }
+  ],
+  "honest_residuals": [
+    "ManagePullRequest / Cursor GitHub app missing \u2014 open PR manually",
+    "Effect-schema knip preprocessor (t3code scripts/knip-schemas.ts) still backlog \u2014 not required for dual-pass ship",
+    "ci-changes flags exported; full per-job if: short-circuit beyond existing affected-crates remains optional hardening"
+  ]
+}

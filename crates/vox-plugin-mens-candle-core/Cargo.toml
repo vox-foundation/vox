@@ -11,6 +11,7 @@ crate-type = ["rlib"]
 
 [dependencies]
 vox-db = { workspace = true, features = ["host-integration"] }
+vox-eval = { workspace = true }
 vox-hf-layout = { workspace = true }
 vox-tensor = { workspace = true }
 qlora-rs = { workspace = true }

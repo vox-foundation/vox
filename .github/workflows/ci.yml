@@ -27,6 +27,8 @@ jobs:
     outputs:
       p_args: ${{ steps.affected.outputs.p_args }}
       run_tests: ${{ steps.plan.outputs.run_tests }}
+      ci_changes_ui: ${{ steps.ci_changes.outputs.ui }}
+      ci_changes_nextest: ${{ steps.ci_changes.outputs.nextest }}
       shard_list: ${{ steps.affected.outputs.shard_list }}
       shard_1_p_args: ${{ steps.affected.outputs.shard_1_p_args }}
       shard_2_p_args: ${{ steps.affected.outputs.shard_2_p_args }}
@@ -61,6 +63,47 @@ jobs:
 
       - name: Fast tier (same checks as local `vox ci pre-push`)
         run: ./target/debug/vox ci pre-push
+
+      - name: Job-matrix change flags (ci-changes)
+        id: ci_changes
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ -n "${BASE_SHA:-}" ]; then
+            git diff --name-only "$BASE_SHA...HEAD" > /tmp/changed-for-matrix.txt || true
+          else
+            git diff --name-only HEAD~1...HEAD > /tmp/changed-for-matrix.txt || true
+          fi
+          ./target/debug/vox ci ci-changes --paths /tmp/changed-for-matrix.txt --github-output "$GITHUB_OUTPUT"
+          {
+            echo "### ci-changes"
+            echo ""
+            cat "$GITHUB_OUTPUT" | sed 's/^/- /'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Transfer budget (live measure + ratchet)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Live wire_compression sample (not fixture theater); ratchet vs committed baseline.
+          ./target/debug/vox ci transfer-budget-report --measure --write --out /tmp/transfer-budget-live.v1.json
+          ./target/debug/vox ci transfer-budget-report --measure --check --baseline contracts/reports/transfer-budget-ci.v1.json
+          # Also keep the committed fixture ceiling file honest when regenerating locally.
+          mkdir -p target/transfer-budget
+          cp /tmp/transfer-budget-live.v1.json target/transfer-budget/thread-transfer-results.json
+
+      - name: Upload transfer-budget artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: thread-transfer-results
+          path: target/transfer-budget/thread-transfer-results.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: DOM test-env ban (strict)
+        run: ./target/debug/vox ci dom-test-env-ban
 
       - name: Affected crates
         id: affected
@@ -251,6 +294,9 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm typecheck
           pnpm test
+          # v5.5: knip dual-pass against locked local knip (no dlx)
+          pnpm run knip:files
+          pnpm run knip:exports
           pnpm exec playwright install --with-deps chromium
           # Bounded: the suite takes ~3 min. Playwright once outlived its last test until
           # the 30-min job cap (an orphaned web server kept its stdio open; see the

@@ -63,11 +63,9 @@ impl Lane {
     }
 }
 
-/// A calibration cell. Constructing `(CandleMetal, gradient_checkpointing:
-/// true)` is a compile-time-adjacent error, not a runtime `Uncalibrated`:
-/// candle-metal does not implement gradient checkpointing at all
-/// (`candle_qlora_train/mod.rs` warns about exactly this gap today), so that
-/// cell should never exist rather than merely be empty.
+/// A calibration cell: one lane with or without gradient checkpointing. Both
+/// lanes checkpoint (the Metal QLoRA loop per layer since 320 S2), so every
+/// cell is real; a missing measurement is `MemoryModels::get`'s error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct CalKey {
     lane: Lane,
@@ -76,12 +74,6 @@ pub struct CalKey {
 
 impl CalKey {
     pub fn new(lane: Lane, gradient_checkpointing: bool) -> Result<Self> {
-        if lane == Lane::CandleMetal && gradient_checkpointing {
-            bail!(
-                "candle-metal does not implement gradient checkpointing; \
-                 CalKey(candle-metal, gradient_checkpointing=true) is not a real cell"
-            );
-        }
         Ok(Self {
             lane,
             gradient_checkpointing,
@@ -428,12 +420,17 @@ lanes:
     }
 
     #[test]
-    fn metal_cannot_claim_gradient_checkpointing() {
-        assert!(
-            CalKey::new(Lane::CandleMetal, true).is_err(),
-            "candle-metal does not implement checkpointing; the key must be unconstructible, \
-             not merely uncalibrated at runtime"
-        );
+    fn metal_gradient_checkpointing_is_a_real_uncalibrated_cell() {
+        // 320 S2: the Metal QLoRA loop checkpoints per layer (and always does),
+        // so the cell exists; it has no measured row yet, which `get` says.
+        let key = CalKey::new(Lane::CandleMetal, true).unwrap();
+        let err = MemoryModels::load_default()
+            .unwrap()
+            .get(&key)
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("no memory-model calibration"), "{err}");
+        assert!(!err.contains("does not implement"), "{err}");
         assert!(CalKey::new(Lane::CandleCuda, true).is_ok());
     }
 
@@ -1039,6 +1036,7 @@ mod render_verdict_tests {
             working_set_bytes: 115_448_725_504,
             max_alloc_bytes: 86_587_244_544,
             source: BudgetSource::Metal,
+            working_set_is_live: true,
         }
     }
 

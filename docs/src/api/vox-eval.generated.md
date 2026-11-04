@@ -40,9 +40,13 @@ Functions are deterministic heuristics—not a replacement for human eval or ful
 | `compare` | — |
 | `corpus_score` | — |
 | `corpus_stats` | — |
+| `ladder_before_after` | — |
 | `mens` | — |
 | `paired_ni` | — |
 | `provenance` | — |
+| `qwen_reasoning` | — |
+| `reasoning_bench` | — |
+| `reasoning_slice` | — |
 | `report` | — |
 | `trial_flywheel` | — |
 

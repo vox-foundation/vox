@@ -1,0 +1,71 @@
+{
+  "schema": "reasoning_before_after.v1",
+  "status": "compared",
+  "scope_note": "The reasoning benches gsm8k_think, math500_think and vox_think are fixed 32-item slices, not full GSM8K or MATH-500 results. The 5% relative bar applies to these 32 items only.",
+  "slice_size": 32,
+  "base_requested": "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
+  "base_model": "Qwen/Qwen3-0.6B",
+  "base_revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+  "adapter": {
+    "dir": "/Users/brbrainerd/dev/vox-mens-compare/mens/runs/qwen3-0.6b"
+  },
+  "gate_input": false,
+  "slices": {
+    "gsm8k_think": {
+      "base": {
+        "status": "scored",
+        "n": 32,
+        "accuracy": 0.5,
+        "think_initiation_rate": 1.0
+      },
+      "adapter": {
+        "status": "scored",
+        "n": 32,
+        "accuracy": 0.40625,
+        "think_initiation_rate": 1.0
+      }
+    },
+    "math500_think": {
+      "base": {
+        "status": "scored",
+        "n": 32,
+        "accuracy": 0.15625,
+        "think_initiation_rate": 1.0
+      },
+      "adapter": {
+        "status": "scored",
+        "n": 32,
+        "accuracy": 0.1875,
+        "think_initiation_rate": 1.0
+      }
+    },
+    "vox_think": {
+      "base": {
+        "status": "scored",
+        "n": 32,
+        "accuracy": 0.21875,
+        "think_initiation_rate": 1.0
+      },
+      "adapter": {
+        "status": "scored",
+        "n": 32,
+        "accuracy": 0.21875,
+        "think_initiation_rate": 1.0
+      }
+    }
+  },
+  "base_rungs": [
+    {
+      "hf_id": "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
+      "floor_mb": 23675,
+      "methods": [
+        "qlora"
+      ],
+      "license": "apache-2.0",
+      "attribution_required": false,
+      "floor_measured": true,
+      "measured_on": "silicon-gpu-metal",
+      "peak_mb": 23675
+    }
+  ]
+}

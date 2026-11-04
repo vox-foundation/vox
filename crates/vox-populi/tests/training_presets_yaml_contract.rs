@@ -164,8 +164,16 @@ fn gpu_specs_agentic_default_qwen3_hf_ids_have_real_sha_format() {
 /// - `Qwen/Qwen3.8-27B`: `docs/superpowers/specs/2026-09-10-qwen38-27b-hub-design.md`
 ///   §4.1 — measured NF4 weights 12.97 GiB = 13,281.28 MiB; at 0.5 bytes/param
 ///   (4-bit NF4) that is the ~27.856B params used below.
+/// - `Qwen/Qwen3-4B`: HF `safetensors.total` 4,022,468,096 at the pinned
+///   revision (Phase 317), recorded nominal like the other rows.
+/// - `Qwen/Qwen3-1.7B`: 1,720,574,976 params at the pinned revision (Phase 317;
+///   tied embeddings), recorded nominal like the other rows. The HF
+///   `safetensors.total` of 2,031,739,904 also counts a redundant
+///   `lm_head.weight` copy of the embedding.
 const KNOWN_PARAMS_B: &[(&str, f64)] = &[
     ("Qwen/Qwen3-0.6B", 0.6),
+    ("Qwen/Qwen3-1.7B", 1.7),
+    ("Qwen/Qwen3-4B", 4.0),
     ("Qwen/Qwen3-8B", 8.0),
     ("Qwen/Qwen3-14B", 14.0),
     ("Qwen/Qwen3-32B", 32.0),
@@ -274,7 +282,15 @@ fn gpu_specs_qwen3_train_bases_floor_mb_pins_against_real_weight_size() {
                 base.floor_mb
             );
 
-            if is_qlora && params_b >= 8.0 {
+            // Unmeasured dense QLoRA rungs take the Metal QLoRA estimate as their
+            // floor (pinned by gpu_specs_unmeasured_dense_qlora_floors_are_the_metal_estimate),
+            // which sits far above this nominal band by design.
+            let metal_estimate_floor = !base.floor_measured
+                && is_qlora
+                && METAL_ESTIMATE_DIMS
+                    .iter()
+                    .any(|(repo, ..)| *repo == bare_id);
+            if is_qlora && params_b >= 8.0 && !metal_estimate_floor {
                 let ratio = base.floor_mb as f64 / bare;
                 assert!(
                     (2.0..=4.0).contains(&ratio),
@@ -293,4 +309,193 @@ fn gpu_specs_qwen3_train_bases_floor_mb_pins_against_real_weight_size() {
         checked >= 4,
         "expected to check at least the 4 QLoRA Qwen3 rungs, checked {checked}"
     );
+}
+
+/// `(repo, hidden_size, num_attention_heads, num_hidden_layers)` from each pinned
+/// config.json, for the dense sizes whose QLoRA floor is not measured yet.
+const METAL_ESTIMATE_DIMS: &[(&str, usize, usize, usize)] = &[
+    ("Qwen/Qwen3-8B", 4096, 32, 36),
+    ("Qwen/Qwen3-14B", 5120, 40, 40),
+    ("Qwen/Qwen3-32B", 5120, 64, 64),
+];
+
+/// Phase 320: the 8B-32B QLoRA estimates raised in 320-08 were set above the
+/// pre-fix 1.7B probe peak (54,583 MB, inflated by Metal-pool grad pinning,
+/// fixed in c56e13a33). An unmeasured dense QLoRA floor is now exactly the
+/// trainer's own Metal QLoRA estimate at the ladder's seq_len 3072 with
+/// checkpointing, so the floor check and the train-time estimate agree.
+#[test]
+fn gpu_specs_unmeasured_dense_qlora_floors_are_the_metal_estimate() {
+    let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()
+        .expect("canonicalize workspace root");
+    let overlay = vox_populi::mens::tensor::spoke_base_resolver::load_overlay(&workspace_root)
+        .expect("load mens/config/gpu-specs.yaml train_bases");
+    let mut checked = 0usize;
+    for b in overlay.values().flatten() {
+        let bare_id = b.hf_id.split('@').next().unwrap_or("");
+        let Some(&(_, d, h, l)) = METAL_ESTIMATE_DIMS.iter().find(|(r, ..)| *r == bare_id) else {
+            continue;
+        };
+        if b.floor_measured || !b.methods.iter().any(|m| m == "qlora") {
+            continue;
+        }
+        let want = vox_populi::mens::estimate_training_vram_mb_qlora(d, h, l, 151_936, 3072, true);
+        assert_eq!(
+            u64::from(b.floor_mb),
+            want,
+            "{} QLoRA floor must be the Metal QLoRA estimate",
+            b.hf_id
+        );
+        checked += 1;
+    }
+    assert!(
+        checked >= 3,
+        "checked {checked} unmeasured dense QLoRA rungs"
+    );
+}
+
+/// The six Qwen3 dense sizes and the `refs/heads/main` commit
+/// `git ls-remote https://huggingface.co/Qwen/<repo> refs/heads/main` reported
+/// for each on 2026-10-27 (Phase 317, SIZE-01), in size order.
+/// Phase 320 ladder measurement on silicon-gpu-metal: (pin, peak MB) from the
+/// post-fix (c56e13a33) one-epoch S4 runs' run_summary.json; floor_mb equals the peak.
+const MEASURED_QLORA_PINS: &[(&str, u32)] = &[
+    (
+        "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
+        15319,
+    ),
+    (
+        "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+        27007,
+    ),
+    // 4B: post-fix S4 full run (2026-10-30); peak of the resumed segment, rows 1081-1108.
+    (
+        "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",
+        34460,
+    ),
+];
+const MEASURED_ON: &str = "silicon-gpu-metal";
+
+const DENSE_LADDER: [(&str, &str); 6] = [
+    (
+        "Qwen/Qwen3-0.6B",
+        "c1899de289a04d12100db370d81485cdf75e47ca",
+    ),
+    (
+        "Qwen/Qwen3-1.7B",
+        "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+    ),
+    ("Qwen/Qwen3-4B", "1cfa9a7208912126459214e8b04321603b3df60c"),
+    ("Qwen/Qwen3-8B", "b968826d9c46dd6066d109eabc6255188de91218"),
+    ("Qwen/Qwen3-14B", "40c069824f4251a91eefaf281ebe4c544efd3e18"),
+    ("Qwen/Qwen3-32B", "9216db5781bf21249d130ec9da846c4624c16137"),
+];
+
+fn is_lower_hex_40(s: &str) -> bool {
+    s.len() == 40 && s.chars().all(|c| matches!(c, '0'..='9' | 'a'..='f'))
+}
+
+/// SIZE-01: `train_bases.qwen3_code` pins every Qwen3 dense size to the commit
+/// in `DENSE_LADDER` (evidence: `git ls-remote ... refs/heads/main`,
+/// 2026-10-27), one pin per size across every tag, all Apache-2.0, every
+/// estimated floor labeled `floor unmeasured`. Hermetic: reads only the
+/// checked-in `mens/config/gpu-specs.yaml`, never the network.
+#[test]
+fn gpu_specs_qwen3_code_ladder_pins_all_six_dense_sizes() {
+    let workspace_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()
+        .expect("canonicalize workspace root");
+    let overlay = vox_populi::mens::tensor::spoke_base_resolver::load_overlay(&workspace_root)
+        .expect("load mens/config/gpu-specs.yaml train_bases");
+    let ladder = overlay.get("qwen3_code").expect("qwen3_code tag present");
+    let all: Vec<_> = overlay.values().flatten().collect();
+
+    let mut qlora_floors = Vec::new();
+    for (repo, sha) in DENSE_LADDER {
+        assert!(is_lower_hex_40(sha), "{repo}: bad evidence sha {sha}");
+        let pin = format!("{repo}@{sha}");
+        assert!(
+            ladder.iter().any(|b| b.hf_id == pin),
+            "qwen3_code has no rung {pin}"
+        );
+        for b in all
+            .iter()
+            .filter(|b| b.hf_id.split('@').next() == Some(repo))
+        {
+            assert_eq!(b.hf_id, pin, "{repo} pinned to more than one revision");
+            assert_eq!(b.license.as_deref(), Some("apache-2.0"), "{pin}");
+            assert!(!b.attribution_required, "{pin}");
+        }
+        let qlora = ladder
+            .iter()
+            .find(|b| b.hf_id == pin && b.methods.iter().any(|m| m == "qlora"))
+            .unwrap_or_else(|| panic!("qwen3_code has no QLoRA rung for {pin}"));
+        qlora_floors.push(qlora.floor_mb);
+    }
+    assert!(
+        qlora_floors.windows(2).all(|w| w[0] < w[1]),
+        "qwen3_code QLoRA floors must strictly increase with size: {qlora_floors:?}"
+    );
+    assert!(
+        ladder.iter().all(|b| !b.hf_id.contains("Qwen3.8")),
+        "Qwen3.8-27B is not a Qwen3 dense size and must stay out of qwen3_code"
+    );
+
+    let mut by_key: std::collections::HashMap<(&str, u32, &Vec<String>), _> =
+        std::collections::HashMap::new();
+    for b in &all {
+        let is_qlora = b.methods.iter().any(|m| m == "qlora");
+        let measured = MEASURED_QLORA_PINS
+            .iter()
+            .find(|(pin, _)| is_qlora && *pin == b.hf_id);
+        if let Some(&(_, want_peak)) = measured {
+            assert_eq!(
+                (b.peak_mb, b.floor_mb),
+                (Some(want_peak), want_peak),
+                "{} peak_mb and floor_mb must be the measured peak",
+                b.hf_id
+            );
+            assert!(
+                b.floor_measured,
+                "{} must carry floor_measured: true after Phase 320",
+                b.hf_id
+            );
+            assert_eq!(
+                b.measured_on.as_deref(),
+                Some(MEASURED_ON),
+                "{} measured_on must be {}",
+                b.hf_id,
+                MEASURED_ON
+            );
+            let peak = b.peak_mb.expect("measured rung needs peak_mb");
+            assert!(
+                peak > 0 && peak <= b.floor_mb,
+                "{} peak_mb {peak} must be in 1..=floor_mb {}",
+                b.hf_id,
+                b.floor_mb
+            );
+        } else {
+            assert!(
+                !b.floor_measured,
+                "{} must not claim a measured floor",
+                b.hf_id
+            );
+            assert!(
+                b.measured_on.is_none() && b.peak_mb.is_none(),
+                "{} estimate must not carry measured_on or peak_mb",
+                b.hf_id
+            );
+        }
+        if b.hf_id.contains("Qwen3") {
+            let rev = b.hf_id.rsplit_once('@').map(|(_, r)| r).unwrap_or("");
+            assert!(is_lower_hex_40(rev), "unpinned Qwen3 rung {}", b.hf_id);
+        }
+        let first = *by_key
+            .entry((b.hf_id.as_str(), b.floor_mb, &b.methods))
+            .or_insert(*b);
+        assert_eq!(first, *b, "repeated rung {} disagrees across tags", b.hf_id);
+    }
 }

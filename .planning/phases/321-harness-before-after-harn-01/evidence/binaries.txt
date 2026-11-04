@@ -1,0 +1,14 @@
+# Release binaries used for Phase 321 scoring (recorded 2026-10-31T02:19:24Z)
+## think128 (old held-out protocol; used for all 4B compare/collateral/gate legs)
+built 2026-10-30T19:20Z from the tree committed as 9c8842f9b (on top of 31c692401); copied to target/release-think128/
+0ec0767959f2ec7b234d16cceb1fb0eef95c69e84997d333bbec27a1a03ee0ad  target/release-think128/vox
+ad93ece97157f23f0011df614a6698c16431a3511ee7acd410894a63e6813199  target/release-think128/vox-ml-cli
+plugin (installed, shared by both): ac0da06343a71bfb7f0379c35eaa970548996d9084ef6487b6c051124775993d  target/release-think128/libvox_plugin_mens_candle_metal.dylib
+git diff 9c8842f9b..448df0192 -- crates/vox-plugin-mens-candle-* patches/ : empty (plugin not rebuilt)
+## Artifacts by binary
+think128: score-4b-heldout-*.log (invalid protocol), score-4b-compare-vox.log, score-4b-baseline-vox.log, score-4b-collateral.log (first attempt), score-4b-serve-*.log
+4B gate state 2026-10-31T02:18Z: refused, no collateral report; vox_think base 56.25% -> adapter 71.9% (no regression); gsm8k_think not yet scored. Final verdict pending.
+Follow-up (not fixed): fail-fast should interleave compare-slice -> collateral-slice so it does not need every baseline slice up front.
+## nothink (448df0192; held-out re-score, *_nothink.json)
+52a95b9e95dbe4805b0e87fec8e3726575e38d9b19764dec70a68bf854a173a1  target/release/vox
+d0b450757e715ee44e8baac4613e793012204f8c932f9da9fb41423bc36db07c  target/release/vox-ml-cli

@@ -265,6 +265,20 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_CHATARC"
+    owner_crate: "vox-config"
+    kind: "bool"
+    required: false
+    introduced_in: "0.6.0"
+    default: "0"
+    description: "1/true/yes/on (case-insensitive, trimmed) enables ChatARC in chat turns; unset or any other value keeps it off. Its choice is currently disabled pending recalibration (chatarc.v2): it never acts and gathers no candidates."
+  - name: "VOX_TURN_DECISION_PACK"
+    owner_crate: "vox-config"
+    kind: "bool"
+    required: false
+    introduced_in: "0.6.0"
+    default: "0"
+    description: "1/true/yes/on (case-insensitive, trimmed) runs the DEC-01 turn decision pack ahead of chat model selection; unset or any other value keeps selection byte-identical to the pre-pack behavior."
   - name: "VOX_CHROME_EXECUTABLE"
     owner_crate: "vox-browser"
     kind: "string"
@@ -3189,6 +3203,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_REASONING_EVAL_MAX_TOKENS"
+    owner_crate: "vox-ml-cli"
+    kind: "int"
+    required: false
+    introduced_in: "0.6.0"
+    description: "Generation token cap for thinking-mode reasoning bench scoring in mens collateral-damage evaluation (default 2048; values below 1 are raised to 1)."
   - name: "VOX_REGISTRY_TOKEN"
     owner_crate: "vox-secrets"
     kind: "string"

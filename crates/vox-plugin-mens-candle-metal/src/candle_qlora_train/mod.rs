@@ -128,9 +128,9 @@ fn spawn_peak_sampler_thread( // toestub-ignore(skeleton/hollow-fn): honest "unm
 /// This matches serve's preference for a real `lm_head.weight` when present:
 /// without it, a model with an untied head (e.g. Qwen3.8-27B) computes logits
 /// against the wrong matrix during training while serve uses the right one.
-/// (Serve's own check in `inference.rs` is pure tensor presence — it never
-/// consults `tie_word_embeddings` — so the two agree for every real
-/// checkpoint, but they are not the same predicate.)
+/// Serve's `inference::lm_head_weight` applies the same predicate, so a tied
+/// checkpoint that also stores `lm_head.weight` (Qwen3-0.6B, 1.7B) gets its
+/// head delta, keyed by the embedding, on the output projection in both.
 ///
 /// - `tie_word_embeddings == false` and `lm_head_tensor` is `Some` → use it.
 /// - Otherwise (tied, or the key is genuinely absent from the checkpoint) →
@@ -161,6 +161,34 @@ impl TrainGraphModel {
             Self::Qwen35(m) => Ok(m.forward(input_ids)?),
         }
     }
+
+    /// See [`crate::model::Qwen35Model::checkpointed_hidden`].
+    pub fn checkpointed_hidden(
+        &self,
+        input_ids: &Tensor,
+        n_segments: usize,
+    ) -> anyhow::Result<(Tensor, Vec<crate::model::CheckpointSegment>)> {
+        match self {
+            Self::Qwen35(m) => Ok(m.checkpointed_hidden(input_ids, n_segments)?),
+        }
+    }
+
+    /// See [`crate::model::Qwen35Model::head_forward`].
+    pub fn head_forward(&self, hidden: &Tensor) -> anyhow::Result<Tensor> {
+        match self {
+            Self::Qwen35(m) => Ok(m.head_forward(hidden)?),
+        }
+    }
+
+    /// See [`crate::model::Qwen35Model::recompute_segment`].
+    pub fn recompute_segment(
+        &self,
+        seg: &crate::model::CheckpointSegment,
+    ) -> anyhow::Result<(candle_core::Var, Tensor)> {
+        match self {
+            Self::Qwen35(m) => Ok(m.recompute_segment(seg)?),
+        }
+    }
 }
 
 // ── DB message bus ────────────────────────────────────────────────────────────
@@ -177,6 +205,12 @@ pub(super) struct TrainingLoopStats {
     pub skip_short_seq: u64,
     pub skip_curriculum: u64,
     pub skip_token_id_oob: u64,
+    /// Training ended at the `--max-runtime-secs` cap, not after the last epoch.
+    pub capped: bool,
+    /// Encoded rows that lost tokens to `seq_len` / had the prompt middle-trimmed (D-04).
+    pub truncated_rows: u64,
+    pub prompt_trimmed_rows: u64,
+    pub final_loss_ema: Option<f64>,
 }
 
 /// Calculate cosine learning rate with linear warmup.
@@ -326,20 +360,9 @@ pub fn run_candle_qlora_train(
         .clone()
         .unwrap_or_else(|| data_dir.join("train.jsonl"));
     let _ = preflight_train_jsonl(&train_path, 1_000_000)?;
-    // The budget planner (`memory_budget::get_resident_per_b`) discounts the
-    // resident estimate whenever gradient checkpointing is requested — heavily so
-    // for the Qwen3.5 family (at 27B it more than halves the estimate), which in
-    // turn inflates the activation budget and the seq_len/batch_size it plans. The
-    // Metal backend does not implement checkpointing (only the CUDA backend reads
-    // this flag), so honoring the discount without saying so would silently plan a
-    // run that cannot fit. Say so loudly instead of OOMing mid-training.
     if config.gradient_checkpointing {
-        train_log::warn(
-            "gradient_checkpointing was requested but the Metal backend does not \
-             implement it (only the CUDA backend does) — the forward runs unsegmented. \
-             The VRAM budget was planned assuming checkpointing, so the planned \
-             seq_len/batch_size may exceed real memory; reduce --seq-len/--batch-size \
-             if this run OOMs.",
+        train_log::info(
+            "gradient checkpointing on: one layer per segment, recomputed in the backward",
         );
     }
     let jsonl_strict_resolved =

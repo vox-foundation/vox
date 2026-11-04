@@ -120,6 +120,13 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::GuiCatalogParity => super::gui_catalog_parity::run(&root),
         CiCmd::GuiVersionSync { write } => vox_cli_ci::gui_version_sync::run(&root, write),
         CiCmd::CrateApiSync { write } => vox_cli_ci::crate_api_docs::run(&root, write),
+        CiCmd::WikiSync { write } => {
+            vox_doc_pipeline::pipeline::openwiki::generate_subsystem_hubs(&root, write)
+                .map(|paths| {
+                    println!("wiki-sync OK ({} subsystem hub files)", paths.len());
+                })
+                .map_err(|e| anyhow!(e))
+        }
         CiCmd::GuiSurfaceCoverage { write } => super::gui_surface_coverage::run(&root, write),
         CiCmd::GuiSurfaceRegistry {
             write,
@@ -684,6 +691,99 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 Err(anyhow!("affected-crates exited with code {code}"))
             }
         }
+        CiCmd::HitEverySurface {
+            base,
+            paths,
+            strict,
+        } => vox_cli_ci::hit_every_surface::run(
+            &root,
+            vox_cli_ci::hit_every_surface::HitEverySurfaceArgs {
+                base,
+                paths,
+                strict,
+            },
+        ),
+        CiCmd::SuppressionReviewGate {
+            base,
+            paths,
+            strict,
+        } => vox_cli_ci::suppression_review_gate::run(
+            &root,
+            vox_cli_ci::suppression_review_gate::SuppressionReviewArgs {
+                base,
+                paths,
+                strict,
+            },
+        ),
+        CiCmd::EvidenceAssetBan { allowlist, paths } => vox_cli_ci::evidence_asset_ban::run(
+            &root,
+            vox_cli_ci::evidence_asset_ban::EvidenceAssetBanArgs { allowlist, paths },
+        ),
+        CiCmd::KnipGui { check } => vox_cli_ci::knip_gui::run(&root, check),
+        CiCmd::TransferBudgetReport {
+            write,
+            out,
+            check,
+            baseline,
+            sample_json,
+            measure,
+        } => vox_cli_ci::transfer_budget_report::run(
+            &root,
+            vox_cli_ci::transfer_budget_report::TransferBudgetArgs {
+                write,
+                out,
+                check,
+                baseline,
+                sample_json,
+                measure,
+            },
+        ),
+        CiCmd::VouchedParse { path } => vox_cli_ci::vouched_parse::run(
+            &root,
+            vox_cli_ci::vouched_parse::VouchedParseArgs { path },
+        ),
+        CiCmd::PreviewTrustAudit {
+            allowlist,
+            workflows_dir,
+        } => vox_cli_ci::preview_trust_audit::run(
+            &root,
+            vox_cli_ci::preview_trust_audit::PreviewTrustArgs {
+                allowlist,
+                workflows_dir,
+            },
+        ),
+        CiCmd::CiChanges {
+            base,
+            paths,
+            github_output,
+        } => vox_cli_ci::ci_changes::run(
+            &root,
+            vox_cli_ci::ci_changes::CiChangesArgs {
+                base,
+                paths,
+                github_output,
+            },
+        ),
+        CiCmd::DomTestEnvBan { advisory } => vox_cli_ci::dom_test_env_ban::run(
+            &root,
+            vox_cli_ci::dom_test_env_ban::DomTestEnvBanArgs { advisory },
+        ),
+        CiCmd::CheckChanged {
+            base,
+            dry_run,
+            changed,
+            owners,
+            github_output,
+        } => vox_cli_ci::check_changed::run(
+            &root,
+            vox_cli_ci::check_changed::CheckChangedArgs {
+                base,
+                dry_run,
+                changed,
+                owners_file: owners,
+                github_output,
+            },
+        ),
         CiCmd::Status { hook, changed_only } => {
             super::status::run(super::status::StatusArgs { hook, changed_only })
         }

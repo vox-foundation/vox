@@ -48,9 +48,60 @@
 
 use clap::Parser;
 use std::process::Command;
+use vox_orchestrator_mcp::chat_tools::chatarc::{CommandHint, register_command_hint_provider};
+
+/// ChatARC command hints (phase 322-03): the compiled-in leaf commands of this
+/// binary. vox-orchestrator-mcp cannot depend on vox-cli, so the binary
+/// registers this provider. The provider is called on a chat turn's async path,
+/// so it never blocks: the first call starts one background build and returns
+/// no hints, and later calls return the list once it is built. A failed spawn
+/// or a panicking build is logged and leaves the list empty (fail open). A
+/// plain `vox` invocation never calls the provider, so it builds nothing.
+fn chatarc_command_hints() -> Vec<CommandHint> {
+    static HINTS: std::sync::OnceLock<Vec<CommandHint>> = std::sync::OnceLock::new();
+    static WARM: std::sync::Once = std::sync::Once::new();
+    WARM.call_once(|| {
+        // clap's recursive build of the command tree overflows the default stack.
+        let spawned = std::thread::Builder::new()
+            .name("chatarc-command-hints".into())
+            .stack_size(32 * 1024 * 1024)
+            .spawn(
+                || match std::panic::catch_unwind(build_chatarc_command_hints) {
+                    Ok(hints) => {
+                        let _ = HINTS.set(hints);
+                    }
+                    Err(_) => tracing::warn!(
+                        target: "vox_cli::chatarc",
+                        "building ChatARC command hints panicked; no command hints this process"
+                    ),
+                },
+            );
+        if let Err(e) = spawned {
+            tracing::warn!(
+                target: "vox_cli::chatarc",
+                error = %e,
+                "could not spawn the ChatARC command-hint build; no command hints this process"
+            );
+        }
+    });
+    HINTS.get().cloned().unwrap_or_default()
+}
+
+fn build_chatarc_command_hints() -> Vec<CommandHint> {
+    vox_cli::command_catalog::build_catalog()
+        .entries
+        .into_iter()
+        .filter(|e| e.compiled_in && !e.has_subcommands)
+        .map(|e| CommandHint {
+            invocation: format!("vox {}", e.path.join(" ")),
+            about: e.about,
+        })
+        .collect()
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    register_command_hint_provider(chatarc_command_hints);
     // Render Unicode/emoji correctly on the Windows console for both `--interp`
     // (this process) and the spawned native binary (shared console code page).
     ::vox_actor_runtime::builtins::vox_console_init_utf8();
@@ -126,7 +177,11 @@ async fn main() -> anyhow::Result<()> {
             // Wait for completion and exit with same status
             match command.status() {
                 Ok(status) => {
-                    std::process::exit(status.code().unwrap_or(1));
+                    let (code, msg) = vox_cli_core::ml_cli_handshake::child_exit(status);
+                    if let Some(msg) = msg {
+                        eprintln!("error: {msg}");
+                    }
+                    std::process::exit(code);
                 }
                 Err(e) => {
                     eprintln!("Error: vox-ml-cli is not installed or not in PATH.");

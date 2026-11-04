@@ -17,6 +17,8 @@
 //! Oratio speech-to-text lives at **`vox oratio`** (top-level), not under `mens`.
 //! ```
 
+#[cfg(feature = "gpu")]
+pub(crate) mod baseline_from_compare;
 /// Latency and throughput benchmarking for completions.
 pub mod bench_completion;
 #[cfg(feature = "cloud")]
@@ -27,6 +29,10 @@ pub(crate) mod eval_gate;
 #[cfg(feature = "gpu")]
 mod eval_local;
 mod eval_local_prompt;
+#[cfg(feature = "gpu")]
+pub(crate) mod item_checkpoint;
+#[cfg(feature = "gpu")]
+pub(crate) mod ladder_serve;
 pub mod metrics;
 #[cfg(feature = "gpu")]
 pub mod models;
@@ -36,6 +42,10 @@ mod pipeline;
 /// on a stale/missing/ABI-mismatched plugin before CUDA training).
 #[cfg(feature = "gpu")]
 pub mod plugin_heal;
+#[cfg(feature = "gpu")]
+pub(crate) mod reasoning_compare;
+#[cfg(feature = "gpu")]
+pub(crate) mod reasoning_eval;
 #[cfg(feature = "mens-base")]
 pub(crate) mod training_selection;
 

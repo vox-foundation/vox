@@ -1,0 +1,11 @@
+{
+  "schema": "321_collateral_attempt.v1",
+  "size": "1.7B",
+  "status": "fail",
+  "failed_on": "vox_think",
+  "pre": 0.65625,
+  "post": 0.59375,
+  "degradation_rate": 0.09523809523809523,
+  "threshold": 0.05,
+  "blocker": "collateral status fail blocks serve gate"
+}

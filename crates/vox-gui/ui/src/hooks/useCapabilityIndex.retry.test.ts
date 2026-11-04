@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { CAPABILITY_FIXTURE } from '../test-fixtures/capabilityIndexFixture';

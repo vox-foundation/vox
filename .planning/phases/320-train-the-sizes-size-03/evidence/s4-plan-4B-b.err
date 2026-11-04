@@ -1,0 +1,24 @@
+warning: vox-ml-cli build 3ec31a00f does not match vox build c56e13a33; the ML command is running code from a different commit.
+  running: /Users/brbrainerd/dev/vox-mens-compare/target/release/vox-ml-cli
+  fix: cargo install --path crates/vox-ml-cli --features gpu --force
+  (set VOX_REQUIRE_MATCHING_ML_CLI=1 to make this an error)
+  [36mℹ[39m size: 4B (explicit): floor 33037 MB fits 57552 MB free (Metal working set)
+[36m╔══════════════════════════════════════════╗[39m
+[36m║   VoxMens — native fine-tuning (QLoRA)  ║[39m
+[36m╚══════════════════════════════════════════╝[39m
+
+  Model:       [36mQwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c[39m
+  Device:      [36mmetal[39m
+  Data:        [36m/Users/brbrainerd/dev/vox-mens-compare/target/dogfood[39m
+  Output:      [36m/Users/brbrainerd/dev/vox-mens-compare/mens/runs/qwen3-4b[39m
+  Rank/Alpha:  16/32
+  Batch/Accum: 1/8 (effective=8)
+  Backend:     qlora
+  Tokenizer:   Hf
+  Seq len:     3072
+
+  [36m⏭[39m Skipping corpus mix (`VOX_TRAIN_SKIP_CORPUS_MIX`); using train file under data-dir
+  [36mℹ[39m held-out check: clean (3 slices, 96 held-out questions, 1166 rows)
+  [36mℹ[39m size: 4B (explicit): floor 33037 MB fits 57500 MB free (Metal working set)
+2026-10-30T03:06:34.613037Z  INFO vox_ml_cli::commands::schola::train::gpu: activation/gradient checkpointing ENABLED for this run explicit=false
+  [36mℹ[39m base Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c: qlora floor 33037 MB measured on silicon-gpu-metal (peak 33037 MB)

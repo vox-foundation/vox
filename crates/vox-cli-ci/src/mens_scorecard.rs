@@ -411,9 +411,8 @@ async fn evaluate_task(
     let placeholder_hits = placeholder_marker_hits(&raw_best);
     let trivial_placeholder_output = is_trivial_placeholder_output(&raw_best);
     let construct_richness_score = vox_compiler::ast_eval(&raw_best).coverage_score();
-    let anti_stub_pass = placeholder_hits == 0
-        && !trivial_placeholder_output
-        && construct_richness_score >= ANTI_STUB_MIN_CONSTRUCT_RICHNESS;
+    // Match vox-ml-cli metrics: anti-stub is placeholders only; richness is separate.
+    let anti_stub_pass = placeholder_hits == 0 && !trivial_placeholder_output;
     let voxelized_strictness = is_voxelized_strict(&raw_surface_best, &normalized_best);
     let tokens_out = raw_best.split_whitespace().count();
     let event = TaskEvent {

@@ -1,0 +1,70 @@
+  [36mℹ[39m size: 0.6B (explicit): floor 2000 MB fits 63879 MB free (Metal working set)
+2026-10-28T04:44:51.541125Z  INFO vox_plugin_host::telemetry: event="plugin.discovered" id="mens-candle-metal" version="0.6.0" payload_kind="code" abi_or_format_version=13
+2026-10-28T04:44:51.541783Z  INFO vox_plugin_host::telemetry: event="plugin.discovered" id="mens-candle-cuda" version="0.6.0" payload_kind="code" abi_or_format_version=12
+2026-10-28T04:44:51.578381Z  INFO vox_plugin_host::telemetry: event="plugin.loaded" id="mens-candle-metal" version="0.6.0" payload_kind="code" load_ms=1
+[36m╔══════════════════════════════════════════╗[39m
+[36m║   VoxMens — native fine-tuning (QLoRA)  ║[39m
+[36m╚══════════════════════════════════════════╝[39m
+
+  Model:       [36mQwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca[39m
+  Device:      [36mmetal[39m
+  Data:        [36m/Users/brbrainerd/dev/vox-mens-compare/target/dogfood[39m
+  Output:      [36m/Users/brbrainerd/dev/vox-mens-compare/mens/runs/320-smoke-0.6b-a3[39m
+  Rank/Alpha:  8/16
+  Batch/Accum: 1/1 (effective=1)
+  Backend:     qlora
+  Tokenizer:   Hf
+  Seq len:     3072
+
+  [36m⏭[39m Skipping corpus mix (`VOX_TRAIN_SKIP_CORPUS_MIX`); using train file under data-dir
+  [36mℹ[39m held-out check: clean (3 slices, 96 held-out questions, 1166 rows)
+  [36mℹ[39m size: 0.6B (explicit): floor 2000 MB fits 63935 MB free (Metal working set)
+2026-10-28T04:44:51.782103Z  INFO vox_ml_cli::commands::schola::train::gpu: activation/gradient checkpointing ENABLED for this run explicit=false
+  [36mℹ[39m base Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca: qlora floor 2000 MB is an estimate (floor unmeasured)
+  [36m📥[39m Downloading base model from Hugging Face: Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca
+vox-populi: downloading training model `Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca`; exact size is not known ahead of time (not the documented default model). The repo manifest lists 1 *.safetensors file(s) that will be fetched.
+  [32m✓[39m Cached at /Users/brbrainerd/.cache/huggingface/hub/models--Qwen--Qwen3-0.6B/snapshots/c1899de289a04d12100db370d81485cdf75e47ca
+  [33m⚠[39m VRAM check unavailable (no memory-model calibration for lane candle-metal (gradient_checkpointing=true); measure it with `vox mens probe --measure`); proceeding with batch_size=1, seq_len=3072 UNVERIFIED. This lane is uncalibrated, so nothing here has confirmed this config fits — measure it with `vox mens probe --measure`.
+  [36m📐[39m Architecture: qwen3 (28 layers, 28 full-attention, 0 linear-attention)
+  [36m🔤[39m Tokenizer: /Users/brbrainerd/.cache/huggingface/hub/models--Qwen--Qwen3-0.6B/snapshots/c1899de289a04d12100db370d81485cdf75e47ca/tokenizer.json
+  [32m✓[39m VRAM: est. ~20725 MB / 110101 MB available
+2026-10-28T04:44:52.102618Z  INFO vox_plugin_host::telemetry: event="plugin.discovered" id="mens-candle-metal" version="0.6.0" payload_kind="code" abi_or_format_version=13
+2026-10-28T04:44:52.102694Z  INFO vox_plugin_host::telemetry: event="plugin.discovered" id="mens-candle-cuda" version="0.6.0" payload_kind="code" abi_or_format_version=12
+2026-10-28T04:44:52.134873Z  INFO vox_plugin_host::telemetry: event="plugin.loaded" id="mens-candle-metal" version="0.6.0" payload_kind="code" load_ms=0
+  [mens] gradient checkpointing on: one layer per segment, recomputed in the backward
+  [mens] Loading training data from /Users/brbrainerd/dev/vox-mens-compare/target/dogfood/train_mixed.jsonl (min_rating=3)...
+  [mens] Loaded 1166 pairs.
+  [mens] Mmapping base weights from 1 files...
+  [mens] Loading embeddings ('model.embed_tokens.weight') to device...
+  [mens] Embeddings loaded.
+  [mens] RoPE inv_freq tensors are optional in some HF shards; using synthesized inv_freq from config rope_theta when per-layer tensors are absent.
+  [mens] Candle QLoRA: building full graph (28 layers, n_heads=16, n_kv_heads=8, head_dim=128)
+  [mens]   [graph] building layer 0/28...
+  [mens]   [graph] building layer 8/28...
+  [mens]   [graph] building layer 16/28...
+  [mens]   [graph] building layer 24/28...
+  [mens] Masked CE numeric preflight passed (finite loss on first eligible batch).
+  [mens] Training started: first backward pass done after 9.7s (1108 optimizer steps planned, grad_accum=1).
+  [mens] E1/1 step 1/1108 (0.1%) micro 1 | loss 3.1743 (last 3.1743) | lr 2.00e-5 | 6 tok/s | ETA 2h59m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+  [mens] E1/1 step 5/1108 (0.5%) micro 5 | loss 2.5917 (last 1.1492) | lr 6.00e-5 | 4 tok/s | ETA 2h43m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+  [mens] E1/1 step 9/1108 (0.8%) micro 9 | loss 2.2993 (last 2.6298) | lr 1.00e-4 | 8 tok/s | ETA 2h33m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+  [mens] E1/1 step 13/1108 (1.2%) micro 13 | loss 2.2504 (last 3.6534) | lr 1.00e-4 | 4 tok/s | ETA 2h29m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+  [mens] E1/1 step 17/1108 (1.5%) micro 17 | loss 1.9085 (last 1.4801) | lr 1.00e-4 | 4 tok/s | ETA 2h29m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+  [mens] E1/1 step 21/1108 (1.9%) micro 21 | loss 1.5683 (last 0.9268) | lr 1.00e-4 | 8 tok/s | ETA 2h26m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+  [mens] E1/1 step 26/1108 (2.3%) micro 26 | loss 1.3868 (last 1.9160) | lr 9.99e-5 | 6 tok/s | ETA 2h22m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+  [mens] E1/1 step 30/1108 (2.7%) micro 30 | loss 1.3948 (last 1.2969) | lr 9.99e-5 | 12 tok/s | ETA 2h23m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+  [mens] E1/1 step 34/1108 (3.1%) micro 34 | loss 1.2657 (last 1.4136) | lr 9.99e-5 | 45 tok/s | ETA 2h24m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+  [mens] E1/1 step 38/1108 (3.4%) micro 38 | loss 1.1400 (last 2.0563) | lr 9.98e-5 | 23 tok/s | ETA 2h23m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+  [mens] E1/1 step 43/1108 (3.9%) micro 43 | loss 1.1686 (last 0.7488) | lr 9.98e-5 | 7 tok/s | ETA 2h20m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+  [mens] E1/1 step 47/1108 (4.2%) micro 47 | loss 0.8712 (last 0.4533) | lr 9.97e-5 | 7 tok/s | ETA 2h21m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+  [mens] E1/1 step 51/1108 (4.6%) micro 51 | loss 1.0124 (last 1.4781) | lr 9.97e-5 | 24 tok/s | ETA 2h22m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+  [mens] E1/1 step 55/1108 (5.0%) micro 55 | loss 0.9307 (last 1.6920) | lr 9.96e-5 | 13 tok/s | ETA 2h21m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+  [mens] E1/1 step 59/1108 (5.3%) micro 59 | loss 1.2505 (last 2.1735) | lr 9.95e-5 | 16 tok/s | ETA 2h21m | skipped curric=0 short=0 no_sup=0 nonfinite=0 oob=0
+  [mens] run cap reached after 485 s at optimizer step 60; finalizing
+  [mens] Wrote MODEL_CARD.md to /Users/brbrainerd/dev/vox-mens-compare/mens/runs/320-smoke-0.6b-a3/MODEL_CARD.md
+  [mens] 2 rows truncated, 2 with the prompt middle-trimmed (seq_len 3072)
+  [mens] Wrote external_serving_handoff_v1.json to /Users/brbrainerd/dev/vox-mens-compare/mens/runs/320-smoke-0.6b-a3/external_serving_handoff_v1.json
+  [mens] Training complete — micro_steps=60 optimizer_steps=60 no_supervised_skip_rate=0.00% — adapter: /Users/brbrainerd/dev/vox-mens-compare/mens/runs/320-smoke-0.6b-a3/candle_qlora_adapter.safetensors
+  [32m✓[39m Wrote train record /Users/brbrainerd/dev/vox-mens-compare/mens/runs/320-smoke-0.6b-a3/train-record.json
+  [32m✓[39m Backed up running corpus to /Users/brbrainerd/dev/vox-mens-compare/mens/data/train_full_backup.jsonl
+  [32m✓[39m Wrote adapter card /Users/brbrainerd/dev/vox-mens-compare/mens/runs/320-smoke-0.6b-a3/adapter_card.json

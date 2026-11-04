@@ -34,7 +34,7 @@ pub async fn get_auto_model_recommendation()
 -> Result<vox_orchestrator::models::auto_select::AutoModelSelection, String> {
     // Discrete-GPU VRAM comes from the nvml-probe plugin, if installed.
     vox_orchestrator_mcp::server_state::vram_probe::register_nvml_vram_probe();
-    Ok(vox_orchestrator::models::auto_select::select_optimal_local_model_for_host())
+    vox_orchestrator::models::auto_select::select_optimal_local_model_for_host()
 }
 
 #[tauri::command]
@@ -92,12 +92,16 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn auto_model_recommendation_returns_valid_selection() {
-        let res = get_auto_model_recommendation().await;
-        assert!(res.is_ok());
-        let sel = res.unwrap();
-        assert!(!sel.selected_model_id.is_empty());
-        assert!(!sel.tier_reason.is_empty());
+    async fn auto_model_recommendation_is_a_live_pick_or_a_reason() {
+        // Hardware-independent: a live pin that fits, or the selector's refusal.
+        match get_auto_model_recommendation().await {
+            Ok(sel) => {
+                assert!(sel.selected_model_id.contains('@'));
+                assert!(u64::from(sel.floor_mb) <= sel.free_mb);
+                assert!(!sel.reason.is_empty());
+            }
+            Err(e) => assert!(!e.is_empty()),
+        }
     }
 
     #[tokio::test]

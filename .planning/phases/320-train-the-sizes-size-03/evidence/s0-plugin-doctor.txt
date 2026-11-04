@@ -1,0 +1,9 @@
+Plugin install root: /Users/brbrainerd/Library/Application Support/vox/plugins
+Host ABI version: 13
+
+✗ mens-candle-cuda: ABI mismatch — plugin declares abi-version=12, host expects 13
+✗ mens-candle-cuda: requires capability 'nvidia-gpu', which this host does not have — installed but cannot run here
+✓ mens-candle-metal v0.6.0 — ok
+
+✗ doctor: 2 installed plugin(s) checked, 2 issue(s) found.
+Error: plugin doctor found 2 issue(s)

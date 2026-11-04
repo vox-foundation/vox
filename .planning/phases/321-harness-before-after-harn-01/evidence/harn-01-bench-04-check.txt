@@ -1,0 +1,4 @@
+BENCH-04: PASS — 0.6B, 1.7B, and 4B have real reasoning_before_after.v1 (n=32/slice) and heldout eval-local (n=52, qwen3_non_thinking_codegen_v1) base+adapter scores in mens/runs/ladder_before_after.json
+HARN-01: PASS (gate enforcement + 4B collateral pass) — serve refused adapter file path; serve refused 0.6B/1.7B run dirs with collateral status=fail; 4B passed collateral_damage_report.json (status=pass across vox_think, gsm8k_think, math500_think) and reached assert_serve_preconditions
+not_trained: PASS — 8B/14B/32B listed without accuracy/pass_at scores
+OVERALL: PASS — three sizes trained and scored (0.6B, 1.7B, 4B); ladder closed at 4B

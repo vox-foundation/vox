@@ -1,0 +1,14 @@
+schema_version: 1
+description: >
+  Paths where committed binary evidence (PNG/WebP/JPEG under GUI review trees)
+  is allowed. Everything else matching banned_globs fails `vox ci evidence-asset-ban`.
+banned_globs:
+  - "crates/vox-gui/ui/review-bundle/**"
+  - "crates/vox-gui/ui/artifacts/**/*.png"
+  - "crates/vox-gui/ui/artifacts/**/*.webp"
+  - "crates/vox-gui/ui/artifacts/**/*.jpg"
+  - "crates/vox-gui/ui/artifacts/**/*.jpeg"
+  - "**/review-bundle/**/*.{png,webp,jpg,jpeg,gif}"
+allowlist:
+  # CV flywheel baseline screenshots (committed SSOT for visual gates).
+  - "crates/vox-gui/ui/artifacts/cv-flywheel/**"

@@ -1,0 +1,7 @@
+compare exit=0 2026-11-03T05:50:45Z
+heldout-base exit=0 2026-11-03T06:28:12Z
+heldout-adapter exit=0 2026-11-03T07:04:03Z
+baseline exit=0 2026-11-03T07:04:03Z
+collateral exit=0 2026-11-03T07:04:04Z
+gate exit=1 2026-11-03T07:04:05Z
+DONE 2026-11-03T07:04:05Z

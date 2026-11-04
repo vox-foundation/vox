@@ -1,0 +1,8 @@
+{
+  "n": 1108,
+  "first_quarter_mean": 1.0907574956631456,
+  "last_quarter_mean": 0.603442414295101,
+  "last_loss": 0.1016332134604454,
+  "optimizer_steps": 138,
+  "lineage": "rows 1-1080 from launch b, rows 1081-1108 from resume c"
+}

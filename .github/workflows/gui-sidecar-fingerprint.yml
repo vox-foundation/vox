@@ -1,0 +1,155 @@
+# Advisory Tauri/sidecar fingerprint check (t3code mobile-fingerprint-check analog).
+# Always green; labels + step summary carry the signal (path change + content hash drift).
+name: GUI Sidecar Fingerprint
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+concurrency:
+  group: gui-sidecar-fingerprint-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  fingerprint:
+    name: Sidecar / native input fingerprint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - id: changes
+        name: Detect sidecar / native fingerprint inputs
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          base_sha="${BASE_SHA}"
+          echo "base_sha=$base_sha" >> "$GITHUB_OUTPUT"
+          paths=$(git diff --no-renames --name-only "$base_sha" HEAD -- \
+            crates/vox-gui/ \
+            crates/vox-cli/ \
+            Cargo.toml \
+            Cargo.lock \
+            .cargo/ \
+            scripts/gui-build.vox \
+            .github/workflows/gui-sidecar-fingerprint.yml \
+            || true)
+          if [[ -n "$paths" ]]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Sidecar fingerprint inputs changed"
+              echo ""
+              echo '```'
+              echo "$paths"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+            echo "No sidecar/native fingerprint inputs changed." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          # Content hash of stable fingerprint inputs (head vs base) — t3code fingerprint:generate analog.
+          # Hash blob *contents* (not just path names). Prefer grep over rg (not on ubuntu-latest by default).
+          hash_tree() {
+            local ref="$1"
+            {
+              echo "ref:${ref}"
+              git show "$ref:Cargo.lock" 2>/dev/null | grep -E -A2 'name = "(vox-gui|vox-cli|tauri)"' || true
+              for p in \
+                crates/vox-gui/tauri.conf.json \
+                crates/vox-gui/Cargo.toml \
+                crates/vox-cli/Cargo.toml \
+                scripts/gui-build.vox \
+                .github/workflows/gui-sidecar-fingerprint.yml
+              do
+                echo "=== ${p} ==="
+                git show "${ref}:${p}" 2>/dev/null || true
+              done
+              # Include sorted blob ids for gui src/capabilities so renames/edits drift the hash.
+              git ls-tree -r "$ref" -- crates/vox-gui/src crates/vox-gui/capabilities crates/vox-gui/ui/src 2>/dev/null \
+                | awk '{print $3, $4}' || true
+            } | shasum -a 256 | awk '{print $1}'
+          }
+          head_hash=$(hash_tree HEAD)
+          base_hash=$(hash_tree "$base_sha")
+          echo "head_hash=$head_hash" >> "$GITHUB_OUTPUT"
+          echo "base_hash=$base_hash" >> "$GITHUB_OUTPUT"
+          if [[ "$head_hash" != "$base_hash" ]]; then
+            echo "hash_drift=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "hash_drift=false" >> "$GITHUB_OUTPUT"
+          fi
+          {
+            echo ""
+            echo "### Content fingerprint"
+            echo ""
+            echo "| Ref | SHA-256 |"
+            echo "|---|---|"
+            echo "| base (\`$base_sha\`) | \`$base_hash\` |"
+            echo "| head | \`$head_hash\` |"
+            echo ""
+            if [[ "$head_hash" != "$base_hash" ]]; then
+              echo "Hash **drifted** vs base — batch sidecar/native rebuild before OTA reuse."
+            else
+              echo "Hash **unchanged** vs base for tracked fingerprint inputs."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Label PR (advisory; check always green)
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          RELEVANT: ${{ steps.changes.outputs.relevant }}
+          HASH_DRIFT: ${{ steps.changes.outputs.hash_drift }}
+        with:
+          script: |
+            const labelsWanted = [];
+            if (process.env.RELEVANT === "true") labelsWanted.push("native-sidecar-change");
+            if (process.env.HASH_DRIFT === "true") labelsWanted.push("native-sidecar-hash-drift");
+            const managed = [
+              { name: "native-sidecar-change", color: "5319e7", description: "PR changes Tauri/sidecar/native path inputs." },
+              { name: "native-sidecar-hash-drift", color: "b60205", description: "Sidecar fingerprint content hash differs from base." },
+            ];
+            const issue_number = context.payload.pull_request.number;
+            for (const label of managed) {
+              try {
+                await github.rest.issues.getLabel({ owner: context.repo.owner, repo: context.repo.repo, name: label.name });
+              } catch (e) {
+                if (e.status === 404) {
+                  await github.rest.issues.createLabel({
+                    owner: context.repo.owner, repo: context.repo.repo,
+                    name: label.name, color: label.color, description: label.description,
+                  });
+                } else { throw e; }
+              }
+            }
+            const { data: current } = await github.rest.issues.listLabelsOnIssue({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number,
+            });
+            const have = new Set(current.map((l) => l.name));
+            const managedNames = new Set(managed.map((l) => l.name));
+            for (const name of managedNames) {
+              if (!labelsWanted.includes(name) && have.has(name)) {
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner: context.repo.owner, repo: context.repo.repo, issue_number, name,
+                  });
+                } catch (e) { if (e.status !== 404) throw e; }
+              }
+            }
+            const toAdd = labelsWanted.filter((n) => !have.has(n));
+            if (toAdd.length) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner, repo: context.repo.repo, issue_number, labels: toAdd,
+              });
+            }

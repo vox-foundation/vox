@@ -1,0 +1,21 @@
+  [36mℹ[39m size: picked 14B: largest size whose floor 20000 MB fits 57902 MB free (Metal working set)
+[36m╔══════════════════════════════════════════╗[39m
+[36m║   VoxMens — native fine-tuning (QLoRA)  ║[39m
+[36m╚══════════════════════════════════════════╝[39m
+
+  Model:       [36mQwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18[39m
+  Device:      [36mmetal[39m
+  Data:        [36m/Users/brbrainerd/dev/vox-mens-compare/target/dogfood[39m
+  Output:      [36m/Users/brbrainerd/dev/vox-mens-compare/mens/runs/320-plan-auto[39m
+  Rank/Alpha:  32/64
+  Batch/Accum: 1/8 (effective=8)
+  Backend:     qlora
+  Tokenizer:   Hf
+  Seq len:     3072
+
+  [36m⏭[39m Skipping corpus mix (`VOX_TRAIN_SKIP_CORPUS_MIX`); using train file under data-dir
+  [36mℹ[39m held-out check: clean (3 slices, 96 held-out questions, 1166 rows)
+  [36mℹ[39m size: 14B still fits: floor 20000 MB, 58278 MB free now (Metal working set)
+2026-10-28T01:26:47.979053Z  INFO vox_ml_cli::commands::schola::train::gpu: activation/gradient checkpointing ENABLED for this run explicit=false auto_large=true
+  [36mℹ[39m base Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18: qlora floor 20000 MB is an estimate (floor unmeasured)
+  [36mℹ[39m base Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18: lora floor 44000 MB is an estimate (floor unmeasured)

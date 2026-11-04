@@ -7,6 +7,7 @@ pub mod params;
 
 mod ambient;
 pub mod chat;
+pub mod chatarc;
 mod ghost_text;
 mod inline_edit;
 mod plan;
@@ -86,7 +87,7 @@ fn telemetry_model_bucket(key: &str) -> &'static str {
 
 /// Build the full system prompt for the Vox chat assistant.
 pub(crate) async fn build_system_prompt(state: &ServerState, session_id: Option<&str>) -> String {
-    build_system_prompt_with_skill(state, session_id, None, None, &[]).await
+    build_system_prompt_with_skill(state, session_id, None, None, None, &[]).await
 }
 
 /// Drop excluded skills before either consumer (the tier-1 catalog and the
@@ -153,6 +154,8 @@ mod skill_exclusion_tests {
 
 /// Like [`build_system_prompt`], but injects the full body of a user-pinned
 /// skill (by id or name) so prompt-only models honor it without a tool call.
+/// Without an explicit pin, `chatarc_skill` (a ChatARC pick, phase 322-03) is
+/// injected the same way with trigger source `chatarc`.
 ///
 /// When `model_key` is `Some`, a cache-stable `## Model guidance` segment is
 /// appended after the skill catalog if a `Confirmed` prompt profile exists for
@@ -161,6 +164,7 @@ pub(crate) async fn build_system_prompt_with_skill(
     state: &ServerState,
     session_id: Option<&str>,
     pinned_skill: Option<&str>,
+    chatarc_skill: Option<&str>,
     model_key: Option<&str>,
     excluded_skills: &[String],
 ) -> String {
@@ -235,15 +239,17 @@ pub(crate) async fn build_system_prompt_with_skill(
 
     // Pinned-skill ("tier-pinned") disclosure: inject the full SKILL.md body
     // for an explicitly selected skill. Matched by id or name; works on the
-    // prompt-only MENS path because it needs no tool round-trip.
-    if let Some(pinned) = pinned_skill.map(str::trim).filter(|p| !p.is_empty()) {
+    // prompt-only MENS path because it needs no tool round-trip. An explicit
+    // pin always wins over a ChatARC pick.
+    let pinned_skill = pinned_skill.map(str::trim).filter(|p| !p.is_empty());
+    if let Some((pinned, source)) = chatarc::skill_to_inject(pinned_skill, chatarc_skill) {
         if let Some(m) = manifests
             .iter()
             .find(|m| m.id == pinned || m.name == pinned)
         {
             let body = reg.lookup(&m.id).ok().map(|s| s.body).unwrap_or_default();
             if !body.is_empty() {
-                tracing::info!(skill = %m.id, source = "pinned", "skill_activated");
+                tracing::info!(skill = %m.id, source, "skill_activated");
                 // Track E — skill_activation: hash the id with install-salt (never upload raw id).
                 let salt = vox_telemetry::config::install_salt();
                 let mut hasher = Sha256::new();
@@ -257,7 +263,7 @@ pub(crate) async fn build_system_prompt_with_skill(
                 vox_telemetry::record_event!(&TelemetryEvent::SkillActivation(
                     SkillActivationEvent {
                         skill_id_hash: hash,
-                        trigger_source: "pinned".to_string(),
+                        trigger_source: source.to_string(),
                         accepted: true,
                         surface: "mcp".to_string(),
                     }
@@ -265,7 +271,7 @@ pub(crate) async fn build_system_prompt_with_skill(
                 prompt.push_str(&skill_catalog::render_pinned_skill(&m.name, &body));
             }
         } else {
-            tracing::warn!(pinned = %pinned, "pinned skill not found in registry");
+            tracing::warn!(pinned = %pinned, source, "pinned skill not found in registry");
         }
     }
 

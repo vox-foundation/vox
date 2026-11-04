@@ -130,6 +130,9 @@ pub mod scientia_tools;
 pub mod scope_guard;
 /// Secrets credential tools.
 pub mod secrets_tools;
+/// Selective-prediction metrics for labeled decision fixtures (test-only eval tooling).
+#[cfg(test)]
+pub(crate) mod selective_metrics;
 pub mod session_identity;
 /// Speech → codegen orchestration (`vox_speech_to_code`).
 #[cfg(feature = "oratio-rerank")]

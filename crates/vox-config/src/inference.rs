@@ -419,10 +419,42 @@ pub fn research_prefer_free_tier() -> bool {
 /// Pure parser for [`research_prefer_free_tier`] — testable without the environment.
 #[must_use]
 pub(crate) fn research_prefer_free_tier_from(raw: Option<&str>) -> bool {
+    truthy_flag_from(raw)
+}
+
+/// `1`/`true`/`yes`/`on` (case-insensitive, trimmed) → `true`; unset/other → `false`.
+fn truthy_flag_from(raw: Option<&str>) -> bool {
     matches!(
         raw.map(|v| v.trim().to_ascii_lowercase()).as_deref(),
         Some("1" | "true" | "yes" | "on")
     )
+}
+
+/// True when the DEC-01 turn decision pack runs ahead of chat model selection
+/// (`VOX_TURN_DECISION_PACK`). Default off: the selection request is then
+/// byte-identical to the pre-pack one.
+#[must_use]
+pub fn turn_decision_pack_enabled() -> bool {
+    turn_decision_pack_enabled_from(std::env::var("VOX_TURN_DECISION_PACK").ok().as_deref())
+}
+
+/// Pure parser for [`turn_decision_pack_enabled`].
+#[must_use]
+pub(crate) fn turn_decision_pack_enabled_from(raw: Option<&str>) -> bool {
+    truthy_flag_from(raw)
+}
+
+/// True when chat turns build the ChatARC action shortlist (`VOX_CHATARC`).
+/// Default off.
+#[must_use]
+pub fn chatarc_enabled() -> bool {
+    chatarc_enabled_from(std::env::var("VOX_CHATARC").ok().as_deref())
+}
+
+/// Pure parser for [`chatarc_enabled`].
+#[must_use]
+pub(crate) fn chatarc_enabled_from(raw: Option<&str>) -> bool {
+    truthy_flag_from(raw)
 }
 
 /// Preferred Hugging Face **router** model id for chat when policy selects HF (`HF_CHAT_MODEL`).
@@ -1141,6 +1173,25 @@ mod tests {
         assert!(!research_prefer_free_tier_from(Some("false")));
         assert!(!research_prefer_free_tier_from(Some("")));
         assert!(!research_prefer_free_tier_from(None));
+    }
+
+    fn assert_truthy_parser(parse: fn(Option<&str>) -> bool) {
+        for on in ["1", "true", "TRUE", " yes ", "on"] {
+            assert!(parse(Some(on)), "{on:?} must enable");
+        }
+        for off in [Some("0"), Some("false"), Some(""), None] {
+            assert!(!parse(off), "{off:?} must not enable");
+        }
+    }
+
+    #[test]
+    fn turn_decision_pack_flags_parse_truthy() {
+        assert_truthy_parser(super::turn_decision_pack_enabled_from);
+    }
+
+    #[test]
+    fn chatarc_flags_parse_truthy() {
+        assert_truthy_parser(super::chatarc_enabled_from);
     }
 
     #[test]

@@ -1,0 +1,87 @@
+{
+  "model": "mens/runs/320-smoke-0.6b-a3",
+  "base_only": false,
+  "bench": "/private/tmp/claude-501/-Users-brbrainerd-dev-vox-voxdiagram/29f8e79e-7b0b-4197-9cfe-34ec71ab397b/scratchpad/bench1",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "n": 1,
+  "k": 1,
+  "seed_base": 1337,
+  "total": 1,
+  "passed_at_1": 1.0,
+  "passed_at_k": 1.0,
+  "pass_rate_at_1": 1.0,
+  "pass_rate_at_k": 1.0,
+  "semantic_task_success": 0.0,
+  "anti_stub_task_success": 1.0,
+  "placeholder_event_rate": 0.0,
+  "trivial_placeholder_event_rate": 0.0,
+  "construct_richness_mean": 0.25,
+  "category_stats": [
+    {
+      "category": "test",
+      "passed_at_1": 1.0,
+      "passed_at_k": 1.0,
+      "total": 1,
+      "pass_rate_at_1": 1.0,
+      "pass_rate_at_k": 1.0
+    }
+  ],
+  "results": [
+    {
+      "manifest_index": 0,
+      "id": "test_smoke",
+      "file": "",
+      "context_files": [],
+      "category": "test",
+      "description": "write a test named `smoke` that calls `add(1, 2)` and asserts the result equals 3",
+      "n": 1,
+      "c": 1,
+      "k": 1,
+      "pass_at_1": 1.0,
+      "pass_at_k": 1.0,
+      "semantic_pass_at_k": false,
+      "samples": [
+        {
+          "sample_index": 0,
+          "seed": 654189152,
+          "pass": true,
+          "pass_compile": true,
+          "pass_ast": true,
+          "pass_exec": true,
+          "semantic_pass": false,
+          "anti_stub_pass": true,
+          "distinct_4_ratio": 1.0,
+          "constraint_adherence": true,
+          "symbol_binding_accuracy": 1.0,
+          "tool_call_json_valid": false,
+          "tool_name_exists": false,
+          "tool_call_salvaged": false,
+          "checks": {
+            "non_empty": true,
+            "parse_ok": true,
+            "typecheck_ok": true,
+            "diag_errors": 0,
+            "parse_error": null,
+            "placeholder_marker_hits": 0,
+            "trivial_placeholder_output": false,
+            "construct_richness_score": 0.25,
+            "anti_stub_pass": true,
+            "pass_compile": true,
+            "pass_ast": true,
+            "pass_exec": true,
+            "distinct_4_ratio": 1.0,
+            "constraint_adherence": true,
+            "symbol_binding_accuracy": 1.0,
+            "semantic_expected_contains": [
+              "test smoke",
+              "assert"
+            ],
+            "semantic_pass": false
+          },
+          "completion_preview": "<think>\nOkay, I need to write a Vox program that tests the `add` function. The test is called `smoke` and it should add 1 and 2 and assert the result is 3. Let me think about how to structure this.\n\nFirst, I'll define the function `add` as "
+        }
+      ]
+    }
+  ]
+}

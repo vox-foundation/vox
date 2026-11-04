@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { resolveWidget, PURPOSE_BUILT_SURFACE_KEYS } from './dashboardWidgetRegistry';
 

@@ -1,0 +1,220 @@
+{
+  "schema": "mens_size_ladder_before_after.v1",
+  "gate_input": false,
+  "recorded_at": "2026-11-01T08:59:30+00:00",
+  "host": "silicon-gpu-metal",
+  "decision": "close_ladder_at_4b_collateral_pass",
+  "harn_01": "gate_enforcement_verified_4b_collateral_pass",
+  "sizes": [
+    {
+      "size": "0.6B",
+      "status": "trained",
+      "run_dir": "mens/runs/qwen3-0.6b",
+      "pin": "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca",
+      "reasoning": {
+        "compare_report": "mens/runs/reasoning_compare/Qwen3-0.6B-c1899de289a0.json",
+        "compare_schema": "reasoning_before_after.v1",
+        "slices": {
+          "gsm8k_think": {
+            "base": {
+              "accuracy": 0.5,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            },
+            "adapter": {
+              "accuracy": 0.40625,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            }
+          },
+          "math500_think": {
+            "base": {
+              "accuracy": 0.15625,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            },
+            "adapter": {
+              "accuracy": 0.1875,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            }
+          },
+          "vox_think": {
+            "base": {
+              "accuracy": 0.21875,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            },
+            "adapter": {
+              "accuracy": 0.21875,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            }
+          }
+        }
+      },
+      "intelligence": {
+        "base_eval_local": "mens/runs/qwen3-0.6b/evidence/heldout_base_nothink.json",
+        "adapter_eval_local": "mens/runs/qwen3-0.6b/evidence/heldout_adapter_nothink.json",
+        "prompt_protocol": "qwen3_non_thinking_codegen_v1",
+        "base_pass_at_1": 0.11538461538461539,
+        "pass_at_1": 0.36538461538461536,
+        "n": 52,
+        "base_n": 52
+      },
+      "collateral": {
+        "status": "fail",
+        "failed_on": "gsm8k_think",
+        "threshold": 0.05,
+        "path": "mens/runs/qwen3-0.6b/collateral_damage_report.json"
+      },
+      "serve": "refused_collateral_fail"
+    },
+    {
+      "size": "1.7B",
+      "status": "trained",
+      "run_dir": "mens/runs/qwen3-1.7b",
+      "pin": "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+      "reasoning": {
+        "compare_report": "mens/runs/reasoning_compare/Qwen3-1.7B-70d244cc86cc.json",
+        "compare_schema": "reasoning_before_after.v1",
+        "slices": {
+          "gsm8k_think": {
+            "base": {
+              "accuracy": 0.59375,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            },
+            "adapter": {
+              "accuracy": 0.65625,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            }
+          },
+          "math500_think": {
+            "base": {
+              "accuracy": 0.1875,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            },
+            "adapter": {
+              "accuracy": 0.28125,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            }
+          },
+          "vox_think": {
+            "base": {
+              "accuracy": 0.65625,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            },
+            "adapter": {
+              "accuracy": 0.59375,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            }
+          }
+        }
+      },
+      "intelligence": {
+        "base_eval_local": "mens/runs/qwen3-1.7b/evidence/heldout_base_nothink.json",
+        "adapter_eval_local": "mens/runs/qwen3-1.7b/evidence/heldout_adapter_nothink.json",
+        "prompt_protocol": "qwen3_non_thinking_codegen_v1",
+        "base_pass_at_1": 0.057692307692307696,
+        "pass_at_1": 0.3269230769230769,
+        "n": 52,
+        "base_n": 52
+      },
+      "collateral": {
+        "status": "fail",
+        "failed_on": "vox_think",
+        "threshold": 0.05,
+        "path": "mens/runs/qwen3-1.7b/collateral_damage_report.json"
+      },
+      "serve": "refused_collateral_fail"
+    },
+    {
+      "size": "4B",
+      "status": "trained",
+      "run_dir": "mens/runs/qwen3-4b",
+      "pin": "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c",
+      "reasoning": {
+        "compare_report": "mens/runs/reasoning_compare/Qwen3-4B-1cfa9a720891.json",
+        "compare_schema": "reasoning_before_after.v1",
+        "slices": {
+          "gsm8k_think": {
+            "base": {
+              "accuracy": 0.625,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            },
+            "adapter": {
+              "accuracy": 0.625,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            }
+          },
+          "math500_think": {
+            "base": {
+              "accuracy": 0.21875,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            },
+            "adapter": {
+              "accuracy": 0.21875,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            }
+          },
+          "vox_think": {
+            "base": {
+              "accuracy": 0.5625,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            },
+            "adapter": {
+              "accuracy": 0.71875,
+              "think_initiation_rate": 1.0,
+              "n": 32
+            }
+          }
+        }
+      },
+      "intelligence": {
+        "base_eval_local": "mens/runs/qwen3-4b/evidence/heldout_base_nothink.json",
+        "adapter_eval_local": "mens/runs/qwen3-4b/evidence/heldout_adapter_nothink.json",
+        "prompt_protocol": "qwen3_non_thinking_codegen_v1",
+        "base_pass_at_1": 0.07692307692307693,
+        "pass_at_1": 0.25,
+        "n": 52,
+        "base_n": 52
+      },
+      "collateral": {
+        "status": "pass",
+        "failed_on": null,
+        "threshold": 0.05,
+        "path": "mens/runs/qwen3-4b/collateral_damage_report.json"
+      },
+      "serve": "collateral_gate_passed_eval_gate_refused"
+    },
+    {
+      "size": "8B",
+      "status": "not_trained",
+      "reason": "explicit size 8B needs 122876 MB but 82103 MB is free (Metal working set); refusing rather than shrinking",
+      "pin": "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"
+    },
+    {
+      "size": "14B",
+      "status": "not_trained",
+      "reason": "estimate floor (195382 MB) exceeds live free memory",
+      "pin": "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18"
+    },
+    {
+      "size": "32B",
+      "status": "not_trained",
+      "reason": "estimate floor (295822 MB) exceeds live free memory",
+      "pin": "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137"
+    }
+  ]
+}

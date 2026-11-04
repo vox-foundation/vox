@@ -23,6 +23,11 @@ pub struct AccelBudget {
     /// `working_set_bytes` on large-batch runs.
     pub max_alloc_bytes: u64,
     pub source: BudgetSource,
+    /// Metal: whether `working_set_bytes` includes a live `vm_stat` reading;
+    /// `false` means it is the static driver advisory alone. CUDA: `false`,
+    /// since `get_system_vram_info` may stand an override or the total in for
+    /// free memory.
+    pub working_set_is_live: bool,
 }
 
 impl AccelBudget {
@@ -48,7 +53,8 @@ impl AccelBudget {
 /// pure live-pressure read ignores the hardware ceiling. Neither alone is
 /// trustworthy, so the effective budget is their minimum. `None` live
 /// pressure (e.g. `vm_stat` unavailable/unparseable) leaves the driver
-/// advisory untouched. Not `#[cfg]`-gated so it's testable on every host.
+/// advisory untouched, and `AccelBudget::working_set_is_live` says so: the size
+/// selector refuses such a budget (D-01). Not `#[cfg]`-gated so it's testable on every host.
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 fn combine_with_live_pressure(driver_advisory_bytes: u64, live_pressure_bytes: Option<u64>) -> u64 {
     match live_pressure_bytes {
@@ -66,7 +72,8 @@ pub fn query_accel_budget() -> Option<AccelBudget> {
     use objc2_metal::{MTLCreateSystemDefaultDevice, MTLDevice};
     let device = MTLCreateSystemDefaultDevice()?;
     let driver_advisory = device.recommendedMaxWorkingSetSize();
-    let working = combine_with_live_pressure(driver_advisory, live_pressure_budget_bytes());
+    let live = live_pressure_budget_bytes();
+    let working = combine_with_live_pressure(driver_advisory, live);
     Some(AccelBudget {
         device_name: device.name().to_string(),
         total_bytes: driver_advisory,
@@ -74,6 +81,7 @@ pub fn query_accel_budget() -> Option<AccelBudget> {
         // NSUInteger is usize; the struct field is u64.
         max_alloc_bytes: device.maxBufferLength() as u64,
         source: BudgetSource::Metal,
+        working_set_is_live: live.is_some(),
     })
 }
 
@@ -95,6 +103,7 @@ fn cuda_budget_from_vram_info(info: crate::mens::tensor::vram_autodetect::VramIn
         working_set_bytes: free_bytes,
         max_alloc_bytes: free_bytes,
         source: BudgetSource::Cuda,
+        working_set_is_live: false,
     }
 }
 
@@ -121,6 +130,7 @@ mod tests {
             working_set_bytes: working,
             max_alloc_bytes: max_alloc,
             source: BudgetSource::Metal,
+            working_set_is_live: true,
         }
     }
 

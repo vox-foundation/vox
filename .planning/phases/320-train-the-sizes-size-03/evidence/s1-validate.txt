@@ -1,0 +1,24 @@
+╔══════════════════════════════════════════════════╗
+║       Vox Training Data Validation Report       ║
+╠══════════════════════════════════════════════════╣
+║  Input records:     278                         ║
+║  Accepted (pre-dedup):277                       ║
+║  After dedup:       210                         ║
+║  Rejected (json):   0                           ║
+║  Rejected (compiler):1                         ║
+║  Rejected (reward): 0                           ║
+║  Construct coverage:29.5% (13/44)               ║
+╠══════════════════════════════════════════════════╣
+║  Missing constructs:                             ║
+║    - not_found                                  ║
+║    - message                                    ║
+║    - hook                                       ║
+║    - context                                    ║
+║    - skill                                      ║
+║    - fixture                                    ║
+║    - agent                                      ║
+║    - impl                                       ║
+║    - mutation                                   ║
+║    - http_route                                 ║
+║    ... and 21 more                               ║
+╚══════════════════════════════════════════════════╝
