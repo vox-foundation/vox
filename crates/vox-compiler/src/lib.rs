@@ -29,6 +29,7 @@ pub mod module;
 pub mod parser;
 pub mod pipeline;
 pub mod python_array_support;
+pub mod python_frame_support;
 pub mod react_bridge;
 pub mod required_capabilities;
 pub mod runtime_projection;

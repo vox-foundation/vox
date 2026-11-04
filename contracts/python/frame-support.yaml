@@ -1,0 +1,133 @@
+schema_version: 1
+module: std.frame
+engine: polars
+ops:
+  - name: scan_csv
+    kind: plan
+    signature: "(path: str) -> Frame"
+    handler: scan_csv
+    expected:
+      path: fixtures/py_frame_report.csv
+  - name: col
+    kind: plan
+    signature: "(name: str) -> Expr"
+    handler: col
+    expected:
+      name: region
+  - name: filter
+    kind: plan
+    signature: "filter(pred: Expr) -> Frame"
+    handler: filter
+    expected:
+      column: region
+      value: west
+  - name: group_by
+    kind: plan
+    signature: "group_by(keys: list[str]) -> Frame"
+    handler: group_by
+    expected:
+      keys: [month]
+  - name: agg
+    kind: plan
+    signature: "agg(exprs: list[Expr]) -> Frame"
+    handler: agg
+    expected:
+      alias: revenue
+  - name: sort
+    kind: plan
+    signature: "sort(column: str, nulls: str) -> Frame"
+    handler: sort
+    required_named: [nulls]
+    expected:
+      nulls: last
+  - name: sum
+    kind: plan
+    signature: "sum() -> Expr"
+    handler: sum
+    required_named: [alias]
+    expected:
+      alias: revenue
+  - name: count
+    kind: plan
+    signature: "count() -> Expr"
+    handler: count
+    required_named: [alias]
+    expected:
+      alias: n
+  - name: mean
+    kind: plan
+    signature: "mean() -> Expr"
+    handler: mean
+    required_named: [alias]
+    expected:
+      alias: avg
+  - name: min
+    kind: plan
+    signature: "min() -> Expr"
+    handler: min
+    required_named: [alias]
+    expected:
+      alias: lo
+  - name: max
+    kind: plan
+    signature: "max() -> Expr"
+    handler: max
+    required_named: [alias]
+    expected:
+      alias: hi
+  - name: eq
+    kind: plan
+    signature: "eq(rhs: str) -> Expr"
+    handler: eq
+    expected:
+      value: west
+  - name: neq
+    kind: plan
+    signature: "neq(rhs: str) -> Expr"
+    handler: neq
+    expected:
+      value: east
+  - name: gt
+    kind: plan
+    signature: "gt(rhs: int) -> Expr"
+    handler: gt
+    expected:
+      value: 0
+  - name: gte
+    kind: plan
+    signature: "gte(rhs: int) -> Expr"
+    handler: gte
+    expected:
+      value: 0
+  - name: lt
+    kind: plan
+    signature: "lt(rhs: int) -> Expr"
+    handler: lt
+    expected:
+      value: 1
+  - name: lte
+    kind: plan
+    signature: "lte(rhs: int) -> Expr"
+    handler: lte
+    expected:
+      value: 1
+  - name: and
+    kind: plan
+    signature: "and(rhs: Expr) -> Expr"
+    handler: and
+    expected:
+      left: region
+      right: amount
+  - name: or
+    kind: plan
+    signature: "or(rhs: Expr) -> Expr"
+    handler: or
+    expected:
+      left: region
+      right: amount
+  - name: collect
+    kind: materializer
+    signature: "collect() -> Result[Records]"
+    handler: collect
+    expected:
+      rows: 2

@@ -7,6 +7,7 @@ pub mod caps;
 pub mod db;
 pub mod env;
 pub mod expr;
+pub mod frame_plan;
 pub mod python;
 pub mod repo;
 pub mod shell_stdlib;

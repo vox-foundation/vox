@@ -946,6 +946,22 @@ contracts:
     enforced_by:
       - vox ci contracts-index
 
+  - id: python-frame-support
+    path: contracts/python/frame-support.yaml
+    owner: platform-ci
+    kind: yaml
+    description: std.frame polars allowlist (signature, handler, and expected value per op).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: python-frame-plan-ir
+    path: contracts/python/frame-plan-ir.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: Plan IR schema for std.frame on polars.
+    enforced_by:
+      - vox ci contracts-index
+
   - id: python-signature-manifest-budget
     path: contracts/python/signature-manifest-budget.v1.json
     owner: platform-ci
