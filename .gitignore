@@ -196,6 +196,7 @@ docs/book/
 # Exception: the KB sanitizer red-team payload set (ASCII-escaped) is a tracked contract.
 !contracts/kb/redteam/*.jsonl
 !mens/data/*_think/reasoning.jsonl
+!mens/data/heldout_think/reasoning.jsonl
 # Exception: the diagram-authoring eval set and its recorded runs are tracked contracts (EVAL-01).
 !contracts/eval/diagram-authoring/**/*.jsonl
 
