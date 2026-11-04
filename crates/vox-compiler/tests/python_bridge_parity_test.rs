@@ -384,3 +384,91 @@ fn yaml_ints(value: &Value) -> Vec<i64> {
         })
         .collect()
 }
+
+/// `and` / `or` are Python keywords, so the def is `and_` / `or_` while the
+/// HANDLERS key stays the Vox name.
+fn frame_handler_ok(worker: &str, name: &str) -> bool {
+    if matches!(name, "and" | "or") {
+        let def_name = if name == "and" { "and_" } else { "or_" };
+        let def_prefix = format!("def {def_name}(");
+        let key_needle = format!("\"{name}\": {def_name}");
+        let mut has_def = false;
+        let mut has_key = false;
+        for line in worker.lines() {
+            if line.trim_start().starts_with('#') {
+                continue;
+            }
+            if line.starts_with(&def_prefix) {
+                has_def = true;
+            }
+            if let Some(code) = line.split('#').next()
+                && code.contains(&key_needle)
+            {
+                has_key = true;
+            }
+        }
+        return has_def && has_key;
+    }
+    worker_defines_handler(worker, name)
+}
+
+#[test]
+fn frame_on_disk_expected_matches_handlers() {
+    let root = workspace_root();
+    let yaml_path = root.join("contracts/python/frame-support.yaml");
+    let raw = std::fs::read_to_string(&yaml_path)
+        .unwrap_or_else(|err| panic!("read {}: {err}", yaml_path.display()));
+    let doc: Value = serde_yaml::from_str(&raw)
+        .unwrap_or_else(|err| panic!("parse {}: {err}", yaml_path.display()));
+    let ops = doc.get("ops").and_then(Value::as_sequence).expect("ops");
+    let worker_path = root.join("crates/vox-python-bridge/worker/vox_bridge/frame_ops.py");
+    let worker = std::fs::read_to_string(&worker_path)
+        .unwrap_or_else(|err| panic!("read {}: {err}", worker_path.display()));
+    let table = vox_compiler::python_frame_support::python_frame_ops();
+    assert_eq!(table.len(), ops.len());
+
+    for op in ops {
+        let name = op.get("name").and_then(Value::as_str).expect("name");
+        let signature = op
+            .get("signature")
+            .and_then(Value::as_str)
+            .unwrap_or_else(|| panic!("{name} missing signature"));
+        let generated = table
+            .iter()
+            .find(|row| row.name == name)
+            .unwrap_or_else(|| panic!("{name} missing from the generated table"));
+        assert_eq!(generated.signature, signature, "{name} signature");
+        assert_eq!(generated.handler, name, "{name} handler");
+        let expected = op
+            .get("expected")
+            .unwrap_or_else(|| panic!("{name} missing expected"));
+        assert!(
+            expected.is_mapping(),
+            "{name} expected must be a non-null object, got {expected:?}"
+        );
+        assert!(
+            frame_handler_ok(&worker, name),
+            "{name} needs a column-0 def and HANDLERS entry"
+        );
+    }
+
+    assert!(
+        worker.contains("glob=False"),
+        "scan_csv must pass glob=False"
+    );
+    assert!(
+        worker.contains("nulls_last"),
+        "sort must map nulls to nulls_last"
+    );
+    for spelling in ["ne", "ge", "le", "and_", "or_"] {
+        assert!(
+            worker.contains(spelling),
+            "frame_ops must spell polars {spelling}"
+        );
+    }
+    let column0_polars = worker.lines().any(|line| {
+        let trimmed = line.trim_start();
+        !trimmed.starts_with('#') && line.starts_with("import polars")
+    });
+    assert!(!column0_polars, "polars must not be imported at column 0");
+}

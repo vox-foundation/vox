@@ -740,6 +740,27 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 };
             }
 
+            if method == "collect"
+                && eval_args.is_empty()
+                && let VoxValue::FramePlan(plan) = &o
+            {
+                let plan = plan.clone();
+                let caps = interp.caps.clone();
+                let result = super::builtins::materialize_collect(interp, &plan, &caps);
+                return match result {
+                    VoxValue::_Panic(msg) => Err(EvalError::AssertionFailed(msg)),
+                    VoxValue::_Denied(what) => {
+                        let (ns, denied_method) =
+                            what.split_once('.').unwrap_or((what.as_str(), ""));
+                        Err(EvalError::CapabilityDenied {
+                            ns: ns.to_string(),
+                            method: denied_method.to_string(),
+                        })
+                    }
+                    other => Ok(other),
+                };
+            }
+
             // Closure-taking method dispatch — handled here (not in
             // `call_builtin_method`) because applying a closure requires
             // mutable interp access (the closure body is evaluated against

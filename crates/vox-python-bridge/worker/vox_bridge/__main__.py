@@ -52,8 +52,12 @@ def main() -> None:
 
 def dispatch(method: str, params: dict, body: bytes, debug_ops: bool):
     if method == "execute_plan":
-        # Imported here so numpy stays unloaded until a plan runs, after the
-        # stdout dup in main.
+        # Imported here so numpy/polars stay unloaded until a plan runs, after
+        # the stdout dup in main. Frame plans keep array_ops off the import path.
+        if isinstance(params, dict) and params.get("family") == "frame":
+            from vox_bridge.frame_ops import execute_plan
+
+            return execute_plan(params, body)
         from vox_bridge.array_ops import execute_plan
 
         return execute_plan(params, body)

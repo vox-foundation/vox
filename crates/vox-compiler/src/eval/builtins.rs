@@ -2746,6 +2746,16 @@ pub(crate) fn materialize_calls() -> u32 {
     MATERIALIZE_CALLS.load(Ordering::SeqCst)
 }
 
+/// Entries into [`materialize_collect`]. Separate from array MATERIALIZE_CALLS.
+#[cfg(test)]
+static COLLECT_MATERIALIZE_CALLS: AtomicU32 = AtomicU32::new(0);
+
+/// How many times [`materialize_collect`] has been entered.
+#[cfg(test)]
+pub(crate) fn collect_materialize_calls() -> u32 {
+    COLLECT_MATERIALIZE_CALLS.load(Ordering::SeqCst)
+}
+
 pub fn materialize_to_list(
     interp: &mut super::Interpreter,
     plan: &super::array_plan::ArrayPlan,
@@ -2769,6 +2779,44 @@ pub fn materialize_to_list(
     match super::python::execute_plan(interp, params, body) {
         Ok(reply) => match reply.body.as_deref() {
             Some(bytes) => host_list_from_body(bytes, max_body),
+            None => VoxValue::Result(Err(crate::eval::value::err_str(
+                "py: execute_plan reply missing body".to_string(),
+            ))),
+        },
+        Err(err) => VoxValue::Result(Err(crate::eval::value::err_str(err))),
+    }
+}
+
+/// The only host entry that calls the Python worker for `std.frame`.
+///
+/// Plan 04 teaches a canned body to become `Records`. This honors the hook
+/// and the py denial without decoding yet.
+pub fn materialize_collect(
+    interp: &mut super::Interpreter,
+    plan: &super::frame_plan::FramePlan,
+    caps: &crate::eval::caps::CapabilitySet,
+) -> VoxValue {
+    #[cfg(test)]
+    COLLECT_MATERIALIZE_CALLS.fetch_add(1, Ordering::SeqCst);
+    if !caps.allows_namespace("py") {
+        return VoxValue::_Denied("py.collect".into());
+    }
+    #[cfg(test)]
+    if let Some(_bytes) = take_reply_body_for_test() {
+        // Plan 04 decodes these bytes into Records. Honor the hook so the
+        // missing worker path is never spawned when a canned body is set.
+        return VoxValue::Result(Err(crate::eval::value::err_str(
+            "py: frame collect decode not wired".to_string(),
+        )));
+    }
+    let params = frame_plan_params(plan);
+    // CSV stays on disk. The worker opens the canonical path from the plan.
+    let body = Vec::new();
+    match super::python::execute_plan(interp, params, body) {
+        Ok(reply) => match reply.body.as_deref() {
+            Some(_bytes) => VoxValue::Result(Err(crate::eval::value::err_str(
+                "py: frame collect decode not wired".to_string(),
+            ))),
             None => VoxValue::Result(Err(crate::eval::value::err_str(
                 "py: execute_plan reply missing body".to_string(),
             ))),
@@ -3964,6 +4012,7 @@ mod array_materialize_tests {
     use crate::eval::Interpreter;
     use crate::eval::array_plan::ArrayPlan;
     use crate::eval::caps::CapabilitySet;
+    use crate::eval::frame_plan::FramePlan;
     use crate::eval::value::VoxValue;
 
     #[test]
@@ -3976,6 +4025,28 @@ mod array_materialize_tests {
             VoxValue::_Denied(what) => assert_eq!(what, "py.to_list"),
             other => panic!("expected capability denial, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn frame_collect_without_python_is_denied() {
+        let mut interp = Interpreter::new(1_000);
+        interp.caps = CapabilitySet::parse("net:none").expect("caps");
+        let plan = FramePlan::scan_csv("/tmp/never-opened.csv");
+        let caps = interp.caps.clone();
+        let before = super::collect_materialize_calls();
+        match super::materialize_collect(&mut interp, &plan, &caps) {
+            VoxValue::_Denied(what) => assert_eq!(what, "py.collect"),
+            other => panic!("expected capability denial, got {other:?}"),
+        }
+        assert_eq!(
+            super::collect_materialize_calls(),
+            before + 1,
+            "collect enters the materializer once"
+        );
+        assert!(
+            !crate::eval::python::worker_spawned(&interp),
+            "missing py must not spawn a worker"
+        );
     }
 
     #[test]
