@@ -744,16 +744,24 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 pre_score,
                 post_adapter,
                 fail_fast,
+                no_fail_fast,
                 force_restart,
             } => {
                 #[cfg(not(feature = "gpu"))]
-                let _ = (pre_score, post_adapter, fail_fast, force_restart);
+                let _ = (
+                    pre_score,
+                    post_adapter,
+                    fail_fast,
+                    no_fail_fast,
+                    force_restart,
+                );
 
                 #[cfg(feature = "gpu")]
                 crate::commands::mens::eval_collateral::run_collateral_damage(
                     pre_score,
                     post_adapter,
                     fail_fast,
+                    no_fail_fast,
                     force_restart,
                 )?;
                 Ok(())

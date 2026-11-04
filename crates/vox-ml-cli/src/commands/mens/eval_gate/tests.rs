@@ -595,7 +595,11 @@ eval_local:
         .iter()
         .find(|r| r.name == "eval_local")
         .expect("eval_local gate");
-    assert!(g.passed, "absent corpus parse_rate must be N/A when heldout report exists: {}", g.message);
+    assert!(
+        g.passed,
+        "absent corpus parse_rate must be N/A when heldout report exists: {}",
+        g.message
+    );
     assert!(
         g.message.contains("not applicable"),
         "message explains N/A: {}",
@@ -627,7 +631,11 @@ eval_local:
         .iter()
         .find(|r| r.name == "eval_local")
         .expect("eval_local gate");
-    assert!(!g.passed, "low corpus parse_rate must still fail: {}", g.message);
+    assert!(
+        !g.passed,
+        "low corpus parse_rate must still fail: {}",
+        g.message
+    );
     assert!(g.block);
 }
 
@@ -719,7 +727,11 @@ review_recurrence:
         .iter()
         .find(|r| r.name == "review_recurrence")
         .expect("review_recurrence gate");
-    assert!(g.passed, "absent producer must not fail promote: {}", g.message);
+    assert!(
+        g.passed,
+        "absent producer must not fail promote: {}",
+        g.message
+    );
     assert!(!g.block, "absent review_metrics must be non-blocking");
 }
 
@@ -1287,4 +1299,67 @@ fn check_leakage_precondition_reports_not_applicable_outside_workspace() {
         "message should say the precondition is not applicable: {}",
         g.message
     );
+}
+
+#[test]
+fn collateral_damage_gate_blocks_when_status_not_pass() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        dir.path().join("collateral_damage_report.json"),
+        r#"{"status":"fail","failed_on":"gsm8k_think","fail_fast":true}"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+collateral_damage:
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let g = results
+        .iter()
+        .find(|r| r.name == "collateral_damage")
+        .expect("collateral_damage gate");
+    assert!(!g.passed, "{}", g.message);
+    assert!(g.block);
+    assert!(g.message.contains("gsm8k_think"));
+}
+
+#[test]
+fn collateral_damage_gate_passes_on_status_pass() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        dir.path().join("collateral_damage_report.json"),
+        r#"{"status":"pass","failed_on":null,"fail_fast":true}"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+collateral_damage:
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let g = results
+        .iter()
+        .find(|r| r.name == "collateral_damage")
+        .expect("collateral_damage gate");
+    assert!(g.passed, "{}", g.message);
+}
+
+#[test]
+fn ladder_policy_loads_and_enables_collateral_block() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../mens/config/eval-gates-ladder.yaml");
+    let policy = super::policy::load_policy(&path).expect("load ladder policy");
+    assert!(policy.collateral_damage.block);
+    assert!(policy.anti_stub.block);
+    assert!(policy.pass_at_k.block);
+    assert!(!policy.review_recurrence.block);
 }

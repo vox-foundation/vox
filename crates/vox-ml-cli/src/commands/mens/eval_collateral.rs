@@ -106,10 +106,49 @@ pub(crate) fn run_collateral_damage_with(
     )
 }
 
+/// Default fail-fast order: cheapest-to-fail-first for the mens ladder.
+///
+/// `gsm8k_think` historically fails first at small base accuracy (n=32, base≈0.5),
+/// so scoring it before math500/vox avoids multi-hour full-suite runs after an
+/// early failure. Operators can override via `--fail-fast a,b,c`.
+#[must_use]
+pub fn default_fail_fast_order() -> Vec<String> {
+    ["gsm8k_think", "math500_think", "vox_think"]
+        .map(String::from)
+        .to_vec()
+}
+
+/// Validate a fail-fast order: non-empty, known slice names, no duplicates.
+/// A **subset** of [`SLICE_NAMES`] is allowed (debug / single-slice smoke).
+/// Hub-eligible `status=pass` still requires every slice in [`SLICE_NAMES`] to
+/// have been scored and passed — see [`run_collateral_damage_fail_fast_with`].
+pub(crate) fn validate_fail_fast_order(order: &[String]) -> Result<()> {
+    if order.is_empty() {
+        anyhow::bail!("fail-fast order is empty; pass known slices {SLICE_NAMES:?}");
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    for name in order {
+        if !SLICE_NAMES.contains(&name.as_str()) {
+            anyhow::bail!("unknown reasoning slice '{name}'; known {SLICE_NAMES:?}");
+        }
+        if !seen.insert(name.as_str()) {
+            anyhow::bail!("duplicate slice '{name}' in fail-fast order");
+        }
+    }
+    Ok(())
+}
+
 /// Fail-fast variant: scores the reasoning slices one at a time in `order` and
-/// stops at the first slice over the threshold. Slices after it are recorded as
-/// `not_run` with reason `fail_fast_after_<slice>` and no score. A partial
-/// report is always `fail`; when every slice passes it is a full report.
+/// stops at the first slice over the threshold. Slices later in `order` are
+/// recorded as `not_run` with reason `fail_fast_after_<slice>` and no score.
+/// Known slices omitted from `order` are `not_run` with reason
+/// `not_in_fail_fast_order`.
+///
+/// - **fail**: a scored slice exceeded the threshold.
+/// - **pass**: every name in [`SLICE_NAMES`] was scored and passed (Hub-eligible).
+/// - **incomplete**: requested slices all passed but at least one [`SLICE_NAMES`]
+///   entry was never scored (debug subset) — exit 1, not Hub-eligible.
+///
 /// The baseline may be partial (only the slices a sliced compare scored);
 /// reaching a slice it does not name is an error, before that slice is scored.
 pub(crate) fn run_collateral_damage_fail_fast_with(
@@ -118,25 +157,16 @@ pub(crate) fn run_collateral_damage_fail_fast_with(
     order: &[String],
     score_bench: &mut dyn FnMut(&str) -> Result<BenchScore>,
 ) -> Result<i32> {
+    validate_fail_fast_order(order)?;
     let pre = load_pre(pre_score_path, run_dir, false)?;
-    let mut want: Vec<&str> = order.iter().map(String::as_str).collect();
-    want.sort_unstable();
-    let mut all = SLICE_NAMES.to_vec();
-    all.sort_unstable();
-    if want != all {
-        anyhow::bail!(
-            "--fail-fast must name each reasoning slice exactly once ({SLICE_NAMES:?}), got {order:?}"
-        );
-    }
     if let Some(other) = pre.keys().find(|b| reasoning_slice_of(b).is_none()) {
-        anyhow::bail!(
-            "--fail-fast scores reasoning slices only; the baseline also names '{other}'"
-        );
+        anyhow::bail!("fail-fast scores reasoning slices only; the baseline also names '{other}'");
     }
 
     let cfg = CollateralDamageConfig::default();
     let mut verdicts = Vec::with_capacity(order.len());
     let mut not_run = Vec::new();
+    let mut stopped_early = false;
     for (i, name) in order.iter().enumerate() {
         let init = format!("{name}{THINK_INIT_SUFFIX}");
         if let Some(missing) = [name.as_str(), init.as_str()]
@@ -144,7 +174,7 @@ pub(crate) fn run_collateral_damage_fail_fast_with(
             .find(|k| !pre.contains_key(*k))
         {
             anyhow::bail!(
-                "--fail-fast reached slice '{name}' but the baseline {} has no '{missing}' \
+                "fail-fast reached slice '{name}' but the baseline {} has no '{missing}' \
                  (a partial baseline); score that slice in the compare first",
                 pre_score_path.display()
             );
@@ -154,25 +184,55 @@ pub(crate) fn run_collateral_damage_fail_fast_with(
         let failed = v.exceeds_threshold();
         verdicts.push(v);
         if failed {
-            not_run = order[i + 1..]
-                .iter()
-                .map(|rest| {
-                    json!({
-                        "benchmark": rest,
-                        "status": "not_run",
-                        "reason": format!("fail_fast_after_{name}"),
-                    })
+            stopped_early = true;
+            not_run.extend(order[i + 1..].iter().map(|rest| {
+                json!({
+                    "benchmark": rest,
+                    "status": "not_run",
+                    "reason": format!("fail_fast_after_{name}"),
                 })
-                .collect();
+            }));
             break;
         }
     }
 
+    // Names actually scored = the prefix of `order` that produced verdicts.
+    let scored_names: std::collections::BTreeSet<&str> = order
+        .iter()
+        .take(verdicts.len())
+        .map(String::as_str)
+        .collect();
+    for name in SLICE_NAMES {
+        if !scored_names.contains(name) && !not_run.iter().any(|e| e["benchmark"] == *name) {
+            not_run.push(json!({
+                "benchmark": name,
+                "status": "not_run",
+                "reason": if stopped_early {
+                    // already covered by fail_fast_after_* for remaining order;
+                    // only add canonical names not already listed.
+                    format!(
+                        "fail_fast_after_{}",
+                        order.get(verdicts.len().saturating_sub(1)).map(String::as_str).unwrap_or("?")
+                    )
+                } else {
+                    "not_in_fail_fast_order".to_string()
+                },
+            }));
+        }
+    }
+
+    let full_coverage = scored_names.len() == SLICE_NAMES.len() && !stopped_early;
     let (status, failed_on, reports_json) = match verdicts.iter().find(|v| v.exceeds_threshold()) {
         Some(v) => ("fail", v.failed_key(), vec![failing_report_json(v)]),
-        None => (
+        None if full_coverage => (
             "pass",
             None,
+            verdicts.iter().flat_map(slice_reports_json).collect(),
+        ),
+        None => (
+            // Subset order passed its slices but Hub needs the full suite.
+            "incomplete",
+            Some("incomplete_slice_coverage".to_string()),
             verdicts.iter().flat_map(slice_reports_json).collect(),
         ),
     };
@@ -186,6 +246,7 @@ pub(crate) fn run_collateral_damage_fail_fast_with(
             "reasoning_slices": reasoning_slices_json(&verdicts),
             "fail_fast_order": order,
             "not_run": not_run,
+            "fail_fast": true,
         }),
         &failed_on,
     )
@@ -293,21 +354,40 @@ fn write_report(
         run_dir.join("collateral_damage_report.json"),
         serde_json::to_string_pretty(&report)?,
     )?;
-    if let Some(bench) = failed_on {
-        eprintln!("Collateral damage check FAILED on benchmark '{bench}'.");
-        Ok(1)
-    } else {
-        println!("Collateral damage check PASSED.");
-        Ok(0)
+    match (report.get("status").and_then(|s| s.as_str()), failed_on) {
+        (Some("pass"), _) => {
+            println!("Collateral damage check PASSED.");
+            Ok(0)
+        }
+        (Some("incomplete"), _) => {
+            eprintln!(
+                "Collateral damage check INCOMPLETE: scored a slice subset only \
+                 (not Hub-eligible). Re-run with the default fail-fast order \
+                 (all of {SLICE_NAMES:?}) or --no-fail-fast."
+            );
+            Ok(1)
+        }
+        (_, Some(bench)) => {
+            eprintln!("Collateral damage check FAILED on benchmark '{bench}'.");
+            Ok(1)
+        }
+        _ => {
+            eprintln!("Collateral damage check FAILED.");
+            Ok(1)
+        }
     }
 }
 
 /// CLI entry point. Builds the real, adapter-backed scorer and owns the exit
 /// code — the `exit` lives here so the core above stays testable.
+///
+/// **Fail-fast is the default** (see [`default_fail_fast_order`]). Pass
+/// `no_fail_fast = true` to score the full baseline suite without early stop.
 pub fn run_collateral_damage(
     pre_score_path: PathBuf,
     post_adapter_path: PathBuf,
-    fail_fast: Option<Vec<String>>,
+    fail_fast_order: Option<Vec<String>>,
+    no_fail_fast: bool,
     force_restart: bool,
 ) -> Result<()> {
     println!(
@@ -317,14 +397,18 @@ pub fn run_collateral_damage(
     println!("Using adapter: {}", post_adapter_path.display());
 
     let mut scorer = |bench: &str| score_bench(bench, &post_adapter_path, force_restart);
-    let code = match &fail_fast {
-        Some(order) => run_collateral_damage_fail_fast_with(
+    let code = if no_fail_fast {
+        println!("Mode: full suite (--no-fail-fast)");
+        run_collateral_damage_with(&pre_score_path, &post_adapter_path, &mut scorer)?
+    } else {
+        let order = fail_fast_order.unwrap_or_else(default_fail_fast_order);
+        println!("Mode: fail-fast order={order:?}");
+        run_collateral_damage_fail_fast_with(
             &pre_score_path,
             &post_adapter_path,
-            order,
+            &order,
             &mut scorer,
-        )?,
-        None => run_collateral_damage_with(&pre_score_path, &post_adapter_path, &mut scorer)?,
+        )?
     };
     if code != 0 {
         std::process::exit(code);
@@ -860,9 +944,20 @@ mod tests {
     }
 
     fn fail_fast_order() -> Vec<String> {
+        // Matches default_fail_fast_order but starts with vox_think for the
+        // historical "first failure" unit-test fixture.
         ["vox_think", "gsm8k_think", "math500_think"]
             .map(String::from)
             .to_vec()
+    }
+
+    #[test]
+    fn default_fail_fast_order_is_gsm8k_first() {
+        assert_eq!(
+            default_fail_fast_order(),
+            ["gsm8k_think", "math500_think", "vox_think"]
+        );
+        validate_fail_fast_order(&default_fail_fast_order()).unwrap();
     }
 
     #[test]
@@ -935,20 +1030,64 @@ mod tests {
     }
 
     #[test]
-    fn fail_fast_refuses_an_order_that_skips_a_slice() {
+    fn fail_fast_subset_order_that_all_pass_is_incomplete_not_hub_pass() {
         let dir = tempfile::tempdir().unwrap();
         let pre = write_baseline(dir.path(), &[], &[]);
-        let mut calls = 0;
-        {
-            let mut scorer = scorer_over(&[], &mut calls);
-            let order = ["vox_think", "gsm8k_think"].map(String::from).to_vec();
-            assert!(
-                run_collateral_damage_fail_fast_with(&pre, dir.path(), &order, &mut scorer)
-                    .is_err()
-            );
-        }
-        assert_eq!(calls, 0);
-        no_report(dir.path());
+        let mut asked: Vec<String> = Vec::new();
+        let mut scorer = |bench: &str| {
+            asked.push(bench.to_string());
+            Ok(flat(bench, 0.84))
+        };
+        let order = ["gsm8k_think"].map(String::from).to_vec();
+        let code =
+            run_collateral_damage_fail_fast_with(&pre, dir.path(), &order, &mut scorer).unwrap();
+        assert_eq!(code, 1, "subset pass is incomplete, exit 1");
+        assert_eq!(asked, ["gsm8k_think", "gsm8k_think_init"]);
+        let report = read_report(dir.path());
+        assert_eq!(report["status"], "incomplete");
+        assert_eq!(report["failed_on"], "incomplete_slice_coverage");
+        let not_run = report["not_run"].as_array().unwrap();
+        assert!(
+            not_run
+                .iter()
+                .any(|e| e["benchmark"] == "math500_think"
+                    && e["reason"] == "not_in_fail_fast_order")
+        );
+        assert!(
+            not_run
+                .iter()
+                .any(|e| e["benchmark"] == "vox_think" && e["reason"] == "not_in_fail_fast_order")
+        );
+    }
+
+    #[test]
+    fn fail_fast_subset_stops_early_on_fail_without_scoring_later_slices() {
+        let dir = tempfile::tempdir().unwrap();
+        let pre = write_baseline(dir.path(), &[], &[]);
+        let mut asked: Vec<String> = Vec::new();
+        let mut scorer = |bench: &str| {
+            asked.push(bench.to_string());
+            Ok(match bench {
+                "gsm8k_think" => score(0.40625, Some(32)),
+                _ => flat(bench, 0.84),
+            })
+        };
+        let order = default_fail_fast_order();
+        let code =
+            run_collateral_damage_fail_fast_with(&pre, dir.path(), &order, &mut scorer).unwrap();
+        assert_eq!(code, 1);
+        assert_eq!(asked, ["gsm8k_think", "gsm8k_think_init"]);
+        let report = read_report(dir.path());
+        assert_eq!(report["status"], "fail");
+        assert_eq!(report["failed_on"], "gsm8k_think");
+        assert_eq!(report["fail_fast"], true);
+    }
+
+    #[test]
+    fn fail_fast_refuses_unknown_or_duplicate_slice_names() {
+        assert!(validate_fail_fast_order(&["nope".into()]).is_err());
+        assert!(validate_fail_fast_order(&[]).is_err());
+        assert!(validate_fail_fast_order(&["gsm8k_think".into(), "gsm8k_think".into()]).is_err());
     }
 
     const PARTIAL_DROP: [&str; 4] = [

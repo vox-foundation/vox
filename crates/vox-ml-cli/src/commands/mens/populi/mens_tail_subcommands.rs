@@ -57,11 +57,15 @@ pub enum PopuliMensTail {
         /// Adapter path to evaluate
         #[arg(long, id = "post")]
         post_adapter: PathBuf,
-        /// Score the reasoning slices one at a time in this order (comma-separated,
-        /// each slice once) and stop at the first that fails; later slices are
-        /// recorded as not_run.
+        /// Fail-fast slice order (comma-separated). Default when omitted:
+        /// `gsm8k_think,math500_think,vox_think` (stop at first failing slice).
+        /// A subset is allowed for smoke tests; Hub-eligible pass still needs
+        /// all three slices scored.
         #[arg(long, value_delimiter = ',')]
         fail_fast: Option<Vec<String>>,
+        /// Score the full baseline suite without early exit (disables fail-fast).
+        #[arg(long, default_value_t = false)]
+        no_fail_fast: bool,
         /// Discard this run's per-item checkpoint instead of resuming from it
         #[arg(long)]
         force_restart: bool,

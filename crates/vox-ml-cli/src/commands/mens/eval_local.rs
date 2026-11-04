@@ -340,6 +340,7 @@ fn eval_local_report(
     let mut passed_1 = 0.0_f64;
     let mut semantic_passed_k = 0usize;
     let mut anti_stub_passed_k = 0usize;
+    let mut construct_richness_parse_ok_n = 0usize;
     let mut placeholder_event_count = 0usize;
     let mut trivial_placeholder_event_count = 0usize;
     let mut construct_richness_sum = 0.0_f64;
@@ -517,15 +518,30 @@ fn eval_local_report(
         }) {
             trivial_placeholder_event_count += 1;
         }
+        // Mean construct richness over parse_ok samples only. Averaging zeros
+        // from unparseable answers double-counts the same failure already in
+        // pass@k and makes the richness floor unreachable whenever parse rate
+        // is below 1.0 — even when every successful parse is fully rich.
         let construct_richness_best = samples_json
             .iter()
+            .filter(|v| {
+                v.get("checks")
+                    .and_then(|c| c.get("parse_ok"))
+                    .and_then(|x| x.as_bool())
+                    .unwrap_or(false)
+            })
             .filter_map(|v| {
                 v.get("checks")
                     .and_then(|c| c.get("construct_richness_score"))
                     .and_then(|x| x.as_f64())
             })
-            .fold(0.0_f64, f64::max);
-        construct_richness_sum += construct_richness_best;
+            .fold(None, |acc: Option<f64>, x| {
+                Some(acc.map_or(x, |a| a.max(x)))
+            });
+        if let Some(best) = construct_richness_best {
+            construct_richness_sum += best;
+            construct_richness_parse_ok_n += 1;
+        }
 
         let icon = if c > 0 {
             "✓".green().to_string()
@@ -581,8 +597,8 @@ fn eval_local_report(
     } else {
         0.0
     };
-    let construct_richness_mean = if total > 0 {
-        construct_richness_sum / total as f64
+    let construct_richness_mean = if construct_richness_parse_ok_n > 0 {
+        construct_richness_sum / construct_richness_parse_ok_n as f64
     } else {
         0.0
     };

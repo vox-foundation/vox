@@ -22,9 +22,15 @@ version: "1"
 #   benchmark_passatk.json  → pass_at_k                              (`vox mens eval-local`)
 #                             When metrics.k <= 1, pass@k min collapses to pass@1 min.
 #   eval_local_report.json  → anti_stub                              (`vox mens eval-local`)
+#                             anti_stub_task_success = no placeholders / trivial stubs
+#                             (NOT parse failure — that lives in pass_at_k).
+#                             construct_richness_mean = mean over parse_ok samples only.
 #   review_metrics.json     → review_recurrence                      (review pipeline)
 #                             Absent file is non-blocking N/A until a producer exists;
 #                             present file still enforces thresholds.
+#
+# Promote one size at a time. A failed receipt on 0.6B must not re-run eval-gate
+# on 1.7B/4B/… until that size's own quality work is done.
 
 supervised_ratio:
   min_pct: 10.0

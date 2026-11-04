@@ -492,22 +492,17 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
             } else {
                 let content = read_utf8_path_capped(&eval_local_report_path)?;
                 if let Ok(el) = serde_json::from_str::<serde_json::Value>(&content) {
-                    let anti_stub_pass = el
-                        .get("anti_stub_task_success")
-                        .and_then(|v| v.as_f64())
-                        .unwrap_or(0.0);
-                    let placeholder_rate = el
-                        .get("placeholder_event_rate")
-                        .and_then(|v| v.as_f64())
-                        .unwrap_or(0.0);
-                    let trivial_placeholder_rate = el
-                        .get("trivial_placeholder_event_rate")
-                        .and_then(|v| v.as_f64())
-                        .unwrap_or(0.0);
-                    let construct_richness_mean = el
-                        .get("construct_richness_mean")
-                        .and_then(|v| v.as_f64())
-                        .unwrap_or(0.0);
+                    // Recompute from per-sample checks when present so older reports
+                    // (which folded parse failures into anti_stub_pass and averaged
+                    // richness over unparseable zeros) are judged with current rules.
+                    let m =
+                        crate::commands::mens::metrics::anti_stub_metrics_from_eval_local_report(
+                            &el,
+                        );
+                    let anti_stub_pass = m.anti_stub_task_success;
+                    let placeholder_rate = m.placeholder_event_rate;
+                    let trivial_placeholder_rate = m.trivial_placeholder_event_rate;
+                    let construct_richness_mean = m.construct_richness_mean;
                     let pass_rate_ok = anti_stub_pass >= anti_stub_cfg.min_pass_rate;
                     let placeholder_ok = anti_stub_cfg.max_placeholder_event_rate <= 0.0
                         || placeholder_rate <= anti_stub_cfg.max_placeholder_event_rate;
@@ -523,7 +518,7 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
                         message: format!(
                             "anti_stub_pass={:.3} (min={:.3}) placeholder_rate={:.3} \
                              (max={:.3}) trivial_rate={:.3} (max={:.3}) \
-                             richness_mean={:.3} (min={:.3})",
+                             richness_mean={:.3} (min={:.3}) [metrics:{:?}]",
                             anti_stub_pass,
                             anti_stub_cfg.min_pass_rate,
                             placeholder_rate,
@@ -531,7 +526,8 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
                             trivial_placeholder_rate,
                             anti_stub_cfg.max_trivial_placeholder_event_rate,
                             construct_richness_mean,
-                            anti_stub_cfg.min_construct_richness_mean
+                            anti_stub_cfg.min_construct_richness_mean,
+                            m.source,
                         ),
                         block: anti_stub_cfg.block,
                     });
@@ -959,6 +955,55 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
 
             let gate_result = check_bfcl(run_dir, bfcl_cfg, baseline_entry, rung_key.as_deref())?;
             results.push(gate_result);
+        }
+    }
+
+    // --- collateral_damage gate ----------------------------------------------
+    // Same artifact Hub publish reads. Active when block/require_report is set
+    // (ladder policy) or when a report file is already present (surface status).
+    {
+        let cd = &policy.collateral_damage;
+        let report_path = run_dir.join("collateral_damage_report.json");
+        let active = cd.block || cd.require_report || report_path.exists();
+        if active {
+            if !report_path.exists() {
+                results.push(GateResult {
+                    name: "collateral_damage".to_string(),
+                    passed: false,
+                    message: format!(
+                        "collateral_damage_report.json missing — run `vox mens \
+                         eval-collateral-damage` (fail-fast default: gsm8k→math500→vox)"
+                    ),
+                    block: cd.block || cd.require_report,
+                });
+            } else {
+                let content = read_utf8_path_capped(&report_path)?;
+                match serde_json::from_str::<serde_json::Value>(&content) {
+                    Ok(v) => {
+                        let status = v.get("status").and_then(|s| s.as_str()).unwrap_or("");
+                        let failed_on = v.get("failed_on").and_then(|x| x.as_str()).unwrap_or("-");
+                        let fail_fast = v
+                            .get("fail_fast")
+                            .and_then(|x| x.as_bool())
+                            .unwrap_or(false);
+                        let passed = status == "pass";
+                        results.push(GateResult {
+                            name: "collateral_damage".to_string(),
+                            passed,
+                            message: format!(
+                                "status={status} failed_on={failed_on} fail_fast={fail_fast}"
+                            ),
+                            block: cd.block || cd.require_report,
+                        });
+                    }
+                    Err(e) => results.push(GateResult {
+                        name: "collateral_damage".to_string(),
+                        passed: false,
+                        message: format!("invalid collateral_damage_report.json: {e}"),
+                        block: cd.block || cd.require_report,
+                    }),
+                }
+            }
         }
     }
 

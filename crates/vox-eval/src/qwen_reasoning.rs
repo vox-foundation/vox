@@ -146,41 +146,80 @@ pub fn thinking_mode_prompt(question: &str) -> String {
     format!("<|im_start|>user\n{question}<|im_end|>\n<|im_start|>assistant\n")
 }
 
-/// Text after the last `</think>`. A completion that opens `<think>` and never
-/// closes it (truncated reasoning) has no final answer, so the region is empty.
-/// A completion that does not open a think tag is returned trimmed.
+/// Text used to grade a final answer.
+///
+/// - After the last `</think>` when the think block was closed (normal path).
+/// - The open think body when `<think>` was opened but never closed (truncated
+///   or unfinished reasoning). Models often already write `\boxed{…}`,
+///   `#### N`, or a concluding number inside the trace; treating the body as
+///   empty made every unclosed completion an automatic fail even when the
+///   answer was present.
+/// - The full trimmed completion when no think tag is opened.
 #[must_use]
 pub fn answer_region(completion: &str) -> &str {
     if let Some(i) = completion.rfind("</think>") {
         return completion[i + "</think>".len()..].trim();
     }
-    if completion.trim_start().starts_with("<think>") {
-        return "";
+    let trimmed = completion.trim_start();
+    if let Some(rest) = trimmed.strip_prefix("<think>") {
+        return rest.trim();
     }
     completion.trim()
 }
 
 /// Grade a completion against a gold final answer.
 ///
-/// Numeric gold (GSM8K, after commas are stripped) matches the last number in
-/// the answer region. Other gold matches a `\boxed{...}` body or the last
-/// non-empty line, after whitespace and `$` are removed.
+/// Prefer explicit answer markers over a bare trailing number:
+/// 1. `\boxed{...}` body (handles "…\\boxed{8}…5:00 PM" without picking `00`)
+/// 2. GSM8K-style `#### <answer>` line
+/// 3. Numeric gold → last number in the answer region
+/// 4. Last non-empty line (normalized)
 #[must_use]
 pub fn grade_final_answer(completion: &str, gold: &str) -> bool {
     let region = answer_region(completion);
     let gold_norm = normalize_answer(gold);
-    if gold_norm.is_empty() {
+    if gold_norm.is_empty() || region.is_empty() {
         return false;
+    }
+    if let Some(boxed) = extract_boxed(region) {
+        if answers_equal(&boxed, &gold_norm) {
+            return true;
+        }
+    }
+    if let Some(hash_ans) = extract_hash_answer(region) {
+        if answers_equal(&hash_ans, &gold_norm) {
+            return true;
+        }
     }
     if let Some(gold_n) = parse_number(&gold_norm) {
         return last_number(region).is_some_and(|n| numbers_equal(gold_n, n));
     }
-    if let Some(boxed) = extract_boxed(region) {
-        if normalize_answer(&boxed) == gold_norm {
-            return true;
-        }
-    }
     last_nonempty_line(region).is_some_and(|line| normalize_answer(line) == gold_norm)
+}
+
+/// True when a candidate answer string matches normalized gold (numeric or text).
+fn answers_equal(candidate: &str, gold_norm: &str) -> bool {
+    let cand_norm = normalize_answer(candidate);
+    if cand_norm == gold_norm {
+        return true;
+    }
+    match (parse_number(&cand_norm), parse_number(gold_norm)) {
+        (Some(a), Some(b)) => numbers_equal(a, b),
+        _ => false,
+    }
+}
+
+/// Body after the last GSM8K `####` marker, if any.
+fn extract_hash_answer(s: &str) -> Option<String> {
+    let key = "####";
+    let i = s.rfind(key)?;
+    let rest = s[i + key.len()..].trim();
+    let line = rest.lines().next()?.trim();
+    if line.is_empty() {
+        None
+    } else {
+        Some(line.to_string())
+    }
 }
 
 /// Accuracy and think-initiation rate over `(completion, gold)` pairs.
@@ -465,11 +504,22 @@ mod tests {
     }
 
     #[test]
-    fn unterminated_think_grades_as_no_answer() {
-        assert_eq!(answer_region("<think>\n... so 42"), "");
-        assert_eq!(answer_region("  \n<think>\nstill going 42"), "");
-        assert!(!grade_final_answer("<think>\n... so 42", "42"));
-        assert!(!grade_final_answer("<think>\nplan\nanswer", "answer"));
+    fn unterminated_think_grades_from_body_when_answer_present() {
+        // Unclosed think: region is the body, not empty.
+        assert_eq!(answer_region("<think>\n... so 42"), "... so 42");
+        assert_eq!(
+            answer_region("  \n<think>\nstill going 42"),
+            "still going 42"
+        );
+        assert!(grade_final_answer("<think>\n... so 42", "42"));
+        assert!(grade_final_answer("<think>\nplan\n\\boxed{42}", "42"));
+        assert!(grade_final_answer("<think>\ncalc\n#### 18\n", "18"));
+        // Still fail when the body has no recoverable answer for the gold.
+        assert!(!grade_final_answer("<think>\nplan only, no digits", "42"));
+        assert!(!grade_final_answer(
+            "<think>\nplan\nnot the gold string",
+            "answer"
+        ));
     }
 
     #[test]
@@ -479,6 +529,18 @@ mod tests {
         assert_eq!(answer_region("  just 42  "), "just 42");
         assert!(grade_final_answer("<think>\nplan\n</think>\n\n42", "42"));
         assert!(grade_final_answer("so 42", "42"));
+    }
+
+    #[test]
+    fn boxed_wins_over_trailing_time_like_numbers() {
+        // Last-number alone would pick `00` from `5:00`; boxed must win for gold 8.
+        let completion =
+            "<think>\n8cm\n</think>\nThe candle is \\boxed{8} cm shorter after 1:00 PM to 5:00 PM.";
+        assert!(grade_final_answer(completion, "8"));
+        // Wrong golds must not match the boxed answer.
+        assert!(!grade_final_answer(completion, "5"));
+        assert!(!grade_final_answer(completion, "1"));
+        assert!(!grade_final_answer(completion, "16"));
     }
 
     #[test]
