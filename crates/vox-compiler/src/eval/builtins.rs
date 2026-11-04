@@ -4050,3 +4050,50 @@ mod array_materialize_tests {
         assert_eq!(floats, vec![VoxValue::Float(widened)]);
     }
 }
+
+/// `Records` answers row count and a concrete column without a worker.
+#[cfg(test)]
+mod records_column_tests {
+    use super::*;
+
+    #[test]
+    fn records_num_rows_and_column() {
+        let rows = VoxValue::Records {
+            columns: vec![(
+                "revenue".to_string(),
+                vec![VoxValue::Int(10), VoxValue::Int(5)],
+            )],
+        };
+        let caps = crate::eval::caps::CapabilitySet::developer_default();
+        let n = call_builtin_method(&rows, "num_rows", vec![], &caps, None);
+        assert_eq!(n, Some(VoxValue::Int(2)));
+        let col = call_builtin_method(
+            &rows,
+            "column",
+            vec![VoxValue::Str("revenue".into())],
+            &caps,
+            None,
+        );
+        assert_eq!(
+            col,
+            Some(VoxValue::list(vec![VoxValue::Int(10), VoxValue::Int(5)]))
+        );
+        let missing = call_builtin_method(
+            &rows,
+            "column",
+            vec![VoxValue::Str("absent".into())],
+            &caps,
+            None,
+        );
+        match missing {
+            Some(VoxValue::Result(Err(err))) => {
+                assert!(
+                    !matches!(err.as_ref(), VoxValue::Option(_) | VoxValue::Null),
+                    "missing name must not be a nullable cell"
+                );
+            }
+            Some(VoxValue::Option(_)) => panic!("missing name returned a nullable wrapper"),
+            other => panic!("missing name must be an error value, got {other:?}"),
+        }
+    }
+}
