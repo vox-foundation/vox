@@ -10,7 +10,9 @@ mod array_ipc;
 mod frame;
 mod host;
 
-pub use array_ipc::{decode_f64_column, encode_f64_column};
+pub use array_ipc::{
+    DecodedHost, decode_f64_column, decode_host_column, encode_f64_column, encode_i64_column,
+};
 
 pub use host::Bridge;
 pub use vox_foundation::protocol::{DispatchRequest, DispatchResponse};

@@ -2636,22 +2636,50 @@ pub fn materialize_to_list(
         return VoxValue::_Denied("py.to_list".into());
     }
     let params = plan_params(plan);
-    let body = match vox_python_bridge::encode_f64_column(plan.host()) {
+    let body = match encode_host_column(plan) {
         Ok(bytes) => bytes,
         Err(err) => return VoxValue::Result(Err(crate::eval::value::err_str(err))),
     };
     match super::python::execute_plan(interp, params, body) {
         Ok(reply) => match reply.body.as_deref() {
-            Some(bytes) => match vox_python_bridge::decode_f64_column(bytes) {
-                Ok(values) => VoxValue::Result(Ok(Box::new(VoxValue::list(
-                    values.into_iter().map(VoxValue::Float).collect(),
-                )))),
-                Err(err) => VoxValue::Result(Err(crate::eval::value::err_str(err))),
-            },
+            Some(bytes) => host_list_from_body(bytes),
             None => VoxValue::Result(Err(crate::eval::value::err_str(
                 "py: execute_plan reply missing body".to_string(),
             ))),
         },
+        Err(err) => VoxValue::Result(Err(crate::eval::value::err_str(err))),
+    }
+}
+
+fn encode_host_column(plan: &super::array_plan::ArrayPlan) -> Result<Vec<u8>, String> {
+    if let Some(ints) = plan.host_ints() {
+        tracing::debug!(
+            len = ints.len(),
+            first = ?ints.first().copied(),
+            "from_list int column sent to execute_plan"
+        );
+        return vox_python_bridge::encode_i64_column(ints);
+    }
+    let floats = plan.host();
+    tracing::debug!(
+        len = floats.len(),
+        "from_list float column sent to execute_plan"
+    );
+    vox_python_bridge::encode_f64_column(floats)
+}
+
+fn host_list_from_body(bytes: &[u8]) -> VoxValue {
+    tracing::debug!(
+        body_len = bytes.len(),
+        "execute_plan reply body sent to host decode"
+    );
+    match vox_python_bridge::decode_host_column(bytes) {
+        Ok(vox_python_bridge::DecodedHost::F64(values)) => VoxValue::Result(Ok(Box::new(
+            VoxValue::list(values.into_iter().map(VoxValue::Float).collect()),
+        ))),
+        Ok(vox_python_bridge::DecodedHost::I64(values)) => VoxValue::Result(Ok(Box::new(
+            VoxValue::list(values.into_iter().map(VoxValue::Int).collect()),
+        ))),
         Err(err) => VoxValue::Result(Err(crate::eval::value::err_str(err))),
     }
 }
@@ -2750,6 +2778,20 @@ fn array_from_list(args: Vec<VoxValue>) -> VoxValue {
     let Some(VoxValue::List(items)) = args.into_iter().next() else {
         return VoxValue::_Panic("from_list expects a list".into());
     };
+    if !items.is_empty() && items.iter().all(|item| matches!(item, VoxValue::Int(_))) {
+        let mut values = Vec::with_capacity(items.len());
+        for item in items.iter() {
+            if let VoxValue::Int(number) = item {
+                values.push(*number);
+            }
+        }
+        tracing::debug!(
+            len = values.len(),
+            first = ?values.first().copied(),
+            "from_list int payload"
+        );
+        return VoxValue::ArrayPlan(super::array_plan::ArrayPlan::from_ints(values));
+    }
     let mut values = Vec::with_capacity(items.len());
     for item in items.iter() {
         match item {
@@ -2762,6 +2804,7 @@ fn array_from_list(args: Vec<VoxValue>) -> VoxValue {
             }
         }
     }
+    tracing::debug!(len = values.len(), "from_list float payload");
     VoxValue::ArrayPlan(super::array_plan::ArrayPlan::from_list(values))
 }
 
@@ -3722,5 +3765,18 @@ mod array_materialize_tests {
             !eval_src.contains("call(\"item\"") && !eval_src.contains("call(\"shape\""),
             "eval must not send a wire method named item or shape"
         );
+    }
+
+    #[test]
+    fn from_list_keeps_i64_max() {
+        let value = super::array_from_list(vec![VoxValue::list(vec![VoxValue::Int(
+            9_223_372_036_854_775_807,
+        )])]);
+        match value {
+            VoxValue::ArrayPlan(plan) => {
+                assert_eq!(plan.host_ints(), Some(&[9_223_372_036_854_775_807_i64][..]));
+            }
+            other => panic!("from_list of an int must stay an int plan, got {other:?}"),
+        }
     }
 }

@@ -153,19 +153,20 @@ def execute_plan(params, body: bytes):
     import pyarrow as pa
     import pyarrow.ipc as ipc
 
-    # Payload echo for the plan parser. This stays on the worker stderr the
-    # host already captured. It is not an RPC method line.
-    sys.stderr.write(
-        f"vox_bridge array plan payload={params!r} body_len={len(body) if body else 0}\n"
-    )
-    sys.stderr.flush()
-
     if not isinstance(params, dict):
         raise PlanError("py-plan: params must be the plan")
     ops = params.get("ops")
     if not isinstance(ops, list):
         raise PlanError("py-plan: plan has no ops")
-    host = _decode_f64(ipc, pa, np, body)
+    host = _decode_host(ipc, pa, np, body)
+    # Payload echo for the plan parser. This stays on the worker stderr the
+    # host already captured. It is not an RPC method line.
+    sys.stderr.write(
+        "vox_bridge array plan "
+        f"payload={params!r} body_len={len(body) if body else 0} "
+        f"host_dtype={getattr(host, 'dtype', type(host).__name__)}\n"
+    )
+    sys.stderr.flush()
     stack = []
     for step in ops:
         if not isinstance(step, dict):
@@ -177,11 +178,14 @@ def execute_plan(params, body: bytes):
         handler(stack, step, host)
     if len(stack) != 1:
         raise PlanError("py-plan: plan did not leave one value")
-    values = np.asarray(stack[0], dtype=np.float64).reshape(-1)
+    values = np.asarray(stack[0]).reshape(-1)
+    if values.dtype == np.int64:
+        return {"dtype": "i64"}, _encode_i64(ipc, pa, values)
+    values = np.asarray(values, dtype=np.float64)
     return {"dtype": "f64"}, _encode_f64(ipc, pa, values)
 
 
-def _decode_f64(ipc, pa, np, body: bytes):
+def _decode_host(ipc, pa, np, body: bytes):
     if not body:
         raise PlanError("py-plan: missing arrow body")
     reader = ipc.open_stream(pa.py_buffer(body))
@@ -189,7 +193,20 @@ def _decode_f64(ipc, pa, np, body: bytes):
     if batch is None or batch.num_columns < 1:
         raise PlanError("py-plan: arrow body has no column")
     column = batch.column(0)
-    return np.asarray(column.to_numpy(zero_copy_only=False), dtype=np.float64)
+    if pa.types.is_int64(column.type):
+        return np.asarray(column.to_numpy(zero_copy_only=False), dtype=np.int64)
+    if pa.types.is_floating(column.type):
+        return np.asarray(column.to_numpy(zero_copy_only=False), dtype=np.float64)
+    raise PlanError(f"py-plan: unsupported host column {column.type}")
+
+
+def _encode_i64(ipc, pa, values):
+    array = pa.array(values, type=pa.int64())
+    batch = pa.record_batch([array], names=["values"])
+    sink = pa.BufferOutputStream()
+    with ipc.new_stream(sink, batch.schema) as writer:
+        writer.write_batch(batch)
+    return sink.getvalue().to_pybytes()
 
 
 def _encode_f64(ipc, pa, values):

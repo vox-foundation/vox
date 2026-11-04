@@ -75,6 +75,15 @@ packages = [\"numpy>=2.1\", \"pyarrow>=17\"]
         source.contains("assert(z is [-1.0, 1.0])"),
         "golden assert must accept [-1.0, 1.0]"
     );
+    assert!(
+        source.contains("9223372036854775807"),
+        "golden must assert i64::MAX with the max i64 literal"
+    );
+    assert!(
+        !source.contains("9223372036854775808"),
+        "golden must not spell the minimum i64 magnitude"
+    );
+    assert!(source.contains("isnt"), "NaN must be compared with isnt");
 
     let sync = Command::new(&vox)
         .args(["py", "sync"])
@@ -137,8 +146,8 @@ packages = [\"numpy>=2.1\", \"pyarrow>=17\"]
         .filter(|line| line.contains("execute_plan"))
         .count();
     assert_eq!(
-        execute_plan_lines, 1,
-        "expected one execute_plan line in:\n{log}"
+        execute_plan_lines, 3,
+        "expected three execute_plan lines in:\n{log}"
     );
     assert!(
         !log.lines().any(wire_method_is_mean_or_std),

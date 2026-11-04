@@ -21,12 +21,20 @@ pub struct PlanStep {
     pub nulls: Option<&'static str>,
 }
 
+/// Host numbers stored on a plan. Floats and ints stay in separate columns
+/// so `i64::MAX` is not rounded through `f64`.
+#[derive(Debug, Clone, PartialEq)]
+enum HostColumn {
+    F64(Vec<f64>),
+    I64(Vec<i64>),
+}
+
 /// A lazy numpy plan. `mean` and `std` stay rank 0. Nothing here calls
 /// `Bridge::call`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ArrayPlan {
     steps: Vec<PlanStep>,
-    host: Vec<f64>,
+    host: HostColumn,
     rank: u8,
     worker_calls: u32,
 }
@@ -41,7 +49,23 @@ impl ArrayPlan {
                 correction: None,
                 nulls: None,
             }],
-            host: values,
+            host: HostColumn::F64(values),
+            rank: 1,
+            worker_calls: plan_worker_calls(),
+        }
+    }
+
+    /// Store host ints. Does not send them to the worker. `i64::MIN` is not
+    /// constructed here; the golden only spells `i64::MAX`.
+    #[must_use]
+    pub(crate) fn from_ints(values: Vec<i64>) -> Self {
+        Self {
+            steps: vec![PlanStep {
+                op: "from_list",
+                correction: None,
+                nulls: None,
+            }],
+            host: HostColumn::I64(values),
             rank: 1,
             worker_calls: plan_worker_calls(),
         }
@@ -116,7 +140,19 @@ impl ArrayPlan {
 
     #[must_use]
     pub fn host(&self) -> &[f64] {
-        &self.host
+        match &self.host {
+            HostColumn::F64(values) => values,
+            HostColumn::I64(_) => &[],
+        }
+    }
+
+    /// Host ints, when `from_list` was given a list of int.
+    #[must_use]
+    pub(crate) fn host_ints(&self) -> Option<&[i64]> {
+        match &self.host {
+            HostColumn::I64(values) => Some(values.as_slice()),
+            HostColumn::F64(_) => None,
+        }
     }
 
     #[must_use]
