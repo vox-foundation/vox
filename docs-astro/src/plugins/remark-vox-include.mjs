@@ -6,56 +6,82 @@
  * (the Starlight pnpm build step) fails immediately instead of silently
  * emitting the raw directive as visible text.
  *
- * Anchor format in source files:
- *   // ANCHOR: name
- *   ...code...
- *   // ANCHOR_END: name
- *
- * Nested ANCHOR/ANCHOR_END markers inside the extracted region are stripped.
+ * Selectors after the colon:
+ *   name            region between `// ANCHOR: name` and `// ANCHOR_END: name`
+ *                   (or AsciiDoc `// tag::name[]` / `// end::name[]`; `#` leaders too)
+ *   a,b             several regions, concatenated in order
+ *   10..20          1-based inclusive line range
+ * Nested markers are stripped and the result is dedented.
  */
 
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Matches {{#include relative/path/file.ext:anchor}} or {{#include path}} (no anchor)
+// Matches {{#include relative/path/file.ext:selector}} or {{#include path}} (no selector).
+// selector = anchor/tag name, comma-separated names (concatenated in order), or a
+// 1-based inclusive line range `10..20` / `10-20`.
 const INCLUDE_RE = /^\s*\{\{#include\s+([^}:\s]+?)(?::([^}\s]+))?\}\}\s*$/;
 
-/** Strip ANCHOR/ANCHOR_END marker lines from arbitrary source content. */
-const ANCHOR_MARKER_RE = /^\s*\/\/\s*ANCHOR(?:_END)?:/;
+// Any region marker line: mdBook `ANCHOR: x` / `ANCHOR_END: x` or AsciiDoc `tag::x[]` / `end::x[]`,
+// behind a `//` or `#` comment leader. Stripped from output so markers never leak.
+const MARKER_RE = /^\s*(?:\/\/|#)\s*(?:ANCHOR(?:_END)?:\s*[\w.-]+|(?:tag|end)::[\w.-]+\[\])\s*$/;
+const RANGE_RE = /^(\d+)(?:\.\.|-)(\d+)$/;
 
-/**
- * Extract the region between `// ANCHOR: name` and `// ANCHOR_END: name`,
- * stripping all nested anchor marker lines, then trimming blank edges.
- * @param {string} content  Full file content
- * @param {string} anchor   Anchor name to extract
- * @param {string} srcPath  Source file path (for error messages)
- * @returns {string}
- */
-function extractAnchor(content, anchor, srcPath) {
-  const startRe = new RegExp(`^\\s*\\/\\/\\s*ANCHOR:\\s*${anchor}\\s*$`);
-  const endRe = new RegExp(`^\\s*\\/\\/\\s*ANCHOR_END:\\s*${anchor}\\s*$`);
-  const lines = content.split('\n');
+const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Lines of the first region delimited by `name` markers; throws if absent. */
+function regionLines(lines, name, srcPath) {
+  const n = esc(name);
+  const leader = '^\\s*(?:\\/\\/|#)\\s*';
+  const startRe = new RegExp(`${leader}(?:ANCHOR:\\s*${n}|tag::${n}\\[\\])\\s*$`);
+  const endRe = new RegExp(`${leader}(?:ANCHOR_END:\\s*${n}|end::${n}\\[\\])\\s*$`);
   let inside = false;
+  let found = false;
   const out = [];
-
   for (const line of lines) {
     if (!inside) {
-      if (startRe.test(line)) { inside = true; }
+      if (startRe.test(line)) { inside = true; found = true; }
+    } else if (endRe.test(line)) {
+      break;
     } else {
-      if (endRe.test(line)) break;
-      if (!ANCHOR_MARKER_RE.test(line)) out.push(line);
+      out.push(line);
     }
   }
+  if (!found) throw new Error(`Anchor '${name}' not found in ${srcPath}`);
+  return out;
+}
 
-  if (!inside) {
-    throw new Error(`Anchor '${anchor}' not found in ${srcPath}`);
+/**
+ * Select a region (or the whole file), strip markers, trim blank edges, dedent.
+ * Exported for unit tests.
+ * @param {string} content
+ * @param {string | undefined} selector
+ * @param {string} srcPath  for error messages
+ * @returns {string}
+ */
+export function extractRegion(content, selector, srcPath) {
+  const lines = content.replace(/\r\n/g, '\n').split('\n');
+  let picked = lines;
+  if (selector) {
+    const range = selector.match(RANGE_RE);
+    if (range) {
+      const [from, to] = [Number(range[1]), Number(range[2])];
+      if (from < 1 || from > to || from > lines.length) {
+        throw new Error(`Invalid line range '${selector}' in ${srcPath} (${lines.length} lines)`);
+      }
+      picked = lines.slice(from - 1, to);
+    } else {
+      picked = selector.split(',').map((t) => t.trim()).filter(Boolean)
+        .flatMap((name) => regionLines(lines, name, srcPath));
+    }
   }
-
-  // Trim leading/trailing blank lines
+  const out = picked.filter((l) => !MARKER_RE.test(l));
   while (out.length && !out[0].trim()) out.shift();
   while (out.length && !out[out.length - 1].trim()) out.pop();
-  return out.join('\n');
+  const indents = out.filter((l) => l.trim()).map((l) => l.match(/^[ \t]*/)[0].length);
+  const cut = indents.length ? Math.min(...indents) : 0;
+  return out.map((l) => l.slice(Math.min(cut, l.length))).join('\n');
 }
 
 /**
@@ -114,9 +140,7 @@ export function remarkVoxInclude() {
       }
 
       try {
-        node.value = anchor
-          ? extractAnchor(fileContent, anchor, absPath)
-          : fileContent.trimEnd();
+        node.value = extractRegion(fileContent, anchor, absPath);
       } catch (err) {
         errors.push(`  ${relativePath}:${anchor} — ${err.message}`);
       }

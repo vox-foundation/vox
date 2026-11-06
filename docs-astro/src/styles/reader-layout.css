@@ -61,46 +61,43 @@ header.header {
   -webkit-backdrop-filter: blur(12px);
 }
 
-/* Sidebar Pin / Collapse & Hide Toggle */
+/* One seam chevron per pane. The container stays out of the sidebar flow. */
 .vox-sidebar-toggle-container {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem 0.25rem;
-  border-bottom: 1px solid var(--sl-color-hairline-light);
-  margin-bottom: 0.5rem;
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  padding: 0;
+  margin: 0;
+  border: 0;
 }
 
-#vox-sidebar-pin-toggle {
+.vox-edge-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  padding: 0.25rem;
-  border-radius: 0.375rem;
+  width: 1.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border-radius: 999px;
   border: 1px solid var(--sl-color-hairline);
-  background: var(--sl-color-bg);
+  background: var(--sl-color-bg-nav, var(--sl-color-bg));
   color: var(--sl-color-gray-2);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
   cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+  z-index: 35;
+  pointer-events: auto;
+  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
 }
 
-#vox-sidebar-pin-toggle:hover {
-  color: var(--sl-color-accent);
-  border-color: var(--sl-color-accent);
-  background: var(--sl-color-gray-6);
-}
-
-#vox-sidebar-pin-toggle:focus-visible {
+.vox-edge-toggle:focus-visible {
   outline: 2px solid var(--sl-color-accent);
   outline-offset: 2px;
 }
 
-#vox-sidebar-pin-toggle svg {
-  width: 1.125rem;
-  height: 1.125rem;
+.vox-edge-toggle svg {
+  width: 1rem;
+  height: 1rem;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
@@ -108,327 +105,172 @@ header.header {
   stroke-linejoin: round;
 }
 
-#vox-sidebar-hide-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.55rem;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--sl-color-gray-3);
-  background: var(--sl-color-gray-6);
-  border: 1px solid var(--sl-color-hairline-light);
-  border-radius: 0.375rem;
-  cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
-}
-
-#vox-sidebar-hide-btn:hover {
-  color: var(--sl-color-accent);
-  border-color: var(--sl-color-accent);
-  background: var(--sl-color-bg);
-}
-
-#vox-sidebar-hide-btn:focus-visible {
-  outline: 2px solid var(--sl-color-accent);
-  outline-offset: 1px;
-}
-
-#vox-sidebar-hide-btn svg {
-  width: 0.75rem;
-  height: 0.75rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-#vox-sidebar-restore-btn {
+.vox-edge-toggle .vox-edge-icon-open {
   display: none;
 }
 
-#vox-sidebar-pin-toggle .vox-pin-icon-expand {
+#vox-sidebar-pin-toggle {
+  position: fixed;
+  top: 50%;
+  left: calc(var(--sl-sidebar-width) - 0.875rem);
+  transform: translateY(-50%);
+}
+
+html[data-sidebar-state="hidden"] #vox-sidebar-pin-toggle .vox-edge-icon-close,
+html[data-sidebar-state="collapsed"] #vox-sidebar-pin-toggle .vox-edge-icon-close,
+html[data-toc-state="hidden"] #vox-toc-edge .vox-edge-icon-close {
   display: none;
 }
 
-html[data-sidebar-state="collapsed"] #vox-sidebar-pin-toggle .vox-pin-icon-collapse {
-  display: none;
-}
-
-html[data-sidebar-state="collapsed"] #vox-sidebar-pin-toggle .vox-pin-icon-expand {
+html[data-sidebar-state="hidden"] #vox-sidebar-pin-toggle .vox-edge-icon-open,
+html[data-sidebar-state="collapsed"] #vox-sidebar-pin-toggle .vox-edge-icon-open,
+html[data-toc-state="hidden"] #vox-toc-edge .vox-edge-icon-open {
   display: block;
 }
 
-/* Desktop Sidebar Rail & Hidden Behavior */
+/* Closed left sidebar. A stored "collapsed" value is the same closed state. */
 @media (min-width: 50rem) {
+  html[data-sidebar-state="hidden"],
   html[data-sidebar-state="collapsed"] {
-    --sl-sidebar-width: var(--vox-sidebar-rail-width);
-    --sl-content-inline-start: var(--vox-sidebar-rail-width);
-  }
-
-  html[data-sidebar-state="collapsed"] .sidebar-pane {
-    width: var(--vox-sidebar-rail-width);
-    overflow-x: hidden;
-    transition: var(--vox-sidebar-transition);
-    background-color: var(--sl-color-bg-sidebar, var(--sl-color-bg));
-  }
-
-  html[data-sidebar-state="collapsed"] .vox-sidebar-toggle-container {
-    justify-content: center;
-    padding: 0.5rem 0.25rem;
-    border-bottom-color: transparent;
-  }
-
-  html[data-sidebar-state="collapsed"] #vox-sidebar-hide-btn {
-    display: none;
-  }
-
-  html[data-sidebar-state="collapsed"] .sidebar-content {
-    overflow-x: hidden;
-  }
-
-  /* Hide navigation tree inside collapsed 56px rail so text never clips */
-  html[data-sidebar-state="collapsed"] .sidebar-content > *:not(.vox-sidebar-toggle-container) {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transition: opacity 0.12s ease, visibility 0.12s ease;
-  }
-
-  /* Completely Hidden Left Sidebar State */
-  html[data-sidebar-state="hidden"] {
     --sl-sidebar-width: 0rem;
     --sl-content-inline-start: 0rem;
   }
 
-  html[data-sidebar-state="hidden"] .sidebar-pane {
-    width: 0 !important;
-    min-width: 0 !important;
-    padding: 0 !important;
-    border: none !important;
-    overflow: hidden !important;
-    pointer-events: none !important;
-  }
-
-  html[data-sidebar-state="hidden"] #vox-sidebar-restore-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    position: fixed;
-    top: 4.25rem;
-    left: 1.25rem;
-    z-index: 30;
-    padding: 0.4rem 0.75rem;
-    font-size: var(--sl-text-xs);
-    font-weight: 600;
-    color: var(--sl-color-gray-1);
-    background: var(--sl-color-bg-nav, var(--sl-color-bg));
-    border: 1px solid var(--sl-color-accent);
-    border-radius: 9999px;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
-    cursor: pointer;
-    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
-  }
-
-  html[data-sidebar-state="hidden"] #vox-sidebar-restore-btn:hover {
-    color: var(--sl-color-accent);
-    border-color: var(--sl-color-accent-high);
-    background: var(--sl-color-gray-6);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.38);
-  }
-
-  html[data-sidebar-state="hidden"] #vox-sidebar-restore-btn:focus-visible {
-    outline: 2px solid var(--sl-color-accent);
-    outline-offset: 2px;
-  }
-
-  html[data-sidebar-state="hidden"] #vox-sidebar-restore-btn svg {
-    width: 0.875rem;
-    height: 0.875rem;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-
-  /* Hover and Focus-Within Expansion Overlay */
-  @media (hover: hover) {
-    html[data-sidebar-state="collapsed"] .sidebar-pane:hover,
-    html[data-sidebar-state="collapsed"] nav.sidebar:focus-within .sidebar-pane {
-      width: var(--vox-sidebar-expanded-width);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
-      z-index: 25;
-    }
-
-    html[data-sidebar-state="collapsed"] .sidebar-pane:hover .vox-sidebar-toggle-container,
-    html[data-sidebar-state="collapsed"] nav.sidebar:focus-within .vox-sidebar-toggle-container {
-      justify-content: space-between;
-      padding: 0.5rem 0.75rem 0.25rem;
-      border-bottom-color: var(--sl-color-hairline-light);
-    }
-
-    html[data-sidebar-state="collapsed"] .sidebar-pane:hover #vox-sidebar-hide-btn,
-    html[data-sidebar-state="collapsed"] nav.sidebar:focus-within #vox-sidebar-hide-btn {
-      display: inline-flex;
-    }
-
-    html[data-sidebar-state="collapsed"] .sidebar-pane:hover .sidebar-content > *:not(.vox-sidebar-toggle-container),
-    html[data-sidebar-state="collapsed"] nav.sidebar:focus-within .sidebar-content > *:not(.vox-sidebar-toggle-container) {
-      opacity: 1;
-      visibility: visible;
-      pointer-events: auto;
-    }
-  }
-}
-
-/* Mobile Viewports (< 50rem) */
-@media (max-width: 49.99rem) {
-  .vox-sidebar-toggle-container,
-  #vox-sidebar-restore-btn {
-    display: none;
-  }
-}
-
-/* Hide desktop TOC hide button below 72rem where right sidebar does not dock */
-@media (max-width: 71.99rem) {
-  .vox-toc-controls {
-    display: none;
-  }
-}
-
-/* Touch Safety */
-@media (hover: none) {
-  /* Prevent hover expansion when device only supports touch */
-  html[data-sidebar-state="collapsed"] .sidebar-pane:hover {
-    width: var(--vox-sidebar-rail-width);
-    box-shadow: none;
-  }
-}
-
-/* Accessibility: Reduced Motion */
-@media (prefers-reduced-motion: reduce) {
-  .sidebar-pane,
-  #vox-sidebar-pin-toggle,
-  #vox-sidebar-hide-btn,
-  #vox-sidebar-restore-btn,
-  #vox-toc-restore-btn,
-  #vox-toc-hide-btn {
-    transition: none !important;
-  }
-}
-
-/* Table of Contents Hide & Restore Controls */
-.vox-toc-controls {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 0.25rem;
-}
-
-#vox-toc-hide-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.25rem 0.55rem;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--sl-color-gray-3);
-  background: var(--sl-color-gray-6);
-  border: 1px solid var(--sl-color-hairline-light);
-  border-radius: 0.375rem;
-  cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
-}
-
-#vox-toc-hide-btn:hover {
-  color: var(--sl-color-accent);
-  border-color: var(--sl-color-accent);
-  background: var(--sl-color-bg);
-}
-
-#vox-toc-hide-btn:focus-visible {
-  outline: 2px solid var(--sl-color-accent);
-  outline-offset: 1px;
-}
-
-#vox-toc-hide-btn svg {
-  width: 0.75rem;
-  height: 0.75rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-/* Restore button: hidden by default */
-#vox-toc-restore-btn {
-  display: none;
-}
-
-/* Desktop behavior for hidden TOC:
- * IMPORTANT: #vox-toc-restore-btn is rendered inside PageSidebar.astro (child of aside.right-sidebar).
- * Do NOT set `aside.right-sidebar { display: none }`, or the restore button will be hidden too!
- * Instead, collapse aside.right-sidebar to zero width and hide .right-sidebar-panel.
- */
-@media (min-width: 72rem) {
-  html[data-toc-state="hidden"] aside.right-sidebar {
+  html[data-sidebar-state="hidden"] .sidebar-pane,
+  html[data-sidebar-state="collapsed"] .sidebar-pane {
     width: 0 !important;
     min-width: 0 !important;
     padding: 0 !important;
     border: none !important;
     overflow: visible !important;
+    pointer-events: none !important;
+  }
+
+  html[data-sidebar-state="hidden"] .sidebar-content,
+  html[data-sidebar-state="collapsed"] .sidebar-content {
+    visibility: hidden;
+  }
+
+  html[data-sidebar-state="hidden"] #vox-sidebar-pin-toggle,
+  html[data-sidebar-state="collapsed"] #vox-sidebar-pin-toggle {
+    visibility: visible !important;
+    left: 0.35rem;
+    pointer-events: auto !important;
+  }
+
+  /* Keep the reopen chevron off the first letters of the article. */
+  html[data-sidebar-state="hidden"] .main-frame,
+  html[data-sidebar-state="collapsed"] .main-frame {
+    padding-inline-start: 2.25rem;
+  }
+}
+
+/* Keep sidebar labels clear of the seam chevron. */
+@media (min-width: 50rem) {
+  .sidebar-content :where(a) {
+    padding-inline-end: 1.15rem;
+  }
+}
+
+/* The left chevron is the desktop seam control. Mobile uses the menu button. */
+@media (max-width: 49.99rem) {
+  #vox-sidebar-pin-toggle {
+    display: none;
+  }
+}
+
+/* The outline chevron sits on the left edge of the docked outline. */
+#vox-toc-edge {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translate(-50%, -50%);
+}
+
+@media (max-width: 71.99rem) {
+  #vox-toc-edge {
+    display: none;
+  }
+}
+
+@media (hover: hover) {
+  .vox-edge-toggle:hover {
+    color: var(--sl-color-accent);
+    border-color: var(--sl-color-accent);
+    background: var(--sl-color-bg);
+  }
+}
+
+@media (hover: none) {
+  .vox-edge-toggle:hover {
+    color: var(--sl-color-gray-2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-pane,
+  .vox-edge-toggle {
+    transition: none !important;
+  }
+}
+
+/*
+ * Keep the outline readable. Starlight sizes `.sl-container` to 25% of the
+ * leftover viewport and sets overflow-wrap: anywhere, which stacks long words
+ * into a one-character column. Hold a 16rem column and break on words.
+ * The edge button lives outside `.right-sidebar-panel`, so hide the panel
+ * and the container — never `display: none` on the button's ancestor.
+ */
+@media (min-width: 72rem) {
+  .right-sidebar .sl-container {
+    width: 16.5rem;
+    min-width: 16rem;
+    max-width: 16.5rem;
+  }
+
+  .right-sidebar-panel :where(a) {
+    overflow-wrap: break-word;
+  }
+
+  /* A fixed outline column on the right. The article takes the rest. */
+  aside.right-sidebar-container {
+    width: 18.5rem !important;
+    min-width: 18.5rem;
+    flex: 0 0 18.5rem;
+    margin-inline-start: auto;
+  }
+
+  .main-pane {
+    width: auto !important;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  html[data-toc-state="hidden"] aside.right-sidebar-container,
+  html[data-toc-state="hidden"] .right-sidebar {
+    width: 0 !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    overflow: visible !important;
+    pointer-events: none !important;
   }
 
   html[data-toc-state="hidden"] .right-sidebar-panel {
     display: none !important;
   }
 
-  html[data-toc-state="hidden"] #vox-toc-restore-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
+  html[data-toc-state="hidden"] #vox-toc-edge {
     position: fixed;
-    top: 4.25rem;
-    right: 1.25rem;
-    z-index: 30;
-    padding: 0.4rem 0.75rem;
-    font-size: var(--sl-text-xs);
-    font-weight: 600;
-    color: var(--sl-color-gray-1);
-    background: var(--sl-color-bg-nav, var(--sl-color-bg));
-    border: 1px solid var(--sl-color-accent);
-    border-radius: 9999px;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
-    cursor: pointer;
-    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+    top: 50%;
+    left: auto;
+    right: 0.35rem;
+    transform: translateY(-50%);
+    pointer-events: auto !important;
   }
 
-  html[data-toc-state="hidden"] #vox-toc-restore-btn:hover {
-    color: var(--sl-color-accent);
-    border-color: var(--sl-color-accent-high);
-    background: var(--sl-color-gray-6);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.38);
-  }
-
-  html[data-toc-state="hidden"] #vox-toc-restore-btn:focus-visible {
-    outline: 2px solid var(--sl-color-accent);
-    outline-offset: 2px;
-  }
-
-  html[data-toc-state="hidden"] #vox-toc-restore-btn svg {
-    width: 0.875rem;
-    height: 0.875rem;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+  html[data-toc-state="hidden"] .main-frame {
+    padding-inline-end: 2.25rem;
   }
 }
 
@@ -461,23 +303,31 @@ body {
 }
 
 @media (min-width: 50rem) {
-  /* When left sidebar is collapsed or completely hidden */
+  /* Outline is not docked yet, so the article can take the recovered sidebar. */
   html[data-sidebar-state="collapsed"],
   html[data-sidebar-state="hidden"] {
-    --sl-content-width: 60rem;
+    --sl-content-width: min(60rem, calc(100vw - 2rem));
   }
 }
 
 @media (min-width: 72rem) {
-  /* When right TOC is hidden */
-  html[data-toc-state="hidden"] {
-    --sl-content-width: 60rem;
+  /* Leave at least 20rem for the outline so it cannot shrink to one column. */
+  :root {
+    --sl-content-width: min(48rem, calc(100vw - var(--sl-sidebar-width) - 20rem));
   }
 
-  /* When BOTH sidebars are collapsed or hidden */
+  html[data-sidebar-state="collapsed"]:not([data-toc-state="hidden"]),
+  html[data-sidebar-state="hidden"]:not([data-toc-state="hidden"]) {
+    --sl-content-width: min(48rem, calc(100vw - 20rem));
+  }
+
+  html[data-toc-state="hidden"] {
+    --sl-content-width: min(60rem, calc(100vw - var(--sl-sidebar-width) - 2rem));
+  }
+
   html[data-sidebar-state="collapsed"][data-toc-state="hidden"],
   html[data-sidebar-state="hidden"][data-toc-state="hidden"] {
-    --sl-content-width: 74rem;
+    --sl-content-width: min(74rem, calc(100vw - 2rem));
   }
 }
 

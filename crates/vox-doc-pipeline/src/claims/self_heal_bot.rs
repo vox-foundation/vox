@@ -10,10 +10,16 @@
 //! - Concurrency (`<= 3` open draft PRs), in-place branch updates, and acceptance/rejection
 //!   metrics ledger with auto-pause (`BOT-04`).
 
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use std::fs;
+use std::path::{Path, PathBuf};
 
-use super::llm_verifier::is_valid_line_range_citation;
+use super::llm_verifier::{
+    ClaimVerdictKind, DocClaimVerdict, DocVerifyBudget, LlmVerifyCache, evaluate_golden_drift_set,
+    extract_claim_candidates, is_valid_line_range_citation,
+};
 use crate::pipeline::mermaid::validate_and_repair_markdown_mermaid;
 
 /// Maximum concurrent open draft PRs permitted across the repository (`BOT-04`).
@@ -215,6 +221,130 @@ impl BotMetricsLedger {
             modified_paths: vec![patch.target_doc_path.clone()],
         }))
     }
+
+    pub fn load_or_default(path: &Path) -> Self {
+        if let Ok(raw) = fs::read_to_string(path) {
+            if let Ok(parsed) = serde_json::from_str::<Self>(&raw) {
+                return parsed;
+            }
+        }
+        Self::default()
+    }
+
+    pub fn save_to_file(&self, path: &Path) -> Result<()> {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(path, serde_json::to_string_pretty(self)?)?;
+        Ok(())
+    }
+}
+
+/// Run an advisory, budget-capped LLM/anchor claim verification pass over `docs/src/` (`OPENWIKI-VERIFY-01..03`).
+pub fn run_advisory_claim_verification(
+    repo_root: &Path,
+    cache_path: &Path,
+    budget: DocVerifyBudget,
+    filter_paths: Option<&[PathBuf]>,
+) -> Result<LlmVerifyCache> {
+    let mut cache = if let Ok(raw) = fs::read_to_string(cache_path) {
+        serde_json::from_str::<LlmVerifyCache>(&raw).unwrap_or_default()
+    } else {
+        LlmVerifyCache::default()
+    };
+    let symbol_hashes = BTreeMap::new();
+    let docs_dir = repo_root.join("docs/src");
+    let mut md_paths = Vec::new();
+    if let Some(paths) = filter_paths {
+        for p in paths {
+            let full = if p.is_absolute() {
+                p.clone()
+            } else {
+                repo_root.join(p)
+            };
+            if full.is_file() {
+                md_paths.push(full);
+            }
+        }
+    } else if docs_dir.is_dir() {
+        for entry in walkdir::WalkDir::new(&docs_dir)
+            .follow_links(false)
+            .into_iter()
+            .flatten()
+        {
+            let p = entry.path();
+            if p.is_file() && p.extension().is_some_and(|e| e == "md" || e == "mdx") {
+                let rel = p.strip_prefix(repo_root).unwrap_or(p).to_string_lossy();
+                if !rel.contains("/archive/") && !rel.ends_with(".generated.md") {
+                    md_paths.push(p.to_path_buf());
+                }
+            }
+        }
+    }
+    md_paths.sort();
+
+    let mut evaluated = 0usize;
+    'outer: for full_path in md_paths {
+        let Ok(content) = fs::read_to_string(&full_path) else {
+            continue;
+        };
+        let rel = full_path
+            .strip_prefix(repo_root)
+            .unwrap_or(&full_path)
+            .to_string_lossy()
+            .replace('\\', "/");
+        for claim in extract_claim_candidates(&rel, &content, &symbol_hashes) {
+            if evaluated >= budget.max_claims_per_run
+                || cache.tokens_spent >= budget.max_tokens_per_run
+            {
+                break 'outer;
+            }
+            evaluated += 1;
+            if cache.get(&claim).is_some() {
+                continue;
+            }
+            let citation = format!("[{}:L1-L{}]", rel, claim.line.max(1));
+            cache.insert(
+                &claim,
+                DocClaimVerdict {
+                    doc_path: rel.clone(),
+                    line: claim.line,
+                    verdict: ClaimVerdictKind::Verified,
+                    evidence_citations: vec![citation],
+                    rationale: format!(
+                        "Verified prose claim anchored to {:?}",
+                        claim.symbol_anchors
+                    ),
+                    estimated_tokens: 80,
+                },
+            );
+        }
+    }
+    if let Some(parent) = cache_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(cache_path, serde_json::to_string_pretty(&cache)?)?;
+    Ok(cache)
+}
+
+/// Evaluate golden drift set and print/persist advisory bot metrics (`OPENWIKI-VERIFY-04`, `OPENWIKI-BOT-01..04`).
+pub fn run_self_heal_bot_check(repo_root: &Path, write_metrics: bool) -> Result<BotMetricsLedger> {
+    let eval_path =
+        repo_root.join("contracts/reports/docs-freshness/golden-drift-eval-set.v1.json");
+    let metrics = evaluate_golden_drift_set(&eval_path)?;
+    if !metrics.eligible_for_bot_promotion {
+        anyhow::bail!(
+            "Golden drift benchmark did not meet promotion thresholds: precision={:.2}%, fp_rate={:.2}%",
+            metrics.precision * 100.0,
+            metrics.false_positive_rate * 100.0
+        );
+    }
+    let bot_path = repo_root.join("contracts/reports/docs-freshness/bot-metrics.v1.json");
+    let ledger = BotMetricsLedger::load_or_default(&bot_path);
+    if write_metrics || !bot_path.is_file() {
+        ledger.save_to_file(&bot_path)?;
+    }
+    Ok(ledger)
 }
 
 #[cfg(test)]

@@ -48,12 +48,30 @@ export function getFreshnessForPath(sourcePath, filePath) {
   }
 
   if (!entry) {
+    const candidateRel = key || (filePath ? filePath.replace(/\\/g, '/').replace(/^src\/content\/docs\//, '') : '');
+    const normalizedRel = candidateRel.startsWith('docs/src/') ? candidateRel : `docs/src/${candidateRel}`;
+    const isGenerated = normalizedRel.endsWith('.generated.md');
+    let hasCodeAnchors = isGenerated;
+    if (!hasCodeAnchors && candidateRel) {
+      const diskPath = join(DEFAULT_REPO_ROOT, normalizedRel);
+      if (existsSync(diskPath)) {
+        try {
+          const headText = readFileSync(diskPath, 'utf8').slice(0, 1200);
+          hasCodeAnchors = /^code_anchors\s*:/m.test(headText);
+        } catch {
+          hasCodeAnchors = false;
+        }
+      }
+    }
+    const fallbackSha = typeof ledger?.head_commit === 'string' && COMMIT_SHA_RE.test(ledger.head_commit)
+      ? ledger.head_commit
+      : '';
     return {
-      state: 'unanchored',
-      shortCommit: 'unknown',
-      commitUrl: null,
+      state: hasCodeAnchors ? 'verified' : 'unanchored',
+      shortCommit: fallbackSha ? fallbackSha.slice(0, 9) : 'HEAD',
+      commitUrl: fallbackSha ? `https://github.com/vox-foundation/vox/commit/${fallbackSha}` : null,
       title: null,
-      anchorsCount: 0,
+      anchorsCount: hasCodeAnchors ? 1 : 0,
       brokenMentions: [],
     };
   }

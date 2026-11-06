@@ -8,6 +8,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::pipeline::mermaid::validate_and_repair_mermaid;
+use crate::pipeline::openwiki_symbols::render_subsystem_index_markdown;
 
 /// Canonical subsystem layer descriptor (`L0..L5`) from `docs/src/architecture/layers.toml` (`WIKI-01`).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -341,7 +342,11 @@ pub fn render_subsystem_layer_mermaid(
     let hub_id = mermaid_node_id(spec.slug);
     body.push_str(&format!("    {hub_id}[\"{}\"]\n", spec.title));
 
-    for entry in crates_in_layer.iter().take(20) {
+    for entry in crates_in_layer
+        .iter()
+        .filter(|e| e.name != "workspace-hack")
+        .take(20)
+    {
         let cid = mermaid_node_id(&entry.name);
         body.push_str(&format!("    {cid}[\"{} ({})\"]\n", entry.name, entry.kind));
         body.push_str(&format!("    {hub_id} --> {cid}\n"));
@@ -395,6 +400,9 @@ pub fn generate_subsystem_hubs(repo_root: &Path, write: bool) -> Result<Vec<Stri
         md.push_str("```\n\n## Crates in Layer\n\n");
         md.push_str("| Crate | Kind | Fan-In Cap | LoC Baseline |\n|---|---|---|---|\n");
         for c in &layer_crates {
+            if c.name == "workspace-hack" {
+                continue;
+            }
             let fan = c
                 .max_dependents
                 .map(|v| v.to_string())
@@ -413,14 +421,41 @@ pub fn generate_subsystem_hubs(repo_root: &Path, write: bool) -> Result<Vec<Stri
             "docs/src/architecture/subsystems/{}.generated.md",
             spec.slug
         );
-        if write {
-            let full = repo_root.join(&rel);
-            fs::write(&full, md).map_err(|e| format!("failed to write {}: {e}", full.display()))?;
-        }
+        write_or_verify_hub(repo_root, &rel, &md, write)?;
         generated_paths.push(rel);
     }
 
+    let index_rel = "docs/src/architecture/subsystems/index.generated.md".to_string();
+    let index_md = render_subsystem_index_markdown(&all_entries)?;
+    write_or_verify_hub(repo_root, &index_rel, &index_md, write)?;
+    generated_paths.push(index_rel);
+
     Ok(generated_paths)
+}
+
+fn write_or_verify_hub(repo_root: &Path, rel: &str, md: &str, write: bool) -> Result<(), String> {
+    let full = repo_root.join(rel);
+    let norm = md.replace("\r\n", "\n");
+    if write {
+        fs::write(&full, &norm).map_err(|e| format!("failed to write {}: {e}", full.display()))?;
+        return Ok(());
+    }
+    if !full.is_file() {
+        return Err(format!(
+            "missing {}; run `vox ci wiki-sync --write`",
+            full.display()
+        ));
+    }
+    let existing = fs::read_to_string(&full)
+        .map_err(|e| format!("failed to read {}: {e}", full.display()))?
+        .replace("\r\n", "\n");
+    if existing != norm {
+        return Err(format!(
+            "{} is stale; run `vox ci wiki-sync --write`",
+            full.display()
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -469,5 +504,18 @@ vox-crypto = { layer = 1, kind = "library" }
         )
         .unwrap();
         assert!(chart.contains("flowchart LR"));
+    }
+
+    #[test]
+    fn generates_and_verifies_subsystem_hubs_in_repo() {
+        let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap();
+        if std::env::var_os("VOX_WIKI_SYNC_WRITE").is_some() {
+            let written = generate_subsystem_hubs(repo_root, true).expect("write subsystem hubs");
+            assert_eq!(written.len(), 7);
+        }
     }
 }

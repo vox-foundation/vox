@@ -239,6 +239,22 @@ impl LlmVerifyCache {
     }
 }
 
+/// Validates that a citation follows `[path:Lstart-Lend]` AND that `path` exists under `repo_root` (`OPENWIKI-VERIFY-03`).
+pub fn is_valid_line_range_citation_on_disk(repo_root: &Path, citation: &str) -> bool {
+    if !is_valid_line_range_citation(citation) {
+        return false;
+    }
+    let trimmed = citation
+        .trim()
+        .trim_start_matches('[')
+        .trim_end_matches(']');
+    if let Some((path_part, _)) = trimmed.rsplit_once(":L") {
+        repo_root.join(path_part.trim()).is_file()
+    } else {
+        false
+    }
+}
+
 /// Golden drift case from `contracts/reports/docs-freshness/golden-drift-eval-set.v1.json` (`VERIFY-04`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GoldenDriftCase {

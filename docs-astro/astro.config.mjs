@@ -1,4 +1,5 @@
 // @ts-check
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
@@ -9,6 +10,9 @@ import { remarkVoxInclude } from './src/plugins/remark-vox-include.mjs';
 import { remarkDocLinks } from './src/plugins/remark-doc-links.mjs';
 import { listDocPages, noindexRoutes, internalsDocIds } from './src/utils/page-index.mjs';
 
+// Version SSOT is root Cargo.toml [workspace.package] (AGENTS.md §Versioning Policy).
+const voxVersion =
+  readFileSync(new URL('../Cargo.toml', import.meta.url), 'utf8').match(/^version\s*=\s*"([^"]+)"/m)?.[1] ?? 'unknown';
 const docsSrc = new URL('../docs/src', import.meta.url).pathname;
 const docPages = listDocPages(docsSrc);
 const noindex = noindexRoutes(docPages);
@@ -56,7 +60,7 @@ export default defineConfig({
       plugins: [
         starlightLlmsTxt({
           projectName: 'Vox',
-          description: 'Vox is a pre-1.0 (0.6.0) AI-native full-stack language that compiles a .vox file to a database schema, type-safe server, and browser UI. Build from source; see https://voxlang.org/reference/stability/ for maturity. Current syntax uses bare table / query / mutation / server / tool — not @endpoint.',
+          description: `Vox (vox-foundation/vox, voxlang.org; unrelated to vox-lang.dev or MrSmith33/vox) is a pre-1.0 (${voxVersion}) AI-native full-stack language that compiles a .vox file to a database schema, type-safe server, and browser UI. Build from source; see https://voxlang.org/reference/stability/ for maturity. Current syntax uses bare table / query / mutation / server / tool — not @endpoint.`,
           exclude: internalsExcluded,
         }),
       ],
@@ -64,6 +68,7 @@ export default defineConfig({
       pagefind: true,
       customCss: ['./src/styles/reader-layout.css'],
       components: {
+        SiteTitle: './src/components/SiteTitle.astro',
         Sidebar: './src/components/Sidebar.astro',
         TableOfContents: './src/components/TableOfContents.astro',
         PageSidebar: './src/components/PageSidebar.astro',
@@ -72,16 +77,27 @@ export default defineConfig({
       head: [
         {
           tag: 'script',
-          content: `(function(){try{var s=localStorage.getItem('vox-sidebar-state');var t=localStorage.getItem('vox-toc-state');document.documentElement.dataset.sidebarState=(s==='hidden'?'hidden':s==='collapsed'?'collapsed':'pinned');document.documentElement.dataset.tocState=(t==='hidden'?'hidden':'visible');}catch(e){}})();`,
+          content: `(function(){try{var s=localStorage.getItem('vox-sidebar-state');var t=localStorage.getItem('vox-toc-state');document.documentElement.dataset.sidebarState=(s==='hidden'||s==='collapsed'?'hidden':'pinned');document.documentElement.dataset.tocState=(t==='hidden'?'hidden':'visible');}catch(e){}})();`,
         },
       ],
     }),
   ],
   vite: {
     resolve: {
-      alias: {
-        '@docs-src': new URL('../docs/src', import.meta.url).pathname,
-      },
+      alias: [
+        {
+          find: '@docs-src',
+          replacement: new URL('../docs/src', import.meta.url).pathname,
+        },
+        {
+          find: /^@astrojs\/starlight\/components$/,
+          replacement: new URL('./node_modules/@astrojs/starlight/components.ts', import.meta.url).pathname,
+        },
+        {
+          find: /^@astrojs\/starlight\/components\/(.*)$/,
+          replacement: `${new URL('./node_modules/@astrojs/starlight/components/', import.meta.url).pathname}$1`,
+        },
+      ],
     },
   },
   // Content lives in docs/src/ (symlinked or copied in Phase 3).

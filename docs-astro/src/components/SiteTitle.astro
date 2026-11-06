@@ -1,0 +1,64 @@
+---
+import type { Props } from '@astrojs/starlight/props';
+---
+
+<a href="/" class="vox-site-title" aria-label="voxlang.org Home">
+  <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true" class="vox-brand-logo">
+    <defs>
+      <linearGradient id="voxBrandLeft" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#38bdf8" />
+        <stop offset="100%" stop-color="#0284c7" />
+      </linearGradient>
+      <linearGradient id="voxBrandRight" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#7dd3fc" />
+        <stop offset="100%" stop-color="#0ea5e9" />
+      </linearGradient>
+    </defs>
+    <polygon points="3,5 11,5 16,20 12,27" fill="url(#voxBrandLeft)" />
+    <polygon points="29,5 21,5 12,27 17,27" fill="url(#voxBrandRight)" />
+  </svg>
+  <span class="vox-brand-domain">voxlang.org</span>
+  <span class="vox-brand-badge" aria-label="Version 0.6.0 SSOT">
+    <span class="vox-brand-ver">v0.6.0</span>
+    <span class="vox-brand-tag">SSOT</span>
+  </span>
+</a>
+
+<style>
+  .vox-site-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    text-decoration: none;
+    color: var(--sl-color-white);
+  }
+  .vox-brand-logo {
+    flex-shrink: 0;
+  }
+  .vox-brand-domain {
+    font-weight: 800;
+    font-size: 1.15rem;
+    letter-spacing: -0.02em;
+    color: var(--sl-color-white);
+  }
+  .vox-brand-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 5px;
+    overflow: hidden;
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .vox-brand-ver {
+    padding: 0.22rem 0.45rem;
+    background: rgba(15, 23, 42, 0.9);
+    color: #e2e8f0;
+  }
+  .vox-brand-tag {
+    padding: 0.22rem 0.45rem;
+    background: rgba(2, 132, 199, 0.45);
+    color: #7dd3fc;
+  }
+</style>

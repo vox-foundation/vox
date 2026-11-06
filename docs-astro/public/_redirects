@@ -46,3 +46,7 @@
 # P24-TRUST-03: Retire hand-committed .well-known/llms-full.txt in favor of single-source generated /llms-full.txt
 /.well-known/llms-full.txt   /llms-full.txt   301
 
+# OPENWIKI-FRESH-02: Redirect deprecated vox-codegen-ts stub HTML/legacy path to vox-compiler API reference
+/api/vox-codegen-ts.html     /api/vox-compiler/ 301
+
+

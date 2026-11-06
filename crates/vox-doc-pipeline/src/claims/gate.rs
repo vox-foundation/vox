@@ -74,8 +74,12 @@ impl BaselineFile {
 }
 
 /// Check if a page path is reader-facing (tutorials, reference, how-to, explanation, concepts).
+/// Excludes machine-generated reference pages (`*.generated.md`) and historical changelogs (`/changelog.md`).
 pub fn is_reader_facing_page(page_path: &str) -> bool {
     let norm = page_path.replace('\\', "/");
+    if norm.ends_with(".generated.md") || norm.ends_with("/changelog.md") {
+        return false;
+    }
     norm.contains("/tutorials/")
         || norm.contains("/reference/")
         || norm.contains("/how-to/")

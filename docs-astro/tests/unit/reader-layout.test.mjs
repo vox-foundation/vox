@@ -11,8 +11,8 @@ test('reader-layout.css exists and contains expected rules', () => {
   const css = readFileSync(CSS_PATH, 'utf8');
 
   // Article width expansion rules
-  assert.match(css, /--sl-content-width:\s*60rem;/, 'Must define 60rem content width for single sidebar collapse');
-  assert.match(css, /--sl-content-width:\s*74rem;/, 'Must define 74rem content width for both sidebars collapse');
+  assert.match(css, /--sl-content-width:\s*min\(60rem,/, 'Must define 60rem content width for one pane closed');
+  assert.match(css, /--sl-content-width:\s*min\(74rem,/, 'Must define 74rem content width for both panes closed');
 
   // Typography line length constraint
   assert.match(css, /max-width:\s*75ch;/, 'Must constrain prose paragraphs/lists to 75ch');
@@ -27,10 +27,10 @@ test('reader-layout.css exists and contains expected rules', () => {
   // Overflow-x containment
   assert.match(css, /overflow-x:\s*hidden;/, 'Must guard viewport overflow-x');
 
-  // Hideable left & right sidebar buttons and states
-  assert.match(css, /#vox-sidebar-hide-btn/, 'Must define themed left sidebar hide button');
-  assert.match(css, /#vox-sidebar-restore-btn/, 'Must define themed left sidebar restore pill');
+  // One seam chevron per pane, and a readable outline column
+  assert.match(css, /#vox-sidebar-pin-toggle/, 'Must define the left seam chevron');
+  assert.match(css, /#vox-toc-edge/, 'Must define the right seam chevron');
   assert.match(css, /html\[data-sidebar-state="hidden"\]/, 'Must define hidden left sidebar state');
-  assert.match(css, /#vox-toc-hide-btn/, 'Must define themed right TOC hide button');
-  assert.match(css, /#vox-toc-restore-btn/, 'Must define themed right TOC restore pill');
+  assert.match(css, /min-width:\s*16rem;/, 'Must keep the outline column at least 16rem');
+  assert.match(css, /overflow-wrap:\s*break-word;/, 'Must break outline links on word boundaries');
 });

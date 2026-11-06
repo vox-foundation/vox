@@ -12,6 +12,7 @@ mod facets;
 mod lint;
 pub mod mermaid;
 pub mod openwiki;
+pub mod openwiki_symbols;
 pub mod types;
 
 pub use facet_backlog::facet_backlog_gate_failures;
