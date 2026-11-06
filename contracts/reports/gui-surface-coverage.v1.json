@@ -582,6 +582,10 @@
       "feature_gate": null
     },
     {
+      "path": "ci check-changed",
+      "feature_gate": null
+    },
+    {
       "path": "ci check-codex-ssot",
       "feature_gate": null
     },
@@ -595,6 +599,10 @@
     },
     {
       "path": "ci check-summary-drift",
+      "feature_gate": null
+    },
+    {
+      "path": "ci ci-changes",
       "feature_gate": null
     },
     {
@@ -750,6 +758,10 @@
       "feature_gate": null
     },
     {
+      "path": "ci dom-test-env-ban",
+      "feature_gate": null
+    },
+    {
       "path": "ci eval-matrix",
       "feature_gate": null
     },
@@ -759,6 +771,10 @@
     },
     {
       "path": "ci eval-matrix verify",
+      "feature_gate": null
+    },
+    {
+      "path": "ci evidence-asset-ban",
       "feature_gate": null
     },
     {
@@ -834,6 +850,10 @@
       "feature_gate": null
     },
     {
+      "path": "ci hit-every-surface",
+      "feature_gate": null
+    },
+    {
       "path": "ci ignored-test-age",
       "feature_gate": null
     },
@@ -855,6 +875,10 @@
     },
     {
       "path": "ci kill-stuck-tests",
+      "feature_gate": null
+    },
+    {
+      "path": "ci knip-gui",
       "feature_gate": null
     },
     {
@@ -994,6 +1018,10 @@
       "feature_gate": null
     },
     {
+      "path": "ci preview-trust-audit",
+      "feature_gate": null
+    },
+    {
       "path": "ci profile-parity",
       "feature_gate": null
     },
@@ -1126,6 +1154,10 @@
       "feature_gate": null
     },
     {
+      "path": "ci suppression-review-gate",
+      "feature_gate": null
+    },
+    {
       "path": "ci sync-ignore-files",
       "feature_gate": null
     },
@@ -1162,7 +1194,15 @@
       "feature_gate": null
     },
     {
+      "path": "ci transfer-budget-report",
+      "feature_gate": null
+    },
+    {
       "path": "ci turso-import-guard",
+      "feature_gate": null
+    },
+    {
+      "path": "ci vouched-parse",
       "feature_gate": null
     },
     {
@@ -1171,6 +1211,10 @@
     },
     {
       "path": "ci watch-run",
+      "feature_gate": null
+    },
+    {
+      "path": "ci wiki-sync",
       "feature_gate": null
     },
     {
@@ -4333,10 +4377,12 @@
     "ci.capability-index",
     "ci.capability-snapshot",
     "ci.capability-sync",
+    "ci.check-changed",
     "ci.check-codex-ssot",
     "ci.check-docs-ssot",
     "ci.check-links",
     "ci.check-summary-drift",
+    "ci.ci-changes",
     "ci.command-compliance",
     "ci.command-sync",
     "ci.commit-lint",
@@ -4375,9 +4421,11 @@
     "ci.docs-reality-audit.metrics",
     "ci.docs-reality-audit.verify",
     "ci.doctest-md",
+    "ci.dom-test-env-ban",
     "ci.eval-matrix",
     "ci.eval-matrix.run",
     "ci.eval-matrix.verify",
+    "ci.evidence-asset-ban",
     "ci.exec-policy-contract",
     "ci.fan-in-budget",
     "ci.feature-matrix",
@@ -4396,12 +4444,14 @@
     "ci.gui-version-sync",
     "ci.gui-visual-review",
     "ci.harness-trust-guard",
+    "ci.hit-every-surface",
     "ci.ignored-test-age",
     "ci.install-hooks",
     "ci.job-timings",
     "ci.json-parse-check",
     "ci.k-complexity-budget",
     "ci.kill-stuck-tests",
+    "ci.knip-gui",
     "ci.line-endings",
     "ci.manifest",
     "ci.mcp-vox-surface-parity",
@@ -4436,6 +4486,7 @@
     "ci.policy-registry-parity",
     "ci.policy-smoke",
     "ci.pre-push",
+    "ci.preview-trust-audit",
     "ci.profile-parity",
     "ci.python-bridge-parity",
     "ci.query-all-guard",
@@ -4469,6 +4520,7 @@
     "ci.ssot-drift",
     "ci.status",
     "ci.string-id-lint",
+    "ci.suppression-review-gate",
     "ci.sync-ignore-files",
     "ci.test-inventory",
     "ci.test-runtime-report",
@@ -4478,9 +4530,12 @@
     "ci.toestub-self-apply",
     "ci.toolchain-ssot",
     "ci.toolchain-workflow-lint",
+    "ci.transfer-budget-report",
     "ci.turso-import-guard",
+    "ci.vouched-parse",
     "ci.vox-parse-check",
     "ci.watch-run",
+    "ci.wiki-sync",
     "ci.workflow-concurrency-guard",
     "ci.workflow-scripts",
     "ci.yaml-parse-check",

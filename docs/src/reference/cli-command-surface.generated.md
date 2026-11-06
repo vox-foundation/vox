@@ -21,7 +21,7 @@ category: "Language Reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 1023
+**schema_version:** `1` · **vox-cli operations:** 1034
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -170,10 +170,12 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci capability-index` | active | — | ci | platform | — |
 | `vox ci capability-snapshot` | active | — | ci | platform | — |
 | `vox ci capability-sync` | active | — | — | platform | — |
+| `vox ci check-changed` | active | — | ci | platform | — |
 | `vox ci check-codex-ssot` | active | — | — | platform | — |
 | `vox ci check-docs-ssot` | active | — | — | platform | — |
 | `vox ci check-links` | active | — | — | platform | — |
 | `vox ci check-summary-drift` | active | — | — | platform | — |
+| `vox ci ci-changes` | active | — | ci | platform | — |
 | `vox ci command-compliance` | active | — | — | platform | — |
 | `vox ci command-sync` | active | — | — | platform | — |
 | `vox ci commit-lint` | active | — | ci | platform | — |
@@ -212,9 +214,11 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci docs-reality-audit metrics` | active | — | — | platform | — |
 | `vox ci docs-reality-audit verify` | active | — | — | platform | — |
 | `vox ci doctest-md` | active | — | ci | platform | — |
+| `vox ci dom-test-env-ban` | active | — | ci | platform | — |
 | `vox ci eval-matrix` | active | — | — | platform | — |
 | `vox ci eval-matrix run` | active | — | — | platform | — |
 | `vox ci eval-matrix verify` | active | — | — | platform | — |
+| `vox ci evidence-asset-ban` | active | — | ci | platform | — |
 | `vox ci exec-policy-contract` | active | — | — | platform | — |
 | `vox ci fan-in-budget` | active | — | ci | platform | — |
 | `vox ci feature-matrix` | active | — | — | platform | — |
@@ -233,12 +237,14 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci gui-version-sync` | active | — | ci | platform | — |
 | `vox ci gui-visual-review` | active | — | ci | platform | — |
 | `vox ci harness-trust-guard` | active | — | ci | platform | — |
+| `vox ci hit-every-surface` | active | — | ci | platform | — |
 | `vox ci ignored-test-age` | active | — | — | platform | — |
 | `vox ci install-hooks` | active | — | ci | platform | — |
 | `vox ci job-timings` | active | — | ci | platform | — |
 | `vox ci json-parse-check` | active | — | ci | platform | — |
 | `vox ci k-complexity-budget` | active | — | ci | platform | — |
 | `vox ci kill-stuck-tests` | active | — | ci | platform | — |
+| `vox ci knip-gui` | active | — | ci | platform | — |
 | `vox ci line-endings` | active | — | — | platform | — |
 | `vox ci manifest` | active | — | — | platform | — |
 | `vox ci mcp-vox-surface-parity` | active | — | ci | platform | — |
@@ -273,6 +279,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci policy-registry-parity` | active | — | ci | platform | — |
 | `vox ci policy-smoke` | active | — | — | platform | — |
 | `vox ci pre-push` | active | — | — | platform | — |
+| `vox ci preview-trust-audit` | active | — | ci | platform | — |
 | `vox ci profile-parity` | active | — | ci | platform | — |
 | `vox ci python-bridge-parity` | active | — | — | platform | — |
 | `vox ci query-all-guard` | active | — | — | platform | — |
@@ -306,6 +313,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci ssot-drift` | active | — | — | platform | — |
 | `vox ci status` | active | — | — | platform | — |
 | `vox ci string-id-lint` | active | — | ci | platform | — |
+| `vox ci suppression-review-gate` | active | — | ci | platform | — |
 | `vox ci sync-ignore-files` | active | — | ci | platform | — |
 | `vox ci test-inventory` | active | — | — | platform | — |
 | `vox ci test-runtime-report` | active | — | — | platform | — |
@@ -315,9 +323,12 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci toestub-self-apply` | active | — | — | platform | — |
 | `vox ci toolchain-ssot` | active | — | ci | platform | — |
 | `vox ci toolchain-workflow-lint` | active | — | ci | platform | — |
+| `vox ci transfer-budget-report` | active | — | ci | platform | — |
 | `vox ci turso-import-guard` | active | — | — | platform | — |
+| `vox ci vouched-parse` | active | — | ci | platform | — |
 | `vox ci vox-parse-check` | active | — | ci | platform | — |
 | `vox ci watch-run` | active | — | ci | platform | — |
+| `vox ci wiki-sync` | active | — | ci | platform | — |
 | `vox ci workflow-concurrency-guard` | active | — | ci | platform | — |
 | `vox ci workflow-scripts` | active | — | — | platform | — |
 | `vox ci yaml-parse-check` | active | — | ci | platform | — |

@@ -5565,6 +5565,18 @@
       "curated": true
     },
     {
+      "capability_id": "cli.ci.check-changed",
+      "cli_path": [
+        "ci",
+        "check-changed"
+      ],
+      "implicit": false,
+      "title": "Ci Check-changed",
+      "description_model": "CLI operation `vox ci check-changed`",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
       "capability_id": "cli.ci.check-codex-ssot",
       "cli_path": [
         "ci",
@@ -5610,6 +5622,18 @@
       "title": "Ci Check-summary-drift",
       "description_model": "CLI operation `vox ci check-summary-drift`",
       "side_effect_class": "spawns_process",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.ci.ci-changes",
+      "cli_path": [
+        "ci",
+        "ci-changes"
+      ],
+      "implicit": false,
+      "title": "Ci Ci-changes",
+      "description_model": "CLI operation `vox ci ci-changes`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -6075,6 +6099,18 @@
       "curated": true
     },
     {
+      "capability_id": "cli.ci.dom-test-env-ban",
+      "cli_path": [
+        "ci",
+        "dom-test-env-ban"
+      ],
+      "implicit": false,
+      "title": "Ci Dom-test-env-ban",
+      "description_model": "CLI operation `vox ci dom-test-env-ban`",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
       "capability_id": "cli.ci.eval-matrix",
       "cli_path": [
         "ci",
@@ -6109,6 +6145,18 @@
       "implicit": false,
       "title": "Ci Eval-matrix Verify",
       "description_model": "CLI operation `vox ci eval-matrix verify`",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.ci.evidence-asset-ban",
+      "cli_path": [
+        "ci",
+        "evidence-asset-ban"
+      ],
+      "implicit": false,
+      "title": "Ci Evidence-asset-ban",
+      "description_model": "CLI operation `vox ci evidence-asset-ban`",
       "side_effect_class": "read_only",
       "curated": true
     },
@@ -6329,6 +6377,18 @@
       "curated": true
     },
     {
+      "capability_id": "cli.ci.hit-every-surface",
+      "cli_path": [
+        "ci",
+        "hit-every-surface"
+      ],
+      "implicit": false,
+      "title": "Ci Hit-every-surface",
+      "description_model": "CLI operation `vox ci hit-every-surface`",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
       "capability_id": "cli.ci.ignored-test-age",
       "cli_path": [
         "ci",
@@ -6397,6 +6457,18 @@
       "implicit": false,
       "title": "Ci Kill-stuck-tests",
       "description_model": "CLI operation `vox ci kill-stuck-tests`",
+      "side_effect_class": "spawns_process",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.ci.knip-gui",
+      "cli_path": [
+        "ci",
+        "knip-gui"
+      ],
+      "implicit": false,
+      "title": "Ci Knip-gui",
+      "description_model": "CLI operation `vox ci knip-gui`",
       "side_effect_class": "spawns_process",
       "curated": true
     },
@@ -6820,6 +6892,18 @@
       "curated": true
     },
     {
+      "capability_id": "cli.ci.preview-trust-audit",
+      "cli_path": [
+        "ci",
+        "preview-trust-audit"
+      ],
+      "implicit": false,
+      "title": "Ci Preview-trust-audit",
+      "description_model": "CLI operation `vox ci preview-trust-audit`",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
       "capability_id": "cli.ci.profile-parity",
       "cli_path": [
         "ci",
@@ -7218,6 +7302,18 @@
       "curated": true
     },
     {
+      "capability_id": "cli.ci.suppression-review-gate",
+      "cli_path": [
+        "ci",
+        "suppression-review-gate"
+      ],
+      "implicit": false,
+      "title": "Ci Suppression-review-gate",
+      "description_model": "CLI operation `vox ci suppression-review-gate`",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
       "capability_id": "cli.ci.sync-ignore-files",
       "cli_path": [
         "ci",
@@ -7326,6 +7422,18 @@
       "curated": true
     },
     {
+      "capability_id": "cli.ci.transfer-budget-report",
+      "cli_path": [
+        "ci",
+        "transfer-budget-report"
+      ],
+      "implicit": false,
+      "title": "Ci Transfer-budget-report",
+      "description_model": "CLI operation `vox ci transfer-budget-report`",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
       "capability_id": "cli.ci.turso-import-guard",
       "cli_path": [
         "ci",
@@ -7334,6 +7442,18 @@
       "implicit": false,
       "title": "Ci Turso-import-guard",
       "description_model": "CLI operation `vox ci turso-import-guard`",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.ci.vouched-parse",
+      "cli_path": [
+        "ci",
+        "vouched-parse"
+      ],
+      "implicit": false,
+      "title": "Ci Vouched-parse",
+      "description_model": "CLI operation `vox ci vouched-parse`",
       "side_effect_class": "read_only",
       "curated": true
     },
@@ -7359,6 +7479,18 @@
       "title": "Ci Watch-run",
       "description_model": "CLI operation `vox ci watch-run`",
       "side_effect_class": "network",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.ci.wiki-sync",
+      "cli_path": [
+        "ci",
+        "wiki-sync"
+      ],
+      "implicit": false,
+      "title": "Ci Wiki-sync",
+      "description_model": "CLI operation `vox ci wiki-sync`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
