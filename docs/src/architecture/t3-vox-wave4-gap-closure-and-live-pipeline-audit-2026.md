@@ -45,9 +45,9 @@ However, a line-by-line call-graph audit of `crates/vox-orchestrator-mcp/src/cha
 ### `GAP-02`: `@rule:<name>` Mentions & `$variable` System Prompt Interpolation Bypassed on Live Chat Turn (`mentions.rs`, `preamble_and_retrieval.rs`)
 
 - **Location:**
-  - [`crates/vox-orchestrator-mcp/src/chat_tools/chat/mentions.rs`](../../../../crates/vox-orchestrator-mcp/src/chat_tools/chat/mentions.rs) (`L36`, `L308`)
-  - [`crates/vox-orchestrator-mcp/src/chat_tools/chat/system_prompt_vars.rs`](../../../../crates/vox-orchestrator-mcp/src/chat_tools/chat/system_prompt_vars.rs) (`L36`)
-  - [`crates/vox-orchestrator-mcp/src/chat_tools/chat/message/preamble_and_retrieval.rs`](../../../../crates/vox-orchestrator-mcp/src/chat_tools/chat/message/preamble_and_retrieval.rs) (`L17–58`)
+  - [`crates/vox-orchestrator-mcp/src/chat_tools/chat/mentions.rs`](../../../crates/vox-orchestrator-mcp/src/chat_tools/chat/mentions.rs) (`L36`, `L308`)
+  - [`crates/vox-orchestrator-mcp/src/chat_tools/chat/system_prompt_vars.rs`](../../../crates/vox-orchestrator-mcp/src/chat_tools/chat/system_prompt_vars.rs) (`L36`)
+  - [`crates/vox-orchestrator-mcp/src/chat_tools/chat/message/preamble_and_retrieval.rs`](../../../crates/vox-orchestrator-mcp/src/chat_tools/chat/message/preamble_and_retrieval.rs) (`L17–58`)
 - **Root Cause:**
   1. `resolve_user_rule_mentions` (`mentions.rs:36`) is never called by `resolve_mentions` (`mentions.rs:308`) or `prepare_turn_context_and_retrieval`. Worse, `MENTION_RE` (`@([A-Za-z0-9_.:/\\-]+)`) matches `@rule:rust-strict` and attempts to resolve `rule:rust-strict` as a workspace file path, emitting `[ Mention @rule:rust-strict not found in workspace ]`!
   2. `interpolate_system_prompt_variables` (`system_prompt_vars.rs:36`) is never called when constructing the system prompt in `build_system_prompt_with_skill` or `prepare_turn_context_and_retrieval`.
@@ -57,7 +57,7 @@ However, a line-by-line call-graph audit of `crates/vox-orchestrator-mcp/src/cha
 
 ### `GAP-03`: `context_sanitizer` & `UpToMessageId` Compaction Not Wired into `conversation.rs`
 
-- **Location:** [`crates/vox-orchestrator-mcp/src/chat_tools/chat/conversation.rs`](../../../../crates/vox-orchestrator-mcp/src/chat_tools/chat/conversation.rs) (`L428–454`).
+- **Location:** [`crates/vox-orchestrator-mcp/src/chat_tools/chat/conversation.rs`](../../../crates/vox-orchestrator-mcp/src/chat_tools/chat/conversation.rs) (`L428–454`).
 - **Root Cause:**
   - `transcript_entry_to_llm_message` (`L428`) pushes raw `entry.content` directly into `ChatMessage` without calling `vox_orchestrator::context_sanitizer::sanitize_assistant_for_history` on `"assistant"` turns or `escape_prompt_injection_tokens` on `"user"` / `"tool"` turns.
   - Closed `<think>...</think>` blocks and `<WebSearch>...</WebSearch>` blocks from earlier turns remain in context on every subsequent turn.
@@ -69,8 +69,8 @@ However, a line-by-line call-graph audit of `crates/vox-orchestrator-mcp/src/cha
 ### `GAP-04`: `BatteryCostLedger`, `VoxIdAllocatorV2` & Real `ResponseQualityAnalyzer` Scores Bypassed in `message.rs` & `persist_and_envelope.rs`
 
 - **Location:**
-  - [`crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs`](../../../../crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs) (`L57–115`)
-  - [`crates/vox-orchestrator-mcp/src/chat_tools/chat/message/persist_and_envelope.rs`](../../../../crates/vox-orchestrator-mcp/src/chat_tools/chat/message/persist_and_envelope.rs) (`L44`, `L53`, `L348`)
+  - [`crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs`](../../../crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs) (`L57–115`)
+  - [`crates/vox-orchestrator-mcp/src/chat_tools/chat/message/persist_and_envelope.rs`](../../../crates/vox-orchestrator-mcp/src/chat_tools/chat/message/persist_and_envelope.rs) (`L44`, `L53`, `L348`)
 - **Root Cause:**
   1. `BatteryCostLedger` (`crates/vox-orchestrator/src/budget/tracker.rs`) is never instantiated on `ServerState` or checked/debited during `chat_message`.
   2. `persist_and_envelope.rs:44,53` mints message IDs via `format!("usr-{}", now_ts())` and `format!("ast-{}", now_ts())` (which collide whenever two turns complete within the same second) instead of `VoxIdAllocatorV2::derive`.
@@ -84,8 +84,8 @@ However, a line-by-line call-graph audit of `crates/vox-orchestrator-mcp/src/cha
 ### `GAP-05`: `CommandOutputHub` `\r` Folding, `bound_snapshot_metadata` DOM Shedding, Pre-Write Sparse Checkpoints, Resumable Stream Buffer & Mid-Turn Steer Draining Not Wired in `agent_loop.rs`
 
 - **Location:**
-  - [`crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop.rs`](../../../../crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop.rs) (`L279`, `L521–545`)
-  - [`crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop/salvage_and_stream.rs`](../../../../crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop/salvage_and_stream.rs) (`L65–78`)
+  - [`crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop.rs`](../../../crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop.rs) (`L279`, `L521–545`)
+  - [`crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop/salvage_and_stream.rs`](../../../crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop/salvage_and_stream.rs) (`L65–78`)
 - **Root Cause:**
   1. Tool outputs in `agent_loop.rs:542` bypass `vox_orchestrator::command_output_hub::normalize_terminal_output` (`\r` progress bar folding) and `vox_orchestrator::snapshot::bound_snapshot_metadata` (`20 KiB` DOM snapshot shedding).
   2. Write/mutation tools (`should_sparse_checkpoint(&call.name)`) execute at `L524` without capturing a pre-mutation sparse Git checkpoint (`GitPlumbingCheckpointStore::capture_checkpoint`).
@@ -98,7 +98,7 @@ However, a line-by-line call-graph audit of `crates/vox-orchestrator-mcp/src/cha
 
 ### `GAP-06`: Synthetic/Stateless Handlers in `t3_wave3_tools.rs`
 
-- **Location:** [`crates/vox-orchestrator-mcp/src/t3_wave3_tools.rs`](../../../../crates/vox-orchestrator-mcp/src/t3_wave3_tools.rs) (`L141–231`, `L406–564`).
+- **Location:** [`crates/vox-orchestrator-mcp/src/t3_wave3_tools.rs`](../../../crates/vox-orchestrator-mcp/src/t3_wave3_tools.rs) (`L141–231`, `L406–564`).
 - **Root Cause:**
   1. `handle_consensus_run` (`L141`) generates synthetic string templates when `legs` is omitted instead of fanning out concurrent `call_llm_with_pref` calls across the requested `models` via `futures_util::future::join_all` (with graceful fallback when no upstream API key is configured).
   2. `handle_context_handoff` (`L194`) ignores `state` (`_state`) when `turns` is omitted instead of hydrating `source_thread_id`'s live conversation history via `context_history_or_hydrate(state, &format!("chat_history:{source_thread_id}"))` and writing the handoff brief into `chat_history:{new_thread_id}`.
@@ -112,7 +112,7 @@ However, a line-by-line call-graph audit of `crates/vox-orchestrator-mcp/src/cha
 
 ### `GAP-07`: Missing `vox_chat_regenerate` & `vox_chat_edit_message_in_place` Backend MCP Tools (`history.rs`, `dispatch.rs`)
 
-- **Location:** [`crates/vox-orchestrator-mcp/src/chat_tools/chat/history.rs`](../../../../crates/vox-orchestrator-mcp/src/chat_tools/chat/history.rs).
+- **Location:** [`crates/vox-orchestrator-mcp/src/chat_tools/chat/history.rs`](../../../crates/vox-orchestrator-mcp/src/chat_tools/chat/history.rs).
 - **Root Cause:**
   - `t3-vox-agentic-ux-rules-webhooks-and-session-interop-spec-2026.md` §1.3 specified two distinct message mutation operations:
     1. `vox_chat_edit_message_in_place`: mutates an assistant (or user) message's content in-place in `chat_history:{session_id}` **without** truncating subsequent messages (`[Edited]` badge).
@@ -124,8 +124,8 @@ However, a line-by-line call-graph audit of `crates/vox-orchestrator-mcp/src/cha
 ### `GAP-08`: `DelegationWorktree::create` & `submit_webhook_events` Internal Bypass (`agy_worktree.rs`, `webhook_intake.rs`)
 
 - **Location:**
-  - [`crates/vox-orchestrator-mcp/src/agy_worktree.rs`](../../../../crates/vox-orchestrator-mcp/src/agy_worktree.rs) (`L94`, `L157–170`)
-  - [`crates/vox-orchestrator-mcp/src/server_state/webhook_intake.rs`](../../../../crates/vox-orchestrator-mcp/src/server_state/webhook_intake.rs) (`L94`, `L188–209`)
+  - [`crates/vox-orchestrator-mcp/src/agy_worktree.rs`](../../../crates/vox-orchestrator-mcp/src/agy_worktree.rs) (`L94`, `L157–170`)
+  - [`crates/vox-orchestrator-mcp/src/server_state/webhook_intake.rs`](../../../crates/vox-orchestrator-mcp/src/server_state/webhook_intake.rs) (`L94`, `L188–209`)
 - **Root Cause:**
   1. `DelegationWorktree::create` spawns `git worktree add` without acquiring `WorkspaceLeaseMap::global().lease_for(repo_root)` and without calling `provision_untracked_env_files(repo_root, &wt_path)` (`L94`) after worktree creation.
   2. `submit_webhook_events` (`webhook_intake.rs:188`) validates the HMAC signature and immediately pushes events into `webhook_inbox` without calling `WebhookDedupeAndRateGate::admit_delivery` (`L94`) to reject replayed `delivery_id`s or `> 60/min` bursts.
@@ -136,8 +136,8 @@ However, a line-by-line call-graph audit of `crates/vox-orchestrator-mcp/src/cha
 ### `GAP-09`: `vox_orchestrator_status` Ignores `compact` Argument & `transfer_budget.rs` Uses Synthetic Fixtures
 
 - **Location:**
-  - [`crates/vox-orchestrator-mcp/src/dispatch.rs`](../../../../crates/vox-orchestrator-mcp/src/dispatch.rs) (`L806`)
-  - [`crates/vox-orchestrator-mcp/tests/transfer_budget.rs`](../../../../crates/vox-orchestrator-mcp/tests/transfer_budget.rs) (`L9–33`)
+  - [`crates/vox-orchestrator-mcp/src/dispatch.rs`](../../../crates/vox-orchestrator-mcp/src/dispatch.rs) (`L806`)
+  - [`crates/vox-orchestrator-mcp/tests/transfer_budget.rs`](../../../crates/vox-orchestrator-mcp/tests/transfer_budget.rs) (`L9–33`)
 - **Root Cause:**
   - `dispatch.rs:806` calls `dei_tools::orchestrator_status(state).await` unconditionally, ignoring `args["compact"]` and `args["omit_idle_subagents"]` instead of routing to `dei_tools::orchestrator_status_compact(state, omit_idle_subagents)`.
   - `transfer_budget.rs` tests a hardcoded 5-field `serde_json::json!` literal instead of building a 900-row / 1.1 MiB payload and asserting that `orchestrator_status_compact` + `cap_and_summarize_tool_output` keep the wire payload under `256 KiB` and `4` DB round-trips.
@@ -146,9 +146,9 @@ However, a line-by-line call-graph audit of `crates/vox-orchestrator-mcp/src/cha
 
 ### `GAP-10`: `t3Wave3Rpc.ts` `unwrapMcpData` Fails on Tauri `invoke_mcp_tool` `{ is_error, result }` Wrapper (`t3Wave3Rpc.ts`)
 
-- **Location:** [`crates/vox-gui/ui/src/transport/t3Wave3Rpc.ts`](../../../../crates/vox-gui/ui/src/transport/t3Wave3Rpc.ts) (`L88–104`).
+- **Location:** [`crates/vox-gui/ui/src/transport/t3Wave3Rpc.ts`](../../../crates/vox-gui/ui/src/transport/t3Wave3Rpc.ts) (`L88–104`).
 - **Root Cause:**
-  - In Tauri desktop mode, `voxTransport.invokeMcpTool` invokes Tauri command `invoke_mcp_tool` ([`crates/vox-gui/src/commands/mod.rs:146`](../../../../crates/vox-gui/src/commands/mod.rs)), which returns `{ is_error: false, result: { success: true, data: ... } }` (or a JSON string inside `result`).
+  - In Tauri desktop mode, `voxTransport.invokeMcpTool` invokes Tauri command `invoke_mcp_tool` ([`crates/vox-gui/src/commands/mod.rs:146`](../../../crates/vox-gui/src/commands/mod.rs)), which returns `{ is_error: false, result: { success: true, data: ... } }` (or a JSON string inside `result`).
   - `unwrapMcpData` in `t3Wave3Rpc.ts:96` only checks `if ('data' in obj && obj.data !== undefined) return obj.data as T;` at the outer object level. Because `data` is nested inside `obj.result.data`, `unwrapMcpData` returns the outer `{ is_error: false, result: ... }` wrapper, which fails every caller's field check (`'winning_response' in res`, `'bundle_json' in res`, `'share_token' in res`, etc.) and causes the GUI to fall through to hardcoded mock objects even when connected to the live Rust backend!
 - **Remediation (`T3-GUI-ENVELOPE-01..04`):**
   - Fix `unwrapMcpData` in `t3Wave3Rpc.ts` to recursively unwrap `{ is_error, result }`, stringified JSON payloads, MCP `{ content: [{ type: 'text', text: '...' }] }` blocks, and `{ success, data }` envelopes (throwing when `is_error === true` or `success === false`).
