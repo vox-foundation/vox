@@ -141,12 +141,7 @@ pub async fn handle_consensus_run(state: &ServerState, args: Value) -> String {
     let models: Vec<String> = args
         .get("models")
         .and_then(|v| serde_json::from_value(v.clone()).ok())
-        .unwrap_or_else(|| {
-            vec![
-                "anthropic/claude-sonnet-4-5".to_string(),
-                "openai/gpt-4o".to_string(),
-            ]
-        });
+        .unwrap_or_else(|| default_variant_models(2));
 
     let mut engine = match ConsensusFanOutEngine::new(models.clone()) {
         Ok(e) => e,
@@ -508,13 +503,7 @@ pub async fn handle_muse_pool_spawn(state: &ServerState, args: Value) -> String 
                 .and_then(Value::as_u64)
                 .unwrap_or(2)
                 .clamp(1, 4) as usize;
-            let defaults = [
-                "anthropic/claude-sonnet-4-5",
-                "openai/gpt-4o",
-                "google/gemini-2.5-pro",
-                "mens-qwen3-8b",
-            ];
-            defaults[..count].iter().map(|s| (*s).to_string()).collect()
+            default_variant_models(count)
         });
 
     match MultiVariantWorktreePool::plan_variants(&repo_root, run_id, &model_ids) {
@@ -543,6 +532,21 @@ pub async fn handle_muse_pool_spawn(state: &ServerState, args: Value) -> String 
     }
 }
 
+/// First `count` (max 4) distinct-vendor default model ids for consensus / Muse variants,
+/// sourced from `contracts/orchestration/model-defaults.v1.yaml` (never pinned here).
+fn default_variant_models(count: usize) -> Vec<String> {
+    use vox_config::model_defaults as d;
+    [
+        d::PREMIUM_CODEGEN,
+        d::PREMIUM_PLANNING,
+        d::PREMIUM_RESEARCH,
+        "mens-qwen3-8b",
+    ][..count.min(4)]
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect()
+}
+
 /// Dispatch `vox_muse_pool_adopt` (`T3-MCP-RPC-WIRE-02` & `T3-WORKTREE-CKPT-03`).
 pub async fn handle_muse_pool_adopt(state: &ServerState, args: Value) -> String {
     if let Err(reason) = authorize_wave3_call("vox_muse_pool_adopt", &args) {
@@ -561,12 +565,7 @@ pub async fn handle_muse_pool_adopt(state: &ServerState, args: Value) -> String 
     let model_ids: Vec<String> = args
         .get("model_ids")
         .and_then(|v| serde_json::from_value(v.clone()).ok())
-        .unwrap_or_else(|| {
-            vec![
-                "anthropic/claude-sonnet-4-5".to_string(),
-                "openai/gpt-4o".to_string(),
-            ]
-        });
+        .unwrap_or_else(|| default_variant_models(2));
     let variant_index = args
         .get("variant_index")
         .and_then(Value::as_u64)

@@ -64,6 +64,7 @@ ci/check-codex-ssot
 ci/check-docs-ssot
 ci/check-links
 ci/check-summary-drift
+ci/ci-changes
 ci/command-compliance
 ci/command-sync
 ci/commit-lint
@@ -102,6 +103,7 @@ ci/docs-reality-audit
 ci/docs-reality-audit/metrics
 ci/docs-reality-audit/verify
 ci/doctest-md
+ci/dom-test-env-ban
 ci/eval-matrix
 ci/eval-matrix/run
 ci/eval-matrix/verify
@@ -166,7 +168,9 @@ ci/policy-registry
 ci/policy-registry-parity
 ci/policy-smoke
 ci/pre-push
+ci/preview-trust-audit
 ci/profile-parity
+ci/python-bridge-parity
 ci/query-all-guard
 ci/release-build
 ci/release-draft-guard
@@ -210,8 +214,10 @@ ci/toolchain-ssot
 ci/toolchain-workflow-lint
 ci/transfer-budget-report
 ci/turso-import-guard
+ci/vouched-parse
 ci/vox-parse-check
 ci/watch-run
+ci/wiki-sync
 ci/workflow-concurrency-guard
 ci/workflow-scripts
 ci/yaml-parse-check
@@ -465,6 +471,9 @@ policy/list
 policy/show
 policy/status
 populi
+py
+py/doctor
+py/sync
 remove
 repair
 repl

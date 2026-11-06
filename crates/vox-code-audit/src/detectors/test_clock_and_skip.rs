@@ -54,7 +54,7 @@ impl DetectionRule for TestClockAndSkipDetector {
     fn detect(
         &self,
         file: &SourceFile,
-        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+        rust_ctx: Option<&crate::analysis::RustFileContext>,
     ) -> Vec<Finding> {
         let mut findings = Vec::new();
         let in_test_file = Self::is_test_path(&file.path);
@@ -86,13 +86,17 @@ impl DetectionRule for TestClockAndSkipDetector {
                 && !prev_has_comment;
             // Sleep / waitForTimeout inside test scope — including polling loops —
             // is flaky; also catch TS `await new Promise(...requestAnimationFrame)`.
+            // A needle inside a Rust string literal is fixture data, not a real wait.
+            let in_code = |needle: &str| {
+                line.match_indices(needle).any(|(col, _)| {
+                    !crate::rules::rust_byte_is_string(file, line_num, col, rust_ctx)
+                })
+            };
             let flaky_sleep = in_test_scope
                 && !trimmed.starts_with("//")
                 && !trimmed.contains("toestub-ignore")
-                && (trimmed.contains("std::thread::sleep(")
-                    || trimmed.contains("thread::sleep(")
-                    || trimmed.contains("page.waitForTimeout(")
-                    || trimmed.contains("waitForTimeout(")
+                && (in_code("thread::sleep(")
+                    || in_code("waitForTimeout(")
                     || (file.language == Language::TypeScript
                         && trimmed.contains("requestAnimationFrame")
                         && (trimmed.contains("new Promise") || trimmed.contains("await "))));
@@ -163,5 +167,18 @@ mod tests {
             "xit('legacy', () => {});\ntest.todo('later');\n".to_string(),
         );
         assert_eq!(det.detect(&f, None).len(), 2);
+    }
+
+    #[test]
+    fn ignores_sleep_inside_rust_string_literal_fixture() {
+        let det = TestClockAndSkipDetector::new();
+        let f = SourceFile::new(
+            PathBuf::from("crates/vox-cli/src/foo.rs"),
+            "#[cfg(test)]\nmod tests {\n  const FIXTURE: &str = \"std::thread::sleep(d); page.waitForTimeout(5);\";\n  fn waits() { std::thread::sleep(d); }\n}\n"
+                .to_string(),
+        );
+        let hits = det.detect(&f, None);
+        assert_eq!(hits.len(), 1, "{hits:#?}");
+        assert_eq!(hits[0].line, 4);
     }
 }

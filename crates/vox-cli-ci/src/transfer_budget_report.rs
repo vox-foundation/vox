@@ -111,7 +111,7 @@ pub fn measure_live_sample() -> TransferBudgetSample {
     let root_only = filter_snapshot_subagent_threads(&nodes, true);
     let raw_snapshot = json!({
         "threads": root_only,
-        "model_id": "anthropic/claude-sonnet-4-5",
+        "model_id": vox_config::model_defaults::PREMIUM_CODEGEN,
         "workspace_id": "ws-vox-primary",
         "body": "Shared recurring system prompt instructions across turns ".repeat(6),
         "event_store_command_output_deltas": 0,
@@ -122,7 +122,7 @@ pub fn measure_live_sample() -> TransferBudgetSample {
         .unwrap_or(usize::MAX);
     let turn_delta = compress_wire_snapshot(&json!({
         "turn_id": "turn-42",
-        "model_id": "anthropic/claude-sonnet-4-5",
+        "model_id": vox_config::model_defaults::PREMIUM_CODEGEN,
         "body": "Concise assistant delta chunk.",
     }));
     let turn_bytes = serde_json::to_vec(&turn_delta)

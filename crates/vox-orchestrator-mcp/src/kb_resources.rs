@@ -151,7 +151,7 @@ mod tests {
             "kb://doc//etc/passwd",
             "kb://doc/docs/src/archive/old.md",
             "kb://doc/docs/src/a/archive/x.md",
-            "kb://doc/docs/src/x.mdx",
+            "kb://doc/docs/src/x.txt",
             "kb://chunk/ABC",
             short.as_str(),
             "kb://other/x",
@@ -189,6 +189,7 @@ mod tests {
             "docs/src/library/page.md",
             "docs/src/archive/old.md",
             "docs/src/x.mdx",
+            "docs/src/x.txt",
         ] {
             let p = tmp.path().join(rel);
             std::fs::create_dir_all(p.parent().unwrap()).unwrap();
@@ -202,7 +203,8 @@ mod tests {
             uris,
             [
                 "kb://doc/docs/src/library/page.md",
-                "kb://doc/docs/src/ok.md"
+                "kb://doc/docs/src/ok.md",
+                "kb://doc/docs/src/x.mdx"
             ]
         );
         assert!(uris.iter().all(|u| parse_kb_uri(u).is_ok()));

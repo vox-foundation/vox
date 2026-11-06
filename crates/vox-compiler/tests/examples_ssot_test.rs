@@ -105,21 +105,23 @@ fn examples_tree_has_no_orphan_vox_files() {
     }
 }
 
+/// Mirrors `INCLUDE_RE` in `docs-astro/src/plugins/remark-vox-include.mjs`: a directive
+/// counts only when it is alone on its line (a fenced block holding just the include).
+/// Prose and inline-code mentions such as `` `{{#include path:anchor}}` `` are not includes.
 fn for_each_doc_pipeline_include(text: &str, mut f: impl FnMut(&str)) {
-    let needle = "{{#include ";
-    let mut search = 0usize;
-    while let Some(found) = text[search..].find(needle) {
-        let abs = search + found + needle.len();
-        let rest = &text[abs..];
-        let close = rest.find("}}").unwrap_or_else(|| {
-            panic!("unclosed doc pipeline `{{{{#include` starting at byte {abs}")
-        });
-        let token = rest[..close].trim();
+    for line in text.lines() {
+        let Some(token) = line
+            .trim()
+            .strip_prefix("{{#include")
+            .and_then(|rest| rest.strip_suffix("}}"))
+        else {
+            continue;
+        };
+        let token = token.trim();
         let path_part = token.split(':').next().unwrap_or(token).trim();
         if !path_part.is_empty() {
             f(path_part);
         }
-        search = abs + close + 2;
     }
 }
 

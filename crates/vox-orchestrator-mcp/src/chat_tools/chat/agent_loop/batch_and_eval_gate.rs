@@ -354,7 +354,7 @@ pub(super) fn record_harness_issue_if_crossed(
                 &vox_orchestrator::models::SelectionIntent::review(),
             )
             .map(|o| o.model_id)
-            .unwrap_or_else(|| "google/gemini-3.1-pro".to_string());
+            .unwrap_or_else(|| vox_config::model_defaults::JUDGE.to_string());
             tokio::spawn(async move {
                 let Some(issue) =
                     super::super::harness_issue_judge::judge(&recent_activity, &judge_model).await

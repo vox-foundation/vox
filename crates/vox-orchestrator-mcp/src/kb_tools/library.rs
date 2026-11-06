@@ -823,7 +823,11 @@ mod tests {
 
     #[test]
     fn validate_doc_path_accepts_and_rejects() {
-        for ok in ["docs/src/guide.md", "docs/src/library/index.md"] {
+        for ok in [
+            "docs/src/guide.md",
+            "docs/src/library/index.md",
+            "docs/src/tutorials/tut.mdx",
+        ] {
             assert_eq!(validate_doc_path(ok), Ok(ok));
         }
         let long = format!("docs/src/{}.md", "a".repeat(MAX_PATH_BYTES));
@@ -839,7 +843,7 @@ mod tests {
             "C:/x.md",
             "docs/src/archive/old.md",
             "docs/src/research/archive/x.md",
-            "docs/src/x.mdx",
+            "docs/src/x.txt",
             "README.md",
             long.as_str(),
         ] {

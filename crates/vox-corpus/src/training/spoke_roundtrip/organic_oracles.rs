@@ -303,10 +303,14 @@ pub(super) fn verify_deep_compilation_for_spoke(
                 match verify_rust_snippet_with_rustc(&clean).or_else(|_| {
                     verify_rust_snippet_with_workspace_deps(&clean, &["serde", "serde_json"])
                 }) {
-                    Ok(rmeta_bytes) => (
+                    // The .rmeta size embeds the rustc version and the temp source path, so it
+                    // differs per host/toolchain; the committed scorecard records the
+                    // deterministic token-stream size instead.
+                    Ok(_rmeta_bytes) => (
                         true,
                         format!(
-                            "syn::parse_file+rustc_rmeta+policy_clean(items={item_count},rmeta_bytes={rmeta_bytes})"
+                            "syn::parse_file+rustc_rmeta+policy_clean(items={item_count},token_bytes={})",
+                            token_stream.len()
                         ),
                     ),
                     Err(diag) => (false, format!("rustc_typeck_failed: {diag}")),

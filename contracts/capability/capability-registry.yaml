@@ -2692,6 +2692,24 @@ curated:
   - ci
   - capability-sync
   parameters: null
+- id: cli.ci.check-changed
+  title: Ci Check-changed
+  description_human: null
+  description_model: CLI operation `vox ci check-changed`
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - check-changed
+  parameters: null
 - id: cli.ci.check-codex-ssot
   title: Ci Check-codex-ssot
   description_human: null
@@ -2763,6 +2781,24 @@ curated:
   cli_path:
   - ci
   - check-summary-drift
+  parameters: null
+- id: cli.ci.ci-changes
+  title: Ci Ci-changes
+  description_human: null
+  description_model: CLI operation `vox ci ci-changes`
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - ci-changes
   parameters: null
 - id: cli.ci.command-compliance
   title: Ci Command-compliance
@@ -3454,6 +3490,24 @@ curated:
   - ci
   - doctest-md
   parameters: null
+- id: cli.ci.dom-test-env-ban
+  title: Ci Dom-test-env-ban
+  description_human: null
+  description_model: CLI operation `vox ci dom-test-env-ban`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - dom-test-env-ban
+  parameters: null
 - id: cli.ci.eval-matrix
   title: Ci Eval-matrix
   description_human: null
@@ -3509,6 +3563,24 @@ curated:
   - ci
   - eval-matrix
   - verify
+  parameters: null
+- id: cli.ci.evidence-asset-ban
+  title: Ci Evidence-asset-ban
+  description_human: null
+  description_model: CLI operation `vox ci evidence-asset-ban`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - evidence-asset-ban
   parameters: null
 - id: cli.ci.exec-policy-contract
   title: Ci Exec-policy-contract
@@ -3834,6 +3906,24 @@ curated:
   - ci
   - harness-trust-guard
   parameters: null
+- id: cli.ci.hit-every-surface
+  title: Ci Hit-every-surface
+  description_human: null
+  description_model: CLI operation `vox ci hit-every-surface`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - hit-every-surface
+  parameters: null
 - id: cli.ci.ignored-test-age
   title: Ci Ignored-test-age
   description_human: null
@@ -3941,6 +4031,24 @@ curated:
   cli_path:
   - ci
   - kill-stuck-tests
+  parameters: null
+- id: cli.ci.knip-gui
+  title: Ci Knip-gui
+  description_human: null
+  description_model: CLI operation `vox ci knip-gui`
+  intent_tags: []
+  side_effect_class: spawns_process
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - knip-gui
   parameters: null
 - id: cli.ci.line-endings
   title: Ci Line-endings
@@ -4562,6 +4670,24 @@ curated:
   - ci
   - pre-push
   parameters: null
+- id: cli.ci.preview-trust-audit
+  title: Ci Preview-trust-audit
+  description_human: null
+  description_model: CLI operation `vox ci preview-trust-audit`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - preview-trust-audit
+  parameters: null
 - id: cli.ci.profile-parity
   title: Ci Profile-parity
   description_human: null
@@ -5158,6 +5284,24 @@ curated:
   - ci
   - string-id-lint
   parameters: null
+- id: cli.ci.suppression-review-gate
+  title: Ci Suppression-review-gate
+  description_human: null
+  description_model: CLI operation `vox ci suppression-review-gate`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - suppression-review-gate
+  parameters: null
 - id: cli.ci.sync-ignore-files
   title: Ci Sync-ignore-files
   description_human: null
@@ -5320,6 +5464,24 @@ curated:
   - ci
   - toolchain-workflow-lint
   parameters: null
+- id: cli.ci.transfer-budget-report
+  title: Ci Transfer-budget-report
+  description_human: null
+  description_model: CLI operation `vox ci transfer-budget-report`
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - transfer-budget-report
+  parameters: null
 - id: cli.ci.turso-import-guard
   title: Ci Turso-import-guard
   description_human: null
@@ -5337,6 +5499,24 @@ curated:
   cli_path:
   - ci
   - turso-import-guard
+  parameters: null
+- id: cli.ci.vouched-parse
+  title: Ci Vouched-parse
+  description_human: null
+  description_model: CLI operation `vox ci vouched-parse`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - vouched-parse
   parameters: null
 - id: cli.ci.vox-parse-check
   title: Ci Vox-parse-check
@@ -5373,6 +5553,24 @@ curated:
   cli_path:
   - ci
   - watch-run
+  parameters: null
+- id: cli.ci.wiki-sync
+  title: Ci Wiki-sync
+  description_human: null
+  description_model: CLI operation `vox ci wiki-sync`
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - wiki-sync
   parameters: null
 - id: cli.ci.workflow-concurrency-guard
   title: Ci Workflow-concurrency-guard

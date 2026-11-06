@@ -10028,6 +10028,303 @@ operations:
     catalog_group: null
     ref_cli_required: false
     reachability_required: null
+- id: ci.check-changed
+  title: Ci Check-changed
+  description: CLI operation `vox ci check-changed`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - check-changed
+    status: active
+    latin_ns: ci
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: ci.ci-changes
+  title: Ci Ci-changes
+  description: CLI operation `vox ci ci-changes`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - ci-changes
+    status: active
+    latin_ns: ci
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: ci.dom-test-env-ban
+  title: Ci Dom-test-env-ban
+  description: CLI operation `vox ci dom-test-env-ban`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - dom-test-env-ban
+    status: active
+    latin_ns: ci
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: ci.evidence-asset-ban
+  title: Ci Evidence-asset-ban
+  description: CLI operation `vox ci evidence-asset-ban`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - evidence-asset-ban
+    status: active
+    latin_ns: ci
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: ci.hit-every-surface
+  title: Ci Hit-every-surface
+  description: CLI operation `vox ci hit-every-surface`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - hit-every-surface
+    status: active
+    latin_ns: ci
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: ci.knip-gui
+  title: Ci Knip-gui
+  description: CLI operation `vox ci knip-gui`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: spawns_process
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - knip-gui
+    status: active
+    latin_ns: ci
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: ci.preview-trust-audit
+  title: Ci Preview-trust-audit
+  description: CLI operation `vox ci preview-trust-audit`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - preview-trust-audit
+    status: active
+    latin_ns: ci
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: ci.suppression-review-gate
+  title: Ci Suppression-review-gate
+  description: CLI operation `vox ci suppression-review-gate`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - suppression-review-gate
+    status: active
+    latin_ns: ci
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: ci.transfer-budget-report
+  title: Ci Transfer-budget-report
+  description: CLI operation `vox ci transfer-budget-report`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - transfer-budget-report
+    status: active
+    latin_ns: ci
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: ci.vouched-parse
+  title: Ci Vouched-parse
+  description: CLI operation `vox ci vouched-parse`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - vouched-parse
+    status: active
+    latin_ns: ci
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: ci.wiki-sync
+  title: Ci Wiki-sync
+  description: CLI operation `vox ci wiki-sync`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - wiki-sync
+    status: active
+    latin_ns: ci
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
 - id: claim.file
   title: Claim File
   description: Request ownership of a specific file.

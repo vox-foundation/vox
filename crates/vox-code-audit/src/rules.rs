@@ -310,6 +310,25 @@ pub(crate) fn rust_byte_is_comment(
     }
 }
 
+/// True if the byte is inside a **string literal** (Rust). Lets line-text detectors skip
+/// fixture strings (e.g. a test embedding `"thread::sleep("`) while still matching comments.
+#[inline]
+pub(crate) fn rust_byte_is_string(
+    file: &SourceFile,
+    line_1_indexed: usize,
+    column_0: usize,
+    rust_ctx: Option<&RustFileContext>,
+) -> bool {
+    if file.language != Language::Rust {
+        return false;
+    }
+    let abs = byte_offset_in_file(&file.content, line_1_indexed, column_0);
+    match rust_ctx {
+        Some(c) => c.token_map.is_string_byte(abs),
+        None => crate::analysis::TokenMap::from_rust_source(&file.content).is_string_byte(abs),
+    }
+}
+
 /// True if the byte at (`line`, `column_0`) falls inside a `#[cfg(test)]` block or `fn minimal_repro`.
 #[inline]
 pub(crate) fn rust_byte_is_cfg_test(

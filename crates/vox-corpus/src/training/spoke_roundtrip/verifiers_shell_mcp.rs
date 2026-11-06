@@ -252,7 +252,6 @@ pub fn verify_mcp_roundtrip(
             ),
             ("vox_kb_router", "vox_kb_search / vox_kb_get / vox_kb_cite"),
             ("vox_kb_put", "kb_findings inbox capture pipeline"),
-            ("vox_kb_delete", "vox_kb_reindex / kb_findings lifecycle"),
             (
                 "vox_graphify",
                 "vox_graph_query / vox_graph_coverage / vox_graph_crate_map",

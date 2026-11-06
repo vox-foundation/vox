@@ -46,7 +46,7 @@ impl DetectionRule for UnreasonedSuppressionDetector {
     fn detect(
         &self,
         file: &SourceFile,
-        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+        rust_ctx: Option<&crate::analysis::RustFileContext>,
     ) -> Vec<Finding> {
         let mut findings = Vec::new();
         for (idx, line) in file.lines.iter().enumerate() {
@@ -75,7 +75,10 @@ impl DetectionRule for UnreasonedSuppressionDetector {
                 false
             };
 
-            let is_unreasoned_toestub_ignore = trimmed.contains("toestub-ignore(")
+            // A suppression marker inside a Rust string literal is fixture data, not a suppression.
+            let is_unreasoned_toestub_ignore = line
+                .match_indices("toestub-ignore(")
+                .any(|(col, _)| !crate::rules::rust_byte_is_string(file, line_num, col, rust_ctx))
                 && !trimmed.contains("-- ")
                 && !trimmed.contains("— ")
                 && !trimmed.contains("reason");
@@ -195,6 +198,19 @@ mod tests {
             "// toestub-ignore(stub) -- intentional corpus fixture\nfn demo() {}\n".to_string(),
         );
         assert!(det.detect(&vox_reasoned, None).is_empty());
+    }
+
+    #[test]
+    fn ignores_toestub_ignore_inside_rust_string_literal() {
+        let det = UnreasonedSuppressionDetector::new();
+        let fixture = SourceFile::new(
+            PathBuf::from("src/foo.rs"),
+            "let s = \"// toestub-ignore(stub)\\nfn demo() {}\";\n// toestub-ignore(stub)\nfn x() {}\n"
+                .to_string(),
+        );
+        let hits = det.detect(&fixture, None);
+        assert_eq!(hits.len(), 1, "{hits:#?}");
+        assert_eq!(hits[0].line, 2);
     }
     #[test]
     fn pr_diff_style_unreasoned_allow_fails() {

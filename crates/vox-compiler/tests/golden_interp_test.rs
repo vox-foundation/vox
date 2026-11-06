@@ -271,7 +271,8 @@ fn py_array_stats_is_an_interp_gap() {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/golden/py_array_stats.vox");
     let src =
         std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
-    assert_eq!(src.matches("to_list").count(), 1, "one to_list only");
+    // Z-score, the IEEE extremes, and i64::MAX: three plans, three `.to_list()` calls.
+    assert_eq!(src.matches(".to_list()").count(), 3, "three to_list calls");
     assert!(src.contains("assert(z is [-1.0, 1.0])"));
     assert!(src.contains("fn zscore"));
     assert!(src.contains("fn main"));

@@ -8,6 +8,15 @@ use vox_skills::SkillRegistry;
 
 use crate::llm_bridge::tool_selection::{TurnContext, select_tools_for_turn_ranked};
 
+/// Versioned chat-model id shapes (a family name followed by a version digit) that must not be
+/// pinned in GUI TypeScript; unversioned `~vendor/family-latest` aliases do not match.
+static VERSIONED_MODEL_ID_RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+    regex::Regex::new(
+        r"\b(?:claude-(?:sonnet|opus|haiku)-[0-9][0-9a-z.\-]*|(?:claude|gpt|gemini)-[0-9][0-9a-z.\-]*)",
+    )
+    .expect("versioned model id regex")
+});
+
 /// Canonical 12-tool core prefix (`CACHE-PREFIX-01`) kept in strictly invariant order at the front
 /// of every turn's `tools` array so provider KV-caches (Anthropic, OpenAI, Gemini, DeepSeek, vLLM/MENS)
 /// never invalidate the tool-schema prefix when BM25 query ranking changes across turns.
@@ -354,15 +363,10 @@ pub fn preflight_check_write_guards(
     if (norm_path.ends_with(".ts") || norm_path.ends_with(".tsx"))
         && !norm_path.ends_with("noVersionedModelIds.test.ts")
     {
-        for forbidden in [
-            "claude-sonnet-4.6",
-            "claude-opus-4.6",
-            "claude-3-5-sonnet",
-            "gpt-4o-2024",
-            "gemini-2.5-pro",
-        ] {
-            if content.contains(forbidden) {
-                versioned_model_literals.push(forbidden.to_string());
+        for m in VERSIONED_MODEL_ID_RE.find_iter(content) {
+            let lit = m.as_str().trim_end_matches(['.', '-']).to_string();
+            if !versioned_model_literals.contains(&lit) {
+                versioned_model_literals.push(lit);
             }
         }
     }

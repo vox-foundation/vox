@@ -189,7 +189,7 @@
       "rag_context_verified": true,
       "distractor_resilient": true,
       "compilation_verified": true,
-      "compilation_stage_detail": "syn::parse_file+rustc_rmeta+policy_clean(items=1,rmeta_bytes=2466)",
+      "compilation_stage_detail": "syn::parse_file+rustc_rmeta+policy_clean(items=1,token_bytes=419)",
       "pass_at_1": true
     },
     {
@@ -206,7 +206,7 @@
       "rag_context_verified": true,
       "distractor_resilient": true,
       "compilation_verified": true,
-      "compilation_stage_detail": "syn::parse_file+rustc_rmeta+policy_clean(items=1,rmeta_bytes=2447)",
+      "compilation_stage_detail": "syn::parse_file+rustc_rmeta+policy_clean(items=1,token_bytes=344)",
       "pass_at_1": true
     },
     {
@@ -223,7 +223,7 @@
       "rag_context_verified": true,
       "distractor_resilient": true,
       "compilation_verified": true,
-      "compilation_stage_detail": "syn::parse_file+rustc_rmeta+policy_clean(items=1,rmeta_bytes=2991)",
+      "compilation_stage_detail": "syn::parse_file+rustc_rmeta+policy_clean(items=1,token_bytes=675)",
       "pass_at_1": true
     },
     {

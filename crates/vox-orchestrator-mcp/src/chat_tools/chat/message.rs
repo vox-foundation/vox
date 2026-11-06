@@ -678,8 +678,10 @@ pub async fn chat_message(state: &ServerState, mut params: ChatMessageParams) ->
 }
 
 #[cfg(test)]
-#[cfg(test)]
-#[allow(unsafe_code)]
+#[allow(
+    unsafe_code,
+    reason = "test-only std::env::set_var (unsafe on edition 2024); serialized via #[serial]"
+)]
 mod tests;
 
 #[cfg(test)]

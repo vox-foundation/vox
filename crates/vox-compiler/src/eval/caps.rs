@@ -8,8 +8,10 @@ use std::path::{Component, Path, PathBuf};
 
 /// Never gated. `path.resolve` is the one method in a pure namespace that touches disk;
 /// the fs arm gates it as a read (Task 5). `db`/`repo` are in-memory stores.
+/// `array`/`frame` only build lazy plans; materializing one (`to_list`/`collect`)
+/// calls the worker and is gated by `py`.
 pub const PURE: &[&str] = &[
-    "path", "json", "csv", "toml", "yaml", "regex", "log", "db", "repo",
+    "path", "json", "csv", "toml", "yaml", "regex", "log", "db", "repo", "array", "frame",
 ];
 /// Gated. `io` is here for classification only — its authority comes from `fs:`.
 /// `crypto` is gated by the `random` axis.
@@ -25,6 +27,9 @@ pub const GATED: &[&str] = &[
     "crypto",
     "py",
     "py.unverified",
+    // `python.version()` is gated on `py` in `eval/expr.rs`; no token grants
+    // `python` itself, so every other `python.*` method is denied.
+    "python",
 ];
 
 pub fn is_classified(ns: &str) -> bool {
