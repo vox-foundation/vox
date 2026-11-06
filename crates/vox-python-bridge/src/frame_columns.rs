@@ -59,25 +59,32 @@ pub fn decode_frame_columns(
     if body_len > max_body {
         return Err("py: fetch exceeds cap".to_string());
     }
-    let batch = read_batch(bytes)?;
-    let mut columns = Vec::with_capacity(batch.num_columns());
-    for (index, field) in batch.schema().fields().iter().enumerate() {
-        let name = field.name().clone();
-        let array = batch.column(index);
-        let cells = decode_one_column(array, &name, step)?;
-        columns.push((name, cells));
+    let batches = read_batches(bytes)?;
+    let schema = batches[0].schema();
+    let mut columns: Vec<(String, Vec<FrameCell>)> = schema
+        .fields()
+        .iter()
+        .map(|field| (field.name().clone(), Vec::new()))
+        .collect();
+    // A stream may carry several batches (polars splits some results); keep every row.
+    for batch in &batches {
+        for (index, (name, cells)) in columns.iter_mut().enumerate() {
+            cells.extend(decode_one_column(batch.column(index), name, step)?);
+        }
     }
     Ok(DecodedFrame { columns })
 }
 
-fn read_batch(bytes: &[u8]) -> Result<RecordBatch, String> {
-    let mut reader = StreamReader::try_new(Cursor::new(bytes), None)
+fn read_batches(bytes: &[u8]) -> Result<Vec<RecordBatch>, String> {
+    let reader = StreamReader::try_new(Cursor::new(bytes), None)
         .map_err(|err| format!("py: arrow decode: {err}"))?;
-    reader
-        .next()
-        .transpose()
-        .map_err(|err| format!("py: arrow decode: {err}"))?
-        .ok_or_else(|| "py: arrow decode: empty stream".to_string())
+    let batches = reader
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|err| format!("py: arrow decode: {err}"))?;
+    if batches.is_empty() {
+        return Err("py: arrow decode: empty stream".to_string());
+    }
+    Ok(batches)
 }
 
 fn decode_one_column(column: &ArrayRef, name: &str, step: &str) -> Result<Vec<FrameCell>, String> {
@@ -448,6 +455,38 @@ mod tests {
         StructArray, TimestampMicrosecondArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array,
         UnionArray,
     };
+
+    /// polars' `to_arrow()` can split a result across record batches (a group_by
+    /// did for py_frame_report); every batch's rows must come back, in order.
+    #[test]
+    fn multi_batch_stream_decodes_every_row() {
+        let schema = RecordBatch::try_from_iter(vec![(
+            "revenue",
+            Arc::new(Int64Array::from(vec![0_i64])) as ArrayRef,
+        )])
+        .expect("schema batch")
+        .schema();
+        let mut buf = Vec::new();
+        let mut writer = StreamWriter::try_new(&mut buf, schema.as_ref()).expect("writer");
+        for chunk in [vec![10_i64], vec![5_i64, 7]] {
+            let batch = RecordBatch::try_new(
+                schema.clone(),
+                vec![Arc::new(Int64Array::from(chunk)) as ArrayRef],
+            )
+            .expect("batch");
+            writer.write(&batch).expect("write");
+        }
+        writer.finish().expect("finish");
+        drop(writer);
+        let decoded = decode_frame_columns(&buf, u64::MAX, "collect").expect("decode");
+        assert_eq!(
+            decoded.columns,
+            vec![(
+                "revenue".to_string(),
+                vec![FrameCell::Int(10), FrameCell::Int(5), FrameCell::Int(7)]
+            )]
+        );
+    }
 
     #[test]
     fn frame_column_decode() {
