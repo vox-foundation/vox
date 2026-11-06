@@ -41,6 +41,8 @@ flowchart TD
     l2_domain_libs --> vox_populi_types
     vox_project_scaffold["vox-project-scaffold (library)"]
     l2_domain_libs --> vox_project_scaffold
+    vox_python_bridge["vox-python-bridge (library)"]
+    l2_domain_libs --> vox_python_bridge
     vox_quantize["vox-quantize (library)"]
     l2_domain_libs --> vox_quantize
     vox_repository["vox-repository (library)"]
@@ -69,6 +71,7 @@ flowchart TD
 | [`vox-mesh-policy`](../../api/vox-mesh-policy.generated.md) | `library` | — | — |
 | [`vox-populi-types`](../../api/vox-populi-types.generated.md) | `library` | — | 1000 |
 | [`vox-project-scaffold`](../../api/vox-project-scaffold.generated.md) | `library` | — | — |
+| `vox-python-bridge` | `library` | — | — |
 | [`vox-quantize`](../../api/vox-quantize.generated.md) | `library` | — | 4000 |
 | [`vox-repository`](../../api/vox-repository.generated.md) | `library` | — | — |
 | [`vox-runtime`](../../api/vox-runtime.generated.md) | `library` | 20 | — |

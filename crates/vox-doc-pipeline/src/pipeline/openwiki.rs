@@ -412,8 +412,11 @@ pub fn generate_subsystem_hubs(repo_root: &Path, write: bool) -> Result<Vec<Stri
                 .map(|v| v.to_string())
                 .unwrap_or_else(|| "—".into());
             md.push_str(&format!(
-                "| [`{}`](../../api/{}.generated.md) | `{}` | {} | {} |\n",
-                c.name, c.name, c.kind, fan, loc
+                "| {} | `{}` | {} | {} |\n",
+                crate_link_cell(repo_root, &c.name),
+                c.kind,
+                fan,
+                loc
             ));
         }
 
@@ -431,6 +434,19 @@ pub fn generate_subsystem_hubs(repo_root: &Path, write: bool) -> Result<Vec<Stri
     generated_paths.push(index_rel);
 
     Ok(generated_paths)
+}
+
+/// Link a crate to its API page only when that page exists (workspace-excluded
+/// crates such as `vox-cargo-shim` never get one).
+fn crate_link_cell(repo_root: &Path, name: &str) -> String {
+    if repo_root
+        .join(format!("docs/src/api/{name}.generated.md"))
+        .is_file()
+    {
+        format!("[`{name}`](../../api/{name}.generated.md)")
+    } else {
+        format!("`{name}`")
+    }
 }
 
 fn write_or_verify_hub(repo_root: &Path, rel: &str, md: &str, write: bool) -> Result<(), String> {
@@ -461,6 +477,20 @@ fn write_or_verify_hub(repo_root: &Path, rel: &str, md: &str, write: bool) -> Re
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn crate_link_cell_links_only_existing_api_pages() {
+        let root = std::env::temp_dir().join(format!("vox-crate-link-cell-{}", std::process::id()));
+        let api = root.join("docs/src/api");
+        fs::create_dir_all(&api).unwrap();
+        fs::write(api.join("vox-present.generated.md"), "# x\n").unwrap();
+        assert_eq!(
+            crate_link_cell(&root, "vox-present"),
+            "[`vox-present`](../../api/vox-present.generated.md)"
+        );
+        assert_eq!(crate_link_cell(&root, "vox-absent"), "`vox-absent`");
+        fs::remove_dir_all(&root).unwrap();
+    }
 
     #[test]
     fn parses_layers_toml_and_validates_mermaid() {

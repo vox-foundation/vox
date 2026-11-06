@@ -50,7 +50,7 @@ flowchart TD
 | Crate | Kind | Fan-In Cap | LoC Baseline |
 |---|---|---|---|
 | [`vox-audit`](../../api/vox-audit.generated.md) | `binary` | — | — |
-| [`vox-cargo-shim`](../../api/vox-cargo-shim.generated.md) | `binary` | — | — |
+| `vox-cargo-shim` | `binary` | — | — |
 | [`vox-cli`](../../api/vox-cli.generated.md) | `binary` | — | 90000 |
 | [`vox-cli-ci`](../../api/vox-cli-ci.generated.md) | `library` | — | 15000 |
 | [`vox-cli-research`](../../api/vox-cli-research.generated.md) | `library` | — | — |
