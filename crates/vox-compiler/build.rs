@@ -252,11 +252,10 @@ fn emit_python_array_ops(workspace_root: &std::path::Path, out_dir: &std::path::
             .collect::<Vec<_>>()
             .join(", ");
         out.push_str(&format!(
-            "    PythonArrayOp {{ name: {name}, kind: {kind}, signature: {signature}, handler: {handler}, expected_yaml: {expected}, required_named: &[{required}] }},\n",
-            name = format!("{:?}", row.name),
-            signature = format!("{:?}", row.signature),
-            handler = format!("{:?}", row.handler),
-            expected = format!("{expected_yaml:?}"),
+            "    PythonArrayOp {{ name: {name:?}, kind: {kind}, signature: {signature:?}, handler: {handler:?}, expected_yaml: {expected_yaml:?}, required_named: &[{required}] }},\n",
+            name = row.name,
+            signature = row.signature,
+            handler = row.handler,
         ));
     }
     out.push_str("];\n");
@@ -356,11 +355,10 @@ fn emit_python_frame_ops(workspace_root: &std::path::Path, out_dir: &std::path::
             .collect::<Vec<_>>()
             .join(", ");
         out.push_str(&format!(
-            "    PythonFrameOp {{ name: {name}, kind: {kind}, signature: {signature}, handler: {handler}, expected_yaml: {expected}, required_named: &[{required}] }},\n",
-            name = format!("{:?}", row.name),
-            signature = format!("{:?}", row.signature),
-            handler = format!("{:?}", row.handler),
-            expected = format!("{expected_yaml:?}"),
+            "    PythonFrameOp {{ name: {name:?}, kind: {kind}, signature: {signature:?}, handler: {handler:?}, expected_yaml: {expected_yaml:?}, required_named: &[{required}] }},\n",
+            name = row.name,
+            signature = row.signature,
+            handler = row.handler,
         ));
     }
     out.push_str("];\n");
