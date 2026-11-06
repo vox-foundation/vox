@@ -107,9 +107,18 @@ pub fn evaluate_pre_tool_use_hook(tool_name: &str, args: &serde_json::Value) -> 
         .and_then(|v| v.as_str())
         .unwrap_or("");
     let norm_path = path_arg.replace('\\', "/");
-    let file_name = norm_path.rsplit('/').next().unwrap_or(&norm_path);
+    // Guard the path the tool will actually open: step 1b strips a `#Symbol` suffix
+    // before reading, so checking the raw arg would let `.env#KEY` through.
+    let guarded_path = norm_path
+        .split_once('#')
+        .map_or(norm_path.as_str(), |(p, _)| p);
+    let file_name = guarded_path
+        .rsplit('/')
+        .next()
+        .unwrap_or(guarded_path)
+        .to_ascii_lowercase();
 
-    // 1. Secret .env guard (allow .env.example only)
+    // 1. Secret .env guard (allow .env.example only; case-insensitive filesystems)
     if (file_name == ".env" || (file_name.starts_with(".env.") && file_name != ".env.example"))
         && !norm_path.is_empty()
     {
@@ -147,8 +156,16 @@ pub fn evaluate_pre_tool_use_hook(tool_name: &str, args: &serde_json::Value) -> 
                 }
             }
         }
-        let slice_note = std::fs::read_to_string(clean_file)
-            .ok()
+        // This read runs before the tool's own path checks, so apply the same repo-root
+        // confinement the read tools use (canonicalized, so `..` and symlinks cannot escape).
+        let repo_root = std::env::current_dir()
+            .map(|cwd| vox_repository::discover_repository_or_fallback(&cwd).root)
+            .ok();
+        let slice_note = repo_root
+            .and_then(|root| {
+                vox_repository::resolve_local_path_under_repo_root(&root, clean_file).ok()
+            })
+            .and_then(|real| std::fs::read_to_string(real).ok())
             .and_then(|src| super::ast_slice_and_preflight::extract_symbol_slice(&src, sym_name))
             .map(|slice| {
                 format!(
@@ -559,6 +576,53 @@ mod tests {
     }
 
     #[test]
+    fn dotenv_guard_cannot_be_bypassed_with_a_symbol_suffix_or_case() {
+        // `#Symbol` is stripped before the read, so the guard must see the stripped path.
+        for path in [".env#KEY", "config/.env.local#X", ".ENV", "sub/.Env.Prod#Y"] {
+            let d = evaluate_pre_tool_use_hook("vox_read_file", &json!({ "path": path }));
+            assert!(
+                matches!(d, HookDecision::Block { .. }),
+                "{path} must be blocked, got {d:?}"
+            );
+        }
+        let ok = evaluate_pre_tool_use_hook("vox_read_file", &json!({"path": ".env.example#A"}));
+        assert!(matches!(ok, HookDecision::Allow { .. }));
+    }
+
+    #[test]
+    fn symbol_slice_reads_only_inside_the_repository() {
+        // Control: an in-repo file and real symbol still yield a slice.
+        let in_repo = "crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop/lifecycle_hooks.rs#evaluate_stop_hook";
+        let d = evaluate_pre_tool_use_hook("vox_read_file", &json!({ "path": in_repo }));
+        assert!(
+            matches!(d, HookDecision::Allow { additional_context: Some(ref c), .. } if c.contains("evaluate_stop_hook")),
+            "control slice missing: {d:?}"
+        );
+
+        // A real file with a real symbol outside the repo, reached via `..` from the root.
+        let outside = std::env::temp_dir().join("vox_hook_slice_escape_probe.rs");
+        std::fs::write(&outside, "pub fn escaped_symbol() -> u8 { 7 }\n").unwrap();
+        let canon = std::fs::canonicalize(&outside).unwrap();
+        let dotdot = format!(
+            "{}{}#escaped_symbol",
+            "../".repeat(32),
+            canon.to_string_lossy().trim_start_matches('/')
+        );
+        let d = evaluate_pre_tool_use_hook("vox_read_file", &json!({ "path": dotdot }));
+        let _ = std::fs::remove_file(&outside);
+        assert!(
+            matches!(
+                d,
+                HookDecision::Allow {
+                    additional_context: None,
+                    ..
+                }
+            ),
+            "`..` escape leaked a slice: {d:?}"
+        );
+    }
+
+    #[test]
     fn post_tool_batch_and_stop_hooks_enforce_verification_and_oracle_advisory_resolves() {
         let calls = vec![vox_actor_runtime::llm::EgressToolCall {
             id: "c1".into(),
@@ -656,11 +720,12 @@ mod tests {
         let sym_query = format!("{}#TargetSymbol", target_rs.to_string_lossy());
         let sym_hook =
             evaluate_pre_tool_use_hook("vox_repo_query_file", &json!({ "path": sym_query }));
+        // The probe lives in the OS temp dir, outside the repository: the `#Symbol` suffix is
+        // still stripped, but no slice may be read from outside the repo root.
         assert!(matches!(
             sym_hook,
-            HookDecision::Allow { updated_input: Some(ref u), additional_context: Some(ref ctx) }
+            HookDecision::Allow { updated_input: Some(ref u), additional_context: None }
                 if u["path"].as_str() == Some(target_rs.to_string_lossy().as_ref())
-                    && ctx.contains("[AST SYMBOL SLICE") && ctx.contains("TargetSymbol")
         ));
         let _ = std::fs::remove_dir_all(&probe_dir);
 

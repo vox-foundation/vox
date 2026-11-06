@@ -3,6 +3,18 @@
   "version": 1,
   "suppressions": [
     {
+      "rule_id_prefix": "skeleton/hollow-fn",
+      "path_glob": "**/vox-mesh-transport/src/identity.rs",
+      "reason": "Pre-existing `#[cfg(not(unix))] fn check_permissions -> Ok(())`: non-Unix platforms have no owner/group/world mode bits to check, and the Unix twin directly above does the real refusal. An inline toestub-ignore cannot be used because rustfmt moves the trailing comment off the signature line. Flagged only because the file was staged for a 2026-11-06 comment edit.",
+      "owner": "robot"
+    },
+    {
+      "rule_id_prefix": "skeleton/hollow-fn",
+      "path_glob": "**/vox-orchestrator/src/budget/mod.rs",
+      "reason": "BudgetSignal::no_auto_reload_guaranteed is pre-existing and deliberately `const fn -> true`: the constant IS the anti-extractive guarantee (no signal variant ever triggers credit auto-reload), asserted by the module's tests. An inline toestub-ignore cannot be used because rustfmt moves a trailing comment off the signature line, which is the only line hollow_fn checks. Flagged only because the file was staged for the 2026-11-06 tracker re-export.",
+      "owner": "robot"
+    },
+    {
       "rule_id_prefix": "skeleton/untested-pub-api",
       "path_glob": "**/vox-db/src/codex_legacy.rs",
       "reason": "Pre-existing pub fns, tested in src/local_tests.rs `legacy_tests` (features local + legacy-import). The module is #[deprecated], so an in-file #[test] module raises deprecation warnings from the test harness's crate-root reference to each test; the 2026-10-06 quarantine fix only edited the table lists.",
