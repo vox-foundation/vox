@@ -244,7 +244,7 @@ jobs:
           fi
           python3 -m pip install --user --break-system-packages numpy pyarrow
           uv python install 3.12
-          cargo build -p vox-cli --bin vox --locked
+          cargo build -p vox-cli --locked
 
       - name: Tests (this shard's crates)
         shell: bash
