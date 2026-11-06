@@ -306,7 +306,7 @@ pub fn append_fn_stub(
     returns: Option<&str>,
     force: bool,
 ) -> Result<usize> {
-    let stub = render_fn_stub(name, params, returns)?;
+    let rendered = render_fn_stub(name, params, returns)?;
 
     let existing = if target.exists() {
         std::fs::read_to_string(target).with_context(|| format!("read {}", target.display()))?
@@ -330,14 +330,14 @@ pub fn append_fn_stub(
     }
 
     let combined = if existing.is_empty() {
-        stub.clone()
+        rendered.clone()
     } else if existing.ends_with('\n') {
-        format!("{existing}{stub}")
+        format!("{existing}{rendered}")
     } else {
-        format!("{existing}\n{stub}")
+        format!("{existing}\n{rendered}")
     };
     std::fs::write(target, &combined).with_context(|| format!("write {}", target.display()))?;
-    Ok(stub.len())
+    Ok(rendered.len())
 }
 
 fn file_defines_fn(content: &str, name: &str) -> bool {

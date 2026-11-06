@@ -20,6 +20,7 @@ pub mod embedding_env;
 pub mod embeddings;
 pub mod evaluation;
 pub mod execution;
+pub mod fuzzy_trigram;
 pub mod ingest;
 pub mod kb_eval;
 pub mod kb_ids;

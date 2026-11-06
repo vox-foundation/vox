@@ -54,3 +54,30 @@ name = "vox-arch-check"
 layer = 1
 tier = 1
 rationale = "Standalone Cargo workspace layered-architecture, fan-in, and forbidden-edge guard."
+
+# Tier 2: Plugin SDK and installer crates declared in contracts/distribution/profiles.v1.yaml.
+[[crates]]
+name = "vox-plugin-types"
+layer = 0
+tier = 2
+rationale = "Core plugin manifest, capability, and skill descriptor types."
+
+[[crates]]
+name = "vox-plugin-api"
+layer = 1
+tier = 2
+depends_on = ["vox-plugin-types"]
+rationale = "Host/guest boundary traits and RPC envelopes for Vox plugins."
+
+[[crates]]
+name = "vox-plugin-sdk"
+layer = 2
+tier = 2
+depends_on = ["vox-plugin-types", "vox-plugin-api"]
+rationale = "Ergonomic authoring SDK for third-party Vox plugins and skills."
+
+[[crates]]
+name = "voxup"
+layer = 2
+tier = 2
+rationale = "Cross-platform toolchain and distribution tier installer for Vox."

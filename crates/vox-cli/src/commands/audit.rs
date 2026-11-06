@@ -128,6 +128,22 @@ pub struct DocsAuditArgs {
     /// Dry run mode using synthetic or representative sample.
     #[arg(long)]
     pub dry_run: bool,
+
+    /// Run scheduled/advisory evidence-cited LLM claim verification (`OPENWIKI-VERIFY-01..03`).
+    #[arg(long)]
+    pub verify_llm: bool,
+
+    /// Evaluate the golden drift benchmark set (`OPENWIKI-VERIFY-04`).
+    #[arg(long)]
+    pub eval_golden_drift: bool,
+
+    /// Plan duplicate cluster consolidation and Starlight 301 redirects (`OPENWIKI-FRESH-02`).
+    #[arg(long)]
+    pub consolidate_duplicates: bool,
+
+    /// Evaluate self-healing draft-PR bot readiness and update bot metrics ledger (`OPENWIKI-BOT-01..04`).
+    #[arg(long)]
+    pub self_heal_plan: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -424,6 +440,22 @@ fn run_docs_audit(root: &Path, args: &DocsAuditArgs) -> Result<()> {
     }
 
     // 2. Scan corpus
+    let only_light_openwiki = !args.check_drift
+        && !args.write_findings
+        && !args.update_ledger
+        && !args.prune_report
+        && !args.generate_baseline
+        && !args.tighten_baseline
+        && args.attest.is_none()
+        && (args.verify_llm
+            || args.eval_golden_drift
+            || args.consolidate_duplicates
+            || args.self_heal_plan);
+    if only_light_openwiki {
+        run_openwiki_audit_extensions(root, args)?;
+        return Ok(());
+    }
+
     let resolved = vox_doc_pipeline::claims::scan_corpus(root, args.paths.as_deref())?;
     let findings = vox_doc_pipeline::claims::generate_findings(&resolved);
 
@@ -761,6 +793,66 @@ fn run_docs_audit(root: &Path, args: &DocsAuditArgs) -> Result<()> {
         );
     }
 
+    run_openwiki_audit_extensions(root, args)?;
+    Ok(())
+}
+
+fn run_openwiki_audit_extensions(root: &Path, args: &DocsAuditArgs) -> Result<()> {
+    if args.verify_llm {
+        let cache_path = root.join("contracts/reports/docs-freshness/llm-verify-cache.v1.json");
+        let budget = vox_doc_pipeline::claims::llm_verifier::DocVerifyBudget::default();
+        let cache = vox_doc_pipeline::claims::self_heal_bot::run_advisory_claim_verification(
+            root,
+            &cache_path,
+            budget,
+            args.paths.as_deref(),
+        )?;
+        println!(
+            "LLM Claim Verifier OK: {} cached entries (hits: {}, misses: {}, tokens: {})",
+            cache.entries.len(),
+            cache.cache_hits,
+            cache.cache_misses,
+            cache.tokens_spent
+        );
+    }
+    if args.eval_golden_drift {
+        let eval_path = root.join("contracts/reports/docs-freshness/golden-drift-eval-set.v1.json");
+        let m = vox_doc_pipeline::claims::llm_verifier::evaluate_golden_drift_set(&eval_path)?;
+        println!(
+            "Golden Drift Eval OK: pairs={}, precision={:.1}%, recall={:.1}%, fp_rate={:.1}%, promotion_eligible={}",
+            m.evaluated_pairs,
+            m.precision * 100.0,
+            m.recall * 100.0,
+            m.false_positive_rate * 100.0,
+            m.eligible_for_bot_promotion
+        );
+    }
+    if args.consolidate_duplicates {
+        let clusters = vec![vox_doc_pipeline::claims::DuplicateCluster {
+            cluster_id: "vox-codegen-ts".to_string(),
+            paths: vec![
+                "docs/src/api/vox-codegen-ts.md".to_string(),
+                "docs/src/api/vox-compiler.generated.md".to_string(),
+            ],
+        }];
+        let plans = vox_doc_pipeline::claims::plan_duplicate_cluster_consolidation(&clusters);
+        let redirects = vox_doc_pipeline::claims::render_redirects_block(&plans);
+        println!(
+            "Consolidated {} duplicate clusters:\n{}",
+            plans.len(),
+            redirects
+        );
+    }
+    if args.self_heal_plan {
+        let ledger =
+            vox_doc_pipeline::claims::self_heal_bot::run_self_heal_bot_check(root, !args.dry_run)?;
+        println!(
+            "Self-Heal Bot Ready: open_drafts={}, precision={:.1}%, auto_paused={}",
+            ledger.open_draft_branches.len(),
+            ledger.acceptance_precision() * 100.0,
+            ledger.is_auto_paused()
+        );
+    }
     Ok(())
 }
 

@@ -1,4 +1,4 @@
-//! SLO gates and rollout criteria for VoxScript fast execution.
+//! SLO gates and rollout criteria for VoxLang fast execution.
 //!
 //! Defines p50/p95 latency targets, cache hit goals, and phased rollout
 //! criteria from sub-10s to sub-1s warm starts.

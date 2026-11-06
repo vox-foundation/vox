@@ -168,10 +168,10 @@ pub(crate) fn run_fix_pipeline(
     let pass_b: Vec<_> = findings
         .iter()
         .filter(|f| {
-            f.rule_id.starts_with("stub/placeholder") // toestub-ignore(stub)
-                || f.rule_id.starts_with("stub/todo") // toestub-ignore(stub)
-                || f.rule_id == "stub/unimplemented" // toestub-ignore(stub)
-                || f.rule_id == "stub/panic-not-impl" // toestub-ignore(stub)
+            f.rule_id.starts_with("stub/placeholder") // toestub-ignore(stub) -- matching rule_id prefix
+                || f.rule_id.starts_with("stub/todo") // toestub-ignore(stub) -- matching rule_id prefix
+                || f.rule_id == "stub/unimplemented" // toestub-ignore(stub) -- matching rule_id literal
+                || f.rule_id == "stub/panic-not-impl" // toestub-ignore(stub) -- matching rule_id literal
         })
         .collect();
     if !pass_b.is_empty() {

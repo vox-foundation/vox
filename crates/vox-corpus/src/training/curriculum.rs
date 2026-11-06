@@ -15,8 +15,10 @@ use xxhash_rust::xxh3::xxh3_128;
 
 use crate::corpus::eval_split::decontaminate_against_holdout;
 use crate::dataset_snapshot::TrustyDatasetSnapshot;
+use crate::training::contract::OrganicSpokeKind;
 use crate::training::{
-    MensSpokeScorecardV1, OracleReceipt, RecordProvenance, SpokeKind, TrainingRecordV2,
+    MensSpokeScorecardV1, OracleReceipt, OrganicSearchSpokeScorecardV1, RecordProvenance,
+    SpokeKind, TrainingRecordV2,
 };
 
 /// Schema-validated `(chosen, rejected)` DPO preference pair (`TRAIN-01`).
@@ -190,6 +192,118 @@ pub fn compute_curriculum_weights(
         weights,
         min_floor: floor,
     }
+}
+
+/// Compute velocity-boosted curriculum weights from [`MensSpokeScorecardV1`] (`CURRICULUM-8SPOKE-01`).
+///
+/// Incorporates:
+/// 1. `pass@1` deficit `(1.0 - pass_at_1)`
+/// 2. Syntax-to-semantic gap `0.65 * (syntax_validity_rate - semantic_validity_rate).max(0.0)`
+///    (specifically addressing `rust_workspace`'s 80% syntax-vs-semantics gap)
+/// 3. Slow-convergence velocity boost (`+0.15` for `structured_shell` and `agent_harness` when `pass_at_1 < 1.0`,
+///    which historically converged at 60% in Cycle 1).
+#[must_use]
+pub fn compute_curriculum_weights_with_velocity_boost(
+    scorecard: &MensSpokeScorecardV1,
+    min_floor: f64,
+) -> SpokeCurriculumWeights {
+    let floor = min_floor.clamp(0.05, 0.20);
+    let remaining_budget = (1.0 - floor * (SpokeKind::ALL.len() as f64)).max(0.0);
+
+    let mut deficits = BTreeMap::new();
+    let mut total_deficit = 0.0;
+    for spoke in SpokeKind::ALL {
+        let entry = scorecard.spokes.iter().find(|s| s.spoke == spoke);
+        let pass_1 = entry.map(|s| s.pass_at_1.clamp(0.0, 1.0)).unwrap_or(0.0);
+        let syn_rate = entry
+            .map(|s| s.syntax_validity_rate.clamp(0.0, 1.0))
+            .unwrap_or(0.0);
+        let sem_rate = entry
+            .map(|s| s.semantic_validity_rate.clamp(0.0, 1.0))
+            .unwrap_or(0.0);
+        let syn_sem_gap = (syn_rate - sem_rate).max(0.0);
+
+        let velocity_boost = match spoke {
+            SpokeKind::StructuredShell | SpokeKind::AgentHarness if pass_1 < 1.0 - 1e-6 => 0.15,
+            SpokeKind::RustWorkspace if syn_sem_gap > 1e-6 => 0.10,
+            _ => 0.0,
+        };
+
+        let deficit = (1.0 - pass_1) + 0.65 * syn_sem_gap + velocity_boost + 0.05;
+        deficits.insert(spoke.as_str().to_string(), deficit);
+        total_deficit += deficit;
+    }
+
+    let mut weights = BTreeMap::new();
+    for spoke in SpokeKind::ALL {
+        let key = spoke.as_str().to_string();
+        let d = deficits.get(&key).copied().unwrap_or(0.05);
+        let share = if total_deficit > 0.0 {
+            floor + remaining_budget * (d / total_deficit)
+        } else {
+            0.20
+        };
+        weights.insert(key, share);
+    }
+
+    SpokeCurriculumWeights {
+        weights,
+        min_floor: floor,
+    }
+}
+
+/// Compute normalized 8-spoke curriculum weights from [`OrganicSearchSpokeScorecardV1`] (`CURRICULUM-8SPOKE-01`).
+///
+/// Enforces a minimum per-spoke sampling floor across all 8 [`OrganicSpokeKind::ALL`] domains
+/// (`min_floor` clamped to `0.05..=0.11`, default `0.08`) and allocates the remaining budget
+/// proportionally to end-to-end deficit, syntax-to-semantic gap, and unbiased search recall deficit.
+#[must_use]
+pub fn compute_eight_spoke_curriculum_weights(
+    scorecard: &OrganicSearchSpokeScorecardV1,
+    min_floor: f64,
+) -> BTreeMap<String, f64> {
+    let floor = min_floor.clamp(0.05, 0.11);
+    let remaining_budget = (1.0 - floor * (OrganicSpokeKind::ALL.len() as f64)).max(0.0);
+
+    let mut deficits = BTreeMap::new();
+    let mut total_deficit = 0.0;
+    for spoke in OrganicSpokeKind::ALL {
+        let entry = scorecard.spokes.iter().find(|s| s.spoke == spoke);
+        let pass_1 = entry
+            .map(|s| s.end_to_end_pass_at_1.clamp(0.0, 1.0))
+            .unwrap_or(0.0);
+        let syn_gap = entry
+            .map(|s| (s.syntax_validity_rate - s.semantic_validity_rate).max(0.0))
+            .unwrap_or(0.0);
+        let recall_deficit = entry
+            .map(|s| (1.0 - s.unbiased_search_recall_at_5.clamp(0.0, 1.0)).max(0.0))
+            .unwrap_or(0.0);
+        let slow_boost = match spoke {
+            OrganicSpokeKind::StructuredShell | OrganicSpokeKind::AgentHarness
+                if pass_1 < 1.0 - 1e-6 =>
+            {
+                0.15
+            }
+            OrganicSpokeKind::RustWorkspace if syn_gap > 1e-6 => 0.10,
+            _ => 0.0,
+        };
+        let deficit = (1.0 - pass_1) + 0.65 * syn_gap + 0.35 * recall_deficit + slow_boost + 0.05;
+        deficits.insert(spoke.as_str().to_string(), deficit);
+        total_deficit += deficit;
+    }
+
+    let mut weights = BTreeMap::new();
+    for spoke in OrganicSpokeKind::ALL {
+        let key = spoke.as_str().to_string();
+        let d = deficits.get(&key).copied().unwrap_or(0.05);
+        let share = if total_deficit > 0.0 {
+            floor + remaining_budget * (d / total_deficit)
+        } else {
+            1.0 / (OrganicSpokeKind::ALL.len() as f64)
+        };
+        weights.insert(key, share);
+    }
+    weights
 }
 
 impl SpokeCurriculumWeights {
@@ -720,5 +834,44 @@ mod tests {
         let failed_batch =
             prepare_training_batch(&snap, &records, &[], &weights, &contaminated_holdout, 10);
         assert!(failed_batch.is_err());
+    }
+
+    #[test]
+    fn velocity_boost_curriculum_prioritizes_slow_spokes_and_syntax_semantic_gap() {
+        let (_records, mut scorecard) = sample_five_spoke_records_and_scorecard();
+        for entry in &mut scorecard.spokes {
+            match entry.spoke {
+                SpokeKind::RustWorkspace => {
+                    entry.pass_at_1 = 0.20;
+                    entry.syntax_validity_rate = 1.00;
+                    entry.semantic_validity_rate = 0.20;
+                }
+                SpokeKind::StructuredShell | SpokeKind::AgentHarness => {
+                    entry.pass_at_1 = 0.60;
+                    entry.syntax_validity_rate = 0.60;
+                    entry.semantic_validity_rate = 0.60;
+                }
+                _ => {
+                    entry.pass_at_1 = 1.00;
+                    entry.syntax_validity_rate = 1.00;
+                    entry.semantic_validity_rate = 1.00;
+                }
+            }
+        }
+        let boosted = compute_curriculum_weights_with_velocity_boost(&scorecard, 0.10);
+        assert!(boosted.verify().is_ok());
+        let rust_w = boosted.weight_for(SpokeKind::RustWorkspace);
+        let shell_w = boosted.weight_for(SpokeKind::StructuredShell);
+        let harness_w = boosted.weight_for(SpokeKind::AgentHarness);
+        let vox_w = boosted.weight_for(SpokeKind::VoxLang);
+        assert!(
+            rust_w > shell_w,
+            "rust ({rust_w}) should exceed shell ({shell_w}) due to 80% syntax-semantic gap"
+        );
+        assert!(
+            shell_w > vox_w,
+            "shell ({shell_w}) should exceed vox ({vox_w}) due to slow-convergence boost"
+        );
+        assert!((shell_w - harness_w).abs() < 1e-9);
     }
 }

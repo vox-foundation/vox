@@ -43,14 +43,12 @@ impl TavilyClient {
 
     /// Key from Clavis (`TAVILY_API_KEY`); `None` when unset or explicitly blank.
     pub fn from_env(base_url: Option<&str>) -> Option<Self> {
-        if std::env::var("TAVILY_API_KEY")
-            .ok()
-            .is_some_and(|v| v.trim().is_empty())
-        {
+        let binding = resolve_secret(SecretId::TavilyApiKey);
+        let key = binding.expose()?.trim();
+        if key.is_empty() {
             return None;
         }
-        let binding = resolve_secret(SecretId::TavilyApiKey);
-        Self::new(binding.expose()?, base_url)
+        Self::new(key, base_url)
     }
 
     async fn post(

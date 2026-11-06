@@ -35,8 +35,6 @@ CREATE TABLE IF NOT EXISTS user_preferences (
     PRIMARY KEY (user_id, key)
 );
 
-CREATE INDEX IF NOT EXISTS idx_user_preferences_user ON user_preferences(user_id);
-
 CREATE TABLE IF NOT EXISTS account_config (
     account_id TEXT NOT NULL,
     key TEXT NOT NULL,
@@ -44,8 +42,6 @@ CREATE TABLE IF NOT EXISTS account_config (
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (account_id, key)
 );
-
-CREATE INDEX IF NOT EXISTS idx_account_config_account ON account_config(account_id);
 
 -- usage_limit_definitions, usage_counter_snapshots: quarantined (DORMANT,
 -- Task 4) — see domains/quarantine.rs.

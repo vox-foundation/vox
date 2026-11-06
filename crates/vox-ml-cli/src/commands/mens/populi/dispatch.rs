@@ -754,6 +754,44 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 Ok(())
             }
 
+            super::mens_tail_subcommands::PopuliMensTail::SizeTrain {
+                hub_root,
+                runs_root,
+            } => {
+                #[cfg(not(feature = "gpu"))]
+                let _ = (hub_root, runs_root);
+
+                #[cfg(feature = "gpu")]
+                crate::commands::mens::size_train::run_size_train(
+                    crate::commands::mens::size_train::SizeTrainArgs {
+                        hub_root,
+                        runs_root,
+                    },
+                )?;
+                Ok(())
+            }
+
+            super::mens_tail_subcommands::PopuliMensTail::HarnessBeforeAfter {
+                hub_root,
+                bench_root,
+                runs_root,
+                out,
+            } => {
+                #[cfg(not(feature = "gpu"))]
+                let _ = (hub_root, bench_root, runs_root, out);
+
+                #[cfg(feature = "gpu")]
+                crate::commands::mens::harness_before_after::run_harness_before_after(
+                    crate::commands::mens::harness_before_after::HarnessBeforeAfterArgs {
+                        hub_root,
+                        bench_root,
+                        runs_root,
+                        out,
+                    },
+                )?;
+                Ok(())
+            }
+
             super::mens_tail_subcommands::PopuliMensTail::BenchCompletion {
                 url,
                 count,
@@ -822,7 +860,7 @@ fn export_gguf_not_implemented_message(
 /// model and never writes. The stored `status` alone is not trusted: the
 /// per-slice drops are recomputed from the stored numbers.
 #[cfg(feature = "gpu")]
-fn assert_collateral_gate(model: &std::path::Path) -> Result<()> {
+pub(crate) fn assert_collateral_gate(model: &std::path::Path) -> Result<()> {
     use anyhow::Context;
     use vox_eval::reasoning_bench::{SLICE_NAMES, SLICE_SIZE};
     let report_path = model.join("collateral_damage_report.json");
@@ -898,7 +936,7 @@ fn assert_collateral_gate(model: &std::path::Path) -> Result<()> {
 /// serve-boundary backstop that catches every present and future silent-skip
 /// without having to touch each of those branches individually.
 #[cfg(feature = "gpu")]
-fn assert_serve_preconditions(run_dir: &std::path::Path) -> Result<()> {
+pub(crate) fn assert_serve_preconditions(run_dir: &std::path::Path) -> Result<()> {
     use anyhow::Context;
 
     let receipt_path = run_dir.join("gate_receipt.json");

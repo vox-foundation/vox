@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use xxhash_rust::xxh3::xxh3_128;
 
 use crate::training::curriculum::SpokeCurriculumWeights;
-use crate::training::spoke_roundtrip::MensSpokeScorecardV1;
+use crate::training::spoke_roundtrip::{MensSpokeScorecardV1, OrganicSearchSpokeScorecardV1};
 
 /// Checkpoint manifest for a trained Mens QLoRA + DPO adapter (`TRAIN-03`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -244,9 +244,15 @@ pub struct MensAdapterRegistryEntry {
     pub snapshot_uri: String,
     /// Per-spoke calibrated quality scores (`pass@1` in `[0.0, 1.0]`).
     pub per_spoke_scores: BTreeMap<String, f64>,
-    /// Overall `pass@1` across all 5 spokes.
+    /// Per-spoke evaluated benchmark sample counts (`n` per spoke).
+    #[serde(default)]
+    pub per_spoke_cases: BTreeMap<String, usize>,
+    /// Total benchmark cases evaluated across all spokes in the calibration suite.
+    #[serde(default)]
+    pub total_cases_evaluated: usize,
+    /// Overall `pass@1` across all spokes.
     pub overall_pass_at_1: f64,
-    /// Overall `pass@k` across all 5 spokes.
+    /// Overall `pass@k` across all spokes.
     pub overall_pass_at_k: f64,
     /// Local inference p50 latency in milliseconds.
     pub latency_ms_p50: u64,
@@ -264,8 +270,10 @@ pub fn calibrate_adapter_from_scorecard(
     scorecard: &MensSpokeScorecardV1,
 ) -> MensAdapterRegistryEntry {
     let mut per_spoke_scores = BTreeMap::new();
+    let mut per_spoke_cases = BTreeMap::new();
     for entry in &scorecard.spokes {
         per_spoke_scores.insert(entry.spoke.as_str().to_string(), entry.pass_at_1);
+        per_spoke_cases.insert(entry.spoke.as_str().to_string(), entry.total_cases);
     }
 
     MensAdapterRegistryEntry {
@@ -277,8 +285,43 @@ pub fn calibrate_adapter_from_scorecard(
         adapter_trusty_uri: checkpoint.adapter_trusty_uri.clone(),
         snapshot_uri: checkpoint.snapshot_uri.clone(),
         per_spoke_scores,
+        per_spoke_cases,
+        total_cases_evaluated: scorecard.total_cases,
         overall_pass_at_1: scorecard.overall_pass_at_1,
         overall_pass_at_k: scorecard.overall_pass_at_k,
+        latency_ms_p50: 140,
+        cost_per_1k_tokens_usd: 0.0,
+        locality: "local_mens".to_string(),
+    }
+}
+
+/// Calibrate a `MensAdapterRegistryEntry` from a trained checkpoint and its empirical
+/// 8-spoke organic search-to-compilation scorecard (`SPOKE8-01..04`).
+#[must_use]
+pub fn calibrate_adapter_from_organic_scorecard(
+    checkpoint: &MensCheckpointManifestV1,
+    scorecard: &OrganicSearchSpokeScorecardV1,
+) -> MensAdapterRegistryEntry {
+    let mut per_spoke_scores = BTreeMap::new();
+    let mut per_spoke_cases = BTreeMap::new();
+    for entry in &scorecard.spokes {
+        per_spoke_scores.insert(entry.spoke.as_str().to_string(), entry.end_to_end_pass_at_1);
+        per_spoke_cases.insert(entry.spoke.as_str().to_string(), entry.total_cases);
+    }
+
+    MensAdapterRegistryEntry {
+        model_id: format!(
+            "mens/{}:{}",
+            checkpoint.base_model_id, checkpoint.checkpoint_id
+        ),
+        checkpoint_id: checkpoint.checkpoint_id.clone(),
+        adapter_trusty_uri: checkpoint.adapter_trusty_uri.clone(),
+        snapshot_uri: checkpoint.snapshot_uri.clone(),
+        per_spoke_scores,
+        per_spoke_cases,
+        total_cases_evaluated: scorecard.total_cases,
+        overall_pass_at_1: scorecard.overall_end_to_end_pass_at_1,
+        overall_pass_at_k: scorecard.overall_compilation_pass_rate,
         latency_ms_p50: 140,
         cost_per_1k_tokens_usd: 0.0,
         locality: "local_mens".to_string(),

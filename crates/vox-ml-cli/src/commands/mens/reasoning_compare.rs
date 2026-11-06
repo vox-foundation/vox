@@ -2,7 +2,7 @@
 //!
 //! Writes only `--out`. Detection never loads a model. The report is not a serve-gate input.
 
-mod detect;
+pub(crate) mod detect;
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};

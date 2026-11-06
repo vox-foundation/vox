@@ -20,8 +20,9 @@ pub use provenance::{
     MAX_PAGE_QUOTE_WORDS, MAX_QUOTE_WORDS, is_blake3_content_hash, is_iso_date, quote_word_counts,
 };
 pub use summary::{
-    SUMMARY_CLOSE, SUMMARY_MAX_WORDS, SUMMARY_MIN_WORDS, SUMMARY_OPEN, SummaryStatus,
-    inspect_summary, is_summary_marker_line, strip_summary_blocks,
+    SUMMARY_CLOSE, SUMMARY_CLOSE_MDX, SUMMARY_MAX_WORDS, SUMMARY_MIN_WORDS, SUMMARY_OPEN,
+    SUMMARY_OPEN_MDX, SummaryStatus, inspect_summary, is_esm_import_or_export_line,
+    is_mdx_boilerplate_line, is_summary_marker_line, strip_mdx_boilerplate, strip_summary_blocks,
 };
 
 use schemars::JsonSchema;

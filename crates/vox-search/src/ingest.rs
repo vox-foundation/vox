@@ -38,7 +38,8 @@ pub async fn ingest_markdown_tree(
         .filter(|e| e.file_type().is_file())
     {
         let path = entry.path();
-        if path.extension().and_then(|s| s.to_str()) != Some("md") {
+        let ext = path.extension().and_then(|s| s.to_str());
+        if ext != Some("md") && ext != Some("mdx") {
             continue;
         }
         let body = match vox_bounded_fs::read_utf8_path_capped(path) {
@@ -57,7 +58,12 @@ pub async fn ingest_markdown_tree(
             .upsert_search_document(&source_uri, &title, "text/markdown", &hash, tier)
             .await?;
         let chunk_bytes = resolve_chunk_bytes(std::env::var("VOX_RAG_CHUNK_BYTES").ok().as_deref());
-        let chunks = chunk_markdown_sections_with_size(&body, chunk_bytes);
+        let clean_body = if ext == Some("mdx") {
+            vox_kb_facets::strip_mdx_boilerplate(&vox_kb_facets::strip_summary_blocks(&body))
+        } else {
+            body
+        };
+        let chunks = chunk_markdown_sections_with_size(&clean_body, chunk_bytes);
         let refs: Vec<Option<String>> = vec![None; chunks.len()];
         db.replace_search_document_chunks_with_refs(doc_id, &chunks, &refs)
             .await?;

@@ -146,7 +146,7 @@ pub(crate) fn detect_inputs(
     }
 }
 
-fn snapshot_complete(snapshot: &Path) -> bool {
+pub(crate) fn snapshot_complete(snapshot: &Path) -> bool {
     if !snapshot.join("config.json").is_file() || !snapshot.join("tokenizer.json").is_file() {
         return false;
     }
@@ -206,6 +206,10 @@ fn manifest_matches(manifest: &Path, snapshot: &Path) -> ManifestMatch {
         (Ok(left), Ok(right)) if left == right => ManifestMatch::Matches,
         _ => ManifestMatch::NotPinned,
     }
+}
+
+pub(crate) fn adapter_manifest_names_snapshot(manifest: &Path, snapshot: &Path) -> bool {
+    matches!(manifest_matches(manifest, snapshot), ManifestMatch::Matches)
 }
 
 fn absent(

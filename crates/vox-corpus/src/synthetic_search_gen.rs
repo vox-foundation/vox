@@ -131,15 +131,15 @@ pub fn generate_search_traces(out: &mut impl Write) -> anyhow::Result<usize> {
         ),
         (
             "How does Vox handle database schemas?",
-            "@table schema codegen SQL",
+            "table schema codegen SQL",
             "crates/vox-compiler/src/codegen_rust/",
-            "`@table` and related DB declarations are lowered through `vox-compiler` HIR and Rust codegen (Codex/SQL surfaces). Field and index declarations stay type-checked in-tree before emit.",
+            "Bare-keyword `table`, `index`, `query`, and `mutation` declarations are lowered through `vox-compiler` HIR and Rust codegen (Codex/SQL surfaces). Field and index declarations stay type-checked in-tree before emit.",
         ),
         (
             "How does the MCP server expose tools?",
             "MCP tool registration server",
-            "crates/vox-mcp/src/server.rs",
-            "MCP tools are registered in `vox-mcp-registry` and served via Axum. Each `@mcp.tool` declaration in .vox becomes a handler function. Tool discovery is automatic via the dynamic registry.",
+            "crates/vox-mcp-registry/src/lib.rs",
+            "MCP tools are registered in `vox-mcp-registry` and served via `vox-orchestrator-mcp`. Each bare-keyword `tool` or `resource` declaration in `.vox` lowers to a typed handler function.",
         ),
         (
             "How does QLoRA training work with Vox Mens?",
@@ -251,4 +251,26 @@ fn emit_search_trace_with_answer(
     });
     writeln!(out, "{}", serde_json::to_string(&conversation)?)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn search_traces_emit_one_valid_conversation_line_per_count() {
+        let mut buf: Vec<u8> = Vec::new();
+        let count = generate_search_traces(&mut buf).expect("generate");
+        let text = String::from_utf8(buf).expect("utf8");
+        let lines: Vec<&str> = text.lines().collect();
+        // 8 hand-written architecture scenarios are always emitted.
+        assert!(count >= 8);
+        assert_eq!(lines.len(), count);
+        for line in lines {
+            let v: serde_json::Value = serde_json::from_str(line).expect("json line");
+            assert_eq!(v["category"], "codebase_search");
+            assert_eq!(v["schema_version"], "vox_dogfood_v1");
+            assert!(v["messages"].as_array().is_some_and(|m| m.len() >= 4));
+        }
+    }
 }

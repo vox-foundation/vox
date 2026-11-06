@@ -797,7 +797,7 @@ pub fn emit_db_setup(module: &HirModule) -> String {
     // can't consume — it panics with "Misuse: unexpected row during
     // execution". Run it as a query and drain the rows, then exec
     // the row-less PRAGMAs in a batch. Per the 2026-05-23 slot-2
-    // todo-auth runtime bring-up.
+    // auth runtime bring-up.
     out.push_str(
         "    {\n\
         \x20       let mut __vox_jm = match codex.connection().query(\"PRAGMA journal_mode=WAL;\", ()).await {\n\

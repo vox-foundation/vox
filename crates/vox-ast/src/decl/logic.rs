@@ -38,6 +38,9 @@ pub struct WorkflowDecl {
     pub distributed_train_strategy: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub distributed_train_peers: Option<u64>,
+    /// `uses <effect-list>` clause (Phase 324); empty = unannotated.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effects: Vec<crate::decl::effect::EffectAnnotation>,
     pub span: Span,
 }
 
@@ -52,6 +55,9 @@ pub struct ActivityDecl {
     pub prompt: Option<String>,
     pub is_traced: bool,
     pub is_deprecated: bool,
+    /// `uses <effect-list>` clause (Phase 324); empty = unannotated.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effects: Vec<crate::decl::effect::EffectAnnotation>,
     pub span: Span,
 }
 

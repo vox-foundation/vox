@@ -162,7 +162,7 @@ impl VoxPlugin for {struct_name} {{
         ROk(())
     }}
 
-    // TODO: provide an extension point by overriding its accessor, e.g.:
+    // Example: provide an extension point by overriding its accessor, e.g.:
     //
     //   fn as_hardware_probe(&self) -> ROption<HardwareProbe_TO<'static, RBox<()>>> {{
     //       RSome(HardwareProbe_TO::from_value(self.clone(), TD_Opaque))

@@ -27,6 +27,8 @@ pub(crate) mod eval_gate;
 #[cfg(feature = "gpu")]
 mod eval_local;
 mod eval_local_prompt;
+#[cfg(feature = "gpu")]
+pub(crate) mod harness_before_after;
 pub mod metrics;
 #[cfg(feature = "gpu")]
 pub mod models;
@@ -40,6 +42,8 @@ pub mod plugin_heal;
 pub(crate) mod reasoning_compare;
 #[cfg(feature = "gpu")]
 pub(crate) mod reasoning_eval;
+#[cfg(feature = "gpu")]
+pub(crate) mod size_train;
 #[cfg(feature = "mens-base")]
 pub(crate) mod training_selection;
 

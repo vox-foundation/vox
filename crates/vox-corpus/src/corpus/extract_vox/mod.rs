@@ -118,7 +118,7 @@ const CONSTRUCT_PROMPTS: &[(&str, &[&str])] = &[
     (
         "table",
         &[
-            "Define a Vox @table schema called `{name}`",
+            "Define a Vox `table` schema called `{name}`",
             "Write a database table definition named `{name}` in Vox",
         ],
     ),
@@ -132,22 +132,22 @@ const CONSTRUCT_PROMPTS: &[(&str, &[&str])] = &[
     (
         "query",
         &[
-            "Write a Vox @query function called `{name}`",
+            "Write a Vox `query` declaration called `{name}`",
             "Implement a read-only data query named `{name}` in Vox",
         ],
     ),
     (
         "mutation",
         &[
-            "Write a Vox @mutation function called `{name}`",
+            "Write a Vox `mutation` declaration called `{name}`",
             "Implement a data mutation named `{name}` in Vox",
         ],
     ),
     (
         "mcp_tool",
         &[
-            "Define an MCP tool called `{name}` in Vox",
-            "Write a @mcp.tool function named `{name}`",
+            "Define an MCP `tool` called `{name}` in Vox",
+            "Write a bare-keyword `tool` declaration named `{name}`",
         ],
     ),
     (
@@ -174,14 +174,14 @@ const CONSTRUCT_PROMPTS: &[(&str, &[&str])] = &[
     (
         "mcp_resource",
         &[
-            "Define an MCP resource in Vox related to `{name}`",
-            "Write a `@mcp.resource` handler for `{name}`",
+            "Define an MCP `resource` in Vox related to `{name}`",
+            "Write a bare-keyword `resource` handler for `{name}`",
         ],
     ),
     (
         "server_fn",
         &[
-            "Write a `@server` function `{name}` in Vox",
+            "Write a bare-keyword `server` declaration `{name}` in Vox",
             "Implement server-side handler `{name}` in Vox",
         ],
     ),
@@ -252,3 +252,38 @@ const CONSTRUCT_PROMPTS: &[(&str, &[&str])] = &[
 
 include!("part_helpers.rs");
 include!("part_walk.rs");
+
+#[cfg(test)]
+mod vox_training_pair_tests {
+    use super::*;
+
+    #[test]
+    fn default_config_matches_documented_values() {
+        let cfg = ExtractVoxConfig::default();
+        assert_eq!(cfg.root, PathBuf::from("."));
+        assert_eq!(cfg.min_content_lines, 2);
+        assert_eq!(cfg.limit, 0);
+        assert_eq!(cfg.default_rating, 5);
+    }
+
+    #[test]
+    fn to_jsonl_serializes_all_fields() {
+        let pair = VoxTrainingPair {
+            source_path: PathBuf::from("examples/a.vox"),
+            category: "fn".into(),
+            prompt: "Write a Vox function called `a`".into(),
+            response: "fn a() to int { return 1 }".into(),
+            rating: 4,
+        };
+        let v: serde_json::Value = serde_json::from_str(&pair.to_jsonl()).expect("json");
+        assert_eq!(v["prompt"], pair.prompt);
+        assert_eq!(v["response"], pair.response);
+        assert_eq!(v["category"], "fn");
+        assert_eq!(v["rating"], 4);
+        assert_eq!(v["format"], "vox_source");
+        assert_eq!(
+            v["source"],
+            PathBuf::from("examples/a.vox").display().to_string()
+        );
+    }
+}

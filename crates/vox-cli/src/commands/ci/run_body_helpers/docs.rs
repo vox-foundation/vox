@@ -717,6 +717,19 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
         }
     )?;
     ds!(
+        "wiki_sync",
+        match vox_doc_pipeline::pipeline::openwiki::generate_subsystem_hubs(root, false) {
+            Ok(_) => Ok(()),
+            Err(_) if auto_heal => {
+                eprintln!("    [auto-heal] wiki_sync drift; writing...");
+                vox_doc_pipeline::pipeline::openwiki::generate_subsystem_hubs(root, true)
+                    .map(|_| ())
+                    .map_err(|e| anyhow!(e))
+            }
+            Err(e) => Err(anyhow!(e)),
+        }
+    )?;
+    ds!(
         "plugin_skill_parity",
         vox_cli_ci::plugin_skill_parity::run(false)
     )?;

@@ -13,9 +13,9 @@ use turso::params;
 impl VoxDb {
     /// Return the cached embedding vector for `text_sha256`, or `None` if absent.
     ///
-    /// `vector_json` is deserialised from a JSON array; a malformed value in the
-    /// DB is surfaced as a [`StoreError::Db`] rather than silently returning
-    /// `None`.
+    /// Reads binary little-endian `f32` `vector_blob` first (3.1× smaller, zero JSON
+    /// float-parse overhead) and falls back to `vector_json` for rows written before
+    /// the BLOB upgrade.
     pub async fn get_cached_embedding(
         &self,
         text_sha256: &str,
@@ -24,14 +24,28 @@ impl VoxDb {
         let mut rows = self
             .conn
             .query(
-                "SELECT vector_json FROM scientia_embedding_cache WHERE text_sha256 = ?1",
+                "SELECT vector_blob, vector_json FROM scientia_embedding_cache WHERE text_sha256 = ?1",
                 params![sha],
             )
             .await
             .map_err(StoreError::Turso)?;
 
         if let Some(row) = rows.next().await.map_err(StoreError::Turso)? {
-            let json: String = row.get(0).map_err(StoreError::Turso)?;
+            let blob: Option<Vec<u8>> = row.get(0).map_err(StoreError::Turso)?;
+            if let Some(bytes) = blob.filter(|b| !b.is_empty()) {
+                if bytes.len() % 4 != 0 {
+                    return Err(StoreError::Db(format!(
+                        "scientia_embedding_cache: malformed vector_blob byte length {} for sha256 {text_sha256}",
+                        bytes.len()
+                    )));
+                }
+                let vec: Vec<f32> = bytes
+                    .chunks_exact(4)
+                    .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
+                    .collect();
+                return Ok(Some(vec));
+            }
+            let json: String = row.get(1).map_err(StoreError::Turso)?;
             let vec: Vec<f32> = serde_json::from_str(&json).map_err(|e| {
                 StoreError::Db(format!(
                     "scientia_embedding_cache: malformed vector_json for sha256 {text_sha256}: {e}"
@@ -45,10 +59,8 @@ impl VoxDb {
 
     /// Upsert an embedding vector for `text_sha256`.
     ///
-    /// Uses `INSERT OR REPLACE` so calling this twice with the same key stores
-    /// the latest vector (the previous row is atomically replaced).
-    ///
-    /// `created_at_ms` is set to the current wall-clock time at call time.
+    /// Stores compact little-endian `f32` bytes in `vector_blob` (and `'[]'` in `vector_json`
+    /// for backward-compatible NOT NULL schema columns).
     pub async fn put_cached_embedding(
         &self,
         text_sha256: &str,
@@ -57,23 +69,171 @@ impl VoxDb {
     ) -> Result<(), StoreError> {
         let sha = text_sha256.to_string();
         let mdl = model.to_string();
-        let json = serde_json::to_string(vector).map_err(|e| {
-            StoreError::Db(format!(
-                "scientia_embedding_cache: failed to serialise vector for sha256 {text_sha256}: {e}"
-            ))
-        })?;
+        let mut blob = Vec::with_capacity(vector.len() * 4);
+        for &val in vector {
+            blob.extend_from_slice(&val.to_le_bytes());
+        }
         let now = crate::now_unix_ms() as i64;
 
         self.conn
             .execute(
                 "INSERT OR REPLACE INTO scientia_embedding_cache \
-                 (text_sha256, model, vector_json, created_at_ms) \
-                 VALUES (?1, ?2, ?3, ?4)",
-                params![sha, mdl, json, now],
+                 (text_sha256, model, vector_json, vector_blob, created_at_ms) \
+                 VALUES (?1, ?2, '[]', ?3, ?4)",
+                params![sha, mdl, blob, now],
             )
             .await
             .map_err(StoreError::Turso)?;
         Ok(())
+    }
+
+    /// Enqueue a serialized JSON payload into `telemetry_upload_spool`.
+    pub async fn enqueue_telemetry_upload_spool(
+        &self,
+        id: &str,
+        payload_json: &str,
+        created_at_ms: i64,
+    ) -> Result<(), StoreError> {
+        let byte_len = payload_json.len() as i64;
+        self.conn
+            .execute(
+                "INSERT OR REPLACE INTO telemetry_upload_spool \
+                 (id, payload_json, byte_len, created_at_ms) \
+                 VALUES (?1, ?2, ?3, ?4)",
+                params![
+                    id.to_string(),
+                    payload_json.to_string(),
+                    byte_len,
+                    created_at_ms
+                ],
+            )
+            .await
+            .map_err(StoreError::Turso)?;
+        Ok(())
+    }
+
+    /// List pending `telemetry_upload_spool` entries ordered by `(created_at_ms ASC, id ASC)`.
+    pub async fn list_telemetry_upload_spool(
+        &self,
+    ) -> Result<Vec<(String, String, u64, i64)>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT id, payload_json, byte_len, created_at_ms \
+                 FROM telemetry_upload_spool ORDER BY created_at_ms ASC, id ASC",
+                (),
+            )
+            .await
+            .map_err(StoreError::Turso)?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await.map_err(StoreError::Turso)? {
+            let id: String = row.get(0).map_err(StoreError::Turso)?;
+            let payload_json: String = row.get(1).map_err(StoreError::Turso)?;
+            let byte_len: i64 = row.get(2).map_err(StoreError::Turso)?;
+            let created_at_ms: i64 = row.get(3).map_err(StoreError::Turso)?;
+            out.push((id, payload_json, byte_len.max(0) as u64, created_at_ms));
+        }
+        Ok(out)
+    }
+
+    /// Remove a `telemetry_upload_spool` entry by `id`.
+    pub async fn ack_telemetry_upload_spool(&self, id: &str) -> Result<bool, StoreError> {
+        let affected = self
+            .conn
+            .execute(
+                "DELETE FROM telemetry_upload_spool WHERE id = ?1",
+                params![id.to_string()],
+            )
+            .await
+            .map_err(StoreError::Turso)?;
+        Ok(affected > 0)
+    }
+
+    /// Upsert a replay nonce (`jwt_jti` or `idempotency`) in `mesh_replay_nonces`.
+    pub async fn upsert_mesh_replay_nonce(
+        &self,
+        kind: &str,
+        nonce_key: &str,
+        recorded_at_ms: u64,
+    ) -> Result<(), StoreError> {
+        self.conn
+            .execute(
+                "INSERT OR REPLACE INTO mesh_replay_nonces (kind, nonce_key, recorded_at_ms) \
+                 VALUES (?1, ?2, ?3)",
+                params![
+                    kind.to_string(),
+                    nonce_key.to_string(),
+                    recorded_at_ms as i64
+                ],
+            )
+            .await
+            .map_err(StoreError::Turso)?;
+        Ok(())
+    }
+
+    /// Load all replay nonces of `kind` (`jwt_jti` or `idempotency`) from `mesh_replay_nonces`.
+    pub async fn list_mesh_replay_nonces(
+        &self,
+        kind: &str,
+    ) -> Result<Vec<(String, u64)>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT nonce_key, recorded_at_ms FROM mesh_replay_nonces WHERE kind = ?1",
+                params![kind.to_string()],
+            )
+            .await
+            .map_err(StoreError::Turso)?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await.map_err(StoreError::Turso)? {
+            let key: String = row.get(0).map_err(StoreError::Turso)?;
+            let ts: i64 = row.get(1).map_err(StoreError::Turso)?;
+            out.push((key, ts.max(0) as u64));
+        }
+        Ok(out)
+    }
+
+    /// Upsert a local mesh node JSON record in `mesh_local_nodes`.
+    pub async fn upsert_mesh_local_node(
+        &self,
+        node_id: &str,
+        record_json: &str,
+        updated_at_ms: u64,
+    ) -> Result<(), StoreError> {
+        self.conn
+            .execute(
+                "INSERT OR REPLACE INTO mesh_local_nodes (node_id, record_json, updated_at_ms) \
+                 VALUES (?1, ?2, ?3)",
+                params![
+                    node_id.to_string(),
+                    record_json.to_string(),
+                    updated_at_ms as i64
+                ],
+            )
+            .await
+            .map_err(StoreError::Turso)?;
+        Ok(())
+    }
+
+    /// List all local mesh node JSON records from `mesh_local_nodes`.
+    pub async fn list_mesh_local_nodes(&self) -> Result<Vec<(String, String, u64)>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT node_id, record_json, updated_at_ms \
+                 FROM mesh_local_nodes ORDER BY node_id ASC",
+                (),
+            )
+            .await
+            .map_err(StoreError::Turso)?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await.map_err(StoreError::Turso)? {
+            let id: String = row.get(0).map_err(StoreError::Turso)?;
+            let json: String = row.get(1).map_err(StoreError::Turso)?;
+            let ts: i64 = row.get(2).map_err(StoreError::Turso)?;
+            out.push((id, json, ts.max(0) as u64));
+        }
+        Ok(out)
     }
 }
 

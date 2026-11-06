@@ -80,6 +80,25 @@ CREATE TABLE IF NOT EXISTS mesh_dispatch_results (
     created_at  INTEGER NOT NULL
 );
 
+-- Persisted JWT jti replay nonces and A2A idempotency keys (replaces mesh-replay-state.json).
+CREATE TABLE IF NOT EXISTS mesh_replay_nonces (
+    kind            TEXT NOT NULL,
+    nonce_key       TEXT NOT NULL,
+    recorded_at_ms  INTEGER NOT NULL,
+    PRIMARY KEY (kind, nonce_key)
+);
+CREATE INDEX IF NOT EXISTS idx_mesh_replay_nonces_recorded
+    ON mesh_replay_nonces(recorded_at_ms);
+
+-- Local Populi node registry records (replaces local-registry.json).
+CREATE TABLE IF NOT EXISTS mesh_local_nodes (
+    node_id         TEXT PRIMARY KEY,
+    record_json     TEXT NOT NULL,
+    updated_at_ms   INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_mesh_local_nodes_updated
+    ON mesh_local_nodes(updated_at_ms);
+
 -- ── Phase 0: persisted VCS file lock map (P0-T1) ──────────────────────────
 
 -- One row per locked path (canonical absolute form, NFC-normalised).

@@ -117,7 +117,9 @@ pub async fn generate() -> Result<()> {
 
                 let md_path = agents_dir.join(format!("{crate_name}.md"));
 
-                let scope_path = entry.path().components()
+                let scope_path = entry
+                    .path()
+                    .components()
                     .map(|c| c.as_os_str().to_string_lossy().to_string())
                     .collect::<Vec<_>>()
                     .join("/");
@@ -153,4 +155,21 @@ pub async fn generate() -> Result<()> {
 
     println!("Generation complete. Vox agent definitions are available in .vox/agents/");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn generate_returns_ok_without_writing_when_no_crates_dir() {
+        // Unit tests run with cwd = the crate dir, which has no `crates/` child, so
+        // `generate` must take its early "not at workspace root" exit and touch nothing.
+        assert!(
+            !std::path::Path::new("crates").exists(),
+            "test cwd unexpectedly contains `crates/`; generate() would write agent files"
+        );
+        generate().await.unwrap();
+        assert!(!std::path::Path::new(vox_config::paths::REPO_AGENTS_DIR).exists());
+    }
 }

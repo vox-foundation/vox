@@ -113,7 +113,10 @@ pub fn doc_title(doc_path: &str, text: &str) -> String {
         }
     }
     let name = doc_path.rsplit('/').next().unwrap_or(doc_path);
-    name.strip_suffix(".md").unwrap_or(name).to_string()
+    name.strip_suffix(".md")
+        .or_else(|| name.strip_suffix(".mdx"))
+        .unwrap_or(name)
+        .to_string()
 }
 
 /// `doc_path#heading_path`.
@@ -142,14 +145,14 @@ pub fn heading_path_is_ancestor_or_equal(ancestor: &str, path: &str) -> bool {
     }
 }
 
-/// Repo-relative, `/`-separated `.md` path under a KB root with no excluded component and no
-/// `#` (chunk ids split at the first `#`, so such a doc could never match its qrels).
+/// Repo-relative, `/`-separated `.md` or `.mdx` path under a KB root with no excluded component
+/// and no `#` (chunk ids split at the first `#`, so such a doc could never match its qrels).
 #[must_use]
 pub fn is_kb_corpus_path(rel: &str) -> bool {
     if rel.is_empty()
         || rel.starts_with('/')
         || rel.contains(['\\', ':', '#'])
-        || !rel.ends_with(".md")
+        || !(rel.ends_with(".md") || rel.ends_with(".mdx"))
     {
         return false;
     }
@@ -291,6 +294,8 @@ mod tests {
     #[test]
     fn corpus_path_rules() {
         assert!(is_kb_corpus_path("docs/src/a/b.md"));
+        assert!(is_kb_corpus_path("docs/src/a/b.mdx"));
+        assert_eq!(doc_title("docs/src/gamma.mdx", "no heading\n"), "gamma");
         assert!(!is_kb_corpus_path("docs/src/archive/b.md"));
         assert!(!is_kb_corpus_path("docs/src/../x.md"));
         assert!(!is_kb_corpus_path("/docs/src/a.md"));

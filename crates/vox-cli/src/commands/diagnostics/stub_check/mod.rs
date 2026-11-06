@@ -336,7 +336,7 @@ pub async fn run(
                         Some((id, c))
                     })
                     .collect();
-                let gated_rules = ["stub/", "doc/missing-frontmatter", "unwired/module"]; // toestub-ignore(stub)
+                let gated_rules = ["stub/", "doc/missing-frontmatter", "unwired/module"]; // toestub-ignore(stub) -- rule family prefix list
                 let mut over = Vec::new();
                 for (rule_id, &current) in &by_rule {
                     let budget_count = budget.get(rule_id).copied().unwrap_or(0);
@@ -676,5 +676,47 @@ pub fn check_rationale_required(path: &std::path::Path) -> anyhow::Result<()> {
             "{} suppression(s) missing rationale. Add '— <reason>' with ≥ 20 chars.",
             violations.len()
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rationale_check_flags_a_bare_suppression_and_accepts_a_tree_without_one() {
+        let dir = tempfile::tempdir().unwrap();
+        // Build the marker at runtime so this test file does not itself contain a bare suppression.
+        let marker = format!("// {}(skeleton/x)", "toestub-ignore");
+        std::fs::write(dir.path().join("ok.rs"), "fn a() {}\n").unwrap();
+        check_rationale_required(dir.path()).unwrap();
+
+        std::fs::write(
+            dir.path().join("bad.rs"),
+            format!("fn b() {{}}\n{marker}\n"),
+        )
+        .unwrap();
+        let err = check_rationale_required(dir.path()).unwrap_err();
+        assert!(err.to_string().contains("1 suppression(s)"), "{err:#}");
+    }
+
+    #[test]
+    fn explain_diagnostic_rejects_an_unknown_id_and_accepts_a_known_one() {
+        let err = explain_diagnostic("zzzz-no-such-diagnostic").unwrap_err();
+        assert!(err.to_string().contains("Unknown diagnostic ID"), "{err:#}");
+        explain_diagnostic(ALL_KNOWN_IDS[0]).unwrap();
+    }
+
+    #[test]
+    fn debt_dedupe_key_is_per_user_and_per_path() {
+        let p = std::path::Path::new("crates/a");
+        assert_ne!(
+            stub_check_debt_dedupe_key(p, "alice"),
+            stub_check_debt_dedupe_key(p, "bob")
+        );
+        assert_ne!(
+            stub_check_debt_dedupe_key(p, "alice"),
+            stub_check_debt_dedupe_key(std::path::Path::new("crates/b"), "alice")
+        );
     }
 }

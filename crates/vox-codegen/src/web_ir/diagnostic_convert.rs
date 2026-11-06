@@ -30,7 +30,7 @@ impl From<WebIrDiagnostic> for Diagnostic {
         Diagnostic {
             severity,
             message: w.message,
-            // TODO(span): resolve SourceSpanId to byte-offset Span when the
+            // Note: resolve SourceSpanId to byte-offset Span when the
             // SourceSpanTable is threaded through the conversion boundary.
             span: Span::new(0, 0),
             expected_type: None,

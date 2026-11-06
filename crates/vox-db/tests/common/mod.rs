@@ -17,6 +17,6 @@ pub fn remote_creds(gate_env: &str) -> Option<(String, String)> {
         Some((url, tok))
     };
     try_pair("VOX_DB_URL", "VOX_DB_TOKEN")
-        .or_else(|| try_pair("VOX_TURSO_URL", "VOX_TURSO_TOKEN"))
-        .or_else(|| try_pair("TURSO_URL", "TURSO_AUTH_TOKEN"))
+        .or_else(|| try_pair("VOX_TURSO_URL", "VOX_TURSO_TOKEN")) // retired fallback
+        .or_else(|| try_pair("TURSO_URL", "TURSO_AUTH_TOKEN")) // retired fallback
 }

@@ -583,13 +583,13 @@ mod tests {
         // Real stub detector id is `arch/stub` (verified against
         // `vox_code_audit::detectors::stub::StubDetector::id`), not the
         // `stub/todo` placeholder the plan assumed.
-        let stub = entries
+        let arch_stub_entry = entries
             .iter()
             .find(|e| e.id == "code-audit/arch/stub")
             .expect("arch/stub detector should be present");
-        assert_eq!(stub.domain, PolicyDomain::CodeAuditRule);
-        assert_eq!(stub.source.kind, PolicySourceKind::Pattern);
-        assert!(stub.id.starts_with("code-audit/"));
+        assert_eq!(arch_stub_entry.domain, PolicyDomain::CodeAuditRule);
+        assert_eq!(arch_stub_entry.source.kind, PolicySourceKind::Pattern);
+        assert!(arch_stub_entry.id.starts_with("code-audit/"));
     }
 
     #[test]

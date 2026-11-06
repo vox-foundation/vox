@@ -268,6 +268,8 @@ CREATE TABLE IF NOT EXISTS scientia_external_intelligence (
     worthiness_score REAL,
     claim_evidence_coverage REAL
 );
+CREATE INDEX IF NOT EXISTS idx_scientia_ext_intel_status
+    ON scientia_external_intelligence(ingest_status, ingested_at_ms DESC);
 
 CREATE TABLE IF NOT EXISTS scientia_feed_sources (
     id TEXT PRIMARY KEY,

@@ -11,7 +11,7 @@ pub enum PopuliHttpOp {
     Join,
     /// `GET /v1/populi/nodes` (counts in journal only; no arbitrary URLs).
     Snapshot,
-    /// `JobRequest::Run` on a first-fit mesh peer that offers `VoxScript`.
+    /// `JobRequest::Run` on a first-fit mesh peer that offers `VoxLang`.
     Dispatch,
     /// Inline completion of a prior dispatch; no HTTP poll.
     Wait,

@@ -44,7 +44,7 @@ fn is_script_like(source: &str) -> bool {
     // so a `.vox` file containing nothing else recognizable -- a bare
     // `workflow`/`activity`/`actor` decl, e.g. under `@distributed_train`,
     // whose grammar requires a `workflow` line to immediately follow -- was
-    // silently misclassified as a script and routed through VoxScript-mode
+    // silently misclassified as a script and routed through script-mode
     // parsing instead of full-module parsing.
     // Mirrors the union of `vox_language_surface::DECLARATION_KEYWORDS` and
     // `WEB_REACTIVE_KEYWORDS` (the actor/workflow/activity/component subset and
@@ -156,7 +156,7 @@ mod is_script_like_tests {
     /// The bug this guards: `workflow`/`activity`/`actor` never had an
     /// `@`-prefixed spelling and were missing from `decl_keywords` entirely,
     /// so a file containing nothing else recognizable was silently routed
-    /// through VoxScript-mode parsing instead of full-module parsing --
+    /// through script-mode parsing instead of full-module parsing --
     /// `vox check` failed to parse valid module-level source with no
     /// rendered error, even though the underlying parser (and its own unit
     /// tests) handled it correctly all along.

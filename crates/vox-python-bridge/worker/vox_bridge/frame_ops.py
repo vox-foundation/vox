@@ -268,9 +268,18 @@ def execute_plan(params, body: bytes):
         lf = handler(lf, step, exprs)
     if lf is None:
         raise PlanError("py-plan: plan did not build a frame")
-    if not isinstance(lf, pl.DataFrame):
-        lf = collect(lf, {"name": "collect"}, exprs)
-    table = lf.to_arrow()
+    try:
+        if not isinstance(lf, pl.DataFrame):
+            lf = collect(lf, {"name": "collect"}, exprs)
+        table = lf.to_arrow()
+    except PlanError:
+        raise
+    except Exception as exc:
+        # Polars ColumnNotFound / schema errors stay py-plan: for D-09.
+        message = str(exc)
+        if message.startswith("py-plan:") or message.startswith("py:"):
+            raise PlanError(message) from exc
+        raise PlanError(f"py-plan: {message}") from exc
     sink = pa.BufferOutputStream()
     writer = ipc.new_stream(sink, table.schema)
     writer.write_table(table)

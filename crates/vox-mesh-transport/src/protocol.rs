@@ -168,7 +168,7 @@ impl Default for JobLimits {
 }
 
 impl JobLimits {
-    /// Per-kind payload cap. VoxScript is source text; 4 MiB is enough, and
+    /// Per-kind payload cap. VoxLang is source text; 4 MiB is enough, and
     /// the old 1 GiB figure was sized for the bundle lane this program deletes.
     pub fn max_payload_for(&self, kind: TaskKind) -> u64 {
         match kind {

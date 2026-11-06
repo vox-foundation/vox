@@ -7,7 +7,7 @@
 //! - **`Noop`, `Snapshot`, `Join`, `Heartbeat`.** `Snapshot` is
 //!   `vox_mesh_transport::directory()` — peers that answered a `Probe` just
 //!   now, not a list somebody asserted.
-//! - **`Dispatch`** first-fits a `VoxScript` peer and sends `JobRequest::Run`.
+//! - **`Dispatch`** first-fits a `VoxLang` peer and sends `JobRequest::Run`.
 //!   [`PopuliActivity`] has no source field, so this errors until inline
 //!   source exists; it does **not** synthesize
 //!   `workflow_durable_shim::execute_activity`.
@@ -114,7 +114,7 @@ fn dispatchable_source(activity: &PopuliActivity) -> anyhow::Result<Vec<u8>> {
     ))
 }
 
-/// First-fit a `VoxScript` peer and `Run` the activity source on it.
+/// First-fit a `VoxLang` peer and `Run` the activity source on it.
 #[cfg(feature = "mens")]
 async fn execute_mesh_dispatch(activity: &PopuliActivity) -> anyhow::Result<Value> {
     let source = dispatchable_source(activity)?;
@@ -135,7 +135,7 @@ async fn execute_mesh_dispatch(activity: &PopuliActivity) -> anyhow::Result<Valu
     let n = candidates.len();
     let Some(peer) = candidates.into_iter().next() else {
         return Err(anyhow!(
-            "no mesh peer offers VoxScript for activity `{}`",
+            "no mesh peer offers VoxLang for activity `{}`",
             activity.name
         ));
     };
@@ -181,7 +181,7 @@ async fn run_on_peer(
         .iter()
         .find(|k| k.as_str() == "vox_script")
         .cloned()
-        .expect("first-fit already required VoxScript");
+        .expect("first-fit already required VoxLang");
     let conn = ep.connect(addr, protocol::ALPN).await?;
     let (mut send, mut recv) = conn.open_bi().await?;
     protocol::write_frame(&mut send, &Hello::current()).await?;

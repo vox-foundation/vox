@@ -81,6 +81,88 @@ impl SpokeKind {
     }
 }
 
+/// Full 8-spoke taxonomy covering the 5 core MENS spokes plus the 3 extended platform spokes
+/// (`SpeechToCode` / Oratio ASR, `PopuliMesh` A2A/iroh dispatch, and `SkillCreation` `SKILL.md` authoring) (`SPOKE8-01`).
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum OrganicSpokeKind {
+    /// Spoke 1: `.vox` compiler (`lex -> parse -> HIR -> typeck -> fmt -> interp`).
+    VoxLang,
+    /// Spoke 2: First-party Rust workspace (`syn::parse_file + rustc --emit=metadata + policy`).
+    RustWorkspace,
+    /// Spoke 3: Structured PowerShell / Nushell / Vox-Shell pipeline (`classify_shell_safety_floor`).
+    StructuredShell,
+    /// Spoke 4: MCP tool call & schema-validated handler chain (`vox-mcp-registry`).
+    McpToolChain,
+    /// Spoke 5: Multi-step Orchestrator / GUI agent harness `TaskPlanEnvelope`.
+    AgentHarness,
+    /// Spoke 6: Oratio ASR spoken-transcript normalization to compilable `.vox` code.
+    SpeechToCode,
+    /// Spoke 7: Populi Mesh (`iroh` QUIC / A2A) capability & quorum dispatch envelope.
+    PopuliMesh,
+    /// Spoke 8: `agentskills.io`-compliant `SKILL.md` YAML frontmatter, `vox-*` metadata & body.
+    SkillCreation,
+}
+
+impl OrganicSpokeKind {
+    /// All 8 canonical platform spokes in deterministic order (`SPOKE8-01`).
+    pub const ALL: [OrganicSpokeKind; 8] = [
+        OrganicSpokeKind::VoxLang,
+        OrganicSpokeKind::RustWorkspace,
+        OrganicSpokeKind::StructuredShell,
+        OrganicSpokeKind::McpToolChain,
+        OrganicSpokeKind::AgentHarness,
+        OrganicSpokeKind::SpeechToCode,
+        OrganicSpokeKind::PopuliMesh,
+        OrganicSpokeKind::SkillCreation,
+    ];
+
+    /// Stable snake_case identifier used in scorecards, contracts, and GUI tables.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            OrganicSpokeKind::VoxLang => "vox_lang",
+            OrganicSpokeKind::RustWorkspace => "rust_workspace",
+            OrganicSpokeKind::StructuredShell => "structured_shell",
+            OrganicSpokeKind::McpToolChain => "mcp_tool_chain",
+            OrganicSpokeKind::AgentHarness => "agent_harness",
+            OrganicSpokeKind::SpeechToCode => "speech_to_code",
+            OrganicSpokeKind::PopuliMesh => "populi_mesh",
+            OrganicSpokeKind::SkillCreation => "skill_creation",
+        }
+    }
+
+    /// Map any of the 8 organic spokes onto its underlying 5-spoke [`SpokeKind`] admission lane.
+    #[must_use]
+    pub const fn to_core_spoke(self) -> SpokeKind {
+        match self {
+            OrganicSpokeKind::VoxLang | OrganicSpokeKind::SpeechToCode => SpokeKind::VoxLang,
+            OrganicSpokeKind::RustWorkspace => SpokeKind::RustWorkspace,
+            OrganicSpokeKind::StructuredShell => SpokeKind::StructuredShell,
+            OrganicSpokeKind::McpToolChain | OrganicSpokeKind::SkillCreation => {
+                SpokeKind::McpToolChain
+            }
+            OrganicSpokeKind::AgentHarness | OrganicSpokeKind::PopuliMesh => {
+                SpokeKind::AgentHarness
+            }
+        }
+    }
+}
+
+impl From<SpokeKind> for OrganicSpokeKind {
+    fn from(spoke: SpokeKind) -> Self {
+        match spoke {
+            SpokeKind::VoxLang => OrganicSpokeKind::VoxLang,
+            SpokeKind::RustWorkspace => OrganicSpokeKind::RustWorkspace,
+            SpokeKind::StructuredShell => OrganicSpokeKind::StructuredShell,
+            SpokeKind::McpToolChain => OrganicSpokeKind::McpToolChain,
+            SpokeKind::AgentHarness => OrganicSpokeKind::AgentHarness,
+        }
+    }
+}
+
 /// Deterministic verification receipt emitted by a spoke's admission oracle (`CORPUS-01`).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct OracleReceipt {
@@ -191,6 +273,55 @@ impl TrainingRecordV2 {
         format!(
             "trusty://vox-corpus/{}/{}",
             self.spoke.as_str(),
+            self.content_digest
+        )
+    }
+
+    /// Resolve the record's full 8-spoke [`OrganicSpokeKind`] without lossy 5-spoke coercion.
+    #[must_use]
+    pub fn effective_organic_spoke(&self) -> OrganicSpokeKind {
+        let tf = self.provenance.task_family.as_str();
+        if tf.contains("speech_to_code") || tf.contains("oratio") {
+            OrganicSpokeKind::SpeechToCode
+        } else if tf.contains("populi_mesh") || tf.contains("mesh_dispatch") {
+            OrganicSpokeKind::PopuliMesh
+        } else if tf.contains("skill_creation") || tf.contains("agentskills") {
+            OrganicSpokeKind::SkillCreation
+        } else {
+            OrganicSpokeKind::from(self.spoke)
+        }
+    }
+
+    /// Construct a [`TrainingRecordV2`] stamped with its true 8-spoke [`OrganicSpokeKind`] identity.
+    #[must_use]
+    pub fn new_for_organic_spoke(
+        organic_spoke: OrganicSpokeKind,
+        prompt: impl Into<String>,
+        system_context: impl Into<String>,
+        response: impl Into<String>,
+        oracle_receipt: OracleReceipt,
+        mut provenance: RecordProvenance,
+    ) -> Self {
+        let spoke_tag = organic_spoke.as_str();
+        if !provenance.task_family.contains(spoke_tag) {
+            provenance.task_family = format!("{spoke_tag}:{}", provenance.task_family);
+        }
+        Self::new(
+            organic_spoke.to_core_spoke(),
+            prompt,
+            system_context,
+            response,
+            oracle_receipt,
+            provenance,
+        )
+    }
+
+    /// Format the record's 8-spoke Trusty URI (`trusty://vox-corpus/<organic_spoke>/<content_digest>`).
+    #[must_use]
+    pub fn organic_trusty_uri(&self) -> String {
+        format!(
+            "trusty://vox-corpus/{}/{}",
+            self.effective_organic_spoke().as_str(),
             self.content_digest
         )
     }

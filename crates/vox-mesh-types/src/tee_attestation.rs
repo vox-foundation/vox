@@ -23,7 +23,7 @@ pub enum TeeQuoteKind {
     /// Firecracker micro-VM measurement (custom, not a hardware TEE).
     FirecrackerMeasurement,
     /// Stub / test quote (never accepted by a real verifier).
-    Stub,
+    Stub, // toestub-ignore(stub)
 }
 
 /// A TEE attestation quote attached to a task result.

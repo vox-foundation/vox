@@ -123,6 +123,14 @@ impl crate::VoxDb {
             });
         }
 
+        // Ensure columns added across baseline bumps (`ttft_ms`, `tpot_ms`, `trial_run_label`,
+        // scoreboard latency columns) exist on pre-existing tables BEFORE `baseline_sql()` runs
+        // `CREATE INDEX ... ON llm_interactions(trial_run_label)`. On a fresh DB `table_exists`
+        // is false here (no-op) and `baseline_sql()` creates the full table; on a v96 DB the
+        // table already exists without `trial_run_label` so we add it first and then re-run
+        // downstream tables.
+        Self::ensure_latency_columns(conn).await?;
+
         if current_version < BASELINE_VERSION {
             let sql = baseline_sql().trim();
             if !sql.is_empty() {
@@ -281,8 +289,6 @@ impl crate::VoxDb {
             }
         }
 
-        Self::ensure_latency_columns(conn).await?;
-
         Ok(())
     }
 
@@ -399,13 +405,14 @@ impl crate::VoxDb {
     /// open, outside the version gate; it is a cheap `PRAGMA` per table and a no-op on a fresh
     /// database or one that already has the columns. A table that does not exist is skipped.
     async fn ensure_latency_columns(conn: &turso::Connection) -> Result<(), StoreError> {
-        const COLUMNS: [(&str, &str, &str); 6] = [
+        const COLUMNS: [(&str, &str, &str); 7] = [
             ("llm_interactions", "ttft_ms", "INTEGER"),
             ("llm_interactions", "tpot_ms", "REAL"),
             ("llm_interactions", "trial_run_label", "TEXT"),
             ("model_scoreboard", "p95_ttft_ms", "INTEGER"),
             ("model_scoreboard", "p95_tpot_ms", "REAL"),
             ("model_scoreboard", "goodput_tokens_per_sec", "REAL"),
+            ("scientia_embedding_cache", "vector_blob", "BLOB"),
         ];
         for (table, column, decl) in COLUMNS {
             let mut rows = conn
@@ -422,6 +429,29 @@ impl crate::VoxDb {
             if table_exists && !has_column {
                 conn.execute_batch(&format!("ALTER TABLE {table} ADD COLUMN {column} {decl};"))
                     .await?;
+            }
+            if table == "llm_interactions" && column == "trial_run_label" && table_exists {
+                let mut idx_rows = conn
+                    .query(
+                        "SELECT sql FROM sqlite_master WHERE type='index' AND name='idx_llm_interactions_trial'",
+                        (),
+                    )
+                    .await?;
+                let needs_recreate = if let Some(idx_row) = idx_rows.next().await? {
+                    idx_row
+                        .get::<Option<String>>(0)?
+                        .is_some_and(|sql| sql.contains("WHERE") || !sql.contains("cost_usd"))
+                } else {
+                    false
+                };
+                drop(idx_rows);
+                if needs_recreate {
+                    conn.execute_batch(
+                        "DROP INDEX IF EXISTS idx_llm_interactions_trial;
+                         CREATE INDEX IF NOT EXISTS idx_llm_interactions_trial ON llm_interactions(trial_run_label, cost_usd);",
+                    )
+                    .await?;
+                }
             }
         }
         Ok(())

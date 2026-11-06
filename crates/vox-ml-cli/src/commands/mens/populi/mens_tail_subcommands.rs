@@ -76,6 +76,34 @@ pub enum PopuliMensTail {
         out: Option<PathBuf>,
     },
 
+    /// Write one size_train.v1 record per qwen3_code QLoRA size from one free-memory reading. Does not download weights or start training.
+    #[command(name = "size-train")]
+    SizeTrain {
+        /// Hugging Face hub cache root. Overrides HF_HUB_CACHE and HF_HOME.
+        #[arg(long)]
+        hub_root: Option<PathBuf>,
+        /// Output runs root (default: mens/runs).
+        #[arg(long)]
+        runs_root: Option<PathBuf>,
+    },
+
+    /// Write one harness_before_after.v1 report covering reasoning slices and codegen/agent intelligence across all qwen3_code QLoRA sizes.
+    #[command(name = "harness-before-after")]
+    HarnessBeforeAfter {
+        /// Hugging Face hub cache root. Overrides HF_HUB_CACHE and HF_HOME.
+        #[arg(long)]
+        hub_root: Option<PathBuf>,
+        /// Root holding `<slice>/reasoning.jsonl`.
+        #[arg(long, default_value = "mens/data")]
+        bench_root: PathBuf,
+        /// Output runs root (default: mens/runs).
+        #[arg(long)]
+        runs_root: Option<PathBuf>,
+        /// Explicit report output path (default: <runs-root>/harness_before_after.json).
+        #[arg(long)]
+        out: Option<PathBuf>,
+    },
+
     /// Benchmark FIM completion server latency
     BenchCompletion {
         /// URL of the completions API Endpoint
@@ -130,4 +158,44 @@ pub enum PopuliMensTail {
         #[arg(long, default_value = "text")]
         format: String,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::Parser;
+
+    #[derive(Parser)]
+    struct TailCli {
+        #[command(subcommand)]
+        tail: PopuliMensTail,
+    }
+
+    #[test]
+    fn size_train_variant_parses() {
+        let tmp = tempfile::tempdir().unwrap();
+        let hub = tmp.path().to_path_buf();
+        let parsed =
+            TailCli::try_parse_from(["vox", "size-train", "--hub-root", hub.to_str().unwrap()])
+                .expect("size-train must parse");
+        match parsed.tail {
+            PopuliMensTail::SizeTrain {
+                hub_root,
+                runs_root,
+            } => {
+                assert_eq!(hub_root, Some(hub));
+                assert_eq!(runs_root, None);
+            }
+            _ => panic!("expected PopuliMensTail::SizeTrain"),
+        }
+
+        assert!(
+            TailCli::try_parse_from(["vox", "size-train", "--free-mb", "2500"]).is_err(),
+            "--free-mb flag must not exist"
+        );
+        assert!(
+            TailCli::try_parse_from(["vox", "size-train", "--adapter", "/tmp/a"]).is_err(),
+            "--adapter flag must not exist"
+        );
+    }
 }

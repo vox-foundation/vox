@@ -978,7 +978,7 @@ mod tests {
             cargo_version: Some("1.85.0".to_string()),
             vox_git_sha: Some("deadbeef".to_string()),
             vox_binary_sha256: Some("cafebabe".to_string()),
-            verifier_version: Some("0.6.0".to_string()),
+            verifier_version: Some(env!("CARGO_PKG_VERSION").to_string()),
             verifier_matches_harness: Some(true),
             tier: Some("smoke".to_string()),
             problem_set_hash: Some("pset-1".to_string()),

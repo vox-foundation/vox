@@ -248,7 +248,7 @@ async fn handle(conn: Connection, peer: EndpointId, exec: Arc<dyn JobExecutor>) 
 
     // Checked BEFORE the transfer, so an oversized job costs us a frame rather
     // than a gigabyte of disk. The per-kind cap is tighter than the global one
-    // for VoxScript (source is text).
+    // for VoxLang (source is text).
     let payload = if let JobRequest::Run {
         payload_bytes,
         kind,

@@ -777,9 +777,12 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tempdir");
         let organic = execute_organic_search_spoke_evaluation_in_dir(false, None, Some(tmp.path()))
             .expect("organic search spoke eval should succeed");
-        assert_eq!(organic.total_cases, 15);
+        assert_eq!(organic.total_cases, 24);
+        assert_eq!(organic.spokes.len(), 8);
         assert!((organic.overall_search_recall_at_5 - 1.0).abs() < 1e-9);
         assert!(organic.overall_mrr >= 0.95);
+        assert!((organic.overall_unbiased_search_recall_at_5 - 1.0).abs() < 1e-9);
+        assert!((organic.overall_distractor_resilience_rate - 1.0).abs() < 1e-9);
         assert!((organic.overall_compilation_pass_rate - 1.0).abs() < 1e-9);
         assert!((organic.overall_end_to_end_pass_at_1 - 1.0).abs() < 1e-9);
         assert!(
