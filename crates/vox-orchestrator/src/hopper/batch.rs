@@ -26,10 +26,7 @@ pub struct ResearchBatchRequest {
 fn default_max_sources() -> usize {
     5
 }
-// drift-allow(serde-default-dup): local default; vox_config::serde_defaults would add a crate edge (owner-approved edges only)
-fn default_true() -> bool {
-    true
-}
+use vox_config::serde_defaults::default_true;
 fn default_min_success() -> f32 {
     0.70
 }

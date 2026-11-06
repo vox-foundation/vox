@@ -13,8 +13,8 @@ use vox_orchestrator::{
 };
 use vox_skills::{SkillRegistry, install_builtins, new_registry_arc};
 
-/// Opt-in webhook -> hopper intake poller (Phase 3 D-10/D-13).
-mod webhook_intake;
+/// Opt-in webhook -> hopper intake poller (Phase 3 D-10/D-13) and signed webhook / scheduled tasks (`T3-WEBHOOK-IMPORT-01..02`).
+pub mod webhook_intake;
 
 /// Host-side registration of the nvml-probe plugin as the orchestrator's GPU probe.
 pub mod vram_probe;
@@ -141,11 +141,75 @@ pub struct ServerState {
 
     /// Subsystems actually up. "Everything booted" until plan 03's conditioned boot.
     pub boot_report: Arc<PrRwLock<crate::profiles::BootReport>>,
+
+    /// T3 Wave 4 live battery and cost ledger (dual-unit BU + USD accounting).
+    pub battery_ledger: Arc<PrMutex<vox_orchestrator::budget::tracker::BatteryAndCostLedger>>,
+    /// T3 Wave 4 deterministic/cryptographic ID allocator for chat turns and messages.
+    pub id_allocator: vox_orchestrator::id_allocator::SystemRandomIdAllocator,
+    /// T3 Wave 4 per-thread run queue with steer promotion.
+    pub thread_run_queue: Arc<PrMutex<vox_orchestrator::thread_run_queue::ThreadRunQueue>>,
+    /// Promoted mid-turn steer interventions keyed by `session_id`, drained by `agent_loop.rs`.
+    pub steered_prompts: Arc<PrMutex<HashMap<String, Vec<String>>>>,
+    /// Resumable turn stream buffers keyed by `session_id` -> `(accumulated_text, completed)`.
+    pub resumable_streams: Arc<PrMutex<HashMap<String, (String, bool)>>>,
+    /// T3 Wave 5 (`T3-STREAM-QUEUE-01`) sequenced resumable turn stream registry (`after_seq` replay + cancellation).
+    pub resumable_stream_registry:
+        Arc<PrMutex<vox_orchestrator::models::spec::ResumableTurnStreamRegistry>>,
+    /// T3 Wave 5 (`T3-PROMPT-LOOP-04`) lazy 3-tool MCP discovery registry (`list_mcp_servers`, `list_mcp_tools`, `resolve_call_mcp`).
+    pub lazy_mcp_registry: Arc<PrMutex<crate::external_mcp::LazyMcpGroupRegistry>>,
+    /// T3 Wave 5 (`T3-WORKTREE-CKPT-01`) stateful webhook deduplication and rate gate across poll ticks.
+    pub webhook_gate: Arc<PrMutex<crate::server_state::webhook_intake::WebhookDedupeAndRateGate>>,
+    /// T3 Wave 5 (`T3-WORKTREE-CKPT-02`) monotonic per-session sparse checkpoint turn counters (`turn/1`, `turn/2`, ...).
+    pub checkpoint_turn_counters: Arc<PrMutex<HashMap<String, u32>>>,
+    /// T3 Wave 5 (`T3-WORKTREE-CKPT-03`) persistent multi-variant Muse worktree pools keyed by `session_id`.
+    pub muse_pools: Arc<
+        PrMutex<HashMap<String, vox_orchestrator::agentos::muse_pool::MultiVariantWorktreePool>>,
+    >,
+    /// T3 Wave 5 (`T3-TOOLS-HARDENING-04`) persistent PR review guide service across MCP calls.
+    pub pr_review_guide_service:
+        Arc<PrMutex<vox_orchestrator::agentos::pr_reactors::PullRequestReviewGuideService>>,
+    /// T3 Wave 4 stateful guest share link + moderation service.
+    pub guest_share_service: Arc<PrMutex<vox_orchestrator::guest_share::GuestShareService>>,
+    /// Milestone v4.9 (`URBS-QUARANTINE-01..02`) district path prefixes locked read-only by developer Clausura Ferrea.
+    pub quarantined_paths: Arc<PrRwLock<std::collections::BTreeSet<String>>>,
 }
 
 impl ServerState {
     pub fn feedback(&self) -> vox_orchestrator::feedback::FeedbackStore {
         self.feedback.clone()
+    }
+
+    /// Check whether `raw_path` falls under any quarantined district prefix (`URBS-QUARANTINE-02`).
+    pub fn is_path_quarantined(&self, raw_path: &str) -> Option<String> {
+        let mut normalized = raw_path.trim().replace('\\', "/");
+        if let Some(root) = self.workspace_root.as_ref().or(Some(&self.repository.root)) {
+            let root_str = root.to_string_lossy().replace('\\', "/");
+            if let Some(stripped) = normalized.strip_prefix(&root_str) {
+                normalized = stripped.trim_start_matches('/').to_string();
+            }
+        }
+        let normalized = normalized.trim_start_matches("./").trim_start_matches('/');
+        if normalized.is_empty() {
+            return None;
+        }
+        let guard = self.quarantined_paths.read();
+        for prefix in guard.iter() {
+            let clean_prefix = prefix
+                .trim()
+                .replace('\\', "/")
+                .trim_matches('/')
+                .to_string();
+            if clean_prefix.is_empty() {
+                continue;
+            }
+            if normalized == clean_prefix
+                || normalized.starts_with(&format!("{clean_prefix}/"))
+                || normalized.contains(&format!("/{clean_prefix}/"))
+            {
+                return Some(clean_prefix);
+            }
+        }
+        None
     }
 
     /// Scope this state to `profile` (advertising and dispatch both honor it).
@@ -343,6 +407,33 @@ impl ServerState {
             model_prompt_registry: Arc::new(ModelPromptRegistry::new()),
             active_profile: Arc::new(crate::profiles::ActiveProfile::dev()),
             boot_report: Arc::new(PrRwLock::new(crate::profiles::full_boot_report())),
+            battery_ledger: Arc::new(PrMutex::new(
+                vox_orchestrator::budget::tracker::BatteryAndCostLedger::default(),
+            )),
+            id_allocator: vox_orchestrator::id_allocator::SystemRandomIdAllocator,
+            thread_run_queue: Arc::new(PrMutex::new(
+                vox_orchestrator::thread_run_queue::ThreadRunQueue::default(),
+            )),
+            steered_prompts: Arc::new(PrMutex::new(HashMap::new())),
+            resumable_streams: Arc::new(PrMutex::new(HashMap::new())),
+            resumable_stream_registry: Arc::new(PrMutex::new(
+                vox_orchestrator::models::spec::ResumableTurnStreamRegistry::default(),
+            )),
+            lazy_mcp_registry: Arc::new(PrMutex::new(
+                crate::external_mcp::LazyMcpGroupRegistry::default(),
+            )),
+            webhook_gate: Arc::new(PrMutex::new(
+                crate::server_state::webhook_intake::WebhookDedupeAndRateGate::default(),
+            )),
+            checkpoint_turn_counters: Arc::new(PrMutex::new(HashMap::new())),
+            muse_pools: Arc::new(PrMutex::new(HashMap::new())),
+            pr_review_guide_service: Arc::new(PrMutex::new(
+                vox_orchestrator::agentos::pr_reactors::PullRequestReviewGuideService::default(),
+            )),
+            guest_share_service: Arc::new(PrMutex::new(
+                vox_orchestrator::guest_share::GuestShareService::default(),
+            )),
+            quarantined_paths: Arc::new(PrRwLock::new(std::collections::BTreeSet::new())),
         };
 
         // Spawn pollers
@@ -440,6 +531,33 @@ impl ServerState {
             model_prompt_registry: Arc::new(ModelPromptRegistry::new()),
             active_profile: Arc::new(crate::profiles::ActiveProfile::dev()),
             boot_report: Arc::new(PrRwLock::new(crate::profiles::full_boot_report())),
+            battery_ledger: Arc::new(PrMutex::new(
+                vox_orchestrator::budget::tracker::BatteryAndCostLedger::default(),
+            )),
+            id_allocator: vox_orchestrator::id_allocator::SystemRandomIdAllocator,
+            thread_run_queue: Arc::new(PrMutex::new(
+                vox_orchestrator::thread_run_queue::ThreadRunQueue::default(),
+            )),
+            steered_prompts: Arc::new(PrMutex::new(HashMap::new())),
+            resumable_streams: Arc::new(PrMutex::new(HashMap::new())),
+            resumable_stream_registry: Arc::new(PrMutex::new(
+                vox_orchestrator::models::spec::ResumableTurnStreamRegistry::default(),
+            )),
+            lazy_mcp_registry: Arc::new(PrMutex::new(
+                crate::external_mcp::LazyMcpGroupRegistry::default(),
+            )),
+            webhook_gate: Arc::new(PrMutex::new(
+                crate::server_state::webhook_intake::WebhookDedupeAndRateGate::default(),
+            )),
+            checkpoint_turn_counters: Arc::new(PrMutex::new(HashMap::new())),
+            muse_pools: Arc::new(PrMutex::new(HashMap::new())),
+            pr_review_guide_service: Arc::new(PrMutex::new(
+                vox_orchestrator::agentos::pr_reactors::PullRequestReviewGuideService::default(),
+            )),
+            guest_share_service: Arc::new(PrMutex::new(
+                vox_orchestrator::guest_share::GuestShareService::default(),
+            )),
+            quarantined_paths: Arc::new(PrRwLock::new(std::collections::BTreeSet::new())),
         };
         Self::spawn_external_skill_hydration(
             state.skill_registry.clone(),
@@ -775,6 +893,33 @@ impl ServerState {
             model_prompt_registry: Arc::new(ModelPromptRegistry::new()),
             active_profile: Arc::new(crate::profiles::ActiveProfile::dev()),
             boot_report: Arc::new(PrRwLock::new(crate::profiles::full_boot_report())),
+            battery_ledger: Arc::new(PrMutex::new(
+                vox_orchestrator::budget::tracker::BatteryAndCostLedger::default(),
+            )),
+            id_allocator: vox_orchestrator::id_allocator::SystemRandomIdAllocator,
+            thread_run_queue: Arc::new(PrMutex::new(
+                vox_orchestrator::thread_run_queue::ThreadRunQueue::default(),
+            )),
+            steered_prompts: Arc::new(PrMutex::new(HashMap::new())),
+            resumable_streams: Arc::new(PrMutex::new(HashMap::new())),
+            resumable_stream_registry: Arc::new(PrMutex::new(
+                vox_orchestrator::models::spec::ResumableTurnStreamRegistry::default(),
+            )),
+            lazy_mcp_registry: Arc::new(PrMutex::new(
+                crate::external_mcp::LazyMcpGroupRegistry::default(),
+            )),
+            webhook_gate: Arc::new(PrMutex::new(
+                crate::server_state::webhook_intake::WebhookDedupeAndRateGate::default(),
+            )),
+            checkpoint_turn_counters: Arc::new(PrMutex::new(HashMap::new())),
+            muse_pools: Arc::new(PrMutex::new(HashMap::new())),
+            pr_review_guide_service: Arc::new(PrMutex::new(
+                vox_orchestrator::agentos::pr_reactors::PullRequestReviewGuideService::default(),
+            )),
+            guest_share_service: Arc::new(PrMutex::new(
+                vox_orchestrator::guest_share::GuestShareService::default(),
+            )),
+            quarantined_paths: Arc::new(PrRwLock::new(std::collections::BTreeSet::new())),
         }
     }
 

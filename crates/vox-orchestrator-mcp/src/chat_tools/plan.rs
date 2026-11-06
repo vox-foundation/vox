@@ -210,7 +210,48 @@ struct PlanResponseSchema {
 
 /// Generate a structured plan for a goal. Optionally writes PLAN.md to the workspace root.
 /// This backs the Cursor-style "Planning Mode" in the extension and in Vox agents.
-pub async fn plan_goal(state: &ServerState, params: PlanParams) -> String {
+pub async fn plan_goal(state: &ServerState, mut params: PlanParams) -> String {
+    let mut active_posture = crate::chat_tools::chat::message::load_persisted_session_chat_posture(
+        state,
+        params.session_id.as_deref(),
+    )
+    .await;
+    let mut posture_updated = false;
+    macro_rules! merge_plan_posture {
+        ($field:ident) => {
+            if params.$field.is_some() {
+                if active_posture.$field != params.$field {
+                    active_posture.$field = params.$field.clone();
+                    posture_updated = true;
+                }
+            } else if active_posture.$field.is_some() {
+                params.$field = active_posture.$field.clone();
+            }
+        };
+    }
+    merge_plan_posture!(tier);
+    merge_plan_posture!(clutch);
+    merge_plan_posture!(risk);
+    merge_plan_posture!(oversight_level);
+    merge_plan_posture!(kb_scope);
+    merge_plan_posture!(grounding_check_enabled);
+    if posture_updated {
+        crate::chat_tools::chat::message::persist_session_chat_posture(
+            state,
+            params.session_id.as_deref(),
+            &active_posture,
+        )
+        .await;
+    }
+    if params.require_approval.is_none()
+        && let Some(ovs) = params.oversight_level.as_deref().map(str::trim)
+        && matches!(
+            ovs.to_ascii_lowercase().as_str(),
+            "strict" | "5" | "cautious" | "4"
+        )
+    {
+        params.require_approval = Some(true);
+    }
     if params
         .trace_id
         .as_deref()
@@ -278,13 +319,27 @@ Rules:
     );
 
     let system_prompt = build_system_prompt(state, None).await;
-    let mut resolution_template = McpChatModelResolution {
+    let parsed_clutch = params
+        .clutch
+        .as_deref()
+        .and_then(vox_orchestrator::mode::ClutchProfile::from_label);
+    let parsed_risk = params
+        .risk
+        .as_deref()
+        .and_then(vox_orchestrator::mode::RiskPosture::from_label);
+    let base_resolution = McpChatModelResolution {
         complexity: match params.max_tasks {
             Some(n) if n > 10 => 9,
             _ => 7,
         },
+        clutch: parsed_clutch,
+        risk: parsed_risk,
         ..Default::default()
     };
+    let mut resolution_template = crate::chat_tools::chat::message::resolution_for_tier(
+        params.tier.as_deref(),
+        base_resolution,
+    );
 
     let global_pref = match crate::sync_poison::poison_rw_read(
         state.mcp_chat_model_override.read(),

@@ -306,6 +306,53 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
     Ok(ToolResult::ok(response).to_json())
 }
 
+/// Produce a wire-compressed orchestrator status snapshot (`CompactWireEnvelope`) using
+/// [`vox_orchestrator::wire_compression::WireIdTableInterner`], [`vox_orchestrator::wire_compression::LiveBodyDeduper`],
+/// and optional `omit_idle_subagents` filtering for cold-connect shell startup.
+pub async fn orchestrator_status_compact(
+    state: &ServerState,
+    omit_idle_subagents: bool,
+) -> anyhow::Result<vox_orchestrator::wire_compression::CompactWireEnvelope> {
+    let raw_json = orchestrator_status(state).await?;
+    let mut val: serde_json::Value = serde_json::from_str(&raw_json)?;
+    if omit_idle_subagents {
+        if let Some(agents) = val
+            .get_mut("data")
+            .and_then(|d| d.get_mut("agents"))
+            .and_then(serde_json::Value::as_array_mut)
+        {
+            agents.retain(|agent| {
+                let queued = agent
+                    .get("queued")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(0);
+                let paused = agent
+                    .get("paused")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false);
+                let is_subagent = agent.get("parent_agent_id").is_some_and(|v| !v.is_null())
+                    || agent.get("parent_thread_id").is_some_and(|v| !v.is_null())
+                    || agent
+                        .get("name")
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(|n| n.contains("subagent") || n.contains("child"));
+                !is_subagent || queued > 0 || paused
+            });
+        }
+    }
+    Ok(vox_orchestrator::wire_compression::compress_wire_snapshot(
+        &val,
+    ))
+}
+
+/// Retrieve the full thread family (`root_thread_id` + all descendant subagent threads) on demand.
+pub fn orchestrator_thread_family(
+    threads: &[vox_orchestrator::wire_compression::ThreadFamilyNode],
+    root_thread_id: &str,
+) -> Vec<vox_orchestrator::wire_compression::ThreadFamilyNode> {
+    vox_orchestrator::wire_compression::get_thread_family(threads, root_thread_id)
+}
+
 /// Load companion row by canonical id, with fallback to the pre-rename storage id (spelled with
 /// `concat!` so repo-wide retired-name greps stay clean).
 fn resolve_stored_companion(comps: &[Companion], canonical_id: &str) -> Option<Companion> {

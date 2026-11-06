@@ -230,7 +230,7 @@ impl ModelRegistry {
                         m,
                         complexity,
                         false,
-                        None,
+                        task.and_then(|t| t.context_fill_ratio),
                         preference,
                         None,
                         scoreboard.get(&m.id),

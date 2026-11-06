@@ -60,7 +60,7 @@ pub struct ModelCapabilities {
     #[serde(default)]
     pub supports_jsonl: bool,
     /// Whether this model is trusted to author Vox language source
-    /// (`VoxScript` artifact forms). Registry-authoring flag, NOT an
+    /// (`VoxLang` artifact forms). Registry-authoring flag, NOT an
     /// OpenRouter-advertised routing capability — seeded `true` only for
     /// MENS models, defaults `false` for everything else. Operators can
     /// additionally opt models in via the `[audit.route] vox_capable_models`
@@ -383,6 +383,379 @@ pub fn task_category_premium_key(task_type: TaskCategory) -> &'static str {
 
 pub fn task_category_strength(task_type: TaskCategory) -> StrengthTag {
     route_for_category(task_type).strength_tag
+}
+
+/// Live operational health status of a model (extracted from `t3router` `getModelStatuses`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ModelOperationalStatus {
+    #[default]
+    Operational,
+    Degraded,
+    Outage,
+}
+
+impl ModelOperationalStatus {
+    /// Parse a T3 Chat / provider status indicator string (`"operational"`, `"degraded"`, `"outage"`, etc.).
+    #[must_use]
+    pub fn parse_t3_indicator(indicator: &str) -> Self {
+        match indicator.trim().to_ascii_lowercase().as_str() {
+            "operational" | "ok" | "healthy" | "up" => Self::Operational,
+            "degraded" | "degraded_performance" | "partial_outage" | "slow" => Self::Degraded,
+            "outage" | "major_outage" | "down" | "offline" | "disabled" => Self::Outage,
+            _ => Self::Operational,
+        }
+    }
+
+    #[must_use]
+    pub fn is_operational(self) -> bool {
+        matches!(self, Self::Operational)
+    }
+
+    #[must_use]
+    pub fn is_routable(self) -> bool {
+        !matches!(self, Self::Outage)
+    }
+}
+
+/// Normalized reasoning effort level across T3 Chat, OpenRouter, and OpenAI wire protocols.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ReasoningEffort {
+    Low,
+    Medium,
+    High,
+}
+
+impl ReasoningEffort {
+    #[must_use]
+    pub fn as_wire_str(self) -> &'static str {
+        match self {
+            Self::Low => "low",
+            Self::Medium => "medium",
+            Self::High => "high",
+        }
+    }
+
+    #[must_use]
+    pub fn from_wire_str(s: &str) -> Option<Self> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "low" | "minimal" => Some(Self::Low),
+            "medium" | "med" => Some(Self::Medium),
+            "high" | "max" => Some(Self::High),
+            _ => None,
+        }
+    }
+}
+
+/// Billing and credential tier provenance for a model turn (`t3router` + `thom-chat` synthesis).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CostProvenanceTier {
+    /// Local execution (`VoxLocal`, `Ollama`, `PopuliMesh`) — zero external spend.
+    LocalZeroCost,
+    /// Cloud free tier (`:free` model suffix or `ModelSpec::is_free`).
+    FreeTier,
+    /// User-supplied Bring-Your-Own-Key (`BYOK`).
+    Byok,
+    /// Managed platform / subscription credit pool (`t3.chat` / shared key).
+    PlatformCredits,
+}
+
+/// Deterministic per-turn cost and credit-delta receipt (`VOX-ROUTER-T3-03`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TurnCostDeltaReceipt {
+    pub model_id: String,
+    pub tier: CostProvenanceTier,
+    pub cost_usd_delta: f64,
+    pub credits_deducted: Option<f64>,
+    pub credits_remaining: Option<f64>,
+    pub prompt_tokens: u32,
+    pub completion_tokens: u32,
+    pub cache_read_tokens: u32,
+}
+
+impl TurnCostDeltaReceipt {
+    /// Classify the billing tier for `spec` given whether a user-supplied BYOK credential was used.
+    #[must_use]
+    pub fn classify_tier(
+        spec: Option<&ModelSpec>,
+        model_id: &str,
+        has_user_byok: bool,
+    ) -> CostProvenanceTier {
+        if let Some(s) = spec {
+            if matches!(
+                s.provider_type,
+                ProviderType::Ollama | ProviderType::VoxLocal | ProviderType::PopuliMesh
+            ) {
+                return CostProvenanceTier::LocalZeroCost;
+            }
+            if has_user_byok {
+                return CostProvenanceTier::Byok;
+            }
+            if s.is_free || s.id.ends_with(":free") {
+                return CostProvenanceTier::FreeTier;
+            }
+            return CostProvenanceTier::PlatformCredits;
+        }
+        if has_user_byok {
+            CostProvenanceTier::Byok
+        } else if model_id.ends_with(":free") {
+            CostProvenanceTier::FreeTier
+        } else {
+            CostProvenanceTier::PlatformCredits
+        }
+    }
+}
+
+/// Event kind for server-resumable turn stream buffering (`VOX-HARNESS-T3-01`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum TurnStreamEventKind {
+    TextDelta,
+    ReasoningDelta,
+    ToolCallStart { id: String, name: String },
+    ToolCallArgsDelta { id: String },
+    Finish { reason: String },
+    Cancelled,
+}
+
+/// A sequenced turn stream chunk buffered on the server so clients can reconnect or reload
+/// and replay missed events via `after_sequence` (`t3code` + `thom-chat` synthesis).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SequencedTurnChunk {
+    pub sequence: u64,
+    pub kind: TurnStreamEventKind,
+    pub payload: String,
+}
+
+#[derive(Debug, Default)]
+struct ActiveTurnStream {
+    run_id: String,
+    generating: bool,
+    cancelled: bool,
+    chunks: Vec<SequencedTurnChunk>,
+    subscribers: Vec<std::sync::mpsc::Sender<SequencedTurnChunk>>,
+}
+
+impl Clone for ActiveTurnStream {
+    fn clone(&self) -> Self {
+        Self {
+            run_id: self.run_id.clone(),
+            generating: self.generating,
+            cancelled: self.cancelled,
+            chunks: self.chunks.clone(),
+            subscribers: Vec::new(),
+        }
+    }
+}
+
+/// Server-resumable turn stream buffer and cancellation registry (`VOX-HARNESS-T3-01` & `T3-STREAM-GUEST-01`).
+///
+/// Uses a per-turn `Arc<std::sync::Mutex<ActiveTurnStream>>` (`NotT3Chat` `SemaphoreSlim(1)` pattern)
+/// so `subscribe_or_replay` atomically snapshots buffered chunks and registers a live subscriber channel
+/// before releasing the lock—guaranteeing zero dropped or duplicated tokens on mid-stream multi-tab join.
+#[derive(Debug, Clone, Default)]
+pub struct ResumableTurnStreamRegistry {
+    streams: HashMap<String, std::sync::Arc<std::sync::Mutex<ActiveTurnStream>>>,
+}
+
+impl ResumableTurnStreamRegistry {
+    /// Start a new background turn stream for `thread_id`.
+    pub fn start_turn(&mut self, thread_id: impl Into<String>, run_id: impl Into<String>) {
+        self.streams.insert(
+            thread_id.into(),
+            std::sync::Arc::new(std::sync::Mutex::new(ActiveTurnStream {
+                run_id: run_id.into(),
+                generating: true,
+                cancelled: false,
+                chunks: Vec::new(),
+                subscribers: Vec::new(),
+            })),
+        );
+    }
+
+    /// Append a chunk to `thread_id`'s active stream, broadcast to all live subscribers under the per-turn lock,
+    /// and return its 1-based sequence number.
+    pub fn append_chunk(
+        &mut self,
+        thread_id: &str,
+        kind: TurnStreamEventKind,
+        payload: impl Into<String>,
+    ) -> u64 {
+        let slot = self
+            .streams
+            .entry(thread_id.to_string())
+            .or_insert_with(|| {
+                std::sync::Arc::new(std::sync::Mutex::new(ActiveTurnStream::default()))
+            })
+            .clone();
+        let mut entry = slot.lock().unwrap_or_else(|e| e.into_inner());
+        let next_seq = (entry.chunks.len() as u64) + 1;
+        if matches!(
+            kind,
+            TurnStreamEventKind::Finish { .. } | TurnStreamEventKind::Cancelled
+        ) {
+            entry.generating = false;
+        }
+        let chunk = SequencedTurnChunk {
+            sequence: next_seq,
+            kind,
+            payload: payload.into(),
+        };
+        entry.chunks.push(chunk.clone());
+        entry
+            .subscribers
+            .retain(|tx| tx.send(chunk.clone()).is_ok());
+        next_seq
+    }
+
+    /// Atomically replay all buffered chunks strictly after `after_sequence` and register a live
+    /// receiver channel under the same per-turn `Mutex` (`NotT3Chat` `SemaphoreSlim(1)` pattern).
+    pub fn subscribe_or_replay(
+        &self,
+        thread_id: &str,
+        after_sequence: u64,
+    ) -> Option<(
+        Vec<SequencedTurnChunk>,
+        std::sync::mpsc::Receiver<SequencedTurnChunk>,
+    )> {
+        let slot = self.streams.get(thread_id)?;
+        let mut entry = slot.lock().unwrap_or_else(|e| e.into_inner());
+        let replayed: Vec<SequencedTurnChunk> = entry
+            .chunks
+            .iter()
+            .filter(|c| c.sequence > after_sequence)
+            .cloned()
+            .collect();
+        let (tx, rx) = std::sync::mpsc::channel();
+        if entry.generating {
+            entry.subscribers.push(tx);
+        }
+        Some((replayed, rx))
+    }
+
+    /// Replay all buffered chunks for `thread_id` strictly after `after_sequence` (`sequence > after_sequence`).
+    #[must_use]
+    pub fn replay_after(&self, thread_id: &str, after_sequence: u64) -> Vec<SequencedTurnChunk> {
+        self.streams
+            .get(thread_id)
+            .map(|slot| {
+                let s = slot.lock().unwrap_or_else(|e| e.into_inner());
+                s.chunks
+                    .iter()
+                    .filter(|c| c.sequence > after_sequence)
+                    .cloned()
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Reconstruct the accumulated assistant text and reasoning up to the latest sequence.
+    #[must_use]
+    pub fn accumulated_snapshot(&self, thread_id: &str) -> (String, String, u64) {
+        let Some(slot) = self.streams.get(thread_id) else {
+            return (String::new(), String::new(), 0);
+        };
+        let s = slot.lock().unwrap_or_else(|e| e.into_inner());
+        let mut text = String::new();
+        let mut reasoning = String::new();
+        let mut last_seq = 0;
+        for c in &s.chunks {
+            last_seq = c.sequence;
+            match c.kind {
+                TurnStreamEventKind::TextDelta => text.push_str(&c.payload),
+                TurnStreamEventKind::ReasoningDelta => reasoning.push_str(&c.payload),
+                _ => {}
+            }
+        }
+        (text, reasoning, last_seq)
+    }
+
+    /// Cancel an in-flight generation for `thread_id` (`thom-chat` `cancel-generation` pattern).
+    pub fn cancel_turn(&mut self, thread_id: &str) -> bool {
+        let Some(slot) = self.streams.get(thread_id) else {
+            return false;
+        };
+        let mut s = slot.lock().unwrap_or_else(|e| e.into_inner());
+        if !s.generating {
+            return false;
+        }
+        s.generating = false;
+        s.cancelled = true;
+        let next_seq = (s.chunks.len() as u64) + 1;
+        let chunk = SequencedTurnChunk {
+            sequence: next_seq,
+            kind: TurnStreamEventKind::Cancelled,
+            payload: "cancelled_by_user".to_string(),
+        };
+        s.chunks.push(chunk.clone());
+        s.subscribers.retain(|tx| tx.send(chunk.clone()).is_ok());
+        true
+    }
+
+    #[must_use]
+    pub fn is_generating(&self, thread_id: &str) -> bool {
+        self.streams
+            .get(thread_id)
+            .is_some_and(|slot| slot.lock().unwrap_or_else(|e| e.into_inner()).generating)
+    }
+
+    #[must_use]
+    pub fn is_cancelled(&self, thread_id: &str) -> bool {
+        self.streams
+            .get(thread_id)
+            .is_some_and(|slot| slot.lock().unwrap_or_else(|e| e.into_inner()).cancelled)
+    }
+
+    #[must_use]
+    pub fn run_id(&self, thread_id: &str) -> Option<String> {
+        self.streams.get(thread_id).map(|slot| {
+            slot.lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .run_id
+                .clone()
+        })
+    }
+}
+
+/// Session privacy and persistence posture (`helioschat` `temporary` + `thom-chat` `privacy_mode`, `VOX-HARNESS-T3-03`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum SessionPrivacyPosture {
+    /// Standard persistent session with database and memory sync enabled.
+    #[default]
+    Standard,
+    /// Temporary / incognito session: zero database writes and zero long-term memory persistence.
+    Ephemeral,
+    /// Local-only privacy session: persists locally only and enforces `CandidateScope::LocalOnly`.
+    LocalPrivate,
+}
+
+impl SessionPrivacyPosture {
+    #[must_use]
+    pub fn should_persist_to_db(self) -> bool {
+        !matches!(self, Self::Ephemeral)
+    }
+
+    #[must_use]
+    pub fn should_persist_memories(self) -> bool {
+        matches!(self, Self::Standard)
+    }
+
+    #[must_use]
+    pub fn requires_local_only_models(self) -> bool {
+        matches!(self, Self::LocalPrivate)
+    }
+}
+
+/// Receipt produced by pre-send spoke-aware prompt enhancement (`VOX-HARNESS-T3-03`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EnhancedPromptReceipt {
+    pub original_prompt: String,
+    pub enhanced_prompt: String,
+    pub preserved_rule_tags: Vec<String>,
+    pub target_spoke: String,
 }
 
 #[cfg(test)]

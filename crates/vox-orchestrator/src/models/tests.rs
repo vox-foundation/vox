@@ -867,6 +867,8 @@ mod semcov_wave34_tests {
             p95_ttft_ms: None,
             p95_tpot_ms: None,
             goodput_tokens_per_sec: None,
+            response_quality_ema: None,
+            benchmark_prior: None,
         }
     }
 

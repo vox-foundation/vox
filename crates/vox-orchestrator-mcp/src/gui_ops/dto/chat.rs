@@ -9,6 +9,12 @@ pub struct ChatSessionDto {
     pub message_count: i64,
     pub conversation_id: i64,
     pub repository_id: Option<String>,
+    /// Parent session ID when this session was branched from an existing turn (`BRANCH-REWIND-01`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_session_id: Option<String>,
+    /// Source message ID in `parent_session_id` where the branch forked (`BRANCH-REWIND-01`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fork_from_message_id: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,6 +39,60 @@ pub struct ChatMessageDto {
     /// low-confidence. `None` when the check was not run.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub grounding_flagged: Option<bool>,
+    /// Snapshot VCS (`vox-vcs` / Jujutsu) checkpoint operation ID recorded at turn time (`BRANCH-REWIND-02`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vcs_checkpoint_op_id: Option<String>,
+    /// Challenger model ID when this turn was chosen via Side-by-Side Arena comparison (`ARENA-COMPARE-01`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arena_challenger_model: Option<String>,
+}
+
+/// One candidate arm in a Side-by-Side Arena turn comparison (`ARENA-COMPARE-01`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ArenaCandidateTurnDto {
+    pub arm: String,
+    pub model_id: String,
+    pub content: String,
+    pub latency_ms: u64,
+    pub ttft_ms: Option<u64>,
+    pub selection_reason: Option<String>,
+    pub estimated_tokens: usize,
+    pub is_local_or_mens: bool,
+}
+
+/// Side-by-Side Arena turn comparison result (`ARENA-COMPARE-01`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ArenaTurnComparisonDto {
+    pub comparison_id: String,
+    pub session_id: String,
+    pub prompt: String,
+    pub arm_a: ArenaCandidateTurnDto,
+    pub arm_b: ArenaCandidateTurnDto,
+}
+
+/// Outcome of voting on a Side-by-Side Arena comparison (`ARENA-COMPARE-02`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ArenaVoteOutcomeDto {
+    pub comparison_id: String,
+    pub session_id: String,
+    pub winner: String,
+    pub chosen_model_id: String,
+    pub persisted_message_id: i64,
+    pub quality_a: f64,
+    pub quality_b: f64,
+    pub quality_delta_winner: f64,
+    pub dpo_harvested: bool,
+    pub telemetry_queued: bool,
+}
+
+/// Outcome of rewinding a chat session to an earlier turn checkpoint (`BRANCH-REWIND-02`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ChatRewindOutcomeDto {
+    pub session_id: String,
+    pub rewound_to_message_id: i64,
+    pub kept_messages: usize,
+    pub dropped_messages: usize,
+    pub vcs_checkpoint_op_id: String,
 }
 
 impl ChatMessageDto {
@@ -59,6 +119,8 @@ impl ChatMessageDto {
             latency_ms: v.get("latency_ms").and_then(|l| l.as_u64()),
             selection_reason: text("selection_reason"),
             grounding_flagged: v.get("grounding_flagged").and_then(|g| g.as_bool()),
+            vcs_checkpoint_op_id: text("vcs_checkpoint_op_id"),
+            arena_challenger_model: text("arena_challenger_model"),
         }
     }
 }

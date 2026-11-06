@@ -113,7 +113,7 @@ fn try_semantic_embeddings(registry: &[ToolEntry], task: &str) -> Option<Vec<(f3
     // Step 1: locate the embedder config.
     let hub_embedder = find_hub_embedder_id()?;
 
-    // Step 2: reject PLACEHOLDER revisions — the model hasn't been downloaded.
+    // Step 2: reject unconfigured sentinel revisions — the model hasn't been downloaded.
     if hub_embedder.contains("PLACEHOLDER") {
         tracing::warn!(
             hub_embedder = %hub_embedder,

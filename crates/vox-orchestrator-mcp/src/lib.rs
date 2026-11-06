@@ -36,9 +36,13 @@ pub mod skill_promotion;
 /// dangerous-tool gate's precedence order).
 pub mod approval_allowlist;
 mod floor_gate;
+/// MCP tool access matrix, 16 KiB model context, 20 KiB DOM shedding, and stateless DPoP auth (`T3-HANDOFF-MCP-02..04`).
+pub mod mcp_tool_access;
 /// T0.3: registry-driven risk classification + `PermissionMode` auto-approve
 /// matrix (tier 2 of the dangerous-tool gate's precedence order).
 pub mod permission_modes;
+/// Live MCP tool handlers for T3 Wave 2/3 subsystems (`T3-MCP-RPC-WIRE-01..03`).
+pub mod t3_wave3_tools;
 
 pub mod aci;
 /// Agent native gateway and skill tools.
@@ -193,7 +197,10 @@ pub use mcp_context as context;
 pub mod mcp_client;
 pub use mcp_client as client;
 mod external_mcp;
-pub use external_mcp::{ExternalMcpServer, connect_and_list_tools};
+pub use external_mcp::{
+    ExternalMcpServer, LazyMcpGroup, LazyMcpGroupRegistry, LazyMcpToolEntry,
+    MAX_LAZY_MCP_WRAPPER_ROUNDS, connect_and_list_tools, sanitize_mcp_tool_search_env,
+};
 pub mod dei_ipc;
 pub mod http_gateway;
 pub mod journey_envelope;

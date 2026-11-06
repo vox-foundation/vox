@@ -25,6 +25,8 @@ pub(crate) fn workspace_turn_to_chat_entry(
         context_files,
         model_used: row.model_used,
         tokens: row.token_count.map(|t| t as u64),
+        thought_signature: None,
+        edited_at: None,
     }
 }
 

@@ -119,9 +119,55 @@ pub fn verifiable_markdown_path(name: &str, args: &serde_json::Value) -> Option<
     is_md.then(|| path.to_string())
 }
 
+/// Returns the workspace-relative `.rs` path to verify, iff `name` is a
+/// file-mutating tool that touched a Rust source file (`SOTA-VERIFY-02`). Pure; performs no I/O.
+pub fn verifiable_rust_path(name: &str, args: &serde_json::Value) -> Option<String> {
+    if !crate::scope_guard::WRITE_TOOLS.contains(&name) {
+        return None;
+    }
+    let path = crate::scope_guard::PATH_ARG_KEYS
+        .iter()
+        .find_map(|key| args.get(*key).and_then(|v| v.as_str()))?;
+    let is_rs = std::path::Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("rs"));
+    is_rs.then(|| path.to_string())
+}
+
+/// Returns the workspace-relative `SKILL.md` path to verify, iff `name` is a
+/// file-mutating tool that touched a `SKILL.md` file (`SOTA-VERIFY-03`). Pure; performs no I/O.
+pub fn verifiable_skill_md_path(name: &str, args: &serde_json::Value) -> Option<String> {
+    if !crate::scope_guard::WRITE_TOOLS.contains(&name) {
+        return None;
+    }
+    let path = crate::scope_guard::PATH_ARG_KEYS
+        .iter()
+        .find_map(|key| args.get(*key).and_then(|v| v.as_str()))?;
+    let is_skill_md = std::path::Path::new(path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .is_some_and(|n| n.eq_ignore_ascii_case("SKILL.md"));
+    is_skill_md.then(|| path.to_string())
+}
+
+/// Phase 156 (`SOTA-RS-STRUCT-01..03`): Structural AST/module integrity check for `.rs` edits
+/// (including non-standalone files that import `crate::`/`super::`):
+/// 1. Flags duplicate un-gated top-level `fn`, `struct`, `enum`, `trait`, or `type` definitions
+///    in the same file (a common LLM partial-edit failure mode).
+/// 2. Flags out-of-line `mod <name>;` declarations whose target file (`<name>.rs` or
+///    `<name>/mod.rs`) does not exist on disk when neither `#[cfg(...)]` nor `#[path = ...]`
+///    is present.
+pub fn verify_rust_module_structural_integrity(
+    resolved_path: &std::path::Path,
+    text: &str,
+) -> Result<(), String> {
+    vox_corpus::training::spoke_roundtrip::verify_rust_ast_structural_integrity(resolved_path, text)
+}
+
 /// Run auto-verification for a just-succeeded mutating tool, returning the (already
 /// attached) payload. No-op (returns `payload` unchanged) when disabled, when the tool
-/// didn't touch a `.vox` or `.md`/`.mdx` file, or when the file checks clean.
+/// didn't touch a `.vox`, `.rs`, `SKILL.md`, or `.md`/`.mdx` file, or when the file checks clean.
 pub async fn verify_and_attach(
     state: &ServerState,
     name: &str,
@@ -132,11 +178,98 @@ pub async fn verify_and_attach(
         return payload;
     }
     if let Some(path) = verifiable_vox_path(name, args) {
-        let check_json = code_validator::vox_check(state, VoxCheckParams { path }).await;
-        return match advisory_from_check_json(&check_json) {
-            Some(advisory) => attach_advisory(payload, advisory),
-            None => payload,
-        };
+        let check_json =
+            code_validator::vox_check(state, VoxCheckParams { path: path.clone() }).await;
+        if let Some(advisory) = advisory_from_check_json(&check_json) {
+            return attach_advisory(payload, advisory);
+        }
+        // SOTA-VERIFY-01: Also enforce Vox Grammar Unification & security rules (retired @island, @table, ret, isnt, shell_exec)
+        if let Ok(resolved) =
+            crate::workspace_path::resolve_existing_path_in_repository(state, &path)
+            && let Ok(text) = tokio::fs::read_to_string(&resolved).await
+        {
+            let rule_violations =
+                vox_corpus::corpus::corpus_readiness::check_vox_retired_and_enforcement_rules(
+                    &text,
+                );
+            if let Some(first_violation) = rule_violations.first() {
+                let advisory = format!(
+                    "AUTO_VERIFICATION_FAILED: your `.vox` edit was written, but Vox Grammar Unification / Policy gate reported {} violation(s) (first: {}). Replace retired decorators/keywords and re-verify.",
+                    rule_violations.len(),
+                    first_violation
+                );
+                return attach_advisory(payload, advisory);
+            }
+        }
+        return payload;
+    }
+    // SOTA-VERIFY-02: Inline Rust (`syn` + policy detectors + standalone `rustc --emit=metadata` borrow/type check)
+    if let Some(rs_rel) = verifiable_rust_path(name, args)
+        && let Ok(resolved) =
+            crate::workspace_path::resolve_existing_path_in_repository(state, &rs_rel)
+        && let Ok(text) = tokio::fs::read_to_string(&resolved).await
+    {
+        let rt = vox_corpus::training::spoke_roundtrip::verify_rust_workspace_roundtrip(
+            "post_verify_rs",
+            "inline rust post-write check",
+            &text,
+        );
+        if !rt.oracle_receipt.passed {
+            let first = rt
+                .oracle_receipt
+                .diagnostics
+                .first()
+                .map(String::as_str)
+                .unwrap_or("Rust syntax or policy violation");
+            let advisory = format!(
+                "AUTO_VERIFICATION_FAILED: your Rust edit to `{rs_rel}` failed syntax/policy verification ({first}). Fix the file before continuing."
+            );
+            return attach_advisory(payload, advisory);
+        }
+        if let Err(struct_err) = verify_rust_module_structural_integrity(&resolved, &text) {
+            let advisory = format!(
+                "AUTO_VERIFICATION_FAILED: your Rust edit to `{rs_rel}` failed module/symbol structural verification ({struct_err}). Fix the error before continuing."
+            );
+            return attach_advisory(payload, advisory);
+        }
+        let is_standalone = !text.contains("use crate::")
+            && !text.contains("use super::")
+            && !text.contains("crate::")
+            && !text.contains("super::");
+        if is_standalone
+            && let Err(rustc_err) =
+                vox_corpus::training::spoke_roundtrip::verify_rust_snippet_with_rustc(&text)
+        {
+            let advisory = format!(
+                "AUTO_VERIFICATION_FAILED: your Rust edit to `{rs_rel}` failed `rustc` borrow/type checking ({rustc_err}). Fix the error before continuing."
+            );
+            return attach_advisory(payload, advisory);
+        }
+        return payload;
+    }
+    // SOTA-VERIFY-03: Inline SKILL.md agentskills.io frontmatter + embedded .vox doctest verification
+    if let Some(skill_rel) = verifiable_skill_md_path(name, args)
+        && let Ok(resolved) =
+            crate::workspace_path::resolve_existing_path_in_repository(state, &skill_rel)
+        && let Ok(text) = tokio::fs::read_to_string(&resolved).await
+    {
+        let rt = vox_corpus::training::spoke_roundtrip::verify_skill_creation_roundtrip(
+            "post_verify_skill_md",
+            "inline SKILL.md post-write check",
+            &text,
+        );
+        if !rt.oracle_receipt.passed {
+            let first = rt
+                .oracle_receipt
+                .diagnostics
+                .first()
+                .map(String::as_str)
+                .unwrap_or("SKILL.md agentskills compliance or embedded .vox doctest failed");
+            let advisory = format!(
+                "AUTO_VERIFICATION_FAILED: your `SKILL.md` edit to `{skill_rel}` failed agentskills/doctest verification ({first}). Fix frontmatter or `.vox` code blocks before continuing."
+            );
+            return attach_advisory(payload, advisory);
+        }
     }
     if let Some(md_rel) = verifiable_markdown_path(name, args)
         && let Ok(resolved) =
@@ -307,6 +440,243 @@ mod tests {
         assert_eq!(
             ok_out, ok_payload,
             "clean .vox must pass the payload through untouched; got: {ok_out}"
+        );
+    }
+
+    #[tokio::test]
+    async fn verify_and_attach_catches_vox_retired_syntax_rust_borrow_errors_and_skill_md() {
+        let state = crate::server_state::ServerState::new_test().await;
+        let root = state.repository.root.clone();
+        let ok_payload =
+            serde_json::json!({ "success": true, "data": { "written": true } }).to_string();
+
+        // 1. Retired @table / ret in .vox (`SOTA-VERIFY-01`)
+        let retired_vox_name = "__post_verify_retired__.vox";
+        let retired_vox_path = root.join(retired_vox_name);
+        std::fs::write(
+            &retired_vox_path,
+            "@table type LegacyRow {\n    id: int\n}\nfn bad(x: int) to int {\n    ret x + 1\n}\n",
+        )
+        .expect("write retired vox");
+        let vox_out = verify_and_attach(
+            &state,
+            "vox_apply_structured_edit",
+            &serde_json::json!({ "path": retired_vox_name }),
+            ok_payload.clone(),
+        )
+        .await;
+        let _ = std::fs::remove_file(&retired_vox_path);
+        let vox_v: serde_json::Value = serde_json::from_str(&vox_out).expect("json");
+        assert_eq!(vox_v["auto_verification_failed"], serde_json::json!(true));
+
+        // 2. Rust E0502 borrow-checker error vs clean Rust (`SOTA-VERIFY-02`)
+        let bad_rs_name = "__post_verify_borrow_bad__.rs";
+        let bad_rs_path = root.join(bad_rs_name);
+        std::fs::write(
+            &bad_rs_path,
+            "pub fn append_first(items: &mut Vec<i64>) -> i64 {\n    let first = &items[0];\n    items.push(1);\n    *first\n}\n",
+        )
+        .expect("write bad rs");
+        let bad_rs_out = verify_and_attach(
+            &state,
+            "vox_apply_structured_edit",
+            &serde_json::json!({ "path": bad_rs_name }),
+            ok_payload.clone(),
+        )
+        .await;
+        let _ = std::fs::remove_file(&bad_rs_path);
+        let bad_rs_v: serde_json::Value = serde_json::from_str(&bad_rs_out).expect("json");
+        assert_eq!(
+            bad_rs_v["auto_verification_failed"],
+            serde_json::json!(true),
+            "Rust E0502 borrow conflict must attach AUTO_VERIFICATION_FAILED: {bad_rs_out}"
+        );
+        assert!(
+            bad_rs_v["meta"]["auto_verification"]
+                .as_str()
+                .unwrap_or("")
+                .contains("E0502")
+                || bad_rs_v["meta"]["auto_verification"]
+                    .as_str()
+                    .unwrap_or("")
+                    .contains("cannot borrow"),
+            "Rust advisory must report the rustc borrow diagnostic: {bad_rs_out}"
+        );
+
+        let ok_rs_name = "__post_verify_borrow_ok__.rs";
+        let ok_rs_path = root.join(ok_rs_name);
+        std::fs::write(
+            &ok_rs_path,
+            "pub fn append_first(items: &mut Vec<i64>) -> i64 {\n    let first = items[0];\n    items.push(1);\n    first\n}\n",
+        )
+        .expect("write ok rs");
+        let ok_rs_out = verify_and_attach(
+            &state,
+            "vox_apply_structured_edit",
+            &serde_json::json!({ "path": ok_rs_name }),
+            ok_payload.clone(),
+        )
+        .await;
+        let _ = std::fs::remove_file(&ok_rs_path);
+        assert_eq!(ok_rs_out, ok_payload);
+
+        // 3. SKILL.md agentskills compliance + embedded .vox doctest (`SOTA-VERIFY-03`)
+        let skill_dir = root.join("__post_verify_skill_probe__");
+        let _ = std::fs::create_dir_all(&skill_dir);
+        let skill_rel = "__post_verify_skill_probe__/SKILL.md";
+        let skill_path = root.join(skill_rel);
+        std::fs::write(&skill_path, "# Missing frontmatter\n").expect("write bad skill");
+        let bad_skill_out = verify_and_attach(
+            &state,
+            "vox_apply_structured_edit",
+            &serde_json::json!({ "path": skill_rel }),
+            ok_payload.clone(),
+        )
+        .await;
+        let bad_skill_v: serde_json::Value = serde_json::from_str(&bad_skill_out).expect("json");
+        assert_eq!(
+            bad_skill_v["auto_verification_failed"],
+            serde_json::json!(true)
+        );
+
+        std::fs::write(
+            &skill_path,
+            "---\nname: probe-skill\ndescription: \"Valid probe skill with compiled vox doctest.\"\nmetadata:\n  vox-id: vox.skills.probe-skill\n  vox-category: observability\n  vox-tools: vox_validate_file\n---\n# Probe Skill\n\nValid skill body for post-verification testing.\n\n```vox\nfn health(x: int) to int {\n    return x + 1\n}\n```\n",
+        )
+        .expect("write ok skill");
+        let ok_skill_out = verify_and_attach(
+            &state,
+            "vox_apply_structured_edit",
+            &serde_json::json!({ "path": skill_rel }),
+            ok_payload.clone(),
+        )
+        .await;
+        let _ = std::fs::remove_dir_all(&skill_dir);
+        assert_eq!(ok_skill_out, ok_payload);
+
+        // 4. Non-standalone Rust file (`use crate::...`) with duplicate top-level fn or missing `mod` (`SOTA-RS-STRUCT-01..03`)
+        let dup_rs_name = "__post_verify_dup_fn__.rs";
+        let dup_rs_path = root.join(dup_rs_name);
+        std::fs::write(
+            &dup_rs_path,
+            "use crate::server_state::ServerState;\npub fn compute(x: i32) -> i32 { x + 1 }\npub fn compute(x: i32) -> i32 { x + 2 }\n",
+        )
+        .expect("write dup rs");
+        let dup_rs_out = verify_and_attach(
+            &state,
+            "vox_apply_structured_edit",
+            &serde_json::json!({ "path": dup_rs_name }),
+            ok_payload.clone(),
+        )
+        .await;
+        let _ = std::fs::remove_file(&dup_rs_path);
+        let dup_rs_v: serde_json::Value = serde_json::from_str(&dup_rs_out).expect("json");
+        assert_eq!(
+            dup_rs_v["auto_verification_failed"],
+            serde_json::json!(true),
+            "duplicate top-level fn in non-standalone .rs must fail structural verification: {dup_rs_out}"
+        );
+        assert!(
+            dup_rs_v["meta"]["auto_verification"]
+                .as_str()
+                .unwrap_or("")
+                .contains("duplicate top-level `fn compute`"),
+            "advisory must name duplicate symbol: {dup_rs_out}"
+        );
+
+        let missing_mod_name = "__post_verify_missing_mod__.rs";
+        let missing_mod_path = root.join(missing_mod_name);
+        std::fs::write(
+            &missing_mod_path,
+            "use crate::server_state::ServerState;\nmod __definitely_nonexistent_submodule__;\n",
+        )
+        .expect("write missing mod rs");
+        let missing_mod_out = verify_and_attach(
+            &state,
+            "vox_apply_structured_edit",
+            &serde_json::json!({ "path": missing_mod_name }),
+            ok_payload.clone(),
+        )
+        .await;
+        let _ = std::fs::remove_file(&missing_mod_path);
+        let missing_mod_v: serde_json::Value =
+            serde_json::from_str(&missing_mod_out).expect("json");
+        assert_eq!(
+            missing_mod_v["auto_verification_failed"],
+            serde_json::json!(true),
+            "missing out-of-line mod must fail structural verification: {missing_mod_out}"
+        );
+    }
+
+    #[test]
+    fn syn_ast_structural_integrity_handles_braces_in_literals_multi_impl_new_and_multiline_cfg() {
+        let dummy_path = std::path::Path::new("/tmp/probe_mod.rs");
+
+        // 1. Unmatched `}` in char/string literals + multiple `impl` blocks with `pub fn new()` must pass cleanly
+        let ok_code = r#"
+pub struct Alpha {
+    pub tag: char,
+}
+
+impl Alpha {
+    pub fn new() -> Self {
+        let closing_brace = '}';
+        let raw_json_tail = "}}}}}";
+        let _ = raw_json_tail;
+        Self { tag: closing_brace }
+    }
+}
+
+pub struct Beta {
+    pub count: usize,
+}
+
+impl Beta {
+    pub fn new() -> Self {
+        Self { count: 0 }
+    }
+}
+
+#[cfg(
+    target_os = "linux"
+)]
+#[allow(dead_code)]
+pub fn platform_hook() -> i32 { 1 }
+
+#[cfg(
+    not(target_os = "linux")
+)]
+#[allow(dead_code)]
+pub fn platform_hook() -> i32 { 2 }
+
+#[cfg(test)]
+#[allow(dead_code)]
+mod __missing_cfg_gated_mod__;
+"#;
+        assert!(
+            verify_rust_module_structural_integrity(dummy_path, ok_code).is_ok(),
+            "syn AST walker must ignore braces in literals, allow multiple `impl::new()`, and honor multi-line `#[cfg(...)]`"
+        );
+
+        // 2. Duplicate un-gated top-level `fn` or `struct` (including inside inline `mod sub { ... }`) is rejected
+        let bad_inline_mod = r#"
+pub mod sub {
+    pub struct Widget { pub id: u32 }
+    pub struct Widget { pub id: u64 }
+}
+"#;
+        let err = verify_rust_module_structural_integrity(dummy_path, bad_inline_mod)
+            .expect_err("duplicate struct inside inline mod must fail");
+        assert!(err.contains("duplicate top-level `struct Widget`"));
+        assert!(err.contains("inline `mod sub`"));
+
+        // 3. Un-gated `mod missing_sub;` without backing file is rejected
+        let bad_mod = "mod __definitely_missing_unconditional_sub__;\n";
+        let mod_err = verify_rust_module_structural_integrity(dummy_path, bad_mod)
+            .expect_err("un-gated missing mod must fail");
+        assert!(
+            mod_err
+                .contains("unresolved out-of-line `mod __definitely_missing_unconditional_sub__;`")
         );
     }
 }

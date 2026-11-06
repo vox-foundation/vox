@@ -15,7 +15,9 @@ pub use control::{
     orchestrator_start, pause_agent, queue_status, rebalance, reorder_task, resume_agent,
     retire_agent, spawn_agent,
 };
-pub use orchestrator_snapshot::orchestrator_status;
+pub use orchestrator_snapshot::{
+    orchestrator_status, orchestrator_status_compact, orchestrator_thread_family,
+};
 pub use params::*;
 pub use vcs_runtime::{
     check_file_owner, heartbeat, poll_events, record_cost, submit_task, vcs_status,

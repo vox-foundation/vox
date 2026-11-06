@@ -107,6 +107,86 @@ impl BenchEvidence {
     }
 }
 
+/// Multi-benchmark Bayesian prior combining SWE-bench Verified, LiveBench Coding,
+/// Artificial Analysis Index, SkateBench, and SnitchBench safety penalty (`T3-BATTERY-LEDGER-02`).
+#[derive(Debug, Default, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ExternalBenchmarkPrior {
+    /// SWE-bench Verified score (`0.0..=1.0`). Weight: `0.35`.
+    pub swe_bench_verified: Option<f64>,
+    /// LiveBench Coding score (`0.0..=1.0`). Weight: `0.25`.
+    pub live_bench_coding: Option<f64>,
+    /// Artificial Analysis Intelligence Index normalized (`0.0..=1.0`). Weight: `0.20`.
+    pub artificial_analysis_index: Option<f64>,
+    /// Theo's SkateBench domain/tool reasoning score (`0.0..=1.0`). Weight: `0.15`.
+    pub skate_bench_score: Option<f64>,
+    /// Theo's SnitchBench whistleblowing/safety over-refusal rate (`0.0..=1.0`). Penalty weight: `-0.10`.
+    pub snitch_bench_safety_penalty: Option<f64>,
+}
+
+impl ExternalBenchmarkPrior {
+    /// Compute the composite weighted prior (`0.0..=1.0`), falling back to `0.5` when no external metrics exist.
+    #[must_use]
+    pub fn composite_prior_score(&self) -> f64 {
+        let mut weighted_sum = 0.0;
+        let mut total_positive_weight = 0.0;
+
+        if let Some(v) = self.swe_bench_verified {
+            weighted_sum += v.clamp(0.0, 1.0) * 0.35;
+            total_positive_weight += 0.35;
+        }
+        if let Some(v) = self.live_bench_coding {
+            weighted_sum += v.clamp(0.0, 1.0) * 0.25;
+            total_positive_weight += 0.25;
+        }
+        if let Some(v) = self.artificial_analysis_index {
+            weighted_sum += v.clamp(0.0, 1.0) * 0.20;
+            total_positive_weight += 0.20;
+        }
+        if let Some(v) = self.skate_bench_score {
+            weighted_sum += v.clamp(0.0, 1.0) * 0.15;
+            total_positive_weight += 0.15;
+        }
+
+        let base = if total_positive_weight > 0.0 {
+            weighted_sum / total_positive_weight
+        } else {
+            0.5
+        };
+        let penalty = self
+            .snitch_bench_safety_penalty
+            .map(|p| p.clamp(0.0, 1.0) * 0.10)
+            .unwrap_or(0.0);
+        (base - penalty).clamp(0.05, 1.0)
+    }
+
+    /// Alias for [`Self::composite_prior_score`] used by `scoreboard_feedback_boost` (`T3-ROUTER-DPO-FLY-01`).
+    #[must_use]
+    pub fn composite_routing_prior(&self) -> f64 {
+        self.composite_prior_score()
+    }
+}
+
+/// Evaluate per-token cost expressions scraped from JS bundles (e.g. `"3/1e6"`, `"0.15/1000000"`, `"0.000003"`).
+/// Adapted from `vibheksoni/t3router` `src/t3/models.rs` `eval_cost_expr`.
+#[must_use]
+pub fn eval_cost_per_token_expr(expr: &str) -> Option<f64> {
+    let trimmed = expr.trim().trim_matches('"').trim_matches('\'').trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    if let Some((num_str, den_str)) = trimmed.split_once('/') {
+        let num: f64 = num_str.trim().parse().ok()?;
+        let den: f64 = den_str.trim().parse().ok()?;
+        if den == 0.0 || !num.is_finite() || !den.is_finite() {
+            return None;
+        }
+        Some(num / den)
+    } else {
+        let val: f64 = trimmed.parse().ok()?;
+        val.is_finite().then_some(val)
+    }
+}
+
 #[cfg(test)]
 pub(crate) fn evidence(cases: i64, passed: i64, mean_score: f64) -> BenchEvidence {
     BenchEvidence {
@@ -153,5 +233,22 @@ mod tests {
             Some(ModelConfidence::Shadowed)
         );
         assert_eq!(evidence(10, 3, 0.3).verdict(), None, "straddles the floor");
+    }
+
+    #[test]
+    fn external_benchmark_prior_and_cost_expr_parser_work() {
+        let prior = ExternalBenchmarkPrior {
+            swe_bench_verified: Some(0.80),
+            live_bench_coding: Some(0.75),
+            artificial_analysis_index: Some(0.85),
+            skate_bench_score: Some(0.90),
+            snitch_bench_safety_penalty: Some(0.20),
+        };
+        let score = prior.composite_prior_score();
+        assert!(score > 0.75 && score < 0.85, "composite prior: {score}");
+
+        assert!((eval_cost_per_token_expr("3/1e6").unwrap() - 0.000003).abs() < 1e-12);
+        assert!((eval_cost_per_token_expr("15 / 1000000").unwrap() - 0.000015).abs() < 1e-12);
+        assert_eq!(eval_cost_per_token_expr("1/0"), None);
     }
 }

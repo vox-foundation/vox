@@ -5,6 +5,12 @@ use crate::types::AgentId;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 
+pub mod tracker;
+pub use tracker::{
+    BatteryAndCostLedger, BatteryTransaction, DailyUsageSummary, PreflightBudgetDecision,
+    USD_PER_BATTERY_UNIT, battery_units_to_usd, is_zero_cost_local_model, usd_to_battery_units,
+};
+
 /// Per-agent budget allocation cap.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AgentBudgetAllocation {

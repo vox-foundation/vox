@@ -1340,7 +1340,7 @@ pub async fn browser_act(state: &ServerState, p: BrowserActParams) -> String {
             .and_then(|r| r.map_err(|e| e.to_string()))
         }
         _ => {
-            return ToolResult::<serde_json::Value>::err(format!("unknown action {action:?}"))
+            return ToolResult::<serde_json::Value>::err(format!("unknown action {action}"))
                 .to_json();
         }
     };

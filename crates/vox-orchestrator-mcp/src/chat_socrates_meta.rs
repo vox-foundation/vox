@@ -37,6 +37,8 @@ pub(crate) struct LlmSurfaceTelemetry {
     pub success: bool,
     pub cost_usd: Option<f64>,
     pub quality_score: Option<f64>,
+    pub ttft_ms: Option<i64>,
+    pub tpot_ms: Option<f64>,
 }
 
 /// JSON shape of the `socrates` field returned to MCP clients (must match [`socrates_tool_meta`]).
@@ -194,8 +196,8 @@ pub(crate) fn spawn_socrates_telemetry_with_llm(
                 success: l.success,
                 cost_usd: l.cost_usd,
                 quality_score: l.quality_score,
-                ttft_ms: None,
-                tpot_ms: None,
+                ttft_ms: l.ttft_ms,
+                tpot_ms: l.tpot_ms,
             };
             match db
                 .record_unified_llm_turn(

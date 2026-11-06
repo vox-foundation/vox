@@ -85,6 +85,8 @@ pub async fn chat_session_create(state: &ServerState, p: ChatSessionCreateParams
             message_count: 0,
             conversation_id,
             repository_id,
+            parent_session_id: None,
+            fork_from_message_id: None,
         })
         .to_json(),
         Err(e) => fail::<ChatSessionDto>(e.to_string(), REM_CHAT_DB),
@@ -243,6 +245,8 @@ pub async fn get_chat_sessions(
                         message_count,
                         conversation_id,
                         repository_id,
+                        parent_session_id: None,
+                        fork_from_message_id: None,
                     }
                 },
             )

@@ -12,10 +12,13 @@ mod inline_edit;
 mod plan;
 mod plan_gap;
 mod plan_loop;
-mod skill_catalog;
+pub mod skill_catalog;
 
 pub use ambient::ambient_state;
-pub use chat::{chat_history, chat_message};
+pub use chat::{
+    chat_compact_up_to, chat_edit_message_in_place, chat_history, chat_message, chat_queue_steer,
+    chat_regenerate, chat_stream_cancel, chat_stream_resume,
+};
 pub use ghost_text::ghost_text;
 pub use inline_edit::inline_edit;
 pub use params::*;
@@ -151,6 +154,36 @@ mod skill_exclusion_tests {
     }
 }
 
+/// Read a UTF-8 file with an in-memory `(mtime, len)` cache (`SOTA-KVCACHE-02`)
+/// so `build_system_prompt_with_skill` does not hit disk on every chat turn.
+fn read_utf8_path_cached_by_mtime(path: &std::path::Path) -> Result<String, String> {
+    use std::collections::HashMap;
+    use std::sync::{OnceLock, RwLock};
+
+    type CacheKey = (std::path::PathBuf, Option<std::time::SystemTime>, u64);
+    static PROMPT_FILE_CACHE: OnceLock<RwLock<HashMap<std::path::PathBuf, (CacheKey, String)>>> =
+        OnceLock::new();
+
+    let meta = std::fs::metadata(path).map_err(|e| e.to_string())?;
+    let mtime = meta.modified().ok();
+    let len = meta.len();
+    let key: CacheKey = (path.to_path_buf(), mtime, len);
+
+    let cache = PROMPT_FILE_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
+    if let Ok(guard) = cache.read()
+        && let Some((cached_key, cached_content)) = guard.get(path)
+        && *cached_key == key
+    {
+        return Ok(cached_content.clone());
+    }
+
+    let content = vox_bounded_fs::read_utf8_path_capped(path).map_err(|e| e.to_string())?;
+    if let Ok(mut guard) = cache.write() {
+        guard.insert(path.to_path_buf(), (key, content.clone()));
+    }
+    Ok(content)
+}
+
 /// Like [`build_system_prompt`], but injects the full body of a user-pinned
 /// skill (by id or name) so prompt-only models honor it without a tool call.
 ///
@@ -176,14 +209,14 @@ pub(crate) async fn build_system_prompt_with_skill(
     );
 
     let vox_md = ws_root.join("VOX.md");
-    if let Ok(content) = vox_bounded_fs::read_utf8_path_capped(&vox_md) {
+    if let Ok(content) = read_utf8_path_cached_by_mtime(&vox_md) {
         prompt.push_str("## VOX.md\n\n");
         prompt.push_str(&content);
         prompt.push_str("\n\n");
     }
 
     let memory_path = state.orchestrator_config.memory.memory_md_path.clone();
-    if let Ok(content) = vox_bounded_fs::read_utf8_path_capped(&memory_path) {
+    if let Ok(content) = read_utf8_path_cached_by_mtime(&memory_path) {
         prompt.push_str("## Repository memory (MEMORY.md)\n\n");
         prompt.push_str(&content);
         prompt.push_str("\n\n");
@@ -191,7 +224,7 @@ pub(crate) async fn build_system_prompt_with_skill(
         // Legacy layout (pre–`.vox/memory/`): single file at repo `.vox/MEMORY.md`
         let legacy = ws_root.join(vox_config::paths::REPO_MEMORY_INDEX_FILE);
         if legacy != memory_path {
-            if let Ok(content) = vox_bounded_fs::read_utf8_path_capped(&legacy) {
+            if let Ok(content) = read_utf8_path_cached_by_mtime(&legacy) {
                 prompt.push_str("## Repository memory (.vox/MEMORY.md legacy)\n\n");
                 prompt.push_str(&content);
                 prompt.push_str("\n\n");
@@ -231,7 +264,7 @@ pub(crate) async fn build_system_prompt_with_skill(
             reliability: reliability.get(&m.name).copied(),
         })
         .collect();
-    prompt.push_str(&skill_catalog::render_skill_catalog(&skill_entries, 64));
+    prompt.push_str(&skill_catalog::render_skill_catalog(&skill_entries, 24));
 
     // Pinned-skill ("tier-pinned") disclosure: inject the full SKILL.md body
     // for an explicitly selected skill. Matched by id or name; works on the
@@ -341,7 +374,8 @@ pub(crate) async fn build_system_prompt_with_skill(
         }
     }
 
-    prompt
+    let runtime_vars = chat::system_prompt_vars::build_live_runtime_vars(ws_root, &date_str, None);
+    chat::system_prompt_vars::interpolate_system_prompt_variables(&prompt, &runtime_vars)
 }
 
 #[cfg(test)]
@@ -476,6 +510,9 @@ mod routing_tests {
             research_scope: None,
             domain_mode: None,
             site_scope: None,
+            oversight_level: None,
+            kb_scope: None,
+            grounding_check_enabled: None,
         };
         let rich = ChatMessageParams {
             prompt: "Hi".into(),
@@ -509,6 +546,9 @@ mod routing_tests {
             research_scope: None,
             domain_mode: None,
             site_scope: None,
+            oversight_level: None,
+            kb_scope: None,
+            grounding_check_enabled: None,
         };
         let a = chat_grounding_score(&empty, 0);
         let b = chat_grounding_score(&rich, 3);

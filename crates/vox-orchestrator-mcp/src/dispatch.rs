@@ -803,7 +803,24 @@ fn handle_tool_call_inner<'a>(
                 }))
                 .to_json_compact())
             }
-            "vox_orchestrator_status" => crate::dei_tools::orchestrator_status(state).await,
+            "vox_orchestrator_status" => {
+                let compact = args
+                    .get("compact")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                if compact {
+                    let omit_idle_subagents = args
+                        .get("omit_idle_subagents")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(true);
+                    let val =
+                        crate::dei_tools::orchestrator_status_compact(state, omit_idle_subagents)
+                            .await?;
+                    Ok(serde_json::to_string(&val)?)
+                } else {
+                    crate::dei_tools::orchestrator_status(state).await
+                }
+            }
             "vox_orchestrator_persistence_outbox_lifecycle" => {
                 Ok(persistence_tools::persistence_outbox_lifecycle(state, args).await)
             }
@@ -2215,6 +2232,97 @@ fn handle_tool_call_inner<'a>(
                 serde_json::from_value(args)?,
             )
             .await),
+            // ── T3 Wave 3 subsystems (`T3-MCP-RPC-WIRE-01..03`) ──
+            "vox_consensus_run" => {
+                Ok(crate::t3_wave3_tools::handle_consensus_run(state, args).await)
+            }
+            "vox_context_handoff" => {
+                Ok(crate::t3_wave3_tools::handle_context_handoff(state, args).await)
+            }
+            "vox_checkpoint_capture" => {
+                Ok(crate::t3_wave3_tools::handle_checkpoint_capture(state, args).await)
+            }
+            "vox_checkpoint_list" => {
+                Ok(crate::t3_wave3_tools::handle_checkpoint_list(state, args).await)
+            }
+            "vox_checkpoint_restore" => {
+                Ok(crate::t3_wave3_tools::handle_checkpoint_restore(state, args).await)
+            }
+            "vox_muse_pool_spawn" => {
+                Ok(crate::t3_wave3_tools::handle_muse_pool_spawn(state, args).await)
+            }
+            "vox_muse_pool_adopt" => {
+                Ok(crate::t3_wave3_tools::handle_muse_pool_adopt(state, args).await)
+            }
+            "vox_guest_share_mint" => {
+                Ok(crate::t3_wave3_tools::handle_guest_share_mint(state, args).await)
+            }
+            "vox_guest_share_moderate" => {
+                Ok(crate::t3_wave3_tools::handle_guest_share_moderate(state, args).await)
+            }
+            "vox_session_import_external" => {
+                Ok(crate::t3_wave3_tools::handle_session_import_external(state, args).await)
+            }
+            "vox_session_export_bundle" => {
+                Ok(crate::t3_wave3_tools::handle_session_export_bundle(state, args).await)
+            }
+            "vox_session_import_bundle" => {
+                Ok(crate::t3_wave3_tools::handle_session_import_bundle(state, args).await)
+            }
+            "vox_quarantine_set" => {
+                Ok(crate::t3_wave3_tools::handle_quarantine_set(state, args).await)
+            }
+            "vox_quarantine_list" => {
+                Ok(crate::t3_wave3_tools::handle_quarantine_list(state, args).await)
+            }
+            "vox_vcs_checkpoint_diff_summary" => {
+                Ok(crate::t3_wave3_tools::handle_vcs_checkpoint_diff_summary(state, args).await)
+            }
+            "vox_file_diff_and_diagnostics" => {
+                Ok(crate::t3_wave3_tools::handle_file_diff_and_diagnostics(state, args).await)
+            }
+            "vox_stage_file" => Ok(crate::t3_wave3_tools::handle_stage_file(state, args).await),
+            "vox_revert_file" => Ok(crate::t3_wave3_tools::handle_revert_file(state, args).await),
+            // ── T3 Wave 4 chat transcript & stream control tools (`T3-HIST-BATTERY-02`, `T3-LOOP-CHECKPOINT-03..04`, `T3-REGEN-WORKTREE-01`) ──
+            "vox_chat_compact_up_to" => {
+                Ok(crate::chat_tools::chat_compact_up_to(state, args).await)
+            }
+            "vox_chat_edit_message_in_place" => {
+                Ok(crate::chat_tools::chat_edit_message_in_place(state, args).await)
+            }
+            "vox_chat_regenerate" => Ok(crate::chat_tools::chat_regenerate(state, args).await),
+            "vox_chat_stream_resume" => {
+                Ok(crate::chat_tools::chat_stream_resume(state, args).await)
+            }
+            "vox_chat_stream_cancel" => {
+                Ok(crate::chat_tools::chat_stream_cancel(state, args).await)
+            }
+            "vox_chat_queue_steer" => Ok(crate::chat_tools::chat_queue_steer(state, args).await),
+            // ── T3 Wave 5 tools (`T3-PROMPT-LOOP-04`, `T3-STREAM-QUEUE-03`, `T3-TOOLS-HARDENING-03..04`) ──
+            "vox_list_mcp_servers" => {
+                Ok(crate::t3_wave3_tools::handle_list_mcp_servers(state, args).await)
+            }
+            "vox_list_mcp_tools" => {
+                Ok(crate::t3_wave3_tools::handle_list_mcp_tools(state, args).await)
+            }
+            "vox_call_mcp_lazy" => {
+                Ok(crate::t3_wave3_tools::handle_call_mcp_lazy(state, args).await)
+            }
+            "vox_battery_status" => {
+                Ok(crate::t3_wave3_tools::handle_battery_status(state, args).await)
+            }
+            "vox_session_list_external" => {
+                Ok(crate::t3_wave3_tools::handle_session_list_external(state, args).await)
+            }
+            "vox_guest_share_redeem" => {
+                Ok(crate::t3_wave3_tools::handle_guest_share_redeem(state, args).await)
+            }
+            "vox_guest_share_submit" => {
+                Ok(crate::t3_wave3_tools::handle_guest_share_submit(state, args).await)
+            }
+            "vox_pr_review_guide" => {
+                Ok(crate::t3_wave3_tools::handle_pr_review_guide(state, args).await)
+            }
             _ => {
                 // Check skill macro tools
                 let skills = state.skill_registry.list(None);
