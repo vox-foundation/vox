@@ -3,9 +3,22 @@ title: "Urbs Visual Semiotics & Architecture Blueprint (v5.3)"
 description: "Carousel notes and verified visual targets for VRBS ROMA after Milestone v5.3 edge-softening and CV maximization."
 category: "Architecture SSOTs"
 status: "current"
+topic: "gamification"
+domain: "gui"
+authorship: "llm-generated"
+authorship_model: "unknown"
 ---
 
 # Urbs Visual Semiotics & Architecture Blueprint (`v5.3`)
+
+<!-- kb:summary -->
+Visual targets and verification notes for VRBS ROMA, the gamified city view in the Vox GUI,
+after milestone v5.3 (Phases 295–299) softened edges and raised the computer-vision quality
+score. It records the verified gamify unit suite, the screenshot path and the CV metrics the
+milestone aimed for (noise floor and visual score), a per-phase checklist of rendering changes
+such as walls, vaults, aqueducts and particles, and the four semiotic legend channels: AQUA for
+supply, IGNIS for agent work in progress, CLOACA for faults and VICTORIA for verified CI.
+<!-- /kb:summary -->
 
 Verified unit suite: `pnpm --dir crates/vox-gui/ui exec vitest run src/components/gamify` (97/97).
 

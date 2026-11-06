@@ -3,9 +3,22 @@ title: "GUI cache layers (main-only save)"
 description: "How vox-gui UI CI restores pnpm/Vite caches without writing PR-scoped Actions caches (cache-key-lint compliant)."
 category: "CI & Quality"
 status: "current"
+topic: "ci-guards"
+domain: "platform"
+authorship: "llm-generated"
+authorship_model: "unknown"
 ---
 
 # GUI cache layers (main-only save)
+
+<!-- kb:summary -->
+How the vox-gui UI CI job uses GitHub Actions caches without writing pull-request-scoped
+entries. Rust and Node package-manager caches save only from `main`; pull-request and merge-queue
+jobs restore but never save, because the repository's Actions cache budget is capped and
+PR-scoped keys cannot be read by any other ref. The page shows the `ui` job pattern
+(`package-manager-cache: false`, main-scoped pnpm and Vite keys), names the jobs that write the
+caches, and gives agents the setup-node snippet to copy. `vox ci cache-key-lint` enforces it.
+<!-- /kb:summary -->
 
 ## Policy
 

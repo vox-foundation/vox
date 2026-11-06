@@ -3,9 +3,22 @@ title: "Knip GUI deepen backlog"
 description: "v5.5: dual knip passes and local pin shipped; Effect schema preprocessor remains optional backlog."
 category: "CI & Quality"
 status: "current"
+topic: "ci-guards"
+domain: "platform"
+authorship: "llm-generated"
+authorship_model: "unknown"
 ---
 
 # Knip GUI deepen (T3-HOST-SCHEMA-03)
+
+<!-- kb:summary -->
+Status of the knip unused-code checks for the vox-gui UI after milestone v5.5. Shipped: a pinned
+knip version in the UI package, a dual pass that checks unused files and dependencies first
+(errors) and unused exports second (warnings, because the transport surface is wide), a
+`vox ci knip-gui --check` wrapper, and both passes running in UI CI after vitest. The only
+remaining backlog item is an optional preprocessor for unused Effect Schema exports, which is
+not needed for the dual-pass setup to count as shipped.
+<!-- /kb:summary -->
 
 **Shipped in v5.5:**
 
