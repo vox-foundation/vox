@@ -32,6 +32,9 @@ async function installChatTurn(page: Page, reply: unknown): Promise<void> {
       throw new Error('installChatTurn must run after installTauriMock');
     }
     internals.invoke = async (cmd: string, args?: any) => {
+      // cd6763733 deliberately seeded the shared mock's history with a traced assistant
+      // reply (review screenshots); these specs assert on a fresh session's single turn.
+      if (cmd === 'chat_get_messages') return [];
       if (cmd === 'chat_turn') {
         (window as any).__VOX_IPC_ACTIVE_COUNT__ = ((window as any).__VOX_IPC_ACTIVE_COUNT__ || 0) + 1;
         (window as any).__TAURI_CALLS__.push({ cmd, args: args ?? null });

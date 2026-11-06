@@ -973,7 +973,7 @@ export function ChatSurface({
                 }
               >
                 <span className="size-1.5 rounded-full bg-(--color-status-info)" aria-hidden="true" />
-                <span>Notifications ({digestOpen ? 'hide' : `${waitingQuestions + blockedTasks} urgent`})</span>
+                <span>Attention Digest ({digestOpen ? 'hide' : `${waitingQuestions + blockedTasks} urgent`})</span>
               </button>
             </div>
           </div>

@@ -45,6 +45,16 @@ async function getCalls(page: Page, pred: (c: Call) => boolean): Promise<Call[]>
   return ((await page.evaluate(() => (window as any).__TAURI_CALLS__)) as Call[]).filter(pred);
 }
 
+/**
+ * cd6763733 deliberately moved Mode/Risk (DriveConsole) and the research slot into the
+ * progressive-disclosure "Execution Posture & Routing" popover; open it before using them.
+ */
+async function openPosture(page: Page): Promise<void> {
+  const trigger = page.getByTestId('loquela-posture-trigger');
+  if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+}
+
 async function submitComposer(page: Page, text: string): Promise<void> {
   const composer = page.getByLabel('Task composer');
   await expect(composer).toBeVisible();
@@ -88,6 +98,7 @@ test.describe('Vox Axis Interactive Developer Dogfooding (Playwright E2E)', () =
     await expect(routingDialog).not.toBeVisible();
 
     // 3. Toggle DriveConsole Clutch -> Genius and Risk -> Low (Strict Socratic Red-Team)
+    await openPosture(page);
     const geniusRadio = page.getByRole('radio', { name: /genius/i });
     await expect(geniusRadio).toBeVisible();
     await geniusRadio.click();
@@ -99,6 +110,11 @@ test.describe('Vox Axis Interactive Developer Dogfooding (Playwright E2E)', () =
 
     // Verify docked Harness River reactively updates Tier 3 Verifier to SOCRATIC RED-TEAM
     await expect(page.getByTestId('tier-card-verifier')).toContainText(/SOCRATIC RED-TEAM/i);
+
+    // Close the posture popover before the next toolbar control: while open it is wider than the
+    // docked composer, so collapsing it on pointerdown shifts the toolbar under the cursor.
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('loquela-posture-trigger')).toHaveAttribute('aria-expanded', 'false');
 
     // 4. Pick a concrete model in Loquela ("Choose model tier") and verify Tier 2 Fan-Out updates live
     await page.getByRole('button', { name: /choose model tier/i }).click();
@@ -287,6 +303,7 @@ test.describe('Vox Axis Interactive Developer Dogfooding (Playwright E2E)', () =
       await page.getByRole('button', { name: /^chat$/i }).first().click();
     }
 
+    await openPosture(page);
     const researchDropdown = page.getByRole('button', { name: /Research mode:/i });
     await expect(researchDropdown).toBeVisible();
     await researchDropdown.click();

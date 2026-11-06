@@ -28,7 +28,10 @@ test.describe('Vox Dashboard', () => {
       await page.waitForSelector('nav', { timeout: 15_000 });
       await expect(activeSurface).toHaveAttribute('data-view', 'repository');
       await page.getByRole('button', { name: 'Workspace status' }).click();
-      await expect(page.getByText('ok', { exact: true })).toBeVisible();
+      // cd6763733 deliberately gave the mock's `vox status` a realistic stdout (was 'ok').
+      await expect(
+        page.getByText('branch: main (ahead 2) | workspace: 54 crates | clean working tree (0 conflicts)', { exact: true }),
+      ).toBeVisible();
 
       // Harness tab redirects to Loquela composer (legacy surface retained for deep links).
       await page.goto('/#view=harness');

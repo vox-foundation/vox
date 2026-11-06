@@ -1215,6 +1215,14 @@ export default function App() {
           selection_reason?: string;
         }>
       >('chat_get_messages', { sessionId, limit: 500 });
+      // These rows came FROM the DB: mark them persisted so the "persist assistant
+      // transcript rows" effect doesn't append them a second time.
+      let persisted = persistedAssistantIdsRef.current.get(sessionId);
+      if (!persisted) {
+        persisted = new Set<string>();
+        persistedAssistantIdsRef.current.set(sessionId, persisted);
+      }
+      for (const r of rows) persisted.add(String(r.id));
       dispatchSessionChat({
         type: 'hydrate',
         sessionId,
