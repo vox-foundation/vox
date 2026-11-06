@@ -41,7 +41,7 @@ policy:
   # Also includes workflow durability schema additions (workflow_run_log.args_json, wake_at_ms, parked_reason, workflow_patch_log) and model_benchmark_results.
   # re-updated for 97: Research Trial Tier-A tables (trial_campaigns, trial_campaigns_log, trial_runs, trial_samples) + llm_interactions.trial_run_label.
   # re-updated for 97 (digest refresh): Autonomy UX attention_events + v1.7 ops_agent_telemetry (agent_events, cost_records, agent_sessions) + Turso covering/composite indexes, redundant left-prefix index pruning, scientia_embedding_cache.vector_blob, and consolidated sidecar tables (telemetry_upload_spool, mesh_replay_nonces, mesh_local_nodes).
-  repository_baseline_digest_hex: "0x2d24ad28ca1cbba8cab84f2fcc5fa0f150d04a361b56d248a7901442fba05071"
+  repository_baseline_digest_hex: "0x890cd115cd95efc0d60350937c8fb90b794bdca3472c905606110b9a55afaf0c"
   # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.

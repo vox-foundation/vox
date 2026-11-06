@@ -175,10 +175,10 @@ pub fn grade_final_answer(completion: &str, gold: &str) -> bool {
     if let Some(gold_n) = parse_number(&gold_norm) {
         return last_number(region).is_some_and(|n| numbers_equal(gold_n, n));
     }
-    if let Some(boxed) = extract_boxed(region) {
-        if normalize_answer(&boxed) == gold_norm {
-            return true;
-        }
+    if let Some(boxed) = extract_boxed(region)
+        && normalize_answer(&boxed) == gold_norm
+    {
+        return true;
     }
     last_nonempty_line(region).is_some_and(|line| normalize_answer(line) == gold_norm)
 }
