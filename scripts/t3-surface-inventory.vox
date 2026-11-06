@@ -1,0 +1,50 @@
+// vox:caps fs env
+// scripts/t3-surface-inventory.vox
+//
+// Token-bounded T3 Chat & T3 Code Ecosystem Surface Inventory Verifier (Phase 203 — T3-CLONE-GRAPH-01..04).
+// Verifies the structured surface graph contract (`contracts/reports/t3-ecosystem-surface-graph.v1.json`)
+// across all 9 cloned T3 ecosystem repositories in `~/dev`.
+//
+// Usage:
+//   vox check scripts/t3-surface-inventory.vox
+//   vox run --interp scripts/t3-surface-inventory.vox
+
+import fs
+
+fn main() {
+    let report_path = "contracts/reports/t3-ecosystem-surface-graph.v1.json"
+    if not fs.exists(report_path) {
+        print("t3-surface-inventory: missing " + report_path)
+        return
+    }
+
+    let raw = fs.read(report_path)
+    if raw.is_err() {
+        print("t3-surface-inventory: failed to read " + report_path)
+        return
+    }
+    let content = raw.unwrap()
+
+    let required_repos = [
+        "pingdotgg/t3code",
+        "vibheksoni/t3router",
+        "vibheksoni/pi-t3chat",
+        "TGlide/thom-chat",
+        "helioschat/app",
+        "lulkebit/t3-cloneathon",
+        "guitaripod/omnichat",
+        "shaltielshmid/NotT3Chat",
+        "TomDoesTech/t3-chat"
+    ]
+
+    let mut verified = 0
+    for repo in required_repos {
+        if content.contains(repo) {
+            verified = verified + 1
+        } else {
+            print("t3-surface-inventory: missing repo entry " + repo)
+        }
+    }
+
+    print("t3-surface-inventory: verified " + str(verified) + "/9 T3 ecosystem repository graphs in " + report_path)
+}

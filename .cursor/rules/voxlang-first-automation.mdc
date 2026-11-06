@@ -1,10 +1,10 @@
 ---
-description: VoxScript is the canonical glue language; never introduce new .ps1/.sh/.py automation scripts
+description: VoxLang is the canonical glue language; never introduce new .ps1/.sh/.py automation scripts
 globs: ["**/*.ps1", "**/*.sh", "**/*.py", "**/*.vox", "scripts/**"]
 alwaysApply: true
 ---
 
-# VoxScript-first automation
+# VoxLang-first automation
 
 ## Policy
 
@@ -25,7 +25,7 @@ vox run --interp scripts/compute-config.vox
 
 ## Execution tiers
 
-`vox run --interp` (pure computation, no compile step) · `vox run` (interpreter for script-shaped files; repeatable `--caps`) · `vox run --mode script` (native opt-in). Full tier table with notes: `AGENTS.md §VoxScript-First Glue Code` — authoritative, do not restate the full table here.
+`vox run --interp` (pure computation, no compile step) · `vox run` (interpreter for script-shaped files; repeatable `--caps`) · `vox run --mode script` (native opt-in). Full tier table with notes: `AGENTS.md §VoxLang-First Glue Code` — authoritative, do not restate the full table here.
 
 ## Bootstrap exception
 
@@ -39,5 +39,5 @@ vox run --interp scripts/compute-config.vox
 
 ## References
 
-- `AGENTS.md §VoxScript-First Glue Code` — authoritative policy
+- `AGENTS.md §VoxLang-First Glue Code` — authoritative policy
 - `docs/src/architecture/vox-as-glue-research-2026.md` — security model, tiers, migration plan

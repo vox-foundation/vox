@@ -27,6 +27,7 @@ on:
       - OpenSSF Scorecard
       - CI liveness
       - Cache seed
+      - Docs Self-Heal
     types: [completed]
 
 permissions:

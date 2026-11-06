@@ -12,8 +12,8 @@ strengths of coverage:
 
 `reached − proven` is the keystone: code that runs in a test but proves nothing.
 
-> **Language-policy note (VoxScript-first deferral).** These tools are Python, which
-> AGENTS.md §VoxScript-First Glue Code bans for new project automation; no exemption
+> **Language-policy note (VoxLang-first deferral).** These tools are Python, which
+> AGENTS.md §VoxLang-First Glue Code bans for new project automation; no exemption
 > mechanism exists. The Vox rewrite is **deferred, not waived**: the scripts are
 > deterministic, stdlib-only analysis tooling (~2.3K lines, 43 pytest tests) and a
 > faithful rewrite is out of scope for Phase 1. Tracked as a Phase 1.5 follow-up;

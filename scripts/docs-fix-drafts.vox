@@ -1,0 +1,50 @@
+// vox:caps fs subprocess env
+// scripts/docs-fix-drafts.vox
+//
+// Guarded OpenWiki Self-Healing Documentation Draft-PR Runner (`OPENWIKI-BOT-01..04`).
+//
+// Evaluates the Golden Drift Benchmark (`golden-drift-eval-set.v1.json`) and
+// validates that the self-healing bot metrics ledger (`bot-metrics.v1.json`)
+// meets promotion thresholds (`precision >= 80%`, `false_positive_rate <= 10%`,
+// `open_draft_branches <= 3`) before staging any human-reviewed draft PRs.
+//
+// Usage:
+//   vox run scripts/docs-fix-drafts.vox
+//   vox run scripts/docs-fix-drafts.vox -- --dry-run
+
+import json;
+
+fn main() {
+    let args = std.env.args();
+    let mut dry_run = false;
+    let mut i = 0;
+    while i < args.len() {
+        let a = args.get(i).unwrap();
+        if a == "--dry-run" {
+            dry_run = true;
+        }
+        i = i + 1;
+    }
+
+    let mut cmd_args = ["audit", "docs", "--eval-golden-drift", "--self-heal-plan"];
+    if dry_run {
+        cmd_args = cmd_args.push("--dry-run");
+    }
+
+    let proc = process.run("vox", cmd_args);
+    if proc is null {
+        print("docs-fix-drafts: could not spawn `vox audit docs`");
+        process.exit(1);
+    }
+    let res = proc.unwrap();
+    if res.stdout.trim() != "" {
+        print(res.stdout.trim());
+    }
+    if res.code != 0 {
+        if res.stderr.trim() != "" {
+            print(res.stderr.trim());
+        }
+        process.exit(res.code);
+    }
+    print("docs-fix-drafts: OpenWiki self-healing guard checks passed.");
+}
