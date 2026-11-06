@@ -134,9 +134,9 @@ export function CommandCatalogForm({
     const currentCommand = commandList.find((c: CommandCatalogEntry) => c.path.join(' ') === selectedPath);
 
     return (
-        <div className="flex h-full text-steel w-full">
-            <div className="w-72 border-r border-border p-4 overflow-y-auto">
-                <h3 className="font-rajdhani text-lg font-bold tracking-widest text-brass mb-4">Command Catalog</h3>
+        <div className="flex h-full text-text-secondary w-full">
+            <div className="w-72 border-r border-border-subtle p-4 overflow-y-auto">
+                <h3 className="font-display text-lg font-bold tracking-widest text-brass mb-4">Command Catalog</h3>
                 <ul className="list-none p-0">
                     {commandList.map((cmd: CommandCatalogEntry) => {
                         const p = cmd.path.join(' ');
@@ -147,20 +147,20 @@ export function CommandCatalogForm({
                                 data-catalog-path={p}
                                 aria-current={isSelected ? 'true' : undefined}
                                 onClick={() => handleCommandSelect(cmd.path)}
-                                className={`cursor-pointer p-2 mb-1 text-sm font-mono transition-colors border-l-2 ${
-                                    isSelected ? 'bg-cyan/10 border-cyan text-cyan' : 'border-transparent text-steel hover:bg-overlay-subtle'
+                                className={`cursor-pointer rounded-r-md p-2 mb-1 text-sm font-mono transition-colors border-l-2 ${
+                                    isSelected ? 'bg-cyan/10 border-cyan text-cyan' : 'border-transparent text-text-secondary hover:bg-overlay-subtle'
                                 }`}
                             >
                                 <div className="flex justify-between items-center">
                                     <span>vox {p}</span>
-                                    {cmd.has_subcommands && <span className="text-xs text-steel/50">▸</span>}
+                                    {cmd.has_subcommands && <span className="text-xs text-text-muted">▸</span>}
                                 </div>
                                 <div className="mt-1 flex gap-2">
-                                    <span className="text-[10px] uppercase tracking-wider bg-black/30 px-1 rounded-sm text-brass">
+                                    <span className="text-[10px] uppercase tracking-wider bg-bg-base/80 border border-border-subtle px-1.5 py-0.5 rounded-sm text-brass">
                                         {cmd.tier}
                                     </span>
                                     {cmd.aliases.length > 0 && (
-                                        <span className="text-[10px] text-steel/70">
+                                        <span className="text-[10px] text-text-muted">
                                             alias: {cmd.aliases.join(', ')}
                                         </span>
                                     )}
@@ -173,8 +173,8 @@ export function CommandCatalogForm({
             <div className="flex-1 p-6 overflow-y-auto">
                 {currentCommand ? (
                     <div>
-                        <h2 className="text-2xl font-rajdhani text-brass mb-2">vox {selectedPath}</h2>
-                        <p className="text-steel font-mono text-sm mb-6">{currentCommand.about}</p>
+                        <h2 className="text-2xl font-display text-brass mb-2">vox {selectedPath}</h2>
+                        <p className="text-text-secondary font-mono text-sm mb-6">{currentCommand.about}</p>
                         
                         {currentCommand.arguments && currentCommand.arguments.length > 0 && (
                             <div className="space-y-4 mb-6">
@@ -293,7 +293,7 @@ export function CommandCatalogForm({
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        <div className="flex items-center justify-center rounded-xl border border-dashed border-border-subtle bg-bg-surface/40 p-8 text-steel font-mono text-sm uppercase tracking-widest">
+                        <div className="flex items-center justify-center rounded-xl border border-dashed border-border-subtle bg-bg-surface/40 p-6 text-text-secondary font-mono text-sm uppercase tracking-widest">
                             Select a command from the catalog to configure and execute.
                         </div>
                         <div
@@ -327,6 +327,46 @@ export function CommandCatalogForm({
                                 </p>
                             </div>
                         </div>
+                        {commandList.length > 0 && (
+                            <div className="rounded-xl border border-border-subtle bg-bg-surface/80 p-4">
+                                <div className="mb-3 flex items-center justify-between">
+                                    <span className="font-display text-[10px] tracking-widest text-text-secondary uppercase">
+                                        Quick-Select Command Matrix
+                                    </span>
+                                    <span className="font-mono text-[10px] text-text-muted">
+                                        Click a card to load its Clap argument schema
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                                    {commandList.slice(0, 8).map((cmd: CommandCatalogEntry) => {
+                                        const p = cmd.path.join(' ');
+                                        return (
+                                            <button
+                                                key={`quick-${p}`}
+                                                type="button"
+                                                onClick={() => handleCommandSelect(cmd.path)}
+                                                className="flex flex-col items-start justify-between rounded-lg border border-border-subtle bg-bg-base/70 p-2.5 text-left transition hover:border-brass/40 hover:bg-brass/5"
+                                            >
+                                                <div className="flex w-full items-center justify-between gap-1">
+                                                    <span className="font-mono text-xs font-medium text-cyan">vox {p}</span>
+                                                    <span className="rounded border border-brass/25 bg-brass/10 px-1 py-0.5 font-mono text-[9px] uppercase text-brass">
+                                                        {cmd.source_group}
+                                                    </span>
+                                                </div>
+                                                <div className="mt-1 line-clamp-1 font-mono text-[10px] text-text-secondary">
+                                                    {cmd.about || `Execute vox ${p}`}
+                                                </div>
+                                                <div className="mt-1.5 flex items-center gap-1.5 font-mono text-[9px] text-text-muted">
+                                                    <span>{cmd.arguments?.length ?? 0} args</span>
+                                                    <span>·</span>
+                                                    <span className="text-emerald-300">{cmd.compiled_in ? 'compiled' : 'gated'}</span>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

@@ -45,7 +45,7 @@ export function AgentTrajectoryBraid({ trajectories }: AgentTrajectoryBraidProps
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="w-32 shrink-0 space-y-1">
+        <div className="w-44 shrink-0 space-y-1">
           {trajectories.slice(0, 5).map((row, idx) => (
             <div key={row.agentId} className="flex items-center justify-between gap-1 truncate">
               <span className="truncate text-zinc-200" style={{ color: STROKE_PALETTE[idx % STROKE_PALETTE.length] }}>

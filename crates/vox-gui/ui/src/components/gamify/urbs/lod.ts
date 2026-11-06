@@ -35,6 +35,56 @@ export function worldBounds(layout: TownLayout): WorldBounds {
   return { minX: 0, minY: 0, maxX: ((n + m) * TILE_W) / 2, maxY: ((n + m) * TILE_H) / 2 + 140 };
 }
 
+/**
+ * Tight bounding box around the actually occupied districts and peripheral
+ * Roman landmarks (`castrum`, `portus`, `aqvae`, `gate`) so `fitBounds`
+ * centers the rendered Roman city in the viewport rather than centering the
+ * asymmetric empty grid margin.
+ */
+export function occupiedWorldBounds(layout: TownLayout): WorldBounds {
+  const pts: { px: number; py: number }[] = [];
+  for (const d of layout.districts) {
+    pts.push(worldPx(layout, d.x0, d.y0));
+    pts.push(worldPx(layout, d.x1, d.y0));
+    pts.push(worldPx(layout, d.x0, d.y1));
+    pts.push(worldPx(layout, d.x1, d.y1));
+  }
+  const L = layout.landmarks;
+  pts.push(worldPx(layout, L.castrum.x, L.castrum.y));
+  pts.push(worldPx(layout, L.portus.x, L.portus.y));
+  pts.push(worldPx(layout, L.aqvae.x, L.aqvae.y));
+  pts.push(worldPx(layout, L.gate.x, L.gate.y));
+
+  if (pts.length === 0) return worldBounds(layout);
+
+  let minPx = Infinity;
+  let maxPx = -Infinity;
+  let minPy = Infinity;
+  let maxPy = -Infinity;
+  for (const p of pts) {
+    if (p.px < minPx) minPx = p.px;
+    if (p.px > maxPx) maxPx = p.px;
+    if (p.py < minPy) minPy = p.py;
+    if (p.py > maxPy) maxPy = p.py;
+  }
+
+  return {
+    minX: Math.max(0, Math.round(minPx - 28)),
+    minY: Math.max(0, Math.round(minPy - 48)),
+    maxX: Math.round(maxPx + 28),
+    maxY: Math.round(maxPy + 24),
+  };
+}
+
+/** Map normalized [0..1] widescreen cityscape coordinates into world pixel space. */
+export function uvToWorld(layout: TownLayout, u: number, v: number): { px: number; py: number } {
+  const b = occupiedWorldBounds(layout);
+  return {
+    px: b.minX + u * (b.maxX - b.minX),
+    py: b.minY + v * (b.maxY - b.minY),
+  };
+}
+
 // NOTE (deliberate, spec §4): there is no per-frame viewport culling. The
 // full world is painted once into an offscreen buffer and pan/zoom is a
 // camera-transformed blit; the buffer's size is bounded by a render-scale

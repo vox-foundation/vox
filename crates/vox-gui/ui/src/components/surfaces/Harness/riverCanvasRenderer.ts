@@ -152,13 +152,13 @@ export function renderRiverFrame(
   const pillX = Math.max(isCompact ? 5 : 8, (width - pillW) / 2);
   const pillY = Math.max(6, Math.min(height - pillH - 6, laserY - pillH / 2));
 
-  ctx.fillStyle = '#f4f4f5';
+  ctx.fillStyle = 'rgba(15, 18, 28, 0.92)';
   ctx.fillRect(pillX, pillY, pillW, pillH);
-  ctx.strokeStyle = '#22d3ee';
+  ctx.strokeStyle = '#E5A93C';
   ctx.lineWidth = 1;
   ctx.strokeRect(pillX, pillY, pillW, pillH);
 
-  ctx.fillStyle = '#09090b';
+  ctx.fillStyle = '#F4F4F5';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(banner, pillX + pillW / 2, pillY + pillH / 2);

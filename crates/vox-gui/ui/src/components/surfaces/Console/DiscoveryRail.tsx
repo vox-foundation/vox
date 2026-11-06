@@ -87,7 +87,7 @@ const LOCAL_ACTION_HELP: Record<string, ActionHelp> = {
     };
     // Keyed on actionId only: nowMs changes on unrelated parent re-renders and
     // must not re-fetch help.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on actionId only
   }, [actionId]);
 
   // Record a "seen" exposure when the active action settles (debounced by 2s of
@@ -101,7 +101,7 @@ const LOCAL_ACTION_HELP: Record<string, ActionHelp> = {
     return () => clearTimeout(t);
     // Keyed on actionId only — see note above; restarting on nowMs would starve
     // the dwell timer.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on actionId only
   }, [actionId]);
 
   if (collapsed) {

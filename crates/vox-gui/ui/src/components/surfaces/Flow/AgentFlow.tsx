@@ -120,7 +120,7 @@ function AgentInspector({ node, agent }: { node: GraphNode; agent?: Agent }) {
                 aria-valuemax={100}
               >
                 <div
-                  className="h-full bg-linear-to-r from-violet-400 to-emerald-400 transition-all duration-700"
+                  className="h-full bg-linear-to-r from-violet-400 to-emerald-400 transition-[width] duration-700"
                   style={{ width: `${agent.progress * 100}%` }}
                 />
               </div>
@@ -217,15 +217,23 @@ export function AgentFlow({ agents, graph, onSelect, selectedId }: AgentFlowProp
             const d = `M ${pa.x} ${pa.y} Q ${mx} ${my} ${pb.x} ${pb.y}`;
             return (
               <g key={i}>
-                <path d={d} stroke="rgba(255,255,255,0.06)" strokeWidth="1" fill="none" />
+                <path d={d} stroke="rgba(255,255,255,0.08)" strokeWidth="1.5" fill="none" />
                 <path
                   d={d}
                   stroke="url(#ag-edge-grad)"
-                  strokeWidth={1.2 + e.flow * 1.6}
-                  strokeOpacity="0.8"
+                  strokeWidth={1.4 + e.flow * 1.8}
+                  strokeOpacity="0.9"
                   fill="none"
                   strokeDasharray="6 8"
-                />
+                >
+                  <animate
+                    attributeName="stroke-dashoffset"
+                    from="28"
+                    to="0"
+                    dur={`${(1.8 - Math.min(0.8, e.flow * 0.7)).toFixed(2)}s`}
+                    repeatCount="indefinite"
+                  />
+                </path>
               </g>
             );
           })}

@@ -51,7 +51,7 @@ export function VerificationFunnelFooter({
           {snapshot.funnel.map((stage) => (
             <div key={stage.stageId} className="flex flex-col items-center">
               <div
-                className="flex items-center justify-between rounded-sm border border-white/15 bg-white/[0.06] px-2 py-1 text-[9px] text-zinc-100 transition-all"
+                className="flex items-center justify-between rounded-sm border border-white/15 bg-white/[0.06] px-2 py-1 text-[9px] text-zinc-100 transition-[width]"
                 style={{ width: `${Math.max(42, stage.retentionPct)}%` }}
               >
                 <span className="truncate">{stage.label}</span>

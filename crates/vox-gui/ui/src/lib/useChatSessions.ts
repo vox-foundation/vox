@@ -31,7 +31,7 @@ export function useChatSessions(onLoadError?: (err: unknown) => void) {
 
   useEffect(() => {
     load().catch(err => onLoadError?.(err));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial load on mount only
   }, []);
 
   const upsertSession = useCallback((s: ChatSession) => {

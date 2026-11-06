@@ -85,7 +85,10 @@ pub struct OrganicSpokeRowDto {
     pub total_cases: usize,
     pub search_recall_at_5: f64,
     pub mean_reciprocal_rank: f64,
+    pub unbiased_search_recall_at_5: f64,
+    pub unbiased_mrr: f64,
     pub mean_grounding_ratio: f64,
+    pub distractor_resilience_rate: f64,
     pub syntax_validity_rate: f64,
     pub semantic_validity_rate: f64,
     pub compilation_pass_rate: f64,
@@ -98,7 +101,10 @@ pub struct OrganicSearchSpokeScorecardDto {
     pub total_cases: usize,
     pub overall_search_recall_at_5: f64,
     pub overall_mrr: f64,
+    pub overall_unbiased_search_recall_at_5: f64,
+    pub overall_unbiased_mrr: f64,
     pub overall_grounding_ratio: f64,
+    pub overall_distractor_resilience_rate: f64,
     pub overall_compilation_pass_rate: f64,
     pub overall_end_to_end_pass_at_1: f64,
     pub spokes: Vec<OrganicSpokeRowDto>,
@@ -352,10 +358,22 @@ fn parse_organic_scorecard(v: &serde_json::Value) -> Option<OrganicSearchSpokeSc
         .get("overall_mrr")
         .and_then(serde_json::Value::as_f64)
         .unwrap_or(overall_search_recall_at_5);
+    let overall_unbiased_search_recall_at_5 = v
+        .get("overall_unbiased_search_recall_at_5")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(overall_search_recall_at_5);
+    let overall_unbiased_mrr = v
+        .get("overall_unbiased_mrr")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(overall_mrr);
     let overall_grounding_ratio = v
         .get("overall_grounding_ratio")
         .and_then(serde_json::Value::as_f64)
         .unwrap_or(overall_search_recall_at_5);
+    let overall_distractor_resilience_rate = v
+        .get("overall_distractor_resilience_rate")
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(overall_grounding_ratio);
     let overall_compilation_pass_rate = v
         .get("overall_compilation_pass_rate")
         .and_then(serde_json::Value::as_f64)
@@ -376,10 +394,22 @@ fn parse_organic_scorecard(v: &serde_json::Value) -> Option<OrganicSearchSpokeSc
                 .get("mean_reciprocal_rank")
                 .and_then(serde_json::Value::as_f64)
                 .unwrap_or(0.0);
+            let unbiased_search_recall_at_5 = s
+                .get("unbiased_search_recall_at_5")
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(search_recall_at_5);
+            let unbiased_mrr = s
+                .get("unbiased_mrr")
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(mean_reciprocal_rank);
             let mean_grounding_ratio = s
                 .get("mean_grounding_ratio")
                 .and_then(serde_json::Value::as_f64)
                 .unwrap_or(0.0);
+            let distractor_resilience_rate = s
+                .get("distractor_resilience_rate")
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(mean_grounding_ratio);
             let syntax_validity_rate = s
                 .get("syntax_validity_rate")
                 .and_then(serde_json::Value::as_f64)
@@ -408,7 +438,10 @@ fn parse_organic_scorecard(v: &serde_json::Value) -> Option<OrganicSearchSpokeSc
                     .unwrap_or(3) as usize,
                 search_recall_at_5,
                 mean_reciprocal_rank,
+                unbiased_search_recall_at_5,
+                unbiased_mrr,
                 mean_grounding_ratio,
+                distractor_resilience_rate,
                 syntax_validity_rate,
                 semantic_validity_rate,
                 compilation_pass_rate,
@@ -422,7 +455,10 @@ fn parse_organic_scorecard(v: &serde_json::Value) -> Option<OrganicSearchSpokeSc
         total_cases,
         overall_search_recall_at_5,
         overall_mrr,
+        overall_unbiased_search_recall_at_5,
+        overall_unbiased_mrr,
         overall_grounding_ratio,
+        overall_distractor_resilience_rate,
         overall_compilation_pass_rate,
         overall_end_to_end_pass_at_1,
         spokes,
@@ -605,10 +641,12 @@ mod tests {
         let org = result
             .organic_scorecard
             .expect("workspace organic_scorecard should load from contracts/reports");
-        assert_eq!(org.total_cases, 15);
-        assert_eq!(org.spokes.len(), 5);
+        assert_eq!(org.total_cases, 24);
+        assert_eq!(org.spokes.len(), 8);
         assert!((org.overall_search_recall_at_5 - 1.0).abs() < 1e-9);
         assert!(org.overall_mrr >= 0.95);
+        assert!((org.overall_unbiased_search_recall_at_5 - 1.0).abs() < 1e-9);
+        assert!((org.overall_distractor_resilience_rate - 1.0).abs() < 1e-9);
         assert!((org.overall_compilation_pass_rate - 1.0).abs() < 1e-9);
         assert!((org.overall_end_to_end_pass_at_1 - 1.0).abs() < 1e-9);
     }

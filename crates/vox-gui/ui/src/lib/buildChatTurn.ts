@@ -12,8 +12,8 @@ export const CHAT_TURN_KEYS = [
   'session_id', 'content', 'execution', 'model_override', 'tier',
   'clutch', 'risk', 'context_files', 'active_skill', 'skill_exclusions',
   'grounding_check_enabled', 'priority', 'dry_run', 'allow_duplicate',
-  'mode', 'chat_session_id', 'force_research', 'research_scope',
-  'domain_mode', 'site_scope', 'trace_id', 'turn_id',
+  'mode', 'oversight_level', 'kb_scope', 'chat_session_id', 'force_research',
+  'research_scope', 'domain_mode', 'site_scope', 'trace_id', 'turn_id',
 ] as const;
 
 export interface BuildChatTurnCtx {
@@ -106,6 +106,8 @@ export function buildChatTurn(payload: ChatTurnSource, ctx: BuildChatTurnCtx): C
     dry_run: payload.dry_run ?? null,
     allow_duplicate: ctx.allowDuplicate ?? null,
     mode: payload.mode ?? null,
+    oversight_level: payload.oversight_level ?? null,
+    kb_scope: payload.kb_scope ?? null,
     chat_session_id: ctx.chatSessionId ?? ctx.sessionId ?? null,
     force_research: payload.force_research ?? null,
     research_scope: payload.research_scope ?? null,

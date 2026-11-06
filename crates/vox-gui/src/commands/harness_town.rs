@@ -103,6 +103,16 @@ pub(crate) fn slug_from_remote(url: &str) -> Option<String> {
     let mut parts = path.split('/').filter(|s| !s.is_empty());
     let owner = parts.next()?;
     let repo = parts.next()?;
+    let is_safe_segment = |s: &str| {
+        !s.is_empty()
+            && s != "."
+            && s != ".."
+            && s.bytes()
+                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.'))
+    };
+    if !is_safe_segment(owner) || !is_safe_segment(repo) {
+        return None;
+    }
     Some(format!("{owner}/{repo}"))
 }
 
@@ -145,6 +155,12 @@ pub async fn harness_ci_fleet_status() -> Result<CiFleetDto, String> {
     .map_err(|e| e.to_string())?
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct McpServerStatusDto {
+    pub name: String,
+    pub ok: bool,
+}
+
 #[tauri::command]
 pub async fn vcs_town_status() -> Result<VcsTownDto, String> {
     tokio::task::spawn_blocking(|| {
@@ -171,6 +187,20 @@ pub async fn vcs_town_status() -> Result<VcsTownDto, String> {
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn mcp_servers_status(
+    state: tauri::State<'_, std::sync::Arc<crate::remote::backend::BackendState>>,
+) -> Result<Vec<McpServerStatusDto>, String> {
+    let ok = match state.current().await {
+        crate::remote::backend::Backend::Local(daemon) => daemon.ensure_live().await.is_ok(),
+        crate::remote::backend::Backend::Remote(_) => true,
+    };
+    Ok(vec![McpServerStatusDto {
+        name: "vox-orchestrator-mcp".to_string(),
+        ok,
+    }])
 }
 
 #[cfg(test)]

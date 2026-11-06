@@ -119,7 +119,7 @@ export function BlockStreamView({
               data-pinned={isPinned ? 'true' : 'false'}
               data-focused={isFocused ? 'true' : 'false'}
               onClick={() => onSelectBlock?.(block.id)}
-              className={`flex flex-col gap-1.5 rounded-lg border p-2.5 shadow-sm transition-all ${
+              className={`flex flex-col gap-1.5 rounded-lg border p-2.5 shadow-sm transition-colors ${
                 isPinned
                   ? 'border-amber-400/80 bg-amber-950/25 shadow-[0_0_12px_rgba(251,191,36,0.12)]'
                   : isFocused

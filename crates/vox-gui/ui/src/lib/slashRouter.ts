@@ -20,6 +20,7 @@ export const APP_SLASH_COMMANDS = [
   '/rollback',
   '/doubt',
   '/diff',
+  '/compact',
   '/research',
   '/deepresearch',
   '/research-search',

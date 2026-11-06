@@ -40,9 +40,9 @@ function NavItem({ active, icon, label, onClick, badge, badgeClass, railBadgeCla
   const effectiveAriaLabel = ariaLabel ?? (collapsed ? label : undefined);
   return (
     <button type="button" ref={innerRef} onClick={onClick} title={collapsed ? label : undefined} aria-label={effectiveAriaLabel}
-      className={`group relative flex w-full items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} py-2.5 rounded-xl transition ${active ? "bg-overlay-subtle text-text-primary" : "text-text-muted hover:bg-overlay-hover hover:text-text-secondary"}`}>
-      {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[2px] rounded-r bg-brass" />}
-      <span className={`flex size-7 items-center justify-center rounded-lg shrink-0 ${active ? "bg-brass/10 text-brass ring-1 ring-brass/30" : "bg-overlay-subtle ring-1 ring-border-subtle"}`}>{icon}</span>
+      className={`group relative flex w-full items-center ${collapsed ? "justify-center px-0" : "gap-3 px-3"} py-2.5 rounded-xl transition ${active ? "bg-brass/12 text-brass ring-1 ring-brass/30 shadow-xs" : "text-text-muted hover:bg-overlay-hover hover:text-text-secondary"}`}>
+      {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r bg-brass shadow-[0_0_8px_rgba(229,169,60,0.6)]" />}
+      <span className={`flex size-7 items-center justify-center rounded-lg shrink-0 ${active ? "bg-brass/20 text-brass ring-1 ring-brass/40" : "bg-overlay-subtle ring-1 ring-border-subtle"}`}>{icon}</span>
       {!collapsed && <span className="flex-1 min-w-0 text-left font-display text-[12px] tracking-[0.12em] uppercase whitespace-nowrap overflow-hidden text-ellipsis">{label}</span>}
       {!collapsed && badge != null && <span className={`rounded-full px-1.5 py-0.5 font-mono text-[9px] ${badgeClass ?? 'bg-overlay-subtle text-text-muted'}`}>{badge}</span>}
       {collapsed && badge != null && <span className={`absolute right-1 top-1 rounded-full px-1 font-mono text-[8px] ${railBadgeClass ?? 'bg-brass/80 text-bg-base'}`}>{badge}</span>}
@@ -53,10 +53,7 @@ function NavItem({ active, icon, label, onClick, badge, badgeClass, railBadgeCla
 const SIDEBAR_WIDTHS: Record<SidebarMode, number> = { hidden: 0, rail: 64, default: 212, wide: 280 };
 const SIDEBAR_ORDER: SidebarMode[] = ["rail", "default", "wide"];
 
-// Curated nav icons (labels now come from the lexicon by viewKey).
-// ponytail: nav English now lives in lexicon.ts; the generated registry navLabel still feeds
-// federated search keywords. Reconcile only if they drift. Upgrade path: thread nav_label_la
-// through crates/vox-cli/src/commands/ci/gui_surface_registry.rs so the registry carries la natively.
+// Curated nav icons & 5-domain consolidation headers (Concept-Art v4.0: Operate/Chat, Agents & Runs, Workspace, Knowledge, Compute & System).
 const TOP_NAV_ICON: Record<string, string> = {
   chat: 'message',
   runs: 'shield',
@@ -67,6 +64,14 @@ const TOP_NAV_ICON: Record<string, string> = {
   compute: 'cpu',
   mercatus: 'scale',
   settings: 'settings',
+};
+
+const SIDEBAR_DOMAIN_HEADER_BEFORE: Record<string, { id: string; label: string }> = {
+  chat: { id: 'operate-chat', label: 'Operate · Chat' },
+  runs: { id: 'agents-runs', label: 'Agents & Runs' },
+  workspace: { id: 'workspace', label: 'Workspace' },
+  knowledge: { id: 'knowledge', label: 'Knowledge' },
+  compute: { id: 'compute-system', label: 'Compute & System' },
 };
 
 const navLabelFor = (key: string, lang: 'en' | 'la') => sidebarParentLabel(key, lang);
@@ -357,8 +362,17 @@ export function Sidebar({
                     ? `Review, ${couldNotLoad}`
                     : 'Review'
                 : undefined;
+            const domainHeader = !collapsed ? SIDEBAR_DOMAIN_HEADER_BEFORE[key] : undefined;
             return (
               <React.Fragment key={key}>
+                {domainHeader && (
+                  <div
+                    data-testid={`sidebar-domain-group-${domainHeader.id}`}
+                    className="mx-2 mt-1.5 mb-0.5 px-0 font-display text-[9px] uppercase tracking-[0.26em] text-text-muted/80"
+                  >
+                    {domainHeader.label}
+                  </div>
+                )}
                 <div
                   className="relative flex items-center gap-0.5"
                   onMouseEnter={(e) => collapsed && children && handleRailMouseEnter(key, e)}
@@ -466,7 +480,14 @@ export function Sidebar({
                   </div>
                 )}
                 {isExpanded && key !== 'chat' && children && (
-                  <div className="ml-4 flex flex-col gap-0.5 border-l border-border-subtle pl-2">
+                  <div
+                    data-testid="sidebar-child-list"
+                    className={
+                      peekedParent === key
+                        ? 'ml-4 flex flex-col gap-0.5 border-l border-border-subtle pl-2'
+                        : 'sr-only'
+                    }
+                  >
                     {children.map(childKey => {
                       const availability = surfaceAvailability(backendStatus, childKey);
                       return (
@@ -497,8 +518,7 @@ export function Sidebar({
         <div className="flex flex-col gap-2 pt-3 shrink-0">
           <BackendStatusPill collapsed={collapsed} />
           {settingsEntry && (
-            <div className={`flex flex-col gap-0.5 pt-2 ${collapsed ? 'border-t border-border-subtle' : ''}`}>
-              {!collapsed && <div className="mx-2 mb-1 border-b border-border-subtle px-0 pb-1 font-display text-[9px] uppercase tracking-[0.32em] text-text-muted">{labelFor('group:system', lang)}</div>}
+            <div className="flex flex-col gap-0.5 border-t border-border-subtle/70 pt-2">
               <NavItem
                 collapsed={collapsed}
                 active={activeParent === 'settings'}

@@ -325,11 +325,16 @@ export function ResearchView({
         setHighlightedClaimId(matchingClaim.claimId);
         const targetId = `claim-${matchingClaim.claimId}`;
         const el = document.getElementById(targetId);
-        if (el) {
+        if (el && typeof el.scrollIntoView === 'function') {
           el.scrollIntoView({ behavior: 'smooth' });
         } else {
           setTimeout(() => {
-            document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth' });
+            if (typeof document !== 'undefined') {
+              const target = document.getElementById(targetId);
+              if (target && typeof target.scrollIntoView === 'function') {
+                target.scrollIntoView({ behavior: 'smooth' });
+              }
+            }
           }, 50);
         }
       }
@@ -405,7 +410,7 @@ export function ResearchView({
       }
       setActiveSessionId(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- react to session completion transitions
   }, [sessions, activeSessionId]);
 
   const run = async (overrideLane?: 'fast' | 'deep') => {

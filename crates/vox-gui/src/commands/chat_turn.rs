@@ -69,6 +69,12 @@ pub struct ChatTurnInput {
     /// the sync path has no `mode` concept in `vox_chat_message`.
     #[serde(default)]
     pub mode: Option<String>,
+    /// Composer oversight level (`1`..`5`).
+    #[serde(default)]
+    pub oversight_level: Option<String>,
+    /// Composer knowledge retrieval scope (`auto`|`docs`|`code`|`memory`|`off`).
+    #[serde(default)]
+    pub kb_scope: Option<String>,
     #[serde(default)]
     pub force_research: Option<bool>,
     #[serde(default)]
@@ -109,6 +115,14 @@ pub struct ChatTurnDto {
     pub plan_session_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plan_version: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub backend_message_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compaction_audit: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub posture_audit: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_queued_follow_up: Option<serde_json::Value>,
 }
 
 /// Wrapper every real dispatch call site applies (`format!("LLM error: {e}")`
@@ -201,10 +215,16 @@ pub fn sync_tool_args(input: &ChatTurnInput) -> serde_json::Value {
         ("risk", non_blank(&input.risk)),
         ("active_skill", non_blank(&input.active_skill)),
         ("priority", non_blank(&input.priority)),
+        ("mode", non_blank(&input.mode)),
+        ("oversight_level", non_blank(&input.oversight_level)),
+        ("kb_scope", non_blank(&input.kb_scope)),
     ] {
         if let Some(v) = val {
             obj.insert(key.into(), serde_json::json!(v));
         }
+    }
+    if let Some(v) = input.grounding_check_enabled {
+        obj.insert("grounding_check_enabled".into(), serde_json::json!(v));
     }
     // `ChatMessageParams` (crates/vox-orchestrator-mcp/src/chat_tools/params.rs)
     // needs a `dry_run: Option<bool>` field for the daemon to actually read
@@ -261,6 +281,8 @@ pub fn background_input(input: &ChatTurnInput) -> SubmitTaskInput {
             .or_else(|| Some(input.session_id.clone())),
         trace_id: input.trace_id.clone(),
         turn_id: input.turn_id.clone(),
+        oversight_level: input.oversight_level.clone(),
+        kb_scope: input.kb_scope.clone(),
     }
 }
 
@@ -323,6 +345,10 @@ async fn run_sync<B: BackendCalls>(b: &B, input: &ChatTurnInput) -> Result<ChatT
         events: reply.events,
         plan_session_id: None,
         plan_version: None,
+        backend_message_id: reply.backend_message_id,
+        compaction_audit: reply.compaction_audit,
+        posture_audit: reply.posture_audit,
+        next_queued_follow_up: reply.next_queued_follow_up,
     })
 }
 
@@ -354,6 +380,10 @@ async fn run_background(
         events: vec![],
         plan_session_id: None,
         plan_version: None,
+        backend_message_id: None,
+        compaction_audit: None,
+        posture_audit: None,
+        next_queued_follow_up: None,
     })
 }
 
@@ -368,10 +398,13 @@ pub fn plan_tool_args(input: &ChatTurnInput) -> serde_json::Value {
         "session_id": input.session_id,
         "require_approval": true,
     });
-    if let Some(ref mo) = input.model_override {
-        args["model_override"] = serde_json::Value::String(mo.clone());
+    if let Some(mo) = non_blank(&input.model_override) {
+        args["model_override"] = serde_json::Value::String(mo.to_string());
     }
     let obj = args.as_object_mut().expect("json! object");
+    if !input.context_files.is_empty() {
+        obj.insert("scope_files".into(), serde_json::json!(input.context_files));
+    }
     for (key, val) in [
         ("trace_id", non_blank(&input.trace_id)),
         ("turn_id", non_blank(&input.turn_id)),
@@ -426,6 +459,10 @@ fn parse_plan_envelope(envelope: &serde_json::Value) -> Result<ChatTurnDto, Stri
         events: vec![],
         plan_session_id,
         plan_version,
+        backend_message_id: None,
+        compaction_audit: None,
+        posture_audit: None,
+        next_queued_follow_up: None,
     })
 }
 
@@ -453,6 +490,9 @@ mod tests {
         "active_skill",
         "clutch",
         "risk",
+        "mode",
+        "oversight_level",
+        "kb_scope",
         "allow_duplicate",
         "grounding_check_enabled",
         "chat_session_id",
@@ -778,5 +818,93 @@ mod tests {
         assert!(!body.contains("vox_db"));
         assert!(!body.contains("GuiDbPool"));
         assert!(!body.contains("PersistentDaemon"));
+    }
+
+    #[test]
+    fn full_knob_matrix_roundtrips_across_sync_background_and_plan_tracks() {
+        let modes = ["plan", "act", "verify"];
+        let tiers = ["local", "mesh", "cloud", "auto"];
+        let clutches = ["free", "efficiency", "balanced", "genius"];
+        let risks = ["high", "moderate", "low"];
+        let oversights = ["1", "2", "3", "4", "5"];
+        let kb_scopes = ["auto", "docs", "code", "memory", "off"];
+        let priorities = ["urgent", "normal", "background"];
+
+        let mut tested = 0usize;
+        for mode in modes {
+            for tier in tiers {
+                for clutch in clutches {
+                    for risk in risks {
+                        let oversight = oversights[tested % oversights.len()];
+                        let kb_scope = kb_scopes[tested % kb_scopes.len()];
+                        let priority = priorities[tested % priorities.len()];
+                        let dry_run = tested % 2 == 0;
+                        let grounding = tested % 2 == 1;
+                        let input = ChatTurnInput {
+                            session_id: format!("sess-{tested}"),
+                            content: format!("prompt-{tested}"),
+                            execution: match tested % 3 {
+                                0 => Execution::Sync,
+                                1 => Execution::Background,
+                                _ => Execution::Plan,
+                            },
+                            model_override: Some("openrouter/anthropic/claude-sonnet-4.6".into()),
+                            tier: Some(tier.into()),
+                            clutch: Some(clutch.into()),
+                            risk: Some(risk.into()),
+                            context_files: vec!["crates/vox-gui/src/main.rs".into()],
+                            active_skill: Some("ponytail".into()),
+                            skill_exclusions: vec!["legacy-skill".into()],
+                            grounding_check_enabled: Some(grounding),
+                            priority: Some(priority.into()),
+                            dry_run: Some(dry_run),
+                            allow_duplicate: Some(false),
+                            chat_session_id: Some("origin-sess".into()),
+                            mode: Some(mode.into()),
+                            oversight_level: Some(oversight.into()),
+                            kb_scope: Some(kb_scope.into()),
+                            force_research: Some(true),
+                            research_scope: Some("both".into()),
+                            domain_mode: Some("codegen".into()),
+                            site_scope: Some("docs.rs".into()),
+                            trace_id: Some(format!("trace-{tested}")),
+                            turn_id: Some(format!("turn-{tested}")),
+                        };
+
+                        let sync_args = sync_tool_args(&input);
+                        assert_eq!(sync_args["tier"], tier);
+                        assert_eq!(sync_args["clutch"], clutch);
+                        assert_eq!(sync_args["risk"], risk);
+                        assert_eq!(sync_args["mode"], mode);
+                        assert_eq!(sync_args["oversight_level"], oversight);
+                        assert_eq!(sync_args["kb_scope"], kb_scope);
+                        assert_eq!(sync_args["priority"], priority);
+                        assert_eq!(sync_args["dry_run"], dry_run);
+                        assert_eq!(sync_args["grounding_check_enabled"], grounding);
+
+                        let bg = background_input(&input);
+                        assert_eq!(bg.tier.as_deref(), Some(tier));
+                        assert_eq!(bg.clutch.as_deref(), Some(clutch));
+                        assert_eq!(bg.risk.as_deref(), Some(risk));
+                        assert_eq!(bg.mode.as_deref(), Some(mode));
+                        assert_eq!(bg.oversight_level.as_deref(), Some(oversight));
+                        assert_eq!(bg.kb_scope.as_deref(), Some(kb_scope));
+                        assert_eq!(bg.priority.as_deref(), Some(priority));
+                        assert_eq!(bg.dry_run, Some(dry_run));
+                        assert_eq!(bg.grounding_check_enabled, Some(grounding));
+
+                        let plan_args = plan_tool_args(&input);
+                        assert_eq!(plan_args["goal"], format!("prompt-{tested}"));
+                        assert_eq!(plan_args["scope_files"][0], "crates/vox-gui/src/main.rs");
+                        assert_eq!(
+                            plan_args["model_override"],
+                            "openrouter/anthropic/claude-sonnet-4.6"
+                        );
+                        tested += 1;
+                    }
+                }
+            }
+        }
+        assert_eq!(tested, 144);
     }
 }

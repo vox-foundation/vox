@@ -18,6 +18,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SURFACE_REGISTRY } from '../../src/generated/surfaceRegistry.generated';
+import { discoverAllGuiSurfacesAndPanels } from '../../src/lib/cvSurfaceDiscovery';
 import { installTauriMock } from '../lib/tauriMock';
 import { addMockInitScript } from '../lib/tauriMockShared';
 import { addRichMockInitScript } from '../lib/tauriMockRich';
@@ -45,7 +46,8 @@ const BEFORE_FILE = join(OUT_DIR, 'before-metrics.json');
 const REPORT_FILE = join(OUT_DIR, 'cv-flywheel-report.json');
 const ALL_SURFACES_REPORT_FILE = join(OUT_DIR, 'cv-flywheel-all-surfaces.json');
 const STAGE = (process.env.CV_STAGE ?? 'after').toLowerCase();
-const ALL_SURFACES = SURFACE_REGISTRY.filter((e) => e.viewKey != null).map((e) => e.viewKey as string);
+const DISCOVERY_MANIFEST = discoverAllGuiSurfacesAndPanels();
+const ALL_SURFACES = DISCOVERY_MANIFEST.registeredViewKeys;
 
 interface SurfaceSnapshotRecord {
   surfaceId: string;
@@ -137,6 +139,11 @@ async function auditDomInPage(page: Page, surfaceId: string): Promise<GuiDomAudi
     unlitLandmarkCount: domQuality.unlitLandmarkCount,
     missingDockPanelIds: domQuality.missingDockPanelIds,
     viewportCoverageRatio: domQuality.viewportCoverageRatio,
+    composerToolbarRowCount: domQuality.composerToolbarRowCount,
+    composerToolbarHeightPx: domQuality.composerToolbarHeightPx,
+    duplicateControlGroupCount: domQuality.duplicateControlGroupCount,
+    discoveredSubTabLabels: domQuality.discoveredSubTabLabels,
+    discoveredPopoverTriggers: domQuality.discoveredPopoverTriggers,
     axeViolations,
   };
 }
@@ -184,12 +191,16 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
       weightedRubricScore: computeWeightedScore(chatRubric),
     };
 
-    // 2. Surface: loquela-knobs (open Risk/Governance popover + inspect composer toolbar)
-    const riskBtn = page.getByRole('button', { name: /^Risk: / });
-    if (await riskBtn.isVisible()) {
-      await riskBtn.click();
-      await page.waitForTimeout(200);
+    // 2. Surface: loquela-knobs (open Execution Posture & Routing floating popover + inspect composer toolbar)
+    await expect(page.getByTestId('loquela-live-posture-badge')).toBeVisible();
+    await expect(page.getByTestId('loquela-keybind-hud-toggle')).toBeVisible();
+    await expect(page.getByTestId('chat-turn-receipt-badge')).toBeVisible();
+    const postureTrigger = page.getByTestId('loquela-posture-trigger');
+    if (await postureTrigger.isVisible()) {
+      await postureTrigger.click();
+      await page.waitForTimeout(150);
     }
+    await expect(page.getByTestId('loquela-posture-popover')).toBeVisible();
     const knobsPngPath = join(OUT_DIR, `loquela-knobs-${STAGE}.png`);
     const knobsBuf = await page.screenshot({ path: knobsPngPath, animations: 'disabled' });
     const knobsPixels = await decodePngRgbaInPage(page, knobsBuf);
@@ -204,9 +215,8 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
       vlmRubric: knobsRubric,
       weightedRubricScore: computeWeightedScore(knobsRubric),
     };
-    if (await riskBtn.isVisible()) {
-      await page.keyboard.press('Escape');
-    }
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(150);
 
     // 3. Surface: chat-dock-multi (open Panels ▾ menu to audit registered dock panels)
     const panelsBtn = page.getByRole('button', { name: /Panels/i });
@@ -239,6 +249,11 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
       await urbsTab.click();
       await page.waitForTimeout(500);
     }
+    await expect(page.getByTestId('urbs-landmark-bar')).toBeVisible();
+    await expect(page.getByTestId('urbs-lens-bar')).toBeVisible();
+    await expect(page.getByTestId('urbs-vexillum-banner').first()).toBeVisible();
+    await expect(page.getByTestId('urbs-minimap-radar')).toBeVisible();
+    await expect(page.getByTestId('urbs-minimap-frustum')).toBeVisible();
     const urbsPngPath = join(OUT_DIR, `urbs-civilization-${STAGE}.png`);
     const urbsBuf = await page.screenshot({ path: urbsPngPath, animations: 'disabled' });
     const urbsPixels = await decodePngRgbaInPage(page, urbsBuf);
@@ -253,6 +268,22 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
       vlmRubric: urbsRubric,
       weightedRubricScore: computeWeightedScore(urbsRubric),
     };
+
+    // Verify interactive Civ-style Strategic Lens & ImperiumInspector command dock opens on landmark/district selection
+    const archLensBtn = page.locator('[data-urbs-lens="architecture"]');
+    if ((await archLensBtn.count()) > 0) {
+      await archLensBtn.first().click();
+      await page.waitForTimeout(150);
+    }
+    const forvmLandmarkBtn = page.locator('[data-urbs-landmark="FORVM"]');
+    if ((await forvmLandmarkBtn.count()) > 0) {
+      await forvmLandmarkBtn.first().click();
+      await expect(page.getByTestId('urbs-imperium-inspector')).toBeVisible();
+      await page.screenshot({
+        path: join(OUT_DIR, `urbs-imperium-inspector-${STAGE}.png`),
+        animations: 'disabled',
+      });
+    }
 
     if (STAGE === 'before' || !existsSync(BEFORE_FILE)) {
       writeFileSync(
@@ -316,9 +347,17 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
       for (const [surfaceId, verdict] of Object.entries(verdicts)) {
         const dom = records[surfaceId]!.domAudit;
         expect(dom.outerOverflowPx, `${surfaceId} outerOverflowPx`).toBe(0);
+        expect(dom.clippedInteractiveCount, `${surfaceId} clippedInteractiveCount`).toBe(0);
         expect(dom.rawEmojiCount, `${surfaceId} rawEmojiCount`).toBe(0);
         expect(dom.unstyledNativeSelectCount, `${surfaceId} unstyledNativeSelectCount`).toBe(0);
         expect(dom.missingDockPanelIds, `${surfaceId} missingDockPanelIds`).toEqual([]);
+        if (surfaceId === 'chat-default' || surfaceId === 'loquela-knobs') {
+          expect(dom.composerToolbarRowCount ?? 1, `${surfaceId} composerToolbarRowCount`).toBe(1);
+          expect(
+            dom.composerToolbarHeightPx ?? 0,
+            `${surfaceId} composerToolbarHeightPx`,
+          ).toBeLessThanOrEqual(52);
+        }
         expect(verdict.flywheelConverged, `${surfaceId} flywheelConverged`).toBe(true);
         expect(verdict.visualAfterScore, `${surfaceId} visualAfterScore`).toBeGreaterThanOrEqual(0.88);
       }
@@ -341,6 +380,9 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
         rawEmojiCount: 2,
         missingDockPanelIds: ['terminal', 'urbs'],
         controlHeightSpreadPx: 8,
+        composerToolbarRowCount: 2,
+        composerToolbarHeightPx: 64,
+        duplicateControlGroupCount: 1,
       },
       coderabbit: {
         lightThemeContrastLeakCount: 5,
@@ -462,6 +504,7 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
       ssotVersion: PLATFORM_SSOT_VERSION,
       ssotSha256: PLATFORM_SSOT_SHA256,
       surfaceCount: ALL_SURFACES.length,
+      discoveryManifest: DISCOVERY_MANIFEST,
       evaluatedAt: new Date().toISOString(),
       beforeSurfaces: beforeRecords,
       afterSurfaces: afterRecords,
@@ -483,6 +526,14 @@ test.describe('Shared-Package CV Flywheel (@ngi/platform-ssot) — Chat, Docking
       expect(dom.rawEmojiCount, `${surfaceId} rawEmojiCount`).toBe(0);
       expect(dom.iconIssueCount, `${surfaceId} iconIssueCount`).toBe(0);
       expect(dom.axeViolations, `${surfaceId} axeViolations`).toBe(0);
+      expect(dom.duplicateControlGroupCount ?? 0, `${surfaceId} duplicateControlGroupCount`).toBe(0);
+      if (surfaceId === 'chat') {
+        expect(dom.composerToolbarRowCount ?? 1, `${surfaceId} composerToolbarRowCount`).toBe(1);
+        expect(
+          dom.composerToolbarHeightPx ?? 0,
+          `${surfaceId} composerToolbarHeightPx`,
+        ).toBeLessThanOrEqual(52);
+      }
       if (surfaceId in preRemediationDomDefects) {
         expect(verdict.flywheelConverged, `${surfaceId} flywheelConverged`).toBe(true);
       }

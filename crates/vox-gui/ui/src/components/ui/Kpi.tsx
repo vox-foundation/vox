@@ -75,6 +75,33 @@ export function Kpi({
             {Math.abs(delta)}
           </span>
         )}
+        {sparkData && sparkData.length > 1 && (
+          <svg
+            viewBox="0 0 60 18"
+            className={cn("ml-auto h-4 w-14 shrink-0 overflow-visible opacity-85", ACCENT_COLORS[accent])}
+            aria-hidden="true"
+          >
+            <path
+              d={(() => {
+                const min = Math.min(...sparkData);
+                const max = Math.max(...sparkData);
+                const span = max - min || 1;
+                return sparkData
+                  .map((v, i) => {
+                    const x = (i / (sparkData.length - 1)) * 56 + 2;
+                    const y = 15 - ((v - min) / span) * 12;
+                    return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
+                  })
+                  .join(' ');
+              })()}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        )}
       </div>
       <span className={cn('vox-metric-rule', ACCENT_COLORS[accent])} aria-hidden="true" />
 

@@ -257,7 +257,7 @@ export function ExplorerTree({
         aria-label="Capabilities"
         aria-colcount={3}
         aria-rowcount={rows.length + 1}
-        className="h-full max-h-[72vh] overflow-y-auto custom-scrollbar"
+        className="h-full max-h-[68vh] overflow-y-auto pb-4 custom-scrollbar"
       >
         <div
           role="row"
@@ -269,7 +269,7 @@ export function ExplorerTree({
           <div role="columnheader">Actions</div>
         </div>
 
-        <div role="rowgroup" style={{ height: totalSize, position: 'relative' }}>
+        <div role="rowgroup" style={{ height: totalSize + 12, position: 'relative' }}>
           {virtualItems.map((vItem) => {
             const row = rows[vItem.index];
             if (!row) return null;

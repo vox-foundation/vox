@@ -43,16 +43,107 @@ export interface Session {
   updated_at: string;
   message_count: number;
   conversation_id: number;
+  parent_session_id?: string | null;
+  fork_from_message_id?: number | null;
+}
+
+/** Single candidate reply inside an Arena turn comparison (`ARENA-COMPARE-01`). */
+export interface ArenaCandidateTurnDto {
+  arm: string;
+  model_id: string;
+  content: string;
+  latency_ms: number;
+  ttft_ms?: number | null;
+  selection_reason?: string | null;
+  estimated_tokens: number;
+  is_local_or_mens: boolean;
+}
+
+/** Side-by-side Arena turn comparison payload (`ARENA-COMPARE-01`). */
+export interface ArenaTurnComparisonDto {
+  comparison_id: string;
+  session_id: string;
+  prompt: string;
+  arm_a: ArenaCandidateTurnDto;
+  arm_b: ArenaCandidateTurnDto;
+}
+
+/** Outcome of voting on an Arena comparison (`ARENA-COMPARE-02..03`). */
+export interface ArenaVoteOutcomeDto {
+  comparison_id: string;
+  session_id: string;
+  winner: string;
+  chosen_model_id: string;
+  persisted_message_id: number;
+  quality_a: number;
+  quality_b: number;
+  quality_delta_winner: number;
+  dpo_harvested: boolean;
+  telemetry_queued: boolean;
+}
+
+/** Outcome of rewinding a chat session to a historical turn (`BRANCH-REWIND-03`). */
+export interface ChatRewindOutcomeDto {
+  session_id: string;
+  rewound_to_message_id: number;
+  kept_messages: number;
+  dropped_messages: number;
+  vcs_checkpoint_op_id: string;
+}
+
+/** Outcome of surgical sub-transcript tool-result clearing (`CONTEXT-SURGERY-02`). */
+export interface ClearToolResultsOutcomeDto {
+  session_id: string;
+  cleared_tool_outputs: number;
+  reclaimed_tool_tokens: number;
+  preserved_recent_tool_outputs: number;
+  updated_used_tokens: number;
 }
 
 /** Composer interaction mode (plan / act / verify). */
 export type ComposerInteractionMode = 'plan' | 'act' | 'verify';
 
 /** @kb session context injection scope selector in Loquela. */
-export type KbScopeMode = 'auto' | 'verified' | 'off';
+export type KbScopeMode = 'auto' | 'docs' | 'code' | 'memory' | 'verified' | 'off';
 
 /** Unified Oversight 1..5 composer governance posture. */
 export type OversightLevelId = 'relaxed' | 'guided' | 'balanced' | 'cautious' | 'strict';
+
+/** Real-time persisted session chat posture across turns, plans, and background tasks. */
+export interface SessionChatPostureDto {
+  clutch?: string | null;
+  risk?: string | null;
+  tier?: string | null;
+  mode?: ComposerInteractionMode | string | null;
+  execution_mode?: 'chat' | 'task' | 'plan' | string | null;
+  oversight_level?: OversightLevelId | string | null;
+  kb_scope?: KbScopeMode | string | null;
+  grounding_check_enabled?: boolean | null;
+  compaction_strategy?: 'balanced' | 'aggressive' | 'conservative' | string | null;
+}
+
+/** Turn-level BPE compaction audit receipt emitted by `vox_chat_message`. */
+export interface CompactionAuditDto {
+  strategy: 'balanced' | 'aggressive' | 'conservative' | string;
+  budget_tokens: number;
+  head_anchor_preserved: boolean;
+  total_loaded: number;
+  kept_messages: number;
+  dropped_messages: number;
+  reclaimed_tool_tokens?: number;
+}
+
+/** Turn-level session posture audit receipt emitted by `vox_chat_message`. */
+export interface PostureAuditDto {
+  clutch?: string | null;
+  risk?: string | null;
+  tier?: string | null;
+  mode?: string | null;
+  oversight_level?: string | null;
+  kb_scope?: string | null;
+  grounding_check_enabled?: boolean | null;
+  hydrated_from_session_posture: boolean;
+}
 
 /** Canonical routing tier identifiers before a specific model card is pinned. */
 export type RoutingTierId = 'auto' | 'local' | 'mesh' | 'cloud';

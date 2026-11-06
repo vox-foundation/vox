@@ -253,7 +253,7 @@ export function TerminalTab({
           </pre>
         ) : (
           <>
-            <div>C:\workspace\vox&gt; vox run</div>
+            <div>~/workspace/vox $ vox run</div>
             <div>✅ Ready.</div>
           </>
         )}

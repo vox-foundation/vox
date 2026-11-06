@@ -33,15 +33,6 @@ async fn main() {
         .with_writer(std::io::stderr)
         .try_init();
 
-    // Register process-global telemetry recorder for GUI surfaces (`TELEM-01`).
-    let gui_telem_db = vox_db::connect_workspace_journey_optional_at(
-        vox_db::DbConnectSurface::Runtime,
-        None,
-        false,
-    )
-    .await;
-    vox_db::telemetry_sink::init_process_telemetry(gui_telem_db);
-
     // Whisper STT reaches vox-plugin-speech through the plugin host (loaded lazily on first use).
     commands::speech_plugin_backend::register();
     vox_db::telemetry_sink::init_process_telemetry(None);
@@ -177,10 +168,6 @@ async fn main() {
                 app.handle().clone(),
                 backend.clone(),
             );
-            let daemon = app
-                .state::<std::sync::Arc<commands::daemon::PersistentDaemon>>()
-                .inner()
-                .clone();
             let browser_state = app
                 .state::<std::sync::Arc<commands::browser::BrowserState>>()
                 .inner()
@@ -188,12 +175,8 @@ async fn main() {
             commands::browser::spawn_browser_frame_stream(
                 app.handle().clone(),
                 daemon,
-                browser_state,
+                browser_state.clone(),
             );
-            let browser_state = app
-                .state::<std::sync::Arc<commands::browser::BrowserState>>()
-                .inner()
-                .clone();
             commands::browser::emit_preview_available_from_env(app.handle().clone(), browser_state);
             // Reactive Runtime settings: forward vox-config change bumps to the webview
             // as "vox://llm-config-changed" so the settings surface refreshes live.
@@ -247,6 +230,10 @@ async fn main() {
             commands::chat::chat_get_messages,
             commands::chat::chat_append_message,
             commands::chat::chat_send_message,
+            commands::chat_arena_branch::chat_arena_compare,
+            commands::chat_arena_branch::chat_arena_vote,
+            commands::chat_arena_branch::chat_fork_session,
+            commands::chat_arena_branch::chat_rewind_to_turn,
             commands::chat_turn::chat_turn,
             commands::chat::secretary_confirm_task,
             commands::chat::chat_rename_session,
@@ -288,11 +275,17 @@ async fn main() {
             commands::orchestrator::get_orchestrator_status,
             commands::orchestrator::get_orchestrator_status_bin,
             commands::orchestrator::set_orchestrator_config,
-            commands::orchestrator::get_orchestrator_config,
             commands::context_budget::get_context_budget,
+            commands::context_budget::set_context_budget_strategy,
+            commands::context_budget::get_session_context_pins,
+            commands::context_budget::set_session_context_pins,
+            commands::context_budget::get_session_chat_posture,
+            commands::context_budget::set_session_chat_posture,
+            commands::context_budget::clear_session_tool_results,
             commands::hopper::hopper_list,
             commands::hopper::hopper_submit,
             commands::hopper::hopper_reprioritize,
+            commands::hopper::hopper_rename,
             commands::hopper::hopper_cancel,
             commands::hopper::hopper_mark_done,
             commands::dynamic_mapping::get_command_metadata,
@@ -367,6 +360,7 @@ async fn main() {
             commands::workspace_town::workspace_town_scan,
             commands::harness_town::harness_ci_fleet_status,
             commands::harness_town::vcs_town_status,
+            commands::harness_town::mcp_servers_status,
             commands::research::start_research_async,
             commands::research::flag_research_misleading,
             commands::research_host::save_research_doc,

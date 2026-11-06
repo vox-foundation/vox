@@ -7,6 +7,12 @@ const COPY: Record<RiskId, string> = {
   low: 'Enforce verification, check replies, raise approval, spend safety tokens, lean model up.',
 };
 
+const ATTENTION_COUPLING: Record<RiskId, string> = {
+  high: 'Fastest · minimal prompts',
+  moderate: 'Standard checks · 1.0× budget',
+  low: 'Strict review · 1.5× safety budget',
+};
+
 interface RiskPopoverProps {
   risk: RiskId;
   open: boolean;
@@ -35,9 +41,9 @@ export function RiskPopover({ risk, open, onChange, onClose, children }: RiskPop
       role="dialog"
       aria-label="Configure acceptable risk"
       onKeyDown={handleKeyDown}
-      className="absolute bottom-full right-0 z-[99999] mb-1 w-64 whitespace-normal rounded-lg border border-border-subtle bg-bg-base/98 p-2.5 text-[11px] text-text-primary shadow-2xl backdrop-blur-xl"
+      className="absolute bottom-full right-0 z-[99999] mb-14 w-80 whitespace-normal rounded-lg border border-border-subtle bg-bg-base/98 p-2.5 text-[11px] text-text-primary shadow-2xl backdrop-blur-xl"
     >
-      <div className="mb-1.5 text-[10px] uppercase tracking-[0.08em] text-text-muted">Acceptable risk</div>
+      <div className="mb-1.5 text-[11px] uppercase tracking-[0.08em] text-text-muted">Acceptable risk</div>
       {RISK_POSTURES.map(p => (
         <button
           key={p.id}
@@ -45,17 +51,25 @@ export function RiskPopover({ risk, open, onChange, onClose, children }: RiskPop
           ref={risk === p.id ? activeBtnRef : undefined}
           onClick={() => { onChange({ risk: p.id }); }}
           aria-pressed={risk === p.id}
-          className={`mb-1 flex w-full flex-col rounded-md border px-2 py-1 text-left ${
+          className={`mb-1 flex w-full flex-col rounded-md border px-2.5 py-1.5 text-left ${
             risk === p.id ? 'border-brass/40 bg-brass/10' : 'border-border-subtle hover:border-brass/30'
           }`}
         >
-          <span className="font-medium capitalize text-text-primary">{p.label} risk</span>
-          <span className="text-[10px] leading-snug text-text-secondary">{COPY[p.id]}</span>
+          <div className="flex w-full items-center justify-between gap-2 whitespace-nowrap">
+            <span className="whitespace-nowrap font-medium capitalize text-text-primary">{p.label} risk</span>
+            <span
+              data-testid={`risk-attention-coupling-${p.id}`}
+              className="whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[9px] text-brass"
+            >
+              {ATTENTION_COUPLING[p.id]}
+            </span>
+          </div>
+          <span className="mt-0.5 text-[11px] leading-snug text-text-secondary">{COPY[p.id]}</span>
         </button>
       ))}
       {children ? (
         <div className="mt-1.5 border-t border-border-subtle pt-1.5">
-          <div className="mb-1 text-[10px] uppercase tracking-[0.08em] text-text-muted">After each reply</div>
+          <div className="mb-1 text-[11px] uppercase tracking-[0.08em] text-text-muted">After each reply</div>
           {children}
         </div>
       ) : null}

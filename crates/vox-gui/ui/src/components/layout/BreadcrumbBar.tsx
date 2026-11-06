@@ -82,6 +82,7 @@ export function BreadcrumbBar({ viewKey, onNavigate, gamifyEnabled }: Props) {
       {siblingChildren && siblingChildren.length > 1 && (
         <div
           role="tablist"
+          data-testid="breadcrumb-child-tabs"
           aria-label={`${labelForNavKey(parent)} subsections`}
           className="ml-3 flex items-center gap-1 border-l border-border-subtle pl-3 overflow-x-auto no-scrollbar"
         >
@@ -92,6 +93,7 @@ export function BreadcrumbBar({ viewKey, onNavigate, gamifyEnabled }: Props) {
                 key={subKey}
                 type="button"
                 role="tab"
+                data-cv-subsurface={`breadcrumb-tab-${subKey}`}
                 aria-selected={isCurrent}
                 onClick={() => {
                   if (!isCurrent && onNavigate) {
@@ -103,10 +105,10 @@ export function BreadcrumbBar({ viewKey, onNavigate, gamifyEnabled }: Props) {
                     onNavigate(subKey);
                   }
                 }}
-                className={`rounded-md px-2 py-0.5 font-display text-[10px] uppercase tracking-wider transition whitespace-nowrap ${
+                className={`rounded-t-md px-2.5 py-1 font-display text-[10px] uppercase tracking-wider transition whitespace-nowrap ${
                   isCurrent
-                    ? 'border border-brass/40 bg-brass/15 text-brass font-medium'
-                    : 'text-text-muted hover:bg-overlay-hover hover:text-text-secondary'
+                    ? 'border-b-2 border-brass bg-brass/12 text-brass font-semibold'
+                    : 'border-b-2 border-transparent text-text-muted hover:bg-overlay-hover hover:text-text-secondary'
                 }`}
               >
                 {labelForNavKey(subKey)}

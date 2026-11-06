@@ -17,6 +17,7 @@ interface MeshViewProps {
 export interface MeshNode {
   id: string;
   status: string;
+  vram_gb?: number | null;
   host_triple?: string | null;
   gpu_summary?: string | null;
   trust_tier?: string | null;
@@ -272,13 +273,32 @@ export function MeshView({ pushToast, gamifyEnabled }: MeshViewProps) {
                     {n.host_triple ?? '—'}
                   </td>
                   <td className="px-2 py-1.5 font-mono text-[11px] text-text-secondary">
-                    {n.gpu_summary ?? '—'}
+                    {n.gpu_summary ?? (n.vram_gb ? `${n.vram_gb} GB VRAM` : '—')}
                   </td>
-                  <td className="px-2 py-1.5 text-[11px] text-text-secondary">{n.trust_tier ?? '—'}</td>
+                  <td className="px-2 py-1.5 text-[11px] text-text-secondary">
+                    {n.trust_tier ? (
+                      <span className="rounded border border-brass/25 bg-brass/10 px-1.5 py-0.5 font-mono text-[10px] uppercase text-brass">
+                        {n.trust_tier}
+                      </span>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
                   <td className="px-2 py-1.5 text-[11px] text-text-muted">
-                    {n.advertised_models && n.advertised_models.length > 0
-                      ? n.advertised_models.join(', ')
-                      : '—'}
+                    {n.advertised_models && n.advertised_models.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {n.advertised_models.map((m) => (
+                          <span
+                            key={m}
+                            className="rounded border border-border-subtle bg-bg-base/70 px-1.5 py-0.5 font-mono text-[10px] text-text-secondary"
+                          >
+                            {m}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      '—'
+                    )}
                   </td>
                   <td className="px-2 py-1.5 font-mono text-[11px] text-text-muted">
                     {formatLastSeen(n.last_seen_unix_ms)}

@@ -3,26 +3,26 @@ import { LudusProfile, xpBarPct } from '../../../lib/ludus';
 
 export function LudusHud({ profile }: { profile: LudusProfile }) {
   return (
-    <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-4">
+    <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-3">
       <div className="flex items-baseline justify-between">
         <div className="font-display text-sm tracking-wider text-brass uppercase">{profile.full_title}</div>
         <div className="font-mono text-[11px] text-text-muted">Lv {profile.level} · prestige {profile.prestige_level}</div>
       </div>
       <div
-        className="mt-3 h-2 overflow-hidden rounded-full bg-overlay-subtle"
+        className="mt-2 h-1.5 overflow-hidden rounded-full bg-overlay-subtle"
         role="progressbar"
         aria-label="XP progress"
         aria-valuenow={Math.round(Math.max(0, Math.min(1, profile.xp_progress)) * 100)}
         aria-valuemin={0}
         aria-valuemax={100}
       >
-        <div className="h-full rounded-full bg-brass/70 transition-all" style={{ width: xpBarPct(profile.xp_progress) }} />
+        <div className="h-full rounded-full bg-brass/70 transition-[width]" style={{ width: xpBarPct(profile.xp_progress) }} />
       </div>
       <div className="mt-1 flex justify-between font-mono text-[10px] text-text-muted">
         <span>{profile.xp} XP</span>
         <span>{profile.xp_to_next_level} to next</span>
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
+      <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
         <Stat
           label="Crystals"
           value={String(profile.crystals)}

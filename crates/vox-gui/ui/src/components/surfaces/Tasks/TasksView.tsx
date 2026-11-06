@@ -48,6 +48,7 @@ export function TasksView({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sessionFilter, setSessionFilter] = useState<string | null>(null);
+  const [showAllSessions, setShowAllSessions] = useState(false);
   const [showBlocked, setShowBlocked] = useState(true);
   const mounted = useRef(true);
 
@@ -208,8 +209,8 @@ export function TasksView({
     {
       key: 'id',
       header: 'Task ID',
-      width: 80,
-      render: (r: TaskRow) => <span className="font-mono text-text-muted">#{r.id.toString().slice(0, 8)}</span>,
+      width: 112,
+      render: (r: TaskRow) => <span className="whitespace-nowrap font-mono text-text-muted">#{r.id.toString().slice(0, 8)}</span>,
     },
     {
       key: 'description',
@@ -238,9 +239,7 @@ export function TasksView({
             </div>
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="font-mono text-[9px] uppercase tracking-widest text-text-muted">
-                #{r.id.toString().slice(0, 8)}
-                {r.agent_id != null ? ` · agent ${r.agent_id}` : ''}
-                {' · '}
+                {r.agent_id != null ? `agent ${r.agent_id} · ` : ''}
                 {r.lifecycle}
               </span>
               {r.depends_on.length > 0 && (
@@ -325,7 +324,7 @@ export function TasksView({
       <div className="flex items-center justify-between gap-1.5 flex-wrap">
         {presentSessions.length > 1 ? (
           <div className="flex items-center gap-1.5 flex-wrap">
-            {[null, ...presentSessions].map(sid => {
+            {[null, ...(showAllSessions ? presentSessions : presentSessions.slice(0, 4))].map(sid => {
               const active = sessionFilter === sid;
               const label = sid == null ? 'All sessions' : (sessionTitles[sid] ?? sid);
               return (
@@ -344,6 +343,15 @@ export function TasksView({
                 </button>
               );
             })}
+            {presentSessions.length > 4 && (
+              <button
+                type="button"
+                onClick={() => setShowAllSessions((v) => !v)}
+                className="rounded-full border border-brass/30 bg-brass/10 px-2.5 py-0.5 font-mono text-[10px] text-brass hover:bg-brass/20"
+              >
+                {showAllSessions ? 'Show fewer' : `+${presentSessions.length - 4} sessions`}
+              </button>
+            )}
           </div>
         ) : <div />}
         <label className="flex items-center gap-2 text-[11px] text-text-muted cursor-pointer select-none">

@@ -366,7 +366,7 @@ export function ResearchEngineDrawer({
                         className="h-1.5 w-full overflow-hidden rounded-full bg-black/40 border border-border-subtle"
                       >
                         <div
-                          className="h-full bg-brass transition-all duration-300"
+                          className="h-full bg-brass transition-[width] duration-300"
                           style={{
                             width: `${Math.min(100, Math.round((quota.units_limit > 0 ? quota.units_spent / quota.units_limit : 0) * 100))}%`,
                           }}

@@ -21,7 +21,7 @@ export function RoutingExplainer({ explanation, health, loading = false }: Props
   // shift); `aria-busy` follows `loading`. -->
   if (!explanation) {
     return (
-      <div data-testid="routing-explainer-loading" className="min-h-72 rounded-lg bg-overlay-subtle" aria-busy={loading}>
+      <div data-testid="routing-explainer-loading" className="min-h-36 rounded-lg bg-overlay-subtle" aria-busy={loading}>
         {!loading && <p className="p-4 text-xs text-text-muted">Routing explanation unavailable</p>}
       </div>
     );
@@ -32,7 +32,7 @@ export function RoutingExplainer({ explanation, health, loading = false }: Props
   const healthState = problems.length > 0 ? 'warn' : 'ok';
   return (
     <section data-testid="routing-explainer" aria-labelledby="routing-explainer-title" aria-busy={loading}
-      className="flex min-h-72 min-w-0 flex-col gap-3">
+      className="flex min-h-36 min-w-0 flex-col gap-3">
       <header>
         <h2 id="routing-explainer-title" className="text-sm text-text-primary">
           Why {explanation.chosen ?? 'no model'}
@@ -53,11 +53,11 @@ export function RoutingExplainer({ explanation, health, loading = false }: Props
         <thead>
           <tr className="text-left text-text-muted">
             <th scope="col" className="w-8">#</th>
-            <th scope="col">Model</th>
-            <th scope="col" className="hidden w-16 sm:table-cell">Tier</th>
-            <th scope="col" className="w-28 sm:w-48">Quality</th>
+            <th scope="col" className="w-48 sm:w-60">Model</th>
+            <th scope="col" className="hidden w-20 sm:table-cell">Tier</th>
+            <th scope="col" className="w-28 sm:w-44">Quality</th>
             <th scope="col" className="w-20">Price</th>
-            <th scope="col" className="w-16 sm:w-40">Score</th>
+            <th scope="col" className="w-24 sm:w-40">Score</th>
           </tr>
         </thead>
         <tbody>

@@ -12,11 +12,11 @@ pub use vox_orchestrator_mcp::gui_ops::dto::chat::{ChatMessageDto, ChatSessionDt
 use crate::remote::backend::BackendState;
 use crate::remote::calls::{BackendCalls, api_data, encode_component, path_with_query, tool_data};
 
-const CREATE_TOOL: &str = "vox_chat_session_create";
-const APPEND_TOOL: &str = "vox_chat_session_append";
+pub(crate) const CREATE_TOOL: &str = "vox_chat_session_create";
+pub(crate) const APPEND_TOOL: &str = "vox_chat_session_append";
 const RENAME_TOOL: &str = "vox_chat_session_rename";
 const ARCHIVE_TOOL: &str = "vox_chat_session_archive";
-const CHAT_TOOL: &str = "vox_chat_message";
+pub(crate) const CHAT_TOOL: &str = "vox_chat_message";
 
 pub(crate) async fn create_session_impl<B: BackendCalls>(
     b: &B,
@@ -326,6 +326,14 @@ pub(crate) struct ParsedChatReply {
     /// `payload` by `persist_assistant_reply`, so it does not survive a
     /// reload — reload persistence was not in the Task E1 Observable.
     pub(crate) events: Vec<serde_json::Value>,
+    /// Backend transcript message ID (`data.message.id`, e.g. `asst_...`) (`T3-GUI-PIPELINE-01`).
+    pub(crate) backend_message_id: Option<String>,
+    /// Compaction audit telemetry (`data.compaction_audit`) (`T3-GUI-PIPELINE-01`).
+    pub(crate) compaction_audit: Option<serde_json::Value>,
+    /// Posture audit telemetry (`data.posture_audit`) (`T3-GUI-PIPELINE-01`).
+    pub(crate) posture_audit: Option<serde_json::Value>,
+    /// Auto-drained queued follow-up (`data.next_queued_follow_up`) (`T3-GUI-PIPELINE-01`).
+    pub(crate) next_queued_follow_up: Option<serde_json::Value>,
 }
 
 /// Extracts a [`ParsedChatReply`] from a `vox_chat_message` `ToolResult`
@@ -359,6 +367,11 @@ pub(crate) fn parse_chat_message_envelope(
         .and_then(|c| c.as_str())
         .ok_or_else(|| "vox_chat_message response missing message.content".to_string())?
         .to_string();
+    let backend_message_id = data
+        .get("message")
+        .and_then(|m| m.get("id"))
+        .and_then(|id| id.as_str())
+        .map(str::to_string);
     let model_id = data
         .get("model_used")
         .and_then(|m| m.as_str())
@@ -373,12 +386,25 @@ pub(crate) fn parse_chat_message_envelope(
         .and_then(|v| v.as_array())
         .cloned()
         .unwrap_or_default();
+    let compaction_audit = data
+        .get("compaction_audit")
+        .cloned()
+        .filter(|v| !v.is_null());
+    let posture_audit = data.get("posture_audit").cloned().filter(|v| !v.is_null());
+    let next_queued_follow_up = data
+        .get("next_queued_follow_up")
+        .cloned()
+        .filter(|v| !v.is_null());
     Ok(ParsedChatReply {
         content,
         model_id,
         latency_ms,
         events,
         selection_reason,
+        backend_message_id,
+        compaction_audit,
+        posture_audit,
+        next_queued_follow_up,
     })
 }
 

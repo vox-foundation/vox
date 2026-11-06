@@ -104,13 +104,13 @@ function Segment({
       aria-label={ariaLabel}
       aria-haspopup={expanded === undefined ? undefined : 'dialog'}
       aria-expanded={expanded}
-      className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm px-2 py-0.5 text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
+      className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-sm px-1.5 py-0.5 text-[11px] text-text-muted hover:bg-overlay-subtle hover:text-text-secondary transition"
     >
-      <span data-card-label className="uppercase tracking-[0.08em] text-text-muted">{label}</span>
+      <span data-card-label className="uppercase tracking-[0.06em] text-text-muted">{label}</span>
       <span
         data-card-value
         title={value}
-        className="inline-block max-w-[28ch] truncate align-bottom font-mono tabular-nums text-text-secondary"
+        className="inline-block max-w-[44ch] truncate align-bottom font-mono tabular-nums text-text-secondary"
       >
         {value}
       </span>

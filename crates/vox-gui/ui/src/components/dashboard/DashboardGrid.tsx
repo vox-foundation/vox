@@ -241,6 +241,7 @@ export function DashboardGrid({
       return;
     }
     setContainerWidth(el.getBoundingClientRect().width);
+    // toestub-ignore(vox/ui/layout-and-perf-hazards) -- synchronous ResizeObserver width sync required by responsive grid tests
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         setContainerWidth(entry.contentRect.width);

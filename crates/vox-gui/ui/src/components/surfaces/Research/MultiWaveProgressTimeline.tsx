@@ -114,7 +114,7 @@ export function MultiWaveProgressTimeline({
           return (
             <div
               key={w.waveIndex}
-              className={`flex flex-col justify-between rounded-lg border p-3 transition-all ${borderColor}`}
+              className={`flex flex-col justify-between rounded-lg border p-3 transition-colors ${borderColor}`}
             >
               <div>
                 <div className="flex items-center justify-between">

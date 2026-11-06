@@ -28,7 +28,7 @@ export const FunGauge: React.FC<FunGaugeProps> = ({
           </div>
           <div className="h-2 bg-zinc-900 border border-zinc-800 rounded-full overflow-hidden">
             <div
-              className="h-full bg-amber-500 transition-all duration-300"
+              className="h-full bg-amber-500 transition-[width] duration-300"
               style={{ width: `${Math.min(100, Math.max(0, grindRatio * 100))}%` }}
             />
           </div>
@@ -44,7 +44,7 @@ export const FunGauge: React.FC<FunGaugeProps> = ({
           </div>
           <div className="h-2 bg-zinc-900 border border-zinc-800 rounded-full overflow-hidden">
             <div
-              className="h-full bg-yellow-500 transition-all duration-300"
+              className="h-full bg-yellow-500 transition-[width] duration-300"
               // normalize 1.0 - 3.0 multiplier to 0 - 100%
               style={{
                 width: `${Math.min(100, Math.max(0, ((avgMultiplier - 1.0) / 2.0) * 100))}%`,
@@ -63,7 +63,7 @@ export const FunGauge: React.FC<FunGaugeProps> = ({
           </div>
           <div className="h-2 bg-zinc-900 border border-zinc-800 rounded-full overflow-hidden">
             <div
-              className="h-full bg-emerald-500 transition-all duration-300"
+              className="h-full bg-emerald-500 transition-[width] duration-300"
               // arbitrary cap at 10 quests for 100% representation
               style={{ width: `${Math.min(100, (questsCompleted / 10) * 100)}%` }}
             />

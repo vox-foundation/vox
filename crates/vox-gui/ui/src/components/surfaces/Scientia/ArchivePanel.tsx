@@ -77,7 +77,7 @@ export function ArchivePanel({ pushToast }: SurfaceDecoratorProps) {
   // Auto-load only when an id was seeded; manual entry loads on submit.
   useEffect(() => {
     if (pubId.trim()) void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- auto-load seeded pubId once on mount
   }, []);
 
   const autofill = useCallback(async () => {

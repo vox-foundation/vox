@@ -60,6 +60,11 @@ export interface DomQualityReport {
   unlitLandmarkCount: number;
   missingDockPanelIds: string[];
   viewportCoverageRatio: number;
+  composerToolbarRowCount: number;
+  composerToolbarHeightPx: number;
+  duplicateControlGroupCount: number;
+  discoveredSubTabLabels: string[];
+  discoveredPopoverTriggers: string[];
 }
 
 /**
@@ -93,12 +98,24 @@ export function auditDomQualityInPage(surfId: string): DomQualityReport {
   let clippedInteractiveCount = 0;
   for (const el of visibleButtons) {
     const style = window.getComputedStyle(el);
+    const r = el.getBoundingClientRect();
     const inDialog = Boolean(el.closest('[role="dialog"]'));
+    const railAncestor = el.closest('[data-testid="chat-execution-rail"], [data-testid="context-window-meter"]');
+    const railRect = railAncestor ? railAncestor.getBoundingClientRect() : null;
+    const overflowsRailRight = railRect != null && r.right > railRect.right + 2;
+    const isTruncatedCompactButton =
+      el.tagName === 'BUTTON' &&
+      r.width < 120 &&
+      el.scrollWidth > el.clientWidth + 4 &&
+      !el.hasAttribute('data-allow-ellipsis') &&
+      !el.closest('nav');
     if (
       ((style.overflowX === 'hidden' || style.overflowX === 'clip') &&
         el.scrollWidth > el.clientWidth + 4 &&
         style.textOverflow !== 'ellipsis') ||
-      (inDialog && el.scrollWidth > el.clientWidth + 4)
+      (inDialog && el.scrollWidth > el.clientWidth + 4) ||
+      overflowsRailRight ||
+      isTruncatedCompactButton
     ) {
       clippedInteractiveCount++;
     }
@@ -148,10 +165,12 @@ export function auditDomQualityInPage(surfId: string): DomQualityReport {
     }
   }
 
-  // Measure composer toolbar control height consistency & button overlap across surface headers
+  // Measure composer toolbar control height consistency, row wrapping & button overlap
   const composerRoot = document.querySelector('[data-testid="loquela-composer"]');
   let controlHeightSpreadPx = 0;
   let overlappingControlPairs = 0;
+  let composerToolbarRowCount = 0;
+  let composerToolbarHeightPx = 0;
 
   if (composerRoot) {
     const barControls = Array.from(
@@ -160,6 +179,22 @@ export function auditDomQualityInPage(surfId: string): DomQualityReport {
       const r = el.getBoundingClientRect();
       return r.width > 8 && r.height > 8 && !el.closest('[role="dialog"]');
     });
+
+    if (barControls.length > 0) {
+      const rects = barControls.map((c) => c.getBoundingClientRect());
+      const minTop = Math.min(...rects.map((r) => r.top));
+      const maxBottom = Math.max(...rects.map((r) => r.bottom));
+      composerToolbarHeightPx = Math.round(maxBottom - minTop);
+
+      // Cluster distinct Y row bands (tolerance 12px)
+      const rowTops: number[] = [];
+      for (const r of rects) {
+        if (!rowTops.some((t) => Math.abs(t - r.top) <= 12)) {
+          rowTops.push(r.top);
+        }
+      }
+      composerToolbarRowCount = rowTops.length;
+    }
 
     if (barControls.length >= 2) {
       const heights = barControls.map((c) => Math.round(c.getBoundingClientRect().height));
@@ -239,6 +274,51 @@ export function auditDomQualityInPage(surfId: string): DomQualityReport {
   const coveredArea = mainRect ? mainRect.width * mainRect.height : viewportArea * 0.75;
   const viewportCoverageRatio = Number(Math.min(1, coveredArea / viewportArea).toFixed(3));
 
+  // Detect simultaneous visible duplicate control groups (e.g., separate visible bottom @kb pin toggle/drawer + visible rail @kb pin list,
+  // or simultaneous visible vertical sidebar child sub-list + top horizontal breadcrumb child tab strip)
+  let duplicateControlGroupCount = 0;
+  const bottomKbToggleEl = document.querySelector<HTMLElement>('[data-testid="kb-context-inspector-toggle"]');
+  const railKbPinsEl = document.querySelector<HTMLElement>('[data-testid="execution-rail-context-pins"]');
+  if (bottomKbToggleEl && railKbPinsEl) {
+    const r1 = bottomKbToggleEl.getBoundingClientRect();
+    const r2 = railKbPinsEl.getBoundingClientRect();
+    if (r1.width > 4 && r1.height > 4 && r2.width > 4 && r2.height > 4) {
+      duplicateControlGroupCount++;
+    }
+  }
+  const sidebarChildNav = document.querySelector<HTMLElement>('nav [data-testid="sidebar-child-list"]');
+  const breadcrumbTabStrip = document.querySelector<HTMLElement>('[data-testid="breadcrumb-child-tabs"]');
+  if (sidebarChildNav && breadcrumbTabStrip) {
+    const r1 = sidebarChildNav.getBoundingClientRect();
+    const r2 = breadcrumbTabStrip.getBoundingClientRect();
+    if (r1.width > 4 && r1.height > 4 && r2.width > 4 && r2.height > 4) {
+      duplicateControlGroupCount++;
+    }
+  }
+
+  // Dynamically discover visible sub-tabs ([role="tab"], [data-cv-subsurface]) and popover triggers
+  const discoveredSubTabLabels = Array.from(
+    document.querySelectorAll<HTMLElement>('main [role="tab"], main [data-cv-subsurface]'),
+  )
+    .filter((el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 4 && r.height > 4;
+    })
+    .map((el) => (el.textContent || el.getAttribute('aria-label') || '').trim())
+    .filter((label) => label.length > 0);
+
+  const discoveredPopoverTriggers = Array.from(
+    document.querySelectorAll<HTMLElement>(
+      'main [data-cv-popover-trigger], main button[aria-haspopup], [data-testid="loquela-composer"] button[aria-expanded]',
+    ),
+  )
+    .filter((el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 4 && r.height > 4;
+    })
+    .map((el) => (el.getAttribute('data-testid') || el.getAttribute('aria-label') || el.textContent || '').trim())
+    .filter((label) => label.length > 0);
+
   return {
     outerOverflowPx,
     scrollHostOverflowPx,
@@ -251,5 +331,10 @@ export function auditDomQualityInPage(surfId: string): DomQualityReport {
     unlitLandmarkCount,
     missingDockPanelIds,
     viewportCoverageRatio,
+    composerToolbarRowCount,
+    composerToolbarHeightPx,
+    duplicateControlGroupCount,
+    discoveredSubTabLabels,
+    discoveredPopoverTriggers,
   };
 }

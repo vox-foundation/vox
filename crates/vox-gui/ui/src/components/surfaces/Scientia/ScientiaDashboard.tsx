@@ -32,9 +32,9 @@ interface QueueSnapshot {
 
 function Kpi({ label, value, tone }: { label: string; value: number; tone?: string }) {
   return (
-    <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-3">
-      <div className={`font-display text-2xl ${tone ?? 'text-text-primary'}`}>{value}</div>
-      <div className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-text-muted">{label}</div>
+    <div className="rounded-lg border border-border-subtle bg-bg-base/70 px-2.5 py-2">
+      <div className={`font-display text-xl leading-none ${tone ?? 'text-text-primary'}`}>{value}</div>
+      <div className="mt-1 font-mono text-[9px] uppercase tracking-wider text-text-secondary">{label}</div>
     </div>
   );
 }
@@ -134,23 +134,23 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
 
         {snap && (
           <>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Kpi label="Candidates" value={snap.candidates.total} />
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+              <Kpi label="Candidates" value={snap.candidates.total} tone="text-brass" />
               <Kpi label="Verifiable claims" value={snap.claims_pending.verifiable} tone="text-emerald-300" />
               <Kpi label="Abstained claims" value={snap.claims_pending.abstained} tone="text-text-secondary" />
               <Kpi label="Extraction pending" value={snap.claims_pending.extraction_running} tone="text-amber-300" />
-              <Kpi label="Reply window" value={snap.manifests_in_reply_window.length} />
+              <Kpi label="Reply window" value={snap.manifests_in_reply_window.length} tone="text-cyan" />
               <Kpi label="Retraction queue" value={snap.retraction_queue.length} tone="text-red-300" />
               <Kpi label="Stalls" value={snap.stalls.length} tone="text-amber-300" />
             </div>
 
             {Object.keys(snap.candidates.by_class).length > 0 && (
-              <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-3">
-                <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-text-muted">Candidates by class</div>
+              <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-2.5">
+                <div className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-text-muted">Candidates by class</div>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(snap.candidates.by_class).map(([cls, n]) => (
-                    <span key={cls} className="rounded-sm bg-overlay-subtle px-2 py-0.5 font-mono text-[11px] text-text-secondary">
-                      {cls} <span className="text-text-muted">{n}</span>
+                    <span key={cls} className="rounded border border-border-subtle bg-bg-base/70 px-2 py-0.5 font-mono text-[11px] text-text-secondary">
+                      {cls} <span className="ml-1 font-bold text-brass">{n}</span>
                     </span>
                   ))}
                 </div>
@@ -158,15 +158,24 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
             )}
 
             {snap.candidates.top_5_by_confidence.length > 0 && (
-              <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-3">
+              <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-2.5">
                 <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-text-muted">Top candidates</div>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   {snap.candidates.top_5_by_confidence.map((c) => (
-                    <div key={c.candidate_id} className="flex items-center gap-2 font-mono text-[11px]">
-                      <span className="text-cyan">{c.confidence.toFixed(2)}</span>
-                      <span className="text-text-secondary">{c.candidate_id}</span>
-                      <span className="text-text-muted">{c.candidate_class}</span>
-                      <span className="ml-auto text-text-muted">{c.state}</span>
+                    <div
+                      key={c.candidate_id}
+                      className="flex items-center gap-2.5 rounded-lg border border-border-subtle bg-bg-base/70 px-2.5 py-1.5 font-mono text-[11px]"
+                    >
+                      <span className="rounded border border-cyan/30 bg-cyan/10 px-1.5 py-0.5 font-bold text-cyan">
+                        {c.confidence.toFixed(2)}
+                      </span>
+                      <span className="font-medium text-text-primary">{c.candidate_id}</span>
+                      <span className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 text-[10px] text-text-secondary">
+                        {c.candidate_class}
+                      </span>
+                      <span className="ml-auto rounded border border-brass/25 bg-brass/10 px-1.5 py-0.5 text-[10px] text-brass">
+                        {c.state}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -174,14 +183,16 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
             )}
 
             {snap.stalls.length > 0 && (
-              <div className="rounded-xl border border-amber-500/20 bg-amber-500/3 p-3">
-                <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-amber-300/80">Stalled candidates</div>
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-2.5">
+                <div className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-amber-300">Stalled candidates</div>
                 <div className="space-y-1">
                   {snap.stalls.map((s) => (
-                    <div key={s.candidate_id} className="flex items-center gap-2 font-mono text-[11px]">
-                      <span className="text-text-secondary">{s.candidate_id}</span>
-                      <span className="text-text-muted">{s.class}</span>
-                      <span className="ml-auto text-amber-300/80">{Math.round(s.stuck_for_ms / 86_400_000)}d stuck</span>
+                    <div key={s.candidate_id} className="flex items-center gap-2 rounded border border-amber-500/20 bg-bg-base/60 px-2.5 py-1 font-mono text-[11px]">
+                      <span className="font-medium text-text-primary">{s.candidate_id}</span>
+                      <span className="text-text-secondary">{s.class}</span>
+                      <span className="ml-auto rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[10px] text-amber-300">
+                        {Math.round(s.stuck_for_ms / 86_400_000)}d stuck
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -191,66 +202,70 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
         )}
       </div>
 
-      <ArchiveStatusSummary
-        onFetchError={(message) =>
-          pushToast({ tone: 'warn', title: 'Archive rollup', body: message, cause: 'backend-error' })
-        }
-      />
+      <div className="grid gap-3 lg:grid-cols-2">
+        <ArchiveStatusSummary
+          onFetchError={(message) =>
+            pushToast({ tone: 'warn', title: 'Archive rollup', body: message, cause: 'backend-error' })
+          }
+        />
 
-      {cost && (
-        <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <div className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
-              Cost this quarter
-            </div>
-            <div className="font-mono text-[10px] text-text-muted">
-              avg/finding{' '}
-              <span className="text-text-secondary">${cost.per_finding_average_usd.toFixed(2)}</span>
-            </div>
-          </div>
-
-          {cost.this_quarter.total_usd === 0 && cost.by_provider.length === 0 ? (
-            <div className="font-mono text-[11px] text-text-muted">
-              No cost recorded this quarter.
-            </div>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1">
-                {quarterlyRows(cost).map((r) => (
-                  <div
-                    key={r.label}
-                    className={`flex items-center justify-between font-mono text-[11px] ${
-                      r.label === 'Total' ? 'border-t border-border-subtle pt-1 text-text-secondary' : 'text-text-muted'
-                    }`}
-                  >
-                    <span>{r.label}</span>
-                    <span>{r.usd}</span>
-                  </div>
-                ))}
+        {cost && (
+          <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
+                Cost this quarter
               </div>
+              <div className="rounded border border-brass/30 bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass">
+                avg/finding{' '}
+                <span className="font-bold">${cost.per_finding_average_usd.toFixed(2)}</span>
+              </div>
+            </div>
 
-              <div className="space-y-1">
-                <div className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
-                  By provider
-                </div>
-                {providerRows(cost).length > 0 ? (
-                  providerRows(cost).map((p) => (
+            {cost.this_quarter.total_usd === 0 && cost.by_provider.length === 0 ? (
+              <div className="font-mono text-[11px] text-text-muted">
+                No cost recorded this quarter.
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  {quarterlyRows(cost).map((r) => (
                     <div
-                      key={p.provider}
-                      className="flex items-center justify-between font-mono text-[11px] text-text-muted"
+                      key={r.label}
+                      className={`flex items-center justify-between rounded border px-2 py-1 font-mono text-[11px] ${
+                        r.label === 'Total'
+                          ? 'border-brass/30 bg-brass/10 font-bold text-brass'
+                          : 'border-border-subtle bg-bg-base/60 text-text-secondary'
+                      }`}
                     >
-                      <span>{p.provider}</span>
-                      <span className="text-text-secondary">{p.usd}</span>
+                      <span>{r.label}</span>
+                      <span>{r.usd}</span>
                     </div>
-                  ))
-                ) : (
-                  <div className="font-mono text-[11px] text-text-muted">No provider spend.</div>
-                )}
+                  ))}
+                </div>
+
+                <div className="space-y-1">
+                  <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-text-muted">
+                    By provider
+                  </div>
+                  {providerRows(cost).length > 0 ? (
+                    providerRows(cost).map((p) => (
+                      <div
+                        key={p.provider}
+                        className="flex items-center justify-between rounded border border-border-subtle bg-bg-base/60 px-2 py-1 font-mono text-[11px] text-text-secondary"
+                      >
+                        <span>{p.provider}</span>
+                        <span className="font-medium text-cyan">{p.usd}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="font-mono text-[11px] text-text-muted">No provider spend.</div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
+      </div>
     </section>
   );
 }

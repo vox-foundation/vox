@@ -150,7 +150,7 @@ export function ActivityTimeline({ rows }: ActivityTimelineProps) {
             <div
               key={row.id}
               data-testid="activity-row"
-              className={`flex items-start gap-4 p-3 rounded-lg border text-xs leading-relaxed transition-all ${getKindColorClass(
+              className={`flex items-start gap-4 p-3 rounded-lg border text-xs leading-relaxed transition-colors ${getKindColorClass(
                 row.kind
               )}`}
             >
@@ -181,7 +181,7 @@ export function ActivityTimeline({ rows }: ActivityTimelineProps) {
             <div
               key={item.key}
               data-testid="activity-row"
-              className={`flex flex-col gap-2 p-3 rounded-lg border text-xs leading-relaxed transition-all ${getKindColorClass(
+              className={`flex flex-col gap-2 p-3 rounded-lg border text-xs leading-relaxed transition-colors ${getKindColorClass(
                 'CostIncurred'
               )}`}
             >

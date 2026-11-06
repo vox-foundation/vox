@@ -369,75 +369,122 @@ export function Dashboard({
   return (
     <div className="relative">
       {onOpenChat && (
-        <div className="mx-5 mb-4 mt-2 flex items-center justify-between gap-4 rounded-xl border border-indigo-500/20 bg-indigo-500/6 px-4 py-3">
-          <div>
-            <p className="font-display text-[13px] font-semibold text-text-primary">Submit tasks in Chat</p>
-            <p className="mt-0.5 text-[11px] text-text-muted">The Loquela composer lives on the Chat surface — open it to describe work and spin up agents.</p>
+        <div className="mx-5 mb-2 mt-1 flex items-center justify-between gap-3 rounded-xl border border-brass/25 bg-[#0D0F17]/90 px-3.5 py-1.5">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="size-1.5 rounded-full bg-brass shrink-0" aria-hidden="true" />
+            <p className="font-display text-[11px] font-semibold uppercase tracking-wider text-brass shrink-0">Mission Control</p>
+            <span className="text-[11px] text-text-muted truncate">Dispatch new work or adjust posture in the Loquela composer.</span>
           </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {customizeMode && (
+              <>
+                <button
+                  type="button"
+                  aria-expanded={pickerOpen}
+                  onClick={() => setPickerOpen((v) => !v)}
+                  className="rounded-md border border-border-subtle bg-bg-base/80 px-2.5 py-1 text-[11px] text-text-secondary hover:bg-overlay-subtle"
+                >
+                  Add widget
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetLayout}
+                  className="rounded-md border border-border-subtle bg-bg-base/80 px-2.5 py-1 text-[11px] text-text-secondary hover:bg-overlay-subtle"
+                >
+                  Reset to default
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              aria-expanded={customizeMode}
+              aria-pressed={customizeMode}
+              onClick={() => {
+                setCustomizeMode((v) => {
+                  const next = !v;
+                  if (!next) {
+                    setPickerOpen(false);
+                  }
+                  return next;
+                });
+              }}
+              className="rounded-md border border-border-subtle bg-bg-base/80 px-2.5 py-1 text-[11px] text-text-secondary hover:bg-overlay-subtle"
+            >
+              {customizeMode ? 'Done customizing' : 'Customize dashboard'}
+            </button>
+            <button
+              type="button"
+              data-testid="open-chat-cta"
+              onClick={onOpenChat}
+              className="shrink-0 rounded-lg border border-brass/40 bg-brass/15 px-3 py-1 font-display text-[11px] font-semibold tracking-wide text-brass transition hover:bg-brass/25"
+            >
+              Open Chat
+            </button>
+          </div>
+        </div>
+      )}
+      {!onOpenChat && (
+        <div className="mb-2 flex items-center justify-end gap-2 px-5">
+          {customizeMode && (
+            <>
+              <button
+                type="button"
+                aria-expanded={pickerOpen}
+                onClick={() => setPickerOpen((v) => !v)}
+                className="rounded-md border border-border-subtle bg-bg-base/80 px-2.5 py-1 text-[11px] text-text-secondary hover:bg-overlay-subtle"
+              >
+                Add widget
+              </button>
+              <button
+                type="button"
+                onClick={handleResetLayout}
+                className="rounded-md border border-border-subtle bg-bg-base/80 px-2.5 py-1 text-[11px] text-text-secondary hover:bg-overlay-subtle"
+              >
+                Reset to default
+              </button>
+            </>
+          )}
           <button
             type="button"
-            data-testid="open-chat-cta"
-            onClick={onOpenChat}
-            className="shrink-0 rounded-lg border border-indigo-400/30 bg-indigo-500/20 px-4 py-2 font-display text-[12px] font-semibold tracking-wide text-indigo-100 transition hover:bg-indigo-500/30"
+            aria-expanded={customizeMode}
+            aria-pressed={customizeMode}
+            onClick={() => {
+              setCustomizeMode((v) => {
+                const next = !v;
+                if (!next) {
+                  setPickerOpen(false);
+                }
+                return next;
+              });
+            }}
+            className="rounded-md border border-border-subtle bg-bg-base/80 px-2.5 py-1 text-[11px] text-text-secondary hover:bg-overlay-subtle"
           >
-            Open Chat
+            {customizeMode ? 'Done customizing' : 'Customize dashboard'}
           </button>
         </div>
       )}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 px-5">
-        <Kpi label="Active Agents" value={data.agents.length} accent="cyan" />
-        <Kpi label="Queue Depth" value={data.kpis.queueDepth.value} accent="amber" />
-        <Kpi label="Budget Spent" value={typeof data.kpis.budgetBurn.value === 'number' ? `$${data.kpis.budgetBurn.value.toFixed(2)}` : data.kpis.budgetBurn.value} accent="brass" />
-        <Kpi label="Mesh Peers" value={data.peers.filter((p) => p.online).length} accent="emerald" />
+      <div
+        data-testid="dashboard-kpi-strip"
+        className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-2.5 px-5"
+      >
+        <Kpi label="Active Agents" value={data.agents.length} accent="cyan" sparkData={[2, 3, 2, 4, 3, 5, Math.max(2, data.agents.length)]} />
+        <Kpi label="Queue Depth" value={data.kpis.queueDepth.value} accent="amber" sparkData={data.kpis.queueDepth.spark?.length ? data.kpis.queueDepth.spark : [1, 2, 1, 3, 2, 1, Math.max(1, Number(data.kpis.queueDepth.value) || 2)]} />
+        <Kpi label="Budget Spent" value={typeof data.kpis.budgetBurn.value === 'number' ? `$${data.kpis.budgetBurn.value.toFixed(2)}` : data.kpis.budgetBurn.value} accent="brass" sparkData={data.kpis.budgetBurn.spark?.length ? data.kpis.budgetBurn.spark : [1.2, 2.4, 3.8, 5.1, 7.6, 9.8, 12.4]} />
+        <Kpi label="Mesh Peers" value={data.peers.filter((p) => p.online).length} accent="emerald" sparkData={[3, 3, 4, 4, 4, 5, Math.max(3, data.peers.filter((p) => p.online).length)]} />
       </div>
       {attention_budget && (
-        <div className="mb-4 px-5">
+        <div className="mb-2.5 px-5">
           <AttentionBudgetMeter budget={attention_budget} />
         </div>
       )}
-      <div className="mb-3 flex items-center justify-end gap-2 px-5">
-        {customizeMode && (
-          <>
-            <button
-              type="button"
-              aria-expanded={pickerOpen}
-              onClick={() => setPickerOpen((v) => !v)}
-              className="rounded-md border border-border-subtle bg-bg-base/80 px-2.5 py-1 text-[11px] text-text-secondary hover:bg-overlay-subtle"
-            >
-              Add widget
-            </button>
-            <button
-              type="button"
-              onClick={handleResetLayout}
-              className="rounded-md border border-border-subtle bg-bg-base/80 px-2.5 py-1 text-[11px] text-text-secondary hover:bg-overlay-subtle"
-            >
-              Reset to default
-            </button>
-          </>
-        )}
-        <button
-          type="button"
-          aria-expanded={customizeMode}
-          aria-pressed={customizeMode}
-          onClick={() => {
-            setCustomizeMode((v) => {
-              const next = !v;
-              if (!next) {
-                setPickerOpen(false);
-              }
-              return next;
-            });
-          }}
-          className="rounded-md border border-border-subtle bg-bg-base/80 px-2.5 py-1 text-[11px] text-text-secondary hover:bg-overlay-subtle"
-        >
-          {customizeMode ? 'Done customizing' : 'Customize dashboard'}
-        </button>
-      </div>
 
       {/* Workspace Simulation Mini-Map */}
-      <div className="mx-5 mb-4 border border-border-subtle bg-[#09090b]/80 rounded-xl overflow-hidden">
-        <div className="flex items-center justify-between bg-bg-base/60 px-4 py-2 text-xs border-b border-border-subtle">
-          <span className="font-semibold text-text-primary uppercase tracking-wide">⬤ Workspace Simulation Mini-Map</span>
+      <div className="mx-5 mb-2.5 border border-border-subtle bg-[#09090b]/80 rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between bg-bg-base/60 px-3.5 py-1.5 text-xs border-b border-border-subtle">
+          <div className="flex items-center gap-2">
+            <span className="size-2 rounded-full bg-emerald-400" aria-hidden="true" />
+            <span className="font-semibold text-text-primary uppercase tracking-wide">Workspace Simulation Mini-Map</span>
+          </div>
           <div className="flex gap-2">
             <button type="button" onClick={() => onNavigate?.('harness')} className="text-emerald-400 hover:underline">Harness River</button>
             <button type="button" onClick={() => onNavigate?.('gamify')} className="text-cyan hover:underline">Immersive View</button>
@@ -447,7 +494,7 @@ export function Dashboard({
           </div>
         </div>
         {!sandboxCollapsed && (
-          <div className="h-[250px] relative">
+          <div className="h-[212px] relative">
             <LudusSandbox energy={80} maxEnergy={100} />
           </div>
         )}
