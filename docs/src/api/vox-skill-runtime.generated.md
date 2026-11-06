@@ -55,3 +55,46 @@ vox-skills::SandboxedSkillRunner
 | `detect` | — |
 | `runtime` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_skill_runtime: "vox-skill-runtime"
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_skill_runtime
+    node vox_plugin_runtime_container: "vox-plugin-runtime-container"
+    vox_plugin_runtime_container -> vox_skill_runtime
+    node vox_plugin_runtime_wasm: "vox-plugin-runtime-wasm"
+    vox_plugin_runtime_wasm -> vox_skill_runtime
+    node vox_skills: "vox-skills"
+    vox_skills -> vox_skill_runtime
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-plugin-runtime-container`](./vox-plugin-runtime-container.generated.md) | Direct workspace dependent |
+| [`vox-plugin-runtime-wasm`](./vox-plugin-runtime-wasm.generated.md) | Direct workspace dependent |
+| [`vox-skills`](./vox-skills.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `detect::RuntimePreference` | `pub enum RuntimePreference` | [`crates/vox-skill-runtime/src/detect.rs#L26-L37`](../../../crates/vox-skill-runtime/src/detect.rs#L26-L37) | Preferred skill runtime selection strategy. |
+| `enum` | `detect::RuntimeChoice` | `pub enum RuntimeChoice` | [`crates/vox-skill-runtime/src/detect.rs#L59-L66`](../../../crates/vox-skill-runtime/src/detect.rs#L59-L66) | Which runtime was chosen by probe.  Returned by [`detect_runtime`] when a full `Box<dyn SkillRuntime>` is not needed immediately — callers can branch on this to load the appropriate plugin. |
+| `fn` | `detect::name` | `pub fn name(self) -> &'static str` | [`crates/vox-skill-runtime/src/detect.rs#L70-L76`](../../../crates/vox-skill-runtime/src/detect.rs#L70-L76) | Human-readable name. |
+| `fn` | `detect::detect_choice` | `pub fn detect_choice(preference: RuntimePreference) -> anyhow::Result<RuntimeChoice>` | [`crates/vox-skill-runtime/src/detect.rs#L98-L127`](../../../crates/vox-skill-runtime/src/detect.rs#L98-L127) | Detect the best available `RuntimeChoice` for the given preference. |
+| `fn` | `detect::detect_runtime` | `pub fn detect_runtime(_preference: RuntimePreference) -> Option<Box<dyn SkillRuntime>>` | [`crates/vox-skill-runtime/src/detect.rs#L135-L158`](../../../crates/vox-skill-runtime/src/detect.rs#L135-L158) | Detect and return the best available skill runtime for the given preference.  Returns a concrete `Box<dyn SkillRuntime>` backed by an inline probe.  For WASM preference (the default), always succeeds since Wasmtime is in-process. For Docker/Podman, probes the CLI and returns an error if not available. |
+| `fn` | `detect::plan_for_min_tier` | `pub fn plan_for_min_tier(min_tier: Tier) -> anyhow::Result<RuntimeChoice>` | [`crates/vox-skill-runtime/src/detect.rs#L166-L188`](../../../crates/vox-skill-runtime/src/detect.rs#L166-L188) | Choose the best available `RuntimeChoice` satisfying the minimum tier.  - `Tier::BareMetal` → `RuntimeChoice::Wasm` (WASM is the least available tier in the selector) - `Tier::Wasm` → `RuntimeChoice::Wasm` - `Tier::Container` → Docker or Podman if available, else error - `Tier::MicroVm` → always `Err` in Phase 6 (no real micro-VM backend) |
+| `struct` | `runtime::BuildOpts` | `pub struct BuildOpts` | [`crates/vox-skill-runtime/src/runtime.rs#L20-L29`](../../../crates/vox-skill-runtime/src/runtime.rs#L20-L29) | Options for the "build" phase of a skill runtime.  For container runtimes: builds an OCI image. For WASM runtimes: validates or precompiles the `.wasm` artifact. For bare-metal: no-op. |
+| `struct` | `runtime::RunOpts` | `pub struct RunOpts` | [`crates/vox-skill-runtime/src/runtime.rs#L36-L54`](../../../crates/vox-skill-runtime/src/runtime.rs#L36-L54) | Options for running a skill in its sandbox.  This is also the JSON request shape the `SkillRuntime` plugin extension's `invoke_skill` accepts (serde field names match the struct fields). |
+| `struct` | `runtime::RunOutcome` | `pub struct RunOutcome` | [`crates/vox-skill-runtime/src/runtime.rs#L74-L83`](../../../crates/vox-skill-runtime/src/runtime.rs#L74-L83) | The captured outcome of a skill execution. Also the JSON response shape returned by the `SkillRuntime` plugin extension's `invoke_skill`. |
+| `fn` | `runtime::success` | `pub fn success(&self) -> bool` | [`crates/vox-skill-runtime/src/runtime.rs#L87-L89`](../../../crates/vox-skill-runtime/src/runtime.rs#L87-L89) | Returns `true` if the skill exited successfully (exit code 0). |
+| `enum` | `runtime::Tier` | `pub enum Tier` | [`crates/vox-skill-runtime/src/runtime.rs#L97-L107`](../../../crates/vox-skill-runtime/src/runtime.rs#L97-L107) | Sandbox isolation tier for skill execution (P6-T3).  Ordered from least to most isolated. The planner prefers the highest tier available that satisfies the skill's declared requirements. |
+| `trait` | `runtime::SkillRuntime` | `pub trait SkillRuntime: Send + Sync` | [`crates/vox-skill-runtime/src/runtime.rs#L117-L157`](../../../crates/vox-skill-runtime/src/runtime.rs#L117-L157) | Abstract sandbox runtime for skill execution.  Implementations exist for: - WASM (`vox-plugin-runtime-wasm`, the default for pure-compute skills) - Docker/Podman (`vox-plugin-runtime-container`, fallback for subprocess/GPU skills)  The runtime is selected by `vox-skill-runtime::detect::detect_runtime()` based on the skill's declared requirements. |
+

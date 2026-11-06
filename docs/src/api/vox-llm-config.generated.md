@@ -68,3 +68,35 @@ the typed env-resolving accessors live in `vox-config`).
 | `get` | Look up a key by its canonical env name. |
 | `gui_fields` | GUI catalog: every non-secret key projected for the Runtime settings surface. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_llm_config: "vox-llm-config"
+    node vox_config: "vox-config"
+    vox_config -> vox_llm_config
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-config`](./vox-config.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `LlmConfigKey` | `pub struct LlmConfigKey` | [`crates/vox-llm-config/src/lib.rs#L17-L32`](../../../crates/vox-llm-config/src/lib.rs#L17-L32) | One LLM/AI setting. `env` is the canonical identity every view keys on. |
+| `enum` | `Kind` | `pub enum Kind` | [`crates/vox-llm-config/src/lib.rs#L35-L43`](../../../crates/vox-llm-config/src/lib.rs#L35-L43) | — |
+| `enum` | `Group` | `pub enum Group` | [`crates/vox-llm-config/src/lib.rs#L46-L51`](../../../crates/vox-llm-config/src/lib.rs#L46-L51) | — |
+| `enum` | `Persistence` | `pub enum Persistence` | [`crates/vox-llm-config/src/lib.rs#L55-L62`](../../../crates/vox-llm-config/src/lib.rs#L55-L62) | Where a non-secret key is persisted. Secrets are `EnvOnly` (Clavis-backed). |
+| `enum` | `ConfigClass` | `pub enum ConfigClass` | [`crates/vox-llm-config/src/lib.rs#L67-L72`](../../../crates/vox-llm-config/src/lib.rs#L67-L72) | Operator classification, mirrored from `vox_config::operator_registry::ConfigClass` (kept here so this crate stays dependency-free; a parity test keeps them aligned). |
+| `struct` | `GuiField` | `pub struct GuiField` | [`crates/vox-llm-config/src/lib.rs#L77-L85`](../../../crates/vox-llm-config/src/lib.rs#L77-L85) | GUI-facing projection of one non-secret key. `vox-gui` maps this to its Tauri DTO — it does not own the field list. |
+| `fn` | `as_str` | `pub fn as_str(self) -> &'static str` | [`crates/vox-llm-config/src/lib.rs#L88-L98`](../../../crates/vox-llm-config/src/lib.rs#L88-L98) | — |
+| `fn` | `as_str` | `pub fn as_str(self) -> &'static str` | [`crates/vox-llm-config/src/lib.rs#L102-L109`](../../../crates/vox-llm-config/src/lib.rs#L102-L109) | — |
+| `fn` | `get` | `pub fn get(env: &str) -> Option<&'static LlmConfigKey>` | [`crates/vox-llm-config/src/lib.rs#L113-L115`](../../../crates/vox-llm-config/src/lib.rs#L113-L115) | Look up a key by its canonical env name. |
+| `fn` | `gui_fields` | `pub fn gui_fields() -> Vec<GuiField>` | [`crates/vox-llm-config/src/lib.rs#L118-L132`](../../../crates/vox-llm-config/src/lib.rs#L118-L132) | GUI catalog: every non-secret key projected for the Runtime settings surface. |
+

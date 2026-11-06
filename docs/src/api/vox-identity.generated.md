@@ -48,3 +48,74 @@ Vox identity: per-user keypair, signing challenges, trust ledger.
 | `storage` | — |
 | `trust` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_identity: "vox-identity"
+    node vox_crypto: "vox-crypto"
+    vox_identity -> vox_crypto
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_identity
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_identity
+    node vox_plugin_populi_mesh: "vox-plugin-populi-mesh"
+    vox_plugin_populi_mesh -> vox_identity
+    node vox_populi: "vox-populi"
+    vox_populi -> vox_identity
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-plugin-populi-mesh`](./vox-plugin-populi-mesh.generated.md) | Direct workspace dependent |
+| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `challenge::generate_challenge` | `pub fn generate_challenge() -> [u8; 32]` | [`crates/vox-identity/src/challenge.rs#L4-L8`](../../../crates/vox-identity/src/challenge.rs#L4-L8) | — |
+| `fn` | `challenge::verify_challenge_response` | `pub fn verify_challenge_response(` | [`crates/vox-identity/src/challenge.rs#L10`](../../../crates/vox-identity/src/challenge.rs#L10) | — |
+| `struct` | `ephemeral::EphemeralSigner` | `pub struct EphemeralSigner` | [`crates/vox-identity/src/ephemeral.rs#L12-L16`](../../../crates/vox-identity/src/ephemeral.rs#L12-L16) | A short-lived Ed25519 keypair generated once per submitted job.  The public key is embedded in the signed `Attestation` envelope so verifiers can check the result signature without trusting a long-lived node key. |
+| `fn` | `ephemeral::new` | `pub fn new() -> Self` | [`crates/vox-identity/src/ephemeral.rs#L20-L24`](../../../crates/vox-identity/src/ephemeral.rs#L20-L24) | Generate a fresh ephemeral signing keypair. |
+| `fn` | `ephemeral::sign` | `pub fn sign(&self, msg: &[u8]) -> [u8; 64]` | [`crates/vox-identity/src/ephemeral.rs#L27-L29`](../../../crates/vox-identity/src/ephemeral.rs#L27-L29) | Sign `msg` and return the raw 64-byte Ed25519 signature. |
+| `fn` | `ephemeral::verifying_key` | `pub fn verifying_key(&self) -> VerifyingKey` | [`crates/vox-identity/src/ephemeral.rs#L32-L34`](../../../crates/vox-identity/src/ephemeral.rs#L32-L34) | Return the corresponding verifying key for this ephemeral keypair. |
+| `struct` | `identity::NodeIdentity` | `pub struct NodeIdentity` | [`crates/vox-identity/src/identity.rs#L5-L9`](../../../crates/vox-identity/src/identity.rs#L5-L9) | — |
+| `fn` | `identity::generate` | `pub fn generate() -> Self` | [`crates/vox-identity/src/identity.rs#L20-L31`](../../../crates/vox-identity/src/identity.rs#L20-L31) | — |
+| `fn` | `identity::from_keys` | `pub fn from_keys(signing_key: SigningKey, verifying_key: VerifyingKey) -> Self` | [`crates/vox-identity/src/identity.rs#L33-L43`](../../../crates/vox-identity/src/identity.rs#L33-L43) | — |
+| `fn` | `identity::node_id` | `pub fn node_id(&self) -> &str` | [`crates/vox-identity/src/identity.rs#L45-L47`](../../../crates/vox-identity/src/identity.rs#L45-L47) | — |
+| `fn` | `identity::signing_key` | `pub fn signing_key(&self) -> &SigningKey` | [`crates/vox-identity/src/identity.rs#L49-L51`](../../../crates/vox-identity/src/identity.rs#L49-L51) | — |
+| `fn` | `identity::sign_challenge` | `pub fn sign_challenge(&self, nonce: &[u8]) -> [u8; 64]` | [`crates/vox-identity/src/identity.rs#L53-L55`](../../../crates/vox-identity/src/identity.rs#L53-L55) | — |
+| `fn` | `identity::pubkey_hex` | `pub fn pubkey_hex(&self) -> String` | [`crates/vox-identity/src/identity.rs#L58-L60`](../../../crates/vox-identity/src/identity.rs#L58-L60) | Full hex-encoded Ed25519 public key (32 bytes → 64 hex chars). |
+| `fn` | `identity::fingerprint` | `pub fn fingerprint(&self) -> String` | [`crates/vox-identity/src/identity.rs#L64-L83`](../../../crates/vox-identity/src/identity.rs#L64-L83) | Short, human-readable fingerprint of the public key, e.g. `ed25519:7f:42:9b…2a:11` — head 3 + tail 2 bytes of the hex pubkey. |
+| `struct` | `pairing_x25519::PairingKey` | `pub struct PairingKey` | [`crates/vox-identity/src/pairing_x25519.rs#L13-L17`](../../../crates/vox-identity/src/pairing_x25519.rs#L13-L17) | A per-pairing X25519 keypair for ECDH-based JWE key derivation. |
+| `fn` | `pairing_x25519::generate` | `pub fn generate() -> Self` | [`crates/vox-identity/src/pairing_x25519.rs#L21-L25`](../../../crates/vox-identity/src/pairing_x25519.rs#L21-L25) | Generate a fresh random X25519 keypair for a new pairing. |
+| `fn` | `pairing_x25519::from_bytes` | `pub fn from_bytes(sk_bytes: [u8; 32], pubkey_bytes: [u8; 32]) -> Self` | [`crates/vox-identity/src/pairing_x25519.rs#L30-L35`](../../../crates/vox-identity/src/pairing_x25519.rs#L30-L35) | Reconstruct a `PairingKey` from stored secret-key bytes.  The caller is responsible for keeping `sk_bytes` secret. |
+| `fn` | `pairing_x25519::shared_secret` | `pub fn shared_secret(&self, their_pubkey: &[u8; 32]) -> [u8; 32]` | [`crates/vox-identity/src/pairing_x25519.rs#L41-L46`](../../../crates/vox-identity/src/pairing_x25519.rs#L41-L46) | Derive the 32-byte shared secret via X25519 ECDH with `their_pubkey`.  Both parties compute the same secret when each uses their own private key and the other's public key. |
+| `fn` | `storage::identity_key_path` | `pub fn identity_key_path() -> PathBuf` | [`crates/vox-identity/src/storage.rs#L9-L14`](../../../crates/vox-identity/src/storage.rs#L9-L14) | — |
+| `fn` | `storage::save_identity` | `pub fn save_identity(identity: &NodeIdentity, password: &str) -> Result<()>` | [`crates/vox-identity/src/storage.rs#L25-L27`](../../../crates/vox-identity/src/storage.rs#L25-L27) | — |
+| `fn` | `storage::save_identity_at` | `pub fn save_identity_at(` | [`crates/vox-identity/src/storage.rs#L31`](../../../crates/vox-identity/src/storage.rs#L31) | Encrypt and persist `identity` to an explicit `path`. Path-parameterized so callers (and tests) can target a location other than `~/.vox/identity.key.enc`. |
+| `fn` | `storage::load_identity` | `pub fn load_identity(password: &str) -> Result<NodeIdentity>` | [`crates/vox-identity/src/storage.rs#L75-L77`](../../../crates/vox-identity/src/storage.rs#L75-L77) | — |
+| `fn` | `storage::load_identity_at` | `pub fn load_identity_at(password: &str, path: &std::path::Path) -> Result<NodeIdentity>` | [`crates/vox-identity/src/storage.rs#L80-L112`](../../../crates/vox-identity/src/storage.rs#L80-L112) | Decrypt and load an identity from an explicit `path`. |
+| `fn` | `storage::identity_exists` | `pub fn identity_exists() -> bool` | [`crates/vox-identity/src/storage.rs#L115-L117`](../../../crates/vox-identity/src/storage.rs#L115-L117) | Whether a local node identity exists on disk. |
+| `fn` | `storage::rotate_identity` | `pub fn rotate_identity(password: &str) -> Result<NodeIdentity>` | [`crates/vox-identity/src/storage.rs#L125-L127`](../../../crates/vox-identity/src/storage.rs#L125-L127) | Rotate the local node identity: verify `password` unlocks the existing file (when present), generate a fresh Ed25519 keypair, and re-encrypt it under the SAME password at the canonical path. Returns the new identity.  Rotation requires the master password by design — the signing key is only ever stored Argon2-encrypted, so there is no passwordless rotation path. |
+| `fn` | `storage::rotate_identity_at` | `pub fn rotate_identity_at(password: &str, path: &std::path::Path) -> Result<NodeIdentity>` | [`crates/vox-identity/src/storage.rs#L130-L144`](../../../crates/vox-identity/src/storage.rs#L130-L144) | Path-parameterized rotation (see [`rotate_identity`]). Hermetic for tests. |
+| `struct` | `trust::TrustedNode` | `pub struct TrustedNode` | [`crates/vox-identity/src/trust.rs#L8-L13`](../../../crates/vox-identity/src/trust.rs#L8-L13) | — |
+| `fn` | `trust::node_id` | `pub fn node_id(&self) -> &str` | [`crates/vox-identity/src/trust.rs#L16-L18`](../../../crates/vox-identity/src/trust.rs#L16-L18) | — |
+| `struct` | `trust::TrustedNodeRegistry` | `pub struct TrustedNodeRegistry` | [`crates/vox-identity/src/trust.rs#L27-L30`](../../../crates/vox-identity/src/trust.rs#L27-L30) | Registry of Ed25519-pubkey-to-node-id trust bindings.  Two modes: - **File-backed** (`new()`): persists to `~/.vox/trusted_nodes.json`. - **In-memory** (`default()` / `new_in_memory()`): no disk I/O; suitable for tests and for the P5-T1b verifier path that receives nodes via A2A handshake. |
+| `fn` | `trust::new` | `pub fn new() -> Self` | [`crates/vox-identity/src/trust.rs#L34-L42`](../../../crates/vox-identity/src/trust.rs#L34-L42) | File-backed registry rooted at `~/.vox/trusted_nodes.json`. |
+| `fn` | `trust::at` | `pub fn at(path: PathBuf) -> Self` | [`crates/vox-identity/src/trust.rs#L45-L50`](../../../crates/vox-identity/src/trust.rs#L45-L50) | File-backed registry rooted at an explicit path (tests, alternate roots). |
+| `fn` | `trust::new_in_memory` | `pub fn new_in_memory() -> Self` | [`crates/vox-identity/src/trust.rs#L56-L61`](../../../crates/vox-identity/src/trust.rs#L56-L61) | Pure in-memory registry — no disk I/O. Note: [`add`](Self::add) and [`remove`](Self::remove) are no-ops here (nothing is persisted); use [`upsert`](Self::upsert) to populate one, or [`at`](Self::at) if you need writes to be readable back. |
+| `fn` | `trust::add` | `pub fn add(&self, node_id: String, pubkey_hex: String, label: Option<String>) -> Result<()>` | [`crates/vox-identity/src/trust.rs#L92-L105`](../../../crates/vox-identity/src/trust.rs#L92-L105) | Add or update a node. For file-backed registries this persists to disk. |
+| `fn` | `trust::upsert` | `pub fn upsert(&mut self, node_id: &str, pubkey_hex: &str)` | [`crates/vox-identity/src/trust.rs#L108-L119`](../../../crates/vox-identity/src/trust.rs#L108-L119) | In-place upsert for in-memory registries (and tests). Does not persist. |
+| `fn` | `trust::lookup_by_pubkey_hex` | `pub fn lookup_by_pubkey_hex(&self, pubkey_hex: &str) -> Option<TrustedNode>` | [`crates/vox-identity/src/trust.rs#L126-L137`](../../../crates/vox-identity/src/trust.rs#L126-L137) | Look up a trusted node by its Ed25519 pubkey hex. Searches in-memory cache first, then the file-backed store (if any).  An empty `pubkey_hex` never matches — otherwise a stored row with a blank key would authenticate any keyless caller. |
+| `fn` | `trust::remove` | `pub fn remove(&self, node_id: &str) -> Result<bool>` | [`crates/vox-identity/src/trust.rs#L139-L146`](../../../crates/vox-identity/src/trust.rs#L139-L146) | — |
+| `fn` | `trust::is_trusted` | `pub fn is_trusted(&self, node_id: &str) -> Result<bool>` | [`crates/vox-identity/src/trust.rs#L148-L154`](../../../crates/vox-identity/src/trust.rs#L148-L154) | — |
+| `fn` | `trust::list` | `pub fn list(&self) -> Result<Vec<TrustedNode>>` | [`crates/vox-identity/src/trust.rs#L156-L161`](../../../crates/vox-identity/src/trust.rs#L156-L161) | — |
+

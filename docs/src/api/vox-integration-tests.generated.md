@@ -74,3 +74,47 @@ independently, which is exactly the risk the negative-control test exists to cat
 | `run_tsc_noemit` | Resolve `tsc`'s CLI entrypoint under `scratch/node_modules/typescript/bin/tsc` and run `tsc --noEmit --project <tsconfig>` by invoking `node` directly. The `node_modules/.bin/tsc(.cmd)` shims rely on PATH resolution that fails under nextest on Windows ('node' is not recognized); this is portable and shim-free. |
 | `env_var_lock` | Take `ENV_VAR_LOCK` (recovering from a poisoned lock), then mutate env vars through `vox_test_harness::env_scratch::EnvScratch`, the workspace's one reviewed `set_var` site. Bind the lock BEFORE the scratch. Locals drop in reverse order, so the vars are restored while the lock is still held, even during a panic unwind. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_integration_tests: "vox-integration-tests"
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_integration_tests -> vox_actor_runtime
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_integration_tests -> vox_bounded_fs
+    node vox_cli: "vox-cli"
+    vox_integration_tests -> vox_cli
+    node vox_codegen: "vox-codegen"
+    vox_integration_tests -> vox_codegen
+    node vox_compiler: "vox-compiler"
+    vox_integration_tests -> vox_compiler
+    node vox_config: "vox-config"
+    vox_integration_tests -> vox_config
+    node vox_deploy_codegen: "vox-deploy-codegen"
+    vox_integration_tests -> vox_deploy_codegen
+    node vox_lsp: "vox-lsp"
+    vox_integration_tests -> vox_lsp
+    node vox_orchestrator: "vox-orchestrator"
+    vox_integration_tests -> vox_orchestrator
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_integration_tests -> vox_orchestrator_mcp
+    node vox_plugin_api: "vox-plugin-api"
+    vox_integration_tests -> vox_plugin_api
+    node vox_repository: "vox-repository"
+    vox_integration_tests -> vox_repository
+}
+```
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `strip_unc_prefix` | `pub fn strip_unc_prefix(p: PathBuf) -> PathBuf` | [`crates/vox-integration-tests/src/lib.rs#L19-L32`](../../../crates/vox-integration-tests/src/lib.rs#L19-L32) | Strip the Windows `\\?\` UNC prefix that `canonicalize()` adds on Windows. `cmd.exe` and many CLI tools cannot handle the extended-length path prefix. |
+| `fn` | `ts_scratch_dir` | `pub fn ts_scratch_dir() -> PathBuf` | [`crates/vox-integration-tests/src/lib.rs#L36-L43`](../../../crates/vox-integration-tests/src/lib.rs#L36-L43) | Absolute path to the `ts-noemit-scratch` dir that contains `node_modules` and the base `tsconfig.json` used by every TS-emit-typecheck gate test. |
+| `fn` | `collect_vox_files` | `pub fn collect_vox_files(dir: &Path) -> std::io::Result<Vec<PathBuf>>` | [`crates/vox-integration-tests/src/lib.rs#L51-L61`](../../../crates/vox-integration-tests/src/lib.rs#L51-L61) | Collect all `.vox` files directly under `dir` (non-recursive), sorted for determinism.  Propagates `read_dir`/entry errors rather than swallowing them into an empty `Vec` — a caller silently seeing "zero fixtures" for an unreadable directory looks identical to "the corpus is genuinely empty," which would let a corpus-comparison test complete having compared nothing. |
+| `fn` | `strict_tsconfig_json` | `pub fn strict_tsconfig_json() -> serde_json::Value` | [`crates/vox-integration-tests/src/lib.rs#L67-L83`](../../../crates/vox-integration-tests/src/lib.rs#L67-L83) | The canonical strict `tsconfig.json` (`compilerOptions` + `include`) shared by every TS-emit-typecheck gate test. The negative-control test's entire premise is proving that THIS SAME config rejects bad TypeScript — keep it in exactly one place so that invariant can't silently drift between the positive gate and the negative control. |
+| `fn` | `run_tsc_noemit` | `pub fn run_tsc_noemit(scratch: &Path, tsconfig_path: &Path) -> std::process::Output` | [`crates/vox-integration-tests/src/lib.rs#L89-L108`](../../../crates/vox-integration-tests/src/lib.rs#L89-L108) | Resolve `tsc`'s CLI entrypoint under `scratch/node_modules/typescript/bin/tsc` and run `tsc --noEmit --project <tsconfig>` by invoking `node` directly. The `node_modules/.bin/tsc(.cmd)` shims rely on PATH resolution that fails under nextest on Windows ('node' is not recognized); this is portable and shim-free. |
+| `fn` | `env_var_lock` | `pub fn env_var_lock() -> MutexGuard<'static, ()>` | [`crates/vox-integration-tests/src/lib.rs#L124-L126`](../../../crates/vox-integration-tests/src/lib.rs#L124-L126) | Take `ENV_VAR_LOCK` (recovering from a poisoned lock), then mutate env vars through `vox_test_harness::env_scratch::EnvScratch`, the workspace's one reviewed `set_var` site. Bind the lock BEFORE the scratch. Locals drop in reverse order, so the vars are restored while the lock is still held, even during a panic unwind. |
+

@@ -103,3 +103,57 @@ Vox ML, AI, and Telemetry command-line interface.
 | `training` | — |
 | `workspace_db` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_ml_cli: "vox-ml-cli"
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_ml_cli -> vox_actor_runtime
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_ml_cli -> vox_bounded_fs
+    node vox_cli: "vox-cli"
+    vox_ml_cli -> vox_cli
+    node vox_cli_core: "vox-cli-core"
+    vox_ml_cli -> vox_cli_core
+    node vox_compiler: "vox-compiler"
+    vox_ml_cli -> vox_compiler
+    node vox_config: "vox-config"
+    vox_ml_cli -> vox_config
+    node vox_constrained_gen: "vox-constrained-gen"
+    vox_ml_cli -> vox_constrained_gen
+    node vox_corpus: "vox-corpus"
+    vox_ml_cli -> vox_corpus
+    node vox_crypto: "vox-crypto"
+    vox_ml_cli -> vox_crypto
+    node vox_db: "vox-db"
+    vox_ml_cli -> vox_db
+    node vox_eval: "vox-eval"
+    vox_ml_cli -> vox_eval
+    node vox_foundation: "vox-foundation"
+    vox_ml_cli -> vox_foundation
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_ml_cli
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `dei_daemon::call` | `pub async fn call(method: &str, params: Value, _auto_open: bool) -> anyhow::Result<Value>` | [`crates/vox-ml-cli/src/dei_daemon.rs#L16-L107`](../../../crates/vox-ml-cli/src/dei_daemon.rs#L16-L107) | — |
+| `fn` | `pipeline::run_frontend` | `pub async fn run_frontend(` | [`crates/vox-ml-cli/src/pipeline.rs#L28`](../../../crates/vox-ml-cli/src/pipeline.rs#L28) | Run the frontend pipeline on a source file. |
+| `fn` | `pipeline::run_frontend_str` | `pub fn run_frontend_str(` | [`crates/vox-ml-cli/src/pipeline.rs#L38`](../../../crates/vox-ml-cli/src/pipeline.rs#L38) | Same as [`run_frontend`] but takes an already-loaded source string. |
+| `fn` | `pipeline::format_diagnostics_json_pretty` | `pub fn format_diagnostics_json_pretty(` | [`crates/vox-ml-cli/src/pipeline.rs#L67`](../../../crates/vox-ml-cli/src/pipeline.rs#L67) | — |
+| `fn` | `pipeline::print_diagnostics` | `pub fn print_diagnostics(result: &vox_compiler::pipeline::FrontendResult, file: &Path, json: bool)` | [`crates/vox-ml-cli/src/pipeline.rs#L82-L102`](../../../crates/vox-ml-cli/src/pipeline.rs#L82-L102) | Print diagnostics in rustc-style to stderr, or JSON to stdout if `json` is true. |
+| `fn` | `pipeline::print_parse_errors_to_stderr` | `pub fn print_parse_errors_to_stderr(` | [`crates/vox-ml-cli/src/pipeline.rs#L105`](../../../crates/vox-ml-cli/src/pipeline.rs#L105) | Print parse errors to stderr in rustc style. |
+| `fn` | `workspace_db::connect_cli_workspace_voxdb` | `pub async fn connect_cli_workspace_voxdb() -> anyhow::Result<VoxDb>` | [`crates/vox-ml-cli/src/workspace_db.rs#L10-L12`](../../../crates/vox-ml-cli/src/workspace_db.rs#L10-L12) | Open the authoritative VoxDb for workspace-scoped CLI commands (`vox agent`, `vox snippet`, …). |
+| `fn` | `workspace_db::connect_cli_workspace_voxdb_with_overrides` | `pub async fn connect_cli_workspace_voxdb_with_overrides(skip_log: bool) -> anyhow::Result<VoxDb>` | [`crates/vox-ml-cli/src/workspace_db.rs#L15-L23`](../../../crates/vox-ml-cli/src/workspace_db.rs#L15-L23) | Like [`connect_cli_workspace_voxdb`]; `skip_log` mirrors MCP embed startup noise control. |
+

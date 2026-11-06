@@ -95,3 +95,147 @@ Precedence: CLI args > env > config file > defaults.
 | `STORAGE_URL_PREFIX` | URL path prefix for serving stored files. |
 | `WAL_FLUSH_BATCH_SIZE` | Maximum number of WAL entries to buffer before forcing a flush to disk. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_config: "vox-config"
+    node vox_config_derive: "vox-config-derive"
+    vox_config -> vox_config_derive
+    node vox_git: "vox-git"
+    vox_config -> vox_git
+    node vox_llm_config: "vox-llm-config"
+    vox_config -> vox_llm_config
+    node vox_llm_egress: "vox-llm-egress"
+    vox_config -> vox_llm_egress
+    node vox_secrets: "vox-secrets"
+    vox_config -> vox_secrets
+    node vox_telemetry: "vox-telemetry"
+    vox_config -> vox_telemetry
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_actor_runtime -> vox_config
+    node vox_audit: "vox-audit"
+    vox_audit -> vox_config
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_config
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_config
+    node vox_cli_contracts: "vox-cli-contracts"
+    vox_cli_contracts -> vox_config
+    node vox_cli_core: "vox-cli-core"
+    vox_cli_core -> vox_config
+    node vox_code_audit: "vox-code-audit"
+    vox_code_audit -> vox_config
+    node vox_codegen: "vox-codegen"
+    vox_codegen -> vox_config
+    node vox_compiler: "vox-compiler"
+    vox_compiler -> vox_config
+    vox_config_derive -> vox_config
+    node vox_db: "vox-db"
+    vox_db -> vox_config
+    node vox_deploy_codegen: "vox-deploy-codegen"
+    vox_deploy_codegen -> vox_config
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Direct workspace dependent |
+| [`vox-audit`](./vox-audit.generated.md) | Direct workspace dependent |
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-contracts`](./vox-cli-contracts.generated.md) | Direct workspace dependent |
+| [`vox-cli-core`](./vox-cli-core.generated.md) | Direct workspace dependent |
+| [`vox-code-audit`](./vox-code-audit.generated.md) | Direct workspace dependent |
+| [`vox-codegen`](./vox-codegen.generated.md) | Direct workspace dependent |
+| [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
+| [`vox-config-derive`](./vox-config-derive.generated.md) | Direct workspace dependent |
+| [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
+| [`vox-deploy-codegen`](./vox-deploy-codegen.generated.md) | Direct workspace dependent |
+| [`vox-drift-check`](./vox-drift-check.generated.md) | Direct workspace dependent |
+| [`vox-effort-audit`](./vox-effort-audit.generated.md) | Direct workspace dependent |
+| [`vox-effort-route`](./vox-effort-route.generated.md) | Direct workspace dependent |
+| [`vox-gamify`](./vox-gamify.generated.md) | Direct workspace dependent |
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
+| [`vox-langtool`](./vox-langtool.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+| [`vox-openclaw-runtime`](./vox-openclaw-runtime.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-d`](./vox-orchestrator-d.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-models`](./vox-orchestrator-models.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-queue`](./vox-orchestrator-queue.generated.md) | Direct workspace dependent |
+| [`vox-package`](./vox-package.generated.md) | Direct workspace dependent |
+| [`vox-plugin-browser`](./vox-plugin-browser.generated.md) | Direct workspace dependent |
+| [`vox-plugin-host`](./vox-plugin-host.generated.md) | Direct workspace dependent |
+| [`vox-plugin-mens-candle-cuda`](./vox-plugin-mens-candle-cuda.generated.md) | Direct workspace dependent |
+| [`vox-plugin-mens-candle-metal`](./vox-plugin-mens-candle-metal.generated.md) | Direct workspace dependent |
+| [`vox-plugin-populi-mesh`](./vox-plugin-populi-mesh.generated.md) | Direct workspace dependent |
+| [`vox-plugin-speech`](./vox-plugin-speech.generated.md) | Direct workspace dependent |
+| [`vox-plugin-webhook`](./vox-plugin-webhook.generated.md) | Direct workspace dependent |
+| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
+| [`vox-publisher`](./vox-publisher.generated.md) | Direct workspace dependent |
+| [`vox-repository`](./vox-repository.generated.md) | Direct workspace dependent |
+| [`vox-research-shim`](./vox-research-shim.generated.md) | Direct workspace dependent |
+| [`vox-runtime`](./vox-runtime.generated.md) | Direct workspace dependent |
+| [`vox-scientia`](./vox-scientia.generated.md) | Direct workspace dependent |
+| [`vox-search`](./vox-search.generated.md) | Direct workspace dependent |
+| [`vox-speech`](./vox-speech.generated.md) | Direct workspace dependent |
+| [`vox-test-harness`](./vox-test-harness.generated.md) | Direct workspace dependent |
+| [`vox-vcs`](./vox-vcs.generated.md) | Direct workspace dependent |
+| [`vox-workflow-runtime`](./vox-workflow-runtime.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `trait` | `VoxConfigDomain` | `pub trait VoxConfigDomain: Sized` | [`crates/vox-config/src/lib.rs#L46-L50`](../../../crates/vox-config/src/lib.rs#L46-L50) | Implemented by every `#[derive(VoxConfig)]` struct. The `vox-cli` aggregator collects `config_keys()` across domains; `catalog()` feeds the GUI. |
+| `struct` | `config_field::ConfigField` | `pub struct ConfigField` | [`crates/vox-config/src/config_field.rs#L7-L15`](../../../crates/vox-config/src/config_field.rs#L7-L15) | — |
+| `enum` | `config_key::ConfigKind` | `pub enum ConfigKind` | [`crates/vox-config/src/config_key.rs#L8-L16`](../../../crates/vox-config/src/config_key.rs#L8-L16) | Value kind for a config knob (superset of the GUI `Kind` and the planned LLM kinds). |
+| `enum` | `config_key::DefaultValue` | `pub enum DefaultValue` | [`crates/vox-config/src/config_key.rs#L20-L25`](../../../crates/vox-config/src/config_key.rs#L20-L25) | Where a knob's DEFAULT comes from. |
+| `enum` | `config_key::Group` | `pub enum Group` | [`crates/vox-config/src/config_key.rs#L29-L40`](../../../crates/vox-config/src/config_key.rs#L29-L40) | Coarse UI/topic grouping (federated — domains extend this deliberately). |
+| `enum` | `config_key::Home` | `pub enum Home` | [`crates/vox-config/src/config_key.rs#L44-L51`](../../../crates/vox-config/src/config_key.rs#L44-L51) | Canonical home / value-SSOT pointer for the knob (the "ONE home" rule). |
+| `enum` | `config_key::Status` | `pub enum Status` | [`crates/vox-config/src/config_key.rs#L55-L58`](../../../crates/vox-config/src/config_key.rs#L55-L58) | Lifecycle: `Active` = read in code today; `Declared` = registered, not yet wired. |
+| `struct` | `config_key::GuiSurface` | `pub struct GuiSurface` | [`crates/vox-config/src/config_key.rs#L62-L66`](../../../crates/vox-config/src/config_key.rs#L62-L66) | GUI surfacing directive. `None` on a `ConfigKey` = not surfaced. |
+| `struct` | `config_key::ConfigKey` | `pub struct ConfigKey` | [`crates/vox-config/src/config_key.rs#L70-L85`](../../../crates/vox-config/src/config_key.rs#L70-L85) | One operational config knob. Reuses `operator_registry::ConfigClass`. |
+| `fn` | `config_key::validate_numeric` | `pub fn validate_numeric(&self, v: f64) -> bool` | [`crates/vox-config/src/config_key.rs#L90-L98`](../../../crates/vox-config/src/config_key.rs#L90-L98) | A numeric value is valid iff finite and within `bound` (if any). |
+| `fn` | `config_registry::registered_keys` | `pub fn registered_keys() -> impl Iterator<Item = &'static str>` | [`crates/vox-config/src/config_registry.rs#L2197-L2199`](../../../crates/vox-config/src/config_registry.rs#L2197-L2199) | All registered keys (for the parity gate). |
+| `struct` | `config_watch::ConfigSnapshot` | `pub struct ConfigSnapshot` | [`crates/vox-config/src/config_watch.rs#L14-L19`](../../../crates/vox-config/src/config_watch.rs#L14-L19) | Point-in-time view of the config revision and the keys changed in the last bump. |
+| `struct` | `config_watch::ConfigWatch` | `pub struct ConfigWatch` | [`crates/vox-config/src/config_watch.rs#L23-L26`](../../../crates/vox-config/src/config_watch.rs#L23-L26) | Watch channel for config changes. Clone [`subscribe`](Self::subscribe) receivers to fan out to multiple consumers. |
+| `fn` | `config_watch::new` | `pub fn new() -> Self` | [`crates/vox-config/src/config_watch.rs#L31-L34`](../../../crates/vox-config/src/config_watch.rs#L31-L34) | Create a new watch channel at revision 0. |
+| `fn` | `config_watch::subscribe` | `pub fn subscribe(&self) -> watch::Receiver<ConfigSnapshot>` | [`crates/vox-config/src/config_watch.rs#L38-L40`](../../../crates/vox-config/src/config_watch.rs#L38-L40) | Subscribe to config-change notifications. |
+| `fn` | `config_watch::bump` | `pub fn bump(&self, keys: &[&str])` | [`crates/vox-config/src/config_watch.rs#L43-L48`](../../../crates/vox-config/src/config_watch.rs#L43-L48) | Advance the revision and notify all subscribers. |
+| `fn` | `config_watch::current` | `pub fn current(&self) -> ConfigSnapshot` | [`crates/vox-config/src/config_watch.rs#L52-L54`](../../../crates/vox-config/src/config_watch.rs#L52-L54) | Current snapshot without subscribing. |
+| `fn` | `config_watch::global` | `pub fn global() -> &'static ConfigWatch` | [`crates/vox-config/src/config_watch.rs#L67-L69`](../../../crates/vox-config/src/config_watch.rs#L67-L69) | Process-wide config watch channel (lazy-init on first access). |
+| `fn` | `env_parse::parse_u64_opt` | `pub fn parse_u64_opt(raw: Option<&str>, default: u64) -> u64` | [`crates/vox-config/src/env_parse.rs#L14-L16`](../../../crates/vox-config/src/env_parse.rs#L14-L16) | — |
+| `fn` | `env_parse::resolve_config_str` | `pub fn resolve_config_str(name: &str, default: &str) -> String` | [`crates/vox-config/src/env_parse.rs#L26-L44`](../../../crates/vox-config/src/env_parse.rs#L26-L44) | Resolve a non-secret string config value with layered precedence: 1. env var (highest — CI/override) 2. `~/.vox/config.toml` 3. compiled default  Suitable for operator-tuning strings (base URLs, log levels, feature flags). For secrets such as API keys or tokens, use `vox_secrets::resolve_secret` instead. |
+| `fn` | `env_parse::resolve_config_u64` | `pub fn resolve_config_u64(name: &str, default: u64) -> u64` | [`crates/vox-config/src/env_parse.rs#L48-L66`](../../../crates/vox-config/src/env_parse.rs#L48-L66) | Resolve a u64 config value using layered precedence. |
+| `fn` | `env_parse::resolve_config_usize` | `pub fn resolve_config_usize(name: &str, default: usize) -> usize` | [`crates/vox-config/src/env_parse.rs#L70-L88`](../../../crates/vox-config/src/env_parse.rs#L70-L88) | Resolve a usize config value using layered precedence. |
+| `fn` | `env_parse::resolve_config_bool` | `pub fn resolve_config_bool(name: &str, default: bool) -> bool` | [`crates/vox-config/src/env_parse.rs#L92-L114`](../../../crates/vox-config/src/env_parse.rs#L92-L114) | Resolve a bool config value using layered precedence. |
+| `fn` | `env_parse::resolve_config_f32` | `pub fn resolve_config_f32(name: &str, default: f32) -> f32` | [`crates/vox-config/src/env_parse.rs#L118-L120`](../../../crates/vox-config/src/env_parse.rs#L118-L120) | Resolve an f32 config value using layered precedence (env → config.toml → default). |
+| `fn` | `env_parse::resolve_config_i32` | `pub fn resolve_config_i32(name: &str, default: i32) -> i32` | [`crates/vox-config/src/env_parse.rs#L124-L126`](../../../crates/vox-config/src/env_parse.rs#L124-L126) | Resolve an i32 config value using layered precedence (env → config.toml → default). |
+| `fn` | `env_parse::resolve_config_opt_f32` | `pub fn resolve_config_opt_f32(name: &str) -> Option<f32>` | [`crates/vox-config/src/env_parse.rs#L132-L150`](../../../crates/vox-config/src/env_parse.rs#L132-L150) | Resolve an optional f32 config value: env var → `~/.vox/config.toml` → `None`.  Accepts integer, float, or string-coerced TOML values. |
+| `fn` | `env_parse::resolve_config_opt_str` | `pub fn resolve_config_opt_str(name: &str) -> Option<String>` | [`crates/vox-config/src/env_parse.rs#L155-L168`](../../../crates/vox-config/src/env_parse.rs#L155-L168) | Resolve an optional string config value: env var → `~/.vox/config.toml` → `None`. Used by `#[derive(VoxConfig)]` for `Option<T>` and enum (`FromStr`) fields. |
+| `fn` | `env_parse::resolve_config_i64` | `pub fn resolve_config_i64(name: &str, default: i64) -> i64` | [`crates/vox-config/src/env_parse.rs#L172-L188`](../../../crates/vox-config/src/env_parse.rs#L172-L188) | Resolve an i64 config value using layered precedence (env → `~/.vox/config.toml` → default). |
+| `fn` | `env_parse::resolve_config_f64` | `pub fn resolve_config_f64(name: &str, default: f64) -> f64` | [`crates/vox-config/src/env_parse.rs#L192-L210`](../../../crates/vox-config/src/env_parse.rs#L192-L210) | Resolve an f64 config value using layered precedence (env → `~/.vox/config.toml` → default). |
+| `fn` | `env_parse::resolve_config_opt_i32` | `pub fn resolve_config_opt_i32(name: &str) -> Option<i32>` | [`crates/vox-config/src/env_parse.rs#L216-L234`](../../../crates/vox-config/src/env_parse.rs#L216-L234) | Resolve an optional i32 config value: env var → `~/.vox/config.toml` → `None`.  Accepts integer, float (truncated), or string-coerced TOML values. |
+| `fn` | `env_parse::env_u64` | `pub fn env_u64(name: &str, default: u64) -> u64` | [`crates/vox-config/src/env_parse.rs#L237-L239`](../../../crates/vox-config/src/env_parse.rs#L237-L239) | — |
+| `fn` | `env_parse::parse_usize_opt` | `pub fn parse_usize_opt(raw: Option<&str>, default: usize) -> usize` | [`crates/vox-config/src/env_parse.rs#L242-L244`](../../../crates/vox-config/src/env_parse.rs#L242-L244) | — |
+| `fn` | `env_parse::env_usize` | `pub fn env_usize(name: &str, default: usize) -> usize` | [`crates/vox-config/src/env_parse.rs#L247-L249`](../../../crates/vox-config/src/env_parse.rs#L247-L249) | — |
+| `fn` | `env_parse::env_duration_from_ms` | `pub fn env_duration_from_ms(name: &str, default_ms: u64) -> Duration` | [`crates/vox-config/src/env_parse.rs#L252-L254`](../../../crates/vox-config/src/env_parse.rs#L252-L254) | — |
+| `fn` | `graphify::resolve_ttl_days` | `pub fn resolve_ttl_days(default_ttl: u64) -> u64` | [`crates/vox-config/src/graphify.rs#L34-L41`](../../../crates/vox-config/src/graphify.rs#L34-L41) | Resolve the TTL (in days) using `VOX_GRAPHIFY_TTL_DAYS` if present, falling back to a default value. |
+| `fn` | `graphify::ttl_env_override_active` | `pub fn ttl_env_override_active(raw: Option<&str>) -> bool` | [`crates/vox-config/src/graphify.rs#L50-L52`](../../../crates/vox-config/src/graphify.rs#L50-L52) | True when `raw` (the value of `VOX_GRAPHIFY_TTL_DAYS`) is what `resolve_ttl_days` will return — i.e. the env var, not the contract, is in control.  Keyed off presence, never off the resolved value differing from the contract: setting the env var to the same number is still an active override. Pure over the raw value so it is testable without mutating process-wide env. |
+| `fn` | `graphify::ttl_env_override_active_now` | `pub fn ttl_env_override_active_now() -> bool` | [`crates/vox-config/src/graphify.rs#L56-L58`](../../../crates/vox-config/src/graphify.rs#L56-L58) | [`ttl_env_override_active`] applied to the current process environment. |
+| `fn` | `graphify::cache_dir_env_override_active` | `pub fn cache_dir_env_override_active(raw: Option<&str>) -> bool` | [`crates/vox-config/src/graphify.rs#L76-L78`](../../../crates/vox-config/src/graphify.rs#L76-L78) | True when `raw` (the value of `VOX_GRAPHIFY_CACHE_DIR`) overrides the cache base dir — i.e. [`repo_graphify_cache_dir`] uses it instead of the default `<repo>/.vox/cache/graphify`.  [`ttl_env_override_active`]'s shape: keyed off presence of a non-blank value, pure over the raw value so it is testable without mutating process-wide env. |
+| `fn` | `graphify::cache_dir_env_override_active_now` | `pub fn cache_dir_env_override_active_now() -> bool` | [`crates/vox-config/src/graphify.rs#L82-L84`](../../../crates/vox-config/src/graphify.rs#L82-L84) | [`cache_dir_env_override_active`] applied to the current process environment. |
+| `fn` | `graphify::graphify_disable_active` | `pub fn graphify_disable_active(raw: Option<&str>) -> bool` | [`crates/vox-config/src/graphify.rs#L92-L100`](../../../crates/vox-config/src/graphify.rs#L92-L100) | True when `raw` (the value of `VOX_GRAPHIFY_DISABLE`) disables the graphify cache. Blank/absent, `"0"`, `"false"`, `"no"`, and `"off"` (case-insensitive, surrounding whitespace ignored) are treated as *not* disabling; every other non-blank value disables — so a typo like `VOX_GRAPHIFY_DISABLE=1` or `=please` still disables rather than being silently ignored. |
+| `fn` | `graphify::graphify_disable_active_now` | `pub fn graphify_disable_active_now() -> bool` | [`crates/vox-config/src/graphify.rs#L104-L106`](../../../crates/vox-config/src/graphify.rs#L104-L106) | [`graphify_disable_active`] applied to the current process environment. |
+| `enum` | `graphify::GraphifyCacheDir` | `pub enum GraphifyCacheDir` | [`crates/vox-config/src/graphify.rs#L116-L122`](../../../crates/vox-config/src/graphify.rs#L116-L122) | Where a corpus's on-disk graphify cache directory lives, or that the cache is disabled outright.  Deliberately not a bare `PathBuf`: a disabled cache has no harmless path to point at, and a plain path return would let a caller skip checking `VOX_GRAPHIFY_DISABLE` and write anyway. Matching on this enum is required to get a directory out, so the disable switch cannot be silently ignored. |
+| `fn` | `graphify::path` | `pub fn path(&self) -> Option<&Path>` | [`crates/vox-config/src/graphify.rs#L127-L132`](../../../crates/vox-config/src/graphify.rs#L127-L132) | The directory, if the cache is enabled. |
+| `fn` | `graphify::is_disabled` | `pub fn is_disabled(&self) -> bool` | [`crates/vox-config/src/graphify.rs#L136-L138`](../../../crates/vox-config/src/graphify.rs#L136-L138) | True iff the cache is disabled. |
+| `struct` | `graphify::GraphifyCorpus` | `pub struct GraphifyCorpus` | [`crates/vox-config/src/graphify.rs#L160-L178`](../../../crates/vox-config/src/graphify.rs#L160-L178) | — |
+

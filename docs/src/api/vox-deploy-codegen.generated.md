@@ -57,3 +57,58 @@ Submodules:
 | `deploy_target` | — |
 | `generate` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_deploy_codegen: "vox-deploy-codegen"
+    node vox_config: "vox-config"
+    vox_deploy_codegen -> vox_config
+    node vox_container_types: "vox-container-types"
+    vox_deploy_codegen -> vox_container_types
+    node vox_audit: "vox-audit"
+    vox_audit -> vox_deploy_codegen
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_deploy_codegen
+    node vox_codegen: "vox-codegen"
+    vox_codegen -> vox_deploy_codegen
+    node vox_codegen_ts: "vox-codegen-ts"
+    vox_codegen_ts -> vox_deploy_codegen
+    node vox_integration_tests: "vox-integration-tests"
+    vox_integration_tests -> vox_deploy_codegen
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-audit`](./vox-audit.generated.md) | Direct workspace dependent |
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-codegen`](./vox-codegen.generated.md) | Direct workspace dependent |
+| [`vox-codegen-ts`](./vox-codegen-ts.generated.md) | Direct workspace dependent |
+| [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `bare_metal::generate_systemd_unit` | `pub fn generate_systemd_unit(spec: &EnvironmentSpec, app_name: &str) -> String` | [`crates/vox-deploy-codegen/src/bare_metal.rs#L7-L39`](../../../crates/vox-deploy-codegen/src/bare_metal.rs#L7-L39) | Generate a systemd .service file from an EnvironmentSpec.  Use this when `@environment` has `base: "bare-metal"` — instead of a Dockerfile you get a drop-in systemd unit file ready for deployment. |
+| `enum` | `deploy_target::DeployTarget` | `pub enum DeployTarget` | [`crates/vox-deploy-codegen/src/deploy_target.rs#L27-L40`](../../../crates/vox-deploy-codegen/src/deploy_target.rs#L27-L40) | A fully-resolved deployment target for a Vox application.  Constructed by the CLI from `Vox.toml` `[deploy]` plus any CLI overrides, then executed via [`DeployTarget::execute`]. |
+| `struct` | `deploy_target::ContainerTarget` | `pub struct ContainerTarget` | [`crates/vox-deploy-codegen/src/deploy_target.rs#L44-L57`](../../../crates/vox-deploy-codegen/src/deploy_target.rs#L44-L57) | Configuration for an OCI container deployment. |
+| `struct` | `deploy_target::BareMetalTarget` | `pub struct BareMetalTarget` | [`crates/vox-deploy-codegen/src/deploy_target.rs#L61-L74`](../../../crates/vox-deploy-codegen/src/deploy_target.rs#L61-L74) | Configuration for a bare-metal (systemd) deployment. |
+| `struct` | `deploy_target::ComposeTarget` | `pub struct ComposeTarget` | [`crates/vox-deploy-codegen/src/deploy_target.rs#L78-L87`](../../../crates/vox-deploy-codegen/src/deploy_target.rs#L78-L87) | Configuration for a Docker/Podman Compose deployment. |
+| `struct` | `deploy_target::KubernetesTarget` | `pub struct KubernetesTarget` | [`crates/vox-deploy-codegen/src/deploy_target.rs#L91-L100`](../../../crates/vox-deploy-codegen/src/deploy_target.rs#L91-L100) | Configuration for a Kubernetes deployment. |
+| `struct` | `deploy_target::FlyTarget` | `pub struct FlyTarget` | [`crates/vox-deploy-codegen/src/deploy_target.rs#L104-L113`](../../../crates/vox-deploy-codegen/src/deploy_target.rs#L104-L113) | Configuration for a Fly.io deployment. |
+| `struct` | `deploy_target::CoolifyTarget` | `pub struct CoolifyTarget` | [`crates/vox-deploy-codegen/src/deploy_target.rs#L117-L123`](../../../crates/vox-deploy-codegen/src/deploy_target.rs#L117-L123) | Configuration for a Coolify deployment. |
+| `fn` | `deploy_target::kind_name` | `pub fn kind_name(&self) -> &'static str` | [`crates/vox-deploy-codegen/src/deploy_target.rs#L127-L136`](../../../crates/vox-deploy-codegen/src/deploy_target.rs#L127-L136) | Return a human-readable name for this target type. |
+| `fn` | `deploy_target::execute` | `pub fn execute(&self, runtime: Option<&dyn ContainerRuntime>, dry_run: bool) -> Result<()>` | [`crates/vox-deploy-codegen/src/deploy_target.rs#L142-L151`](../../../crates/vox-deploy-codegen/src/deploy_target.rs#L142-L151) | Execute this deployment target.  For `Container` targets, `runtime` must be provided. For other targets, `runtime` is unused. |
+| `fn` | `deploy_target::resolve_target_kind` | `pub fn resolve_target_kind(` | [`crates/vox-deploy-codegen/src/deploy_target.rs#L364`](../../../crates/vox-deploy-codegen/src/deploy_target.rs#L364) | Resolve which deploy target string to use, given the raw deploy section, the environment name, and any CLI override. |
+| `fn` | `deploy_target::build_container_target` | `pub fn build_container_target(` | [`crates/vox-deploy-codegen/src/deploy_target.rs#L381`](../../../crates/vox-deploy-codegen/src/deploy_target.rs#L381) | Build a [`ContainerTarget`] from manifest values and CLI overrides. |
+| `struct` | `generate::EnvironmentSpec` | `pub struct EnvironmentSpec` | [`crates/vox-deploy-codegen/src/generate.rs#L18-L39`](../../../crates/vox-deploy-codegen/src/generate.rs#L18-L39) | Declarative specification for a container environment.  Maps directly to Vox `environment` declarations in user source code. The codegen layer constructs an `EnvironmentSpec` from the AST node and passes it here to generate a Dockerfile. |
+| `fn` | `generate::generate_dockerfile_from_spec` | `pub fn generate_dockerfile_from_spec(spec: &EnvironmentSpec) -> String` | [`crates/vox-deploy-codegen/src/generate.rs#L45-L108`](../../../crates/vox-deploy-codegen/src/generate.rs#L45-L108) | Generate a Dockerfile string from an [`EnvironmentSpec`].  Produces an OCI-compatible Dockerfile that works with both Docker and Podman. |
+| `fn` | `generate::generate_default_dockerfile` | `pub fn generate_default_dockerfile() -> String` | [`crates/vox-deploy-codegen/src/generate.rs#L115-L132`](../../../crates/vox-deploy-codegen/src/generate.rs#L115-L132) | Generate a default Dockerfile for a **Rust-first** Vox deployment.  Expects a **release binary** in the build context named **`vox-app`** (e.g. from `vox bundle` or `cargo build --release` in `target/generated`). For the legacy **Node + `npx tsx server.ts`** lane, use an explicit `@environment` block or a hand-authored Dockerfile; see repository docs. |
+| `fn` | `generate::generate_compose_file` | `pub fn generate_compose_file() -> String` | [`crates/vox-deploy-codegen/src/generate.rs#L144-L171`](../../../crates/vox-deploy-codegen/src/generate.rs#L144-L171) | Generate a docker-compose.yml that works with both Docker Compose and Podman Compose.  Omits the deprecated `version` field for OCI compatibility.  Optional mens-related `environment` entries are loaded from `docker/vox-compose-mens-environment.block.yaml` (SSOT shared with docs). |
+| `fn` | `generate::generate_kubernetes_manifests` | `pub fn generate_kubernetes_manifests(` | [`crates/vox-deploy-codegen/src/generate.rs#L174`](../../../crates/vox-deploy-codegen/src/generate.rs#L174) | Generate basic Kubernetes manifests (Deployment and Service) for a Vox app. |
+

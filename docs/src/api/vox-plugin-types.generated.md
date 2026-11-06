@@ -48,3 +48,74 @@ Re-exported by `vox-plugin-api` (manifest types) and `vox-plugin-host`
 | `state_backend` | — |
 | `target` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_plugin_types: "vox-plugin-types"
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_plugin_types
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_plugin_types
+    node vox_db: "vox-db"
+    vox_db -> vox_plugin_types
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_plugin_types
+    node vox_plugin_api: "vox-plugin-api"
+    vox_plugin_api -> vox_plugin_types
+    node vox_plugin_host: "vox-plugin-host"
+    vox_plugin_host -> vox_plugin_types
+    node vox_plugin_test_harness: "vox-plugin-test-harness"
+    vox_plugin_test_harness -> vox_plugin_types
+    node vox_skill_discovery: "vox-skill-discovery"
+    vox_skill_discovery -> vox_plugin_types
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-plugin-api`](./vox-plugin-api.generated.md) | Direct workspace dependent |
+| [`vox-plugin-host`](./vox-plugin-host.generated.md) | Direct workspace dependent |
+| [`vox-plugin-test-harness`](./vox-plugin-test-harness.generated.md) | Direct workspace dependent |
+| [`vox-skill-discovery`](./vox-skill-discovery.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `plugin_manifest::PluginManifest` | `pub struct PluginManifest` | [`crates/vox-plugin-types/src/plugin_manifest.rs#L9-L11`](../../../crates/vox-plugin-types/src/plugin_manifest.rs#L9-L11) | — |
+| `struct` | `plugin_manifest::PluginHeader` | `pub struct PluginHeader` | [`crates/vox-plugin-types/src/plugin_manifest.rs#L15-L43`](../../../crates/vox-plugin-types/src/plugin_manifest.rs#L15-L43) | — |
+| `enum` | `plugin_manifest::PluginStatus` | `pub enum PluginStatus` | [`crates/vox-plugin-types/src/plugin_manifest.rs#L48-L53`](../../../crates/vox-plugin-types/src/plugin_manifest.rs#L48-L53) | Lifecycle stage of a plugin. |
+| `struct` | `plugin_manifest::HostRequirement` | `pub struct HostRequirement` | [`crates/vox-plugin-types/src/plugin_manifest.rs#L57-L59`](../../../crates/vox-plugin-types/src/plugin_manifest.rs#L57-L59) | — |
+| `enum` | `plugin_manifest::PluginPayload` | `pub enum PluginPayload` | [`crates/vox-plugin-types/src/plugin_manifest.rs#L63-L67`](../../../crates/vox-plugin-types/src/plugin_manifest.rs#L63-L67) | — |
+| `struct` | `plugin_manifest::CodePayload` | `pub struct CodePayload` | [`crates/vox-plugin-types/src/plugin_manifest.rs#L71-L88`](../../../crates/vox-plugin-types/src/plugin_manifest.rs#L71-L88) | — |
+| `struct` | `plugin_manifest::PayloadProvides` | `pub struct PayloadProvides` | [`crates/vox-plugin-types/src/plugin_manifest.rs#L92-L95`](../../../crates/vox-plugin-types/src/plugin_manifest.rs#L92-L95) | — |
+| `struct` | `plugin_manifest::PayloadRequires` | `pub struct PayloadRequires` | [`crates/vox-plugin-types/src/plugin_manifest.rs#L99-L106`](../../../crates/vox-plugin-types/src/plugin_manifest.rs#L99-L106) | — |
+| `struct` | `plugin_manifest::NativeLib` | `pub struct NativeLib` | [`crates/vox-plugin-types/src/plugin_manifest.rs#L110-L114`](../../../crates/vox-plugin-types/src/plugin_manifest.rs#L110-L114) | — |
+| `struct` | `plugin_manifest::SkillPayload` | `pub struct SkillPayload` | [`crates/vox-plugin-types/src/plugin_manifest.rs#L118-L123`](../../../crates/vox-plugin-types/src/plugin_manifest.rs#L118-L123) | — |
+| `struct` | `plugin_manifest::SkillTools` | `pub struct SkillTools` | [`crates/vox-plugin-types/src/plugin_manifest.rs#L127-L130`](../../../crates/vox-plugin-types/src/plugin_manifest.rs#L127-L130) | — |
+| `struct` | `plugin_manifest::CompositePayload` | `pub struct CompositePayload` | [`crates/vox-plugin-types/src/plugin_manifest.rs#L134-L137`](../../../crates/vox-plugin-types/src/plugin_manifest.rs#L134-L137) | — |
+| `enum` | `skill_identity::SkillNamespace` | `pub enum SkillNamespace` | [`crates/vox-plugin-types/src/skill_identity.rs#L52-L66`](../../../crates/vox-plugin-types/src/skill_identity.rs#L52-L66) | The namespace half of a [`SkillIdentity`]. |
+| `fn` | `skill_identity::is_external` | `pub fn is_external(&self) -> bool` | [`crates/vox-plugin-types/src/skill_identity.rs#L81-L83`](../../../crates/vox-plugin-types/src/skill_identity.rs#L81-L83) | True for anything that isn't [`SkillNamespace::Local`] — the distinction the stricter externally-sourced install gate (Task 3.4 design point 3) keys off of. |
+| `struct` | `skill_identity::SkillIdentity` | `pub struct SkillIdentity` | [`crates/vox-plugin-types/src/skill_identity.rs#L88-L91`](../../../crates/vox-plugin-types/src/skill_identity.rs#L88-L91) | A parsed, validated skill identity: `<namespace>/<name>`. |
+| `enum` | `skill_identity::SkillIdentityError` | `pub enum SkillIdentityError` | [`crates/vox-plugin-types/src/skill_identity.rs#L95-L106`](../../../crates/vox-plugin-types/src/skill_identity.rs#L95-L106) | Error returned by [`SkillIdentity::parse`]. |
+| `fn` | `skill_identity::parse` | `pub fn parse(id: &str) -> Result<Self, SkillIdentityError>` | [`crates/vox-plugin-types/src/skill_identity.rs#L120-L149`](../../../crates/vox-plugin-types/src/skill_identity.rs#L120-L149) | Parse `id` (e.g. a [`crate::skill_manifest::SkillManifest::id`]) into a validated namespace + name pair.  Backward compatibility: ids predating this scheme (e.g. `"vox.compiler"`, `"vox.docs"` — bundled first-party skills with no `/` at all) are treated as implicitly [`SkillNamespace::Local`] with the whole id as the name, un-validated against the character set below. Only ids that opt into the explicit `<namespace>/<name>` form are format-checked. This lets existing bundled skill manifests keep their ids as-is while new/external skills are required to namespace themselves. |
+| `fn` | `skill_identity::is_external` | `pub fn is_external(&self) -> bool` | [`crates/vox-plugin-types/src/skill_identity.rs#L153-L155`](../../../crates/vox-plugin-types/src/skill_identity.rs#L153-L155) | True when this identity requires the stricter externally-sourced install gate (namespace present + minimum reliability signal). |
+| `struct` | `skill_manifest::SkillManifest` | `pub struct SkillManifest` | [`crates/vox-plugin-types/src/skill_manifest.rs#L15-L48`](../../../crates/vox-plugin-types/src/skill_manifest.rs#L15-L48) | A complete skill manifest (equivalent to OpenClaw's skill.json / SKILL.md frontmatter).  Implements `Default` so construction sites that only need the core five fields (id, name, version, description, tools) can use `..Default::default()` for the rest. This is the canonical, unified type used everywhere in the plugin stack. |
+| `fn` | `skill_manifest::new` | `pub fn new(` | [`crates/vox-plugin-types/src/skill_manifest.rs#L51`](../../../crates/vox-plugin-types/src/skill_manifest.rs#L51) | — |
+| `enum` | `skill_manifest::SkillCategory` | `pub enum SkillCategory` | [`crates/vox-plugin-types/src/skill_manifest.rs#L80-L97`](../../../crates/vox-plugin-types/src/skill_manifest.rs#L80-L97) | Skill category for marketplace browsing and filtering. |
+| `enum` | `skill_manifest::SkillPermission` | `pub enum SkillPermission` | [`crates/vox-plugin-types/src/skill_manifest.rs#L111-L126`](../../../crates/vox-plugin-types/src/skill_manifest.rs#L111-L126) | Permissions a skill may require at install time. |
+| `struct` | `state_backend::PluginStateSkillEntry` | `pub struct PluginStateSkillEntry` | [`crates/vox-plugin-types/src/state_backend.rs#L13-L18`](../../../crates/vox-plugin-types/src/state_backend.rs#L13-L18) | One row from the underlying skill-manifest store, returned by [`PluginStateBackend::list_skill_manifests`]. |
+| `struct` | `state_backend::PluginStateError` | `pub struct PluginStateError(pub String)` | [`crates/vox-plugin-types/src/state_backend.rs#L24`](../../../crates/vox-plugin-types/src/state_backend.rs#L24) | Errors a state backend may return. Backends stringify their internal errors so the host doesn't depend on backend-specific error types. |
+| `fn` | `state_backend::new` | `pub fn new(msg: impl Into<String>) -> Self` | [`crates/vox-plugin-types/src/state_backend.rs#L27-L29`](../../../crates/vox-plugin-types/src/state_backend.rs#L27-L29) | — |
+| `trait` | `state_backend::PluginStateBackend` | `pub trait PluginStateBackend: Send + Sync` | [`crates/vox-plugin-types/src/state_backend.rs#L35-L70`](../../../crates/vox-plugin-types/src/state_backend.rs#L35-L70) | Trait the plugin host uses for persistent skill state. Implemented by `vox-db` (concrete) and any test/in-memory double. |
+| `fn` | `target::current_target_triple` | `pub fn current_target_triple() -> Option<&'static str>` | [`crates/vox-plugin-types/src/target.rs#L19-L35`](../../../crates/vox-plugin-types/src/target.rs#L19-L35) | The platform key for the crate currently being compiled, or `None` on a platform Vox plugins don't target. The returned value (when `Some`) is always in [`PLUGIN_TARGET_TRIPLES`]. |
+| `fn` | `target::plugin_artifact_filename` | `pub fn plugin_artifact_filename(crate_name: &str, triple: &str) -> Option<String>` | [`crates/vox-plugin-types/src/target.rs#L44-L56`](../../../crates/vox-plugin-types/src/target.rs#L44-L56) | The cdylib filename a plugin crate produces for `triple`.  Rule: a `crate-type = ["cdylib"]` lib named `vox-plugin-foo` builds `vox_plugin_foo.dll` (Windows), `libvox_plugin_foo.so` (Linux), or `libvox_plugin_foo.dylib` (macOS). `crate_name` is the crate directory / package name (e.g. `"vox-plugin-nvml-probe"`); hyphens become underscores. Returns `None` for a triple outside [`PLUGIN_TARGET_TRIPLES`]. |
+

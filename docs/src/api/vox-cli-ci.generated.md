@@ -191,3 +191,94 @@ Repository CI guard checks extracted from `vox-cli` (`vox ci *` implementation w
 |---|---|
 | `HeavyGuardHost` | Seam for the Tier-2 `vox ci` guards that stay in vox-cli because they reach into its internals (`command_catalog`, `command_registry_model`, `utils`, `fs_utils`, `commands::runtime`). The moved dispatcher (`run::run`) calls `dispatch_heavy(&cmd)` first; vox-cli implements it on `VoxCliProviders`. Extends `GateStatusWriter` so the dispatcher can also record per-gate status through the same host object. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_cli_ci: "vox-cli-ci"
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_cli_ci -> vox_bounded_fs
+    node vox_cli_contracts: "vox-cli-contracts"
+    vox_cli_ci -> vox_cli_contracts
+    node vox_cli_core: "vox-cli-core"
+    vox_cli_ci -> vox_cli_core
+    node vox_code_audit: "vox-code-audit"
+    vox_cli_ci -> vox_code_audit
+    node vox_compiler: "vox-compiler"
+    vox_cli_ci -> vox_compiler
+    node vox_config: "vox-config"
+    vox_cli_ci -> vox_config
+    node vox_db: "vox-db"
+    vox_cli_ci -> vox_db
+    node vox_doc_pipeline: "vox-doc-pipeline"
+    vox_cli_ci -> vox_doc_pipeline
+    node vox_git: "vox-git"
+    vox_cli_ci -> vox_git
+    node vox_grammar_export: "vox-grammar-export"
+    vox_cli_ci -> vox_grammar_export
+    node vox_graph_reader: "vox-graph-reader"
+    vox_cli_ci -> vox_graph_reader
+    node vox_http_client: "vox-http-client"
+    vox_cli_ci -> vox_http_client
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_cli_ci
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `trait` | `HeavyGuardHost` | `pub trait HeavyGuardHost: vox_cli_contracts::GateStatusWriter` | [`crates/vox-cli-ci/src/lib.rs#L8-L16`](../../../crates/vox-cli-ci/src/lib.rs#L8-L16) | Seam for the Tier-2 `vox ci` guards that stay in vox-cli because they reach into its internals (`command_catalog`, `command_registry_model`, `utils`, `fs_utils`, `commands::runtime`). The moved dispatcher (`run::run`) calls `dispatch_heavy(&cmd)` first; vox-cli implements it on `VoxCliProviders`. Extends `GateStatusWriter` so the dispatcher can also record per-gate status through the same host object. |
+| `fn` | `affected::is_sentinel` | `pub fn is_sentinel(path: &str) -> bool` | [`crates/vox-cli-ci/src/affected.rs#L28-L30`](../../../crates/vox-cli-ci/src/affected.rs#L28-L30) | — |
+| `fn` | `affected::contracts_outside_graph_force_full` | `pub fn contracts_outside_graph_force_full(changed_files: &[String]) -> bool` | [`crates/vox-cli-ci/src/affected.rs#L39-L45`](../../../crates/vox-cli-ci/src/affected.rs#L39-L45) | Non-graph `contracts/**` edits can change SSOT surfaces workspace-wide; force a full PR gate. Generated reports are the exception (see [`GENERATED_CONTRACT_REPORTS`]); every other contracts path still forces a full run, so a new reader of a contract can never be skipped. |
+| `fn` | `affected::ci_workflow_force_full` | `pub fn ci_workflow_force_full(changed_files: &[String]) -> bool` | [`crates/vox-cli-ci/src/affected.rs#L48-L52`](../../../crates/vox-cli-ci/src/affected.rs#L48-L52) | CI workflow edits can change gate behavior workspace-wide; force a full PR gate. |
+| `fn` | `affected::file_to_crate` | `pub fn file_to_crate(path: &str) -> Option<&str>` | [`crates/vox-cli-ci/src/affected.rs#L54-L58`](../../../crates/vox-cli-ci/src/affected.rs#L54-L58) | — |
+| `struct` | `affected::PathFlags` | `pub struct PathFlags` | [`crates/vox-cli-ci/src/affected.rs#L61-L68`](../../../crates/vox-cli-ci/src/affected.rs#L61-L68) | — |
+| `fn` | `affected::compute_path_flags` | `pub fn compute_path_flags(changed_files: &[String]) -> PathFlags` | [`crates/vox-cli-ci/src/affected.rs#L70-L101`](../../../crates/vox-cli-ci/src/affected.rs#L70-L101) | — |
+| `fn` | `affected::invert` | `pub fn invert(graph: &BTreeMap<String, Vec<String>>) -> BTreeMap<String, BTreeSet<String>>` | [`crates/vox-cli-ci/src/affected.rs#L103-L112`](../../../crates/vox-cli-ci/src/affected.rs#L103-L112) | — |
+| `fn` | `affected::reverse_closure` | `pub fn reverse_closure(` | [`crates/vox-cli-ci/src/affected.rs#L114`](../../../crates/vox-cli-ci/src/affected.rs#L114) | — |
+| `fn` | `affected::set_includes_compiler` | `pub fn set_includes_compiler(set: &BTreeSet<String>) -> bool` | [`crates/vox-cli-ci/src/affected.rs#L136-L138`](../../../crates/vox-cli-ci/src/affected.rs#L136-L138) | — |
+| `enum` | `affected::Affected` | `pub enum Affected` | [`crates/vox-cli-ci/src/affected.rs#L141-L145`](../../../crates/vox-cli-ci/src/affected.rs#L141-L145) | — |
+| `fn` | `affected::compute_affected` | `pub fn compute_affected(` | [`crates/vox-cli-ci/src/affected.rs#L147`](../../../crates/vox-cli-ci/src/affected.rs#L147) | — |
+| `fn` | `affected::shadow_misses` | `pub fn shadow_misses(junit_xml: &str, affected: &BTreeSet<String>) -> Vec<String>` | [`crates/vox-cli-ci/src/affected.rs#L175-L203`](../../../crates/vox-cli-ci/src/affected.rs#L175-L203) | Parse nextest JUnit for failing tests; return crate names not in `affected`. |
+| `struct` | `affected_cmd::CrateGraph` | `pub struct CrateGraph` | [`crates/vox-cli-ci/src/affected_cmd.rs#L5-L8`](../../../crates/vox-cli-ci/src/affected_cmd.rs#L5-L8) | — |
+| `fn` | `affected_cmd::graph_from_metadata` | `pub fn graph_from_metadata(meta: &serde_json::Value) -> CrateGraph` | [`crates/vox-cli-ci/src/affected_cmd.rs#L10-L50`](../../../crates/vox-cli-ci/src/affected_cmd.rs#L10-L50) | — |
+| `fn` | `affected_cmd::regen_graph` | `pub fn regen_graph(out_path: &std::path::Path) -> Result<(), String>` | [`crates/vox-cli-ci/src/affected_cmd.rs#L52-L70`](../../../crates/vox-cli-ci/src/affected_cmd.rs#L52-L70) | — |
+| `fn` | `affected_cmd::check_graph` | `pub fn check_graph(committed: &std::path::Path) -> Result<(), String>` | [`crates/vox-cli-ci/src/affected_cmd.rs#L72-L90`](../../../crates/vox-cli-ci/src/affected_cmd.rs#L72-L90) | — |
+| `fn` | `affected_cmd::partition_crates` | `pub fn partition_crates(weights: &[(String, u64)], n: usize) -> Vec<Vec<String>>` | [`crates/vox-cli-ci/src/affected_cmd.rs#L103-L124`](../../../crates/vox-cli-ci/src/affected_cmd.rs#L103-L124) | Split crates into at most `n` groups of near-equal weight (longest-processing-time greedy: heaviest first, each into the currently lightest group). Each CI shard then compiles and runs only its own group's test binaries — compiling every test binary in every shard (hash sharding) cost 17-19 min per shard. Empty groups are dropped; ties break by name. |
+| `fn` | `affected_cmd::run_affected_cmd` | `pub fn run_affected_cmd(args: &[String]) -> i32` | [`crates/vox-cli-ci/src/affected_cmd.rs#L181`](../../../crates/vox-cli-ci/src/affected_cmd.rs#L181) | — |
+| `fn` | `agentskills_compliance::run` | `pub fn run() -> Result<()>` | [`crates/vox-cli-ci/src/agentskills_compliance.rs#L86`](../../../crates/vox-cli-ci/src/agentskills_compliance.rs#L86) | — |
+| `fn` | `ai_fixtures_coverage::run` | `pub fn run(repo_root: &Path) -> Result<()>` | [`crates/vox-cli-ci/src/ai_fixtures_coverage.rs#L15-L55`](../../../crates/vox-cli-ci/src/ai_fixtures_coverage.rs#L15-L55) | Verify AI fixture catalog parity against shipped parser + HIR surfaces. |
+| `fn` | `attention_ledger_parity::run` | `pub fn run(root: &Path) -> Result<()>` | [`crates/vox-cli-ci/src/attention_ledger_parity.rs#L16-L54`](../../../crates/vox-cli-ci/src/attention_ledger_parity.rs#L16-L54) | — |
+| `fn` | `attention_parity::run` | `pub fn run(root: &Path) -> Result<()>` | [`crates/vox-cli-ci/src/attention_parity.rs#L5-L38`](../../../crates/vox-cli-ci/src/attention_parity.rs#L5-L38) | — |
+| `fn` | `benchmark_telemetry::record_opt` | `pub async fn record_opt(name: &str, metric_value: Option<f64>, details: Option<serde_json::Value>)` | [`crates/vox-cli-ci/src/benchmark_telemetry.rs#L74-L76`](../../../crates/vox-cli-ci/src/benchmark_telemetry.rs#L74-L76) | Async: connect and write one benchmark row (no-op unless `VOX_BENCHMARK_TELEMETRY` is set). |
+| `fn` | `benchmark_telemetry::record_opt_with_unit` | `pub async fn record_opt_with_unit(` | [`crates/vox-cli-ci/src/benchmark_telemetry.rs#L79`](../../../crates/vox-cli-ci/src/benchmark_telemetry.rs#L79) | Like [`record_opt`] but forwards `metric_value_unit` (e.g. `"seconds"`) to Codex. |
+| `fn` | `benchmark_telemetry::record_syntax_k_opt` | `pub async fn record_syntax_k_opt(` | [`crates/vox-cli-ci/src/benchmark_telemetry.rs#L128`](../../../crates/vox-cli-ci/src/benchmark_telemetry.rs#L128) | Async: connect and write one syntax-k telemetry row (no-op unless telemetry env is enabled). |
+| `fn` | `benchmark_telemetry::record_opt_blocking` | `pub fn record_opt_blocking(` | [`crates/vox-cli-ci/src/benchmark_telemetry.rs#L164`](../../../crates/vox-cli-ci/src/benchmark_telemetry.rs#L164) | Blocking variant for sync CLI paths (no Tokio handle required). |
+| `fn` | `benchmark_telemetry::record_opt_with_unit_blocking` | `pub fn record_opt_with_unit_blocking(` | [`crates/vox-cli-ci/src/benchmark_telemetry.rs#L173`](../../../crates/vox-cli-ci/src/benchmark_telemetry.rs#L173) | Blocking variant for sync CLI paths that includes a metric unit. |
+| `fn` | `benchmark_telemetry::record_syntax_k_opt_blocking` | `pub fn record_syntax_k_opt_blocking(` | [`crates/vox-cli-ci/src/benchmark_telemetry.rs#L231`](../../../crates/vox-cli-ci/src/benchmark_telemetry.rs#L231) | Blocking variant for sync syntax-k telemetry paths. |
+| `struct` | `build_bench::TimingEntry` | `pub struct TimingEntry` | [`crates/vox-cli-ci/src/build_bench.rs#L18-L21`](../../../crates/vox-cli-ci/src/build_bench.rs#L18-L21) | — |
+| `fn` | `build_bench::extract_unit_data` | `pub fn extract_unit_data(html: &str) -> Vec<TimingEntry>` | [`crates/vox-cli-ci/src/build_bench.rs#L30-L60`](../../../crates/vox-cli-ci/src/build_bench.rs#L30-L60) | Parse the embedded UNIT_DATA JS array from a cargo --timings HTML file.  cargo emits `const UNIT_DATA = [ {..}, .. ];` where each entry's `duration` is **float seconds** (e.g. `9.37`). We convert to whole milliseconds and drop zero-duration units (cached / no-rebuild). We do NOT filter on `mode`: in a cached/sccache build the real compile rows carry `mode:"todo"` with a nonzero duration, so a mode filter would discard exactly the data we want. |
+| `fn` | `build_bench::find_newest_timings_html` | `pub fn find_newest_timings_html(repo_root: &Path) -> Option<std::path::PathBuf>` | [`crates/vox-cli-ci/src/build_bench.rs#L63-L74`](../../../crates/vox-cli-ci/src/build_bench.rs#L63-L74) | Return the most-recently-modified `cargo-timing-*.html` under `target/cargo-timings/`. |
+| `struct` | `build_bench::HistoryRecord` | `pub struct HistoryRecord` | [`crates/vox-cli-ci/src/build_bench.rs#L77-L80`](../../../crates/vox-cli-ci/src/build_bench.rs#L77-L80) | — |
+| `fn` | `build_bench::append_to_history` | `pub fn append_to_history(history_path: &Path, run_id: &str, entries: &[TimingEntry]) -> Result<()>` | [`crates/vox-cli-ci/src/build_bench.rs#L83-L101`](../../../crates/vox-cli-ci/src/build_bench.rs#L83-L101) | Append one JSONL record to the history file (create if absent). |
+| `struct` | `build_bench::Scenario` | `pub struct Scenario` | [`crates/vox-cli-ci/src/build_bench.rs#L104-L108`](../../../crates/vox-cli-ci/src/build_bench.rs#L104-L108) | — |
+| `struct` | `build_bench::ScenarioFile` | `pub struct ScenarioFile` | [`crates/vox-cli-ci/src/build_bench.rs#L111-L114`](../../../crates/vox-cli-ci/src/build_bench.rs#L111-L114) | — |
+| `struct` | `build_bench::BenchRecord` | `pub struct BenchRecord` | [`crates/vox-cli-ci/src/build_bench.rs#L117-L121`](../../../crates/vox-cli-ci/src/build_bench.rs#L117-L121) | — |
+| `struct` | `build_bench::Snapshot` | `pub struct Snapshot` | [`crates/vox-cli-ci/src/build_bench.rs#L124-L132`](../../../crates/vox-cli-ci/src/build_bench.rs#L124-L132) | — |
+| `fn` | `build_bench::current_host` | `pub fn current_host() -> String` | [`crates/vox-cli-ci/src/build_bench.rs#L139-L141`](../../../crates/vox-cli-ci/src/build_bench.rs#L139-L141) | Host identifier for a snapshot written now, e.g. `"x86_64-windows"`.  `arch-os` rather than the full target triple: `std::env::consts` gives these without a build script, and the distinction that matters for wall-clock comparison is the machine class, not the ABI suffix. |
+| `fn` | `build_bench::host_mismatch_warning` | `pub fn host_mismatch_warning(baseline_host: Option<&str>, current: &str) -> Option<String>` | [`crates/vox-cli-ci/src/build_bench.rs#L150-L160`](../../../crates/vox-cli-ci/src/build_bench.rs#L150-L160) | Warn when a baseline was timed on a different host than the current run.  Scenario wall-clock is host-bound far more strongly than per-crate self-time: a Windows-measured baseline compared against a Linux CI run produces a large delta on every scenario that reflects the machine, not the code. Returns `None` when the baseline predates provenance, so pre-existing files do not emit a warning on every run — the dynamic that gets warnings ignored. |
+| `fn` | `build_bench::by_id` | `pub fn by_id(&self) -> BTreeMap<&str, &BenchRecord>` | [`crates/vox-cli-ci/src/build_bench.rs#L163-L165`](../../../crates/vox-cli-ci/src/build_bench.rs#L163-L165) | — |
+| `struct` | `build_bench::DeltaRow` | `pub struct DeltaRow` | [`crates/vox-cli-ci/src/build_bench.rs#L169-L175`](../../../crates/vox-cli-ci/src/build_bench.rs#L169-L175) | — |
+| `fn` | `build_bench::compute_deltas` | `pub fn compute_deltas(base: &Snapshot, new: &Snapshot) -> Vec<DeltaRow>` | [`crates/vox-cli-ci/src/build_bench.rs#L177-L204`](../../../crates/vox-cli-ci/src/build_bench.rs#L177-L204) | — |
+| `fn` | `build_bench::baseline_is_unpopulated` | `pub fn baseline_is_unpopulated(base: &Snapshot) -> bool` | [`crates/vox-cli-ci/src/build_bench.rs#L213-L222`](../../../crates/vox-cli-ci/src/build_bench.rs#L213-L222) | True when `base` is a committed *placeholder* rather than a real measurement: it has at least one `ok` record and every `ok` record is `wall_ms == 0`.  This matters because [`compute_deltas`] defines `pct` as `0.0` whenever the base is zero, so an unpopulated baseline makes every scenario report a 0% delta and the gate can never fail. A real `cargo check` scenario cannot measure 0 ms, so all-zero is unambiguously "never filled in". |
+| `fn` | `build_bench::format_delta_markdown` | `pub fn format_delta_markdown(label: &str, rows: &[DeltaRow]) -> String` | [`crates/vox-cli-ci/src/build_bench.rs#L224-L235`](../../../crates/vox-cli-ci/src/build_bench.rs#L224-L235) | — |
+

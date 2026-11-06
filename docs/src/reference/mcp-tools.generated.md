@@ -24,7 +24,7 @@ status: current
 
 Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../contracts/mcp/tool-registry.canonical.yaml).
 
-**Total tools:** 376
+**Total tools:** 408
 
 | Tool | Product Lane | Tier | HTTP Read Eligible | Description |
 |---|---|---|---|---|
@@ -59,6 +59,7 @@ Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../con
 | `vox_attention_history` | ai |  | No | Returns the history of attention shifts. |
 | `vox_attention_reset` | ai |  | No | Resets the attention budget for the agent pool. |
 | `vox_attention_summary` | ai |  | Yes | Returns a summary of agent attention allocation and focus shifts over a time window. |
+| `vox_battery_status` | ai |  | No | Report the in-process battery ledger: remaining and spent budget units, USD spend, and 4-hour/monthly quota windows. |
 | `vox_behavior_record` | ai |  | No | Record a user behavior event and receive pattern suggestions. |
 | `vox_behavior_summary` | ai |  | No | Analyze recent behavior and summarize detected patterns. |
 | `vox_benchmark_list` | platform |  | No | List recent benchmark_event rows from Codex for this repository (requires VoxDb). Also covers build times and eval scores. Trust/sensitivity SSOT — docs/src/architecture/telemetry-trust-ssot.md. |
@@ -99,22 +100,32 @@ Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../con
 | `vox_budget_status` | ai |  | No | Returns token usage and approximate costs across all agents. |
 | `vox_build_crate` | app |  | No | Run cargo build for a crate or the whole workspace. |
 | `vox_builtin_registry` | app |  | No | Return detailed signatures and docs for all builtin functions. |
+| `vox_call_mcp_lazy` | interop |  | No | Resolve a lazily discovered external MCP tool call (tier 3) to its client tool name and normalized arguments without executing it. |
 | `vox_cancel_task` | ai |  | No | Cancels an active or queued task. |
 | `vox_capability_explain` | platform |  | No | Explain a Vox capability (what it is, its owning crate and layer, CLI/GUI/MCP equivalents and docs link), answered from contracts/capabilities/capability-index.v1.json. |
 | `vox_capability_features` | platform |  | No | List Vox capabilities by domain with layer, CLI/GUI/MCP equivalents and docs path, answered from contracts/capabilities/capability-index.v1.json. |
 | `vox_capability_model_manifest` | platform |  | No | Return the live Vox capability model manifest JSON (MCP tools, CLI paths, runtime builtin maps) merged from contracts/capability and registries at the workspace root. |
 | `vox_change_create` | ai |  | No | Start tracking a new logical change. |
 | `vox_change_log` | ai |  | No | Show the history of a change. |
+| `vox_chat_compact_up_to` | ai |  | No | Compact a chat session transcript up to or from a message, replacing those turns with a summary and preserving thought signatures; persists the result. |
+| `vox_chat_edit_message_in_place` | ai |  | No | Edit one chat transcript message in place without rewinding later turns; persists the edited transcript. |
 | `vox_chat_history` | ai |  | No | Retrieve the full chat history for the current session. |
 | `vox_chat_message` | ai |  | No | Send a chat message to the Vox AI. Resolves @mentions, injects editor context, queries LLM, persists history. |
+| `vox_chat_queue_steer` | ai |  | No | Enqueue a prompt on a thread's run queue and optionally promote it to a mid-turn steer injected into the active agent turn. |
+| `vox_chat_regenerate` | ai |  | No | Rewind a chat transcript to a user turn, restore the matching Git checkpoint (resets the working tree and removes untracked files), and optionally re-run the prompt. |
 | `vox_chat_session_append` | ai |  | No | Append one message to a GUI chat session's display transcript, creating the session on first use. |
 | `vox_chat_session_archive` | ai |  | No | Archive a GUI chat session, or restore an archived one with archived=false. |
 | `vox_chat_session_create` | ai |  | No | Create a GUI chat session (display transcript) tagged with the server repository. |
 | `vox_chat_session_rename` | ai |  | No | Rename a GUI chat session. |
+| `vox_chat_stream_cancel` | ai |  | No | Cancel the in-flight resumable turn stream for a chat session. |
+| `vox_chat_stream_resume` | ai |  | No | Return accumulated resumable turn-stream text and sequenced chunks after a char offset or sequence number for a chat session. |
 | `vox_check` | app |  | No | CLI operation `vox check` |
 | `vox_check_file_owner` | ai |  | No | Check which agent currently owns a given file path. |
 | `vox_check_mood` | ai |  | No | Returns the current gamification mood and status of the agent companion. |
 | `vox_check_workspace` | app |  | No | Run cargo check for the entire workspace and return diagnostics. |
+| `vox_checkpoint_capture` | ai |  | No | Capture a Git plumbing checkpoint (or labelled restore point) for a thread turn under refs/vox/checkpoints. |
+| `vox_checkpoint_list` | ai |  | No | List the Git plumbing checkpoints recorded for a thread. |
+| `vox_checkpoint_restore` | ai |  | No | Restore the working tree and index to a thread's Git checkpoint, remove untracked files, and delete later checkpoint refs. |
 | `vox_claim_file` | ai |  | No | Request ownership of a specific file. |
 | `vox_code_audit_findings_upsert` | platform |  | No | Record or update TOESTUB anti-pattern findings from external reviews (GitHub/CodeRabbit). |
 | `vox_compaction_status` | ai |  | No | Get current context token usage and whether compaction is recommended. |
@@ -124,7 +135,9 @@ Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../con
 | `vox_config_set` | platform |  | No | Update the orchestrator configuration dynamically (wire alias: vox_set_config). |
 | `vox_conflict_diff` | ai |  | No | Show the N-way diff of a conflict. |
 | `vox_conflicts` | ai |  | No | List active file conflicts between agents. |
+| `vox_consensus_run` | ai |  | No | Fan a prompt out to 2-4 models (live inference when provider keys are configured), score each response, and synthesize a consensus answer. |
 | `vox_context_budget` | ai |  | No | Get the token budget status and summarize recommendation for an agent. |
+| `vox_context_handoff` | ai |  | No | Build a cross-provider context handoff package from a thread transcript and optionally append it to a target thread's history. |
 | `vox_cost_history` | ai |  | No | Get a time-series cost breakdown of operations. |
 | `vox_coverage_report` | app |  | No | Get code coverage report for a crate using cargo-llvm-cov. |
 | `vox_credentials_status` | ai |  | Yes | List every inference provider with a present Clavis credential plus the agy delegation status — the credential-aware model-selection surface. OpenRouter is one of many. |
@@ -152,6 +165,7 @@ Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../con
 | `vox_export_grammar_ebnf` | app |  | No | Export the Vox EBNF grammar. |
 | `vox_fail_task` | ai |  | No | Mark a task as failed with a reason string. |
 | `vox_feedback_list` | ai |  | Yes | List all pending and withheld feedback requests. |
+| `vox_file_diff_and_diagnostics` | ai |  | No | Return the unified Git diff against HEAD and stub diagnostics for one repository-relative file. |
 | `vox_file_graph` | ai |  | No | Get a JSON graph of all files and their owning agents (affinity map). |
 | `vox_gamify_battle_start` | ai |  | No | Start a bug battle from a synthetic finding (companion name + rule + message). |
 | `vox_gamify_battle_submit` | ai |  | No | Submit code for the active bug battle for a companion (success flag). |
@@ -177,6 +191,10 @@ Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../con
 | `vox_git_diff` | app |  | Yes | Show uncommitted git diff for a file or the whole tree. |
 | `vox_git_log` | app |  | No | Show recent git commits (default: last 10). |
 | `vox_git_status` | app |  | Yes | Get current git working tree status. |
+| `vox_guest_share_mint` | ai |  | No | Mint a signed guest share invite for a chat thread. |
+| `vox_guest_share_moderate` | ai |  | No | Approve or dismiss a pending guest message; approved messages are appended to the thread's chat history. |
+| `vox_guest_share_redeem` | ai |  | No | Redeem a signed guest share invite and bind it to a guest session. |
+| `vox_guest_share_submit` | ai |  | No | Submit a guest prompt to a shared thread's moderation queue. |
 | `vox_gui_components` | ai |  | Yes | Retrieve the components registered in the primitive component registry. |
 | `vox_gui_preference_get` | data |  | No | Read one Axis `gui.*` preference from the local workspace database (loopback-only). |
 | `vox_gui_preference_set` | data |  | No | Write one Axis `gui.*` preference to the local workspace database (loopback-only). |
@@ -212,6 +230,8 @@ Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../con
 | `vox_lint_crate` | app |  | No | Run cargo clippy for a crate or whole workspace. |
 | `vox_list_approval_allowlist` | workflow |  | No | List MCP tools currently allowlisted for auto-approval in a repository (T0.3). |
 | `vox_list_context` | ai |  | No | List available context keys by prefix. |
+| `vox_list_mcp_servers` | interop |  | No | List lazily discovered external MCP server groups (tier 1); optionally rebuilds the in-process lazy registry from supplied prefixed tools. |
+| `vox_list_mcp_tools` | interop |  | No | List the tool schemas of one lazily discovered external MCP server group (tier 2). |
 | `vox_list_models` | ai |  | No | List all models in the orchestrator registry (ids, providers, free/paid). |
 | `vox_lock_status` | ai |  | No | Returns a list of all current file locks. |
 | `vox_map_agent_session` | ai |  | No | Map a Vox agent session ID to an existing orchestrator agent (wire aliases: vox_map_opencode_session, vox_map_vscode_session). |
@@ -227,6 +247,8 @@ Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../con
 | `vox_mesh_nodes` | workflow |  | Yes | List Vox Populi mesh nodes (control plane preferred, local-registry fallback) with status, GPU, trust tier, advertised models. |
 | `vox_mesh_queue_stats` | workflow |  | Yes | Vox Populi mesh pending-queue stats (control plane preferred, local queue_depth fallback). |
 | `vox_models_preference_set` | ai |  | No | Persist one Models/Settings preference (active_model, routing_priority, selection_policy) for the local GUI user; other keys are refused and values are validated. |
+| `vox_muse_pool_adopt` | ai |  | No | Adopt the winning Muse worktree variant and delete the losing variants' worktree directories. |
+| `vox_muse_pool_spawn` | ai |  | No | Plan 1-4 Muse worktree variants for a run, creating their directories and provisioning untracked env files. |
 | `vox_my_files` | ai |  | No | Returns all files currently owned by the specified agent. |
 | `vox_news_approval_status` | data |  | No | Return distinct approver count and whether dual approval is satisfied for a news_id. |
 | `vox_news_approve` | data |  | No | Record a maker-checker approval for a news_id in VoxDb (two distinct approvers required before live syndication). |
@@ -268,12 +290,15 @@ Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../con
 | `vox_plugin_remove` | interop |  | No | Remove an installed Vox plugin from the local plugins directory. |
 | `vox_poll_events` | ai |  | No | Poll recent orchestrator events for all agents. |
 | `vox_populi_local_status` | workflow |  | No | Return mens environment variables and the local mens registry file contents (CPU-first node records). |
+| `vox_pr_review_guide` | ai |  | No | Generate (and cache in process) a structured review guide for a pull request head from its changed files. |
 | `vox_preference_get` | data |  | No | Get a user preference value by key from VoxDb. |
 | `vox_preference_list` | data |  | No | List all user preferences, optionally filtered by a key prefix. |
 | `vox_preference_set` | data |  | No | Set a user preference key to a value in VoxDb. |
 | `vox_project_init` | platform |  | No | Scaffold `Vox.toml`, `src/main.vox`, `.vox_modules/`, or a skill markdown file — parity with `vox init` under the bound repo root (optional `target_subdir`). |
 | `vox_propose_skill` | ai |  | No | Surface a mined recurring operation procedure as a non-blocking "save as skill?" suggestion in the NeedsYou inbox. |
 | `vox_publish_message` | ai |  | No | Publish a message to the bulletin board for all agents to receive. |
+| `vox_quarantine_list` | ai |  | No | List quarantined (read-only) district path prefixes. |
+| `vox_quarantine_set` | ai |  | No | Quarantine or release a district path prefix, toggling read-only enforcement for writes under it. |
 | `vox_questioning_pending` | ai |  | No | Return open clarification session + unanswered question rows with MC options and belief_state_json for UI (requires VoxDb; same session_id as chat/plan). |
 | `vox_questioning_submit_answer` | ai |  | No | Store the user's answer to a pending Socrates clarification for an MCP session (requires VoxDb; pairs with socrates.questioning in chat/plan responses). |
 | `vox_questioning_sync_ssot` | ai |  | No | Dual-write the information-theoretic questioning markdown SSOT into publication_manifests and search (requires VoxDb + workspace file). |
@@ -305,6 +330,7 @@ Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../con
 | `vox_resolve_feedback` | ai |  | No | Resolve a pending clarification or doubt request with a specific action. |
 | `vox_resume_agent` | ai |  | No | Resume a previously paused agent queue. |
 | `vox_retire_agent` | ai |  | No | Retire an agent: release locks and affinity, unregister heartbeat, return remaining tasks. |
+| `vox_revert_file` | ai |  | No | Discard uncommitted working-tree changes to one repository-relative file (git checkout -- file). |
 | `vox_run_tests` | app |  | No | Run cargo test for a specific crate, optionally filtered by test name. |
 | `vox_schola_submit` | ai |  | No | Enqueue a background orchestrator task for Mens training intent; canonical execution remains `vox mens train`. |
 | `vox_scientia_assist_suggestions` | data |  | No | Bounded Research-routed LLM assist — returns heuristic block plus optional JSON-only checklist/gap suggestions grounded on manifest scientia_evidence; never authoritative for novelty. |
@@ -357,8 +383,12 @@ Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../con
 | `vox_session_cleanup` | ai |  | No | Tick lifecycle and remove archived sessions. |
 | `vox_session_compact` | ai |  | No | Replace a session's history with a summary string. |
 | `vox_session_create` | ai |  | No | Create a new persistent session for an agent. |
+| `vox_session_export_bundle` | ai |  | No | Export a chat session's transcript as a portable VoxSessionExportBundle v1. |
+| `vox_session_import_bundle` | ai |  | No | Import a VoxSessionExportBundle v1 and append its messages to the session's chat history. |
+| `vox_session_import_external` | ai |  | No | Import a Claude Code, Codex, or Cursor session (raw JSONL, file path, or latest discovered) and append it to a chat session's history. |
 | `vox_session_info` | ai |  | No | Get detailed info about a specific session. |
 | `vox_session_list` | ai |  | No | List all active sessions with state and token usage. |
+| `vox_session_list_external` | ai |  | No | List discoverable Claude Code, Codex, and Cursor session files, newest first. |
 | `vox_session_reset` | ai |  | No | Reset a session's conversation history (keeps metadata). |
 | `vox_set_active_model` | ai |  | No | Set sticky MCP chat model id for chat / inline / ghost (empty string clears). |
 | `vox_set_agent_budget` | ai |  | No | Set custom VoxDB-powered budget limits for an agent. |
@@ -380,6 +410,7 @@ Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../con
 | `vox_snapshot_restore` | ai |  | No | Restore files to a previous snapshot state. |
 | `vox_spawn_agent` | ai |  | No | Spawn a new orchestrator agent queue (optional dynamic/transient agent for auto-retire). |
 | `vox_speech_to_code` | ai |  | No | Orchestrated speech-to-code: transcribe workspace audio (Oratio) or accept prompt text, then vox_generate_code with shared session_id; optional route_mode, emit_trace_path JSONL for MENS. |
+| `vox_stage_file` | ai |  | No | Stage one repository-relative file in the Git index (git add -- file). |
 | `vox_submit_task` | ai |  | No | Submit a new task to the orchestrator. Routes to the best agent by file affinity. |
 | `vox_suggest_model` | ai |  | No | Suggest the best model for a task category string (codegen, review, etc.). |
 | `vox_task_status` | ai |  | Yes | Get the current status of a specific task by ID. |
@@ -394,6 +425,7 @@ Machine-derived from [`contracts/mcp/tool-registry.canonical.yaml`](../../../con
 | `vox_validate_mermaid` | ai |  | Yes | Validate and repair Mermaid diagrams in Markdown or raw Mermaid source with line-accurate diagnostics. |
 | `vox_validate_source` | app |  | No | Validate Vox source code passed as a string (no filesystem read). Returns LSP-style diagnostics with stable codes and structured autofix suggestions for the iterative AI-assistant repair loop. |
 | `vox_validate_vuv` | ai |  | Yes | Validate Vox/VUV source against the compile-time GUI guarantees (contrast, layer-occlusion, a11y, structural web-IR) without writing files. |
+| `vox_vcs_checkpoint_diff_summary` | ai |  | No | Summarize per-file line deltas and the unified patch between a thread checkpoint and HEAD. |
 | `vox_vcs_status` | ai |  | No | Get unified VCS status. |
 | `vox_verify_task_claims` | ai |  | No | Check receipt ids an agent claims against the orchestrator's receipt ledger; returns which are valid, fabricated (no ledger entry) or unverified (tag mismatch). Read-only. |
 | `vox_visual_rag_query` | ai |  | No | NOT IMPLEMENTED: multimodal RAG is planned but not wired up; this tool always returns an error. Use vox_search or memory retrieval tools instead. |

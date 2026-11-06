@@ -41,3 +41,16 @@ for transitional consumers that haven't yet migrated to the plugin host.
 | [`vox-config`](./vox-config.generated.md) | Normal |
 | [`vox-plugin-api`](./vox-plugin-api.generated.md) | Normal |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_plugin_browser: "vox-plugin-browser"
+    node vox_config: "vox-config"
+    vox_plugin_browser -> vox_config
+    node vox_plugin_api: "vox-plugin-api"
+    vox_plugin_browser -> vox_plugin_api
+}
+```
+

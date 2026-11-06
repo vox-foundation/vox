@@ -67,3 +67,43 @@ is a graph artifact, not a real dependency of this crate's own compilation.)
 | `GateStatusWriter` | Policy seam: write gate-run status (VCS identity + results). `ran_at` stays caller-supplied — the single non-deterministic input, kept out of the impl. |
 | `TerminalPolicyValidator` | Runtime seam: terminal-policy validation for `vox ci`. The `check_terminal` primitives stay in vox-cli behind this impl; the orchestration moves to vox-cli-ci. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_cli_contracts: "vox-cli-contracts"
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_cli_contracts -> vox_bounded_fs
+    node vox_config: "vox-config"
+    vox_cli_contracts -> vox_config
+    node vox_jsonschema_util: "vox-jsonschema-util"
+    vox_cli_contracts -> vox_jsonschema_util
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_cli_contracts
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_cli_contracts
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `CheckManifest` | `pub struct CheckManifest` | [`crates/vox-cli-contracts/src/lib.rs#L24-L27`](../../../crates/vox-cli-contracts/src/lib.rs#L24-L27) | Top-level structure of `contracts/ci/check-targets.v1.yaml`. |
+| `struct` | `CheckEntry` | `pub struct CheckEntry` | [`crates/vox-cli-contracts/src/lib.rs#L31-L43`](../../../crates/vox-cli-contracts/src/lib.rs#L31-L43) | One quality-gate entry in the manifest. |
+| `trait` | `CheckProvider` | `pub trait CheckProvider` | [`crates/vox-cli-contracts/src/lib.rs#L51-L53`](../../../crates/vox-cli-contracts/src/lib.rs#L51-L53) | Audit seam: enumerate `contracts/ci/check-targets.v1.yaml` into policy entries. Replaces ci's direct `crate::commands::audit::CheckManifest` deserialization. |
+| `trait` | `GateStatusWriter` | `pub trait GateStatusWriter` | [`crates/vox-cli-contracts/src/lib.rs#L57-L68`](../../../crates/vox-cli-contracts/src/lib.rs#L57-L68) | Policy seam: write gate-run status (VCS identity + results). `ran_at` stays caller-supplied — the single non-deterministic input, kept out of the impl. |
+| `trait` | `TerminalPolicyValidator` | `pub trait TerminalPolicyValidator` | [`crates/vox-cli-contracts/src/lib.rs#L72-L76`](../../../crates/vox-cli-contracts/src/lib.rs#L72-L76) | Runtime seam: terminal-policy validation for `vox ci`. The `check_terminal` primitives stay in vox-cli behind this impl; the orchestration moves to vox-cli-ci. |
+| `fn` | `scientia_ledger_contract::validate_finding_candidate_file` | `pub fn validate_finding_candidate_file(repo_root: &Path, json_path: &Path) -> Result<()>` | [`crates/vox-cli-contracts/src/scientia_ledger_contract.rs#L59-L66`](../../../crates/vox-cli-contracts/src/scientia_ledger_contract.rs#L59-L66) | Validate a finding-candidate JSON file against `finding-candidate.v1.schema.json`. |
+| `fn` | `scientia_ledger_contract::validate_novelty_bundle_file` | `pub fn validate_novelty_bundle_file(repo_root: &Path, json_path: &Path) -> Result<()>` | [`crates/vox-cli-contracts/src/scientia_ledger_contract.rs#L69-L76`](../../../crates/vox-cli-contracts/src/scientia_ledger_contract.rs#L69-L76) | Validate a novelty-evidence-bundle JSON file against `novelty-evidence-bundle.v1.schema.json`. |
+| `fn` | `scientia_ledger_contract::example_finding_candidate_path` | `pub fn example_finding_candidate_path(repo_root: &Path) -> PathBuf` | [`crates/vox-cli-contracts/src/scientia_ledger_contract.rs#L79-L81`](../../../crates/vox-cli-contracts/src/scientia_ledger_contract.rs#L79-L81) | Default example paths (repo-relative) exercised by `vox ci scientia-novelty-ledger-contracts`. |
+| `fn` | `scientia_ledger_contract::example_novelty_bundle_path` | `pub fn example_novelty_bundle_path(repo_root: &Path) -> PathBuf` | [`crates/vox-cli-contracts/src/scientia_ledger_contract.rs#L83-L85`](../../../crates/vox-cli-contracts/src/scientia_ledger_contract.rs#L83-L85) | — |
+

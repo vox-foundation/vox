@@ -55,3 +55,47 @@ commands):
 | `profiles` | — |
 | `uninstall` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node voxup: "voxup"
+    node vox_plugin_catalog: "vox-plugin-catalog"
+    voxup -> vox_plugin_catalog
+    node vox_secrets: "vox-secrets"
+    voxup -> vox_secrets
+}
+```
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `home::require_home` | `pub fn require_home() -> Result<PathBuf>` | [`crates/voxup/src/home.rs#L18-L42`](../../../crates/voxup/src/home.rs#L18-L42) | Resolve the user home from `HOME` (Unix) or `HOME`/`USERPROFILE` (Windows).  Refuses to run if the value is unset or empty. Does **not** consult `dirs::home_dir()` — that helper falls back to `getpwuid` on macOS when `HOME` is empty, which would silently target the real home directory. |
+| `fn` | `home::assert_test_home_is_isolated` | `pub fn assert_test_home_is_isolated(home: &Path, temp_root: &Path, outer_home: &Path)` | [`crates/voxup/src/home.rs#L48-L63`](../../../crates/voxup/src/home.rs#L48-L63) | Fail immediately if `home` is the process's real `$HOME` or is not under `temp_root`. Test-only guard: a botched fixture must not operate on the operator's home directory. |
+| `fn` | `install_plan::binaries_for_tier` | `pub fn binaries_for_tier<'a>(profiles: &'a Profiles, tier: &str) -> Result<&'a [String]>` | [`crates/voxup/src/install_plan.rs#L12-L14`](../../../crates/voxup/src/install_plan.rs#L12-L14) | Binaries the installer must place for `tier`. |
+| `fn` | `install_plan::bundle_id_for_tier` | `pub fn bundle_id_for_tier<'a>(profiles: &'a Profiles, tier: &str) -> Result<&'a str>` | [`crates/voxup/src/install_plan.rs#L17-L23`](../../../crates/voxup/src/install_plan.rs#L17-L23) | Catalog bundle id the installer records for `tier`. |
+| `fn` | `install_plan::exe_name` | `pub fn exe_name(binary: &str) -> String` | [`crates/voxup/src/install_plan.rs#L33-L43`](../../../crates/voxup/src/install_plan.rs#L33-L43) | Platform executable name for a SSOT binary id (`vox` → `vox.exe` on Windows). |
+| `struct` | `profiles::Profiles` | `pub struct Profiles` | [`crates/voxup/src/profiles.rs#L12-L19`](../../../crates/voxup/src/profiles.rs#L12-L19) | — |
+| `struct` | `profiles::Tier` | `pub struct Tier` | [`crates/voxup/src/profiles.rs#L22-L31`](../../../crates/voxup/src/profiles.rs#L22-L31) | — |
+| `struct` | `profiles::Publish` | `pub struct Publish` | [`crates/voxup/src/profiles.rs#L34-L37`](../../../crates/voxup/src/profiles.rs#L34-L37) | — |
+| `fn` | `profiles::parse` | `pub fn parse(yaml: &str) -> Result<Profiles, serde_yaml::Error>` | [`crates/voxup/src/profiles.rs#L40-L42`](../../../crates/voxup/src/profiles.rs#L40-L42) | Parse the SSOT from a YAML string. |
+| `fn` | `profiles::toolchain_rust_version` | `pub fn toolchain_rust_version(yaml: &str) -> Option<String>` | [`crates/voxup/src/profiles.rs#L47-L50`](../../../crates/voxup/src/profiles.rs#L47-L50) | Extract `versions.rust` from a workspace-toolchain.v1.yaml document. |
+| `fn` | `profiles::public_toml_crates` | `pub fn public_toml_crates(toml_text: &str) -> Vec<String>` | [`crates/voxup/src/profiles.rs#L56-L70`](../../../crates/voxup/src/profiles.rs#L56-L70) | Extract crate names from `_public.toml`: `[[crates]] name = "..."` tables (current format) or a legacy `crates = ["..."]` string array. |
+| `fn` | `profiles::cargo_publish_is_false` | `pub fn cargo_publish_is_false(cargo_toml_text: &str) -> bool` | [`crates/voxup/src/profiles.rs#L75-L84`](../../../crates/voxup/src/profiles.rs#L75-L84) | True iff a Cargo.toml sets `[package] publish = false`. |
+| `fn` | `profiles::validate_tier` | `pub fn validate_tier(profiles_yaml: &str, tier: &str) -> Result<(), String>` | [`crates/voxup/src/profiles.rs#L90-L101`](../../../crates/voxup/src/profiles.rs#L90-L101) | Validate that `tier` names a tier declared in the distribution SSOT.  Returns `Ok(())` on a known tier, or `Err` with a human-readable message listing the valid tier names (derived from the SSOT, not hard-coded). |
+| `struct` | `uninstall::UninstallOpts` | `pub struct UninstallOpts` | [`crates/voxup/src/uninstall.rs#L28-L33`](../../../crates/voxup/src/uninstall.rs#L28-L33) | — |
+| `fn` | `uninstall::from_cli` | `pub fn from_cli(dry_run_flag: bool, apply_flag: bool) -> Self` | [`crates/voxup/src/uninstall.rs#L37-L49`](../../../crates/voxup/src/uninstall.rs#L37-L49) | `--dry-run` is the default when stdin is not a TTY. |
+| `struct` | `uninstall::UninstallReport` | `pub struct UninstallReport` | [`crates/voxup/src/uninstall.rs#L53-L59`](../../../crates/voxup/src/uninstall.rs#L53-L59) | — |
+| `enum` | `uninstall::CargoVoxAction` | `pub enum CargoVoxAction` | [`crates/voxup/src/uninstall.rs#L62-L70`](../../../crates/voxup/src/uninstall.rs#L62-L70) | — |
+| `enum` | `uninstall::ProfileEdit` | `pub enum ProfileEdit` | [`crates/voxup/src/uninstall.rs#L73-L90`](../../../crates/voxup/src/uninstall.rs#L73-L90) | — |
+| `fn` | `uninstall::run_uninstall` | `pub fn run_uninstall(opts: UninstallOpts) -> Result<UninstallReport>` | [`crates/voxup/src/uninstall.rs#L93-L96`](../../../crates/voxup/src/uninstall.rs#L93-L96) | CLI entry: resolve HOME (refuse if unset) then uninstall. |
+| `fn` | `uninstall::uninstall_at` | `pub fn uninstall_at(home: &Path, opts: &UninstallOpts) -> Result<UninstallReport>` | [`crates/voxup/src/uninstall.rs#L101-L135`](../../../crates/voxup/src/uninstall.rs#L101-L135) | Uninstall against an explicit `home`. Callers that construct `home` themselves (tests) must run `crate::home::assert_test_home_is_isolated` (test-only, `#[cfg(test)]`, so not an intra-doc link) first. |
+| `fn` | `uninstall::prune_old_toolchains` | `pub fn prune_old_toolchains(toolchains_dir: &Path, keep_previous: usize) -> Result<Vec<PathBuf>>` | [`crates/voxup/src/uninstall.rs#L158-L230`](../../../crates/voxup/src/uninstall.rs#L158-L230) | Prune old `vox-<version>` toolchain dirs. Fail closed (delete nothing) if `toolchains/active` is missing or unparseable. |
+| `fn` | `uninstall::parse_active_version` | `pub fn parse_active_version(raw: &str) -> Option<String>` | [`crates/voxup/src/uninstall.rs#L234-L248`](../../../crates/voxup/src/uninstall.rs#L234-L248) | `Some` only when the file is a single non-empty version token with no path separators. |
+| `fn` | `uninstall::rollback_active` | `pub fn rollback_active(toolchains_dir: &Path) -> Result<String>` | [`crates/voxup/src/uninstall.rs#L252-L297`](../../../crates/voxup/src/uninstall.rs#L252-L297) | Switch `toolchains/active` to the next-newest remaining version and return that version. Fail closed if `active` is missing or unparseable. |
+| `fn` | `uninstall::run_rollback` | `pub fn run_rollback() -> Result<String>` | [`crates/voxup/src/uninstall.rs#L299-L303`](../../../crates/voxup/src/uninstall.rs#L299-L303) | — |
+| `fn` | `uninstall::strip_voxup_block` | `pub fn strip_voxup_block(content: &str) -> Option<String>` | [`crates/voxup/src/uninstall.rs#L373-L389`](../../../crates/voxup/src/uninstall.rs#L373-L389) | Remove every exact contiguous two-line block (`# Added by voxup` + the following PATH line). Returns `None` when the marker is absent. |
+| `fn` | `uninstall::is_proven_hardlink` | `pub fn is_proven_hardlink(a: &Path, b: &Path) -> bool` | [`crates/voxup/src/uninstall.rs#L507-L531`](../../../crates/voxup/src/uninstall.rs#L507-L531) | Provenance: same inode (Unix) / same file index (Windows) and `nlink > 1`. Never glob `~/.cargo/bin/vox*`. |
+

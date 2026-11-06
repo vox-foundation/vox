@@ -63,3 +63,46 @@ SSOT for `vox-populi` MENS tensor code and `vox-plugin-mens-candle-cuda`.
 | `detect_hf_architecture` | — |
 | `config_dims_for_architecture` | Load [`ConfigDims`] from a Hugging Face `config.json` for `arch`.  Prefer [`HfTransformerLayout::from_config_path`] for new code; this keeps older call sites stable. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_hf_layout: "vox-hf-layout"
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_hf_layout -> vox_bounded_fs
+    node vox_plugin_mens_candle_core: "vox-plugin-mens-candle-core"
+    vox_plugin_mens_candle_core -> vox_hf_layout
+    node vox_plugin_mens_candle_cuda: "vox-plugin-mens-candle-cuda"
+    vox_plugin_mens_candle_cuda -> vox_hf_layout
+    node vox_plugin_mens_candle_metal: "vox-plugin-mens-candle-metal"
+    vox_plugin_mens_candle_metal -> vox_hf_layout
+    node vox_populi: "vox-populi"
+    vox_populi -> vox_hf_layout
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-plugin-mens-candle-core`](./vox-plugin-mens-candle-core.generated.md) | Direct workspace dependent |
+| [`vox-plugin-mens-candle-cuda`](./vox-plugin-mens-candle-cuda.generated.md) | Direct workspace dependent |
+| [`vox-plugin-mens-candle-metal`](./vox-plugin-mens-candle-metal.generated.md) | Direct workspace dependent |
+| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `HfArchitecture` | `pub enum HfArchitecture` | [`crates/vox-hf-layout/src/lib.rs#L13-L16`](../../../crates/vox-hf-layout/src/lib.rs#L13-L16) | — |
+| `struct` | `ConfigDims` | `pub struct ConfigDims` | [`crates/vox-hf-layout/src/lib.rs#L19-L24`](../../../crates/vox-hf-layout/src/lib.rs#L19-L24) | — |
+| `struct` | `HfTransformerLayout` | `pub struct HfTransformerLayout` | [`crates/vox-hf-layout/src/lib.rs#L28-L66`](../../../crates/vox-hf-layout/src/lib.rs#L28-L66) | Structured transformer layout from HF `config.json` (GPT-2, Qwen2-style, qwen3_5-style). |
+| `fn` | `is_vision_or_mtp_key` | `pub fn is_vision_or_mtp_key(key: &str) -> bool` | [`crates/vox-hf-layout/src/lib.rs#L73-L75`](../../../crates/vox-hf-layout/src/lib.rs#L73-L75) | True for tensor keys belonging to Qwen3.8-27B's vision tower (`model.visual.*`) or its multi-token-prediction head (`mtp.*`) — neither is part of the text tower this crate extracts a layout for, and neither should be requested, downloaded, or validated against by a text-only QLoRA loader. |
+| `fn` | `from_config_path` | `pub fn from_config_path(path: &Path) -> anyhow::Result<Self>` | [`crates/vox-hf-layout/src/lib.rs#L79-L83`](../../../crates/vox-hf-layout/src/lib.rs#L79-L83) | Parse `config.json` at `path` into a structured layout. |
+| `fn` | `from_config_json_str` | `pub fn from_config_json_str(raw: &str) -> anyhow::Result<Self>` | [`crates/vox-hf-layout/src/lib.rs#L86-L89`](../../../crates/vox-hf-layout/src/lib.rs#L86-L89) | Parse a `config.json` string (tests + tooling). |
+| `struct` | `ParsedTransformerLayout` | `pub struct ParsedTransformerLayout` | [`crates/vox-hf-layout/src/lib.rs#L356-L361`](../../../crates/vox-hf-layout/src/lib.rs#L356-L361) | Layout + coarse [`HfArchitecture`] bucket (GPT-2 vs stacked causal LM field layout). |
+| `fn` | `parse_transformer_layout` | `pub fn parse_transformer_layout(path: &Path) -> anyhow::Result<ParsedTransformerLayout>` | [`crates/vox-hf-layout/src/lib.rs#L364-L379`](../../../crates/vox-hf-layout/src/lib.rs#L364-L379) | Parse `config.json` and classify architecture for legacy CLI / tests. |
+| `fn` | `detect_hf_architecture` | `pub fn detect_hf_architecture(config_path: &Path) -> anyhow::Result<HfArchitecture>` | [`crates/vox-hf-layout/src/lib.rs#L397-L402`](../../../crates/vox-hf-layout/src/lib.rs#L397-L402) | — |
+| `fn` | `config_dims_for_architecture` | `pub fn config_dims_for_architecture(` | [`crates/vox-hf-layout/src/lib.rs#L426`](../../../crates/vox-hf-layout/src/lib.rs#L426) | Load [`ConfigDims`] from a Hugging Face `config.json` for `arch`.  Prefer [`HfTransformerLayout::from_config_path`] for new code; this keeps older call sites stable. |
+

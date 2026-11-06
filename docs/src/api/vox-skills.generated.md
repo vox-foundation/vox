@@ -82,3 +82,85 @@ Submodules carry detailed docs; the crate root re-exports stable types for embed
 |---|---|
 | `SKILLS_REGISTRY_BASE` | The canonical Vox Skills marketplace registry URL. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_skills: "vox-skills"
+    node vox_container: "vox-container"
+    vox_skills -> vox_container
+    node vox_db: "vox-db"
+    vox_skills -> vox_db
+    node vox_http_client: "vox-http-client"
+    vox_skills -> vox_http_client
+    node vox_openclaw_runtime: "vox-openclaw-runtime"
+    vox_skills -> vox_openclaw_runtime
+    node vox_package: "vox-package"
+    vox_skills -> vox_package
+    node vox_plugin_host: "vox-plugin-host"
+    vox_skills -> vox_plugin_host
+    node vox_skill_runtime: "vox-skill-runtime"
+    vox_skills -> vox_skill_runtime
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_actor_runtime -> vox_skills
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_skills
+    node vox_integration_tests: "vox-integration-tests"
+    vox_integration_tests -> vox_skills
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_skills
+    node vox_orchestrator_d: "vox-orchestrator-d"
+    vox_orchestrator_d -> vox_skills
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_skills
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Direct workspace dependent |
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-d`](./vox-orchestrator-d.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `SkillError` | `pub enum SkillError` | [`crates/vox-skills/src/lib.rs#L49-L85`](../../../crates/vox-skills/src/lib.rs#L49-L85) | Errors from the skill system. |
+| `fn` | `builtins::install_builtins` | `pub async fn install_builtins(_registry: &SkillRegistry) -> Result<usize, SkillError>` | [`crates/vox-skills/src/builtins.rs#L14-L16`](../../../crates/vox-skills/src/builtins.rs#L14-L16) | Install all built-in skills into the registry if they are not already present.  This is now a no-op (returns 0). Skills are discovered and installed from the plugin data directory by the orchestrator bridge at startup. |
+| `enum` | `hooks::HookEvent` | `pub enum HookEvent` | [`crates/vox-skills/src/hooks.rs#L12-L23`](../../../crates/vox-skills/src/hooks.rs#L12-L23) | Events the hook system fires. |
+| `type` | `hooks::HookFn` | `pub type HookFn = Box<dyn Fn(&str) -> Result<Option<String>, SkillError> + Send + Sync>` | [`crates/vox-skills/src/hooks.rs#L35`](../../../crates/vox-skills/src/hooks.rs#L35) | A hook function: takes context JSON string, returns optional output JSON. |
+| `struct` | `hooks::HookRegistry` | `pub struct HookRegistry` | [`crates/vox-skills/src/hooks.rs#L38-L40`](../../../crates/vox-skills/src/hooks.rs#L38-L40) | Registry of named hook functions keyed by event. |
+| `fn` | `hooks::new` | `pub fn new() -> Self` | [`crates/vox-skills/src/hooks.rs#L43-L47`](../../../crates/vox-skills/src/hooks.rs#L43-L47) | — |
+| `fn` | `hooks::register` | `pub fn register(&self, event: HookEvent, hook_id: impl Into<String>, f: HookFn)` | [`crates/vox-skills/src/hooks.rs#L50-L55`](../../../crates/vox-skills/src/hooks.rs#L50-L55) | Register a hook for an event with an ID (for later removal). |
+| `fn` | `hooks::deregister` | `pub fn deregister(&self, event: &HookEvent, hook_id: &str) -> bool` | [`crates/vox-skills/src/hooks.rs#L58-L67`](../../../crates/vox-skills/src/hooks.rs#L58-L67) | Deregister a hook by event + ID. |
+| `fn` | `hooks::fire` | `pub fn fire(&self, event: &HookEvent, context_json: &str) -> Vec<String>` | [`crates/vox-skills/src/hooks.rs#L70-L85`](../../../crates/vox-skills/src/hooks.rs#L70-L85) | Fire all hooks for an event, passing context JSON. |
+| `fn` | `hooks::count` | `pub fn count(&self, event: &HookEvent) -> usize` | [`crates/vox-skills/src/hooks.rs#L87-L91`](../../../crates/vox-skills/src/hooks.rs#L87-L91) | — |
+| `enum` | `plugin::PluginKind` | `pub enum PluginKind` | [`crates/vox-skills/src/plugin.rs#L18-L27`](../../../crates/vox-skills/src/plugin.rs#L18-L27) | Plugin kind discriminant. |
+| `struct` | `plugin::PluginMeta` | `pub struct PluginMeta` | [`crates/vox-skills/src/plugin.rs#L31-L37`](../../../crates/vox-skills/src/plugin.rs#L31-L37) | Metadata about a loaded plugin. |
+| `trait` | `plugin::Plugin` | `pub trait Plugin: Send + Sync` | [`crates/vox-skills/src/plugin.rs#L40-L51`](../../../crates/vox-skills/src/plugin.rs#L40-L51) | Plugin lifecycle trait. |
+| `struct` | `plugin::SkillPlugin` | `pub struct SkillPlugin` | [`crates/vox-skills/src/plugin.rs#L54-L57`](../../../crates/vox-skills/src/plugin.rs#L54-L57) | A skill-backed plugin implementation. |
+| `fn` | `plugin::new` | `pub fn new(` | [`crates/vox-skills/src/plugin.rs#L60`](../../../crates/vox-skills/src/plugin.rs#L60) | — |
+| `struct` | `plugin::PluginManager` | `pub struct PluginManager` | [`crates/vox-skills/src/plugin.rs#L94-L96`](../../../crates/vox-skills/src/plugin.rs#L94-L96) | Manager for all loaded plugins. |
+| `fn` | `plugin::new` | `pub fn new() -> Self` | [`crates/vox-skills/src/plugin.rs#L99-L103`](../../../crates/vox-skills/src/plugin.rs#L99-L103) | — |
+| `fn` | `plugin::load` | `pub fn load(&self, plugin: Box<dyn Plugin>) -> Result<(), SkillError>` | [`crates/vox-skills/src/plugin.rs#L106-L115`](../../../crates/vox-skills/src/plugin.rs#L106-L115) | Load a plugin into the manager. |
+| `fn` | `plugin::unload` | `pub fn unload(&self, id: &str) -> Result<(), SkillError>` | [`crates/vox-skills/src/plugin.rs#L118-L127`](../../../crates/vox-skills/src/plugin.rs#L118-L127) | Unload a plugin by ID. |
+| `fn` | `plugin::list` | `pub fn list(&self) -> Vec<PluginMeta>` | [`crates/vox-skills/src/plugin.rs#L130-L133`](../../../crates/vox-skills/src/plugin.rs#L130-L133) | List all loaded plugin metadata. |
+| `fn` | `plugin::is_loaded` | `pub fn is_loaded(&self, id: &str) -> bool` | [`crates/vox-skills/src/plugin.rs#L136-L139`](../../../crates/vox-skills/src/plugin.rs#L136-L139) | Check if a plugin is loaded by ID. |
+| `fn` | `plugin::all_tool_ids` | `pub fn all_tool_ids(&self) -> Vec<String>` | [`crates/vox-skills/src/plugin.rs#L142-L145`](../../../crates/vox-skills/src/plugin.rs#L142-L145) | Get all tool IDs provided by all loaded plugins. |
+| `struct` | `registry_api::SkillsRegistryResult` | `pub struct SkillsRegistryResult` | [`crates/vox-skills/src/registry_api.rs#L13-L21`](../../../crates/vox-skills/src/registry_api.rs#L13-L21) | A search result from the Vox Skills registry. |
+| `struct` | `registry_api::SkillsRegistryClient` | `pub struct SkillsRegistryClient` | [`crates/vox-skills/src/registry_api.rs#L24-L28`](../../../crates/vox-skills/src/registry_api.rs#L24-L28) | HTTP client for the Vox Skills marketplace. |
+| `fn` | `registry_api::new` | `pub fn new() -> Self` | [`crates/vox-skills/src/registry_api.rs#L32-L34`](../../../crates/vox-skills/src/registry_api.rs#L32-L34) | Create a client pointing at the official Vox Skills registry. |
+| `fn` | `registry_api::with_base` | `pub fn with_base(base_url: impl Into<String>) -> Self` | [`crates/vox-skills/src/registry_api.rs#L37-L43`](../../../crates/vox-skills/src/registry_api.rs#L37-L43) | Create a client pointing at a custom registry URL. |
+| `fn` | `registry_api::with_api_key` | `pub fn with_api_key(mut self, key: impl Into<String>) -> Self` | [`crates/vox-skills/src/registry_api.rs#L45-L48`](../../../crates/vox-skills/src/registry_api.rs#L45-L48) | — |
+| `fn` | `registry_api::search` | `pub async fn search(&self, query: &str) -> Result<Vec<SkillsRegistryResult>, SkillError>` | [`crates/vox-skills/src/registry_api.rs#L51-L67`](../../../crates/vox-skills/src/registry_api.rs#L51-L67) | Search the registry for skills matching a keyword. |
+| `fn` | `registry_api::download` | `pub async fn download(` | [`crates/vox-skills/src/registry_api.rs#L70`](../../../crates/vox-skills/src/registry_api.rs#L70) | Download a skill bundle by ID and optional version. |
+| `fn` | `registry_api::publish` | `pub async fn publish(&self, bundle: &VoxSkillBundle) -> Result<(), SkillError>` | [`crates/vox-skills/src/registry_api.rs#L99-L124`](../../../crates/vox-skills/src/registry_api.rs#L99-L124) | Publish a skill bundle to the registry. |
+| `fn` | `registry_api::get_manifest` | `pub async fn get_manifest(&self, id: &str) -> Result<SkillManifest, SkillError>` | [`crates/vox-skills/src/registry_api.rs#L127-L141`](../../../crates/vox-skills/src/registry_api.rs#L127-L141) | Get metadata for a specific skill. |
+

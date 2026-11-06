@@ -59,3 +59,60 @@ Three backends:
 | `sse_detect` | — |
 | `state` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_cli_share: "vox-cli-share"
+    node vox_http_client: "vox-http-client"
+    vox_cli_share -> vox_http_client
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_cli_share
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `auth::AuthMode` | `pub enum AuthMode` | [`crates/vox-cli-share/src/auth.rs#L19-L26`](../../../crates/vox-cli-share/src/auth.rs#L19-L26) | Auth mode for a share session. |
+| `fn` | `auth::random_token` | `pub fn random_token() -> Self` | [`crates/vox-cli-share/src/auth.rs#L30-L33`](../../../crates/vox-cli-share/src/auth.rs#L30-L33) | Generate a random 16-hex-char URL token. |
+| `fn` | `auth::decorate_url` | `pub fn decorate_url(&self, base_url: &str) -> String` | [`crates/vox-cli-share/src/auth.rs#L36-L47`](../../../crates/vox-cli-share/src/auth.rs#L36-L47) | Append auth to a base URL for user display. |
+| `fn` | `auth::auth_middleware` | `pub async fn auth_middleware(` | [`crates/vox-cli-share/src/auth.rs#L75`](../../../crates/vox-cli-share/src/auth.rs#L75) | Axum middleware function that enforces the auth mode. |
+| `enum` | `backend::BackendKind` | `pub enum BackendKind` | [`crates/vox-cli-share/src/backend.rs#L10-L20`](../../../crates/vox-cli-share/src/backend.rs#L10-L20) | Which backend to use for the share session. |
+| `struct` | `backend::TunnelHandle` | `pub struct TunnelHandle` | [`crates/vox-cli-share/src/backend.rs#L48-L57`](../../../crates/vox-cli-share/src/backend.rs#L48-L57) | A handle to an active tunnel session. Drop = shutdown. |
+| `enum` | `backend::UrlStability` | `pub enum UrlStability` | [`crates/vox-cli-share/src/backend.rs#L60-L65`](../../../crates/vox-cli-share/src/backend.rs#L60-L65) | — |
+| `fn` | `backend::new` | `pub fn new(` | [`crates/vox-cli-share/src/backend.rs#L68`](../../../crates/vox-cli-share/src/backend.rs#L68) | — |
+| `fn` | `backend::shutdown` | `pub fn shutdown(self)` | [`crates/vox-cli-share/src/backend.rs#L83-L85`](../../../crates/vox-cli-share/src/backend.rs#L83-L85) | Trigger graceful shutdown. Idempotent. |
+| `trait` | `backend::TunnelBackend` | `pub trait TunnelBackend: Send + Sync` | [`crates/vox-cli-share/src/backend.rs#L90-L100`](../../../crates/vox-cli-share/src/backend.rs#L90-L100) | A backend creates and manages a tunnel from `127.0.0.1:<port>` to a public URL. |
+| `fn` | `binary_cache::cloudflared_url_and_checksum` | `pub fn cloudflared_url_and_checksum() -> Option<(String, &'static str)>` | [`crates/vox-cli-share/src/binary_cache.rs#L19-L50`](../../../crates/vox-cli-share/src/binary_cache.rs#L19-L50) | Returns `(download_url, expected_sha256_lowercase_hex)` for the current platform, or `None` if the platform is unsupported. |
+| `fn` | `binary_cache::ensure_cloudflared` | `pub async fn ensure_cloudflared() -> ShareResult<PathBuf>` | [`crates/vox-cli-share/src/binary_cache.rs#L55-L95`](../../../crates/vox-cli-share/src/binary_cache.rs#L55-L95) | Returns the path to the cached cloudflared binary, downloading and verifying if needed.  Respects `VOX_CLOUDFLARED_PATH` env var override (for testing and power users). |
+| `fn` | `binary_cache::cloudflared_cache_dir` | `pub fn cloudflared_cache_dir() -> ShareResult<PathBuf>` | [`crates/vox-cli-share/src/binary_cache.rs#L98-L104`](../../../crates/vox-cli-share/src/binary_cache.rs#L98-L104) | Directory where the cached binary lives. |
+| `fn` | `binary_cache::cached_binary_name` | `pub fn cached_binary_name() -> String` | [`crates/vox-cli-share/src/binary_cache.rs#L107-L112`](../../../crates/vox-cli-share/src/binary_cache.rs#L107-L112) | Filename used for the cached binary (includes version + platform). |
+| `fn` | `binary_cache::verify_sha256` | `pub fn verify_sha256(path: &Path, expected: &str) -> ShareResult<bool>` | [`crates/vox-cli-share/src/binary_cache.rs#L115-L120`](../../../crates/vox-cli-share/src/binary_cache.rs#L115-L120) | Verify the SHA256 of `path` matches `expected` (hex, case-insensitive). |
+| `fn` | `consent::ensure_consent` | `pub fn ensure_consent(accept_tos: bool, force_prompt: bool) -> ShareResult<()>` | [`crates/vox-cli-share/src/consent.rs#L29-L72`](../../../crates/vox-cli-share/src/consent.rs#L29-L72) | Ensure the user has accepted the consent. No-op if already accepted in a prior run.  `accept_tos`: if true, accept without prompting (--accept-tos CLI flag). `force_prompt`: if true, re-prompt even if already accepted (for testing). |
+| `struct` | `coordinator::ShareConfig` | `pub struct ShareConfig` | [`crates/vox-cli-share/src/coordinator.rs#L18-L36`](../../../crates/vox-cli-share/src/coordinator.rs#L18-L36) | Configuration for a share session. |
+| `struct` | `coordinator::ShareSession` | `pub struct ShareSession` | [`crates/vox-cli-share/src/coordinator.rs#L39-L48`](../../../crates/vox-cli-share/src/coordinator.rs#L39-L48) | An active share session. Drop or call `shutdown` to clean up. |
+| `fn` | `coordinator::start` | `pub async fn start(cfg: ShareConfig) -> ShareResult<Self>` | [`crates/vox-cli-share/src/coordinator.rs#L51-L161`](../../../crates/vox-cli-share/src/coordinator.rs#L51-L161) | — |
+| `fn` | `coordinator::shutdown` | `pub async fn shutdown(self)` | [`crates/vox-cli-share/src/coordinator.rs#L163-L172`](../../../crates/vox-cli-share/src/coordinator.rs#L163-L172) | — |
+| `fn` | `coordinator::wait` | `pub async fn wait(self)` | [`crates/vox-cli-share/src/coordinator.rs#L176-L215`](../../../crates/vox-cli-share/src/coordinator.rs#L176-L215) | Wait for the session to end: either Ctrl+C or duration elapsed. Handles shutdown cleanup automatically. |
+| `type` | `error::ShareResult` | `pub type ShareResult<T> = Result<T, ShareError>` | [`crates/vox-cli-share/src/error.rs#L5`](../../../crates/vox-cli-share/src/error.rs#L5) | — |
+| `enum` | `error::ShareError` | `pub enum ShareError` | [`crates/vox-cli-share/src/error.rs#L8-L26`](../../../crates/vox-cli-share/src/error.rs#L8-L26) | — |
+| `fn` | `lifecycle::run_countdown` | `pub async fn run_countdown(duration: Duration, done_tx: mpsc::Sender<()>)` | [`crates/vox-cli-share/src/lifecycle.rs#L11-L18`](../../../crates/vox-cli-share/src/lifecycle.rs#L11-L18) | Runs the countdown lifecycle task. Sends a unit on `done_tx` when duration elapses. Prints countdown to stdout. |
+| `fn` | `lifecycle::run_countdown_printer` | `pub async fn run_countdown_printer(duration: Duration)` | [`crates/vox-cli-share/src/lifecycle.rs#L22-L46`](../../../crates/vox-cli-share/src/lifecycle.rs#L22-L46) | Runs the countdown printing loop independently of the shutdown signal. Prints time remaining to stdout on the schedule described in the module docs. |
+| `fn` | `lifecycle::format_duration` | `pub fn format_duration(d: Duration) -> String` | [`crates/vox-cli-share/src/lifecycle.rs#L49-L63`](../../../crates/vox-cli-share/src/lifecycle.rs#L49-L63) | Format a duration for user display: "2h 30m", "45m", "30s". |
+| `struct` | `proxy::ProxyConfig` | `pub struct ProxyConfig` | [`crates/vox-cli-share/src/proxy.rs#L20-L27`](../../../crates/vox-cli-share/src/proxy.rs#L20-L27) | Configuration for the reverse-proxy server. |
+| `fn` | `proxy::build_app` | `pub fn build_app(cfg: ProxyConfig) -> Router` | [`crates/vox-cli-share/src/proxy.rs#L40-L53`](../../../crates/vox-cli-share/src/proxy.rs#L40-L53) | Build the Axum [`Router`] for the reverse-proxy.  All requests are forwarded to `cfg.upstream_addr` with the same method, headers, and body. The upstream response is returned verbatim. Auth middleware (if configured) is applied before forwarding. |
+| `fn` | `sse_detect::has_sse_routes` | `pub async fn has_sse_routes(upstream_port: u16) -> bool` | [`crates/vox-cli-share/src/sse_detect.rs#L11-L31`](../../../crates/vox-cli-share/src/sse_detect.rs#L11-L31) | Returns true if the app at `localhost:<port>` has any SSE routes.  Fetches `/openapi.json` with a short timeout. Returns false on any error (app might not be running yet, or might not have an OpenAPI endpoint). |
+| `fn` | `sse_detect::detect_sse_in_openapi` | `pub fn detect_sse_in_openapi(spec: &serde_json::Value) -> bool` | [`crates/vox-cli-share/src/sse_detect.rs#L34-L49`](../../../crates/vox-cli-share/src/sse_detect.rs#L34-L49) | Returns true if any route in the OpenAPI spec has a `text/event-stream` response. |
+| `struct` | `state::ShareState` | `pub struct ShareState` | [`crates/vox-cli-share/src/state.rs#L13-L19`](../../../crates/vox-cli-share/src/state.rs#L13-L19) | — |
+| `fn` | `state::load` | `pub fn load() -> ShareResult<Self>` | [`crates/vox-cli-share/src/state.rs#L22-L30`](../../../crates/vox-cli-share/src/state.rs#L22-L30) | — |
+| `fn` | `state::save` | `pub fn save(&self) -> ShareResult<()>` | [`crates/vox-cli-share/src/state.rs#L32-L41`](../../../crates/vox-cli-share/src/state.rs#L32-L41) | — |
+

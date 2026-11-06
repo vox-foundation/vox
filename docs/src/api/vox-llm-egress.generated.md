@@ -83,3 +83,73 @@ callers need to record telemetry themselves.
 | `ChatStream` | Streaming item type for [`stream_once`]. |
 | `ChatDeltaEventStream` | Streaming item type for [`stream_events_once`] (carries both `delta.content` and `delta.tool_calls` fragments). |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_llm_egress: "vox-llm-egress"
+    node vox_http_client: "vox-http-client"
+    vox_llm_egress -> vox_http_client
+    node vox_openai: "vox-openai"
+    vox_llm_egress -> vox_openai
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_actor_runtime -> vox_llm_egress
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_llm_egress
+    node vox_code_audit: "vox-code-audit"
+    vox_code_audit -> vox_llm_egress
+    node vox_config: "vox-config"
+    vox_config -> vox_llm_egress
+    node vox_gamify: "vox-gamify"
+    vox_gamify -> vox_llm_egress
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Direct workspace dependent |
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-code-audit`](./vox-code-audit.generated.md) | Direct workspace dependent |
+| [`vox-config`](./vox-config.generated.md) | Direct workspace dependent |
+| [`vox-gamify`](./vox-gamify.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `EgressRequest` | `pub struct EgressRequest` | [`crates/vox-llm-egress/src/lib.rs#L33-L46`](../../../crates/vox-llm-egress/src/lib.rs#L33-L46) | A fully-resolved provider request. No resolution happens in this crate.  `Debug` is hand-written to **redact `api_key`** so the bearer token can never leak into logs/traces/error messages. `headers` here carry only non-secret attribution (HTTP-Referer / X-Title); the bearer is applied separately from `api_key`. |
+| `struct` | `ChatMessage` | `pub struct ChatMessage` | [`crates/vox-llm-egress/src/lib.rs#L75-L96`](../../../crates/vox-llm-egress/src/lib.rs#L75-L96) | One chat message on the wire (OpenAI-compatible).  The three trailing fields are additive plumbing for a full tool-calling turn (Task 1.3b): an assistant message MAY carry `tool_calls` (the calls it requested), and a `role: "tool"` result message carries `tool_call_id` (and optionally `name`) to correlate the result back to the specific call. All three are `skip_serializing_if = "Option::is_none"` so every existing plain `{role, content}` caller (ghost_text, inline_edit, plan, eval, judge, route, …) continues to serialize an unchanged wire payload — no `tool_calls`/`tool_call_id`/`name` keys at all, not even `null`, when left `None`. |
+| `enum` | `LlmContentPart` | `pub enum LlmContentPart` | [`crates/vox-llm-egress/src/lib.rs#L100-L105`](../../../crates/vox-llm-egress/src/lib.rs#L100-L105) | — |
+| `struct` | `LlmImageUrl` | `pub struct LlmImageUrl` | [`crates/vox-llm-egress/src/lib.rs#L108-L110`](../../../crates/vox-llm-egress/src/lib.rs#L108-L110) | — |
+| `struct` | `ToolDef` | `pub struct ToolDef` | [`crates/vox-llm-egress/src/lib.rs#L114-L118`](../../../crates/vox-llm-egress/src/lib.rs#L114-L118) | Tool definition passed through to the provider. |
+| `struct` | `EgressToolCall` | `pub struct EgressToolCall` | [`crates/vox-llm-egress/src/lib.rs#L134-L147`](../../../crates/vox-llm-egress/src/lib.rs#L134-L147) | A single tool invocation the model requested, parsed from the OpenAI-compatible `message.tool_calls` wire shape: `{"id": "...", "type": "function", "function": {"name": "...", "arguments": "<json-encoded string>"}}`.  This crate defines its own minimal type here rather than reusing `vox_openai::chat_completion::ChatCompletionToolCall` (which this crate already depends on for other reasons) for two reasons: (1) that type has no `id` field, which a future tool-dispatch loop needs to correlate a call with its result message, and (2) `chat_once` parses the whole response body as a raw `serde_json::Value` rather than through `vox_openai`'s typed `ChatCompletionResponse` — pulling in a typed sub-struct for just this one field would be inconsistent with the rest of this file. A future consolidation task may want to unify these; not done here to keep this change to pure additive plumbing. |
+| `struct` | `ChatParams` | `pub struct ChatParams<'a>` | [`crates/vox-llm-egress/src/lib.rs#L151-L160`](../../../crates/vox-llm-egress/src/lib.rs#L151-L160) | Per-call generation parameters. |
+| `struct` | `EgressChatResponse` | `pub struct EgressChatResponse` | [`crates/vox-llm-egress/src/lib.rs#L164-L190`](../../../crates/vox-llm-egress/src/lib.rs#L164-L190) | Parsed chat result. Carries usage/cost/latency so callers record telemetry. |
+| `enum` | `EgressError` | `pub enum EgressError` | [`crates/vox-llm-egress/src/lib.rs#L194-L199`](../../../crates/vox-llm-egress/src/lib.rs#L194-L199) | Structured egress failure so callers map to their own error types. |
+| `fn` | `is_context_exceeded` | `pub fn is_context_exceeded(&self) -> bool` | [`crates/vox-llm-egress/src/lib.rs#L257-L264`](../../../crates/vox-llm-egress/src/lib.rs#L257-L264) | True when this error's underlying HTTP response body looks like a provider-reported "prompt exceeded the model's context window" failure. See [`is_context_exceeded_error`] for the matching rules and their caveats. Only [`EgressError::Status`] carries a response body, so every other variant is `false` (a rate-limit, transport failure, or JSON-decode failure is never a context-overflow condition). |
+| `fn` | `is_context_exceeded_error` | `pub fn is_context_exceeded_error(_status_code: u16, body: &str) -> bool` | [`crates/vox-llm-egress/src/lib.rs#L297-L331`](../../../crates/vox-llm-egress/src/lib.rs#L297-L331) | Best-effort classifier for "the provider rejected this request because the prompt (plus requested completion) exceeded the model's context window."  Vox routes chat through 5 provider lanes (see `ChatProviderRouteKind` in `vox_actor_runtime::model_resolution`) — OpenRouter, a generic OpenAI-compatible endpoint, HuggingFace Router, HuggingFace Dedicated, and Ollama — and each reports context overflow with different HTTP-body phrasing. This mirrors the pattern LiteLLM uses to normalize the same class of provider-specific error strings into a single `ContextWindowExceededError` (see `docs/src/architecture/multi-provider-local-cloud-routing-research-2026-07-30.md`).  # Matching approach  This does a case-insensitive substring match of `body` against a curated phrase list covering common OpenAI-compatible, OpenRouter, HuggingFace, and Ollama overflow phrasings. It is deliberately **not status-code-gated**: providers use a mix of 400, 413, and even 422 for this condition (and proxies like OpenRouter may relay a wrapped upstream body under its own status), so gating on a fixed status code would silently miss real cases. The tradeoff is the inverse risk — a body that happens to contain one of these phrases for an unrelated reason would be misclassified — but that is judged unlikely for a technical error string.  # Completeness caveat  This is a **best-effort, non-exhaustive** phrase list, not a guaranteed-complete provider taxonomy. Provider error text changes over time and new providers may phrase this differently again. Extend the phrase list as new provider phrasings are observed in the wild; do not treat a `false` result as proof the request wasn't a context-overflow failure. |
+| `type` | `ChatStream` | `pub type ChatStream = Pin<Box<dyn Stream<Item = Result<String, EgressError>> + Send>>` | [`crates/vox-llm-egress/src/lib.rs#L334`](../../../crates/vox-llm-egress/src/lib.rs#L334) | Streaming item type for [`stream_once`]. |
+| `type` | `ChatDeltaEventStream` | `pub type ChatDeltaEventStream =` | [`crates/vox-llm-egress/src/lib.rs#L337`](../../../crates/vox-llm-egress/src/lib.rs#L337) | Streaming item type for [`stream_events_once`] (carries both `delta.content` and `delta.tool_calls` fragments). |
+| `fn` | `estimate_cost` | `pub fn estimate_cost(prompt_tokens: u32, completion_tokens: u32, cost_per_1k: f64) -> f64` | [`crates/vox-llm-egress/src/lib.rs#L343-L345`](../../../crates/vox-llm-egress/src/lib.rs#L343-L345) | The ONE cost estimate: `(prompt+completion tokens)/1000 * cost_per_1k`. Used only when the provider reports no cost. Callers MUST NOT re-implement this math (single source). |
+| `enum` | `repetition_guard::RepetitionTripped` | `pub enum RepetitionTripped` | [`crates/vox-llm-egress/src/repetition_guard.rs#L34-L39`](../../../crates/vox-llm-egress/src/repetition_guard.rs#L34-L39) | Reason a streaming generation was aborted by `RepetitionGuard`. |
+| `struct` | `repetition_guard::RepetitionGuard` | `pub struct RepetitionGuard` | [`crates/vox-llm-egress/src/repetition_guard.rs#L43-L49`](../../../crates/vox-llm-egress/src/repetition_guard.rs#L43-L49) | O(1) per-token streaming loop breaker (`NotT3Chat` `RepetitionGuard` pattern). |
+| `fn` | `repetition_guard::new` | `pub const fn new() -> Self` | [`crates/vox-llm-egress/src/repetition_guard.rs#L60-L68`](../../../crates/vox-llm-egress/src/repetition_guard.rs#L60-L68) | Construct a fresh `RepetitionGuard` with a zeroed 1024-slot ring buffer. |
+| `fn` | `repetition_guard::observe_hash` | `pub fn observe_hash(&mut self, token_hash: u64) -> Option<RepetitionTripped>` | [`crates/vox-llm-egress/src/repetition_guard.rs#L72-L102`](../../../crates/vox-llm-egress/src/repetition_guard.rs#L72-L102) | Observe a pre-hashed token chunk (`token_hash`, e.g. from `vox_crypto::fast_hash(chunk.as_bytes())`) after whitespace filtering. |
+| `fn` | `repetition_guard::observe_chunk_with_hasher` | `pub fn observe_chunk_with_hasher<F>(` | [`crates/vox-llm-egress/src/repetition_guard.rs#L106`](../../../crates/vox-llm-egress/src/repetition_guard.rs#L106) | Observe a raw text chunk. Pure-whitespace chunks (`" "`, `"\n"`, indentation) are ignored so markdown tables and indented code blocks never false-trip. |
+| `fn` | `repetition_guard::observe_chunk` | `pub fn observe_chunk(&mut self, chunk: &str) -> Option<RepetitionTripped>` | [`crates/vox-llm-egress/src/repetition_guard.rs#L123-L129`](../../../crates/vox-llm-egress/src/repetition_guard.rs#L123-L129) | Observe a raw text chunk using the default 64-bit hasher. |
+| `struct` | `throttle::ProviderThrottle` | `pub struct ProviderThrottle` | [`crates/vox-llm-egress/src/throttle.rs#L18-L25`](../../../crates/vox-llm-egress/src/throttle.rs#L18-L25) | — |
+| `struct` | `throttle::Permit` | `pub struct Permit<'a>` | [`crates/vox-llm-egress/src/throttle.rs#L28-L30`](../../../crates/vox-llm-egress/src/throttle.rs#L28-L30) | RAII permit: releases the slot on drop. |
+| `fn` | `throttle::new` | `pub fn new(max_limit: usize) -> Self` | [`crates/vox-llm-egress/src/throttle.rs#L40-L50`](../../../crates/vox-llm-egress/src/throttle.rs#L40-L50) | — |
+| `fn` | `throttle::current_limit` | `pub fn current_limit(&self) -> usize` | [`crates/vox-llm-egress/src/throttle.rs#L52-L54`](../../../crates/vox-llm-egress/src/throttle.rs#L52-L54) | — |
+| `fn` | `throttle::acquire` | `pub async fn acquire(&self) -> Permit<'_>` | [`crates/vox-llm-egress/src/throttle.rs#L57-L86`](../../../crates/vox-llm-egress/src/throttle.rs#L57-L86) | Wait for a free slot (and for any active cooldown to elapse). |
+| `fn` | `throttle::on_rate_limited` | `pub fn on_rate_limited(&self, retry_after: Option<Duration>)` | [`crates/vox-llm-egress/src/throttle.rs#L89-L100`](../../../crates/vox-llm-egress/src/throttle.rs#L89-L100) | Multiplicative decrease + optional header-driven cooldown. |
+| `fn` | `throttle::on_success` | `pub fn on_success(&self)` | [`crates/vox-llm-egress/src/throttle.rs#L103-L112`](../../../crates/vox-llm-egress/src/throttle.rs#L103-L112) | Additive increase: +1 permit per 8 consecutive successes, up to max. |
+| `fn` | `throttle::for_provider` | `pub fn for_provider(provider: &str, max_limit: usize) -> &'static ProviderThrottle` | [`crates/vox-llm-egress/src/throttle.rs#L121-L130`](../../../crates/vox-llm-egress/src/throttle.rs#L121-L130) | Throttle for `provider`, created on first use with `max_limit` (the caller resolves the limit from VoxConfig — this crate takes no config dependency). The first call's limit wins; later calls reuse the existing per-provider throttle. Leaked intentionally: providers are a small fixed set per process. |
+| `fn` | `throttle::acquire_permit` | `pub async fn acquire_permit(provider: &str, max_limit: usize) -> Permit<'static>` | [`crates/vox-llm-egress/src/throttle.rs#L133-L135`](../../../crates/vox-llm-egress/src/throttle.rs#L133-L135) | Acquire a permit for `provider`, creating its throttle with `max_limit` on first use. |
+| `fn` | `throttle::on_rate_limited` | `pub fn on_rate_limited(provider: &str, retry_after: Option<Duration>)` | [`crates/vox-llm-egress/src/throttle.rs#L138-L140`](../../../crates/vox-llm-egress/src/throttle.rs#L138-L140) | Feed a 429 back to `provider`'s throttle (halve window + optional cooldown). |
+| `fn` | `throttle::on_success` | `pub fn on_success(provider: &str)` | [`crates/vox-llm-egress/src/throttle.rs#L143-L145`](../../../crates/vox-llm-egress/src/throttle.rs#L143-L145) | Record a success for `provider`'s throttle (additive recovery). |
+| `fn` | `throttle::retry_after_from_headers` | `pub fn retry_after_from_headers(headers: &reqwest::header::HeaderMap) -> Option<Duration>` | [`crates/vox-llm-egress/src/throttle.rs#L148-L172`](../../../crates/vox-llm-egress/src/throttle.rs#L148-L172) | Parse `Retry-After` (seconds) or `X-RateLimit-Reset` (epoch ms) into a wait. |
+

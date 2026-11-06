@@ -76,7 +76,7 @@ graph {
 | [`vox-mesh-policy`](../../api/vox-mesh-policy.generated.md) | `library` | — | — |
 | [`vox-populi-types`](../../api/vox-populi-types.generated.md) | `library` | — | 1000 |
 | [`vox-project-scaffold`](../../api/vox-project-scaffold.generated.md) | `library` | — | — |
-| `vox-python-bridge` | `library` | — | — |
+| [`vox-python-bridge`](../../api/vox-python-bridge.generated.md) | `library` | — | — |
 | [`vox-quantize`](../../api/vox-quantize.generated.md) | `library` | — | 4000 |
 | [`vox-repository`](../../api/vox-repository.generated.md) | `library` | — | — |
 | [`vox-runtime`](../../api/vox-runtime.generated.md) | `library` | 20 | — |

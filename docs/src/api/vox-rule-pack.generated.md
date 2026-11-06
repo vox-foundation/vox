@@ -44,3 +44,57 @@ See `docs/src/architecture/2026-05-09-detector-rule-ssot-design.md`.
 | `pack` | — |
 | `bench` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_rule_pack: "vox-rule-pack"
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_rule_pack
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_rule_pack
+    node vox_code_audit: "vox-code-audit"
+    vox_code_audit -> vox_rule_pack
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-code-audit`](./vox-code-audit.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `bench::RuleBenchResult` | `pub struct RuleBenchResult` | [`crates/vox-rule-pack/src/bench.rs#L11-L20`](../../../crates/vox-rule-pack/src/bench.rs#L11-L20) | Per-rule precision/recall statistics from the fixture corpus. |
+| `struct` | `bench::BenchReport` | `pub struct BenchReport` | [`crates/vox-rule-pack/src/bench.rs#L24-L27`](../../../crates/vox-rule-pack/src/bench.rs#L24-L27) | Full bench report across all rules in a pack. |
+| `fn` | `bench::run_bench` | `pub fn run_bench(pack: &RulePack, fixtures_root: &Path) -> BenchReport` | [`crates/vox-rule-pack/src/bench.rs#L35-L48`](../../../crates/vox-rule-pack/src/bench.rs#L35-L48) | Runs the bench against `pack`, resolving fixture files relative to `fixtures_root`.  Fixture file naming convention: `<rule-sub-id>_pos_*.txt` and `<rule-sub-id>_neg_*.txt` inside `<fixtures_root>/<rule-parent-id>/`. For example, rule `victory-claim/premature` resolves to `<fixtures_root>/victory-claim/premature_pos_*.txt`. |
+| `type` | `error::RulePackResult` | `pub type RulePackResult<T> = Result<T, RulePackError>` | [`crates/vox-rule-pack/src/error.rs#L5`](../../../crates/vox-rule-pack/src/error.rs#L5) | — |
+| `enum` | `error::RulePackError` | `pub enum RulePackError` | [`crates/vox-rule-pack/src/error.rs#L8-L27`](../../../crates/vox-rule-pack/src/error.rs#L8-L27) | — |
+| `struct` | `pack::CompiledRule` | `pub struct CompiledRule` | [`crates/vox-rule-pack/src/pack.rs#L14-L27`](../../../crates/vox-rule-pack/src/pack.rs#L14-L27) | A rule with its regex pre-compiled and metadata ready for runtime use. |
+| `fn` | `pack::matches_line` | `pub fn matches_line(&self, line: &str) -> bool` | [`crates/vox-rule-pack/src/pack.rs#L31-L33`](../../../crates/vox-rule-pack/src/pack.rs#L31-L33) | Returns true if the compiled regex matches the given line. |
+| `fn` | `pack::matches_in_content` | `pub fn matches_in_content(&self, content: &str) -> Vec<usize>` | [`crates/vox-rule-pack/src/pack.rs#L37-L45`](../../../crates/vox-rule-pack/src/pack.rs#L37-L45) | For `MultilineRegex` rules: returns 1-indexed line numbers of every match in `content`. Returns an empty vec for `LineRegex` and `Substring` kinds (use `matches_line` instead). |
+| `fn` | `pack::regex` | `pub fn regex(&self) -> &Regex` | [`crates/vox-rule-pack/src/pack.rs#L48-L50`](../../../crates/vox-rule-pack/src/pack.rs#L48-L50) | Returns a reference to the pre-compiled regex. |
+| `struct` | `pack::RulePack` | `pub struct RulePack` | [`crates/vox-rule-pack/src/pack.rs#L56-L59`](../../../crates/vox-rule-pack/src/pack.rs#L56-L59) | Loaded, compiled rule pack. Build with [`RulePack::load_from_str`] or [`RulePack::load_from_path`]. Cheap to clone via `Arc<RulePack>`. |
+| `fn` | `pack::load_from_str` | `pub fn load_from_str(yaml: &str) -> RulePackResult<Self>` | [`crates/vox-rule-pack/src/pack.rs#L63-L79`](../../../crates/vox-rule-pack/src/pack.rs#L63-L79) | Parse and compile a rule pack from a YAML string. |
+| `fn` | `pack::load_from_path` | `pub fn load_from_path(path: &Path) -> RulePackResult<Self>` | [`crates/vox-rule-pack/src/pack.rs#L82-L88`](../../../crates/vox-rule-pack/src/pack.rs#L82-L88) | Read a YAML file from disk and compile it. |
+| `fn` | `pack::len` | `pub fn len(&self) -> usize` | [`crates/vox-rule-pack/src/pack.rs#L91-L93`](../../../crates/vox-rule-pack/src/pack.rs#L91-L93) | Number of compiled rules in this pack. |
+| `fn` | `pack::is_empty` | `pub fn is_empty(&self) -> bool` | [`crates/vox-rule-pack/src/pack.rs#L96-L98`](../../../crates/vox-rule-pack/src/pack.rs#L96-L98) | Returns true if there are no rules. |
+| `fn` | `pack::rule` | `pub fn rule(&self, id: &str) -> Option<&CompiledRule>` | [`crates/vox-rule-pack/src/pack.rs#L101-L103`](../../../crates/vox-rule-pack/src/pack.rs#L101-L103) | Look up a rule by its exact ID. |
+| `fn` | `pack::rules` | `pub fn rules(&self) -> &[CompiledRule]` | [`crates/vox-rule-pack/src/pack.rs#L106-L108`](../../../crates/vox-rule-pack/src/pack.rs#L106-L108) | Iterate all rules in declaration order. |
+| `fn` | `pack::rules_for_language` | `pub fn rules_for_language(&self, lang: RuleLanguage) -> impl Iterator<Item = &CompiledRule>` | [`crates/vox-rule-pack/src/pack.rs#L111-L115`](../../../crates/vox-rule-pack/src/pack.rs#L111-L115) | Iterate only the rules that apply to the given language. |
+| `struct` | `schema::RuleFile` | `pub struct RuleFile` | [`crates/vox-rule-pack/src/schema.rs#L8-L11`](../../../crates/vox-rule-pack/src/schema.rs#L8-L11) | — |
+| `struct` | `schema::RuleSpec` | `pub struct RuleSpec` | [`crates/vox-rule-pack/src/schema.rs#L14-L31`](../../../crates/vox-rule-pack/src/schema.rs#L14-L31) | — |
+| `struct` | `schema::MatchSpec` | `pub struct MatchSpec` | [`crates/vox-rule-pack/src/schema.rs#L34-L39`](../../../crates/vox-rule-pack/src/schema.rs#L34-L39) | — |
+| `enum` | `schema::MatchKind` | `pub enum MatchKind` | [`crates/vox-rule-pack/src/schema.rs#L43-L47`](../../../crates/vox-rule-pack/src/schema.rs#L43-L47) | — |
+| `enum` | `schema::SkipScope` | `pub enum SkipScope` | [`crates/vox-rule-pack/src/schema.rs#L51-L58`](../../../crates/vox-rule-pack/src/schema.rs#L51-L58) | — |
+| `struct` | `schema::FixtureSpec` | `pub struct FixtureSpec` | [`crates/vox-rule-pack/src/schema.rs#L61-L66`](../../../crates/vox-rule-pack/src/schema.rs#L61-L66) | — |
+| `enum` | `types::RuleSeverity` | `pub enum RuleSeverity` | [`crates/vox-rule-pack/src/types.rs#L8-L13`](../../../crates/vox-rule-pack/src/types.rs#L8-L13) | — |
+| `enum` | `types::RuleConfidence` | `pub enum RuleConfidence` | [`crates/vox-rule-pack/src/types.rs#L17-L21`](../../../crates/vox-rule-pack/src/types.rs#L17-L21) | — |
+| `enum` | `types::RuleLanguage` | `pub enum RuleLanguage` | [`crates/vox-rule-pack/src/types.rs#L25-L32`](../../../crates/vox-rule-pack/src/types.rs#L25-L32) | — |
+

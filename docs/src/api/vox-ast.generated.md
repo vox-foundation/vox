@@ -64,3 +64,58 @@ See `docs/src/reference/lexicon.md` for naming aligned with the grammar.
 | `stmt` | Statement AST nodes. |
 | `types` | Surface type expressions (`int`, generics, function types). |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_ast: "vox-ast"
+    node vox_compiler: "vox-compiler"
+    vox_compiler -> vox_ast
+    node vox_db: "vox-db"
+    vox_db -> vox_ast
+    node vox_sql: "vox-sql"
+    vox_sql -> vox_ast
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
+| [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
+| [`vox-sql`](./vox-sql.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `expr::Arg` | `pub struct Arg` | [`crates/vox-ast/src/expr.rs#L17-L22`](../../../crates/vox-ast/src/expr.rs#L17-L22) | Call argument: optional label (`name = value`) plus value expression. |
+| `enum` | `expr::BinOp` | `pub enum BinOp` | [`crates/vox-ast/src/expr.rs#L26-L55`](../../../crates/vox-ast/src/expr.rs#L26-L55) | Infix operators in surface syntax (including `is` / `isnt` for reference equality). |
+| `enum` | `expr::UnOp` | `pub enum UnOp` | [`crates/vox-ast/src/expr.rs#L59-L64`](../../../crates/vox-ast/src/expr.rs#L59-L64) | Unary operators |
+| `struct` | `expr::MatchArm` | `pub struct MatchArm` | [`crates/vox-ast/src/expr.rs#L68-L77`](../../../crates/vox-ast/src/expr.rs#L68-L77) | A match arm: pattern [if guard] -> body |
+| `struct` | `expr::JsxElement` | `pub struct JsxElement` | [`crates/vox-ast/src/expr.rs#L81-L90`](../../../crates/vox-ast/src/expr.rs#L81-L90) | A JSX element: <tag attrs...>children</tag> |
+| `struct` | `expr::JsxSelfClosingElement` | `pub struct JsxSelfClosingElement` | [`crates/vox-ast/src/expr.rs#L94-L101`](../../../crates/vox-ast/src/expr.rs#L94-L101) | Self-closing JSX: tag and attributes, then `/>` with no separate closing tag. |
+| `struct` | `expr::JsxAttribute` | `pub struct JsxAttribute` | [`crates/vox-ast/src/expr.rs#L105-L110`](../../../crates/vox-ast/src/expr.rs#L105-L110) | A JSX attribute: name={expr} or name="string" |
+| `struct` | `expr::Param` | `pub struct Param` | [`crates/vox-ast/src/expr.rs#L114-L123`](../../../crates/vox-ast/src/expr.rs#L114-L123) | Parameter for functions and lambdas. |
+| `enum` | `expr::StringPart` | `pub enum StringPart` | [`crates/vox-ast/src/expr.rs#L127-L132`](../../../crates/vox-ast/src/expr.rs#L127-L132) | Parts of a string interpolation. |
+| `enum` | `expr::Expr` | `pub enum Expr` | [`crates/vox-ast/src/expr.rs#L136`](../../../crates/vox-ast/src/expr.rs#L136) | All expression types in Vox. |
+| `struct` | `expr::WorkflowVersionCall` | `pub struct WorkflowVersionCall` | [`crates/vox-ast/src/expr.rs#L400-L405`](../../../crates/vox-ast/src/expr.rs#L400-L405) | Arguments for `workflow.version("change-id", min_supported, max_supported)`. |
+| `fn` | `expr::span` | `pub fn span(&self) -> Span` | [`crates/vox-ast/src/expr.rs#L409-L443`](../../../crates/vox-ast/src/expr.rs#L409-L443) | Outermost source span for diagnostics (includes JSX and block delimiters). |
+| `enum` | `pattern::Pattern` | `pub enum Pattern` | [`crates/vox-ast/src/pattern.rs#L6-L21`](../../../crates/vox-ast/src/pattern.rs#L6-L21) | Pattern matching nodes for let bindings and match arms. |
+| `fn` | `pattern::span` | `pub fn span(&self) -> Span` | [`crates/vox-ast/src/pattern.rs#L24-L32`](../../../crates/vox-ast/src/pattern.rs#L24-L32) | — |
+| `enum` | `scalar_mapping::VoxScalar` | `pub enum VoxScalar` | [`crates/vox-ast/src/scalar_mapping.rs#L8-L19`](../../../crates/vox-ast/src/scalar_mapping.rs#L8-L19) | Built-in scalar type names as they appear in Vox source / HIR `Named` types. |
+| `fn` | `scalar_mapping::parse` | `pub fn parse(name: &str) -> Option<Self>` | [`crates/vox-ast/src/scalar_mapping.rs#L24-L33`](../../../crates/vox-ast/src/scalar_mapping.rs#L24-L33) | Parse a Vox scalar name; returns [`None`] for ADTs, `Id`, etc. |
+| `fn` | `scalar_mapping::as_rust_type` | `pub fn as_rust_type(self) -> &'static str` | [`crates/vox-ast/src/scalar_mapping.rs#L37-L45`](../../../crates/vox-ast/src/scalar_mapping.rs#L37-L45) | Rust type used in generated structs, actors, and table rows. |
+| `fn` | `scalar_mapping::as_ts_primitive` | `pub fn as_ts_primitive(self) -> &'static str` | [`crates/vox-ast/src/scalar_mapping.rs#L49-L56`](../../../crates/vox-ast/src/scalar_mapping.rs#L49-L56) | TypeScript primitive or keyword for JSON / client stubs (both `int` and `float` → `number`). |
+| `fn` | `scalar_mapping::as_sqlite_affinity` | `pub fn as_sqlite_affinity(self) -> &'static str` | [`crates/vox-ast/src/scalar_mapping.rs#L60-L68`](../../../crates/vox-ast/src/scalar_mapping.rs#L60-L68) | SQLite column affinity for `@table` generation. |
+| `struct` | `span::Span` | `pub struct Span` | [`crates/vox-ast/src/span.rs#L3-L6`](../../../crates/vox-ast/src/span.rs#L3-L6) | Source span for tracking positions in source code. |
+| `fn` | `span::new` | `pub fn new(start: usize, end: usize) -> Self` | [`crates/vox-ast/src/span.rs#L9-L11`](../../../crates/vox-ast/src/span.rs#L9-L11) | — |
+| `fn` | `span::merge` | `pub fn merge(self, other: Span) -> Span` | [`crates/vox-ast/src/span.rs#L13-L18`](../../../crates/vox-ast/src/span.rs#L13-L18) | — |
+| `fn` | `span::byte_offset_to_line_col_zero_based` | `pub fn byte_offset_to_line_col_zero_based(text: &str, byte_index: usize) -> (u32, u32)` | [`crates/vox-ast/src/span.rs#L26-L42`](../../../crates/vox-ast/src/span.rs#L26-L42) | Map a UTF-8 **byte** offset into `text` to LSP-style **0-based** line and column.  Column counts **Unicode scalar values** on the current line (same convention as the Vox LSP before any UTF-16 code-unit adjustment). |
+| `enum` | `stmt::Stmt` | `pub enum Stmt` | [`crates/vox-ast/src/stmt.rs#L14-L59`](../../../crates/vox-ast/src/stmt.rs#L14-L59) | Statement: binding, assignment, return, or effectful expression. |
+| `fn` | `stmt::span` | `pub fn span(&self) -> Span` | [`crates/vox-ast/src/stmt.rs#L81-L92`](../../../crates/vox-ast/src/stmt.rs#L81-L92) | Span covering this statement for diagnostics. |
+| `enum` | `types::TypeExpr` | `pub enum TypeExpr` | [`crates/vox-ast/src/types.rs#L5-L28`](../../../crates/vox-ast/src/types.rs#L5-L28) | Type expressions in Vox source code. |
+| `fn` | `types::span` | `pub fn span(&self) -> Span` | [`crates/vox-ast/src/types.rs#L31-L41`](../../../crates/vox-ast/src/types.rs#L31-L41) | — |
+

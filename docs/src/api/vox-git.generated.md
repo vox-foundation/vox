@@ -72,3 +72,84 @@ GitBridge (this crate)
 | `read_cmd` | Audited read-only raw-`git` invocations (unified diffs / numstat). |
 | `refs` | Reference (branch/tag) utilities. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_git: "vox-git"
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_git -> vox_bounded_fs
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_git
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_git
+    node vox_cli_review: "vox-cli-review"
+    vox_cli_review -> vox_git
+    node vox_config: "vox-config"
+    vox_config -> vox_git
+    node vox_effort_audit: "vox-effort-audit"
+    vox_effort_audit -> vox_git
+    node vox_effort_route: "vox-effort-route"
+    vox_effort_route -> vox_git
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_git
+    node vox_ml_cli: "vox-ml-cli"
+    vox_ml_cli -> vox_git
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-review`](./vox-cli-review.generated.md) | Direct workspace dependent |
+| [`vox-config`](./vox-config.generated.md) | Direct workspace dependent |
+| [`vox-effort-audit`](./vox-effort-audit.generated.md) | Direct workspace dependent |
+| [`vox-effort-route`](./vox-effort-route.generated.md) | Direct workspace dependent |
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `bridge::SyncStatus` | `pub struct SyncStatus` | [`crates/vox-git/src/bridge.rs#L21-L32`](../../../crates/vox-git/src/bridge.rs#L21-L32) | Current sync status between local and remote. |
+| `struct` | `bridge::SyncStatusRef` | `pub struct SyncStatusRef` | [`crates/vox-git/src/bridge.rs#L36-L42`](../../../crates/vox-git/src/bridge.rs#L36-L42) | One ref's sync status. |
+| `struct` | `bridge::GitBridgeConfig` | `pub struct GitBridgeConfig` | [`crates/vox-git/src/bridge.rs#L135-L146`](../../../crates/vox-git/src/bridge.rs#L135-L146) | Configuration for a `GitBridge` instance. |
+| `struct` | `bridge::GitBridge` | `pub struct GitBridge` | [`crates/vox-git/src/bridge.rs#L165-L167`](../../../crates/vox-git/src/bridge.rs#L165-L167) | High-level Git bridge.  Wraps a local `gix::Repository` and exposes Vox-native Git operations. All gix types are confined to the method bodies below. |
+| `fn` | `bridge::open` | `pub fn open(repo_path: impl AsRef<Path>) -> Result<Self>` | [`crates/vox-git/src/bridge.rs#L171-L187`](../../../crates/vox-git/src/bridge.rs#L171-L187) | Open an existing Git repository at the given path. |
+| `fn` | `bridge::init` | `pub fn init(repo_path: impl AsRef<Path>) -> Result<Self>` | [`crates/vox-git/src/bridge.rs#L190-L212`](../../../crates/vox-git/src/bridge.rs#L190-L212) | Initialize a new Git repository at the given path. |
+| `fn` | `bridge::head_commit_id` | `pub fn head_commit_id(&self) -> Result<Option<ObjectId>>` | [`crates/vox-git/src/bridge.rs#L215-L238`](../../../crates/vox-git/src/bridge.rs#L215-L238) | Get the current HEAD commit ID. |
+| `fn` | `bridge::local_branches` | `pub fn local_branches(&self) -> Result<Vec<RefName>>` | [`crates/vox-git/src/bridge.rs#L241-L256`](../../../crates/vox-git/src/bridge.rs#L241-L256) | List local branch names. |
+| `fn` | `bridge::sync_status` | `pub fn sync_status(&self) -> Result<SyncStatus>` | [`crates/vox-git/src/bridge.rs#L259-L305`](../../../crates/vox-git/src/bridge.rs#L259-L305) | Get sync status vs the configured remote. |
+| `fn` | `bridge::read_ref` | `pub fn read_ref(&self, ref_name: &RefName) -> Result<Option<ObjectId>>` | [`crates/vox-git/src/bridge.rs#L308-L321`](../../../crates/vox-git/src/bridge.rs#L308-L321) | Read a ref to its target commit ID. |
+| `fn` | `bridge::remote_url` | `pub fn remote_url(&self) -> Result<String>` | [`crates/vox-git/src/bridge.rs#L362-L385`](../../../crates/vox-git/src/bridge.rs#L362-L385) | Get the URL of the configured remote. |
+| `fn` | `bridge::repo_path` | `pub fn repo_path(&self) -> &Path` | [`crates/vox-git/src/bridge.rs#L388-L390`](../../../crates/vox-git/src/bridge.rs#L388-L390) | Repository path. |
+| `fn` | `bridge::config_mut` | `pub fn config_mut(&mut self) -> &mut GitBridgeConfig` | [`crates/vox-git/src/bridge.rs#L393-L395`](../../../crates/vox-git/src/bridge.rs#L393-L395) | Mutable access to config (e.g., to change remote or branch). |
+| `struct` | `object::ObjectId` | `pub struct ObjectId(pub String)` | [`crates/vox-git/src/object.rs#L11`](../../../crates/vox-git/src/object.rs#L11) | A Git object ID (SHA-1 or SHA-256 hash, hex-encoded). |
+| `fn` | `object::parse` | `pub fn parse(hex: impl Into<String>) -> Option<Self>` | [`crates/vox-git/src/object.rs#L15-L22`](../../../crates/vox-git/src/object.rs#L15-L22) | Parse a hex string into an `ObjectId`. Returns `None` if invalid. |
+| `fn` | `object::short` | `pub fn short(&self) -> &str` | [`crates/vox-git/src/object.rs#L25-L27`](../../../crates/vox-git/src/object.rs#L25-L27) | Short (7-char) display for human output. |
+| `fn` | `object::as_str` | `pub fn as_str(&self) -> &str` | [`crates/vox-git/src/object.rs#L30-L32`](../../../crates/vox-git/src/object.rs#L30-L32) | Full hex string. |
+| `enum` | `object::ObjectKind` | `pub enum ObjectKind` | [`crates/vox-git/src/object.rs#L43-L48`](../../../crates/vox-git/src/object.rs#L43-L48) | The kind of Git object. |
+| `struct` | `object::GitCommit` | `pub struct GitCommit` | [`crates/vox-git/src/object.rs#L52-L71`](../../../crates/vox-git/src/object.rs#L52-L71) | A Git commit (Vox-native representation). |
+| `fn` | `object::summary` | `pub fn summary(&self) -> &str` | [`crates/vox-git/src/object.rs#L75-L77`](../../../crates/vox-git/src/object.rs#L75-L77) | One-line summary (first line of message). |
+| `fn` | `object::is_merge` | `pub fn is_merge(&self) -> bool` | [`crates/vox-git/src/object.rs#L80-L82`](../../../crates/vox-git/src/object.rs#L80-L82) | True if this is a merge commit (>1 parent). |
+| `struct` | `object::TreeEntry` | `pub struct TreeEntry` | [`crates/vox-git/src/object.rs#L87-L96`](../../../crates/vox-git/src/object.rs#L87-L96) | A Git tree entry. |
+| `enum` | `read_cmd::GitReadError` | `pub enum GitReadError` | [`crates/vox-git/src/read_cmd.rs#L27-L42`](../../../crates/vox-git/src/read_cmd.rs#L27-L42) | Failure modes for [`read_only`]. |
+| `fn` | `read_cmd::read_only` | `pub fn read_only(repo: &Path, args: &[&str]) -> Result<String, GitReadError>` | [`crates/vox-git/src/read_cmd.rs#L51-L68`](../../../crates/vox-git/src/read_cmd.rs#L51-L68) | Run `git -C <repo> <args...>` for a read-only subcommand, returning stdout (lossy UTF-8).  Rejects any subcommand not in `READ_ONLY` (defense against accidental writes). The output is byte-for-byte the stdout of the underlying `git` process, so callers feeding diffs to an LLM judge/router see identical context to a direct invocation. |
+| `struct` | `refs::RefName` | `pub struct RefName(pub String)` | [`crates/vox-git/src/refs.rs#L11`](../../../crates/vox-git/src/refs.rs#L11) | A fully-qualified Git ref name (e.g., `refs/heads/main`). |
+| `fn` | `refs::new` | `pub fn new(name: impl Into<String>) -> Self` | [`crates/vox-git/src/refs.rs#L15-L17`](../../../crates/vox-git/src/refs.rs#L15-L17) | Create from a string. |
+| `fn` | `refs::branch` | `pub fn branch(name: &str) -> Self` | [`crates/vox-git/src/refs.rs#L20-L22`](../../../crates/vox-git/src/refs.rs#L20-L22) | `refs/heads/<branch>` shortcut. |
+| `fn` | `refs::tag` | `pub fn tag(name: &str) -> Self` | [`crates/vox-git/src/refs.rs#L25-L27`](../../../crates/vox-git/src/refs.rs#L25-L27) | `refs/tags/<tag>` shortcut. |
+| `fn` | `refs::remote_tracking` | `pub fn remote_tracking(remote: &str, branch: &str) -> Self` | [`crates/vox-git/src/refs.rs#L30-L32`](../../../crates/vox-git/src/refs.rs#L30-L32) | `refs/remotes/<remote>/<branch>` shortcut. |
+| `fn` | `refs::as_branch_name` | `pub fn as_branch_name(&self) -> Option<&str>` | [`crates/vox-git/src/refs.rs#L35-L37`](../../../crates/vox-git/src/refs.rs#L35-L37) | Extract branch name from `refs/heads/…`. |
+| `fn` | `refs::as_tag_name` | `pub fn as_tag_name(&self) -> Option<&str>` | [`crates/vox-git/src/refs.rs#L40-L42`](../../../crates/vox-git/src/refs.rs#L40-L42) | Extract tag name from `refs/tags/…`. |
+| `fn` | `refs::as_str` | `pub fn as_str(&self) -> &str` | [`crates/vox-git/src/refs.rs#L45-L47`](../../../crates/vox-git/src/refs.rs#L45-L47) | Raw ref string. |
+| `struct` | `refs::ResolvedRef` | `pub struct ResolvedRef` | [`crates/vox-git/src/refs.rs#L58-L63`](../../../crates/vox-git/src/refs.rs#L58-L63) | A resolved Git ref — a ref name bound to an object ID. |
+| `struct` | `refs::RemoteRef` | `pub struct RemoteRef` | [`crates/vox-git/src/refs.rs#L67-L74`](../../../crates/vox-git/src/refs.rs#L67-L74) | A remote bookmark — mirrors a remote's current ref state. |
+| `struct` | `refs::RefDiff` | `pub struct RefDiff` | [`crates/vox-git/src/refs.rs#L78-L83`](../../../crates/vox-git/src/refs.rs#L78-L83) | Diff between local and remote refs — used by sync to determine what to push/fetch. |
+| `enum` | `refs::RefStatus` | `pub enum RefStatus` | [`crates/vox-git/src/refs.rs#L87-L100`](../../../crates/vox-git/src/refs.rs#L87-L100) | Status of a ref relative to its remote counterpart. |
+

@@ -53,3 +53,28 @@ DB-free CLI for writing in the Vox language: check, fmt, run, build.
 |---|---|
 | `is_script_like` | Heuristic: treat file as script-like (uses `parse_script`) unless it contains app-surface decorators that must live at module position. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_langtool: "vox-langtool"
+    node vox_cli_core: "vox-cli-core"
+    vox_langtool -> vox_cli_core
+    node vox_codegen: "vox-codegen"
+    vox_langtool -> vox_codegen
+    node vox_compiler: "vox-compiler"
+    vox_langtool -> vox_compiler
+    node vox_config: "vox-config"
+    vox_langtool -> vox_config
+    node vox_lsp: "vox-lsp"
+    vox_langtool -> vox_lsp
+}
+```
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `is_script_like` | `pub fn is_script_like(source: &str) -> bool` | [`crates/vox-langtool/src/lib.rs#L10-L21`](../../../crates/vox-langtool/src/lib.rs#L10-L21) | Heuristic: treat file as script-like (uses `parse_script`) unless it contains app-surface decorators that must live at module position. |
+

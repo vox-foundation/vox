@@ -43,3 +43,30 @@ high precision (low false-positive rate) are elided.
 | `redact_owned` | Redact PII/secret patterns in free text. Conservative: unknown patterns pass through. |
 | `redact_args` | Recursively redact a JSON value: values under secret-ish keys become `"[REDACTED]"`; all other string scalars are run through [`redact_owned`]. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_redact: "vox-redact"
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_redact
+    node vox_terminal_core: "vox-terminal-core"
+    vox_terminal_core -> vox_redact
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-terminal-core`](./vox-terminal-core.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `redact_owned` | `pub fn redact_owned(text: &str) -> String` | [`crates/vox-redact/src/lib.rs#L67-L74`](../../../crates/vox-redact/src/lib.rs#L67-L74) | Redact PII/secret patterns in free text. Conservative: unknown patterns pass through. |
+| `fn` | `redact_args` | `pub fn redact_args(value: &serde_json::Value) -> serde_json::Value` | [`crates/vox-redact/src/lib.rs#L100-L118`](../../../crates/vox-redact/src/lib.rs#L100-L118) | Recursively redact a JSON value: values under secret-ish keys become `"[REDACTED]"`; all other string scalars are run through [`redact_owned`]. |
+

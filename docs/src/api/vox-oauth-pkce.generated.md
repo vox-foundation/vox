@@ -45,3 +45,35 @@ provider-agnostic core + an OpenRouter-specific driver.
 | `openrouter` | — |
 | `pkce` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_oauth_pkce: "vox-oauth-pkce"
+    node vox_http_client: "vox-http-client"
+    vox_oauth_pkce -> vox_http_client
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_oauth_pkce
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_oauth_pkce
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `openrouter::OAuthError` | `pub enum OAuthError` | [`crates/vox-oauth-pkce/src/openrouter.rs#L21-L36`](../../../crates/vox-oauth-pkce/src/openrouter.rs#L21-L36) | — |
+| `fn` | `openrouter::run_openrouter_flow` | `pub async fn run_openrouter_flow() -> Result<String, OAuthError>` | [`crates/vox-oauth-pkce/src/openrouter.rs#L139-L205`](../../../crates/vox-oauth-pkce/src/openrouter.rs#L139-L205) | Run the full loopback PKCE flow against OpenRouter and return the provisioned API key on success. Opens the system browser; blocks (async) until the callback arrives or `CALLBACK_TIMEOUT` elapses. |
+| `struct` | `pkce::PkcePair` | `pub struct PkcePair` | [`crates/vox-oauth-pkce/src/pkce.rs#L16-L19`](../../../crates/vox-oauth-pkce/src/pkce.rs#L16-L19) | A generated PKCE pair: the secret verifier (kept in-process) and its S256 challenge (sent to the authorization server).  `Debug` is hand-written to **redact `verifier`** so the code verifier — a bearer-adjacent OAuth secret — can never leak into logs/traces via `tracing::debug!(?pair)`. `challenge` is not secret (it's sent to the authorization server in the clear) and stays visible. |
+| `fn` | `pkce::generate` | `pub fn generate() -> PkcePair` | [`crates/vox-oauth-pkce/src/pkce.rs#L36-L49`](../../../crates/vox-oauth-pkce/src/pkce.rs#L36-L49) | Generate a new PKCE pair using a 64-byte random verifier (RFC 7636 §4.1 requires 43-128 chars of unreserved base64url chars; 64 raw bytes -> 86 base64url chars, comfortably in range) and its S256 challenge. |
+| `fn` | `pkce::generate_state` | `pub fn generate_state() -> String` | [`crates/vox-oauth-pkce/src/pkce.rs#L52-L56`](../../../crates/vox-oauth-pkce/src/pkce.rs#L52-L56) | Generate a random `state` value (32 bytes, base64url) for CSRF binding. |
+

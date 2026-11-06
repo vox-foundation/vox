@@ -120,3 +120,112 @@ The **`mens`** module holds Burn/Candle QLoRA training (`--features mens …`).
 | `local_registry_path` | Resolved on-disk registry path (honours `VOX_MESH_REGISTRY_PATH`). |
 | `current_target_triple` | Returns the current target triple (Wave 4 best-effort). |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_populi: "vox-populi"
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_populi -> vox_bounded_fs
+    node vox_config: "vox-config"
+    vox_populi -> vox_config
+    node vox_constrained_gen: "vox-constrained-gen"
+    vox_populi -> vox_constrained_gen
+    node vox_corpus: "vox-corpus"
+    vox_populi -> vox_corpus
+    node vox_crypto: "vox-crypto"
+    vox_populi -> vox_crypto
+    node vox_db: "vox-db"
+    vox_populi -> vox_db
+    node vox_eval: "vox-eval"
+    vox_populi -> vox_eval
+    node vox_foundation: "vox-foundation"
+    vox_populi -> vox_foundation
+    node vox_gamify: "vox-gamify"
+    vox_populi -> vox_gamify
+    node vox_hf_layout: "vox-hf-layout"
+    vox_populi -> vox_hf_layout
+    node vox_http_client: "vox-http-client"
+    vox_populi -> vox_http_client
+    node vox_identity: "vox-identity"
+    vox_populi -> vox_identity
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_populi
+    node vox_ml_cli: "vox-ml-cli"
+    vox_ml_cli -> vox_populi
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_populi
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_populi
+    node vox_plugin_populi_mesh: "vox-plugin-populi-mesh"
+    vox_plugin_populi_mesh -> vox_populi
+    node vox_speech: "vox-speech"
+    vox_speech -> vox_populi
+    node vox_workflow_runtime: "vox-workflow-runtime"
+    vox_workflow_runtime -> vox_populi
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-plugin-populi-mesh`](./vox-plugin-populi-mesh.generated.md) | Direct workspace dependent |
+| [`vox-speech`](./vox-speech.generated.md) | Direct workspace dependent |
+| [`vox-workflow-runtime`](./vox-workflow-runtime.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `populi_enabled_from_env` | `pub fn populi_enabled_from_env() -> bool` | [`crates/vox-populi/src/lib.rs#L17-L25`](../../../crates/vox-populi/src/lib.rs#L17-L25) | Whether populi hooks are enabled (`VOX_MESH_ENABLED=1` or `true`). |
+| `struct` | `PopuliEnv` | `pub struct PopuliEnv` | [`crates/vox-populi/src/lib.rs#L29-L50`](../../../crates/vox-populi/src/lib.rs#L29-L50) | Parsed populi-related environment (best-effort). |
+| `fn` | `populi_env_resolved` | `pub fn populi_env_resolved(vox_toml_path: Option<&std::path::Path>) -> PopuliEnv` | [`crates/vox-populi/src/lib.rs#L55-L98`](../../../crates/vox-populi/src/lib.rs#L55-L98) | Merge `Vox.toml` `[populi]` into env-derived values when the corresponding env is unset. Precedence: **environment always wins** over TOML for each field. |
+| `fn` | `populi_advertise_gpu_effective` | `pub fn populi_advertise_gpu_effective(vox_toml_path: Option<&std::path::Path>) -> bool` | [`crates/vox-populi/src/lib.rs#L102-L120`](../../../crates/vox-populi/src/lib.rs#L102-L120) | Whether `VOX_MESH_ADVERTISE_GPU` is set, or `[populi].advertise_gpu = true` when env is unset. |
+| `fn` | `normalize_http_control_base` | `pub fn normalize_http_control_base(raw: &str) -> Option<String>` | [`crates/vox-populi/src/lib.rs#L127-L143`](../../../crates/vox-populi/src/lib.rs#L127-L143) | Normalize a control-plane URL for use as an HTTP **client** base (join / heartbeat / list).  Returns [`None`] for empty strings, invalid trim, or **bind-all** hosts (`0.0.0.0`, `::`) where the value is meant for `vox populi serve --bind`, not outbound requests. |
+| `fn` | `populi_env` | `pub fn populi_env() -> PopuliEnv` | [`crates/vox-populi/src/lib.rs#L165-L207`](../../../crates/vox-populi/src/lib.rs#L165-L207) | Read populi env vars (does not mutate process state). |
+| `fn` | `populi_scope_id_from_env` | `pub fn populi_scope_id_from_env() -> Option<String>` | [`crates/vox-populi/src/lib.rs#L211-L216`](../../../crates/vox-populi/src/lib.rs#L211-L216) | `VOX_MESH_SCOPE_ID` when set and non-empty after trim. |
+| `fn` | `wall_clock_unix_ms` | `pub fn wall_clock_unix_ms() -> u64` | [`crates/vox-populi/src/lib.rs#L220-L222`](../../../crates/vox-populi/src/lib.rs#L220-L222) | Current Unix time in milliseconds (for federation timestamps and tests). |
+| `fn` | `resolve_vox_toml_best_effort` | `pub fn resolve_vox_toml_best_effort() -> Option<PathBuf>` | [`crates/vox-populi/src/lib.rs#L241-L247`](../../../crates/vox-populi/src/lib.rs#L241-L247) | Resolve `Vox.toml` path next to the current working directory (nearest manifest root). |
+| `fn` | `node_record_for_current_process` | `pub fn node_record_for_current_process(node_id: String, listen_addr: Option<String>) -> NodeRecord` | [`crates/vox-populi/src/lib.rs#L257-L334`](../../../crates/vox-populi/src/lib.rs#L257-L334) | Build a [`NodeRecord`] for this process using orchestrator host probe + populi env labels. |
+| `fn` | `publish_local_registry_best_effort` | `pub fn publish_local_registry_best_effort() -> Result<(), PopuliRegistryError>` | [`crates/vox-populi/src/lib.rs#L337-L344`](../../../crates/vox-populi/src/lib.rs#L337-L344) | Register this process into the default local registry file (no-op if `VOX_MESH_ENABLED` is off). |
+| `fn` | `populi_registration_record_for_process` | `pub fn populi_registration_record_for_process() -> NodeRecord` | [`crates/vox-populi/src/lib.rs#L348-L357`](../../../crates/vox-populi/src/lib.rs#L348-L357) | [`NodeRecord`] for this process — same id and `listen_addr` as [`publish_local_registry_best_effort`]. |
+| `fn` | `local_registry_path` | `pub fn local_registry_path() -> PathBuf` | [`crates/vox-populi/src/lib.rs#L361-L363`](../../../crates/vox-populi/src/lib.rs#L361-L363) | Resolved on-disk registry path (honours `VOX_MESH_REGISTRY_PATH`). |
+| `fn` | `current_target_triple` | `pub fn current_target_triple() -> &'static str` | [`crates/vox-populi/src/lib.rs#L380-L398`](../../../crates/vox-populi/src/lib.rs#L380-L398) | Returns the current target triple (Wave 4 best-effort). |
+| `struct` | `http_client::A2AInboxPager` | `pub struct A2AInboxPager` | [`crates/vox-populi/src/http_client.rs#L29-L34`](../../../crates/vox-populi/src/http_client.rs#L29-L34) | Iterator-style paging cursor for non-claimer A2A inbox reads. |
+| `fn` | `http_client::new` | `pub fn new(receiver_agent_id: impl Into<String>, page_size: usize) -> Self` | [`crates/vox-populi/src/http_client.rs#L39-L46`](../../../crates/vox-populi/src/http_client.rs#L39-L46) | Create a pager for a receiver id with a bounded page size. |
+| `fn` | `http_client::next_page` | `pub async fn next_page(` | [`crates/vox-populi/src/http_client.rs#L49`](../../../crates/vox-populi/src/http_client.rs#L49) | Fetch the next page (newest-first). Empty page means completion. |
+| `struct` | `http_client::PopuliHttpClient` | `pub struct PopuliHttpClient` | [`crates/vox-populi/src/http_client.rs#L74-L78`](../../../crates/vox-populi/src/http_client.rs#L74-L78) | Call the populi HTTP API (join / list / heartbeat / leave). |
+| `fn` | `http_client::for_hosted_control_plane` | `pub fn for_hosted_control_plane(base: impl Into<String>) -> Self` | [`crates/vox-populi/src/http_client.rs#L93-L95`](../../../crates/vox-populi/src/http_client.rs#L93-L95) | Hosted / BaaS control plane entrypoint: same as [`Self::new`], but documents org-scoped HTTPS bases (see `docs/src/adr/009-populi-hosted-baas.md`). **Never** embed secrets in the URL. |
+| `fn` | `http_client::queue_stats` | `pub async fn queue_stats(&self) -> Result<MeshQueueStats, PopuliRegistryError>` | [`crates/vox-populi/src/http_client.rs#L98-L120`](../../../crates/vox-populi/src/http_client.rs#L98-L120) | Get mesh queue stats. |
+| `fn` | `http_client::new` | `pub fn new(base: impl Into<String>) -> Self` | [`crates/vox-populi/src/http_client.rs#L124-L126`](../../../crates/vox-populi/src/http_client.rs#L124-L126) | New client; `base` is normalized (trailing `/` stripped). No `Authorization` header. |
+| `fn` | `http_client::new_with_timeout` | `pub fn new_with_timeout(base: impl Into<String>, timeout: Duration) -> Self` | [`crates/vox-populi/src/http_client.rs#L130-L146`](../../../crates/vox-populi/src/http_client.rs#L130-L146) | Like [`Self::new`] with an explicit request timeout (federation / control plane). |
+| `fn` | `http_client::with_bearer` | `pub fn with_bearer(mut self, token: impl Into<String>) -> Self` | [`crates/vox-populi/src/http_client.rs#L150-L154`](../../../crates/vox-populi/src/http_client.rs#L150-L154) | Attach `Authorization: Bearer …` to every request (e.g. matches server **`VOX_MESH_TOKEN`**). |
+| `fn` | `http_client::with_env_token` | `pub fn with_env_token(self) -> Self` | [`crates/vox-populi/src/http_client.rs#L158-L164`](../../../crates/vox-populi/src/http_client.rs#L158-L164) | If **`VOX_MESH_TOKEN`** is set and non-empty, same as [`Self::with_bearer`] with that value. |
+| `fn` | `http_client::with_env_deliver_token` | `pub fn with_env_deliver_token(self) -> Self` | [`crates/vox-populi/src/http_client.rs#L168-L174`](../../../crates/vox-populi/src/http_client.rs#L168-L174) | Bearer for **`POST /v1/populi/a2a/deliver`**: first non-empty among mesh, submitter, then admin tokens. |
+| `fn` | `http_client::list_nodes` | `pub async fn list_nodes(&self) -> Result<PopuliRegistryFile, PopuliRegistryError>` | [`crates/vox-populi/src/http_client.rs#L224-L237`](../../../crates/vox-populi/src/http_client.rs#L224-L237) | `GET /v1/populi/nodes` |
+| `fn` | `http_client::sync_node_registry` | `pub async fn sync_node_registry(` | [`crates/vox-populi/src/http_client.rs#L245`](../../../crates/vox-populi/src/http_client.rs#L245) | Fetch the control-plane node list (`GET /v1/populi/nodes`), merge it into the on-disk `LocalRegistry` at `reg` (deduped by id, fresher `last_seen_unix_ms` wins, control plane authoritative on ties), and persist atomically. Returns the merged view. The HTTP fetch is the only part that needs a live control plane; the merge (`merge_registry_by_last_seen`) is a pure, separately unit-tested function. |
+| `fn` | `http_client::federation_directory` | `pub async fn federation_directory(` | [`crates/vox-populi/src/http_client.rs#L261`](../../../crates/vox-populi/src/http_client.rs#L261) | `GET /v1/populi/federation/directory` |
+| `fn` | `http_client::federation_announce` | `pub async fn federation_announce(` | [`crates/vox-populi/src/http_client.rs#L279`](../../../crates/vox-populi/src/http_client.rs#L279) | `POST /v1/populi/federation/announce` |
+| `fn` | `http_client::join` | `pub async fn join(&self, node: &NodeRecord) -> Result<NodeRecord, PopuliRegistryError>` | [`crates/vox-populi/src/http_client.rs#L298-L311`](../../../crates/vox-populi/src/http_client.rs#L298-L311) | `POST /v1/populi/join` |
+| `fn` | `http_client::heartbeat` | `pub async fn heartbeat(&self, node: &NodeRecord) -> Result<NodeRecord, PopuliRegistryError>` | [`crates/vox-populi/src/http_client.rs#L314-L327`](../../../crates/vox-populi/src/http_client.rs#L314-L327) | `POST /v1/populi/heartbeat` |
+| `fn` | `http_client::bootstrap_exchange` | `pub async fn bootstrap_exchange(` | [`crates/vox-populi/src/http_client.rs#L333`](../../../crates/vox-populi/src/http_client.rs#L333) | `POST /v1/populi/bootstrap/exchange` — exchange a one-time bootstrap token for the mesh bearer token.  The endpoint is unauthenticated (no `Authorization` header); the bootstrap token itself is the credential. Returns the long-lived mesh bearer token and optional scope id. |
+| `fn` | `http_client::leave` | `pub async fn leave(&self, node_id: &str) -> Result<bool, PopuliRegistryError>` | [`crates/vox-populi/src/http_client.rs#L355-L374`](../../../crates/vox-populi/src/http_client.rs#L355-L374) | `POST /v1/populi/leave` — returns `true` if the node was present and removed. |
+| `fn` | `http_client::relay_a2a` | `pub async fn relay_a2a(&self, req: &A2ADeliverRequest) -> Result<(), PopuliRegistryError>` | [`crates/vox-populi/src/http_client.rs#L377-L386`](../../../crates/vox-populi/src/http_client.rs#L377-L386) | `POST /v1/populi/a2a/deliver` — forward an A2A message to a remote node. |
+| `fn` | `http_client::relay_a2a_inbox` | `pub async fn relay_a2a_inbox(` | [`crates/vox-populi/src/http_client.rs#L389`](../../../crates/vox-populi/src/http_client.rs#L389) | `POST /v1/populi/a2a/inbox` — fetch undelivered messages for a receiver id. |
+| `fn` | `http_client::relay_a2a_inbox_limited` | `pub async fn relay_a2a_inbox_limited(` | [`crates/vox-populi/src/http_client.rs#L398`](../../../crates/vox-populi/src/http_client.rs#L398) | `POST /v1/populi/a2a/inbox` with optional server-side max row cap. |
+| `fn` | `http_client::relay_a2a_inbox_all_paged` | `pub async fn relay_a2a_inbox_all_paged(` | [`crates/vox-populi/src/http_client.rs#L424`](../../../crates/vox-populi/src/http_client.rs#L424) | Page through non-claimer inbox rows until empty (newest-to-oldest by `id`). |
+| `fn` | `http_client::relay_a2a_ack` | `pub async fn relay_a2a_ack(` | [`crates/vox-populi/src/http_client.rs#L442`](../../../crates/vox-populi/src/http_client.rs#L442) | `POST /v1/populi/a2a/ack` — acknowledge one delivered message. |
+| `fn` | `http_client::exec_lease_grant` | `pub async fn exec_lease_grant(` | [`crates/vox-populi/src/http_client.rs#L469`](../../../crates/vox-populi/src/http_client.rs#L469) | `POST /v1/populi/exec/lease/grant` — acquire or refresh a remote execution lease for `scope_key`. |
+| `fn` | `http_client::list_exec_leases` | `pub async fn list_exec_leases(` | [`crates/vox-populi/src/http_client.rs#L487`](../../../crates/vox-populi/src/http_client.rs#L487) | `GET /v1/populi/exec/leases` — mesh/admin bearer; non-expired rows after server sweep. |
+| `fn` | `http_client::exec_lease_renew` | `pub async fn exec_lease_renew(` | [`crates/vox-populi/src/http_client.rs#L504`](../../../crates/vox-populi/src/http_client.rs#L504) | `POST /v1/populi/exec/lease/renew`. |
+| `fn` | `http_client::exec_lease_release` | `pub async fn exec_lease_release(` | [`crates/vox-populi/src/http_client.rs#L519`](../../../crates/vox-populi/src/http_client.rs#L519) | `POST /v1/populi/exec/lease/release`. |
+| `fn` | `http_client::relay_a2a_lease_renew` | `pub async fn relay_a2a_lease_renew(` | [`crates/vox-populi/src/http_client.rs#L534`](../../../crates/vox-populi/src/http_client.rs#L534) | `POST /v1/populi/a2a/lease-renew`. |
+| `fn` | `http_client::admin_quarantine` | `pub async fn admin_quarantine(` | [`crates/vox-populi/src/http_client.rs#L549`](../../../crates/vox-populi/src/http_client.rs#L549) | `POST /v1/populi/admin/quarantine` — requires mesh/admin bearer. |
+| `fn` | `http_client::admin_maintenance` | `pub async fn admin_maintenance(` | [`crates/vox-populi/src/http_client.rs#L564`](../../../crates/vox-populi/src/http_client.rs#L564) | `POST /v1/populi/admin/maintenance` — requires mesh/admin bearer. |
+

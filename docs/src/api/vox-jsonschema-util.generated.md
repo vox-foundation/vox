@@ -47,3 +47,52 @@ File I/O stays with callers (e.g. `vox_bounded_fs`); this crate only centralizes
 | `compile_validator_from_utf8` | Compile after reading UTF-8 JSON from `path` (caller-supplied reader for caps / policy). |
 | `validate` | Run validation; errors include `context` and the underlying `jsonschema` diagnostic chain. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_jsonschema_util: "vox-jsonschema-util"
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_jsonschema_util
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_jsonschema_util
+    node vox_cli_contracts: "vox-cli-contracts"
+    vox_cli_contracts -> vox_jsonschema_util
+    node vox_cli_core: "vox-cli-core"
+    vox_cli_core -> vox_jsonschema_util
+    node vox_code_audit: "vox-code-audit"
+    vox_code_audit -> vox_jsonschema_util
+    node vox_compiler: "vox-compiler"
+    vox_compiler -> vox_jsonschema_util
+    node vox_ml_cli: "vox-ml-cli"
+    vox_ml_cli -> vox_jsonschema_util
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_jsonschema_util
+    node vox_publisher: "vox-publisher"
+    vox_publisher -> vox_jsonschema_util
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-contracts`](./vox-cli-contracts.generated.md) | Direct workspace dependent |
+| [`vox-cli-core`](./vox-cli-core.generated.md) | Direct workspace dependent |
+| [`vox-code-audit`](./vox-code-audit.generated.md) | Direct workspace dependent |
+| [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-publisher`](./vox-publisher.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `compile_validator` | `pub fn compile_validator(` | [`crates/vox-jsonschema-util/src/lib.rs#L16`](../../../crates/vox-jsonschema-util/src/lib.rs#L16) | Build a [`jsonschema::Validator`] from a parsed schema document. |
+| `fn` | `compile_validator_from_utf8` | `pub fn compile_validator_from_utf8(` | [`crates/vox-jsonschema-util/src/lib.rs#L24`](../../../crates/vox-jsonschema-util/src/lib.rs#L24) | Compile after reading UTF-8 JSON from `path` (caller-supplied reader for caps / policy). |
+| `fn` | `validate` | `pub fn validate(` | [`crates/vox-jsonschema-util/src/lib.rs#L34`](../../../crates/vox-jsonschema-util/src/lib.rs#L34) | Run validation; errors include `context` and the underlying `jsonschema` diagnostic chain. |
+

@@ -67,3 +67,87 @@ use vox_test_harness::pipeline::{parse_str_unwrap, typecheck_str};
 | `temp_root` | — |
 | `workspace_paths` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_test_harness: "vox-test-harness"
+    node vox_compiler: "vox-compiler"
+    vox_test_harness -> vox_compiler
+    node vox_config: "vox-config"
+    vox_test_harness -> vox_config
+    node vox_secrets: "vox-secrets"
+    vox_test_harness -> vox_secrets
+    node vox_arch_check: "vox-arch-check"
+    vox_arch_check -> vox_test_harness
+    vox_compiler -> vox_test_harness
+    node vox_db: "vox-db"
+    vox_db -> vox_test_harness
+    node vox_integration_tests: "vox-integration-tests"
+    vox_integration_tests -> vox_test_harness
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_test_harness
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-arch-check`](./vox-arch-check.generated.md) | Direct workspace dependent |
+| [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
+| [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
+| [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `assertions::has_error` | `pub fn has_error(diags: &[Diagnostic]) -> bool` | [`crates/vox-test-harness/src/assertions.rs#L9-L11`](../../../crates/vox-test-harness/src/assertions.rs#L9-L11) | Returns `true` if `diags` contains at least one error-severity diagnostic. |
+| `fn` | `assertions::error_messages` | `pub fn error_messages(diags: &[Diagnostic]) -> Vec<String>` | [`crates/vox-test-harness/src/assertions.rs#L14-L20`](../../../crates/vox-test-harness/src/assertions.rs#L14-L20) | Returns the `message` field of every error-severity diagnostic in `diags`. |
+| `fn` | `assertions::warning_messages` | `pub fn warning_messages(diags: &[Diagnostic]) -> Vec<String>` | [`crates/vox-test-harness/src/assertions.rs#L23-L29`](../../../crates/vox-test-harness/src/assertions.rs#L23-L29) | Returns the `message` field of every warning-severity diagnostic in `diags`. |
+| `fn` | `assertions::assert_no_errors` | `pub fn assert_no_errors(diags: &[Diagnostic])` | [`crates/vox-test-harness/src/assertions.rs#L35-L42`](../../../crates/vox-test-harness/src/assertions.rs#L35-L42) | Asserts that `diags` contains zero error-severity diagnostics.  Prints all error messages on failure. |
+| `struct` | `barriers::TestBarrier` | `pub struct TestBarrier` | [`crates/vox-test-harness/src/barriers.rs#L9-L11`](../../../crates/vox-test-harness/src/barriers.rs#L9-L11) | A simple waitable barrier to replace `sleep` in tests. |
+| `fn` | `barriers::new` | `pub fn new() -> Self` | [`crates/vox-test-harness/src/barriers.rs#L14-L16`](../../../crates/vox-test-harness/src/barriers.rs#L14-L16) | — |
+| `fn` | `barriers::signal` | `pub fn signal(&self)` | [`crates/vox-test-harness/src/barriers.rs#L19-L21`](../../../crates/vox-test-harness/src/barriers.rs#L19-L21) | Signals that an event occurred. |
+| `fn` | `barriers::wait` | `pub async fn wait(&self) -> bool` | [`crates/vox-test-harness/src/barriers.rs#L25-L27`](../../../crates/vox-test-harness/src/barriers.rs#L25-L27) | Waits for a signal, with a default 5-second timeout to prevent tests from hanging indefinitely in CI. |
+| `fn` | `barriers::wait_with_timeout` | `pub async fn wait_with_timeout(&self, dur: Duration) -> bool` | [`crates/vox-test-harness/src/barriers.rs#L30-L32`](../../../crates/vox-test-harness/src/barriers.rs#L30-L32) | Waits for a signal with a specific timeout. |
+| `struct` | `diagnosis::TestDiagnosis` | `pub struct TestDiagnosis` | [`crates/vox-test-harness/src/diagnosis.rs#L11-L32`](../../../crates/vox-test-harness/src/diagnosis.rs#L11-L32) | Structured failure record emitted to stdout for CI and doctor tooling. |
+| `enum` | `diagnosis::TestCategory` | `pub enum TestCategory` | [`crates/vox-test-harness/src/diagnosis.rs#L37-L56`](../../../crates/vox-test-harness/src/diagnosis.rs#L37-L56) | Compiler / tooling stage associated with a failure. |
+| `fn` | `diagnosis::new` | `pub fn new(` | [`crates/vox-test-harness/src/diagnosis.rs#L60`](../../../crates/vox-test-harness/src/diagnosis.rs#L60) | Build a diagnosis with required fields; diff and related metadata start empty. |
+| `fn` | `diagnosis::with_diff` | `pub fn with_diff(mut self, expected: impl Into<String>, actual: impl Into<String>) -> Self` | [`crates/vox-test-harness/src/diagnosis.rs#L81-L85`](../../../crates/vox-test-harness/src/diagnosis.rs#L81-L85) | Attach expected vs actual strings for diff-oriented reporting. |
+| `fn` | `diagnosis::emit_json` | `pub fn emit_json(&self)` | [`crates/vox-test-harness/src/diagnosis.rs#L88-L92`](../../../crates/vox-test-harness/src/diagnosis.rs#L88-L92) | Print one line `VOX_DIAGNOSIS: {json}` for machine consumption. |
+| `struct` | `diagnosis::HarnessIngestExpectations` | `pub struct HarnessIngestExpectations` | [`crates/vox-test-harness/src/diagnosis.rs#L97-L102`](../../../crates/vox-test-harness/src/diagnosis.rs#L97-L102) | Reward record for GRPO data flywheel logging. |
+| `fn` | `diagnosis::emit_grpo_reward` | `pub fn emit_grpo_reward(&self)` | [`crates/vox-test-harness/src/diagnosis.rs#L105-L109`](../../../crates/vox-test-harness/src/diagnosis.rs#L105-L109) | — |
+| `struct` | `env_scratch::EnvScratch` | `pub struct EnvScratch` | [`crates/vox-test-harness/src/env_scratch.rs#L10-L12`](../../../crates/vox-test-harness/src/env_scratch.rs#L10-L12) | — |
+| `fn` | `env_scratch::empty` | `pub fn empty() -> Self` | [`crates/vox-test-harness/src/env_scratch.rs#L15-L19`](../../../crates/vox-test-harness/src/env_scratch.rs#L15-L19) | — |
+| `fn` | `env_scratch::set` | `pub fn set(mut self, key: impl AsRef<str>, val: impl AsRef<str>) -> Self` | [`crates/vox-test-harness/src/env_scratch.rs#L28-L37`](../../../crates/vox-test-harness/src/env_scratch.rs#L28-L37) | — |
+| `fn` | `env_scratch::remove` | `pub fn remove(mut self, key: impl AsRef<str>) -> Self` | [`crates/vox-test-harness/src/env_scratch.rs#L39-L46`](../../../crates/vox-test-harness/src/env_scratch.rs#L39-L46) | — |
+| `fn` | `hir_builders::minimal_hir_module` | `pub fn minimal_hir_module() -> HirModule` | [`crates/vox-test-harness/src/hir_builders.rs#L14-L18`](../../../crates/vox-test-harness/src/hir_builders.rs#L14-L18) | An empty [`HirModule`] with no declarations — the minimal starting point for codegen tests that build up a module incrementally.  Prefer this over defining `fn minimal_module()` locally in test files. |
+| `fn` | `hir_builders::hir_fn` | `pub fn hir_fn(name: impl Into<String>) -> HirFn` | [`crates/vox-test-harness/src/hir_builders.rs#L23-L60`](../../../crates/vox-test-harness/src/hir_builders.rs#L23-L60) | Build a minimal [`HirFn`] with the given name and no body.  Defaults: sync, not pub, not `@mobile.native`, no params, no return type. |
+| `fn` | `hir_builders::hir_table` | `pub fn hir_table(name: impl Into<String>) -> HirTable` | [`crates/vox-test-harness/src/hir_builders.rs#L63-L76`](../../../crates/vox-test-harness/src/hir_builders.rs#L63-L76) | Build a minimal [`HirTable`] with the given name and no fields. |
+| `fn` | `portpicker::pick_unused_port` | `pub fn pick_unused_port() -> Option<u16>` | [`crates/vox-test-harness/src/portpicker.rs#L7-L14`](../../../crates/vox-test-harness/src/portpicker.rs#L7-L14) | Picks an available TCP port for testing.  Note: There is a small race condition between picking and using, but it is usually sufficient for local integration tests. |
+| `fn` | `spans::dummy_span` | `pub fn dummy_span() -> Span` | [`crates/vox-test-harness/src/spans.rs#L10-L12`](../../../crates/vox-test-harness/src/spans.rs#L10-L12) | A zero-width span at position 0, suitable for test AST/HIR nodes.  Use this in place of constructing `Span { start: 0, end: 0 }` inline. |
+| `enum` | `synthetic_workspace::MemberKind` | `pub enum MemberKind` | [`crates/vox-test-harness/src/synthetic_workspace.rs#L38-L43`](../../../crates/vox-test-harness/src/synthetic_workspace.rs#L38-L43) | — |
+| `struct` | `synthetic_workspace::MemberSpec` | `pub struct MemberSpec` | [`crates/vox-test-harness/src/synthetic_workspace.rs#L46-L52`](../../../crates/vox-test-harness/src/synthetic_workspace.rs#L46-L52) | — |
+| `fn` | `synthetic_workspace::library` | `pub fn library(name: impl Into<String>) -> Self` | [`crates/vox-test-harness/src/synthetic_workspace.rs#L55-L63`](../../../crates/vox-test-harness/src/synthetic_workspace.rs#L55-L63) | — |
+| `fn` | `synthetic_workspace::binary` | `pub fn binary(name: impl Into<String>) -> Self` | [`crates/vox-test-harness/src/synthetic_workspace.rs#L65-L73`](../../../crates/vox-test-harness/src/synthetic_workspace.rs#L65-L73) | — |
+| `fn` | `synthetic_workspace::with_description` | `pub fn with_description(mut self, desc: impl Into<String>) -> Self` | [`crates/vox-test-harness/src/synthetic_workspace.rs#L77-L80`](../../../crates/vox-test-harness/src/synthetic_workspace.rs#L77-L80) | Set the Cargo.toml `description` field. Use this to test description-rule violations: pass a string shorter than the rule threshold. |
+| `fn` | `synthetic_workspace::with_dep` | `pub fn with_dep(mut self, dep: impl Into<String>) -> Self` | [`crates/vox-test-harness/src/synthetic_workspace.rs#L83-L86`](../../../crates/vox-test-harness/src/synthetic_workspace.rs#L83-L86) | Declare a path dependency on another workspace member. |
+| `fn` | `synthetic_workspace::with_source` | `pub fn with_source(mut self, body: impl Into<String>) -> Self` | [`crates/vox-test-harness/src/synthetic_workspace.rs#L90-L93`](../../../crates/vox-test-harness/src/synthetic_workspace.rs#L90-L93) | Override the default `lib.rs` / `main.rs` body. Use to test code-pattern rules (forbidden patterns, docstring lint, etc.). |
+| `struct` | `synthetic_workspace::SyntheticWorkspaceBuilder` | `pub struct SyntheticWorkspaceBuilder` | [`crates/vox-test-harness/src/synthetic_workspace.rs#L96-L101`](../../../crates/vox-test-harness/src/synthetic_workspace.rs#L96-L101) | — |
+| `fn` | `synthetic_workspace::new` | `pub fn new() -> Self` | [`crates/vox-test-harness/src/synthetic_workspace.rs#L110-L117`](../../../crates/vox-test-harness/src/synthetic_workspace.rs#L110-L117) | — |
+| `fn` | `synthetic_workspace::member` | `pub fn member(mut self, spec: MemberSpec) -> Self` | [`crates/vox-test-harness/src/synthetic_workspace.rs#L119-L122`](../../../crates/vox-test-harness/src/synthetic_workspace.rs#L119-L122) | — |
+| `fn` | `synthetic_workspace::with_git_stub` | `pub fn with_git_stub(mut self) -> Self` | [`crates/vox-test-harness/src/synthetic_workspace.rs#L126-L129`](../../../crates/vox-test-harness/src/synthetic_workspace.rs#L126-L129) | Write a `.git/HEAD` stub so callers that invoke `git` commands in the fixture directory don't fall through to the host repo. |
+| `fn` | `synthetic_workspace::with_changelog` | `pub fn with_changelog(mut self, version: impl Into<String>, date: impl Into<String>) -> Self` | [`crates/vox-test-harness/src/synthetic_workspace.rs#L133-L136`](../../../crates/vox-test-harness/src/synthetic_workspace.rs#L133-L136) | Write a minimal `CHANGELOG.md` with a single released version. Required by callers that read the changelog for release-date / tag context. |
+| `fn` | `synthetic_workspace::with_extra_file` | `pub fn with_extra_file(` | [`crates/vox-test-harness/src/synthetic_workspace.rs#L139`](../../../crates/vox-test-harness/src/synthetic_workspace.rs#L139) | Drop an arbitrary file into the workspace at `rel_path` (relative to root). |
+| `fn` | `synthetic_workspace::build` | `pub fn build(self) -> Result<SyntheticWorkspace>` | [`crates/vox-test-harness/src/synthetic_workspace.rs#L148-L191`](../../../crates/vox-test-harness/src/synthetic_workspace.rs#L148-L191) | — |
+| `struct` | `synthetic_workspace::SyntheticWorkspace` | `pub struct SyntheticWorkspace` | [`crates/vox-test-harness/src/synthetic_workspace.rs#L233-L235`](../../../crates/vox-test-harness/src/synthetic_workspace.rs#L233-L235) | — |
+| `fn` | `synthetic_workspace::root` | `pub fn root(&self) -> &Path` | [`crates/vox-test-harness/src/synthetic_workspace.rs#L238-L240`](../../../crates/vox-test-harness/src/synthetic_workspace.rs#L238-L240) | — |
+| `fn` | `synthetic_workspace::member_path` | `pub fn member_path(&self, name: &str) -> PathBuf` | [`crates/vox-test-harness/src/synthetic_workspace.rs#L243-L245`](../../../crates/vox-test-harness/src/synthetic_workspace.rs#L243-L245) | Absolute path of a member crate's directory. |
+| `struct` | `temp_root::TempRoot` | `pub struct TempRoot` | [`crates/vox-test-harness/src/temp_root.rs#L9-L11`](../../../crates/vox-test-harness/src/temp_root.rs#L9-L11) | — |
+| `fn` | `temp_root::new` | `pub fn new() -> anyhow::Result<Self>` | [`crates/vox-test-harness/src/temp_root.rs#L14-L18`](../../../crates/vox-test-harness/src/temp_root.rs#L14-L18) | — |
+| `fn` | `temp_root::path` | `pub fn path(&self) -> &Path` | [`crates/vox-test-harness/src/temp_root.rs#L20-L22`](../../../crates/vox-test-harness/src/temp_root.rs#L20-L22) | — |
+

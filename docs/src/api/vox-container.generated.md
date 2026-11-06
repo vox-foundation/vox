@@ -62,3 +62,42 @@ Deployment artifact codegen (Dockerfile, Compose, K8s, etc.) is in `vox-deploy-c
 |---|---|
 | `log_exec_risk` | Classify the exec risk of a container image or command string and log the result.  Called before any container run dispatch. Uses the `exec_grammar` risk classifier (from `vox-container-types`). The result is logged only; nothing enforces on it. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_container: "vox-container"
+    node vox_container_types: "vox-container-types"
+    vox_container -> vox_container_types
+    node vox_audit: "vox-audit"
+    vox_audit -> vox_container
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_container
+    node vox_plugin_runtime_container: "vox-plugin-runtime-container"
+    vox_plugin_runtime_container -> vox_container
+    node vox_skills: "vox-skills"
+    vox_skills -> vox_container
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-audit`](./vox-audit.generated.md) | Direct workspace dependent |
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-plugin-runtime-container`](./vox-plugin-runtime-container.generated.md) | Direct workspace dependent |
+| [`vox-skills`](./vox-skills.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `log_exec_risk` | `pub fn log_exec_risk(raw_command: &str)` | [`crates/vox-container/src/lib.rs#L30-L49`](../../../crates/vox-container/src/lib.rs#L30-L49) | Classify the exec risk of a container image or command string and log the result.  Called before any container run dispatch. Uses the `exec_grammar` risk classifier (from `vox-container-types`). The result is logged only; nothing enforces on it. |
+| `fn` | `detect::detect_runtime` | `pub fn detect_runtime(preference: RuntimePreference) -> anyhow::Result<Box<dyn ContainerRuntime>>` | [`crates/vox-container/src/detect.rs#L19-L63`](../../../crates/vox-container/src/detect.rs#L19-L63) | Detect and return the best available container runtime.  With [`RuntimePreference::Auto`], Podman is preferred because it runs rootless without a daemon. If neither runtime is available, returns an error. |
+| `struct` | `docker::DockerRuntime` | `pub struct DockerRuntime` | [`crates/vox-container/src/docker.rs#L14`](../../../crates/vox-container/src/docker.rs#L14) | Docker-backed container runtime.  Shells out to the `docker` CLI. Requires Docker Desktop or Docker Engine to be installed and the daemon to be running. |
+| `fn` | `docker::new` | `pub fn new() -> Self` | [`crates/vox-container/src/docker.rs#L18-L20`](../../../crates/vox-container/src/docker.rs#L18-L20) | Create a new Docker runtime handle. |
+| `struct` | `podman::PodmanRuntime` | `pub struct PodmanRuntime` | [`crates/vox-container/src/podman.rs#L15`](../../../crates/vox-container/src/podman.rs#L15) | Podman-backed container runtime.  Shells out to the `podman` CLI. Runs rootless by default — no daemon required. Uses OCI image format for maximum compatibility with Docker registries and tooling. |
+| `fn` | `podman::new` | `pub fn new() -> Self` | [`crates/vox-container/src/podman.rs#L19-L21`](../../../crates/vox-container/src/podman.rs#L19-L21) | Create a new Podman runtime handle. |
+

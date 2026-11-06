@@ -88,7 +88,7 @@
         "id": "orchestrator",
         "label": "Orchestrator & agents",
         "cli": 28,
-        "mcp": 72,
+        "mcp": 82,
         "surfaces": 2
       },
       {
@@ -136,7 +136,7 @@
       {
         "id": "ci",
         "label": "CI & governance",
-        "cli": 217,
+        "cli": 218,
         "mcp": 0,
         "surfaces": 1
       },
@@ -192,8 +192,8 @@
       {
         "id": "platform",
         "label": "Platform (other)",
-        "cli": 45,
-        "mcp": 97,
+        "cli": 48,
+        "mcp": 119,
         "surfaces": 3
       }
     ]

@@ -43,3 +43,76 @@ no DB, no compiler dependency.
 | `package_kind` | Enumerates artifact kinds that VoxPM can manage as packages. |
 | `resolver` | Semantic versions and dependency resolution helpers. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_package_types: "vox-package-types"
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_package_types
+    node vox_package: "vox-package"
+    vox_package -> vox_package_types
+    node vox_project_scaffold: "vox-project-scaffold"
+    vox_project_scaffold -> vox_package_types
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-package`](./vox-package.generated.md) | Direct workspace dependent |
+| [`vox-project-scaffold`](./vox-project-scaffold.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `deploy_coolify::CoolifyEnvReconciliationMode` | `pub enum CoolifyEnvReconciliationMode` | [`crates/vox-package-types/src/deploy_coolify.rs#L11-L17`](../../../crates/vox-package-types/src/deploy_coolify.rs#L11-L17) | How manifest env vars are applied relative to the remote Coolify app. |
+| `enum` | `deploy_coolify::CoolifyEnvVarSpec` | `pub enum CoolifyEnvVarSpec` | [`crates/vox-package-types/src/deploy_coolify.rs#L22-L27`](../../../crates/vox-package-types/src/deploy_coolify.rs#L22-L27) | Either a literal string or a structured env entry (`value` vs `value_env`, flags, …). |
+| `struct` | `deploy_coolify::CoolifyEnvVarDetail` | `pub struct CoolifyEnvVarDetail` | [`crates/vox-package-types/src/deploy_coolify.rs#L31-L43`](../../../crates/vox-package-types/src/deploy_coolify.rs#L31-L43) | Structured Coolify env var definition under `[deploy.coolify.env]`. |
+| `struct` | `deploy_coolify::CoolifyDeployConfig` | `pub struct CoolifyDeployConfig` | [`crates/vox-package-types/src/deploy_coolify.rs#L51-L74`](../../../crates/vox-package-types/src/deploy_coolify.rs#L51-L74) | Coolify application and sync settings (`[deploy.coolify]`). |
+| `struct` | `lockfile::Lockfile` | `pub struct Lockfile` | [`crates/vox-package-types/src/lockfile.rs#L12-L21`](../../../crates/vox-package-types/src/lockfile.rs#L12-L21) | Represents the `vox.lock` lockfile. Records exact resolved versions and content hashes for reproducible installs. |
+| `struct` | `lockfile::LockedPackage` | `pub struct LockedPackage` | [`crates/vox-package-types/src/lockfile.rs#L24-L33`](../../../crates/vox-package-types/src/lockfile.rs#L24-L33) | — |
+| `enum` | `lockfile::PackageSource` | `pub enum PackageSource` | [`crates/vox-package-types/src/lockfile.rs#L37-L46`](../../../crates/vox-package-types/src/lockfile.rs#L37-L46) | — |
+| `fn` | `lockfile::new` | `pub fn new() -> Self` | [`crates/vox-package-types/src/lockfile.rs#L70-L76`](../../../crates/vox-package-types/src/lockfile.rs#L70-L76) | Create a new empty lockfile. |
+| `fn` | `lockfile::set_python_uv_lock_hash` | `pub fn set_python_uv_lock_hash(&mut self, hash: impl Into<String>)` | [`crates/vox-package-types/src/lockfile.rs#L79-L81`](../../../crates/vox-package-types/src/lockfile.rs#L79-L81) | Record the BLAKE3 hex digest of `uv.lock`. |
+| `fn` | `lockfile::add` | `pub fn add(` | [`crates/vox-package-types/src/lockfile.rs#L84`](../../../crates/vox-package-types/src/lockfile.rs#L84) | Add or update a resolved package. |
+| `fn` | `lockfile::is_locked` | `pub fn is_locked(&self, name: &str, version: &SemVer) -> bool` | [`crates/vox-package-types/src/lockfile.rs#L106-L111`](../../../crates/vox-package-types/src/lockfile.rs#L106-L111) | Check if a package is locked at a specific version. |
+| `fn` | `lockfile::get_locked_version` | `pub fn get_locked_version(&self, name: &str) -> Option<SemVer>` | [`crates/vox-package-types/src/lockfile.rs#L114-L118`](../../../crates/vox-package-types/src/lockfile.rs#L114-L118) | Get the locked version of a package. |
+| `fn` | `lockfile::remove` | `pub fn remove(&mut self, name: &str) -> bool` | [`crates/vox-package-types/src/lockfile.rs#L121-L123`](../../../crates/vox-package-types/src/lockfile.rs#L121-L123) | Remove a package from the lockfile. |
+| `fn` | `lockfile::to_toml_string` | `pub fn to_toml_string(&self) -> Result<String, LockfileError>` | [`crates/vox-package-types/src/lockfile.rs#L126-L184`](../../../crates/vox-package-types/src/lockfile.rs#L126-L184) | Serialize to TOML string. |
+| `fn` | `lockfile::load` | `pub fn load(path: &Path) -> Result<Self, LockfileError>` | [`crates/vox-package-types/src/lockfile.rs#L187-L190`](../../../crates/vox-package-types/src/lockfile.rs#L187-L190) | Load from a lockfile path. |
+| `fn` | `lockfile::from_str` | `pub fn from_str(content: &str) -> Result<Self, LockfileError>` | [`crates/vox-package-types/src/lockfile.rs#L193-L268`](../../../crates/vox-package-types/src/lockfile.rs#L193-L268) | Parse from a TOML string. For simplicity, uses serde_json round-trip. |
+| `fn` | `lockfile::save` | `pub fn save(&self, path: &Path) -> Result<(), LockfileError>` | [`crates/vox-package-types/src/lockfile.rs#L271-L274`](../../../crates/vox-package-types/src/lockfile.rs#L271-L274) | Save to a file path. |
+| `enum` | `lockfile::LockfileError` | `pub enum LockfileError` | [`crates/vox-package-types/src/lockfile.rs#L278-L281`](../../../crates/vox-package-types/src/lockfile.rs#L278-L281) | — |
+| `struct` | `manifest::VoxManifest` | `pub struct VoxManifest` | [`crates/vox-package-types/src/manifest.rs#L10-L39`](../../../crates/vox-package-types/src/manifest.rs#L10-L39) | Represents the full `Vox.toml` manifest. |
+| `enum` | `manifest::SchemaOwner` | `pub enum SchemaOwner` | [`crates/vox-package-types/src/manifest.rs#L44-L51`](../../../crates/vox-package-types/src/manifest.rs#L44-L51) | Who owns the app database schema (`[db] schema_owner`). |
+| `struct` | `manifest::DbSection` | `pub struct DbSection` | [`crates/vox-package-types/src/manifest.rs#L55-L58`](../../../crates/vox-package-types/src/manifest.rs#L55-L58) | `[db]` section of `Vox.toml`. |
+| `fn` | `manifest::from_manifest_str` | `pub fn from_manifest_str(content: &str) -> Result<Self, ManifestError>` | [`crates/vox-package-types/src/manifest.rs#L63-L71`](../../../crates/vox-package-types/src/manifest.rs#L63-L71) | Read only `[db]` from `Vox.toml` content (default when absent). Does not require `[package]`, so callers that only need DB settings accept partial manifests. |
+| `struct` | `manifest::PythonSection` | `pub struct PythonSection` | [`crates/vox-package-types/src/manifest.rs#L84-L95`](../../../crates/vox-package-types/src/manifest.rs#L84-L95) | `[python]` section of `Vox.toml`. |
+| `fn` | `manifest::from_manifest_str` | `pub fn from_manifest_str(content: &str) -> Result<Option<Self>, ManifestError>` | [`crates/vox-package-types/src/manifest.rs#L100-L108`](../../../crates/vox-package-types/src/manifest.rs#L100-L108) | Read `[python]` from manifest text. `Ok(None)` when the section is absent. Does not require `[package]`. |
+| `struct` | `manifest::PackageSection` | `pub struct PackageSection` | [`crates/vox-package-types/src/manifest.rs#L112-L132`](../../../crates/vox-package-types/src/manifest.rs#L112-L132) | — |
+| `struct` | `manifest::BinSpec` | `pub struct BinSpec` | [`crates/vox-package-types/src/manifest.rs#L142-L147`](../../../crates/vox-package-types/src/manifest.rs#L142-L147) | — |
+| `enum` | `manifest::DependencySpec` | `pub enum DependencySpec` | [`crates/vox-package-types/src/manifest.rs#L152-L157`](../../../crates/vox-package-types/src/manifest.rs#L152-L157) | A dependency specification — either a simple version string or a detailed table. |
+| `fn` | `manifest::version_req` | `pub fn version_req(&self) -> Option<&str>` | [`crates/vox-package-types/src/manifest.rs#L161-L166`](../../../crates/vox-package-types/src/manifest.rs#L161-L166) | Get the version requirement string, if any. |
+| `fn` | `manifest::is_path` | `pub fn is_path(&self) -> bool` | [`crates/vox-package-types/src/manifest.rs#L169-L171`](../../../crates/vox-package-types/src/manifest.rs#L169-L171) | Check if this is a path dependency. |
+| `fn` | `manifest::path` | `pub fn path(&self) -> Option<&str>` | [`crates/vox-package-types/src/manifest.rs#L174-L179`](../../../crates/vox-package-types/src/manifest.rs#L174-L179) | Get the local path if this is a path dependency. |
+| `fn` | `manifest::features` | `pub fn features(&self) -> &[String]` | [`crates/vox-package-types/src/manifest.rs#L182-L187`](../../../crates/vox-package-types/src/manifest.rs#L182-L187) | Get requested features. |
+| `struct` | `manifest::DetailedDependency` | `pub struct DetailedDependency` | [`crates/vox-package-types/src/manifest.rs#L191-L206`](../../../crates/vox-package-types/src/manifest.rs#L191-L206) | — |
+| `struct` | `manifest::WorkspaceSection` | `pub struct WorkspaceSection` | [`crates/vox-package-types/src/manifest.rs#L209-L212`](../../../crates/vox-package-types/src/manifest.rs#L209-L212) | — |
+| `struct` | `manifest::DeploySection` | `pub struct DeploySection` | [`crates/vox-package-types/src/manifest.rs#L240-L271`](../../../crates/vox-package-types/src/manifest.rs#L240-L271) | Deployment configuration from `[deploy]` section in Vox.toml.  Supports multiple deployment targets with per-target sub-sections:  ```toml [deploy] target  = "auto"   # "container" \| "bare-metal" \| "compose" \| "k8s" \| "auto" runtime = "auto"   # "docker" \| "podman" \| "auto"  [deploy.container] image_name = "my-app" registry   = "ghcr.io/user"  [deploy.bare-metal] host         = "prod.example.com" user         = "deploy" service_name = "my-app" // vox-arch-check: allow abs-path deploy_dir   = "/opt/my-app"  [deploy.kubernetes] cluster   = "prod" namespace = "default" replicas  = 3 ``` |
+| `fn` | `manifest::effective_image_name` | `pub fn effective_image_name(&self) -> Option<&str>` | [`crates/vox-package-types/src/manifest.rs#L276-L281`](../../../crates/vox-package-types/src/manifest.rs#L276-L281) | Resolve the effective image name: prefers `[deploy.container].image_name`, falls back to the legacy flat `image_name` field. |
+| `fn` | `manifest::effective_registry` | `pub fn effective_registry(&self) -> Option<&str>` | [`crates/vox-package-types/src/manifest.rs#L285-L290`](../../../crates/vox-package-types/src/manifest.rs#L285-L290) | Resolve the effective registry: prefers `[deploy.container].registry`, falls back to the legacy flat `registry` field. |
+| `struct` | `manifest::ContainerDeployConfig` | `pub struct ContainerDeployConfig` | [`crates/vox-package-types/src/manifest.rs#L295-L308`](../../../crates/vox-package-types/src/manifest.rs#L295-L308) | OCI container-specific deploy configuration (`[deploy.container]`). |
+| `struct` | `manifest::BareMetalDeployConfig` | `pub struct BareMetalDeployConfig` | [`crates/vox-package-types/src/manifest.rs#L312-L327`](../../../crates/vox-package-types/src/manifest.rs#L312-L327) | Bare-metal (systemd) deploy configuration (`[deploy.bare-metal]`). |
+| `struct` | `manifest::ComposeDeployConfig` | `pub struct ComposeDeployConfig` | [`crates/vox-package-types/src/manifest.rs#L331-L341`](../../../crates/vox-package-types/src/manifest.rs#L331-L341) | Docker / Podman Compose deploy configuration (`[deploy.compose]`). |
+| `struct` | `manifest::KubernetesDeployConfig` | `pub struct KubernetesDeployConfig` | [`crates/vox-package-types/src/manifest.rs#L345-L358`](../../../crates/vox-package-types/src/manifest.rs#L345-L358) | Kubernetes deploy configuration (`[deploy.kubernetes]`). |
+| `struct` | `manifest::FlyDeployConfig` | `pub struct FlyDeployConfig` | [`crates/vox-package-types/src/manifest.rs#L362-L372`](../../../crates/vox-package-types/src/manifest.rs#L362-L372) | Fly.io deploy configuration (`[deploy.fly]`). |
+| `fn` | `manifest::from_str` | `pub fn from_str(content: &str) -> Result<Self, ManifestError>` | [`crates/vox-package-types/src/manifest.rs#L376-L378`](../../../crates/vox-package-types/src/manifest.rs#L376-L378) | Parse a `Vox.toml` from a string. |
+| `fn` | `manifest::load` | `pub fn load(path: &Path) -> Result<Self, ManifestError>` | [`crates/vox-package-types/src/manifest.rs#L381-L384`](../../../crates/vox-package-types/src/manifest.rs#L381-L384) | Load a `Vox.toml` from a file path. |
+| `fn` | `manifest::discover` | `pub fn discover(start_dir: &Path) -> Result<(Self, std::path::PathBuf), ManifestError>` | [`crates/vox-package-types/src/manifest.rs#L387-L399`](../../../crates/vox-package-types/src/manifest.rs#L387-L399) | Find and load `Vox.toml` by searching from the given directory upwards. |
+| `fn` | `manifest::to_toml_string` | `pub fn to_toml_string(&self) -> Result<String, ManifestError>` | [`crates/vox-package-types/src/manifest.rs#L402-L404`](../../../crates/vox-package-types/src/manifest.rs#L402-L404) | Serialize back to TOML string. |
+

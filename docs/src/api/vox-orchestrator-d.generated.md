@@ -55,3 +55,49 @@ and runs [`daemon_steps::DAEMON_STEPS`] through [`boot_plan::run_boot_plan`].
 | `boot_plan` | — |
 | `daemon_steps` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_orchestrator_d: "vox-orchestrator-d"
+    node vox_config: "vox-config"
+    vox_orchestrator_d -> vox_config
+    node vox_db: "vox-db"
+    vox_orchestrator_d -> vox_db
+    node vox_foundation: "vox-foundation"
+    vox_orchestrator_d -> vox_foundation
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator_d -> vox_orchestrator
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_d -> vox_orchestrator_mcp
+    node vox_repository: "vox-repository"
+    vox_orchestrator_d -> vox_repository
+    node vox_secrets: "vox-secrets"
+    vox_orchestrator_d -> vox_secrets
+    node vox_skills: "vox-skills"
+    vox_orchestrator_d -> vox_skills
+    node vox_terminal_core: "vox-terminal-core"
+    vox_orchestrator_d -> vox_terminal_core
+}
+```
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `type` | `boot_plan::StepFuture` | `pub type StepFuture<'a> = Pin<Box<dyn Future<Output = Result<(), String>> + 'a>>` | [`crates/vox-orchestrator-d/src/boot_plan.rs#L16`](../../../crates/vox-orchestrator-d/src/boot_plan.rs#L16) | — |
+| `type` | `boot_plan::StepFn` | `pub type StepFn<C> = for<'a> fn(&'a mut C) -> StepFuture<'a>` | [`crates/vox-orchestrator-d/src/boot_plan.rs#L17`](../../../crates/vox-orchestrator-d/src/boot_plan.rs#L17) | — |
+| `struct` | `boot_plan::BootStep` | `pub struct BootStep<C>` | [`crates/vox-orchestrator-d/src/boot_plan.rs#L19-L26`](../../../crates/vox-orchestrator-d/src/boot_plan.rs#L19-L26) | — |
+| `trait` | `boot_plan::BootContext` | `pub trait BootContext` | [`crates/vox-orchestrator-d/src/boot_plan.rs#L28-L32`](../../../crates/vox-orchestrator-d/src/boot_plan.rs#L28-L32) | — |
+| `enum` | `boot_plan::DependencyMode` | `pub enum DependencyMode` | [`crates/vox-orchestrator-d/src/boot_plan.rs#L35-L40`](../../../crates/vox-orchestrator-d/src/boot_plan.rs#L35-L40) | — |
+| `fn` | `boot_plan::for_profile` | `pub fn for_profile(profile: &ActiveProfile) -> Self` | [`crates/vox-orchestrator-d/src/boot_plan.rs#L43-L49`](../../../crates/vox-orchestrator-d/src/boot_plan.rs#L43-L49) | — |
+| `struct` | `boot_plan::BootOutcome` | `pub struct BootOutcome` | [`crates/vox-orchestrator-d/src/boot_plan.rs#L53-L57`](../../../crates/vox-orchestrator-d/src/boot_plan.rs#L53-L57) | — |
+| `fn` | `boot_plan::planned_step_names` | `pub fn planned_step_names<C>(` | [`crates/vox-orchestrator-d/src/boot_plan.rs#L60`](../../../crates/vox-orchestrator-d/src/boot_plan.rs#L60) | Names of the steps a closure selects, in table order, without running anything. |
+| `fn` | `boot_plan::run_boot_plan` | `pub async fn run_boot_plan<C: BootContext>(` | [`crates/vox-orchestrator-d/src/boot_plan.rs#L71`](../../../crates/vox-orchestrator-d/src/boot_plan.rs#L71) | — |
+| `fn` | `boot_plan::profile_roots` | `pub fn profile_roots(profile: &ActiveProfile) -> BTreeSet<Subsystem>` | [`crates/vox-orchestrator-d/src/boot_plan.rs#L136-L142`](../../../crates/vox-orchestrator-d/src/boot_plan.rs#L136-L142) | Union of `requires` over the manifests named by `profile.ids` (the exit-rule roots). |
+| `fn` | `boot_plan::every_required_failed` | `pub fn every_required_failed(roots: &BTreeSet<Subsystem>, report: &BootReport) -> bool` | [`crates/vox-orchestrator-d/src/boot_plan.rs#L145-L147`](../../../crates/vox-orchestrator-d/src/boot_plan.rs#L145-L147) | True when the profile required something and every required subsystem failed. |
+| `struct` | `daemon_steps::DaemonBootCtx` | `pub struct DaemonBootCtx` | [`crates/vox-orchestrator-d/src/daemon_steps/mod.rs#L21-L36`](../../../crates/vox-orchestrator-d/src/daemon_steps/mod.rs#L21-L36) | — |
+| `fn` | `daemon_steps::new` | `pub fn new(` | [`crates/vox-orchestrator-d/src/daemon_steps/mod.rs#L39`](../../../crates/vox-orchestrator-d/src/daemon_steps/mod.rs#L39) | — |
+| `fn` | `daemon_steps::plugins_install_dir` | `pub fn plugins_install_dir(env_value: Option<String>) -> PathBuf` | [`crates/vox-orchestrator-d/src/daemon_steps/mod.rs#L75-L81`](../../../crates/vox-orchestrator-d/src/daemon_steps/mod.rs#L75-L81) | `$VOX_PLUGINS_DIR` if set, else the platform-local default (moved verbatim from `async_main`). |
+

@@ -58,3 +58,79 @@ publisher, Populi, and other crates. Prefer it over per-crate copies of `bounded
 | `read_utf8_path_capped_opt` | Same as [`read_utf8_path_capped`] but returns `None` on any failure. |
 | `read_utf8_path_capped_async` | Capped read on the blocking pool (for async call sites; avoids unbounded `tokio::fs::read_to_string`). |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_bounded_fs: "vox-bounded-fs"
+    node vox_scaling_policy: "vox-scaling-policy"
+    vox_bounded_fs -> vox_scaling_policy
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_actor_runtime -> vox_bounded_fs
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_bounded_fs
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_bounded_fs
+    node vox_cli_contracts: "vox-cli-contracts"
+    vox_cli_contracts -> vox_bounded_fs
+    node vox_cli_core: "vox-cli-core"
+    vox_cli_core -> vox_bounded_fs
+    node vox_cli_review: "vox-cli-review"
+    vox_cli_review -> vox_bounded_fs
+    node vox_code_audit: "vox-code-audit"
+    vox_code_audit -> vox_bounded_fs
+    node vox_compiler: "vox-compiler"
+    vox_compiler -> vox_bounded_fs
+    node vox_corpus: "vox-corpus"
+    vox_corpus -> vox_bounded_fs
+    node vox_doc_inventory: "vox-doc-inventory"
+    vox_doc_inventory -> vox_bounded_fs
+    node vox_doc_pipeline: "vox-doc-pipeline"
+    vox_doc_pipeline -> vox_bounded_fs
+    node vox_gamify: "vox-gamify"
+    vox_gamify -> vox_bounded_fs
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Direct workspace dependent |
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-contracts`](./vox-cli-contracts.generated.md) | Direct workspace dependent |
+| [`vox-cli-core`](./vox-cli-core.generated.md) | Direct workspace dependent |
+| [`vox-cli-review`](./vox-cli-review.generated.md) | Direct workspace dependent |
+| [`vox-code-audit`](./vox-code-audit.generated.md) | Direct workspace dependent |
+| [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
+| [`vox-corpus`](./vox-corpus.generated.md) | Direct workspace dependent |
+| [`vox-doc-inventory`](./vox-doc-inventory.generated.md) | Direct workspace dependent |
+| [`vox-doc-pipeline`](./vox-doc-pipeline.generated.md) | Direct workspace dependent |
+| [`vox-gamify`](./vox-gamify.generated.md) | Direct workspace dependent |
+| [`vox-git`](./vox-git.generated.md) | Direct workspace dependent |
+| [`vox-hf-layout`](./vox-hf-layout.generated.md) | Direct workspace dependent |
+| [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-models`](./vox-orchestrator-models.generated.md) | Direct workspace dependent |
+| [`vox-plugin-populi-mesh`](./vox-plugin-populi-mesh.generated.md) | Direct workspace dependent |
+| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
+| [`vox-publisher`](./vox-publisher.generated.md) | Direct workspace dependent |
+| [`vox-repository`](./vox-repository.generated.md) | Direct workspace dependent |
+| [`vox-search`](./vox-search.generated.md) | Direct workspace dependent |
+| [`vox-secrets`](./vox-secrets.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `max_file_bytes_hint` | `pub fn max_file_bytes_hint() -> u64` | [`crates/vox-bounded-fs/src/lib.rs#L16-L18`](../../../crates/vox-bounded-fs/src/lib.rs#L16-L18) | Current cap from embedded scaling policy. |
+| `fn` | `read_utf8_path_capped` | `pub fn read_utf8_path_capped(path: &Path) -> Result<String>` | [`crates/vox-bounded-fs/src/lib.rs#L21-L35`](../../../crates/vox-bounded-fs/src/lib.rs#L21-L35) | Read a file as UTF-8; errors if size exceeds [`max_file_bytes_hint`] or bytes are not valid UTF-8. |
+| `fn` | `normalize_text` | `pub fn normalize_text(s: String) -> String` | [`crates/vox-bounded-fs/src/lib.rs#L42-L63`](../../../crates/vox-bounded-fs/src/lib.rs#L42-L63) | Normalize source/text bytes for cross-platform consistency: strip one leading UTF-8 BOM and convert CRLF/CR line endings to LF. Pure, idempotent, and allocation-light (returns input unchanged when already clean). Shared by the compiler lexer and the runtime text-read functions. |
+| `fn` | `read_utf8_path_capped_or_empty` | `pub fn read_utf8_path_capped_or_empty(path: &Path) -> String` | [`crates/vox-bounded-fs/src/lib.rs#L67-L69`](../../../crates/vox-bounded-fs/src/lib.rs#L67-L69) | Same as [`read_utf8_path_capped`] but returns an empty string on any failure. |
+| `fn` | `read_utf8_path_capped_opt` | `pub fn read_utf8_path_capped_opt(path: &Path) -> Option<String>` | [`crates/vox-bounded-fs/src/lib.rs#L73-L75`](../../../crates/vox-bounded-fs/src/lib.rs#L73-L75) | Same as [`read_utf8_path_capped`] but returns `None` on any failure. |
+| `fn` | `read_utf8_path_capped_async` | `pub async fn read_utf8_path_capped_async(path: &Path) -> Result<String>` | [`crates/vox-bounded-fs/src/lib.rs#L79-L84`](../../../crates/vox-bounded-fs/src/lib.rs#L79-L84) | Capped read on the blocking pool (for async call sites; avoids unbounded `tokio::fs::read_to_string`). |
+

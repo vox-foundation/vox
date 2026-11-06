@@ -72,3 +72,60 @@ Grammar export schema + manifest types (TextMate, tree-sitter, EBNF targets).
 | `export` | Dispatch grammar export to the appropriate emitter based on `config.format`. |
 | `grammar_version_matches_compiler` | Check that the grammar crate version matches the compiler crate version. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_grammar_export: "vox-grammar-export"
+    node vox_language_surface: "vox-language-surface"
+    vox_grammar_export -> vox_language_surface
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_grammar_export
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_grammar_export
+    node vox_compiler: "vox-compiler"
+    vox_compiler -> vox_grammar_export
+    node vox_constrained_gen: "vox-constrained-gen"
+    vox_constrained_gen -> vox_grammar_export
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_grammar_export
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
+| [`vox-constrained-gen`](./vox-constrained-gen.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `GrammarFormat` | `pub enum GrammarFormat` | [`crates/vox-grammar-export/src/lib.rs#L9-L24`](../../../crates/vox-grammar-export/src/lib.rs#L9-L24) | Supported grammar export formats. |
+| `fn` | `as_str` | `pub fn as_str(&self) -> &'static str` | [`crates/vox-grammar-export/src/lib.rs#L28-L38`](../../../crates/vox-grammar-export/src/lib.rs#L28-L38) | Human-readable lowercase format name. |
+| `struct` | `GrammarExportConfig` | `pub struct GrammarExportConfig` | [`crates/vox-grammar-export/src/lib.rs#L43-L52`](../../../crates/vox-grammar-export/src/lib.rs#L43-L52) | Configuration for a grammar export run. |
+| `struct` | `GrammarExportResult` | `pub struct GrammarExportResult` | [`crates/vox-grammar-export/src/lib.rs#L67-L78`](../../../crates/vox-grammar-export/src/lib.rs#L67-L78) | Result of a grammar export operation. |
+| `fn` | `export` | `pub fn export(config: &GrammarExportConfig) -> anyhow::Result<GrammarExportResult>` | [`crates/vox-grammar-export/src/lib.rs#L91-L121`](../../../crates/vox-grammar-export/src/lib.rs#L91-L121) | Dispatch grammar export to the appropriate emitter based on `config.format`. |
+| `fn` | `grammar_version_matches_compiler` | `pub fn grammar_version_matches_compiler(version: &Version) -> bool` | [`crates/vox-grammar-export/src/lib.rs#L124-L130`](../../../crates/vox-grammar-export/src/lib.rs#L124-L130) | Check that the grammar crate version matches the compiler crate version. |
+| `fn` | `compact_prompt::emit_compact_llm_prompt` | `pub fn emit_compact_llm_prompt() -> String` | [`crates/vox-grammar-export/src/compact_prompt.rs#L19`](../../../crates/vox-grammar-export/src/compact_prompt.rs#L19) | Emit a compact, LLM-optimised Vox 0.4 grammar cheatsheet.  The output covers all 57 production rules from the authoritative EBNF (`ebnf::emit_ebnf`) but uses readable pseudo-syntax instead of raw EBNF notation. Categories mirror the EBNF groupings. |
+| `fn` | `ebnf::emit_ebnf` | `pub fn emit_ebnf() -> String` | [`crates/vox-grammar-export/src/ebnf.rs#L13`](../../../crates/vox-grammar-export/src/ebnf.rs#L13) | Emit the complete EBNF grammar for the current Vox version.  Rules are grouped by category and annotated with the parser function they derive from. The grammar covers all 57 production rules extracted from `parser/descent/`. |
+| `fn` | `gbnf::emit_gbnf` | `pub fn emit_gbnf() -> String` | [`crates/vox-grammar-export/src/gbnf.rs#L1-L33`](../../../crates/vox-grammar-export/src/gbnf.rs#L1-L33) | — |
+| `struct` | `grammar_ir::Production` | `pub struct Production` | [`crates/vox-grammar-export/src/grammar_ir.rs#L11-L14`](../../../crates/vox-grammar-export/src/grammar_ir.rs#L11-L14) | A single production rule: `name = symbols ;` |
+| `enum` | `grammar_ir::Symbol` | `pub enum Symbol` | [`crates/vox-grammar-export/src/grammar_ir.rs#L18-L27`](../../../crates/vox-grammar-export/src/grammar_ir.rs#L18-L27) | A symbol in a production RHS. |
+| `struct` | `grammar_ir::Grammar` | `pub struct Grammar` | [`crates/vox-grammar-export/src/grammar_ir.rs#L31-L37`](../../../crates/vox-grammar-export/src/grammar_ir.rs#L31-L37) | Parsed grammar ready for Earley/PDA recognition. |
+| `fn` | `grammar_ir::from_ebnf` | `pub fn from_ebnf(ebnf: &str) -> Result<Self, String>` | [`crates/vox-grammar-export/src/grammar_ir.rs#L45-L92`](../../../crates/vox-grammar-export/src/grammar_ir.rs#L45-L92) | Build a [`Grammar`] from the Vox EBNF string.  This is a lightweight parser for the EBNF subset used by `emit_ebnf()`. It extracts production names and their RHS symbols, converting EBNF notation into flat production lists. |
+| `fn` | `json_schema::emit_json_schema` | `pub fn emit_json_schema() -> String` | [`crates/vox-grammar-export/src/json_schema.rs#L12-L15`](../../../crates/vox-grammar-export/src/json_schema.rs#L12-L15) | Emit the Vox AST as a JSON Schema (draft-2020-12) document.  Returns a fully self-contained schema string. All `$defs` are in-lined under `"$defs"` so callers can reference them via `"$ref": "#/$defs/<NodeName>"`. |
+| `fn` | `lark::emit_lark` | `pub fn emit_lark() -> String` | [`crates/vox-grammar-export/src/lark.rs#L10`](../../../crates/vox-grammar-export/src/lark.rs#L10) | Emit a Lark grammar definition for the Vox language surface.  Lark uses `?rule: alt` for inline rules, terminals in uppercase, and allows full Python regex in terminal definitions. |
+| `fn` | `ssot_markdown::emit_ssot_markdown` | `pub fn emit_ssot_markdown() -> String` | [`crates/vox-grammar-export/src/ssot_markdown.rs#L11-L46`](../../../crates/vox-grammar-export/src/ssot_markdown.rs#L11-L46) | — |
+| `fn` | `versioning::get_version` | `pub fn get_version() -> semver::Version` | [`crates/vox-grammar-export/src/versioning.rs#L1-L4`](../../../crates/vox-grammar-export/src/versioning.rs#L1-L4) | — |
+| `fn` | `versioning::get_compiler_version` | `pub fn get_compiler_version() -> semver::Version` | [`crates/vox-grammar-export/src/versioning.rs#L6-L11`](../../../crates/vox-grammar-export/src/versioning.rs#L6-L11) | — |
+| `fn` | `versioning::compute_ebnf_hash` | `pub fn compute_ebnf_hash() -> String` | [`crates/vox-grammar-export/src/versioning.rs#L14-L19`](../../../crates/vox-grammar-export/src/versioning.rs#L14-L19) | Compute a SHA256 hex hash for the grammar based on EBNF production rules. |
+| `fn` | `versioning::verify_grammar_alignment` | `pub fn verify_grammar_alignment() -> Result<(), String>` | [`crates/vox-grammar-export/src/versioning.rs#L26-L38`](../../../crates/vox-grammar-export/src/versioning.rs#L26-L38) | — |
+| `fn` | `x_grammar_2::emit_x_grammar_2` | `pub fn emit_x_grammar_2() -> String` | [`crates/vox-grammar-export/src/x_grammar_2.rs#L9-L20`](../../../crates/vox-grammar-export/src/x_grammar_2.rs#L9-L20) | Emit an XGrammar-2 compatible JSON specification of the Vox grammar. |
+

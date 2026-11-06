@@ -101,3 +101,79 @@ a `forward` index (source→target = caller→callee, `Direction::Out`), and a `
 | `community_members` | All node IDs belonging to `community_id` (matched on the `"community"` node field). |
 | `graph_digest` | BLAKE3 hex digest of graph bytes. The single source of truth for `graph_json_sha256` (rebuild) and `lexical_ingest_sha256` (ingest) so `lexical_lag` comparisons are valid. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_graph_reader: "vox-graph-reader"
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_graph_reader
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_graph_reader
+    node vox_cli_review: "vox-cli-review"
+    vox_cli_review -> vox_graph_reader
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_graph_reader
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-review`](./vox-cli-review.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `GraphifyReaderError` | `pub enum GraphifyReaderError` | [`crates/vox-graph-reader/src/lib.rs#L45-L48`](../../../crates/vox-graph-reader/src/lib.rs#L45-L48) | Error type for [`GraphifyReader`] construction. |
+| `struct` | `TraversalHit` | `pub struct TraversalHit` | [`crates/vox-graph-reader/src/lib.rs#L64-L73`](../../../crates/vox-graph-reader/src/lib.rs#L64-L73) | A single result from BFS traversal. |
+| `struct` | `GraphifyReader` | `pub struct GraphifyReader` | [`crates/vox-graph-reader/src/lib.rs#L79-L88`](../../../crates/vox-graph-reader/src/lib.rs#L79-L88) | Read-only graph reader. Builds an in-memory adjacency index from a Graphify JSON value.  Construction is O(N + E). Queries are O(N + E) worst case for full BFS. |
+| `fn` | `from_value` | `pub fn from_value(value: serde_json::Value) -> Result<Self, GraphifyReaderError>` | [`crates/vox-graph-reader/src/lib.rs#L94-L96`](../../../crates/vox-graph-reader/src/lib.rs#L94-L96) | Construct from a parsed `serde_json::Value`.  Returns [`GraphifyReaderError::MissingNodes`] if the `"nodes"` key is absent or not an array. |
+| `fn` | `from_ref` | `pub fn from_ref(value: &serde_json::Value) -> Result<Self, GraphifyReaderError>` | [`crates/vox-graph-reader/src/lib.rs#L104-L189`](../../../crates/vox-graph-reader/src/lib.rs#L104-L189) | Construct by borrowing a parsed `serde_json::Value`.  Identical to [`Self::from_value`] but leaves the input intact, so a caller that must retain the raw `Value` (for example to serve a lexical search) does not have to clone it. The graph is ~126 MB in this repo, so that clone is the difference between ~650 MB and ~1.15 GB of peak commit. |
+| `fn` | `node_count` | `pub fn node_count(&self) -> usize` | [`crates/vox-graph-reader/src/lib.rs#L192-L194`](../../../crates/vox-graph-reader/src/lib.rs#L192-L194) | Total number of nodes in the graph. |
+| `fn` | `edge_count` | `pub fn edge_count(&self) -> usize` | [`crates/vox-graph-reader/src/lib.rs#L202-L204`](../../../crates/vox-graph-reader/src/lib.rs#L202-L204) | Total number of undirected edges (each edge counted once).  **Assumption:** The source `graph.json` contains no duplicate directed edges. If the same `{source, target}` pair appears more than once in the `links` array, this count will be inflated (each duplicate pair adds 2 to the adjacency sum). Graphify's own export format does not produce duplicates, so this is safe in practice. |
+| `fn` | `bfs_from_seeds` | `pub fn bfs_from_seeds(` | [`crates/vox-graph-reader/src/lib.rs#L210`](../../../crates/vox-graph-reader/src/lib.rs#L210) | BFS from one or more seed node IDs up to `max_depth` hops.  `direction` selects callees ([`Direction::Out`]), callers ([`Direction::In`]), or the legacy undirected neighborhood ([`Direction::Both`]). |
+| `fn` | `shortest_path` | `pub fn shortest_path(&self, from: &str, to: &str, direction: Direction) -> Option<Vec<String>>` | [`crates/vox-graph-reader/src/lib.rs#L226-L233`](../../../crates/vox-graph-reader/src/lib.rs#L226-L233) | Shortest path between two node IDs (BFS). Returns `None` if unreachable. |
+| `fn` | `god_nodes` | `pub fn god_nodes(&self, top_n: usize) -> Vec<(String, usize)>` | [`crates/vox-graph-reader/src/lib.rs#L238-L247`](../../../crates/vox-graph-reader/src/lib.rs#L238-L247) | Nodes sorted by degree (highest first), capped at `top_n`.  Returns `(node_id, degree)` pairs. |
+| `fn` | `community_members` | `pub fn community_members(&self, community_id: &str) -> Vec<String>` | [`crates/vox-graph-reader/src/lib.rs#L250-L259`](../../../crates/vox-graph-reader/src/lib.rs#L250-L259) | All node IDs belonging to `community_id` (matched on the `"community"` node field). |
+| `fn` | `graph_digest` | `pub fn graph_digest(bytes: &[u8]) -> String` | [`crates/vox-graph-reader/src/lib.rs#L264-L266`](../../../crates/vox-graph-reader/src/lib.rs#L264-L266) | BLAKE3 hex digest of graph bytes. The single source of truth for `graph_json_sha256` (rebuild) and `lexical_ingest_sha256` (ingest) so `lexical_lag` comparisons are valid. |
+| `struct` | `ast::ExtractedNode` | `pub struct ExtractedNode` | [`crates/vox-graph-reader/src/ast.rs#L10-L14`](../../../crates/vox-graph-reader/src/ast.rs#L10-L14) | — |
+| `struct` | `ast::ExtractedEdge` | `pub struct ExtractedEdge` | [`crates/vox-graph-reader/src/ast.rs#L17-L24`](../../../crates/vox-graph-reader/src/ast.rs#L17-L24) | — |
+| `struct` | `ast::ExtractedGraph` | `pub struct ExtractedGraph` | [`crates/vox-graph-reader/src/ast.rs#L35-L38`](../../../crates/vox-graph-reader/src/ast.rs#L35-L38) | — |
+| `fn` | `ast::extract_ast` | `pub fn extract_ast(path: &Path, content: &str) -> ExtractedGraph` | [`crates/vox-graph-reader/src/ast.rs#L265-L267`](../../../crates/vox-graph-reader/src/ast.rs#L265-L267) | Back-compat wrapper: bare ids. Used by `ast_tests` (which assert on `label`, unaffected). |
+| `fn` | `ast::extract_ast_in_module` | `pub fn extract_ast_in_module(path: &Path, content: &str, module_id: &str) -> ExtractedGraph` | [`crates/vox-graph-reader/src/ast.rs#L271-L273`](../../../crates/vox-graph-reader/src/ast.rs#L271-L273) | Per-file AST. Definition ids and edge sources are qualified with `module_id`; edge targets are left bare for global resolution in `rebuild`. |
+| `fn` | `ast::extract_ast_in_module_with_wrappers` | `pub fn extract_ast_in_module_with_wrappers(` | [`crates/vox-graph-reader/src/ast.rs#L278`](../../../crates/vox-graph-reader/src/ast.rs#L278) | Like `extract_ast_in_module`, but with a `voxTransport.<method>` → target map so wrapper calls become declared boundary edges. `invoke`/`callTool` boundary crossings are detected from their arg0 string literal regardless of the map. |
+| `fn` | `ast_vox::extract_vox_ast_in_module` | `pub fn extract_vox_ast_in_module(content: &str, module_id: &str) -> ExtractedGraph` | [`crates/vox-graph-reader/src/ast_vox.rs#L177`](../../../crates/vox-graph-reader/src/ast_vox.rs#L177) | Extract `.vox` declarations and call/composition/import/implements edges. |
+| `enum` | `bfs::Direction` | `pub enum Direction` | [`crates/vox-graph-reader/src/bfs.rs#L9-L16`](../../../crates/vox-graph-reader/src/bfs.rs#L9-L16) | Which adjacency to traverse. `Both` is the legacy undirected behavior. |
+| `struct` | `cache::CacheManager` | `pub struct CacheManager` | [`crates/vox-graph-reader/src/cache.rs#L5-L7`](../../../crates/vox-graph-reader/src/cache.rs#L5-L7) | — |
+| `fn` | `cache::new` | `pub fn new(cache_dir: PathBuf) -> Self` | [`crates/vox-graph-reader/src/cache.rs#L10-L13`](../../../crates/vox-graph-reader/src/cache.rs#L10-L13) | — |
+| `fn` | `cache::get_cached_hash` | `pub fn get_cached_hash(&self, file_path: &Path) -> Option<String>` | [`crates/vox-graph-reader/src/cache.rs#L20-L33`](../../../crates/vox-graph-reader/src/cache.rs#L20-L33) | — |
+| `fn` | `cache::write_cache` | `pub fn write_cache(&self, file_path: &Path, hash: &str, graph: &ExtractedGraph)` | [`crates/vox-graph-reader/src/cache.rs#L35-L44`](../../../crates/vox-graph-reader/src/cache.rs#L35-L44) | — |
+| `fn` | `cache::load_cache` | `pub fn load_cache(&self, file_path: &Path) -> Option<ExtractedGraph>` | [`crates/vox-graph-reader/src/cache.rs#L46-L58`](../../../crates/vox-graph-reader/src/cache.rs#L46-L58) | — |
+| `struct` | `cluster::ClusterNode` | `pub struct ClusterNode` | [`crates/vox-graph-reader/src/cluster.rs#L5-L8`](../../../crates/vox-graph-reader/src/cluster.rs#L5-L8) | — |
+| `struct` | `cluster::ClusterEdge` | `pub struct ClusterEdge` | [`crates/vox-graph-reader/src/cluster.rs#L11-L14`](../../../crates/vox-graph-reader/src/cluster.rs#L11-L14) | — |
+| `fn` | `cluster::cluster_nodes` | `pub fn cluster_nodes(nodes: &[ClusterNode], edges: &[ClusterEdge]) -> HashMap<String, String>` | [`crates/vox-graph-reader/src/cluster.rs#L16-L62`](../../../crates/vox-graph-reader/src/cluster.rs#L16-L62) | — |
+| `struct` | `compare::ManifestSummary` | `pub struct ManifestSummary` | [`crates/vox-graph-reader/src/compare.rs#L5-L9`](../../../crates/vox-graph-reader/src/compare.rs#L5-L9) | A lightweight summary derived from a Graphify corpus manifest. |
+| `struct` | `compare::ManifestDiff` | `pub struct ManifestDiff` | [`crates/vox-graph-reader/src/compare.rs#L13-L20`](../../../crates/vox-graph-reader/src/compare.rs#L13-L20) | The delta between two manifest summaries (old → new). |
+| `fn` | `compare::diff_manifests` | `pub fn diff_manifests(old: &ManifestSummary, new: &ManifestSummary) -> ManifestDiff` | [`crates/vox-graph-reader/src/compare.rs#L23-L29`](../../../crates/vox-graph-reader/src/compare.rs#L23-L29) | Compute the signed delta from `old` to `new`. |
+| `enum` | `coverage::CoverageStatus` | `pub enum CoverageStatus` | [`crates/vox-graph-reader/src/coverage.rs#L20-L31`](../../../crates/vox-graph-reader/src/coverage.rs#L20-L31) | Coverage status for a single backend node. |
+| `struct` | `coverage::CoverageEntry` | `pub struct CoverageEntry` | [`crates/vox-graph-reader/src/coverage.rs#L35-L39`](../../../crates/vox-graph-reader/src/coverage.rs#L35-L39) | One coverage entry per node of the requested `kind`. |
+| `struct` | `coverage::CoverageReport` | `pub struct CoverageReport` | [`crates/vox-graph-reader/src/coverage.rs#L43-L45`](../../../crates/vox-graph-reader/src/coverage.rs#L43-L45) | Result of [`compute_coverage`]. |
+| `fn` | `coverage::compute_coverage` | `pub fn compute_coverage(graph: &Value, kind: &str) -> CoverageReport` | [`crates/vox-graph-reader/src/coverage.rs#L102-L144`](../../../crates/vox-graph-reader/src/coverage.rs#L102-L144) | Classify every node whose `"kind"` equals `kind`.  For each such node: collect caller edges whose `target` is the node id; if the node carries `"missing": true` → [`CoverageStatus::DeadEnd`]; else if any caller targets it → [`CoverageStatus::Surfaced`]; else [`CoverageStatus::OrphanBackend`]. |
+| `struct` | `crate_model::CrateMetrics` | `pub struct CrateMetrics` | [`crates/vox-graph-reader/src/crate_model.rs#L14-L19`](../../../crates/vox-graph-reader/src/crate_model.rs#L14-L19) | Per-crate model metrics. |
+| `fn` | `crate_model::crate_metrics` | `pub fn crate_metrics(` | [`crates/vox-graph-reader/src/crate_model.rs#L24`](../../../crates/vox-graph-reader/src/crate_model.rs#L24) | Compute per-crate metrics from `adj` (crate -> its deps) and `self_s` (crate -> compile seconds). `self_s` may be empty or partial; `blast_s` degrades to 0 while `dependents` stays meaningful. Cycle-safe: uses a visited set in the reverse-BFS. |
+| `fn` | `crate_model::build_crate_map` | `pub fn build_crate_map(crate_graph: &Value, audit: &Value) -> Value` | [`crates/vox-graph-reader/src/crate_model.rs#L79-L187`](../../../crates/vox-graph-reader/src/crate_model.rs#L79-L187) | Build a deterministic graphify-shaped crate map from `crate-graph.v1.json` (`{crates:{name:[deps]}}`) and the `crate_audit.json` array (`crate`, `compile_s` [string or number], `loc`, `layer`).  Node attrs: `compile_s`, `loc`, `layer`, `fan_in`, `dependents`, `blast_s`, `community`. When `audit` is empty (`[]`), times degrade to 0 and `dependents` still ranks crates by impact. |
+| `fn` | `crate_model::build_crate_summary` | `pub fn build_crate_summary(crate_graph: &Value, compile_times: &HashMap<String, f64>) -> Value` | [`crates/vox-graph-reader/src/crate_model.rs#L198-L251`](../../../crates/vox-graph-reader/src/crate_model.rs#L198-L251) | Build the small, committed crate-build SSOT (`contracts/ci/crate-build-map.v1.json`).  `crate_graph` is the `{crates:{name:[deps]}}` shape from `crate-graph.v1.json`. `compile_times` maps crate name -> self compile seconds (audit native precision; may be partial/empty).  Output embeds `compile_s` (the periodically-refreshed INPUT) plus the DERIVED `dependents`/`blast_s`/`fan_in`, so the parity gate can recompute the derived fields from `crate_graph` + the embedded `compile_s` and detect drift. Deterministic: crates sorted alphabetically; `blast_s` rounded to whole seconds; `compile_s` kept at input precision. |
+| `fn` | `edge_weights::weigh_edges` | `pub fn weigh_edges(` | [`crates/vox-graph-reader/src/edge_weights.rs#L42`](../../../crates/vox-graph-reader/src/edge_weights.rs#L42) | For every declared dep edge in `adj`, count distinct target-crate symbols referenced from the source crate via resolved corpus edges. Rows are emitted for ALL adjacency edges (including zero-weight), sorted by (`target_blast_s` desc, `symbols_used` asc) — best cut candidates first. |
+| `fn` | `gc::value_score` | `pub fn value_score(usage: u64, recency_days: f64, churn: u64, cost_secs: f64) -> f64` | [`crates/vox-graph-reader/src/gc.rs#L7-L13`](../../../crates/vox-graph-reader/src/gc.rs#L7-L13) | Higher = more worth maintaining. `usage` = recent query/search hits; `recency_days` = days since last use; `churn` = node/community delta magnitude since last rebuild; `cost_secs` = last build wall-time. Bounded, monotone in usage and recency. |
+| `enum` | `gc::Retention` | `pub enum Retention` | [`crates/vox-graph-reader/src/gc.rs#L16-L20`](../../../crates/vox-graph-reader/src/gc.rs#L16-L20) | — |
+| `fn` | `gc::retention_decision` | `pub fn retention_decision(score: f64, maintain_above: f64, discard_below: f64) -> Retention` | [`crates/vox-graph-reader/src/gc.rs#L23-L31`](../../../crates/vox-graph-reader/src/gc.rs#L23-L31) | `score >= maintain_above` → keep fresh; `score < discard_below` → GC; else let TTL expire. |
+| `fn` | `gc::pick_lens` | `pub fn pick_lens(node_count: usize, threshold: usize) -> &'static str` | [`crates/vox-graph-reader/src/gc.rs#L34-L40`](../../../crates/vox-graph-reader/src/gc.rs#L34-L40) | Data-size escape hatch: above `threshold` nodes, prefer the coarse `modules` lens (Plan B). |
+| `fn` | `lens::collapse_to_modules` | `pub fn collapse_to_modules(graph: &Value) -> Value` | [`crates/vox-graph-reader/src/lens.rs#L14-L57`](../../../crates/vox-graph-reader/src/lens.rs#L14-L57) | Collapse a `module::symbol` graph into a module-level graph: one node per module, one weighted edge per inter-module call relationship. Intra-module edges drop. Both a distinct semantic line and the coarse view that keeps very large repos navigable. |
+

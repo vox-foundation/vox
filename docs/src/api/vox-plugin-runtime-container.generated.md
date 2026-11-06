@@ -56,3 +56,29 @@ Install with: `vox plugin install runtime-container`
 | `docker` | — |
 | `podman` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_plugin_runtime_container: "vox-plugin-runtime-container"
+    node vox_container: "vox-container"
+    vox_plugin_runtime_container -> vox_container
+    node vox_container_types: "vox-container-types"
+    vox_plugin_runtime_container -> vox_container_types
+    node vox_plugin_api: "vox-plugin-api"
+    vox_plugin_runtime_container -> vox_plugin_api
+    node vox_skill_runtime: "vox-skill-runtime"
+    vox_plugin_runtime_container -> vox_skill_runtime
+}
+```
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `docker::DockerRuntime` | `pub struct DockerRuntime` | [`crates/vox-plugin-runtime-container/src/docker.rs#L14`](../../../crates/vox-plugin-runtime-container/src/docker.rs#L14) | Docker-backed container runtime.  Shells out to the `docker` CLI. Requires Docker Desktop or Docker Engine to be installed and the daemon to be running. |
+| `fn` | `docker::new` | `pub fn new() -> Self` | [`crates/vox-plugin-runtime-container/src/docker.rs#L18-L20`](../../../crates/vox-plugin-runtime-container/src/docker.rs#L18-L20) | Create a new Docker runtime handle. |
+| `struct` | `podman::PodmanRuntime` | `pub struct PodmanRuntime` | [`crates/vox-plugin-runtime-container/src/podman.rs#L15`](../../../crates/vox-plugin-runtime-container/src/podman.rs#L15) | Podman-backed container runtime.  Shells out to the `podman` CLI. Runs rootless by default — no daemon required. Uses OCI image format for maximum compatibility with Docker registries and tooling. |
+| `fn` | `podman::new` | `pub fn new() -> Self` | [`crates/vox-plugin-runtime-container/src/podman.rs#L19-L21`](../../../crates/vox-plugin-runtime-container/src/podman.rs#L19-L21) | Create a new Podman runtime handle. |
+

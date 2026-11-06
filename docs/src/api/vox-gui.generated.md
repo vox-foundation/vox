@@ -64,3 +64,36 @@ Native Tauri GUI for Vox
 | [`vox-orchestrator`](./vox-orchestrator.generated.md) | Development |
 | [`vox-build-meta`](./vox-build-meta.generated.md) | Build |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_gui: "vox-gui"
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_gui -> vox_actor_runtime
+    node vox_build_meta: "vox-build-meta"
+    vox_gui -> vox_build_meta
+    node vox_cli: "vox-cli"
+    vox_gui -> vox_cli
+    node vox_cli_core: "vox-cli-core"
+    vox_gui -> vox_cli_core
+    node vox_config: "vox-config"
+    vox_gui -> vox_config
+    node vox_crypto: "vox-crypto"
+    vox_gui -> vox_crypto
+    node vox_db: "vox-db"
+    vox_gui -> vox_db
+    node vox_foundation: "vox-foundation"
+    vox_gui -> vox_foundation
+    node vox_gamify: "vox-gamify"
+    vox_gui -> vox_gamify
+    node vox_git: "vox-git"
+    vox_gui -> vox_git
+    node vox_http_client: "vox-http-client"
+    vox_gui -> vox_http_client
+    node vox_identity: "vox-identity"
+    vox_gui -> vox_identity
+}
+```
+

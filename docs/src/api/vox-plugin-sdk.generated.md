@@ -85,3 +85,32 @@ init: |_host| ROk(wrap(MyPlugin)),
 | `wrap` | Wrap a concrete [`VoxPlugin`] value into the stable-ABI trait object the host loads.  Equivalent to the hand-written `VoxPlugin_TO::from_value(plugin, TD_Opaque)`. |
 | `manifest_id_version_json` | Build the `manifest_json` ABI probe (`{"id":..,"version":..}`) from an embedded `Plugin.toml` string. Used by [`declare_plugin!`] so id/version have a single authoring site (the manifest) rather than being re-typed as macro arguments.  On a parse failure or a missing `[plugin]` id/version, falls back to empty/`0.0.0` — the host reads the real `Plugin.toml` from disk anyway; this probe is advisory. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_plugin_sdk: "vox-plugin-sdk"
+    node vox_plugin_api: "vox-plugin-api"
+    vox_plugin_sdk -> vox_plugin_api
+    node vox_plugin_nvml_probe: "vox-plugin-nvml-probe"
+    vox_plugin_nvml_probe -> vox_plugin_sdk
+    node vox_plugin_speech: "vox-plugin-speech"
+    vox_plugin_speech -> vox_plugin_sdk
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-plugin-nvml-probe`](./vox-plugin-nvml-probe.generated.md) | Direct workspace dependent |
+| [`vox-plugin-speech`](./vox-plugin-speech.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `wrap` | `pub fn wrap<P>(plugin: P) -> VoxPluginRef` | [`crates/vox-plugin-sdk/src/lib.rs#L49`](../../../crates/vox-plugin-sdk/src/lib.rs#L49) | Wrap a concrete [`VoxPlugin`] value into the stable-ABI trait object the host loads.  Equivalent to the hand-written `VoxPlugin_TO::from_value(plugin, TD_Opaque)`. |
+| `fn` | `manifest_id_version_json` | `pub fn manifest_id_version_json(manifest_toml: &str) -> std_types::RString` | [`crates/vox-plugin-sdk/src/lib.rs#L62-L79`](../../../crates/vox-plugin-sdk/src/lib.rs#L62-L79) | Build the `manifest_json` ABI probe (`{"id":..,"version":..}`) from an embedded `Plugin.toml` string. Used by [`declare_plugin!`] so id/version have a single authoring site (the manifest) rather than being re-typed as macro arguments.  On a parse failure or a missing `[plugin]` id/version, falls back to empty/`0.0.0` — the host reads the real `Plugin.toml` from disk anyway; this probe is advisory. |
+

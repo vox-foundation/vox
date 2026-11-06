@@ -209,3 +209,144 @@ SHA3-512 Base32Hex hashing utilities.
 | `MemoryParams` | — |
 | `Codex` | Public product name for the unified database facade (**Codex** over Arca/Turso).  `VoxDb` remains the stable Rust type name; new documentation should prefer **Codex**. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_db: "vox-db"
+    node vox_ast: "vox-ast"
+    vox_db -> vox_ast
+    node vox_codegen: "vox-codegen"
+    vox_db -> vox_codegen
+    node vox_compiler: "vox-compiler"
+    vox_db -> vox_compiler
+    node vox_config: "vox-config"
+    vox_db -> vox_config
+    node vox_db_types: "vox-db-types"
+    vox_db -> vox_db_types
+    node vox_mesh_types: "vox-mesh-types"
+    vox_db -> vox_mesh_types
+    node vox_orchestrator_types: "vox-orchestrator-types"
+    vox_db -> vox_orchestrator_types
+    node vox_plugin_types: "vox-plugin-types"
+    vox_db -> vox_plugin_types
+    node vox_repository: "vox-repository"
+    vox_db -> vox_repository
+    node vox_secrets: "vox-secrets"
+    vox_db -> vox_secrets
+    node vox_telemetry: "vox-telemetry"
+    vox_db -> vox_telemetry
+    node vox_test_harness: "vox-test-harness"
+    vox_db -> vox_test_harness
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_actor_runtime -> vox_db
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_db
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_db
+    node vox_cli_core: "vox-cli-core"
+    vox_cli_core -> vox_db
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_db
+    node vox_cli_review: "vox-cli-review"
+    vox_cli_review -> vox_db
+    node vox_corpus: "vox-corpus"
+    vox_corpus -> vox_db
+    node vox_gamify: "vox-gamify"
+    vox_gamify -> vox_db
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_db
+    node vox_lsp: "vox-lsp"
+    vox_lsp -> vox_db
+    node vox_ml_cli: "vox-ml-cli"
+    vox_ml_cli -> vox_db
+    node vox_openclaw_runtime: "vox-openclaw-runtime"
+    vox_openclaw_runtime -> vox_db
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Direct workspace dependent |
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-core`](./vox-cli-core.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
+| [`vox-cli-review`](./vox-cli-review.generated.md) | Direct workspace dependent |
+| [`vox-corpus`](./vox-corpus.generated.md) | Direct workspace dependent |
+| [`vox-gamify`](./vox-gamify.generated.md) | Direct workspace dependent |
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-lsp`](./vox-lsp.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+| [`vox-openclaw-runtime`](./vox-openclaw-runtime.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-d`](./vox-orchestrator-d.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-models`](./vox-orchestrator-models.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-queue`](./vox-orchestrator-queue.generated.md) | Direct workspace dependent |
+| [`vox-package`](./vox-package.generated.md) | Direct workspace dependent |
+| [`vox-plugin-mens-candle-core`](./vox-plugin-mens-candle-core.generated.md) | Direct workspace dependent |
+| [`vox-plugin-populi-mesh`](./vox-plugin-populi-mesh.generated.md) | Direct workspace dependent |
+| [`vox-plugin-publication`](./vox-plugin-publication.generated.md) | Direct workspace dependent |
+| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
+| [`vox-publisher`](./vox-publisher.generated.md) | Direct workspace dependent |
+| [`vox-research-shim`](./vox-research-shim.generated.md) | Direct workspace dependent |
+| [`vox-scientia`](./vox-scientia.generated.md) | Direct workspace dependent |
+| [`vox-search`](./vox-search.generated.md) | Direct workspace dependent |
+| [`vox-skills`](./vox-skills.generated.md) | Direct workspace dependent |
+| [`vox-sql`](./vox-sql.generated.md) | Direct workspace dependent |
+| [`vox-workflow-runtime`](./vox-workflow-runtime.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `content_hash` | `pub fn content_hash(data: &[u8]) -> String` | [`crates/vox-db/src/lib.rs#L117-L122`](../../../crates/vox-db/src/lib.rs#L117-L122) | Compute a SHA3-512 hash of the given data, returning Base32Hex-encoded string. |
+| `type` | `MemoryParams` | `pub type MemoryParams<'a> = crate::store::SaveMemoryParams<'a>` | [`crates/vox-db/src/lib.rs#L156`](../../../crates/vox-db/src/lib.rs#L156) | — |
+| `type` | `Codex` | `pub type Codex = VoxDb` | [`crates/vox-db/src/lib.rs#L335`](../../../crates/vox-db/src/lib.rs#L335) | Public product name for the unified database facade (**Codex** over Arca/Turso).  `VoxDb` remains the stable Rust type name; new documentation should prefer **Codex**. |
+| `enum` | `ReadConsistency` | `pub enum ReadConsistency` | [`crates/vox-db/src/lib.rs#L339-L344`](../../../crates/vox-db/src/lib.rs#L339-L344) | Whether to pull embedded-replica updates before application-level reads. |
+| `struct` | `VoxDb` | `pub struct VoxDb` | [`crates/vox-db/src/lib.rs#L355-L367`](../../../crates/vox-db/src/lib.rs#L355-L367) | High-level database facade for the Vox ecosystem (**Codex**).  Owns a single [`VoxDb`] (one Turso connection). Higher-level helpers (memory, learner, schema sync) delegate to that store; advanced callers use [`Self::store`] for direct access.  **Concurrency:** one connection per `VoxDb` handle; `Sync`/safe across concurrent callers because [`GuardedConnection`] serializes access to the shared `turso::Connection` (see its docs for why this is required even though `VoxDb`/`Connection` are `Clone`). |
+| `fn` | `in_memory` | `pub async fn in_memory() -> Result<Self, StoreError>` | [`crates/vox-db/src/lib.rs#L387-L389`](../../../crates/vox-db/src/lib.rs#L387-L389) | Connect to an ephemeral in-memory database for testing. |
+| `fn` | `in_memory` | `pub async fn in_memory() -> Result<Self, StoreError>` | [`crates/vox-db/src/lib.rs#L393-L397`](../../../crates/vox-db/src/lib.rs#L393-L397) | Connect to an ephemeral in-memory database for testing. |
+| `struct` | `GuardedConnection` | `pub struct GuardedConnection` | [`crates/vox-db/src/lib.rs#L451-L454`](../../../crates/vox-db/src/lib.rs#L451-L454) | Serializes access to a shared `turso::Connection` to avoid `turso::Error::Misuse("concurrent use forbidden")`.  ## Root cause this fixes  `turso::Connection::clone()` does **not** create an independent connection: it clones an `Arc` to the same underlying `turso_sdk_kit::rsapi::TursoConnection`, which itself guards every `step()` (the primitive under `query`/`execute`/`execute_batch`/`prepare`) with an atomic `ConcurrentGuard`. Two async tasks that call into *any* clones of the same connection at literally the same instant (e.g. two Tauri GUI commands dispatched close together on a multi-threaded Tokio runtime, or a background poll racing a user action) can have their `step()` polls genuinely overlap on different OS threads, tripping that guard and returning `Err(Misuse("concurrent use forbidden"))`. Since `VoxDb` is `Clone` and is shared as one `Arc<VoxDb>` across all GUI commands (see `vox-gui/src/commands/gui_db_pool.rs`), this happened routinely under ordinary concurrent chat usage, and the resulting error surfaced to users as a "Message not saved" toast — the write silently never reached the database.  ## Fix  Hold a `tokio::sync::Mutex<()>` around each real network/IO-bearing call (`query`/`execute`/`execute_batch`/`pragma_update`) before delegating to the wrapped `turso::Connection`. The lock lives behind an `Arc` so every clone of a `GuardedConnection` (and every clone of the owning `VoxDb`) shares the *same* lock — matching the fact that they already share the same underlying Turso connection.  Implements [`std::ops::Deref`] to `turso::Connection` so call sites that need a raw `&turso::Connection` (e.g. [`crate::auto_migrate::AutoMigrator::new`], schema migrations run once at connect time) keep compiling unchanged via deref coercion. Method resolution prefers inherent methods on `GuardedConnection` over ones reached through `Deref`, so the ~400 existing call sites across this crate (and the many downstream crates that call `VoxDb::connection()`, e.g. `vox-gamify`, `vox-populi`, `vox-sql`, generated `vox-codegen` output) that do `conn.query(..)` / `conn.execute(..)` / `conn.execute_batch(..)` get the lock automatically without any call-site changes.  ## Known residual gap  `turso::Connection::last_insert_rowid()` is a synchronous, non-blocking read of connection-local state and does **not** go through `ConcurrentGuard` at all (confirmed by reading `turso-0.6.1`'s source), so it is intentionally left un-guarded here — wrapping it would require holding the lock across the `execute` + `last_insert_rowid` pair (a call-site change) rather than per-call. Callers that do this pairing (e.g. `codex_chat.rs::chat_ensure_workspace_conversation`) are *not* actually safe from this crate's concurrency bug class: on the multi-threaded Tokio runtime this crate runs under, a different task on a different OS thread can execute its own guarded `execute()` (acquiring and releasing the lock) between this caller's `execute()` and its `last_insert_rowid()` read, since nothing holds the lock across that gap — no explicit `.await` yield is required for that interleaving. This does not reproduce the `Misuse("concurrent use forbidden")` bug this type fixes (the two individual calls are each correctly guarded), but it can silently return the *other* task's row id. It is noted here as a narrower, pre-existing (not introduced by this change) correctness edge case for future hardening (e.g. `INSERT ... RETURNING`). |
+| `fn` | `query` | `pub async fn query(` | [`crates/vox-db/src/lib.rs#L478`](../../../crates/vox-db/src/lib.rs#L478) | Guarded [`turso::Connection::query`].  Returns [`GuardedRows`] rather than a bare `turso::Rows`. The bare cursor is lazy, so a guard dropped when this function returns (before the caller reads a single row) would let row-streaming race other tasks' `execute`/`query` on the same connection. Holding the guard on the *returned* value instead (rather than only inside this function) is not an option either: `tokio::sync::Mutex` isn't reentrant, and this crate's callers routinely do `let mut rows = conn.query(...).await?;` then, later in the same scope, another guarded call on `conn` (e.g. `claim_skill_identity`'s SELECT-then-INSERT) — `rows` would still be lexically alive at that point (Rust drops locals at end of scope, not at last use), so a guard tied to it would self-deadlock. Instead, drain every row into an owned buffer while still holding the guard, then release it before returning — the lock covers the entire real connection access and nothing outlives this function. |
+| `fn` | `execute` | `pub async fn execute(` | [`crates/vox-db/src/lib.rs#L496`](../../../crates/vox-db/src/lib.rs#L496) | Guarded [`turso::Connection::execute`]. |
+| `fn` | `execute_batch` | `pub async fn execute_batch(&self, sql: impl AsRef<str>) -> turso::Result<()>` | [`crates/vox-db/src/lib.rs#L507-L510`](../../../crates/vox-db/src/lib.rs#L507-L510) | Guarded [`turso::Connection::execute_batch`]. |
+| `fn` | `pragma_update` | `pub async fn pragma_update<V: std::fmt::Display>(` | [`crates/vox-db/src/lib.rs#L514`](../../../crates/vox-db/src/lib.rs#L514) | Guarded [`turso::Connection::pragma_update`]. |
+| `fn` | `transaction` | `pub async fn transaction<'a, F, Fut, T>(&'a self, f: F) -> Result<T, crate::StoreError>` | [`crates/vox-db/src/lib.rs#L526`](../../../crates/vox-db/src/lib.rs#L526) | Execute an async closure inside a serialized SQLite `BEGIN IMMEDIATE ... COMMIT` transaction while holding the [`GuardedConnection`] mutex for the entire transaction lifetime. On any error returned by `f`, issues `ROLLBACK` before releasing the mutex. |
+| `struct` | `GuardedRows` | `pub struct GuardedRows` | [`crates/vox-db/src/lib.rs#L561-L563`](../../../crates/vox-db/src/lib.rs#L561-L563) | Rows fully drained from [`GuardedConnection::query`] while its mutex guard was held, so nothing about iterating this value can race (or deadlock against) another guarded call on the same [`GuardedConnection`] — see the guard-lifetime note on `query` for why a lazy, still-locked cursor isn't safe here. |
+| `fn` | `next` | `pub async fn next(&mut self) -> turso::Result<Option<turso::Row>>` | [`crates/vox-db/src/lib.rs#L570-L572`](../../../crates/vox-db/src/lib.rs#L570-L572) | Mirrors [`turso::Rows::next`]'s signature (`async fn` returning a `Result`) purely so existing `rows.next().await?` call sites keep compiling unchanged; the buffer is already fully materialized, so this never actually awaits or errors. |
+| `struct` | `auto_migrate::LiveColumn` | `pub struct LiveColumn` | [`crates/vox-db/src/auto_migrate.rs#L31-L42`](../../../crates/vox-db/src/auto_migrate.rs#L31-L42) | A column definition as read from `PRAGMA table_info(...)`. |
+| `struct` | `auto_migrate::LiveTable` | `pub struct LiveTable` | [`crates/vox-db/src/auto_migrate.rs#L46-L51`](../../../crates/vox-db/src/auto_migrate.rs#L46-L51) | A table definition as introspected from the live database. |
+| `enum` | `auto_migrate::MigrationAction` | `pub enum MigrationAction` | [`crates/vox-db/src/auto_migrate.rs#L57-L96`](../../../crates/vox-db/src/auto_migrate.rs#L57-L96) | A single migration action to be applied. |
+| `fn` | `auto_migrate::is_auto_safe` | `pub fn is_auto_safe(&self) -> bool` | [`crates/vox-db/src/auto_migrate.rs#L100-L108`](../../../crates/vox-db/src/auto_migrate.rs#L100-L108) | Returns `true` if this action is safe to apply automatically. |
+| `fn` | `auto_migrate::to_sql` | `pub fn to_sql(&self) -> Option<String>` | [`crates/vox-db/src/auto_migrate.rs#L111-L127`](../../../crates/vox-db/src/auto_migrate.rs#L111-L127) | Generate SQL for this action. Returns `None` for manual-only actions. |
+| `fn` | `auto_migrate::describe` | `pub fn describe(&self) -> String` | [`crates/vox-db/src/auto_migrate.rs#L130-L149`](../../../crates/vox-db/src/auto_migrate.rs#L130-L149) | Human-readable description of this action. |
+| `struct` | `auto_migrate::MigrationPlan` | `pub struct MigrationPlan` | [`crates/vox-db/src/auto_migrate.rs#L154-L157`](../../../crates/vox-db/src/auto_migrate.rs#L154-L157) | Result of comparing live DB state to desired declarations. |
+| `fn` | `auto_migrate::is_empty` | `pub fn is_empty(&self) -> bool` | [`crates/vox-db/src/auto_migrate.rs#L161-L163`](../../../crates/vox-db/src/auto_migrate.rs#L161-L163) | Returns `true` if no changes are needed. |
+| `fn` | `auto_migrate::auto_actions` | `pub fn auto_actions(&self) -> Vec<&MigrationAction>` | [`crates/vox-db/src/auto_migrate.rs#L166-L168`](../../../crates/vox-db/src/auto_migrate.rs#L166-L168) | Actions that are safe to apply automatically. |
+| `fn` | `auto_migrate::manual_actions` | `pub fn manual_actions(&self) -> Vec<&MigrationAction>` | [`crates/vox-db/src/auto_migrate.rs#L171-L173`](../../../crates/vox-db/src/auto_migrate.rs#L171-L173) | Actions that require manual intervention. |
+| `fn` | `auto_migrate::describe` | `pub fn describe(&self) -> String` | [`crates/vox-db/src/auto_migrate.rs#L176-L190`](../../../crates/vox-db/src/auto_migrate.rs#L176-L190) | Generate a human-readable summary of the migration plan. |
+| `struct` | `auto_migrate::AutoMigrator` | `pub struct AutoMigrator<'a>` | [`crates/vox-db/src/auto_migrate.rs#L194-L196`](../../../crates/vox-db/src/auto_migrate.rs#L194-L196) | Compares AST-backed declarations to `PRAGMA`/`sqlite_master` state. |
+| `fn` | `auto_migrate::new` | `pub fn new(conn: &'a Connection) -> Self` | [`crates/vox-db/src/auto_migrate.rs#L202-L204`](../../../crates/vox-db/src/auto_migrate.rs#L202-L204) | Create an engine bound to one Turso connection (typically from `VoxDb` / `VoxDb`). |
+| `fn` | `auto_migrate::introspect_tables` | `pub async fn introspect_tables(&self) -> Result<Vec<LiveTable>, turso::Error>` | [`crates/vox-db/src/auto_migrate.rs#L207-L249`](../../../crates/vox-db/src/auto_migrate.rs#L207-L249) | Introspect the live database to get all user tables. |
+| `fn` | `auto_migrate::plan` | `pub async fn plan(` | [`crates/vox-db/src/auto_migrate.rs#L252`](../../../crates/vox-db/src/auto_migrate.rs#L252) | Compute the migration plan by diffing live schema against desired tables. |
+| `fn` | `auto_migrate::plan_from_digest` | `pub async fn plan_from_digest(` | [`crates/vox-db/src/auto_migrate.rs#L268`](../../../crates/vox-db/src/auto_migrate.rs#L268) | Like [`Self::plan`], but desired shape comes from a [`SchemaDigest`] (e.g. from codegen/LLM).  Standard indexes from the digest are emitted; vector/search indexes are skipped here. |
+| `fn` | `auto_migrate::apply` | `pub async fn apply(&self, plan: &MigrationPlan) -> Result<usize, turso::Error>` | [`crates/vox-db/src/auto_migrate.rs#L433-L442`](../../../crates/vox-db/src/auto_migrate.rs#L433-L442) | Apply all safe migration actions. Returns the number of actions applied. |
+| `fn` | `auto_migrate::sync_schema` | `pub async fn sync_schema(` | [`crates/vox-db/src/auto_migrate.rs#L445`](../../../crates/vox-db/src/auto_migrate.rs#L445) | Plan and apply auto-safe migrations in one call. |
+| `fn` | `auto_migrate::sync_from_digest` | `pub async fn sync_from_digest(` | [`crates/vox-db/src/auto_migrate.rs#L457`](../../../crates/vox-db/src/auto_migrate.rs#L457) | [`Self::plan_from_digest`] followed by [`Self::apply`] for auto-safe actions only. |
+| `struct` | `benchmark_telemetry::BenchmarkEventMeta` | `pub struct BenchmarkEventMeta` | [`crates/vox-db/src/benchmark_telemetry.rs#L14-L26`](../../../crates/vox-db/src/benchmark_telemetry.rs#L14-L26) | Payload for one benchmark observation. |
+| `fn` | `benchmark_telemetry::record_benchmark_event` | `pub async fn record_benchmark_event(` | [`crates/vox-db/src/benchmark_telemetry.rs#L30`](../../../crates/vox-db/src/benchmark_telemetry.rs#L30) | Append one benchmark row to `research_metrics` under `bench:<repository_id>`. |
+| `struct` | `build_hints::BuildHint` | `pub struct BuildHint` | [`crates/vox-db/src/build_hints.rs#L8-L15`](../../../crates/vox-db/src/build_hints.rs#L8-L15) | One entry in the static hint table. |
+| `fn` | `build_hints::lookup_hint` | `pub fn lookup_hint(crate_name: &str, warning_code: Option<&str>) -> Option<&'static str>` | [`crates/vox-db/src/build_hints.rs#L80-L101`](../../../crates/vox-db/src/build_hints.rs#L80-L101) | Return the first matching suggestion for a crate + optional warning code. Returns `None` when no pattern matches. |
+| `fn` | `canonical_store::resolve_canonical_config` | `pub fn resolve_canonical_config() -> Result<DbConfig, String>` | [`crates/vox-db/src/canonical_store.rs#L27-L29`](../../../crates/vox-db/src/canonical_store.rs#L27-L29) | Resolves the canonical user-global [`DbConfig`] for Codex / VoxDB.  Alias for [`DbConfig::resolve_canonical`]; use either name for clarity at callsites. |
+| `fn` | `canonical_store::user_global_sqlite_path` | `pub fn user_global_sqlite_path() -> Option<PathBuf>` | [`crates/vox-db/src/canonical_store.rs#L33-L35`](../../../crates/vox-db/src/canonical_store.rs#L33-L35) | Default local path to `vox.db` when the platform data dir is known (`VOX_DATA_DIR` / defaults). |
+| `struct` | `capabilities::SqliteProbeSnapshot` | `pub struct SqliteProbeSnapshot` | [`crates/vox-db/src/capabilities.rs#L11-L18`](../../../crates/vox-db/src/capabilities.rs#L11-L18) | Observed libSQL/SQLite behavior for strategy selection (best-effort; never panics on parse). |
+| `fn` | `capabilities::probe_sqlite_capabilities` | `pub async fn probe_sqlite_capabilities(` | [`crates/vox-db/src/capabilities.rs#L21`](../../../crates/vox-db/src/capabilities.rs#L21) | Run lightweight PRAGMA probes on an open connection (safe for repeated calls). |
+| `fn` | `capabilities::embedding_candidate_cap` | `pub fn embedding_candidate_cap(` | [`crates/vox-db/src/capabilities.rs#L64`](../../../crates/vox-db/src/capabilities.rs#L64) | Rows to scan before ranking = `limit * multiplier`, capped.  Override with `VOX_EMBEDDING_SEARCH_CANDIDATE_MULT` (integer ≥ 1). Default multiplier is passed by the caller (e.g. `10` for `search_similar_embeddings`).  When `probe` reports **`fts5_reported == false`**, the effective multiplier is boosted (capped) so brute-force embedding recall stays competitive on builds without FTS5 in compile options. |
+| `enum` | `circuit_breaker::CircuitBreakerError` | `pub enum CircuitBreakerError` | [`crates/vox-db/src/circuit_breaker.rs#L43-L47`](../../../crates/vox-db/src/circuit_breaker.rs#L43-L47) | Error emitted when the circuit is open. |
+| `struct` | `circuit_breaker::DbCircuitBreaker` | `pub struct DbCircuitBreaker` | [`crates/vox-db/src/circuit_breaker.rs#L60-L67`](../../../crates/vox-db/src/circuit_breaker.rs#L60-L67) | Thread-safe circuit breaker for database write paths.  Enabled only when `VOX_DB_CIRCUIT_BREAKER=1` in the environment. When disabled, [`DbCircuitBreaker::call`] always executes the action. |
+

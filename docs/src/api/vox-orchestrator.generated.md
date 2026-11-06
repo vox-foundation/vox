@@ -241,3 +241,128 @@ Mens live in mdBook [`mens-training-ssot.md`](../../../docs/src/architecture/men
 | `wire_compat` | Forward-compatible discriminated union envelope (`ForwardCompatibleEnvelope<T>`). |
 | `wire_compression` | Wire Snapshot & Event Stream Compression (`WireIdTableInterner`, `LiveBodyDeduper`, and `omit_idle_subagents`). |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_orchestrator: "vox-orchestrator"
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_orchestrator -> vox_actor_runtime
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_orchestrator -> vox_bounded_fs
+    node vox_code_audit: "vox-code-audit"
+    vox_orchestrator -> vox_code_audit
+    node vox_config: "vox-config"
+    vox_orchestrator -> vox_config
+    node vox_corpus: "vox-corpus"
+    vox_orchestrator -> vox_corpus
+    node vox_crypto: "vox-crypto"
+    vox_orchestrator -> vox_crypto
+    node vox_db: "vox-db"
+    vox_orchestrator -> vox_db
+    node vox_foundation: "vox-foundation"
+    vox_orchestrator -> vox_foundation
+    node vox_gamify: "vox-gamify"
+    vox_orchestrator -> vox_gamify
+    node vox_http_client: "vox-http-client"
+    vox_orchestrator -> vox_http_client
+    node vox_lsp: "vox-lsp"
+    vox_orchestrator -> vox_lsp
+    node vox_mcp_registry: "vox-mcp-registry"
+    vox_orchestrator -> vox_mcp_registry
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_orchestrator
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_orchestrator
+    node vox_cli_core: "vox-cli-core"
+    vox_cli_core -> vox_orchestrator
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_orchestrator
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_orchestrator
+    node vox_integration_tests: "vox-integration-tests"
+    vox_integration_tests -> vox_orchestrator
+    node vox_ml_cli: "vox-ml-cli"
+    vox_ml_cli -> vox_orchestrator
+    node vox_orchestrator_d: "vox-orchestrator-d"
+    vox_orchestrator_d -> vox_orchestrator
+    node vox_orchestrator_driver: "vox-orchestrator-driver"
+    vox_orchestrator_driver -> vox_orchestrator
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_orchestrator
+    node vox_orchestrator_test_helpers: "vox-orchestrator-test-helpers"
+    vox_orchestrator_test_helpers -> vox_orchestrator
+    node vox_research_shim: "vox-research-shim"
+    vox_research_shim -> vox_orchestrator
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-core`](./vox-cli-core.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-d`](./vox-orchestrator-d.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-driver`](./vox-orchestrator-driver.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-test-helpers`](./vox-orchestrator-test-helpers.generated.md) | Direct workspace dependent |
+| [`vox-research-shim`](./vox-research-shim.generated.md) | Direct workspace dependent |
+| [`vox-terminal-core`](./vox-terminal-core.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `activity::is_loggable` | `pub fn is_loggable(kind: &AgentEventKind) -> bool` | [`crates/vox-orchestrator/src/activity/mod.rs#L12-L39`](../../../crates/vox-orchestrator/src/activity/mod.rs#L12-L39) | SSOT: true for high-signal lifecycle/resource/build events; false for high-frequency telemetry (heartbeats, throughput/cost ticks, file-diag churn).  TASK-2.0 |
+| `struct` | `attachment_manifest::AttachmentManifest` | `pub struct AttachmentManifest` | [`crates/vox-orchestrator/src/attachment_manifest.rs#L6-L8`](../../../crates/vox-orchestrator/src/attachment_manifest.rs#L6-L8) | AttachmentManifest: Explicit routing for visual and blob attachments. Eradicates heuristic-based vision inference in favor of SHA-256 gated capabilities. |
+| `struct` | `attachment_manifest::AttachmentEntry` | `pub struct AttachmentEntry` | [`crates/vox-orchestrator/src/attachment_manifest.rs#L11-L20`](../../../crates/vox-orchestrator/src/attachment_manifest.rs#L11-L20) | — |
+| `struct` | `attachment_manifest::VisualSegment` | `pub struct VisualSegment` | [`crates/vox-orchestrator/src/attachment_manifest.rs#L23-L29`](../../../crates/vox-orchestrator/src/attachment_manifest.rs#L23-L29) | — |
+| `fn` | `attachment_manifest::has_vision_vitals` | `pub fn has_vision_vitals(&self) -> bool` | [`crates/vox-orchestrator/src/attachment_manifest.rs#L33-L37`](../../../crates/vox-orchestrator/src/attachment_manifest.rs#L33-L37) | Returns true if the manifest contains any vision-eligible attachments (images). |
+| `struct` | `attention_tracker::AttentionSessionSummary` | `pub struct AttentionSessionSummary` | [`crates/vox-orchestrator/src/attention_tracker.rs#L14-L22`](../../../crates/vox-orchestrator/src/attention_tracker.rs#L14-L22) | Summary returned by [`AttentionTracker::session_summary()`]. |
+| `struct` | `attention_tracker::AttentionTracker` | `pub struct AttentionTracker<'a>` | [`crates/vox-orchestrator/src/attention_tracker.rs#L25-L27`](../../../crates/vox-orchestrator/src/attention_tracker.rs#L25-L27) | Persists attention metrics to Arca (VoxDB) collections. |
+| `fn` | `attention_tracker::new` | `pub fn new(db: &'a vox_db::VoxDb) -> Self` | [`crates/vox-orchestrator/src/attention_tracker.rs#L30-L32`](../../../crates/vox-orchestrator/src/attention_tracker.rs#L30-L32) | — |
+| `fn` | `attention_tracker::record_event` | `pub async fn record_event(` | [`crates/vox-orchestrator/src/attention_tracker.rs#L37`](../../../crates/vox-orchestrator/src/attention_tracker.rs#L37) | Record a single attention event. Append-only log. |
+| `fn` | `attention_tracker::list_events` | `pub async fn list_events(` | [`crates/vox-orchestrator/src/attention_tracker.rs#L64`](../../../crates/vox-orchestrator/src/attention_tracker.rs#L64) | Retrieve the most recent attention events up to a given limit. |
+| `fn` | `attention_tracker::session_summary` | `pub async fn session_summary(` | [`crates/vox-orchestrator/src/attention_tracker.rs#L84`](../../../crates/vox-orchestrator/src/attention_tracker.rs#L84) | Session summary: total spent, efficiency, auto-approve ratio. |
+| `fn` | `attention_tracker::upsert_trust` | `pub async fn upsert_trust(` | [`crates/vox-orchestrator/src/attention_tracker.rs#L144`](../../../crates/vox-orchestrator/src/attention_tracker.rs#L144) | Persist or update the trust score for an agent. |
+| `fn` | `attention_tracker::load_trust` | `pub async fn load_trust(` | [`crates/vox-orchestrator/src/attention_tracker.rs#L176`](../../../crates/vox-orchestrator/src/attention_tracker.rs#L176) | Load trust score for a single agent. |
+| `fn` | `attention_tracker::load_all_trust` | `pub async fn load_all_trust(` | [`crates/vox-orchestrator/src/attention_tracker.rs#L212`](../../../crates/vox-orchestrator/src/attention_tracker.rs#L212) | Load all trust scores keyed by AgentId (for routing injection). |
+| `struct` | `bootstrap::RepoScopedOrchestratorBuild` | `pub struct RepoScopedOrchestratorBuild` | [`crates/vox-orchestrator/src/bootstrap.rs#L11-L16`](../../../crates/vox-orchestrator/src/bootstrap.rs#L11-L16) | Single factory output for embedding `Orchestrator` in MCP, CLI, daemons, and tests.  Construct via [`build_repo_scoped_orchestrator`] or [`build_repo_scoped_orchestrator_for_repository`] so all surfaces share identical repo-scoped config, affinity groups, and memory paths. |
+| `fn` | `bootstrap::build_repo_scoped_orchestrator` | `pub fn build_repo_scoped_orchestrator(` | [`crates/vox-orchestrator/src/bootstrap.rs#L20`](../../../crates/vox-orchestrator/src/bootstrap.rs#L20) | Discover repository from `start_dir` (or process CWD), then build [`Orchestrator`] with repo-scoped config. |
+| `fn` | `bootstrap::build_repo_scoped_orchestrator_for_repository` | `pub fn build_repo_scoped_orchestrator_for_repository(` | [`crates/vox-orchestrator/src/bootstrap.rs#L32`](../../../crates/vox-orchestrator/src/bootstrap.rs#L32) | Build [`Orchestrator`] for an already-resolved [`vox_repository::RepositoryContext`].  Use when the repository root was discovered out-of-band (for example `with_workspace_root` in MCP). |
+| `fn` | `bootstrap::discover_repository_from_cwd` | `pub fn discover_repository_from_cwd(start_dir: Option<&Path>) -> vox_repository::RepositoryContext` | [`crates/vox-orchestrator/src/bootstrap.rs#L47-L54`](../../../crates/vox-orchestrator/src/bootstrap.rs#L47-L54) | Discover repository context from `start_dir`, falling back to process CWD then ".". |
+| `fn` | `bootstrap::repo_scoped_orchestrator_parts` | `pub fn repo_scoped_orchestrator_parts(` | [`crates/vox-orchestrator/src/bootstrap.rs#L60`](../../../crates/vox-orchestrator/src/bootstrap.rs#L60) | Build repository-scoped config and affinity groups: - `affinity_groups` from `Vox.toml` when present, else repository-layout detection - memory rooted at `.vox/memory` (canonical workspace path; legacy shard migrated at startup). |
+| `fn` | `bootstrap::repo_scoped_orchestrator_config` | `pub fn repo_scoped_orchestrator_config(` | [`crates/vox-orchestrator/src/bootstrap.rs#L79`](../../../crates/vox-orchestrator/src/bootstrap.rs#L79) | Convenience helper when only the repository-scoped config is needed. |
+| `struct` | `budget::AgentBudgetAllocation` | `pub struct AgentBudgetAllocation` | [`crates/vox-orchestrator/src/budget/mod.rs#L16-L22`](../../../crates/vox-orchestrator/src/budget/mod.rs#L16-L22) | Per-agent budget allocation cap. |
+| `fn` | `budget::new` | `pub fn new(max_tokens: usize, max_cost_usd: f64) -> Self` | [`crates/vox-orchestrator/src/budget/mod.rs#L25-L43`](../../../crates/vox-orchestrator/src/budget/mod.rs#L25-L43) | — |
+| `fn` | `budget::with_rollover` | `pub fn with_rollover(mut self, fraction: f64) -> Self` | [`crates/vox-orchestrator/src/budget/mod.rs#L45-L48`](../../../crates/vox-orchestrator/src/budget/mod.rs#L45-L48) | — |
+| `fn` | `budget::with_alert_thresholds` | `pub fn with_alert_thresholds(mut self, token: f64, cost: f64) -> Self` | [`crates/vox-orchestrator/src/budget/mod.rs#L50-L54`](../../../crates/vox-orchestrator/src/budget/mod.rs#L50-L54) | — |
+| `struct` | `budget::ContextBudget` | `pub struct ContextBudget` | [`crates/vox-orchestrator/src/budget/mod.rs#L59-L69`](../../../crates/vox-orchestrator/src/budget/mod.rs#L59-L69) | Configuration for an agent's context budget. |
+| `fn` | `budget::new` | `pub fn new(agent_id: AgentId, max_tokens: usize) -> Self` | [`crates/vox-orchestrator/src/budget/mod.rs#L72-L82`](../../../crates/vox-orchestrator/src/budget/mod.rs#L72-L82) | — |
+| `fn` | `budget::effective_max_tokens` | `pub fn effective_max_tokens(&self) -> usize` | [`crates/vox-orchestrator/src/budget/mod.rs#L84-L91`](../../../crates/vox-orchestrator/src/budget/mod.rs#L84-L91) | — |
+| `fn` | `budget::tokens_available` | `pub fn tokens_available(&self) -> usize` | [`crates/vox-orchestrator/src/budget/mod.rs#L93-L95`](../../../crates/vox-orchestrator/src/budget/mod.rs#L93-L95) | — |
+| `fn` | `budget::should_summarize` | `pub fn should_summarize(&self) -> bool` | [`crates/vox-orchestrator/src/budget/mod.rs#L97-L104`](../../../crates/vox-orchestrator/src/budget/mod.rs#L97-L104) | — |
+| `fn` | `budget::token_alert` | `pub fn token_alert(&self) -> bool` | [`crates/vox-orchestrator/src/budget/mod.rs#L106-L108`](../../../crates/vox-orchestrator/src/budget/mod.rs#L106-L108) | — |
+| `fn` | `budget::cost_alert` | `pub fn cost_alert(&self) -> bool` | [`crates/vox-orchestrator/src/budget/mod.rs#L110-L116`](../../../crates/vox-orchestrator/src/budget/mod.rs#L110-L116) | — |
+| `fn` | `budget::cost_exceeded` | `pub fn cost_exceeded(&self) -> bool` | [`crates/vox-orchestrator/src/budget/mod.rs#L118-L124`](../../../crates/vox-orchestrator/src/budget/mod.rs#L118-L124) | — |
+| `fn` | `budget::rollover` | `pub fn rollover(&mut self) -> usize` | [`crates/vox-orchestrator/src/budget/mod.rs#L126-L136`](../../../crates/vox-orchestrator/src/budget/mod.rs#L126-L136) | — |
+| `enum` | `budget::BudgetSignal` | `pub enum BudgetSignal` | [`crates/vox-orchestrator/src/budget/mod.rs#L141-L183`](../../../crates/vox-orchestrator/src/budget/mod.rs#L141-L183) | Unified budget signal for behavioral gating (tokens, cost, and attention). |
+| `fn` | `budget::no_auto_reload_guaranteed` | `pub const fn no_auto_reload_guaranteed(&self) -> bool` | [`crates/vox-orchestrator/src/budget/mod.rs#L189-L191`](../../../crates/vox-orchestrator/src/budget/mod.rs#L189-L191) | Vox's structural anti-extractive guarantee: `BudgetSignal::CostExceeded` never triggers a silent credit auto-reload or overage billing. |
+| `fn` | `budget::cost_exceeded_recommendation` | `pub const fn cost_exceeded_recommendation(&self) -> Option<&'static str>` | [`crates/vox-orchestrator/src/budget/mod.rs#L195-L202`](../../../crates/vox-orchestrator/src/budget/mod.rs#L195-L202) | Actionable, non-coercive recommendation when a user's explicit cost cap is reached. |
+| `struct` | `budget::TurnCostReceipt` | `pub struct TurnCostReceipt` | [`crates/vox-orchestrator/src/budget/mod.rs#L211-L221`](../../../crates/vox-orchestrator/src/budget/mod.rs#L211-L221) | Zero-markup per-turn cost and savings receipt (`HUMANE-01`).  Proves that Vox applies `$0.00` platform markup over upstream BYOK/local inference and quantifies how much developer budget was preserved compared to frontier cloud rates (`$15.00/M` input, `$75.00/M` output). |
+| `fn` | `budget::new` | `pub fn new(` | [`crates/vox-orchestrator/src/budget/mod.rs#L230`](../../../crates/vox-orchestrator/src/budget/mod.rs#L230) | — |
+| `fn` | `budget::format_footer` | `pub fn format_footer(&self) -> String` | [`crates/vox-orchestrator/src/budget/mod.rs#L257-L268`](../../../crates/vox-orchestrator/src/budget/mod.rs#L257-L268) | Format a concise, honest 1-line receipt footer for CLI and telemetry surfaces. |
+| `struct` | `budget::DriftRecord` | `pub struct DriftRecord` | [`crates/vox-orchestrator/src/budget/mod.rs#L273-L278`](../../../crates/vox-orchestrator/src/budget/mod.rs#L273-L278) | A record of a single agent iteration for drift detection. |
+| `enum` | `budget::DriftDecision` | `pub enum DriftDecision` | [`crates/vox-orchestrator/src/budget/mod.rs#L282-L286`](../../../crates/vox-orchestrator/src/budget/mod.rs#L282-L286) | Decision from the drift detector. |
+| `struct` | `budget::DriftState` | `pub struct DriftState` | [`crates/vox-orchestrator/src/budget/mod.rs#L290-L295`](../../../crates/vox-orchestrator/src/budget/mod.rs#L290-L295) | Internal state for tracking agent semantic drift. |
+| `struct` | `budget::BudgetManager` | `pub struct BudgetManager` | [`crates/vox-orchestrator/src/budget/mod.rs#L306-L333`](../../../crates/vox-orchestrator/src/budget/mod.rs#L306-L333) | Tracks agent context budgets globally. |
+| `fn` | `budget::new` | `pub fn new(db: Option<Arc<vox_db::VoxDb>>) -> Self` | [`crates/vox-orchestrator/src/budget/mod.rs#L336-L378`](../../../crates/vox-orchestrator/src/budget/mod.rs#L336-L378) | — |
+| `fn` | `budget::db` | `pub fn db(&self) -> Option<Arc<vox_db::VoxDb>>` | [`crates/vox-orchestrator/src/budget/mod.rs#L380-L382`](../../../crates/vox-orchestrator/src/budget/mod.rs#L380-L382) | — |
+

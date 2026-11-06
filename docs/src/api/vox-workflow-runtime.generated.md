@@ -82,3 +82,69 @@ This crate is the MVP engine behind `vox mens workflow run` when `vox-cli` is bu
 | `scheduled` | Persistent `@scheduled` runner (Phase 4.2; requires the `sql` cargo feature). |
 | `workflow` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_workflow_runtime: "vox-workflow-runtime"
+    node vox_compiler: "vox-compiler"
+    vox_workflow_runtime -> vox_compiler
+    node vox_config: "vox-config"
+    vox_workflow_runtime -> vox_config
+    node vox_db: "vox-db"
+    vox_workflow_runtime -> vox_db
+    node vox_journal: "vox-journal"
+    vox_workflow_runtime -> vox_journal
+    node vox_mesh_transport: "vox-mesh-transport"
+    vox_workflow_runtime -> vox_mesh_transport
+    node vox_populi: "vox-populi"
+    vox_workflow_runtime -> vox_populi
+    node vox_runtime: "vox-runtime"
+    vox_workflow_runtime -> vox_runtime
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_workflow_runtime
+    node vox_codegen: "vox-codegen"
+    vox_codegen -> vox_workflow_runtime
+    node vox_integration_tests: "vox-integration-tests"
+    vox_integration_tests -> vox_workflow_runtime
+    node vox_ml_cli: "vox-ml-cli"
+    vox_ml_cli -> vox_workflow_runtime
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-codegen`](./vox-codegen.generated.md) | Direct workspace dependent |
+| [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `db_tracker::VoxDbTracker` | `pub struct VoxDbTracker` | [`crates/vox-workflow-runtime/src/db_tracker.rs#L18-L24`](../../../crates/vox-workflow-runtime/src/db_tracker.rs#L18-L24) | A durable workflow tracker that persists step completions to VoxDb. |
+| `fn` | `db_tracker::new` | `pub fn new(db: Arc<VoxDb>, run_id: impl Into<String>) -> Self` | [`crates/vox-workflow-runtime/src/db_tracker.rs#L28-L41`](../../../crates/vox-workflow-runtime/src/db_tracker.rs#L28-L41) | Create a tracker for a specific workflow run. |
+| `fn` | `db_tracker::with_owner` | `pub fn with_owner(` | [`crates/vox-workflow-runtime/src/db_tracker.rs#L44`](../../../crates/vox-workflow-runtime/src/db_tracker.rs#L44) | Create a tracker with explicit lease owner and TTL (tests and advanced runners). |
+| `fn` | `db_tracker::with_plan_context` | `pub fn with_plan_context(` | [`crates/vox-workflow-runtime/src/db_tracker.rs#L60`](../../../crates/vox-workflow-runtime/src/db_tracker.rs#L60) | Attach optional orchestration planning context for this run tracker. |
+| `fn` | `db_tracker::expire_lease_for_test` | `pub async fn expire_lease_for_test(&self) -> anyhow::Result<()>` | [`crates/vox-workflow-runtime/src/db_tracker.rs#L76-L81`](../../../crates/vox-workflow-runtime/src/db_tracker.rs#L76-L81) | Force the current run's lease to become stealable by a resumed test runner. |
+| `enum` | `durable_promise::JournalError` | `pub enum JournalError` | [`crates/vox-workflow-runtime/src/durable_promise.rs#L23-L42`](../../../crates/vox-workflow-runtime/src/durable_promise.rs#L23-L42) | Error variants for a durable activity execution. |
+| `struct` | `durable_promise::DurablePromise` | `pub struct DurablePromise<T>` | [`crates/vox-workflow-runtime/src/durable_promise.rs#L50-L53`](../../../crates/vox-workflow-runtime/src/durable_promise.rs#L50-L53) | The single awaitable primitive. Use `.await` in Vox / `.poll` in Rust.  Construction is private to the runtime — user code receives these as the result of a `@remote` call, an activity dispatch, a `signal()`, or a `side_effect { … }` block. The `activity_id` uniquely identifies the work item in the durable journal. |
+| `fn` | `durable_promise::activity_id` | `pub fn activity_id(&self) -> &str` | [`crates/vox-workflow-runtime/src/durable_promise.rs#L91-L93`](../../../crates/vox-workflow-runtime/src/durable_promise.rs#L91-L93) | The stable `activity_id` that identifies this unit of work in the journal. |
+| `fn` | `durable_promise::from_serialised` | `pub fn from_serialised<T: DeserializeOwned>(` | [`crates/vox-workflow-runtime/src/durable_promise.rs#L134`](../../../crates/vox-workflow-runtime/src/durable_promise.rs#L134) | Deserialise a completed activity result from journal bytes (codegen path). |
+| `fn` | `durable_promise::ready` | `pub fn ready<T: Serialize + Send + 'static>(activity_id: String, v: T) -> DurablePromise<T>` | [`crates/vox-workflow-runtime/src/durable_promise.rs#L146-L148`](../../../crates/vox-workflow-runtime/src/durable_promise.rs#L146-L148) | Build a promise that resolves immediately with a known value (tests / codegen stubs). |
+| `enum` | `duration_literal::DurationParseError` | `pub enum DurationParseError` | [`crates/vox-workflow-runtime/src/duration_literal.rs#L35-L44`](../../../crates/vox-workflow-runtime/src/duration_literal.rs#L35-L44) | Error produced when a duration literal can't be parsed. Implements `std::error::Error` so it composes with `anyhow::Result` and the codegen emit's compile-time validation. |
+| `fn` | `duration_literal::parse_duration_str` | `pub fn parse_duration_str(s: &str) -> Result<Duration, DurationParseError>` | [`crates/vox-workflow-runtime/src/duration_literal.rs#L76-L131`](../../../crates/vox-workflow-runtime/src/duration_literal.rs#L76-L131) | Parse a duration literal. See module docs for the accepted grammar.  On error returns a structured [`DurationParseError`] — callers decide whether to convert to a compile-time diagnostic (`vox_codegen::emit_main_boot`) or a runtime `anyhow::Error` (`workflow::plan::parse_duration_ms_str`). |
+| `struct` | `file_journal::FileJournalTracker` | `pub struct FileJournalTracker` | [`crates/vox-workflow-runtime/src/file_journal.rs#L143-L151`](../../../crates/vox-workflow-runtime/src/file_journal.rs#L143-L151) | Append-only file-backed [`WorkflowTracker`] implementation.  Flush cadence is profile-driven (spec §10): construct with [`FileJournalTracker::with_profile`] to adopt the platform's [`JournalFlushStrategy`]. [`FileJournalTracker::new`] keeps the historical desktop behavior (every append is synced to the device before returning, plus a defensive periodic flush). |
+| `fn` | `file_journal::new` | `pub fn new(path: impl Into<PathBuf>) -> Result<Self>` | [`crates/vox-workflow-runtime/src/file_journal.rs#L159-L161`](../../../crates/vox-workflow-runtime/src/file_journal.rs#L159-L161) | Open (or create) the file journal at `path` and replay any existing entries into the in-memory index.  Equivalent to `with_profile(path, RuntimeProfile::Desktop)` — the historical behavior for every existing caller. |
+| `fn` | `file_journal::with_profile` | `pub fn with_profile(path: impl Into<PathBuf>, profile: RuntimeProfile) -> Result<Self>` | [`crates/vox-workflow-runtime/src/file_journal.rs#L174-L176`](../../../crates/vox-workflow-runtime/src/file_journal.rs#L174-L176) | Open the journal with the flush behavior dictated by `profile` (`profile.journal_flush_strategy()`):  - [`RuntimeProfile::Desktop`] → [`JournalFlushStrategy::Periodic`]: per-append device sync (the historical crash-safety contract, which strictly satisfies the periodic bound) plus a defensive background flusher at the strategy's interval. - [`RuntimeProfile::Mobile`] → [`JournalFlushStrategy::OnLifecycle`]: appends are handed to the OS but the device sync is deferred to [`Suspendable::suspend`], which the host calls from the iOS/Android backgrounding hook. No background flusher thread (battery budget). |
+| `fn` | `file_journal::with_flush_strategy` | `pub fn with_flush_strategy(` | [`crates/vox-workflow-runtime/src/file_journal.rs#L180`](../../../crates/vox-workflow-runtime/src/file_journal.rs#L180) | Open the journal with an explicit [`JournalFlushStrategy`] (the policy value [`RuntimeProfile::journal_flush_strategy`] produces). |
+| `fn` | `file_journal::path` | `pub fn path(&self) -> &Path` | [`crates/vox-workflow-runtime/src/file_journal.rs#L242-L244`](../../../crates/vox-workflow-runtime/src/file_journal.rs#L242-L244) | The path on disk where this journal is being written. |
+| `fn` | `file_journal::recorded_count` | `pub fn recorded_count(&self) -> usize` | [`crates/vox-workflow-runtime/src/file_journal.rs#L247-L249`](../../../crates/vox-workflow-runtime/src/file_journal.rs#L247-L249) | The number of recorded activity completions currently in memory. |
+| `fn` | `file_journal::flush_strategy` | `pub fn flush_strategy(&self) -> JournalFlushStrategy` | [`crates/vox-workflow-runtime/src/file_journal.rs#L252-L254`](../../../crates/vox-workflow-runtime/src/file_journal.rs#L252-L254) | The flush policy this tracker was constructed with. |
+| `fn` | `file_journal::has_periodic_flusher` | `pub fn has_periodic_flusher(&self) -> bool` | [`crates/vox-workflow-runtime/src/file_journal.rs#L258-L260`](../../../crates/vox-workflow-runtime/src/file_journal.rs#L258-L260) | Whether a background periodic flusher thread is running (desktop [`JournalFlushStrategy::Periodic`] profile only). |
+| `fn` | `file_journal::periodic_flush_count` | `pub fn periodic_flush_count(&self) -> u64` | [`crates/vox-workflow-runtime/src/file_journal.rs#L264-L269`](../../../crates/vox-workflow-runtime/src/file_journal.rs#L264-L269) | How many times the periodic flusher has synced the journal. Always 0 for [`JournalFlushStrategy::OnLifecycle`] trackers. |
+

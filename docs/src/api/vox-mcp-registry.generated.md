@@ -53,3 +53,39 @@ Consume [`TOOL_REGISTRY`] instead of duplicating name/description tables.
 | `SKILL_TOOLS` | Skill-oriented MCP tools. |
 | `ORCHESTRATOR_TOOLS` | Orchestrator lifecycle tools. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_mcp_registry: "vox-mcp-registry"
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_mcp_registry
+    node vox_corpus: "vox-corpus"
+    vox_corpus -> vox_mcp_registry
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_mcp_registry
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_mcp_registry
+    node vox_skill_discovery: "vox-skill-discovery"
+    vox_skill_discovery -> vox_mcp_registry
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-corpus`](./vox-corpus.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-skill-discovery`](./vox-skill-discovery.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `McpToolRegistryEntry` | `pub struct McpToolRegistryEntry` | [`crates/vox-mcp-registry/src/lib.rs#L23-L31`](../../../crates/vox-mcp-registry/src/lib.rs#L23-L31) | One MCP tool row: identity, bell-curve `product_lane`, and capability-profile exposure metadata. |
+| `fn` | `registry_entry` | `pub fn registry_entry(name: &str) -> Option<&'static McpToolRegistryEntry>` | [`crates/vox-mcp-registry/src/lib.rs#L36-L38`](../../../crates/vox-mcp-registry/src/lib.rs#L36-L38) | Row for an exact canonical tool name; wire aliases are not resolved here. |
+

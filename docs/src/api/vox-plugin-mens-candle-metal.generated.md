@@ -72,3 +72,48 @@ See: docs/src/architecture/plugin-system-redesign-2026.md
 | `device` | — |
 | `inference` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_plugin_mens_candle_metal: "vox-plugin-mens-candle-metal"
+    node vox_compiler: "vox-compiler"
+    vox_plugin_mens_candle_metal -> vox_compiler
+    node vox_config: "vox-config"
+    vox_plugin_mens_candle_metal -> vox_config
+    node vox_eval: "vox-eval"
+    vox_plugin_mens_candle_metal -> vox_eval
+    node vox_hf_layout: "vox-hf-layout"
+    vox_plugin_mens_candle_metal -> vox_hf_layout
+    node vox_plugin_api: "vox-plugin-api"
+    vox_plugin_mens_candle_metal -> vox_plugin_api
+    node vox_plugin_mens_candle_core: "vox-plugin-mens-candle-core"
+    vox_plugin_mens_candle_metal -> vox_plugin_mens_candle_core
+    node vox_secrets: "vox-secrets"
+    vox_plugin_mens_candle_metal -> vox_secrets
+    node vox_tensor: "vox-tensor"
+    vox_plugin_mens_candle_metal -> vox_tensor
+}
+```
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `candle_qlora_train::PeakSampler` | `pub struct PeakSampler` | [`crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/mod.rs#L47-L51`](../../../crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/mod.rs#L47-L51) | Samples a training device's currently-allocated bytes on a background thread, retaining the maximum observed value. This is what turns a `CalibrationRecord::peak_bytes` (see `vox_populi::mens::tensor::calibration`) into a real measurement of an actual `candle-metal` run instead of a predicted estimate — no external tooling, no Python probe. |
+| `fn` | `candle_qlora_train::start` | `pub fn start(device: &Device, interval: Duration) -> Self` | [`crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/mod.rs#L60-L70`](../../../crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/mod.rs#L60-L70) | Starts sampling `device` every `interval`, from before the first training step. A non-Metal device (CPU, CUDA, or a build without the `metal` feature) reports a constant 0 for the life of the sampler — an honest "unmeasured", not a fabricated number (same convention as `vox_populi::mens::tensor::accel_budget::query_accel_budget` on non-macOS). |
+| `fn` | `candle_qlora_train::observed_peak_bytes` | `pub fn observed_peak_bytes(&self) -> u64` | [`crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/mod.rs#L74-L76`](../../../crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/mod.rs#L74-L76) | The largest allocated-bytes value observed since `start`. Read this after the last training step. |
+| `fn` | `candle_qlora_train::forward` | `pub fn forward(&self, input_ids: &Tensor) -> anyhow::Result<Tensor>` | [`crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/mod.rs#L159-L163`](../../../crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/mod.rs#L159-L163) | — |
+| `struct` | `candle_qlora_train::TrainRequest` | `pub struct TrainRequest` | [`crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/mod.rs#L206-L216`](../../../crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/mod.rs#L206-L216) | JSON wire format for `run_candle_qlora_train` — all parameters needed by the plugin. The caller (vox-populi or CLI) serializes this; the plugin deserializes it. |
+| `fn` | `candle_qlora_train::run_candle_qlora_train` | `pub fn run_candle_qlora_train(` | [`crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/mod.rs#L252`](../../../crates/vox-plugin-mens-candle-metal/src/candle_qlora_train/mod.rs#L252) | Main entry point — called from `crate::training::run_full_training`. |
+| `fn` | `device::probe_gpu` | `pub fn probe_gpu() -> GpuInfo` | [`crates/vox-plugin-mens-candle-metal/src/device.rs#L15-L21`](../../../crates/vox-plugin-mens-candle-metal/src/device.rs#L15-L21) | Minimal GPU probe — returns unknown vendor when no probe is possible. SP3-C stub: hardware registry is a vox-populi concern; reconnect via host capability in sub-batch D. |
+| `struct` | `inference::InferenceEngine` | `pub struct InferenceEngine` | [`crates/vox-plugin-mens-candle-metal/src/inference.rs#L28-L35`](../../../crates/vox-plugin-mens-candle-metal/src/inference.rs#L28-L35) | — |
+| `enum` | `inference::InferenceModel` | `pub enum InferenceModel` | [`crates/vox-plugin-mens-candle-metal/src/inference.rs#L37-L39`](../../../crates/vox-plugin-mens-candle-metal/src/inference.rs#L37-L39) | — |
+| `fn` | `inference::forward_with_cache` | `pub fn forward_with_cache(` | [`crates/vox-plugin-mens-candle-metal/src/inference.rs#L42`](../../../crates/vox-plugin-mens-candle-metal/src/inference.rs#L42) | — |
+| `fn` | `inference::forward_with_cache_opt` | `pub fn forward_with_cache_opt(` | [`crates/vox-plugin-mens-candle-metal/src/inference.rs#L53`](../../../crates/vox-plugin-mens-candle-metal/src/inference.rs#L53) | — |
+| `fn` | `inference::weight_sources` | `pub fn weight_sources(model_dir: &Path, base_shards: &[PathBuf]) -> Vec<PathBuf>` | [`crates/vox-plugin-mens-candle-metal/src/inference.rs#L162-L174`](../../../crates/vox-plugin-mens-candle-metal/src/inference.rs#L162-L174) | Every safetensors file whose tensors feed the inference weight map, in search order: adapter before merged before base shards.  The adapter file contributes no *base* keys (its tensors are named `<logical>.lora_a.weight` / `.lora_b.weight`), so it never shadows a base weight here; the trained delta is folded in separately by `merge::lora_factors_by_base_key`, gated on `adapter_deltas_must_be_folded`. |
+| `fn` | `inference::load` | `pub fn load(model_dir: &Path, device_kind: &crate::device::DeviceKind) -> Result<Self>` | [`crates/vox-plugin-mens-candle-metal/src/inference.rs#L177`](../../../crates/vox-plugin-mens-candle-metal/src/inference.rs#L177) | — |
+| `fn` | `inference::generate_from_json` | `pub fn generate_from_json(&mut self, prompt_json: &str) -> Result<String>` | [`crates/vox-plugin-mens-candle-metal/src/inference.rs#L603-L657`](../../../crates/vox-plugin-mens-candle-metal/src/inference.rs#L603-L657) | Autoregressive generation loop (unconstrained).  `prompt_json` is a JSON object with fields: - `"prompt"`: string — the prompt text - `"system"`: string — optional trained system prompt - `"max_tokens"`: integer (default 256) - `"temperature"`: float (default 1.0; `<= 0` forces greedy) - `"top_k"`: integer (default 0 = full vocabulary; `1` forces greedy) - `"top_p"`: float nucleus mass (default absent = 1.0, no filtering) - `"seed"`: integer; sampling draws from `StdRng::seed_from_u64(seed)` so equal seeds over equal logits give equal tokens (default absent = entropy-seeded) - `"output_mode"`: optional structured-output label — see `check_output_mode` for what this plugin does and does not enforce. - `"lane"`: optional serving lane — `codegen` (default), `hub` or `agent`; see `resolve_lane`. |
+| `fn` | `inference::run` | `pub fn run(model_dir: &str, prompt_json: &str) -> Result<String>` | [`crates/vox-plugin-mens-candle-metal/src/inference.rs#L1045-L1049`](../../../crates/vox-plugin-mens-candle-metal/src/inference.rs#L1045-L1049) | `model_dir_json` is a JSON string with a `"model_dir"` field pointing to the local model directory, plus the prompt fields consumed by `generate_from_json`. |
+

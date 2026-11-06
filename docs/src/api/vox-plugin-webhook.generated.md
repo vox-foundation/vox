@@ -55,3 +55,18 @@ D-14: the listener is fail closed and inert until the host starts it.
 | [`vox-http-client`](./vox-http-client.generated.md) | Normal |
 | [`vox-plugin-api`](./vox-plugin-api.generated.md) | Normal |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_plugin_webhook: "vox-plugin-webhook"
+    node vox_config: "vox-config"
+    vox_plugin_webhook -> vox_config
+    node vox_http_client: "vox-http-client"
+    vox_plugin_webhook -> vox_http_client
+    node vox_plugin_api: "vox-plugin-api"
+    vox_plugin_webhook -> vox_plugin_api
+}
+```
+

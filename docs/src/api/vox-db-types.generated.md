@@ -58,3 +58,73 @@ resolves the same as `vox_db_types::SaveSnippetParams`.
 |---|---|
 | `MemoryParams` | Alias kept for back-compat (`vox_db::MemoryParams`). |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_db_types: "vox-db-types"
+    node vox_db: "vox-db"
+    vox_db -> vox_db_types
+    node vox_scientia: "vox-scientia"
+    vox_scientia -> vox_db_types
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
+| [`vox-scientia`](./vox-scientia.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `type` | `MemoryParams` | `pub type MemoryParams<'a> = store_types::SaveMemoryParams<'a>` | [`crates/vox-db-types/src/lib.rs#L44`](../../../crates/vox-db-types/src/lib.rs#L44) | Alias kept for back-compat (`vox_db::MemoryParams`). |
+| `enum` | `circuit::CircuitState` | `pub enum CircuitState` | [`crates/vox-db-types/src/circuit.rs#L12-L19`](../../../crates/vox-db-types/src/circuit.rs#L12-L19) | Three states a circuit breaker can be in. |
+| `struct` | `eval_params::EvalRunParams` | `pub struct EvalRunParams<'a>` | [`crates/vox-db-types/src/eval_params.rs#L5-L22`](../../../crates/vox-db-types/src/eval_params.rs#L5-L22) | Parameters for `vox_db::VoxDb::record_eval_run`. |
+| `struct` | `exec_time::ExecTimeRecord` | `pub struct ExecTimeRecord<'a>` | [`crates/vox-db-types/src/exec_time.rs#L9-L21`](../../../crates/vox-db-types/src/exec_time.rs#L9-L21) | Write-path record for one execution observation. |
+| `enum` | `exec_time::ExecOutcome` | `pub enum ExecOutcome` | [`crates/vox-db-types/src/exec_time.rs#L24-L28`](../../../crates/vox-db-types/src/exec_time.rs#L24-L28) | — |
+| `fn` | `exec_time::as_str` | `pub fn as_str(self) -> &'static str` | [`crates/vox-db-types/src/exec_time.rs#L31-L37`](../../../crates/vox-db-types/src/exec_time.rs#L31-L37) | — |
+| `struct` | `exec_time::ToolLatencyProfile` | `pub struct ToolLatencyProfile` | [`crates/vox-db-types/src/exec_time.rs#L42-L54`](../../../crates/vox-db-types/src/exec_time.rs#L42-L54) | Historical latency profile returned by `vox_db::VoxDb::query_tool_latency`. |
+| `struct` | `ids::$name` | `pub struct $name(pub String)` | [`crates/vox-db-types/src/ids.rs#L14`](../../../crates/vox-db-types/src/ids.rs#L14) | — |
+| `fn` | `ids::new` | `pub fn new(s: impl Into<String>) -> Self` | [`crates/vox-db-types/src/ids.rs#L17`](../../../crates/vox-db-types/src/ids.rs#L17) | — |
+| `fn` | `ids::as_str` | `pub fn as_str(&self) -> &str` | [`crates/vox-db-types/src/ids.rs#L18`](../../../crates/vox-db-types/src/ids.rs#L18) | — |
+| `fn` | `ids::into_string` | `pub fn into_string(self) -> String` | [`crates/vox-db-types/src/ids.rs#L19`](../../../crates/vox-db-types/src/ids.rs#L19) | — |
+| `fn` | `kb_text::sanitize` | `pub fn sanitize(raw: &str) -> String` | [`crates/vox-db-types/src/kb_text.rs#L56-L66`](../../../crates/vox-db-types/src/kb_text.rs#L56-L66) | Sanitize untrusted text. Fixed pass order, repeated to a bounded fixpoint: (1) strip invisible codepoints (so evasion characters cannot split a later match), (2) strip HTML comments (unterminated strips to end), (3) neutralize images (inline, reference, HTML `img`) unless the target is relative or its host is allowlisted, (4) neutralize role tokens.  Works on Unicode scalar values, applies no normalization and always returns valid UTF-8. Idempotent. If the passes have not converged after `MAX_PASSES` the input is adversarially nested and the result is `""` (fail closed). |
+| `struct` | `kb_text::SanitizedText` | `pub struct SanitizedText(String)` | [`crates/vox-db-types/src/kb_text.rs#L325`](../../../crates/vox-db-types/src/kb_text.rs#L325) | Text that has passed through [`sanitize`]. The field is private and there is no `Default`, `From<String>` or `Deserialize`, so the only way to build one is [`SanitizedText::new`].  A tuple-struct literal does not compile outside this module:  ```compile_fail let _ = vox_db_types::kb_text::SanitizedText("raw".to_string()); ```  The constructor sanitizes:  ``` let t = vox_db_types::kb_text::SanitizedText::new("a\u{200B}b"); assert_eq!(t.as_str(), "ab"); ``` |
+| `fn` | `kb_text::new` | `pub fn new(raw: &str) -> Self` | [`crates/vox-db-types/src/kb_text.rs#L329-L331`](../../../crates/vox-db-types/src/kb_text.rs#L329-L331) | Sanitize `raw` and wrap the result. |
+| `fn` | `kb_text::as_str` | `pub fn as_str(&self) -> &str` | [`crates/vox-db-types/src/kb_text.rs#L332-L334`](../../../crates/vox-db-types/src/kb_text.rs#L332-L334) | — |
+| `fn` | `kb_text::into_string` | `pub fn into_string(self) -> String` | [`crates/vox-db-types/src/kb_text.rs#L335-L337`](../../../crates/vox-db-types/src/kb_text.rs#L335-L337) | — |
+| `struct` | `kb_text::ContentHash` | `pub struct ContentHash(String)` | [`crates/vox-db-types/src/kb_text.rs#L350`](../../../crates/vox-db-types/src/kb_text.rs#L350) | A blake3 content hash stored as `blake3:<64 lowercase hex>`. Hashing itself stays in `vox-crypto` consumers; this type only validates the encoded form. |
+| `fn` | `kb_text::from_blake3_hex` | `pub fn from_blake3_hex(hex: &str) -> Result<Self, String>` | [`crates/vox-db-types/src/kb_text.rs#L354-L363`](../../../crates/vox-db-types/src/kb_text.rs#L354-L363) | Accept exactly 64 lowercase hex characters. |
+| `fn` | `kb_text::as_str` | `pub fn as_str(&self) -> &str` | [`crates/vox-db-types/src/kb_text.rs#L364-L366`](../../../crates/vox-db-types/src/kb_text.rs#L364-L366) | — |
+| `enum` | `kb_text::FindingOrigin` | `pub enum FindingOrigin` | [`crates/vox-db-types/src/kb_text.rs#L372-L383`](../../../crates/vox-db-types/src/kb_text.rs#L372-L383) | Where a KB finding came from. |
+| `fn` | `kb_text::as_db_str` | `pub fn as_db_str(self) -> &'static str` | [`crates/vox-db-types/src/kb_text.rs#L398-L411`](../../../crates/vox-db-types/src/kb_text.rs#L398-L411) | — |
+| `fn` | `kb_text::from_db_str` | `pub fn from_db_str(s: &str) -> Result<Self, String>` | [`crates/vox-db-types/src/kb_text.rs#L413-L418`](../../../crates/vox-db-types/src/kb_text.rs#L413-L418) | Fallible: an unknown string is an error, never a default variant. |
+| `enum` | `kb_text::FindingStatus` | `pub enum FindingStatus` | [`crates/vox-db-types/src/kb_text.rs#L424-L430`](../../../crates/vox-db-types/src/kb_text.rs#L424-L430) | Review state of a KB finding. |
+| `fn` | `kb_text::as_db_str` | `pub fn as_db_str(self) -> &'static str` | [`crates/vox-db-types/src/kb_text.rs#L440-L448`](../../../crates/vox-db-types/src/kb_text.rs#L440-L448) | — |
+| `fn` | `kb_text::from_db_str` | `pub fn from_db_str(s: &str) -> Result<Self, String>` | [`crates/vox-db-types/src/kb_text.rs#L450-L455`](../../../crates/vox-db-types/src/kb_text.rs#L450-L455) | Fallible: an unknown string is an error, never a default variant. |
+| `struct` | `research::ResearchSessionRecord` | `pub struct ResearchSessionRecord` | [`crates/vox-db-types/src/research.rs#L4-L11`](../../../crates/vox-db-types/src/research.rs#L4-L11) | — |
+| `struct` | `research::ResearchSessionSummary` | `pub struct ResearchSessionSummary` | [`crates/vox-db-types/src/research.rs#L14-L21`](../../../crates/vox-db-types/src/research.rs#L14-L21) | — |
+| `struct` | `research::ResearchArtifactRecord` | `pub struct ResearchArtifactRecord` | [`crates/vox-db-types/src/research.rs#L24-L30`](../../../crates/vox-db-types/src/research.rs#L24-L30) | — |
+| `struct` | `research::ScientiaClaimWithVerdict` | `pub struct ScientiaClaimWithVerdict` | [`crates/vox-db-types/src/research.rs#L35-L46`](../../../crates/vox-db-types/src/research.rs#L35-L46) | An extracted SCIENTIA claim joined to its latest (non-span) verdict, for a publication's claim ledger view. |
+| `struct` | `research::ClaimsPendingCounts` | `pub struct ClaimsPendingCounts` | [`crates/vox-db-types/src/research.rs#L50-L57`](../../../crates/vox-db-types/src/research.rs#L50-L57) | Global claims-pending counts for the SCIENTIA dashboard. |
+| `struct` | `research::ResearchSearchResult` | `pub struct ResearchSearchResult` | [`crates/vox-db-types/src/research.rs#L61-L66`](../../../crates/vox-db-types/src/research.rs#L61-L66) | Result hit from full-text or pattern search across research artifacts. |
+| `struct` | `research::CachedClaimVerdict` | `pub struct CachedClaimVerdict` | [`crates/vox-db-types/src/research.rs#L70-L76`](../../../crates/vox-db-types/src/research.rs#L70-L76) | Cached claim verification verdict from historical research sessions. |
+| `enum` | `research::ResearchDefectClass` | `pub enum ResearchDefectClass` | [`crates/vox-db-types/src/research.rs#L81-L90`](../../../crates/vox-db-types/src/research.rs#L81-L90) | Defect classification for code generated from misleading external research. |
+| `fn` | `research::as_str` | `pub fn as_str(&self) -> &'static str` | [`crates/vox-db-types/src/research.rs#L93-L100`](../../../crates/vox-db-types/src/research.rs#L93-L100) | — |
+| `enum` | `research::MisguidanceReporter` | `pub enum MisguidanceReporter` | [`crates/vox-db-types/src/research.rs#L126-L137`](../../../crates/vox-db-types/src/research.rs#L126-L137) | Actor or pipeline stage that reported research misguidance. |
+| `fn` | `research::as_str` | `pub fn as_str(&self) -> &'static str` | [`crates/vox-db-types/src/research.rs#L140-L148`](../../../crates/vox-db-types/src/research.rs#L140-L148) | — |
+| `struct` | `research::RecordMisguidanceParams` | `pub struct RecordMisguidanceParams` | [`crates/vox-db-types/src/research.rs#L174-L187`](../../../crates/vox-db-types/src/research.rs#L174-L187) | Parameter block for recording a research misguidance event into VoxDb. |
+| `struct` | `research::ResearchMisguidanceRecord` | `pub struct ResearchMisguidanceRecord` | [`crates/vox-db-types/src/research.rs#L191-L208`](../../../crates/vox-db-types/src/research.rs#L191-L208) | Persisted research misguidance event row. |
+| `struct` | `research::DomainReputationRecord` | `pub struct DomainReputationRecord` | [`crates/vox-db-types/src/research.rs#L212-L219`](../../../crates/vox-db-types/src/research.rs#L212-L219) | Persisted domain reputation summary row. |
+| `enum` | `retrieval::RetrievalEvidenceSource` | `pub enum RetrievalEvidenceSource` | [`crates/vox-db-types/src/retrieval.rs#L12-L22`](../../../crates/vox-db-types/src/retrieval.rs#L12-L22) | Which retrieval branch produced evidence for a hit (or both after hybrid fusion). |
+| `fn` | `retrieval::merge` | `pub fn merge(self, other: Self) -> Self` | [`crates/vox-db-types/src/retrieval.rs#L26-L36`](../../../crates/vox-db-types/src/retrieval.rs#L26-L36) | Combines evidence from two hits of the same chunk (e.g. vector + FTS overlap). |
+| `enum` | `retrieval::RetrievalMode` | `pub enum RetrievalMode` | [`crates/vox-db-types/src/retrieval.rs#L42-L49`](../../../crates/vox-db-types/src/retrieval.rs#L42-L49) | How a [`RetrievalQuery`] should be interpreted upstream. |
+| `struct` | `retrieval::RetrievalQuery` | `pub struct RetrievalQuery` | [`crates/vox-db-types/src/retrieval.rs#L53-L62`](../../../crates/vox-db-types/src/retrieval.rs#L53-L62) | Inputs for a retrieval request (caller maps to concrete SQL or RPC). |
+| `enum` | `retrieval::SearchIntent` | `pub enum SearchIntent` | [`crates/vox-db-types/src/retrieval.rs#L78-L90`](../../../crates/vox-db-types/src/retrieval.rs#L78-L90) | What kind of information need is being served by the current search. |
+| `enum` | `retrieval::SearchCorpus` | `pub enum SearchCorpus` | [`crates/vox-db-types/src/retrieval.rs#L95-L105`](../../../crates/vox-db-types/src/retrieval.rs#L95-L105) | Logical corpora that the search planner can target. |
+

@@ -322,14 +322,20 @@ pub fn render_crate_dependency_diagram(
     let mut body = String::from("graph {\n    direction: right\n");
     body.push_str(&format!("    node {center_id}: \"{crate_name}\"\n"));
 
+    // A crate can be both a dependency and a dependent (dev-dependency cycle); declare it once.
+    let mut declared = BTreeSet::from([center_id.clone()]);
     for dep in forward_deps.iter().take(12) {
         let dep_id = diagram_node_id(dep);
-        body.push_str(&format!("    node {dep_id}: \"{dep}\"\n"));
+        if declared.insert(dep_id.clone()) {
+            body.push_str(&format!("    node {dep_id}: \"{dep}\"\n"));
+        }
         body.push_str(&format!("    {center_id} -> {dep_id}\n"));
     }
     for consumer in used_by.iter().take(12) {
         let cons_id = diagram_node_id(consumer);
-        body.push_str(&format!("    node {cons_id}: \"{consumer}\"\n"));
+        if declared.insert(cons_id.clone()) {
+            body.push_str(&format!("    node {cons_id}: \"{consumer}\"\n"));
+        }
         body.push_str(&format!("    {cons_id} -> {center_id}\n"));
     }
 
@@ -538,6 +544,20 @@ vox-crypto = { layer = 1, kind = "library" }
             "{chart}"
         );
         assert!(vox_diagram::check(&chart).valid, "{chart}");
+    }
+
+    #[test]
+    fn crate_dependency_diagram_declares_cyclic_peer_once() {
+        // vox-codegen depends on vox-compiler, which dev-depends back on vox-codegen.
+        let chart = render_crate_dependency_diagram(
+            "vox-codegen",
+            &["vox-compiler".to_string()],
+            &["vox-compiler".to_string()],
+        )
+        .unwrap();
+        assert_eq!(chart.matches("node vox_compiler:").count(), 1, "{chart}");
+        assert!(chart.contains("vox_codegen -> vox_compiler"), "{chart}");
+        assert!(chart.contains("vox_compiler -> vox_codegen"), "{chart}");
     }
 
     #[test]

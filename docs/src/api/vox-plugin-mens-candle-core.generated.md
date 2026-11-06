@@ -114,3 +114,81 @@ code moved verbatim.
 | `training_text` | — |
 | `weight_resolution` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_plugin_mens_candle_core: "vox-plugin-mens-candle-core"
+    node vox_db: "vox-db"
+    vox_plugin_mens_candle_core -> vox_db
+    node vox_eval: "vox-eval"
+    vox_plugin_mens_candle_core -> vox_eval
+    node vox_hf_layout: "vox-hf-layout"
+    vox_plugin_mens_candle_core -> vox_hf_layout
+    node vox_tensor: "vox-tensor"
+    vox_plugin_mens_candle_core -> vox_tensor
+    node vox_plugin_mens_candle_cuda: "vox-plugin-mens-candle-cuda"
+    vox_plugin_mens_candle_cuda -> vox_plugin_mens_candle_core
+    node vox_plugin_mens_candle_metal: "vox-plugin-mens-candle-metal"
+    vox_plugin_mens_candle_metal -> vox_plugin_mens_candle_core
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-plugin-mens-candle-cuda`](./vox-plugin-mens-candle-cuda.generated.md) | Direct workspace dependent |
+| [`vox-plugin-mens-candle-metal`](./vox-plugin-mens-candle-metal.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `adapter_schema_v3::PopuliAdapterManifestV3` | `pub struct PopuliAdapterManifestV3` | [`crates/vox-plugin-mens-candle-core/src/adapter_schema_v3.rs#L12-L28`](../../../crates/vox-plugin-mens-candle-core/src/adapter_schema_v3.rs#L12-L28) | — |
+| `struct` | `adapter_schema_v3::AdapterMethodFields` | `pub struct AdapterMethodFields` | [`crates/vox-plugin-mens-candle-core/src/adapter_schema_v3.rs#L31-L33`](../../../crates/vox-plugin-mens-candle-core/src/adapter_schema_v3.rs#L31-L33) | — |
+| `struct` | `adapter_schema_v3::QuantFields` | `pub struct QuantFields` | [`crates/vox-plugin-mens-candle-core/src/adapter_schema_v3.rs#L42-L46`](../../../crates/vox-plugin-mens-candle-core/src/adapter_schema_v3.rs#L42-L46) | — |
+| `struct` | `adapter_schema_v3::AdapterProvenanceFields` | `pub struct AdapterProvenanceFields` | [`crates/vox-plugin-mens-candle-core/src/adapter_schema_v3.rs#L49-L58`](../../../crates/vox-plugin-mens-candle-core/src/adapter_schema_v3.rs#L49-L58) | — |
+| `fn` | `adapter_schema_v3::new` | `pub fn new(` | [`crates/vox-plugin-mens-candle-core/src/adapter_schema_v3.rs#L65`](../../../crates/vox-plugin-mens-candle-core/src/adapter_schema_v3.rs#L65) | — |
+| `struct` | `checkpoint_state::CheckpointState` | `pub struct CheckpointState` | [`crates/vox-plugin-mens-candle-core/src/checkpoint_state.rs#L38-L72`](../../../crates/vox-plugin-mens-candle-core/src/checkpoint_state.rs#L38-L72) | All state necessary to resume a Candle QLoRA training run mid-epoch. |
+| `fn` | `checkpoint_state::fingerprint_file` | `pub fn fingerprint_file(path: &Path) -> Option<String>` | [`crates/vox-plugin-mens-candle-core/src/checkpoint_state.rs#L82-L88`](../../../crates/vox-plugin-mens-candle-core/src/checkpoint_state.rs#L82-L88) | Content fingerprint for a training data file (`train.jsonl` / `train_mixed.jsonl`), used to detect resuming a checkpoint against a different dataset than the one it was trained on so far. Not a security hash — `std::hash::DefaultHasher` over the raw bytes is enough to catch "this is a different file" without a new dependency (same reasoning as the `DefaultHasher` use in `validation::split_validation_by_response`). Returns `None` if the file cannot be read (never blocks training on a fingerprinting failure — the resume check just skips itself when either side is `None`). |
+| `fn` | `checkpoint_state::path_in` | `pub fn path_in(output_dir: &Path) -> PathBuf` | [`crates/vox-plugin-mens-candle-core/src/checkpoint_state.rs#L92-L94`](../../../crates/vox-plugin-mens-candle-core/src/checkpoint_state.rs#L92-L94) | Returns the path where the checkpoint file lives inside `output_dir`. |
+| `fn` | `checkpoint_state::save` | `pub fn save(&self, output_dir: &Path) -> anyhow::Result<()>` | [`crates/vox-plugin-mens-candle-core/src/checkpoint_state.rs#L100-L109`](../../../crates/vox-plugin-mens-candle-core/src/checkpoint_state.rs#L100-L109) | Saves `self` to `output_dir/checkpoint_state.json` atomically.  Writes to a `.tmp` sibling then renames, so a power-cut mid-write cannot corrupt the last good checkpoint. |
+| `fn` | `checkpoint_state::load` | `pub fn load(output_dir: &Path) -> Option<Self>` | [`crates/vox-plugin-mens-candle-core/src/checkpoint_state.rs#L115-L151`](../../../crates/vox-plugin-mens-candle-core/src/checkpoint_state.rs#L115-L151) | Loads a checkpoint from `output_dir/checkpoint_state.json`.  Returns `None` when the file does not exist (fresh run) or the JSON is corrupt / the schema does not match (start fresh, warn). |
+| `fn` | `checkpoint_state::delete` | `pub fn delete(output_dir: &Path)` | [`crates/vox-plugin-mens-candle-core/src/checkpoint_state.rs#L154-L159`](../../../crates/vox-plugin-mens-candle-core/src/checkpoint_state.rs#L154-L159) | Delete the checkpoint file (called on successful training completion). |
+| `fn` | `checkpoint_state::now_utc` | `pub fn now_utc() -> String` | [`crates/vox-plugin-mens-candle-core/src/checkpoint_state.rs#L162-L176`](../../../crates/vox-plugin-mens-candle-core/src/checkpoint_state.rs#L162-L176) | Current UTC time as an RFC 3339 string. |
+| `enum` | `config::TrainingDeploymentTarget` | `pub enum TrainingDeploymentTarget` | [`crates/vox-plugin-mens-candle-core/src/config.rs#L14-L20`](../../../crates/vox-plugin-mens-candle-core/src/config.rs#L14-L20) | — |
+| `fn` | `config::as_str` | `pub const fn as_str(self) -> &'static str` | [`crates/vox-plugin-mens-candle-core/src/config.rs#L25-L30`](../../../crates/vox-plugin-mens-candle-core/src/config.rs#L25-L30) | Stable wire / manifest label. |
+| `enum` | `config::MensTokenizerMode` | `pub enum MensTokenizerMode` | [`crates/vox-plugin-mens-candle-core/src/config.rs#L38-L44`](../../../crates/vox-plugin-mens-candle-core/src/config.rs#L38-L44) | — |
+| `enum` | `config::OptimizerExperimentMode` | `pub enum OptimizerExperimentMode` | [`crates/vox-plugin-mens-candle-core/src/config.rs#L51-L57`](../../../crates/vox-plugin-mens-candle-core/src/config.rs#L51-L57) | — |
+| `struct` | `config::ContextFilter` | `pub struct ContextFilter` | [`crates/vox-plugin-mens-candle-core/src/config.rs#L61-L66`](../../../crates/vox-plugin-mens-candle-core/src/config.rs#L61-L66) | ContextFilter used to filter training pairs based on categories, difficulty, and ratings. |
+| `struct` | `config::CurriculumSchedule` | `pub struct CurriculumSchedule` | [`crates/vox-plugin-mens-candle-core/src/config.rs#L70-L76`](../../../crates/vox-plugin-mens-candle-core/src/config.rs#L70-L76) | Dynamic curriculum schedule for difficult-gated training. |
+| `struct` | `config::ChatmlConfig` | `pub struct ChatmlConfig` | [`crates/vox-plugin-mens-candle-core/src/config.rs#L80-L86`](../../../crates/vox-plugin-mens-candle-core/src/config.rs#L80-L86) | Dynamic ChatML separator configuration (registry-driven). |
+| `struct` | `config::LoraTrainingConfig` | `pub struct LoraTrainingConfig` | [`crates/vox-plugin-mens-candle-core/src/config.rs#L102-L198`](../../../crates/vox-plugin-mens-candle-core/src/config.rs#L102-L198) | Full configuration for one LoRA / QLoRA training run. |
+| `enum` | `device::DeviceKind` | `pub enum DeviceKind` | [`crates/vox-plugin-mens-candle-core/src/device.rs#L13-L24`](../../../crates/vox-plugin-mens-candle-core/src/device.rs#L13-L24) | CLI / env device intent for the Candle backend. |
+| `struct` | `device::GpuInfo` | `pub struct GpuInfo` | [`crates/vox-plugin-mens-candle-core/src/device.rs#L28-L32`](../../../crates/vox-plugin-mens-candle-core/src/device.rs#L28-L32) | Best-effort local GPU description. |
+| `struct` | `external_serving_handoff::ExternalServingHandoffV1` | `pub struct ExternalServingHandoffV1` | [`crates/vox-plugin-mens-candle-core/src/external_serving_handoff.rs#L10-L24`](../../../crates/vox-plugin-mens-candle-core/src/external_serving_handoff.rs#L10-L24) | — |
+| `fn` | `external_serving_handoff::schola_training_run` | `pub fn schola_training_run(run_dir: &Path, base_model: &str, adapter_filename: &str) -> Self` | [`crates/vox-plugin-mens-candle-core/src/external_serving_handoff.rs#L30-L47`](../../../crates/vox-plugin-mens-candle-core/src/external_serving_handoff.rs#L30-L47) | — |
+| `fn` | `external_serving_handoff::write_handoff` | `pub fn write_handoff(out: &Path, handoff: &ExternalServingHandoffV1) -> anyhow::Result<()>` | [`crates/vox-plugin-mens-candle-core/src/external_serving_handoff.rs#L50-L54`](../../../crates/vox-plugin-mens-candle-core/src/external_serving_handoff.rs#L50-L54) | — |
+| `enum` | `finetune_contract::AdapterMethod` | `pub enum AdapterMethod` | [`crates/vox-plugin-mens-candle-core/src/finetune_contract.rs#L10-L13`](../../../crates/vox-plugin-mens-candle-core/src/finetune_contract.rs#L10-L13) | — |
+| `enum` | `finetune_contract::BaseQuantMode` | `pub enum BaseQuantMode` | [`crates/vox-plugin-mens-candle-core/src/finetune_contract.rs#L17-L20`](../../../crates/vox-plugin-mens-candle-core/src/finetune_contract.rs#L17-L20) | — |
+| `fn` | `hf_keymap::middle_block_projection_key` | `pub fn middle_block_projection_key(arch: HfArchitecture, layer: usize) -> String` | [`crates/vox-plugin-mens-candle-core/src/hf_keymap.rs#L12-L20`](../../../crates/vox-plugin-mens-candle-core/src/hf_keymap.rs#L12-L20) | HF key for attention output projection per layer (shape `[d_model, d_model]`). |
+| `fn` | `hf_keymap::layer_attention_weight_keys` | `pub fn layer_attention_weight_keys(arch: HfArchitecture, layer: usize) -> Vec<String>` | [`crates/vox-plugin-mens-candle-core/src/hf_keymap.rs#L24-L47`](../../../crates/vox-plugin-mens-candle-core/src/hf_keymap.rs#L24-L47) | Self-attention linear weight keys for one block (inventory / diagnostics). |
+| `fn` | `hf_keymap::layer_mlp_weight_keys` | `pub fn layer_mlp_weight_keys(arch: HfArchitecture, layer: usize) -> Vec<String>` | [`crates/vox-plugin-mens-candle-core/src/hf_keymap.rs#L51-L64`](../../../crates/vox-plugin-mens-candle-core/src/hf_keymap.rs#L51-L64) | MLP / FFN linear weight keys for one block. |
+| `fn` | `hf_keymap::layer_rope_weight_keys` | `pub fn layer_rope_weight_keys(arch: HfArchitecture, layer: usize) -> Vec<String>` | [`crates/vox-plugin-mens-candle-core/src/hf_keymap.rs#L68-L77`](../../../crates/vox-plugin-mens-candle-core/src/hf_keymap.rs#L68-L77) | RoPE (Rotary Position Embedding) keys for one block. |
+| `fn` | `hf_keymap::layer_norm_weight_keys` | `pub fn layer_norm_weight_keys(arch: HfArchitecture, layer: usize) -> Vec<String>` | [`crates/vox-plugin-mens-candle-core/src/hf_keymap.rs#L81-L95`](../../../crates/vox-plugin-mens-candle-core/src/hf_keymap.rs#L81-L95) | Norm keys (RMSNorm or LayerNorm) for one block. |
+| `fn` | `hf_keymap::ordered_full_block_weight_keys` | `pub fn ordered_full_block_weight_keys(layout: &HfTransformerLayout) -> Vec<String>` | [`crates/vox-plugin-mens-candle-core/src/hf_keymap.rs#L187-L196`](../../../crates/vox-plugin-mens-candle-core/src/hf_keymap.rs#L187-L196) | All non-embedding tensor name **candidates** for a full transformer (attention + MLP per layer). |
+| `fn` | `hf_keymap::ordered_full_block_weight_keys_strict_preflight` | `pub fn ordered_full_block_weight_keys_strict_preflight(` | [`crates/vox-plugin-mens-candle-core/src/hf_keymap.rs#L204`](../../../crates/vox-plugin-mens-candle-core/src/hf_keymap.rs#L204) | Like [`ordered_full_block_weight_keys`], but for **strict** QLoRA preflight shard checks.  **Qwen3.5** Hugging Face checkpoints usually omit per-layer `*.rotary_emb.inv_freq`; the Candle trainer synthesizes RoPE from `rope_theta` in `config.json`. Requiring those tensors here caused false failures with `--qlora-require-full-proxy-stack` on official `Qwen/Qwen3.5-*` weights. |
+| `fn` | `hf_keymap::ordered_middle_projection_keys` | `pub fn ordered_middle_projection_keys(layout: &HfTransformerLayout) -> Vec<String>` | [`crates/vox-plugin-mens-candle-core/src/hf_keymap.rs#L216-L220`](../../../crates/vox-plugin-mens-candle-core/src/hf_keymap.rs#L216-L220) | Ordered candidate keys from layer `0 .. n_layer-1` (Candle o_proj proxy stack). |
+| `fn` | `hf_keymap::filter_keys_in_shard` | `pub fn filter_keys_in_shard(keys: &[String], present: &HashSet<String>) -> Vec<String>` | [`crates/vox-plugin-mens-candle-core/src/hf_keymap.rs#L224-L229`](../../../crates/vox-plugin-mens-candle-core/src/hf_keymap.rs#L224-L229) | Keep `keys` in order, only those present in `present`. |
+| `fn` | `hf_keymap::sample_present_keys_sorted_from_present` | `pub fn sample_present_keys_sorted_from_present(` | [`crates/vox-plugin-mens-candle-core/src/hf_keymap.rs#L233`](../../../crates/vox-plugin-mens-candle-core/src/hf_keymap.rs#L233) | First `max_keys` sorted tensor names from an existing key union (no extra I/O). |
+| `fn` | `hf_keymap::missing_middle_keys_report` | `pub fn missing_middle_keys_report(` | [`crates/vox-plugin-mens-candle-core/src/hf_keymap.rs#L245`](../../../crates/vox-plugin-mens-candle-core/src/hf_keymap.rs#L245) | Expected middle keys missing from shard union (diagnostics). Lists up to `max_missing` names. |
+| `fn` | `inference_device::compute_dtype_for_device` | `pub fn compute_dtype_for_device(device: &Device) -> qlora_rs::ComputeDType` | [`crates/vox-plugin-mens-candle-core/src/inference_device.rs#L32-L38`](../../../crates/vox-plugin-mens-candle-core/src/inference_device.rs#L32-L38) | Compute dtype for QLoRA dequantization, chosen by device rather than by `QLoraConfig::default()`'s training-tuned BF16. Candle's CPU backend has no BF16 matmul kernel at all ("unsupported dtype BF16 for op matmul"), so CPU inference must use F32. Metal training also dequants to F32 (no F32→F64 / BF16 kernels on the path we hit), so Metal serving must match its own trainer's compute dtype. CUDA keeps BF16. |
+| `fn` | `inference_device::resolve_inference_device` | `pub fn resolve_inference_device(device_kind: &DeviceKind) -> Result<Device>` | [`crates/vox-plugin-mens-candle-core/src/inference_device.rs#L50-L101`](../../../crates/vox-plugin-mens-candle-core/src/inference_device.rs#L50-L101) | Resolve the Candle device for inference.  - `Cpu` always succeeds. - `Cuda` / `Metal` (explicit): if the matching cargo feature isn't compiled in, or device init fails, this is a **hard error** — no silent CPU fallback for an explicit accelerator request. - `Best`: tries the accelerator feature(s) this build has, and falls back to CPU **with a `tracing::warn!`** if none are available or init fails. This is the behavior CUDA already had; Metal previously had neither the warning nor the error path (see module docs). |
+| `struct` | `manifest::ArchParams` | `pub struct ArchParams` | [`crates/vox-plugin-mens-candle-core/src/manifest.rs#L26-L31`](../../../crates/vox-plugin-mens-candle-core/src/manifest.rs#L26-L31) | Architecture loaded from disk or defaulted for scratch training. |
+| `struct` | `manifest::TrainingManifest` | `pub struct TrainingManifest` | [`crates/vox-plugin-mens-candle-core/src/manifest.rs#L46-L132`](../../../crates/vox-plugin-mens-candle-core/src/manifest.rs#L46-L132) | On-disk training manifest (written by training loop). |
+| `struct` | `manifest::InitialManifestRun` | `pub struct InitialManifestRun` | [`crates/vox-plugin-mens-candle-core/src/manifest.rs#L152-L181`](../../../crates/vox-plugin-mens-candle-core/src/manifest.rs#L152-L181) | Snapshot of run settings for [`initial_training_manifest`]. |
+| `fn` | `manifest::from_lora_config` | `pub fn from_lora_config(c: &crate::config::LoraTrainingConfig) -> Self` | [`crates/vox-plugin-mens-candle-core/src/manifest.rs#L185-L222`](../../../crates/vox-plugin-mens-candle-core/src/manifest.rs#L185-L222) | — |
+| `enum` | `manifest::InitialTrainingKernel` | `pub enum InitialTrainingKernel` | [`crates/vox-plugin-mens-candle-core/src/manifest.rs#L227-L236`](../../../crates/vox-plugin-mens-candle-core/src/manifest.rs#L227-L236) | Which native kernel is writing the manifest (kernel-specific notes / Candle fields). |
+

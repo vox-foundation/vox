@@ -65,3 +65,47 @@ vox-cli depends on it optionally behind its own `coderabbit` feature.
 |---|---|
 | `run` | Dispatch `vox review …` (CodeRabbit). |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_cli_review: "vox-cli-review"
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_cli_review -> vox_bounded_fs
+    node vox_code_audit: "vox-code-audit"
+    vox_cli_review -> vox_code_audit
+    node vox_corpus: "vox-corpus"
+    vox_cli_review -> vox_corpus
+    node vox_db: "vox-db"
+    vox_cli_review -> vox_db
+    node vox_forge: "vox-forge"
+    vox_cli_review -> vox_forge
+    node vox_git: "vox-git"
+    vox_cli_review -> vox_git
+    node vox_graph_reader: "vox-graph-reader"
+    vox_cli_review -> vox_graph_reader
+    node vox_http_client: "vox-http-client"
+    vox_cli_review -> vox_http_client
+    node vox_secrets: "vox-secrets"
+    vox_cli_review -> vox_secrets
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_cli_review
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `run` | `pub async fn run(cli: ReviewCli) -> anyhow::Result<()>` | [`crates/vox-cli-review/src/lib.rs#L8-L12`](../../../crates/vox-cli-review/src/lib.rs#L8-L12) | Dispatch `vox review …` (CodeRabbit). |
+| `enum` | `ReviewCli` | `pub enum ReviewCli` | [`crates/vox-cli-review/src/lib.rs#L16-L22`](../../../crates/vox-cli-review/src/lib.rs#L16-L22) | Top-level `vox review …` CLI. |
+| `enum` | `coderabbit::CodeRabbitAction` | `pub enum CodeRabbitAction` | [`crates/vox-cli-review/src/coderabbit/mod.rs#L34`](../../../crates/vox-cli-review/src/coderabbit/mod.rs#L34) | `vox review coderabbit …` subcommands. |
+| `fn` | `coderabbit::run` | `pub async fn run(action: CodeRabbitAction) -> Result<()>` | [`crates/vox-cli-review/src/coderabbit/mod.rs#L266`](../../../crates/vox-cli-review/src/coderabbit/mod.rs#L266) | Dispatch `vox review coderabbit …`. |
+

@@ -66,3 +66,10 @@ target (`vox build --target=mobile`) via `@vox/runtime-rn`. See `README.md`.
 | `PLUGIN_ID` | Tauri plugin identifier (must match guest JS `plugin:vox-stt\|…`). |
 | `TRANSCRIBE_COMMAND` | Invoke command name registered on the plugin. |
 
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `TranscribeResult` | `pub struct TranscribeResult` | [`crates/vox-tauri-stt/src/lib.rs#L25-L29`](../../../crates/vox-tauri-stt/src/lib.rs#L25-L29) | Guest ↔ Rust contract: same shape as the legacy Capacitor plugin. |
+| `fn` | `plugin::init` | `pub fn init<R: Runtime>() -> TauriPlugin<R>` | [`crates/vox-tauri-stt/src/plugin.rs#L12-L16`](../../../crates/vox-tauri-stt/src/plugin.rs#L12-L16) | Register the Sherpa plugin (command `transcribe` on id [`PLUGIN_ID`]). |
+

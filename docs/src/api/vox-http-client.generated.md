@@ -65,3 +65,79 @@ Shared [`reqwest::Client`] / [`reqwest::ClientBuilder`] presets for Vox outbound
 | `CONNECT_TIMEOUT` | Default connect timeout for outbound HTTP (15s — interactive CLI / service). |
 | `POOL_IDLE_TIMEOUT` | Idle connection pool timeout (90s). |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_http_client: "vox-http-client"
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_actor_runtime -> vox_http_client
+    node vox_audit: "vox-audit"
+    vox_audit -> vox_http_client
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_http_client
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_http_client
+    node vox_cli_review: "vox-cli-review"
+    vox_cli_review -> vox_http_client
+    node vox_cli_share: "vox-cli-share"
+    vox_cli_share -> vox_http_client
+    node vox_code_audit: "vox-code-audit"
+    vox_code_audit -> vox_http_client
+    node vox_forge: "vox-forge"
+    vox_forge -> vox_http_client
+    node vox_gamify: "vox-gamify"
+    vox_gamify -> vox_http_client
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_http_client
+    node vox_llm_egress: "vox-llm-egress"
+    vox_llm_egress -> vox_http_client
+    node vox_ml_cli: "vox-ml-cli"
+    vox_ml_cli -> vox_http_client
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Direct workspace dependent |
+| [`vox-audit`](./vox-audit.generated.md) | Direct workspace dependent |
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-review`](./vox-cli-review.generated.md) | Direct workspace dependent |
+| [`vox-cli-share`](./vox-cli-share.generated.md) | Direct workspace dependent |
+| [`vox-code-audit`](./vox-code-audit.generated.md) | Direct workspace dependent |
+| [`vox-forge`](./vox-forge.generated.md) | Direct workspace dependent |
+| [`vox-gamify`](./vox-gamify.generated.md) | Direct workspace dependent |
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-llm-egress`](./vox-llm-egress.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+| [`vox-oauth-pkce`](./vox-oauth-pkce.generated.md) | Direct workspace dependent |
+| [`vox-openclaw-runtime`](./vox-openclaw-runtime.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-package`](./vox-package.generated.md) | Direct workspace dependent |
+| [`vox-plugin-populi-mesh`](./vox-plugin-populi-mesh.generated.md) | Direct workspace dependent |
+| [`vox-plugin-webhook`](./vox-plugin-webhook.generated.md) | Direct workspace dependent |
+| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
+| [`vox-publisher`](./vox-publisher.generated.md) | Direct workspace dependent |
+| [`vox-scientia`](./vox-scientia.generated.md) | Direct workspace dependent |
+| [`vox-search`](./vox-search.generated.md) | Direct workspace dependent |
+| [`vox-skills`](./vox-skills.generated.md) | Direct workspace dependent |
+| [`vox-speech`](./vox-speech.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `client_builder` | `pub fn client_builder() -> reqwest::ClientBuilder` | [`crates/vox-http-client/src/lib.rs#L26-L31`](../../../crates/vox-http-client/src/lib.rs#L26-L31) | Builder with user-agent, connect timeout, and idle pool cap suitable for CLI and services. |
+| `fn` | `client` | `pub fn client() -> reqwest::Client` | [`crates/vox-http-client/src/lib.rs#L34-L38`](../../../crates/vox-http-client/src/lib.rs#L34-L38) | Fall-back client when a custom builder chain fails to [`build`](reqwest::ClientBuilder::build). |
+| `fn` | `bearer_auth_header` | `pub fn bearer_auth_header(token: &str) -> Result<HeaderValue, InvalidHeaderValue>` | [`crates/vox-http-client/src/lib.rs#L44-L48`](../../../crates/vox-http-client/src/lib.rs#L44-L48) | Build an `Authorization: Bearer <token>` header value. Returns `Err` if the token contains characters invalid in an HTTP header value (control chars, non-ASCII).  SSOT for bearer-token formatting — drift-check flags inline `"Bearer {token}"` strings. |
+| `fn` | `bearer_auth_header_string` | `pub fn bearer_auth_header_string(token: &str) -> String` | [`crates/vox-http-client/src/lib.rs#L51-L53`](../../../crates/vox-http-client/src/lib.rs#L51-L53) | As [`bearer_auth_header`], formatted as a raw `String` (for headers maps keyed by string). |
+| `fn` | `parse_retry_after` | `pub fn parse_retry_after(headers: &reqwest::header::HeaderMap) -> Option<u64>` | [`crates/vox-http-client/src/lib.rs#L60-L65`](../../../crates/vox-http-client/src/lib.rs#L60-L65) | Parse a `Retry-After` response header as delay-seconds.  SSOT for rate-limit backoff extraction. Only the delta-seconds form is supported; the HTTP-date form yields `None` (callers fall back to their own default backoff). |
+| `fn` | `populi_control_plane_client` | `pub fn populi_control_plane_client(` | [`crates/vox-http-client/src/lib.rs#L101`](../../../crates/vox-http-client/src/lib.rs#L101) | Wrap a fully configured [`reqwest::Client`] with Populi middleware (trace + optional transient retries).  When `retry_transient` is true, installs [`RetryTransientMiddleware`] with a small exponential backoff cap (see `reqwest-retry` defaults). Inner client timeouts and TLS remain unchanged. |
+| `struct` | `envelope::ErrorEnvelope` | `pub struct ErrorEnvelope` | [`crates/vox-http-client/src/envelope.rs#L10-L18`](../../../crates/vox-http-client/src/envelope.rs#L10-L18) | Wire-format v1 error payload (`ok` is always `false`). |
+| `fn` | `envelope::error_json` | `pub fn error_json(` | [`crates/vox-http-client/src/envelope.rs#L22`](../../../crates/vox-http-client/src/envelope.rs#L22) | Build the §6 JSON object for `(StatusCode, Json<Value>)` Axum responses. |
+

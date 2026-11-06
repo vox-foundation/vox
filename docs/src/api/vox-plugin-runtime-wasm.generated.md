@@ -63,3 +63,26 @@ Install: `vox plugin install runtime-wasm`
 |---|---|
 | `runtime` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_plugin_runtime_wasm: "vox-plugin-runtime-wasm"
+    node vox_plugin_api: "vox-plugin-api"
+    vox_plugin_runtime_wasm -> vox_plugin_api
+    node vox_skill_runtime: "vox-skill-runtime"
+    vox_plugin_runtime_wasm -> vox_skill_runtime
+    node vox_wasm_engine: "vox-wasm-engine"
+    vox_plugin_runtime_wasm -> vox_wasm_engine
+}
+```
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `runtime::WasmRuntime` | `pub struct WasmRuntime` | [`crates/vox-plugin-runtime-wasm/src/runtime.rs#L33-L35`](../../../crates/vox-plugin-runtime-wasm/src/runtime.rs#L33-L35) | Wasmtime-based WASI sandbox runtime.  Delegates all Wasmtime engine construction, WASI context wiring, and module execution to [`vox_wasm_engine::WasmHost`]. |
+| `fn` | `runtime::new` | `pub fn new() -> Result<Self>` | [`crates/vox-plugin-runtime-wasm/src/runtime.rs#L39-L43`](../../../crates/vox-plugin-runtime-wasm/src/runtime.rs#L39-L43) | Create a new `WasmRuntime` with a fuel-enabled engine. |
+| `fn` | `runtime::with_fuel` | `pub fn with_fuel(fuel: u64) -> Result<Self>` | [`crates/vox-plugin-runtime-wasm/src/runtime.rs#L46-L49`](../../../crates/vox-plugin-runtime-wasm/src/runtime.rs#L46-L49) | Create a `WasmRuntime` with a custom fuel limit. |
+

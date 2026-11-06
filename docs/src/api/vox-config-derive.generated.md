@@ -47,3 +47,27 @@ compile error directing it to `vox-secrets`.
 |---|---|
 | `derive_vox_config` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_config_derive: "vox-config-derive"
+    node vox_config: "vox-config"
+    vox_config_derive -> vox_config
+    vox_config -> vox_config_derive
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-config`](./vox-config.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `derive_vox_config` | `pub fn derive_vox_config(input: TokenStream) -> TokenStream` | [`crates/vox-config-derive/src/lib.rs#L12-L18`](../../../crates/vox-config-derive/src/lib.rs#L12-L18) | — |
+

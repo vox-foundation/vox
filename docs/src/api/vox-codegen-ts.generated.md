@@ -56,3 +56,32 @@ Standalone TypeScript codegen crate (sources also embedded in `vox-codegen` via 
 |---|---|
 | `codegen_ts` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_codegen_ts: "vox-codegen-ts"
+    node vox_codegen: "vox-codegen"
+    vox_codegen_ts -> vox_codegen
+    node vox_compiler: "vox-compiler"
+    vox_codegen_ts -> vox_compiler
+    node vox_deploy_codegen: "vox-deploy-codegen"
+    vox_codegen_ts -> vox_deploy_codegen
+    node vox_secrets: "vox-secrets"
+    vox_codegen_ts -> vox_secrets
+    node vox_sql: "vox-sql"
+    vox_codegen_ts -> vox_sql
+    vox_compiler -> vox_codegen_ts
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_codegen_ts
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+

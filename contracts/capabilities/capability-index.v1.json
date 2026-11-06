@@ -12122,6 +12122,54 @@
       }
     },
     {
+      "id": "cli.ci.python-bridge-parity",
+      "kind": "cli",
+      "title": "Ci Python-bridge-parity",
+      "summary": "CLI operation `vox ci python-bridge-parity`",
+      "op_id": "ci.python-bridge-parity",
+      "status": "active",
+      "domain": "ci",
+      "product_lane": "platform",
+      "side_effect_class": "spawns_process",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "ci",
+          "python-bridge-parity"
+        ],
+        "invocation": "vox ci python-bridge-parity",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "generic_form",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli-ci",
+        "layer": 5,
+        "rule": "crate_name_match"
+      },
+      "source_path": "crates/vox-cli-ci/",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
       "id": "cli.ci.query-all-guard",
       "kind": "cli",
       "title": "Ci Query-all-guard",
@@ -40302,6 +40350,149 @@
       }
     },
     {
+      "id": "cli.py",
+      "kind": "cli",
+      "title": "Py",
+      "summary": "CLI operation `vox py`",
+      "op_id": "py",
+      "status": "active",
+      "domain": "platform",
+      "product_lane": "platform",
+      "side_effect_class": "writes_files",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "py"
+        ],
+        "invocation": "vox py",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "generic_form",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli",
+        "layer": 5,
+        "rule": "cli_module"
+      },
+      "source_path": "crates/vox-cli/src/commands/py/mod.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "top-level commands are cli-group nodes; the graph has no per-command coverage"
+      }
+    },
+    {
+      "id": "cli.py.doctor",
+      "kind": "cli",
+      "title": "Py Doctor",
+      "summary": "CLI operation `vox py doctor`",
+      "op_id": "py.doctor",
+      "status": "active",
+      "domain": "platform",
+      "product_lane": "platform",
+      "side_effect_class": "read_only",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "py",
+          "doctor"
+        ],
+        "invocation": "vox py doctor",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "generic_form",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli",
+        "layer": 5,
+        "rule": "cli_module"
+      },
+      "source_path": "crates/vox-cli/src/commands/py/mod.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
+      "id": "cli.py.sync",
+      "kind": "cli",
+      "title": "Py Sync",
+      "summary": "CLI operation `vox py sync`",
+      "op_id": "py.sync",
+      "status": "active",
+      "domain": "platform",
+      "product_lane": "platform",
+      "side_effect_class": "writes_files",
+      "tier": "advanced",
+      "cli": {
+        "path": [
+          "py",
+          "sync"
+        ],
+        "invocation": "vox py sync",
+        "feature_gate": null
+      },
+      "mcp": null,
+      "gui": {
+        "view_key": null,
+        "nav_label": null,
+        "representation_tier": "generic_form",
+        "catalog_form": true
+      },
+      "owner": {
+        "crate": "vox-cli",
+        "layer": 5,
+        "rule": "cli_module"
+      },
+      "source_path": "crates/vox-cli/src/commands/py/mod.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/cli-command-surface.generated.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no cli:<group>:<leaf> node in the vox-gui-surface snapshot"
+      }
+    },
+    {
       "id": "cli.recensio",
       "kind": "cli",
       "title": "Recensio",
@@ -50624,6 +50815,44 @@
       }
     },
     {
+      "id": "mcp.vox_battery_status",
+      "kind": "mcp_tool",
+      "title": "Battery Status",
+      "summary": "Report the in-process battery ledger: remaining and spent budget units, USD spend, and 4-hour/monthly quota windows.",
+      "op_id": "battery.status",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_battery_status"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
       "id": "mcp.vox_behavior_record",
       "kind": "mcp_tool",
       "title": "Behavior Record",
@@ -52311,6 +52540,44 @@
       }
     },
     {
+      "id": "mcp.vox_call_mcp_lazy",
+      "kind": "mcp_tool",
+      "title": "Call Mcp Lazy",
+      "summary": "Resolve a lazily discovered external MCP tool call (tier 3) to its client tool name and normalized arguments without executing it.",
+      "op_id": "call.mcp.lazy",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "interop",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_call_mcp_lazy"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
       "id": "mcp.vox_cancel_task",
       "kind": "mcp_tool",
       "title": "Cancel Task",
@@ -52541,6 +52808,92 @@
       }
     },
     {
+      "id": "mcp.vox_chat_compact_up_to",
+      "kind": "mcp_tool",
+      "title": "Chat Compact Up To",
+      "summary": "Compact a chat session transcript up to or from a message, replacing those turns with a summary and preserving thought signatures; persists the result.",
+      "op_id": "chat.compact.up.to",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_chat_compact_up_to"
+      },
+      "gui": {
+        "view_key": "chat",
+        "nav_label": "Chat",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_chat_edit_message_in_place",
+      "kind": "mcp_tool",
+      "title": "Chat Edit Message In Place",
+      "summary": "Edit one chat transcript message in place without rewinding later turns; persists the edited transcript.",
+      "op_id": "chat.edit.message.in.place",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_chat_edit_message_in_place"
+      },
+      "gui": {
+        "view_key": "chat",
+        "nav_label": "Chat",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
       "id": "mcp.vox_chat_history",
       "kind": "mcp_tool",
       "title": "Chat History",
@@ -52597,6 +52950,92 @@
       "cli": null,
       "mcp": {
         "name": "vox_chat_message"
+      },
+      "gui": {
+        "view_key": "chat",
+        "nav_label": "Chat",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_chat_queue_steer",
+      "kind": "mcp_tool",
+      "title": "Chat Queue Steer",
+      "summary": "Enqueue a prompt on a thread's run queue and optionally promote it to a mid-turn steer injected into the active agent turn.",
+      "op_id": "chat.queue.steer",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_chat_queue_steer"
+      },
+      "gui": {
+        "view_key": "chat",
+        "nav_label": "Chat",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_chat_regenerate",
+      "kind": "mcp_tool",
+      "title": "Chat Regenerate",
+      "summary": "Rewind a chat transcript to a user turn, restore the matching Git checkpoint (resets the working tree and removes untracked files), and optionally re-run the prompt.",
+      "op_id": "chat.regenerate",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "destructive",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_chat_regenerate"
       },
       "gui": {
         "view_key": "chat",
@@ -52799,6 +53238,92 @@
       }
     },
     {
+      "id": "mcp.vox_chat_stream_cancel",
+      "kind": "mcp_tool",
+      "title": "Chat Stream Cancel",
+      "summary": "Cancel the in-flight resumable turn stream for a chat session.",
+      "op_id": "chat.stream.cancel",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_chat_stream_cancel"
+      },
+      "gui": {
+        "view_key": "chat",
+        "nav_label": "Chat",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_chat_stream_resume",
+      "kind": "mcp_tool",
+      "title": "Chat Stream Resume",
+      "summary": "Return accumulated resumable turn-stream text and sequenced chunks after a char offset or sequence number for a chat session.",
+      "op_id": "chat.stream.resume",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_chat_stream_resume"
+      },
+      "gui": {
+        "view_key": "chat",
+        "nav_label": "Chat",
+        "representation_tier": "live_backend",
+        "catalog_form": false
+      },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
       "id": "mcp.vox_check",
       "kind": "mcp_tool",
       "title": "Check",
@@ -52967,6 +53492,120 @@
       "skills": [
         "skill.skill-compiler"
       ],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_checkpoint_capture",
+      "kind": "mcp_tool",
+      "title": "Checkpoint Capture",
+      "summary": "Capture a Git plumbing checkpoint (or labelled restore point) for a thread turn under refs/vox/checkpoints.",
+      "op_id": "checkpoint.capture",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_checkpoint_capture"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_checkpoint_list",
+      "kind": "mcp_tool",
+      "title": "Checkpoint List",
+      "summary": "List the Git plumbing checkpoints recorded for a thread.",
+      "op_id": "checkpoint.list",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_checkpoint_list"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_checkpoint_restore",
+      "kind": "mcp_tool",
+      "title": "Checkpoint Restore",
+      "summary": "Restore the working tree and index to a thread's Git checkpoint, remove untracked files, and delete later checkpoint refs.",
+      "op_id": "checkpoint.restore",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "destructive",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_checkpoint_restore"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
       "equivalents": [],
       "refs": [],
       "coverage": {
@@ -53337,6 +53976,44 @@
       }
     },
     {
+      "id": "mcp.vox_consensus_run",
+      "kind": "mcp_tool",
+      "title": "Consensus Run",
+      "summary": "Fan a prompt out to 2-4 models (live inference when provider keys are configured), score each response, and synthesize a consensus answer.",
+      "op_id": "consensus.run",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "network",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_consensus_run"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
       "id": "mcp.vox_context_budget",
       "kind": "mcp_tool",
       "title": "Context Budget",
@@ -53350,6 +54027,44 @@
       "cli": null,
       "mcp": {
         "name": "vox_context_budget"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_context_handoff",
+      "kind": "mcp_tool",
+      "title": "Context Handoff",
+      "summary": "Build a cross-provider context handoff package from a thread transcript and optionally append it to a target thread's history.",
+      "op_id": "context.handoff",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_context_handoff"
       },
       "gui": null,
       "owner": {
@@ -54480,6 +55195,44 @@
       }
     },
     {
+      "id": "mcp.vox_file_diff_and_diagnostics",
+      "kind": "mcp_tool",
+      "title": "File Diff And Diagnostics",
+      "summary": "Return the unified Git diff against HEAD and stub diagnostics for one repository-relative file.",
+      "op_id": "file.diff.and.diagnostics",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_file_diff_and_diagnostics"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
       "id": "mcp.vox_file_graph",
       "kind": "mcp_tool",
       "title": "File Graph",
@@ -55492,6 +56245,158 @@
       "cli": null,
       "mcp": {
         "name": "vox_git_status"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_guest_share_mint",
+      "kind": "mcp_tool",
+      "title": "Guest Share Mint",
+      "summary": "Mint a signed guest share invite for a chat thread.",
+      "op_id": "guest.share.mint",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_guest_share_mint"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_guest_share_moderate",
+      "kind": "mcp_tool",
+      "title": "Guest Share Moderate",
+      "summary": "Approve or dismiss a pending guest message; approved messages are appended to the thread's chat history.",
+      "op_id": "guest.share.moderate",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_guest_share_moderate"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_guest_share_redeem",
+      "kind": "mcp_tool",
+      "title": "Guest Share Redeem",
+      "summary": "Redeem a signed guest share invite and bind it to a guest session.",
+      "op_id": "guest.share.redeem",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_guest_share_redeem"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_guest_share_submit",
+      "kind": "mcp_tool",
+      "title": "Guest Share Submit",
+      "summary": "Submit a guest prompt to a shared thread's moderation queue.",
+      "op_id": "guest.share.submit",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_guest_share_submit"
       },
       "gui": null,
       "owner": {
@@ -56953,6 +57858,82 @@
       }
     },
     {
+      "id": "mcp.vox_list_mcp_servers",
+      "kind": "mcp_tool",
+      "title": "List Mcp Servers",
+      "summary": "List lazily discovered external MCP server groups (tier 1); optionally rebuilds the in-process lazy registry from supplied prefixed tools.",
+      "op_id": "list.mcp.servers",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "interop",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_list_mcp_servers"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_list_mcp_tools",
+      "kind": "mcp_tool",
+      "title": "List Mcp Tools",
+      "summary": "List the tool schemas of one lazily discovered external MCP server group (tier 2).",
+      "op_id": "list.mcp.tools",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "interop",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_list_mcp_tools"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
       "id": "mcp.vox_list_models",
       "kind": "mcp_tool",
       "title": "List Models",
@@ -57579,6 +58560,82 @@
         "representation_tier": "live_backend",
         "catalog_form": false
       },
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_muse_pool_adopt",
+      "kind": "mcp_tool",
+      "title": "Muse Pool Adopt",
+      "summary": "Adopt the winning Muse worktree variant and delete the losing variants' worktree directories.",
+      "op_id": "muse.pool.adopt",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "destructive",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_muse_pool_adopt"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_muse_pool_spawn",
+      "kind": "mcp_tool",
+      "title": "Muse Pool Spawn",
+      "summary": "Plan 1-4 Muse worktree variants for a run, creating their directories and provisioning untracked env files.",
+      "op_id": "muse.pool.spawn",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_muse_pool_spawn"
+      },
+      "gui": null,
       "owner": {
         "crate": "vox-orchestrator-mcp",
         "layer": 3,
@@ -59309,6 +60366,44 @@
       }
     },
     {
+      "id": "mcp.vox_pr_review_guide",
+      "kind": "mcp_tool",
+      "title": "Pr Review Guide",
+      "summary": "Generate (and cache in process) a structured review guide for a pull request head from its changed files.",
+      "op_id": "pr.review.guide",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_pr_review_guide"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
       "id": "mcp.vox_preference_get",
       "kind": "mcp_tool",
       "title": "Preference Get",
@@ -59512,6 +60607,82 @@
       "cli": null,
       "mcp": {
         "name": "vox_publish_message"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_quarantine_list",
+      "kind": "mcp_tool",
+      "title": "Quarantine List",
+      "summary": "List quarantined (read-only) district path prefixes.",
+      "op_id": "quarantine.list",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_quarantine_list"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_quarantine_set",
+      "kind": "mcp_tool",
+      "title": "Quarantine Set",
+      "summary": "Quarantine or release a district path prefix, toggling read-only enforcement for writes under it.",
+      "op_id": "quarantine.set",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_quarantine_set"
       },
       "gui": null,
       "owner": {
@@ -60797,6 +61968,44 @@
       "cli": null,
       "mcp": {
         "name": "vox_retire_agent"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_revert_file",
+      "kind": "mcp_tool",
+      "title": "Revert File",
+      "summary": "Discard uncommitted working-tree changes to one repository-relative file (git checkout -- file).",
+      "op_id": "revert.file",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "destructive",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_revert_file"
       },
       "gui": null,
       "owner": {
@@ -62987,6 +64196,120 @@
       }
     },
     {
+      "id": "mcp.vox_session_export_bundle",
+      "kind": "mcp_tool",
+      "title": "Session Export Bundle",
+      "summary": "Export a chat session's transcript as a portable VoxSessionExportBundle v1.",
+      "op_id": "session.export.bundle",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_session_export_bundle"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_session_import_bundle",
+      "kind": "mcp_tool",
+      "title": "Session Import Bundle",
+      "summary": "Import a VoxSessionExportBundle v1 and append its messages to the session's chat history.",
+      "op_id": "session.import.bundle",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_session_import_bundle"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_session_import_external",
+      "kind": "mcp_tool",
+      "title": "Session Import External",
+      "summary": "Import a Claude Code, Codex, or Cursor session (raw JSONL, file path, or latest discovered) and append it to a chat session's history.",
+      "op_id": "session.import.external",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_session_import_external"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
       "id": "mcp.vox_session_info",
       "kind": "mcp_tool",
       "title": "Session Info",
@@ -63057,6 +64380,44 @@
       "skills": [
         "skill.skill-memory"
       ],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_session_list_external",
+      "kind": "mcp_tool",
+      "title": "Session List External",
+      "summary": "List discoverable Claude Code, Codex, and Cursor session files, newest first.",
+      "op_id": "session.list.external",
+      "status": null,
+      "domain": "orchestrator",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_session_list_external"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
       "equivalents": [],
       "refs": [],
       "coverage": {
@@ -63956,6 +65317,44 @@
       }
     },
     {
+      "id": "mcp.vox_stage_file",
+      "kind": "mcp_tool",
+      "title": "Stage File",
+      "summary": "Stage one repository-relative file in the Git index (git add -- file).",
+      "op_id": "stage.file",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "writes_files",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_stage_file"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
       "id": "mcp.vox_submit_task",
       "kind": "mcp_tool",
       "title": "Submit Task",
@@ -64491,6 +65890,44 @@
       "cli": null,
       "mcp": {
         "name": "vox_validate_vuv"
+      },
+      "gui": null,
+      "owner": {
+        "crate": "vox-orchestrator-mcp",
+        "layer": 3,
+        "rule": "mcp_dispatch"
+      },
+      "source_path": "crates/vox-orchestrator-mcp/src/dispatch.rs",
+      "docs": [
+        {
+          "path": "docs/src/reference/mcp-tool-registry-contract.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": {
+        "kind": null,
+        "basis": "none",
+        "ambiguous": false,
+        "reason": "no `tool:` node (the graph only extracts GUI-wired tools)"
+      }
+    },
+    {
+      "id": "mcp.vox_vcs_checkpoint_diff_summary",
+      "kind": "mcp_tool",
+      "title": "Vcs Checkpoint Diff Summary",
+      "summary": "Summarize per-file line deltas and the unified patch between a thread checkpoint and HEAD.",
+      "op_id": "vcs.checkpoint.diff.summary",
+      "status": null,
+      "domain": "platform",
+      "product_lane": "ai",
+      "side_effect_class": "read_only",
+      "tier": null,
+      "cli": null,
+      "mcp": {
+        "name": "vox_vcs_checkpoint_diff_summary"
       },
       "gui": null,
       "owner": {
@@ -65155,12 +66592,18 @@
       "skills": [],
       "equivalents": [],
       "refs": [
+        "mcp.vox_chat_compact_up_to",
+        "mcp.vox_chat_edit_message_in_place",
         "mcp.vox_chat_history",
         "mcp.vox_chat_message",
+        "mcp.vox_chat_queue_steer",
+        "mcp.vox_chat_regenerate",
         "mcp.vox_chat_session_append",
         "mcp.vox_chat_session_archive",
         "mcp.vox_chat_session_create",
-        "mcp.vox_chat_session_rename"
+        "mcp.vox_chat_session_rename",
+        "mcp.vox_chat_stream_cancel",
+        "mcp.vox_chat_stream_resume"
       ],
       "coverage": {
         "kind": null,
@@ -69680,6 +71123,37 @@
         "rule": "self"
       },
       "source_path": "crates/vox-publisher/",
+      "docs": [
+        {
+          "path": "docs/src/architecture/where-things-live.md",
+          "origin": "default"
+        }
+      ],
+      "skills": [],
+      "equivalents": [],
+      "refs": [],
+      "coverage": null
+    },
+    {
+      "id": "crate.vox-python-bridge",
+      "kind": "crate",
+      "title": "vox-python-bridge",
+      "summary": "Framed stdio host for one lazy Python worker: request lifecycle, handle generations, and fetch-size caps.",
+      "op_id": null,
+      "status": null,
+      "domain": "platform",
+      "product_lane": null,
+      "side_effect_class": null,
+      "tier": null,
+      "cli": null,
+      "mcp": null,
+      "gui": null,
+      "owner": {
+        "crate": "vox-python-bridge",
+        "layer": 2,
+        "rule": "self"
+      },
+      "source_path": "crates/vox-python-bridge/",
       "docs": [
         {
           "path": "docs/src/architecture/where-things-live.md",

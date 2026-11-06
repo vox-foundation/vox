@@ -37,3 +37,92 @@ Cryptographic primitives and thin facades (hashing, signing, age/x25519).
 |---|---|
 | `facades` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_crypto: "vox-crypto"
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_actor_runtime -> vox_crypto
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_crypto
+    node vox_compiler: "vox-compiler"
+    vox_compiler -> vox_crypto
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_crypto
+    node vox_identity: "vox-identity"
+    vox_identity -> vox_crypto
+    node vox_ml_cli: "vox-ml-cli"
+    vox_ml_cli -> vox_crypto
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_crypto
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_crypto
+    node vox_orchestrator_queue: "vox-orchestrator-queue"
+    vox_orchestrator_queue -> vox_crypto
+    node vox_plugin_populi_mesh: "vox-plugin-populi-mesh"
+    vox_plugin_populi_mesh -> vox_crypto
+    node vox_populi: "vox-populi"
+    vox_populi -> vox_crypto
+    node vox_scientia: "vox-scientia"
+    vox_scientia -> vox_crypto
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Direct workspace dependent |
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-identity`](./vox-identity.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-queue`](./vox-orchestrator-queue.generated.md) | Direct workspace dependent |
+| [`vox-plugin-populi-mesh`](./vox-plugin-populi-mesh.generated.md) | Direct workspace dependent |
+| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
+| [`vox-scientia`](./vox-scientia.generated.md) | Direct workspace dependent |
+| [`vox-search`](./vox-search.generated.md) | Direct workspace dependent |
+| [`vox-secrets`](./vox-secrets.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `facades::secure_hash` | `pub fn secure_hash(data: &[u8]) -> [u8; 32]` | [`crates/vox-crypto/src/facades.rs#L11-L15`](../../../crates/vox-crypto/src/facades.rs#L11-L15) | Secure cryptographic hash (BLAKE3) |
+| `fn` | `facades::keyed_hash` | `pub fn keyed_hash(key: &[u8; 32], data: &[u8]) -> [u8; 32]` | [`crates/vox-crypto/src/facades.rs#L18-L22`](../../../crates/vox-crypto/src/facades.rs#L18-L22) | Secure keyed hash (BLAKE3 MAC) |
+| `fn` | `facades::fast_hash` | `pub fn fast_hash(data: &[u8]) -> u64` | [`crates/vox-crypto/src/facades.rs#L25-L27`](../../../crates/vox-crypto/src/facades.rs#L25-L27) | Fast generic hashing for caches (XXH3-64) |
+| `fn` | `facades::hash_fast_hex` | `pub fn hash_fast_hex(bytes: &[u8]) -> String` | [`crates/vox-crypto/src/facades.rs#L41-L43`](../../../crates/vox-crypto/src/facades.rs#L41-L43) | Hex of the fast hash over `bytes`: XXH3-128, 32 lowercase hex chars. Matches `format!("{h:032x}")` on the raw `u128` — big-endian hex of the 16-byte digest is byte-for-byte identical to that formatting.  This is the single call site for both the interp's `crypto.hash_fast` and native codegen's `crypto.hash_fast` emit (`builtin_registry.rs`). It is *not* called by `vox-actor-runtime`'s `vox_hash_fast` (used by `std.hash_fast` and `prompt_canonical`) — that crate cannot take a normal dependency on `vox-crypto` without a `crate-edges` ledger entry, so it reimplements the same algorithm independently. Equivalence between the two is enforced by a dev-dependency test in `vox-actor-runtime::builtins::tests::hash_fast_matches_vox_crypto_hash_fast_hex`. |
+| `fn` | `facades::hex_encode` | `pub fn hex_encode(bytes: &[u8]) -> String` | [`crates/vox-crypto/src/facades.rs#L46-L54`](../../../crates/vox-crypto/src/facades.rs#L46-L54) | Lowercase hex encoding of an arbitrary byte slice. |
+| `fn` | `facades::interop_sha256` | `pub fn interop_sha256(data: &[u8]) -> [u8; 32]` | [`crates/vox-crypto/src/facades.rs#L98-L103`](../../../crates/vox-crypto/src/facades.rs#L98-L103) | SHA-256, only for external formats that fix the algorithm (e.g. Trusty URIs). Vox-owned hashing uses [`secure_hash`] or [`compliance_hash`]. |
+| `fn` | `facades::compliance_hash` | `pub fn compliance_hash(data: &[u8]) -> [u8; 32]` | [`crates/vox-crypto/src/facades.rs#L106-L113`](../../../crates/vox-crypto/src/facades.rs#L106-L113) | Compliance / standardized hash (SHA-3 256) |
+| `struct` | `facades::SymKey` | `pub struct SymKey(pub [u8; 32])` | [`crates/vox-crypto/src/facades.rs#L116`](../../../crates/vox-crypto/src/facades.rs#L116) | — |
+| `fn` | `facades::generate_sym_key` | `pub fn generate_sym_key() -> SymKey` | [`crates/vox-crypto/src/facades.rs#L118-L122`](../../../crates/vox-crypto/src/facades.rs#L118-L122) | — |
+| `fn` | `facades::encrypt` | `pub fn encrypt(key: &SymKey, plaintext: &[u8]) -> Result<Vec<u8>, String>` | [`crates/vox-crypto/src/facades.rs#L124-L135`](../../../crates/vox-crypto/src/facades.rs#L124-L135) | — |
+| `fn` | `facades::decrypt` | `pub fn decrypt(key: &SymKey, ciphertext: &[u8]) -> Result<Vec<u8>, String>` | [`crates/vox-crypto/src/facades.rs#L137-L143`](../../../crates/vox-crypto/src/facades.rs#L137-L143) | — |
+| `fn` | `facades::encrypt_with_nonce` | `pub fn encrypt_with_nonce(key: &SymKey, nonce: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, String>` | [`crates/vox-crypto/src/facades.rs#L164-L171`](../../../crates/vox-crypto/src/facades.rs#L164-L171) | — |
+| `fn` | `facades::decrypt_with_nonce` | `pub fn decrypt_with_nonce(` | [`crates/vox-crypto/src/facades.rs#L173`](../../../crates/vox-crypto/src/facades.rs#L173) | — |
+| `struct` | `facades::SigningKey` | `pub struct SigningKey` | [`crates/vox-crypto/src/facades.rs#L188-L190`](../../../crates/vox-crypto/src/facades.rs#L188-L190) | — |
+| `struct` | `facades::VerifyingKey` | `pub struct VerifyingKey` | [`crates/vox-crypto/src/facades.rs#L193-L195`](../../../crates/vox-crypto/src/facades.rs#L193-L195) | — |
+| `fn` | `facades::generate_signing_keypair` | `pub fn generate_signing_keypair() -> (SigningKey, VerifyingKey)` | [`crates/vox-crypto/src/facades.rs#L209-L219`](../../../crates/vox-crypto/src/facades.rs#L209-L219) | — |
+| `fn` | `facades::sign` | `pub fn sign(key: &SigningKey, message: &[u8]) -> [u8; 64]` | [`crates/vox-crypto/src/facades.rs#L221-L224`](../../../crates/vox-crypto/src/facades.rs#L221-L224) | — |
+| `fn` | `facades::verify` | `pub fn verify(key: &VerifyingKey, message: &[u8], sig: &[u8; 64]) -> bool` | [`crates/vox-crypto/src/facades.rs#L226-L230`](../../../crates/vox-crypto/src/facades.rs#L226-L230) | — |
+| `fn` | `facades::signing_key_from_bytes` | `pub fn signing_key_from_bytes(bytes: &[u8; 32]) -> SigningKey` | [`crates/vox-crypto/src/facades.rs#L232-L236`](../../../crates/vox-crypto/src/facades.rs#L232-L236) | — |
+| `fn` | `facades::signing_key_to_bytes` | `pub fn signing_key_to_bytes(key: &SigningKey) -> [u8; 32]` | [`crates/vox-crypto/src/facades.rs#L238-L240`](../../../crates/vox-crypto/src/facades.rs#L238-L240) | — |
+| `fn` | `facades::to_verifying_key` | `pub fn to_verifying_key(signing_key: &SigningKey) -> VerifyingKey` | [`crates/vox-crypto/src/facades.rs#L242-L246`](../../../crates/vox-crypto/src/facades.rs#L242-L246) | — |
+| `fn` | `facades::verifying_key_to_bytes` | `pub fn verifying_key_to_bytes(key: &VerifyingKey) -> [u8; 32]` | [`crates/vox-crypto/src/facades.rs#L248-L250`](../../../crates/vox-crypto/src/facades.rs#L248-L250) | — |
+| `fn` | `facades::verifying_key_from_bytes` | `pub fn verifying_key_from_bytes(bytes: &[u8; 32]) -> Result<VerifyingKey, String>` | [`crates/vox-crypto/src/facades.rs#L252-L256`](../../../crates/vox-crypto/src/facades.rs#L252-L256) | — |
+| `fn` | `facades::verify_signature_hex` | `pub fn verify_signature_hex(` | [`crates/vox-crypto/src/facades.rs#L259`](../../../crates/vox-crypto/src/facades.rs#L259) | Verify a signature against a hex-encoded public key and signature. |
+| `struct` | `facades::EncryptionSecretKey` | `pub struct EncryptionSecretKey(pub x25519_dalek::StaticSecret)` | [`crates/vox-crypto/src/facades.rs#L286`](../../../crates/vox-crypto/src/facades.rs#L286) | — |
+| `struct` | `facades::EncryptionPublicKey` | `pub struct EncryptionPublicKey(pub x25519_dalek::PublicKey)` | [`crates/vox-crypto/src/facades.rs#L287`](../../../crates/vox-crypto/src/facades.rs#L287) | — |
+| `fn` | `facades::generate_encryption_keypair` | `pub fn generate_encryption_keypair() -> (EncryptionSecretKey, EncryptionPublicKey)` | [`crates/vox-crypto/src/facades.rs#L304-L308`](../../../crates/vox-crypto/src/facades.rs#L304-L308) | — |
+| `fn` | `facades::seal` | `pub fn seal(public_key: &EncryptionPublicKey, plaintext: &[u8]) -> Result<Vec<u8>, String>` | [`crates/vox-crypto/src/facades.rs#L310-L328`](../../../crates/vox-crypto/src/facades.rs#L310-L328) | — |
+| `fn` | `facades::unseal` | `pub fn unseal(secret_key: &EncryptionSecretKey, ciphertext: &[u8]) -> Result<Vec<u8>, String>` | [`crates/vox-crypto/src/facades.rs#L330-L350`](../../../crates/vox-crypto/src/facades.rs#L330-L350) | — |
+| `fn` | `facades::encryption_secret_key_from_bytes` | `pub fn encryption_secret_key_from_bytes(bytes: [u8; 32]) -> EncryptionSecretKey` | [`crates/vox-crypto/src/facades.rs#L352-L354`](../../../crates/vox-crypto/src/facades.rs#L352-L354) | — |
+| `fn` | `facades::encryption_public_key_from_bytes` | `pub fn encryption_public_key_from_bytes(bytes: [u8; 32]) -> EncryptionPublicKey` | [`crates/vox-crypto/src/facades.rs#L356-L358`](../../../crates/vox-crypto/src/facades.rs#L356-L358) | — |
+| `fn` | `facades::encryption_public_key_to_bytes` | `pub fn encryption_public_key_to_bytes(key: &EncryptionPublicKey) -> [u8; 32]` | [`crates/vox-crypto/src/facades.rs#L360-L362`](../../../crates/vox-crypto/src/facades.rs#L360-L362) | — |
+

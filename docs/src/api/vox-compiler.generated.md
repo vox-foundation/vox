@@ -54,6 +54,7 @@ or extend CI to scan `target/` / app output dirs; see `contracts/operations/comp
 | [`vox-foundation`](./vox-foundation.generated.md) | Normal |
 | [`vox-grammar-export`](./vox-grammar-export.generated.md) | Normal |
 | [`vox-language-surface`](./vox-language-surface.generated.md) | Normal |
+| [`vox-python-bridge`](./vox-python-bridge.generated.md) | Normal |
 | [`vox-repository`](./vox-repository.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
 | [`vox-shell-stdlib-types`](./vox-shell-stdlib-types.generated.md) | Normal |
@@ -88,6 +89,8 @@ or extend CI to scan `target/` / app output dirs; see `contracts/operations/comp
 | `module` | — |
 | `parser` | — |
 | `pipeline` | — |
+| `python_array_support` | — |
+| `python_frame_support` | — |
 | `react_bridge` | — |
 | `required_capabilities` | — |
 | `runtime_projection` | — |
@@ -98,4 +101,138 @@ or extend CI to scan `target/` / app output dirs; see `contracts/operations/comp
 | `tokens` | — |
 | `typeck` | — |
 | `web_prefixes` | — |
+
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_compiler: "vox-compiler"
+    node vox_ast: "vox-ast"
+    vox_compiler -> vox_ast
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_compiler -> vox_bounded_fs
+    node vox_codegen: "vox-codegen"
+    vox_compiler -> vox_codegen
+    node vox_codegen_ts: "vox-codegen-ts"
+    vox_compiler -> vox_codegen_ts
+    node vox_config: "vox-config"
+    vox_compiler -> vox_config
+    node vox_crypto: "vox-crypto"
+    vox_compiler -> vox_crypto
+    node vox_eval: "vox-eval"
+    vox_compiler -> vox_eval
+    node vox_foundation: "vox-foundation"
+    vox_compiler -> vox_foundation
+    node vox_grammar_export: "vox-grammar-export"
+    vox_compiler -> vox_grammar_export
+    node vox_jsonschema_util: "vox-jsonschema-util"
+    vox_compiler -> vox_jsonschema_util
+    node vox_language_surface: "vox-language-surface"
+    vox_compiler -> vox_language_surface
+    node vox_python_bridge: "vox-python-bridge"
+    vox_compiler -> vox_python_bridge
+    node vox_audit: "vox-audit"
+    vox_audit -> vox_compiler
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_compiler
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_compiler
+    node vox_cli_tests: "vox-cli-tests"
+    vox_cli_tests -> vox_compiler
+    vox_codegen -> vox_compiler
+    vox_codegen_ts -> vox_compiler
+    node vox_corpus: "vox-corpus"
+    vox_corpus -> vox_compiler
+    node vox_db: "vox-db"
+    vox_db -> vox_compiler
+    node vox_doc_pipeline: "vox-doc-pipeline"
+    vox_doc_pipeline -> vox_compiler
+    node vox_drift_check: "vox-drift-check"
+    vox_drift_check -> vox_compiler
+    node vox_integration_tests: "vox-integration-tests"
+    vox_integration_tests -> vox_compiler
+    node vox_langtool: "vox-langtool"
+    vox_langtool -> vox_compiler
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-audit`](./vox-audit.generated.md) | Direct workspace dependent |
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-tests`](./vox-cli-tests.generated.md) | Direct workspace dependent |
+| [`vox-codegen`](./vox-codegen.generated.md) | Direct workspace dependent |
+| [`vox-codegen-ts`](./vox-codegen-ts.generated.md) | Direct workspace dependent |
+| [`vox-corpus`](./vox-corpus.generated.md) | Direct workspace dependent |
+| [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
+| [`vox-doc-pipeline`](./vox-doc-pipeline.generated.md) | Direct workspace dependent |
+| [`vox-drift-check`](./vox-drift-check.generated.md) | Direct workspace dependent |
+| [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
+| [`vox-langtool`](./vox-langtool.generated.md) | Direct workspace dependent |
+| [`vox-lsp`](./vox-lsp.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-plugin-mens-candle-cuda`](./vox-plugin-mens-candle-cuda.generated.md) | Direct workspace dependent |
+| [`vox-plugin-mens-candle-metal`](./vox-plugin-mens-candle-metal.generated.md) | Direct workspace dependent |
+| [`vox-research-shim`](./vox-research-shim.generated.md) | Direct workspace dependent |
+| [`vox-rn-codegen`](./vox-rn-codegen.generated.md) | Direct workspace dependent |
+| [`vox-speech`](./vox-speech.generated.md) | Direct workspace dependent |
+| [`vox-tauri-codegen`](./vox-tauri-codegen.generated.md) | Direct workspace dependent |
+| [`vox-terminal-core`](./vox-terminal-core.generated.md) | Direct workspace dependent |
+| [`vox-test-harness`](./vox-test-harness.generated.md) | Direct workspace dependent |
+| [`vox-workflow-runtime`](./vox-workflow-runtime.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `app_contract::AppContractModule` | `pub struct AppContractModule` | [`crates/vox-compiler/src/app_contract.rs#L24-L37`](../../../crates/vox-compiler/src/app_contract.rs#L24-L37) | — |
+| `struct` | `app_contract::AppMcpToolContract` | `pub struct AppMcpToolContract` | [`crates/vox-compiler/src/app_contract.rs#L41-L45`](../../../crates/vox-compiler/src/app_contract.rs#L41-L45) | MCP tool surface derived from HIR (`@mcp.tool`). |
+| `struct` | `app_contract::AppMcpResourceContract` | `pub struct AppMcpResourceContract` | [`crates/vox-compiler/src/app_contract.rs#L49-L53`](../../../crates/vox-compiler/src/app_contract.rs#L49-L53) | MCP resource surface derived from HIR (`@mcp.resource`). |
+| `struct` | `app_contract::AppHttpRouteContract` | `pub struct AppHttpRouteContract` | [`crates/vox-compiler/src/app_contract.rs#L56-L61`](../../../crates/vox-compiler/src/app_contract.rs#L56-L61) | — |
+| `struct` | `app_contract::AppServerFnContract` | `pub struct AppServerFnContract` | [`crates/vox-compiler/src/app_contract.rs#L64-L68`](../../../crates/vox-compiler/src/app_contract.rs#L64-L68) | — |
+| `struct` | `app_contract::AppMutationContract` | `pub struct AppMutationContract` | [`crates/vox-compiler/src/app_contract.rs#L71-L76`](../../../crates/vox-compiler/src/app_contract.rs#L71-L76) | — |
+| `struct` | `app_contract::AppServerConfigContract` | `pub struct AppServerConfigContract` | [`crates/vox-compiler/src/app_contract.rs#L78-L84`](../../../crates/vox-compiler/src/app_contract.rs#L78-L84) | — |
+| `fn` | `app_contract::project_app_contract` | `pub fn project_app_contract(module: &HirModule) -> AppContractModule` | [`crates/vox-compiler/src/app_contract.rs#L92-L187`](../../../crates/vox-compiler/src/app_contract.rs#L92-L187) | — |
+| `fn` | `app_contract::canonical_app_contract_bytes` | `pub fn canonical_app_contract_bytes(` | [`crates/vox-compiler/src/app_contract.rs#L190`](../../../crates/vox-compiler/src/app_contract.rs#L190) | Canonical JSON bytes for stable app-contract hashing (sorted object keys at every depth). |
+| `struct` | `ast_eval::AstEvalReport` | `pub struct AstEvalReport` | [`crates/vox-compiler/src/ast_eval.rs#L14-L25`](../../../crates/vox-compiler/src/ast_eval.rs#L14-L25) | Result of parsing and analysing a Vox code snippet through the real compiler frontend. |
+| `fn` | `ast_eval::coverage_score` | `pub fn coverage_score(&self) -> f64` | [`crates/vox-compiler/src/ast_eval.rs#L32-L37`](../../../crates/vox-compiler/src/ast_eval.rs#L32-L37) | Coverage score in `[0.0, 1.0]` based on the number of distinct construct kinds.  Saturates at 8 distinct kinds (fn, type, actor, workflow, table, test, server, query). |
+| `fn` | `ast_eval::eval_module` | `pub fn eval_module(module: &Module) -> AstEvalReport` | [`crates/vox-compiler/src/ast_eval.rs#L42-L51`](../../../crates/vox-compiler/src/ast_eval.rs#L42-L51) | Analyse an already-parsed module without re-lexing/re-parsing. |
+| `fn` | `ast_eval::ast_eval` | `pub fn ast_eval(code: &str) -> AstEvalReport` | [`crates/vox-compiler/src/ast_eval.rs#L58-L70`](../../../crates/vox-compiler/src/ast_eval.rs#L58-L70) | Parse a Vox code snippet through the real compiler pipeline and return a structured report.  This replaces the regex-based `vox_eval::detect_constructs` with a true parser-backed analysis, addressing research Gap G-15 (regex eval misses syntactic context). |
+| `enum` | `builtin_registry::BuiltinArgKind` | `pub enum BuiltinArgKind` | [`crates/vox-compiler/src/builtin_registry.rs#L7-L11`](../../../crates/vox-compiler/src/builtin_registry.rs#L7-L11) | Parameter kind for registry-driven codegen (`str` lowers with `.as_str()`). |
+| `struct` | `builtin_registry::BuiltinRegistryEntry` | `pub struct BuiltinRegistryEntry` | [`crates/vox-compiler/src/builtin_registry.rs#L15-L26`](../../../crates/vox-compiler/src/builtin_registry.rs#L15-L26) | Builtin callable shape shared by typecheck and codegen lookup. |
+| `fn` | `builtin_registry::builtin_entry_param_tys` | `pub fn builtin_entry_param_tys(entry: BuiltinRegistryEntry) -> Option<Vec<Ty>>` | [`crates/vox-compiler/src/builtin_registry.rs#L30-L54`](../../../crates/vox-compiler/src/builtin_registry.rs#L30-L54) | Parameter types for a registry entry (shared by typecheck namespace methods). |
+| `fn` | `builtin_registry::builtin_entry_result_ty` | `pub fn builtin_entry_result_ty(entry: BuiltinRegistryEntry) -> Ty` | [`crates/vox-compiler/src/builtin_registry.rs#L58-L64`](../../../crates/vox-compiler/src/builtin_registry.rs#L58-L64) | Result type for a registry entry (`Result[str]` or `Result[unit]`). |
+| `fn` | `builtin_registry::builtin_registry_entries` | `pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry]` | [`crates/vox-compiler/src/builtin_registry.rs#L68`](../../../crates/vox-compiler/src/builtin_registry.rs#L68) | Stable subset of builtins with shared registry ownership. |
+| `fn` | `builtin_registry::lookup_builtin` | `pub fn lookup_builtin(` | [`crates/vox-compiler/src/builtin_registry.rs#L504`](../../../crates/vox-compiler/src/builtin_registry.rs#L504) | — |
+| `fn` | `builtin_registry::std_root_field_ty` | `pub fn std_root_field_ty(field: &str) -> Option<Ty>` | [`crates/vox-compiler/src/builtin_registry.rs#L529-L555`](../../../crates/vox-compiler/src/builtin_registry.rs#L529-L555) | `std.<field>` type members on the root namespace. |
+| `fn` | `builtin_registry::std_namespace_method_ty` | `pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty>` | [`crates/vox-compiler/src/builtin_registry.rs#L559`](../../../crates/vox-compiler/src/builtin_registry.rs#L559) | `std.<namespace>.<method>` signatures used by type checking. |
+| `fn` | `builtin_registry::std_namespace_runtime_call` | `pub fn std_namespace_runtime_call(` | [`crates/vox-compiler/src/builtin_registry.rs#L850`](../../../crates/vox-compiler/src/builtin_registry.rs#L850) | Shared runtime call lowering for `std.<namespace>.<method>` in Rust codegen. |
+| `fn` | `builtin_registry::namespace_builtin_owned` | `pub fn namespace_builtin_owned(namespace: &str) -> bool` | [`crates/vox-compiler/src/builtin_registry.rs#L1372-L1376`](../../../crates/vox-compiler/src/builtin_registry.rs#L1372-L1376) | True if `namespace` is owned by the canonical [`NAMESPACE_BUILTINS`] table (i.e. its full method set is declared there). Used by the typecheck gate. |
+| `fn` | `builtin_registry::namespace_builtin_listed` | `pub fn namespace_builtin_listed(namespace: &str, method: &str) -> bool` | [`crates/vox-compiler/src/builtin_registry.rs#L1380-L1384`](../../../crates/vox-compiler/src/builtin_registry.rs#L1380-L1384) | True if `(namespace, method)` is listed in [`NAMESPACE_BUILTINS`]. |
+| `fn` | `canonical_json::sort_json_value_keys` | `pub fn sort_json_value_keys(v: &mut serde_json::Value)` | [`crates/vox-compiler/src/canonical_json.rs#L10-L31`](../../../crates/vox-compiler/src/canonical_json.rs#L10-L31) | Recursively sort JSON object keys for cross-toolchain-stable canonical bytes. |
+| `struct` | `codegen_ts::GeneratedFiles` | `pub struct GeneratedFiles` | [`crates/vox-compiler/src/codegen_ts.rs#L17-L20`](../../../crates/vox-compiler/src/codegen_ts.rs#L17-L20) | Output of TypeScript code generation. |
+| `fn` | `codegen_ts::generate` | `pub fn generate(_hir: &HirModule) -> Result<GeneratedFiles, String>` | [`crates/vox-compiler/src/codegen_ts.rs#L29-L36`](../../../crates/vox-compiler/src/codegen_ts.rs#L29-L36) | Generate TypeScript/TSX code from HIR.  # Errors  Returns `Err` with diagnostic code `E0404` when the TS codegen backend is not available in this build.  Callers in production use `vox-codegen` directly; this shim is for compiler-internal test utilities only. |
+| `struct` | `codegen_ts::EmitCtx` | `pub struct EmitCtx<'a>` | [`crates/vox-compiler/src/codegen_ts.rs#L45-L47`](../../../crates/vox-compiler/src/codegen_ts.rs#L45-L47) | Emission context stub. |
+| `fn` | `codegen_ts::new` | `pub fn new(state_names: &'a HashSet<String>) -> Self` | [`crates/vox-compiler/src/codegen_ts.rs#L51-L55`](../../../crates/vox-compiler/src/codegen_ts.rs#L51-L55) | Create stub context. |
+| `fn` | `codegen_ts::emit_hir_expr` | `pub fn emit_hir_expr(_expr: HirExpr, _ctx: &EmitCtx<'_>) -> String` | [`crates/vox-compiler/src/codegen_ts.rs#L59-L61`](../../../crates/vox-compiler/src/codegen_ts.rs#L59-L61) | Stub emit function. |
+| `fn` | `codegen_ts::map_jsx_attr_name` | `pub fn map_jsx_attr_name(name: &str) -> String` | [`crates/vox-compiler/src/codegen_ts.rs#L64-L66`](../../../crates/vox-compiler/src/codegen_ts.rs#L64-L66) | Stub for JSX attribute mapping. |
+| `fn` | `codegen_ts::noop` | `pub fn noop()` | [`crates/vox-compiler/src/codegen_ts.rs#L71`](../../../crates/vox-compiler/src/codegen_ts.rs#L71) | Marker for backwards compatibility. |
+| `struct` | `contract_ir::ContractIr` | `pub struct ContractIr` | [`crates/vox-compiler/src/contract_ir/mod.rs#L41-L46`](../../../crates/vox-compiler/src/contract_ir/mod.rs#L41-L46) | The wire-format projection of a Vox HIR module. |
+| `struct` | `contract_ir::ContractType` | `pub struct ContractType` | [`crates/vox-compiler/src/contract_ir/mod.rs#L50-L53`](../../../crates/vox-compiler/src/contract_ir/mod.rs#L50-L53) | A single named type at the wire boundary. |
+| `enum` | `contract_ir::ContractTypeKind` | `pub enum ContractTypeKind` | [`crates/vox-compiler/src/contract_ir/mod.rs#L57-L62`](../../../crates/vox-compiler/src/contract_ir/mod.rs#L57-L62) | Shape of a [`ContractType`]. |
+| `struct` | `contract_ir::ContractField` | `pub struct ContractField` | [`crates/vox-compiler/src/contract_ir/mod.rs#L66-L72`](../../../crates/vox-compiler/src/contract_ir/mod.rs#L66-L72) | A field on a struct or variant. |
+| `struct` | `contract_ir::ContractVariant` | `pub struct ContractVariant` | [`crates/vox-compiler/src/contract_ir/mod.rs#L76-L80`](../../../crates/vox-compiler/src/contract_ir/mod.rs#L76-L80) | One variant of a sum type. |
+| `enum` | `contract_ir::WireType` | `pub enum WireType` | [`crates/vox-compiler/src/contract_ir/mod.rs#L90-L113`](../../../crates/vox-compiler/src/contract_ir/mod.rs#L90-L113) | Wire-level type alphabet.  Reflects the encoding rules of wire-format-v1: - `Decimal` → string (precision-preserving) - `BigInt` → string (JSON Number can't hold > 2^53 safely) - `Date` / `DateTime` → RFC 3339 UTC string - `Option<T>` → presence-or-absence of key (carried on [`ContractField::optional`]) |
+| `struct` | `contract_ir::ContractEndpoint` | `pub struct ContractEndpoint` | [`crates/vox-compiler/src/contract_ir/mod.rs#L117-L129`](../../../crates/vox-compiler/src/contract_ir/mod.rs#L117-L129) | A request-response endpoint at the wire boundary. |
+| `enum` | `contract_ir::ContractEndpointKind` | `pub enum ContractEndpointKind` | [`crates/vox-compiler/src/contract_ir/mod.rs#L133-L137`](../../../crates/vox-compiler/src/contract_ir/mod.rs#L133-L137) | Mirrors [`HirEndpointKind`] without exposing it as a public name. |
+| `enum` | `contract_ir::HttpMethod` | `pub enum HttpMethod` | [`crates/vox-compiler/src/contract_ir/mod.rs#L141-L146`](../../../crates/vox-compiler/src/contract_ir/mod.rs#L141-L146) | HTTP method bound to an endpoint. |
+| `fn` | `contract_ir::as_str` | `pub fn as_str(&self) -> &'static str` | [`crates/vox-compiler/src/contract_ir/mod.rs#L149-L156`](../../../crates/vox-compiler/src/contract_ir/mod.rs#L149-L156) | — |
+| `fn` | `contract_ir::project` | `pub fn project(hir: &HirModule) -> ContractIr` | [`crates/vox-compiler/src/contract_ir/mod.rs#L163-L168`](../../../crates/vox-compiler/src/contract_ir/mod.rs#L163-L168) | Project a HIR module into Contract IR.  This is the single wire-format-aware traversal of HIR. All wire-format emitters should consume the result rather than walking HIR themselves. |
+| `fn` | `contract_ir::project_type` | `pub fn project_type(ty: &HirType) -> WireType` | [`crates/vox-compiler/src/contract_ir/mod.rs#L174-L176`](../../../crates/vox-compiler/src/contract_ir/mod.rs#L174-L176) | Map a [`HirType`] to its wire representation.  Public so emitters can lift function-parameter and return types into the same wire alphabet without re-implementing the rules. |
+| `fn` | `contract_ir::default_method` | `pub fn default_method(self) -> HttpMethod` | [`crates/vox-compiler/src/contract_ir/mod.rs#L194-L199`](../../../crates/vox-compiler/src/contract_ir/mod.rs#L194-L199) | Default HTTP method for a given endpoint kind.  `Query` is GET (cacheable, idempotent, no body). `Mutation` and `Server` are POST. Phase 3 (`@endpoint(method: …)`) will let users override this. |
 

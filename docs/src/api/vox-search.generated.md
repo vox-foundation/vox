@@ -113,3 +113,107 @@ Shared local-first retrieval execution for MCP, orchestrator, CLI, and A2A bridg
 | `tavily` | — |
 | `vector_qdrant` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_search: "vox-search"
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_search -> vox_actor_runtime
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_search -> vox_bounded_fs
+    node vox_config: "vox-config"
+    vox_search -> vox_config
+    node vox_crypto: "vox-crypto"
+    vox_search -> vox_crypto
+    node vox_db: "vox-db"
+    vox_search -> vox_db
+    node vox_http_client: "vox-http-client"
+    vox_search -> vox_http_client
+    node vox_kb_facets: "vox-kb-facets"
+    vox_search -> vox_kb_facets
+    node vox_secrets: "vox-secrets"
+    vox_search -> vox_secrets
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_search
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_search
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_search
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_search
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_search
+    node vox_plugin_publication: "vox-plugin-publication"
+    vox_plugin_publication -> vox_search
+    node vox_research_shim: "vox-research-shim"
+    vox_research_shim -> vox_search
+    node vox_scientia: "vox-scientia"
+    vox_scientia -> vox_search
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-plugin-publication`](./vox-plugin-publication.generated.md) | Direct workspace dependent |
+| [`vox-research-shim`](./vox-research-shim.generated.md) | Direct workspace dependent |
+| [`vox-scientia`](./vox-scientia.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `a2a_contract::A2ARetrievalRequest` | `pub struct A2ARetrievalRequest` | [`crates/vox-search/src/a2a_contract.rs#L11-L18`](../../../crates/vox-search/src/a2a_contract.rs#L11-L18) | Agent asks peer or parent for grounded evidence. |
+| `struct` | `a2a_contract::A2ADurableArtifact` | `pub struct A2ADurableArtifact` | [`crates/vox-search/src/a2a_contract.rs#L21-L28`](../../../crates/vox-search/src/a2a_contract.rs#L21-L28) | Reference to a securely persisted retrieval artifact, replacing inline prompt injection risks. |
+| `struct` | `a2a_contract::A2ARetrievalResponse` | `pub struct A2ARetrievalResponse` | [`crates/vox-search/src/a2a_contract.rs#L32-L49`](../../../crates/vox-search/src/a2a_contract.rs#L32-L49) | Evidence package returned to the requester. |
+| `fn` | `a2a_contract::from_search_pass` | `pub fn from_search_pass(` | [`crates/vox-search/src/a2a_contract.rs#L54`](../../../crates/vox-search/src/a2a_contract.rs#L54) | Maps a finished [`SearchExecution`] + diagnostics into the wire snapshot (request correlation only). |
+| `struct` | `a2a_contract::A2ARetrievalRefinement` | `pub struct A2ARetrievalRefinement` | [`crates/vox-search/src/a2a_contract.rs#L88-L93`](../../../crates/vox-search/src/a2a_contract.rs#L88-L93) | Follow-up refinement (contradiction / weak recall) for shared critique loops. |
+| `fn` | `arxiv::normalize_arxiv_url` | `pub fn normalize_arxiv_url(raw: &str) -> String` | [`crates/vox-search/src/arxiv.rs#L21-L51`](../../../crates/vox-search/src/arxiv.rs#L21-L51) | Normalizes arXiv identifiers or URLs into canonical `https://arxiv.org/abs/{id}` format, stripping any version suffix like `v1`, `v2`, etc. |
+| `struct` | `arxiv::ArXivClient` | `pub struct ArXivClient` | [`crates/vox-search/src/arxiv.rs#L58`](../../../crates/vox-search/src/arxiv.rs#L58) | — |
+| `fn` | `arxiv::parse_atom_xml` | `pub fn parse_atom_xml(xml: &str, limit: usize) -> anyhow::Result<Vec<SearxngResult>>` | [`crates/vox-search/src/arxiv.rs#L62`](../../../crates/vox-search/src/arxiv.rs#L62) | Parse Atom XML feed from arXiv, extracting entry nodes into `SearxngResult` up to `limit`. |
+| `fn` | `arxiv::search` | `pub async fn search(` | [`crates/vox-search/src/arxiv.rs#L234`](../../../crates/vox-search/src/arxiv.rs#L234) | Query arXiv API with query string, limit, and optional base URL override. |
+| `enum` | `bundle::RetrievalTriggerMode` | `pub enum RetrievalTriggerMode` | [`crates/vox-search/src/bundle.rs#L16-L20`](../../../crates/vox-search/src/bundle.rs#L16-L20) | Trigger mode parity with MCP (kept numeric-free here; MCP maps to its enum). |
+| `fn` | `bundle::run_search_with_verification` | `pub async fn run_search_with_verification(` | [`crates/vox-search/src/bundle.rs#L26`](../../../crates/vox-search/src/bundle.rs#L26) | Run planner + optional second pass using policy thresholds.  `AutoChatPreamble` always excludes Untrusted hits (D-03, WR-08), whatever policy the caller passed; the Tavily CRAG leg does not fire under that exclusion (CR-01). |
+| `fn` | `bundle::search_plan_value` | `pub fn search_plan_value(plan: &SearchPlan) -> Value` | [`crates/vox-search/src/bundle.rs#L273-L275`](../../../crates/vox-search/src/bundle.rs#L273-L275) | JSON snapshots for telemetry fields carried by MCP envelopes. |
+| `fn` | `bundle::diagnostics_value` | `pub fn diagnostics_value(diag: &SearchDiagnostics) -> Value` | [`crates/vox-search/src/bundle.rs#L277-L279`](../../../crates/vox-search/src/bundle.rs#L277-L279) | — |
+| `struct` | `capture::CapturedWebHit` | `pub struct CapturedWebHit` | [`crates/vox-search/src/capture.rs#L9-L18`](../../../crates/vox-search/src/capture.rs#L9-L18) | One web hit handed to a capture sink. |
+| `trait` | `capture::WebFindingCapture` | `pub trait WebFindingCapture: Send + Sync` | [`crates/vox-search/src/capture.rs#L21-L23`](../../../crates/vox-search/src/capture.rs#L21-L23) | Fire-and-forget sink; the implementor owns spawning and error logging. |
+| `struct` | `context::SearchRuntimeContext` | `pub struct SearchRuntimeContext` | [`crates/vox-search/src/context.rs#L12-L25`](../../../crates/vox-search/src/context.rs#L12-L25) | Cross-platform retrieval runtime inputs (orchestrator, MCP, CLI). |
+| `fn` | `context::new` | `pub fn new(` | [`crates/vox-search/src/context.rs#L42`](../../../crates/vox-search/src/context.rs#L42) | New context; callers should canonicalize `repo_root` when possible. |
+| `fn` | `context::with_trace_id` | `pub fn with_trace_id(mut self, trace_id: Option<String>) -> Self` | [`crates/vox-search/src/context.rs#L60-L63`](../../../crates/vox-search/src/context.rs#L60-L63) | Attach a trace id for [`crate::execution::execute_search_plan`] telemetry and sidecar headers. |
+| `fn` | `context::with_web_capture` | `pub fn with_web_capture(mut self, sink: Option<Arc<dyn WebFindingCapture>>) -> Self` | [`crates/vox-search/src/context.rs#L67-L70`](../../../crates/vox-search/src/context.rs#L67-L70) | Attach (or clear) the web-hit capture sink. |
+| `struct` | `corroboration::CorroboratingHit` | `pub struct CorroboratingHit` | [`crates/vox-search/src/corroboration.rs#L9-L12`](../../../crates/vox-search/src/corroboration.rs#L9-L12) | — |
+| `struct` | `corroboration::CorroborationCount` | `pub struct CorroborationCount` | [`crates/vox-search/src/corroboration.rs#L15-L18`](../../../crates/vox-search/src/corroboration.rs#L15-L18) | — |
+| `fn` | `corroboration::count` | `pub fn count(&self) -> usize` | [`crates/vox-search/src/corroboration.rs#L21-L23`](../../../crates/vox-search/src/corroboration.rs#L21-L23) | — |
+| `fn` | `corroboration::count_corroboration` | `pub fn count_corroboration(claim_id: &str, hits: &[CorroboratingHit]) -> CorroborationCount` | [`crates/vox-search/src/corroboration.rs#L42-L54`](../../../crates/vox-search/src/corroboration.rs#L42-L54) | — |
+| `struct` | `crag::CragRouter` | `pub struct CragRouter` | [`crates/vox-search/src/crag.rs#L6`](../../../crates/vox-search/src/crag.rs#L6) | Logic for Corrective RAG (CRAG) expansion and multi-hop query generation. |
+| `fn` | `crag::expand_queries_from_partial_evidence` | `pub fn expand_queries_from_partial_evidence(` | [`crates/vox-search/src/crag.rs#L11`](../../../crates/vox-search/src/crag.rs#L11) | Generates refined sub-queries based on initial research hits and the original query. Used for iterative multi-hop research loops. |
+| `fn` | `crag::expand_queries_with_llm_or_heuristic` | `pub fn expand_queries_with_llm_or_heuristic(` | [`crates/vox-search/src/crag.rs#L101`](../../../crates/vox-search/src/crag.rs#L101) | Use LLM-generated queries when available; fall back to heuristic. Caps output at 4 queries. Pass `None` or `Some(&[])` to use heuristic. |
+| `fn` | `crag::should_continue` | `pub fn should_continue(current_quality: f64, target_quality: f64, hops_remaining: u8) -> bool` | [`crates/vox-search/src/crag.rs#L121-L123`](../../../crates/vox-search/src/crag.rs#L121-L123) | Determines if a research pass should continue based on quality score. |
+| `fn` | `crawler::normalize_crawl_url` | `pub fn normalize_crawl_url(url: &Url) -> Url` | [`crates/vox-search/src/crawler.rs#L11-L16`](../../../crates/vox-search/src/crawler.rs#L11-L16) | — |
+| `fn` | `crawler::extract_candidate_links` | `pub fn extract_candidate_links(html: &str, base_url: &str, allow_origin: &str) -> Vec<String>` | [`crates/vox-search/src/crawler.rs#L18-L50`](../../../crates/vox-search/src/crawler.rs#L18-L50) | — |
+| `fn` | `crawler::score_and_prioritize_links` | `pub fn score_and_prioritize_links(links: &[String]) -> Vec<(String, u32)>` | [`crates/vox-search/src/crawler.rs#L52-L79`](../../../crates/vox-search/src/crawler.rs#L52-L79) | — |
+| `fn` | `crawler::crawl_domain_depth` | `pub async fn crawl_domain_depth(` | [`crates/vox-search/src/crawler.rs#L81`](../../../crates/vox-search/src/crawler.rs#L81) | — |
+| `struct` | `duckduckgo::DdgResult` | `pub struct DdgResult` | [`crates/vox-search/src/duckduckgo.rs#L4-L9`](../../../crates/vox-search/src/duckduckgo.rs#L4-L9) | — |
+| `enum` | `duckduckgo::DdgTopicItem` | `pub enum DdgTopicItem` | [`crates/vox-search/src/duckduckgo.rs#L13-L21`](../../../crates/vox-search/src/duckduckgo.rs#L13-L21) | — |
+| `struct` | `duckduckgo::DdgResponse` | `pub struct DdgResponse` | [`crates/vox-search/src/duckduckgo.rs#L24-L27`](../../../crates/vox-search/src/duckduckgo.rs#L24-L27) | — |
+| `struct` | `duckduckgo::DuckDuckGoClient` | `pub struct DuckDuckGoClient` | [`crates/vox-search/src/duckduckgo.rs#L29`](../../../crates/vox-search/src/duckduckgo.rs#L29) | — |
+| `fn` | `duckduckgo::search` | `pub async fn search(` | [`crates/vox-search/src/duckduckgo.rs#L36`](../../../crates/vox-search/src/duckduckgo.rs#L36) | Pruned DuckDuckGo search stub.  DuckDuckGo fallback has been retired in favor of parallel multi-source keyless retrieval (arXiv, OpenAlex, Wikipedia). |
+| `fn` | `embedding_env::embedding_config_from_env` | `pub fn embedding_config_from_env() -> Option<LlmConfig>` | [`crates/vox-search/src/embedding_env.rs#L18-L100`](../../../crates/vox-search/src/embedding_env.rs#L18-L100) | Build embedding configuration from well-known providers. |
+| `fn` | `embedding_env::default_local_embedding_config` | `pub fn default_local_embedding_config() -> LlmConfig` | [`crates/vox-search/src/embedding_env.rs#L111-L135`](../../../crates/vox-search/src/embedding_env.rs#L111-L135) | Build a zero-API-key `provider = "local"` embedding configuration (`EMB-01`). |
+| `fn` | `embedding_env::embedding_config_or_local` | `pub fn embedding_config_or_local() -> LlmConfig` | [`crates/vox-search/src/embedding_env.rs#L140-L142`](../../../crates/vox-search/src/embedding_env.rs#L140-L142) | Prefer explicit environment/Clavis API provider when configured, falling back to the zero-key `provider = "local"` configuration (`EMB-01`, `EMB-05`). |
+| `struct` | `embeddings::EmbeddingService` | `pub struct EmbeddingService` | [`crates/vox-search/src/embeddings.rs#L10-L13`](../../../crates/vox-search/src/embeddings.rs#L10-L13) | Generate query vectors and optionally persist rows into `embeddings`. |
+| `fn` | `embeddings::new` | `pub fn new(db: Arc<VoxDb>, config: LlmConfig) -> Self` | [`crates/vox-search/src/embeddings.rs#L17-L19`](../../../crates/vox-search/src/embeddings.rs#L17-L19) | New service bound to a [`vox_db::VoxDb`] handle and provider configuration. |
+| `fn` | `embeddings::embed_and_store` | `pub async fn embed_and_store(` | [`crates/vox-search/src/embeddings.rs#L22`](../../../crates/vox-search/src/embeddings.rs#L22) | Generate an embedding for text and store it in the database. |
+| `fn` | `embeddings::embed_query` | `pub async fn embed_query(&self, query: &str) -> Result<Vec<f32>, String>` | [`crates/vox-search/src/embeddings.rs#L51-L59`](../../../crates/vox-search/src/embeddings.rs#L51-L59) | Generate a vector for a search query. |
+| `fn` | `embeddings::llm_config` | `pub fn llm_config(&self) -> &LlmConfig` | [`crates/vox-search/src/embeddings.rs#L63-L65`](../../../crates/vox-search/src/embeddings.rs#L63-L65) | Underlying model configuration (for telemetry). |
+| `fn` | `embeddings::db` | `pub fn db(&self) -> &Arc<VoxDb>` | [`crates/vox-search/src/embeddings.rs#L69-L71`](../../../crates/vox-search/src/embeddings.rs#L69-L71) | Shared database handle. |
+

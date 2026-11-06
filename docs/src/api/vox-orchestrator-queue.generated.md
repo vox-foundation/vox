@@ -55,3 +55,79 @@ layer model.
 | `projections` | — |
 | `sync_lock` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_orchestrator_queue: "vox-orchestrator-queue"
+    node vox_config: "vox-config"
+    vox_orchestrator_queue -> vox_config
+    node vox_crypto: "vox-crypto"
+    vox_orchestrator_queue -> vox_crypto
+    node vox_db: "vox-db"
+    vox_orchestrator_queue -> vox_db
+    node vox_orchestrator_types: "vox-orchestrator-types"
+    vox_orchestrator_queue -> vox_orchestrator_types
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_orchestrator_queue
+    node vox_populi: "vox-populi"
+    vox_populi -> vox_orchestrator_queue
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `affinity::DaemonId` | `pub struct DaemonId(pub [u8; 16])` | [`crates/vox-orchestrator-queue/src/affinity.rs#L25`](../../../crates/vox-orchestrator-queue/src/affinity.rs#L25) | Opaque identity of a daemon node (UUIDv4 bytes in network order). |
+| `struct` | `affinity::Lamport` | `pub struct Lamport(pub u64)` | [`crates/vox-orchestrator-queue/src/affinity.rs#L29`](../../../crates/vox-orchestrator-queue/src/affinity.rs#L29) | Lamport logical clock value. Higher beats lower; ties broken by `DaemonId` bytes. |
+| `struct` | `affinity::AffinityValue` | `pub struct AffinityValue` | [`crates/vox-orchestrator-queue/src/affinity.rs#L33-L39`](../../../crates/vox-orchestrator-queue/src/affinity.rs#L33-L39) | Value stored in the vector-clock affinity map (`inner_v`). |
+| `struct` | `affinity::FileAffinityMap` | `pub struct FileAffinityMap` | [`crates/vox-orchestrator-queue/src/affinity.rs#L52-L58`](../../../crates/vox-orchestrator-queue/src/affinity.rs#L52-L58) | Thread-safe map tracking which agent "owns" each file path.  The single-writer principle: at most one agent holds write affinity for any given file. This prevents race conditions and lost updates.  **Affinity is a hint, lock is hard.** See module-level docs. |
+| `fn` | `affinity::new` | `pub fn new() -> Self` | [`crates/vox-orchestrator-queue/src/affinity.rs#L62-L68`](../../../crates/vox-orchestrator-queue/src/affinity.rs#L62-L68) | Create a new, empty affinity map. |
+| `fn` | `affinity::assign_v` | `pub fn assign_v(` | [`crates/vox-orchestrator-queue/src/affinity.rs#L83`](../../../crates/vox-orchestrator-queue/src/affinity.rs#L83) | Assign file affinity with Lamport LWW semantics and 60 s hold-down.  Conflict resolution: 1. If the current owner is a different daemon and the entry is less than `HOLD_DOWN_MS` old, the new claim is **ignored** (local stability wins). 2. After the hold-down, the entry with the higher `lamport` wins; equal lamports break ties by daemon-id bytes (deterministic total order).  **Affinity is a hint, lock is hard.** See module-level docs. |
+| `fn` | `affinity::lookup_v` | `pub fn lookup_v(&self, file: &Path) -> Option<AffinityValue>` | [`crates/vox-orchestrator-queue/src/affinity.rs#L120-L122`](../../../crates/vox-orchestrator-queue/src/affinity.rs#L120-L122) | Look up the current vector-clock affinity owner for a file, if any.  **Affinity is a hint, lock is hard.** See module-level docs. |
+| `fn` | `affinity::record_experience` | `pub fn record_experience(&self, agent: AgentId, file: &Path)` | [`crates/vox-orchestrator-queue/src/affinity.rs#L125-L140`](../../../crates/vox-orchestrator-queue/src/affinity.rs#L125-L140) | Record that an agent successfully worked on a file (dynamic learning). |
+| `fn` | `affinity::best_agent_for` | `pub fn best_agent_for(&self, file: &Path) -> Option<AgentId>` | [`crates/vox-orchestrator-queue/src/affinity.rs#L143-L173`](../../../crates/vox-orchestrator-queue/src/affinity.rs#L143-L173) | Recommend the best agent for a file based on learned experience. |
+| `fn` | `affinity::assign` | `pub fn assign(&self, file: &Path, agent: AgentId)` | [`crates/vox-orchestrator-queue/src/affinity.rs#L176-L178`](../../../crates/vox-orchestrator-queue/src/affinity.rs#L176-L178) | Assign a file to an agent. Overwrites any previous assignment. |
+| `fn` | `affinity::lookup` | `pub fn lookup(&self, file: &Path) -> Option<AgentId>` | [`crates/vox-orchestrator-queue/src/affinity.rs#L181-L183`](../../../crates/vox-orchestrator-queue/src/affinity.rs#L181-L183) | Look up which agent owns a file, if any. |
+| `fn` | `affinity::release` | `pub fn release(&self, file: &Path)` | [`crates/vox-orchestrator-queue/src/affinity.rs#L186-L188`](../../../crates/vox-orchestrator-queue/src/affinity.rs#L186-L188) | Release ownership of a single file. |
+| `fn` | `affinity::release_all` | `pub fn release_all(&self, agent: AgentId)` | [`crates/vox-orchestrator-queue/src/affinity.rs#L191-L193`](../../../crates/vox-orchestrator-queue/src/affinity.rs#L191-L193) | Release all files owned by the given agent. |
+| `fn` | `affinity::owner_or_assign` | `pub fn owner_or_assign(&self, file: &Path, agent: AgentId) -> AgentId` | [`crates/vox-orchestrator-queue/src/affinity.rs#L197-L200`](../../../crates/vox-orchestrator-queue/src/affinity.rs#L197-L200) | Atomically look up the owner of a file, or assign it if unowned. Returns the actual owner (which may differ from `agent` if already claimed). |
+| `fn` | `affinity::files_for_agent` | `pub fn files_for_agent(&self, agent: AgentId) -> Vec<PathBuf>` | [`crates/vox-orchestrator-queue/src/affinity.rs#L203-L209`](../../../crates/vox-orchestrator-queue/src/affinity.rs#L203-L209) | List all files owned by a given agent. |
+| `fn` | `affinity::agent_load` | `pub fn agent_load(&self) -> HashMap<AgentId, usize>` | [`crates/vox-orchestrator-queue/src/affinity.rs#L212-L219`](../../../crates/vox-orchestrator-queue/src/affinity.rs#L212-L219) | Return a map of agent → number of files owned (for load balancing). |
+| `fn` | `affinity::conflicts` | `pub fn conflicts(` | [`crates/vox-orchestrator-queue/src/affinity.rs#L223`](../../../crates/vox-orchestrator-queue/src/affinity.rs#L223) | Check which files in a manifest are already owned by other agents. Returns `(file_path, current_owner)` pairs for each conflict. |
+| `fn` | `affinity::len` | `pub fn len(&self) -> usize` | [`crates/vox-orchestrator-queue/src/affinity.rs#L244-L246`](../../../crates/vox-orchestrator-queue/src/affinity.rs#L244-L246) | Total number of file assignments. |
+| `fn` | `affinity::is_empty` | `pub fn is_empty(&self) -> bool` | [`crates/vox-orchestrator-queue/src/affinity.rs#L249-L251`](../../../crates/vox-orchestrator-queue/src/affinity.rs#L249-L251) | Whether the map is empty. |
+| `fn` | `affinity::as_json` | `pub fn as_json(&self) -> serde_json::Value` | [`crates/vox-orchestrator-queue/src/affinity.rs#L254-L264`](../../../crates/vox-orchestrator-queue/src/affinity.rs#L254-L264) | Return the entire affinity map as a JSON object (Path -> AgentId). |
+| `enum` | `locks::LockKind` | `pub enum LockKind` | [`crates/vox-orchestrator-queue/src/locks/mod.rs#L20-L25`](../../../crates/vox-orchestrator-queue/src/locks/mod.rs#L20-L25) | Kind of lock an agent holds on a file. |
+| `struct` | `locks::FileLock` | `pub struct FileLock` | [`crates/vox-orchestrator-queue/src/locks/mod.rs#L29-L38`](../../../crates/vox-orchestrator-queue/src/locks/mod.rs#L29-L38) | A file lock held by an agent. |
+| `enum` | `locks::LockConflict` | `pub enum LockConflict` | [`crates/vox-orchestrator-queue/src/locks/mod.rs#L42-L59`](../../../crates/vox-orchestrator-queue/src/locks/mod.rs#L42-L59) | Error returned when a lock cannot be acquired. |
+| `struct` | `locks::FileLockManager` | `pub struct FileLockManager` | [`crates/vox-orchestrator-queue/src/locks/mod.rs#L86-L95`](../../../crates/vox-orchestrator-queue/src/locks/mod.rs#L86-L95) | Thread-safe file-level lock manager.  Enforces the single-writer principle: at most one agent can hold an exclusive lock on any file, while multiple agents can hold shared read locks.  When constructed with [`FileLockManager::with_db`] the manager writes through to the `vcs_lock` table on every acquire/release so that a fresh daemon instance can replay the lock map on startup via [`FileLockManager::hydrate_from_db`]. |
+| `struct` | `oplog::OperationId` | `pub struct OperationId(pub u64)` | [`crates/vox-orchestrator-queue/src/oplog/mod.rs#L30`](../../../crates/vox-orchestrator-queue/src/oplog/mod.rs#L30) | Unique operation identifier. |
+| `struct` | `oplog::OperationIdGenerator` | `pub struct OperationIdGenerator(AtomicU64)` | [`crates/vox-orchestrator-queue/src/oplog/mod.rs#L40`](../../../crates/vox-orchestrator-queue/src/oplog/mod.rs#L40) | Thread-safe generator for [`OperationId`]s. |
+| `fn` | `oplog::new` | `pub fn new() -> Self` | [`crates/vox-orchestrator-queue/src/oplog/mod.rs#L44-L46`](../../../crates/vox-orchestrator-queue/src/oplog/mod.rs#L44-L46) | Create a new generator starting at 1. |
+| `fn` | `oplog::resuming_after` | `pub fn resuming_after(highest_existing: u64) -> Self` | [`crates/vox-orchestrator-queue/src/oplog/mod.rs#L54-L56`](../../../crates/vox-orchestrator-queue/src/oplog/mod.rs#L54-L56) | Create a generator whose *next* produced id is `highest_existing + 1` (T1.3 restart-durability). Pass the highest `op_id` already persisted in `convergence_op_log` (queried via `VoxDb::max_convergence_op_id`) so the sequence stays monotonic across a daemon restart instead of resetting to `OP-000001` and colliding with — or shadowing — history a client may have already replayed. |
+| `fn` | `oplog::next` | `pub fn next(&self) -> OperationId` | [`crates/vox-orchestrator-queue/src/oplog/mod.rs#L59-L61`](../../../crates/vox-orchestrator-queue/src/oplog/mod.rs#L59-L61) | Produce the next unique [`OperationId`]. |
+| `enum` | `oplog::OperationKind` | `pub enum OperationKind` | [`crates/vox-orchestrator-queue/src/oplog/mod.rs#L77`](../../../crates/vox-orchestrator-queue/src/oplog/mod.rs#L77) | The kind of operation that was performed. |
+| `struct` | `oplog::OperationEntry` | `pub struct OperationEntry` | [`crates/vox-orchestrator-queue/src/oplog/mod.rs#L218-L260`](../../../crates/vox-orchestrator-queue/src/oplog/mod.rs#L218-L260) | A single entry in the operation log. |
+| `struct` | `oplog::OpLog` | `pub struct OpLog` | [`crates/vox-orchestrator-queue/src/oplog/mod.rs#L268-L275`](../../../crates/vox-orchestrator-queue/src/oplog/mod.rs#L268-L275) | Append-only operation log with undo/redo support. |
+| `trait` | `projection::Projection` | `pub trait Projection: Send + Sync + Any` | [`crates/vox-orchestrator-queue/src/projection.rs#L14-L26`](../../../crates/vox-orchestrator-queue/src/projection.rs#L14-L26) | — |
+| `enum` | `projection::ProjectionError` | `pub enum ProjectionError` | [`crates/vox-orchestrator-queue/src/projection.rs#L29-L32`](../../../crates/vox-orchestrator-queue/src/projection.rs#L29-L32) | — |
+| `struct` | `projection::ProjectionRegistry` | `pub struct ProjectionRegistry` | [`crates/vox-orchestrator-queue/src/projection.rs#L36-L38`](../../../crates/vox-orchestrator-queue/src/projection.rs#L36-L38) | Registry of all active projections for a daemon instance. |
+| `fn` | `projection::new` | `pub fn new() -> Self` | [`crates/vox-orchestrator-queue/src/projection.rs#L41-L43`](../../../crates/vox-orchestrator-queue/src/projection.rs#L41-L43) | — |
+| `fn` | `projection::with` | `pub fn with<P: Projection + 'static>(mut self, p: P) -> Self` | [`crates/vox-orchestrator-queue/src/projection.rs#L46-L49`](../../../crates/vox-orchestrator-queue/src/projection.rs#L46-L49) | Register a projection. Returns `self` for builder-style chaining. |
+| `fn` | `projection::apply` | `pub async fn apply(&self, entry: &OperationEntry)` | [`crates/vox-orchestrator-queue/src/projection.rs#L55-L59`](../../../crates/vox-orchestrator-queue/src/projection.rs#L55-L59) | Apply an op to every registered projection.  Async so callers can `await` without blocking the executor, even though the current implementation is synchronous internally. |
+| `fn` | `projection::snapshot_blake3` | `pub fn snapshot_blake3(&self) -> [u8; 32]` | [`crates/vox-orchestrator-queue/src/projection.rs#L63-L65`](../../../crates/vox-orchestrator-queue/src/projection.rs#L63-L65) | Blake3 over the concatenated deterministic snapshots of all projections. Two registries with identical state sequences must return identical hashes. |
+| `fn` | `projection::snapshot_bytes` | `pub fn snapshot_bytes(&self) -> Vec<u8>` | [`crates/vox-orchestrator-queue/src/projection.rs#L73-L84`](../../../crates/vox-orchestrator-queue/src/projection.rs#L73-L84) | Deterministically encode every registered projection's `snapshot()` output into a single byte buffer, framed as `(name_len, name, buf_len, buf)*` in registration order. This is the exact byte sequence [`Self::snapshot_blake3`] hashes, so re-hashing the buffer this returns always reproduces the same digest — the buffer is what a checkpoint blob stores, and [`Self::restore_bytes`] is its inverse. |
+| `fn` | `projection::restore_bytes` | `pub fn restore_bytes(&self, mut buf: &[u8]) -> Result<(), ProjectionError>` | [`crates/vox-orchestrator-queue/src/projection.rs#L90-L109`](../../../crates/vox-orchestrator-queue/src/projection.rs#L90-L109) | Inverse of [`Self::snapshot_bytes`]: split the framed buffer back into per-projection slices and call [`Projection::restore`] on each registered projection whose name matches a frame. Frames for names with no registered projection are skipped (forward-compatible with future projections). |
+| `fn` | `sync_lock::rw_read` | `pub fn rw_read<'a, T>(lock: &'a StdRwLock<T>) -> StdRwLockReadGuard<'a, T>` | [`crates/vox-orchestrator-queue/src/sync_lock.rs#L13-L15`](../../../crates/vox-orchestrator-queue/src/sync_lock.rs#L13-L15) | Read side of a [`StdRwLock`], recovering after poisoning. |
+| `fn` | `sync_lock::rw_write` | `pub fn rw_write<'a, T>(lock: &'a StdRwLock<T>) -> StdRwLockWriteGuard<'a, T>` | [`crates/vox-orchestrator-queue/src/sync_lock.rs#L18-L20`](../../../crates/vox-orchestrator-queue/src/sync_lock.rs#L18-L20) | Write side of a [`StdRwLock`], recovering after poisoning. |
+

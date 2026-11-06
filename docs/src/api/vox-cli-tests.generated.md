@@ -82,3 +82,35 @@ out per-step when the toolchain isn't available.
 | `assert_cargo_check` | (5) Generated Rust backend compiles under `cargo check`.  Skipped when `VOX_CLI_TESTS_SKIP_CARGO=1` is set or when the fixture's `emits_rust_backend = false`. |
 | `assert_all` | Run all five assertions in order. Convenience for the standard fixture flow. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_cli_tests: "vox-cli-tests"
+    node vox_cli: "vox-cli"
+    vox_cli_tests -> vox_cli
+    node vox_codegen: "vox-codegen"
+    vox_cli_tests -> vox_codegen
+    node vox_compiler: "vox-compiler"
+    vox_cli_tests -> vox_compiler
+}
+```
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `ExpectedFiles` | `pub struct ExpectedFiles` | [`crates/vox-cli-tests/src/lib.rs#L31-L51`](../../../crates/vox-cli-tests/src/lib.rs#L31-L51) | Shape of `expected_files.toml` next to each fixture's `main.vox`. |
+| `struct` | `BuildRun` | `pub struct BuildRun` | [`crates/vox-cli-tests/src/lib.rs#L54-L61`](../../../crates/vox-cli-tests/src/lib.rs#L54-L61) | One end-to-end run of `vox build` against a fixture. |
+| `fn` | `workspace_root` | `pub fn workspace_root() -> PathBuf` | [`crates/vox-cli-tests/src/lib.rs#L65-L82`](../../../crates/vox-cli-tests/src/lib.rs#L65-L82) | Locate the workspace root by walking up until we find a `Cargo.toml` with `[workspace]`. |
+| `fn` | `fixture_dir` | `pub fn fixture_dir(name: &str) -> PathBuf` | [`crates/vox-cli-tests/src/lib.rs#L85-L90`](../../../crates/vox-cli-tests/src/lib.rs#L85-L90) | Path to a fixture directory inside this crate's `tests/fixtures/`. |
+| `fn` | `vox_binary_path` | `pub fn vox_binary_path() -> &'static Path` | [`crates/vox-cli-tests/src/lib.rs#L99-L115`](../../../crates/vox-cli-tests/src/lib.rs#L99-L115) | Path to the `vox` binary cargo built before our tests started running.  vox-cli is declared as a `[dev-dependencies]` entry in our Cargo.toml — cargo builds it during test setup, depositing the binary at `<workspace>/target/debug/vox{ .exe }`. We compute that path here rather than running `cargo build` from inside the test (which would race the outer `cargo test`'s target-directory file lock). |
+| `fn` | `run` | `pub fn run(name: &str) -> Self` | [`crates/vox-cli-tests/src/lib.rs#L118-L171`](../../../crates/vox-cli-tests/src/lib.rs#L118-L171) | Run `vox build` against a fixture and capture the result. |
+| `fn` | `assert_success` | `pub fn assert_success(&self)` | [`crates/vox-cli-tests/src/lib.rs#L174-L180`](../../../crates/vox-cli-tests/src/lib.rs#L174-L180) | (1) Exit code 0. |
+| `fn` | `assert_no_panic` | `pub fn assert_no_panic(&self)` | [`crates/vox-cli-tests/src/lib.rs#L183-L190`](../../../crates/vox-cli-tests/src/lib.rs#L183-L190) | (2) No `panicked at` in stderr. Regression gate for §0.1-class bugs. |
+| `fn` | `assert_expected_files` | `pub fn assert_expected_files(&self)` | [`crates/vox-cli-tests/src/lib.rs#L193-L213`](../../../crates/vox-cli-tests/src/lib.rs#L193-L213) | (3) Expected files present, forbidden files absent. |
+| `fn` | `assert_tsc_compiles` | `pub fn assert_tsc_compiles(&self)` | [`crates/vox-cli-tests/src/lib.rs#L221`](../../../crates/vox-cli-tests/src/lib.rs#L221) | (4) Every emitted `*.tsx`/`*.ts` compiles under `tsc --noEmit`.  Skipped when `VOX_CLI_TESTS_SKIP_TSC=1` is set. Honors `tsc` if on PATH; otherwise falls back to `npx tsc` (assumes Node + npm + write permission on a temporary npx cache). When neither is available, prints a warning and returns without asserting. |
+| `fn` | `assert_cargo_check` | `pub fn assert_cargo_check(&self)` | [`crates/vox-cli-tests/src/lib.rs#L364-L397`](../../../crates/vox-cli-tests/src/lib.rs#L364-L397) | (5) Generated Rust backend compiles under `cargo check`.  Skipped when `VOX_CLI_TESTS_SKIP_CARGO=1` is set or when the fixture's `emits_rust_backend = false`. |
+| `fn` | `assert_all` | `pub fn assert_all(&self)` | [`crates/vox-cli-tests/src/lib.rs#L400-L406`](../../../crates/vox-cli-tests/src/lib.rs#L400-L406) | Run all five assertions in order. Convenience for the standard fixture flow. |
+

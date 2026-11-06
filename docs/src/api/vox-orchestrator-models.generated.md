@@ -48,3 +48,78 @@ Model calibration, usage accounting, and budget policy types for the Vox orchest
 | `usage` | — |
 | `usage_policy` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_orchestrator_models: "vox-orchestrator-models"
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_orchestrator_models -> vox_bounded_fs
+    node vox_config: "vox-config"
+    vox_orchestrator_models -> vox_config
+    node vox_db: "vox-db"
+    vox_orchestrator_models -> vox_db
+    node vox_secrets: "vox-secrets"
+    vox_orchestrator_models -> vox_secrets
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_orchestrator_models
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `calibration::RunningStats` | `pub struct RunningStats` | [`crates/vox-orchestrator-models/src/calibration.rs#L17-L21`](../../../crates/vox-orchestrator-models/src/calibration.rs#L17-L21) | Running mean and variance via Welford's online algorithm. |
+| `fn` | `calibration::update` | `pub fn update(&mut self, x: f64)` | [`crates/vox-orchestrator-models/src/calibration.rs#L26-L32`](../../../crates/vox-orchestrator-models/src/calibration.rs#L26-L32) | Update with a new observation. |
+| `fn` | `calibration::variance` | `pub fn variance(&self) -> f64` | [`crates/vox-orchestrator-models/src/calibration.rs#L37-L43`](../../../crates/vox-orchestrator-models/src/calibration.rs#L37-L43) | Sample variance (unbiased). Returns 0.0 when count < 2. |
+| `fn` | `calibration::std_dev` | `pub fn std_dev(&self) -> f64` | [`crates/vox-orchestrator-models/src/calibration.rs#L48-L50`](../../../crates/vox-orchestrator-models/src/calibration.rs#L48-L50) | Sample standard deviation. Returns 0.0 when count < 2. |
+| `fn` | `calibration::z_score` | `pub fn z_score(&self, x: f64) -> f64` | [`crates/vox-orchestrator-models/src/calibration.rs#L56-L63`](../../../crates/vox-orchestrator-models/src/calibration.rs#L56-L63) | Z-score of a new observation against the current baseline. Returns 0.0 when std_dev is zero. |
+| `struct` | `calibration::CalibrationConfig` | `pub struct CalibrationConfig` | [`crates/vox-orchestrator-models/src/calibration.rs#L70-L75`](../../../crates/vox-orchestrator-models/src/calibration.rs#L70-L75) | Configuration for the calibration loop. |
+| `struct` | `calibration::CalibrationOutcome` | `pub struct CalibrationOutcome` | [`crates/vox-orchestrator-models/src/calibration.rs#L88-L92`](../../../crates/vox-orchestrator-models/src/calibration.rs#L88-L92) | Outcome of a calibration check. |
+| `struct` | `calibration::CalibrationLoop` | `pub struct CalibrationLoop` | [`crates/vox-orchestrator-models/src/calibration.rs#L95-L98`](../../../crates/vox-orchestrator-models/src/calibration.rs#L95-L98) | Online calibration loop wrapping [`RunningStats`]. |
+| `fn` | `calibration::new` | `pub fn new(config: CalibrationConfig) -> Self` | [`crates/vox-orchestrator-models/src/calibration.rs#L101-L106`](../../../crates/vox-orchestrator-models/src/calibration.rs#L101-L106) | — |
+| `fn` | `calibration::observe` | `pub fn observe(&mut self, value: f64) -> CalibrationOutcome` | [`crates/vox-orchestrator-models/src/calibration.rs#L110-L124`](../../../crates/vox-orchestrator-models/src/calibration.rs#L110-L124) | Record a new observation and check for drift. |
+| `fn` | `calibration::stats` | `pub fn stats(&self) -> &RunningStats` | [`crates/vox-orchestrator-models/src/calibration.rs#L126-L128`](../../../crates/vox-orchestrator-models/src/calibration.rs#L126-L128) | — |
+| `struct` | `calibration::BanditArm` | `pub struct BanditArm` | [`crates/vox-orchestrator-models/src/calibration.rs#L135-L139`](../../../crates/vox-orchestrator-models/src/calibration.rs#L135-L139) | A single bandit arm tracking a Beta posterior. |
+| `fn` | `calibration::new` | `pub fn new(model_id: impl Into<String>) -> Self` | [`crates/vox-orchestrator-models/src/calibration.rs#L142-L148`](../../../crates/vox-orchestrator-models/src/calibration.rs#L142-L148) | — |
+| `fn` | `calibration::expected_reward` | `pub fn expected_reward(&self) -> f64` | [`crates/vox-orchestrator-models/src/calibration.rs#L153-L157`](../../../crates/vox-orchestrator-models/src/calibration.rs#L153-L157) | Expected reward under Beta(α=successes+1, β=failures+1): mean = α/(α+β). |
+| `fn` | `calibration::record` | `pub fn record(&mut self, success: bool)` | [`crates/vox-orchestrator-models/src/calibration.rs#L159-L165`](../../../crates/vox-orchestrator-models/src/calibration.rs#L159-L165) | — |
+| `struct` | `calibration::ContextualBandit` | `pub struct ContextualBandit` | [`crates/vox-orchestrator-models/src/calibration.rs#L172-L174`](../../../crates/vox-orchestrator-models/src/calibration.rs#L172-L174) | Greedy contextual bandit over a set of model arms. Picks the arm with the highest expected reward under its Beta posterior. Stochastic exploration is delegated to `routing::engine` (Thompson draws) so this module stays pure and deterministic — no RNG required, no I/O. |
+| `fn` | `calibration::new` | `pub fn new(arms: Vec<BanditArm>) -> Self` | [`crates/vox-orchestrator-models/src/calibration.rs#L177-L179`](../../../crates/vox-orchestrator-models/src/calibration.rs#L177-L179) | — |
+| `fn` | `calibration::select` | `pub fn select(&self) -> Option<&BanditArm>` | [`crates/vox-orchestrator-models/src/calibration.rs#L183-L189`](../../../crates/vox-orchestrator-models/src/calibration.rs#L183-L189) | Select the arm with highest expected reward. Returns `None` if no arms. |
+| `fn` | `calibration::record_outcome` | `pub fn record_outcome(&mut self, model_id: &str, success: bool)` | [`crates/vox-orchestrator-models/src/calibration.rs#L192-L196`](../../../crates/vox-orchestrator-models/src/calibration.rs#L192-L196) | Record an outcome for the arm identified by `model_id`. |
+| `fn` | `calibration::arms` | `pub fn arms(&self) -> &[BanditArm]` | [`crates/vox-orchestrator-models/src/calibration.rs#L198-L200`](../../../crates/vox-orchestrator-models/src/calibration.rs#L198-L200) | — |
+| `fn` | `calibration::arm_stats_from_bandit` | `pub fn arm_stats_from_bandit(bandit: &ContextualBandit) -> HashMap<String, (u32, u32)>` | [`crates/vox-orchestrator-models/src/calibration.rs#L204-L210`](../../../crates/vox-orchestrator-models/src/calibration.rs#L204-L210) | — |
+| `struct` | `calibration::CalibrationRunEvent` | `pub struct CalibrationRunEvent` | [`crates/vox-orchestrator-models/src/calibration.rs#L216-L221`](../../../crates/vox-orchestrator-models/src/calibration.rs#L216-L221) | Serialize-only — `&'static str` is incompatible with `Deserialize` and round-tripping isn't needed. |
+| `fn` | `calibration::new` | `pub fn new(outcome: &CalibrationOutcome, session_id: Option<String>) -> Self` | [`crates/vox-orchestrator-models/src/calibration.rs#L224-L231`](../../../crates/vox-orchestrator-models/src/calibration.rs#L224-L231) | — |
+| `struct` | `calibration::DriftAlertEvent` | `pub struct DriftAlertEvent` | [`crates/vox-orchestrator-models/src/calibration.rs#L236-L240`](../../../crates/vox-orchestrator-models/src/calibration.rs#L236-L240) | Serialize-only — see `CalibrationRunEvent` for rationale. |
+| `fn` | `calibration::new` | `pub fn new(z_score: f64, session_id: Option<String>) -> Self` | [`crates/vox-orchestrator-models/src/calibration.rs#L243-L249`](../../../crates/vox-orchestrator-models/src/calibration.rs#L243-L249) | — |
+| `struct` | `calibration::BanditUpdateEvent` | `pub struct BanditUpdateEvent` | [`crates/vox-orchestrator-models/src/calibration.rs#L254-L260`](../../../crates/vox-orchestrator-models/src/calibration.rs#L254-L260) | Serialize-only — see `CalibrationRunEvent` for rationale. |
+| `fn` | `calibration::new` | `pub fn new(arm: &BanditArm, success: bool, session_id: Option<String>) -> Self` | [`crates/vox-orchestrator-models/src/calibration.rs#L263-L271`](../../../crates/vox-orchestrator-models/src/calibration.rs#L263-L271) | — |
+| `struct` | `usage::LlmUsageKey` | `pub struct LlmUsageKey` | [`crates/vox-orchestrator-models/src/usage.rs#L17-L22`](../../../crates/vox-orchestrator-models/src/usage.rs#L17-L22) | Keys rows in `provider_usage` / `LIMITS` for gating and accounting (not the API model slug). |
+| `struct` | `usage::UsageRecord` | `pub struct UsageRecord` | [`crates/vox-orchestrator-models/src/usage.rs#L26-L62`](../../../crates/vox-orchestrator-models/src/usage.rs#L26-L62) | A single day's usage record for a provider+model pair. |
+| `struct` | `usage::RemainingBudget` | `pub struct RemainingBudget` | [`crates/vox-orchestrator-models/src/usage.rs#L66-L81`](../../../crates/vox-orchestrator-models/src/usage.rs#L66-L81) | Remaining budget for a provider. |
+| `struct` | `usage::ProviderRecommendation` | `pub struct ProviderRecommendation` | [`crates/vox-orchestrator-models/src/usage.rs#L85-L94`](../../../crates/vox-orchestrator-models/src/usage.rs#L85-L94) | Provider recommendation with reasoning. |
+| `struct` | `usage::CostSummary` | `pub struct CostSummary` | [`crates/vox-orchestrator-models/src/usage.rs#L98-L105`](../../../crates/vox-orchestrator-models/src/usage.rs#L98-L105) | Cost summary over a time period. |
+| `struct` | `usage::ProviderCost` | `pub struct ProviderCost` | [`crates/vox-orchestrator-models/src/usage.rs#L109-L116`](../../../crates/vox-orchestrator-models/src/usage.rs#L109-L116) | One row in [`CostSummary::by_provider`]. |
+| `struct` | `usage::ModelCost` | `pub struct ModelCost` | [`crates/vox-orchestrator-models/src/usage.rs#L120-L131`](../../../crates/vox-orchestrator-models/src/usage.rs#L120-L131) | Per-model cost breakdown row. |
+| `struct` | `usage::CategoryCost` | `pub struct CategoryCost` | [`crates/vox-orchestrator-models/src/usage.rs#L135-L142`](../../../crates/vox-orchestrator-models/src/usage.rs#L135-L142) | Per-task-category cost breakdown row. |
+| `struct` | `usage::UnifiedCostSummary` | `pub struct UnifiedCostSummary` | [`crates/vox-orchestrator-models/src/usage.rs#L146-L157`](../../../crates/vox-orchestrator-models/src/usage.rs#L146-L157) | Unified cost summary merging cloud and local inference spend. |
+| `struct` | `usage::UsageTracker` | `pub struct UsageTracker<'a>` | [`crates/vox-orchestrator-models/src/usage.rs#L160-L164`](../../../crates/vox-orchestrator-models/src/usage.rs#L160-L164) | Tracks API usage per provider in VoxDB. |
+| `fn` | `usage::new_ref` | `pub fn new_ref(db: &'a vox_db::VoxDb) -> Self` | [`crates/vox-orchestrator-models/src/usage.rs#L168-L173`](../../../crates/vox-orchestrator-models/src/usage.rs#L168-L173) | Create a new tracker backed by a borrowed VoxDB instance. |
+| `fn` | `usage::with_user` | `pub fn with_user(db: &'a vox_db::VoxDb, user_id: &str) -> Self` | [`crates/vox-orchestrator-models/src/usage.rs#L176-L181`](../../../crates/vox-orchestrator-models/src/usage.rs#L176-L181) | Same as [`Self::new_ref`] but scopes persisted rows to `user_id`. |
+| `fn` | `usage::record_call` | `pub async fn record_call(` | [`crates/vox-orchestrator-models/src/usage.rs#L203`](../../../crates/vox-orchestrator-models/src/usage.rs#L203) | Record a successful API call. |
+| `fn` | `usage::record_call_detailed` | `pub async fn record_call_detailed(` | [`crates/vox-orchestrator-models/src/usage.rs#L230`](../../../crates/vox-orchestrator-models/src/usage.rs#L230) | Record a successful API call with detailed reconciliation metadata. |
+| `fn` | `usage::mark_rate_limited` | `pub async fn mark_rate_limited(` | [`crates/vox-orchestrator-models/src/usage.rs#L310`](../../../crates/vox-orchestrator-models/src/usage.rs#L310) | Mark a provider as rate-limited right now. |
+| `fn` | `usage::get_calls_today` | `pub async fn get_calls_today(` | [`crates/vox-orchestrator-models/src/usage.rs#L354`](../../../crates/vox-orchestrator-models/src/usage.rs#L354) | Get calls made today for a specific provider. |
+| `fn` | `usage::remaining_all` | `pub async fn remaining_all(` | [`crates/vox-orchestrator-models/src/usage.rs#L381`](../../../crates/vox-orchestrator-models/src/usage.rs#L381) | Get remaining budget for all known providers today. |
+| `fn` | `usage::best_available_provider` | `pub async fn best_available_provider(` | [`crates/vox-orchestrator-models/src/usage.rs#L436`](../../../crates/vox-orchestrator-models/src/usage.rs#L436) | Pick the best provider that still has free budget. |
+

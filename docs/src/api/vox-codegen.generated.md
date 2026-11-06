@@ -73,3 +73,109 @@ analysis-stage iteration.
 | `web_migration_env` | — |
 | `assets` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_codegen: "vox-codegen"
+    node vox_compiler: "vox-compiler"
+    vox_codegen -> vox_compiler
+    node vox_config: "vox-config"
+    vox_codegen -> vox_config
+    node vox_deploy_codegen: "vox-deploy-codegen"
+    vox_codegen -> vox_deploy_codegen
+    node vox_repository: "vox-repository"
+    vox_codegen -> vox_repository
+    node vox_secrets: "vox-secrets"
+    vox_codegen -> vox_secrets
+    node vox_sql: "vox-sql"
+    vox_codegen -> vox_sql
+    node vox_tauri_codegen: "vox-tauri-codegen"
+    vox_codegen -> vox_tauri_codegen
+    node vox_workflow_runtime: "vox-workflow-runtime"
+    vox_codegen -> vox_workflow_runtime
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_codegen
+    node vox_cli_tests: "vox-cli-tests"
+    vox_cli_tests -> vox_codegen
+    node vox_codegen_ts: "vox-codegen-ts"
+    vox_codegen_ts -> vox_codegen
+    vox_compiler -> vox_codegen
+    node vox_db: "vox-db"
+    vox_db -> vox_codegen
+    node vox_integration_tests: "vox-integration-tests"
+    vox_integration_tests -> vox_codegen
+    node vox_langtool: "vox-langtool"
+    vox_langtool -> vox_codegen
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_codegen
+    node vox_rn_codegen: "vox-rn-codegen"
+    vox_rn_codegen -> vox_codegen
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-tests`](./vox-cli-tests.generated.md) | Direct workspace dependent |
+| [`vox-codegen-ts`](./vox-codegen-ts.generated.md) | Direct workspace dependent |
+| [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
+| [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
+| [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
+| [`vox-langtool`](./vox-langtool.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-rn-codegen`](./vox-rn-codegen.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `assets::AssetManifest` | `pub struct AssetManifest` | [`crates/vox-codegen/src/assets/mod.rs#L10-L14`](../../../crates/vox-codegen/src/assets/mod.rs#L10-L14) | Resolved asset paths relative to a `Vox.toml` directory, staged under `target/generated/...`. |
+| `fn` | `assets::from_bundle_fragment` | `pub fn from_bundle_fragment(` | [`crates/vox-codegen/src/assets/mod.rs#L19`](../../../crates/vox-codegen/src/assets/mod.rs#L19) | Build a manifest from `[bundle.assets]` fragments (paths are relative to `manifest_dir`). |
+| `fn` | `assets::validate_preflight` | `pub fn validate_preflight(&self) -> Result<()>` | [`crates/vox-codegen/src/assets/mod.rs#L51-L64`](../../../crates/vox-codegen/src/assets/mod.rs#L51-L64) | Ensure every referenced path exists under the manifest directory. |
+| `fn` | `assets::stage_under` | `pub fn stage_under(&self, dest_root: &Path) -> Result<()>` | [`crates/vox-codegen/src/assets/mod.rs#L67-L81`](../../../crates/vox-codegen/src/assets/mod.rs#L67-L81) | Copy declared assets into `dest_root`, preserving relative paths beneath `manifest_dir`. |
+| `struct` | `canonical_ladder::LadderFixture` | `pub struct LadderFixture` | [`crates/vox-codegen/src/canonical_ladder.rs#L10-L15`](../../../crates/vox-codegen/src/canonical_ladder.rs#L10-L15) | One curated golden fixture and the language concerns it proves end-to-end. |
+| `struct` | `canonical_ladder::CanonicalLadder` | `pub struct CanonicalLadder` | [`crates/vox-codegen/src/canonical_ladder.rs#L19-L23`](../../../crates/vox-codegen/src/canonical_ladder.rs#L19-L23) | Parsed canonical ladder contract. |
+| `fn` | `canonical_ladder::load_from_repo_root` | `pub fn load_from_repo_root(repo_root: &Path) -> Result<Self, String>` | [`crates/vox-codegen/src/canonical_ladder.rs#L27-L32`](../../../crates/vox-codegen/src/canonical_ladder.rs#L27-L32) | Load ladder YAML from `repo_root/contracts/pipeline/canonical-ladder.v1.yaml`. |
+| `fn` | `canonical_ladder::fixture` | `pub fn fixture(&self, id: &str) -> Option<&LadderFixture>` | [`crates/vox-codegen/src/canonical_ladder.rs#L36-L38`](../../../crates/vox-codegen/src/canonical_ladder.rs#L36-L38) | Find a fixture by stable `id`. |
+| `fn` | `canonical_ladder::fixture_ids` | `pub fn fixture_ids(&self) -> BTreeSet<String>` | [`crates/vox-codegen/src/canonical_ladder.rs#L42-L44`](../../../crates/vox-codegen/src/canonical_ladder.rs#L42-L44) | Stable fixture ids (for k-complexity budget scoping). |
+| `fn` | `canonical_ladder::all_proves_tags` | `pub fn all_proves_tags(&self) -> BTreeSet<String>` | [`crates/vox-codegen/src/canonical_ladder.rs#L48-L53`](../../../crates/vox-codegen/src/canonical_ladder.rs#L48-L53) | Union of all `proves` tags across fixtures. |
+| `fn` | `canonical_ladder::fixture_vox_path` | `pub fn fixture_vox_path(&self, repo_root: &Path, id: &str) -> Option<PathBuf>` | [`crates/vox-codegen/src/canonical_ladder.rs#L57-L59`](../../../crates/vox-codegen/src/canonical_ladder.rs#L57-L59) | Absolute path to a golden `.vox` file under `repo_root`. |
+| `enum` | `codegen_rust::RustAppShell` | `pub enum RustAppShell` | [`crates/vox-codegen/src/codegen_rust/mod.rs#L21-L25`](../../../crates/vox-codegen/src/codegen_rust/mod.rs#L21-L25) | Selects the generated Rust **application shell** for full-stack app bundles.  - [`RustAppShell::AxumLocalServer`] — localhost Axum + embedded assets (`native-binary`, default `vox build`). - [`RustAppShell::TauriApp`] — Tauri 2 packaging path (`vox compile --target desktop\|mobile-*`). |
+| `enum` | `emission_profile::ProfileSeverity` | `pub enum ProfileSeverity` | [`crates/vox-codegen/src/emission_profile.rs#L22-L25`](../../../crates/vox-codegen/src/emission_profile.rs#L22-L25) | Severity for profile-level diagnostics (mirrors WebIR advisory vs hard split). |
+| `struct` | `emission_profile::ProfileDiagnostic` | `pub struct ProfileDiagnostic` | [`crates/vox-codegen/src/emission_profile.rs#L29-L33`](../../../crates/vox-codegen/src/emission_profile.rs#L29-L33) | Unified diagnostic emitted by [`EmissionProfile`]. |
+| `struct` | `emission_profile::EmissionProfile` | `pub struct EmissionProfile` | [`crates/vox-codegen/src/emission_profile.rs#L37-L39`](../../../crates/vox-codegen/src/emission_profile.rs#L37-L39) | Per-target validation rules for a lowered [`ProjectionBundle`]. |
+| `fn` | `emission_profile::for_target` | `pub fn for_target(target: Target) -> Self` | [`crates/vox-codegen/src/emission_profile.rs#L43-L45`](../../../crates/vox-codegen/src/emission_profile.rs#L43-L45) | — |
+| `fn` | `emission_profile::validate_bundle` | `pub fn validate_bundle(&self, bundle: &ProjectionBundle) -> Vec<ProfileDiagnostic>` | [`crates/vox-codegen/src/emission_profile.rs#L49-L51`](../../../crates/vox-codegen/src/emission_profile.rs#L49-L51) | Validate a full projection bundle for this target. |
+| `fn` | `emission_profile::validate_bundle_with_registry` | `pub fn validate_bundle_with_registry(` | [`crates/vox-codegen/src/emission_profile.rs#L55`](../../../crates/vox-codegen/src/emission_profile.rs#L55) | Validate with optional token registry (enables palette/contrast checks on web path). |
+| `fn` | `emission_profile::validate_web_module` | `pub fn validate_web_module(` | [`crates/vox-codegen/src/emission_profile.rs#L70`](../../../crates/vox-codegen/src/emission_profile.rs#L70) | Validate a standalone WebIR module (emitter path that has not yet assembled full bundle). |
+| `fn` | `emission_profile::web_ir_as_diagnostics` | `pub fn web_ir_as_diagnostics(` | [`crates/vox-codegen/src/emission_profile.rs#L82`](../../../crates/vox-codegen/src/emission_profile.rs#L82) | Return web-IR diagnostics converted into the unified [`Diagnostic`] envelope so that `vox check --for-llm` callers see web-IR failures alongside typeck errors.  Only the TypeScript / RustTauri targets produce WebIR; other targets return an empty vec. |
+| `fn` | `emission_profile::hard_profile_errors` | `pub fn hard_profile_errors(diags: &[ProfileDiagnostic]) -> Vec<ProfileDiagnostic>` | [`crates/vox-codegen/src/emission_profile.rs#L165-L171`](../../../crates/vox-codegen/src/emission_profile.rs#L165-L171) | Returns hard (non-advisory) profile diagnostics only. |
+| `fn` | `frontend_backend::emit_frontend` | `pub fn emit_frontend(` | [`crates/vox-codegen/src/frontend_backend.rs#L25`](../../../crates/vox-codegen/src/frontend_backend.rs#L25) | Emit the frontend for `target` from a lowered `hir`.  # Errors Returns `Err` if `target` is not a frontend emission target, or if the underlying emitter fails. |
+| `struct` | `hir_export::VoxIrModule` | `pub struct VoxIrModule` | [`crates/vox-codegen/src/hir_export/mod.rs#L12-L16`](../../../crates/vox-codegen/src/hir_export/mod.rs#L12-L16) | The General Vox IR module structure, representing a machine-verifiable and platform-agnostic view of a Vox program. |
+| `struct` | `hir_export::VoxIrMetadata` | `pub struct VoxIrMetadata` | [`crates/vox-codegen/src/hir_export/mod.rs#L19-L23`](../../../crates/vox-codegen/src/hir_export/mod.rs#L19-L23) | — |
+| `struct` | `hir_export::VoxIrContent` | `pub struct VoxIrContent` | [`crates/vox-codegen/src/hir_export/mod.rs#L27-L43`](../../../crates/vox-codegen/src/hir_export/mod.rs#L27-L43) | The internal structure containing the lowered program logic. |
+| `struct` | `projection_bundle::ProjectionBundle` | `pub struct ProjectionBundle` | [`crates/vox-codegen/src/projection_bundle.rs#L22-L28`](../../../crates/vox-codegen/src/projection_bundle.rs#L22-L28) | All machine-readable projections from one `HirModule`. |
+| `fn` | `projection_bundle::project_bundle_from_hir` | `pub fn project_bundle_from_hir(hir: &HirModule) -> ProjectionBundle` | [`crates/vox-codegen/src/projection_bundle.rs#L32-L40`](../../../crates/vox-codegen/src/projection_bundle.rs#L32-L40) | Lower and project every SSOT surface from `hir` in one pass. |
+| `fn` | `projection_bundle::project_and_validate` | `pub fn project_and_validate(` | [`crates/vox-codegen/src/projection_bundle.rs#L43`](../../../crates/vox-codegen/src/projection_bundle.rs#L43) | Project from HIR and run the unified [`EmissionProfile`] validate gate for `target`. |
+| `fn` | `projection_bundle::project_and_validate_with_registry` | `pub fn project_and_validate_with_registry(` | [`crates/vox-codegen/src/projection_bundle.rs#L51`](../../../crates/vox-codegen/src/projection_bundle.rs#L51) | Project and validate with optional token registry (palette / contrast on web targets). |
+| `struct` | `syntax_k::SyntaxKCompressorResult` | `pub struct SyntaxKCompressorResult` | [`crates/vox-codegen/src/syntax_k.rs#L31-L36`](../../../crates/vox-codegen/src/syntax_k.rs#L31-L36) | Per-compressor observation for one output payload. |
+| `struct` | `syntax_k::SyntaxKNcdPerCompressor` | `pub struct SyntaxKNcdPerCompressor` | [`crates/vox-codegen/src/syntax_k.rs#L40-L43`](../../../crates/vox-codegen/src/syntax_k.rs#L40-L43) | Per-compressor NCD against a baseline payload. |
+| `struct` | `syntax_k::SyntaxKNcdSummary` | `pub struct SyntaxKNcdSummary` | [`crates/vox-codegen/src/syntax_k.rs#L47-L50`](../../../crates/vox-codegen/src/syntax_k.rs#L47-L50) | NCD summary against a baseline payload. |
+| `struct` | `syntax_k::SyntaxKEvent` | `pub struct SyntaxKEvent` | [`crates/vox-codegen/src/syntax_k.rs#L54-L70`](../../../crates/vox-codegen/src/syntax_k.rs#L54-L70) | Versioned `syntax_k_event` payload shape for `research_metrics.metadata_json`. |
+| `struct` | `syntax_k::SyntaxKInput` | `pub struct SyntaxKInput<'a>` | [`crates/vox-codegen/src/syntax_k.rs#L74-L82`](../../../crates/vox-codegen/src/syntax_k.rs#L74-L82) | Input for one syntax-K observation. |
+| `fn` | `syntax_k::sha3_hex` | `pub fn sha3_hex(bytes: &[u8]) -> String` | [`crates/vox-codegen/src/syntax_k.rs#L85-L89`](../../../crates/vox-codegen/src/syntax_k.rs#L85-L89) | Canonical SHA3-256 lowercase hex digest of arbitrary bytes. |
+| `fn` | `syntax_k::canonical_web_ir_bytes` | `pub fn canonical_web_ir_bytes(module: &WebIrModule) -> Result<Vec<u8>, serde_json::Error>` | [`crates/vox-codegen/src/syntax_k.rs#L99-L103`](../../../crates/vox-codegen/src/syntax_k.rs#L99-L103) | Deterministic JSON bytes for WebIR (sorted keys at every object depth). |
+| `fn` | `syntax_k::canonical_emitted_files_bytes` | `pub fn canonical_emitted_files_bytes(files: &[(String, String)]) -> Vec<u8>` | [`crates/vox-codegen/src/syntax_k.rs#L106-L117`](../../../crates/vox-codegen/src/syntax_k.rs#L106-L117) | Deterministic canonical bytes for emitted file outputs. |
+| `struct` | `syntax_k::RepresentabilityPayload` | `pub struct RepresentabilityPayload` | [`crates/vox-codegen/src/syntax_k.rs#L209-L215`](../../../crates/vox-codegen/src/syntax_k.rs#L209-L215) | Pipeline stages for [`enrich_syntax_k_support_metrics`] (`first_failing_stage`). |
+| `fn` | `syntax_k::enrich_syntax_k_support_metrics` | `pub fn enrich_syntax_k_support_metrics(` | [`crates/vox-codegen/src/syntax_k.rs#L219`](../../../crates/vox-codegen/src/syntax_k.rs#L219) | Attach `representability`, optional `llm_surface`, and optional `runtime_projection` to Syntax-K `support_metrics`. |
+| `fn` | `syntax_k::measure_syntax_k_event` | `pub fn measure_syntax_k_event(input: SyntaxKInput<'_>) -> std::io::Result<SyntaxKEvent>` | [`crates/vox-codegen/src/syntax_k.rs#L277-L321`](../../../crates/vox-codegen/src/syntax_k.rs#L277-L321) | Measure practical syntax-K event payload for one canonical output object. |
+| `enum` | `web_ir::WebIrVersion` | `pub enum WebIrVersion` | [`crates/vox-codegen/src/web_ir/mod.rs#L49-L53`](../../../crates/vox-codegen/src/web_ir/mod.rs#L49-L53) | Increment when the schema gains breaking layout changes. ADR 012 CP-002. |
+| `enum` | `web_ir::ZTier` | `pub enum ZTier` | [`crates/vox-codegen/src/web_ir/mod.rs#L60-L68`](../../../crates/vox-codegen/src/web_ir/mod.rs#L60-L68) | Normative Z-tiers for the seven-tier ladder (ADR 034 / VUV Layered Layout Discipline).  **Rule 2:** within-tier ordering is deliberately unspecified. |
+| `fn` | `web_ir::from_str` | `pub fn from_str(s: &str) -> Option<Self>` | [`crates/vox-codegen/src/web_ir/mod.rs#L73-L84`](../../../crates/vox-codegen/src/web_ir/mod.rs#L73-L84) | — |
+| `fn` | `web_ir::to_str` | `pub fn to_str(self) -> &'static str` | [`crates/vox-codegen/src/web_ir/mod.rs#L86-L96`](../../../crates/vox-codegen/src/web_ir/mod.rs#L86-L96) | — |
+| `fn` | `web_ir::z_value` | `pub fn z_value(self) -> i32` | [`crates/vox-codegen/src/web_ir/mod.rs#L102-L104`](../../../crates/vox-codegen/src/web_ir/mod.rs#L102-L104) | Canonical z-index for this tier. Single source of truth for the z-ladder (tier N → N × 100); `layer_emit::tier_z_index` mirrors this for `LayerTier`, and the parity test `ztier_and_layertier_agree_on_names_and_order` keeps the two enums lock-step. Do NOT hand-roll per-tier z numbers elsewhere. |
+

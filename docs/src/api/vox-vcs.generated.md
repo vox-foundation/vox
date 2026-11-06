@@ -67,3 +67,50 @@ all types remain available.
 | `types` | — |
 | `jj_backend` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_vcs: "vox-vcs"
+    node vox_config: "vox-config"
+    vox_vcs -> vox_config
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_vcs
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `backend::VcsError` | `pub enum VcsError` | [`crates/vox-vcs/src/backend.rs#L14-L19`](../../../crates/vox-vcs/src/backend.rs#L14-L19) | — |
+| `trait` | `backend::VcsBackend` | `pub trait VcsBackend: Send` | [`crates/vox-vcs/src/backend.rs#L35-L68`](../../../crates/vox-vcs/src/backend.rs#L35-L68) | Async VCS backend. Methods are `async fn` so backends can drive async engines (e.g. jj-lib's async APIs) by awaiting directly — no internal `block_on`, so they are safe to call from within the orchestrator's tokio runtime.  `async_trait` boxes the returned futures, which keeps the trait dyn-object-safe (`Box<dyn VcsBackend>` / `Arc<RwLock<dyn VcsBackend>>`).  ## Send-safe design  jj-lib 0.42's async futures are **`!Send`**. `VcsBackend` is `#[async_trait]` (Send futures) so handles can cross `tokio::spawn`. The `JjBackend` engine (which is `!Send`) lives on a dedicated OS thread behind `JjActorHandle`, which satisfies this `Send` contract. |
+| `enum` | `backend::VcsBackendKind` | `pub enum VcsBackendKind` | [`crates/vox-vcs/src/backend.rs#L71-L74`](../../../crates/vox-vcs/src/backend.rs#L71-L74) | — |
+| `fn` | `backend::detect` | `pub fn detect(repo_root: &Path) -> VcsBackendKind` | [`crates/vox-vcs/src/backend.rs#L80-L88`](../../../crates/vox-vcs/src/backend.rs#L80-L88) | Detect which VCS kind is present at `repo_root`.  Returns `Jj` when a `.jj` directory exists **and** the `jj` feature is enabled; otherwise returns `Cas`. |
+| `fn` | `backend::boxed_for` | `pub async fn boxed_for(root: &Path) -> Box<dyn VcsBackend>` | [`crates/vox-vcs/src/backend.rs#L98-L108`](../../../crates/vox-vcs/src/backend.rs#L98-L108) | Construct a boxed [`VcsBackend`] for `root`.  With the `jj` feature (default): if the directory contains a `.jj` workspace, a [`crate::jj_actor::JjActorHandle`] is spawned (the actor owns the `!Send` jj engine on a dedicated OS thread). If spawning fails, or there is no jj workspace, [`CasFallback`] is returned.  Without the `jj` feature: always returns [`CasFallback`]. |
+| `struct` | `cas_fallback::CasFallback` | `pub struct CasFallback` | [`crates/vox-vcs/src/cas_fallback.rs#L10-L13`](../../../crates/vox-vcs/src/cas_fallback.rs#L10-L13) | — |
+| `fn` | `cas_fallback::new` | `pub fn new() -> Self` | [`crates/vox-vcs/src/cas_fallback.rs#L16-L21`](../../../crates/vox-vcs/src/cas_fallback.rs#L16-L21) | — |
+| `struct` | `jj_backend::JjBackend` | `pub struct JjBackend` | [`crates/vox-vcs/src/jj_backend.rs#L102-L106`](../../../crates/vox-vcs/src/jj_backend.rs#L102-L106) | In-process jj engine. Awaits jj-lib's async APIs directly from the async `VcsBackend` trait — **no internal tokio runtime**, so it never panics with "Cannot start a runtime from within a runtime" when called from the orchestrator's async context. |
+| `fn` | `jj_backend::open` | `pub async fn open(root: &Path) -> Result<Self, VcsError>` | [`crates/vox-vcs/src/jj_backend.rs#L141-L174`](../../../crates/vox-vcs/src/jj_backend.rs#L141-L174) | Open a jj workspace at `root`, **loading** an existing one if present and otherwise initializing a fresh colocated jj/git repo. This is the path the Vox repo itself needs: it is already colocated, so a blind `init_colocated_git` would error on the existing `.jj` dir.  Load path (P2 Task 1): `Workspace::load(settings, root, &StoreFactories::default(), &default_working_copy_factories())` (workspace.rs:406) attaches to the on-disk `.jj/`. `DefaultWorkspaceLoader::new` returns `WorkspaceLoadError::NoWorkspaceHere` (workspace.rs:567) when there is no `.jj` dir — that is our fall-back-to-init signal. The loaded `Workspace` does not carry a repo, so we materialize it with `workspace.repo_loader().load_at_head().await` (repo.rs:764). |
+| `fn` | `jj_backend::create_conflict_for_test` | `pub async fn create_conflict_for_test(` | [`crates/vox-vcs/src/jj_backend.rs#L187`](../../../crates/vox-vcs/src/jj_backend.rs#L187) | Test-only: construct a commit whose tree CONTAINS a materialized conflict in file `path`, set it as the working-copy commit, and register it. This proves jj-lib can REPRESENT a conflict as data (P2 Task 4) without needing a full rebase/merge driver.  Recipe: write three file blobs (base/left/right), build three single-file `MergedTree`s via `MergedTreeBuilder` (merged_tree_builder.rs), then `MergedTree::merge(Merge::from_vec([left, base, right]))` (merged_tree.rs:336) — a 3-way merge with divergent left/right yields a tree where `has_conflict()` is true. We commit that conflicted tree as the wc commit. |
+| `fn` | `jj_backend::snapshot` | `pub async fn snapshot(` | [`crates/vox-vcs/src/jj_backend.rs#L284`](../../../crates/vox-vcs/src/jj_backend.rs#L284) | — |
+| `fn` | `jj_backend::changes` | `pub async fn changes(&self) -> Result<Vec<Change>, VcsError>` | [`crates/vox-vcs/src/jj_backend.rs#L372-L390`](../../../crates/vox-vcs/src/jj_backend.rs#L372-L390) | — |
+| `fn` | `jj_backend::diff` | `pub async fn diff(&self, a: Option<ChangeId>, b: Option<ChangeId>) -> Result<Diff, VcsError>` | [`crates/vox-vcs/src/jj_backend.rs#L399-L435`](../../../crates/vox-vcs/src/jj_backend.rs#L399-L435) | P2 Task 3: real tree diff between two changes.  Resolves each `ChangeId` to its jj `Commit` via the side-table, takes the commit's `MergedTree` (`commit.tree()`, commit.rs:120), and streams `from_tree.diff_stream(&to_tree, &EverythingMatcher)` (merged_tree.rs:283), collecting the changed `RepoPath`s. A `None` change means the empty tree. |
+| `fn` | `jj_backend::undo` | `pub async fn undo(&mut self) -> Result<ChangeId, VcsError>` | [`crates/vox-vcs/src/jj_backend.rs#L444-L509`](../../../crates/vox-vcs/src/jj_backend.rs#L444-L509) | P2 Task 3: undo the last operation by restoring the parent op's view.  We walk the op log (`op_walk::walk_ancestors`, op_walk.rs:263) to find the current head op's parent, reload the repo at that operation (`repo_loader().load_at`, repo.rs:776), and re-point the working copy by finishing the wc mutation against the restored op id. The restored head op becomes the new current op. Returns the restored op's `ChangeId`. |
+| `fn` | `jj_backend::conflicts` | `pub async fn conflicts(&self) -> Result<Vec<Conflict>, VcsError>` | [`crates/vox-vcs/src/jj_backend.rs#L520-L557`](../../../crates/vox-vcs/src/jj_backend.rs#L520-L557) | P2 Task 4 (conflicts-as-data): surface conflicts in the current working-copy commit tree as data.  Reads the wc commit's `MergedTree`, iterates `tree.conflicts()` (merged_tree.rs:196) for conflicted paths, and materializes each via `materialize_tree_value` (conflicts.rs:207). A `FileConflict` carries `contents: Merge<BString>` — the conflict sides — which we surface as the `sides` of our `Conflict` type. This is the "conflict as readable data, not a blocking error" property the spec wants. |
+| `fn` | `jj_backend::resolve` | `pub async fn resolve(` | [`crates/vox-vcs/src/jj_backend.rs#L559`](../../../crates/vox-vcs/src/jj_backend.rs#L559) | — |
+| `fn` | `jj_backend::push` | `pub async fn push(` | [`crates/vox-vcs/src/jj_backend.rs#L582`](../../../crates/vox-vcs/src/jj_backend.rs#L582) | P2 Task 5: push a change to a remote under `bookmark`.  **jj-lib 0.42 reality:** `push_refs` (git.rs:3177) ultimately calls `git_ctx.spawn_push` (git.rs:3336) — a `git` **subprocess**, NOT pure gix transport. A `git` binary on PATH (>= 2.41) is therefore required. We set the local bookmark to the change's commit, then push it as a new ref (`before: None`). |
+| `fn` | `jj_backend::create_branch` | `pub async fn create_branch(&mut self, name: &str) -> Result<(), VcsError>` | [`crates/vox-vcs/src/jj_backend.rs#L647-L666`](../../../crates/vox-vcs/src/jj_backend.rs#L647-L666) | P4 §5.1/§5.3 (SeparateBranches): create (or move) a local bookmark named `name` pointing at the current working-copy commit.  jj bookmarks are the in-process branch primitive. We set the local bookmark target in a transaction (`set_local_bookmark_target`, reused from the push path) and publish the op — no `git`/`gix` subprocess is needed (unlike push), so this works purely in-process. |
+| `struct` | `types::ChangeId` | `pub struct ChangeId(pub u64)` | [`crates/vox-vcs/src/types.rs#L8`](../../../crates/vox-vcs/src/types.rs#L8) | — |
+| `struct` | `types::Change` | `pub struct Change` | [`crates/vox-vcs/src/types.rs#L17-L21`](../../../crates/vox-vcs/src/types.rs#L17-L21) | — |
+| `struct` | `types::Diff` | `pub struct Diff` | [`crates/vox-vcs/src/types.rs#L24-L26`](../../../crates/vox-vcs/src/types.rs#L24-L26) | — |
+| `struct` | `types::Conflict` | `pub struct Conflict` | [`crates/vox-vcs/src/types.rs#L29-L32`](../../../crates/vox-vcs/src/types.rs#L29-L32) | — |
+| `enum` | `types::ResolveStrategy` | `pub enum ResolveStrategy` | [`crates/vox-vcs/src/types.rs#L35-L39`](../../../crates/vox-vcs/src/types.rs#L35-L39) | — |
+

@@ -122,3 +122,88 @@ per-subcommand `gate` / `corpus` / `block_ga` / `cost_metered` fields.
 | `run_ga_snapshot` | Run every registered gate (foundation first per CR-F0) plus the standalone product binaries, fold them into a [`ga::GaSnapshot`] with `blocked_by_foundation` semantics, and (when `args.write_canonical_report`) write `contracts/reports/_snapshot/<UTC>.json`. This is the spine behind `vox audit --gate all --strict-block-ga`. |
 | `aggregate_exit_code` | Aggregate-exit-code per contract §umbrella. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_audit: "vox-audit"
+    node vox_code_audit: "vox-code-audit"
+    vox_audit -> vox_code_audit
+    node vox_compiler: "vox-compiler"
+    vox_audit -> vox_compiler
+    node vox_config: "vox-config"
+    vox_audit -> vox_config
+    node vox_container: "vox-container"
+    vox_audit -> vox_container
+    node vox_deploy_codegen: "vox-deploy-codegen"
+    vox_audit -> vox_deploy_codegen
+    node vox_http_client: "vox-http-client"
+    vox_audit -> vox_http_client
+    node vox_package: "vox-package"
+    vox_audit -> vox_package
+    node vox_project_scaffold: "vox-project-scaffold"
+    vox_audit -> vox_project_scaffold
+    node vox_telemetry: "vox-telemetry"
+    vox_audit -> vox_telemetry
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_audit
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `Tier` | `pub enum Tier` | [`crates/vox-audit/src/lib.rs#L38-L44`](../../../crates/vox-audit/src/lib.rs#L38-L44) | Release-criteria tier. Declaration order IS the GA evaluation order: foundation gates are evaluated and reported before any downstream gate (see CR-F0 in `docs/src/architecture/v1-release-criteria.md` and the `--gate all --strict-block-ga` roll-up). |
+| `fn` | `as_str` | `pub fn as_str(self) -> &'static str` | [`crates/vox-audit/src/lib.rs#L48-L56`](../../../crates/vox-audit/src/lib.rs#L48-L56) | Stable lowercase tier name used in the GA snapshot rows. |
+| `enum` | `CrlGate` | `pub enum CrlGate` | [`crates/vox-audit/src/lib.rs#L62-L85`](../../../crates/vox-audit/src/lib.rs#L62-L85) | CR-L gate identifier — one variant per row in `contracts/ci/vox-audit-contract.v1.yaml` §subcommands. |
+| `fn` | `thing_name` | `pub fn thing_name(self) -> &'static str` | [`crates/vox-audit/src/lib.rs#L89-L104`](../../../crates/vox-audit/src/lib.rs#L89-L104) | Stable name as used by `vox audit <thing>` and the report `thing` field. |
+| `fn` | `block_ga` | `pub fn block_ga(self) -> bool` | [`crates/vox-audit/src/lib.rs#L110-L121`](../../../crates/vox-audit/src/lib.rs#L110-L121) | Per-contract: does failure of this gate block GA?  Tooling gates (non-CR-L) always return false — they exist to keep the corpus healthy during development, not to gate release. |
+| `fn` | `cost_metered` | `pub fn cost_metered(self) -> bool` | [`crates/vox-audit/src/lib.rs#L124-L133`](../../../crates/vox-audit/src/lib.rs#L124-L133) | Per-contract: does this gate meter LLM cost during measurement? |
+| `fn` | `tier` | `pub fn tier(self) -> Tier` | [`crates/vox-audit/src/lib.rs#L138-L152`](../../../crates/vox-audit/src/lib.rs#L138-L152) | Which release-criteria tier this gate belongs to. The CR-L gates are §3.5 Product; the stdlib-coverage gate is Tooling. Foundation / Distribution / GUI variants enter as their gates land (Phase 0+). |
+| `fn` | `all` | `pub fn all() -> impl Iterator<Item = CrlGate>` | [`crates/vox-audit/src/lib.rs#L155-L171`](../../../crates/vox-audit/src/lib.rs#L155-L171) | Iterator over every registered gate, in display order. |
+| `fn` | `workspace_root` | `pub fn workspace_root() -> std::path::PathBuf` | [`crates/vox-audit/src/lib.rs#L177-L196`](../../../crates/vox-audit/src/lib.rs#L177-L196) | Workspace-root locator: walks up from `CARGO_MANIFEST_DIR` looking for the top-level Cargo.toml that contains `[workspace]`. Used by subcommands to resolve contract paths. |
+| `struct` | `CommonArgs` | `pub struct CommonArgs` | [`crates/vox-audit/src/lib.rs#L200-L214`](../../../crates/vox-audit/src/lib.rs#L200-L214) | Common arguments shared by every subcommand. |
+| `struct` | `RunOutcome` | `pub struct RunOutcome` | [`crates/vox-audit/src/lib.rs#L232-L235`](../../../crates/vox-audit/src/lib.rs#L232-L235) | One run outcome: the report and the exit code the binary should return. |
+| `trait` | `Subcommand` | `pub trait Subcommand: Send + Sync` | [`crates/vox-audit/src/lib.rs#L242-L253`](../../../crates/vox-audit/src/lib.rs#L242-L253) | Trait every `vox audit <thing>` subcommand implements.  The umbrella runner (`vox audit all`) iterates over registered subcommands in `CrlGate::all()` order and aggregates their outcomes into a combined report at `contracts/reports/audit-all/<date>.json`. |
+| `fn` | `registry` | `pub fn registry() -> Vec<Box<dyn Subcommand>>` | [`crates/vox-audit/src/lib.rs#L259-L279`](../../../crates/vox-audit/src/lib.rs#L259-L279) | Build the canonical registry of subcommands (2 CR-F foundation gates + 9 CR-L gates + 1 tooling gate).  Order matches `CrlGate::all()` and `contracts/ci/vox-audit-contract.v1.yaml` §subcommands. Tooling gates appear after the CR-L block. |
+| `fn` | `gate_from_name` | `pub fn gate_from_name(name: &str) -> Option<CrlGate>` | [`crates/vox-audit/src/lib.rs#L282-L284`](../../../crates/vox-audit/src/lib.rs#L282-L284) | Resolve a [`CrlGate`] from a stable thing-name string. |
+| `fn` | `run_gate` | `pub fn run_gate(gate: CrlGate, args: &CommonArgs) -> RunOutcome` | [`crates/vox-audit/src/lib.rs#L292-L302`](../../../crates/vox-audit/src/lib.rs#L292-L302) | Run a single subcommand by gate, returning its outcome.  Emits a `vox.audit.run` telemetry event for every invocation per `contracts/ci/vox-audit-contract.v1.yaml` §telemetry (A11, ratified 2026-05-15). `record_event!` is a no-op when no recorder is registered, so the emission adds zero cost to non-instrumented runs. |
+| `fn` | `run_all` | `pub fn run_all(args: &CommonArgs) -> Vec<RunOutcome>` | [`crates/vox-audit/src/lib.rs#L315-L325`](../../../crates/vox-audit/src/lib.rs#L315-L325) | Run every registered subcommand and aggregate their outcomes into a combined report at `contracts/reports/audit-all/<date>.json`.  Worst-case exit code semantics per contract §umbrella: - 0 if all sub-runs return 0 - 1 if any sub returns 1 and none return 2 or 3 - 2 if any sub returns 2 and none return 3 - 3 if any sub returns 3  Emits one `vox.audit.run` telemetry event per sub-gate (with `umbrella_run = true`) per A11 contract compliance. |
+| `fn` | `run_ga_snapshot` | `pub fn run_ga_snapshot(args: &CommonArgs, strict_block_ga: bool) -> ga::GaSnapshot` | [`crates/vox-audit/src/lib.rs#L332-L360`](../../../crates/vox-audit/src/lib.rs#L332-L360) | Run every registered gate (foundation first per CR-F0) plus the standalone product binaries, fold them into a [`ga::GaSnapshot`] with `blocked_by_foundation` semantics, and (when `args.write_canonical_report`) write `contracts/reports/_snapshot/<UTC>.json`. This is the spine behind `vox audit --gate all --strict-block-ga`. |
+| `fn` | `aggregate_exit_code` | `pub fn aggregate_exit_code(outcomes: &[RunOutcome]) -> report::ExitCode` | [`crates/vox-audit/src/lib.rs#L413-L428`](../../../crates/vox-audit/src/lib.rs#L413-L428) | Aggregate-exit-code per contract §umbrella. |
+| `struct` | `aggregator::CorpusFeedbackReport` | `pub struct CorpusFeedbackReport` | [`crates/vox-audit/src/aggregator.rs#L28-L49`](../../../crates/vox-audit/src/aggregator.rs#L28-L49) | Top-level CR-L8 report shape persisted to `contracts/reports/corpus-feedback/<quarter>.json`. |
+| `struct` | `aggregator::RepoRollup` | `pub struct RepoRollup` | [`crates/vox-audit/src/aggregator.rs#L54-L62`](../../../crates/vox-audit/src/aggregator.rs#L54-L62) | Per-repository slice of [`CorpusFeedbackReport`]. Carries the same shape as the top-level totals but scoped to one `repository_id` bucket. |
+| `struct` | `aggregator::DiagnosticRollup` | `pub struct DiagnosticRollup` | [`crates/vox-audit/src/aggregator.rs#L66-L81`](../../../crates/vox-audit/src/aggregator.rs#L66-L81) | One row of the top-50 firing diagnostics table. |
+| `struct` | `aggregator::RepairOutcomeHistogram` | `pub struct RepairOutcomeHistogram` | [`crates/vox-audit/src/aggregator.rs#L85-L97`](../../../crates/vox-audit/src/aggregator.rs#L85-L97) | Repair-outcome histogram per CR-L8 spec. |
+| `fn` | `aggregator::aggregate` | `pub fn aggregate(events: &[TelemetryEvent], measured_at: &str) -> CorpusFeedbackReport` | [`crates/vox-audit/src/aggregator.rs#L229-L280`](../../../crates/vox-audit/src/aggregator.rs#L229-L280) | Aggregate a slice of events into a [`CorpusFeedbackReport`].  Pure function: deterministic given the same event slice and the same `measured_at` timestamp. `measured_at` is supplied by the caller (so tests can pin it) rather than computed internally.  Produces both the workspace-wide rollup and per-`repository_id` buckets (A8, ratified 2026-05-15). Events with no `repository_id` are bucketed under [`UNATTRIBUTED_REPO_KEY`]. |
+| `struct` | `core_gates::CoreGateResult` | `pub struct CoreGateResult` | [`crates/vox-audit/src/core_gates.rs#L20-L26`](../../../crates/vox-audit/src/core_gates.rs#L20-L26) | Outcome for one core umbrella gate. |
+| `struct` | `core_gates::CoreGatesSummary` | `pub struct CoreGatesSummary` | [`crates/vox-audit/src/core_gates.rs#L30-L34`](../../../crates/vox-audit/src/core_gates.rs#L30-L34) | Summary JSON envelope for `vox audit core` / `--gate core`. |
+| `fn` | `core_gates::run_arch_gate` | `pub fn run_arch_gate(root: &Path) -> CoreGateResult` | [`crates/vox-audit/src/core_gates.rs#L37-L59`](../../../crates/vox-audit/src/core_gates.rs#L37-L59) | Run `vox-arch-check` via cargo (same command as CI `arch-check` target). |
+| `fn` | `core_gates::run_code_gate` | `pub fn run_code_gate(root: &Path) -> CoreGateResult` | [`crates/vox-audit/src/core_gates.rs#L62-L84`](../../../crates/vox-audit/src/core_gates.rs#L62-L84) | Run `vox-code-audit` / TOESTUB over the workspace (legacy exit policy). |
+| `fn` | `core_gates::run_silent_drop_gate` | `pub fn run_silent_drop_gate(root: &Path, baseline: Option<PathBuf>) -> CoreGateResult` | [`crates/vox-audit/src/core_gates.rs#L94-L121`](../../../crates/vox-audit/src/core_gates.rs#L94-L121) | Run ONLY the silent-drop detectors (catch-all-swallow + cross-crate-dup) over the workspace and fail if ANY of their findings survive the optional grandfather baseline. Severity stays Info (the human `vox audit code` report is unchanged); the gate is count-based (no severity bump). Pass a committed `contracts/toestub/silent-drop-baseline.v1.json` as `baseline` to grandfather pre-existing sites so only NEW silent-drops trip the gate. Findings are filtered to the two rule ids explicitly, so unrelated batch detectors cannot pollute the count. (Task 2.6 / R9.) |
+| `fn` | `core_gates::run_weak_test_gate` | `pub fn run_weak_test_gate(root: &Path, baseline: Option<PathBuf>) -> CoreGateResult` | [`crates/vox-audit/src/core_gates.rs#L128-L153`](../../../crates/vox-audit/src/core_gates.rs#L128-L153) | Run ONLY the `weak_test` detector (touch-test anti-patterns) over the workspace, including test trees, and fail if any finding survives the optional grandfather baseline. Like the silent-drop gate this is count-based and severity-neutral: it guards against NEW touch-tests (e.g. in Phase-3 coverage waves) without forcing a rewrite of the grandfathered existing suite. (Task 2.6 sibling / weak_test gate.) |
+| `fn` | `core_gates::run_retirement_gate` | `pub fn run_retirement_gate() -> CoreGateResult` | [`crates/vox-audit/src/core_gates.rs#L156-L174`](../../../crates/vox-audit/src/core_gates.rs#L156-L174) | Run CR-L6 retirement parity via the existing registry subcommand. |
+| `fn` | `core_gates::run_core_all` | `pub fn run_core_all(root: &Path) -> CoreGatesSummary` | [`crates/vox-audit/src/core_gates.rs#L177-L190`](../../../crates/vox-audit/src/core_gates.rs#L177-L190) | Run arch → code → retirement and return an aggregate summary. |
+| `struct` | `ga::GateRow` | `pub struct GateRow` | [`crates/vox-audit/src/ga.rs#L11-L19`](../../../crates/vox-audit/src/ga.rs#L11-L19) | — |
+| `struct` | `ga::GaSnapshot` | `pub struct GaSnapshot` | [`crates/vox-audit/src/ga.rs#L22-L30`](../../../crates/vox-audit/src/ga.rs#L22-L30) | — |
+| `fn` | `ga::from_rows` | `pub fn from_rows(mut gates: Vec<GateRow>, strict_block_ga: bool) -> Self` | [`crates/vox-audit/src/ga.rs#L35-L58`](../../../crates/vox-audit/src/ga.rs#L35-L58) | Build the snapshot from already-evaluated rows, applying CR-F0 foundation-blocking and computing the GA verdict + exit code. |
+| `fn` | `ga::write_canonical` | `pub fn write_canonical(&self, root: &std::path::Path) -> std::io::Result<()>` | [`crates/vox-audit/src/ga.rs#L61-L68`](../../../crates/vox-audit/src/ga.rs#L61-L68) | Write to `contracts/reports/_snapshot/<YYYY-MM-DD>.json` under the root. |
+| `struct` | `ga::ProductBin` | `pub struct ProductBin` | [`crates/vox-audit/src/ga.rs#L72-L76`](../../../crates/vox-audit/src/ga.rs#L72-L76) | Descriptor for a standalone `bin/cr-*.rs` product gate. |
+| `fn` | `ga::product_binary_descriptors` | `pub fn product_binary_descriptors() -> Vec<ProductBin>` | [`crates/vox-audit/src/ga.rs#L81-L124`](../../../crates/vox-audit/src/ga.rs#L81-L124) | Descriptors for the standalone `bin/cr-*.rs` product gates. CR-P* are external_infra (live deploy / soak). cr-p3/cr-e3 are not yet bins — they land in Phase 6. |
+| `fn` | `ga::product_binary_gates` | `pub fn product_binary_gates(_args: &crate::CommonArgs) -> Vec<GateRow>` | [`crates/vox-audit/src/ga.rs#L129-L163`](../../../crates/vox-audit/src/ga.rs#L129-L163) | Run each product binary by resolving its sibling path next to the current executable; record a [`GateRow`]. A missing binary is recorded as a non-met row with `exit_code -1` ("not measured") rather than a panic. |
+| `struct` | `ga::GaRatchet` | `pub struct GaRatchet` | [`crates/vox-audit/src/ga.rs#L167-L172`](../../../crates/vox-audit/src/ga.rs#L167-L172) | Outcome of comparing a GA snapshot with the committed known-unmet baseline. |
+| `fn` | `ga::ratchet` | `pub fn ratchet(snap: &GaSnapshot, known_unmet: &[String]) -> GaRatchet` | [`crates/vox-audit/src/ga.rs#L177-L188`](../../../crates/vox-audit/src/ga.rs#L177-L188) | Compare a GA snapshot with the committed known-unmet baseline. Only GA-relevant gates count (not `tooling`, matching `ga_met`). This never changes the honest GA verdict (`ga_met`); it lets CI fail on *regressions* instead of on "v1.0 is not done yet". |
+| `fn` | `ga::parse_ga_baseline` | `pub fn parse_ga_baseline(text: &str) -> Result<Vec<String>, String>` | [`crates/vox-audit/src/ga.rs#L191-L204`](../../../crates/vox-audit/src/ga.rs#L191-L204) | Parse `contracts/reports/cr-l-ga-baseline.v1.json`: `{"known_unmet": ["gate", ...]}`. |
+| `struct` | `recorder::BufferedRecorder` | `pub struct BufferedRecorder` | [`crates/vox-audit/src/recorder.rs#L27-L29`](../../../crates/vox-audit/src/recorder.rs#L27-L29) | In-memory recorder used by tests and short-lived processes. |
+| `fn` | `recorder::new` | `pub fn new() -> Self` | [`crates/vox-audit/src/recorder.rs#L32-L34`](../../../crates/vox-audit/src/recorder.rs#L32-L34) | — |
+| `fn` | `recorder::snapshot` | `pub fn snapshot(&self) -> Vec<TelemetryEvent>` | [`crates/vox-audit/src/recorder.rs#L37-L39`](../../../crates/vox-audit/src/recorder.rs#L37-L39) | Snapshot the current event buffer (clones the vector). |
+| `fn` | `recorder::drain` | `pub fn drain(&self) -> Vec<TelemetryEvent>` | [`crates/vox-audit/src/recorder.rs#L42-L44`](../../../crates/vox-audit/src/recorder.rs#L42-L44) | Drain the buffer, returning all captured events and emptying internal storage. |
+

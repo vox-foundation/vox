@@ -92,3 +92,92 @@ STT runs through **Sherpa-ONNX** in-process (`stt-sherpa`) or **Candle Whisper**
 |---|---|
 | `candle_backend_status_json` | JSON status for the in-process Candle backend — always `{"stt_candle": false}`: Candle Whisper runs in the `oratio` plugin (vox-plugin-speech). |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_speech: "vox-speech"
+    node vox_compiler: "vox-compiler"
+    vox_speech -> vox_compiler
+    node vox_config: "vox-config"
+    vox_speech -> vox_config
+    node vox_http_client: "vox-http-client"
+    vox_speech -> vox_http_client
+    node vox_populi: "vox-populi"
+    vox_speech -> vox_populi
+    node vox_secrets: "vox-secrets"
+    vox_speech -> vox_secrets
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_speech
+    node vox_integration_tests: "vox-integration-tests"
+    vox_integration_tests -> vox_speech
+    node vox_ml_cli: "vox-ml-cli"
+    vox_ml_cli -> vox_speech
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_speech
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_speech
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `candle_backend_status_json` | `pub fn candle_backend_status_json() -> serde_json::Value` | [`crates/vox-speech/src/lib.rs#L71-L73`](../../../crates/vox-speech/src/lib.rs#L71-L73) | JSON status for the in-process Candle backend — always `{"stt_candle": false}`: Candle Whisper runs in the `oratio` plugin (vox-plugin-speech). |
+| `struct` | `acoustic_preprocess::AcousticPreprocessDiagnostics` | `pub struct AcousticPreprocessDiagnostics` | [`crates/vox-speech/src/acoustic_preprocess.rs#L11-L26`](../../../crates/vox-speech/src/acoustic_preprocess.rs#L11-L26) | What ran in [`preprocess_audio_pcm_f32_reported`]. |
+| `fn` | `acoustic_preprocess::preprocess_audio_pcm_f32_reported` | `pub fn preprocess_audio_pcm_f32_reported(` | [`crates/vox-speech/src/acoustic_preprocess.rs#L59`](../../../crates/vox-speech/src/acoustic_preprocess.rs#L59) | Preprocess PCM f32 mono (typ. -1..=1) with diagnostics; respects `max_extra_ms` wall budget. |
+| `fn` | `acoustic_preprocess::preprocess_audio_pcm_f32` | `pub fn preprocess_audio_pcm_f32(samples: &[f32], max_extra_ms: u64) -> Vec<f32>` | [`crates/vox-speech/src/acoustic_preprocess.rs#L152-L154`](../../../crates/vox-speech/src/acoustic_preprocess.rs#L152-L154) | When local denoise is unavailable or mode is `none`, returns `samples` unchanged (or scaled for peak mode).  `max_extra_ms` caps wall time: if exceeded, returns the **original** buffer. |
+| `struct` | `ast_mapper::AstTarget` | `pub struct AstTarget` | [`crates/vox-speech/src/ast_mapper.rs#L7-L14`](../../../crates/vox-speech/src/ast_mapper.rs#L7-L14) | An AST-aware target that Vox Oratio can map to in the IDE. |
+| `fn` | `ast_mapper::map_to_ast_target` | `pub fn map_to_ast_target(` | [`crates/vox-speech/src/ast_mapper.rs#L18`](../../../crates/vox-speech/src/ast_mapper.rs#L18) | Simple heuristic to extract AST targets from transcript (Phase 1C MVP). |
+| `type` | `backend_dispatch::ExternalWhisperTranscribe` | `pub type ExternalWhisperTranscribe =` | [`crates/vox-speech/src/backend_dispatch.rs#L15`](../../../crates/vox-speech/src/backend_dispatch.rs#L15) | Whisper transcriber supplied by the host: the `SpeechToText::transcribe` contract of the `oratio` plugin (vox-plugin-speech). Takes mono f32 little-endian PCM bytes and a `{"sample_rate", "language"}` config JSON; returns `{"text", "segments"}` JSON.  vox-speech cannot reach vox-plugin-host itself, so hosts that can (vox-gui, vox-ml-cli's `vox oratio`) register one with [`register_whisper_transcriber`]. |
+| `fn` | `backend_dispatch::register_whisper_transcriber` | `pub fn register_whisper_transcriber(f: ExternalWhisperTranscribe)` | [`crates/vox-speech/src/backend_dispatch.rs#L23-L28`](../../../crates/vox-speech/src/backend_dispatch.rs#L23-L28) | Register the host's Whisper transcriber and drop the cached backend so the next transcription rebuilds with it. |
+| `fn` | `backend_dispatch::has_registered_whisper_transcriber` | `pub fn has_registered_whisper_transcriber() -> bool` | [`crates/vox-speech/src/backend_dispatch.rs#L31-L33`](../../../crates/vox-speech/src/backend_dispatch.rs#L31-L33) | Whether a host registered a Whisper transcriber. |
+| `fn` | `backend_dispatch::whisper_backend` | `pub fn whisper_backend() -> anyhow::Result<Box<dyn AsrBackend>>` | [`crates/vox-speech/src/backend_dispatch.rs#L93-L102`](../../../crates/vox-speech/src/backend_dispatch.rs#L93-L102) | The Whisper backend: the host-registered transcriber, or an actionable error when none is registered. |
+| `fn` | `backend_dispatch::create_backend` | `pub fn create_backend() -> anyhow::Result<Box<dyn AsrBackend>>` | [`crates/vox-speech/src/backend_dispatch.rs#L116-L168`](../../../crates/vox-speech/src/backend_dispatch.rs#L116-L168) | Instantiate the configured STT backend.  # Env - `VOX_ORATIO_BACKEND=auto` (default) — picks Sherpa if compiled in, else Whisper - `VOX_ORATIO_BACKEND=whisper` — always Whisper ([`whisper_backend`]) - `VOX_ORATIO_BACKEND=sherpa` — always Sherpa (returns error if feature not compiled) |
+| `fn` | `backend_dispatch::invalidate_cache` | `pub fn invalidate_cache()` | [`crates/vox-speech/src/backend_dispatch.rs#L201-L206`](../../../crates/vox-speech/src/backend_dispatch.rs#L201-L206) | Clear the cached backend so the *next* call to [`with_cached_backend`] reconstructs it via `create_backend()`, re-reading `VOX_ORATIO_BACKEND`.  Needed because changing the backend setting (e.g. via the GUI's Settings panel) only updates the env var / secret resolution the *next* `create_backend()` call reads — without this, a Settings change would update the displayed value but silently keep using the previously constructed (now stale) engine for the rest of the process's life, since `with_cached_backend` has no other way to know the setting changed. |
+| `fn` | `backend_dispatch::with_cached_backend` | `pub fn with_cached_backend<F, R>(f: F) -> anyhow::Result<R>` | [`crates/vox-speech/src/backend_dispatch.rs#L214`](../../../crates/vox-speech/src/backend_dispatch.rs#L214) | Run `f` against the cached ASR backend, constructing it on first successful call. Safe to call from multiple threads: the backend is constructed at most once (barring a failed attempt, which is retried on the next call). The lock is released before `f` runs, so concurrent transcriptions don't serialize on each other — only on the one-time construction. |
+| `fn` | `contextual_bias::bias_hit_score` | `pub fn bias_hit_score(text: &str, phrases: &[String]) -> u32` | [`crates/vox-speech/src/contextual_bias.rs#L9-L31`](../../../crates/vox-speech/src/contextual_bias.rs#L9-L31) | Count overlapping case-insensitive substring hits for `phrases` in `text`. |
+| `fn` | `contextual_bias::merge_bias_phrases` | `pub fn merge_bias_phrases(` | [`crates/vox-speech/src/contextual_bias.rs#L35`](../../../crates/vox-speech/src/contextual_bias.rs#L35) | Merge lexicon-derived bias strings with `extra` (e.g. session hotwords), dedupe, longest-first, cap `max_phrases`. |
+| `fn` | `contextual_bias::parse_hotword_csv` | `pub fn parse_hotword_csv(raw: &str) -> Vec<String>` | [`crates/vox-speech/src/contextual_bias.rs#L59-L65`](../../../crates/vox-speech/src/contextual_bias.rs#L59-L65) | Parse comma-separated session hotwords from env-style strings. |
+| `fn` | `eval::tokenize_words` | `pub fn tokenize_words(s: &str) -> Vec<String>` | [`crates/vox-speech/src/eval.rs#L5-L11`](../../../crates/vox-speech/src/eval.rs#L5-L11) | Normalize `s` into lowercase word tokens (whitespace split). |
+| `fn` | `eval::word_error_rate` | `pub fn word_error_rate(reference: &str, hypothesis: &str) -> f64` | [`crates/vox-speech/src/eval.rs#L19-L30`](../../../crates/vox-speech/src/eval.rs#L19-L30) | **Word error rate** over whitespace-delimited tokens (case-insensitive).  Uses Levenshtein distance at the token level. Returns `0.0` when both strings are empty after tokenization; if the reference is empty but the hypothesis is not, returns `1.0`. |
+| `fn` | `eval::char_error_rate` | `pub fn char_error_rate(reference: &str, hypothesis: &str) -> f64` | [`crates/vox-speech/src/eval.rs#L37-L48`](../../../crates/vox-speech/src/eval.rs#L37-L48) | **Character error rate** over non-whitespace Unicode scalar values.  If both sides are empty after stripping whitespace, returns `0.0`. If reference is empty and hypothesis is not, returns `1.0`. |
+| `fn` | `eval::symbol_error_rate` | `pub fn symbol_error_rate(reference: &str, hypothesis: &str) -> f64` | [`crates/vox-speech/src/eval.rs#L53-L81`](../../../crates/vox-speech/src/eval.rs#L53-L81) | **Symbol error rate** for code-domain evaluation. Only considers tokens that look like identifiers `[a-zA-Z_][a-zA-Z0-9_]*`. |
+| `fn` | `eval_srt::mean_timing_offset_ms` | `pub fn mean_timing_offset_ms(expected: &[TimedSegment], actual: &[TimedSegment]) -> f32` | [`crates/vox-speech/src/eval_srt.rs#L10-L37`](../../../crates/vox-speech/src/eval_srt.rs#L10-L37) | Compute the mean absolute timing error (in milliseconds) between predicted and expected subtitle blocks.  This is a simplified "TER" (Timing Error Rate) based on matching blocks by text similarity, then computing differences. For a production metric, you would want dynamic time warping (DTW) against the target audio, but this serves as a baseline proxy using ground-truth subtitles. |
+| `enum` | `failure_taxonomy::SpeechFailureCategory` | `pub enum SpeechFailureCategory` | [`crates/vox-speech/src/failure_taxonomy.rs#L8-L21`](../../../crates/vox-speech/src/failure_taxonomy.rs#L8-L21) | High-level failure bucket for ASR → LLM → compiler pipelines. |
+| `fn` | `failure_taxonomy::as_str` | `pub fn as_str(self) -> &'static str` | [`crates/vox-speech/src/failure_taxonomy.rs#L26-L35`](../../../crates/vox-speech/src/failure_taxonomy.rs#L26-L35) | Stable string label for logs and KPI JSON. |
+| `enum` | `refine::DomainMode` | `pub enum DomainMode` | [`crates/vox-speech/src/refine/mod.rs#L16-L22`](../../../crates/vox-speech/src/refine/mod.rs#L16-L22) | Specialization domain for STT rules. |
+| `enum` | `refine::OratioCorrectionProfile` | `pub enum OratioCorrectionProfile` | [`crates/vox-speech/src/refine/mod.rs#L27-L35`](../../../crates/vox-speech/src/refine/mod.rs#L27-L35) | Correction strictness profile for transcript refinement. |
+| `struct` | `refine::CorrectionContext` | `pub struct CorrectionContext` | [`crates/vox-speech/src/refine/mod.rs#L39-L54`](../../../crates/vox-speech/src/refine/mod.rs#L39-L54) | Runtime context for refinement and spelling correction. |
+| `fn` | `refine::from_runtime` | `pub fn from_runtime(` | [`crates/vox-speech/src/refine/mod.rs#L59`](../../../crates/vox-speech/src/refine/mod.rs#L59) | Build context using resolved runtime refine tunables. |
+| `struct` | `refine::CorrectionTrace` | `pub struct CorrectionTrace` | [`crates/vox-speech/src/refine/mod.rs#L77-L86`](../../../crates/vox-speech/src/refine/mod.rs#L77-L86) | Trace item for one correction decision. |
+| `struct` | `refine::RefineOutput` | `pub struct RefineOutput` | [`crates/vox-speech/src/refine/mod.rs#L90-L97`](../../../crates/vox-speech/src/refine/mod.rs#L90-L97) | Output of transcript refinement. |
+| `fn` | `refine::refine_transcript` | `pub fn refine_transcript(raw: &str, ctx: &CorrectionContext) -> RefineOutput` | [`crates/vox-speech/src/refine/mod.rs#L101-L103`](../../../crates/vox-speech/src/refine/mod.rs#L101-L103) | Run deterministic refinement and spelling correction. |
+| `struct` | `routing::IdeContext` | `pub struct IdeContext` | [`crates/vox-speech/src/routing.rs#L16-L25`](../../../crates/vox-speech/src/routing.rs#L16-L25) | IDE context for grounding speech commands in the current workspace state. |
+| `enum` | `routing::RouteMode` | `pub enum RouteMode` | [`crates/vox-speech/src/routing.rs#L276-L288`](../../../crates/vox-speech/src/routing.rs#L276-L288) | Route modes for transcript-driven execution. |
+| `struct` | `routing::RouteResponse` | `pub struct RouteResponse` | [`crates/vox-speech/src/routing.rs#L292-L301`](../../../crates/vox-speech/src/routing.rs#L292-L301) | Route response envelope shared by CLI and MCP. |
+| `fn` | `routing::route_transcript_with_options` | `pub fn route_transcript_with_options(` | [`crates/vox-speech/src/routing.rs#L305`](../../../crates/vox-speech/src/routing.rs#L305) | Route with explicit confidence + runtime policy (CLI / MCP parity). |
+| `fn` | `routing::route_transcript` | `pub fn route_transcript(mode: RouteMode, session_id: &str, transcript: &str) -> RouteResponse` | [`crates/vox-speech/src/routing.rs#L536-L545`](../../../crates/vox-speech/src/routing.rs#L536-L545) | Back-compat wrapper: uses [`crate::runtime_config::resolved_runtime_config`] and assumes saturated transcript confidence (callers pre-gating tool mode should prefer [`route_transcript_with_options`]). |
+| `fn` | `serve::run_serve_worker` | `pub async fn run_serve_worker(port: u16) -> anyhow::Result<()>` | [`crates/vox-speech/src/serve.rs#L11-L23`](../../../crates/vox-speech/src/serve.rs#L11-L23) | Serve `POST /transcribe` (multipart `file` of f32 LE PCM, optional `sample_rate` and `language`) on `127.0.0.1:port`, transcribing through the Whisper backend selection. |
+| `enum` | `session::CaptureState` | `pub enum CaptureState` | [`crates/vox-speech/src/session.rs#L16-L27`](../../../crates/vox-speech/src/session.rs#L16-L27) | Capture/session lifecycle state. |
+| `enum` | `session::OratioDeadlineTaxonomy` | `pub enum OratioDeadlineTaxonomy` | [`crates/vox-speech/src/session.rs#L32-L41`](../../../crates/vox-speech/src/session.rs#L32-L41) | Machine-readable timeout / deadline taxonomy for diagnostics (CLI + MCP). |
+| `struct` | `session::DeadlineDiagnostics` | `pub struct DeadlineDiagnostics` | [`crates/vox-speech/src/session.rs#L45-L54`](../../../crates/vox-speech/src/session.rs#L45-L54) | Structured deadline diagnostics (phase + elapsed + limits). |
+| `struct` | `session::OratioSessionConfig` | `pub struct OratioSessionConfig` | [`crates/vox-speech/src/session.rs#L58-L75`](../../../crates/vox-speech/src/session.rs#L58-L75) | Config shared across CLI and MCP sessionized transcription flows. |
+| `struct` | `session::OratioTimings` | `pub struct OratioTimings` | [`crates/vox-speech/src/session.rs#L95-L108`](../../../crates/vox-speech/src/session.rs#L95-L108) | Timing diagnostics for one session run. |
+| `struct` | `session::OratioSessionResult` | `pub struct OratioSessionResult` | [`crates/vox-speech/src/session.rs#L112-L140`](../../../crates/vox-speech/src/session.rs#L112-L140) | Sessionized output returned to CLI and MCP callers. |
+| `fn` | `session::session_config_with_runtime` | `pub fn session_config_with_runtime(` | [`crates/vox-speech/src/session.rs#L157`](../../../crates/vox-speech/src/session.rs#L157) | Merge session config with runtime defaults for deadlines not explicitly set. |
+| `fn` | `session::transcribe_path_session` | `pub fn transcribe_path_session(` | [`crates/vox-speech/src/session.rs#L175`](../../../crates/vox-speech/src/session.rs#L175) | Run an end-to-end transcription session from a provided file path. |
+| `fn` | `session::transcribe_path_session_with_runtime` | `pub fn transcribe_path_session_with_runtime(` | [`crates/vox-speech/src/session.rs#L184`](../../../crates/vox-speech/src/session.rs#L184) | Like [`transcribe_path_session`] but uses a caller-provided resolved runtime snapshot (tests / MCP). |
+

@@ -74,3 +74,108 @@ own file where non-obvious heuristics exist.
 | `scanner` | Collects `SourceFile` entries from a repo path with language detection from extensions. |
 | `task_queue` | In-memory bounded work queue used to cap parallel file/review tasks. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_code_audit: "vox-code-audit"
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_code_audit -> vox_bounded_fs
+    node vox_config: "vox-config"
+    vox_code_audit -> vox_config
+    node vox_http_client: "vox-http-client"
+    vox_code_audit -> vox_http_client
+    node vox_jsonschema_util: "vox-jsonschema-util"
+    vox_code_audit -> vox_jsonschema_util
+    node vox_llm_egress: "vox-llm-egress"
+    vox_code_audit -> vox_llm_egress
+    node vox_orchestrator_types: "vox-orchestrator-types"
+    vox_code_audit -> vox_orchestrator_types
+    node vox_rule_pack: "vox-rule-pack"
+    vox_code_audit -> vox_rule_pack
+    node vox_scaling_policy: "vox-scaling-policy"
+    vox_code_audit -> vox_scaling_policy
+    node vox_secrets: "vox-secrets"
+    vox_code_audit -> vox_secrets
+    node vox_telemetry: "vox-telemetry"
+    vox_code_audit -> vox_telemetry
+    node vox_audit: "vox-audit"
+    vox_audit -> vox_code_audit
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_code_audit
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_code_audit
+    node vox_cli_review: "vox-cli-review"
+    vox_cli_review -> vox_code_audit
+    node vox_drift_check: "vox-drift-check"
+    vox_drift_check -> vox_code_audit
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_code_audit
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_code_audit
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-audit`](./vox-audit.generated.md) | Direct workspace dependent |
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-review`](./vox-cli-review.generated.md) | Direct workspace dependent |
+| [`vox-drift-check`](./vox-drift-check.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `ai_analyze::AiProvider` | `pub enum AiProvider` | [`crates/vox-code-audit/src/ai_analyze.rs#L26-L56`](../../../crates/vox-code-audit/src/ai_analyze.rs#L26-L56) | Which AI backend to use for enhanced analysis. |
+| `struct` | `ai_analyze::AiAnalyzer` | `pub struct AiAnalyzer` | [`crates/vox-code-audit/src/ai_analyze.rs#L83-L85`](../../../crates/vox-code-audit/src/ai_analyze.rs#L83-L85) | Performs AI-enhanced analysis on source files.  This is intentionally synchronous and blocking for simplicity — AI analysis is opt-in and expected to be slower than static detection. |
+| `fn` | `ai_analyze::new` | `pub fn new(provider: AiProvider) -> Self` | [`crates/vox-code-audit/src/ai_analyze.rs#L89-L91`](../../../crates/vox-code-audit/src/ai_analyze.rs#L89-L91) | Wraps the given [`AiProvider`]; use [`AiProvider::Disabled`] when AI triage is off. |
+| `fn` | `ai_analyze::is_available` | `pub fn is_available(&self) -> bool` | [`crates/vox-code-audit/src/ai_analyze.rs#L94-L96`](../../../crates/vox-code-audit/src/ai_analyze.rs#L94-L96) | Check if AI analysis is available and configured. |
+| `fn` | `ai_analyze::build_prompt` | `pub fn build_prompt(file: &SourceFile, existing_findings: &[Finding]) -> String` | [`crates/vox-code-audit/src/ai_analyze.rs#L99-L148`](../../../crates/vox-code-audit/src/ai_analyze.rs#L99-L148) | Build the analysis prompt for a source file and its existing findings. |
+| `fn` | `ai_analyze::parse_response` | `pub fn parse_response(response: &str, file: &SourceFile) -> Vec<Finding>` | [`crates/vox-code-audit/src/ai_analyze.rs#L151-L201`](../../../crates/vox-code-audit/src/ai_analyze.rs#L151-L201) | Parse an AI response into findings. |
+| `fn` | `ai_analyze::ollama_request_body` | `pub fn ollama_request_body(prompt: &str, model: &str) -> String` | [`crates/vox-code-audit/src/ai_analyze.rs#L204-L215`](../../../crates/vox-code-audit/src/ai_analyze.rs#L204-L215) | Generate the curl-compatible request body for Ollama. |
+| `fn` | `ai_analyze::gemini_request_body` | `pub fn gemini_request_body(prompt: &str) -> String` | [`crates/vox-code-audit/src/ai_analyze.rs#L218-L231`](../../../crates/vox-code-audit/src/ai_analyze.rs#L218-L231) | Generate the request body for Gemini API. |
+| `fn` | `ai_analyze::endpoint_url` | `pub fn endpoint_url(&self) -> Option<String>` | [`crates/vox-code-audit/src/ai_analyze.rs#L234-L266`](../../../crates/vox-code-audit/src/ai_analyze.rs#L234-L266) | Get the API endpoint URL for the configured provider. |
+| `fn` | `ai_analyze::provider_name` | `pub fn provider_name(&self) -> &str` | [`crates/vox-code-audit/src/ai_analyze.rs#L269-L276`](../../../crates/vox-code-audit/src/ai_analyze.rs#L269-L276) | Get the provider description for display purposes. |
+| `fn` | `detectors::all_rules` | `pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn DetectionRule>>` | [`crates/vox-code-audit/src/detectors/mod.rs#L168-L244`](../../../crates/vox-code-audit/src/detectors/mod.rs#L168-L244) | Returns all built-in detectors. |
+| `fn` | `detectors::rule_count` | `pub fn rule_count() -> usize` | [`crates/vox-code-audit/src/detectors/mod.rs#L247-L249`](../../../crates/vox-code-audit/src/detectors/mod.rs#L247-L249) | Returns the number of built-in rules. |
+| `enum` | `engine::ToestubRunMode` | `pub enum ToestubRunMode` | [`crates/vox-code-audit/src/engine.rs#L17-L27`](../../../crates/vox-code-audit/src/engine.rs#L17-L27) | How CI / CLI should treat findings for exit status. |
+| `struct` | `engine::ToestubConfig` | `pub struct ToestubConfig` | [`crates/vox-code-audit/src/engine.rs#L31-L67`](../../../crates/vox-code-audit/src/engine.rs#L31-L67) | Configuration for a TOESTUB analysis run. |
+| `struct` | `engine::ToestubEngine` | `pub struct ToestubEngine` | [`crates/vox-code-audit/src/engine.rs#L180-L183`](../../../crates/vox-code-audit/src/engine.rs#L180-L183) | The main analysis engine. |
+| `fn` | `engine::new` | `pub fn new(config: ToestubConfig) -> Self` | [`crates/vox-code-audit/src/engine.rs#L187-L204`](../../../crates/vox-code-audit/src/engine.rs#L187-L204) | Create a new engine with the given config, loading all built-in rules. |
+| `fn` | `engine::with_rules` | `pub fn with_rules(config: ToestubConfig, rules: Vec<Box<dyn DetectionRule>>) -> Self` | [`crates/vox-code-audit/src/engine.rs#L207-L209`](../../../crates/vox-code-audit/src/engine.rs#L207-L209) | Create an engine with a custom set of rules (useful for testing). |
+| `fn` | `engine::check_source_file` | `pub fn check_source_file(&self, file: &crate::rules::SourceFile) -> Vec<Finding>` | [`crates/vox-code-audit/src/engine.rs#L230-L260`](../../../crates/vox-code-audit/src/engine.rs#L230-L260) | Run lint rules on a single pre-loaded source file without a filesystem scan.  This is a lightweight alternative to [`Self::run`] for `vox check --for-llm` and similar single-file consumers that already have source in memory.  Unlike [`Self::run`], this method: - Skips the [`Scanner`] (no directory walk). - Does **not** emit telemetry (no CR-L8 corpus events). - Does **not** apply suppression rules. - Sets up a default [`crate::run_context::RunContext`] (safe for single-file Vox linting; some Rust-specific rules that depend on workspace cross-refs will produce no findings on Vox files regardless).  Severity filtering and deterministic sort are still applied so callers receive findings in the same order as a full [`Self::run`].  # Thread safety [`crate::run_context::RunContext`] uses a process-global mutex.  Concurrent calls to this method (or to [`Self::run`]) will serialize; do not hold the returned `Vec<Finding>` across a second call on a different thread without copying first. |
+| `fn` | `engine::minimal_repro_table` | `pub fn minimal_repro_table(&self) -> HashMap<&'static str, &'static str>` | [`crates/vox-code-audit/src/engine.rs#L267-L272`](../../../crates/vox-code-audit/src/engine.rs#L267-L272) | Build a `rule_id → minimal_repro` lookup table for all registered rules.  Used by `vox check --for-llm` to attach per-rule minimal reproduction snippets to `LintFindingPayload` without modifying the [`Finding`] struct (which would require updating every detector constructor). |
+| `fn` | `engine::run` | `pub fn run(&self) -> AnalysisResult` | [`crates/vox-code-audit/src/engine.rs#L275`](../../../crates/vox-code-audit/src/engine.rs#L275) | Run the full analysis pipeline and return findings. |
+| `fn` | `engine::run_and_report` | `pub fn run_and_report(&self) -> (AnalysisResult, String)` | [`crates/vox-code-audit/src/engine.rs#L408-L424`](../../../crates/vox-code-audit/src/engine.rs#L408-L424) | Run analysis and produce formatted output as a String. |
+| `struct` | `engine::AnalysisResult` | `pub struct AnalysisResult` | [`crates/vox-code-audit/src/engine.rs#L446-L463`](../../../crates/vox-code-audit/src/engine.rs#L446-L463) | The output of a TOESTUB analysis run. |
+| `fn` | `engine::has_errors` | `pub fn has_errors(&self) -> bool` | [`crates/vox-code-audit/src/engine.rs#L467-L469`](../../../crates/vox-code-audit/src/engine.rs#L467-L469) | Returns `true` if any findings are at or above [`Severity::Error`]. |
+| `fn` | `engine::should_fail_build` | `pub fn should_fail_build(&self, mode: ToestubRunMode) -> bool` | [`crates/vox-code-audit/src/engine.rs#L472-L485`](../../../crates/vox-code-audit/src/engine.rs#L472-L485) | Whether the process should exit with failure for the given mode. |
+| `fn` | `engine::summary` | `pub fn summary(&self) -> SeveritySummary` | [`crates/vox-code-audit/src/engine.rs#L488-L499`](../../../crates/vox-code-audit/src/engine.rs#L488-L499) | Summary counts by severity. |
+| `struct` | `engine::SeveritySummary` | `pub struct SeveritySummary` | [`crates/vox-code-audit/src/engine.rs#L503-L508`](../../../crates/vox-code-audit/src/engine.rs#L503-L508) | — |
+| `struct` | `report::RunSnapshot` | `pub struct RunSnapshot<'a>` | [`crates/vox-code-audit/src/report.rs#L11-L19`](../../../crates/vox-code-audit/src/report.rs#L11-L19) | Borrowed snapshot of an engine run (avoids `engine` ↔ `report` cycles). |
+| `struct` | `report::ToestubJsonReportV1` | `pub struct ToestubJsonReportV1<'a>` | [`crates/vox-code-audit/src/report.rs#L23-L35`](../../../crates/vox-code-audit/src/report.rs#L23-L35) | JSON output wrapper (`format: json`) — includes findings and run telemetry (plan: report provenance). |
+| `enum` | `report::OutputFormat` | `pub enum OutputFormat` | [`crates/vox-code-audit/src/report.rs#L39-L49`](../../../crates/vox-code-audit/src/report.rs#L39-L49) | Output format for the report. |
+| `fn` | `report::parse_format` | `pub fn parse_format(s: &str) -> Self` | [`crates/vox-code-audit/src/report.rs#L53-L60`](../../../crates/vox-code-audit/src/report.rs#L53-L60) | Parses CLI strings: `json`, `llm-json`, `markdown`/`md`, anything else → [`OutputFormat::Terminal`]. |
+| `struct` | `report::Reporter` | `pub struct Reporter` | [`crates/vox-code-audit/src/report.rs#L64`](../../../crates/vox-code-audit/src/report.rs#L64) | Generates formatted output from findings. |
+| `fn` | `report::format` | `pub fn format(findings: &[Finding], format: OutputFormat, task_queue: &TaskQueue) -> String` | [`crates/vox-code-audit/src/report.rs#L68-L75`](../../../crates/vox-code-audit/src/report.rs#L68-L75) | Format findings into the specified output format. |
+| `fn` | `report::format_run` | `pub fn format_run(` | [`crates/vox-code-audit/src/report.rs#L78`](../../../crates/vox-code-audit/src/report.rs#L78) | Full run formatting (JSON includes telemetry envelope). |
+| `fn` | `report::format_llm_json` | `pub fn format_llm_json(findings: &[Finding]) -> String` | [`crates/vox-code-audit/src/report.rs#L96-L137`](../../../crates/vox-code-audit/src/report.rs#L96-L137) | LLM-optimized JSON output.  Includes `rationale`, `alternatives`, `confidence`, `explain_url`, and a 7-line `minimal_excerpt` so an agent can propose a fix without additional context fetches. Schema: `vox.lint.llm-report.v1`. |
+| `enum` | `retirement_parity::ParityError` | `pub enum ParityError` | [`crates/vox-code-audit/src/retirement_parity.rs#L36-L40`](../../../crates/vox-code-audit/src/retirement_parity.rs#L36-L40) | Errors that can arise while loading or interpreting the retirement contract. |
+| `struct` | `retirement_parity::RetirementContract` | `pub struct RetirementContract` | [`crates/vox-code-audit/src/retirement_parity.rs#L47-L55`](../../../crates/vox-code-audit/src/retirement_parity.rs#L47-L55) | Top-level retirement contract shape.  Mirrors `contracts/retirement/retired-surfaces.v1.yaml`. Forward-compat: unknown fields are tolerated via `#[serde(default)]`. |
+| `struct` | `retirement_parity::RetiredSurface` | `pub struct RetiredSurface` | [`crates/vox-code-audit/src/retirement_parity.rs#L59-L68`](../../../crates/vox-code-audit/src/retirement_parity.rs#L59-L68) | One row of the retirement contract. |
+| `struct` | `retirement_parity::Enforcement` | `pub struct Enforcement` | [`crates/vox-code-audit/src/retirement_parity.rs#L76-L102`](../../../crates/vox-code-audit/src/retirement_parity.rs#L76-L102) | Tagged union of enforcement mechanisms.  `kind` discriminates the variant; the additional fields are optional and depend on the kind. We deliberately use `#[serde(deny_unknown_fields)]` nowhere here — unknown fields are tolerated for forward compatibility. |
+| `enum` | `retirement_parity::EnforcementKind` | `pub enum EnforcementKind` | [`crates/vox-code-audit/src/retirement_parity.rs#L107-L112`](../../../crates/vox-code-audit/src/retirement_parity.rs#L107-L112) | Enforcement-mechanism discriminator. |
+| `struct` | `retirement_parity::ParityReport` | `pub struct ParityReport` | [`crates/vox-code-audit/src/retirement_parity.rs#L116-L129`](../../../crates/vox-code-audit/src/retirement_parity.rs#L116-L129) | Parity-check outcome. |
+| `struct` | `retirement_parity::MissingDetectorRule` | `pub struct MissingDetectorRule` | [`crates/vox-code-audit/src/retirement_parity.rs#L133-L136`](../../../crates/vox-code-audit/src/retirement_parity.rs#L133-L136) | A detector-kind row that references a `rule_id` we cannot resolve. |
+| `struct` | `retirement_parity::MissingDiagnosticId` | `pub struct MissingDiagnosticId` | [`crates/vox-code-audit/src/retirement_parity.rs#L140-L143`](../../../crates/vox-code-audit/src/retirement_parity.rs#L140-L143) | A detector-kind row that references a `diagnostic_id` not in the catalog. |
+| `fn` | `retirement_parity::is_clean` | `pub fn is_clean(&self) -> bool` | [`crates/vox-code-audit/src/retirement_parity.rs#L147-L151`](../../../crates/vox-code-audit/src/retirement_parity.rs#L147-L151) | Returns true iff there are no drift findings. |
+| `fn` | `retirement_parity::summary` | `pub fn summary(&self) -> String` | [`crates/vox-code-audit/src/retirement_parity.rs#L154-L168`](../../../crates/vox-code-audit/src/retirement_parity.rs#L154-L168) | Human-readable summary line. |
+| `fn` | `retirement_parity::check_parity` | `pub fn check_parity(yaml: &str) -> Result<ParityReport, ParityError>` | [`crates/vox-code-audit/src/retirement_parity.rs#L175-L247`](../../../crates/vox-code-audit/src/retirement_parity.rs#L175-L247) | Run the parity check against the given retirement-contract YAML.  Returns a [`ParityReport`] describing every row's enforcement status; call [`ParityReport::is_clean`] to gate CI. |
+

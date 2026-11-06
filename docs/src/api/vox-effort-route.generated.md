@@ -57,3 +57,66 @@ See `docs/superpowers/specs/2026-05-30-effort-route-design.md`.
 | `pricing` | — |
 | `route` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_effort_route: "vox-effort-route"
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_effort_route -> vox_actor_runtime
+    node vox_config: "vox-config"
+    vox_effort_route -> vox_config
+    node vox_effort_audit: "vox-effort-audit"
+    vox_effort_route -> vox_effort_audit
+    node vox_git: "vox-git"
+    vox_effort_route -> vox_git
+    node vox_telemetry: "vox-telemetry"
+    vox_effort_route -> vox_telemetry
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_effort_route
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `bucket::BucketKey` | `pub struct BucketKey` | [`crates/vox-effort-route/src/bucket.rs#L7-L11`](../../../crates/vox-effort-route/src/bucket.rs#L7-L11) | — |
+| `struct` | `bucket::Bucket` | `pub struct Bucket` | [`crates/vox-effort-route/src/bucket.rs#L14-L17`](../../../crates/vox-effort-route/src/bucket.rs#L14-L17) | — |
+| `fn` | `bucket::primary_crate` | `pub fn primary_crate(f: &LoadedFinding) -> String` | [`crates/vox-effort-route/src/bucket.rs#L26-L45`](../../../crates/vox-effort-route/src/bucket.rs#L26-L45) | Derive the owning crate from a finding's evidence pointers (preferred) or shape histogram (fallback). Returns `"<workspace-root>"` when no crate path found.  Per spec §3 step 2, this is the crate owning the **plurality** of the finding's touched paths (evidence pointers), not merely the first one. Ties break deterministically by lexicographically-smallest crate name so the bucket key is stable across runs. |
+| `fn` | `bucket::group` | `pub fn group(findings: Vec<LoadedFinding>) -> Vec<Bucket>` | [`crates/vox-effort-route/src/bucket.rs#L61-L75`](../../../crates/vox-effort-route/src/bucket.rs#L61-L75) | — |
+| `trait` | `cluster::Embedder` | `pub trait Embedder: Send + Sync` | [`crates/vox-effort-route/src/cluster.rs#L8-L10`](../../../crates/vox-effort-route/src/cluster.rs#L8-L10) | Abstraction over embedding so tests can assert call counts and determinism. |
+| `struct` | `cluster::Cluster` | `pub struct Cluster` | [`crates/vox-effort-route/src/cluster.rs#L14-L17`](../../../crates/vox-effort-route/src/cluster.rs#L14-L17) | A sub-cluster of a bucket (or the whole bucket when not split). |
+| `fn` | `cluster::maybe_split` | `pub async fn maybe_split(` | [`crates/vox-effort-route/src/cluster.rs#L20`](../../../crates/vox-effort-route/src/cluster.rs#L20) | Split oversized buckets into sub-clusters; pass small buckets through unchanged. |
+| `struct` | `config::EffortRouteConfig` | `pub struct EffortRouteConfig` | [`crates/vox-effort-route/src/config.rs#L7-L22`](../../../crates/vox-effort-route/src/config.rs#L7-L22) | — |
+| `struct` | `config::RouteJudgeConfig` | `pub struct RouteJudgeConfig` | [`crates/vox-effort-route/src/config.rs#L25-L36`](../../../crates/vox-effort-route/src/config.rs#L25-L36) | — |
+| `struct` | `embed::LlmEmbedder` | `pub struct LlmEmbedder` | [`crates/vox-effort-route/src/embed.rs#L18-L23`](../../../crates/vox-effort-route/src/embed.rs#L18-L23) | Embeds finding rationales through the model-agnostic facade.  `model` is resolved upstream by the caller (the orchestrator model registry for the CLI). `provider: "auto"` defers vendor selection to the facade. |
+| `struct` | `emit::RecommendationRow` | `pub struct RecommendationRow` | [`crates/vox-effort-route/src/emit/mod.rs#L14-L17`](../../../crates/vox-effort-route/src/emit/mod.rs#L14-L17) | One row in recommendations.jsonl. |
+| `fn` | `emit::new` | `pub fn new(decision: RemediationDecision) -> Self` | [`crates/vox-effort-route/src/emit/mod.rs#L20-L25`](../../../crates/vox-effort-route/src/emit/mod.rs#L20-L25) | — |
+| `enum` | `load::LoadError` | `pub enum LoadError` | [`crates/vox-effort-route/src/load.rs#L9-L19`](../../../crates/vox-effort-route/src/load.rs#L9-L19) | — |
+| `struct` | `load::LoadedFinding` | `pub struct LoadedFinding` | [`crates/vox-effort-route/src/load.rs#L23-L25`](../../../crates/vox-effort-route/src/load.rs#L23-L25) | A finding that survived filtering (guaranteed `finding.is_some()` and score >= threshold). |
+| `fn` | `load::read` | `pub fn read(path: &Path, min_waste_score: u8) -> Result<Vec<LoadedFinding>, LoadError>` | [`crates/vox-effort-route/src/load.rs#L28-L51`](../../../crates/vox-effort-route/src/load.rs#L28-L51) | Parse, schema-validate, and filter findings.jsonl. |
+| `struct` | `pipeline::RouteSummary` | `pub struct RouteSummary` | [`crates/vox-effort-route/src/pipeline.rs#L28-L47`](../../../crates/vox-effort-route/src/pipeline.rs#L28-L47) | Roll-up of a single `vox audit effort-route` run. |
+| `fn` | `pipeline::run` | `pub async fn run(` | [`crates/vox-effort-route/src/pipeline.rs#L55`](../../../crates/vox-effort-route/src/pipeline.rs#L55) | Run the full effort-route pipeline against an S1 `findings.jsonl`.  Writes `recommendations.jsonl`, `recommendations.md`, and verified `.proposed` artifacts under `out_dir`. The `router` and `embedder` are injected so tests can substitute deterministic mocks and the CLI can wire the facade-backed LLM implementations. |
+| `struct` | `pricing::ModelRates` | `pub struct ModelRates` | [`crates/vox-effort-route/src/pricing.rs#L9-L13`](../../../crates/vox-effort-route/src/pricing.rs#L9-L13) | — |
+| `fn` | `pricing::cost_usd` | `pub fn cost_usd(&self, prompt_tokens: u64, completion_tokens: u64) -> Option<f64>` | [`crates/vox-effort-route/src/pricing.rs#L18-L26`](../../../crates/vox-effort-route/src/pricing.rs#L18-L26) | Real USD cost for a single judge call, or `None` when the model is not in the pricing catalog (we never invent a $0.00 for an unpriced model). |
+| `enum` | `route::ArtifactForm` | `pub enum ArtifactForm` | [`crates/vox-effort-route/src/route/mod.rs#L32-L41`](../../../crates/vox-effort-route/src/route/mod.rs#L32-L41) | — |
+| `fn` | `route::staging_extension` | `pub fn staging_extension(self) -> &'static str` | [`crates/vox-effort-route/src/route/mod.rs#L45-L55`](../../../crates/vox-effort-route/src/route/mod.rs#L45-L55) | Staging-file extension for this form (always ends in `.proposed`). |
+| `fn` | `route::vox_required` | `pub fn vox_required(self) -> bool` | [`crates/vox-effort-route/src/route/mod.rs#L58-L60`](../../../crates/vox-effort-route/src/route/mod.rs#L58-L60) | Whether this form requires the authoring model to be Vox-capable (true only for `VoxLang`). Such forms are gated out on non-Vox-capable runs. |
+| `struct` | `route::DraftedArtifact` | `pub struct DraftedArtifact` | [`crates/vox-effort-route/src/route/mod.rs#L76-L82`](../../../crates/vox-effort-route/src/route/mod.rs#L76-L82) | — |
+| `struct` | `route::RemediationDecision` | `pub struct RemediationDecision` | [`crates/vox-effort-route/src/route/mod.rs#L85-L109`](../../../crates/vox-effort-route/src/route/mod.rs#L85-L109) | — |
+| `fn` | `route::judge_tokens_used` | `pub fn judge_tokens_used(&self) -> u64` | [`crates/vox-effort-route/src/route/mod.rs#L114-L116`](../../../crates/vox-effort-route/src/route/mod.rs#L114-L116) | Total judge tokens (prompt + completion). Kept as a helper so budget accounting and reporting that key on a single token count still work. |
+| `fn` | `route::budget_skipped` | `pub fn budget_skipped(cluster: &Cluster, cluster_id: &str) -> RemediationDecision` | [`crates/vox-effort-route/src/route/mod.rs#L121-L149`](../../../crates/vox-effort-route/src/route/mod.rs#L121-L149) | A cluster that was not routed because the judge token budget was already exhausted. Emitted as a `None`-form, unverified row so the run is honest about what it skipped rather than silently truncating. |
+| `struct` | `route::ModelVoxCapability` | `pub struct ModelVoxCapability(pub bool)` | [`crates/vox-effort-route/src/route/mod.rs#L155`](../../../crates/vox-effort-route/src/route/mod.rs#L155) | Whether the selected judge model can author Vox source. Passed in by the CLI so this crate need not depend on vox-orchestrator's model registry. |
+| `trait` | `route::Router` | `pub trait Router: Send + Sync` | [`crates/vox-effort-route/src/route/mod.rs#L158-L166`](../../../crates/vox-effort-route/src/route/mod.rs#L158-L166) | — |
+| `struct` | `route::MockRouter` | `pub struct MockRouter` | [`crates/vox-effort-route/src/route/mod.rs#L169-L171`](../../../crates/vox-effort-route/src/route/mod.rs#L169-L171) | Deterministic in-memory router for tests. |
+| `fn` | `route::token_sum` | `pub fn token_sum(cost: &vox_effort_audit::hybrid::MeasuredCost) -> u64` | [`crates/vox-effort-route/src/route/mod.rs#L237-L251`](../../../crates/vox-effort-route/src/route/mod.rs#L237-L251) | Sum input+output tokens from a MeasuredCost (0 for Unavailable/Ambiguous). |
+| `struct` | `route::LlmRouter` | `pub struct LlmRouter` | [`crates/vox-effort-route/src/route/mod.rs#L259-L274`](../../../crates/vox-effort-route/src/route/mod.rs#L259-L274) | Real router wired through `vox_actor_runtime::llm::infer_with_retry`.  All LLM I/O goes through the model-agnostic facade. The model id is resolved upstream (orchestrator model registry) and passed in as `resolved_model`; no provider hostnames or SDKs leak in here. See AGENTS.md §Model-Agnostic LLM Boundary. |
+

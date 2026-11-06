@@ -74,3 +74,76 @@ another.
 | `effective_training_eligible` | The one shared MENS eligibility rule (D-05, D-06): not forced-ineligible and the flag, which defaults to true. |
 | `facet_json_schema` | Draft-07 JSON Schema for [`Facets`] (the GUI type and the 04-03 golden read this). |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_kb_facets: "vox-kb-facets"
+    node vox_corpus: "vox-corpus"
+    vox_corpus -> vox_kb_facets
+    node vox_doc_pipeline: "vox-doc-pipeline"
+    vox_doc_pipeline -> vox_kb_facets
+    node vox_search: "vox-search"
+    vox_search -> vox_kb_facets
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-corpus`](./vox-corpus.generated.md) | Direct workspace dependent |
+| [`vox-doc-pipeline`](./vox-doc-pipeline.generated.md) | Direct workspace dependent |
+| [`vox-search`](./vox-search.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `Authorship` | `pub enum Authorship` | [`crates/vox-kb-facets/src/lib.rs#L34-L38`](../../../crates/vox-kb-facets/src/lib.rs#L34-L38) | Who wrote the page. |
+| `enum` | `Origin` | `pub enum Origin` | [`crates/vox-kb-facets/src/lib.rs#L43-L46`](../../../crates/vox-kb-facets/src/lib.rs#L43-L46) | How the page entered the KB. |
+| `enum` | `KbTier` | `pub enum KbTier` | [`crates/vox-kb-facets/src/lib.rs#L51-L54`](../../../crates/vox-kb-facets/src/lib.rs#L51-L54) | Which collection the page belongs to: Vox docs or the general library. |
+| `enum` | `TrustTier` | `pub enum TrustTier` | [`crates/vox-kb-facets/src/lib.rs#L59-L64`](../../../crates/vox-kb-facets/src/lib.rs#L59-L64) | Trust level of the page; same wire strings as `ContextTrustTier`. |
+| `enum` | `Scope` | `pub enum Scope` | [`crates/vox-kb-facets/src/lib.rs#L69-L72`](../../../crates/vox-kb-facets/src/lib.rs#L69-L72) | Whether the page is about Vox internals or external subject matter. |
+| `enum` | `Sensitivity` | `pub enum Sensitivity` | [`crates/vox-kb-facets/src/lib.rs#L77-L80`](../../../crates/vox-kb-facets/src/lib.rs#L77-L80) | Egress sensitivity; `private` pages must not leave the machine. |
+| `struct` | `Source` | `pub struct Source` | [`crates/vox-kb-facets/src/lib.rs#L85-L96`](../../../crates/vox-kb-facets/src/lib.rs#L85-L96) | One entry of `sources[]`; every field is optional so a gap is a lint error, not a parse error. |
+| `struct` | `Facets` | `pub struct Facets` | [`crates/vox-kb-facets/src/lib.rs#L103-L136`](../../../crates/vox-kb-facets/src/lib.rs#L103-L136) | Typed KB facets read from page frontmatter. Unknown frontmatter keys are ignored. |
+| `fn` | `parse_facets` | `pub fn parse_facets(doc_text: &str) -> Result<Facets, String>` | [`crates/vox-kb-facets/src/lib.rs#L142-L155`](../../../crates/vox-kb-facets/src/lib.rs#L142-L155) | Parse facets from a whole document. No `---` fence at all or an empty block is `Facets::default()` (grandfathered, D-05). A fence that is opened but not recognised (unterminated, indented, preceded by a blank line) or holds an invalid facet value is an `Err`: callers must treat it as "not eligible", never as "no facets" (CR-01). |
+| `fn` | `is_valid_attestation` | `pub fn is_valid_attestation(s: &str) -> bool` | [`crates/vox-kb-facets/src/lib.rs#L187-L190`](../../../crates/vox-kb-facets/src/lib.rs#L187-L190) | True when `human_attested_by` names a person: non-blank and not a placeholder or AI name (case-insensitive, whole value). |
+| `fn` | `forced_training_ineligible` | `pub fn forced_training_ineligible(f: &Facets) -> bool` | [`crates/vox-kb-facets/src/lib.rs#L195-L206`](../../../crates/vox-kb-facets/src/lib.rs#L195-L206) | True when the page is forced training-ineligible: web-promoted or LLM-authored content with no valid `human_attested_by` ([`is_valid_attestation`]). |
+| `fn` | `effective_training_eligible` | `pub fn effective_training_eligible(f: &Facets) -> bool` | [`crates/vox-kb-facets/src/lib.rs#L211-L213`](../../../crates/vox-kb-facets/src/lib.rs#L211-L213) | The one shared MENS eligibility rule (D-05, D-06): not forced-ineligible and the flag, which defaults to true. |
+| `fn` | `facet_json_schema` | `pub fn facet_json_schema() -> serde_json::Value` | [`crates/vox-kb-facets/src/lib.rs#L217-L229`](../../../crates/vox-kb-facets/src/lib.rs#L217-L229) | Draft-07 JSON Schema for [`Facets`] (the GUI type and the 04-03 golden read this). |
+| `struct` | `backlog::BacklogRow` | `pub struct BacklogRow` | [`crates/vox-kb-facets/src/backlog.rs#L14-L17`](../../../crates/vox-kb-facets/src/backlog.rs#L14-L17) | One excused doc: exact repo-relative path (`/` separators) and the rule ids it is excused from. |
+| `struct` | `backlog::Backlog` | `pub struct Backlog` | [`crates/vox-kb-facets/src/backlog.rs#L22-L27`](../../../crates/vox-kb-facets/src/backlog.rs#L22-L27) | The backlog file. Rows are sorted by path, rule ids sorted within a row. |
+| `fn` | `backlog::from_yaml_str` | `pub fn from_yaml_str(s: &str) -> Result<Backlog, String>` | [`crates/vox-kb-facets/src/backlog.rs#L35-L67`](../../../crates/vox-kb-facets/src/backlog.rs#L35-L67) | Parse and validate. Every problem is reported, joined with newlines. |
+| `fn` | `backlog::rules_for` | `pub fn rules_for(&self, rel_path: &str) -> Option<&[String]>` | [`crates/vox-kb-facets/src/backlog.rs#L71-L76`](../../../crates/vox-kb-facets/src/backlog.rs#L71-L76) | Rule ids excused for the exact repo-relative path, or `None` when the doc is not listed. |
+| `fn` | `backlog::from_violations` | `pub fn from_violations(` | [`crates/vox-kb-facets/src/backlog.rs#L81`](../../../crates/vox-kb-facets/src/backlog.rs#L81) | Build a backlog from live violations (path -> rule ids). Empty sets are dropped; rows and rule ids come out sorted (BTree order), so output is deterministic. |
+| `fn` | `backlog::to_yaml_string` | `pub fn to_yaml_string(&self) -> Result<String, String>` | [`crates/vox-kb-facets/src/backlog.rs#L102-L109`](../../../crates/vox-kb-facets/src/backlog.rs#L102-L109) | The committed file text: generated-file header, serde body, trailing newline. |
+| `fn` | `backlog::tightened` | `pub fn tightened(` | [`crates/vox-kb-facets/src/backlog.rs#L114`](../../../crates/vox-kb-facets/src/backlog.rs#L114) | Removal-only update (D-04): drop rules that are now clean, rows with no rules left and rows whose doc is gone. A live (path, rule) pair this backlog does not list is an addition and returns `Err` with those pairs. Epoch and note are kept. |
+| `fn` | `backlog::tighten_only_violations` | `pub fn tighten_only_violations(` | [`crates/vox-kb-facets/src/backlog.rs#L158`](../../../crates/vox-kb-facets/src/backlog.rs#L158) | Gate the head backlog against the base one: without a re-epoch it may only shrink. `base == None` is bootstrap (no backlog at the base ref yet). `base_docs` is every doc path that exists in the base tree: a re-epoch may re-seed over those, but never list a doc that did not exist there (D-03: a new doc is never excused, WR-01). |
+| `fn` | `frontmatter::frontmatter_range` | `pub fn frontmatter_range(text: &str) -> Option<Range<usize>>` | [`crates/vox-kb-facets/src/frontmatter.rs#L53-L55`](../../../crates/vox-kb-facets/src/frontmatter.rs#L53-L55) | Byte range of the leading `---` frontmatter block, from offset 0 through the end of the closing `---` line (terminator included). `None` when the text does not start with `---` (after an optional BOM) or the block is never closed. |
+| `fn` | `frontmatter::frontmatter_yaml` | `pub fn frontmatter_yaml(text: &str) -> Option<&str>` | [`crates/vox-kb-facets/src/frontmatter.rs#L59-L61`](../../../crates/vox-kb-facets/src/frontmatter.rs#L59-L61) | The YAML between the opening and closing fence lines (fences excluded), if the block is closed. |
+| `struct` | `keys::KeyNearMiss` | `pub struct KeyNearMiss` | [`crates/vox-kb-facets/src/keys.rs#L36-L41`](../../../crates/vox-kb-facets/src/keys.rs#L36-L41) | An unknown frontmatter key that looks like a misspelling of a known facet key. |
+| `fn` | `keys::guards_eligibility` | `pub fn guards_eligibility(&self) -> bool` | [`crates/vox-kb-facets/src/keys.rs#L46-L48`](../../../crates/vox-kb-facets/src/keys.rs#L46-L48) | True when the intended key decides MENS eligibility. |
+| `fn` | `keys::facet_key_near_misses` | `pub fn facet_key_near_misses(doc_text: &str) -> Vec<KeyNearMiss>` | [`crates/vox-kb-facets/src/keys.rs#L90-L107`](../../../crates/vox-kb-facets/src/keys.rs#L90-L107) | Unknown top-level frontmatter keys that look like misspelled facet keys. Empty when there is no closed frontmatter block or it is not a mapping (`parse_facets` reports those). |
+| `fn` | `provenance::is_blake3_content_hash` | `pub fn is_blake3_content_hash(s: &str) -> bool` | [`crates/vox-kb-facets/src/provenance.rs#L19-L22`](../../../crates/vox-kb-facets/src/provenance.rs#L19-L22) | True for `blake3:` plus exactly 64 lowercase hex characters (encoded form only). |
+| `fn` | `provenance::is_iso_date` | `pub fn is_iso_date(s: &str) -> bool` | [`crates/vox-kb-facets/src/provenance.rs#L26-L49`](../../../crates/vox-kb-facets/src/provenance.rs#L26-L49) | True for a real Gregorian date written exactly `YYYY-MM-DD`. |
+| `fn` | `provenance::quote_word_counts` | `pub fn quote_word_counts(doc_text: &str, sources: &[Source]) -> Vec<usize>` | [`crates/vox-kb-facets/src/provenance.rs#L56-L80`](../../../crates/vox-kb-facets/src/provenance.rs#L56-L80) | Word count of each quote on the page: one entry per contiguous blockquote run in the body (outside fences) plus one per non-empty `sources[].quote`. |
+| `enum` | `summary::SummaryStatus` | `pub enum SummaryStatus` | [`crates/vox-kb-facets/src/summary.rs#L20-L26`](../../../crates/vox-kb-facets/src/summary.rs#L20-L26) | Result of inspecting a doc for its summary block (lines are 1-based in the whole doc text). |
+| `fn` | `summary::is_summary_marker_line` | `pub fn is_summary_marker_line(line: &str) -> bool` | [`crates/vox-kb-facets/src/summary.rs#L30-L33`](../../../crates/vox-kb-facets/src/summary.rs#L30-L33) | True when the line, trimmed, is an HTML or MDX summary open or close marker. |
+| `fn` | `summary::is_esm_import_or_export_line` | `pub fn is_esm_import_or_export_line(line: &str) -> bool` | [`crates/vox-kb-facets/src/summary.rs#L37-L43`](../../../crates/vox-kb-facets/src/summary.rs#L37-L43) | True when a trimmed line is a top-level ESM `import` or `export` statement in MDX. |
+| `fn` | `summary::is_mdx_boilerplate_line` | `pub fn is_mdx_boilerplate_line(line: &str) -> bool` | [`crates/vox-kb-facets/src/summary.rs#L77-L86`](../../../crates/vox-kb-facets/src/summary.rs#L77-L86) | True when a line outside code fences is MDX/JSX structural noise (`import`, `{/* ... */}`, or a standalone Starlight wrapper tag like `<Tabs>`, `<TabItem ...>`, `<Steps>`, `<CardGrid>`). |
+| `fn` | `summary::strip_mdx_boilerplate` | `pub fn strip_mdx_boilerplate(text: &str) -> String` | [`crates/vox-kb-facets/src/summary.rs#L92-L132`](../../../crates/vox-kb-facets/src/summary.rs#L92-L132) | Strip MDX-only boilerplate (ESM imports/exports, JSX comments `{/* ... */}`, standalone Starlight wrapper tags, and multi-line `<VoxPlayground ... />` embeds) outside fenced code blocks while preserving inner prose and fenced code verbatim. |
+| `fn` | `summary::inspect_summary` | `pub fn inspect_summary(doc_text: &str) -> SummaryStatus` | [`crates/vox-kb-facets/src/summary.rs#L138-L183`](../../../crates/vox-kb-facets/src/summary.rs#L138-L183) | Locate and measure the summary block. Markers inside fenced code are ignored. |
+| `fn` | `summary::strip_summary_blocks` | `pub fn strip_summary_blocks(text: &str) -> String` | [`crates/vox-kb-facets/src/summary.rs#L188-L215`](../../../crates/vox-kb-facets/src/summary.rs#L188-L215) | Remove every summary block (inline forms and MDX `{/* kb:summary */}` forms included). An open marker with no later matching close removes the rest of the text: fail closed for the MENS strip. |
+| `struct` | `taxonomy::Concept` | `pub struct Concept` | [`crates/vox-kb-facets/src/taxonomy.rs#L18-L32`](../../../crates/vox-kb-facets/src/taxonomy.rs#L18-L32) | One vocabulary entry (a domain or a topic). |
+| `struct` | `taxonomy::Taxonomy` | `pub struct Taxonomy` | [`crates/vox-kb-facets/src/taxonomy.rs#L46-L49`](../../../crates/vox-kb-facets/src/taxonomy.rs#L46-L49) | Validated vocabulary. |
+| `enum` | `taxonomy::LabelMatch` | `pub enum LabelMatch<'a>` | [`crates/vox-kb-facets/src/taxonomy.rs#L53-L58`](../../../crates/vox-kb-facets/src/taxonomy.rs#L53-L58) | How a label resolved. |
+| `fn` | `taxonomy::from_yaml_str` | `pub fn from_yaml_str(s: &str) -> Result<Taxonomy, String>` | [`crates/vox-kb-facets/src/taxonomy.rs#L106-L183`](../../../crates/vox-kb-facets/src/taxonomy.rs#L106-L183) | Parse and validate. Every curation problem is reported, joined with newlines. |
+| `fn` | `taxonomy::resolve_topic` | `pub fn resolve_topic(&self, label: &str) -> LabelMatch<'_>` | [`crates/vox-kb-facets/src/taxonomy.rs#L185-L187`](../../../crates/vox-kb-facets/src/taxonomy.rs#L185-L187) | — |
+| `fn` | `taxonomy::resolve_domain` | `pub fn resolve_domain(&self, label: &str) -> LabelMatch<'_>` | [`crates/vox-kb-facets/src/taxonomy.rs#L189-L191`](../../../crates/vox-kb-facets/src/taxonomy.rs#L189-L191) | — |
+| `fn` | `taxonomy::topic_labels` | `pub fn topic_labels(&self) -> Vec<&str>` | [`crates/vox-kb-facets/src/taxonomy.rs#L194-L196`](../../../crates/vox-kb-facets/src/taxonomy.rs#L194-L196) | Topic prefLabels in file order (did-you-mean candidates). |
+| `fn` | `taxonomy::domain_labels` | `pub fn domain_labels(&self) -> Vec<&str>` | [`crates/vox-kb-facets/src/taxonomy.rs#L199-L201`](../../../crates/vox-kb-facets/src/taxonomy.rs#L199-L201) | Domain prefLabels in file order. |
+| `fn` | `taxonomy::expand_query` | `pub fn expand_query(&self, query: &str) -> String` | [`crates/vox-kb-facets/src/taxonomy.rs#L207-L239`](../../../crates/vox-kb-facets/src/taxonomy.rs#L207-L239) | Append one quoted facet phrase per concept whose altLabel or deprecated alias occurs in the query as a whole token. The phrase targets the card line written by [`facet_card_lines`], so only facet-tagged cards gain score. Only validated prefLabels are emitted; user text is never rewritten. An odd number of unescaped `"` returns the query unchanged. |
+

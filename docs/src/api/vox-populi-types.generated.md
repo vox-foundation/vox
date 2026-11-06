@@ -60,3 +60,38 @@ they only need the data types.
 |---|---|
 | `node_record` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_populi_types: "vox-populi-types"
+    node vox_mesh_types: "vox-mesh-types"
+    vox_populi_types -> vox_mesh_types
+    node vox_repository: "vox-repository"
+    vox_populi_types -> vox_repository
+    node vox_populi: "vox-populi"
+    vox_populi -> vox_populi_types
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `node_record::NodeRecord` | `pub struct NodeRecord` | [`crates/vox-populi-types/src/node_record.rs#L11-L123`](../../../crates/vox-populi-types/src/node_record.rs#L11-L123) | One participant in the populi view. |
+| `struct` | `node_record::PopuliRegistryFile` | `pub struct PopuliRegistryFile` | [`crates/vox-populi-types/src/node_record.rs#L127-L135`](../../../crates/vox-populi-types/src/node_record.rs#L127-L135) | Serializable registry file (`.vox/cache/populi/local-registry.json`). |
+| `fn` | `node_record::filter_registry_by_max_stale_ms` | `pub fn filter_registry_by_max_stale_ms(` | [`crates/vox-populi-types/src/node_record.rs#L143`](../../../crates/vox-populi-types/src/node_record.rs#L143) | Drop nodes whose `last_seen_unix_ms` is older than `now - max_stale_ms`. `max_stale_ms = None` or `0` returns the file unchanged. |
+| `fn` | `node_record::merge_registry_by_last_seen` | `pub fn merge_registry_by_last_seen(` | [`crates/vox-populi-types/src/node_record.rs#L162`](../../../crates/vox-populi-types/src/node_record.rs#L162) | Merge `incoming` (control-plane truth) into `local`, deduped by `id`, keeping the record with the greater `last_seen_unix_ms`. Ties resolve to `incoming` (the control plane is authoritative). Never mutates timestamps. `schema_version` becomes the max; `queue_depth` prefers the live `incoming` value. Output node order is sorted by `id` for deterministic on-disk + test output. |
+| `fn` | `node_record::node_maintenance_blocks_new_work` | `pub fn node_maintenance_blocks_new_work(now_ms: u64, n: &NodeRecord) -> bool` | [`crates/vox-populi-types/src/node_record.rs#L192-L202`](../../../crates/vox-populi-types/src/node_record.rs#L192-L202) | Whether this node should block **new** claims / exec lease grant+renew (drain semantics). |
+| `fn` | `node_record::sweep_expired_maintenance_on_nodes` | `pub fn sweep_expired_maintenance_on_nodes(nodes: &mut [NodeRecord], now_ms: u64)` | [`crates/vox-populi-types/src/node_record.rs#L205-L212`](../../../crates/vox-populi-types/src/node_record.rs#L205-L212) | Clear [`NodeRecord::maintenance`] / deadline when the deadline has passed. |
+| `enum` | `node_record::PopuliRegistryError` | `pub enum PopuliRegistryError` | [`crates/vox-populi-types/src/node_record.rs#L217-L237`](../../../crates/vox-populi-types/src/node_record.rs#L217-L237) | Registry I/O errors. Defined here so `vox-populi-types` consumers can match on them without depending on `vox-populi`. |
+| `fn` | `node_record::status_code` | `pub fn status_code(&self) -> Option<u16>` | [`crates/vox-populi-types/src/node_record.rs#L242-L247`](../../../crates/vox-populi-types/src/node_record.rs#L242-L247) | Status code when this error came from an HTTP status failure. |
+| `fn` | `node_record::is_http_status` | `pub fn is_http_status(&self, code: u16) -> bool` | [`crates/vox-populi-types/src/node_record.rs#L251-L253`](../../../crates/vox-populi-types/src/node_record.rs#L251-L253) | Convenience predicate for status-code branching. |
+

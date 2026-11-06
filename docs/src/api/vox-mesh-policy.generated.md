@@ -49,3 +49,31 @@ owns the pretty-print round-trip.
 | `parse` | — |
 | `print` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_mesh_policy: "vox-mesh-policy"
+    node vox_mesh_types: "vox-mesh-types"
+    vox_mesh_policy -> vox_mesh_types
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_mesh_policy
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `parse::ParseError` | `pub enum ParseError` | [`crates/vox-mesh-policy/src/parse.rs#L8-L18`](../../../crates/vox-mesh-policy/src/parse.rs#L8-L18) | — |
+| `fn` | `parse::load_policy` | `pub fn load_policy(path: &Path) -> Result<WorkerDonationPolicy, ParseError>` | [`crates/vox-mesh-policy/src/parse.rs#L25-L31`](../../../crates/vox-mesh-policy/src/parse.rs#L25-L31) | Load and parse a `donations.vox` policy file.  The file uses Vox literal syntax for each field. This parser extracts the key-value assignments from the file and maps them to `WorkerDonationPolicy`. |
+| `fn` | `parse::parse_source` | `pub fn parse_source(src: &str, origin: &str) -> Result<WorkerDonationPolicy, ParseError>` | [`crates/vox-mesh-policy/src/parse.rs#L49`](../../../crates/vox-mesh-policy/src/parse.rs#L49) | Parse a `donations.vox` source string into a `WorkerDonationPolicy`.  The canonical format for `donations.vox` is a set of Vox `let` bindings: ```text let nsfw_allowed = false let max_job_duration_secs = 3600 let public_mesh_opt_in = false let min_priority = 0 ``` Slot declarations use a `slot` keyword: ```text slot gpu { max_concurrent = 2, weight_pct = 60 } slot cpu { max_concurrent = 4, weight_pct = 40 } ```  Unknown keys are ignored for forward compatibility. |
+| `fn` | `print::pretty_print` | `pub fn pretty_print(policy: &WorkerDonationPolicy) -> String` | [`crates/vox-mesh-policy/src/print.rs#L11-L92`](../../../crates/vox-mesh-policy/src/print.rs#L11-L92) | Render a `WorkerDonationPolicy` as canonical `donations.vox` source.  The output is deterministic: slots are ordered as given, booleans use lowercase literals, comments are placed at the top. Trailing comments from the original source are not preserved (this is a known limitation; a full AST round-trip is a future task). |
+

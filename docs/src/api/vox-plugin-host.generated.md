@@ -77,3 +77,104 @@ attempt to resolve or dlopen its dylib.
 | `load_code_plugin` | Discover the given plugin in `registry`, resolve the dylib path for the current target triple, and load it via [`Loader`].  This is the preferred one-shot entry point for code-payload plugins.  Callers can then call `.plugin.as_ml_backend()` (or the relevant extension point accessor) on the returned [`LoadedCodePlugin`]. |
 | `cached_code_plugin` | Cached singleton: load a code plugin once and reuse the handle process-wide. First call: discover + dlopen (tens of ms). Subsequent calls: O(1) HashMap lookup.  The plugin is leaked for the process lifetime (`Box::leak`) — code plugins are designed to never unload while the host is running. Designed for plugins called repeatedly (browser, mesh, ml backends). |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_plugin_host: "vox-plugin-host"
+    node vox_config: "vox-config"
+    vox_plugin_host -> vox_config
+    node vox_plugin_api: "vox-plugin-api"
+    vox_plugin_host -> vox_plugin_api
+    node vox_plugin_types: "vox-plugin-types"
+    vox_plugin_host -> vox_plugin_types
+    node vox_secrets: "vox-secrets"
+    vox_plugin_host -> vox_secrets
+    node vox_telemetry: "vox-telemetry"
+    vox_plugin_host -> vox_telemetry
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_actor_runtime -> vox_plugin_host
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_plugin_host
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_plugin_host
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_plugin_host
+    node vox_ml_cli: "vox-ml-cli"
+    vox_ml_cli -> vox_plugin_host
+    node vox_openclaw_runtime: "vox-openclaw-runtime"
+    vox_openclaw_runtime -> vox_plugin_host
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_plugin_host
+    node vox_populi: "vox-populi"
+    vox_populi -> vox_plugin_host
+    node vox_skills: "vox-skills"
+    vox_skills -> vox_plugin_host
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Direct workspace dependent |
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+| [`vox-openclaw-runtime`](./vox-openclaw-runtime.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
+| [`vox-skills`](./vox-skills.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `resolve_plugins_root` | `pub fn resolve_plugins_root() -> std::path::PathBuf` | [`crates/vox-plugin-host/src/lib.rs#L44-L51`](../../../crates/vox-plugin-host/src/lib.rs#L44-L51) | Resolve the plugin install root, respecting `$VOX_PLUGINS_DIR` if set. Falls back to the platform's local data directory under `vox/plugins`. |
+| `fn` | `format_install_hint` | `pub fn format_install_hint(plugin_id: &str, cargo_feature_hint: Option<&str>) -> String` | [`crates/vox-plugin-host/src/lib.rs#L66-L81`](../../../crates/vox-plugin-host/src/lib.rs#L66-L81) | Format the canonical multi-line install hint for a missing plugin.  Always includes the catalog command (`vox plugin install <id>`). When the caller is running from a Vox workspace checkout that contains the plugin source under `crates/vox-plugin-<id>/`, also appends the local-path variant so contributors get a copy-pasteable command pointing at their own checkout (no GitHub fetch needed).  Optionally appends a "Build with cargo:" line when the caller knows the plugin is enabled behind a cargo feature flag on a vox crate (e.g. vox-ml-cli's `gpu` / `mens-candle-cuda`). Pass `Some(cargo_hint)` with the command body — `cargo build -p vox-ml-cli --release --features ...`. |
+| `fn` | `workspace_local_plugin_source` | `pub fn workspace_local_plugin_source(plugin_id: &str) -> Option<std::path::PathBuf>` | [`crates/vox-plugin-host/src/lib.rs#L93-L122`](../../../crates/vox-plugin-host/src/lib.rs#L93-L122) | Detect the in-tree source directory for a plugin id when running from a Vox workspace checkout. Used by `load_code_plugin` to make the "plugin not installed" error message actionable for contributors and by `vox plugin install <id>` (catalog path) to prefer the local checkout over fetching a release tarball.  Walks up from CWD looking for a `crates/vox-plugin-<id>/Plugin.toml`. Returns `Some(path-to-crate-dir)` on the first hit, `None` otherwise. Honors `VOX_WORKSPACE_ROOT` as an explicit override. |
+| `fn` | `current_target_triple_key` | `pub fn current_target_triple_key() -> &'static str` | [`crates/vox-plugin-host/src/lib.rs#L129-L132`](../../../crates/vox-plugin-host/src/lib.rs#L129-L132) | Return the target-triple key used in `[plugin.payload.artifacts]` for the current build.  The format is `"<os>-<arch>"` where `os` is `"windows"`, `"linux"`, or `"macos"` and `arch` is `"x86_64"` or `"aarch64"`.  This matches the keys emitted by the Plugin.toml generator and by `vox plugin install`. |
+| `fn` | `load_code_plugin_by_id` | `pub fn load_code_plugin_by_id(plugin_id: &str) -> Result<LoadedCodePlugin, errors::LoadError>` | [`crates/vox-plugin-host/src/lib.rs#L138-L142`](../../../crates/vox-plugin-host/src/lib.rs#L138-L142) | Convenience wrapper: discover the plugin install root, build the registry, and load a code plugin by id in a single call.  For one-off dispatches from async contexts, wrap in `tokio::task::spawn_blocking`. |
+| `fn` | `load_code_plugin` | `pub fn load_code_plugin(` | [`crates/vox-plugin-host/src/lib.rs#L150`](../../../crates/vox-plugin-host/src/lib.rs#L150) | Discover the given plugin in `registry`, resolve the dylib path for the current target triple, and load it via [`Loader`].  This is the preferred one-shot entry point for code-payload plugins.  Callers can then call `.plugin.as_ml_backend()` (or the relevant extension point accessor) on the returned [`LoadedCodePlugin`]. |
+| `fn` | `cached_code_plugin` | `pub fn cached_code_plugin(` | [`crates/vox-plugin-host/src/lib.rs#L274`](../../../crates/vox-plugin-host/src/lib.rs#L274) | Cached singleton: load a code plugin once and reuse the handle process-wide. First call: discover + dlopen (tens of ms). Subsequent calls: O(1) HashMap lookup.  The plugin is leaked for the process lifetime (`Box::leak`) — code plugins are designed to never unload while the host is running. Designed for plugins called repeatedly (browser, mesh, ml backends). |
+| `struct` | `capability::CapabilitySet` | `pub struct CapabilitySet(BTreeSet<String>)` | [`crates/vox-plugin-host/src/capability.rs#L17`](../../../crates/vox-plugin-host/src/capability.rs#L17) | Host hardware/platform tags a plugin's `requires-tag` is checked against. Always includes `"cpu-only"`. Probing degrades to fewer tags on any failure — it must never panic and never require a toolchain. |
+| `fn` | `capability::from_tags` | `pub fn from_tags<I: IntoIterator<Item = T>, T: Into<String>>(tags: I) -> Self` | [`crates/vox-plugin-host/src/capability.rs#L22-L24`](../../../crates/vox-plugin-host/src/capability.rs#L22-L24) | Build a set from an explicit list of tags (mainly for tests and callers that already know the host's capabilities). |
+| `fn` | `capability::satisfies` | `pub fn satisfies(&self, requires_tag: Option<&str>) -> bool` | [`crates/vox-plugin-host/src/capability.rs#L28-L33`](../../../crates/vox-plugin-host/src/capability.rs#L28-L33) | `None` (no `requires-tag` declared) is always satisfied. `Some(tag)` is satisfied iff `tag` is in the set. |
+| `fn` | `capability::probe` | `pub fn probe() -> CapabilitySet` | [`crates/vox-plugin-host/src/capability.rs#L38-L66`](../../../crates/vox-plugin-host/src/capability.rs#L38-L66) | Probe this host's capabilities. Never panics; a probe failure for one capability yields fewer tags, never a propagated error. |
+| `fn` | `discover::discover` | `pub fn discover(root: &Path) -> Result<Registry, LoadError>` | [`crates/vox-plugin-host/src/discover.rs#L16-L109`](../../../crates/vox-plugin-host/src/discover.rs#L16-L109) | — |
+| `struct` | `errors::PluginMissingError` | `pub struct PluginMissingError` | [`crates/vox-plugin-host/src/errors.rs#L9-L12`](../../../crates/vox-plugin-host/src/errors.rs#L9-L12) | Plugin-missing error. `Display` calls into [`crate::format_install_hint`] so the rendered message includes the workspace-local install command when the caller is running from a Vox workspace checkout — see that helper for the exact format and detection logic. |
+| `struct` | `errors::SkillNotInstalledError` | `pub struct SkillNotInstalledError` | [`crates/vox-plugin-host/src/errors.rs#L29-L31`](../../../crates/vox-plugin-host/src/errors.rs#L29-L31) | — |
+| `enum` | `errors::LoadError` | `pub enum LoadError` | [`crates/vox-plugin-host/src/errors.rs#L47-L85`](../../../crates/vox-plugin-host/src/errors.rs#L47-L85) | — |
+| `struct` | `errors::AbiMismatchError` | `pub struct AbiMismatchError` | [`crates/vox-plugin-host/src/errors.rs#L89-L96`](../../../crates/vox-plugin-host/src/errors.rs#L89-L96) | — |
+| `struct` | `errors::ChecksumMismatchError` | `pub struct ChecksumMismatchError` | [`crates/vox-plugin-host/src/errors.rs#L106-L110`](../../../crates/vox-plugin-host/src/errors.rs#L106-L110) | — |
+| `struct` | `external_skills::ExternalSkill` | `pub struct ExternalSkill` | [`crates/vox-plugin-host/src/external_skills.rs#L15-L20`](../../../crates/vox-plugin-host/src/external_skills.rs#L15-L20) | A skill found in an external (non-plugin) skill root. |
+| `fn` | `external_skills::discover_external_skills` | `pub fn discover_external_skills(roots: &[PathBuf]) -> Vec<ExternalSkill>` | [`crates/vox-plugin-host/src/external_skills.rs#L26-L70`](../../../crates/vox-plugin-host/src/external_skills.rs#L26-L70) | Walk each root's immediate subdirectories for `SKILL.md`, highest-precedence root first; the first skill seen for a given manifest id wins (mirrors the install-first-wins ordering callers rely on for shadowing). Missing roots and unparseable `SKILL.md` files are skipped with a warning. |
+| `struct` | `host_impl::DefaultVoxHost` | `pub struct DefaultVoxHost` | [`crates/vox-plugin-host/src/host_impl.rs#L8-L10`](../../../crates/vox-plugin-host/src/host_impl.rs#L8-L10) | — |
+| `fn` | `host_impl::new` | `pub fn new() -> Self` | [`crates/vox-plugin-host/src/host_impl.rs#L13-L16`](../../../crates/vox-plugin-host/src/host_impl.rs#L13-L16) | — |
+| `fn` | `host_impl::with_data_dir` | `pub fn with_data_dir(data_dir: impl Into<String>) -> Self` | [`crates/vox-plugin-host/src/host_impl.rs#L18-L22`](../../../crates/vox-plugin-host/src/host_impl.rs#L18-L22) | — |
+| `struct` | `loader::Loader` | `pub struct Loader` | [`crates/vox-plugin-host/src/loader.rs#L25`](../../../crates/vox-plugin-host/src/loader.rs#L25) | — |
+| `struct` | `loader::LoadedCodePlugin` | `pub struct LoadedCodePlugin` | [`crates/vox-plugin-host/src/loader.rs#L27-L29`](../../../crates/vox-plugin-host/src/loader.rs#L27-L29) | — |
+| `fn` | `loader::load` | `pub fn load(` | [`crates/vox-plugin-host/src/loader.rs#L32`](../../../crates/vox-plugin-host/src/loader.rs#L32) | — |
+| `struct` | `registry::PluginEntry` | `pub struct PluginEntry` | [`crates/vox-plugin-host/src/registry.rs#L8-L13`](../../../crates/vox-plugin-host/src/registry.rs#L8-L13) | — |
+| `struct` | `registry::Registry` | `pub struct Registry` | [`crates/vox-plugin-host/src/registry.rs#L15-L18`](../../../crates/vox-plugin-host/src/registry.rs#L15-L18) | — |
+| `fn` | `registry::new` | `pub fn new() -> Self` | [`crates/vox-plugin-host/src/registry.rs#L21-L26`](../../../crates/vox-plugin-host/src/registry.rs#L21-L26) | — |
+| `fn` | `registry::record` | `pub fn record(&self, entry: PluginEntry)` | [`crates/vox-plugin-host/src/registry.rs#L27-L32`](../../../crates/vox-plugin-host/src/registry.rs#L27-L32) | — |
+| `fn` | `registry::list_ids` | `pub fn list_ids(&self) -> Vec<String>` | [`crates/vox-plugin-host/src/registry.rs#L33-L35`](../../../crates/vox-plugin-host/src/registry.rs#L33-L35) | — |
+| `fn` | `registry::has` | `pub fn has(&self, id: &str) -> bool` | [`crates/vox-plugin-host/src/registry.rs#L36-L38`](../../../crates/vox-plugin-host/src/registry.rs#L36-L38) | — |
+| `fn` | `registry::get_full_entry` | `pub fn get_full_entry(&self, id: &str) -> Option<PluginEntry>` | [`crates/vox-plugin-host/src/registry.rs#L41-L43`](../../../crates/vox-plugin-host/src/registry.rs#L41-L43) | Return a clone of the full [`PluginEntry`] for `id`, or `None` if not registered. |
+| `fn` | `skill_author::author_skill_md` | `pub fn author_skill_md(name: &str, description: &str, steps: &[String]) -> String` | [`crates/vox-plugin-host/src/skill_author.rs#L49-L85`](../../../crates/vox-plugin-host/src/skill_author.rs#L49-L85) | Build a TOML-frontmatter `SKILL.md`. `steps` render as a numbered list of inline-code tokens; an empty list yields a valid file with no steps. |
+| `enum` | `skill_bundle::SkillBundleError` | `pub enum SkillBundleError` | [`crates/vox-plugin-host/src/skill_bundle.rs#L17-L24`](../../../crates/vox-plugin-host/src/skill_bundle.rs#L17-L24) | Parse error for skill bundles/manifests. |
+| `struct` | `skill_bundle::VoxSkillBundle` | `pub struct VoxSkillBundle` | [`crates/vox-plugin-host/src/skill_bundle.rs#L28-L37`](../../../crates/vox-plugin-host/src/skill_bundle.rs#L28-L37) | A fully-loaded skill bundle ready for installation. |
+| `fn` | `skill_bundle::new` | `pub fn new(manifest: SkillManifest, skill_md: impl Into<String>) -> Self` | [`crates/vox-plugin-host/src/skill_bundle.rs#L40-L47`](../../../crates/vox-plugin-host/src/skill_bundle.rs#L40-L47) | — |
+| `fn` | `skill_bundle::with_tools_json` | `pub fn with_tools_json(mut self, json: impl Into<String>) -> Self` | [`crates/vox-plugin-host/src/skill_bundle.rs#L49-L52`](../../../crates/vox-plugin-host/src/skill_bundle.rs#L49-L52) | — |
+| `fn` | `skill_bundle::with_asset` | `pub fn with_asset(mut self, path: impl Into<String>, data: Vec<u8>) -> Self` | [`crates/vox-plugin-host/src/skill_bundle.rs#L54-L57`](../../../crates/vox-plugin-host/src/skill_bundle.rs#L54-L57) | — |
+| `fn` | `skill_bundle::content_hash` | `pub fn content_hash(&self) -> String` | [`crates/vox-plugin-host/src/skill_bundle.rs#L60-L67`](../../../crates/vox-plugin-host/src/skill_bundle.rs#L60-L67) | Compute the SHA-256 content hash over the manifest JSON + SKILL.md. |
+| `fn` | `skill_bundle::to_json` | `pub fn to_json(&self) -> Result<String, SkillBundleError>` | [`crates/vox-plugin-host/src/skill_bundle.rs#L70-L72`](../../../crates/vox-plugin-host/src/skill_bundle.rs#L70-L72) | Serialize the bundle to JSON (for registry storage or download). |
+| `fn` | `skill_bundle::from_json` | `pub fn from_json(json: &str) -> Result<Self, SkillBundleError>` | [`crates/vox-plugin-host/src/skill_bundle.rs#L75-L77`](../../../crates/vox-plugin-host/src/skill_bundle.rs#L75-L77) | Deserialize a bundle from JSON. |
+| `type` | `skill_bundle::SkillBundle` | `pub type SkillBundle = VoxSkillBundle` | [`crates/vox-plugin-host/src/skill_bundle.rs#L81`](../../../crates/vox-plugin-host/src/skill_bundle.rs#L81) | Re-export type alias for ergonomics. |
+| `enum` | `skill_parser::ParseSkillError` | `pub enum ParseSkillError` | [`crates/vox-plugin-host/src/skill_parser.rs#L43-L50`](../../../crates/vox-plugin-host/src/skill_parser.rs#L43-L50) | Parse error returned by [`parse_skill_md`]. |
+| `fn` | `skill_parser::parse_skill_md` | `pub fn parse_skill_md(content: &str) -> Result<VoxSkillBundle, ParseSkillError>` | [`crates/vox-plugin-host/src/skill_parser.rs#L53-L131`](../../../crates/vox-plugin-host/src/skill_parser.rs#L53-L131) | Parse a full SKILL.md file into a `VoxSkillBundle`. |
+| `struct` | `skill_registry::InstallResult` | `pub struct InstallResult` | [`crates/vox-plugin-host/src/skill_registry.rs#L40-L49`](../../../crates/vox-plugin-host/src/skill_registry.rs#L40-L49) | Result of a skill installation. |
+
