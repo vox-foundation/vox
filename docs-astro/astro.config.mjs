@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import starlightGitHubAlerts from 'starlight-github-alerts';
+import starlightLinksValidator from 'starlight-links-validator';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import sitemap from '@astrojs/sitemap';
 import { unified } from '@astrojs/markdown-remark';
@@ -11,6 +12,7 @@ import { voxGrammar } from './src/plugins/vox-grammar.mjs';
 import { getSidebar } from './src/utils/sidebar.mjs';
 import { remarkVoxInclude } from './src/plugins/remark-vox-include.mjs';
 import { remarkDocLinks } from './src/plugins/remark-doc-links.mjs';
+import { linksValidatorExclude } from './src/utils/links-validator-exclude.mjs';
 import { listDocPages, noindexRoutes, internalsDocIds } from './src/utils/page-index.mjs';
 
 // Version SSOT is root Cargo.toml [workspace.package] (AGENTS.md §Versioning Policy).
@@ -64,6 +66,8 @@ export default defineConfig({
       },
       plugins: [
         starlightGitHubAlerts(),
+        // Defaults on purpose: failOnError stays true so broken internal links fail the build.
+        starlightLinksValidator({ exclude: linksValidatorExclude(docPages) }),
         starlightLlmsTxt({
           projectName: 'Vox',
           description: `Vox (vox-foundation/vox, voxlang.org; unrelated to vox-lang.dev or MrSmith33/vox) is a pre-1.0 (${voxVersion}) AI-native full-stack language that compiles a .vox file to a database schema, type-safe server, and browser UI. Build from source; see https://voxlang.org/reference/stability/ for maturity. Current syntax uses bare table / query / mutation / server / tool — not @endpoint.`,
