@@ -19,8 +19,10 @@ This runbook covers **two** native paths:
 ## Recommended Path (Qwen3.5-4B, RTX 4080-class 16GB)
 
 - **Build** (CUDA): from repo root, **`cargo vox-cuda-release`** (alias in `.cargo/config.toml` — same as `cargo build -p vox-cli --release --features gpu,mens-candle-cuda`). 
-  > [!WARNING]
-  > On Windows, you **MUST** use an interactive VS Developer Command Prompt or PowerShell shell explicitly bootstrapped with `vcvars64.bat`. Passing `vcvars64.bat` via nested subshells (e.g. `cmd.exe /c "vcvars64.bat && cargo..."`) aggressively drops the PATH configurations preventing `nvcc` from correctly executing `cl.exe`. 
+
+> [!WARNING]
+> On Windows, you **MUST** use an interactive VS Developer Command Prompt or PowerShell shell explicitly bootstrapped with `vcvars64.bat`. Passing `vcvars64.bat` via nested subshells (e.g. `cmd.exe /c "vcvars64.bat && cargo..."`) aggressively drops the PATH configurations preventing `nvcc` from correctly executing `cl.exe`. 
+
 - **Data**: `target/dogfood/train.jsonl` (from corpus pairs/mix); optional `record_format: tool_trace` in mix for command/tool supervision rows (`category` `tool_trace`). See **`mens/schemas/tool_trace_record.schema.json`** and **`mens/data/tool_traces.example.jsonl`**.
 - **Train**:
   ```powershell

@@ -67,4 +67,12 @@ test.describe('Build Output: GitHub alerts render as Starlight asides (DOCS-PARI
     const bad = listDistHtml().filter((f) => raw.test(readFileSync(join(DIST_DIR, f), 'utf8')));
     expect(bad, `raw [!TYPE] blockquotes in: ${bad.join(', ')}`).toEqual([]);
   });
+
+  // GitHub renders alerts only as top-level blockquotes; nested ones show as raw text there.
+  test('no docs/src page nests an alert', () => {
+    const nested = pages.flatMap((p: { relPath: string; alerts: Alert[] }) =>
+      p.alerts.filter((a) => a.indented).map((a) => `${p.relPath}:${a.line}`),
+    );
+    expect(nested, `indented alert markers: ${nested.join(', ')}`).toEqual([]);
+  });
 });
