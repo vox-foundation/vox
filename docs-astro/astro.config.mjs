@@ -1,9 +1,11 @@
 // @ts-check
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import sitemap from '@astrojs/sitemap';
+import { unified } from '@astrojs/markdown-remark';
 import { voxGrammar } from './src/plugins/vox-grammar.mjs';
 import { getSidebar } from './src/utils/sidebar.mjs';
 import { remarkVoxInclude } from './src/plugins/remark-vox-include.mjs';
@@ -23,10 +25,12 @@ export default defineConfig({
   // Process {{#include path:anchor}} directives in code blocks (mdBook SSOT pattern).
   // Build fails loudly for any unresolved path/anchor — preventing silent blank code blocks.
   markdown: {
-    remarkPlugins: [
-      remarkVoxInclude,
-      [remarkDocLinks, { repoUrl: 'https://github.com/vox-foundation/vox' }],
-    ],
+    processor: unified({
+      remarkPlugins: [
+        remarkVoxInclude,
+        [remarkDocLinks, { repoUrl: 'https://github.com/vox-foundation/vox' }],
+      ],
+    }),
   },
   integrations: [
     sitemap({
@@ -89,13 +93,10 @@ export default defineConfig({
           find: '@docs-src',
           replacement: new URL('../docs/src', import.meta.url).pathname,
         },
+        // docs/src .mdx files live outside docs-astro, so a bare import cannot find docs-astro/node_modules.
         {
           find: /^@astrojs\/starlight\/components$/,
-          replacement: new URL('./node_modules/@astrojs/starlight/components.ts', import.meta.url).pathname,
-        },
-        {
-          find: /^@astrojs\/starlight\/components\/(.*)$/,
-          replacement: `${new URL('./node_modules/@astrojs/starlight/components/', import.meta.url).pathname}$1`,
+          replacement: fileURLToPath(import.meta.resolve('@astrojs/starlight/components')),
         },
       ],
     },
