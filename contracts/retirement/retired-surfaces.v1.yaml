@@ -79,7 +79,7 @@ surfaces:
       rule_id: "retired/decorator-usage"
       diagnostic_id: "vox/retired/decorator-usage"
     rationale: >
-      Python is no longer a Vox glue surface (AGENTS.md §VoxScript-First
+      Python is no longer a Vox glue surface (AGENTS.md §VoxLang-First
       Glue Code). @py.import directives leak Python-side state into the
       Vox compiler and cannot be analyzed by the effect system.
 
@@ -272,7 +272,7 @@ surfaces:
       backed_by_contract: "contracts/documentation/retired-symbols.v1.yaml"
       contract_symbol_id: "isolation-wasm-container-gvisor-microvm"
     rationale: >
-      ADR-048. The HIR interpreter is the isolation tier for VoxScripts.
+      ADR-048. The HIR interpreter is the isolation tier for VoxLang.
       wasm/container/gvisor/microvm lanes on vox run are retired.
 
   - id: vox-wasm-run
@@ -338,7 +338,7 @@ surfaces:
 
   - id: exec-bundle-b64
     retired_pattern: "exec_bundle_b64"
-    canonical: "VoxScript source on the mesh stream"
+    canonical: "VoxLang source on the mesh stream"
     agents_md_row: "exec_bundle_b64"
     enforcement:
       kind: cli-check

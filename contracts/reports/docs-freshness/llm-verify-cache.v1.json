@@ -1,0 +1,217 @@
+{
+  "entries": {
+    "0d505ef9d9758ff0a545defe8681a62b1e56f897da7318a91364bbd39606e4c2::abb5ba02452420e967039237d35723eaa77268616c5db6895581663885b06867": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 76,
+      "verdict": "verified",
+      "evidence_citations": [
+        "[docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md:L1-L76]"
+      ],
+      "rationale": "Verified prose claim anchored to [\"validate_bot_patch_scope_and_gates\"]",
+      "estimated_tokens": 80
+    },
+    "0e37b8c0a2c6e5ae599bb0d1336c70be8ce0e7c652d291df555bfad87a4c05d4::f28ce47ec19bb094ef54b973dbfc513bba6294c4a88ca42f5876061ebddf62b9": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 60,
+      "verdict": "verified",
+      "evidence_citations": [
+        "[docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md:L1-L60]"
+      ],
+      "rationale": "Verified prose claim anchored to [\"/changelog.md\", \"crates/vox-doc-pipeline/src/claims/gate.rs\", \"is_reader_facing_page\"]",
+      "estimated_tokens": 80
+    },
+    "13a581788c1247b371a8c1299b108a2ba0be922f22ff3023e8159f70b9e15115::dd9913987c7ca51551f0579faa7390f2deb089a7297c5b1d0699ae31f423fad3": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 68,
+      "verdict": "verified",
+      "evidence_citations": [
+        "[docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md:L1-L68]"
+      ],
+      "rationale": "Verified prose claim anchored to [\"contracts/reports/docs-freshness/llm-verify-cache.v1.json\"]",
+      "estimated_tokens": 80
+    },
+    "156e502cb33adc71260a064e378a361aeb6e4c9085ef9db564e93bd898d942a7::722d458e63a2b536027b3b6a86ff7f07eabbe47865bb2e3ea62f4d21375f4f8a": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 61,
+      "verdict": "verified",
+      "evidence_citations": [
+        "[docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md:L1-L61]"
+      ],
+      "rationale": "Verified prose claim anchored to [\"docs-astro/public/_redirects\"]",
+      "estimated_tokens": 80
+    },
+    "1a9e5345435de6bc607d5b5248dcac94abd455ce80ceec7596bef7094800b534::1371cf6f141b59fa270dc0ca81d6cca3f411fc0dd363967f2845056c19452b17": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 67,
+      "verdict": "verified",
+      "evidence_citations": [
+        "[docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md:L1-L67]"
+      ],
+      "rationale": "Verified prose claim anchored to [\"is_valid_line_range_citation\", \"is_valid_line_range_citation_on_disk\"]",
+      "estimated_tokens": 80
+    },
+    "47125780ce4f0ecf56d29aa2cf4ece758ef6c55c5259def9820fe7d62f7886a9::dd9913987c7ca51551f0579faa7390f2deb089a7297c5b1d0699ae31f423fad3": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 68,
+      "verdict": "verified",
+      "evidence_citations": [
+        "[docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md:L1-L68]"
+      ],
+      "rationale": "Verified prose claim anchored to [\"contracts/reports/docs-freshness/llm-verify-cache.v1.json\"]",
+      "estimated_tokens": 80
+    },
+    "626987aa36b225fd5dc69bac1c1750947352df1976dbe3af4e024fa3a7f623cd::c366d89c67a96e56288b2fa85155375e53adceb1b7fc4b579cc2b5cecf2d2531": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 69,
+      "verdict": "verified",
+      "evidence_citations": [
+        "[docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md:L1-L69]"
+      ],
+      "rationale": "Verified prose claim anchored to [\"contracts/reports/docs-freshness/golden-drift-eval-set.v1.json\"]",
+      "estimated_tokens": 80
+    },
+    "6fd1eb5f5cf5815f852a9785a46a7bb9f390da7b5f90b5cc48d24d3412d1d9b6::7985aab7be4cff31acd4fa8f78c609c4b98dd673753d14427e26b04749aea091": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 65,
+      "verdict": "verified",
+      "evidence_citations": [
+        "[docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md:L1-L65]"
+      ],
+      "rationale": "Verified prose claim anchored to [\"crates/vox-doc-pipeline/src/claims/llm_verifier.rs\"]",
+      "estimated_tokens": 80
+    },
+    "95bc3d71e861507db5f608958fcd4493792c8efe3845c3632d718cd7c71cc4ee::b998cf8e94d6d1f13124d249a0b0d8d60d4b3f2eb49c2d5d0af65dc1facb27c9": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 42,
+      "verdict": "verified",
+      "evidence_citations": [
+        "[docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md:L1-L42]"
+      ],
+      "rationale": "Verified prose claim anchored to [\"crates/vox-cli-ci/src/crate_api_docs.rs\", \"crates/vox-doc-pipeline/src/pipeline/openwiki_symbols.rs\", \"src/lib.rs\", \"src/main.rs\"]",
+      "estimated_tokens": 80
+    },
+    "ac1f27c933cf4fdfb2b62ffd95632991901ccfdc4cf6dfcec9c7a15b1989e1e2::abb5ba02452420e967039237d35723eaa77268616c5db6895581663885b06867": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 76,
+      "verdict": "verified",
+      "evidence_citations": [
+        "[docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md:L1-L76]"
+      ],
+      "rationale": "Verified prose claim anchored to [\"validate_bot_patch_scope_and_gates\"]",
+      "estimated_tokens": 80
+    },
+    "b6936891f74b122471222aa4e69546336bd130b8bb96adfc81b375158095065b::903765f2d71b9d8dde4310f7862b5b77edd61f724a38fb10b7ccd19397364cc7": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 77,
+      "verdict": "verified",
+      "evidence_citations": [
+        "[docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md:L1-L77]"
+      ],
+      "rationale": "Verified prose claim anchored to [\"contracts/reports/docs-freshness/bot-metrics.v1.json\"]",
+      "estimated_tokens": 80
+    },
+    "bb73cb1ba8d908aa8fe3e64627e2f040bb3d5c109dd7379b7036678e9e35ee4b::1258b2fc60ecfc58b44e8a78c459f1b8a92ab593e1f2d667ce5cfea620eb8813": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 55,
+      "verdict": "verified",
+      "evidence_citations": [
+        "[docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md:L1-L55]"
+      ],
+      "rationale": "Verified prose claim anchored to [\"wiki_sync\"]",
+      "estimated_tokens": 80
+    },
+    "d671dbefbd4db0b6b39af4fc04e2a0e2abf966114203b56f3d4dac01a4e76de9::50b5bb1e42a86c97d860cd417d7a69aab1f6356d7dd8a904ed461e6fc084259b": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 45,
+      "verdict": "verified",
+      "evidence_citations": [
+        "[docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md:L1-L45]"
+      ],
+      "rationale": "Verified prose claim anchored to [\"compute_reverse_dependents\"]",
+      "estimated_tokens": 80
+    },
+    "db6c47627410024c4ad20a676b8b621243e6347066d2dddc39be6b4b12389071::1371cf6f141b59fa270dc0ca81d6cca3f411fc0dd363967f2845056c19452b17": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 67,
+      "verdict": "verified",
+      "evidence_citations": [
+        "[docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md:L1-L67]"
+      ],
+      "rationale": "Verified prose claim anchored to [\"is_valid_line_range_citation\", \"is_valid_line_range_citation_on_disk\"]",
+      "estimated_tokens": 80
+    },
+    "df82b013534f214383a67ceb268b921b5accc746a236935456cbbb6e35d1e306::17e54b5294cfb0d79300dfb0b5fedc0059597367e0f634c3f8bc2bdd70115fb1": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 75,
+      "verdict": "verified",
+      "evidence_citations": [
+        "[docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md:L1-L75]"
+      ],
+      "rationale": "Verified prose claim anchored to [\"validate_bot_target_path\"]",
+      "estimated_tokens": 80
+    },
+    "df875bffadd5e264ec1f795cb00b0ab18eafa60fecd9a50338bb52bcc0e3fc58::17e54b5294cfb0d79300dfb0b5fedc0059597367e0f634c3f8bc2bdd70115fb1": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 75,
+      "verdict": "verified",
+      "evidence_citations": [
+        "[docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md:L1-L75]"
+      ],
+      "rationale": "Verified prose claim anchored to [\"validate_bot_target_path\"]",
+      "estimated_tokens": 80
+    },
+    "e1fa1447bca432445271d3f6a86997d454db5fb37faa37c87f573e80aa688e7e::903765f2d71b9d8dde4310f7862b5b77edd61f724a38fb10b7ccd19397364cc7": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 77,
+      "verdict": "verified",
+      "evidence_citations": [
+        "[docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md:L1-L77]"
+      ],
+      "rationale": "Verified prose claim anchored to [\"contracts/reports/docs-freshness/bot-metrics.v1.json\"]",
+      "estimated_tokens": 80
+    },
+    "ee617a2c91aa759d9c1b2f19791fbd87fa78614c2b9daf0f3a4f688c69400355::5d4402c38d2963576ec1aa299922b18c06a1b7e311a770ee9f3b739e0fd5d46d": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 59,
+      "verdict": "verified",
+      "evidence_citations": [
+        "[docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md:L1-L59]"
+      ],
+      "rationale": "Verified prose claim anchored to [\"contracts/reports/docs-freshness/baseline.v1.json\"]",
+      "estimated_tokens": 80
+    },
+    "ef90fe15a53f8b6640875e813705afe98feb10fe8f3eec305c39cb5043c4bc64::c366d89c67a96e56288b2fa85155375e53adceb1b7fc4b579cc2b5cecf2d2531": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 69,
+      "verdict": "verified",
+      "evidence_citations": [
+        "[docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md:L1-L69]"
+      ],
+      "rationale": "Verified prose claim anchored to [\"contracts/reports/docs-freshness/golden-drift-eval-set.v1.json\"]",
+      "estimated_tokens": 80
+    },
+    "f177c81e8bf60ae2652be1b5f2b07b99687ddf905c60fae1d4ed514ff4c17638::9d73d30b9a29a3dc438a17e82af5860b3581837502e0b696fa3dc080b2a4c9f1": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 50,
+      "verdict": "verified",
+      "evidence_citations": [
+        "[docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md:L1-L50]"
+      ],
+      "rationale": "Verified prose claim anchored to [\"crates/vox-doc-pipeline/src/pipeline/openwiki.rs\", \"docs/src/architecture/layers.toml\", \"docs/src/architecture/subsystems/\"]",
+      "estimated_tokens": 80
+    },
+    "fd790e4488cf57fc591f47cf9117d89fd4f8ec3cf7e8c1521da50ecc521f9271::8f5505634cbfb41c0c6013d2c780df3d45095f7f9397766eda4519cbbed65f33": {
+      "doc_path": "docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md",
+      "line": 73,
+      "verdict": "verified",
+      "evidence_citations": [
+        "[docs/src/architecture/openwiki-self-healing-docs-ssot-2026.md:L1-L73]"
+      ],
+      "rationale": "Verified prose claim anchored to [\".github/workflows/docs-self-heal.yml\", \"crates/vox-doc-pipeline/src/claims/self_heal_bot.rs\"]",
+      "estimated_tokens": 80
+    }
+  },
+  "cache_hits": 114,
+  "cache_misses": 21,
+  "tokens_spent": 1680
+}

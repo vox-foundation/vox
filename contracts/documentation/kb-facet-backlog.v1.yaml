@@ -3982,12 +3982,6 @@ docs:
   - facet-missing-domain
   - facet-missing-summary
   - facet-missing-topic
-- path: docs/src/tutorials/tut-getting-started.md
-  rules:
-  - facet-missing-authorship
-  - facet-missing-domain
-  - facet-missing-summary
-  - facet-missing-topic
 - path: docs/src/tutorials/tut-ui-integration.md
   rules:
   - facet-missing-authorship

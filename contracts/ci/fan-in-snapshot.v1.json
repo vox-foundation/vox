@@ -7,7 +7,7 @@
     "vox-compiler":                 21,
     "vox-config":                   41,
     "vox-db":                       28,
-    "vox-foundation":               14,
+    "vox-foundation":               15,
     "vox-http-client":              25,
     "vox-llm-egress":               5,
     "vox-orchestrator":             12,
