@@ -533,7 +533,7 @@ Plans:
 - ✅ **v4.6 (`Phases 253–258`, `24/24` requirements — Shipped 2026-10-25):** T3 Wave 3 Live Surface & Daemon RPC Wiring, Router/DPO Quality-Prior Flywheel & Workspace-Wide TOESTUB Remediation — [Archive](milestones/v4.6-ROADMAP.md) | [Requirements](milestones/v4.6-REQUIREMENTS.md) | [Audit](v4.6-MILESTONE-AUDIT.md)
 - ✅ **v4.5 (`Phases 242–252`, `44/44` requirements — Shipped 2026-10-25):** T3 Ecosystem Wave 2 Advancements, Consensus Engine, Git Plumbing Checkpoints & TOESTUB Static Enforcement — [Archive](milestones/v4.5-ROADMAP.md) | [Requirements](milestones/v4.5-REQUIREMENTS.md)
 - ✅ **v4.4 (`Phases 236–241`, `24/24` requirements — Shipped 2026-10-25):** Concept-Art Pixel & Structural Convergence, Live Animated Roman Civilization Simulator (`VRBS ROMA`), Interactive DAG/Diff Workbench & Before/After Visual Proof — [Archive](milestones/v4.4-ROADMAP.md) | [Requirements](milestones/v4.4-REQUIREMENTS.md)
-- ✅ **v4.3 (`Phases 230–235`, `24/24` requirements — Shipped 2026-10-25):** Roman Civilization Codebase Simulator (`VRBS ROMA`), Strategic Minimap Radar & Cross-Surface Readability/Occlusion Polish — [Archive](milestones/v4.3-ROADMAP.md) | [Requirements](milestones/v4.3-REQUIREMENTS.md)
+- ✅ **v4.3 (`Phases 230–235`, `24/24` requirements — Shipped 2026-10-25):** Roman Civilization Codebase Simulator (`VRBS ROMA`), Strategic Minimap Radar & Cross-Surface Readability/Occlusion Polish — [Requirements](milestones/v4.3-REQUIREMENTS.md) (no roadmap archive was written)
 
 ---
 

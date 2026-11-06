@@ -147,7 +147,7 @@ vox run src/main.vox
 
 ### Step 1: Install, then verify
 
-Install from source with [Installing Vox](../reference/installation.md). The same clone and `cargo install` commands are on the [repository README](https://github.com/vox-foundation/vox#trying-it). This tutorial does not repeat them. Then confirm the toolchain:
+Install from source with [Installing Vox](../reference/installation.md#quick-install-from-source). The same clone and `cargo install` commands are on the [repository README](https://github.com/vox-foundation/vox#trying-it). This tutorial does not repeat them. Then confirm the toolchain:
 
 ```bash
 vox doctor
