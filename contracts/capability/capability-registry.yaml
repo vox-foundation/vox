@@ -4580,6 +4580,24 @@ curated:
   - ci
   - profile-parity
   parameters: null
+- id: cli.ci.python-bridge-parity
+  title: Ci Python-bridge-parity
+  description_human: null
+  description_model: CLI operation `vox ci python-bridge-parity`
+  intent_tags: []
+  side_effect_class: spawns_process
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - python-bridge-parity
+  parameters: null
 - id: cli.ci.query-all-guard
   title: Ci Query-all-guard
   description_human: null
@@ -15281,6 +15299,59 @@ curated:
   cli_path:
   - populi
   - up
+  parameters: null
+- id: cli.py
+  title: Py
+  description_human: null
+  description_model: CLI operation `vox py`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - py
+  parameters: null
+- id: cli.py.doctor
+  title: Py Doctor
+  description_human: null
+  description_model: CLI operation `vox py doctor`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - py
+  - doctor
+  parameters: null
+- id: cli.py.sync
+  title: Py Sync
+  description_human: null
+  description_model: CLI operation `vox py sync`
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - py
+  - sync
   parameters: null
 - id: cli.recensio
   title: Recensio

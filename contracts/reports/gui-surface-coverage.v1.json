@@ -998,6 +998,10 @@
       "feature_gate": null
     },
     {
+      "path": "ci python-bridge-parity",
+      "feature_gate": null
+    },
+    {
       "path": "ci query-all-guard",
       "feature_gate": null
     },
@@ -3318,6 +3322,18 @@
       "feature_gate": "populi"
     },
     {
+      "path": "py",
+      "feature_gate": null
+    },
+    {
+      "path": "py doctor",
+      "feature_gate": null
+    },
+    {
+      "path": "py sync",
+      "feature_gate": null
+    },
+    {
       "path": "recensio",
       "feature_gate": "coderabbit"
     },
@@ -4410,6 +4426,7 @@
     "ci.policy-smoke",
     "ci.pre-push",
     "ci.profile-parity",
+    "ci.python-bridge-parity",
     "ci.query-all-guard",
     "ci.release-build",
     "ci.release-draft-guard",
@@ -5135,6 +5152,9 @@
     "project.init",
     "propose.skill",
     "publish.message",
+    "py",
+    "py.doctor",
+    "py.sync",
     "questioning.pending",
     "questioning.submit.answer",
     "questioning.sync.ssot",
