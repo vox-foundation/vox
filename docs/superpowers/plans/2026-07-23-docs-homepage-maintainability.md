@@ -6,7 +6,7 @@
 
 **Architecture:** Four phases, strictly ordered. Phase 0 unblocks production delivery (a broken Cloudflare token means nothing downstream ships). Phase 1 closes a 96%-of-corpus policy violation (hand-authored `last_updated`) with a one-time bulk migration plus a new hard-error lint rule, using the exact pattern `scripts/fix-doc-categories.vox` already established for repo-wide frontmatter edits. Phase 2 adds one new deterministic lint pass (`lint_readme_sync`) to `crates/vox-doc-pipeline` that hard-fails PR CI (`docs-quality.yml`, which already runs on every PR) if `index.mdx`'s `SYNC-FROM-README` blocks drift from README's `ANCHOR` blocks, after known, intentional link-scheme transforms. Phase 3 rewrites `README.md` down to its own documented "short front door" role and ships the previously-reviewed condensed homepage redesign. Phase 4 replaces a dead, non-compiling archival script with a safe, report-only staleness lister.
 
-**Tech Stack:** Rust (`crates/vox-doc-pipeline`), Vox (`.vox` scripts run via `vox run`, per `AGENTS.md` §VoxScript-First Glue Code — no new `.ps1`/`.sh`/`.py`), GitHub Actions YAML, Markdown/MDX (`README.md`, `docs/src/index.mdx`), Astro/Starlight (`docs-astro/`).
+**Tech Stack:** Rust (`crates/vox-doc-pipeline`), Vox (`.vox` scripts run via `vox run`, per `AGENTS.md` §VoxLang-First Glue Code — no new `.ps1`/`.sh`/`.py`), GitHub Actions YAML, Markdown/MDX (`README.md`, `docs/src/index.mdx`), Astro/Starlight (`docs-astro/`).
 
 **Grounding:** Every file path, line number, and behavioral claim below was verified by direct reads and parallel research agents against the live repo state on 2026-07-23 — see `docs/superpowers/specs/2026-07-23-docs-homepage-maintainability-design.md` for the full evidence trail. Do not re-derive facts already established there; if a cited line number has moved, the surrounding function name is the anchor to search for.
 
@@ -69,7 +69,7 @@ An agent should present this checklist to the user rather than attempt it — to
           fi
 ```
 
-Place this as a new top-level job alongside the existing `build-docs` / `deploy-pages` / `deploy-cloudflare` / `smoke-test` jobs (`docs-deploy.yml:22` onward). This is a workflow-YAML step, not a new `.ps1`/`.sh`/`.py` glue script, so it doesn't trigger the VoxScript-first policy.
+Place this as a new top-level job alongside the existing `build-docs` / `deploy-pages` / `deploy-cloudflare` / `smoke-test` jobs (`docs-deploy.yml:22` onward). This is a workflow-YAML step, not a new `.ps1`/`.sh`/`.py` glue script, so it doesn't trigger the VoxLang-first policy.
 
 - [ ] **Step 3: Verify the YAML is well-formed**
 

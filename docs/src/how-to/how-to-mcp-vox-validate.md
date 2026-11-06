@@ -107,8 +107,7 @@ This is the loop that makes `vox_validate_source` pull its weight.
 **Step 1 — Assistant proposes a Vox component:**
 
 ```vox
-// vox:skip — illustrative; deliberately buggy
-component Avatar(url: str) {
+component DraftAvatar(url: str) {
   view: image(src=url)
 }
 ```

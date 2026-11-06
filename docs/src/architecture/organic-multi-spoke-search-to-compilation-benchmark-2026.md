@@ -24,16 +24,19 @@ To prove that every Mens spoke operates organically rather than only on syntheti
 3. **Stage 3 — Semantic, Typecheck & Policy Gate (`semantic_valid`):** Enforces full HIR lowering + `lint_ast_declarations` + `typecheck_hir_module` (`vox_lang`), stub-free + `vox-code-audit` source-policy detectors (`rust_workspace`), `classify_shell_safety_floor` + structured JSON projection keys (`structured_shell`), `vox-mcp-registry` tool existence + non-null schema argument keys (`mcp_tool_chain`), and path-prefix scope + token/step budgets + gate safety floor (`agent_harness`).
 4. **Stage 4 — Full Code Compilation & Runtime Execution (`compilation_verified` & `execution_passed`):** Formats `.vox` via `vox_compiler::format`, validates `ast_eval`, and runs `vox_compiler::eval::Interpreter::run_module(&res.hir)` (`vox_lang`); emits canonical token streams via `quote::ToTokens` (`rust_workspace`); verifies live on-disk directory inventories (`structured_shell`); compiles inline `.vox` payloads via `vox_compiler::pipeline::check_file` (`mcp_tool_chain`); and verifies all referenced `TaskPlanEnvelope` files exist on disk (`agent_harness`).
 
-### Aggregate Organic Search-to-Compilation Scorecard (`mens_organic_search_spoke_scorecard_v1`)
+### Aggregate 8-Spoke Organic Search-to-Compilation Scorecard (`mens_organic_search_spoke_scorecard_v1`, Milestone `v2.5`)
 
-| Spoke | Organic Tasks | Search Recall@5 | MRR | Evidence Grounding | Syntax Validity | Semantic Validity | Compilation Pass | End-to-End `pass@1` | Mean Latency (µs) |
+| Spoke | Organic Tasks | Search Recall@5 | Unbiased Recall@5 | MRR | Unbiased MRR | Evidence Grounding | Distractor Resilience | Compilation Pass | End-to-End `pass@1` |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `vox_lang` | 3 | **100.0%** | **1.000** | **100.0%** | **100.0%** | **100.0%** | **100.0%** | **100.0%** | 17,230 µs |
-| `rust_workspace` | 3 | **100.0%** | **1.000** | **100.0%** | **100.0%** | **100.0%** | **100.0%** | **100.0%** | 1,401 µs |
-| `structured_shell` | 3 | **100.0%** | **1.000** | **100.0%** | **100.0%** | **100.0%** | **100.0%** | **100.0%** | 2,802 µs |
-| `mcp_tool_chain` | 3 | **100.0%** | **1.000** | **100.0%** | **100.0%** | **100.0%** | **100.0%** | **100.0%** | 2,780 µs |
-| `agent_harness` | 3 | **100.0%** | **1.000** | **100.0%** | **100.0%** | **100.0%** | **100.0%** | **100.0%** | 1,454 µs |
-| **Total / Mean** | **15** | **100.0%** | **1.000** | **100.0%** | **100.0%** | **100.0%** | **100.0%** | **100.0%** | **5,133 µs** |
+| `vox_lang` | 3 | **100.0%** | **100.0%** | **1.000** | **1.000** | **100.0%** | **100.0%** | **100.0%** | **100.0%** |
+| `rust_workspace` | 3 | **100.0%** | **100.0%** | **1.000** | **1.000** | **100.0%** | **100.0%** | **100.0%** | **100.0%** |
+| `structured_shell` | 3 | **100.0%** | **100.0%** | **1.000** | **1.000** | **100.0%** | **100.0%** | **100.0%** | **100.0%** |
+| `mcp_tool_chain` | 3 | **100.0%** | **100.0%** | **1.000** | **1.000** | **100.0%** | **100.0%** | **100.0%** | **100.0%** |
+| `agent_harness` | 3 | **100.0%** | **100.0%** | **1.000** | **1.000** | **100.0%** | **100.0%** | **100.0%** | **100.0%** |
+| `speech_to_code` | 3 | **100.0%** | **100.0%** | **1.000** | **0.833** | **100.0%** | **100.0%** | **100.0%** | **100.0%** |
+| `populi_mesh` | 3 | **100.0%** | **100.0%** | **1.000** | **1.000** | **100.0%** | **100.0%** | **100.0%** | **100.0%** |
+| `skill_creation` | 3 | **100.0%** | **100.0%** | **1.000** | **0.833** | **100.0%** | **100.0%** | **100.0%** | **100.0%** |
+| **Total / Mean** | **24** | **100.0%** | **100.0%** | **1.000** | **0.958** | **100.0%** | **100.0%** | **100.0%** | **100.0%** |
 
 ### Combined 25-Problem Before / Mid / After Progression (`mens_before_after_comparison_v1`)
 
@@ -90,9 +93,33 @@ To prove that every Mens spoke operates organically rather than only on syntheti
 | `organic_harness_02_model_registry_plan` | `"register_calibrated_mens_adapter route_spoke_task calibrated_mens_adapter_routes_all_five_spokes registry.rs"` | `crates/vox-orchestrator/src/models/registry.rs` (`RR=1.00`) | `register_calibrated_mens_adapter`, `route_spoke_task` (`100%`) | `task_plan_schema+disk_files_verified(1/1 files exist, gate=timeout 300s cargo test -p vox-orchestrator --lib calibrated_mens_adapter)` | 1,314 µs |
 | `organic_harness_03_flywheel_burnin_plan` | `"run_before_after_five_spoke_evaluation MensBeforeAfterEvaluationV1 flywheel.rs"` | `crates/vox-corpus/src/flywheel.rs` (`RR=1.00`) | `run_before_after_five_spoke_evaluation`, `MensBeforeAfterEvaluationV1` (`100%`) | `task_plan_schema+disk_files_verified(1/1 files exist, gate=timeout 300s cargo test -p vox-corpus --lib burnin_tests)` | 1,684 µs |
 
+### Spoke 6: `speech_to_code` (Oratio ASR Disfluency Normalization -> `.vox` Lex -> Parse -> HIR -> Typecheck -> Interpreter)
+
+| Case ID | Organic Search Query | Top Retrieved File (`Rank 1`) | Grounding Tokens | Compilation & Execution Oracle Receipt |
+| :--- | :--- | :--- | :--- | :--- |
+| `organic_speech_01_voice_actor_counter` | `"verify_speech_to_code_roundtrip normalize_asr_transcript_for_vox actor Counter spoke_roundtrip.rs"` | `crates/vox-corpus/src/training/spoke_roundtrip.rs` (`RR=1.00`) | `verify_speech_to_code_roundtrip`, `normalize_asr_transcript_for_vox`, `actor` (`100%`) | `oratio_asr_norm+lex+parse+hir+typeck+interp(decls=1,fns=2,types=0)` |
+| `organic_speech_02_voice_workflow_charge` | `"activity charge workflow checkout amount int checkout_workflow.vox"` | `examples/golden/checkout_workflow.vox` (`RR=1.00`) | `activity`, `charge`, `workflow`, `checkout` (`100%`) | `oratio_asr_norm+lex+parse+hir+typeck+interp(decls=2,fns=2,types=0)` |
+| `organic_speech_03_voice_spoke_bonus` | `"OrganicSpokeKind SpeechToCode PopuliMesh SkillCreation to_core_spoke contract.rs"` | `crates/vox-corpus/src/training/contract.rs` (`RR=1.00`) | `OrganicSpokeKind`, `SpeechToCode`, `to_core_spoke` (`100%`) | `oratio_asr_norm+lex+parse+hir+typeck+interp(decls=1,fns=1,types=0)` |
+
+### Spoke 7: `populi_mesh` (`PopuliMeshDispatchEnvelope` -> Capability/VRAM/Iroh Endpoint -> Odd BFT Quorum Verification)
+
+| Case ID | Organic Search Query | Top Retrieved File (`Rank 1`) | Grounding Tokens | Mesh Dispatch & Quorum Oracle Receipt |
+| :--- | :--- | :--- | :--- | :--- |
+| `organic_populi_01_mesh_dispatch_envelope` | `"PopuliMeshDispatchEnvelope verify_populi_mesh_roundtrip target_node_id capability_tier spoke_roundtrip.rs"` | `crates/vox-corpus/src/training/spoke_roundtrip.rs` (`RR=1.00`) | `PopuliMeshDispatchEnvelope`, `verify_populi_mesh_roundtrip`, `capability_tier` (`100%`) | `populi_mesh_envelope+iroh_endpoint+quorum_verified(tier=gpu_cuda,vram=24GB,quorum=3)` |
+| `organic_populi_02_tensor_shard_sync` | `"payload_kind tensor_shard_sync gradient_all_reduce iroh_endpoint verify_populi_mesh_roundtrip spoke_roundtrip.rs"` | `crates/vox-corpus/src/training/spoke_roundtrip.rs` (`RR=1.00`) | `tensor_shard_sync`, `gradient_all_reduce`, `iroh_endpoint` (`100%`) | `populi_mesh_envelope+iroh_endpoint+quorum_verified(tier=metal_unified,vram=64GB,quorum=5)` |
+| `organic_populi_03_gradient_all_reduce` | `"PopuliMesh OrganicSpokeKind populi_mesh TrainingRecordV2 contract.rs"` | `crates/vox-corpus/src/training/contract.rs` (`RR=1.00`) | `PopuliMesh`, `populi_mesh`, `TrainingRecordV2` (`100%`) | `populi_mesh_envelope+iroh_endpoint+quorum_verified(tier=gpu_rocm,vram=48GB,quorum=3)` |
+
+### Spoke 8: `skill_creation` (`agentskills.io` YAML Frontmatter -> `vox-category`/`vox-tools` Metadata -> Fenced `.vox` Doctest Compilation)
+
+| Case ID | Organic Search Query | Top Retrieved File (`Rank 1`) | Grounding Tokens | Skill Compliance & Doctest Compilation Receipt |
+| :--- | :--- | :--- | :--- | :--- |
+| `organic_skill_01_compiler_audit_skill` | `"verify_skill_creation_roundtrip agentskills_yaml_frontmatter vox-category vox-tools spoke_roundtrip.rs"` | `crates/vox-corpus/src/training/spoke_roundtrip.rs` (`RR=1.00`) | `verify_skill_creation_roundtrip`, `vox-category`, `vox-tools` (`100%`) | `agentskills_yaml_frontmatter+vox_doctest_verified(name=vox-compiler-audit)` |
+| `organic_skill_02_populi_quorum_router_skill` | `"SkillCreation skill_creation OrganicSpokeKind ALL contract.rs"` | `crates/vox-corpus/src/training/contract.rs` (`RR=1.00`) | `SkillCreation`, `skill_creation`, `OrganicSpokeKind` (`100%`) | `agentskills_yaml_frontmatter+vox_doctest_verified(name=populi-quorum-router)` |
+| `organic_skill_03_rag_distractor_guard_skill` | `"verify_rag_context_grounding_and_distractor_resilience strip_filename_hints distractor_resilient spoke_roundtrip.rs"` | `crates/vox-corpus/src/training/spoke_roundtrip.rs` (`RR=1.00`) | `verify_rag_context_grounding_and_distractor_resilience`, `strip_filename_hints`, `distractor_resilient` (`100%`) | `agentskills_yaml_frontmatter+vox_doctest_verified(name=rag-distractor-guard)` |
+
 ---
 
-## 3. Persistent Benchmark Improvements (`Milestone v2.0` — Phases 108–111)
+## 3. Persistent Benchmark Improvements (`Milestone v2.0` Phases 108–111 & `Milestone v2.5` Phases 128–132)
 
 To ensure our benchmarks improve persistently over time rather than remaining static fixtures:
 
@@ -100,3 +127,8 @@ To ensure our benchmarks improve persistently over time rather than remaining st
 2. **Phase 109 (`COMP-ORACLE-01..04`) — Live Execution & Functional Assertion Oracles Across All 5 Spokes:** Extend `verify_deep_compilation_for_spoke` with functional return-value assertions (`Interpreter` function/actor invocation checks for `vox_lang`, AST signature & invariant checks for `rust_workspace`, structured JSON parse assertions for `structured_shell`, live tool-payload compilation for `mcp_tool_chain`, and `ModelRegistry::route_spoke_task` + verification gate resolution for `agent_harness`).
 3. **Phase 110 (`PERSIST-BENCH-01..04`) — Longitudinal Benchmark Time-Series in `VoxDb` & Multi-Metric Regression Ratchet:** Persist timestamped `OrganicSearchSpokeScorecardV1` runs in `VoxDb` (`mens_organic_search_scorecard` namespace + longitudinal history index), emit `ModelBenchCaseEvent` telemetry rows, and enforce multi-metric floors (`search_recall_at_5 >= 0.95`, `overall_mrr >= 0.90`, `overall_compilation_pass_rate >= 1.0`, `overall_end_to_end_pass_at_1 >= 1.0`) in `contracts/eval/spoke-regression-ratchet.v1.json` and `vox-audit`.
 4. **Phase 111 (`SURFACE-BENCH-01..04`) — CLI (`vox model eval --organic-search-spokes`), MCP & Axis GUI Longitudinal Scorecard Surface:** Expose `--organic-search-spokes` on `vox model eval`, surface `OrganicSearchSpokeScorecardV1` in `vox-gui` (`MensTrainingView.tsx` & `mens_run_reports.rs`), and verify end-to-end with Rust unit tests and Vitest suites.
+5. **Phase 128 (`SPOKE8-01..04`) — First-Class 8-Spoke Contract (`OrganicSpokeKind::ALL`) & Peripheral Spoke Oracles:** Promoted `speech_to_code` (Oratio ASR normalization + `.vox` compilation), `populi_mesh` (`PopuliMeshDispatchEnvelope` + `iroh://` QUIC + odd BFT quorum verification), and `skill_creation` (`agentskills.io` YAML frontmatter + `.vox` doctest compilation) from GUI-only mocks into `canonical_organic_search_to_compilation_suite_24` (`24` cases across all 8 spokes).
+6. **Phase 129 (`RUSTC-ORACLE-01..04`) — Real `rustc --edition 2024 --crate-type lib --emit=metadata` Type & Borrow-Checker Oracle:** Upgraded `verify_deep_compilation_for_spoke` for `RustWorkspace` to invoke memoized `verify_rust_snippet_with_rustc`, catching real borrow-checker (`E0502`) and type-mismatch (`E0308`) errors that pass `syn::parse_file`.
+7. **Phase 130 (`UNBIASED-SEARCH-01..04`) — Unbiased Filename-Stripped Recursive BM25 + RRF Workspace Search:** Added `strip_filename_hints`, recursive directory traversal (`collect_candidate_files_recursive`), and `discover_workspace_evidence_with_mode(..., allow_path_boost=false)`, achieving `100.0%` `overall_unbiased_search_recall_at_5` and `0.958` `overall_unbiased_mrr`.
+8. **Phase 131 (`RAG-SYNTH-01..04`) — Context-Conditioned RAG Grounding & Rank-1 Distractor Resilience:** Added `verify_rag_context_grounding_and_distractor_resilience` to inject a Rank-1 decoy distractor chunk ahead of retrieved evidence and verify `100.0%` distractor rejection and zero poison leakage across all 24 cases.
+9. **Phase 132 (`CURRICULUM-8SPOKE-01..04`) — Velocity-Boosted Curriculum Weighting & 8-Spoke Regression Ratchets:** Added `compute_curriculum_weights_with_velocity_boost` and `compute_eight_spoke_curriculum_weights` (incorporating syntax-to-semantic gap and slow-spoke velocity boost for `structured_shell`, `agent_harness`, and `rust_workspace`) and enforced 8-spoke + unbiased-search + distractor-resilience floors in `contracts/eval/spoke-regression-ratchet.v1.json`.

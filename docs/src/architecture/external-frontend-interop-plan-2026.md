@@ -175,7 +175,7 @@ The two modes share one substrate: the wire-format SSOT, the OpenAPI/JSON Schema
 
 - **Versioning:** `wire-format-v1` is independent of Vox compiler version. Breaking changes require a new major (`v2`) and a parallel-emit grace period.
 - **Documentation governance:** all five phases produce docs that go through [Documentation governance](../contributors/documentation-governance.md) — auto-indexed via `vox-doc-pipeline`, never hand-edited indexes.
-- **Telemetry:** every new emit subcommand emits `vox.script.*`-class events for observability ([AGENTS.md §VoxScript-First Glue Code](../../../AGENTS.md)).
+- **Telemetry:** every new emit subcommand emits `vox.script.*`-class events for observability ([AGENTS.md §VoxLang-First Glue Code](../../../AGENTS.md)).
 - **Security:** auth and CORS defaults must fail closed. CORS must reject by default; `@auth` must reject by default; rate-limit decorators must be additive, not subtractive.
 - **Migration support:** ship `vox migrate drop-island` (Phase 5) — rewrites `@island` use sites to the bidirectional import form — and `vox migrate wire-format` (Phase 2 → future v2) so users are never stranded.
 - **Emitted component code is generated, not authored.** Per the project's "auto-generated docs" policy, emitted `.tsx` files should not be hand-edited; the `.vox` source is canonical. Any escape-hatch user-edit zones must be explicitly delimited so the compiler can preserve them across re-emits.

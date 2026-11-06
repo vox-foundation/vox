@@ -128,12 +128,11 @@ impl MetalKvCacheBuffer {
 ```
 
 ```vox
-// vox:skip empirical sandbox probe
 // Empirical Vox probe demonstrating hardware-aware memory ceiling check
-fn verify_hardware_headroom(total_ram_mb: int) -> bool {
-    let allocatable_vram = (total_ram_mb * 3) / 4;
-    let reserved_headroom = total_ram_mb - allocatable_vram;
-    reserved_headroom >= 2048
+fn verify_hardware_headroom(total_ram_mb: int) to bool {
+    let allocatable_vram = (total_ram_mb * 3) / 4
+    let reserved_headroom = total_ram_mb - allocatable_vram
+    return reserved_headroom >= 2048
 }
 ```
 

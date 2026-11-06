@@ -8,12 +8,12 @@
 
 **Architecture:** `src/lib/backendGuard.ts` is the single source of truth for backend detection + the typed error + the rejection filter (which also swallows raw `__TAURI_INTERNALS__` TypeErrors from the 33 direct-invoke / 7 direct-listen files when no backend exists). `transport.ts` routes all its IPC through marked `safeInvoke`/`safeListen`. The harness (`e2e/review/`) appends per-worker JSONL entries; the Rust analyzer reads `entries-*.jsonl` in a new bundle mode sharing `run()`'s extracted core (fence-tolerant JSON parsing, per-image vision call, model selection) with its own budget/frontier semantics and browser-scoped cache pruning.
 
-**Tech Stack:** TypeScript/React/vitest/Playwright (`@axe-core/playwright` new devDependency; `@msgpack/msgpack` already present), Rust (serde/tokio, existing `call_vision_model` OpenRouter client), VoxScript, GitHub Actions YAML.
+**Tech Stack:** TypeScript/React/vitest/Playwright (`@axe-core/playwright` new devDependency; `@msgpack/msgpack` already present), Rust (serde/tokio, existing `call_vision_model` OpenRouter client), VoxLang, GitHub Actions YAML.
 
 **Ground rules (Windows / repo policy):**
 - Frontend commands run from `C:\Users\Owner\vox\crates\vox-gui\ui` via **pnpm** (never npm).
 - Rust: **never** `cargo fmt --all` — `cargo fmt -p vox-orchestrator-mcp` only. Never pipe cargo output to `head`/`grep` — redirect to a file and read it.
-- New automation glue is VoxScript (`scripts/*.vox`); `package.json` scripts are fine.
+- New automation glue is VoxLang (`scripts/*.vox`); `package.json` scripts are fine.
 - CI edits touch only the `gui-playwright-smoke` job's advisory steps; **never** touch `ci-summary.needs` or add PR triggers (fork F2).
 - Commits end with `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`.
 
@@ -25,7 +25,7 @@
 - `SURFACE_REGISTRY`: **31** entries with non-null viewKey.
 - `visus_review/mod.rs`: `parse_verdict` (:11-15) strips markdown fences; `review_surface` does fs::read + `Instant` timing + `call_vision_model(...)` (vision_call module, returns `(String, Usage)`); config/model selection block at :237-256; `run()` is **sequential** — `max_concurrent_reviews`/`per_surface_review_budget_ms` are dead config and `total_review_budget_ms: 90_000` stops reviewing after ~11 entries (the audit's critical economics finding); cache persisted only when `do_ai` (:367). `tempfile` is already in `[dependencies]` (Cargo.toml:132).
 - `ci.yml` `gui-playwright-smoke` step names (exact): `GUI visual AI review (advisory, non-gating)` and `Commit visual-review cache + report (main only)`; the job has Node+pnpm and a Rust toolchain (the legacy AI step is already a `cargo run`); `contracts/reports/gui-visual-review/*.json` is gitignore-negated selectively — `bundle-cache.v1.json` needs its own negation entry.
-- VoxScript idioms (`gui-build.vox`, `ci-runners-up.vox`): `process.run` returns an **Option** (null on spawn failure — retry `"pnpm.cmd"` on Windows); `.unwrap()` yields `{code, stdout, stderr}`; env is set process-wide via `std.env.set` (children inherit; `run_capture_ex`'s env-list arg is ignored by the interpreter, eval/builtins.rs:1743-1744).
+- VoxLang idioms (`gui-build.vox`, `ci-runners-up.vox`): `process.run` returns an **Option** (null on spawn failure — retry `"pnpm.cmd"` on Windows); `.unwrap()` yields `{code, stdout, stderr}`; env is set process-wide via `std.env.set` (children inherit; `run_capture_ex`'s env-list arg is ignored by the interpreter, eval/builtins.rs:1743-1744).
 - Themes: `document.documentElement.dataset.theme` drives theming; audited themes for capture: `high-contrast` minimum.
 - `screenshots-variants.spec.ts:26-29` lists the 10 KEY_SURFACES; its CI step is `GUI variant states sweep (empty/error, advisory)` (ci.yml:1679-1684).
 

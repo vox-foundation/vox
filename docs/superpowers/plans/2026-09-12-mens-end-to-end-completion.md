@@ -8,7 +8,7 @@
 
 **Architecture:** Six lanes. **Lane 0** makes inference fast enough to evaluate at all — nothing else is measurable until it lands. **Lane A** makes the gate stack capable of failing. **Lane B** opens the agent loop to VoxLocal, the change that converts "chats" into "writes code." **Lane C** makes the journey reachable from the GUI. **Lane D** takes one spoke end to end. **Lane E** is deletions. A seventh, **Lane H**, is human-operated hardware work that blocks nothing.
 
-**Tech Stack:** Rust (candle, qlora-rs, axum, tauri), VoxScript via `vox run`.
+**Tech Stack:** Rust (candle, qlora-rs, axum, tauri), VoxLang via `vox run`.
 
 **Spec:** [`docs/src/architecture/mens-program-status-and-requirements-audit-2026-09-12.md`](../../src/architecture/mens-program-status-and-requirements-audit-2026-09-12.md) — the requirements inventory (R1-R6, D1-D9, M1-M4) this plan executes against.
 
@@ -133,7 +133,7 @@ Before claiming a test passes, prove it can fail: break the **production** code 
 ## Global Constraints
 
 - Training is **Candle on CUDA and Metal only**. No second ML framework. SafeTensors on disk.
-- **No new `.ps1` / `.sh` / `.py` glue.** VoxScript via `vox run`. Lane H's host bootstrap is the documented exception — it is interactive and recorded in a doc, not scripted.
+- **No new `.ps1` / `.sh` / `.py` glue.** VoxLang via `vox run`. Lane H's host bootstrap is the documented exception — it is interactive and recorded in a doc, not scripted.
 - **Crypto only via `vox-crypto`.** No direct `sha2`/`blake3`/`ed25519-dalek`/`chacha20poly1305` imports outside that crate.
 - **Crate-edge additions require a USER-AUTHORIZED ledger entry** in `contracts/ci/crate-edges.allow.v1.json`. Propose in the PR description; never self-author. (`vox-ml-cli` already depends on `vox-compiler` and `vox-gui` already depends on `vox-orchestrator-mcp` — neither needs one.)
 - **Every new `pub fn` in `crates/*/src/**` needs a same-file test** before the commit lands (`skeleton/untested-pub-api`, `tdd-guard` pre-commit hook).
@@ -913,7 +913,7 @@ Record `tokens/sec` **with and without** `mens-candle-cuda` into a **named JSON 
 
 **H3 — Cross-machine serve.** Blocked on H1 + H2. `vox mens serve` has no auth (`serve/mod.rs:117-124`), so binding beyond loopback is a security-relevant decision a human makes each time — never a subagent's.
 
-**H4 — The mesh question (R12: human decides, agent may write).** `interp_executor.rs:478` refuses any `kind != TaskKind::VoxScript`; `TaskKind::TrainQLoRA` exists with no executor, and `vox-workflow-runtime`'s `dispatchable_source()` is a bare `Err(anyhow!(…))`. Whether "SSH-over-tailnet is the supported cross-machine path" is an architectural decision. Once a human states it, an agent writes the banner and the doc — re-verifying every supporting fact per R5.
+**H4 — The mesh question (R12: human decides, agent may write).** `interp_executor.rs:478` refuses any `kind != TaskKind::VoxLang`; `TaskKind::TrainQLoRA` exists with no executor, and `vox-workflow-runtime`'s `dispatchable_source()` is a bare `Err(anyhow!(…))`. Whether "SSH-over-tailnet is the supported cross-machine path" is an architectural decision. Once a human states it, an agent writes the banner and the doc — re-verifying every supporting fact per R5.
 
 ---
 

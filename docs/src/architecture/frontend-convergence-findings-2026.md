@@ -30,7 +30,7 @@ This findings doc is partially landed:
 - **R4 (deprecated `@server` / `@query` / `@mutation`)** — **landed**. The lexer tokens (`AtServer`/`AtQuery`/`AtMutation`), parser entries (`parse_server_fn`/`parse_query_fn`/`parse_mutation_fn`), AST variants (`Decl::ServerFn`/`Query`/`Mutation`), AST structs (`ServerFnDecl`/`QueryDecl`/`MutationDecl`), HIR lowering branches, fmt printer arms, and consumers in `vox-ml-cli`, `vox-corpus`, `vox-db`, `vox-lsp` are all gone. Five `.vox` fixtures migrated to `@endpoint(kind: …)`. `contracts/speech-to-code/vox_grammar_artifact.json` no longer lists the retired decorators.
 - **R5 (Express server emit)** — deferred. The emitter (`codegen_ts/routes.rs::generate_routes`) is still gated off behind `VOX_EMIT_EXPRESS_SERVER`; consumer audit pending.
 - **R6 (legacy `voxdb.rs`)** — **landed**. `crates/vox-codegen-ts/src/voxdb.rs` was orphaned (defined `generate_voxdb_handlers` with no callers); deleted alongside R4.
-- **`@py.import` + Python lane** — **landed**. `Decl::PyImport` AST variant + `PyImportDecl` struct removed; `vox-cli/commands/container.rs` lost the `Init` action; `vox-deploy-codegen` lost `pyproject.rs`, `python_dockerfile.rs`, `setup.rs`, `env.rs` (~540 LoC); the `venv_detection_test.rs` integration test was deleted; `vox-corpus`, `vox-ml-cli`, `vox-orchestrator` references purged. Aligns with [AGENTS.md §VoxScript-First Glue Code](../../../AGENTS.md): "Vox is the glue language. Python and shell are retired glue surfaces."
+- **`@py.import` + Python lane** — **landed**. `Decl::PyImport` AST variant + `PyImportDecl` struct removed; `vox-cli/commands/container.rs` lost the `Init` action; `vox-deploy-codegen` lost `pyproject.rs`, `python_dockerfile.rs`, `setup.rs`, `env.rs` (~540 LoC); the `venv_detection_test.rs` integration test was deleted; `vox-corpus`, `vox-ml-cli`, `vox-orchestrator` references purged. Aligns with [AGENTS.md §VoxLang-First Glue Code](../../../AGENTS.md): "Vox is the glue language. Python and shell are retired glue surfaces."
 - **VUV-4 lowering correctness fixes** — landed alongside R4. Fixed four real bugs surfaced by the `golden_dashboard_chrome_test` snapshots: (a) `border_x/y/t/b/l/r=true|false` produced literal class strings like `"border-b-true"`; (b) `border=false` produced `"border-false"`; (c) `role={region}` (unbound identifier — invalid TS) emitted instead of `role={"region"}`; (d) `style` attribute pushed CSS string into a JSX expression slot. Affected files: [`web_ir/primitives/mod.rs`](../../../crates/vox-codegen/src/web_ir/primitives/mod.rs), [`web_ir/lower.rs`](../../../crates/vox-codegen/src/web_ir/lower.rs), [`codegen_ts/jsx.rs`](../../../crates/vox-codegen-ts/src/jsx.rs), [`codegen_ts/hir_emit/mod.rs`](../../../crates/vox-codegen-ts/src/hir_emit/mod.rs). Snapshot suite re-baselined against the corrected emit.
 - **`vox-react-runtime.ts` / `vox-api.ts` barrels** — deferred. Cosmetic K-reduction with snapshot churn cost; revisit when component snapshots regenerate for VUV-5/6.
 
@@ -235,8 +235,8 @@ HIR or duplicating wire-format rules.
 Phase 5's "Vox imports React" should not introduce an `import react …` keyword. The
 existing `extern fn` primitive generalizes to:
 
-```vox
-// vox:skip -- proposed future syntax; `extern component` is not implemented, only `extern fn`
+```text
+// Proposed future syntax; `extern component` is not implemented, only `extern fn`
 extern component MyButton(label: str, on_click: fn()) = "../ui/MyButton.tsx"
 ```
 

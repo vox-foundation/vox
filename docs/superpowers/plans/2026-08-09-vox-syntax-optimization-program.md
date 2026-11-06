@@ -592,7 +592,7 @@ Task 4.4 (parity review).
 
 - `parse_fn_decl_inner` (`crates/vox-compiler/src/parser/descent/decl/head_fn.rs`,
   ~1353 lines, ~50 threaded locals) decomposition — compiler-internal
-  complexity, not VoxScript K-complexity. This is a note for future reference,
+  complexity, not VoxLang K-complexity. This is a note for future reference,
   not a task; nothing in this program authorizes doing it, including as a
   side effect of a Track 2 flip touching that file.
 - `eat_return_arrow`'s bespoke warning → route through

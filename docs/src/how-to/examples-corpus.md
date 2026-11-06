@@ -32,17 +32,16 @@ To document a feature with machine verification:
 &#123;&#123;#include ../../../examples/golden/my_example.vox:my_region&#125;&#125;
 ```
 
-## The `// vox:skip` Directive
+## Inline Doctest Verification
 
-Sometimes it is necessary to show brief, inline examples that cannot be fully compiled (e.g., demonstrating a syntax error, or showing an incomplete code snippet for brevity).
+Sometimes a page includes brief, self-contained inline `.vox` examples alongside or instead of `{{#include}}` regions.
 
-In these cases, you must add a `// vox:skip` comment *inside* the code fence. The `vox-doc-pipeline` linter will scan for this directive; if it finds raw code fences without `// vox:skip` and without an `#include` directive, the build will fail.
+Every ` ```vox ` code fence in active documentation is compiled and type-checked by `vox-doc-pipeline` during linting. Inline examples must be complete, valid `.vox` declarations (for example, wrapping a snippet in a `fn` or `component` declaration):
 
 ```vox
-// vox:skip -- meta-example: this fence illustrates the `// vox:skip` directive itself
-fn incomplete_function() {
-    // This inline code will not be strictly verified by the compiler.
+fn double_value(x: int) to int {
+    return x * 2
 }
 ```
 
-By ensuring every code fence is either an immutable golden reference or explicitly marked as skipped, Vox guarantees absolute trust in its documentation.
+By ensuring every ` ```vox ` code fence is either a golden include or a self-contained, compiler-verified declaration, Vox guarantees accuracy across its documentation corpus.

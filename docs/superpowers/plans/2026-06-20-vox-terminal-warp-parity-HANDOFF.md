@@ -39,7 +39,7 @@ NON-NEGOTIABLE OPERATING RULES (see the limitations doc for the why):
         cargo run -p vox-arch-check
   - New crate ⇒ same-commit rows in crates/vox-arch-check/layers.toml AND
     docs/src/architecture/where-things-live.md.
-  - cargo fmt --all is BANNED → cargo fmt -p <crate>. No new .ps1/.sh/.py (VoxScript only).
+  - cargo fmt --all is BANNED → cargo fmt -p <crate>. No new .ps1/.sh/.py (VoxLang only).
   - NEVER pipe cargo to head/grep on Windows (orphans processes) → redirect to a file.
   - Subagents are READ-ONLY in this sandbox: do not fan out writing subagents; the main
     session writes/verifies/commits. Parallelize Tracks 2–5 (after the freeze) only via

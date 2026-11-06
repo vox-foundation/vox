@@ -65,5 +65,5 @@ The wedge sub-project (A) of a four-part marketplace (A discovery+dedup · B age
 Publishing, signing, federation, agentic review of submissions, and the GUI surface — those are subsystems B/C/D with their own specs.
 
 ## 9. Execution-target shaping (Antigravity / Gemini 3.5 Flash)
-The implementation plan derived from this spec MUST: make every task atomic + green + committed; precede every symbol/path reference with a verify (`rg`/read) step and inline exact signatures; keep tasks self-contained (repeat context); tag each task `[PARALLEL-SAFE]`/`[SEQUENTIAL]` by file-write disjointness; apply a two-strike circuit breaker; one decision per step; VoxScript-only automation; `cargo fmt -p <crate>` (never `--all`); frontmatter on any `docs/src/` file.
+The implementation plan derived from this spec MUST: make every task atomic + green + committed; precede every symbol/path reference with a verify (`rg`/read) step and inline exact signatures; keep tasks self-contained (repeat context); tag each task `[PARALLEL-SAFE]`/`[SEQUENTIAL]` by file-write disjointness; apply a two-strike circuit breaker; one decision per step; VoxLang-only automation; `cargo fmt -p <crate>` (never `--all`); frontmatter on any `docs/src/` file.
 </content>

@@ -23,7 +23,7 @@ This document serves as the canonical map for the structural classification of V
 
 ## Nomenclature Invariants
 
-- **VoxScript (`.vox`)**: The sole glue language for the repository.
+- **VoxLang (`.vox`)**: The sole glue language for the repository.
 - **HIR**: High-level Intermediate Representation. The target of all structural simplifications.
 
 For deeper architectural constraints, see `docs/agents/governance.md`.

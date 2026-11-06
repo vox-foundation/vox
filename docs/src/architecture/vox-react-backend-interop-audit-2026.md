@@ -210,7 +210,7 @@ Severity follows `P0` (blocker for an external React+backend team) → `P3` (pap
 Each milestone lists **discrete tasks** with a **single file as the unit of work** wherever possible, plus an **acceptance command** that returns success/failure unambiguously.
 
 > **Vox-policy reminders for the implementing agent:**
-> - Do **not** add `.ps1` / `.sh` / `.py` automation; use `vox run scripts/<name>.vox`. ([AGENTS.md §VoxScript-First Glue Code](../../../AGENTS.md))
+> - Do **not** add `.ps1` / `.sh` / `.py` automation; use `vox run scripts/<name>.vox`. ([AGENTS.md §VoxLang-First Glue Code](../../../AGENTS.md))
 > - Do **not** read secrets via `std::env::var`; use `vox_secrets::resolve_secret(...)`.
 > - Test-first per [AGENTS.md §Test-First Policy](../../../AGENTS.md): write the failing test before adding any new `pub fn`.
 > - Run `cargo` via the absolute Cargo path on Windows: `& "$env:USERPROFILE\.cargo\bin\cargo.exe"`.

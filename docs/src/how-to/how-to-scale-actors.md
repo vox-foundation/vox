@@ -17,11 +17,13 @@ As your application grows beyond a single executable, Vox Actors must scale hori
 By default, an initialized Actor runs in memory on the node where `spawn` was invoked. In a distributed environment, you rely on the **Codex** to synchronize and persist state securely.
 
 ```vox
-// vox:skip — state_load/state_save are runtime builtins not yet visible to the parser
-fn SessionManager_Login(user: str) to Result[str] {
-    let current_sessions = state_load("active_users")
-    // logic ...
-    state_save("active_users", current_sessions)
+table ActiveSession {
+    scope_key: str
+    user: str
+}
+
+mutation SessionManager_Login(user: str) to Result[str] {
+    db.ActiveSession.insert({ scope_key: "active_users", user: user })?
     return Ok("Success")
 }
 ```
@@ -47,8 +49,10 @@ By default, `spawn` produces a random anonymous identity. For singleton services
 Stable names allow the system to route messages to the correct instance across a cluster and ensure that only one instance of that specific actor exists.
 
 ```vox
-let session_key = "user_session_" + user_id
-let result = SessionManager_Login(session_key)
+fn login_for_user(user_id: str) to Result[str] {
+    let session_key = "user_session_" + user_id
+    return SessionManager_Login(session_key)
+}
 ```
 
 ## Lifecycle and Restart Behavior

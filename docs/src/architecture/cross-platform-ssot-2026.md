@@ -52,7 +52,7 @@ The workspace versions are locked in `contracts/toolchain/workspace-toolchain.v1
 
 ### Shell Execution
 - **Rule:** Automation is `.vox` only (executed via `vox run`).
-- **Implementation:** `AGENTS.md §VoxScript-First Glue Code`.
+- **Implementation:** `AGENTS.md §VoxLang-First Glue Code`.
 - **Enforcement:** `layers.toml` rule `no-platform-exec-outside-cfg`.
 
 ### Line Endings

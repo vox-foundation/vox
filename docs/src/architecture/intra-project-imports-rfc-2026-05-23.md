@@ -27,8 +27,7 @@ Today every `.vox` file in `scripts/` is standalone — no way to share
 audit found that 4 scripts under `examples/aspirational/intra-project-imports/`
 (formerly `scripts/mens-corpus/`) want to import helpers:
 
-```vox
-// vox:skip — illustrative; the imported helpers don't exist as files.
+```text
 // scripts/mens-corpus/harvest.vox (today)
 // — has to re-inline walk_docs/walk_sources/jsonl_writer logic
 
@@ -66,7 +65,7 @@ local-import  := STRING_LIT ("as" IDENT)?
 
 Examples:
 
-```vox
+```text
 import "./helpers/walk_docs.vox"               // flat — exports merge into current scope
 import "./helpers/walk_sources.vox" as ws      // namespaced — call as `ws.walk_sources(...)`
 import "../shared/util.vox"                    // relative path traversal allowed
@@ -85,7 +84,7 @@ pub fn walk_docs(root: str) to list[str] {
 }
 
 fn collect_md(root: str) to list[str] {  // NOT exported (no pub)
-    // ...
+    return [root]
 }
 ```
 
@@ -122,8 +121,7 @@ the importer must use `as` to disambiguate.
 
 With `as alias`, exported names live under `alias.name`:
 
-```vox
-// vox:skip — illustrative; the imported helper doesn't exist as a file.
+```text
 import "./helpers/walk_docs.vox" as docs
 
 fn main() {

@@ -45,7 +45,7 @@ These are *out of scope* for this plan. Every phase plan must reject scope creep
 3. **Re-organizing crate boundaries.** `vox-orchestrator` is already L3. New modules go inside it; new crates only when explicitly justified in a phase plan with an ADR.
 4. **A new MCP tool surface.** The existing `vox_plan` and chat_tools surface stays. New behavior is reachable through the same tools with new internal triggers.
 5. **A general "auto" mode that subsumes user intent.** Per `autonomous-orchestration-policy-research-2026.md` Part 12, ambiguous-intent disambiguation, money/external messaging, and compliance-tagged actions stay HITL by default.
-6. **Cross-language reimplementation.** All glue scripts are `.vox` per AGENTS.md §VoxScript-First. No new `.ps1`/`.sh`/`.py`.
+6. **Cross-language reimplementation.** All glue scripts are `.vox` per AGENTS.md §VoxLang-First. No new `.ps1`/`.sh`/`.py`.
 7. **Regenerating auto-generated docs by hand.** `SUMMARY.md`, `architecture-index.md`, `feed.xml`, `*.generated.md`, `.cursorignore` are tool-regenerated. Every phase plan ends with a `cargo run -p vox-doc-pipeline` step.
 
 ---
@@ -270,9 +270,9 @@ These apply to **every** file touched by **every** phase, not just net-new code.
 - Never hand-edit `docs/src/SUMMARY.md`, `docs/src/architecture/architecture-index.md`, `docs/src/feed.xml`, `*.generated.md`, `.cursorignore`, `.aiignore`, `.aiexclude`. Per AGENTS.md and the user's persistent feedback memory.
 - The phase plan's last task is always: regenerate via `cargo run -p vox-doc-pipeline` (and `vox ci sync-ignore-files` if `.voxignore` changed) and commit the diff.
 
-### 8.10 VoxScript-first glue
+### 8.10 VoxLang-first glue
 
-- No new `.ps1`, `.sh`, or `.py` scripts. Per AGENTS.md §VoxScript-First Glue Code.
+- No new `.ps1`, `.sh`, or `.py` scripts. Per AGENTS.md §VoxLang-First Glue Code.
 - Any new automation script (e.g., the calibration runner in P9) is `.vox` invoked via `vox run scripts/<name>.vox`.
 
 ### 8.11 Secret hygiene

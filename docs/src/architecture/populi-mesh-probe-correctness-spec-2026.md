@@ -40,7 +40,6 @@ training_rationale: "Defines the probe trait shape and test pattern that subsequ
 ### 2.1 The `HardwareProbe` trait
 
 ```rust
-// vox:skip
 pub trait HardwareProbe: Send + Sync {
     /// Stable identifier for logging and operator override.
     fn name(&self) -> &'static str;
@@ -72,7 +71,6 @@ Each existing probe module exposes a `pub struct NvmlProbe;`, `pub struct WgpuPr
 ### 2.2 The probe pipeline
 
 ```rust
-// vox:skip
 pub struct ProbePipeline {
     probes: Vec<Box<dyn HardwareProbe>>,
 }
@@ -116,7 +114,6 @@ Default order (unchanged): vox-secrets-override → DXGI → DRM → Metal → w
 `vox-populi/src/mens/hardware/mock.rs` (gated `#[cfg(test)]` and behind `pub(crate)`):
 
 ```rust
-// vox:skip
 pub(crate) struct MockProbe {
     pub name: &'static str,
     pub applicable: bool,
@@ -144,7 +141,6 @@ Plus one summary event per pipeline run with the chosen `vendor`, `backend`, `vr
 When `probe_internal` falls all the way through to "Host CPU" but at least one probe `Failed`, the fallback `HardwareSummary` carries that information through a new optional field:
 
 ```rust
-// vox:skip
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HardwareSummary {
     // existing fields...

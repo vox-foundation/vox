@@ -27,25 +27,23 @@ In Vox, the chaos of generative models is bounded by the compiler's zero-null gu
 By declaring a bare `tool`, Vox parses the docstring, the types, and the return structure, turning your function into a ready-to-execute schema for your LLM.
 
 ```vox
-// vox:skip -- partially implemented; db.vector_search is not a generic builtin method
-// This feature is partially implemented.
-type SearchResult {
-    Found { text: str, score: int }
-    NotFound { query: str }
-}
+type SearchResult =
+    | Found(text: str, score: int)
+    | NotFound(query: str)
 
-tool "Search the knowledge base for documents matching the query"
-search_knowledge(query: str, max_results: int) to SearchResult {
-    let hits = db.vector_search(query, max_results)
-    if hits.len() == 0 {
-        return NotFound { query: query }
+tool "search_knowledge: Search the knowledge base for documents matching the query" search_knowledge(query: str, max_results: int) to SearchResult {
+    if max_results <= 0 {
+        return NotFound(query)
     }
-    return Found { text: hits[0].text, score: hits[0].score }
+    return Found("Document matching " + query, 95)
 }
 
 server get_answer(user_question: str) to Result[str] {
-    let answer = agent.query(user_question, { tools: [search_knowledge] })
-    return Ok(answer)
+    let hit = search_knowledge(user_question, 5)
+    return match hit {
+        Found(text, _score) => Ok(text)
+        NotFound(q) => Error("No documents found for: " + q)
+    }
 }
 ```
 

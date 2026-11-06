@@ -318,7 +318,7 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 - *Operation.* Use the existing `scheduled-tasks` MCP / skill surface referenced in this repo's ops tooling to create:
   1. `vox-model-discover-nightly` — runs `vox run scripts/orchestrator/model_discover.vox` daily at 03:00 local.
   2. `vox-scoreboard-rollup-nightly` — runs `vox run scripts/orchestrator/scoreboard_rollup.vox` daily at 03:15.
-- *Operation cont.* Both scripts are `.vox` files (per `AGENTS.md` VoxScript-First policy). Write them to `scripts/orchestrator/`.
+- *Operation cont.* Both scripts are `.vox` files (per `AGENTS.md` VoxLang-First policy). Write them to `scripts/orchestrator/`.
 - *Success.* `vox scheduled-tasks list` shows both tasks; missing-run alerts via `vox doctor`.
 
 **FIX-32. [FIXED] Expose `vox model scoreboard show` and `vox model scoreboard export --csv`.**

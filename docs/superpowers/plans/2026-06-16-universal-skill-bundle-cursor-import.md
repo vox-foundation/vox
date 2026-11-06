@@ -4,9 +4,9 @@
 
 **Goal:** Ship a license-verified, agentskills.io-native skill library (superpowers + Anthropic + curated Cursor-compatible skills) under `assets/skills/`, wire it through existing discovery so every Vox user gets skills in CLI, MCP, orchestrator prompts, and GUI — without hand-maintaining duplicate formats.
 
-**Architecture:** One exchange format (`<root>/<name>/SKILL.md`, YAML frontmatter, optional `metadata.vox-*`). Plugin skills keep TOML `*.skill.md` only where they declare `vox-tools` tied to `Plugin.toml`. Everything else lives in flat skill directories; `skill_search_roots()` + `discover_external_skills()` already ingest them. A VoxScript vendoring pipeline (`scripts/vendor-skills.vox`) pins upstream SHAs in `assets/skills/SOURCES.toml`. GUI loads installed skills from `vox_skill_list` (not the CLI command catalog). Command palette `/` mode surfaces the same registry.
+**Architecture:** One exchange format (`<root>/<name>/SKILL.md`, YAML frontmatter, optional `metadata.vox-*`). Plugin skills keep TOML `*.skill.md` only where they declare `vox-tools` tied to `Plugin.toml`. Everything else lives in flat skill directories; `skill_search_roots()` + `discover_external_skills()` already ingest them. A VoxLang vendoring pipeline (`scripts/vendor-skills.vox`) pins upstream SHAs in `assets/skills/SOURCES.toml`. GUI loads installed skills from `vox_skill_list` (not the CLI command catalog). Command palette `/` mode surfaces the same registry.
 
-**Tech Stack:** Rust (`vox-plugin-host`, `vox-config`, `vox-orchestrator-mcp`, `vox-cli`), VoxScript (`scripts/vendor-skills.vox`), React/TS + Vitest (pnpm), Playwright e2e.
+**Tech Stack:** Rust (`vox-plugin-host`, `vox-config`, `vox-orchestrator-mcp`, `vox-cli`), VoxLang (`scripts/vendor-skills.vox`), React/TS + Vitest (pnpm), Playwright e2e.
 
 **Prerequisite research:** `docs/src/architecture/skill-ecosystem-interop-research-2026-06-12.md` and partial completion of `docs/superpowers/plans/2026-06-12-skill-ecosystem-interop-and-awareness.md` (Tracks A/B largely landed; Track D/E incomplete).
 
@@ -41,7 +41,7 @@ assets/skills/                          # Lowest-precedence bundled root (alread
 crates/vox-plugin-skill-*/<id>.skill.md # Tool-linked plugins only (TOML frontmatter)
 crates/vox-skills/skills/superpowers/   # DELETE after migration (stale duplicates)
 
-scripts/vendor-skills.vox               # NEW — pin, copy, verify (VoxScript-first)
+scripts/vendor-skills.vox               # NEW — pin, copy, verify (VoxLang-first)
 scripts/sync-cursor-skills.vox          # NEW — optional user-machine import (no vendoring)
 ```
 
@@ -277,7 +277,7 @@ fn every_sources_skill_has_skill_md_on_disk() {
 }
 ```
 
-- [ ] **Step 2: Implement vendor script** (VoxScript, subprocess via vox-runtime):
+- [ ] **Step 2: Implement vendor script** (VoxLang, subprocess via vox-runtime):
 
 Logic:
 1. Parse `assets/skills/SOURCES.toml`

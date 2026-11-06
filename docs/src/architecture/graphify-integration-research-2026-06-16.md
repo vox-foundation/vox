@@ -66,7 +66,7 @@ CI **never** rebuilds `graphify-out/graph.json`.
 - Graphify **MCP serve** (`python -m graphify.serve`) — documented in external skill only; **zero** `vox-orchestrator-mcp` tools.
 - **vox-search** — no graphify corpus; [`search-retrieval-ssot-2026.md`](search-retrieval-ssot-2026.md) corpus matrix has no graphify row.
 - **Freshness** — no staleness contract vs `git` HEAD or manifest.
-- **Python pipeline** — 12 allowlisted `scripts/coverage-graph/*.py` files; VoxScript rewrite deferred per README.
+- **Python pipeline** — 12 allowlisted `scripts/coverage-graph/*.py` files; VoxLang rewrite deferred per README.
 
 ---
 
@@ -233,7 +233,7 @@ Gap detection: files in detect manifest without graph nodes; crates without Phas
 | **P0** | Registry + manifest + `vox graphify status` | `vox-config`, `vox-cli`, `vox-orchestrator-mcp` — **landed** |
 | **P1** | Lexical ingest + `vox_graphify_search` in retrieval bundle | `vox-search`, `vox-db` — **landed** (lexical lib, MCP search, CLI ingest, search log virtual corpus) |
 | **P2** | Structural query + cross-map diff MCP tools | `vox-graphify-reader`, MCP — **landed** (BFS, path, compare, god-nodes ranking) |
-| **P3** | Auto-refresh hooks, semantic coverage gate, CI `--strict` freshness | `vox-cli-ci`, VoxScript migration — **open** |
+| **P3** | Auto-refresh hooks, semantic coverage gate, CI `--strict` freshness | `vox-cli-ci`, VoxLang migration — **open** |
 
 ### 4.7 Search persistence details
 

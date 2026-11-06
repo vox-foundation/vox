@@ -25,7 +25,7 @@
 ## Global Constraints
 
 1. **Model-Agnostic Facade:** All LLM calls MUST route through `vox_actor_runtime::llm` or `vox_orchestrator::models`. Hardcoded vendor hostnames and direct SDK instantiations are prohibited.
-2. **VoxScript-First Glue:** No new `.sh`, `.ps1`, or `.py` scripts. Use `vox run scripts/*.vox`.
+2. **VoxLang-First Glue:** No new `.sh`, `.ps1`, or `.py` scripts. Use `vox run scripts/*.vox`.
 3. **No `cargo fmt --all`:** Format only dirty crates or packages with `cargo fmt -p <crate>` or `vox run scripts/fmt.vox`.
 4. **Markdown Frontmatter:** Any `.md` created under `docs/src/` requires YAML frontmatter; plans under `docs/superpowers/plans/` follow plan standards.
 5. **No Placeholders:** Every step must contain complete, copy-pasteable code, exact paths, and verified signatures.

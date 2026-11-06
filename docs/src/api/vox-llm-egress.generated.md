@@ -46,6 +46,7 @@ callers need to record telemetry themselves.
 
 | Module | Description |
 |---|---|
+| `repetition_guard` | — |
 | `throttle` | — |
 
 ### Structs
@@ -80,4 +81,5 @@ callers need to record telemetry themselves.
 | Type | Description |
 |---|---|
 | `ChatStream` | Streaming item type for [`stream_once`]. |
+| `ChatDeltaEventStream` | Streaming item type for [`stream_events_once`] (carries both `delta.content` and `delta.tool_calls` fragments). |
 

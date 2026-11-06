@@ -28,41 +28,36 @@ Authoritative pipeline map (sources → compiler → goldens → corpus → Mens
 The following **Vox-shaped pseudocode** sketches how training might be expressed in source; the **supported path today** is **`vox mens train`** (see [mens-training.md](../reference/mens-training.md)).
 
 ```vox
-// vox:skip -- illustrative pseudocode, not the shipped CLI; see `vox mens train`
-// Illustrative imports — operator workflow uses: vox mens train …
-import vox.mens.training
-import vox.mens.qlora
-
-// We assume we have a table of high-quality agent queries and outputs.
+// We store high-quality agent queries and responses in a Codex table.
 table AgentTelemetry {
-    query: str
+    prompt_text: str
     optimal_response: str
 }
 
-@action
-fn finetune_from_telemetry() to Result[str] {
-    // 1. Fetch training subset directly from your database
-    let records = db.query(AgentTelemetry).take(5000);
-    
-    // 2. Map structural DB logic into instruction dataset layout
-    let dataset = records.map(fn(r) {
-        { prompt: r.query, completion: r.optimal_response }
-    });
-    
-    // 3. Initiate a hardware-accelerated QLoRA training session (Candle backend)
-    let session = training.qlora_finetune(
-        dataset,
-        "base_models/Meta-Llama-3-8B-Instruct",
-        {
-            r: 16,
-            lora_alpha: 32,
-            target_modules: ["q_proj", "v_proj"],
-            batch_size: 4,
-            epochs: 3
-        }
-    )?
-    
-    return Ok("Trained adapter saved to: " + session.adapter_path)
+type QloraConfig {
+    r: int
+    lora_alpha: int
+    batch_size: int
+    epochs: int
+}
+
+query telemetry_sample_count() to int {
+    return len(db.AgentTelemetry.all())
+}
+
+mutation record_telemetry_pair(prompt_text: str, optimal_response: str) to Result[str] {
+    db.AgentTelemetry.insert({
+        prompt_text: prompt_text,
+        optimal_response: optimal_response
+    })?
+    return Ok("recorded")
+}
+
+fn build_qlora_Run(base_model: str, cfg: QloraConfig) to Result[str] {
+    if cfg.r <= 0 {
+        return Error("LoRA rank must be positive")
+    }
+    return Ok("Configured QLoRA run for " + base_model)
 }
 ```
 

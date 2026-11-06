@@ -20,9 +20,9 @@
 
 **Goal:** Make Vox able to index and study Graphify's own (Python) source as a first-class corpus, so agents can navigate the upstream implementation and verify the native Rust port against it.
 
-**Architecture:** The native builder is Rust/TS-only, so it would graph nothing from Graphify's Python source. (G1) Add `tree-sitter-python` (declared in the workspace, version-resolved to unify on the workspace `tree-sitter`) and a Python branch in the extractor. (G2) A VoxScript clones the Graphify source and registers+builds it as the `graphify-upstream` corpus via `vox graphify index`. (G3) A port-parity methodology doc mapping each upstream stage to its native Rust equivalent.
+**Architecture:** The native builder is Rust/TS-only, so it would graph nothing from Graphify's Python source. (G1) Add `tree-sitter-python` (declared in the workspace, version-resolved to unify on the workspace `tree-sitter`) and a Python branch in the extractor. (G2) A VoxLang clones the Graphify source and registers+builds it as the `graphify-upstream` corpus via `vox graphify index`. (G3) A port-parity methodology doc mapping each upstream stage to its native Rust equivalent.
 
-**Tech Stack:** Rust; `tree-sitter` + `tree-sitter-python`; VoxScript; Markdown.
+**Tech Stack:** Rust; `tree-sitter` + `tree-sitter-python`; VoxLang; Markdown.
 
 ---
 
@@ -178,7 +178,7 @@ git commit -m "feat(graphify): native Python AST extraction (tree-sitter-python)
 **Files:**
 - Create: `scripts/graphify-study-source.vox`
 
-- [ ] **Step 1 (verify-before-use):** Run `rg -n "fn vox_binary_path|process.run" scripts/graphify-refresh.vox`. Confirm the VoxScript shape (the `vox_binary_path()` helper + `process.run` usage) to mirror. If `scripts/graphify-refresh.vox` is absent, read any `scripts/*.vox` for the import/`process.run` idiom.
+- [ ] **Step 1 (verify-before-use):** Run `rg -n "fn vox_binary_path|process.run" scripts/graphify-refresh.vox`. Confirm the VoxLang shape (the `vox_binary_path()` helper + `process.run` usage) to mirror. If `scripts/graphify-refresh.vox` is absent, read any `scripts/*.vox` for the import/`process.run` idiom.
 
 - [ ] **Step 2: Write the script.** Create `scripts/graphify-study-source.vox`:
 

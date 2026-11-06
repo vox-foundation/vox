@@ -42,6 +42,9 @@ Functions are deterministic heuristics—not a replacement for human eval or ful
 | `corpus_stats` | — |
 | `mens` | — |
 | `provenance` | — |
+| `qwen_reasoning` | — |
+| `reasoning_bench` | — |
+| `reasoning_slice` | — |
 | `report` | — |
 | `trial_flywheel` | — |
 

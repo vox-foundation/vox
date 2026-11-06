@@ -51,7 +51,7 @@ ensured for by parity by design."
 
 ## Project-specific gotchas (from repo memory / `AGENTS.md`)
 
-- **No new `.ps1`/`.sh`/`.py`** automation — the CI gate must be VoxScript (`.vox`). Copy an existing gate's structure (`grep -rl "vox ci" scripts/*.vox`). Run `.vox` with `--mode interp`; single-line fn sigs; no multi-line `+` exprs; no `list.set`.
+- **No new `.ps1`/`.sh`/`.py`** automation — the CI gate must be VoxLang (`.vox`). Copy an existing gate's structure (`grep -rl "vox ci" scripts/*.vox`). Run `.vox` with `--mode interp`; single-line fn sigs; no multi-line `+` exprs; no `list.set`.
 - Component tests need `// @vitest-environment jsdom` as the **first line** (no global vitest config).
 - **Windows:** never pipe `cargo`/`pnpm` through `head`/`grep` — it orphans thousands of processes. Redirect to a file or rely on the Bash tool's own truncation.
 - `docs/src/**` Markdown needs frontmatter incl. `category: "Architecture SSOTs"`.

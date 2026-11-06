@@ -428,7 +428,7 @@ and it still needs `chmod +x`. `.rpm` via `cargo-generate-rpm` is cheap to add l
 Flatpak/Snap are rejected: sandboxing breaks arbitrary compiler and subprocess access, which is
 Vox's entire job.
 
-**Glue language.** Per AGENTS.md §VoxScript-First, packaging glue is `.vox` run via `vox run`. Where
+**Glue language.** Per AGENTS.md §VoxLang-First, packaging glue is `.vox` run via `vox run`. Where
 a format hard-requires a native maintainer script (deb `postinst`, AppImage `AppRun`), it is a
 ≤10-line thin launcher forwarding to `vox run`, matching the `scripts/windows/vox-dev.ps1` bootstrap
 exception. XML manifests are data, not glue, and are exempt.

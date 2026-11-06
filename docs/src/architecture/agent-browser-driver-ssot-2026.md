@@ -137,10 +137,9 @@ pub fn filter_interactive_ax_tree(nodes: &[serde_json::Value]) -> Vec<CompactAxN
 ```
 
 ```vox
-// vox:skip empirical sandbox probe
 // Empirical Vox probe checking monotonic interactive target mapping
-fn format_action_target(node_id: int, role: string, label: string) -> string {
-    "[" + string(node_id) + "] " + role + " '" + label + "'"
+fn format_action_target(node_id: int, role: str, label: str) to str {
+    return "[" + str(node_id) + "] " + role + " '" + label + "'"
 }
 ```
 

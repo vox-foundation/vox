@@ -66,7 +66,6 @@ Svelte 5 (Oct 2024) replaced implicit `let`-based reactivity with **runes**: exp
 ### Runes (`$state`, `$derived`, `$effect`, `$props`, `$bindable`)
 
 ```svelte
-<!-- vox:skip — illustrative Svelte source, not Vox -->
 <script lang="ts">
   let count = $state(0);
   let doubled = $derived(count * 2);
@@ -87,7 +86,6 @@ What's good for AI codegen:
 Svelte 4's `<slot />` is gone; `{#snippet name(arg1, arg2)} … {/snippet}` + `{@render name(value)}` replaces it.
 
 ```svelte
-<!-- vox:skip — illustrative Svelte source -->
 {#snippet row(item: Item)}
   <tr><td>{item.name}</td><td>{item.price}</td></tr>
 {/snippet}
@@ -101,7 +99,6 @@ Snippets are typed (`Snippet<[Item]>`), parameterized, can be passed as props, c
 Form binding is a directive that the compiler validates against the element's attribute type:
 
 ```svelte
-<!-- vox:skip — illustrative Svelte source -->
 <input bind:value={name} />
 <input type="checkbox" bind:checked={agreed} />
 <div class:active={isOpen} class:disabled={isDisabled}>…</div>
@@ -192,7 +189,7 @@ Each item below is **mineable into Vox source syntax** and **lowerable into the 
 **Idea.** A first-class typed parametric markup primitive (working name `fragment` — final name decided in the implementation plan). Bare-keyword scope (consistent with `component`/`routes`/`state_machine` per [AGENTS.md §Grammar Unification](../../../AGENTS.md)), because it opens a scope with rendering semantics:
 
 ```text
-// vox:skip — design sketch; see implementation plan for final shape
+// Design sketch; see implementation plan for final shape
 fragment Row(item: Item) { <tr><td>{item.name}</td></tr> }
 <Table data={rows} row={Row} />
 ```

@@ -29,7 +29,7 @@ A spoke in the MENS hub-and-spoke architecture is a corpus axis that the model t
 
 1. Require generating thousands of (task, bash, pwsh) triples — expensive, and the question can be answered with ~20 tasks × 2 shells × 5 trials = 200 runs.
 2. Pre-commit to a training intervention before knowing whether the gap exists or matters.
-3. Conflict with [AGENTS.md §VoxScript-First Glue Code](../../../AGENTS.md) by elevating shell codegen to a corpus citizen when Vox is the glue language.
+3. Conflict with [AGENTS.md §VoxLang-First Glue Code](../../../AGENTS.md) by elevating shell codegen to a corpus citizen when Vox is the glue language.
 
 If the eval shows a real gap and the gap matters for a downstream Vox feature, then a corpus tweak inside the existing Vox spoke is the next step — still not a new spoke.
 

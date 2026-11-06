@@ -110,7 +110,7 @@ is a constraint threaded through Tracks A and B, not a separate track.
 
 ## Constraints for the Gemini-Flash handoff
 
-- VoxScript-only automation (no new `.ps1`/`.sh`/`.py`); honor `AGENTS.md` (`where-things-live.md`).
+- VoxLang-only automation (no new `.ps1`/`.sh`/`.py`); honor `AGENTS.md` (`where-things-live.md`).
 - `cargo fmt --all` is banned — use `vox run scripts/fmt.vox` / `cargo fmt -p <crate>`.
 - Each plan carries a Flash execution preamble + per-task splits + `[PARALLEL-SAFE]`/`[SEQUENTIAL]` tags.
 - Every capability ships with its gate, or it does not land.

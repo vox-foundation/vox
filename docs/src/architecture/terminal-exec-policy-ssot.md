@@ -25,7 +25,7 @@ Three load-bearing claims:
 
 - **Not a claim that LLMs are more fluent in PowerShell than Bash.** No public eval supports that, and the Vox repo has not run one. If you read the archived research as making this claim, that was a misreading.
 - **Not a substitute for sandboxing.** Allowlists, even AST-validated ones, are a defense-in-depth layer — they do not replace process isolation.
-- **Not a mandate to ship PowerShell as a project automation surface.** Project automation is **Vox** (see [AGENTS.md §VoxScript-First Glue Code](../../../AGENTS.md)). PowerShell is retained only for the two thin launcher scripts (`scripts/windows/vox-dev.ps1`, `scripts/vox-dev.sh`) that solve the bootstrap problem.
+- **Not a mandate to ship PowerShell as a project automation surface.** Project automation is **Vox** (see [AGENTS.md §VoxLang-First Glue Code](../../../AGENTS.md)). PowerShell is retained only for the two thin launcher scripts (`scripts/windows/vox-dev.ps1`, `scripts/vox-dev.sh`) that solve the bootstrap problem.
 
 ## Implications for MENS training
 

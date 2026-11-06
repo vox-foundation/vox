@@ -93,7 +93,7 @@ CARGO_LOG fingerprint capture (NEW) ──────────────�
 
 ### New component 1 — Rebuild-cause diagnostic
 
-CLI-native: `vox graphify why-rebuilt` (no wrapper script — a VoxScript would only
+CLI-native: `vox graphify why-rebuilt` (no wrapper script — a VoxLang would only
 shell back into `vox`; the Rust side sets env vars cross-platform). Parser lives in
 `vox-graph-reader::rebuild_causes` (pure text→classification, no I/O), capture +
 reporting in the graphify command.

@@ -61,11 +61,14 @@ type Customer {
 Add runtime guards to your data types using the `@require` decorator.
 
 ```vox
-// vox:skip -- illustrative future syntax; @require only decorates fn today, not type
-@require(len(self.password) > 8)
 type UserAccount {
     username: str
     password: str
+}
+
+@require(len(password) > 8)
+fn create_user_account(username: str, password: str) to UserAccount {
+    return { username: username, password: password }
 }
 ```
 

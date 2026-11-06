@@ -643,7 +643,7 @@ pub enum ArtifactForm {
     CodeAuditDetector,
     ArchRule,
     CiGate,
-    VoxScript,
+    VoxLang,
     CorpusNegativeExample,
     None,
 }
@@ -656,13 +656,13 @@ impl ArtifactForm {
             ArtifactForm::CodeAuditDetector     => "detector.md.proposed",
             ArtifactForm::ArchRule              => "arch-rule.toml.proposed",
             ArtifactForm::CiGate                => "ci.yaml.proposed",
-            ArtifactForm::VoxScript             => "vox.proposed",
+            ArtifactForm::VoxLang             => "vox.proposed",
             ArtifactForm::CorpusNegativeExample => "corpus.jsonl.proposed",
             ArtifactForm::None                  => "",
         }
     }
     /// Forms allowed when the authoring model is not Vox-capable.
-    pub fn vox_required(self) -> bool { matches!(self, ArtifactForm::VoxScript) }
+    pub fn vox_required(self) -> bool { matches!(self, ArtifactForm::VoxLang) }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -708,7 +708,7 @@ impl Router for MockRouter {
         // Pick a form from the bucket's remediation_kind, respecting the vox gate.
         let kind = &cluster.bucket.key.remediation_kind;
         let mut form = match kind.as_str() {
-            "ScriptAutomation"      => ArtifactForm::VoxScript,
+            "ScriptAutomation"      => ArtifactForm::VoxLang,
             "AgentsMdRule"          => ArtifactForm::AgentsMdRule,
             "LinterRule"            => ArtifactForm::CodeAuditDetector,
             "CorpusNegativeExample" => ArtifactForm::CorpusNegativeExample,
@@ -759,14 +759,14 @@ mod tests {
 
     #[test]
     fn vox_form_falls_back_when_not_capable() {
-        assert!(ArtifactForm::VoxScript.vox_required());
+        assert!(ArtifactForm::VoxLang.vox_required());
         assert!(!ArtifactForm::CiGate.vox_required());
     }
 
     #[test]
     fn staging_extensions_all_end_in_proposed() {
         for f in [ArtifactForm::AgentsMdRule, ArtifactForm::CodeAuditDetector, ArtifactForm::ArchRule,
-                  ArtifactForm::CiGate, ArtifactForm::VoxScript, ArtifactForm::CorpusNegativeExample] {
+                  ArtifactForm::CiGate, ArtifactForm::VoxLang, ArtifactForm::CorpusNegativeExample] {
             assert!(f.staging_extension().ends_with(".proposed"), "{:?}", f);
         }
         assert_eq!(ArtifactForm::None.staging_extension(), "");
@@ -776,7 +776,7 @@ mod tests {
     async fn mock_router_respects_vox_gate() {
         // Build a Cluster whose bucket.key.remediation_kind == "ScriptAutomation".
         // route with ModelVoxCapability(false) → artifact_form == CiGate.
-        // route with ModelVoxCapability(true)  → artifact_form == VoxScript.
+        // route with ModelVoxCapability(true)  → artifact_form == VoxLang.
     }
 }
 ```
@@ -814,19 +814,19 @@ suggested remediation kind, and a primary crate. For the cluster as a whole
 (not commit-by-commit) decide ONE authoritative remediation.
 
 Choose an artifact_form from the ALLOWED set you are given (the set excludes
-VoxScript unless the host says the authoring model is Vox-capable):
+VoxLang unless the host says the authoring model is Vox-capable):
 - AgentsMdRule: a one-paragraph rule in AGENTS.md would make agents skip this
 - CodeAuditDetector: a vox-code-audit lint detector would catch this at write time
 - ArchRule: a vox-arch-check / layers.toml rule would prevent this structurally
 - CiGate: a CI contract entry or a test/example fixture would fail on this
-- VoxScript: a small `vox run` script would have done the mechanical work in one commit
+- VoxLang: a small `vox run` script would have done the mechanical work in one commit
 - CorpusNegativeExample: a MENS fine-tuning negative example would discourage it
 - None: the cluster is legitimate work needing no structural fix
 
 Then DRAFT the actual artifact body in the chosen form. Make it concrete and
 correct for its target surface — real YAML for CiGate, a real rule spec for
 CodeAuditDetector, a real markdown paragraph for AgentsMdRule, etc. Do NOT
-draft Vox source unless VoxScript is in the allowed set.
+draft Vox source unless VoxLang is in the allowed set.
 
 Return one JSON object: { artifact_form, confidence (0..1), synthesized_fix_summary,
 drafted_body, form_rationale }.
@@ -866,7 +866,7 @@ pub fn allowed_forms(vox_capable: bool) -> Vec<ArtifactForm> {
         ArtifactForm::ArchRule, ArtifactForm::CiGate,
         ArtifactForm::CorpusNegativeExample, ArtifactForm::None,
     ];
-    if vox_capable { v.push(ArtifactForm::VoxScript); }
+    if vox_capable { v.push(ArtifactForm::VoxLang); }
     v
 }
 
@@ -926,8 +926,8 @@ mod tests {
 
     #[test]
     fn allowed_forms_gate_vox() {
-        assert!(!allowed_forms(false).contains(&ArtifactForm::VoxScript));
-        assert!(allowed_forms(true).contains(&ArtifactForm::VoxScript));
+        assert!(!allowed_forms(false).contains(&ArtifactForm::VoxLang));
+        assert!(allowed_forms(true).contains(&ArtifactForm::VoxLang));
     }
 
     #[test]
@@ -976,7 +976,7 @@ pub struct DecideResponse {
 
 pub fn decide_json_schema(vox_capable: bool) -> serde_json::Value {
     let mut forms = vec!["AgentsMdRule","CodeAuditDetector","ArchRule","CiGate","CorpusNegativeExample","None"];
-    if vox_capable { forms.push("VoxScript"); }
+    if vox_capable { forms.push("VoxLang"); }
     serde_json::json!({
       "type":"object",
       "properties":{
@@ -1010,7 +1010,7 @@ mod tests {
     fn schema_excludes_vox_when_incapable() {
         let s = decide_json_schema(false);
         let arr = s["properties"]["artifact_form"]["enum"].as_array().unwrap();
-        assert!(!arr.iter().any(|v| v == "VoxScript"));
+        assert!(!arr.iter().any(|v| v == "VoxLang"));
     }
 }
 ```

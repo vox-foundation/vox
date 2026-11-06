@@ -8,7 +8,7 @@ program: `fs_resolve_allowed` would have denied `fs.write("out.txt")` under
 `developer_default()`. Four tests could not fail. The differential gate would have
 rebuilt 764 crates per golden and never run on CI. Split into six revertable PRs.
 
-**Goal:** Make the HIR interpreter the default and isolation tier for VoxScripts — locally
+**Goal:** Make the HIR interpreter the default and isolation tier for VoxLangs — locally
 and over the mesh — so `cargo`, `rustc`, and a Vox checkout stop being end-user
 requirements for running pure Vox.
 
@@ -16,7 +16,7 @@ requirements for running pure Vox.
 recursion, output, disk bytes and file counts join steps as hard bounds; every
 side-effecting entry point (including `import` and `@versioned`) is gated. The
 interpreter is an isolation boundary, not a resource-containment one beyond those
-counted bounds. The mesh executes `VoxScript` by spawning `vox run --mode interp` as a
+counted bounds. The mesh executes `VoxLang` by spawning `vox run --mode interp` as a
 bounded child from `InterpExecutor` in `vox-mesh-transport` (no new crate edge there)
 and never ships native code. A differential gate over one generated crate proves the
 tiers agree. The wasi script lane, the HTTP native-bundle lane, `secret_gate`,
@@ -1515,7 +1515,7 @@ async fn a_payload_of_exactly_the_declared_size_is_accepted_and_reaches_the_exec
     let server = start_server().await;
     server.trust.trust(&client_id(), None).unwrap();
     let payload = b"pub fn main() { print(\"hi\") }".to_vec();
-    let resp = send_run_on(&server, JobId(1), TaskKind::VoxScript, &payload).await;
+    let resp = send_run_on(&server, JobId(1), TaskKind::VoxLang, &payload).await;
     assert!(matches!(resp, JobResponse::Output(_)), "{resp:?}");
     assert_eq!(server.exec.last_payload(), payload);
 }
@@ -1524,15 +1524,15 @@ async fn a_payload_of_exactly_the_declared_size_is_accepted_and_reaches_the_exec
 async fn a_payload_shorter_than_its_claim_is_refused_not_truncated() {
     let server = start_server().await;
     server.trust.trust(&client_id(), None).unwrap();
-    let resp = send_run_with_claim(&server, JobId(2), TaskKind::VoxScript, b"short", 999).await;
+    let resp = send_run_with_claim(&server, JobId(2), TaskKind::VoxLang, b"short", 999).await;
     assert!(matches!(resp, JobResponse::Failed(ref m) if m.contains("claim")), "{resp:?}");
 }
 
 #[tokio::test]
-async fn a_voxscript_payload_over_four_mib_is_refused_before_transfer() {
+async fn a_voxlang_payload_over_four_mib_is_refused_before_transfer() {
     let server = start_server().await;
     server.trust.trust(&client_id(), None).unwrap();
-    let resp = send_run_with_claim(&server, JobId(3), TaskKind::VoxScript, b"", 5 * 1024 * 1024).await;
+    let resp = send_run_with_claim(&server, JobId(3), TaskKind::VoxLang, b"", 5 * 1024 * 1024).await;
     assert!(matches!(resp, JobResponse::Failed(ref m) if m.contains("exceeds")), "{resp:?}");
     assert_eq!(server.exec.invocations(), 0);
 }
@@ -1583,7 +1583,7 @@ fn isolation_default_is_the_interpreter_and_there_is_no_third_tier() {
 fn proto_is_two_and_limits_carry_every_bound() {
     assert_eq!(vox_mesh_transport::protocol::PROTO, 2);
     let l = JobLimits::default();
-    assert_eq!(l.max_payload_for(TaskKind::VoxScript), 4 * 1024 * 1024);
+    assert_eq!(l.max_payload_for(TaskKind::VoxLang), 4 * 1024 * 1024);
     assert_eq!(l.max_memory_bytes, 512 * 1024 * 1024);
     assert_eq!(l.max_steps, 50_000_000);
     assert_eq!(l.max_disk_bytes, 32 * 1024 * 1024);
@@ -1630,7 +1630,7 @@ pub struct JobLimits {
 }
 impl JobLimits {
     pub fn max_payload_for(&self, kind: TaskKind) -> u64 {
-        match kind { TaskKind::VoxScript => 4 * 1024 * 1024, _ => self.max_payload_bytes }
+        match kind { TaskKind::VoxLang => 4 * 1024 * 1024, _ => self.max_payload_bytes }
     }
 }
 
@@ -1653,7 +1653,7 @@ reports.
 
 ---
 
-## Task 9: `InterpExecutor` — the mesh runs VoxScript
+## Task 9: `InterpExecutor` — the mesh runs VoxLang
 
 **Files:** Create `interp_executor.rs` (same-file `mod tests`), `caps_spec.rs`
 (same-file `mod tests`), `tests/common/mod.rs`, `tests/interp_executor.rs`;
@@ -1725,10 +1725,10 @@ fn read_capped_does_not_mark_an_exact_max() {
 
 #[tokio::test]
 #[ignore = "owner:mesh sunset:2026-12-31 slow: builds and spawns the vox binary"]
-async fn a_voxscript_job_runs_and_returns_its_output() {
+async fn a_voxlang_job_runs_and_returns_its_output() {
     let server = common::start_server_with(exec).await;
     server.trust.trust(&common::client_id(), None).unwrap();
-    let resp = common::send_run_on(&server, JobId(1), TaskKind::VoxScript, b"pub fn main() { print(\"MESH_RAN\") }").await;
+    let resp = common::send_run_on(&server, JobId(1), TaskKind::VoxLang, b"pub fn main() { print(\"MESH_RAN\") }").await;
     assert!(matches!(resp, JobResponse::Output(ref b) if String::from_utf8_lossy(b).contains("MESH_RAN")), "{resp:?}");
 }
 
@@ -1737,7 +1737,7 @@ async fn a_voxscript_job_runs_and_returns_its_output() {
 async fn a_sandboxed_peer_cannot_read_the_host_filesystem() {
     let server = common::start_server_with(exec).await;
     server.trust.trust(&common::client_id(), None).unwrap();
-    let resp = common::send_run_on(&server, JobId(2), TaskKind::VoxScript, b"pub fn main() { let s = fs.read(\"/etc/hosts\"); print(\"LEAK\") }").await;
+    let resp = common::send_run_on(&server, JobId(2), TaskKind::VoxLang, b"pub fn main() { let s = fs.read(\"/etc/hosts\"); print(\"LEAK\") }").await;
     assert!(matches!(resp, JobResponse::Failed(ref m) if m.contains("capability denied") && m.contains("fs.read")), "{resp:?}");
 }
 
@@ -1746,7 +1746,7 @@ async fn a_sandboxed_peer_cannot_read_the_host_filesystem() {
 async fn a_forged_exit_77_under_grant_native_is_not_a_denial() {
     let server = common::start_server_with(exec).await;
     server.trust.trust_with(&common::client_id(), vox_mesh_transport::trust::TrustLevel::Native).unwrap();
-    let resp = common::send_run_on(&server, JobId(3), TaskKind::VoxScript, b"pub fn main() { process.exit(77) }").await;
+    let resp = common::send_run_on(&server, JobId(3), TaskKind::VoxLang, b"pub fn main() { process.exit(77) }").await;
     assert!(matches!(resp, JobResponse::Failed(ref m) if !m.contains("capability denied")), "{resp:?}");
 }
 
@@ -1758,7 +1758,7 @@ async fn a_runaway_allocation_is_killed_and_reported() {
     limits.max_steps = 10_000;
     let server = common::start_server_with(|t| Arc::new(InterpExecutor::new(t, vox_bin(), limits)) as Arc<dyn JobExecutor>).await;
     server.trust.trust(&common::client_id(), None).unwrap();
-    let resp = common::send_run_on(&server, JobId(4), TaskKind::VoxScript, b"pub fn main() { let mut s = \"x\"; let mut i = 0; while i < 40 { s = s + s; i = i + 1 } }").await;
+    let resp = common::send_run_on(&server, JobId(4), TaskKind::VoxLang, b"pub fn main() { let mut s = \"x\"; let mut i = 0; while i < 40 { s = s + s; i = i + 1 } }").await;
     assert!(matches!(resp, JobResponse::Failed(ref m) if m.contains("memory limit")), "{resp:?}");
 }
 
@@ -1769,7 +1769,7 @@ async fn output_is_capped_and_marked_only_when_over() {
     limits.max_output_bytes = 64 * 1024;
     let server = common::start_server_with(|t| Arc::new(InterpExecutor::new(t, vox_bin(), limits)) as Arc<dyn JobExecutor>).await;
     server.trust.trust(&common::client_id(), None).unwrap();
-    let resp = common::send_run_on(&server, JobId(5), TaskKind::VoxScript, b"pub fn main() { let mut i = 0; while i < 10000 { print(\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"); i = i + 1 } }").await;
+    let resp = common::send_run_on(&server, JobId(5), TaskKind::VoxLang, b"pub fn main() { let mut i = 0; while i < 10000 { print(\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"); i = i + 1 } }").await;
     match resp {
         JobResponse::Output(b) => {
             assert!(b.len() <= 64 * 1024 + 128);
@@ -1789,7 +1789,7 @@ async fn one_peer_cannot_cancel_another_peers_job() {
     server.trust.trust(&a.id(), None).unwrap();
     server.trust.trust(&b.id(), None).unwrap();
     let slow = b"pub fn main() { let mut i = 0; while i < 200000 { i = i + 1 }; print(\"DONE\") }";
-    let a_job = tokio::spawn(common::send_run_from(a.clone(), &server, JobId(9), TaskKind::VoxScript, slow));
+    let a_job = tokio::spawn(common::send_run_from(a.clone(), &server, JobId(9), TaskKind::VoxLang, slow));
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     let cancel = common::send_cancel_from(b, &server, JobId(9)).await;
     assert!(matches!(cancel, JobResponse::Failed(ref m) if m.contains("no such running job")), "{cancel:?}");
@@ -1803,9 +1803,9 @@ async fn a_reused_job_id_from_the_same_peer_is_refused() {
     let server = common::start_server_with(exec).await;
     server.trust.trust(&common::client_id(), None).unwrap();
     let slow = b"pub fn main() { let mut i = 0; while i < 200000 { i = i + 1 }; print(\"A\") }";
-    let first = tokio::spawn(common::send_run_on_owned(server.clone(), JobId(11), TaskKind::VoxScript, slow));
+    let first = tokio::spawn(common::send_run_on_owned(server.clone(), JobId(11), TaskKind::VoxLang, slow));
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    let second = common::send_run_on(&server, JobId(11), TaskKind::VoxScript, b"pub fn main() { print(\"B\") }").await;
+    let second = common::send_run_on(&server, JobId(11), TaskKind::VoxLang, b"pub fn main() { print(\"B\") }").await;
     assert!(matches!(second, JobResponse::Failed(ref m) if m.contains("already running")), "{second:?}");
     let _ = first.await;
 }
@@ -1827,7 +1827,7 @@ async fn process_boundary_clears_unlisted_env_and_points_home_at_the_readonly_di
     let resp = common::send_run_on(
         &server,
         JobId(7),
-        TaskKind::VoxScript,
+        TaskKind::VoxLang,
         b"pub fn main() { print(env.get(\"VOX_SHOULD_NOT_LEAK\") is None) }",
     )
     .await;
@@ -1843,7 +1843,7 @@ async fn unix_process_group_kill_reaches_a_grandchild() {
     let server = common::start_server_with(|t| Arc::new(InterpExecutor::new(t, vox_bin(), limits)) as Arc<dyn JobExecutor>).await;
     server.trust.trust_with(&common::client_id(), TrustLevel::Native).unwrap();
     let t0 = std::time::Instant::now();
-    let resp = common::send_run_on(&server, JobId(8), TaskKind::VoxScript, b"pub fn main() { process.run(\"sleep\", [\"30\"]) }").await;
+    let resp = common::send_run_on(&server, JobId(8), TaskKind::VoxLang, b"pub fn main() { process.run(\"sleep\", [\"30\"]) }").await;
     assert!(t0.elapsed() < std::time::Duration::from_secs(2), "grandchild leaked: {:?}", t0.elapsed());
     assert!(matches!(resp, JobResponse::Failed(_)), "{resp:?}");
 }
@@ -1857,7 +1857,7 @@ async fn windows_job_object_kill_reaches_a_grandchild() {
     let server = common::start_server_with(|t| Arc::new(InterpExecutor::new(t, vox_bin(), limits)) as Arc<dyn JobExecutor>).await;
     server.trust.trust_with(&common::client_id(), TrustLevel::Native).unwrap();
     let t0 = std::time::Instant::now();
-    let resp = common::send_run_on(&server, JobId(8), TaskKind::VoxScript, b"pub fn main() { process.run(\"timeout\", [\"/t\", \"30\", \"/nobreak\"]) }").await;
+    let resp = common::send_run_on(&server, JobId(8), TaskKind::VoxLang, b"pub fn main() { process.run(\"timeout\", [\"/t\", \"30\", \"/nobreak\"]) }").await;
     assert!(t0.elapsed() < std::time::Duration::from_secs(2), "grandchild leaked: {:?}", t0.elapsed());
     assert!(matches!(resp, JobResponse::Failed(_)), "{resp:?}");
 }
@@ -2030,8 +2030,8 @@ and **delete** `workflow_durable_shim::execute_activity` synthesis as dead. Eith
 way the test above is a real assertion.
 
 - [ ] **Step 3: Implement.** `run_on_peer` sends
-`JobRequest::Run { job_id: JobId(next_local_id()), kind: VoxScript, payload_bytes }`
-and reads with a 16 MiB frame max. `Dispatch` first-fit on `VoxScript` in
+`JobRequest::Run { job_id: JobId(next_local_id()), kind: VoxLang, payload_bytes }`
+and reads with a 16 MiB frame max. `Dispatch` first-fit on `VoxLang` in
 `task_kinds` — comment: `// first-fit, no queue-depth weighting. Phase 4 Task 4.1
 replaces this with a PlacementRecord.` Emit `"peer"` and `"candidates": n` through
 `mesh_envelope` without changing its signature. `Wait` →
@@ -2124,7 +2124,7 @@ not required; (5) **executor binary accepts `--caps`** (`vox run --help` contain
 `--caps`). Sources live under `diagnostics/`.
 
 - [ ] **Step 1: ADR-048.** Decision: the interpreter is the isolation tier for
-VoxScripts. Record the §5 table (insertion order; crypto edge; accept-loop out of
+VoxLangs. Record the §5 table (insertion order; crypto edge; accept-loop out of
 band; no permanently-red golden; in-process disk caps). Consequence: PROTO 2;
 six embedders; `@versioned` gated; `list.push` in-place before the flip.
 
@@ -2134,7 +2134,7 @@ six embedders; `@versioned` gated; `list.push` in-place before the flip.
 Surfaces. `cargo run -q -p vox-cli -- ci retired-symbol-check`.
 
 - [ ] **Step 3: AGENTS.md tier table** and residual references:
-`GEMINI.md`, `.cursor/rules/voxscript-first-automation.mdc`,
+`GEMINI.md`, `.cursor/rules/voxlang-first-automation.mdc`,
 `docs/src/explanation/expl-architecture.md`, `docs/src/reference/mobile-edge-ai.md`,
 `docs/src/reference/cli.md`.
 

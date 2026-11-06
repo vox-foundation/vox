@@ -197,8 +197,8 @@ Tier 3: Multi-Target Emission  │
 
 `VoxDiagram` syntax uses bare-keyword declaration blocks, fully isolated string labels, and orthogonal arrows:
 
-```vox
-// vox:skip: proposed future VoxDiagram language grammar syntax
+```text
+// Proposed future VoxDiagram language grammar syntax
 // Fenced in docs as ```vox-diagram or native .vox module
 diagram SystemArchitecture {
     direction: TopToBottom

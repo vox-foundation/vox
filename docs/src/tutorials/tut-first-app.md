@@ -10,7 +10,9 @@ schema_type: "HowTo"
 ---
 # Tutorial: Building a Collaborative Task List
 
-Learn how to build a full-stack, collaborative task list app with Vox. This tutorial covers data modeling, server-side logic, and UI integration using a single `.vox` file.
+Learn how to build a full-stack task list in one `.vox` file: a `table`, a `query`, a `mutation`, a `component`, and a route.
+
+Start here after the sketch in [Getting Started §2](tut-getting-started.md). The side-by-side compiler output is the [full-stack walkthrough](tut-fullstack-walkthrough.mdx). Install steps live in [Installing Vox](../reference/installation.md).
 
 ## 1. Project Initialization
 

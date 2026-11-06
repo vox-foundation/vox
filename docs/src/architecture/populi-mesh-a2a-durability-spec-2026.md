@@ -47,7 +47,6 @@ Path resolution (Clavis secret > sibling-of-registry > local-registry-default). 
 ### 2.1 The `MeshStore` trait
 
 ```rust
-// vox:skip
 pub trait MeshStore: Send + Sync {
     fn put_a2a(&self, msg: A2AStoredMessage) -> Result<(), MeshStoreError>;
     fn list_a2a(&self, page: A2APage) -> Result<Vec<A2AStoredMessage>, MeshStoreError>;

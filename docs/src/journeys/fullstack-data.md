@@ -30,42 +30,35 @@ You avoid writing boilerplate. State synchronization and type-checking happen sa
 
 Below is a complete, working React frontend and Rust backend in a single `.vox` file.
 
-```tsx
-// vox:skip
-import react.use_state
-
+```vox
 // 1. DDL & Struct defined once entirely.
 table Task {
-    title:    str
-    done:     bool
-    owner:    str
+    title: str
+    done: bool
+    owner: str
 }
 
-// 2. Server mutation automatically generated. Typed args enforce contract.
-server complete_task(id: Id[Task]) to Result[Unit] {
-    db.Task.update(id, { done: true })
-    return Ok(())
+// 2. Server query and mutation automatically generated. Typed args enforce contract.
+query list_tasks() to int {
+    return len(db.Task.all())
+}
+
+mutation create_task(title: str, owner: str) to Result[str] {
+    db.Task.insert({ title: title, done: false, owner: owner })?
+    return Ok("created")
 }
 
 // 3. UI logic emitted as a plain React component (TSX) for the external frontend.
-component TaskList(tasks: list[Task]) {
-    view: <div class="task-list">
-        {tasks.map(fn(task) {
-            <label>
-                <input
-                    type="checkbox"
-                    checked={task.done}
-                    onChange={fn(_e) complete_task(task.id)}
-                />
-                {task.title}
-            </label>
-        })}
-    </div>
+component TaskList() {
+    state count: int = 0
+    view: column(gap=2) {
+        text() { "Tasks" }
+    }
 }
 
 // Server Side Routing mapped directly to the UI elements.
 routes {
-    "/" -> TaskList
+    "/" to TaskList
 }
 ```
 

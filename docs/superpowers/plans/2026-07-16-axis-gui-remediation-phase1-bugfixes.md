@@ -16,7 +16,7 @@ Test commands used throughout (verified against `crates/vox-gui/ui/package.json`
 - Rust: `cargo test -p vox-gui <filter>` and `cargo test -p vox-orchestrator-mcp <filter>`
 - Formatting: `cargo fmt -p vox-gui` / `cargo fmt -p vox-orchestrator-mcp` only. **NEVER `cargo fmt --all`** (Windows arg-limit overflow). Never pipe cargo output to `head`/`grep` (orphaned-process leak on Windows); redirect to a file if you must page it.
 
-Repo rules (AGENTS.md): no new `.ps1`/`.sh`/`.py` files (VoxScript only for automation — none is needed here), `.vox` files are Vox source, don't hand-edit generated docs.
+Repo rules (AGENTS.md): no new `.ps1`/`.sh`/`.py` files (VoxLang only for automation — none is needed here), `.vox` files are Vox source, don't hand-edit generated docs.
 
 ---
 

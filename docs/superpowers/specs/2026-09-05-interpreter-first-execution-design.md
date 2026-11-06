@@ -1,6 +1,6 @@
 ---
 title: "Interpreter-first execution: one toolchain-free tier for scripts and the mesh"
-description: "Revision 3 design for making the HIR interpreter the default and isolation tier for VoxScripts, locally and over the mesh, retiring cargo as an end-user dependency for pure Vox."
+description: "Revision 3 design for making the HIR interpreter the default and isolation tier for VoxLangs, locally and over the mesh, retiring cargo as an end-user dependency for pure Vox."
 category: "Architecture SSOTs"
 status: "approved"
 training_eligible: false
@@ -19,11 +19,11 @@ revertable PRs.
 **Supersedes** revision 2 of this file, the container-tier direction discussed 2026-09-05,
 and the "no sandbox exists" gap in
 [`2026-09-04-populi-mesh-iroh-transport-design.md`](2026-09-04-populi-mesh-iroh-transport-design.md).
-**Evidence base:** [`voxscript-portability-substrate-research-2026.md`](../../src/architecture/voxscript-portability-substrate-research-2026.md).
+**Evidence base:** [`voxlang-portability-substrate-research-2026.md`](../../src/architecture/voxlang-portability-substrate-research-2026.md).
 
 ## 1. Decision in one paragraph
 
-Pure VoxScripts run under the HIR interpreter by default, locally and when received over the
+Pure VoxLangs run under the HIR interpreter by default, locally and when received over the
 mesh. The interpreter is the **isolation** boundary for Vox code: capabilities are imposed by
 the receiver, denial is fatal, every side-effecting path — including `import` and the
 `@versioned` snapshot — is gated, and CPU, heap, recursion depth, output, disk bytes, and
@@ -31,7 +31,7 @@ file counts are bounded. It is **not** a resource-containment boundary against a
 trusted-but-malicious peer on dimensions this design does not count (regex compile time is
 capped; executor slots are per-peer). Native compilation (`cargo`) becomes an explicit
 opt-in used only when a script pulls in Rust crates or needs peak throughput. The mesh ships
-VoxScript source and declarative ML jobs; it never ships native code. One builtin registry
+VoxLang source and declarative ML jobs; it never ships native code. One builtin registry
 feeds both tiers, and a differential gate proves they agree on every golden that declares an
 expected output — a corpus this design also grows to cover arithmetic, display, ordering,
 argv, and `crypto.*`. `cargo`, `rustc`, and the Vox source tree stop being end-user
@@ -370,12 +370,12 @@ a status file) when convenient; not a revision-3 blocker.
 
 ### 3.4 Mesh execution
 
-**The mesh ships two things, and only two: VoxScript source, and declarative ML jobs.** It
+**The mesh ships two things, and only two: VoxLang source, and declarative ML jobs.** It
 never ships native code.
 
 | `TaskKind` | Executor on the peer | Isolation |
 |---|---|---|
-| `VoxScript` | `InterpExecutor` → child `vox run --mode interp --caps … --caps … --max-steps … --max-memory … --max-depth …` | the interpreter (§3.2) + process boundary. **Not** `sandbox.rs` — that file has two call sites, both native; the interpreter child gets no Landlock / seccomp |
+| `VoxLang` | `InterpExecutor` → child `vox run --mode interp --caps … --caps … --max-steps … --max-memory … --max-depth …` | the interpreter (§3.2) + process boundary. **Not** `sandbox.rs` — that file has two call sites, both native; the interpreter child gets no Landlock / seccomp |
 | `TextInfer`, `Embed`, `ImageGen`, `SpeechTranscribe`, `TrainQLoRA` | declarative `{engine, model, input}` → a **locally installed engine** the peer already trusts | none needed — no foreign code executes; admission refuses kinds with no engine |
 
 - `InterpExecutor` lives in `vox-mesh-transport` (L2): it spawns a child and needs no
@@ -402,7 +402,7 @@ never ships native code.
   level. Tokens are passed as repeatable `--caps`.
 - **`JobLimits` is the one place node policy lives**: `wall_clock`, `max_output_bytes`,
   `max_payload_bytes`, `max_memory_bytes`, `max_steps`, `max_depth`, `max_disk_bytes`,
-  `max_files`, and a per-kind payload cap — **4 MiB for `VoxScript`** (source is text;
+  `max_files`, and a per-kind payload cap — **4 MiB for `VoxLang`** (source is text;
   1 GiB was sized for the bundle lane this design deletes). `max_payload_bytes` default
   drops to 16 MiB. The receiver checks the claim, reads the frame with the varint
   allowance, and refuses a payload whose length differs from the claim. `max_steps` is
@@ -556,7 +556,7 @@ Retained, but corrected:
 - **Docs.** `docs/src/reference/isolation.md` (`category: Language Reference` — the page
   `script.rs` already tells users to read, which does not exist); ADR-048
   (`category: Architecture Decisions (ADRs)`, shape of ADR-047); `AGENTS.md` tier table;
-  `GEMINI.md` and `.cursor/rules/voxscript-first-automation.mdc` (both name
+  `GEMINI.md` and `.cursor/rules/voxlang-first-automation.mdc` (both name
   `--isolation wasm`); **four `where-things-live.md` rows in the same PR that creates
   the surfaces** (AGENTS.md same-PR rule); the mesh plan's Status; two markdown links to
   deleted files that `vox ci check-links` would fail on.
@@ -582,9 +582,9 @@ Retained, but corrected:
 
 | You run… | Needs |
 |---|---|
-| a pure VoxScript | `vox` |
-| a VoxScript over the mesh | `vox` on both ends |
-| a VoxScript that imports a Rust crate | `vox` + cargo + rustc (`--mode script`) |
+| a pure VoxLang | `vox` |
+| a VoxLang over the mesh | `vox` on both ends |
+| a VoxLang that imports a Rust crate | `vox` + cargo + rustc (`--mode script`) |
 | a Vox web/desktop app, or a `table`/`routes`/`server`/`workflow` program | `vox` + cargo (+ node/pnpm for web), as today |
 | an ML job over the mesh | `vox` + the named engine installed on the executing peer |
 | a Vox plugin in wasm | `vox` (embedded `vox-wasm-engine`, unchanged) |
@@ -629,7 +629,7 @@ Retained, but corrected:
   drops unlisted vars and keeps the curated list; `HOME`/`USERPROFILE` point at the
   read-only tempdir; Unix process-group kill reaches a grandchild; Windows Job Object
   kill reaches a grandchild; wall-clock kill fires.
-- **Mesh, on loopback:** a `VoxScript` job runs and returns output; a path outside the
+- **Mesh, on loopback:** a `VoxLang` job runs and returns output; a path outside the
   job dir is refused fatally with the denial on stderr; a memory blow-up uses
   `s = s + s` doubling (26 iterations to 64 MiB, not the push loop) and is reported as
   79; output of exactly `max` bytes is not marked truncated; output over the cap is;

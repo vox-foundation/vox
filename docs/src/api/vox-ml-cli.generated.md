@@ -42,6 +42,7 @@ Vox ML, AI, and Telemetry command-line interface.
 | `execution-api` | dep:axum |
 | `extras-ludus` | — |
 | `gpu` | mens-base, dep:vox-populi, vox-populi/mens, vox-populi/mens-train, vox-populi/mens-hf-hub, dep:vox-tensor, dep:vox-plugin-host, quantize |
+| `hw-probe-live-test` | — |
 | `mens` | — |
 | `mens-base` | dep:vox-populi, vox-populi/mens-train, vox-bounded-fs/async, database, execution-api |
 | `mens-candle-cuda` | gpu, vox-populi/mens-candle-qlora-cuda |

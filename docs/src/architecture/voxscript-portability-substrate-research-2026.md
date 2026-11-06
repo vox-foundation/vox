@@ -1,19 +1,19 @@
 ---
-title: "VoxScript portability substrate: research and findings (2026-09)"
-description: "Measured answer to 'make VoxScripts run the same on every system': why one substrate cannot deliver it, what Vox already has, and the cheap fixes that are still available."
+title: "VoxLang portability substrate: research and findings (2026-09)"
+description: "Measured answer to 'make VoxLangs run the same on every system': why one substrate cannot deliver it, what Vox already has, and the cheap fixes that are still available."
 category: "Architecture SSOTs"
 status: "research"
 training_eligible: false
 ---
 
-# VoxScript portability substrate — research and findings
+# VoxLang portability substrate — research and findings
 
 **Date:** 2026-09-05 · **Method:** five parallel web-research waves plus a direct audit of
 this repository, with claims verified on this machine where verification was possible.
 
 ## Why this document exists
 
-The stated goal was: *make VoxScripts run the same on every system, on every CPU and GPU
+The stated goal was: *make VoxLangs run the same on every system, on every CPU and GPU
 architecture, or as many as one maintainer can support.* The question asked was whether
 compiling to machine code (or something similar) would make containers and sandboxes
 unnecessary for that purpose.
@@ -53,7 +53,7 @@ designed as one.
 
 `crates/vox-integration-tests/tests/golden_behavioral_gate.rs` runs goldens under
 `vox run --mode interp` **only**. No test runs one script through two tiers and compares
-output. The goal "VoxScripts run the same everywhere" currently has **zero enforcement** —
+output. The goal "VoxLangs run the same everywhere" currently has **zero enforcement** —
 not across tiers on one machine, let alone across architectures.
 
 This is the cheapest high-value gap in the entire investigation.
@@ -204,7 +204,7 @@ approximation algorithms."
 
 Vox compiles to **both** Rust and TypeScript. If transcendentals are added, Vox acquires
 two independent divergence sources that **will not agree with each other either** — the
-same VoxScript giving three answers (native Rust, TS on V8, wasm) is the default outcome,
+same VoxLang giving three answers (native Rust, TS on V8, wasm) is the default outcome,
 not the edge case.
 
 ### 2.4 What every system that achieved bit-identity actually did

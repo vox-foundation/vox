@@ -340,7 +340,7 @@ git commit -m "feat(graphify): rebuild concurrency lock + freshness-skip regress
 - [ ] **Step 1: Register the scheduled task (run once on the host).**
 
 The trigger is a one-time Windows Task Scheduler registration — no committed script (AGENTS.md:
-VoxScript-only automation, no new `.ps1/.sh/.py`). Run this in PowerShell, substituting the real
+VoxLang-only automation, no new `.ps1/.sh/.py`). Run this in PowerShell, substituting the real
 `vox.exe` path (`(Get-Command vox).Source`) and repo path:
 
 ```powershell

@@ -1526,7 +1526,7 @@ Expected: `docs-reality-audit verify OK (10 claims, 0 findings)`, exit 0.
 
 - [ ] **Step 7: Prove the guard catches drift**
 
-No Python — AGENTS.md §VoxScript-First, and it may not be on the runner:
+No Python — AGENTS.md §VoxLang-First, and it may not be on the runner:
 
 ```bash
 sed -i 's/"inventory_claim_count": 10/"inventory_claim_count": 999/' contracts/reports/docs-reality-audit/metrics.v1.json

@@ -42,7 +42,7 @@ git ls-files | ForEach-Object { Split-Path $_ -Parent } |
 | **Docs site build** | [`docs-astro/`](../../../docs-astro/) | Astro app; generated sidebar — do not hand-edit `SUMMARY.md`. |
 | **GUI / apps** | [`apps/`](../../../apps/) | Mental tracker, editor extension, interop marquee, experimental visualizer — ownership in [`contracts/frontend/surface-ownership.v1.yaml`](../../../contracts/frontend/surface-ownership.v1.yaml). |
 | **Examples & fixtures** | [`examples/`](../../../examples/), [`tests/fixtures/`](../../../tests/fixtures/) | Sandboxes and test-only bundles; not shipped product trees. |
-| **Automation** | [`scripts/*.vox`](../../../scripts/) | VoxScript-first glue (`vox run …`); thin bootstrap PS/sh only. |
+| **Automation** | [`scripts/*.vox`](../../../scripts/) | VoxLang-first glue (`vox run …`); thin bootstrap PS/sh only. |
 | **CI / policy entrypoints** | [`.github/workflows/`](../../../.github/workflows/), [`lefthook.yml`](../../../lefthook.yml), [`deny.toml`](../../../deny.toml), [`biome.json`](../../../biome.json) | External runners and repo-wide lint gates. |
 | **Deploy / ops** | [`infra/`](../../../infra/), [`docker/`](../../../docker/), root `Dockerfile*`, [`docker-compose.yml`](../../../docker-compose.yml) | Overlap is **documented** (eval sandbox: root compose + mirror under `docker/`). Prefer **documenting canonical path** over silent merges. |
 | **Build-time helpers** | [`apps/build-tools/render-durable-animation/`](../../../apps/build-tools/render-durable-animation/) | Small Node helper for doc assets; driven by [`scripts/render-durable-animation.vox`](../../../scripts/render-durable-animation.vox). |

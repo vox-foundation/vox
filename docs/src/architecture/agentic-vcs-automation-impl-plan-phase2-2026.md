@@ -1442,7 +1442,7 @@ git commit -m "feat(orchestrator): persist capability mints to oplog (capability
 
 ---
 
-## Task 10: VoxScript glue scripts under scripts/vcs/
+## Task 10: VoxLang glue scripts under scripts/vcs/
 
 **Files:**
 - Create: `scripts/vcs/wip.vox`
@@ -1450,7 +1450,7 @@ git commit -m "feat(orchestrator): persist capability mints to oplog (capability
 - Create: `scripts/vcs/finish.vox`
 - Create: `scripts/vcs/recover.vox`
 
-**Why .vox, not .ps1/.sh:** Per [`AGENTS.md §VoxScript-First Glue Code`](../../../AGENTS.md), all automation scripts in this repo are `.vox`. The compiler type-checks them, they emit `vox.script.vcs.*` telemetry, and they run identically on Windows / Linux / macOS without per-shell branches.
+**Why .vox, not .ps1/.sh:** Per [`AGENTS.md §VoxLang-First Glue Code`](../../../AGENTS.md), all automation scripts in this repo are `.vox`. The compiler type-checks them, they emit `vox.script.vcs.*` telemetry, and they run identically on Windows / Linux / macOS without per-shell branches.
 
 These four scripts are *thin orchestration*: they call the MCP tools added in Phases 1 and 2 via the existing `vox` CLI bridge. They contain no git knowledge and no credential handling.
 
@@ -1623,7 +1623,7 @@ Add to the "Common tasks → exact path" table:
 ```
 | Add a push/PR/destructive VCS tool | `crates/vox-orchestrator-mcp/src/vcs_tools/<purpose>_tools.rs` |
 | Mint a capability for an agent | `crates/vox-orchestrator/src/authorize.rs` (only place) |
-| Add a VCS automation script | `scripts/vcs/<name>.vox` (.vox only — see AGENTS.md §VoxScript-First) |
+| Add a VCS automation script | `scripts/vcs/<name>.vox` (.vox only — see AGENTS.md §VoxLang-First) |
 ```
 
 - [ ] **Step 2: git-concurrency-policy.md**

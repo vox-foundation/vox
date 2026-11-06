@@ -6,7 +6,7 @@
 
 **Architecture:** Three independently shippable phases. Phase 0 (auto-recovery) is a `.vox` wrapper, zero trainer changes. Phase 1 (VRAM bundle) lowers the trainer's resident + activation footprint inside `vox-plugin-mens-candle-cuda` / `patches/qlora-rs-1.0.5` and recalibrates `vox-populi`'s budget so the auto-scaler stops retreating 4B→2B. Phase 2 validates the 4B run to victory with a fallback ladder. Phase 3 (mesh) adds per-node VRAM advertisement + a cohort planner that reuses the existing budget math as its exclusion gate and federated LoRA-delta sync over the existing A2A transport.
 
-**Tech Stack:** Rust (Candle 0.9 CUDA, patched `qlora-rs`), VoxScript (`.vox`) for automation, axum control-plane + Ed25519-signed A2A envelopes for the mesh, `cargo test` / `cargo nextest`.
+**Tech Stack:** Rust (Candle 0.9 CUDA, patched `qlora-rs`), VoxLang (`.vox`) for automation, axum control-plane + Ed25519-signed A2A envelopes for the mesh, `cargo test` / `cargo nextest`.
 
 **Target & fallback ladder (decided 2026-06-07):**
 - Headline 4B: `Qwen/Qwen3.5-4B-Base` (3.5 family, resident coeff 3.5/B; needs download). There is **no Qwen3.5-Coder** and no 4B coder model — coding in 3.5 is folded into the base model.

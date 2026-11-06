@@ -149,7 +149,7 @@ From `vox-orchestrator`:
 
 From `vox-ml-cli` / `vox-mesh-types`:
 
-- `TaskKind { TextInfer, ImageGen, SpeechTranscribe, TrainQLoRA, Embed, VoxScript }`.
+- `TaskKind { TextInfer, ImageGen, SpeechTranscribe, TrainQLoRA, Embed, VoxLang }`.
 - `TaskSpec { kind, model_id, min_vram_mb, priority, timeout_secs, payload_b64, required_labels }`.
 - `MeshDirectoryEntry { scope_id, control_url, task_kinds, queue_depth, priorities, Ed25519 signature }`.
 
@@ -298,7 +298,7 @@ Existing tier-2 trust (Kalman + UCB) and tier-3 mesh federation (signed `MeshDir
 A new sub-crate, **`vox-scientia-probe`** (or a module inside `vox-scientia-ingest` if we want to avoid a crate split early):
 
 - Canonical probe prompts stored under `contracts/scientia/provider-probes/` (tool-call chain, long-context recall, strict-JSON, refusal patterns, planning-depth, Rust trait bounds, Vox-source comprehension).
-- Runs each probe across eligible providers / endpoints on a schedule (`scripts/scientia-probe.vox`, per [AGENTS.md §VoxScript-First Glue Code](../../../AGENTS.md)).
+- Runs each probe across eligible providers / endpoints on a schedule (`scripts/scientia-probe.vox`, per [AGENTS.md §VoxLang-First Glue Code](../../../AGENTS.md)).
 - Emits a `ProviderObservation` signal per (probe, provider, model, endpoint, timestamp).
 - Digest-binds the probe set (prompt corpus + tooling) so the atlas can cite a specific probe-suite version.
 
@@ -512,7 +512,7 @@ File: `crates/vox-publisher/src/publication.rs`
 
 ### 5.9 Automation — `.vox` scripts
 
-Per [AGENTS.md §VoxScript-First Glue Code](../../../AGENTS.md) and [`CLAUDE.md`](../../../CLAUDE.md), the automation is authored as Vox, not Python or shell:
+Per [AGENTS.md §VoxLang-First Glue Code](../../../AGENTS.md) and [`CLAUDE.md`](../../../CLAUDE.md), the automation is authored as Vox, not Python or shell:
 
 - `scripts/scientia/probe-run.vox` — execute the probe suite against a configurable provider list.
 - `scripts/scientia/profile-rollup.vox` — nightly classifier pass; hydrates `model_profile_learning`.
@@ -624,7 +624,7 @@ Ordered to deliver signal as early as possible without breaking existing invaria
 - `contracts/scientia/provider-atlas.schema.v1.yaml` (new)
 - `contracts/scientia/provider-atlas.v1.schema.json` (new)
 - `contracts/scientia/distribution.topic-packs.yaml` — add `provider_atlas`
-- `scripts/scientia/*.vox` (new, authored per VoxScript-First)
+- `scripts/scientia/*.vox` (new, authored per VoxLang-First)
 
 ## Changelog
 

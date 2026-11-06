@@ -22,7 +22,7 @@
 
 ## 1. Hard constraints (identical to Flash — violating these fails review)
 
-1. **VoxScript-only automation.** No new `.ps1`/`.sh`/`.py`. Automation = Rust + VoxScript (`.vox`) + workflow YAML only.
+1. **VoxLang-only automation.** No new `.ps1`/`.sh`/`.py`. Automation = Rust + VoxLang (`.vox`) + workflow YAML only.
 2. **Never `cargo fmt --all`** (banned, CI-enforced). Format only the crates you touched: `cargo fmt -p <crate>`.
 3. **Windows process-orphan hazard.** NEVER pipe `cargo` to `head`/`grep`/`tail` — it leaks thousands of processes + tens of GB RAM. Redirect to a file: `cargo test -p <crate> > test-out.txt 2>&1`, then read the file. Recovery if it happens: `taskkill /F /IM cargo.exe` (repeat).
 4. **Scratch files are git-ignored** (`*-out.txt`, `test-out.txt`, `build-out.txt`, `voxup-deps.txt`). Never `git add -A` blindly; add named files only.

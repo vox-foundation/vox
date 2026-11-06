@@ -77,6 +77,7 @@ Shared local-first retrieval execution for MCP, orchestrator, CLI, and A2A bridg
 | `embeddings` | — |
 | `evaluation` | — |
 | `execution` | — |
+| `fuzzy_trigram` | — |
 | `ingest` | — |
 | `kb_eval` | — |
 | `kb_ids` | — |

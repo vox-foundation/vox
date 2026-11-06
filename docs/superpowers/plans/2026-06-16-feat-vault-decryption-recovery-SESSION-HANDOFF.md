@@ -19,7 +19,7 @@
 
 **Binding constraints (always):**
 
-- Automation = **VoxScript only** (`vox run scripts/…`); no new `.ps1`/`.sh`/`.py` glue.
+- Automation = **VoxLang only** (`vox run scripts/…`); no new `.ps1`/`.sh`/`.py` glue.
 - **No `cargo fmt --all`** on Windows — use `vox run scripts/fmt.vox`.
 - Secrets via `vox_secrets::resolve_secret(...)` only; never `std::env::var("API_KEY")` in consumers.
 - TDD for new `pub fn`; do not hand-regenerate SSOT after merge (fix source; CI bot regens).

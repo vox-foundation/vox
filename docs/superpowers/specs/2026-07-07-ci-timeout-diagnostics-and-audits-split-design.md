@@ -169,7 +169,7 @@ The all-features check step's CUDA/metal/vox-codegen exclude logic
 `scripts/ci/all_features_check.vox` — decided during planning: a `.vox`
 script, not a new `vox-cli-ci` subcommand, matching this repo's existing
 `scripts/ci/*.vox` convention (`corpus_prep.vox`, `compile_kernels.vox`) and
-its VoxScript-only CI-automation policy (`AGENTS.md`). So both the nightly
+its VoxLang-only CI-automation policy (`AGENTS.md`). So both the nightly
 workflow and any future caller share one source of truth for the exclude
 list, instead of duplicating it. (The current single copy in `ci.yml` moves
 wholesale; nothing is duplicated as an interim state.)

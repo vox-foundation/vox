@@ -62,7 +62,7 @@ auto-updating.
 | test-driven-development | 371 | Red-green-refactor | — (portable) | — |
 | requesting-code-review | 105 | Dispatch `superpowers:code-reviewer` subagent | Named agent type doesn't exist outside CC | Review logic lives in an external agent definition, not this file |
 | receiving-code-review | 213 | Evaluate/act on review feedback | — (portable) | — |
-| using-git-worktrees | 218 | Isolated worktree setup | POSIX bash embedded in body | Conflicts with this repo's own no-new-`.sh`/VoxScript-only policy |
+| using-git-worktrees | 218 | Isolated worktree setup | POSIX bash embedded in body | Conflicts with this repo's own no-new-`.sh`/VoxLang-only policy |
 | finishing-a-development-branch | 200 | Merge/PR/keep/discard menu | `gh` CLI | — |
 | verification-before-completion | 139 | Evidence before completion claims | — (portable) | — |
 | skill-creator | 485 | Build/eval/iterate on skills | Heavy CC/claude.ai coupling (`present_files`, TodoWrite, Python eval scripts) | Least portable file in the set |

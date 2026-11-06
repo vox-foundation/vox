@@ -80,7 +80,7 @@ must red-line CI.
 
 ### 1.4. "Pre-claim" pre-commit script
 **Artifact:** `scripts/pre-claim.vox` — a vox-script (per CLAUDE.md
-§VoxScript-First Glue Code, not bash) that any contributor / agent
+§VoxLang-First Glue Code, not bash) that any contributor / agent
 runs before editing the audit scorecard. Reads the current
 `_snapshot/<latest>.json`, lists every gate that's currently not met,
 and refuses to commit until either the scorecard reflects that or the

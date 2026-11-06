@@ -17,7 +17,7 @@
 - **`--frozen-lockfile` is used in all four CI install steps** (`docs-deploy.yml:72,158,188` and `docs-quality.yml:73`). Any dependency change **must** commit the regenerated `docs-astro/pnpm-lock.yaml` in the same commit or CI fails immediately. `docs-astro/node_modules` does not exist locally — a real `pnpm install` is required.
 - **`docs-quality.yml` runs on `[self-hosted, linux, x64]`**, which has no Chromium provisioning. Do not introduce a build-time renderer.
 - **Client-side rendering fails soft** — a bad diagram shows an error box rather than breaking `pnpm build`. That is why the parse gate is mandatory: nothing else catches a broken diagram.
-- **No new `.ps1` / `.sh` / `.py` glue** (AGENTS.md §VoxScript-First). Node scripts inside `docs-astro/` are the established pattern there (`scripts/setup-content.mjs`) and are not "glue scripts" in that policy's sense.
+- **No new `.ps1` / `.sh` / `.py` glue** (AGENTS.md §VoxLang-First). Node scripts inside `docs-astro/` are the established pattern there (`scripts/setup-content.mjs`) and are not "glue scripts" in that policy's sense.
 - **Line endings are LF** for `md`, `json`, `mjs`, `yml`.
 - **Verification tier is `--full`.** `--complete` runs no tests.
 - **One agent per worktree.**

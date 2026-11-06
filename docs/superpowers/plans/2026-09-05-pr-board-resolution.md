@@ -165,7 +165,7 @@ chat, or by inspecting the PR for new commits:
 Run: `gh pr view 501 --json commits --jq '.commits[-3:][].messageHeadline'`
 Expected: see whether a commit landed after `9026ae78543ce5993294a378cfbfb12db18cdef4`
 addressing any of the 6 flagged-not-fixed findings (VOX_HOME wiring in
-`vox-build-queue`, the two new `.sh` scripts against VoxScript-First, the
+`vox-build-queue`, the two new `.sh` scripts against VoxLang-First, the
 `build_broker.rs` duplication, the narrowed drift-check receiver pattern, the
 dropped non-git-cwd fallback).
 

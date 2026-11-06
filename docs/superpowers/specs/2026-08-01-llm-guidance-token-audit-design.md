@@ -14,7 +14,7 @@ Vox's coding-agent guidance is spread across `AGENTS.md` (root, cross-tool SSOT)
 
 **Local audit findings** (full detail in the session; summarized here):
 - **4 stale references**: `crates/vox-secrets/src/spec.rs` (now a `spec/` module, cited in ~12 files), the orchestrator `TOOL_REGISTRY` path (moved to `vox-orchestrator-mcp/src/registry.rs`), `scripts/quality/toestub_scoped.sh` (retired in favor of `vox ci toestub-scoped`, but still the instruction agents are given), and `AGENTS.md`'s own claim of "four `.mdc` rule files" (there are nine, seven always-on).
-- **4 duplicated tables/rules** with no drift yet but no single source of truth: the secrets rule (6 files), the VoxScript-first execution-tier table (4 files), the retired-crate table (3 files), and the 500-line god-object threshold (7 files).
+- **4 duplicated tables/rules** with no drift yet but no single source of truth: the secrets rule (6 files), the VoxLang-first execution-tier table (4 files), the retired-crate table (3 files), and the 500-line god-object threshold (7 files).
 - **A recurring mistake class not yet in AGENTS.md's "Perennial Bug Patterns"**: fmt drift left behind by parallel/concurrent agent sessions (8 occurrences across history).
 - **7 always-on `.cursor/rules/*.mdc` files** (~1350 words) impose a standing per-session tax on Cursor, much of it re-deriving tables that already live in `AGENTS.md`.
 
@@ -60,8 +60,8 @@ For each of the four duplicated rule sets, keep the fullest/most authoritative c
 
 | Rule | Keep full copy in | Reduce to pointer in |
 |---|---|---|
-| Secrets (`vox_secrets::resolve_secret`, never raw env reads) | `AGENTS.md` §Secret Management | `.cursor/rules/secrets-policy.mdc`, `.cursor/rules/data-storage-policy.mdc`, `.cursor/rules/voxscript-first-automation.mdc`, `toestub-contributor-guide.md` |
-| VoxScript-first execution tiers | `AGENTS.md` §VoxScript-First Glue Code | `GEMINI.md` §VoxScript-First Glue, `.cursor/rules/voxscript-first-automation.mdc` |
+| Secrets (`vox_secrets::resolve_secret`, never raw env reads) | `AGENTS.md` §Secret Management | `.cursor/rules/secrets-policy.mdc`, `.cursor/rules/data-storage-policy.mdc`, `.cursor/rules/voxlang-first-automation.mdc`, `toestub-contributor-guide.md` |
+| VoxLang-first execution tiers | `AGENTS.md` §VoxLang-First Glue Code | `GEMINI.md` §VoxLang-First Glue, `.cursor/rules/voxlang-first-automation.mdc` |
 | Retired-crate table | `AGENTS.md` §Retired Surfaces | `.cursor/rules/retired-surfaces.mdc`, `coding-agents.md` |
 | God-object 500-line threshold | `docs/agents/governance.md` (the multi-tier 300/400/500 SSOT) | `coding-agents.md`, `contributor-hub.md`, `toestub-contributor-guide.md`, `docs/agents/AGENTS.md`, `cli-toolchain.md` |
 
@@ -92,7 +92,7 @@ Target: a meaningfully shorter file (rough goal: 15-20% word reduction from trim
 
 ### 6. `.cursor/rules/*.mdc` restructure
 
-Of the 7 always-on files, shrink `secrets-policy.mdc`, `retired-surfaces.mdc`, `voxscript-first-automation.mdc`, and `data-storage-policy.mdc` to short cross-references into `AGENTS.md` (same pointer pattern as §2), rather than restating full tables. `build-environment.mdc`, `ci-runner-convention.mdc`, and `cross-platform-source-hygiene.mdc` are left as-is (not found to duplicate AGENTS.md content in the audit — verify at implementation time; only shrink files confirmed duplicative). Glob-scoped files (`cli-command-registry.mdc`, `documentation-policy.mdc`) are untouched — they already only load when relevant.
+Of the 7 always-on files, shrink `secrets-policy.mdc`, `retired-surfaces.mdc`, `voxlang-first-automation.mdc`, and `data-storage-policy.mdc` to short cross-references into `AGENTS.md` (same pointer pattern as §2), rather than restating full tables. `build-environment.mdc`, `ci-runner-convention.mdc`, and `cross-platform-source-hygiene.mdc` are left as-is (not found to duplicate AGENTS.md content in the audit — verify at implementation time; only shrink files confirmed duplicative). Glob-scoped files (`cli-command-registry.mdc`, `documentation-policy.mdc`) are untouched — they already only load when relevant.
 
 ### 7. CI drift-guard
 

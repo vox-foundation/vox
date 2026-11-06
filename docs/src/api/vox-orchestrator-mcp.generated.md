@@ -118,7 +118,9 @@ Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 | `server_state` | — |
 | `skill_promotion` | — |
 | `approval_allowlist` | T0.3: persisted per-repo "always allow this tool" allowlist (tier 3 of the dangerous-tool gate's precedence order). |
+| `mcp_tool_access` | MCP tool access matrix, 16 KiB model context, 20 KiB DOM shedding, and stateless DPoP auth (`T3-HANDOFF-MCP-02..04`). |
 | `permission_modes` | T0.3: registry-driven risk classification + `PermissionMode` auto-approve matrix (tier 2 of the dangerous-tool gate's precedence order). |
+| `t3_wave3_tools` | Live MCP tool handlers for T3 Wave 2/3 subsystems (`T3-MCP-RPC-WIRE-01..03`). |
 | `aci` | — |
 | `agent_tools` | Agent native gateway and skill tools. |
 | `benchmark_tools` | Benchmark telemetry query tools (`research_metrics`). |

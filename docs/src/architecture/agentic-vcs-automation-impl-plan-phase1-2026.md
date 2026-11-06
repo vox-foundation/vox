@@ -1413,7 +1413,7 @@ The following are deliberately out of scope for Phase 1 and should be drafted as
 - `vox_force_push` separate tool with separate capability + human-ledger justification record persisted via `vox-orchestrator-queue`.
 - Migrate the remaining 6 direct-git callsites in `vox-cli` to `GitExec`.
 - `vox-arch-check` rule that flags any new `Command::new("git")` outside `git_exec.rs`.
-- `.vox` glue scripts: `scripts/vcs/{wip,sync,finish,recover}.vox` per [§VoxScript-First Glue Code](../../../AGENTS.md).
+- `.vox` glue scripts: `scripts/vcs/{wip,sync,finish,recover}.vox` per [§VoxLang-First Glue Code](../../../AGENTS.md).
 
 ### Phase 3 — Dashboard surfaces
 - `crates/vox-dashboard/src/api/v2/vcs/` module with five panels: workspace branch board, oplog viewer, push queue, capability ledger, leaked-secret diff scanner.

@@ -107,7 +107,7 @@ dir asserts hidden dirs are skipped.
    `[TimeSpan]::MaxValue`, which overflows the serializer on some builds); `-RepetitionInterval`
    alone does not repeat reliably. Repo root resolves from the task's `-WorkingDirectory` (cwd
    walk-up, `resolve.rs:14`; there is no `--repo` flag), with `VOX_REPO_ROOT` as the documented
-   override. Per AGENTS.md (VoxScript-only automation; no new `.ps1/.sh/.py`) the task invokes the
+   override. Per AGENTS.md (VoxLang-only automation; no new `.ps1/.sh/.py`) the task invokes the
    `vox` binary directly — no wrapper script. Host-only, matching the existing `VoxCIRunnerScale`
    autoscaler precedent (also Windows Task Scheduler).
 4. **Cross-platform equivalents (documented, not built).** The registration command is

@@ -124,8 +124,8 @@ Replace { range: <call site>, new_text: "populi.complete(...)" }
 with `alternatives` listing other `populi.*` shapes (`populi.stream`, `populi.embed`).
 
 **Negative-example file:**
-```vox
-// vox:skip examples/golden/anti/llm-direct-provider-call.vox
+```text
+// examples/golden/anti/llm-direct-provider-call.vox
 // frontmatter:
 // ---
 // error_kind: lint
@@ -408,8 +408,8 @@ Suppress (audit-required)
 
 **Shape:**
 
-```vox
-// vox:skip — @example decorator and named-arg syntax are planned features
+```text
+// Planned @example decorator and named-arg syntax
 @example("Resolve a secret and use it in an API call")
 fn use_openai_key() -> Result[str, NetError] {
     let key = vox_secrets.resolve(SecretId::OpenAI)?;

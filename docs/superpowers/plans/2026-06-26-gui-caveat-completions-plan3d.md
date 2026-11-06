@@ -165,7 +165,7 @@ touch build/test infrastructure, not surface markup — and may execute in paral
 - Run UI tests from `crates/vox-gui/ui`: `pnpm vitest run <file>` and `pnpm exec playwright test <file>`.
 - Run Rust gates from repo root: `cargo check -p <crate>`, `cargo test -p <crate>`.
 - Do NOT run `cargo fmt --all` (banned — AGENTS.md). Use `cargo fmt -p <crate>`.
-- No new `.ps1`/`.sh`/`.py` automation (VoxScript-only policy). The vitest guard is TS; the gate wiring
+- No new `.ps1`/`.sh`/`.py` automation (VoxLang-only policy). The vitest guard is TS; the gate wiring
   is Rust in `vox-cli`.
 
 ---

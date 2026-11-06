@@ -529,7 +529,7 @@ fn no_windowed_spawn_in_runner_scale() {
 
 - [ ] **Step 2: Run it, confirm FAIL** if any bare spawn exists.
 
-- [ ] **Step 3: Replace** each bare `Command::new("docker"|"gh"|"vox")` in the autoscaler path with `quiet_command(...)` (the helper that applies `CREATE_NO_WINDOW` under `#[cfg(windows)]`, plain `Command` elsewhere). Do the same in the `ci-runners-up.vox` `process.run` path if it surfaces a window (the VoxScript builtin should already set `CREATE_NO_WINDOW` per `run_global` precedent — verify).
+- [ ] **Step 3: Replace** each bare `Command::new("docker"|"gh"|"vox")` in the autoscaler path with `quiet_command(...)` (the helper that applies `CREATE_NO_WINDOW` under `#[cfg(windows)]`, plain `Command` elsewhere). Do the same in the `ci-runners-up.vox` `process.run` path if it surfaces a window (the VoxLang builtin should already set `CREATE_NO_WINDOW` per `run_global` precedent — verify).
 
 - [ ] **Step 4: Run tests, confirm PASS**; manually confirm a tick spawns no windows.
 

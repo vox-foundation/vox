@@ -883,7 +883,7 @@ Beyond IMPR-251–310, wire events at:
 - `useOrchestratorStatus` — first successful connect
 - `install-hooks` / `vox ci pre-push` — meta achievements (CLI integration)
 - `vox skill use` when wired — skill invocation
-- `vox run` from GUI terminal — VoxScript execution
+- `vox run` from GUI terminal — VoxLang execution
 - Plugin catalog install — future
 - Doc doctest pass — contributor meta
 - `vox audit` clean run — governance meta

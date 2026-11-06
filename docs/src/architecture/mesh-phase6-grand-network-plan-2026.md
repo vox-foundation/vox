@@ -47,7 +47,7 @@ training_rationale: "Implementation plan; gets stale as tasks are completed. The
 - `crates/vox-publisher/src/atlas/trust_snapshot.rs` — `TrustGraphSnapshot` finding publisher.
 - `crates/vox-populi/src/mens/discovery_publish.rs` — opt-in cron-skill that aggregates `vox.workflow.*`/`vox.mesh.*` telemetry into Atlas Findings.
 - `crates/vox-orchestrator/src/hopper/mesh_adapter.rs` — P6-T9 mesh adapter completing hopper Option C (Hp-T1+T5+T8 over the federation envelope).
-- `tests/hopper_mesh_replication.vox` — Vox-language acceptance test for two-daemon hopper convergence (per AGENTS.md VoxScript-First).
+- `tests/hopper_mesh_replication.vox` — Vox-language acceptance test for two-daemon hopper convergence (per AGENTS.md VoxLang-First).
 - `docs/src/how-to/grand-network-quickstart.md` — operator-facing quickstart for the volunteer mesh.
 
 **Modify:**
@@ -1778,7 +1778,7 @@ pub enum TaskKind {
     SpeechTranscribe,
     TrainQLoRA,
     Embed,
-    VoxScript,
+    VoxLang,
 }
 
 impl std::fmt::Display for TaskKind {
@@ -1789,7 +1789,7 @@ impl std::fmt::Display for TaskKind {
             Self::SpeechTranscribe => write!(f, "speech_transcribe"),
             Self::TrainQLoRA => write!(f, "train_qlora"),
             Self::Embed => write!(f, "embed"),
-            Self::VoxScript => write!(f, "vox_script"),
+            Self::VoxLang => write!(f, "vox_lang"),
         }
     }
 }

@@ -139,7 +139,7 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
 - **SSOT findings**: F16.
 - **Sub-steps**:
   1. Verify `schemas/` is empty: `ls -la schemas/`.
-  2. Create `.vox` VoxScript at `scripts/migrations/2026-phase1-delete-empty-schemas-dir.vox` that removes the dir.
+  2. Create `.vox` VoxLang at `scripts/migrations/2026-phase1-delete-empty-schemas-dir.vox` that removes the dir.
   3. Run the script: `vox run scripts/migrations/2026-phase1-delete-empty-schemas-dir.vox`.
   4. Add guard sub-check `schemas-dir-absent`.
 - **Verification**: `test ! -d schemas`. Guard `schemas-dir-absent` fails on a synthetic re-creation.
@@ -153,7 +153,7 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
 - **Sub-steps**:
   1. Inventory strays: `build_errors.txt`, `codex-cutover-20260412T065226Z.sidecar.json`, `codex-cutover-20260412T071753Z.sidecar.json`, `test_lexer.rs`, `error.vox`, `prototype_vox_tokenizer.json`.
   2. For `prototype_vox_tokenizer.json`: reclassify — move to `crates/vox-compiler/tests/fixtures/prototype_tokenizer.json` (see M-12 context). Others are pure deletion.
-  3. Create VoxScript `scripts/migrations/2026-phase1-delete-repo-root-strays.vox`.
+  3. Create VoxLang `scripts/migrations/2026-phase1-delete-repo-root-strays.vox`.
   4. Add guard sub-check `repo-root-strays-absent` that fails if any of the six files reappears.
   5. Update `.gitignore` stanza to fail forward: don't add them, just forbid re-creation in the guard.
 - **Verification**: `for f in build_errors.txt codex-cutover-*.sidecar.json test_lexer.rs error.vox; do [ ! -e "$f" ]; done`.
@@ -200,7 +200,7 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
   2. Author `docs/src/reference/dot-vox-layout.md` listing each subdir (`agents/`, `artifacts/`, `bin/`, `cache/`, `memory/`, `sessions/`) with purpose, writer crate, and lifetime.
   3. In `crates/vox-config/src/paths.rs`, add `pub fn known_dot_vox_subdirs() -> &'static [&'static str]`.
   4. Add guard sub-check `dot-vox-layout-contract`: on a fresh clone, `.vox/` contents must be a subset of the known list.
-  5. Create a VoxScript `scripts/migrations/2026-phase7-dotvox-cleanup.vox` that deletes unknown subdirs after prompting.
+  5. Create a VoxLang `scripts/migrations/2026-phase7-dotvox-cleanup.vox` that deletes unknown subdirs after prompting.
 - **Verification**: guard check passes post-migration.
 
 ## Phase 1 — Contracts canonical (first cut)
@@ -250,7 +250,7 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
 - **Sub-steps**:
   1. Inventory: for every file under `contracts/` matching `*.v[0-9]+.*`, read `x-vox-version` field if present.
   2. Find mismatches. For each, decide: rename filename OR fix header (prefer header fix).
-  3. Create VoxScript `scripts/migrations/2026-phase1-contract-headers.vox` that performs the fix with `--check` dry-run mode.
+  3. Create VoxLang `scripts/migrations/2026-phase1-contract-headers.vox` that performs the fix with `--check` dry-run mode.
   4. Add guard sub-check `version-header-parity`.
 - **Verification**: after running once, a second `--check` run produces no changes (idempotent).
 
@@ -387,7 +387,7 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
 - **Sub-steps**:
   1. Locate the crate that writes to `research-audit-codex.db`: `rg 'research-audit-codex' crates/`.
   2. Add a `research_audit_` table prefix to the existing DDL (as a new domain in `contracts/db/domains/research_audit.v1.yaml`).
-  3. Write VoxScript `scripts/migrations/2026-phase2-fold-research-audit.vox` that reads the old DB and inserts into `store.db`.
+  3. Write VoxLang `scripts/migrations/2026-phase2-fold-research-audit.vox` that reads the old DB and inserts into `store.db`.
   4. Delete `research-audit-codex.db` post-fold.
   5. Update writers to point at `store.db`.
 - **Verification**: `ls .vox/` does not contain `research-audit-codex.db`; writer tests pass.
@@ -400,7 +400,7 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
 - **SSOT findings**: F5.
 - **Sub-steps**:
   1. Final confirmation: `rg 'vox_hardened|hardened\.db' crates/` returns zero (verified 2026-04-21).
-  2. Create VoxScript `scripts/migrations/2026-phase2-delete-vox-hardened-db.vox`.
+  2. Create VoxLang `scripts/migrations/2026-phase2-delete-vox-hardened-db.vox`.
   3. The script: removes `vox_hardened.db`, `vox_hardened.db-wal`, and `vox_hardened.db-shm` if present.
   4. Add to `.gitignore` to prevent re-creation.
   5. Add guard sub-check `orphan-db-absent` that fails if `vox_hardened.db` reappears at repo root.
@@ -554,7 +554,7 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
 - **SSOT findings**: F31.
 - **Sub-steps**:
   1. Inventory: `ls | rg '^target-[a-z]'` — list all siblings.
-  2. Create VoxScript `scripts/migrations/2026-phase7-target-cleanup.vox` that removes them (already scaffolded).
+  2. Create VoxLang `scripts/migrations/2026-phase7-target-cleanup.vox` that removes them (already scaffolded).
   3. Flesh out the script body (currently `vox:skip` illustrative): enumerate, confirm no tracked files, rm -rf, update `.gitignore`.
   4. Add guard sub-check `abandoned-target-dir`.
 - **Verification**: `ls | rg '^target-[a-z]'` returns only `target/`; guard passes.

@@ -88,7 +88,7 @@ violates any of them is rejected at review.
    second-tier alternative to Candle) is explicitly out of scope. We
    either have one supported framework or zero. We have one: Candle.
 6. **No `.ps1` / `.sh` / `.py` scripts.** All automation is `.vox`
-   per [AGENTS.md §VoxScript-First Glue Code](../../../AGENTS.md).
+   per [AGENTS.md §VoxLang-First Glue Code](../../../AGENTS.md).
    Corpus harvesters, training launchers, eval harnesses, and CI shims
    are `.vox` files invoked via `vox run scripts/foo.vox`.
 7. **No Bittensor-style token economy.** Per
@@ -385,9 +385,7 @@ This means:
 
 ### 4.4 Annotations
 
-```vox
-// vox:skip -- illustrative: comment-only bodies, and `->` here is not Vox
-// return-arrow syntax (Vox uses `to`) -- not the annotations themselves.
+```text
 // `@training_step`/`@distributed_train` are real, verified 2026-08-23:
 // - Parser: crates/vox-compiler/src/parser/descent/decl/mid.rs
 //   (`parse_distributed_train_workflow_decl`) and head_fn.rs (`f.training_step`).
@@ -520,9 +518,9 @@ mere sugar. The corpus must demonstrate:
 Today's MENS will happily emit `async fn` Rust because that's what
 upstream training data looks like. The corpus must outweigh that prior.
 
-### 5.4 The VoxScript-First Glue Code rule
+### 5.4 The VoxLang-First Glue Code rule
 
-Per [AGENTS.md §VoxScript-First Glue Code](../../../AGENTS.md): any
+Per [AGENTS.md §VoxLang-First Glue Code](../../../AGENTS.md): any
 glue script in the project is a `.vox` file, not a `.ps1` / `.sh` /
 `.py`. The corpus must include hundreds of `.vox` glue examples
 (corpus harvesters, CI shims, devloop helpers) so MENS *defaults* to
@@ -850,8 +848,8 @@ and is routed through the InferenceBackend dispatcher.
 
 **Sketch (Vox source).**
 
-```vox
-// vox:skip -- illustrative future syntax; @inference is not implemented yet
+```text
+// Illustrative future syntax; @inference is not implemented yet
 // (see the unchecked Substeps below), so this excerpt cannot compile today.
 @inference(model = "llama-3.1-8b-q4")
 fn predict(input: PromptInput) to DurablePromise[Output] {

@@ -18,11 +18,9 @@ In the bell-curve interop model, `import rust:...` is a **Tier 3 escape hatch**.
 Rust crate imports use the reserved prefix `rust:` on an `import` entry. They can be comma-separated with ordinary symbol imports in the same `import` statement.
 
 ```vox
-// vox:skip -- Tier 3 escape-hatch rust: imports always emit compiler warnings by design; --strict rejects any warning
 import react.use_state
-import rust:anyhow
-import rust:serde_json(version: "1") as serde_json_rs
-import rust:my_thing(path: "../crates/my_thing"), rust:other(git: "https://example.invalid/repo", rev: "main")
+import rust:uuid(version: "1")
+import rust:jsonschema(version: "0.18") as jsonschema_rs
 ```
 
 | Piece | Meaning |

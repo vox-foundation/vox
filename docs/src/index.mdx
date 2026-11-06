@@ -8,6 +8,7 @@ training_eligible: true
 ---
 
 import VoxPlayground from '../../docs-astro/src/components/VoxPlayground.astro';
+import { CardGrid, Card, Tabs, TabItem } from '@astrojs/starlight/components';
 
 <div style="text-align: center; padding: 2.25rem 1rem 1.5rem; background: radial-gradient(ellipse at 50% 0%, rgba(56, 189, 248, 0.14), transparent 72%); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 14px; margin-bottom: 1.5rem;">
   <p style="font-size: 0.8rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sl-color-accent-high); margin: 0 0 0.6rem;">
@@ -30,27 +31,99 @@ import VoxPlayground from '../../docs-astro/src/components/VoxPlayground.astro';
   </div>
 </div>
 
-## New to Programming or Full-Stack Web Apps? Start Here
+## Build in One Voice
 
-You do **not** need to know Rust, SQL migrations, or React build tools to read and write Vox. Pick the path that matches where you are today:
+<div class="vox-progressive-tiers" data-testid="progressive-onboarding-tiers" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(265px, 1fr)); gap: 1.15rem; margin: 1rem 0 1.65rem;">
+  <div style="border: 1.5px solid rgba(34, 211, 238, 0.72); border-radius: 14px; padding: 1.35rem; background: radial-gradient(circle at 18% 12%, rgba(34, 211, 238, 0.24) 0%, rgba(14, 165, 233, 0.08) 42%, rgba(11, 16, 27, 0.96) 100%); box-shadow: 0 0 32px -6px rgba(34, 211, 238, 0.25), inset 0 1px 0 rgba(186, 230, 253, 0.22); display: flex; flex-direction: column; justify-content: space-between;">
+    <div>
+      <h3 style="margin: 0 0 0.4rem; font-size: 1.12rem; font-weight: 700; color: #f8fafc; letter-spacing: -0.01em;">
+        <span style="color: #22d3ee;">60s:</span> Zero-Install Playground
+      </h3>
+      <p style="margin: 0 0 0.95rem; font-size: 0.88rem; line-height: 1.48; color: #cbd5e1;">
+        Execute a typed <span style="color: #7dd3fc; font-family: var(--sl-font-mono, monospace);">.vox</span> program right here in your browser.
+      </p>
+      <a href="#try-it" style="display: flex; align-items: center; justify-content: center; height: 2.75rem; background: linear-gradient(180deg, #22d3ee 0%, #06b6d4 100%); color: #041019; padding: 0 1rem; border-radius: 8px; font-weight: 700; font-size: 0.92rem; text-decoration: none; margin-bottom: 0.85rem; box-shadow: 0 4px 20px rgba(34, 211, 238, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.4);">
+        Run that now
+      </a>
+      <p style="margin: 0 0 0.85rem; font-size: 0.81rem; line-height: 1.48; color: #94a3b8;">
+        Zero Cargo build wait. Edit <span style="color: #bae6fd; font-family: var(--sl-font-mono, monospace);">example.vox</span> below and inspect Turso SQL, Rust Axum, and React TSX in lockstep.
+      </p>
+    </div>
+    <a href="/tutorials/tut-getting-started/#1-60-second-zero-install-sandbox" style="display: flex; align-items: center; justify-content: center; height: 2.5rem; background: linear-gradient(180deg, #22d3ee 0%, #0ea5e9 100%); color: #041019; padding: 0 0.95rem; border-radius: 8px; font-weight: 700; font-size: 0.86rem; text-decoration: none; box-shadow: 0 2px 14px rgba(14, 165, 233, 0.28);">
+      Open 60s Sandbox →
+    </a>
+  </div>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem; margin: 1.25rem 0 1.75rem;">
-  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 10px; padding: 1.1rem; background: var(--sl-color-bg-nav);">
-    <p style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sl-color-accent-high); margin: 0 0 0.35rem;">Step 1 · No Install Needed</p>
-    <h3 style="margin: 0 0 0.45rem; font-size: 1.05rem;"><a href="#try-it" style="text-decoration: none;">Run Vox in Your Browser ↓</a></h3>
-    <p style="margin: 0; font-size: 0.92rem; line-height: 1.5; color: var(--sl-color-gray-2);">Switch between 3 live examples below — Database + AI Tool, Safe Error Handling, and Durable Workflows.</p>
+  <div style="border: 1.5px solid rgba(245, 158, 11, 0.65); border-radius: 14px; padding: 1.35rem; background: radial-gradient(circle at 18% 12%, rgba(245, 158, 11, 0.22) 0%, rgba(180, 83, 9, 0.08) 45%, rgba(15, 17, 23, 0.96) 100%); box-shadow: 0 0 32px -6px rgba(245, 158, 11, 0.18), inset 0 1px 0 rgba(253, 230, 138, 0.18); display: flex; flex-direction: column; justify-content: space-between;">
+    <div>
+      <h3 style="margin: 0 0 0.4rem; font-size: 1.12rem; font-weight: 700; color: #f8fafc; letter-spacing: -0.01em;">
+        <span style="color: #f59e0b;">5-Min:</span> Single-File Full-Stack App
+      </h3>
+      <p style="margin: 0 0 0.85rem; font-size: 0.88rem; line-height: 1.52; color: #cbd5e1;">
+        Start the 5-Min Single-File Full-Stack App. Unite your schema, backend routes, reactive UI, and agent tool in one module:
+      </p>
+      <ul style="margin: 0 0 0.95rem; padding-left: 1.15rem; font-size: 0.83rem; line-height: 1.62; color: #fde68a;">
+        <li><span style="color: #fbbf24; font-family: var(--sl-font-mono, monospace);">table Task</span> → Turso / SQLite schema</li>
+        <li><span style="color: #fbbf24; font-family: var(--sl-font-mono, monospace);">query &amp; mutation</span> → Typed Rust Axum API</li>
+        <li><span style="color: #fbbf24; font-family: var(--sl-font-mono, monospace);">component TaskBoard()</span> → Reactive React TSX</li>
+        <li><span style="color: #fbbf24; font-family: var(--sl-font-mono, monospace);">tool "complete_task"</span> → MCP Agent Schema</li>
+      </ul>
+    </div>
+    <a href="/tutorials/tut-getting-started/#2-5-minute-single-file-full-stack-app" style="display: flex; align-items: center; justify-content: center; height: 2.5rem; background: rgba(245, 158, 11, 0.16); border: 1px solid rgba(245, 158, 11, 0.48); color: #fde68a; padding: 0 0.95rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; text-decoration: none;">
+      Build the 5-Min App →
+    </a>
   </div>
-  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 10px; padding: 1.1rem; background: var(--sl-color-bg-nav);">
-    <p style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sl-color-accent-high); margin: 0 0 0.35rem;">Step 2 · Hands-On Guide</p>
-    <h3 style="margin: 0 0 0.45rem; font-size: 1.05rem;"><a href="/tutorials/tut-getting-started/" style="text-decoration: none;">Getting Started Tutorial →</a></h3>
-    <p style="margin: 0; font-size: 0.92rem; line-height: 1.5; color: var(--sl-color-gray-2);">Write your first <code>.vox</code> script, learn <code>Option</code> and <code>Result</code>, and build a working task app in 10 minutes.</p>
-  </div>
-  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 10px; padding: 1.1rem; background: var(--sl-color-bg-nav);">
-    <p style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sl-color-accent-high); margin: 0 0 0.35rem;">Step 3 · Concept Wiki</p>
-    <h3 style="margin: 0 0 0.45rem; font-size: 1.05rem;"><a href="/explanation/why-vox-for-ai/" style="text-decoration: none;">Why Vox Works This Way →</a></h3>
-    <p style="margin: 0; font-size: 0.92rem; line-height: 1.5; color: var(--sl-color-gray-2);">Plain-language explanations of how one file replaces SQL + backend + frontend glue code.</p>
+
+  <div style="border: 1.5px solid rgba(16, 185, 129, 0.68); border-radius: 14px; padding: 1.35rem; background: radial-gradient(circle at 18% 12%, rgba(16, 185, 129, 0.22) 0%, rgba(5, 150, 105, 0.08) 45%, rgba(11, 19, 23, 0.96) 100%); box-shadow: 0 0 32px -6px rgba(16, 185, 129, 0.2), inset 0 1px 0 rgba(167, 243, 208, 0.18); display: flex; flex-direction: column; justify-content: space-between;">
+    <div>
+      <h3 style="margin: 0 0 0.4rem; font-size: 1.12rem; font-weight: 700; color: #f8fafc; letter-spacing: -0.01em;">
+        <span style="color: #10b981;">15-Min:</span> Agent Harness &amp; Axis GUI
+      </h3>
+      <p style="margin: 0 0 0.65rem; font-size: 0.86rem; line-height: 1.48; color: #cbd5e1;">
+        Launch the multi-agent harness &amp; desktop workbench in four steps:
+      </p>
+      <ul style="margin: 0 0 0.75rem; padding-left: 1.15rem; font-size: 0.81rem; line-height: 1.58; color: #d1fae5;">
+        <li>Step 1: Replayable <span style="color: #6ee7b7; font-family: var(--sl-font-mono, monospace);">workflow</span> &amp; <span style="color: #6ee7b7; font-family: var(--sl-font-mono, monospace);">activity</span> journals</li>
+        <li>Step 2: Clavis <span style="color: #6ee7b7; font-family: var(--sl-font-mono, monospace);">vox secrets</span> &amp; capability sandboxing</li>
+        <li>Step 3: Loquela posture controls (<span style="color: #6ee7b7; font-family: var(--sl-font-mono, monospace);">Alt+1..4</span>)</li>
+        <li>Step 4: Multi-panel Axis GUI &amp; 132-crate Atlas</li>
+      </ul>
+    </div>
+    <p style="margin: 0; font-size: 0.8rem; color: #94a3b8;">
+      For desktop &amp; harness setup, open <a href="/how-to/how-to-axis-workbench/" style="color: #38bdf8; text-decoration: none; font-weight: 600; white-space: nowrap;">#axis-workbench →</a>
+    </p>
   </div>
 </div>
+
+<VoxPlayground initialCode={`// One .vox file -> Runtime, SQL, Rust & TSX
+table Task {
+    title: str
+    done:  bool
+}
+
+query get_tasks() to int {
+    return len(db.Task.all())
+}
+
+tool "Done" complete_task(id: Id[Task]) to Result[str] {
+    db.Task.delete(id)?
+    return Ok("done")
+}
+
+component TaskBoard() {
+    view: column(raw_class="task-card") {
+        heading(level=3) { "Active Tasks" }
+        text() { "Synchronized across SQL, Rust, and React" }
+    }
+}
+
+fn main() to Result[str] {
+    let id = db.Task.insert({ title: "Write Vox in browser", done: false })?
+    print("Tasks queued: " + str(get_tasks()))
+    let status = complete_task(id)?
+    print("Tasks remaining: " + str(get_tasks()))
+    return Ok(status)
+}`} />
 
 ---
 
@@ -118,39 +191,14 @@ flowchart LR
 
 ---
 
-## Try it
+### Where to learn each piece
 
-Choose one of the 3 starter templates below, edit the code directly, and click **Run** to execute it in the sandboxed Vox interpreter (`vox run --interp --caps deterministic`).
+The playground above is the program from the [60-second sandbox](/tutorials/tut-getting-started/#1-60-second-zero-install-sandbox). That page explains each declaration. This page does not repeat the lesson.
 
-<VoxPlayground initialCode={`// One declaration → schema, wire format, typed client
-table Task {
-    title: str
-    done:  bool
-}
-
-query get_tasks() to int {
-    return len(db.Task.all())
-}
-
-tool "Mark a task complete" complete(id: Id[Task]) to Result[str] {
-    db.Task.delete(id)?
-    return Ok("done")
-}
-
-fn main() to Result[str] {
-    let id = db.Task.insert({ title: "Write Vox in the browser", done: false })?
-    print("Tasks queued: " + str(get_tasks()))
-    let status = complete(id)?
-    print("Tasks remaining: " + str(get_tasks()))
-    return Ok(status)
-}`} />
-
-### Line-by-Line Walkthrough (For Beginners)
-
-- **`table Task { ... }`** creates a database table with `title` (text) and `done` (true/false) columns, plus an automatic typed ID (`Id[Task]`) so you can never accidentally pass a user ID where a task ID is expected. → [Learn about Tables & Queries](/tutorials/tut-first-app/)
-- **`query get_tasks() to int`** defines a read-only database query returning an integer (`int`).
-- **`tool "..." complete(...) to Result[str]`** defines a function that both your program and AI assistants (via the [Model Context Protocol](https://modelcontextprotocol.io)) can call. Its return type `Result[str]` means it either succeeds with `Ok("done")` or returns an `Error`. The `?` after `db.Task.delete(id)?` automatically returns early if the database step fails. → [Guide: AI Agents & MCP Tools](/how-to/how-to-ai-agents/)
-- **`fn main() to Result[str]`** is the script entry point when you click **Run** or execute `vox run` in your terminal. → [Tutorial: Getting Started](/tutorials/tut-getting-started/)
+- **Data, mutations, and a task UI** → [First full-stack app](/tutorials/tut-first-app/)
+- **SQL, Axum, and React side by side** → [Full-stack walkthrough](/tutorials/tut-fullstack-walkthrough/)
+- **`tool` / `resource` for agents** → [AI agents and MCP](/how-to/how-to-ai-agents/)
+- **`Option[T]` and `Result[T]`** → [Syntax reference](/reference/ref-syntax/)
 
 ---
 
@@ -158,32 +206,26 @@ fn main() to Result[str] {
 
 Vox combines the language with an AI-native toolchain in one repository. Six pillars connect the workflow from writing code to running agents:
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.15rem; margin: 1.5rem 0;">
-  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1.15rem;">
-    <h3 style="margin-top: 0; font-size: 1.05rem;">1. Unified Schema & Types</h3>
-    <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.55;">One <code>table</code> declaration drives SQLite/Turso tables, Rust structs, HTTP handlers, and TypeScript clients. <code>Option[T]</code> and <code>Result[T]</code> replace <code>null</code> and exceptions. <a href="/reference/ref-syntax/">Syntax →</a></p>
-  </div>
-  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1.15rem;">
-    <h3 style="margin-top: 0; font-size: 1.05rem;">2. Two Execution Lanes</h3>
-    <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.55;">Use <code>vox run</code> for instant, capability-sandboxed script execution in memory, or <code>vox build</code> to emit a standalone Rust (Axum) server and React/TSX frontend. <a href="/tutorials/tut-first-app/">First App →</a></p>
-  </div>
-  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1.15rem;">
-    <h3 style="margin-top: 0; font-size: 1.05rem;">3. Durable Workflows</h3>
-    <p style="margin-bottom: 0; font-size: 1.05rem;">First-class <code>workflow</code> and <code>activity</code> blocks persist call ordinals, signals, and timers to a SQLite journal so long-running jobs can resume after crashes. <a href="/tutorials/tut-workflow-durability/">Workflows →</a></p>
-  </div>
-  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1.15rem;">
-    <h3 style="margin-top: 0; font-size: 1.05rem;">4. Verified Agent Harness</h3>
-    <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.55;">A built-in MCP server and orchestrator issue cryptographic HMAC receipts for tool calls, lock shared resources in the task hopper, and route across live OpenRouter and local models. <a href="/how-to/how-to-ai-agents/">Agent Guide →</a></p>
-  </div>
-  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1.15rem;">
-    <h3 style="margin-top: 0; font-size: 1.05rem;">5. Trusted Knowledge Base</h3>
-    <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.55;"><code>vox kb</code> indexes curated docs with Tantivy and SKOS taxonomy facets while quarantining unverified web scrapes and agent notes as <code>Untrusted</code> in a review inbox. <a href="/reference/cli/">CLI Docs →</a></p>
-  </div>
-  <div style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 1.15rem;">
-    <h3 style="margin-top: 0; font-size: 1.05rem;">6. Native ML & Eval (MENS)</h3>
-    <p style="margin-bottom: 0; font-size: 0.95rem; line-height: 1.55;">Pure-Rust (Candle) QLoRA training across Metal, CUDA, and CPU plugins, paired with seeded multi-turn compiler-feedback evaluation (<code>vox model eval-compare</code>). <a href="/explanation/expl-architecture/">Architecture →</a></p>
-  </div>
-</div>
+<CardGrid>
+  <Card title="1. Unified Schema & Types" icon="document">
+    One <code>table</code> declaration drives SQLite/Turso tables, Rust structs, HTTP handlers, and TypeScript clients. <code>Option[T]</code> and <code>Result[T]</code> replace <code>null</code> and exceptions. <a href="/reference/ref-syntax/">Syntax →</a>
+  </Card>
+  <Card title="2. Two Execution Lanes" icon="rocket">
+    Use <code>vox run</code> for instant, capability-sandboxed script execution in memory, or <code>vox build</code> to emit a standalone Rust (Axum) server and React/TSX frontend. <a href="/tutorials/tut-fullstack-walkthrough/">Full-Stack Walkthrough →</a>
+  </Card>
+  <Card title="3. Durable Workflows" icon="setting">
+    First-class <code>workflow</code> and <code>activity</code> blocks persist call ordinals, signals, and timers to a SQLite journal so long-running jobs can resume after crashes. <a href="/tutorials/tut-workflow-durability/">Workflows →</a>
+  </Card>
+  <Card title="4. Verified Agent Harness" icon="approve-check">
+    A built-in MCP server and orchestrator issue cryptographic HMAC receipts for tool calls, lock shared resources in the task hopper, and route across live OpenRouter and local models. <a href="/how-to/how-to-ai-agents/">Agent Guide →</a>
+  </Card>
+  <Card title="5. Trusted Knowledge Base" icon="open-book">
+    <code>vox kb</code> indexes curated docs with Tantivy and SKOS taxonomy facets while quarantining unverified web scrapes and agent notes as <code>Untrusted</code> in a review inbox. <a href="/reference/cli/">CLI Docs →</a>
+  </Card>
+  <Card title="6. Native ML & Eval (MENS)" icon="star">
+    Pure-Rust (Candle) QLoRA training across Metal, CUDA, and CPU plugins, paired with seeded multi-turn compiler-feedback evaluation (<code>vox model eval-compare</code>). Public adapters: <a href="https://huggingface.co/brbrainerd/vox-mens-qwen3-0.6b">Qwen3 0.6B</a>, <a href="https://huggingface.co/brbrainerd/vox-mens-qwen3-1.7b">1.7B</a>, <a href="https://huggingface.co/brbrainerd/vox-mens-qwen3-4b">4B</a>, and the <a href="https://huggingface.co/brbrainerd/vox-mens-index">index</a>. <a href="/explanation/expl-architecture/">Architecture →</a>
+  </Card>
+</CardGrid>
 
 ---
 
@@ -209,7 +251,7 @@ We grade every Vox surface honestly by what works today versus what is still a r
 
 <details style="border: 1px solid var(--sl-color-gray-5); border-radius: 8px; padding: 0.95rem 1.15rem; margin: 1rem 0; background: var(--sl-color-bg-nav);">
   <summary style="cursor: pointer; font-weight: 600; font-size: 1.02rem; color: var(--sl-color-text);">
-    Surface-by-Surface Stability Matrix (Reviewed 2026-10-14)
+    Surface-by-Surface Stability Matrix (summary; full tables in the repository README)
   </summary>
   <div style="margin-top: 0.85rem;">
 
@@ -217,21 +259,21 @@ We grade every Vox surface honestly by what works today versus what is still a r
 |:---|:---|:---|
 | **Compiler & Type Checker (`vox check`)** | 🟣 Mature / Working | Lexer, recursive-descent parser, HIR lowering, bidirectional type checker, and `@ai(structured_output = T)` JSON-Schema emission. |
 | **Script Interpreter & Sandbox (`vox run`)** | 🔵 Stable / Working | Runs `.vox` scripts, `table`/`query`/`tool` modules, repo automation (`scripts/*.vox`), and this page's browser sandbox (`--caps deterministic`). |
-| **Database & Secrets (`vox-db`, `vox secrets`)** | 🔵 Stable / Working | SQLite/Turso engine at schema baseline 96 and `Clavis` secret resolution (`vox_secrets`). |
+| **Database & Secrets (`vox-db`, `vox secrets`)** | 🔵 Stable / Working | SQLite/Turso engine at schema baseline 97 and `Clavis` secret resolution (`vox_secrets`). |
 | **Curated Knowledge Base (`vox kb`)** | 🔵 Stable / Working | Tantivy 0.22 lexical search, SKOS taxonomy facets, and four-tier trust filtering (`SystemVerified` → `Untrusted` inbox quarantine). |
 | **Full-Stack Codegen (`vox build`, `vox compile`)** | 🟡 Preview / Prototype | Emits React/TSX, typed Axum handlers, DB mutations, and Tauri desktop projects. Needs a local Vox source checkout (`VOX_REPO_ROOT`) to compile generated Rust servers. |
 | **Durable Runtime (`workflow` / `activity`)** | 🟡 Preview / Prototype | Host-bridge execution with SQLite journal replay, activity call ordinals, signals, and timers ([ADR-019](/adr/019-durable-workflow-journal-contract-v1/), [ADR-021](/adr/021-generated-workflow-durability-parity/)). |
 | **Agent Harness & Operator GUI (`vox mcp`, `vox-gui`)** | 🟡 Preview / Prototype | MCP server with HMAC tool receipts, task-hopper resource locks, live OpenRouter model routing, `⌘K` capability palette, and Remote Axis (TOFU TLS). |
-| **Local ML & Eval (`vox mens`, `eval-compare`)** | 🟠 Emergent / Prototype | Seeded multi-turn benchmark harness (`eval-compare`) is working; QLoRA training runs on Metal/CUDA/CPU plugins, with no published model weights yet. |
+| **Local ML & Eval (`vox mens`, `eval-compare`)** | 🟠 Emergent / Prototype | Seeded multi-turn benchmark harness (`eval-compare`) is working. QLoRA training runs on Metal, CUDA, and CPU. Public adapters: <a href="https://huggingface.co/brbrainerd/vox-mens-qwen3-0.6b">0.6B</a>, <a href="https://huggingface.co/brbrainerd/vox-mens-qwen3-1.7b">1.7B</a>, <a href="https://huggingface.co/brbrainerd/vox-mens-qwen3-4b">4B</a>, <a href="https://huggingface.co/brbrainerd/vox-mens-index">index</a>. The 8B adapter is not public. |
 
-→ Full per-component status tables and audit links: [Stability Matrix](/reference/stability/) · [v1.0 Release Criteria](/architecture/v1-release-criteria/)
+→ Dated per-component tables: [README Status](https://github.com/vox-foundation/vox#status) · [Stability Matrix](/reference/stability/) · [v1.0 Release Criteria](/architecture/v1-release-criteria/)
 
   </div>
 </details>
 
 ---
 
-## Documentation & OpenWiki Map
+## Self-Maintaining Documentation & Architecture Map
 
 Organized by the [Diátaxis framework](https://diataxis.fr/) — structured around what you want to accomplish:
 

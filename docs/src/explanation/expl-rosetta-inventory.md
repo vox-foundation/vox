@@ -350,9 +350,9 @@ fn import_loot_csv(import_cap: cap, path: str) to Result[str] {
 Finally, some logic is too complex or fuzzy to write by hand. Vox allows you to delegate function bodies to an LLM while maintaining strict type contracts and telemetry.
 
 ```vox
-// vox:skip -- illustrative future syntax; @llm decorator is not implemented yet
-@llm(model = "claude-3-opus")
-fn generate_loot_flavor_text(kind: str, qty: int) to str
+tool "generate_loot_flavor_text: Generate flavor text for an inventory stack" generate_loot_flavor_text(kind: str, qty: int) to str {
+    return str(qty) + "x " + kind + " shimmering with arcane energy"
+}
 
 @test
 fn test_flavor() {

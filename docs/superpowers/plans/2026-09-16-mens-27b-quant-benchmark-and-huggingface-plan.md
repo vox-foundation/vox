@@ -6,7 +6,7 @@
 
 **Architecture:** A release-profile benchmarking harness (`vox-ml-cli mens eval-local`) measuring both standard metrics (PPL, Pass@1) and quantization degradation modes (symbol binding, repetition, constraint violations); a VRAM-aware selection engine in `vox-orchestrator`; native `QMatMul` quantized inference in `vox-plugin-mens-candle-metal`; and an automated Hugging Face staging and upload pipeline (`scripts/hf_model_pipeline.vox`).
 
-**Tech Stack:** Rust (Candle, Metal, Axum), VoxScript (`vox run`), React/TypeScript (Tauri GUI), Hugging Face Hub API (`hf-hub 1.0.0`).
+**Tech Stack:** Rust (Candle, Metal, Axum), VoxLang (`vox run`), React/TypeScript (Tauri GUI), Hugging Face Hub API (`hf-hub 1.0.0`).
 
 **Spec:** [`docs/superpowers/specs/2026-09-16-mens-27b-quant-benchmark-and-huggingface-spec.md`](../specs/2026-09-16-mens-27b-quant-benchmark-and-huggingface-spec.md)
 

@@ -186,7 +186,7 @@ these are worse than the missing rows, because they are in `alwaysApply: true` f
 - `documentation-policy.mdc` tells agents to use `{{#include}}`; AGENTS.md §Markdown Hygiene
   forbids it.
 - `documentation-policy.mdc` requires `last_updated` frontmatter; AGENTS.md forbids hand-adding it.
-- `voxscript-first-automation.mdc` cites `vox-as-glue-research-2026.md`, which moved to
+- `voxlang-first-automation.mdc` cites `vox-as-glue-research-2026.md`, which moved to
   `docs/src/archive/`.
 - Same file says `vox-runtime` where AGENTS.md says `vox-actor-runtime`.
 

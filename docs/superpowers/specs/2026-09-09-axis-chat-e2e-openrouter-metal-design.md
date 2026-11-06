@@ -11,7 +11,7 @@ revised: 2026-09-09
 
 ## 0. Audit revision (2026-09-09)
 
-Six parallel codebase audits (Drive events, Metal train/serve, OpenRouter proof, CLI wait/contracts, acceptance FP/FN, VoxScript/slug) found systemic false greens and missing blockers. This revision incorporates them. Do **not** implement the pre-audit plan without these corrections.
+Six parallel codebase audits (Drive events, Metal train/serve, OpenRouter proof, CLI wait/contracts, acceptance FP/FN, VoxLang/slug) found systemic false greens and missing blockers. This revision incorporates them. Do **not** implement the pre-audit plan without these corrections.
 
 | Severity | Finding | Correction in this spec |
 |---|---|---|

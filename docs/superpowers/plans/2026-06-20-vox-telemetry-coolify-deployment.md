@@ -37,7 +37,7 @@ status: "current"
 - `.github/workflows/deploy-telemetry.yml` — Coolify deploy + Gate-3 probe (mirrors `deploy-hetzner.yml`, telemetry-scoped).
 - `docs/src/ci/compute-placement.md` — VPS vs local-fleet vs hosted policy + per-repo matrices (frontmatter required).
 - `docs/src/ci/coolify-services.md` — the Vox-service registry (eval + telemetry rows).
-- `scripts/telemetry-dev.vox` — local mirror up/down/migrate/tail wrapper (VoxScript, not shell).
+- `scripts/telemetry-dev.vox` — local mirror up/down/migrate/tail wrapper (VoxLang, not shell).
 
 **Modified:**
 - `Cargo.toml` (root) — add `"server/telemetry"` to `[workspace].exclude`.
@@ -893,12 +893,12 @@ These steps are not code; execute them in order and record outcomes. They are ga
 
 ## Phase 7 — Local mirror, service registry, memory
 
-### Task 7.1: `vox telemetry dev` local-mirror wrapper (VoxScript)
+### Task 7.1: `vox telemetry dev` local-mirror wrapper (VoxLang)
 
 **Files:**
 - Create: `scripts/telemetry-dev.vox`
 
-- [ ] **Step 1: Author a VoxScript wrapper** (honors AGENTS.md "no new .ps1/.sh/.py")
+- [ ] **Step 1: Author a VoxLang wrapper** (honors AGENTS.md "no new .ps1/.sh/.py")
 
 It wraps the folded-in `server/telemetry/docker-compose.yml` (the local mirror — ClickHouse + vox-server + Grafana, `full` profile), runs migrations (now automatic on boot), and tails logs. Accepts `up` / `down` / `logs` subcommands, shelling out to `docker compose` via Vox's process API. Document that the local mirror runs **standalone** (not merged into FableForge's compose) — different ports (telemetry `4318/8123/3000` vs FableForge `3210/3211/6791/8200`) so both can run at once.
 

@@ -100,7 +100,6 @@ Multiple AI coding agents (Claude Code instances, MENS workers) and humans, on o
 ### `AgentChange`
 
 ```rust
-// vox:skip
 pub struct AgentChange {
     pub change_id: ChangeId,           // jj change ID
     pub agent_id: AgentId,             // owner; exclusive — only this agent appends
@@ -115,7 +114,6 @@ Invariant: at any moment, an `AgentChange` has exactly one writer. Cross-agent h
 ### `OpFragment`
 
 ```rust
-// vox:skip
 pub struct OpFragment {
     pub op_id: OpId,                   // content hash of (parents, payload, agent_id)
     pub parent_op_ids: Vec<OpId>,      // for causal ordering across the mesh
@@ -141,7 +139,6 @@ pub enum OpPayload {
 ### `ConvergenceSet`
 
 ```rust
-// vox:skip
 pub struct ConvergenceSet {
     pub id: ConvergenceSetId,          // e.g., "local", "feature/auth-rewrite", "mesh:populi-org"
     pub members: Vec<AgentId>,         // explicit; not implicit from peer connectivity
@@ -170,7 +167,6 @@ This is gossip-style eventual consistency, transport-agnostic. The Populi mesh p
 ### Envelope shape (additive change to A2A)
 
 ```rust
-// vox:skip
 // In crates/vox-orchestrator/src/a2a/envelope.rs:
 pub enum A2AMessage {
     // ... existing variants ...

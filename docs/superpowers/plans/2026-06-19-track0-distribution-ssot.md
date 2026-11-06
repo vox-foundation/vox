@@ -6,7 +6,7 @@
 
 **Architecture:** A declarative YAML SSOT lives under `contracts/distribution/`. A small typed reader in the `voxup` crate (`profiles.rs`) parses it. A Rust integration test (`tests/distribution_parity.rs`) asserts the manifest is internally consistent and matches on-disk facts (the toolchain contract, `crates/_public.toml`, `layers.toml` `publishable=true`, and the active workspace binaries). The test is wired into CI as a required check. We follow the existing parity-test pattern in `crates/vox-telemetry/tests/taxonomy_ssot_parity.rs`.
 
-**Tech Stack:** Rust, `serde` + `serde_yaml`, `toml` (already a workspace dep), standard `cargo test`. No new crate, no new `.ps1`/`.sh`/`.py` (AGENTS.md VoxScript-only rule). `cargo fmt -p voxup` only (never `cargo fmt --all`).
+**Tech Stack:** Rust, `serde` + `serde_yaml`, `toml` (already a workspace dep), standard `cargo test`. No new crate, no new `.ps1`/`.sh`/`.py` (AGENTS.md VoxLang-only rule). `cargo fmt -p voxup` only (never `cargo fmt --all`).
 
 ---
 

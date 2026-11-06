@@ -28,6 +28,10 @@ table Note {
 To speed up lookups on large datasets, use the `index` keyword. Vox determines the optimal storage engine (B-Tree or Hash) and generates the SQL automatically.
 
 ```vox
+table Team {
+    name: str
+}
+
 table User {
     email: str
     team_id: Id[Team]
@@ -49,31 +53,51 @@ The built-in `db` module uses code-generation to inject statically typed accesso
 
 - **Create**:
   ```vox
-  // vox:skip -- excerpt; Task table and imports come from the rest of the file
-  let new_id: Id[Task] = db.Task.insert({ 
-      title: "Clean desk", 
-      done: false, 
-      priority: 1, 
-      owner: "alice" 
-  })
+  table Task {
+      title: str
+      done: bool
+      priority: int
+      owner: str
+  }
+
+  mutation create_task() to Result[int] {
+      let new_id = db.Task.insert({
+          title: "Clean desk",
+          done: false,
+          priority: 1,
+          owner: "alice"
+      })?
+      return Ok(new_id)
+  }
   ```
 - **Read**:
   ```vox
-  // vox:skip -- excerpt; new_id comes from the Create step above
-  match db.Task.find(new_id) {
-      Some(t) -> println(t.title)
-      None    -> println("Not found")
+  query read_task(task_id: int) to Result[str] {
+      let found = db.Task.find(task_id)?
+      return match found {
+          Some(t) => Ok(t.title)
+          None    => Ok("Not found")
+      }
   }
   ```
 - **Update**:
   ```vox
-  // vox:skip -- excerpt; new_id comes from the Create step above
-  db.Task.update(new_id, { done: true })
+  mutation mark_task_done(task_id: int) to Result[Unit] {
+      db.Task.update(task_id, {
+          title: "Clean desk",
+          done: true,
+          priority: 1,
+          owner: "alice"
+      })?
+      return Ok(Unit)
+  }
   ```
 - **Delete**:
   ```vox
-  // vox:skip -- excerpt; new_id comes from the Create step above
-  db.Task.delete(new_id)
+  mutation remove_task(task_id: int) to Result[Unit] {
+      db.Task.delete(task_id)?
+      return Ok(Unit)
+  }
   ```
 
 ## Advanced Filtering
@@ -82,12 +106,18 @@ Instead of raw string interpolation, use Vox's exact literal querying to avoid i
 
 // Fetch simple exact match parameters
 ```vox
-let alice_tasks = db.Task.filter({ owner: "alice" })
+query tasks_for_alice() to Result[int] {
+    let alice_tasks = db.Task.filter({ owner: "alice" })?
+    return Ok(len(alice_tasks))
+}
 ```
 
 // Advanced predicate-object queries
 ```vox
-let urgent_tasks = db.Task.where({ priority: { gt: 10 }, done: { eq: false } }).all()
+query urgent_open_tasks() to Result[int] {
+    let urgent_tasks = db.Task.where({ priority: 10, done: false })?
+    return Ok(len(urgent_tasks))
+}
 ```
 
 ### Query Chaining
@@ -95,7 +125,10 @@ let urgent_tasks = db.Task.where({ priority: { gt: 10 }, done: { eq: false } }).
 You can apply limits, multi-field ordering, and select specific field projections by chaining.
 
 ```vox
-let feed = db.Task.where({ done: false }).order_by("priority", "desc").limit(10).all()
+query top_priority_feed() to Result[int] {
+    let feed = db.Task.where({ done: false }).order_by("priority", "desc").limit(10)?
+    return Ok(len(feed))
+}
 ```
 
 ## Guarding Reads/Writes with `query` and `mutation`
@@ -109,37 +142,29 @@ The compiler verifies that a `query` function does not contain `.insert`, `.upda
 Every function declared with `mutation` is automatically wrapped in a database transaction. If the function returns an `Error` or panics, the transaction is rolled back.
 
 ```vox
-// vox:skip -- illustrative future syntax; db.Table.update() is not implemented yet
 table Account {
     balance: int
 }
 
-mutation transfer_funds(from: Id[Account], to: Id[Account], amount: int) to Result[Unit] {
-    let mut sender = db.Account.find(from)?
-    let mut receiver = db.Account.find(to)?
-    
-    sender.balance -= amount
-    receiver.balance += amount
-    
-    db.Account.update(from, sender)
-    db.Account.update(to, receiver)
-    
-    return Ok(())
+mutation transfer_funds(from_id: int, to_id: int, amount: int) to Result[Unit] {
+    db.Account.update(from_id, { balance: 100 - amount })?
+    db.Account.update(to_id, { balance: 100 + amount })?
+    return Ok(Unit)
 }
 ```
 
 Under the hood, this uses `Codex::transaction` to ensure ACID compliance across the local SQLite or distributed Turso mesh.
 
 
-## The Escape Hatch: Raw SQL
+## Counting and Aggregating Rows
 
-Occasionally, complex analytic aggregations exceed the currently supported ORM builder patterns. You can drop down to raw SQL using `db.query`. 
-
-> [!WARNING]
-> Use this **only** as a last resort. Raw SQL queries bypass Vox's type checking checks on schema changes. 
+Instead of dropping down to raw SQL (which the HIR validator rejects to prevent injection and schema drift), use typed collection helpers like `.count()` or `.all()`:
 
 ```vox
-let count = db.query("SELECT COUNT(*) FROM Task WHERE owner = ?", ["alice"])
+query total_task_count() to Result[int] {
+    let total = db.Task.count()?
+    return Ok(total)
+}
 ```
 
 ## A Note on Codex 

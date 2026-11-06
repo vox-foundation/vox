@@ -1,6 +1,6 @@
 ---
 title: "Python Library Integration (Retired)"
-description: "Stub: @py.import has been removed from the Vox compiler. See AGENTS.md §VoxScript-First Glue Code for the canonical glue surface."
+description: "Stub: @py.import has been removed from the Vox compiler. See AGENTS.md §VoxLang-First Glue Code for the canonical glue surface."
 category: "How-To Guides"
 training_eligible: false
 training_rationale: "Retired surface; do not train models to emit @py.import."
@@ -15,7 +15,7 @@ schema_type: "HowTo"
 
 ## Why it's gone
 
-Per [`AGENTS.md` §VoxScript-First Glue Code](../../../AGENTS.md):
+Per [`AGENTS.md` §VoxLang-First Glue Code](../../../AGENTS.md):
 
 > Vox is the glue language. Python and shell are retired glue surfaces in this repository.
 
@@ -29,7 +29,7 @@ toeholds of the Python-glue model. They have all been deleted.
 |---|---|
 | `@py.import torch as torch` | Train and ship native models via `vox mens` / Candle (`crates/vox-populi/src/mens/`). |
 | `vox container init` (Python pyproject + Dockerfile) | `vox container build` + a hand-authored `Dockerfile`, or `vox deploy` against an `environment` declaration. |
-| Python glue scripts (`*.py`) | `.vox` automation scripts under `scripts/`, executed via `vox run scripts/foo.vox`. See AGENTS.md §VoxScript-First Glue Code. |
+| Python glue scripts (`*.py`) | `.vox` automation scripts under `scripts/`, executed via `vox run scripts/foo.vox`. See AGENTS.md §VoxLang-First Glue Code. |
 | Foreign-library FFI in general | TS-source FFI extern fn (`extern fn name(...) to T = "./module"`) for TS interop; Rust crate imports (`import rust:serde_json`) for Rust. |
 
 ## Migration

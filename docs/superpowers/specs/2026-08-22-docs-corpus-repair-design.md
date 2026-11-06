@@ -204,7 +204,7 @@ is hardcoded at `crates/vox-cli/src/commands/run.rs:63` with **no flag and no
 environment override**, and one pass over the live corpus exhausts it partway
 through. The census therefore requires the native tier.
 
-This is a standing tension with AGENTS.md §VoxScript-First, which mandates that
+This is a standing tension with AGENTS.md §VoxLang-First, which mandates that
 *all* project automation be `.vox` run via `vox run`: corpus-scale automation
 does not fit the interpreter tier, and the native tier's first-run compile is
 slow enough to discourage the pattern. Filed here because the census is the
@@ -564,7 +564,7 @@ source.
 **W7.6 — `README.md` sends readers to two nonexistent things.** `:53` links
 `crates/vox-protocol` (consolidated into `vox-foundation`; 404s on GitHub); `:90`
 cites `scripts/clean-cache.vox`, which does not exist — the README's single
-concrete VoxScript example. `:86` claims "20+ first-party agent skills" against a
+concrete VoxLang example. `:86` claims "20+ first-party agent skills" against a
 catalog of 18.
 
 **W7.7 — `CONTRIBUTING.md:44` instructs contributors to run the command

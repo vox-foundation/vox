@@ -14,7 +14,7 @@ training_eligible: false
 
 **Architecture:** Track A replaces the SUMMARY-parsing sidebar with direct frontmatter scanning in Node.js, adds an `@astrojs/rss` endpoint for the feed, and slims `vox-doc-pipeline` to a pure linter. Track B adds `lefthook.yml` + `scripts/install-hooks.vox` so plugin-catalog, command-sync, and sync-ignore-files generators run on every commit. Track C deletes stray artifacts and fixes broken AGENTS.md cross-references.
 
-**Tech Stack:** Astro 6 / Starlight 0.38, `@astrojs/rss`, `lefthook` (binary, cross-platform), Rust (`vox-doc-pipeline`), VoxScript (`scripts/install-hooks.vox`)
+**Tech Stack:** Astro 6 / Starlight 0.38, `@astrojs/rss`, `lefthook` (binary, cross-platform), Rust (`vox-doc-pipeline`), VoxLang (`scripts/install-hooks.vox`)
 
 ---
 

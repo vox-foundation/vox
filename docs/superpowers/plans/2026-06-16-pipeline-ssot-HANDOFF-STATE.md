@@ -24,7 +24,7 @@ Make script→emission parity **provable in CI**, not aspirational:
 - Do **not** edit the plan file `docs/superpowers/plans/2026-06-14-pipeline-parity-enforcement.md` (read-only contract companion).
 - Do **not** use `#[ignore]` on failing ladder tests — fix codegen, harness, or fixtures.
 - Use **holistic/sequential** route for related DB/codegen failures (not parallel splits on shared emit paths).
-- Automation is **VoxScript-only** (`vox run scripts/…`); no new `.ps1`/`.sh`/`.py` glue.
+- Automation is **VoxLang-only** (`vox run scripts/…`); no new `.ps1`/`.sh`/`.py` glue.
 
 **Authoritative contract:** [`docs/src/architecture/pipeline-parity-ssot-2026-06-14.md`](../../src/architecture/pipeline-parity-ssot-2026-06-14.md)
 

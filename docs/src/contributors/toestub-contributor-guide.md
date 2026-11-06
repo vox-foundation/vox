@@ -98,6 +98,7 @@ fn test_my_fn() {
 
 fn my_fn(x: str) to str {
     // implement until the @test above passes
+    return x
 }
 ```
 
@@ -105,8 +106,9 @@ fn my_fn(x: str) to str {
 only by other helpers (not directly tested), suppress on that line:
 
 ```vox
-// vox:skip -- illustrative: `{ ... }` is placeholder notation, not real syntax
-fn _internal_helper() { ... } // toestub-ignore(skeleton/no-test-for-pub-fn)
+fn _internal_helper() to str {
+    return "helper" // toestub-ignore(skeleton/no-test-for-pub-fn)
+}
 ```
 
 **False positive:** Helper functions that are called by other tested functions
@@ -174,8 +176,7 @@ with `// toestub-ignore(security/hardcoded-secret) — SHA256 test fixture`.
 
 ### `arch/schema_compliance` — Error
 
-**Triggers:** A `.vox` code block in `docs/src/` is neither included via
-`{{#include ../../../examples/golden/hello.vox:display}}` nor annotated with `// vox:skip`.
+**Triggers:** A `.vox` code block in `docs/src/` fails to compile cleanly in `vox-doc-pipeline` (neither a valid `{{#include ../../../examples/golden/hello.vox:display}}` nor a complete, compilable `.vox` declaration).
 
 **Fix:**
 
@@ -185,11 +186,12 @@ with `// toestub-ignore(security/hardcoded-secret) — SHA256 test fixture`.
 {{#include ../../../examples/golden/hello.vox:display}}
 ```
 
-<!-- Option B: illustrative snippet not meant to compile -->
+<!-- Option B: complete, self-contained `.vox` declaration -->
 
 ```vox
-// vox:skip -- illustrative: `{ ... }` is placeholder notation, not real syntax
-fn illustrative_example() { ... }
+fn illustrative_example() to str {
+    return "ok"
+}
 ```
 
 ---

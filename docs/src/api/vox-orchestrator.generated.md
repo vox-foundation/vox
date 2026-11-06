@@ -158,11 +158,13 @@ Mens live in mdBook [`mens-training-ssot.md`](../../../docs/src/architecture/men
 | `conflicts` | File conflict detection and resolution hooks. |
 | `context` | Ephemeral context store for orchestrator-visible state. |
 | `context_envelope` | Canonical context envelope contract for cross-surface context payloads. |
+| `context_handoff` | Structured 5-strategy cross-agent context handoff (`T3-HANDOFF-MCP-01`). |
 | `context_lifecycle` | Context envelope ingest validation, merge policy, and lifecycle hooks. |
 | `continuation` | Continuation strategies when tasks pause or hand off. |
 | `contract` | Canonical orchestration contract types (v2 payloads, plan surface alignment). |
 | `events` | Agent activity events and pub/sub bus. |
 | `events_severity` | — |
+| `external_importer` | External AI session scanner & importer (`~/.claude`, `~/.codex`, `~/.cursor`) (`T3-WEBHOOK-IMPORT-03`). |
 | `fatigue_monitor` | Developer mental fatigue monitoring and cognitive pacing. |
 | `gate` | Pre/post task gates (including TOESTUB quality checks). |
 | `generated` | — |
@@ -231,4 +233,11 @@ Mens live in mdBook [`mens-training-ssot.md`](../../../docs/src/architecture/men
 | `lsp` | LSP-facing helpers for ownership and diagnostics surfacing. |
 | `preregistration` | — |
 | `secretary` | — |
+| `command_output_hub` | Dedicated `CommandOutputHub` & `\r` terminal progress-bar normalization. |
+| `context_sanitizer` | Reasoning tag parser (`<think>`, `<thinking>`, `<reason>`, `<reasoning>`), `<WebSearch>` compactor & prompt-token sanitizer. |
+| `guest_share` | Host-moderated Live Guest Share (`GuestShareService` & `GuestShareDecider`). |
+| `id_allocator` | Deterministic Entity ID Allocator (`VoxIdAllocatorV2` — `{ allocate, derive }`). |
+| `thread_run_queue` | Per-thread run queue, mid-turn `promote_to_steer`, `LimitRecoveryState` & `awaited: bool` settlement. |
+| `wire_compat` | Forward-compatible discriminated union envelope (`ForwardCompatibleEnvelope<T>`). |
+| `wire_compression` | Wire Snapshot & Event Stream Compression (`WireIdTableInterner`, `LiveBodyDeduper`, and `omit_idle_subagents`). |
 

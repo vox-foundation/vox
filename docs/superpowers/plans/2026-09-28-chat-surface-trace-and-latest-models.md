@@ -299,7 +299,7 @@ Edit each contract value in place (one targeted edit per key; `git diff --numsta
   <name>Task 12: Offline last-known-good catalog refresh (owner: claude)</name>
   <files>scripts/refresh-model-catalog.vox (new), contracts/orchestration/model-catalog.bootstrap.v1.json (generated)</files>
   <action>
-Claude writes a `.vox` script (AGENTS.md VoxScript-first) that fetches `/api/v1/models`, keeps the latest member per family plus pricing/context/created, and rewrites the bootstrap catalog with an `as_of`. The resolver labels any pick sourced from the bootstrap file `resolved_from: "bootstrap"`; the GUI (Task 19) never presents such a pick as current. Run it, review the diff, commit.
+Claude writes a `.vox` script (AGENTS.md VoxLang-first) that fetches `/api/v1/models`, keeps the latest member per family plus pricing/context/created, and rewrites the bootstrap catalog with an `as_of`. The resolver labels any pick sourced from the bootstrap file `resolved_from: "bootstrap"`; the GUI (Task 19) never presents such a pick as current. Run it, review the diff, commit.
   </action>
   <done>Offline and CI runs use a dated fallback, not a silent pin.</done>
 </task>

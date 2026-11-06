@@ -307,7 +307,7 @@ Align with [2026-06-12-scientia-research-pipeline-upgrade.md](../../superpowers/
 | **4** | Beyond nanopub | IMRaD scaffold; collated dashboard; Provider Atlas → model registry |
 | **5** | Gamify optional | Kudos events; StatusBar streaks |
 
-**Explicitly out of scope:** production nanopub network publish; live arXiv API submission; new shell glue scripts (VoxScript-first policy).
+**Explicitly out of scope:** production nanopub network publish; live arXiv API submission; new shell glue scripts (VoxLang-first policy).
 
 ---
 

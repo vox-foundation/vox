@@ -719,7 +719,7 @@ Audits the complete Vox documentation corpus across 971 pages, classifying each 
 | `docs/src/architecture/vox-speech-ci-gates-proposal-2026.md` | Architecture SSOTs | roadmap | **MoveToInternals** | 2 | 0 | 81 | Frontmatter status is 'roadmap', grouped into Internals sidebar per MEASURE-06 |
 | `docs/src/architecture/chat-ui-model-knobs-audit-2026-09-10.md` | Architecture SSOTs | current | **Keep** | 1 | 0 | 26 | Active public reader documentation with valid references |
 | `docs/src/architecture/session-handoff-2026-05-25-finalization-pass.md` | Architecture SSOTs | current | **Archive** | 3 | 0 | 81 | Orphaned page (0 inbound links) with 3 dead mentions, age 81 days |
-| `docs/src/architecture/voxscript-portability-substrate-research-2026.md` | Architecture SSOTs | current | **Archive** | 5 | 0 | 37 | Orphaned page (0 inbound links) with 5 dead mentions, age 37 days |
+| `docs/src/architecture/voxlang-portability-substrate-research-2026.md` | Architecture SSOTs | current | **Archive** | 5 | 0 | 37 | Orphaned page (0 inbound links) with 5 dead mentions, age 37 days |
 | `docs/src/architecture/deep-research-self-correction-and-knowledgebase-ssot-2026.md` | Architecture SSOTs | current | **Keep** | 2 | 0 | 28 | Active public reader documentation with valid references |
 | `docs/src/architecture/gui-native-roadmap-status-2026.md` | Architecture SSOTs | current | **Merge** | 26 | 9 | 81 | Member of topic cluster cluster-040 with overlapping content |
 | `docs/src/architecture/vox-playground-architecture-research-2026.md` | Architecture SSOTs | research | **MoveToInternals** | 2 | 0 | 81 | Frontmatter status is 'research', grouped into Internals sidebar per MEASURE-06 |

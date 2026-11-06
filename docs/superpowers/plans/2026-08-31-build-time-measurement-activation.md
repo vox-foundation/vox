@@ -6,7 +6,7 @@
 
 **Architecture:** No new gates and no new tooling. Every gate and every command this plan needs already shipped from the 2026-06-15 and 2026-06-19 plans; what never ran was their *data-generation* steps. This plan executes those steps, calibrates the resulting numbers honestly for the host they were measured on, and then consumes them via the existing `crate-map --top-cuts` analysis to rank decoupling work by measured `blast_s` saved rather than by a two-month-old comment string.
 
-**Tech Stack:** Rust (`vox-cli-ci`, `vox-code-audit`, `vox-graph-reader`), VoxScript (`scripts/crate-build-audit.vox`), `cargo build --timings` HTML ingest, JSON contracts under `contracts/ci/`.
+**Tech Stack:** Rust (`vox-cli-ci`, `vox-code-audit`, `vox-graph-reader`), VoxLang (`scripts/crate-build-audit.vox`), `cargo build --timings` HTML ingest, JSON contracts under `contracts/ci/`.
 
 **Spec:** No standalone design doc. This plan continues two existing plans whose code shipped but whose data steps did not — read both before starting:
 - [`docs/superpowers/plans/2026-06-19-crate-build-measurement-spine-hardening.md`](2026-06-19-crate-build-measurement-spine-hardening.md) — Tasks 1–3 shipped the `build_crate_summary` function, the `crate-map --write-summary` flag, and the fail-loud `crate-budget` gate. **Task 2 Steps 3–4 ("generate the real committed file", "verify the SSOT has real numbers") never ran.**

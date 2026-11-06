@@ -1,54 +1,91 @@
 ---
-title: "Getting Started with Vox"
-description: "Install Vox from source, scaffold a project, and understand every line of a real .vox file."
+title: "Getting Started: From 60-Second Sandbox to Full-Stack & Axis IDE"
+description: "Run your first .vox program in 60 seconds, build a single-file full-stack app in 5 minutes, and launch the Axis Agent Workbench in 15 minutes."
 category: "Tutorials"
 status: "current"
 sort_order: 1
+topic: "language-grammar"
+domain: "language"
+authorship: "llm-assisted"
+authorship_model: "claude-opus-4-6"
 schema_type: "HowTo"
 keywords: ["Vox installation", "getting started Vox", "AI programming language tutorial", "Rust TypeScript compiler"]
+code_anchors:
+  - "examples/golden/getting_started.vox"
+  - "crates/vox-cli/src/main.rs"
 ---
 
-# Getting Started with Vox
+# Getting Started: From 60-Second Sandbox to Full-Stack & Axis IDE
 
-This guide installs Vox from source, scaffolds a notes app, and explains every line of the file that runs it. A first `cargo install` is a full workspace compile — not a five-minute download.
+<!-- kb:summary -->
+This quickstart guides developers through Vox in three hands-on stages: first, running `.vox` immediately in the browser compiler playground or sandboxed `vox run` interpreter in 60 seconds with zero build wait; second, authoring a 5-minute single-file full-stack application combining `table`, `query`, `mutation`, `server`, `component`, and `tool` declarations; and third, building the `vox` CLI from source in 15 minutes to run durable `workflow`/`activity` journals and launch the Vox Axis desktop workbench.
+<!-- /kb:summary -->
 
-Canonical install detail: [Installing Vox](../reference/installation.md).
+Pick the starting depth that matches what you want to build right now:
 
-## Prerequisites
-
-Before you begin, make sure you have:
-
-- **Rust** (1.98.1) — [Install](https://rustup.rs/). This repo pins that channel in `rust-toolchain.toml`.
-- Node.js and pnpm — see the [Prerequisites](../reference/installation.md#quick-install-from-source) in the Installation reference.
-
-> **Tip**: After install, run `vox doctor` to check dependencies and environment variables.
-
-## Step 1: Install Vox
-
-> [!IMPORTANT]
-> **Pre-1.0:** Vox has not reached version 1.0 (workspace 0.6.0). There are no published release installers yet. Build from source.
-
-```bash
-git clone https://github.com/vox-foundation/vox.git
-cd vox
-cargo install --locked --path crates/vox-cli
-vox doctor
+```mermaid
+flowchart LR
+    T1["60 Seconds<br/>Zero-Install Playground & vox run"] --> T2["5 Minutes<br/>Single-File Full-Stack App"]
+    T2 --> T3["15 Minutes<br/>Source Build, Workflows & Axis GUI"]
 ```
 
-## Step 2: Create a new project
+---
 
-Use the Vox CLI to scaffold a new application:
+## 1. 60-Second Zero-Install Sandbox
+
+You do **not** need to compile the Rust workspace to try Vox. You can run `.vox` programs immediately in the [Interactive `.vox` Compiler Playground](../index.mdx#try-it) or, if `vox` is already on your `PATH`, execute any `.vox` script directly in the capability-sandboxed interpreter (`vox run --interp`).
+
+Create a single file `hello_tasks.vox`:
+
+```vox
+table Task {
+    title: str
+    done:  bool
+}
+
+query count_tasks() to int {
+    return len(db.Task.all())
+}
+
+tool "Mark a task complete in the database" complete_task(id: Id[Task]) to Result[str] {
+    db.Task.delete(id)?
+    return Ok("done")
+}
+
+mutation seed_and_complete() to Result[str] {
+    let id = db.Task.insert({ title: "Run Vox in 60 seconds", done: false })?
+    print("Tasks queued: " + str(count_tasks()))
+    let status = complete_task(id)?
+    print("Tasks remaining: " + str(count_tasks()))
+    return Ok(status)
+}
+```
+
+Run it immediately in the interpreter with zero Rust compile step:
+
+```bash
+vox run --interp hello_tasks.vox
+```
+
+What happens in those 22 lines:
+- **`table Task { ... }`** defines an in-memory or Turso/SQLite table with a typed primary key (`Id[Task]`).
+- **`query count_tasks() to int`** declares a read-only database query.
+- **`tool "..." complete_task(...) to Result[str]`** exposes an AI-callable Model Context Protocol (MCP) tool that returns `Result[str]` (`Ok` or `Error`) instead of throwing hidden exceptions.
+
+---
+
+## 2. 5-Minute Single-File Full-Stack App
+
+This section is only the sketch: one file, a few declarations, then `vox check` and `vox run`. The task-list build is [First Full-Stack App](tut-first-app.md). The side-by-side SQL, Axum, and React output is the [full-stack walkthrough](tut-fullstack-walkthrough.mdx).
+
+When you are ready to turn a script into a full-stack web application (database schema + Rust Axum HTTP endpoints + React/TypeScript UI), scaffold a project:
 
 ```bash
 vox init my-app
 cd my-app
 ```
 
-This scaffolds a complete project structure containing a `src/main.vox` entrypoint.
-
-## Step 3: Understand the scaffolded app
-
-Open `src/main.vox`. This scaffolded file defines a database table, backend server functions, a browser UI component, and routes:
+Open `src/main.vox`. One `.vox` file declares your data model, backend server endpoints, reactive UI component, and HTTP routes:
 
 ```vox
 table Note {
@@ -77,67 +114,77 @@ routes {
 }
 ```
 
-`table Note { ... }` is the single source of truth for this data: the same declaration becomes the SQL schema, the wire format, and the typed client — there's no separate migration file or API type to keep in sync by hand.
+### How One `.vox` File Compiles to 4 Targets
 
-`server add_note(...)` and `server list_notes()` declare server-side functions executed on the backend, returning typed `Result` values.
+| Declaration | Purpose | What `vox build` Emits |
+|---|---|---|
+| `table Note { ... }` | Single source of truth for data | SQLite/Turso DDL + migration diff + typed Rust/TS row structs |
+| `server add_note(...)` | Backend write endpoint | Typed Rust Axum route handler with `Result[T]` error propagation |
+| `server list_notes()` | Backend read endpoint | Typed Rust Axum route handler + generated TypeScript fetch client |
+| `component App()` | Reactive browser UI | TypeScript / React (`.tsx`) component |
+| `routes { "/" to App }` | URL routing table | Client and server router bindings |
 
-`component App() { ... }` is the browser UI. `vox build` compiles it into React/TSX component code; `view:` describes what renders.
-
-`routes { "/" to App }` routes incoming HTTP requests to your root application component.
-
-## Step 4: Type check
-
-Run a fast static analysis and type check:
+Type-check and run your application:
 
 ```bash
 vox check src/main.vox
-```
-
-## Step 5: Build
-
-Compile the application to its backend Rust crate and frontend TypeScript components:
-
-```bash
-vox build src/main.vox -o dist
-```
-
-You'll see step-by-step progress indicating lexical analysis and code generation.
-
-## Step 6: Run
-
-Run the generated binary directly:
-
-```bash
 vox run src/main.vox
 ```
 
-Open `http://localhost:3000` in your browser. You'll see the `App` component's "My Vox App" heading.
+---
 
-## What you just built
+## 3. 15-Minute Agent Harness, Durable Workflows & Axis GUI
 
-Declarations in one file, no boilerplate glue:
+> [!NOTE]
+> **Building `vox` from Source:** Pre-1.0 workspace builds compile the Rust compiler, orchestrator, and native runtime crates from source (`rust-toolchain.toml` pins the workspace Rust channel). See [Installing Vox](../reference/installation.md) for platform prerequisites.
 
-| Declaration | What it does | What `vox build` emits |
-|---|---|---|
-| `table Note { ... }` | Defines a database table | SQL schema + migration diff + typed client |
-| `server add_note(...)` | Server-side write function | Typed server endpoint with `Result` error handling |
-| `server list_notes()` | Server-side read function | Typed server endpoint with `Result` error handling |
-| `component App()` | Browser UI | React/TSX component |
-| `routes { "/" to App }` | Route mapping | Router configuration linking path to component |
+### Step 1: Install, then verify
 
-Two more declaration kinds you'll reach for as the app grows:
+Install from source with [Installing Vox](../reference/installation.md). The same clone and `cargo install` commands are on the [repository README](https://github.com/vox-foundation/vox#trying-it). This tutorial does not repeat them. Then confirm the toolchain:
 
-| Declaration | What it does |
-|---|---|
-| `query name()` / `mutation name()` | Dedicated database read and write endpoints |
-| `tool "description" fn(...)` | Exposes a function to any Model Context Protocol client — callable by an AI agent |
+```bash
+vox doctor
+```
 
-Full grammar reference: [decorators and bare keywords](../reference/ref-decorators.md).
+### Step 2: Add a Crash-Safe Durable Workflow
 
-## What's next?
+Unlike ordinary functions that lose state if a server restarts mid-request, `activity` and `workflow` blocks journal every step ordinal to SQLite/Turso so interrupted runs replay deterministically:
 
-- **[First full-stack app](tut-first-app.md)** — a longer walkthrough that adds auth, deployment, and a second table
-- **[Golden Examples](../examples/golden.md)** — strictly verified, compiler-checked code snippets covering every language feature
-- **[Language Reference](../reference/ref-syntax.md)** — full syntax reference
-- **[Building Agents](../how-to/how-to-ai-agents.md)** — build MCP tools and agents with `tool`/`resource`
-- **[Deployment Guide](../reference/deployment-compose.md)** — production rollout
+```vox
+activity charge_card(amount_cents: int) to Result[str] {
+    if amount_cents > 50000 {
+        return Error("Amount exceeds single-charge limit")
+    }
+    return Ok("tx_verified_9001")
+}
+
+workflow process_subscription(amount_cents: int) to str {
+    let res = charge_card(amount_cents)
+    match res {
+        Ok(tx) => "Charged receipt: " + tx
+        Error(reason) => "Declined: " + reason
+    }
+}
+```
+
+### Step 3: Launch the Vox Axis Desktop Workbench
+
+Start the orchestrator daemon and open the [Vox Axis Desktop Workbench](../how-to/how-to-axis-workbench.md) (`vox-gui`) to inspect live MCP tool calls, Loquela risk/clutch posture controls (`Alt+1..4`), and the 132-crate Architecture Atlas:
+
+```bash
+cargo run -p vox-gui
+```
+
+## Next Steps
+
+Each link owns one job. Stay on that page for that job.
+
+- **[First Full-Stack App](tut-first-app.md)** — fill in the task list: mutations, component, and route.
+- **[Interactive Full-Stack Walkthrough](tut-fullstack-walkthrough.mdx)** — compare one `.vox` file with the SQL, Axum, and React it emits.
+- **[UI with VUV view-calls](tut-ui-integration.md)** — compose `component` trees, iteration, and typed style kwargs.
+- **[Use a React component from Vox](use-a-react-component-from-vox.md)** — import an existing React component.
+- **[Actors](tut-actor-basics.md)** — persistent actors and identity.
+- **[Durable Workflows](tut-workflow-durability.md)** — replayable activities, timers, and crash recovery. The short workflow in section 3 is not that lesson.
+- **[Vox Axis Desktop Workbench](../how-to/how-to-axis-workbench.md)** — Loquela posture controls, `@kb` pins, and panel layout. That guide is a how-to, not a tutorial.
+- **Published adapters** — [Qwen3 0.6B](https://huggingface.co/brbrainerd/vox-mens-qwen3-0.6b), [1.7B](https://huggingface.co/brbrainerd/vox-mens-qwen3-1.7b), [4B](https://huggingface.co/brbrainerd/vox-mens-qwen3-4b), and the [index](https://huggingface.co/brbrainerd/vox-mens-index). `vox mens hub download --repo brbrainerd/vox-mens-qwen3-4b --output-dir <dir>` fetches a card when `vox-ml-cli` is built with `mens-hf-hub`. The 8B adapter is not public.
+- **[Language Syntax Reference](../reference/ref-syntax.md)** — types, pattern matching, and decorators.

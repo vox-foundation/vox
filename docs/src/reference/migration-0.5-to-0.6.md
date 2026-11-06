@@ -127,9 +127,8 @@ fn demo_raw_strings() {
 module system without the build-system overhead.
 
 ```vox
-// vox:skip -- cross-file example; multi-file import typecheck differs from in-file lookup as of v0.6
 // src/util.vox
-pub fn slugify(s: Str) to Str {
+pub fn slugify(s: str) to str {
     return s.to_lower().replace(" ", "-")
 }
 
@@ -140,7 +139,7 @@ fn main() {
 }
 ```
 
-**Caveat:** `--mode script` parity and full typecheck of imported symbols are tracked as v0.7 work; the runtime resolver in `--mode interp` is the v0.6 deliverable. (The example above is `// vox:skip`'d because cross-file typecheck of imported `Str` differs from in-file lookup as of v0.6.)
+**Caveat:** `--mode script` parity and full typecheck of imported symbols are tracked as v0.7 work; the runtime resolver in `--mode interp` is the v0.6 deliverable.
 
 ## Changed semantics
 
@@ -158,7 +157,7 @@ Indexing a typed list with `[i]` previously evaluated to `T` and panicked at run
 + }
 ```
 
-The `// vox:skip` comments in the diff snippets above mark them as illustrative migrations rather than parseable modules; the surrounding text describes the semantics.
+The diff snippets above illustrate the mechanical before/after migration; the surrounding text describes the semantics.
 
 This change is consistent with the strict-Option `Json` API and with `dict[k]` semantics elsewhere in the stdlib.
 
