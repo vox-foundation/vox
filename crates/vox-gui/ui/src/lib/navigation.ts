@@ -106,6 +106,19 @@ export const TOP_LEVEL_VIEWS = [
   'settings',
 ] as const;
 
+/**
+ * Concept-Art v4.0 5-Domain Workbench Grouping (`NAV-CONSOLIDATE-01`).
+ * Consolidates the 9 top-level parents into 5 primary operational domains while preserving
+ * 100% of `TOP_LEVEL_VIEWS` and `PARENT_CHILD_MAP` backward compatibility.
+ */
+export const WORKBENCH_DOMAINS = [
+  { id: 'chat', label: 'Chat', parents: ['chat'] as const },
+  { id: 'agents', label: 'Agents & Runs', parents: ['agents', 'runs'] as const },
+  { id: 'knowledge', label: 'Knowledge & Research', parents: ['knowledge'] as const },
+  { id: 'workspace', label: 'Workspace & Code', parents: ['workspace', 'commands'] as const },
+  { id: 'compute', label: 'Compute & Models', parents: ['compute', 'mercatus'] as const },
+] as const;
+
 export type TopLevelView = typeof TOP_LEVEL_VIEWS[number];
 
 /** Sub-tab display order per parent (registry rows are alphabetical; UI order is intent order). */

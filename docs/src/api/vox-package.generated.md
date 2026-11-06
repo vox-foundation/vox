@@ -61,3 +61,93 @@ Application code should use **`vox_db::Codex`** / `VoxDb` as the public facade (
 | `registry` | HTTP client for the package registry API. |
 | `workspace` | Multi-package workspace discovery from `Vox.toml` / members. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_package: "vox-package"
+    node vox_config: "vox-config"
+    vox_package -> vox_config
+    node vox_db: "vox-db"
+    vox_package -> vox_db
+    node vox_http_client: "vox-http-client"
+    vox_package -> vox_http_client
+    node vox_package_types: "vox-package-types"
+    vox_package -> vox_package_types
+    node vox_audit: "vox-audit"
+    vox_audit -> vox_package
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_package
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_package
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_package
+    node vox_populi: "vox-populi"
+    vox_populi -> vox_package
+    node vox_skills: "vox-skills"
+    vox_skills -> vox_package
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-audit`](./vox-audit.generated.md) | Direct workspace dependent |
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
+| [`vox-skills`](./vox-skills.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `artifact_cache::ArtifactCache` | `pub struct ArtifactCache` | [`crates/vox-package/src/artifact_cache.rs#L30-L33`](../../../crates/vox-package/src/artifact_cache.rs#L30-L33) | A content-addressed cache for Vox build artifacts.  Uses SHA3-512 over all build inputs as the cache key. Artifacts are stored under `.vox-cache/artifacts/<hash>/`. |
+| `struct` | `artifact_cache::CacheManifest` | `pub struct CacheManifest` | [`crates/vox-package/src/artifact_cache.rs#L37-L46`](../../../crates/vox-package/src/artifact_cache.rs#L37-L46) | Metadata recorded alongside a cached artifact. |
+| `enum` | `artifact_cache::CacheLookup` | `pub enum CacheLookup` | [`crates/vox-package/src/artifact_cache.rs#L49-L57`](../../../crates/vox-package/src/artifact_cache.rs#L49-L57) | Outcome of a cache lookup. |
+| `fn` | `artifact_cache::new` | `pub fn new(root: PathBuf) -> io::Result<Self>` | [`crates/vox-package/src/artifact_cache.rs#L63-L67`](../../../crates/vox-package/src/artifact_cache.rs#L63-L67) | Create (or open) a cache rooted at `root`.  Typically `root` is `<project-root>/.vox-cache`. |
+| `fn` | `artifact_cache::default_for` | `pub fn default_for(project_root: &Path) -> io::Result<Self>` | [`crates/vox-package/src/artifact_cache.rs#L70-L72`](../../../crates/vox-package/src/artifact_cache.rs#L70-L72) | Open the default project-local cache at `<project_root>/.vox-cache`. |
+| `fn` | `artifact_cache::compute_input_hash` | `pub fn compute_input_hash(` | [`crates/vox-package/src/artifact_cache.rs#L81`](../../../crates/vox-package/src/artifact_cache.rs#L81) | Compute a cache key from a set of input paths.  Reads every file listed in `input_paths`, appends their contents together with their relative path as a separator, then returns the SHA3-512 hash.  Includes `extra_inputs` (e.g. serialized config strings) to capture non-file inputs such as CLI flags or dependency versions. |
+| `fn` | `artifact_cache::lookup` | `pub fn lookup(&self, input_hash: &str) -> CacheLookup` | [`crates/vox-package/src/artifact_cache.rs#L110-L132`](../../../crates/vox-package/src/artifact_cache.rs#L110-L132) | Look up whether artifacts exist for the given input hash. |
+| `fn` | `artifact_cache::record_build` | `pub fn record_build(` | [`crates/vox-package/src/artifact_cache.rs#L137`](../../../crates/vox-package/src/artifact_cache.rs#L137) | Record a completed build, copying `output_files` into the artifact directory.  `output_files` is a list of `(source_path, filename_in_cache)` pairs. |
+| `fn` | `artifact_cache::prune` | `pub fn prune(&self, max_age_secs: u64) -> io::Result<usize>` | [`crates/vox-package/src/artifact_cache.rs#L170-L211`](../../../crates/vox-package/src/artifact_cache.rs#L170-L211) | Delete all cached artifacts older than `max_age_secs` seconds. |
+| `fn` | `artifact_cache::manifest_path` | `pub fn manifest_path(&self, input_hash: &str) -> PathBuf` | [`crates/vox-package/src/artifact_cache.rs#L214-L218`](../../../crates/vox-package/src/artifact_cache.rs#L214-L218) | Path to the manifest JSON file for a given input hash. |
+| `fn` | `artifact_cache::artifact_dir` | `pub fn artifact_dir(&self, input_hash: &str) -> PathBuf` | [`crates/vox-package/src/artifact_cache.rs#L221-L224`](../../../crates/vox-package/src/artifact_cache.rs#L221-L224) | Path to the artifact directory for a given input hash. |
+| `type` | `bundle::ContentBytes` | `pub type ContentBytes = Arc<Vec<u8>>` | [`crates/vox-package/src/bundle.rs#L18`](../../../crates/vox-package/src/bundle.rs#L18) | Raw bytes of a compiled bundle. `Arc<Vec<u8>>` because clones cross async tasks (mesh dispatch) and we don't want to allocate per-clone. |
+| `struct` | `bundle::BundleRef` | `pub struct BundleRef` | [`crates/vox-package/src/bundle.rs#L25-L29`](../../../crates/vox-package/src/bundle.rs#L25-L29) | Stable content-address of a workflow / activity bundle.  This is the SHA3-512 over the input set: source bytes, vox version, transitive dep hashes. Computed by the HIR lowering pass (P2-T1d). |
+| `fn` | `bundle::to_hex` | `pub fn to_hex(&self) -> String` | [`crates/vox-package/src/bundle.rs#L33-L39`](../../../crates/vox-package/src/bundle.rs#L33-L39) | Hex-encode the 64-byte digest. Used for filesystem keys. |
+| `struct` | `bundle::Bundle` | `pub struct Bundle` | [`crates/vox-package/src/bundle.rs#L45-L58`](../../../crates/vox-package/src/bundle.rs#L45-L58) | A content-addressed bundle: hash, transitive dep hashes, compiled bytes, and a free-form manifest the runtime uses to dispatch. |
+| `fn` | `bundle::serialize` | `pub fn serialize<S: Serializer>(bytes: &[u8; 64], s: S) -> Result<S::Ok, S::Error>` | [`crates/vox-package/src/bundle.rs#L63-L69`](../../../crates/vox-package/src/bundle.rs#L63-L69) | — |
+| `fn` | `bundle::deserialize` | `pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<[u8; 64], D::Error>` | [`crates/vox-package/src/bundle.rs#L71-L84`](../../../crates/vox-package/src/bundle.rs#L71-L84) | — |
+| `struct` | `bundle::BundleStore` | `pub struct BundleStore` | [`crates/vox-package/src/bundle.rs#L93-L95`](../../../crates/vox-package/src/bundle.rs#L93-L95) | A bundle store rooted at a directory.  Layout under `root`: - `bundles/<first-64-hex-chars>/bundle.bin` — compiled bytes - `bundles/<first-64-hex-chars>/manifest.json` — JSON manifest - `bundles/<first-64-hex-chars>/deps.json` — serialised `Vec<BundleRef>` |
+| `fn` | `bundle::open` | `pub fn open(root: PathBuf) -> io::Result<Self>` | [`crates/vox-package/src/bundle.rs#L99-L102`](../../../crates/vox-package/src/bundle.rs#L99-L102) | Open (or create) a bundle store under `root`. |
+| `fn` | `bundle::lookup` | `pub fn lookup(&self, r: &BundleRef) -> io::Result<Option<Bundle>>` | [`crates/vox-package/src/bundle.rs#L112-L134`](../../../crates/vox-package/src/bundle.rs#L112-L134) | Look up a bundle by reference. `Ok(None)` for cache miss; `Err` for IO. |
+| `fn` | `bundle::put` | `pub fn put(&self, bundle: &Bundle) -> io::Result<BundleRef>` | [`crates/vox-package/src/bundle.rs#L137-L149`](../../../crates/vox-package/src/bundle.rs#L137-L149) | Store a bundle by its self-asserted hash. Idempotent. |
+| `trait` | `bundle::Sealed` | `pub trait Sealed` | [`crates/vox-package/src/bundle.rs#L153`](../../../crates/vox-package/src/bundle.rs#L153) | — |
+| `trait` | `bundle::BundleMeta` | `pub trait BundleMeta: sealed::Sealed` | [`crates/vox-package/src/bundle.rs#L160-L163`](../../../crates/vox-package/src/bundle.rs#L160-L163) | Sealed trait for content-addressed bundle metadata. Downstream crates may read hash and kind but cannot introduce new implementations. |
+| `type` | `model_bundle::Sha3_512` | `pub type Sha3_512 = [u8; 64]` | [`crates/vox-package/src/model_bundle.rs#L11`](../../../crates/vox-package/src/model_bundle.rs#L11) | Raw SHA3-512 digest (64 bytes), hex-serialised for JSON. |
+| `fn` | `model_bundle::serialize` | `pub fn serialize<S: Serializer>(bytes: &Sha3_512, s: S) -> Result<S::Ok, S::Error>` | [`crates/vox-package/src/model_bundle.rs#L18-L24`](../../../crates/vox-package/src/model_bundle.rs#L18-L24) | — |
+| `fn` | `model_bundle::deserialize` | `pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Sha3_512, D::Error>` | [`crates/vox-package/src/model_bundle.rs#L26-L29`](../../../crates/vox-package/src/model_bundle.rs#L26-L29) | — |
+| `fn` | `model_bundle::serialize` | `pub fn serialize<S: Serializer>(v: &Option<Vec<Sha3_512>>, s: S) -> Result<S::Ok, S::Error>` | [`crates/vox-package/src/model_bundle.rs#L50-L61`](../../../crates/vox-package/src/model_bundle.rs#L50-L61) | — |
+| `fn` | `model_bundle::deserialize` | `pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Option<Vec<Sha3_512>>, D::Error>` | [`crates/vox-package/src/model_bundle.rs#L63-L77`](../../../crates/vox-package/src/model_bundle.rs#L63-L77) | — |
+| `enum` | `model_bundle::WeightFormat` | `pub enum WeightFormat` | [`crates/vox-package/src/model_bundle.rs#L83-L89`](../../../crates/vox-package/src/model_bundle.rs#L83-L89) | On-disk SafeTensors layout for this bundle. |
+| `struct` | `model_bundle::BundleProvenance` | `pub struct BundleProvenance` | [`crates/vox-package/src/model_bundle.rs#L93-L97`](../../../crates/vox-package/src/model_bundle.rs#L93-L97) | Human / registry-facing provenance — not trusted for integrity (hashes are). |
+| `struct` | `model_bundle::ModelBundle` | `pub struct ModelBundle` | [`crates/vox-package/src/model_bundle.rs#L101-L119`](../../../crates/vox-package/src/model_bundle.rs#L101-L119) | Immutable description of a SafeTensors model suitable for mesh CAS routing. |
+| `fn` | `model_bundle::compute_model_bundle_content_hash` | `pub fn compute_model_bundle_content_hash(bundle: &ModelBundle) -> Sha3_512` | [`crates/vox-package/src/model_bundle.rs#L123-L147`](../../../crates/vox-package/src/model_bundle.rs#L123-L147) | Deterministic SHA3-512 over semantic bundle fields **excluding** `bundle_hash`. |
+| `fn` | `model_bundle::verify_bundle_hash` | `pub fn verify_bundle_hash(&self) -> bool` | [`crates/vox-package/src/model_bundle.rs#L152-L154`](../../../crates/vox-package/src/model_bundle.rs#L152-L154) | Returns `true` when `bundle_hash` matches the semantic digest. |
+| `struct` | `registry::RegistryClient` | `pub struct RegistryClient` | [`crates/vox-package/src/registry.rs#L5-L9`](../../../crates/vox-package/src/registry.rs#L5-L9) | Client for the VoxPM package registry. Handles search, download, publish, and info operations. |
+| `struct` | `registry::RegistryPackageInfo` | `pub struct RegistryPackageInfo` | [`crates/vox-package/src/registry.rs#L12-L21`](../../../crates/vox-package/src/registry.rs#L12-L21) | — |
+| `struct` | `registry::SearchResult` | `pub struct SearchResult` | [`crates/vox-package/src/registry.rs#L24-L27`](../../../crates/vox-package/src/registry.rs#L24-L27) | — |
+| `struct` | `registry::PublishRequest` | `pub struct PublishRequest` | [`crates/vox-package/src/registry.rs#L30-L39`](../../../crates/vox-package/src/registry.rs#L30-L39) | — |
+| `struct` | `registry::PublishDependency` | `pub struct PublishDependency` | [`crates/vox-package/src/registry.rs#L42-L45`](../../../crates/vox-package/src/registry.rs#L42-L45) | — |
+| `struct` | `registry::DownloadResponse` | `pub struct DownloadResponse` | [`crates/vox-package/src/registry.rs#L48-L51`](../../../crates/vox-package/src/registry.rs#L48-L51) | — |
+| `enum` | `registry::PmRegistryError` | `pub enum PmRegistryError` | [`crates/vox-package/src/registry.rs#L54-L64`](../../../crates/vox-package/src/registry.rs#L54-L64) | — |
+| `fn` | `registry::new` | `pub fn new(base_url: &str) -> Self` | [`crates/vox-package/src/registry.rs#L89-L95`](../../../crates/vox-package/src/registry.rs#L89-L95) | Create a new registry client. |
+| `fn` | `registry::with_auth` | `pub fn with_auth(base_url: &str, token: &str) -> Self` | [`crates/vox-package/src/registry.rs#L98-L104`](../../../crates/vox-package/src/registry.rs#L98-L104) | Create a client with authentication. |
+| `fn` | `registry::set_token` | `pub fn set_token(&mut self, token: &str)` | [`crates/vox-package/src/registry.rs#L107-L109`](../../../crates/vox-package/src/registry.rs#L107-L109) | Set or update the auth token. |
+| `fn` | `registry::search` | `pub async fn search(` | [`crates/vox-package/src/registry.rs#L129`](../../../crates/vox-package/src/registry.rs#L129) | Search the registry for packages matching a query. |
+| `fn` | `registry::info` | `pub async fn info(&self, name: &str) -> Result<RegistryPackageInfo, PmRegistryError>` | [`crates/vox-package/src/registry.rs#L156-L169`](../../../crates/vox-package/src/registry.rs#L156-L169) | Get info about a specific package. |
+

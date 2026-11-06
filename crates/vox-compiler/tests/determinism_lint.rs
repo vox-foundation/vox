@@ -2,6 +2,9 @@
 //! `workflow` bodies (ADR-019 §5). Activities and plain `fn`s are exempt
 //! — activities have their return values recorded by the journal; plain
 //! fns are not on the durability replay path.
+//!
+//! These tests exercise `check_workflow_determinism` through
+//! `typecheck_ast_module`, including Python-capability rejection (EFF-03).
 
 use vox_compiler::typeck::Diagnostic;
 use vox_compiler::typeck::typecheck_ast_module;
@@ -204,5 +207,89 @@ workflow w() to int {
         ds.iter()
             .map(|d| (d.code.clone(), d.message.clone()))
             .collect::<Vec<_>>()
+    );
+}
+
+// Phase 324 (EFF-03): determinism by capability, not by name. A plain fn
+// declaring a Python effect is non-deterministic regardless of what it
+// calls; only an `activity` may carry it (its result is journalled).
+
+fn python_determinism_diag_messages(ds: &[Diagnostic]) -> Vec<String> {
+    ds.iter()
+        .filter(|d| d.code.as_deref() == Some("lint.workflow.non_deterministic"))
+        .map(|d| d.message.clone())
+        .collect()
+}
+
+#[test]
+fn workflow_calling_plain_fn_using_python_is_rejected() {
+    let src = r#"
+fn py_helper() uses python to int {
+    return 1
+}
+
+workflow w() to int {
+    return py_helper()
+}
+"#;
+    let msgs = python_determinism_diag_messages(&diags(src));
+    assert!(
+        msgs.iter().any(|m| m.contains("python")),
+        "workflow → plain fn `uses python` must emit lint.workflow.non_deterministic \
+         naming the capability; got {msgs:?}"
+    );
+}
+
+#[test]
+fn workflow_calling_plain_fn_using_python_unverified_transitively_is_rejected() {
+    let src = r#"
+fn inner_py() uses python_unverified to int {
+    return 1
+}
+
+fn outer_plain() to int {
+    return inner_py()
+}
+
+workflow w() to int {
+    return outer_plain()
+}
+"#;
+    let msgs = python_determinism_diag_messages(&diags(src));
+    assert!(
+        msgs.iter().any(|m| m.contains("python_unverified")),
+        "workflow → plain → `uses python_unverified` must be rejected; got {msgs:?}"
+    );
+}
+
+#[test]
+fn workflow_calling_activity_using_python_is_allowed() {
+    let src = r#"
+activity py_step() uses python to int {
+    return 1
+}
+
+workflow w() to int {
+    return py_step()
+}
+"#;
+    let msgs = python_determinism_diag_messages(&diags(src));
+    assert!(
+        msgs.is_empty(),
+        "workflow → activity `uses python` is replay-safe; got {msgs:?}"
+    );
+}
+
+#[test]
+fn workflow_declaring_python_effect_is_rejected() {
+    let src = r#"
+workflow w() uses python to int {
+    return 1
+}
+"#;
+    let msgs = python_determinism_diag_messages(&diags(src));
+    assert!(
+        msgs.iter().any(|m| m.contains("python")),
+        "workflow declaring `uses python` must be rejected; got {msgs:?}"
     );
 }

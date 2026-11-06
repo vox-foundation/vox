@@ -1,0 +1,207 @@
+---
+title: "Interactive Full-Stack Walkthrough: One .vox File to SQL, Rust & React"
+description: "Step-by-step Starlight MDX walkthrough showing how a single .vox module compiles into Turso SQL DDL, Rust Axum handlers, React TSX components, and MCP agent tools."
+category: "Tutorials"
+status: "current"
+sort_order: 7
+topic: "language-grammar"
+domain: "language"
+authorship: "llm-assisted"
+authorship_model: "gemini-4-argon"
+schema_type: "HowTo"
+keywords: ["Vox full-stack tutorial", "Vox SQL Rust React codegen", "Starlight MDX interactive tutorial", "MCP tool declaration"]
+code_anchors:
+  - "examples/golden/getting_started.vox"
+  - "crates/vox-compiler/src/lib.rs"
+---
+
+import { Steps, Tabs, TabItem, CardGrid, Card, Aside } from '@astrojs/starlight/components';
+import VoxPlayground from '../../../docs-astro/src/components/VoxPlayground.astro';
+
+# Interactive Full-Stack Walkthrough: One .vox File to SQL, Rust & React
+
+{/* kb:summary */}
+This interactive tutorial walks through building a complete full-stack module in a single `.vox` file and inspecting the four compiler outputs it generates in lockstep: Turso/SQLite schema definitions, typed Rust Axum route handlers with `Result[T]` error propagation, reactive TypeScript/React components, and JSON-Schema Model Context Protocol (MCP) agent tools.
+{/* /kb:summary */}
+
+<Aside type="tip" title="Zero-Drift Full-Stack Architecture">
+  In traditional stacks, adding a single field requires editing a SQL migration, a backend struct, an API handler, and a frontend TypeScript interface. In Vox, you declare the domain model once and inspect all four generated targets side by side.
+</Aside>
+
+## Step-by-Step Build Path
+
+<Steps>
+
+1. **Declare the Typed Schema (`table`)**
+
+   Every `table` block automatically provisions a primary key (`Id[Ticket]`) and maps fields to both SQLite/Turso column affinities and Rust/TypeScript types:
+
+   ```vox
+   table Ticket {
+       title: str
+       priority: int
+       resolved: bool
+   }
+   ```
+
+2. **Add Read Queries and Write Mutations (`query` / `mutation` / `server`)**
+
+   Queries are read-only; mutations and server functions return `Result[T]` so database or validation errors must be handled explicitly with `?` or `match`:
+
+   ```vox
+   table Ticket {
+       title: str
+       priority: int
+       resolved: bool
+   }
+
+   query open_ticket_count() to int {
+       return len(db.Ticket.all())
+   }
+
+   server create_ticket(title: str, priority: int) to Result[str] {
+       if priority < 1 {
+           return Error("Priority must be at least 1")
+       }
+       let _id = db.Ticket.insert({ title: title, priority: priority, resolved: false })?
+       return Ok("Created ticket: " + title)
+   }
+   ```
+
+3. **Expose an AI Agent Tool (`tool`) and Reactive UI (`component`)**
+
+   The `tool` keyword generates an MCP tool schema with HMAC receipt verification, while `component` emits a reactive `.tsx` view:
+
+   ```vox
+   table Ticket {
+       title: str
+       priority: int
+       resolved: bool
+   }
+
+   tool "Resolve a support ticket by ID" resolve_ticket(id: Id[Ticket]) to Result[str] {
+       db.Ticket.delete(id)?
+       return Ok("resolved")
+   }
+
+   component TicketHeader() {
+       view: column(raw_class="ticket-header") {
+           heading(level=2) { "Support Queue" }
+           text() { "Typed across SQL, Axum, React, and MCP" }
+       }
+   }
+   ```
+
+</Steps>
+
+---
+
+## Side-by-Side Compiler Output (`vox build`)
+
+Switch tabs below to compare the single `.vox` source module against the generated SQLite/Turso DDL, Rust Axum handler, and React TSX component:
+
+<Tabs>
+  <TabItem label="1. Source (.vox)">
+```vox
+table Ticket {
+    title: str
+    priority: int
+    resolved: bool
+}
+
+query open_ticket_count() to int {
+    return len(db.Ticket.all())
+}
+
+server create_ticket(title: str, priority: int) to Result[str] {
+    let _id = db.Ticket.insert({ title: title, priority: priority, resolved: false })?
+    return Ok("Created: " + title)
+}
+
+component TicketHeader() {
+    view: column(raw_class="ticket-header") {
+        heading(level=2) { "Support Queue" }
+        text() { "Synchronized schema and UI" }
+    }
+}
+```
+  </TabItem>
+  <TabItem label="2. Turso / SQLite DDL">
+```sql
+CREATE TABLE IF NOT EXISTS ticket (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    priority INTEGER NOT NULL,
+    resolved BOOLEAN NOT NULL DEFAULT 0
+);
+```
+  </TabItem>
+  <TabItem label="3. Rust Axum Handler">
+```rust
+pub async fn create_ticket(
+    State(db): State<VoxDb>,
+    Json(req): Json<CreateTicketReq>,
+) -> Result<Json<String>, AppError> {
+    let _id = db.insert_ticket(&req.title, req.priority, false).await?;
+    Ok(Json(format!("Created: {}", req.title)))
+}
+```
+  </TabItem>
+  <TabItem label="4. React / TypeScript (.tsx)">
+```tsx
+export function TicketHeader(): JSX.Element {
+  return (
+    <div className="vox-column ticket-header">
+      <h2>Support Queue</h2>
+      <span>Synchronized schema and UI</span>
+    </div>
+  );
+}
+```
+  </TabItem>
+</Tabs>
+
+---
+
+## Live Interactive Sandbox
+
+Edit and run the `.vox` program below to test schema changes and inspect generated targets in real time:
+
+<VoxPlayground initialCode={`table Ticket {
+    title: str
+    priority: int
+    resolved: bool
+}
+
+query open_ticket_count() to int {
+    return len(db.Ticket.all())
+}
+
+tool "Resolve ticket" resolve_ticket(id: Id[Ticket]) to Result[str] {
+    db.Ticket.delete(id)?
+    return Ok("resolved")
+}
+
+fn main() to Result[str] {
+    let id = db.Ticket.insert({ title: "Upgrade KB to Starlight MDX", priority: 1, resolved: false })?
+    print("Open tickets: " + str(open_ticket_count()))
+    let status = resolve_ticket(id)?
+    print("After resolve: " + str(open_ticket_count()))
+    return Ok(status)
+}`} />
+
+---
+
+## Where to Go Next
+
+<CardGrid>
+  <Card title="Task-list build" icon="rocket">
+    The step-by-step task app is [First Full-Stack App](tut-first-app.md). Install stays in [Installing Vox](../reference/installation.md). The 60-second path is [Getting Started](tut-getting-started.md).
+  </Card>
+  <Card title="Durable Workflows" icon="setting">
+    Learn how `activity` and `workflow` blocks journal every step ordinal in [Durable Workflows](tut-workflow-durability.md).
+  </Card>
+  <Card title="Language Syntax Reference" icon="open-book">
+    Look up ADTs, pattern matching, and decorators in the [Syntax Reference](../reference/ref-syntax.md).
+  </Card>
+</CardGrid>

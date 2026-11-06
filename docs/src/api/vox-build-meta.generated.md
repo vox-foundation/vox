@@ -51,3 +51,32 @@ This crate has no runtime dependencies — it must only be used as a
 |---|---|
 | `emit` | Emit version metadata `cargo:rustc-env` vars from a build script.  Call this once from `build.rs`. Each binary's build script may add its own `cargo:rerun-if-changed` lines after this call. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_build_meta: "vox-build-meta"
+    node vox_arch_check: "vox-arch-check"
+    vox_arch_check -> vox_build_meta
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_build_meta
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_build_meta
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-arch-check`](./vox-arch-check.generated.md) | Direct workspace dependent |
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `emit` | `pub fn emit()` | [`crates/vox-build-meta/src/lib.rs#L23-L33`](../../../crates/vox-build-meta/src/lib.rs#L23-L33) | Emit version metadata `cargo:rustc-env` vars from a build script.  Call this once from `build.rs`. Each binary's build script may add its own `cargo:rerun-if-changed` lines after this call. |
+

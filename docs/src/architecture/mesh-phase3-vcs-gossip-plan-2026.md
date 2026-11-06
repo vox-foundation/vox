@@ -63,7 +63,7 @@ P3-T6) and `Hp-T5` (HopperInboxProjection, bundled with P3-T9). See SSOT §3.5 a
 - `crates/vox-orchestrator-queue/tests/projection_replay.rs` — replay-bit-identicality test.
 - `crates/vox-arch-check/src/forbidden_patterns.rs` — new `[[forbidden_pattern]]` rule type implementation.
 - `tests/fixtures/arch-check/raw-git-positive.rs` and `raw-git-negative.rs` — fixtures for the new rule.
-- `scripts/phase3-replay-smoke.vox` — VoxScript replay smoke driver (no `.ps1` / `.sh` per AGENTS.md).
+- `scripts/phase3-replay-smoke.vox` — VoxLang replay smoke driver (no `.ps1` / `.sh` per AGENTS.md).
 
 **Modify:**
 
@@ -1732,7 +1732,7 @@ CI surface:
 
 - `cargo test --workspace`
 - `cargo run -p vox-arch-check`
-- `vox run scripts/phase3-replay-smoke.vox` (a tiny VoxScript that drives a 1k-op replay)
+- `vox run scripts/phase3-replay-smoke.vox` (a tiny VoxLang that drives a 1k-op replay)
 
 Estimated PR count: **9** (one per task; a couple may be split if review feedback grows them).
 

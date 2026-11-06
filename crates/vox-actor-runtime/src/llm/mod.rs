@@ -17,12 +17,18 @@ pub use chat::{
 };
 pub use embed::{LOCAL_EMBED_DEFAULT_DIM, llm_embed, local_embed_text};
 pub use run_trace::run_trace_scope;
-pub use stream::{llm_stream, llm_stream_activity, llm_stream_measured};
+pub use stream::{
+    llm_stream, llm_stream_activity, llm_stream_events, llm_stream_events_activity,
+    llm_stream_measured,
+};
 pub use types::{
     LlmChatMessage, LlmConfig, LlmResponse, LlmToolDef, ModelMetric, ModelRegistryEntry,
 };
 pub use vox_llm_egress::MeasuredCompletion;
-pub use vox_llm_egress::{LlmContentPart, LlmImageUrl};
+pub use vox_llm_egress::{
+    EgressToolCall, LlmContentPart, LlmImageUrl, RepetitionGuard, RepetitionTripped, SseDeltaEvent,
+    ToolCallDelta,
+};
 pub use vox_telemetry::{
     FixtureModelIntentResolvedEvent, OrchSubagentDispatchEvent, SubagentDispatchTelemetryPayload,
 };

@@ -15,6 +15,7 @@ pub mod mermaid;
 mod mermaid_base_gate;
 mod mermaid_gate;
 pub mod openwiki;
+pub mod openwiki_symbols;
 mod render_manifest;
 pub mod types;
 
@@ -160,14 +161,21 @@ fn parse_paths_arg(args: &[String], docs_src: &Path) -> Result<Vec<PathBuf>, Vec
     let mut i = 0_usize;
     while i < args.len() {
         let arg = &args[i];
-        let value_opt = if let Some(v) = arg.strip_prefix("--paths=") {
-            Some(v.to_string())
+        let values: Vec<String> = if let Some(v) = arg.strip_prefix("--paths=") {
+            vec![v.to_string()]
         } else if arg == "--paths" {
-            args.get(i + 1).cloned()
+            // Space-separated values up to the next flag; dropping them silently printed a false green.
+            let rest: Vec<String> = args[i + 1..]
+                .iter()
+                .take_while(|a| !a.starts_with("--"))
+                .cloned()
+                .collect();
+            i += rest.len();
+            rest
         } else {
-            None
+            Vec::new()
         };
-        if let Some(value) = value_opt {
+        for value in values {
             for raw in value.split(',') {
                 let trimmed = raw.trim();
                 if trimmed.is_empty() {
@@ -776,6 +784,31 @@ mod tests {
             err
         );
         assert!(!err[0].exists());
+    }
+
+    #[test]
+    fn parse_paths_arg_takes_space_separated_values_until_next_flag() {
+        let docs_src = fixture_root().join("docs/src");
+        for f in ["a.md", "b.md", "c.md"] {
+            std::fs::write(docs_src.join(f), "x").expect("write");
+        }
+        let args: Vec<String> = [
+            "vox-doc-pipeline",
+            "--paths",
+            "a.md",
+            "b.md,c.md",
+            "--lint-only",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        let paths = parse_paths_arg(&args, &docs_src).expect("all exist");
+        let names: Vec<_> = paths
+            .iter()
+            .map(|p| p.file_name().unwrap().to_string_lossy().into_owned())
+            .collect();
+        // Silently dropping b.md/c.md used to print a false "no hard errors".
+        assert_eq!(names, ["a.md", "b.md", "c.md"]);
     }
 
     #[test]

@@ -2692,6 +2692,24 @@ curated:
   - ci
   - capability-sync
   parameters: null
+- id: cli.ci.check-changed
+  title: Ci Check-changed
+  description_human: null
+  description_model: CLI operation `vox ci check-changed`
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - check-changed
+  parameters: null
 - id: cli.ci.check-codex-ssot
   title: Ci Check-codex-ssot
   description_human: null
@@ -2763,6 +2781,24 @@ curated:
   cli_path:
   - ci
   - check-summary-drift
+  parameters: null
+- id: cli.ci.ci-changes
+  title: Ci Ci-changes
+  description_human: null
+  description_model: CLI operation `vox ci ci-changes`
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - ci-changes
   parameters: null
 - id: cli.ci.command-compliance
   title: Ci Command-compliance
@@ -3454,6 +3490,24 @@ curated:
   - ci
   - doctest-md
   parameters: null
+- id: cli.ci.dom-test-env-ban
+  title: Ci Dom-test-env-ban
+  description_human: null
+  description_model: CLI operation `vox ci dom-test-env-ban`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - dom-test-env-ban
+  parameters: null
 - id: cli.ci.eval-matrix
   title: Ci Eval-matrix
   description_human: null
@@ -3509,6 +3563,24 @@ curated:
   - ci
   - eval-matrix
   - verify
+  parameters: null
+- id: cli.ci.evidence-asset-ban
+  title: Ci Evidence-asset-ban
+  description_human: null
+  description_model: CLI operation `vox ci evidence-asset-ban`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - evidence-asset-ban
   parameters: null
 - id: cli.ci.exec-policy-contract
   title: Ci Exec-policy-contract
@@ -3834,6 +3906,24 @@ curated:
   - ci
   - harness-trust-guard
   parameters: null
+- id: cli.ci.hit-every-surface
+  title: Ci Hit-every-surface
+  description_human: null
+  description_model: CLI operation `vox ci hit-every-surface`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - hit-every-surface
+  parameters: null
 - id: cli.ci.ignored-test-age
   title: Ci Ignored-test-age
   description_human: null
@@ -3941,6 +4031,24 @@ curated:
   cli_path:
   - ci
   - kill-stuck-tests
+  parameters: null
+- id: cli.ci.knip-gui
+  title: Ci Knip-gui
+  description_human: null
+  description_model: CLI operation `vox ci knip-gui`
+  intent_tags: []
+  side_effect_class: spawns_process
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - knip-gui
   parameters: null
 - id: cli.ci.line-endings
   title: Ci Line-endings
@@ -4562,6 +4670,24 @@ curated:
   - ci
   - pre-push
   parameters: null
+- id: cli.ci.preview-trust-audit
+  title: Ci Preview-trust-audit
+  description_human: null
+  description_model: CLI operation `vox ci preview-trust-audit`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - preview-trust-audit
+  parameters: null
 - id: cli.ci.profile-parity
   title: Ci Profile-parity
   description_human: null
@@ -4579,6 +4705,24 @@ curated:
   cli_path:
   - ci
   - profile-parity
+  parameters: null
+- id: cli.ci.python-bridge-parity
+  title: Ci Python-bridge-parity
+  description_human: null
+  description_model: CLI operation `vox ci python-bridge-parity`
+  intent_tags: []
+  side_effect_class: spawns_process
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - python-bridge-parity
   parameters: null
 - id: cli.ci.query-all-guard
   title: Ci Query-all-guard
@@ -5140,6 +5284,24 @@ curated:
   - ci
   - string-id-lint
   parameters: null
+- id: cli.ci.suppression-review-gate
+  title: Ci Suppression-review-gate
+  description_human: null
+  description_model: CLI operation `vox ci suppression-review-gate`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - suppression-review-gate
+  parameters: null
 - id: cli.ci.sync-ignore-files
   title: Ci Sync-ignore-files
   description_human: null
@@ -5302,6 +5464,24 @@ curated:
   - ci
   - toolchain-workflow-lint
   parameters: null
+- id: cli.ci.transfer-budget-report
+  title: Ci Transfer-budget-report
+  description_human: null
+  description_model: CLI operation `vox ci transfer-budget-report`
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - transfer-budget-report
+  parameters: null
 - id: cli.ci.turso-import-guard
   title: Ci Turso-import-guard
   description_human: null
@@ -5319,6 +5499,24 @@ curated:
   cli_path:
   - ci
   - turso-import-guard
+  parameters: null
+- id: cli.ci.vouched-parse
+  title: Ci Vouched-parse
+  description_human: null
+  description_model: CLI operation `vox ci vouched-parse`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - vouched-parse
   parameters: null
 - id: cli.ci.vox-parse-check
   title: Ci Vox-parse-check
@@ -5355,6 +5553,24 @@ curated:
   cli_path:
   - ci
   - watch-run
+  parameters: null
+- id: cli.ci.wiki-sync
+  title: Ci Wiki-sync
+  description_human: null
+  description_model: CLI operation `vox ci wiki-sync`
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - wiki-sync
   parameters: null
 - id: cli.ci.workflow-concurrency-guard
   title: Ci Workflow-concurrency-guard
@@ -15282,6 +15498,59 @@ curated:
   - populi
   - up
   parameters: null
+- id: cli.py
+  title: Py
+  description_human: null
+  description_model: CLI operation `vox py`
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - py
+  parameters: null
+- id: cli.py.doctor
+  title: Py Doctor
+  description_human: null
+  description_model: CLI operation `vox py doctor`
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - py
+  - doctor
+  parameters: null
+- id: cli.py.sync
+  title: Py Sync
+  description_human: null
+  description_model: CLI operation `vox py sync`
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - py
+  - sync
+  parameters: null
 - id: cli.recensio
   title: Recensio
   description_human: null
@@ -19184,6 +19453,22 @@ curated:
   mcp_tool: vox_attention_summary
   cli_path: null
   parameters: null
+- id: mcp.vox_battery_status
+  title: Battery Status
+  description_human: null
+  description_model: 'Report the in-process battery ledger: remaining and spent budget units, USD spend, and 4-hour/monthly quota windows.'
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_battery_status
+  cli_path: null
+  parameters: null
 - id: mcp.vox_behavior_record
   title: Behavior Record
   description_human: null
@@ -19824,6 +20109,22 @@ curated:
   mcp_tool: vox_builtin_registry
   cli_path: null
   parameters: null
+- id: mcp.vox_call_mcp_lazy
+  title: Call Mcp Lazy
+  description_human: null
+  description_model: Resolve a lazily discovered external MCP tool call (tier 3) to its client tool name and normalized arguments without executing it.
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_call_mcp_lazy
+  cli_path: null
+  parameters: null
 - id: mcp.vox_cancel_task
   title: Cancel Task
   description_human: null
@@ -19924,6 +20225,38 @@ curated:
   mcp_tool: vox_change_log
   cli_path: null
   parameters: null
+- id: mcp.vox_chat_compact_up_to
+  title: Chat Compact Up To
+  description_human: null
+  description_model: Compact a chat session transcript up to or from a message, replacing those turns with a summary and preserving thought signatures; persists the result.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_chat_compact_up_to
+  cli_path: null
+  parameters: null
+- id: mcp.vox_chat_edit_message_in_place
+  title: Chat Edit Message In Place
+  description_human: null
+  description_model: Edit one chat transcript message in place without rewinding later turns; persists the edited transcript.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_chat_edit_message_in_place
+  cli_path: null
+  parameters: null
 - id: mcp.vox_chat_history
   title: Chat History
   description_human: null
@@ -19954,6 +20287,38 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_chat_message
+  cli_path: null
+  parameters: null
+- id: mcp.vox_chat_queue_steer
+  title: Chat Queue Steer
+  description_human: null
+  description_model: Enqueue a prompt on a thread's run queue and optionally promote it to a mid-turn steer injected into the active agent turn.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_chat_queue_steer
+  cli_path: null
+  parameters: null
+- id: mcp.vox_chat_regenerate
+  title: Chat Regenerate
+  description_human: null
+  description_model: Rewind a chat transcript to a user turn, restore the matching Git checkpoint (resets the working tree and removes untracked files), and optionally re-run the prompt.
+  intent_tags: []
+  side_effect_class: destructive
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_chat_regenerate
   cli_path: null
   parameters: null
 - id: mcp.vox_chat_session_append
@@ -20020,6 +20385,38 @@ curated:
   mcp_tool: vox_chat_session_rename
   cli_path: null
   parameters: null
+- id: mcp.vox_chat_stream_cancel
+  title: Chat Stream Cancel
+  description_human: null
+  description_model: Cancel the in-flight resumable turn stream for a chat session.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_chat_stream_cancel
+  cli_path: null
+  parameters: null
+- id: mcp.vox_chat_stream_resume
+  title: Chat Stream Resume
+  description_human: null
+  description_model: Return accumulated resumable turn-stream text and sequenced chunks after a char offset or sequence number for a chat session.
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_chat_stream_resume
+  cli_path: null
+  parameters: null
 - id: mcp.vox_check
   title: Check
   description_human: null
@@ -20082,6 +20479,54 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_check_workspace
+  cli_path: null
+  parameters: null
+- id: mcp.vox_checkpoint_capture
+  title: Checkpoint Capture
+  description_human: null
+  description_model: Capture a Git plumbing checkpoint (or labelled restore point) for a thread turn under refs/vox/checkpoints.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_checkpoint_capture
+  cli_path: null
+  parameters: null
+- id: mcp.vox_checkpoint_list
+  title: Checkpoint List
+  description_human: null
+  description_model: List the Git plumbing checkpoints recorded for a thread.
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_checkpoint_list
+  cli_path: null
+  parameters: null
+- id: mcp.vox_checkpoint_restore
+  title: Checkpoint Restore
+  description_human: null
+  description_model: Restore the working tree and index to a thread's Git checkpoint, remove untracked files, and delete later checkpoint refs.
+  intent_tags: []
+  side_effect_class: destructive
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_checkpoint_restore
   cli_path: null
   parameters: null
 - id: mcp.vox_claim_file
@@ -20228,6 +20673,22 @@ curated:
   mcp_tool: vox_conflicts
   cli_path: null
   parameters: null
+- id: mcp.vox_consensus_run
+  title: Consensus Run
+  description_human: null
+  description_model: Fan a prompt out to 2-4 models (live inference when provider keys are configured), score each response, and synthesize a consensus answer.
+  intent_tags: []
+  side_effect_class: network
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_consensus_run
+  cli_path: null
+  parameters: null
 - id: mcp.vox_context_budget
   title: Context Budget
   description_human: null
@@ -20242,6 +20703,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_context_budget
+  cli_path: null
+  parameters: null
+- id: mcp.vox_context_handoff
+  title: Context Handoff
+  description_human: null
+  description_model: Build a cross-provider context handoff package from a thread transcript and optionally append it to a target thread's history.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_context_handoff
   cli_path: null
   parameters: null
 - id: mcp.vox_cost_history
@@ -20676,6 +21153,22 @@ curated:
   mcp_tool: vox_feedback_list
   cli_path: null
   parameters: null
+- id: mcp.vox_file_diff_and_diagnostics
+  title: File Diff And Diagnostics
+  description_human: null
+  description_model: Return the unified Git diff against HEAD and stub diagnostics for one repository-relative file.
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_file_diff_and_diagnostics
+  cli_path: null
+  parameters: null
 - id: mcp.vox_file_graph
   title: File Graph
   description_human: null
@@ -21077,6 +21570,70 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_git_status
+  cli_path: null
+  parameters: null
+- id: mcp.vox_guest_share_mint
+  title: Guest Share Mint
+  description_human: null
+  description_model: Mint a signed guest share invite for a chat thread.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_guest_share_mint
+  cli_path: null
+  parameters: null
+- id: mcp.vox_guest_share_moderate
+  title: Guest Share Moderate
+  description_human: null
+  description_model: Approve or dismiss a pending guest message; approved messages are appended to the thread's chat history.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_guest_share_moderate
+  cli_path: null
+  parameters: null
+- id: mcp.vox_guest_share_redeem
+  title: Guest Share Redeem
+  description_human: null
+  description_model: Redeem a signed guest share invite and bind it to a guest session.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_guest_share_redeem
+  cli_path: null
+  parameters: null
+- id: mcp.vox_guest_share_submit
+  title: Guest Share Submit
+  description_human: null
+  description_model: Submit a guest prompt to a shared thread's moderation queue.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_guest_share_submit
   cli_path: null
   parameters: null
 - id: mcp.vox_gui_components
@@ -21649,6 +22206,38 @@ curated:
   mcp_tool: vox_list_context
   cli_path: null
   parameters: null
+- id: mcp.vox_list_mcp_servers
+  title: List Mcp Servers
+  description_human: null
+  description_model: List lazily discovered external MCP server groups (tier 1); optionally rebuilds the in-process lazy registry from supplied prefixed tools.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_list_mcp_servers
+  cli_path: null
+  parameters: null
+- id: mcp.vox_list_mcp_tools
+  title: List Mcp Tools
+  description_human: null
+  description_model: List the tool schemas of one lazily discovered external MCP server group (tier 2).
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_list_mcp_tools
+  cli_path: null
+  parameters: null
 - id: mcp.vox_list_models
   title: List Models
   description_human: null
@@ -21887,6 +22476,38 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_models_preference_set
+  cli_path: null
+  parameters: null
+- id: mcp.vox_muse_pool_adopt
+  title: Muse Pool Adopt
+  description_human: null
+  description_model: Adopt the winning Muse worktree variant and delete the losing variants' worktree directories.
+  intent_tags: []
+  side_effect_class: destructive
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_muse_pool_adopt
+  cli_path: null
+  parameters: null
+- id: mcp.vox_muse_pool_spawn
+  title: Muse Pool Spawn
+  description_human: null
+  description_model: Plan 1-4 Muse worktree variants for a run, creating their directories and provisioning untracked env files.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_muse_pool_spawn
   cli_path: null
   parameters: null
 - id: mcp.vox_my_files
@@ -22554,6 +23175,22 @@ curated:
   mcp_tool: vox_populi_local_status
   cli_path: null
   parameters: null
+- id: mcp.vox_pr_review_guide
+  title: Pr Review Guide
+  description_human: null
+  description_model: Generate (and cache in process) a structured review guide for a pull request head from its changed files.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_pr_review_guide
+  cli_path: null
+  parameters: null
 - id: mcp.vox_preference_get
   title: Preference Get
   description_human: null
@@ -22651,6 +23288,38 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_publish_message
+  cli_path: null
+  parameters: null
+- id: mcp.vox_quarantine_list
+  title: Quarantine List
+  description_human: null
+  description_model: List quarantined (read-only) district path prefixes.
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_quarantine_list
+  cli_path: null
+  parameters: null
+- id: mcp.vox_quarantine_set
+  title: Quarantine Set
+  description_human: null
+  description_model: Quarantine or release a district path prefix, toggling read-only enforcement for writes under it.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_quarantine_set
   cli_path: null
   parameters: null
 - id: mcp.vox_questioning_pending
@@ -23153,6 +23822,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_retire_agent
+  cli_path: null
+  parameters: null
+- id: mcp.vox_revert_file
+  title: Revert File
+  description_human: null
+  description_model: Discard uncommitted working-tree changes to one repository-relative file (git checkout -- file).
+  intent_tags: []
+  side_effect_class: destructive
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_revert_file
   cli_path: null
   parameters: null
 - id: mcp.vox_run_tests
@@ -23987,6 +24672,54 @@ curated:
   mcp_tool: vox_session_create
   cli_path: null
   parameters: null
+- id: mcp.vox_session_export_bundle
+  title: Session Export Bundle
+  description_human: null
+  description_model: Export a chat session's transcript as a portable VoxSessionExportBundle v1.
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_session_export_bundle
+  cli_path: null
+  parameters: null
+- id: mcp.vox_session_import_bundle
+  title: Session Import Bundle
+  description_human: null
+  description_model: Import a VoxSessionExportBundle v1 and append its messages to the session's chat history.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_session_import_bundle
+  cli_path: null
+  parameters: null
+- id: mcp.vox_session_import_external
+  title: Session Import External
+  description_human: null
+  description_model: Import a Claude Code, Codex, or Cursor session (raw JSONL, file path, or latest discovered) and append it to a chat session's history.
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_session_import_external
+  cli_path: null
+  parameters: null
 - id: mcp.vox_session_info
   title: Session Info
   description_human: null
@@ -24017,6 +24750,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_session_list
+  cli_path: null
+  parameters: null
+- id: mcp.vox_session_list_external
+  title: Session List External
+  description_human: null
+  description_model: List discoverable Claude Code, Codex, and Cursor session files, newest first.
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_session_list_external
   cli_path: null
   parameters: null
 - id: mcp.vox_session_reset
@@ -24358,6 +25107,22 @@ curated:
   mcp_tool: vox_speech_to_code
   cli_path: null
   parameters: null
+- id: mcp.vox_stage_file
+  title: Stage File
+  description_human: null
+  description_model: Stage one repository-relative file in the Git index (git add -- file).
+  intent_tags: []
+  side_effect_class: writes_files
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_stage_file
+  cli_path: null
+  parameters: null
 - id: mcp.vox_submit_task
   title: Submit Task
   description_human: null
@@ -24580,6 +25345,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_validate_vuv
+  cli_path: null
+  parameters: null
+- id: mcp.vox_vcs_checkpoint_diff_summary
+  title: Vcs Checkpoint Diff Summary
+  description_human: null
+  description_model: Summarize per-file line deltas and the unified patch between a thread checkpoint and HEAD.
+  intent_tags: []
+  side_effect_class: read_only
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_vcs_checkpoint_diff_summary
   cli_path: null
   parameters: null
 - id: mcp.vox_vcs_status

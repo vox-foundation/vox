@@ -57,3 +57,50 @@ XGrammar-2/llguidance PDA backends achieve <40µs/token with native recursion su
 | `pda` | — |
 | `revision` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_constrained_gen: "vox-constrained-gen"
+    node vox_grammar_export: "vox-grammar-export"
+    vox_constrained_gen -> vox_grammar_export
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_constrained_gen
+    node vox_ml_cli: "vox-ml-cli"
+    vox_ml_cli -> vox_constrained_gen
+    node vox_populi: "vox-populi"
+    vox_populi -> vox_constrained_gen
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `deadlock::WatchdogConfig` | `pub struct WatchdogConfig` | [`crates/vox-constrained-gen/src/deadlock.rs#L20-L27`](../../../crates/vox-constrained-gen/src/deadlock.rs#L20-L27) | Watchdog configuration. |
+| `struct` | `deadlock::DeadlockWatchdog` | `pub struct DeadlockWatchdog<S: ConstrainedSampler>` | [`crates/vox-constrained-gen/src/deadlock.rs#L40-L43`](../../../crates/vox-constrained-gen/src/deadlock.rs#L40-L43) | Wraps a [`ConstrainedSampler`] with timeout enforcement. |
+| `fn` | `deadlock::new` | `pub fn new(inner: S, config: WatchdogConfig) -> Self` | [`crates/vox-constrained-gen/src/deadlock.rs#L46-L48`](../../../crates/vox-constrained-gen/src/deadlock.rs#L46-L48) | — |
+| `fn` | `deadlock::mask_logits_with_retry` | `pub fn mask_logits_with_retry(` | [`crates/vox-constrained-gen/src/deadlock.rs#L114`](../../../crates/vox-constrained-gen/src/deadlock.rs#L114) | Execute `mask_logits` with automatic retry on deadlock/timeout.  On each failure the function waits `config.backoff_base_ms * 2^attempt` ms (capped at `config.max_retries`). If all retries are exhausted, the last error is returned. |
+| `struct` | `earley::EarleyState` | `pub struct EarleyState` | [`crates/vox-constrained-gen/src/earley.rs#L42-L49`](../../../crates/vox-constrained-gen/src/earley.rs#L42-L49) | Incremental Earley chart state persisted between generation steps. |
+| `struct` | `earley::EarleySampler` | `pub struct EarleySampler` | [`crates/vox-constrained-gen/src/earley.rs#L177-L179`](../../../crates/vox-constrained-gen/src/earley.rs#L177-L179) | Earley parser-backed constrained sampler. |
+| `fn` | `earley::from_ebnf` | `pub fn from_ebnf(ebnf: &str) -> Result<Self>` | [`crates/vox-constrained-gen/src/earley.rs#L183-L192`](../../../crates/vox-constrained-gen/src/earley.rs#L183-L192) | Build from an explicit EBNF string. |
+| `fn` | `earley::from_vox_grammar` | `pub fn from_vox_grammar() -> Result<Self>` | [`crates/vox-constrained-gen/src/earley.rs#L195-L198`](../../../crates/vox-constrained-gen/src/earley.rs#L195-L198) | Build from the canonical Vox EBNF via `vox-grammar-export`. |
+| `struct` | `pda::PdaState` | `pub struct PdaState` | [`crates/vox-constrained-gen/src/pda.rs#L22-L30`](../../../crates/vox-constrained-gen/src/pda.rs#L22-L30) | Stack-based PDA state persisted between generation steps. |
+| `struct` | `pda::PdaSampler` | `pub struct PdaSampler` | [`crates/vox-constrained-gen/src/pda.rs#L219-L222`](../../../crates/vox-constrained-gen/src/pda.rs#L219-L222) | PDA-backed constrained sampler with context-independent token caching. |
+| `fn` | `pda::from_ebnf` | `pub fn from_ebnf(ebnf: &str) -> Result<Self>` | [`crates/vox-constrained-gen/src/pda.rs#L226-L238`](../../../crates/vox-constrained-gen/src/pda.rs#L226-L238) | Build from an explicit EBNF string. |
+| `fn` | `pda::from_vox_grammar` | `pub fn from_vox_grammar() -> Result<Self>` | [`crates/vox-constrained-gen/src/pda.rs#L241-L244`](../../../crates/vox-constrained-gen/src/pda.rs#L241-L244) | Build from the canonical Vox EBNF. |
+| `struct` | `revision::RevisionConfig` | `pub struct RevisionConfig` | [`crates/vox-constrained-gen/src/revision.rs#L23-L26`](../../../crates/vox-constrained-gen/src/revision.rs#L23-L26) | Configuration for the revision sampler. |
+| `struct` | `revision::RevisionSampler` | `pub struct RevisionSampler<S: ConstrainedSampler>` | [`crates/vox-constrained-gen/src/revision.rs#L37-L40`](../../../crates/vox-constrained-gen/src/revision.rs#L37-L40) | Wraps a [`ConstrainedSampler`] with backtrack support. |
+| `fn` | `revision::new` | `pub fn new(inner: S) -> Self` | [`crates/vox-constrained-gen/src/revision.rs#L43-L48`](../../../crates/vox-constrained-gen/src/revision.rs#L43-L48) | — |
+| `fn` | `revision::with_config` | `pub fn with_config(inner: S, config: RevisionConfig) -> Self` | [`crates/vox-constrained-gen/src/revision.rs#L50-L55`](../../../crates/vox-constrained-gen/src/revision.rs#L50-L55) | — |
+| `fn` | `revision::is_backtrack_token` | `pub fn is_backtrack_token(token_strings: &[String], chosen_idx: usize) -> bool` | [`crates/vox-constrained-gen/src/revision.rs#L122-L127`](../../../crates/vox-constrained-gen/src/revision.rs#L122-L127) | Check whether a chosen token index corresponds to the backtrack sentinel. |
+

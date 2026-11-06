@@ -66,7 +66,6 @@ support the common attributes (`default`, `rename`, `rename_all`,
 ### 4.1 Type definition
 
 ```vox
-// vox:skip — @json_as decorator is the subject of this RFC; not yet implemented.
 @json_as(Product)
 type Product {
     id: int,
@@ -102,12 +101,11 @@ free function (and a sibling `Product::to_json(p: Product) → Json` for symmetr
 ### 4.4 Tagged enums
 
 ```vox
-// vox:skip — @json_as + struct-shape variants are RFC-only.
 @json_as(ToolCall, tag: "kind")
 type ToolCall =
     | Search { query: str }
     | Compute { expr: str, precision: int }
-    | Done
+    | Done { status: str }
 ```
 
 JSON input `{"kind": "Search", "query": "vox lexer"}` → `ToolCall::Search { query: "vox lexer" }`.
@@ -117,11 +115,12 @@ from structure) are a v2 concern; require explicit `tag:` for v1.
 ### 4.5 Call sites
 
 ```vox
-// vox:skip — Uses Product::from_json synthesized by the RFC; not yet emitted.
 fn handle_response(body: str) to Result[Product] {
     let json_res = json.parse(body)
-    if json_res.is_err() { return Err("bad JSON: " + json_res.unwrap_err()) }
-    return Product::from_json(json_res.unwrap())
+    match json_res {
+        Error(msg) => return Error("bad JSON: " + msg)
+        Ok(j) => return Product_from_json(j)
+    }
 }
 ```
 

@@ -69,6 +69,40 @@ pub fn vox_type_to_sql(
     }
 }
 
+/// Inverse of [`vox_type_to_sql`]: the Vox scalar type whose SQL mapping on `backend`
+/// equals `sql_type`, or `None` when no Vox type maps to it.
+///
+/// Derived from the same `sql_for_scalar` table so the two directions cannot drift.
+/// Comparison uses the same normalization `vox db verify` applies (case, spaces,
+/// `(1)` / `(65,30)` suffixes). Where several Vox types share one SQL type
+/// (SQLite `INTEGER` for `int`/`bool`/`Id[T]`, `TEXT` for `str`/`dec`), the first
+/// entry below wins, so the result always maps forward to the same SQL type.
+pub fn sql_type_to_vox(backend: BackendKind, sql_type: &str) -> Option<&'static str> {
+    const ORDER: [(&str, &str); 6] = [
+        ("int", "int"),
+        ("str", "text"),
+        ("float", "float"),
+        ("bool", "bool"),
+        ("bytes", "bytes"),
+        ("dec", "decimal"),
+    ];
+    let want = normalize_sql_type(sql_type);
+    if want.is_empty() {
+        return None;
+    }
+    ORDER
+        .iter()
+        .find(|(_, scalar)| normalize_sql_type(sql_for_scalar(backend, scalar)) == want)
+        .map(|(vox, _)| *vox)
+}
+
+fn normalize_sql_type(ty: &str) -> String {
+    ty.to_ascii_lowercase()
+        .replace(' ', "")
+        .replace("(1)", "")
+        .replace("(65,30)", "")
+}
+
 fn normalize_vox_type(ty: &str) -> String {
     ty.trim().to_ascii_lowercase().replace(' ', "")
 }
@@ -410,5 +444,64 @@ mod semcov_wave39_tests {
             .expect("bytes postgres");
             assert_eq!(result, "BYTEA");
         }
+    }
+}
+
+#[cfg(test)]
+mod sql_to_vox_tests {
+    use super::*;
+
+    fn enabled_backends() -> Vec<BackendKind> {
+        #[allow(unused_mut)]
+        let mut v = vec![BackendKind::Libsql];
+        #[cfg(feature = "postgres")]
+        v.push(BackendKind::Postgres);
+        #[cfg(feature = "mysql")]
+        v.push(BackendKind::MySql);
+        v
+    }
+
+    #[test]
+    fn sql_to_vox_is_inverse_of_vox_to_sql_for_every_scalar() {
+        // Catches: an inverse table that drifts from `vox_type_to_sql`, so a rendered
+        // decl would map back to a different SQL type and `vox db verify` would flag it.
+        for backend in enabled_backends() {
+            for vox in ["str", "int", "float", "bool", "bytes", "dec"] {
+                let sql = vox_type_to_sql(backend, vox, UnsupportedTypePolicy::Reject)
+                    .expect("forward map");
+                let back = sql_type_to_vox(backend, &sql)
+                    .unwrap_or_else(|| panic!("{backend:?}: no inverse for {sql}"));
+                let again = vox_type_to_sql(backend, back, UnsupportedTypePolicy::Reject)
+                    .expect("forward map of inverse");
+                assert_eq!(
+                    again, sql,
+                    "{backend:?}: {vox} -> {sql} -> {back} -> {again}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn sql_to_vox_is_case_and_space_insensitive() {
+        assert_eq!(sql_type_to_vox(BackendKind::Libsql, "integer"), Some("int"));
+        assert_eq!(sql_type_to_vox(BackendKind::Libsql, " Text "), Some("str"));
+        #[cfg(feature = "postgres")]
+        assert_eq!(
+            sql_type_to_vox(BackendKind::Postgres, "double precision"),
+            Some("float")
+        );
+        #[cfg(feature = "mysql")]
+        assert_eq!(
+            sql_type_to_vox(BackendKind::MySql, "tinyint(1)"),
+            Some("bool")
+        );
+    }
+
+    #[test]
+    fn sql_to_vox_returns_none_for_unmapped_types() {
+        assert_eq!(sql_type_to_vox(BackendKind::Libsql, "VARCHAR(20)"), None);
+        assert_eq!(sql_type_to_vox(BackendKind::Libsql, ""), None);
+        #[cfg(feature = "postgres")]
+        assert_eq!(sql_type_to_vox(BackendKind::Postgres, "jsonb"), None);
     }
 }

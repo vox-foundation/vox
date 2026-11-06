@@ -147,8 +147,33 @@ pub fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<Tas
         && params.budget.is_none()
         && params.active_skill.is_none()
         && params.tenant_id.is_none()
+        && params.tier.is_none()
+        && params.mode.is_none()
+        && params.oversight_level.is_none()
+        && params.kb_scope.is_none()
+        && params.grounding_check_enabled.is_none()
     {
         return None;
+    }
+    let requires_approval = params
+        .oversight_level
+        .as_deref()
+        .map(str::trim)
+        .and_then(|o| match o.to_ascii_lowercase().as_str() {
+            "strict" | "5" | "cautious" | "4" => Some(true),
+            "relaxed" | "1" | "guided" | "2" | "balanced" | "3" => Some(false),
+            _ => None,
+        });
+    let mut required_labels = params.required_labels.clone();
+    if let Some(t) = params.tier.as_deref().map(str::trim)
+        && !t.is_empty()
+        && t != "auto"
+    {
+        let label = format!("tier:{t}");
+        let list = required_labels.get_or_insert_with(Vec::new);
+        if !list.contains(&label) {
+            list.push(label);
+        }
     }
     Some(TaskEnqueueHints {
         tenant_id: params.tenant_id.clone(),
@@ -156,7 +181,7 @@ pub fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<Tas
         complexity: params.complexity.map(|c| c.clamp(1, 10)),
         model_preference: params.model_preference.clone(),
         model_override: params.model_override.clone(),
-        mode: None,
+        mode: params.mode.clone(),
         campaign_id,
         benchmark_tier,
         execution_role,
@@ -164,9 +189,9 @@ pub fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<Tas
         harness_spec_json,
         tool_hints: params.tool_hints.clone(),
         research_hints: params.research_hints.clone(),
-        required_labels: params.required_labels.clone(),
+        required_labels,
         is_detached: params.is_detached,
-        requires_approval: None,
+        requires_approval,
         socrates_context: None,
         attachment_manifest: None,
         budget: params.budget.as_ref().map(|b| vox_orchestrator::Budget {
@@ -177,7 +202,7 @@ pub fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<Tas
         turn_id: params.turn_id.clone(),
         active_skill: params.active_skill.clone(),
         clutch: params.clutch.clone(),
-        grounding_check_enabled: None,
+        grounding_check_enabled: params.grounding_check_enabled,
         risk: params.risk.clone(),
         trigger_source: params.trigger_source.clone(),
         chat_session_id: params.chat_session_id.clone(),
@@ -228,6 +253,42 @@ pub fn socrates_context_from_retrieval(
 pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> String {
     let mut params = params;
     let normalized_session_id = normalize_optional_session_id(params.session_id.as_deref());
+    let posture_session = normalized_session_id
+        .as_deref()
+        .or(params.chat_session_id.as_deref());
+    let mut active_posture = crate::chat_tools::chat::message::load_persisted_session_chat_posture(
+        state,
+        posture_session,
+    )
+    .await;
+    let mut posture_updated = false;
+    macro_rules! merge_submit_posture {
+        ($field:ident) => {
+            if params.$field.is_some() {
+                if active_posture.$field != params.$field {
+                    active_posture.$field = params.$field.clone();
+                    posture_updated = true;
+                }
+            } else if active_posture.$field.is_some() {
+                params.$field = active_posture.$field.clone();
+            }
+        };
+    }
+    merge_submit_posture!(clutch);
+    merge_submit_posture!(risk);
+    merge_submit_posture!(tier);
+    merge_submit_posture!(mode);
+    merge_submit_posture!(oversight_level);
+    merge_submit_posture!(kb_scope);
+    merge_submit_posture!(grounding_check_enabled);
+    if posture_updated {
+        crate::chat_tools::chat::message::persist_session_chat_posture(
+            state,
+            posture_session,
+            &active_posture,
+        )
+        .await;
+    }
     if params.session_id.is_none() {
         tracing::debug!(
             target: "vox_mcp::session",

@@ -249,6 +249,8 @@ train_bases:
   # guard runs late; keep entries pinned up front.
   qwen3_code:
     - { hf_id: "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca", floor_mb: 2000,  methods: [qlora], license: apache-2.0, attribution_required: false }   # CPU / ≤8 GB dev
+    - { hf_id: "Qwen/Qwen3-1.7B@70d244cc86ccca08cf5af4e1e306ecf908b1ad5e", methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }
+    - { hf_id: "Qwen/Qwen3-4B@1cfa9a7208912126459214e8b04321603b3df60c", methods: [qlora], license: apache-2.0, attribution_required: false, floor_measured: false }
     - { hf_id: "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218",   floor_mb: 12000, methods: [qlora], license: apache-2.0, attribution_required: false }   # 16 GB tier
     - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",  floor_mb: 20000, methods: [qlora], license: apache-2.0, attribution_required: false }   # 24 GB tier (QLoRA)
     - { hf_id: "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18",  floor_mb: 44000, methods: [lora], license: apache-2.0, attribution_required: false }    # 48 GB tier (un-quantized; beats 24g entry)

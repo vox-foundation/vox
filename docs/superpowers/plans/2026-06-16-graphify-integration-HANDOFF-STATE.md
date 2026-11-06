@@ -17,7 +17,7 @@
 
 **Binding constraints (always):**
 
-- Automation = **VoxScript only** (`vox run scripts/…`); no new `.ps1`/`.sh`/`.py` glue (manifest writer in `scripts/coverage-graph/` is pre-existing Python pipeline).
+- Automation = **VoxLang only** (`vox run scripts/…`); no new `.ps1`/`.sh`/`.py` glue (manifest writer in `scripts/coverage-graph/` is pre-existing Python pipeline).
 - **No `cargo fmt --all`** on Windows — use `vox run scripts/fmt.vox`.
 - DB writes only through `vox-db`; do not open Turso outside allowed crates.
 - Knowledge node IDs: `graphify:{corpus_id}:node:{node_id}`.
@@ -127,7 +127,7 @@ Manifest fields align with `GraphifyManifest` in Rust: `corpus_id`, `built_at`, 
 |------|--------|
 | Auto-refresh hooks | Rebuild triggers on `git_drift`, input manifest change |
 | CI `--strict` freshness | Fail CI when default corpus stale |
-| VoxScript migration | Replace allowlisted `scripts/coverage-graph/*.py` per README deferral |
+| VoxLang migration | Replace allowlisted `scripts/coverage-graph/*.py` per README deferral |
 | Spool events | Tier B `graphify.lifecycle` via `vox-spool` |
 
 ### Code-review blockers (C1–C3 — fix before heavy P2)

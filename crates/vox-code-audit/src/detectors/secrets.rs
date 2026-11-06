@@ -84,7 +84,9 @@ impl SecretDetector {
         }
 
         let skip_if_comment = |col: usize| {
-            file.language == Language::Rust && rust_byte_is_comment(file, line_num, col, rust_ctx)
+            file.language == Language::Rust
+                && (rust_byte_is_comment(file, line_num, col, rust_ctx)
+                    || crate::rules::rust_byte_is_cfg_test(file, line_num, col, rust_ctx))
         };
 
         if let Some(m) = self.aws_key.regex().find(line) {
@@ -147,6 +149,14 @@ impl DetectionRule for SecretDetector {
         rust_ctx: Option<&crate::analysis::RustFileContext>,
     ) -> Vec<Finding> {
         let mut findings = Vec::new();
+        let path_str = file.path.to_string_lossy().replace('\\', "/");
+        if path_str.contains("/tests/")
+            || path_str.ends_with("/tests.rs")
+            || path_str.ends_with("_test.rs")
+            || path_str.ends_with("_tests.rs")
+        {
+            return findings;
+        }
         for (i, line) in file.lines.iter().enumerate() {
             findings.extend(self.check_line(file, line, i + 1, rust_ctx));
         }

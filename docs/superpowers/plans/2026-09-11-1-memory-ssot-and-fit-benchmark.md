@@ -64,7 +64,7 @@ Every line number below was verified at that commit. If a cited line is off by m
 - `cargo test` takes **exactly one** positional TESTNAME filter. Two is a hard error.
 - **Never** `cargo fmt --all`. Use `cargo fmt -p <crate>`.
 - Every new `pub fn` needs a same-file `#[test]` or `tdd-guard` blocks the commit.
-- No new `.py` / `.sh` / `.ps1` glue. Automation is VoxScript.
+- No new `.py` / `.sh` / `.ps1` glue. Automation is VoxLang.
 - A new CLI subcommand needs BOTH `contracts/operations/catalog.v1.yaml` (via `vox ci operations-sync --target cli --write`) AND `contracts/cli/command-registry.yaml` (via `vox ci command-sync --write`), plus a literal `vox <path>` line in `docs/src/reference/cli.md`. All three run inside `ssot-drift`, which runs in the **fast pre-push tier** — miss one and the first `git push` fails with an unrelated-looking error.
 - Do **not** create or edit `docs/src/architecture/research-index.md` — retired 2026-09-06.
 - Do **not** `git add -A`. Commit only the paths your task's **Files** block names.

@@ -22,7 +22,7 @@ status: current
 
 **Intended readers:** Platform engineers, crate contributors, and developers integrating with Vox internal and external crates.
 
-**Total Workspace Crates:** 130
+**Total Workspace Crates:** 131
 
 | Crate | Version | Description |
 |---|---|---|
@@ -121,6 +121,7 @@ status: current
 | [`vox-populi-types`](./vox-populi-types.generated.md) | `0.6.0` | Pure-data types for the Populi mesh: NodeRecord, PopuliRegistryFile, and helpers. L2 — no async runtime, no database. |
 | [`vox-project-scaffold`](./vox-project-scaffold.generated.md) | `0.6.0` | Shared Vox.toml + src/main.vox + skill scaffolding for vox init and MCP |
 | [`vox-publisher`](./vox-publisher.generated.md) | `0.6.0` | Unified news syndication and publishing for vox |
+| [`vox-python-bridge`](./vox-python-bridge.generated.md) | `0.6.0` | Framed stdio host for one lazy Python worker: request lifecycle, handle generations, and fetch-size caps. |
 | [`vox-quantize`](./vox-quantize.generated.md) | `0.6.0` | Data-free k-quant PTQ engine: SafeTensors -> Candle GGML quantized SafeTensors (GPU-first, CPU fallback). |
 | [`vox-redact`](./vox-redact.generated.md) | `0.6.0` | Regex-based redaction of secrets and PII from log lines and JSON values. |
 | [`vox-rename-registry`](./vox-rename-registry.generated.md) | `0.6.0` | Vox public-identifier rename registry and primitive-tag lookup (L0). Extracted from vox-compiler so tooling can use it without pulling in the full compiler. |

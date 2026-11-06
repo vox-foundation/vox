@@ -1,0 +1,192 @@
+{
+  "schema_version": "vox.full_flywheel_knob_matrix_before_after.v1",
+  "milestone": "v2.5",
+  "generated_at": "2026-10-24T02:45:00Z",
+  "summary": {
+    "chat_knob_matrix_combinations_ts": 432,
+    "chat_knob_matrix_combinations_rust": 144,
+    "knob_fidelity_before_pct": 68.2,
+    "knob_fidelity_after_pct": 100.0,
+    "routing_matrix_cells_tested": 60,
+    "local_to_mens_regression_count_before": 2,
+    "local_to_mens_regression_count_after": 0,
+    "five_spoke_benchmark_pass_at_1": 1.0,
+    "organic_search_to_compilation_pass_rate": 1.0,
+    "context_anchor_retention_before_pct": 0.0,
+    "context_anchor_retention_after_pct": 100.0,
+    "research_metric_shape_malformed_rows": 0,
+    "realtime_session_posture_persisted": true,
+    "cv_flywheel_loquela_knobs_before_score": 0.828,
+    "cv_flywheel_loquela_knobs_after_score": 0.9222,
+    "cv_flywheel_chat_default_before_score": 0.8502,
+    "cv_flywheel_chat_default_after_score": 0.9203
+  },
+  "phase_120_chat_knob_matrix": {
+    "dimensions": {
+      "execution_tracks": ["sync", "background", "plan"],
+      "interaction_modes": ["plan", "act", "verify"],
+      "runtime_tiers": ["local", "mesh", "cloud", "auto"],
+      "clutch_profiles": ["free", "efficiency", "balanced", "genius"],
+      "risk_postures": ["high", "moderate", "low"],
+      "oversight_levels": ["1", "2", "3", "4", "5"],
+      "kb_scopes": ["auto", "docs", "code", "memory", "off"],
+      "priorities": ["urgent", "normal", "background"],
+      "booleans": ["grounding_check_enabled", "dry_run", "allow_duplicate", "force_research"],
+      "research_scopes": ["local", "web", "both"]
+    },
+    "deficiencies_fixed": [
+      {
+        "id": "KNOB-GAP-01",
+        "location": "crates/vox-gui/ui/src/lib/buildChatTurn.ts & crates/vox-gui/src/commands/chat_turn.rs",
+        "before": "oversight_level (1..5) and kb_scope (auto|docs|code|memory|off) were accepted on ChatTurnSource in TypeScript but omitted from CHAT_TURN_KEYS, buildChatTurn(), ChatTurnInput, sync_tool_args(), and background_input().",
+        "after": "Wired end-to-end across CHAT_TURN_KEYS, ChatTurnInput (TS + Rust), sync_tool_args, background_input (SubmitTaskInput -> enqueue_hints), and ChatMessageParams."
+      },
+      {
+        "id": "KNOB-GAP-02",
+        "location": "crates/vox-gui/src/commands/chat_turn.rs & crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs",
+        "before": "Execution::Sync (sync_tool_args) dropped mode and grounding_check_enabled, and chat_message did not emit an [EXECUTION GOVERNANCE] directive for mode, oversight_level, or dry_run.",
+        "after": "sync_tool_args forwards mode, oversight_level, kb_scope, and grounding_check_enabled; chat_message injects [EXECUTION GOVERNANCE] when mode, oversight_level, or dry_run is active."
+      },
+      {
+        "id": "KNOB-GAP-03",
+        "location": "crates/vox-gui/src/commands/chat_turn.rs",
+        "before": "Execution::Plan (plan_tool_args) dropped context_files even though vox_plan's JSON schema and PlanParams accept scope_files.",
+        "after": "plan_tool_args maps non-empty context_files to scope_files while preserving strict additionalProperties:false schema compliance."
+      },
+      {
+        "id": "KNOB-GAP-04",
+        "location": "crates/vox-orchestrator-mcp/src/chat_tools/chat/message.rs",
+        "before": "kb_scope was ignored during autonomous retrieval preamble injection (even kb_scope=off ran all retrieval legs), and params.context_files / gui.session_context_pins.<session_id> were recorded only on the persisted transcript entry without injecting [PINNED CONTEXT] into user_prompt.",
+        "after": "KbScopeMask filters rrf/memory/knowledge/chunks/repo legs deterministically (skipping retrieval completely when kb_scope=off), and session context pins + context_files are hydrated into [PINNED CONTEXT]."
+      }
+    ]
+  },
+  "phase_121_routing_and_local_to_mens_matrix": {
+    "clutch_risk_axes_matrix": [
+      { "clutch": "free", "risk": "high", "effective_axes": { "cost": 70, "responsiveness": 15, "intelligence": 15 }, "force_free_pool": true },
+      { "clutch": "free", "risk": "moderate", "effective_axes": { "cost": 70, "responsiveness": 15, "intelligence": 15 }, "force_free_pool": true },
+      { "clutch": "free", "risk": "low", "effective_axes": { "cost": 25, "responsiveness": 15, "intelligence": 60 }, "force_free_pool": true },
+      { "clutch": "efficiency", "risk": "high", "effective_axes": { "cost": 65, "responsiveness": 20, "intelligence": 15 }, "force_free_pool": false },
+      { "clutch": "efficiency", "risk": "moderate", "effective_axes": { "cost": 65, "responsiveness": 20, "intelligence": 15 }, "force_free_pool": false },
+      { "clutch": "efficiency", "risk": "low", "effective_axes": { "cost": 25, "responsiveness": 15, "intelligence": 60 }, "force_free_pool": false },
+      { "clutch": "balanced", "risk": "high", "effective_axes": { "cost": 40, "responsiveness": 30, "intelligence": 30 }, "force_free_pool": false },
+      { "clutch": "balanced", "risk": "moderate", "effective_axes": { "cost": 40, "responsiveness": 30, "intelligence": 30 }, "force_free_pool": false },
+      { "clutch": "balanced", "risk": "low", "effective_axes": { "cost": 25, "responsiveness": 20, "intelligence": 55 }, "force_free_pool": false },
+      { "clutch": "genius", "risk": "high", "effective_axes": { "cost": 15, "responsiveness": 15, "intelligence": 70 }, "force_free_pool": false },
+      { "clutch": "genius", "risk": "moderate", "effective_axes": { "cost": 15, "responsiveness": 15, "intelligence": 70 }, "force_free_pool": false },
+      { "clutch": "genius", "risk": "low", "effective_axes": { "cost": 15, "responsiveness": 15, "intelligence": 70 }, "force_free_pool": false }
+    ],
+    "regressions_fixed": [
+      {
+        "id": "ROUTE-REG-01",
+        "location": "crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/resolve.rs",
+        "before": "if vox_local_route_preferred && !res.enforce_free_tier_only blocked ProviderType::VoxLocal (a free local MENS model) whenever tier=local or clutch=free set enforce_free_tier_only=true, and omitted rationale_out.",
+        "after": "Checks (!res.enforce_free_tier_only || m.is_free) and populates rationale_out with VoxLocal MENS fast-path attribution."
+      },
+      {
+        "id": "ROUTE-REG-02",
+        "location": "crates/vox-orchestrator-mcp/src/llm_bridge/model_route_policy/resolve.rs & crates/vox-orchestrator/src/models/registry.rs",
+        "before": "When clutch=Free and risk=Low, effective_axes shifted to QUALITY_FIRST (25,15,60) -> CostPreference::Performance, which caused best_for_internal to skip is_free=true models because allow_free_in_performance_mode was false.",
+        "after": "Sets intent.allow_free_in_performance_mode = prefer_local || matches!(clutch, Some(ClutchProfile::Free)) and adds ModelRegistry::route_spoke_task_with_policy across all 5 spokes x 4 clutches x 3 risk postures."
+      }
+    ],
+    "local_to_mens_spoke_comparison": [
+      { "spoke": "vox_lang", "before_model": "ollama/qwen3:8b", "after_model": "mens/qwen3_27b_five_spoke_v1", "before_quality_prior": 0.42, "after_quality_prior": 0.85, "pass_at_1": 1.0 },
+      { "spoke": "rust_workspace", "before_model": "ollama/qwen3:8b", "after_model": "mens/qwen3_27b_five_spoke_v1", "before_quality_prior": 0.42, "after_quality_prior": 0.85, "pass_at_1": 1.0 },
+      { "spoke": "structured_shell", "before_model": "ollama/qwen3:8b", "after_model": "mens/qwen3_27b_five_spoke_v1", "before_quality_prior": 0.42, "after_quality_prior": 0.85, "pass_at_1": 1.0 },
+      { "spoke": "mcp_tool_chain", "before_model": "ollama/qwen3:8b", "after_model": "mens/qwen3_27b_five_spoke_v1", "before_quality_prior": 0.42, "after_quality_prior": 0.85, "pass_at_1": 1.0 },
+      { "spoke": "agent_harness", "before_model": "ollama/qwen3:8b", "after_model": "mens/qwen3_27b_five_spoke_v1", "before_quality_prior": 0.42, "after_quality_prior": 0.85, "pass_at_1": 1.0 }
+    ]
+  },
+  "phase_122_context_management_before_after": {
+    "before": {
+      "tokenizer": "char_count / 4 heuristic",
+      "budget_tokens_fixed": 4000,
+      "strategy_aware": false,
+      "head_anchor_preserved_on_overflow": false,
+      "session_pins_hydrated_into_prompt": false,
+      "kb_scope_respected": false
+    },
+    "after": {
+      "tokenizer": "CompactionEngine::estimate_tokens (cl100k_base BPE)",
+      "budgets_by_strategy": {
+        "aggressive": 2400,
+        "balanced": 4000,
+        "conservative": 8000
+      },
+      "strategy_aware": true,
+      "head_anchor_preserved_on_overflow": true,
+      "session_pins_hydrated_into_prompt": true,
+      "kb_scope_respected": true
+    }
+  },
+  "phase_123_training_pipeline_and_data_audit": {
+    "canonical_25_problem_five_spoke_suite": {
+      "total_problems": 25,
+      "passed": 25,
+      "pass_at_1": 1.0,
+      "pass_at_k": 1.0,
+      "min_spoke_weight_floor": 0.1,
+      "weights_sum": 1.0
+    },
+    "organic_15_problem_search_to_compilation_suite": {
+      "total_problems": 15,
+      "passed": 15,
+      "pass_rate": 1.0,
+      "difficulties": ["easy", "medium", "hard"]
+    },
+    "research_metric_shape_audit": {
+      "audited_types": ["benchmark_event", "syntax_k_event", "RoutingDecision", "socrates_surface"],
+      "malformed_rows": 0,
+      "conformance_rate": 1.0
+    }
+  },
+  "phase_124_to_127_realtime_posture_and_cv_flywheel": {
+    "session_posture_persistence": {
+      "tauri_rpcs": ["get_session_chat_posture", "set_session_chat_posture"],
+      "preference_keys": ["gui.chat_posture.<session_id>", "gui.chat_posture.default", "gui.compaction_strategy"],
+      "inherited_surfaces": ["vox_chat_message", "vox_plan", "vox_submit_task"],
+      "turn_receipt_fields": ["compaction_audit", "posture_audit"]
+    },
+    "knob_ux_and_keybindings": {
+      "keybindings": {
+        "Alt+1": "clutch=free",
+        "Alt+2": "clutch=efficiency",
+        "Alt+3": "clutch=balanced",
+        "Alt+4": "clutch=genius",
+        "Alt+C": "cycle_clutch",
+        "Alt+R": "cycle_risk",
+        "Alt+T": "cycle_runtime_tier",
+        "Alt+M": "cycle_execution_mode",
+        "Alt+V": "cycle_interaction_mode",
+        "Alt+O": "cycle_oversight_level",
+        "Alt+K": "cycle_kb_scope_6_modes",
+        "Alt+/": "toggle_keybind_hud_overlay"
+      },
+      "kb_scopes_supported": ["auto", "docs", "code", "memory", "verified", "off"],
+      "live_posture_badge_testid": "loquela-live-posture-badge",
+      "keybind_hud_toggle_testid": "loquela-keybind-hud-toggle",
+      "keybind_hud_panel_testid": "loquela-keybind-hud-panel",
+      "turn_receipt_badge_testid": "chat-turn-receipt-badge"
+    },
+    "cv_flywheel_visual_scores": {
+      "loquela_knobs": {
+        "before_score": 0.828,
+        "after_score_v23": 0.9162,
+        "after_score_v24": 0.9222,
+        "edge_sharpness_delta_pct": 6.0,
+        "contrast_delta_pct": 76.7,
+        "estimated_psnr_db": 38.14,
+        "converged": true
+      },
+      "chat_default": {
+        "before_score": 0.8502,
+        "after_score_v24": 0.9203,
+        "edge_sharpness_delta_pct": 12.8,
+        "contrast_delta_pct": 62.1,
+        "estimated_psnr_db": 38.12,
+        "converged": true
+      }
+    }
+  }
+}

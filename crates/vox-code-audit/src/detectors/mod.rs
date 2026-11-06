@@ -145,6 +145,20 @@ pub mod catch_all_swallow;
 /// Flags touch-test anti-patterns: #[test] fns that assert nothing meaningful.
 pub mod weak_test;
 
+/// Enforces the workspace All-TursoDB persistence policy (`vox/db/non-turso-persistence`).
+pub mod db_persistence_policy;
+
+pub mod host_runtime_probe;
+pub mod inline_schema_compile;
+/// T3-TOESTUB-RULES-01..03 detectors.
+pub mod mcp_access_and_error_safety;
+pub mod test_clock_and_skip;
+pub mod test_in_loop;
+pub mod test_wall_clock;
+pub mod thin_transport_bypass;
+pub mod ui_perf_hazards;
+pub mod unreasoned_suppression;
+
 #[cfg(test)]
 mod semcov_wave32_tests;
 
@@ -216,12 +230,22 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
         Box::new(import_cycles::ImportCyclesDetector::new()),
         Box::new(catch_all_swallow::CatchAllSwallowDetector::new()),
         Box::new(weak_test::WeakTestDetector::new()),
+        Box::new(db_persistence_policy::DbPersistencePolicyDetector::new()),
+        Box::new(unreasoned_suppression::UnreasonedSuppressionDetector::new()),
+        Box::new(thin_transport_bypass::ThinTransportBypassDetector::new()),
+        Box::new(test_clock_and_skip::TestClockAndSkipDetector::new()),
+        Box::new(mcp_access_and_error_safety::McpAccessAndErrorSafetyDetector::new()),
+        Box::new(ui_perf_hazards::UiPerfHazardsDetector::new()),
+        Box::new(test_wall_clock::TestWallClockDetector::new()),
+        Box::new(test_in_loop::TestInLoopDetector::new()),
+        Box::new(host_runtime_probe::HostRuntimeProbeDetector::new()),
+        Box::new(inline_schema_compile::InlineSchemaCompileDetector::new()),
     ]
 }
 
 /// Returns the number of built-in rules.
 pub fn rule_count() -> usize {
-    55
+    65
 }
 
 #[cfg(test)]

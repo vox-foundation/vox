@@ -1,0 +1,19 @@
+// ---
+// title: "West revenue by month"
+// description: "Scan a CSV, keep the west rows, sum amount by month, and collect once."
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// constructs: [fn, import, std.frame, Result, assert]
+// training_eligible: true
+// difficulty: beginner
+// ---
+
+import std.frame
+
+@uses(python, fs)
+fn main() {
+    let rows = frame.scan_csv("fixtures/py_frame_report.csv").filter(frame.col("region").eq("west")).group_by(["month"]).agg([frame.col("amount").sum().alias("revenue")]).sort("month", nulls="last").collect().unwrap()
+    assert(rows.num_rows() is 2)
+    assert(rows.column("revenue") is [10, 5])
+}

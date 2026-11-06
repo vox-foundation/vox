@@ -154,3 +154,118 @@ async fn provider_quota_usage_spend_and_get_roundtrip() {
         .expect("some usage 2");
     assert_eq!(usage2.units_spent, 75);
 }
+
+#[test]
+fn baseline_sql_partial_indexes_are_strictly_allowlisted() {
+    let sql = vox_db::schema::baseline_sql();
+    let index_re = regex::Regex::new(
+        r"(?is)CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-zA-Z0-9_]+)\s+ON\s+[a-zA-Z0-9_]+\s*\([^)]+\)\s*WHERE\s+([^;]+);",
+    )
+    .expect("regex");
+
+    // Only insert-time immutable uniqueness/dedupe partial indexes are allowed in Turso 0.6.x
+    // (mutable nullable partial indexes trip Turso's IdxDelete bug on UPDATE).
+    let allowlisted = [
+        "idx_conversations_repo_ext_session",
+        "idx_scientia_harness_issues_pending_session_category",
+        "idx_mesh_a2a_idempotency",
+        "convergence_op_log_change_id",
+    ];
+
+    for caps in index_re.captures_iter(sql) {
+        let idx_name = caps.get(1).expect("idx name").as_str();
+        assert!(
+            allowlisted.contains(&idx_name),
+            "Disallowed partial index `{idx_name}` in baseline_sql(). Use a composite covering B-tree index instead of a partial WHERE index on mutable columns."
+        );
+    }
+}
+
+#[test]
+fn baseline_sql_forbids_removed_redundant_prefix_indexes() {
+    let sql = vox_db::schema::baseline_sql();
+    let retired_redundant = [
+        "idx_memories_agent",
+        "idx_behavior_user",
+        "idx_learned_patterns_user",
+        "idx_knowledge_edges_src",
+        "idx_knowledge_edges_dst",
+        "idx_search_chunks_doc",
+        "idx_user_preferences_user",
+        "idx_account_config_account",
+    ];
+    for idx in retired_redundant {
+        let pattern = format!("INDEX IF NOT EXISTS {idx} ");
+        assert!(
+            !sql.contains(&pattern),
+            "Redundant left-prefix index `{idx}` must not be reintroduced in baseline_sql()"
+        );
+    }
+}
+
+#[tokio::test]
+async fn turso_consolidated_sidecar_tables_and_covering_indexes_round_trip() {
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+
+    // 1. Verify covering & FK indexes exist in sqlite_master
+    let index_rows = db
+        .query_all(
+            "SELECT name, sql FROM sqlite_master WHERE type='index' AND name IN (
+                'idx_llm_interactions_trial',
+                'idx_llm_interactions_cat_created',
+                'idx_llm_attempts_trace',
+                'idx_scientia_ext_intel_status',
+                'idx_corpus_pairs_label_origin',
+                'idx_scientia_harness_decisions_issue',
+                'idx_scientia_harness_fix_proposals_issue',
+                'idx_telemetry_upload_spool_created',
+                'idx_mesh_replay_nonces_recorded',
+                'idx_mesh_local_nodes_updated'
+            )",
+            (),
+        )
+        .await
+        .expect("query indexes");
+    assert_eq!(
+        index_rows.len(),
+        10,
+        "all 10 new/upgraded Turso covering and FK indexes must be present"
+    );
+
+    // 2. Verify telemetry_upload_spool round-trip
+    db.enqueue_telemetry_upload_spool("spool-1", r#"{"event":"test"}"#, 1000)
+        .await
+        .expect("enqueue spool");
+    let spool_items = db.list_telemetry_upload_spool().await.expect("list spool");
+    assert_eq!(spool_items.len(), 1);
+    assert_eq!(spool_items[0].0, "spool-1");
+    assert!(
+        db.ack_telemetry_upload_spool("spool-1")
+            .await
+            .expect("ack spool")
+    );
+    assert!(
+        db.list_telemetry_upload_spool()
+            .await
+            .expect("list spool empty")
+            .is_empty()
+    );
+
+    // 3. Verify mesh_replay_nonces round-trip
+    db.upsert_mesh_replay_nonce("jwt_jti", "jti-abc", 5000)
+        .await
+        .expect("upsert nonce");
+    let nonces = db
+        .list_mesh_replay_nonces("jwt_jti")
+        .await
+        .expect("list nonces");
+    assert_eq!(nonces, vec![("jti-abc".to_string(), 5000)]);
+
+    // 4. Verify mesh_local_nodes round-trip
+    db.upsert_mesh_local_node("node-1", r#"{"id":"node-1"}"#, 9000)
+        .await
+        .expect("upsert local node");
+    let nodes = db.list_mesh_local_nodes().await.expect("list local nodes");
+    assert_eq!(nodes.len(), 1);
+    assert_eq!(nodes[0].0, "node-1");
+}

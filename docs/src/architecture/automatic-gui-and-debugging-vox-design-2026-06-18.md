@@ -38,8 +38,8 @@ Forms-from-`@form`, type→Zod/TS/DB, clap→GUI controls, `@reactive component`
 
 A single **opt-in** `@admin` annotation on a type/table emits a **complete admin surface** (list + detail + edit + create), with CRUD endpoints auto-wired — the proven Naked Objects pattern (Pawson/DSFA, research §2.1), expressed in Vox idiom and rendered through VUV's *typed* design tokens. The `@admin(...)` hint args play the role of react-jsonschema-form's `uiSchema` — a small typed presentation layer over the derived structure ([auto-GUI research §4](auto-gui-from-pure-logic-research-2026-06-18.md)).
 
-```vox
-// vox:skip — illustrative surface syntax, not yet in the grammar
+```text
+// Illustrative surface syntax, not yet in the grammar
 @admin(title: "Users", searchable: [name, email], readonly: [created_at])
 table User {
   id: uuid

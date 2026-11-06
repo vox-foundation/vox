@@ -24,6 +24,10 @@ fn facet_lint_rel_path_scopes_to_authored_md_under_docs_src() {
     assert_eq!(rel("docs/src/a/archive/z.md"), None);
     assert_eq!(rel("docs/src/reference/cli.generated.md"), None);
     assert_eq!(rel("docs/src/index.mdx"), None);
+    assert_eq!(
+        rel("docs/src/tutorials/guide.mdx").as_deref(),
+        Some("docs/src/tutorials/guide.mdx")
+    );
     assert_eq!(rel("README.md"), None);
     assert!(rel("docs/src/archive-notes.md").is_some());
 }

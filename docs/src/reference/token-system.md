@@ -45,15 +45,13 @@ Token paths become CSS custom properties by joining segments with `-` and prefix
 | `color.text` | `--vox-color-text` |
 | `spacing.md` | `--vox-spacing-md` |
 
-In Vox source use `tokens.<path>` syntax:
+In Vox source, reference token paths on view primitives (for example, `surface`, `bg`, and `color` kwargs):
 
 ```vox
-// vox:skip -- illustrative future syntax; style {} only supports .selector { prop: "literal" } today, no token references
-component Button {
-  style {
-    color: tokens.color.text
-    background: tokens.color.primary
-  }
+component Button(label: str) {
+    view: button(bg="primary", color="text", pad=4) {
+        label
+    }
 }
 ```
 

@@ -50,3 +50,24 @@ CR-META criteria-format lint.
 |---|---|
 | `criteria_format` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_arch_check: "vox-arch-check"
+    node vox_build_meta: "vox-build-meta"
+    vox_arch_check -> vox_build_meta
+    node vox_rename_registry: "vox-rename-registry"
+    vox_arch_check -> vox_rename_registry
+    node vox_test_harness: "vox-test-harness"
+    vox_arch_check -> vox_test_harness
+}
+```
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `criteria_format::check_criteria_format` | `pub fn check_criteria_format(doc: &str) -> Result<(), Vec<String>>` | [`crates/vox-arch-check/src/criteria_format.rs#L7-L25`](../../../crates/vox-arch-check/src/criteria_format.rs#L7-L25) | Returns `Ok(())` when every criterion block is well-formed, else the list of human-readable violations. |
+

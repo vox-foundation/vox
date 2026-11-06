@@ -6,7 +6,7 @@
 
 **Architecture:** We will implement a platform-independent `.vox` training automation script that performs a preflight VRAM check, selects/downloads the optimal model target, runs the fine-tuning training process using the Candle QLoRA backend, and saves the adapter weights.
 
-**Tech Stack:** VoxScript (.vox), Rust (`vox-ml-cli`), Candle QLoRA, Hugging Face Tokenizers.
+**Tech Stack:** VoxLang (.vox), Rust (`vox-ml-cli`), Candle QLoRA, Hugging Face Tokenizers.
 
 ---
 

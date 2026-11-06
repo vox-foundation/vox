@@ -1,0 +1,711 @@
+//! Model-free detection of a pinned base snapshot and its adapter.
+//! Never opens a weight file and never loads a model.
+
+use std::collections::HashMap;
+use std::ffi::OsString;
+use std::path::{Component, Path, PathBuf};
+
+use vox_populi::mens::tensor::spoke_base_resolver::TrainBase;
+
+use vox_eval::reasoning_bench::{AbsenceReason, AbsenceRecord, BaseLabel};
+
+/// A pinned snapshot plus a matching adapter, or the absence record to write.
+pub(crate) enum Detected {
+    /// Both inputs are on disk at the exact pin.
+    Ready {
+        snapshot: PathBuf,
+        adapter: PathBuf,
+        base: BaseLabel,
+    },
+    /// Detection stopped. The record is the only thing the command may write.
+    NotCompared(AbsenceRecord),
+}
+
+/// `explicit`, then `HF_HUB_CACHE`, then `HF_HOME/hub`, then `<home>/.cache/huggingface/hub`.
+pub(crate) fn resolve_hub_root(
+    explicit: Option<&Path>,
+    hf_hub_cache: Option<OsString>,
+    hf_home: Option<OsString>,
+    home: Option<PathBuf>,
+) -> Option<PathBuf> {
+    if let Some(path) = explicit {
+        return Some(path.to_path_buf());
+    }
+    if let Some(cache) = hf_hub_cache {
+        return Some(PathBuf::from(cache));
+    }
+    if let Some(hf_home) = hf_home {
+        return Some(PathBuf::from(hf_home).join("hub"));
+    }
+    home.map(|dir| dir.join(".cache/huggingface/hub"))
+}
+
+/// Exact `models--<owner>--<name>/snapshots/<sha>/` path. `None` when the pin has no revision.
+pub(crate) fn snapshot_dir(hub_root: &Path, label: &BaseLabel) -> Option<PathBuf> {
+    let revision = label.revision.as_ref()?;
+    let repo = label.repo_id.replace('/', "--");
+    Some(
+        hub_root
+            .join(format!("models--{repo}"))
+            .join("snapshots")
+            .join(revision),
+    )
+}
+
+/// Classify the hub tree and adapter. Looks only at the exact pinned snapshot path.
+pub(crate) fn detect_inputs(
+    hub_root: &Path,
+    label: &BaseLabel,
+    adapter: Option<&Path>,
+) -> Detected {
+    let Some(snapshot) = snapshot_dir(hub_root, label) else {
+        return absent(label, AbsenceReason::PinUnverifiable, None, adapter, false);
+    };
+    let searched = Some(snapshot.display().to_string());
+    if !snapshot.is_dir() {
+        return absent(
+            label,
+            AbsenceReason::BaseSnapshotAbsent,
+            searched,
+            adapter,
+            false,
+        );
+    }
+    if !snapshot_complete(&snapshot) {
+        return absent(
+            label,
+            AbsenceReason::BaseSnapshotIncomplete,
+            searched,
+            adapter,
+            false,
+        );
+    }
+    let Some(adapter_dir) = adapter else {
+        return absent(label, AbsenceReason::AdapterAbsent, searched, None, false);
+    };
+    let weights = adapter_dir.join("candle_qlora_adapter.safetensors");
+    let manifest = adapter_dir.join("adapter_manifest.json");
+    let pair_on_disk = weights.is_file() && manifest.is_file();
+    match (weights.is_file(), manifest.is_file()) {
+        (false, false) => {
+            return absent(
+                label,
+                AbsenceReason::AdapterAbsent,
+                searched,
+                Some(adapter_dir),
+                false,
+            );
+        }
+        (false, true) | (true, false) => {
+            return absent(
+                label,
+                AbsenceReason::AdapterIncomplete,
+                searched,
+                Some(adapter_dir),
+                false,
+            );
+        }
+        (true, true) => {}
+    }
+    match manifest_matches(&manifest, &snapshot) {
+        ManifestMatch::Matches => {
+            // The loader reads tokenizer.json (and training copies config.json)
+            // before it opens the manifest. A pair that cannot be loaded stays
+            // on the absence path and never scores the base.
+            if !adapter_dir.join("tokenizer.json").is_file()
+                || !adapter_dir.join("config.json").is_file()
+            {
+                return absent(
+                    label,
+                    AbsenceReason::AdapterIncomplete,
+                    searched,
+                    Some(adapter_dir),
+                    pair_on_disk,
+                );
+            }
+            Detected::Ready {
+                snapshot,
+                adapter: adapter_dir.to_path_buf(),
+                base: label.clone(),
+            }
+        }
+        ManifestMatch::Incomplete => absent(
+            label,
+            AbsenceReason::AdapterIncomplete,
+            searched,
+            Some(adapter_dir),
+            pair_on_disk,
+        ),
+        ManifestMatch::NotPinned => absent(
+            label,
+            AbsenceReason::AdapterBaseNotPinnedSnapshot,
+            searched,
+            Some(adapter_dir),
+            pair_on_disk,
+        ),
+    }
+}
+
+pub(crate) fn snapshot_complete(snapshot: &Path) -> bool {
+    if !snapshot.join("config.json").is_file() || !snapshot.join("tokenizer.json").is_file() {
+        return false;
+    }
+    let index = snapshot.join("model.safetensors.index.json");
+    if index.is_file() {
+        let Ok(text) = vox_bounded_fs::read_utf8_path_capped(&index) else {
+            return false;
+        };
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) else {
+            return false;
+        };
+        let Some(map) = value
+            .get("weight_map")
+            .and_then(serde_json::Value::as_object)
+        else {
+            return false;
+        };
+        let mut shards: Vec<&str> = map.values().filter_map(serde_json::Value::as_str).collect();
+        shards.sort_unstable();
+        shards.dedup();
+        !shards.is_empty() && shards.iter().all(|shard| shard_is_file(snapshot, shard))
+    } else {
+        snapshot.join("model.safetensors").is_file()
+    }
+}
+
+/// A shard counts only as a file inside the snapshot. `..` and absolute names do not.
+fn shard_is_file(snapshot: &Path, shard: &str) -> bool {
+    let rel = Path::new(shard);
+    if rel.is_absolute() || rel.components().any(|c| matches!(c, Component::ParentDir)) {
+        return false;
+    }
+    snapshot.join(rel).is_file()
+}
+
+enum ManifestMatch {
+    Matches,
+    Incomplete,
+    NotPinned,
+}
+
+fn manifest_matches(manifest: &Path, snapshot: &Path) -> ManifestMatch {
+    let Ok(text) = vox_bounded_fs::read_utf8_path_capped(manifest) else {
+        return ManifestMatch::Incomplete;
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return ManifestMatch::Incomplete;
+    };
+    let Some(base) = value.get("base_model").and_then(serde_json::Value::as_str) else {
+        return ManifestMatch::NotPinned;
+    };
+    let path = Path::new(base);
+    if !path.is_dir() {
+        return ManifestMatch::NotPinned;
+    }
+    match (path.canonicalize(), snapshot.canonicalize()) {
+        (Ok(left), Ok(right)) if left == right => ManifestMatch::Matches,
+        _ => ManifestMatch::NotPinned,
+    }
+}
+
+pub(crate) fn adapter_manifest_names_snapshot(manifest: &Path, snapshot: &Path) -> bool {
+    matches!(manifest_matches(manifest, snapshot), ManifestMatch::Matches)
+}
+
+fn absent(
+    label: &BaseLabel,
+    reason: AbsenceReason,
+    searched: Option<String>,
+    adapter: Option<&Path>,
+    adapter_on_disk: bool,
+) -> Detected {
+    Detected::NotCompared(AbsenceRecord {
+        base: label.clone(),
+        reason,
+        searched,
+        adapter_given: adapter.is_some(),
+        adapter_on_disk,
+    })
+}
+
+/// Resolve a size name or pinned id. `None` is the pinned default. An unknown
+/// or ambiguous name is returned unchanged so detection records `pin_unverifiable`.
+pub(crate) fn resolve_base_pin(
+    requested: Option<&str>,
+    overlay: &HashMap<String, Vec<TrainBase>>,
+) -> anyhow::Result<String> {
+    let Some(input) = requested else {
+        return Ok(vox_populi::mens::DEFAULT_MODEL_ID.to_string());
+    };
+    if BaseLabel::from_pin(input).revision.is_some() {
+        return Ok(input.to_string());
+    }
+    if vox_populi::mens::tensor::spoke_base_resolver::is_qwen3_size_spelling(input) {
+        let pin =
+            vox_populi::mens::tensor::spoke_base_resolver::resolve_qwen3_size(overlay, input)?;
+        return Ok(pin.hf_id);
+    }
+    let mut pins: Vec<String> = Vec::new();
+    for bases in overlay.values() {
+        for base in bases {
+            let label = BaseLabel::from_pin(&base.hf_id);
+            if label.revision.is_none() {
+                continue;
+            }
+            let repo = label.repo_id.as_str();
+            if (repo == input || repo.ends_with(&format!("/{input}")))
+                && !pins.contains(&base.hf_id)
+            {
+                pins.push(base.hf_id.clone());
+            }
+        }
+    }
+    if pins.len() == 1 {
+        Ok(pins.remove(0))
+    } else {
+        Ok(input.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const PIN_8B: &str = "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218";
+    const PIN_06B: &str = "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca";
+
+    fn write_files(dir: &Path, names: &[&str]) {
+        std::fs::create_dir_all(dir).unwrap();
+        for name in names {
+            std::fs::write(dir.join(name), b"").unwrap();
+        }
+    }
+
+    fn place(hub: &Path, repo: &str, revision: &str) -> PathBuf {
+        let dir = hub
+            .join(format!("models--{}", repo.replace('/', "--")))
+            .join("snapshots")
+            .join(revision);
+        write_files(
+            &dir,
+            &["config.json", "tokenizer.json", "model.safetensors"],
+        );
+        dir
+    }
+
+    fn reason_of(detected: Detected) -> AbsenceReason {
+        match detected {
+            Detected::NotCompared(record) => record.reason,
+            Detected::Ready { .. } => panic!("expected an absence, got Ready"),
+        }
+    }
+
+    fn write_adapter(dir: &Path, base_model: &str) {
+        write_files(
+            dir,
+            &[
+                "candle_qlora_adapter.safetensors",
+                "tokenizer.json",
+                "config.json",
+            ],
+        );
+        std::fs::write(
+            dir.join("adapter_manifest.json"),
+            serde_json::json!({ "base_model": base_model }).to_string(),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn empty_hub_root_is_base_snapshot_absent() {
+        let hub = tempfile::tempdir().unwrap();
+        let label = BaseLabel::from_pin(PIN_8B);
+        assert_eq!(
+            reason_of(detect_inputs(hub.path(), &label, None)),
+            AbsenceReason::BaseSnapshotAbsent
+        );
+    }
+
+    #[test]
+    fn hub_with_only_qwen3_0_6b_is_absent_for_the_8b_pin() {
+        let hub = tempfile::tempdir().unwrap();
+        let rev = PIN_06B.rsplit('@').next().unwrap();
+        place(hub.path(), "Qwen/Qwen3-0.6B", rev);
+        let label = BaseLabel::from_pin(PIN_8B);
+        assert_eq!(
+            reason_of(detect_inputs(hub.path(), &label, None)),
+            AbsenceReason::BaseSnapshotAbsent
+        );
+    }
+
+    #[test]
+    fn other_revision_is_not_the_pinned_snapshot() {
+        let hub = tempfile::tempdir().unwrap();
+        place(
+            hub.path(),
+            "Qwen/Qwen3-8B",
+            "0123456789abcdef0123456789abcdef01234567",
+        );
+        let label = BaseLabel::from_pin(PIN_8B);
+        assert_eq!(
+            reason_of(detect_inputs(hub.path(), &label, None)),
+            AbsenceReason::BaseSnapshotAbsent
+        );
+    }
+
+    #[test]
+    fn pin_without_40_hex_revision_is_unverifiable() {
+        let hub = tempfile::tempdir().unwrap();
+        let short = "b968826d9c46dd6066d109eabc6255188de9121";
+        assert_eq!(short.len(), 39);
+        for pin in [
+            "Qwen/Qwen3-8B",
+            "Qwen/Qwen3-8B@main",
+            &format!("Qwen/Qwen3-8B@{short}"),
+        ] {
+            let label = BaseLabel::from_pin(pin);
+            assert_eq!(
+                reason_of(detect_inputs(hub.path(), &label, None)),
+                AbsenceReason::PinUnverifiable,
+                "{pin}"
+            );
+        }
+    }
+
+    #[test]
+    fn hub_root_order() {
+        let explicit = Path::new("/explicit");
+        let cache = OsString::from("/cache");
+        let hf_home = OsString::from("/hfhome");
+        let home = PathBuf::from("/home/user");
+        assert_eq!(
+            resolve_hub_root(
+                Some(explicit),
+                Some(cache.clone()),
+                Some(hf_home.clone()),
+                Some(home.clone())
+            ),
+            Some(explicit.to_path_buf())
+        );
+        assert_eq!(
+            resolve_hub_root(None, Some(cache), Some(hf_home.clone()), Some(home.clone())),
+            Some(PathBuf::from("/cache"))
+        );
+        assert_eq!(
+            resolve_hub_root(None, None, Some(hf_home), Some(home.clone())),
+            Some(PathBuf::from("/hfhome/hub"))
+        );
+        assert_eq!(
+            resolve_hub_root(None, None, None, Some(home)),
+            Some(PathBuf::from("/home/user/.cache/huggingface/hub"))
+        );
+        assert_eq!(resolve_hub_root(None, None, None, None), None);
+    }
+
+    fn pinned_dir(hub: &Path) -> PathBuf {
+        let label = BaseLabel::from_pin(PIN_8B);
+        hub.join("models--Qwen--Qwen3-8B")
+            .join("snapshots")
+            .join(label.revision.expect("pin"))
+    }
+
+    #[test]
+    fn snapshot_missing_tokenizer_is_incomplete() {
+        let hub = tempfile::tempdir().unwrap();
+        let dir = pinned_dir(hub.path());
+        write_files(&dir, &["config.json", "model.safetensors"]);
+        let label = BaseLabel::from_pin(PIN_8B);
+        assert_eq!(
+            reason_of(detect_inputs(hub.path(), &label, None)),
+            AbsenceReason::BaseSnapshotIncomplete
+        );
+    }
+
+    // std::os::unix is absent on Windows; an ungated call fails the whole test module.
+    #[cfg(unix)]
+    #[test]
+    fn snapshot_with_dangling_shard_link_is_incomplete() {
+        let hub = tempfile::tempdir().unwrap();
+        let dir = pinned_dir(hub.path());
+        write_files(
+            &dir,
+            &[
+                "config.json",
+                "tokenizer.json",
+                "model-00001-of-00002.safetensors",
+            ],
+        );
+        let index = serde_json::json!({
+            "weight_map": {
+                "a": "model-00001-of-00002.safetensors",
+                "b": "model-00002-of-00002.safetensors"
+            }
+        });
+        std::fs::write(dir.join("model.safetensors.index.json"), index.to_string()).unwrap();
+        std::os::unix::fs::symlink("missing-blob", dir.join("model-00002-of-00002.safetensors"))
+            .unwrap();
+        let label = BaseLabel::from_pin(PIN_8B);
+        assert_eq!(
+            reason_of(detect_inputs(hub.path(), &label, None)),
+            AbsenceReason::BaseSnapshotIncomplete
+        );
+    }
+
+    #[test]
+    fn snapshot_with_all_indexed_shards_is_present() {
+        let hub = tempfile::tempdir().unwrap();
+        let dir = pinned_dir(hub.path());
+        write_files(
+            &dir,
+            &[
+                "config.json",
+                "tokenizer.json",
+                "model-00001-of-00002.safetensors",
+                "model-00002-of-00002.safetensors",
+            ],
+        );
+        let index = serde_json::json!({
+            "weight_map": {
+                "a": "model-00001-of-00002.safetensors",
+                "b": "model-00002-of-00002.safetensors"
+            }
+        });
+        std::fs::write(dir.join("model.safetensors.index.json"), index.to_string()).unwrap();
+        let adapter = tempfile::tempdir().unwrap();
+        write_adapter(adapter.path(), &dir.display().to_string());
+        let label = BaseLabel::from_pin(PIN_8B);
+        assert!(matches!(
+            detect_inputs(hub.path(), &label, Some(adapter.path())),
+            Detected::Ready { .. }
+        ));
+    }
+
+    #[test]
+    fn snapshot_with_single_safetensors_is_present() {
+        let hub = tempfile::tempdir().unwrap();
+        let dir = place(
+            hub.path(),
+            "Qwen/Qwen3-8B",
+            PIN_8B.rsplit('@').next().unwrap(),
+        );
+        let adapter = tempfile::tempdir().unwrap();
+        write_adapter(adapter.path(), &dir.display().to_string());
+        let label = BaseLabel::from_pin(PIN_8B);
+        assert!(matches!(
+            detect_inputs(hub.path(), &label, Some(adapter.path())),
+            Detected::Ready { .. }
+        ));
+    }
+
+    #[test]
+    fn adapter_manifest_base_must_be_the_pinned_snapshot() {
+        let hub = tempfile::tempdir().unwrap();
+        let dir = place(
+            hub.path(),
+            "Qwen/Qwen3-8B",
+            PIN_8B.rsplit('@').next().unwrap(),
+        );
+        let label = BaseLabel::from_pin(PIN_8B);
+        let other = tempfile::tempdir().unwrap();
+
+        let mismatch = tempfile::tempdir().unwrap();
+        write_adapter(mismatch.path(), &other.path().display().to_string());
+        assert_eq!(
+            reason_of(detect_inputs(hub.path(), &label, Some(mismatch.path()))),
+            AbsenceReason::AdapterBaseNotPinnedSnapshot
+        );
+
+        let hub_id = tempfile::tempdir().unwrap();
+        write_adapter(hub_id.path(), "Qwen/Qwen3-8B");
+        assert_eq!(
+            reason_of(detect_inputs(hub.path(), &label, Some(hub_id.path()))),
+            AbsenceReason::AdapterBaseNotPinnedSnapshot
+        );
+
+        let missing = tempfile::tempdir().unwrap();
+        write_files(missing.path(), &["candle_qlora_adapter.safetensors"]);
+        std::fs::write(missing.path().join("adapter_manifest.json"), "{}").unwrap();
+        assert_eq!(
+            reason_of(detect_inputs(hub.path(), &label, Some(missing.path()))),
+            AbsenceReason::AdapterBaseNotPinnedSnapshot
+        );
+
+        let malformed = tempfile::tempdir().unwrap();
+        write_files(malformed.path(), &["candle_qlora_adapter.safetensors"]);
+        std::fs::write(malformed.path().join("adapter_manifest.json"), "not-json").unwrap();
+        assert_eq!(
+            reason_of(detect_inputs(hub.path(), &label, Some(malformed.path()))),
+            AbsenceReason::AdapterIncomplete
+        );
+
+        let via = dir.join("..").join(dir.file_name().unwrap());
+        let alias = tempfile::tempdir().unwrap();
+        write_adapter(alias.path(), &via.display().to_string());
+        assert!(matches!(
+            detect_inputs(hub.path(), &label, Some(alias.path())),
+            Detected::Ready { .. }
+        ));
+    }
+
+    #[test]
+    fn adapter_missing_tokenizer_or_config_is_incomplete() {
+        let hub = tempfile::tempdir().unwrap();
+        let dir = place(
+            hub.path(),
+            "Qwen/Qwen3-8B",
+            PIN_8B.rsplit('@').next().unwrap(),
+        );
+        let label = BaseLabel::from_pin(PIN_8B);
+        for missing in ["tokenizer.json", "config.json"] {
+            let adapter = tempfile::tempdir().unwrap();
+            write_adapter(adapter.path(), &dir.display().to_string());
+            std::fs::remove_file(adapter.path().join(missing)).unwrap();
+            assert_eq!(
+                reason_of(detect_inputs(hub.path(), &label, Some(adapter.path()))),
+                AbsenceReason::AdapterIncomplete,
+                "{missing}"
+            );
+        }
+    }
+
+    fn workspace_overlay() -> HashMap<String, Vec<TrainBase>> {
+        vox_populi::mens::tensor::spoke_base_resolver::load_overlay(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
+        )
+        .expect("overlay")
+    }
+
+    fn train_base(hf_id: &str) -> TrainBase {
+        TrainBase {
+            hf_id: hf_id.to_string(),
+            floor_mb: Some(1),
+            floor_measured: true,
+            methods: Vec::new(),
+            license: None,
+            attribution_required: false,
+        }
+    }
+
+    #[test]
+    fn base_resolution_default_is_the_pinned_8b() {
+        assert_eq!(
+            resolve_base_pin(None, &workspace_overlay()).unwrap(),
+            vox_populi::mens::DEFAULT_MODEL_ID
+        );
+    }
+
+    #[test]
+    fn base_resolution_full_pin_passes_through() {
+        let overlay = workspace_overlay();
+        let known = "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca";
+        let unknown = "other/model@0123456789abcdef0123456789abcdef01234567";
+        assert_eq!(resolve_base_pin(Some(known), &overlay).unwrap(), known);
+        assert_eq!(resolve_base_pin(Some(unknown), &overlay).unwrap(), unknown);
+    }
+
+    #[test]
+    fn base_resolution_size_name_uses_train_bases() {
+        let overlay = workspace_overlay();
+        let eight = "Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218";
+        let small = "Qwen/Qwen3-0.6B@c1899de289a04d12100db370d81485cdf75e47ca";
+        assert_eq!(resolve_base_pin(Some("Qwen3-8B"), &overlay).unwrap(), eight);
+        assert_eq!(
+            resolve_base_pin(Some("Qwen/Qwen3-8B"), &overlay).unwrap(),
+            eight
+        );
+        assert_eq!(
+            resolve_base_pin(Some("Qwen3-0.6B"), &overlay).unwrap(),
+            small
+        );
+    }
+
+    #[test]
+    fn base_resolution_unknown_or_ambiguous_is_unverifiable() {
+        let unknown = resolve_base_pin(Some("not-a-model"), &workspace_overlay()).unwrap();
+        assert_eq!(unknown, "not-a-model");
+        assert!(BaseLabel::from_pin(&unknown).revision.is_none());
+        let mut synthetic = HashMap::new();
+        synthetic.insert(
+            "tag".to_string(),
+            vec![
+                train_base("Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218"),
+                train_base("Qwen/Qwen3-8B@0123456789abcdef0123456789abcdef01234567"),
+            ],
+        );
+        assert!(resolve_base_pin(Some("Qwen3-8B"), &synthetic).is_err());
+        let hub = tempfile::tempdir().unwrap();
+        assert_eq!(
+            reason_of(detect_inputs(
+                hub.path(),
+                &BaseLabel::from_pin("Qwen3-8B"),
+                None
+            )),
+            AbsenceReason::PinUnverifiable
+        );
+    }
+
+    #[test]
+    fn base_resolution_size_is_detected_at_its_own_snapshot() {
+        let overlay = workspace_overlay();
+        let small_pin = resolve_base_pin(Some("Qwen3-0.6B"), &overlay).unwrap();
+        let default_pin = resolve_base_pin(None, &overlay).unwrap();
+        let small = BaseLabel::from_pin(&small_pin);
+        let hub = tempfile::tempdir().unwrap();
+        let dir = place(
+            hub.path(),
+            &small.repo_id,
+            small.revision.as_deref().expect("rev"),
+        );
+        let adapter = tempfile::tempdir().unwrap();
+        write_adapter(adapter.path(), &dir.display().to_string());
+        assert!(matches!(
+            detect_inputs(hub.path(), &small, Some(adapter.path())),
+            Detected::Ready { .. }
+        ));
+        assert_eq!(
+            reason_of(detect_inputs(
+                hub.path(),
+                &BaseLabel::from_pin(&default_pin),
+                Some(adapter.path())
+            )),
+            AbsenceReason::BaseSnapshotAbsent
+        );
+    }
+
+    #[test]
+    fn resolve_qwen3_size_rejects_unknown_spellings() {
+        let overlay = workspace_overlay();
+        for spelling in ["2B", "Qwen3-7B", "Qwen/8B"] {
+            assert!(
+                vox_populi::mens::tensor::spoke_base_resolver::resolve_qwen3_size(
+                    &overlay, spelling
+                )
+                .is_err(),
+                "{spelling}"
+            );
+        }
+    }
+
+    #[test]
+    fn resolve_base_pin_leaves_capability_tag_unpinned() {
+        let got = resolve_base_pin(Some("qwen3_16g"), &workspace_overlay()).unwrap();
+        assert_eq!(got, "qwen3_16g");
+        assert!(BaseLabel::from_pin(&got).revision.is_none());
+    }
+
+    #[test]
+    fn resolve_qwen3_size_errors_when_qwen3_code_has_two_qlora_pins() {
+        let mut first = train_base("Qwen/Qwen3-8B@b968826d9c46dd6066d109eabc6255188de91218");
+        first.methods = vec!["qlora".into()];
+        first.license = Some("apache-2.0".into());
+        let mut second = train_base("Qwen/Qwen3-8B@0123456789abcdef0123456789abcdef01234567");
+        second.methods = vec!["qlora".into()];
+        second.license = Some("apache-2.0".into());
+        let mut overlay = HashMap::new();
+        overlay.insert("qwen3_code".into(), vec![first, second]);
+        assert!(
+            vox_populi::mens::tensor::spoke_base_resolver::resolve_qwen3_size(&overlay, "Qwen3-8B")
+                .is_err()
+        );
+    }
+}

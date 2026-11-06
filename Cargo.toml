@@ -89,6 +89,7 @@ vox-container             = { path = "crates/vox-container" }
 vox-container-types       = { path = "crates/vox-container-types" }
 vox-deploy-codegen        = { path = "crates/vox-deploy-codegen" }
 vox-skill-runtime         = { path = "crates/vox-skill-runtime" }
+vox-python-bridge         = { path = "crates/vox-python-bridge" }
 
 
 vox-jsonschema-util       = { path = "crates/vox-jsonschema-util" }

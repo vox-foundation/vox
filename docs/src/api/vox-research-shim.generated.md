@@ -85,3 +85,65 @@ path — consumers need only update their import root.
 |---|---|
 | `LLM_RUNTIME_ENABLED` | Whether this build makes live LLM calls (the `runtime` feature). Without it every research LLM stage fails with "research runtime feature is disabled", so callers (e.g. live-model tests in downstream crates) can skip instead of failing. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_research_shim: "vox-research-shim"
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_research_shim -> vox_actor_runtime
+    node vox_compiler: "vox-compiler"
+    vox_research_shim -> vox_compiler
+    node vox_config: "vox-config"
+    vox_research_shim -> vox_config
+    node vox_db: "vox-db"
+    vox_research_shim -> vox_db
+    node vox_gamify: "vox-gamify"
+    vox_research_shim -> vox_gamify
+    node vox_orchestrator: "vox-orchestrator"
+    vox_research_shim -> vox_orchestrator
+    node vox_orchestrator_types: "vox-orchestrator-types"
+    vox_research_shim -> vox_orchestrator_types
+    node vox_publisher: "vox-publisher"
+    vox_research_shim -> vox_publisher
+    node vox_research_events: "vox-research-events"
+    vox_research_shim -> vox_research_events
+    node vox_scientia: "vox-scientia"
+    vox_research_shim -> vox_scientia
+    node vox_search: "vox-search"
+    vox_research_shim -> vox_search
+    node vox_secrets: "vox-secrets"
+    vox_research_shim -> vox_secrets
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_research_shim
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_research_shim
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_research_shim
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_research_shim
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `persist_min_confidence` | `pub const fn persist_min_confidence() -> f64` | [`crates/vox-research-shim/src/lib.rs#L29-L31`](../../../crates/vox-research-shim/src/lib.rs#L29-L31) | — |
+| `fn` | `training_pair_min_confidence` | `pub const fn training_pair_min_confidence() -> f64` | [`crates/vox-research-shim/src/lib.rs#L34-L36`](../../../crates/vox-research-shim/src/lib.rs#L34-L36) | — |
+| `struct` | `agent_frontmatter::AgentFrontmatter` | `pub struct AgentFrontmatter` | [`crates/vox-research-shim/src/agent_frontmatter.rs#L24-L29`](../../../crates/vox-research-shim/src/agent_frontmatter.rs#L24-L29) | Parsed agent frontmatter fields used by Dei and MCP tools. |
+| `fn` | `agent_frontmatter::parse_agent_file_path` | `pub fn parse_agent_file_path(path: &Path) -> std::io::Result<AgentFrontmatter>` | [`crates/vox-research-shim/src/agent_frontmatter.rs#L32-L45`](../../../crates/vox-research-shim/src/agent_frontmatter.rs#L32-L45) | Parse `scope:` and `model:` from a file if it exists and has YAML frontmatter. |
+| `fn` | `agent_frontmatter::parse_agent_frontmatter` | `pub fn parse_agent_frontmatter(content: &str) -> Option<AgentFrontmatter>` | [`crates/vox-research-shim/src/agent_frontmatter.rs#L50-L125`](../../../crates/vox-research-shim/src/agent_frontmatter.rs#L50-L125) | Parse frontmatter from raw file contents.  Returns `None` if there is no `---` block; otherwise returns parsed fields (possibly empty). |
+| `struct` | `route_telemetry::ModelRouteEvent` | `pub struct ModelRouteEvent` | [`crates/vox-research-shim/src/route_telemetry.rs#L9-L31`](../../../crates/vox-research-shim/src/route_telemetry.rs#L9-L31) | One model-routing event for observability and tuning. |
+| `fn` | `route_telemetry::emit_model_route` | `pub fn emit_model_route(ev: &ModelRouteEvent)` | [`crates/vox-research-shim/src/route_telemetry.rs#L36-L50`](../../../crates/vox-research-shim/src/route_telemetry.rs#L36-L50) | Emit a structured tracing event consumable by log aggregators.  Target `vox_orchestrator::model_route` can be filtered in `RUST_LOG`. |
+

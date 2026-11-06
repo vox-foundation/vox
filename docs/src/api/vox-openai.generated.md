@@ -39,3 +39,44 @@ Streaming (`text/event-stream`) line assembly lives in `vox-openai-sse`.
 |---|---|
 | `sse` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_openai: "vox-openai"
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_actor_runtime -> vox_openai
+    node vox_gamify: "vox-gamify"
+    vox_gamify -> vox_openai
+    node vox_llm_egress: "vox-llm-egress"
+    vox_llm_egress -> vox_openai
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_openai
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Direct workspace dependent |
+| [`vox-gamify`](./vox-gamify.generated.md) | Direct workspace dependent |
+| [`vox-llm-egress`](./vox-llm-egress.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `sse::Utf8LineBuffer` | `pub struct Utf8LineBuffer` | [`crates/vox-openai/src/sse.rs#L12-L14`](../../../crates/vox-openai/src/sse.rs#L12-L14) | Accumulates UTF-8 chunks and invokes `on_line` for each newline-delimited line (CR stripped). |
+| `fn` | `sse::new` | `pub fn new() -> Self` | [`crates/vox-openai/src/sse.rs#L18-L20`](../../../crates/vox-openai/src/sse.rs#L18-L20) | — |
+| `fn` | `sse::push_lossy_bytes` | `pub fn push_lossy_bytes(&mut self, bytes: &[u8], mut on_line: impl FnMut(&str))` | [`crates/vox-openai/src/sse.rs#L23-L30`](../../../crates/vox-openai/src/sse.rs#L23-L30) | Push lossy-decoded `bytes` and emit complete lines. |
+| `fn` | `sse::flush_trailing` | `pub fn flush_trailing(&mut self, mut on_line: impl FnMut(&str))` | [`crates/vox-openai/src/sse.rs#L33-L39`](../../../crates/vox-openai/src/sse.rs#L33-L39) | Invoke `on_line` on any trailing fragment that did not end with `\n`, then clear. |
+| `fn` | `sse::chat_completion_delta_content` | `pub fn chat_completion_delta_content(data: &str) -> Option<String>` | [`crates/vox-openai/src/sse.rs#L44-L49`](../../../crates/vox-openai/src/sse.rs#L44-L49) | Parse `data` JSON from one SSE `data: …` line (after the `data: ` prefix) and return delta content, if any. |
+| `struct` | `sse::ToolCallDelta` | `pub struct ToolCallDelta` | [`crates/vox-openai/src/sse.rs#L53-L58`](../../../crates/vox-openai/src/sse.rs#L53-L58) | Incremental tool-call delta fragment from an OpenAI-compatible SSE `delta.tool_calls[i]` object. |
+| `struct` | `sse::SseDeltaEvent` | `pub struct SseDeltaEvent` | [`crates/vox-openai/src/sse.rs#L62-L68`](../../../crates/vox-openai/src/sse.rs#L62-L68) | Parsed content, tool-call fragments, and/or final-chunk `usage` telemetry from a single SSE `data: {json}` frame. |
+| `fn` | `sse::is_empty` | `pub fn is_empty(&self) -> bool` | [`crates/vox-openai/src/sse.rs#L72-L78`](../../../crates/vox-openai/src/sse.rs#L72-L78) | — |
+| `fn` | `sse::sse_data_line_delta_event` | `pub fn sse_data_line_delta_event(line: &str) -> Option<SseDeltaEvent>` | [`crates/vox-openai/src/sse.rs#L83-L167`](../../../crates/vox-openai/src/sse.rs#L83-L167) | Parse one SSE `data: {json}` line into content, `delta.tool_calls`, and/or `usage` telemetry. |
+| `fn` | `sse::sse_data_line_delta` | `pub fn sse_data_line_delta(line: &str) -> Option<String>` | [`crates/vox-openai/src/sse.rs#L171-L182`](../../../crates/vox-openai/src/sse.rs#L171-L182) | One SSE line: `data: {json}` → non-empty delta content; `[DONE]`, blanks, and non-`data:` lines → `None`. |
+

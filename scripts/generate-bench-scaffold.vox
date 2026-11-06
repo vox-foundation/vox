@@ -1,5 +1,5 @@
 fn main() {
-    print("Migrating bench scaffold generator to VoxScript...")
+    print("Migrating bench scaffold generator to VoxLang...")
     
     let golden_map = {
         actor_state_machines: "counter_actor.vox",

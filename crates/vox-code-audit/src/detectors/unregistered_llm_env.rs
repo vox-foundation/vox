@@ -44,9 +44,13 @@ impl UnregisteredLlmEnvDetector {
         }
     }
 
-    /// Secret-shaped names are owned by `EnvSecretShapeDetector`; skip them here.
-    fn is_secret_shaped(name: &str) -> bool {
-        name.ends_with("_API_KEY") || name.ends_with("_TOKEN") || name.ends_with("_SECRET")
+    /// Secret-shaped names are owned by `EnvSecretShapeDetector`; standard Hugging Face cache/home
+    /// dirs (`HF_HUB_CACHE`, `HF_HOME`) are standard filesystem layout vars.
+    fn is_secret_or_cache_shaped(name: &str) -> bool {
+        name.ends_with("_API_KEY")
+            || name.ends_with("_TOKEN")
+            || name.ends_with("_SECRET")
+            || matches!(name, "HF_HUB_CACHE" | "HF_HOME")
     }
 
     fn is_registered(&self, name: &str) -> bool {
@@ -86,18 +90,25 @@ impl DetectionRule for UnregisteredLlmEnvDetector {
     fn detect(
         &self,
         file: &SourceFile,
-        _ctx: Option<&crate::analysis::RustFileContext>,
+        ctx: Option<&crate::analysis::RustFileContext>,
     ) -> Vec<Finding> {
         let mut findings = Vec::new();
         for (i, line) in file.lines.iter().enumerate() {
+            let line_num = i + 1;
             let trimmed = line.trim();
             if trimmed.starts_with("//") || trimmed.starts_with('*') || trimmed.starts_with("/*") {
                 continue;
             }
             for cap in self.env_call.captures_iter(line) {
+                let col = cap.get(0).map(|m| m.start()).unwrap_or(0);
+                if crate::rules::rust_byte_is_non_code(file, line_num, col, ctx)
+                    || crate::rules::rust_byte_is_cfg_test(file, line_num, col, ctx)
+                {
+                    continue;
+                }
                 let name = &cap[1];
                 if !self.llm_shape.is_match(name)
-                    || Self::is_secret_shaped(name)
+                    || Self::is_secret_or_cache_shaped(name)
                     || self.is_registered(name)
                 {
                     continue;

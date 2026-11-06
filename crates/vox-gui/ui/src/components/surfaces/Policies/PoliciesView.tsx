@@ -63,7 +63,7 @@ export function PoliciesView({
     invoke<BranchInfo[]>('list_branches')
       .then(b => { setBranches(b); setSelectedBranches(b.filter(x => x.isCurrent).map(x => x.branch)); })
       .catch(() => setBranches([]));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- load policy catalog once on mount
   }, []);
 
   // Reload status when the branch selection changes.
@@ -85,7 +85,7 @@ export function PoliciesView({
     invoke<PolicyDetail>('policy_show', { id: selectedId })
       .then(setDetail)
       .catch(err => pushToast({ tone: 'error', title: 'Detail failed', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-fetch rule detail only when selectedId changes
   }, [selectedId]);
 
   const tree = useMemo(() => buildGroupTree(rows, status, selectedBranches), [rows, status, selectedBranches]);
@@ -279,7 +279,17 @@ export function PoliciesView({
                     <pre className="mt-2 whitespace-pre-wrap break-all text-emerald-200/80">{detail.sourceDetail}</pre>
                   )}
                 </div>
-                {detail.docs && <a className="font-mono text-[10px] text-brass/80 hover:underline">{detail.docs}</a>}
+                {detail.docs && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void invoke('open_locator', { locator: { kind: 'file', value: detail.docs } }).catch(() => {});
+                    }}
+                    className="w-fit rounded border border-brass/30 bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass hover:bg-brass/20"
+                  >
+                    {detail.docs} ↗
+                  </button>
+                )}
               </section>
 
               <section className="flex flex-col gap-1.5">
@@ -296,6 +306,26 @@ export function PoliciesView({
                       </span>
                     );
                   })}
+                </div>
+              </section>
+
+              <section className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                <div className="rounded-lg border border-border-subtle bg-bg-base/70 p-2.5">
+                  <div className="font-mono text-[9px] uppercase tracking-wider text-text-muted">CLI Invocation</div>
+                  <div className="mt-1 font-mono text-[11px] text-cyan">vox audit code</div>
+                  <div className="mt-0.5 font-mono text-[10px] text-text-secondary">--rule {detail.id}</div>
+                </div>
+                <div className="rounded-lg border border-border-subtle bg-bg-base/70 p-2.5">
+                  <div className="font-mono text-[9px] uppercase tracking-wider text-text-muted">Severity Tier</div>
+                  <div className="mt-1 font-mono text-[11px] uppercase text-brass">{detail.severity ?? 'info'}</div>
+                  <div className="mt-0.5 font-mono text-[10px] text-text-secondary">
+                    {detail.blocking ? 'Blocks CI merge' : 'Advisory warning'}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-border-subtle bg-bg-base/70 p-2.5">
+                  <div className="font-mono text-[9px] uppercase tracking-wider text-text-muted">Detector Ref</div>
+                  <div className="mt-1 truncate font-mono text-[11px] text-emerald-300">{detail.sourceRef}</div>
+                  <div className="mt-0.5 font-mono text-[10px] text-text-secondary">{detail.sourceKind}</div>
                 </div>
               </section>
 

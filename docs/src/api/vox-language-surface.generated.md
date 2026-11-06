@@ -59,3 +59,23 @@ Keep lexer-derived lists aligned with `vox_compiler::lexer::token::Token`.
 | `LSP_BUILTIN_SNIPPETS` | LSP builtin snippets: `(name, insertText)`. |
 | `SURFACE_TYPE_NAMES` | Surface type names shown in completions / introspection. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_language_surface: "vox-language-surface"
+    node vox_compiler: "vox-compiler"
+    vox_compiler -> vox_language_surface
+    node vox_grammar_export: "vox-grammar-export"
+    vox_grammar_export -> vox_language_surface
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
+| [`vox-grammar-export`](./vox-grammar-export.generated.md) | Direct workspace dependent |
+

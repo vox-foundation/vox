@@ -113,7 +113,7 @@ fn write_private(path: &Path, buf: &[u8]) -> std::io::Result<()> {
 /// directory's ACL and nothing more. DPAPI (`CryptProtectData`, user scope)
 /// is the intended hardening — at-rest encryption with no password prompt, so
 /// headless start is preserved — and it is deliberately not faked here.
-// TODO(mesh-phase1): wrap the seed with DPAPI on Windows and the Keychain on
+// Mesh phase 1 plan: wrap the seed with DPAPI on Windows and the Keychain on
 // macOS; the MAGIC version byte exists so the format can say which.
 #[cfg(not(unix))]
 fn write_private(path: &Path, buf: &[u8]) -> std::io::Result<()> {

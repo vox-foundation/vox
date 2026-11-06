@@ -173,6 +173,7 @@ vox-mcp-registry        = { layer = 2 }
 vox-capability-registry = { layer = 2, staleness_exempt = true }
 
 vox-project-scaffold    = { layer = 2 }
+vox-python-bridge       = { layer = 2, kind = "library" }
 vox-quantize            = { layer = 2, max_loc = 4_000 }
 vox-skill-runtime       = { layer = 2 }
 vox-constrained-gen     = { layer = 2, staleness_exempt = true }

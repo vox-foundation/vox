@@ -2021,7 +2021,7 @@ impl Attestation {
             TaskKind::Embed | TaskKind::SpeechTranscribe => TaskKindAttestationKind::Deterministic,
             TaskKind::TextInfer | TaskKind::ImageGen => TaskKindAttestationKind::Stochastic,
             TaskKind::TrainQLoRA => TaskKindAttestationKind::Manifest,
-            TaskKind::VoxScript => TaskKindAttestationKind::Deterministic,
+            TaskKind::VoxLang => TaskKindAttestationKind::Deterministic,
         }
     }
 }
@@ -2045,7 +2045,7 @@ fn decode_32(hex_s: &str) -> Option<[u8; 32]> {
 /// | `ImageGen`        | sha3-256(model_id ‖ \0 ‖ blake3(prompt) ‖ \0 ‖ seed_be8 ‖ steps_be4)      |
 /// | `SpeechTranscribe`| sha3-256(model_id ‖ \0 ‖ blake3(audio_bytes))                              |
 /// | `TrainQLoRA`      | sha3-256(model_id ‖ \0 ‖ blake3(dataset_manifest_canon))                   |
-/// | `VoxScript`       | sha3-256(blake3(source) ‖ \0 ‖ blake3(args_canon))                         |
+/// | `VoxLang`       | sha3-256(blake3(source) ‖ \0 ‖ blake3(args_canon))                         |
 pub fn canonical_input_hash(
     kind: TaskKind,
     model_or_source: &[u8],

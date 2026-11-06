@@ -162,7 +162,7 @@ cargo run -p vox-arch-check
 
 **5. Generated-output discipline.** Per the [auto-generated-docs feedback](../../../AGENTS.md), tools regenerate `SUMMARY.md`, `*.generated.md`, `architecture-index.md`, `feed.xml`, `.cursorignore`. **Never hand-edit those files.** Re-run the relevant `xtask` or `vox ci` generator and commit the regenerated output.
 
-**6. .vox script discipline.** Per [AGENTS.md §VoxScript-First Glue Code](../../../AGENTS.md), automation scripts are `.vox` files invoked via `vox run scripts/foo.vox`. **Do not** generate `.ps1`, `.sh`, or `.py` glue scripts.
+**6. .vox script discipline.** Per [AGENTS.md §VoxLang-First Glue Code](../../../AGENTS.md), automation scripts are `.vox` files invoked via `vox run scripts/foo.vox`. **Do not** generate `.ps1`, `.sh`, or `.py` glue scripts.
 
 **7. PR convention.** Per repo style, commit messages follow `<area>: <imperative>` (e.g. `compiler: add @form label-required typecheck`); PR title and first commit are the same. Reference the GA id in the PR body so the audit trail is searchable.
 

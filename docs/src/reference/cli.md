@@ -309,6 +309,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `completion-gates [--mode warn\|enforce]` | Applies Tier A hard blocks and Tier B regression limits from **`contracts/reports/completion-baseline.v1.json`** to the last audit report (CI uses **`enforce`**) |
 | `completion-ingest [--report <path>] [--workflow …] [--run-kind …]` | Inserts the audit report into VoxDB **`ci_completion_*`** tables (optional telemetry; requires a working local/default DB) |
 | `rust-ecosystem-policy` | Runs focused rust ecosystem contract parity checks (`cargo test -p vox-compiler --test rust_ecosystem_support_parity`) for faster local iteration than full CI suites |
+| `python-bridge-parity` | Fails when a `std.array` row lacks a signature, a worker handler, or an expected value (`cargo test -p vox-compiler --test python_bridge_parity`) |
 | `policy-smoke` | Fast bundle: `cargo check -p vox-orchestrator`, in-process `command-compliance`, and `cargo test -p vox-compiler --test rust_ecosystem_support_parity` (same parity test as `rust-ecosystem-policy`) |
 | `workflow-concurrency-guard [--strict]` | Requires a top-level `concurrency:` block containing `cancel-in-progress: true` on every `push`/`pull_request`-triggered workflow (a bare group string or a non-cancelling group does not count) — flood prevention for the local runner fleet; exceptions registered in [`concurrency-exceptions.md`](../ci/concurrency-exceptions.md). Advisory by default; `--strict` fails (used in `pre-push`). |
 | `compile-matrix` | Smoke-checks `vox compile --help` through the CLI binary for cross-host parity with `compile-matrix.yml`. |
@@ -370,6 +371,15 @@ Centralized secret diagnostics and compatibility credential storage.
 | `vox secrets get <registry>` | Reads and prints redacted token status from Secrets resolution sources. |
 | `vox secrets backend-status` | Prints backend mode (`env_only`/`infisical`/`vault`/`auto`) and backend availability diagnostics. |
 | `vox secrets migrate-auth-store` | Migrates plaintext `auth.json` tokens to secure local store and leaves compatibility sentinels in JSON. |
+
+### `vox py`
+
+Creates and inspects the project Python environment declared by `[python]` in `Vox.toml`. `vox py sync` writes `.vox/python/pyproject.toml`, runs `uv lock` and `uv sync --frozen`, and records the BLAKE3 hash of `uv.lock` in `vox.lock`. `vox py doctor` prints uv, the venv Python, packages, whether that hash matches, and an unsandboxed-worker warning. The worker is not sandboxed in this phase.
+
+| Subcommand | Role |
+|------------|------|
+| `vox py sync` | Install `[python]` packages into `.vox/python` and store `python_uv_lock_hash` in `vox.lock`. |
+| `vox py doctor` | Print uv, Python, packages, lock-hash status, and `sandbox: unsandboxed`. |
 
 ### `vox repo`
 
@@ -544,7 +554,7 @@ Local **VoxDB** inspection and research helpers (`crates/vox-cli/src/commands/db
 
 `vox db prune-plan` prints JSON counts for rows that match automated rules in [`contracts/db/retention-policy.yaml`](../../../contracts/db/retention-policy.yaml) (`days`, `ms_days`, `expires_lt_now`). `vox db prune-apply --i-understand` runs the matching `DELETE`s. Rationale, sensitivity classes, and table notes (including `ci_completion_*`) live in [telemetry-retention-sensitivity-ssot](../archive/research-2026-q1/telemetry-retention-sensitivity-ssot.md).
 
-Common subcommands include `status`, `audit`, `schema`, `sample`, `migrate`, `introspect`, `verify`, `export` / `import`, `vacuum`, `build-health`, `build-regressions`, and `pref-get` / `pref-set` / `pref-list`. `vox db migrate --url <sql-url>` uses `vox-sql`'s app-plane `AppAutoMigrator` (`--dry-run` plans only), while `vox db introspect` and `vox db verify` resolve app-plane connectivity from `--url`, `VOX_APP_DB_URL`, then `VOX_DB_URL`. Publication operator controls: `publication-discovery-scan`, `publication-discovery-explain`, `publication-transform-preview`, `publication-route-simulate`, `publication-publish`, and `publication-retry-failed` accept **`--json`** for structured stdout. **`publication-publish`** enforces the same live gate as other surfaces when `--dry-run` is off: VoxDb with two digest approvers and `VOX_NEWS_PUBLISH_ARMED=1` (or orchestrator publish_armed is not read by this path); successful live runs update manifest state to `published` / `publish_failed` like MCP/orchestrator. Run `vox db --help` for the full tree.
+Common subcommands include `status`, `audit`, `schema`, `sample`, `migrate`, `introspect`, `verify`, `export` / `import`, `vacuum`, `build-health`, `build-regressions`, and `pref-get` / `pref-set` / `pref-list`. `vox db migrate --url <sql-url>` uses `vox-sql`'s app-plane `AppAutoMigrator` (`--dry-run` plans only). With `[db] schema_owner = "external"` in `Vox.toml`, migrate still prints the plan and refuses to apply unless `--dry-run` is set. `vox db introspect` (`--emit json|vox`, default `json`) and `vox db verify` resolve app-plane connectivity from `--url`, `VOX_APP_DB_URL`, then `VOX_DB_URL`. Publication operator controls: `publication-discovery-scan`, `publication-discovery-explain`, `publication-transform-preview`, `publication-route-simulate`, `publication-publish`, and `publication-retry-failed` accept **`--json`** for structured stdout. **`publication-publish`** enforces the same live gate as other surfaces when `--dry-run` is off: VoxDb with two digest approvers and `VOX_NEWS_PUBLISH_ARMED=1` (or orchestrator publish_armed is not read by this path); successful live runs update manifest state to `published` / `publish_failed` like MCP/orchestrator. Run `vox db --help` for the full tree.
 
 Discovery/data-prep operator commands: `vox db publication-discovery-scan`, `vox db publication-discovery-explain`, `vox db publication-transform-preview`, and `vox db publication-discovery-refresh-evidence`. **`publication-discovery-explain` JSON** adds assist-only `impact_readership_projection` (not a publish gate) when `scientia_novelty_bundle` is present on the manifest. **Prior-art / worthiness operator JSON:** `vox db publication-novelty-fetch` (federated OpenAlex/Crossref/Semantic Scholar bundle; optional `--persist-metadata`; query limits/tunables from `contracts/scientia/impact-readership-projection.seed.v1.yaml`), `vox db publication-decision-explain` (Socrates/sidecar enrich + heuristic preflight + worthiness + discovery rank; optional `--live-prior-art`; includes the same assist-only projection when a novelty bundle is available), and `vox db publication-novelty-happy-path` (prior art + enrich + stdout: finding-candidate + bundle + merged rank + worthiness + `calibration_telemetry` + assist-only `impact_readership_projection`).
 
@@ -983,6 +993,7 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `plugin` | default | `commands::plugin` |
 | `policy` | default | `commands::policy` |
 | `populi` | default | delegated to `vox-ml-cli` |
+| `py` | default | `commands::py` (`py sync` records `uv.lock`; `py doctor` reports the bridge environment) |
 | `doctor` | default / `codex` | `commands::doctor` or `commands::diagnostics::doctor` |
 | `secrets` | default | `commands::secrets` |
 | `clavis` | default | deprecated alias of `secrets` |

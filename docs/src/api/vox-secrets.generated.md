@@ -137,3 +137,131 @@ Secret resolution + redaction (env, vault, infisical, vox-vault backends).
 | `OPERATOR_SCIENTIA_RESEARCH_MESH_CONSUMER_POLL_INTERVAL_MS` | — |
 | `OPERATOR_TUNING_ENVS` | Array of system operator tuning environment variables. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_secrets: "vox-secrets"
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_secrets -> vox_bounded_fs
+    node vox_crypto: "vox-crypto"
+    vox_secrets -> vox_crypto
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_actor_runtime -> vox_secrets
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_secrets
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_secrets
+    node vox_cli_core: "vox-cli-core"
+    vox_cli_core -> vox_secrets
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_secrets
+    node vox_cli_review: "vox-cli-review"
+    vox_cli_review -> vox_secrets
+    node vox_code_audit: "vox-code-audit"
+    vox_code_audit -> vox_secrets
+    node vox_codegen: "vox-codegen"
+    vox_codegen -> vox_secrets
+    node vox_codegen_ts: "vox-codegen-ts"
+    vox_codegen_ts -> vox_secrets
+    node vox_compiler: "vox-compiler"
+    vox_compiler -> vox_secrets
+    node vox_config: "vox-config"
+    vox_config -> vox_secrets
+    node vox_db: "vox-db"
+    vox_db -> vox_secrets
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Direct workspace dependent |
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-core`](./vox-cli-core.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
+| [`vox-cli-review`](./vox-cli-review.generated.md) | Direct workspace dependent |
+| [`vox-code-audit`](./vox-code-audit.generated.md) | Direct workspace dependent |
+| [`vox-codegen`](./vox-codegen.generated.md) | Direct workspace dependent |
+| [`vox-codegen-ts`](./vox-codegen-ts.generated.md) | Direct workspace dependent |
+| [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
+| [`vox-config`](./vox-config.generated.md) | Direct workspace dependent |
+| [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
+| [`vox-gamify`](./vox-gamify.generated.md) | Direct workspace dependent |
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
+| [`vox-lsp`](./vox-lsp.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+| [`vox-openclaw-runtime`](./vox-openclaw-runtime.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-d`](./vox-orchestrator-d.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-models`](./vox-orchestrator-models.generated.md) | Direct workspace dependent |
+| [`vox-plugin-host`](./vox-plugin-host.generated.md) | Direct workspace dependent |
+| [`vox-plugin-mens-candle-cuda`](./vox-plugin-mens-candle-cuda.generated.md) | Direct workspace dependent |
+| [`vox-plugin-mens-candle-metal`](./vox-plugin-mens-candle-metal.generated.md) | Direct workspace dependent |
+| [`vox-plugin-populi-mesh`](./vox-plugin-populi-mesh.generated.md) | Direct workspace dependent |
+| [`vox-plugin-speech`](./vox-plugin-speech.generated.md) | Direct workspace dependent |
+| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
+| [`vox-publisher`](./vox-publisher.generated.md) | Direct workspace dependent |
+| [`vox-research-shim`](./vox-research-shim.generated.md) | Direct workspace dependent |
+| [`vox-scientia`](./vox-scientia.generated.md) | Direct workspace dependent |
+| [`vox-search`](./vox-search.generated.md) | Direct workspace dependent |
+| [`vox-speech`](./vox-speech.generated.md) | Direct workspace dependent |
+| [`vox-sql`](./vox-sql.generated.md) | Direct workspace dependent |
+| [`vox-test-harness`](./vox-test-harness.generated.md) | Direct workspace dependent |
+| [`voxup`](./voxup.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `BackendMode` | `pub enum BackendMode` | [`crates/vox-secrets/src/lib.rs#L167-L173`](../../../crates/vox-secrets/src/lib.rs#L167-L173) | — |
+| `fn` | `from_env` | `pub fn from_env() -> Self` | [`crates/vox-secrets/src/lib.rs#L218-L230`](../../../crates/vox-secrets/src/lib.rs#L218-L230) | — |
+| `fn` | `resolve_secret` | `pub fn resolve_secret(id: SecretId) -> ResolvedSecret` | [`crates/vox-secrets/src/lib.rs#L242-L244`](../../../crates/vox-secrets/src/lib.rs#L242-L244) | — |
+| `fn` | `store_secret` | `pub fn store_secret(` | [`crates/vox-secrets/src/lib.rs#L255`](../../../crates/vox-secrets/src/lib.rs#L255) | Persist a managed secret to the Clavis vault at runtime (account/profile-scoped).  Writes the plaintext into the cloudless vault keyed by the secret's canonical env name under the active `VOX_ACCOUNT_ID`. Pass `profile` to write a profile-scoped override; `None` writes the account-level canonical record.  # Errors Returns [`SecretError`] if the vault backend cannot be initialized (e.g. the keyring-backed master key is unavailable) or the write fails. |
+| `fn` | `secret_id_for_canonical_env` | `pub fn secret_id_for_canonical_env(canonical_env: &str) -> Option<SecretId>` | [`crates/vox-secrets/src/lib.rs#L279-L284`](../../../crates/vox-secrets/src/lib.rs#L279-L284) | Find a managed secret by its canonical environment name.  This is the shared lookup used by every user-facing secret writer so the CLI and GUI cannot drift from the registry metadata. |
+| `fn` | `delete_secret` | `pub fn delete_secret(id: SecretId) -> Result<bool, SecretError>` | [`crates/vox-secrets/src/lib.rs#L294-L297`](../../../crates/vox-secrets/src/lib.rs#L294-L297) | Delete a managed secret from the active Clavis account.  The caller supplies a registry-defined [`SecretId`], preventing arbitrary vault keys from becoming an alternate secret-management surface.  # Errors Returns [`SecretError`] when the Clavis vault cannot be initialized or the delete operation fails. |
+| `fn` | `resolve_secret_for_cli` | `pub fn resolve_secret_for_cli(id: SecretId) -> ResolvedSecret` | [`crates/vox-secrets/src/lib.rs#L299-L301`](../../../crates/vox-secrets/src/lib.rs#L299-L301) | — |
+| `fn` | `resolve_clavis_uri` | `pub fn resolve_clavis_uri(uri: &str) -> Result<ResolvedSecret, String>` | [`crates/vox-secrets/src/lib.rs#L304-L307`](../../../crates/vox-secrets/src/lib.rs#L304-L307) | Resolve a portable `clavis://<provider>/<key>` URI reference (`CLAVIS-02`). |
+| `fn` | `resolve_secret_with_context` | `pub fn resolve_secret_with_context(id: SecretId, context: &str) -> ResolvedSecret` | [`crates/vox-secrets/src/lib.rs#L310-L329`](../../../crates/vox-secrets/src/lib.rs#L310-L329) | — |
+| `fn` | `resolve_env_only` | `pub fn resolve_env_only(id: SecretId) -> ResolvedSecret` | [`crates/vox-secrets/src/lib.rs#L379-L381`](../../../crates/vox-secrets/src/lib.rs#L379-L381) | — |
+| `fn` | `set_registry_token` | `pub fn set_registry_token(` | [`crates/vox-secrets/src/lib.rs#L464`](../../../crates/vox-secrets/src/lib.rs#L464) | — |
+| `fn` | `get_registry_token` | `pub fn get_registry_token(registry: &str) -> Option<String>` | [`crates/vox-secrets/src/lib.rs#L473-L476`](../../../crates/vox-secrets/src/lib.rs#L473-L476) | — |
+| `fn` | `get_registry_username` | `pub fn get_registry_username(registry: &str) -> Option<String>` | [`crates/vox-secrets/src/lib.rs#L480-L482`](../../../crates/vox-secrets/src/lib.rs#L480-L482) | Read the username (e.g. GitHub login) stored alongside a registry token. |
+| `fn` | `remove_registry_token` | `pub fn remove_registry_token(registry: &str) -> Result<bool, SecretError>` | [`crates/vox-secrets/src/lib.rs#L486-L488`](../../../crates/vox-secrets/src/lib.rs#L486-L488) | Remove a registry token from both the secure store and `auth.json`. Returns `true` if an entry existed. Never returns the token material. |
+| `fn` | `migrate_auth_store_to_secure_store` | `pub fn migrate_auth_store_to_secure_store() -> Result<usize, SecretError>` | [`crates/vox-secrets/src/lib.rs#L490-L492`](../../../crates/vox-secrets/src/lib.rs#L490-L492) | — |
+| `struct` | `SecretStatusRow` | `pub struct SecretStatusRow` | [`crates/vox-secrets/src/lib.rs#L574-L592`](../../../crates/vox-secrets/src/lib.rs#L574-L592) | A redaction-safe summary row for one managed secret.  SECURITY: every field here is non-sensitive presence/metadata. The actual secret value is NEVER included — only the `head4…tail2` `redacted` preview from [`ResolvedSecret::redacted`]. Safe to serialize across an IPC / GUI boundary. |
+| `fn` | `list_secret_status` | `pub fn list_secret_status() -> Vec<SecretStatusRow>` | [`crates/vox-secrets/src/lib.rs#L598-L620`](../../../crates/vox-secrets/src/lib.rs#L598-L620) | Build a redaction-safe status row for every real (non config-only) managed secret. Iterates [`all_specs`], filters out operator-tuning config, and resolves each. The returned rows carry only presence + a redacted preview. |
+| `fn` | `active_resolve_profile` | `pub fn active_resolve_profile() -> ResolveProfile` | [`crates/vox-secrets/src/lib.rs#L627-L629`](../../../crates/vox-secrets/src/lib.rs#L627-L629) | The currently-active secret resolution profile, derived from `VOX_SECRETS_PROFILE` (mirrors the precedence in [`resolve_secret`]).  Non-sensitive — exposes only the profile selector, never any material. |
+| `fn` | `backend_unavailable_detail` | `pub fn backend_unavailable_detail() -> Option<String>` | [`crates/vox-secrets/src/lib.rs#L637-L645`](../../../crates/vox-secrets/src/lib.rs#L637-L645) | Probe whether the active secrets backend is reachable.  Resolves managed specs until one reports [`ResolutionStatus::BackendUnavailable`]; returns the first such backend detail (if any). Mirrors the logic behind the CLI `vox secrets backend-status` command. Never exposes secret material. |
+| `struct` | `ImportEnvEntry` | `pub struct ImportEnvEntry` | [`crates/vox-secrets/src/lib.rs#L652-L659`](../../../crates/vox-secrets/src/lib.rs#L652-L659) | One managed secret recognised inside a `.env` file during import.  SECURITY: carries only the source key NAME, the canonical env it maps to, and a `head4…tail2` redacted preview of the value — NEVER the raw value. |
+| `struct` | `ImportEnvResult` | `pub struct ImportEnvResult` | [`crates/vox-secrets/src/lib.rs#L667-L672`](../../../crates/vox-secrets/src/lib.rs#L667-L672) | Result of an `.env` import (dry-run or applied).  SECURITY: `applied == false` means a dry-run that only reports recognised key NAMES; `applied == true` means the values were written to the vault and only a count is returned. No raw value is ever surfaced. |
+| `fn` | `count` | `pub fn count(&self) -> usize` | [`crates/vox-secrets/src/lib.rs#L677-L679`](../../../crates/vox-secrets/src/lib.rs#L677-L679) | Number of managed secrets recognised / imported. |
+| `fn` | `import_env_from_path` | `pub fn import_env_from_path(` | [`crates/vox-secrets/src/lib.rs#L698`](../../../crates/vox-secrets/src/lib.rs#L698) | Parse a `.env` file and either preview (dry-run) or import its managed secrets into the Clavis vault.  Single source of truth shared by the CLI `vox secrets import-env` command and the GUI `import_env` Tauri command. Lines are simple `KEY=VALUE` pairs; comments (`#`) and blanks are skipped, and surrounding quotes are stripped. Only keys matching a managed [`SecretSpec`] (canonical, alias, or deprecated alias) are considered.  When `apply` is `false` the values are read but NEVER stored or returned — only key names + a redacted preview. When `apply` is `true` the values are written to the vault and the same redaction-safe entries are returned.  # Errors Returns [`SecretError`] if the file cannot be read, or (when `apply` is true) if the vault backend cannot be initialized or a write fails. |
+| `trait` | `backend::SecretBackend` | `pub trait SecretBackend: Send + Sync` | [`crates/vox-secrets/src/backend/mod.rs#L7-L24`](../../../crates/vox-secrets/src/backend/mod.rs#L7-L24) | — |
+| `struct` | `backend::NoopBackend` | `pub struct NoopBackend` | [`crates/vox-secrets/src/backend/mod.rs#L26`](../../../crates/vox-secrets/src/backend/mod.rs#L26) | — |
+| `struct` | `backend::UnavailableBackend` | `pub struct UnavailableBackend` | [`crates/vox-secrets/src/backend/mod.rs#L52-L54`](../../../crates/vox-secrets/src/backend/mod.rs#L52-L54) | — |
+| `enum` | `errors::SecretError` | `pub enum SecretError` | [`crates/vox-secrets/src/errors.rs#L4-L15`](../../../crates/vox-secrets/src/errors.rs#L4-L15) | — |
+| `enum` | `lifecycle::RotationHealth` | `pub enum RotationHealth` | [`crates/vox-secrets/src/lifecycle.rs#L9-L30`](../../../crates/vox-secrets/src/lifecycle.rs#L9-L30) | Rotation health status computed from [`LifecycleMeta`] and secret age (`CLAVIS-06`). |
+| `fn` | `lifecycle::evaluate_lifecycle_health` | `pub const fn evaluate_lifecycle_health(meta: LifecycleMeta, age_days: u32) -> RotationHealth` | [`crates/vox-secrets/src/lifecycle.rs#L34-L66`](../../../crates/vox-secrets/src/lifecycle.rs#L34-L66) | Evaluate [`RotationHealth`] for a secret given its [`LifecycleMeta`] and age in days (`CLAVIS-06`). |
+| `struct` | `lifecycle::ValidationProbeSpec` | `pub struct ValidationProbeSpec` | [`crates/vox-secrets/src/lifecycle.rs#L70-L77`](../../../crates/vox-secrets/src/lifecycle.rs#L70-L77) | Read-only HTTP validation probe descriptor for `vox secrets verify` (`CLAVIS-06`). |
+| `fn` | `lifecycle::validation_probe_for` | `pub fn validation_probe_for(id: SecretId) -> Option<ValidationProbeSpec>` | [`crates/vox-secrets/src/lifecycle.rs#L81-L98`](../../../crates/vox-secrets/src/lifecycle.rs#L81-L98) | Return the read-only validation probe descriptor for a [`SecretId`], if supported (`CLAVIS-06`). |
+| `struct` | `lifecycle::RotationRunbook` | `pub struct RotationRunbook` | [`crates/vox-secrets/src/lifecycle.rs#L102-L108`](../../../crates/vox-secrets/src/lifecycle.rs#L102-L108) | Structured 3-step emergency/scheduled rotation runbook (`revoke -> rotate -> redistribute`, `CLAVIS-07`). |
+| `fn` | `lifecycle::rotation_runbook_for` | `pub fn rotation_runbook_for(id: SecretId) -> RotationRunbook` | [`crates/vox-secrets/src/lifecycle.rs#L112-L140`](../../../crates/vox-secrets/src/lifecycle.rs#L112-L140) | Generate the canonical `revoke -> rotate -> redistribute` runbook for `id` (`CLAVIS-07`). |
+| `struct` | `lifecycle::PullSyncManifest` | `pub struct PullSyncManifest` | [`crates/vox-secrets/src/lifecycle.rs#L144-L147`](../../../crates/vox-secrets/src/lifecycle.rs#L144-L147) | Pull-based vault synchronization manifest descriptor (`CLAVIS-08`). |
+| `fn` | `lifecycle::prepare_pull_sync_manifest` | `pub fn prepare_pull_sync_manifest(profile: Profile) -> PullSyncManifest` | [`crates/vox-secrets/src/lifecycle.rs#L151-L164`](../../../crates/vox-secrets/src/lifecycle.rs#L151-L164) | Enumerate all shareable, persistable account secrets eligible for pull-based encrypted vault sync (`CLAVIS-08`). |
+| `enum` | `policy::MissingBehavior` | `pub enum MissingBehavior` | [`crates/vox-secrets/src/policy.rs#L2-L6`](../../../crates/vox-secrets/src/policy.rs#L2-L6) | — |
+| `struct` | `policy::SecretPolicy` | `pub struct SecretPolicy` | [`crates/vox-secrets/src/policy.rs#L9-L12`](../../../crates/vox-secrets/src/policy.rs#L9-L12) | — |
+| `fn` | `policy::required_fail` | `pub const fn required_fail() -> Self` | [`crates/vox-secrets/src/policy.rs#L16-L21`](../../../crates/vox-secrets/src/policy.rs#L16-L21) | — |
+| `fn` | `policy::optional_skip` | `pub const fn optional_skip() -> Self` | [`crates/vox-secrets/src/policy.rs#L24-L29`](../../../crates/vox-secrets/src/policy.rs#L24-L29) | — |
+| `fn` | `redact::redact_secrets_from_value` | `pub fn redact_secrets_from_value(value: &Value, patterns: &[&str]) -> Value` | [`crates/vox-secrets/src/redact.rs#L16-L33`](../../../crates/vox-secrets/src/redact.rs#L16-L33) | Recursively scrub all known secret values from a JSON `Value`. `patterns` is a slice of plaintext secret values from the caller. The caller must obtain these from `resolved.expose()` and is responsible for not retaining them beyond this call's scope.  Returns a new `Value` with all occurrences replaced by `"[REDACTED]"`.  # Panics Does not panic. If AhoCorasick construction fails (empty patterns or pattern too long), returns the input unchanged. |
+| `fn` | `redact::contains_secret_material` | `pub fn contains_secret_material(text: &str, patterns: &[&str]) -> bool` | [`crates/vox-secrets/src/redact.rs#L37-L51`](../../../crates/vox-secrets/src/redact.rs#L37-L51) | Check if a string contains any of the provided known-secret patterns. Used for the audit-log safety check (C1 fix). |
+| `enum` | `resolver::ResolveProfile` | `pub enum ResolveProfile` | [`crates/vox-secrets/src/resolver.rs#L6-L12`](../../../crates/vox-secrets/src/resolver.rs#L6-L12) | — |
+| `fn` | `resolver::is_strict` | `pub const fn is_strict(self) -> bool` | [`crates/vox-secrets/src/resolver.rs#L16-L21`](../../../crates/vox-secrets/src/resolver.rs#L16-L21) | — |
+| `fn` | `resolver::as_str` | `pub const fn as_str(self) -> &'static str` | [`crates/vox-secrets/src/resolver.rs#L24-L31`](../../../crates/vox-secrets/src/resolver.rs#L24-L31) | — |
+| `struct` | `resolver::ResolveOptions` | `pub struct ResolveOptions` | [`crates/vox-secrets/src/resolver.rs#L35-L41`](../../../crates/vox-secrets/src/resolver.rs#L35-L41) | — |
+

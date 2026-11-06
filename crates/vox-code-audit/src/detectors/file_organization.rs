@@ -59,7 +59,7 @@ impl DetectionRule for FileOrganizationDetector {
     fn detect(
         &self,
         file: &SourceFile,
-        _rust: Option<&crate::analysis::RustFileContext>,
+        rust: Option<&crate::analysis::RustFileContext>,
     ) -> Vec<Finding> {
         let mut findings = Vec::new();
         let file_name = file.path.file_name().and_then(|n| n.to_str()).unwrap_or("");
@@ -67,7 +67,14 @@ impl DetectionRule for FileOrganizationDetector {
         // 1. Check for bloated lib.rs (Rust specific)
         if file.language == Language::Rust && file_name == "lib.rs" {
             let mut def_count = 0;
-            for line in &file.lines {
+            for (i, line) in file.lines.iter().enumerate() {
+                let line_num = i + 1;
+                if line.starts_with(char::is_whitespace)
+                    || crate::rules::rust_byte_is_non_code(file, line_num, 0, rust)
+                    || crate::rules::rust_byte_is_cfg_test(file, line_num, 0, rust)
+                {
+                    continue;
+                }
                 let trimmed = line.trim();
                 if trimmed.starts_with("pub struct ")
                     || trimmed.starts_with("struct ")
@@ -87,7 +94,7 @@ impl DetectionRule for FileOrganizationDetector {
                     rule_id: self.id().to_string(),
                     diagnostic_id: None,
                     rule_name: self.name().to_string(),
-                    severity: Severity::Error,
+                    severity: self.severity(),
                     file: file.path.clone(),
                     line: 1,
                     column: 0,

@@ -459,7 +459,7 @@ deliberate abridgment.
 - **Lint the other eight for contradiction** — this is where the real bugs are and it is cheaper
   than a generator. Four are live today: `documentation-policy.mdc` tells agents to use
   `{{#include}}` (AGENTS.md forbids it) and to add `last_updated` (AGENTS.md forbids that too);
-  `voxscript-first-automation.mdc` cites a path that moved to `docs/src/archive/` and says
+  `voxlang-first-automation.mdc` cites a path that moved to `docs/src/archive/` and says
   `vox-runtime` where AGENTS.md says `vox-actor-runtime`. The two policy inversions need a human
   edit, not a generator.
 - **Register the independent eight** in `canonical-map.v1.yaml` against their *real* producers

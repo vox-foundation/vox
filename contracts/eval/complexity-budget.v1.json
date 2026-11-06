@@ -12,6 +12,7 @@
     "db_native_ir": 212,
     "error_propagation": 120,
     "json_as_typed": 120,
-    "mcp_tools": 120
+    "mcp_tools": 120,
+    "py_array_stats": 120
   }
 }

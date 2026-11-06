@@ -116,7 +116,6 @@ const EXAMPLE_FILES: &[&str] = &[
 /// must be empty when Task 14 is done.
 const PENDING_14B_14C: &[&str] = &[
     // 14b
-    "crates/vox-orchestrator-mcp/src/chat_tools/chat/agent_loop.rs",
     "crates/vox-orchestrator-mcp/src/chat_tools/mod.rs",
     "crates/vox-orchestrator-mcp/src/llm_bridge/providers/gemini.rs",
     // 14c

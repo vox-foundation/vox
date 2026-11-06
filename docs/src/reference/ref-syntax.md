@@ -11,7 +11,7 @@ keywords: ["Vox syntax reference", "Vox language keywords", "Vox grammar specifi
 
 # Reference: Language Syntax
 
-This page provides the canonical structural layout for Vox language syntax aligned with the workspace compiler version ([Versioning Policy (SSOT)](../../../AGENTS.md#versioning-policy-ssot); currently **0.5.x**). All code samples are grounded in the confirmed `examples/golden/` files where noted.
+This page provides the canonical structural layout for Vox language syntax aligned with the workspace compiler version ([Versioning Policy (SSOT)](../../../AGENTS.md#versioning-policy-ssot); currently **0.5.x**). All code samples are grounded in the confirmed `examples/golden/` files where noted. For an interactive side-by-side view of how `.vox` declarations compile to SQL, Rust Axum, and React TSX, see the [Interactive Full-Stack Walkthrough](../tutorials/tut-fullstack-walkthrough.mdx).
 
 ## Primitive Types
 
@@ -154,9 +154,10 @@ fn Counter_get(count: int) to int {
 ```
 
 ```vox
-// vox:skip -- native spawn/send actor grammar not yet restored (see examples/golden/ref_actors.vox)
-let c = spawn Counter_increment(0, 5)
-let val = Counter_get(c)
+fn run_counter() to int {
+    let c = Counter_increment(0, 5)
+    return Counter_get(c)
+}
 ```
 
 ## Agents
@@ -164,9 +165,9 @@ let val = Counter_get(c)
 Agents define LLM-backed roles with systematic instructions and toolsets.
 
 ```vox
-// vox:skip -- illustrative future syntax; the @llm agent decorator is not implemented yet
-@llm(model="claude-3-opus")
-fn summarize(text: str) to str
+tool "summarize: Summarize text with an agent tool" summarize(text: str) to str {
+    return "Summary: " + text
+}
 ```
 
 Use `workflow` to group state machine processes that survive process restarts. Use `activity` to dictate atomic, retry-able execution sequences.
@@ -222,9 +223,8 @@ fn square(x: int) to int { return x * x }
 Vox imports use fully qualified paths. Use `import rust:<crate>` for native interop.
 
 ```vox
-// vox:skip -- import rust: always emits an unavoidable doctest-failing metadata-pin warning
 import react.use_state
-import rust:serde_json as json
+import rust:uuid(version: "1") as uuid_rs
 ```
 
 ## See also

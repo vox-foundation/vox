@@ -1,0 +1,37 @@
+[package]
+name = "vox-python-bridge"
+description = "Framed stdio host for one lazy Python worker: request lifecycle, handle generations, and fetch-size caps."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+arrow-array = "=60.1.0"
+arrow-ipc = "=60.1.0"
+vox-foundation = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["io-util", "macros", "process", "rt", "sync", "time"] }
+thiserror = { workspace = true }
+workspace-hack = { version = "0.6", path = "../workspace-hack" }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, features = ["Win32_System_Console"] }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
+
+[[bin]]
+name = "fake_worker"
+path = "src/bin/fake_worker.rs"
+test = false
+doc = false

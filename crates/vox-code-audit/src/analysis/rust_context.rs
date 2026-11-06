@@ -7,6 +7,7 @@ use super::token_map::TokenMap;
 pub struct RustFileContext {
     pub token_map: TokenMap,
     pub ast: Result<syn::File, syn::Error>,
+    pub cfg_test_ranges: Vec<std::ops::Range<usize>>,
 }
 
 impl RustFileContext {
@@ -14,26 +15,94 @@ impl RustFileContext {
     pub fn parse(content: &str) -> Self {
         let token_map = TokenMap::from_rust_source(content);
         let ast = syn::parse_file(content);
-        Self { token_map, ast }
+        let cfg_test_ranges = Self::compute_ignored_test_ranges(content, &token_map);
+        Self {
+            token_map,
+            ast,
+            cfg_test_ranges,
+        }
     }
 
-    /// True if every byte on line `line_1_indexed` (1-based) that overlaps `content` is in a code span.
+    /// True if `byte` falls inside a `#[cfg(test)]` item or `fn minimal_repro` body.
+    #[inline]
+    pub fn is_cfg_test_byte(&self, byte: usize) -> bool {
+        self.cfg_test_ranges.iter().any(|r| r.contains(&byte))
+    }
+
+    fn compute_ignored_test_ranges(
+        content: &str,
+        token_map: &TokenMap,
+    ) -> Vec<std::ops::Range<usize>> {
+        let mut ranges = Vec::new();
+        for pat in ["#[cfg(test)]", "#[cfg(all(test,", "fn minimal_repro"] {
+            let mut search_from = 0usize;
+            while let Some(rel) = content[search_from..].find(pat) {
+                let start = search_from + rel;
+                search_from = start + pat.len();
+                if !token_map.is_code_byte(start) {
+                    continue;
+                }
+                if let Some(end) = Self::find_item_end(content, token_map, start + pat.len()) {
+                    ranges.push(start..end);
+                    search_from = end;
+                }
+            }
+        }
+        ranges
+    }
+
+    fn find_item_end(content: &str, token_map: &TokenMap, from: usize) -> Option<usize> {
+        let bytes = content.as_bytes();
+        let mut i = from;
+        let mut bracket_depth = 0usize;
+        let mut brace_depth = 0usize;
+        let mut started_brace = false;
+        while i < bytes.len() {
+            if token_map.is_code_byte(i) {
+                match bytes[i] {
+                    b'[' | b'(' => bracket_depth += 1,
+                    b']' | b')' => bracket_depth = bracket_depth.saturating_sub(1),
+                    b'{' if bracket_depth == 0 => {
+                        brace_depth += 1;
+                        started_brace = true;
+                    }
+                    b'}' if bracket_depth == 0 && started_brace => {
+                        brace_depth = brace_depth.saturating_sub(1);
+                        if brace_depth == 0 {
+                            return Some(i + 1);
+                        }
+                    }
+                    b';' if bracket_depth == 0 && !started_brace => {
+                        return Some(i + 1);
+                    }
+                    _ => {}
+                }
+            }
+            i += 1;
+        }
+        if started_brace {
+            Some(bytes.len())
+        } else {
+            None
+        }
+    }
+
+    /// True if every byte on line `line_1_indexed` (1-based) that overlaps `content` is in a non-code span.
     /// Lines are split the same way as [`crate::rules::SourceFile::lines`].
     pub fn line_is_prose_safe(&self, content: &str, line_1_indexed: usize) -> bool {
         if line_1_indexed == 0 {
             return false;
         }
         let line_idx = line_1_indexed.saturating_sub(1);
-        let mut start = 0usize;
         for (i, line) in content.lines().enumerate() {
             if i == line_idx {
+                let start = (line.as_ptr() as usize).saturating_sub(content.as_ptr() as usize);
                 let end = start.saturating_add(line.len());
                 if (start..end).any(|b| self.token_map.is_code_byte(b)) {
                     return false;
                 }
                 return true;
             }
-            start = start.saturating_add(line.len()).saturating_add(1);
         }
         false
     }

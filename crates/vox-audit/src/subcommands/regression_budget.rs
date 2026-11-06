@@ -846,8 +846,11 @@ pub fn real_fn() {}\n\
         let ratchet = SpokeRegressionRatchetV1 {
             schema_version: "vox.spoke_regression_ratchet.v1".to_string(),
             spoke_pass_at_1_floors: floors,
+            organic_spoke_pass_at_1_floors: std::collections::BTreeMap::new(),
             organic_search_recall_at_5_floor: 1.0,
             organic_mrr_floor: 0.95,
+            organic_unbiased_recall_at_5_floor: 0.95,
+            organic_distractor_resilience_floor: 1.0,
             organic_compilation_pass_rate_floor: 1.0,
         };
 
@@ -883,8 +886,11 @@ pub fn real_fn() {}\n\
             serde_json::from_str(&ratchet_raw).expect("parse spoke-regression-ratchet.v1.json");
         assert_eq!(ratchet.schema_version, "vox.spoke_regression_ratchet.v1");
         assert_eq!(ratchet.spoke_pass_at_1_floors.len(), 5);
+        assert_eq!(ratchet.organic_spoke_pass_at_1_floors.len(), 8);
         assert!((ratchet.organic_search_recall_at_5_floor - 1.0).abs() < 1e-9);
         assert!(ratchet.organic_mrr_floor >= 0.95);
+        assert!(ratchet.organic_unbiased_recall_at_5_floor >= 0.95);
+        assert!((ratchet.organic_distractor_resilience_floor - 1.0).abs() < 1e-9);
         assert!((ratchet.organic_compilation_pass_rate_floor - 1.0).abs() < 1e-9);
 
         let scorecard_raw =
@@ -922,19 +928,28 @@ fn default_mrr_floor() -> f64 {
     0.95
 }
 
-/// Per-spoke non-decreasing `pass@1` and organic search-to-compilation regression ratchet (`AUDIT-04`, `PERSIST-BENCH-03`).
+/// Per-spoke non-decreasing `pass@1` and organic search-to-compilation regression ratchet (`AUDIT-04`, `PERSIST-BENCH-03`, `CURRICULUM-8SPOKE-02`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SpokeRegressionRatchetV1 {
     /// Schema discriminator (`"vox.spoke_regression_ratchet.v1"`).
     pub schema_version: String,
-    /// Minimum required `pass@1` floor per spoke.
+    /// Minimum required `pass@1` floor per core 5-spoke benchmark entry.
     pub spoke_pass_at_1_floors: std::collections::BTreeMap<String, f64>,
+    /// Minimum required `end_to_end_pass_at_1` floor across all 8 organic spokes (`CURRICULUM-8SPOKE-02`).
+    #[serde(default)]
+    pub organic_spoke_pass_at_1_floors: std::collections::BTreeMap<String, f64>,
     /// Minimum required organic search `Recall@5` floor (`1.0`).
     #[serde(default = "default_one")]
     pub organic_search_recall_at_5_floor: f64,
     /// Minimum required organic search `MRR` floor (`0.95`).
     #[serde(default = "default_mrr_floor")]
     pub organic_mrr_floor: f64,
+    /// Minimum required unbiased filename-stripped organic search `Recall@5` floor (`0.95`).
+    #[serde(default = "default_mrr_floor")]
+    pub organic_unbiased_recall_at_5_floor: f64,
+    /// Minimum required Rank-1 distractor resilience floor (`1.0`).
+    #[serde(default = "default_one")]
+    pub organic_distractor_resilience_floor: f64,
     /// Minimum required organic compilation pass rate floor (`1.0`).
     #[serde(default = "default_one")]
     pub organic_compilation_pass_rate_floor: f64,
@@ -948,17 +963,24 @@ impl SpokeRegressionRatchetV1 {
         for spoke in crate::subcommands::corpus_feedback::AuditSpokeKind::ALL {
             spoke_pass_at_1_floors.insert(spoke.as_str().to_string(), floor);
         }
+        let mut organic_spoke_pass_at_1_floors = spoke_pass_at_1_floors.clone();
+        for extra in ["speech_to_code", "populi_mesh", "skill_creation"] {
+            organic_spoke_pass_at_1_floors.insert(extra.to_string(), floor);
+        }
         Self {
             schema_version: "vox.spoke_regression_ratchet.v1".to_string(),
             spoke_pass_at_1_floors,
+            organic_spoke_pass_at_1_floors,
             organic_search_recall_at_5_floor: 1.0,
             organic_mrr_floor: 0.95,
+            organic_unbiased_recall_at_5_floor: 0.95,
+            organic_distractor_resilience_floor: 1.0,
             organic_compilation_pass_rate_floor: 1.0,
         }
     }
 }
 
-/// Verify that an organic search-to-compilation scorecard JSON satisfies the ratchet floors (`PERSIST-BENCH-03`).
+/// Verify that an organic search-to-compilation scorecard JSON satisfies the 8-spoke ratchet floors (`PERSIST-BENCH-03`, `CURRICULUM-8SPOKE-02`).
 pub fn verify_organic_search_ratchet(
     ratchet: &SpokeRegressionRatchetV1,
     organic_scorecard_json: &serde_json::Value,
@@ -970,6 +992,14 @@ pub fn verify_organic_search_ratchet(
         .unwrap_or(0.0);
     let mrr = organic_scorecard_json
         .get("overall_mrr")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
+    let unbiased_recall = organic_scorecard_json
+        .get("overall_unbiased_search_recall_at_5")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
+    let distractor_res = organic_scorecard_json
+        .get("overall_distractor_resilience_rate")
         .and_then(|v| v.as_f64())
         .unwrap_or(0.0);
     let comp = organic_scorecard_json
@@ -993,6 +1023,18 @@ pub fn verify_organic_search_ratchet(
             ratchet.organic_mrr_floor
         ));
     }
+    if unbiased_recall + 1e-9 < ratchet.organic_unbiased_recall_at_5_floor {
+        violations.push(format!(
+            "organic_unbiased_search_recall_at_5 regressed: {unbiased_recall:.4} < floor {:.4}",
+            ratchet.organic_unbiased_recall_at_5_floor
+        ));
+    }
+    if distractor_res + 1e-9 < ratchet.organic_distractor_resilience_floor {
+        violations.push(format!(
+            "organic_distractor_resilience_rate regressed: {distractor_res:.4} < floor {:.4}",
+            ratchet.organic_distractor_resilience_floor
+        ));
+    }
     if comp + 1e-9 < ratchet.organic_compilation_pass_rate_floor {
         violations.push(format!(
             "organic_compilation_pass_rate regressed: {comp:.4} < floor {:.4}",
@@ -1005,6 +1047,35 @@ pub fn verify_organic_search_ratchet(
             ratchet.organic_compilation_pass_rate_floor
         ));
     }
+
+    if !ratchet.organic_spoke_pass_at_1_floors.is_empty() {
+        let mut observed_organic = std::collections::BTreeMap::new();
+        if let Some(spokes) = organic_scorecard_json
+            .get("spokes")
+            .and_then(|v| v.as_array())
+        {
+            for s in spokes {
+                if let (Some(name), Some(pass1)) = (
+                    s.get("spoke").and_then(|v| v.as_str()),
+                    s.get("end_to_end_pass_at_1").and_then(|v| v.as_f64()),
+                ) {
+                    observed_organic.insert(name.to_string(), pass1);
+                }
+            }
+        }
+        for (spoke, &floor) in &ratchet.organic_spoke_pass_at_1_floors {
+            match observed_organic.get(spoke) {
+                Some(&obs) if obs + 1e-9 >= floor => {}
+                Some(&obs) => violations.push(format!(
+                    "organic spoke `{spoke}` regressed: observed {obs:.4} < floor {floor:.4}"
+                )),
+                None => violations.push(format!(
+                    "organic spoke `{spoke}` missing from organic scorecard"
+                )),
+            }
+        }
+    }
+
     if violations.is_empty() {
         Ok(())
     } else {
@@ -1036,8 +1107,11 @@ pub fn verify_spoke_regression_ratchet(
         Ok(SpokeRegressionRatchetV1 {
             schema_version: ratchet.schema_version.clone(),
             spoke_pass_at_1_floors: updated,
+            organic_spoke_pass_at_1_floors: ratchet.organic_spoke_pass_at_1_floors.clone(),
             organic_search_recall_at_5_floor: ratchet.organic_search_recall_at_5_floor,
             organic_mrr_floor: ratchet.organic_mrr_floor,
+            organic_unbiased_recall_at_5_floor: ratchet.organic_unbiased_recall_at_5_floor,
+            organic_distractor_resilience_floor: ratchet.organic_distractor_resilience_floor,
             organic_compilation_pass_rate_floor: ratchet.organic_compilation_pass_rate_floor,
         })
     } else {

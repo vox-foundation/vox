@@ -89,7 +89,7 @@ applies repo-wide:
      introduce direct `std::env::var` reads for secrets.
    - §Cryptography Policy: use `vox-crypto`. Banned: AEGIS, `ring`, any
      wrapper dragging `cmake` or `nasm`.
-   - §VoxScript-First Glue Code: ALL automation must be `.vox` executed via
+   - §VoxLang-First Glue Code: ALL automation must be `.vox` executed via
      `vox run`. No new `.ps1` / `.sh` / `.py` glue scripts.
    - §Retired Surfaces: symbols that MUST NOT be used. Using them is an
      automatic rejection.
@@ -1214,8 +1214,8 @@ different constraints. Unification reduces the decorator surface from 14 to
 > The at-prefixed spellings below are hard parse errors as of 2026-06-30
 > (`cd7cc96874`). Kept to record the design rationale, not as a target.
 
-```vox
-// vox:skip -- superseded design: @endpoint was removed in v0.6.0
+```text
+// Superseded design: @endpoint was removed in v0.6.0
 @endpoint(kind: query)    fn recent_tasks() to list[Task] { ... }
 @endpoint(kind: mutation) fn add_task(t: NewTask) to Id[Task] { ... }
 @endpoint(kind: server)   fn privileged_action() to Result[Unit] { ... }
@@ -1475,7 +1475,7 @@ principle. Document the rule that Phase 2 enforces.
 
 **Step-by-step work**:
 
-1. Add a new section after §VoxScript-First Glue Code:
+1. Add a new section after §VoxLang-First Glue Code:
 
    ```markdown
    ## Grammar Unification (Vox Source Syntax)
@@ -1626,8 +1626,8 @@ effect system lets the compiler build a capability graph and catch the
 
 **Target syntax**:
 
-```vox
-// vox:skip — illustrative; uses deprecated `->` return syntax and `...` placeholders
+```text
+// Proposed effect system syntax
 // No `uses` clause = pure.
 fn total(xs: list[int]) -> int { ... }
 
@@ -1707,8 +1707,8 @@ graph and compile-time link verification.
 
 **Target syntax**:
 
-```vox
-// vox:skip -- illustrative: proposed `url` block primitive and typed-link syntax, not implemented
+```text
+// Proposed `url` block primitive and typed-link syntax
 url Path {
   Home
   Task(id: Id[Task])
@@ -2134,8 +2134,8 @@ guaranteed by construction.
 
 **Target syntax**:
 
-```vox
-// vox:skip -- illustrative: proposed `surface:` primitive and `:` call-arg syntax, not implemented
+```text
+// Proposed `surface:` primitive and `:` call-arg syntax
 panel(surface: primary) {
   text(size: body) "Hello"
 }
@@ -2165,8 +2165,8 @@ rudimentary AABB non-overlap check at declared breakpoints.
 
 **Target syntax**:
 
-```vox
-// vox:skip -- illustrative: proposed `overlay` block primitive, not implemented; `...` placeholder body
+```text
+// Proposed `overlay` block primitive
 overlay {
   toast(z: 100, position: top_right) { ... }
   drawer(z: 90, position: left) { ... }
@@ -2328,7 +2328,7 @@ atomic.
 **Step-by-step work**:
 
 1. Identify every syntax change that touches the corpus.
-2. Write `migrate-corpus.vox` following the VoxScript-First policy:
+2. Write `migrate-corpus.vox` following the VoxLang-First policy:
    - Uses `vox-compiler` as a library (not regex).
    - For each file, parse with the old-form parser (running in
      compatibility mode), re-emit with the new form.

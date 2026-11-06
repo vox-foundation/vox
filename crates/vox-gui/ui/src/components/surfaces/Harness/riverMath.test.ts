@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { deriveTierCascade, deriveRiverSnapshot } from './riverMath';
 import type { ChatMessage } from '../../../lib/chatCorrelation';

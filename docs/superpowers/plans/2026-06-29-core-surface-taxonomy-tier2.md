@@ -6,7 +6,7 @@
 
 **Architecture:** Reuse the P0 soft-keyword machinery exactly. `form` gets no `logos #[token]`; the P0 positional dispatcher recognizes `Ident("form")` at declaration-head and routes to a `parse_form_kw` head that reuses `parse_form_decl`'s body to produce the identical `Decl::Form(FormDecl)`. `@form` is tombstoned with the P0 machine-readable payload. The three reclassified decorators get **zero code changes** — they already are `@`-decorators producing `Decl::Function`.
 
-**Tech Stack:** Rust (`vox-compiler` parser), VoxScript (codemod extension), the P0 harness + tombstone payload.
+**Tech Stack:** Rust (`vox-compiler` parser), VoxLang (codemod extension), the P0 harness + tombstone payload.
 
 **Spec:** `docs/superpowers/specs/2026-06-29-core-surface-taxonomy-tier2-design.md` (amends the P0 spec).
 

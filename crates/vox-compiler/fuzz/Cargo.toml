@@ -27,5 +27,3 @@ bench = false
 libfuzzer-sys = "0.4"
 vox-compiler = { path = ".." }
 
-[patch.crates-io]
-aegis = { path = "../../../patches/aegis-0.9.8" }

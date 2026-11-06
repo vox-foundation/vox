@@ -288,6 +288,15 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_battery_status",
+      "mcp_tool": "vox_battery_status",
+      "implicit": false,
+      "title": "Battery Status",
+      "description_model": "Report the in-process battery ledger: remaining and spent budget units, USD spend, and 4-hour/monthly quota windows.",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_behavior_record",
       "mcp_tool": "vox_behavior_record",
       "implicit": false,
@@ -648,6 +657,15 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_call_mcp_lazy",
+      "mcp_tool": "vox_call_mcp_lazy",
+      "implicit": false,
+      "title": "Call Mcp Lazy",
+      "description_model": "Resolve a lazily discovered external MCP tool call (tier 3) to its client tool name and normalized arguments without executing it.",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_cancel_task",
       "mcp_tool": "vox_cancel_task",
       "implicit": false,
@@ -720,6 +738,24 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_chat_compact_up_to",
+      "mcp_tool": "vox_chat_compact_up_to",
+      "implicit": false,
+      "title": "Chat Compact Up To",
+      "description_model": "Compact a chat session transcript up to or from a message, replacing those turns with a summary and preserving thought signatures; persists the result.",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_chat_edit_message_in_place",
+      "mcp_tool": "vox_chat_edit_message_in_place",
+      "implicit": false,
+      "title": "Chat Edit Message In Place",
+      "description_model": "Edit one chat transcript message in place without rewinding later turns; persists the edited transcript.",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_chat_history",
       "mcp_tool": "vox_chat_history",
       "implicit": false,
@@ -735,6 +771,24 @@
       "title": "Chat Message",
       "description_model": "Send a chat message to the Vox AI. Resolves @mentions, injects editor context, queries LLM, persists history.",
       "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_chat_queue_steer",
+      "mcp_tool": "vox_chat_queue_steer",
+      "implicit": false,
+      "title": "Chat Queue Steer",
+      "description_model": "Enqueue a prompt on a thread's run queue and optionally promote it to a mid-turn steer injected into the active agent turn.",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_chat_regenerate",
+      "mcp_tool": "vox_chat_regenerate",
+      "implicit": false,
+      "title": "Chat Regenerate",
+      "description_model": "Rewind a chat transcript to a user turn, restore the matching Git checkpoint (resets the working tree and removes untracked files), and optionally re-run the prompt.",
+      "side_effect_class": "destructive",
       "curated": true
     },
     {
@@ -774,6 +828,24 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_chat_stream_cancel",
+      "mcp_tool": "vox_chat_stream_cancel",
+      "implicit": false,
+      "title": "Chat Stream Cancel",
+      "description_model": "Cancel the in-flight resumable turn stream for a chat session.",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_chat_stream_resume",
+      "mcp_tool": "vox_chat_stream_resume",
+      "implicit": false,
+      "title": "Chat Stream Resume",
+      "description_model": "Return accumulated resumable turn-stream text and sequenced chunks after a char offset or sequence number for a chat session.",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_check",
       "mcp_tool": "vox_check",
       "implicit": false,
@@ -807,6 +879,33 @@
       "title": "Check Workspace",
       "description_model": "Run cargo check for the entire workspace and return diagnostics.",
       "side_effect_class": "spawns_process",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_checkpoint_capture",
+      "mcp_tool": "vox_checkpoint_capture",
+      "implicit": false,
+      "title": "Checkpoint Capture",
+      "description_model": "Capture a Git plumbing checkpoint (or labelled restore point) for a thread turn under refs/vox/checkpoints.",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_checkpoint_list",
+      "mcp_tool": "vox_checkpoint_list",
+      "implicit": false,
+      "title": "Checkpoint List",
+      "description_model": "List the Git plumbing checkpoints recorded for a thread.",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_checkpoint_restore",
+      "mcp_tool": "vox_checkpoint_restore",
+      "implicit": false,
+      "title": "Checkpoint Restore",
+      "description_model": "Restore the working tree and index to a thread's Git checkpoint, remove untracked files, and delete later checkpoint refs.",
+      "side_effect_class": "destructive",
       "curated": true
     },
     {
@@ -891,12 +990,30 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_consensus_run",
+      "mcp_tool": "vox_consensus_run",
+      "implicit": false,
+      "title": "Consensus Run",
+      "description_model": "Fan a prompt out to 2-4 models (live inference when provider keys are configured), score each response, and synthesize a consensus answer.",
+      "side_effect_class": "network",
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_context_budget",
       "mcp_tool": "vox_context_budget",
       "implicit": false,
       "title": "Context Budget",
       "description_model": "Get the token budget status and summarize recommendation for an agent.",
       "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_context_handoff",
+      "mcp_tool": "vox_context_handoff",
+      "implicit": false,
+      "title": "Context Handoff",
+      "description_model": "Build a cross-provider context handoff package from a thread transcript and optionally append it to a target thread's history.",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -1143,6 +1260,15 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_file_diff_and_diagnostics",
+      "mcp_tool": "vox_file_diff_and_diagnostics",
+      "implicit": false,
+      "title": "File Diff And Diagnostics",
+      "description_model": "Return the unified Git diff against HEAD and stub diagnostics for one repository-relative file.",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_file_graph",
       "mcp_tool": "vox_file_graph",
       "implicit": false,
@@ -1376,6 +1502,42 @@
       "title": "Git Status",
       "description_model": "Get current git working tree status.",
       "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_guest_share_mint",
+      "mcp_tool": "vox_guest_share_mint",
+      "implicit": false,
+      "title": "Guest Share Mint",
+      "description_model": "Mint a signed guest share invite for a chat thread.",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_guest_share_moderate",
+      "mcp_tool": "vox_guest_share_moderate",
+      "implicit": false,
+      "title": "Guest Share Moderate",
+      "description_model": "Approve or dismiss a pending guest message; approved messages are appended to the thread's chat history.",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_guest_share_redeem",
+      "mcp_tool": "vox_guest_share_redeem",
+      "implicit": false,
+      "title": "Guest Share Redeem",
+      "description_model": "Redeem a signed guest share invite and bind it to a guest session.",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_guest_share_submit",
+      "mcp_tool": "vox_guest_share_submit",
+      "implicit": false,
+      "title": "Guest Share Submit",
+      "description_model": "Submit a guest prompt to a shared thread's moderation queue.",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -1735,6 +1897,24 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_list_mcp_servers",
+      "mcp_tool": "vox_list_mcp_servers",
+      "implicit": false,
+      "title": "List Mcp Servers",
+      "description_model": "List lazily discovered external MCP server groups (tier 1); optionally rebuilds the in-process lazy registry from supplied prefixed tools.",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_list_mcp_tools",
+      "mcp_tool": "vox_list_mcp_tools",
+      "implicit": false,
+      "title": "List Mcp Tools",
+      "description_model": "List the tool schemas of one lazily discovered external MCP server group (tier 2).",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_list_models",
       "mcp_tool": "vox_list_models",
       "implicit": false,
@@ -1868,6 +2048,24 @@
       "implicit": false,
       "title": "Models Preference Set",
       "description_model": "Persist one Models/Settings preference (active_model, routing_priority, selection_policy) for the local GUI user; other keys are refused and values are validated.",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_muse_pool_adopt",
+      "mcp_tool": "vox_muse_pool_adopt",
+      "implicit": false,
+      "title": "Muse Pool Adopt",
+      "description_model": "Adopt the winning Muse worktree variant and delete the losing variants' worktree directories.",
+      "side_effect_class": "destructive",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_muse_pool_spawn",
+      "mcp_tool": "vox_muse_pool_spawn",
+      "implicit": false,
+      "title": "Muse Pool Spawn",
+      "description_model": "Plan 1-4 Muse worktree variants for a run, creating their directories and provisioning untracked env files.",
       "side_effect_class": "writes_files",
       "curated": true
     },
@@ -2278,6 +2476,15 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_pr_review_guide",
+      "mcp_tool": "vox_pr_review_guide",
+      "implicit": false,
+      "title": "Pr Review Guide",
+      "description_model": "Generate (and cache in process) a structured review guide for a pull request head from its changed files.",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_preference_get",
       "mcp_tool": "vox_preference_get",
       "implicit": false,
@@ -2339,6 +2546,24 @@
       "implicit": false,
       "title": "Publish Message",
       "description_model": "Publish a message to the bulletin board for all agents to receive.",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_quarantine_list",
+      "mcp_tool": "vox_quarantine_list",
+      "implicit": false,
+      "title": "Quarantine List",
+      "description_model": "List quarantined (read-only) district path prefixes.",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_quarantine_set",
+      "mcp_tool": "vox_quarantine_set",
+      "implicit": false,
+      "title": "Quarantine Set",
+      "description_model": "Quarantine or release a district path prefix, toggling read-only enforcement for writes under it.",
       "side_effect_class": "writes_files",
       "curated": true
     },
@@ -2641,6 +2866,15 @@
       "title": "Retire Agent",
       "description_model": "Retire an agent: release locks and affinity, unregister heartbeat, return remaining tasks.",
       "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_revert_file",
+      "mcp_tool": "vox_revert_file",
+      "implicit": false,
+      "title": "Revert File",
+      "description_model": "Discard uncommitted working-tree changes to one repository-relative file (git checkout -- file).",
+      "side_effect_class": "destructive",
       "curated": true
     },
     {
@@ -3112,6 +3346,33 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_session_export_bundle",
+      "mcp_tool": "vox_session_export_bundle",
+      "implicit": false,
+      "title": "Session Export Bundle",
+      "description_model": "Export a chat session's transcript as a portable VoxSessionExportBundle v1.",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_session_import_bundle",
+      "mcp_tool": "vox_session_import_bundle",
+      "implicit": false,
+      "title": "Session Import Bundle",
+      "description_model": "Import a VoxSessionExportBundle v1 and append its messages to the session's chat history.",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_session_import_external",
+      "mcp_tool": "vox_session_import_external",
+      "implicit": false,
+      "title": "Session Import External",
+      "description_model": "Import a Claude Code, Codex, or Cursor session (raw JSONL, file path, or latest discovered) and append it to a chat session's history.",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_session_info",
       "mcp_tool": "vox_session_info",
       "implicit": false,
@@ -3126,6 +3387,15 @@
       "implicit": false,
       "title": "Session List",
       "description_model": "List all active sessions with state and token usage.",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_session_list_external",
+      "mcp_tool": "vox_session_list_external",
+      "implicit": false,
+      "title": "Session List External",
+      "description_model": "List discoverable Claude Code, Codex, and Cursor session files, newest first.",
       "side_effect_class": "read_only",
       "curated": true
     },
@@ -3330,6 +3600,15 @@
       "curated": true
     },
     {
+      "capability_id": "mcp.vox_stage_file",
+      "mcp_tool": "vox_stage_file",
+      "implicit": false,
+      "title": "Stage File",
+      "description_model": "Stage one repository-relative file in the Git index (git add -- file).",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
       "capability_id": "mcp.vox_submit_task",
       "mcp_tool": "vox_submit_task",
       "implicit": false,
@@ -3455,6 +3734,15 @@
       "title": "Validate Vuv",
       "description_model": "Validate Vox/VUV source against the compile-time GUI guarantees (contrast, layer-occlusion, a11y, structural web-IR) without writing files.",
       "side_effect_class": "none",
+      "curated": true
+    },
+    {
+      "capability_id": "mcp.vox_vcs_checkpoint_diff_summary",
+      "mcp_tool": "vox_vcs_checkpoint_diff_summary",
+      "implicit": false,
+      "title": "Vcs Checkpoint Diff Summary",
+      "description_model": "Summarize per-file line deltas and the unified patch between a thread checkpoint and HEAD.",
+      "side_effect_class": "read_only",
       "curated": true
     },
     {
@@ -5277,6 +5565,18 @@
       "curated": true
     },
     {
+      "capability_id": "cli.ci.check-changed",
+      "cli_path": [
+        "ci",
+        "check-changed"
+      ],
+      "implicit": false,
+      "title": "Ci Check-changed",
+      "description_model": "CLI operation `vox ci check-changed`",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
       "capability_id": "cli.ci.check-codex-ssot",
       "cli_path": [
         "ci",
@@ -5322,6 +5622,18 @@
       "title": "Ci Check-summary-drift",
       "description_model": "CLI operation `vox ci check-summary-drift`",
       "side_effect_class": "spawns_process",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.ci.ci-changes",
+      "cli_path": [
+        "ci",
+        "ci-changes"
+      ],
+      "implicit": false,
+      "title": "Ci Ci-changes",
+      "description_model": "CLI operation `vox ci ci-changes`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -5787,6 +6099,18 @@
       "curated": true
     },
     {
+      "capability_id": "cli.ci.dom-test-env-ban",
+      "cli_path": [
+        "ci",
+        "dom-test-env-ban"
+      ],
+      "implicit": false,
+      "title": "Ci Dom-test-env-ban",
+      "description_model": "CLI operation `vox ci dom-test-env-ban`",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
       "capability_id": "cli.ci.eval-matrix",
       "cli_path": [
         "ci",
@@ -5821,6 +6145,18 @@
       "implicit": false,
       "title": "Ci Eval-matrix Verify",
       "description_model": "CLI operation `vox ci eval-matrix verify`",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.ci.evidence-asset-ban",
+      "cli_path": [
+        "ci",
+        "evidence-asset-ban"
+      ],
+      "implicit": false,
+      "title": "Ci Evidence-asset-ban",
+      "description_model": "CLI operation `vox ci evidence-asset-ban`",
       "side_effect_class": "read_only",
       "curated": true
     },
@@ -6041,6 +6377,18 @@
       "curated": true
     },
     {
+      "capability_id": "cli.ci.hit-every-surface",
+      "cli_path": [
+        "ci",
+        "hit-every-surface"
+      ],
+      "implicit": false,
+      "title": "Ci Hit-every-surface",
+      "description_model": "CLI operation `vox ci hit-every-surface`",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
       "capability_id": "cli.ci.ignored-test-age",
       "cli_path": [
         "ci",
@@ -6109,6 +6457,18 @@
       "implicit": false,
       "title": "Ci Kill-stuck-tests",
       "description_model": "CLI operation `vox ci kill-stuck-tests`",
+      "side_effect_class": "spawns_process",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.ci.knip-gui",
+      "cli_path": [
+        "ci",
+        "knip-gui"
+      ],
+      "implicit": false,
+      "title": "Ci Knip-gui",
+      "description_model": "CLI operation `vox ci knip-gui`",
       "side_effect_class": "spawns_process",
       "curated": true
     },
@@ -6532,6 +6892,18 @@
       "curated": true
     },
     {
+      "capability_id": "cli.ci.preview-trust-audit",
+      "cli_path": [
+        "ci",
+        "preview-trust-audit"
+      ],
+      "implicit": false,
+      "title": "Ci Preview-trust-audit",
+      "description_model": "CLI operation `vox ci preview-trust-audit`",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
       "capability_id": "cli.ci.profile-parity",
       "cli_path": [
         "ci",
@@ -6541,6 +6913,18 @@
       "title": "Ci Profile-parity",
       "description_model": "CLI operation `vox ci profile-parity`",
       "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.ci.python-bridge-parity",
+      "cli_path": [
+        "ci",
+        "python-bridge-parity"
+      ],
+      "implicit": false,
+      "title": "Ci Python-bridge-parity",
+      "description_model": "CLI operation `vox ci python-bridge-parity`",
+      "side_effect_class": "spawns_process",
       "curated": true
     },
     {
@@ -6918,6 +7302,18 @@
       "curated": true
     },
     {
+      "capability_id": "cli.ci.suppression-review-gate",
+      "cli_path": [
+        "ci",
+        "suppression-review-gate"
+      ],
+      "implicit": false,
+      "title": "Ci Suppression-review-gate",
+      "description_model": "CLI operation `vox ci suppression-review-gate`",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
       "capability_id": "cli.ci.sync-ignore-files",
       "cli_path": [
         "ci",
@@ -7026,6 +7422,18 @@
       "curated": true
     },
     {
+      "capability_id": "cli.ci.transfer-budget-report",
+      "cli_path": [
+        "ci",
+        "transfer-budget-report"
+      ],
+      "implicit": false,
+      "title": "Ci Transfer-budget-report",
+      "description_model": "CLI operation `vox ci transfer-budget-report`",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
       "capability_id": "cli.ci.turso-import-guard",
       "cli_path": [
         "ci",
@@ -7034,6 +7442,18 @@
       "implicit": false,
       "title": "Ci Turso-import-guard",
       "description_model": "CLI operation `vox ci turso-import-guard`",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.ci.vouched-parse",
+      "cli_path": [
+        "ci",
+        "vouched-parse"
+      ],
+      "implicit": false,
+      "title": "Ci Vouched-parse",
+      "description_model": "CLI operation `vox ci vouched-parse`",
       "side_effect_class": "read_only",
       "curated": true
     },
@@ -7059,6 +7479,18 @@
       "title": "Ci Watch-run",
       "description_model": "CLI operation `vox ci watch-run`",
       "side_effect_class": "network",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.ci.wiki-sync",
+      "cli_path": [
+        "ci",
+        "wiki-sync"
+      ],
+      "implicit": false,
+      "title": "Ci Wiki-sync",
+      "description_model": "CLI operation `vox ci wiki-sync`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {
@@ -13475,6 +13907,41 @@
       "implicit": false,
       "title": "Populi Up",
       "description_model": "CLI operation `vox populi up`",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.py",
+      "cli_path": [
+        "py"
+      ],
+      "implicit": false,
+      "title": "Py",
+      "description_model": "CLI operation `vox py`",
+      "side_effect_class": "writes_files",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.py.doctor",
+      "cli_path": [
+        "py",
+        "doctor"
+      ],
+      "implicit": false,
+      "title": "Py Doctor",
+      "description_model": "CLI operation `vox py doctor`",
+      "side_effect_class": "read_only",
+      "curated": true
+    },
+    {
+      "capability_id": "cli.py.sync",
+      "cli_path": [
+        "py",
+        "sync"
+      ],
+      "implicit": false,
+      "title": "Py Sync",
+      "description_model": "CLI operation `vox py sync`",
+      "side_effect_class": "writes_files",
       "curated": true
     },
     {

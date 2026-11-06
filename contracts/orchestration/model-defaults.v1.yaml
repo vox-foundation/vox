@@ -56,9 +56,9 @@ defaults:
       - "qwen/qwen3-coder:free"
       - "openai/gpt-oss-120b:free"
       - "deepseek/deepseek-r1-0528:free"
-      - "minimax/minimax-m2.5:free"
-    rationale: "Research free-tier floor (was OPENROUTER_FREE_FALLBACK_MODELS): concrete dispatchable :free slugs verified in live OpenRouter catalog (platform-ssot v2.1)."
-    verified_on: "2026-10-18"
+      - "google/gemma-4-26b-a4b-it:free"
+    rationale: "Research free-tier floor (was OPENROUTER_FREE_FALLBACK_MODELS): concrete dispatchable :free slugs verified in live OpenRouter catalog (platform-ssot v2.1). Replaced retired minimax/minimax-m2.5:free (404 as of 2026-10-28; paid-only slug remains minimax/minimax-m2.5)."
+    verified_on: "2026-10-28"
   - role: premium_codegen
     model: "~anthropic/claude-sonnet-latest"
     rationale: "premium_alias codegen (platform-ssot v2.1 OpenRouter :latest alias)."

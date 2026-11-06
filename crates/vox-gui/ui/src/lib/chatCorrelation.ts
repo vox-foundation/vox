@@ -152,6 +152,7 @@ function evictAgentToTask(state: ChatState, agentId: unknown): ChatState {
   const key = String(agentId);
   if (!(key in state.agentToTask)) return state;
   const agentToTask = { ...state.agentToTask };
+  // toestub-ignore(vox/ui/layout-and-perf-hazards) -- shallow-clone key removal (not V8 dictionary-mode hot path)
   delete agentToTask[key];
   return { ...state, agentToTask };
 }

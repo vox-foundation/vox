@@ -98,6 +98,13 @@ pub enum CiCmd {
         #[arg(long)]
         write: bool,
     },
+    /// Generate or verify OpenWiki L0–L5 and domain subsystem architecture hubs under docs/src/architecture/subsystems/.
+    #[command(name = "wiki-sync")]
+    WikiSync {
+        /// Write generated subsystem hub pages. Without this flag, verify only.
+        #[arg(long)]
+        write: bool,
+    },
     /// Generate or verify machine-readable GUI coverage classification report.
     #[command(name = "gui-surface-coverage")]
     GuiSurfaceCoverage {
@@ -736,6 +743,9 @@ pub enum CiCmd {
     /// Run rust ecosystem support parity checks (`vox-compiler` contract + classifier test).
     #[command(name = "rust-ecosystem-policy")]
     RustEcosystemPolicy,
+    /// Run `std.array` parity checks (`vox-compiler` signature, handler, and expected).
+    #[command(name = "python-bridge-parity")]
+    PythonBridgeParity,
     /// Fast local smoke: orchestrator compile + command-compliance + rust ecosystem policy.
     #[command(name = "policy-smoke")]
     PolicySmoke,
@@ -938,6 +948,120 @@ pub enum CiCmd {
         #[arg(long)]
         exclude: Vec<String>,
     },
+    /// Advisory multi-surface checklist for harness/GUI diffs.
+    #[command(name = "hit-every-surface")]
+    HitEverySurface {
+        #[arg(long, default_value = "origin/main")]
+        base: String,
+        #[arg(long)]
+        paths: Option<std::path::PathBuf>,
+        #[arg(long)]
+        strict: bool,
+    },
+    /// Advisory gate: suppression-only PRs need needs-human-review.
+    #[command(name = "suppression-review-gate")]
+    SuppressionReviewGate {
+        #[arg(long, default_value = "origin/main")]
+        base: String,
+        #[arg(long)]
+        paths: Option<std::path::PathBuf>,
+        #[arg(long)]
+        strict: bool,
+    },
+    /// Ban committed GUI evidence/screenshot binaries outside the allowlist.
+    #[command(name = "evidence-asset-ban")]
+    EvidenceAssetBan {
+        /// Override allowlist contract.
+        #[arg(long, default_value = "contracts/ci/evidence-asset-allowlist.v1.yaml")]
+        allowlist: std::path::PathBuf,
+        /// Optional newline-delimited path list (skip git ls-files).
+        #[arg(long)]
+        paths: Option<std::path::PathBuf>,
+    },
+    /// Run knip unused-export gate for `crates/vox-gui/ui`.
+    #[command(name = "knip-gui")]
+    KnipGui {
+        /// Fail when pnpm/knip is unavailable (CI).
+        #[arg(long)]
+        check: bool,
+    },
+    /// Emit / ratchet the transfer-budget CI artifact
+    /// (`contracts/reports/transfer-budget-ci.v1.json`) from orchestrator-mcp ceilings.
+    #[command(name = "transfer-budget-report")]
+    TransferBudgetReport {
+        /// Write the report to `--out` (default contracts/reports/transfer-budget-ci.v1.json).
+        #[arg(long)]
+        write: bool,
+        /// Output path (relative to repo root unless absolute).
+        #[arg(long, default_value = "contracts/reports/transfer-budget-ci.v1.json")]
+        out: std::path::PathBuf,
+        /// Compare in-process sample against the committed baseline (ratchet).
+        #[arg(long)]
+        check: bool,
+        /// Baseline path used with `--check`.
+        #[arg(long, default_value = "contracts/reports/transfer-budget-ci.v1.json")]
+        baseline: std::path::PathBuf,
+        /// Optional live sample JSON (`TransferBudgetSample` shape) from CI/test artifact.
+        #[arg(long)]
+        sample_json: Option<std::path::PathBuf>,
+        /// Measure a live sample via wire_compression (preferred over fixture for CI).
+        #[arg(long)]
+        measure: bool,
+    },
+    /// Plan (and short-circuit) CI gates for the merge-base diff using
+    /// `contracts/ci/changed-path-owners.v1.yaml` (t3code `check:changed` analog).
+    /// Inert-only diffs exit 0 without spawning cargo.
+    #[command(name = "check-changed")]
+    CheckChanged {
+        /// Compare against merge-base with this ref (default `origin/main`).
+        #[arg(long, default_value = "origin/main")]
+        base: String,
+        /// Print the owner/gate plan only; never spawn cargo.
+        #[arg(long)]
+        dry_run: bool,
+        /// Newline-delimited changed paths (skip git). Relative to repo root.
+        #[arg(long)]
+        changed: Option<std::path::PathBuf>,
+        /// Override path-owners contract.
+        #[arg(long)]
+        owners: Option<std::path::PathBuf>,
+        /// Write `inert` / `owners` / `file_count` for GitHub Actions `$GITHUB_OUTPUT`.
+        #[arg(long)]
+        github_output: Option<std::path::PathBuf>,
+    },
+    /// Fail-closed parse of `.github/VOUCHED.td` (t3code vouch trust list).
+    #[command(name = "vouched-parse")]
+    VouchedParse {
+        /// Path to VOUCHED.td (relative to repo root unless absolute).
+        #[arg(long, default_value = ".github/VOUCHED.td")]
+        path: std::path::PathBuf,
+    },
+    /// Audit workflows for privileged `pull_request_target` + PR-head + secrets shapes.
+    #[command(name = "preview-trust-audit")]
+    PreviewTrustAudit {
+        #[arg(long, default_value = "contracts/ci/preview-trust-allowlist.v1.yaml")]
+        allowlist: std::path::PathBuf,
+        #[arg(long, default_value = ".github/workflows")]
+        workflows_dir: std::path::PathBuf,
+    },
+    /// Emit per-job boolean change flags (t3code `ci-changes.cjs` analog).
+    #[command(name = "ci-changes")]
+    CiChanges {
+        #[arg(long, default_value = "origin/main")]
+        base: String,
+        /// Optional newline-delimited path list (skip git).
+        #[arg(long)]
+        paths: Option<std::path::PathBuf>,
+        #[arg(long)]
+        github_output: Option<std::path::PathBuf>,
+    },
+    /// Ban `@vitest-environment` / jsdom imports in unit tests under `crates/vox-gui/ui`.
+    #[command(name = "dom-test-env-ban")]
+    DomTestEnvBan {
+        /// Print violations but exit 0 (default is fail-closed after pragma migration).
+        #[arg(long)]
+        advisory: bool,
+    },
     /// GitHub CI state for the current branch (failed/timed-out jobs, slowest
     /// steps) plus open `nightly-failure` issues. Hooks call `--hook` /
     /// `--changed-only`; agents never need to run it by hand.
@@ -999,7 +1123,7 @@ pub enum CiCmd {
     /// Install the local Git pre-commit hook to automate line-ending enforcement.
     #[command(name = "install-hooks")]
     InstallHooks,
-    /// Check VoxScript hygiene: run `vox check` on all `.vox` files in `scripts/`.
+    /// Check VoxLang hygiene: run `vox check` on all `.vox` files in `scripts/`.
     ScriptHygiene {
         /// Scan for retired patterns in script bodies.
         #[arg(long)]
@@ -1261,6 +1385,7 @@ impl CiCmd {
             CiCmd::OperationsVerify => Some("ci-gate/ci.operations-verify"),
             CiCmd::NomenclatureGuard { .. } => Some("ci-gate/ci.nomenclature-guard"),
             CiCmd::RustEcosystemPolicy => Some("ci-gate/ci.rust-ecosystem-policy"),
+            CiCmd::PythonBridgeParity => Some("ci-gate/ci.python-bridge-parity"),
             CiCmd::PolicySmoke => Some("ci-gate/ci.policy-smoke"),
             CiCmd::SecretEnvGuard { .. } => Some("ci-gate/ci.secret-env-guard"),
             CiCmd::SecretsParity => Some("ci-gate/ci.secrets-parity"),

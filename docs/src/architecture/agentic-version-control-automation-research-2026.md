@@ -38,7 +38,7 @@ What we **don't** have:
 - Any commit-message / branch-name / PR-body validator.
 - Any dashboard view of VCS state — branches, commits-since, undo stack, PR queue, leaked-secret diff scan.
 - Any Vox-language type or decorator for "this fn touches VCS state" that the compiler / orchestrator can reason about.
-- Any `.vox` script primitives for VCS automation (per [§VoxScript-First Glue Code](../../../AGENTS.md), all glue must be Vox).
+- Any `.vox` script primitives for VCS automation (per [§VoxLang-First Glue Code](../../../AGENTS.md), all glue must be Vox).
 
 The combination of "rich read tooling, banned-list write tooling, no enforcement layer" is fragile: the policy is a markdown file, not a boundary. This doc argues we close that gap by treating VCS effects as **capabilities expressed in the Vox type system**, with the orchestrator as the only minter of those capabilities.
 
@@ -151,8 +151,8 @@ Capability values are constructed only by the orchestrator's `mint_capability(..
 
 Vox's grammar already mandates *bare-keyword blocks declare scope; decorators modify declarations* ([AGENTS.md §Grammar Unification](../../../AGENTS.md)). VCS effects fit cleanly as decorators on `fn`:
 
-```vox
-// vox:skip -- proposed future syntax; @vcs.* decorators are not implemented yet
+```text
+// Proposed future syntax; @vcs.* decorators are not implemented yet
 @vcs.read_only fn list_recent_changes() -> Vec<Change> { /* … */ }
 
 @vcs.requires(WorkingTreeWrite)
@@ -203,9 +203,9 @@ Today the dashboard (`crates/vox-dashboard/`) has no VCS surface at all (verifie
 
 The data plane is the existing telemetry channel. The control plane is the MCP tool set. The dashboard is a thin renderer.
 
-### Layer 5 — VoxScript glue primitives
+### Layer 5 — VoxLang glue primitives
 
-Per [AGENTS.md §VoxScript-First Glue Code](../../../AGENTS.md), all automation is `.vox`. Add a `scripts/vcs/` directory with primitives:
+Per [AGENTS.md §VoxLang-First Glue Code](../../../AGENTS.md), all automation is `.vox`. Add a `scripts/vcs/` directory with primitives:
 
 - `scripts/vcs/wip.vox` — commit current hunks under the `wip:` prefix mandated by the concurrency policy.
 - `scripts/vcs/sync.vox` — `git fetch` + `rebase` against `main` with conflict-abort behavior (replaces "agent invents its own pull command").

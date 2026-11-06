@@ -288,17 +288,17 @@ export function Console({ pushToast, gamifyEnabled = false, initialAgentId = nul
             </div>
           )}
         </div>
-        <div className="mx-2.5 flex gap-1.5">
-          <Button onClick={continueInVoxTerm} className="text-[11px]">
+        <div className="mx-2.5 flex shrink-0 items-center gap-1.5">
+          <Button onClick={continueInVoxTerm} className="shrink-0 whitespace-nowrap text-[11px]">
             continue in vox term
           </Button>
-          <Button onClick={copyLastBlock} className="text-[11px]">
+          <Button onClick={copyLastBlock} className="shrink-0 whitespace-nowrap text-[11px]">
             copy last block
           </Button>
           <Button
             disabled={agents.length === 0}
             onClick={() => setComposing(true)}
-            className="text-[11px]"
+            className="shrink-0 whitespace-nowrap text-[11px]"
           >
             send to agent
           </Button>

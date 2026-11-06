@@ -4,7 +4,12 @@ import { backendAvailable, BackendUnavailableError } from './lib/backendGuard';
 import { MODEL_LIST_LIMIT } from './config/constants';
 import type { ActionManifest } from './types/actionManifest';
 import type {
+  ArenaCandidateTurnDto,
+  ArenaTurnComparisonDto,
+  ArenaVoteOutcomeDto,
   BackendStatus,
+  ChatRewindOutcomeDto,
+  ClearToolResultsOutcomeDto,
   CommandCatalog,
   OpenLocator,
   OpenOutcome,
@@ -12,6 +17,7 @@ import type {
   RouteExplanation,
   RoutingHealth,
   RoutingSummary,
+  Session,
 } from './types/tauri';
 import type { TaskRow } from './components/surfaces/Tasks/tasksHelpers';
 import type { TownScan } from './components/gamify/urbs/types';
@@ -1024,6 +1030,130 @@ export function getContextBudget(sessionId?: string | null): Promise<ContextBudg
   return safeInvoke<ContextBudgetPayload>('get_context_budget', sessionId != null ? { sessionId } : {});
 }
 
+export function setContextBudgetStrategy(
+  sessionId: string | null | undefined,
+  strategy: string,
+): Promise<ContextBudgetPayload> {
+  return safeInvoke<ContextBudgetPayload>('set_context_budget_strategy', {
+    sessionId: sessionId ?? null,
+    strategy,
+  });
+}
+
+export interface SessionContextPinDto {
+  id: string;
+  label: string;
+  scope?: string;
+}
+
+export function getSessionContextPins(
+  sessionId?: string | null,
+): Promise<SessionContextPinDto[]> {
+  return safeInvoke<SessionContextPinDto[]>('get_session_context_pins', {
+    sessionId: sessionId ?? null,
+  });
+}
+
+export function setSessionContextPins(
+  sessionId: string | null | undefined,
+  pins: SessionContextPinDto[],
+): Promise<SessionContextPinDto[]> {
+  return safeInvoke<SessionContextPinDto[]>('set_session_context_pins', {
+    sessionId: sessionId ?? null,
+    pins,
+  });
+}
+
+export function getSessionChatPosture<T = unknown>(
+  sessionId?: string | null,
+): Promise<T> {
+  return safeInvoke<T>('get_session_chat_posture', {
+    sessionId: sessionId ?? null,
+  });
+}
+
+export function setSessionChatPosture<T = unknown>(
+  sessionId: string | null | undefined,
+  posture: T,
+): Promise<T> {
+  return safeInvoke<T>('set_session_chat_posture', {
+    sessionId: sessionId ?? null,
+    posture,
+  });
+}
+
+export function clearSessionToolResults(
+  sessionId: string,
+  keepRecentToolOutputs = 2,
+): Promise<ClearToolResultsOutcomeDto> {
+  return safeInvoke<ClearToolResultsOutcomeDto>('clear_session_tool_results', {
+    sessionId,
+    keepRecentToolOutputs,
+  });
+}
+
+export interface ArenaCompareInputDto {
+  session_id: string;
+  prompt: string;
+  primary_model?: string | null;
+  challenger_model?: string | null;
+  active_skill?: string | null;
+}
+
+export interface ArenaVoteInputDto {
+  session_id: string;
+  prompt: string;
+  winner: 'a' | 'b' | 'tie' | string;
+  model_a: string;
+  content_a: string;
+  latency_ms_a?: number;
+  model_b: string;
+  content_b: string;
+  latency_ms_b?: number;
+}
+
+export function chatArenaCompare(
+  input: ArenaCompareInputDto,
+): Promise<ArenaTurnComparisonDto> {
+  return safeInvoke<ArenaTurnComparisonDto>('chat_arena_compare', { input });
+}
+
+export function chatArenaVote(input: ArenaVoteInputDto): Promise<ArenaVoteOutcomeDto> {
+  return safeInvoke<ArenaVoteOutcomeDto>('chat_arena_vote', { input });
+}
+
+export function chatForkSession(
+  sessionId: string,
+  forkFromMessageId: number,
+  branchTitle?: string | null,
+): Promise<Session> {
+  return safeInvoke<Session>('chat_fork_session', {
+    sessionId,
+    forkFromMessageId,
+    branchTitle: branchTitle ?? null,
+  });
+}
+
+export function chatRewindToTurn(
+  sessionId: string,
+  targetMessageId: number,
+  restoreVcsCheckpoint = true,
+): Promise<ChatRewindOutcomeDto> {
+  return safeInvoke<ChatRewindOutcomeDto>('chat_rewind_to_turn', {
+    sessionId,
+    targetMessageId,
+    restoreVcsCheckpoint,
+  });
+}
+
+export type {
+  ArenaCandidateTurnDto,
+  ArenaTurnComparisonDto,
+  ArenaVoteOutcomeDto,
+  ChatRewindOutcomeDto,
+  ClearToolResultsOutcomeDto,
+};
+
 export type PlanNodeStatus =
   | 'pending'
   | 'queued'
@@ -1142,6 +1272,11 @@ export function normalizeFeedback(raw: any): { needsYou: FeedbackRow[]; withheld
   return { needsYou: ny, withheld: (raw?.withheld ?? []).map(toRow) };
 }
 
+/** Pending working-tree diff (`get_task_diff`); `path` narrows it to one file. */
+export function getTaskDiff(path: string | null = null): Promise<string> {
+  return safeInvoke<string>('get_task_diff', { path });
+}
+
 export async function feedbackList(): Promise<{ needsYou: FeedbackRow[]; withheld: FeedbackRow[] }> {
   // `invoke_mcp_tool` (crates/vox-gui/src/commands/mcp.rs) is a Tauri command
   // returning `Result<Value, String>` — Tauri's IPC delivers this to JS as an
@@ -1201,6 +1336,61 @@ export function hopperMarkDone(itemId: string): Promise<HopperTaskDto> {
   return safeInvoke<HopperTaskDto>('hopper_mark_done', { itemId });
 }
 
+/** Submit a new hopper task with optional file/scope affinity. */
+export function hopperSubmit(intent: string, affinity: string[] = []): Promise<HopperTaskDto> {
+  return safeInvoke<HopperTaskDto>('hopper_submit', { intent, affinity });
+}
+
+/** Rename an existing hopper task item. */
+export function hopperRename(itemId: string, intent: string): Promise<HopperTaskDto> {
+  return safeInvoke<HopperTaskDto>('hopper_rename', { itemId, intent });
+}
+
+/** Cancel a hopper task item. */
+export function hopperCancel(itemId: string): Promise<HopperTaskDto> {
+  return safeInvoke<HopperTaskDto>('hopper_cancel', { itemId });
+}
+
+/** Reprioritize a hopper task item (`1` = Urgent, `2` = Normal, `3` = Background). */
+export function hopperReprioritize(itemId: string, priority: number): Promise<HopperTaskDto> {
+  return safeInvoke<HopperTaskDto>('hopper_reprioritize', { itemId, priority });
+}
+
+/** Edit an orchestrator task's description. */
+export function editOrchestratorTask(taskId: number | string, description: string): Promise<unknown> {
+  return safeInvoke('edit_orchestrator_task', { taskId, description });
+}
+
+/** Reorder an orchestrator task's priority (`"urgent"` | `"normal"` | `"background"`). */
+export function reorderOrchestratorTask(taskId: number | string, priority: string): Promise<unknown> {
+  return safeInvoke('reorder_orchestrator_task', { taskId, priority });
+}
+
+/** Cancel an orchestrator task by numeric or string id. */
+export function cancelOrchestratorTask(taskId: number | string): Promise<unknown> {
+  return safeInvoke('cancel_orchestrator_task', { taskId });
+}
+
+/** Flag an orchestrator task for Socratic doubt verification. */
+export function doubtOrchestratorTask(taskId: number | string, reason?: string | null): Promise<unknown> {
+  return safeInvoke('doubt_orchestrator_task', { taskId, reason: reason ?? null });
+}
+
+/** Force immediate verification on an orchestrator task. */
+export function forceOrchestratorVerify(taskId: number | string): Promise<unknown> {
+  return safeInvoke('force_orchestrator_verify', { taskId });
+}
+
+/** Skip verification on an orchestrator task. */
+export function skipOrchestratorVerify(taskId: number | string): Promise<unknown> {
+  return safeInvoke('skip_orchestrator_verify', { taskId });
+}
+
+/** Approve an orchestrator task's plan gate. */
+export function approveOrchestratorTaskPlan(taskId: number | string): Promise<unknown> {
+  return safeInvoke('approve_orchestrator_task_plan', { taskId });
+}
+
 // ---------------------------------------------------------------------------
 // Chat turn transport wrapper.
 // ---------------------------------------------------------------------------
@@ -1230,8 +1420,12 @@ export interface ChatTurnInput {
   dry_run?: boolean | null;
   allow_duplicate?: boolean | null;
   /** Interaction mode from the composer (plan|act|verify); forwarded as the
-   *  `mode` enqueue hint on the background path. */
+   *  `mode` enqueue hint on the background path and sync tool args. */
   mode?: string | null;
+  /** Oversight level from the composer (`1`..`5`). */
+  oversight_level?: string | null;
+  /** Knowledge retrieval scope from the composer (`auto`|`docs`|`code`|`memory`|`off`). */
+  kb_scope?: string | null;
   /** The real originating chat session, distinct from `session_id` above
    *  (which can be a synthetic background-session id). See Rust
    *  `ChatTurnInput::chat_session_id`. */
@@ -1348,5 +1542,8 @@ export function scientiaPublicationReplay<T = unknown>(
 ): Promise<T> {
   return safeInvoke<T>('scientia_publication_replay', { publicationId, measuredScore });
 }
+
+export * from './transport/t3Wave3Rpc';
+
 
 

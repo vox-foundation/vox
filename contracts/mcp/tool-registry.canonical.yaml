@@ -232,6 +232,13 @@ tools:
   side_effect_class: read_only
   requires:
   - db
+- name: vox_battery_status
+  description: 'Report the in-process battery ledger: remaining and spent budget units, USD spend, and 4-hour/monthly quota windows.'
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_behavior_record
   description: Record a user behavior event and receive pattern suggestions.
   product_lane: ai
@@ -554,6 +561,13 @@ tools:
   side_effect_class: none
   requires:
   - compiler
+- name: vox_call_mcp_lazy
+  description: Resolve a lazily discovered external MCP tool call (tier 3) to its client tool name and normalized arguments without executing it.
+  product_lane: interop
+  http_read_role_eligible: false
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_cancel_task
   description: Cancels an active or queued task.
   product_lane: ai
@@ -597,6 +611,22 @@ tools:
   exposure: public
   side_effect_class: read_only
   requires: []
+- name: vox_chat_compact_up_to
+  description: Compact a chat session transcript up to or from a message, replacing those turns with a summary and preserving thought signatures; persists the result.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_chat_edit_message_in_place
+  description: Edit one chat transcript message in place without rewinding later turns; persists the edited transcript.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_chat_history
   description: Retrieve the full chat history for the current session.
   product_lane: ai
@@ -614,6 +644,22 @@ tools:
   requires:
   - llm_facade
   - db
+- name: vox_chat_queue_steer
+  description: Enqueue a prompt on a thread's run queue and optionally promote it to a mid-turn steer injected into the active agent turn.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
+- name: vox_chat_regenerate
+  description: Rewind a chat transcript to a user turn, restore the matching Git checkpoint (resets the working tree and removes untracked files), and optionally re-run the prompt.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: destructive
+  requires:
+  - db
+  - llm_facade
 - name: vox_chat_session_append
   description: Append one message to a GUI chat session's display transcript, creating the session on first use.
   product_lane: ai
@@ -646,6 +692,20 @@ tools:
   side_effect_class: writes_files
   requires:
   - db
+- name: vox_chat_stream_cancel
+  description: Cancel the in-flight resumable turn stream for a chat session.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
+- name: vox_chat_stream_resume
+  description: Return accumulated resumable turn-stream text and sequenced chunks after a char offset or sequence number for a chat session.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_check
   description: CLI operation `vox check`
   product_lane: app
@@ -676,6 +736,27 @@ tools:
   side_effect_class: spawns_process
   requires:
   - compiler
+- name: vox_checkpoint_capture
+  description: Capture a Git plumbing checkpoint (or labelled restore point) for a thread turn under refs/vox/checkpoints.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
+- name: vox_checkpoint_list
+  description: List the Git plumbing checkpoints recorded for a thread.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: public
+  side_effect_class: read_only
+  requires: []
+- name: vox_checkpoint_restore
+  description: Restore the working tree and index to a thread's Git checkpoint, remove untracked files, and delete later checkpoint refs.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: destructive
+  requires: []
 - name: vox_claim_file
   description: Request ownership of a specific file.
   product_lane: ai
@@ -741,6 +822,14 @@ tools:
   exposure: public
   side_effect_class: read_only
   requires: []
+- name: vox_consensus_run
+  description: Fan a prompt out to 2-4 models (live inference when provider keys are configured), score each response, and synthesize a consensus answer.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: public
+  side_effect_class: network
+  requires:
+  - llm_facade
 - name: vox_context_budget
   description: Get the token budget status and summarize recommendation for an agent.
   product_lane: ai
@@ -749,6 +838,14 @@ tools:
   side_effect_class: read_only
   requires:
   - attention
+- name: vox_context_handoff
+  description: Build a cross-provider context handoff package from a thread transcript and optionally append it to a target thread's history.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_cost_history
   description: Get a time-series cost breakdown of operations.
   product_lane: ai
@@ -965,6 +1062,13 @@ tools:
   exposure: public
   side_effect_class: read_only
   requires: []
+- name: vox_file_diff_and_diagnostics
+  description: Return the unified Git diff against HEAD and stub diagnostics for one repository-relative file.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_file_graph
   description: Get a JSON graph of all files and their owning agents (affinity map).
   product_lane: ai
@@ -1158,6 +1262,35 @@ tools:
   http_read_role_eligible: true
   exposure: public
   side_effect_class: read_only
+  requires: []
+- name: vox_guest_share_mint
+  description: Mint a signed guest share invite for a chat thread.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
+- name: vox_guest_share_moderate
+  description: Approve or dismiss a pending guest message; approved messages are appended to the thread's chat history.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_guest_share_redeem
+  description: Redeem a signed guest share invite and bind it to a guest session.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
+- name: vox_guest_share_submit
+  description: Submit a guest prompt to a shared thread's moderation queue.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
   requires: []
 - name: vox_gui_components
   description: Retrieve the components registered in the primitive component registry.
@@ -1434,6 +1567,20 @@ tools:
   exposure: public
   side_effect_class: read_only
   requires: []
+- name: vox_list_mcp_servers
+  description: List lazily discovered external MCP server groups (tier 1); optionally rebuilds the in-process lazy registry from supplied prefixed tools.
+  product_lane: interop
+  http_read_role_eligible: false
+  exposure: public
+  side_effect_class: writes_files
+  requires: []
+- name: vox_list_mcp_tools
+  description: List the tool schemas of one lazily discovered external MCP server group (tier 2).
+  product_lane: interop
+  http_read_role_eligible: false
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_list_models
   description: List all models in the orchestrator registry (ids, providers, free/paid).
   product_lane: ai
@@ -1555,6 +1702,20 @@ tools:
   requires:
   - db
   - model_registry
+- name: vox_muse_pool_adopt
+  description: Adopt the winning Muse worktree variant and delete the losing variants' worktree directories.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: destructive
+  requires: []
+- name: vox_muse_pool_spawn
+  description: Plan 1-4 Muse worktree variants for a run, creating their directories and provisioning untracked env files.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_my_files
   description: Returns all files currently owned by the specified agent.
   product_lane: ai
@@ -1859,6 +2020,13 @@ tools:
   side_effect_class: read_only
   requires:
   - mesh
+- name: vox_pr_review_guide
+  description: Generate (and cache in process) a structured review guide for a pull request head from its changed files.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: public
+  side_effect_class: writes_files
+  requires: []
 - name: vox_preference_get
   description: Get a user preference value by key from VoxDb.
   product_lane: data
@@ -1899,6 +2067,20 @@ tools:
   requires: []
 - name: vox_publish_message
   description: Publish a message to the bulletin board for all agents to receive.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
+- name: vox_quarantine_list
+  description: List quarantined (read-only) district path prefixes.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: public
+  side_effect_class: read_only
+  requires: []
+- name: vox_quarantine_set
+  description: Quarantine or release a district path prefix, toggling read-only enforcement for writes under it.
   product_lane: ai
   http_read_role_eligible: false
   exposure: operator
@@ -2142,6 +2324,13 @@ tools:
   side_effect_class: writes_files
   requires:
   - agent_fleet
+- name: vox_revert_file
+  description: Discard uncommitted working-tree changes to one repository-relative file (git checkout -- file).
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: destructive
+  requires: []
 - name: vox_run_tests
   description: Run cargo test for a specific crate, optionally filtered by test name.
   product_lane: app
@@ -2545,6 +2734,30 @@ tools:
   side_effect_class: writes_files
   requires:
   - sessions
+- name: vox_session_export_bundle
+  description: Export a chat session's transcript as a portable VoxSessionExportBundle v1.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: public
+  side_effect_class: read_only
+  requires:
+  - db
+- name: vox_session_import_bundle
+  description: Import a VoxSessionExportBundle v1 and append its messages to the session's chat history.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
+- name: vox_session_import_external
+  description: Import a Claude Code, Codex, or Cursor session (raw JSONL, file path, or latest discovered) and append it to a chat session's history.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires:
+  - db
 - name: vox_session_info
   description: Get detailed info about a specific session.
   product_lane: ai
@@ -2561,6 +2774,13 @@ tools:
   side_effect_class: read_only
   requires:
   - sessions
+- name: vox_session_list_external
+  description: List discoverable Claude Code, Codex, and Cursor session files, newest first.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_session_reset
   description: Reset a session's conversation history (keeps metadata).
   product_lane: ai
@@ -2716,6 +2936,13 @@ tools:
   requires:
   - speech
   - llm_facade
+- name: vox_stage_file
+  description: Stage one repository-relative file in the Git index (git add -- file).
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: operator
+  side_effect_class: writes_files
+  requires: []
 - name: vox_submit_task
   description: Submit a new task to the orchestrator. Routes to the best agent by file affinity.
   product_lane: ai
@@ -2822,6 +3049,13 @@ tools:
   side_effect_class: none
   requires:
   - compiler
+- name: vox_vcs_checkpoint_diff_summary
+  description: Summarize per-file line deltas and the unified patch between a thread checkpoint and HEAD.
+  product_lane: ai
+  http_read_role_eligible: false
+  exposure: public
+  side_effect_class: read_only
+  requires: []
 - name: vox_vcs_status
   description: Get unified VCS status.
   product_lane: ai

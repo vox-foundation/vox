@@ -304,6 +304,25 @@ pub struct SubmitTaskParams {
     #[serde(default)]
     #[schemars(length(max = 256))]
     pub chat_session_id: Option<String>,
+    /// Optional runtime destination tier (`auto` | `local` | `mesh` | `cloud`).
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub tier: Option<String>,
+    /// Optional interaction mode (`plan` | `act` | `verify`).
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub mode: Option<String>,
+    /// Optional oversight level (`1..5` or `relaxed|guided|balanced|cautious|strict`).
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub oversight_level: Option<String>,
+    /// Optional `@kb` context scope (`auto|docs|code|memory|verified|off`).
+    #[serde(default)]
+    #[schemars(length(max = 32))]
+    pub kb_scope: Option<String>,
+    /// Optional Socrates grounding check toggle (`true` | `false`).
+    #[serde(default)]
+    pub grounding_check_enabled: Option<bool>,
 }
 
 /// Heuristic plan-adequacy snapshot for direct [`SubmitTaskParams`] submits when shadow mode is on.
@@ -626,7 +645,7 @@ pub struct BrowserCookiesImportParams {
 pub struct BrowserSnapshotParams {
     #[schemars(length(min = 1, max = 256))]
     pub page_id: String,
-    #[serde(default = "default_true_interactive")]
+    #[serde(default = "vox_config::serde_defaults::default_true")]
     pub interactive_only: bool,
     #[serde(default = "default_max_depth")]
     pub max_depth: u32,
@@ -634,11 +653,6 @@ pub struct BrowserSnapshotParams {
     pub max_nodes: u32,
     #[serde(default)]
     pub include_boxes: bool,
-}
-
-// drift-allow(serde-default-dup): local default; vox_config::serde_defaults would add a crate edge (owner-approved edges only)
-fn default_true_interactive() -> bool {
-    true
 }
 
 fn default_max_depth() -> u32 {

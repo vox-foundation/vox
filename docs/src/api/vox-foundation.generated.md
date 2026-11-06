@@ -68,3 +68,68 @@ Use paths are unchanged — e.g. `vox_foundation::primitives::backoff::expo_back
 | `protocol` | — |
 | `tracing` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_foundation: "vox-foundation"
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_actor_runtime -> vox_foundation
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_foundation
+    node vox_cli_core: "vox-cli-core"
+    vox_cli_core -> vox_foundation
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_foundation
+    node vox_compiler: "vox-compiler"
+    vox_compiler -> vox_foundation
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_foundation
+    node vox_lsp: "vox-lsp"
+    vox_lsp -> vox_foundation
+    node vox_ml_cli: "vox-ml-cli"
+    vox_ml_cli -> vox_foundation
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_foundation
+    node vox_orchestrator_d: "vox-orchestrator-d"
+    vox_orchestrator_d -> vox_foundation
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_foundation
+    node vox_plugin_populi_mesh: "vox-plugin-populi-mesh"
+    vox_plugin_populi_mesh -> vox_foundation
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Direct workspace dependent |
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-core`](./vox-cli-core.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
+| [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-lsp`](./vox-lsp.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-d`](./vox-orchestrator-d.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-plugin-populi-mesh`](./vox-plugin-populi-mesh.generated.md) | Direct workspace dependent |
+| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
+| [`vox-publisher`](./vox-publisher.generated.md) | Direct workspace dependent |
+| [`vox-python-bridge`](./vox-python-bridge.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `protocol::DispatchRequest` | `pub struct DispatchRequest` | [`crates/vox-foundation/src/protocol.rs#L192-L216`](../../../crates/vox-foundation/src/protocol.rs#L192-L216) | Outgoing request from thin clients to Dei-style JSON-line daemons. |
+| `struct` | `protocol::DispatchResponse` | `pub struct DispatchResponse` | [`crates/vox-foundation/src/protocol.rs#L220-L223`](../../../crates/vox-foundation/src/protocol.rs#L220-L223) | Incoming response envelope from Dei-style JSON-line daemons. |
+| `enum` | `protocol::DispatchPayload` | `pub enum DispatchPayload` | [`crates/vox-foundation/src/protocol.rs#L249-L287`](../../../crates/vox-foundation/src/protocol.rs#L249-L287) | Payload variants for streaming and final Dei responses. |
+| `fn` | `tracing::try_init_cli_default_info_fallback` | `pub fn try_init_cli_default_info_fallback()` | [`crates/vox-foundation/src/tracing.rs#L21-L28`](../../../crates/vox-foundation/src/tracing.rs#L21-L28) | CLI preset: honor `RUST_LOG` when valid; otherwise default filter **`info`**.  Writes to **stderr** — `vox`'s stdout is reserved for command output (including the machine-parseable `--json` envelopes emitted by `vox build`/`check`/`test`), so a stray `tracing::info!`/`warn!` anywhere in the dependency graph must never land on stdout and break that contract. |
+| `fn` | `tracing::try_init_from_default_env` | `pub fn try_init_from_default_env()` | [`crates/vox-foundation/src/tracing.rs#L31-L36`](../../../crates/vox-foundation/src/tracing.rs#L31-L36) | Daemon/service preset: [`EnvFilter::from_default_env`] (unset ⇒ subscriber default levels). |
+| `fn` | `tracing::try_init_from_default_env_stderr` | `pub fn try_init_from_default_env_stderr()` | [`crates/vox-foundation/src/tracing.rs#L39-L45`](../../../crates/vox-foundation/src/tracing.rs#L39-L45) | Like [`try_init_from_default_env`] but writes logs to **stderr** (LSP and tools that reserve stdout). |
+| `fn` | `tracing::init_otel_layer` | `pub fn init_otel_layer() -> Option<` | [`crates/vox-foundation/src/tracing.rs#L52`](../../../crates/vox-foundation/src/tracing.rs#L52) | Optional OpenTelemetry OTLP layer for subscribers when the `otel` feature is enabled.  Reads `OTEL_EXPORTER_OTLP_ENDPOINT` (and standard OTEL env vars honored by the OTLP exporter). Returns `None` when the endpoint is unset so callers can keep fmt-only init. |
+

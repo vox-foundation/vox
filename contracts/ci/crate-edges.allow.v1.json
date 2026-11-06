@@ -647,6 +647,10 @@
     ],
     [
       "vox-compiler",
+      "vox-python-bridge"
+    ],
+    [
+      "vox-compiler",
       "vox-repository"
     ],
     [
@@ -1868,6 +1872,10 @@
     [
       "vox-publisher",
       "vox-secrets"
+    ],
+    [
+      "vox-python-bridge",
+      "vox-foundation"
     ],
     [
       "vox-repository",

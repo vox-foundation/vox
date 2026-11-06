@@ -11,12 +11,18 @@ use futures::Stream;
 use serde::{Deserialize, Serialize};
 
 mod measured;
+pub mod repetition_guard;
 pub mod throttle;
 mod wire;
 
 pub use measured::{MeasuredCompletion, stream_measured_once};
+pub use repetition_guard::{RepetitionGuard, RepetitionTripped};
 pub use throttle::{Permit, acquire_permit, on_rate_limited, on_success, retry_after_from_headers};
-pub use wire::{chat_once, embed_once, stream_once};
+pub use vox_openai::sse::{SseDeltaEvent, ToolCallDelta};
+pub use wire::{
+    ReasoningEffortWire, T3WireOptions, build_request_with_t3_options, chat_once, embed_once,
+    normalize_egress_request_for_t3_options, stream_events_once, stream_once,
+};
 
 /// A fully-resolved provider request. No resolution happens in this crate.
 ///
@@ -326,6 +332,10 @@ pub fn is_context_exceeded_error(_status_code: u16, body: &str) -> bool {
 
 /// Streaming item type for [`stream_once`].
 pub type ChatStream = Pin<Box<dyn Stream<Item = Result<String, EgressError>> + Send>>;
+
+/// Streaming item type for [`stream_events_once`] (carries both `delta.content` and `delta.tool_calls` fragments).
+pub type ChatDeltaEventStream =
+    Pin<Box<dyn Stream<Item = Result<vox_openai::sse::SseDeltaEvent, EgressError>> + Send>>;
 
 /// The ONE cost estimate: `(prompt+completion tokens)/1000 * cost_per_1k`. Used only when
 /// the provider reports no cost. Callers MUST NOT re-implement this math (single source).

@@ -56,3 +56,64 @@ See `docs/superpowers/specs/2026-05-28-effort-audit-core-design.md`.
 | `shape` | — |
 | `walk` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_effort_audit: "vox-effort-audit"
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_effort_audit -> vox_actor_runtime
+    node vox_config: "vox-config"
+    vox_effort_audit -> vox_config
+    node vox_git: "vox-git"
+    vox_effort_audit -> vox_git
+    node vox_telemetry: "vox-telemetry"
+    vox_effort_audit -> vox_telemetry
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_effort_audit
+    node vox_effort_route: "vox-effort-route"
+    vox_effort_route -> vox_effort_audit
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-effort-route`](./vox-effort-route.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `config::EffortAuditConfig` | `pub struct EffortAuditConfig` | [`crates/vox-effort-audit/src/config.rs#L8-L32`](../../../crates/vox-effort-audit/src/config.rs#L8-L32) | — |
+| `struct` | `config::JudgeConfig` | `pub struct JudgeConfig` | [`crates/vox-effort-audit/src/config.rs#L35-L43`](../../../crates/vox-effort-audit/src/config.rs#L35-L43) | — |
+| `enum` | `hybrid::MeasuredCost` | `pub enum MeasuredCost` | [`crates/vox-effort-audit/src/hybrid/mod.rs#L9-L22`](../../../crates/vox-effort-audit/src/hybrid/mod.rs#L9-L22) | — |
+| `struct` | `judge::JudgeOutcome` | `pub struct JudgeOutcome` | [`crates/vox-effort-audit/src/judge/mod.rs#L17-L24`](../../../crates/vox-effort-audit/src/judge/mod.rs#L17-L24) | — |
+| `enum` | `judge::JudgeStatus` | `pub enum JudgeStatus` | [`crates/vox-effort-audit/src/judge/mod.rs#L27-L31`](../../../crates/vox-effort-audit/src/judge/mod.rs#L27-L31) | — |
+| `enum` | `judge::SkipReason` | `pub enum SkipReason` | [`crates/vox-effort-audit/src/judge/mod.rs#L34-L37`](../../../crates/vox-effort-audit/src/judge/mod.rs#L34-L37) | — |
+| `trait` | `judge::Judge` | `pub trait Judge: Send + Sync` | [`crates/vox-effort-audit/src/judge/mod.rs#L40-L43`](../../../crates/vox-effort-audit/src/judge/mod.rs#L40-L43) | — |
+| `struct` | `judge::MockJudge` | `pub struct MockJudge` | [`crates/vox-effort-audit/src/judge/mod.rs#L46-L49`](../../../crates/vox-effort-audit/src/judge/mod.rs#L46-L49) | Deterministic in-memory judge for tests. |
+| `struct` | `judge::LlmJudge` | `pub struct LlmJudge` | [`crates/vox-effort-audit/src/judge/mod.rs#L96-L100`](../../../crates/vox-effort-audit/src/judge/mod.rs#L96-L100) | Real judge wired through `vox_actor_runtime::llm` with the chosen model.  All LLM I/O goes through `vox_actor_runtime::llm::infer_with_retry`. The model id is resolved upstream (orchestrator model registry) and passed in as `resolved_model`. The judge surface is intentionally vendor-agnostic — no provider hostnames or SDKs leak in here. See AGENTS.md §Model-Agnostic LLM Boundary. |
+| `struct` | `output::FindingRow` | `pub struct FindingRow` | [`crates/vox-effort-audit/src/output/mod.rs#L11-L23`](../../../crates/vox-effort-audit/src/output/mod.rs#L11-L23) | The top-level shape of one line in `findings.jsonl`. Stable schema_version="1.0". |
+| `struct` | `output::JudgeMeta` | `pub struct JudgeMeta` | [`crates/vox-effort-audit/src/output/mod.rs#L26-L32`](../../../crates/vox-effort-audit/src/output/mod.rs#L26-L32) | — |
+| `struct` | `pipeline::RunSummary` | `pub struct RunSummary` | [`crates/vox-effort-audit/src/pipeline.rs#L39-L44`](../../../crates/vox-effort-audit/src/pipeline.rs#L39-L44) | Summary returned to the caller after `run` finishes.  Used by the CLI (F1) to print a one-liner without re-reading `manifest.json`. |
+| `fn` | `pipeline::run` | `pub async fn run(` | [`crates/vox-effort-audit/src/pipeline.rs#L68`](../../../crates/vox-effort-audit/src/pipeline.rs#L68) | Run one `vox audit effort` pass.  Composition: 1. Resolve the commit range (`range::resolve`). 2. Walk commits, computing diffs + shape features. 3. For each commit: resolve hybrid measured cost, check the per-run token budget, call the judge, emit a `FindingRow` line to `findings.jsonl`. 4. Render `report.md` + `manifest.json`.  `transcript_dir_override` lets tests point at a fixture transcript tree; `None` means use `cfg.transcript_dir`.  CLI bookend overrides (F1): - `since_override`: when `Some`, overrides `cfg.default_since` (the `--since` flag). Accepts the same forms as the TOML key (`"30 days ago"`, `"7d"`, git refs, dates). - `until_override`: when `Some`, overrides the default `HEAD` upper bound (the `--until` flag). Same form rules as `since_override`.  `cfg.limit`, when set, caps the number of *judged* commits — commits past the cap are emitted with `JudgeStatus::Skipped(LimitReached)` so the `manifest.json` `commits_in_range` count still reflects the full walk. |
+| `fn` | `pipeline::run_with_overrides` | `pub async fn run_with_overrides(` | [`crates/vox-effort-audit/src/pipeline.rs#L92`](../../../crates/vox-effort-audit/src/pipeline.rs#L92) | Same as [`run`] but accepts explicit `--since` / `--until` overrides from the CLI. Internal entry-point — keeps the public [`run`] signature stable for callers that don't need to wire bookend overrides (tests, library use). |
+| `struct` | `pricing::ModelRates` | `pub struct ModelRates` | [`crates/vox-effort-audit/src/pricing.rs#L8-L13`](../../../crates/vox-effort-audit/src/pricing.rs#L8-L13) | USD-per-1K-token rates for the resolved judge model. |
+| `fn` | `pricing::cost_usd` | `pub fn cost_usd(&self, prompt_tokens: u64, completion_tokens: u64) -> Option<f64>` | [`crates/vox-effort-audit/src/pricing.rs#L17-L25`](../../../crates/vox-effort-audit/src/pricing.rs#L17-L25) | Real cost in USD, or None when pricing is unknown (NOT a fake 0.0). |
+| `enum` | `range::CommitRange` | `pub enum CommitRange` | [`crates/vox-effort-audit/src/range.rs#L7-L12`](../../../crates/vox-effort-audit/src/range.rs#L7-L12) | — |
+| `enum` | `range::RangeError` | `pub enum RangeError` | [`crates/vox-effort-audit/src/range.rs#L15-L18`](../../../crates/vox-effort-audit/src/range.rs#L15-L18) | — |
+| `fn` | `range::parse_duration` | `pub fn parse_duration(s: &str) -> Result<Duration, RangeError>` | [`crates/vox-effort-audit/src/range.rs#L25-L70`](../../../crates/vox-effort-audit/src/range.rs#L25-L70) | Parses a duration string of the form `NNd`, `NNh`, or `NNw` (N = ASCII digits), or the long forms `"N days ago"` / `"N hours ago"` / `"N weeks ago"`.  The compact `digits+suffix` form requires the prefix to be ALL ASCII digits — refs like `feature-2d` or `abc123d` MUST NOT parse as durations. |
+| `fn` | `range::resolve` | `pub fn resolve(` | [`crates/vox-effort-audit/src/range.rs#L76`](../../../crates/vox-effort-audit/src/range.rs#L76) | Resolves CLI args + config default into a `CommitRange`.  `since_arg` and `until_arg` are the raw `--since`/`--until` strings. If neither parses as a duration, both are treated as git refs. |
+| `fn` | `range::duration_cutoff` | `pub fn duration_cutoff(now: DateTime<Utc>, d: Duration) -> DateTime<Utc>` | [`crates/vox-effort-audit/src/range.rs#L94-L96`](../../../crates/vox-effort-audit/src/range.rs#L94-L96) | For `SinceDuration`, the wall-clock cutoff at run time. |
+| `struct` | `shape::ShapeFeatures` | `pub struct ShapeFeatures` | [`crates/vox-effort-audit/src/shape.rs#L8-L18`](../../../crates/vox-effort-audit/src/shape.rs#L8-L18) | — |
+| `enum` | `shape::CommitKind` | `pub enum CommitKind` | [`crates/vox-effort-audit/src/shape.rs#L22-L32`](../../../crates/vox-effort-audit/src/shape.rs#L22-L32) | — |
+| `fn` | `shape::features` | `pub fn features(rec: &CommitRecord) -> ShapeFeatures` | [`crates/vox-effort-audit/src/shape.rs#L34-L79`](../../../crates/vox-effort-audit/src/shape.rs#L34-L79) | — |
+| `struct` | `walk::CommitRecord` | `pub struct CommitRecord` | [`crates/vox-effort-audit/src/walk.rs#L19-L30`](../../../crates/vox-effort-audit/src/walk.rs#L19-L30) | — |
+| `struct` | `walk::FileChange` | `pub struct FileChange` | [`crates/vox-effort-audit/src/walk.rs#L33-L37`](../../../crates/vox-effort-audit/src/walk.rs#L33-L37) | — |
+| `enum` | `walk::WalkError` | `pub enum WalkError` | [`crates/vox-effort-audit/src/walk.rs#L40-L45`](../../../crates/vox-effort-audit/src/walk.rs#L40-L45) | — |
+| `fn` | `walk::iter_commits` | `pub fn iter_commits(` | [`crates/vox-effort-audit/src/walk.rs#L48`](../../../crates/vox-effort-audit/src/walk.rs#L48) | Iterates commits in the range, newest-first. |
+

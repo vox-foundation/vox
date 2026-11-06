@@ -288,6 +288,79 @@ pub fn load_cached_bundle_if_valid(
     Some(bundle)
 }
 
+/// Resolve the remote intelligence bundle URL from an explicit override or
+/// `SecretId::VoxTelemetryUploadUrl` (`ROUTE-LEARN-02`).
+#[must_use]
+pub fn resolve_intelligence_bundle_url(endpoint_override: Option<&str>) -> Option<String> {
+    let raw = endpoint_override.map(str::to_owned).or_else(|| {
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxTelemetryUploadUrl)
+            .expose()
+            .map(str::to_owned)
+    })?;
+    let trimmed = raw.trim().trim_end_matches('/');
+    if trimmed.is_empty() {
+        return None;
+    }
+    if trimmed.ends_with(".json") {
+        Some(trimmed.to_owned())
+    } else if let Some(base) = trimmed.strip_suffix("/v1/logs") {
+        Some(format!("{base}/v1/intelligence/bundle.json"))
+    } else {
+        Some(format!("{trimmed}/v1/intelligence/bundle.json"))
+    }
+}
+
+/// Non-blocking remote sync of `CommunityIntelligenceBundleV1` (`ROUTE-LEARN-02`).
+///
+/// Fetches the signed bundle from the centralized server (`GET /v1/intelligence/bundle.json`),
+/// enforces `Ed25519` signature + $k \ge 20$ / $n \ge 50$ verification before persisting to
+/// `~/.vox/cache/community-intelligence.v1.json`, and returns `Ok(None)` when disabled or
+/// unconfigured so offline operation is never disrupted.
+pub async fn sync_community_intelligence_from_remote(
+    endpoint_override: Option<&str>,
+    cache_path: Option<&std::path::Path>,
+) -> Result<Option<CommunityIntelligenceBundleV1>> {
+    if !is_community_intelligence_enabled() {
+        return Ok(None);
+    }
+    let Some(url) = resolve_intelligence_bundle_url(endpoint_override) else {
+        return Ok(None);
+    };
+    let client = vox_http_client::client_builder()
+        .timeout(vox_config::timeouts::D_10S)
+        .build()
+        .unwrap_or_else(|_| vox_http_client::client());
+
+    let mut req = client.get(&url);
+    if let Some(tok) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxTelemetryUploadToken)
+        .expose()
+        .filter(|s| !s.trim().is_empty())
+    {
+        req = req.header(
+            reqwest::header::AUTHORIZATION,
+            format!("Bearer {}", tok.trim()),
+        );
+    }
+    let resp = req.send().await?;
+    ensure!(
+        resp.status().is_success(),
+        "intelligence bundle fetch failed with HTTP {}",
+        resp.status()
+    );
+    let body = resp.text().await?;
+    let bundle: CommunityIntelligenceBundleV1 = serde_json::from_str(&body)?;
+    bundle.verify_bundle_signature()?;
+
+    let dest = cache_path
+        .map(PathBuf::from)
+        .unwrap_or_else(default_bundle_cache_path);
+    if let Some(parent) = dest.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    std::fs::write(&dest, &body)?;
+    Ok(Some(bundle))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -394,5 +467,111 @@ mod tests {
 
         let updated = reg.apply_community_intelligence_bundle(&valid_bundle);
         assert_eq!(updated, 1);
+    }
+
+    #[test]
+    fn resolve_intelligence_bundle_url_normalizes_logs_and_json_endpoints() {
+        assert_eq!(
+            resolve_intelligence_bundle_url(Some("https://ops.voxlang.org/v1/logs")),
+            Some("https://ops.voxlang.org/v1/intelligence/bundle.json".into())
+        );
+        assert_eq!(
+            resolve_intelligence_bundle_url(Some("https://ops.voxlang.org/")),
+            Some("https://ops.voxlang.org/v1/intelligence/bundle.json".into())
+        );
+        assert_eq!(
+            resolve_intelligence_bundle_url(Some("https://ops.voxlang.org/custom/bundle.json")),
+            Some("https://ops.voxlang.org/custom/bundle.json".into())
+        );
+    }
+
+    #[test]
+    fn arena_preference_outcome_updates_bradley_terry_quality_bandit_arms_and_routing_rank() {
+        use crate::config::CostPreference;
+        use crate::models::scoring::auto_score_model;
+        use crate::routing::ModelSelectionEngine;
+        use crate::types::TaskCategory;
+
+        let mut reg = ModelRegistry::default();
+        reg.clear();
+        let m_a = test_spec("ollama/candidate-a");
+        let m_b = test_spec("ollama/candidate-b");
+        reg.register(m_a.clone());
+        reg.register(m_b.clone());
+
+        // Initially equal scores
+        let s_a0 = auto_score_model(
+            &m_a,
+            5,
+            false,
+            None,
+            CostPreference::Performance,
+            None,
+            reg.get_score(&m_a.id),
+        );
+        let s_b0 = auto_score_model(
+            &m_b,
+            5,
+            false,
+            None,
+            CostPreference::Performance,
+            None,
+            reg.get_score(&m_b.id),
+        );
+        assert!((s_a0 - s_b0).abs() < 1e-9);
+
+        // Candidate B wins 3 consecutive Arena comparisons against Candidate A
+        for _ in 0..3 {
+            let (qa, qb) = reg.record_arena_preference_outcome(&m_a.id, &m_b.id, 0.0);
+            assert!(
+                qb > qa,
+                "winner quality {qb} must exceed loser quality {qa}"
+            );
+        }
+
+        let s_a1 = auto_score_model(
+            &m_a,
+            5,
+            false,
+            None,
+            CostPreference::Performance,
+            None,
+            reg.get_score(&m_a.id),
+        );
+        let s_b1 = auto_score_model(
+            &m_b,
+            5,
+            false,
+            None,
+            CostPreference::Performance,
+            None,
+            reg.get_score(&m_b.id),
+        );
+        assert!(
+            s_b1 > s_a1,
+            "Arena winner must outscore loser in auto_score_model ({s_b1} vs {s_a1})"
+        );
+
+        let arm_a = reg.arm_stats_snapshot().get(&m_a.id).copied().unwrap();
+        let arm_b = reg.arm_stats_snapshot().get(&m_b.id).copied().unwrap();
+        assert!(arm_b.0 > arm_a.0, "winner arm successes must exceed loser");
+        assert!(arm_a.1 > arm_b.1, "loser arm failures must exceed winner");
+
+        let mut engine = ModelSelectionEngine::new(Some(42));
+        let picked = engine
+            .pick_with_auto_score_thompson(
+                &[m_a, m_b.clone()],
+                TaskCategory::CodeGen,
+                5,
+                false,
+                None,
+                CostPreference::Performance,
+                None,
+                reg.arm_stats_snapshot(),
+                reg.scoreboard_snapshot(),
+                0,
+            )
+            .expect("must pick a candidate");
+        assert_eq!(picked.id, m_b.id);
     }
 }

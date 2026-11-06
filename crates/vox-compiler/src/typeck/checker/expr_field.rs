@@ -223,6 +223,8 @@ fn std_namespace_short_name(named: &str) -> Option<&'static str> {
         "StdTimeNs" => Some("time"),
         "StdLogNs" => Some("log"),
         "StdRegexNs" => Some("regex"),
+        "StdArrayNs" => Some("array"),
+        "StdFrameNs" => Some("frame"),
         _ => None,
     }
 }

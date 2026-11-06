@@ -53,7 +53,7 @@ Every line number below was verified at that commit. If a cited line is off by m
 - **Never** `cargo fmt --all` — it overflows the Windows command-line limit. Use `cargo fmt -p <crate>`.
 - **Cargo features are per-package and nothing is on by default.** `vox-populi` has `mens` / `mens-cloud` / `mens-train` / `mens-hf-hub`; `vox-ml-cli` has `gpu` / `cloud` / `execution-api`; `vox-quantize` has only `cuda` / `metal`, **no** `mens`, and **no `anyhow` dependency** — all fallible code there returns `Result<_, QuantizeError>`. A test run without the right `--features` compiles none of your work and exits 0.
 - Every new `pub fn` needs a same-file `#[test]` or the `tdd-guard` pre-commit hook blocks the commit.
-- No new `.py` / `.sh` / `.ps1` glue **authored by us**. Automation is VoxScript (`.vox`, via `vox run`). Task 12 *invokes* a third-party project's own `convert_hf_to_gguf.py`; that is calling an external tool, not authoring glue, and is no more a policy exception than calling `ollama` or `cargo`. Do not "fix" it by rewriting llama.cpp's converter in Vox.
+- No new `.py` / `.sh` / `.ps1` glue **authored by us**. Automation is VoxLang (`.vox`, via `vox run`). Task 12 *invokes* a third-party project's own `convert_hf_to_gguf.py`; that is calling an external tool, not authoring glue, and is no more a policy exception than calling `ollama` or `cargo`. Do not "fix" it by rewriting llama.cpp's converter in Vox.
 - Do **not** create or edit `docs/src/architecture/research-index.md` — retired 2026-09-06. Frontmatter alone makes a doc discoverable.
 - Do **not** run `git add -A` or `git commit -am`. Commit only the paths your task's **Files** block names; other agents are editing neighbouring files.
 
@@ -108,7 +108,7 @@ Tasks 6 and 12 each add a flag to `vox mens merge-qlora`, which **is** registere
 
 | Rejected | Why |
 |---|---|
-| `AGENTS.md` VoxScript-First amendment | **REQUIRES HUMAN AUTHORIZATION — do not execute.** `AGENTS.md` is the always-loaded cross-tool policy surface; an agent must not rewrite it unilaterally. It is also unnecessary: Task 12 invokes a third-party tool's own script, which the rule does not cover (it bans glue *we author*). Left out of the dependency chain entirely. |
+| `AGENTS.md` VoxLang-First amendment | **REQUIRES HUMAN AUTHORIZATION — do not execute.** `AGENTS.md` is the always-loaded cross-tool policy surface; an agent must not rewrite it unilaterally. It is also unnecessary: Task 12 invokes a third-party tool's own script, which the rule does not cover (it bans glue *we author*). Left out of the dependency chain entirely. |
 | MLX lane (`mlx_lm.convert`) | Candle-Metal already serves Macs through the existing `vox-quantize` path. A speed win, not a capability unlock. Task 11 handles the *other* MLX question — refusing an MLX checkpoint as **input** — which is a correctness issue, not a lane. |
 | `QuantRecipe` fields on the handoff | Advisory prose in a JSON payload whose schema is `contracts/eval/external-serving-handoff.schema.json`; a schema change plus a `contracts/index.yaml` row to ship three `llm-compressor` command strings that belong in a doc. |
 | Plan B Task 6 (`0.22` → `0.3033`, `VoxMixture::label`) | **Already done / never existed.** `crates/vox-quantize/src/policy.rs:109` is `0.303`; the string `0.22` appears nowhere under `crates/vox-quantize/src/`; the type is `QuantMixture`, not `VoxMixture`; there is no `.label()`; `fits_target_tier` takes `&QuantMixture` by reference. Deleted. (Task 10 removes the constant altogether, which is a different and better outcome than correcting it.) |
@@ -1861,7 +1861,7 @@ The lane needs a cloned and built llama.cpp (`convert_hf_to_gguf.py` + the `llam
 
 ### The house rule on glue scripts does not apply here — state this in review
 
-`AGENTS.md` §VoxScript-First Glue Code bans new `.py` / `.sh` / `.ps1` **glue authored by us**. This task authors none. It *invokes* llama.cpp's own `convert_hf_to_gguf.py` as a subprocess, exactly as the rest of the workspace invokes `ollama`, `cargo`, `pnpm` and `rg`. Rewriting a third-party GGUF converter in VoxScript to satisfy a rule about our own automation would be a straightforward misreading. **Say this in the PR description** so a reviewer does not flag it and so the next agent does not "fix" it.
+`AGENTS.md` §VoxLang-First Glue Code bans new `.py` / `.sh` / `.ps1` **glue authored by us**. This task authors none. It *invokes* llama.cpp's own `convert_hf_to_gguf.py` as a subprocess, exactly as the rest of the workspace invokes `ollama`, `cargo`, `pnpm` and `rg`. Rewriting a third-party GGUF converter in VoxLang to satisfy a rule about our own automation would be a straightforward misreading. **Say this in the PR description** so a reviewer does not flag it and so the next agent does not "fix" it.
 
 Subprocess calls go through the workspace's existing process primitives where available; `std::process::Command` is acceptable here and is what the surrounding `vox-ml-cli` code already uses.
 
@@ -1943,7 +1943,7 @@ Pure argv construction, no process spawning — that is what makes it testable:
 /// llama/gemma2 bases the Ollama lane is cheaper; see `--keep-merged`.
 ///
 /// `convert_hf_to_gguf.py` is llama.cpp's own script, invoked as a
-/// third-party tool. AGENTS.md's VoxScript-first rule bans glue *we author*;
+/// third-party tool. AGENTS.md's VoxLang-first rule bans glue *we author*;
 /// it does not require reimplementing someone else's converter.
 #[must_use]
 pub fn llama_cpp_commands(

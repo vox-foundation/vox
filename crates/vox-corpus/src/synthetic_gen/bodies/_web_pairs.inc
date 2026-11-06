@@ -4,32 +4,32 @@ const WEB_CONSTRUCTS: &[(&str, &str, &str)] = &[
     (
         "component",
         "Navbar",
-        "fn Navbar(active_tab: str) to Element {\n    div(class: \"navbar\", children: [text(active_tab)])\n}",
+        "component Navbar(active_tab: str) {\n    view {\n        div(class: \"navbar\", children: [text(active_tab)])\n    }\n}",
     ),
     (
         "page",
         "Dashboard",
-        "routes {\n    \"/dash\" to Dashboard\n}\n\nfn Dashboard() to Element {\n    div(class: \"dashboard\", children: [h1(text: \"Dashboard\"), Counter()])\n}",
+        "routes {\n    \"/dash\" to Dashboard\n}\n\ncomponent Dashboard() {\n    view {\n        div(class: \"dashboard\", children: [h1(text: \"Dashboard\"), Counter()])\n    }\n}",
     ),
     (
         "query",
         "get_user",
-        "query fn get_user(id: int) to Option[User] {\n    ret db.User.find(id)\n}",
+        "query get_user(id: Id[User]) to Option[User] {\n    return db.User.find(id)\n}",
     ),
     (
         "mutation",
         "update_user",
-        "mutation fn update_user(id: int, name: str) to Result[Unit] {\n    db.User.update(id, { name: name })\n    ret Ok(())\n}",
+        "mutation update_user(id: Id[User], name: str) to Result[Unit, UserError] {\n    db.User.update(id, { name: name })\n    return Ok(())\n}",
     ),
     (
-        "server fn",
+        "server",
         "submit_form",
-        "server fn submit_form(payload: str) to Result[str] {\n    ret Ok(\"submitted: \" + payload)\n}",
+        "server submit_form(payload: str) to Result[str, FormError] {\n    return Ok(\"submitted: \" + payload)\n}",
     ),
     (
-        "server fn",
+        "server",
         "generate_pdf",
-        "server fn generate_pdf(report: str) to Result[str] {\n    ret Ok(\"pdf_ready: \" + report)\n}",
+        "server generate_pdf(report: str) to Result[str, PdfError] {\n    return Ok(\"pdf_ready: \" + report)\n}",
     ),
 ];
 

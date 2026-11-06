@@ -66,3 +66,84 @@ here instead of pulling in the full orchestrator.
 | `route_backend_for_chat_route` | — |
 | `backend_telemetry_labels` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_orchestrator_types: "vox-orchestrator-types"
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_actor_runtime -> vox_orchestrator_types
+    node vox_code_audit: "vox-code-audit"
+    vox_code_audit -> vox_orchestrator_types
+    node vox_db: "vox-db"
+    vox_db -> vox_orchestrator_types
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_orchestrator_types
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_orchestrator_types
+    node vox_orchestrator_queue: "vox-orchestrator-queue"
+    vox_orchestrator_queue -> vox_orchestrator_types
+    node vox_orchestrator_test_helpers: "vox-orchestrator-test-helpers"
+    vox_orchestrator_test_helpers -> vox_orchestrator_types
+    node vox_research_shim: "vox-research-shim"
+    vox_research_shim -> vox_orchestrator_types
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Direct workspace dependent |
+| [`vox-code-audit`](./vox-code-audit.generated.md) | Direct workspace dependent |
+| [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-queue`](./vox-orchestrator-queue.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-test-helpers`](./vox-orchestrator-test-helpers.generated.md) | Direct workspace dependent |
+| [`vox-research-shim`](./vox-research-shim.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `HuggingFaceDedicatedEndpoint` | `pub struct HuggingFaceDedicatedEndpoint` | [`crates/vox-orchestrator-types/src/lib.rs#L32-L36`](../../../crates/vox-orchestrator-types/src/lib.rs#L32-L36) | Pinned **Inference Endpoint** (dedicated deployment) with an explicit OpenAI-compatible chat URL. |
+| `struct` | `HuggingFaceRouterEndpoint` | `pub struct HuggingFaceRouterEndpoint` | [`crates/vox-orchestrator-types/src/lib.rs#L40-L44`](../../../crates/vox-orchestrator-types/src/lib.rs#L40-L44) | Resolved router endpoint for chat; bearer token is optional for some public models but usually required. |
+| `enum` | `ChatRouteBackend` | `pub enum ChatRouteBackend` | [`crates/vox-orchestrator-types/src/lib.rs#L49-L61`](../../../crates/vox-orchestrator-types/src/lib.rs#L49-L61) | Normalized HTTP/backend lane for chat route telemetry. |
+| `enum` | `ChatProviderRouteKind` | `pub enum ChatProviderRouteKind` | [`crates/vox-orchestrator-types/src/lib.rs#L66-L83`](../../../crates/vox-orchestrator-types/src/lib.rs#L66-L83) | Resolved high-level route before HTTP client configuration. |
+| `fn` | `route_backend_for_chat_route` | `pub fn route_backend_for_chat_route(route: &ChatProviderRouteKind) -> ChatRouteBackend` | [`crates/vox-orchestrator-types/src/lib.rs#L86-L104`](../../../crates/vox-orchestrator-types/src/lib.rs#L86-L104) | — |
+| `fn` | `backend_telemetry_labels` | `pub fn backend_telemetry_labels(backend: ChatRouteBackend) -> (&'static str, &'static str)` | [`crates/vox-orchestrator-types/src/lib.rs#L107-L116`](../../../crates/vox-orchestrator-types/src/lib.rs#L107-L116) | — |
+| `struct` | `merge_outcome::DaemonId` | `pub struct DaemonId(pub [u8; 16])` | [`crates/vox-orchestrator-types/src/merge_outcome.rs#L17`](../../../crates/vox-orchestrator-types/src/merge_outcome.rs#L17) | Opaque 16-byte daemon node identity (UUIDv4 bytes in network order).  Defined here so `MergeOutcome` can reference it without pulling in the full orchestrator-queue crate. |
+| `enum` | `merge_outcome::MergeOutcome` | `pub enum MergeOutcome` | [`crates/vox-orchestrator-types/src/merge_outcome.rs#L22-L42`](../../../crates/vox-orchestrator-types/src/merge_outcome.rs#L22-L42) | Three-tier conflict-funnel outcome for branch-merge and lock operations. |
+| `fn` | `merge_outcome::is_merged` | `pub fn is_merged(&self) -> bool` | [`crates/vox-orchestrator-types/src/merge_outcome.rs#L46-L48`](../../../crates/vox-orchestrator-types/src/merge_outcome.rs#L46-L48) | Returns `true` if the merge completed without any conflict. |
+| `fn` | `merge_outcome::is_lock_wait` | `pub fn is_lock_wait(&self) -> bool` | [`crates/vox-orchestrator-types/src/merge_outcome.rs#L51-L53`](../../../crates/vox-orchestrator-types/src/merge_outcome.rs#L51-L53) | Returns `true` if the caller should retry after a lease expires. |
+| `fn` | `merge_outcome::lock_wait_lease_ms` | `pub fn lock_wait_lease_ms(&self) -> Option<u64>` | [`crates/vox-orchestrator-types/src/merge_outcome.rs#L56-L62`](../../../crates/vox-orchestrator-types/src/merge_outcome.rs#L56-L62) | Returns the suggested retry delay when `LockWait`, otherwise `None`. |
+| `enum` | `routing_values::CostPreference` | `pub enum CostPreference` | [`crates/vox-orchestrator-types/src/routing_values.rs#L9-L15`](../../../crates/vox-orchestrator-types/src/routing_values.rs#L9-L15) | Preference for balancing model quality vs operational cost.  Default is [`Economy`](CostPreference::Economy) — free-by-default product directive. Callers that genuinely need the best model available should pass `Performance` explicitly. |
+| `enum` | `routing_values::RoutingProfile` | `pub enum RoutingProfile` | [`crates/vox-orchestrator-types/src/routing_values.rs#L21-L31`](../../../crates/vox-orchestrator-types/src/routing_values.rs#L21-L31) | Cost/tier-oriented routing profile. [`Default`] is [`Free`](Self::Free) — the free-by-default product directive. |
+| `fn` | `routing_values::as_str` | `pub fn as_str(self) -> &'static str` | [`crates/vox-orchestrator-types/src/routing_values.rs#L36-L43`](../../../crates/vox-orchestrator-types/src/routing_values.rs#L36-L43) | Canonical string key for telemetry / persistence. |
+| `fn` | `routing_values::is_free_only` | `pub fn is_free_only(self) -> bool` | [`crates/vox-orchestrator-types/src/routing_values.rs#L49-L51`](../../../crates/vox-orchestrator-types/src/routing_values.rs#L49-L51) | True when this profile should restrict selection to free-tier models (no paid fallback). [`Mixed`](Self::Mixed) prefers free but permits a paid fallback, so it is *not* free-only. |
+| `fn` | `routing_values::prefers_free` | `pub fn prefers_free(self) -> bool` | [`crates/vox-orchestrator-types/src/routing_values.rs#L55-L57`](../../../crates/vox-orchestrator-types/src/routing_values.rs#L55-L57) | True when this profile prefers free models but allows a paid fallback. |
+| `fn` | `routing_values::is_local_only` | `pub fn is_local_only(self) -> bool` | [`crates/vox-orchestrator-types/src/routing_values.rs#L61-L63`](../../../crates/vox-orchestrator-types/src/routing_values.rs#L61-L63) | True when this profile restricts selection to local providers. |
+| `enum` | `trust::ContextTrustTier` | `pub enum ContextTrustTier` | [`crates/vox-orchestrator-types/src/trust.rs#L33-L38`](../../../crates/vox-orchestrator-types/src/trust.rs#L33-L38) | Trust tier used by context conflict and injection policy. Declaration order is ascending trust, so `Ord`/`min` pick the least trusted. |
+| `fn` | `trust::as_db_str` | `pub fn as_db_str(self) -> &'static str` | [`crates/vox-orchestrator-types/src/trust.rs#L42-L49`](../../../crates/vox-orchestrator-types/src/trust.rs#L42-L49) | The stored wire string (matches the serde form). |
+| `fn` | `trust::from_db_str` | `pub fn from_db_str(s: &str) -> Self` | [`crates/vox-orchestrator-types/src/trust.rs#L52-L59`](../../../crates/vox-orchestrator-types/src/trust.rs#L52-L59) | Exact, case-sensitive parse; anything unrecognised is `Untrusted`. |
+| `enum` | `trust::FindingTier` | `pub enum FindingTier` | [`crates/vox-orchestrator-types/src/trust.rs#L65-L68`](../../../crates/vox-orchestrator-types/src/trust.rs#L65-L68) | Tiers a finding may carry. A finding can never be `Trusted` or `SystemVerified`. |
+| `fn` | `trust::as_db_str` | `pub fn as_db_str(self) -> &'static str` | [`crates/vox-orchestrator-types/src/trust.rs#L71-L73`](../../../crates/vox-orchestrator-types/src/trust.rs#L71-L73) | — |
+| `fn` | `trust::tier_for_curated` | `pub fn tier_for_curated(has_mechanical_evidence: bool) -> ContextTrustTier` | [`crates/vox-orchestrator-types/src/trust.rs#L86-L92`](../../../crates/vox-orchestrator-types/src/trust.rs#L86-L92) | Tier for curated content: `SystemVerified` with mechanical evidence, else `Trusted`. |
+| `fn` | `trust::tier_for_knowledge_node_type` | `pub fn tier_for_knowledge_node_type(node_type: Option<&str>) -> ContextTrustTier` | [`crates/vox-orchestrator-types/src/trust.rs#L104-L109`](../../../crates/vox-orchestrator-types/src/trust.rs#L104-L109) | Tier for a knowledge-graph node type. Allowlist of two Advisory types; every other or missing type is `Untrusted` (D-06 taint rule). `fact` and `concept` are Advisory only for non-agent writers (D-07 narrows D-06): agent writers use [`AGENT_FACT_NODE_TYPE`] / [`AGENT_CONCEPT_NODE_TYPE`]. |
+| `struct` | `vcs_capability::WorkspaceId` | `pub struct WorkspaceId(pub u64)` | [`crates/vox-orchestrator-types/src/vcs_capability.rs#L22`](../../../crates/vox-orchestrator-types/src/vcs_capability.rs#L22) | — |
+| `struct` | `vcs_capability::BranchName` | `pub struct BranchName(String)` | [`crates/vox-orchestrator-types/src/vcs_capability.rs#L31`](../../../crates/vox-orchestrator-types/src/vcs_capability.rs#L31) | — |
+| `fn` | `vcs_capability::parse` | `pub fn parse(s: &str) -> Result<Self, BranchNameError>` | [`crates/vox-orchestrator-types/src/vcs_capability.rs#L45-L62`](../../../crates/vox-orchestrator-types/src/vcs_capability.rs#L45-L62) | Reject empty, whitespace, and any name containing characters git refuses. Matches the subset of `git check-ref-format --branch` we care about for agent-generated names: ASCII, no spaces, no `..`, `:`, `?`, `*`, `[`, `\`, `^`, `~`, no leading `/` or `-`, length 1..=255.  Known gaps (not currently rejected — caller may still see a `git` error downstream): leading `.`, trailing `.`, `.lock` suffix, trailing `/`, consecutive `//`. These are unlikely from agent-style names like `agent/<slug>` and are deliberately not enforced in Phase 1 to keep the validator small. Tighten if a real callsite trips on them. |
+| `fn` | `vcs_capability::as_str` | `pub fn as_str(&self) -> &str` | [`crates/vox-orchestrator-types/src/vcs_capability.rs#L64-L66`](../../../crates/vox-orchestrator-types/src/vcs_capability.rs#L64-L66) | — |
+| `enum` | `vcs_capability::BranchNameError` | `pub enum BranchNameError` | [`crates/vox-orchestrator-types/src/vcs_capability.rs#L70-L79`](../../../crates/vox-orchestrator-types/src/vcs_capability.rs#L70-L79) | — |
+| `struct` | `vcs_capability::RemoteId` | `pub struct RemoteId(pub u32)` | [`crates/vox-orchestrator-types/src/vcs_capability.rs#L82`](../../../crates/vox-orchestrator-types/src/vcs_capability.rs#L82) | — |
+| `struct` | `vcs_capability::WorkingTreeWrite` | `pub struct WorkingTreeWrite` | [`crates/vox-orchestrator-types/src/vcs_capability.rs#L87-L90`](../../../crates/vox-orchestrator-types/src/vcs_capability.rs#L87-L90) | Capability: holder may stage and commit hunks against `branch` of `workspace`. Constructed only via `vox-orchestrator-cap-mint::mint_working_tree_write`. |
+| `fn` | `vcs_capability::workspace` | `pub fn workspace(&self) -> WorkspaceId` | [`crates/vox-orchestrator-types/src/vcs_capability.rs#L101-L103`](../../../crates/vox-orchestrator-types/src/vcs_capability.rs#L101-L103) | — |
+| `fn` | `vcs_capability::branch` | `pub fn branch(&self) -> &BranchName` | [`crates/vox-orchestrator-types/src/vcs_capability.rs#L104-L106`](../../../crates/vox-orchestrator-types/src/vcs_capability.rs#L104-L106) | — |
+| `struct` | `vcs_capability::BranchCreate` | `pub struct BranchCreate` | [`crates/vox-orchestrator-types/src/vcs_capability.rs#L111-L114`](../../../crates/vox-orchestrator-types/src/vcs_capability.rs#L111-L114) | Capability: holder may create a new branch in `workspace` rooted at `parent`. |
+| `fn` | `vcs_capability::workspace` | `pub fn workspace(&self) -> WorkspaceId` | [`crates/vox-orchestrator-types/src/vcs_capability.rs#L125-L127`](../../../crates/vox-orchestrator-types/src/vcs_capability.rs#L125-L127) | — |
+| `fn` | `vcs_capability::parent` | `pub fn parent(&self) -> &BranchName` | [`crates/vox-orchestrator-types/src/vcs_capability.rs#L128-L130`](../../../crates/vox-orchestrator-types/src/vcs_capability.rs#L128-L130) | — |
+| `fn` | `vcs_capability::mint_working_tree_write` | `pub fn mint_working_tree_write(workspace: WorkspaceId, branch: BranchName) -> WorkingTreeWrite` | [`crates/vox-orchestrator-types/src/vcs_capability.rs#L139-L141`](../../../crates/vox-orchestrator-types/src/vcs_capability.rs#L139-L141) | Mint a [`WorkingTreeWrite`] capability for `workspace`/`branch`.  Authorization (lock-leader check, affinity, signature) is the caller's responsibility — `vox_orchestrator::authorize_*` wrappers are the only intended callers. |
+| `fn` | `vcs_capability::mint_branch_create` | `pub fn mint_branch_create(workspace: WorkspaceId, parent: BranchName) -> BranchCreate` | [`crates/vox-orchestrator-types/src/vcs_capability.rs#L145-L147`](../../../crates/vox-orchestrator-types/src/vcs_capability.rs#L145-L147) | Mint a [`BranchCreate`] capability for `workspace`/`parent`. |
+

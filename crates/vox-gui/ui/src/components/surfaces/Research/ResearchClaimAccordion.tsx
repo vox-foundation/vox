@@ -78,7 +78,7 @@ export function ResearchClaimAccordion({
               key={claim.claimId}
               id={`claim-${claim.claimId}`}
               role="listitem"
-              className={`rounded-lg border border-border-subtle bg-overlay-subtle p-3 transition-all ${
+              className={`rounded-lg border border-border-subtle bg-overlay-subtle p-3 transition-colors ${
                 claim.claimId === highlightedClaimId ? 'ring-2 ring-brass' : ''
               }`}
             >

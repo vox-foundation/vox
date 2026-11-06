@@ -7,7 +7,13 @@ import { ChatTranscript } from './ChatTranscript';
 import type { StreamItem } from '../../../types/dashboard';
 import { EmptyState } from '../../ui/EmptyState';
 import { Icon } from '../../ui/Icons';
-import { ChatExecutionRail, countCompletedTurns, type ChatExecutionTask } from './ChatExecutionRail';
+import {
+  ChatExecutionRail,
+  countCompletedTurns,
+  DEFAULT_SESSION_CONTEXT_PINS,
+  type ChatExecutionTask,
+  type SessionContextPin,
+} from './ChatExecutionRail';
 import type { RailRouting } from '../../../lib/routingSummary';
 import { PlanPanel, type PlanNodeView } from './PlanPanel';
 import { listPlanNodes } from '../../../transport';
@@ -19,6 +25,7 @@ import { AttentionBudgetMeter } from '../AttentionBudgetMeter';
 import { SecretaryToast } from './SecretaryToast';
 import { listenSecretaryProposed, type SecretaryProposedPayload, feedbackList } from '../../../transport';
 import { Matrix } from '../Matrix/Matrix';
+import { ModelsView } from '../Models/ModelsView';
 import { DockWorkspaceShell, layoutStorageKeyFor } from '../../dock/DockWorkspaceShell';
 import type { DockviewApi, IDockviewPanelProps, IDockviewPanelHeaderProps } from 'dockview';
 import { NeedsYouSurface } from '../NeedsYou/NeedsYouSurface';
@@ -32,18 +39,21 @@ import { getPermissionMode } from '../../../transport';
 import { ResearchView } from '../Research/ResearchView';
 import { BrowserView } from '../Browser/BrowserView';
 import { LudusSandbox } from '../../gamify/LudusSandbox';
+import { useStore } from 'zustand';
+import { useLudusStore } from '../../gamify/store';
 import { Tooltip } from '../../ui/Tooltip';
 import {
   getTerminalBridgeState,
   subscribeTerminalBridge,
   type TerminalBridgeState,
 } from '../../../lib/terminalBridge';
-
-
-
-const ALWAYS_CORE = ['transcript', 'executionRail'] as const;
-const CORE_PANEL_IDS = [...ALWAYS_CORE, 'todos'] as const;
-type CorePanelId = (typeof CORE_PANEL_IDS)[number];
+import {
+  ALWAYS_CORE_DOCK_PANEL_IDS as ALWAYS_CORE,
+  CORE_DOCK_PANEL_IDS as CORE_PANEL_IDS,
+  OPT_IN_DOCK_PANEL_IDS as OPT_IN_PANEL_IDS,
+  type CoreDockPanelId as CorePanelId,
+  type OptInDockPanelId as OptInPanelId,
+} from '../../../lib/cvSurfaceDiscovery';
 
 // Chat transcript is the primary work surface (and, since Task 9 removed the
 // Sessions dockview panel, the dock's leftmost/anchor panel too). It gets a
@@ -78,24 +88,9 @@ const PANEL_SIZE_CONSTRAINTS: Partial<
   transcript: { minimumWidth: TRANSCRIPT_MIN_WIDTH_PX },
 };
 
-// Tasks 2.2-2.6/3.1-3.8 append one id each. Opt-in panels get NO auto-create
-// branch in the refresh effect — only a guarded `.update()` if already
-// present — so they can only ever be (re)created via the Panels menu's Add
-// section, never resurrected on an unrelated re-render.
-const OPT_IN_PANEL_IDS = [
-  'needs-you',
-  'voxgraph',
-  'activity',
-  'repository',
-  'mercatus',
-  'harness',
-  'approvals',
-  'research',
-  'terminal',
-  'urbs',
-  'browser',
-] as const;
-type OptInPanelId = (typeof OPT_IN_PANEL_IDS)[number];
+// Opt-in panels get NO auto-create branch in the refresh effect — only a
+// guarded `.update()` if already present — so they can only ever be (re)created
+// via the Panels menu's Add section, never resurrected on an unrelated re-render.
 
 interface CondensableSurfaceProps {
   condensed?: boolean;
@@ -457,6 +452,7 @@ export function ChatSurface({
   const prevPlanKeyRef = useRef<string | null>(null);
 
   const [routingOpen, setRoutingOpen] = useState(false);
+  const [routingDrawerTab, setRoutingDrawerTab] = useState<'matrix' | 'models'>('matrix');
   const [panelsMenuOpen, setPanelsMenuOpen] = useState(false);
   const panelsTriggerRef = useRef<HTMLButtonElement | null>(null);
   // The popover content itself (checkboxes, Reset layout) — separate from
@@ -768,6 +764,64 @@ export function ChatSurface({
   });
   const [liveKbScope, setLiveKbScope] = useState<'auto' | 'verified' | 'off'>('auto');
   const [liveOversight, setLiveOversight] = useState<string>('balanced');
+  const [kbBudgetCap, setKbBudgetCap] = useState<number>(1200);
+  const [kbPins, setKbPins] = useState<SessionContextPin[]>(DEFAULT_SESSION_CONTEXT_PINS);
+  const [editingKbPinId, setEditingKbPinId] = useState<string | null>(null);
+  const [editingKbPinDraft, setEditingKbPinDraft] = useState<string>('');
+  const [newKbPinInput, setNewKbPinInput] = useState<string>('');
+
+  useEffect(() => {
+    const onPinsSync = (ev: Event) => {
+      const custom = ev as CustomEvent<{ pins?: SessionContextPin[]; source?: string }>;
+      if (custom.detail?.source !== 'inspector' && Array.isArray(custom.detail?.pins)) {
+        setKbPins(custom.detail.pins);
+      }
+    };
+    window.addEventListener('vox:context-pins-change', onPinsSync);
+    return () => window.removeEventListener('vox:context-pins-change', onPinsSync);
+  }, []);
+
+  const syncKbPins = (next: SessionContextPin[]) => {
+    setKbPins(next);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('vox:context-pins-change', { detail: { pins: next, source: 'inspector' } }),
+      );
+    }
+  };
+
+  const handleKbScopePick = (scope: 'auto' | 'verified' | 'off') => {
+    setLiveKbScope(scope);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('vox:kb-scope-change', {
+          detail: { kbScope: scope, oversightLevel: liveOversight },
+        }),
+      );
+    }
+  };
+
+  const handleAddKbPin = () => {
+    const trimmed = newKbPinInput.trim();
+    if (!trimmed) return;
+    const formatted =
+      trimmed.startsWith('@') || trimmed.includes('/') || trimmed.includes('.')
+        ? trimmed
+        : `@kb:${trimmed}`;
+    syncKbPins([...kbPins, { id: `ctx-${Date.now()}`, label: formatted, scope: 'pinned' }]);
+    setNewKbPinInput('');
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('vox:atlas-mention', { detail: { token: formatted } }));
+    }
+  };
+
+  const handleCommitKbPinEdit = (id: string) => {
+    const trimmed = editingKbPinDraft.trim();
+    if (trimmed) {
+      syncKbPins(kbPins.map((p) => (p.id === id ? { ...p, label: trimmed } : p)));
+    }
+    setEditingKbPinId(null);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -805,8 +859,9 @@ export function ChatSurface({
   const estimatedKbTokens = useMemo(() => {
     if (liveKbScope === 'off') return 0;
     const msgChars = messages.reduce((sum, m) => sum + (m.text?.length ?? 0), 0);
-    return Math.min(1200, Math.max(240, 240 + Math.ceil(msgChars / 4)));
-  }, [messages, liveKbScope]);
+    const pinBonus = kbPins.length * 60;
+    return Math.min(kbBudgetCap, Math.max(120, 120 + pinBonus + Math.ceil(msgChars / 4)));
+  }, [messages, liveKbScope, kbPins.length, kbBudgetCap]);
 
   const approvalsParams = {
     pendingApprovals,
@@ -848,55 +903,6 @@ export function ChatSurface({
           className="mt-auto shrink-0 border-t border-border-subtle pt-3"
           data-testid="chat-composer-dock"
         >
-          {/* Phase 18 & Phase 44: Compact KB Context Inspector & Attention Digest Strip */}
-          <div className="mb-1.5 flex items-center justify-between gap-1.5 px-0.5 text-[11px]">
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-              <button
-                type="button"
-                data-testid="kb-context-inspector-toggle"
-                onClick={() => setKbInspectorOpen((o) => !o)}
-                className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 font-mono text-[11px] tracking-tight text-text-secondary transition hover:border-white/20 hover:text-text-primary"
-              >
-                <span className="size-1.5 rounded-full bg-brass" aria-hidden="true" />
-                @kb Context Inspector ({kbInspectorOpen ? 'hide' : `@kb:${liveKbScope} · ~${estimatedKbTokens} tok`})
-              </button>
-              <button
-                type="button"
-                data-testid="inbox-digest-toggle"
-                onClick={() => setDigestOpen((o) => !o)}
-                className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 font-mono text-[11px] tracking-tight text-text-secondary transition hover:border-white/20 hover:text-text-primary"
-              >
-                <span className="size-1.5 rounded-full bg-(--color-status-info)" aria-hidden="true" />
-                Attention Digest ({digestOpen ? 'hide' : `batched · ${waitingQuestions + blockedTasks} urgent`})
-              </button>
-            </div>
-          </div>
-          {kbInspectorOpen ? (
-            <div
-              data-testid="kb-context-inspector-drawer"
-              className="mb-2 rounded-lg border border-border-subtle bg-surface-elevated/40 px-3 py-2 font-mono text-[11px] text-text-secondary"
-            >
-              <div className="font-semibold text-status-warning">
-                Session-Pinned @kb Context Injection (Phase 44 · Deduped RRF)
-              </div>
-              <div className="mt-1 text-[11px] text-text-muted">
-                Budget: {estimatedKbTokens} / 1,200 tok · Scope: @kb:{liveKbScope} · Oversight: {liveOversight} · Session turns: {messages.length} · Citations: where-things-live.md (RRF 0.98), agentos-ssot-2026.md (RRF 0.94)
-              </div>
-            </div>
-          ) : null}
-          {digestOpen ? (
-            <div
-              data-testid="inbox-digest-panel"
-              className="mb-2 rounded-lg border border-border-subtle bg-surface-elevated/40 px-3 py-2 font-mono text-[11px] text-text-secondary"
-            >
-              <div className="font-semibold text-status-info">
-                Batched Attention Inbox Digest (Phase 18 · QueueForDigest)
-              </div>
-              <div className="mt-1 text-[11px] text-text-muted">
-                Low-priority background agent updates are batched here to protect deep-work focus. Hard safety-floor actions always prompt immediately.
-              </div>
-            </div>
-          ) : null}
           {showHumaneWrapUp ? (
             <div
               data-testid="humane-session-wrapup-card"
@@ -916,7 +922,7 @@ export function ChatSurface({
                 type="button"
                 aria-label="Dismiss session wrap-up"
                 onClick={() => setWrapUpDismissed(true)}
-                className="shrink-0 rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] text-text-muted hover:text-text-primary"
+                className="shrink-0 whitespace-nowrap rounded-md border border-border-subtle bg-overlay-subtle px-2 py-1 font-mono text-[11px] text-text-muted hover:text-text-primary"
               >
                 Dismiss
               </button>
@@ -928,13 +934,6 @@ export function ChatSurface({
                 budget={attention_budget}
                 waitingQuestions={waitingQuestions}
                 blockedTasks={blockedTasks}
-                // Realistic-content audit (Task 5, panels-density plan): a
-                // 32-message conversation left only ~2 messages visible
-                // above this card's ~110-120px fixed footprint. Default to
-                // the compact summary row once a session has real content
-                // (more than a couple of turns) — but never when something
-                // urgent needs the full card up front: near-cap spend,
-                // waiting questions, or blocked tasks.
                 defaultCollapsed={
                   messages.length > 4 &&
                   !waitingQuestions &&
@@ -947,6 +946,173 @@ export function ChatSurface({
             </div>
           ) : null}
           {composer}
+          {/* Compact KB Context Inspector & Attention Digest Strip (collapsed to sr-only by default since Pinned Context is unified in Execution Rail) */}
+          <div className={`${kbInspectorOpen || digestOpen ? 'mt-2 flex items-center justify-between gap-1.5 px-0.5 text-[11px]' : 'sr-only'}`}>
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              <button
+                type="button"
+                data-testid="kb-context-inspector-toggle"
+                onClick={() => setKbInspectorOpen((o) => !o)}
+                className={
+                  kbInspectorOpen
+                    ? 'inline-flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-2 font-mono text-[11px] tracking-tight text-text-secondary transition hover:border-white/20 hover:text-text-primary'
+                    : 'sr-only'
+                }
+              >
+                <span className="size-1.5 rounded-full bg-brass" aria-hidden="true" />
+                <span>Pinned Context ({kbInspectorOpen ? 'hide' : `${kbPins.length} files`})</span>
+              </button>
+              <button
+                type="button"
+                data-testid="inbox-digest-toggle"
+                onClick={() => setDigestOpen((o) => !o)}
+                className={
+                  digestOpen
+                    ? 'inline-flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-2 font-mono text-[11px] tracking-tight text-text-secondary transition hover:border-white/20 hover:text-text-primary'
+                    : 'sr-only'
+                }
+              >
+                <span className="size-1.5 rounded-full bg-(--color-status-info)" aria-hidden="true" />
+                <span>Attention Digest ({digestOpen ? 'hide' : `${waitingQuestions + blockedTasks} urgent`})</span>
+              </button>
+            </div>
+          </div>
+          {kbInspectorOpen ? (
+            <div
+              data-testid="kb-context-inspector-drawer"
+              className="mt-1.5 flex flex-col gap-1.5 rounded-lg border border-border-subtle bg-surface-elevated/40 px-3 py-2 font-mono text-[11px] text-text-secondary"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="font-semibold text-status-warning">
+                  Session-Pinned @kb Context Injection
+                </div>
+                <div className="flex items-center gap-1.5 whitespace-nowrap">
+                  <span className="text-text-muted">Scope:</span>
+                  {(['auto', 'verified', 'off'] as const).map((scopeOpt) => (
+                    <button
+                      key={scopeOpt}
+                      type="button"
+                      data-testid={`kb-inspector-scope-${scopeOpt}`}
+                      onClick={() => handleKbScopePick(scopeOpt)}
+                      className={`whitespace-nowrap rounded border px-1.5 py-0.5 text-[11px] transition ${
+                        liveKbScope === scopeOpt
+                          ? 'border-brass/50 bg-brass/15 text-brass'
+                          : 'border-border-subtle bg-overlay-subtle text-text-muted hover:text-text-secondary'
+                      }`}
+                    >
+                      @kb:{scopeOpt}
+                    </button>
+                  ))}
+                  <span className="ml-1 text-text-muted">Cap:</span>
+                  <input
+                    type="number"
+                    min={200}
+                    max={8000}
+                    step={100}
+                    data-testid="kb-inspector-budget-input"
+                    aria-label="KB token budget cap"
+                    value={kbBudgetCap}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      if (!Number.isNaN(val) && val >= 200) setKbBudgetCap(val);
+                    }}
+                    className="w-16 rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 font-mono text-[11px] text-text-primary outline-hidden focus:border-brass/40"
+                  />
+                  <span className="text-text-muted">tok</span>
+                </div>
+              </div>
+              <div className="text-[11px] text-text-muted">
+                Budget: {estimatedKbTokens} / {kbBudgetCap.toLocaleString()} tok · Scope: @kb:{liveKbScope} · Oversight: {liveOversight} · Session turns: {messages.length}
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                {kbPins.map((pin) => {
+                  const isEditing = editingKbPinId === pin.id;
+                  return (
+                    <span
+                      key={pin.id}
+                      data-testid={`kb-inspector-pin-${pin.id}`}
+                      className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-brass/30 bg-brass/10 px-2 py-0.5 font-mono text-[11px] text-brass"
+                    >
+                      {isEditing ? (
+                        <input
+                          autoFocus
+                          data-testid="kb-inspector-pin-edit-input"
+                          aria-label={`Edit citation ${pin.label}`}
+                          value={editingKbPinDraft}
+                          onChange={(e) => setEditingKbPinDraft(e.target.value)}
+                          onBlur={() => handleCommitKbPinEdit(pin.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleCommitKbPinEdit(pin.id);
+                            if (e.key === 'Escape') setEditingKbPinId(null);
+                          }}
+                          className="w-40 rounded border border-brass/50 bg-surface-base/80 px-1 py-0.5 font-mono text-[11px] text-text-primary outline-hidden"
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          data-testid={`kb-inspector-pin-edit-${pin.id}`}
+                          aria-label={`Edit pinned context ${pin.label}`}
+                          onClick={() => {
+                            setEditingKbPinId(pin.id);
+                            setEditingKbPinDraft(pin.label);
+                          }}
+                          className="truncate max-w-[220px] whitespace-nowrap text-left hover:underline"
+                        >
+                          {pin.label}
+                          {pin.scope ? <span className="ml-1 text-text-muted">({pin.scope})</span> : null}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        data-testid={`kb-inspector-pin-remove-${pin.id}`}
+                        aria-label={`Remove pinned context ${pin.label}`}
+                        onClick={() => syncKbPins(kbPins.filter((p) => p.id !== pin.id))}
+                        className="ml-0.5 whitespace-nowrap text-text-muted hover:text-(--color-status-fail)"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  );
+                })}
+                <div className="inline-flex items-center gap-1">
+                  <input
+                    type="text"
+                    data-testid="kb-inspector-add-pin-input"
+                    aria-label="Add pinned context citation"
+                    placeholder="+ Pin @kb or file…"
+                    value={newKbPinInput}
+                    onChange={(e) => setNewKbPinInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleAddKbPin();
+                    }}
+                    className="w-36 rounded border border-border-subtle bg-overlay-subtle px-2 py-0.5 font-mono text-[11px] text-text-primary placeholder:text-text-muted outline-hidden focus:border-brass/40"
+                  />
+                  <button
+                    type="button"
+                    data-testid="kb-inspector-add-pin-btn"
+                    aria-label="Submit pinned context citation"
+                    onClick={handleAddKbPin}
+                    className="whitespace-nowrap rounded border border-brass/30 bg-brass/10 px-1.5 py-0.5 font-mono text-[11px] text-brass hover:bg-brass/20"
+                  >
+                    Pin
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {digestOpen ? (
+            <div
+              data-testid="inbox-digest-panel"
+              className="mt-1.5 rounded-lg border border-border-subtle bg-surface-elevated/40 px-3 py-2 font-mono text-[11px] text-text-secondary"
+            >
+              <div className="font-semibold text-status-info">
+                Batched Attention Inbox Digest (Phase 18 · QueueForDigest)
+              </div>
+              <div className="mt-1 text-[11px] text-text-muted">
+                Low-priority background agent updates are batched here to protect deep-work focus. Hard safety-floor actions always prompt immediately.
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </>
@@ -1135,16 +1301,112 @@ export function ChatSurface({
     setOpenPanelIds(new Set(api.panels.map((p) => p.id)));
   };
 
+  const selectedDistrictFilter = useStore(useLudusStore, (s) => s.selectedDistrictFilter);
+
+  const toggleTacticalMapDock = () => {
+    const api = dockApiRef.current;
+    if (!api) return;
+    const existing = api.getPanel('urbs');
+    if (existing) {
+      api.removePanel(existing);
+      closedPanelIds.current.add('urbs');
+    } else {
+      addDefaultPanel(api, 'urbs');
+    }
+    setOpenPanelIds(new Set(api.panels.map((p) => p.id)));
+  };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.altKey) && e.key.toLowerCase() === 'm') {
+        e.preventDefault();
+        toggleTacticalMapDock();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
+  const isFocusPreset = !openPanelIds.has('executionRail') && !openPanelIds.has('terminal') && !openPanelIds.has('harness') && !openPanelIds.has('urbs');
+  const isSplitPreset = openPanelIds.has('executionRail') && openPanelIds.has('terminal');
+  const isMultiPreset = openPanelIds.has('harness') || openPanelIds.has('urbs');
+  const isTacticalMapOpen = openPanelIds.has('urbs');
+
+  const layoutPresetsBar = (
+    <div
+      role="group"
+      aria-label="Quick workspace layout presets"
+      data-testid="chat-header-layout-presets"
+      className="inline-flex items-center gap-1 rounded-lg border border-border-subtle bg-overlay-solid/90 px-1.5 py-0.5 font-mono text-[11px]"
+    >
+      <span className="px-1 text-[11px] uppercase tracking-[0.08em] text-text-muted">Layout:</span>
+      <button
+        type="button"
+        data-testid="chat-header-preset-focus"
+        data-cv-subsurface="preset-focus"
+        onClick={() => applyWorkspacePreset([])}
+        className={`whitespace-nowrap rounded px-2 py-0.5 transition ${
+          isFocusPreset
+            ? 'border border-brass/50 bg-brass/18 text-brass font-medium shadow-xs'
+            : 'text-text-muted hover:bg-overlay-hover hover:text-brass'
+        }`}
+      >
+        Focus
+      </button>
+      <button
+        type="button"
+        data-testid="chat-header-preset-split"
+        data-cv-subsurface="preset-split"
+        onClick={() => applyWorkspacePreset(['executionRail', 'terminal'])}
+        className={`whitespace-nowrap rounded px-2 py-0.5 transition ${
+          isSplitPreset
+            ? 'border border-brass/50 bg-brass/18 text-brass font-medium shadow-xs'
+            : 'text-text-muted hover:bg-overlay-hover hover:text-brass'
+        }`}
+      >
+        Split Code
+      </button>
+      <button
+        type="button"
+        data-testid="chat-header-preset-multi"
+        data-cv-subsurface="preset-multi"
+        onClick={() => applyWorkspacePreset(['harness', 'urbs'])}
+        className={`whitespace-nowrap rounded px-2 py-0.5 transition ${
+          isMultiPreset
+            ? 'border border-brass/50 bg-brass/18 text-brass font-medium shadow-xs'
+            : 'text-text-muted hover:bg-overlay-hover hover:text-brass'
+        }`}
+      >
+        Multi-Agent
+      </button>
+      <button
+        type="button"
+        data-testid="urbs-tactical-map-toggle"
+        onClick={toggleTacticalMapDock}
+        title="Toggle Split-Dock Tactical Map (⌘M / Alt+M)"
+        className={`whitespace-nowrap rounded px-2 py-0.5 transition ${
+          isTacticalMapOpen
+            ? 'border border-brass/60 bg-brass/20 text-brass font-medium shadow-xs'
+            : 'text-text-muted hover:bg-overlay-hover hover:text-brass'
+        }`}
+      >
+        🏛 Tactical Map ⌘M
+      </button>
+    </div>
+  );
+
   const panelsMenu = (
-    <div className="relative">
+    <div className="flex items-center gap-1.5">
+      <div className="relative">
       <Tooltip content="Toggle docked panels and workspace layout" side="top">
         <button
           ref={panelsTriggerRef}
           type="button"
+          data-cv-popover-trigger="workspace-panels"
           aria-label="Panels"
           aria-expanded={panelsMenuOpen}
           onClick={() => setPanelsMenuOpen(o => !o)}
-          className="rounded-lg border border-border-subtle bg-overlay-subtle p-2 text-text-muted transition hover:border-brass/40 hover:text-brass"
+          className="rounded-lg border border-border-subtle bg-overlay-subtle px-2 py-1 text-text-muted transition hover:border-brass/40 hover:text-brass"
         >
           <span className="font-mono text-xs">Panels ▾</span>
         </button>
@@ -1154,7 +1416,7 @@ export function ChatSurface({
           ref={panelsMenuRef}
           role="group"
           aria-label="Workspace panels"
-          className={`absolute right-0 ${tabBarTrailingSlot ? 'bottom-full mb-2' : 'top-full mt-1'} z-[99999] w-60 rounded-lg border border-border-subtle bg-bg-base p-1.5 shadow-2xl`}
+          className={`absolute right-0 ${tabBarTrailingSlot ? 'bottom-full mb-2' : 'top-full mt-1'} z-[99999] w-64 rounded-lg border border-border-subtle bg-bg-base p-1.5 shadow-2xl`}
         >
                 <div className="px-2 py-1 font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
                   Docked Panels
@@ -1211,7 +1473,7 @@ export function ChatSurface({
                     type="button"
                     data-testid="dock-preset-focus"
                     onClick={() => applyWorkspacePreset([])}
-                    className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-1 font-mono text-[11px] text-text-secondary hover:border-brass/40 hover:text-brass"
+                    className="whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 py-1 font-mono text-[11px] text-text-secondary hover:border-brass/40 hover:text-brass"
                   >
                     Focus
                   </button>
@@ -1219,17 +1481,17 @@ export function ChatSurface({
                     type="button"
                     data-testid="dock-preset-engineering"
                     onClick={() => applyWorkspacePreset(['executionRail', 'terminal'])}
-                    className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-1 font-mono text-[11px] text-text-secondary hover:border-brass/40 hover:text-brass"
+                    className="whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 py-1 font-mono text-[11px] text-text-secondary hover:border-brass/40 hover:text-brass"
                   >
-                    Eng Split
+                    Split
                   </button>
                   <button
                     type="button"
                     data-testid="dock-preset-civilization"
                     onClick={() => applyWorkspacePreset(['harness', 'urbs'])}
-                    className="rounded border border-border-subtle bg-overlay-subtle px-1.5 py-1 font-mono text-[11px] text-text-secondary hover:border-brass/40 hover:text-brass"
+                    className="whitespace-nowrap rounded border border-border-subtle bg-overlay-subtle px-1.5 py-1 font-mono text-[11px] text-text-secondary hover:border-brass/40 hover:text-brass"
                   >
-                    Urbs + River
+                    Overview
                   </button>
                 </div>
                 <div className="my-1 border-t border-border-subtle" />
@@ -1266,6 +1528,7 @@ export function ChatSurface({
                 </button>
               </div>
             ) : null}
+      </div>
     </div>
   );
 
@@ -1275,9 +1538,35 @@ export function ChatSurface({
       data-testid="chat-surface-layout"
     >
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        {tabBarTrailingSlot
-          ? createPortal(panelsMenu, tabBarTrailingSlot)
-          : <div className="relative mb-2 flex shrink-0 justify-end">{panelsMenu}</div>}
+        <div
+          data-testid="chat-top-header-bar"
+          className="mb-1.5 flex shrink-0 items-center justify-between gap-2 rounded-lg border border-border-subtle/80 bg-overlay-solid/85 px-3 py-1.5"
+        >
+          <div className="flex min-w-0 items-center gap-2 font-mono text-xs">
+            <span className="text-text-muted">Chat</span>
+            <span className="text-text-muted">/</span>
+            <span className="truncate font-medium text-text-primary">
+              {activeId || 'Active Session'}
+            </span>
+            {selectedDistrictFilter && (
+              <button
+                type="button"
+                data-testid="urbs-district-filter-pill"
+                onClick={() => useLudusStore.getState().setSelectedDistrictFilter(null)}
+                className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-brass/50 bg-brass/15 px-2 py-0.5 font-mono text-[11px] font-medium text-brass hover:bg-brass/25"
+                title="Clear Urbs District Filter"
+              >
+                <span>🏛 District Filter: {selectedDistrictFilter}</span>
+                <span aria-hidden="true">×</span>
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {layoutPresetsBar}
+            {!tabBarTrailingSlot ? panelsMenu : null}
+          </div>
+        </div>
+        {tabBarTrailingSlot ? createPortal(panelsMenu, tabBarTrailingSlot) : null}
         <div ref={dockRootRef} className="min-h-0 flex-1">
         <DockWorkspaceShell
           storageKeyPrefix="gui.chat"
@@ -1316,6 +1605,13 @@ export function ChatSurface({
             if (staleFlowPanel) {
               staleFlowPanel.api.close();
               closedPanelIds.current.add('flow');
+            }
+            // To-dos is plan-gated. A persisted layout can restore it (saved while
+            // a plan was live, e.g. before a Discard the debounced save never
+            // caught); mark it auto-opened so the refresh effect closes it when
+            // no live plan is attached, instead of showing an empty panel.
+            if (event.api.getPanel('todos')) {
+              autoOpenedTodosRef.current = true;
             }
             event.api.onDidRemovePanel(panel => {
               closedPanelIds.current.add(panel.id);
@@ -1393,8 +1689,40 @@ export function ChatSurface({
         <div className="fixed inset-0 z-60" role="dialog" aria-modal="true" aria-label="Routing">
           <div className="absolute inset-0 bg-black/60" onClick={() => setRoutingOpen(false)} />
           <div className="absolute right-0 top-0 h-full w-[760px] max-w-full overflow-y-auto border-l border-border-subtle bg-bg-base shadow-2xl">
-            <div className="flex items-center justify-between px-5 pt-4">
-              <h2 className="font-display text-[13px] uppercase tracking-[0.13em] text-text-secondary">Routing</h2>
+            <div className="flex items-center justify-between gap-2 px-5 pt-4">
+              <div className="flex items-center gap-3">
+                <h2 className="font-display text-[13px] uppercase tracking-[0.13em] text-text-secondary">Routing</h2>
+                <div className="inline-flex rounded-md border border-border-subtle bg-overlay-subtle p-0.5" role="tablist" aria-label="Routing view mode">
+                  <button
+                    type="button"
+                    role="tab"
+                    data-testid="chat-routing-tab-matrix"
+                    aria-selected={routingDrawerTab === 'matrix'}
+                    onClick={() => setRoutingDrawerTab('matrix')}
+                    className={`whitespace-nowrap rounded px-2.5 py-0.5 font-mono text-[11px] transition ${
+                      routingDrawerTab === 'matrix'
+                        ? 'bg-brass/20 text-brass'
+                        : 'text-text-muted hover:text-text-primary'
+                    }`}
+                  >
+                    Priorities
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    data-testid="chat-routing-tab-explainer"
+                    aria-selected={routingDrawerTab === 'models'}
+                    onClick={() => setRoutingDrawerTab('models')}
+                    className={`whitespace-nowrap rounded px-2.5 py-0.5 font-mono text-[11px] transition ${
+                      routingDrawerTab === 'models'
+                        ? 'bg-brass/20 text-brass'
+                        : 'text-text-muted hover:text-text-primary'
+                    }`}
+                  >
+                    Model Comparison
+                  </button>
+                </div>
+              </div>
               <button
                 type="button"
                 aria-label="Close routing panel"
@@ -1404,7 +1732,11 @@ export function ChatSurface({
                 ✕
               </button>
             </div>
-            <Matrix pushToast={pushToast} gamifyEnabled={gamifyEnabled} />
+            {routingDrawerTab === 'matrix' ? (
+              <Matrix pushToast={pushToast} gamifyEnabled={gamifyEnabled} />
+            ) : (
+              <ModelsView pushToast={pushToast} gamifyEnabled={gamifyEnabled} />
+            )}
           </div>
         </div>
       )}

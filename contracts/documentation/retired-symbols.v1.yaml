@@ -110,7 +110,7 @@ symbols:
     rationale: "ADR-048 Task 10. SecretId deleted. The VOX_MESH_EXEC_POLICY *config* key for placement survives."
   - id: exec-bundle-b64
     pattern: "\\bexec_bundle_b64\\b"
-    replacement: "VoxScript source on the mesh stream"
+    replacement: "VoxLang source on the mesh stream"
     rationale: "ADR-048 Task 10. The native-bundle lane is deleted; the mesh ships source only."
   - id: table-decorator
     pattern: "@table\\b"

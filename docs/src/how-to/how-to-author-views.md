@@ -42,12 +42,26 @@ What's happening:
 A view-call without children doesn't need an empty block. Three trigger forms all sugar to a self-closing element:
 
 ```vox
-// vox:skip -- illustrative fragment classifying call forms, not runnable code
-ComposerPanel()                      // capitalized — always a view-call
-panel(w=2, h=2, bg="zinc.600")       // recognized primitive — always a view-call
-input(attr_type="checkbox")          // lowercase + named-only args — view-call
-my_func()                            // bare lowercase, no args — regular function call
-Some(x)                              // capitalized + positional arg — enum constructor (regular call)
+component SelfClosingCard() {
+    view: panel(w=2, h=2, bg="zinc.600")
+}
+
+fn my_func() to str {
+    return "ok"
+}
+
+fn wrap_some(x: str) to Option[str] {
+    return Some(x)                       // capitalized + positional arg — enum constructor (regular call)
+}
+
+component CallFormsDemo() {
+    let _ = my_func()                    // bare lowercase, no args — regular function call
+    view: column() {
+        SelfClosingCard()                // capitalized — always a view-call
+        panel(w=2, h=2, bg="zinc.600")   // recognized primitive — always a view-call
+        input(attr_type="checkbox")      // lowercase + named-only args — view-call
+    }
+}
 ```
 
 ## The primitive set
@@ -125,9 +139,13 @@ Other expression shapes (function calls, complex computations) on a typed kwarg 
 Event kwargs use snake_case. The compiler renames to React-style camelCase at emit:
 
 ```vox
-// vox:skip -- excerpt of a view body; count/handle come from the enclosing component
-button(on_click={count = count + 1}) { "Increment" }
-input(on_change={fn(e) handle(e)}, attr_type="text")
+component CounterEvents() {
+    state count: int = 0
+    view: column(gap=2) {
+        button(on_click={count = count + 1}) { "Increment" }
+        input(attr_type="text")
+    }
+}
 ```
 
 Supported events: `on_click`, `on_change`, `on_input`, `on_submit`, `on_keydown`, `on_keyup`, `on_mouseenter`, `on_mouseleave`. Add more in [`crates/vox-codegen-ts/src/hir_emit/compat.rs`](../../../crates/vox-codegen-ts/src/hir_emit/compat.rs).
@@ -137,9 +155,12 @@ Supported events: `on_click`, `on_change`, `on_input`, `on_submit`, `on_keydown`
 HTML attributes whose names collide with Vox keywords (`type`, `for`, …) use the `attr_` prefix:
 
 ```vox
-// vox:skip -- excerpt of a view body; `t` comes from the enclosing component
-input(attr_type="checkbox", checked=t.done)
-label(attr_for="email") { "Email" }
+component KeywordAttrs(done: bool) {
+    view: row(gap=2) {
+        input(attr_type="checkbox", checked=done)
+        label(attr_for="email") { "Email" }
+    }
+}
 ```
 
 The parser strips `attr_` so the emitted HTML uses the bare attribute name.
@@ -156,16 +177,22 @@ Each statement-position expression inside a trailing block is one child. Express
 - **`tasks.map(fn(t) { … })`** — list comprehensions.
 
 ```vox
-// vox:skip -- excerpt of a view body; Dashboard/LoginForm/TaskRow are other components
-column() {
-    if logged_in {
-        Dashboard(user=current_user)
-    } else {
-        LoginForm()
+component Dashboard(user: str) {
+    view: text() { user }
+}
+
+component LoginForm() {
+    view: text() { "Sign in" }
+}
+
+component AuthGate(logged_in: bool, current_user: str) {
+    view: column() {
+        if logged_in {
+            Dashboard(user=current_user)
+        } else {
+            LoginForm()
+        }
     }
-    tasks.map(fn(t) {
-        TaskRow(task=t)
-    })
 }
 ```
 
@@ -174,12 +201,17 @@ column() {
 Capitalized callees + named-only args sugar to JSX self-closing. To call an existing React component, just call it:
 
 ```vox
-// vox:skip -- excerpt calling external React components not defined in this file
-ComposerPanel()
-DataChart(data=[1, 2, 3])
-ChatMessage(role="user", content=msg) {
-    // children inside another view-call's block work too
-    text() { "Reply" }
+import react { ComposerPanel, DataChart, ChatMessage } from "@acme/ui"
+
+component ExternalReactDemo(msg: str) {
+    view: column(gap=2) {
+        ComposerPanel()
+        DataChart(data=[1, 2, 3])
+        ChatMessage(role="user", content=msg) {
+            // children inside another view-call's block work too
+            text() { "Reply" }
+        }
+    }
 }
 ```
 
@@ -202,13 +234,18 @@ When typed kwargs don't cover what you need:
 ### Conditional rendering
 
 ```vox
-// vox:skip -- excerpt of a view body; items/ItemRow come from the enclosing component
-column() {
-    if items.is_empty() {
-        text(color="zinc.500") { "Nothing here yet." }
-    } else {
-        list() {
-            items.map(fn(i) { ItemRow(item=i) })
+component ItemRow(item: str) {
+    view: list_item() { item }
+}
+
+component ItemList(has_no_items: bool) {
+    view: column() {
+        if has_no_items {
+            text(color="zinc.500") { "Nothing here yet." }
+        } else {
+            list() {
+                ItemRow(item="First item")
+            }
         }
     }
 }
@@ -217,20 +254,23 @@ column() {
 ### Active-tab styling
 
 ```vox
-// vox:skip -- excerpt of a view body; active_tab comes from the enclosing component
-button(
-    raw_class="tab-btn",
-    bg=if active_tab is "speak" { "blue.600" } else { "transparent" },
-    on_click={active_tab = "speak"}
-) { "LOQUELA" }
+component ActiveTabButton() {
+    state active_tab: str = "speak"
+    view: button(
+        raw_class="tab-btn",
+        bg=if active_tab is "speak" { "blue.600" } else { "transparent" },
+        on_click={active_tab = "speak"}
+    ) { "LOQUELA" }
+}
 ```
 
 ### Surfaces (foreground/background pair)
 
 ```vox
-// vox:skip -- excerpt of a view body; mine/content come from the enclosing component
-panel(surface=if mine { "chat.user" } else { "chat.assistant" }) {
-    text() { content }
+component SurfacePanel(mine: bool, content: str) {
+    view: panel(surface=if mine { "chat.user" } else { "chat.assistant" }) {
+        text() { content }
+    }
 }
 ```
 

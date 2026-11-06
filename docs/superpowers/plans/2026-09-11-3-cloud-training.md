@@ -72,7 +72,7 @@ Every line number below was verified at that commit. If a cited line is off by m
 - **Never** `cargo fmt --all` — it overflows the Windows command-line limit. Use `cargo fmt -p <crate>`.
 - **Cargo features are per-package and nothing is on by default.** `vox-populi` has `default = []` and `pub mod mens` is `#[cfg(feature = "mens")]`. `vox-ml-cli`'s serving module is behind `execution-api`, which `gpu` does **not** imply. A test run without the right `--features` compiles none of your work and exits 0.
 - Every new `pub fn` needs a same-file `#[test]` or the `tdd-guard` pre-commit hook blocks the commit.
-- No new `.py` / `.sh` / `.ps1` glue. Automation is VoxScript (`.vox`, via `vox run`).
+- No new `.py` / `.sh` / `.ps1` glue. Automation is VoxLang (`.vox`, via `vox run`).
 - Do **not** create or edit `docs/src/architecture/research-index.md` — retired 2026-09-06. Frontmatter alone makes a doc discoverable.
 - Do **not** run `git add -A` or `git commit -am`. Commit only the paths your task's **Files** block names; other agents are editing neighbouring files.
 

@@ -66,3 +66,47 @@ assert_eq!(manifest.plugin.id, "test-plugin");
 | `manifest_builder` | — |
 | `plugin_dir` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_plugin_test_harness: "vox-plugin-test-harness"
+    node vox_plugin_types: "vox-plugin-types"
+    vox_plugin_test_harness -> vox_plugin_types
+}
+```
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `manifest_builder::CodeManifestBuilder` | `pub struct CodeManifestBuilder` | [`crates/vox-plugin-test-harness/src/manifest_builder.rs#L4-L16`](../../../crates/vox-plugin-test-harness/src/manifest_builder.rs#L4-L16) | Builds a minimal Code-kind Plugin.toml TOML string. |
+| `fn` | `manifest_builder::new` | `pub fn new(id: impl Into<String>) -> Self` | [`crates/vox-plugin-test-harness/src/manifest_builder.rs#L19-L34`](../../../crates/vox-plugin-test-harness/src/manifest_builder.rs#L19-L34) | — |
+| `fn` | `manifest_builder::name` | `pub fn name(mut self, name: impl Into<String>) -> Self` | [`crates/vox-plugin-test-harness/src/manifest_builder.rs#L36-L39`](../../../crates/vox-plugin-test-harness/src/manifest_builder.rs#L36-L39) | — |
+| `fn` | `manifest_builder::version` | `pub fn version(mut self, v: impl Into<String>) -> Self` | [`crates/vox-plugin-test-harness/src/manifest_builder.rs#L40-L43`](../../../crates/vox-plugin-test-harness/src/manifest_builder.rs#L40-L43) | — |
+| `fn` | `manifest_builder::description` | `pub fn description(mut self, d: impl Into<String>) -> Self` | [`crates/vox-plugin-test-harness/src/manifest_builder.rs#L44-L47`](../../../crates/vox-plugin-test-harness/src/manifest_builder.rs#L44-L47) | — |
+| `fn` | `manifest_builder::min_vox_version` | `pub fn min_vox_version(mut self, v: impl Into<String>) -> Self` | [`crates/vox-plugin-test-harness/src/manifest_builder.rs#L48-L51`](../../../crates/vox-plugin-test-harness/src/manifest_builder.rs#L48-L51) | — |
+| `fn` | `manifest_builder::abi_version` | `pub fn abi_version(mut self, v: u32) -> Self` | [`crates/vox-plugin-test-harness/src/manifest_builder.rs#L52-L55`](../../../crates/vox-plugin-test-harness/src/manifest_builder.rs#L52-L55) | — |
+| `fn` | `manifest_builder::extension_point` | `pub fn extension_point(mut self, ep: impl Into<String>) -> Self` | [`crates/vox-plugin-test-harness/src/manifest_builder.rs#L56-L59`](../../../crates/vox-plugin-test-harness/src/manifest_builder.rs#L56-L59) | — |
+| `fn` | `manifest_builder::artifact` | `pub fn artifact(mut self, target: impl Into<String>, file: impl Into<String>) -> Self` | [`crates/vox-plugin-test-harness/src/manifest_builder.rs#L60-L63`](../../../crates/vox-plugin-test-harness/src/manifest_builder.rs#L60-L63) | — |
+| `fn` | `manifest_builder::status` | `pub fn status(mut self, s: impl Into<String>) -> Self` | [`crates/vox-plugin-test-harness/src/manifest_builder.rs#L64-L67`](../../../crates/vox-plugin-test-harness/src/manifest_builder.rs#L64-L67) | — |
+| `fn` | `manifest_builder::category` | `pub fn category(mut self, c: impl Into<String>) -> Self` | [`crates/vox-plugin-test-harness/src/manifest_builder.rs#L68-L71`](../../../crates/vox-plugin-test-harness/src/manifest_builder.rs#L68-L71) | — |
+| `fn` | `manifest_builder::tag` | `pub fn tag(mut self, t: impl Into<String>) -> Self` | [`crates/vox-plugin-test-harness/src/manifest_builder.rs#L72-L75`](../../../crates/vox-plugin-test-harness/src/manifest_builder.rs#L72-L75) | — |
+| `fn` | `manifest_builder::build` | `pub fn build(self) -> String` | [`crates/vox-plugin-test-harness/src/manifest_builder.rs#L78-L120`](../../../crates/vox-plugin-test-harness/src/manifest_builder.rs#L78-L120) | Render to a Plugin.toml TOML string. |
+| `struct` | `manifest_builder::SkillManifestBuilder` | `pub struct SkillManifestBuilder` | [`crates/vox-plugin-test-harness/src/manifest_builder.rs#L124-L133`](../../../crates/vox-plugin-test-harness/src/manifest_builder.rs#L124-L133) | Builds a minimal Skill-kind Plugin.toml TOML string. |
+| `fn` | `manifest_builder::new` | `pub fn new(id: impl Into<String>) -> Self` | [`crates/vox-plugin-test-harness/src/manifest_builder.rs#L136-L148`](../../../crates/vox-plugin-test-harness/src/manifest_builder.rs#L136-L148) | — |
+| `fn` | `manifest_builder::name` | `pub fn name(mut self, n: impl Into<String>) -> Self` | [`crates/vox-plugin-test-harness/src/manifest_builder.rs#L150-L153`](../../../crates/vox-plugin-test-harness/src/manifest_builder.rs#L150-L153) | — |
+| `fn` | `manifest_builder::version` | `pub fn version(mut self, v: impl Into<String>) -> Self` | [`crates/vox-plugin-test-harness/src/manifest_builder.rs#L154-L157`](../../../crates/vox-plugin-test-harness/src/manifest_builder.rs#L154-L157) | — |
+| `fn` | `manifest_builder::description` | `pub fn description(mut self, d: impl Into<String>) -> Self` | [`crates/vox-plugin-test-harness/src/manifest_builder.rs#L158-L161`](../../../crates/vox-plugin-test-harness/src/manifest_builder.rs#L158-L161) | — |
+| `fn` | `manifest_builder::skill_md` | `pub fn skill_md(mut self, path: impl Into<String>) -> Self` | [`crates/vox-plugin-test-harness/src/manifest_builder.rs#L162-L165`](../../../crates/vox-plugin-test-harness/src/manifest_builder.rs#L162-L165) | — |
+| `fn` | `manifest_builder::exposes` | `pub fn exposes(mut self, tool: impl Into<String>) -> Self` | [`crates/vox-plugin-test-harness/src/manifest_builder.rs#L166-L169`](../../../crates/vox-plugin-test-harness/src/manifest_builder.rs#L166-L169) | — |
+| `fn` | `manifest_builder::build` | `pub fn build(self) -> String` | [`crates/vox-plugin-test-harness/src/manifest_builder.rs#L171-L196`](../../../crates/vox-plugin-test-harness/src/manifest_builder.rs#L171-L196) | — |
+| `struct` | `plugin_dir::PluginDir` | `pub struct PluginDir` | [`crates/vox-plugin-test-harness/src/plugin_dir.rs#L12-L15`](../../../crates/vox-plugin-test-harness/src/plugin_dir.rs#L12-L15) | A temporary plugin root directory containing a valid `Plugin.toml`.  Cleaned up automatically when the value is dropped. Use [`PluginDir::path`] to pass the directory to `vox-plugin-host` loader APIs. |
+| `fn` | `plugin_dir::from_toml` | `pub fn from_toml(toml_src: &str) -> Result<Self, Box<dyn std::error::Error>>` | [`crates/vox-plugin-test-harness/src/plugin_dir.rs#L22-L30`](../../../crates/vox-plugin-test-harness/src/plugin_dir.rs#L22-L30) | Create a `PluginDir` from a Plugin.toml TOML source string.  Parses the TOML eagerly so tests fail immediately on invalid manifests rather than only at loader call time. |
+| `fn` | `plugin_dir::path` | `pub fn path(&self) -> &Path` | [`crates/vox-plugin-test-harness/src/plugin_dir.rs#L33-L35`](../../../crates/vox-plugin-test-harness/src/plugin_dir.rs#L33-L35) | Path to the temporary plugin root directory. |
+| `fn` | `plugin_dir::manifest_path` | `pub fn manifest_path(&self) -> PathBuf` | [`crates/vox-plugin-test-harness/src/plugin_dir.rs#L38-L40`](../../../crates/vox-plugin-test-harness/src/plugin_dir.rs#L38-L40) | Path to the `Plugin.toml` file inside the directory. |
+| `fn` | `plugin_dir::parse_manifest` | `pub fn parse_manifest(&self) -> Result<PluginManifest, Box<dyn std::error::Error>>` | [`crates/vox-plugin-test-harness/src/plugin_dir.rs#L43-L46`](../../../crates/vox-plugin-test-harness/src/plugin_dir.rs#L43-L46) | Read back and parse the manifest. Useful for round-trip assertions. |
+| `fn` | `plugin_dir::touch` | `pub fn touch(&self, relative_path: impl AsRef<Path>) -> Result<(), std::io::Error>` | [`crates/vox-plugin-test-harness/src/plugin_dir.rs#L52-L59`](../../../crates/vox-plugin-test-harness/src/plugin_dir.rs#L52-L59) | Write an empty file at `relative_path` inside the plugin dir.  Use this to pre-create artifact stubs (e.g. `libfoo.so`) so that loaders that check file existence before loading don't fail early. |
+| `fn` | `plugin_dir::assert_manifest_parses` | `pub fn assert_manifest_parses(toml_src: &str) -> PluginManifest` | [`crates/vox-plugin-test-harness/src/plugin_dir.rs#L66-L69`](../../../crates/vox-plugin-test-harness/src/plugin_dir.rs#L66-L69) | Assert that a Plugin.toml TOML string parses without error.  Panics with a readable error message on failure. |
+

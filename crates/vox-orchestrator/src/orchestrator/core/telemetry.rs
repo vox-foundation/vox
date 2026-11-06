@@ -177,6 +177,19 @@ impl crate::orchestrator::Orchestrator {
                 tracing::warn!(error = %e, "Failed to refresh model pricing catalog from database");
             }
         }
+
+        // Hydrate verified CommunityIntelligenceBundleV1 priors (Empirical Bayes ±15% bounded)
+        // when cached locally (`ROUTE-LEARN-01`). Never blocks on network when offline.
+        if let Some(bundle) = crate::models::intelligence_bundle::load_cached_bundle_if_valid(None)
+        {
+            let mut registry = self.models.write().unwrap();
+            let hydrated = registry.apply_community_intelligence_bundle(&bundle);
+            tracing::debug!(
+                bundle_version = %bundle.bundle_version,
+                hydrated,
+                "Applied cached CommunityIntelligenceBundleV1 priors during scoreboard refresh"
+            );
+        }
     }
 }
 

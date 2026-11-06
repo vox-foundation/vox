@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox/contracts/python/plan-ir.v1.schema.json",
+  "title": "std.array plan IR, stats slice",
+  "description": "Same op envelope as ecosystem-support. Only the twelve stats-slice names are nodes. No linalg, fft, where, or slice.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "module", "engine", "ops"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "module": {
+      "type": "string",
+      "minLength": 1
+    },
+    "engine": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ops": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "kind", "signature", "handler", "expected"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": ["from_list", "astype", "add", "sub", "mul", "div", "mean", "std", "sort", "to_list", "item", "shape"]
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["plan", "materializer"]
+          },
+          "signature": {
+            "type": "string",
+            "minLength": 1
+          },
+          "handler": {
+            "type": "string",
+            "minLength": 1
+          },
+          "required_named": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "expected": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}

@@ -62,7 +62,6 @@ Rules:
 ### 2.2 The `MeshTraceContext`
 
 ```rust
-// vox:skip
 #[derive(Debug, Clone)]
 pub struct MeshTraceContext {
     pub trace_id: TraceId,        // 16-byte, hex-encoded for serialization
@@ -93,7 +92,6 @@ A new method `MeshTraceContext::current_or_new()` reads the active `tracing` spa
 `A2ADeliverRequest` gains an additive optional field:
 
 ```rust
-// vox:skip
 /// W3C traceparent (e.g. "00-{32hex}-{16hex}-01"). When present, the receiver
 /// SHOULD continue the trace.
 #[serde(default, skip_serializing_if = "Option::is_none")]

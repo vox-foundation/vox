@@ -17,7 +17,7 @@
 Before starting, the executor MUST read:
 
 1. [`AGENTS.md`](../../../../AGENTS.md) — cross-tool policy.
-2. [`CLAUDE.md`](../../../../CLAUDE.md) — Claude-specific overlay; especially the "consult `where-things-live.md` before adding code" and "VoxScript-first glue code" rules.
+2. [`CLAUDE.md`](../../../../CLAUDE.md) — Claude-specific overlay; especially the "consult `where-things-live.md` before adding code" and "VoxLang-first glue code" rules.
 3. [`docs/src/architecture/where-things-live.md`](../../../src/architecture/where-things-live.md) — flat lookup table.
 4. [`docs/src/architecture/layers.toml`](../../../src/architecture/layers.toml) — layer rules + `[[known_inversions]]` pattern (re-used in this plan).
 5. [`docs/src/adr/004-codex-arca-turso-ssot.md`](../../../src/adr/004-codex-arca-turso-ssot.md) — Turso-as-SSOT decision.
@@ -34,7 +34,7 @@ If any of these are missing or moved, STOP and report — that itself is drift.
 - **TDD throughout.** Write the failing test first, run it to confirm failure, then write code, then re-run.
 - **Commit after every passing task** (not after every step). Commit messages follow conventional-commit style: `fix(vox-secrets):`, `feat(vox-db-types):`, `chore(docs):`, etc.
 - **Never edit auto-generated docs by hand** (`SUMMARY.md`, `architecture-index.md`, `feed.xml`, `*.generated.md`, `.cursorignore`). Re-run the generator instead. See user memory `feedback_auto_generated_docs.md`.
-- **Use `.vox` for any new automation script** per CLAUDE.md / AGENTS.md "VoxScript-First Glue Code". Do not generate `.ps1`, `.sh`, or `.py`.
+- **Use `.vox` for any new automation script** per CLAUDE.md / AGENTS.md "VoxLang-First Glue Code". Do not generate `.ps1`, `.sh`, or `.py`.
 - **After every multi-file edit**, run `cargo check --workspace` before moving on. If it fails, fix before next step.
 - **Read before assuming.** If a file's contents differ from this plan (e.g. line numbers shifted), re-grep for the anchor string before editing.
 
@@ -121,7 +121,7 @@ rg --no-heading --line-number 'CREATE\s+TABLE\s+(IF\s+NOT\s+EXISTS\s+)?[a-zA-Z_]
 
 - [ ] **Step 2: Extract just the table names (sorted, unique)**
 
-Use a `.vox` script per VoxScript-first rule. Create `scripts/extract_table_names.vox`:
+Use a `.vox` script per VoxLang-first rule. Create `scripts/extract_table_names.vox`:
 
 ```vox
 // Extracts unique table names from a CREATE TABLE inventory file.

@@ -54,6 +54,10 @@ pub struct McpChatModelResolution {
     /// behavior — for call sites whose prompt IS the user's own message with
     /// no injected context mixed in (ghost text, inline edit, planning loops).
     pub capability_prompt: Option<String>,
+    /// Optional pre-turn decision pack (`DEC-01`). `None` (default) is byte-for-byte
+    /// today's routing. Patches only `task_category`/`complexity` left at their
+    /// defaults; never overrides clutch or emits model ids.
+    pub turn_decision_pack: Option<super::turn_decision_pack::TurnDecisionPack>,
 }
 
 impl Default for McpChatModelResolution {
@@ -71,6 +75,7 @@ impl Default for McpChatModelResolution {
             trigger_source: vox_orchestrator::mode::TriggerSource::Interactive,
             web_evidence_supplied: false,
             capability_prompt: None,
+            turn_decision_pack: None,
         }
     }
 }

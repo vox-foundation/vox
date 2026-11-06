@@ -45,7 +45,9 @@ impl<'a> Checker<'a> {
         let r = self.uf.resolve(&r);
         match op {
             HirBinOp::Add => {
-                if l == Ty::Str || r == Ty::Str {
+                if matches!(l, Ty::Array(_)) || matches!(r, Ty::Array(_)) {
+                    self.array_same_dtype_op(&l, &r, span)
+                } else if l == Ty::Str || r == Ty::Str {
                     Ty::Str
                 } else if l == Ty::Int && r == Ty::Int {
                     Ty::Int
@@ -62,17 +64,21 @@ impl<'a> Checker<'a> {
                     Ty::Error
                 }
             }
-            HirBinOp::Sub | HirBinOp::Mul | HirBinOp::Div | HirBinOp::Mod => {
-                if l == Ty::Int && r == Ty::Int {
-                    Ty::Int
-                } else if l == Ty::Decimal && r == Ty::Decimal {
-                    Ty::Decimal
-                } else if (l == Ty::Float || l == Ty::Int) && (r == Ty::Float || r == Ty::Int) {
-                    Ty::Float
+            HirBinOp::Sub | HirBinOp::Div => {
+                if matches!(l, Ty::Array(_)) || matches!(r, Ty::Array(_)) {
+                    self.array_same_dtype_op(&l, &r, span)
                 } else {
-                    Ty::Error
+                    host_numeric_binop(&l, &r)
                 }
             }
+            HirBinOp::Mul => {
+                if matches!(l, Ty::Array(_)) || matches!(r, Ty::Array(_)) {
+                    self.array_same_dtype_op(&l, &r, span)
+                } else {
+                    host_numeric_binop(&l, &r)
+                }
+            }
+            HirBinOp::Mod => host_numeric_binop(&l, &r),
             HirBinOp::Lt | HirBinOp::Gt | HirBinOp::Lte | HirBinOp::Gte => Ty::Bool,
             HirBinOp::Is | HirBinOp::Isnt => Ty::Bool,
             HirBinOp::And | HirBinOp::Or => {
@@ -146,6 +152,281 @@ impl<'a> Checker<'a> {
                 ));
             }
         }
+    }
+
+    /// Elementwise add, sub, mul, and div of two arrays. Same inner dtype
+    /// yields that array, including a rank-0 plan against a rank-1 plan
+    /// (rank is not part of `Ty::Array`). A mismatch names `astype` and does
+    /// not fall through to host promotion.
+    fn array_same_dtype_op(&mut self, l: &Ty, r: &Ty, span: Span) -> Ty {
+        match (l, r) {
+            (Ty::Array(a), Ty::Array(b)) if a == b => Ty::Array(a.clone()),
+            _ => {
+                self.diags.push(Diagnostic::error(
+                    "Array add, sub, mul, and div need the same inner dtype; use astype to align them"
+                        .into(),
+                    span,
+                    self.source,
+                ));
+                Ty::Error
+            }
+        }
+    }
+
+    /// `std` accepts only `correction` by name. Positional `std(0)` and a
+    /// missing name are diagnostics. `correction` is not defaulted.
+    pub(super) fn check_array_std_args(&mut self, args: &[HirArg], span: Span) {
+        let named = args.len() == 1 && args[0].name.as_deref() == Some("correction");
+        if !named {
+            self.diags.push(Diagnostic::error(
+                "std requires a named argument `correction` of type int".into(),
+                span,
+                self.source,
+            ));
+            for arg in args {
+                let _ = self.check_expr(&arg.value, None);
+            }
+            return;
+        }
+        let value_ty = self.check_expr(&args[0].value, Some(&Ty::Int));
+        if self.uf.unify(&Ty::Int, &value_ty).is_err() {
+            let arg_span = hir_expr_span(&args[0].value);
+            self.diags.push(Diagnostic::error(
+                "std argument `correction` must be int".into(),
+                arg_span,
+                self.source,
+            ));
+        }
+    }
+
+    /// `sort` accepts only the name `nulls` bound to the string `first` or
+    /// `last`. A missing name, a positional string, and any other string are
+    /// diagnostics. The name is checked before any positional argument zip.
+    /// `nulls` is not defaulted.
+    pub(super) fn check_array_sort_args(&mut self, args: &[HirArg], span: Span) {
+        let names: Vec<Option<String>> = args.iter().map(|arg| arg.name.clone()).collect();
+        tracing::debug!(
+            arg_count = args.len(),
+            ?names,
+            "std.array sort arguments sent to nulls check"
+        );
+        let named = args.len() == 1 && args[0].name.as_deref() == Some("nulls");
+        if !named {
+            self.diags.push(Diagnostic::error(
+                "sort requires a named argument `nulls` of \"first\" or \"last\"".into(),
+                span,
+                self.source,
+            ));
+            for arg in args {
+                let _ = self.check_expr(&arg.value, None);
+            }
+            return;
+        }
+        let value_ty = self.check_expr(&args[0].value, Some(&Ty::Str));
+        let literal = match &args[0].value {
+            HirExpr::StringLit(text, _) => Some(text.as_str()),
+            _ => None,
+        };
+        tracing::debug!(?literal, ?value_ty, "std.array sort nulls payload");
+        if self.uf.unify(&Ty::Str, &value_ty).is_err() || !matches!(literal, Some("first" | "last"))
+        {
+            let arg_span = hir_expr_span(&args[0].value);
+            self.diags.push(Diagnostic::error(
+                "sort argument `nulls` must be the string \"first\" or \"last\"".into(),
+                arg_span,
+                self.source,
+            ));
+        }
+    }
+
+    /// Frame `sort` is one positional column plus `nulls` bound to `first` or
+    /// `last`. The name is not defaulted and the column is not required to be named.
+    pub(super) fn check_frame_sort_args(&mut self, args: &[HirArg], span: Span) {
+        let names: Vec<Option<String>> = args.iter().map(|arg| arg.name.clone()).collect();
+        tracing::debug!(
+            arg_count = args.len(),
+            ?names,
+            "std.frame sort arguments sent to nulls check"
+        );
+        let shaped =
+            args.len() == 2 && args[0].name.is_none() && args[1].name.as_deref() == Some("nulls");
+        if !shaped {
+            self.diags.push(Diagnostic::error(
+                "sort requires one positional column and `nulls` of \"first\" or \"last\"".into(),
+                span,
+                self.source,
+            ));
+            for arg in args {
+                let _ = self.check_expr(&arg.value, None);
+            }
+            return;
+        }
+        let column_ty = self.check_expr(&args[0].value, Some(&Ty::Str));
+        if self.uf.unify(&Ty::Str, &column_ty).is_err() {
+            let arg_span = hir_expr_span(&args[0].value);
+            self.diags.push(Diagnostic::error(
+                "sort column must be str".into(),
+                arg_span,
+                self.source,
+            ));
+        }
+        let value_ty = self.check_expr(&args[1].value, Some(&Ty::Str));
+        let literal = match &args[1].value {
+            HirExpr::StringLit(text, _) => Some(text.as_str()),
+            _ => None,
+        };
+        tracing::debug!(?literal, ?value_ty, "std.frame sort nulls payload");
+        if self.uf.unify(&Ty::Str, &value_ty).is_err() || !matches!(literal, Some("first" | "last"))
+        {
+            let arg_span = hir_expr_span(&args[1].value);
+            self.diags.push(Diagnostic::error(
+                "sort argument `nulls` must be the string \"first\" or \"last\"".into(),
+                arg_span,
+                self.source,
+            ));
+        }
+    }
+
+    /// `sum`, `count`, `mean`, `min`, and `max` inside a literal `agg` list
+    /// require `.alias(name)`. A non-literal argument is left to runtime.
+    pub(super) fn check_frame_agg_alias(&mut self, args: &[HirArg], span: Span) {
+        for arg in args {
+            if agg_literal_missing_alias(&arg.value) {
+                self.diags.push(Diagnostic::error(
+                    "aggregation inside agg requires .alias(name)".into(),
+                    span,
+                    self.source,
+                ));
+            }
+        }
+    }
+
+    /// `from_list` of a host list. `list[int]` is Array of i64, `list[bool]`
+    /// is Array of bool, and `list[float]` is Array of f64. i32 and f32 are
+    /// not host-list dtypes.
+    pub(super) fn check_array_from_list(&mut self, args: &[HirArg], span: Span) -> Ty {
+        tracing::debug!(
+            arg_count = args.len(),
+            "std.array from_list arguments sent to dtype mapping"
+        );
+        if args.len() != 1 || args[0].name.is_some() {
+            self.diags.push(Diagnostic::error(
+                "from_list takes one positional list".into(),
+                span,
+                self.source,
+            ));
+            for arg in args {
+                let _ = self.check_expr(&arg.value, None);
+            }
+            return Ty::Error;
+        }
+        let checked = self.check_expr(&args[0].value, None);
+        let arg_ty = self.uf.resolve(&checked);
+        tracing::debug!(?arg_ty, "std.array from_list host list payload");
+        let dtype = match &arg_ty {
+            Ty::List(inner) => match inner.as_ref() {
+                Ty::Int => Some("i64"),
+                Ty::Bool => Some("bool"),
+                Ty::Float => Some("f64"),
+                _ => None,
+            },
+            _ => None,
+        };
+        match dtype {
+            Some(name) => Ty::Array(Box::new(Ty::Named(name.into()))),
+            None => {
+                self.diags.push(Diagnostic::error(
+                    "from_list accepts list of int, list of float, or list of bool".into(),
+                    hir_expr_span(&args[0].value),
+                    self.source,
+                ));
+                Ty::Error
+            }
+        }
+    }
+
+    /// `astype` takes one dtype token and returns Array of that token.
+    /// Legal tokens are i32, i64, f32, f64, and bool.
+    pub(super) fn check_array_astype(&mut self, args: &[HirArg], span: Span) -> Ty {
+        tracing::debug!(
+            arg_count = args.len(),
+            "std.array astype arguments sent to dtype check"
+        );
+        if args.len() != 1 || args[0].name.is_some() {
+            self.diags.push(Diagnostic::error(
+                "astype takes one dtype identifier".into(),
+                span,
+                self.source,
+            ));
+            for arg in args {
+                let _ = self.check_expr(&arg.value, None);
+            }
+            return Ty::Error;
+        }
+        let value_ty = self.check_expr(&args[0].value, None);
+        let name = match &args[0].value {
+            HirExpr::Ident(name, _) => Some(name.as_str()),
+            _ => None,
+        };
+        tracing::debug!(?name, ?value_ty, "std.array astype dtype payload");
+        match name {
+            Some(dtype @ ("i32" | "i64" | "f32" | "f64" | "bool")) => {
+                Ty::Array(Box::new(Ty::Named(dtype.into())))
+            }
+            _ => {
+                self.diags.push(Diagnostic::error(
+                    "astype accepts i32, i64, f32, f64, or bool".into(),
+                    hir_expr_span(&args[0].value),
+                    self.source,
+                ));
+                Ty::Error
+            }
+        }
+    }
+
+    /// `mean` and `std` are legal only on Array of f32 or Array of f64.
+    pub(super) fn array_float_reduction_ok(
+        &mut self,
+        obj_ty: &Ty,
+        method: &str,
+        span: Span,
+    ) -> bool {
+        let Ty::Array(inner) = obj_ty else {
+            return true;
+        };
+        let inner = self.uf.resolve(inner);
+        let ok = matches!(inner, Ty::Named(ref name) if name == "f32" || name == "f64");
+        tracing::debug!(?inner, method, ok, "std.array reduction dtype");
+        if !ok {
+            self.diags.push(Diagnostic::error(
+                format!(
+                    "{method} is legal only on Array of f32 or Array of f64; use astype to align the dtype"
+                ),
+                span,
+                self.source,
+            ));
+        }
+        ok
+    }
+
+    /// Host list produced by `to_list` for integer and bool plan dtypes.
+    /// f32 and f64 keep the generated `Result[list[float]]` signature.
+    pub(super) fn array_to_list_ty(inner: &Ty) -> Option<Ty> {
+        let elem = match inner {
+            Ty::Named(name) if name == "i64" || name == "i32" => Ty::Int,
+            Ty::Named(name) if name == "bool" => Ty::Bool,
+            Ty::Bool => Ty::Bool,
+            _ => return None,
+        };
+        tracing::debug!(
+            ?inner,
+            elem = elem.signature(),
+            "std.array to_list host mapping"
+        );
+        Some(Ty::Result(
+            Box::new(Ty::List(Box::new(elem))),
+            Box::new(Ty::Str),
+        ))
     }
 
     pub(super) fn check_arguments(&mut self, expected: &[Ty], actual: &[HirArg], span: Span) {
@@ -257,5 +538,37 @@ impl<'a> Checker<'a> {
                 }
             },
         }
+    }
+}
+
+fn agg_literal_missing_alias(expr: &HirExpr) -> bool {
+    match expr {
+        HirExpr::ListLit(items, _) => items.iter().any(agg_literal_missing_alias),
+        HirExpr::MethodCall(_, method, _, _, _)
+            if matches!(method.as_str(), "sum" | "count" | "mean" | "min" | "max") =>
+        {
+            true
+        }
+        HirExpr::MethodCall(object, method, _, _, _) if method == "alias" => {
+            agg_literal_missing_alias(object)
+                && !matches!(
+                    object.as_ref(),
+                    HirExpr::MethodCall(_, inner, _, _, _)
+                        if matches!(inner.as_str(), "sum" | "count" | "mean" | "min" | "max")
+                )
+        }
+        _ => false,
+    }
+}
+
+fn host_numeric_binop(l: &Ty, r: &Ty) -> Ty {
+    if l == &Ty::Int && r == &Ty::Int {
+        Ty::Int
+    } else if l == &Ty::Decimal && r == &Ty::Decimal {
+        Ty::Decimal
+    } else if (l == &Ty::Float || l == &Ty::Int) && (r == &Ty::Float || r == &Ty::Int) {
+        Ty::Float
+    } else {
+        Ty::Error
     }
 }

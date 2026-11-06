@@ -65,7 +65,8 @@ CREATE TABLE IF NOT EXISTS llm_interactions (
     trial_run_label TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
-CREATE INDEX IF NOT EXISTS idx_llm_interactions_trial ON llm_interactions(trial_run_label) WHERE trial_run_label IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_llm_interactions_trial ON llm_interactions(trial_run_label, cost_usd);
+CREATE INDEX IF NOT EXISTS idx_llm_interactions_cat_created ON llm_interactions(task_category, created_at DESC, trace_id);
 
 CREATE TABLE IF NOT EXISTS llm_feedback (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -89,6 +90,7 @@ CREATE TABLE IF NOT EXISTS llm_attempts (
     error_class TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+CREATE INDEX IF NOT EXISTS idx_llm_attempts_trace ON llm_attempts(trace_id, attempt_number);
 
 CREATE TABLE IF NOT EXISTS artifacts (
     id TEXT PRIMARY KEY,
@@ -409,14 +411,11 @@ CREATE TABLE IF NOT EXISTS trust_rollups (
 
 -- trusted_evidence_bundles: quarantined (DORMANT, Task 4) — see domains/quarantine.rs.
 
-CREATE INDEX IF NOT EXISTS idx_memories_agent ON memories(agent_id);
 CREATE INDEX IF NOT EXISTS idx_memories_type ON memories(memory_type);
 CREATE INDEX IF NOT EXISTS idx_memories_created ON memories(created_at);
 CREATE INDEX IF NOT EXISTS idx_memories_agent_created ON memories(agent_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_behavior_user ON behavior_events(user_id);
 CREATE INDEX IF NOT EXISTS idx_behavior_type ON behavior_events(event_type);
 CREATE INDEX IF NOT EXISTS idx_behavior_user_created ON behavior_events(user_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_learned_patterns_user ON learned_patterns(user_id);
 CREATE INDEX IF NOT EXISTS idx_learned_patterns_category ON learned_patterns(user_id, category);
 CREATE INDEX IF NOT EXISTS idx_llm_interactions_session ON llm_interactions(session_id);
 CREATE INDEX IF NOT EXISTS idx_llm_feedback_interaction ON llm_feedback(interaction_id);
@@ -424,6 +423,14 @@ CREATE INDEX IF NOT EXISTS idx_artifacts_type ON artifacts(artifact_type);
 CREATE INDEX IF NOT EXISTS idx_artifacts_name ON artifacts(name);
 CREATE INDEX IF NOT EXISTS idx_agents_name ON agents(name);
 CREATE INDEX IF NOT EXISTS idx_skill_manifests_id ON skill_manifests(id);
+
+CREATE TABLE IF NOT EXISTS telemetry_upload_spool (
+    id TEXT PRIMARY KEY,
+    payload_json TEXT NOT NULL,
+    byte_len INTEGER NOT NULL,
+    created_at_ms INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_telemetry_upload_spool_created ON telemetry_upload_spool(created_at_ms);
 
 -- First-come-first-served namespace/identity claims for skills (Task 3.4,
 -- harness parity plan). identity is the canonical <namespace>/<name>

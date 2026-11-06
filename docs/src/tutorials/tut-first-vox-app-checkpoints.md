@@ -9,7 +9,7 @@ schema_type: "HowTo"
 
 # First `.vox` app — checkpoints
 
-Use this alongside [First full-stack app](../how-to/first-full-stack-app.md) and [golden examples](../../../examples/golden/hello.vox).
+Use this checklist beside [Building a Collaborative Task List](tut-first-app.md) and [golden examples](../../../examples/golden/hello.vox).
 
 ## Checkpoint A — parse
 

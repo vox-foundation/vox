@@ -65,15 +65,32 @@ vox mens eval-collateral-damage \
   --post-adapter mens/runs/qwen35-08b-metal-e2e
 ```
 
+The baseline file is a JSON object whose `benchmarks` object must hold all six
+reasoning keys: `gsm8k_think`, `gsm8k_think_init`, `math500_think`,
+`math500_think_init`, `vox_think`, and `vox_think_init`. Each slice has an
+accuracy key and a think-initiation key (the `_init` partner). A baseline
+missing any of the six is a hard error and no report is written. Accuracy and
+think-initiation are compared separately, and a drop past 5% on either one
+fails the check.
+
 Copy `tokenizer.json` and `config.json` from the Hugging Face snapshot into the
 run directory. Update `adapter_manifest.json` `base_model` to the **local
 snapshot directory** (the Metal serve plugin does not download hub ids).
 
-The serve command refuses a missing or non-passing collateral report:
+The serve command refuses a missing or non-passing collateral report. It also
+re-checks the 32-item slice block in the report (`scope_note`, `slice_size`,
+and each slice's `n`) and each `collateral_eval/<slice>/reasoning_report.json`
+(status `scored`, `n` of 32), and it recomputes the per-slice drops from the
+stored pre and post numbers. It does not trust status alone: a flipped
+status, a missing slice block, an old-format report, or numbers that recompute
+past 5% are refused. A consistent rewrite of pre and post is a new baseline and
+is not detected as an edit. A quick first look at the stored status:
 
 ```bash
 jq '.status' mens/runs/qwen35-08b-metal-e2e/collateral_damage_report.json
 ```
+
+`vox mens eval-reasoning-compare --adapter <run dir>` scores the pinned base (the default pin, or `--base` with a size name or an `hf_id@sha`) and the adapter on the three checked-in slices into `mens/runs/reasoning_compare/<size>-<revision>.json`, one file per base; when the pinned snapshot or a matching adapter is not on disk it writes a `not_compared` record with no score keys and prints `NOT COMPARED`; the file is not a serve-gate input.
 
 ## Serve and pin from Drive
 

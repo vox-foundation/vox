@@ -74,13 +74,13 @@ LAN technique feasibility (consumer 1-10 GbE, 16 GB cards):
 
 Illustrative sketch (scoping only):
 ```vox
-// vox:skip — illustrative scoping sketch, not yet an in-tree script
-fn train_once(out: str, extra: list[str]) -> int {
+fn train_once(out: str, extra: list[str]) to int {
     let mut args = ["mens", "train", "--resume", out]
     for a in extra { args.push(a) }
-    match process.run("vox", args) {
-        Some(res) => res.code,
-        None => 1,
+    let res = process.run("vox", args)
+    match res {
+        Some(r) => return r.code
+        None => return 1
     }
 }
 
@@ -90,7 +90,10 @@ fn main() {
     let mut attempt = 0
     while attempt < max_attempts {
         let code = train_once(out, [])   // first pass --resume is a no-op if no state
-        if code == 0 { print("training complete"); return null }
+        if code is 0 {
+            print("training complete")
+            return
+        }
         attempt = attempt + 1
         print("run crashed (code " + str(code) + "); relaunch " + str(attempt) + "/" + str(max_attempts))
     }

@@ -196,7 +196,7 @@ The mesh's collapse condition today: **any peer with `VOX_MESH_TOKEN` is fully t
 | Adversary | Capability today | Component impacted |
 |---|---|---|
 | Malicious worker | Forge results; steal in-flight prompts; sell donated time; lie about hardware (operator labels override probes); tasks run in-process → full RCE on submitter side if exfil | `vox-orchestrator/src/a2a/dispatch/mesh.rs`, `executor`, no sandbox |
-| Malicious submitter | Send malware-shaped TaskKinds; exhaust GPU memory; ship VoxScript with exfil; spam expensive jobs (no per-key quota) | `vox-orchestrator/src/a2a/inbox`, `vox-skills`, `vox-wasm-engine` |
+| Malicious submitter | Send malware-shaped TaskKinds; exhaust GPU memory; ship VoxLang with exfil; spam expensive jobs (no per-key quota) | `vox-orchestrator/src/a2a/inbox`, `vox-skills`, `vox-wasm-engine` |
 | Malicious mesh peer | Replay old A2A envelopes; forge HS256-signed messages (symmetric secret); squat lease IDs | `vox-populi/src/transport/handlers.rs`, JWT auth |
 | Sybil attacker | Spin up N fake nodes; vote-stuff redundancy checks; harvest credit/reputation; flood inbox | `vox-mesh-types::NodeRecord`, future trust ledger |
 | Network attacker | Bare HTTP → passive read of prompts/results/headers; active MITM swaps results | All of `vox-populi::transport`, no TLS |
@@ -235,7 +235,7 @@ Vox already has three executors at increasing strength (in-process Rust → WASM
 
 | TaskKind | Tier | Reason |
 |---|---|---|
-| **VoxScript** | T2 WASM (default), T3 container if file/net I/O declared | Vox lang has capability annotations; WASM enforces fuel + memory cheaply |
+| **VoxLang** | T2 WASM (default), T3 container if file/net I/O declared | Vox lang has capability annotations; WASM enforces fuel + memory cheaply |
 | **Embed** | T1 in-process | Pure compute on trusted model binary; untrusted *input* only |
 | **TextInfer** | T1 trusted models, T3 container for arbitrary HF checkpoints | `trust_remote_code=True` makes weights code-equivalent |
 | **ImageGen / SpeechTranscribe** | T3 container | Same model-as-code risk; large weights amortize container cost |
@@ -250,9 +250,9 @@ Vox already has three executors at increasing strength (in-process Rust → WASM
 |---|---|---|---|
 | Redundant exec + majority voting (BOINC) | 2–3× compute | Yes — homogeneous-redundancy lesson: vote only across "numerically equivalent" hosts | TrainQLoRA quality gates, deterministic Embed, batch ImageGen. *Not* sampled TextInfer |
 | TEE attestation (SGX / SEV-SNP / H100 confidential compute) | Hardware-tied; Akash-style is real but heavyweight | No | Confidential inference where worker mustn't read the prompt. Defer; no H100s in a personal mesh |
-| Signed deterministic replay (proof-of-effort) | 1× compute + signed trace | Yes for replay | VoxScript, Embed, batch jobs. Worker signs `(task_id, input_hash, output_hash, gpu_seconds, blake3 of intermediate states)` with per-job ephemeral key; submitter spot-checks ~1% by re-running |
+| Signed deterministic replay (proof-of-effort) | 1× compute + signed trace | Yes for replay | VoxLang, Embed, batch jobs. Worker signs `(task_id, input_hash, output_hash, gpu_seconds, blake3 of intermediate states)` with per-job ephemeral key; submitter spot-checks ~1% by re-running |
 
-Mapping per TaskKind: VoxScript / Embed → signed deterministic replay (1×). TextInfer (greedy / temp=0) → signed replay; sampled → trust + spot-redundancy on `seed` matching. TrainQLoRA → redundant exec on 2 nodes for the *first epoch* (shape, loss-curve match), trust thereafter. ImageGen / SpeechTranscribe → 1–5% submitter-side replay sample.
+Mapping per TaskKind: VoxLang / Embed → signed deterministic replay (1×). TextInfer (greedy / temp=0) → signed replay; sampled → trust + spot-redundancy on `seed` matching. TrainQLoRA → redundant exec on 2 nodes for the *first epoch* (shape, loss-curve match), trust thereafter. ImageGen / SpeechTranscribe → 1–5% submitter-side replay sample.
 
 ### 3.6 Critical path to safe-to-deploy-publicly
 
@@ -330,15 +330,15 @@ Borrow Restate's "durable promises": every awaitable side-effecting op gets an *
 
 #### 4.1.5 Three durable parallel patterns as one-liners (sketches)
 
-```vox
-// vox:skip -- illustrative sketch: proposed `|>`/par_map/inline @activity syntax, not implemented
+```text
+// Illustrative sketch: proposed `|>`/par_map/inline @activity syntax, not implemented
 // Map-reduce — fan out N independent activities, await all, fold
 let receipts = orders |> par_map fn(o) { @activity charge(o) }
                      |> fold(Receipt::empty, Receipt::merge)
 ```
 
-```vox
-// vox:skip -- illustrative sketch: proposed `pipeline` block syntax, not implemented
+```text
+// Illustrative sketch: proposed `pipeline` block syntax, not implemented
 // Pipeline with backpressure — stage1 → stage2 → stage3
 pipeline {
     source:  read_orders()                  // stream emit
@@ -348,8 +348,8 @@ pipeline {
 }
 ```
 
-```vox
-// vox:skip -- illustrative sketch: proposed `event_sourced actor` syntax, not implemented
+```text
+// Illustrative sketch: proposed `event_sourced actor` syntax, not implemented
 // Event sourcing — append-only log + projection
 event_sourced actor InventoryStream {
     state: Inventory = Inventory::empty()
@@ -476,7 +476,7 @@ Steps 1–2 alone close the highest-likelihood-highest-severity risk (silent two
 
 These weren't answerable from the codebase alone and need either prototyping or another round of design:
 
-1. **Sandbox for VoxScript with mesh-effects.** WASM-based capability propagation is clean for in-process; what's the right shape when the WASM module dispatches a remote activity? Does the ephemeral per-job key live in the host's heap or the guest's?
+1. **Sandbox for VoxLang with mesh-effects.** WASM-based capability propagation is clean for in-process; what's the right shape when the WASM module dispatches a remote activity? Does the ephemeral per-job key live in the host's heap or the guest's?
 2. **Workflow signal typing.** Restate's awakeables are stringly-typed externally. Should Vox's `signal name within timeout` carry a `Signal[T]` type or stay string-keyed for cross-language interop?
 3. **Durable promise shape vs. existing `Future[T]`.** Single canonical primitive (C4) demands removing `Future[T]` from std — what's the compat story for non-distributed callers?
 4. **Per-region attestation revocation latency.** Tombstones via gossip — what's the worst-case revocation propagation time? Acceptable bound for personal-mesh; need numbers for public-internet.

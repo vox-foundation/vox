@@ -1133,6 +1133,7 @@ impl From<&AgentTask> for crate::models::RoutingTask {
             research_hints: task.research_hints.clone(),
             tool_hints: task.tool_hints.clone(),
             max_cost_usd: task.budget.as_ref().and_then(|b| b.max_cost_usd),
+            context_fill_ratio: None,
         }
     }
 }

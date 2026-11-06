@@ -974,6 +974,7 @@ impl Parser {
         self.expect(&Token::LParen)?;
         let params = self.parse_params()?;
         self.expect(&Token::RParen)?;
+        let effects = self.parse_uses_clause();
         let return_type = if self.eat_return_arrow() {
             Some(self.parse_type_expr()?)
         } else {
@@ -990,13 +991,14 @@ impl Parser {
             is_deprecated: false,
             distributed_train_strategy,
             distributed_train_peers,
+            effects,
             span: span_start.merge(self.span()),
         }))
     }
 
-    /// Parse `activity Name(params) [to ReturnType] { body }`.
-    /// NOTE: a `uses ...` effect clause is NOT parsed (no `effects` field on `ActivityDecl`);
-    /// the form is unsupported despite earlier doc drift claiming it.
+    /// Parse `activity Name(params) [uses <effects>] [to ReturnType] { body }`.
+    /// The `uses` clause sits at the same position as in `fn` (after `)`, before `to`);
+    /// the `@uses(...)` decorator form is not accepted before `activity`.
     pub(crate) fn parse_activity_decl(&mut self) -> Result<Decl, ()> {
         use crate::ast::decl::ActivityDecl;
         let start = self.span();
@@ -1005,6 +1007,7 @@ impl Parser {
         self.expect(&Token::LParen)?;
         let params = self.parse_params()?;
         self.expect(&Token::RParen)?;
+        let effects = self.parse_uses_clause();
         let return_type = if self.eat_return_arrow() {
             Some(self.parse_type_expr()?)
         } else {
@@ -1021,6 +1024,7 @@ impl Parser {
             prompt: None,
             is_traced: false,
             is_deprecated: false,
+            effects,
             span: start.merge(self.span()),
         }))
     }

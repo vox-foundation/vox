@@ -57,7 +57,7 @@ The next nine sections survey what the field has learned about each axis. The la
 
 ### 2.1 The two dominant patterns
 
-**Cascade routing.** Send the query to a cheap model first; only escalate to a stronger model when the cheap model's response fails a reliability check. The reliability check is a scoring function on (query, response) → [0, 1]; the cascade exits at the first index where the score crosses a threshold.
+**Cascade routing.** Send the query to a cheap model first; only escalate to a stronger model when the cheap model's response fails a reliability check. The reliability check is a scoring function on (query, response) → [0, 1]; the cascade exits at the first index where the score crosses a threshold. A related but distinct pattern is a **non-generative System One prefilter** (TypeSafe Jev): classify intent/stakes with calibrated Choice/Score/Noul probabilities *before* any generative call — see [`jev-system-one-harness-integration-research-2026.md`](jev-system-one-harness-integration-research-2026.md).
 
 > "An incoming query first goes to a small LLM, and if the small model's confidence score is below a chosen threshold, the cascade forwards the query to a larger and more powerful LLM. When the confidence of a small model is high, the system can safely stop the inference, saving the most powerful model's inference cost while maintaining its accuracy." — *Bi-directional Model Cascading with Proxy Confidence* [^cascade-proxy]
 
@@ -591,6 +591,7 @@ Items the literature does not answer cleanly and that need primary investigation
 5. **Mesh agent chain-length cap.** Single-agent chain-length advice (§5.3) does not directly translate to populi-mesh A2A delivery, where the chain is partly determined by network topology. ADR-025 names lock coherence but not chain depth.
 6. **Reasoning-tuned abstention failure mode.** AbstentionBench's 24% degradation [^abstentionbench] applies to reasoning-fine-tuned models; this is the class Vox routes to most often for hard tasks. External abstention enforcement (the orchestrator imposing "I don't know" when the model overclaims) is undocumented in the framework literature.
 7. **The earn-back path for autonomy.** Conservative defaults are well-described; the *automated* expansion path (when does the orchestrator promote a class of decisions from "always escalate" to "notify-and-proceed"?) is described qualitatively but no production implementation publishes thresholds.
+8. **System One vs generative cascade.** When should confidence come from a dedicated discriminator (Jev) versus logprobs / verbalized confidence / post-hoc LLM judges? See [`jev-system-one-harness-integration-research-2026.md`](jev-system-one-harness-integration-research-2026.md) — unresolved until Vox has labeled traces and a spike.
 
 ---
 
@@ -607,6 +608,7 @@ Items the literature does not answer cleanly and that need primary investigation
 | [`multi-agent-vcs-replication-spec-2026.md`](multi-agent-vcs-replication-spec-2026.md) | Sub-agent dispatch logic in §5 is consistent with that doc's handoff protocol. |
 | [`populi-mesh-a2a-durability-spec-2026.md`](populi-mesh-a2a-durability-spec-2026.md) | A2A handoff in §5.1 maps to that doc's transport. |
 | [`telemetry-driven-cost-accounting-research-2026.md`](telemetry-driven-cost-accounting-research-2026.md) | The calibration loop in §10.4 reads from the telemetry surface that doc defines. |
+| [`jev-system-one-harness-integration-research-2026.md`](jev-system-one-harness-integration-research-2026.md) | Discriminator-as-System-1 option for D1 prefilter, D8/D9 guardrails, and tool airlocks — complementary to generative cascades. |
 | [`planning-meta/00..12`](planning-meta/) | Plan-mode trigger in §3.3 fits inside that planning framework's exception policy. |
 
 This document is **horizontal**: it crosses the routing/policy/observability/security boundaries that the others draw vertically. New ADRs proposed here (§13) should each cite this doc as research foundation.

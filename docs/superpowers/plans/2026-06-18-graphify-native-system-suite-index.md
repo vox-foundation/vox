@@ -106,5 +106,5 @@ Route graphify corpora into `vox_memory_search`/the retrieval bundle with a corp
 
 ## Conventions (all plans in this suite)
 - TDD, bite-sized atomic tasks ending green + committed; commit messages end with the repo `Co-Authored-By` trailer.
-- VoxScript-only automation (no new `.ps1`/`.sh`/`.py`). Never `cargo fmt --all` (`-p <crate>`). `docs/src/` `.md` needs YAML frontmatter. No stubs.
+- VoxLang-only automation (no new `.ps1`/`.sh`/`.py`). Never `cargo fmt --all` (`-p <crate>`). `docs/src/` `.md` needs YAML frontmatter. No stubs.
 - Native structural; LLM semantic via Vox egress (hybrid, firm). Graphs under `.vox/cache/graphify/<corpus_id>/` (Tier D); lexical projection in Turso (Tier A).

@@ -101,13 +101,10 @@ CREATE TABLE IF NOT EXISTS kb_index_state (
 
 -- search_indexing_jobs: quarantined (DEAD, Task 4) — see domains/quarantine.rs.
 
-CREATE INDEX IF NOT EXISTS idx_knowledge_edges_src ON knowledge_edges(src_id);
-CREATE INDEX IF NOT EXISTS idx_knowledge_edges_dst ON knowledge_edges(dst_id);
 CREATE INDEX IF NOT EXISTS idx_knowledge_edges_src_rel ON knowledge_edges(src_id, relation, dst_id);
 CREATE INDEX IF NOT EXISTS idx_knowledge_edges_dst_rel ON knowledge_edges(dst_id, relation, src_id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_source ON embeddings(source_type, source_id);
-CREATE INDEX IF NOT EXISTS idx_embeddings_source_created ON embeddings(source_type, created_at);
-CREATE INDEX IF NOT EXISTS idx_search_chunks_doc ON search_document_chunks(document_id);
+CREATE INDEX IF NOT EXISTS idx_embeddings_source_created ON embeddings(source_type, created_at DESC);
 
 -- KB findings inbox (baseline 96, KB Phase 3). Every captured finding lands `pending`; the
 -- trust_tier default is the fail-closed guard for raw SQL (Turso rejects CHECK and triggers, so

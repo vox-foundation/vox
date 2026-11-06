@@ -215,6 +215,11 @@ pub const RETIRED_CAPACITOR: &str = "vox/retired/capacitor";
 /// `detectors::import_cycles::detect_import_cycles_in_batch`.
 pub const IMPORT_CYCLE: &str = "vox/import/cycle";
 
+/// Source file or Cargo manifest introduces a non-Turso embedded database dependency
+/// (`sled`, `redb`, `rocksdb`, `duckdb`, `diesel`, `sea-orm`), a Turso-unsupported
+/// `USING fts5` virtual table, or an ad-hoc `.json.tmp` sidecar database outside `vox-db`.
+pub const DB_NON_TURSO_PERSISTENCE: &str = "vox/db/non-turso-persistence";
+
 /// A function body is byte-identical across two or more (non-platform-sibling) crates —
 /// a split-brain risk where the copies drift apart silently. Detected by
 /// `detectors::cross_crate_dup::detect_cross_crate_dup_in_batch`. Info severity.
@@ -258,6 +263,35 @@ pub const FIXTURE_UNFILLED_HOLE: &str = "vox/fixture/unfilled-hole";
 pub const FIXTURE_STALE_HOLE: &str = "vox/fixture/stale-hole";
 /// TypeScript codegen observed AI fixtures without TS lowering support.
 pub const CODEGEN_MISSING_TS_AI_LOWERING: &str = "vox/codegen/missing-ts-ai-lowering";
+
+// ---------------------------------------------------------------------------
+// T3 Static Policy & Hygiene Detectors (Wave 4 / Wave 5)
+// ---------------------------------------------------------------------------
+
+/// Lint or type suppression (`#[allow]`, `#[expect]`, `@ts-ignore`, `eslint-disable`, `toestub-ignore`) lacks an explicit reason.
+pub const LINT_UNREASONED_SUPPRESSION: &str = "vox/lint/unreasoned-suppression";
+pub const TRANSPORT_THIN_BYPASS: &str = "vox/transport/thin-transport-bypass";
+
+/// Flaky real-clock test wait (`std::thread::sleep`, `waitForTimeout`), `.only` focus leak, or unreasoned `#[ignore]` / `.skip`.
+pub const TEST_FLAKY_WAIT_AND_UNREASONED_SKIP: &str = "vox/test/flaky-wait-and-unreasoned-skip";
+
+/// Raw `Debug` (`:?`) formatting in MCP error responses/logs or unguarded subprocess spawning in MCP tool handlers.
+pub const MCP_ACCESS_AND_ERROR_SAFETY: &str = "vox/mcp/access-and-error-safety";
+
+/// UI layout thrashing (`transition-all`, unthrottled `new ResizeObserver`, bare `:has(`) or V8 dictionary-mode `delete obj[k]`.
+pub const UI_LAYOUT_AND_PERF_HAZARDS: &str = "vox/ui/layout-and-perf-hazards";
+
+/// Wall-clock / real-time wait in tests (t3code no-wall-clock / no-real-time-wait / frame-waits).
+pub const TEST_WALL_CLOCK: &str = "vox/test/wall-clock";
+
+/// Test declaration nested inside a for-loop (t3code no-test-in-loop).
+pub const TEST_IN_LOOP: &str = "vox/test/in-loop";
+
+/// Direct host OS/ARCH probe outside allowlisted host crates.
+pub const HOST_RUNTIME_PROBE: &str = "vox/host/runtime-probe";
+
+/// Inline schema compile/parse inside hot function bodies.
+pub const INLINE_SCHEMA_COMPILE: &str = "vox/schema/inline-compile";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -341,6 +375,16 @@ pub const ALL_KNOWN_IDS: &[&str] = &[
     RETIRED_MEMORY_API,
     RETIRED_CAPACITOR,
     IMPORT_CYCLE,
+    DB_NON_TURSO_PERSISTENCE,
+    LINT_UNREASONED_SUPPRESSION,
+    TRANSPORT_THIN_BYPASS,
+    TEST_FLAKY_WAIT_AND_UNREASONED_SKIP,
+    MCP_ACCESS_AND_ERROR_SAFETY,
+    UI_LAYOUT_AND_PERF_HAZARDS,
+    TEST_WALL_CLOCK,
+    TEST_IN_LOOP,
+    HOST_RUNTIME_PROBE,
+    INLINE_SCHEMA_COMPILE,
 ];
 
 /// Find the explain URL for a given diagnostic ID.

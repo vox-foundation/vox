@@ -64,3 +64,73 @@ a -> b
 |---|---|
 | `GRAMMAR_CARD` | The VoxDiagram grammar card (graph and sequence) for agent authoring guidance. It is appended to the `vox_validate_diagram` MCP tool description and published verbatim in `docs/src/reference/vox-diagram.md`; `tests/grammar_card.rs` keeps the two in sync. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_diagram: "vox-diagram"
+    node vox_doc_pipeline: "vox-doc-pipeline"
+    vox_doc_pipeline -> vox_diagram
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_diagram
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-doc-pipeline`](./vox-doc-pipeline.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `ast::DiagramKind` | `pub enum DiagramKind` | [`crates/vox-diagram/src/ast.rs#L11-L17`](../../../crates/vox-diagram/src/ast.rs#L11-L17) | Which diagram kind a document's header names. |
+| `struct` | `ast::Document` | `pub struct Document` | [`crates/vox-diagram/src/ast.rs#L21-L32`](../../../crates/vox-diagram/src/ast.rs#L21-L32) | A parsed `graph { ... }` or `sequence { ... }` document, with the comments around it. |
+| `struct` | `ast::Comment` | `pub struct Comment` | [`crates/vox-diagram/src/ast.rs#L40-L47`](../../../crates/vox-diagram/src/ast.rs#L40-L47) | A `//` comment. `blank_before` follows the same rule as [`Item::blank_before`]. |
+| `struct` | `ast::Block` | `pub struct Block` | [`crates/vox-diagram/src/ast.rs#L51-L58`](../../../crates/vox-diagram/src/ast.rs#L51-L58) | Ordered entries of a `{ ... }` block. |
+| `enum` | `ast::Entry` | `pub enum Entry` | [`crates/vox-diagram/src/ast.rs#L62-L67`](../../../crates/vox-diagram/src/ast.rs#L62-L67) | One block entry. |
+| `struct` | `ast::Item` | `pub struct Item` | [`crates/vox-diagram/src/ast.rs#L71-L81`](../../../crates/vox-diagram/src/ast.rs#L71-L81) | A statement plus its trivia. |
+| `enum` | `ast::ItemKind` | `pub enum ItemKind` | [`crates/vox-diagram/src/ast.rs#L85-L100`](../../../crates/vox-diagram/src/ast.rs#L85-L100) | Statement kinds. |
+| `struct` | `ast::ActorDecl` | `pub struct ActorDecl` | [`crates/vox-diagram/src/ast.rs#L104-L109`](../../../crates/vox-diagram/src/ast.rs#L104-L109) | A sequence actor declaration. |
+| `struct` | `ast::MessageStmt` | `pub struct MessageStmt` | [`crates/vox-diagram/src/ast.rs#L113-L122`](../../../crates/vox-diagram/src/ast.rs#L113-L122) | A sequence message. |
+| `struct` | `ast::NoteStmt` | `pub struct NoteStmt` | [`crates/vox-diagram/src/ast.rs#L126-L131`](../../../crates/vox-diagram/src/ast.rs#L126-L131) | A sequence note over one or two actors. |
+| `struct` | `ast::DirectionStmt` | `pub struct DirectionStmt` | [`crates/vox-diagram/src/ast.rs#L135-L140`](../../../crates/vox-diagram/src/ast.rs#L135-L140) | `direction: <down\|right\|up\|left>`. |
+| `struct` | `ast::ContainerDecl` | `pub struct ContainerDecl` | [`crates/vox-diagram/src/ast.rs#L144-L155`](../../../crates/vox-diagram/src/ast.rs#L144-L155) | A container declaration with its nested body. |
+| `struct` | `ast::NodeDecl` | `pub struct NodeDecl` | [`crates/vox-diagram/src/ast.rs#L159-L169`](../../../crates/vox-diagram/src/ast.rs#L159-L169) | A node declaration. |
+| `struct` | `ast::EdgeStmt` | `pub struct EdgeStmt` | [`crates/vox-diagram/src/ast.rs#L173-L180`](../../../crates/vox-diagram/src/ast.rs#L173-L180) | An edge statement. |
+| `struct` | `ast::Ref` | `pub struct Ref` | [`crates/vox-diagram/src/ast.rs#L184-L192`](../../../crates/vox-diagram/src/ast.rs#L184-L192) | A dotted reference such as `backend.gateway`. |
+| `struct` | `ast::Bracket` | `pub struct Bracket` | [`crates/vox-diagram/src/ast.rs#L196-L207`](../../../crates/vox-diagram/src/ast.rs#L196-L207) | Mermaid `id[Label]` text where a plain id belongs: it declares the node (M3). |
+| `struct` | `ast::Ident` | `pub struct Ident` | [`crates/vox-diagram/src/ast.rs#L211-L216`](../../../crates/vox-diagram/src/ast.rs#L211-L216) | An identifier. |
+| `struct` | `ast::Label` | `pub struct Label` | [`crates/vox-diagram/src/ast.rs#L220-L225`](../../../crates/vox-diagram/src/ast.rs#L220-L225) | A decoded quoted label. |
+| `enum` | `diag::Severity` | `pub enum Severity` | [`crates/vox-diagram/src/diag.rs#L14-L19`](../../../crates/vox-diagram/src/diag.rs#L14-L19) | How serious a diagnostic is. `valid` means "no `Error`". |
+| `struct` | `diag::Fix` | `pub struct Fix` | [`crates/vox-diagram/src/diag.rs#L23-L28`](../../../crates/vox-diagram/src/diag.rs#L23-L28) | One text edit; all fixes of a diagnostic form a single atomic remedy. |
+| `struct` | `diag::Related` | `pub struct Related` | [`crates/vox-diagram/src/diag.rs#L32-L37`](../../../crates/vox-diagram/src/diag.rs#L32-L37) | A secondary location that explains a diagnostic. |
+| `struct` | `diag::Diagnostic` | `pub struct Diagnostic` | [`crates/vox-diagram/src/diag.rs#L41-L59`](../../../crates/vox-diagram/src/diag.rs#L41-L59) | A stable, span-precise problem report. |
+| `struct` | `diag::Stats` | `pub struct Stats` | [`crates/vox-diagram/src/diag.rs#L182-L191`](../../../crates/vox-diagram/src/diag.rs#L182-L191) | Size counters of a checked document. For a `sequence`, `nodes` counts actors, `edges` counts events (messages plus notes) and `containers` and `max_depth` are 0. |
+| `struct` | `diag::CheckReport` | `pub struct CheckReport` | [`crates/vox-diagram/src/diag.rs#L195-L207`](../../../crates/vox-diagram/src/diag.rs#L195-L207) | Result of [`crate::check`]. |
+| `struct` | `fence::Fence` | `pub struct Fence` | [`crates/vox-diagram/src/fence.rs#L13-L22`](../../../crates/vox-diagram/src/fence.rs#L13-L22) | One fenced code block whose info string matched. |
+| `fn` | `fence::extract` | `pub fn extract(md: &str, info: &str) -> Vec<Fence>` | [`crates/vox-diagram/src/fence.rs#L25-L49`](../../../crates/vox-diagram/src/fence.rs#L25-L49) | Every fenced block in `md` whose trimmed info string equals `info` exactly. |
+| `fn` | `fence::normalize` | `pub fn normalize(body: &str) -> String` | [`crates/vox-diagram/src/fence.rs#L76-L81`](../../../crates/vox-diagram/src/fence.rs#L76-L81) | CRLF and lone CR to LF, then trailing whitespace trimmed (Rust half of the manifest key). |
+| `enum` | `ir::Ir` | `pub enum Ir` | [`crates/vox-diagram/src/ir.rs#L12-L17`](../../../crates/vox-diagram/src/ir.rs#L12-L17) | Resolved diagram: a graph or a sequence diagram. |
+| `enum` | `ir::Direction` | `pub enum Direction` | [`crates/vox-diagram/src/ir.rs#L22-L32`](../../../crates/vox-diagram/src/ir.rs#L22-L32) | Flow direction of a graph. |
+| `enum` | `ir::Shape` | `pub enum Shape` | [`crates/vox-diagram/src/ir.rs#L37-L51`](../../../crates/vox-diagram/src/ir.rs#L37-L51) | Node shape. |
+| `struct` | `ir::GraphIr` | `pub struct GraphIr` | [`crates/vox-diagram/src/ir.rs#L55-L64`](../../../crates/vox-diagram/src/ir.rs#L55-L64) | A resolved `graph`. |
+| `struct` | `ir::IrNode` | `pub struct IrNode` | [`crates/vox-diagram/src/ir.rs#L68-L81`](../../../crates/vox-diagram/src/ir.rs#L68-L81) | A resolved node. |
+| `struct` | `ir::IrContainer` | `pub struct IrContainer` | [`crates/vox-diagram/src/ir.rs#L85-L98`](../../../crates/vox-diagram/src/ir.rs#L85-L98) | A resolved container. |
+| `struct` | `ir::IrEdge` | `pub struct IrEdge` | [`crates/vox-diagram/src/ir.rs#L102-L111`](../../../crates/vox-diagram/src/ir.rs#L102-L111) | A resolved edge between two node ids. |
+| `struct` | `mermaid::ImportOpts` | `pub struct ImportOpts` | [`crates/vox-diagram/src/mermaid/mod.rs#L33-L36`](../../../crates/vox-diagram/src/mermaid/mod.rs#L33-L36) | Options for [`import`]. |
+| `struct` | `mermaid::Unsupported` | `pub struct Unsupported` | [`crates/vox-diagram/src/mermaid/mod.rs#L40-L45`](../../../crates/vox-diagram/src/mermaid/mod.rs#L40-L45) | A construct the importer did not accept (or dropped), with its block-relative line. |
+| `struct` | `mermaid::ImportReport` | `pub struct ImportReport` | [`crates/vox-diagram/src/mermaid/mod.rs#L50-L63`](../../../crates/vox-diagram/src/mermaid/mod.rs#L50-L63) | Result of [`import`]. Invariant, for every diagram kind: `source.is_some()` exactly when `unsupported` is empty (the import failed closed otherwise, and `sequence` is `None` too). |
+| `struct` | `sequence_ir::SequenceIr` | `pub struct SequenceIr` | [`crates/vox-diagram/src/sequence_ir.rs#L9-L14`](../../../crates/vox-diagram/src/sequence_ir.rs#L9-L14) | A sequence diagram: declared actors and the ordered events between them. |
+| `struct` | `sequence_ir::Actor` | `pub struct Actor` | [`crates/vox-diagram/src/sequence_ir.rs#L18-L25`](../../../crates/vox-diagram/src/sequence_ir.rs#L18-L25) | A participant lane. |
+| `enum` | `sequence_ir::SeqEvent` | `pub enum SeqEvent` | [`crates/vox-diagram/src/sequence_ir.rs#L30-L53`](../../../crates/vox-diagram/src/sequence_ir.rs#L30-L53) | One event on the timeline. |
+| `struct` | `span::Span` | `pub struct Span` | [`crates/vox-diagram/src/span.rs#L7-L12`](../../../crates/vox-diagram/src/span.rs#L7-L12) | Half-open byte range `start..end` into the original source. |
+| `struct` | `span::Location` | `pub struct Location` | [`crates/vox-diagram/src/span.rs#L16-L29`](../../../crates/vox-diagram/src/span.rs#L16-L29) | A [`Span`] plus 1-based line/col (col counted in Unicode scalar values). |
+| `struct` | `svg::SvgOpts` | `pub struct SvgOpts` | [`crates/vox-diagram/src/svg/mod.rs#L19-L25`](../../../crates/vox-diagram/src/svg/mod.rs#L19-L25) | Options for [`render`]. |
+| `enum` | `svg::RenderError` | `pub enum RenderError` | [`crates/vox-diagram/src/svg/mod.rs#L38-L55`](../../../crates/vox-diagram/src/svg/mod.rs#L38-L55) | Why a diagram could not be rendered. |
+| `fn` | `svg::render` | `pub fn render(ir: &Ir, opts: &SvgOpts) -> Result<String, RenderError>` | [`crates/vox-diagram/src/svg/mod.rs#L107-L109`](../../../crates/vox-diagram/src/svg/mod.rs#L107-L109) | Render `ir` to an SVG document.  Synchronous, with no timeout: graph layout is super-quadratic in the number of ranks an edge spans, and a structured diagram at the render caps can take several seconds. Call it off the request path. A sequence diagram has no layout engine: it renders in time linear in actors times events. |
+

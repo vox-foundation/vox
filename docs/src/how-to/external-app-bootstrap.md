@@ -48,7 +48,7 @@ For **strict local-only mobile** (no server), pattern **A** or a **native Capaci
 
 ## 5. Automation in the app repo
 
-Project automation must be **`.vox` scripts** executed with **`vox run`** (see **`AGENTS.md` § VoxScript-first**). CI should install **`vox`** first, then invoke those scripts—there is no chicken-and-egg once **`vox`** is installed.
+Project automation must be **`.vox` scripts** executed with **`vox run`** (see **`AGENTS.md` § VoxLang-first**). CI should install **`vox`** first, then invoke those scripts—there is no chicken-and-egg once **`vox`** is installed.
 
 ## 6. Documentation split
 

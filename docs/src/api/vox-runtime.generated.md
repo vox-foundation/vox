@@ -76,3 +76,53 @@ types declared here once the underlying runtimes adopt them.
 | `lifecycle` | — |
 | `profile` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_runtime: "vox-runtime"
+    node vox_config: "vox-config"
+    vox_runtime -> vox_config
+    node vox_journal: "vox-journal"
+    vox_journal -> vox_runtime
+    node vox_runtime_rn: "vox-runtime-rn"
+    vox_runtime_rn -> vox_runtime
+    node vox_workflow_runtime: "vox-workflow-runtime"
+    vox_workflow_runtime -> vox_runtime
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-journal`](./vox-journal.generated.md) | Direct workspace dependent |
+| [`vox-runtime-rn`](./vox-runtime-rn.generated.md) | Direct workspace dependent |
+| [`vox-workflow-runtime`](./vox-workflow-runtime.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `config::VoxConfig` | `pub struct VoxConfig` | [`crates/vox-runtime/src/config.rs#L17-L38`](../../../crates/vox-runtime/src/config.rs#L17-L38) | Top-level configuration for a Vox runtime instance. |
+| `fn` | `config::desktop` | `pub fn desktop() -> Self` | [`crates/vox-runtime/src/config.rs#L45-L53`](../../../crates/vox-runtime/src/config.rs#L45-L53) | Build a desktop-profile config with sensible defaults.  Both directories live under `~/.vox/default/` unless overridden via the returned config's mutable fields. |
+| `fn` | `config::mobile` | `pub fn mobile(data_dir: PathBuf) -> Self` | [`crates/vox-runtime/src/config.rs#L60-L69`](../../../crates/vox-runtime/src/config.rs#L60-L69) | Build a mobile-profile config rooted under `data_dir`.  `data_dir` is the platform's app-private documents directory; the runtime creates `data_dir/data/` and `data_dir/models/` subdirs as needed at startup. Log level defaults to `info`. |
+| `fn` | `config::log_level_parsed` | `pub fn log_level_parsed(&self) -> tracing::Level` | [`crates/vox-runtime/src/config.rs#L75-L84`](../../../crates/vox-runtime/src/config.rs#L75-L84) | Parse [`Self::log_level`] into a typed [`tracing::Level`].  Returns `tracing::Level::INFO` when the stored string is unrecognized (logging a runtime warning is the caller's responsibility). |
+| `enum` | `lifecycle::SuspendDeadline` | `pub enum SuspendDeadline` | [`crates/vox-runtime/src/lifecycle.rs#L36-L47`](../../../crates/vox-runtime/src/lifecycle.rs#L36-L47) | How long a suspendable subsystem has to complete its `suspend()` call.  `Strict` deadlines force the runtime to abandon any subsystem that hasn't returned in time; `Advisory` deadlines log a warning and continue waiting (used in tests + on desktop where the OS isn't about to kill us). |
+| `fn` | `lifecycle::mobile_default` | `pub fn mobile_default() -> Self` | [`crates/vox-runtime/src/lifecycle.rs#L51-L55`](../../../crates/vox-runtime/src/lifecycle.rs#L51-L55) | Default strict deadline for mobile profiles. |
+| `fn` | `lifecycle::desktop_default` | `pub fn desktop_default() -> Self` | [`crates/vox-runtime/src/lifecycle.rs#L58-L62`](../../../crates/vox-runtime/src/lifecycle.rs#L58-L62) | Default advisory deadline for desktop profiles. |
+| `fn` | `lifecycle::duration` | `pub fn duration(self) -> Duration` | [`crates/vox-runtime/src/lifecycle.rs#L65-L69`](../../../crates/vox-runtime/src/lifecycle.rs#L65-L69) | Get the inner [`Duration`] regardless of variant. |
+| `enum` | `lifecycle::SuspendError` | `pub enum SuspendError` | [`crates/vox-runtime/src/lifecycle.rs#L74-L90`](../../../crates/vox-runtime/src/lifecycle.rs#L74-L90) | Error raised by a subsystem's `suspend()` implementation. |
+| `enum` | `lifecycle::ResumeError` | `pub enum ResumeError` | [`crates/vox-runtime/src/lifecycle.rs#L94-L104`](../../../crates/vox-runtime/src/lifecycle.rs#L94-L104) | Error raised by a subsystem's `resume()` implementation. |
+| `trait` | `lifecycle::Suspendable` | `pub trait Suspendable` | [`crates/vox-runtime/src/lifecycle.rs#L114-L120`](../../../crates/vox-runtime/src/lifecycle.rs#L114-L120) | A subsystem that can be suspended in response to an OS lifecycle event.  Implementors are expected to:  1. Flush any in-memory state to durable storage (journal, snapshot, etc.). 2. Cancel any background tasks that hold non-snapshottable handles. 3. Return promptly — the runtime calls every subsystem's `suspend()` in sequence, and the OS grace period is shared across all of them. |
+| `trait` | `lifecycle::Resumable` | `pub trait Resumable` | [`crates/vox-runtime/src/lifecycle.rs#L127-L130`](../../../crates/vox-runtime/src/lifecycle.rs#L127-L130) | A subsystem that can resume after a prior suspend.  Resume is the inverse of [`Suspendable::suspend`]: the runtime calls `resume()` once the app returns to the foreground, and the implementor replays the journal / re-mounts handles / restarts background tasks. |
+| `enum` | `profile::RuntimeProfile` | `pub enum RuntimeProfile` | [`crates/vox-runtime/src/profile.rs#L19-L28`](../../../crates/vox-runtime/src/profile.rs#L19-L28) | Where this Vox runtime is executing.  Drives every per-target choice in the runtime layer. The default is [`RuntimeProfile::Desktop`] because that's the lower-friction value for development hosts; a Vox app that ships to mobile constructs its `VoxConfig` with [`RuntimeProfile::Mobile`] explicitly. |
+| `fn` | `profile::default_scheduler_threads` | `pub fn default_scheduler_threads(self) -> SchedulerThreads` | [`crates/vox-runtime/src/profile.rs#L35-L40`](../../../crates/vox-runtime/src/profile.rs#L35-L40) | Default Tokio scheduler thread count for this profile.  On desktop we let Tokio pick (its default is `num_cpus`); on mobile we pin to a single thread to honor battery + memory budgets. |
+| `fn` | `profile::journal_flush_strategy` | `pub fn journal_flush_strategy(self) -> JournalFlushStrategy` | [`crates/vox-runtime/src/profile.rs#L43-L50`](../../../crates/vox-runtime/src/profile.rs#L43-L50) | How the workflow journal should flush to disk. |
+| `fn` | `profile::model_loading_strategy` | `pub fn model_loading_strategy(self) -> ModelLoadingStrategy` | [`crates/vox-runtime/src/profile.rs#L53-L60`](../../../crates/vox-runtime/src/profile.rs#L53-L60) | How MENS / Candle ML models are kept in memory. |
+| `fn` | `profile::requires_suspend_hooks` | `pub fn requires_suspend_hooks(self) -> bool` | [`crates/vox-runtime/src/profile.rs#L67-L69`](../../../crates/vox-runtime/src/profile.rs#L67-L69) | Whether subsystems on this profile should opt into the [`Suspendable`] lifecycle hooks. Desktop subsystems can ignore them; mobile must implement them or risk data loss when the OS suspends the app.  [`Suspendable`]: crate::lifecycle::Suspendable |
+| `enum` | `profile::SchedulerThreads` | `pub enum SchedulerThreads` | [`crates/vox-runtime/src/profile.rs#L77-L86`](../../../crates/vox-runtime/src/profile.rs#L77-L86) | Tokio scheduler thread-count policy.  Used by [`RuntimeProfile::default_scheduler_threads`]. |
+| `enum` | `profile::JournalFlushStrategy` | `pub enum JournalFlushStrategy` | [`crates/vox-runtime/src/profile.rs#L91-L100`](../../../crates/vox-runtime/src/profile.rs#L91-L100) | Journal flush policy. |
+| `enum` | `profile::ModelLoadingStrategy` | `pub enum ModelLoadingStrategy` | [`crates/vox-runtime/src/profile.rs#L105-L115`](../../../crates/vox-runtime/src/profile.rs#L105-L115) | ML model loading + retention policy. |
+

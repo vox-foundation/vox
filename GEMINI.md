@@ -16,9 +16,9 @@ This file is Antigravity-specific. It narrows behavior for this repo without rep
 - Use this file only for Antigravity-specific behavior and shell discipline.
 - Keep rules concise, concrete, and executable.
 
-## VoxScript-First Glue
+## VoxLang-First Glue
 
-Automation is **`.vox` only** (tiers: `--interp`, default interpreter for script-shaped files, `--mode script` native opt-in); never new `.ps1` / `.sh` / `.py` glue. Bootstrap launchers stay thin. **Normative detail:** [`AGENTS.md §VoxScript-First Glue Code`](AGENTS.md).
+Automation is **`.vox` only** (tiers: `--interp`, default interpreter for script-shaped files, `--mode script` native opt-in); never new `.ps1` / `.sh` / `.py` glue. Bootstrap launchers stay thin. **Normative detail:** [`AGENTS.md §VoxLang-First Glue Code`](AGENTS.md).
 
 ## Shell Environment
 

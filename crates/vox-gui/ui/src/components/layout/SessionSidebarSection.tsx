@@ -69,7 +69,11 @@ function SessionRow({
     <div role="tab" aria-selected={isActive}
          onClick={() => onSessionChange(s.session_id)}
          onDoubleClick={() => setEditing(true)}
-         className="flex items-center justify-between rounded-sm px-2 py-1 text-[12px] cursor-pointer hover:bg-overlay-hover group">
+         className={`flex items-center justify-between rounded-md px-2 py-1 text-[11px] cursor-pointer transition group ${
+           isActive
+             ? 'border-l-2 border-brass bg-brass/12 text-brass font-medium'
+             : 'text-text-secondary hover:bg-overlay-hover hover:text-text-primary'
+         }`}>
       <span title={s.title} className="line-clamp-2 wrap-break-word">{s.title}</span>
       <span className="flex items-center gap-1 shrink-0">
         {hasPendingIssue && (
@@ -126,7 +130,9 @@ function RepoGroup({
 
   return (
     <div>
-      <div className="px-2 pt-1 pb-0.5 text-[10px] uppercase tracking-wide text-text-muted">{repo}</div>
+      {repo !== 'Other' && (
+        <div className="px-2 pt-1 pb-0.5 text-[10px] uppercase tracking-wide text-text-muted">{repo}</div>
+      )}
       <div role="tablist" className="flex flex-col gap-0.5">
         {visible.map(s => (
           <SessionRow

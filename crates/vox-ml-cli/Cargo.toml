@@ -36,6 +36,8 @@ mens-dei = ["dep:vox-tensor", "dep:vox-orchestrator", "dep:vox-cli"]
 workflow-runtime = ["mens-dei", "dep:vox-workflow-runtime", "vox-workflow-runtime/mens"]
 populi = ["dep:vox-populi", "vox-populi/transport", "dep:blake3", "dep:vox-mesh-transport", "dep:iroh", "dep:iroh-tickets"]
 codex = []
+# Opt-in only. Default unit tests must not spawn nvidia-smi or create a Metal device.
+hw-probe-live-test = []
 # Data-free k-quant PTQ engine (vox-quantize -> candle/gemm subtree). Off by
 # default to keep the mens-base build lean; `gpu` implies it (see above).
 quantize = ["dep:vox-quantize"]

@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useChatVerbosity, CHAT_VERBOSITY_KEY } from './useChatVerbosity';

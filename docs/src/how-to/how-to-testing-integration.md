@@ -55,15 +55,21 @@ fn test_database_insert_validation() to Unit {
 Workflows and Activities evaluate sequentially and synchronously from the tester's perspective because the execution context blocks until the workflow concludes or hits a checkpoint limit.
 
 ```vox
-// vox:skip -- excerpt; process_order is a workflow function defined elsewhere
+workflow process_order(customer: str, amount: int) to Result[str] {
+    if amount <= 0 {
+        return Error("Invalid amount")
+    }
+    return Ok("tx_" + customer)
+}
+
 @test
 fn test_order_workflow() to Unit {
     // Run the workflow natively
     let result = process_order("alice", 500)
-    
+
     match result {
-        Ok(tx) -> assert(len(tx) > 0)
-        Error(_) -> assert(false)
+        Ok(tx) => assert(len(tx) > 0)
+        Error(_) => assert(false)
     }
 }
 ```

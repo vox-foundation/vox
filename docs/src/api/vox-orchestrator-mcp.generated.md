@@ -119,7 +119,9 @@ Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 | `server_state` | — |
 | `skill_promotion` | — |
 | `approval_allowlist` | T0.3: persisted per-repo "always allow this tool" allowlist (tier 3 of the dangerous-tool gate's precedence order). |
+| `mcp_tool_access` | MCP tool access matrix, 16 KiB model context, 20 KiB DOM shedding, and stateless DPoP auth (`T3-HANDOFF-MCP-02..04`). |
 | `permission_modes` | T0.3: registry-driven risk classification + `PermissionMode` auto-approve matrix (tier 2 of the dangerous-tool gate's precedence order). |
+| `t3_wave3_tools` | Live MCP tool handlers for T3 Wave 2/3 subsystems (`T3-MCP-RPC-WIRE-01..03`). |
 | `aci` | — |
 | `agent_tools` | Agent native gateway and skill tools. |
 | `benchmark_tools` | Benchmark telemetry query tools (`research_metrics`). |
@@ -215,4 +217,107 @@ Extracted from `vox-orchestrator/src/mcp_tools/` in 2026-05-08 reorg Phase 4.
 | `lifecycle` | — |
 | `plugin_skills_bridge` | — |
 | `server` | — |
+
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_orchestrator_mcp -> vox_actor_runtime
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_orchestrator_mcp -> vox_bounded_fs
+    node vox_capability_registry: "vox-capability-registry"
+    vox_orchestrator_mcp -> vox_capability_registry
+    node vox_cli_core: "vox-cli-core"
+    vox_orchestrator_mcp -> vox_cli_core
+    node vox_code_audit: "vox-code-audit"
+    vox_orchestrator_mcp -> vox_code_audit
+    node vox_codegen: "vox-codegen"
+    vox_orchestrator_mcp -> vox_codegen
+    node vox_codegen_ts: "vox-codegen-ts"
+    vox_orchestrator_mcp -> vox_codegen_ts
+    node vox_compiler: "vox-compiler"
+    vox_orchestrator_mcp -> vox_compiler
+    node vox_config: "vox-config"
+    vox_orchestrator_mcp -> vox_config
+    node vox_corpus: "vox-corpus"
+    vox_orchestrator_mcp -> vox_corpus
+    node vox_crypto: "vox-crypto"
+    vox_orchestrator_mcp -> vox_crypto
+    node vox_db: "vox-db"
+    vox_orchestrator_mcp -> vox_db
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_orchestrator_mcp
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_orchestrator_mcp
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_orchestrator_mcp
+    node vox_integration_tests: "vox-integration-tests"
+    vox_integration_tests -> vox_orchestrator_mcp
+    node vox_orchestrator_d: "vox-orchestrator-d"
+    vox_orchestrator_d -> vox_orchestrator_mcp
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-d`](./vox-orchestrator-d.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `a2a_tools::A2ASendParams` | `pub struct A2ASendParams` | [`crates/vox-orchestrator-mcp/src/a2a_tools.rs#L46-L63`](../../../crates/vox-orchestrator-mcp/src/a2a_tools.rs#L46-L63) | MCP tool arguments: point-to-point message on the orchestrator A2A bus. |
+| `struct` | `a2a_tools::A2AInboxParams` | `pub struct A2AInboxParams` | [`crates/vox-orchestrator-mcp/src/a2a_tools.rs#L67-L78`](../../../crates/vox-orchestrator-mcp/src/a2a_tools.rs#L67-L78) | MCP tool arguments: fetch unacknowledged inbox entries for one agent. |
+| `struct` | `a2a_tools::A2AAckParams` | `pub struct A2AAckParams` | [`crates/vox-orchestrator-mcp/src/a2a_tools.rs#L82-L89`](../../../crates/vox-orchestrator-mcp/src/a2a_tools.rs#L82-L89) | MCP tool arguments: mark one inbox message as read/processed. |
+| `struct` | `a2a_tools::A2ABroadcastParams` | `pub struct A2ABroadcastParams` | [`crates/vox-orchestrator-mcp/src/a2a_tools.rs#L93-L102`](../../../crates/vox-orchestrator-mcp/src/a2a_tools.rs#L93-L102) | MCP tool arguments: fan-out to every agent except the sender. |
+| `struct` | `a2a_tools::A2AHistoryParams` | `pub struct A2AHistoryParams` | [`crates/vox-orchestrator-mcp/src/a2a_tools.rs#L106-L111`](../../../crates/vox-orchestrator-mcp/src/a2a_tools.rs#L106-L111) | MCP tool arguments: audit trail query (`since_ms` filters by wall-clock ms; `limit` caps rows). |
+| `struct` | `a2a_tools::A2AMessageInfo` | `pub struct A2AMessageInfo` | [`crates/vox-orchestrator-mcp/src/a2a_tools.rs#L119-L134`](../../../crates/vox-orchestrator-mcp/src/a2a_tools.rs#L119-L134) | JSON row returned in inbox/history tool responses (mirrors orchestrator message bus records). |
+| `fn` | `a2a_tools::a2a_send` | `pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String` | [`crates/vox-orchestrator-mcp/src/a2a_tools.rs#L307`](../../../crates/vox-orchestrator-mcp/src/a2a_tools.rs#L307) | Send a targeted A2A message from one agent to another (async). |
+| `fn` | `a2a_tools::a2a_inbox` | `pub async fn a2a_inbox(state: &ServerState, params: A2AInboxParams) -> String` | [`crates/vox-orchestrator-mcp/src/a2a_tools.rs#L589`](../../../crates/vox-orchestrator-mcp/src/a2a_tools.rs#L589) | Read unacknowledged messages in an agent's inbox (async). |
+| `fn` | `a2a_tools::a2a_ack` | `pub async fn a2a_ack(state: &ServerState, params: A2AAckParams) -> String` | [`crates/vox-orchestrator-mcp/src/a2a_tools.rs#L715-L770`](../../../crates/vox-orchestrator-mcp/src/a2a_tools.rs#L715-L770) | Acknowledge a message in an agent's inbox (async). |
+| `fn` | `a2a_tools::a2a_broadcast` | `pub async fn a2a_broadcast(state: &ServerState, params: A2ABroadcastParams) -> String` | [`crates/vox-orchestrator-mcp/src/a2a_tools.rs#L773`](../../../crates/vox-orchestrator-mcp/src/a2a_tools.rs#L773) | Broadcast an A2A message to all agents except sender (async). |
+| `fn` | `a2a_tools::a2a_history` | `pub async fn a2a_history(state: &ServerState, params: A2AHistoryParams) -> String` | [`crates/vox-orchestrator-mcp/src/a2a_tools.rs#L947-L993`](../../../crates/vox-orchestrator-mcp/src/a2a_tools.rs#L947-L993) | Query the A2A audit trail (async). |
+| `struct` | `affinity_tools::FileOwnerParams` | `pub struct FileOwnerParams` | [`crates/vox-orchestrator-mcp/src/affinity_tools.rs#L19-L22`](../../../crates/vox-orchestrator-mcp/src/affinity_tools.rs#L19-L22) | MCP arguments: workspace-relative or absolute path to inspect for an owning agent. |
+| `struct` | `affinity_tools::MyFilesParams` | `pub struct MyFilesParams` | [`crates/vox-orchestrator-mcp/src/affinity_tools.rs#L26-L29`](../../../crates/vox-orchestrator-mcp/src/affinity_tools.rs#L26-L29) | MCP arguments: list paths currently assigned to one agent. |
+| `struct` | `affinity_tools::ClaimFileParams` | `pub struct ClaimFileParams` | [`crates/vox-orchestrator-mcp/src/affinity_tools.rs#L33-L38`](../../../crates/vox-orchestrator-mcp/src/affinity_tools.rs#L33-L38) | MCP arguments: agent takes exclusive affinity for `path` if unowned or already owned by them. |
+| `struct` | `affinity_tools::TransferFileParams` | `pub struct TransferFileParams` | [`crates/vox-orchestrator-mcp/src/affinity_tools.rs#L42-L49`](../../../crates/vox-orchestrator-mcp/src/affinity_tools.rs#L42-L49) | MCP arguments: move affinity from `from_agent` to `to_agent` when the source owns the file. |
+| `struct` | `affinity_tools::FileOwnerResponse` | `pub struct FileOwnerResponse` | [`crates/vox-orchestrator-mcp/src/affinity_tools.rs#L53-L58`](../../../crates/vox-orchestrator-mcp/src/affinity_tools.rs#L53-L58) | JSON fragment: resolved owner for a single path (`owner` is `None` if unassigned). |
+| `struct` | `affinity_tools::MyFilesResponse` | `pub struct MyFilesResponse` | [`crates/vox-orchestrator-mcp/src/affinity_tools.rs#L62-L67`](../../../crates/vox-orchestrator-mcp/src/affinity_tools.rs#L62-L67) | JSON fragment: paths the affinity map associates with `agent_id`. |
+| `fn` | `affinity_tools::file_owner` | `pub async fn file_owner(state: &ServerState, params: FileOwnerParams) -> String` | [`crates/vox-orchestrator-mcp/src/affinity_tools.rs#L70-L81`](../../../crates/vox-orchestrator-mcp/src/affinity_tools.rs#L70-L81) | Return JSON describing which agent (if any) owns `params.path` in the affinity map. |
+| `fn` | `affinity_tools::my_files` | `pub async fn my_files(state: &ServerState, params: MyFilesParams) -> String` | [`crates/vox-orchestrator-mcp/src/affinity_tools.rs#L84-L97`](../../../crates/vox-orchestrator-mcp/src/affinity_tools.rs#L84-L97) | Return JSON listing all file paths owned by `params.agent_id`. |
+| `fn` | `affinity_tools::claim_file` | `pub async fn claim_file(state: &ServerState, params: ClaimFileParams) -> String` | [`crates/vox-orchestrator-mcp/src/affinity_tools.rs#L100-L118`](../../../crates/vox-orchestrator-mcp/src/affinity_tools.rs#L100-L118) | Assign `params.path` to `params.agent_id` when not owned by another agent; mutates affinity map. |
+| `fn` | `affinity_tools::transfer_file` | `pub async fn transfer_file(state: &ServerState, params: TransferFileParams) -> String` | [`crates/vox-orchestrator-mcp/src/affinity_tools.rs#L121-L153`](../../../crates/vox-orchestrator-mcp/src/affinity_tools.rs#L121-L153) | Release then re-assign `params.path` from `from_agent` to `to_agent`; errors if ownership mismatches. |
+| `fn` | `agent_tools::agent_list_remote` | `pub async fn agent_list_remote(_state: &ServerState) -> String` | [`crates/vox-orchestrator-mcp/src/agent_tools.rs#L62-L87`](../../../crates/vox-orchestrator-mcp/src/agent_tools.rs#L62-L87) | List remote/local agent skills. |
+| `fn` | `agent_tools::agent_gateway_call` | `pub async fn agent_gateway_call(_state: &ServerState, params: OpenClawGatewayCallParams) -> String` | [`crates/vox-orchestrator-mcp/src/agent_tools.rs#L90-L115`](../../../crates/vox-orchestrator-mcp/src/agent_tools.rs#L90-L115) | Generic agent gateway method call. |
+| `fn` | `agent_tools::agent_subscriptions` | `pub async fn agent_subscriptions(_state: &ServerState) -> String` | [`crates/vox-orchestrator-mcp/src/agent_tools.rs#L118-L143`](../../../crates/vox-orchestrator-mcp/src/agent_tools.rs#L118-L143) | List agent gateway subscriptions for the current session. |
+| `fn` | `agent_tools::agent_subscribe` | `pub async fn agent_subscribe(_state: &ServerState, params: OpenClawDomainParams) -> String` | [`crates/vox-orchestrator-mcp/src/agent_tools.rs#L146-L171`](../../../crates/vox-orchestrator-mcp/src/agent_tools.rs#L146-L171) | Subscribe this session to a gateway domain. |
+| `fn` | `agent_tools::agent_unsubscribe` | `pub async fn agent_unsubscribe(_state: &ServerState, params: OpenClawDomainParams) -> String` | [`crates/vox-orchestrator-mcp/src/agent_tools.rs#L174-L199`](../../../crates/vox-orchestrator-mcp/src/agent_tools.rs#L174-L199) | Unsubscribe this session from a gateway domain. |
+| `fn` | `agent_tools::agent_notify` | `pub async fn agent_notify(_state: &ServerState, params: OpenClawNotifyParams) -> String` | [`crates/vox-orchestrator-mcp/src/agent_tools.rs#L202-L227`](../../../crates/vox-orchestrator-mcp/src/agent_tools.rs#L202-L227) | Notify a domain with a message payload. |
+| `enum` | `agy_doctor::AgyStatus` | `pub enum AgyStatus` | [`crates/vox-orchestrator-mcp/src/agy_doctor.rs#L8-L12`](../../../crates/vox-orchestrator-mcp/src/agy_doctor.rs#L8-L12) | — |
+| `fn` | `agy_doctor::known_install_dirs` | `pub fn known_install_dirs() -> Vec<PathBuf>` | [`crates/vox-orchestrator-mcp/src/agy_doctor.rs#L15-L25`](../../../crates/vox-orchestrator-mcp/src/agy_doctor.rs#L15-L25) | Best-effort platform install locations the installer documents, in addition to PATH. |
+| `fn` | `agy_doctor::resolve_agy` | `pub fn resolve_agy() -> Option<PathBuf>` | [`crates/vox-orchestrator-mcp/src/agy_doctor.rs#L38-L49`](../../../crates/vox-orchestrator-mcp/src/agy_doctor.rs#L38-L49) | Resolve the binary path via PATH (`which`) then known install dirs. |
+| `fn` | `agy_doctor::detect` | `pub fn detect() -> AgyStatus` | [`crates/vox-orchestrator-mcp/src/agy_doctor.rs#L53-L70`](../../../crates/vox-orchestrator-mcp/src/agy_doctor.rs#L53-L70) | Synchronous, fast classification (no long network calls). `version` is probed via `agy --version`; auth state is best-effort (see note in detect()). |
+| `fn` | `agy_doctor::remediation` | `pub fn remediation(status: &AgyStatus) -> String` | [`crates/vox-orchestrator-mcp/src/agy_doctor.rs#L72-L91`](../../../crates/vox-orchestrator-mcp/src/agy_doctor.rs#L72-L91) | — |
+| `struct` | `agy_exec::AgySpec` | `pub struct AgySpec` | [`crates/vox-orchestrator-mcp/src/agy_exec.rs#L12-L16`](../../../crates/vox-orchestrator-mcp/src/agy_exec.rs#L12-L16) | — |
+| `struct` | `agy_exec::AgyOutput` | `pub struct AgyOutput` | [`crates/vox-orchestrator-mcp/src/agy_exec.rs#L19-L25`](../../../crates/vox-orchestrator-mcp/src/agy_exec.rs#L19-L25) | — |
+| `enum` | `agy_exec::AgyExecError` | `pub enum AgyExecError` | [`crates/vox-orchestrator-mcp/src/agy_exec.rs#L28-L35`](../../../crates/vox-orchestrator-mcp/src/agy_exec.rs#L28-L35) | — |
+| `fn` | `agy_exec::validate_spec` | `pub fn validate_spec(spec: &AgySpec) -> Result<(), AgyExecError>` | [`crates/vox-orchestrator-mcp/src/agy_exec.rs#L37-L42`](../../../crates/vox-orchestrator-mcp/src/agy_exec.rs#L37-L42) | — |
+| `fn` | `agy_exec::build_args` | `pub fn build_args(spec: &AgySpec) -> Vec<String>` | [`crates/vox-orchestrator-mcp/src/agy_exec.rs#L44-L57`](../../../crates/vox-orchestrator-mcp/src/agy_exec.rs#L44-L57) | — |
+| `fn` | `agy_exec::sanitize_slug` | `pub fn sanitize_slug(s: &str) -> String` | [`crates/vox-orchestrator-mcp/src/agy_exec.rs#L61-L76`](../../../crates/vox-orchestrator-mcp/src/agy_exec.rs#L61-L76) | Lowercase, `[a-z0-9-]` only, collapsed dashes, max 40 chars. Prevents path traversal / illegal worktree paths. |
+| `struct` | `agy_exec::AgyExec` | `pub struct AgyExec` | [`crates/vox-orchestrator-mcp/src/agy_exec.rs#L79-L81`](../../../crates/vox-orchestrator-mcp/src/agy_exec.rs#L79-L81) | — |
+| `fn` | `agy_exec::new` | `pub fn new(cwd: impl Into<PathBuf>) -> Self` | [`crates/vox-orchestrator-mcp/src/agy_exec.rs#L84-L86`](../../../crates/vox-orchestrator-mcp/src/agy_exec.rs#L84-L86) | — |
+| `fn` | `agy_exec::cwd` | `pub fn cwd(&self) -> &Path` | [`crates/vox-orchestrator-mcp/src/agy_exec.rs#L87-L89`](../../../crates/vox-orchestrator-mcp/src/agy_exec.rs#L87-L89) | — |
+| `fn` | `agy_exec::run` | `pub async fn run(&self, spec: &AgySpec) -> Result<AgyOutput, AgyExecError>` | [`crates/vox-orchestrator-mcp/src/agy_exec.rs#L91-L143`](../../../crates/vox-orchestrator-mcp/src/agy_exec.rs#L91-L143) | — |
+| `fn` | `agy_exec::classify_failure` | `pub fn classify_failure(stderr: &str, exit_code: i32, timed_out: bool) -> Option<&'static str>` | [`crates/vox-orchestrator-mcp/src/agy_exec.rs#L147-L156`](../../../crates/vox-orchestrator-mcp/src/agy_exec.rs#L147-L156) | Classify outcome for retry + ledger category. None on success. |
+| `fn` | `agy_exec::should_retry` | `pub fn should_retry(class: &str, attempt: u32, max_attempts: u32) -> bool` | [`crates/vox-orchestrator-mcp/src/agy_exec.rs#L159-L168`](../../../crates/vox-orchestrator-mcp/src/agy_exec.rs#L159-L168) | Pure retry decision. `attempt` 0-based; `max_attempts` the cap. |
+| `struct` | `agy_gates::Gate` | `pub struct Gate` | [`crates/vox-orchestrator-mcp/src/agy_gates.rs#L16-L23`](../../../crates/vox-orchestrator-mcp/src/agy_gates.rs#L16-L23) | — |
 

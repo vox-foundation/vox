@@ -21,7 +21,7 @@ fn gen_full_stack_program(rng: &mut Rng, variant: usize) -> OrganicPair {
         format!(
             "type {tn}Status = | Loading | Ready(data: str) | Error(msg: str)\n\ncomponent {tn}View() {{\n    state status: str = \"ready\"\n    view: column() {{\n        text() {{ \"{tn}\" }}\n        text() {{ \"{{status}}\" }}\n    }}\n}}\n\nroutes {{\n    \"/\" to {tn}View\n}}"
         ),
-        // Template 3: VoxScript automation (`vox run scripts/*.vox`)
+        // Template 3: VoxLang automation (`vox run scripts/*.vox`)
         format!(
             "import fs\nimport process\n\ntype {tn}Check {{\n    target: str\n    passed: bool\n}}\n\nfn verify_{noun}(pkg: str) to Result[{tn}Check] {{\n    let code = process.run(\"cargo\", [\"check\", \"-p\", pkg])?\n    return Ok({tn}Check {{\n        target: pkg,\n        passed: code is 0\n    }})\n}}\n\nfn main() to Result[Unit] {{\n    let res = verify_{noun}(\"vox-cli\")?\n    if not res.passed {{\n        return Error(\"check failed for \" + res.target)\n    }}\n    fs.write(\"target/{noun}.ok\", res.target)?\n    return Ok(())\n}}"
         ),
@@ -306,4 +306,46 @@ pub fn print_coverage_report(report: &CoverageReport) {
         }
     }
     eprintln!("═══════════════════════════════════════════");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn variety_requirements_cover_taxonomy_with_known_minimums() {
+        let reqs = compute_variety_requirements();
+        assert_eq!(reqs.len(), TAXONOMY_FROM_AST.len());
+        assert!(reqs.iter().all(|(_, min)| matches!(*min, 3 | 5 | 7)));
+        if let Some((_, min)) = reqs.iter().find(|(tag, _)| *tag == "function") {
+            assert_eq!(*min, 7);
+        }
+    }
+
+    #[test]
+    fn organic_corpus_is_deterministic_and_cot_prefixes_think_block() {
+        let a = generate_organic_corpus(7);
+        let b = generate_organic_corpus(7);
+        assert!(a.len() >= 5);
+        assert_eq!(
+            a.iter().map(|p| &p.response).collect::<Vec<_>>(),
+            b.iter().map(|p| &p.response).collect::<Vec<_>>()
+        );
+        let cot = generate_cot_organic_corpus(7);
+        assert_eq!(cot.len(), a.len());
+        assert!(
+            cot.iter()
+                .all(|p| p.category == "vox_gen_cot" && p.response.starts_with("<think>"))
+        );
+    }
+
+    #[test]
+    fn coverage_report_on_empty_input_flags_every_construct_under_covered() {
+        let report = compute_coverage_report(&[]);
+        assert_eq!(report.total_pairs, 0);
+        assert_eq!(report.verified_pairs, 0);
+        assert_eq!(report.taxonomy_covered, 0);
+        assert_eq!(report.taxonomy_total, TAXONOMY_FROM_AST.len());
+        assert_eq!(report.under_covered.len(), TAXONOMY_FROM_AST.len());
+    }
 }

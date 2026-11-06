@@ -72,3 +72,57 @@ use [`ScalingPolicy::from_yaml_str`].
 | `DEFAULT_MENS_RUNS_UV_OUTPUT` | Default UV / tooling output subdirectory under runs. |
 | `DEFAULT_MENS_RUNS_QWEN_QLORA` | Default QLoRA run directory basename (repo-relative path prefix). |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_scaling_policy: "vox-scaling-policy"
+    node vox_mesh_types: "vox-mesh-types"
+    vox_scaling_policy -> vox_mesh_types
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_bounded_fs -> vox_scaling_policy
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_scaling_policy
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_scaling_policy
+    node vox_code_audit: "vox-code-audit"
+    vox_code_audit -> vox_scaling_policy
+    node vox_integration_tests: "vox-integration-tests"
+    vox_integration_tests -> vox_scaling_policy
+    node vox_ml_cli: "vox-ml-cli"
+    vox_ml_cli -> vox_scaling_policy
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-bounded-fs`](./vox-bounded-fs.generated.md) | Direct workspace dependent |
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-code-audit`](./vox-code-audit.generated.md) | Direct workspace dependent |
+| [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `ScalingPolicy` | `pub struct ScalingPolicy` | [`crates/vox-scaling-policy/src/lib.rs#L31-L45`](../../../crates/vox-scaling-policy/src/lib.rs#L31-L45) | Full policy document from SSOT YAML. |
+| `fn` | `embedded` | `pub fn embedded() -> Self` | [`crates/vox-scaling-policy/src/lib.rs#L49-L51`](../../../crates/vox-scaling-policy/src/lib.rs#L49-L51) | Policy embedded at build time from `contracts/scaling/policy.yaml`. |
+| `fn` | `from_yaml_str` | `pub fn from_yaml_str(s: &str) -> Result<Self, serde_yaml::Error>` | [`crates/vox-scaling-policy/src/lib.rs#L54-L56`](../../../crates/vox-scaling-policy/src/lib.rs#L54-L56) | Parse policy from YAML (for tests or tooling). |
+| `struct` | `cost_defense::CostDefenseConfig` | `pub struct CostDefenseConfig` | [`crates/vox-scaling-policy/src/cost_defense.rs#L24-L44`](../../../crates/vox-scaling-policy/src/cost_defense.rs#L24-L44) | Cost defense policy configuration.  Loaded from `contracts/scaling/policy.yaml` (future) or constructed programmatically. All limits use conservative defaults. |
+| `enum` | `cost_defense::CostDefenseRejection` | `pub enum CostDefenseRejection` | [`crates/vox-scaling-policy/src/cost_defense.rs#L69-L90`](../../../crates/vox-scaling-policy/src/cost_defense.rs#L69-L90) | Reason a task was rejected by the cost defense layer. |
+| `struct` | `cost_defense::CostDefenseState` | `pub struct CostDefenseState` | [`crates/vox-scaling-policy/src/cost_defense.rs#L94-L103`](../../../crates/vox-scaling-policy/src/cost_defense.rs#L94-L103) | Mutable state tracked by the circuit breaker across tasks. |
+| `fn` | `cost_defense::record_cost` | `pub fn record_cost(&mut self, tenant_id: &str, cost_usd: f64)` | [`crates/vox-scaling-policy/src/cost_defense.rs#L107-L114`](../../../crates/vox-scaling-policy/src/cost_defense.rs#L107-L114) | Record a completed task's cost. |
+| `fn` | `cost_defense::record_retry` | `pub fn record_retry(&mut self, task_id: &str)` | [`crates/vox-scaling-policy/src/cost_defense.rs#L117-L122`](../../../crates/vox-scaling-policy/src/cost_defense.rs#L117-L122) | Record a retry attempt for a task. |
+| `fn` | `cost_defense::reset_daily` | `pub fn reset_daily(&mut self)` | [`crates/vox-scaling-policy/src/cost_defense.rs#L125-L129`](../../../crates/vox-scaling-policy/src/cost_defense.rs#L125-L129) | Reset daily counters (e.g. at midnight). |
+| `fn` | `cost_defense::reset_monthly` | `pub fn reset_monthly(&mut self)` | [`crates/vox-scaling-policy/src/cost_defense.rs#L132-L135`](../../../crates/vox-scaling-policy/src/cost_defense.rs#L132-L135) | Reset monthly counters (e.g. at month boundary). |
+| `struct` | `cost_defense::CostCircuitBreaker` | `pub struct CostCircuitBreaker` | [`crates/vox-scaling-policy/src/cost_defense.rs#L146-L149`](../../../crates/vox-scaling-policy/src/cost_defense.rs#L146-L149) | 5-layer cost defense circuit breaker.  Call [`Self::check_before_task`] before dispatching any task. The method returns a list of rejections (empty = task is allowed). Callers should treat any non-empty rejection list as a hard block except for `MonthlyPacingWarning` which is advisory. |
+| `fn` | `cost_defense::new` | `pub fn new(config: CostDefenseConfig) -> Self` | [`crates/vox-scaling-policy/src/cost_defense.rs#L152-L157`](../../../crates/vox-scaling-policy/src/cost_defense.rs#L152-L157) | — |
+| `fn` | `cost_defense::check_before_task` | `pub fn check_before_task(` | [`crates/vox-scaling-policy/src/cost_defense.rs#L165`](../../../crates/vox-scaling-policy/src/cost_defense.rs#L165) | Run all 5 layers of cost defense checks before dispatching a task.  `estimated_duration_secs`: caller's estimate of task wall-clock time. `task_id`: unique identifier for retry tracking. `requested_model_tier`: the model tier the task wants to use. `estimated_cost_usd`: estimated incremental cost for this task. |
+| `fn` | `cost_defense::has_hard_block` | `pub fn has_hard_block(rejections: &[CostDefenseRejection]) -> bool` | [`crates/vox-scaling-policy/src/cost_defense.rs#L258-L262`](../../../crates/vox-scaling-policy/src/cost_defense.rs#L258-L262) | Returns true if any rejection is a hard block (not just a warning). |
+| `fn` | `cost_defense::record_task_completion` | `pub fn record_task_completion(&mut self, task_id: &str, tenant_id: &str, actual_cost_usd: f64)` | [`crates/vox-scaling-policy/src/cost_defense.rs#L265-L268`](../../../crates/vox-scaling-policy/src/cost_defense.rs#L265-L268) | Record a completed task's cost and update state. |
+

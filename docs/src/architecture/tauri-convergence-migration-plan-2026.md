@@ -63,7 +63,7 @@ training_rationale: "Project architecture and research context."
 
 ### Required reading
 
-- `AGENTS.md` — retired surfaces, VoxScript-first automation, test-first policy, and archive protocol.
+- `AGENTS.md` — retired surfaces, VoxLang-first automation, test-first policy, and archive protocol.
 - `docs/src/adr/037-tauri-convergence.md` — accepted decision.
 - `docs/src/architecture/tauri-audit-2026.md` — current-state evidence.
 - `docs/src/architecture/vox-application-packaging-ssot-2026.md` — target packaging contract.
@@ -1203,7 +1203,7 @@ rg "npx cap|cap sync" apps/vox-mental-tracker/scripts/build.vox
 ```
 
 **Acceptance criteria**:
-- Build script is VoxScript and Tauri-based.
+- Build script is VoxLang and Tauri-based.
 
 **Do NOT**:
 - Create `.sh`, `.ps1`, or `.py` helper scripts.

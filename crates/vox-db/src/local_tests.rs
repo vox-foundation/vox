@@ -1277,3 +1277,49 @@ async fn kb_agent_nodes_retyped_once_on_upgrade_never_deleted() {
         .unwrap();
     assert_eq!(t["k-new"], ContextTrustTier::Advisory);
 }
+
+#[tokio::test]
+async fn v96_database_without_trial_run_label_migrates_cleanly_to_v97() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("v96.db").to_string_lossy().to_string();
+    {
+        let raw = turso::Builder::new_local(&path).build().await.unwrap();
+        raw.connect()
+            .unwrap()
+            .execute_batch(
+                "CREATE TABLE schema_version (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT (datetime('now')));
+                 INSERT INTO schema_version (version) VALUES (96);
+                 CREATE TABLE llm_interactions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NOT NULL,
+                    user_id TEXT,
+                    tenant_id TEXT,
+                    prompt TEXT NOT NULL,
+                    response TEXT NOT NULL,
+                    model_version TEXT NOT NULL,
+                    task_category TEXT NOT NULL DEFAULT 'general',
+                    strength_tag TEXT NOT NULL DEFAULT 'generalist',
+                    trace_id TEXT,
+                    context_utilization_pct REAL,
+                    cache_read_tokens INTEGER,
+                    success INTEGER NOT NULL DEFAULT 1,
+                    latency_ms INTEGER,
+                    input_tokens INTEGER,
+                    output_tokens INTEGER,
+                    cost_usd REAL,
+                    ttft_ms INTEGER,
+                    tpot_ms REAL,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                 );",
+            )
+            .await
+            .unwrap();
+    }
+    let db = VoxDb::open(&path).await.expect("open v96 database");
+    assert_eq!(db.schema_version().await.unwrap(), BASELINE_VERSION);
+    let cols = column_names(db.connection(), "llm_interactions").await;
+    assert!(
+        cols.contains(&"trial_run_label".to_string()),
+        "v96->v97 migration must add trial_run_label before creating idx_llm_interactions_trial"
+    );
+}

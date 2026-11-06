@@ -183,7 +183,7 @@ impl DetectionRule for LlmProviderCallDetector {
     fn detect(
         &self,
         file: &SourceFile,
-        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+        rust_ctx: Option<&crate::analysis::RustFileContext>,
     ) -> Vec<Finding> {
         let mut findings = Vec::new();
 
@@ -201,6 +201,24 @@ impl DetectionRule for LlmProviderCallDetector {
                 || trimmed.starts_with('#')
                 || trimmed.starts_with('*')
                 || trimmed.starts_with("/*")
+            {
+                continue;
+            }
+
+            if crate::rules::rust_byte_is_comment(file, line_num, 0, rust_ctx)
+                || crate::rules::rust_byte_is_cfg_test(file, line_num, 0, rust_ctx)
+            {
+                continue;
+            }
+
+            // Skip logging/formatting macros and read-only model catalog discovery endpoints
+            if trimmed.starts_with("println!(")
+                || trimmed.starts_with("eprintln!(")
+                || trimmed.starts_with("tracing::")
+                || ((line.contains("/api/models")
+                    || line.contains("/v1/models\"")
+                    || line.contains("/v1beta/models?"))
+                    && !line.contains("generateContent"))
             {
                 continue;
             }

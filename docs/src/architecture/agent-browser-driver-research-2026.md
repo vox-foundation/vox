@@ -120,7 +120,7 @@ Use later as an **optional debug skill** for "why is LCP bad," not as the produc
 
 ### 2.7 browser-use — heavy agent, not a library fit
 
-[github.com/browser-use/browser-use](https://github.com/browser-use/browser-use). Python agent loop (vision + numbered elements), 2026 beta Rust core, cloud browsers, profile sync script. Fine as a hosted competitor; a Python/cloud agent inside Vox violates VoxScript-first, LLM-facade, and lean-plugin rules.
+[github.com/browser-use/browser-use](https://github.com/browser-use/browser-use). Python agent loop (vision + numbered elements), 2026 beta Rust core, cloud browsers, profile sync script. Fine as a hosted competitor; a Python/cloud agent inside Vox violates VoxLang-first, LLM-facade, and lean-plugin rules.
 
 ### 2.8 Consumer AI browsers (not embeddable)
 

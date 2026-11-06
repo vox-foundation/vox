@@ -57,3 +57,29 @@ of Wasmtime boilerplate across call sites.
 | `stdout_str` | Decode stdout as UTF-8, lossy. |
 | `stderr_str` | Decode stderr as UTF-8, lossy. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_wasm_engine: "vox-wasm-engine"
+    node vox_plugin_runtime_wasm: "vox-plugin-runtime-wasm"
+    vox_plugin_runtime_wasm -> vox_wasm_engine
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-plugin-runtime-wasm`](./vox-plugin-runtime-wasm.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `WasmRunOutcome` | `pub struct WasmRunOutcome` | [`crates/vox-wasm-engine/src/lib.rs#L25-L34`](../../../crates/vox-wasm-engine/src/lib.rs#L25-L34) | Outcome of a completed WASM module execution. |
+| `fn` | `success` | `pub fn success(&self) -> bool` | [`crates/vox-wasm-engine/src/lib.rs#L38-L40`](../../../crates/vox-wasm-engine/src/lib.rs#L38-L40) | Returns `true` if the module exited successfully (exit code 0). |
+| `fn` | `stdout_str` | `pub fn stdout_str(&self) -> std::borrow::Cow<'_, str>` | [`crates/vox-wasm-engine/src/lib.rs#L43-L45`](../../../crates/vox-wasm-engine/src/lib.rs#L43-L45) | Decode stdout as UTF-8, lossy. |
+| `fn` | `stderr_str` | `pub fn stderr_str(&self) -> std::borrow::Cow<'_, str>` | [`crates/vox-wasm-engine/src/lib.rs#L48-L50`](../../../crates/vox-wasm-engine/src/lib.rs#L48-L50) | Decode stderr as UTF-8, lossy. |
+

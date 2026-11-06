@@ -42,35 +42,42 @@ fn process_order(id: str) to Result[bool] {
 Vox allows you to handle `Result` types directly using exhaustive pattern matching. (Error display in UI is covered in the islands tutorial).
 
 ```vox
-let result = find_user("123")
+fn describe_user(id: str) to str {
+    let result = find_user(id)
 
-let message = match result {
-    Ok(user)   => "Found: " + user
-    Error(msg) => "Failed: " + msg
+    return match result {
+        Ok(user)   => "Found: " + user
+        Error(msg) => "Failed: " + msg
+    }
 }
 ```
 
 ## 4. Converting Errors with `Result[T, E]`
 
-You can transform results using functional combinators or explicit pattern matching.
+You can transform results using explicit pattern matching or helper wrappers.
 
 ```vox
 fn get_user_name(id: str) to Result[str] {
-    let user = find_user(id).map_err(fn(e) "User fetch failed: " + e)?
-    return Ok(user)
+    return match find_user(id) {
+        Ok(user) => Ok(user)
+        Error(e) => Error("User fetch failed: " + e)
+    }
 }
 ```
 
 ## 5. Preconditions with `@require`
 
-For invariant safety (assertions that must hold for a type to be valid), use the `@require` decorator. This acts as a construction-time guard.
+For invariant safety (assertions that must hold before constructing a value), use the `@require` decorator on the constructor function.
 
 ```vox
-// vox:skip -- illustrative future syntax; @require only decorates fn today, not type
-@require(self.age >= 18)
 type Adult {
     name: str
     age: int
+}
+
+@require(age >= 18)
+fn create_adult(name: str, age: int) to Adult {
+    return { name: name, age: age }
 }
 ```
 

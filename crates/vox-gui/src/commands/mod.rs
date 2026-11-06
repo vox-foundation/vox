@@ -6,6 +6,7 @@ pub mod browser;
 pub mod build_info;
 pub mod catalog;
 pub mod chat;
+pub mod chat_arena_branch;
 pub mod chat_turn;
 pub mod coderabbit;
 pub mod console_a2a;

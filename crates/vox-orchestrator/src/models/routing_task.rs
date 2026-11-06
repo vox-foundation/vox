@@ -8,6 +8,7 @@ pub struct RoutingTask {
     pub research_hints: Vec<String>,
     pub tool_hints: Vec<String>,
     pub max_cost_usd: Option<f64>,
+    pub context_fill_ratio: Option<f32>,
 }
 
 impl RoutingTask {

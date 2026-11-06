@@ -24,6 +24,12 @@ pub struct ChatTranscriptEntry {
     #[serde(skip_serializing_if = "Option::is_none")]
     /// Approximate token usage when available.
     pub tokens: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Optional provider thought signature preserved across partial compaction (`T3-HIST-BATTERY-02`).
+    pub thought_signature: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    ///Epoch seconds when this message was edited in-place (`T3-REGEN-WORKTREE-01`).
+    pub edited_at: Option<u64>,
 }
 
 /// Arguments for `vox_chat_message` (prompt + rich editor context).
@@ -138,6 +144,15 @@ pub struct ChatMessageParams {
     /// Optional site scope to restrict search (e.g. "github.com", "docs.rs")
     #[serde(default)]
     pub site_scope: Option<String>,
+    /// Composer oversight level (`1`..`5`).
+    #[serde(default)]
+    pub oversight_level: Option<String>,
+    /// Composer knowledge retrieval scope (`auto`|`docs`|`code`|`memory`|`off`).
+    #[serde(default)]
+    pub kb_scope: Option<String>,
+    /// Opt-in post-reply grounding check toggle from the GUI composer.
+    #[serde(default)]
+    pub grounding_check_enabled: Option<bool>,
 }
 
 fn default_chat_history_session_id() -> String {
@@ -311,6 +326,24 @@ pub struct PlanParams {
     /// Per-submit turn id (UUID); pairs with Drive `last_turn_id` and ChatHop JSONL.
     #[serde(default)]
     pub turn_id: Option<String>,
+    /// Runtime destination tier (`auto` | `local` | `mesh` | `cloud`).
+    #[serde(default)]
+    pub tier: Option<String>,
+    /// Clutch profile (`free` | `efficiency` | `balanced` | `genius`).
+    #[serde(default)]
+    pub clutch: Option<String>,
+    /// Risk posture (`high` | `moderate` | `low`).
+    #[serde(default)]
+    pub risk: Option<String>,
+    /// Oversight level (`1..5` or `relaxed|guided|balanced|cautious|strict`).
+    #[serde(default)]
+    pub oversight_level: Option<String>,
+    /// `@kb` retrieval scope (`auto|docs|code|memory|verified|off`).
+    #[serde(default)]
+    pub kb_scope: Option<String>,
+    /// When true, enforce Socrates grounding checks on plan synthesis.
+    #[serde(default)]
+    pub grounding_check_enabled: Option<bool>,
 }
 
 /// Arguments for `vox_replan` — forwards to DeI `ai.plan.replan` when `vox-orchestrator-d` is available.

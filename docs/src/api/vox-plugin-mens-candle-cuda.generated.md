@@ -72,3 +72,47 @@ See: docs/src/architecture/plugin-system-redesign-2026.md
 | `device` | — |
 | `inference` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_plugin_mens_candle_cuda: "vox-plugin-mens-candle-cuda"
+    node vox_compiler: "vox-compiler"
+    vox_plugin_mens_candle_cuda -> vox_compiler
+    node vox_config: "vox-config"
+    vox_plugin_mens_candle_cuda -> vox_config
+    node vox_eval: "vox-eval"
+    vox_plugin_mens_candle_cuda -> vox_eval
+    node vox_hf_layout: "vox-hf-layout"
+    vox_plugin_mens_candle_cuda -> vox_hf_layout
+    node vox_plugin_api: "vox-plugin-api"
+    vox_plugin_mens_candle_cuda -> vox_plugin_api
+    node vox_plugin_mens_candle_core: "vox-plugin-mens-candle-core"
+    vox_plugin_mens_candle_cuda -> vox_plugin_mens_candle_core
+    node vox_secrets: "vox-secrets"
+    vox_plugin_mens_candle_cuda -> vox_secrets
+    node vox_tensor: "vox-tensor"
+    vox_plugin_mens_candle_cuda -> vox_tensor
+}
+```
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `candle_qlora_train::forward` | `pub fn forward(&self, input_ids: &Tensor) -> anyhow::Result<Tensor>` | [`crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/mod.rs#L93-L97`](../../../crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/mod.rs#L93-L97) | — |
+| `fn` | `candle_qlora_train::forward_checkpointed` | `pub fn forward_checkpointed(` | [`crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/mod.rs#L101`](../../../crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/mod.rs#L101) | Checkpointed forward (activation/gradient checkpointing). See [`crate::model::Qwen35Model::forward_checkpointed`]. |
+| `fn` | `candle_qlora_train::recompute_segment` | `pub fn recompute_segment(` | [`crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/mod.rs#L113`](../../../crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/mod.rs#L113) | Recompute one checkpoint segment. See [`crate::model::Qwen35Model::recompute_segment`]. |
+| `struct` | `candle_qlora_train::TrainRequest` | `pub struct TrainRequest` | [`crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/mod.rs#L174-L184`](../../../crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/mod.rs#L174-L184) | JSON wire format for `run_candle_qlora_train` — all parameters needed by the plugin. The caller (vox-populi or CLI) serializes this; the plugin deserializes it. |
+| `fn` | `candle_qlora_train::run_candle_qlora_train` | `pub fn run_candle_qlora_train(` | [`crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/mod.rs#L191`](../../../crates/vox-plugin-mens-candle-cuda/src/candle_qlora_train/mod.rs#L191) | Main entry point — called from `crate::training::run_full_training`. |
+| `fn` | `device::probe_gpu` | `pub fn probe_gpu() -> GpuInfo` | [`crates/vox-plugin-mens-candle-cuda/src/device.rs#L14-L30`](../../../crates/vox-plugin-mens-candle-cuda/src/device.rs#L14-L30) | Minimal GPU probe — returns unknown vendor when no probe is possible. SP3-C stub: hardware registry is a vox-populi concern; reconnect via host capability in sub-batch D. |
+| `fn` | `device::device_mem_used_total_mb` | `pub fn device_mem_used_total_mb() -> Option<(u64, u64)>` | [`crates/vox-plugin-mens-candle-cuda/src/device.rs#L73-L88`](../../../crates/vox-plugin-mens-candle-cuda/src/device.rs#L73-L88) | Current device memory usage as `(used_mb, total_mb)`, via `cuMemGetInfo`.  Returns `None` when there is no live CUDA context yet (before the first GPU op) or the driver call fails. `used = total - free` includes all processes' usage, which on a training box is dominated by this process once weights are resident. |
+| `fn` | `device::trim_default_pool` | `pub fn trim_default_pool(retain_bytes: u64) -> Result<(), String>` | [`crates/vox-plugin-mens-candle-cuda/src/device.rs#L95-L117`](../../../crates/vox-plugin-mens-candle-cuda/src/device.rs#L95-L117) | Trim the current context's default memory pool, retaining at most `retain_bytes`.  Caller must already hold a live CUDA context (any candle CUDA tensor op establishes one). Returns a `String` error rather than a typed error: this is best-effort housekeeping and the training loop logs + continues on failure. |
+| `struct` | `inference::InferenceEngine` | `pub struct InferenceEngine` | [`crates/vox-plugin-mens-candle-cuda/src/inference.rs#L26-L33`](../../../crates/vox-plugin-mens-candle-cuda/src/inference.rs#L26-L33) | — |
+| `enum` | `inference::InferenceModel` | `pub enum InferenceModel` | [`crates/vox-plugin-mens-candle-cuda/src/inference.rs#L35-L37`](../../../crates/vox-plugin-mens-candle-cuda/src/inference.rs#L35-L37) | — |
+| `fn` | `inference::weight_sources` | `pub fn weight_sources(model_dir: &Path, base_shards: &[PathBuf]) -> Vec<PathBuf>` | [`crates/vox-plugin-mens-candle-cuda/src/inference.rs#L94-L106`](../../../crates/vox-plugin-mens-candle-cuda/src/inference.rs#L94-L106) | Every safetensors file whose tensors feed the inference weight map, in search order: adapter before merged before base shards.  The adapter file contributes no *base* keys (its tensors are named `<logical>.lora_a.weight` / `.lora_b.weight`), so it never shadows a base weight here; the trained delta is folded in separately by `merge::lora_factors_by_base_key`, gated on `adapter_deltas_must_be_folded`. |
+| `fn` | `inference::load` | `pub fn load(model_dir: &Path, device_kind: &crate::device::DeviceKind) -> Result<Self>` | [`crates/vox-plugin-mens-candle-cuda/src/inference.rs#L116`](../../../crates/vox-plugin-mens-candle-cuda/src/inference.rs#L116) | — |
+| `fn` | `inference::generate_from_json` | `pub fn generate_from_json(&mut self, prompt_json: &str) -> Result<String>` | [`crates/vox-plugin-mens-candle-cuda/src/inference.rs#L461-L515`](../../../crates/vox-plugin-mens-candle-cuda/src/inference.rs#L461-L515) | Autoregressive generation loop (unconstrained).  `prompt_json` is a JSON object with fields: - `"prompt"`: string — the prompt text - `"system"`: string — optional trained system prompt - `"max_tokens"`: integer (default 256) - `"temperature"`: float (default 1.0; `<= 0` forces greedy) - `"top_k"`: integer (default 0 = full vocabulary; `1` forces greedy) - `"top_p"`: float nucleus mass (default absent = 1.0, no filtering) - `"seed"`: integer; sampling draws from `StdRng::seed_from_u64(seed)` so equal seeds over equal logits give equal tokens (default absent = entropy-seeded) - `"output_mode"`: optional structured-output label — see `check_output_mode` for what this plugin does and does not enforce. - `"lane"`: optional serving lane — `codegen` (default), `hub` or `agent`; see `resolve_lane`. |
+| `fn` | `inference::run` | `pub fn run(model_dir: &str, prompt_json: &str) -> Result<String>` | [`crates/vox-plugin-mens-candle-cuda/src/inference.rs#L884-L888`](../../../crates/vox-plugin-mens-candle-cuda/src/inference.rs#L884-L888) | Entry point called from `backend.rs` `run_inference`.  `model_dir_json` is a JSON string with a `"model_dir"` field pointing to the local model directory, plus the prompt fields consumed by `generate_from_json`. |
+

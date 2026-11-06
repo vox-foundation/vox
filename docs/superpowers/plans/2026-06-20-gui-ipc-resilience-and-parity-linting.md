@@ -6,7 +6,7 @@
 
 **Architecture:** Four guardrails layered onto existing infra — (1) a single environment-aware `safeInvoke` that all IPC routes through, with a dev mock registry so the UI renders in a bare browser; (2) a CI parity gate that asserts every frontend `invoke('cmd')` target is registered in Rust's `generate_handler!`; (3) a per-surface React error boundary plus a smoke test that mounts every `SURFACE_REGISTRY` entry under a mocked transport; (4) wiring all three into the existing CI lanes and the `ipcBoundaries` guard.
 
-**Tech Stack:** React 19 + TypeScript + Vite + vitest (jsdom) frontend at `crates/vox-gui/ui`; Tauri 2 Rust host at `crates/vox-gui/src`; VoxScript (`.vox`) for the CI gate (per `AGENTS.md`: no new `.ps1`/`.sh`/`.py`).
+**Tech Stack:** React 19 + TypeScript + Vite + vitest (jsdom) frontend at `crates/vox-gui/ui`; Tauri 2 Rust host at `crates/vox-gui/src`; VoxLang (`.vox`) for the CI gate (per `AGENTS.md`: no new `.ps1`/`.sh`/`.py`).
 
 ---
 
@@ -41,7 +41,7 @@ Read these before writing any code; the plan extends them rather than introducin
 - **Modify** `crates/vox-gui/ui/src/App.tsx` (or the surface-switch component) — wrap the active surface in `<SurfaceErrorBoundary>`.
 - **Create** `crates/vox-gui/ui/src/guards/surfaceSmoke.test.tsx` — mounts every `SURFACE_REGISTRY` surface under a mocked transport.
 - **Create** `crates/vox-gui/ui/src/guards/commandParity.test.ts` — fast vitest mirror of the parity gate (so local `pnpm vitest` catches drift too).
-- **Create** `scripts/gui-command-parity.vox` — the CI gate (VoxScript) parsing both SSOTs and exiting non-zero on drift.
+- **Create** `scripts/gui-command-parity.vox` — the CI gate (VoxLang) parsing both SSOTs and exiting non-zero on drift.
 - **Modify** `crates/vox-gui/ui/src/guards/ipcBoundaries.test.ts` — add `lib/ipc.ts` to the allowlist; remove files migrated off direct `invoke` as WS1 lands.
 - **Create** `docs/src/architecture/gui-ipc-resilience.md` — the durable SSOT doc (with required frontmatter per `AGENTS.md`).
 
@@ -298,12 +298,12 @@ git add crates/vox-gui/ui/src/guards/commandParity.test.ts
 git commit -m "test(vox-gui): enforce frontend<-backend IPC command parity"
 ```
 
-### Task 6: Promote parity to a CI gate (VoxScript)
+### Task 6: Promote parity to a CI gate (VoxLang)
 
 **Files:**
 - Create: `scripts/gui-command-parity.vox`
 
-- [ ] **Step 1: Author the gate** in VoxScript mirroring Task 5's two extractors (read `crates/vox-gui/ui/src` recursively for invoke literals, read `crates/vox-gui/src/main.rs` for the handler block), printing each missing command and exiting non-zero if any. Follow an existing `.vox` CI gate as the structural template (`grep -rl "vox ci" scripts/*.vox` to find one; reuse its arg-parsing and exit-code idiom). Per `crate-build-audit.vox` lessons in repo memory: run with `--mode interp`, single-line fn sigs, no multi-line `+` exprs.
+- [ ] **Step 1: Author the gate** in VoxLang mirroring Task 5's two extractors (read `crates/vox-gui/ui/src` recursively for invoke literals, read `crates/vox-gui/src/main.rs` for the handler block), printing each missing command and exiting non-zero if any. Follow an existing `.vox` CI gate as the structural template (`grep -rl "vox ci" scripts/*.vox` to find one; reuse its arg-parsing and exit-code idiom). Per `crate-build-audit.vox` lessons in repo memory: run with `--mode interp`, single-line fn sigs, no multi-line `+` exprs.
 
 - [ ] **Step 2: Run it locally**
 
@@ -449,7 +449,7 @@ If no `surfaceComponentFor` map exists, extract the view→component mapping fro
 ## Self-review checklist (run before handoff is considered done)
 
 1. **Spec coverage:** All three observed error classes have a guardrail (WS1 runtime + WS2 CI + WS3 mount). ✓
-2. **Placeholder scan:** No "TBD"/"add error handling" — every code step shows code. Task 6's `.vox` is described against a named template to copy rather than invented from whole cloth (VoxScript syntax is repo-specific; the worker copies an existing gate). ✓
+2. **Placeholder scan:** No "TBD"/"add error handling" — every code step shows code. Task 6's `.vox` is described against a named template to copy rather than invented from whole cloth (VoxLang syntax is repo-specific; the worker copies an existing gate). ✓
 3. **Type consistency:** `safeInvoke<T>(command, args?)` signature matches Tauri's `invoke<T>(command, args?)` so the `import { safeInvoke as invoke }` alias is drop-in. `SurfaceErrorBoundary` prop is `surface` in both definition and call site. ✓
 4. **No new banned automation:** the CI gate is `.vox`, not `.ps1`/`.sh`/`.py` (AGENTS.md). ✓
 

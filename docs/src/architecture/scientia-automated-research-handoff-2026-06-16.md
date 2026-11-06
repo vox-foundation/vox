@@ -33,7 +33,7 @@ Upgrade Vox SCIENTIA from human-driven publication tooling to a **serious, human
 
 - Production nanopub network publish
 - Live arXiv API submission (handoff bundle only)
-- New `.ps1` / `.sh` / `.py` glue scripts (VoxScript-first policy)
+- New `.ps1` / `.sh` / `.py` glue scripts (VoxLang-first policy)
 
 ---
 

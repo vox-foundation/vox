@@ -110,3 +110,114 @@ Syndication / scientia publishing surfaces (Reddit, YouTube, scholarly external 
 | `handoff` | — |
 | `syndicate` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_publisher: "vox-publisher"
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_publisher -> vox_bounded_fs
+    node vox_config: "vox-config"
+    vox_publisher -> vox_config
+    node vox_db: "vox-db"
+    vox_publisher -> vox_db
+    node vox_forge: "vox-forge"
+    vox_publisher -> vox_forge
+    node vox_foundation: "vox-foundation"
+    vox_publisher -> vox_foundation
+    node vox_http_client: "vox-http-client"
+    vox_publisher -> vox_http_client
+    node vox_jsonschema_util: "vox-jsonschema-util"
+    vox_publisher -> vox_jsonschema_util
+    node vox_research_events: "vox-research-events"
+    vox_publisher -> vox_research_events
+    node vox_scientia: "vox-scientia"
+    vox_publisher -> vox_scientia
+    node vox_secrets: "vox-secrets"
+    vox_publisher -> vox_secrets
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_publisher
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_publisher
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_publisher
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_publisher
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_publisher
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_publisher
+    node vox_plugin_publication: "vox-plugin-publication"
+    vox_plugin_publication -> vox_publisher
+    node vox_populi: "vox-populi"
+    vox_populi -> vox_publisher
+    node vox_research_shim: "vox-research-shim"
+    vox_research_shim -> vox_publisher
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-plugin-publication`](./vox-plugin-publication.generated.md) | Direct workspace dependent |
+| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
+| [`vox-research-shim`](./vox-research-shim.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `adapter_health::AdapterHealthReport` | `pub struct AdapterHealthReport` | [`crates/vox-publisher/src/adapter_health.rs#L5-L8`](../../../crates/vox-publisher/src/adapter_health.rs#L5-L8) | — |
+| `struct` | `adapter_health::AdapterHealthEntry` | `pub struct AdapterHealthEntry` | [`crates/vox-publisher/src/adapter_health.rs#L11-L17`](../../../crates/vox-publisher/src/adapter_health.rs#L11-L17) | — |
+| `enum` | `adapter_health::HeartbeatStatus` | `pub enum HeartbeatStatus` | [`crates/vox-publisher/src/adapter_health.rs#L21-L28`](../../../crates/vox-publisher/src/adapter_health.rs#L21-L28) | — |
+| `fn` | `adapter_health::report_health` | `pub async fn report_health(` | [`crates/vox-publisher/src/adapter_health.rs#L30`](../../../crates/vox-publisher/src/adapter_health.rs#L30) | — |
+| `enum` | `archive_run::ArchiveStep` | `pub enum ArchiveStep` | [`crates/vox-publisher/src/archive_run.rs#L12-L21`](../../../crates/vox-publisher/src/archive_run.rs#L12-L21) | — |
+| `fn` | `archive_run::name` | `pub fn name(&self) -> &'static str` | [`crates/vox-publisher/src/archive_run.rs#L26-L35`](../../../crates/vox-publisher/src/archive_run.rs#L26-L35) | Stable snake_case name (does not depend on serde config). |
+| `struct` | `archive_run::ArchiveRunPlan` | `pub struct ArchiveRunPlan` | [`crates/vox-publisher/src/archive_run.rs#L39-L42`](../../../crates/vox-publisher/src/archive_run.rs#L39-L42) | — |
+| `fn` | `archive_run::first_blocker` | `pub fn first_blocker(&self) -> Option<&str>` | [`crates/vox-publisher/src/archive_run.rs#L46-L48`](../../../crates/vox-publisher/src/archive_run.rs#L46-L48) | — |
+| `fn` | `archive_run::step_names` | `pub fn step_names(&self) -> Vec<&'static str>` | [`crates/vox-publisher/src/archive_run.rs#L52-L54`](../../../crates/vox-publisher/src/archive_run.rs#L52-L54) | Stable snake_case names of the planned steps, in order. |
+| `fn` | `archive_run::plan_archive_run` | `pub fn plan_archive_run(` | [`crates/vox-publisher/src/archive_run.rs#L64`](../../../crates/vox-publisher/src/archive_run.rs#L64) | Build the archive-run plan.  Blocks (returns blockers, no steps) when required manifest fields are missing or when no approved review decision is recorded. Otherwise emits the ordered step preview, inserting [`ArchiveStep::ZenodoPublish`] just before [`ArchiveStep::RecordReceipt`] only when `include_publish` is set. |
+| `fn` | `citation_cff::render_citation_cff` | `pub fn render_citation_cff(manifest: &PublicationManifest) -> Result<String, serde_yaml::Error>` | [`crates/vox-publisher/src/citation_cff.rs#L38-L122`](../../../crates/vox-publisher/src/citation_cff.rs#L38-L122) | Render `CITATION.cff` YAML (version 1.2.0) for the manifest.  Authors are taken from `metadata_json.scientific_publication.authors` when present; otherwise a single author uses [`PublicationManifest::author`]. |
+| `struct` | `contract::NewsSiteConfig` | `pub struct NewsSiteConfig` | [`crates/vox-publisher/src/contract.rs#L37-L42`](../../../crates/vox-publisher/src/contract.rs#L37-L42) | Site configuration for RSS links and feed file location. |
+| `fn` | `contract::from_default_with_operator_env` | `pub fn from_default_with_operator_env() -> Self` | [`crates/vox-publisher/src/contract.rs#L56-L60`](../../../crates/vox-publisher/src/contract.rs#L56-L60) | Default site layout with `VOX_NEWS_SITE_BASE_URL` / `VOX_NEWS_RSS_FEED_PATH` overrides when set. |
+| `fn` | `contract::merge_operator_env_overrides` | `pub fn merge_operator_env_overrides(&mut self)` | [`crates/vox-publisher/src/contract.rs#L63-L80`](../../../crates/vox-publisher/src/contract.rs#L63-L80) | Apply `VOX_NEWS_SITE_BASE_URL` and `VOX_NEWS_RSS_FEED_PATH` when non-empty. |
+| `fn` | `contract::news_item_link` | `pub fn news_item_link(&self, news_id: &str) -> String` | [`crates/vox-publisher/src/contract.rs#L83-L85`](../../../crates/vox-publisher/src/contract.rs#L83-L85) | — |
+| `fn` | `contract::feed_self_link` | `pub fn feed_self_link(&self) -> String` | [`crates/vox-publisher/src/contract.rs#L88-L90`](../../../crates/vox-publisher/src/contract.rs#L88-L90) | — |
+| `fn` | `contract::validate_github_repo` | `pub fn validate_github_repo(repo: &str) -> anyhow::Result<()>` | [`crates/vox-publisher/src/contract.rs#L94-L100`](../../../crates/vox-publisher/src/contract.rs#L94-L100) | Validate `owner/repo` format. |
+| `fn` | `contract::validate_news_id` | `pub fn validate_news_id(id: &str) -> anyhow::Result<()>` | [`crates/vox-publisher/src/contract.rs#L103-L111`](../../../crates/vox-publisher/src/contract.rs#L103-L111) | Reject path traversal in logical news ids (filename stems). |
+| `fn` | `contract::clamp_text` | `pub fn clamp_text(input: &str, max_chars: usize) -> String` | [`crates/vox-publisher/src/contract.rs#L115-L127`](../../../crates/vox-publisher/src/contract.rs#L115-L127) | Clamp text to `max_chars` preserving UTF-8 boundaries and adding `...` when truncated. |
+| `fn` | `crossref_metadata::spdx_license_url` | `pub fn spdx_license_url(spdx: &str) -> Option<&'static str>` | [`crates/vox-publisher/src/crossref_metadata.rs#L13-L30`](../../../crates/vox-publisher/src/crossref_metadata.rs#L13-L30) | Map common SPDX identifiers to a public license URL when known. |
+| `fn` | `crossref_metadata::crossref_work_export_json` | `pub fn crossref_work_export_json(manifest: &PublicationManifest) -> serde_json::Value` | [`crates/vox-publisher/src/crossref_metadata.rs#L34-L126`](../../../crates/vox-publisher/src/crossref_metadata.rs#L34-L126) | Crossref-oriented work metadata as JSON (`schema` is a Vox extension label). |
+| `struct` | `distribution_compile::ChannelPlan` | `pub struct ChannelPlan` | [`crates/vox-publisher/src/distribution_compile.rs#L56-L62`](../../../crates/vox-publisher/src/distribution_compile.rs#L56-L62) | One enabled channel with resolved caps (after projection profile lookup). |
+| `struct` | `distribution_compile::DistributionCompileReport` | `pub struct DistributionCompileReport` | [`crates/vox-publisher/src/distribution_compile.rs#L66-L70`](../../../crates/vox-publisher/src/distribution_compile.rs#L66-L70) | Output of [`compile_for_publish`]: digest, optional warnings, and per-channel plans. |
+| `fn` | `distribution_compile::compile_for_publish` | `pub fn compile_for_publish(item: &UnifiedNewsItem) -> DistributionCompileReport` | [`crates/vox-publisher/src/distribution_compile.rs#L84`](../../../crates/vox-publisher/src/distribution_compile.rs#L84) | Build a stable digest and channel plan from the news item as syndicated today. |
+| `fn` | `distribution_compile::validate_topic_pack_projection_profiles` | `pub fn validate_topic_pack_projection_profiles() -> Result<(), String>` | [`crates/vox-publisher/src/distribution_compile.rs#L327-L358`](../../../crates/vox-publisher/src/distribution_compile.rs#L327-L358) | Validate every `template_profile` value used in embedded topic packs exists in projection profiles. |
+| `enum` | `gate::PublicationApprovalMode` | `pub enum PublicationApprovalMode` | [`crates/vox-publisher/src/gate.rs#L8-L11`](../../../crates/vox-publisher/src/gate.rs#L8-L11) | — |
+| `struct` | `gate::GateReason` | `pub struct GateReason` | [`crates/vox-publisher/src/gate.rs#L14-L17`](../../../crates/vox-publisher/src/gate.rs#L14-L17) | — |
+| `struct` | `gate::PublishGateInputs` | `pub struct PublishGateInputs` | [`crates/vox-publisher/src/gate.rs#L20-L27`](../../../crates/vox-publisher/src/gate.rs#L20-L27) | — |
+| `struct` | `gate::PublishGateDecision` | `pub struct PublishGateDecision` | [`crates/vox-publisher/src/gate.rs#L30-L38`](../../../crates/vox-publisher/src/gate.rs#L30-L38) | — |
+| `fn` | `gate::has_blockers` | `pub fn has_blockers(&self) -> bool` | [`crates/vox-publisher/src/gate.rs#L42-L44`](../../../crates/vox-publisher/src/gate.rs#L42-L44) | — |
+| `fn` | `gate::env_publish_armed` | `pub fn env_publish_armed() -> bool` | [`crates/vox-publisher/src/gate.rs#L56-L61`](../../../crates/vox-publisher/src/gate.rs#L56-L61) | `VOX_NEWS_PUBLISH_ARMED=1` / `true` (same sentinel as orchestrator + MCP news tools). |
+| `fn` | `gate::publish_gate_inputs_for_orchestrator` | `pub fn publish_gate_inputs_for_orchestrator(` | [`crates/vox-publisher/src/gate.rs#L65`](../../../crates/vox-publisher/src/gate.rs#L65) | Build gate inputs for the orchestrator news tick (`config.news`). |
+| `fn` | `gate::publish_gate_inputs_for_cli` | `pub fn publish_gate_inputs_for_cli(` | [`crates/vox-publisher/src/gate.rs#L84`](../../../crates/vox-publisher/src/gate.rs#L84) | Manual CLI / headless operator (`vox db publication-publish`): armed via env only (no orchestrator config loaded). |
+| `fn` | `gate::publish_gate_inputs_for_mcp` | `pub fn publish_gate_inputs_for_mcp(` | [`crates/vox-publisher/src/gate.rs#L102`](../../../crates/vox-publisher/src/gate.rs#L102) | MCP Scientia tools: combine tool `dry_run`, orchestrator `[news].dry_run`, and manifest `syndication.dry_run`. |
+| `fn` | `gate::evaluate_publish_gate` | `pub fn evaluate_publish_gate(inputs: PublishGateInputs) -> PublishGateDecision` | [`crates/vox-publisher/src/gate.rs#L121-L131`](../../../crates/vox-publisher/src/gate.rs#L121-L131) | — |
+| `struct` | `gate::PublicationGateInputs` | `pub struct PublicationGateInputs` | [`crates/vox-publisher/src/gate.rs#L134-L142`](../../../crates/vox-publisher/src/gate.rs#L134-L142) | — |
+| `fn` | `gate::evaluate_publication_gate` | `pub fn evaluate_publication_gate(inputs: PublicationGateInputs) -> PublishGateDecision` | [`crates/vox-publisher/src/gate.rs#L145-L180`](../../../crates/vox-publisher/src/gate.rs#L145-L180) | — |
+| `struct` | `handoff::SyndicationHandoffPayloadV1` | `pub struct SyndicationHandoffPayloadV1` | [`crates/vox-publisher/src/handoff.rs#L22-L31`](../../../crates/vox-publisher/src/handoff.rs#L22-L31) | Server-bound handoff payload emitted by `vox scientia syndication-export` and consumed by `vox-ops-syndication` (`POST /v1/syndication/handoff`). |
+| `fn` | `handoff::compute_content_sha3_256` | `pub fn compute_content_sha3_256(content_markdown: &str) -> String` | [`crates/vox-publisher/src/handoff.rs#L35-L39`](../../../crates/vox-publisher/src/handoff.rs#L35-L39) | Compute the lowercase hex `SHA3-256` digest of a news item's markdown body. |
+| `fn` | `handoff::active_handoff_channels` | `pub fn active_handoff_channels(item: &UnifiedNewsItem) -> Vec<String>` | [`crates/vox-publisher/src/handoff.rs#L43-L73`](../../../crates/vox-publisher/src/handoff.rs#L43-L73) | Collect the active server-bound social channels configured on a [`UnifiedNewsItem`]. |
+| `fn` | `handoff::build_syndication_handoff_payload` | `pub fn build_syndication_handoff_payload(` | [`crates/vox-publisher/src/handoff.rs#L76`](../../../crates/vox-publisher/src/handoff.rs#L76) | Build and schema-validate a [`SyndicationHandoffPayloadV1`] from a [`UnifiedNewsItem`] and optional [`ApprovalToken`]. |
+| `fn` | `handoff::validate_handoff_payload_schema` | `pub fn validate_handoff_payload_schema(payload: &SyndicationHandoffPayloadV1) -> Result<()>` | [`crates/vox-publisher/src/handoff.rs#L118-L126`](../../../crates/vox-publisher/src/handoff.rs#L118-L126) | Validate a [`SyndicationHandoffPayloadV1`] against `contracts/scientia/syndication-handoff.v1.schema.json`. |
+| `struct` | `openreview_api_types::OpenReviewMetadataOverlay` | `pub struct OpenReviewMetadataOverlay` | [`crates/vox-publisher/src/openreview_api_types.rs#L7-L11`](../../../crates/vox-publisher/src/openreview_api_types.rs#L7-L11) | Optional `metadata_json.openreview` overlay for invitations/signatures/readers. |
+| `struct` | `openreview_api_types::ManifestMetadataOpenReviewRoot` | `pub struct ManifestMetadataOpenReviewRoot` | [`crates/vox-publisher/src/openreview_api_types.rs#L14-L17`](../../../crates/vox-publisher/src/openreview_api_types.rs#L14-L17) | — |
+| `struct` | `openreview_api_types::OpenReviewLoginRequest` | `pub struct OpenReviewLoginRequest` | [`crates/vox-publisher/src/openreview_api_types.rs#L21-L24`](../../../crates/vox-publisher/src/openreview_api_types.rs#L21-L24) | Login `POST /login`. |
+

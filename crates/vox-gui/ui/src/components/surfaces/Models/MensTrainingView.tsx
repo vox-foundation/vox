@@ -68,7 +68,10 @@ interface OrganicSpokeRowDto {
   total_cases: number;
   search_recall_at_5: number;
   mean_reciprocal_rank: number;
+  unbiased_search_recall_at_5?: number;
+  unbiased_mrr?: number;
   mean_grounding_ratio: number;
+  distractor_resilience_rate?: number;
   syntax_validity_rate: number;
   semantic_validity_rate: number;
   compilation_pass_rate: number;
@@ -80,7 +83,10 @@ interface OrganicSearchSpokeScorecardDto {
   total_cases: number;
   overall_search_recall_at_5: number;
   overall_mrr: number;
+  overall_unbiased_search_recall_at_5?: number;
+  overall_unbiased_mrr?: number;
   overall_grounding_ratio: number;
+  overall_distractor_resilience_rate?: number;
   overall_compilation_pass_rate: number;
   overall_end_to_end_pass_at_1: number;
   spokes: OrganicSpokeRowDto[];
@@ -200,8 +206,9 @@ function MensRunReportsPanel({ pushToast }: { pushToast: (item: Toast) => void }
             </div>
           )}
           {reports.eval_local && (
-            <div className="text-text-muted">
-              eval-local anti-stub {(reports.eval_local.anti_stub_task_success * 100).toFixed(0)}%
+            <div className="inline-flex items-center gap-1.5 rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-300">
+              <span>Anti-Stub Task Verification: {(reports.eval_local.anti_stub_task_success * 100).toFixed(0)}%</span>
+              <span className="text-text-muted">(eval-local)</span>
             </div>
           )}
           {reports.spoke_scorecard && (
@@ -241,24 +248,26 @@ function MensRunReportsPanel({ pushToast }: { pushToast: (item: Toast) => void }
             <div data-testid="mens-organic-scorecard" className="space-y-2 pt-2 border-t border-border-subtle">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className={reports.organic_scorecard.overall_end_to_end_pass_at_1 >= 1.0 ? TONE_CLASS.pass : TONE_CLASS.warn}>
-                  Organic Search → Compilation: Recall@5 {(reports.organic_scorecard.overall_search_recall_at_5 * 100).toFixed(0)}% | MRR {reports.organic_scorecard.overall_mrr.toFixed(2)} | Grounding {(reports.organic_scorecard.overall_grounding_ratio * 100).toFixed(0)}% | Compile {(reports.organic_scorecard.overall_compilation_pass_rate * 100).toFixed(0)}% | E2E {(reports.organic_scorecard.overall_end_to_end_pass_at_1 * 100).toFixed(0)}%
+                  Organic Search → Compilation: Recall@5 {(reports.organic_scorecard.overall_search_recall_at_5 * 100).toFixed(0)}% (Unbiased {((reports.organic_scorecard.overall_unbiased_search_recall_at_5 ?? reports.organic_scorecard.overall_search_recall_at_5) * 100).toFixed(0)}%) | MRR {reports.organic_scorecard.overall_mrr.toFixed(2)} | Distractor {((reports.organic_scorecard.overall_distractor_resilience_rate ?? 1.0) * 100).toFixed(0)}% | Compile {(reports.organic_scorecard.overall_compilation_pass_rate * 100).toFixed(0)}% | E2E {(reports.organic_scorecard.overall_end_to_end_pass_at_1 * 100).toFixed(0)}%
                 </span>
                 <span className="text-text-muted text-[10px]">
-                  {reports.organic_scorecard.total_cases} organic cases
+                  {reports.organic_scorecard.total_cases} organic cases ({reports.organic_scorecard.spokes.length} spokes)
                 </span>
               </div>
-              <div className="grid grid-cols-5 gap-1 text-[10px] text-text-muted uppercase">
+              <div className="grid grid-cols-6 gap-1 text-[10px] text-text-muted uppercase">
                 <span>Spoke</span>
                 <span>Recall@5</span>
-                <span>MRR</span>
+                <span>Unbiased R@5</span>
+                <span>Distractor</span>
                 <span>Compile</span>
                 <span>E2E pass@1</span>
               </div>
               {reports.organic_scorecard.spokes.map((s) => (
-                <div key={s.spoke} className="grid grid-cols-5 gap-1 text-[11px] text-text-primary">
+                <div key={s.spoke} className="grid grid-cols-6 gap-1 text-[11px] text-text-primary">
                   <span>{s.spoke}</span>
                   <span>{(s.search_recall_at_5 * 100).toFixed(0)}%</span>
-                  <span>{s.mean_reciprocal_rank.toFixed(2)}</span>
+                  <span>{((s.unbiased_search_recall_at_5 ?? s.search_recall_at_5) * 100).toFixed(0)}%</span>
+                  <span>{((s.distractor_resilience_rate ?? 1.0) * 100).toFixed(0)}%</span>
                   <span className={s.compilation_pass_rate >= 1.0 ? TONE_CLASS.pass : TONE_CLASS.warn}>
                     {(s.compilation_pass_rate * 100).toFixed(0)}%
                   </span>
@@ -340,14 +349,14 @@ export function MensTrainingView({ pushToast }: MensTrainingViewProps) {
 
   return (
     <div className="space-y-4">
-      <MensServePanel pushToast={pushToast} />
-      <MensRunReportsPanel pushToast={pushToast} />
       <CommandCardsView
         title="Vox Mens"
         subtitle="ML training & local models"
         cards={cards}
         pushToast={pushToast}
       />
+      <MensRunReportsPanel pushToast={pushToast} />
+      <MensServePanel pushToast={pushToast} />
     </div>
   );
 }

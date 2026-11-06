@@ -411,14 +411,14 @@ fn ssot_autoregen_builds_vox_like_the_gate() {
         .map(|l| l.trim().trim_start_matches("run: "))
         .filter(|l| l.starts_with("cargo build -p vox-cli"))
         .collect();
-    assert_eq!(
-        builds.len(),
-        2,
-        "expected linux + ssot-autoregen builds: {builds:?}"
+    // linux + ssot-autoregen, plus the tests job's Python-worker binary.
+    assert!(
+        builds.len() >= 2,
+        "expected at least linux + ssot-autoregen builds: {builds:?}"
     );
-    assert_eq!(
-        builds[0], builds[1],
-        "ssot-autoregen must build vox-cli like the gate"
+    assert!(
+        builds.iter().all(|b| *b == builds[0]),
+        "every vox-cli build in ci.yml must match the gate's: {builds:?}"
     );
 }
 

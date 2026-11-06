@@ -40,3 +40,49 @@ band index, clustering, and one-vs-many overlap. No filesystem, DB, or network.
 | `index` | — |
 | `signature` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_similarity: "vox-similarity"
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_similarity
+    node vox_skill_discovery: "vox-skill-discovery"
+    vox_skill_discovery -> vox_similarity
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-skill-discovery`](./vox-skill-discovery.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `fragment::FragmentKind` | `pub enum FragmentKind` | [`crates/vox-similarity/src/fragment.rs#L10-L16`](../../../crates/vox-similarity/src/fragment.rs#L10-L16) | What kind of thing a fragment represents. |
+| `struct` | `fragment::Fragment` | `pub struct Fragment` | [`crates/vox-similarity/src/fragment.rs#L20-L29`](../../../crates/vox-similarity/src/fragment.rs#L20-L29) | A normalized comparable unit. |
+| `fn` | `fragment::new` | `pub fn new(` | [`crates/vox-similarity/src/fragment.rs#L32`](../../../crates/vox-similarity/src/fragment.rs#L32) | — |
+| `struct` | `index::Match` | `pub struct Match` | [`crates/vox-similarity/src/index.rs#L11-L14`](../../../crates/vox-similarity/src/index.rs#L11-L14) | A confirmed near-duplicate match for a query fragment. |
+| `struct` | `index::Cluster` | `pub struct Cluster` | [`crates/vox-similarity/src/index.rs#L18-L20`](../../../crates/vox-similarity/src/index.rs#L18-L20) | A group of mutually-similar fragments. |
+| `struct` | `index::LshIndex` | `pub struct LshIndex` | [`crates/vox-similarity/src/index.rs#L24-L29`](../../../crates/vox-similarity/src/index.rs#L24-L29) | Banded LSH index. `bands * rows` must equal the minhash length used by inserted fragments for full banding; shorter signatures are clamped. |
+| `fn` | `index::new` | `pub fn new(bands: usize, rows: usize) -> Self` | [`crates/vox-similarity/src/index.rs#L32-L39`](../../../crates/vox-similarity/src/index.rs#L32-L39) | — |
+| `fn` | `index::insert` | `pub fn insert(&mut self, fragment: Fragment) -> usize` | [`crates/vox-similarity/src/index.rs#L60-L67`](../../../crates/vox-similarity/src/index.rs#L60-L67) | — |
+| `fn` | `index::len` | `pub fn len(&self) -> usize` | [`crates/vox-similarity/src/index.rs#L69-L71`](../../../crates/vox-similarity/src/index.rs#L69-L71) | — |
+| `fn` | `index::is_empty` | `pub fn is_empty(&self) -> bool` | [`crates/vox-similarity/src/index.rs#L73-L75`](../../../crates/vox-similarity/src/index.rs#L73-L75) | — |
+| `fn` | `index::fragment` | `pub fn fragment(&self, idx: usize) -> &Fragment` | [`crates/vox-similarity/src/index.rs#L77-L79`](../../../crates/vox-similarity/src/index.rs#L77-L79) | — |
+| `fn` | `index::overlap` | `pub fn overlap(&self, query: &Fragment, min_jaccard: f32) -> Vec<Match>` | [`crates/vox-similarity/src/index.rs#L95-L116`](../../../crates/vox-similarity/src/index.rs#L95-L116) | Confirmed matches for an external query fragment. Excludes any indexed fragment that shares the query's content hash AND source_ref (self). |
+| `fn` | `index::cluster` | `pub fn cluster(&self, min_members: usize, min_jaccard: f32) -> Vec<Cluster>` | [`crates/vox-similarity/src/index.rs#L135-L179`](../../../crates/vox-similarity/src/index.rs#L135-L179) | Group indexed fragments into clusters via union-find over confirmed neighbor pairs. Returns only clusters with `>= min_members`. |
+| `fn` | `signature::tokenize` | `pub fn tokenize(text: &str) -> Vec<String>` | [`crates/vox-similarity/src/signature.rs#L6-L11`](../../../crates/vox-similarity/src/signature.rs#L6-L11) | Split text into lowercase alphanumeric/underscore tokens. |
+| `fn` | `signature::shingle` | `pub fn shingle(text: &str, k: usize) -> Vec<String>` | [`crates/vox-similarity/src/signature.rs#L15-L24`](../../../crates/vox-similarity/src/signature.rs#L15-L24) | k-token shingles (sliding windows). Falls back to a single joined token when the token count is below `k`. Empty input yields an empty vec. |
+| `fn` | `signature::simhash64` | `pub fn simhash64(shingles: &[String]) -> u64` | [`crates/vox-similarity/src/signature.rs#L27-L47`](../../../crates/vox-similarity/src/signature.rs#L27-L47) | 64-bit SimHash over shingles (blake3 of each shingle → per-bit vote). |
+| `fn` | `signature::minhash` | `pub fn minhash(shingles: &[String], num_hashes: usize) -> Vec<u32>` | [`crates/vox-similarity/src/signature.rs#L50-L65`](../../../crates/vox-similarity/src/signature.rs#L50-L65) | MinHash with `num_hashes` independent blake3-seeded hash functions. |
+| `fn` | `signature::hamming` | `pub fn hamming(a: u64, b: u64) -> u32` | [`crates/vox-similarity/src/signature.rs#L68-L70`](../../../crates/vox-similarity/src/signature.rs#L68-L70) | Hamming distance between two 64-bit simhashes. |
+| `fn` | `signature::jaccard_estimate` | `pub fn jaccard_estimate(a: &[u32], b: &[u32]) -> f32` | [`crates/vox-similarity/src/signature.rs#L73-L79`](../../../crates/vox-similarity/src/signature.rs#L73-L79) | Estimated Jaccard similarity from two equal-length minhash vectors. |
+| `struct` | `signature::Signature` | `pub struct Signature` | [`crates/vox-similarity/src/signature.rs#L83-L86`](../../../crates/vox-similarity/src/signature.rs#L83-L86) | A deterministic similarity signature for a piece of text. |
+| `fn` | `signature::from_text` | `pub fn from_text(text: &str, k: usize, num_hashes: usize) -> Self` | [`crates/vox-similarity/src/signature.rs#L89-L95`](../../../crates/vox-similarity/src/signature.rs#L89-L95) | — |
+

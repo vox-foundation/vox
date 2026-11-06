@@ -6,7 +6,10 @@
 export const SPRITE_KEYS = [
   'plate',            // district ground plate tile
   'hut', 'villa', 'insula', 'temple',       // building tiers 0-3
-  'landmark',         // god-node crate temple (gold pediment)
+  'landmark',         // god-node crate temple (gold Pantheon pediment)
+  'colosseum',        // AMPHITHEATRVM GUI (oval multi-tier Roman Colosseum)
+  'praetorium',       // PRAETORIVM ORCHESTRATOR (peristyle basilica + emerald garden)
+  'rotunda',          // ATHENAEVM MENS (circular Rotunda library temple)
   'fire-0', 'fire-1', // error flame animation frames
   'weeds',            // warning overlay
   'scaffold',         // active-agent-task overlay
@@ -31,6 +34,9 @@ const SIZES: Record<SpriteKey, { w: number; h: number; ay: number }> = {
   insula: { w: TILE_W, h: 78, ay: 68 },
   temple: { w: TILE_W, h: 92, ay: 82 },
   landmark: { w: TILE_W * 2, h: 120, ay: 104 },
+  colosseum: { w: TILE_W * 2, h: 116, ay: 100 },
+  praetorium: { w: TILE_W * 2, h: 110, ay: 96 },
+  rotunda: { w: 96, h: 98, ay: 84 },
   'fire-0': { w: 28, h: 34, ay: 32 },
   'fire-1': { w: 28, h: 34, ay: 32 },
   weeds: { w: 30, h: 18, ay: 9 },
@@ -80,10 +86,16 @@ function diamond(ctx: Ctx, cx: number, cy: number, w: number, h: number, fill: s
   if (stroke) { ctx.strokeStyle = stroke; ctx.stroke(); }
 }
 
-/** An iso block: top diamond + two visible walls, wall height `wh`. */
+/** An iso block: top diamond + two visible walls, wall height `wh`, with soft ground AO and sunlit SE bevel. */
 function block(ctx: Ctx, cx: number, groundY: number, w: number, wh: number,
   top: string, left: string, right: string) {
   const h = (w * TILE_H) / TILE_W;
+  // Soft contact shadow ellipse under block
+  ctx.fillStyle = 'rgba(4, 6, 10, 0.45)';
+  ctx.beginPath();
+  ctx.ellipse(cx - 2, groundY - h * 0.35, w * 0.56, h * 0.54, 0, 0, Math.PI * 2);
+  ctx.fill();
+
   ctx.fillStyle = right;
   ctx.beginPath();
   ctx.moveTo(cx, groundY); ctx.lineTo(cx + w / 2, groundY - h / 2);
@@ -95,6 +107,14 @@ function block(ctx: Ctx, cx: number, groundY: number, w: number, wh: number,
   ctx.lineTo(cx - w / 2, groundY - h / 2 - wh); ctx.lineTo(cx, groundY - wh);
   ctx.closePath(); ctx.fill();
   diamond(ctx, cx, groundY - h / 2 - wh, w, h, top);
+
+  // Specular sunlit SE ridge highlight
+  ctx.strokeStyle = 'rgba(254, 243, 199, 0.46)';
+  ctx.lineWidth = 0.9;
+  ctx.beginPath();
+  ctx.moveTo(cx, groundY - wh);
+  ctx.lineTo(cx + w / 2, groundY - h / 2 - wh);
+  ctx.stroke();
 }
 
 export function drawSprite(ctx: Ctx, key: SpriteKey, r: SpriteRect): void {
@@ -105,33 +125,211 @@ export function drawSprite(ctx: Ctx, key: SpriteKey, r: SpriteRect): void {
   const g = SIZES[key].ay; // ground line in logical units
   const cx = SIZES[key].w / 2;
   switch (key) {
-    case 'plate':
-      diamond(ctx, cx, TILE_H / 2, TILE_W - 2, TILE_H - 2, '#151210', '#292524');
+    case 'plate': {
+      // Stepped Roman travertine & obsidian-slate courtyard tile with subtle gold border
+      diamond(ctx, cx, TILE_H / 2 + 2, TILE_W - 2, TILE_H - 2, '#141210', '#292524');
+      diamond(ctx, cx, TILE_H / 2, TILE_W - 4, TILE_H - 4, '#1f1b18', '#44403c');
+      diamond(ctx, cx, TILE_H / 2, TILE_W - 14, TILE_H - 10, '#26211d', '#57534e');
       break;
-    case 'hut':
-      block(ctx, cx, g, 34, 14, '#78716c', '#292524', '#3f3a34');
+    }
+    case 'hut': {
+      // Roman Domus workshop with warm terracotta tiled roof & lit doorway
+      block(ctx, cx, g, 36, 15, '#c25e00', '#3f3832', '#574e46');
+      diamond(ctx, cx, g - 15 - 9, 38, 19, '#d97706', '#9a3412');
+      ctx.fillStyle = '#fbbf24';
+      ctx.fillRect(cx + 5, g - 10, 4, 7);
       break;
-    case 'villa':
-      block(ctx, cx, g, 42, 20, '#d97706', '#292524', '#3f3a34'); // terracotta roof
+    }
+    case 'villa': {
+      // Patrician Peristyle Villa with terracotta wings & emerald courtyard
+      block(ctx, cx, g, 46, 22, '#e07a16', '#443c35', '#61564c');
+      diamond(ctx, cx, g - 22 - 11, 48, 24, '#b45309', '#f59e0b');
+      diamond(ctx, cx, g - 22 - 11, 22, 11, '#065f46', '#34d399');
+      ctx.fillStyle = '#fde68a';
+      for (let i = 0; i < 3; i++) {
+        ctx.fillRect(cx - 14 + i * 5, g - 16, 2, 6);
+        ctx.fillRect(cx + 4 + i * 6, g - 16, 2, 6);
+      }
       break;
-    case 'insula':
-      block(ctx, cx, g, 46, 34, '#a8a29e', '#292524', '#44403c');
-      block(ctx, cx, g - 34, 30, 12, '#78716c', '#1c1917', '#292524'); // upper storey
+    }
+    case 'insula': {
+      // Multi-storey Roman Insula / Basilica with arched windows & stepped penthouse
+      block(ctx, cx, g, 48, 34, '#d6d3d1', '#3f3a34', '#57534e');
+      ctx.fillStyle = '#fbbf24';
+      for (let row = 0; row < 2; row++) {
+        for (let col = 0; col < 3; col++) {
+          ctx.fillRect(cx + 4 + col * 6, g - 28 + row * 10, 3, 5);
+          ctx.fillRect(cx - 18 + col * 5, g - 26 + row * 10, 3, 5);
+        }
+      }
+      block(ctx, cx, g - 34, 32, 13, '#b45309', '#292524', '#44403c');
+      diamond(ctx, cx, g - 47 - 8, 34, 17, '#d97706', '#f59e0b');
       break;
+    }
     case 'temple': {
-      block(ctx, cx, g, 52, 34, '#a8a29e', '#292524', '#44403c');
-      // Columns on the right face.
-      ctx.fillStyle = '#78716c';
-      for (let i = 0; i < 3; i++) ctx.fillRect(cx + 4 + i * 8, g - 30, 3, 24);
-      // Pediment.
-      diamond(ctx, cx, g - 42, 56, 24, '#d6b25e');
+      // Marble Corinthian Temple with golden pediment & lit portico
+      block(ctx, cx, g, 56, 6, '#78716c', '#292524', '#44403c');
+      block(ctx, cx, g - 6, 50, 32, '#e7e5e4', '#44403c', '#78716c');
+      ctx.fillStyle = '#d6d3d1';
+      for (let i = 0; i < 4; i++) {
+        ctx.fillRect(cx + 3 + i * 6, g - 34, 3, 25);
+        ctx.fillRect(cx - 21 + i * 5, g - 32, 2.5, 24);
+      }
+      diamond(ctx, cx, g - 44, 56, 26, '#e5a93c', '#fde68a');
+      ctx.fillStyle = '#fbbf24';
+      ctx.beginPath();
+      ctx.arc(cx, g - 44, 4, 0, Math.PI * 2);
+      ctx.fill();
       break;
     }
     case 'landmark': {
-      block(ctx, cx, g, 96, 44, '#a8a29e', '#292524', '#44403c');
+      // Grand Roman Pantheon / Forum Wonder with stepped marble podium, Corinthian colonnade & golden dome
+      block(ctx, cx, g, 102, 8, '#57534e', '#292524', '#44403c');
+      block(ctx, cx, g - 8, 92, 38, '#e7e5e4', '#44403c', '#78716c');
+      ctx.fillStyle = '#f5f5f4';
+      for (let i = 0; i < 6; i++) {
+        ctx.fillRect(cx + 4 + i * 7, g - 42, 3.5, 30);
+        ctx.fillRect(cx - 38 + i * 6, g - 40, 3, 28);
+      }
+      // Golden pediment roof
+      diamond(ctx, cx, g - 54, 98, 42, '#b45309', '#e5a93c');
+      // Stepped Pantheon rotunda & golden dome with glowing oculus
+      ctx.fillStyle = '#d97706';
+      ctx.beginPath();
+      ctx.arc(cx, g - 62, 26, Math.PI, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#fde68a';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#e5a93c';
+      ctx.beginPath();
+      ctx.arc(cx, g - 64, 20, Math.PI, 0);
+      ctx.closePath();
+      ctx.fill();
+      // Glowing oculus at apex
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(cx, g - 76, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      // Twin entrance braziers
+      ctx.fillStyle = '#f59e0b';
+      ctx.beginPath();
+      ctx.arc(cx - 20, g - 6, 3.5, 0, Math.PI * 2);
+      ctx.arc(cx + 20, g - 6, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'colosseum': {
+      // AMPHITHEATRVM GUI — Multi-tiered oval Roman Colosseum with glowing amber arched arcades & warm arena floor
+      diamond(ctx, cx, g - 6, 112, 54, '#1c1917', '#57534e');
+      // Outer cylindrical travertine wall (lower & upper tiers)
       ctx.fillStyle = '#78716c';
-      for (let i = 0; i < 5; i++) ctx.fillRect(cx + 6 + i * 9, g - 38, 4, 30);
-      diamond(ctx, cx, g - 56, 104, 40, '#d6b25e', '#a8834a');
+      ctx.beginPath();
+      ctx.ellipse(cx, g - 16, 48, 22, 0, 0, Math.PI);
+      ctx.lineTo(cx - 48, g - 50);
+      ctx.ellipse(cx, g - 50, 48, 22, 0, Math.PI, 0, true);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#d6d3d1';
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+      // Cornice bands separating the 3 stories of arches
+      for (const tierY of [g - 26, g - 38, g - 50]) {
+        ctx.strokeStyle = '#e7e5e4';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.ellipse(cx, tierY, 48, 22, 0, 0.08 * Math.PI, 0.92 * Math.PI);
+        ctx.stroke();
+      }
+      // Glowing arched arcades along the visible front wall
+      for (let tier = 0; tier < 3; tier++) {
+        const baseY = g - 16 - tier * 11;
+        for (let i = -4; i <= 4; i++) {
+          const angle = Math.PI * 0.5 + i * 0.095;
+          const ax = cx + Math.cos(angle) * 44;
+          const ay = baseY + Math.sin(angle) * 19 - 10;
+          ctx.fillStyle = tier === 1 ? '#fbbf24' : '#f59e0b';
+          ctx.fillRect(ax - 2, ay - 6, 4, 6);
+        }
+      }
+      // Top rim, stepped cavea seating bowl & glowing golden-sand arena floor
+      ctx.fillStyle = '#44403c';
+      ctx.beginPath();
+      ctx.ellipse(cx, g - 50, 48, 22, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#e5a93c';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#78716c';
+      ctx.beginPath();
+      ctx.ellipse(cx, g - 49, 38, 17, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#d97706';
+      ctx.beginPath();
+      ctx.ellipse(cx, g - 48, 25, 11, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#fde68a';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      break;
+    }
+    case 'praetorium': {
+      // PRAETORIVM ORCHESTRATOR — Patrician Peristyle Basilica with twin terracotta halls & emerald courtyard garden
+      block(ctx, cx, g, 104, 8, '#57534e', '#292524', '#44403c');
+      block(ctx, cx, g - 8, 92, 28, '#c2410c', '#44403c', '#78716c');
+      diamond(ctx, cx, g - 48, 96, 44, '#b45309', '#f59e0b');
+      // Lush emerald peristyle garden atrium in center
+      diamond(ctx, cx, g - 48, 52, 24, '#065f46', '#34d399');
+      diamond(ctx, cx, g - 48, 34, 16, '#047857', '#6ee7b7');
+      // Central azure marble fountain in the peristyle garden
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.arc(cx, g - 48, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#fde68a';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      // Colonnade pillars along both wings
+      ctx.fillStyle = '#f5f5f4';
+      for (let i = 0; i < 6; i++) {
+        ctx.fillRect(cx + 4 + i * 7, g - 32, 3, 20);
+        ctx.fillRect(cx - 38 + i * 6, g - 30, 2.5, 18);
+      }
+      break;
+    }
+    case 'rotunda': {
+      // ATHENAEVM MENS — Circular Temple of Vesta / Rotunda Library with Corinthian columns & stepped dome
+      diamond(ctx, cx, g - 4, 84, 40, '#292524', '#78716c');
+      ctx.fillStyle = '#57534e';
+      ctx.beginPath();
+      ctx.ellipse(cx, g - 12, 34, 15, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Circular colonnade drum
+      ctx.fillStyle = '#d6d3d1';
+      ctx.fillRect(cx - 28, g - 44, 56, 30);
+      ctx.fillStyle = '#f5f5f4';
+      for (let i = -3; i <= 3; i++) {
+        ctx.fillRect(cx + i * 7 - 1.5, g - 44, 3, 28);
+      }
+      // Stepped bronze & gold dome
+      ctx.fillStyle = '#b45309';
+      ctx.beginPath();
+      ctx.arc(cx, g - 44, 30, Math.PI, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#e5a93c';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#d97706';
+      ctx.beginPath();
+      ctx.arc(cx, g - 48, 21, Math.PI, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(cx, g - 68, 4, 0, Math.PI * 2);
+      ctx.fill();
       break;
     }
     case 'fire-0':
@@ -159,7 +357,7 @@ export function drawSprite(ctx: Ctx, key: SpriteKey, r: SpriteRect): void {
       }
       break;
     case 'scaffold':
-      ctx.strokeStyle = '#b45309';
+      ctx.strokeStyle = '#f59e0b';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(6, g - 44); ctx.lineTo(6, g);
@@ -169,63 +367,97 @@ export function drawSprite(ctx: Ctx, key: SpriteKey, r: SpriteRect): void {
       ctx.stroke();
       break;
     case 'castrum': {
-      ctx.strokeStyle = '#78716c'; ctx.lineWidth = 3;
-      ctx.strokeRect(8, g - 56, 104, 56);
-      ctx.fillStyle = '#44403c';
-      for (const [tx, ty] of [[4, g - 60], [104, g - 60], [4, g - 8], [104, g - 8]]) {
-        ctx.fillRect(tx, ty, 12, 12);
+      // Fortified Roman Legion Castrum with watchtowers, gatehouse & crimson/gold SPQR standard
+      diamond(ctx, 60, g - 24, 112, 52, '#292524', '#78716c');
+      diamond(ctx, 60, g - 24, 96, 44, '#1c1917', '#b45309');
+      ctx.fillStyle = '#57534e';
+      for (const [tx, ty] of [[12, g - 32], [96, g - 32], [54, g - 52], [54, g - 8]]) {
+        ctx.fillRect(tx, ty, 12, 16);
+        ctx.fillStyle = '#b45309';
+        ctx.fillRect(tx - 1, ty - 3, 14, 4);
+        ctx.fillStyle = '#57534e';
       }
-      ctx.strokeStyle = '#d6b25e'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(60, g - 56); ctx.lineTo(60, g - 74); ctx.stroke();
-      ctx.fillStyle = '#d6b25e'; ctx.fillRect(60, g - 74, 10, 7);
+      // SPQR standard banner
+      ctx.strokeStyle = '#fde68a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(60, g - 30); ctx.lineTo(60, g - 74); ctx.stroke();
+      ctx.fillStyle = '#dc2626';
+      ctx.fillRect(61, g - 74, 16, 10);
+      ctx.strokeStyle = '#e5a93c'; ctx.lineWidth = 1;
+      ctx.strokeRect(61, g - 74, 16, 10);
       break;
     }
     case 'tent':
     case 'tent-busy':
-      ctx.fillStyle = key === 'tent-busy' ? '#7f1d1d' : '#3f3a34';
-      ctx.strokeStyle = key === 'tent-busy' ? '#b91c1c' : '#57534e';
+      ctx.fillStyle = key === 'tent-busy' ? '#dc2626' : '#57534e';
+      ctx.strokeStyle = key === 'tent-busy' ? '#fbbf24' : '#a8a29e';
+      ctx.lineWidth = 1.2;
       ctx.beginPath();
       ctx.moveTo(2, g); ctx.lineTo(13, g - 16); ctx.lineTo(24, g);
       ctx.closePath(); ctx.fill(); ctx.stroke();
       break;
-    case 'ship':
-      ctx.fillStyle = '#78716c';
+    case 'ship': {
+      // Roman Trireme Galley on azure harbor water ripple with bronze ram & golden sail
+      ctx.fillStyle = 'rgba(14, 116, 144, 0.45)';
       ctx.beginPath();
-      ctx.moveTo(4, g - 8); ctx.quadraticCurveTo(22, g, 40, g - 8);
-      ctx.lineTo(36, g); ctx.lineTo(8, g); ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = '#a8a29e'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(22, g - 8); ctx.lineTo(22, g - 30); ctx.stroke();
-      ctx.fillStyle = '#d6b25e';
+      ctx.ellipse(22, g - 2, 20, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      // Hull
+      ctx.fillStyle = '#92400e';
       ctx.beginPath();
-      ctx.moveTo(22, g - 30); ctx.lineTo(22, g - 14); ctx.lineTo(34, g - 20);
+      ctx.moveTo(3, g - 9); ctx.quadraticCurveTo(22, g + 1, 41, g - 9);
+      ctx.lineTo(36, g - 2); ctx.lineTo(8, g - 2); ctx.closePath(); ctx.fill();
+      // Mast & sail
+      ctx.strokeStyle = '#d6d3d1'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(22, g - 7); ctx.lineTo(22, g - 32); ctx.stroke();
+      ctx.fillStyle = '#e5a93c';
+      ctx.beginPath();
+      ctx.moveTo(12, g - 28); ctx.quadraticCurveTo(22, g - 32, 34, g - 26);
+      ctx.lineTo(32, g - 14); ctx.quadraticCurveTo(22, g - 16, 14, g - 14);
       ctx.closePath(); ctx.fill();
       break;
+    }
     case 'arch':
     case 'arch-dry': {
-      ctx.strokeStyle = key === 'arch' ? '#78716c' : '#44403c';
-      ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(6, g); ctx.lineTo(6, g - 34); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(34, g); ctx.lineTo(34, g - 34); ctx.stroke();
-      ctx.beginPath(); ctx.arc(20, g - 34, 14, Math.PI, 0); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(2, g - 48); ctx.lineTo(38, g - 48); ctx.stroke();
-      if (key === 'arch-dry') {
-        ctx.strokeStyle = '#7f1d1d'; ctx.lineWidth = 2;
+      // Roman Stone Aqueduct span with glowing cyan MCP water channel on top
+      ctx.fillStyle = key === 'arch' ? '#57534e' : '#292524';
+      ctx.fillRect(4, g - 44, 7, 44);
+      ctx.fillRect(29, g - 44, 7, 44);
+      ctx.fillRect(2, g - 48, 36, 6);
+      ctx.strokeStyle = key === 'arch' ? '#a8a29e' : '#44403c';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(20, g - 28, 10, Math.PI, 0); ctx.stroke();
+      if (key === 'arch') {
+        // Glowing cyan MCP aqueduct stream
+        ctx.fillStyle = '#06b6d4';
+        ctx.fillRect(2, g - 51, 36, 4);
+        ctx.fillStyle = '#67e8f9';
+        ctx.fillRect(4, g - 50, 32, 2);
+      } else {
+        ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(10, g - 44); ctx.lineTo(30, g - 24); ctx.stroke();
       }
       break;
     }
     case 'gate':
-      block(ctx, cx, g, 44, 30, '#57534e', '#1c1917', '#292524');
-      ctx.fillStyle = '#0c0a09';
-      ctx.beginPath(); ctx.arc(cx, g - 12, 9, Math.PI, 0);
-      ctx.lineTo(cx + 9, g); ctx.lineTo(cx - 9, g); ctx.closePath(); ctx.fill();
+      // Porta Appia Twin-Tower Gatehouse
+      block(ctx, cx, g, 48, 34, '#78716c', '#292524', '#44403c');
+      ctx.fillStyle = '#e5a93c';
+      ctx.fillRect(cx - 18, g - 34, 36, 3);
+      ctx.fillStyle = '#090b10';
+      ctx.beginPath(); ctx.arc(cx, g - 14, 10, Math.PI, 0);
+      ctx.lineTo(cx + 10, g); ctx.lineTo(cx - 10, g); ctx.closePath(); ctx.fill();
       break;
     case 'caravan':
-      ctx.fillStyle = '#b45309';
-      ctx.fillRect(4, g - 14, 22, 10);
-      ctx.fillStyle = '#292524'; ctx.strokeStyle = '#78716c';
-      for (const wx of [9, 21]) {
-        ctx.beginPath(); ctx.arc(wx, g - 2, 3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#d97706';
+      ctx.fillRect(4, g - 15, 24, 11);
+      ctx.fillStyle = '#fde68a';
+      ctx.fillRect(6, g - 18, 20, 4);
+      ctx.fillStyle = '#292524'; ctx.strokeStyle = '#e5a93c';
+      for (const wx of [9, 23]) {
+        ctx.beginPath(); ctx.arc(wx, g - 3, 3.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       }
       break;
   }

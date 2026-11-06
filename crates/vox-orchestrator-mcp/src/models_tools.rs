@@ -87,6 +87,7 @@ pub async fn suggest_model(state: &ServerState, params: SuggestModelParams) -> S
         // category-only lookup, so `None` (falling back to that empty string)
         // is correct: it infers zero prompt intents either way.
         capability_prompt: None,
+        turn_decision_pack: None,
     };
     match resolve_mcp_chat_model_sync(orch, "", None, resolution) {
         Ok((model, _is_free)) => ToolResult::ok(model).to_json(),

@@ -140,7 +140,7 @@ graph {
 
 | Task Class | Canonical Execution Layer | Example | Why |
 |---|---|---|---|
-| Project automation, CI gates, corpus scripts, multi-step file migrations | **Tier 1: `.vox` Script (`vox run`) / `vox_interp`** | `std.fs.list_dir_detailed("crates")`, `std.io.open("Vox.toml")` | Enforced by `AGENTS.md §VoxScript-First Glue Code`; type-checked by `vox check`; zero external binary dependency |
+| Project automation, CI gates, corpus scripts, multi-step file migrations | **Tier 1: `.vox` Script (`vox run`) / `vox_interp`** | `std.fs.list_dir_detailed("crates")`, `std.io.open("Vox.toml")` | Enforced by `AGENTS.md §VoxLang-First Glue Code`; type-checked by `vox check`; zero external binary dependency |
 | Ad-hoc multi-file tabular queries, process/port filtering, TOML/YAML/JSON/CSV/SQLite joining | **Tier 2: Structured Nushell (`!nu` / `vox_run_shell` `backend="nushell"`)** | `ls crates/*/Cargo.toml \| each {\|f\| open $f.name \| get package.name }` | Expresses in 1 pipeline what takes 15 lines of Bash/Python; returns clean JSON via `\| to json --raw` |
 | Standard workspace build/test/VCS commands & interactive TUI programs | **Tier 3: Host PTY (`zsh`/`bash`/`pwsh`) via `SessionHost`** | `cargo test -p vox-terminal-core`, `git status` | Zero translation overhead; streams live ANSI/progress into WebGL xterm.js and `BlockStreamView` |
 

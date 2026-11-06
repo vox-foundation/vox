@@ -13,6 +13,7 @@ use crate::remote::calls::{BackendCalls, api_data, tool_data};
 
 const SUBMIT_TOOL: &str = "vox_hopper_submit";
 const REPRIORITIZE_TOOL: &str = "vox_hopper_reprioritize";
+const RENAME_TOOL: &str = "vox_hopper_rename";
 const CANCEL_TOOL: &str = "vox_hopper_cancel";
 const MARK_DONE_TOOL: &str = "vox_hopper_mark_done";
 
@@ -39,6 +40,19 @@ pub(crate) async fn reprioritize_impl<B: BackendCalls>(
         REPRIORITIZE_TOOL,
         b.call_tool(REPRIORITIZE_TOOL, args).await?,
     )
+}
+
+pub(crate) async fn rename_impl<B: BackendCalls>(
+    b: &B,
+    item_id: String,
+    intent: String,
+) -> Result<HopperTaskDto, String> {
+    let trimmed = intent.trim().to_string();
+    if trimmed.is_empty() {
+        return Err("hopper_rename: intent must not be empty".to_string());
+    }
+    let args = json!({ "item_id": item_id, "intent": trimmed });
+    tool_data(RENAME_TOOL, b.call_tool(RENAME_TOOL, args).await?)
 }
 
 pub(crate) async fn item_op_impl<B: BackendCalls>(
@@ -80,6 +94,18 @@ pub async fn hopper_reprioritize(
     priority: u8,
 ) -> Result<HopperTaskDto, String> {
     let item = reprioritize_impl(&backend.current().await, item_id, priority).await?;
+    emit_tasks_changed(&app_handle);
+    Ok(item)
+}
+
+#[tauri::command]
+pub async fn hopper_rename(
+    app_handle: tauri::AppHandle,
+    backend: State<'_, Arc<BackendState>>,
+    item_id: String,
+    intent: String,
+) -> Result<HopperTaskDto, String> {
+    let item = rename_impl(&backend.current().await, item_id, intent).await?;
     emit_tasks_changed(&app_handle);
     Ok(item)
 }
@@ -135,12 +161,17 @@ mod tests {
         let b = FakeBackend::new()
             .on_tool(SUBMIT_TOOL, ok("inbox"))
             .on_tool(REPRIORITIZE_TOOL, ok("inbox"))
+            .on_tool(RENAME_TOOL, ok("inbox"))
             .on_tool(CANCEL_TOOL, ok("cancelled"))
             .on_tool(MARK_DONE_TOOL, ok("done"));
         submit_impl(&b, "remote intent".into(), vec!["rust".into()])
             .await
             .unwrap();
         reprioritize_impl(&b, "h1".into(), 2).await.unwrap();
+        rename_impl(&b, "h1".into(), "  renamed intent  ".into())
+            .await
+            .unwrap();
+        assert!(rename_impl(&b, "h1".into(), "   ".into()).await.is_err());
         item_op_impl(&b, CANCEL_TOOL, "h1".into()).await.unwrap();
         let done = item_op_impl(&b, MARK_DONE_TOOL, "h1".into()).await.unwrap();
         assert_eq!(done.state, "done");
@@ -153,8 +184,15 @@ mod tests {
             )
         );
         assert_eq!(calls[1].1, json!({ "item_id": "h1", "priority": 2 }));
-        assert_eq!(calls[2].0, format!("tool:{CANCEL_TOOL}"));
-        assert_eq!(calls[3].1, json!({ "item_id": "h1" }));
+        assert_eq!(
+            calls[2],
+            (
+                format!("tool:{RENAME_TOOL}"),
+                json!({ "item_id": "h1", "intent": "renamed intent" })
+            )
+        );
+        assert_eq!(calls[3].0, format!("tool:{CANCEL_TOOL}"));
+        assert_eq!(calls[4].1, json!({ "item_id": "h1" }));
     }
 
     #[test]

@@ -592,8 +592,10 @@ mod tests {
         }
         super::normalize_hf_token_env();
         assert_eq!(
-            std::env::var("HUGGING_FACE_HUB_TOKEN").as_deref(),
-            Ok("from-hf-only")
+            std::env::var_os("HUGGING_FACE_HUB_TOKEN")
+                .and_then(|v| v.into_string().ok())
+                .as_deref(),
+            Some("from-hf-only")
         );
         unsafe {
             std::env::remove_var("HF_TOKEN");
@@ -610,7 +612,12 @@ mod tests {
             std::env::set_var("HUGGING_FACE_HUB_TOKEN", "from-hub-only");
         }
         super::normalize_hf_token_env();
-        assert_eq!(std::env::var("HF_TOKEN").as_deref(), Ok("from-hub-only"));
+        assert_eq!(
+            std::env::var_os("HF_TOKEN")
+                .and_then(|v| v.into_string().ok())
+                .as_deref(),
+            Some("from-hub-only")
+        );
         unsafe {
             std::env::remove_var("HF_TOKEN");
             std::env::remove_var("HUGGING_FACE_HUB_TOKEN");

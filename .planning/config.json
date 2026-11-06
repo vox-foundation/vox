@@ -3,6 +3,7 @@
     "allow_default_branch_commits": true
   },
   "workflow": {
-    "use_worktrees": false
+    "use_worktrees": false,
+    "_auto_chain_active": false
   }
 }

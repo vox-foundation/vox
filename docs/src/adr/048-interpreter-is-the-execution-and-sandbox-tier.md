@@ -1,6 +1,6 @@
 ---
 title: "ADR 048: Interpreter is the execution and sandbox tier"
-description: "Makes the HIR interpreter the default and isolation tier for VoxScripts locally and over the mesh, retiring wasm/container/microvm isolation lanes."
+description: "Makes the HIR interpreter the default and isolation tier for VoxLang locally and over the mesh, retiring wasm/container/microvm isolation lanes."
 category: "Architecture Decisions (ADRs)"
 status: "current"
 training_eligible: true
@@ -24,7 +24,7 @@ schema_type: "TechArticle"
 
 ## Context
 
-Pure VoxScripts were defaulting to the native `cargo` lane. That made `cargo`,
+Pure VoxLang scripts were defaulting to the native `cargo` lane. That made `cargo`,
 `rustc`, and a Vox checkout end-user requirements, and left the mesh without a
 real isolation boundary once the WASI / container / MicroVM lanes were deleted
 or never shipped. The HIR interpreter already runs scripts in tens of
@@ -36,11 +36,11 @@ Design: [interpreter-first execution](../../superpowers/specs/2026-09-05-interpr
 
 ## Decision
 
-The interpreter is the isolation tier for VoxScripts — locally and when a peer
+The interpreter is the isolation tier for VoxLang — locally and when a peer
 receives a job. `vox run` in `auto` mode routes **script-shaped** files
 (`fn main()`, no service surfaces) to the interpreter. Native compilation is an
 explicit hatch (`--mode script`, `Vox.toml [web] run_mode = "script"`,
-`VOX_WEB_RUN_MODE=script`). The mesh ships VoxScript source; it never ships
+`VOX_WEB_RUN_MODE=script`). The mesh ships VoxLang source; it never ships
 native code.
 
 Capabilities are receiver-imposed, non-optional, and fatal. Repeatable `--caps`
@@ -97,4 +97,4 @@ repeatable `--caps` instead.
 | `ProbeOnlyExecutor` | `InterpExecutor` |
 | `MicroVmRuntime` / `Tier::MicroVm` | interpreter isolation; planner error-path for the enum variant stays |
 | `VoxMeshExecPolicy` (SecretId) | receiver-imposed `--caps` (placement config key survives) |
-| `exec_bundle_b64` | VoxScript source on the mesh stream |
+| `exec_bundle_b64` | VoxLang source on the mesh stream |

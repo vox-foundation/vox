@@ -260,7 +260,7 @@
       "compile_s": 0.4,
       "dependents": 53,
       "blast_s": 587.0,
-      "fan_in": 7
+      "fan_in": 8
     },
     {
       "crate": "vox-forge",
@@ -272,9 +272,9 @@
     {
       "crate": "vox-foundation",
       "compile_s": 0.7,
-      "dependents": 53,
+      "dependents": 54,
       "blast_s": 587.0,
-      "fan_in": 14
+      "fan_in": 15
     },
     {
       "crate": "vox-gamify",
@@ -669,6 +669,13 @@
       "fan_in": 7
     },
     {
+      "crate": "vox-python-bridge",
+      "compile_s": 0.0,
+      "dependents": 53,
+      "blast_s": 586.0,
+      "fan_in": 1
+    },
+    {
       "crate": "vox-quantize",
       "compile_s": 0.6,
       "dependents": 53,
@@ -916,9 +923,9 @@
     {
       "crate": "workspace-hack",
       "compile_s": 0.6,
-      "dependents": 120,
+      "dependents": 121,
       "blast_s": 653.0,
-      "fan_in": 117
+      "fan_in": 118
     }
   ],
   "measured_on": "x86_64-pc-windows-msvc (cargo check)"

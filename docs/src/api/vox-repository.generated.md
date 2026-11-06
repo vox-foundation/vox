@@ -59,3 +59,79 @@ Discover the logical repository root (Git work tree or fallback), compute a stab
 |---|---|
 | `RepositoryContext` | Fully resolved repository context for tooling (MCP, sessions, affinity). |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_repository: "vox-repository"
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_repository -> vox_bounded_fs
+    node vox_config: "vox-config"
+    vox_repository -> vox_config
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_repository
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_repository
+    node vox_cli_core: "vox-cli-core"
+    vox_cli_core -> vox_repository
+    node vox_cli_research: "vox-cli-research"
+    vox_cli_research -> vox_repository
+    node vox_codegen: "vox-codegen"
+    vox_codegen -> vox_repository
+    node vox_compiler: "vox-compiler"
+    vox_compiler -> vox_repository
+    node vox_corpus: "vox-corpus"
+    vox_corpus -> vox_repository
+    node vox_db: "vox-db"
+    vox_db -> vox_repository
+    node vox_doc_inventory: "vox-doc-inventory"
+    vox_doc_inventory -> vox_repository
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_repository
+    node vox_integration_tests: "vox-integration-tests"
+    vox_integration_tests -> vox_repository
+    node vox_ml_cli: "vox-ml-cli"
+    vox_ml_cli -> vox_repository
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-cli-core`](./vox-cli-core.generated.md) | Direct workspace dependent |
+| [`vox-cli-research`](./vox-cli-research.generated.md) | Direct workspace dependent |
+| [`vox-codegen`](./vox-codegen.generated.md) | Direct workspace dependent |
+| [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
+| [`vox-corpus`](./vox-corpus.generated.md) | Direct workspace dependent |
+| [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
+| [`vox-doc-inventory`](./vox-doc-inventory.generated.md) | Direct workspace dependent |
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-d`](./vox-orchestrator-d.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-driver`](./vox-orchestrator-driver.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-plugin-populi-mesh`](./vox-plugin-populi-mesh.generated.md) | Direct workspace dependent |
+| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
+| [`vox-populi-types`](./vox-populi-types.generated.md) | Direct workspace dependent |
+| [`vox-project-scaffold`](./vox-project-scaffold.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `RepositoryContext` | `pub struct RepositoryContext` | [`crates/vox-repository/src/lib.rs#L138-L153`](../../../crates/vox-repository/src/lib.rs#L138-L153) | Fully resolved repository context for tooling (MCP, sessions, affinity). |
+| `struct` | `gpu_inventory::GpuInventorySnapshot` | `pub struct GpuInventorySnapshot` | [`crates/vox-repository/src/gpu_inventory.rs#L10-L19`](../../../crates/vox-repository/src/gpu_inventory.rs#L10-L19) | Driver-visible NVIDIA inventory snapshot (Layer A — probe-backed). |
+| `fn` | `gpu_inventory::probe_nvidia_gpu_inventory_best_effort` | `pub fn probe_nvidia_gpu_inventory_best_effort() -> Option<GpuInventorySnapshot>` | [`crates/vox-repository/src/gpu_inventory.rs#L27-L29`](../../../crates/vox-repository/src/gpu_inventory.rs#L27-L29) | Probe NVIDIA GPUs via NVML.  NVML probing has moved to `vox-plugin-nvml-probe`. This stub always returns `None`. Callers should migrate to plugin-host dispatch via `VoxPlugin::as_hardware_probe()` to get live GPU inventory. |
+| `struct` | `populi_toml::VoxMeshTransport` | `pub struct VoxMeshTransport` | [`crates/vox-repository/src/populi_toml.rs#L13-L24`](../../../crates/vox-repository/src/populi_toml.rs#L13-L24) | Mesh transport options (TLS, WireGuard hints). |
+| `struct` | `populi_toml::VoxMeshToml` | `pub struct VoxMeshToml` | [`crates/vox-repository/src/populi_toml.rs#L29-L49`](../../../crates/vox-repository/src/populi_toml.rs#L29-L49) | Parsed mesh coordination table from `Vox.toml` (`[mesh]` or legacy `[mens]`). |
+| `enum` | `populi_toml::VoxMeshTomlError` | `pub enum VoxMeshTomlError` | [`crates/vox-repository/src/populi_toml.rs#L53-L63`](../../../crates/vox-repository/src/populi_toml.rs#L53-L63) | Error reading or parsing `Vox.toml` for the mesh section only. |
+| `type` | `populi_toml::MeshToml` | `pub type MeshToml = VoxMeshToml` | [`crates/vox-repository/src/populi_toml.rs#L66`](../../../crates/vox-repository/src/populi_toml.rs#L66) | English-first alias for [`VoxMeshToml`] (same type). |
+| `type` | `populi_toml::MeshTomlError` | `pub type MeshTomlError = VoxMeshTomlError` | [`crates/vox-repository/src/populi_toml.rs#L68`](../../../crates/vox-repository/src/populi_toml.rs#L68) | English-first alias for [`VoxMeshTomlError`] (same type). |
+| `fn` | `populi_toml::read_vox_populi_toml` | `pub fn read_vox_populi_toml(path: &Path) -> Result<Option<VoxMeshToml>, VoxMeshTomlError>` | [`crates/vox-repository/src/populi_toml.rs#L90-L124`](../../../crates/vox-repository/src/populi_toml.rs#L90-L124) | Read **`[mesh]`** or legacy **`[mens]`** from `path` (typically `.../Vox.toml`). Returns `None` if the file or both sections are missing / empty. |
+

@@ -54,6 +54,8 @@ fn cap_to_effect_kind(cap: &HirCapability) -> Option<crate::hir::nodes::effect::
         HirCapability::Spend => Some(HirEffectKind::Spend),
         HirCapability::Write => Some(HirEffectKind::Write),
         HirCapability::ExternalApi => Some(HirEffectKind::ExternalApi),
+        HirCapability::Python => Some(HirEffectKind::Python),
+        HirCapability::PythonUnverified => Some(HirEffectKind::PythonUnverified),
         HirCapability::Mcp(t) => Some(HirEffectKind::Mcp(t.clone())),
         HirCapability::Nothing => None,
     }

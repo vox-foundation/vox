@@ -54,3 +54,28 @@ every Android + iOS architecture.
 |---|---|
 | [`vox-runtime`](./vox-runtime.generated.md) | Normal |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_journal: "vox-journal"
+    node vox_runtime: "vox-runtime"
+    vox_journal -> vox_runtime
+    node vox_runtime_rn: "vox-runtime-rn"
+    vox_runtime_rn -> vox_journal
+    node vox_terminal_core: "vox-terminal-core"
+    vox_terminal_core -> vox_journal
+    node vox_workflow_runtime: "vox-workflow-runtime"
+    vox_workflow_runtime -> vox_journal
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-runtime-rn`](./vox-runtime-rn.generated.md) | Direct workspace dependent |
+| [`vox-terminal-core`](./vox-terminal-core.generated.md) | Direct workspace dependent |
+| [`vox-workflow-runtime`](./vox-workflow-runtime.generated.md) | Direct workspace dependent |
+

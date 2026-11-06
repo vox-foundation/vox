@@ -446,7 +446,7 @@ pub struct StubCheckArgs {
     /// List all known stable diagnostic IDs and exit.
     #[arg(long)]
     pub list_diagnostics: bool,
-    /// Require every suppression comment (`// vox:skip`, `// toestub-ignore(...)`) to
+    /// Require every suppression comment (`// vox:skip`, `toestub-ignore` with a reason) to
     /// include a `— <reason>` of at least 20 characters. Exits non-zero if any are missing.
     #[arg(long)]
     pub rationale_required: bool,

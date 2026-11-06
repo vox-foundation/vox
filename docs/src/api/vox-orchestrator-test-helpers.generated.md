@@ -64,3 +64,30 @@ This crate is `kind = "test-only"` per `layers.toml` — production code must no
 | `message_count` | — |
 | `clear` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_orchestrator_test_helpers: "vox-orchestrator-test-helpers"
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator_test_helpers -> vox_orchestrator
+    node vox_orchestrator_types: "vox-orchestrator-types"
+    vox_orchestrator_test_helpers -> vox_orchestrator_types
+}
+```
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `FixtureError` | `pub enum FixtureError` | [`crates/vox-orchestrator-test-helpers/src/lib.rs#L13-L23`](../../../crates/vox-orchestrator-test-helpers/src/lib.rs#L13-L23) | — |
+| `fn` | `load_golden_fixture` | `pub fn load_golden_fixture<T: DeserializeOwned>(` | [`crates/vox-orchestrator-test-helpers/src/lib.rs#L45`](../../../crates/vox-orchestrator-test-helpers/src/lib.rs#L45) | Load and deserialize a golden fixture from `fixtures/<relative_path>`.  The fixtures directory is resolved relative to this crate's manifest at compile time. `relative_path` is relative to `crates/vox-orchestrator-test-helpers/fixtures/`. |
+| `struct` | `MockBulletinBoard` | `pub struct MockBulletinBoard` | [`crates/vox-orchestrator-test-helpers/src/lib.rs#L75-L77`](../../../crates/vox-orchestrator-test-helpers/src/lib.rs#L75-L77) | In-memory bulletin board for use in tests. Records all published messages for assertion. |
+| `fn` | `new` | `pub fn new() -> Self` | [`crates/vox-orchestrator-test-helpers/src/lib.rs#L80-L82`](../../../crates/vox-orchestrator-test-helpers/src/lib.rs#L80-L82) | — |
+| `fn` | `publish` | `pub fn publish(&self, msg: AgentMessage)` | [`crates/vox-orchestrator-test-helpers/src/lib.rs#L84-L86`](../../../crates/vox-orchestrator-test-helpers/src/lib.rs#L84-L86) | — |
+| `fn` | `recorded_messages` | `pub fn recorded_messages(&self) -> Vec<AgentMessage>` | [`crates/vox-orchestrator-test-helpers/src/lib.rs#L88-L90`](../../../crates/vox-orchestrator-test-helpers/src/lib.rs#L88-L90) | — |
+| `fn` | `find_message` | `pub fn find_message<F>(&self, predicate: F) -> Option<AgentMessage>` | [`crates/vox-orchestrator-test-helpers/src/lib.rs#L92`](../../../crates/vox-orchestrator-test-helpers/src/lib.rs#L92) | — |
+| `fn` | `message_count` | `pub fn message_count(&self) -> usize` | [`crates/vox-orchestrator-test-helpers/src/lib.rs#L104-L106`](../../../crates/vox-orchestrator-test-helpers/src/lib.rs#L104-L106) | — |
+| `fn` | `clear` | `pub fn clear(&self)` | [`crates/vox-orchestrator-test-helpers/src/lib.rs#L108-L110`](../../../crates/vox-orchestrator-test-helpers/src/lib.rs#L108-L110) | — |
+

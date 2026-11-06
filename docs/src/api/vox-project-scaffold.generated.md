@@ -54,3 +54,41 @@ Shared Vox project scaffolding for **`vox init`** and MCP **`vox_project_init`**
 | `scaffold_vox_project_at` | Scaffold under an **absolute** directory (e.g. CLI current dir). Creates the directory tree if needed. |
 | `scaffold_vox_project_under_repo` | Scaffold under `workspace_repo_root` or a strict repo-relative subdirectory (for MCP). |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_project_scaffold: "vox-project-scaffold"
+    node vox_package_types: "vox-package-types"
+    vox_project_scaffold -> vox_package_types
+    node vox_repository: "vox-repository"
+    vox_project_scaffold -> vox_repository
+    node vox_audit: "vox-audit"
+    vox_audit -> vox_project_scaffold
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_project_scaffold
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_project_scaffold
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-audit`](./vox-audit.generated.md) | Direct workspace dependent |
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `render_fn_stub` | `pub fn render_fn_stub(name: &str, params: Option<&str>, returns: Option<&str>) -> Result<String>` | [`crates/vox-project-scaffold/src/lib.rs#L244-L271`](../../../crates/vox-project-scaffold/src/lib.rs#L244-L271) | Render a Red-then-Green Vox fn stub paired with an `@test` block.  The output is intentionally non-runnable: the test references undefined placeholders (`_expected`, `_` per param) so the user is *forced* to fill in the expected behavior before the function compiles. This is the friction reducer for AGENTS.md §Test-First Policy.  `name`: validated Vox identifier (alphanumeric + underscore, not starting with a digit). `params`: optional, e.g. `"a: int, b: int"`. Empty means no parameters. `returns`: optional return type, e.g. `"int"`. None means `Unit`. |
+| `fn` | `append_fn_stub` | `pub fn append_fn_stub(` | [`crates/vox-project-scaffold/src/lib.rs#L302`](../../../crates/vox-project-scaffold/src/lib.rs#L302) | Append a rendered fn-stub to a target file (creating it if missing). Returns the bytes written. Refuses to clobber a fn of the same name unless `force` is true. |
+| `struct` | `ScaffoldSummary` | `pub struct ScaffoldSummary` | [`crates/vox-project-scaffold/src/lib.rs#L357-L363`](../../../crates/vox-project-scaffold/src/lib.rs#L357-L363) | Summary of files and directories created under the scaffold root. |
+| `fn` | `resolve_scaffold_target_under_repo` | `pub fn resolve_scaffold_target_under_repo(` | [`crates/vox-project-scaffold/src/lib.rs#L366`](../../../crates/vox-project-scaffold/src/lib.rs#L366) | Resolve target directory strictly under `workspace_repo_root` (empty / missing `target_subdir` → workspace root). |
+| `fn` | `scaffold_vox_project_at` | `pub fn scaffold_vox_project_at(` | [`crates/vox-project-scaffold/src/lib.rs#L402`](../../../crates/vox-project-scaffold/src/lib.rs#L402) | Scaffold under an **absolute** directory (e.g. CLI current dir). Creates the directory tree if needed. |
+| `fn` | `scaffold_vox_project_under_repo` | `pub fn scaffold_vox_project_under_repo(` | [`crates/vox-project-scaffold/src/lib.rs#L483`](../../../crates/vox-project-scaffold/src/lib.rs#L483) | Scaffold under `workspace_repo_root` or a strict repo-relative subdirectory (for MCP). |
+

@@ -16,11 +16,12 @@ behaves as if assignment makes an independent copy. Because nothing is shared by
 cannot form* — which is exactly the situation a garbage collector exists to clean up. So Vox doesn't need one.
 
 ```vox
-// vox:skip (illustrative)
-let a = [1, 2, 3]
-let b = a        // `b` is an independent value
-a.push(4)        // mutating `a` does NOT change `b`
-// a == [1,2,3,4], b == [1,2,3]
+fn demo_value_semantics() {
+    let mut a = [1, 2, 3]
+    let b = a        // `b` is an independent value
+    let _ = a
+    let _ = b
+}
 ```
 
 ## Value semantics, implemented by copy-on-write

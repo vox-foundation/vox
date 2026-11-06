@@ -527,7 +527,7 @@ CREATE TABLE IF NOT EXISTS scholarly_publication_records (
     updated_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 CREATE INDEX IF NOT EXISTS idx_scholarly_pub_doi
-    ON scholarly_publication_records (doi) WHERE doi IS NOT NULL;
+    ON scholarly_publication_records (doi);
 
 -- Table: syndication_events
 -- Status: DEAD (graphify-out/table_usage_report.json)

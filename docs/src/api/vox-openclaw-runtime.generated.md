@@ -67,3 +67,89 @@ import from `vox_openclaw_runtime::*`.
 | `runtime` | — |
 | `parser` | Re-export `parse_skill_md` under a `parser` namespace for legacy callers that imported it as `vox_ars::parser::parse_skill_md`. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_openclaw_runtime: "vox-openclaw-runtime"
+    node vox_config: "vox-config"
+    vox_openclaw_runtime -> vox_config
+    node vox_db: "vox-db"
+    vox_openclaw_runtime -> vox_db
+    node vox_http_client: "vox-http-client"
+    vox_openclaw_runtime -> vox_http_client
+    node vox_plugin_host: "vox-plugin-host"
+    vox_openclaw_runtime -> vox_plugin_host
+    node vox_secrets: "vox-secrets"
+    vox_openclaw_runtime -> vox_secrets
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_actor_runtime -> vox_openclaw_runtime
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_openclaw_runtime
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_openclaw_runtime
+    node vox_skills: "vox-skills"
+    vox_skills -> vox_openclaw_runtime
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Direct workspace dependent |
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-skills`](./vox-skills.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `context::RetrievalTier` | `pub enum RetrievalTier` | [`crates/vox-openclaw-runtime/src/context.rs#L9-L17`](../../../crates/vox-openclaw-runtime/src/context.rs#L9-L17) | Named retrieval depth presets. |
+| `fn` | `context::parse` | `pub fn parse(s: &str) -> Option<Self>` | [`crates/vox-openclaw-runtime/src/context.rs#L21-L28`](../../../crates/vox-openclaw-runtime/src/context.rs#L21-L28) | Parse CLI tier string (`shallow`, `standard`, `deep`). |
+| `struct` | `context::ContextPolicy` | `pub struct ContextPolicy` | [`crates/vox-openclaw-runtime/src/context.rs#L33-L38`](../../../crates/vox-openclaw-runtime/src/context.rs#L33-L38) | Policy controlling how many items are pulled into a bundle. |
+| `struct` | `context::ArsContextBundle` | `pub struct ArsContextBundle` | [`crates/vox-openclaw-runtime/src/context.rs#L51-L58`](../../../crates/vox-openclaw-runtime/src/context.rs#L51-L58) | Assembled context for prompting or inspection. |
+| `fn` | `context::assemble_bundle` | `pub fn assemble_bundle(` | [`crates/vox-openclaw-runtime/src/context.rs#L61`](../../../crates/vox-openclaw-runtime/src/context.rs#L61) | Merge `sources` into a bundle honoring `policy.max_items`. |
+| `struct` | `domain::ArsSkill` | `pub struct ArsSkill` | [`crates/vox-openclaw-runtime/src/domain.rs#L10-L39`](../../../crates/vox-openclaw-runtime/src/domain.rs#L10-L39) | Skill payload used by [`crate::runtime::ArsRuntime`] (distinct from OpenClaw list/import DTOs). |
+| `fn` | `domain::requires_approval` | `pub fn requires_approval(&self) -> bool` | [`crates/vox-openclaw-runtime/src/domain.rs#L44-L46`](../../../crates/vox-openclaw-runtime/src/domain.rs#L44-L46) | Returns `true` if this skill requires an explicit operator approval before execution is permitted. |
+| `fn` | `domain::requires_container` | `pub fn requires_container(&self) -> bool` | [`crates/vox-openclaw-runtime/src/domain.rs#L49-L52`](../../../crates/vox-openclaw-runtime/src/domain.rs#L49-L52) | Returns `true` if this skill must execute inside the container sandbox. |
+| `enum` | `executor::ExecutorError` | `pub enum ExecutorError` | [`crates/vox-openclaw-runtime/src/executor.rs#L9-L13`](../../../crates/vox-openclaw-runtime/src/executor.rs#L9-L13) | Errors from the lightweight task executor. |
+| `fn` | `executor::execute_vox_task` | `pub async fn execute_vox_task(` | [`crates/vox-openclaw-runtime/src/executor.rs#L19`](../../../crates/vox-openclaw-runtime/src/executor.rs#L19) | Run a user-supplied task body with JSON input under advisory limits.  Current behavior: returns a structured envelope with input echo and body statistics. A full workflow VM may replace this without changing the CLI signature. |
+| `struct` | `hermes_adapter::DefaultHermesRuntimeAdapter` | `pub struct DefaultHermesRuntimeAdapter` | [`crates/vox-openclaw-runtime/src/hermes_adapter.rs#L23-L26`](../../../crates/vox-openclaw-runtime/src/hermes_adapter.rs#L23-L26) | — |
+| `fn` | `hermes_adapter::new` | `pub fn new(cfg: AgentRuntimeConfig) -> Self` | [`crates/vox-openclaw-runtime/src/hermes_adapter.rs#L29-L34`](../../../crates/vox-openclaw-runtime/src/hermes_adapter.rs#L29-L34) | — |
+| `struct` | `hooks::HookRegistry` | `pub struct HookRegistry` | [`crates/vox-openclaw-runtime/src/hooks.rs#L7-L9`](../../../crates/vox-openclaw-runtime/src/hooks.rs#L7-L9) | Lightweight hook registry (extensible without breaking callers). |
+| `fn` | `hooks::new` | `pub fn new() -> Self` | [`crates/vox-openclaw-runtime/src/hooks.rs#L13-L17`](../../../crates/vox-openclaw-runtime/src/hooks.rs#L13-L17) | Create an empty registry. |
+| `struct` | `manifest::ResourceLimits` | `pub struct ResourceLimits` | [`crates/vox-openclaw-runtime/src/manifest.rs#L7-L21`](../../../crates/vox-openclaw-runtime/src/manifest.rs#L7-L21) | Advisory resource envelope for sandboxed task execution. |
+| `enum` | `manifest::NetworkPolicy` | `pub enum NetworkPolicy` | [`crates/vox-openclaw-runtime/src/manifest.rs#L46-L54`](../../../crates/vox-openclaw-runtime/src/manifest.rs#L46-L54) | Network access policy for sandboxed skill execution. |
+| `fn` | `manifest::docker_flag` | `pub fn docker_flag(&self) -> &'static str` | [`crates/vox-openclaw-runtime/src/manifest.rs#L58-L64`](../../../crates/vox-openclaw-runtime/src/manifest.rs#L58-L64) | Return the `--network` flag value for Docker/Podman. |
+| `enum` | `manifest::SkillKind` | `pub enum SkillKind` | [`crates/vox-openclaw-runtime/src/manifest.rs#L70-L78`](../../../crates/vox-openclaw-runtime/src/manifest.rs#L70-L78) | High-level skill classification for the runtime harness. |
+| `enum` | `manifest::TrustLevel` | `pub enum TrustLevel` | [`crates/vox-openclaw-runtime/src/manifest.rs#L86-L96`](../../../crates/vox-openclaw-runtime/src/manifest.rs#L86-L96) | Trust classification for a skill.  Determines the minimum required isolation tier and whether an explicit operator approval is needed before the skill may execute. |
+| `fn` | `manifest::requires_approval` | `pub fn requires_approval(&self) -> bool` | [`crates/vox-openclaw-runtime/src/manifest.rs#L100-L102`](../../../crates/vox-openclaw-runtime/src/manifest.rs#L100-L102) | Returns `true` if this trust level requires a pre-execution approval check. |
+| `fn` | `manifest::minimum_isolation` | `pub fn minimum_isolation(&self) -> &'static str` | [`crates/vox-openclaw-runtime/src/manifest.rs#L105-L110`](../../../crates/vox-openclaw-runtime/src/manifest.rs#L105-L110) | Returns the minimum required isolation tier for this trust level. |
+| `struct` | `openclaw::OpenClawRemoteConfig` | `pub struct OpenClawRemoteConfig` | [`crates/vox-openclaw-runtime/src/openclaw.rs#L13-L20`](../../../crates/vox-openclaw-runtime/src/openclaw.rs#L13-L20) | Remote gateway configuration. |
+| `struct` | `openclaw::OpenClawSkillSpec` | `pub struct OpenClawSkillSpec` | [`crates/vox-openclaw-runtime/src/openclaw.rs#L24-L31`](../../../crates/vox-openclaw-runtime/src/openclaw.rs#L24-L31) | Skill summary returned by [`OpenClawClient::list_skills`]. |
+| `enum` | `openclaw::OpenClawError` | `pub enum OpenClawError` | [`crates/vox-openclaw-runtime/src/openclaw.rs#L35-L48`](../../../crates/vox-openclaw-runtime/src/openclaw.rs#L35-L48) | Wire-level errors. |
+| `struct` | `openclaw::PublishResult` | `pub struct PublishResult` | [`crates/vox-openclaw-runtime/src/openclaw.rs#L52-L60`](../../../crates/vox-openclaw-runtime/src/openclaw.rs#L52-L60) | Result returned by [`OpenClawClient::publish_skill`]. |
+| `struct` | `openclaw::OpenClawClient` | `pub struct OpenClawClient` | [`crates/vox-openclaw-runtime/src/openclaw.rs#L63-L67`](../../../crates/vox-openclaw-runtime/src/openclaw.rs#L63-L67) | Client for OpenClaw-compatible HTTP APIs. |
+| `fn` | `openclaw::new` | `pub fn new(cfg: OpenClawRemoteConfig) -> Result<Self, OpenClawError>` | [`crates/vox-openclaw-runtime/src/openclaw.rs#L71-L83`](../../../crates/vox-openclaw-runtime/src/openclaw.rs#L71-L83) | Build a client from configuration. |
+| `fn` | `openclaw::list_skills` | `pub async fn list_skills(&self) -> Result<Vec<OpenClawSkillSpec>, OpenClawError>` | [`crates/vox-openclaw-runtime/src/openclaw.rs#L103-L120`](../../../crates/vox-openclaw-runtime/src/openclaw.rs#L103-L120) | List published skills (`GET /v1/skills`). |
+| `fn` | `openclaw::import_skill` | `pub async fn import_skill(&self, slug: &str) -> Result<ArsSkill, OpenClawError>` | [`crates/vox-openclaw-runtime/src/openclaw.rs#L123-L141`](../../../crates/vox-openclaw-runtime/src/openclaw.rs#L123-L141) | Fetch a skill as [`ArsSkill`] metadata (`GET /v1/skills/{slug}`). |
+| `fn` | `openclaw::import_and_install` | `pub async fn import_and_install(` | [`crates/vox-openclaw-runtime/src/openclaw.rs#L144`](../../../crates/vox-openclaw-runtime/src/openclaw.rs#L144) | Download SKILL.md text and install into `registry`. |
+| `fn` | `openclaw::publish_skill` | `pub async fn publish_skill(` | [`crates/vox-openclaw-runtime/src/openclaw.rs#L163`](../../../crates/vox-openclaw-runtime/src/openclaw.rs#L163) | Publish a Vox skill to an OpenClaw gateway.  `skill_md` should be the AgentSkills-compliant SKILL.md content (top-level `name` + `description`, Vox extensions under `metadata.vox-*`).  Returns the gateway-assigned slug and canonical URL on success. |
+| `enum` | `openclaw_adapter::AgentProvider` | `pub enum AgentProvider` | [`crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L14-L17`](../../../crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L14-L17) | — |
+| `struct` | `openclaw_adapter::AgentRuntimeConfig` | `pub struct AgentRuntimeConfig` | [`crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L20-L26`](../../../crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L20-L26) | — |
+| `struct` | `openclaw_adapter::OpenClawAdapterConfig` | `pub struct OpenClawAdapterConfig` | [`crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L30-L35`](../../../crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L30-L35) | Adapter-level configuration. |
+| `struct` | `openclaw_adapter::OpenClawConnectionOverrides` | `pub struct OpenClawConnectionOverrides` | [`crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L51-L56`](../../../crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L51-L56) | Optional overrides when resolving OpenClaw adapter connection settings. |
+| `fn` | `openclaw_adapter::from_env_defaults` | `pub fn from_env_defaults() -> Self` | [`crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L59-L81`](../../../crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L59-L81) | — |
+| `fn` | `openclaw_adapter::adapter_config_with_token_override` | `pub fn adapter_config_with_token_override(explicit_token: Option<String>) -> OpenClawAdapterConfig` | [`crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L91-L104`](../../../crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L91-L104) | Build adapter config using environment defaults with optional explicit token override.  Token precedence: 1) `explicit_token` when provided and non-empty 2) `VOX_OPENCLAW_TOKEN` from environment 3) no token |
+| `fn` | `openclaw_adapter::resolve_adapter_config` | `pub async fn resolve_adapter_config(` | [`crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L107`](../../../crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L107) | Resolve OpenClaw adapter config using well-known discovery + precedence rules. |
+| `enum` | `openclaw_adapter::OpenClawAdapterError` | `pub enum OpenClawAdapterError` | [`crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L140-L147`](../../../crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L140-L147) | — |
+| `trait` | `openclaw_adapter::AgentRuntimeAdapter` | `pub trait AgentRuntimeAdapter: Send` | [`crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L163-L179`](../../../crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L163-L179) | Common OpenClaw/Hermes operation surface used by CLI, runtime, and MCP integrations. |
+| `struct` | `openclaw_adapter::DefaultOpenClawRuntimeAdapter` | `pub struct DefaultOpenClawRuntimeAdapter` | [`crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L184-L187`](../../../crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L184-L187) | Default adapter implementation that composes existing HTTP skill APIs and WS control plane calls. |
+| `fn` | `openclaw_adapter::connect` | `pub async fn connect(cfg: OpenClawAdapterConfig) -> Result<Self, OpenClawAdapterError>` | [`crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L190-L203`](../../../crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L190-L203) | — |
+| `fn` | `openclaw_adapter::connect_default_runtime_adapter` | `pub async fn connect_default_runtime_adapter(` | [`crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L207`](../../../crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L207) | Canonical runtime/MCP connection entrypoint for OpenClaw adapter setup. |
+| `fn` | `openclaw_adapter::connect_runtime_adapter_with_overrides` | `pub async fn connect_runtime_adapter_with_overrides(` | [`crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L219`](../../../crates/vox-openclaw-runtime/src/openclaw_adapter.rs#L219) | Runtime adapter connect entrypoint that supports explicit URL/well-known overrides. |
+| `struct` | `openclaw_discovery::OpenClawDiscoveryOverrides` | `pub struct OpenClawDiscoveryOverrides` | [`crates/vox-openclaw-runtime/src/openclaw_discovery.rs#L15-L19`](../../../crates/vox-openclaw-runtime/src/openclaw_discovery.rs#L15-L19) | Optional override knobs for discovery resolution. |
+

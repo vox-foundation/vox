@@ -271,7 +271,7 @@ Not replaced by v2 — see `gui-roadmap-remaining.md`: Wave 2–6 IPC allowlist 
 | `secret_rotated`, `signing_key_rotated` | ✅ (Settings) |
 | `orchestrator_first_connect` | ✅ |
 | **policy_rule_toggled** | ❌ Policies enable/disable not implemented |
-| **vox run from GUI terminal** | ❌ distinguish VoxScript vs shell in Console |
+| **vox run from GUI terminal** | ❌ distinguish VoxLang vs shell in Console |
 | **vox skill use** | ❌ when GUI skill invocation ships |
 | **plugin catalog install** | ❌ future |
 | **Matrix routing nudge** | ❌ optional |

@@ -801,6 +801,10 @@ pub enum HirCapability {
     Write,
     /// Calls an external third-party API (`RANK-01`).
     ExternalApi,
+    /// Calls the Python bridge through the verified Tier 1 std surface.
+    Python,
+    /// Calls the Python bridge through the gated Tier 2 escape hatch.
+    PythonUnverified,
     /// `mcp(tool_name)` — parameterized MCP tool call.
     Mcp(String),
     /// `uses nothing` — explicitly pure.
@@ -823,6 +827,8 @@ impl HirCapability {
             Self::Spend => "spend",
             Self::Write => "write",
             Self::ExternalApi => "external_api",
+            Self::Python => "python",
+            Self::PythonUnverified => "python_unverified",
             Self::Mcp(_) => "mcp",
             Self::Nothing => "nothing",
         }

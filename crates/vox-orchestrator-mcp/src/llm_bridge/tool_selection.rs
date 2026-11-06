@@ -228,6 +228,237 @@ fn admissible(
             .any(|prefix| entry.name.starts_with(prefix))
 }
 
+/// Compact default tool-schema budget when spoke-conditioned BM25 + intent ranking is active (`SOTA-TOOLS-03`).
+/// Reduces prompt tool-schema overhead by 50% compared to [`DEFAULT_MAX_TOOLS`] (40 -> 20) while
+/// surfacing 100% of late-alphabet spoke priority tools.
+pub const DEFAULT_RANKED_MAX_TOOLS: usize = 20;
+
+/// Canonical high-signal MCP tools for each [`vox_corpus::training::contract::OrganicSpokeKind`] (`SOTA-TOOLS-02`).
+#[must_use]
+pub fn spoke_priority_tools(
+    spoke: vox_corpus::training::contract::OrganicSpokeKind,
+) -> &'static [&'static str] {
+    use vox_corpus::training::contract::OrganicSpokeKind;
+    match spoke {
+        OrganicSpokeKind::VoxLang => &[
+            "vox_apply_structured_edit",
+            "vox_validate_file",
+            "vox_validate_source",
+            "vox_check",
+            "vox_check_workspace",
+            "vox_repo_query_file",
+            "vox_git_status",
+        ],
+        OrganicSpokeKind::RustWorkspace => &[
+            "vox_apply_structured_edit",
+            "vox_run_tests",
+            "vox_check_workspace",
+            "vox_repo_query_file",
+            "vox_repo_query_text",
+            "vox_validate_file",
+            "vox_git_status",
+        ],
+        OrganicSpokeKind::StructuredShell => &[
+            "vox_repo_status",
+            "vox_repo_query_file",
+            "vox_repo_query_text",
+            "vox_check_workspace",
+            "vox_git_status",
+        ],
+        OrganicSpokeKind::McpToolChain => &[
+            "vox_kb_search",
+            "vox_search_query",
+            "vox_validate_file",
+            "vox_validate_mermaid",
+            "vox_repo_status",
+            "vox_skill_search",
+            "vox_git_status",
+        ],
+        OrganicSpokeKind::AgentHarness => &[
+            "vox_apply_structured_edit",
+            "vox_spawn_agent",
+            "vox_submit_task",
+            "vox_task_status",
+            "vox_verify_task_claims",
+            "vox_repo_status",
+            "vox_git_status",
+        ],
+        OrganicSpokeKind::SpeechToCode => &[
+            "vox_apply_structured_edit",
+            "vox_validate_source",
+            "vox_validate_file",
+            "vox_check",
+            "vox_repo_query_file",
+            "vox_git_status",
+        ],
+        OrganicSpokeKind::PopuliMesh => &[
+            "vox_populi_local_status",
+            "vox_spawn_agent",
+            "vox_submit_task",
+            "vox_task_status",
+            "vox_orchestrator_status",
+            "vox_git_status",
+        ],
+        OrganicSpokeKind::SkillCreation => &[
+            "vox_apply_structured_edit",
+            "vox_skill_search",
+            "vox_skill_list",
+            "vox_skill_info",
+            "vox_skill_parse",
+            "vox_skill_use",
+            "vox_validate_file",
+            "vox_git_status",
+        ],
+    }
+}
+
+/// Core daily-driver tools that receive a baseline relevance boost so generic greetings ("hi")
+/// still include git status, delegation, skill activation, and validation tools.
+const CORE_DAILY_DRIVER_TOOLS: &[&str] = &[
+    "vox_apply_structured_edit",
+    "vox_answer_question",
+    "vox_resolve_approval",
+    "vox_git_status",
+    "vox_skill_use",
+    "vox_skill_list",
+    "vox_skill_search",
+    "vox_spawn_agent",
+    "vox_submit_task",
+    "vox_task_status",
+    "vox_validate_file",
+    "vox_validate_mermaid",
+    "vox_kb_search",
+    "vox_repo_status",
+    "vox_deep_research",
+    "vox_verify_task_claims",
+];
+
+/// Score a candidate [`McpToolRegistryEntry`] for a user turn using spoke priority, explicit pins,
+/// exact identifier mention, and lexical BM25-style token overlap (`SOTA-TOOLS-01`, `SOTA-WRITE-PRIORITY-01..02`).
+#[must_use]
+pub fn score_tool_relevance_for_turn(
+    entry: &McpToolRegistryEntry,
+    user_prompt: &str,
+    spoke: vox_corpus::training::contract::OrganicSpokeKind,
+    is_pinned: bool,
+) -> i32 {
+    let mut score = 0i32;
+    if is_pinned {
+        score += 1_000;
+    }
+    if spoke_priority_tools(spoke).contains(&entry.name) {
+        score += 220;
+    }
+    if CORE_DAILY_DRIVER_TOOLS.contains(&entry.name) {
+        score += 50;
+    }
+
+    let prompt_lower = user_prompt.to_ascii_lowercase();
+    let name_lower = entry.name.to_ascii_lowercase();
+    let desc_lower = entry.description.to_ascii_lowercase();
+
+    if prompt_lower.contains(&name_lower) {
+        score += 300;
+    }
+
+    let mut has_mutation_intent = false;
+    for raw_tok in prompt_lower.split(|c: char| !c.is_ascii_alphanumeric() && c != '_') {
+        if matches!(
+            raw_tok,
+            "fix"
+                | "add"
+                | "create"
+                | "update"
+                | "implement"
+                | "refactor"
+                | "write"
+                | "patch"
+                | "replace"
+                | "modify"
+        ) {
+            has_mutation_intent = true;
+        }
+        if raw_tok.len() < 3
+            || matches!(
+                raw_tok,
+                "the" | "and" | "for" | "with" | "that" | "this" | "can" | "you" | "how" | "what"
+            )
+        {
+            continue;
+        }
+        if name_lower.contains(raw_tok) {
+            score += 40;
+        }
+        if desc_lower.contains(raw_tok) {
+            score += 15;
+        }
+    }
+
+    if has_mutation_intent
+        && matches!(
+            entry.name,
+            "vox_apply_structured_edit" | "vox_generate_code" | "vox_repo_query_file"
+        )
+    {
+        score += 120;
+    }
+
+    score
+}
+
+/// Spoke-conditioned, relevance-ranked tool selector (`SOTA-TOOLS-01..04`).
+///
+/// Replaces blind alphabetical `.take(max_tools)` truncation with deterministic spoke + lexical
+/// relevance ranking so late-alphabet tools (`vox_validate_file`, `vox_kb_search`, `vox_repo_status`,
+/// `vox_skill_search`, `vox_spawn_agent`) are always surfaced when needed, while allowing callers
+/// to use a smaller `max_tools` window (`DEFAULT_RANKED_MAX_TOOLS = 20`) to save ~50% schema tokens.
+#[must_use]
+pub fn select_tools_for_turn_ranked(
+    registry: &'static [McpToolRegistryEntry],
+    skill_registry: &SkillRegistry,
+    ctx: &TurnContext,
+    user_prompt: &str,
+    prior_spoke: Option<vox_corpus::training::contract::OrganicSpokeKind>,
+) -> (
+    Vec<&'static McpToolRegistryEntry>,
+    vox_corpus::training::contract::OrganicSpokeKind,
+    vox_orchestrator::models::ConversationalTurnMode,
+) {
+    let (classified_spoke, _score, _runner_up, _ru_score, _signals, turn_mode, _used_ctx) =
+        vox_orchestrator::models::ModelRegistry::score_conversational_turn_across_spokes(
+            user_prompt,
+            prior_spoke,
+        );
+    let priority_set = spoke_priority_tools(classified_spoke);
+
+    let mut scored: Vec<(i32, usize, &'static McpToolRegistryEntry)> = registry
+        .iter()
+        .enumerate()
+        .filter(|(_, entry)| admissible(skill_registry, ctx, entry))
+        .filter(|(_, entry)| {
+            ctx.lane_allowed(entry.product_lane)
+                || priority_set.contains(&entry.name)
+                || CORE_DAILY_DRIVER_TOOLS.contains(&entry.name)
+        })
+        .map(|(idx, entry)| {
+            let is_pinned = ctx.pin_names.contains(&entry.name);
+            let rel =
+                score_tool_relevance_for_turn(entry, user_prompt, classified_spoke, is_pinned);
+            (rel, idx, entry)
+        })
+        .collect();
+
+    scored.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+
+    let selected = scored
+        .into_iter()
+        .take(ctx.max_tools)
+        .map(|(_, _, entry)| entry)
+        .collect();
+
+    (selected, classified_spoke, turn_mode)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -534,6 +765,121 @@ mod tests {
         }
     }
 
+    #[test]
+    fn ranked_tool_selection_recalls_late_alphabet_tools_across_all_eight_spokes_at_half_cap() {
+        use vox_corpus::training::contract::OrganicSpokeKind;
+
+        let reg = new_registry_arc();
+        let unpinned_ctx = TurnContext {
+            max_tools: DEFAULT_RANKED_MAX_TOOLS, // 20 tools (50% reduction vs 40)
+            exclude_name_prefixes: vec!["vox_chat_"],
+            pin_names: vec![],
+            ..TurnContext::default()
+        };
+
+        let cases: [(&str, OrganicSpokeKind, &str); 8] = [
+            (
+                "Hey! Can you help me plan out the steps we should take first?",
+                OrganicSpokeKind::AgentHarness,
+                "vox_spawn_agent",
+            ),
+            (
+                "Before we write code, can you check the knowledge base to see if @island is supported?",
+                OrganicSpokeKind::McpToolChain,
+                "vox_kb_search",
+            ),
+            (
+                "Can you check what example .vox files are in the examples/golden folder and how big they are?",
+                OrganicSpokeKind::StructuredShell,
+                "vox_repo_status",
+            ),
+            (
+                "I'm dictating this on my phone: um define actor build monitor on record count int to int",
+                OrganicSpokeKind::SpeechToCode,
+                "vox_validate_source",
+            ),
+            (
+                "In that .vox file, can you add a TelemetryRow table and a record_sample workflow?",
+                OrganicSpokeKind::VoxLang,
+                "vox_validate_file",
+            ),
+            (
+                "Now we need a fast Rust helper function sliding_window_max over a slice of numbers.",
+                OrganicSpokeKind::RustWorkspace,
+                "vox_run_tests",
+            ),
+            (
+                "Let's save what we just built as a reusable skill so the rest of the team and other agents can use it.",
+                OrganicSpokeKind::SkillCreation,
+                "vox_skill_search",
+            ),
+            (
+                "Finally, let's deploy what we just built across 3 GPU worker nodes with 24GB VRAM on our cluster!",
+                OrganicSpokeKind::PopuliMesh,
+                "vox_populi_local_status",
+            ),
+        ];
+
+        // Prove baseline alphabetical selector (at 40 tools, unpinned) misses late-alphabet tools
+        let alpha_ctx = TurnContext {
+            max_tools: DEFAULT_MAX_TOOLS,
+            exclude_name_prefixes: vec!["vox_chat_"],
+            pin_names: vec![],
+            ..TurnContext::default()
+        };
+        let alpha_selected = select_tools_for_turn(TOOL_REGISTRY, &reg, &alpha_ctx);
+        let alpha_names: HashSet<&str> = alpha_selected.iter().map(|t| t.name).collect();
+        let mut alpha_hits = 0usize;
+        for (_, _, required_tool) in &cases {
+            if alpha_names.contains(required_tool) {
+                alpha_hits += 1;
+            }
+        }
+        assert_eq!(
+            alpha_hits, 0,
+            "baseline alphabetical 40-tool cut misses all 8 late-alphabet spoke tools"
+        );
+
+        // Prove spoke-ranked selector (at 20 tools, 50% smaller schema payload) hits 8/8 (100% recall)
+        for (prompt, expected_spoke, required_tool) in cases {
+            let (selected, classified_spoke, _mode) =
+                select_tools_for_turn_ranked(TOOL_REGISTRY, &reg, &unpinned_ctx, prompt, None);
+            assert_eq!(classified_spoke, expected_spoke);
+            assert!(selected.len() <= DEFAULT_RANKED_MAX_TOOLS);
+            let names: HashSet<&str> = selected.iter().map(|t| t.name).collect();
+            assert!(
+                names.contains(required_tool),
+                "spoke {:?} ranked selection must include `{required_tool}` within top {} tools (got: {:?})",
+                expected_spoke,
+                DEFAULT_RANKED_MAX_TOOLS,
+                selected.iter().map(|t| t.name).collect::<Vec<_>>()
+            );
+        }
+
+        // Phase 163 (`SOTA-WRITE-PRIORITY-01..04`): Natural-language mutation prompts without
+        // the literal word "edit" must rank `vox_apply_structured_edit` in the primary full-schema tier (`rank < 8`).
+        for mutation_prompt in [
+            "Fix the lifetime borrow error in crates/vox-orchestrator/src/models/select.rs",
+            "Add a /health server route and counter component to src/main.vox",
+            "Refactor the SKILL.md frontmatter for our new audit skill",
+        ] {
+            let (selected, _spoke, _mode) = select_tools_for_turn_ranked(
+                TOOL_REGISTRY,
+                &reg,
+                &unpinned_ctx,
+                mutation_prompt,
+                None,
+            );
+            let edit_rank = selected
+                .iter()
+                .position(|t| t.name == "vox_apply_structured_edit")
+                .expect("vox_apply_structured_edit must be included in top 20 tools");
+            assert!(
+                edit_rank < 8,
+                "vox_apply_structured_edit must rank in the primary full-schema tier (< 8) for `{mutation_prompt}`, got rank {edit_rank}"
+            );
+        }
+    }
     fn chat_turn(query: &str) -> TurnContext {
         TurnContext {
             exclude_name_prefixes: vec!["vox_chat_"],

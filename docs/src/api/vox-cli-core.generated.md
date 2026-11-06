@@ -90,3 +90,105 @@ Shared library for CLI primitives.
 | `init_tracing_for_cli` | Initialize [`tracing`] for CLI tools. |
 | `apply_global_opts` | Apply global opts to the environment. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_cli_core: "vox-cli-core"
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_cli_core -> vox_bounded_fs
+    node vox_config: "vox-config"
+    vox_cli_core -> vox_config
+    node vox_db: "vox-db"
+    vox_cli_core -> vox_db
+    node vox_foundation: "vox-foundation"
+    vox_cli_core -> vox_foundation
+    node vox_gamify: "vox-gamify"
+    vox_cli_core -> vox_gamify
+    node vox_jsonschema_util: "vox-jsonschema-util"
+    vox_cli_core -> vox_jsonschema_util
+    node vox_orchestrator: "vox-orchestrator"
+    vox_cli_core -> vox_orchestrator
+    node vox_orchestrator_driver: "vox-orchestrator-driver"
+    vox_cli_core -> vox_orchestrator_driver
+    node vox_repository: "vox-repository"
+    vox_cli_core -> vox_repository
+    node vox_secrets: "vox-secrets"
+    vox_cli_core -> vox_secrets
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_cli_core
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_cli_core
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_cli_core
+    node vox_langtool: "vox-langtool"
+    vox_langtool -> vox_cli_core
+    node vox_ml_cli: "vox-ml-cli"
+    vox_ml_cli -> vox_cli_core
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_cli_core
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-langtool`](./vox-langtool.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `GlobalOpts` | `pub struct GlobalOpts` | [`crates/vox-cli-core/src/lib.rs#L33-L46`](../../../crates/vox-cli-core/src/lib.rs#L33-L46) | Global flags available before every subcommand. |
+| `fn` | `init_tracing_for_cli` | `pub fn init_tracing_for_cli()` | [`crates/vox-cli-core/src/lib.rs#L49-L51`](../../../crates/vox-cli-core/src/lib.rs#L49-L51) | Initialize [`tracing`] for CLI tools. |
+| `fn` | `apply_global_opts` | `pub fn apply_global_opts(opts: &GlobalOpts)` | [`crates/vox-cli-core/src/lib.rs#L54-L58`](../../../crates/vox-cli-core/src/lib.rs#L54-L58) | Apply global opts to the environment. |
+| `enum` | `artifact_policy::ArtifactClass` | `pub enum ArtifactClass` | [`crates/vox-cli-core/src/artifact_policy.rs#L5-L13`](../../../crates/vox-cli-core/src/artifact_policy.rs#L5-L13) | — |
+| `enum` | `artifact_policy::TargetLane` | `pub enum TargetLane` | [`crates/vox-cli-core/src/artifact_policy.rs#L16-L22`](../../../crates/vox-cli-core/src/artifact_policy.rs#L16-L22) | — |
+| `fn` | `artifact_policy::canonical_workspace_target` | `pub fn canonical_workspace_target(root: &Path) -> PathBuf` | [`crates/vox-cli-core/src/artifact_policy.rs#L24-L28`](../../../crates/vox-cli-core/src/artifact_policy.rs#L24-L28) | — |
+| `fn` | `artifact_policy::transient_lane_roots` | `pub fn transient_lane_roots(root: &Path) -> [PathBuf; 2]` | [`crates/vox-cli-core/src/artifact_policy.rs#L43-L46`](../../../crates/vox-cli-core/src/artifact_policy.rs#L43-L46) | Isolated Cargo target dirs for this repo under OS temp (`…/vox-targets/<hash>/…`). |
+| `fn` | `artifact_policy::ci_nested_target` | `pub fn ci_nested_target(root: &Path) -> PathBuf` | [`crates/vox-cli-core/src/artifact_policy.rs#L48-L52`](../../../crates/vox-cli-core/src/artifact_policy.rs#L48-L52) | — |
+| `fn` | `artifact_policy::gate_isolated_target` | `pub fn gate_isolated_target(root: &Path) -> PathBuf` | [`crates/vox-cli-core/src/artifact_policy.rs#L54-L58`](../../../crates/vox-cli-core/src/artifact_policy.rs#L54-L58) | — |
+| `fn` | `artifact_policy::is_allowed_artifact_path` | `pub fn is_allowed_artifact_path(path: &Path, root: &Path) -> bool` | [`crates/vox-cli-core/src/artifact_policy.rs#L61-L102`](../../../crates/vox-cli-core/src/artifact_policy.rs#L61-L102) | True when `path` may be used as `CARGO_TARGET_DIR` (or similar) for this workspace. |
+| `fn` | `benchmark_telemetry::record_opt` | `pub async fn record_opt(name: &str, metric_value: Option<f64>, details: Option<serde_json::Value>)` | [`crates/vox-cli-core/src/benchmark_telemetry.rs#L40-L53`](../../../crates/vox-cli-core/src/benchmark_telemetry.rs#L40-L53) | Async: connect and write one benchmark row. |
+| `fn` | `benchmark_telemetry::record_opt_blocking` | `pub fn record_opt_blocking(` | [`crates/vox-cli-core/src/benchmark_telemetry.rs#L56`](../../../crates/vox-cli-core/src/benchmark_telemetry.rs#L56) | Blocking variant for sync CLI paths. |
+| `fn` | `build_service::set_correlation_id` | `pub fn set_correlation_id(id: String)` | [`crates/vox-cli-core/src/build_service.rs#L14-L16`](../../../crates/vox-cli-core/src/build_service.rs#L14-L16) | — |
+| `struct` | `build_service::PeriodicWaitLogger` | `pub struct PeriodicWaitLogger` | [`crates/vox-cli-core/src/build_service.rs#L18`](../../../crates/vox-cli-core/src/build_service.rs#L18) | — |
+| `fn` | `build_service::start` | `pub fn start() -> Self` | [`crates/vox-cli-core/src/build_service.rs#L21-L23`](../../../crates/vox-cli-core/src/build_service.rs#L21-L23) | — |
+| `fn` | `build_service::log_spawn_start` | `pub fn log_spawn_start(` | [`crates/vox-cli-core/src/build_service.rs#L26`](../../../crates/vox-cli-core/src/build_service.rs#L26) | — |
+| `fn` | `build_service::log_spawn_complete` | `pub fn log_spawn_complete(` | [`crates/vox-cli-core/src/build_service.rs#L44`](../../../crates/vox-cli-core/src/build_service.rs#L44) | — |
+| `struct` | `build_service::CargoRequest` | `pub struct CargoRequest` | [`crates/vox-cli-core/src/build_service.rs#L82-L95`](../../../crates/vox-cli-core/src/build_service.rs#L82-L95) | Request for a Cargo invocation (BL064). |
+| `fn` | `build_service::build` | `pub fn build(cwd: PathBuf, target_dir: Option<PathBuf>, args: impl Into<Vec<String>>) -> Self` | [`crates/vox-cli-core/src/build_service.rs#L99-L109`](../../../crates/vox-cli-core/src/build_service.rs#L99-L109) | Create a build request. |
+| `fn` | `build_service::check` | `pub fn check(cwd: PathBuf, target_dir: Option<PathBuf>) -> Self` | [`crates/vox-cli-core/src/build_service.rs#L112-L122`](../../../crates/vox-cli-core/src/build_service.rs#L112-L122) | Create a check request. |
+| `fn` | `build_service::test` | `pub fn test(cwd: PathBuf, target_dir: Option<PathBuf>, args: impl Into<Vec<String>>) -> Self` | [`crates/vox-cli-core/src/build_service.rs#L125-L135`](../../../crates/vox-cli-core/src/build_service.rs#L125-L135) | Create a test request. |
+| `fn` | `build_service::run` | `pub fn run(` | [`crates/vox-cli-core/src/build_service.rs#L138`](../../../crates/vox-cli-core/src/build_service.rs#L138) | Create a run request. |
+| `fn` | `build_service::run_cargo` | `pub fn run_cargo(req: &CargoRequest) -> Result<Output>` | [`crates/vox-cli-core/src/build_service.rs#L157-L222`](../../../crates/vox-cli-core/src/build_service.rs#L157-L222) | Run a Cargo command with telemetry and return output (BL060). |
+| `fn` | `build_service::run_cargo_status` | `pub fn run_cargo_status(req: &CargoRequest) -> Result<std::process::ExitStatus>` | [`crates/vox-cli-core/src/build_service.rs#L225-L227`](../../../crates/vox-cli-core/src/build_service.rs#L225-L227) | Run cargo and return status (for fire-and-forget or status-only callers). |
+| `fn` | `build_service::run_cargo_inherit` | `pub fn run_cargo_inherit(req: &CargoRequest) -> Result<std::process::ExitStatus>` | [`crates/vox-cli-core/src/build_service.rs#L230-L295`](../../../crates/vox-cli-core/src/build_service.rs#L230-L295) | Run cargo with inherited stdout/stderr (for bundle UX). No stderr capture for telemetry. |
+| `struct` | `build_service::MonitoredCargoChildSync` | `pub struct MonitoredCargoChildSync` | [`crates/vox-cli-core/src/build_service.rs#L298-L313`](../../../crates/vox-cli-core/src/build_service.rs#L298-L313) | Sync wrapper that logs spawn completion when the child exits (Wave 3). |
+| `fn` | `build_service::wait` | `pub fn wait(&mut self) -> std::io::Result<std::process::ExitStatus>` | [`crates/vox-cli-core/src/build_service.rs#L317-L331`](../../../crates/vox-cli-core/src/build_service.rs#L317-L331) | Wait for the child and log completion. |
+| `fn` | `build_service::run_cargo_spawn` | `pub fn run_cargo_spawn(req: &CargoRequest) -> Result<MonitoredCargoChildSync>` | [`crates/vox-cli-core/src/build_service.rs#L360-L420`](../../../crates/vox-cli-core/src/build_service.rs#L360-L420) | Spawn cargo and return monitored std child (sync). Logs completion on exit (Wave 3). |
+| `struct` | `build_service::MonitoredCargoChild` | `pub struct MonitoredCargoChild` | [`crates/vox-cli-core/src/build_service.rs#L423-L438`](../../../crates/vox-cli-core/src/build_service.rs#L423-L438) | Wrapper that logs spawn completion when the child exits (Wave 3). |
+| `fn` | `build_service::kill` | `pub async fn kill(&mut self) -> std::io::Result<()>` | [`crates/vox-cli-core/src/build_service.rs#L442-L460`](../../../crates/vox-cli-core/src/build_service.rs#L442-L460) | Kill the child, wait for exit, and log completion. |
+| `fn` | `build_service::wait` | `pub async fn wait(&mut self) -> Result<std::process::ExitStatus>` | [`crates/vox-cli-core/src/build_service.rs#L463-L481`](../../../crates/vox-cli-core/src/build_service.rs#L463-L481) | Wait for the child and log completion. |
+| `fn` | `build_service::run_cargo_spawn_async` | `pub async fn run_cargo_spawn_async(req: &CargoRequest) -> Result<MonitoredCargoChild>` | [`crates/vox-cli-core/src/build_service.rs#L511-L571`](../../../crates/vox-cli-core/src/build_service.rs#L511-L571) | Spawn cargo and return monitored tokio child (async, for dev/watch). Logs completion on exit (Wave 3). |
+| `enum` | `cli_actions::ArchitectAction` | `pub enum ArchitectAction` | [`crates/vox-cli-core/src/cli_actions.rs#L6-L19`](../../../crates/vox-cli-core/src/cli_actions.rs#L6-L19) | — |
+| `enum` | `cli_actions::WorkflowAction` | `pub enum WorkflowAction` | [`crates/vox-cli-core/src/cli_actions.rs#L22-L53`](../../../crates/vox-cli-core/src/cli_actions.rs#L22-L53) | — |
+| `enum` | `cli_args::BuildMode` | `pub enum BuildMode` | [`crates/vox-cli-core/src/cli_args.rs#L8-L14`](../../../crates/vox-cli-core/src/cli_args.rs#L8-L14) | Build mode (`app` or `library`). |
+| `enum` | `cli_args::BundleMode` | `pub enum BundleMode` | [`crates/vox-cli-core/src/cli_args.rs#L18-L24`](../../../crates/vox-cli-core/src/cli_args.rs#L18-L24) | Bundling mode: `app` (web + backend) or `script` (binary only). |
+| `enum` | `cli_args::CompileKind` | `pub enum CompileKind` | [`crates/vox-cli-core/src/cli_args.rs#L29-L45`](../../../crates/vox-cli-core/src/cli_args.rs#L29-L45) | `vox compile --target …` packaging lane. |
+| `enum` | `cli_args::UpgradeLane` | `pub enum UpgradeLane` | [`crates/vox-cli-core/src/cli_args.rs#L49-L55`](../../../crates/vox-cli-core/src/cli_args.rs#L49-L55) | `vox upgrade` lane: release binary vs local repository checkout. |
+| `fn` | `command_contract::merged_feature_gate_from_vox_cli_ops` | `pub fn merged_feature_gate_from_vox_cli_ops(` | [`crates/vox-cli-core/src/command_contract.rs#L30`](../../../crates/vox-cli-core/src/command_contract.rs#L30) | Merge `feature_gate` from all **`vox-cli`** registry rows sharing this path (stable dedupe). |
+| `fn` | `command_contract::merged_feature_gate` | `pub fn merged_feature_gate(path: &[String]) -> Option<String>` | [`crates/vox-cli-core/src/command_contract.rs#L64-L66`](../../../crates/vox-cli-core/src/command_contract.rs#L64-L66) | Merge `feature_gate` from all registry rows sharing this path (stable dedupe). |
+| `fn` | `command_contract::catalog_source_group` | `pub fn catalog_source_group(path: &[String]) -> String` | [`crates/vox-cli-core/src/command_contract.rs#L126-L134`](../../../crates/vox-cli-core/src/command_contract.rs#L126-L134) | `source_group` for `vox commands` JSON/text (registry-first, then heuristic). |
+| `fn` | `command_contract::fallback_source_group` | `pub fn fallback_source_group(path: &[String]) -> String` | [`crates/vox-cli-core/src/command_contract.rs#L150-L177`](../../../crates/vox-cli-core/src/command_contract.rs#L150-L177) | When no registry row matches this exact path (e.g. `fabrica build` shim), infer lane from the first segment. |
+| `struct` | `command_registry_model::RegistryFile` | `pub struct RegistryFile` | [`crates/vox-cli-core/src/command_registry_model.rs#L7-L14`](../../../crates/vox-cli-core/src/command_registry_model.rs#L7-L14) | — |
+| `struct` | `command_registry_model::RegistryOperation` | `pub struct RegistryOperation` | [`crates/vox-cli-core/src/command_registry_model.rs#L17-L39`](../../../crates/vox-cli-core/src/command_registry_model.rs#L17-L39) | — |
+| `struct` | `command_registry_model::ScriptDual` | `pub struct ScriptDual` | [`crates/vox-cli-core/src/command_registry_model.rs#L42-L45`](../../../crates/vox-cli-core/src/command_registry_model.rs#L42-L45) | — |
+

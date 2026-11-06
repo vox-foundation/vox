@@ -331,7 +331,8 @@ CREATE INDEX IF NOT EXISTS idx_scientia_nanopubs_claim ON scientia_nanopubs(clai
 CREATE TABLE IF NOT EXISTS scientia_embedding_cache (
     text_sha256   TEXT    PRIMARY KEY,
     model         TEXT    NOT NULL,
-    vector_json   TEXT    NOT NULL,
+    vector_json   TEXT    NOT NULL DEFAULT '[]',
+    vector_blob   BLOB,
     created_at_ms INTEGER NOT NULL
 );
 
@@ -442,6 +443,8 @@ CREATE TABLE IF NOT EXISTS scientia_harness_decisions (
     reason         TEXT,
     decided_at_ms  INTEGER NOT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_scientia_harness_decisions_issue
+    ON scientia_harness_decisions(issue_id);
 
 -- Dispatch-to-fix proposals for corpus-fixable confirmed issues (v1: those
 -- with a non-null target_path). proposed_content is the full replacement
@@ -461,6 +464,8 @@ CREATE TABLE IF NOT EXISTS scientia_harness_fix_proposals (
     proposed_at_ms   INTEGER NOT NULL,
     resolved_at_ms   INTEGER
 );
+CREATE INDEX IF NOT EXISTS idx_scientia_harness_fix_proposals_issue
+    ON scientia_harness_fix_proposals(issue_id);
 
 CREATE TABLE IF NOT EXISTS research_misguidance_events (
     id                     INTEGER PRIMARY KEY AUTOINCREMENT,

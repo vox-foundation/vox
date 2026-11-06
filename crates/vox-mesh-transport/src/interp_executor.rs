@@ -1,4 +1,4 @@
-//! Bounded VoxScript child: interpreter isolation plus a process boundary.
+//! Bounded VoxLang child: interpreter isolation plus a process boundary.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -106,7 +106,7 @@ impl Drop for RunningJobGuard<'_> {
     }
 }
 
-/// Runs mesh-received VoxScript as `vox run --mode interp` under trust-mapped caps.
+/// Runs mesh-received VoxLang as `vox run --mode interp` under trust-mapped caps.
 pub struct InterpExecutor {
     trust: Arc<MeshTrust>,
     vox: PathBuf,

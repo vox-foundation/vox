@@ -33,3 +33,23 @@ Capability registry: transport-independent SSOT in [`contracts/capability/capabi
 - [`crate::manifest::build_model_manifest`] emits planner / external-model JSON.
 
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_capability_registry: "vox-capability-registry"
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_capability_registry
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_capability_registry
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+

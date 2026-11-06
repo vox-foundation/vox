@@ -38,7 +38,17 @@ export function rewriteImageUrl(url, fromFile, ctx) {
   }
 
   const fromDir = dirname(fromFile);
-  const absTarget = resolve(fromDir, decodedPath);
+  let absTarget = resolve(fromDir, decodedPath);
+  if (!existsSync(absTarget)) {
+    const ext = extname(absTarget).toLowerCase();
+    if (ext === '.md') {
+      const altMdx = `${absTarget.slice(0, -3)}.mdx`;
+      if (existsSync(altMdx)) absTarget = altMdx;
+    } else if (ext === '.mdx') {
+      const altMd = `${absTarget.slice(0, -4)}.md`;
+      if (existsSync(altMd)) absTarget = altMd;
+    }
+  }
 
   const relToRepo = relative(ctx.repoRoot, absTarget).replace(/\\/g, '/');
   if (relToRepo.startsWith('..') || isAbsolute(relToRepo)) {
@@ -107,14 +117,26 @@ export function resolveDocLink(url, fromFile, ctx) {
   }
 
   const fromDir = dirname(fromFile);
-  const absTarget = resolve(fromDir, decodedPath);
+  let absTarget = resolve(fromDir, decodedPath);
 
-  // Check if target escapes repository root
-  const relToRepo = relative(ctx.repoRoot, absTarget).replace(/\\/g, '/');
+  // Check if target escapes repository root before any filesystem probing
+  let relToRepo = relative(ctx.repoRoot, absTarget).replace(/\\/g, '/');
   if (relToRepo.startsWith('..') || isAbsolute(relToRepo)) {
     throw new Error(
       `remark-doc-links: Link '${url}' in '${fromFile}' resolves outside repository root: '${absTarget}'`
     );
+  }
+
+  if (!existsSync(absTarget)) {
+    const ext = extname(absTarget).toLowerCase();
+    if (ext === '.md') {
+      const altMdx = `${absTarget.slice(0, -3)}.mdx`;
+      if (existsSync(altMdx)) absTarget = altMdx;
+    } else if (ext === '.mdx') {
+      const altMd = `${absTarget.slice(0, -4)}.md`;
+      if (existsSync(altMd)) absTarget = altMd;
+    }
+    relToRepo = relative(ctx.repoRoot, absTarget).replace(/\\/g, '/');
   }
 
   const relToDocs = relative(ctx.docsSrc, absTarget).replace(/\\/g, '/');

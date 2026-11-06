@@ -55,6 +55,7 @@ impl InferenceContext {
                 }
             }
             Ty::List(inner) => Ty::List(Box::new(self.resolve(inner))),
+            Ty::Array(inner) => Ty::Array(Box::new(self.resolve(inner))),
             Ty::Option(inner) => Ty::Option(Box::new(self.resolve(inner))),
             Ty::Result(ok, err) => {
                 Ty::Result(Box::new(self.resolve(ok)), Box::new(self.resolve(err)))
@@ -115,6 +116,7 @@ impl InferenceContext {
         match ty {
             Ty::GenericParam(id) => map.entry(id).or_insert_with(|| self.fresh_var()).clone(),
             Ty::List(inner) => Ty::List(Box::new(self.instantiate_inner(*inner, map))),
+            Ty::Array(inner) => Ty::Array(Box::new(self.instantiate_inner(*inner, map))),
             Ty::Option(inner) => Ty::Option(Box::new(self.instantiate_inner(*inner, map))),
             Ty::Result(ok, err) => Ty::Result(
                 Box::new(self.instantiate_inner(*ok, map)),
@@ -167,9 +169,11 @@ impl InferenceContext {
     fn occurs(&self, id: u32, ty: &Ty) -> bool {
         match self.resolve(ty) {
             Ty::TypeVar(other_id) => id == other_id,
-            Ty::List(inner) | Ty::Set(inner) | Ty::Stream(inner) | Ty::Option(inner) => {
-                self.occurs(id, &inner)
-            }
+            Ty::List(inner)
+            | Ty::Set(inner)
+            | Ty::Stream(inner)
+            | Ty::Option(inner)
+            | Ty::Array(inner) => self.occurs(id, &inner),
             Ty::Result(ok, err) => self.occurs(id, &ok) || self.occurs(id, &err),
             Ty::Map(k, v) => self.occurs(id, &k) || self.occurs(id, &v),
             Ty::Tuple(elems) => elems.iter().any(|e| self.occurs(id, e)),
@@ -234,6 +238,7 @@ impl InferenceContext {
                 Ok(())
             }
             (Ty::List(a_inner), Ty::List(b_inner)) => self.unify(a_inner, b_inner),
+            (Ty::Array(a_inner), Ty::Array(b_inner)) => self.unify(a_inner, b_inner),
             (Ty::Option(a_inner), Ty::Option(b_inner)) => self.unify(a_inner, b_inner),
             (Ty::Result(a_ok, a_err), Ty::Result(b_ok, b_err)) => {
                 self.unify(a_ok, b_ok)?;

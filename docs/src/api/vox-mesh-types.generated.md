@@ -52,3 +52,103 @@ Pure-types L0 leaf for the populi/mesh subsystem (a2a envelopes, donation policy
 | `tee_attestation` | TEE attestation envelope (P6-T5). |
 | `trace` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_mesh_types: "vox-mesh-types"
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_mesh_types
+    node vox_db: "vox-db"
+    vox_db -> vox_mesh_types
+    node vox_gamify: "vox-gamify"
+    vox_gamify -> vox_mesh_types
+    node vox_mesh_policy: "vox-mesh-policy"
+    vox_mesh_policy -> vox_mesh_types
+    node vox_mesh_transport: "vox-mesh-transport"
+    vox_mesh_transport -> vox_mesh_types
+    node vox_ml_cli: "vox-ml-cli"
+    vox_ml_cli -> vox_mesh_types
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_mesh_types
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_mesh_types
+    node vox_plugin_populi_mesh: "vox-plugin-populi-mesh"
+    vox_plugin_populi_mesh -> vox_mesh_types
+    node vox_populi: "vox-populi"
+    vox_populi -> vox_mesh_types
+    node vox_populi_types: "vox-populi-types"
+    vox_populi_types -> vox_mesh_types
+    node vox_scaling_policy: "vox-scaling-policy"
+    vox_scaling_policy -> vox_mesh_types
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
+| [`vox-gamify`](./vox-gamify.generated.md) | Direct workspace dependent |
+| [`vox-mesh-policy`](./vox-mesh-policy.generated.md) | Direct workspace dependent |
+| [`vox-mesh-transport`](./vox-mesh-transport.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-plugin-populi-mesh`](./vox-plugin-populi-mesh.generated.md) | Direct workspace dependent |
+| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
+| [`vox-populi-types`](./vox-populi-types.generated.md) | Direct workspace dependent |
+| [`vox-scaling-policy`](./vox-scaling-policy.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `a2a::A2ADeliverRequest` | `pub struct A2ADeliverRequest` | [`crates/vox-mesh-types/src/a2a.rs#L7-L43`](../../../crates/vox-mesh-types/src/a2a.rs#L7-L43) | Request to deliver an A2A message to a local agent. |
+| `struct` | `attestation::Attestation` | `pub struct Attestation` | [`crates/vox-mesh-types/src/attestation.rs#L8-L37`](../../../crates/vox-mesh-types/src/attestation.rs#L8-L37) | Signed result attestation produced by a worker for each completed task.  The worker signs a canonical JSON payload containing all fields except `signature_b64` itself, using a per-job ephemeral Ed25519 key. |
+| `struct` | `attestation_manifest::SupportedTask` | `pub struct SupportedTask` | [`crates/vox-mesh-types/src/attestation_manifest.rs#L16-L25`](../../../crates/vox-mesh-types/src/attestation_manifest.rs#L16-L25) | A task kind + capability declaration inside a manifest. |
+| `struct` | `attestation_manifest::PublicAttestationManifest` | `pub struct PublicAttestationManifest` | [`crates/vox-mesh-types/src/attestation_manifest.rs#L30-L47`](../../../crates/vox-mesh-types/src/attestation_manifest.rs#L30-L47) | Signed public attestation manifest published by a node to announce its identity, capabilities, and trust relationships. |
+| `fn` | `attestation_manifest::canonical_signing_bytes` | `pub fn canonical_signing_bytes(&self) -> serde_json::Result<Vec<u8>>` | [`crates/vox-mesh-types/src/attestation_manifest.rs#L51-L60`](../../../crates/vox-mesh-types/src/attestation_manifest.rs#L51-L60) | Return the canonical bytes to sign (all fields, `signature_b64` zeroed). |
+| `enum` | `attestation_manifest::ManifestVerifyError` | `pub enum ManifestVerifyError` | [`crates/vox-mesh-types/src/attestation_manifest.rs#L87-L100`](../../../crates/vox-mesh-types/src/attestation_manifest.rs#L87-L100) | Errors that can occur when verifying a `PublicAttestationManifest`. |
+| `struct` | `attestation_manifest::AttestationCache` | `pub struct AttestationCache` | [`crates/vox-mesh-types/src/attestation_manifest.rs#L109-L113`](../../../crates/vox-mesh-types/src/attestation_manifest.rs#L109-L113) | In-memory cache of fetched and verified attestation manifests, keyed by `node_id`. Callers should re-fetch after the `ttl_secs` window. |
+| `fn` | `attestation_manifest::with_ttl` | `pub fn with_ttl(ttl_secs: u64) -> Self` | [`crates/vox-mesh-types/src/attestation_manifest.rs#L124-L129`](../../../crates/vox-mesh-types/src/attestation_manifest.rs#L124-L129) | Create a new cache with the given TTL. |
+| `fn` | `attestation_manifest::insert` | `pub fn insert(&mut self, manifest: PublicAttestationManifest, now_unix_s: u64)` | [`crates/vox-mesh-types/src/attestation_manifest.rs#L132-L140`](../../../crates/vox-mesh-types/src/attestation_manifest.rs#L132-L140) | Insert or replace a manifest for the given node_id. |
+| `fn` | `attestation_manifest::get` | `pub fn get(&self, node_id: &str, now_unix_s: u64) -> Option<&PublicAttestationManifest>` | [`crates/vox-mesh-types/src/attestation_manifest.rs#L143-L152`](../../../crates/vox-mesh-types/src/attestation_manifest.rs#L143-L152) | Retrieve a non-expired manifest by node_id. |
+| `fn` | `attestation_manifest::evict_stale` | `pub fn evict_stale(&mut self, now_unix_s: u64)` | [`crates/vox-mesh-types/src/attestation_manifest.rs#L155-L161`](../../../crates/vox-mesh-types/src/attestation_manifest.rs#L155-L161) | Evict all entries older than `ttl_secs`. |
+| `fn` | `attestation_manifest::len` | `pub fn len(&self, now_unix_s: u64) -> usize` | [`crates/vox-mesh-types/src/attestation_manifest.rs#L164-L172`](../../../crates/vox-mesh-types/src/attestation_manifest.rs#L164-L172) | Return the number of live (non-expired) entries. |
+| `fn` | `attestation_manifest::is_empty` | `pub fn is_empty(&self, now_unix_s: u64) -> bool` | [`crates/vox-mesh-types/src/attestation_manifest.rs#L175-L177`](../../../crates/vox-mesh-types/src/attestation_manifest.rs#L175-L177) | Returns `true` when there are no live entries. |
+| `struct` | `bundle::BundleRequest` | `pub struct BundleRequest` | [`crates/vox-mesh-types/src/bundle.rs#L13-L18`](../../../crates/vox-mesh-types/src/bundle.rs#L13-L18) | Sent worker → originator: "I received envelope `idempotency_key` and I don't have the bundle for `fn_hash_hex`. Please send the bytes." |
+| `struct` | `bundle::BundleResponse` | `pub struct BundleResponse` | [`crates/vox-mesh-types/src/bundle.rs#L22-L33`](../../../crates/vox-mesh-types/src/bundle.rs#L22-L33) | Sent originator → worker: "Here are the bytes for `fn_hash_hex`." |
+| `struct` | `donation_policy::DonationSlot` | `pub struct DonationSlot` | [`crates/vox-mesh-types/src/donation_policy.rs#L5-L9`](../../../crates/vox-mesh-types/src/donation_policy.rs#L5-L9) | — |
+| `struct` | `donation_policy::WorkerDonationPolicy` | `pub struct WorkerDonationPolicy` | [`crates/vox-mesh-types/src/donation_policy.rs#L37-L79`](../../../crates/vox-mesh-types/src/donation_policy.rs#L37-L79) | `Default` is derived deliberately. Every field added since the original shape carries `#[serde(default)]`, but a struct *literal* must still name every field — so the Mn-T7 additions silently broke `vox-ml-cli`'s `populi up` initializer, and `vox populi` stopped compiling with no test covering it. Constructors should spread `..Default::default()` so the next field is additive rather than breaking.  The derived defaults are the conservative ones: accept nothing, advertise nothing. A node opts in explicitly.  **Why that matters, and why it is tested here rather than at the call site.** This struct governs what a node donates to a *public* mesh. `accepts_inference_workloads` currently has no consumer at all — `a2a.rs` gates on `public_mesh_opt_in`, `min_priority`, `slots` and the user lists — so the day a planner starts honouring it, a `true` default would silently make every `vox populi up` node an inference donor.  The obvious guard is to construct the struct explicitly at the call site, so a new field breaks the build and forces a decision. That guard is an illusion here: `vox-ml-cli`'s `mod populi_lifecycle` is `#[cfg(feature = "populi")]` and that crate's default is `["mens-base"]`, so the call site is compiled by neither the default build nor the release builder. It is exactly why the Mn-T7 break sat unnoticed. `vox-mesh-types` has no `[features]` section, so the test below always compiles and always runs — which is what a consent-relevant invariant needs. |
+| `struct` | `federation::MeshDirectoryEntry` | `pub struct MeshDirectoryEntry` | [`crates/vox-mesh-types/src/federation.rs#L5-L21`](../../../crates/vox-mesh-types/src/federation.rs#L5-L21) | — |
+| `fn` | `federation::canonical_bytes` | `pub fn canonical_bytes(&self) -> Vec<u8>` | [`crates/vox-mesh-types/src/federation.rs#L25-L30`](../../../crates/vox-mesh-types/src/federation.rs#L25-L30) | Returns the canonical JSON representation for signing. |
+| `enum` | `kudos::RewardPrimitive` | `pub enum RewardPrimitive` | [`crates/vox-mesh-types/src/kudos.rs#L8-L21`](../../../crates/vox-mesh-types/src/kudos.rs#L8-L21) | Primitives for the contribution reward system. Collapses compute donation and code contribution into one system. |
+| `fn` | `kudos::as_str` | `pub fn as_str(&self) -> &'static str` | [`crates/vox-mesh-types/src/kudos.rs#L25-L34`](../../../crates/vox-mesh-types/src/kudos.rs#L25-L34) | Return the human-readable slug for database storage. |
+| `fn` | `kudos::gpu_compute_ms_from_attestation` | `pub fn gpu_compute_ms_from_attestation(a: &Attestation) -> u64` | [`crates/vox-mesh-types/src/kudos.rs#L41-L43`](../../../crates/vox-mesh-types/src/kudos.rs#L41-L43) | Convert an `Attestation`'s `gpu_seconds` into integer milliseconds for the `GpuComputeMs` kudos primitive.  The conversion is `(gpu_seconds * 1000.0) as u64`, saturating at `u64::MAX`. |
+| `struct` | `kudos::CreditJobRequest` | `pub struct CreditJobRequest` | [`crates/vox-mesh-types/src/kudos.rs#L47-L54`](../../../crates/vox-mesh-types/src/kudos.rs#L47-L54) | Request to credit a user for a contribution. |
+| `struct` | `model_inventory::ModelInventoryEntry` | `pub struct ModelInventoryEntry` | [`crates/vox-mesh-types/src/model_inventory.rs#L5-L14`](../../../crates/vox-mesh-types/src/model_inventory.rs#L5-L14) | A single model available on a specific mesh node. |
+| `struct` | `model_inventory::MeshModelInventory` | `pub struct MeshModelInventory` | [`crates/vox-mesh-types/src/model_inventory.rs#L18-L23`](../../../crates/vox-mesh-types/src/model_inventory.rs#L18-L23) | Mesh-wide snapshot of all advertised models across all visible nodes. |
+| `struct` | `model_registry::ModelAdvertisement` | `pub struct ModelAdvertisement` | [`crates/vox-mesh-types/src/model_registry.rs#L5-L11`](../../../crates/vox-mesh-types/src/model_registry.rs#L5-L11) | — |
+| `struct` | `op_fragment::OpFragmentEnvelope` | `pub struct OpFragmentEnvelope` | [`crates/vox-mesh-types/src/op_fragment.rs#L19-L34`](../../../crates/vox-mesh-types/src/op_fragment.rs#L19-L34) | Signed envelope wrapping a single federation operation fragment.  The `object` field carries the serialised payload; `signature` covers the canonical JSON of all fields except `signature` itself. |
+| `fn` | `op_fragment::canonical_signing_bytes` | `pub fn canonical_signing_bytes(&self) -> Vec<u8>` | [`crates/vox-mesh-types/src/op_fragment.rs#L42-L55`](../../../crates/vox-mesh-types/src/op_fragment.rs#L42-L55) | Return the canonical bytes to sign: everything except `signature.signature_b64`.  The canonical form is the JSON of a copy of this envelope with `signature.signature_b64` replaced by `""`, serialised with sorted keys via `serde_json`. This is deterministic across platforms and Rust versions. |
+| `enum` | `op_fragment::OpFragmentKind` | `pub enum OpFragmentKind` | [`crates/vox-mesh-types/src/op_fragment.rs#L81-L95`](../../../crates/vox-mesh-types/src/op_fragment.rs#L81-L95) | Discriminant for the op-fragment envelope type. |
+| `struct` | `op_fragment::FederationEnvelope` | `pub struct FederationEnvelope<O>` | [`crates/vox-mesh-types/src/op_fragment.rs#L105-L120`](../../../crates/vox-mesh-types/src/op_fragment.rs#L105-L120) | Generic signed federation envelope parameterised by the object type `O`.  Use this when the object type is known at compile time. |
+| `enum` | `op_fragment::FederationEnvelopeKind` | `pub enum FederationEnvelopeKind` | [`crates/vox-mesh-types/src/op_fragment.rs#L125-L137`](../../../crates/vox-mesh-types/src/op_fragment.rs#L125-L137) | Discriminant for a [`FederationEnvelope`]. |
+| `struct` | `op_fragment::FederationSignature` | `pub struct FederationSignature` | [`crates/vox-mesh-types/src/op_fragment.rs#L145-L155`](../../../crates/vox-mesh-types/src/op_fragment.rs#L145-L155) | Ed25519 signature block embedded in federation envelopes. |
+| `fn` | `op_fragment::placeholder` | `pub fn placeholder(creator: impl Into<String>) -> Self` | [`crates/vox-mesh-types/src/op_fragment.rs#L159-L166`](../../../crates/vox-mesh-types/src/op_fragment.rs#L159-L166) | Construct an unsigned placeholder (used for testing before signing). |
+| `enum` | `quorum::ComparisonMode` | `pub enum ComparisonMode` | [`crates/vox-mesh-types/src/quorum.rs#L4-L8`](../../../crates/vox-mesh-types/src/quorum.rs#L4-L8) | — |
+| `struct` | `quorum::QuorumPolicy` | `pub struct QuorumPolicy` | [`crates/vox-mesh-types/src/quorum.rs#L11-L14`](../../../crates/vox-mesh-types/src/quorum.rs#L11-L14) | — |
+| `enum` | `redundancy::TrustTier` | `pub enum TrustTier` | [`crates/vox-mesh-types/src/redundancy.rs#L19-L30`](../../../crates/vox-mesh-types/src/redundancy.rs#L19-L30) | Trust tier assigned to a peer node.  Higher tiers mean more trust; the policy can skip redundant execution for sufficiently trusted peers. |
+| `enum` | `redundancy::RedundancyMode` | `pub enum RedundancyMode` | [`crates/vox-mesh-types/src/redundancy.rs#L35-L44`](../../../crates/vox-mesh-types/src/redundancy.rs#L35-L44) | Redundancy dispatch mode. |
+| `struct` | `redundancy::RedundancyPolicy` | `pub struct RedundancyPolicy` | [`crates/vox-mesh-types/src/redundancy.rs#L52-L66`](../../../crates/vox-mesh-types/src/redundancy.rs#L52-L66) | Redundancy policy attached to a `WorkerDonationPolicy` or a task spec. |
+| `enum` | `redundancy::VoteOutcome` | `pub enum VoteOutcome` | [`crates/vox-mesh-types/src/redundancy.rs#L86-L101`](../../../crates/vox-mesh-types/src/redundancy.rs#L86-L101) | Outcome of a majority vote over replica outputs. |
+| `fn` | `redundancy::decide_replicas` | `pub fn decide_replicas(policy: &RedundancyPolicy, peer_tier: TrustTier) -> u8` | [`crates/vox-mesh-types/src/redundancy.rs#L104-L111`](../../../crates/vox-mesh-types/src/redundancy.rs#L104-L111) | Decide how many replicas to dispatch given a policy and the peer's trust tier. |
+| `fn` | `redundancy::decide_replicas_with_seed` | `pub fn decide_replicas_with_seed(` | [`crates/vox-mesh-types/src/redundancy.rs#L117`](../../../crates/vox-mesh-types/src/redundancy.rs#L117) | Seeded variant for deterministic testing.  `_seed` is reserved for future adaptive logic that randomises peer selection in the N-replica set to avoid correlated failures. |
+| `fn` | `redundancy::vote_majority` | `pub fn vote_majority(outputs: &[(String, String)]) -> VoteOutcome` | [`crates/vox-mesh-types/src/redundancy.rs#L129-L167`](../../../crates/vox-mesh-types/src/redundancy.rs#L129-L167) | Vote on a set of output BLAKE3 digests and return the outcome.  `outputs` is a slice of `(node_id, output_blake3_hex)` pairs. The vote picks the most common hash; ties are reported as `Split`. |
+| `struct` | `secret_sync::SecretsSyncEnvelope` | `pub struct SecretsSyncEnvelope` | [`crates/vox-mesh-types/src/secret_sync.rs#L8-L18`](../../../crates/vox-mesh-types/src/secret_sync.rs#L8-L18) | Envelope for synchronizing secrets across the mesh.  Encapsulates a sealed (encrypted) secret payload along with metadata required for routing and verification. |
+| `enum` | `task::TaskKind` | `pub enum TaskKind` | [`crates/vox-mesh-types/src/task.rs#L7-L15`](../../../crates/vox-mesh-types/src/task.rs#L7-L15) | — |
+| `fn` | `task::as_str` | `pub fn as_str(&self) -> &'static str` | [`crates/vox-mesh-types/src/task.rs#L25-L34`](../../../crates/vox-mesh-types/src/task.rs#L25-L34) | Return the canonical snake_case string for this task kind. |
+

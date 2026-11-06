@@ -62,10 +62,128 @@ pub fn assess_corpus_readiness(rows: &[serde_json::Value], min: &MinReadiness) -
     }
 }
 
+/// Deterministic check for retired Vox decorators, deprecated keywords (`LEXER_DEPRECATED_DECORATORS`,
+/// `LEXER_DEPRECATED_KEYWORDS`), bare-keyword Grammar Unification rules, and VoxLang sandbox invariants.
+#[must_use]
+pub fn check_vox_retired_and_enforcement_rules(source: &str) -> Vec<String> {
+    let trimmed = source.trim();
+    let mut violations = Vec::new();
+
+    for (retired, canonical) in [
+        ("@island", "component Name() { ... }"),
+        ("@endpoint", "server / query / mutation bare-keyword block"),
+        ("@component", "component Name() { ... }"),
+        ("@table", "table Name { ... }"),
+        ("@index", "index Table.idx on (...)"),
+        ("@query", "query name(...) to T { ... }"),
+        ("@mutation", "mutation name(...) to T { ... }"),
+        ("@server", "server name(...) to T { ... }"),
+        ("@tool", "tool name(...) to T { ... }"),
+        ("@mcp.tool", "tool name(...) to T { ... }"),
+        ("@resource", "resource \"uri\" \"desc\" name() to T { ... }"),
+        (
+            "@mcp.resource",
+            "resource \"uri\" \"desc\" name() to T { ... }",
+        ),
+        ("@form", "form Name { ... }"),
+        ("@mobile.native", "@place(native)"),
+        ("@native", "@place(native)"),
+        (
+            "@py.import",
+            "VoxLang std.* builtins (Python interop retired)",
+        ),
+        ("@v0", "remove retired @v0 decorator"),
+        ("@llm", "@ai"),
+        ("query fn ", "query name(...) to T (no `fn`)"),
+        ("mutation fn ", "mutation name(...) to T (no `fn`)"),
+        ("server fn ", "server name(...) to T (no `fn`)"),
+        ("component fn ", "component Name(...) { ... } (no `fn`)"),
+        ("durable fn ", "@durable fn"),
+        ("pure fn ", "@pure fn"),
+        ("scheduled fn ", "@scheduled fn"),
+    ] {
+        if trimmed.contains(retired) {
+            violations.push(format!(
+                "Retired syntax `{retired}` is forbidden; use `{canonical}` instead"
+            ));
+        }
+    }
+
+    for line in trimmed.lines() {
+        let code_line = line.split("//").next().unwrap_or("").trim();
+        if code_line == "ret"
+            || code_line.starts_with("ret ")
+            || code_line.contains(" ret ")
+            || code_line.contains("{ ret ")
+        {
+            violations.push(
+                "Retired keyword `ret` is forbidden (`LEXER_DEPRECATED_KEYWORDS`); use `return`"
+                    .to_string(),
+            );
+            break;
+        }
+        if code_line.starts_with("environment ") || code_line.contains(" isnt ") {
+            violations.push(
+                "Retired keyword (`environment` / `isnt`) is forbidden (`LEXER_DEPRECATED_KEYWORDS`)"
+                    .to_string(),
+            );
+            break;
+        }
+    }
+
+    if trimmed.contains("shell_exec(") {
+        violations.push(
+            "VoxLang security violation: `shell_exec` sandbox bypass is forbidden; use `std.process`".to_string(),
+        );
+    }
+    for raw_secret in [
+        "env.get(\"OPENAI_API_KEY\"",
+        "env.get(\"ANTHROPIC_API_KEY\"",
+        "env.get(\"GEMINI_API_KEY\"",
+        "env.get(\"VOX_SECRET",
+    ] {
+        if trimmed.contains(raw_secret) {
+            violations.push(format!(
+                "VoxLang secret-env-guard: direct secret read `{raw_secret}` is forbidden; use `vox_secrets::resolve_secret`"
+            ));
+        }
+    }
+
+    if trimmed.contains("@pure") {
+        for forbidden_effect in [
+            "http.",
+            "net.",
+            "std.fs.",
+            "db.",
+            "random(",
+            "time.now(",
+            "std.process.",
+        ] {
+            if trimmed.contains(forbidden_effect) {
+                violations.push(format!(
+                    "Effect violation: `@pure fn` must not call side-effectful `{forbidden_effect}`"
+                ));
+            }
+        }
+    }
+
+    if trimmed.contains("workflow ") {
+        for nondet in ["time.now()", "random(", "uuid()", "crypto.random_bytes()"] {
+            if trimmed.contains(nondet) {
+                violations.push(format!(
+                    "Determinism violation: `workflow` body must not call non-deterministic `{nondet}`; move to an `activity`"
+                ));
+            }
+        }
+    }
+
+    violations
+}
+
 /// Deterministic `.vox` compiler + interpreter admission gate (`CORPUS-02`).
 ///
 /// Runs `vox_compiler::pipeline::run_frontend_str` (`lex -> parse -> HIR -> typeck`),
-/// rejects retired decorator syntax (`@table`, `@query fn`, `@mutation fn`, `@component fn`, `@mcp.tool`),
+/// rejects retired decorator/keyword syntax and language-enforcement violations,
 /// and runs an in-process `Interpreter::run_module` smoke check on the lowered HIR.
 #[must_use]
 pub fn verify_vox_admission(source: &str) -> crate::training::OracleReceipt {
@@ -82,24 +200,15 @@ pub fn verify_vox_admission(source: &str) -> crate::training::OracleReceipt {
         };
     }
 
-    for retired in [
-        "@table",
-        "@query fn",
-        "@mutation fn",
-        "@component fn",
-        "@mcp.tool",
-        "@server fn",
-        "@endpoint",
-    ] {
-        if trimmed.contains(retired) {
-            return OracleReceipt {
-                spoke: SpokeKind::VoxLang,
-                passed: false,
-                stage: "grammar_unification_gate".to_string(),
-                diagnostics: vec![format!("Retired decorator syntax `{retired}` is forbidden")],
-                exit_code: Some(1),
-            };
-        }
+    let rule_violations = check_vox_retired_and_enforcement_rules(trimmed);
+    if !rule_violations.is_empty() {
+        return OracleReceipt {
+            spoke: SpokeKind::VoxLang,
+            passed: false,
+            stage: "grammar_unification_gate".to_string(),
+            diagnostics: rule_violations,
+            exit_code: Some(1),
+        };
     }
 
     match vox_compiler::pipeline::run_frontend_str(trimmed, "<corpus_admission.vox>") {

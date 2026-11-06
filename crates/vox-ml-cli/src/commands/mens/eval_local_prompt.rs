@@ -116,11 +116,24 @@ pub(crate) fn prepare_bench_item(
         raw_prompt
     } else {
         let sys_prompt = vox_corpus::training::generate_training_system_prompt();
-        format!(
-            // Byte-identical to the training prefix (`chatml_prefix_open_assistant`):
-            // no extra directive or empty think block the adapter never saw in training.
-            "<|im_start|>system\n{sys_prompt}<|im_end|>\n<|im_start|>user\n{raw_prompt}<|im_end|>\n<|im_start|>assistant\n"
-        )
+        // Same prefix training uses for a direct answer: `/no_think` and the
+        // empty think block Qwen3 prefills when thinking is off.
+        #[cfg(feature = "mens-base")]
+        {
+            let cfg = vox_populi::mens::tensor::training_config::ChatmlConfig::default();
+            vox_populi::mens::tensor::training_text::chatml_prefix_open_assistant(
+                &sys_prompt,
+                &raw_prompt,
+                "",
+                &cfg,
+            )
+        }
+        #[cfg(not(feature = "mens-base"))]
+        {
+            format!(
+                "<|im_start|>system\n{sys_prompt}<|im_end|>\n<|im_start|>user\n{raw_prompt} /no_think<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
+            )
+        }
     };
     let semantic_expected_contains: Vec<String> = bench_item["semantic_expected_contains"]
         .as_array()
@@ -191,6 +204,15 @@ mod tests {
         assert_eq!(p.manifest_index, 3);
         assert!(p.prompt.contains("Write a Vox program that: Hello."));
         assert!(!p.prompt.contains("Primary file"));
+        assert!(
+            p.prompt.contains(" /no_think"),
+            "direct-answer eval uses the non-thinking user flag"
+        );
+        assert!(
+            p.prompt
+                .ends_with("<|im_start|>assistant\n<think>\n\n</think>\n\n"),
+            "eval prefills the canonical empty think block"
+        );
     }
 
     #[test]

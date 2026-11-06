@@ -90,22 +90,22 @@ Write-Host "Training started. Monitor with: Get-Content $RunDir\telemetry.jsonl 
         ),
         (
             "Write a .vox automation script to format dirty Rust files in chunks without overflowing command-line limits",
-            "fn chunk_size() to int {\n    ret 50\n}\n\nfn format_batch(batch_count: int) to Result[str] {\n    if batch_count <= 0 {\n        ret Ok(\"clean: 0 files formatted\")\n    }\n    ret Ok(\"formatted batches\")\n}\n\nfn main() to Unit {\n    let res = format_batch(chunk_size())\n    match res {\n        Ok(msg) -> print(msg)\n        Error(e) -> print(\"error: \" + e)\n    }\n}",
+            "fn chunk_size() to int {\n    return 50\n}\n\nfn format_batch(batch_count: int) to Result[str, FmtError] {\n    if batch_count <= 0 {\n        return Ok(\"clean: 0 files formatted\")\n    }\n    return Ok(\"formatted batches\")\n}\n\nfn main() to Unit {\n    let res = format_batch(chunk_size())\n    match res {\n        Ok(msg) -> print(msg)\n        Error(e) -> print(\"error: \" + e)\n    }\n}",
             "vox_script",
         ),
         (
             "Write a .vox script that validates a corpus file count and exits with status diagnostics",
-            "type CorpusCheck = {\n    pairs: int\n    min_required: int\n}\n\nfn verify_corpus(check: CorpusCheck) to Result[str] {\n    if check.pairs < check.min_required {\n        ret Error(\"insufficient pairs below threshold\")\n    }\n    ret Ok(\"corpus gate passed\")\n}\n\nfn main() to Unit {\n    let gate = CorpusCheck { pairs: 1500, min_required: 1000 }\n    match verify_corpus(gate) {\n        Ok(msg) -> print(msg)\n        Error(reason) -> print(\"gate failed: \" + reason)\n    }\n}",
+            "type CorpusCheck {\n    pairs: int\n    min_required: int\n}\n\nfn verify_corpus(check: CorpusCheck) to Result[str, GateError] {\n    if check.pairs < check.min_required {\n        return Error(\"insufficient pairs below threshold\")\n    }\n    return Ok(\"corpus gate passed\")\n}\n\nfn main() to Unit {\n    let gate = CorpusCheck { pairs: 1500, min_required: 1000 }\n    match verify_corpus(gate) {\n        Ok(msg) -> print(msg)\n        Error(reason) -> print(\"gate failed: \" + reason)\n    }\n}",
             "vox_script",
         ),
         (
             "Write a .vox script with an actor worker and workflow for durable CI pre-push verification",
-            "actor GateRunner {\n    on run_gate(step: str) to Result[str] {\n        if step == \"\" {\n            ret Error(\"empty gate step\")\n        }\n        ret Ok(\"passed: \" + step)\n    }\n}\n\nworkflow pre_push_pipeline(branch: str) to Result[str] {\n    if branch == \"\" {\n        ret Error(\"missing branch\")\n    }\n    ret Ok(\"verified branch: \" + branch)\n}\n\nfn main() to Unit {\n    match pre_push_pipeline(\"main\") {\n        Ok(status) -> print(status)\n        Error(err) -> print(\"failed: \" + err)\n    }\n}",
+            "actor GateRunner {\n    on run_gate(step: str) to Result[str, GateError] {\n        if step == \"\" {\n            return Error(\"empty gate step\")\n        }\n        return Ok(\"passed: \" + step)\n    }\n}\n\nworkflow pre_push_pipeline(branch: str) to Result[str, GateError] {\n    if branch == \"\" {\n        return Error(\"missing branch\")\n    }\n    return Ok(\"verified branch: \" + branch)\n}\n\nfn main() to Unit {\n    match pre_push_pipeline(\"main\") {\n        Ok(status) -> print(status)\n        Error(err) -> print(\"failed: \" + err)\n    }\n}",
             "vox_script",
         ),
         (
             "Write a .vox script that defines an MCP tool and HTTP health route for local agent orchestration",
-            "@mcp.tool(\"Inspect workspace health metrics\")\nfn workspace_health(target: str) to Result[str] {\n    if target == \"\" {\n        ret Error(\"target required\")\n    }\n    ret Ok(\"healthy: \" + target)\n}\n\nhttp get \"/health\" to str {\n    ret \"ok\"\n}\n\nfn main() to Unit {\n    match workspace_health(\"vox-corpus\") {\n        Ok(msg) -> print(msg)\n        Error(err) -> print(err)\n    }\n}",
+            "tool workspace_health(target: str) to Result[str, HealthError] {\n    if target == \"\" {\n        return Error(\"target required\")\n    }\n    return Ok(\"healthy: \" + target)\n}\n\nhttp get \"/health\" to str {\n    return \"ok\"\n}\n\nfn main() to Unit {\n    match workspace_health(\"vox-corpus\") {\n        Ok(msg) -> print(msg)\n        Error(err) -> print(err)\n    }\n}",
             "vox_script",
         ),
     ];

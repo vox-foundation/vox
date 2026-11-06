@@ -93,11 +93,14 @@ pub const LEGACY_EXPORT_SKIP_TABLES: &[&str] = &[
     "mesh_a2a_messages",  // transient mesh execution state
     "mesh_dispatch_results", // transient mesh execution state
     "mesh_exec_leases",   // transient mesh execution state
+    "mesh_local_nodes",   // host-local Populi node registry; repopulated by the local node
+    "mesh_replay_nonces", // time-windowed replay nonces; meaningless outside their window
     "schema_version",
     "scientia_discovery_inbox", // derived surfacing index over draft manifests; regenerable, drafts are SSOT
     "scientia_embedding_cache", // pure derived cache; regenerated on demand from LLM calls
     "scientia_producer_cursor", // ephemeral per-producer scan cursor; drafts are idempotent on re-scan
-    "web_cache",                // HTTP response cache; refetched on demand
+    "telemetry_upload_spool", // transient outbound remote-upload queue (ADR-023), not portable state
+    "web_cache",              // HTTP response cache; refetched on demand
 ];
 
 /// User tables included in [`export_legacy_jsonl`] / accepted by [`import_legacy_jsonl`].

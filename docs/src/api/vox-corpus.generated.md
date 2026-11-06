@@ -72,3 +72,99 @@ Used by `vox-ml-cli` and downstream training pipelines.
 | `tool_workflow_corpus` | — |
 | `training` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_corpus: "vox-corpus"
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_corpus -> vox_bounded_fs
+    node vox_compiler: "vox-compiler"
+    vox_corpus -> vox_compiler
+    node vox_db: "vox-db"
+    vox_corpus -> vox_db
+    node vox_eval: "vox-eval"
+    vox_corpus -> vox_eval
+    node vox_kb_facets: "vox-kb-facets"
+    vox_corpus -> vox_kb_facets
+    node vox_mcp_registry: "vox-mcp-registry"
+    vox_corpus -> vox_mcp_registry
+    node vox_repository: "vox-repository"
+    vox_corpus -> vox_repository
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_corpus
+    node vox_cli_review: "vox-cli-review"
+    vox_cli_review -> vox_corpus
+    node vox_ml_cli: "vox-ml-cli"
+    vox_ml_cli -> vox_corpus
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_corpus
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_corpus
+    node vox_populi: "vox-populi"
+    vox_populi -> vox_corpus
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-review`](./vox-cli-review.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `arca_replay::ReplayRow` | `pub struct ReplayRow` | [`crates/vox-corpus/src/arca_replay.rs#L9-L20`](../../../crates/vox-corpus/src/arca_replay.rs#L9-L20) | Container for extracted real-world corpus rows from Arca telemetry. |
+| `fn` | `arca_replay::extract_arca_pairs` | `pub async fn extract_arca_pairs(` | [`crates/vox-corpus/src/arca_replay.rs#L23`](../../../crates/vox-corpus/src/arca_replay.rs#L23) | — |
+| `fn` | `arca_replay::to_training_record_v2` | `pub fn to_training_record_v2(&self) -> Option<crate::training::TrainingRecordV2>` | [`crates/vox-corpus/src/arca_replay.rs#L360-L400`](../../../crates/vox-corpus/src/arca_replay.rs#L360-L400) | Convert an Arca telemetry [`ReplayRow`] into a validated [`crate::training::TrainingRecordV2`] with secret redaction and safety-floor verification (`CORPUS-04`, `CORPUS-06`). |
+| `fn` | `arca_replay::replay_snapshot_for_spoke` | `pub async fn replay_snapshot_for_spoke(` | [`crates/vox-corpus/src/arca_replay.rs#L406`](../../../crates/vox-corpus/src/arca_replay.rs#L406) | Deterministically replay verified [`crate::training::TrainingRecordV2`] records from a persisted `VoxDb` dataset snapshot, optionally filtered to a single [`crate::training::SpokeKind`] (`CORPUS-06`). |
+| `struct` | `ast_mutator::Mutation` | `pub struct Mutation` | [`crates/vox-corpus/src/ast_mutator.rs#L7-L11`](../../../crates/vox-corpus/src/ast_mutator.rs#L7-L11) | — |
+| `fn` | `ast_mutator::generate_mutations` | `pub fn generate_mutations(source: &str, _module: &Module) -> Vec<Mutation>` | [`crates/vox-corpus/src/ast_mutator.rs#L18-L55`](../../../crates/vox-corpus/src/ast_mutator.rs#L18-L55) | — |
+| `fn` | `ast_mutator::apply_mutations` | `pub fn apply_mutations(source: &str, mut mutations: Vec<Mutation>) -> String` | [`crates/vox-corpus/src/ast_mutator.rs#L57-L71`](../../../crates/vox-corpus/src/ast_mutator.rs#L57-L71) | — |
+| `fn` | `ast_mutator::mutate_corpus` | `pub fn mutate_corpus(` | [`crates/vox-corpus/src/ast_mutator.rs#L73`](../../../crates/vox-corpus/src/ast_mutator.rs#L73) | — |
+| `fn` | `ast_mutator::mint_hard_negative_dpo_pair` | `pub fn mint_hard_negative_dpo_pair(` | [`crates/vox-corpus/src/ast_mutator.rs#L118`](../../../crates/vox-corpus/src/ast_mutator.rs#L118) | Deterministic 5-spoke hard-negative mutation generator (`AUDIT-03`).  Takes a verified positive [`crate::training::contract::TrainingRecordV2`] (`chosen`) and synthesizes a realistic hard-negative mutation (`rejected`) for the same spoke, verifying via the spoke's round-trip oracle that `rejected` fails deterministically. |
+| `enum` | `dataset_snapshot::SnapshotSourceClass` | `pub enum SnapshotSourceClass` | [`crates/vox-corpus/src/dataset_snapshot.rs#L8-L25`](../../../crates/vox-corpus/src/dataset_snapshot.rs#L8-L25) | Source class contributing rows to a snapshot. |
+| `struct` | `dataset_snapshot::SourceDigest` | `pub struct SourceDigest` | [`crates/vox-corpus/src/dataset_snapshot.rs#L29-L36`](../../../crates/vox-corpus/src/dataset_snapshot.rs#L29-L36) | Per-source digest and counts for reproducibility. |
+| `struct` | `dataset_snapshot::SplitPolicy` | `pub struct SplitPolicy` | [`crates/vox-corpus/src/dataset_snapshot.rs#L40-L47`](../../../crates/vox-corpus/src/dataset_snapshot.rs#L40-L47) | Training/eval split policy stored alongside the snapshot. |
+| `struct` | `dataset_snapshot::DatasetSnapshotManifest` | `pub struct DatasetSnapshotManifest` | [`crates/vox-corpus/src/dataset_snapshot.rs#L51-L68`](../../../crates/vox-corpus/src/dataset_snapshot.rs#L51-L68) | Full snapshot manifest written next to exported JSONL. |
+| `fn` | `dataset_snapshot::to_json` | `pub fn to_json(&self) -> anyhow::Result<String>` | [`crates/vox-corpus/src/dataset_snapshot.rs#L72-L74`](../../../crates/vox-corpus/src/dataset_snapshot.rs#L72-L74) | Pretty-printed JSON for sidecar `manifest.json` next to JSONL exports. |
+| `fn` | `dataset_snapshot::create_snapshot` | `pub fn create_snapshot(` | [`crates/vox-corpus/src/dataset_snapshot.rs#L77`](../../../crates/vox-corpus/src/dataset_snapshot.rs#L77) | — |
+| `struct` | `dataset_snapshot::SpokeMixtureSummary` | `pub struct SpokeMixtureSummary` | [`crates/vox-corpus/src/dataset_snapshot.rs#L128-L135`](../../../crates/vox-corpus/src/dataset_snapshot.rs#L128-L135) | Per-spoke row count and canonical digest inside a [`TrustyDatasetSnapshot`] (`CORPUS-06`). |
+| `struct` | `dataset_snapshot::TrustyDatasetSnapshot` | `pub struct TrustyDatasetSnapshot` | [`crates/vox-corpus/src/dataset_snapshot.rs#L139-L154`](../../../crates/vox-corpus/src/dataset_snapshot.rs#L139-L154) | Immutable, Trusty-URI-identified multi-spoke dataset snapshot persisted in `VoxDb` (`CORPUS-06`). |
+| `fn` | `dataset_snapshot::build_trusty_snapshot` | `pub fn build_trusty_snapshot(` | [`crates/vox-corpus/src/dataset_snapshot.rs#L162`](../../../crates/vox-corpus/src/dataset_snapshot.rs#L162) | Construct a deterministic [`TrustyDatasetSnapshot`] and canonical JSONL bundle from verified [`crate::training::TrainingRecordV2`] records (`CORPUS-06`). |
+| `fn` | `dataset_snapshot::persist_snapshot_to_db` | `pub async fn persist_snapshot_to_db(` | [`crates/vox-corpus/src/dataset_snapshot.rs#L217`](../../../crates/vox-corpus/src/dataset_snapshot.rs#L217) | Persist an immutable [`TrustyDatasetSnapshot`] and its [`crate::training::TrainingRecordV2`] rows into `VoxDb` (`objects` CAS + `names` binding + `mens_corpus_quality` rows) (`CORPUS-06`). |
+| `fn` | `dataset_snapshot::load_snapshot_from_db` | `pub async fn load_snapshot_from_db(` | [`crates/vox-corpus/src/dataset_snapshot.rs#L275`](../../../crates/vox-corpus/src/dataset_snapshot.rs#L275) | Deterministically reload a [`TrustyDatasetSnapshot`] and its [`crate::training::TrainingRecordV2`] rows from `VoxDb` by `snapshot_id` or `trusty_uri` (`CORPUS-06`). |
+| `struct` | `external_review_replay::ExternalReviewReplayRow` | `pub struct ExternalReviewReplayRow` | [`crates/vox-corpus/src/external_review_replay.rs#L8-L21`](../../../crates/vox-corpus/src/external_review_replay.rs#L8-L21) | Canonical replay row for review-derived training/eval artifacts. |
+| `fn` | `external_review_replay::extract_external_review_rows` | `pub async fn extract_external_review_rows(` | [`crates/vox-corpus/src/external_review_replay.rs#L24`](../../../crates/vox-corpus/src/external_review_replay.rs#L24) | — |
+| `fn` | `external_review_replay::validate_external_review_rows` | `pub fn validate_external_review_rows(rows: &[ExternalReviewReplayRow]) -> anyhow::Result<()>` | [`crates/vox-corpus/src/external_review_replay.rs#L103-L119`](../../../crates/vox-corpus/src/external_review_replay.rs#L103-L119) | Basic validation for exported rows. |
+| `fn` | `external_review_replay::build_repeated_error_features` | `pub fn build_repeated_error_features(rows: &[ExternalReviewReplayRow]) -> Vec<serde_json::Value>` | [`crates/vox-corpus/src/external_review_replay.rs#L122-L151`](../../../crates/vox-corpus/src/external_review_replay.rs#L122-L151) | Build repeated-error features and hard negatives from review rows. |
+| `struct` | `flywheel::FlywheelConfig` | `pub struct FlywheelConfig` | [`crates/vox-corpus/src/flywheel.rs#L4-L18`](../../../crates/vox-corpus/src/flywheel.rs#L4-L18) | — |
+| `struct` | `flywheel::FlywheelDomainConfig` | `pub struct FlywheelDomainConfig` | [`crates/vox-corpus/src/flywheel.rs#L21-L24`](../../../crates/vox-corpus/src/flywheel.rs#L21-L24) | — |
+| `fn` | `flywheel::load` | `pub fn load() -> Self` | [`crates/vox-corpus/src/flywheel.rs#L27-L35`](../../../crates/vox-corpus/src/flywheel.rs#L27-L35) | — |
+| `fn` | `flywheel::for_domain` | `pub fn for_domain(&self, domain: Option<&str>) -> Self` | [`crates/vox-corpus/src/flywheel.rs#L38-L51`](../../../crates/vox-corpus/src/flywheel.rs#L38-L51) | Resolve effective config for a specific domain. |
+| `enum` | `flywheel::FlywheelSignal` | `pub enum FlywheelSignal` | [`crates/vox-corpus/src/flywheel.rs#L67-L72`](../../../crates/vox-corpus/src/flywheel.rs#L67-L72) | — |
+| `struct` | `flywheel::FlywheelState` | `pub struct FlywheelState` | [`crates/vox-corpus/src/flywheel.rs#L74-L78`](../../../crates/vox-corpus/src/flywheel.rs#L74-L78) | — |
+| `fn` | `flywheel::new` | `pub fn new(config: FlywheelConfig) -> Self` | [`crates/vox-corpus/src/flywheel.rs#L81-L87`](../../../crates/vox-corpus/src/flywheel.rs#L81-L87) | — |
+| `fn` | `flywheel::check` | `pub fn check(&self, current_samples: usize, current_diversity: f64) -> FlywheelSignal` | [`crates/vox-corpus/src/flywheel.rs#L89-L103`](../../../crates/vox-corpus/src/flywheel.rs#L89-L103) | — |
+| `fn` | `flywheel::evaluate_readiness` | `pub fn evaluate_readiness(` | [`crates/vox-corpus/src/flywheel.rs#L106`](../../../crates/vox-corpus/src/flywheel.rs#L106) | — |
+| `struct` | `flywheel::LintFeedbackRecord` | `pub struct LintFeedbackRecord` | [`crates/vox-corpus/src/flywheel.rs#L159-L168`](../../../crates/vox-corpus/src/flywheel.rs#L159-L168) | Helper record for `vox.lint.*` telemetry outcomes feeding CR-L8 feedback. |
+| `struct` | `flywheel::RepairFeedbackRecord` | `pub struct RepairFeedbackRecord` | [`crates/vox-corpus/src/flywheel.rs#L172-L181`](../../../crates/vox-corpus/src/flywheel.rs#L172-L181) | Helper record for `vox.repair.*` telemetry outcomes feeding CR-L8 feedback. |
+| `fn` | `flywheel::record_lint_finding_event` | `pub fn record_lint_finding_event(` | [`crates/vox-corpus/src/flywheel.rs#L184`](../../../crates/vox-corpus/src/flywheel.rs#L184) | Atomically append a lint finding event to the corpus feedback events sink. |
+| `fn` | `flywheel::record_repair_outcome_event` | `pub fn record_repair_outcome_event(` | [`crates/vox-corpus/src/flywheel.rs#L211`](../../../crates/vox-corpus/src/flywheel.rs#L211) | Atomically append a repair outcome event to the corpus feedback events sink. |
+| `struct` | `flywheel::FlywheelCycleReceipt` | `pub struct FlywheelCycleReceipt` | [`crates/vox-corpus/src/flywheel.rs#L240-L259`](../../../crates/vox-corpus/src/flywheel.rs#L240-L259) | Receipt for one completed cycle (`Cycle 0`, `Cycle 1`, `Cycle 2`) of the Mens multi-spoke autonomous training & evaluation flywheel (`LOOP-01..03`). |
+| `struct` | `flywheel::MensFlywheelBurninReportV1` | `pub struct MensFlywheelBurninReportV1` | [`crates/vox-corpus/src/flywheel.rs#L263-L272`](../../../crates/vox-corpus/src/flywheel.rs#L263-L272) | Full 2-cycle autonomous burn-in report (`contracts/reports/mens-flywheel-burnin.v1.json`) (`LOOP-01..03`). |
+| `fn` | `flywheel::to_contract_summary_json` | `pub fn to_contract_summary_json(&self) -> serde_json::Value` | [`crates/vox-corpus/src/flywheel.rs#L281-L302`](../../../crates/vox-corpus/src/flywheel.rs#L281-L302) | Project the full report into the compact summary stored in `contracts/reports/mens-flywheel-burnin.v1.json`. |
+| `fn` | `flywheel::run_two_cycle_autonomous_burnin` | `pub fn run_two_cycle_autonomous_burnin() -> MensFlywheelBurninReportV1` | [`crates/vox-corpus/src/flywheel.rs#L307-L411`](../../../crates/vox-corpus/src/flywheel.rs#L307-L411) | Execute the closed-loop 2-cycle autonomous burn-in across all 5 spokes (`LOOP-01..03`). |
+| `fn` | `flywheel::persist_burnin_report_to_db` | `pub async fn persist_burnin_report_to_db(` | [`crates/vox-corpus/src/flywheel.rs#L415`](../../../crates/vox-corpus/src/flywheel.rs#L415) | Persist a [`MensFlywheelBurninReportV1`] into `VoxDb` CAS (`LOOP-02`). |
+| `fn` | `flywheel::load_burnin_report_from_db` | `pub async fn load_burnin_report_from_db(` | [`crates/vox-corpus/src/flywheel.rs#L428`](../../../crates/vox-corpus/src/flywheel.rs#L428) | Load a [`MensFlywheelBurninReportV1`] from `VoxDb` CAS by `run_id` (`LOOP-02`). |
+| `struct` | `flywheel::MensBeforeAfterSpokeDeltaV1` | `pub struct MensBeforeAfterSpokeDeltaV1` | [`crates/vox-corpus/src/flywheel.rs#L445-L482`](../../../crates/vox-corpus/src/flywheel.rs#L445-L482) | Per-spoke before/mid/after benchmark delta row (`MENS-PERF-02..03`). |
+| `struct` | `flywheel::MensBeforeAfterEvaluationV1` | `pub struct MensBeforeAfterEvaluationV1` | [`crates/vox-corpus/src/flywheel.rs#L486-L527`](../../../crates/vox-corpus/src/flywheel.rs#L486-L527) | Full 25-problem 5-spoke before/after evaluation report (`contracts/reports/mens-before-after-comparison.v1.json`) (`MENS-PERF-01..04`). |
+

@@ -113,17 +113,13 @@ Current state:
 - **Escape hatch / current durable path:** the interpreted workflow runtime used by `vox mens workflow ...`.
 
 ```vox
-// vox:skip — `return` in match arm body is a parser limitation; illustrative only
-fn onboard_user(user_id: str, email: str) to Result[str] {
+workflow onboard_user(user_id: str, email: str) to Result[str] {
     let profile = fetch_user_data(user_id)
-    match profile {
-        Error(msg) => return Error("profile fetch failed: " + msg)
-        Ok(data) => {
-            let notif = send_notification(email, "Welcome! " + data)
-            match notif {
-                Error(msg) => return Error("notification failed: " + msg)
-                Ok(_) => return Ok("Onboarding complete for " + user_id)
-            }
+    return match profile {
+        Error(msg) => Error("profile fetch failed: " + msg)
+        Ok(data) => match send_notification(email, "Welcome! " + data) {
+            Error(msg) => Error("notification failed: " + msg)
+            Ok(_) => Ok("Onboarding complete for " + user_id)
         }
     }
 }
@@ -164,36 +160,32 @@ The interpreted workflow runtime can skip previously completed activities when r
 A complete workflow combining activities with different retry policies:
 
 ```vox
-// vox:skip — `return` in match arm body is a parser limitation; illustrative only
 type OrderResult =
     | OrderOk(order_id: str)
     | OrderError(message: str)
 
-fn validate_order(order_data: str) to Result[str] {
+activity validate_order(order_data: str) to Result[str] {
     let validated = "validated-" + order_data
     return Ok(validated)
 }
 
-fn charge_payment(amount: int, card_token: str) to Result[str] {
+activity charge_payment(amount: int, card_token: str) to Result[str] {
     let tx = "tx-" + card_token
     return Ok(tx)
 }
 
-fn send_confirmation(recipient: str, order_id: str) to Result[str] {
+activity send_confirmation(recipient: str, order_id: str) to Result[str] {
     let msg = "Order " + order_id + " confirmed for " + recipient
     return Ok(msg)
 }
 
-fn process_order(customer: str, order_data: str, amount: int) to Result[str] {
+workflow process_order(customer: str, order_data: str, amount: int) to Result[str] {
     let validated = validate_order(order_data)
-    match validated {
-        Error(msg) => return Error(msg)
-        Ok(_) => {
-            let payment = charge_payment(amount, "card-123")
-            match payment {
-                Error(msg) => return Error(msg)
-                Ok(tx) => send_confirmation(customer, tx)
-            }
+    return match validated {
+        Error(msg) => Error(msg)
+        Ok(_) => match charge_payment(amount, "card-123") {
+            Error(msg) => Error(msg)
+            Ok(tx) => send_confirmation(customer, tx)
         }
     }
 }

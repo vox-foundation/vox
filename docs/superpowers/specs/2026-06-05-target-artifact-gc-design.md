@@ -152,7 +152,7 @@ canonical_target:
 - **Language/placement:** the heavy logic (process scan, git plumbing, fs walk,
   byte accounting) lives in Rust under the existing
   `ci/workspace_artifacts/` module — it already owns the audit-row type, policy
-  loader, and age helpers. Per the repo's VoxScript-first policy, the *scheduled
+  loader, and age helpers. Per the repo's VoxLang-first policy, the *scheduled
   glue* is a thin `scripts/target-gc.vox` that shells `vox ci artifact-prune
   --include-worktrees --yes` (no business logic in the script).
 - **`sysinfo`** for the active-build gate (cross-platform, already a dep — avoids a

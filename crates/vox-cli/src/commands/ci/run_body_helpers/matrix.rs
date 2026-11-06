@@ -100,7 +100,7 @@ fn visit_legacy_glue_under_scripts(
     Ok(())
 }
 
-/// `.sh` / `.ps1` / `.py` under `scripts/` minus bootstrap allowlist (VoxScript-first policy).
+/// `.sh` / `.ps1` / `.py` under `scripts/` minus bootstrap allowlist (VoxLang-first policy).
 pub(crate) fn collect_legacy_script_glue_violations(root: &Path) -> Result<Vec<String>> {
     let scripts_dir = root.join("scripts");
     if !scripts_dir.is_dir() {
@@ -112,7 +112,7 @@ pub(crate) fn collect_legacy_script_glue_violations(root: &Path) -> Result<Vec<S
     Ok(violations)
 }
 
-/// Enforce VoxScript-first glue policy: no stray `.sh` / `.ps1` / `.py` under `scripts/` except the
+/// Enforce VoxLang-first glue policy: no stray `.sh` / `.ps1` / `.py` under `scripts/` except the
 /// bootstrap/install allowlist. Mirrors [`scripts/ci/script-hygiene.vox`](scripts/ci/script-hygiene.vox).
 ///
 /// Full-tree `vox check` of every `.vox` script is intentionally **not** part of this gate — many
@@ -127,7 +127,7 @@ pub(crate) fn run_script_hygiene(root: &Path, _retired_check: bool) -> Result<()
         ));
     }
 
-    println!("VoxScript hygiene OK (legacy glue scan; see scripts/ci/script-hygiene.vox)");
+    println!("VoxLang hygiene OK (legacy glue scan; see scripts/ci/script-hygiene.vox)");
     Ok(())
 }
 

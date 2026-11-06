@@ -6,7 +6,7 @@
 
 **Architecture:** A new `vox ci build-bench` subcommand runs a pinned set of wall-clock build scenarios, writes a JSON snapshot, and `--compare`s against a committed baseline to emit a phase-delta report. A new `vox ci dep-cycles` subcommand (Tarjan SCC over `cargo metadata`) inventories cyclical and back-edge coupling that `vox-arch-check` cannot see today. With those two instruments in place, the optimization phases (re-landing four un-merged feature-gating/leaf-move wins, then a slowest-unit split, then selective CI) each end by running the harness and recording the measured delta. The merge-queue full build remains the soundness backstop throughout.
 
-**Tech Stack:** Rust (`vox-cli` `ci` subcommand surface, `serde_json`, `std::process::Command` shelling `cargo`), `cargo metadata`, `cargo check`/`cargo build --timings`, VoxScript (`.vox`) for the dependency-map refresh, GitHub Actions (`.github/workflows/ci.yml`).
+**Tech Stack:** Rust (`vox-cli` `ci` subcommand surface, `serde_json`, `std::process::Command` shelling `cargo`), `cargo metadata`, `cargo check`/`cargo build --timings`, VoxLang (`.vox`) for the dependency-map refresh, GitHub Actions (`.github/workflows/ci.yml`).
 
 ---
 

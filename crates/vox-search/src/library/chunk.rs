@@ -122,8 +122,10 @@ fn first_paragraph(intro: &str) -> String {
     let mut in_fence = false;
     let mut para: Vec<&str> = Vec::new();
     for line in intro.lines() {
-        // Marker lines are neither paragraph text nor a terminator; the summary is the lede.
-        if vox_kb_facets::is_summary_marker_line(line) {
+        // Marker and MDX boilerplate lines are neither paragraph text nor a terminator; the summary is the lede.
+        if vox_kb_facets::is_summary_marker_line(line)
+            || vox_kb_facets::is_mdx_boilerplate_line(line)
+        {
             continue;
         }
         if kb_ids::is_fence_line(line) {
@@ -218,25 +220,38 @@ pub fn chunk_document(
     };
 
     // AP-23: the card carries the root path, so `rel_path#Title` always resolves.
+    let is_mdx = rel_path.ends_with(".mdx");
     let intro_end = sections
         .iter()
         .find(|s| s.level >= 2)
         .map_or(text.len(), |s| s.range.start);
     let intro_start = sections.first().map_or(0, |s| s.range.start);
+    let intro_raw = &text[intro_start..intro_end];
+    let intro_clean = if is_mdx {
+        std::borrow::Cow::Owned(vox_kb_facets::strip_mdx_boilerplate(intro_raw))
+    } else {
+        std::borrow::Cow::Borrowed(intro_raw)
+    };
     push(
         ChunkKind::Card,
         &title,
         None,
-        &card_body(&title, &fm, &text[intro_start..intro_end], &facets),
+        &card_body(&title, &fm, &intro_clean, &facets),
     );
 
     for sec in &sections {
-        let body = text[sec.range.clone()].trim();
+        let raw_sec = text[sec.range.clone()].trim();
         // Every heading consumes a slug in document order, empty body or not.
         let anchor = (sec.level > 0)
-            .then(|| kb_ids::parse_heading(body.lines().next().unwrap_or("")))
+            .then(|| kb_ids::parse_heading(raw_sec.lines().next().unwrap_or("")))
             .flatten()
             .map(|(_, h)| github_slug(&h, &mut slugs));
+        let body_cow = if is_mdx {
+            std::borrow::Cow::Owned(vox_kb_facets::strip_mdx_boilerplate(raw_sec))
+        } else {
+            std::borrow::Cow::Borrowed(raw_sec)
+        };
+        let body = body_cow.trim();
         if body.is_empty() {
             continue;
         }
@@ -395,5 +410,24 @@ mod tests {
     fn bad_frontmatter_yields_empty_object() {
         let doc = chunk_document("docs/src/b.md", "---\n: : [\n---\n# T\n", &h);
         assert_eq!(doc.frontmatter_json, "{}");
+    }
+
+    #[test]
+    fn chunk_document_strips_mdx_imports_and_wrapper_tags() {
+        let mdx = "---\ntitle: Fullstack\ndescription: Build fast.\n---\nimport { Steps, Tabs, TabItem } from '@astrojs/starlight/components';\n\n# Fullstack\n\n{/* kb:summary */}\nSummary lede paragraph for the fullstack tutorial.\n{/* /kb:summary */}\n\n## Step One\n<Steps>\n1. Create table.\n</Steps>\n<Tabs>\n<TabItem label=\"SQL\">\n```sql\nCREATE TABLE task;\n```\n</TabItem>\n</Tabs>\n";
+        let doc = chunk_document("docs/src/tutorials/tut.mdx", mdx, &h);
+        assert_eq!(doc.title, "Fullstack");
+        assert!(doc.chunks[0].body.contains("Summary lede paragraph"));
+        assert!(!doc.chunks[0].body.contains("@astrojs/starlight"));
+        let sec = doc
+            .chunks
+            .iter()
+            .find(|c| c.heading_path == "Fullstack › Step One")
+            .expect("Step One section");
+        assert!(!sec.body.contains("<Steps>"));
+        assert!(!sec.body.contains("<Tabs>"));
+        assert!(!sec.body.contains("<TabItem"));
+        assert!(sec.body.contains("1. Create table."));
+        assert!(sec.body.contains("CREATE TABLE task;"));
     }
 }

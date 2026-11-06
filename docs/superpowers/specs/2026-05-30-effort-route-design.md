@@ -187,11 +187,11 @@ The whole-cluster re-judge returns this (validated via structured output, same p
 | `CodeAuditDetector` | a **rule specification** (pattern, severity, message, rationale) → `*.detector.md.proposed`; optional `.rs.proposed` skeleton when the model is confident | any model writes the spec; Rust skeleton best-effort |
 | `ArchRule` | proposed `layers.toml` row or `vox-arch-check` rule → `*.arch-rule.toml.proposed` | any model |
 | `CiGate` | proposed `contracts/ci/*.yaml` entry, **or a test/example fixture that *is* the enforcement** → `*.ci.yaml.proposed` / `*.example.proposed` | any model |
-| `VoxScript` | `.vox.proposed` automation script | **only when `authoring_model_vox_capable == true` (MENS-strong)** |
+| `VoxLang` | `.vox.proposed` automation script | **only when `authoring_model_vox_capable == true` (MENS-strong)** |
 | `CorpusNegativeExample` | MENS negative-example line → `*.corpus.jsonl.proposed` | any model |
 | `None` | recommendation text only, no file | — |
 
-**Vox-capability gate.** Before the decide pass, the pipeline needs to know whether the selected judge model is Vox-capable. To keep `vox-effort-route` free of a `vox-orchestrator` dependency (forbidden, §2.1), **the CLI layer (`vox-cli`) resolves both the model id and its Vox-capability and passes them into `vox_effort_route::run` as parameters** — exactly the pattern S1's F1 used to resolve the judge model in `vox-cli` rather than inside the audit crate. The capability is `ModelCapabilities.writes_vox` on the registry entry **OR** the operator allowlist — implemented as `resolve_vox_capability(model_id, allowlist) = registry.get(model_id).writes_vox || allowlist.contains(model_id)`. `writes_vox` is a registry-authoring `bool` defaulting `false`, seeded `true` only at the three MENS seed sites (local `MensCatalog`, the `PopuliMeshCatalog` mesh seed, and the duplicated inline mesh-peer push in `registry.rs`); it is *not* added to the `Capability`/`merge_capability_flags` OR-merge so an OpenRouter advertisement cannot clobber the seeded value. The `[audit.route] vox_capable_models` allowlist remains as an operator OVERRIDE layered on top, not the sole source. A model unknown to the offline registry and absent from the allowlist is non-Vox-capable (safe default). If not Vox-capable, `VoxScript` is removed from the allowed `ArtifactForm` set for that run, and the decide prompt instructs the model to choose the next-cheapest enforceable form. The decision records `authoring_model_vox_capable` and a `form_rationale`. This means: dogfooding with MENS can produce real `.vox` automation; running with an external frontier judge produces CI rules / lint specs / prose / corpus examples instead — all enforceable in this repo.
+**Vox-capability gate.** Before the decide pass, the pipeline needs to know whether the selected judge model is Vox-capable. To keep `vox-effort-route` free of a `vox-orchestrator` dependency (forbidden, §2.1), **the CLI layer (`vox-cli`) resolves both the model id and its Vox-capability and passes them into `vox_effort_route::run` as parameters** — exactly the pattern S1's F1 used to resolve the judge model in `vox-cli` rather than inside the audit crate. The capability is `ModelCapabilities.writes_vox` on the registry entry **OR** the operator allowlist — implemented as `resolve_vox_capability(model_id, allowlist) = registry.get(model_id).writes_vox || allowlist.contains(model_id)`. `writes_vox` is a registry-authoring `bool` defaulting `false`, seeded `true` only at the three MENS seed sites (local `MensCatalog`, the `PopuliMeshCatalog` mesh seed, and the duplicated inline mesh-peer push in `registry.rs`); it is *not* added to the `Capability`/`merge_capability_flags` OR-merge so an OpenRouter advertisement cannot clobber the seeded value. The `[audit.route] vox_capable_models` allowlist remains as an operator OVERRIDE layered on top, not the sole source. A model unknown to the offline registry and absent from the allowlist is non-Vox-capable (safe default). If not Vox-capable, `VoxLang` is removed from the allowed `ArtifactForm` set for that run, and the decide prompt instructs the model to choose the next-cheapest enforceable form. The decision records `authoring_model_vox_capable` and a `form_rationale`. This means: dogfooding with MENS can produce real `.vox` automation; running with an external frontier judge produces CI rules / lint specs / prose / corpus examples instead — all enforceable in this repo.
 
 **Why `.proposed` extensions.** Every staging artifact carries a `.proposed` suffix so it is invisible to the build, the test runner, and `vox-arch-check`. A generated detector is never a hollow in-tree function; it is a reviewable text proposal a human (or S4) promotes deliberately.
 
@@ -229,7 +229,7 @@ Test-first per AGENTS.md. Highlights:
 - `load`: fixture `findings.jsonl` (good, schema-mismatch, null-finding, low-score) → expected filtered set; schema-mismatch aborts.
 - `bucket`: deterministic key tests; `primary_crate` derivation across path shapes (crate path, workspace-root file, multi-crate commit picks plurality).
 - `cluster`: below-threshold bucket passes through unchanged (asserts **no embed call** via a counting `MockEmbedder`); above-threshold splits; embedding-failure falls back to single cluster.
-- `route` with a `MockRouter`: deterministic decisions; Vox-capability gate removes `VoxScript` when `authoring_model_vox_capable=false`; verify refutation flips `verified`.
+- `route` with a `MockRouter`: deterministic decisions; Vox-capability gate removes `VoxLang` when `authoring_model_vox_capable=false`; verify refutation flips `verified`.
 - `emit::artifacts`: every staged file ends in `.proposed`; asserts **nothing written outside the staging dir** (no in-tree writes); `None` form writes no file.
 - `emit::markdown`: insta snapshot; author-leak guard (no `@`, no 64-hex).
 - e2e `pipeline::run` against a fixture `findings.jsonl` with `MockRouter` + `MockEmbedder`: asserts `recommendations.jsonl`, `recommendations.md`, staging artifacts exist; budget exhaustion path.
@@ -238,7 +238,7 @@ Test-first per AGENTS.md. Highlights:
 
 ## 9. Model-agnostic & cost
 
-All inference + embedding through the facade; MENS first-class for decide, verify, and embed. Vox-capability is a model-registry capability flag, NOT a hardcoded model check — a future Vox-capable non-MENS model inherits `VoxScript` eligibility by registering the capability. Budget ceiling like S1 (default 5M tokens / $5). Cost ≈ `clusters × 2 calls` (decide + verify) + `oversized_buckets × embed`; a 30-day run with tens of clusters stays well under the ceiling.
+All inference + embedding through the facade; MENS first-class for decide, verify, and embed. Vox-capability is a model-registry capability flag, NOT a hardcoded model check — a future Vox-capable non-MENS model inherits `VoxLang` eligibility by registering the capability. Budget ceiling like S1 (default 5M tokens / $5). Cost ≈ `clusters × 2 calls` (decide + verify) + `oversized_buckets × embed`; a 30-day run with tens of clusters stays well under the ceiling.
 
 ## 10. AGENTS.md / arch additions (same PR)
 
@@ -258,7 +258,7 @@ All inference + embedding through the facade; MENS first-class for decide, verif
 
 1. `vox audit effort-route --findings <path>` produces `recommendations.jsonl`, `recommendations.md`, and staging artifacts under `<staging_dir>/<run-id>/`.
 2. Buckets ≤ threshold incur zero embedding calls (asserted via mock).
-3. Vox-capability gate: with a non-Vox-capable judge, no `VoxScript` artifacts are produced; with a MENS-tagged judge, `.vox.proposed` is allowed.
+3. Vox-capability gate: with a non-Vox-capable judge, no `VoxLang` artifacts are produced; with a MENS-tagged judge, `.vox.proposed` is allowed.
 4. Every staging artifact ends in `.proposed`; nothing is written into the build tree.
 5. `recommendations.md` contains no author identity.
 6. `cargo test -p vox-effort-route` passes ≥ 70% coverage with mocks.
@@ -269,7 +269,7 @@ All inference + embedding through the facade; MENS first-class for decide, verif
 
 | # | Risk | L | S | Mitigation |
 |--:|---|:-:|:-:|---|
-| 1 | External judge can't write Vox → useless `.vox` stubs | M | H | §5 Vox-capability gate removes `VoxScript` unless model is Vox-capable; falls back to CI/lint/prose forms |
+| 1 | External judge can't write Vox → useless `.vox` stubs | M | H | §5 Vox-capability gate removes `VoxLang` unless model is Vox-capable; falls back to CI/lint/prose forms |
 | 2 | Embedding cost/latency on every run | L | M | §3 step 3 conditional — embed only oversized buckets |
 | 3 | Re-judge overrides correct S1 tags wrongly | M | M | §3 step 5 adversarial verify; low-confidence/refuted decisions flagged, not silently trusted |
 | 4 | Generated detector lands as a hollow in-tree fn | L | H | §5 `.proposed` staging-only; §8 test asserts no in-tree writes |

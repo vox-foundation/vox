@@ -186,6 +186,119 @@ pub async fn llm_stream_activity(
     .await
 }
 
+/// Token + tool-call single-pass streaming implementation yielding [`vox_openai::sse::SseDeltaEvent`].
+pub async fn llm_stream_events(
+    messages: Vec<ChatMessage>,
+    config: LlmConfig,
+) -> Result<
+    Pin<Box<dyn Stream<Item = Result<vox_openai::sse::SseDeltaEvent, String>> + Send>>,
+    String,
+> {
+    let input = vox_config::resolve_egress::EgressResolveInput {
+        provider: config.provider.clone(),
+        model: config.model.clone(),
+        base_url_override: config.base_url.clone(),
+        timeout_ms: config.timeout_ms,
+        api_key_override: config.api_key.clone(),
+    };
+    let ereq = vox_config::resolve_egress::resolve_egress(&input)?;
+    let wire_msgs: Vec<vox_llm_egress::ChatMessage> = messages
+        .iter()
+        .map(|m| vox_llm_egress::ChatMessage {
+            role: m.role.clone(),
+            content: m.content.clone(),
+            tool_calls: m.tool_calls.clone(),
+            tool_call_id: m.tool_call_id.clone(),
+            name: m.name.clone(),
+            content_parts: m.content_parts.clone(),
+        })
+        .collect();
+    let wire_tools: Option<Vec<vox_llm_egress::ToolDef>> = config.tools.as_ref().map(|ts| {
+        ts.iter()
+            .map(|t| vox_llm_egress::ToolDef {
+                name: t.name.clone(),
+                description: t.description.clone(),
+                parameters: t.parameters.clone(),
+            })
+            .collect()
+    });
+    let params = vox_llm_egress::ChatParams {
+        temperature: config.temperature,
+        top_p: config.top_p,
+        seed: config.seed,
+        max_tokens: config.max_tokens,
+        response_format: config.response_format.as_ref(),
+        tools: wire_tools.as_deref(),
+        tool_choice: config.tool_choice.as_ref(),
+    };
+
+    let (inner, _cost_usd) = vox_llm_egress::stream_events_once(&ereq, &wire_msgs, &params)
+        .await
+        .map_err(|e| e.to_string())?;
+    let mapped = inner.map(|item| item.map_err(|e| e.to_string()));
+    Ok(Box::pin(mapped))
+}
+
+type LlmStreamEventsActivityFuture = Pin<
+    Box<
+        dyn Future<
+                Output = Result<
+                    Pin<
+                        Box<
+                            dyn Stream<Item = Result<vox_openai::sse::SseDeltaEvent, String>>
+                                + Send,
+                        >,
+                    >,
+                    String,
+                >,
+            > + Send,
+    >,
+>;
+
+/// Durable wrapper around [`llm_stream_events`] that streams both text deltas and `delta.tool_calls`
+/// fragments in a single HTTP pass.
+pub async fn llm_stream_events_activity(
+    options: &ActivityOptions,
+    messages: Vec<ChatMessage>,
+    config: LlmConfig,
+) -> ActivityResult<
+    Pin<Box<dyn Stream<Item = Result<vox_openai::sse::SseDeltaEvent, String>> + Send>>,
+> {
+    let activity_name = format!("llm_stream_events_{}_{}", config.provider, config.model);
+
+    execute_activity(&activity_name, options, || {
+        let messages = messages.clone();
+        let config = config.clone();
+
+        let fut = async move {
+            let start = std::time::Instant::now();
+            match llm_stream_events(messages, config.clone()).await {
+                Ok(stream) => {
+                    let latency = start.elapsed().as_millis() as i64;
+                    let _ =
+                        super::chat::record_telemetry_attempt(&config, "success", latency, None)
+                            .await;
+                    Ok(stream)
+                }
+                Err(err_msg) => {
+                    let latency = start.elapsed().as_millis() as i64;
+                    let _ = super::chat::record_telemetry_attempt(
+                        &config,
+                        "error",
+                        latency,
+                        Some("stream-connect-error"),
+                    )
+                    .await;
+                    Err(err_msg)
+                }
+            }
+        };
+        let fut_typed: LlmStreamEventsActivityFuture = Box::pin(fut);
+        fut_typed
+    })
+    .await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

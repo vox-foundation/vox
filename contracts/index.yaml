@@ -931,6 +931,55 @@ contracts:
     enforced_by:
       - vox ci contracts-index
 
+  - id: python-ecosystem-support
+    path: contracts/python/ecosystem-support.yaml
+    owner: platform-ci
+    kind: yaml
+    description: std.array stats-slice allowlist (signature, handler, and expected value per op).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: python-ecosystem-support-schema
+    path: contracts/python/ecosystem-support.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: JSON Schema for the python std.array ecosystem support allowlist.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: python-plan-ir
+    path: contracts/python/plan-ir.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: Plan IR schema for the seven std.array stats-slice nodes.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: python-frame-support
+    path: contracts/python/frame-support.yaml
+    owner: platform-ci
+    kind: yaml
+    description: std.frame polars allowlist (signature, handler, and expected value per op).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: python-frame-plan-ir
+    path: contracts/python/frame-plan-ir.v1.schema.json
+    owner: platform-ci
+    kind: json-schema
+    description: Plan IR schema for std.frame on polars.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: python-signature-manifest-budget
+    path: contracts/python/signature-manifest-budget.v1.json
+    owner: platform-ci
+    kind: json
+    description: K2 compressed-size ceiling for the twelve std.array signature strings.
+    enforced_by:
+      - cargo test -p vox-compiler --test python_bridge_parity
+      - vox ci contracts-index
+
   - id: repository-repo-path-resolution-schema
     path: contracts/repository/repo-path-resolution.schema.json
     owner: platform-ci

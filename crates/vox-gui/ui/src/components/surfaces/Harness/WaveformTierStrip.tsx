@@ -28,7 +28,7 @@ export function WaveformTierStrip({
             {snapshot.waveformBars.slice(0, condensed ? 12 : 24).map((val, idx) => (
               <span
                 key={idx}
-                className="w-[2px] bg-zinc-200 transition-all duration-300"
+                className="w-[2px] bg-zinc-200 transition-[height] duration-300"
                 style={{ height: `${Math.max(15, Math.round(val * 100))}%` }}
               />
             ))}

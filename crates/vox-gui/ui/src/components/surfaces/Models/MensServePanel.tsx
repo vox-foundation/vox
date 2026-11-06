@@ -51,7 +51,7 @@ export function MensServePanel({ pushToast }: MensServePanelProps) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch initial serve status on mount
   }, []);
 
   useEffect(() => {

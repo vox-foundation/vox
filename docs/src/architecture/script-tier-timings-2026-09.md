@@ -214,7 +214,7 @@ group is a genuine interpreter defect (`UndefinedVariable`, `TypeError`, one
 | scripts/docs-reality-audit-cycle.vox | 101 | `docs-reality-audit: verify…` |
 | scripts/fmt.vox | 1 | `Formatting Rust across 128 crates (Windows-safe, per-crate)...` |
 | scripts/frontend-review.vox | 1 | `[frontend-review] capturing matrix (chromium + firefox)...` |
-| scripts/generate-bench-scaffold.vox | 1 | `Migrating bench scaffold generator to VoxScript...` |
+| scripts/generate-bench-scaffold.vox | 1 | `Migrating bench scaffold generator to VoxLang...` |
 | scripts/generate-grammars.vox | 1 | `Regenerating grammar fragments from SSOT...` |
 | scripts/graphify-coverage.vox | 1 | `Graphify coverage verification script started` |
 | scripts/graphify-refresh.vox | 1 | `Checking freshness of Graphify corpora...` |

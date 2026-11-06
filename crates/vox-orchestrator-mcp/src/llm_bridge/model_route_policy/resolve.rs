@@ -22,7 +22,7 @@ fn provider_allowed_by_route_policy(model: &ModelSpec) -> bool {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn build_selection_request(
+pub(crate) fn build_selection_request(
     task: TaskCategory,
     complexity: u8,
     prefer_local: bool,
@@ -31,11 +31,15 @@ fn build_selection_request(
     required_capabilities: Vec<vox_orchestrator::models::Capability>,
     clutch: Option<vox_orchestrator::mode::ClutchProfile>,
     risk: Option<vox_orchestrator::mode::RiskPosture>,
+    context_fill_ratio: Option<f32>,
 ) -> ModelSelectionRequest {
     let mut intent = SelectionIntent::for_task(task);
     intent.complexity = complexity;
     intent.prefer_local = prefer_local;
     intent.cacheable_workload = cacheable_workload;
+    intent.context_fill_ratio = context_fill_ratio;
+    intent.allow_free_in_performance_mode =
+        prefer_local || matches!(clutch, Some(vox_orchestrator::mode::ClutchProfile::Free));
     intent.axes = if let Some(clutch) = clutch {
         // Task-driven axes: clutch/risk actually steer the scorer. `effective_axes`
         // returns the (cost, responsiveness, intelligence) triple AFTER risk's
@@ -62,6 +66,56 @@ fn build_selection_request(
         required_capabilities,
         candidate_scope: CandidateScope::AllProviders,
     }
+}
+
+/// Build a [`ModelSelectionRequest`] with an optional pre-turn [`super::turn_decision_pack::TurnDecisionPack`]
+/// applied upstream (`DEC-01`, `DEC-03`).
+///
+/// - When `pack` is `None`, returns the exact byte-for-byte output of [`build_selection_request`].
+/// - Patches `task`, `complexity`, and `prefer_local` only when not explicitly set by the caller.
+/// - May set `intent.allow_free_in_performance_mode = true` **only when `clutch.is_none()`**
+///   (`ClutchProfile::Free` already sets that flag; `ClutchProfile::Performance`, `Genius`,
+///   and `Balanced` are never overridden by the pack).
+/// - Note on `allow_free_in_performance_mode`: this flag only prevents `best_for_internal`
+///   from skipping `:free` specs under `CostPreference::Performance`; it does **not**
+///   invoke `PreferFree` or reorder `FREE_FLOOR` / `OPENROUTER_FREE_FALLBACK_MODELS`.
+#[allow(clippy::too_many_arguments)]
+pub fn build_selection_request_with_decision_pack(
+    task: TaskCategory,
+    complexity: u8,
+    prefer_local: bool,
+    cacheable_workload: bool,
+    preference: vox_orchestrator::config::CostPreference,
+    required_capabilities: Vec<vox_orchestrator::models::Capability>,
+    clutch: Option<vox_orchestrator::mode::ClutchProfile>,
+    risk: Option<vox_orchestrator::mode::RiskPosture>,
+    context_fill_ratio: Option<f32>,
+    explicit: super::turn_decision_pack::CallerExplicitRouteFlags,
+    pack: Option<&super::turn_decision_pack::TurnDecisionPack>,
+) -> ModelSelectionRequest {
+    let patched = super::turn_decision_pack::apply_turn_decision_pack_upstream(
+        task,
+        complexity,
+        prefer_local,
+        clutch,
+        explicit,
+        pack,
+    );
+    let mut req = build_selection_request(
+        patched.task,
+        patched.complexity,
+        patched.prefer_local,
+        cacheable_workload,
+        preference,
+        required_capabilities,
+        clutch,
+        risk,
+        context_fill_ratio,
+    );
+    if patched.allow_free_in_performance_mode_override == Some(true) && clutch.is_none() {
+        req.intent.allow_free_in_performance_mode = true;
+    }
+    req
 }
 
 #[inline]
@@ -491,21 +545,34 @@ fn resolve_mcp_chat_model_sync_inner(
     }
 
     // Prefer the Vox-trained local model for code-oriented tasks when available and permitted.
-    if vox_local_route_preferred && !res.enforce_free_tier_only {
+    if vox_local_route_preferred {
         if let Some(m) = registry
             .list_models()
             .into_iter()
+            .filter(|m| !res.enforce_free_tier_only || m.is_free)
             .filter(|m| caps_ok(m))
             .filter(|m| matches!(m.provider_type, ProviderType::VoxLocal))
             .filter(mcp_local_model_allowed)
             .filter(|m| routing_allows(m))
             .max_by(|a, b| a.max_tokens.cmp(&b.max_tokens))
         {
+            *rationale_out = Some(format!(
+                "VoxLocal MENS fast-path preferred for {:?} ({})",
+                task, m.id
+            ));
             return Ok((m.clone(), m.is_free));
         }
     }
 
-    let req = build_selection_request(
+    // DEC-01: the pack (when present) patches only fields the caller left at their
+    // defaults; clutch-derived axes and `allow_free` under a clutch are untouched.
+    let defaults = McpChatModelResolution::default();
+    let explicit = super::turn_decision_pack::CallerExplicitRouteFlags {
+        caller_set_task: res.task_category != defaults.task_category,
+        caller_set_complexity: res.complexity != defaults.complexity,
+        caller_set_prefer_local: vox_local_route_preferred,
+    };
+    let req = build_selection_request_with_decision_pack(
         task,
         res.complexity,
         vox_local_route_preferred,
@@ -514,6 +581,9 @@ fn resolve_mcp_chat_model_sync_inner(
         required_capabilities.clone(),
         res.clutch,
         res.risk,
+        res.context_fill_ratio,
+        explicit,
+        res.turn_decision_pack.as_ref(),
     );
 
     if let Some(decision) = decide(&req, &registry) {
@@ -696,12 +766,14 @@ mod tests {
             vec![Capability::SupportsToolUse],
             None,
             None,
+            Some(0.65),
         );
         assert_eq!(req.intent.task, TaskCategory::CodeGen);
         assert_eq!(req.intent.complexity, 7);
         assert_eq!(req.intent.axes, SelectionAxes::COST_FIRST);
         assert!(req.intent.prefer_local);
         assert!(req.intent.cacheable_workload);
+        assert_eq!(req.intent.context_fill_ratio, Some(0.65));
         assert_eq!(req.required_capabilities, vec![Capability::SupportsToolUse]);
     }
 
@@ -718,6 +790,7 @@ mod tests {
             vec![],
             Some(vox_orchestrator::mode::ClutchProfile::Genius),
             Some(vox_orchestrator::mode::RiskPosture::Moderate),
+            None,
         );
         assert_eq!(req.intent.axes, SelectionAxes::QUALITY_FIRST);
     }
@@ -735,6 +808,7 @@ mod tests {
             vec![],
             Some(vox_orchestrator::mode::ClutchProfile::Free),
             Some(vox_orchestrator::mode::RiskPosture::Moderate),
+            None,
         );
         assert_eq!(req.intent.axes, SelectionAxes::COST_FIRST);
     }
@@ -752,6 +826,7 @@ mod tests {
             vec![],
             Some(vox_orchestrator::mode::ClutchProfile::Free),
             Some(vox_orchestrator::mode::RiskPosture::Low),
+            None,
         );
         assert_eq!(req.intent.axes, SelectionAxes::QUALITY_FIRST);
     }

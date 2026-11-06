@@ -48,3 +48,7 @@ fixtures:
     path: examples/golden/json_as_typed.vox
     proves: [json_as_typed]
     targets: [rust-script]
+  - id: py_array_stats
+    path: examples/golden/py_array_stats.vox
+    proves: [py_array_stats]
+    targets: [rust-script]

@@ -148,7 +148,7 @@ The cloud path has never completed a job:
 
 **Recommendation.** Do not extend candle to multi-GPU/MoE. Add a pinned-digest PEFT trainer
 (Unsloth or axolotl) to the cloud image for 14B / 32B / Qwen3-Coder-30B-A3B, keeping candle for
-local Metal. This crosses the VoxScript-first rule and needs an ADR. Estimated cost at the current
+local Metal. This crosses the VoxLang-first rule and needs an ADR. Estimated cost at the current
 ~7.2M tokens/epoch × 3 epochs: 14B on A100-80G ≈ $1.5–3; 32B on H100 ≈ $6–10; 30B-A3B ≈ $4–6.
 A side benefit: the same data trained with both trainers is a differential test for the candle
 trainer (it would have exposed T1).
@@ -276,7 +276,7 @@ The build breaks this audit hit on `877406d84` (`vox-populi` hub fields, CUDA du
 9. **Profile plumbing.** Carry `max_grad_norm`, `weight_decay`, per-profile `system_prompt`, and `target_modules` through `LoraTrainingConfig` (both copies) and the plugin wire format.
 10. **Strict mixes + readiness gate** in the train path: fail when a spoke's output is below its readiness threshold; seeded `sample_rate`; regenerate `data-sufficiency-spike` from real files.
 11. **Eval.** Best-checkpoint selection / early stopping on the de-leaked val loss; pass@k with real sampling; a regression gate sized for noise (bootstrap CI instead of a 0.03 drop on 52 tasks).
-12. **Remote training** (needs an ADR — crosses VoxScript-first): pinned PEFT trainer image (Unsloth/axolotl) for 14B/32B/30B-A3B; fix `Dockerfile.populi`; real artifact pull-down; scoped HF token; fail-loud entrypoint; host-side termination instead of in-container account keys; per-model runtime/disk/budget; pin image digest + base/dataset revisions + seed; spot resume. First run: the same data on candle and PEFT at 8B as a differential test.
+12. **Remote training** (needs an ADR — crosses VoxLang-first): pinned PEFT trainer image (Unsloth/axolotl) for 14B/32B/30B-A3B; fix `Dockerfile.populi`; real artifact pull-down; scoped HF token; fail-loud entrypoint; host-side termination instead of in-container account keys; per-model runtime/disk/budget; pin image digest + base/dataset revisions + seed; spot resume. First run: the same data on candle and PEFT at 8B as a differential test.
 13. **Retire** the `vox-mens-27b` staging artifact and its unsupported README metrics; replace `small_code_default`'s retired Qwen2.5 rungs with pinned Qwen3 revisions.
 
 After merging, regenerate the corpora (`vox mens corpus` extract → pairs → mix): the files under `target/dogfood/` and `mens/data/` still contain the old defects until rebuilt.

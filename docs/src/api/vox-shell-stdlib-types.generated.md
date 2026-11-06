@@ -41,3 +41,29 @@ so neither side has to duplicate it or create a cycle.
 |---|---|
 | `fs_types` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_shell_stdlib_types: "vox-shell-stdlib-types"
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_actor_runtime -> vox_shell_stdlib_types
+    node vox_compiler: "vox-compiler"
+    vox_compiler -> vox_shell_stdlib_types
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Direct workspace dependent |
+| [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `fs_types::VoxFileRecord` | `pub struct VoxFileRecord` | [`crates/vox-shell-stdlib-types/src/fs_types.rs#L9-L17`](../../../crates/vox-shell-stdlib-types/src/fs_types.rs#L9-L17) | One directory entry with structured metadata (`std.fs.list_dir_detailed` / `std.fs.stat`).  Identical layout on both paths — the interpreter creates these directly and the codegen path serialises them through the runtime ABI. Serde derives are needed for the runtime JSON bridge; they are harmless on the interpreter side. |
+

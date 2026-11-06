@@ -42,7 +42,7 @@ These were resolved in the audit clarifying pass. They are not up for debate in 
 
 1. **`contracts/` is canonical for wire and DDL shape** — not Rust code. Rust code is generated from contracts. `contracts/db/baseline-version-policy.yaml` already partially encodes this model (it claims to be SSoT for the baseline integer and digest).
 2. **libSQL/Turso stays** as the Tier A engine. No sled/heed/redb/rocksdb.
-3. **VoxScript-first for migration glue** per `AGENTS.md §VoxScript-First Glue Code`. No `.sh`, no `.ps1`, no `.py` helpers.
+3. **VoxLang-first for migration glue** per `AGENTS.md §VoxLang-First Glue Code`. No `.sh`, no `.ps1`, no `.py` helpers.
 4. **Secret plane is `vox-secrets`** per `AGENTS.md §Secret Management (Required, SSOT)`. No direct `env::var("TURSO_*")` outside the vox-secrets allowlist.
 5. **Frozen Core crates** (per `contracts/db/data-storage-policy.v1.yaml#frozen_core_crates` — canonical list since `crates/_frozen.md` was retired 2026-05-24) keep their public surface stable. Tier A DDL changes in frozen crates need governance sign-off.
 6. **Archive Protocol**: `archive/` and `docs/src/archive/` are frozen inputs. Auditors and agents must not regenerate against them.
@@ -276,7 +276,7 @@ Added after cross-checking the planning docs against the 24-hour commit window `
 
 Phases are a summary. Ticket-level detail is in the [migration backlog](data-storage-migration-backlog-2026.md). Every migration item is broken into numbered sub-steps (1, 2, 3, …) with exact file paths so a future LLM or human contributor can execute without re-deriving context.
 
-- **Phase 0 — Scaffolding**: guard stub, data-storage policy contract schema, `.cursor/rules/data-storage-policy.mdc`, first VoxScript migration script, SSOT/backlog/lint-spec documents cross-indexed.
+- **Phase 0 — Scaffolding**: guard stub, data-storage policy contract schema, `.cursor/rules/data-storage-policy.mdc`, first VoxLang migration script, SSOT/backlog/lint-spec documents cross-indexed.
 - **Phase 1 — Contracts-canonical first cut**: contracts version header parity (M-12), first codegen pipeline inside `vox-jsonschema-util` (M-10, M-11), env-vars contract authored (M-13), format consolidation (M-17), OpenAPI drift (M-16), orchestration harness drift gate (M-11).
 - **Phase 2 — DDL flip**: emit SQL side of the pipeline (M-22), flip DDL ownership to contracts (M-23), auto-maintain baseline digest (M-20), add delta migration framework (M-21), document Turso workaround (M-29-docs), sunset `TURSO_*` env vars (M-30).
 - **Phase 3 — Tier B / C rollout**: promote telemetry spool to new `vox-spool` crate (M-03), CAS owner spike and implementation (M-29-spike + M-30), canonical `VOX_SPOOL_DIR` (M-36), repo index cache manifest (M-34), JSONL sprawl inventory + migration (M-32, M-33), `target-*` cleanup (M-35), `dist/schemas.ts` provenance (M-31).
@@ -320,7 +320,7 @@ This work is considered "done" when all of:
 - [`contracts/db/retention-policy.yaml`](../../../contracts/db/retention-policy.yaml) — retention vocabulary; extended in M-30.
 - [`contracts/db/data-storage-policy.v1.yaml`](../../../contracts/db/data-storage-policy.v1.yaml) — machine-checked policy; consumed by the guard.
 - `contracts/db/data-storage-policy.v1.yaml#frozen_core_crates` — Frozen Core list (canonical since `crates/_frozen.md` was retired 2026-05-24).
-- [`AGENTS.md`](../../../AGENTS.md) — cross-tool policy surface; see `#voxscript-first-glue-code-required`, `#telemetry-trust-ssot`, `#secret-management-required-ssot`, `#archival-protocol-llm-guard`.
+- [`AGENTS.md`](../../../AGENTS.md) — cross-tool policy surface; see `#voxlang-first-glue-code-required`, `#telemetry-trust-ssot`, `#secret-management-required-ssot`, `#archival-protocol-llm-guard`.
 - [`tree-sitter-vox/GRAMMAR_SSOT.md`](../../../tree-sitter-vox/GRAMMAR_SSOT.md) — grammar SSoT.
 - ADR [023-optional-telemetry-remote-upload.md](../adr/023-optional-telemetry-remote-upload.md) — remote telemetry upload.
 

@@ -673,39 +673,11 @@ impl Parser {
                             if matches!(self.peek(), Token::RParen | Token::Eof) {
                                 break;
                             }
-                            match self.peek().clone() {
-                                Token::Ident(ref name) => {
-                                    let name = name.clone();
-                                    self.advance();
-                                    if let Some(eff) =
-                                        crate::ast::decl::effect::EffectAnnotation::from_keyword(
-                                            &name,
-                                        )
-                                    {
-                                        if name == "mcp" && self.eat(&Token::LParen) {
-                                            if let Token::Ident(tool) = self.peek().clone() {
-                                                self.advance();
-                                                decorator_effects.push(
-                                                    crate::ast::decl::effect::EffectAnnotation::Mcp(
-                                                        tool,
-                                                    ),
-                                                );
-                                            }
-                                            let _ = self.expect(&Token::RParen);
-                                        } else {
-                                            decorator_effects.push(eff);
-                                        }
-                                    }
-                                }
-                                // `env` lexes as a keyword (`Token::Env`) — mirror `parse_uses_clause`.
-                                Token::Env => {
-                                    self.advance();
-                                    decorator_effects
-                                        .push(crate::ast::decl::effect::EffectAnnotation::Env);
-                                }
-                                _ => {
-                                    self.advance();
-                                }
+                            // Same item grammar as `uses` — unknown names are errors, not drops.
+                            if let Some(eff) = self.parse_effect_item() {
+                                decorator_effects.push(eff);
+                            } else if !matches!(self.peek(), Token::Comma) {
+                                break;
                             }
                             if !self.eat(&Token::Comma) {
                                 break;

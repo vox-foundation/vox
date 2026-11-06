@@ -309,7 +309,7 @@ function SigningKeysSection({ vals, update, pushToast, gamifyEnabled }: {
     const prompt = present
       ? 'Rotate signing key? Enter master password to confirm. This generates a NEW ed25519 keypair; peers trusting the old key must re-trust.'
       : 'Create node identity? Choose a master password to encrypt the new ed25519 key.';
-    // eslint-disable-next-line no-alert
+    // eslint-disable-next-line no-alert -- interactive master password prompt for key rotation
     const password = window.prompt(prompt) ?? '';
     if (!password) return;
     setRotating(true);

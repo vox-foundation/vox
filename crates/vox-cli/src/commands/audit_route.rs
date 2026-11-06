@@ -78,7 +78,7 @@ struct RouteToml {
     /// `ModelCapabilities.writes_vox` flag: a model is Vox-capable if the
     /// registry advertises `writes_vox` OR an operator listed it here. A model
     /// that is neither registry-capable nor allowlisted is treated as
-    /// non-Vox-capable (safe default), gating `VoxScript` artifact forms. No
+    /// non-Vox-capable (safe default), gating `VoxLang` artifact forms. No
     /// model-name heuristics are applied.
     #[serde(default)]
     vox_capable_models: Vec<String>,
@@ -161,7 +161,7 @@ fn resolve_judge_model(args: &EffortRouteArgs, cfg: &EffortRouteConfig) -> Optio
 /// There is NO model-name heuristic — name-guessing a capability is the exact
 /// kind of magic value this command must avoid. A model that is unknown to the
 /// registry (or known with `writes_vox == false`) AND absent from the allowlist
-/// is treated as non-Vox-capable (safe default), which gates `VoxScript`
+/// is treated as non-Vox-capable (safe default), which gates `VoxLang`
 /// artifact forms.
 fn resolve_vox_capability(model_id: &str, allowlist: &[String]) -> ModelVoxCapability {
     let registry_writes_vox = vox_orchestrator::models::ModelRegistry::from_cache()

@@ -214,8 +214,8 @@ impl FacetCtx {
     }
 }
 
-/// Repo-relative `docs/src/**/*.md` path (`/` separators) the facet rules apply to; `None` for
-/// archive, generated, `.mdx` and out-of-tree paths.
+/// Repo-relative `docs/src/**/*.{md,mdx}` path (`/` separators) the facet rules apply to; `None`
+/// for archive, generated, `docs/src/index.mdx` (landing page without H1) and out-of-tree paths.
 pub(crate) fn facet_lint_rel_path(path: &Path, repo_root: &Path) -> Option<String> {
     let full = path.to_string_lossy().replace('\\', "/");
     let rel = match path.strip_prefix(repo_root) {
@@ -224,9 +224,12 @@ pub(crate) fn facet_lint_rel_path(path: &Path, repo_root: &Path) -> Option<Strin
         Err(_) => full[full.find("docs/src/")?..].to_string(),
     };
     let rel = rel.trim_start_matches("./");
+    let is_authored_doc = (rel.ends_with(".md") && !rel.ends_with(".generated.md"))
+        || (rel.ends_with(".mdx")
+            && !rel.ends_with(".generated.mdx")
+            && rel != "docs/src/index.mdx");
     let ok = rel.starts_with("docs/src/")
-        && rel.ends_with(".md")
-        && !rel.ends_with(".generated.md")
+        && is_authored_doc
         && !rel.split('/').any(|seg| seg == "archive");
     ok.then(|| rel.to_string())
 }

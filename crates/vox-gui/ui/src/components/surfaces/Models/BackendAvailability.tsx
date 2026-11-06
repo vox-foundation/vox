@@ -17,7 +17,7 @@ export function BackendAvailability({ statuses }: { statuses: ProviderStatus[] }
       <div className="font-display text-[11px] tracking-[0.2em] uppercase text-text-muted">
         Backend availability
       </div>
-      <div role="list" className="mt-2 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
+      <div role="list" className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
         {statuses.map(s => {
           const live = s.is_local ? s.local_reachable === true : s.key_present;
           const label = s.is_local
@@ -34,14 +34,15 @@ export function BackendAvailability({ statuses }: { statuses: ProviderStatus[] }
               key={s.provider}
               role="listitem"
               aria-label={s.provider}
-              className="flex items-center gap-2 rounded-lg border border-border-subtle px-2 py-1.5"
+              title={s.provider}
+              className="flex items-center gap-2 rounded-lg border border-border-subtle bg-bg-base/40 px-2.5 py-1.5 min-w-0"
             >
               <span
                 aria-hidden
-                className={`size-2 rounded-full ${live ? 'bg-emerald-400' : 'bg-zinc-600'}`}
+                className={`size-2 shrink-0 rounded-full ${live ? 'bg-emerald-400' : 'bg-zinc-600'}`}
               />
-              <span className="font-mono text-[10px] text-text-primary truncate">{s.provider}</span>
-              <span className="ml-auto text-[9px] uppercase tracking-widest text-text-muted">{label}</span>
+              <span className="font-mono text-[10px] text-text-primary truncate min-w-0">{s.provider}</span>
+              <span className="ml-auto shrink-0 whitespace-nowrap text-[9px] uppercase tracking-widest text-text-muted">{label}</span>
             </div>
           );
         })}

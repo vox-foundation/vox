@@ -17,6 +17,101 @@ pub struct BuiltinTypes {
     methods: std::collections::HashMap<String, std::collections::HashMap<String, Ty>>,
 }
 
+/// Parse one `python_array_ops` signature into a function type.
+///
+/// `generic_array` rewrites `Array[...]` as `GenericParam(0)` so `MethodCall`
+/// can substitute the receiver dtype the way it does for `List`.
+fn array_op_fn_ty(signature: &str, generic_array: bool) -> Ty {
+    tracing::debug!(
+        %signature,
+        generic_array,
+        "std.array signature sent to type parser"
+    );
+    let Some((params_src, ret_src)) = signature.split_once("->") else {
+        tracing::debug!(%signature, "std.array signature missing ->");
+        return Ty::Error;
+    };
+    let params_src = params_src.trim();
+    let Some(open) = params_src.rfind('(') else {
+        tracing::debug!(%params_src, "std.array signature missing '('");
+        return Ty::Error;
+    };
+    let Some(close) = params_src.rfind(')') else {
+        tracing::debug!(%params_src, "std.array signature missing ')'");
+        return Ty::Error;
+    };
+    if close < open {
+        return Ty::Error;
+    }
+    let inner = params_src[open + 1..close].trim();
+    let params = if inner.is_empty() {
+        Vec::new()
+    } else {
+        inner
+            .split(',')
+            .map(|param| {
+                let ty_src = param
+                    .split_once(':')
+                    .map(|(_, ty)| ty.trim())
+                    .unwrap_or(param.trim());
+                array_sig_ty(ty_src, generic_array)
+            })
+            .collect()
+    };
+    Ty::Fn(
+        params,
+        Box::new(array_sig_ty(ret_src.trim(), generic_array)),
+    )
+}
+
+fn array_sig_ty(text: &str, generic_array: bool) -> Ty {
+    tracing::debug!(%text, generic_array, "std.array type fragment");
+    if let Some(inner) = text
+        .strip_prefix("Array[")
+        .and_then(|s| s.strip_suffix(']'))
+    {
+        let inner_ty = if generic_array {
+            Ty::GenericParam(0)
+        } else {
+            array_sig_ty(inner, false)
+        };
+        return Ty::Array(Box::new(inner_ty));
+    }
+    if let Some(rest) = text.strip_prefix("Result[") {
+        let inner = rest.strip_suffix(']').unwrap_or(rest);
+        return Ty::Result(
+            Box::new(array_sig_ty(inner, generic_array)),
+            Box::new(Ty::Str),
+        );
+    }
+    if let Some(rest) = text.strip_prefix("list[") {
+        let inner = rest.strip_suffix(']').unwrap_or(rest);
+        return Ty::List(Box::new(array_sig_ty(inner, generic_array)));
+    }
+    match text {
+        "int" => Ty::Int,
+        "float" => Ty::Float,
+        "f64" => Ty::Named("f64".into()),
+        "str" => Ty::Str,
+        "bool" => Ty::Bool,
+        "Decimal" => Ty::Decimal,
+        "Date" | "DateTime" | "Duration" => Ty::Named(text.into()),
+        other => Ty::Named(other.into()),
+    }
+}
+
+/// Which `python_frame_ops` name lives on which receiver.
+/// `StdFrameNs` is only the constructors. `Frame` and `Expr` are the plan.
+fn frame_op_receiver(name: &str) -> Option<&'static str> {
+    match name {
+        "scan_csv" | "col" => Some("StdFrameNs"),
+        "filter" | "group_by" | "agg" | "sort" | "collect" => Some("Frame"),
+        "sum" | "count" | "mean" | "min" | "max" | "eq" | "neq" | "gt" | "gte" | "lt" | "lte"
+        | "and" | "or" => Some("Expr"),
+        _ => None,
+    }
+}
+
 impl BuiltinTypes {
     /// Populate the given TypeEnv with all built-in definitions.
     pub fn register_all(env: &mut TypeEnv) -> Self {
@@ -317,6 +412,42 @@ impl BuiltinTypes {
             },
         );
 
+        // `import std.array` binds the name `array`. Pre-register it so the
+        // import pass does not replace it with `Ty::ImportPlaceholder`.
+        env.define(
+            "array".into(),
+            Binding {
+                ty: Ty::Named("StdArrayNs".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+        // `import std.frame` binds the name `frame`. Pre-register it so the
+        // import pass does not replace it with `Ty::ImportPlaceholder`.
+        env.define(
+            "frame".into(),
+            Binding {
+                ty: Ty::Named("StdFrameNs".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+        // Plan dtype tokens for `astype`. These are not host numeric types.
+        // `from_list` never produces `i32` or `f32`.
+        for dtype in ["f64", "f32", "i64", "i32"] {
+            env.define(
+                dtype.into(),
+                Binding {
+                    ty: Ty::Named(dtype.into()),
+                    mutable: false,
+                    kind: BindingKind::Constructor,
+                    is_deprecated: false,
+                },
+            );
+        }
+
         // str(value: any) → str
         env.define(
             "str".into(),
@@ -393,6 +524,17 @@ impl BuiltinTypes {
             "fs".into(),
             Binding {
                 ty: Ty::Named("FsModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
+        // python bridge (`python.version()`).
+        env.define(
+            "python".into(),
+            Binding {
+                ty: Ty::Named("PythonModule".into()),
                 mutable: false,
                 kind: BindingKind::Import,
                 is_deprecated: false,
@@ -1046,6 +1188,16 @@ impl BuiltinTypes {
             ),
         );
         methods.insert("FsModule".into(), fs_methods);
+
+        let mut python_methods = std::collections::HashMap::new();
+        python_methods.insert(
+            "version".into(),
+            Ty::Fn(
+                vec![],
+                Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str))),
+            ),
+        );
+        methods.insert("PythonModule".into(), python_methods);
 
         // Path module methods. `extension` / `parent` / `file_name` / `stem` /
         // `is_absolute` registered alongside `path.join` 2026-05-23 (audit doc §10).
@@ -1745,6 +1897,23 @@ impl BuiltinTypes {
         }
         methods.insert("Bool".into(), bool_methods);
 
+        let mut array_ns = std::collections::HashMap::new();
+        for op in crate::python_array_support::python_array_ops() {
+            if op.name == "from_list" {
+                array_ns.insert(op.name.to_string(), array_op_fn_ty(op.signature, false));
+            }
+        }
+        methods.insert("StdArrayNs".into(), array_ns);
+
+        let mut frame_ns = std::collections::HashMap::new();
+        for op in crate::python_frame_support::python_frame_ops() {
+            tracing::debug!(op = op.name, signature = op.signature, "std.frame op");
+            if frame_op_receiver(op.name) == Some("StdFrameNs") {
+                frame_ns.insert(op.name.to_string(), array_op_fn_ty(op.signature, false));
+            }
+        }
+        methods.insert("StdFrameNs".into(), frame_ns);
+
         Self { methods }
     }
 
@@ -1902,6 +2071,38 @@ impl BuiltinTypes {
             };
         }
 
+        // Array methods come from `python_array_ops`, ahead of the string-key map.
+        // `from_list` stays on `StdArrayNs`. `add` and `mul` are binary
+        // operators, like the values `sub` and `div` produce, and are not methods.
+        if let Ty::Array(_) = obj_ty {
+            return crate::python_array_support::python_array_ops()
+                .iter()
+                .find(|op| op.name == method && !matches!(op.name, "from_list" | "add" | "mul"))
+                .map(|op| array_op_fn_ty(op.signature, true));
+        }
+
+        // Frame and Expr methods come from `python_frame_ops`. `scan_csv` and
+        // `col` stay on `StdFrameNs`. `Ty::Named` is the carrier; there is no
+        // `Ty::Frame`. Records is a column store, not `Ty::Record`.
+        if let Ty::Named(name) = obj_ty {
+            if name == "Frame" || name == "Expr" {
+                tracing::debug!(receiver = name.as_str(), method, "std.frame method lookup");
+                return crate::python_frame_support::python_frame_ops()
+                    .iter()
+                    .find(|op| {
+                        op.name == method && frame_op_receiver(op.name) == Some(name.as_str())
+                    })
+                    .map(|op| array_op_fn_ty(op.signature, false));
+            }
+            if name == "Records" {
+                return match method {
+                    "num_rows" => Some(Ty::Fn(vec![], Box::new(Ty::Int))),
+                    "column" => Some(Ty::Fn(vec![Ty::Str], Box::new(Ty::List(Box::new(Ty::Int))))),
+                    _ => None,
+                };
+            }
+        }
+
         let type_key = match obj_ty {
             Ty::Named(n) => n.as_str(),
             Ty::List(_) => "List",
@@ -1957,6 +2158,357 @@ mod tests {
                 Box::new(Ty::Option(Box::new(note.clone()))),
                 Box::new(Ty::Str)
             )
+        );
+    }
+
+    fn check_source(
+        source: &str,
+    ) -> (
+        Vec<crate::typeck::diagnostics::Diagnostic>,
+        crate::hir::HirModule,
+    ) {
+        let tokens = crate::lexer::lex(source);
+        let module = crate::parser::parse(tokens)
+            .unwrap_or_else(|errs| panic!("parse failed: {errs:?}\n{source}"));
+        let mut hir = crate::hir::lower::lower_module(&module);
+        let diags = crate::typeck::typecheck_hir_module(source, &mut hir);
+        (diags, hir)
+    }
+
+    fn error_messages(diags: &[crate::typeck::diagnostics::Diagnostic]) -> Vec<&str> {
+        diags
+            .iter()
+            .filter(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error)
+            .map(|d| d.message.as_str())
+            .collect()
+    }
+
+    fn inferred_of(
+        hir: &crate::hir::HirModule,
+        span: crate::ast::span::Span,
+    ) -> &crate::hir::HirType {
+        hir.inferred_types
+            .get(&span)
+            .unwrap_or_else(|| panic!("no inferred type at {span:?}"))
+    }
+
+    #[test]
+    fn zscore_golden_typechecks() {
+        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../examples/golden/py_array_stats.vox");
+        let source = std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+        let (diags, hir) = check_source(&source);
+        let errors = error_messages(&diags);
+        assert!(
+            errors.is_empty(),
+            "py_array_stats.vox type diagnostics: {errors:?}"
+        );
+
+        let zscore = hir
+            .functions
+            .iter()
+            .find(|f| f.name == "zscore")
+            .expect("zscore");
+        let ret = zscore.body.iter().find_map(|stmt| match stmt {
+            crate::hir::HirStmt::Return {
+                value: Some(expr), ..
+            } => Some(expr),
+            _ => None,
+        });
+        let crate::hir::HirExpr::MethodCall(object, method, _, _, span) = ret.expect("return expr")
+        else {
+            panic!("zscore return is not a method call");
+        };
+        assert_eq!(method, "to_list");
+        let list_of_float = crate::hir::HirType::Generic(
+            "list".into(),
+            vec![crate::hir::HirType::Named("float".into())],
+        );
+        assert_eq!(
+            inferred_of(&hir, *span),
+            &crate::hir::HirType::Generic("Result".into(), vec![list_of_float]),
+            "to_list on Array of f64 is Result of list of float"
+        );
+        let crate::hir::HirExpr::Binary(_, _, _, bin_span) = object.as_ref() else {
+            panic!("to_list receiver is not the z-score division");
+        };
+        assert_eq!(
+            inferred_of(&hir, *bin_span),
+            &crate::hir::HirType::Generic(
+                "Array".into(),
+                vec![crate::hir::HirType::Named("f64".into())]
+            ),
+            "0-d std divided into a 1-d array stays Array of f64"
+        );
+
+        let stripped = source.replacen("@uses(python)\n", "", 1);
+        let (stripped_diags, _) = check_source(&stripped);
+        let stripped_errors = error_messages(&stripped_diags);
+        assert!(
+            stripped_errors.iter().any(|m| m.contains("python")),
+            "to_list without uses python must diagnose, got {stripped_errors:?}"
+        );
+
+        let plans = r#"
+import std.array
+fn plans(xs: list[float]) {
+    let a = array.from_list(xs).astype(f64)
+    let _ = (a - a.mean()) / a.std(correction=0)
+}
+"#;
+        let (plan_diags, _) = check_source(plans);
+        let plan_errors = error_messages(&plan_diags);
+        assert!(
+            plan_errors.is_empty(),
+            "plan methods must not require python: {plan_errors:?}"
+        );
+
+        let std_ok = r#"
+import std.array
+fn std_ok(xs: list[float]) {
+    let a = array.from_list(xs)
+    let _ = a.std(correction=0)
+}
+"#;
+        let (std_ok_diags, _) = check_source(std_ok);
+        let std_ok_errors = error_messages(&std_ok_diags);
+        assert!(
+            std_ok_errors.is_empty(),
+            "std(correction=0) typechecks: {std_ok_errors:?}"
+        );
+
+        for (label, src) in [
+            (
+                "missing",
+                "import std.array\nfn missing(xs: list[float]) {\n    let a = array.from_list(xs)\n    let _ = a.std()\n}\n",
+            ),
+            (
+                "positional",
+                "import std.array\nfn positional(xs: list[float]) {\n    let a = array.from_list(xs)\n    let _ = a.std(0)\n}\n",
+            ),
+        ] {
+            let (diags, _) = check_source(src);
+            let errors = error_messages(&diags);
+            assert!(
+                !errors.is_empty(),
+                "std {label} must be a diagnostic, got none"
+            );
+        }
+
+        let arith = r#"
+fn same(a: Array[f64], z: Array[f64]) {
+    let s = a - z
+    let d = a / z
+}
+fn mismatch(a: Array[int], b: Array[f64]) {
+    let _ = a - b
+    let _ = a / b
+}
+fn scalar_mix(a: Array[f64]) {
+    let _ = a - 1.0
+}
+fn host_promo() {
+    let x = 1 + 1.0
+}
+"#;
+        let (arith_diags, arith_hir) = check_source(arith);
+        let arith_errors = error_messages(&arith_diags);
+        assert!(
+            arith_errors.iter().all(|m| m.contains("astype")),
+            "only dtype mismatches should fail, and they must name astype: {arith_errors:?}"
+        );
+        assert!(
+            arith_errors.len() >= 3,
+            "sub, div, and scalar mix must each name astype: {arith_errors:?}"
+        );
+        let same = arith_hir
+            .functions
+            .iter()
+            .find(|f| f.name == "same")
+            .expect("same");
+        let mut array_results = 0;
+        for stmt in &same.body {
+            let crate::hir::HirStmt::Let { value, .. } = stmt else {
+                continue;
+            };
+            let crate::hir::HirExpr::Binary(_, _, _, span) = value else {
+                continue;
+            };
+            assert_eq!(
+                inferred_of(&arith_hir, *span),
+                &crate::hir::HirType::Generic(
+                    "Array".into(),
+                    vec![crate::hir::HirType::Named("f64".into())]
+                )
+            );
+            array_results += 1;
+        }
+        assert_eq!(array_results, 2, "sub and div of Array of f64");
+
+        let promo = arith_hir
+            .functions
+            .iter()
+            .find(|f| f.name == "host_promo")
+            .expect("host_promo");
+        let crate::hir::HirStmt::Let { value, .. } = &promo.body[0] else {
+            panic!("host promo let");
+        };
+        let crate::hir::HirExpr::Binary(_, _, _, span) = value else {
+            panic!("host promo is not binary");
+        };
+        assert_eq!(
+            inferred_of(&arith_hir, *span),
+            &crate::hir::HirType::Named("float".into()),
+            "1 + 1.0 stays host float promotion"
+        );
+    }
+
+    #[test]
+    fn frame_typeck_namespace_methods() {
+        let mut env = TypeEnv::new();
+        let builtins = BuiltinTypes::register_all(&mut env);
+        let frame_binding = env
+            .lookup("frame")
+            .expect("import std.frame binds the name frame");
+        assert_eq!(frame_binding.ty, Ty::Named("StdFrameNs".into()));
+        assert_eq!(
+            crate::builtin_registry::std_root_field_ty("frame"),
+            Some(Ty::Named("StdFrameNs".into()))
+        );
+
+        let ns = Ty::Named("StdFrameNs".into());
+        for method in ["scan_csv", "col"] {
+            assert!(
+                builtins.lookup_method(&ns, method).is_some(),
+                "{method} is a StdFrameNs method"
+            );
+        }
+        assert!(
+            builtins.lookup_method(&ns, "filter").is_none(),
+            "filter stays on Frame"
+        );
+        assert!(
+            builtins.lookup_method(&ns, "amount").is_none(),
+            "frame.amount is not a method"
+        );
+
+        let frame_ty = Ty::Named("Frame".into());
+        for method in ["filter", "group_by", "agg", "sort", "collect"] {
+            let ty = builtins
+                .lookup_method(&frame_ty, method)
+                .unwrap_or_else(|| panic!("{method} missing on Frame"));
+            let Ty::Fn(_, ret) = ty else {
+                panic!("{method} is not a function");
+            };
+            if method == "collect" {
+                assert!(
+                    matches!(ret.as_ref(), Ty::Result(ok, _) if matches!(ok.as_ref(), Ty::Named(name) if name == "Records")),
+                    "collect returns Result[Records], got {ret:?}"
+                );
+            } else {
+                assert_eq!(ret.as_ref(), &Ty::Named("Frame".into()), "{method}");
+            }
+        }
+
+        let expr = Ty::Named("Expr".into());
+        for method in [
+            "sum", "count", "mean", "min", "max", "eq", "neq", "gt", "gte", "lt", "lte", "and",
+            "or",
+        ] {
+            let ty = builtins
+                .lookup_method(&expr, method)
+                .unwrap_or_else(|| panic!("{method} missing on Expr"));
+            let Ty::Fn(_, ret) = ty else {
+                panic!("{method} is not a function");
+            };
+            assert_eq!(ret.as_ref(), &Ty::Named("Expr".into()), "{method}");
+        }
+
+        assert_eq!(array_sig_ty("Decimal", false), Ty::Decimal);
+        assert_eq!(array_sig_ty("Date", false), Ty::Named("Date".into()));
+        assert_eq!(
+            array_sig_ty("DateTime", false),
+            Ty::Named("DateTime".into())
+        );
+        assert_eq!(
+            array_sig_ty("Duration", false),
+            Ty::Named("Duration".into())
+        );
+
+        let src = r#"
+import std.frame
+@uses(python, fs)
+fn pipeline(path: str) {
+    let scanned = frame.scan_csv(path)
+    let pred = frame.col("region").eq("west").and(frame.col("amount").gt(0)).or(frame.col("region").lt(1))
+    let filtered = scanned.filter(pred)
+    let grouped = filtered.group_by(["month"])
+    let summed = frame.col("amount").sum()
+    let counted = frame.col("amount").count()
+    let meaned = frame.col("amount").mean()
+    let mined = frame.col("amount").min()
+    let maxed = frame.col("amount").max()
+    let _cmp = frame.col("region").neq("east").gte(0).lte(1)
+    let agg = grouped.agg([summed, counted, meaned, mined, maxed])
+    let sorted = agg.sort("month", nulls="last")
+    let _rows = sorted.collect()
+}
+"#;
+        let (diags, _) = check_source(src);
+        let errors = error_messages(&diags);
+        assert!(
+            errors.is_empty(),
+            "frame pipeline type diagnostics: {errors:?}"
+        );
+
+        let amount = "import std.frame\nfn bad() {\n    let _ = frame.amount\n}\n";
+        let (amount_diags, _) = check_source(amount);
+        let amount_errors = error_messages(&amount_diags);
+        assert!(!amount_errors.is_empty(), "frame.amount is not a column");
+    }
+
+    #[test]
+    fn frame_typeck_records_column() {
+        let mut env = TypeEnv::new();
+        let builtins = BuiltinTypes::register_all(&mut env);
+        let records = Ty::Named("Records".into());
+        match builtins.lookup_method(&records, "num_rows") {
+            Some(Ty::Fn(params, ret)) => {
+                assert!(params.is_empty(), "num_rows takes no arguments");
+                assert_eq!(*ret, Ty::Int);
+            }
+            other => panic!("num_rows: {other:?}"),
+        }
+        match builtins.lookup_method(&records, "column") {
+            Some(Ty::Fn(params, ret)) => {
+                assert_eq!(params, vec![Ty::Str]);
+                match ret.as_ref() {
+                    Ty::List(inner) => assert!(
+                        !matches!(
+                            inner.as_ref(),
+                            Ty::Option(_) | Ty::GenericParam(_) | Ty::Error | Ty::Infer
+                        ),
+                        "column returns a concrete list, got {inner:?}"
+                    ),
+                    other => panic!("column return: {other:?}"),
+                }
+            }
+            other => panic!("column: {other:?}"),
+        }
+        let record = Ty::Record(vec![("revenue".into(), Ty::Int)]);
+        match builtins.lookup_method(&record, "get") {
+            Some(Ty::Fn(_, ret)) => {
+                assert!(
+                    matches!(ret.as_ref(), Ty::Option(_)),
+                    "Ty::Record get stays Option"
+                );
+            }
+            other => panic!("record get: {other:?}"),
+        }
+        assert!(
+            builtins.lookup_method(&records, "get").is_none(),
+            "Records must not reuse Ty::Record get"
         );
     }
 }

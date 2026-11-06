@@ -74,3 +74,60 @@ All internal Vox code uses `ChangeRequest` instead of "PR" or "MR".
 | `github` | GitHub REST (`api.github.com` or Enterprise base URL). |
 | `gitlab` | GitLab REST API. **DEPRECATED (2026-06-03): no longer supported; slated for removal.** |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_forge: "vox-forge"
+    node vox_http_client: "vox-http-client"
+    vox_forge -> vox_http_client
+    node vox_cli_review: "vox-cli-review"
+    vox_cli_review -> vox_forge
+    node vox_publisher: "vox-publisher"
+    vox_publisher -> vox_forge
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli-review`](./vox-cli-review.generated.md) | Direct workspace dependent |
+| [`vox-publisher`](./vox-publisher.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `error::ForgeError` | `pub enum ForgeError` | [`crates/vox-forge/src/error.rs#L7-L58`](../../../crates/vox-forge/src/error.rs#L7-L58) | Errors that can occur when talking to a Git forge. |
+| `fn` | `error::is_retryable` | `pub fn is_retryable(&self) -> bool` | [`crates/vox-forge/src/error.rs#L62-L69`](../../../crates/vox-forge/src/error.rs#L62-L69) | Returns `true` if this error is retryable. |
+| `struct` | `github::GitHubProvider` | `pub struct GitHubProvider` | [`crates/vox-forge/src/github.rs#L21-L28`](../../../crates/vox-forge/src/github.rs#L21-L28) | A GitHub forge provider. |
+| `fn` | `github::new` | `pub fn new(token: impl Into<String>) -> Result<Self, ForgeError>` | [`crates/vox-forge/src/github.rs#L32-L34`](../../../crates/vox-forge/src/github.rs#L32-L34) | Create a new GitHub provider with the given PAT or App token. |
+| `fn` | `github::with_base` | `pub fn with_base(token: impl Into<String>, api_base: &str) -> Result<Self, ForgeError>` | [`crates/vox-forge/src/github.rs#L37-L47`](../../../crates/vox-forge/src/github.rs#L37-L47) | Create with a custom API base (for GitHub Enterprise). |
+| `struct` | `gitlab::GitLabProvider` | `pub struct GitLabProvider` | [`crates/vox-forge/src/gitlab.rs#L26-L30`](../../../crates/vox-forge/src/gitlab.rs#L26-L30) | A GitLab forge provider. |
+| `fn` | `gitlab::new` | `pub fn new(token: impl Into<String>) -> Result<Self, ForgeError>` | [`crates/vox-forge/src/gitlab.rs#L34-L36`](../../../crates/vox-forge/src/gitlab.rs#L34-L36) | Create a provider for gitlab.com. |
+| `fn` | `gitlab::with_base` | `pub fn with_base(token: impl Into<String>, api_base: &str) -> Result<Self, ForgeError>` | [`crates/vox-forge/src/gitlab.rs#L39-L53`](../../../crates/vox-forge/src/gitlab.rs#L39-L53) | Create with a custom API base (for self-hosted GitLab). |
+| `trait` | `provider::GitForgeProvider` | `pub trait GitForgeProvider: Send + Sync` | [`crates/vox-forge/src/provider.rs#L31-L148`](../../../crates/vox-forge/src/provider.rs#L31-L148) | A platform-agnostic interface to a Git forge (GitHub and similar REST APIs).  Note: the GitLab implementation (the `gitlab` module/feature) is **deprecated (2026-06-03)** and no longer supported.  Implementations must be `Send + Sync` for use across async task boundaries.  ## Adding a new forge 1. Create `src/<forge>.rs` with a struct that implements this trait. 2. Add a feature flag `<forge>` in `Cargo.toml`. 3. Gate the module behind `#[cfg(feature = "<forge>")]` in `lib.rs`. 4. Wire the new forge into `ForgeRegistry`.  ## Terminology Internally Vox uses "ChangeRequest" for what GitHub calls "Pull Request" and GitLab calls "Merge Request". All trait methods use this neutral term. |
+| `struct` | `provider::ForgeRegistry` | `pub struct ForgeRegistry` | [`crates/vox-forge/src/provider.rs#L159-L161`](../../../crates/vox-forge/src/provider.rs#L159-L161) | A runtime registry of available forge providers.  Used by the orchestrator to dispatch forge operations without knowing which concrete platform is in use. |
+| `fn` | `provider::new` | `pub fn new() -> Self` | [`crates/vox-forge/src/provider.rs#L165-L167`](../../../crates/vox-forge/src/provider.rs#L165-L167) | Create an empty registry. |
+| `fn` | `provider::register` | `pub fn register(&mut self, provider: Box<dyn GitForgeProvider>)` | [`crates/vox-forge/src/provider.rs#L170-L172`](../../../crates/vox-forge/src/provider.rs#L170-L172) | Register a forge provider. |
+| `fn` | `provider::get` | `pub fn get(&self, name: &str) -> Option<&dyn GitForgeProvider>` | [`crates/vox-forge/src/provider.rs#L175-L180`](../../../crates/vox-forge/src/provider.rs#L175-L180) | Get the first registered provider by name (case-insensitive). |
+| `fn` | `provider::provider_names` | `pub fn provider_names(&self) -> Vec<&str>` | [`crates/vox-forge/src/provider.rs#L183-L185`](../../../crates/vox-forge/src/provider.rs#L183-L185) | List all registered provider names. |
+| `fn` | `provider::len` | `pub fn len(&self) -> usize` | [`crates/vox-forge/src/provider.rs#L188-L190`](../../../crates/vox-forge/src/provider.rs#L188-L190) | Number of registered providers. |
+| `fn` | `provider::is_empty` | `pub fn is_empty(&self) -> bool` | [`crates/vox-forge/src/provider.rs#L193-L195`](../../../crates/vox-forge/src/provider.rs#L193-L195) | True if no providers are registered. |
+| `struct` | `types::ChangeRequestId` | `pub struct ChangeRequestId(` | [`crates/vox-forge/src/types.rs#L16`](../../../crates/vox-forge/src/types.rs#L16) | Forge-neutral identifier for a ChangeRequest (distinct from the human-facing `number`). |
+| `enum` | `types::ChangeRequestState` | `pub enum ChangeRequestState` | [`crates/vox-forge/src/types.rs#L23-L32`](../../../crates/vox-forge/src/types.rs#L23-L32) | State of a ChangeRequest. |
+| `enum` | `types::ChangeRequestStatus` | `pub enum ChangeRequestStatus` | [`crates/vox-forge/src/types.rs#L36-L47`](../../../crates/vox-forge/src/types.rs#L36-L47) | CI/merge status of a ChangeRequest. |
+| `struct` | `types::ChangeRequest` | `pub struct ChangeRequest` | [`crates/vox-forge/src/types.rs#L51-L84`](../../../crates/vox-forge/src/types.rs#L51-L84) | A forge-neutral change request (e.g. GitHub pull request or GitLab merge request). |
+| `fn` | `types::is_actionable` | `pub fn is_actionable(&self) -> bool` | [`crates/vox-forge/src/types.rs#L88-L90`](../../../crates/vox-forge/src/types.rs#L88-L90) | True if this CR is in an open, non-draft state. |
+| `struct` | `types::NewChangeRequest` | `pub struct NewChangeRequest<'a>` | [`crates/vox-forge/src/types.rs#L95-L106`](../../../crates/vox-forge/src/types.rs#L95-L106) | Arguments for `GitForgeProvider::create_change_request`. |
+| `struct` | `types::NewRelease` | `pub struct NewRelease<'a>` | [`crates/vox-forge/src/types.rs#L114-L123`](../../../crates/vox-forge/src/types.rs#L114-L123) | Arguments for `GitForgeProvider::create_release`. |
+| `struct` | `types::NewDiscussionOrIssue` | `pub struct NewDiscussionOrIssue<'a>` | [`crates/vox-forge/src/types.rs#L131-L138`](../../../crates/vox-forge/src/types.rs#L131-L138) | Arguments for `GitForgeProvider::create_discussion_or_issue`. |
+| `struct` | `types::Label` | `pub struct Label` | [`crates/vox-forge/src/types.rs#L146-L153`](../../../crates/vox-forge/src/types.rs#L146-L153) | A label on a ChangeRequest or issue. |
+| `enum` | `types::ReviewState` | `pub enum ReviewState` | [`crates/vox-forge/src/types.rs#L161-L172`](../../../crates/vox-forge/src/types.rs#L161-L172) | State of a code review. |
+| `struct` | `types::Review` | `pub struct Review` | [`crates/vox-forge/src/types.rs#L176-L185`](../../../crates/vox-forge/src/types.rs#L176-L185) | A code review on a ChangeRequest. |
+| `struct` | `types::ForgeRepoInfo` | `pub struct ForgeRepoInfo` | [`crates/vox-forge/src/types.rs#L193-L218`](../../../crates/vox-forge/src/types.rs#L193-L218) | Forge-neutral repository metadata. |
+| `struct` | `types::ForgeUser` | `pub struct ForgeUser` | [`crates/vox-forge/src/types.rs#L226-L239`](../../../crates/vox-forge/src/types.rs#L226-L239) | A forge user account. |
+| `enum` | `types::WebhookEvent` | `pub enum WebhookEvent` | [`crates/vox-forge/src/types.rs#L247-L299`](../../../crates/vox-forge/src/types.rs#L247-L299) | A webhook event received from a forge. |
+

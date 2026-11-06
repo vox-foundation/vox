@@ -120,3 +120,82 @@ introspection, and migration helpers for brownfield database interop.
 |---|---|
 | `SqlRow` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_sql: "vox-sql"
+    node vox_ast: "vox-ast"
+    vox_sql -> vox_ast
+    node vox_db: "vox-db"
+    vox_sql -> vox_db
+    node vox_secrets: "vox-secrets"
+    vox_sql -> vox_secrets
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_sql
+    node vox_codegen: "vox-codegen"
+    vox_codegen -> vox_sql
+    node vox_codegen_ts: "vox-codegen-ts"
+    vox_codegen_ts -> vox_sql
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-codegen`](./vox-codegen.generated.md) | Direct workspace dependent |
+| [`vox-codegen-ts`](./vox-codegen-ts.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `PlaceholderStyle` | `pub enum PlaceholderStyle` | [`crates/vox-sql/src/lib.rs#L36-L40`](../../../crates/vox-sql/src/lib.rs#L36-L40) | — |
+| `enum` | `IdentifierQuoteStyle` | `pub enum IdentifierQuoteStyle` | [`crates/vox-sql/src/lib.rs#L43-L46`](../../../crates/vox-sql/src/lib.rs#L43-L46) | — |
+| `enum` | `UpsertStyle` | `pub enum UpsertStyle` | [`crates/vox-sql/src/lib.rs#L49-L52`](../../../crates/vox-sql/src/lib.rs#L49-L52) | — |
+| `enum` | `ReturnClauseStyle` | `pub enum ReturnClauseStyle` | [`crates/vox-sql/src/lib.rs#L55-L58`](../../../crates/vox-sql/src/lib.rs#L55-L58) | — |
+| `struct` | `SqlDialect` | `pub struct SqlDialect` | [`crates/vox-sql/src/lib.rs#L61-L67`](../../../crates/vox-sql/src/lib.rs#L61-L67) | — |
+| `fn` | `voxdb` | `pub const fn voxdb() -> Self` | [`crates/vox-sql/src/lib.rs#L70-L78`](../../../crates/vox-sql/src/lib.rs#L70-L78) | — |
+| `fn` | `sqlite` | `pub const fn sqlite() -> Self` | [`crates/vox-sql/src/lib.rs#L80-L88`](../../../crates/vox-sql/src/lib.rs#L80-L88) | — |
+| `fn` | `postgres` | `pub const fn postgres() -> Self` | [`crates/vox-sql/src/lib.rs#L90-L98`](../../../crates/vox-sql/src/lib.rs#L90-L98) | — |
+| `fn` | `mysql` | `pub const fn mysql() -> Self` | [`crates/vox-sql/src/lib.rs#L100-L108`](../../../crates/vox-sql/src/lib.rs#L100-L108) | — |
+| `enum` | `SqlValue` | `pub enum SqlValue` | [`crates/vox-sql/src/lib.rs#L112-L119`](../../../crates/vox-sql/src/lib.rs#L112-L119) | — |
+| `type` | `SqlRow` | `pub type SqlRow = Vec<(String, SqlValue)>` | [`crates/vox-sql/src/lib.rs#L121`](../../../crates/vox-sql/src/lib.rs#L121) | — |
+| `struct` | `SqlBackendError` | `pub struct SqlBackendError` | [`crates/vox-sql/src/lib.rs#L124-L126`](../../../crates/vox-sql/src/lib.rs#L124-L126) | — |
+| `fn` | `new` | `pub fn new(message: impl Into<String>) -> Self` | [`crates/vox-sql/src/lib.rs#L129-L133`](../../../crates/vox-sql/src/lib.rs#L129-L133) | — |
+| `enum` | `BackendKind` | `pub enum BackendKind` | [`crates/vox-sql/src/lib.rs#L145-L151`](../../../crates/vox-sql/src/lib.rs#L145-L151) | — |
+| `fn` | `from_url` | `pub fn from_url(url: &str) -> Result<Self, SqlBackendError>` | [`crates/vox-sql/src/lib.rs#L154-L177`](../../../crates/vox-sql/src/lib.rs#L154-L177) | — |
+| `trait` | `SqlBackend` | `pub trait SqlBackend: Send + Sync` | [`crates/vox-sql/src/lib.rs#L182-L196`](../../../crates/vox-sql/src/lib.rs#L182-L196) | — |
+| `enum` | `AnySqlBackend` | `pub enum AnySqlBackend` | [`crates/vox-sql/src/lib.rs#L199-L205`](../../../crates/vox-sql/src/lib.rs#L199-L205) | — |
+| `fn` | `backend_kind` | `pub fn backend_kind(&self) -> BackendKind` | [`crates/vox-sql/src/lib.rs#L210-L218`](../../../crates/vox-sql/src/lib.rs#L210-L218) | — |
+| `fn` | `connect_from_url` | `pub async fn connect_from_url(url: &str) -> Result<Self, SqlBackendError>` | [`crates/vox-sql/src/lib.rs#L220-L228`](../../../crates/vox-sql/src/lib.rs#L220-L228) | — |
+| `fn` | `connect_from_app_env` | `pub async fn connect_from_app_env() -> Result<Self, SqlBackendError>` | [`crates/vox-sql/src/lib.rs#L230-L246`](../../../crates/vox-sql/src/lib.rs#L230-L246) | — |
+| `fn` | `dialect` | `pub fn dialect(&self) -> &SqlDialect` | [`crates/vox-sql/src/lib.rs#L248-L256`](../../../crates/vox-sql/src/lib.rs#L248-L256) | — |
+| `fn` | `query` | `pub async fn query(` | [`crates/vox-sql/src/lib.rs#L258`](../../../crates/vox-sql/src/lib.rs#L258) | — |
+| `fn` | `execute` | `pub async fn execute(&self, sql: &str, params: &[SqlValue]) -> Result<u64, SqlBackendError>` | [`crates/vox-sql/src/lib.rs#L272-L280`](../../../crates/vox-sql/src/lib.rs#L272-L280) | — |
+| `fn` | `begin_transaction` | `pub async fn begin_transaction(&self) -> Result<(), SqlBackendError>` | [`crates/vox-sql/src/lib.rs#L282-L290`](../../../crates/vox-sql/src/lib.rs#L282-L290) | — |
+| `fn` | `commit_transaction` | `pub async fn commit_transaction(&self) -> Result<(), SqlBackendError>` | [`crates/vox-sql/src/lib.rs#L292-L300`](../../../crates/vox-sql/src/lib.rs#L292-L300) | — |
+| `fn` | `rollback_transaction` | `pub async fn rollback_transaction(&self) -> Result<(), SqlBackendError>` | [`crates/vox-sql/src/lib.rs#L302-L310`](../../../crates/vox-sql/src/lib.rs#L302-L310) | — |
+| `struct` | `LibsqlBackend` | `pub struct LibsqlBackend` | [`crates/vox-sql/src/lib.rs#L314-L317`](../../../crates/vox-sql/src/lib.rs#L314-L317) | — |
+| `fn` | `codex` | `pub fn codex(&self) -> &Codex` | [`crates/vox-sql/src/lib.rs#L322-L324`](../../../crates/vox-sql/src/lib.rs#L322-L324) | — |
+| `fn` | `connect_from_config` | `pub async fn connect_from_config(config: DbConfig) -> Result<Self, SqlBackendError>` | [`crates/vox-sql/src/lib.rs#L326-L334`](../../../crates/vox-sql/src/lib.rs#L326-L334) | — |
+| `struct` | `PostgresBackend` | `pub struct PostgresBackend` | [`crates/vox-sql/src/lib.rs#L427-L431`](../../../crates/vox-sql/src/lib.rs#L427-L431) | — |
+| `fn` | `pool` | `pub fn pool(&self) -> &PgPool` | [`crates/vox-sql/src/lib.rs#L436-L438`](../../../crates/vox-sql/src/lib.rs#L436-L438) | — |
+| `struct` | `MySqlBackend` | `pub struct MySqlBackend` | [`crates/vox-sql/src/lib.rs#L556-L560`](../../../crates/vox-sql/src/lib.rs#L556-L560) | — |
+| `fn` | `pool` | `pub fn pool(&self) -> &MySqlPool` | [`crates/vox-sql/src/lib.rs#L565-L567`](../../../crates/vox-sql/src/lib.rs#L565-L567) | — |
+| `enum` | `build::SqlPredicate` | `pub enum SqlPredicate` | [`crates/vox-sql/src/build.rs#L4-L17`](../../../crates/vox-sql/src/build.rs#L4-L17) | — |
+| `fn` | `build::placeholder_sql` | `pub fn placeholder_sql(dialect: &SqlDialect, index: usize) -> String` | [`crates/vox-sql/src/build.rs#L19-L25`](../../../crates/vox-sql/src/build.rs#L19-L25) | — |
+| `fn` | `build::equality_predicate_sql` | `pub fn equality_predicate_sql(dialect: &SqlDialect, field: &str, index: usize) -> String` | [`crates/vox-sql/src/build.rs#L27-L29`](../../../crates/vox-sql/src/build.rs#L27-L29) | — |
+| `fn` | `build::scalar_predicate_sql` | `pub fn scalar_predicate_sql(` | [`crates/vox-sql/src/build.rs#L31`](../../../crates/vox-sql/src/build.rs#L31) | — |
+| `fn` | `build::contains_predicate_sql` | `pub fn contains_predicate_sql(dialect: &SqlDialect, field: &str, index: usize) -> String` | [`crates/vox-sql/src/build.rs#L40-L47`](../../../crates/vox-sql/src/build.rs#L40-L47) | — |
+| `fn` | `build::predicate_sql` | `pub fn predicate_sql(dialect: &SqlDialect, pred: &SqlPredicate, next_param: &mut usize) -> String` | [`crates/vox-sql/src/build.rs#L49-L79`](../../../crates/vox-sql/src/build.rs#L49-L79) | — |
+| `fn` | `ddl::to_snake_case` | `pub fn to_snake_case(name: &str) -> String` | [`crates/vox-sql/src/ddl.rs#L7-L28`](../../../crates/vox-sql/src/ddl.rs#L7-L28) | — |
+| `fn` | `ddl::live_table_name` | `pub fn live_table_name(table: &TableDecl) -> String` | [`crates/vox-sql/src/ddl.rs#L31-L39`](../../../crates/vox-sql/src/ddl.rs#L31-L39) | — |
+| `fn` | `ddl::type_expr_to_vox_type` | `pub fn type_expr_to_vox_type(ty: &TypeExpr) -> String` | [`crates/vox-sql/src/ddl.rs#L42-L77`](../../../crates/vox-sql/src/ddl.rs#L42-L77) | — |
+| `fn` | `ddl::index_to_ddl` | `pub fn index_to_ddl(_backend: BackendKind, idx: &IndexDecl) -> String` | [`crates/vox-sql/src/ddl.rs#L80-L87`](../../../crates/vox-sql/src/ddl.rs#L80-L87) | — |
+| `fn` | `ddl::table_to_ddl` | `pub fn table_to_ddl(` | [`crates/vox-sql/src/ddl.rs#L89`](../../../crates/vox-sql/src/ddl.rs#L89) | — |
+| `fn` | `ddl::add_column_ddl` | `pub fn add_column_ddl(` | [`crates/vox-sql/src/ddl.rs#L118`](../../../crates/vox-sql/src/ddl.rs#L118) | — |
+

@@ -6,7 +6,7 @@
 
 **Architecture:** Extend live Drive with a capped `DriveTurnEvent` ring (`kind.text` from agent frames, submit_* from send). Add `wait --until reply_ok` and `event=<kind>`. Enable Metal by fixing **three** CUDA hardcodes (CLI gate, `backend_candle_qlora`, serve worker), then spike→train→collateral→serve→Drive pin.
 
-**Tech Stack:** TypeScript/React (vox-gui), Rust (`vox-cli`, `vox-ml-cli`, `vox-populi`, `vox-plugin-mens-candle-metal`), Axis Drive loopback HTTP, Candle QLoRA Metal, VoxScript, Vitest + cargo test + physical Drive.
+**Tech Stack:** TypeScript/React (vox-gui), Rust (`vox-cli`, `vox-ml-cli`, `vox-populi`, `vox-plugin-mens-candle-metal`), Axis Drive loopback HTTP, Candle QLoRA Metal, VoxLang, Vitest + cargo test + physical Drive.
 
 **Spec:** `docs/superpowers/specs/2026-09-09-axis-chat-e2e-openrouter-metal-design.md` (audit-revised)
 
@@ -18,11 +18,11 @@
 - Mac primary model: `Qwen/Qwen3.5-0.8B`, **spike-gated** for multimodal reject; Drive slug `mens/qwen35-08b-metal-e2e`; run dir `mens/runs/qwen35-08b-metal-e2e`.
 - Event ring: capacity 500; text 4 KiB; raw 8 KiB; clear at send start; redact text+raw; `next_seq` monotonic; correlate via `activeTurnIdRef`.
 - Token body field: **`frame.kind.text`**, not `frame.text`.
-- Secrets via `vox_secrets` only; VoxScript must not `env.get` OpenRouter keys.
-- Automation is VoxScript; exit non-zero on failure (never print-only).
+- Secrets via `vox_secrets` only; VoxLang must not `env.get` OpenRouter keys.
+- Automation is VoxLang; exit non-zero on failure (never print-only).
 - Metal enablement requires CLI gate + populi dispatch + serve worker — not bail removal alone.
 - Do not use `--max-steps` (does not exist). Use `--epochs 1` + `--max-runtime-secs`.
-- Commit `scripts/*.vox`, dogfood JSONL, and how-tos **before** any `vox run` (VoxScript-first cache rule).
+- Commit `scripts/*.vox`, dogfood JSONL, and how-tos **before** any `vox run` (VoxLang-first cache rule).
 - Metal train/serve needs a **GPU-enabled** `vox-ml-cli` build (`gpu` feature); plain default CLI may hard-error.
 - Metal plugin hub download is stubbed — base weights must be **pre-downloaded** locally before train/serve.
 - Mac scripts (`mens-macos-metal-e2e`, `axis-drive-metal-e2e`) must `process.exit(2)` on non-Darwin (clear message).
@@ -499,7 +499,7 @@ export function driveVerbNeedsCatalog(verb: DriveRequest['verb']): boolean {
 
 Add unit test: `state` verb with mocked models includes OpenRouter `provider_type`.
 
-- [ ] **Step 2: Author VoxScript** (copy `vox_binary_path` from `scripts/graphify-refresh.vox`; use `process.run` / capture + `process.exit`)
+- [ ] **Step 2: Author VoxLang** (copy `vox_binary_path` from `scripts/graphify-refresh.vox`; use `process.run` / capture + `process.exit`)
 
 Exact flow:
 

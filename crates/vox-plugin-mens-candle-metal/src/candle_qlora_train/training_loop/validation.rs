@@ -166,8 +166,8 @@ pub fn run_validation_pass(
         };
         let prefix_text = if let Some(ref turns) = messages {
             crate::training_text::chatml_turns_prefix_open_assistant(turns, &config.chatml)
-        } else if let Some(p) = pair.effective_prompt() {
-            crate::training_text::chatml_prefix_open_assistant(system_prompt, p, &config.chatml)
+        } else if let (Some(p), Some(r)) = (pair.effective_prompt(), pair.effective_response()) {
+            crate::training_text::chatml_prefix_open_assistant(system_prompt, p, r, &config.chatml)
         } else {
             continue;
         };

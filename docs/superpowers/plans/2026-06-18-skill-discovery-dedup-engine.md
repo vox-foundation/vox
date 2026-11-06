@@ -16,7 +16,7 @@ training_eligible: true
 
 **Tech Stack:** Rust, `blake3` (already in workspace, `pure` feature), `serde`/`serde_json`, `walkdir`, `clap` (bin), `vox-plugin-types` (`SkillManifest`), `vox-mcp-registry` (`TOOL_REGISTRY`). **No niche similarity/AST crates** — simhash/minhash are implemented in-crate to avoid mis-wiring on a fast model.
 
-**Execution target:** Gemini 3.5 Flash in Google Antigravity. See `docs/src/architecture/gemini-3-5-flash-antigravity-limitations-2026-06-18.md`. **Hard rules for every task:** (1) end GREEN + committed (a mid-task kill must leave a compiling, tested tree); (2) verify-before-use — run the listed `rg`/read before referencing any external symbol; (3) self-contained — never rely on memory of earlier tasks; (4) two-strike circuit breaker — if a verification fails twice, STOP and write a handoff note, do not loop; (5) `cargo fmt -p <crate>` only (never `--all`); (6) VoxScript-only automation.
+**Execution target:** Gemini 3.5 Flash in Google Antigravity. See `docs/src/architecture/gemini-3-5-flash-antigravity-limitations-2026-06-18.md`. **Hard rules for every task:** (1) end GREEN + committed (a mid-task kill must leave a compiling, tested tree); (2) verify-before-use — run the listed `rg`/read before referencing any external symbol; (3) self-contained — never rely on memory of earlier tasks; (4) two-strike circuit breaker — if a verification fails twice, STOP and write a handoff note, do not loop; (5) `cargo fmt -p <crate>` only (never `--all`); (6) VoxLang-only automation.
 
 **Spec:** `docs/superpowers/specs/2026-06-18-skill-discovery-dedup-engine-design.md`.
 

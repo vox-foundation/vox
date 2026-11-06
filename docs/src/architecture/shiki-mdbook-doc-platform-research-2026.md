@@ -200,7 +200,7 @@ than VitePress in 2026.
 than VitePress. Shiki via `@shikijs/rehype`. High migration cost from mdBook.
 
 **MkDocs Material (181):** Python runtime is antithetical to the Vox
-VoxScript-first philosophy (Python is a retired automation surface per
+VoxLang-first philosophy (Python is a retired automation surface per
 `AGENTS.md`). Shiki only via post-processing. Lowest score overall.
 
 ---
@@ -329,7 +329,7 @@ The following documents were verified to exist before being linked:
 - **Current book config:** [`docs-astro`](../../../docs-astro/README.md) — Starlight replaces mdBook; syntax highlighting follows the VS Code TextMate grammar listed below.
 - **Current highlight.js grammar:** Legacy mdBook `highlight-vox.js` — retired with the Astro migration.
 - **VS Code extension:** [`apps/editor/vox-vscode/package.json`](../../../apps/editor/vox-vscode/package.json) — already declares `shiki ^4.0.1` as a dependency (line 441).
-- **Agent policy:** [`AGENTS.md`](../../../AGENTS.md) — mandates VoxScript-first glue, no Python, doctest compliance.
+- **Agent policy:** [`AGENTS.md`](../../../AGENTS.md) — mandates VoxLang-first glue, no Python, doctest compliance.
 - Set valid frontmatter (`title`, `description`, `category`, `status`). Do not recreate `research-index.md`.
 
 ---

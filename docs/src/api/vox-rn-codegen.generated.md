@@ -92,3 +92,39 @@ can hand-edit until the upstream HIR exposes switch metadata).
 |---|---|
 | `generate_rn` | Generate React Native + Expo TypeScript files from a Vox module.  The caller is responsible for writing files. Returns `Err` on hard failures (e.g. unsupported features); use the `diagnostics` field for non-fatal warnings. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_rn_codegen: "vox-rn-codegen"
+    node vox_codegen: "vox-codegen"
+    vox_rn_codegen -> vox_codegen
+    node vox_compiler: "vox-compiler"
+    vox_rn_codegen -> vox_compiler
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_rn_codegen
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `RnCodegenOutput` | `pub struct RnCodegenOutput` | [`crates/vox-rn-codegen/src/lib.rs#L43-L48`](../../../crates/vox-rn-codegen/src/lib.rs#L43-L48) | Output of the RN lowering. Same shape as the web emitter's `CodegenOutput` for symmetry. |
+| `fn` | `generate_rn` | `pub fn generate_rn(hir: &HirModule, options: &CodegenOptions) -> Result<RnCodegenOutput, String>` | [`crates/vox-rn-codegen/src/lib.rs#L54`](../../../crates/vox-rn-codegen/src/lib.rs#L54) | Generate React Native + Expo TypeScript files from a Vox module.  The caller is responsible for writing files. Returns `Err` on hard failures (e.g. unsupported features); use the `diagnostics` field for non-fatal warnings. |
+| `fn` | `component::emit_rn_component` | `pub fn emit_rn_component(` | [`crates/vox-rn-codegen/src/component.rs#L1609`](../../../crates/vox-rn-codegen/src/component.rs#L1609) | Emit a single component file.  `known_components` is the set of all `component` names in the module and `endpoint_params` maps each `@query`/`@mutation`/`@server` fn name to its ordered parameter names. The keys drive cross-file `import` statements (sibling components from `./Name`, endpoint fns from `./vox-client`); the values drive the positional→named-object rewrite for endpoint calls inside handlers. Both mirror the web reactive emit exactly, so the two targets stay in lockstep on what a component pulls in and how it calls endpoints. |
+| `fn` | `form::emit_form` | `pub fn emit_form(form: &HirForm) -> String` | [`crates/vox-rn-codegen/src/form.rs#L21`](../../../crates/vox-rn-codegen/src/form.rs#L21) | Emit a single `@form` as an RN function component string. |
+| `fn` | `form::form_renders_switch` | `pub fn form_renders_switch(form: &HirForm) -> bool` | [`crates/vox-rn-codegen/src/form.rs#L236-L241`](../../../crates/vox-rn-codegen/src/form.rs#L236-L241) | True if any *visible* (non-hidden) field of `form` is a boolean — i.e. the emitted `forms.tsx` will render a `<Switch>` and therefore needs it imported. |
+| `fn` | `mobile_utils::any_component_uses_mobile` | `pub fn any_component_uses_mobile(hir: &HirModule) -> bool` | [`crates/vox-rn-codegen/src/mobile_utils.rs#L24-L26`](../../../crates/vox-rn-codegen/src/mobile_utils.rs#L24-L26) | Walk every component's view, prelude, derived expressions, and effects to see if the bare identifier `mobile` appears anywhere. Used to decide whether `mobile-utils.ts` is needed and to know which component files should `import { mobile } from "./mobile-utils"`. |
+| `fn` | `mobile_utils::component_uses_mobile` | `pub fn component_uses_mobile(rc: &vox_compiler::hir::HirReactiveComponent) -> bool` | [`crates/vox-rn-codegen/src/mobile_utils.rs#L29-L71`](../../../crates/vox-rn-codegen/src/mobile_utils.rs#L29-L71) | Check a single component for any reference to the `mobile` identifier. |
+| `fn` | `mobile_utils::emit_mobile_utils_rn` | `pub fn emit_mobile_utils_rn() -> String` | [`crates/vox-rn-codegen/src/mobile_utils.rs#L140-L165`](../../../crates/vox-rn-codegen/src/mobile_utils.rs#L140-L165) | Emit `mobile-utils.ts` content for the RN target.  Re-exports a `mobile` namespace whose method names match the snake_case Vox source convention, each method delegating to `@vox/runtime-rn`. |
+| `fn` | `routes::emit_expo_router_files` | `pub fn emit_expo_router_files(routes: &[RoutesDecl]) -> Vec<(String, String)>` | [`crates/vox-rn-codegen/src/routes.rs#L29-L46`](../../../crates/vox-rn-codegen/src/routes.rs#L29-L46) | Emit every `app/`-prefixed route file plus the mandatory root `_layout.tsx`.  Returns an empty Vec when there are no routes — the caller should fall back to emitting a flat `App.tsx` in that case. |
+| `fn` | `scaffold::emit_expo_scaffold` | `pub fn emit_expo_scaffold(` | [`crates/vox-rn-codegen/src/scaffold.rs#L34`](../../../crates/vox-rn-codegen/src/scaffold.rs#L34) | Emit the Expo project skeleton. When `has_routes` is true the package.json `main` field points at `expo-router/entry` and the flat App.tsx is omitted (Expo Router uses file-system routing under `app/`); when false the legacy `expo/AppEntry.js` boot path is used with a generated App.tsx that mounts the first declared VUV component.  `app_name` is the human-facing display name (`vox build --app-name`); the Expo slug / scheme / npm package name are its slugified form. `app_id` is the reverse-DNS identifier used for both the iOS bundle id and the Android package (`vox build --app-id`). Defaults: `vox-app` / `com.vox.app`. |
+

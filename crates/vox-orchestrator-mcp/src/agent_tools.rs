@@ -28,11 +28,13 @@ async fn connect_agent_adapter_uncached() -> Result<BoxedAgentAdapter, String> {
     if provider_str == "hermes" {
         let http_url = std::env::var("VOX_HERMES_URL")
             .unwrap_or_else(|_| "http://localhost:8642/v1".to_string());
-        let auth_token = std::env::var("VOX_HERMES_TOKEN").ok().or_else(|| {
-            vox_secrets::resolve_secret(vox_secrets::SecretId::OpenClawToken)
-                .expose()
-                .map(|s| s.to_string())
-        });
+        let auth_token = std::env::var_os("VOX_HERMES_TOKEN")
+            .and_then(|v| v.into_string().ok())
+            .or_else(|| {
+                vox_secrets::resolve_secret(vox_secrets::SecretId::OpenClawToken)
+                    .expose()
+                    .map(|s| s.to_string())
+            });
         let local_skills_path = std::env::var("VOX_HERMES_SKILLS_PATH")
             .ok()
             .map(std::path::PathBuf::from)

@@ -361,6 +361,7 @@ async fn kb_archive_excluded() {
         "docs/src/archive/old.md",
         "docs/src/research/archive/older.md",
         "docs/src/notes.mdx",
+        "docs/src/notes.txt",
         "docs/src/ok.md",
         "docs/src/library/page.md",
         "outside.md",
@@ -370,7 +371,14 @@ async fn kb_archive_excluded() {
     #[cfg(unix)]
     std::os::unix::fs::symlink(root.join("outside.md"), root.join("docs/src/link.md")).unwrap();
 
-    assert_eq!(walked(root), ["docs/src/library/page.md", "docs/src/ok.md"]);
+    assert_eq!(
+        walked(root),
+        [
+            "docs/src/library/page.md",
+            "docs/src/notes.mdx",
+            "docs/src/ok.md"
+        ]
+    );
 
     let db = VoxDb::open_memory().await.unwrap();
     let deps = IndexDeps {
@@ -388,7 +396,11 @@ async fn kb_archive_excluded() {
     let docs: BTreeSet<&str> = rows.iter().map(|r| r.doc_path.as_str()).collect();
     assert_eq!(
         docs,
-        BTreeSet::from(["docs/src/library/page.md", "docs/src/ok.md"])
+        BTreeSet::from([
+            "docs/src/library/page.md",
+            "docs/src/notes.mdx",
+            "docs/src/ok.md"
+        ])
     );
 }
 

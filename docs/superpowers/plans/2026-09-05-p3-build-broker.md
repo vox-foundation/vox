@@ -26,7 +26,7 @@ See the index. Non-negotiable everywhere: assert on the artifact never the exit 
 
 The usage doc's activation section is **Windows-only**: `terminal.integrated.env.windows.PATH`, `…\.vox\build-broker\bin`, `cargo[.exe]`. Zero mentions of `.osx`/`.linux`, `.zshrc`, `.bashrc`, or `export PATH`. macOS and Linux developers have no documented path at all.
 
-- [ ] Add `scripts/broker-install.vox` (VoxScript, per AGENTS.md "VoxScript-First Glue Code"): builds the shim, installs to `~/.vox/build-broker/bin`, prepends to the login shell profile **ahead of `~/.cargo/bin`**, idempotently.
+- [ ] Add `scripts/broker-install.vox` (VoxLang, per AGENTS.md "VoxLang-First Glue Code"): builds the shim, installs to `~/.vox/build-broker/bin`, prepends to the login shell profile **ahead of `~/.cargo/bin`**, idempotently.
 - [ ] Reuse `voxup`'s profile-detection approach — it already handles zsh/bash/fish and creates a profile on a pristine macOS account.
 - [ ] Document `terminal.integrated.env.osx` / `.linux` alongside the existing Windows guidance.
 - [ ] Verify by artifact: after running, `which -a cargo` lists the shim first.

@@ -132,9 +132,14 @@ fn entry_point_callers_are_classified() {
                 || trimmed.contains("handle_tool_call_with_receipt(");
 
             if is_handle_call {
-                let matched = allowed_part_a_files
-                    .iter()
-                    .any(|allowed| norm_path.ends_with(allowed));
+                // A call passed directly to `with_agent_origin(` (same line, or as the sole
+                // argument opened on the previous line) is classified as an agent entry point.
+                let wrapped = trimmed.contains("with_agent_origin(")
+                    || (idx > 0 && active_lines[idx - 1].trim().ends_with("with_agent_origin("));
+                let matched = wrapped
+                    || allowed_part_a_files
+                        .iter()
+                        .any(|allowed| norm_path.ends_with(allowed));
                 assert!(
                     matched,
                     "Unclassified handle_tool_call site in {}: line {}: {}\nClassify it as a human surface or wrap with with_agent_origin",

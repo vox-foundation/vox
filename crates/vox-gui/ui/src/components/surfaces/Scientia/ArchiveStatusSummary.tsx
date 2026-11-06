@@ -109,15 +109,22 @@ export function ArchiveStatusSummary({ onFetchError }: ArchiveStatusSummaryProps
           {rows.length === 0 ? (
             <div className="font-mono text-[11px] text-text-muted">No scientia publications to sample.</div>
           ) : (
-            <ul className="space-y-1">
+            <ul className="space-y-1.5">
               {rows.map((r) => (
-                <li key={r.publication_id} className="flex items-center gap-2 font-mono text-[11px]">
-                  <span className="truncate text-text-secondary">{r.publication_id}</span>
-                  <span className="ml-auto shrink-0 text-text-muted">{r.state}</span>
-                  <span className="shrink-0 text-emerald-300/80">
+                <li
+                  key={r.publication_id}
+                  className="flex items-center gap-2 rounded-lg border border-border-subtle bg-bg-base/70 px-2.5 py-1.5 font-mono text-[11px]"
+                >
+                  <span className="truncate font-medium text-text-primary">{r.publication_id}</span>
+                  <span className="ml-auto shrink-0 rounded border border-border-subtle bg-overlay-subtle px-1.5 py-0.5 text-[10px] text-text-secondary">
+                    {r.state}
+                  </span>
+                  <span className="shrink-0 rounded border border-emerald-400/25 bg-emerald-400/10 px-1.5 py-0.5 text-[10px] text-emerald-300">
                     {r.status.zenodo_doi ? 'DOI' : '—'}
                   </span>
-                  <span className="shrink-0 text-cyan/80">{r.status.swhid ? 'SWH' : '—'}</span>
+                  <span className="shrink-0 rounded border border-cyan/25 bg-cyan/10 px-1.5 py-0.5 text-[10px] text-cyan">
+                    {r.status.swhid ? 'SWH' : '—'}
+                  </span>
                 </li>
               ))}
             </ul>

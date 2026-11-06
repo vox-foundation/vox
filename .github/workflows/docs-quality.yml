@@ -29,6 +29,8 @@ on:
       - 'examples/**'
       - 'scripts/**/README.md'
       - '.planning/workstreams/unified/ROADMAP.md'
+      - '.planning/ROADMAP.md'
+      - '.planning/REQUIREMENTS.md'
   push:
     branches: [main]
     paths:
@@ -58,6 +60,8 @@ on:
       - 'examples/**'
       - 'scripts/**/README.md'
       - '.planning/workstreams/unified/ROADMAP.md'
+      - '.planning/ROADMAP.md'
+      - '.planning/REQUIREMENTS.md'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

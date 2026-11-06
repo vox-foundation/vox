@@ -17,88 +17,6 @@ pub struct AutoModelSelection {
     pub tier_reason: String,
 }
 
-/// Minimum execution reserve in GB on discrete GPUs.
-pub const DISCRETE_RESERVE_MIN_GB: f64 = 2.8;
-
-/// Maximum execution reserve in GB on discrete GPUs.
-pub const DISCRETE_RESERVE_MAX_GB: f64 = 6.0;
-
-/// Execution headroom in GB on Apple Silicon unified memory (above dynamic wired limit).
-pub const APPLE_SILICON_EXECUTION_HEADROOM_GB: f64 = 2.0;
-
-/// Computes the optimal local model tier and reason for a given VRAM size in gigabytes.
-///
-/// # Sizing Rules
-/// - **Apple Silicon (`is_apple_silicon = true`)**:
-///   Probed VRAM reflects the dynamic working set wired limit (default 75% of unified RAM).
-///   A flat 2.0 GB execution headroom is deducted for OS display and framework buffers.
-///   - Usable >= 55.0 GB (e.g. 128GB Mac, 96.0 GB probed) -> `merged_bf16`
-///   - Usable >= 32.0 GB (e.g. 48GB Mac, 36.0 GB probed) -> `quant_q8_0`
-///   - Usable >= 24.0 GB (e.g. 36GB Mac, 27.0 GB probed) -> `quant_q6_k`
-///   - Usable >= 22.0 GB -> `quant_q5_k_m`
-///   - Usable >= 18.0 GB -> `quant_q4_k_m`
-///   - Usable < 18.0 GB (e.g. 24GB Mac, 18.0 GB probed -> 16.0 GB usable) -> `vox-mens-8b-v0.6`
-///
-/// - **Discrete / CUDA (`is_apple_silicon = false`)**:
-///   Deducts a 10% reserve clamped between 2.8 GB and 6.0 GB:
-///   `reserve = (total_vram_gb * 0.10).clamp(2.8, 6.0)`.
-///   - 80.0 GB (A100/H100) -> 74.0 GB usable -> `merged_bf16`
-///   - 24.0 GB (RTX 3090/4090) -> 21.2 GB usable -> `quant_q4_k_m` (never triggers Q5 OOM)
-///   - 16.0 GB (RTX 4070/4080) -> 13.2 GB usable -> `vox-mens-8b-v0.6`
-///   - 12.0 GB (RTX 3060) -> 9.2 GB usable -> `vox-mens-8b-v0.6`
-///
-/// - **Zero/NaN**:
-///   Returns `("vox-mens-8b-v0.6", "Default fallback (insufficient or undetected VRAM)")`.
-#[must_use]
-pub fn select_tier_for_vram(
-    total_vram_gb: f64,
-    is_apple_silicon: bool,
-) -> (&'static str, &'static str) {
-    if total_vram_gb.is_nan() || total_vram_gb <= 0.0 {
-        return (
-            "vox-mens-8b-v0.6",
-            "Default fallback (insufficient or undetected VRAM)",
-        );
-    }
-
-    let usable_gb = if is_apple_silicon {
-        total_vram_gb - APPLE_SILICON_EXECUTION_HEADROOM_GB
-    } else {
-        let reserve =
-            (total_vram_gb * 0.10).clamp(DISCRETE_RESERVE_MIN_GB, DISCRETE_RESERVE_MAX_GB);
-        total_vram_gb - reserve
-    };
-
-    if usable_gb >= 55.0 {
-        (
-            "mens/runs/qwen3_27b_metal_check/merged_bf16",
-            "Optimal unquantized 27B bf16 weights",
-        )
-    } else if usable_gb >= 32.0 {
-        (
-            "mens/runs/qwen3_27b_metal_check/quant_q8_0",
-            "Near-lossless 8-bit quantized 27B",
-        )
-    } else if usable_gb >= 24.0 {
-        (
-            "mens/runs/qwen3_27b_metal_check/quant_q6_k",
-            "High-fidelity 6-bit quantized 27B",
-        )
-    } else if usable_gb >= 22.0 {
-        (
-            "mens/runs/qwen3_27b_metal_check/quant_q5_k_m",
-            "Balanced 5-bit quantized 27B",
-        )
-    } else if usable_gb >= 18.0 {
-        (
-            "mens/runs/qwen3_27b_metal_check/quant_q4_k_m",
-            "Compact 4-bit quantized 27B",
-        )
-    } else {
-        ("vox-mens-8b-v0.6", "Fallback 8B tier for constrained VRAM")
-    }
-}
-
 /// Probes detected hardware VRAM in gigabytes.
 #[must_use]
 pub fn detect_hardware_vram_gb(is_apple_silicon: bool) -> f64 {
@@ -190,21 +108,51 @@ pub fn is_host_apple_silicon() -> bool {
     cfg!(all(target_os = "macos", target_arch = "aarch64"))
 }
 
-/// Dynamically selects the optimal local model recommendation for the current hardware.
-#[must_use]
-pub fn select_optimal_local_model(is_apple_silicon: bool) -> AutoModelSelection {
-    let detected_vram_gb = detect_hardware_vram_gb(is_apple_silicon);
-    let (model_id, reason) = select_tier_for_vram(detected_vram_gb, is_apple_silicon);
-    AutoModelSelection {
-        selected_model_id: model_id.to_string(),
-        detected_vram_gb,
-        tier_reason: reason.to_string(),
+/// Largest measured `qwen3_code` QLoRA size that fits `free_mb`.
+///
+/// The reading is injected. This function does not probe hardware.
+pub fn select_from_free_mb(free_mb: u32) -> Result<AutoModelSelection, String> {
+    #[cfg(feature = "runtime")]
+    {
+        match vox_populi::mens::tensor::spoke_base_resolver::select_qwen3_code_qlora_for_free_mb(
+            free_mb,
+        ) {
+            Ok(pick) => Ok(AutoModelSelection {
+                selected_model_id: pick.hf_id,
+                detected_vram_gb: f64::from(free_mb) / 1024.0,
+                tier_reason: format!(
+                    "{size} QLoRA floor_mb {floor} fits free_mb {free_mb}",
+                    size = pick.size_token,
+                    floor = pick.floor_mb,
+                ),
+            }),
+            Err(err) => Err(err.to_string()),
+        }
+    }
+    #[cfg(not(feature = "runtime"))]
+    {
+        let _ = free_mb;
+        Err("qwen3 live selector requires the runtime feature".to_string())
     }
 }
 
-/// Selects the optimal local model recommendation for the host platform.
-#[must_use]
-pub fn select_optimal_local_model_for_host() -> AutoModelSelection {
+/// Live free memory, then the measured QLoRA pick. `is_apple_silicon` is unused.
+pub fn select_optimal_local_model(is_apple_silicon: bool) -> Result<AutoModelSelection, String> {
+    let _ = is_apple_silicon;
+    #[cfg(feature = "runtime")]
+    {
+        let free_mb = vox_populi::mens::tensor::spoke_base_resolver::read_accelerator_free_mb()
+            .map_err(|err| err.to_string())?;
+        select_from_free_mb(free_mb)
+    }
+    #[cfg(not(feature = "runtime"))]
+    {
+        Err("qwen3 live selector requires the runtime feature".into())
+    }
+}
+
+/// Host live free memory, then the measured QLoRA pick.
+pub fn select_optimal_local_model_for_host() -> Result<AutoModelSelection, String> {
     select_optimal_local_model(is_host_apple_silicon())
 }
 
@@ -213,53 +161,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_auto_selection_tiers() {
-        // Apple Silicon tests (probe already reduces RAM to 75%, 2.0GB execution reserve deducted)
+    fn select_from_free_mb_25000_is_the_14b_qlora_pin() {
+        let sel = select_from_free_mb(25_000).expect("14B fits 25000");
         assert_eq!(
-            select_tier_for_vram(96.0, true).0,
-            "mens/runs/qwen3_27b_metal_check/merged_bf16"
+            sel.selected_model_id,
+            "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18"
         );
+        assert!(!sel.selected_model_id.contains("mens/runs"));
+        assert_eq!(sel.detected_vram_gb, 25_000_f64 / 1024.0);
+        assert!(sel.tier_reason.contains("14B"), "{}", sel.tier_reason);
+        assert!(sel.tier_reason.contains("25000"), "{}", sel.tier_reason);
+        assert!(select_from_free_mb(1_500).is_err());
+        let mid = select_from_free_mb(50_000).expect("14B still fits 50000");
+        assert_eq!(mid.selected_model_id, sel.selected_model_id);
+        assert!(!mid.selected_model_id.contains("32B"));
+        let big = select_from_free_mb(70_000).expect("32B fits 70000");
         assert_eq!(
-            select_tier_for_vram(36.0, true).0,
-            "mens/runs/qwen3_27b_metal_check/quant_q8_0"
-        );
-        assert_eq!(
-            select_tier_for_vram(27.0, true).0,
-            "mens/runs/qwen3_27b_metal_check/quant_q6_k"
-        );
-        assert_eq!(select_tier_for_vram(18.0, true).0, "vox-mens-8b-v0.6");
-
-        // CUDA / Discrete tests (10% clamped reserve between 2.8GB and 6.0GB)
-        assert_eq!(
-            select_tier_for_vram(80.0, false).0,
-            "mens/runs/qwen3_27b_metal_check/merged_bf16"
-        );
-        assert_eq!(
-            select_tier_for_vram(24.0, false).0,
-            "mens/runs/qwen3_27b_metal_check/quant_q4_k_m"
-        );
-        assert_eq!(select_tier_for_vram(16.0, false).0, "vox-mens-8b-v0.6");
-        assert_eq!(select_tier_for_vram(12.0, false).0, "vox-mens-8b-v0.6");
-    }
-
-    #[test]
-    fn test_zero_and_nan_fallback() {
-        assert_eq!(select_tier_for_vram(0.0, true).0, "vox-mens-8b-v0.6");
-        assert_eq!(select_tier_for_vram(-5.0, false).0, "vox-mens-8b-v0.6");
-        assert_eq!(select_tier_for_vram(f64::NAN, false).0, "vox-mens-8b-v0.6");
-    }
-
-    #[test]
-    fn test_quant_q5_tier() {
-        // Apple Silicon: 24.5 GB total - 2.0 reserve = 22.5 GB usable -> quant_q5_k_m
-        assert_eq!(
-            select_tier_for_vram(24.5, true).0,
-            "mens/runs/qwen3_27b_metal_check/quant_q5_k_m"
-        );
-        // CUDA: 26.0 GB total - 2.8 reserve = 23.2 GB usable -> quant_q5_k_m
-        assert_eq!(
-            select_tier_for_vram(26.0, false).0,
-            "mens/runs/qwen3_27b_metal_check/quant_q5_k_m"
+            big.selected_model_id,
+            "Qwen/Qwen3-32B@9216db5781bf21249d130ec9da846c4624c16137"
         );
     }
 
@@ -287,8 +206,28 @@ mod tests {
 
     #[test]
     fn test_select_optimal_local_model_structure() {
-        let sel = select_optimal_local_model(true);
-        assert!(!sel.selected_model_id.is_empty());
-        assert!(!sel.tier_reason.is_empty());
+        let src = include_str!("auto_select.rs");
+        let start = src
+            .find("pub fn select_optimal_local_model(")
+            .expect("select_optimal_local_model");
+        let rest = &src[start..];
+        let next = rest.find("\npub fn ").expect("next fn");
+        let window = &rest[..next];
+        assert!(window.contains("read_accelerator_free_mb"));
+        assert!(window.contains("select_from_free_mb"));
+        assert!(!window.contains("detect_hardware_vram_gb"));
+        let tier_fn = ["select_tier", "_for_vram"].concat();
+        assert!(!window.contains(&tier_fn));
+        assert!(window.contains("let _ = is_apple_silicon"));
+
+        let mod_rs = include_str!("mod.rs");
+        let select_rs = include_str!("select.rs");
+        for text in [src, mod_rs, select_rs] {
+            assert!(!text.contains(&tier_fn), "{tier_fn} still present");
+        }
+        let run_dir = ["mens/runs/qwen3_27b", "_metal_check"].concat();
+        let retired = ["vox-mens-8b", "-v0.6"].concat();
+        assert!(!src.contains(&run_dir), "{run_dir}");
+        assert!(!src.contains(&retired), "{retired}");
     }
 }

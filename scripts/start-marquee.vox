@@ -30,7 +30,7 @@
 // References:
 //   - contracts/marquee/manifest.v1.yaml — canonical slot list
 //   - crates/vox-audit/src/bin/cr-p1.rs — probe + threshold
-//   - AGENTS.md §VoxScript-First Glue Code — why this is a .vox file
+//   - AGENTS.md §VoxLang-First Glue Code — why this is a .vox file
 
 fn vox_build(entry: str, out_dir: str) to bool {
     print("  vox build " + entry + " -o " + out_dir)

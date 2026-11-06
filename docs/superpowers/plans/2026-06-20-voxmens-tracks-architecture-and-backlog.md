@@ -18,12 +18,12 @@
 
 | # | Track | Kind | Completion definition | Est. % | Where it lives |
 |---|---|---|---|---|---|
-| T1 | **VoxScript authoring** | spoke | Trainable + diversity-gated + eval-gated (parse/pass@k/anti-stub/coverage); declared in the spoke SSOT | ~85% (mature) | green/voxmens branches |
+| T1 | **VoxLang authoring** | spoke | Trainable + diversity-gated + eval-gated (parse/pass@k/anti-stub/coverage); declared in the spoke SSOT | ~85% (mature) | green/voxmens branches |
 | T2 | **Rust authoring & review** | spoke | Real authoring/review lanes (not just Rust→Vox), `cargo check`/clippy-verified corpus, `eval-gates-rust` that actually fires (producer+handler) | ~40% | voxmens-split-c-followups |
 | T3 | **Harness / agentic execution** | spoke | Corpus from `TOOL_REGISTRY` synthesis + mined real traces; trains to emit valid Vox tool/skill/CLI calls; `eval-gates-agents` (tool-call JSON validity + tool-name-exists) fires | ~25% | mix-agents skeleton; corpus mostly unbuilt |
 | T4 | **Hub / Router** | hub (not a spoke) | One task→`(spoke, model, cloud\|local)` dispatcher unifying `select()` (cloud-vs-local via CandidateScope) + `route_by_signal` (spoke via lane/trigger); deterministic first, learned later | ~50% | `select()` mature; `route_by_signal`/`training_selection` on voxmens |
 
-**"Vox coding" vs "VoxScript coding":** one spoke (T1). No evidence of a meaningful split — both are VoxScript authoring under the `vox_codegen`/`vox_lang_tier_b` lanes. Keep as one; revisit only if a distinct sub-domain corpus emerges.
+**"Vox coding" vs "VoxLang coding":** one spoke (T1). No evidence of a meaningful split — both are VoxLang authoring under the `vox_codegen`/`vox_lang_tier_b` lanes. Keep as one; revisit only if a distinct sub-domain corpus emerges.
 
 ## 2. The meta-blocker (Track 0 — prerequisite)
 
@@ -45,9 +45,9 @@ Status: ✅ done (built on some branch) · 🟡 partial · ⬜ todo. Priority: P
 - [ ] **S.3** (P1) 🟡 Per-spoke method dispatch via `AdapterMethodRegistry` (QLoRA wired; DPO/ORPO/FullSft fail-closed; RAG/prompt skip). *(F1)* — done when `base.method` drives the kernel.
 - [ ] **S.4** (P0) 🟡 Restore the arch-check guard engine (`exempt_tests`/`cfg_test_line_mask`) wherever the integration base lacks it; keep `forbidden_pattern=error`. *(AGH-0008)*
 
-### T1 — VoxScript spoke (harden)
+### T1 — VoxLang spoke (harden)
 - [ ] **V.1** (P2) ✅ Confirm synthetic_gen + ast_mutator + doc-mining + diversity gate present on `main` post-consolidation.
-- [ ] **V.2** (P2) ⬜ Pick the small/fast VoxScript base model (model-registry entry) — *needs live model re-research (open decision)*.
+- [ ] **V.2** (P2) ⬜ Pick the small/fast VoxLang base model (model-registry entry) — *needs live model re-research (open decision)*.
 - [ ] **V.3** (P2) ⬜ Promote vox-lang to an explicit spoke SSOT record (reference impl for the schema).
 
 ### T2 — Rust spoke (fill)

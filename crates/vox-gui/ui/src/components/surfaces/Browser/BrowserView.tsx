@@ -401,7 +401,7 @@ export function BrowserView({ pushToast, gamifyEnabled }: BrowserViewProps) {
       setFrameSize({ frameW: rect.width, frameH: rect.height });
     };
     syncSize();
-    const observer = new ResizeObserver(syncSize);
+    const observer = new ResizeObserver(() => requestAnimationFrame(syncSize));
     observer.observe(el);
     return () => observer.disconnect();
   }, [tab, frame]);

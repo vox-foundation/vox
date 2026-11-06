@@ -85,3 +85,40 @@ through the daemon instead, as `dei.rs`/`visus/mod.rs`/`live.rs`/
 | `from_config` | Build from an already-loaded config (tests / callers with custom config). |
 | `build_embedded_orchestrator_config` | Load orchestrator config from the nearest readable `Vox.toml`, then apply env overrides.  Discovery order matches the MCP stdio server: manifest-root `Vox.toml` first, then cwd `Vox.toml`, then defaults. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_orchestrator_driver: "vox-orchestrator-driver"
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator_driver -> vox_orchestrator
+    node vox_repository: "vox-repository"
+    vox_orchestrator_driver -> vox_repository
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_orchestrator_driver
+    node vox_cli_core: "vox-cli-core"
+    vox_cli_core -> vox_orchestrator_driver
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_orchestrator_driver
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-core`](./vox-cli-core.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `trait` | `OrchestratorDriver` | `pub trait OrchestratorDriver` | [`crates/vox-orchestrator-driver/src/lib.rs#L37-L49`](../../../crates/vox-orchestrator-driver/src/lib.rs#L37-L49) | Host-facing trait for spawning and querying an embedded orchestrator. |
+| `struct` | `EmbeddedOrchestratorDriver` | `pub struct EmbeddedOrchestratorDriver` | [`crates/vox-orchestrator-driver/src/lib.rs#L52-L55`](../../../crates/vox-orchestrator-driver/src/lib.rs#L52-L55) | In-process orchestrator built from discovered `Vox.toml` + repo-scoped bootstrap. |
+| `fn` | `load_and_build` | `pub fn load_and_build() -> Self` | [`crates/vox-orchestrator-driver/src/lib.rs#L60-L63`](../../../crates/vox-orchestrator-driver/src/lib.rs#L60-L63) | Discover config from the workspace, then build a repo-scoped orchestrator. |
+| `fn` | `from_config` | `pub fn from_config(config: OrchestratorConfig) -> Self` | [`crates/vox-orchestrator-driver/src/lib.rs#L67-L74`](../../../crates/vox-orchestrator-driver/src/lib.rs#L67-L74) | Build from an already-loaded config (tests / callers with custom config). |
+| `fn` | `build_embedded_orchestrator_config` | `pub fn build_embedded_orchestrator_config() -> OrchestratorConfig` | [`crates/vox-orchestrator-driver/src/lib.rs#L100-L138`](../../../crates/vox-orchestrator-driver/src/lib.rs#L100-L138) | Load orchestrator config from the nearest readable `Vox.toml`, then apply env overrides.  Discovery order matches the MCP stdio server: manifest-root `Vox.toml` first, then cwd `Vox.toml`, then defaults. |
+

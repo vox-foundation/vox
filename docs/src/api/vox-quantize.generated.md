@@ -58,3 +58,58 @@ builds that depend on this crate pull no Candle.
 | `verify` | — |
 | `write` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_quantize: "vox-quantize"
+    node vox_ml_cli: "vox-ml-cli"
+    vox_ml_cli -> vox_quantize
+    node vox_populi: "vox-populi"
+    vox_populi -> vox_quantize
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `device::DevicePref` | `pub enum DevicePref` | [`crates/vox-quantize/src/device.rs#L9-L15`](../../../crates/vox-quantize/src/device.rs#L9-L15) | User device preference. `Auto` picks the best available accelerator, falling back to CPU. Mirrors vox-plugin-mens-candle-cuda::device_select. |
+| `fn` | `device::select` | `pub fn select(pref: DevicePref) -> Result<Device, QuantizeError>` | [`crates/vox-quantize/src/device.rs#L17-L35`](../../../crates/vox-quantize/src/device.rs#L17-L35) | — |
+| `struct` | `engine::QuantizeRequest` | `pub struct QuantizeRequest` | [`crates/vox-quantize/src/engine.rs#L17-L23`](../../../crates/vox-quantize/src/engine.rs#L17-L23) | — |
+| `fn` | `engine::quantize` | `pub fn quantize(req: &QuantizeRequest) -> Result<QuantReport, QuantizeError>` | [`crates/vox-quantize/src/engine.rs#L25`](../../../crates/vox-quantize/src/engine.rs#L25) | — |
+| `enum` | `error::QuantizeError` | `pub enum QuantizeError` | [`crates/vox-quantize/src/error.rs#L6-L21`](../../../crates/vox-quantize/src/error.rs#L6-L21) | — |
+| `enum` | `policy::TensorRole` | `pub enum TensorRole` | [`crates/vox-quantize/src/policy.rs#L10-L17`](../../../crates/vox-quantize/src/policy.rs#L10-L17) | — |
+| `fn` | `policy::from_key` | `pub fn from_key(key: &str) -> Self` | [`crates/vox-quantize/src/policy.rs#L20-L51`](../../../crates/vox-quantize/src/policy.rs#L20-L51) | — |
+| `enum` | `policy::QuantMixture` | `pub enum QuantMixture` | [`crates/vox-quantize/src/policy.rs#L55-L61`](../../../crates/vox-quantize/src/policy.rs#L55-L61) | — |
+| `fn` | `policy::target_for` | `pub fn target_for(&self, role: TensorRole) -> Option<GgmlDType>` | [`crates/vox-quantize/src/policy.rs#L64-L87`](../../../crates/vox-quantize/src/policy.rs#L64-L87) | — |
+| `fn` | `policy::bits_per_weight` | `pub fn bits_per_weight(dtype: GgmlDType) -> f64` | [`crates/vox-quantize/src/policy.rs#L93-L95`](../../../crates/vox-quantize/src/policy.rs#L93-L95) | Bits-per-weight for a GGML quantized dtype, derived from candle_core's real block layout (`type_size` bytes / `block_size` elements) — never a separately hardcoded constant. |
+| `struct` | `policy::QuantizePlan` | `pub struct QuantizePlan` | [`crates/vox-quantize/src/policy.rs#L100-L110`](../../../crates/vox-quantize/src/policy.rs#L100-L110) | Exact sizing for a `plan_quantize` run: the output artifact's size, the peak RAM the engine needs to produce it, and the derived bpw/params. |
+| `fn` | `policy::plan_quantize` | `pub fn plan_quantize(` | [`crates/vox-quantize/src/policy.rs#L129`](../../../crates/vox-quantize/src/policy.rs#L129) | Size a quantization run exactly from the safetensors headers in `input_dir`, with no fitted parameter anywhere.  For every tensor in every `*.safetensors` file, classifies its role (`TensorRole::from_key`), resolves the mixture's target dtype for that role (`QuantMixture::target_for`), applies GGML block-size alignment (`resolve_dtype`), and sizes it with candle's real `GgmlDType` block layout — `elems / block_size * type_size` (this also covers `KeepF32` / fallback `GgmlDType::F32`, whose `block_size() == 1` and `type_size() == 4` reduce the same formula to `elems * 4`).  `peak_bytes = 2*S_max + output_bytes + 4*4*p_max`: - `2*S_max` — the largest shard's on-disk size, doubled for the one-slot shard cache holding one shard while the next is read (see `read.rs`). - `output_bytes` — the exact total computed above. - `4*4*p_max` — `round_trip_mse` (`verify.rs`) holds 4 live F32 buffers (`src`, `deq`, `diff`, `sq`) the size of the largest tensor. |
+| `fn` | `policy::resolve_dtype` | `pub fn resolve_dtype(target: GgmlDType, last_dim: usize) -> GgmlDType` | [`crates/vox-quantize/src/policy.rs#L185-L209`](../../../crates/vox-quantize/src/policy.rs#L185-L209) | Enforce GGML block-size alignment against the tensor's last dimension. |
+| `struct` | `read::SafeTensorsSource` | `pub struct SafeTensorsSource` | [`crates/vox-quantize/src/read.rs#L12-L21`](../../../crates/vox-quantize/src/read.rs#L12-L21) | A SafeTensors model source: single `model.safetensors` or sharded via `model.safetensors.index.json` (HF `weight_map`). |
+| `fn` | `read::open` | `pub fn open(dir: &Path) -> Result<Self, QuantizeError>` | [`crates/vox-quantize/src/read.rs#L107-L177`](../../../crates/vox-quantize/src/read.rs#L107-L177) | — |
+| `fn` | `read::tensor_names` | `pub fn tensor_names(&self) -> &[String]` | [`crates/vox-quantize/src/read.rs#L222-L224`](../../../crates/vox-quantize/src/read.rs#L222-L224) | — |
+| `fn` | `read::load_f32` | `pub fn load_f32(&self, name: &str) -> Result<Tensor, QuantizeError>` | [`crates/vox-quantize/src/read.rs#L227-L247`](../../../crates/vox-quantize/src/read.rs#L227-L247) | Load a tensor and cast to f32 on CPU. |
+| `fn` | `recombine::recombine` | `pub fn recombine(` | [`crates/vox-quantize/src/recombine.rs#L14`](../../../crates/vox-quantize/src/recombine.rs#L14) | Build a complete model in `out_dir` by taking every base tensor and overwriting the keys present in the merged subset. Errors if the subset contains a key absent from the base (a sign of an adapter/base mismatch). |
+| `fn` | `recombine::recombine_with_shard_budget` | `pub fn recombine_with_shard_budget(` | [`crates/vox-quantize/src/recombine.rs#L31`](../../../crates/vox-quantize/src/recombine.rs#L31) | Same as [`recombine`], but writes shards of at most `shard_bytes` each instead of one unsharded file, and takes the merged overrides already loaded rather than a path to load them from.  Never holds more than one shard's worth of tensors resident: sizes for grouping come from safetensors headers (no tensor data read), and each shard's tensors are loaded, written, and dropped before the next group is read. |
+| `struct` | `verify::TensorQuantStat` | `pub struct TensorQuantStat` | [`crates/vox-quantize/src/verify.rs#L9-L17`](../../../crates/vox-quantize/src/verify.rs#L9-L17) | — |
+| `struct` | `verify::QuantReport` | `pub struct QuantReport` | [`crates/vox-quantize/src/verify.rs#L20-L26`](../../../crates/vox-quantize/src/verify.rs#L20-L26) | — |
+| `fn` | `verify::round_trip_mse` | `pub fn round_trip_mse(src: &Tensor, q: &QTensor) -> Result<f64, QuantizeError>` | [`crates/vox-quantize/src/verify.rs#L29-L35`](../../../crates/vox-quantize/src/verify.rs#L29-L35) | Dequantize `q` and compute mean-squared error against the f32 source `src`. |
+| `fn` | `verify::round_trip_max_abs` | `pub fn round_trip_max_abs(src: &Tensor, q: &QTensor) -> Result<f64, QuantizeError>` | [`crates/vox-quantize/src/verify.rs#L38-L42`](../../../crates/vox-quantize/src/verify.rs#L38-L42) | Max absolute error against the f32 source. |
+| `struct` | `write::TensorMeta` | `pub struct TensorMeta` | [`crates/vox-quantize/src/write.rs#L15-L20`](../../../crates/vox-quantize/src/write.rs#L15-L20) | — |
+| `struct` | `write::ArtifactWriter` | `pub struct ArtifactWriter` | [`crates/vox-quantize/src/write.rs#L34-L59`](../../../crates/vox-quantize/src/write.rs#L34-L59) | — |
+| `fn` | `write::new` | `pub fn new() -> Self` | [`crates/vox-quantize/src/write.rs#L95-L107`](../../../crates/vox-quantize/src/write.rs#L95-L107) | Streaming writer with no output directory yet -- flushes shards to a scratch directory as tensors are added and moves them into the real directory at [`Self::finish`]. Keeps `new()`'s no-argument, non-fallible signature so `engine.rs` (which doesn't know the output directory at construction time) is unchanged.  Creating the scratch directory can fail (disk full, no writable temp root, ...), but `new()` can't return `Result`, so that creation is deferred to the first call to `Self::stage` (from `add_quantized` or `add_f32`), which already returns `Result` and can propagate it via `QuantizeError::Io` instead of panicking. |
+| `fn` | `write::with_shard_budget` | `pub fn with_shard_budget(` | [`crates/vox-quantize/src/write.rs#L145`](../../../crates/vox-quantize/src/write.rs#L145) | Streaming writer that flushes shards directly into `out_dir`, once `shard_bytes` of pending tensor data has accumulated, with no scratch dir or move at `finish`. `mixture` is accepted for symmetry with `finish`'s signature; `finish`'s own `mixture` argument is what's written to `quant-metadata.json`. |
+| `fn` | `write::add_quantized` | `pub fn add_quantized(` | [`crates/vox-quantize/src/write.rs#L164`](../../../crates/vox-quantize/src/write.rs#L164) | — |
+| `fn` | `write::add_f32` | `pub fn add_f32(&mut self, name: &str, t: &Tensor) -> Result<(), QuantizeError>` | [`crates/vox-quantize/src/write.rs#L184-L201`](../../../crates/vox-quantize/src/write.rs#L184-L201) | — |
+| `fn` | `write::finish` | `pub fn finish(mut self, out_dir: &Path, mixture: &str) -> Result<(), QuantizeError>` | [`crates/vox-quantize/src/write.rs#L270-L333`](../../../crates/vox-quantize/src/write.rs#L270-L333) | — |
+

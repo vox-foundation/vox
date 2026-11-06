@@ -32,7 +32,7 @@ Do all work in this worktree: `C:\Users\Owner\vox\.claude\worktrees\llm-guidance
 
 Tasks 1-14 can be dispatched as concurrent sub-agents where their file sets are disjoint; several must run strictly in order because they edit the same file (mostly `AGENTS.md`) or depend on an earlier task's fix already being committed. Three tasks below involve a judgment call unsuited to unattended background execution — route those to a human or a foreground session instead.
 
-**Wave 1 (parallel, with one internal ordering note below):** Task 1, Task 2, Task 6, Task 8, Task 9 — disjoint files (Task 1: `AGENTS.md` + `.cursor/rules/secrets-policy.mdc` + `docs/src/reference/agent-quick-reference.md` + `docs/src/contributors/toestub-contributor-guide.md` + `crates/vox-code-audit/.../env_secret_shape.rs` + `crates/vox-cli/.../guards.rs`; Task 2: `docs/agents/orchestrator.md`; Task 6: `CLAUDE.md`; Task 8: `.cursor/rules/voxscript-first-automation.mdc`; Task 9: `docs/agents/cli-toolchain.md` + `docs/src/contributors/coding-agents.md` + `docs/src/contributors/toestub-contributor-guide.md`). Note Task 1 and Task 9 both touch `toestub-contributor-guide.md` (different, non-overlapping line ranges — Task 1 fixes line 167, Task 9 fixes lines 40-43); if dispatching as separate sub-agents, still serialize Task 9 after Task 1 to avoid a same-file write race.
+**Wave 1 (parallel, with one internal ordering note below):** Task 1, Task 2, Task 6, Task 8, Task 9 — disjoint files (Task 1: `AGENTS.md` + `.cursor/rules/secrets-policy.mdc` + `docs/src/reference/agent-quick-reference.md` + `docs/src/contributors/toestub-contributor-guide.md` + `crates/vox-code-audit/.../env_secret_shape.rs` + `crates/vox-cli/.../guards.rs`; Task 2: `docs/agents/orchestrator.md`; Task 6: `CLAUDE.md`; Task 8: `.cursor/rules/voxlang-first-automation.mdc`; Task 9: `docs/agents/cli-toolchain.md` + `docs/src/contributors/coding-agents.md` + `docs/src/contributors/toestub-contributor-guide.md`). Note Task 1 and Task 9 both touch `toestub-contributor-guide.md` (different, non-overlapping line ranges — Task 1 fixes line 167, Task 9 fixes lines 40-43); if dispatching as separate sub-agents, still serialize Task 9 after Task 1 to avoid a same-file write race.
 
 **Wave 2 (after Wave 1 is committed):** Task 3, Task 4, Task 7 — run in parallel with each other. Task 3 touches `docs/agents/governance.md` + `docs/agents/cli-toolchain.md` + `docs/agents/orchestrator.md` + `docs/src/reference/cli.md`, so it must follow Task 2 and Task 9 (both edit files Task 3 also edits). Task 4 edits `AGENTS.md` and must follow Task 1 (also edits `AGENTS.md`). Task 7 edits `.cursor/rules/retired-surfaces.mdc` + `docs/src/reference/agent-quick-reference.md` and must follow Task 1 (also edits `agent-quick-reference.md`). Task 3, Task 4, and Task 7 share no files with each other.
 
@@ -306,7 +306,7 @@ git commit -m "docs: retired scripts/quality/toestub_scoped.sh -- use vox ci toe
 
 ### Task 4: Fix stale `.cursor/rules` file count in `AGENTS.md`
 
-`AGENTS.md:276` claims "four `.mdc` rule files." There are nine: `build-environment.mdc`, `ci-runner-convention.mdc`, `cli-command-registry.mdc`, `cross-platform-source-hygiene.mdc`, `data-storage-policy.mdc`, `documentation-policy.mdc`, `retired-surfaces.mdc`, `secrets-policy.mdc`, `voxscript-first-automation.mdc` (verified via `Glob .cursor/rules/*.mdc`).
+`AGENTS.md:276` claims "four `.mdc` rule files." There are nine: `build-environment.mdc`, `ci-runner-convention.mdc`, `cli-command-registry.mdc`, `cross-platform-source-hygiene.mdc`, `data-storage-policy.mdc`, `documentation-policy.mdc`, `retired-surfaces.mdc`, `secrets-policy.mdc`, `voxlang-first-automation.mdc` (verified via `Glob .cursor/rules/*.mdc`).
 
 **Files:**
 - Modify: `AGENTS.md:276`
@@ -319,7 +319,7 @@ For Cursor-specific rules see [`.cursor/rules/`](.cursor/rules/) — four `.mdc`
 ```
 New:
 ```
-For Cursor-specific rules see [`.cursor/rules/`](.cursor/rules/) — nine `.mdc` rule files covering build environment, CI runner conventions, CLI command registry, cross-platform source hygiene, data storage policy, documentation policy, retired surfaces, secrets policy, and VoxScript-first automation.
+For Cursor-specific rules see [`.cursor/rules/`](.cursor/rules/) — nine `.mdc` rule files covering build environment, CI runner conventions, CLI command registry, cross-platform source hygiene, data storage policy, documentation policy, retired surfaces, secrets policy, and VoxLang-first automation.
 ```
 
 - [ ] **Step 2: Verify the count matches reality**
@@ -380,7 +380,7 @@ Verified against Claude Code's official memory docs (`code.claude.com/docs/en/me
 Use plan mode for changes under `src/billing/`.
 ```
 
-This replaces the current unenforced prose ("This project uses AGENTS.md ... required reading first") with an actual import, and removes an inline restatement of 4 AGENTS.md policies (VoxScript-only automation, frontmatter, the banned whole-workspace `rustfmt` invocation, where-things-live) that CLAUDE.md was independently repeating.
+This replaces the current unenforced prose ("This project uses AGENTS.md ... required reading first") with an actual import, and removes an inline restatement of 4 AGENTS.md policies (VoxLang-only automation, frontmatter, the banned whole-workspace `rustfmt` invocation, where-things-live) that CLAUDE.md was independently repeating.
 
 **Files:**
 - Modify: `CLAUDE.md` (full rewrite, 21 lines → 13 lines)
@@ -395,7 +395,7 @@ This project uses `AGENTS.md` as the cross-tool policy surface (required reading
 
 ## Claude-specific additions
 
-These are behaviors specific to Claude Code. **All cross-tool rules live in [`AGENTS.md`](AGENTS.md) — read it first.** In particular AGENTS.md is normative for: the "where does this code go" lookup (`where-things-live.md`), required Markdown frontmatter under `docs/src/`, VoxScript-only automation (no new `.ps1`/`.sh`/`.py`), and the `cargo fmt --all` ban (use `vox run scripts/fmt.vox` / `cargo fmt -p <crate>`).
+These are behaviors specific to Claude Code. **All cross-tool rules live in [`AGENTS.md`](AGENTS.md) — read it first.** In particular AGENTS.md is normative for: the "where does this code go" lookup (`where-things-live.md`), required Markdown frontmatter under `docs/src/`, VoxLang-only automation (no new `.ps1`/`.sh`/`.py`), and the `cargo fmt --all` ban (use `vox run scripts/fmt.vox` / `cargo fmt -p <crate>`).
 
 - If you open a `.vox` file, treat it as Vox language source — not Rust, not TypeScript.
 - Honor `// vox:skip` annotations in code blocks; do not validate those against the compiler. (Prefer making fenced `vox` blocks compile; use `// vox:skip` + a reason only for genuine out-of-file excerpts.)
@@ -543,12 +543,12 @@ git commit -m "fix(docs): correct contradictory recall/persist_fact retirement c
 
 ---
 
-### Task 8: Trim duplicated VoxScript execution-tier table in `.cursor/rules/voxscript-first-automation.mdc`
+### Task 8: Trim duplicated VoxLang execution-tier table in `.cursor/rules/voxlang-first-automation.mdc`
 
-This file already cites `AGENTS.md §VoxScript-First Glue Code` as "authoritative policy" in its own References section, but still restates the full 3-row execution-tier table above it. Keep the correct/wrong code examples (genuinely useful standalone context for a Cursor session) and the bootstrap/security sections (not duplicated elsewhere); replace only the redundant table.
+This file already cites `AGENTS.md §VoxLang-First Glue Code` as "authoritative policy" in its own References section, but still restates the full 3-row execution-tier table above it. Keep the correct/wrong code examples (genuinely useful standalone context for a Cursor session) and the bootstrap/security sections (not duplicated elsewhere); replace only the redundant table.
 
 **Files:**
-- Modify: `.cursor/rules/voxscript-first-automation.mdc:26-32`
+- Modify: `.cursor/rules/voxlang-first-automation.mdc:26-32`
 
 - [ ] **Step 1: Replace the Execution tiers section**
 
@@ -566,14 +566,14 @@ New:
 ```markdown
 ## Execution tiers
 
-Full tier table (interp / native / wasm-isolated, and when to use each): `AGENTS.md §VoxScript-First Glue Code` — authoritative, do not restate here.
+Full tier table (interp / native / wasm-isolated, and when to use each): `AGENTS.md §VoxLang-First Glue Code` — authoritative, do not restate here.
 ```
 
 - [ ] **Step 2: Commit**
 
 ```bash
-git add .cursor/rules/voxscript-first-automation.mdc
-git commit -m "docs(cursor): trim duplicated VoxScript tier table to a pointer"
+git add .cursor/rules/voxlang-first-automation.mdc
+git commit -m "docs(cursor): trim duplicated VoxLang tier table to a pointer"
 ```
 
 ---

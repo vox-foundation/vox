@@ -8,6 +8,8 @@ use super::value::VoxValue;
 use secrecy::ExposeSecret;
 use std::rc::Rc;
 use std::sync::Mutex;
+#[cfg(test)]
+use std::sync::atomic::{AtomicU32, Ordering};
 use vox_config::timeouts::HTTP_REQUEST; // HTTP_REQUEST = 30s
 
 static ENV_MUTEX: Mutex<()> = Mutex::new(());
@@ -1067,6 +1069,42 @@ pub fn call_builtin_method(
                     }
                     _ => {}
                 }
+            }
+
+            if ns == Some("array") {
+                return match method {
+                    "from_list" => Some(array_from_list(args)),
+                    _ => None,
+                };
+            }
+
+            if ns == Some("frame") {
+                return match method {
+                    "scan_csv" => {
+                        let Some(VoxValue::Str(path)) = args.first() else {
+                            return Some(VoxValue::_Panic(
+                                "scan_csv requires a path string".into(),
+                            ));
+                        };
+                        let Some(resolved) = fs_resolve_allowed(caps, path, false) else {
+                            return Some(VoxValue::_Denied("fs.scan_csv".into()));
+                        };
+                        Some(VoxValue::FramePlan(
+                            crate::eval::frame_plan::FramePlan::scan_csv(
+                                &resolved.to_string_lossy(),
+                            ),
+                        ))
+                    }
+                    "col" => {
+                        let Some(VoxValue::Str(name)) = args.first() else {
+                            return Some(VoxValue::_Panic("col requires a name".into()));
+                        };
+                        Some(VoxValue::FrameExpr(
+                            crate::eval::frame_plan::FrameExpr::col(name),
+                        ))
+                    }
+                    _ => None,
+                };
             }
 
             if let Some(ns_str) = ns {
@@ -2575,8 +2613,581 @@ pub fn call_builtin_method(
             }
         }
 
+        VoxValue::ArrayPlan(plan) => match method {
+            "astype" => {
+                let dtype = match args.first() {
+                    Some(VoxValue::Str(dtype)) => dtype.as_ref(),
+                    _ => "f64",
+                };
+                Some(VoxValue::ArrayPlan(plan.astype(dtype)))
+            }
+            "mean" => Some(VoxValue::ArrayPlan(plan.mean())),
+            "std" => {
+                let Some(VoxValue::Int(correction)) = args.first() else {
+                    return Some(VoxValue::_Panic("std requires correction".into()));
+                };
+                Some(VoxValue::ArrayPlan(plan.std(*correction)))
+            }
+            "sort" => {
+                let Some(VoxValue::Str(nulls)) = args.first() else {
+                    return Some(VoxValue::_Panic("sort requires nulls".into()));
+                };
+                Some(VoxValue::ArrayPlan(plan.sort(nulls)))
+            }
+            _ => None,
+        },
+
+        VoxValue::FramePlan(plan) => match method {
+            "filter" => {
+                let Some(VoxValue::FrameExpr(expr)) = args.first() else {
+                    return Some(VoxValue::_Panic("filter requires an Expr".into()));
+                };
+                Some(VoxValue::FramePlan(plan.filter(expr)))
+            }
+            "group_by" => {
+                let Some(VoxValue::List(keys)) = args.first() else {
+                    return Some(VoxValue::_Panic("group_by requires a list of keys".into()));
+                };
+                let mut names: Vec<String> = Vec::with_capacity(keys.len());
+                for key in keys.iter() {
+                    let VoxValue::Str(name) = key else {
+                        return Some(VoxValue::_Panic("group_by keys must be strings".into()));
+                    };
+                    names.push(name.as_ref().to_string());
+                }
+                let key_refs: Vec<&str> = names.iter().map(String::as_str).collect();
+                Some(VoxValue::FramePlan(plan.group_by(&key_refs)))
+            }
+            "agg" => {
+                let Some(VoxValue::List(items)) = args.first() else {
+                    return Some(VoxValue::_Panic("agg requires a list of Expr".into()));
+                };
+                let mut exprs = Vec::with_capacity(items.len());
+                for item in items.iter() {
+                    let VoxValue::FrameExpr(expr) = item else {
+                        return Some(VoxValue::_Panic("agg items must be Expr".into()));
+                    };
+                    exprs.push(expr.clone());
+                }
+                Some(VoxValue::FramePlan(plan.agg(&exprs)))
+            }
+            "sort" => {
+                // Column is positional; nulls is the named argument's value.
+                // Do not use args.first() as the nulls string (array sort does).
+                let Some(VoxValue::Str(column)) = args.first() else {
+                    return Some(VoxValue::_Panic("sort requires a column".into()));
+                };
+                let Some(VoxValue::Str(nulls)) = args.get(1) else {
+                    return Some(VoxValue::_Panic("sort requires nulls".into()));
+                };
+                if nulls.as_ref() != "first" && nulls.as_ref() != "last" {
+                    return Some(VoxValue::_Panic(
+                        "sort nulls must be \"first\" or \"last\"".into(),
+                    ));
+                }
+                Some(VoxValue::FramePlan(plan.sort(column, nulls)))
+            }
+            _ => None,
+        },
+
+        VoxValue::FrameExpr(expr) => match method {
+            "eq" => {
+                let Some(VoxValue::Str(value)) = args.first() else {
+                    return Some(VoxValue::_Panic("eq requires a string".into()));
+                };
+                Some(VoxValue::FrameExpr(expr.eq(value)))
+            }
+            "sum" => Some(VoxValue::FrameExpr(expr.sum())),
+            "alias" => {
+                let Some(VoxValue::Str(name)) = args.first() else {
+                    return Some(VoxValue::_Panic("alias requires a name".into()));
+                };
+                Some(VoxValue::FrameExpr(expr.alias(name)))
+            }
+            _ => None,
+        },
+
+        // `num_rows` and `column` live on `Records`, not on `Ty::Record`.
+        VoxValue::Records { columns } => match method {
+            "num_rows" => {
+                let rows = columns.first().map(|(_, cells)| cells.len()).unwrap_or(0);
+                Some(VoxValue::Int(rows as i64))
+            }
+            "column" => {
+                let Some(VoxValue::Str(name)) = args.first() else {
+                    return Some(VoxValue::Result(Err(crate::eval::value::err_str(
+                        "column requires a name".into(),
+                    ))));
+                };
+                match columns.iter().find(|(field, _)| field == name.as_ref()) {
+                    Some((_, cells)) => Some(VoxValue::list(cells.clone())),
+                    None => Some(VoxValue::Result(Err(crate::eval::value::err_str(format!(
+                        "missing column: {name}"
+                    ))))),
+                }
+            }
+            _ => None,
+        },
+
         _ => None,
     }
+}
+
+/// The only host entry that calls the Python worker for `std.array`.
+///
+/// `mean` and `std` stay inside the plan JSON. The numeric payload is the
+/// Arrow body, not JSON numbers.
+#[cfg(test)]
+static MATERIALIZE_CALLS: AtomicU32 = AtomicU32::new(0);
+
+/// How many times [`materialize_to_list`] has been entered.
+#[cfg(test)]
+pub(crate) fn materialize_calls() -> u32 {
+    MATERIALIZE_CALLS.load(Ordering::SeqCst)
+}
+
+/// Entries into [`materialize_collect`]. Separate from array MATERIALIZE_CALLS.
+#[cfg(test)]
+static COLLECT_MATERIALIZE_CALLS: AtomicU32 = AtomicU32::new(0);
+
+/// How many times [`materialize_collect`] has been entered.
+#[cfg(test)]
+pub(crate) fn collect_materialize_calls() -> u32 {
+    COLLECT_MATERIALIZE_CALLS.load(Ordering::SeqCst)
+}
+
+pub fn materialize_to_list(
+    interp: &mut super::Interpreter,
+    plan: &super::array_plan::ArrayPlan,
+    caps: &crate::eval::caps::CapabilitySet,
+) -> VoxValue {
+    #[cfg(test)]
+    MATERIALIZE_CALLS.fetch_add(1, Ordering::SeqCst);
+    if !caps.allows_namespace("py") {
+        return VoxValue::_Denied("py.to_list".into());
+    }
+    let max_body = fetch_cap_bytes(interp);
+    #[cfg(test)]
+    if let Some(bytes) = take_reply_body_for_test() {
+        return host_list_from_body(&bytes, max_body);
+    }
+    let params = plan_params(plan);
+    let body = match encode_host_column(plan) {
+        Ok(bytes) => bytes,
+        Err(err) => return VoxValue::Result(Err(crate::eval::value::err_str(err))),
+    };
+    match super::python::execute_plan(interp, params, body) {
+        Ok(reply) => match reply.body.as_deref() {
+            Some(bytes) => host_list_from_body(bytes, max_body),
+            None => VoxValue::Result(Err(crate::eval::value::err_str(
+                "py: execute_plan reply missing body".to_string(),
+            ))),
+        },
+        Err(err) => VoxValue::Result(Err(crate::eval::value::err_str(err))),
+    }
+}
+
+/// The only host entry that calls the Python worker for `std.frame`.
+///
+/// Decodes the Arrow reply body into [`VoxValue::Records`] via
+/// [`vox_python_bridge::decode_frame_columns`].
+pub fn materialize_collect(
+    interp: &mut super::Interpreter,
+    plan: &super::frame_plan::FramePlan,
+    caps: &crate::eval::caps::CapabilitySet,
+) -> VoxValue {
+    #[cfg(test)]
+    COLLECT_MATERIALIZE_CALLS.fetch_add(1, Ordering::SeqCst);
+    if !caps.allows_namespace("py") {
+        return VoxValue::_Denied("py.collect".into());
+    }
+    let max_body = fetch_cap_bytes(interp);
+    let step = collect_step_name(plan);
+    #[cfg(test)]
+    if let Some(bytes) = take_reply_body_for_test() {
+        // Honor the hook so a missing worker path is never spawned.
+        return records_from_frame_body(&bytes, max_body, &step);
+    }
+    let params = frame_plan_params(plan);
+    // CSV stays on disk. The worker opens the canonical path from the plan.
+    let body = Vec::new();
+    match super::python::execute_plan(interp, params, body) {
+        Ok(reply) => match reply.body.as_deref() {
+            Some(bytes) => records_from_frame_body(bytes, max_body, &step),
+            None => VoxValue::Result(Err(crate::eval::value::err_str(
+                "py: execute_plan reply missing body".to_string(),
+            ))),
+        },
+        Err(err) => VoxValue::Result(Err(crate::eval::value::err_str(err))),
+    }
+}
+
+fn collect_step_name(plan: &super::frame_plan::FramePlan) -> String {
+    plan.param_steps()
+        .last()
+        .map(|step| step.op.to_string())
+        .unwrap_or_else(|| "collect".to_string())
+}
+
+fn records_from_frame_body(bytes: &[u8], max_body: u64, step: &str) -> VoxValue {
+    tracing::debug!(
+        body_len = bytes.len(),
+        max_body,
+        step,
+        "execute_plan reply body sent to decode_frame_columns"
+    );
+    match vox_python_bridge::decode_frame_columns(bytes, max_body, step) {
+        Ok(decoded) => match frame_cells_to_records(decoded) {
+            Ok(records) => VoxValue::Result(Ok(Box::new(records))),
+            Err(err) => VoxValue::Result(Err(crate::eval::value::err_str(err))),
+        },
+        Err(err) => VoxValue::Result(Err(crate::eval::value::err_str(err))),
+    }
+}
+
+fn frame_cells_to_records(decoded: vox_python_bridge::DecodedFrame) -> Result<VoxValue, String> {
+    let mut columns = Vec::with_capacity(decoded.columns.len());
+    for (name, cells) in decoded.columns {
+        let mut values = Vec::with_capacity(cells.len());
+        for cell in cells {
+            values.push(frame_cell_to_value(cell)?);
+        }
+        columns.push((name, values));
+    }
+    Ok(VoxValue::Records { columns })
+}
+
+fn frame_cell_to_value(cell: vox_python_bridge::FrameCell) -> Result<VoxValue, String> {
+    use vox_python_bridge::{FrameCell, TemporalUnit};
+    Ok(match cell {
+        FrameCell::Bool(v) => VoxValue::Bool(v),
+        FrameCell::Int(v) => VoxValue::Int(v),
+        FrameCell::Float(v) => VoxValue::Float(v),
+        FrameCell::Utf8(v) => VoxValue::Str(v.into()),
+        FrameCell::Binary(v) => {
+            VoxValue::list(v.into_iter().map(|b| VoxValue::Int(i64::from(b))).collect())
+        }
+        FrameCell::Decimal { coefficient, scale } => {
+            let scale = u32::try_from(scale)
+                .map_err(|_| format!("py: decimal scale {scale} is out of range"))?;
+            VoxValue::Decimal(rust_decimal::Decimal::from_i128_with_scale(
+                coefficient,
+                scale,
+            ))
+        }
+        FrameCell::Date32(days) => {
+            let epoch = chrono::NaiveDate::from_ymd_opt(1970, 1, 1)
+                .ok_or_else(|| "py: invalid date epoch".to_string())?;
+            let date = epoch
+                .checked_add_signed(chrono::Duration::days(i64::from(days)))
+                .ok_or_else(|| format!("py: date32 {days} out of range"))?;
+            VoxValue::Date(date)
+        }
+        FrameCell::Timestamp { value, unit } => {
+            let dt = match unit {
+                TemporalUnit::Second => chrono::DateTime::from_timestamp(value, 0),
+                TemporalUnit::Millisecond => chrono::DateTime::from_timestamp_millis(value),
+                TemporalUnit::Microsecond => chrono::DateTime::from_timestamp_micros(value),
+                TemporalUnit::Nanosecond => {
+                    let secs = value.div_euclid(1_000_000_000);
+                    let nanos = value.rem_euclid(1_000_000_000) as u32;
+                    chrono::DateTime::from_timestamp(secs, nanos)
+                }
+            }
+            .ok_or_else(|| format!("py: timestamp {value} out of range"))?;
+            VoxValue::DateTime(dt)
+        }
+        FrameCell::Duration { value, unit } => {
+            let duration = match unit {
+                TemporalUnit::Second => chrono::Duration::seconds(value),
+                TemporalUnit::Millisecond => chrono::Duration::milliseconds(value),
+                TemporalUnit::Microsecond => chrono::Duration::microseconds(value),
+                TemporalUnit::Nanosecond => chrono::Duration::nanoseconds(value),
+            };
+            VoxValue::Duration(duration)
+        }
+    })
+}
+
+#[cfg(test)]
+thread_local! {
+    static FORCED_REPLY_BODY: std::cell::RefCell<Option<Vec<u8>>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// Supply the Arrow body [`materialize_to_list`] decodes. The numeric test
+/// uses this so `i64::MIN` never has to be a Vox literal.
+#[cfg(test)]
+pub(crate) fn set_reply_body_for_test(body: Vec<u8>) {
+    FORCED_REPLY_BODY.with(|slot| *slot.borrow_mut() = Some(body));
+}
+
+#[cfg(test)]
+fn take_reply_body_for_test() -> Option<Vec<u8>> {
+    FORCED_REPLY_BODY.with(|slot| slot.borrow_mut().take())
+}
+
+fn encode_host_column(plan: &super::array_plan::ArrayPlan) -> Result<Vec<u8>, String> {
+    let columns = plan.host_columns();
+    tracing::debug!(columns = columns.len(), "host columns sent to execute_plan");
+    let mut encoded = Vec::with_capacity(columns.len());
+    for (index, column) in columns.iter().enumerate() {
+        match column {
+            super::array_plan::HostPayload::I64(ints) => {
+                tracing::debug!(
+                    index,
+                    len = ints.len(),
+                    first = ?ints.first().copied(),
+                    "from_list int column sent to execute_plan"
+                );
+                encoded.push(vox_python_bridge::HostColumnEncode::I64(ints));
+            }
+            super::array_plan::HostPayload::F64(floats) => {
+                tracing::debug!(
+                    index,
+                    len = floats.len(),
+                    "from_list float column sent to execute_plan"
+                );
+                encoded.push(vox_python_bridge::HostColumnEncode::F64(floats));
+            }
+        }
+    }
+    vox_python_bridge::encode_host_columns(&encoded)
+}
+
+fn fetch_cap_bytes(interp: &super::Interpreter) -> u64 {
+    interp
+        .python_project
+        .as_ref()
+        .map(|project| {
+            project
+                .max_fetch_mb
+                .saturating_mul(1024)
+                .saturating_mul(1024)
+        })
+        .unwrap_or(256 * 1024 * 1024)
+}
+
+fn host_list_from_body(bytes: &[u8], max_body: u64) -> VoxValue {
+    tracing::debug!(
+        body_len = bytes.len(),
+        max_body,
+        "execute_plan reply body sent to decode_column"
+    );
+    match vox_python_bridge::decode_column(bytes, max_body) {
+        Ok(vox_python_bridge::DecodedColumn::Floats(values)) => VoxValue::Result(Ok(Box::new(
+            VoxValue::list(values.into_iter().map(VoxValue::Float).collect()),
+        ))),
+        Ok(vox_python_bridge::DecodedColumn::Ints(values)) => VoxValue::Result(Ok(Box::new(
+            VoxValue::list(values.into_iter().map(VoxValue::Int).collect()),
+        ))),
+        Err(err) => VoxValue::Result(Err(crate::eval::value::err_str(err))),
+    }
+}
+
+/// `item` is one [`materialize_to_list`] call. The wire method stays `execute_plan`.
+pub fn materialize_item(
+    interp: &mut super::Interpreter,
+    plan: &super::array_plan::ArrayPlan,
+    caps: &crate::eval::caps::CapabilitySet,
+) -> VoxValue {
+    let plan = plan.appending("item");
+    scalar_from_column(materialize_to_list(interp, &plan, caps))
+}
+
+/// `shape` is one [`materialize_to_list`] call. The wire method stays `execute_plan`.
+pub fn materialize_shape(
+    interp: &mut super::Interpreter,
+    plan: &super::array_plan::ArrayPlan,
+    caps: &crate::eval::caps::CapabilitySet,
+) -> VoxValue {
+    let plan = plan.appending("shape");
+    ints_from_column(materialize_to_list(interp, &plan, caps))
+}
+
+fn scalar_from_column(value: VoxValue) -> VoxValue {
+    match value {
+        VoxValue::Result(Ok(inner)) => match *inner {
+            VoxValue::List(items) if items.len() == 1 => {
+                VoxValue::Result(Ok(Box::new(items[0].clone())))
+            }
+            _ => VoxValue::Result(Err(crate::eval::value::err_str(
+                "py: item expected one value".to_string(),
+            ))),
+        },
+        other => other,
+    }
+}
+
+fn ints_from_column(value: VoxValue) -> VoxValue {
+    match value {
+        VoxValue::Result(Ok(inner)) => match *inner {
+            VoxValue::List(items) => {
+                let mut dims = Vec::with_capacity(items.len());
+                for item in items.iter() {
+                    let dim = match item {
+                        VoxValue::Int(number) => *number,
+                        VoxValue::Float(number) if number.is_finite() && number.fract() == 0.0 => {
+                            *number as i64
+                        }
+                        _ => {
+                            return VoxValue::Result(Err(crate::eval::value::err_str(
+                                "py: shape expected integer dimensions".to_string(),
+                            )));
+                        }
+                    };
+                    dims.push(VoxValue::Int(dim));
+                }
+                VoxValue::Result(Ok(Box::new(VoxValue::list(dims))))
+            }
+            _ => VoxValue::Result(Err(crate::eval::value::err_str(
+                "py: shape expected a list".to_string(),
+            ))),
+        },
+        other => other,
+    }
+}
+
+fn plan_params(plan: &super::array_plan::ArrayPlan) -> serde_json::Value {
+    let ops: Vec<serde_json::Value> = plan
+        .param_steps()
+        .into_iter()
+        .map(|step| {
+            let mut op = serde_json::Map::new();
+            op.insert(
+                "name".into(),
+                serde_json::Value::String(step.op.to_string()),
+            );
+            if step.op == "from_list" {
+                if let Some(column) = step.column {
+                    op.insert("column".into(), serde_json::json!(column));
+                }
+            } else if step.op == "std" {
+                if let Some(correction) = step.correction {
+                    op.insert("correction".into(), serde_json::json!(correction));
+                }
+            } else if step.op == "astype" {
+                op.insert("dtype".into(), serde_json::Value::String("f64".into()));
+            } else if step.op == "sort"
+                && let Some(nulls) = step.nulls
+            {
+                op.insert("nulls".into(), serde_json::Value::String(nulls.to_string()));
+            }
+            serde_json::Value::Object(op)
+        })
+        .collect();
+    serde_json::json!({ "ops": ops })
+}
+
+fn frame_expr_params(expr: &super::frame_plan::FrameExpr) -> serde_json::Value {
+    let mut op = serde_json::Map::new();
+    op.insert(
+        "name".into(),
+        serde_json::Value::String(expr.op().to_string()),
+    );
+    if let Some(column) = expr.column() {
+        op.insert(
+            "column".into(),
+            serde_json::Value::String(column.to_string()),
+        );
+    }
+    if let Some(literal) = expr.literal() {
+        op.insert(
+            "literal".into(),
+            serde_json::Value::String(literal.to_string()),
+        );
+    }
+    if let Some(alias) = expr.alias_name() {
+        op.insert("alias".into(), serde_json::Value::String(alias.to_string()));
+    }
+    if let Some(child) = expr.child() {
+        op.insert("expr".into(), frame_expr_params(child));
+    }
+    serde_json::Value::Object(op)
+}
+
+/// Frame family params for [`python::execute_plan`]. Array plans stay on
+/// [`plan_params`] with no `family` key.
+fn frame_plan_params(plan: &super::frame_plan::FramePlan) -> serde_json::Value {
+    let ops: Vec<serde_json::Value> = plan
+        .param_steps()
+        .into_iter()
+        .map(|step| {
+            let mut op = serde_json::Map::new();
+            op.insert(
+                "name".into(),
+                serde_json::Value::String(step.op.to_string()),
+            );
+            if step.op == "scan_csv" {
+                op.insert(
+                    "path".into(),
+                    serde_json::Value::String(plan.path().to_string()),
+                );
+            } else if step.op == "sort" {
+                if let Some(column) = step.column {
+                    op.insert("column".into(), serde_json::Value::String(column));
+                }
+                if let Some(nulls) = step.nulls {
+                    op.insert("nulls".into(), serde_json::Value::String(nulls.to_string()));
+                }
+            } else if step.op == "group_by" {
+                op.insert(
+                    "keys".into(),
+                    serde_json::Value::Array(
+                        step.keys
+                            .into_iter()
+                            .map(serde_json::Value::String)
+                            .collect(),
+                    ),
+                );
+            } else if step.op == "filter" {
+                if let Some(expr) = step.exprs.first() {
+                    op.insert("expr".into(), frame_expr_params(expr));
+                }
+            } else if step.op == "agg" {
+                op.insert(
+                    "exprs".into(),
+                    serde_json::Value::Array(step.exprs.iter().map(frame_expr_params).collect()),
+                );
+            }
+            serde_json::Value::Object(op)
+        })
+        .collect();
+    serde_json::json!({ "family": "frame", "ops": ops })
+}
+
+fn array_from_list(args: Vec<VoxValue>) -> VoxValue {
+    let Some(VoxValue::List(items)) = args.into_iter().next() else {
+        return VoxValue::_Panic("from_list expects a list".into());
+    };
+    if !items.is_empty() && items.iter().all(|item| matches!(item, VoxValue::Int(_))) {
+        let mut values = Vec::with_capacity(items.len());
+        for item in items.iter() {
+            if let VoxValue::Int(number) = item {
+                values.push(*number);
+            }
+        }
+        tracing::debug!(
+            len = values.len(),
+            first = ?values.first().copied(),
+            "from_list int payload"
+        );
+        return VoxValue::ArrayPlan(super::array_plan::ArrayPlan::from_ints(values));
+    }
+    let mut values = Vec::with_capacity(items.len());
+    for item in items.iter() {
+        match item {
+            VoxValue::Float(number) => values.push(*number),
+            other => {
+                return VoxValue::_Panic(format!(
+                    "from_list expects floats, found {}",
+                    vox_value_type_name(other)
+                ));
+            }
+        }
+    }
+    tracing::debug!(len = values.len(), "from_list float payload");
+    VoxValue::ArrayPlan(super::array_plan::ArrayPlan::from_list(values))
 }
 
 fn lookup_json_field<'a>(fields: &'a [(String, VoxValue)], key: &str) -> Option<&'a VoxValue> {
@@ -2723,6 +3334,7 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
                 .map(vox_value_display)
                 .collect::<Vec<_>>()
                 .join(" ");
+            super::python::note_print(&msg);
             println!("{msg}");
             Some(VoxValue::Null)
         }
@@ -2932,6 +3544,13 @@ pub fn vox_value_type_name(v: &VoxValue) -> &'static str {
         VoxValue::Float(_) => "Float",
         VoxValue::Decimal(_) => "Decimal",
         VoxValue::Regex(_) => "Regex",
+        VoxValue::ArrayPlan(_) => "ArrayPlan",
+        VoxValue::FramePlan(_) => "FramePlan",
+        VoxValue::FrameExpr(_) => "FrameExpr",
+        VoxValue::Records { .. } => "Records",
+        VoxValue::Date(_) => "Date",
+        VoxValue::DateTime(_) => "DateTime",
+        VoxValue::Duration(_) => "Duration",
         VoxValue::Match(_) => "Match",
         VoxValue::Str(_) => "Str",
         VoxValue::Bool(_) => "Bool",
@@ -3007,6 +3626,13 @@ pub fn vox_value_display(v: &VoxValue) -> String {
             }
         }
         VoxValue::Match(_)
+        | VoxValue::ArrayPlan(_)
+        | VoxValue::FramePlan(_)
+        | VoxValue::FrameExpr(_)
+        | VoxValue::Records { .. }
+        | VoxValue::Date(_)
+        | VoxValue::DateTime(_)
+        | VoxValue::Duration(_)
         | VoxValue::Fn { .. }
         | VoxValue::Constructor(_)
         | VoxValue::_Return(_)
@@ -3461,5 +4087,519 @@ mod scalar_method_mutation_tests {
             some(VoxValue::Int(2))
         );
         assert_eq!(call(s("abc"), "index_of", vec![s("z")]), none());
+    }
+}
+
+#[cfg(test)]
+mod array_materialize_tests {
+    use super::materialize_to_list;
+    use crate::eval::Interpreter;
+    use crate::eval::array_plan::ArrayPlan;
+    use crate::eval::caps::CapabilitySet;
+    use crate::eval::frame_plan::FramePlan;
+    use crate::eval::value::VoxValue;
+
+    #[test]
+    fn materialize_to_list_denies_without_py() {
+        let mut interp = Interpreter::new(1_000);
+        interp.caps = CapabilitySet::parse("net:none").expect("caps");
+        let plan = ArrayPlan::zscore(&[1.0, 3.0], 0);
+        let caps = interp.caps.clone();
+        match materialize_to_list(&mut interp, &plan, &caps) {
+            VoxValue::_Denied(what) => assert_eq!(what, "py.to_list"),
+            other => panic!("expected capability denial, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn frame_collect_without_python_is_denied() {
+        let mut interp = Interpreter::new(1_000);
+        interp.caps = CapabilitySet::parse("net:none").expect("caps");
+        let plan = FramePlan::scan_csv("/tmp/never-opened.csv");
+        let caps = interp.caps.clone();
+        let before = super::collect_materialize_calls();
+        match super::materialize_collect(&mut interp, &plan, &caps) {
+            VoxValue::_Denied(what) => assert_eq!(what, "py.collect"),
+            other => panic!("expected capability denial, got {other:?}"),
+        }
+        assert_eq!(
+            super::collect_materialize_calls(),
+            before + 1,
+            "collect enters the materializer once"
+        );
+        assert!(
+            !crate::eval::python::worker_spawned(&interp),
+            "missing py must not spawn a worker"
+        );
+    }
+
+    #[test]
+    fn frame_collect_decodes_canned_body() {
+        let mut interp = Interpreter::new(1_000);
+        interp.caps = CapabilitySet::parse("py:allow").expect("caps");
+        // Missing worker path — must never be spawned when a canned body is set.
+        let missing = std::env::temp_dir().join(format!(
+            "vox-frame-missing-worker-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        crate::eval::python::set_python_project(
+            &mut interp,
+            crate::eval::python::PythonProject {
+                root: missing,
+                max_fetch_mb: 64,
+                timeout: std::time::Duration::from_secs(5),
+            },
+        );
+        let caps = interp.caps.clone();
+        let plan = FramePlan::scan_csv("/tmp/fixture.csv");
+
+        let ts_us = 1_700_000_000_000_000_i64;
+        let body = vox_python_bridge::encode_typed_frame_fixture(
+            &[10, 5],
+            1999,
+            2,
+            ts_us,
+            19_723,
+            3_600_000_000,
+        )
+        .expect("typed body");
+        super::set_reply_body_for_test(body);
+        let records = match super::materialize_collect(&mut interp, &plan, &caps) {
+            VoxValue::Result(Ok(inner)) => *inner,
+            other => panic!("expected Records Ok, got {other:?}"),
+        };
+        assert!(
+            !crate::eval::python::worker_spawned(&interp),
+            "canned body must not spawn the missing worker"
+        );
+        match &records {
+            VoxValue::Records { columns } => {
+                assert_eq!(columns[0].0, "revenue");
+                assert_eq!(columns[0].1, vec![VoxValue::Int(10), VoxValue::Int(5)]);
+                assert_eq!(columns[0].1.len(), 2);
+            }
+            other => panic!("expected Records, got {other:?}"),
+        }
+        let n = super::call_builtin_method(&records, "num_rows", vec![], &caps, None);
+        assert_eq!(n, Some(VoxValue::Int(2)));
+        let revenue = super::call_builtin_method(
+            &records,
+            "column",
+            vec![VoxValue::Str("revenue".into())],
+            &caps,
+            None,
+        );
+        assert_eq!(
+            revenue,
+            Some(VoxValue::list(vec![VoxValue::Int(10), VoxValue::Int(5)]))
+        );
+
+        let price = column_values(&records, "price", &caps);
+        assert!(
+            matches!(price.first(), Some(VoxValue::Decimal(_))),
+            "price must be Decimal, got {price:?}"
+        );
+        assert_eq!(
+            price[0],
+            VoxValue::Decimal(rust_decimal::Decimal::from_i128_with_scale(1999, 2))
+        );
+
+        let when = column_values(&records, "when", &caps);
+        assert!(
+            matches!(when.first(), Some(VoxValue::DateTime(_))),
+            "when must be DateTime, got {when:?}"
+        );
+        let expected_dt =
+            chrono::DateTime::from_timestamp_micros(ts_us).expect("timestamp fixture");
+        assert_eq!(when[0], VoxValue::DateTime(expected_dt));
+
+        let day = column_values(&records, "day", &caps);
+        assert!(
+            matches!(day.first(), Some(VoxValue::Date(_))),
+            "day must be Date, got {day:?}"
+        );
+        let expected_day = chrono::NaiveDate::from_ymd_opt(1970, 1, 1)
+            .expect("epoch")
+            .checked_add_signed(chrono::Duration::days(19_723))
+            .expect("date");
+        assert_eq!(day[0], VoxValue::Date(expected_day));
+
+        let elapsed = column_values(&records, "elapsed", &caps);
+        assert!(
+            matches!(elapsed.first(), Some(VoxValue::Duration(_))),
+            "elapsed must be Duration, got {elapsed:?}"
+        );
+        assert_eq!(
+            elapsed[0],
+            VoxValue::Duration(chrono::Duration::microseconds(3_600_000_000))
+        );
+
+        // null slot → py-plan:, not Records / Option
+        let null_body = vox_python_bridge::encode_nullable_i64_frame("revenue", &[Some(1), None])
+            .expect("null body");
+        super::set_reply_body_for_test(null_body);
+        match super::materialize_collect(&mut interp, &plan, &caps) {
+            VoxValue::Result(Err(err)) => {
+                let msg = match err.as_ref() {
+                    VoxValue::Str(s) => s.to_string(),
+                    other => panic!("error must be a string, got {other:?}"),
+                };
+                assert!(msg.starts_with("py-plan:"), "{msg}");
+                assert!(!matches!(err.as_ref(), VoxValue::Option(_)));
+            }
+            VoxValue::Records { .. } => panic!("null body must not become Records"),
+            VoxValue::Option(_) => panic!("null body must not become Option"),
+            other => panic!("null body must be an error Result, got {other:?}"),
+        }
+        assert!(
+            !crate::eval::python::worker_spawned(&interp),
+            "null canned body must not spawn the worker"
+        );
+    }
+
+    fn column_values(records: &VoxValue, name: &str, caps: &CapabilitySet) -> Vec<VoxValue> {
+        match super::call_builtin_method(
+            records,
+            "column",
+            vec![VoxValue::Str(name.into())],
+            caps,
+            None,
+        ) {
+            Some(VoxValue::List(items)) => items.to_vec(),
+            other => panic!("column({name}) expected a list, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn plan_json_keeps_host_numbers_out_of_params() {
+        let plan = ArrayPlan::zscore(&[1.0, 3.0], 0);
+        let text = super::plan_params(&plan).to_string();
+        assert!(!text.contains("1.0"), "{text}");
+        assert!(!text.contains("3.0"), "{text}");
+        assert!(text.contains("mean"), "{text}");
+        assert!(text.contains("std"), "{text}");
+        assert!(
+            text.contains("\"correction\":0") || text.contains("\"correction\": 0"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn item_shape_call_execute_plan() {
+        let mut interp = Interpreter::new(1_000);
+        interp.caps = CapabilitySet::parse("net:none").expect("caps");
+        let plan = ArrayPlan::from_list(vec![1.0, 3.0]);
+        let caps = interp.caps.clone();
+        let before = super::materialize_calls();
+        match super::materialize_item(&mut interp, &plan, &caps) {
+            VoxValue::_Denied(what) => assert_eq!(what, "py.to_list"),
+            other => panic!("item must call materialize_to_list, got {other:?}"),
+        }
+        assert_eq!(
+            super::materialize_calls(),
+            before + 1,
+            "item calls materialize_to_list once"
+        );
+        match super::materialize_shape(&mut interp, &plan, &caps) {
+            VoxValue::_Denied(what) => assert_eq!(what, "py.to_list"),
+            other => panic!("shape must call materialize_to_list, got {other:?}"),
+        }
+        assert_eq!(
+            super::materialize_calls(),
+            before + 2,
+            "shape calls materialize_to_list once"
+        );
+        let python_src = include_str!("python.rs");
+        assert!(
+            !python_src.contains("call(\"item\"") && !python_src.contains("call(\"shape\""),
+            "item and shape are not Bridge::call method names"
+        );
+        let eval_src = include_str!("expr.rs");
+        assert!(
+            !eval_src.contains("call(\"item\"") && !eval_src.contains("call(\"shape\""),
+            "eval must not send a wire method named item or shape"
+        );
+    }
+
+    #[test]
+    fn from_list_keeps_i64_max() {
+        let value = super::array_from_list(vec![VoxValue::list(vec![VoxValue::Int(
+            9_223_372_036_854_775_807,
+        )])]);
+        match value {
+            VoxValue::ArrayPlan(plan) => {
+                assert_eq!(plan.host_ints(), Some(&[9_223_372_036_854_775_807_i64][..]));
+            }
+            other => panic!("from_list of an int must stay an int plan, got {other:?}"),
+        }
+    }
+
+    fn ok_list(value: VoxValue) -> Vec<VoxValue> {
+        match value {
+            VoxValue::Result(Ok(inner)) => match *inner {
+                VoxValue::List(items) => items.to_vec(),
+                other => panic!("expected a list, got {other:?}"),
+            },
+            other => panic!("expected Ok, got {other:?}"),
+        }
+    }
+
+    fn float_list(value: VoxValue) -> Vec<f64> {
+        ok_list(value)
+            .into_iter()
+            .map(|item| match item {
+                VoxValue::Float(number) => number,
+                other => panic!("expected a float, got {other:?}"),
+            })
+            .collect()
+    }
+
+    /// `[1, 3] + [1, 1]` and `[2, 3] * [4, 5]` through `materialize_to_list`.
+    /// Op names alone stay green when `combine` drops the right-hand host.
+    #[test]
+    fn binary_plans_materialize_distinct_hosts() {
+        let mut interp = Interpreter::new(1_000);
+        interp.caps = CapabilitySet::parse("py:allow").expect("caps");
+        let root = python_project_root();
+        crate::eval::python::set_python_project(
+            &mut interp,
+            crate::eval::python::PythonProject {
+                root,
+                max_fetch_mb: 64,
+                timeout: std::time::Duration::from_secs(60),
+            },
+        );
+        let caps = interp.caps.clone();
+
+        let sum = ArrayPlan::from_list(vec![1.0, 3.0]).add(&ArrayPlan::from_list(vec![1.0, 1.0]));
+        assert_eq!(
+            float_list(materialize_to_list(&mut interp, &sum, &caps)),
+            vec![2.0, 4.0],
+            "distinct hosts must not both replay the left column"
+        );
+
+        let prod = ArrayPlan::from_list(vec![2.0, 3.0]).mul(&ArrayPlan::from_list(vec![4.0, 5.0]));
+        assert_eq!(
+            float_list(materialize_to_list(&mut interp, &prod, &caps)),
+            vec![8.0, 15.0]
+        );
+
+        let z = ArrayPlan::zscore(&[1.0, 3.0], 0);
+        assert!(
+            z.op_names().contains(&"mean") && z.op_names().contains(&"std"),
+            "mean and std stay inside the plan: {:?}",
+            z.op_names()
+        );
+        let before = super::materialize_calls();
+        assert_eq!(
+            float_list(materialize_to_list(&mut interp, &z, &caps)),
+            vec![-1.0, 1.0]
+        );
+        assert_eq!(
+            super::materialize_calls(),
+            before + 1,
+            "z-score is one execute_plan"
+        );
+    }
+
+    /// Project root whose worker can import numpy and pyarrow.
+    ///
+    /// Uses `python3` when those modules are already installed. Otherwise a
+    /// temp venv shim points at an interpreter that can already import the
+    /// cached wheels. This does not install packages.
+    fn python_project_root() -> std::path::PathBuf {
+        let root = std::env::temp_dir().join(format!(
+            "vox-array-plan-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        std::fs::create_dir_all(&root).expect("project root");
+        if python_imports_array_stack(std::path::Path::new("python3"), None) {
+            return root;
+        }
+        let Some((python, pythonpath)) = cached_array_stack() else {
+            panic!("numpy and pyarrow must import under python3 or a cached 3.12 interpreter");
+        };
+        write_venv_shim(&root, &python, &pythonpath);
+        root
+    }
+
+    fn python_imports_array_stack(
+        python: &std::path::Path,
+        pythonpath: Option<&std::ffi::OsStr>,
+    ) -> bool {
+        let mut cmd = std::process::Command::new(python);
+        cmd.arg("-c").arg("import numpy, pyarrow");
+        cmd.stdout(std::process::Stdio::null());
+        cmd.stderr(std::process::Stdio::null());
+        if let Some(pythonpath) = pythonpath {
+            cmd.env("PYTHONPATH", pythonpath);
+        }
+        cmd.status().is_ok_and(|status| status.success())
+    }
+
+    fn cached_array_stack() -> Option<(std::path::PathBuf, std::ffi::OsString)> {
+        let home = std::env::var_os("HOME")?;
+        let archive = std::path::PathBuf::from(home).join(".cache/uv/archive-v0");
+        let mut numpy_parent = None;
+        let mut pyarrow_parent = None;
+        for entry in std::fs::read_dir(&archive).ok()?.flatten() {
+            let path = entry.path();
+            if numpy_parent.is_none() {
+                let site = path.join("lib/python3.12/site-packages");
+                if site.join("numpy").is_dir() {
+                    numpy_parent = Some(site);
+                }
+            }
+            if pyarrow_parent.is_none() {
+                if path.join("pyarrow").join("__init__.py").is_file() {
+                    pyarrow_parent = Some(path.clone());
+                } else {
+                    let site = path.join("lib/python3.12/site-packages");
+                    if site.join("pyarrow").is_dir() {
+                        pyarrow_parent = Some(site);
+                    }
+                }
+            }
+            if numpy_parent.is_some() && pyarrow_parent.is_some() {
+                break;
+            }
+        }
+        let numpy_parent = numpy_parent?;
+        let pyarrow_parent = pyarrow_parent?;
+        let pythonpath = std::env::join_paths([&numpy_parent, &pyarrow_parent]).ok()?;
+        let python = python312_candidates().into_iter().find(|candidate| {
+            candidate.is_file() && python_imports_array_stack(candidate, Some(&pythonpath))
+        })?;
+        Some((python, pythonpath))
+    }
+
+    fn python312_candidates() -> Vec<std::path::PathBuf> {
+        let Some(home) = std::env::var_os("HOME") else {
+            return Vec::new();
+        };
+        let home = std::path::PathBuf::from(home);
+        let mut candidates = vec![home.join(".local/bin/python3.12")];
+        let uv_pythons = home.join(".local/share/uv/python");
+        if let Ok(entries) = std::fs::read_dir(uv_pythons) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                candidates.push(path.join("bin/python3.12"));
+                candidates.push(path.join("bin/python3"));
+            }
+        }
+        candidates
+    }
+
+    fn write_venv_shim(
+        root: &std::path::Path,
+        python: &std::path::Path,
+        pythonpath: &std::ffi::OsStr,
+    ) {
+        let bin_dir = root.join(".vox/python/.venv/bin");
+        std::fs::create_dir_all(&bin_dir).expect("venv bin");
+        let shim = bin_dir.join("python");
+        let pythonpath = pythonpath.to_string_lossy();
+        let script = format!(
+            "#!/bin/sh\nexport PYTHONPATH=\"{pythonpath}:$PYTHONPATH\"\nexec \"{}\" \"$@\"\n",
+            python.display()
+        );
+        std::fs::write(&shim, script).expect("venv python");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&shim, std::fs::Permissions::from_mode(0o755))
+                .expect("venv python mode");
+        }
+    }
+
+    #[test]
+    fn array_numeric_roundtrip() {
+        let mut interp = Interpreter::new(1_000);
+        interp.caps = CapabilitySet::parse("py:allow").expect("caps");
+        let caps = interp.caps.clone();
+        let plan = ArrayPlan::from_list(vec![0.0]);
+
+        let min_body = vox_python_bridge::encode_i64_column(&[i64::MIN]).expect("i64 body");
+        super::set_reply_body_for_test(min_body);
+        let mins = ok_list(materialize_to_list(&mut interp, &plan, &caps));
+        assert_eq!(mins, vec![VoxValue::Int(i64::MIN)]);
+
+        let overflow_body =
+            vox_python_bridge::encode_u64_column(&[i64::MAX as u64 + 1]).expect("u64 body");
+        super::set_reply_body_for_test(overflow_body);
+        match materialize_to_list(&mut interp, &plan, &caps) {
+            VoxValue::Result(Err(err)) => match *err {
+                VoxValue::Str(text) => {
+                    assert!(text.starts_with("py:"), "{text}");
+                    assert!(text.contains("uint64"), "{text}");
+                    assert!(!text.starts_with("py-plan:"), "{text}");
+                    assert!(!text.starts_with("py-env:"), "{text}");
+                }
+                other => panic!("uint64 error must be a string, got {other:?}"),
+            },
+            other => panic!("uint64 above i64::MAX must error, got {other:?}"),
+        }
+
+        let widened = f64::from(0.1f32);
+        assert_ne!(widened, 0.1f64);
+        let f32_body = vox_python_bridge::encode_f32_column(&[0.1f32]).expect("f32 body");
+        super::set_reply_body_for_test(f32_body);
+        let floats = ok_list(materialize_to_list(&mut interp, &plan, &caps));
+        assert_eq!(floats, vec![VoxValue::Float(widened)]);
+    }
+}
+
+/// `Records` answers row count and a concrete column without a worker.
+#[cfg(test)]
+mod records_column_tests {
+    use super::*;
+
+    #[test]
+    fn records_num_rows_and_column() {
+        let rows = VoxValue::Records {
+            columns: vec![(
+                "revenue".to_string(),
+                vec![VoxValue::Int(10), VoxValue::Int(5)],
+            )],
+        };
+        let caps = crate::eval::caps::CapabilitySet::developer_default();
+        let n = call_builtin_method(&rows, "num_rows", vec![], &caps, None);
+        assert_eq!(n, Some(VoxValue::Int(2)));
+        let col = call_builtin_method(
+            &rows,
+            "column",
+            vec![VoxValue::Str("revenue".into())],
+            &caps,
+            None,
+        );
+        assert_eq!(
+            col,
+            Some(VoxValue::list(vec![VoxValue::Int(10), VoxValue::Int(5)]))
+        );
+        let missing = call_builtin_method(
+            &rows,
+            "column",
+            vec![VoxValue::Str("absent".into())],
+            &caps,
+            None,
+        );
+        match missing {
+            Some(VoxValue::Result(Err(err))) => {
+                assert!(
+                    !matches!(err.as_ref(), VoxValue::Option(_) | VoxValue::Null),
+                    "missing name must not be a nullable cell"
+                );
+            }
+            Some(VoxValue::Option(_)) => panic!("missing name returned a nullable wrapper"),
+            other => panic!("missing name must be an error value, got {other:?}"),
+        }
     }
 }

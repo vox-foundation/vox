@@ -95,3 +95,128 @@ module; blanket Rustdoc on every `pub use` alias would add noise without semanti
 | `subscription` | Per-table reactive mutation notifications (broadcast channels for reactive queries). |
 | `supervisor` | Supervision strategies and child restart loops for actor trees. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_actor_runtime: "vox-actor-runtime"
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_actor_runtime -> vox_bounded_fs
+    node vox_config: "vox-config"
+    vox_actor_runtime -> vox_config
+    node vox_crypto: "vox-crypto"
+    vox_actor_runtime -> vox_crypto
+    node vox_db: "vox-db"
+    vox_actor_runtime -> vox_db
+    node vox_foundation: "vox-foundation"
+    vox_actor_runtime -> vox_foundation
+    node vox_http_client: "vox-http-client"
+    vox_actor_runtime -> vox_http_client
+    node vox_llm_egress: "vox-llm-egress"
+    vox_actor_runtime -> vox_llm_egress
+    node vox_openai: "vox-openai"
+    vox_actor_runtime -> vox_openai
+    node vox_openclaw_runtime: "vox-openclaw-runtime"
+    vox_actor_runtime -> vox_openclaw_runtime
+    node vox_orchestrator_types: "vox-orchestrator-types"
+    vox_actor_runtime -> vox_orchestrator_types
+    node vox_plugin_host: "vox-plugin-host"
+    vox_actor_runtime -> vox_plugin_host
+    node vox_secrets: "vox-secrets"
+    vox_actor_runtime -> vox_secrets
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_actor_runtime
+    node vox_effort_audit: "vox-effort-audit"
+    vox_effort_audit -> vox_actor_runtime
+    node vox_effort_route: "vox-effort-route"
+    vox_effort_route -> vox_actor_runtime
+    node vox_gamify: "vox-gamify"
+    vox_gamify -> vox_actor_runtime
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_actor_runtime
+    node vox_integration_tests: "vox-integration-tests"
+    vox_integration_tests -> vox_actor_runtime
+    node vox_ml_cli: "vox-ml-cli"
+    vox_ml_cli -> vox_actor_runtime
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_actor_runtime
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_actor_runtime
+    node vox_research_shim: "vox-research-shim"
+    vox_research_shim -> vox_actor_runtime
+    node vox_scientia: "vox-scientia"
+    vox_scientia -> vox_actor_runtime
+    node vox_search: "vox-search"
+    vox_search -> vox_actor_runtime
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-effort-audit`](./vox-effort-audit.generated.md) | Direct workspace dependent |
+| [`vox-effort-route`](./vox-effort-route.generated.md) | Direct workspace dependent |
+| [`vox-gamify`](./vox-gamify.generated.md) | Direct workspace dependent |
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-research-shim`](./vox-research-shim.generated.md) | Direct workspace dependent |
+| [`vox-scientia`](./vox-scientia.generated.md) | Direct workspace dependent |
+| [`vox-search`](./vox-search.generated.md) | Direct workspace dependent |
+| [`vox-tensor`](./vox-tensor.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `activity::ActivityOptions` | `pub struct ActivityOptions` | [`crates/vox-actor-runtime/src/activity.rs#L42-L55`](../../../crates/vox-actor-runtime/src/activity.rs#L42-L55) | Options that control activity execution behavior. These map directly to the `with { ... }` syntax in Vox source. |
+| `fn` | `activity::new` | `pub fn new() -> Self` | [`crates/vox-actor-runtime/src/activity.rs#L72-L74`](../../../crates/vox-actor-runtime/src/activity.rs#L72-L74) | Returns default options (no retries, no per-attempt timeout). |
+| `fn` | `activity::with_retries` | `pub fn with_retries(mut self, retries: u32) -> Self` | [`crates/vox-actor-runtime/src/activity.rs#L77-L80`](../../../crates/vox-actor-runtime/src/activity.rs#L77-L80) | Sets how many retries to perform after the first failed attempt. |
+| `fn` | `activity::with_timeout` | `pub fn with_timeout(mut self, timeout: Duration) -> Self` | [`crates/vox-actor-runtime/src/activity.rs#L83-L86`](../../../crates/vox-actor-runtime/src/activity.rs#L83-L86) | Sets a wall-clock timeout for each attempt. |
+| `fn` | `activity::with_timeout_secs` | `pub fn with_timeout_secs(mut self, secs: u64) -> Self` | [`crates/vox-actor-runtime/src/activity.rs#L89-L92`](../../../crates/vox-actor-runtime/src/activity.rs#L89-L92) | Sets the per-attempt timeout from a whole number of seconds. |
+| `fn` | `activity::with_initial_backoff` | `pub fn with_initial_backoff(mut self, backoff: Duration) -> Self` | [`crates/vox-actor-runtime/src/activity.rs#L95-L98`](../../../crates/vox-actor-runtime/src/activity.rs#L95-L98) | Sets the delay before the first retry after a failure. |
+| `fn` | `activity::with_max_backoff` | `pub fn with_max_backoff(mut self, max: Duration) -> Self` | [`crates/vox-actor-runtime/src/activity.rs#L101-L104`](../../../crates/vox-actor-runtime/src/activity.rs#L101-L104) | Sets the upper bound for exponential backoff growth. |
+| `fn` | `activity::with_backoff_multiplier` | `pub fn with_backoff_multiplier(mut self, multiplier: f64) -> Self` | [`crates/vox-actor-runtime/src/activity.rs#L107-L110`](../../../crates/vox-actor-runtime/src/activity.rs#L107-L110) | Sets the multiplicative factor applied between backoff steps. |
+| `fn` | `activity::with_activity_id` | `pub fn with_activity_id(mut self, id: String) -> Self` | [`crates/vox-actor-runtime/src/activity.rs#L113-L116`](../../../crates/vox-actor-runtime/src/activity.rs#L113-L116) | Sets a stable idempotency key for this activity run. |
+| `fn` | `activity::parse_duration` | `pub fn parse_duration(s: &str) -> Option<Duration>` | [`crates/vox-actor-runtime/src/activity.rs#L119-L137`](../../../crates/vox-actor-runtime/src/activity.rs#L119-L137) | Parse a duration string like "10s", "500ms", "2m". |
+| `enum` | `activity::ActivityResult` | `pub enum ActivityResult<T>` | [`crates/vox-actor-runtime/src/activity.rs#L142-L149`](../../../crates/vox-actor-runtime/src/activity.rs#L142-L149) | Result of an activity execution. |
+| `enum` | `activity::ActivityError` | `pub enum ActivityError` | [`crates/vox-actor-runtime/src/activity.rs#L153-L170`](../../../crates/vox-actor-runtime/src/activity.rs#L153-L170) | Error from activity execution. |
+| `struct` | `activity::ActivityExecution` | `pub struct ActivityExecution` | [`crates/vox-actor-runtime/src/activity.rs#L174-L185`](../../../crates/vox-actor-runtime/src/activity.rs#L174-L185) | Tracks the state of an activity execution for observability. |
+| `enum` | `activity::ActivityStatus` | `pub enum ActivityStatus` | [`crates/vox-actor-runtime/src/activity.rs#L189-L200`](../../../crates/vox-actor-runtime/src/activity.rs#L189-L200) | Coarse lifecycle state of an activity for metrics and tracing. |
+| `fn` | `activity::execute_activity` | `pub async fn execute_activity<F, Fut, T, E>(` | [`crates/vox-actor-runtime/src/activity.rs#L206`](../../../crates/vox-actor-runtime/src/activity.rs#L206) | Execute an async activity function with the given options.  This is the core runtime function that compiled `with { ... }` expressions call into. It handles retries, timeouts, and exponential backoff. |
+| `fn` | `activity::execute_activity_result` | `pub async fn execute_activity_result<F, Fut, T, E>(` | [`crates/vox-actor-runtime/src/activity.rs#L321`](../../../crates/vox-actor-runtime/src/activity.rs#L321) | Execute an activity and return a standard `Result` envelope for generated code paths.  This keeps failure/cancellation on the value channel instead of forcing panic-based handling. |
+| `struct` | `auth::ServiceAuthConfig` | `pub struct ServiceAuthConfig` | [`crates/vox-actor-runtime/src/auth.rs#L5-L9`](../../../crates/vox-actor-runtime/src/auth.rs#L5-L9) | Authentication configuration used by generated Vox services. |
+| `fn` | `auth::from_env` | `pub fn from_env() -> Self` | [`crates/vox-actor-runtime/src/auth.rs#L17-L35`](../../../crates/vox-actor-runtime/src/auth.rs#L17-L35) | Build auth config from environment variables.  - `VOX_API_KEY` - `VOX_BEARER_TOKEN` - `VOX_ALLOW_UNAUTHENTICATED` (`true`/`false`, defaults to `true` when no key/token set) |
+| `fn` | `auth::authorize_request` | `pub fn authorize_request(` | [`crates/vox-actor-runtime/src/auth.rs#L39`](../../../crates/vox-actor-runtime/src/auth.rs#L39) | Validate an incoming API key and/or bearer token. |
+| `fn` | `auth::parse_bearer_token` | `pub fn parse_bearer_token(header: Option<&str>) -> Option<&str>` | [`crates/vox-actor-runtime/src/auth.rs#L63-L66`](../../../crates/vox-actor-runtime/src/auth.rs#L63-L66) | Parse `Authorization: Bearer <token>`. |
+| `fn` | `auth::parse_retry_after_seconds` | `pub fn parse_retry_after_seconds(value: Option<&str>) -> Option<Duration>` | [`crates/vox-actor-runtime/src/auth.rs#L81-L85`](../../../crates/vox-actor-runtime/src/auth.rs#L81-L85) | Parse an optional header duration used by throttling. |
+| `fn` | `builtins::vox_flush_exit_commands` | `pub fn vox_flush_exit_commands()` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L71-L74`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L71-L74) | — |
+| `fn` | `builtins::vox_hash_fast` | `pub fn vox_hash_fast(input: &str) -> String` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L95-L99`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L95-L99) | Fast non-cryptographic hash (XXH3-128, 128-bit output) for object identity, dedup keys, and ephemeral cache keying.  Use for: HashMap keys, cache keys, dedup within a process, activity IDs in hot workflow paths where you control the input (no adversarial keys).  Output: 32-char lowercase hex string (128-bit → 2 × u64 in hex). Deterministic for the same input within a process; also cross-machine deterministic (XXH3-128 is unkeyed / uses a fixed internal secret).  For provenance, signatures, or any security-sensitive hashing, use `vox_hash_secure` (BLAKE3-based) instead.  Algorithmically identical to `vox_crypto::hash_fast_hex` (used by the interp's `crypto.hash_fast` and native codegen's `crypto.hash_fast` emit — see `builtin_registry.rs`), but implemented independently here because this crate cannot take a normal dependency on `vox-crypto` (would require a `crate-edges` ledger entry). Equivalence is enforced by a same-file dev test: `hash_fast_matches_vox_crypto_hash_fast_hex` in `builtins/tests.rs`. |
+| `fn` | `builtins::vox_hash_secure` | `pub fn vox_hash_secure(input: &str) -> String` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L110-L113`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L110-L113) | Cryptographic hash using BLAKE3 (256-bit output).  Use for: `input_hash` provenance stored in DB, content-addressable IDs shared across machines / process lifetimes, data integrity verification.  Output: 64-char lowercase hex string (256-bit). Fully deterministic, cross-machine stable, collision probability ≈ 2^-128.  ✅ Cryptographically secure. Safe to store permanently. |
+| `fn` | `builtins::vox_uuid` | `pub fn vox_uuid() -> String` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L122-L130`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L122-L130) | Generate a unique identifier.  Combines nanosecond-precision UNIX timestamp with a monotonic atomic counter to guarantee uniqueness even within the same nanosecond (parallel workflow steps).  Format: `vox-{nanos_hex}-{counter_hex}` Example: `vox-17a8c3f2d8b00000-0000000000000001` |
+| `fn` | `builtins::vox_now_ms` | `pub fn vox_now_ms() -> u64` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L133-L138`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L133-L138) | Current UNIX time in milliseconds. |
+| `fn` | `builtins::vox_process_cwd` | `pub fn vox_process_cwd() -> String` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L146-L150`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L146-L150) | Native-codegen backing for bare `process.cwd()` (Task 2, interpreter-first execution PR 2). Mirrors the interpreter's `Some("process") => "cwd"` arm in `crates/vox-compiler/src/eval/builtins.rs` — both swallow the error case to an empty string rather than surfacing a `Result`, since `cwd` failing (deleted CWD, permissions) is rare enough that stdlib treats it as best-effort, matching `fs.cwd`'s native emit in `builtin_registry.rs`. |
+| `fn` | `builtins::vox_secrets_resolve` | `pub fn vox_secrets_resolve(key: &str) -> Option<String>` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L157-L161`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L157-L161) | Native-codegen backing for bare `secrets.resolve(key)` (Task 2). `key` is looked up by canonical env name / alias / `Debug` spelling via `SecretId::from_str` (see `vox-secrets/src/spec/ids.rs`); an unknown key or a key with no resolved value both yield `None` — same shape as the interpreter's `Some("secrets") => "resolve"` arm. |
+| `fn` | `builtins::vox_log_debug` | `pub fn vox_log_debug(message: &str)` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L163-L165`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L163-L165) | — |
+| `fn` | `builtins::vox_log_info` | `pub fn vox_log_info(message: &str)` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L167-L169`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L167-L169) | — |
+| `fn` | `builtins::vox_log_warn` | `pub fn vox_log_warn(message: &str)` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L171-L173`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L171-L173) | — |
+| `fn` | `builtins::vox_log_error` | `pub fn vox_log_error(message: &str)` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L175-L177`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L175-L177) | — |
+| `struct` | `builtins::VoxRegex` | `pub struct VoxRegex(pub regex::Regex)` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L183`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L183) | Compiled regex value handed back to Vox as `Result[Regex]`. |
+| `struct` | `builtins::VoxMatch` | `pub struct VoxMatch` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L187-L189`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L187-L189) | One match in a haystack — exposes captures via `group(idx)`. |
+| `fn` | `builtins::matches` | `pub fn matches(&self, text: impl AsRef<str>) -> bool` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L193-L195`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L193-L195) | — |
+| `fn` | `builtins::find` | `pub fn find(&self, text: impl AsRef<str>) -> Option<VoxMatch>` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L196-L198`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L196-L198) | — |
+| `fn` | `builtins::find_all` | `pub fn find_all(&self, text: impl AsRef<str>) -> Vec<VoxMatch>` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L199-L204`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L199-L204) | — |
+| `fn` | `builtins::group` | `pub fn group(&self, idx: i64) -> Option<String>` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L208-L213`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L208-L213) | — |
+| `fn` | `builtins::vox_regex_compile` | `pub fn vox_regex_compile(pattern: &str) -> Result<VoxRegex, String>` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L224-L228`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L224-L228) | Compile a Vox regex pattern. Returns `Err(message)` on invalid pattern. |
+| `struct` | `builtins::VoxJson` | `pub struct VoxJson(pub serde_json::Value)` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L234`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L234) | Opaque JSON value handed back to Vox as `Result[Json]`. Wraps `serde_json::Value`. |
+| `fn` | `builtins::get` | `pub fn get(&self, key: String) -> Option<VoxJson>` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L255-L260`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L255-L260) | Object key access. `None` if receiver is not an object or key is absent. |
+| `fn` | `builtins::at` | `pub fn at(&self, idx: i64) -> Option<VoxJson>` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L264-L272`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L264-L272) | Array index access. `None` if receiver is not an array or index is OOB. Negative indices are not supported and yield `None`. |
+| `fn` | `builtins::pointer` | `pub fn pointer(&self, path: String) -> Option<VoxJson>` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L276-L278`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L276-L278) | RFC 6901 JSON Pointer navigation. `None` if the path does not resolve. `data.pointer("/products/0/name")` is the canonical deep-access tool. |
+| `fn` | `builtins::as_str` | `pub fn as_str(&self) -> Option<String>` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L283-L285`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L283-L285) | — |
+| `fn` | `builtins::as_int` | `pub fn as_int(&self) -> Option<i64>` | [`crates/vox-actor-runtime/src/builtins/mod.rs#L286-L288`](../../../crates/vox-actor-runtime/src/builtins/mod.rs#L286-L288) | — |
+

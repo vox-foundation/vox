@@ -100,6 +100,28 @@ pub async fn do_generate(
             }),
         );
     }
+    let lane = match req.lane.as_deref() {
+        None => vox_eval::qwen_reasoning::Lane::Codegen,
+        Some(raw) => match vox_eval::qwen_reasoning::Lane::parse(raw) {
+            Ok(parsed) => parsed,
+            Err(msg) => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(GenerateResponse {
+                        text: msg.clone(),
+                        code: msg.clone(),
+                        tokens_generated: 0,
+                        model: state.model_name.to_string(),
+                        object: "text_completion",
+                        choices: vec![],
+                        repair_attempts: None,
+                        valid: false,
+                        errors: vec![msg],
+                    }),
+                );
+            }
+        },
+    };
     let output_mode = req.output_mode.as_deref().and_then(parse_output_mode_label);
     let max_retries = req.max_retries.max(1);
     let schema = req.schema.as_ref();
@@ -139,6 +161,7 @@ pub async fn do_generate(
             top_k: 40,
             output_mode: output_mode.map(String::from),
             system_prompt: req.system_prompt.clone(),
+            lane,
             reply: reply_tx,
         };
         let tx = state.tx.clone();
@@ -237,6 +260,7 @@ fn tool_def_description(tool: &serde_json::Value) -> Option<&str> {
 fn flatten_chat_messages(
     messages: &[ChatCompletionMessage],
     tools: Option<&[serde_json::Value]>,
+    lane: vox_eval::qwen_reasoning::Lane,
 ) -> String {
     let mut catalog = String::new();
     if let Some(tools) = tools.filter(|t| !t.is_empty()) {
@@ -255,9 +279,13 @@ fn flatten_chat_messages(
         .iter()
         .position(|m| m.role == "system")
         .or_else(|| messages.iter().position(|m| m.role == "user"));
+    let last_user = messages.iter().rposition(|m| m.role == "user");
     let mut out = String::new();
     for (i, message) in messages.iter().enumerate() {
-        let content = message.content.as_deref().unwrap_or("");
+        let mut content = message.content.clone().unwrap_or_default();
+        if Some(i) == last_user {
+            content = vox_eval::qwen_reasoning::user_for_lane(&content, lane);
+        }
         let prefix = if Some(i) == catalog_idx {
             catalog.as_str()
         } else {
@@ -268,7 +296,11 @@ fn flatten_chat_messages(
             message.role
         ));
     }
+    // The opener depends on the lane: codegen is direct-answer generation,
+    // matching QLoRA training (prefilled empty think); hub/agent leave the
+    // assistant turn open so the model thinks.
     out.push_str("<|im_start|>assistant\n");
+    out.push_str(vox_eval::qwen_reasoning::assistant_opener_for_lane(lane));
     out
 }
 
@@ -291,8 +323,35 @@ pub async fn do_chat_completions(
     State(state): State<AppState>,
     Json(req): Json<ChatCompletionRequest>,
 ) -> (StatusCode, Json<ChatCompletionResponse>) {
+    // Validate the lane before any other work: an unknown value is a JSON 400
+    // (same body shape as a normal reply) and never reaches the worker.
+    let lane = match req.lane.as_deref() {
+        None => vox_eval::qwen_reasoning::Lane::Codegen,
+        Some(raw) => match vox_eval::qwen_reasoning::Lane::parse(raw) {
+            Ok(parsed) => parsed,
+            Err(msg) => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(ChatCompletionResponse {
+                        id: format!("chatcmpl-{}", uuid::Uuid::new_v4()),
+                        object: "chat.completion",
+                        model: state.model_name.to_string(),
+                        choices: vec![ChatCompletionChoice {
+                            index: 0,
+                            message: ChatCompletionResponseMessage {
+                                role: "assistant",
+                                content: Some(msg),
+                                tool_calls: None,
+                            },
+                            finish_reason: "stop",
+                        }],
+                    }),
+                );
+            }
+        },
+    };
     let has_tools = req.tools.as_ref().is_some_and(|t| !t.is_empty());
-    let prompt = flatten_chat_messages(&req.messages, req.tools.as_deref());
+    let prompt = flatten_chat_messages(&req.messages, req.tools.as_deref(), lane);
 
     let generate_req = GenerateRequest {
         prompt,
@@ -309,6 +368,8 @@ pub async fn do_chat_completions(
         // own yet (messages[] already carries a "system" role entry, flattened
         // into the prompt above) — no per-request override to thread here.
         system_prompt: None,
+        // do_generate re-parses this; it is always Ok here (validated above).
+        lane: req.lane.clone(),
     };
 
     let (status, Json(gen_resp)) = do_generate(State(state), Json(generate_req)).await;
@@ -495,13 +556,17 @@ mod chat_completions_tests {
             "type": "function",
             "function": {"name": "get_weather", "description": "looks up the weather"}
         })];
-        let flattened = flatten_chat_messages(&messages, Some(&tools));
+        let flattened = flatten_chat_messages(
+            &messages,
+            Some(&tools),
+            vox_eval::qwen_reasoning::Lane::Codegen,
+        );
         assert!(flattened.contains("get_weather"));
         assert!(flattened.contains("looks up the weather"));
         assert!(flattened.starts_with("<|im_start|>system\nAvailable tools"));
         assert!(flattened.contains("be helpful<|im_end|>"));
-        assert!(flattened.contains("<|im_start|>user\nwhat's the weather?<|im_end|>"));
-        assert!(flattened.ends_with("<|im_start|>assistant\n"));
+        assert!(flattened.contains("<|im_start|>user\nwhat's the weather? /no_think<|im_end|>"));
+        assert!(flattened.ends_with("<|im_start|>assistant\n<think>\n\n</think>\n\n"));
     }
 
     #[test]
@@ -510,12 +575,86 @@ mod chat_completions_tests {
             role: "user".to_string(),
             content: Some("hi".to_string()),
         }];
-        let flattened = flatten_chat_messages(&messages, None);
+        let flattened =
+            flatten_chat_messages(&messages, None, vox_eval::qwen_reasoning::Lane::Codegen);
         assert!(!flattened.contains("Available tools"));
         assert_eq!(
             flattened,
-            "<|im_start|>user\nhi<|im_end|>\n<|im_start|>assistant\n"
+            "<|im_start|>user\nhi /no_think<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
         );
+    }
+
+    fn chat_msg(role: &str, content: &str) -> ChatCompletionMessage {
+        ChatCompletionMessage {
+            role: role.to_string(),
+            content: Some(content.to_string()),
+        }
+    }
+
+    #[test]
+    fn flatten_chat_messages_hub_and_agent_open_a_bare_thinking_turn() {
+        use vox_eval::qwen_reasoning::Lane;
+        let messages = vec![chat_msg("user", "hi")];
+        for lane in [Lane::Hub, Lane::Agent] {
+            assert_eq!(
+                flatten_chat_messages(&messages, None, lane),
+                "<|im_start|>user\nhi<|im_end|>\n<|im_start|>assistant\n",
+                "lane {lane:?}"
+            );
+        }
+        // Codegen stays today's literal.
+        assert_eq!(
+            flatten_chat_messages(&messages, None, Lane::Codegen),
+            "<|im_start|>user\nhi /no_think<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
+        );
+    }
+
+    #[test]
+    fn flatten_chat_messages_hub_strips_no_think_from_the_last_user_turn_only() {
+        use vox_eval::qwen_reasoning::Lane;
+        // Lane wins over user text: a trailing /no_think cannot flip hub to the direct-answer prefix.
+        let with = flatten_chat_messages(&[chat_msg("user", "hi /no_think")], None, Lane::Hub);
+        let without = flatten_chat_messages(&[chat_msg("user", "hi")], None, Lane::Hub);
+        assert_eq!(with, without);
+        // /think is kept.
+        let think = flatten_chat_messages(&[chat_msg("user", "hi /think")], None, Lane::Hub);
+        assert!(
+            think.contains("<|im_start|>user\nhi /think<|im_end|>"),
+            "{think}"
+        );
+
+        // Multi-turn: only the last user turn and the opener depend on the lane.
+        let convo = vec![
+            chat_msg("system", "S"),
+            chat_msg("user", "a /no_think"),
+            chat_msg("assistant", "b"),
+            chat_msg("user", "c"),
+        ];
+        let marker = "<|im_start|>user\nc";
+        let outs: Vec<String> = [Lane::Codegen, Lane::Hub, Lane::Agent]
+            .into_iter()
+            .map(|l| flatten_chat_messages(&convo, None, l))
+            .collect();
+        let heads: Vec<&str> = outs
+            .iter()
+            .map(|o| &o[..o.rfind(marker).expect("last user turn present")])
+            .collect();
+        assert_eq!(heads[0], heads[1]);
+        assert_eq!(heads[1], heads[2]);
+        assert!(outs[1].contains("<|im_start|>user\na /no_think<|im_end|>"));
+        assert!(outs[1].ends_with("<|im_start|>assistant\n"));
+        assert!(outs[0].ends_with("<think>\n\n</think>\n\n"));
+    }
+
+    #[test]
+    fn flatten_chat_messages_codegen_keeps_user_think_and_the_empty_think_opener() {
+        use vox_eval::qwen_reasoning::Lane;
+        let out = flatten_chat_messages(&[chat_msg("user", "hi /think")], None, Lane::Codegen);
+        assert!(
+            out.contains("<|im_start|>user\nhi /think<|im_end|>"),
+            "{out}"
+        );
+        assert!(out.ends_with("<think>\n\n</think>\n\n"));
     }
 
     /// Spawn a fake worker thread that replies with a fixed string to every
@@ -536,6 +675,120 @@ mod chat_completions_tests {
         }
     }
 
+    /// Like `fake_app_state`, but records every `InferenceRequest` it receives
+    /// (before replying) so a test can assert on the lane and the payload.
+    fn capturing_app_state(
+        reply: &'static str,
+    ) -> (
+        AppState,
+        std::sync::Arc<std::sync::Mutex<Vec<InferenceRequest>>>,
+    ) {
+        let captured = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let sink = std::sync::Arc::clone(&captured);
+        let (tx, rx) = std::sync::mpsc::sync_channel::<InferenceRequest>(8);
+        std::thread::spawn(move || {
+            while let Ok(mut req) = rx.recv() {
+                let (dummy, _) = tokio::sync::oneshot::channel();
+                let reply_tx = std::mem::replace(&mut req.reply, dummy);
+                sink.lock().unwrap().push(req);
+                let _ = reply_tx.send(Ok(reply.to_string()));
+            }
+        });
+        let state = AppState {
+            tx,
+            model_name: std::sync::Arc::from("test-model"),
+            ready: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
+        };
+        (state, captured)
+    }
+
+    #[tokio::test]
+    async fn do_generate_hub_lane_reaches_the_worker_payload() {
+        let (state, captured) = capturing_app_state("a plain answer");
+        let req: GenerateRequest =
+            serde_json::from_value(serde_json::json!({"prompt": "hi", "lane": "hub"})).unwrap();
+        let (status, Json(resp)) = do_generate(State(state), Json(req)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(resp.valid);
+        let seen = captured.lock().unwrap();
+        assert_eq!(seen.len(), 1);
+        assert_eq!(seen[0].lane, vox_eval::qwen_reasoning::Lane::Hub);
+        assert_eq!(
+            seen[0].prompt, "hi",
+            "the raw prompt is not wrapped host-side"
+        );
+        let v: serde_json::Value = serde_json::from_str(
+            &crate::commands::ai::serve::worker::inference_payload("S", &seen[0]),
+        )
+        .unwrap();
+        assert_eq!(v["lane"], "hub");
+    }
+
+    #[tokio::test]
+    async fn do_generate_without_a_lane_serializes_codegen() {
+        let (state, captured) = capturing_app_state("ok");
+        let req: GenerateRequest =
+            serde_json::from_value(serde_json::json!({"prompt": "hi"})).unwrap();
+        let (status, _) = do_generate(State(state), Json(req)).await;
+        assert_eq!(status, StatusCode::OK);
+        let seen = captured.lock().unwrap();
+        assert_eq!(seen[0].lane, vox_eval::qwen_reasoning::Lane::Codegen);
+        let v: serde_json::Value = serde_json::from_str(
+            &crate::commands::ai::serve::worker::inference_payload("S", &seen[0]),
+        )
+        .unwrap();
+        assert_eq!(v["lane"], "codegen");
+    }
+
+    #[tokio::test]
+    async fn unknown_lane_on_generate_is_400_before_the_worker() {
+        for bad in ["bogus", "Hub", ""] {
+            let (state, captured) = capturing_app_state("never used");
+            let req: GenerateRequest =
+                serde_json::from_value(serde_json::json!({"prompt": "hi", "lane": bad})).unwrap();
+            let (status, Json(resp)) = do_generate(State(state), Json(req)).await;
+            assert_eq!(status, StatusCode::BAD_REQUEST, "lane {bad:?}");
+            assert!(!resp.valid, "lane {bad:?}");
+            assert!(!resp.errors.is_empty(), "lane {bad:?}");
+            for name in ["codegen", "hub", "agent"] {
+                assert!(resp.text.contains(name), "{:?} must name {name}", resp.text);
+            }
+            assert_eq!(resp.tokens_generated, 0);
+            assert_eq!(
+                captured.lock().unwrap().len(),
+                0,
+                "lane {bad:?} must not reach the worker"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn do_generate_repair_retries_keep_the_lane() {
+        // strict_json is validated by do_generate; a non-JSON reply forces the repair loop.
+        let (state, captured) = capturing_app_state("this is not json");
+        let req: GenerateRequest = serde_json::from_value(serde_json::json!({
+            "prompt": "hi",
+            "lane": "hub",
+            "output_mode": "strict_json",
+            "max_retries": 3
+        }))
+        .unwrap();
+        let (status, Json(resp)) = do_generate(State(state), Json(req)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(!resp.valid);
+        let seen = captured.lock().unwrap();
+        assert!(
+            seen.len() >= 2,
+            "expected repair retries, got {}",
+            seen.len()
+        );
+        assert!(
+            seen.iter()
+                .all(|r| r.lane == vox_eval::qwen_reasoning::Lane::Hub),
+            "every retry must carry the request's lane"
+        );
+    }
+
     #[tokio::test]
     async fn do_chat_completions_emits_tool_calls_for_a_schema_valid_offered_tool() {
         let state = fake_app_state(r#"{"name":"get_weather","arguments":{"city":"nyc"}}"#);
@@ -553,6 +806,7 @@ mod chat_completions_tests {
                 "type": "function",
                 "function": {"name": "get_weather", "description": "looks up the weather"}
             })]),
+            lane: None,
         };
         let (status, Json(resp)) = do_chat_completions(State(state), Json(req)).await;
         assert_eq!(status, StatusCode::OK);
@@ -589,6 +843,7 @@ mod chat_completions_tests {
                 "type": "function",
                 "function": {"name": "get_weather"}
             })]),
+            lane: None,
         };
         let (_status, Json(resp)) = do_chat_completions(State(state), Json(req)).await;
         let message = &resp.choices[0].message;
@@ -598,6 +853,83 @@ mod chat_completions_tests {
         );
         assert!(message.content.is_some());
         assert_eq!(resp.choices[0].finish_reason, "stop");
+    }
+
+    fn chat_request_with_lane(lane: Option<&str>) -> ChatCompletionRequest {
+        ChatCompletionRequest {
+            messages: vec![ChatCompletionMessage {
+                role: "user".to_string(),
+                content: Some("hi".to_string()),
+            }],
+            model: None,
+            max_tokens: None,
+            temperature: None,
+            seed: None,
+            top_p: None,
+            tools: None,
+            lane: lane.map(str::to_string),
+        }
+    }
+
+    #[tokio::test]
+    async fn unknown_lane_on_chat_is_400_before_the_worker() {
+        for bad in ["bogus", "Agent", ""] {
+            let (state, captured) = capturing_app_state("never used");
+            let req = chat_request_with_lane(Some(bad));
+            let (status, Json(resp)) = do_chat_completions(State(state), Json(req)).await;
+            assert_eq!(status, StatusCode::BAD_REQUEST, "lane {bad:?}");
+            let content = resp.choices[0]
+                .message
+                .content
+                .as_deref()
+                .expect("the 400 carries the parse error as content");
+            for name in ["codegen", "hub", "agent"] {
+                assert!(content.contains(name), "{content:?} must name {name}");
+            }
+            assert_eq!(resp.choices[0].finish_reason, "stop");
+            assert_eq!(resp.model, "test-model");
+            assert_eq!(
+                captured.lock().unwrap().len(),
+                0,
+                "lane {bad:?} must not reach the worker"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn do_chat_completions_hub_lane_reaches_the_worker_as_bare_thinking() {
+        let (state, captured) = capturing_app_state("a plain answer");
+        let req = chat_request_with_lane(Some("hub"));
+        let (status, _) = do_chat_completions(State(state), Json(req)).await;
+        assert_eq!(status, StatusCode::OK);
+        let seen = captured.lock().unwrap();
+        assert_eq!(seen.len(), 1);
+        assert_eq!(seen[0].lane, vox_eval::qwen_reasoning::Lane::Hub);
+        assert!(
+            seen[0].prompt.ends_with("<|im_start|>assistant\n"),
+            "{:?}",
+            seen[0].prompt
+        );
+        assert!(
+            !seen[0].prompt.contains("/no_think"),
+            "{:?}",
+            seen[0].prompt
+        );
+    }
+
+    #[tokio::test]
+    async fn do_chat_completions_without_a_lane_stays_codegen() {
+        let (state, captured) = capturing_app_state("ok");
+        let req = chat_request_with_lane(None);
+        let (status, _) = do_chat_completions(State(state), Json(req)).await;
+        assert_eq!(status, StatusCode::OK);
+        let seen = captured.lock().unwrap();
+        assert_eq!(seen[0].lane, vox_eval::qwen_reasoning::Lane::Codegen);
+        assert!(
+            seen[0].prompt.ends_with("<think>\n\n</think>\n\n"),
+            "{:?}",
+            seen[0].prompt
+        );
     }
 
     #[tokio::test]
@@ -614,6 +946,7 @@ mod chat_completions_tests {
             seed: None,
             top_p: None,
             tools: None,
+            lane: None,
         };
         let (status, Json(resp)) = do_chat_completions(State(state), Json(req)).await;
         assert_eq!(status, StatusCode::OK);

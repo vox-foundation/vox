@@ -46,6 +46,7 @@
 // commands::model::show
 // commands::openclaw
 // commands::pm
+// commands::py
 // commands::remove
 // commands::repo
 // vox_cli_research::run_research_query

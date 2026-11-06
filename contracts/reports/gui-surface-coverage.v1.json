@@ -582,6 +582,10 @@
       "feature_gate": null
     },
     {
+      "path": "ci check-changed",
+      "feature_gate": null
+    },
+    {
       "path": "ci check-codex-ssot",
       "feature_gate": null
     },
@@ -595,6 +599,10 @@
     },
     {
       "path": "ci check-summary-drift",
+      "feature_gate": null
+    },
+    {
+      "path": "ci ci-changes",
       "feature_gate": null
     },
     {
@@ -750,6 +758,10 @@
       "feature_gate": null
     },
     {
+      "path": "ci dom-test-env-ban",
+      "feature_gate": null
+    },
+    {
       "path": "ci eval-matrix",
       "feature_gate": null
     },
@@ -759,6 +771,10 @@
     },
     {
       "path": "ci eval-matrix verify",
+      "feature_gate": null
+    },
+    {
+      "path": "ci evidence-asset-ban",
       "feature_gate": null
     },
     {
@@ -834,6 +850,10 @@
       "feature_gate": null
     },
     {
+      "path": "ci hit-every-surface",
+      "feature_gate": null
+    },
+    {
       "path": "ci ignored-test-age",
       "feature_gate": null
     },
@@ -855,6 +875,10 @@
     },
     {
       "path": "ci kill-stuck-tests",
+      "feature_gate": null
+    },
+    {
+      "path": "ci knip-gui",
       "feature_gate": null
     },
     {
@@ -994,7 +1018,15 @@
       "feature_gate": null
     },
     {
+      "path": "ci preview-trust-audit",
+      "feature_gate": null
+    },
+    {
       "path": "ci profile-parity",
+      "feature_gate": null
+    },
+    {
+      "path": "ci python-bridge-parity",
       "feature_gate": null
     },
     {
@@ -1122,6 +1154,10 @@
       "feature_gate": null
     },
     {
+      "path": "ci suppression-review-gate",
+      "feature_gate": null
+    },
+    {
       "path": "ci sync-ignore-files",
       "feature_gate": null
     },
@@ -1158,7 +1194,15 @@
       "feature_gate": null
     },
     {
+      "path": "ci transfer-budget-report",
+      "feature_gate": null
+    },
+    {
       "path": "ci turso-import-guard",
+      "feature_gate": null
+    },
+    {
+      "path": "ci vouched-parse",
       "feature_gate": null
     },
     {
@@ -1167,6 +1211,10 @@
     },
     {
       "path": "ci watch-run",
+      "feature_gate": null
+    },
+    {
+      "path": "ci wiki-sync",
       "feature_gate": null
     },
     {
@@ -3318,6 +3366,18 @@
       "feature_gate": "populi"
     },
     {
+      "path": "py",
+      "feature_gate": null
+    },
+    {
+      "path": "py doctor",
+      "feature_gate": null
+    },
+    {
+      "path": "py sync",
+      "feature_gate": null
+    },
+    {
       "path": "recensio",
       "feature_gate": "coderabbit"
     },
@@ -4218,6 +4278,7 @@
     "auth.unlock",
     "auth.untrust",
     "auth.whoami",
+    "battery.status",
     "behavior.record",
     "behavior.summary",
     "benchmark.list",
@@ -4265,6 +4326,7 @@
     "bundle.build",
     "bundle.list",
     "bundle.verify",
+    "call.mcp.lazy",
     "cancel.task",
     "capability.explain",
     "capability.features",
@@ -4277,16 +4339,25 @@
     "change.create",
     "change.log",
     "chat",
+    "chat.compact.up.to",
+    "chat.edit.message.in.place",
     "chat.history",
     "chat.message",
+    "chat.queue.steer",
+    "chat.regenerate",
     "chat.session.append",
     "chat.session.archive",
     "chat.session.create",
     "chat.session.rename",
+    "chat.stream.cancel",
+    "chat.stream.resume",
     "check",
     "check.file.owner",
     "check.mood",
     "check.workspace",
+    "checkpoint.capture",
+    "checkpoint.list",
+    "checkpoint.restore",
     "ci",
     "ci.affected-crates",
     "ci.agentskills-compliance",
@@ -4306,10 +4377,12 @@
     "ci.capability-index",
     "ci.capability-snapshot",
     "ci.capability-sync",
+    "ci.check-changed",
     "ci.check-codex-ssot",
     "ci.check-docs-ssot",
     "ci.check-links",
     "ci.check-summary-drift",
+    "ci.ci-changes",
     "ci.command-compliance",
     "ci.command-sync",
     "ci.commit-lint",
@@ -4348,9 +4421,11 @@
     "ci.docs-reality-audit.metrics",
     "ci.docs-reality-audit.verify",
     "ci.doctest-md",
+    "ci.dom-test-env-ban",
     "ci.eval-matrix",
     "ci.eval-matrix.run",
     "ci.eval-matrix.verify",
+    "ci.evidence-asset-ban",
     "ci.exec-policy-contract",
     "ci.fan-in-budget",
     "ci.feature-matrix",
@@ -4369,12 +4444,14 @@
     "ci.gui-version-sync",
     "ci.gui-visual-review",
     "ci.harness-trust-guard",
+    "ci.hit-every-surface",
     "ci.ignored-test-age",
     "ci.install-hooks",
     "ci.job-timings",
     "ci.json-parse-check",
     "ci.k-complexity-budget",
     "ci.kill-stuck-tests",
+    "ci.knip-gui",
     "ci.line-endings",
     "ci.manifest",
     "ci.mcp-vox-surface-parity",
@@ -4409,7 +4486,9 @@
     "ci.policy-registry-parity",
     "ci.policy-smoke",
     "ci.pre-push",
+    "ci.preview-trust-audit",
     "ci.profile-parity",
+    "ci.python-bridge-parity",
     "ci.query-all-guard",
     "ci.release-build",
     "ci.release-draft-guard",
@@ -4441,6 +4520,7 @@
     "ci.ssot-drift",
     "ci.status",
     "ci.string-id-lint",
+    "ci.suppression-review-gate",
     "ci.sync-ignore-files",
     "ci.test-inventory",
     "ci.test-runtime-report",
@@ -4450,9 +4530,12 @@
     "ci.toestub-self-apply",
     "ci.toolchain-ssot",
     "ci.toolchain-workflow-lint",
+    "ci.transfer-budget-report",
     "ci.turso-import-guard",
+    "ci.vouched-parse",
     "ci.vox-parse-check",
     "ci.watch-run",
+    "ci.wiki-sync",
     "ci.workflow-concurrency-guard",
     "ci.workflow-scripts",
     "ci.yaml-parse-check",
@@ -4482,10 +4565,12 @@
     "config.unset",
     "conflict.diff",
     "conflicts",
+    "consensus.run",
     "container",
     "container.build",
     "container.run",
     "context.budget",
+    "context.handoff",
     "cost.history",
     "coverage.report",
     "credentials.status",
@@ -4808,6 +4893,7 @@
     "fail.task",
     "features",
     "feedback.list",
+    "file.diff.and.diagnostics",
     "file.graph",
     "fmt",
     "gamify",
@@ -4904,6 +4990,10 @@
     "graph.refresh",
     "graph.status",
     "graph.why-rebuilt",
+    "guest.share.mint",
+    "guest.share.moderate",
+    "guest.share.redeem",
+    "guest.share.submit",
     "gui",
     "gui.components",
     "gui.drive",
@@ -4960,6 +5050,8 @@
     "lint.crate",
     "list.approval.allowlist",
     "list.context",
+    "list.mcp.servers",
+    "list.mcp.tools",
     "list.models",
     "live",
     "llm",
@@ -5039,6 +5131,8 @@
     "model.shadow",
     "model.show",
     "models.preference.set",
+    "muse.pool.adopt",
+    "muse.pool.spawn",
     "my.files",
     "new",
     "new.fn",
@@ -5129,12 +5223,18 @@
     "populi.serve",
     "populi.status",
     "populi.up",
+    "pr.review.guide",
     "preference.get",
     "preference.list",
     "preference.set",
     "project.init",
     "propose.skill",
     "publish.message",
+    "py",
+    "py.doctor",
+    "py.sync",
+    "quarantine.list",
+    "quarantine.set",
     "questioning.pending",
     "questioning.submit.answer",
     "questioning.sync.ssot",
@@ -5200,6 +5300,7 @@
     "resolve.feedback",
     "resume.agent",
     "retire.agent",
+    "revert.file",
     "review",
     "review.coderabbit",
     "review.coderabbit.batch-submit",
@@ -5343,8 +5444,12 @@
     "session.cleanup",
     "session.compact",
     "session.create",
+    "session.export.bundle",
+    "session.import.bundle",
+    "session.import.external",
     "session.info",
     "session.list",
+    "session.list.external",
     "session.reset",
     "set.active.model",
     "set.agent.budget",
@@ -5383,6 +5488,7 @@
     "spawn.agent",
     "speech",
     "speech.to.code",
+    "stage.file",
     "stop",
     "stub-check",
     "submit.task",
@@ -5419,6 +5525,7 @@
     "validate.mermaid",
     "validate.source",
     "validate.vuv",
+    "vcs.checkpoint.diff.summary",
     "vcs.status",
     "verify.task.claims",
     "visual.rag.query",
@@ -5510,13 +5617,18 @@
     "cancel_orchestrator_task",
     "chat_append_message",
     "chat_archive_session",
+    "chat_arena_compare",
+    "chat_arena_vote",
     "chat_create_session",
+    "chat_fork_session",
     "chat_get_messages",
     "chat_list_sessions",
     "chat_rename_session",
+    "chat_rewind_to_turn",
     "chat_send_message",
     "chat_turn",
     "chat_unarchive_session",
+    "clear_session_tool_results",
     "clear_task_policy_override",
     "coderabbit_plan",
     "coderabbit_report",
@@ -5573,6 +5685,8 @@
     "get_routing_intentions",
     "get_routing_summary_live",
     "get_selection_policy",
+    "get_session_chat_posture",
+    "get_session_context_pins",
     "get_stt_config",
     "get_task_diff",
     "get_task_policy_overrides",
@@ -5584,6 +5698,7 @@
     "hopper_cancel",
     "hopper_list",
     "hopper_mark_done",
+    "hopper_rename",
     "hopper_reprioritize",
     "hopper_submit",
     "import_env",
@@ -5617,6 +5732,7 @@
     "list_subagent_tree",
     "list_trusted_nodes",
     "log_frontend",
+    "mcp_servers_status",
     "mens_run_reports",
     "mens_serve_start",
     "mens_serve_status",
@@ -5676,6 +5792,7 @@
     "secretary_confirm_task",
     "secrets_backend_status",
     "set_active_model",
+    "set_context_budget_strategy",
     "set_gamify_settings",
     "set_gui_preference",
     "set_llm_config",
@@ -5683,6 +5800,8 @@
     "set_routing_priority",
     "set_secret",
     "set_selection_policy",
+    "set_session_chat_posture",
+    "set_session_context_pins",
     "set_stt_config",
     "set_task_mesh_policy",
     "set_task_policy_override",

@@ -20,7 +20,7 @@ This plan is written to be executed by **Sonnet 4.6**, whose known failure modes
 4. **Run gates exactly as written (ledger B-10).** Never substitute `--warn-only`, `|| true`, `--no-verify`, or a narrower scope. If a gate is red at baseline for unrelated reasons, STOP and report (ledger B-2) — do not edit `layers.toml` or add allowlist entries you weren't told to.
 5. **Stay on one branch off current `origin/main`, this plan's commits only (ledger B-3).** Report a delivery manifest of every file you touched (ledger B-4).
 6. **Windows host.** Use the Bash tool for POSIX one-liners and PowerShell for Windows-native commands; never `cargo fmt --all` (use `cargo fmt -p <crate>`). All process spawns set `CREATE_NO_WINDOW`.
-7. **No new `.ps1`/`.sh`/`.py` scripts** (AGENTS.md). Automation is Rust + VoxScript only. Invoking the *vendor's* installer is allowed; authoring a shell script is not.
+7. **No new `.ps1`/`.sh`/`.py` scripts** (AGENTS.md). Automation is Rust + VoxLang only. Invoking the *vendor's* installer is allowed; authoring a shell script is not.
 
 ---
 
@@ -1710,7 +1710,7 @@ git commit -m "docs(skills): delegate-gemini credentials/budget awareness + cred
 - Managing agy's *internal* sub-agents (not exposed under `-p`).
 - A shared cost/quota budget SSOT — **extend the existing `BudgetManager`, do not add a new one** (prior gamification budget lesson).
 - Fully automated OAuth login (interactive by design; we will not store Google credentials).
-- A VoxScript (`scripts/delegate.vox`) wrapper, if Vox-script-native invocation is wanted beyond the skill.
+- A VoxLang (`scripts/delegate.vox`) wrapper, if Vox-script-native invocation is wanted beyond the skill.
 
 ## Risks & mitigations
 | Risk | Mitigation | Task |

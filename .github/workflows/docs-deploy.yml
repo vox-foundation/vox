@@ -13,6 +13,8 @@ on:
       # 20-09: repo Markdown mounted at /repo/<route>/ (contracts/documentation/site-mounted-repo-docs.v1.json)
       - 'AGENTS.md'
       - '.planning/workstreams/unified/ROADMAP.md'
+      - '.planning/ROADMAP.md'
+      - '.planning/REQUIREMENTS.md'
       - 'CHANGELOG.md'
       - 'CLAUDE.md'
       - 'GEMINI.md'

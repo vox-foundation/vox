@@ -1,5 +1,30 @@
 # Project Retrospective
 
+## Milestone: v4.7 — Universal Repo-Agnostic Codebase Civilization Simulator & Attention-Weighted Developer Control Surface
+
+**Shipped:** 2026-10-25
+**Phases:** 6 (`Phases 259–264`) | **Plans:** 6
+
+### What Was Built
+- **Phase 259:** Polyglot Repository Scanner (`workspace_town.rs`) supporting Cargo workspaces, npm/pnpm/TS monorepos, Go (`cmd/*`, `internal/*`, `pkg/*`), Python (`src/<pkg>`), and single-app trees + live Git working-tree diff telemetry (`+LoC / -LoC`, git status, churn).
+- **Phase 260:** Zero-hardcoding topological graph analyzer (`topology.ts`), Kahn's algorithm + Tarjan SCCs layer calculation, structural wonder archetype classifier, and total elimination of hardcoded `vox-*` crate names.
+- **Phase 261:** Attention-weighted dynamic real-estate layout (`layout.ts`), scaling modules `1.0x`–`3.2x` by developer priority (active edits, uncommitted diffs, errors, blast radius), `>= 65%` foreground worksite allocation, and Focus Mode switcher.
+- **Phase 262:** Live file diff slabs with proportion bars, diagnostic siege cards with 1-click dispatch (`[Fix Error]`, `[Re-run Test]`, `[Open File]`), and the top-left Live Developer Priority Dock (`data-testid="urbs-priority-dock"`).
+- **Phase 263:** Dependency blast-radius illumination on the canvas (Upstream Providers in Teal, Downstream Blast Radius in Amber/Crimson) and the repo-agnostic `ImperiumInspector.tsx` control panel.
+- **Phase 264:** Multi-repo simulation presets (`live`, `ts_monorepo`, `python_ml`, `go_microservices`), Preset & Focus Mode dropdowns, and comprehensive verification across Vitest, TypeScript, `vox-code-audit`, `vox-arch-check`, and `vox-doc-pipeline`.
+
+### What Worked
+- **Contract-Driven Test Strategy:** Writing comprehensive mock repository fixtures for Go, Python, and TypeScript monorepos in both Rust unit tests and TypeScript Vitest tests before implementation ensured complete polyglot coverage.
+- **Topological Invariant Formulation:** Using pure directed graph properties (in-degree, out-degree, betweenness, cycle components) decoupled visualization from language idioms while naturally discovering architecture layers (`L0..L3`).
+
+### What Was Inefficient
+- Discovered archetype precedence issues between explicit domain keywords and topological fan-in heuristics during unit testing; explicitly ordering domain keyword rules before topological fallbacks resolved this cleanly.
+
+### Patterns Established
+- **Attention Multiplier Normalization:** Sizing visualization items by `attentionMultiplier` allows complex simulations to scale gracefully across any repository size by keeping dormant code compact and active work prominent.
+
+---
+
 ## Milestone: v1.7 — Centralized Postgres Telemetry, Private `vox-ops` Extraction, Ludus 3-Way SoC, Zero-Cheating Leaderboard, Codebase/History Scrub, Live Helios Deployment & 5-Spoke MENS Safetensors Evaluation
 
 **Shipped:** 2026-10-19

@@ -27,16 +27,18 @@ fn test_addition() to Unit {
 Rather than language-level magic, Vox encourages simple, plain functions for setup logic that can be reused across test cases.
 
 ```vox
-// vox:skip -- illustrative fixture pattern; Database/MockDatabase/query are placeholders, not real APIs
-fn setup_mock_db() to Database {
-    return spawn MockDatabase()
+type TestFixture {
+    seed_value: int
 }
 
-@test 
+fn setup_mock_db() to TestFixture {
+    return { seed_value: 1 }
+}
+
+@test
 fn test_query() to Unit {
-    let db = setup_mock_db()
-    let result = db.call(query("SELECT 1"))
-    assert(result == [1])
+    let db_ctx = setup_mock_db()
+    assert(db_ctx.seed_value is 1)
 }
 ```
 
@@ -61,7 +63,7 @@ For deeper security and stability testing, the `@fuzz` decorator uses the projec
 ```vox
 @fuzz
 fn fuzz_parser(input: str) to Unit {
-    let result = json.parse(input) // Fuzzer tries to crash this
+    let _result = std.json.parse(input) // Fuzzer tries to crash this
 }
 ```
 

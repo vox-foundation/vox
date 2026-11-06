@@ -196,7 +196,7 @@ fn resolve_daemon_profile() -> anyhow::Result<vox_orchestrator_mcp::profiles::Ac
 }
 
 async fn async_main() -> anyhow::Result<()> {
-    vox_foundation::tracing::try_init_from_default_env();
+    vox_foundation::tracing::try_init_from_default_env_stderr();
     let active_profile = resolve_daemon_profile()?;
     tracing::info!(profile = %active_profile.id_string(), "capability profile resolved");
 

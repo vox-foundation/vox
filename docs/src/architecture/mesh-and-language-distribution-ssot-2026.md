@@ -104,7 +104,7 @@ work; §6 if you're shipping a release.
    discovery is opt-in peer-to-peer.
 7. **No dashboard becoming a code editor.** Code surface is a viewer, not Cursor.
 8. **No `.ps1` / `.sh` / `.py` automation glue.** Scripts are `.vox`. See
-   [AGENTS.md §VoxScript-First Glue Code](../../../AGENTS.md).
+   [AGENTS.md §VoxLang-First Glue Code](../../../AGENTS.md).
 9. **No mesh-replicated hopper inbox before mesh dispatch is authoritative.** The hopper's
    Option C (mesh-native inbox replicated via op-log gossip) is deferred until P0-T3
    (authoritative leases) lands. Until then, hopper is single-machine.
@@ -1013,7 +1013,7 @@ No token. No SaaS dependency."
 Carried forward from the research synthesis. Each blocks at least one task
 in the plan above and should be answered before that task ships.
 
-1. **Sandbox for VoxScript with mesh effects.** WASM capability propagation
+1. **Sandbox for VoxLang with mesh effects.** WASM capability propagation
    is clean for in-process; what's the right shape when the WASM module
    dispatches a remote activity? Where does the per-job ephemeral key live?
    *(Blocks P5-T6.)*

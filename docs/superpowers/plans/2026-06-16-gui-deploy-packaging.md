@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Ship signed Tauri 2 installers from CI with VoxScript-first build, documented bootstrap, and Playwright in merge CI.
+**Goal:** Ship signed Tauri 2 installers from CI with VoxLang-first build, documented bootstrap, and Playwright in merge CI.
 
 **Architecture:** Tauri root is `crates/vox-gui/` (no `src-tauri/`). `scripts/gui-build.vox` orchestrates `pnpm build` + sidecar copy + `cargo tauri build`. `release-gui.yml` uses `tauri-action` with `projectPath: ./crates/vox-gui`.
 
@@ -60,7 +60,7 @@ Expected: artifacts under `crates/vox-gui/target/release/bundle/` (msi/dmg/deb/a
         with:
           node-version: 24
       - uses: dtolnay/rust-toolchain@stable
-      - name: Build via VoxScript
+      - name: Build via VoxLang
         run: vox run scripts/gui-build.vox
       - name: Bundle AppImage
         working-directory: crates/vox-gui
@@ -92,7 +92,7 @@ Before `tauri-apps/tauri-action`, add:
 ```yaml
       - name: Install vox CLI
         run: cargo install --locked --path crates/vox-cli --force
-      - name: GUI build (VoxScript)
+      - name: GUI build (VoxLang)
         run: vox run scripts/gui-build.vox
 ```
 

@@ -49,3 +49,24 @@ HardwareProbe interface via `VoxPlugin::as_hardware_probe()`.
 |---|---|
 | `probe` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_plugin_nvml_probe: "vox-plugin-nvml-probe"
+    node vox_plugin_api: "vox-plugin-api"
+    vox_plugin_nvml_probe -> vox_plugin_api
+    node vox_plugin_sdk: "vox-plugin-sdk"
+    vox_plugin_nvml_probe -> vox_plugin_sdk
+}
+```
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `probe::ProbeError` | `pub enum ProbeError` | [`crates/vox-plugin-nvml-probe/src/probe.rs#L12-L19`](../../../crates/vox-plugin-nvml-probe/src/probe.rs#L12-L19) | — |
+| `fn` | `probe::probe_summary` | `pub fn probe_summary() -> Result<String, ProbeError>` | [`crates/vox-plugin-nvml-probe/src/probe.rs#L53-L102`](../../../crates/vox-plugin-nvml-probe/src/probe.rs#L53-L102) | Probe all NVIDIA GPUs and return a JSON summary.  Schema (subject to plugin versioning): ```json { "device_count": 2, "driver_version": "535.54.03", "devices": [ { "index": 0, "name": "NVIDIA RTX 4090", "vram_total_mb": 24576, "vram_free_mb": 20480, "vram_used_mb": 4096 } ] } ``` |
+| `fn` | `probe::device_metrics` | `pub fn device_metrics() -> Result<String, ProbeError>` | [`crates/vox-plugin-nvml-probe/src/probe.rs#L134-L180`](../../../crates/vox-plugin-nvml-probe/src/probe.rs#L134-L180) | Probe per-device real-time metrics and return a JSON report.  Schema: ```json { "metrics": [ { "index": 0, "utilization_pct": 72.5, "memory_used_mb": 4096, "memory_free_mb": 20480, "temperature_c": 68.0, "power_usage_w": 250.0, "fan_speed_pct": 55.0 } ] } ``` |
+

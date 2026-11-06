@@ -162,6 +162,7 @@ async fn run_together(data_dir: &Path, output_dir: Option<&Path>) -> anyhow::Res
     let v: serde_json::Value = serde_json::from_str(&text)
         .map_err(|e| anyhow::anyhow!("Together fine-tune response JSON: {}", e))?;
     let job_id = v.get("id").and_then(|x| x.as_str()).unwrap_or("unknown");
+    // vox:allow(direct-provider-call) vox-arch-check: allow llm-egress fine-tuning job submission endpoint, not chat inference
     println!(
         "Together fine-tune job created: id={}. Monitor at https://api.together.xyz/v1/fine-tunes/{}",
         job_id, job_id
@@ -203,4 +204,52 @@ fn ensure_train_jsonl(train_jsonl: &Path, data_dir: &Path) -> anyhow::Result<()>
         train_jsonl.display(),
         data_dir.display()
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn run_rejects_unknown_and_unimplemented_providers() {
+        let err = run(None, None, Some("bogus".to_string()), false)
+            .await
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("Unknown provider 'bogus'"),
+            "{err}"
+        );
+
+        let err = run(None, None, Some("replicate".to_string()), false)
+            .await
+            .unwrap_err();
+        assert!(err.to_string().contains("not implemented"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn native_training_bails_with_plugin_pointer_when_corpus_exists() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("train.jsonl"), "{}\n").unwrap();
+        let err = run(Some(dir.path().to_path_buf()), None, None, true)
+            .await
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("vox-plugin-mens-candle-cuda"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn ensure_train_jsonl_names_the_missing_file_and_the_corpus_command() {
+        let dir = tempfile::tempdir().unwrap();
+        let missing = dir.path().join("train.jsonl");
+        let err = ensure_train_jsonl(&missing, dir.path())
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains(&missing.display().to_string()), "{err}");
+        assert!(err.contains("vox mens corpus pairs"), "{err}");
+
+        std::fs::write(&missing, "{}\n").unwrap();
+        ensure_train_jsonl(&missing, dir.path()).unwrap();
+    }
 }

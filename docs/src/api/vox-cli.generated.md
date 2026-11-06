@@ -196,3 +196,103 @@ For the end-user CLI surface and subcommand map, see the `vox` binary crate root
 |---|---|
 | `VOX_VERSION` | Build version string: `0.x.y+build.N (githash)` |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_cli: "vox-cli"
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_cli -> vox_actor_runtime
+    node vox_audit: "vox-audit"
+    vox_cli -> vox_audit
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_cli -> vox_bounded_fs
+    node vox_build_meta: "vox-build-meta"
+    vox_cli -> vox_build_meta
+    node vox_capability_registry: "vox-capability-registry"
+    vox_cli -> vox_capability_registry
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli -> vox_cli_ci
+    node vox_cli_contracts: "vox-cli-contracts"
+    vox_cli -> vox_cli_contracts
+    node vox_cli_core: "vox-cli-core"
+    vox_cli -> vox_cli_core
+    node vox_cli_research: "vox-cli-research"
+    vox_cli -> vox_cli_research
+    node vox_cli_review: "vox-cli-review"
+    vox_cli -> vox_cli_review
+    node vox_cli_share: "vox-cli-share"
+    vox_cli -> vox_cli_share
+    node vox_code_audit: "vox-code-audit"
+    vox_cli -> vox_code_audit
+    node vox_cli_tests: "vox-cli-tests"
+    vox_cli_tests -> vox_cli
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_cli
+    node vox_integration_tests: "vox-integration-tests"
+    vox_integration_tests -> vox_cli
+    node vox_ml_cli: "vox-ml-cli"
+    vox_ml_cli -> vox_cli
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli-tests`](./vox-cli-tests.generated.md) | Direct workspace dependent |
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `CompletionShell` | `pub enum CompletionShell` | [`crates/vox-cli/src/lib.rs#L90-L99`](../../../crates/vox-cli/src/lib.rs#L90-L99) | — |
+| `struct` | `VoxCliRoot` | `pub struct VoxCliRoot` | [`crates/vox-cli/src/lib.rs#L123-L130`](../../../crates/vox-cli/src/lib.rs#L123-L130) | — |
+| `enum` | `Cli` | `pub enum Cli` | [`crates/vox-cli/src/lib.rs#L135`](../../../crates/vox-cli/src/lib.rs#L135) | Collection of subcommands exposing all features of the `vox` binary. |
+| `fn` | `init_telemetry_sinks` | `pub fn init_telemetry_sinks(db: Option<vox_db::VoxDb>)` | [`crates/vox-cli/src/lib.rs#L742-L745`](../../../crates/vox-cli/src/lib.rs#L742-L745) | Register the process-wide telemetry sinks.  `db` is `Some` when the workspace journey DB opened successfully at startup. |
+| `fn` | `run_vox_cli` | `pub async fn run_vox_cli() -> anyhow::Result<()>` | [`crates/vox-cli/src/lib.rs#L825-L828`](../../../crates/vox-cli/src/lib.rs#L825-L828) | Run the `vox` CLI (parsed from `std::env::args`). |
+| `fn` | `run_vox_cli_from_parsed` | `pub async fn run_vox_cli_from_parsed(root: VoxCliRoot) -> anyhow::Result<()>` | [`crates/vox-cli/src/lib.rs#L832-L856`](../../../crates/vox-cli/src/lib.rs#L832-L856) | Run after parsing a [`VoxCliRoot`]: global env hints (`VOX_CLI_*`, `RUST_LOG`), [`init_tracing_for_cli`], then dispatch. |
+| `enum` | `cli_actions::ArchitectAction` | `pub enum ArchitectAction` | [`crates/vox-cli/src/cli_actions.rs#L5-L20`](../../../crates/vox-cli/src/cli_actions.rs#L5-L20) | Subcommands for `vox architect` (requires `--features codex` or `stub-check`). |
+| `enum` | `cli_actions::WorkflowAction` | `pub enum WorkflowAction` | [`crates/vox-cli/src/cli_actions.rs#L23-L64`](../../../crates/vox-cli/src/cli_actions.rs#L23-L64) | — |
+| `enum` | `cli_args::BuildTargetArg` | `pub enum BuildTargetArg` | [`crates/vox-cli/src/cli_args.rs#L16-L28`](../../../crates/vox-cli/src/cli_args.rs#L16-L28) | Build target for `vox build` / `vox dev`. See `vox_config::BuildTarget` for semantics.  `fullstack` is the default build mode. Use `--target=server` for Rust-only (no `dist/` TS), or `--target=client` for Library-shaped TS (`vox-client.ts`, `openapi.json`, …; no `target/generated/`), or `--target=mobile` for React Native + Expo TS that runs through `@vox/runtime-rn`. |
+| `struct` | `cli_args::BuildArgs` | `pub struct BuildArgs` | [`crates/vox-cli/src/cli_args.rs#L43-L80`](../../../crates/vox-cli/src/cli_args.rs#L43-L80) | `vox build` / `vox fabrica build` |
+| `struct` | `cli_args::CheckArgs` | `pub struct CheckArgs` | [`crates/vox-cli/src/cli_args.rs#L84-L117`](../../../crates/vox-cli/src/cli_args.rs#L84-L117) | `vox check` / `vox fabrica check` |
+| `struct` | `cli_args::TestArgs` | `pub struct TestArgs` | [`crates/vox-cli/src/cli_args.rs#L121-L139`](../../../crates/vox-cli/src/cli_args.rs#L121-L139) | `vox test` / `vox fabrica test` |
+| `struct` | `cli_args::RunArgs` | `pub struct RunArgs` | [`crates/vox-cli/src/cli_args.rs#L143-L181`](../../../crates/vox-cli/src/cli_args.rs#L143-L181) | `vox run` / `vox fabrica run` |
+| `struct` | `cli_args::ScriptArgs` | `pub struct ScriptArgs` | [`crates/vox-cli/src/cli_args.rs#L186-L200`](../../../crates/vox-cli/src/cli_args.rs#L186-L200) | `vox script` / `vox fabrica script` |
+| `struct` | `cli_args::DevArgs` | `pub struct DevArgs` | [`crates/vox-cli/src/cli_args.rs#L204-L216`](../../../crates/vox-cli/src/cli_args.rs#L204-L216) | `vox dev` / `vox fabrica dev` |
+| `struct` | `cli_args::EmitOpenapiArgs` | `pub struct EmitOpenapiArgs` | [`crates/vox-cli/src/cli_args.rs#L220-L233`](../../../crates/vox-cli/src/cli_args.rs#L220-L233) | `vox emit openapi` — standalone OpenAPI 3.1 JSON from a Vox source file. |
+| `struct` | `cli_args::EmitClientArgs` | `pub struct EmitClientArgs` | [`crates/vox-cli/src/cli_args.rs#L237-L246`](../../../crates/vox-cli/src/cli_args.rs#L237-L246) | `vox emit client` — Library-shaped TypeScript SDK only. |
+| `struct` | `cli_args::BundleArgs` | `pub struct BundleArgs` | [`crates/vox-cli/src/cli_args.rs#L250-L262`](../../../crates/vox-cli/src/cli_args.rs#L250-L262) | `vox bundle` / `vox fabrica bundle` |
+| `struct` | `cli_args::CompileArgs` | `pub struct CompileArgs` | [`crates/vox-cli/src/cli_args.rs#L266-L286`](../../../crates/vox-cli/src/cli_args.rs#L266-L286) | `vox compile` / `vox fabrica compile` |
+| `struct` | `cli_args::FmtArgs` | `pub struct FmtArgs` | [`crates/vox-cli/src/cli_args.rs#L323-L329`](../../../crates/vox-cli/src/cli_args.rs#L323-L329) | `vox fmt` / `vox fabrica fmt` |
+| `struct` | `cli_args::PlayArgs` | `pub struct PlayArgs` | [`crates/vox-cli/src/cli_args.rs#L333-L339`](../../../crates/vox-cli/src/cli_args.rs#L333-L339) | `vox play` / `vox fabrica play` |
+| `struct` | `cli_args::RepairArgs` | `pub struct RepairArgs` | [`crates/vox-cli/src/cli_args.rs#L343-L357`](../../../crates/vox-cli/src/cli_args.rs#L343-L357) | `vox repair` |
+| `struct` | `cli_args::DoctorArgs` | `pub struct DoctorArgs` | [`crates/vox-cli/src/cli_args.rs#L361-L396`](../../../crates/vox-cli/src/cli_args.rs#L361-L396) | `vox doctor` / `vox mens doctor` |
+| `struct` | `cli_args::StubCheckArgs` | `pub struct StubCheckArgs` | [`crates/vox-cli/src/cli_args.rs#L401-L453`](../../../crates/vox-cli/src/cli_args.rs#L401-L453) | `vox stub-check` / `vox mens stub-check` |
+| `struct` | `cli_args::AddDependencyArgs` | `pub struct AddDependencyArgs` | [`crates/vox-cli/src/cli_args.rs#L457-L467`](../../../crates/vox-cli/src/cli_args.rs#L457-L467) | `vox add` — manifest dependency declaration. |
+| `struct` | `cli_args::RemoveDependencyArgs` | `pub struct RemoveDependencyArgs` | [`crates/vox-cli/src/cli_args.rs#L471-L474`](../../../crates/vox-cli/src/cli_args.rs#L471-L474) | `vox remove` |
+| `struct` | `cli_args::LockArgs` | `pub struct LockArgs` | [`crates/vox-cli/src/cli_args.rs#L478-L482`](../../../crates/vox-cli/src/cli_args.rs#L478-L482) | `vox lock` |
+| `struct` | `cli_args::SyncArgs` | `pub struct SyncArgs` | [`crates/vox-cli/src/cli_args.rs#L486-L492`](../../../crates/vox-cli/src/cli_args.rs#L486-L492) | `vox sync` |
+| `struct` | `cli_args::DeployArgs` | `pub struct DeployArgs` | [`crates/vox-cli/src/cli_args.rs#L496-L515`](../../../crates/vox-cli/src/cli_args.rs#L496-L515) | `vox deploy` — apply `Vox.toml` `[deploy]` via container / compose / Kubernetes / bare-metal. |
+| `enum` | `cli_args::UpgradeReleaseProvider` | `pub enum UpgradeReleaseProvider` | [`crates/vox-cli/src/cli_args.rs#L519-L527`](../../../crates/vox-cli/src/cli_args.rs#L519-L527) | Binary release host for `vox upgrade --source release` (`VOX_UPGRADE_PROVIDER`). |
+| `struct` | `cli_args::UpgradeToolchainArgs` | `pub struct UpgradeToolchainArgs` | [`crates/vox-cli/src/cli_args.rs#L531-L580`](../../../crates/vox-cli/src/cli_args.rs#L531-L580) | `vox upgrade` — toolchain only (never `Vox.toml` / `vox.lock`). |
+| `struct` | `cli_args::GenerateArgs` | `pub struct GenerateArgs` | [`crates/vox-cli/src/cli_args.rs#L584-L604`](../../../crates/vox-cli/src/cli_args.rs#L584-L604) | `vox generate` — generate Vox code from a natural-language prompt. |
+| `struct` | `cli_args::GuiArgs` | `pub struct GuiArgs` | [`crates/vox-cli/src/cli_args.rs#L607-L617`](../../../crates/vox-cli/src/cli_args.rs#L607-L617) | — |
+| `enum` | `cli_args::GuiCmd` | `pub enum GuiCmd` | [`crates/vox-cli/src/cli_args.rs#L620-L623`](../../../crates/vox-cli/src/cli_args.rs#L620-L623) | — |
+| `struct` | `cli_args::DriveArgs` | `pub struct DriveArgs` | [`crates/vox-cli/src/cli_args.rs#L626-L629`](../../../crates/vox-cli/src/cli_args.rs#L626-L629) | — |
+| `enum` | `cli_args::DriveCmd` | `pub enum DriveCmd` | [`crates/vox-cli/src/cli_args.rs#L632-L649`](../../../crates/vox-cli/src/cli_args.rs#L632-L649) | — |
+| `struct` | `cli_args::DriveStartArgs` | `pub struct DriveStartArgs` | [`crates/vox-cli/src/cli_args.rs#L652-L657`](../../../crates/vox-cli/src/cli_args.rs#L652-L657) | — |
+| `struct` | `cli_args::DriveSetArgs` | `pub struct DriveSetArgs` | [`crates/vox-cli/src/cli_args.rs#L660-L663`](../../../crates/vox-cli/src/cli_args.rs#L660-L663) | — |
+| `struct` | `cli_args::DriveSendArgs` | `pub struct DriveSendArgs` | [`crates/vox-cli/src/cli_args.rs#L666-L669`](../../../crates/vox-cli/src/cli_args.rs#L666-L669) | — |
+| `struct` | `cli_args::DriveWaitArgs` | `pub struct DriveWaitArgs` | [`crates/vox-cli/src/cli_args.rs#L672-L677`](../../../crates/vox-cli/src/cli_args.rs#L672-L677) | — |
+| `struct` | `cli_args::DriveHeadlessArgs` | `pub struct DriveHeadlessArgs` | [`crates/vox-cli/src/cli_args.rs#L680-L683`](../../../crates/vox-cli/src/cli_args.rs#L680-L683) | — |
+| `enum` | `cli_args::DriveHeadlessCmd` | `pub enum DriveHeadlessCmd` | [`crates/vox-cli/src/cli_args.rs#L686-L693`](../../../crates/vox-cli/src/cli_args.rs#L686-L693) | — |
+| `enum` | `command_catalog::CatalogFormat` | `pub enum CatalogFormat` | [`crates/vox-cli/src/command_catalog.rs#L10-L13`](../../../crates/vox-cli/src/command_catalog.rs#L10-L13) | — |
+| `enum` | `command_catalog::CatalogTier` | `pub enum CatalogTier` | [`crates/vox-cli/src/command_catalog.rs#L17-L21`](../../../crates/vox-cli/src/command_catalog.rs#L17-L21) | — |
+| `enum` | `command_catalog::ArgValueKind` | `pub enum ArgValueKind` | [`crates/vox-cli/src/command_catalog.rs#L26-L33`](../../../crates/vox-cli/src/command_catalog.rs#L26-L33) | Typed argument kind for GUI form generation, derived from the clap action. |
+

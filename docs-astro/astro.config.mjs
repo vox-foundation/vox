@@ -1,16 +1,25 @@
 // @ts-check
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import starlightGitHubAlerts from 'starlight-github-alerts';
+import starlightLinksValidator from 'starlight-links-validator';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import sitemap from '@astrojs/sitemap';
+import { unified } from '@astrojs/markdown-remark';
 import { voxGrammar } from './src/plugins/vox-grammar.mjs';
 import { getSidebar } from './src/utils/sidebar.mjs';
 import { remarkVoxInclude } from './src/plugins/remark-vox-include.mjs';
 import { remarkDocLinks } from './src/plugins/remark-doc-links.mjs';
 import { remarkStripTitleH1 } from './src/plugins/remark-strip-title-h1.mjs';
 import { voxDiagram } from './src/plugins/vox-diagram-integration.mjs';
+import { linksValidatorExclude } from './src/utils/links-validator-exclude.mjs';
 import { listDocPages, noindexRoutes, internalsDocIds } from './src/utils/page-index.mjs';
 
+// Version SSOT is root Cargo.toml [workspace.package] (AGENTS.md §Versioning Policy).
+const voxVersion =
+  readFileSync(new URL('../Cargo.toml', import.meta.url), 'utf8').match(/^version\s*=\s*"([^"]+)"/m)?.[1] ?? 'unknown';
 const docsSrc = new URL('../docs/src', import.meta.url).pathname;
 const docPages = listDocPages(docsSrc);
 const noindex = noindexRoutes(docPages);
@@ -24,11 +33,13 @@ export default defineConfig({
   // Process {{#include path:anchor}} directives in code blocks (mdBook SSOT pattern).
   // Build fails loudly for any unresolved path/anchor — preventing silent blank code blocks.
   markdown: {
-    remarkPlugins: [
-      remarkStripTitleH1,
-      remarkVoxInclude,
-      [remarkDocLinks, { repoUrl: 'https://github.com/vox-foundation/vox' }],
-    ],
+    processor: unified({
+      remarkPlugins: [
+        remarkStripTitleH1,
+        remarkVoxInclude,
+        [remarkDocLinks, { repoUrl: 'https://github.com/vox-foundation/vox' }],
+      ],
+    }),
   },
   integrations: [
     voxDiagram({ manifestFile }),
@@ -63,9 +74,12 @@ export default defineConfig({
         },
       },
       plugins: [
+        starlightGitHubAlerts(),
+        // Defaults on purpose: failOnError stays true so broken internal links fail the build.
+        starlightLinksValidator({ exclude: linksValidatorExclude(docPages) }),
         starlightLlmsTxt({
           projectName: 'Vox',
-          description: 'Vox is a pre-1.0 (0.6.0) AI-native full-stack language that compiles a .vox file to a database schema, type-safe server, and browser UI. Build from source; see https://voxlang.org/reference/stability/ for maturity. Current syntax uses bare table / query / mutation / server / tool — not @endpoint.',
+          description: `Vox (vox-foundation/vox, voxlang.org; unrelated to vox-lang.dev or MrSmith33/vox) is a pre-1.0 (${voxVersion}) AI-native full-stack language that compiles a .vox file to a database schema, type-safe server, and browser UI. Build from source; see https://voxlang.org/reference/stability/ for maturity. Current syntax uses bare table / query / mutation / server / tool — not @endpoint.`,
           exclude: internalsExcluded,
           // The SVG's <desc> and labels are noise for LLMs; its fence source stays (details > pre).
           // Backstop only: 89-03 found llms-full.txt unchanged without it; kept so a later change
@@ -77,6 +91,7 @@ export default defineConfig({
       pagefind: true,
       customCss: ['./src/styles/reader-layout.css', './src/styles/vox-diagram.css'],
       components: {
+        SiteTitle: './src/components/SiteTitle.astro',
         Sidebar: './src/components/Sidebar.astro',
         TableOfContents: './src/components/TableOfContents.astro',
         PageSidebar: './src/components/PageSidebar.astro',
@@ -92,9 +107,17 @@ export default defineConfig({
   ],
   vite: {
     resolve: {
-      alias: {
-        '@docs-src': new URL('../docs/src', import.meta.url).pathname,
-      },
+      alias: [
+        {
+          find: '@docs-src',
+          replacement: new URL('../docs/src', import.meta.url).pathname,
+        },
+        // docs/src .mdx files live outside docs-astro, so a bare import cannot find docs-astro/node_modules.
+        {
+          find: /^@astrojs\/starlight\/components$/,
+          replacement: fileURLToPath(import.meta.resolve('@astrojs/starlight/components')),
+        },
+      ],
     },
   },
   // Content lives in docs/src/ (symlinked or copied in Phase 3).

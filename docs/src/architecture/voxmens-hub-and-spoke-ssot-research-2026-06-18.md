@@ -31,7 +31,7 @@ VoxMens is **already a nascent hub-and-spoke**, expressed as per-domain **mix co
 
 | Mix config | De-facto spoke | Maturity |
 |---|---|---|
-| `mix-vox-lang.yaml` | VoxScript authoring | Mature |
+| `mix-vox-lang.yaml` | VoxLang authoring | Mature |
 | `mix-rust.yaml` | Rust (but cross-translation only) | Partial |
 | `mix-agents.yaml` | Harness / agentic tooling | Skeleton, no corpus |
 | `mix-research.yaml`, `mix-research-expert.yaml`, `mix-rocks.yaml`, `mix-populi-meta.yaml` | Research / meta | Varies |
@@ -42,7 +42,7 @@ The real backbone is the **`lane` field** stamped on every training record (`vox
 
 1. **No SSOT — the spoke definition is scattered.** A "spoke" today is implicitly defined across: the `mix-*.yaml` file (data + weights), hard-coded lane strings in `crates/vox-corpus`, the `eval-gates.yaml` thresholds, and the `run_train` call-site arguments in `pipeline.rs` (base model, preset, method are all positional args, not declared per spoke). There is **no single artifact that says "spoke X = these lanes + this base + this method + this eval gate + this router policy."** Adding a spoke is a multi-file, multi-crate edit, not a config-only operation.
 2. **No inference-time router and no adapter-swap serve path.** `adapter_tag` exists only at *train* time. The chosen router+adapters (MoE-ish) topology is **entirely unbuilt.**
-3. **Eval is monocultural.** `eval-gates.yaml` measures `vox_parse_rate`, `pass@k`, `anti_stub`, `construct_coverage` — all VoxScript. **No Rust-authoring eval, no tool-use/harness eval.** You cannot gate spokes you cannot measure.
+3. **Eval is monocultural.** `eval-gates.yaml` measures `vox_parse_rate`, `pass@k`, `anti_stub`, `construct_coverage` — all VoxLang. **No Rust-authoring eval, no tool-use/harness eval.** You cannot gate spokes you cannot measure.
 4. **Silent-optional data sources mask missing corpora.** `mix-agents.yaml` points at `a2a_traces.jsonl`, `workflow_traces.jsonl`, `dogfood_converted.jsonl` — **none exist on disk** — and because they are `optional: true`, the mix silently produces an empty/degenerate agentic dataset with no error. (This is the same "declared-but-unwired config" and "silent drop" anti-pattern catalogued in the pipeline-gap and config-audit work.)
 5. **Single training method baked in.** `pipeline.rs::Train` only calls `PopuliTrainBackendCli::Qlora`. DPO data is *produced* (`run_heal_to_dpo`, `vox_heal_dpo` lane) but there is no per-spoke method selector that would actually train it as preference data.
 
@@ -86,13 +86,13 @@ Properties this buys:
 
 ---
 
-## 2. Spoke: VoxScript authoring (mature — harden)
+## 2. Spoke: VoxLang authoring (mature — harden)
 
 **Current state.** The richest spoke: synthetic generation, AST-mutation (`ast_mutator`), doc-mining (` ```vox ` blocks), negative/error-correction pairs, multi-turn refinement, curriculum ordering, and a **diversity gate** (`eval_semantic_entropy`, mode-collapse alarm). Lanes: `vox_codegen`, `vox_lang_tier_b`, `vox_logic_composition`.
 
-**Gaps.** (a) Eval measures parse-rate/pass@k but the diversity gate is the only guard against monoculture — fine. (b) It is coupled to a single base via the shared `run_train` call. (c) No explicit "VoxScript spoke contract" — it's the default everything-else.
+**Gaps.** (a) Eval measures parse-rate/pass@k but the diversity gate is the only guard against monoculture — fine. (b) It is coupled to a single base via the shared `run_train` call. (c) No explicit "VoxLang spoke contract" — it's the default everything-else.
 
-**Recommended model/method.** A **small, fast code model** is the right call here (VoxScript is a constrained DSL; you want latency and a tight grammar, not frontier reasoning). QLoRA stays correct. **Specific base TBD — see §6 open research** (the 2025-2026 small-code-model landscape was the unverified axis).
+**Recommended model/method.** A **small, fast code model** is the right call here (VoxLang is a constrained DSL; you want latency and a tight grammar, not frontier reasoning). QLoRA stays correct. **Specific base TBD — see §6 open research** (the 2025-2026 small-code-model landscape was the unverified axis).
 
 **Build sketch.** Promote it to an explicit `spokes.yaml` record (no behavior change); make it the reference implementation for the schema.
 
@@ -104,9 +104,9 @@ Properties this buys:
 
 **Gaps (code).** There is **no "write idiomatic Rust from scratch" or "review our Rust" lane.** The existing data teaches *translation*, not *authorship*. There is **no Rust-authoring eval** (no compile-check, no clippy-pass, no Rust pass@k). The 464MB raw dump is breadth without instruction-pairing.
 
-**Best-practice data sourcing.** Your own codebase + CI is the asset: (a) mine `(diff, review-comment)` pairs from PR review history (`review_findings.jsonl` already exists) into review-style SFT/DPO; (b) generate `(instruction → idiomatic Rust)` pairs verified by `cargo check`/`clippy` as the reward signal — analogous to the VoxScript `run_frontend` round-trip verification already in `run_mutate`. This is a deterministic quality gate you already have the machinery for.
+**Best-practice data sourcing.** Your own codebase + CI is the asset: (a) mine `(diff, review-comment)` pairs from PR review history (`review_findings.jsonl` already exists) into review-style SFT/DPO; (b) generate `(instruction → idiomatic Rust)` pairs verified by `cargo check`/`clippy` as the reward signal — analogous to the VoxLang `run_frontend` round-trip verification already in `run_mutate`. This is a deterministic quality gate you already have the machinery for.
 
-**Recommended model/method.** A **stronger code-specialized base** than the VoxScript spoke (Rust is harder; benefits from a larger code model). Candidate families surfaced but **unverified**: Qwen2.5-Coder, DeepSeek-Coder-V2 (MoE), Codestral, StarCoder2, Granite-Code. **Re-research live (§6).** Method: QLoRA for the authoring lane; consider DPO/ORPO for the review lane (preference over good-vs-bad fixes — `run_heal_to_dpo` shows you can already build preference pairs).
+**Recommended model/method.** A **stronger code-specialized base** than the VoxLang spoke (Rust is harder; benefits from a larger code model). Candidate families surfaced but **unverified**: Qwen2.5-Coder, DeepSeek-Coder-V2 (MoE), Codestral, StarCoder2, Granite-Code. **Re-research live (§6).** Method: QLoRA for the authoring lane; consider DPO/ORPO for the review lane (preference over good-vs-bad fixes — `run_heal_to_dpo` shows you can already build preference pairs).
 
 **Build sketch.** New lanes `vox_rust_authoring` + `vox_rust_review`; a `cargo check`/`clippy`-backed verifier; `eval-gates-rust.yaml` (compile-rate, clippy-clean-rate, review-recurrence — the latter already exists).
 
@@ -116,7 +116,7 @@ Properties this buys:
 
 **Current state.** `mix-agents.yaml` exists; lanes `vox_tooling` / `vox_dogfood_agent` exist; **the corpus does not.** Every declared source is a non-existent file marked `optional: true`. This spoke is config without data.
 
-**Goal.** Teach the model to operate the codebase: tool calls, skill invocation, discovery, running `vox.exe` for repo management — *not* writing VoxScript, but driving the harness around it.
+**Goal.** Teach the model to operate the codebase: tool calls, skill invocation, discovery, running `vox.exe` for repo management — *not* writing VoxLang, but driving the harness around it.
 
 **Best-practice data sourcing (the user-chosen "both" path).**
 - **Mine real traces.** Capture agent execution (tool calls, multi-turn, A2A) into a trace store, then convert to SFT/DPO. This requires a **trace-capture mechanism that does not yet exist** — the `a2a_traces.jsonl` / `workflow_traces.jsonl` paths are aspirational. Building the *capture* is prerequisite to the spoke. (Industry pattern: streaming large agentic-trace corpora into clean ShareGPT-style SFT — surfaced via AgentTrove-style pipelines, **unverified this run**.)
@@ -138,7 +138,7 @@ Inference-time routing options span keyword/lane-tag (cheapest, you already stam
 
 ### 5.2 Multi-adapter serving vs separate servers (UNVERIFIED — open, and decisive)
 
-The **critical unresolved constraint:** S-LoRA / LoRAX / Punica hot-swap many adapters cheaply on **one shared base** — but (per the LoRAX claim, *unverified*) **all adapters must share that single base.** If your spokes use **heterogeneous bases** (small-code for VoxScript, strong-code for Rust, agentic for harness), **single-base multi-adapter serving does not apply** — you'd need **separate model servers** (higher VRAM/ops). This is the **central tension between "best model per spoke" (§2-4) and "cheap MoE-style serving."** It must be resolved with verified evidence before the topology is locked. Two coherent end-states:
+The **critical unresolved constraint:** S-LoRA / LoRAX / Punica hot-swap many adapters cheaply on **one shared base** — but (per the LoRAX claim, *unverified*) **all adapters must share that single base.** If your spokes use **heterogeneous bases** (small-code for VoxLang, strong-code for Rust, agentic for harness), **single-base multi-adapter serving does not apply** — you'd need **separate model servers** (higher VRAM/ops). This is the **central tension between "best model per spoke" (§2-4) and "cheap MoE-style serving."** It must be resolved with verified evidence before the topology is locked. Two coherent end-states:
 - **Homogeneous base + per-spoke adapters** → one base, hot-swap adapters (S-LoRA/LoRAX), cheap serving, *but* every spoke inherits one base's ceiling.
 - **Heterogeneous bases** → best-fit model per spoke, *but* separate servers + a router that dispatches across them, more VRAM/ops, no adapter stacking across bases.
 
@@ -170,7 +170,7 @@ Axolotl/torchtune confirm a single schema spanning multiple **methods** and **da
 
 These axes had **primary sources identified but verification rate-limited to 0-0**. They are the highest-value, most-perishable unknowns:
 
-1. **Per-spoke base-model selection (Q2)** — best 2025-2026 open-weight bases at a 16GB QLoRA budget for VoxScript (small/fast) vs Rust (strong code) vs agentic (tool-use), with spoke-relevant benchmarks (HumanEval/MBPP/Rust-specific; BFCL/agentic). *Most time-sensitive; re-research immediately before any commitment.*
+1. **Per-spoke base-model selection (Q2)** — best 2025-2026 open-weight bases at a 16GB QLoRA budget for VoxLang (small/fast) vs Rust (strong code) vs agentic (tool-use), with spoke-relevant benchmarks (HumanEval/MBPP/Rust-specific; BFCL/agentic). *Most time-sensitive; re-research immediately before any commitment.*
 2. **Cross-base serving constraint (Q5)** — confirm whether S-LoRA/LoRAX truly require a single shared base (decides §5.2 → decides whether "best model per spoke" is even affordable).
 3. **Agentic data synthesis (Q6)** — validate Magnet / GEM / AgentTrove-style pipelines and a trace-schema standard before building the converter (§4).
 4. **Verified multi-base SSOT precedent (Q4)** — does any real stack run one SSOT over distinct bases, or is the capability-contract abstraction (§5.4) net-new?

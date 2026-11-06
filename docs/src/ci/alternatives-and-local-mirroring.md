@@ -285,4 +285,4 @@ These are sequenced by "smallest diff with biggest signal" first.
 - [Runner contract](runner-contract.md)
 - [Workflow enumeration](workflow-enumeration.md)
 - [Local CI parity (pre-push)](../contributors/local-ci-pre-push.md)
-- [`AGENTS.md` §VoxScript-First Glue Code](../../../AGENTS.md)
+- [`AGENTS.md` §VoxLang-First Glue Code](../../../AGENTS.md)

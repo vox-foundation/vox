@@ -74,3 +74,64 @@ Shared validation helpers used by the LSP binary and MCP / orchestrator quality 
 | `builtin_hover_markdown_in_line` | Markdown hover using the **current line** so `transcribe` only hovers in `Speech.transcribe` context. |
 | `builtin_hover_markdown` | Short markdown hovers for selected builtins (Oratio, HTTP, stdlib). |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_lsp: "vox-lsp"
+    node vox_compiler: "vox-compiler"
+    vox_lsp -> vox_compiler
+    node vox_db: "vox-db"
+    vox_lsp -> vox_db
+    node vox_foundation: "vox-foundation"
+    vox_lsp -> vox_foundation
+    node vox_gamify: "vox-gamify"
+    vox_lsp -> vox_gamify
+    node vox_secrets: "vox-secrets"
+    vox_lsp -> vox_secrets
+    node vox_integration_tests: "vox-integration-tests"
+    vox_integration_tests -> vox_lsp
+    node vox_langtool: "vox-langtool"
+    vox_langtool -> vox_lsp
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_lsp
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_lsp
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
+| [`vox-langtool`](./vox-langtool.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `byte_index_to_line_col` | `pub fn byte_index_to_line_col(text: &str, index: usize) -> (u32, u32)` | [`crates/vox-lsp/src/lib.rs#L25-L27`](../../../crates/vox-lsp/src/lib.rs#L25-L27) | Convert UTF-8 byte index to LSP line / column (character count per line, not UTF-16 code units). |
+| `fn` | `validate_document` | `pub fn validate_document(text: &str) -> Vec<Diagnostic>` | [`crates/vox-lsp/src/lib.rs#L126-L128`](../../../crates/vox-lsp/src/lib.rs#L126-L128) | Run lexer → parser → typecheck and return LSP diagnostics (no side effects).  Note: This does **not** run HIR structural validation. For parity with the CLI frontend (`run_frontend_str`), use [`validate_document_with_hir`]. |
+| `fn` | `validate_document_with_hir` | `pub fn validate_document_with_hir(text: &str) -> Vec<Diagnostic>` | [`crates/vox-lsp/src/lib.rs#L135-L137`](../../../crates/vox-lsp/src/lib.rs#L135-L137) | Full frontend validation: lexer → parser → typecheck → HIR lower → HIR validate.  Matches the diagnostic shape produced by `vox-cli` `run_frontend_str` for type/HIR issues (parse errors are always surfaced as errors). |
+| `fn` | `quickfixes_for_diagnostics` | `pub fn quickfixes_for_diagnostics(` | [`crates/vox-lsp/src/lib.rs#L142`](../../../crates/vox-lsp/src/lib.rs#L142) | Build quick-fix [`CodeAction`]s from diagnostics that carry structured `data.fixes` (parity with the stdio LSP `textDocument/codeAction` handler). |
+| `fn` | `word_at_position` | `pub fn word_at_position(text: &str, line: u32, character: u32) -> Option<String>` | [`crates/vox-lsp/src/lib.rs#L335-L354`](../../../crates/vox-lsp/src/lib.rs#L335-L354) | Word at LSP `(line, character)` using **0-based** lines and **character = column in Unicode scalars** (same convention as [`byte_index_to_line_col`]). |
+| `fn` | `line_has_speech_transcribe` | `pub fn line_has_speech_transcribe(line: &str) -> bool` | [`crates/vox-lsp/src/lib.rs#L358-L386`](../../../crates/vox-lsp/src/lib.rs#L358-L386) | True if `line` contains a `Speech.transcribe` / `Speech . transcribe` call (word boundaries). |
+| `fn` | `builtin_hover_markdown_in_line` | `pub fn builtin_hover_markdown_in_line(line: &str, word: &str) -> Option<String>` | [`crates/vox-lsp/src/lib.rs#L390-L401`](../../../crates/vox-lsp/src/lib.rs#L390-L401) | Markdown hover using the **current line** so `transcribe` only hovers in `Speech.transcribe` context. |
+| `fn` | `builtin_hover_markdown` | `pub fn builtin_hover_markdown(word: &str) -> Option<String>` | [`crates/vox-lsp/src/lib.rs#L405-L433`](../../../crates/vox-lsp/src/lib.rs#L405-L433) | Short markdown hovers for selected builtins (Oratio, HTTP, stdlib). |
+| `fn` | `capabilities::server_capabilities` | `pub fn server_capabilities() -> ServerCapabilities` | [`crates/vox-lsp/src/capabilities.rs#L7-L52`](../../../crates/vox-lsp/src/capabilities.rs#L7-L52) | Capabilities returned from `initialize` — keep in sync with [`crate`] request handlers. |
+| `fn` | `code_lens::code_lenses_for_module` | `pub fn code_lenses_for_module(module: &Module, text: &str) -> Vec<CodeLens>` | [`crates/vox-lsp/src/code_lens.rs#L14-L77`](../../../crates/vox-lsp/src/code_lens.rs#L14-L77) | Build all code lenses for a parsed Vox module.  Each `@test` declaration gets a `▶ Run test` lens. Each `@forall` declaration gets a `▶ Run property` lens. The command name is `vox.runTest` so VS Code extension can intercept it. |
+| `struct` | `completions::CompletionEngine` | `pub struct CompletionEngine` | [`crates/vox-lsp/src/completions.rs#L10`](../../../crates/vox-lsp/src/completions.rs#L10) | — |
+| `fn` | `completions::completions` | `pub fn completions(params: CompletionParams) -> CompletionList` | [`crates/vox-lsp/src/completions.rs#L14-L16`](../../../crates/vox-lsp/src/completions.rs#L14-L16) | Returns a list of all completions at a given position. |
+| `fn` | `completions::completions_for_document` | `pub fn completions_for_document(` | [`crates/vox-lsp/src/completions.rs#L19`](../../../crates/vox-lsp/src/completions.rs#L19) | Context-aware completions inspecting document text, cursor position, trigger character, and AST symbols. |
+| `fn` | `grammar::token_to_semantic_type` | `pub fn token_to_semantic_type(token: &Token) -> Option<u32>` | [`crates/vox-lsp/src/grammar.rs#L13-L76`](../../../crates/vox-lsp/src/grammar.rs#L13-L76) | Maps a Vox lexer [`Token`] to an LSP semantic token type index, or `None` for tokens that do not need syntax highlighting (punctuation, whitespace, etc.).  The returned index corresponds to the position in [`SEMANTIC_TOKEN_TYPES`]. |
+| `fn` | `grammar::encode_semantic_tokens` | `pub fn encode_semantic_tokens(text: &str) -> Vec<SemanticToken>` | [`crates/vox-lsp/src/grammar.rs#L95-L127`](../../../crates/vox-lsp/src/grammar.rs#L95-L127) | Encode semantic tokens for a full document (same encoding as the LSP `semanticTokens/full` handler). |
+| `fn` | `server::run` | `pub async fn run()` | [`crates/vox-lsp/src/server.rs#L291-L303`](../../../crates/vox-lsp/src/server.rs#L291-L303) | Start the LSP server loop over stdin/stdout. |
+| `fn` | `symbols::extract_symbols` | `pub fn extract_symbols(module: &Module, text: &str) -> Vec<DocumentSymbol>` | [`crates/vox-lsp/src/symbols.rs#L10-L12`](../../../crates/vox-lsp/src/symbols.rs#L10-L12) | Walk a parsed module and emit a list of LSP document symbols. |
+| `struct` | `symbols::SymbolEngine` | `pub struct SymbolEngine` | [`crates/vox-lsp/src/symbols.rs#L14`](../../../crates/vox-lsp/src/symbols.rs#L14) | — |
+| `fn` | `symbols::symbols` | `pub fn symbols(module: &Module, text: &str) -> Vec<DocumentSymbol>` | [`crates/vox-lsp/src/symbols.rs#L18-L28`](../../../crates/vox-lsp/src/symbols.rs#L18-L28) | Walk a parsed module and emit a list of symbols. |
+| `fn` | `symbols::extract_symbols_from_source` | `pub fn extract_symbols_from_source(` | [`crates/vox-lsp/src/symbols.rs#L175`](../../../crates/vox-lsp/src/symbols.rs#L175) | Extract symbols from source, attempting full parse, script parse, or blanking out incomplete lines, and falling back to line scanning if parsing fails. |
+

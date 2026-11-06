@@ -427,7 +427,7 @@ pub async fn record_claim_review(
     let actor = vox_config::paths::local_user_id();
     let now_ms = chrono::Utc::now().timestamp_millis();
 
-    // TODO(P3): populate model_fingerprints_json from the artifact's AI-disclosure
+    // Phase 3 plan: populate model_fingerprints_json from the artifact's AI-disclosure
     // metadata once that surface is wired (P2 leaves it None per spec).
     let row = vox_db::store::ReviewDecisionRow {
         claim_id,

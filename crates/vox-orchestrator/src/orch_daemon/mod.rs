@@ -401,6 +401,7 @@ pub async fn dispatch_request(
                 "version": env!("CARGO_PKG_VERSION"),
                 "caller_role": ping_caller_role(),
                 "profile": ping_profile(),
+                "db_attached": orch.db().is_some(),
             }),
         ),
         orch_daemon_method::WORKSPACE_JOURNEY => {

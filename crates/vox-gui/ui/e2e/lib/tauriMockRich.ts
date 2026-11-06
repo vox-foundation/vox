@@ -23,51 +23,72 @@ import { installTauriMock } from './tauriMock';
 /** Self-contained (no captured module scope) — stringified into the page. */
 export function buildRichDataset() {
   const long = (s: string, n: number) => s.repeat(Math.ceil(n / s.length)).slice(0, n);
+  const canonicalTaskTitles = [
+    'Verify AST symbol-slice extraction and K-prefix prompt cache breakpoints across vox-orchestrator and vox-llm-egress',
+    'Upgrade Roman Civilization Codebase Simulator (VRBS ROMA) isometric camera centering and strategic minimap radar',
+    'Audit 32 SURFACE_REGISTRY views via @ngi/platform-ssot Computer Vision Flywheel for zero horizontal clipping',
+    'Run 5-Spoke MENS QLoRA adapter evaluation against canonical_adversarial_and_real_query_spoke_suite_64',
+    'Synchronize bi-directional CAS task ledger and session context pins across ChatExecutionRail and PlanPanel',
+  ];
   const hopperTasks = Array.from({ length: 44 }, (_, i) => ({
     item_id: `hop-rich-${i + 1}`,
     intent:
-      i % 7 === 0
+      i === 7
         ? long(`Refactor the international pipeline № ${i} — очень длинное название задачи с юникодом `, 140)
-        : i % 5 === 0
+        : i === 5
           ? `משימה ${i} — bidirectional text sample with a fairly long tail describing acceptance criteria in detail`
-          : long(`Task ${i}: implement, verify, and document the surface behavior across viewports `, 120 + (i % 40)),
+          : i === 0
+            ? long(`Task ${i + 1}: verify cross-crate AST symbol grounding, K-prefix cache breakpoints, and 32-surface CV Flywheel invariants `, 128)
+            : canonicalTaskTitles[i % canonicalTaskTitles.length]!,
     priority: i % 3,
     state: i % 6 === 0 ? 'done' : i % 4 === 0 ? 'assigned' : 'inbox',
     task_id: 9100 + i,
-    session_id: i % 2 ? `gui-rich-${i}` : null,
-    agent_id: i % 3 ? `agent-${i}` : null,
-    remote_node: i % 5 === 0 ? 'node-remote-very-long-hostname.example.internal' : null,
+    session_id: i % 2 ? `session-${(i % 6) + 1}` : null,
+    agent_id: i % 3 ? `agent-${(i % 6) + 1}` : null,
+    remote_node: i % 5 === 0 ? 'mesh-eu-west-1.vox.internal' : null,
   }));
   const chatSessions = Array.from({ length: 14 }, (_, i) => ({
-    session_id: `rich-session-${i + 1}`,
-    title: long(`Session ${i + 1}: exploratory conversation about the architecture refactor and its long-term implications `, 90 + i * 4),
+    session_id: `session-${i + 1}`,
+    title: `Session ${i + 1}: Architecture & SOTA Harness Verification (${i + 1})`,
     message_count: 3 + i * 7,
     updated_at: 'now',
     conversation_id: i + 1,
   }));
+  const hostedCatalog = [
+    'anthropic/claude-sonnet',
+    'anthropic/claude-opus',
+    'openai/gpt-codex',
+    'google/gemini-pro',
+    'deepseek/deepseek-r1-0528',
+    'mistralai/codestral-2508',
+    'meta-llama/llama-maverick-17b',
+    'qwen/qwen-coder-480b-a35b',
+  ];
   const models = Array.from({ length: 32 }, (_, i) => {
     const id = i % 5 === 0
-      ? ['ollama/llama3-rich-', 'mens/finetune-rich-', 'mesh/node-model-rich-'][i % 3] + i
-      : `provider-${i % 6}/model-family-name-${i}-with-a-rather-long-suffix-v${i}.${i % 10}`;
+      ? ['ollama/qwen3-coder-14b-', 'mens/vox-qwen3-8b-r', 'mesh/populi-llama4-node-'][i % 3] + i
+      : i < hostedCatalog.length
+        ? hostedCatalog[i]!
+        : `${hostedCatalog[i % hostedCatalog.length]}-v${i}`;
     return {
       id, model_id: id,
-      display_name: long(`Model Family ${i} Extended Display Name `, 40 + (i % 30)),
-      provider: ['openai', 'anthropic', 'google', 'ollama', 'mistralai', 'meta-llama'][i % 6],
+      display_name: id,
+      provider: ['anthropic', 'openai', 'google', 'ollama', 'mistralai', 'meta-llama'][i % 6],
       tier: ['Frontier', 'Fast', 'Budget'][i % 3],
       cost_per_1k: i * 0.0007,
       max_tokens: 8192 * ((i % 4) + 1),
       is_free: i % 8 === 0,
       latency_p50_ms: 200 + i * 13,
       success_rate: 0.9 + (i % 10) / 100,
-      quality_score: 0.5 + (i % 50) / 100,
+      quality_score: 0.82 + (i % 17) / 100,
     };
   });
   const providers = Array.from({ length: 6 }, (_, i) => ({
-    provider: ['OpenRouter', 'Anthropic', 'OpenAI', 'Ollama', 'Mens Local Inference Cluster (long provider name)', 'Mesh'][i],
+    provider: ['OpenRouter', 'Anthropic', 'OpenAI', 'Ollama', 'MENS Local Cluster', 'Populi Mesh'][i],
     key_present: i !== 2,
     is_local: i >= 3,
     local_reachable: i >= 3 ? i !== 5 : null,
-    local_models: i >= 3 ? ['local-llama-small', 'qwen-coder-7b', 'mens-8b-instruct-longname'] : [],
+    local_models: i >= 3 ? ['local-llama-small', 'qwen-coder-7b', 'mens-8b-instruct'] : [],
   }));
   return { hopperTasks, chatSessions, models, providers };
 }
@@ -77,6 +98,17 @@ export const RICH_DATASET = buildRichDataset();
 /** Dense OrchestratorStatus for dashboard/flow/console. Encoded to msgpack
  * at compose time — NOT inside the page. */
 export function buildRichOrchestratorStatus() {
+  const agentTasks = [
+    'Verify Roman Civilization Simulator (VRBS ROMA) isometric camera bounds & minimap frustum',
+    'Synthesize K-prefix prompt cache breakpoints in vox-llm-egress::wire',
+    'Evaluate 5-Spoke MENS QLoRA adapter pass@1 across 64 adversarial & real queries',
+    'Audit 32 SURFACE_REGISTRY views via @ngi/platform-ssot Computer Vision Flywheel',
+    'Synchronize bi-directional CAS task ledger and session context pins',
+    'Enforce TOESTUB hollow-body & paper-code reachability detectors across workspace',
+    'Validate AST symbol-slice extraction and module-graph integrity in vox-orchestrator',
+    'Stream single-pass SSE delta.tool_calls across OpenRouter and local MENS backends',
+    'Verify three-role fenced PostgreSQL telemetry &BLAKE3 leaderboard snapshots',
+  ];
   const agents = Array.from({ length: 9 }, (_, i) => ({
     id: i + 1,
     codename: ['Aquila', 'Bellona', 'Cato', 'Drusus', 'Egeria', 'Faunus', 'Gallus', 'Hersilia', 'Iovis'][i],
@@ -85,7 +117,7 @@ export function buildRichOrchestratorStatus() {
     paused: i === 4,
     progress: i % 3 === 0 ? null : ((i * 11) % 100) / 100,
     current_phase: ['plan', 'implement', 'verify', 'review'][i % 4],
-    task_description: `Task ${i + 1}: a deliberately long in-flight task description that should truncate or wrap inside the agent card rather than overflow its container boundaries`,
+    task_description: agentTasks[i % agentTasks.length]!,
     cost: i * 0.42,
     budget: i % 2 ? 5 : null,
     eta: `${5 + i}m`,
@@ -133,6 +165,48 @@ export function installTauriMockRich(viewKey: string): void {
     switch (cmd) {
       case 'hopper_list':
         return data.hopperTasks.map((t: any) => ({ ...t }));
+      case 'list_orchestrator_tasks':
+        return [
+          {
+            id: 200,
+            description: 'Consolidate Loquela toolbar & floating Execution Posture popover',
+            priority: 'high',
+            lifecycle: 'done',
+            agent_id: 1,
+            session_id: 'session-1',
+            estimated_complexity: 2,
+            depends_on: [],
+            write_files: ['crates/vox-gui/ui/src/components/surfaces/Loquela/Loquela.tsx'],
+            remote_node: null,
+            origin: 'orchestrator',
+          },
+          {
+            id: 201,
+            description: 'Audit & make Chat task list and session context editable',
+            priority: 'high',
+            lifecycle: 'in_progress',
+            agent_id: 1,
+            session_id: 'session-1',
+            estimated_complexity: 2,
+            depends_on: [200],
+            write_files: ['crates/vox-gui/ui/src/components/surfaces/Chat/ChatExecutionRail.tsx'],
+            remote_node: null,
+            origin: 'orchestrator',
+          },
+          {
+            id: 202,
+            description: 'Verify CV Flywheel pixel & DOM invariants across 32 GUI surfaces',
+            priority: 'normal',
+            lifecycle: 'pending',
+            agent_id: 2,
+            session_id: 'session-1',
+            estimated_complexity: 1,
+            depends_on: [201],
+            write_files: [],
+            remote_node: null,
+            origin: 'orchestrator',
+          },
+        ];
       case 'chat_list_sessions': {
         const limit = typeof args?.limit === 'number' ? args.limit : data.chatSessions.length;
         return data.chatSessions.slice(0, limit).map((s: any) => ({ ...s }));
@@ -141,10 +215,89 @@ export function installTauriMockRich(viewKey: string): void {
         return data.models;
       case 'inference_provider_status':
         return data.providers;
+      case 'explain_routing':
+        return {
+          mode: args?.mode ?? 'efficiency',
+          task: args?.task ?? 'codegen',
+          complexity: args?.complexity ?? 7,
+          chosen: 'anthropic/claude-sonnet',
+          only_candidate: false,
+          total_models: 32,
+          candidates: [
+            {
+              id: 'anthropic/claude-sonnet',
+              provider: 'anthropic',
+              tier: 'Frontier',
+              is_free: false,
+              price_out_per_m: 3.0,
+              score: 0.94,
+              quality: { value: 0.94, source: 'benchmark', index: 89.4, inherited_from: null },
+              parts: { quality: 0.45, efficiency: 0.25, latency: 0.16, other: 0.08, bonuses: 0 },
+            },
+            {
+              id: 'google/gemini-pro',
+              provider: 'google',
+              tier: 'Frontier',
+              is_free: false,
+              price_out_per_m: 2.5,
+              score: 0.89,
+              quality: { value: 0.91, source: 'benchmark', index: 86.8, inherited_from: null },
+              parts: { quality: 0.42, efficiency: 0.24, latency: 0.15, other: 0.08, bonuses: 0 },
+            },
+            {
+              id: 'mens/vox-qwen3-8b-r3',
+              provider: 'mens',
+              tier: 'Fast',
+              is_free: true,
+              price_out_per_m: 0.0,
+              score: 0.86,
+              quality: { value: 0.84, source: 'benchmark', index: 81.2, inherited_from: null },
+              parts: { quality: 0.36, efficiency: 0.32, latency: 0.14, other: 0.04, bonuses: 0 },
+            },
+          ],
+          excluded: [
+            { reason: 'flagship_excluded_by_mode', count: 3, examples: ['anthropic/claude-opus', 'openai/gpt-pro'] },
+            { reason: 'superseded', count: 2, examples: ['anthropic/claude-3-5-sonnet'] },
+          ],
+        };
+      case 'get_routing_health':
+        return {
+          schema_version: 1,
+          checked_at_unix: 1729363200,
+          models: 32,
+          cloud_models: 24,
+          benchmarked: 28,
+          inherited: 4,
+          unknown_tier_cloud: 0,
+          quality_scale: 'derived',
+          price_bands: 'derived',
+          efficient_pick: 'anthropic/claude-sonnet',
+          violations: [],
+        };
       case 'get_gamify_settings':
         return { enabled: true, mode: 'balanced' };
       case 'get_orchestrator_status_bin':
         return statusBin;
+      case 'invoke_mcp_tool':
+        if (args?.tool === 'vox_pending_approvals') {
+          return {
+            tool: 'vox_pending_approvals',
+            is_error: false,
+            result: {
+              data: {
+                approvals: [
+                  {
+                    approval_id: 'apr-201',
+                    tool: 'vox_run_shell',
+                    summary: 'vox run scripts/migrate-schema.vox --apply',
+                    requested_at_ms: Date.now() - 12_000,
+                  },
+                ],
+              },
+            },
+          };
+        }
+        return base(cmd, args);
       default:
         return base(cmd, args);
     }

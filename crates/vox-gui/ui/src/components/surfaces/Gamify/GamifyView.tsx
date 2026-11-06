@@ -112,51 +112,71 @@ export function GamifyView({ pushToast }: GamifyViewProps) {
   };
 
   return (
-    <section className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="font-display text-lg text-text-primary tracking-wider uppercase">{useLabel('gamification')}</h2>
-        <button type="button" onClick={refresh} disabled={loading}
-          className="rounded-lg border border-border-subtle bg-overlay-subtle px-3 py-1.5 text-xs hover:bg-overlay-subtle">
-          {loading ? 'Loading…' : 'Refresh'}
-        </button>
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-brass/30 bg-[#0B0D14]/95 px-3.5 py-2 shadow-lg">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <h2 className="font-display text-sm font-bold tracking-widest text-amber-200 uppercase">
+            {useLabel('gamification')}
+          </h2>
+          <span className="text-zinc-600" aria-hidden="true">·</span>
+          <span className="font-serif text-xs font-semibold tracking-wider text-zinc-200 uppercase">
+            VRBS ROMA · CODEBASE CIVILIZATION SIMULATOR
+          </span>
+          <span className="hidden rounded border border-brass/30 bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-amber-200 sm:inline-block">
+            7 CRATE DISTRICTS · 48 MODULES
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            data-testid="gamify-sim-mode-urbs"
+            onClick={() => setSimMode('urbs')}
+            className={`rounded-md px-2.5 py-1 font-mono text-[10px] font-semibold transition ${
+              simMode === 'urbs'
+                ? 'border border-amber-500/50 bg-amber-500/20 text-amber-200'
+                : 'border border-zinc-800 bg-zinc-900/80 text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            Urbs Map
+          </button>
+          <button
+            type="button"
+            data-testid="gamify-sim-mode-river"
+            onClick={() => setSimMode('river')}
+            className={`rounded-md px-2.5 py-1 font-mono text-[10px] font-semibold transition ${
+              simMode === 'river'
+                ? 'border border-cyan/50 bg-cyan/20 text-cyan'
+                : 'border border-zinc-800 bg-zinc-900/80 text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            Live River
+          </button>
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={loading}
+            className="rounded-md border border-border-subtle bg-overlay-subtle px-2.5 py-1 font-mono text-[10px] text-text-secondary hover:bg-overlay-medium"
+          >
+            {loading ? 'Loading…' : 'Refresh'}
+          </button>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-brass/35 bg-[#090b10] shadow-2xl">
+        {simMode === 'urbs' ? (
+          <div className="h-[680px] w-full">
+            <LudusSandbox energy={profile?.energy ?? 0} maxEnergy={profile?.max_energy ?? 0} />
+          </div>
+        ) : (
+          <div data-testid="gamify-live-river-container" className="p-3">
+            <HarnessRiverPanel gamifyEnabled />
+          </div>
+        )}
       </div>
 
       {profile ? <LudusHud profile={profile} /> : (
         <div className="rounded-xl border border-border-subtle bg-overlay-subtle p-4 text-sm text-text-muted">No profile yet.</div>
       )}
-
-      <div className="mb-6 border border-border-subtle rounded-xl overflow-hidden bg-bg-base/60 p-4">
-        <div className="mb-2 flex items-center justify-between">
-          <h3 className="font-display text-[12px] uppercase tracking-wide text-text-muted">Simulation Map</h3>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              data-testid="gamify-sim-mode-urbs"
-              onClick={() => setSimMode('urbs')}
-              className={`rounded px-2 py-0.5 font-mono text-[10px] ${simMode === 'urbs' ? 'bg-cyan/20 text-cyan border border-cyan/40' : 'bg-overlay-subtle text-text-muted'}`}
-            >
-              Urbs Map
-            </button>
-            <button
-              type="button"
-              data-testid="gamify-sim-mode-river"
-              onClick={() => setSimMode('river')}
-              className={`rounded px-2 py-0.5 font-mono text-[10px] ${simMode === 'river' ? 'bg-cyan/20 text-cyan border border-cyan/40' : 'bg-overlay-subtle text-text-muted'}`}
-            >
-              Live River
-            </button>
-          </div>
-        </div>
-        {simMode === 'urbs' ? (
-          <div className="h-[560px]">
-            <LudusSandbox energy={profile?.energy ?? 0} maxEnergy={profile?.max_energy ?? 0} />
-          </div>
-        ) : (
-          <div data-testid="gamify-live-river-container">
-            <HarnessRiverPanel gamifyEnabled />
-          </div>
-        )}
-      </div>
 
       <div>
         <div className="mb-2 font-display text-[12px] uppercase tracking-wide text-text-muted">Notifications</div>

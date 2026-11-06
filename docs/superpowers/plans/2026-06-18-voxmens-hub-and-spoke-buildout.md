@@ -18,11 +18,11 @@
 > 5. **`supervised_ratio.min_pct` is unit-sensitive** (fraction `0.10`, not `10.0`) — copy the reference gate's exact value (fixed below).
 > 6. **`vox ci spoke-check`** (the validator surface) is described in prose but never created as a task — add the clap variant + `ci` dispatch arm + pre-push registration as an explicit task in plan A. **`detect_available_vram_mb()`** (Task 3.4) must be confirmed to exist via `rg` before being called; if absent, STOP rather than hallucinate it. **Never commit an `unimplemented!()` body** across a task boundary (Task 4.2): the real `compile_batch_in_workspace` body and its commit are one atomic unit.
 
-**Goal:** Turn VoxMens from a single-method, single-base, VoxScript-centric pipeline into a config-only hub-and-spoke where each of three spokes (VoxScript, Rust, Harness/agentic) declares its own data mix, base model, training method, and eval gate in one validated SSOT, trains end-to-end, and is selected at inference by a router — with per-spoke base models scaled to the host's VRAM.
+**Goal:** Turn VoxMens from a single-method, single-base, VoxLang-centric pipeline into a config-only hub-and-spoke where each of three spokes (VoxLang, Rust, Harness/agentic) declares its own data mix, base model, training method, and eval gate in one validated SSOT, trains end-to-end, and is selected at inference by a router — with per-spoke base models scaled to the host's VRAM.
 
 **Architecture:** Extend the existing `domain-profiles.yaml` SSOT (already maps a domain → mix + training params) into the full spoke registry by adding `base` (model + method + preset), `eval_gate`, and `router` fields; enforce it with a `vox-arch-check`-style validator; wire per-spoke `method` through `run_train`; build the missing Rust-authoring and agentic corpora with deterministic verifiers; add a lane-tag router; and resolve base-model selection from a committed, VRAM-scaled decision matrix.
 
-**Tech Stack:** Rust (workspace crates `vox-populi`, `vox-corpus`, `vox-ml-cli`, `vox-arch-check`), YAML SSOTs under `mens/config/`, QLoRA/DPO training (Candle), VoxScript automation (`vox run scripts/*.vox`).
+**Tech Stack:** Rust (workspace crates `vox-populi`, `vox-corpus`, `vox-ml-cli`, `vox-arch-check`), YAML SSOTs under `mens/config/`, QLoRA/DPO training (Candle), VoxLang automation (`vox run scripts/*.vox`).
 
 ---
 
@@ -635,7 +635,7 @@ git commit -m "feat(mens): strict mix for per-spoke training (no silent-optional
 
 > **REVIEW FIX (critical):** `check_run` does **not** generically read arbitrary keys from a gate YAML — it has **bespoke per-gate-name handlers** (verify: `rg -n "supervised_ratio|truncation|pass_at_k|tokens_per_sec" crates/vox-ml-cli/src/commands/mens/eval_gate/`). A new gate name with no handler is **silently ignored**, and nothing currently **produces** Rust/agentic metrics into `eval_results.json`. Therefore this phase has **three layers**, not one: (a) metric **producers** that compute and write the metrics; (b) **`check_run` handlers** for the new gate names; (c) the gate **YAML thresholds**. Skipping (a) or (b) ships an inert gate.
 
-**What & why:** You cannot promote a spoke you cannot measure. `eval-gates.yaml` is VoxScript-only (verified). Build the producer → handler → gate chain for Rust and agentic spokes.
+**What & why:** You cannot promote a spoke you cannot measure. `eval-gates.yaml` is VoxLang-only (verified). Build the producer → handler → gate chain for Rust and agentic spokes.
 
 **Wave 2.1 (`[PARALLEL-SAFE]` — disjoint files):** 2.1a (rust metric producer), 2.2a (agentic metric producer). **Wave 2.2 (`[SEQUENTIAL]` — both touch `check_run`/`policy`):** 2.1b → 2.2b (handlers). **Wave 2.3 (`[PARALLEL-SAFE]`):** 2.1c (rust gate yaml), 2.2c (agents gate yaml). **Wave 2.4 (`[SEQUENTIAL]`):** 2.3 (pipeline per-spoke gate selection).
 
@@ -936,7 +936,7 @@ Context: the research report's model-selection axis was rate-limited (unverified
 ```markdown
 ---
 title: "VoxMens Per-Spoke Base Model Selection — Decision"
-description: "Verified base-model picks per spoke (VoxScript/Rust/agentic), VRAM floors, and method compatibility, scaled to the RTX 4080 SUPER (16GB) host. Resolves the unverified model-selection axis of the hub-and-spoke research."
+description: "Verified base-model picks per spoke (VoxLang/Rust/agentic), VRAM floors, and method compatibility, scaled to the RTX 4080 SUPER (16GB) host. Resolves the unverified model-selection axis of the hub-and-spoke research."
 category: "Architecture"
 status: "roadmap"
 training_eligible: false
@@ -946,7 +946,7 @@ training_eligible: false
 
 | Role key | Spoke | Chosen model | Params | QLoRA VRAM floor (MB) | Method | Why |
 |---|---|---|---|---|---|---|
-| small_code_default | VoxScript | <pick> | ~1.5-3B | <measured/estimated> | qlora | DSL, latency-first |
+| small_code_default | VoxLang | <pick> | ~1.5-3B | <measured/estimated> | qlora | DSL, latency-first |
 | strong_code_default | Rust | <pick> | ~7B | <measured/estimated> | qlora | hardest code spoke |
 | agentic_default | Harness | <pick> | ~7B tool-tuned | <measured/estimated> | qlora | tool-use lineage |
 
@@ -973,7 +973,7 @@ git commit -m "docs(mens): per-spoke base model selection decision (VRAM-scaled)
 # Add a model here — no Rust changes — and reference its role key in a spoke.
 roles:
   small_code_default:
-    description: "Latency-first small code model for the VoxScript DSL spoke"
+    description: "Latency-first small code model for the VoxLang DSL spoke"
     variants:
       - model_id: <hf-id-from-decision-doc>
         vram_floor_mb: 6000
@@ -1788,7 +1788,7 @@ git commit --allow-empty -m "test(mens): hub-and-spoke end-to-end dry-run valida
 - Best model per spoke, not all same base → Phase 3 registry (role → variants). ✓
 - Scaled to available resources → Phase 3 VRAM-scaled resolver vs `gpu-specs.yaml`. ✓
 - Generalize beyond QLoRA / cross-method SSOT → Phase 1 `TrainMethod` + Phase 6 dispatch. ✓
-- Train all three spoke types → Phases 4 (Rust corpus), 5 (agentic corpus), 1/6 (VoxScript + method). ✓
+- Train all three spoke types → Phases 4 (Rust corpus), 5 (agentic corpus), 1/6 (VoxLang + method). ✓
 - Router (MoE-ish) → Phase 7 lane-tag router; topology in Phase 8. ✓
 - Gemini/Antigravity orchestration, sub-agents, parallel/sequential, context limits → §A + per-task tags. ✓
 - Research best-practices enforced → strict mix, per-spoke eval, no-stubs, verify-before-use throughout. ✓

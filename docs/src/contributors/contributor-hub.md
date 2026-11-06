@@ -21,6 +21,7 @@ If you are evaluating Vox as a language or product, start with the [project READ
 - [Agent instruction architecture](agent-instruction-architecture.md) - instruction layering model (`AGENTS.md`, tool overlays, continuation prompts, CI gates).
 - [Coding Agent Instructions](coding-agents.md) - heuristics and rules for agents, including god object constraints and stale docs guidelines.
 - [Documentation governance](documentation-governance.md) - where docs live, which surface owns what, status vocabulary, and review cadence.
+- [How Vox documentation works](../architecture/docs-system-ssot.md) - site build, generated pages, drift gates (fix vs report), and known gaps.
 - [Documentation Reality Audit Program](docs-reality-audit-program.md) - doc/code/contract triage backlog, scoring, and `vox ci docs-reality-audit`.
 - [CI runner contract](../ci/runner-contract.md) - canonical `vox ci` guidance, runner labels, and line-ending policy.
 - [Doc inventory verifier](../reference/doc-inventory.md) - machine-readable doc inventory workflow and drift expectations.

@@ -319,7 +319,6 @@ When both are set, `probe_internal()` returns immediately with `probe_failures: 
 To change the probe order without recompiling, call `ProbePipeline::reorder()`:
 
 ```rust
-// vox:skip
 let pipeline = ProbePipeline::default_for_platform()
     .reorder(&["nvml", "linux_drm", "wgpu"]);
 let report = pipeline.run().await;
@@ -332,7 +331,6 @@ Probes not listed are appended in their original relative order.
 `HardwareRegistryV2` caches the last `ProbeReport::summary` for `DEFAULT_CACHE_TTL` (5 minutes). To force a re-probe:
 
 ```rust
-// vox:skip
 vox_populi::mens::hardware::HardwareRegistry::invalidate_cache();
 ```
 

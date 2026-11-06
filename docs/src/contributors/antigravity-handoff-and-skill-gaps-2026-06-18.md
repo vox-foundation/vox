@@ -49,7 +49,7 @@ Each plan task is tagged **`[PARALLEL-SAFE]`** or **`[SEQUENTIAL]`**:
 
 > **Update 2026-06-18:** all eleven skills are now in the Vox native library under `crates/vox-skills/skills/superpowers/`. Antigravity mounts repo skills from `.agents/skills/`; ensure that path resolves to (or symlinks/copies) `crates/vox-skills/skills/superpowers/` so Gemini can load every skill above. The §5 entries below are quick-reference summaries — the authoritative skill is the file.
 
-Policy the agent must obey throughout: `AGENTS.md` (root), plus the Vox-specific rules in `CLAUDE.md`/`GEMINI.md` — notably **VoxScript-first automation** (no `.ps1`/`.sh`/`.py`; use `vox run scripts/*.vox`), **never `cargo fmt --all`** (use `cargo fmt -p <crate>`), and **`.md` under `docs/src/` needs YAML frontmatter**.
+Policy the agent must obey throughout: `AGENTS.md` (root), plus the Vox-specific rules in `CLAUDE.md`/`GEMINI.md` — notably **VoxLang-first automation** (no `.ps1`/`.sh`/`.py`; use `vox run scripts/*.vox`), **never `cargo fmt --all`** (use `cargo fmt -p <crate>`), and **`.md` under `docs/src/` needs YAML frontmatter**.
 
 ---
 

@@ -39,7 +39,7 @@ This **validates the repo's hub-and-spoke instruction architecture** and changes
 - `applyTo: 'crates/**/*.rs'` → Rust-only invariants (no `std::env::var` → `vox_secrets`; no stubs; `cargo fmt -p`).
 - `applyTo: 'crates/vox-gui/**'` → the Tauri/clippy caveats.
 - `applyTo: 'docs/src/**/*.md'` → frontmatter requirement.
-- `applyTo: 'scripts/**'` → VoxScript-only automation.
+- `applyTo: 'scripts/**'` → VoxLang-only automation.
 Since Copilot now reads `AGENTS.md` natively, `copilot-instructions.md` can shrink to a pointer + the path-scoped files.
 
 ### 2.2 Cursor [V]

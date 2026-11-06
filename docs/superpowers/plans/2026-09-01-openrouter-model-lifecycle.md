@@ -844,7 +844,7 @@ Per the CI-track findings: `schedule:`-triggered workflows are **exempt** from `
 - [ ] **Weekly** — full-corpus run for every `Hold` and every newly `Promote`d model; refresh the leaderboard.
 - [ ] Sanity gate before anything publishes: the oracle sweep must be 100% and a majority of models must have completed, or the previous board keeps serving.
 - [ ] Add `contracts/reports/vox-efficacy/**` to `docs-deploy.yml`'s path filter, and dispatch the deploy explicitly (`gh workflow run docs-deploy.yml`) — a `GITHUB_TOKEN`-authored push triggers no workflows. **No `[skip ci]`.**
-- [ ] Orchestrate from a `.vox` script per the VoxScript-first rule; let Rust own JSON, HTTP, and secrets.
+- [ ] Orchestrate from a `.vox` script per the VoxLang-first rule; let Rust own JSON, HTTP, and secrets.
 
 ---
 

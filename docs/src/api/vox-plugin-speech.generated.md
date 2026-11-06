@@ -50,3 +50,20 @@ extracted from vox-speech (Unit 4 of the vox-populi extraction follow-up plan).
 | [`vox-plugin-sdk`](./vox-plugin-sdk.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_plugin_speech: "vox-plugin-speech"
+    node vox_config: "vox-config"
+    vox_plugin_speech -> vox_config
+    node vox_plugin_api: "vox-plugin-api"
+    vox_plugin_speech -> vox_plugin_api
+    node vox_plugin_sdk: "vox-plugin-sdk"
+    vox_plugin_speech -> vox_plugin_sdk
+    node vox_secrets: "vox-secrets"
+    vox_plugin_speech -> vox_secrets
+}
+```
+

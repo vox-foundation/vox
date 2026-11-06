@@ -72,8 +72,8 @@ on every script and have no breadcrumb to the workaround.
 
 ### #2 — `!` operator is a no-op (P0 silent wrong output)
 
-```vox
-// vox:skip -- historical: reproduces a since-fixed lexer bug where bare `!` was silently dropped
+```text
+// Historical: reproduces a since-fixed lexer bug where bare `!` was silently dropped
 fn main() {
     let t = true;
     let f = false;
@@ -110,8 +110,8 @@ maps that to `UnOp::Not`.
 
 ### #3a — `fs.list_recursive` does not exist
 
-```vox
-// vox:skip -- historical: audit snapshot of 0.5.0 gap; fs.list_recursive's signature has since changed
+```text
+// Historical: audit snapshot of 0.5.0 gap; fs.list_recursive's signature has since changed
 fn main() { let xs = fs.list_recursive(".", "*.md"); print("ok"); }
 ```
 → `Error: Eval failed calling main: AssertionFailed("Method list_recursive not found")`
@@ -136,8 +136,8 @@ Documented as existing in [`docs/src/reference/ref-builtins-stdlib.md`](../refer
 
 ### #3c — `str.split_lines(s)` (free form) does not exist
 
-```vox
-// vox:skip -- historical: audit finding, str.split_lines does not exist at runtime
+```text
+// Historical: audit finding, str.split_lines does not exist at runtime
 fn main() {
     let ls = str.split_lines("a\nb\nc")
     print("ok")
@@ -165,8 +165,8 @@ purpose is regex-driven corpus migration).
 
 ### #3e — `list.*` namespace does not exist
 
-```vox
-// vox:skip -- historical: audit finding, list.* free-function namespace does not exist at runtime
+```text
+// Historical: audit finding, list.* free-function namespace does not exist at runtime
 fn main() {
     let xs = [1,2,3]
     list.push(xs, 4)
@@ -180,8 +180,8 @@ fn main() {
 
 ### #4 — Method-vs-free function inconsistency
 
-```vox
-// vox:skip -- historical: audit finding, str.trim (free-function form) does not exist at runtime
+```text
+// Historical: audit finding, str.trim (free-function form) does not exist at runtime
 fn main() {
     let s = "  hello  "
     print("method: [" + s.trim() + "]")      // works → "method: [hello]"
@@ -353,7 +353,7 @@ namespace identifier is unbound.
 |------------------------------------------------------------------|-----------------------------------------|-------------------------------|
 | [`docs/src/reference/ref-builtins-stdlib.md`](../reference/ref-builtins-stdlib.md) | `path.extension`, `path.basename`, `path.dirname`, `path.join_many` | Only `path.join` exists |
 | [`docs/src/reference/ref-builtins-stdlib.md`](../reference/ref-builtins-stdlib.md) | `process.exit`                          | Actually correct ✓            |
-| [`AGENTS.md` § VoxScript-First Glue](../../../AGENTS.md)         | `vox run scripts/foo.vox` works for File-I/O scripts (Native tier) | Errors with `feature not enabled`; must use `--mode interp` |
+| [`AGENTS.md` § VoxLang-First Glue](../../../AGENTS.md)         | `vox run scripts/foo.vox` works for File-I/O scripts (Native tier) | Errors with `feature not enabled`; must use `--mode interp` |
 | [`docs/src/archive/research-2026-q1/vox-automation-primitives.md`](../archive/research-2026-q1/vox-automation-primitives.md) (archived) | `path.basename/dirname/extension`         | Doc is `training_eligible: false`, but still in corpus |
 | Most committed scripts' docstring headers                         | `vox run scripts/foo.vox`                | Same flag bug; ~all are wrong |
 
@@ -520,7 +520,7 @@ Effort estimates are coarse (S=hours, M=days, L=>1 week).
     `path.dirname`, `path.join_many` until tasks #6 lands, then re-add the
     names that survived the rename. Add a paragraph stating the
     method-vs-free policy. (S)
-12. **Update [`AGENTS.md` § VoxScript-First Glue](../../../AGENTS.md)** and
+12. **Update [`AGENTS.md` § VoxLang-First Glue](../../../AGENTS.md)** and
     every committed script's docstring header to drop `--mode interp` from
     invocation examples (because of fix #2, plain `vox run` will work). (S)
 
@@ -811,7 +811,7 @@ The name was never implemented; no deprecation alias needed.
 >      stateless utilities (`fs.read(p)`, `path.join(a,b)`,
 >      `regex.replace(s,p,r)`). String and list operations are
 >      method-only; `str.trim(s)` is not a valid call form."
-> 2. [`AGENTS.md` § VoxScript-First Glue Code](../../../AGENTS.md):
+> 2. [`AGENTS.md` § VoxLang-First Glue Code](../../../AGENTS.md):
 >    - Drop the `vox run --interp scripts/foo.vox` example from the
 >      "Pure computation, fast startup" row; plain `vox run` works after
 >      Task 2.
@@ -1011,8 +1011,7 @@ for each scripts/**/*.vox failing `vox check`:
 
 Bucket-A banner header template:
 
-```vox
-// vox:skip -- illustrative: banner template for scripts targeting an unimplemented feature
+```text
 // ============================================================
 // ASPIRATIONAL — targets a future Vox version.
 //
@@ -1287,7 +1286,7 @@ temporarily.
 ### §10.4 — Why Rust instead of a `.vox` script (decision rationale)
 
 Earlier drafts of this section proposed implementing the audit as a `.vox`
-script per AGENTS.md's VoxScript-First Glue Code policy. **That proposal
+script per AGENTS.md's VoxLang-First Glue Code policy. **That proposal
 was rejected and replaced with the Rust implementation above.**
 Investigation 2026-05-23 surfaced four reasons:
 
@@ -1313,7 +1312,7 @@ Investigation 2026-05-23 surfaced four reasons:
 4. **Precedent.** Other "tools that audit the language" in this repo —
    `vox-arch-check` (workspace structure), `vox-code-audit` (Rust source
    detectors), `vox-drift-check`, and the existing `vox-audit::retirement`
-   subcommand — are all in Rust. The AGENTS.md VoxScript-First policy
+   subcommand — are all in Rust. The AGENTS.md VoxLang-First policy
    targets *automation glue* (CI shims, release scripts), not
    compiler-internal static analyzers. The implicit precedent is
    consistent: `.vox` for tasks an LLM would otherwise write in
@@ -1373,8 +1372,8 @@ each.
 
 Today's spelling:
 
-```vox
-// vox:skip -- historical: this audit is what retired @endpoint
+```text
+// Historical: this audit is what retired @endpoint
 @endpoint(kind: query) fn list_items() to list[Item] { … }
 @endpoint(kind: mutation) fn add_item(name: str) to Result[Item] { … }
 ```
@@ -1400,9 +1399,10 @@ decorators; deprecate `@endpoint(kind: …)` and migrate corpus.**
 Replacement shape:
 
 ```vox
-// vox:skip -- illustrative: proposed decorator shape with `{ … }` placeholder body, not real code
-query list_items() to list[Item]              { … }
-mutation add_item(name: str) to Result[Item]     { … }
+type Item { name: str }
+
+query list_items() to list[Item] { return [] }
+mutation add_item(name: str) to Result[Item] { return Ok({ name: name }) }
 ```
 
 The information content is identical; the K-complexity drops by ~65 %
@@ -1971,7 +1971,7 @@ The §9 phased plan above this section is now superseded for tasks
 ### 13.6 Audit-stdlib-coverage `.vox` script (Phase D step 8)
 
 > Write `scripts/quality/audit-stdlib-coverage.vox` per AGENTS.md's
-> VoxScript-First policy. The script:
+> VoxLang-First policy. The script:
 >
 > 1. Parses
 >    [`crates/vox-compiler/src/eval/builtins.rs`](../../../crates/vox-compiler/src/eval/builtins.rs)
@@ -2007,5 +2007,5 @@ The §9 phased plan above this section is now superseded for tasks
 - [`docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md`](./vox-as-llm-target-audit-and-plan-2026.md) — the
   v1-release CR-L criteria; this audit informs CR-L1 (corpus integrity) and
   CR-L3 (error-message discoverability).
-- [`AGENTS.md` § VoxScript-First Glue Code](../../../AGENTS.md) — the policy
+- [`AGENTS.md` § VoxLang-First Glue Code](../../../AGENTS.md) — the policy
   that mandates `.vox` automation; needs the `--mode interp` correction.

@@ -79,3 +79,89 @@ not planned in this crate.
 | `review_flow` | — |
 | `evidence_assist` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_scientia: "vox-scientia"
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_scientia -> vox_actor_runtime
+    node vox_config: "vox-config"
+    vox_scientia -> vox_config
+    node vox_crypto: "vox-crypto"
+    vox_scientia -> vox_crypto
+    node vox_db: "vox-db"
+    vox_scientia -> vox_db
+    node vox_db_types: "vox-db-types"
+    vox_scientia -> vox_db_types
+    node vox_http_client: "vox-http-client"
+    vox_scientia -> vox_http_client
+    node vox_research_events: "vox-research-events"
+    vox_scientia -> vox_research_events
+    node vox_search: "vox-search"
+    vox_scientia -> vox_search
+    node vox_secrets: "vox-secrets"
+    vox_scientia -> vox_secrets
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_scientia
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_scientia
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_scientia
+    node vox_plugin_publication: "vox-plugin-publication"
+    vox_plugin_publication -> vox_scientia
+    node vox_publisher: "vox-publisher"
+    vox_publisher -> vox_scientia
+    node vox_research_shim: "vox-research-shim"
+    vox_research_shim -> vox_scientia
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-plugin-publication`](./vox-plugin-publication.generated.md) | Direct workspace dependent |
+| [`vox-publisher`](./vox-publisher.generated.md) | Direct workspace dependent |
+| [`vox-research-shim`](./vox-research-shim.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `evidence_assist::EvidenceSuggestion` | `pub struct EvidenceSuggestion` | [`crates/vox-scientia/src/evidence_assist.rs#L23-L30`](../../../crates/vox-scientia/src/evidence_assist.rs#L23-L30) | One advisory suggestion for improving a claim's evidence or conclusion.  `kind` is one of `evidence_gap` \| `conclusion_refinement` \| `novelty_check`. |
+| `fn` | `evidence_assist::build_prompt` | `pub fn build_prompt(` | [`crates/vox-scientia/src/evidence_assist.rs#L37`](../../../crates/vox-scientia/src/evidence_assist.rs#L37) | Build the (pure) chat prompt for the evidence-assist call.  The first message is a `system` message instructing the model to emit a JSON array of suggestion objects; the second is a `user` message embedding the claim text and any known verdict/confidence. Pure + unit-testable: no I/O. |
+| `fn` | `evidence_assist::parse_suggestions` | `pub fn parse_suggestions(raw: &str) -> Vec<EvidenceSuggestion>` | [`crates/vox-scientia/src/evidence_assist.rs#L80-L83`](../../../crates/vox-scientia/src/evidence_assist.rs#L80-L83) | Parse a raw LLM response into a suggestion list.  Strips Markdown code fences first, then parses a JSON array. Returns `Vec::new()` on any parse failure (never panics) — this is advisory output. |
+| `fn` | `evidence_assist::suggest` | `pub async fn suggest(` | [`crates/vox-scientia/src/evidence_assist.rs#L90`](../../../crates/vox-scientia/src/evidence_assist.rs#L90) | Produce advisory evidence/conclusion suggestions for a claim.  Routes through the [`vox_actor_runtime::llm`] facade. ANY error (no key, network failure, unparseable output) degrades to `Vec::new()` so the review flow is never broken by this advisory path. |
+| `struct` | `ingest::FeedSource` | `pub struct FeedSource` | [`crates/vox-scientia/src/ingest/mod.rs#L13-L18`](../../../crates/vox-scientia/src/ingest/mod.rs#L13-L18) | A registry feed source endpoint (e.g. RSS URL) for inbound research scoping. |
+| `struct` | `ingest::InboundItem` | `pub struct InboundItem` | [`crates/vox-scientia/src/ingest/mod.rs#L22-L27`](../../../crates/vox-scientia/src/ingest/mod.rs#L22-L27) | A raw scraped/received item before semantic evaluation. |
+| `fn` | `replay::run_replay` | `pub async fn run_replay(` | [`crates/vox-scientia/src/replay/mod.rs#L34`](../../../crates/vox-scientia/src/replay/mod.rs#L34) | Execute `main_entity` in a fresh sandbox under `stage_dir` and produce a [`ReplayReport`].  `stage_dir` must already contain whatever artifacts the entry-point expects to read; caller is responsible for staging. The runner only re-executes the entry-point and verifies declared outputs. |
+| `trait` | `review::Sealed` | `pub trait Sealed` | [`crates/vox-scientia/src/review/mod.rs#L35`](../../../crates/vox-scientia/src/review/mod.rs#L35) | — |
+| `trait` | `review::ReviewDecisionLike` | `pub trait ReviewDecisionLike: sealed::Sealed` | [`crates/vox-scientia/src/review/mod.rs#L43-L49`](../../../crates/vox-scientia/src/review/mod.rs#L43-L49) | Abstraction over any type that carries enough data to mint an [`ApprovalToken`].  Implemented here for [`vox_db::store::ReviewDecisionRow`]; unit tests use a tiny in-module fake. Sealed (see `sealed`) — cannot be implemented outside this crate. |
+| `struct` | `review::ApprovalToken` | `pub struct ApprovalToken` | [`crates/vox-scientia/src/review/mod.rs#L83-L91`](../../../crates/vox-scientia/src/review/mod.rs#L83-L91) | A cryptographic proof that a specific claim was **approved** by a human reviewer.  # compile-fence:  All fields are private; there is no `pub` constructor and no `Default`. Struct-literal construction outside this module is a compile error:  ```compile_fail let _ = vox_scientia::review::ApprovalToken { claim_id: 1, bound_digest: String::new() }; ``` |
+| `fn` | `review::claim_id` | `pub fn claim_id(&self) -> i64` | [`crates/vox-scientia/src/review/mod.rs#L104-L106`](../../../crates/vox-scientia/src/review/mod.rs#L104-L106) | The claim that was approved. |
+| `fn` | `review::publication_id` | `pub fn publication_id(&self) -> &str` | [`crates/vox-scientia/src/review/mod.rs#L111-L113`](../../../crates/vox-scientia/src/review/mod.rs#L111-L113) | The publication the approval is scoped to; `nanopub_build` rejects a token whose `publication_id` differs from the build's, preventing cross-publication replay. |
+| `fn` | `review::bound_digest` | `pub fn bound_digest(&self) -> &str` | [`crates/vox-scientia/src/review/mod.rs#L120-L122`](../../../crates/vox-scientia/src/review/mod.rs#L120-L122) | The digest bound at approval time (expected to be the publication's SHA3-256 `content_sha3_256`, but **not validated by this module** — the token trusts the caller). Binds the token to the exact artifact version reviewed by the human; Task 3 rejects a token whose digest no longer matches the current manifest, so an edit invalidates a stale approval. |
+| `fn` | `review::mint_from_decision` | `pub fn mint_from_decision<D: ReviewDecisionLike>(d: &D) -> Option<ApprovalToken>` | [`crates/vox-scientia/src/review/mod.rs#L131-L141`](../../../crates/vox-scientia/src/review/mod.rs#L131-L141) | Returns `Some(token)` **only** when `d.decision() == "approved"`; returns `None` for `rejected`, `deferred`, `edited`, or any other value.  This is the **sole construction path** for [`ApprovalToken`]. |
+| `enum` | `review::ReviewState` | `pub enum ReviewState` | [`crates/vox-scientia/src/review/mod.rs#L147-L160`](../../../crates/vox-scientia/src/review/mod.rs#L147-L160) | The lifecycle state of a nanopublication claim in the review pipeline. |
+| `enum` | `review::ReviewAction` | `pub enum ReviewAction` | [`crates/vox-scientia/src/review/mod.rs#L164-L178`](../../../crates/vox-scientia/src/review/mod.rs#L164-L178) | Actions that drive transitions in the review state machine. |
+| `fn` | `review::next_state` | `pub fn next_state(current: ReviewState, action: ReviewAction) -> ReviewState` | [`crates/vox-scientia/src/review/mod.rs#L197-L210`](../../../crates/vox-scientia/src/review/mod.rs#L197-L210) | Pure state-machine transition function.  Invalid transitions (e.g. `Surfaced + Approve`) return `current` unchanged.  Valid transitions: ```text Surfaced    + StartReview → UnderReview UnderReview + Approve     → Approved UnderReview + Reject      → Rejected UnderReview + Defer       → Deferred UnderReview + Edit        → Edited Edited      + ReSurface   → Surfaced Deferred    + ReSurface   → Surfaced ```  `Approved` and `Rejected` are terminal (no outgoing transition). `Deferred` and `Edited` are *recoverable* — both re-enter the queue via `ReSurface`. |
+| `fn` | `review_flow::publication_session_id` | `pub fn publication_session_id(publication_id: &str) -> i64` | [`crates/vox-scientia/src/review_flow.rs#L34-L41`](../../../crates/vox-scientia/src/review_flow.rs#L34-L41) | Derive a stable `session_id` from a publication id (FNV-1a). `scientia_claims` is keyed by `session_id`; a publication's extracted claims share this bucket. |
+| `fn` | `review_flow::resolve_or_create_identity` | `pub async fn resolve_or_create_identity(` | [`crates/vox-scientia/src/review_flow.rs#L80`](../../../crates/vox-scientia/src/review_flow.rs#L80) | Get-or-create the per-user nanopublication signing identity.  1. Reads the stored `user_identities` row (if any). 2. Chooses an ORCID: the `orcid` arg wins; else the stored `orcid_id`; else errors (the `nanopub` crate requires an `https://orcid.org/` identity to sign). 3. Resolves the private key from the vault. If a row exists AND the key resolves, REUSES that material. 4. Otherwise GENERATES a fresh RSA keypair, stores the private key in the vault, and upserts the public key + ORCID + key-ref into the DB.  Returns a [`NanopubProfile`] whose `name` is the `user_id`.  # Errors Returns an error if no ORCID can be determined, if RSA keygen fails, if the vault write fails, or if any DB op fails. |
+| `fn` | `review_flow::nanopub_build` | `pub async fn nanopub_build(` | [`crates/vox-scientia/src/review_flow.rs#L162`](../../../crates/vox-scientia/src/review_flow.rs#L162) | P1 — Build a spec-compliant, RSA-signed, OFFLINE-validated nanopublication for a single extracted claim, then persist it locally. This function performs NO network publishing of any kind (no `publish`, no test server).  Steps: 1. Load the claim row + its latest verdict from the SCIENTIA claim ledger (errors helpfully if absent — run `publication-extract-claims` first). 2. Resolve (or create) the per-user RSA + ORCID signing identity. 3. Assemble the enriched assertion Turtle and RSA-sign it (build + sign). 4. VALIDATE the signed TriG OFFLINE (trusty hash + signature). Fails hard if invalid — nothing is persisted on a validation failure. 5. Persist a `scientia_nanopubs` row with `published_state="local"` and `validated_offline=true`.  Returns the [`SignedNanopubDoc`] (Trusty URI + signed TriG). The caller prints a short human line (the Trusty URI) — this function deliberately writes NOTHING to stdout, but note that [`crate::nanopub::spec::validate_offline`] internally calls the upstream `nanopub` crate's `check()`, which prints a `✅ ... is valid` line to stdout on success. A strict `--json` mode for this command therefore needs upstream stdout suppression and is deferred.  # Errors Returns an error if the claim/verdict is missing, if no ORCID is available, if signing fails, if offline validation fails, or if any DB op fails. |
+| `fn` | `review_flow::nanopub_publish_test_server` | `pub async fn nanopub_publish_test_server(` | [`crates/vox-scientia/src/review_flow.rs#L329`](../../../crates/vox-scientia/src/review_flow.rs#L329) | Publish an already-built local nanopub to the nanopub TEST server.  Requires BOTH: - `token`: an [`crate::review::ApprovalToken`] — only mintable from a persisted human "approved" decision (non-constructible outside `crate::review`). - `VOX_NANOPUB_TEST_SERVER=1` in the environment — checked inside [`crate::nanopub::network::publish_to_test_server`] via [`crate::nanopub::network::ensure_test_server_allowed`].  Production publishing is **deliberately unimplemented** (standing decision).  Steps: 1. Verify the token is bound to the correct `publication_id` and `claim_id` (same cross-publication / claim-identity guard as [`nanopub_build`]). 2. Load the persisted `scientia_nanopubs` row by looking up all rows for the claim's session and finding the one with the matching Trusty URI (the local artifact built by a prior `nanopub_build` call). 3. Resolve the signing identity (ORCID + private key). 4. Call [`crate::nanopub::network::publish_to_test_server`] with the stored signed TriG + profile. 5. Update the row's `published_state` to `"test_server"` via the DB op.  Returns the published URI (the Trusty URI the test server accepted).  # Errors Returns an error if the token mismatches, if no local nanopub exists for the claim, if the env gate is not set, if the network call fails, or if any DB op fails. |
+| `fn` | `review_flow::record_claim_review` | `pub async fn record_claim_review(` | [`crates/vox-scientia/src/review_flow.rs#L408`](../../../crates/vox-scientia/src/review_flow.rs#L408) | P2 Task 4 — Record a human review decision for ONE extracted claim.  Fetches the publication's CURRENT content manifest and binds the decision to its `content_sha3_256` digest. A later content edit therefore invalidates a prior approval (the digest will no longer match the manifest's current value), and `publication-nanopub-build` will refuse to emit until the claim is re-reviewed.  # Errors Returns an error if no manifest exists for `publication_id`, if `db.record_review_decision` rejects the decision string, or if any DB op fails. |
+| `fn` | `review_flow::approval_for` | `pub async fn approval_for(` | [`crates/vox-scientia/src/review_flow.rs#L467`](../../../crates/vox-scientia/src/review_flow.rs#L467) | P2 — Bridge the DB review ledger to a minted [`ApprovalToken`].  This is the only sanctioned way for the CLI to obtain the token that [`nanopub_build`] now requires. It is a thin, testable boundary so the "not approved → refused" path can be exercised without the live-DB CLI arm.  1. Look up the LATEST review decision for `claim_id`. Absent → error telling the operator to run `publication-claim-review` first. 2. Mint a token via [`crate::review::mint_from_decision`], which returns `Some` ONLY when the latest decision is `"approved"`. Any other status (rejected/deferred/edited) yields `None` → error.  [`ApprovalToken`]: crate::review::ApprovalToken  # Errors Returns an error when no decision exists, when the latest decision is not `"approved"`, or when the underlying DB op fails. |
+| `struct` | `review_flow::PromotedPublication` | `pub struct PromotedPublication` | [`crates/vox-scientia/src/review_flow.rs#L499-L506`](../../../crates/vox-scientia/src/review_flow.rs#L499-L506) | Summary returned when promoting a finding candidate or research session to a canonical `publication_manifests` row. |
+| `fn` | `review_flow::resolve_manifest_or_promote` | `pub async fn resolve_manifest_or_promote(` | [`crates/vox-scientia/src/review_flow.rs#L557`](../../../crates/vox-scientia/src/review_flow.rs#L557) | Resolve a `publication_manifests` row by `publication_id` or `source_ref` (`finding-...`), auto-promoting a matching `scientia_finding_candidates` row if not yet promoted. |
+| `fn` | `review_flow::promote_candidate_to_publication` | `pub async fn promote_candidate_to_publication(` | [`crates/vox-scientia/src/review_flow.rs#L592`](../../../crates/vox-scientia/src/review_flow.rs#L592) | Promote a `scientia_finding_candidates` row, discovery inbox item, or research session into a canonical `publication_manifests` draft and seed its verified claims in `scientia_claims`. |
+| `fn` | `review_flow::assemble_scaffold_from_db` | `pub async fn assemble_scaffold_from_db(` | [`crates/vox-scientia/src/review_flow.rs#L928`](../../../crates/vox-scientia/src/review_flow.rs#L928) | Hydrate a [`crate::manuscript::scaffold::ScaffoldInput`] directly from `VoxDb` (`publication_manifests` + `scientia_claims` + `scientia_nanopubs`) with zero manual JSON files. |
+| `fn` | `review_flow::assemble_finding_page_from_db` | `pub async fn assemble_finding_page_from_db(` | [`crates/vox-scientia/src/review_flow.rs#L1038`](../../../crates/vox-scientia/src/review_flow.rs#L1038) | Hydrate a [`crate::findings_site::FindingPage`] directly from `VoxDb` with zero manual JSON files. |
+| `fn` | `review_flow::record_replay_for_publication` | `pub async fn record_replay_for_publication(` | [`crates/vox-scientia/src/review_flow.rs#L1118`](../../../crates/vox-scientia/src/review_flow.rs#L1118) | Write a measured `artifact_replayability` score (`0.0..=1.0`) into `publication_manifests.metadata_json.scientia_evidence.artifact_replayability` and append an `artifact_replayability_measured` status event. |
+| `fn` | `review_flow::assemble_scientia_queue_from_db` | `pub async fn assemble_scientia_queue_from_db(` | [`crates/vox-scientia/src/review_flow.rs#L1227`](../../../crates/vox-scientia/src/review_flow.rs#L1227) | Assemble a unified [`crate::dashboard::QueueSnapshot`] from `publication_manifests` AND `scientia_finding_candidates`, with real confidence scores and reply-window tracking. |
+| `fn` | `review_flow::assemble_scientia_cost_from_db` | `pub async fn assemble_scientia_cost_from_db(` | [`crates/vox-scientia/src/review_flow.rs#L1333`](../../../crates/vox-scientia/src/review_flow.rs#L1333) | Assemble a [`crate::dashboard::cost::CostRollup`] from `VoxDb` for the current quarter. |
+

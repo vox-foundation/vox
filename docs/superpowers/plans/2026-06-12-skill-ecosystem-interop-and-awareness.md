@@ -602,7 +602,7 @@ obra/superpowers-developing-for-claude-code (asserts MIT, LICENSE file missing).
 
 ### Task D1: Vendor skills into `assets/skills/`
 
-- [ ] **Step 1:** Write the vendoring script as **VoxScript** (AGENTS.md §VoxScript-First): `scripts/vendor-skills.vox` reading `assets/skills/SOURCES.toml`:
+- [ ] **Step 1:** Write the vendoring script as **VoxLang** (AGENTS.md §VoxLang-First): `scripts/vendor-skills.vox` reading `assets/skills/SOURCES.toml`:
 
 ```toml
 # assets/skills/SOURCES.toml — provenance SSOT for vendored skills.

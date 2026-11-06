@@ -57,7 +57,7 @@ fn precision(t: &ClassTally) -> Option<f64> {
     }
 }
 
-fn recall(t: &ClassTally) -> Option<f64> {
+fn calc_recall(t: &ClassTally) -> Option<f64> {
     let denom = t.tp + t.fn_;
     if denom == 0 {
         None
@@ -160,7 +160,7 @@ fn novelty_golden_harness() {
     for cls in &classes {
         let t = &tallies[*cls];
         let p = precision(t).map_or("N/A".to_string(), |v| format!("{:.3}", v));
-        let r = recall(t).map_or("N/A".to_string(), |v| format!("{:.3}", v));
+        let r = calc_recall(t).map_or("N/A".to_string(), |v| format!("{:.3}", v));
         eprintln!(
             "  {:<25}  tp={} fp={} fn={}  precision={}  recall={}",
             cls, t.tp, t.fp, t.fn_, p, r

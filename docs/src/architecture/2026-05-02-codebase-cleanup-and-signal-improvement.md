@@ -111,7 +111,7 @@ git commit -m "docs(agents): repair archived-doc back-references"
 **Issue:** `contracts/README.md` references `scripts/check_codex_ssot.sh` and `scripts/check_codex_ssot.ps1`, neither of which exists in the working tree.
 
 - [ ] **Step 1: Find the actual guard.** Run: `grep -rn "check.codex.ssot\|check_codex_ssot" --include='*.vox' --include='*.rs' --include='*.toml' --include='*.yaml' --include='*.md'`. The likely current implementation is a `vox ci ...` subcommand (per audit, the project uses `vox ci command-sync`, `vox ci check-codex-ssot`).
-- [ ] **Step 2:** If the guard is a `vox ci` subcommand, replace both shell-script references in `contracts/README.md` with `vox ci check-codex-ssot` (or actual command). This also satisfies the VoxScript-First policy.
+- [ ] **Step 2:** If the guard is a `vox ci` subcommand, replace both shell-script references in `contracts/README.md` with `vox ci check-codex-ssot` (or actual command). This also satisfies the VoxLang-First policy.
 - [ ] **Step 3:** If no guard exists, surface this — the README claims a guard, the guard does not exist, and CI may have silently lost coverage. Flag for maintainer; do not invent a replacement.
 - [ ] **Step 4: Commit.** `git commit -m "docs(contracts): point at vox ci guard instead of missing shell scripts"`
 

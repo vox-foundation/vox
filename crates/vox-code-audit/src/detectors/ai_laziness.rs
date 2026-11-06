@@ -48,7 +48,8 @@ impl AiLazinessDetector {
     fn is_test_gated(file: &SourceFile) -> bool {
         let path = file.path.to_string_lossy().replace('\\', "/");
         let in_tests_dir = path.contains("/tests/") || path.starts_with("tests/");
-        let test_suffix = path.ends_with("_test.rs")
+        let test_suffix = path.ends_with("/tests.rs")
+            || path.ends_with("_test.rs")
             || path.ends_with("_tests.rs")
             || path.ends_with(".test.ts")
             || path.ends_with(".test.tsx")

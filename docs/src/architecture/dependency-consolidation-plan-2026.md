@@ -28,7 +28,7 @@ maximize cross-platform parity, and exit clean enough to merge back to main.
 2. The biggest payoff is **eliminating per-tool install instructions from
    docs**. Today every external (act, pnpm, mdbook, cargo-nextest, …) has a
    bespoke install paragraph. After consolidation, one command does it.
-3. The biggest constraint is **`AGENTS.md §VoxScript-First Glue Code`** —
+3. The biggest constraint is **`AGENTS.md §VoxLang-First Glue Code`** —
    automation MUST be `.vox`, not `.ps1`/`.sh`/`.py`. We have current
    violators (one-line `python3` blocks in `ci.yml`, two thin
    `vox-dev.{ps1,sh}` launchers). The launchers are policy-blessed
@@ -76,7 +76,7 @@ Sourced via `grep -rh 'Command::new(' crates/`. Categorized by
 | `cargo install cargo-deb` | `release-installers.yml` | could use `taiki-e/install-action` for cache |
 | `cargo install cargo-wix` | `release-installers.yml` | same |
 | `node-version: 20` / `22` / `24` | mixed | **inconsistency** — three Node majors in flight |
-| `python3 -c "…"` (one-liners) | `ci.yml` | **VoxScript-First violation** — replaceable with `vox ci` subcommands |
+| `python3 -c "…"` (one-liners) | `ci.yml` | **VoxLang-First violation** — replaceable with `vox ci` subcommands |
 | `docker compose -f examples/mesh-compose.yml config` | `ci.yml`, `mesh-compose-config` | wraps Compose; could be a `vox ci compose-validate` |
 | `docker build … -f Dockerfile` | `ci.yml`, `docker-vox-image-smoke` | wraps `docker build`; could be `vox ci image-smoke` |
 | `pnpm exec playwright install chromium` | `ci.yml`, `mobile-e2e-android.yml` | required, kept |
@@ -95,7 +95,7 @@ in `ci.yml` → drop python3 from the image.**
 
 ### D. Non-`.vox` automation files
 
-| File | Lines | Status under VoxScript-First |
+| File | Lines | Status under VoxLang-First |
 |---|---|---|
 | `scripts/vox-dev.sh` | thin launcher | **policy-blessed exception** (chicken-and-egg) |
 | `scripts/windows/vox-dev.ps1` | thin launcher | **policy-blessed exception** |
@@ -128,7 +128,7 @@ These are concrete, fix-once items independent of the larger plan:
    `ci.yml` pins 22; `docs-quality.yml` and `docs-deploy.yml` pin 24. The
    self-hosted fleet image now ships Node 24 (this branch).
 3. **`python3` glue lines** in `ci.yml` violate `AGENTS.md
-   §VoxScript-First Glue Code`.
+   §VoxLang-First Glue Code`.
 4. **`cargo install cargo-deb` / `cargo install cargo-wix`** in
    `release-installers.yml` should switch to `taiki-e/install-action` for
    binary cache (matches the rest of the repo).
@@ -422,6 +422,6 @@ A single PR (or stack) with this work is mergeable when:
 - [CI alternatives and local Docker mirroring](../ci/alternatives-and-local-mirroring.md)
 - [Local CI parity (pre-push)](../contributors/local-ci-pre-push.md)
 - [Where things live](where-things-live.md)
-- [`AGENTS.md` §VoxScript-First Glue Code](../../../AGENTS.md)
+- [`AGENTS.md` §VoxLang-First Glue Code](../../../AGENTS.md)
 - `vox-install-policy` crate
 - [`vox doctor` source](../../../crates/vox-cli/src/commands/diagnostics/doctor/)

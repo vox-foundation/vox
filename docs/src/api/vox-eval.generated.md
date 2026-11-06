@@ -43,6 +43,9 @@ Functions are deterministic heuristics—not a replacement for human eval or ful
 | `mens` | — |
 | `paired_ni` | — |
 | `provenance` | — |
+| `qwen_reasoning` | — |
+| `reasoning_bench` | — |
+| `reasoning_slice` | — |
 | `report` | — |
 | `trial_flywheel` | — |
 
@@ -70,4 +73,92 @@ Functions are deterministic heuristics—not a replacement for human eval or ful
 | `cargo_test_reward` | Test-driven feedback for Rust code. Spawns a lightweight `cargo test` in a temporary directory containing the provided snippet. Returns 1.0 if it passes, 0.0 otherwise. |
 | `eval_semantic_entropy` | Sample `n` outputs from the model for the same prompt, extract code, and measure structural diversity based on a pseudo-AST hash.  This avoids a circular dependency on the full vox-compiler by using a regex-based structural "shape" extraction. |
 | `extract_vox_code` | Heuristic code extractor for triple-backticked blocks. |
+
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_eval: "vox-eval"
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_eval
+    node vox_compiler: "vox-compiler"
+    vox_compiler -> vox_eval
+    node vox_corpus: "vox-corpus"
+    vox_corpus -> vox_eval
+    node vox_ml_cli: "vox-ml-cli"
+    vox_ml_cli -> vox_eval
+    node vox_plugin_mens_candle_core: "vox-plugin-mens-candle-core"
+    vox_plugin_mens_candle_core -> vox_eval
+    node vox_plugin_mens_candle_cuda: "vox-plugin-mens-candle-cuda"
+    vox_plugin_mens_candle_cuda -> vox_eval
+    node vox_plugin_mens_candle_metal: "vox-plugin-mens-candle-metal"
+    vox_plugin_mens_candle_metal -> vox_eval
+    node vox_populi: "vox-populi"
+    vox_populi -> vox_eval
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
+| [`vox-corpus`](./vox-corpus.generated.md) | Direct workspace dependent |
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+| [`vox-plugin-mens-candle-core`](./vox-plugin-mens-candle-core.generated.md) | Direct workspace dependent |
+| [`vox-plugin-mens-candle-cuda`](./vox-plugin-mens-candle-cuda.generated.md) | Direct workspace dependent |
+| [`vox-plugin-mens-candle-metal`](./vox-plugin-mens-candle-metal.generated.md) | Direct workspace dependent |
+| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `EvalMetrics` | `pub struct EvalMetrics` | [`crates/vox-eval/src/lib.rs#L22-L33`](../../../crates/vox-eval/src/lib.rs#L22-L33) | Aggregated scores from a single eval run (format, safety, quality proxy, parse validity, coverage). |
+| `fn` | `format_validity_score` | `pub fn format_validity_score(response: &str) -> f64` | [`crates/vox-eval/src/lib.rs#L44-L54`](../../../crates/vox-eval/src/lib.rs#L44-L54) | Scores model output based on whether it starts with common refusal prefixes. |
+| `fn` | `is_safety_rejection` | `pub fn is_safety_rejection(response: &str) -> bool` | [`crates/vox-eval/src/lib.rs#L57-L60`](../../../crates/vox-eval/src/lib.rs#L57-L60) | Returns `true` if the text matches known unsafe prompt-injection heuristics. |
+| `fn` | `detect_constructs` | `pub fn detect_constructs(code: &str) -> Vec<&'static str>` | [`crates/vox-eval/src/lib.rs#L191-L199`](../../../crates/vox-eval/src/lib.rs#L191-L199) | Returns construct names whose regex matches at least once in `code`. |
+| `fn` | `construct_coverage_score` | `pub fn construct_coverage_score(code: &str) -> f64` | [`crates/vox-eval/src/lib.rs#L206-L210`](../../../crates/vox-eval/src/lib.rs#L206-L210) | — |
+| `fn` | `scope_compliance_score` | `pub fn scope_compliance_score(snippet: &str) -> f64` | [`crates/vox-eval/src/lib.rs#L220-L235`](../../../crates/vox-eval/src/lib.rs#L220-L235) | Bounded-domain heuristic for docs / examples: `1.0` when no high-risk escape patterns appear.  Used by `vox doctor --scope` as a coarse guardrail (not a full security audit). |
+| `struct` | `CollateralDamageReport` | `pub struct CollateralDamageReport` | [`crates/vox-eval/src/lib.rs#L259-L272`](../../../crates/vox-eval/src/lib.rs#L259-L272) | Result of evaluating collateral damage on a held-out benchmark. |
+| `struct` | `CollateralDamageConfig` | `pub struct CollateralDamageConfig` | [`crates/vox-eval/src/lib.rs#L276-L279`](../../../crates/vox-eval/src/lib.rs#L276-L279) | Configuration for collateral damage evaluation. |
+| `fn` | `eval_collateral_damage` | `pub fn eval_collateral_damage(` | [`crates/vox-eval/src/lib.rs#L297`](../../../crates/vox-eval/src/lib.rs#L297) | Evaluate collateral damage by comparing pre/post training scores on a held-out benchmark.  Research (Continual Learning §catastrophic-forgetting) proves that fine-tuning without held-out evaluation hides regression. This function computes the degradation rate and recommends blocking promotion if it exceeds the threshold.  `eval_fn` is a caller-supplied closure that evaluates the model against the benchmark and returns a score in `[0.0, 1.0]`. |
+| `fn` | `eval_collateral_damage_suite` | `pub fn eval_collateral_damage_suite(` | [`crates/vox-eval/src/lib.rs#L323`](../../../crates/vox-eval/src/lib.rs#L323) | Evaluate collateral damage across multiple benchmarks. Returns `Err` with the first benchmark that exceeds the threshold. |
+| `fn` | `cargo_build_reward` | `pub fn cargo_build_reward(snippet: &str) -> f64` | [`crates/vox-eval/src/lib.rs#L341-L378`](../../../crates/vox-eval/src/lib.rs#L341-L378) | Compilation-driven feedback for Rust code. Spawns a lightweight `cargo check` in a temporary directory containing the provided snippet. Returns 1.0 if it passes, 0.0 otherwise. |
+| `fn` | `cargo_test_reward` | `pub fn cargo_test_reward(snippet: &str) -> f64` | [`crates/vox-eval/src/lib.rs#L383-L420`](../../../crates/vox-eval/src/lib.rs#L383-L420) | Test-driven feedback for Rust code. Spawns a lightweight `cargo test` in a temporary directory containing the provided snippet. Returns 1.0 if it passes, 0.0 otherwise. |
+| `struct` | `SemanticEntropyReport` | `pub struct SemanticEntropyReport` | [`crates/vox-eval/src/lib.rs#L478-L485`](../../../crates/vox-eval/src/lib.rs#L478-L485) | Result of evaluating semantic entropy (diversity) of model samples. |
+| `fn` | `eval_semantic_entropy` | `pub fn eval_semantic_entropy(outputs: &[String], collapse_threshold: f64) -> SemanticEntropyReport` | [`crates/vox-eval/src/lib.rs#L492-L545`](../../../crates/vox-eval/src/lib.rs#L492-L545) | Sample `n` outputs from the model for the same prompt, extract code, and measure structural diversity based on a pseudo-AST hash.  This avoids a circular dependency on the full vox-compiler by using a regex-based structural "shape" extraction. |
+| `fn` | `extract_vox_code` | `pub fn extract_vox_code(response: &str) -> Option<String>` | [`crates/vox-eval/src/lib.rs#L548-L555`](../../../crates/vox-eval/src/lib.rs#L548-L555) | Heuristic code extractor for triple-backticked blocks. |
+| `struct` | `compare::ArmInput` | `pub struct ArmInput` | [`crates/vox-eval/src/compare.rs#L20-L25`](../../../crates/vox-eval/src/compare.rs#L20-L25) | One report to compare, labelled by the caller (the CLI uses the path). |
+| `struct` | `compare::CompareOptions` | `pub struct CompareOptions` | [`crates/vox-eval/src/compare.rs#L29-L36`](../../../crates/vox-eval/src/compare.rs#L29-L36) | Analysis parameters, echoed into the output so a comparison can be recomputed. |
+| `enum` | `compare::Verdict` | `pub enum Verdict` | [`crates/vox-eval/src/compare.rs#L41-L48`](../../../crates/vox-eval/src/compare.rs#L41-L48) | Outcome of one claim. |
+| `struct` | `compare::ArmSummary` | `pub struct ArmSummary` | [`crates/vox-eval/src/compare.rs#L52-L65`](../../../crates/vox-eval/src/compare.rs#L52-L65) | An included arm's own statistics (from its report). |
+| `struct` | `compare::ClaimResult` | `pub struct ClaimResult` | [`crates/vox-eval/src/compare.rs#L69-L94`](../../../crates/vox-eval/src/compare.rs#L69-L94) | One arm vs the baseline. |
+| `struct` | `compare::ExcludedArm` | `pub struct ExcludedArm` | [`crates/vox-eval/src/compare.rs#L98-L103`](../../../crates/vox-eval/src/compare.rs#L98-L103) | A report that did not enter the comparison, and why. |
+| `struct` | `compare::Comparison` | `pub struct Comparison` | [`crates/vox-eval/src/compare.rs#L107-L124`](../../../crates/vox-eval/src/compare.rs#L107-L124) | The full comparison. |
+| `fn` | `compare::compare` | `pub fn compare(` | [`crates/vox-eval/src/compare.rs#L154`](../../../crates/vox-eval/src/compare.rs#L154) | Compare every included arm with `baseline`.  # Errors Missing or ineligible baseline, no eligible challenger, differing problem sets or k, the same run supplied twice, or no fixture scored by both arms. |
+| `struct` | `compare::SpokeDeltaSummary` | `pub struct SpokeDeltaSummary` | [`crates/vox-eval/src/compare.rs#L318-L341`](../../../crates/vox-eval/src/compare.rs#L318-L341) | Per-spoke paired delta and win/tie/loss summary (`EVAL-02`). |
+| `enum` | `compare::PromotionGateVerdict` | `pub enum PromotionGateVerdict` | [`crates/vox-eval/src/compare.rs#L346-L353`](../../../crates/vox-eval/src/compare.rs#L346-L353) | Automated adapter promotion/rollback gate verdict (`EVAL-04`). |
+| `struct` | `compare::MultiSpokeComparisonV1` | `pub struct MultiSpokeComparisonV1` | [`crates/vox-eval/src/compare.rs#L357-L374`](../../../crates/vox-eval/src/compare.rs#L357-L374) | Paired 5-spoke candidate-vs-baseline evaluation comparison (`EVAL-02`, `EVAL-04`). |
+| `fn` | `compare::compare_mens_five_spokes` | `pub fn compare_mens_five_spokes(` | [`crates/vox-eval/src/compare.rs#L384`](../../../crates/vox-eval/src/compare.rs#L384) | Compare a candidate 5-spoke scorecard against a baseline scorecard and paired problem outcomes, computing per-spoke deltas, win/tie/loss counts, and the [`PromotionGateVerdict`] (`EVAL-02`, `EVAL-04`). |
+| `struct` | `corpus_score::AttemptOutcome` | `pub struct AttemptOutcome` | [`crates/vox-eval/src/corpus_score.rs#L16-L24`](../../../crates/vox-eval/src/corpus_score.rs#L16-L24) | One generation attempt. `compiled`/`tests_passed` are exit-code facts, never an LLM judgment. |
+| `struct` | `corpus_score::FixtureOutcome` | `pub struct FixtureOutcome` | [`crates/vox-eval/src/corpus_score.rs#L29-L34`](../../../crates/vox-eval/src/corpus_score.rs#L29-L34) | All attempts at one fixture. `n` samples drawn, `c` correct — both required by the unbiased estimator, so attempts are NEVER stopped early on a pass. |
+| `fn` | `corpus_score::pass_at_k` | `pub fn pass_at_k(n: usize, c: usize, k: usize) -> f64` | [`crates/vox-eval/src/corpus_score.rs#L42-L52`](../../../crates/vox-eval/src/corpus_score.rs#L42-L52) | Unbiased pass@k for one problem (Chen et al. 2021).  Product form: the closed form `1 - C(n-c,k)/C(n,k)` loses precision and overflows at literature scales (n=200, k=100); this is the numerically stable equivalent used by the reference `openai/human-eval` implementation. |
+| `fn` | `corpus_score::corpus_pass_at_k` | `pub fn corpus_pass_at_k(outcomes: &[FixtureOutcome], k: usize) -> f64` | [`crates/vox-eval/src/corpus_score.rs#L67-L77`](../../../crates/vox-eval/src/corpus_score.rs#L67-L77) | Corpus pass@k: the mean of per-problem unbiased estimates.  A fixture with `n == 0` (every attempt hit an infra error, so nothing was ever pushed to its `attempts`) carries no information about the model — scoring it would mean asserting or fabricating a 0%/100% result from zero data. Such fixtures are excluded from both the numerator and denominator of the mean, matching how infra errors are excluded from the model's judgment everywhere else in this pipeline (see `is_infra_error` at the call site). `pass_at_k` itself still asserts `n >= k` for any fixture that DID produce samples — that assertion is a real precondition violation (`k` larger than the sample count), not something this function should paper over. |
+| `struct` | `corpus_score::CorpusScore` | `pub struct CorpusScore` | [`crates/vox-eval/src/corpus_score.rs#L81-L106`](../../../crates/vox-eval/src/corpus_score.rs#L81-L106) | Published axes for one (model, harness, condition) row. |
+| `fn` | `corpus_score::score_corpus` | `pub fn score_corpus(outcomes: &[FixtureOutcome], k: usize, measured: bool) -> CorpusScore` | [`crates/vox-eval/src/corpus_score.rs#L112-L177`](../../../crates/vox-eval/src/corpus_score.rs#L112-L177) | Fold outcomes at a caller-supplied `k`. `measured` says whether generation metrics (tokens/latency/cost) exist for this row — false for `--from-dir` ingested solutions. |
+| `struct` | `corpus_stats::ConfidenceInterval` | `pub struct ConfidenceInterval` | [`crates/vox-eval/src/corpus_stats.rs#L17-L21`](../../../crates/vox-eval/src/corpus_stats.rs#L17-L21) | — |
+| `struct` | `corpus_stats::PairedResult` | `pub struct PairedResult` | [`crates/vox-eval/src/corpus_stats.rs#L25-L33`](../../../crates/vox-eval/src/corpus_stats.rs#L25-L33) | Result of a paired comparison between two systems on the same problems. |
+| `fn` | `corpus_stats::mcnemar_exact_p` | `pub fn mcnemar_exact_p(b: usize, c: usize) -> f64` | [`crates/vox-eval/src/corpus_stats.rs#L46-L56`](../../../crates/vox-eval/src/corpus_stats.rs#L46-L56) | Two-sided exact McNemar p-value over discordant counts.  Exact rather than chi-square because discordant pairs are few at this corpus size (the chi-square approximation needs b + c >= 25). |
+| `fn` | `corpus_stats::paired_compare` | `pub fn paired_compare(a: &[bool], b: &[bool]) -> PairedResult` | [`crates/vox-eval/src/corpus_stats.rs#L60-L81`](../../../crates/vox-eval/src/corpus_stats.rs#L60-L81) | Compare two systems on identical problems (paired binary outcomes). |
+| `fn` | `corpus_stats::holm_reject` | `pub fn holm_reject(p_values: &[f64], alpha: f64) -> Vec<bool>` | [`crates/vox-eval/src/corpus_stats.rs#L88-L105`](../../../crates/vox-eval/src/corpus_stats.rs#L88-L105) | Holm-Bonferroni step-down. Returns per-input rejection flags in input order.  Controls family-wise error across the m(m-1)/2 pairwise claims published in one run; uniformly more powerful than plain Bonferroni. |
+| `fn` | `corpus_stats::bootstrap_ci` | `pub fn bootstrap_ci(per_problem: &[f64], reps: usize, seed: u64) -> (f64, f64)` | [`crates/vox-eval/src/corpus_stats.rs#L114-L138`](../../../crates/vox-eval/src/corpus_stats.rs#L114-L138) | Percentile bootstrap CI for a mean over problems (cluster-resampled).  Correct for pass@k, which is a mean of per-problem estimates rather than a binomial proportion — Wilson does not apply there. `seed` is a simple xorshift state, not cryptographic; deterministic across runs for a given seed, which is all reproducibility here requires. |
+| `fn` | `corpus_stats::wilson_interval` | `pub fn wilson_interval(successes: usize, trials: usize, z: f64) -> ConfidenceInterval` | [`crates/vox-eval/src/corpus_stats.rs#L143-L161`](../../../crates/vox-eval/src/corpus_stats.rs#L143-L161) | Wilson score interval. Valid ONLY for single-attempt pass@1 (a genuine binomial proportion). Use `bootstrap_ci` for pass@k. |
+| `fn` | `corpus_stats::intervals_overlap` | `pub fn intervals_overlap(a: &ConfidenceInterval, b: &ConfidenceInterval) -> bool` | [`crates/vox-eval/src/corpus_stats.rs#L167-L169`](../../../crates/vox-eval/src/corpus_stats.rs#L167-L169) | True when two intervals overlap. NOT a significance test on its own (see module doc) — kept only as a display hint for "visually close", never as input to a publish/no-publish decision. |
+| `fn` | `corpus_stats::min_detectable_difference` | `pub fn min_detectable_difference(n: usize) -> f64` | [`crates/vox-eval/src/corpus_stats.rs#L178-L187`](../../../crates/vox-eval/src/corpus_stats.rs#L178-L187) | Smallest difference resolvable at ~80% power with `n` problems.  From exact McNemar enumeration (2026-09-01): n=31 detects a 10-point difference only ~9% of the time and needs ~25-30 points for 80% power; n=164 resolves ~10 points. Published on the leaderboard so readers can see which rows are genuinely tied. |
+| `struct` | `corpus_stats::GateVerdict` | `pub struct GateVerdict` | [`crates/vox-eval/src/corpus_stats.rs#L195-L199`](../../../crates/vox-eval/src/corpus_stats.rs#L195-L199) | Verdict from applying the hub gate's fixed thresholds (spec §6.2) to an already-computed [`PairedResult`] plus the challenger's absolute metrics.  `difference` is carried through for reporting only — it must never itself drive `blocked`. |
+| `fn` | `corpus_stats::evaluate_gate` | `pub fn evaluate_gate(` | [`crates/vox-eval/src/corpus_stats.rs#L208`](../../../crates/vox-eval/src/corpus_stats.rs#L208) | Apply the hub gate's decision rules to a challenger-vs-baseline paired comparison plus the challenger's absolute metrics.  `paired` MUST come from `paired_compare(baseline, challenger)` — so `paired.b_only` is "baseline passed, challenger failed" (regression) and `paired.c_only` is "challenger passed, baseline failed" (improvement). |
+| `enum` | `mens::CompileVerdict` | `pub enum CompileVerdict` | [`crates/vox-eval/src/mens.rs#L12-L15`](../../../crates/vox-eval/src/mens.rs#L12-L15) | Normalised compile outcome for a single eval case. |
 

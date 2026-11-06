@@ -45,3 +45,83 @@ components communicate through these types to avoid circular crate dependencies.
 | `publication_format` | — |
 | `schema_types` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_research_events: "vox-research-events"
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_research_events
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_research_events
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_research_events
+    node vox_publisher: "vox-publisher"
+    vox_publisher -> vox_research_events
+    node vox_research_shim: "vox-research-shim"
+    vox_research_shim -> vox_research_events
+    node vox_scientia: "vox-scientia"
+    vox_scientia -> vox_research_events
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-publisher`](./vox-publisher.generated.md) | Direct workspace dependent |
+| [`vox-research-shim`](./vox-research-shim.generated.md) | Direct workspace dependent |
+| [`vox-scientia`](./vox-scientia.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `trait` | `emitter::ResearchEventEmitter` | `pub trait ResearchEventEmitter: Send + Sync` | [`crates/vox-research-events/src/emitter.rs#L13-L28`](../../../crates/vox-research-events/src/emitter.rs#L13-L28) | Object-safe trait for emitting SCIENTIA research lifecycle events.  Implementations must be `Send + Sync` so they can be held behind `Arc`. |
+| `struct` | `emitter::NoopEmitter` | `pub struct NoopEmitter` | [`crates/vox-research-events/src/emitter.rs#L31`](../../../crates/vox-research-events/src/emitter.rs#L31) | No-op emitter — silently drops all events. Used in tests and during bootstrap. |
+| `enum` | `events::ResearchEventKind` | `pub enum ResearchEventKind` | [`crates/vox-research-events/src/events.rs#L18-L35`](../../../crates/vox-research-events/src/events.rs#L18-L35) | Coarse event category for filtering without deserializing the payload. |
+| `enum` | `events::ResearchEvent` | `pub enum ResearchEvent` | [`crates/vox-research-events/src/events.rs#L43-L161`](../../../crates/vox-research-events/src/events.rs#L43-L161) | Typed SCIENTIA pipeline event.  Consumers match on this enum; serde tags allow JSON transport across process boundaries (e.g. orchestrator → publisher). |
+| `fn` | `events::kind` | `pub fn kind(&self) -> ResearchEventKind` | [`crates/vox-research-events/src/events.rs#L164-L183`](../../../crates/vox-research-events/src/events.rs#L164-L183) | — |
+| `struct` | `observation::LearnedProfileRow` | `pub struct LearnedProfileRow` | [`crates/vox-research-events/src/observation.rs#L5-L12`](../../../crates/vox-research-events/src/observation.rs#L5-L12) | A learned model behavior profile row (Mesh §5.5 / Phase 0d scientia_model_profile_learning). |
+| `enum` | `observation::ObservationClass` | `pub enum ObservationClass` | [`crates/vox-research-events/src/observation.rs#L16-L20`](../../../crates/vox-research-events/src/observation.rs#L16-L20) | Classification result from the ScientiaObservationClassifier. |
+| `trait` | `observation::ScientiaObservationClassifier` | `pub trait ScientiaObservationClassifier: Send + Sync` | [`crates/vox-research-events/src/observation.rs#L23-L25`](../../../crates/vox-research-events/src/observation.rs#L23-L25) | Trait for classifying a raw telemetry observation into a SCIENTIA signal class. |
+| `struct` | `observation::KeywordObservationClassifier` | `pub struct KeywordObservationClassifier` | [`crates/vox-research-events/src/observation.rs#L29`](../../../crates/vox-research-events/src/observation.rs#L29) | Heuristic keyword-based classifier (default implementation). |
+| `struct` | `observation::ScientiaWeightExtension` | `pub struct ScientiaWeightExtension` | [`crates/vox-research-events/src/observation.rs#L55-L59`](../../../crates/vox-research-events/src/observation.rs#L55-L59) | Extended scoring weights with SCIENTIA signal bonus (Mesh §5.4). Behind feature flag — only affects routing when `scientia_weights_enabled = true`. |
+| `struct` | `observation::PenaltyRecord` | `pub struct PenaltyRecord` | [`crates/vox-research-events/src/observation.rs#L73-L79`](../../../crates/vox-research-events/src/observation.rs#L73-L79) | A penalty record with context (Mesh §5.6). |
+| `struct` | `preregistration::SubstrateRef` | `pub struct SubstrateRef` | [`crates/vox-research-events/src/preregistration.rs#L11-L18`](../../../crates/vox-research-events/src/preregistration.rs#L11-L18) | Reference to the eval substrate (code + data) for reproducibility. |
+| `struct` | `preregistration::MetricSpec` | `pub struct MetricSpec` | [`crates/vox-research-events/src/preregistration.rs#L22-L26`](../../../crates/vox-research-events/src/preregistration.rs#L22-L26) | What to measure and how to aggregate it. |
+| `enum` | `preregistration::StatisticalTest` | `pub enum StatisticalTest` | [`crates/vox-research-events/src/preregistration.rs#L31-L34`](../../../crates/vox-research-events/src/preregistration.rs#L31-L34) | Frequentist or Bayesian test family. |
+| `struct` | `preregistration::TestSpec` | `pub struct TestSpec` | [`crates/vox-research-events/src/preregistration.rs#L38-L46`](../../../crates/vox-research-events/src/preregistration.rs#L38-L46) | Full test specification including priors (Bayesian) or significance level (frequentist). |
+| `struct` | `preregistration::StopRule` | `pub struct StopRule` | [`crates/vox-research-events/src/preregistration.rs#L50-L57`](../../../crates/vox-research-events/src/preregistration.rs#L50-L57) | Sequential stopping rule — pre-declared to prevent p-hacking. |
+| `struct` | `preregistration::DecisionRule` | `pub struct DecisionRule` | [`crates/vox-research-events/src/preregistration.rs#L61-L63`](../../../crates/vox-research-events/src/preregistration.rs#L61-L63) | Explicit decision rule — what "reject" and "fail to reject" mean in context. |
+| `struct` | `preregistration::PreregistrationV1` | `pub struct PreregistrationV1` | [`crates/vox-research-events/src/preregistration.rs#L70-L90`](../../../crates/vox-research-events/src/preregistration.rs#L70-L90) | Signed, content-addressable pre-registration record.  The id field holds a Nanopub Trusty URI (content-hash-in-URI) once the pre-registration is published; during drafting it is a provisional local ID. |
+| `struct` | `publication_format::ShortFormVariant` | `pub struct ShortFormVariant` | [`crates/vox-research-events/src/publication_format.rs#L10-L21`](../../../crates/vox-research-events/src/publication_format.rs#L10-L21) | A short-form publication variant lifted from atomic claims. |
+| `enum` | `publication_format::PublicationPlatform` | `pub enum PublicationPlatform` | [`crates/vox-research-events/src/publication_format.rs#L25-L31`](../../../crates/vox-research-events/src/publication_format.rs#L25-L31) | — |
+| `fn` | `publication_format::max_chars` | `pub fn max_chars(&self) -> usize` | [`crates/vox-research-events/src/publication_format.rs#L35-L43`](../../../crates/vox-research-events/src/publication_format.rs#L35-L43) | Maximum character count for this platform. |
+| `fn` | `publication_format::validate_short_form` | `pub fn validate_short_form(variant: &ShortFormVariant) -> Result<(), String>` | [`crates/vox-research-events/src/publication_format.rs#L47-L59`](../../../crates/vox-research-events/src/publication_format.rs#L47-L59) | Validates that a ShortFormVariant fits within platform limits. |
+| `fn` | `publication_format::adapt_claim_to_platform` | `pub fn adapt_claim_to_platform(` | [`crates/vox-research-events/src/publication_format.rs#L63`](../../../crates/vox-research-events/src/publication_format.rs#L63) | Adapt an atomic claim text to a short-form platform variant. This is a stub — Phase 8 wires the actual vox-constrained-gen emitter. |
+| `struct` | `publication_format::FigurePolicy` | `pub struct FigurePolicy` | [`crates/vox-research-events/src/publication_format.rs#L93-L97`](../../../crates/vox-research-events/src/publication_format.rs#L93-L97) | Figure policy per Cell/Science 2025: no LLM-generated primary research figures. |
+| `struct` | `schema_types::SignalProvenance` | `pub struct SignalProvenance` | [`crates/vox-research-events/src/schema_types.rs#L30-L43`](../../../crates/vox-research-events/src/schema_types.rs#L30-L43) | Provenance record for a discovery signal. All fields are optional in the schema. |
+| `enum` | `schema_types::DiscoverySignalStrength` | `pub enum DiscoverySignalStrength` | [`crates/vox-research-events/src/schema_types.rs#L48-L52`](../../../crates/vox-research-events/src/schema_types.rs#L48-L52) | Signal strength level. |
+| `enum` | `schema_types::DiscoverySignalFamily` | `pub enum DiscoverySignalFamily` | [`crates/vox-research-events/src/schema_types.rs#L57-L73`](../../../crates/vox-research-events/src/schema_types.rs#L57-L73) | Signal family classification. |
+| `struct` | `schema_types::DiscoverySignal` | `pub struct DiscoverySignal` | [`crates/vox-research-events/src/schema_types.rs#L78-L86`](../../../crates/vox-research-events/src/schema_types.rs#L78-L86) | A SCIENTIA discovery signal (`discovery-signal.schema.json`). |
+| `enum` | `schema_types::FindingCandidateClass` | `pub enum FindingCandidateClass` | [`crates/vox-research-events/src/schema_types.rs#L95-L105`](../../../crates/vox-research-events/src/schema_types.rs#L95-L105) | Class of a finding candidate. |
+| `struct` | `schema_types::FindingCandidateConfidence` | `pub struct FindingCandidateConfidence` | [`crates/vox-research-events/src/schema_types.rs#L110-L117`](../../../crates/vox-research-events/src/schema_types.rs#L110-L117) | Confidence scores for a finding candidate. All fields optional in the schema. |
+| `struct` | `schema_types::FindingCandidateV1` | `pub struct FindingCandidateV1` | [`crates/vox-research-events/src/schema_types.rs#L122-L140`](../../../crates/vox-research-events/src/schema_types.rs#L122-L140) | A SCIENTIA finding candidate ledger record v1 (`finding-candidate.v1.schema.json`). |
+| `enum` | `schema_types::NoveltySource` | `pub enum NoveltySource` | [`crates/vox-research-events/src/schema_types.rs#L149-L155`](../../../crates/vox-research-events/src/schema_types.rs#L149-L155) | Source system for novelty hits. |
+| `struct` | `schema_types::NormalizedHit` | `pub struct NormalizedHit` | [`crates/vox-research-events/src/schema_types.rs#L160-L174`](../../../crates/vox-research-events/src/schema_types.rs#L160-L174) | A single normalized prior-art hit. |
+| `enum` | `schema_types::RecencyBucket` | `pub enum RecencyBucket` | [`crates/vox-research-events/src/schema_types.rs#L179-L184`](../../../crates/vox-research-events/src/schema_types.rs#L179-L184) | Recency bucket for overlap summary. |
+| `struct` | `schema_types::OverlapSummary` | `pub struct OverlapSummary` | [`crates/vox-research-events/src/schema_types.rs#L189-L196`](../../../crates/vox-research-events/src/schema_types.rs#L189-L196) | Summary of overlap across all normalized hits. |
+| `struct` | `schema_types::QueryTrace` | `pub struct QueryTrace` | [`crates/vox-research-events/src/schema_types.rs#L201-L208`](../../../crates/vox-research-events/src/schema_types.rs#L201-L208) | A single query trace for audit. |
+| `struct` | `schema_types::NoveltyEvidenceBundle` | `pub struct NoveltyEvidenceBundle` | [`crates/vox-research-events/src/schema_types.rs#L213-L225`](../../../crates/vox-research-events/src/schema_types.rs#L213-L225) | A SCIENTIA novelty evidence bundle v1 (`novelty-evidence-bundle.v1.schema.json`). |
+| `struct` | `schema_types::RunRef` | `pub struct RunRef` | [`crates/vox-research-events/src/schema_types.rs#L234-L243`](../../../crates/vox-research-events/src/schema_types.rs#L234-L243) | Reference to a single benchmark run. |
+| `struct` | `schema_types::EvidencePackV1` | `pub struct EvidencePackV1` | [`crates/vox-research-events/src/schema_types.rs#L248-L257`](../../../crates/vox-research-events/src/schema_types.rs#L248-L257) | A SCIENTIA EvidencePack v1 (`evidence-pack.v1.schema.json`). |
+| `enum` | `schema_types::WorthinessProfile` | `pub enum WorthinessProfile` | [`crates/vox-research-events/src/schema_types.rs#L266-L271`](../../../crates/vox-research-events/src/schema_types.rs#L266-L271) | Publication profile / target venue. |
+| `struct` | `schema_types::WorthinessSignalItem` | `pub struct WorthinessSignalItem` | [`crates/vox-research-events/src/schema_types.rs#L276-L283`](../../../crates/vox-research-events/src/schema_types.rs#L276-L283) | A single worthiness signal (gate or diagnostic item). |
+| `struct` | `schema_types::WorthinessActionItem` | `pub struct WorthinessActionItem` | [`crates/vox-research-events/src/schema_types.rs#L288-L292`](../../../crates/vox-research-events/src/schema_types.rs#L288-L292) | A prioritised next-action recommendation. |
+| `struct` | `schema_types::WorthinessSignalsV2` | `pub struct WorthinessSignalsV2` | [`crates/vox-research-events/src/schema_types.rs#L297-L304`](../../../crates/vox-research-events/src/schema_types.rs#L297-L304) | A SCIENTIA worthiness signals v2 (`worthiness-signals.v2.schema.json`). |
+

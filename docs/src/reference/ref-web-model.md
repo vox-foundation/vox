@@ -58,7 +58,14 @@ Vox emits a **`routes.manifest.ts`** (`VoxRoute[]`) for adapters; the **normativ
 Older prose used arrow forms; prefer **`to`** and manifests per [`vox-web-stack.md`](./vox-web-stack.md).
 
 ```vox
-// vox:skip -- excerpt: Home and AccountDashboard components are defined elsewhere
+component Home() {
+    view: text() { "Home" }
+}
+
+component AccountDashboard() {
+    view: text() { "Dashboard" }
+}
+
 routes {
     "/" to Home
     "/dashboard" to AccountDashboard

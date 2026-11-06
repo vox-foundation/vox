@@ -64,3 +64,72 @@ See: docs/src/architecture/plugin-system-redesign-2026.md
 | `VOX_PLUGIN_ABI_VERSION` | The newest plugin ABI this host speaks. A plugin built against this exact version always loads. Bumped on **any** ABI change (additive or breaking). |
 | `VOX_PLUGIN_ABI_MIN_SUPPORTED` | The oldest plugin ABI this host still accepts. A plugin whose embedded ABI is within `VOX_PLUGIN_ABI_MIN_SUPPORTED ..= VOX_PLUGIN_ABI_VERSION` loads **without a rebuild** — so a Vox release that doesn't touch the extension traits never forces every plugin to be recompiled.  ## Bump policy - **Additive** ABI change (a new extension point, or a new *optional* trait method guarded by an extension `*_REVISION` bump): raise [`VOX_PLUGIN_ABI_VERSION`] only and leave this constant — old plugin binaries keep loading. - **Breaking** ABI change (a changed/removed trait-method signature or struct layout): raise **both** this constant and [`VOX_PLUGIN_ABI_VERSION`] — older plugins are then rejected at load with a clear message. Breaking bumps should be rare and batched. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_plugin_api: "vox-plugin-api"
+    node vox_plugin_types: "vox-plugin-types"
+    vox_plugin_api -> vox_plugin_types
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_plugin_api
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_plugin_api
+    node vox_integration_tests: "vox-integration-tests"
+    vox_integration_tests -> vox_plugin_api
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_plugin_api
+    node vox_plugin_browser: "vox-plugin-browser"
+    vox_plugin_browser -> vox_plugin_api
+    node vox_plugin_host: "vox-plugin-host"
+    vox_plugin_host -> vox_plugin_api
+    node vox_plugin_mens_candle_cuda: "vox-plugin-mens-candle-cuda"
+    vox_plugin_mens_candle_cuda -> vox_plugin_api
+    node vox_plugin_mens_candle_metal: "vox-plugin-mens-candle-metal"
+    vox_plugin_mens_candle_metal -> vox_plugin_api
+    node vox_plugin_nvml_probe: "vox-plugin-nvml-probe"
+    vox_plugin_nvml_probe -> vox_plugin_api
+    node vox_plugin_populi_mesh: "vox-plugin-populi-mesh"
+    vox_plugin_populi_mesh -> vox_plugin_api
+    node vox_plugin_publication: "vox-plugin-publication"
+    vox_plugin_publication -> vox_plugin_api
+    node vox_plugin_runtime_container: "vox-plugin-runtime-container"
+    vox_plugin_runtime_container -> vox_plugin_api
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-integration-tests`](./vox-integration-tests.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-plugin-browser`](./vox-plugin-browser.generated.md) | Direct workspace dependent |
+| [`vox-plugin-host`](./vox-plugin-host.generated.md) | Direct workspace dependent |
+| [`vox-plugin-mens-candle-cuda`](./vox-plugin-mens-candle-cuda.generated.md) | Direct workspace dependent |
+| [`vox-plugin-mens-candle-metal`](./vox-plugin-mens-candle-metal.generated.md) | Direct workspace dependent |
+| [`vox-plugin-nvml-probe`](./vox-plugin-nvml-probe.generated.md) | Direct workspace dependent |
+| [`vox-plugin-populi-mesh`](./vox-plugin-populi-mesh.generated.md) | Direct workspace dependent |
+| [`vox-plugin-publication`](./vox-plugin-publication.generated.md) | Direct workspace dependent |
+| [`vox-plugin-runtime-container`](./vox-plugin-runtime-container.generated.md) | Direct workspace dependent |
+| [`vox-plugin-runtime-wasm`](./vox-plugin-runtime-wasm.generated.md) | Direct workspace dependent |
+| [`vox-plugin-sdk`](./vox-plugin-sdk.generated.md) | Direct workspace dependent |
+| [`vox-plugin-speech`](./vox-plugin-speech.generated.md) | Direct workspace dependent |
+| [`vox-plugin-webhook`](./vox-plugin-webhook.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `abi_compatible` | `pub fn abi_compatible(plugin_abi: u32) -> bool` | [`crates/vox-plugin-api/src/lib.rs#L35-L37`](../../../crates/vox-plugin-api/src/lib.rs#L35-L37) | True when a plugin advertising `plugin_abi` is loadable by this host — i.e. it falls in the supported `[VOX_PLUGIN_ABI_MIN_SUPPORTED, VOX_PLUGIN_ABI_VERSION]` range. |
+| `struct` | `abi::VoxPluginRoot` | `pub struct VoxPluginRoot` | [`crates/vox-plugin-api/src/abi.rs#L32-L38`](../../../crates/vox-plugin-api/src/abi.rs#L32-L38) | — |
+| `trait` | `abi::VoxPlugin` | `pub trait VoxPlugin: Send + Sync` | [`crates/vox-plugin-api/src/abi.rs#L48-L132`](../../../crates/vox-plugin-api/src/abi.rs#L48-L132) | — |
+| `type` | `abi::VoxPluginRef` | `pub type VoxPluginRef = VoxPlugin_TO<'static, RBox<()>>` | [`crates/vox-plugin-api/src/abi.rs#L134`](../../../crates/vox-plugin-api/src/abi.rs#L134) | — |
+| `enum` | `errors::LogLevel` | `pub enum LogLevel` | [`crates/vox-plugin-api/src/errors.rs#L7-L13`](../../../crates/vox-plugin-api/src/errors.rs#L7-L13) | — |
+| `enum` | `host::SabiLogLevel` | `pub enum SabiLogLevel` | [`crates/vox-plugin-api/src/host.rs#L9-L15`](../../../crates/vox-plugin-api/src/host.rs#L9-L15) | — |
+| `trait` | `host::VoxHost` | `pub trait VoxHost: Send + Sync` | [`crates/vox-plugin-api/src/host.rs#L30-L34`](../../../crates/vox-plugin-api/src/host.rs#L30-L34) | — |
+| `struct` | `skill::LoadedSkill` | `pub struct LoadedSkill` | [`crates/vox-plugin-api/src/skill.rs#L12-L18`](../../../crates/vox-plugin-api/src/skill.rs#L12-L18) | — |
+

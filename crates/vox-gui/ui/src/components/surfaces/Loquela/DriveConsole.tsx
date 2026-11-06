@@ -10,6 +10,26 @@ const TONE_BG: Record<string, string> = {
   emerald: 'bg-(--color-status-pass)',
 };
 
+const RISK_TONE_PILL: Record<string, string> = {
+  rose: 'text-(--color-status-fail) bg-(--color-status-fail)/10 hover:bg-(--color-status-fail)/18',
+  amber: 'text-(--color-status-warn) bg-(--color-status-warn)/10 hover:bg-(--color-status-warn)/18',
+  emerald: 'text-(--color-status-pass) bg-(--color-status-pass)/10 hover:bg-(--color-status-pass)/18',
+};
+
+const CLUTCH_ACTIVE_STYLE: Record<ClutchId, string> = {
+  free: 'bg-(--color-status-pass)/18 text-(--color-status-pass) ring-1 ring-(--color-status-pass)/40',
+  efficiency: 'bg-(--color-status-info)/18 text-(--color-status-info) ring-1 ring-(--color-status-info)/40',
+  balanced: 'bg-brass/18 text-brass ring-1 ring-brass/40',
+  genius: 'bg-violet-400/20 text-violet-300 ring-1 ring-violet-400/45',
+};
+
+const CLUTCH_KEYBIND: Record<ClutchId, string> = {
+  free: 'Alt+1',
+  efficiency: 'Alt+2',
+  balanced: 'Alt+3',
+  genius: 'Alt+4',
+};
+
 interface DriveConsoleProps {
   control: ControlState;
   onControlChange: (next: Partial<ControlState>) => void;
@@ -61,16 +81,18 @@ export function DriveConsole({
               type="button"
               role="radio"
               aria-checked={control.clutch === d.id}
+              aria-keyshortcuts={CLUTCH_KEYBIND[d.id]}
+              data-keybind={CLUTCH_KEYBIND[d.id]}
               aria-describedby={hintFor === d.id ? hintId : undefined}
               onClick={() => onControlChange({ clutch: d.id })}
               onMouseEnter={() => setHintFor(d.id)}
               onMouseLeave={() => setHintFor(null)}
               onFocus={() => setHintFor(d.id)}
               onBlur={() => setHintFor(null)}
-              className={`h-7 whitespace-nowrap rounded px-1 font-medium transition-colors ${
+              className={`h-6 my-auto whitespace-nowrap rounded-full px-2 font-medium transition-colors ${
                 control.clutch === d.id
-                  ? 'bg-brass/16 text-brass'
-                  : 'text-text-muted hover:text-text-primary'
+                  ? CLUTCH_ACTIVE_STYLE[d.id]
+                  : 'text-text-muted hover:text-text-primary hover:bg-overlay-hover/60'
               }`}
             >
               {d.label}
@@ -92,17 +114,30 @@ export function DriveConsole({
       {/* ② Spend — engine-wide; the status bar's Spend card has the breakdown */}
       <div
         data-testid="drive-console-spend"
+        data-spend-gate={pct >= 95 ? 'halt' : pct >= 80 ? 'downgrade' : 'normal'}
         className="flex items-center gap-1 border-r border-border-subtle px-1.5 whitespace-nowrap"
-        title="Engine spend across all sessions"
+        title="Engine spend across all sessions (80% soft tier downgrade · 95% hard halt gate)"
       >
         <span className="text-text-muted">Spend</span>
         <span className="font-mono text-brass">{formatSpend(spentUsd, budgetUsd > 0 ? budgetUsd : null)}</span>
         {budgetUsd > 0 && (
-          <span className="relative h-[3px] w-6 rounded-sm bg-overlay-hover">
+          <span className="relative h-[4px] w-8 rounded-sm bg-overlay-hover">
             <span
               data-testid="drive-console-budget-bar"
               className="absolute inset-y-0 left-0 rounded-sm bg-linear-to-r from-(--color-status-pass) to-brass"
               style={{ width: `${pct}%` }}
+            />
+            <span
+              data-testid="drive-console-downgrade-marker"
+              title="80% Soft Downgrade Gate"
+              className="absolute inset-y-0 w-px bg-(--color-status-warn)/80"
+              style={{ left: '80%' }}
+            />
+            <span
+              data-testid="drive-console-halt-marker"
+              title="95% Hard Approval Gate"
+              className="absolute inset-y-0 w-px bg-(--color-status-fail)/90"
+              style={{ left: '95%' }}
             />
           </span>
         )}
@@ -117,13 +152,15 @@ export function DriveConsole({
       <span ref={riskAnchorRef} className="relative flex items-stretch">
         <button
           type="button"
-          data-loquela-toolbar-item="true"
+          data-keybind="Alt+R"
+          aria-keyshortcuts="Alt+R"
+          title="Risk posture (Alt+R to cycle)"
           aria-label={`Risk: ${risk.label} — click to configure`}
           aria-expanded={riskOpen}
           onClick={() => setRiskOpen(o => !o)}
-          className="flex h-7 items-center gap-1 whitespace-nowrap px-1.5 hover:bg-overlay-hover"
+          className={`flex h-7 items-center gap-1 whitespace-nowrap rounded-r-md px-2 font-medium transition-colors ${RISK_TONE_PILL[risk.tone] ?? 'hover:bg-overlay-hover'}`}
         >
-          <span className={`h-3.5 w-[3px] rounded-sm ${TONE_BG[risk.tone]}`} aria-hidden />
+          <span className={`size-2 rounded-full ${TONE_BG[risk.tone]}`} aria-hidden />
           <span>Risk: {risk.label}</span>
           <Icon.chevR className="size-2.5 rotate-90 text-text-muted" aria-hidden="true" />
         </button>

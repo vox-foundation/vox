@@ -41,11 +41,11 @@ form for its cluster:
 | `CodeAuditDetector` | a `vox-code-audit` lint detector spec | `.detector.md.proposed` |
 | `ArchRule` | a `vox-arch-check` / `layers.toml` rule | `.arch-rule.toml.proposed` |
 | `CiGate` | a CI contract entry or test/example fixture | `.ci.yaml.proposed` |
-| `VoxScript` | a small `vox run` script (Vox-capable models only) | `.vox.proposed` |
+| `VoxLang` | a small `vox run` script (Vox-capable models only) | `.vox.proposed` |
 | `CorpusNegativeExample` | a MENS fine-tuning negative example | `.corpus.jsonl.proposed` |
 | `None` | legitimate work; no structural fix | (no file) |
 
-`VoxScript` is gated behind model Vox-capability; on a non-Vox-capable run that
+`VoxLang` is gated behind model Vox-capability; on a non-Vox-capable run that
 form falls back to `CiGate`.
 
 ## Staged, not applied

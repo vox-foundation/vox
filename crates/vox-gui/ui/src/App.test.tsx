@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 
@@ -84,6 +83,12 @@ beforeEach(() => {
 afterEach(() => {
   window.location.hash = '';
 });
+
+// Whole-App integration tests: under the full parallel suite a mount plus userEvent typing can exceed
+// vitest's 5s default, and the plan dock (latest_plan -> list_plan_nodes -> dockview) can exceed
+// findBy*'s 1s default. Only the wait budgets change; every assertion stays the same.
+vi.setConfig({ testTimeout: 15_000 });
+const PLAN_DOCK_WAIT = { timeout: 5_000 };
 
 describe('App shell', () => {
   const renderApp = () => {
@@ -653,7 +658,7 @@ describe('App shell', () => {
     await waitFor(() =>
       expect(invokeMock).toHaveBeenCalledWith('latest_plan_session_for_chat', { sessionId: 'chat-a' }),
     );
-    const discard = await screen.findByRole('button', { name: 'Discard' });
+    const discard = await screen.findByRole('button', { name: 'Discard' }, PLAN_DOCK_WAIT);
     await userEvent.click(discard);
     await waitFor(() => expect(screen.queryByTestId('chat-dock-todos')).toBeNull());
 
@@ -713,7 +718,7 @@ describe('App shell', () => {
     await waitFor(() =>
       expect(invokeMock).toHaveBeenCalledWith('latest_plan_session_for_chat', { sessionId: 'chat-persist' }),
     );
-    const discard = await screen.findByRole('button', { name: 'Discard' });
+    const discard = await screen.findByRole('button', { name: 'Discard' }, PLAN_DOCK_WAIT);
     await userEvent.click(discard);
     await waitFor(() => expect(screen.queryByTestId('chat-dock-todos')).toBeNull());
     first.unmount();
@@ -785,7 +790,7 @@ describe('App shell', () => {
 
     await waitFor(() => expect(invokeMock).toHaveBeenCalledWith('chat_turn', expect.anything()));
     resolveLatest({ plan_session_id: 'plan-old', plan_version: 9 });
-    expect(await screen.findByRole('button', { name: 'Discard' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Discard' }, PLAN_DOCK_WAIT)).toBeInTheDocument();
     expect(screen.queryByText('plan-old')).toBeNull();
   });
 

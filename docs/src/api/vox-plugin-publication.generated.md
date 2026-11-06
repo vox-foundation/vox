@@ -57,3 +57,28 @@ deps (`feed-rs`, `fnv`, platform HTTP clients). Users opt in via:
 |---|---|
 | `ingest` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_plugin_publication: "vox-plugin-publication"
+    node vox_db: "vox-db"
+    vox_plugin_publication -> vox_db
+    node vox_plugin_api: "vox-plugin-api"
+    vox_plugin_publication -> vox_plugin_api
+    node vox_publisher: "vox-publisher"
+    vox_plugin_publication -> vox_publisher
+    node vox_scientia: "vox-scientia"
+    vox_plugin_publication -> vox_scientia
+    node vox_search: "vox-search"
+    vox_plugin_publication -> vox_search
+}
+```
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `ingest::ingest_tick` | `pub async fn ingest_tick(feed_id: Option<&str>, limit: usize) -> Result<()>` | [`crates/vox-plugin-publication/src/ingest.rs#L19-L69`](../../../crates/vox-plugin-publication/src/ingest.rs#L19-L69) | Run one batch of Scientist RSS/Atom crawling and deduplication tick.  This function mirrors the logic previously embedded in `vox-cli/src/commands/db/publication/ingest.rs` and is the canonical dispatch target now that the CLI delegates via this rlib instead of importing `vox-scientia-ingest` directly. |
+

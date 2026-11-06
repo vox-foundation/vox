@@ -56,7 +56,6 @@ Where `Name` is derived from the file basename (e.g., `counter.vox.ui` → `Coun
 Cross-module imports:
 
 ```text
-// vox:skip — illustrative
 // counter.vox.ui
 state count: int = 0
 derived double = count * 2

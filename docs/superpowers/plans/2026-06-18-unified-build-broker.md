@@ -734,7 +734,7 @@ fn main() {
 
 > Note on `ts_ms`: to avoid a time dependency conflicting with vox's `Date.now()`
 > rules in scripts, the shim leaves `ts_ms=0`; if a real timestamp is wanted,
-> add `std::time::SystemTime` here (this is Rust, not VoxScript — allowed). Keep
+> add `std::time::SystemTime` here (this is Rust, not VoxLang — allowed). Keep
 > as-is unless stats need wall-clock ordering.
 
 - [ ] **Step 5: Run the test to verify it passes**

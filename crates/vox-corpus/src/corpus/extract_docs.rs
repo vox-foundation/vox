@@ -175,8 +175,13 @@ pub fn extract_from_md_file(
     }
 
     // The page-one summary block is a rewrite target, never training text (TAX-06); strip it
-    // before both lanes.
+    // before both lanes. For `.mdx` files, also strip ESM imports and Starlight JSX wrappers.
     let source = vox_kb_facets::strip_summary_blocks(&source);
+    let source = if path.extension().is_some_and(|e| e == "mdx") {
+        vox_kb_facets::strip_mdx_boilerplate(&source)
+    } else {
+        source
+    };
 
     let mut pairs = Vec::new();
 
@@ -560,7 +565,7 @@ fn walk_docs_dir(
                 continue;
             }
             walk_docs_dir(&path, config, out)?;
-        } else if path.extension().is_some_and(|e| e == "md") {
+        } else if path.extension().is_some_and(|e| e == "md" || e == "mdx") {
             match extract_from_md_file(&path, config) {
                 Ok(mut pairs) => {
                     if config.limit > 0 {
@@ -822,6 +827,50 @@ Check out this code:
             out.is_empty(),
             "should ignore code block containing mdbook include"
         );
+    }
+
+    #[test]
+    fn extract_from_mdx_file_strips_jsx_and_summary() {
+        let dir = tempfile::tempdir().unwrap();
+        let mdx_path = dir.path().join("guide.mdx");
+        let mdx = r#"---
+title: "MDX Guide"
+authorship: "human"
+training_eligible: true
+---
+import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+# MDX Guide
+
+{/* kb:summary */}
+SECRET_SUMMARY_TOKEN that must never leak into MENS training rows.
+{/* /kb:summary */}
+
+## Full-Stack Steps
+
+<Steps>
+1. Define a typed table and query in Vox so schema and backend handlers stay synchronized across SQL and Rust.
+</Steps>
+
+```vox
+fn compute_total(a: int, b: int) to int {
+    return a + b
+}
+```
+"#;
+        std::fs::write(&mdx_path, mdx).unwrap();
+        let config = ExtractDocsConfig {
+            root: dir.path().to_path_buf(),
+            min_section_chars: 40,
+            ..Default::default()
+        };
+        let pairs = walk_and_extract_docs(&config).unwrap();
+        assert!(!pairs.is_empty(), "expected training pairs from .mdx file");
+        for p in &pairs {
+            assert!(!p.response.contains("SECRET_SUMMARY_TOKEN"));
+            assert!(!p.response.contains("<Steps>"));
+            assert!(!p.response.contains("@astrojs/starlight/components"));
+        }
     }
 }
 

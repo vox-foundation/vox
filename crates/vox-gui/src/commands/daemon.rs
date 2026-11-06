@@ -267,9 +267,13 @@ impl PersistentDaemon {
             }
             if explicit_socket.is_some() {
                 let err_msg = if !role_ok {
-                    "existing vox-orchestrator-d is not human-role; stop it and let the GUI spawn \
+                    if resp.get("db_attached").and_then(|v| v.as_bool()) == Some(false) {
+                        "existing vox-orchestrator-d booted without VoxDb attached (degraded); stop it and let the GUI spawn a fresh daemon".to_string()
+                    } else {
+                        "existing vox-orchestrator-d is not human-role; stop it and let the GUI spawn \
 (or restart it with VOX_MCP_CALLER_ROLE=human)"
-                        .to_string()
+                            .to_string()
+                    }
                 } else {
                     vox_cli_core::daemon_ipc::orchestrator_daemon_ensure::profile_mismatch_error(
                         &resp,
@@ -591,13 +595,16 @@ pub async fn orchestrator_version_mismatch(
     })
 }
 
-/// Adopt only when ping proves the daemon was launched with a human MCP role.
+/// Adopt only when ping proves the daemon was launched with a human MCP role
+/// and did not degrade its `VoxDb` attachment (`db_attached == Some(false)`).
 /// A missing `caller_role` (older daemon) fails closed.
 pub fn existing_daemon_is_adoptable_for_gui(ping_response: &serde_json::Value) -> bool {
-    ping_response
+    let role_ok = ping_response
         .get("caller_role")
         .and_then(|v| v.as_str())
-        .is_some_and(|s| s.eq_ignore_ascii_case("human"))
+        .is_some_and(|s| s.eq_ignore_ascii_case("human"));
+    let db_ok = ping_response.get("db_attached").and_then(|v| v.as_bool()) != Some(false);
+    role_ok && db_ok
 }
 
 /// Capability profile Axis asks its local daemon to serve: `VOX_PROFILE` when set, else `dev`.
@@ -648,6 +655,16 @@ mod version_mismatch_tests {
         assert!(existing_daemon_is_adoptable_for_gui(&serde_json::json!({
             "ok": true,
             "caller_role": "HUMAN"
+        })));
+        assert!(existing_daemon_is_adoptable_for_gui(&serde_json::json!({
+            "ok": true,
+            "caller_role": "human",
+            "db_attached": true
+        })));
+        assert!(!existing_daemon_is_adoptable_for_gui(&serde_json::json!({
+            "ok": true,
+            "caller_role": "human",
+            "db_attached": false
         })));
     }
 

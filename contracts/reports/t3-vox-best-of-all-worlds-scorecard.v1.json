@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "milestone": "v3.9",
+  "title": "T3 Chat & T3 Code Ecosystem vs Vox Best-of-All-Worlds Harness & Router Scorecard",
+  "generated_at": "2026-10-25T00:52:30Z",
+  "evaluated_repositories": [
+    {
+      "id": "pingdotgg/t3code",
+      "commit_sha": "3eb836664eb1a5d0102055fe1e4a7fc5c1d8a9c7"
+    },
+    {
+      "id": "vibheksoni/t3router",
+      "commit_sha": "5314bbbf0af66e724e3e07ffd458ef5919d1eed1"
+    },
+    {
+      "id": "vibheksoni/pi-t3chat",
+      "commit_sha": "b39873245362c33f68a9a3e044423f69769069f9"
+    },
+    {
+      "id": "TGlide/thom-chat",
+      "commit_sha": "062193d792303007b500e35c0c50ea4ceefeff2d"
+    },
+    {
+      "id": "helioschat/app",
+      "commit_sha": "08e2c3fc784c4ed5bf58b38516182387f218bf26"
+    }
+  ],
+  "dimensions": [
+    {
+      "dimension_id": "DIM-01-OPERATIONAL-HEALTH-AWARE-ROUTING",
+      "category": "router",
+      "t3_ecosystem_best": "vibheksoni/t3router (`ModelStatus` Operational/Degraded/Outage parsed from `/model-statuses`, surfaced as informational badges only)",
+      "vox_pre_v3_9": "Circuit-breaker penalty_map + failure_rate decay in `vox-orchestrator::models::select`, without pre-call provider health-status gating",
+      "vox_post_v3_9": "Full pre-call operational health gating (`ModelOperationalStatus::Operational | Degraded | Outage`) integrated into `decide()`, `select_local_first`, `select_via_premium_alias`, and `select_via_scorer`: `Outage` candidates excluded, `Degraded` candidates demoted when `Operational` alternatives exist",
+      "winner": "vox_post_v3_9",
+      "verification_test": "crates/vox-orchestrator/src/models/select.rs::semcov_wave1c_tests::t3_operational_status_outage_excluded_and_degraded_demoted"
+    },
+    {
+      "dimension_id": "DIM-02-REASONING-EFFORT-AND-GROUNDING-CONTROLS",
+      "category": "router_and_egress",
+      "t3_ecosystem_best": "vibheksoni/pi-t3chat + TGlide/thom-chat (`reasoningEffort` low/medium/high and OpenRouter `:online` web-search suffix)",
+      "vox_pre_v3_9": "Static `Capability::SupportsReasoning` / `Capability::SupportsWebSearch` filtering without per-request reasoning effort budget or automatic `:online` suffix normalization",
+      "vox_post_v3_9": "Unified `ReasoningEffort` (`None | Low | Medium | High`) + `enable_web_search` on `ModelSelectionRequest::with_t3_controls` and `vox-llm-egress` (`T3WireOptions`, `normalize_egress_request_for_t3_options`, `build_request_with_t3_options` with automatic idempotent `:online` OpenRouter suffix and `reasoning_effort` wire serialization)",
+      "winner": "vox_post_v3_9",
+      "verification_test": "crates/vox-llm-egress/src/lib.rs::tests::t3_wire_options_normalizes_reasoning_effort_and_openrouter_online_suffix"
+    },
+    {
+      "dimension_id": "DIM-03-COST-RECONCILIATION-AND-BUDGET-ACCOUNTING",
+      "category": "router",
+      "t3_ecosystem_best": "vibheksoni/t3router (`UsageTracker` pre/post-turn `queryUsage` delta with 3-tier token estimation fallback)",
+      "vox_pre_v3_9": "Pre-call `estimated_call_cost_usd` budget gate + post-call `BudgetSignal` EMA smoothing without explicit pre/post-turn delta receipt and provenance tiering",
+      "vox_post_v3_9": "`TurnCostDeltaReceipt` + `CostProvenanceTier` (`PlatformCredits | Byok | FreeTier | LocalZero`) + `ModelRegistry::reconcile_turn_cost_delta` feeding observed post-turn cost directly into `record_cost_observation`",
+      "winner": "vox_post_v3_9",
+      "verification_test": "crates/vox-orchestrator/src/models/select.rs::semcov_wave1c_tests::t3_reconcile_turn_cost_delta_tracks_credits_and_provenance"
+    },
+    {
+      "dimension_id": "DIM-04-RESUMABLE-SEQUENCED-TURN-STREAMING",
+      "category": "harness",
+      "t3_ecosystem_best": "TGlide/thom-chat (`resumable-stream` Redis pub/sub replay buffer) + helioschat/app (`StreamController` phase-aware reasoning/content/tool stream state + explicit abort)",
+      "vox_pre_v3_9": "Actor event streaming without sequence-numbered reconnect replay or phase-tagged abort preservation",
+      "vox_post_v3_9": "`ResumableTurnStreamRegistry` + `SequencedTurnChunk` + `TurnStreamEventKind` (`ReasoningDelta | TextDelta | ToolCallStart | ToolCallResult | Done | Error`) supporting `replay_after(thread_id, last_seq)` reconnect replay, `accumulated_snapshot`, and `cancel_turn` out-of-band cancellation",
+      "winner": "vox_post_v3_9",
+      "verification_test": "crates/vox-orchestrator/src/models/select.rs::semcov_wave1c_tests::t3_resumable_turn_stream_replays_after_cursor_and_supports_cancellation"
+    },
+    {
+      "dimension_id": "DIM-05-LAZY-MCP-SERVER-GROUPING-AND-DISCOVERY",
+      "category": "harness_mcp",
+      "t3_ecosystem_best": "vibheksoni/pi-t3chat (`mcp.ts` lazy 3-tool discovery wrapper `list_mcp_servers`, `list_mcp_tools`, `call_mcp` with `MAX_MCP_ROUNDS = 6`)",
+      "vox_pre_v3_9": "`ExternalMcpBridges` prefixed tool exposure (`ext.<server>.<tool>`) injecting every external schema upfront",
+      "vox_post_v3_9": "`LazyMcpGroupRegistry` on `vox-orchestrator-mcp::external_mcp` grouping `ext.<server>.<tool>` bridges into 3 lazy discovery primitives (`list_mcp_servers`, `list_mcp_tools`, `resolve_call_mcp`) with `MAX_LAZY_MCP_WRAPPER_ROUNDS = 6` while preserving full `ExternalMcpBridges` compatibility",
+      "winner": "vox_post_v3_9",
+      "verification_test": "crates/vox-orchestrator-mcp/src/external_mcp.rs::tests::lazy_mcp_group_registry_supports_list_servers_list_tools_and_call_resolution"
+    },
+    {
+      "dimension_id": "DIM-06-PROMPT-ENHANCER-AND-PRIVACY-POSTURE",
+      "category": "harness_ux",
+      "t3_ecosystem_best": "TGlide/thom-chat (`/api/enhance-prompt` preserving `@<rule>` mentions) + helioschat/app (`Temporary Chat` zero-retention mode)",
+      "vox_pre_v3_9": "Spoke routing (`classify_conversation_spoke`) without `@<rule>` tag extraction or explicit zero-retention session posture contract",
+      "vox_post_v3_9": "`ModelRegistry::enhance_user_prompt_for_spoke` + `EnhancedPromptReceipt` (extracting and preserving `@<rule>` tags while attaching spoke directives) + `SessionPrivacyPosture` (`Standard | Ephemeral | LocalPrivate` gating DB persistence, memory extraction, and local-only model selection)",
+      "winner": "vox_post_v3_9",
+      "verification_test": "crates/vox-orchestrator/src/models/select.rs::semcov_wave1c_tests::t3_enhance_prompt_preserves_rule_tags_and_privacy_posture_gates_persistence"
+    },
+    {
+      "dimension_id": "DIM-07-WORKTREE-ISOLATION-AND-MULTI-MODEL-QUALITY",
+      "category": "harness_and_router",
+      "t3_ecosystem_best": "pingdotgg/t3code (`OrchestrationReactor` + git worktree isolation for 3 CLI harnesses: Codex, Claude, Cursor)",
+      "vox_pre_v3_9": "Native `vox-vcs` JJ/git worktree isolation + 7D multi-objective Pareto/Contextual Thompson Sampling router across OpenRouter, Ollama, Populi Mesh, and MENS models",
+      "vox_post_v3_9": "Combines Vox's 7D Pareto/Thompson router, Clavis secret isolation, and `vox-vcs` worktrees with T3's operational status gating, `:online` + `reasoningEffort` controls, post-turn cost reconciliation, resumable sequenced turn streams, and lazy MCP server grouping",
+      "winner": "vox_post_v3_9",
+      "verification_test": "crates/vox-orchestrator/src/models/select.rs::semcov_wave1c_tests::t3_operational_status_outage_excluded_and_degraded_demoted"
+    }
+  ],
+  "summary": {
+    "total_dimensions": 7,
+    "vox_post_v3_9_wins": 7,
+    "extracted_capabilities_implemented": 8,
+    "all_verification_tests_passing": true
+  }
+}

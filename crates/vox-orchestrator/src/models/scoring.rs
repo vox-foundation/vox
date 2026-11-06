@@ -77,29 +77,74 @@ pub fn scoreboard_feedback_boost(
         return 0.0;
     }
     let success = s.success_rate.clamp(0.0, 1.0);
-    // `ModelScore::quality_score` is not graded (it defaults to 1.0 per call), so only a
-    // measured benchmark score counts here; otherwise this term is neutral.
-    let quality = match m.capabilities.quality_prior.as_ref().map(|p| &p.source) {
+    // `ModelScore::quality_score` defaults to 1.0 (or 0.0) on ungraded calls, but Arena
+    // Bradley-Terry preference updates and Empirical Bayes spoke priors write graded values
+    // in `(0.0, 1.0)` (clamped to `[0.05, 0.95]`). Blend graded `s.quality_score` with any
+    // measured benchmark prior (`ROUTE-LEARN-03`).
+    let measured = match m.capabilities.quality_prior.as_ref().map(|p| &p.source) {
         Some(super::spec::QualitySource::Measured { score, .. }) => {
-            f64::from(*score).clamp(0.0, 1.0)
+            Some(f64::from(*score).clamp(0.0, 1.0))
         }
-        _ => 0.5,
+        _ => None,
     };
-    let lat = s
+    let ext_bench = s
+        .benchmark_prior
+        .as_ref()
+        .map(|p| p.composite_routing_prior());
+    let bench_combined = match (measured, ext_bench) {
+        (Some(m_score), Some(e_score)) => Some((0.5 * m_score + 0.5 * e_score).clamp(0.0, 1.0)),
+        (Some(m_score), None) => Some(m_score),
+        (None, Some(e_score)) => Some(e_score),
+        (None, None) => None,
+    };
+    let graded_arena = (s.quality_score > 0.0 && (s.quality_score - 1.0).abs() > 1e-6)
+        .then(|| s.quality_score.clamp(0.0, 1.0));
+    let base_quality = match (bench_combined, graded_arena) {
+        (Some(b_score), Some(a_score)) => (0.6 * b_score + 0.4 * a_score).clamp(0.0, 1.0),
+        (Some(b_score), None) => b_score,
+        (None, Some(a_score)) => a_score,
+        (None, None) => 0.5,
+    };
+    let quality = if let Some(rq_ema) = s.response_quality_ema {
+        (0.75 * base_quality + 0.25 * rq_ema.clamp(0.0, 1.0)).clamp(0.0, 1.0)
+    } else {
+        base_quality
+    };
+    let cfg = vox_config::load_model_routing_config();
+    let excellent = cfg.latency_bands.excellent_ms;
+    let poor = cfg.latency_bands.poor_ms;
+    let band_score = |ms: f64| -> f64 {
+        if ms <= excellent {
+            1.0
+        } else if ms >= poor {
+            0.0
+        } else {
+            1.0 - ((ms - excellent) / (poor - excellent))
+        }
+    };
+    let base_lat = s
         .p50_latency_ms
-        .map(|ms| {
-            let cfg = vox_config::load_model_routing_config();
-            let excellent = cfg.latency_bands.excellent_ms;
-            let poor = cfg.latency_bands.poor_ms;
-            if ms as f64 <= excellent {
-                1.0
-            } else if ms as f64 >= poor {
-                0.0
-            } else {
-                1.0 - ((ms as f64 - excellent) / (poor - excellent))
-            }
-        })
+        .map(|ms| band_score(ms as f64))
         .unwrap_or(0.5);
+    let ttft_factor = s
+        .p95_ttft_ms
+        .filter(|&ms| ms > 0)
+        .map(|ms| band_score(ms as f64));
+    let goodput_factor = s
+        .goodput_tokens_per_sec
+        .filter(|&gps| gps > 0.0)
+        .map(|gps| (gps / 80.0).clamp(0.0, 1.0))
+        .or_else(|| {
+            s.p95_tpot_ms
+                .filter(|&tpot| tpot > 0.0)
+                .map(|tpot| ((1000.0 / tpot) / 80.0).clamp(0.0, 1.0))
+        });
+    let lat = match (ttft_factor, goodput_factor) {
+        (Some(tf), Some(gf)) => (base_lat * 0.4 + tf * 0.3 + gf * 0.3).clamp(0.0, 1.0),
+        (Some(tf), None) => (base_lat * 0.6 + tf * 0.4).clamp(0.0, 1.0),
+        (None, Some(gf)) => (base_lat * 0.6 + gf * 0.4).clamp(0.0, 1.0),
+        (None, None) => base_lat,
+    };
     let cost_inv = if let Some(cps) = s.cost_per_success_usd {
         (1.0 / (1.0 + cps * 100.0)).clamp(0.0, 1.0)
     } else {
@@ -195,6 +240,52 @@ pub(super) fn efficiency_score(m: &ModelSpec) -> f64 {
     } else {
         m.cost_per_1k
     };
+    if blended <= 0.0 {
+        return 1.0;
+    }
+    (1.0 / (1.0 + blended * EFFICIENCY_COST_SCALER)).clamp(0.0, 1.0)
+}
+
+/// Effective blended cost per 1K tokens accounting for prefix KV-cache read discounts
+/// when `context_fill_ratio > 0.0` and `m.supports_prompt_caching` (`SOTA-GOODPUT-ROUTE-01`).
+#[must_use]
+pub fn effective_cost_per_1k_with_cache(m: &ModelSpec, context_fill_ratio: Option<f32>) -> f64 {
+    let uncached_blended = if m.cost_per_1k_input > 0.0 || m.cost_per_1k_output > 0.0 {
+        (m.cost_per_1k_input + m.cost_per_1k_output) / 2.0
+    } else {
+        m.cost_per_1k
+    };
+    let fill = f64::from(context_fill_ratio.unwrap_or(0.0).clamp(0.0, 1.0));
+    if !m.supports_prompt_caching || fill <= 0.0 || uncached_blended <= 0.0 {
+        return uncached_blended;
+    }
+    let in_rate = if m.cost_per_1k_input > 0.0 {
+        m.cost_per_1k_input
+    } else {
+        m.cost_per_1k
+    };
+    let out_rate = if m.cost_per_1k_output > 0.0 {
+        m.cost_per_1k_output
+    } else {
+        m.cost_per_1k
+    };
+    let cache_rate = if m.cache_read_cost_per_1k > 0.0 {
+        m.cache_read_cost_per_1k
+    } else {
+        in_rate * 0.1
+    };
+    let cached_share = (0.75 * fill).clamp(0.0, 0.75);
+    let effective_in = in_rate * (1.0 - cached_share) + cache_rate * cached_share;
+    let input_weight = (0.5 + 0.35 * fill).clamp(0.5, 0.85);
+    effective_in * input_weight + out_rate * (1.0 - input_weight)
+}
+
+#[must_use]
+pub fn efficiency_score_with_cache(m: &ModelSpec, context_fill_ratio: Option<f32>) -> f64 {
+    if !m.supports_prompt_caching || context_fill_ratio.unwrap_or(0.0) <= 0.0 {
+        return efficiency_score(m);
+    }
+    let blended = effective_cost_per_1k_with_cache(m, context_fill_ratio);
     if blended <= 0.0 {
         return 1.0;
     }
@@ -490,7 +581,11 @@ pub fn auto_score_parts(
             + u16::from(w.mobile),
     )
     .max(1.0);
-    let (eff, qual, bal) = (efficiency_score(m), quality_score(m), balance_bias);
+    let (eff, qual, bal) = (
+        efficiency_score_with_cache(m, context_fill_ratio),
+        quality_score(m),
+        balance_bias,
+    );
     let mob = mobile_score(m);
     let score = f64::from(w.efficiency) * eff
         + f64::from(w.precision) * qual
@@ -1163,6 +1258,102 @@ mod tests {
         assert!(p.rate_limited);
         assert_eq!(p.total, RATE_LIMITED_SCORE_FLOOR);
         assert_eq!(p.quality.weight, 0);
+    }
+
+    #[test]
+    fn cache_aware_efficiency_rewards_prompt_caching_models_on_warm_context() {
+        let mut cached_model = make_spec(ProviderType::Anthropic, 0.009, false);
+        cached_model.cost_per_1k_input = 0.003;
+        cached_model.cost_per_1k_output = 0.015;
+        cached_model.cache_read_cost_per_1k = 0.0003;
+        cached_model.supports_prompt_caching = true;
+
+        let mut uncached_model = cached_model.clone();
+        uncached_model.supports_prompt_caching = false;
+
+        assert_eq!(
+            efficiency_score_with_cache(&cached_model, None),
+            efficiency_score_with_cache(&uncached_model, None),
+            "at None context fill, cache-supporting and uncached models must tie"
+        );
+        let warm_cached = efficiency_score_with_cache(&cached_model, Some(0.8));
+        let warm_uncached = efficiency_score_with_cache(&uncached_model, Some(0.8));
+        assert!(
+            warm_cached > warm_uncached,
+            "warm context fill must improve effective efficiency for cache-supporting models ({warm_cached} vs {warm_uncached})"
+        );
+    }
+
+    #[test]
+    fn scoreboard_feedback_boost_rewards_low_ttft_and_high_goodput() {
+        let spec = make_spec(ProviderType::OpenRouter, 0.01, false);
+        let cfg = vox_config::load_model_routing_config();
+        let fast_stream = crate::models::registry::ModelScore {
+            success_rate: 0.95,
+            quality_score: 0.9,
+            cost_per_success_usd: Some(0.002),
+            p50_latency_ms: Some(1500),
+            n_calls: 25,
+            success_count: 24,
+            p95_ttft_ms: Some(320),
+            p95_tpot_ms: Some(11.0),
+            goodput_tokens_per_sec: Some(90.0),
+            response_quality_ema: None,
+            benchmark_prior: None,
+        };
+        let slow_stream = crate::models::registry::ModelScore {
+            p95_ttft_ms: Some(6500),
+            p95_tpot_ms: Some(120.0),
+            goodput_tokens_per_sec: Some(8.0),
+            ..fast_stream.clone()
+        };
+        let fast_boost = scoreboard_feedback_boost(&spec, Some(&fast_stream), &cfg.quality_weights);
+        let slow_boost = scoreboard_feedback_boost(&spec, Some(&slow_stream), &cfg.quality_weights);
+        assert!(
+            fast_boost > slow_boost,
+            "lower p95 TTFT + higher goodput must yield higher scoreboard boost ({fast_boost} vs {slow_boost})"
+        );
+    }
+
+    #[test]
+    fn scoreboard_feedback_boost_blends_external_benchmark_prior_and_response_quality_ema() {
+        let spec = make_spec(ProviderType::OpenRouter, 0.01, false);
+        let cfg = vox_config::load_model_routing_config();
+        let baseline = crate::models::registry::ModelScore {
+            success_rate: 0.90,
+            quality_score: 1.0,
+            cost_per_success_usd: Some(0.002),
+            p50_latency_ms: Some(1200),
+            n_calls: 15,
+            success_count: 14,
+            response_quality_ema: Some(0.50),
+            benchmark_prior: Some(crate::models::bench_evidence::ExternalBenchmarkPrior {
+                swe_bench_verified: Some(0.45),
+                live_bench_coding: Some(0.45),
+                artificial_analysis_index: Some(0.45),
+                skate_bench_score: Some(0.45),
+                snitch_bench_safety_penalty: Some(0.30),
+            }),
+            ..Default::default()
+        };
+        let high_bench_and_qa = crate::models::registry::ModelScore {
+            response_quality_ema: Some(0.94),
+            benchmark_prior: Some(crate::models::bench_evidence::ExternalBenchmarkPrior {
+                swe_bench_verified: Some(0.88),
+                live_bench_coding: Some(0.86),
+                artificial_analysis_index: Some(0.89),
+                skate_bench_score: Some(0.92),
+                snitch_bench_safety_penalty: Some(0.02),
+            }),
+            ..baseline.clone()
+        };
+        let low_boost = scoreboard_feedback_boost(&spec, Some(&baseline), &cfg.quality_weights);
+        let high_boost =
+            scoreboard_feedback_boost(&spec, Some(&high_bench_and_qa), &cfg.quality_weights);
+        assert!(
+            high_boost > low_boost,
+            "higher multi-benchmark prior + Flesch-Kincaid response quality EMA must increase scoreboard_feedback_boost ({high_boost} vs {low_boost})"
+        );
     }
 }
 

@@ -1378,3 +1378,49 @@ fn pin_swapped_by_free_tier_enforcement_is_an_error_naming_the_pin() {
     assert!(err.contains(&requested.id), "{err}");
     assert!(err.contains("free-tier"), "{err}");
 }
+
+#[test]
+fn vox_local_preferred_for_codegen_even_when_enforce_free_tier_only_or_clutch_free() {
+    let _g = INFERENCE_PROFILE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    unsafe { std::env::set_var("vox_populi::inference_PROFILE", "desktop_ollama") };
+    vox_config::snapshot::bump(&["vox_populi::inference_PROFILE"]);
+    let mut config = OrchestratorConfig::for_testing();
+    config.cost_preference = CostPreference::Performance;
+    let orch = Orchestrator::new(config);
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        registry_with_vox_local_and_openrouter();
+
+    let choice = super::resolve::resolve_mcp_chat_model_sync_with_rationale(
+        &orch,
+        "generate a parser",
+        None,
+        McpChatModelResolution {
+            complexity: 5,
+            task_category: vox_orchestrator::types::TaskCategory::CodeGen,
+            enforce_free_tier_only: true,
+            clutch: Some(vox_orchestrator::mode::ClutchProfile::Free),
+            risk: Some(vox_orchestrator::mode::RiskPosture::Low),
+            ..Default::default()
+        },
+    )
+    .expect("should resolve VoxLocal even when enforce_free_tier_only is true");
+
+    assert_eq!(choice.model.provider_type, ProviderType::VoxLocal);
+    assert!(choice.model.is_free);
+    assert!(
+        choice
+            .rationale
+            .as_deref()
+            .unwrap_or_default()
+            .contains("VoxLocal MENS fast-path"),
+        "expected VoxLocal MENS rationale, got {:?}",
+        choice.rationale
+    );
+
+    unsafe {
+        std::env::remove_var("vox_populi::inference_PROFILE");
+    }
+    vox_config::snapshot::bump(&["vox_populi::inference_PROFILE"]);
+}

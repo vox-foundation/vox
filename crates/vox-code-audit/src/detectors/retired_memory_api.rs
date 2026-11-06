@@ -86,7 +86,7 @@ mentions in comments or unrelated local-variable names are not flagged."
     fn detect(
         &self,
         file: &SourceFile,
-        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+        rust_ctx: Option<&crate::analysis::RustFileContext>,
     ) -> Vec<Finding> {
         if file.language != Language::Rust {
             return vec![];
@@ -119,6 +119,11 @@ mentions in comments or unrelated local-variable names are not flagged."
             if let Some(caps) = self.call_pattern.captures(line) {
                 let name = caps.get(1).map(|m| m.as_str()).unwrap_or("?");
                 let m = caps.get(0).expect("group 0");
+                if crate::rules::rust_byte_is_non_code(file, line_num, m.start(), rust_ctx)
+                    || crate::rules::rust_byte_is_cfg_test(file, line_num, m.start(), rust_ctx)
+                {
+                    continue;
+                }
                 findings.push(Finding {
                     rule_id: self.id().to_string(),
                     diagnostic_id: self.diagnostic_id().map(str::to_string),

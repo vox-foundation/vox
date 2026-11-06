@@ -1,0 +1,67 @@
+{
+  "schema_version": "t3_oxlint_toestub_mapping_ledger_v1",
+  "description": "Map high-value oxlint-plugin-t3code rules to Vox TOESTUB / vox-code-audit detectors or explicit deferrals (v5.4 Phase 305).",
+  "source": "~/dev/t3code/oxlint-plugin-t3code/rules",
+  "rules": [
+    {
+      "oxlint": "no-rpc-permission-bypass",
+      "status": "shipped",
+      "vox": "vox/transport/thin-transport-bypass",
+      "owner": "vox-code-audit"
+    },
+    {
+      "oxlint": "require-suppression-reason",
+      "status": "shipped",
+      "vox": "vox/lint/unreasoned-suppression",
+      "owner": "vox-code-audit"
+    },
+    {
+      "oxlint": "no-raw-mcp-registration",
+      "status": "shipped",
+      "vox": "vox/mcp/access-and-error-safety",
+      "owner": "vox-code-audit"
+    },
+    {
+      "oxlint": "no-test-timeout-or-unreasoned-skip",
+      "status": "shipped",
+      "vox": "vox/test/clock-and-skip",
+      "owner": "vox-code-audit"
+    },
+    {
+      "oxlint": "no-low-value-comments",
+      "status": "deferred",
+      "reason": "Noise vs signal for Rust/Vox comment culture; revisit after UI comment lint pilot",
+      "owner": "gui"
+    },
+    {
+      "oxlint": "no-frame-waits-in-browser-tests",
+      "status": "deferred",
+      "reason": "Playwright e2e already discourages waitForTimeout in review specs; dedicated detector backlog",
+      "owner": "gui-e2e"
+    },
+    {
+      "oxlint": "no-polling-loop-in-tests",
+      "status": "deferred",
+      "reason": "Overlap with weak-test + clock-and-skip; Effect-specific polling idioms N/A",
+      "owner": "vox-code-audit"
+    },
+    {
+      "oxlint": "require-disposable-render",
+      "status": "deferred",
+      "reason": "Effect-TS / React disposable render pattern — no direct Vox analog yet",
+      "owner": "gui"
+    },
+    {
+      "oxlint": "no-manual-memo",
+      "status": "deferred",
+      "reason": "React Compiler guidance already in user rules; oxlint-specific",
+      "owner": "gui"
+    },
+    {
+      "oxlint": "no-em-dash-copy",
+      "status": "deferred",
+      "reason": "Copy style preference; not security/correctness",
+      "owner": "docs"
+    }
+  ]
+}

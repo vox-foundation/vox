@@ -37,6 +37,11 @@ fn base_params(description: &str) -> SubmitTaskParams {
         risk: None,
         trigger_source: None,
         chat_session_id: None,
+        tier: None,
+        mode: None,
+        oversight_level: None,
+        kb_scope: None,
+        grounding_check_enabled: None,
     }
 }
 
@@ -147,4 +152,21 @@ fn socrates_context_from_retrieval_preserves_verification_and_quality_signals() 
         Some("weak_evidence_quality")
     );
     assert_eq!(ctx.recommended_next_action.as_deref(), Some("focus_codex"));
+}
+
+#[test]
+fn enqueue_hints_maps_tier_mode_oversight_and_grounding_knobs() {
+    let mut params = base_params("background task with full knobs");
+    params.tier = Some("mesh".to_string());
+    params.mode = Some("verify".to_string());
+    params.oversight_level = Some("strict".to_string());
+    params.grounding_check_enabled = Some(true);
+    let hints = submission::enqueue_hints_from_submit_params(&params).expect("hints");
+    assert_eq!(hints.mode.as_deref(), Some("verify"));
+    assert_eq!(hints.requires_approval, Some(true));
+    assert_eq!(hints.grounding_check_enabled, Some(true));
+    assert_eq!(
+        hints.required_labels.as_deref(),
+        Some(&["tier:mesh".to_string()][..])
+    );
 }

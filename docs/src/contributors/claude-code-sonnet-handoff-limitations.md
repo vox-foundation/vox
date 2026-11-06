@@ -28,7 +28,7 @@ Reusable across handoffs. When you hand any implementation plan to **Claude 4.6 
 
 - **Read [`AGENTS.md`](../../../AGENTS.md) first**, then [`where-things-live.md`](../architecture/where-things-live.md) before adding code.
 - **`cargo fmt --all` is BANNED.** Use `vox run scripts/fmt.vox` or `cargo fmt -p <crate>`.
-- **No new `.ps1`/`.sh`/`.py` automation** — VoxScript (`.vox`) only.
+- **No new `.ps1`/`.sh`/`.py` automation** — VoxLang (`.vox`) only.
 - **`docs/src/` files need frontmatter** (`title`, `description`, `category`, `status`).
 - **New crate ⇒ same-PR updates** to `crates/vox-arch-check/layers.toml` **and** `where-things-live.md`.
 - **`.vox` files are Vox source** — not Rust/TS. Honor `// vox:skip`.

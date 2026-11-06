@@ -36,7 +36,6 @@ Introduce a **`fragment` bare-keyword scope** for typed parametric markup blocks
 ### Syntax
 
 ```text
-// vox:skip — illustrative; awaiting implementation
 fragment Row(item: Item) {
   <tr><td>{item.name}</td><td>{item.price}</td></tr>
 }

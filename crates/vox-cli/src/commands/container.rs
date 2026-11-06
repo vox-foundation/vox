@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 ///
 /// The previous `container init` action — which scanned `@py.import` declarations
 /// and generated a Python pyproject.toml + Dockerfile — has been removed alongside
-/// the retired Python glue lane (see AGENTS.md §VoxScript-First Glue Code).
+/// the retired Python glue lane (see AGENTS.md §VoxLang-First Glue Code).
 pub async fn run(action: ContainerAction) -> Result<()> {
     match action {
         ContainerAction::Build { tag, runtime } => {
@@ -115,4 +115,41 @@ pub enum ContainerAction {
         #[arg(long)]
         pids_limit: Option<u32>,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn build_rejects_unknown_runtime_before_touching_a_container_engine() {
+        let err = run(ContainerAction::Build {
+            tag: None,
+            runtime: Some("lxc".to_string()),
+        })
+        .await
+        .unwrap_err();
+        assert!(
+            err.to_string().contains("Unknown runtime preference"),
+            "{err:#}"
+        );
+    }
+
+    #[tokio::test]
+    async fn run_rejects_unknown_runtime_before_touching_a_container_engine() {
+        let err = run(ContainerAction::Run {
+            image: None,
+            port: Some(8080),
+            runtime: Some("lxc".to_string()),
+            cpus: None,
+            memory: None,
+            pids_limit: None,
+        })
+        .await
+        .unwrap_err();
+        assert!(
+            err.to_string().contains("Unknown runtime preference"),
+            "{err:#}"
+        );
+    }
 }

@@ -250,6 +250,7 @@ pub fn resolve_hir_type(te: &HirType, env: &TypeEnv) -> Ty {
                 "list" | "List" => Ty::List(Box::new(
                     inner_args.into_iter().next().unwrap_or(Ty::TypeVar(0)),
                 )),
+                "Array" => Ty::Array(Box::new(inner_args.into_iter().next().unwrap_or(Ty::Error))),
                 "Option" => Ty::Option(Box::new(
                     inner_args.into_iter().next().unwrap_or(Ty::TypeVar(0)),
                 )),
@@ -646,4 +647,19 @@ pub fn register_hir_agent(env: &mut TypeEnv, a: &HirAgent, mut uf: Option<&mut I
         })
         .collect();
     env.register_agent(a.name.clone(), handlers);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn array_annotation_resolves_to_ty_array() {
+        let env = TypeEnv::new();
+        let hir = HirType::Generic("Array".into(), vec![HirType::Named("f64".into())]);
+        assert_eq!(
+            resolve_hir_type(&hir, &env),
+            Ty::Array(Box::new(Ty::Named("f64".into())))
+        );
+    }
 }

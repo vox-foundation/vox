@@ -1,4 +1,3 @@
-
 /// Generate an error→fix training pair as JSONL.
 pub fn error_fix_to_jsonl(broken: &str, explanation: &str, fixed: &str, category: &str) -> String {
     let prompt = format!("Why doesn't this Vox code compile?\n\n```vox\n{broken}\n```");
@@ -18,27 +17,43 @@ pub fn error_fix_to_jsonl(broken: &str, explanation: &str, fixed: &str, category
 }
 
 pub fn write_architectural_pairs(out: &mut impl std::io::Write) -> anyhow::Result<usize> {
-    use crate::codegen_vox::{generate_organic_corpus, TAXONOMY_FROM_AST};
-    
+    use crate::codegen_vox::{TAXONOMY_FROM_AST, generate_organic_corpus};
+
     let mut count = 0;
     let organic = generate_organic_corpus(42);
-    
+
     for tag in TAXONOMY_FROM_AST {
         let question1 = format!("What is a `{tag}` in Vox?");
         let answer1 = match *tag {
-            "component" => "A component is a server-side rendered UI construct in Vox. It has no client-side JavaScript by default.",
-            "workflow" => "A workflow is a durable, retryable multi-step process in Vox. It checkpoints state automatically.",
-            "actor" => "An actor is a stateful entity that can receive and process messages asynchronously in memory.",
+            "component" => {
+                "A component is a server-side rendered UI construct in Vox. It has no client-side JavaScript by default."
+            }
+            "workflow" => {
+                "A workflow is a durable, retryable multi-step process in Vox. It checkpoints state automatically."
+            }
+            "actor" => {
+                "An actor is a stateful entity that can receive and process messages asynchronously in memory."
+            }
             "table" => "A table defines a database schema entity with compile-time safety.",
-            "mcp_tool" => "An mcp_tool exposes a Vox function according to the Model Context Protocol.",
-            "query" => "A query marks read-only database operations that are safe to cache and retry.",
+            "mcp_tool" => {
+                "An mcp_tool exposes a Vox function according to the Model Context Protocol."
+            }
+            "query" => {
+                "A query marks read-only database operations that are safe to cache and retry."
+            }
             "mutation" => "A mutation marks write operations to the database.",
-            "scheduled" => "A scheduled function runs at a specified interval (e.g. cron or timespan) in the background.",
-            "server_fn" | "server" => "A server function always runs on the server side and is invisible to client bundles.",
-            "action" => "An action is a server function triggered by client-side events, similar to Next.js Server Actions.",
-            _ => "This represents a distinct grammatical or runtime construct in the Vox language."
+            "scheduled" => {
+                "A scheduled function runs at a specified interval (e.g. cron or timespan) in the background."
+            }
+            "server_fn" | "server" => {
+                "A server function always runs on the server side and is invisible to client bundles."
+            }
+            "action" => {
+                "An action is a server function triggered by client-side events, similar to Next.js Server Actions."
+            }
+            _ => "This represents a distinct grammatical or runtime construct in the Vox language.",
         };
-        
+
         let line1 = serde_json::json!({
             "prompt": question1,
             "response": answer1,
@@ -52,7 +67,7 @@ pub fn write_architectural_pairs(out: &mut impl std::io::Write) -> anyhow::Resul
         });
         writeln!(out, "{}", line1)?;
         count += 1;
-        
+
         if let Some(example) = organic.iter().find(|p| p.category == format!("vox_{tag}")) {
             let question2 = format!("Show me an example of a `{tag}` in Vox.");
             let line2 = serde_json::json!({
@@ -70,7 +85,7 @@ pub fn write_architectural_pairs(out: &mut impl std::io::Write) -> anyhow::Resul
             count += 1;
         }
     }
-    
+
     Ok(count)
 }
 
@@ -220,12 +235,9 @@ pub fn gen_refactor_pairs(
         .filter(|(i, _)| i % stride == 0)
         .zip(refactor_goals.iter().cycle())
         .map(|((_, (_, code, category)), (goal, guidance))| {
-            let prompt = format!(
-                "Refactor this Vox code to be {goal}:\n\n```vox\n{code}\n```"
-            );
-            let response = format!(
-                "{guidance}\n\nRefactored:\n```vox\n{code}\n// [refactored: {goal}]\n```"
-            );
+            let prompt = format!("Refactor this Vox code to be {goal}:\n\n```vox\n{code}\n```");
+            let response =
+                format!("{guidance}\n\nRefactored:\n```vox\n{code}\n// [refactored: {goal}]\n```");
             serde_json::json!({
                 "prompt": prompt,
                 "response": response,
@@ -275,7 +287,7 @@ const TS_INTEROP_PAIRS: &[(&str, &str)] = &[
     ),
     (
         "How do I migrate an existing Next.js API route to Vox?",
-        "1. Write the equivalent Vox function with `@server` annotation. \
+        "1. Write the equivalent Vox bare-keyword `server` declaration (`server name(...) to Result[T, Err]`). \
          2. Run `vox codegen ts` — it emits a typed fetch wrapper that matches the Next.js route shape. \
          3. Replace `fetch('/api/...')` calls with the generated wrapper. \
          The runtime handles serialization; you keep your React components unchanged.",
@@ -306,4 +318,77 @@ pub fn write_ts_interop_pairs(out: &mut impl std::io::Write) -> Result<usize> {
 /// Fingerprint file path used for staleness tracking (stored in target/).
 pub fn fingerprint_cache_path(repo_root: &Path) -> PathBuf {
     repo_root.join("target/dogfood/.corpus_fingerprint")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn samples() -> Vec<(String, String, String)> {
+        ["a", "b", "c"]
+            .iter()
+            .map(|c| (format!("p{c}"), format!("fn {c}() {{}}"), (*c).to_string()))
+            .collect()
+    }
+
+    fn parse(line: &str) -> serde_json::Value {
+        serde_json::from_str(line).expect("jsonl line")
+    }
+
+    #[test]
+    fn error_fix_jsonl_embeds_broken_and_fixed_code() {
+        let v = parse(&error_fix_to_jsonl("bad", "because", "good", "fn"));
+        assert_eq!(v["category"], "fn_error_fix");
+        assert_eq!(v["format"], "error_fix");
+        assert_eq!(
+            v["prompt"],
+            "Why doesn't this Vox code compile?\n\n```vox\nbad\n```"
+        );
+        assert_eq!(
+            v["response"],
+            "because\n\nFixed version:\n```vox\ngood\n```"
+        );
+        assert_eq!(v["messages"].as_array().map(Vec::len), Some(2));
+    }
+
+    #[test]
+    fn explain_debug_refactor_generators_respect_stride_and_clamp_zero() {
+        let s = samples();
+        for (gen_fn, suffix) in [
+            (
+                gen_explain_pairs as fn(&[(String, String, String)], usize) -> Vec<String>,
+                "_explain",
+            ),
+            (gen_debug_pairs, "_debug"),
+            (gen_refactor_pairs, "_refactor"),
+        ] {
+            let strided = gen_fn(&s, 2);
+            assert_eq!(strided.len(), 2, "{suffix}");
+            assert_eq!(parse(&strided[0])["category"], format!("a{suffix}"));
+            assert_eq!(parse(&strided[1])["category"], format!("c{suffix}"));
+            // stride 0 is clamped to 1 (every sample).
+            assert_eq!(gen_fn(&s, 0).len(), 3, "{suffix}");
+        }
+    }
+
+    #[test]
+    fn ts_interop_and_architectural_writers_report_lines_written() {
+        let mut buf = Vec::new();
+        let n = write_ts_interop_pairs(&mut buf).expect("ts");
+        assert!(n > 0);
+        assert_eq!(String::from_utf8(buf).unwrap().lines().count(), n);
+
+        let mut buf = Vec::new();
+        let n = write_architectural_pairs(&mut buf).expect("arch");
+        assert!(n >= crate::codegen_vox::TAXONOMY_FROM_AST.len());
+        let text = String::from_utf8(buf).unwrap();
+        assert_eq!(text.lines().count(), n);
+        assert!(text.lines().all(|l| parse(l)["format"] == "qa_pair"));
+    }
+
+    #[test]
+    fn fingerprint_cache_path_is_under_target_dogfood() {
+        let p = fingerprint_cache_path(Path::new("/repo"));
+        assert_eq!(p, PathBuf::from("/repo/target/dogfood/.corpus_fingerprint"));
+    }
 }

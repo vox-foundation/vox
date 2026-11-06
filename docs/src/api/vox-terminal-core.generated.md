@@ -85,3 +85,84 @@ never reimplements the agent loop.
 |---|---|
 | `CRATE_NAME` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_terminal_core: "vox-terminal-core"
+    node vox_compiler: "vox-compiler"
+    vox_terminal_core -> vox_compiler
+    node vox_journal: "vox-journal"
+    vox_terminal_core -> vox_journal
+    node vox_orchestrator: "vox-orchestrator"
+    vox_terminal_core -> vox_orchestrator
+    node vox_redact: "vox-redact"
+    vox_terminal_core -> vox_redact
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_terminal_core
+    node vox_orchestrator_d: "vox-orchestrator-d"
+    vox_orchestrator_d -> vox_terminal_core
+    node vox_term: "vox-term"
+    vox_term -> vox_terminal_core
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-d`](./vox-orchestrator-d.generated.md) | Direct workspace dependent |
+| [`vox-term`](./vox-term.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `agent::AgentAdapterConfig` | `pub struct AgentAdapterConfig` | [`crates/vox-terminal-core/src/agent.rs#L22-L24`](../../../crates/vox-terminal-core/src/agent.rs#L22-L24) | Config for the adapter. `agent_id = Some(id)` filters events to one agent; `None` passes through all agents (useful for single-agent sessions). |
+| `struct` | `agent::RoutedAgentTurn` | `pub struct RoutedAgentTurn` | [`crates/vox-terminal-core/src/agent.rs#L28-L39`](../../../crates/vox-terminal-core/src/agent.rs#L28-L39) | Structured model routing decision for a terminal agent turn (`?prompt` or `/ai prompt`). |
+| `fn` | `agent::summary` | `pub fn summary(&self) -> String` | [`crates/vox-terminal-core/src/agent.rs#L42-L53`](../../../crates/vox-terminal-core/src/agent.rs#L42-L53) | — |
+| `fn` | `agent::route_agent_prompt` | `pub fn route_agent_prompt(prompt: &str) -> RoutedAgentTurn` | [`crates/vox-terminal-core/src/agent.rs#L58-L158`](../../../crates/vox-terminal-core/src/agent.rs#L58-L158) | Intelligently classify a terminal prompt and select the optimal model via `vox_orchestrator::models::select_with_default_registry`. |
+| `fn` | `agent::translate_event` | `pub fn translate_event(ev: &AgentEvent, cfg: &AgentAdapterConfig) -> Option<SessionEvent>` | [`crates/vox-terminal-core/src/agent.rs#L163-L179`](../../../crates/vox-terminal-core/src/agent.rs#L163-L179) | Pure translation function — maps one `AgentEvent` → `SessionEvent` or `None`.  Exposed as `pub` so tests can call it directly without a live orchestrator. |
+| `struct` | `block::BlockId` | `pub struct BlockId(pub u64)` | [`crates/vox-terminal-core/src/block.rs#L4`](../../../crates/vox-terminal-core/src/block.rs#L4) | — |
+| `enum` | `block::BlockKind` | `pub enum BlockKind` | [`crates/vox-terminal-core/src/block.rs#L7-L13`](../../../crates/vox-terminal-core/src/block.rs#L7-L13) | — |
+| `enum` | `block::BlockStatus` | `pub enum BlockStatus` | [`crates/vox-terminal-core/src/block.rs#L16-L21`](../../../crates/vox-terminal-core/src/block.rs#L16-L21) | — |
+| `enum` | `block::Stream` | `pub enum Stream` | [`crates/vox-terminal-core/src/block.rs#L24-L28`](../../../crates/vox-terminal-core/src/block.rs#L24-L28) | — |
+| `struct` | `block::OutputChunk` | `pub struct OutputChunk` | [`crates/vox-terminal-core/src/block.rs#L31-L34`](../../../crates/vox-terminal-core/src/block.rs#L31-L34) | — |
+| `fn` | `block::text` | `pub fn text(stream: Stream, s: impl Into<String>) -> Self` | [`crates/vox-terminal-core/src/block.rs#L37-L42`](../../../crates/vox-terminal-core/src/block.rs#L37-L42) | — |
+| `enum` | `block::BlockOrigin` | `pub enum BlockOrigin` | [`crates/vox-terminal-core/src/block.rs#L47-L54`](../../../crates/vox-terminal-core/src/block.rs#L47-L54) | — |
+| `struct` | `block::Block` | `pub struct Block` | [`crates/vox-terminal-core/src/block.rs#L57-L66`](../../../crates/vox-terminal-core/src/block.rs#L57-L66) | — |
+| `fn` | `block::new` | `pub fn new(id: BlockId, kind: BlockKind, input: impl Into<String>) -> Self` | [`crates/vox-terminal-core/src/block.rs#L69-L79`](../../../crates/vox-terminal-core/src/block.rs#L69-L79) | — |
+| `fn` | `block::with_origin` | `pub fn with_origin(mut self, origin: BlockOrigin) -> Self` | [`crates/vox-terminal-core/src/block.rs#L81-L84`](../../../crates/vox-terminal-core/src/block.rs#L81-L84) | — |
+| `fn` | `block::push` | `pub fn push(&mut self, c: OutputChunk)` | [`crates/vox-terminal-core/src/block.rs#L86-L88`](../../../crates/vox-terminal-core/src/block.rs#L86-L88) | — |
+| `fn` | `block::finish` | `pub fn finish(&mut self, exit: i32)` | [`crates/vox-terminal-core/src/block.rs#L90-L97`](../../../crates/vox-terminal-core/src/block.rs#L90-L97) | — |
+| `fn` | `block::plain_output` | `pub fn plain_output(&self) -> String` | [`crates/vox-terminal-core/src/block.rs#L101-L104`](../../../crates/vox-terminal-core/src/block.rs#L101-L104) | Text projection for agent context + transcript: output with ANSI/VT escapes stripped. Visual rendering is the front-end's responsibility. |
+| `type` | `commands::CommandFn` | `pub type CommandFn = fn(args: &str) -> CommandResult` | [`crates/vox-terminal-core/src/commands.rs#L9`](../../../crates/vox-terminal-core/src/commands.rs#L9) | A registered slash-command handler (pure function, no side-effects on registry). |
+| `enum` | `commands::CommandResult` | `pub enum CommandResult` | [`crates/vox-terminal-core/src/commands.rs#L13-L20`](../../../crates/vox-terminal-core/src/commands.rs#L13-L20) | Outcome of executing a slash-command. |
+| `struct` | `commands::CommandEntry` | `pub struct CommandEntry` | [`crates/vox-terminal-core/src/commands.rs#L24-L28`](../../../crates/vox-terminal-core/src/commands.rs#L24-L28) | A registered command entry. |
+| `struct` | `commands::CommandRegistry` | `pub struct CommandRegistry` | [`crates/vox-terminal-core/src/commands.rs#L31-L33`](../../../crates/vox-terminal-core/src/commands.rs#L31-L33) | Registry mapping `/name` → [`CommandEntry`]. |
+| `fn` | `commands::new` | `pub fn new() -> Self` | [`crates/vox-terminal-core/src/commands.rs#L37-L41`](../../../crates/vox-terminal-core/src/commands.rs#L37-L41) | Creates a new, empty registry. |
+| `fn` | `commands::register` | `pub fn register(&mut self, entry: CommandEntry)` | [`crates/vox-terminal-core/src/commands.rs#L44-L49`](../../../crates/vox-terminal-core/src/commands.rs#L44-L49) | Registers a command. Panics if a duplicate name is inserted (config error). |
+| `fn` | `commands::dispatch` | `pub fn dispatch(&self, input: &str) -> CommandResult` | [`crates/vox-terminal-core/src/commands.rs#L52-L60`](../../../crates/vox-terminal-core/src/commands.rs#L52-L60) | Dispatches `/name [args]` to the matching handler. |
+| `fn` | `commands::entries` | `pub fn entries(&self) -> Vec<&CommandEntry>` | [`crates/vox-terminal-core/src/commands.rs#L63-L67`](../../../crates/vox-terminal-core/src/commands.rs#L63-L67) | Returns all entries, sorted by name. |
+| `struct` | `daemon_host::DaemonHost` | `pub struct DaemonHost` | [`crates/vox-terminal-core/src/daemon_host.rs#L28-L30`](../../../crates/vox-terminal-core/src/daemon_host.rs#L28-L30) | — |
+| `fn` | `daemon_host::new` | `pub fn new(client: OrchDaemonClient) -> Self` | [`crates/vox-terminal-core/src/daemon_host.rs#L33-L35`](../../../crates/vox-terminal-core/src/daemon_host.rs#L33-L35) | — |
+| `fn` | `daemon_host::resolve_session_host` | `pub async fn resolve_session_host(` | [`crates/vox-terminal-core/src/daemon_host.rs#L99`](../../../crates/vox-terminal-core/src/daemon_host.rs#L99) | Probe `vox-orchestrator-d` with a 250ms timeout (auto-spawning it on cold start when available) and return a [`DaemonHost`] when reachable, or fall back to an in-process [`crate::host::LocalHost`]. |
+| `type` | `host::SessionId` | `pub type SessionId = String` | [`crates/vox-terminal-core/src/host.rs#L21`](../../../crates/vox-terminal-core/src/host.rs#L21) | — |
+| `struct` | `host::OpenSpec` | `pub struct OpenSpec` | [`crates/vox-terminal-core/src/host.rs#L24-L28`](../../../crates/vox-terminal-core/src/host.rs#L24-L28) | — |
+| `enum` | `host::TermSecurityLevel` | `pub enum TermSecurityLevel` | [`crates/vox-terminal-core/src/host.rs#L53-L65`](../../../crates/vox-terminal-core/src/host.rs#L53-L65) | — |
+| `fn` | `host::allows_agent_command` | `pub fn allows_agent_command(&self, cmd: &str) -> Result<(), String>` | [`crates/vox-terminal-core/src/host.rs#L76-L145`](../../../crates/vox-terminal-core/src/host.rs#L76-L145) | Validate whether an agent-issued command is allowed under this security level. |
+| `enum` | `host::TermControlMode` | `pub enum TermControlMode` | [`crates/vox-terminal-core/src/host.rs#L150-L155`](../../../crates/vox-terminal-core/src/host.rs#L150-L155) | — |
+| `struct` | `host::SessionInfo` | `pub struct SessionInfo` | [`crates/vox-terminal-core/src/host.rs#L158-L165`](../../../crates/vox-terminal-core/src/host.rs#L158-L165) | — |
+| `struct` | `host::RedactedBlockContext` | `pub struct RedactedBlockContext` | [`crates/vox-terminal-core/src/host.rs#L169-L175`](../../../crates/vox-terminal-core/src/host.rs#L169-L175) | Redacted projection of a completed/open terminal [`Block`] safe for LLM chat context. |
+| `struct` | `host::OutputFrame` | `pub struct OutputFrame` | [`crates/vox-terminal-core/src/host.rs#L184-L187`](../../../crates/vox-terminal-core/src/host.rs#L184-L187) | One chunk of raw PTY output. `seq` is 1-based and gap-free per session; a receiver that sees a gap (broadcast lag) should re-attach. |
+| `struct` | `host::Attachment` | `pub struct Attachment` | [`crates/vox-terminal-core/src/host.rs#L193-L201`](../../../crates/vox-terminal-core/src/host.rs#L193-L201) | Everything a front-end needs to join a live session: structured blocks, the recent raw bytes (re-parsed by its own VT engine so full-screen programs redraw), and both live streams. All taken under one lock, so no event or byte falls between the snapshot and the first received frame. |
+| `trait` | `host::SessionHost` | `pub trait SessionHost: Send + Sync` | [`crates/vox-terminal-core/src/host.rs#L205-L213`](../../../crates/vox-terminal-core/src/host.rs#L205-L213) | What a front-end needs from a terminal session host, local or remote. |
+| `struct` | `host::LocalHost` | `pub struct LocalHost` | [`crates/vox-terminal-core/src/host.rs#L291-L295`](../../../crates/vox-terminal-core/src/host.rs#L291-L295) | — |
+| `fn` | `host::with_replay_cap` | `pub fn with_replay_cap(replay_cap: usize) -> Self` | [`crates/vox-terminal-core/src/host.rs#L304-L310`](../../../crates/vox-terminal-core/src/host.rs#L304-L310) | — |
+| `fn` | `host::open` | `pub async fn open(&self, spec: OpenSpec) -> Result<SessionId>` | [`crates/vox-terminal-core/src/host.rs#L321-L339`](../../../crates/vox-terminal-core/src/host.rs#L321-L339) | Spawn a PTY running the configured or default shell and start pumping its bytes into a new `Session`. Must be called inside a tokio runtime. |
+| `fn` | `host::list` | `pub fn list(&self) -> Vec<SessionInfo>` | [`crates/vox-terminal-core/src/host.rs#L341-L353`](../../../crates/vox-terminal-core/src/host.rs#L341-L353) | — |
+| `fn` | `host::set_security_level` | `pub fn set_security_level(&self, id: &str, level: TermSecurityLevel) -> Result<()>` | [`crates/vox-terminal-core/src/host.rs#L355-L359`](../../../crates/vox-terminal-core/src/host.rs#L355-L359) | — |
+| `fn` | `host::security_level` | `pub fn security_level(&self, id: &str) -> Result<TermSecurityLevel>` | [`crates/vox-terminal-core/src/host.rs#L361-L364`](../../../crates/vox-terminal-core/src/host.rs#L361-L364) | — |
+

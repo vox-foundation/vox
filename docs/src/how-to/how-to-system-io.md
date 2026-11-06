@@ -39,13 +39,9 @@ fn process_log() to Result[Unit] {
 Vox uses `std.http` to generate outbound JSON API requests, translating directly to `reqwest` instances under the hood.
 
 ```vox
-// vox:skip -- illustrative future syntax; std.http has no typed surface in the compiler yet
-import std.http
-import rust:serde_json as json
-
 fn query_weather(city: str) to Result[str] {
     let endpoint = "https://api.weather.com/v1/" + city
-    let response = http.get(endpoint)?
+    let response = std.http.get_text(endpoint)?
     return Ok(response)
 }
 ```
@@ -53,13 +49,11 @@ fn query_weather(city: str) to Result[str] {
 If you are posting complex ADT models, serialize them safely across the JSON integration boundary.
 
 ```vox
-// vox:skip -- illustrative future syntax; std.http has no typed surface in the compiler yet
 fn publish_event(topic: str, payload: str) to Result[Unit] {
-    let body = json.encode({ topic: topic, message: payload })
-    let res = http.post_json("https://webhook.site/abc", body)?
-    
-    assert(res == "200 OK")
-    return Ok(())
+    let body = "{\"topic\":\"" + topic + "\",\"message\":\"" + payload + "\"}"
+    let res = std.http.post_json("https://webhook.site/abc", body)?
+    assert(res is "200 OK")
+    return Ok(Unit)
 }
 ```
 

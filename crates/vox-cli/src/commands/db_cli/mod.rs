@@ -30,7 +30,9 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                 compact,
                 jsonl,
             } => db::explain(file.as_ref(), query.as_deref(), !compact, jsonl).await,
-            DbCliCore::Introspect { url, compact } => db::introspect(url.as_deref(), compact).await,
+            DbCliCore::Introspect { url, compact, emit } => {
+                db::introspect(url.as_deref(), compact, emit).await
+            }
             DbCliCore::Verify {
                 file,
                 url,
@@ -496,5 +498,50 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
             } => db::feed_source_add(&id, &url, &kind, interval_ms).await,
             DbCliPublication::FeedSourceList => db::feed_source_list().await,
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{DbCli, DbCliCore};
+    use crate::commands::db::IntrospectEmit;
+    use crate::{Cli, VoxCliRoot};
+    use clap::{CommandFactory, Parser};
+
+    #[test]
+    fn introspect_emit_defaults_to_json_and_accepts_vox() {
+        let root = VoxCliRoot::try_parse_from(["vox", "db", "introspect"]).expect("default");
+        match root.cmd {
+            Cli::Db {
+                cmd: DbCli::Core(DbCliCore::Introspect { emit, compact, url }),
+            } => {
+                assert_eq!(emit, IntrospectEmit::Json);
+                assert!(!compact);
+                assert!(url.is_none());
+            }
+            _ => panic!("expected introspect"),
+        }
+        let root = VoxCliRoot::try_parse_from(["vox", "db", "introspect", "--emit", "vox"])
+            .expect("emit vox");
+        match root.cmd {
+            Cli::Db {
+                cmd: DbCli::Core(DbCliCore::Introspect { emit, .. }),
+            } => {
+                assert_eq!(emit, IntrospectEmit::Vox);
+            }
+            _ => panic!("expected introspect"),
+        }
+    }
+
+    #[test]
+    fn introspect_help_shows_emit_flag() {
+        let cmd = VoxCliRoot::command();
+        let db = cmd.find_subcommand("db").expect("db subcommand");
+        let introspect = db
+            .find_subcommand("introspect")
+            .expect("introspect subcommand");
+        let help = introspect.clone().render_help().to_string();
+        assert!(help.contains("--emit"), "{help}");
+        assert!(help.contains("vox"), "{help}");
     }
 }

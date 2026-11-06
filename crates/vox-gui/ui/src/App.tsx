@@ -825,7 +825,7 @@ export default function App() {
         };
       })(),
     }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- spark windows drive projection updates
   }, [agentCountWindow, queueDepthWindow, budgetBurnWindow, meshWindow]);
 
   useEffect(() => {
@@ -899,7 +899,7 @@ export default function App() {
         }
       })
       .catch((err) => pushToast({ tone: 'warn', title: 'Chat sessions', body: sanitizeErrorForToast(err), cause: 'backend-error' }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- bootstrap runs once on mount
   }, []);
 
   // Ensure `activeSessionId` adopts the first loaded session whenever the
@@ -1215,6 +1215,14 @@ export default function App() {
           selection_reason?: string;
         }>
       >('chat_get_messages', { sessionId, limit: 500 });
+      // These rows came FROM the DB: mark them persisted so the "persist assistant
+      // transcript rows" effect doesn't append them a second time.
+      let persisted = persistedAssistantIdsRef.current.get(sessionId);
+      if (!persisted) {
+        persisted = new Set<string>();
+        persistedAssistantIdsRef.current.set(sessionId, persisted);
+      }
+      for (const r of rows) persisted.add(String(r.id));
       dispatchSessionChat({
         type: 'hydrate',
         sessionId,
@@ -1228,6 +1236,7 @@ export default function App() {
           modelId: r.model_id ?? undefined,
           latencyMs: r.latency_ms ?? undefined,
           selectionReason: r.selection_reason ?? undefined,
+          events: Array.isArray((r as any).events) ? (r as any).events : undefined,
         })),
       });
     } catch {
@@ -1504,6 +1513,30 @@ export default function App() {
 
     if (base === '/diff') {
       loadTaskDiff();
+      return true;
+    }
+    if (base === '/compact') {
+      const targetSessionId = activeSessionId || 'default';
+      void invoke<McpInvokeResult>('invoke_mcp_tool', {
+        tool: 'vox_chat_compact_up_to',
+        args: { session_id: targetSessionId, direction: 'up_to' },
+      })
+        .then(() => {
+          pushToast({
+            tone: 'ok',
+            title: 'Session compacted',
+            body: `Compacted earlier turns for ${targetSessionId}.`,
+            cause: 'backend-ok',
+          });
+        })
+        .catch((err) => {
+          pushToast({
+            tone: 'warn',
+            title: '/compact failed',
+            body: sanitizeErrorForToast(err),
+            cause: 'backend-error',
+          });
+        });
       return true;
     }
     if (base === '/memory') {
@@ -1875,7 +1908,14 @@ export default function App() {
     () => data.agents.filter((a) => a.phase === 'Paused'),
     [data.agents],
   );
-  const currentPausedAgent = pausedAgents.length === 1 ? pausedAgents[0] : undefined;
+  const currentPausedAgent = useMemo(() => {
+    const selectedPaused = selectedAgentId
+      ? pausedAgents.find((a) => a.id === selectedAgentId)
+      : undefined;
+    if (selectedPaused) return selectedPaused;
+    if (inFlightTaskId != null && pausedAgents.length === 1) return pausedAgents[0];
+    return undefined;
+  }, [pausedAgents, selectedAgentId, inFlightTaskId]);
 
   const handleInterruptTask = useCallback(
     (taskId?: number) => {

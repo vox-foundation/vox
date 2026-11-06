@@ -408,4 +408,29 @@ mod tests {
             "CONTROL_FLOW + DECLARATION + WEB_REACTIVE must equal LEXER_KEYWORDS exactly"
         );
     }
+
+    /// K-01: `std.array` names stay identifiers. The partition test only checks
+    /// that the category arrays concatenate; it does not freeze the set.
+    #[test]
+    fn lexer_keywords_freeze_std_array_idents() {
+        assert_eq!(LEXER_KEYWORDS.len(), 54);
+        assert_eq!(LEXER_KEYWORDS.first().copied(), Some("fn"));
+        assert_eq!(LEXER_KEYWORDS.last().copied(), Some("form"));
+        for absent in [
+            "array",
+            "astype",
+            "f32",
+            "f64",
+            "correction",
+            "nulls",
+            "frame",
+            "scan_csv",
+            "collect",
+        ] {
+            assert!(
+                !LEXER_KEYWORDS.contains(&absent),
+                "{absent} must not be a lexer keyword"
+            );
+        }
+    }
 }

@@ -49,6 +49,9 @@ test('a diagram miss fails the build, and an unchanged rebuild fails again', asy
     await assert.rejects(once(), /docs\/page\.md fence 1|page\.md fence 1/, 'first build');
     await assert.rejects(once(), /page\.md fence 1/, 'rebuild with the same (missing) manifest');
   } finally {
+    // Astro 7 still flushes the content data store on a 500 ms debounce after a failed build;
+    // removing the root first turns that write into an unhandled ENOENT.
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     rmSync(root, { recursive: true, force: true });
   }
 });

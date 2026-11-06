@@ -38,7 +38,7 @@ export function EmpiricalVerificationBadge({
         onClick={() => setDrawerOpen(true)}
         aria-haspopup="dialog"
         aria-expanded={drawerOpen}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border font-mono text-[11px] transition-all hover:scale-105 cursor-pointer ${badgeColor}`}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border font-mono text-[11px] transition-transform hover:scale-105 cursor-pointer ${badgeColor}`}
       >
         <Icon.shield className="size-3.5 shrink-0" />
         <span className="font-semibold">Verified by Deep Research</span>

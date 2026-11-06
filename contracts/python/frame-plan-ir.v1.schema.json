@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox/contracts/python/frame-plan-ir.v1.schema.json",
+  "title": "std.frame plan IR on polars",
+  "description": "std.frame on polars. Same op envelope as the array plan IR. Only the twenty frame names are nodes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "module", "engine", "ops"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "module": {
+      "type": "string",
+      "minLength": 1
+    },
+    "engine": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ops": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "kind", "signature", "handler", "expected"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": ["scan_csv", "col", "filter", "group_by", "agg", "sort", "sum", "count", "mean", "min", "max", "eq", "neq", "gt", "gte", "lt", "lte", "and", "or", "collect"]
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["plan", "materializer"]
+          },
+          "signature": {
+            "type": "string",
+            "minLength": 1
+          },
+          "handler": {
+            "type": "string",
+            "minLength": 1
+          },
+          "required_named": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "expected": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}

@@ -104,7 +104,7 @@ export function OnboardingWizard({ pushToast, gamifyEnabled }: { pushToast: (t: 
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- bind keydown listener while visible
   }, [isVisible]);
 
   if (secretCount === null || localModelCount === null || !isVisible) {

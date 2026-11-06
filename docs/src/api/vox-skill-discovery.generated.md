@@ -52,3 +52,48 @@ never installs, executes, or publishes.
 | `options` | — |
 | `report` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_skill_discovery: "vox-skill-discovery"
+    node vox_mcp_registry: "vox-mcp-registry"
+    vox_skill_discovery -> vox_mcp_registry
+    node vox_plugin_types: "vox-plugin-types"
+    vox_skill_discovery -> vox_plugin_types
+    node vox_similarity: "vox-similarity"
+    vox_skill_discovery -> vox_similarity
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_skill_discovery
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_skill_discovery
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `enum` | `candidate::CandidateKind` | `pub enum CandidateKind` | [`crates/vox-skill-discovery/src/candidate.rs#L6-L19`](../../../crates/vox-skill-discovery/src/candidate.rs#L6-L19) | — |
+| `struct` | `candidate::DraftFrontmatter` | `pub struct DraftFrontmatter` | [`crates/vox-skill-discovery/src/candidate.rs#L23-L28`](../../../crates/vox-skill-discovery/src/candidate.rs#L23-L28) | Advisory draft frontmatter the user MAY accept (never auto-applied). |
+| `struct` | `candidate::Candidate` | `pub struct Candidate` | [`crates/vox-skill-discovery/src/candidate.rs#L31-L38`](../../../crates/vox-skill-discovery/src/candidate.rs#L31-L38) | — |
+| `fn` | `catalog::dedup_skills` | `pub fn dedup_skills(manifests: &[SkillManifest], opts: &DiscoverOptions) -> Vec<Candidate>` | [`crates/vox-skill-discovery/src/catalog.rs#L21-L53`](../../../crates/vox-skill-discovery/src/catalog.rs#L21-L53) | Find installed skills that overlap heavily (near-duplicate skills). |
+| `fn` | `catalog::validate_ssot` | `pub fn validate_ssot(manifests: &[SkillManifest]) -> Vec<Candidate>` | [`crates/vox-skill-discovery/src/catalog.rs#L71-L91`](../../../crates/vox-skill-discovery/src/catalog.rs#L71-L91) | Flag skills that declare a `tool` not present in the MCP registry (SSOT drift). |
+| `fn` | `code_miner::mine_repeated_code` | `pub fn mine_repeated_code(root: &Path, opts: &DiscoverOptions) -> Vec<Candidate>` | [`crates/vox-skill-discovery/src/code_miner.rs#L43-L100`](../../../crates/vox-skill-discovery/src/code_miner.rs#L43-L100) | Mine repeated `.vox` code blocks under `root`. Returns `RepeatedCode` candidates, one per cluster of `>= min_occurrences` similar blocks. |
+| `struct` | `op_miner::MinedOp` | `pub struct MinedOp` | [`crates/vox-skill-discovery/src/op_miner.rs#L11-L17`](../../../crates/vox-skill-discovery/src/op_miner.rs#L11-L17) | One captured operation the miner reasons over. The caller (vox-cli) maps a `vox-db` row into this; rows with no `session_id` are dropped before mining. |
+| `struct` | `op_miner::OpMiningOptions` | `pub struct OpMiningOptions` | [`crates/vox-skill-discovery/src/op_miner.rs#L21-L26`](../../../crates/vox-skill-discovery/src/op_miner.rs#L21-L26) | Tuning for sequence mining. |
+| `fn` | `op_miner::arg_keys` | `pub fn arg_keys(args_json: &str) -> Vec<String>` | [`crates/vox-skill-discovery/src/op_miner.rs#L41-L49`](../../../crates/vox-skill-discovery/src/op_miner.rs#L41-L49) | Extract sorted, deduped top-level keys from a JSON object string. Non-object or unparseable input → empty (the op still participates by tool_name). |
+| `fn` | `op_miner::mine_repeated_operations` | `pub fn mine_repeated_operations(ops: &[MinedOp], opts: &OpMiningOptions) -> Vec<Candidate>` | [`crates/vox-skill-discovery/src/op_miner.rs#L81-L166`](../../../crates/vox-skill-discovery/src/op_miner.rs#L81-L166) | Mine recurring contiguous tool-call sequences into ranked candidates. |
+| `struct` | `options::DiscoverOptions` | `pub struct DiscoverOptions` | [`crates/vox-skill-discovery/src/options.rs#L4-L17`](../../../crates/vox-skill-discovery/src/options.rs#L4-L17) | — |
+| `fn` | `options::num_hashes` | `pub fn num_hashes(&self) -> usize` | [`crates/vox-skill-discovery/src/options.rs#L34-L36`](../../../crates/vox-skill-discovery/src/options.rs#L34-L36) | Minhash length implied by the band configuration. |
+| `fn` | `report::render_terminal` | `pub fn render_terminal(candidates: &[Candidate]) -> String` | [`crates/vox-skill-discovery/src/report.rs#L6-L30`](../../../crates/vox-skill-discovery/src/report.rs#L6-L30) | Human-readable terminal report. |
+| `fn` | `report::render_json` | `pub fn render_json(candidates: &[Candidate]) -> anyhow::Result<String>` | [`crates/vox-skill-discovery/src/report.rs#L33-L35`](../../../crates/vox-skill-discovery/src/report.rs#L33-L35) | Machine-readable JSON report. |
+

@@ -27,10 +27,16 @@ export interface LudusStoreState {
   buildings: Record<string, BuildingState>;
   focusedFile: string | null;
   agentTasks: Record<string, AgentTask>;
+  selectedDistrictFilter: string | null;
+  quarantinedDistricts: string[];
+  activeToolPulses: Record<string, 'read' | 'write' | 'test' | 'gate'>;
   updateAgent: (id: string, updates: Partial<AgentState>) => void;
   updateBuilding: (filePath: string, updates: Partial<BuildingState>) => void;
   setFocusedFile: (filePath: string | null) => void;
   updateAgentTask: (agentId: string, task: AgentTask | null) => void;
+  setSelectedDistrictFilter: (district: string | null) => void;
+  setDistrictQuarantined: (district: string, quarantined: boolean) => void;
+  setToolPulse: (district: string, label: 'read' | 'write' | 'test' | 'gate' | null) => void;
   reset: () => void;
 }
 
@@ -39,6 +45,9 @@ export const useLudusStore = createStore<LudusStoreState>((set) => ({
   buildings: {},
   focusedFile: null,
   agentTasks: {},
+  selectedDistrictFilter: null,
+  quarantinedDistricts: [],
+  activeToolPulses: {},
   updateAgent: (id, updates) =>
     set((state) => {
       const current = state.agents[id] || { x: 0, y: 0, energy: 100, mood: 'Happy' as MoodType };
@@ -64,11 +73,43 @@ export const useLudusStore = createStore<LudusStoreState>((set) => ({
     set((state) => {
       const next = { ...state.agentTasks };
       if (task === null) {
+        // toestub-ignore(vox/ui/layout-and-perf-hazards) -- shallow-clone key removal (not V8 dictionary-mode hot path)
         delete next[agentId];
       } else {
         next[agentId] = task;
       }
       return { agentTasks: next };
     }),
-  reset: () => set({ agents: {}, buildings: {}, focusedFile: null, agentTasks: {} }),
+  setSelectedDistrictFilter: (district) => set({ selectedDistrictFilter: district }),
+  setDistrictQuarantined: (district, quarantined) =>
+    set((state) => {
+      const next = new Set(state.quarantinedDistricts);
+      if (quarantined) {
+        next.add(district);
+      } else {
+        next.delete(district);
+      }
+      return { quarantinedDistricts: Array.from(next) };
+    }),
+  setToolPulse: (district, label) =>
+    set((state) => {
+      const next = { ...state.activeToolPulses };
+      if (!label) {
+        // toestub-ignore(vox/ui/layout-and-perf-hazards) -- shallow-clone key removal (not V8 dictionary-mode hot path)
+        delete next[district];
+      } else {
+        next[district] = label;
+      }
+      return { activeToolPulses: next };
+    }),
+  reset: () =>
+    set({
+      agents: {},
+      buildings: {},
+      focusedFile: null,
+      agentTasks: {},
+      selectedDistrictFilter: null,
+      quarantinedDistricts: [],
+      activeToolPulses: {},
+    }),
 }));

@@ -41,3 +41,35 @@ use it without pulling in the full compiler crate. Zero workspace deps.
 | `primitive_tags` | — |
 | `renames` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_rename_registry: "vox-rename-registry"
+    node vox_arch_check: "vox-arch-check"
+    vox_arch_check -> vox_rename_registry
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-arch-check`](./vox-arch-check.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `primitive_tags::is_primitive` | `pub fn is_primitive(tag: &str) -> bool` | [`crates/vox-rename-registry/src/primitive_tags.rs#L29-L31`](../../../crates/vox-rename-registry/src/primitive_tags.rs#L29-L31) | — |
+| `fn` | `primitive_tags::all_primitives` | `pub fn all_primitives() -> &'static [&'static str]` | [`crates/vox-rename-registry/src/primitive_tags.rs#L34-L36`](../../../crates/vox-rename-registry/src/primitive_tags.rs#L34-L36) | — |
+| `enum` | `renames::RenameKind` | `pub enum RenameKind` | [`crates/vox-rename-registry/src/renames.rs#L15-L21`](../../../crates/vox-rename-registry/src/renames.rs#L15-L21) | — |
+| `struct` | `renames::RenameEntry` | `pub struct RenameEntry` | [`crates/vox-rename-registry/src/renames.rs#L24-L31`](../../../crates/vox-rename-registry/src/renames.rs#L24-L31) | — |
+| `struct` | `renames::RenameRegistry` | `pub struct RenameRegistry` | [`crates/vox-rename-registry/src/renames.rs#L41-L43`](../../../crates/vox-rename-registry/src/renames.rs#L41-L43) | — |
+| `enum` | `renames::RegistryError` | `pub enum RegistryError` | [`crates/vox-rename-registry/src/renames.rs#L46-L61`](../../../crates/vox-rename-registry/src/renames.rs#L46-L61) | — |
+| `fn` | `renames::parse_json` | `pub fn parse_json(json: &str) -> Result<Self, RegistryError>` | [`crates/vox-rename-registry/src/renames.rs#L64-L90`](../../../crates/vox-rename-registry/src/renames.rs#L64-L90) | — |
+| `fn` | `renames::load_canonical` | `pub fn load_canonical() -> Result<Self, RegistryError>` | [`crates/vox-rename-registry/src/renames.rs#L92-L96`](../../../crates/vox-rename-registry/src/renames.rs#L92-L96) | — |
+| `fn` | `renames::entries` | `pub fn entries(&self) -> impl Iterator<Item = &RenameEntry>` | [`crates/vox-rename-registry/src/renames.rs#L98-L100`](../../../crates/vox-rename-registry/src/renames.rs#L98-L100) | — |
+| `fn` | `renames::resolve` | `pub fn resolve(&self, name: &str) -> Option<&RenameEntry>` | [`crates/vox-rename-registry/src/renames.rs#L102-L104`](../../../crates/vox-rename-registry/src/renames.rs#L102-L104) | — |
+

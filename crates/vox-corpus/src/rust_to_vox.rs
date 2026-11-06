@@ -64,7 +64,9 @@ pub fn extract_translations(source: &str) -> Vec<TranslationPair> {
 
         if !vox_fields.is_empty() {
             results.push(TranslationPair {
-                instruction: format!("Translate the Rust struct `{name}` to a Vox `@table` type."),
+                instruction: format!(
+                    "Translate the Rust struct `{name}` to a Vox `table` declaration."
+                ),
                 input_rust: cap[0].to_string(),
                 output_vox: format!("table {name} {{\n{vox_fields}}}"),
                 confidence: 0.9,
@@ -144,4 +146,32 @@ pub fn generate_rust_to_vox_pairs(
     }
 
     Ok(actual_count)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn struct_translates_to_table_with_mapped_types() {
+        let src = "pub struct Task {\n    pub id: u64,\n    pub title: String,\n    pub done: bool,\n    pub score: f64,\n}\n";
+        let pairs = extract_translations(src);
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(
+            pairs[0].output_vox,
+            "table Task {\n    id: int\n    title: str\n    done: bool\n    score: dec\n}"
+        );
+        assert_eq!(pairs[0].confidence, 0.9);
+        assert!(pairs[0].instruction.contains("`Task`"));
+    }
+
+    #[test]
+    fn enum_translates_to_type_and_unrelated_source_yields_nothing() {
+        let src = "pub enum Color {\n    // primary\n    Red,\n    Green,\n}\n";
+        let pairs = extract_translations(src);
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(pairs[0].output_vox, "type Color {\n    Red\n    Green\n}");
+        assert_eq!(pairs[0].confidence, 0.85);
+        assert!(extract_translations("fn main() {}").is_empty());
+    }
 }

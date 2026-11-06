@@ -57,3 +57,50 @@ See `docs/src/architecture/plugin-system-redesign-2026.md`.
 | `bundle_resolved` | Resolve a bundle id to its full plugin set, walking the `extends` chain and deduplicating by plugin id. Order: parent plugins first, then child additions. First-occurrence wins for duplicates. |
 | `bundle_profiles` | Default capability profile ids declared directly on bundle `id` (not inherited). |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_plugin_catalog: "vox-plugin-catalog"
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_plugin_catalog
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_plugin_catalog
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_plugin_catalog
+    node voxup: "voxup"
+    voxup -> vox_plugin_catalog
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`voxup`](./voxup.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `all_plugins` | `pub fn all_plugins() -> &'static [PluginCatalogEntry]` | [`crates/vox-plugin-catalog/src/lib.rs#L36-L38`](../../../crates/vox-plugin-catalog/src/lib.rs#L36-L38) | All first-party plugins declared in `catalog.toml`. |
+| `fn` | `all_bundles` | `pub fn all_bundles() -> &'static [BundleEntry]` | [`crates/vox-plugin-catalog/src/lib.rs#L41-L43`](../../../crates/vox-plugin-catalog/src/lib.rs#L41-L43) | All distribution bundles declared in `catalog.toml`. |
+| `fn` | `all_components` | `pub fn all_components() -> &'static [Component]` | [`crates/vox-plugin-catalog/src/lib.rs#L48-L50`](../../../crates/vox-plugin-catalog/src/lib.rs#L48-L50) | All optional first-party components (companion binaries such as the GUI) declared in `catalog.toml`. Components are not cdylib plugins; they are standalone executables installed on demand and never built for CLI-only users. |
+| `fn` | `all_skill_bundles` | `pub fn all_skill_bundles() -> &'static [SkillBundleEntry]` | [`crates/vox-plugin-catalog/src/lib.rs#L53-L55`](../../../crates/vox-plugin-catalog/src/lib.rs#L53-L55) | All bundled interop skills declared in `catalog.toml` (`[[skill-bundle]]`). |
+| `enum` | `ResolveError` | `pub enum ResolveError` | [`crates/vox-plugin-catalog/src/lib.rs#L60-L67`](../../../crates/vox-plugin-catalog/src/lib.rs#L60-L67) | — |
+| `fn` | `bundle_resolved` | `pub fn bundle_resolved(id: &str) -> Result<Vec<&'static PluginCatalogEntry>, ResolveError>` | [`crates/vox-plugin-catalog/src/lib.rs#L72-L108`](../../../crates/vox-plugin-catalog/src/lib.rs#L72-L108) | Resolve a bundle id to its full plugin set, walking the `extends` chain and deduplicating by plugin id. Order: parent plugins first, then child additions. First-occurrence wins for duplicates. |
+| `fn` | `bundle_profiles` | `pub fn bundle_profiles(id: &str) -> Result<&'static [String], ResolveError>` | [`crates/vox-plugin-catalog/src/lib.rs#L111-L117`](../../../crates/vox-plugin-catalog/src/lib.rs#L111-L117) | Default capability profile ids declared directly on bundle `id` (not inherited). |
+| `fn` | `docs::render_catalog_md` | `pub fn render_catalog_md() -> String` | [`crates/vox-plugin-catalog/src/docs.rs#L26-L71`](../../../crates/vox-plugin-catalog/src/docs.rs#L26-L71) | — |
+| `fn` | `docs::render_bundles_md` | `pub fn render_bundles_md() -> String` | [`crates/vox-plugin-catalog/src/docs.rs#L73-L137`](../../../crates/vox-plugin-catalog/src/docs.rs#L73-L137) | — |
+| `enum` | `schema::CatalogStatus` | `pub enum CatalogStatus` | [`crates/vox-plugin-catalog/src/schema.rs#L8-L18`](../../../crates/vox-plugin-catalog/src/schema.rs#L8-L18) | Lifecycle status of a catalog entry. |
+| `struct` | `schema::PluginCatalogEntry` | `pub struct PluginCatalogEntry` | [`crates/vox-plugin-catalog/src/schema.rs#L23-L84`](../../../crates/vox-plugin-catalog/src/schema.rs#L23-L84) | One entry in the plugin catalog. |
+| `enum` | `schema::PayloadKind` | `pub enum PayloadKind` | [`crates/vox-plugin-catalog/src/schema.rs#L89-L93`](../../../crates/vox-plugin-catalog/src/schema.rs#L89-L93) | Discriminator for plugin payload kind. |
+| `struct` | `schema::BundleEntry` | `pub struct BundleEntry` | [`crates/vox-plugin-catalog/src/schema.rs#L98-L118`](../../../crates/vox-plugin-catalog/src/schema.rs#L98-L118) | One distribution-bundle entry in the catalog. |
+| `struct` | `schema::SkillBundleEntry` | `pub struct SkillBundleEntry` | [`crates/vox-plugin-catalog/src/schema.rs#L127-L149`](../../../crates/vox-plugin-catalog/src/schema.rs#L127-L149) | One bundled interop skill directory under `assets/skills/<id>/SKILL.md`.  These are agentskills.io-native YAML skills (not TOML plugin skills). Provenance is recorded in `assets/skills/SOURCES.toml`; this table is the catalog SSOT for license, upstream pin, and on-disk path parity. |
+| `struct` | `schema::Component` | `pub struct Component` | [`crates/vox-plugin-catalog/src/schema.rs#L159-L181`](../../../crates/vox-plugin-catalog/src/schema.rs#L159-L181) | One installable *component*: a first-party Vox binary that is NOT a cdylib plugin (it implements no extension-point trait and is not loaded by the plugin host). Components are optional companion executables — currently just the Tauri GUI — that ship alongside the host binary and are installed on demand via `vox plugin install <id>` / `vox gui` install-if-absent. CLI-only users never fetch them. |
+| `struct` | `schema::ComponentRequires` | `pub struct ComponentRequires` | [`crates/vox-plugin-catalog/src/schema.rs#L187-L197`](../../../crates/vox-plugin-catalog/src/schema.rs#L187-L197) | Platform gating for a [`Component`]. The host OS must appear in `os` (when non-empty) AND host arch in `arch` (when non-empty). |
+

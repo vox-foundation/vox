@@ -1,5 +1,21 @@
 # Milestones
 
+## v3.9 T3 Chat & T3 Code Ecosystem Deep-Clone, Full-Surface Architecture Graphing, Multi-Doc Vox KB Extraction & Best-of-All-Worlds Harness/Router Upgrade (Shipped: 2026-10-25)
+
+**Phases completed:** 7 phases (Phases 203–209), 7 plans, 100% requirements verified (`28/28`)
+
+**Key accomplishments:**
+
+- **T3 Ecosystem Clones & Token-Bounded Surface Graph (`Phase 203`):** Cloned all 5 primary open-source T3 Chat and T3 Code repositories into `~/dev/{t3code,t3router,pi-t3chat,thom-chat,helioschat}` with pinned commit SHAs, built `scripts/t3-surface-inventory.vox` (`vox check` + `vox run --interp`), emitted `contracts/reports/t3-ecosystem-surface-graph.v1.json`, and published `docs/src/architecture/t3-ecosystem-surface-map-research-2026.md`.
+- **`pingdotgg/t3code` Agent Harness Deep-Dive (`Phase 204`):** Graphed and documented `t3code`'s Effect-TS / event-sourced `OrchestrationReactor`, decider/projector CQRS architecture, WebSocket/RPC contract, multi-provider CLI adapters (`Codex`, `ClaudeAgent`, `Cursor`), permission modes, git worktree sandboxing, and outside-agent MCP bridge in `docs/src/architecture/t3code-harness-architecture-research-2026.md` and `docs/src/architecture/t3code-worktree-permissions-mcp-research-2026.md`.
+- **`t3.chat` Router, Wire Protocol & Coding-Agent Bridge Deep-Dive (`Phase 205`):** Graphed and documented `vibheksoni/t3router` and `vibheksoni/pi-t3chat` in `docs/src/architecture/t3chat-router-and-wire-protocol-research-2026.md`, covering dynamic JS bundle model discovery, `/model-statuses` operational health indicators, `/model-scores` benchmark feeds, `queryUsage` pre/post-turn credit deltas, and the 3-tool lazy MCP wrapper.
+- **Open-Source T3 Chat Clones (`TGlide/thom-chat` & `helioschat/app`) Deep-Dive (`Phase 206`):** Graphed and documented `resumable-stream` Redis pub/sub SSE replay across page reloads, out-of-band `/api/cancel-generation`, `/api/enhance-prompt` (`@<rule>` tag preservation), Convex vs. client-side SQLite + AES-GCM E2EE sync, and Temporary Chat privacy modes in `docs/src/architecture/t3chat-ux-streaming-and-sync-research-2026.md`.
+- **Best-of-All-Worlds Blueprint & Extraction Ledger (`Phase 207`):** Authored `docs/src/architecture/t3-vs-vox-harness-router-blueprint-2026.md` and `contracts/reports/t3-vox-feature-extraction-ledger.v1.json`, passing `vox-doc-pipeline --lint-only` across all 6 T3 architecture docs with 0 errors.
+- **Vox Router Upgrades (`Phase 208`):** Shipped `ModelOperationalStatus` (`Operational | Degraded | Outage`) health gating across `decide()` and `select()`, `ReasoningEffort` + `:online` web-search grounding normalization (`T3WireOptions`, `normalize_egress_request_for_t3_options`, `build_request_with_t3_options`), and `TurnCostDeltaReceipt` + `CostProvenanceTier` (`ModelRegistry::reconcile_turn_cost_delta`) across `vox-orchestrator` and `vox-llm-egress`.
+- **Vox Harness & MCP Upgrades (`Phase 209`):** Shipped `ResumableTurnStreamRegistry` (`SequencedTurnChunk`, `replay_after`, `cancel_turn`), `LazyMcpGroupRegistry` (`list_mcp_servers`, `list_mcp_tools`, `resolve_call_mcp`, `MAX_LAZY_MCP_WRAPPER_ROUNDS = 6`) in `vox-orchestrator-mcp`, `ModelRegistry::enhance_user_prompt_for_spoke` (`@<rule>` tag preservation), `SessionPrivacyPosture` (`Standard | Ephemeral | LocalPrivate`), and `contracts/reports/t3-vox-best-of-all-worlds-scorecard.v1.json`.
+
+---
+
 ## v1.6 Production Stability, Zero-Mock Surface Reality & Mens Continuous Training Flywheel (Shipped: 2026-10-16)
 
 **Phases completed:** 12 phases (Phases 77–88), 25 plans, 100% requirements verified

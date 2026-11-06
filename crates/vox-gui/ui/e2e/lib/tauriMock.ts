@@ -51,9 +51,9 @@ export function installTauriMock(viewKey: string): void {
       total: 14,
       by_class: { algorithmic_improvement: 5, reproducibility_infra: 4, telemetry_trust: 3, policy_governance: 2 },
       top_5_by_confidence: Array.from({ length: 5 }, (_, i) => ({
-        candidate_id: `cand-${100 + i}`, candidate_class: 'algorithmic_improvement',
-        confidence: 0.9 - i * 0.07, state: 'evidence_incomplete',
-        created_at_ms: 1717000000000, updated_at_ms: 1717400000000,
+        candidate_id: `cand-${100 + i}`, candidate_class: ['algorithmic_improvement', 'reproducibility_infra', 'telemetry_trust', 'algorithmic_improvement', 'policy_governance'][i],
+        confidence: 0.9 - i * 0.07, state: ['evidence_ready', 'evidence_incomplete', 'evidence_ready', 'draft', 'evidence_incomplete'][i],
+        created_at_ms: Date.now() - 86_400_000 * (i + 1), updated_at_ms: Date.now() - 3600_000 * (i + 1),
       })),
     },
     claims_pending: { verifiable: 23, abstained: 6, extraction_running: 2 },
@@ -89,13 +89,13 @@ export function installTauriMock(viewKey: string): void {
   const manifests = Array.from({ length: 10 }, (_, i) => ({
     publication_id: `pub-${i + 1}`, content_type: 'paper',
     state: ['draft', 'draft', 'doi_reserved', 'approved', 'approved', 'submitted', 'submitted', 'published', 'published', 'failed'][i],
-    created_at_ms: 1717000000000, updated_at_ms: 1717400000000,
+    created_at_ms: Date.now() - 86_400_000 * (i + 2), updated_at_ms: Date.now() - 3600_000 * (i + 1),
   }));
 
   const sessions = Array.from({ length: 6 }, (_, i) => ({
     id: i + 1, status: ['completed', 'completed', 'failed', 'active', 'completed', 'orphaned'][i],
     query_text: ['vector db tradeoffs', 'rrf fusion weights', 'tantivy vs qdrant', 'embedding drift', 'crag routing', 'eval harness'][i],
-    started_at_ms: 1717000000000, finished_at_ms: 1717400000000,
+    started_at_ms: Date.now() - 7200_000 * (i + 1), finished_at_ms: Date.now() - 1800_000 * (i + 1),
   }));
 
   (window as any).__MOCK_APPROVALS__ = [
@@ -103,7 +103,7 @@ export function installTauriMock(viewKey: string): void {
       approval_id: 'AP-000001',
       tool: 'vox_run_shell',
       summary: 'rm -rf build',
-      requested_at_ms: 1717400000000,
+      requested_at_ms: Date.now() - 120_000,
       resolved: false,
     },
   ];
@@ -118,12 +118,46 @@ export function installTauriMock(viewKey: string): void {
     strategy_default: 'shared_branch',
     per_agent: { '1': 'shared_branch', '3': 'separate_branches' },
     active_conflicts: [
-      { id: 'C-101', path: 'acme/payments-service/src/webhooks/retry.rs', sides: ['1', '3'], created_ms: 1717400000000 },
+      { id: 'C-101', path: 'acme/payments-service/src/webhooks/retry.rs', sides: ['1', '3'], created_ms: Date.now() - 300_000 },
     ],
   };
 
   const mcpResult = (tool: string, targs?: any) => {
-    if (tool.includes('mesh_nodes')) return { nodes: [{ id: 'node-a', status: 'online', vram_gb: 24 }, { id: 'node-b', status: 'online', vram_gb: 12 }], edges: [] };
+    if (tool.includes('mesh_nodes')) {
+      return {
+        source: 'local_registry',
+        queue_depth: 2,
+        nodes: [
+          {
+            id: 'node-a',
+            status: 'online',
+            vram_gb: 24,
+            host_triple: 'aarch64-apple-darwin',
+            gpu_summary: 'Apple M3 Max · 24 GB Unified',
+            trust_tier: 'verified',
+            advertised_models: ['mens-8b', 'mens/e2e-smoke-metal'],
+            last_seen_unix_ms: Date.now() - 12_000,
+          },
+          {
+            id: 'node-b',
+            status: 'online',
+            vram_gb: 12,
+            host_triple: 'x86_64-unknown-linux-gnu',
+            gpu_summary: 'NVIDIA RTX 4070 Ti · 12 GB VRAM',
+            trust_tier: 'trusted',
+            advertised_models: ['qwen-coder-7b', 'deepseek/deepseek-flash'],
+            last_seen_unix_ms: Date.now() - 28_000,
+          },
+        ],
+        edges: [],
+      };
+    }
+    if (tool.includes('mesh_queue_stats')) {
+      return {
+        pending_count: 2,
+        pending_by_kind: { inference: 1, eval_sweep: 1 },
+      };
+    }
     if (tool.includes('resolve_approval')) {
       const id = String(targs?.approval_id ?? '');
       const hit = ((window as any).__MOCK_APPROVALS__ as any[]).find(a => a.approval_id === id);
@@ -421,12 +455,12 @@ export function installTauriMock(viewKey: string): void {
         };
         case 'get_model_scoreboard': return models.map((m, i) => ({
           model_id: m.id,
-          task_category: ['code', 'research', 'chat', 'plan', 'code', 'chat'][i],
-          strength_tag: ['speed', 'quality', 'balanced', 'quality', 'speed', 'balanced'][i],
-          n_calls: [120, 80, 60, 40, 30, 20][i],
+          task_category: ['code', 'research', 'chat', 'plan', 'code', 'chat', 'eval'][i] ?? 'code',
+          strength_tag: ['speed', 'quality', 'balanced', 'quality', 'speed', 'balanced', 'local'][i] ?? 'balanced',
+          n_calls: [120, 80, 60, 40, 30, 20, 15][i] ?? 10,
           success_rate: m.success_rate,
           p50_latency_ms: m.latency_p50_ms,
-          cost_per_success_usd: [0.0, 0.02, 0.004, 0.001, 0.0, 0.0][i],
+          cost_per_success_usd: [0.0, 0.02, 0.004, 0.001, 0.0, 0.0, 0.0][i] ?? 0.0,
           quality_score: m.quality_score,
         }));
         case 'explain_model_selection': return { chosen: 'anthropic/claude-sonnet', reason: 'lowest cost that fits the mode' };
@@ -592,7 +626,46 @@ export function installTauriMock(viewKey: string): void {
         case 'chat_list_sessions':
           return ((window as any).__MOCK_SESSIONS__ as any[]).map(s => ({ ...s }));
         case 'chat_create_session': return { session_id: 'mock-session-new', title: 'New chat', updated_at: 'now', message_count: 0, conversation_id: 2 };
-        case 'chat_get_messages': return [{ id: 1, role: 'user', content: 'hello', created_at: 'now', task_id: null }];
+        case 'chat_get_messages': return [
+          {
+            id: 1,
+            role: 'user',
+            content: 'hello — audit the progressive-disclosure Loquela composer and unify the Session Inspector rail with live task checkmarks.',
+            created_at: 'now',
+            task_id: null,
+          },
+          {
+            id: 2,
+            role: 'assistant',
+            content: [
+              'I audited `Loquela.tsx` and `ChatExecutionRail.tsx` against the Axis v4.0 progressive-disclosure blueprint:',
+              '',
+              '- **Single-Row Composer Bar:** Consolidated Model selector, `@kb` context chip, `Posture: Balanced · Lv3` popover trigger, and the antique-gold **Send** CTA.',
+              '- **Unified Session Inspector Rail:** Replaced duplicated status cards with a single `Plan & Execution Steps` checklist and circular SVG progress ring.',
+              '',
+              '```rust',
+              'pub fn route_turn(intent: &SelectionIntent) -> RouteDecision {',
+              '    let score = intent.efficiency_score_with_cache(0.85);',
+              '    RouteDecision::selected("anthropic/claude-sonnet", score)',
+              '}',
+              '```',
+            ].join('\n'),
+            created_at: 'now',
+            task_id: '201',
+            model_id: 'anthropic/claude-sonnet',
+            latency_ms: 1840,
+            selection_reason: 'Spoke: GuiSurface · Precision 0.94',
+            events: [
+              { id: 'ev-1', ts: 1, kind: 'thinking', summary: 'Thought for 1.8s — inspected Loquela.tsx and ChatExecutionRail.tsx' },
+              { id: 'ev-2', ts: 2, kind: 'tool_start', tool: 'vox_read_slice', summary: 'crates/vox-gui/ui/src/components/surfaces/Loquela/Loquela.tsx' },
+              { id: 'ev-3', ts: 3, kind: 'tool_end', tool: 'vox_read_slice', ok: true, summary: 'Read 140 lines (single-row toolbar)' },
+              { id: 'ev-4', ts: 4, kind: 'tool_start', tool: 'vox_read_slice', summary: 'crates/vox-gui/ui/src/components/surfaces/Chat/ChatExecutionRail.tsx' },
+              { id: 'ev-5', ts: 5, kind: 'tool_end', tool: 'vox_read_slice', ok: true, summary: 'Read 180 lines (Session Inspector checklist)' },
+              { id: 'ev-6', ts: 6, kind: 'tool_start', tool: 'vox_check_workspace', summary: 'tsc --noEmit && vitest run' },
+              { id: 'ev-7', ts: 7, kind: 'tool_end', tool: 'vox_check_workspace', ok: true, summary: '0 errors · 82/82 tests passing' },
+            ],
+          },
+        ];
         case 'chat_append_message': return 1;
         case 'chat_rename_session': {
           const hit = ((window as any).__MOCK_SESSIONS__ as any[]).find(
@@ -630,7 +703,7 @@ export function installTauriMock(viewKey: string): void {
         case 'list_gui_runs': return Array.from({ length: 5 }, (_, i) => ({
           run_id: `gui-run-${i + 1}`, workflow_name: ['gui.harness.submit', 'gui.policy.doubt', 'gui.search', 'gui.research', 'gui.repo'][i],
           status: ['success', 'success', 'running', 'failed', 'success'][i], planned_steps: 3, completed_steps: [3, 3, 1, 2, 3][i],
-          updated_at_ms: 1717400000000, last_error: i === 3 ? 'exit code 1' : null,
+          updated_at_ms: Date.now() - 900_000 * (i + 1), last_error: i === 3 ? 'exit code 1' : null,
         }));
         case 'get_gui_run': return { run_id: 'gui-run-1', workflow_name: 'gui.harness.submit', status: 'success', steps: [] };
         case 'list_secret_status': return [
@@ -646,7 +719,57 @@ export function installTauriMock(viewKey: string): void {
         case 'get_user_config': return null;
         case 'get_llm_config': return {};
         case 'get_llm_spend':
-          return { sessionUsd: 0, dayUsd: 0, totalUsd: 0, dailyBudgetUsd: 50, perSessionBudgetUsd: 10 };
+          return { sessionUsd: 0.18, dayUsd: 1.42, totalUsd: 12.34, dailyBudgetUsd: 50, perSessionBudgetUsd: 10 };
+        case 'get_context_budget':
+          return {
+            max_context_tokens: 128000,
+            reserved_tokens: 8000,
+            threshold_tokens: 102400,
+            usable_tokens: 120000,
+            strategy: (window as any).__MOCK_CONTEXT_STRATEGY__ ?? 'balanced',
+            used_tokens: 24800,
+          };
+        case 'set_context_budget_strategy': {
+          const next = String(args?.strategy ?? 'balanced').toLowerCase();
+          (window as any).__MOCK_CONTEXT_STRATEGY__ = next;
+          return {
+            max_context_tokens: 128000,
+            reserved_tokens: 8000,
+            threshold_tokens: 102400,
+            usable_tokens: 120000,
+            strategy: next,
+            used_tokens: 24800,
+          };
+        }
+        case 'get_session_context_pins': {
+          const sid = String(args?.sessionId ?? 'default');
+          const store = ((window as any).__MOCK_CONTEXT_PINS__ ??= {});
+          return (
+            store[sid] ?? [
+              { id: 'ctx-1', label: '@kb:where-things-live.md', scope: 'RRF 0.98' },
+              { id: 'ctx-2', label: '@kb:agentos-ssot-2026.md', scope: 'RRF 0.94' },
+            ]
+          );
+        }
+        case 'set_session_context_pins': {
+          const sid = String(args?.sessionId ?? 'default');
+          const store = ((window as any).__MOCK_CONTEXT_PINS__ ??= {});
+          store[sid] = Array.isArray(args?.pins) ? args.pins : [];
+          return store[sid];
+        }
+        case 'get_session_chat_posture': {
+          const sid = String(args?.sessionId ?? 'default');
+          const store = ((window as any).__MOCK_CHAT_POSTURE__ ??= {});
+          return store[sid] ?? store.default ?? {};
+        }
+        case 'set_session_chat_posture': {
+          const sid = String(args?.sessionId ?? 'default');
+          const store = ((window as any).__MOCK_CHAT_POSTURE__ ??= {});
+          const next = args?.posture ?? {};
+          store[sid] = next;
+          store.default = next;
+          return next;
+        }
         case 'pty_spawn':
         case 'pty_write':
         case 'pty_resize':
@@ -672,7 +795,7 @@ export function installTauriMock(viewKey: string): void {
                   ended_ms: 5,
                 },
               ],
-              replay_utf8: 'C:\\workspace\\vox> vox run\r\nReady.\r\n',
+              replay_utf8: '~/workspace/vox $ vox run\r\nReady.\r\n',
               seq: 1,
             },
           });
@@ -682,7 +805,7 @@ export function installTauriMock(viewKey: string): void {
           store[sid] = {
             id: sid,
             blocks: [],
-            replay_utf8: `C:\\workspace\\vox (${sid})> \r\n`,
+            replay_utf8: `~/workspace/vox (${sid}) $ \r\n`,
             seq: 1,
           };
           return sid;
@@ -704,7 +827,7 @@ export function installTauriMock(viewKey: string): void {
                   ended_ms: 5,
                 },
               ],
-              replay_utf8: 'C:\\workspace\\vox> vox run\r\nReady.\r\n',
+              replay_utf8: '~/workspace/vox $ vox run\r\nReady.\r\n',
               seq: 1,
             },
           });
@@ -730,7 +853,7 @@ export function installTauriMock(viewKey: string): void {
                   ended_ms: 5,
                 },
               ],
-              replay_utf8: 'C:\\workspace\\vox> vox run\r\nReady.\r\n',
+              replay_utf8: '~/workspace/vox $ vox run\r\nReady.\r\n',
               seq: 1,
             },
           });
@@ -760,7 +883,7 @@ export function installTauriMock(viewKey: string): void {
                   ended_ms: 5,
                 },
               ],
-              replay_utf8: 'C:\\workspace\\vox> vox run\r\nReady.\r\n',
+              replay_utf8: '~/workspace/vox $ vox run\r\nReady.\r\n',
               seq: 1,
             },
           });
@@ -847,7 +970,7 @@ export function installTauriMock(viewKey: string): void {
           };
           sess.blocks.push(newBlock);
           sess.seq += 1;
-          sess.replay_utf8 += `C:\\workspace\\vox> ${rawLine}\r\n${outText.replace(/\n/g, '\r\n')}`;
+          sess.replay_utf8 += `~/workspace/vox $ ${rawLine}\r\n${outText.replace(/\n/g, '\r\n')}`;
           return bid;
         }
         case 'invoke_mcp_tool': return { tool: args?.tool ?? 'unknown', is_error: false, result: mcpResult(args?.tool ?? '', args?.args) };
@@ -865,6 +988,9 @@ export function installTauriMock(viewKey: string): void {
           if (path[0] === 'populi') return { exit_code: 0, stdout: 'mesh: 2 nodes online | overlay healthy', stderr: '' };
           if (p === 'oratio status') return { exit_code: 0, stdout: 'session: idle | sample_rate: 16kHz | VAD: silero-v5 ready', stderr: '' };
           if (path[0] === 'oratio') return { exit_code: 0, stdout: 'oratio runtime ok | backend: whisper-local', stderr: '' };
+          if (p === 'status') return { exit_code: 0, stdout: 'branch: main (ahead 2) | workspace: 54 crates | clean working tree (0 conflicts)', stderr: '' };
+          if (p === 'check workspace' || p === 'check') return { exit_code: 0, stdout: 'vox check: 0 errors, 0 warnings across 54 workspace crates (412ms)', stderr: '' };
+          if (p === 'diff') return { exit_code: 0, stdout: 'crates/vox-gui/ui/src/App.tsx | +12 -3\ncrates/vox-gui/ui/src/lib/cvFlywheel.ts | +48 -0', stderr: '' };
           return { exit_code: 0, stdout: 'ok', stderr: '' };
         }
         case 'submit_orchestrator_task': return { ok: true, task_id: '101', message: 'submitted' };
@@ -903,41 +1029,134 @@ export function installTauriMock(viewKey: string): void {
             root: '/workspace/vox',
             scanned_at_ms: 1729360000000,
             truncated: false,
+            repo_name: 'vox',
+            primary_language: 'Rust / TypeScript',
             crates: [
+              {
+                name: 'vox-compiler',
+                root: 'crates/vox-compiler',
+                deps: ['vox-crypto'],
+                dirty_file_count: 2,
+                total_churn_lines: 69,
+                files: [
+                  { path: 'crates/vox-compiler/src/lib.rs', lines: 5100 },
+                  {
+                    path: 'crates/vox-compiler/src/parser.rs',
+                    lines: 6400,
+                    git_status: 'M',
+                    diff_added_lines: 42,
+                    diff_deleted_lines: 11,
+                  },
+                  {
+                    path: 'crates/vox-compiler/src/typeck/mod.rs',
+                    lines: 6800,
+                    git_status: 'M',
+                    diff_added_lines: 14,
+                    diff_deleted_lines: 2,
+                  },
+                  { path: 'crates/vox-compiler/src/codegen/rust.rs', lines: 5900 },
+                  { path: 'crates/vox-compiler/src/codegen/ts.rs', lines: 4100 },
+                  { path: 'crates/vox-compiler/src/hir/lower.rs', lines: 4600 },
+                  { path: 'crates/vox-compiler/src/lexer/cursor.rs', lines: 4400 },
+                  { path: 'crates/vox-compiler/src/ast/decl.rs', lines: 4700 },
+                ],
+              },
               {
                 name: 'vox-orchestrator',
                 root: 'crates/vox-orchestrator',
+                deps: ['vox-compiler', 'vox-db', 'vox-mens'],
+                dirty_file_count: 1,
+                total_churn_lines: 35,
                 files: [
-                  { path: 'crates/vox-orchestrator/src/lib.rs', lines: 420 },
-                  { path: 'crates/vox-orchestrator/src/models/registry.rs', lines: 310 },
-                  { path: 'crates/vox-orchestrator/src/models/select.rs', lines: 280 },
-                  { path: 'crates/vox-orchestrator/src/events.rs', lines: 195 },
+                  { path: 'crates/vox-orchestrator/src/lib.rs', lines: 5200 },
+                  { path: 'crates/vox-orchestrator/src/models/registry.rs', lines: 6400 },
+                  {
+                    path: 'crates/vox-orchestrator/src/models/select.rs',
+                    lines: 5600,
+                    git_status: 'M',
+                    diff_added_lines: 28,
+                    diff_deleted_lines: 7,
+                  },
+                  { path: 'crates/vox-orchestrator/src/mcp_tools/agent_loop.rs', lines: 7200 },
+                  { path: 'crates/vox-orchestrator/src/mcp_tools/chat_tools.rs', lines: 4800 },
+                  { path: 'crates/vox-orchestrator/src/compaction/engine.rs', lines: 4900 },
+                  { path: 'crates/vox-orchestrator/src/hopper/queue.rs', lines: 3900 },
                 ],
               },
               {
                 name: 'vox-gui',
                 root: 'crates/vox-gui',
+                deps: ['vox-orchestrator', 'vox-compiler', 'vox-db'],
+                dirty_file_count: 1,
+                total_churn_lines: 67,
                 files: [
-                  { path: 'crates/vox-gui/src/main.rs', lines: 260 },
-                  { path: 'crates/vox-gui/src/commands/chat_turn.rs', lines: 340 },
-                  { path: 'crates/vox-gui/src/commands/urbs.rs', lines: 180 },
+                  { path: 'crates/vox-gui/src/main.rs', lines: 3600 },
+                  { path: 'crates/vox-gui/src/commands/chat_turn.rs', lines: 4100 },
+                  { path: 'crates/vox-gui/src/commands/workspace_town.rs', lines: 3900 },
+                  { path: 'crates/vox-gui/ui/src/App.tsx', lines: 5800 },
+                  { path: 'crates/vox-gui/ui/src/components/surfaces/Chat/ChatSurface.tsx', lines: 5200 },
+                  {
+                    path: 'crates/vox-gui/ui/src/components/gamify/LudusSandbox.tsx',
+                    lines: 5400,
+                    git_status: 'M',
+                    diff_added_lines: 54,
+                    diff_deleted_lines: 13,
+                  },
                 ],
               },
               {
-                name: 'vox-compiler',
-                root: 'crates/vox-compiler',
+                name: 'vox-db',
+                root: 'crates/vox-db',
+                deps: ['vox-crypto'],
                 files: [
-                  { path: 'crates/vox-compiler/src/lib.rs', lines: 510 },
-                  { path: 'crates/vox-compiler/src/parser.rs', lines: 640 },
-                  { path: 'crates/vox-compiler/src/typeck.rs', lines: 720 },
+                  { path: 'crates/vox-db/src/lib.rs', lines: 3900 },
+                  { path: 'crates/vox-db/src/schema/migrations.rs', lines: 4700 },
+                  { path: 'crates/vox-db/src/telemetry/research.rs', lines: 3300 },
+                  { path: 'crates/vox-db/src/cas/store.rs', lines: 3800 },
+                  { path: 'crates/vox-db/src/sessions/context.rs', lines: 2300 },
+                ],
+              },
+              {
+                name: 'vox-mens',
+                root: 'crates/vox-mens',
+                deps: ['vox-db', 'vox-compiler'],
+                files: [
+                  { path: 'crates/vox-mens/src/lib.rs', lines: 2500 },
+                  { path: 'crates/vox-mens/src/qlora/trainer.rs', lines: 3800 },
+                  { path: 'crates/vox-mens/src/eval/spoke_scorecard.rs', lines: 3300 },
+                  { path: 'crates/vox-mens/src/dpo/flywheel.rs', lines: 2100 },
+                  { path: 'crates/vox-mens/src/serve/engine.rs', lines: 2300 },
+                ],
+              },
+              {
+                name: 'vox-populi',
+                root: 'crates/vox-populi',
+                deps: ['vox-crypto', 'vox-db'],
+                files: [
+                  { path: 'crates/vox-populi/src/lib.rs', lines: 1800 },
+                  { path: 'crates/vox-populi/src/mesh/iroh_node.rs', lines: 2400 },
+                  { path: 'crates/vox-populi/src/leaderboard/verify.rs', lines: 1900 },
+                  { path: 'crates/vox-populi/src/a2a/lease.rs', lines: 1700 },
                 ],
               },
               {
                 name: 'vox-crypto',
                 root: 'crates/vox-crypto',
+                deps: [],
                 files: [
-                  { path: 'crates/vox-crypto/src/lib.rs', lines: 210 },
-                  { path: 'crates/vox-crypto/src/aead.rs', lines: 145 },
+                  { path: 'crates/vox-crypto/src/lib.rs', lines: 580 },
+                  { path: 'crates/vox-crypto/src/aead/chacha.rs', lines: 620 },
+                  { path: 'crates/vox-crypto/src/sign/ed25519.rs', lines: 510 },
+                  { path: 'crates/vox-crypto/src/hash/blake3.rs', lines: 390 },
+                ],
+              },
+              {
+                name: 'vox-dotenv',
+                root: 'crates/vox-dotenv',
+                deps: [],
+                files: [
+                  { path: 'crates/vox-dotenv/src/lib.rs', lines: 240 },
+                  { path: 'crates/vox-dotenv/src/parse.rs', lines: 160 },
                 ],
               },
             ],
@@ -990,6 +1209,12 @@ export function installTauriMock(viewKey: string): void {
           const hit = items.find(t => t.item_id === String(args?.itemId));
           if (hit) hit.priority = Number(args?.priority ?? 1);
           return null;
+        }
+        case 'hopper_rename': {
+          const items = (window as any).__MOCK_HOPPER__ as any[];
+          const hit = items.find(t => t.item_id === String(args?.itemId));
+          if (hit) hit.intent = String(args?.intent ?? hit.intent);
+          return hit ? { ...hit } : null;
         }
         case 'hopper_mark_done': {
           const items = (window as any).__MOCK_HOPPER__ as any[];

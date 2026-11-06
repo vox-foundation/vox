@@ -64,3 +64,105 @@ If no recorder is registered, `record_event!` is a no-op.
 | `span` | — |
 | `types` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_telemetry: "vox-telemetry"
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_actor_runtime -> vox_telemetry
+    node vox_audit: "vox-audit"
+    vox_audit -> vox_telemetry
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_telemetry
+    node vox_cli_ci: "vox-cli-ci"
+    vox_cli_ci -> vox_telemetry
+    node vox_code_audit: "vox-code-audit"
+    vox_code_audit -> vox_telemetry
+    node vox_compiler: "vox-compiler"
+    vox_compiler -> vox_telemetry
+    node vox_config: "vox-config"
+    vox_config -> vox_telemetry
+    node vox_db: "vox-db"
+    vox_db -> vox_telemetry
+    node vox_effort_audit: "vox-effort-audit"
+    vox_effort_audit -> vox_telemetry
+    node vox_effort_route: "vox-effort-route"
+    vox_effort_route -> vox_telemetry
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_telemetry
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_telemetry
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-actor-runtime`](./vox-actor-runtime.generated.md) | Direct workspace dependent |
+| [`vox-audit`](./vox-audit.generated.md) | Direct workspace dependent |
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-ci`](./vox-cli-ci.generated.md) | Direct workspace dependent |
+| [`vox-code-audit`](./vox-code-audit.generated.md) | Direct workspace dependent |
+| [`vox-compiler`](./vox-compiler.generated.md) | Direct workspace dependent |
+| [`vox-config`](./vox-config.generated.md) | Direct workspace dependent |
+| [`vox-db`](./vox-db.generated.md) | Direct workspace dependent |
+| [`vox-effort-audit`](./vox-effort-audit.generated.md) | Direct workspace dependent |
+| [`vox-effort-route`](./vox-effort-route.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-plugin-host`](./vox-plugin-host.generated.md) | Direct workspace dependent |
+| [`vox-telemetry-otlp`](./vox-telemetry-otlp.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `aggregator::TaskAggregate` | `pub struct TaskAggregate` | [`crates/vox-telemetry/src/aggregator.rs#L17-L28`](../../../crates/vox-telemetry/src/aggregator.rs#L17-L28) | Accumulated per-task statistics derived from emitted `ModelCall` events. |
+| `fn` | `aggregator::record_task_started` | `pub fn record_task_started(task_id: u64)` | [`crates/vox-telemetry/src/aggregator.rs#L78-L85`](../../../crates/vox-telemetry/src/aggregator.rs#L78-L85) | Record that a task has started, anchoring its wall-clock start time.  Call this as early as possible when a task is created (e.g. at dispatch time when the task_id is first known). If not called before the first model-call event, [`observe`] sets `started_at` on first observation instead (less accurate but still non-zero). |
+| `fn` | `aggregator::observe` | `pub fn observe(event: &TelemetryEvent)` | [`crates/vox-telemetry/src/aggregator.rs#L91-L104`](../../../crates/vox-telemetry/src/aggregator.rs#L91-L104) | Observe a telemetry event and update the aggregate for the ambient task.  Only `ModelCall` events with a `task_id` are accumulated. All other events are ignored. Called automatically by [`crate::recorder::CompositeRecorder`]. |
+| `fn` | `aggregator::take` | `pub fn take(task_id: u64) -> TaskAggregate` | [`crates/vox-telemetry/src/aggregator.rs#L109-L111`](../../../crates/vox-telemetry/src/aggregator.rs#L109-L111) | Return the current aggregate for `task_id` and remove it from the map.  Returns a zero-valued aggregate if no events were observed for `task_id`. |
+| `fn` | `aggregator::fill_task_root_summary` | `pub fn fill_task_root_summary(event: &mut TaskRootSummaryEvent)` | [`crates/vox-telemetry/src/aggregator.rs#L119-L132`](../../../crates/vox-telemetry/src/aggregator.rs#L119-L132) | Populate a `TaskRootSummaryEvent`'s aggregate fields from the stored aggregate.  Looks up and removes the aggregate for `event.task_id`. Fields left at zero if no aggregate is stored (e.g., task emitted no model calls). `wall_time_ms` is computed from `started_at` if available; callers may override afterwards if they have a more accurate measurement. |
+| `struct` | `config::TelemetryConfig` | `pub struct TelemetryConfig` | [`crates/vox-telemetry/src/config.rs#L14-L33`](../../../crates/vox-telemetry/src/config.rs#L14-L33) | Master telemetry configuration. |
+| `fn` | `config::default_on` | `pub fn default_on() -> Self` | [`crates/vox-telemetry/src/config.rs#L37-L48`](../../../crates/vox-telemetry/src/config.rs#L37-L48) | Returns the default config: local collection on, all categories on, remote upload off. |
+| `fn` | `config::all_off` | `pub fn all_off() -> Self` | [`crates/vox-telemetry/src/config.rs#L51-L62`](../../../crates/vox-telemetry/src/config.rs#L51-L62) | Returns an all-off config (used for tests and when master switch is disabled). |
+| `fn` | `config::from_env` | `pub fn from_env() -> Self` | [`crates/vox-telemetry/src/config.rs#L72-L112`](../../../crates/vox-telemetry/src/config.rs#L72-L112) | Resolve the active config from all five layers.  Resolution order (highest wins): 1. Org-policy hard-off (`/etc/vox/telemetry-policy.toml` / `%ProgramData%\vox\…`) 2. User config (`~/.config/vox/config.toml`) 3. `VOX_TELEMETRY` master (`off\|on\|debug`) 4. Legacy per-category env vars 5. Default: local-on, remote-off, all categories on |
+| `fn` | `config::from_env_legacy` | `pub fn from_env_legacy() -> Self` | [`crates/vox-telemetry/src/config.rs#L116-L118`](../../../crates/vox-telemetry/src/config.rs#L116-L118) | Backward-compatible alias for `from_env`. |
+| `fn` | `config::is_master_enabled` | `pub fn is_master_enabled() -> bool` | [`crates/vox-telemetry/src/config.rs#L126-L143`](../../../crates/vox-telemetry/src/config.rs#L126-L143) | Returns true if telemetry is allowed at all (master switch is not "off").  This is the single check that legacy gates should consult before doing their per-category checks. When this returns false, NO telemetry should be emitted regardless of legacy env vars. |
+| `fn` | `config::org_policy_disabled` | `pub fn org_policy_disabled() -> bool` | [`crates/vox-telemetry/src/config.rs#L166-L196`](../../../crates/vox-telemetry/src/config.rs#L166-L196) | Phase D — Layer 1: org-level hard-off via policy file.  Reads the platform-standard policy file and returns `true` when the file contains an `enabled = false` directive, meaning the organisation has disabled all telemetry. The parse is intentionally simple (line-scan) to avoid pulling a TOML dependency into `vox-telemetry`.  File paths: - Windows: `%ProgramData%\vox\telemetry-policy.toml` - Linux / macOS: `/etc/vox/telemetry-policy.toml`  Missing file → returns `false` (policy not set; fall through to lower layers). Unreadable file → returns `false` with a debug log (fail-open). |
+| `enum` | `config::ConsentState` | `pub enum ConsentState` | [`crates/vox-telemetry/src/config.rs#L225-L232`](../../../crates/vox-telemetry/src/config.rs#L225-L232) | User's opt-in/opt-out state for remote telemetry upload. |
+| `fn` | `config::is_remote_allowed` | `pub fn is_remote_allowed() -> bool` | [`crates/vox-telemetry/src/config.rs#L239-L241`](../../../crates/vox-telemetry/src/config.rs#L239-L241) | Returns true if remote telemetry upload is currently allowed.  `true` iff the master switch is enabled AND the user has explicitly granted remote consent. An `Unset` consent state (first-run prompt not yet shown) is treated as `Denied` (conservative default — nothing goes out). |
+| `fn` | `config::remote_consent` | `pub fn remote_consent() -> ConsentState` | [`crates/vox-telemetry/src/config.rs#L247-L257`](../../../crates/vox-telemetry/src/config.rs#L247-L257) | Read the persisted consent state from `~/.config/vox/remote-consent`.  File contents: `"granted"` or `"denied"`. Any other value (including a missing file) returns `Unset`. |
+| `fn` | `config::set_remote_consent` | `pub fn set_remote_consent(state: ConsentState)` | [`crates/vox-telemetry/src/config.rs#L264-L273`](../../../crates/vox-telemetry/src/config.rs#L264-L273) | Persist a consent decision to `~/.config/vox/remote-consent`.  Errors are silently swallowed — failing to write consent must never crash the application. If the write fails, `remote_consent()` will keep returning `Unset` on the next call, which means nothing is uploaded (fail-closed). |
+| `fn` | `config::install_id` | `pub fn install_id() -> String` | [`crates/vox-telemetry/src/config.rs#L281-L294`](../../../crates/vox-telemetry/src/config.rs#L281-L294) | Return (or create and persist) a stable per-installation UUID.  Stored at `~/.config/vox/install-id` as a plain UUID string. On first call the file is created; subsequent calls return the cached value. Never panics — if reading/writing fails, returns a random UUID for this process invocation only (not persisted). |
+| `fn` | `config::install_salt` | `pub fn install_salt() -> [u8; 16]` | [`crates/vox-telemetry/src/config.rs#L302-L318`](../../../crates/vox-telemetry/src/config.rs#L302-L318) | Return (or create and persist) a 16-byte installation salt.  Stored at `~/.config/vox/install-salt` as 32 hex characters. The salt is used by `vox-telemetry-otlp` to hash session-id suffixes before upload; the salt itself is NEVER uploaded. If reading/writing fails, returns a random salt for this process invocation only. |
+| `struct` | `no_op::NoOpRecorder` | `pub struct NoOpRecorder` | [`crates/vox-telemetry/src/no_op.rs#L4`](../../../crates/vox-telemetry/src/no_op.rs#L4) | Default recorder used when no sink is registered. Discards all events silently. |
+| `trait` | `recorder::TelemetryRecorder` | `pub trait TelemetryRecorder: Send + Sync + 'static` | [`crates/vox-telemetry/src/recorder.rs#L9-L11`](../../../crates/vox-telemetry/src/recorder.rs#L9-L11) | Trait implemented by every telemetry sink.  `record` is called synchronously on the caller's thread/task. Implementations MUST return quickly (fire-and-forget internally via `tokio::spawn` or a channel). |
+| `fn` | `recorder::set_global_recorder` | `pub fn set_global_recorder(recorder: Arc<dyn TelemetryRecorder>)` | [`crates/vox-telemetry/src/recorder.rs#L17-L19`](../../../crates/vox-telemetry/src/recorder.rs#L17-L19) | Register the process-wide recorder. Silently ignored if called more than once (first writer wins). Call once at binary startup before any `record_event!`. |
+| `fn` | `recorder::global_recorder` | `pub fn global_recorder() -> Option<&'static Arc<dyn TelemetryRecorder>>` | [`crates/vox-telemetry/src/recorder.rs#L24-L26`](../../../crates/vox-telemetry/src/recorder.rs#L24-L26) | Returns the global recorder, or `None` if not yet initialized.  Used by the `record_event!` macro; callers should prefer that macro. |
+| `struct` | `recorder::CompositeRecorder` | `pub struct CompositeRecorder` | [`crates/vox-telemetry/src/recorder.rs#L29-L31`](../../../crates/vox-telemetry/src/recorder.rs#L29-L31) | Fan-out recorder: delegates every `record` call to all inner recorders. |
+| `fn` | `recorder::new` | `pub fn new(inner: Vec<Arc<dyn TelemetryRecorder>>) -> Self` | [`crates/vox-telemetry/src/recorder.rs#L34-L36`](../../../crates/vox-telemetry/src/recorder.rs#L34-L36) | — |
+| `fn` | `research_trial::validate_research_trial_metadata` | `pub fn validate_research_trial_metadata(` | [`crates/vox-telemetry/src/research_trial.rs#L171`](../../../crates/vox-telemetry/src/research_trial.rs#L171) | Validate a `research_trial.*` row: known metric type, flat JSON object, allowlisted keys, scalar values, and bounded structural strings only. |
+| `struct` | `span::TraceContext` | `pub struct TraceContext` | [`crates/vox-telemetry/src/span.rs#L12-L23`](../../../crates/vox-telemetry/src/span.rs#L12-L23) | Distributed trace context propagated through async task boundaries.  Fields are `Option` so partial contexts are valid during the bootstrap phase. |
+| `fn` | `span::root` | `pub fn root(task_id: u64) -> Self` | [`crates/vox-telemetry/src/span.rs#L27-L35`](../../../crates/vox-telemetry/src/span.rs#L27-L35) | Create a root context (no parent). |
+| `fn` | `span::child` | `pub fn child(&self, child_task_id: u64, child_agent_id: impl Into<String>) -> Self` | [`crates/vox-telemetry/src/span.rs#L38-L46`](../../../crates/vox-telemetry/src/span.rs#L38-L46) | Derive a child context for a sub-agent dispatch. |
+| `fn` | `span::current_trace_ctx` | `pub fn current_trace_ctx() -> TraceContext` | [`crates/vox-telemetry/src/span.rs#L67-L69`](../../../crates/vox-telemetry/src/span.rs#L67-L69) | Retrieve the current trace context or return a default empty context. |
+| `fn` | `span::current_trace_context` | `pub fn current_trace_context() -> Option<TraceContext>` | [`crates/vox-telemetry/src/span.rs#L72-L74`](../../../crates/vox-telemetry/src/span.rs#L72-L74) | Retrieve the current trace context, or `None` if no context is active. |
+| `enum` | `types::TelemetryError` | `pub enum TelemetryError` | [`crates/vox-telemetry/src/types.rs#L16-L19`](../../../crates/vox-telemetry/src/types.rs#L16-L19) | Error returned by [`validate_research_metric_row`] and sink operations. |
+| `struct` | `types::TelemetryWriteOptions` | `pub struct TelemetryWriteOptions<'a>` | [`crates/vox-telemetry/src/types.rs#L143-L145`](../../../crates/vox-telemetry/src/types.rs#L143-L145) | Repository-scoped session_id builder. Use with `METRIC_TYPE_*` constants. |
+| `fn` | `types::new` | `pub fn new(repository_id: &'a str) -> Self` | [`crates/vox-telemetry/src/types.rs#L149-L151`](../../../crates/vox-telemetry/src/types.rs#L149-L151) | — |
+| `fn` | `types::session_bench` | `pub fn session_bench(&self) -> String` | [`crates/vox-telemetry/src/types.rs#L154-L156`](../../../crates/vox-telemetry/src/types.rs#L154-L156) | — |
+| `fn` | `types::session_syntaxk` | `pub fn session_syntaxk(&self) -> String` | [`crates/vox-telemetry/src/types.rs#L159-L161`](../../../crates/vox-telemetry/src/types.rs#L159-L161) | — |
+| `fn` | `types::session_mcp` | `pub fn session_mcp(&self) -> String` | [`crates/vox-telemetry/src/types.rs#L164-L166`](../../../crates/vox-telemetry/src/types.rs#L164-L166) | — |
+| `fn` | `types::session_workflow` | `pub fn session_workflow(&self) -> String` | [`crates/vox-telemetry/src/types.rs#L169-L171`](../../../crates/vox-telemetry/src/types.rs#L169-L171) | — |
+| `fn` | `types::session_mens` | `pub fn session_mens(&self) -> String` | [`crates/vox-telemetry/src/types.rs#L174-L176`](../../../crates/vox-telemetry/src/types.rs#L174-L176) | — |
+| `fn` | `types::session_route` | `pub fn session_route(&self) -> String` | [`crates/vox-telemetry/src/types.rs#L179-L181`](../../../crates/vox-telemetry/src/types.rs#L179-L181) | — |
+| `fn` | `types::session_lint` | `pub fn session_lint(&self) -> String` | [`crates/vox-telemetry/src/types.rs#L185-L187`](../../../crates/vox-telemetry/src/types.rs#L185-L187) | Session ID for `vox.lint.*` events (P2.1). Aggregator buckets by repo. |
+| `fn` | `types::session_repair` | `pub fn session_repair(&self) -> String` | [`crates/vox-telemetry/src/types.rs#L192-L194`](../../../crates/vox-telemetry/src/types.rs#L192-L194) | Session ID for `vox.repair.*` events (P2.1). One session id per repair invocation; the [`RepairOutcomeEvent`] closes it. |
+| `fn` | `types::session_audit` | `pub fn session_audit(&self) -> String` | [`crates/vox-telemetry/src/types.rs#L198-L200`](../../../crates/vox-telemetry/src/types.rs#L198-L200) | Session ID for `vox.audit.*` events (A11). |
+| `fn` | `types::validate_research_metric_row` | `pub fn validate_research_metric_row(` | [`crates/vox-telemetry/src/types.rs#L214`](../../../crates/vox-telemetry/src/types.rs#L214) | Validate inputs before `INSERT INTO research_metrics`.  Called by `vox_db::VoxDb::append_research_metric` on every write. |
+| `enum` | `types::TelemetryEvent` | `pub enum TelemetryEvent` | [`crates/vox-telemetry/src/types.rs#L276-L342`](../../../crates/vox-telemetry/src/types.rs#L276-L342) | A single telemetry observation that may be routed to one or more sinks.  New variants are added in later phases; each variant maps to one or more `METRIC_TYPE_*` constants. All variants are `non_exhaustive` so older sinks can ignore unknown events safely via `_ => {}` arms. |
+| `struct` | `types::FixtureModelIntentResolvedEvent` | `pub struct FixtureModelIntentResolvedEvent` | [`crates/vox-telemetry/src/types.rs#L346-L355`](../../../crates/vox-telemetry/src/types.rs#L346-L355) | Payload aligned with `contracts/telemetry/fixture-model-intent-resolved.v1.schema.json`. |
+

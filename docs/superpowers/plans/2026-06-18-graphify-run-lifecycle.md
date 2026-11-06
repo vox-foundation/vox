@@ -1,6 +1,6 @@
 ---
 title: "Graphify Graph Run Lifecycle Implementation Plan"
-description: "Implementation plan for corpus path migration, lexical-lag surfacing, TTL env var, VoxScript auto-refresh, and CI freshness gate."
+description: "Implementation plan for corpus path migration, lexical-lag surfacing, TTL env var, VoxLang auto-refresh, and CI freshness gate."
 category: "superpowers"
 status: "current"
 ---
@@ -11,9 +11,9 @@ status: "current"
 
 **Goal:** Complete the foundational graph-run lifecycle so that every Graphify corpus has a canonical storage path, accurate freshness signals (including lexical lag), a user-configurable TTL, an auto-rebuild script, and a CI freshness gate that fails the build when corpora drift.
 
-**Architecture:** The existing `assess_corpus_status()` detects `git_drift`, `ttl_expired`, `graph_missing`, and `graph_corrupt`, but (a) corpus paths still point at the legacy `graphify-out/` directory instead of `.vox/cache/graphify/<corpus_id>/`, (b) `lexical_lag_stale_reason()` exists but is never called from the status path, (c) the TTL is hardcoded and cannot be overridden by env var, (d) there is no auto-rebuild VoxScript, and (e) `--strict` exists in the CLI but is not wired into CI. This plan closes all five gaps in order, with each task independently testable.
+**Architecture:** The existing `assess_corpus_status()` detects `git_drift`, `ttl_expired`, `graph_missing`, and `graph_corrupt`, but (a) corpus paths still point at the legacy `graphify-out/` directory instead of `.vox/cache/graphify/<corpus_id>/`, (b) `lexical_lag_stale_reason()` exists but is never called from the status path, (c) the TTL is hardcoded and cannot be overridden by env var, (d) there is no auto-rebuild VoxLang, and (e) `--strict` exists in the CLI but is not wired into CI. This plan closes all five gaps in order, with each task independently testable.
 
-**Tech Stack:** Rust (`vox-config`, `vox-cli`, `vox-orchestrator-mcp`), VoxScript (`.vox`), YAML contracts, GitHub Actions CI.
+**Tech Stack:** Rust (`vox-config`, `vox-cli`, `vox-orchestrator-mcp`), VoxLang (`.vox`), YAML contracts, GitHub Actions CI.
 
 ---
 ## Background reading (read before you start)
@@ -89,7 +89,7 @@ cargo fmt -p vox-config
 | **MODIFY** | `crates/vox-orchestrator-mcp/src/graphify_tools.rs` | Call `resolve_ttl_days` |
 | **MODIFY** | `contracts/config/env-vars.v1.yaml` | Register `VOX_GRAPHIFY_TTL_DAYS` |
 | **MODIFY** | `.github/workflows/ci.yml` | Add `vox graphify status --strict` step |
-| **CREATE** | `scripts/graphify-refresh.vox` | VoxScript: check status, surface rebuild instructions |
+| **CREATE** | `scripts/graphify-refresh.vox` | VoxLang: check status, surface rebuild instructions |
 | **MODIFY** | `scripts/coverage-graph/manifest_writer.py` | Add deprecation warning |
 
 ---
@@ -582,13 +582,13 @@ cargo fmt -p vox-config
 
 ## Task 5: Create `scripts/graphify-refresh.vox` and deprecate `manifest_writer.py`
 
-**Why:** Per `AGENTS.md §VoxScript-First Glue Code`, all project automation must be `.vox` files. This VoxScript checks freshness for all corpora and surfaces rebuild instructions for stale ones. It also runs `vox graphify ingest` when `--ingest` flag is passed and `lexical_lag` is the only reason for staleness.
+**Why:** Per `AGENTS.md §VoxLang-First Glue Code`, all project automation must be `.vox` files. This VoxLang checks freshness for all corpora and surfaces rebuild instructions for stale ones. It also runs `vox graphify ingest` when `--ingest` flag is passed and `lexical_lag` is the only reason for staleness.
 
 **Files:**
 - Create: `scripts/graphify-refresh.vox`
 - Modify: `scripts/coverage-graph/manifest_writer.py`
 
-- [ ] **Step 5.1: Read a nearby VoxScript for syntax reference**
+- [ ] **Step 5.1: Read a nearby VoxLang for syntax reference**
 
   ```powershell
   Get-Content scripts/fmt.vox
@@ -617,7 +617,7 @@ cargo fmt -p vox-config
   //   vox run scripts/graphify-refresh.vox -- --ingest   # also run ingest for lexical_lag corpora
   //
   // SSOT: contracts/retrieval/graphify-corpora.v1.yaml
-  // Policy: AGENTS.md §VoxScript-First Glue Code
+  // Policy: AGENTS.md §VoxLang-First Glue Code
 
   let args = env.args()
   let do_ingest = args.contains("--ingest")
@@ -691,7 +691,7 @@ cargo fmt -p vox-config
   import warnings
   warnings.warn(
       "manifest_writer.py is deprecated. Use `vox run scripts/graphify-refresh.vox` instead. "
-      "See AGENTS.md §VoxScript-First Glue Code.",
+      "See AGENTS.md §VoxLang-First Glue Code.",
       DeprecationWarning,
       stacklevel=2,
   )
@@ -702,7 +702,7 @@ cargo fmt -p vox-config
   ```powershell
   git add scripts/graphify-refresh.vox
   git add scripts/coverage-graph/manifest_writer.py
-  git commit -m "feat: add scripts/graphify-refresh.vox VoxScript; deprecate manifest_writer.py"
+  git commit -m "feat: add scripts/graphify-refresh.vox VoxLang; deprecate manifest_writer.py"
   ```
 
 ---
@@ -849,7 +849,7 @@ Starlight lists it. Do **not** create or edit `docs/src/architecture/research-in
 | `lexical_lag` surfaced in `stale_reasons` (TDD) | Task 2 |
 | `VOX_GRAPHIFY_TTL_DAYS` env var + `resolve_ttl_days()` (TDD) | Task 3 |
 | CI freshness gate (`--strict` + `continue-on-error`) | Task 4 |
-| VoxScript auto-refresh script | Task 5 |
+| VoxLang auto-refresh script | Task 5 |
 | `manifest_writer.py` deprecation notice | Task 5.5 |
 | SSOT docs updated with new paths + lexical_lag section | Task 6 |
 | All code shown in full (no placeholders) | Verified |
@@ -861,5 +861,5 @@ Starlight lists it. Do **not** create or edit `docs/src/architecture/research-in
 > - Sub-project C: Search fusion (`vox_memory_search` routing to graphify corpora)
 > - Sub-project D: Rust ecosystem uplift (Kodegraf/CodeGraph/Octocode evaluation)
 > - Spool events (`graphify.lifecycle` Tier B events via `vox-spool`)
-> - Full Python graphify pipeline migration to VoxScript
+> - Full Python graphify pipeline migration to VoxLang
 > - Removal of the committed `graphify-out/` directory files (C1 blocker, separate cleanup PR)

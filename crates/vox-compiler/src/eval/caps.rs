@@ -8,13 +8,28 @@ use std::path::{Component, Path, PathBuf};
 
 /// Never gated. `path.resolve` is the one method in a pure namespace that touches disk;
 /// the fs arm gates it as a read (Task 5). `db`/`repo` are in-memory stores.
+/// `array`/`frame` only build lazy plans; materializing one (`to_list`/`collect`)
+/// calls the worker and is gated by `py`.
 pub const PURE: &[&str] = &[
-    "path", "json", "csv", "toml", "yaml", "regex", "log", "db", "repo",
+    "path", "json", "csv", "toml", "yaml", "regex", "log", "db", "repo", "array", "frame",
 ];
 /// Gated. `io` is here for classification only — its authority comes from `fs:`.
 /// `crypto` is gated by the `random` axis.
 pub const GATED: &[&str] = &[
-    "fs", "io", "process", "env", "secrets", "http", "time", "agentos", "crypto",
+    "fs",
+    "io",
+    "process",
+    "env",
+    "secrets",
+    "http",
+    "time",
+    "agentos",
+    "crypto",
+    "py",
+    "py.unverified",
+    // `python.version()` is gated on `py` in `eval/expr.rs`; no token grants
+    // `python` itself, so every other `python.*` method is denied.
+    "python",
 ];
 
 pub fn is_classified(ns: &str) -> bool {
@@ -138,6 +153,14 @@ impl CapabilitySet {
                 }
                 ("process" | "secrets" | "agentos", "none") => {}
                 ("process" | "secrets" | "agentos", _) => return Err(err("expected none|allow")),
+                ("py", "allow") => {
+                    out.allowed.insert("py".into());
+                }
+                ("py", "unverified") => {
+                    out.allowed.insert("py".into());
+                    out.allowed.insert("py.unverified".into());
+                }
+                ("py", _) => return Err(err("py takes allow|unverified")),
                 _ => return Err(err("unknown namespace")),
             }
         }
@@ -197,6 +220,11 @@ impl CapabilitySet {
         }
         if self.allowed.contains("process") {
             parts.push("process:allow".into());
+        }
+        if self.allowed.contains("py.unverified") {
+            parts.push("py:unverified".into());
+        } else if self.allowed.contains("py") {
+            parts.push("py:allow".into());
         }
         if self.allowed.contains("env") {
             parts.push(if self.env_write {
@@ -368,6 +396,46 @@ fn component_eq(a: &Component, b: &Component) -> bool {
 mod tests {
     use super::*;
     use std::path::Path;
+
+    // Phase 324 (EFF-02): `py:allow` grants verified Python only;
+    // `py:unverified` grants both tiers; restrictive grants neither.
+    #[test]
+    fn py_allow_grants_py_but_not_unverified() {
+        let c = CapabilitySet::parse("py:allow").unwrap();
+        assert!(c.allows_namespace("py"));
+        assert!(!c.allows_namespace("py.unverified"));
+    }
+
+    #[test]
+    fn py_unverified_grants_both_tiers() {
+        let c = CapabilitySet::parse("py:unverified").unwrap();
+        assert!(c.allows_namespace("py"));
+        assert!(c.allows_namespace("py.unverified"));
+    }
+
+    #[test]
+    fn restrictive_denies_py() {
+        let c = CapabilitySet::restrictive();
+        assert!(!c.allows_namespace("py"));
+        assert!(!c.allows_namespace("py.unverified"));
+        assert!(CapabilitySet::parse("py:bogus").is_err());
+    }
+
+    #[test]
+    fn py_is_gated_and_on_by_developer_default() {
+        assert!(GATED.contains(&"py") && GATED.contains(&"py.unverified"));
+        let d = CapabilitySet::developer_default();
+        assert!(d.allows_namespace("py") && d.allows_namespace("py.unverified"));
+    }
+
+    #[test]
+    fn py_grants_round_trip_through_tokens() {
+        for spec in ["py:allow", "py:unverified"] {
+            let c = CapabilitySet::parse(spec).unwrap();
+            let rebuilt = CapabilitySet::parse(&c.to_tokens().join(",")).unwrap();
+            assert_eq!(c, rebuilt, "{spec} lost in to_tokens round-trip");
+        }
+    }
 
     #[test]
     fn unmentioned_namespaces_are_denied() {

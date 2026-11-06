@@ -155,7 +155,7 @@ pub async fn run_train(
             // pod and a re-run with the same spoke+corpus does not double-provision.
             // We wire idempotency + TerminateOnDrop here over the resolver's public
             // surface (resolve + dispatch_top). Full checkpoint-resume is deferred.
-            // TODO(b5-resume): wire sync_checkpoint_down / read_checkpoint_uri so a
+            // Architectural note (b5-resume): wire sync_checkpoint_down / read_checkpoint_uri so a
             // preempted job resumes from its last checkpoint instead of restarting.
             let idem_key =
                 vox_populi::mens::cloud::make_idempotency_key(effective_domain, &corpus_hash);
@@ -399,6 +399,12 @@ pub async fn run_train(
     let effective_grad_accum: Option<usize> = grad_accum;
     // Never silently swapped for a smaller model by the VRAM budget below —
     // see `never_retreat_the_named_model`.
+    let env_default_model = std::env::var("VOX_MENS_DEFAULT_MODEL")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    // A non-empty env pin is an explicit name. Preload must refuse, not step down.
+    let automatic_qwen3 = model.is_none() && env_default_model.is_none();
     let mut effective_model = model;
     // Resolved alongside `effective_model` below when `--domain` is given, via
     // the same `resolve_training_selection` the cloud path already uses (see
@@ -530,8 +536,10 @@ pub async fn run_train(
         deployment_target.into()
     };
     let card_output_dir = output_dir.clone();
-    let card_model = effective_model.clone();
-    let card_preset = effective_preset.clone();
+    let mut card_model = effective_model.clone();
+    let mut card_preset = effective_preset.clone();
+    let mut card_loaded_size = String::new();
+    let mut card_loaded_preset = String::new();
     let train_res = train::run_train(
         backend.into(),
         effective_model,
@@ -585,8 +593,15 @@ pub async fn run_train(
         effective_curriculum_schedule,
         effective_chatml,
         effective_mix_config,
+        automatic_qwen3,
     )
     .await;
+    if let Ok(Some(revision)) = &train_res {
+        card_model = Some(revision.loaded_hf_id.clone());
+        card_preset = Some(revision.loaded_preset.clone());
+        card_loaded_size = revision.loaded_size.clone();
+        card_loaded_preset = revision.loaded_preset.clone();
+    }
 
     if train_res.is_ok()
         && let Some(ref r) = workspace_root
@@ -634,6 +649,8 @@ pub async fn run_train(
                 .unwrap_or_default()
                 .trim()
                 .to_string(),
+            loaded_size: card_loaded_size,
+            loaded_preset: card_loaded_preset,
         };
         // A card failure never fails a successful training run; it only leaves the run
         // unlabelable by eval.
@@ -646,7 +663,7 @@ pub async fn run_train(
         }
     }
 
-    train_res
+    train_res.map(|_| ())
 }
 
 /// Host-side facts the card needs that the run directory does not carry.
@@ -659,6 +676,8 @@ struct LocalCardMeta {
     seed: u64,
     corpus_hash: String,
     git_sha: String,
+    loaded_size: String,
+    loaded_preset: String,
 }
 
 /// Build, validate and write `adapter_card.json` next to a locally trained adapter.
@@ -681,12 +700,20 @@ fn write_local_adapter_card(
         .rsplit_once('@')
         .map(|(_, rev)| rev.to_string())
         .unwrap_or_default();
-    let preset = meta.preset.clone().unwrap_or_default();
+    let preset = if meta.loaded_preset.is_empty() {
+        meta.preset.clone().unwrap_or_default()
+    } else {
+        meta.loaded_preset.clone()
+    };
     let (fingerprint, kind) = vox_compiler::llm_prompt::grammar_fingerprint();
     let card = AdapterCard {
         base_hf_id,
         base_revision,
-        base_rung: meta.preset.clone().unwrap_or_else(|| "local".to_string()),
+        base_rung: if preset.is_empty() {
+            "local".to_string()
+        } else {
+            preset.clone()
+        },
         quantization: "qlora".to_string(),
         lora_rank: meta.rank,
         lora_alpha: meta.alpha,
@@ -703,6 +730,8 @@ fn write_local_adapter_card(
         training_manifest_digest: lineage.training_manifest_digest,
         training_syntax_fingerprint: fingerprint,
         syntax_fingerprint_kind: kind.to_string(),
+        loaded_size: meta.loaded_size.clone(),
+        loaded_preset: meta.loaded_preset.clone(),
     };
     card.validate()?;
     card.validate_lineage()?;
@@ -715,7 +744,7 @@ fn write_local_adapter_card(
 ///
 /// Mirrors `resolve_cloud_spoke_base` below — same real resolver
 /// (`resolve_training_selection`), same "CLI wins" precedence — but sizes
-/// with VRAM autodetect (`None`) rather than a fixed cloud tier, matching how
+/// with `read_accelerator_free_mb` rather than a fixed cloud tier, matching how
 /// `pipeline.rs`'s `PipelineStage::Train` already calls this resolver for a
 /// local run. Not `cfg(feature = "cloud")`: the local path must resolve
 /// regardless of whether the cloud feature is compiled in.
@@ -736,11 +765,29 @@ fn resolve_local_spoke_base(
             anyhow::anyhow!("could not find workspace root for spoke base resolution")
         })?;
 
-    let vram_mb = vox_populi::mens::tensor::vram_autodetect::get_system_vram_gb()
-        .map(|gb| (gb * 1024.0) as u32)
-        .or(Some(16_384));
-    let selection =
-        resolve_training_selection(&root, Some(domain), cli_model, cli_preset, vram_mb)?;
+    let env_default_model = std::env::var("VOX_MENS_DEFAULT_MODEL")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    let needs_reading = crate::commands::mens::training_selection::selection_requires_free_reading(
+        &root,
+        Some(domain),
+        cli_model,
+        env_default_model.as_deref(),
+    );
+    let free_mb = if needs_reading {
+        Some(vox_populi::mens::tensor::spoke_base_resolver::read_accelerator_free_mb()?)
+    } else {
+        None
+    };
+    let selection = resolve_training_selection(
+        &root,
+        Some(domain),
+        cli_model,
+        cli_preset,
+        free_mb,
+        env_default_model.as_deref(),
+    )?;
 
     match selection {
         TrainingSelection::Train { model, preset, .. } => Ok((model, preset)),
@@ -781,8 +828,18 @@ fn resolve_cloud_spoke_base(
     // Cloud sizing tier: 24GB-class GPU (matches CloudResolver default min_vram_mb).
     const CLOUD_VRAM_MB: u32 = 24_000;
 
-    let selection =
-        resolve_training_selection(&root, domain, cli_model, cli_preset, Some(CLOUD_VRAM_MB))?;
+    let env_default_model = std::env::var("VOX_MENS_DEFAULT_MODEL")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    let selection = resolve_training_selection(
+        &root,
+        domain,
+        cli_model,
+        cli_preset,
+        Some(CLOUD_VRAM_MB),
+        env_default_model.as_deref(),
+    )?;
 
     let (model, rung) = match selection {
         TrainingSelection::Train { model, preset, .. } => (model, preset),
@@ -1066,8 +1123,10 @@ fn jsonl_row_count_counts_non_empty_lines() {
 
 #[cfg(test)]
 mod local_spoke_base_wiring_tests {
+    #[cfg(feature = "hw-probe-live-test")]
     use super::resolve_local_spoke_base;
 
+    #[cfg(feature = "hw-probe-live-test")]
     fn root() -> std::path::PathBuf {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .ancestors()
@@ -1076,6 +1135,32 @@ mod local_spoke_base_wiring_tests {
             .to_path_buf()
     }
 
+    #[test]
+    fn resolve_local_spoke_base_does_not_invent_a_vram_reading() {
+        let src = include_str!("train_arm.rs");
+        let start = src
+            .find("fn resolve_local_spoke_base(")
+            .expect("resolve_local_spoke_base");
+        let rest = &src[start..];
+        let next = rest.find("\nfn ").expect("next fn");
+        let window = &rest[..next];
+        assert!(
+            window.contains("read_accelerator_free_mb"),
+            "local spoke resolution must read accelerator free memory"
+        );
+        assert!(
+            !window.contains("get_system_vram"),
+            "local spoke resolution must not copy a total-VRAM reading into free"
+        );
+        assert!(
+            !window.contains("16_384") && !window.contains("16384"),
+            "local spoke resolution must not substitute a numeric fallback"
+        );
+    }
+
+    /// These call the live reader. They stay behind the hardware-probe feature
+    /// so the default unit suite does not spawn nvidia-smi or create a Metal device.
+    #[cfg(feature = "hw-probe-live-test")]
     #[test]
     fn domain_rust_resolves_spoke_base_and_preset_not_defaults() {
         let (model, preset) = resolve_local_spoke_base(Some(&root()), "rust", None, None).unwrap();
@@ -1087,6 +1172,7 @@ mod local_spoke_base_wiring_tests {
         assert!(!preset.is_empty(), "resolved preset must not be empty");
     }
 
+    #[cfg(feature = "hw-probe-live-test")]
     #[test]
     fn cli_model_still_wins_over_domain_resolution() {
         let (model, _preset) =
@@ -1109,6 +1195,8 @@ mod local_card_tests {
             seed: 42,
             corpus_hash: "abc123def456".into(),
             git_sha: "deadbee".into(),
+            loaded_size: String::new(),
+            loaded_preset: String::new(),
         }
     }
 
@@ -1150,6 +1238,24 @@ mod local_card_tests {
         assert_eq!(card.training_syntax_fingerprint, fp);
         assert_eq!(card.syntax_fingerprint_kind, kind);
         assert_eq!(kind, "ebnf-sha256");
+    }
+
+    #[test]
+    fn local_card_records_loaded_size_and_preset() {
+        let (d, adapter, _train) =
+            fixture("Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18");
+        let mut recorded = meta();
+        recorded.preset = Some("a100".into());
+        recorded.loaded_size = "14B".into();
+        recorded.loaded_preset = "qwen3_24g".into();
+        write_local_adapter_card(d.path(), None, &recorded).unwrap();
+        let card = vox_populi::mens::tensor::adapter_card::AdapterCard::read_sidecar(&adapter)
+            .unwrap()
+            .unwrap();
+        assert_eq!(card.loaded_size, "14B");
+        assert_eq!(card.loaded_preset, "qwen3_24g");
+        assert_eq!(card.base_rung, "qwen3_24g");
+        assert_eq!(card.preset_version, "qwen3_24g");
     }
 
     #[test]

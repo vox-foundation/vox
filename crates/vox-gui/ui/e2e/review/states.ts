@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { discoverAllGuiSurfacesAndPanels } from '../../src/lib/cvSurfaceDiscovery';
 
 export interface ReviewViewport { name: 'wide' | 'laptop' | 'compact'; width: number; height: number; }
 export const VIEWPORTS: ReviewViewport[] = [
@@ -32,17 +33,10 @@ const VARIANT_SURFACES = new Set([
   'memory', 'vox-search', 'policies', 'gamify', 'settings',
 ]);
 
-/** Selector ground truth verified 2026-07-18; a failed setup records
+/** Selector ground truth verified dynamically from SURFACE_REGISTRY; a failed setup records
  * state_ok:false in the entry (evidence), it does not fail the run. */
 export const SURFACE_STATES: Record<string, ReviewState[]> = Object.fromEntries(
-  // Every surface starts with an explicit [DEFAULT]; specifics below override.
-  ([
-    'activity', 'approvals', 'browser', 'catalog', 'chat', 'coderabbit', 'console',
-    'explorer', 'dashboard', 'flow', 'harness', 'harness-health', 'memory', 'mercatus', 'mesh',
-    'models', 'needs-you', 'policies', 'publications', 'runs', 'settings',
-    'skills', 'sub-agents', 'tasks', 'vox-search', 'gamify', 'repository',
-    'scientia', 'mens', 'populi', 'research', 'oratio',
-  ] as string[]).map((k) => [k, [DEFAULT]]),
+  discoverAllGuiSurfacesAndPanels().registeredViewKeys.map((k) => [k, [DEFAULT]]),
 );
 
 SURFACE_STATES['chat'] = [

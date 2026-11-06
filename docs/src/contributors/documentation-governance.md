@@ -14,6 +14,9 @@ schema_type: "TechArticle"
 
 This page defines how Vox documentation is organized and how to keep it from drifting.
 
+This page is the **policy**. The **mechanism** — sources, site build, generated pages, and which
+gate catches which drift at which stage — is [How Vox documentation works](../architecture/docs-system-ssot.md).
+
 ## Authority map
 
 | Surface | Primary audience | Owns | Must not become |

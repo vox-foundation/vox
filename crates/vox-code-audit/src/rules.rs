@@ -265,14 +265,13 @@ pub(crate) fn byte_offset_in_file(content: &str, line_1_indexed: usize, column_0
     if line_1_indexed == 0 {
         return column_0.min(content.len());
     }
-    let mut off = 0usize;
     for (i, line) in content.lines().enumerate() {
         if i + 1 == line_1_indexed {
-            return (off + column_0).min(content.len());
+            let line_start = (line.as_ptr() as usize).saturating_sub(content.as_ptr() as usize);
+            return line_start.saturating_add(column_0).min(content.len());
         }
-        off = off.saturating_add(line.len()).saturating_add(1);
     }
-    off.min(content.len())
+    content.len()
 }
 
 /// True if the byte at (`line`, `column_0` within line) is inside comment or string (Rust).
@@ -308,6 +307,43 @@ pub(crate) fn rust_byte_is_comment(
     match rust_ctx {
         Some(c) => c.token_map.is_comment_byte(abs),
         None => crate::analysis::TokenMap::from_rust_source(&file.content).is_comment_byte(abs),
+    }
+}
+
+/// True if the byte is inside a **string literal** (Rust). Lets line-text detectors skip
+/// fixture strings (e.g. a test embedding `"thread::sleep("`) while still matching comments.
+#[inline]
+pub(crate) fn rust_byte_is_string(
+    file: &SourceFile,
+    line_1_indexed: usize,
+    column_0: usize,
+    rust_ctx: Option<&RustFileContext>,
+) -> bool {
+    if file.language != Language::Rust {
+        return false;
+    }
+    let abs = byte_offset_in_file(&file.content, line_1_indexed, column_0);
+    match rust_ctx {
+        Some(c) => c.token_map.is_string_byte(abs),
+        None => crate::analysis::TokenMap::from_rust_source(&file.content).is_string_byte(abs),
+    }
+}
+
+/// True if the byte at (`line`, `column_0`) falls inside a `#[cfg(test)]` block or `fn minimal_repro`.
+#[inline]
+pub(crate) fn rust_byte_is_cfg_test(
+    file: &SourceFile,
+    line_1_indexed: usize,
+    column_0: usize,
+    rust_ctx: Option<&RustFileContext>,
+) -> bool {
+    if file.language != Language::Rust {
+        return false;
+    }
+    let abs = byte_offset_in_file(&file.content, line_1_indexed, column_0);
+    match rust_ctx {
+        Some(c) => c.is_cfg_test_byte(abs),
+        None => RustFileContext::parse(&file.content).is_cfg_test_byte(abs),
     }
 }
 

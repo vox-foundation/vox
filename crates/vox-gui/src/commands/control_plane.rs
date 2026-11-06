@@ -53,6 +53,12 @@ pub struct SubmitTaskInput {
     /// [`vox_orchestrator::TaskEnqueueHints`] / [`vox_orchestrator::AgentTask`].
     #[serde(default)]
     pub turn_id: Option<String>,
+    /// Composer oversight level (`1`..`5`); forwarded as `enqueue_hints.oversight_level`.
+    #[serde(default)]
+    pub oversight_level: Option<String>,
+    /// Composer knowledge retrieval scope (`auto`|`docs`|`code`|`memory`|`off`); forwarded as `enqueue_hints.kb_scope`.
+    #[serde(default)]
+    pub kb_scope: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -124,6 +130,16 @@ fn submit_task_params(input: SubmitTaskInput) -> serde_json::Value {
     }
     if let Some(turn_id) = input.turn_id.as_deref().filter(|t| !t.trim().is_empty()) {
         enqueue_hints.insert("turn_id".into(), serde_json::json!(turn_id));
+    }
+    if let Some(oversight) = input
+        .oversight_level
+        .as_deref()
+        .filter(|o| !o.trim().is_empty())
+    {
+        enqueue_hints.insert("oversight_level".into(), serde_json::json!(oversight));
+    }
+    if let Some(kb_scope) = input.kb_scope.as_deref().filter(|k| !k.trim().is_empty()) {
+        enqueue_hints.insert("kb_scope".into(), serde_json::json!(kb_scope));
     }
     if !enqueue_hints.is_empty()
         && let Some(obj) = params.as_object_mut()
@@ -544,6 +560,8 @@ mod submit_params_tests {
             chat_session_id: None,
             trace_id: None,
             turn_id: None,
+            oversight_level: None,
+            kb_scope: None,
         }
     }
 

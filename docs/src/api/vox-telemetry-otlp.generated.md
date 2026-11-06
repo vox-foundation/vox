@@ -55,3 +55,32 @@ OTLP egress for vox-telemetry. The pure core (project/redact/otlp_json) always c
 | `redact` | — |
 | `upload` | — |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_telemetry_otlp: "vox-telemetry-otlp"
+    node vox_telemetry: "vox-telemetry"
+    vox_telemetry_otlp -> vox_telemetry
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_telemetry_otlp
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `fn` | `otlp_json::to_otlp_log` | `pub fn to_otlp_log(rec: &RedactedRecord, install_id: &str) -> Value` | [`crates/vox-telemetry-otlp/src/otlp_json.rs#L14-L45`](../../../crates/vox-telemetry-otlp/src/otlp_json.rs#L14-L45) | Encode a `RedactedRecord` into an OTLP/HTTP logs JSON envelope.  The envelope is a minimal `resourceLogs` wrapper compatible with the OTLP/HTTP logs JSON framing (`Content-Type: application/json`). No `opentelemetry` SDK is used — we hand-encode the stable format with `serde_json` to avoid pulling the `logs` feature into the workspace-wide 0.29 otel pin.  `install_id` is added to `resource.attributes` so the server can group events by installation (k-anonymity enforced server-side; the install_id itself is opaque and not user-identifiable). |
+| `fn` | `otlp_json::merge_otlp_log_batch` | `pub fn merge_otlp_log_batch(envelopes: &[Value]) -> Value` | [`crates/vox-telemetry-otlp/src/otlp_json.rs#L68-L111`](../../../crates/vox-telemetry-otlp/src/otlp_json.rs#L68-L111) | Merge multiple OTLP/HTTP log envelopes (or individual `logRecords`) into a single batched `resourceLogs` envelope (up to `batch.len()` records) so the uploader sends at most 1 HTTP POST per batch instead of `N` sequential requests (`TELEM-03`). |
+| `fn` | `upload::upload_pending_otlp` | `pub async fn upload_pending_otlp(spool_dir: &Path, endpoint: &str) -> std::io::Result<usize>` | [`crates/vox-telemetry-otlp/src/upload.rs#L15-L17`](../../../crates/vox-telemetry-otlp/src/upload.rs#L15-L17) | Async OTLP/HTTP uploader (feature `remote` only).  Reads pending clean spool records and POSTs them to the central OTLP endpoint when `is_remote_allowed()` returns true. |
+| `fn` | `upload::upload_pending_otlp_with_auth` | `pub async fn upload_pending_otlp_with_auth(` | [`crates/vox-telemetry-otlp/src/upload.rs#L25`](../../../crates/vox-telemetry-otlp/src/upload.rs#L25) | Async OTLP/HTTP uploader with optional Bearer authentication token (`TELEM-02`, `TELEM-03`).  Enforces `vox_telemetry::config::is_remote_allowed()`, reads `.json` files from `spool_dir` (or `spool_dir/pending` if present), batches up to [`MAX_OTLP_BATCH_RECORDS`] records into a single `resourceLogs` envelope via [`merge_otlp_log_batch`], POSTs to `endpoint`, and deletes acknowledged files on HTTP 2xx. |
+| `struct` | `upload::PendingRecord` | `pub struct PendingRecord` | [`crates/vox-telemetry-otlp/src/upload.rs#L124-L127`](../../../crates/vox-telemetry-otlp/src/upload.rs#L124-L127) | A single pending record read from the spool, ready for upload. |
+

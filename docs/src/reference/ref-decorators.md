@@ -132,14 +132,13 @@ Indexes are declared with the bare `index` keyword (not a decorator); `@index` w
 - **Usage**: `index MyRecord.by_external_id on (external_id)`
 
 ### `@require`
-- **Goal**: Adds runtime validation guards.
-- **Effect**: Injects validation checks before assignment/constructor.
+- **Goal**: Adds runtime validation guards to function preconditions.
+- **Effect**: Injects validation checks at function entry.
 - **Usage**:
 ```vox
-// vox:skip -- illustrative future syntax; @require only decorates fn today, not type
-@require(len(self.pwd) > 8)
-type User {
-    pwd: str
+@require(len(pwd) > 8)
+fn validate_password(pwd: str) to bool {
+    return true
 }
 ```
 

@@ -401,7 +401,7 @@ export function MemoryView({ pushToast, onAttachContext }: MemoryViewProps) {
     if (!q) return;
     const t = setTimeout(() => { recall(q); }, MEMORY_RECALL_DEBOUNCE_MS);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- debounce recall on query/scope/topK changes
   }, [query, recallOn, scope.join(','), topK]);
 
   // Pin recall hits into the shared Loquela context. Only file/web hits carry

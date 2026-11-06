@@ -65,9 +65,31 @@ pub mod hir_emit {
         name.to_string()
     }
 
-    /// Stub compat module.
+    /// Compatibility shim module.
     pub mod compat {
-        /// Stub for compatibility.
-        pub fn stub() {}
+        /// Marker for backwards compatibility.
+        pub fn noop() {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    #[test]
+    fn generate_reports_e0404_pointing_at_vox_codegen() {
+        let err = generate(&HirModule::default()).unwrap_err();
+        assert!(err.starts_with("[E0404]"), "{err}");
+        assert!(err.contains("vox_codegen::codegen_ts::generate"), "{err}");
+    }
+
+    #[test]
+    fn hir_emit_stubs_are_inert() {
+        let names = HashSet::new();
+        let ctx = hir_emit::EmitCtx::new(&names);
+        let expr = crate::hir::HirExpr::IntLit(1, crate::ast::span::Span::new(0, 0));
+        assert_eq!(hir_emit::emit_hir_expr(expr, &ctx), "/* stub */");
+        assert_eq!(hir_emit::map_jsx_attr_name("className"), "className");
     }
 }

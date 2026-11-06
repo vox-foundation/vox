@@ -9,7 +9,7 @@
 > - **Two-strike circuit breaker.** If a task's verification fails twice, STOP and write a handoff note in the task; do not loop.
 > - **One decision per step.** No open-ended "design X" steps here.
 > - **`[PARALLEL-SAFE]` / `[SEQUENTIAL]`** tags per task by file-write disjointness. Never run two subagents that write the same file.
-> - **Repo policy:** VoxScript-first (no `.ps1`/`.sh`/`.py`; use `vox run scripts/*.vox`); **never `cargo fmt --all`** (use `cargo fmt -p <crate>`); any new `.md` under `docs/src/` needs YAML frontmatter; no stubs/placeholders.
+> - **Repo policy:** VoxLang-first (no `.ps1`/`.sh`/`.py`; use `vox run scripts/*.vox`); **never `cargo fmt --all`** (use `cargo fmt -p <crate>`); any new `.md` under `docs/src/` needs YAML frontmatter; no stubs/placeholders.
 
 **Goal:** Make CI work proportional to the change and observable end-to-end — first by centralizing how runner jobs are received and logged (so the glut is *visible*), then by computing a targeted check-set + reuse hash per diff.
 

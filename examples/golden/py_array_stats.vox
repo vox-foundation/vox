@@ -1,0 +1,39 @@
+// ---
+// title: "Z-score on std.array"
+// description: "Z-score, NaN, both infinities, and i64::MAX. Three to_list calls, three execute_plan frames."
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// constructs: [fn, import, std.array, Result, assert]
+// training_eligible: true
+// difficulty: beginner
+// ---
+
+import std.array
+
+pub @uses(python)
+fn zscore(xs: list[float]) to Result[list[float]] {
+    let a = array.from_list(xs).astype(f64)
+    return ((a - a.mean()) / a.std(correction=0)).to_list()
+}
+
+@uses(python)
+fn main() {
+    let z = zscore([1.0, 3.0]).unwrap()
+    assert(z is [-1.0, 1.0])
+
+    let extremes = array.from_list([1.0 / 0.0, -1.0 / 0.0, 0.0 / 0.0]).to_list().unwrap()
+    let pos = extremes[0].unwrap()
+    let neg = extremes[1].unwrap()
+    let nan = extremes[2].unwrap()
+    assert(pos is (1.0 / 0.0))
+    assert(neg is (-1.0 / 0.0))
+    assert(nan isnt nan)
+
+    let big = array.from_list([9223372036854775807]).to_list().unwrap()
+    let n = big[0].unwrap()
+    assert(n is 9223372036854775807)
+    // Cross-numeric `is` treats this int as equal to its rounded f64.
+    // The difference is 1 only when the host value is the int.
+    assert((n - 9223372036854775806) is 1)
+}

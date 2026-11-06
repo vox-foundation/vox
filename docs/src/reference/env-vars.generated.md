@@ -24,7 +24,7 @@ status: current
 
 Machine-derived from [`contracts/config/env-vars.v1.yaml`](../../../contracts/config/env-vars.v1.yaml).
 
-**Total variables:** 857
+**Total variables:** 858
 
 | Variable | Owner Crate | Type | Required | Introduced | Description |
 |---|---|---|---|---|---|
@@ -648,6 +648,7 @@ Machine-derived from [`contracts/config/env-vars.v1.yaml`](../../../contracts/co
 | `VOX_QWEN35_NATIVE_CUTOVER` | `vox-secrets` | string | No | 0.3.0 | TODO |
 | `VOX_RATE_LIMIT_MAX_REQUESTS` | `vox-config` | string | No | 0.3.0 | TODO |
 | `VOX_RATE_LIMIT_WINDOW_SECONDS` | `vox-config` | string | No | 0.3.0 | TODO |
+| `VOX_REASONING_EVAL_MAX_TOKENS` | `vox-ml-cli` | int | No | 0.6.0 | Generation token cap for thinking-mode reasoning bench scoring in mens collateral-damage evaluation (default 2048; values below 1 are raised to 1). |
 | `VOX_REGISTRY_TOKEN` | `vox-secrets` | string | No | 0.3.0 | TODO |
 | `VOX_RENAMES_PATH` | `vox-compiler` | string | No | 0.5.0 | Optional path to a custom identifier rename registry (TOML); used by the compiler rename pass and codemods. |
 | `VOX_REPOSITORY_ID` | `vox-ml-cli` | string | No | 0.3.0 | TODO |

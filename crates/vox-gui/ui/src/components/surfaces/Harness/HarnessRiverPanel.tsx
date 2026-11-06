@@ -118,12 +118,14 @@ export function HarnessRiverPanel({
     let ro: ResizeObserver | null = null;
     if (typeof ResizeObserver !== 'undefined') {
       ro = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          if (entry.contentRect) {
-            cachedW = Math.max(320, Math.floor(entry.contentRect.width || canvas.clientWidth || 560));
-            cachedH = Math.max(180, Math.floor(entry.contentRect.height || canvas.clientHeight || 260));
+        requestAnimationFrame(() => {
+          for (const entry of entries) {
+            if (entry.contentRect) {
+              cachedW = Math.max(320, Math.floor(entry.contentRect.width || canvas.clientWidth || 560));
+              cachedH = Math.max(180, Math.floor(entry.contentRect.height || canvas.clientHeight || 260));
+            }
           }
-        }
+        });
       });
       ro.observe(canvas);
     }

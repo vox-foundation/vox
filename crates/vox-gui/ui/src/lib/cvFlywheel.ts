@@ -112,6 +112,11 @@ export interface GuiDomAuditMetrics {
   missingDockPanelIds: readonly string[];
   axeViolations: number;
   viewportCoverageRatio: number;
+  composerToolbarRowCount?: number;
+  composerToolbarHeightPx?: number;
+  duplicateControlGroupCount?: number;
+  discoveredSubTabLabels?: readonly string[];
+  discoveredPopoverTriggers?: readonly string[];
 }
 
 export function makeRubricFromScalar(score: number): VisionRubricScores {
@@ -130,7 +135,7 @@ export function makeRubricFromScalar(score: number): VisionRubricScores {
  * Computes real pixel-level CV signals from an RGBA buffer (HTML5 Canvas ImageData or PNG decode):
  * - `edgeSharpness` (0..100): 3x3 Sobel gradient magnitude across interior pixels.
  * - `luminanceContrast` (0..100): BT.709 relative luminance RMS contrast + P95-P10 dynamic range.
- * - `noiseFloor` (0..100): 4-neighbor Laplacian high-frequency variance in low-gradient regions.
+ * - `noiseFloor` (0..100): 4-neighbor Laplacian in true flats (mag<0.02); calibrated so clean GUI ≈4..5.
  */
 export function computeRgbaFrameCvMetrics(
   rgba: Uint8ClampedArray | Uint8Array,
@@ -225,7 +230,8 @@ export function computeRgbaFrameCvMetrics(
       sobelSum += mag;
       if (mag > 0.14) {
         edgePixels++;
-      } else if (mag < 0.045) {
+      } else if (mag < 0.02) {
+        // Stricter flat mask — exclude AA fringe from "flat-region" Laplacian (`URBS-CV-MAX-02`)
         const lap = Math.abs(4 * mc - tc - bc - ml - mr);
         flatLaplacianSum += lap;
         flatCount++;
@@ -239,8 +245,9 @@ export function computeRgbaFrameCvMetrics(
     Math.min(99, Math.max(18, meanSobel * 420 + edgeDensity * 260 + 38)).toFixed(1),
   );
 
-  const rawFlatNoise = flatCount > 0 ? (flatLaplacianSum / flatCount) * 850 : 6.5;
-  const noiseFloor = Number(Math.min(65, Math.max(4.5, rawFlatNoise + 4.5)).toFixed(1));
+  // Calibrated scale: true flat grain (not AA fringe). Mul 70 + offset 4 → clean GUI ≈4.0..4.5, busy ≈4.5..6.
+  const rawFlatNoise = flatCount > 0 ? (flatLaplacianSum / flatCount) * 70 : 0.4;
+  const noiseFloor = Number(Math.min(65, Math.max(4.0, rawFlatNoise + 4.0)).toFixed(1));
 
   return {
     edgeSharpness,
@@ -263,11 +270,14 @@ export function evaluateGuiSurfaceRubric(
   const axePenalty = Math.min(0.3, dom.axeViolations * 0.1);
   const clippedPenalty = Math.min(0.25, dom.clippedInteractiveCount * 0.05);
   const iconPenalty = Math.min(0.2, (dom.iconIssueCount ?? 0) * 0.06);
+  // Honor documented "low noise floor" axis — reward NF near the 4.0 floor, zero by NF≥12
+  const noiseCleanliness = Math.max(0, Math.min(1, (12 - pixelSignals.noiseFloor) / 8));
   const signalQuality = Math.min(
     1,
-    0.4 +
-      (pixelSignals.edgeSharpness / 100) * 0.35 +
-      (pixelSignals.luminanceContrast / 100) * 0.25,
+    0.34 +
+      (pixelSignals.edgeSharpness / 100) * 0.3 +
+      (pixelSignals.luminanceContrast / 100) * 0.22 +
+      noiseCleanliness * 0.14,
   );
   const technicalQuality = Number(
     Math.max(
@@ -291,16 +301,29 @@ export function evaluateGuiSurfaceRubric(
     Math.max(0.2, Math.min(0.98, 0.96 - emojiPenalty - overlapPenalty - heightSpreadPenalty)).toFixed(4),
   );
 
-  // 4. compositionQuality: balanced viewport coverage, zero unstyled native selects, clean toolbar rhythm
+  // 4. compositionQuality: balanced viewport coverage, zero unstyled native selects, clean toolbar rhythm, single-row composer
   const selectPenalty = dom.unstyledNativeSelectCount * 0.09;
+  const composerRowPenalty = Math.max(0, ((dom.composerToolbarRowCount ?? 1) - 1) * 0.06);
+  const duplicateGroupPenalty = (dom.duplicateControlGroupCount ?? 0) * 0.05;
   const coverageBonus =
     dom.viewportCoverageRatio >= 0.45 && dom.viewportCoverageRatio <= 0.92 ? 0.04 : -0.08;
   const compositionQuality = Number(
-    Math.max(0.2, Math.min(0.98, 0.92 + coverageBonus - selectPenalty - overflowPenalty)).toFixed(4),
+    Math.max(
+      0.2,
+      Math.min(
+        0.98,
+        0.92 +
+          coverageBonus -
+          selectPenalty -
+          overflowPenalty -
+          composerRowPenalty -
+          duplicateGroupPenalty,
+      ),
+    ).toFixed(4),
   );
 
   // 5. styleConsistency: VS Code theme cohesion, unified control chrome, zero light-theme contrast leaks, low noise floor
-  const noisePenalty = Math.max(0, (pixelSignals.noiseFloor - 12) * 0.006);
+  const noisePenalty = Math.max(0, (pixelSignals.noiseFloor - 8) * 0.01);
   const contrastLeakPenalty = Math.min(0.3, (dom.lightThemeContrastLeakCount ?? 0) * 0.05);
   const styleConsistency = Number(
     Math.max(

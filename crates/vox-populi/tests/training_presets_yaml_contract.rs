@@ -80,7 +80,8 @@ fn gpu_specs_agentic_default_16g_floor_matches_training_presets_default() {
                 vox_populi::mens::DEFAULT_MODEL_ID
             )
         })
-        .floor_mb;
+        .floor_mb
+        .expect("measured DEFAULT_MODEL_ID row has floor_mb");
 
     let base = vox_populi::mens::tensor::spoke_base_resolver::pick_base(
         &overlay,
@@ -235,7 +236,11 @@ fn gpu_specs_qwen3_train_bases_floor_mb_pins_against_real_weight_size() {
             if !base.hf_id.contains("Qwen3") {
                 continue;
             }
-            if !seen.insert((base.hf_id.clone(), base.floor_mb)) {
+            if !base.floor_measured {
+                continue;
+            }
+            let floor_mb = base.floor_mb.expect("measured rung has floor_mb");
+            if !seen.insert((base.hf_id.clone(), floor_mb)) {
                 continue;
             }
 
@@ -260,22 +265,22 @@ fn gpu_specs_qwen3_train_bases_floor_mb_pins_against_real_weight_size() {
                 is_qlora || is_lora,
                 "{bare_id} floor_mb={} has neither qlora nor lora in methods={:?}; \
                  this check does not know its weight precision",
-                base.floor_mb,
+                floor_mb,
                 base.methods
             );
             let bytes_per_param = if is_qlora { 0.5 } else { 2.0 }; // NF4 vs bf16
             let bare = bare_weight_mib(params_b, bytes_per_param);
 
             assert!(
-                base.floor_mb as f64 > bare,
+                floor_mb as f64 > bare,
                 "{bare_id} floor_mb={} MB is below its own bare weight size \
                  ({bare:.0} MiB at {bytes_per_param} bytes/param) — that floor \
                  cannot be real",
-                base.floor_mb
+                floor_mb
             );
 
             if is_qlora && params_b >= 8.0 {
-                let ratio = base.floor_mb as f64 / bare;
+                let ratio = floor_mb as f64 / bare;
                 assert!(
                     (2.0..=4.0).contains(&ratio),
                     "{bare_id} floor_mb={} MB is {ratio:.2}x its bare NF4 weight size \
@@ -283,7 +288,7 @@ fn gpu_specs_qwen3_train_bases_floor_mb_pins_against_real_weight_size() {
                      band this test's approximation spans for the 8B/14B-QLoRA/32B-QLoRA/27B \
                      rungs today; this is real drift, not a reason to mass-edit floor_mb \
                      (see the Task 7 brief)",
-                    base.floor_mb
+                    floor_mb
                 );
             }
             checked += 1;

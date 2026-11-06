@@ -74,3 +74,11 @@ Commit the resulting change to `src/expected_hash.rs`.
 | `SSOT_DOC_PATH` | The repo-relative path to the wire-format SSOT document. |
 | `DRIFT_DIAGNOSTIC_ID` | Diagnostic ID emitted on drift (stable, append-only per the diagnostic catalog). |
 
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `SpecDriftError` | `pub struct SpecDriftError` | [`crates/vox-wire-format-validator/src/lib.rs#L34-L38`](../../../crates/vox-wire-format-validator/src/lib.rs#L34-L38) | Error returned when the SSOT has drifted from the expected hash. |
+| `fn` | `check_ssot_drift` | `pub fn check_ssot_drift(repo_root: &Path) -> Result<(), SpecDriftError>` | [`crates/vox-wire-format-validator/src/lib.rs#L68-L85`](../../../crates/vox-wire-format-validator/src/lib.rs#L68-L85) | Check whether [`SSOT_DOC_PATH`] (resolved from `repo_root`) matches the stored hash in [`EXPECTED_SSOT_HASH`].  Returns `Ok(())` if the hashes match, `Err(SpecDriftError)` if they diverge. |
+| `fn` | `compute_ssot_hash` | `pub fn compute_ssot_hash(repo_root: &Path) -> anyhow::Result<String>` | [`crates/vox-wire-format-validator/src/lib.rs#L90-L94`](../../../crates/vox-wire-format-validator/src/lib.rs#L90-L94) | Compute and return the blake3 hex digest of the SSOT doc at `repo_root`.  Used by `--update` mode and tests. |
+

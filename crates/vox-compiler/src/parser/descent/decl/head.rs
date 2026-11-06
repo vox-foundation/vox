@@ -500,6 +500,16 @@ impl Parser {
                 self.advance();
                 Ok("in".to_string())
             }
+            // `and` and `or` stay lexer keywords. After a dot they are method
+            // names, same as object keys in `parse_object_lit`.
+            Token::And => {
+                self.advance();
+                Ok("and".to_string())
+            }
+            Token::Or => {
+                self.advance();
+                Ok("or".to_string())
+            }
             _ => {
                 self.errors.push(ParseError::classified(
                     self.span(),
@@ -513,10 +523,108 @@ impl Parser {
         }
     }
 
+    /// Every effect name accepted by [`Self::parse_effect_item`], in diagnostic order.
+    const VALID_EFFECT_NAMES: &'static [&'static str] = &[
+        "net",
+        "db",
+        "fs",
+        "env",
+        "clock",
+        "random",
+        "spawn",
+        "gpu_compute",
+        "mutate",
+        "vcs",
+        "spend",
+        "write",
+        "external_api",
+        "python",
+        "python_unverified",
+        "mcp(…)",
+        "nothing",
+    ];
+
+    /// Parse a single effect item: `<effect-name>` | `env` keyword | `mcp(<tool>)`.
+    ///
+    /// Shared by the `uses` clause and the `@uses(...)` decorator so neither form can
+    /// silently drop an effect. On an unknown or malformed item a
+    /// `ParseErrorClass::Declaration` error is pushed and `None` is returned; an unknown
+    /// identifier is consumed so callers can resynchronise.
+    pub(crate) fn parse_effect_item(&mut self) -> Option<crate::ast::decl::EffectAnnotation> {
+        match self.peek().clone() {
+            Token::Ident(name) if name == "mcp" => {
+                self.advance(); // eat `mcp`
+                if !self.eat(&Token::LParen) {
+                    return Some(crate::ast::decl::EffectAnnotation::Mcp(String::new()));
+                }
+                let tool = match self.peek().clone() {
+                    Token::Ident(t) | Token::TypeIdent(t) => {
+                        self.advance();
+                        t
+                    }
+                    _ => {
+                        self.errors.push(ParseError::classified(
+                            self.span(),
+                            "Expected MCP tool name inside `mcp(...)`",
+                            vec!["tool_name".into()],
+                            Some(self.peek().to_string()),
+                            ParseErrorClass::Declaration,
+                        ));
+                        return None;
+                    }
+                };
+                let _ = self.expect(&Token::RParen);
+                Some(crate::ast::decl::EffectAnnotation::Mcp(tool))
+            }
+            Token::Ident(name) => {
+                if let Some(eff) = crate::ast::decl::EffectAnnotation::from_keyword(&name) {
+                    self.advance();
+                    return Some(eff);
+                }
+                self.errors.push(ParseError::classified(
+                    self.span(),
+                    format!(
+                        "Unknown effect `{name}`; expected one of: {}",
+                        Self::VALID_EFFECT_NAMES.join(", ")
+                    ),
+                    Self::VALID_EFFECT_NAMES
+                        .iter()
+                        .map(|s| (*s).to_string())
+                        .collect(),
+                    Some(name),
+                    ParseErrorClass::Declaration,
+                ));
+                self.advance(); // consume the unknown name for recovery
+                None
+            }
+            // `env` and `spawn` are keyword tokens, not identifiers.
+            Token::Env => {
+                self.advance();
+                Some(crate::ast::decl::EffectAnnotation::Env)
+            }
+            Token::Spawn => {
+                self.advance();
+                Some(crate::ast::decl::EffectAnnotation::Spawn)
+            }
+            _ => {
+                self.errors.push(ParseError::classified(
+                    self.span(),
+                    "Expected effect name",
+                    Self::VALID_EFFECT_NAMES
+                        .iter()
+                        .map(|s| (*s).to_string())
+                        .collect(),
+                    Some(self.peek().to_string()),
+                    ParseErrorClass::Declaration,
+                ));
+                None
+            }
+        }
+    }
+
     /// Parse an optional `uses <effect-list>` clause after `)` in a function signature.
     ///
-    /// Grammar: `uses (<effect-name> | mcp(<tool-name>)) (',' (<effect-name> | mcp(<tool-name>)))*`
-    /// where `effect-name` ∈ {net, db, fs, env, clock, random, spawn, nothing}.
+    /// Grammar: `uses <effect-item> (',' <effect-item>)*` — see [`Self::parse_effect_item`].
     ///
     /// Returns an empty vec when no `uses` keyword is present (unannotated = unconstrained).
     pub(crate) fn parse_uses_clause(&mut self) -> Vec<crate::ast::decl::EffectAnnotation> {
@@ -529,64 +637,8 @@ impl Parser {
 
         let mut effects = Vec::new();
         loop {
-            let eff = match self.peek().clone() {
-                Token::Ident(ref name) => {
-                    let name = name.clone();
-                    if name == "mcp" {
-                        self.advance(); // eat `mcp`
-                        if self.eat(&Token::LParen) {
-                            let tool = match self.peek().clone() {
-                                Token::Ident(t) | Token::TypeIdent(t) => {
-                                    self.advance();
-                                    t
-                                }
-                                _ => {
-                                    self.errors.push(ParseError::classified(
-                                        self.span(),
-                                        "Expected MCP tool name inside `mcp(...)`",
-                                        vec!["tool_name".into()],
-                                        Some(self.peek().to_string()),
-                                        ParseErrorClass::Declaration,
-                                    ));
-                                    return effects;
-                                }
-                            };
-                            let _ = self.expect(&Token::RParen);
-                            crate::ast::decl::EffectAnnotation::Mcp(tool)
-                        } else {
-                            crate::ast::decl::EffectAnnotation::Mcp(String::new())
-                        }
-                    } else if let Some(eff) =
-                        crate::ast::decl::EffectAnnotation::from_keyword(&name)
-                    {
-                        self.advance();
-                        eff
-                    } else {
-                        self.errors.push(ParseError::classified(
-                            self.span(),
-                            format!("Unknown effect `{name}`; expected one of: net, db, fs, env, clock, random, spawn, mcp(…), nothing"),
-                            vec!["net".into(), "db".into(), "fs".into(), "env".into(), "clock".into(), "random".into(), "spawn".into(), "mcp(…)".into(), "nothing".into()],
-                            Some(name),
-                            ParseErrorClass::Declaration,
-                        ));
-                        return effects;
-                    }
-                }
-                // `env` is a keyword token, allow it here.
-                Token::Env => {
-                    self.advance();
-                    crate::ast::decl::EffectAnnotation::Env
-                }
-                _ => {
-                    self.errors.push(ParseError::classified(
-                        self.span(),
-                        "Expected effect name after `uses`",
-                        vec!["net".into(), "db".into(), "nothing".into()],
-                        Some(self.peek().to_string()),
-                        ParseErrorClass::Declaration,
-                    ));
-                    return effects;
-                }
+            let Some(eff) = self.parse_effect_item() else {
+                return effects;
             };
             effects.push(eff);
             if !self.eat(&Token::Comma) {

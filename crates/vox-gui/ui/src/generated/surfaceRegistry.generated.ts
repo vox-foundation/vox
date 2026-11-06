@@ -90,6 +90,7 @@ export const SURFACE_REGISTRY: SurfaceRegistryEntry[] = [
   { viewKey: null, cliGroup: 'pm', mcpNamespace: null, tier: 'generic_form', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'policy', mcpNamespace: null, tier: 'generic_form', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: 'populi', cliGroup: 'populi', mcpNamespace: null, tier: 'curated_decorator', navLabel: 'Nodes', navIcon: 'users', navGroup: 'compute', parentSurface: 'compute' },
+  { viewKey: null, cliGroup: 'py', mcpNamespace: null, tier: 'generic_form', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'recensio', mcpNamespace: null, tier: 'none', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'remove', mcpNamespace: null, tier: 'generic_form', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },
   { viewKey: null, cliGroup: 'repair', mcpNamespace: null, tier: 'generic_form', navLabel: null, navIcon: null, navGroup: null, parentSurface: null },

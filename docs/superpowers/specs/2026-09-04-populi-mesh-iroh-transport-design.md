@@ -271,7 +271,7 @@ they are excluded from calibration.
 
 ---
 
-## Part 7 — VoxScript and automatic distribution
+## Part 7 — VoxLang and automatic distribution
 
 **Question:** can all vox scripts be scalable, parallelizable, and grid-computable
 with no new decorators?
@@ -329,7 +329,7 @@ and copying it is a day's work, not research.
 | files declaring `@pure` in `scripts/` + `examples/` | **2** |
 
 Auto-parallelization attaches to combinators. This corpus is imperative loops
-over I/O-bound glue **by policy** — VoxScript-First is explicitly about CI prep,
+over I/O-bound glue **by policy** — VoxLang-First is explicitly about CI prep,
 install helpers, and data migrations. A perfect implementation would light up
 **zero of the 84 scripts**, and that is not a defect to engineer around; it is
 what those scripts are for.

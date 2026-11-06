@@ -1,7 +1,7 @@
 {
   "x-vox-version": 1,
   "generated_by": "scripts/docs/tutorial-verify.vox",
-  "verified_at_commit": "d3c6f62a8629581a9e6896f2c9d6d9749b1057a3",
+  "verified_at_commit": "930b5d87643e5e2961e3b2bbc07f98c640a20e72",
   "tutorials": [
     {
       "path": "docs/src/tutorials/tut-actor-basics.md",
@@ -16,7 +16,7 @@
     },
     {
       "path": "docs/src/tutorials/tut-first-app.md",
-      "blob_sha": "5d7fb22aaced4c2691fe4badd5da4fc4a864d5c9",
+      "blob_sha": "f4ad12247d44200b037d82c397f8e9bbc6731e2b",
       "checks": {
         "commands_in_registry": "pass",
         "snippets_compile": "pass",
@@ -27,7 +27,7 @@
     },
     {
       "path": "docs/src/tutorials/tut-first-vox-app-checkpoints.md",
-      "blob_sha": "cf24d79085ccc8614e6e3cb78e0214c625706ad8",
+      "blob_sha": "d50ec9ace6d6b76bccbaf6e41c4217b4e184b3b3",
       "checks": {
         "commands_in_registry": "pass",
         "snippets_compile": "pass",
@@ -38,7 +38,7 @@
     },
     {
       "path": "docs/src/tutorials/tut-getting-started.md",
-      "blob_sha": "3e33bd49b0192f54189cfb35cb79fd0d99759721",
+      "blob_sha": "424e515599fd474dc8c17c3e6e5f6f3dc638ea88",
       "checks": {
         "commands_in_registry": "pass",
         "snippets_compile": "pass",
@@ -71,7 +71,7 @@
     },
     {
       "path": "docs/src/tutorials/use-a-react-component-from-vox.md",
-      "blob_sha": "644900f8071524a98e8ddd887580017fd6aff189",
+      "blob_sha": "08dff95ceed4eae88da67a5952618bdf96b04640",
       "checks": {
         "commands_in_registry": "pass",
         "snippets_compile": "pass",

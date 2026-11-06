@@ -109,7 +109,7 @@ business logic, GPU UI framework, or Vox already has equivalents.
 1. **TASK-3.x**: Implement `vox-exec-grammar` parser (full tokeniser for POSIX +
    PowerShell cmdlet invocations). Wire into `vox shell check`.
 2. **TASK-3.y**: Input classifier in `vox-cli/src/dispatch.rs` —
-   `InputKind::VoxScript | NaturalLanguage | SubCommand | FuzzyCommand`.
+   `InputKind::VoxLang | NaturalLanguage | SubCommand | FuzzyCommand`.
 3. **Vendor Zed `sum_tree`** — once TASK-3.x is stable, evaluate whether
    corpus/search indexing would benefit from a persistent B-tree.
 4. **Computer-use skill** — `@mcp.tool` set in `vox-skills` for desktop agent actions.

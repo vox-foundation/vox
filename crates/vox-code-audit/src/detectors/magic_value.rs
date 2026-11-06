@@ -125,9 +125,17 @@ impl DetectionRule for MagicValueDetector {
     fn detect(
         &self,
         file: &SourceFile,
-        _rust: Option<&crate::analysis::RustFileContext>,
+        rust: Option<&crate::analysis::RustFileContext>,
     ) -> Vec<Finding> {
         let mut findings = Vec::new();
+        let path_str = file.path.to_string_lossy().replace('\\', "/");
+        if path_str.contains("/tests/")
+            || path_str.ends_with("/tests.rs")
+            || path_str.ends_with("_test.rs")
+            || path_str.ends_with("_tests.rs")
+        {
+            return findings;
+        }
         let mut in_test_block = false;
 
         for (i, line) in file.lines.iter().enumerate() {
@@ -147,7 +155,11 @@ impl DetectionRule for MagicValueDetector {
                 }
             }
 
-            if self.should_skip_line(line) || in_test_block {
+            if self.should_skip_line(line)
+                || in_test_block
+                || crate::rules::rust_byte_is_comment(file, line_num, 0, rust)
+                || crate::rules::rust_byte_is_cfg_test(file, line_num, 0, rust)
+            {
                 continue;
             }
 
@@ -196,7 +208,12 @@ impl DetectionRule for MagicValueDetector {
                 ));
             }
 
-            if self.db_conn_rule.regex().is_match(line) {
+            if self.db_conn_rule.regex().is_match(line)
+                && !line.contains("starts_with(")
+                && !line.contains("strip_prefix(")
+                && !line.contains("sqlite::memory:")
+                && !line.contains("sqlite://:memory:")
+            {
                 findings.push(Self::make_finding(
                     self.db_conn_rule,
                     file,

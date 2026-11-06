@@ -101,3 +101,65 @@ All features work fully offline with deterministic fallbacks.
 |---|---|
 | `GamifyProfile` | Renamed to [`LudusProfile`]. This alias will be removed in a future release. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_gamify: "vox-gamify"
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_gamify -> vox_actor_runtime
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_gamify -> vox_bounded_fs
+    node vox_config: "vox-config"
+    vox_gamify -> vox_config
+    node vox_db: "vox-db"
+    vox_gamify -> vox_db
+    node vox_http_client: "vox-http-client"
+    vox_gamify -> vox_http_client
+    node vox_llm_egress: "vox-llm-egress"
+    vox_gamify -> vox_llm_egress
+    node vox_mesh_types: "vox-mesh-types"
+    vox_gamify -> vox_mesh_types
+    node vox_openai: "vox-openai"
+    vox_gamify -> vox_openai
+    node vox_secrets: "vox-secrets"
+    vox_gamify -> vox_secrets
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_gamify
+    node vox_cli_core: "vox-cli-core"
+    vox_cli_core -> vox_gamify
+    node vox_gui: "vox-gui"
+    vox_gui -> vox_gamify
+    node vox_lsp: "vox-lsp"
+    vox_lsp -> vox_gamify
+    node vox_orchestrator: "vox-orchestrator"
+    vox_orchestrator -> vox_gamify
+    node vox_orchestrator_mcp: "vox-orchestrator-mcp"
+    vox_orchestrator_mcp -> vox_gamify
+    node vox_populi: "vox-populi"
+    vox_populi -> vox_gamify
+    node vox_research_shim: "vox-research-shim"
+    vox_research_shim -> vox_gamify
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-cli-core`](./vox-cli-core.generated.md) | Direct workspace dependent |
+| [`vox-gui`](./vox-gui.generated.md) | Direct workspace dependent |
+| [`vox-lsp`](./vox-lsp.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator`](./vox-orchestrator.generated.md) | Direct workspace dependent |
+| [`vox-orchestrator-mcp`](./vox-orchestrator-mcp.generated.md) | Direct workspace dependent |
+| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
+| [`vox-research-shim`](./vox-research-shim.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `type` | `GamifyProfile` | `pub type GamifyProfile = LudusProfile` | [`crates/vox-gamify/src/lib.rs#L74`](../../../crates/vox-gamify/src/lib.rs#L74) | Renamed to [`LudusProfile`]. This alias will be removed in a future release. |
+

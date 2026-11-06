@@ -53,3 +53,36 @@ the MeshDriver trait rather than calling vox-populi::transport directly.
 | [`vox-repository`](./vox-repository.generated.md) | Normal |
 | [`vox-secrets`](./vox-secrets.generated.md) | Normal |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_plugin_populi_mesh: "vox-plugin-populi-mesh"
+    node vox_bounded_fs: "vox-bounded-fs"
+    vox_plugin_populi_mesh -> vox_bounded_fs
+    node vox_config: "vox-config"
+    vox_plugin_populi_mesh -> vox_config
+    node vox_crypto: "vox-crypto"
+    vox_plugin_populi_mesh -> vox_crypto
+    node vox_db: "vox-db"
+    vox_plugin_populi_mesh -> vox_db
+    node vox_foundation: "vox-foundation"
+    vox_plugin_populi_mesh -> vox_foundation
+    node vox_http_client: "vox-http-client"
+    vox_plugin_populi_mesh -> vox_http_client
+    node vox_identity: "vox-identity"
+    vox_plugin_populi_mesh -> vox_identity
+    node vox_mesh_types: "vox-mesh-types"
+    vox_plugin_populi_mesh -> vox_mesh_types
+    node vox_plugin_api: "vox-plugin-api"
+    vox_plugin_populi_mesh -> vox_plugin_api
+    node vox_populi: "vox-populi"
+    vox_plugin_populi_mesh -> vox_populi
+    node vox_repository: "vox-repository"
+    vox_plugin_populi_mesh -> vox_repository
+    node vox_secrets: "vox-secrets"
+    vox_plugin_populi_mesh -> vox_secrets
+}
+```
+

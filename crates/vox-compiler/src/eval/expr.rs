@@ -24,6 +24,28 @@ pub(crate) fn normalize_constructor(val: VoxValue) -> VoxValue {
     }
 }
 
+/// Refuse a user function whose declared Python effect is outside the grant.
+///
+/// `Python` requires namespace `py`. `PythonUnverified` requires
+/// `py.unverified`. `py:allow` does not satisfy the unverified check.
+pub(crate) fn deny_declared_python(interp: &Interpreter, fn_name: &str) -> Result<(), EvalError> {
+    if interp.python_fns.contains(fn_name) && !interp.caps.allows_namespace("py") {
+        return Err(EvalError::CapabilityDenied {
+            ns: "py".into(),
+            method: fn_name.to_string(),
+        });
+    }
+    if interp.python_unverified_fns.contains(fn_name)
+        && !interp.caps.allows_namespace("py.unverified")
+    {
+        return Err(EvalError::CapabilityDenied {
+            ns: "py.unverified".into(),
+            method: fn_name.to_string(),
+        });
+    }
+    Ok(())
+}
+
 pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, EvalError> {
     interp.track_step()?;
     match expr {
@@ -160,6 +182,9 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     return Ok(result);
                 }
                 let callee = eval_expr(interp, right)?;
+                if let VoxValue::Fn { ref name, .. } = callee {
+                    deny_declared_python(interp, name)?;
+                }
                 return apply_closure(interp, &callee, vec![l]);
             }
             let r = eval_expr(interp, right)?;
@@ -323,6 +348,18 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 (HirBinOp::Gte, VoxValue::Float(a), VoxValue::Int(b)) => {
                     Ok(VoxValue::Bool(a >= b as f64))
                 }
+                (HirBinOp::Add, VoxValue::ArrayPlan(left), VoxValue::ArrayPlan(right)) => {
+                    Ok(VoxValue::ArrayPlan(left.add(&right)))
+                }
+                (HirBinOp::Sub, VoxValue::ArrayPlan(left), VoxValue::ArrayPlan(right)) => {
+                    Ok(VoxValue::ArrayPlan(left.sub(&right)))
+                }
+                (HirBinOp::Mul, VoxValue::ArrayPlan(left), VoxValue::ArrayPlan(right)) => {
+                    Ok(VoxValue::ArrayPlan(left.mul(&right)))
+                }
+                (HirBinOp::Div, VoxValue::ArrayPlan(left), VoxValue::ArrayPlan(right)) => {
+                    Ok(VoxValue::ArrayPlan(left.div(&right)))
+                }
                 (op, l, r) => Err(EvalError::AssertionFailed(format!(
                     "unsupported binary op `{op:?}` for operands {} and {}",
                     crate::eval::builtins::vox_value_type_name(&l),
@@ -463,6 +500,12 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     ordinal,
                 });
             let result = (|| -> Result<VoxValue, EvalError> {
+                if let VoxValue::Fn {
+                    name: ref fn_name, ..
+                } = c
+                {
+                    deny_declared_python(interp, fn_name)?;
+                }
                 if let VoxValue::Fn {
                     name: ref fn_name, ..
                 } = c
@@ -614,6 +657,25 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 }
                 return super::repo::execute_repo_op(interp, method, eval_args);
             }
+            // `python.version()` — gate on the AST receiver, then the `py` cap.
+            // `allows_namespace("python")` is false even when `py` is granted.
+            if let HirExpr::Ident(ns_name, _) = obj.as_ref()
+                && ns_name == "python"
+                && method == "version"
+            {
+                if !interp.caps.allows_namespace("py") {
+                    return Err(EvalError::CapabilityDenied {
+                        ns: "py".into(),
+                        method: "version".into(),
+                    });
+                }
+                if !args.is_empty() {
+                    return Err(EvalError::AssertionFailed(
+                        "python.version() takes no arguments".into(),
+                    ));
+                }
+                return Ok(super::python::call_version(interp));
+            }
 
             // `list.push(x)` in-place fast path (see `eval/env.rs` `get_mut`
             // doc comment). The generic dispatch below goes through
@@ -643,7 +705,60 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             let o = eval_expr(interp, obj)?;
             let mut eval_args = Vec::new();
             for a in args {
+                if method == "astype"
+                    && let HirExpr::Ident(dtype, _) = &a.value
+                    && matches!(dtype.as_str(), "f64" | "f32" | "i64" | "i32" | "bool")
+                {
+                    eval_args.push(VoxValue::Str(dtype.clone().into()));
+                    continue;
+                }
                 eval_args.push(eval_expr(interp, &a.value)?);
+            }
+
+            if matches!(method.as_str(), "to_list" | "item" | "shape")
+                && eval_args.is_empty()
+                && let VoxValue::ArrayPlan(plan) = &o
+            {
+                let plan = plan.clone();
+                let caps = interp.caps.clone();
+                let result = match method.as_str() {
+                    "item" => super::builtins::materialize_item(interp, &plan, &caps),
+                    "shape" => super::builtins::materialize_shape(interp, &plan, &caps),
+                    _ => super::builtins::materialize_to_list(interp, &plan, &caps),
+                };
+                return match result {
+                    VoxValue::_Panic(msg) => Err(EvalError::AssertionFailed(msg)),
+                    VoxValue::_Denied(what) => {
+                        let (ns, denied_method) =
+                            what.split_once('.').unwrap_or((what.as_str(), ""));
+                        Err(EvalError::CapabilityDenied {
+                            ns: ns.to_string(),
+                            method: denied_method.to_string(),
+                        })
+                    }
+                    other => Ok(other),
+                };
+            }
+
+            if method == "collect"
+                && eval_args.is_empty()
+                && let VoxValue::FramePlan(plan) = &o
+            {
+                let plan = plan.clone();
+                let caps = interp.caps.clone();
+                let result = super::builtins::materialize_collect(interp, &plan, &caps);
+                return match result {
+                    VoxValue::_Panic(msg) => Err(EvalError::AssertionFailed(msg)),
+                    VoxValue::_Denied(what) => {
+                        let (ns, denied_method) =
+                            what.split_once('.').unwrap_or((what.as_str(), ""));
+                        Err(EvalError::CapabilityDenied {
+                            ns: ns.to_string(),
+                            method: denied_method.to_string(),
+                        })
+                    }
+                    other => Ok(other),
+                };
             }
 
             // Closure-taking method dispatch — handled here (not in
@@ -665,7 +780,8 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 && let Some((_, val)) = fields.iter().find(|(k, _)| k == method)
             {
                 match val.clone() {
-                    VoxValue::Fn { .. } => {
+                    VoxValue::Fn { ref name, .. } => {
+                        deny_declared_python(interp, name)?;
                         return apply_closure(interp, &val.clone(), eval_args);
                     }
                     VoxValue::Constructor(name) => {
@@ -1057,8 +1173,15 @@ fn apply_closure(
 ) -> Result<VoxValue, EvalError> {
     let (params, body, env) = match closure {
         VoxValue::Fn {
-            params, body, env, ..
-        } => (params.clone(), body.clone(), env.clone()),
+            params,
+            body,
+            env,
+            name,
+            ..
+        } => {
+            deny_declared_python(interp, name)?;
+            (params.clone(), body.clone(), env.clone())
+        }
         other => {
             return Err(EvalError::TypeError {
                 expected: "function",

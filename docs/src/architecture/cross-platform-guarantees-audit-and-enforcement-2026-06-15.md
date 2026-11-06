@@ -85,7 +85,7 @@ with no Unix branch.
 
 - **Breaks:** always errors (missing script) on Windows; additionally non-portable.
 - **Fix:** remove the dead function, or drive the pipeline via `vox run scripts/*.vox`
-  (project VoxScript-first policy) and resolve the shell via
+  (project VoxLang-first policy) and resolve the shell via
   `which::which("pwsh").or_else(|_| which::which("powershell"))`.
 
 ### D3 — `cargo fmt --all` inside a `.vox` script (HIGH, policy self-violation, verified-by-agent)

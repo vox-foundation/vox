@@ -6,7 +6,7 @@
 
 **Architecture:** Soft keywords, per the `get/post/put/delete` precedent: the words get **no `logos #[token]`** — they stay `Token::Ident` and are recognized **positionally** by the top-level decl dispatcher. The existing parser heads (`parse_table`/`parse_query`/…) already produce the correct `Decl` node; the soft-keyword head reuses them via a thin `parse_fn_decl_headless` wrapper that makes `fn` optional **only on the keyword path**. Tier-2 (`@webhook @subagent @form @search`) is OUT of scope — it is real AST work, not a rename (separate spec).
 
-**Tech Stack:** Rust (`vox-compiler` parser/lexer-metadata, `vox-cli` CI, `vox-grammar-export`, `vox-orchestrator-mcp`), VoxScript (codemod), JSON budget files.
+**Tech Stack:** Rust (`vox-compiler` parser/lexer-metadata, `vox-cli` CI, `vox-grammar-export`, `vox-orchestrator-mcp`), VoxLang (codemod), JSON budget files.
 
 **Spec:** `docs/superpowers/specs/2026-06-29-core-surface-taxonomy-design.md` (revision 2 — post-audit).
 

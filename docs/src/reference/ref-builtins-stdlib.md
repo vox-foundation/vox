@@ -157,12 +157,11 @@ free-function namespace calls. This is a deliberate K-complexity choice:
 one canonical form per operation, matching the Python / Rust / Swift prior.
 
 ```vox
-// vox:skip -- illustrative: the ✗ lines are deliberately invalid, shown as counter-examples
-let trimmed = s.trim();              // ✓ canonical
-let trimmed = str.trim(s);           // ✗ parse-time / eval-time error with hint
-
-xs.push(item);                       // ✓ canonical
-list.push(xs, item);                 // ✗ parse-time / eval-time error with hint
+fn demo_method_only(s: str) to str {
+    let trimmed = s.trim()       // ✓ canonical method call (never `str.trim(s)`)
+    let _parts = trimmed.split(",") // ✓ canonical method call
+    return trimmed
+}
 ```
 
 Free-function namespaces (`fs.*`, `path.*`, `regex.*`, `process.*`, `env.*`,

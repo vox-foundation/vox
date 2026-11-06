@@ -215,7 +215,7 @@ export function ResearchDagCanvas({
                   strokeWidth="2"
                   strokeDasharray={isContradiction ? '4 4' : undefined}
                   markerEnd={marker}
-                  className="transition-all duration-200"
+                  className="transition-opacity duration-200"
                 >
                   <title>{`${edge.srcId} ${edge.kind ?? edge.relation} ${edge.dstId}`}</title>
                 </path>

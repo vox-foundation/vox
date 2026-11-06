@@ -17,6 +17,27 @@ training_eligible: false
 - **The damage is most likely mode suppression, not erased capability.** LoRA r=16, one epoch, and loss on only the last 64 tokens all limit forgetting. So the model probably still *can* reason but has learned not to *start*. That is plausible, not verified.
 - **The 75% figure is a vendor heuristic.** It describes one notebook's data mix; no experiment backs it. Peer-reviewed work shows hybrid models keep think-mode accuracy even at 1:4 think:no-think — *when the no-think rows are formatted correctly and real think rows are present*. We have neither: 1.1% of rows are "reasoning", and all of them are a single fixed template (§3.2).
 
+## Update (2026-10-26) — format fix and a real bench
+
+§3.1 describes the encoder **before this change**. New training runs no longer do that.
+
+Direct-answer rows now follow Qwen3's non-thinking fusion. The user turn ends in ` /no_think`. The prompt, which is masked out of the loss, prefills `<think>\n\n</think>\n\n`. The loss starts at the answer. A response that already contains a non-empty think block is left as a thinking-mode example: no flag, and the prefix still ends at `<|im_start|>assistant\n`. The same prefix is what eval-local, Candle inference, and `/v1/chat/completions` send for a direct answer. Thinking-mode measurement uses the bare `assistant\n` prefix and does not go through that wrapper.
+
+The collateral gate treats a bench directory with `reasoning.jsonl` as a thinking-mode set. Checked in:
+
+- `mens/data/gsm8k_think/reasoning.jsonl` — first 64 rows of the GSM8K test set. Score is exact match on the final number.
+- `mens/data/math500_think/reasoning.jsonl` — first 32 rows of MATH-500. Score is the boxed answer or the last line.
+
+A baseline key `gsm8k_think` is accuracy. `gsm8k_think_init` is the fraction of completions that opened a non-empty think block, and it reuses the same generations in one process. `VOX_REASONING_EVAL_LIMIT` truncates the file. `VOX_REASONING_EVAL_MAX_TOKENS` defaults to 2048. Temperature is 0.
+
+No base-vs-adapter numbers yet. The Qwen3-8B snapshot and `mens/runs/qwen3_8b_metal_v2` are not on this machine, so the scorer was not run. When both directories are present:
+
+```text
+vox mens eval-collateral-damage --pre-score mens/data/reasoning_baseline.json --post-adapter mens/runs/<run>
+```
+
+The pre-score file is `{"benchmarks":{"gsm8k_think":<base accuracy>,"gsm8k_think_init":<base think rate>,"math500_think":...,"math500_think_init":...}}`, filled from a base-model run of the same benches. Existing adapters were trained on the old prefix. This format applies to the next training run, not to weights already saved.
+
 ## 1. Method
 
 - **Code audit** of the Candle QLoRA path. Qwen3-8B is the default base (`vox_populi::mens::DEFAULT_MODEL_ID`, pinned `b968826d…`). The pipeline runs mix → encode → mask → loss, then eval and the collateral gate.
@@ -43,6 +64,8 @@ training_eligible: false
 ## 3. What our pipeline actually does
 
 ### 3.1 Row format trains "skip thinking" at the thinking-mode entry point *(main risk)*
+
+This is the encoder as audited on 2026-09-21. The 2026-10-26 update above replaces it. The rest of this subsection is the bug that change closes.
 
 - **How rows are rendered.** `try_encode_training_step` (`crates/vox-plugin-mens-candle-core/src/candle_qlora_train/training_loop/encoding.rs`) builds every row with `chatml_supervised_text` (`crates/vox-plugin-mens-candle-core/src/training_text.rs`). That renders `<|im_start|>assistant\n{response}<|im_end|>`: no empty think block, no `/no_think`.
 - **Why that is the worst format for thinking mode.** Our training prefix is byte-identical to Qwen3's thinking-mode generation prompt (R3). So each supervised answer teaches: *in thinking mode, the first token after `assistant\n` is code, not `<think>`.* This is exactly the collapse mechanism in R4.

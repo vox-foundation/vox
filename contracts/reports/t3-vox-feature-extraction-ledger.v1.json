@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-10-25T00:51:00Z",
+  "milestone": "v3.9",
+  "phase": 207,
+  "extractions": [
+    {
+      "id": "VOX-ROUTER-T3-01",
+      "phase": 208,
+      "title": "Live ModelOperationalStatus Health Gating",
+      "source_repos": ["vibheksoni/t3router"],
+      "source_files": ["src/t3/models.rs"],
+      "vox_target_crates": ["crates/vox-orchestrator"],
+      "vox_target_files": [
+        "crates/vox-orchestrator/src/models/spec.rs",
+        "crates/vox-orchestrator/src/models/registry.rs",
+        "crates/vox-orchestrator/src/models/select.rs"
+      ],
+      "verification_tests": [
+        "crates/vox-orchestrator/src/models/select.rs::semcov_wave1c_tests::t3_operational_status_outage_excluded_and_degraded_demoted"
+      ],
+      "priority": "P0",
+      "status": "implemented"
+    },
+    {
+      "id": "VOX-ROUTER-T3-02",
+      "phase": 208,
+      "title": "Unified ReasoningEffort & Search-Grounding Wire Normalization",
+      "source_repos": ["vibheksoni/t3router", "vibheksoni/pi-t3chat", "TGlide/thom-chat"],
+      "source_files": [
+        "src/t3/config.rs",
+        "src/t3/client.rs",
+        "chat.ts",
+        "src/routes/api/generate-message/+server.ts"
+      ],
+      "vox_target_crates": ["crates/vox-orchestrator", "crates/vox-llm-egress"],
+      "vox_target_files": [
+        "crates/vox-orchestrator/src/models/select.rs",
+        "crates/vox-llm-egress/src/lib.rs",
+        "crates/vox-llm-egress/src/wire.rs"
+      ],
+      "verification_tests": [
+        "crates/vox-orchestrator/src/models/select.rs::semcov_wave1c_tests::t3_controls_attach_reasoning_and_web_search_capabilities",
+        "crates/vox-llm-egress/src/lib.rs::tests::t3_wire_options_normalizes_reasoning_effort_and_openrouter_online_suffix"
+      ],
+      "priority": "P0",
+      "status": "implemented"
+    },
+    {
+      "id": "VOX-ROUTER-T3-03",
+      "phase": 208,
+      "title": "Exact Per-Turn Credit/Cost Delta & :free vs. BYOK Tier Provenance",
+      "source_repos": ["vibheksoni/t3router", "TGlide/thom-chat"],
+      "source_files": [
+        "src/t3/client.rs",
+        "src/t3/usage.rs",
+        "src/routes/api/generate-message/+server.ts"
+      ],
+      "vox_target_crates": ["crates/vox-orchestrator"],
+      "vox_target_files": [
+        "crates/vox-orchestrator/src/models/spec.rs",
+        "crates/vox-orchestrator/src/models/registry.rs"
+      ],
+      "verification_tests": [
+        "crates/vox-orchestrator/src/models/select.rs::semcov_wave1c_tests::t3_reconcile_turn_cost_delta_tracks_credits_and_provenance"
+      ],
+      "priority": "P0",
+      "status": "implemented"
+    },
+    {
+      "id": "VOX-HARNESS-T3-01",
+      "phase": 209,
+      "title": "Server-Resumable Turn Stream Buffer & Out-of-Band Cancellation",
+      "source_repos": ["pingdotgg/t3code", "TGlide/thom-chat"],
+      "source_files": [
+        "docs/orchestration-v2/feature-lifecycles.md",
+        "src/routes/api/generate-message/+server.ts",
+        "src/routes/api/cancel-generation/+server.ts"
+      ],
+      "vox_target_crates": ["crates/vox-orchestrator"],
+      "vox_target_files": [
+        "crates/vox-orchestrator/src/models/spec.rs",
+        "crates/vox-orchestrator/src/models/select.rs"
+      ],
+      "verification_tests": [
+        "crates/vox-orchestrator/src/models/select.rs::semcov_wave1c_tests::t3_resumable_turn_stream_replays_after_cursor_and_supports_cancellation"
+      ],
+      "priority": "P0",
+      "status": "implemented"
+    },
+    {
+      "id": "VOX-HARNESS-T3-02",
+      "phase": 209,
+      "title": "Lazy 3-Tool MCP Discovery Wrapper (list_mcp_servers, list_mcp_tools, call_mcp_tool)",
+      "source_repos": ["vibheksoni/pi-t3chat", "pingdotgg/t3code"],
+      "source_files": [
+        "mcp.ts",
+        "proxy.ts",
+        "docs/orchestration-v2/orchestrator-mcp-server.md"
+      ],
+      "vox_target_crates": ["crates/vox-orchestrator-mcp"],
+      "vox_target_files": [
+        "crates/vox-orchestrator-mcp/src/external_mcp.rs",
+        "crates/vox-orchestrator-mcp/src/lib.rs"
+      ],
+      "verification_tests": [
+        "crates/vox-orchestrator-mcp/src/external_mcp.rs::tests::lazy_mcp_group_registry_supports_list_servers_list_tools_and_call_resolution"
+      ],
+      "priority": "P0",
+      "status": "implemented"
+    },
+    {
+      "id": "VOX-HARNESS-T3-03",
+      "phase": 209,
+      "title": "Spoke-Aware Prompt Enhancer (@tag preservation) & Ephemeral/Privacy Session Posture",
+      "source_repos": ["TGlide/thom-chat", "helioschat/app"],
+      "source_files": [
+        "src/routes/api/enhance-prompt/+server.ts",
+        "src/lib/utils/rules.ts",
+        "src/lib/stores/chat.ts"
+      ],
+      "vox_target_crates": ["crates/vox-orchestrator"],
+      "vox_target_files": [
+        "crates/vox-orchestrator/src/models/spec.rs",
+        "crates/vox-orchestrator/src/models/registry/conversational_routing.rs",
+        "crates/vox-orchestrator/src/models/select.rs"
+      ],
+      "verification_tests": [
+        "crates/vox-orchestrator/src/models/select.rs::semcov_wave1c_tests::t3_enhance_prompt_preserves_rule_tags_and_privacy_posture_gates_persistence"
+      ],
+      "priority": "P0",
+      "status": "implemented"
+    }
+  ]
+}

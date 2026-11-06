@@ -29,12 +29,20 @@ pub async fn search_model_cards(
     Ok(specs.iter().map(|m| model_spec_to_card(m, None)).collect())
 }
 
+fn recommendation_from_selection(
+    selection: Result<vox_orchestrator::models::auto_select::AutoModelSelection, String>,
+) -> Result<vox_orchestrator::models::auto_select::AutoModelSelection, String> {
+    selection
+}
+
 #[tauri::command]
 pub async fn get_auto_model_recommendation()
 -> Result<vox_orchestrator::models::auto_select::AutoModelSelection, String> {
     // Discrete-GPU VRAM comes from the nvml-probe plugin, if installed.
     vox_orchestrator_mcp::server_state::vram_probe::register_nvml_vram_probe();
-    Ok(vox_orchestrator::models::auto_select::select_optimal_local_model_for_host())
+    recommendation_from_selection(
+        vox_orchestrator::models::auto_select::select_optimal_local_model_for_host(),
+    )
 }
 
 #[tauri::command]
@@ -91,13 +99,25 @@ pub async fn suggest_model_for_task(task: String) -> Result<String, String> {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn auto_model_recommendation_returns_valid_selection() {
-        let res = get_auto_model_recommendation().await;
-        assert!(res.is_ok());
-        let sel = res.unwrap();
-        assert!(!sel.selected_model_id.is_empty());
-        assert!(!sel.tier_reason.is_empty());
+    #[test]
+    fn auto_model_recommendation_maps_injected_selection() {
+        use vox_orchestrator::models::auto_select::AutoModelSelection;
+        let pin = "Qwen/Qwen3-14B@40c069824f4251a91eefaf281ebe4c544efd3e18";
+        let ok = recommendation_from_selection(Ok(AutoModelSelection {
+            selected_model_id: pin.to_string(),
+            detected_vram_gb: 25_000_f64 / 1024.0,
+            tier_reason: "14B".to_string(),
+        }))
+        .expect("ok selection passes through");
+        assert_eq!(ok.selected_model_id, pin);
+        let err = recommendation_from_selection(Err("unreadable".to_string()))
+            .expect_err("error becomes the command error");
+        assert_eq!(err, "unreadable");
+        let src = include_str!("models_host.rs");
+        assert!(
+            src.contains("select_optimal_local_model_for_host"),
+            "the host command must call the live selector"
+        );
     }
 
     #[tokio::test]

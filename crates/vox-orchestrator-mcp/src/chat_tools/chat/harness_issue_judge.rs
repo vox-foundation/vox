@@ -134,7 +134,7 @@ pub async fn judge(recent_activity: &str, model: &str) -> Option<JudgedHarnessIs
             return None;
         }
         ActivityResult::Failed(e) => {
-            tracing::warn!(target: "harness_issue_judge", error = ?e, "judge activity failed");
+            tracing::warn!(target: "harness_issue_judge", error = %e, "judge activity failed");
             return None;
         }
         ActivityResult::Cancelled => return None,

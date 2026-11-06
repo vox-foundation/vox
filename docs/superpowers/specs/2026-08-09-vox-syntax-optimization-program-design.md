@@ -13,7 +13,7 @@ warn-toward-canonical + machine-applicable `Replacement` fix-its, warnings surfa
 through `vox check`, and decorators compose with bare `query`/`mutation`/`server`
 declarations. Four axes remain open, per operator direction:
 
-1. **K-complexity of VoxScript itself is unmeasured.** We have compression-based
+1. **K-complexity of VoxLang itself is unmeasured.** We have compression-based
    estimators over compiler *outputs* (`crates/vox-codegen/src/syntax_k.rs`) and a
    lexer-token verbosity ratchet over goldens
    (`crates/vox-cli/src/commands/ci/run_body_helpers/syntax_k.rs` +
@@ -34,7 +34,7 @@ declarations. Four axes remain open, per operator direction:
    (`contracts/spec/language-surface-coverage.v1.yaml`) covers the 8 productions
    from Steps 0-1 plus 4 todo rows. The grammar has 41 `Decl` variants
    (`crates/vox-ast/src/decl/`); most have zero verified-coverage claims.
-4. **TypeScript elimination has no evidence base.** The goal is VoxScript producing
+4. **TypeScript elimination has no evidence base.** The goal is VoxLang producing
    the GUI and harness. `vox-gui`'s UI is hand-written TSX that Vox cannot yet
    express; the concrete codegen blockers are known
    (dotted-member JSX unsupported — documented limitation in
@@ -69,7 +69,7 @@ Folded in from the predecessor program's backlog:
 - `vox ci vox-parse-check` enforcement wiring (corpus is now clean) → Phase 0.
 - tmLanguage-regen ledger row (`editor-tooling/vscode-tmlanguage-decorators`) → Track 3.
 - `parse_fn_decl_inner` (~1350-line Rust function) refactor → **out of scope**: it is
-  compiler-internal K-complexity, not VoxScript K-complexity, per operator
+  compiler-internal K-complexity, not VoxLang K-complexity, per operator
   correction. Recorded as optional hygiene in the plan appendix only.
 
 ## S2. Phase 0 — Corpus migration enabler

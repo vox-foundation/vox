@@ -12,6 +12,16 @@ const SESSION = [
   { session_id: 'surfaces-session', title: 'Surfaces', updated_at: 'now', message_count: 0, conversation_id: 1 },
 ];
 
+/**
+ * cd6763733 deliberately moved Mode/Risk (DriveConsole) and the research slot into the
+ * progressive-disclosure "Execution Posture & Routing" popover; open it before using them.
+ */
+async function openPosture(page: Page): Promise<void> {
+  const trigger = page.getByTestId('loquela-posture-trigger');
+  if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+}
+
 async function openChat(page: Page, overrides: InvokeOverrides): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await addMockInitScript(page, installTauriMock, 'chat');
@@ -64,7 +74,8 @@ test('the rail shows this session: next-turn Routing from the contract-family mo
     },
   });
 
-  const routing = page.getByRole('region', { name: 'Routing' });
+  // exact: the closed posture popover (cd6763733) is an sr-only region named "Execution Posture & Routing".
+  const routing = page.getByRole('region', { name: 'Routing', exact: true });
   // Seam: App's one routing query answers from tauriMock (Task 8): family-keyed, resolved_from 'bootstrap'.
   await expect(routing.getByTestId('execution-rail-routing-scope')).toHaveText('next turn');
   await expect(routing.getByTestId('execution-rail-routing')).toHaveText(
@@ -86,6 +97,7 @@ test('the rail shows this session: next-turn Routing from the contract-family mo
 
 test('the composer names modes in full, keeps Check replies under Risk, and repeats no global spend', async ({ page }) => {
   await openChat(page, {});
+  await openPosture(page);
 
   for (const name of ['Free', 'Efficient', 'Balanced', 'Genius']) {
     await expect(page.getByRole('radio', { name, exact: true })).toBeVisible();

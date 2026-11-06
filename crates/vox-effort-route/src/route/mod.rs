@@ -34,7 +34,8 @@ pub enum ArtifactForm {
     CodeAuditDetector,
     ArchRule,
     CiGate,
-    VoxScript,
+    #[serde(alias = "VoxScript")]
+    VoxLang,
     CorpusNegativeExample,
     None,
 }
@@ -47,15 +48,15 @@ impl ArtifactForm {
             ArtifactForm::CodeAuditDetector => "detector.md.proposed",
             ArtifactForm::ArchRule => "arch-rule.toml.proposed",
             ArtifactForm::CiGate => "ci.yaml.proposed",
-            ArtifactForm::VoxScript => "vox.proposed",
+            ArtifactForm::VoxLang => "vox.proposed",
             ArtifactForm::CorpusNegativeExample => "corpus.jsonl.proposed",
             ArtifactForm::None => "",
         }
     }
     /// Whether this form requires the authoring model to be Vox-capable
-    /// (true only for `VoxScript`). Such forms are gated out on non-Vox-capable runs.
+    /// (true only for `VoxLang`). Such forms are gated out on non-Vox-capable runs.
     pub fn vox_required(self) -> bool {
-        matches!(self, ArtifactForm::VoxScript)
+        matches!(self, ArtifactForm::VoxLang)
     }
 }
 
@@ -180,7 +181,7 @@ impl Router for MockRouter {
         // Pick a form from the bucket's remediation_kind, respecting the vox gate.
         let kind = &cluster.bucket.key.remediation_kind;
         let mut form = match kind.as_str() {
-            "ScriptAutomation" => ArtifactForm::VoxScript,
+            "ScriptAutomation" | "VoxLang" | "VoxScript" => ArtifactForm::VoxLang,
             "AgentsMdRule" => ArtifactForm::AgentsMdRule,
             "LinterRule" => ArtifactForm::CodeAuditDetector,
             "CorpusNegativeExample" => ArtifactForm::CorpusNegativeExample,
@@ -496,16 +497,16 @@ pub(crate) fn assemble_decision(
     };
 
     // DEFENSIVE Vox-capability gate (spec §5). The decide JSON schema already
-    // excludes VoxScript from the enum when !vox_capable, but a non-compliant
+    // excludes VoxLang from the enum when !vox_capable, but a non-compliant
     // model (or a provider that doesn't enforce response_format) could still
-    // return "VoxScript". We MUST NOT let a Vox artifact escape a non-Vox-capable
+    // return "VoxLang". We MUST NOT let a Vox artifact escape a non-Vox-capable
     // run — that is the exact inverse of "fixes must not be forced into Vox".
     // Coerce to CiGate (matching MockRouter's fallback) and record the override.
     let mut form = decide.artifact_form;
     let mut form_rationale = decide.form_rationale;
     if form.vox_required() && !vox_capable {
         form = ArtifactForm::CiGate;
-        let note = "[gate] model returned VoxScript on a non-Vox-capable run; coerced to CiGate.";
+        let note = "[gate] model returned VoxLang on a non-Vox-capable run; coerced to CiGate.";
         form_rationale = format!("{note} (original rationale: {form_rationale})");
         refutation_note = if refutation_note.is_empty() {
             note.to_string()
@@ -610,7 +611,7 @@ mod tests {
 
     #[test]
     fn vox_form_falls_back_when_not_capable() {
-        assert!(ArtifactForm::VoxScript.vox_required());
+        assert!(ArtifactForm::VoxLang.vox_required());
         assert!(!ArtifactForm::CiGate.vox_required());
     }
 
@@ -621,7 +622,7 @@ mod tests {
             ArtifactForm::CodeAuditDetector,
             ArtifactForm::ArchRule,
             ArtifactForm::CiGate,
-            ArtifactForm::VoxScript,
+            ArtifactForm::VoxLang,
             ArtifactForm::CorpusNegativeExample,
         ] {
             assert!(f.staging_extension().ends_with(".proposed"), "{:?}", f);
@@ -656,7 +657,7 @@ mod tests {
         assert!(incapable.verified);
 
         let capable = router.route(&cluster, "c1", ModelVoxCapability(true)).await;
-        assert_eq!(capable.artifact_form, ArtifactForm::VoxScript);
+        assert_eq!(capable.artifact_form, ArtifactForm::VoxLang);
         assert!(
             capable
                 .drafted_artifact
@@ -731,7 +732,7 @@ mod tests {
 
     #[test]
     fn vox_artifact_cannot_escape_non_vox_capable_run() {
-        // A non-compliant model returns VoxScript despite the schema excluding it.
+        // A non-compliant model returns VoxLang despite the schema excluding it.
         // assemble_decision MUST coerce it away on a non-Vox-capable run so no
         // .vox artifact is ever drafted. (Spec §5; the inverse of the user's
         // "don't force fixes into Vox" correction is just as wrong.)
@@ -741,13 +742,13 @@ mod tests {
             refutation_note: "ok".into(),
         };
         let d = assemble_decision(
-            decide_resp(ArtifactForm::VoxScript),
+            decide_resp(ArtifactForm::VoxLang),
             Some(refute),
             &cluster,
             "cV",
             false, // NOT vox-capable
         );
-        assert_ne!(d.artifact_form, ArtifactForm::VoxScript);
+        assert_ne!(d.artifact_form, ArtifactForm::VoxLang);
         assert_eq!(d.artifact_form, ArtifactForm::CiGate);
         let art = d
             .drafted_artifact
@@ -768,13 +769,13 @@ mod tests {
             refutation_note: "ok".into(),
         };
         let d = assemble_decision(
-            decide_resp(ArtifactForm::VoxScript),
+            decide_resp(ArtifactForm::VoxLang),
             Some(refute),
             &cluster,
             "cV2",
             true, // vox-capable
         );
-        assert_eq!(d.artifact_form, ArtifactForm::VoxScript);
+        assert_eq!(d.artifact_form, ArtifactForm::VoxLang);
         assert!(
             d.drafted_artifact
                 .unwrap()
@@ -872,9 +873,9 @@ mod semcov_wave7_tests {
         );
     }
 
-    // Catches: vox_required returning true for non-VoxScript forms (over-blocks runs)
+    // Catches: vox_required returning true for non-VoxLang forms (over-blocks runs)
     #[test]
-    fn only_vox_script_is_vox_required() {
+    fn only_vox_lang_is_vox_required() {
         for form in [
             ArtifactForm::AgentsMdRule,
             ArtifactForm::CodeAuditDetector,
@@ -885,10 +886,10 @@ mod semcov_wave7_tests {
         ] {
             assert!(
                 !form.vox_required(),
-                "{form:?} must not be vox_required — only VoxScript should be"
+                "{form:?} must not be vox_required — only VoxLang should be"
             );
         }
-        assert!(ArtifactForm::VoxScript.vox_required());
+        assert!(ArtifactForm::VoxLang.vox_required());
     }
 
     // Catches: judge_tokens_used summing wrong direction (e.g. doubling prompt tokens)

@@ -1,4 +1,4 @@
-// toestub-ignore(arch/sprawl)
+// toestub-ignore(arch/sprawl) -- top-level CLI subcommand dispatch module
 use crate::cli_args::BuildMode;
 use crate::commands::build;
 use crate::config;
@@ -102,6 +102,16 @@ async fn run_interp(
         interpreter.set_source_path(abs);
     } else {
         interpreter.set_source_path(file.to_path_buf());
+    }
+    if let Ok(Some(cfg)) = crate::commands::py::discover_python(file) {
+        vox_compiler::eval::python::set_python_project(
+            &mut interpreter,
+            vox_compiler::eval::python::PythonProject {
+                root: cfg.root,
+                max_fetch_mb: cfg.max_fetch_mb,
+                timeout: std::time::Duration::from_secs(cfg.timeout_s),
+            },
+        );
     }
 
     let has_main = lowered.functions.iter().any(|f| f.name == "main");

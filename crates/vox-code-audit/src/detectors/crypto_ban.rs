@@ -57,7 +57,7 @@ impl CryptoBanDetector {
                 r#"(?x)
                 (?:
                     ^(?:aegis|ring|aws-lc-rs|md5|sha1|openssl)\s*=
-                  | (?:aegis|ring|aws-lc-rs)\s*=\s*\{
+                  | \b(?:aegis|ring|aws-lc-rs)\s*=\s*\{
                   | features\s*=\s*\[.*\bcmake\b.*\bnasm\b
                   | features\s*=\s*\[.*\bnasm\b.*\bcmake\b
                 )
@@ -122,8 +122,12 @@ impl CryptoBanDetector {
         }
     }
 
-    /// Returns true if this file path looks like a Cargo.toml or Cargo.lock.
+    /// Returns true if this file path looks like a Cargo.toml or Cargo.lock (excluding auto-generated workspace-hack).
     fn is_cargo_manifest(file: &SourceFile) -> bool {
+        let path_str = file.path.to_string_lossy().replace('\\', "/");
+        if path_str.contains("crates/workspace-hack/") {
+            return false;
+        }
         file.path
             .file_name()
             .and_then(|n| n.to_str())
@@ -183,7 +187,7 @@ impl DetectionRule for CryptoBanDetector {
     fn detect(
         &self,
         file: &SourceFile,
-        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+        rust_ctx: Option<&crate::analysis::RustFileContext>,
     ) -> Vec<Finding> {
         let mut findings = Vec::new();
 
@@ -212,7 +216,12 @@ impl DetectionRule for CryptoBanDetector {
             let matched = if is_cargo {
                 self.cargo_banned_dep.is_match(trimmed)
             } else if is_rust {
-                self.rust_banned_use.is_match(line)
+                if let Some(m) = self.rust_banned_use.find(line) {
+                    !crate::rules::rust_byte_is_non_code(file, line_num, m.start(), rust_ctx)
+                        && !crate::rules::rust_byte_is_cfg_test(file, line_num, m.start(), rust_ctx)
+                } else {
+                    false
+                }
             } else {
                 // Vox
                 self.vox_banned_import.is_match(line)

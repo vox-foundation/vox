@@ -16,11 +16,10 @@ tag, with no FFI or marshaling.
 ## Import forms
 
 ```vox
-// vox:skip — illustrative import surface (paths are project-specific)
-import react Button from "@acme/ui/Button"                         // default
+import react DefaultButton from "@acme/ui/Button"                    // default
 import react { Dialog, DialogContent } from "@radix-ui/react-dialog" // named
-import react { Button as AcmeButton } from "@acme/ui"               // aliased
-import react * as Dialog from "@radix-ui/react-dialog"              // namespace
+import react { Button as AcmeButton } from "@acme/ui"                // aliased
+import react * as RadixDialog from "@radix-ui/react-dialog"          // namespace
 ```
 
 The module specifier is emitted verbatim — Vox does no path rewriting; your
@@ -32,7 +31,6 @@ Reference an imported component in a `view:` using call syntax. It lowers to a
 JSX tag:
 
 ```vox
-// vox:skip — placeholder package `@acme/ui`; validated copy lives at examples/golden/react_interop.vox
 import react { Button } from "@acme/ui"
 
 component Page() {
@@ -45,7 +43,6 @@ component Page() {
 emits (web target):
 
 ```tsx
-// vox:skip — emitted output, not Vox source
 import { Button } from "@acme/ui";
 
 export function Page(): React.ReactElement {

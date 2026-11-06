@@ -70,14 +70,22 @@ export function DockWorkspaceShell({
   useEffect(() => {
     const el = outerRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
+    let rafId = 0;
+    // toestub-ignore(vox/ui/layout-and-perf-hazards) -- rAF-throttled height sync required for dockview definite-px layout
     const ro = new ResizeObserver(entries => {
       const h = entries[0]?.contentRect.height;
-      if (h && h > 0) setPixelHeight(h);
+      if (h && h > 0) {
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = requestAnimationFrame(() => setPixelHeight(h));
+      }
     });
     ro.observe(el);
     const rect = el.getBoundingClientRect();
     if (rect.height > 0) setPixelHeight(rect.height);
-    return () => ro.disconnect();
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      ro.disconnect();
+    };
   }, []);
 
   const handleReady = useCallback(

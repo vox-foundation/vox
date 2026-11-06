@@ -49,3 +49,76 @@ Used by:
 | `data` | Pure-Rust tokenizer and JSONL DataLoader — always compiled, no GPU required. |
 | `replay` | Experience replay buffer for catastrophic forgetting mitigation — always compiled, no GPU required. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_tensor: "vox-tensor"
+    node vox_actor_runtime: "vox-actor-runtime"
+    vox_tensor -> vox_actor_runtime
+    node vox_ml_cli: "vox-ml-cli"
+    vox_ml_cli -> vox_tensor
+    node vox_plugin_mens_candle_core: "vox-plugin-mens-candle-core"
+    vox_plugin_mens_candle_core -> vox_tensor
+    node vox_plugin_mens_candle_cuda: "vox-plugin-mens-candle-cuda"
+    vox_plugin_mens_candle_cuda -> vox_tensor
+    node vox_plugin_mens_candle_metal: "vox-plugin-mens-candle-metal"
+    vox_plugin_mens_candle_metal -> vox_tensor
+    node vox_populi: "vox-populi"
+    vox_populi -> vox_tensor
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-ml-cli`](./vox-ml-cli.generated.md) | Direct workspace dependent |
+| [`vox-plugin-mens-candle-core`](./vox-plugin-mens-candle-core.generated.md) | Direct workspace dependent |
+| [`vox-plugin-mens-candle-cuda`](./vox-plugin-mens-candle-cuda.generated.md) | Direct workspace dependent |
+| [`vox-plugin-mens-candle-metal`](./vox-plugin-mens-candle-metal.generated.md) | Direct workspace dependent |
+| [`vox-populi`](./vox-populi.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `data::SyntaxSpan` | `pub struct SyntaxSpan` | [`crates/vox-tensor/src/data.rs#L9-L14`](../../../crates/vox-tensor/src/data.rs#L9-L14) | A byte-level span aligned with a syntax element kind and a loss weight. |
+| `struct` | `data::ChatmlTurn` | `pub struct ChatmlTurn` | [`crates/vox-tensor/src/data.rs#L18-L23`](../../../crates/vox-tensor/src/data.rs#L18-L23) | One turn in a ChatML conversation. |
+| `struct` | `data::TrainingPair` | `pub struct TrainingPair` | [`crates/vox-tensor/src/data.rs#L30-L55`](../../../crates/vox-tensor/src/data.rs#L30-L55) | A single prompt→response training pair or multi-turn sequence (matches dogfood JSONL schema).  Deserializes via `TrainingPairRaw` (private struct) so that `instruction` → `prompt` and `output` → `response` normalization happens on the way in, even when both canonical and alias keys are present. |
+| `fn` | `data::effective_prompt` | `pub fn effective_prompt(&self) -> Option<&String>` | [`crates/vox-tensor/src/data.rs#L113-L115`](../../../crates/vox-tensor/src/data.rs#L113-L115) | — |
+| `fn` | `data::effective_response` | `pub fn effective_response(&self) -> Option<&String>` | [`crates/vox-tensor/src/data.rs#L117-L119`](../../../crates/vox-tensor/src/data.rs#L117-L119) | — |
+| `struct` | `data::VoxTokenizer` | `pub struct VoxTokenizer` | [`crates/vox-tensor/src/data.rs#L142`](../../../crates/vox-tensor/src/data.rs#L142) | Legacy Burn / dogfood tokenizer: ASCII + ChatML fence compounds only. |
+| `fn` | `data::encode` | `pub fn encode(text: &str) -> Vec<u32>` | [`crates/vox-tensor/src/data.rs#L149-L178`](../../../crates/vox-tensor/src/data.rs#L149-L178) | Encode a string into a sequence of token IDs.  Greedy longest-match on compound tokens first, then single-char ASCII, then UNK for anything else. |
+| `fn` | `data::decode` | `pub fn decode(ids: &[u32]) -> String` | [`crates/vox-tensor/src/data.rs#L181-L201`](../../../crates/vox-tensor/src/data.rs#L181-L201) | Decode token IDs back into a String (best-effort, for debugging). |
+| `fn` | `data::encode_chatml` | `pub fn encode_chatml(system: &str, user: &str, assistant: &str) -> Vec<u32>` | [`crates/vox-tensor/src/data.rs#L204-L211`](../../../crates/vox-tensor/src/data.rs#L204-L211) | Format in ChatML and encode to token IDs for training. |
+| `fn` | `data::encode_chatml_turns` | `pub fn encode_chatml_turns(turns: &[ChatmlTurn]) -> Vec<u32>` | [`crates/vox-tensor/src/data.rs#L214-L224`](../../../crates/vox-tensor/src/data.rs#L214-L224) | Format multi-turn sequence in ChatML and encode. |
+| `fn` | `data::encode_chatml_inference_prefix` | `pub fn encode_chatml_inference_prefix(system: &str, user: &str) -> Vec<u32>` | [`crates/vox-tensor/src/data.rs#L227-L234`](../../../crates/vox-tensor/src/data.rs#L227-L234) | ChatML prefix through user turn (open assistant slot) — for native inference with `VoxTokenizer`. |
+| `fn` | `data::tokenize_for_training` | `pub fn tokenize_for_training(` | [`crates/vox-tensor/src/data.rs#L239`](../../../crates/vox-tensor/src/data.rs#L239) | Tokenize and pad/truncate to exactly `max_len` tokens.  Labels mask the prompt with -100 so the model only learns to reproduce the assistant response. |
+| `fn` | `data::tokenize_turns_for_training` | `pub fn tokenize_turns_for_training(` | [`crates/vox-tensor/src/data.rs#L259`](../../../crates/vox-tensor/src/data.rs#L259) | Tokenize multi-turn turns for training. |
+| `struct` | `data::JsonlDataLoader` | `pub struct JsonlDataLoader` | [`crates/vox-tensor/src/data.rs#L323-L328`](../../../crates/vox-tensor/src/data.rs#L323-L328) | A sequential iterator over a JSONL training file.  Yields `(input_tensor, label_tensor)` pairs encoded with `VoxTokenizer`. Tokens are padded/truncated to `max_len`. The GPU feature flag is not required here — tensors are emitted as 1-D `burn` tensors only when the consumer is compiled with `gpu`. |
+| `fn` | `data::open` | `pub fn open<P: AsRef<Path>>(` | [`crates/vox-tensor/src/data.rs#L336`](../../../crates/vox-tensor/src/data.rs#L336) | Open a JSONL training file.  * `max_len` — maximum sequence length in tokens (default 512 for CPU, 2048 for GPU) * `system_prompt` — injected as the system role in ChatML format * `min_rating` — skip rows with `rating < min_rating` (0 = include all) |
+| `fn` | `data::new` | `pub fn new<P: AsRef<Path>>(path: P) -> std::io::Result<Self>` | [`crates/vox-tensor/src/data.rs#L352-L354`](../../../crates/vox-tensor/src/data.rs#L352-L354) | Convenience: open with sensible CPU defaults (max_len=512, no rating filter). |
+| `fn` | `data::count_jsonl_records` | `pub fn count_jsonl_records<P: AsRef<Path>>(path: P) -> std::io::Result<usize>` | [`crates/vox-tensor/src/data.rs#L403-L413`](../../../crates/vox-tensor/src/data.rs#L403-L413) | Count the number of non-empty lines in a JSONL file (O(1) RAM). |
+| `enum` | `data::MalformedJsonlPolicy` | `pub enum MalformedJsonlPolicy` | [`crates/vox-tensor/src/data.rs#L417-L423`](../../../crates/vox-tensor/src/data.rs#L417-L423) | How to handle lines that are non-empty but not valid [`TrainingPair`] JSON. |
+| `fn` | `data::load_all_with_policy` | `pub fn load_all_with_policy<P: AsRef<Path>>(` | [`crates/vox-tensor/src/data.rs#L428`](../../../crates/vox-tensor/src/data.rs#L428) | Load all records from a JSONL file into memory.  With [`MalformedJsonlPolicy::Skip`], malformed lines are skipped (historical default). |
+| `fn` | `data::load_all` | `pub fn load_all<P: AsRef<Path>>(path: P, min_rating: u8) -> std::io::Result<Vec<TrainingPair>>` | [`crates/vox-tensor/src/data.rs#L469-L471`](../../../crates/vox-tensor/src/data.rs#L469-L471) | Load all records from a JSONL file into memory. Skips malformed lines. |
+| `struct` | `replay::ReplayConfig` | `pub struct ReplayConfig` | [`crates/vox-tensor/src/replay.rs#L26-L35`](../../../crates/vox-tensor/src/replay.rs#L26-L35) | Replay buffer configuration. |
+| `struct` | `replay::ReplaySample` | `pub struct ReplaySample` | [`crates/vox-tensor/src/replay.rs#L52-L60`](../../../crates/vox-tensor/src/replay.rs#L52-L60) | A training pair with optional loss tracking for mix-CD prioritisation. |
+| `fn` | `replay::loss_delta` | `pub fn loss_delta(&self) -> f64` | [`crates/vox-tensor/src/replay.rs#L64-L69`](../../../crates/vox-tensor/src/replay.rs#L64-L69) | Loss delta (positive means the model is forgetting this sample). |
+| `fn` | `replay::is_at_risk` | `pub fn is_at_risk(&self, threshold: f64) -> bool` | [`crates/vox-tensor/src/replay.rs#L72-L74`](../../../crates/vox-tensor/src/replay.rs#L72-L74) | Whether this sample is "at risk" of being forgotten. |
+| `struct` | `replay::ReplayBuffer` | `pub struct ReplayBuffer` | [`crates/vox-tensor/src/replay.rs#L80-L86`](../../../crates/vox-tensor/src/replay.rs#L80-L86) | Experience replay buffer that mixes base pre-training data into fine-tuning batches. |
+| `fn` | `replay::new` | `pub fn new(config: ReplayConfig) -> Self` | [`crates/vox-tensor/src/replay.rs#L89-L95`](../../../crates/vox-tensor/src/replay.rs#L89-L95) | — |
+| `fn` | `replay::load_from_jsonl` | `pub fn load_from_jsonl(&mut self, path: &Path) -> anyhow::Result<usize>` | [`crates/vox-tensor/src/replay.rs#L98-L124`](../../../crates/vox-tensor/src/replay.rs#L98-L124) | Load base pre-training data from a JSONL file into the buffer. |
+| `fn` | `replay::add_sample` | `pub fn add_sample(&mut self, pair: TrainingPair)` | [`crates/vox-tensor/src/replay.rs#L127-L150`](../../../crates/vox-tensor/src/replay.rs#L127-L150) | Add a single training pair to the buffer. |
+| `fn` | `replay::len` | `pub fn len(&self) -> usize` | [`crates/vox-tensor/src/replay.rs#L153-L155`](../../../crates/vox-tensor/src/replay.rs#L153-L155) | Number of samples in the buffer. |
+| `fn` | `replay::is_empty` | `pub fn is_empty(&self) -> bool` | [`crates/vox-tensor/src/replay.rs#L158-L160`](../../../crates/vox-tensor/src/replay.rs#L158-L160) | Whether the buffer is empty. |
+| `fn` | `replay::update_loss` | `pub fn update_loss(&mut self, prompt_hash: u64, new_loss: f64)` | [`crates/vox-tensor/src/replay.rs#L163-L172`](../../../crates/vox-tensor/src/replay.rs#L163-L172) | Update loss observations for a sample (identified by prompt hash). |
+| `fn` | `replay::select_replay_indices` | `pub fn select_replay_indices(&mut self, count: usize) -> Vec<usize>` | [`crates/vox-tensor/src/replay.rs#L181-L223`](../../../crates/vox-tensor/src/replay.rs#L181-L223) | Select `count` replay sample indices for mixing into a fine-tuning batch.  When mix-CD is enabled, at-risk samples (loss increased) are preferentially selected. Otherwise, round-robin selection is used.  Returns indices into the internal sample buffer. Use [`Self::get_pair`] to retrieve the actual `TrainingPair` for each index. |
+| `fn` | `replay::get_pair` | `pub fn get_pair(&self, idx: usize) -> Option<&TrainingPair>` | [`crates/vox-tensor/src/replay.rs#L226-L228`](../../../crates/vox-tensor/src/replay.rs#L226-L228) | Get the training pair at a given buffer index. |
+| `fn` | `replay::select_replay_batch` | `pub fn select_replay_batch(&mut self, count: usize) -> Vec<TrainingPair>` | [`crates/vox-tensor/src/replay.rs#L231-L237`](../../../crates/vox-tensor/src/replay.rs#L231-L237) | Convenience: select and collect training pairs in one call. |
+| `fn` | `replay::replay_count_for_batch` | `pub fn replay_count_for_batch(&self, batch_size: usize) -> usize` | [`crates/vox-tensor/src/replay.rs#L240-L242`](../../../crates/vox-tensor/src/replay.rs#L240-L242) | Compute how many replay samples to mix into a batch of `batch_size`. |
+| `fn` | `replay::stats` | `pub fn stats(&self) -> ReplayBufferStats` | [`crates/vox-tensor/src/replay.rs#L245-L257`](../../../crates/vox-tensor/src/replay.rs#L245-L257) | Summary statistics for telemetry. |
+| `struct` | `replay::ReplayBufferStats` | `pub struct ReplayBufferStats` | [`crates/vox-tensor/src/replay.rs#L262-L266`](../../../crates/vox-tensor/src/replay.rs#L262-L266) | Telemetry summary for the replay buffer. |
+

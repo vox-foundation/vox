@@ -276,7 +276,7 @@ export function VoxGraphStatusPanel({ condensed }: { condensed?: boolean } = {})
         {data.corpora.map((c) => (
           <div
             key={c.corpus_id}
-            className={`group rounded-lg border p-4 transition-all duration-200 ${
+            className={`group rounded-lg border p-4 transition-colors duration-200 ${
               c.is_fresh
                 ? 'border-(--color-status-pass)/10 bg-(--color-status-pass)/2 hover:border-(--color-status-pass)/20'
                 : 'border-(--color-status-warn)/10 bg-(--color-status-warn)/2 hover:border-(--color-status-warn)/20'

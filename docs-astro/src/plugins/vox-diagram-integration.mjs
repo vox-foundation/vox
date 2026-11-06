@@ -6,6 +6,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { isUnifiedProcessor, unified } from '@astrojs/markdown-remark';
 import { remarkVoxDiagram, assertNoMisses, resetMisses } from './remark-vox-diagram.mjs';
 
 /**
@@ -53,6 +54,9 @@ export function voxDiagram({ manifestFile }) {
           mkdirSync(config.cacheDir, { recursive: true });
           writeFileSync(pending, '');
         }
+        // Astro 7 folds integration-added markdown.remarkPlugins onto a unified() processor only;
+        // its default Sätteri processor ignores them, which would let a diagram miss pass silently.
+        if (!isUnifiedProcessor(config.markdown.processor)) config.markdown.processor = unified();
         updateConfig({
           markdown: {
             remarkPlugins: [

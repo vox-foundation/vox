@@ -191,17 +191,17 @@ pub fn path_with_query(path: &str, pairs: &[(&str, Option<String>)]) -> String {
 
 #[cfg(test)]
 pub(crate) mod fake {
-    use std::collections::HashMap;
+    use std::collections::{HashMap, VecDeque};
     use std::sync::Mutex;
 
     use serde_json::Value;
 
     use super::BackendCalls;
 
-    /// Records every call and answers from canned responses keyed `tool:<name>` / `get:<path>`.
+    /// Records every call and answers from canned FIFO response queues keyed `tool:<name>` / `get:<path>`.
     #[derive(Default)]
     pub struct FakeBackend {
-        responses: Mutex<HashMap<String, Result<Value, String>>>,
+        responses: Mutex<HashMap<String, VecDeque<Result<Value, String>>>>,
         calls: Mutex<Vec<(String, Value)>>,
     }
 
@@ -213,14 +213,18 @@ pub(crate) mod fake {
             self.responses
                 .lock()
                 .unwrap()
-                .insert(format!("tool:{tool}"), resp);
+                .entry(format!("tool:{tool}"))
+                .or_default()
+                .push_back(resp);
             self
         }
         pub fn on_get(self, path: &str, resp: Result<Value, String>) -> Self {
             self.responses
                 .lock()
                 .unwrap()
-                .insert(format!("get:{path}"), resp);
+                .entry(format!("get:{path}"))
+                .or_default()
+                .push_back(resp);
             self
         }
         pub fn calls(&self) -> Vec<(String, Value)> {
@@ -228,12 +232,18 @@ pub(crate) mod fake {
         }
         fn answer(&self, key: String, args: Value) -> Result<Value, String> {
             self.calls.lock().unwrap().push((key.clone(), args));
-            self.responses
-                .lock()
-                .unwrap()
-                .get(&key)
-                .cloned()
-                .unwrap_or_else(|| Err(format!("FakeBackend: no response for {key}")))
+            let mut map = self.responses.lock().unwrap();
+            let Some(queue) = map.get_mut(&key) else {
+                return Err(format!("FakeBackend: no response for {key}"));
+            };
+            if queue.len() > 1 {
+                queue.pop_front().unwrap()
+            } else {
+                queue
+                    .front()
+                    .cloned()
+                    .unwrap_or_else(|| Err(format!("FakeBackend: no response for {key}")))
+            }
         }
     }
 
@@ -318,5 +328,18 @@ mod tests {
         );
         assert_eq!(p, "/x?a=b%20c%26d&k=1");
         assert_eq!(path_with_query("/x", &[("n", None)]), "/x");
+    }
+
+    #[tokio::test]
+    async fn fake_backend_dequeues_fifo_responses_and_retains_last_entry() {
+        let fb = fake::FakeBackend::new()
+            .on_tool("vox_chat_message", Ok(json!({"arm": "first"})))
+            .on_tool("vox_chat_message", Ok(json!({"arm": "second"})));
+        let r1 = fb.call_tool("vox_chat_message", json!({})).await.unwrap();
+        let r2 = fb.call_tool("vox_chat_message", json!({})).await.unwrap();
+        let r3 = fb.call_tool("vox_chat_message", json!({})).await.unwrap();
+        assert_eq!(r1["arm"], "first");
+        assert_eq!(r2["arm"], "second");
+        assert_eq!(r3["arm"], "second");
     }
 }

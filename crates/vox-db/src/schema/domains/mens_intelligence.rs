@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS corpus_pairs (
     label TEXT NOT NULL DEFAULT 'negative',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+CREATE INDEX IF NOT EXISTS idx_corpus_pairs_label_origin ON corpus_pairs(label, origin);
 
 -- GRPO training run telemetry and reward tracking.
 CREATE TABLE IF NOT EXISTS grpo_training_run (

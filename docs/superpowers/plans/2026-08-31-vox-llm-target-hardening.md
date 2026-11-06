@@ -309,7 +309,7 @@ Generators cannot fix semantic inversions. These are in `alwaysApply: true` file
       forbids it.
 - [ ] `documentation-policy.mdc` requires `last_updated` frontmatter; AGENTS.md forbids hand-adding
       it.
-- [ ] `voxscript-first-automation.mdc` cites `docs/src/architecture/vox-as-glue-research-2026.md`,
+- [ ] `voxlang-first-automation.mdc` cites `docs/src/architecture/vox-as-glue-research-2026.md`,
       which moved to `docs/src/archive/research-2026-q1/`.
 - [ ] Same file says `vox-runtime` where AGENTS.md says `vox-actor-runtime`.
 - [ ] Then add a **contradiction lint** for the eight non-derivable rule files: every referenced

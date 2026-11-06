@@ -23,9 +23,17 @@ pub use infer::{
     mcp_infer_completion,
 };
 pub use model_route_policy::budget_guard;
+#[cfg(test)]
+pub(crate) use model_route_policy::build_selection_request;
+pub use model_route_policy::turn_decision_pack;
 pub use model_route_policy::{
-    McpChatModelResolution, mcp_global_llm_context_fill_ratio, mcp_provider_telemetry_labels,
-    resolve_mcp_chat_model, resolve_mcp_chat_model_sync, resolve_mcp_chat_model_with_rationale,
+    ALLOW_JEV_DISTILLATION_INTO_MENS_SFT, CalibrationSample, CallerExplicitRouteFlags,
+    McpChatModelResolution, SelectivePredictionMetrics, TURN_DECISION_PACK_SCHEMA_V1,
+    TurnDecisionPack, TurnDecisionPatchOutcome, apply_turn_decision_pack_upstream,
+    build_selection_request_with_decision_pack, evaluate_selective_prediction,
+    hosted_jev_consultation_allowed, mcp_global_llm_context_fill_ratio,
+    mcp_provider_telemetry_labels, resolve_mcp_chat_model, resolve_mcp_chat_model_sync,
+    resolve_mcp_chat_model_with_rationale, validate_jev_training_isolation,
 };
 
 /// Clamp requested max output tokens for HTTP chat APIs (OpenRouter / Gemini caps).

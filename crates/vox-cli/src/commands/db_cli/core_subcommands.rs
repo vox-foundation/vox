@@ -46,9 +46,12 @@ pub enum DbCliCore {
         /// Optional explicit DB URL override.
         #[arg(long)]
         url: Option<String>,
-        /// Emit compact JSON.
+        /// Emit compact JSON. Ignored when `--emit vox`.
         #[arg(long, default_value_t = false)]
         compact: bool,
+        /// Output format. `json` (default) is unchanged; `vox` prints `table` declarations.
+        #[arg(long, value_enum, default_value = "json")]
+        emit: crate::commands::db::IntrospectEmit,
     },
     /// Verify declared `@table` surfaces against live app-plane SQL schema.
     Verify {

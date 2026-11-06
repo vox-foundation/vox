@@ -67,7 +67,7 @@ export function usePersistedSparkWindow(
       }
       return trimmed;
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed only on liveValue changes
   }, [liveValue]);
 
   return window;

@@ -599,7 +599,7 @@ mod tests {
 }
 ```
 
-**Note:** `kind` is the **existing** `vox_mesh_types::TaskKind` (`TextInfer`, `ImageGen`, `SpeechTranscribe`, `TrainQLoRA`, `Embed`, `VoxScript`). Revision 3 invented a second `JobKind` — the split-brain the deletion inventory exists to end. Add `Compile` to `TaskKind` if compile jobs ship.
+**Note:** `kind` is the **existing** `vox_mesh_types::TaskKind` (`TextInfer`, `ImageGen`, `SpeechTranscribe`, `TrainQLoRA`, `Embed`, `VoxLang`). Revision 3 invented a second `JobKind` — the split-brain the deletion inventory exists to end. Add `Compile` to `TaskKind` if compile jobs ship.
 
 - [ ] **Step 2: Run to verify fail, implement, verify PASS**
 
@@ -669,7 +669,7 @@ pub async fn bind(sk: SecretKey) -> anyhow::Result<Endpoint> {
 #[tokio::test]
 async fn a_trusted_peer_gets_a_sandbox_by_default() {
     trust.trust(&client_id(), None).unwrap();     // ordinary pairing
-    run_job(&client, TaskKind::VoxScript, payload).await;
+    run_job(&client, TaskKind::VoxLang, payload).await;
     assert_eq!(last_limits().isolation, Isolation::Wasm);
     assert!(last_limits().wall_clock <= Duration::from_secs(300));
 }
@@ -810,7 +810,7 @@ Nothing in Phase 6 may run until these land. Spec Part 2.
   report state (`pairing_is_out_of_band`, `reachability_probed`) instead of
   emitting a `join_ok` / `heartbeat_ok` for an acknowledgement nobody sent —
   on iroh there is nothing to register with, because membership *is* pairing.
-  **`Dispatch` first-fits a `VoxScript` peer and sends `JobRequest::Run`.**
+  **`Dispatch` first-fits a `VoxLang` peer and sends `JobRequest::Run`.**
   [`PopuliActivity`] has no source field, so Dispatch errors with
   `activity \`X\` has no dispatchable source` rather than synthesizing a shim.
   **`Wait` is `completed_inline`.** HTTP `Dispatch`/`Wait` and

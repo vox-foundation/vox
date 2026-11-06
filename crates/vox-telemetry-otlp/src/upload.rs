@@ -57,6 +57,7 @@ pub async fn upload_pending_otlp_with_auth(
         return Ok(0);
     }
 
+    // drift-allow(reqwest-bypass): feature-gated OTLP exporter avoids vox-http-client crate edge
     let client = reqwest::Client::builder()
         // drift-allow(timeout-literal): bounded OTLP telemetry batch upload timeout
         .timeout(std::time::Duration::from_secs(10))
@@ -123,4 +124,42 @@ pub async fn upload_pending_otlp_with_auth(
 pub struct PendingRecord {
     pub id: String,
     pub record: RedactedRecord,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn batch_limits_match_the_documented_caps() {
+        assert_eq!(MAX_OTLP_BATCH_RECORDS, 100);
+        assert_eq!(MAX_OTLP_BATCH_BYTES, 262_144);
+    }
+
+    // Both tests below hold whether or not remote upload is consented on this machine: with
+    // consent denied the call returns `Ok(0)` immediately; with it granted, there is nothing
+    // parseable to batch, so no request is ever built or sent.
+    #[tokio::test]
+    async fn a_missing_spool_dir_uploads_nothing() {
+        let dir = tempfile::tempdir().unwrap();
+        let missing = dir.path().join("no-such-spool");
+        let n = upload_pending_otlp(&missing, "http://127.0.0.1:9/v1/logs")
+            .await
+            .unwrap();
+        assert_eq!(n, 0);
+    }
+
+    #[tokio::test]
+    async fn unparseable_spool_files_are_left_in_place_and_not_counted() {
+        let dir = tempfile::tempdir().unwrap();
+        let bad = dir.path().join("bad.json");
+        std::fs::write(&bad, "not json").unwrap();
+        let other = dir.path().join("note.txt");
+        std::fs::write(&other, "ignored").unwrap();
+        let n = upload_pending_otlp_with_auth(dir.path(), "http://127.0.0.1:9/v1/logs", Some("t"))
+            .await
+            .unwrap();
+        assert_eq!(n, 0);
+        assert!(bad.exists() && other.exists());
+    }
 }

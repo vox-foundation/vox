@@ -113,6 +113,45 @@ impl GitExec {
             exit_code: code,
         })
     }
+
+    /// Synchronous twin of [`Self::run`] for callers that are not async.
+    /// Same ban list and non-zero mapping. Does not spawn a shell.
+    pub fn run_blocking(&self, args: &[&str]) -> Result<GitOutput, GitExecError> {
+        if let Some(phrase) = is_banned(args) {
+            tracing::warn!(target: "vox.vcs.exec", phrase = %phrase, "denied banned git invocation");
+            return Err(GitExecError::Banned(phrase));
+        }
+        let started = Instant::now();
+        let output = std::process::// vox-arch-check: allow git-exec
+        Command::new("git")
+        .current_dir(&self.cwd)
+        .args(args)
+        .output()?;
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        let code = output.status.code().unwrap_or(-1);
+        let elapsed_ms = started.elapsed().as_millis() as u64;
+        tracing::debug!(
+            target: "vox.vcs.exec",
+            args = ?args,
+            cwd = %self.cwd.display(),
+            code = code,
+            elapsed_ms = elapsed_ms,
+            "git exec",
+        );
+        if code != 0 {
+            return Err(GitExecError::NonZero {
+                code,
+                stdout,
+                stderr,
+            });
+        }
+        Ok(GitOutput {
+            stdout,
+            stderr,
+            exit_code: code,
+        })
+    }
 }
 
 #[cfg(test)]
@@ -151,6 +190,13 @@ mod tests {
             is_banned(&["-c", "advice.detachedHead=false", "reset", "--hard", "abc"]).as_deref(),
             Some("reset --hard"),
         );
+    }
+
+    #[test]
+    fn run_blocking_rejects_banned_without_spawning() {
+        let exec = GitExec::new(std::env::temp_dir());
+        let err = exec.run_blocking(&["stash"]).unwrap_err();
+        assert!(matches!(err, GitExecError::Banned(_)));
     }
 
     #[tokio::test]

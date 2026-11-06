@@ -533,7 +533,7 @@ pub fn write_registry(opts: WriteRegistryOpts) -> anyhow::Result<()> {
         .map(|r| r.env_var.clone())
         .collect();
 
-    // 1. Append stub rows for unregistered source vars (skip Clavis-managed).
+    // 1. Append declared rows for unregistered source vars (skip Clavis-managed).
     for (var, file_path) in &source_vars {
         if registered.contains(var) {
             continue;
@@ -541,7 +541,7 @@ pub fn write_registry(opts: WriteRegistryOpts) -> anyhow::Result<()> {
         if clavis_names.contains(var.as_str()) {
             continue;
         }
-        let stub = KnobRow {
+        let knob_row = KnobRow {
             name: Some(env_var_to_name(var)),
             env_var: var.clone(),
             description: String::new(),
@@ -552,7 +552,7 @@ pub fn write_registry(opts: WriteRegistryOpts) -> anyhow::Result<()> {
             owner_crate: Some(crate_from_path(file_path)),
             since: Some("2026-06-15".to_string()),
         };
-        registry.knobs.push(stub);
+        registry.knobs.push(knob_row);
     }
 
     // 2. Prune orphan rows (env_var not in source, not deprecated, not null).

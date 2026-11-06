@@ -13,3 +13,5 @@ pub use action::{
 };
 pub use action::{PipelineProgress, PipelineStage, PopuliAction};
 pub use dispatch::run;
+#[cfg(feature = "gpu")]
+pub(crate) use dispatch::{assert_collateral_gate, assert_serve_preconditions};

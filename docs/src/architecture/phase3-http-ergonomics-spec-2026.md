@@ -73,8 +73,8 @@ For `GET` with a `path`, the sorted-key `encodeURIComponent(JSON.stringify(value
 
 ### 1.5 Syntax examples
 
-```vox
-// vox:skip -- illustrative: proposed @endpoint path/method params; @endpoint itself was removed in v0.6.0
+```text
+// Proposed @endpoint path/method params (@endpoint was replaced by query/mutation/server in v0.6.0)
 // Explicit GET with path param — id is extracted from the URL segment
 @endpoint(kind: query, method: GET, path: "/users/:id")
 fn get_user(id: str) to User {
@@ -131,8 +131,8 @@ If `@cors` is absent on an endpoint (and no module-scope `@cors` is in effect), 
 
 The route emitter wraps the endpoint's Axum handler in a `tower_http::cors::CorsLayer` configured from the decorator arguments. For Express (current backend), a scoped `cors()` call with an options object replaces the current global `app.use(cors())`.
 
-```vox
-// vox:skip -- illustrative: proposed @cors decorator; @endpoint itself was removed in v0.6.0
+```text
+// Proposed @cors decorator (@endpoint was replaced by query/mutation/server in v0.6.0)
 // Module-scope CORS: applies to all endpoints in this file
 @cors(origins: ["https://app.example.com"], credentials: true)
 
@@ -182,8 +182,8 @@ When `@auth(scheme: bearer)` is present on an endpoint:
 
 `@role` is proposed as a separate decorator (not merged into `@auth`) so it can be composed independently.
 
-```vox
-// vox:skip — @role requires Phase 4 Claims injection
+```text
+// Proposed @auth + @role decorators (requires Phase 4 Claims injection)
 @auth(scheme: bearer)
 @role("admin")
 @endpoint(kind: mutation, method: DELETE, path: "/users/:id")
@@ -251,8 +251,8 @@ On limit exceeded → `429` with envelope:
 
 ### 4.4 Example
 
-```vox
-// vox:skip -- illustrative: proposed @rate_limit decorator; @endpoint itself was removed in v0.6.0
+```text
+// Proposed @rate_limit decorator (@endpoint was replaced by query/mutation/server in v0.6.0)
 // Module-scope rate limit: 60 req/min per IP for all endpoints in file
 @rate_limit(per: "1m", max: 60, key: by_ip)
 
@@ -324,7 +324,6 @@ All Phase 3 decorators must be reflected in OpenAPI output before a Phase 3 endp
 The current shape (decl.rs lines 340–363) adds these fields:
 
 ```rust
-// vox:skip — proposed HIR additions
 pub struct HirEndpointFn {
     // --- existing fields ---
     pub kind: HirEndpointKind,

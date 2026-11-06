@@ -544,6 +544,8 @@ pub fn std_root_field_ty(field: &str) -> Option<Ty> {
         "mobile" => Ty::Named("StdMobileNs".into()),
         "regex" => Ty::Named("StdRegexNs".into()),
         "agentos" => Ty::Named("StdAgentosNs".into()),
+        "array" => Ty::Named("StdArrayNs".into()),
+        "frame" => Ty::Named("StdFrameNs".into()),
         "uuid" => Ty::Fn(vec![], Box::new(Ty::Str)),
         "now_ms" => Ty::Fn(vec![], Box::new(Ty::Int)),
         "hash_fast" | "hash_secure" => Ty::Fn(vec![Ty::Str], Box::new(Ty::Str)),
@@ -1749,6 +1751,38 @@ mod namespace_builtin_parity_tests {
             mismatches.is_empty(),
             "interp FS/process return-shape mismatches vs typecheck:\n{}",
             mismatches.join("\n")
+        );
+    }
+
+    #[test]
+    fn std_array_field_resolves() {
+        let src = "fn take(xs: list[float]) {\n    let a = std.array.from_list(xs)\n}\n";
+        let tokens = crate::lexer::lex(src);
+        let module = crate::parser::parse(tokens).expect("parse");
+        let mut hir = crate::hir::lower_module(&module);
+        let diags = crate::typeck::typecheck_hir_module(src, &mut hir);
+        let errors: Vec<_> = diags
+            .iter()
+            .filter(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error)
+            .map(|d| d.message.clone())
+            .collect();
+        assert!(errors.is_empty(), "{errors:?}");
+        let func = hir
+            .functions
+            .iter()
+            .find(|f| f.name == "take")
+            .expect("take");
+        let crate::hir::HirStmt::Let { value, .. } = &func.body[0] else {
+            panic!("expected let");
+        };
+        let span = crate::typeck::checker::hir_expr_span(value);
+        assert_eq!(
+            hir.inferred_types.get(&span),
+            Some(&crate::hir::HirType::Generic(
+                "Array".into(),
+                vec![crate::hir::HirType::Named("f64".into())]
+            )),
+            "std.array.from_list of list[float] is Array of f64"
         );
     }
 }

@@ -1,0 +1,3 @@
+docs-deploy push paths cover every mounted repo file and build input
+docs-quality push and pull_request paths cover every mounted repo file
+tutorial verification record parses and matches git blob hashes

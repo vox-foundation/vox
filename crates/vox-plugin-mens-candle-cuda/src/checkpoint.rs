@@ -26,10 +26,55 @@ use crate::model::CandleModel;
 
 /// Save a LoRA adapter checkpoint to `dest`.
 pub fn save(_model: &CandleModel, _dest: &str) -> anyhow::Result<()> {
-    // TODO(batch 3/4): call model.trainer.save_adapter(Path::new(dest))
+    // Planned batch 3/4: call model.trainer.save_adapter(Path::new(dest))
     anyhow::bail!(
         "vox-plugin-mens-candle-cuda: save_checkpoint not yet wired (SP3 stub). \
          Batch 3/4 will add QLoraTrainer to CandleModel and call save_adapter. \
          See checkpoint.rs for details."
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use candle_core::{DType, Device, Tensor};
+    use qlora_rs::QLoraConfig;
+    use qlora_rs::qlora::QuantizedLinear;
+    use qlora_rs::quantization::ComputeDType;
+
+    /// A zero-layer model: enough to build a `CandleModel` without weights on disk.
+    fn tiny_model() -> CandleModel {
+        let dev = Device::Cpu;
+        let d = 8usize;
+        let mut cfg = QLoraConfig::preset_all_bf16(4, 8);
+        cfg.quantization.compute_dtype = ComputeDType::F32;
+        cfg.cache_dequantized = false;
+        let w = Tensor::randn(0f32, 0.02f32, (d, d), &dev).unwrap();
+        let qwen = crate::model::Qwen35Model {
+            embed_tokens: Tensor::zeros((4, d), DType::F32, &dev).unwrap(),
+            layers: Vec::new(),
+            norm: candle_nn::RmsNorm::new(Tensor::ones(d, DType::F32, &dev).unwrap(), 1e-6),
+            lm_head: QuantizedLinear::from_weight(&w, None, &cfg, &dev).unwrap(),
+        };
+        let tokenizer = tokenizers::Tokenizer::new(tokenizers::models::bpe::BPE::default());
+        CandleModel {
+            engine: std::sync::Mutex::new(crate::inference::InferenceEngine {
+                model: crate::inference::InferenceModel::Qwen35(qwen),
+                tokenizer,
+                device: dev,
+                eos_token_ids: Vec::new(),
+            }),
+            model_path: "unused".to_string(),
+            trainer: None,
+        }
+    }
+
+    #[test]
+    fn save_reports_the_sp3_stub_instead_of_pretending_to_write() {
+        let dir = tempfile::tempdir().unwrap();
+        let dest = dir.path().join("adapter.safetensors");
+        let err = save(&tiny_model(), dest.to_str().unwrap()).unwrap_err();
+        assert!(err.to_string().contains("not yet wired"), "{err}");
+        assert!(!dest.exists(), "a stub save must not leave a file behind");
+    }
 }

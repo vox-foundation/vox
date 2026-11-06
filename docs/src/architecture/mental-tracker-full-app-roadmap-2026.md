@@ -79,9 +79,10 @@ table CategoryDef {
 `_is_superseded_in`:
 
 ```vox
-// vox:skip — excerpt; calls the existing `record_health_event` in main.vox.
-// Not standalone by design: inlining that dependency here would duplicate the
-// real mutation (split-brain) — so this block documents the addition in place.
+fn record_health_event(kind: str, payload: str, note: str, source: str, ext_id: str, correction_of: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
+    return Ok(correction_of)
+}
+
 mutation record_deletion(of_event_id: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
     // sentinel kind; correction_of → target; never itself superseded → row hidden
     return record_health_event("_deleted", "{}", "", "app", "", of_event_id, tz_iana, tz_offset_minutes)

@@ -117,7 +117,7 @@ pub async fn battle_submit(companion_name: &str, code_file: &std::path::Path) ->
     let code = read_utf8_path_capped(code_file)?;
     let user_id = vox_gamify::db::canonical_user_id();
 
-    let is_success = !code.contains("todo!()") && !code.is_empty(); // toestub-ignore(stub)
+    let is_success = !code.contains("todo!()") && !code.is_empty(); // toestub-ignore(stub) -- literal check for user submission
 
     let result = run_battle_submit(&db, &user_id, companion_name, code, is_success).await?;
 
@@ -173,10 +173,31 @@ pub async fn battle_submit(companion_name: &str, code_file: &std::path::Path) ->
                 }
             } else {
                 println!("  ❌ Oh no! The bug fought back.");
-                println!("  Make sure your code works and has no `todo!()` remaining."); // toestub-ignore(stub)
+                println!("  Make sure your code works and has no `todo!()` remaining."); // toestub-ignore(stub) -- user-facing hint message
             }
         }
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `battle_start` needs the gamification DB, so this exercises the scan it performs first,
+    /// with the same config shape: an empty tree yields no finding, i.e. the "No bugs found"
+    /// early return rather than a battle.
+    #[test]
+    fn scan_config_used_by_battle_start_finds_nothing_in_an_empty_tree() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = ToestubConfig {
+            roots: vec![dir.path().to_path_buf()],
+            min_severity: Severity::Warning,
+            excludes: vec![".git".to_string(), "target".to_string()],
+            ..Default::default()
+        };
+        let (result, _report) = ToestubEngine::new(config).run_and_report();
+        assert!(result.findings.is_empty());
+    }
 }

@@ -20,7 +20,7 @@
 
 use crate::ast::span::Span;
 use crate::hir::nodes::durability::DurabilityKind;
-use crate::hir::{HirArg, HirExpr, HirFn, HirModule, HirStmt};
+use crate::hir::{HirArg, HirCapability, HirExpr, HirFn, HirModule, HirStmt};
 use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, TypeckSeverity};
 use std::collections::{HashMap, HashSet};
 
@@ -60,6 +60,9 @@ pub fn check_workflow_determinism(hir: &HirModule, _source: &str) -> Vec<Diagnos
         }
         let mut visited: HashSet<&str> = HashSet::new();
         visited.insert(f.name.as_str());
+        if let Some(cap) = declared_python_capability(f) {
+            emit_diag(cap, f.span, &mut diags);
+        }
         for stmt in &f.body {
             walk_stmt(stmt, &by_name, &mut visited, &mut diags);
         }
@@ -110,6 +113,26 @@ fn ident_path(expr: &HirExpr) -> Option<String> {
             Some(p)
         }
         _ => None,
+    }
+}
+
+/// `python` / `python_unverified` on a non-activity fn are non-deterministic
+/// capabilities. `python_unverified` wins when both are declared so the
+/// diagnostic names the broader grant.
+fn declared_python_capability(f: &HirFn) -> Option<&'static str> {
+    if f.capabilities
+        .iter()
+        .any(|c| matches!(c, HirCapability::PythonUnverified))
+    {
+        Some("python_unverified")
+    } else if f
+        .capabilities
+        .iter()
+        .any(|c| matches!(c, HirCapability::Python))
+    {
+        Some("python")
+    } else {
+        None
     }
 }
 
@@ -171,11 +194,23 @@ fn walk_expr<'a>(
             // result is journalled, so internal non-determinism is
             // replay-safe (see module docs). `visited` breaks cycles in
             // the call graph by name.
-            if callee.durability != Some(DurabilityKind::Activity)
-                && visited.insert(callee.name.as_str())
-            {
-                for s in &callee.body {
-                    walk_stmt(s, by_name, visited, diags);
+            //
+            // A plain fn (or the workflow itself, checked at the entry)
+            // that declares `uses python` / `uses python_unverified` is
+            // non-deterministic even if its body has no blocklisted call.
+            // Activities stay exempt and are not recursed into.
+            if callee.durability != Some(DurabilityKind::Activity) {
+                if let Some(cap) = declared_python_capability(callee) {
+                    let span = match expr {
+                        HirExpr::MethodCall(_, _, _, _, s) | HirExpr::Call(_, _, _, s) => *s,
+                        _ => Span { start: 0, end: 0 },
+                    };
+                    emit_diag(cap, span, diags);
+                }
+                if visited.insert(callee.name.as_str()) {
+                    for s in &callee.body {
+                        walk_stmt(s, by_name, visited, diags);
+                    }
                 }
             }
         }
@@ -317,5 +352,71 @@ fn walk_stmt<'a>(
             }
         }
         HirStmt::Break { .. } | HirStmt::Continue { .. } => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ast::span::Span;
+    use crate::hir::nodes::durability::DurabilityKind;
+    use crate::hir::{DefId, HirCapability, HirModule};
+
+    fn workflow(name: &str, caps: Vec<HirCapability>, durability: DurabilityKind) -> HirFn {
+        HirFn {
+            id: DefId(0),
+            name: name.to_string(),
+            generics: vec![],
+            params: vec![],
+            return_type: None,
+            body: vec![],
+            is_async: false,
+            is_pub: false,
+            is_mobile_native: false,
+            is_pure: false,
+            is_reactive: false,
+            is_versioned: false,
+            capabilities: caps,
+            is_remote: false,
+            is_llm: false,
+            is_traced: false,
+            llm_model: None,
+            ai_structured_output: None,
+            ai_fixture: None,
+            embed: None,
+            is_deprecated: false,
+            deprecated_reason: None,
+            schedule_interval: None,
+            durability: Some(durability),
+            actor_state_fields: vec![],
+            postconditions: vec![],
+            ts_extern_module: None,
+            generated_hash: None,
+            span: Span::new(0, 1),
+            inference_model: None,
+            training_step: false,
+            distributed_train: None,
+            placement_override: None,
+        }
+    }
+
+    #[test]
+    fn workflow_python_capability_emits_non_deterministic_diagnostic() {
+        let module = HirModule {
+            functions: vec![workflow(
+                "w",
+                vec![HirCapability::Python],
+                DurabilityKind::Workflow,
+            )],
+            ..Default::default()
+        };
+        let diags = check_workflow_determinism(&module, "");
+        assert!(
+            diags.iter().any(|d| {
+                d.code.as_deref() == Some("lint.workflow.non_deterministic")
+                    && d.message.contains("python")
+            }),
+            "workflow declaring python must be flagged; got {diags:?}"
+        );
     }
 }

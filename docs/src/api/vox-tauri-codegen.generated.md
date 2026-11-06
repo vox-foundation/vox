@@ -69,3 +69,37 @@ Tauri / Android / iOS packaging map (see `docs/src/adr/036-webir-hir-unification
 |---|---|
 | `RUNTIME_CAPABILITIES_REL` | Relative path from repository root to the runtime capability packaging SSOT. |
 
+## Dependency Topology
+
+```vox-diagram
+graph {
+    direction: right
+    node vox_tauri_codegen: "vox-tauri-codegen"
+    node vox_compiler: "vox-compiler"
+    vox_tauri_codegen -> vox_compiler
+    node vox_cli: "vox-cli"
+    vox_cli -> vox_tauri_codegen
+    node vox_codegen: "vox-codegen"
+    vox_codegen -> vox_tauri_codegen
+}
+```
+
+## Reverse Dependents (Used By)
+
+| Consumer Crate | Role |
+|---|---|
+| [`vox-cli`](./vox-cli.generated.md) | Direct workspace dependent |
+| [`vox-codegen`](./vox-codegen.generated.md) | Direct workspace dependent |
+
+### Deep Public Symbols (Source-Anchored)
+
+| Kind | Symbol | Signature | Source | Description |
+|---|---|---|---|---|
+| `struct` | `TauriEmitParams` | `pub struct TauriEmitParams<'a>` | [`crates/vox-tauri-codegen/src/lib.rs#L22-L26`](../../../crates/vox-tauri-codegen/src/lib.rs#L22-L26) | — |
+| `fn` | `tauri_desktop_config_value` | `pub fn tauri_desktop_config_value(params: &TauriEmitParams<'_>) -> serde_json::Value` | [`crates/vox-tauri-codegen/src/lib.rs#L72-L91`](../../../crates/vox-tauri-codegen/src/lib.rs#L72-L91) | Build the desktop `tauri.conf.json` document (Tauri CLI v2). |
+| `fn` | `serialize_tauri_desktop_config` | `pub fn serialize_tauri_desktop_config(params: &TauriEmitParams<'_>) -> Result<String>` | [`crates/vox-tauri-codegen/src/lib.rs#L94-L97`](../../../crates/vox-tauri-codegen/src/lib.rs#L94-L97) | Pretty-printed `tauri.conf.json` body for embedding into generated `src-tauri/`. |
+| `fn` | `write_tauri_desktop_config` | `pub fn write_tauri_desktop_config(path: &Path, params: &TauriEmitParams<'_>) -> Result<()>` | [`crates/vox-tauri-codegen/src/lib.rs#L100-L108`](../../../crates/vox-tauri-codegen/src/lib.rs#L100-L108) | Write a V2 `tauri.conf.json` (overwrites). Used by `vox compile` to refresh bundle ids after codegen. |
+| `fn` | `seed_placeholder_icon` | `pub fn seed_placeholder_icon(src_tauri_dir: &Path) -> Result<()>` | [`crates/vox-tauri-codegen/src/lib.rs#L119-L127`](../../../crates/vox-tauri-codegen/src/lib.rs#L119-L127) | — |
+| `fn` | `find_contracts_repo_root` | `pub fn find_contracts_repo_root(start: &Path) -> Option<PathBuf>` | [`crates/vox-tauri-codegen/src/lib.rs#L131-L142`](../../../crates/vox-tauri-codegen/src/lib.rs#L131-L142) | Walk parents of `start` until `contracts/capability/runtime-capabilities.v1.yaml` exists. |
+| `fn` | `emit_tauri_packaging_hints` | `pub fn emit_tauri_packaging_hints(` | [`crates/vox-tauri-codegen/src/lib.rs#L248`](../../../crates/vox-tauri-codegen/src/lib.rs#L248) | Writes `tauri/tauri.conf.json` plus `tauri/README.md` under `out_root`.  When `contracts_repo_root` is `Some` and contains [`RUNTIME_CAPABILITIES_REL`], also writes `runtime-capabilities.projection.json` beside those files. Pass `required` to include only capability rows whose ids appear in [`vox_compiler::required_capabilities::RequiredRuntimeCapabilities::capability_ids`] (plus a derived `tauri_permission_allow_list`); pass `None` to mirror the full YAML contract.  Consumers run **`cargo tauri build`** from a `src-tauri` crate that includes or merges this config (see README). |
+
