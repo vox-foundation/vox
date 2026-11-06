@@ -185,7 +185,7 @@ Plans:
 **Requirements**: DOCS-DRIFT-01..06
 **Depends on:** Phase 342
 **SSOT:** `docs/src/architecture/docs-system-ssot.md`
-**Plans:** 0 plans
+**Plans:** 9 plans
 
 - **DOCS-DRIFT-01 (prevent, regen-list parity):** derive `scripts/ssot-regen.vox`'s regenerator list from `run_ssot_drift`'s stage table (or add a parity check that fails on mismatch). Removes the "keep in sync" hand list.
 - **DOCS-DRIFT-02 (detect, overlay parity):** a `vox ci` check that extracts normative claims (forbidden/required frontmatter keys, retired symbols, banned commands) from `AGENTS.md` and fails when `.cursor/rules/*.mdc`, `GEMINI.md`, `CLAUDE.md` or `.github/copilot-instructions.md` contradict them. First fix: the `last_updated` contradiction in `documentation-policy.mdc`.
@@ -195,7 +195,32 @@ Plans:
 - **DOCS-DRIFT-06 (meta-gate):** a test asserts that every gate listed in docs-system-ssot §4 is wired where the table says (pre-push tier / `docs-quality.yml` / nightly). It also asserts §6 lists only gaps with no matching gate. The map can then never silently disagree with the machinery.
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 343 to break down)
+**Wave 1**
+- [ ] 343-01-PLAN.md — ssot-drift stage table + `ssot_regen_parity` (ssot-regen.vox and lefthook retry list checked against it); decision on the lefthook retry list (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 343-02-PLAN.md — overlay parity: AGENTS.md claims YAML checked against CLAUDE/GEMINI/copilot/.cursor overlays; `last_updated` and other contradictions fixed; decision on the build-environment cargo path (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 343-03-PLAN.md — CLI-claims stage (clap tree + registry): agent files gated, reader-facing pages measured; decision fix-vs-baseline for reader-facing defects (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 343-04-PLAN.md — fix every reader-facing CLI-claim defect and enforce the reader-facing scope (wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 343-05-PLAN.md — dead guards removed or made fatal (`check_docs_ssot`, `check-links`, retired-symbol overlays); decision on expired link-allowlist entries (wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 343-06-PLAN.md — corrected inbound-link graph + `docs_orphan_pages` stage; decision on orphan linking vs shrink-only baseline (wave 6)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 343-07-PLAN.md — idempotent ledger refresh + `Docs Drift Refresh` draft-PR workflow; decisions on `.lycheeignore` scope and reality-audit/self-heal (wave 7)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 343-08-PLAN.md — lychee triage script into the bot PR, reality-audit/self-heal decision applied, docs describe what runs (wave 8)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [ ] 343-09-PLAN.md — `docs_system_parity` meta-gate: §4 wiring proven against the machinery, §6 lists only open gaps (wave 9)
 
 ---
 

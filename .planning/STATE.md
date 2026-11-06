@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 milestone: v5.7
 milestone_name: Vox ↔ Python Bridge & Tolerant CLI Ergonomics
-current_phase: 327
-current_phase_name: std.frame on polars
-stopped_at: Phase 327 plans 01–04 done. Plan 05 blocked on human approval of polars==2.1.0. CONTEXT records two-tier full-Python-power rule.
+current_phase: 343
+current_phase_name: Docs System SSOT and Automated Drift Control
 status: executing
-last_updated: "2026-11-04T07:05:00Z"
+stopped_at: Phase 327 plans 01–04 done. Plan 05 blocked on human approval of polars==2.1.0. CONTEXT records two-tier full-Python-power rule.
+last_updated: "2026-11-06T13:36:30.680Z"
 last_activity: 2026-11-04
 last_activity_desc: 327-04 SUMMARY committed; waiting on polars pin approval + Tier1/Tier2 LLM-target constraint
-state_head: b00400a98c551c00ec2c2c8d67262d620a7678f3
+state_head: dac078de59f4535501117d8661c9c46e358b22ad
 progress:
-  total_phases: 8
+  total_phases: 11
   completed_phases: 1
-  total_plans: 15
+  total_plans: 35
   completed_plans: 9
   percent: 0
 ---
@@ -22,7 +22,7 @@ progress:
 
 ## Current Position
 
-Phase: 327 `std.frame` on polars — plans 01, 06, 02, 03, 04 complete; plan 05 at human gate.
+Phase: 343 (Docs System SSOT and Automated Drift Control) — READY TO EXECUTE
 Plan: 327-05 (approve polars==2.1.0, then golden)
 Status: CR-02/CR-03 stay open. Do not commit STATE/ROADMAP/REQUIREMENTS or mid.rs into 327 task commits. Polars stays uninstalled until resume signal `approved`. Operator locked two-tier rule: Tier 1 curated Vox allowlists (LLM corpus); Tier 2 `import py` (phase 329) for scipy/sklearn/pandas long tail — never mirror full library APIs into Vox syntax.
 Last activity: 2026-11-04 — 327-04 complete (`087f292cb`); CONTEXT updated for full-Python-power without breaking LLM-target Vox.
