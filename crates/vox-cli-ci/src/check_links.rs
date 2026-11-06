@@ -109,6 +109,7 @@ pub fn run(repo_root: &Path, target: Option<&Path>) -> Result<()> {
 
     // Match [text](target) where target is not external or anchor-only
     let link_re = Regex::new(r"\[[^\]]+\]\(([^)]+)\)").unwrap();
+    let inline_code_re = Regex::new(r"`[^`]*`").unwrap();
 
     let mut markdown_files = Vec::new();
 
@@ -171,7 +172,10 @@ pub fn run(repo_root: &Path, target: Option<&Path>) -> Result<()> {
                 continue;
             }
 
-            for cap in link_re.captures_iter(line) {
+            // `[label](url)` inside an inline code span is an example, not a link.
+            // Replace (not delete) so a code-span label like [`fn`](path) is still checked.
+            let line = inline_code_re.replace_all(line, "code");
+            for cap in link_re.captures_iter(&line) {
                 let target_full = &cap[1];
 
                 // Skip external links, local anchors, and intra-doc Rust symbol references
@@ -290,6 +294,19 @@ fn check_anchor(path: &Path, anchor: &str) -> bool {
         Err(_) => return false,
     };
 
+    // GitHub-style line anchors (`#L12`, `#L12-L20`) on source files: valid iff the lines exist.
+    let is_markdown = path.extension().is_some_and(|e| e == "md" || e == "mdx");
+    if !is_markdown {
+        let re = Regex::new(r"^L(\d+)(?:-L(\d+))?$").expect("regex");
+        if let Some(caps) = re.captures(anchor) {
+            let start: usize = caps[1].parse().unwrap_or(0);
+            let end: usize = caps
+                .get(2)
+                .map_or(start, |m| m.as_str().parse().unwrap_or(0));
+            return start >= 1 && start <= end && end <= content.lines().count();
+        }
+    }
+
     // Convert anchor to a header string. Example: "phase-1:-harden-the-core-ci-link-checker"
     // This is a simplistic check, matching `# some text` ignoring case and punctuation where needed.
     // For robust matching, we look for an explicit inline `<a id="...">` or `<a name="...">` OR a header line.
@@ -378,6 +395,37 @@ mod tests {
         assert_eq!(strip_source_line_suffix("foo.rs:12"), "foo.rs");
         assert_eq!(strip_source_line_suffix("foo.rs:12-24"), "foo.rs");
         assert_eq!(strip_source_line_suffix("some_text"), "some_text");
+    }
+
+    #[test]
+    fn line_anchor_on_source_file_checks_line_range() {
+        let temp = tempfile::tempdir().unwrap();
+        let rs = temp.path().join("a.rs");
+        std::fs::write(&rs, "fn a() {}\nfn b() {}\nfn c() {}\n").unwrap();
+        assert!(check_anchor(&rs, "L2"));
+        assert!(check_anchor(&rs, "L1-L3"));
+        assert!(!check_anchor(&rs, "L4"));
+        assert!(!check_anchor(&rs, "L2-L9"));
+        assert!(!check_anchor(&rs, "L0"));
+        // Markdown keeps heading semantics: `#L2` is not a line anchor there.
+        let md = temp.path().join("a.md");
+        std::fs::write(&md, "one\ntwo\n").unwrap();
+        assert!(!check_anchor(&md, "L2"));
+    }
+
+    #[test]
+    fn links_inside_inline_code_are_ignored() {
+        let temp = tempfile::tempdir().unwrap();
+        let src = temp.path().join("docs").join("src");
+        std::fs::create_dir_all(&src).unwrap();
+        let doc = src.join("page.md");
+        std::fs::write(&doc, "Replaces `[label](url)` with `label`.\n").unwrap();
+        assert!(run(temp.path(), Some(&doc)).is_ok());
+        std::fs::write(&doc, "See [label](url).\n").unwrap();
+        assert!(run(temp.path(), Some(&doc)).is_err());
+        // A code-span *label* must not hide the link from the check.
+        std::fs::write(&doc, "See [`fn_a`](missing.rs#L1).\n").unwrap();
+        assert!(run(temp.path(), Some(&doc)).is_err());
     }
 
     #[test]
