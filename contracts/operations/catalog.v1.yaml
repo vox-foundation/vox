@@ -28680,7 +28680,7 @@ operations:
   description_human: null
   product_lane: platform
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null

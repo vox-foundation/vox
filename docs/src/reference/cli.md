@@ -993,6 +993,7 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `plugin` | default | `commands::plugin` |
 | `policy` | default | `commands::policy` |
 | `populi` | default | delegated to `vox-ml-cli` |
+| `py` | default | `commands::py` (`py sync` records `uv.lock`; `py doctor` reports the bridge environment) |
 | `doctor` | default / `codex` | `commands::doctor` or `commands::diagnostics::doctor` |
 | `secrets` | default | `commands::secrets` |
 | `clavis` | default | deprecated alias of `secrets` |

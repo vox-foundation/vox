@@ -15305,7 +15305,7 @@ curated:
   description_human: null
   description_model: CLI operation `vox py`
   intent_tags: []
-  side_effect_class: null
+  side_effect_class: writes_files
   scope_kind: null
   reversible: null
   requires_repo: null
