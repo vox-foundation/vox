@@ -1,8 +1,8 @@
 //! `vox ci suppression-review-gate` — advisory when a PR looks suppression-only.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use vox_orchestrator_mcp::git_exec::{GitExec, GitExecError};
 
 fn looks_like_suppression_path(path: &str) -> bool {
     let p = path.replace('\\', "/");
@@ -12,11 +12,12 @@ fn looks_like_suppression_path(path: &str) -> bool {
 }
 
 fn git_diff_names(root: &Path, base: &str) -> Result<Vec<String>> {
-    let out = Command::new("git")
-        .args(["-C", &root.to_string_lossy(), "diff", "--name-only", base])
-        .output()
-        .context("git diff")?;
-    Ok(String::from_utf8_lossy(&out.stdout)
+    let stdout = match GitExec::new(root).run_blocking(&["diff", "--name-only", base]) {
+        Ok(out) => out.stdout,
+        Err(GitExecError::NonZero { stdout, .. }) => stdout,
+        Err(err) => return Err(err.into()),
+    };
+    Ok(stdout
         .lines()
         .map(str::trim)
         .filter(|l| !l.is_empty())
@@ -58,15 +59,10 @@ pub fn run(root: &Path, args: SuppressionReviewArgs) -> Result<()> {
         .collect();
     let only_suppressions = !suppressionish.is_empty()
         && files.iter().all(|f| {
-            looks_like_suppression_path(f)
-                || f.ends_with(".md")
-                || f.starts_with(".planning/")
+            looks_like_suppression_path(f) || f.ends_with(".md") || f.starts_with(".planning/")
         });
 
-    let labeled = std::env::var("NEEDS_HUMAN_REVIEW")
-        .ok()
-        .as_deref()
-        == Some("1")
+    let labeled = std::env::var("NEEDS_HUMAN_REVIEW").ok().as_deref() == Some("1")
         || std::env::var("GITHUB_PR_LABELS")
             .unwrap_or_default()
             .contains("needs-human-review");

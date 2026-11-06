@@ -54,6 +54,46 @@ impl UntestedPubApiDetector {
     fn non_blank_line_count(file: &SourceFile) -> usize {
         file.lines.iter().filter(|l| !l.trim().is_empty()).count()
     }
+
+    /// True if a sibling `<stem>_tests.rs`, `<stem>_test.rs`, or `tests.rs` exists on disk,
+    /// or if the enclosing crate's `tests/` directory references any of `pub_fns`.
+    fn has_external_test_companion(path: &std::path::Path, pub_fns: &[(String, usize)]) -> bool {
+        let Some(parent) = path.parent() else {
+            return false;
+        };
+        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+        let candidates = [
+            parent.join(format!("{stem}_tests.rs")),
+            parent.join(format!("{stem}_test.rs")),
+            parent.join("tests.rs"),
+            parent.join(stem).join("tests.rs"),
+        ];
+        if candidates.iter().any(|p| p.is_file()) {
+            return true;
+        }
+        // Walk up to find the crate root (directory containing Cargo.toml) and check its `tests/` dir.
+        let mut dir = Some(parent);
+        while let Some(d) = dir {
+            if d.join("Cargo.toml").is_file() {
+                let integration_dir = d.join("tests");
+                if let Ok(entries) = std::fs::read_dir(&integration_dir) {
+                    for entry in entries.flatten() {
+                        if entry.path().extension().and_then(|e| e.to_str()) == Some("rs")
+                            && let Ok(content) = std::fs::read_to_string(entry.path())
+                            && pub_fns
+                                .iter()
+                                .any(|(fn_name, _)| content.contains(fn_name.as_str()))
+                        {
+                            return true;
+                        }
+                    }
+                }
+                break;
+            }
+            dir = d.parent();
+        }
+        false
+    }
 }
 
 impl DetectionRule for UntestedPubApiDetector {
@@ -185,7 +225,10 @@ impl DetectionRule for UntestedPubApiDetector {
         };
         v.visit_file(ast);
 
-        if v.has_test || v.pub_fns.is_empty() {
+        if v.has_test
+            || v.pub_fns.is_empty()
+            || Self::has_external_test_companion(&file.path, &v.pub_fns)
+        {
             return vec![];
         }
 

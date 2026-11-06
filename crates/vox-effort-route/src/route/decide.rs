@@ -22,7 +22,7 @@ pub fn decide_json_schema(vox_capable: bool) -> serde_json::Value {
         "None",
     ];
     if vox_capable {
-        forms.push("VoxScript");
+        forms.push("VoxLang");
     }
     serde_json::json!({
       "type":"object",
@@ -62,13 +62,13 @@ mod tests {
     fn schema_excludes_vox_when_incapable() {
         let s = decide_json_schema(false);
         let arr = s["properties"]["artifact_form"]["enum"].as_array().unwrap();
-        assert!(!arr.iter().any(|v| v == "VoxScript"));
+        assert!(!arr.iter().any(|v| v == "VoxLang"));
     }
     #[test]
     fn schema_includes_vox_when_capable() {
         let s = decide_json_schema(true);
         let arr = s["properties"]["artifact_form"]["enum"].as_array().unwrap();
-        assert!(arr.iter().any(|v| v == "VoxScript"));
+        assert!(arr.iter().any(|v| v == "VoxLang"));
     }
 }
 
@@ -116,14 +116,14 @@ mod semcov_wave7_tests {
         assert_eq!(max, 1.0, "confidence maximum must be 1");
     }
 
-    // Catches: VoxScript remaining in schema when vox_capable=false after a refactor
+    // Catches: VoxLang remaining in schema when vox_capable=false after a refactor
     #[test]
-    fn schema_vox_script_absent_when_not_capable() {
+    fn schema_vox_lang_absent_when_not_capable() {
         let s = decide_json_schema(false);
         let forms = s["properties"]["artifact_form"]["enum"].as_array().unwrap();
         assert!(
-            !forms.iter().any(|v| v.as_str() == Some("VoxScript")),
-            "VoxScript must not appear in schema when vox_capable=false"
+            !forms.iter().any(|v| v.as_str() == Some("VoxLang")),
+            "VoxLang must not appear in schema when vox_capable=false"
         );
     }
 

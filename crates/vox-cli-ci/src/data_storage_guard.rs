@@ -319,6 +319,54 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
         }
     }
 
+    // All-TursoDB Persistence Policy: forbid rival embedded DB crates in crates/*/Cargo.toml
+    if run_all || opts.only.contains(&"turso-only-persistence".to_string()) {
+        let cargo_pattern = root.join("crates/*/Cargo.toml");
+        if let Ok(entries) = glob::glob(&cargo_pattern.to_string_lossy()) {
+            let banned_deps = [
+                "sled",
+                "redb",
+                "rocksdb",
+                "lmdb",
+                "duckdb",
+                "diesel",
+                "sea-orm",
+                "libsqlite3-sys",
+            ];
+            for entry in entries.filter_map(|e| e.ok()) {
+                if let Ok(content) = std::fs::read_to_string(&entry) {
+                    let rel = entry.strip_prefix(&root).unwrap_or(&entry).display();
+                    let mut in_dev_deps = false;
+                    for line in content.lines() {
+                        let trimmed = line.trim();
+                        if trimmed.starts_with('[') {
+                            in_dev_deps = trimmed.starts_with("[dev-dependencies");
+                            continue;
+                        }
+                        if trimmed.starts_with('#') || trimmed.is_empty() {
+                            continue;
+                        }
+                        if let Some((lhs, _)) = trimmed.split_once('=') {
+                            let key = lhs.trim().trim_matches('"');
+                            if banned_deps.contains(&key) {
+                                report.violations.push(format!(
+                                    "turso-only-persistence: {} declares banned non-Turso database dependency `{}`",
+                                    rel, key
+                                ));
+                            }
+                            if key == "rusqlite" && !in_dev_deps {
+                                report.violations.push(format!(
+                                    "turso-only-persistence: {} declares `rusqlite` outside [dev-dependencies]; production code must use `turso` via `vox-db`",
+                                    rel
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     if !opts.json {
         if report.violations.is_empty() {
             println!("DataStorageGuard check passed.");
@@ -357,5 +405,55 @@ mod tests {
         let bad_policy_path = manifest.join("../../tests/fixtures/bad-data-storage-policy.yaml");
         let res = load_policy(&bad_policy_path);
         assert!(res.is_err(), "Bad policy should fail schema validation");
+    }
+
+    #[test]
+    fn workspace_passes_turso_only_persistence_guard() {
+        let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let repo_root = manifest.join("../..");
+        let cargo_pattern = repo_root.join("crates/*/Cargo.toml");
+        let entries = glob::glob(&cargo_pattern.to_string_lossy()).expect("glob pattern");
+        let banned_deps = [
+            "sled",
+            "redb",
+            "rocksdb",
+            "lmdb",
+            "duckdb",
+            "diesel",
+            "sea-orm",
+            "libsqlite3-sys",
+        ];
+        let mut scanned = 0u32;
+        let mut violations = Vec::new();
+        for entry in entries.filter_map(|e| e.ok()) {
+            let content = std::fs::read_to_string(&entry).expect("read Cargo.toml");
+            scanned += 1;
+            let rel = entry.strip_prefix(&repo_root).unwrap_or(&entry).display();
+            let mut in_dev_deps = false;
+            for line in content.lines() {
+                let trimmed = line.trim();
+                if trimmed.starts_with('[') {
+                    in_dev_deps = trimmed.starts_with("[dev-dependencies");
+                    continue;
+                }
+                if trimmed.starts_with('#') || trimmed.is_empty() {
+                    continue;
+                }
+                if let Some((lhs, _)) = trimmed.split_once('=') {
+                    let key = lhs.trim().trim_matches('"');
+                    if banned_deps.contains(&key) {
+                        violations.push(format!("{rel}: banned dep `{key}`"));
+                    }
+                    if key == "rusqlite" && !in_dev_deps {
+                        violations.push(format!("{rel}: rusqlite outside [dev-dependencies]"));
+                    }
+                }
+            }
+        }
+        assert!(scanned > 20, "expected >20 crates scanned, got {scanned}");
+        assert!(
+            violations.is_empty(),
+            "turso-only-persistence violations: {violations:?}"
+        );
     }
 }

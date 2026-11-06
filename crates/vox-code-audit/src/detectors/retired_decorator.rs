@@ -228,9 +228,9 @@ parser would otherwise report the literal text as an unknown token."
                     "Retired form `@py.import` — Python interop has been removed.".to_string(),
                     "Replace with a Vox-native equivalent or call the upstream service via HTTP. \
                      If Python automation glue is needed, port the script to `.vox` per AGENTS.md \
-                     §VoxScript-First Glue Code."
+                     §VoxLang-First Glue Code."
                         .to_string(),
-                    "AGENTS.md §Retired Surfaces + §VoxScript-First Glue Code: Python is no \
+                    "AGENTS.md §Retired Surfaces + §VoxLang-First Glue Code: Python is no \
                      longer a Vox glue surface. `@py.import` directives leak Python-side state \
                      into the Vox compiler and cannot be analyzed by the effect system.",
                 ));

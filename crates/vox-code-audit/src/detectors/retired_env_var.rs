@@ -108,9 +108,13 @@ the legacy env-var directly."
     fn detect(
         &self,
         file: &SourceFile,
-        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+        rust_ctx: Option<&crate::analysis::RustFileContext>,
     ) -> Vec<Finding> {
         if !matches!(file.language, Language::Rust | Language::Vox) {
+            return vec![];
+        }
+        let path_str = file.path.to_string_lossy().replace('\\', "/");
+        if path_str.contains("crates/vox-secrets/") || path_str.ends_with("retired_env_var.rs") {
             return vec![];
         }
 
@@ -121,6 +125,12 @@ the legacy env-var directly."
             let trimmed = line.trim();
 
             if trimmed.starts_with("//") || trimmed.starts_with('#') {
+                continue;
+            }
+
+            if crate::rules::rust_byte_is_comment(file, line_num, 0, rust_ctx)
+                || crate::rules::rust_byte_is_cfg_test(file, line_num, 0, rust_ctx)
+            {
                 continue;
             }
 

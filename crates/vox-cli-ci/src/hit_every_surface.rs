@@ -1,9 +1,9 @@
 //! `vox ci hit-every-surface` — advisory checklist when a diff spans surface classes.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use vox_orchestrator_mcp::git_exec::{GitExec, GitExecError};
 
 const CHECKLIST: &[&str] = &[
     "entry points (CLI / Tauri / MCP registration)",
@@ -22,7 +22,8 @@ fn classify(path: &str) -> Option<&'static str> {
         Some("gui")
     } else if p.starts_with("crates/vox-orchestrator-mcp/") || p.contains("/mcp") {
         Some("mcp")
-    } else if p.starts_with("crates/vox-orchestrator/") || p.starts_with("crates/vox-actor-runtime/")
+    } else if p.starts_with("crates/vox-orchestrator/")
+        || p.starts_with("crates/vox-actor-runtime/")
     {
         Some("harness")
     } else if p.starts_with("contracts/") {
@@ -35,11 +36,12 @@ fn classify(path: &str) -> Option<&'static str> {
 }
 
 fn git_diff_names(root: &Path, base: &str) -> Result<Vec<String>> {
-    let out = Command::new("git")
-        .args(["-C", &root.to_string_lossy(), "diff", "--name-only", base])
-        .output()
-        .context("git diff")?;
-    Ok(String::from_utf8_lossy(&out.stdout)
+    let stdout = match GitExec::new(root).run_blocking(&["diff", "--name-only", base]) {
+        Ok(out) => out.stdout,
+        Err(GitExecError::NonZero { stdout, .. }) => stdout,
+        Err(err) => return Err(err.into()),
+    };
+    Ok(stdout
         .lines()
         .map(str::trim)
         .filter(|l| !l.is_empty())
@@ -77,7 +79,10 @@ pub fn run(root: &Path, args: HitEverySurfaceArgs) -> Result<()> {
     }
 
     let ack = std::env::var("HIT_EVERY_SURFACE").ok().as_deref() == Some("1");
-    println!("hit-every-surface: classes={classes:?} files={}", files.len());
+    println!(
+        "hit-every-surface: classes={classes:?} files={}",
+        files.len()
+    );
     if classes.len() >= 2 && !ack {
         println!("hit-every-surface: advisory — complete the multi-surface checklist:");
         for (i, row) in CHECKLIST.iter().enumerate() {

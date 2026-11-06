@@ -6,6 +6,7 @@ pub struct SprawlDetector {
     pub max_files_per_dir: usize,
     /// Basenames that are too generic (`utils.rs`, …) and encourage unclear module boundaries.
     pub forbidden_names: Vec<String>,
+    dir_count_cache: std::sync::Mutex<std::collections::HashMap<std::path::PathBuf, usize>>,
 }
 
 impl Default for SprawlDetector {
@@ -19,6 +20,7 @@ impl Default for SprawlDetector {
                 "misc.py".to_string(),
                 "common.vox".to_string(),
             ],
+            dir_count_cache: std::sync::Mutex::new(std::collections::HashMap::new()),
         }
     }
 }
@@ -97,12 +99,19 @@ impl DetectionRule for SprawlDetector {
             });
         }
 
-        // 2. Directory count check (This is technically checked by the Engine/Scanner,
-        // but as a rule, we can flag files sitting in over-populated directories).
-        if let Some(parent) = file.path.parent()
-            && let Ok(entries) = std::fs::read_dir(parent)
-        {
-            let count = entries.count();
+        // 2. Directory count check (cached per parent directory across the scan).
+        if let Some(parent) = file.path.parent() {
+            let count = if let Ok(mut cache) = self.dir_count_cache.lock() {
+                if let Some(&c) = cache.get(parent) {
+                    c
+                } else {
+                    let c = std::fs::read_dir(parent).map(|e| e.count()).unwrap_or(0);
+                    cache.insert(parent.to_path_buf(), c);
+                    c
+                }
+            } else {
+                std::fs::read_dir(parent).map(|e| e.count()).unwrap_or(0)
+            };
             if count > self.max_files_per_dir {
                 findings.push(Finding {
                     rule_id: self.id().to_string(),

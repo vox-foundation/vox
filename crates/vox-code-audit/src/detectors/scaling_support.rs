@@ -76,12 +76,25 @@ fn path_expr_is_fs_unbounded_read(p: &ExprPath) -> bool {
 }
 
 /// AST-backed `std::fs` unbounded reads (`read_to_string` / `read`). Empty when parse fails.
-pub(super) fn fs_unbounded_read_findings(file: &SourceFile) -> Vec<Finding> {
+pub(super) fn fs_unbounded_read_findings(
+    file: &SourceFile,
+    rust_ctx: Option<&crate::analysis::RustFileContext>,
+) -> Vec<Finding> {
     if file.language != Language::Rust {
         return Vec::new();
     }
-    let Ok(ast) = syn::parse_file(&file.content) else {
-        return Vec::new();
+    let fallback;
+    let ast = if let Some(ctx) = rust_ctx {
+        let Ok(a) = &ctx.ast else {
+            return Vec::new();
+        };
+        a
+    } else {
+        let Ok(a) = syn::parse_file(&file.content) else {
+            return Vec::new();
+        };
+        fallback = a;
+        &fallback
     };
     struct FsReadVisitor<'a> {
         file: &'a SourceFile,
@@ -360,12 +373,23 @@ fn call_looks_like_thread_sleep(func: &Expr) -> bool {
 pub(super) fn detect_rust_syn_blockings(
     file: &SourceFile,
     crate_allow_blocking_fs: bool,
+    rust_ctx: Option<&crate::analysis::RustFileContext>,
 ) -> Vec<Finding> {
     if file.language != Language::Rust {
         return Vec::new();
     }
-    let Ok(ast) = syn::parse_file(&file.content) else {
-        return Vec::new();
+    let fallback;
+    let ast = if let Some(ctx) = rust_ctx {
+        let Ok(a) = &ctx.ast else {
+            return Vec::new();
+        };
+        a
+    } else {
+        let Ok(a) = syn::parse_file(&file.content) else {
+            return Vec::new();
+        };
+        fallback = a;
+        &fallback
     };
     let mut v = ScalingSynVisitor {
         file,
@@ -375,7 +399,7 @@ pub(super) fn detect_rust_syn_blockings(
         depth_test_mod: 0,
         crate_allow_blocking_fs,
     };
-    v.visit_file(&ast);
+    v.visit_file(ast);
     v.findings
 }
 

@@ -54,6 +54,13 @@ impl TokenMap {
                 spans.push((start, i.min(bytes.len()), NonCodeKind::Comment));
                 continue;
             }
+            // Character or byte-character literal: `'c'`, `'\"'`, `b'"'`, `b'\"'`
+            // Must be checked before normal `"` strings so `'"'` does not open an unclosed string!
+            if let Some(end) = try_scan_char_literal(bytes, i) {
+                spans.push((i, end, NonCodeKind::String));
+                i = end;
+                continue;
+            }
             // Raw string
             if let Some((end, span)) = try_scan_raw_string(bytes, i) {
                 spans.push((span.0, span.1, NonCodeKind::String));
@@ -133,6 +140,46 @@ fn merge_spans_kind(spans: &mut Vec<(usize, usize, NonCodeKind)>) {
     }
     out.push(cur);
     *spans = out;
+}
+
+/// Scans a Rust char or byte-char literal (`'"'`, `'\"'`, `b'"'`, `'\x7f'`, `'\u{1F600}'`) without
+/// matching lifetimes (`'a`, `'static`).
+fn try_scan_char_literal(bytes: &[u8], i: usize) -> Option<usize> {
+    let quote_idx = if bytes.get(i) == Some(&b'b') && bytes.get(i + 1) == Some(&b'\'') {
+        i + 1
+    } else if bytes.get(i) == Some(&b'\'') {
+        i
+    } else {
+        return None;
+    };
+    let after_open = quote_idx + 1;
+    if after_open >= bytes.len() {
+        return None;
+    }
+    if bytes[after_open] == b'\\' {
+        // Escaped char literal: find closing `'` within 10 bytes on the same line
+        let mut j = after_open + 2;
+        let max_end = (after_open + 12).min(bytes.len());
+        while j < max_end && bytes[j] != b'\n' {
+            if bytes[j] == b'\'' {
+                return Some(j + 1);
+            }
+            j += 1;
+        }
+        return None;
+    }
+    // Single UTF-8 scalar followed by `'`
+    let rest = std::str::from_utf8(&bytes[after_open..]).ok()?;
+    let ch = rest.chars().next()?;
+    if ch == '\'' || ch == '\n' || ch == '\r' {
+        return None;
+    }
+    let close_idx = after_open + ch.len_utf8();
+    if bytes.get(close_idx) == Some(&b'\'') {
+        Some(close_idx + 1)
+    } else {
+        None
+    }
 }
 
 /// `open_quote` points at the opening Rust `"` (normal or byte string payload).

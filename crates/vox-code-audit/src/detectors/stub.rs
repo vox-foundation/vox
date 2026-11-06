@@ -149,10 +149,18 @@ impl StubDetector {
         rust_ctx: Option<&crate::analysis::RustFileContext>,
     ) -> Vec<Finding> {
         let mut findings = Vec::new();
+        let path_str = file.path.to_string_lossy().replace('\\', "/");
+        let is_test_file = path_str.contains("/tests/")
+            || path_str.ends_with("/tests.rs")
+            || path_str.ends_with("_test.rs")
+            || path_str.ends_with("_tests.rs");
         for (i, line) in file.lines.iter().enumerate() {
             let line_num = i + 1;
 
             if line.contains("toestub-ignore(all)") || line.contains("toestub-ignore(stub)") {
+                continue;
+            }
+            if is_test_file || crate::rules::rust_byte_is_cfg_test(file, line_num, 0, rust_ctx) {
                 continue;
             }
 

@@ -3,7 +3,7 @@
 use anyhow::{Context, Result};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use vox_orchestrator_mcp::git_exec::{GitExec, GitExecError};
 
 fn classify(path: &str) -> Vec<&'static str> {
     let p = path.replace('\\', "/");
@@ -30,25 +30,15 @@ fn classify(path: &str) -> Vec<&'static str> {
 }
 
 fn git_names(root: &Path, base: &str) -> Result<Vec<String>> {
-    let out = Command::new("git")
-        .args([
-            "-C",
-            &root.to_string_lossy(),
-            "diff",
-            "--name-only",
-            "--no-renames",
-            base,
-        ])
-        .output()
-        .context("git diff")?;
-    if !out.status.success() {
-        let stderr = String::from_utf8_lossy(&out.stderr);
-        anyhow::bail!(
-            "git diff --name-only {base} failed (status={}): {stderr}",
-            out.status
-        );
-    }
-    Ok(String::from_utf8_lossy(&out.stdout)
+    let stdout =
+        match GitExec::new(root).run_blocking(&["diff", "--name-only", "--no-renames", base]) {
+            Ok(out) => out.stdout,
+            Err(GitExecError::NonZero { code, stderr, .. }) => {
+                anyhow::bail!("git diff --name-only {base} failed (status={code}): {stderr}");
+            }
+            Err(err) => return Err(err.into()),
+        };
+    Ok(stdout
         .lines()
         .filter(|l| !l.is_empty())
         .map(str::to_string)

@@ -189,7 +189,15 @@ impl ToestubEngine {
 
         // Apply rule filter if specified
         if let Some(ref filter) = config.rule_filter {
-            rules.retain(|r| filter.iter().any(|f| r.id().starts_with(f.as_str())));
+            rules.retain(|r| {
+                filter.iter().any(|f| {
+                    let pat = f.as_str();
+                    r.id().starts_with(pat)
+                        || r.id()
+                            .split_once('/')
+                            .is_some_and(|(_, sub)| sub.starts_with(pat))
+                })
+            });
         }
 
         Self { rules, config }
@@ -280,8 +288,17 @@ impl ToestubEngine {
 
         let scanner = Scanner::new(roots, &self.config.excludes, self.config.languages.clone());
         let files = scanner.scan();
-        let (workspace_crate_mod_refs, workspace_crate_words) =
-            collect_workspace_cross_refs(&files);
+        let needs_cross_refs = self.rules.iter().any(|r| {
+            matches!(
+                r.id(),
+                "skeleton/unwired" | "skeleton/reachability" | "unresolved-ref"
+            )
+        });
+        let (workspace_crate_mod_refs, workspace_crate_words) = if needs_cross_refs {
+            collect_workspace_cross_refs(&files)
+        } else {
+            (HashMap::new(), HashMap::new())
+        };
 
         let _run_ctx_guard =
             crate::run_context::RunContextGuard::new(crate::run_context::RunContext {
@@ -322,8 +339,17 @@ impl ToestubEngine {
         // set. Cross-crate split-brain emits Info findings; on a scoped scan the subset simply
         // won't contain two copies, so it can't false-positive. The suppression pass below
         // still applies to these findings.
-        all_findings
-            .extend(crate::detectors::cross_crate_dup::detect_cross_crate_dup_in_batch(&files));
+        let run_cross_crate_dup = self.config.min_severity <= Severity::Info
+            && self.config.rule_filter.as_ref().is_none_or(|prefixes| {
+                prefixes.is_empty()
+                    || prefixes
+                        .iter()
+                        .any(|p| "arch/cross-crate-dup".starts_with(p.as_str()))
+            });
+        if run_cross_crate_dup {
+            all_findings
+                .extend(crate::detectors::cross_crate_dup::detect_cross_crate_dup_in_batch(&files));
+        }
 
         let mut suppressions_applied: usize = 0;
         let mut suppression_counts_by_family: HashMap<String, usize> = HashMap::new();
@@ -535,5 +561,125 @@ fn confidence_label(c: crate::rules::FindingConfidence) -> &'static str {
         FindingConfidence::High => "high",
         FindingConfidence::Medium => "medium",
         FindingConfidence::Low => "low",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::rules::SourceFile;
+
+    /// Flags every line containing `FLAGME` at a fixed severity.
+    struct FlagMe(Severity);
+
+    impl DetectionRule for FlagMe {
+        fn id(&self) -> &'static str {
+            "test/flag-me"
+        }
+        fn name(&self) -> &'static str {
+            "Flag Me"
+        }
+        fn description(&self) -> &'static str {
+            "test-only rule"
+        }
+        fn severity(&self) -> Severity {
+            self.0
+        }
+        fn languages(&self) -> &[Language] {
+            &[Language::Rust]
+        }
+        fn detect(&self, file: &SourceFile, _ctx: Option<&RustFileContext>) -> Vec<Finding> {
+            file.lines
+                .iter()
+                .enumerate()
+                .filter(|(_, l)| l.contains("FLAGME"))
+                .map(|(i, _)| Finding {
+                    rule_id: self.id().to_string(),
+                    diagnostic_id: None,
+                    rule_name: self.name().to_string(),
+                    severity: self.0,
+                    file: file.path.clone(),
+                    line: i + 1,
+                    column: 0,
+                    message: "flagged".to_string(),
+                    suggestion: None,
+                    alternatives: Vec::new(),
+                    rationale: None,
+                    context: String::new(),
+                    confidence: None,
+                    evidence: None,
+                })
+                .collect()
+        }
+    }
+
+    fn engine(rule_severity: Severity) -> ToestubEngine {
+        ToestubEngine::with_rules(
+            ToestubConfig {
+                min_severity: Severity::Warning,
+                ..Default::default()
+            },
+            vec![Box::new(FlagMe(rule_severity))],
+        )
+    }
+
+    fn rust_file(src: &str) -> SourceFile {
+        SourceFile::new(PathBuf::from("a.rs"), src.to_string())
+    }
+
+    #[test]
+    fn check_source_file_reports_findings_at_their_line_and_filters_by_severity() {
+        let src = "fn a() {}\n// FLAGME\nfn b() {}\n";
+        let found = engine(Severity::Error).check_source_file(&rust_file(src));
+        assert_eq!(found.len(), 1);
+        assert_eq!(
+            (found[0].rule_id.as_str(), found[0].line),
+            ("test/flag-me", 2)
+        );
+
+        // Below `min_severity` → dropped; clean source → nothing.
+        assert!(
+            engine(Severity::Info)
+                .check_source_file(&rust_file(src))
+                .is_empty()
+        );
+        assert!(
+            engine(Severity::Error)
+                .check_source_file(&rust_file("fn a() {}\n"))
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn check_source_file_skips_rules_for_other_languages() {
+        let f = SourceFile::new(PathBuf::from("a.vox"), "// FLAGME\n".to_string());
+        assert!(engine(Severity::Error).check_source_file(&f).is_empty());
+    }
+
+    #[test]
+    fn should_fail_build_follows_run_mode_thresholds() {
+        let mut result = AnalysisResult {
+            files_scanned: 1,
+            rules_applied: 1,
+            findings: engine(Severity::Warning).check_source_file(&rust_file("// FLAGME\n")),
+            task_queue: TaskQueue::empty(),
+            rust_parse_failures: 0,
+            unresolved_ref_callee_counts: HashMap::new(),
+            suppressions_applied: 0,
+            suppression_counts_by_family: HashMap::new(),
+        };
+        // One Warning finding: only EnforceStrict fails.
+        assert!(!result.has_errors());
+        assert!(!result.should_fail_build(ToestubRunMode::Legacy));
+        assert!(!result.should_fail_build(ToestubRunMode::Audit));
+        assert!(!result.should_fail_build(ToestubRunMode::EnforceWarn));
+        assert!(result.should_fail_build(ToestubRunMode::EnforceStrict));
+        assert_eq!(result.summary().warning, 1);
+
+        result.findings[0].severity = Severity::Critical;
+        assert!(result.should_fail_build(ToestubRunMode::Legacy));
+        assert!(result.should_fail_build(ToestubRunMode::EnforceWarn));
+        assert!(!result.should_fail_build(ToestubRunMode::Audit));
+        assert_eq!(result.summary().critical, 1);
     }
 }

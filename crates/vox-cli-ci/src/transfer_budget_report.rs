@@ -6,8 +6,10 @@
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use vox_orchestrator::wire_compression::{compress_wire_snapshot, filter_snapshot_subagent_threads, ThreadFamilyNode};
 use std::path::{Path, PathBuf};
+use vox_orchestrator::wire_compression::{
+    ThreadFamilyNode, compress_wire_snapshot, filter_snapshot_subagent_threads,
+};
 
 pub const DEFAULT_OUT: &str = "contracts/reports/transfer-budget-ci.v1.json";
 
@@ -88,7 +90,6 @@ pub fn build_report_with_source(
     }
 }
 
-
 /// Live sample measured the same way as `vox-orchestrator-mcp/tests/transfer_budget.rs`.
 pub fn measure_live_sample() -> TransferBudgetSample {
     let mut nodes = Vec::new();
@@ -116,13 +117,17 @@ pub fn measure_live_sample() -> TransferBudgetSample {
         "event_store_command_output_deltas": 0,
     });
     let compressed = compress_wire_snapshot(&raw_snapshot);
-    let cold_bytes = serde_json::to_vec(&compressed).map(|v| v.len()).unwrap_or(usize::MAX);
+    let cold_bytes = serde_json::to_vec(&compressed)
+        .map(|v| v.len())
+        .unwrap_or(usize::MAX);
     let turn_delta = compress_wire_snapshot(&json!({
         "turn_id": "turn-42",
         "model_id": "anthropic/claude-sonnet-4-5",
         "body": "Concise assistant delta chunk.",
     }));
-    let turn_bytes = serde_json::to_vec(&turn_delta).map(|v| v.len()).unwrap_or(usize::MAX);
+    let turn_bytes = serde_json::to_vec(&turn_delta)
+        .map(|v| v.len())
+        .unwrap_or(usize::MAX);
     TransferBudgetSample {
         cold_open_snapshot_bytes: cold_bytes,
         cold_open_snapshot_rows: root_only.len(),

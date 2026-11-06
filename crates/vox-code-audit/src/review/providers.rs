@@ -207,11 +207,15 @@ pub fn probe_ollama(url: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     /// Env-free: a config that omits Ollama's url/model gets the serde
     /// defaults, and the url default is the config SSOT's value.
     #[test]
     fn ollama_config_defaults_come_from_the_ssot() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let p: ReviewProvider = serde_json::from_str(r#"{"provider":"ollama"}"#).unwrap();
         let ReviewProvider::Ollama { url, model } = p else {
             panic!("expected Ollama, got {p:?}");
@@ -223,8 +227,8 @@ mod tests {
     #[test]
     #[allow(unsafe_code)] // test-only env mutation (Rust 2024 set_var); see SAFETY below
     fn ollama_default_url_resolves_through_the_config_ssot() {
-        // SAFETY: single-threaded scope; the var is restored below and no
-        // other test in this crate reads OLLAMA_URL.
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        // SAFETY: serialized via ENV_LOCK; the var is restored below.
         unsafe { std::env::set_var("OLLAMA_URL", "http://ssot-probe:1234") };
         vox_config::snapshot::bump(&["OLLAMA_URL"]);
         let got = default_ollama_url();

@@ -6,10 +6,10 @@
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
+use vox_orchestrator_mcp::git_exec::{GitExec, GitExecError};
 
 const DEFAULT_OWNERS: &str = "contracts/ci/changed-path-owners.v1.yaml";
 
@@ -156,18 +156,31 @@ pub fn plan_for_files(owners: &PathOwnersFile, files: &[String]) -> ChangePlan {
     }
 }
 
-fn git_changed_files(root: &Path, base_ref: &str) -> Result<Vec<String>> {
-    let mb = Command::new("git")
-        .args(["-c", "core.autocrlf=false", "merge-base", "HEAD", base_ref])
-        .current_dir(root)
-        .output()
-        .context("git merge-base")?;
-    if !mb.status.success() {
-        bail!("check-changed: no merge base with {base_ref}. Fetch the remote or pass --base.");
+fn git_stdout(git: &GitExec, args: &[&str]) -> Result<String> {
+    match git.run_blocking(args) {
+        Ok(out) => Ok(out.stdout),
+        Err(GitExecError::NonZero { stderr, .. }) => {
+            bail!("{stderr}");
+        }
+        Err(err) => Err(err.into()),
     }
-    let base = String::from_utf8_lossy(&mb.stdout).trim().to_string();
-    let out = Command::new("git")
-        .args([
+}
+
+fn git_changed_files(root: &Path, base_ref: &str) -> Result<Vec<String>> {
+    let git = GitExec::new(root);
+    let mb = git_stdout(
+        &git,
+        &["-c", "core.autocrlf=false", "merge-base", "HEAD", base_ref],
+    )
+    .map_err(|_| {
+        anyhow::anyhow!(
+            "check-changed: no merge base with {base_ref}. Fetch the remote or pass --base."
+        )
+    })?;
+    let base = mb.trim().to_string();
+    let diff = git_stdout(
+        &git,
+        &[
             "-c",
             "core.autocrlf=false",
             "diff",
@@ -175,32 +188,25 @@ fn git_changed_files(root: &Path, base_ref: &str) -> Result<Vec<String>> {
             "--no-renames",
             &base,
             "--",
-        ])
-        .current_dir(root)
-        .output()
-        .context("git diff --name-only")?;
-    if !out.status.success() {
-        bail!("git diff failed: {}", String::from_utf8_lossy(&out.stderr));
-    }
-    let mut files: Vec<String> = String::from_utf8_lossy(&out.stdout)
+        ],
+    )
+    .context("git diff --name-only")?;
+    let mut files: Vec<String> = diff
         .lines()
         .filter(|l| !l.is_empty())
         .map(|s| s.to_string())
         .collect();
-    // Untracked
-    let untracked = Command::new("git")
-        .args([
+    if let Ok(untracked) = git_stdout(
+        &git,
+        &[
             "-c",
             "core.autocrlf=false",
             "ls-files",
             "--others",
             "--exclude-standard",
-        ])
-        .current_dir(root)
-        .output()
-        .context("git ls-files")?;
-    if untracked.status.success() {
-        for line in String::from_utf8_lossy(&untracked.stdout).lines() {
+        ],
+    ) {
+        for line in untracked.lines() {
             if !line.is_empty() {
                 files.push(line.to_string());
             }

@@ -1,11 +1,16 @@
 //! `vox ci crate-api-sync` — automated workspace crate API documentation generator (GEN-04).
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
 use anyhow::{Context, Result, anyhow};
 use cargo_metadata::MetadataCommand;
 use vox_bounded_fs::read_utf8_path_capped;
+use vox_doc_pipeline::pipeline::openwiki::compute_reverse_dependents;
+use vox_doc_pipeline::pipeline::openwiki_symbols::{
+    extract_crate_deep_symbols_from_dir, render_deep_crate_api_sections,
+};
 
 const WARNING_BLOCK: &str = r#"<!--
   ========================================================================
@@ -200,6 +205,20 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
         .collect();
     packages.sort_by(|a, b| a.name.cmp(&b.name));
 
+    let mut forward_deps_map: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for pkg in &packages {
+        let mut deps: Vec<String> = pkg
+            .dependencies
+            .iter()
+            .filter(|d| d.path.is_some() && d.name != "workspace-hack")
+            .map(|d| d.name.clone())
+            .collect();
+        deps.sort();
+        deps.dedup();
+        forward_deps_map.insert(pkg.name.to_string(), deps);
+    }
+    let reverse_deps_map = compute_reverse_dependents(&forward_deps_map);
+
     let mut index_entries = Vec::new();
 
     for pkg in &packages {
@@ -324,89 +343,49 @@ pub fn run(repo_root: &Path, write: bool) -> Result<()> {
             || !surface.functions.is_empty()
             || !surface.types.is_empty()
             || !surface.constants.is_empty();
-
         if has_public_items {
             doc.push_str("## Public API Surface\n\n");
-
-            if !surface.modules.is_empty() {
-                doc.push_str("### Modules\n\n");
-                doc.push_str("| Module | Description |\n");
-                doc.push_str("|---|---|\n");
-                for (name, desc) in &surface.modules {
-                    let d = if desc.is_empty() { "—" } else { desc };
-                    doc.push_str(&format!("| `{}` | {} |\n", name, escape_table_cell(d)));
+            for (heading, col, items) in [
+                ("Modules", "Module", &surface.modules),
+                ("Structs", "Struct", &surface.structs),
+                ("Enums", "Enum", &surface.enums),
+                ("Traits", "Trait", &surface.traits),
+                ("Functions", "Function", &surface.functions),
+                ("Types", "Type", &surface.types),
+                ("Constants", "Constant", &surface.constants),
+            ] {
+                if !items.is_empty() {
+                    doc.push_str(&format!(
+                        "### {heading}\n\n| {col} | Description |\n|---|---|\n"
+                    ));
+                    for (name, desc) in items {
+                        let d = if desc.is_empty() { "—" } else { desc };
+                        doc.push_str(&format!("| `{}` | {} |\n", name, escape_table_cell(d)));
+                    }
+                    doc.push('\n');
                 }
-                doc.push_str("\n");
-            }
-
-            if !surface.structs.is_empty() {
-                doc.push_str("### Structs\n\n");
-                doc.push_str("| Struct | Description |\n");
-                doc.push_str("|---|---|\n");
-                for (name, desc) in &surface.structs {
-                    let d = if desc.is_empty() { "—" } else { desc };
-                    doc.push_str(&format!("| `{}` | {} |\n", name, escape_table_cell(d)));
-                }
-                doc.push_str("\n");
-            }
-
-            if !surface.enums.is_empty() {
-                doc.push_str("### Enums\n\n");
-                doc.push_str("| Enum | Description |\n");
-                doc.push_str("|---|---|\n");
-                for (name, desc) in &surface.enums {
-                    let d = if desc.is_empty() { "—" } else { desc };
-                    doc.push_str(&format!("| `{}` | {} |\n", name, escape_table_cell(d)));
-                }
-                doc.push_str("\n");
-            }
-
-            if !surface.traits.is_empty() {
-                doc.push_str("### Traits\n\n");
-                doc.push_str("| Trait | Description |\n");
-                doc.push_str("|---|---|\n");
-                for (name, desc) in &surface.traits {
-                    let d = if desc.is_empty() { "—" } else { desc };
-                    doc.push_str(&format!("| `{}` | {} |\n", name, escape_table_cell(d)));
-                }
-                doc.push_str("\n");
-            }
-
-            if !surface.functions.is_empty() {
-                doc.push_str("### Functions\n\n");
-                doc.push_str("| Function | Description |\n");
-                doc.push_str("|---|---|\n");
-                for (name, desc) in &surface.functions {
-                    let d = if desc.is_empty() { "—" } else { desc };
-                    doc.push_str(&format!("| `{}` | {} |\n", name, escape_table_cell(d)));
-                }
-                doc.push_str("\n");
-            }
-
-            if !surface.types.is_empty() {
-                doc.push_str("### Types\n\n");
-                doc.push_str("| Type | Description |\n");
-                doc.push_str("|---|---|\n");
-                for (name, desc) in &surface.types {
-                    let d = if desc.is_empty() { "—" } else { desc };
-                    doc.push_str(&format!("| `{}` | {} |\n", name, escape_table_cell(d)));
-                }
-                doc.push_str("\n");
-            }
-
-            if !surface.constants.is_empty() {
-                doc.push_str("### Constants\n\n");
-                doc.push_str("| Constant | Description |\n");
-                doc.push_str("|---|---|\n");
-                for (name, desc) in &surface.constants {
-                    let d = if desc.is_empty() { "—" } else { desc };
-                    doc.push_str(&format!("| `{}` | {} |\n", name, escape_table_cell(d)));
-                }
-                doc.push_str("\n");
             }
         }
 
         let out_file = api_dir.join(format!("{}.generated.md", pkg_name));
+        let fwd_deps = forward_deps_map
+            .get(pkg_name.as_str())
+            .cloned()
+            .unwrap_or_default();
+        let rev_deps = reverse_deps_map
+            .get(pkg_name.as_str())
+            .cloned()
+            .unwrap_or_default();
+        let deep_symbols = extract_crate_deep_symbols_from_dir(
+            manifest_dir.as_std_path(),
+            &entry_file,
+            repo_root,
+            45,
+        );
+        let deep_sections =
+            render_deep_crate_api_sections(pkg_name, &fwd_deps, &rev_deps, &deep_symbols)
+                .map_err(|e| anyhow!(e))?;
+        doc.push_str(&deep_sections);
         write_or_verify_file(&out_file, &doc, write)?;
     }
 

@@ -127,9 +127,13 @@ impl ScalingSurfacesDetector {
         false
     }
 
-    fn detect_rust_syn(&self, file: &SourceFile) -> Vec<Finding> {
+    fn detect_rust_syn(
+        &self,
+        file: &SourceFile,
+        rust_ctx: Option<&RustFileContext>,
+    ) -> Vec<Finding> {
         let crate_allow = self.crate_allows_blocking_fs(&file.path);
-        scaling_support::detect_rust_syn_blockings(file, crate_allow)
+        scaling_support::detect_rust_syn_blockings(file, crate_allow, rust_ctx)
     }
 
     fn detect_rust_lines(
@@ -144,7 +148,9 @@ impl ScalingSurfacesDetector {
         let mut findings = Vec::new();
         let mut in_test_block = false;
         let test_attr = Regex::new(r"#\[(?:cfg\(test\)|test)\]").expect("valid");
-        let syn_ok = syn::parse_file(&file.content).is_ok();
+        let syn_ok = rust_ctx
+            .map(|c| c.ast.is_ok())
+            .unwrap_or_else(|| syn::parse_file(&file.content).is_ok());
 
         for (i, line) in file.lines.iter().enumerate() {
             let line_num = i + 1;
@@ -528,9 +534,9 @@ impl DetectionRule for ScalingSurfacesDetector {
         file: &SourceFile,
         rust: Option<&crate::analysis::RustFileContext>,
     ) -> Vec<Finding> {
-        let fs_reads = scaling_support::fs_unbounded_read_findings(file);
+        let fs_reads = scaling_support::fs_unbounded_read_findings(file, rust);
         let fs_lines: HashSet<usize> = fs_reads.iter().map(|f| f.line).collect();
-        let mut out = self.detect_rust_syn(file);
+        let mut out = self.detect_rust_syn(file, rust);
         out.extend(fs_reads);
         out.extend(self.detect_rust_lines(file, rust, &fs_lines));
         out

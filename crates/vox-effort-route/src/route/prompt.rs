@@ -14,7 +14,7 @@ pub fn allowed_forms(vox_capable: bool) -> Vec<ArtifactForm> {
         ArtifactForm::None,
     ];
     if vox_capable {
-        v.push(ArtifactForm::VoxScript);
+        v.push(ArtifactForm::VoxLang);
     }
     v
 }
@@ -178,8 +178,8 @@ mod tests {
 
     #[test]
     fn allowed_forms_gate_vox() {
-        assert!(!allowed_forms(false).contains(&ArtifactForm::VoxScript));
-        assert!(allowed_forms(true).contains(&ArtifactForm::VoxScript));
+        assert!(!allowed_forms(false).contains(&ArtifactForm::VoxLang));
+        assert!(allowed_forms(true).contains(&ArtifactForm::VoxLang));
     }
 
     #[test]
@@ -193,8 +193,8 @@ mod tests {
         assert!(user.contains("vox-config"));
         assert!(user.contains("aaa1111"));
         assert!(user.contains("bbb2222"));
-        // VoxScript excluded when not vox-capable.
-        assert!(!user.contains("VoxScript"));
+        // VoxLang excluded when not vox-capable.
+        assert!(!user.contains("VoxLang"));
     }
 
     #[test]

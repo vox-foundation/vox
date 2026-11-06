@@ -4,7 +4,7 @@
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use vox_orchestrator_mcp::git_exec::{GitExec, GitExecError};
 
 const DEFAULT_ALLOWLIST: &str = "contracts/ci/evidence-asset-allowlist.v1.yaml";
 
@@ -103,14 +103,12 @@ fn is_banned(path: &str, banned: &[String], allow: &[String]) -> bool {
 }
 
 fn git_ls_files(root: &Path) -> Result<Vec<String>> {
-    let out = Command::new("git")
-        .args(["-C", &root.to_string_lossy(), "ls-files", "-z"])
-        .output()
-        .context("git ls-files")?;
-    if !out.status.success() {
-        bail!("git ls-files failed");
-    }
-    Ok(String::from_utf8_lossy(&out.stdout)
+    let stdout = match GitExec::new(root).run_blocking(&["ls-files", "-z"]) {
+        Ok(out) => out.stdout,
+        Err(GitExecError::NonZero { .. }) => bail!("git ls-files failed"),
+        Err(err) => return Err(err.into()),
+    };
+    Ok(stdout
         .split('\0')
         .filter(|s| !s.is_empty())
         .map(str::to_string)

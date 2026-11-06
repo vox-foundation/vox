@@ -114,7 +114,7 @@ For `vox-dei`, `vox-ars`, and the merged-compiler crates, see the markdown text 
     fn detect(
         &self,
         file: &SourceFile,
-        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+        rust_ctx: Option<&crate::analysis::RustFileContext>,
     ) -> Vec<Finding> {
         let mut findings = Vec::new();
 
@@ -151,9 +151,20 @@ For `vox-dei`, `vox-ars`, and the merged-compiler crates, see the markdown text 
                 }
                 (Language::Rust, _) => {
                     if let Some(caps) = self.rust_pattern.captures(line) {
+                        let m = caps.get(0).expect("group 0");
+                        if crate::rules::rust_byte_is_non_code(file, line_num, m.start(), rust_ctx)
+                            || crate::rules::rust_byte_is_cfg_test(
+                                file,
+                                line_num,
+                                m.start(),
+                                rust_ctx,
+                            )
+                        {
+                            continue;
+                        }
                         let crate_match = caps.get(1).map(|m| m.as_str()).unwrap_or("?");
                         (
-                            Some(caps.get(0).expect("group 0")),
+                            Some(m),
                             format!(
                                 "Retired crate reference `vox_{crate_match}` — use `{}` instead.",
                                 Self::replacement_for(crate_match)

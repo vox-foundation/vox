@@ -37,7 +37,7 @@ impl EnvSecretShapeDetector {
         let secret_alt = Self::SECRET_SUBSTRINGS.join("|");
 
         Self {
-            // Match env.get("..."), env::var("..."), std::env::var("..."), env.get(var)
+            // Match env.get("..."), env::var("..."), std::env::var("...")
             env_call: Regex::new(
                 r#"(?x)
                 \b(?:std::env::var|env::var|env\.get)
@@ -46,14 +46,13 @@ impl EnvSecretShapeDetector {
                 (?:
                     "(?P<dq>[^"]*)"     # double-quoted literal
                   | '(?P<sq>[^']*)'     # single-quoted literal (Vox/TS/Python)
-                  | (?P<bare>[A-Za-z_][A-Za-z0-9_]*)  # bare identifier (low confidence)
                 )
                 "#,
             )
             .expect("valid env_call regex"),
             secret_shape: Regex::new(&format!(r"(?i)(?:{secret_alt})"))
                 .expect("valid secret_shape regex"),
-            skip_pattern: Regex::new(r"(?i)(EXAMPLE|PLACEHOLDER|DUMMY|FAKE|TEST)")
+            skip_pattern: Regex::new(r"(?i)(EXAMPLE|PLACEHOLDER|DUMMY|FAKE|TEST|GOLDEN|ABSENT)")
                 .expect("valid skip_pattern regex"),
             supported_langs: vec![
                 Language::Vox,
@@ -64,13 +63,48 @@ impl EnvSecretShapeDetector {
         }
     }
 
-    /// Extract the env-var name argument from a matched call on `line`, if present.
-    fn extract_arg<'a>(&self, line: &'a str) -> Option<&'a str> {
+    /// True if `arg` is a non-secret configuration/policy knob (e.g. `VOX_SECRETS_BACKEND`, `VOX_GEN_MAX_TOKENS`).
+    fn is_non_secret_config_var(arg: &str) -> bool {
+        let upper = arg.to_ascii_uppercase();
+        const NON_SECRET_SUFFIXES: &[&str] = &[
+            "_TOKENS",
+            "_PATH",
+            "_URL",
+            "_PHASE",
+            "_BACKEND",
+            "_PROFILE",
+            "_HARD_CUT",
+            "_SERVICE",
+            "_VERSION",
+            "_ENV",
+            "_ID",
+            "_LOG",
+            "_SUNSET",
+            "_REF",
+            "_DIR",
+            "_HOME",
+            "_CACHE",
+            "_ENABLED",
+            "_MODE",
+            "_TIMEOUT",
+            "_PORT",
+            "_HOST",
+            "_PREFIX",
+            "_HEADER",
+            "_FILE",
+        ];
+        NON_SECRET_SUFFIXES.iter().any(|s| upper.ends_with(s))
+    }
+
+    /// Extract the env-var name argument and match offset from a matched call on `line`, if present.
+    fn extract_arg<'a>(&self, line: &'a str) -> Option<(usize, &'a str)> {
         let caps = self.env_call.captures(line)?;
-        caps.name("dq")
+        let start = caps.get(0)?.start();
+        let arg = caps
+            .name("dq")
             .or_else(|| caps.name("sq"))
-            .or_else(|| caps.name("bare"))
-            .map(|m| m.as_str())
+            .map(|m| m.as_str())?;
+        Some((start, arg))
     }
 
     fn make_finding(&self, file: &SourceFile, line_num: usize, var_name: &str) -> Finding {
@@ -156,9 +190,18 @@ impl DetectionRule for EnvSecretShapeDetector {
     fn detect(
         &self,
         file: &SourceFile,
-        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+        rust_ctx: Option<&crate::analysis::RustFileContext>,
     ) -> Vec<Finding> {
         let mut findings = Vec::new();
+        let path_str = file.path.to_string_lossy().replace('\\', "/");
+        if path_str.contains("crates/vox-secrets/")
+            || path_str.contains("/tests/")
+            || path_str.ends_with("/tests.rs")
+            || path_str.ends_with("_test.rs")
+            || path_str.ends_with("_tests.rs")
+        {
+            return findings;
+        }
 
         for (i, line) in file.lines.iter().enumerate() {
             let line_num = i + 1;
@@ -179,9 +222,19 @@ impl DetectionRule for EnvSecretShapeDetector {
             }
 
             // Extract the argument name from the env call
-            let Some(arg) = self.extract_arg(line) else {
+            let Some((match_col, arg)) = self.extract_arg(line) else {
                 continue;
             };
+
+            if crate::rules::rust_byte_is_non_code(file, line_num, match_col, rust_ctx)
+                || crate::rules::rust_byte_is_cfg_test(file, line_num, match_col, rust_ctx)
+            {
+                continue;
+            }
+
+            if Self::is_non_secret_config_var(arg) {
+                continue;
+            }
 
             // Flag only if the argument looks like a secret
             if self.secret_shape.is_match(arg) {

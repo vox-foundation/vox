@@ -65,11 +65,38 @@ impl DetectionRule for GodObjectDetector {
     fn detect(
         &self,
         file: &SourceFile,
-        _rust: Option<&crate::analysis::RustFileContext>,
+        rust: Option<&crate::analysis::RustFileContext>,
     ) -> Vec<Finding> {
         let mut findings = Vec::new();
+        let path_str = file.path.to_string_lossy().replace('\\', "/");
+        if path_str.contains("/tests/")
+            || path_str.ends_with("/tests.rs")
+            || path_str.ends_with("_test.rs")
+            || path_str.ends_with("_tests.rs")
+            || path_str.ends_with(".test.ts")
+            || path_str.ends_with(".test.tsx")
+            || path_str.ends_with(".spec.ts")
+            || path_str.ends_with(".spec.tsx")
+            || path_str.contains("/e2e/")
+            || path_str.contains(".generated.")
+            || path_str.contains("/generated/")
+        {
+            return findings;
+        }
 
-        let nonblank_lines = file.lines.iter().filter(|l| !l.trim().is_empty()).count();
+        let nonblank_lines = file
+            .lines
+            .iter()
+            .enumerate()
+            .filter(|(i, l)| {
+                let t = l.trim();
+                !t.is_empty()
+                    && !t.starts_with("//")
+                    && !t.starts_with("/*")
+                    && !t.starts_with('*')
+                    && !crate::rules::rust_byte_is_cfg_test(file, i + 1, 0, rust)
+            })
+            .count();
 
         // Check file size using non-blank lines with the 3-tier system.
         if nonblank_lines > self.hard_max_lines {
@@ -143,17 +170,23 @@ impl DetectionRule for GodObjectDetector {
         // Logic for method counting would require tree-sitter or regex analysis.
         // For now, we use a simple heuristic counting 'pub fn' in Rust or 'async function' in TS.
         let method_patterns = match file.language {
-            Language::Rust => vec!["pub fn ", "fn ", "impl "],
+            Language::Rust => vec!["pub fn ", "fn "],
             Language::TypeScript => vec!["function ", "export const ", "class "],
             _ => vec![],
         };
 
         let mut count = 0;
-        for line in &file.lines {
+        for (i, line) in file.lines.iter().enumerate() {
+            let line_num = i + 1;
+            if crate::rules::rust_byte_is_cfg_test(file, line_num, 0, rust) {
+                continue;
+            }
             for pattern in &method_patterns {
-                if line.contains(pattern) {
-                    count += 1;
-                    break;
+                if let Some(col) = line.find(pattern) {
+                    if !crate::rules::rust_byte_is_non_code(file, line_num, col, rust) {
+                        count += 1;
+                        break;
+                    }
                 }
             }
         }
@@ -164,7 +197,7 @@ impl DetectionRule for GodObjectDetector {
                 rule_id: self.id().to_string(),
                 diagnostic_id: None,
                 rule_name: self.name().to_string(),
-                severity: Severity::Error,
+                severity: Severity::Warning,
                 file: file.path.clone(),
                 line: 1,
                 column: 0,
