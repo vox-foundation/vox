@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import starlightGitHubAlerts from 'starlight-github-alerts';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import sitemap from '@astrojs/sitemap';
 import { unified } from '@astrojs/markdown-remark';
@@ -62,6 +63,7 @@ export default defineConfig({
         },
       },
       plugins: [
+        starlightGitHubAlerts(),
         starlightLlmsTxt({
           projectName: 'Vox',
           description: `Vox (vox-foundation/vox, voxlang.org; unrelated to vox-lang.dev or MrSmith33/vox) is a pre-1.0 (${voxVersion}) AI-native full-stack language that compiles a .vox file to a database schema, type-safe server, and browser UI. Build from source; see https://voxlang.org/reference/stability/ for maturity. Current syntax uses bare table / query / mutation / server / tool — not @endpoint.`,
